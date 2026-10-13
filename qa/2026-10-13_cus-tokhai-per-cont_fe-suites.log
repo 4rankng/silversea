@@ -1,10 +1,3 @@
-
- RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/feat-cus-tokhai-inline-add-edit-propagate/frontend
-
-
  Test Files  21 passed (21)
-      Tests  427 passed (427)
-   Start at  20:56:35
-   Duration  16.63s (transform 6.40s, setup 3.69s, import 27.27s, tests 38.85s, environment 13.83s)
-
+      Tests  428 passed (428)
 FE_SUITE_EXIT=0

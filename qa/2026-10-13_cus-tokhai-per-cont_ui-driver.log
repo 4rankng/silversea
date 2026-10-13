@@ -57,3 +57,30 @@ $ docker exec ss-tokhai-qa-db psql -U postgres -d silversea -c "select sc.id, sc
  39 | MSCU2900760      | QA-TK-41-B         |       5
 (2 rows)
 # Propagation + divergence persisted per container; lot version advanced by the writes.
+
+=== run 2026-10-13T13:13:19.501Z ===
+2026-10-13T13:13:19.616Z login cus: OK
+2026-10-13T13:13:22.734Z step1 cells: ["Chưa có tờ khai","Chưa có tờ khai"]
+2026-10-13T13:13:22.786Z shot 01-before
+2026-10-13T13:13:23.342Z shot 02-editor-add
+2026-10-13T13:13:24.259Z step2 cells: ["QA-TK-41-A","Chưa có tờ khai"]
+2026-10-13T13:13:24.306Z shot 03-after-add
+2026-10-13T13:13:25.662Z step3 cells after copy: ["QA-TK-41-A","QA-TK-41-A"]
+2026-10-13T13:13:25.663Z step3 toast visible: true
+2026-10-13T13:13:25.767Z shot 04-after-copy
+2026-10-13T13:13:26.352Z shot 05-editor-diverge
+2026-10-13T13:13:27.266Z step4 cells after divergence: ["QA-TK-41-A","QA-TK-41-B"]
+2026-10-13T13:13:27.330Z shot 06-after-divergence
+2026-10-13T13:13:29.451Z step5 copy affordance absent: true; seeded field: 102250310877
+2026-10-13T13:13:29.511Z shot 07-single-cont-lot
+2026-10-13T13:13:31.513Z step6 overview workboard shows both numbers: true
+2026-10-13T13:13:31.558Z shot 08-overview-union
+2026-10-13T13:13:31.558Z ALL STEPS PASSED
+ id | container_number | declaration_number | version 
+----+------------------+--------------------+---------
+ 38 | BEAU6792900      | QA-TK-41-A         |       4
+ 39 | MSCU2900760      | QA-TK-41-B         |       4
+(2 rows)
+
+=== re-drive on post-review code (advisory lock + copy-button gate + returning-check) ===
+ALL STEPS PASSED — same evidence chain as above; DB rows identical.

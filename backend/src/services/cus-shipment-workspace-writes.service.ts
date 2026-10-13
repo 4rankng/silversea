@@ -66,9 +66,15 @@ function requireContainerDeclarationWriter(actor: AuthUser) {
 /** A per-container tờ khai number must not belong to another active lot.
  * Two stores hold the law: the container attribute itself, and the
  * shipment_declarations entity (globally-unique numbers). Same-lot repeats
- * are legal — they are the copy affordance's whole point. */
+ * are legal — they are the copy affordance's whole point. The value is
+ * advisory-locked first (review M1, card 261013200312): the two writers that
+ * could race hold FOR UPDATE on only THEIR OWN lot's rows, so a plain
+ * read-check would let both commit the same number — the entity half is
+ * DB-backstopped by 0060's unique index, the attribute half is not, and this
+ * lock is the serializer (same pattern as the carrier-name/plate law). */
 async function assertContainerDeclarationNumberAvailable(tx: Tx, shipmentId: number, declarationNumber: string) {
   const trimmed = declarationNumber.trim();
+  await lockApplicationOwnedUniqueness(tx, 'cus-container-declaration', [trimmed.toLowerCase()]);
   const [containerHit] = await tx.select({ shipmentId: s.shipmentContainers.shipmentId })
     .from(s.shipmentContainers)
     .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
@@ -1214,15 +1220,23 @@ export async function copyCusShipmentContainerDeclaration(args: {
 
     // A document attribute never re-anchors scheduling or freight pricing —
     // only the lot version advances once so concurrent editors reconcile.
+    // The returning-check mirrors projectShipmentScheduleAndVersion: the
+    // version predicate can only miss if the row changed under us, which the
+    // shipment FOR UPDATE held since lockShipmentForContainerSetWrite makes
+    // unreachable — checked anyway so a future refactor cannot silent-drop
+    // the bump.
     const shipmentVersion = shipment.version + 1;
-    await tx.update(s.shipments).set({
+    const [versionedShipment] = await tx.update(s.shipments).set({
       version: shipmentVersion,
       updatedAt: now,
       updatedBy: args.actor.userId,
     }).where(and(
       eq(s.shipments.id, shipment.id),
       eq(s.shipments.version, shipment.version),
-    ));
+    )).returning({ id: s.shipments.id });
+    if (!versionedShipment) {
+      throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại và thử lại.');
+    }
 
     return { updatedContainerIds: targetIds.map((row) => row.id), shipmentVersion };
   };

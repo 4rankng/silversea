@@ -478,7 +478,11 @@ function InlineEditor({
               possible afterwards. Mirrors the reviewed appointment-copy
               affordance on the sibling CUS drawer. */}
           <label><span>Số tờ khai</span><input value={declarationNumber} onChange={(event) => setDeclarationNumber(event.target.value)} maxLength={50} disabled={saving || declarationAccess.mode === 'READ_ONLY'} title={declarationAccess.mode === 'READ_ONLY' ? declarationAccess.reason : undefined} /></label>
-          {declarationNumber.trim() && emptyDeclarationSiblingCount > 0 && declarationAccess.mode !== 'READ_ONLY' && (
+          {/* Review M2 (card 261013200312): the server copies the PERSISTED
+              number, so the button only shows when the input still matches it
+              — a retyped-but-unsaved value must never look copyable (the copy
+              would silently fan out the old number). */}
+          {declarationNumber.trim() === (row.declarationNumber ?? '').trim() && declarationNumber.trim() && emptyDeclarationSiblingCount > 0 && declarationAccess.mode !== 'READ_ONLY' && (
             <div className="shipment-container-ledger__declaration-copy">
               <button
                 type="button"

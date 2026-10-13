@@ -1031,4 +1031,21 @@ describe('documents editor per-container tờ khai (card 261013200312)', () => {
     expect(screen.getAllByText('TK-DIVERGED-2')).toHaveLength(1);
     expect(screen.queryByText('Chưa có tờ khai')).toBeNull();
   });
+
+  // Review M2 (card 261013200312): the server copies the PERSISTED number —
+  // a retyped-but-unsaved value must never look copyable, or the copy would
+  // silently fan out the OLD number with a success toast.
+  it('hides the copy affordance while the input differs from the saved number', () => {
+    const withEmptySibling = declarationDetail({
+      lines: [baseLine(), { ...baseLine(), id: 12, ordinal: 2, containerNumber: 'MSKU7654321' }],
+    });
+    renderLedger('documents', baseRow({ declarationNumber: 'TK-SAVED' }), withEmptySibling);
+    expect(screen.getByRole('button', { name: /Copy số tờ khai sang 1 cont chưa có số/ })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-RETYPED' } });
+    expect(screen.queryByRole('button', { name: /Copy số tờ khai/ })).toBeNull();
+    // Restore the saved value — the affordance comes back (still one save away
+    // from being copyable truthfully).
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-SAVED' } });
+    expect(screen.getByRole('button', { name: /Copy số tờ khai sang 1 cont chưa có số/ })).toBeTruthy();
+  });
 });
