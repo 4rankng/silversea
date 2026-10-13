@@ -699,7 +699,11 @@ export function ShipmentCreateWorkspace() {
                     FCL-vessel fields (hạ container / trả container) in never
                     rendering here. */}
                 <div data-field-id="shipment-expected-delivery">
-                  <DateField id="shipment-expected-delivery" label="Ngày giao dự kiến" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} />
+                  {/* Helpdesk 2026-10-13 (ops Tiếp Vu): LCL copy is "Ngày giao
+                      hàng" — this field renders only on the LCL path, so the
+                      rename is unconditional; id + expectedDeliveryDate wire
+                      name are unchanged. */}
+                  <DateField id="shipment-expected-delivery" label="Ngày giao hàng" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} />
                 </div>
               </div>
             )}

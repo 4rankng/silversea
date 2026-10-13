@@ -84,7 +84,7 @@
   2. Chọn Khách hàng, nhập Booking: `BK-TEST-LCL-01`, B/L: `BL-TEST-LCL-01`.
   3. Chọn Tuyến đường.
   4. Nhập quy cách hàng lẻ: loại bao bì, số lượng, khối lượng (kg), CBM.
-  5. Nhập kho lấy hàng, ngày giao dự kiến, ghi chú.
+  5. Nhập kho lấy hàng, ngày giao hàng, ghi chú.
   6. Bấm "Tạo lô hàng".
 - **Kết quả mong đợi (Pass):**
   - Lô LCL tạo thành công với đầy đủ trường hàng lẻ.

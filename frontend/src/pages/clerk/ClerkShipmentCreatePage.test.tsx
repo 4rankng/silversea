@@ -1080,6 +1080,25 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect((packageType as HTMLInputElement).value).toBe('Thùng carton 5 lớp');
   });
 
+  // Helpdesk 2026-10-13 (ops Tiếp Vu): "PHẦN HÀNG LẺ: CHỖ NGÀY GIAO DỰ KIẾN
+  // THAY LUÔN LÀ NGÀY GIAO HÀNG". The shipment-level delivery date only
+  // renders on the LCL path, so the rename is unconditional — the field id
+  // and the expectedDeliveryDate wire name stay put. OpsOrdersPage's own
+  // day-plan filter keeps its separate "Ngày giao dự kiến" label.
+  it('labels the LCL-only delivery date "Ngày giao hàng"', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    // FCL never shows the shipment-level delivery date.
+    expect(screen.queryByLabelText('Ngày giao hàng')).toBeNull();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await screen.findByRole('heading', { name: 'Lịch & ghi chú' });
+
+    const deliveryDate = screen.getByLabelText('Ngày giao hàng');
+    expect((deliveryDate as HTMLInputElement).id).toBe('shipment-expected-delivery');
+    expect(screen.queryByLabelText('Ngày giao dự kiến')).toBeNull();
+  });
+
   // TC-CUS-CREATE-020: Loại container gets a "+ Thêm" sibling so CUS can
   // extend the container-type catalog inline from the create-shipment form
   // without bouncing out to /config/container-types.
