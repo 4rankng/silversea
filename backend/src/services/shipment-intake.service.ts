@@ -761,9 +761,14 @@ async function assertIntakeReady(
   if (shipment.cargoMode === CARGO_MODE.LCL) {
     if (containers.length > 0) throw new ApiError(409, 'Hàng lẻ không được có container giả.');
     if (!shipment.expectedDeliveryDate) throw new ApiError(409, 'Hàng lẻ cần ngày giao dự kiến.');
+    // Helpdesk 2026-10-13 (ops Tiếp Vu): "hàng lẻ: phần thể tích (cbm) k bắt
+    // buộc cần nhập" — CBM is optional for LCL end to end (create schema is
+    // nullable; a blank round-trips as null). Intake keeps demanding quy
+    // cách, số lượng and trọng lượng; a stored CBM, when present, is already
+    // non-negative by the fixed-decimal column/schemas.
     if (!shipment.packageType?.trim() || shipment.packageCount == null || shipment.packageCount < 1
-      || Number(shipment.cargoWeightKg ?? 0) <= 0 || Number(shipment.cargoVolumeCbm ?? 0) <= 0) {
-      throw new ApiError(409, 'Hàng lẻ cần đủ quy cách, số lượng, trọng lượng và thể tích.');
+      || Number(shipment.cargoWeightKg ?? 0) <= 0) {
+      throw new ApiError(409, 'Hàng lẻ cần đủ quy cách, số lượng và trọng lượng.');
     }
     return;
   }

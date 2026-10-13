@@ -1099,6 +1099,32 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.queryByLabelText('Ngày giao dự kiến')).toBeNull();
   });
 
+  // Helpdesk 2026-10-13 (ops Tiếp Vu): "hàng lẻ: phần thể tích (cbm) k bắt
+  // buộc cần nhập" — leaving Thể tích (CBM) blank must still create the LCL
+  // lot, and the wire payload carries cargoVolumeCbm: null (never 0).
+  it('creates an LCL lot with CBM left blank, sending cargoVolumeCbm: null', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
+    fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BL-LCL-NO-CBM' } });
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
+    await choose('Tuyến đường', '11');
+    await choose('Kho lấy hàng', '42');
+    fireEvent.change(screen.getByLabelText('Quy cách đóng gói'), { target: { value: 'Pallet' } });
+    fireEvent.change(screen.getByLabelText('Số lượng'), { target: { value: '8' } });
+    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '1200' } });
+    // Thể tích (CBM) stays blank on purpose.
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ cargoMode: 'LCL', cargoVolumeCbm: null }),
+      expect.any(String),
+    ));
+  });
+
   // TC-CUS-CREATE-020: Loại container gets a "+ Thêm" sibling so CUS can
   // extend the container-type catalog inline from the create-shipment form
   // without bouncing out to /config/container-types.

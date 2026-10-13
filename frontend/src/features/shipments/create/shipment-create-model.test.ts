@@ -213,6 +213,40 @@ describe('shipment create model', () => {
     expect(buildShipmentContainerPayload(form, [container])).toEqual([]);
   });
 
+  // Helpdesk 2026-10-13 (ops Tiếp Vu): "hàng lẻ: phần thể tích (cbm) k bắt
+  // buộc cần nhập" — CBM is optional on the LCL create path. A blank (or
+  // whitespace-only) volume raises no validation issue and round-trips as
+  // null, never 0; an entered value must still be > 0 (zero-rejection pin
+  // in the test below stays).
+  it('treats LCL cargo volume (CBM) as optional and round-trips blank as null', () => {
+    const lclWithoutCbm = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      cargoMode: 'LCL' as const,
+      blNumber: 'BL-LCL-NO-CBM',
+      tradeDirection: 'IMPORT' as const,
+      cargoTypeId: '32',
+      pickupWarehouseSiteId: '42',
+      packageType: 'Pallet',
+      packageCount: '8',
+      cargoWeightKg: '1200',
+      cargoVolumeCbm: '',
+      expectedDeliveryDate: '2026-08-14',
+    };
+
+    const readiness = getShipmentCreateReadiness(lclWithoutCbm, []);
+    expect(readiness.issues).toEqual([]);
+    expect(readiness.dispatchReady).toBe(true);
+    expect(buildShipmentRootPayload(lclWithoutCbm, [], []).cargoVolumeCbm).toBeNull();
+
+    // Whitespace-only is blank too — it must never reach the wire as a
+    // string the backend would reject with 400 'Thể tích không hợp lệ.'.
+    const whitespace = { ...lclWithoutCbm, cargoVolumeCbm: '   ' };
+    expect(getShipmentCreateReadiness(whitespace, []).issues).toEqual([]);
+    expect(buildShipmentRootPayload(whitespace, [], []).cargoVolumeCbm).toBeNull();
+  });
+
   it('keeps the shipping line optional once each FCL container has its factory', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,

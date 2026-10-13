@@ -229,7 +229,9 @@ export function getShipmentCreateReadiness(
     if (!form.packageType) issues.push(issue('shipment-package-type', 'Nhập quy cách đóng gói.', 'cargo'));
     if (!form.packageCount || Number(form.packageCount) < 1) issues.push(issue('shipment-package-count', 'Nhập số lượng kiện lớn hơn 0.', 'cargo'));
     if (!form.cargoWeightKg || Number(form.cargoWeightKg) <= 0) issues.push(issue('shipment-cargo-weight', 'Nhập trọng lượng lớn hơn 0.', 'cargo'));
-    if (!form.cargoVolumeCbm || Number(form.cargoVolumeCbm) <= 0) issues.push(issue('shipment-cargo-volume', 'Nhập thể tích lớn hơn 0.', 'cargo'));
+    // Helpdesk 2026-10-13 (ops Tiếp Vu): CBM is optional for LCL — blank (or
+    // whitespace-only) is not an issue; an entered value must still be > 0.
+    if (form.cargoVolumeCbm.trim() && Number(form.cargoVolumeCbm) <= 0) issues.push(issue('shipment-cargo-volume', 'Nhập thể tích lớn hơn 0.', 'cargo'));
     if (!form.expectedDeliveryDate) issues.push(issue('shipment-expected-delivery', 'Chọn ngày giao hàng.', 'schedule'));
   }
 
@@ -331,7 +333,7 @@ export function buildShipmentRootPayload(
     // only LCL retains a shipment-level delivery date.
     expectedDeliveryDate: form.cargoMode === 'LCL' ? form.expectedDeliveryDate || null : undefined,
     cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
-    cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm || null : null,
+    cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm.trim() || null : null,
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,
     packageType: form.cargoMode === 'LCL' ? form.packageType || null : null,
     driverNotes: [
