@@ -703,7 +703,15 @@ export function ShipmentCreateWorkspace() {
                       hàng" — this field renders only on the LCL path, so the
                       rename is unconditional; id + expectedDeliveryDate wire
                       name are unchanged. */}
-                  <DateField id="shipment-expected-delivery" label="Ngày giao hàng" value={form.expectedDeliveryDate} onChange={(event) => update('expectedDeliveryDate', event.target.value)} disabled={Boolean(saving)} error={issueByField.get('shipment-expected-delivery')} />
+                  <DateField
+                    id="shipment-expected-delivery"
+                    label="Ngày giao hàng"
+                    requiredMark
+                    value={form.expectedDeliveryDate}
+                    onChange={(event) => update('expectedDeliveryDate', event.target.value)}
+                    disabled={Boolean(saving)}
+                    error={issueByField.get('shipment-expected-delivery')}
+                  />
                 </div>
               </div>
             )}

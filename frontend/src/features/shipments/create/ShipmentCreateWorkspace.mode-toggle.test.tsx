@@ -129,13 +129,15 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    const weight = screen.getByLabelText('Trọng lượng (kg)');
+    // QA1-007: the field now carries the required mark, so the label match
+    // must be a prefix regex rather than the exact label text.
+    const weight = screen.getByLabelText(/Trọng lượng \(kg\)/);
     fireEvent.change(weight, { target: { value: '1200' } });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
     await waitFor(() => expect(screen.queryByText('Chuyển loại hàng?')).not.toBeInTheDocument());
-    expect(screen.getByLabelText('Trọng lượng (kg)')).toHaveValue(1200);
+    expect(screen.getByLabelText(/Trọng lượng \(kg\)/)).toHaveValue(1200);
     expect(screen.getByRole('radio', { name: /Hàng lẻ/ })).toBeChecked();
   });
 

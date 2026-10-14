@@ -53,6 +53,11 @@ interface UDateFieldProps {
   onChange: (event: HtmlInputEvent) => void;
   disabled?: boolean;
   required?: boolean;
+  /** QA1-007: visual-only required mark on the label — deliberately separate
+   *  from `required`, which would set a native constraint and trip the
+   *  workspace's data-date-input :invalid submit gate before the app-owned
+   *  summary renders. */
+  requiredMark?: boolean;
   error?: string;
   min?: string | number;
   hideLabel?: boolean;
@@ -71,6 +76,7 @@ export function UDateField({
   onChange,
   disabled,
   required,
+  requiredMark,
   error,
   min,
   hideLabel,
@@ -85,6 +91,7 @@ export function UDateField({
       onChange={(next) => onChange(asEvent(next))}
       isDisabled={disabled}
       isRequired={required}
+      requiredMark={requiredMark}
       isInvalid={Boolean(error)}
       hint={error}
       inputProps={{ min }}

@@ -4,6 +4,9 @@ import { Label } from '@/components/untitled-ui/base/input/label';
 import { formatDateInput as formatDate, useBufferedDateTextValue } from '../hooks/useBufferedDateTextValue';
 import { DatePickerSurface } from './DatePickerSurface';
 import { DateTimeSegments } from './DateTimeSegments';
+// The requiredMark span reuses the shared ds marker; guarantee the rule is
+// loaded wherever the buffered date input renders.
+import './TextField.css';
 import './BufferedUuiDateInput.css';
 
 export interface BufferedUuiDateInputProps
@@ -16,6 +19,11 @@ export interface BufferedUuiDateInputProps
   onChange: (value: string) => void;
   /** Mark the field as required. */
   isRequired?: boolean;
+  /** QA1-007: visual-only required mark on the label. Deliberately separate
+   *  from `isRequired`, which sets a native constraint on the date segments —
+   *  surfaces that route submits through a data-date-input :invalid gate must
+   *  keep the constraint off and mark the label instead. */
+  requiredMark?: boolean;
   /** Mark the field as invalid. */
   isInvalid?: boolean;
   /** Disable the input. */
@@ -48,6 +56,7 @@ export function BufferedUuiDateInput({
   value,
   onChange,
   isRequired,
+  requiredMark,
   isInvalid,
   isDisabled,
   size = 'md',
@@ -174,7 +183,7 @@ export function BufferedUuiDateInput({
     >
       {/* A prefix field keeps the label for its accessibility name only: the
           visible cue is the prefix, so rendering both would say "Từ ngày Từ". */}
-      {label && <Label className={fieldPrefix != null ? 'sr-only' : undefined} isRequired={required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}</Label>}
+      {label && <Label className={fieldPrefix != null ? 'sr-only' : undefined} isRequired={required || requiredMark} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}{requiredMark && <span className="ds-field__required" aria-hidden="true"> *</span>}</Label>}
       {fieldPrefix != null ? <div data-date-boundary data-uui-control="date" data-control-size={size}>
         <span className="uui-date-prefix" aria-hidden="true">{fieldPrefix}</span>
         {segments}

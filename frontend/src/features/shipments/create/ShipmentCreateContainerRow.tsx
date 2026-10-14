@@ -167,7 +167,7 @@ export function ShipmentCreateContainerRow({
         />
       </ShipmentContainerCell>
       <ShipmentContainerCell
-        label="Nhà máy *"
+        label={isAdHoc ? 'Nhà máy' : 'Nhà máy *'}
         value={factoryName}
         placeholder={isAdHoc ? 'Chọn hoặc gõ tên nhà máy' : 'Chọn nhà máy'}
         fieldId={`container-${row.key}-factory`}
@@ -191,7 +191,7 @@ export function ShipmentCreateContainerRow({
           id={`container-${row.key}-factory`}
           label="Nhà máy"
           hideLabel
-          required
+          required={!isAdHoc}
           value={row.operationalSiteId}
           onChange={(value) => selectContainerFactory(row.key, value)}
           options={operationalSites.map((site) => ({
@@ -221,7 +221,7 @@ export function ShipmentCreateContainerRow({
         onClose={() => setFactoryDetailOpen(false)}
       />
       <ShipmentContainerCell
-        label="Tuyến đường *"
+        label={isAdHoc ? 'Tuyến đường' : 'Tuyến đường *'}
         value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name || (isAdHoc ? row.rawRouteName : '')}
         placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : 'Chọn tuyến đường'}
         fieldId={`container-${row.key}-route`}
@@ -233,7 +233,7 @@ export function ShipmentCreateContainerRow({
             id={`container-${row.key}-route`}
             label="Tuyến đường"
             hideLabel
-            required
+            required={!isAdHoc}
             value={row.routeId}
             onChange={(value) => updateContainer(row.key, 'routeId', value)}
             options={routeOptions}
@@ -256,7 +256,7 @@ export function ShipmentCreateContainerRow({
         </div>
       </ShipmentContainerCell>
       <ShipmentContainerCell
-        label="Cảng nâng"
+        label={isAdHoc ? 'Cảng nâng' : 'Cảng nâng *'}
         value={pickupPort?.name ?? ''}
         placeholder="Chọn cảng nâng"
         fieldId={`container-${row.key}-pickup-port`}
@@ -268,6 +268,7 @@ export function ShipmentCreateContainerRow({
             id={`container-${row.key}-pickup-port`}
             label="Cảng nâng"
             hideLabel
+            required={!isAdHoc}
             value={row.pickupPortId}
             onChange={(value) => updateContainer(row.key, 'pickupPortId', value)}
             allowsCustomValue={isAdHoc}
@@ -288,7 +289,7 @@ export function ShipmentCreateContainerRow({
         </div>
       </ShipmentContainerCell>
       <ShipmentContainerCell
-        label="Cảng hạ"
+        label={isAdHoc ? 'Cảng hạ' : 'Cảng hạ *'}
         value={dropoffPort?.name ?? ''}
         placeholder="Chọn cảng hạ"
         fieldId={`container-${row.key}-dropoff-port`}
@@ -300,6 +301,7 @@ export function ShipmentCreateContainerRow({
             id={`container-${row.key}-dropoff-port`}
             label="Cảng hạ"
             hideLabel
+            required={!isAdHoc}
             value={row.dropoffPortId}
             onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)}
             options={portOptions}
@@ -337,7 +339,7 @@ export function ShipmentCreateContainerRow({
         />
       </ShipmentContainerCell>
       <ShipmentContainerCell
-        label="Ngày giờ đóng trả"
+        label="Ngày giờ đóng trả *"
         alwaysVisible
         className="csc-container-cell--appointment"
         value={formatContainerAppointment(row.customerAppointmentAt)}
