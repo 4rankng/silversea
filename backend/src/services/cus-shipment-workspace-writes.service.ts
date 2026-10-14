@@ -989,20 +989,29 @@ export async function addCusShipmentContainer(args: {
       }
       return null;
     };
+    // Wire contract (round-19 review m1): UNDEFINED = "not provided" → the
+    // lot's default rides; EXPLICIT NULL = a deliberate clear and inserts
+    // null, exactly like the pre-inheritance wire behaved (the shared schema
+    // accepts .nullable() on every column, so both are reachable).
+    const inheritable = <T>(provided: T | null | undefined, fallback: () => T | null): T | null => (
+      provided !== undefined ? provided : fallback()
+    );
 
     const [inserted] = await tx.insert(s.shipmentContainers).values({
       shipmentId: args.shipmentId,
       containerNumber: requestedNumber,
-      containerTypeId: args.input.containerTypeId ?? inheritLotDefault((row) => row.containerTypeId),
+      containerTypeId: inheritable(args.input.containerTypeId, () => inheritLotDefault((row) => row.containerTypeId)),
       cargoWeightKg: args.input.cargoWeightKg ?? null,
       cargoVolumeCbm: args.input.cargoVolumeCbm ?? null,
-      routeId: args.input.routeId ?? inheritLotDefault((row) => row.routeId),
-      pickupPortId: args.input.liftSiteId ?? inheritLotDefault((row) => row.pickupPortId),
-      dropoffPortId: args.input.dropoffSiteId ?? inheritLotDefault((row) => row.dropoffPortId),
-      operationalSiteId: args.input.operationalSiteId ?? inheritLotDefault((row) => row.operationalSiteId),
-      customerAppointmentAt: args.input.customerAppointmentAt
+      routeId: inheritable(args.input.routeId, () => inheritLotDefault((row) => row.routeId)),
+      pickupPortId: inheritable(args.input.liftSiteId, () => inheritLotDefault((row) => row.pickupPortId)),
+      dropoffPortId: inheritable(args.input.dropoffSiteId, () => inheritLotDefault((row) => row.dropoffPortId)),
+      operationalSiteId: inheritable(args.input.operationalSiteId, () => inheritLotDefault((row) => row.operationalSiteId)),
+      customerAppointmentAt: args.input.customerAppointmentAt != null
         ? new Date(args.input.customerAppointmentAt)
-        : inheritLotDefault((row) => row.customerAppointmentAt),
+        : args.input.customerAppointmentAt === undefined
+          ? inheritLotDefault((row) => row.customerAppointmentAt)
+          : null,
       createdBy: args.actor.userId,
       updatedAt: new Date(),
     }).returning({ id: s.shipmentContainers.id });

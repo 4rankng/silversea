@@ -45,10 +45,39 @@ router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: '
   }
   const trip = await loadReassignmentGuardContext(id);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  // Round 19 (Đổi nhà xe + biển sau phát lệnh): the issued vehicle survives
+  // only an unchanged carrier+plate payload — see
+  // resolveReassignExternalVehicleId for the full contract. `null` is the
+  // FE dialog's legal "free-text plate / OWN reassign" signal and MUST pass
+  // the guard (round-19 review B1: `null !== undefined` made the old form
+  // reject every OWN reassign and every free-text plate with 400); only a
+  // PROVIDED value is validated.
+  if (data.externalCarrierVehicleId != null) {
+    const guardVehicleId = Number(data.externalCarrierVehicleId);
+    if (!Number.isInteger(guardVehicleId) || guardVehicleId <= 0) {
+      throw new ApiError(400, 'Xe của nhà xe ngoài không hợp lệ.');
+    }
+  }
+  const forwardedVehicleId = resolveReassignExternalVehicleId({
+    trip: {
+      externalCarrierId: trip.externalCarrierId ?? null,
+      externalPlateNumber: trip.externalPlateNumber ?? null,
+      externalCarrierVehicleId: trip.externalCarrierVehicleId ?? null,
+    },
+    payload: data as {
+      externalCarrierId?: number | null;
+      externalPlateNumber?: string | null;
+      externalCarrierVehicleId?: number | null;
+    },
+  });
   // Round-18 review sweep: the fallback path rides the trip-side overlap
   // guard now — translate the FE dialog's family confirm flag onto the
-  // service parameter so the confirmed retry has a path on.
-  const fallbackData = { ...data, confirmOverlap: data.rigOverlapCompletedConfirmed === true };
+  // service parameter so the confirmed retry has a path on. The fallback
+  // also carries the SAME resolved vehicle id (round-19 review M1): without
+  // it a carrier/plate change on a fallback trip would write the new
+  // carrier's plate while silently keeping the previous carrier's vehicle
+  // linkage.
+  const fallbackData = { ...data, confirmOverlap: data.rigOverlapCompletedConfirmed === true, externalCarrierVehicleId: forwardedVehicleId };
   if (trip.shipmentId == null || trip.fulfillmentId == null || !trip.plannedStartAt || !trip.plannedEndAt) {
     if (getUser(req).role === Role.DISPATCHER) {
       throw new ApiError(409, 'Chỉ có thể phân xe lại từ Điều phối cho lệnh gắn với tác vụ điều xe.');
@@ -73,25 +102,9 @@ router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: '
     await resyncAttendanceAfterReassignment(trip, reassigned, getUser(req).userId);
     return res.json(reassigned);
   }
-  // Round 19 (Đổi nhà xe + biển sau phát lệnh): the issued vehicle survives
-  // only an unchanged carrier+plate payload — see
-  // resolveReassignExternalVehicleId for the full contract.
-  if (data.externalCarrierVehicleId !== undefined
-    && (!Number.isInteger(data.externalCarrierVehicleId) || Number(data.externalCarrierVehicleId) <= 0)) {
-    throw new ApiError(400, 'Xe của nhà xe ngoài không hợp lệ.');
-  }
-  const forwardedVehicleId = resolveReassignExternalVehicleId({
-    trip: {
-      externalCarrierId: trip.externalCarrierId ?? null,
-      externalPlateNumber: trip.externalPlateNumber ?? null,
-      externalCarrierVehicleId: trip.externalCarrierVehicleId ?? null,
-    },
-    payload: data as {
-      externalCarrierId?: number | null;
-      externalPlateNumber?: string | null;
-      externalCarrierVehicleId?: number | null;
-    },
-  });
+  // Round 19 (Đổi nhà xe + biển sau phát lệnh): the forwarding decision was
+  // already computed above the fallback branches — the governed path uses
+  // it directly.
   const user = getUser(req);
   const outcome = await reassignIssuedDispatchWriteCommand({
     shipmentId: trip.shipmentId,

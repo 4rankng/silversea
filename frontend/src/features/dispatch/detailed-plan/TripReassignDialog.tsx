@@ -115,6 +115,9 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     }
     let cancelled = false;
     setVehiclesLoading(true);
+    // First page only (50 plates, round-19 scope): a carrier with a longer
+    // fleet falls back to free-text for unlisted plates — acceptable today,
+    // and the fixed-catalog card owns proper pagination if fleets grow.
     listDispatchFleetResources('EXTERNAL_VEHICLE', { carrierId: selectedExternalCarrierId, limit: 50 })
       .then((response) => {
         if (cancelled) return;

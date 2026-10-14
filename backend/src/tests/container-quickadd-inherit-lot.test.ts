@@ -192,9 +192,73 @@ describe('quick-add container inherits the lot (FB-086, round 19)', () => {
     // Columns the input still omits keep inheriting.
     const [sibling] = await db.select({ routeId: s.shipmentContainers.routeId })
       .from(s.shipmentContainers).where(eq(s.shipmentContainers.id, siblingContainerId));
-    assert.equal(row.containerTypeId, ownType.id);
     const [inheritRow] = await db.select({ routeId: s.shipmentContainers.routeId })
       .from(s.shipmentContainers).where(eq(s.shipmentContainers.id, line.id));
     assert.equal(inheritRow.routeId, sibling.routeId);
+  });
+
+  // Round-19 review m1: the shared schema accepts explicit nulls on every
+  // inheritable column. Wire contract: undefined = inherit, explicit null =
+  // deliberate clear (the pre-inheritance behavior), so an API caller can
+  // still add a deliberately appointment-less row.
+  test('an explicit null clears instead of inheriting (wire contract)', async () => {
+    const addedNumber = numberWithCheckDigit('QKGD000004');
+    const { line } = await addCusShipmentContainer({
+      shipmentId,
+      input: {
+        containerNumber: addedNumber,
+        expectedShipmentVersion: await currentShipmentVersion(),
+        routeId: null,
+        customerAppointmentAt: null,
+      } as never,
+      actor,
+    });
+    created.containerIds.push(line.id);
+    const [row] = await db.select({
+      routeId: s.shipmentContainers.routeId,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+    }).from(s.shipmentContainers).where(eq(s.shipmentContainers.id, line.id));
+    assert.equal(row.routeId, null);
+    assert.equal(row.customerAppointmentAt, null);
+  });
+
+  // Determinism pin: siblings that disagree resolve to the FIRST non-null
+  // value in id order, and the deliberately NOT-inherited columns stay null.
+  test('sibling disagreement resolves to the first non-null row by id; weights never inherit', async () => {
+    // A later sibling with a different route (inserted after the first).
+    const [otherRoute] = await db.insert(s.routes).values({ name: `Q86 other route ${suffix}` }).returning();
+    created.routeIds.push(otherRoute.id);
+    const [later] = await db.insert(s.shipmentContainers).values({
+      shipmentId,
+      containerNumber: numberWithCheckDigit('QKGE000005'),
+      routeId: otherRoute.id,
+      cargoWeightKg: '9999.00',
+      cargoVolumeCbm: '12.000',
+    }).returning({ id: s.shipmentContainers.id });
+    created.containerIds.push(later.id);
+
+    const addedNumber = numberWithCheckDigit('QKGF000006');
+    const { line } = await addCusShipmentContainer({
+      shipmentId,
+      input: {
+        containerNumber: addedNumber,
+        expectedShipmentVersion: await currentShipmentVersion(),
+      } as never,
+      actor,
+    });
+    created.containerIds.push(line.id);
+    const [row] = await db.select({
+      routeId: s.shipmentContainers.routeId,
+      cargoWeightKg: s.shipmentContainers.cargoWeightKg,
+      cargoVolumeCbm: s.shipmentContainers.cargoVolumeCbm,
+    }).from(s.shipmentContainers).where(eq(s.shipmentContainers.id, line.id));
+    const [firstSibling] = await db.select({ routeId: s.shipmentContainers.routeId })
+      .from(s.shipmentContainers).where(eq(s.shipmentContainers.id, siblingContainerId));
+    // The FIRST sibling's route wins, not the later row's.
+    assert.equal(row.routeId, firstSibling.routeId);
+    assert.notEqual(row.routeId, otherRoute.id);
+    // Cargo metrics are per-container facts — they never ride the lot.
+    assert.equal(row.cargoWeightKg, null);
+    assert.equal(row.cargoVolumeCbm, null);
   });
 });

@@ -341,7 +341,13 @@ export default function TripDetailPage() {
               id="reassignExternalCarrierId"
               label="Đối tác xe ngoài"
               value={ui.reassignExternalCarrierId}
-              onChange={e => page.setReassignExternalCarrierId(e.target.value)}
+              onChange={e => {
+                // Round-19 sibling sweep (m3): a different nhà xe means a
+                // different fleet — drop the seeded plate so the previous
+                // carrier's plate cannot commit under the new carrier.
+                if (e.target.value !== ui.reassignExternalCarrierId) page.setReassignExternalPlateNumber('');
+                page.setReassignExternalCarrierId(e.target.value);
+              }}
               options={[{ value: '', label: '-- Chọn đối tác --' }, ...page.carrierCustomers.map(c => ({ value: String(c.id), label: c.label }))]}
               wrapperClassName="field"
             />

@@ -38,6 +38,18 @@ describe('resolveReassignExternalVehicleId (round 19 change-carrier)', () => {
       trip: TRIP,
       payload: { externalCarrierId: 11 },
     }), null);
+    // Data-anomaly guard (round-19 review m2): a trip whose carrier id is
+    // missing but whose vehicle linkage survives must drop it too when a
+    // carrier is named — an orphaned vehicle never rides onto a new carrier.
+    assert.equal(resolveReassignExternalVehicleId({
+      trip: { externalCarrierId: null, externalPlateNumber: '60C-111.11', externalCarrierVehicleId: 101 },
+      payload: { externalCarrierId: 11 },
+    }), null);
+    // A carrier-less, vehicle-less trip has nothing to preserve either way.
+    assert.equal(resolveReassignExternalVehicleId({
+      trip: { externalCarrierId: null, externalPlateNumber: null, externalCarrierVehicleId: null },
+      payload: { externalCarrierId: 11 },
+    }), null);
   });
 
   test('drops the issued vehicle when a different plate is typed for the same carrier', () => {

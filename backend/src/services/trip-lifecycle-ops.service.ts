@@ -128,7 +128,7 @@ export function driverChangesAfterAcknowledgement(
 
 export async function reassignTrip(
   tripId: number,
-  data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; externalDriverName?: string | null; externalDriverPhone?: string | null; expectedVersion?: number; /** Round-18 review sweep: the confirmed retry of the trip-side overlap warn (the FE reassign dialog's existing flag). */ confirmOverlap?: boolean; },
+  data: { carrierType?: 'OWN' | 'EXTERNAL'; truckId?: number | null; driverId?: number | null; externalCarrierId?: number | null; externalPlateNumber?: string | null; /** Round 19: the route-resolved carrier-fleet vehicle id; null clears the linkage, undefined leaves the stored one untouched. */ externalCarrierVehicleId?: number | null; externalDriverName?: string | null; externalDriverPhone?: string | null; expectedVersion?: number; /** Round-18 review sweep: the confirmed retry of the trip-side overlap warn (the FE reassign dialog's existing flag). */ confirmOverlap?: boolean; },
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
@@ -220,6 +220,16 @@ export async function reassignTrip(
       externalEntityId: carrierType === 'EXTERNAL' && data.externalCarrierId ? data.externalCarrierId : null,
       externalEntityType: carrierType === 'EXTERNAL' && data.externalCarrierId ? 'CUSTOMER' : null,
       externalPlateNumber: carrierType === 'EXTERNAL' && data.externalPlateNumber ? data.externalPlateNumber : null,
+      // Round 19 (M1 sweep): the reassignment route resolves the carrier's
+      // vehicle id (picker pick → id; carrier/plate change → null so the
+      // previous carrier's linkage does not survive under a new plate) and
+      // hands it here. Callers that omit the key keep the pre-existing
+      // behavior — the sidecar keeps its stored linkage untouched.
+      ...(data.externalCarrierVehicleId !== undefined ? {
+        externalCarrierVehicleId: carrierType === 'EXTERNAL' && data.externalCarrierVehicleId != null
+          ? Number(data.externalCarrierVehicleId)
+          : null,
+      } : {}),
       externalDriverName: carrierType === 'EXTERNAL' && data.externalDriverName ? data.externalDriverName : null,
       externalDriverPhone: carrierType === 'EXTERNAL' && data.externalDriverPhone ? data.externalDriverPhone : null,
       version: sql`${s.trips.version} + 1`,
@@ -300,8 +310,11 @@ export function resolveReassignExternalVehicleId(args: {
   if (providedVehicleId != null) return providedVehicleId;
   const nextCarrierId = args.payload.externalCarrierId != null ? Number(args.payload.externalCarrierId) : null;
   const nextPlate = typeof args.payload.externalPlateNumber === 'string' ? args.payload.externalPlateNumber.trim() : null;
+  // A carrier switch counts even when the trip's carrier id is missing but
+  // its vehicle linkage survives (data-anomaly guard, round-19 review m2):
+  // an orphaned vehicle must not ride along onto the newly named carrier.
   const carrierChanged = nextCarrierId != null
-    && args.trip.externalCarrierId != null
+    && (args.trip.externalCarrierId != null || args.trip.externalCarrierVehicleId != null)
     && nextCarrierId !== args.trip.externalCarrierId;
   const plateChanged = nextPlate != null
     && nextPlate !== ''
@@ -310,7 +323,8 @@ export function resolveReassignExternalVehicleId(args: {
   return carrierChanged || plateChanged ? null : args.trip.externalCarrierVehicleId ?? null;
 }
 
-export async function loadReassignmentGuardContext(tripId: number) {  // Trips-split: external carrier/vehicle columns live in trip_carrier_info —
+export async function loadReassignmentGuardContext(tripId: number) {
+  // Trips-split: external carrier/vehicle columns live in trip_carrier_info —
   // read through the composed view. externalCarrierId/externalPlateNumber
   // ride along for the route's "did the payload change the carrier or the
   // plate?" vehicle-preservation test (round 19, Đổi nhà xe + biển).
