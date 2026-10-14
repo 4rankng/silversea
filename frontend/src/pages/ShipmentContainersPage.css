@@ -85,30 +85,59 @@
    bind to the true scrollport or live outside the table flow. */
 .shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-/* All eight columns pin an explicit share (sums to 100%) instead of mixing
+/* All nine columns pin an explicit share (sums to 100%) instead of mixing
    in `width: auto`: table-layout: fixed only measures auto columns from the
    first row, so a later row's longer content (e.g. a full container number)
    silently wraps mid-token instead of claiming its fair share. Shares below
    are sized to each column's real content, not split evenly — documents and
-   container each carry two stacked code lines, route holds long place names,
-   and status only ever holds a short one/two-word badge plus the
-   missing-fields warning. Card 20260922_41 removed the Thao tác column
-   (lot-level add/remove moved to the /shipments "Quản lý container" dialog);
-   its 7% redistributed across the eight business columns below. */
-.shipment-container-ledger__col--customer { width: 11%; }
-.shipment-container-ledger__col--documents { width: 14%; }
-.shipment-container-ledger__col--container { width: 12%; }
+   container each carry two stacked code lines, route needs room for long
+   place names (see note below), and status only ever holds a short one/two
+   -word badge so it gets the smallest share instead of matching its wide
+   siblings. FB-086 (2026-10-14, helpdesk "không tìm thấy chỗ thêm cont vào
+   lô cũ") restores the Thao tác column card 20260922_41 removed — the
+   pre-41 tuned ladder returns verbatim. */
+.shipment-container-ledger__col--customer { width: 10%; }
+.shipment-container-ledger__col--documents { width: 13%; }
+.shipment-container-ledger__col--container { width: 11%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
-   (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ") — the
-   widest place-name column, so it keeps the largest share. */
-.shipment-container-ledger__col--route { width: 17%; }
-.shipment-container-ledger__col--schedule { width: 12%; }
-.shipment-container-ledger__col--vehicle { width: 12%; }
+   (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
+   table-layout: fixed, the column shrinks below the longest unbreakable
+   token and the cell clips the trailing characters — keep this share
+   generous even though sample data rarely fills it. */
+.shipment-container-ledger__col--route { width: 16%; }
+.shipment-container-ledger__col--schedule { width: 11%; }
+.shipment-container-ledger__col--vehicle { width: 10%; }
 .shipment-container-ledger__col--notes { width: 11%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
    from the customer cell so "needs attention" reads next to the status it
    blocks) — wider than a bare label needs. */
 .shipment-container-ledger__col--status { width: 11%; }
+/* FB-086 restore (supersedes card 20260922_41, keeps cards 20260922_3 and
+   20260922_21's tap-target law): the actions column had no col rule while
+   the other columns summed to 100%, so table-layout: fixed collapsed it to
+   0px from ~1366px up — Thao tác buttons painted clipped and real taps never
+   landed. 7% keeps every button inside the tap target at 1440/1680. */
+.shipment-container-ledger__col--actions { width: 7%; }
+/* Between 1101px (where `table-layout: fixed` starts) and ~1365px the
+   actions column fell to 71–89px and the "＋ Thêm" label wrapped into a
+   three-line vertical stack (measured 47×57 at 1100px). In that band the
+   actions column takes 9% — the two points come from `notes`, the column
+   that is empty on most rows — so the shares still sum to 100% and both
+   buttons stay on one line. The base 7% is untouched for ≥1366px. */
+@media (min-width: 1101px) and (max-width: 1365px) {
+  .shipment-container-ledger__col--notes { width: 9%; }
+  .shipment-container-ledger__col--actions { width: 9%; }
+}
+/* 761-1100px is desktop layout on auto sizing (card mode starts at 760px), so
+   the 7% share still squeezed the actions cell to 71px there. The percentage
+   keeps the rhythm and an explicit min-width — honoured under auto layout —
+   guarantees the buttons their room. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .shipment-container-ledger__col--notes { width: 9%; }
+  .shipment-container-ledger__col--actions { width: 9%; }
+  .shipment-container-ledger tbody > tr > *:last-child { min-width: 88px; }
+  .shipment-container-ledger thead th:last-child { min-width: 88px; }
+}
 /* Card 111026111200 — copy giờ hẹn xuống các container của CÙNG lô chưa có
    lịch. `.shipment-container-ledger__copy` is the name base.css has reserved
    for this affordance since 20260918_3 (the global hover reset exempts it).

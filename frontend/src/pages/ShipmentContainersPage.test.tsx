@@ -135,13 +135,15 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
       'Phân xe',
       'Ghi chú',
       'Trạng thái',
+      'Thao tác',
     ]);
-    // Card 20260922_41: add/remove left the container level entirely (the
-    // ＋Thêm/Xóa Thao tác column is gone; composition lives in the lot-level
-    // "Quản lý container" dialog on /shipments). Eight business groups only.
-    expect(screen.queryByRole('columnheader', { name: 'Thao tác' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^Thêm container/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^Xóa container/ })).toBeNull();
+    // FB-086 (2026-10-14, helpdesk "không tìm thấy chỗ thêm cont vào lô cũ")
+    // supersedes card 20260922_41: the ＋Thêm/Xóa row actions are back on the
+    // workboard (the /shipments lot dialog keeps working unchanged). Both
+    // container rows carry the pair; lot-level rows withhold it below.
+    expect(screen.getByRole('columnheader', { name: 'Thao tác' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /^Thêm container cùng lô/ })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /^Xóa container/ })).toHaveLength(2);
     expect(screen.getByRole('columnheader', { name: 'Trạng thái' })).toBeTruthy();
     // Dispatch status badge now lives in the Trạng thái column, not the container cell
     const awaitingRow = screen.getByText('CONT-001').closest('tr');
@@ -1018,6 +1020,57 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     // note must not show its "Chưa có ghi chú cho lái xe" placeholder.
     expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
     expect(screen.queryByText('Chưa có ghi chú cho lái xe')).toBeNull();
+  });
+
+  // FB-086 (2026-10-14, helpdesk "không tìm thấy chỗ thêm cont vào lô cũ"):
+  // the workboard regains lot composition (supersedes card 20260922_41's
+  // removal — the /shipments lot dialog keeps working unchanged). ＋Thêm
+  // opens the inline add row and the save rides the cus-workspace add
+  // endpoint for THAT row's lot with the row's fresh shipment version.
+  it('adds a container to an existing lot inline (FB-086)', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Thêm container cùng lô CONT-001' }));
+    const form = screen.getByTestId('add-container-form');
+    fireEvent.change(within(form).getByLabelText('Số container mới'), { target: { value: 'msku7654321' } });
+    apiPost.mockResolvedValueOnce({});
+    fireEvent.click(within(form).getByRole('button', { name: 'Lưu dòng mới' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/shipments/cus-workspace/1/containers',
+      expect.objectContaining({ containerNumber: 'MSKU7654321', expectedShipmentVersion: 4 }),
+      expect.anything(),
+    ));
+    await waitFor(() => expect(screen.queryByTestId('add-container-form')).toBeNull());
+  });
+
+  it('removes a container from its lot through the danger confirm (FB-086)', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container CONT-001' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa' }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/shipments/cus-workspace/1/containers/11/remove',
+      expect.objectContaining({ expectedShipmentVersion: 4 }),
+      expect.anything(),
+    ));
+  });
+
+  it('withholds lot composition actions from lot-level rows (FB-086)', async () => {
+    const lotLevelResponse: ShipmentCusContainerFlatResponse = {
+      ...response,
+      total: 1,
+      items: [{ ...response.items[0]!, id: 13, containerNumber: null, containerTypeLabel: null, isLotLevel: true }],
+    };
+    apiGet.mockResolvedValueOnce(lotLevelResponse);
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+    await screen.findByText('Lô hàng lẻ');
+    expect(screen.queryByRole('button', { name: /Thêm container cùng lô/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
   });
 
 });

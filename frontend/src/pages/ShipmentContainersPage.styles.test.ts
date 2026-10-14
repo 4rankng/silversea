@@ -117,13 +117,13 @@ describe('shipment detail workboard styling', () => {
   it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
     // The multiline status cell (badge + missing-fields warning) keeps 11%;
-    // notes keeps 11%. Card 20260922_41 removed the Thao tác column (lot-level
-    // add/remove moved to the /shipments "Quản lý container" dialog) and its
-    // 7% redistributed across the eight business columns — the shares must
-    // still sum to 100% and no actions column may come back.
+    // notes keeps 11%. FB-086 (2026-10-14) restores the Thao tác column card
+    // 20260922_41 removed ("không tìm thấy chỗ thêm cont vào lô cũ") — its 7%
+    // share is back (cards 20260922_3/_21 tap-target law), so the nine shares
+    // must still sum to 100%.
     expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*11%;/);
     expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*11%;/);
-    expect(css).not.toContain('.shipment-container-ledger__col--actions');
+    expect(css).toMatch(/\.shipment-container-ledger__col--actions\s*\{[^}]*width:\s*7%;/);
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*var\(--text-caption-size\);[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
 
@@ -281,21 +281,21 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-pending\s*\{[^}]*var\(--danger\)/);
   });
 
-  it('card 20260922_41: the eight business columns share exactly 100% (Thao tác column removed)', () => {
+  it('FB-086: the nine columns share exactly 100% (Thao tác column restored)', () => {
     const width = (cls: string) => {
       const m = css.match(new RegExp(`\\.shipment-container-ledger__col--${cls}\\s*\\{[^}]*?width:\\s*([\\d.]+)%`));
       expect(m, `missing width for col--${cls}`).toBeTruthy();
       return Number(m![1]);
     };
-    // Card 20260922_21 pinned the ninth (actions) share because a missing rule
-    // collapsed it to 0px under table-layout:fixed. Card 20260922_41 removed
-    // the Thao tác column entirely (lot-level add/remove moved to the
-    // /shipments "Quản lý container" dialog), so the eight business columns
-    // carry the whole table at every fixed-layout width — no narrow band is
-    // left re-pointing shares to keep "＋ Thêm" on one line.
-    const base = ['customer', 'documents', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status'].map(width);
+    // FB-086 (2026-10-14, helpdesk "không tìm thấy chỗ thêm cont vào lô cũ")
+    // supersedes card 20260922_41: the ＋Thêm/Xóa row actions return to the
+    // workboard. Cards 20260922_3/_21's tap-target law returns with them —
+    // the actions column owns a real share (7% base, 9% in the two narrow
+    // desktop bands re-pointed from notes) so "＋ Thêm" never wraps.
+    const base = ['customer', 'documents', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
     expect(base.reduce((a, b) => a + b, 0)).toBe(100);
-    expect(css).not.toMatch(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?col--/);
+    expect(css).toMatch(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);
+    expect(css).toMatch(/@media \(min-width: 761px\) and \(max-width: 1100px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);
   });
 
   it('card 20260922_54: thead headers wrap at spaces only — never mid-word, never an orphan letter', () => {
