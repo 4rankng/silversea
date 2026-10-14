@@ -7,8 +7,11 @@ import { Check, Copy } from 'lucide-react';
  * constantly. House pattern: a small inline icon button on the value row;
  * the icon flips to a check for ~1.6s on success. Clipboard API with a
  * legacy execCommand bridge for insecure contexts (driver phones on http).
+ * FB-009 (2026-10-14) reuses the same button for copy-time affordances
+ * (giờ hẹn): `onCopied` lets the mounting surface raise its "Đã copy" toast,
+ * `className` adapts the geometry to the host surface.
  */
-export function CopyCodeButton({ value, label }: { value: string; label: string }) {
+export function CopyCodeButton({ value, label, className, onCopied }: { value: string; label: string; className?: string; onCopied?: () => void }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | null>(null);
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
@@ -28,6 +31,7 @@ export function CopyCodeButton({ value, label }: { value: string; label: string 
       ta.remove();
     }
     setCopied(true);
+    onCopied?.();
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setCopied(false), 1600);
   }
@@ -35,7 +39,7 @@ export function CopyCodeButton({ value, label }: { value: string; label: string 
   return (
     <button
       type="button"
-      className="driver-copy-btn"
+      className={className ? `driver-copy-btn ${className}` : 'driver-copy-btn'}
       aria-label={`Copy ${label}`}
       title={`Copy ${label}`}
       onClick={() => void copy()}

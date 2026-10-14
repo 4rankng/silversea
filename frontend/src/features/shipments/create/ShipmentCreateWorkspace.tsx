@@ -470,6 +470,14 @@ export function ShipmentCreateWorkspace() {
     toast({ kind: 'success', message: `Đã áp dụng ngày giờ đóng trả cho ${targetKeys.size} container chưa có lịch` });
   }
 
+  // FB-009 (2026-10-14): the per-row copy-time affordance — the time itself
+  // lands in the OS clipboard so a clerk can paste it anywhere; the toast
+  // confirms what was copied. Independent of the copy-down feature above:
+  // it renders whenever the row holds a schedule, never gated on siblings.
+  function notifyAppointmentCopied(formatted: string) {
+    toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` });
+  }
+
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '') || hasDateDraft(scope);
     if (hasEnteredData) {
@@ -650,6 +658,7 @@ export function ShipmentCreateWorkspace() {
                           operationalSites={operationalSites}
                           emptyAppointmentCount={emptyAppointmentCount}
                           copyAppointmentToEmpty={copyAppointmentToEmpty}
+                          onAppointmentCopied={notifyAppointmentCopied}
                           updateContainer={updateContainer}
                           removeContainer={removeContainer}
                           selectContainerFactory={selectContainerFactory}

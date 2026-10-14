@@ -7,6 +7,7 @@ import {
 import { formatDateTime24 } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { SearchableSelect } from '../../../design-system';
+import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import { externalVendorPlateOptions } from '../external-plate-options';
 import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
@@ -30,6 +31,7 @@ export function ContainerLineRow({
   onAppointmentCancel,
   showCopyAppointment,
   onCopyAppointmentToEmpty,
+  onAppointmentCopied,
   onRemove,
   removing,
 }: {
@@ -59,6 +61,9 @@ export function ContainerLineRow({
    *  table still has empties to fill). */
   showCopyAppointment?: boolean;
   onCopyAppointmentToEmpty?: () => void;
+  /** FB-009: the row's giờ hẹn itself lands in the OS clipboard; the
+   *  mounting surface raises the "Đã copy" toast with this callback. */
+  onAppointmentCopied?: (formatted: string) => void;
 }) {
   const [, setSelectOpen] = useState(false);
 
@@ -239,6 +244,14 @@ export function ContainerLineRow({
               {draft.customerAppointmentAt ? formatDateTime24(draft.customerAppointmentAt) : 'Chọn ngày giờ'}
             </span>
           </button>
+          {draft.customerAppointmentAt && (
+            <CopyCodeButton
+              className="cus-appointment-cell__copy"
+              value={formatDateTime24(draft.customerAppointmentAt)}
+              label="Giờ hẹn đóng trả"
+              onCopied={() => onAppointmentCopied?.(formatDateTime24(draft.customerAppointmentAt))}
+            />
+          )}
           <CusAppointmentPopover
             isOpen={appointmentOpen}
             value={draft.customerAppointmentAt}
@@ -251,7 +264,19 @@ export function ContainerLineRow({
             triggerRef={appointmentTriggerRef}
           />
         </td>
-      ) : <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell"><strong>{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</strong></td>}
+      ) : (
+        <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell cus-appointment-cell">
+          <strong>{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</strong>
+          {line.customerAppointmentAt && (
+            <CopyCodeButton
+              className="cus-appointment-cell__copy"
+              value={formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt))}
+              label="Giờ hẹn đóng trả"
+              onCopied={() => onAppointmentCopied?.(formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)))}
+            />
+          )}
+        </td>
+      )}
       <td data-label="Thao tác" className="cus-container-cell cus-container-cell--actions">
         {onRemove && (
           <button

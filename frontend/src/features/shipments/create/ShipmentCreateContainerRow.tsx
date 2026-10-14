@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import type { CatalogData } from '../../../api/tripClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
 import { formatDateTime24 } from '../../../lib/format';
+import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import {
   USearchableField as SearchableField,
   UTextField as TextField,
@@ -35,6 +36,8 @@ export interface ShipmentCreateContainerRowProps {
   operationalSites: OperationalSite[];
   emptyAppointmentCount: number;
   copyAppointmentToEmpty: (fromKey: string) => void;
+  /** FB-009: surfaces the copied text for the workspace's "Đã copy" toast. */
+  onAppointmentCopied?: (formatted: string) => void;
   updateContainer: (key: string, field: keyof Omit<ContainerRow, 'key'>, value: string) => void;
   removeContainer: (row: ContainerRow, scope: HTMLTableRowElement | null) => void;
   selectContainerFactory: (key: string, value: string) => void;
@@ -62,6 +65,7 @@ export function ShipmentCreateContainerRow({
   operationalSites,
   emptyAppointmentCount,
   copyAppointmentToEmpty,
+  onAppointmentCopied,
   updateContainer,
   removeContainer,
   selectContainerFactory,
@@ -345,6 +349,14 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-customer-appointment`}
         error={issueByField.get(`container-${row.key}-customer-appointment`)}
         onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
+        actions={row.customerAppointmentAt ? (
+          <CopyCodeButton
+            className="csc-container-cell__action"
+            value={formatContainerAppointment(row.customerAppointmentAt)}
+            label="Giờ hẹn đóng trả"
+            onCopied={() => onAppointmentCopied?.(formatContainerAppointment(row.customerAppointmentAt))}
+          />
+        ) : undefined}
       >
         <DateTimeField
           id={`container-${row.key}-customer-appointment`}

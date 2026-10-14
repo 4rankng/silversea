@@ -546,6 +546,7 @@ export function ContainerLedger({
                   onAppointmentCancel={() => revertAppointmentDraft(line.id)}
                   showCopyAppointment={Boolean(effectiveAppointment(line.id)) && emptyAppointmentCount >= 1}
                   onCopyAppointmentToEmpty={() => copyAppointmentToEmpty(line.id)}
+                  onAppointmentCopied={(formatted) => toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` })}
                   onRemove={() => void removeContainer(line)}
                   removing={removingId === line.id}
                 />

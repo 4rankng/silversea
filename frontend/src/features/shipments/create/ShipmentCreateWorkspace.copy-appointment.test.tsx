@@ -253,6 +253,38 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     expect(button.closest('th.csc-container-row__index')).not.toBeNull();
     expect(button.textContent?.trim()).toBe('');
     const dateInput = row.querySelector('input[id$="-customer-appointment-date"]')!;
-    expect(dateInput.closest('td')?.querySelector('.csc-container-row__copy, button[aria-label*="Copy"]')).toBeNull();
+    // 2026-09-18 ruling (copy-DOWN only): the fill-siblings glyph never sits
+    // on the appointment cell. FB-009 (2026-10-14) later added the clipboard
+    // copy-TIME button inside that cell's actions slot — a different
+    // affordance ('Copy Giờ hẹn đóng trả'), allowed here.
+    expect(dateInput.closest('td')?.querySelector('.csc-container-row__copy, button[aria-label^="Copy ngày giờ"]')).toBeNull();
+  });
+
+  // FB-009 (2026-10-14): the copy-time button — the row's giờ hẹn lands in
+  // the OS clipboard and a "Đã copy giờ hẹn" toast confirms it. Independent
+  // of the copy-down feature: it renders whenever the row holds a schedule,
+  // so the affordance can no longer "mất hẳn" when no sibling row is empty.
+  it('copies the row appointment to the clipboard with a Đã copy toast, with zero empty sibling rows', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    // Single row, scheduled: no copy-down destination exists anywhere…
+    fillAppointment(0, '20/09/2026', '09:00');
+    expect(copyButton()).toBeNull();
+    // …yet the time itself is copyable.
+    const copyTime = screen.getByRole('button', { name: 'Copy Giờ hẹn đóng trả' });
+    expect(copyTime.closest('td')?.dataset.label).toBe('Ngày giờ đóng trả');
+
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    fireEvent.click(copyTime);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('09:00 20/09/2026'));
+    expect(await screen.findByText('Đã copy giờ hẹn 09:00 20/09/2026')).toBeInTheDocument();
+  });
+
+  it('hides the copy-time button while the row has no schedule', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    expect(screen.queryByRole('button', { name: 'Copy Giờ hẹn đóng trả' })).toBeNull();
   });
 });
