@@ -796,7 +796,7 @@ describe('add-container version-409 recovery (FB-086, round 19)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
     const numberInput = await screen.findByLabelText('Số container');
     fireEvent.change(numberInput, { target: { value: 'MSKU9991234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
     await screen.findByText(/Đã tải lại dữ liệu lô — bấm Thêm lần nữa/);
     expect(onDetailStale).toHaveBeenCalledTimes(1);
     // The add row stays open so the retry keeps the typed number.
@@ -823,7 +823,7 @@ describe('add-container version-409 recovery (FB-086, round 19)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
     const numberInput = await screen.findByLabelText('Số container');
     fireEvent.change(numberInput, { target: { value: 'MSKU9991234' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
     await screen.findByText(/đã tồn tại trong lô hàng/);
     expect(screen.queryByText(/Đã tải lại dữ liệu lô/)).toBeNull();
     expect(onDetailStale).not.toHaveBeenCalled();
