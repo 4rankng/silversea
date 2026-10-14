@@ -2107,6 +2107,35 @@
 @media (max-width: 640px), (pointer: coarse) {
   .cus-container-row__copy { opacity: 1; }
 }
+
+/* FB-009 (2026-10-14): copy-time affordance in the Giờ hẹn cell — the time
+   itself goes to the OS clipboard (toast confirms). Same slot/laws as the
+   bulk-copy glyph above: rests at opacity 0 (AX-exposed and hit-testable,
+   card 101026163010), revealed by row hover/focus-within, always visible on
+   coarse pointers; never covers the value text, only the trigger's tail. */
+.cus-appointment-cell__copy {
+  opacity: 0;
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-3);
+}
+.cus-appointment-cell__copy:hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); }
+.cus-appointment-cell__copy:focus-visible { opacity: 1; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
+.cus-container-row:hover .cus-appointment-cell__copy,
+.cus-container-row:focus-within .cus-appointment-cell__copy { opacity: 1; }
+@media (max-width: 640px), (pointer: coarse) {
+  .cus-appointment-cell__copy { opacity: 1; }
+}
+
 .cus-appointment-trigger {
   display: flex;
   align-items: center;

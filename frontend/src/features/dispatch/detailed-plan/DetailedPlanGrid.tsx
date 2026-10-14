@@ -309,23 +309,30 @@ export function DetailedPlanGrid({
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình" data-label-short="Giờ">
-                    <div className="ops-schedule">
-                      <strong className="ops-schedule__datetime">{scheduleValue}</strong>
-                      <span className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={!row.docs.tradeDirection ? 'true' : undefined}>
-                        {row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : '—'}
-                        {differentTransportDate && ` · Ngày vận chuyển: ${differentTransportDate}`}
-                      </span>
+                    {/* FB-043: every cell rides the fixed-height body so row
+                        height is uniform by construction, not by column
+                        tuning (the R22/141026001010 regression class). */}
+                    <div className="detailed-plan-grid__cell-body">
+                      <div className="ops-schedule">
+                        <strong className="ops-schedule__datetime" title={scheduleValue}>{scheduleValue}</strong>
+                        <span className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={!row.docs.tradeDirection ? 'true' : undefined} title={row.docs.tradeDirection || differentTransportDate ? `${row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : ''}${differentTransportDate ? ` · Ngày vận chuyển: ${differentTransportDate}` : ''}` : undefined}>
+                          {row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : '—'}
+                          {differentTransportDate && ` · Ngày vận chuyển: ${differentTransportDate}`}
+                        </span>
+                      </div>
                     </div>
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình" data-label-short="Khách">
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                      {row.customerRoute.customerName}
-                    </div>
-                    <div className="detailed-plan-grid__line" data-empty={!row.customerRoute.factoryName ? 'true' : undefined}>
-                      {row.customerRoute.factoryName ?? '—'}
-                    </div>
-                    <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__route-bill" data-empty={!row.docs.billNumber ? 'true' : undefined}>
-                      {row.docs.billNumber ? `Bill: ${row.docs.billNumber}` : '—'}
+                    <div className="detailed-plan-grid__cell-body">
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong" title={row.customerRoute.customerName ?? undefined}>
+                        {row.customerRoute.customerName}
+                      </div>
+                      <div className="detailed-plan-grid__line" data-empty={!row.customerRoute.factoryName ? 'true' : undefined} title={row.customerRoute.factoryName ?? undefined}>
+                        {row.customerRoute.factoryName ?? '—'}
+                      </div>
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong detailed-plan-grid__route-bill" data-empty={!row.docs.billNumber ? 'true' : undefined} title={row.docs.billNumber ?? undefined}>
+                        {row.docs.billNumber ? `Bill: ${row.docs.billNumber}` : '—'}
+                      </div>
                     </div>
                   </td>
                   {/* Container pickup/dropoff already mean Cảng nâng/Cảng hạ in
@@ -338,71 +345,79 @@ export function DetailedPlanGrid({
                     return (
                       <>
                         <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Nâng hàng" data-label-short="Nâng" data-empty={!liftShort && !liftPort ? 'true' : undefined}>
-                          <div className="detailed-plan-grid__line">{liftShort ?? liftPort ?? '—'}</div>
-                          {liftShort && liftPort && liftShort !== liftPort && (
-                            <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{liftPort}</div>
-                          )}
+                          <div className="detailed-plan-grid__cell-body">
+                            <div className="detailed-plan-grid__line" title={liftShort ?? liftPort ?? undefined}>{liftShort ?? liftPort ?? '—'}</div>
+                            {liftShort && liftPort && liftShort !== liftPort && (
+                              <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" title={liftPort}>{liftPort}</div>
+                            )}
+                          </div>
                         </td>
                         <td className="detailed-plan-grid__cell detailed-plan-grid__cell--ports" data-label="Trả hàng" data-label-short="Trả" data-empty={!dropShort && !dropPort ? 'true' : undefined}>
-                          <div className="detailed-plan-grid__line">{dropShort ?? dropPort ?? '—'}</div>
-                          {dropShort && dropPort && dropShort !== dropPort && (
-                            <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{dropPort}</div>
-                          )}
+                          <div className="detailed-plan-grid__cell-body">
+                            <div className="detailed-plan-grid__line" title={dropShort ?? dropPort ?? undefined}>{dropShort ?? dropPort ?? '—'}</div>
+                            {dropShort && dropPort && dropShort !== dropPort && (
+                              <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" title={dropPort}>{dropPort}</div>
+                            )}
+                          </div>
                         </td>
                       </>
                     );
                   })()}
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--documents" data-label="Tuyến đường" data-label-short="Tuyến">
-                    <div className="detailed-plan-grid__route-direction">
-                      {row.customerRoute.routeName ? (
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">{row.customerRoute.routeName}</div>
-                      ) : row.customerRoute.deliveryPoint ? (
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">{row.customerRoute.deliveryPoint}</div>
-                      ) : (
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">Chưa có tuyến đường</div>
-                      )}
-                      <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
-                        {row.docs.tradeDirection === 'IMPORT' ? (
-                          <span>Nhập</span>
-                        ) : row.docs.tradeDirection === 'EXPORT' ? (
-                          <span>Xuất</span>
-                        ) : '—'}
+                    <div className="detailed-plan-grid__cell-body">
+                      <div className="detailed-plan-grid__route-direction">
+                        {row.customerRoute.routeName ? (
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong" title={row.customerRoute.routeName}>{row.customerRoute.routeName}</div>
+                        ) : row.customerRoute.deliveryPoint ? (
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" title={row.customerRoute.deliveryPoint}>{row.customerRoute.deliveryPoint}</div>
+                        ) : (
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">Chưa có tuyến đường</div>
+                        )}
+                        <div className="detailed-plan-grid__line detailed-plan-grid__documents-direction">
+                          {row.docs.tradeDirection === 'IMPORT' ? (
+                            <span>Nhập</span>
+                          ) : row.docs.tradeDirection === 'EXPORT' ? (
+                            <span>Xuất</span>
+                          ) : '—'}
+                        </div>
                       </div>
+                      {row.isCombined && (
+                        <span className="detailed-plan-grid__combined-note" title="Đóng kết hợp">
+                          Kết hợp
+                        </span>
+                      )}
                     </div>
-                    {row.isCombined && (
-                      <span className="detailed-plan-grid__combined-note" title="Đóng kết hợp">
-                        Kết hợp
-                      </span>
-                    )}
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--container" data-label="Container" data-label-short="Cont">
-                    {row.cargoMode === 'FCL' ? (
-                      <>
-                        {row.container.containerNumber ? (
-                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                            {row.container.containerNumber}
-                            {row.dispatch.pairKind && (
-                              <span className="detailed-plan-grid__pair-tag">
-                                {row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
-                              </span>
-                            )}
+                    <div className="detailed-plan-grid__cell-body">
+                      {row.cargoMode === 'FCL' ? (
+                        <>
+                          {row.container.containerNumber ? (
+                            <div className="detailed-plan-grid__line detailed-plan-grid__line--strong" title={`${row.container.containerNumber}${row.dispatch.pairKind ? ` ${row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}` : ''}`}>
+                              {row.container.containerNumber}
+                              {row.dispatch.pairKind && (
+                                <span className="detailed-plan-grid__pair-tag">
+                                  {row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="detailed-plan-grid__line detailed-plan-grid__line--missing">Chưa có số cont</div>
+                          )}
+                          <div className="detailed-plan-grid__line" data-empty={!row.container.containerTypeLabel ? 'true' : undefined} title={row.container.containerTypeLabel ?? undefined}>{row.container.containerTypeLabel ?? '—'}</div>
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined} title={formatWeight(row.container.cargoWeightKg)}>
+                            {formatWeight(row.container.cargoWeightKg)}
                           </div>
-                        ) : (
-                          <div className="detailed-plan-grid__line detailed-plan-grid__line--missing">Chưa có số cont</div>
-                        )}
-                        <div className="detailed-plan-grid__line" data-empty={!row.container.containerTypeLabel ? 'true' : undefined}>{row.container.containerTypeLabel ?? '—'}</div>
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined}>
-                          {formatWeight(row.container.cargoWeightKg)}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">Lô hàng lẻ</div>
-                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined}>
-                          {formatWeight(row.container.cargoWeightKg)}
-                        </div>
-                      </>
-                    )}
+                        </>
+                      ) : (
+                        <>
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">Lô hàng lẻ</div>
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined} title={formatWeight(row.container.cargoWeightKg)}>
+                            {formatWeight(row.container.cargoWeightKg)}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối" data-label-short="Điều phối">
                     <DispatchPlanEditorCell
@@ -417,49 +432,60 @@ export function DetailedPlanGrid({
                     />
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại" data-label-short="Loại">
-                    <span className="detailed-plan-grid__classification">
-                      {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
-                    </span>
-                    <DispatchPairAction row={row} onOpenPair={onOpenPair} />
+                    <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--row">
+                      <span className="detailed-plan-grid__classification">
+                        {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
+                      </span>
+                      <DispatchPairAction row={row} onOpenPair={onOpenPair} />
+                    </div>
                   </td>
                   <td className={`detailed-plan-grid__cell detailed-plan-grid__cell--notes${notesCellBlank ? ' detailed-plan-grid__cell--blank' : ''}`} data-label="Ghi chú" data-label-short="Ghi chú">
-                    {row.notes.vehicleNote && (
-                      <button
-                        type="button"
-                        className="detailed-plan-grid__note"
-                        onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: row.notes.vehicleNote ?? '', driver: true })}
-                        title="Bấm để xem toàn bộ ghi chú"
-                      >
-                        <DispatchDriverNote value={row.notes.vehicleNote} labels={taskLabels} compact />
-                      </button>
-                    )}
-                    {row.notes.opsRecoveryNotes?.map(note => <button key={note} type="button" className="detailed-plan-grid__note" onClick={() => setExpandedNote({ title: 'Ghi chú OPS', text: note })}><span className="detailed-plan-grid__line detailed-plan-grid__note-clamp" style={{ whiteSpace: 'pre-wrap' }}><strong>OPS: </strong>{note}</span></button>)}
-                    {row.notes.customerNote && (
-                      <button
-                        type="button"
-                        className="detailed-plan-grid__note"
-                        onClick={() => setExpandedNote({ title: 'Ghi chú khách hàng', text: displayNote(row.notes.customerNote) })}
-                        title="Bấm để xem toàn bộ ghi chú"
-                      >
-                        <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-clamp">
-                          {`Khách: ${displayNote(row.notes.customerNote)}`.split('\n').map((line, i) => (
-                            <span key={i} className="detailed-plan-grid__note-line">{line}</span>
-                          ))}
-                        </span>
-                      </button>
-                    )}
-                    {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}
-                    {canCompleteExternal && (
-                      <button
-                        type="button"
-                        className="detailed-plan-grid__note-action"
-                        onClick={() => onCompleteExternalTrip(row)}
-                        aria-label={`Hoàn thành · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
-                        title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
-                      >
-                        Hoàn thành
-                      </button>
-                    )}
+                    {/* FB-043: the note stack flexes inside the fixed body so
+                        the row action never clips — long notes give ground
+                        (their full text is one click away in the dialog). */}
+                    <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--notes">
+                      <div className="detailed-plan-grid__note-stack">
+                        {row.notes.vehicleNote && (
+                          <button
+                            type="button"
+                            className="detailed-plan-grid__note"
+                            onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: row.notes.vehicleNote ?? '', driver: true })}
+                            title="Bấm để xem toàn bộ ghi chú"
+                          >
+                            <DispatchDriverNote value={row.notes.vehicleNote} labels={taskLabels} compact />
+                          </button>
+                        )}
+                        {row.notes.opsRecoveryNotes?.map(note => <button key={note} type="button" className="detailed-plan-grid__note" onClick={() => setExpandedNote({ title: 'Ghi chú OPS', text: note })}><span className="detailed-plan-grid__line detailed-plan-grid__note-clamp" style={{ whiteSpace: 'pre-wrap' }}><strong>OPS: </strong>{note}</span></button>)}
+                        {row.notes.customerNote && (
+                          <button
+                            type="button"
+                            className="detailed-plan-grid__note"
+                            onClick={() => setExpandedNote({ title: 'Ghi chú khách hàng', text: displayNote(row.notes.customerNote) })}
+                            title="Bấm để xem toàn bộ ghi chú"
+                          >
+                            <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-clamp">
+                              {`Khách: ${displayNote(row.notes.customerNote)}`.split('\n').map((line, i) => (
+                                <span key={i} className="detailed-plan-grid__note-line">{line}</span>
+                              ))}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="detailed-plan-grid__note-actions">
+                        {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}
+                        {canCompleteExternal && (
+                          <button
+                            type="button"
+                            className="detailed-plan-grid__note-action"
+                            onClick={() => onCompleteExternalTrip(row)}
+                            aria-label={`Hoàn thành · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
+                            title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
+                          >
+                            Hoàn thành
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </td>
                 </tr>
                 );

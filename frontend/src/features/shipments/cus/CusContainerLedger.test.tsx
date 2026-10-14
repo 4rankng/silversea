@@ -129,6 +129,20 @@ describe('ContainerLedger confirm affordances', () => {
     expect(plateInput.value).toBe('15C-184.62');
   });
 
+  it('FB-009: copies the row giờ hẹn to the clipboard and toasts Đã copy, independent of copy-down destinations', async () => {
+    renderLedger();
+    // The scheduled line exposes the copy-time affordance beside its value.
+    const copyTime = screen.getByRole('button', { name: 'Copy Giờ hẹn đóng trả' });
+    expect(copyTime.closest('td')?.dataset.label).toBe('Giờ hẹn đóng/trả');
+
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    fireEvent.click(copyTime);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('09:00 20/08/2026'));
+    expect(await screen.findByText('Đã copy giờ hẹn 09:00 20/08/2026')).toBeTruthy();
+  });
+
   it('opens appointment popover when clicking trigger, updates value without inline buttons, and closes on backdrop click', () => {
     renderLedger();
     const trigger = screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ });

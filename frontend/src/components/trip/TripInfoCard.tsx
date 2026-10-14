@@ -1,7 +1,12 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { CardSection } from './CardSection';
 import { InputWithPrefix } from './InputWithPrefix';
 import { RouteChips } from './RouteChips';
+import { QuickAddVehicleDialog } from '../../features/dispatch/detailed-plan/QuickAddVehicleDialog';
+import { QuickAddDriverDialog } from './QuickAddDriverDialog';
+import { invalidateAllCatalogs } from '../../api/keys';
 import type { SelectOption, RouteOption, TrailerTypeOption } from '../../hooks/useTripOptions';
 import { useTripFormContext } from '../../hooks/useTripFormContext';
 import { formatCurrency } from '../../lib/format';
@@ -21,12 +26,15 @@ interface TripInfoCardProps {
   loading: boolean;
 }
 
-function Field({ label, required, children, className, controlId }: {
+function Field({ label, required, children, className, controlId, action }: {
   label: string;
   required?: boolean;
   children: React.ReactNode;
   className?: string;
   controlId?: string;
+  /** FB-066: trailing affordance beside the label (the field's quick-add),
+   *  the same head-row shape the dispatch editor's vehicle block uses. */
+  action?: React.ReactNode;
 }) {
   const labelContent = (
     <>
@@ -36,9 +44,16 @@ function Field({ label, required, children, className, controlId }: {
   );
   return (
     <div className={`field${className ? ` ${className}` : ''}`}>
-      {controlId
+      {action ? (
+        <div className="tc-field-head">
+          {controlId
+            ? <label htmlFor={controlId}>{labelContent}</label>
+            : <span className="tc-field-label">{labelContent}</span>}
+          {action}
+        </div>
+      ) : (controlId
         ? <label htmlFor={controlId}>{labelContent}</label>
-        : <span className="tc-field-label">{labelContent}</span>}
+        : <span className="tc-field-label">{labelContent}</span>)}
       {children}
     </div>
   );
@@ -46,6 +61,14 @@ function Field({ label, required, children, className, controlId }: {
 
 export function TripInfoCard(props: TripInfoCardProps) {
   const form = useTripFormContext();
+  const queryClient = useQueryClient();
+  // FB-066: the quick-add dialogs register through the real catalog APIs and
+  // hand the created row back — the form selects it and the shared catalog
+  // cache invalidates (bootstrap key) so both pickers and every other
+  // surface offer the new row without a reload.
+  const [quickAddVehicleOpen, setQuickAddVehicleOpen] = React.useState(false);
+  const [quickAddDriverOpen, setQuickAddDriverOpen] = React.useState(false);
+  const refreshCatalogs = () => void invalidateAllCatalogs(queryClient);
   const filledContainerTypeIds = form.containerRows
     .map(row => row.containerTypeId)
     .filter(Boolean)
@@ -162,13 +185,49 @@ export function TripInfoCard(props: TripInfoCardProps) {
 
           {form.carrierType === 'OWN' && (
             <>
-              <Field label="Xe đầu kéo" required controlId="truckId">
+              {/* FB-066 (card 121026141040, owner ruling 2026-10-14 —
+                  supersedes the round-16 "by design" state): the trip form's
+                  vehicle/driver selectors regain the quick-add the dispatch
+                  editor already owns (cards 20261004_357 / 101026043010).
+                  The plate registers as an own-fleet tractor (POST /trucks,
+                  same dialog contract); RBAC stays server-side — DISPATCHER
+                  holds the route-scoped grant, other roles see the API error
+                  inside the dialog. */}
+              <Field
+                label="Xe đầu kéo"
+                required
+                controlId="truckId"
+                action={(
+                  <button
+                    type="button"
+                    className="tc-field-quick-add"
+                    onClick={() => setQuickAddVehicleOpen(true)}
+                    disabled={props.loading}
+                  >
+                    <Plus size={14} aria-hidden="true" />Thêm nhanh
+                  </button>
+                )}
+              >
                 {sel(form.truckId, form.setTruckId, props.trucks, 'Chọn xe đầu kéo', 'truckId', true, 'Xe đầu kéo')}
               </Field>
               <Field label="Loại rơ moóc" required controlId="trailerType">
                 {selStatic(form.trailerType, form.setTrailerType, props.trailerTypes, 'Chọn loại rơ moóc', 'trailerType', true, 'Loại rơ moóc')}
               </Field>
-              <Field label="Lái xe" required controlId="driverId">
+              <Field
+                label="Lái xe"
+                required
+                controlId="driverId"
+                action={(
+                  <button
+                    type="button"
+                    className="tc-field-quick-add"
+                    onClick={() => setQuickAddDriverOpen(true)}
+                    disabled={props.loading}
+                  >
+                    <Plus size={14} aria-hidden="true" />Thêm nhanh
+                  </button>
+                )}
+              >
                 {sel(form.driverId, form.setDriverId, props.drivers, 'Chọn lái xe', 'driverId', true, 'Lái xe')}
               </Field>
             </>
@@ -281,6 +340,29 @@ export function TripInfoCard(props: TripInfoCardProps) {
           </Field>
         </div>
       </div>
+
+      {/* FB-066: one dialog per selector, portalled by Modal — closed state
+          mounts nothing. */}
+      <QuickAddVehicleDialog
+        isOpen={quickAddVehicleOpen}
+        carrierId={null}
+        carrierName="Đội xe nội bộ"
+        onClose={() => setQuickAddVehicleOpen(false)}
+        onCreated={(vehicleId) => {
+          setQuickAddVehicleOpen(false);
+          form.setTruckId(String(vehicleId));
+          refreshCatalogs();
+        }}
+      />
+      <QuickAddDriverDialog
+        isOpen={quickAddDriverOpen}
+        onClose={() => setQuickAddDriverOpen(false)}
+        onCreated={(driverId) => {
+          setQuickAddDriverOpen(false);
+          form.setDriverId(String(driverId));
+          refreshCatalogs();
+        }}
+      />
     </CardSection>
   );
 }

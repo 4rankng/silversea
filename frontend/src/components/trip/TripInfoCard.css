@@ -2,6 +2,52 @@
   align-items: start;
 }
 
+/* FB-066: the label row a quick-add affordance rides on — label grows, the
+   action keeps its own width (the dispatch editor's vehicle-head shape). */
+.tc-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm, 8px);
+  min-width: 0;
+}
+
+.tc-field-head label,
+.tc-field-head .tc-field-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The quick-add trigger: an ordinary compact ghost control (≤40px house
+   ceiling), same vocabulary as the dispatch editor's Thêm nhanh. */
+.tc-field-quick-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-2, var(--line-2));
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg-2);
+  font-size: var(--text-caption-size, 11px);
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.tc-field-quick-add:hover {
+  border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2));
+  background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface));
+  color: var(--accent-2);
+}
+
+.tc-field-quick-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Column gap already separates fields. Nested select wrappers must not
    add the shared standalone field margin a second time. */
 .trip-info-card__layout .field {

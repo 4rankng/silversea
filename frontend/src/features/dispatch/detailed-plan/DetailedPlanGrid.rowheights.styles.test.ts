@@ -54,10 +54,62 @@ describe('DetailedPlanGrid row-height column contract (ticket 141026001010)', ()
     // The compact-row budget depends on the pair being able to share one
     // line when the column is wide enough: the plate/driver spans must stay
     // inline inside the vehicle group (stacking display:block spans forces
-    // two rows at ANY width — the pre-R22 shape).
-    const groupRule = editorCss.match(/\.dispatch-assignment-cell__vehicle-group\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(groupRule).toContain('flex-wrap: wrap');
+    // two rows at ANY width — the pre-R22 shape). The base rule keeps wrap
+    // for the card bands; FB-043's desktop band pins the pair to one line
+    // outright (nowrap + the cell's own ellipsis law).
+    const groupRules = editorCss.match(/\.dispatch-assignment-cell__vehicle-group\s*\{([\s\S]*?)\n\}/g) ?? [];
+    const base = groupRules.find((rule) => rule.includes('flex-wrap: wrap'));
+    expect(base, 'card/base vehicle group keeps flex-wrap: wrap').toBeTruthy();
+    const desktopBand = editorCss.match(/@container\s*\(min-width:\s*901px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(desktopBand).toMatch(/\.dispatch-assignment-cell__vehicle-group\s*\{[^}]*flex-wrap:\s*nowrap;/);
     const pairRule = editorCss.match(/\.dispatch-assignment-cell__vehicle-group \.dispatch-assignment-cell__plate,\n\.dispatch-assignment-cell__vehicle-group \.dispatch-assignment-cell__driver\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(pairRule).toContain('display: inline');
+  });
+});
+
+// ── FB-043 (2026-10-14): the uniform row-height contract ────────────────────
+// The colgroup pins above stay (they decide WHAT ellipsizes), but the system
+// fix is structural: the component bounds the row itself, so column
+// starvation can no longer produce uneven rows. These pins guard the
+// contract that ends the regression class.
+describe('DetailedPlanGrid uniform row-height contract (FB-043)', () => {
+  it('bounds every cell body to one fixed height that clips', () => {
+    expect(css).toMatch(/--dpg-row-h:\s*84px;/);
+    const bodyRule = css.match(/@container\s*\(min-width:\s*901px\)\s*\{[\s\S]*?\.detailed-plan-grid__cell-body\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(bodyRule).toContain('height: var(--dpg-row-h)');
+    expect(bodyRule).toContain('overflow: hidden');
+  });
+
+  it('renders every value line as one ellipsized line inside the table band', () => {
+    const band = css.match(/@container\s*\(min-width:\s*901px\)\s*\{([\s\S]*?)(?=\n\/\*|\n@container|$)/)?.[1] ?? '';
+    const lineRule = band.match(/\.detailed-plan-grid__line,\n\s*\.detailed-plan-grid \.ops-schedule__datetime\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(lineRule).toContain('white-space: nowrap');
+    expect(lineRule).toContain('text-overflow: ellipsis');
+    expect(lineRule).toContain('overflow: hidden');
+  });
+
+  it('keeps the row action clickable — the note stack flexes, the actions never clip', () => {
+    const band = css.match(/@container\s*\(min-width:\s*901px\)\s*\{([\s\S]*?)(?=\n\/\*|\n@container|$)/)?.[1] ?? '';
+    expect(band).toMatch(/\.detailed-plan-grid__note-stack\s*\{[^}]*min-height:\s*0;/);
+    expect(band).toMatch(/\.detailed-plan-grid__note-actions\s*\{[^}]*flex:\s*0 0 auto;/);
+  });
+
+  it('draws cell padding from the spacing scale, not raw pixels', () => {
+    expect(css).toMatch(/\.detailed-plan-grid td\s*\{[^}]*padding:\s*var\(--space-sm\) var\(--space-sm\);/);
+  });
+
+  it('joins the assignment cell to the contract with its own full-row budget', () => {
+    const band = editorCss.match(/@container\s*\(min-width:\s*901px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(band).toMatch(/\.dispatch-assignment-cell\s*\{[^}]*height:\s*calc\(var\(--dpg-row-h\) \+ \(var\(--space-sm\) \* 2\)\);/);
+    expect(band).toMatch(/\.dispatch-assignment-cell__plate,[\s\S]*?\.dispatch-assignment-cell__driver,[\s\S]*?\{[\s\S]*?text-overflow:\s*ellipsis;/);
+  });
+
+  it('mounts the cell body from the component — every column renders through it', () => {
+    const tsx = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx'), 'utf8');
+    // One cell-body per data column: schedule, route, both ports, documents,
+    // container, classification, notes (the editable cell joins via its own
+    // component's budget rule instead of a wrapper).
+    const bodies = tsx.match(/detailed-plan-grid__cell-body/g) ?? [];
+    expect(bodies.length).toBeGreaterThanOrEqual(8);
   });
 });

@@ -50,8 +50,9 @@ describe('compact dispatch cards layout (Requirement R22 / Ticket 20261002_287)'
   it('tightens desktop cell padding and mobile container spacing for vertical density', () => {
     const gridCss = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
 
-    // Desktop table cell padding reduced from 12px to 8px 10px
-    expect(gridCss).toMatch(/\.detailed-plan-grid td\s*\{[^}]*padding:\s*8px 10px;/);
+    // Desktop table cell padding rides the spacing scale (FB-043 superseded
+    // the raw 8px 10px with the same 8px on-scale value)
+    expect(gridCss).toMatch(/\.detailed-plan-grid td\s*\{[^}]*padding:\s*var\(--space-sm\) var\(--space-sm\);/);
 
     // Tablet container (900px) tightened to 4px 8px
     expect(gridCss).toMatch(/@container\s*\(max-width:\s*900px\)\s*\{[\s\S]*?td\.detailed-plan-grid__cell\s*\{[^}]*padding:\s*4px 8px;/);
