@@ -26,6 +26,7 @@ export type InboxQuery = { view?: string; search?: string; page: number; limit: 
 // items without those fields sort last via the nulls-last wrapper.
 export const WORK_INBOX_SORT_KEYS = [
   'title',
+  'state',
   'readiness',
   'blockers',
   'freshness',
@@ -48,6 +49,10 @@ type InboxSortValue = string | number | null;
 function inboxSortValue<T extends WorkInboxItemBase>(item: T, key: WorkInboxSortKey): InboxSortValue {
   switch (key) {
     case 'title': return item.title;
+    // QA2-004 (re-filed 2026-10-14): the Trạng thái column is sortable; the
+    // queue tab already filters to one state, so within a lane this collapses
+    // to the default order — across saved links it still honors the request.
+    case 'state': return item.state;
     case 'readiness': return item.blockers.length;
     case 'blockers': return item.blockers.length + item.advisories.length;
     case 'freshness': return item.freshnessAt;

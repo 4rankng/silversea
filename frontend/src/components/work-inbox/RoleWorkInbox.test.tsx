@@ -177,6 +177,61 @@ describe('RoleWorkInbox', () => {
     }
   });
 
+  it('sorts the queue server-side: fresh column asc, re-click flips, URL restores the order (QA2-004)', async () => {
+    let calls: string[] = [];
+    apiGet.mockImplementation(async (url: string) => { calls.push(url); return response([operationsItem]); });
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
+    await screen.findByRole('table');
+
+    // The data-clearing reload remounts the table between requests, so every
+    // interaction re-resolves the live table instead of holding a node.
+    const header = (name: RegExp) => within(screen.getByRole('table')).getByRole('columnheader', { name });
+    const sortButton = (name: RegExp) => within(screen.getByRole('table')).getByRole('button', { name });
+
+    // Fresh column starts ascending; the header carries aria-sort for AT.
+    fireEvent.click(sortButton(/Công việc/));
+    await waitFor(() => expect(calls.some((url) => url.includes('sortBy=title&sortDir=asc'))).toBe(true));
+    expect(header(/Công việc/).getAttribute('aria-sort')).toBe('ascending');
+
+    // Re-click flips to desc (never back to unsorted — server default covers that).
+    fireEvent.click(sortButton(/Công việc/));
+    await waitFor(() => expect(calls.some((url) => url.includes('sortBy=title&sortDir=desc'))).toBe(true));
+    expect(header(/Công việc/).getAttribute('aria-sort')).toBe('descending');
+
+    // The other two QA2-004 columns hit their server keys; page resets to 1.
+    fireEvent.click(sortButton(/Cập nhật/));
+    await waitFor(() => expect(calls.some((url) => url.includes('sortBy=freshness&sortDir=asc') && url.includes('page=1'))).toBe(true));
+    fireEvent.click(sortButton(/Trạng thái/));
+    await waitFor(() => expect(calls.some((url) => url.includes('sortBy=state&sortDir=asc'))).toBe(true));
+
+    // The ordering serializes into the URL so a detail's back link restores it.
+    await waitFor(() => {
+      const search = screen.getByTestId('inbox-location').textContent ?? '';
+      expect(search).toContain('sort=state');
+      expect(search).toContain('dir=asc');
+    });
+  });
+
+  it('restores a sort from the URL params and keeps it across queue tabs', async () => {
+    apiGet.mockResolvedValue(response([operationsItem]));
+    const route = '/my-orders?sort=title&dir=desc';
+    window.history.replaceState(null, '', route);
+    renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />, route);
+    const table = await screen.findByRole('table');
+    expect(apiGet.mock.calls.some(([path]) => String(path).includes('sortBy=title&sortDir=desc'))).toBe(true);
+    expect(within(table).getByRole('columnheader', { name: /Công việc/ }).getAttribute('aria-sort')).toBe('descending');
+
+    // The ordering is a list-wide preference: a queue switch keeps it and the
+    // URL contract stays intact for the detail page's back link.
+    fireEvent.click(screen.getByRole('tab', { name: /Đang chờ/ }));
+    await waitFor(() => {
+      const search = screen.getByTestId('inbox-location').textContent ?? '';
+      expect(search).toContain('sort=title');
+      expect(search).toContain('dir=desc');
+    });
+    expect(apiGet.mock.calls.some(([path]) => String(path).includes('view=WAITING&page=1&limit=100&sortBy=title&sortDir=desc'))).toBe(true);
+  });
+
   it('shows a full error, retries, preserves data on a partial refresh error, and flags stale data', async () => {
     apiGet.mockRejectedValueOnce(new Error('offline'));
     apiGet.mockResolvedValueOnce(response([operationsItem], '2026-01-01T00:00:00.000Z'));

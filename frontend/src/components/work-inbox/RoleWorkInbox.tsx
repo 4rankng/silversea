@@ -23,6 +23,8 @@ import { formatNumber, formatDateTimeShort } from '../../lib/format';
 import { forwarderClient } from '../../api/forwarderClient';
 import { Tabs } from '../../design-system';
 import { PageHeader } from '../UI';
+import { SortHeader } from '../shared/SortHeader';
+import { nextTableSort, readTableSort, type TableSortState } from '../../lib/table-sort';
 
 import { withCustomerScope } from '../../pages/portal/CustomerPortalScope';
 import { RoleWorkInboxGateCell } from './RoleWorkInboxGateCell';
@@ -52,8 +54,18 @@ type Props = {
   scopeReady?: boolean;
 };
 
-function endpointFor(role: Role, customerId: number | null | undefined, state: typeof states[number], page: number, search: string) {
-  const query = `view=${state}&page=${page}&limit=100${search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''}`;
+/** The three data columns QA2-004 names (order code / status / date) map to
+ *  the backend WORK_INBOX_SORT_KEYS whitelist; the owner route reuses it. */
+const SORTABLE_COLUMNS = ['title', 'state', 'freshness'] as const;
+
+function endpointFor(role: Role, customerId: number | null | undefined, state: typeof states[number], page: number, search: string, sort: TableSortState | null) {
+  const params = new URLSearchParams({ view: state, page: String(page), limit: '100' });
+  if (search.trim()) params.set('search', search.trim());
+  if (sort) {
+    params.set('sortBy', sort.by);
+    params.set('sortDir', sort.dir);
+  }
+  const query = params.toString();
   if (role === 'operations') return `/forwarder/me/work-inbox?${query}`;
   if (role === 'driver') return `/driver/me/work-inbox?${query}`;
   return withCustomerScope(`/portal/work-inbox?${query}`, customerId ?? null);
@@ -123,6 +135,12 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const paramPage = Number(searchParams.get('page'));
   const [page, setPage] = useState(() => (Number.isInteger(paramPage) && paramPage > 0 ? paramPage : 1));
   const focusRowKey = searchParams.get('row');
+  // QA2-004 (re-filed 2026-10-14): the queue table sorts by order code /
+  // status / date. State serializes into the URL (sort + dir) like tab and
+  // page so a detail's back link restores the exact ordering; the toggle is
+  // the shared UsersPage contract (asc on fresh column, flip on re-click,
+  // never back to unsorted — the server default order covers that).
+  const [sort, setSort] = useState<TableSortState | null>(() => readTableSort(searchParams.get('sort'), searchParams.get('dir')));
   // Owner ruling 2026-10-12 (QA2-004): a server-side text search box on the
   // OPS queue only. The backend already filters title (Bill/Booking) and
   // subtitle (container · customer · driver/plate) on the `search` param —
@@ -144,7 +162,7 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   const [responseMessage, setResponseMessage] = useState<{ kind: 'success' | 'error' | 'conflict'; text: string } | null>(null);
   const responseKeys = useRef(new Map<string, string>());
   const latestLoadRequest = useRef(0);
-  const endpoint = endpointFor(role, customerId, states[active], page, role === 'operations' ? search : '');
+  const endpoint = endpointFor(role, customerId, states[active], page, role === 'operations' ? search : '', sort);
 
   const queryClient = useQueryClient();
 
@@ -186,17 +204,25 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     prevScopeRef.current = scopeKey;
     setActive(0);
     setPage(1);
+    setSort(null);
   }, [scopeKey, scopeReady]);
 
-  // Mirror queue/page into the URL (replace — no history spam) so the detail
-  // page's return link can rebuild the exact list context. The one-shot `row`
-  // param is managed by the focus effect below.
+  // Mirror queue/page/sort into the URL (replace — no history spam) so the
+  // detail page's return link can rebuild the exact list context. The
+  // one-shot `row` param is managed by the focus effect below.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (active > 0) params.set('tab', String(active)); else params.delete('tab');
     if (page > 1) params.set('page', String(page)); else params.delete('page');
+    if (sort) {
+      params.set('sort', sort.by);
+      params.set('dir', sort.dir);
+    } else {
+      params.delete('sort');
+      params.delete('dir');
+    }
     setSearchParams(params, { replace: true });
-  }, [active, page, setSearchParams]);
+  }, [active, page, sort, setSearchParams]);
 
   // After data lands, focus the originating record once, then consume the
   // row param so refreshes don't re-steal focus.
@@ -222,6 +248,17 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     setActive(index);
     setPage(1);
   };
+
+  // QA2-004: the shared table-sort toggle; page resets so the requested
+  // order applies from the first row (server sorts pre-pagination).
+  const handleSortChange = (key: string) => {
+    setSort((current) => nextTableSort(current, key));
+    setPage(1);
+  };
+
+  const sortable = (label: string, key: (typeof SORTABLE_COLUMNS)[number]) => (
+    <SortHeader label={label} sortKey={key} sort={sort} onSortChange={handleSortChange} />
+  );
 
   // Queue group — the shared boxed Tabs primitive (operator ruling
   // 2026-09-27). Ids are the queue index so the URL/state contract is intact;
@@ -369,7 +406,15 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
             <table className="role-work-inbox__table">
               <thead>
                 {/* O2C milestone column: customers never see the gates, so the blank column drops for them. */}
-                <tr><th>Công việc</th><th>Thông tin cần biết</th>{role !== 'customer' && <th>Mốc nghiệp vụ</th>}<th>Trạng thái</th><th>Trở ngại</th><th>Cập nhật</th><th><span className="sr-only">Hành động</span></th></tr>
+                <tr>
+                  {sortable('Công việc', 'title')}
+                  <th>Thông tin cần biết</th>
+                  {role !== 'customer' && <th>Mốc nghiệp vụ</th>}
+                  {sortable('Trạng thái', 'state')}
+                  <th>Trở ngại</th>
+                  {sortable('Cập nhật', 'freshness')}
+                  <th><span className="sr-only">Hành động</span></th>
+                </tr>
               </thead>
               <tbody>
                 {items.map((item) => {

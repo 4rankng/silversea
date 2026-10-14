@@ -1,0 +1,33 @@
+QA-PURGE-START EXECUTE env=local
+SURFACE ops_expense_photos [hard-delete] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE ops_expense_entries [hard-delete-guarded] matched=16 deleted=1 skipped=15 remaining=15
+SURFACE advance_requests [hard-delete-guarded] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE deposit_refund_trackers [hard-delete-guarded] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE deposit_refund_trackers [scrub] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE fuel_invoice_allocations [hard-delete] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE fuel_period_adjustments [hard-delete] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE fuel_invoices [hard-delete-guarded] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE invoice_tracking [soft-delete] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE trip_expenses [soft-delete] matched=1 deleted=1 skipped=0 remaining=1
+SURFACE ledger [hard-delete-guarded] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE treasury_movements [hard-delete-guarded] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE payment_receipts [hard-delete-guarded] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE treasury_accounts [deactivate] matched=9 deleted=9 skipped=0 remaining=9
+SURFACE shipment_containers [hard-delete-guarded] matched=36 deleted=6 skipped=30 remaining=30
+SURFACE shipments [soft-delete] matched=18 deleted=18 skipped=0 remaining=18
+SURFACE quotations [soft-delete] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE customers [soft-delete] matched=42 deleted=0 skipped=0 remaining=0
+SURFACE suppliers [soft-delete] matched=22 deleted=0 skipped=0 remaining=0
+SURFACE users [soft-delete] matched=3201 deleted=3201 skipped=0 remaining=3131
+SURFACE business_units [deactivate] matched=1 deleted=1 skipped=0 remaining=1
+SURFACE forwarder_expense_types [deactivate-plus-soft-delete] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE trips [scrub] matched=1 deleted=1 skipped=0 remaining=0
+SURFACE shipments [scrub] matched=1 deleted=3 skipped=0 remaining=1
+SURFACE trip_containers [scrub] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE operational_sites [scrub] matched=3 deleted=4 skipped=0 remaining=0
+SURFACE ports [scrub] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE distributions [hard-delete] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE penalty_reasons [soft-delete] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE driver_incidental_costs [scrub] matched=0 deleted=0 skipped=0 remaining=0
+QA-PURGE-SUMMARY deleted=3245 remaining=3206
+QA-PURGE-INCOMPLETE: some surfaces still hold QA rows (guarded skips) — see SURFACE lines above.
