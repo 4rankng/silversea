@@ -213,6 +213,18 @@
   border-spacing: 0;
   table-layout: fixed;
   font-size: var(--ops-table-supporting-size);
+  /* ── FB-043 (2026-10-14): the uniform row-height contract ─────────────
+     Two row-height regressions (R22 compact rows, ticket 141026001010) were
+     each fixed by re-tuning colgroup shares — a symptom patch: any future
+     rebalance that starves a column re-wraps a cell and rows go uneven
+     again. The system fix bounds the row at the component level instead:
+     every cell renders one fixed-height body (—__cell-body) that clips, and
+     every text line is one nowrap line with an ellipsis (title carries the
+     full value). Column widths now choose WHAT gets ellipsized, never how
+     tall the row is. The ≤900px card bands reset the body (cards own their
+     height). Budget: 3 meta/supporting lines (≈53px) + the notes cell's
+     3-line clamp above a never-clipped action row (28px + gap). */
+  --dpg-row-h: 84px;
 }
 
 /* Keep every fixed-layout column explicit and the complete set at 100%.
@@ -304,9 +316,78 @@
 }
 
 .detailed-plan-grid td {
-  padding: 8px 10px;
+  /* FB-043: spacing-scale padding — the row contract's vertical rhythm comes
+     from the shared --space-* scale, not raw pixels (the R22 8px 10px pin is
+     superseded by the same 8px on-scale value). */
+  padding: var(--space-sm) var(--space-sm);
   border-bottom: 1px solid var(--line);
   vertical-align: top;
+}
+
+/* ── FB-043 contract rules — table form only (container wider than the
+   900px card switch). Each block mirrors the card bands' max-width so the
+   two modes can never co-apply. ──────────────────────────────────────── */
+@container (min-width: 901px) {
+  .detailed-plan-grid__cell-body {
+    height: var(--dpg-row-h);
+    overflow: hidden;
+  }
+
+  .detailed-plan-grid__cell-body--row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  .detailed-plan-grid__cell-body--notes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  /* The note text gives ground to the row action: the stack flexes (and
+     clips internally — the full note is one click away in the dialog), the
+     action row never clips so Phát lệnh/Hoàn thành stay clickable. */
+  .detailed-plan-grid__note-stack {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .detailed-plan-grid__note-actions {
+    flex: 0 0 auto;
+  }
+
+  .detailed-plan-grid__note-actions:empty {
+    display: none;
+  }
+
+  .detailed-plan-grid__note-actions .detailed-plan-grid__note-action,
+  .detailed-plan-grid__note-actions .detailed-plan-grid__pair-btn {
+    margin-top: 0;
+  }
+
+  /* One line per value: an ellipsized tail instead of a wrapped second line
+     — the wrapping was the inflation mechanism of both regressions. */
+  .detailed-plan-grid__line,
+  .detailed-plan-grid .ops-schedule__datetime {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* The pair tag rides the ellipsized container line; it must not force a
+     second line when the number is long. */
+  .detailed-plan-grid__pair-tag {
+    flex-shrink: 0;
+  }
+
+  /* The documents cell keeps its two-row grid inside the body; the grid's
+     own min-height already fits the budget. */
+  .detailed-plan-grid__documents {
+    min-height: 0;
+  }
 }
 
 /* Multi-line cells wrap instead of clipping the spec's line stack. */
@@ -613,6 +694,10 @@
     padding: 4px 8px;
     border: 0;
   }
+
+  /* FB-043: the uniform-height contract (—__cell-body) is scoped to the
+     table form's (min-width: 901px) container band, so it never reaches the
+     card layout — cards own their height and their record lines wrap. */
 
   /* Label rides on the same line as the value — no dedicated label row.
      The field lines below are inlined too, so label + fields flow as one
