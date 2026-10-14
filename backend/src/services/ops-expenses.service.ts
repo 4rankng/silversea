@@ -11,7 +11,7 @@ import { ApiError } from '../errors';
 import { storageService } from './storage.service';
 import { opsInvoicedCostGroupOf, type ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
-import { assertOpsExpenseAssignment } from './expense-owner-scope.service';
+import { assertOpsLotCostPolicy } from './expense-owner-scope.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 // Tx / Executor come from ../db (the one Executor seam).
@@ -175,7 +175,7 @@ export async function createOpsExpense(
   executor: Executor = db,
 ): Promise<OpsExpenseWriteResult> {
   if (executor === db) return db.transaction(tx => createOpsExpense(userId, input, tx));
-  await assertOpsExpenseAssignment(executor, userId, input.shipmentId);
+  await assertOpsLotCostPolicy(executor, input.shipmentId);
   const amount = parseOpsMoney(input.amount);
   assertValidPaidAt(input.paidAt);
   const expenseType = await assertActiveExpenseType(input.expenseTypeCode);
@@ -283,7 +283,7 @@ export async function updateOpsExpense(
 ): Promise<OpsExpenseWriteResult> {
   if (executor === db) return db.transaction(tx => updateOpsExpense(userId, expenseId, patch, tx));
   const entry = await getEditableExpense(userId, expenseId, executor);
-  await assertOpsExpenseAssignment(executor, userId, entry.shipmentId);
+  await assertOpsLotCostPolicy(executor, entry.shipmentId);
   if (!patch.reason?.trim()) throw new ApiError(400, 'Nhập lý do điều chỉnh khoản chi.');
   await assertShipmentAccountingUnlocked(executor, entry.shipmentId);
   const source = await lockExpenseSource(executor, 'OPS', expenseId);
@@ -367,7 +367,7 @@ export async function deleteOpsExpense(
   if (!reason || !reason.trim()) throw new ApiError(400, 'Lý do xóa là bắt buộc.');
   if (executor === db) return db.transaction(tx => deleteOpsExpense(userId, expenseId, reason, tx));
   const entry = await getEditableExpense(userId, expenseId, executor);
-  await assertOpsExpenseAssignment(executor, userId, entry.shipmentId);
+  await assertOpsLotCostPolicy(executor, entry.shipmentId);
   const source = await lockExpenseSource(executor, 'OPS', expenseId);
   if (source) {
     await assertExpenseSourceMutable(executor, source);
@@ -406,7 +406,7 @@ export async function attachOpsExpensePhoto(userId: number, expenseId: number, s
   return db.transaction(async tx => {
     const [entry] = await tx.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, expenseId)).for('update');
     if (!entry || entry.paidById !== userId) throw new ApiError(404, 'Không tìm thấy khoản chi.');
-    await assertOpsExpenseAssignment(tx, userId, entry.shipmentId);
+    await assertOpsLotCostPolicy(tx, entry.shipmentId);
     if (['VOIDED', 'REJECTED'].includes(entry.approvalStatus)) throw new ApiError(409, 'Khoản chi đã hủy; giữ nguyên chứng từ lịch sử.');
     assertOwnStorageKey(userId, storageKey);
     const [photo] = await tx.insert(s.opsExpensePhotos).values({ opsExpenseId: expenseId, storageKey, uploadedById: userId }).onConflictDoNothing().returning();
@@ -420,7 +420,7 @@ export async function deleteOpsExpensePhoto(userId: number, photoId: number): Pr
     if (!photo) throw new ApiError(404, 'Không tìm thấy ảnh.');
     const [entry] = await tx.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, photo.opsExpenseId)).for('update');
     if (!entry || entry.paidById !== userId) throw new ApiError(404, 'Không tìm thấy ảnh.');
-    await assertOpsExpenseAssignment(tx, userId, entry.shipmentId);
+    await assertOpsLotCostPolicy(tx, entry.shipmentId);
     const source = await lockExpenseSource(tx, 'OPS', entry.id);
     if (source?.confirmedAt || entry.opsSettlementId || ['VOIDED', 'REJECTED'].includes(entry.approvalStatus)) throw new ApiError(409, 'Giữ nguyên chứng từ đã đối chiếu; chỉ bổ sung ảnh.');
     await tx.delete(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.id, photoId));

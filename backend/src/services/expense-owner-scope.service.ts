@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import * as s from '../db/schema';
 import { db } from '../db';
@@ -7,68 +7,47 @@ import type { ExpenseAccountingSource } from './expense-accounting-source.servic
 import { ApiError } from '../errors';
 
 /**
- * Lock the current grant for the duration of a write; revocation wins before
- * the write or waits for its transaction, never produces partial scope.
+ * The OPS role's lot-cost policy (accountant P0 "các lô hàng nhập lên hoàn
+ * toàn không khai chi phí được", testplan CPB-01): any OPS user may declare
+ * costs on any live lot. The former per-person grant (manual user↔lot link,
+ * active truck assignment hauling the lot, own prior expense) is gone — a
+ * newly entered lot satisfied none of its branches, so the role was blocked
+ * outright. Per-person/per-container scoping is Wave C's lane, not this gate.
  *
- * The OPS expense right is derived at save-time from the live tables — no
- * link-row syncing: (1) a manual user↔shipment link (admin user form),
- * (2) an active truck assignment whose truck hauls the lot on any non-canceled
- * trip (receipts legitimately arrive after completion, so COMPLETED grants;
- * only CANCELED never hauled), or (3) the ops's own saved (non-voided) expense
- * on the lot — a revoked ops keeps managing money they already declared.
+ * What still refuses: a missing or soft-deleted lot — 404, not a permission
+ * verdict, so the caller can tell "no such lot" from "not yours".
  */
-export async function assertOpsExpenseAssignment(executor: Pick<Executor, 'select'>, userId: number, shipmentId: number) {
-  const [linked] = await executor.select({ id: s.userShipmentLinks.id }).from(s.userShipmentLinks)
-    .innerJoin(s.shipments, eq(s.shipments.id, s.userShipmentLinks.shipmentId))
-    .where(and(eq(s.userShipmentLinks.userId, userId), eq(s.userShipmentLinks.shipmentId, shipmentId), isNull(s.shipments.deletedAt)))
-    .for('share');
-  if (linked) return;
-  const [hauled] = await executor.select({ id: s.truckOpsAssignments.id }).from(s.truckOpsAssignments)
-    .innerJoin(s.trips, and(
-      eq(s.trips.truckId, s.truckOpsAssignments.truckId),
-      eq(s.trips.shipmentId, shipmentId),
-      isNull(s.trips.deletedAt),
-      ne(s.trips.status, 'CANCELED'),
-    ))
-    .where(and(
-      eq(s.truckOpsAssignments.opsUserId, userId),
-      eq(s.truckOpsAssignments.isActive, true),
-    ))
-    .for('share');
-  if (hauled) return;
-  const [expensed] = await executor.select({ id: s.opsExpenseEntries.id }).from(s.opsExpenseEntries)
-    .where(and(
-      eq(s.opsExpenseEntries.paidById, userId),
-      eq(s.opsExpenseEntries.shipmentId, shipmentId),
-      ne(s.opsExpenseEntries.approvalStatus, 'VOIDED'),
-    ))
-    .for('share');
-  if (expensed) return;
-  throw new ApiError(403, 'Lô này không thuộc xe bạn phụ trách. Liên hệ Quản trị viên để được gán xe.');
+export async function assertOpsLotCostPolicy(executor: Pick<Executor, 'select'>, shipmentId: number) {
+  const [lot] = await executor.select({ id: s.shipments.id }).from(s.shipments)
+    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+    .limit(1);
+  if (!lot) throw new ApiError(404, 'Không tìm thấy lô hàng.');
 }
 
 /**
  * Read-only verdict for the expense dialog's open-time check (card
- * 071026210510): the SAME grant predicate as the save-time assert above —
+ * 071026210510): the SAME policy predicate as the save-time assert above —
  * never a second copy of it — so the dialog and the save can never disagree.
- * Non-403 errors propagate: an infrastructure failure must surface as a 500,
- * not masquerade as a permission denial.
+ * Non-403/404 errors propagate: an infrastructure failure must surface as a
+ * 500, not masquerade as a permission denial.
  *
  * The executor defaults to the db client so route callers never import it
  * (routes → services layering rule; ops.ts was the last offender).
  */
-export async function opsExpenseWriteScope(userId: number, shipmentId: number, executor: Pick<Executor, 'select'> = db): Promise<{ writable: boolean; reason: string | null }> {
+export async function opsExpenseWriteScope(shipmentId: number, executor: Pick<Executor, 'select'> = db): Promise<{ writable: boolean; reason: string | null }> {
   try {
-    await assertOpsExpenseAssignment(executor, userId, shipmentId);
+    await assertOpsLotCostPolicy(executor, shipmentId);
     return { writable: true, reason: null };
   } catch (error) {
-    if (error instanceof ApiError && error.statusCode === 403) return { writable: false, reason: error.message };
+    if (error instanceof ApiError && (error.statusCode === 403 || error.statusCode === 404)) {
+      return { writable: false, reason: error.message };
+    }
     throw error;
   }
 }
 
 export async function assertExpenseOwnerWriteScope(executor: Executor, actor: { userId: number; role: Role }, source: ExpenseAccountingSource) {
-  if (actor.role === Role.OPS) await assertOpsExpenseAssignment(executor, actor.userId, source.shipmentId);
+  if (actor.role === Role.OPS) await assertOpsLotCostPolicy(executor, source.shipmentId);
   if (actor.role === Role.DRIVER) {
     const [trip] = source.tripId ? await executor.select({ id: s.trips.id }).from(s.trips)
       .innerJoin(s.drivers, eq(s.drivers.id, s.trips.driverId))

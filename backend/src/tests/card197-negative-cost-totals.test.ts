@@ -527,9 +527,10 @@ describe('card 20260928_197 — a negative cost row can be saved, and charges no
     return code;
   }
 
-  /** Grant the OPS payer the lot via branch 3 of `assertOpsExpenseAssignment`
-   *  (their own saved, non-voided expense) — the branch a real returning
-   *  forwarder already has, so the test is about the charge, not the scope. */
+  /** Seed the OPS payer's own saved, non-voided expense on the lot — kept so
+   *  the fixture mirrors a real returning forwarder. Since CPB-01 the OPS
+   *  role policy grants lot-cost writes on any live lot, so this is no longer
+   *  a scope requirement; the test stays about the charge, not the scope. */
   async function mkGranted(fixture: Fixture, expenseTypeCode: string) {
     const [seed] = await db.insert(s.opsExpenseEntries).values({
       shipmentId: fixture.lot.id, expenseTypeCode, amount: '1000',
