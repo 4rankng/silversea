@@ -500,16 +500,25 @@
      viewport width. Flex keeps it from collapsing below its min-width.
      Owner ruling 2026-10-11 (case 2026-10-11-R14-07 / FB-057): the cap is a
      rest-state clamp — focus relaxes it to 560px for typing room and blur
-     returns to the cap. Width-only transition: the topbar height never moves. */
+     returns to the cap. Width-only transition: the topbar height never moves.
+     Owner ruling 2026-10-14 (FB-057 re-report) supersedes the hard cap: the
+     desktop floor is 360px and from 1280px up the field grows fluidly with
+     the free topbar space — no fixed ceiling at any width (the ≤1023px
+     tiers keep their smaller mobile minimum). */
   flex: 1 1 0;
   margin-left: 0;
   position: relative;
-  min-width: 200px;
+  min-width: 360px;
   max-width: 360px;
   transition: max-width 0.18s ease;
 }
 .topbar__search:focus-within {
   max-width: 560px;
+}
+@media (min-width: 1280px) {
+  .topbar__search {
+    max-width: none;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .topbar__search { transition: none; }

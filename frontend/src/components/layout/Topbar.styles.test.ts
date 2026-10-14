@@ -38,4 +38,17 @@ describe('topbar visibility contract', () => {
     expect(topbarCss).toMatch(/\.topbar__search\s*\{[^}]*max-width:\s*360px;/);
     expect(topbarCss).toMatch(/\.topbar__search:focus-within\s*\{[^}]*max-width:\s*(min\(560px|560px)/);
   });
+
+  it('gives the global search a 360px floor and fluid growth from 1280px — no hard cap (FB-057, owner ruling 2026-10-14)', () => {
+    // The re-report ruling supersedes every fixed ceiling at wide viewports:
+    // the desktop floor is 360px (never the old 200px shrink), and from the
+    // 1280px tier up the field grows with the free topbar space instead of
+    // stopping at 360/560px.
+    expect(topbarCss).toMatch(/\.topbar__search\s*\{[^}]*min-width:\s*360px;/);
+    expect(topbarCss).not.toMatch(/\.topbar__search\s*\{[^}]*min-width:\s*200px;/);
+    expect(topbarCss).toMatch(/@media\s*\(min-width:\s*1280px\)\s*\{\s*\.topbar__search\s*\{[^}]*max-width:\s*none;/);
+    // Mobile tiers keep their smaller minimum — a 390px phone cannot hold a
+    // 360px search beside the context and actions.
+    expect(responsiveCss).toMatch(/\.topbar__search\s*\{[^}]*min-width:\s*120px;/);
+  });
 });
