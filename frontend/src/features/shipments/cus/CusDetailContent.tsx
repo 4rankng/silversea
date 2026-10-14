@@ -19,6 +19,7 @@ export function ShipmentDetailContent({
   onSavingChange,
   actionsRef,
   onExternalTripCompleted,
+  onDetailStale,
   onAppointmentSavedAndExit,
 }: {
   detail?: ShipmentCusWorkspaceDetail;
@@ -35,6 +36,9 @@ export function ShipmentDetailContent({
   actionsRef?: React.MutableRefObject<ContainerLedgerHandle | null>;
   /** Detail refetch after a staff close — completion advances the shipment. */
   onExternalTripCompleted?: () => void;
+  /** FB-086 (round 19): optimistic-version 409 on a container add — the host
+   *  force-reloads the drawer detail so the retry uses the fresh version. */
+  onDetailStale?: () => void;
   /** Fires once after an appointment popover commit settles successfully — the
    *  host closes the detail surface so Enter returns the user to the list,
    *  matching the drawer footer's save-then-close behavior. */
@@ -59,6 +63,7 @@ export function ShipmentDetailContent({
           actionsRef={actionsRef}
           onAppointmentSavedAndExit={onAppointmentSavedAndExit}
           onExternalTripCompleted={onExternalTripCompleted}
+          onDetailStale={onDetailStale}
         />
       ) : null}
     </div>

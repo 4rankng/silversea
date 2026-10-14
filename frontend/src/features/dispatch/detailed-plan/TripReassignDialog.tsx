@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, Shuffle, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { tripClient } from '../../../api/tripClient';
+import {
+  listDispatchFleetResources,
+  type DispatchCarrierVehicle,
+} from '../../../api/dispatchPlanningClient';
 import { qk } from '../../../api/keys';
 import { useCatalogs } from '../../../hooks/useCatalogs';
 import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
@@ -9,6 +13,7 @@ import { useTripDetail } from '../../../hooks/useTripQueries';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { Modal, useConfirm } from '../../../components/UI';
 import { TextField, UuiSelectField } from '../../../design-system';
+import { USearchableField } from '../../shipments/create/uui-fields';
 
 interface TripReassignDialogProps {
   /** Trip to reassign, or null to keep the dialog closed. */
@@ -43,6 +48,14 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
   const [driverId, setDriverId] = useState('');
   const [externalCarrierId, setExternalCarrierId] = useState('');
   const [externalPlateNumber, setExternalPlateNumber] = useState('');
+  // Round 19 (Đổi nhà xe + biển): the plate field is a picker fed by the
+  // SELECTED carrier's fleet — picking a listed plate resolves its vehicle
+  // id so the governed write re-links carrier_fleet_vehicles; an unlisted
+  // plate stays free text (id null, plate text rides).
+  const [carrierVehicles, setCarrierVehicles] = useState<DispatchCarrierVehicle[]>([]);
+  const [vehiclesLoading, setVehiclesLoading] = useState(false);
+  const [vehiclesError, setVehiclesError] = useState(false);
+  const [vehiclesRetryNonce, setVehiclesRetryNonce] = useState(0);
   const [externalDriverName, setExternalDriverName] = useState('');
   const [externalDriverPhone, setExternalDriverPhone] = useState('');
   // Card 20261006_389 — per-trip trailer override; '' = the (selected)
@@ -87,6 +100,40 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
   // accepted. CREATED trips stay fully reassignable (pre-acceptance right).
   const lockedByAcceptance = trip?.status === 'IN_TRANSIT' && trip?.driverAccepted === true;
 
+  // Load the selected external carrier's vehicles for the plate picker. The
+  // dialog's own carrier list is catalog-based; the fleet list is per
+  // carrier, so it refreshes whenever the dispatcher picks a different
+  // nhà xe (round 19).
+  const selectedExternalCarrierId = carrierType === 'EXTERNAL' && externalCarrierId && /^\d+$/.test(externalCarrierId)
+    ? Number(externalCarrierId)
+    : null;
+  useEffect(() => {
+    if (tripId == null || selectedExternalCarrierId == null) {
+      setCarrierVehicles([]);
+      setVehiclesError(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setVehiclesLoading(true);
+    listDispatchFleetResources('EXTERNAL_VEHICLE', { carrierId: selectedExternalCarrierId, limit: 50 })
+      .then((response) => {
+        if (cancelled) return;
+        setCarrierVehicles(response.items as DispatchCarrierVehicle[]);
+        setVehiclesError(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCarrierVehicles([]);
+        setVehiclesError(true);
+      })
+      .finally(() => { if (!cancelled) setVehiclesLoading(false); });
+    return () => { cancelled = true; };
+  }, [tripId, selectedExternalCarrierId, vehiclesRetryNonce]);
+
+  const matchedVehicle = selectedExternalCarrierId != null && externalPlateNumber.trim()
+    ? carrierVehicles.find((vehicle) => vehicle.licensePlate.localeCompare(externalPlateNumber.trim(), 'vi', { sensitivity: 'base' }) === 0) ?? null
+    : null;
+
   async function handleSave(extra: { rigOverlapCompletedConfirmed?: boolean } = {}) {
     if (!trip || tripId == null || saving) return;
     if (carrierType === 'OWN') {
@@ -113,6 +160,11 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
         // otherwise so the backend resolves the tractor's coupling as before.
         ...(carrierType === 'OWN' && trailerOverride ? { trailerId: Number(trailerOverride) } : {}),
         externalCarrierId: externalCarrierId ? Number(externalCarrierId) : null,
+        // Round 19: a listed plate carries its carrier_fleet_vehicles id so
+        // the governed write re-links the new carrier's vehicle; a free-text
+        // plate ships null and the typed text rides (the route no longer
+        // forces the previously-issued vehicle over either).
+        externalCarrierVehicleId: carrierType === 'EXTERNAL' ? matchedVehicle?.id ?? null : null,
         externalPlateNumber,
         externalDriverName,
         externalDriverPhone,
@@ -317,18 +369,44 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
               <UuiSelectField
                 label="Đối tác xe ngoài"
                 value={externalCarrierId}
-                onChange={(event) => setExternalCarrierId(event.target.value)}
+                onChange={(event) => {
+                  // A different nhà xe means a different fleet: drop the old
+                  // plate so the picker reloads and cannot silently carry the
+                  // previous carrier's vehicle (round 19).
+                  if (event.target.value !== externalCarrierId) setExternalPlateNumber('');
+                  setExternalCarrierId(event.target.value);
+                }}
                 disabled={saving}
                 options={[{ value: '', label: '-- Chọn đối tác --' }, ...carrierCustomers.map((c) => ({ value: String(c.id), label: c.label }))]}
                 wrapperClassName="field"
               />
-              <TextField
+              {/* Round 19: the plate is a SELECTOR over the selected carrier's
+                  fleet (mirroring the detail-plan editor's plate picker),
+                  with free text for a plate the catalog does not carry. */}
+              <USearchableField
+                id="trip-reassign-external-plate"
                 label="Biển số xe"
-                placeholder="Ví dụ: 15C-12345"
                 value={externalPlateNumber}
-                onChange={(event) => setExternalPlateNumber(event.target.value)}
+                onChange={(plate) => setExternalPlateNumber(plate.toUpperCase().slice(0, 20))}
+                onCustomValue={(text) => setExternalPlateNumber(text.toUpperCase().slice(0, 20))}
+                options={carrierVehicles.map((vehicle) => ({ value: vehicle.licensePlate, label: vehicle.licensePlate }))}
+                placeholder={vehiclesLoading ? 'Đang tải biển số…' : 'Chọn hoặc nhập biển số'}
                 disabled={saving}
+                searchable
+                allowsCustomValue
               />
+              {matchedVehicle && (
+                <p style={{ margin: 0, fontSize: 'var(--text-data-size)', color: 'var(--ink-3)' }}>
+                  Xe đã đăng ký của nhà xe ({matchedVehicle.licensePlate}) — sẽ gán lại đúng xe trong danh mục.
+                </p>
+              )}
+              {vehiclesError && (
+                <p style={{ margin: 0, fontSize: 'var(--text-data-size)', color: 'var(--danger, #b3261e)' }} role="status">
+                  Không tải được danh sách biển số của nhà xe.{' '}
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => setVehiclesRetryNonce((nonce) => nonce + 1)}>Thử lại</button>
+                  {' '}Vẫn nhập được biển số trực tiếp.
+                </p>
+              )}
               <TextField
                 label="Tên lái xe"
                 placeholder="Tên lái xe ngoài"

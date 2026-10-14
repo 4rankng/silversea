@@ -17,6 +17,13 @@ vi.mock('../../../hooks/useCatalogQueries', () => ({
 vi.mock('../../../api/tripClient', () => ({
   tripClient: { reassignTrip: vi.fn() },
 }));
+const { listDispatchFleetResources } = vi.hoisted(() => ({
+  listDispatchFleetResources: vi.fn(),
+}));
+vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/dispatchPlanningClient')>()),
+  listDispatchFleetResources,
+}));
 
 import { useTripDetail } from '../../../hooks/useTripQueries';
 import { tripClient } from '../../../api/tripClient';
@@ -25,9 +32,13 @@ import { TripReassignDialog } from './TripReassignDialog';
 
 const useTripDetailMock = vi.mocked(useTripDetail);
 const reassignMock = vi.mocked(tripClient.reassignTrip);
+const fleetMock = listDispatchFleetResources as unknown as ReturnType<typeof vi.fn>;
 // Defaults keep every pre-389 describe exactly as it was.
 catalogsMock.mockReturnValue({ data: { customers: [], externalCarriers: [] } });
 trucksDriversMock.mockReturnValue({ data: null });
+// Round 19 default: an empty carrier-vehicle page — describes that exercise
+// the plate picker install their own fleet.
+listDispatchFleetResources.mockResolvedValue({ items: [], nextCursor: null });
 
 const TRIP = {
   id: 3,
@@ -266,6 +277,94 @@ describe('TripReassignDialog — acceptance lock', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận phân xe lại' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('đã được lái xe nhận việc');
     await waitFor(() => expect(refetch).toHaveBeenCalled());
+  });
+});
+
+// Round 19 (Đổi nhà xe + biển sau phát lệnh): the EXTERNAL branch carries a
+// carrier+plate SELECTOR — the plate picker lists the selected carrier's
+// fleet, a listed plate rides its carrier_fleet_vehicles id, a different
+// carrier clears the stale plate, and free text still types through.
+describe('TripReassignDialog — external carrier + plate picker (round 19)', () => {
+  const EXTERNAL_TRIP = {
+    ...TRIP,
+    carrierType: 'EXTERNAL',
+    truckId: null,
+    driverId: null,
+    externalCarrierId: 9,
+    externalPlateNumber: '60C-111.11',
+    externalCarrierVehicleId: 101,
+  } as unknown as TripDetail;
+
+  beforeEach(() => {
+    useTripDetailMock.mockReset();
+    useTripDetailMock.mockReturnValue({
+      data: EXTERNAL_TRIP, isLoading: false, error: null, refetch: vi.fn(),
+    } as never);
+    reassignMock.mockReset().mockResolvedValue({} as never);
+    fleetMock.mockReset().mockResolvedValue({
+      items: [
+        { id: 101, carrierId: 9, licensePlate: '60C-111.11', isActive: true },
+        { id: 102, carrierId: 9, licensePlate: '60C-222.22', isActive: true },
+      ],
+      nextCursor: null,
+    } as never);
+    catalogsMock.mockReturnValue({
+      data: {
+        customers: [],
+        externalCarriers: [
+          { id: 9, name: 'Nhà xe A' },
+          { id: 11, name: 'Nhà xe B' },
+        ],
+      },
+    });
+    trucksDriversMock.mockReturnValue({ data: null });
+  });
+
+  it('lists the selected carrier’s plates in the picker (TC-R19-REASSIGN-02)', async () => {
+    renderDialog();
+    const plate = await screen.findByLabelText('Biển số xe');
+    expect(plate).toBeTruthy();
+    await waitFor(() => expect(fleetMock).toHaveBeenCalledWith('EXTERNAL_VEHICLE', { carrierId: 9, limit: 50 }));
+    fireEvent.focus(plate);
+    fireEvent.keyDown(plate, { key: 'ArrowDown' });
+    expect(await screen.findByRole('option', { name: '60C-222.22' }, { timeout: 3000 })).toBeTruthy();
+  });
+
+  it('sends the listed plate’s vehicle id when the dispatcher picks it', async () => {
+    renderDialog();
+    const plate = await screen.findByLabelText('Biển số xe');
+    fireEvent.focus(plate);
+    fireEvent.change(plate, { target: { value: '60C-222' } });
+    fireEvent.keyDown(plate, { key: 'ArrowDown' });
+    const option = await screen.findByRole('option', { name: '60C-222.22' }, { timeout: 3000 });
+    fireEvent.click(option);
+    expect((plate as HTMLInputElement).value).toBe('60C-222.22');
+    fireEvent.change(screen.getByPlaceholderText(/Bắt buộc — ghi vào nhật ký/), { target: { value: 'qa: đổi biển cùng nhà xe' } });
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận phân xe lại/ }));
+    await waitFor(() => expect(reassignMock).toHaveBeenCalledTimes(1));
+    expect(reassignMock.mock.calls[0][1]).toMatchObject({
+      externalCarrierId: 9,
+      externalPlateNumber: '60C-222.22',
+      externalCarrierVehicleId: 102,
+    });
+  });
+
+  it('clears the stale plate on a carrier switch and rides a free-text plate with a null vehicle id', async () => {
+    renderDialog();
+    const plate = await screen.findByLabelText('Biển số xe');
+    expect((plate as HTMLInputElement).value).toBe('60C-111.11');
+    // Switch nhà xe A → B: the old carrier's plate must not silently carry.
+    fireEvent.change(screen.getByDisplayValue('Nhà xe A'), { target: { value: '11' } });
+    expect((plate as HTMLInputElement).value).toBe('');
+    fireEvent.change(plate, { target: { value: '60C-333.33/MỚI' } });
+    fireEvent.change(screen.getByPlaceholderText(/Bắt buộc — ghi vào nhật ký/), { target: { value: 'qa: đổi nhà xe' } });
+    fireEvent.click(screen.getByRole('button', { name: /Xác nhận phân xe lại/ }));
+    await waitFor(() => expect(reassignMock).toHaveBeenCalledTimes(1));
+    expect(reassignMock.mock.calls[0][1]).toMatchObject({
+      externalCarrierId: 11,
+      externalPlateNumber: '60C-333.33/MỚI',
+      externalCarrierVehicleId: null,
+    });
   });
 });
 

@@ -23,6 +23,7 @@ import {
   safeError,
   type ContainerLineDraft,
 } from './cusUtils';
+import { isOptimisticShipmentConflict } from './cusDetailModel';
 
 export interface ContainerLedgerHandle {
   saveAll: () => Promise<boolean>;
@@ -101,6 +102,7 @@ export function ContainerLedger({
   onSavingChange,
   actionsRef,
   onExternalTripCompleted,
+  onDetailStale,
   onAppointmentSavedAndExit,
 }: {
   detail: ShipmentCusWorkspaceDetail;
@@ -116,6 +118,10 @@ export function ContainerLedger({
    *  shipment, and a removed line is gone server-side, so the ledger re-reads
    *  the detail rather than patching one row. */
   onExternalTripCompleted?: () => void;
+  /** FB-086 (round 19): fired when an add hits the optimistic-version 409 —
+   *  the host force-reloads the drawer detail so the retry carries the fresh
+   *  expectedShipmentVersion without closing/reopening the drawer. */
+  onDetailStale?: () => void;
   /** Fires once after an appointment commit settles successfully — the host
    *  closes the detail surface so Enter returns the user to the list, matching
    *  the drawer footer's save-then-close behavior. */
@@ -183,7 +189,16 @@ export function ContainerLedger({
       setAddFields(EMPTY_ADD_FIELDS);
       toast({ kind: 'success', message: `Đã thêm container ${containerNumber}.` });
     } catch (error) {
-      setAddError(safeError(error, 'Không thêm được container.'));
+      // FB-086 (round 19): a version 409 means the drawer's cached
+      // expectedShipmentVersion went stale (the lot advanced elsewhere — a
+      // quick-edit on the row, another user). Telling the user to "tải lại"
+      // without reloading the detail dead-ends the drawer: the retry would
+      // send the same stale version. Force the host to re-read the detail so
+      // the very next Thêm uses the fresh version.
+      if (isOptimisticShipmentConflict(error)) onDetailStale?.();
+      setAddError(isOptimisticShipmentConflict(error)
+        ? `${safeError(error, 'Không thêm được container.')} Đã tải lại dữ liệu lô — bấm Thêm lần nữa.`
+        : safeError(error, 'Không thêm được container.'));
     } finally {
       setAdding(false);
     }

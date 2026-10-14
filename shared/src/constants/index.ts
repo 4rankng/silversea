@@ -894,6 +894,26 @@ export const DEFAULT_SHIPPING_LINES = Object.freeze([
   'Samudera',
 ] as const);
 
+/**
+ * LCL "Quy cách đóng gói" suggestion vocabulary — the manufacturer-style
+ * formats dispatchers name when calling an order in ("để trưởng gọi ý giống
+ * nhà máy", round 19). Suggestions only: the field stays free-text, so a
+ * format the list misses still types through (FB-079's 2026-09-06
+ * guarantee). A fixed catalog is a separate owner card ("sau thêm trường
+ * cố định") and would consume this same constant.
+ */
+export const LCL_PACKAGE_TYPE_SUGGESTIONS = Object.freeze([
+  'Thùng gỗ',
+  'Pallet',
+  'Roll',
+  'Carton',
+  'Box',
+  'Crate',
+  'Khung',
+  'Bao',
+  'Can',
+] as const);
+
 // ─── Dispatch planning ──────────────────────────────────────────────────────────
 
 // Dispatch-zone taxonomy is DB-owned (dispatch_zones table, seeded) — codes

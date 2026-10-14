@@ -13,7 +13,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import * as tripService from '../../services/trip.service';
 import { reassignIssuedDispatchWriteCommand } from '../../services/dispatch-planning.service';
-import { loadReassignmentGuardContext, loadFulfillmentVersion, resyncAttendanceAfterReassignment } from '../../services/trip-lifecycle-ops.service';
+import { loadReassignmentGuardContext, loadFulfillmentVersion, resyncAttendanceAfterReassignment, resolveReassignExternalVehicleId } from '../../services/trip-lifecycle-ops.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { declareMaterialWrite } from '../../middleware/material-write';
 
@@ -73,6 +73,25 @@ router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: '
     await resyncAttendanceAfterReassignment(trip, reassigned, getUser(req).userId);
     return res.json(reassigned);
   }
+  // Round 19 (Đổi nhà xe + biển sau phát lệnh): the issued vehicle survives
+  // only an unchanged carrier+plate payload — see
+  // resolveReassignExternalVehicleId for the full contract.
+  if (data.externalCarrierVehicleId !== undefined
+    && (!Number.isInteger(data.externalCarrierVehicleId) || Number(data.externalCarrierVehicleId) <= 0)) {
+    throw new ApiError(400, 'Xe của nhà xe ngoài không hợp lệ.');
+  }
+  const forwardedVehicleId = resolveReassignExternalVehicleId({
+    trip: {
+      externalCarrierId: trip.externalCarrierId ?? null,
+      externalPlateNumber: trip.externalPlateNumber ?? null,
+      externalCarrierVehicleId: trip.externalCarrierVehicleId ?? null,
+    },
+    payload: data as {
+      externalCarrierId?: number | null;
+      externalPlateNumber?: string | null;
+      externalCarrierVehicleId?: number | null;
+    },
+  });
   const user = getUser(req);
   const outcome = await reassignIssuedDispatchWriteCommand({
     shipmentId: trip.shipmentId,
@@ -90,10 +109,10 @@ router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: '
     // (input.trailerId wins; omitted = the tractor's current coupling).
     trailerId: data.trailerId ?? null,
     externalCarrierId: data.externalCarrierId ?? null,
-    // The trip-detail reassignment form has no carrier-fleet vehicle picker.
-    // Preserve the issued vehicle so the governed FCL validation still checks
-    // a real active vehicle instead of accepting an unbound external plate.
-    externalCarrierVehicleId: trip.externalCarrierVehicleId,
+    // See the forwarding block above: the issued vehicle survives only an
+    // unchanged carrier+plate payload; a carrier/plate change re-resolves
+    // from the picker's explicit id or the typed plate text.
+    externalCarrierVehicleId: forwardedVehicleId,
     externalPlateNumber: data.externalPlateNumber ?? null,
     externalDriverName: data.externalDriverName ?? null,
     externalDriverPhone: data.externalDriverPhone ?? null,

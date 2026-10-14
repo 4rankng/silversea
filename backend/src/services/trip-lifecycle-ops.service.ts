@@ -276,9 +276,44 @@ export async function deleteTrip(
  * write validates against, plus the fulfillment's optimistic-lock version.
  * Route leaves must not touch the db client directly (arch-layering).
  */
-export async function loadReassignmentGuardContext(tripId: number) {
-  // Trips-split: externalCarrierVehicleId lives in trip_carrier_info — read
-  // through the composed view.
+/**
+ * Round 19 (Đổi nhà xe + biển sau phát lệnh): which carrier-fleet vehicle id
+ * the governed reassignment should carry. The old blanket "preserve the
+ * issued vehicle" made every carrier/plate change impossible — the preserved
+ * vehicle belongs to the OLD carrier (409 "Xe không thuộc nhà xe đã gán…")
+ * and its stored plate silently beat the typed one. Contract:
+ *  - an explicit picker-provided id always wins (validated against the
+ *    payload's carrier by the write command);
+ *  - a carrier change or a different typed plate DROPS the preserved id so
+ *    the typed plate text rides;
+ *  - an unchanged carrier+plate payload keeps the issued vehicle (idempotent
+ *    re-save, and partner-less payloads keep a real active vehicle for the
+ *    governed validation).
+ */
+export function resolveReassignExternalVehicleId(args: {
+  trip: { externalCarrierId: number | null; externalPlateNumber: string | null; externalCarrierVehicleId: number | null };
+  payload: { externalCarrierId?: number | null; externalPlateNumber?: string | null; externalCarrierVehicleId?: number | null };
+}): number | null {
+  const providedVehicleId = args.payload.externalCarrierVehicleId != null
+    ? Number(args.payload.externalCarrierVehicleId)
+    : null;
+  if (providedVehicleId != null) return providedVehicleId;
+  const nextCarrierId = args.payload.externalCarrierId != null ? Number(args.payload.externalCarrierId) : null;
+  const nextPlate = typeof args.payload.externalPlateNumber === 'string' ? args.payload.externalPlateNumber.trim() : null;
+  const carrierChanged = nextCarrierId != null
+    && args.trip.externalCarrierId != null
+    && nextCarrierId !== args.trip.externalCarrierId;
+  const plateChanged = nextPlate != null
+    && nextPlate !== ''
+    && args.trip.externalPlateNumber != null
+    && nextPlate.toUpperCase() !== args.trip.externalPlateNumber.trim().toUpperCase();
+  return carrierChanged || plateChanged ? null : args.trip.externalCarrierVehicleId ?? null;
+}
+
+export async function loadReassignmentGuardContext(tripId: number) {  // Trips-split: external carrier/vehicle columns live in trip_carrier_info —
+  // read through the composed view. externalCarrierId/externalPlateNumber
+  // ride along for the route's "did the payload change the carrier or the
+  // plate?" vehicle-preservation test (round 19, Đổi nhà xe + biển).
   const [trip] = await db.select({
     id: s.tripsComposite.id,
     version: s.tripsComposite.version,
@@ -288,6 +323,10 @@ export async function loadReassignmentGuardContext(tripId: number) {
     fulfillmentId: s.tripsComposite.fulfillmentId,
     plannedStartAt: s.tripsComposite.plannedStartAt,
     plannedEndAt: s.tripsComposite.plannedEndAt,
+    // The carrier partner rides as external_entity_id on the composed view
+    // (CUSTOMER-typed); it is the trips.externalCarrierId of the API shape.
+    externalCarrierId: s.tripsComposite.externalEntityId,
+    externalPlateNumber: s.tripsComposite.externalPlateNumber,
     externalCarrierVehicleId: s.tripsComposite.externalCarrierVehicleId,
   }).from(s.tripsComposite).where(and(eq(s.tripsComposite.id, tripId), isNull(s.tripsComposite.deletedAt))).limit(1);
   return trip ?? null;
