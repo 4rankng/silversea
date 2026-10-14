@@ -50,7 +50,34 @@ async function runDemoSection<T>(name: string, section: () => Promise<T>): Promi
   }
 }
 
+/** FB-061 (2026-10-14): the demo seed must never write production rows.
+ *  History: staging surfaces repeatedly showed self-authored seed rows
+ *  (invoice-tracking card-376 cleanup, 2026-10-08) because nothing stopped
+ *  `pnpm seed` — the full demo dataset (demo logins, trucks 60C-*, sample
+ *  shipments/trips, bulk rows, AR/AP fixtures) — from running against a
+ *  production database. The gate refuses NODE_ENV=production unless
+ *  SEED_DEMO_DATA explicitly opts in (true/1/yes, mirroring the config
+ *  parseFlag law); dev/test environments are unaffected. Production master
+ *  data comes from `pnpm seed:prod` (seed-prod.ts, no demo rows by design).
+ */
+export function demoSeedBlocked(env: NodeJS.ProcessEnv = process.env): string | null {
+  const flag = env.SEED_DEMO_DATA;
+  const explicitlyAllowed = flag === 'true' || flag === '1' || flag === 'yes';
+  if (env.NODE_ENV === 'production' && !explicitlyAllowed) {
+    return [
+      'Từ chối seed demo: NODE_ENV=production và không có SEED_DEMO_DATA.',
+      'Bộ dữ liệu demo (tài khoản demo, xe 60C-*, lô/chuyến mẫu, bulk rows, AR/AP fixtures) không bao giờ được ghi vào database production.',
+      'Production dùng `pnpm seed:prod` (backend/src/seed/seed-prod.ts — master data only).',
+      'Cần seed demo lên server demo production-shaped một cách có chủ đích? Đặt SEED_DEMO_DATA=true.',
+    ].join(' ');
+  }
+  return null;
+}
+
 export async function seed() {
+  const blocked = demoSeedBlocked();
+  if (blocked) throw new Error(blocked);
+
   const passwordHash = await bcrypt.hash('Abc123', 10);
 
   const users = [
