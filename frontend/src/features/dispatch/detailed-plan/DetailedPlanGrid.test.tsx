@@ -214,15 +214,18 @@ describe('DetailedPlanGrid', () => {
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
     expect(widths[columnNames.indexOf('classification')]).toBeGreaterThanOrEqual(8);
     // Card 091026091550: with the one-line header law, each column's floor is
-    // its longest header label, measured on the live 1144px canvas (1440
-    // viewport, expanded sidebar) at the 8px header gutter: "KHÁCH HÀNG &
-    // LỘ TRÌNH ↕" needs 16.75%, the schedule label + sort arrow 16.25%. The
-    // note column keeps ~16% — the label only needs 7%, so prose keeps the
-    // rest.
-    expect(widths[columnNames.indexOf('schedule')]).toBe(16.25);
-    expect(widths[columnNames.indexOf('route')]).toBe(16.75);
+    // its longest header label INCLUDING the sort button's chrome, measured on
+    // the live 1041px worst-case canvas (1440 viewport with the expanded
+    // sidebar). Ticket 141026001010 (round 17): the 7.5% assignment share
+    // starved Điều phối to ~85px and re-inflated assigned rows (the R22
+    // compact-row contract), so the assignment column holds its
+    // pre-regression 12%; donors stay above their measured floors
+    // (schedule 16.62%, route 17.2%, notes 5.84%).
+    expect(widths[columnNames.indexOf('schedule')]).toBe(17);
+    expect(widths[columnNames.indexOf('route')]).toBe(17.5);
     expect(widths[columnNames.indexOf('ports')]).toBe(8.5);
-    expect(widths[columnNames.indexOf('notes')]).toBe(16.25);
+    expect(widths[columnNames.indexOf('notes')]).toBe(10.25);
+    expect(widths[columnNames.indexOf('assignment')]).toBe(12);
     expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);
     expect(css).toContain('@container (max-width: 900px)');
   });

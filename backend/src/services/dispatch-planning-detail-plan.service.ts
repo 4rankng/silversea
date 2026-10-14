@@ -16,7 +16,7 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 
-import { and, eq, isNotNull, isNull, lt, ne, notInArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, TripStatus, type DispatchClassification } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -797,6 +797,12 @@ export async function assertTripRigAvailable(
     /** The trip being saved (edit path): excluded from its own holder scans. */
     tripId?: number;
     truckId: number;
+    /**
+     * Round-17 sweep (overlap warning missing): the same DRIVER double-booked
+     * across two DIFFERENT tractors saved silently on this path — the guard
+     * scanned the tractor's plate only. Carried at the family's warn tier.
+     */
+    driverId?: number | null;
     departureDate: string;
     /** The saving trip's staged window; when plannedStartAt is absent the
      *  departure day claims the whole day (weak evidence). */
@@ -910,6 +916,43 @@ export async function assertTripRigAvailable(
     if (completedTripConflicts.length > 0) {
       throw new ApiError(409,
         `Đầu xe ${plate} có ${completedTripConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
+        undefined,
+        { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+  }
+  // Round-17 sweep (overlap warning missing, P3): this guard scanned the
+  // tractor's PLATE only, so the SAME driver double-booked across two
+  // different tractors saved silently on the direct create/edit path (repro:
+  // truck A + driver X at 08:45, then truck B + driver X the same window →
+  // 201, no warning). FB-038 ruling: WARN, never a new hard block — the
+  // same warn-once contract (RIG_OVERLAP_COMPLETED + confirmOverlap) carries
+  // it, and the same window coalesce (an unset start claims the departure
+  // day, a missing end one 8-hour shift) measures the driver's day exactly
+  // like the holder scan above. A rig conflict has already thrown above, so
+  // this branch fires for the cross-tractor case the plate scans cannot see.
+  // Review harmonization: COMPLETED holders join at the same evidence bar
+  // the completed-plate scan sets — only with a provable window. A completed
+  // trip without a timestamp cannot prove the driver was occupied, exactly
+  // as it cannot prove the rig was (the family's "cannot prove overlap
+  // stays skipped" law); drivers run multiple provable trips a day, and a
+  // legacy date-only completed row must not nag every later save.
+  if (args.driverId != null && !args.confirmOverlap) {
+    const driverConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+      .from(s.trips)
+      .where(and(
+        eq(s.trips.driverId, args.driverId),
+        isNull(s.trips.deletedAt),
+        ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
+        or(
+          inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
+          and(eq(s.trips.status, TripStatus.COMPLETED), isNotNull(s.trips.plannedStartAt)),
+        )!,
+        sql`${tripStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+        sql`${tripEndSql} > ${windowStart.toISOString()}::timestamptz`,
+      ));
+    if (driverConflicts.length > 0) {
+      throw new ApiError(409,
+        `Tài xế đã có ${driverConflicts.length} chuyến khác trùng khung giờ phân công này. Vẫn lưu?`,
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }

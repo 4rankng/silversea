@@ -255,7 +255,7 @@ describe('DriverTripsPage', () => {
     const expectedTime = '14:30 01/08/2026';
 
     expect(await screen.findByText('ĐƠN')).toBeTruthy();
-    expect(screen.getByText('Giờ đóng / trả:')).toBeTruthy();
+    expect(screen.getByText('Giờ chạy:')).toBeTruthy();
     expect(screen.getByText(expectedTime)).toBeTruthy();
     expect(screen.getByText(/Nhà máy Bình Dương/)).toBeTruthy();
     expect(screen.getByText(/Cát Lái → Bình Dương/)).toBeTruthy();

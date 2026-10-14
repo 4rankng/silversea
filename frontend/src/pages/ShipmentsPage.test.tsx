@@ -1081,6 +1081,60 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã cập nhật chứng từ lô hàng.')).toBeTruthy();
   });
 
+  // FB-002 (round-17 sweep): the quick-edit modal's save button lives in the
+  // modal FOOTER — outside the <form> — so browser implicit submission never
+  // fired for multi-field modes and Enter went dead. The form answers Enter
+  // itself through the footer button's exact submit path.
+  it('saves the documents quick-edit on Enter and keeps Shift+Enter inert (FB-002)', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([{ ...row, version: 3 }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
+    const bill = within(dialog).getByLabelText('Số Bill') as HTMLInputElement;
+    fireEvent.change(bill, { target: { value: 'BILL-ENTER' } });
+
+    // Shift+Enter never saves (the multiline-adjacent combo law).
+    fireEvent.keyDown(bill, { key: 'Enter', shiftKey: true });
+    expect(apiPut).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(bill, { key: 'Enter' });
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
+      expectedVersion: 3,
+      blNumber: 'BILL-ENTER',
+    })));
+    expect(await screen.findByText('Đã lưu ô dữ liệu lô hàng.')).toBeTruthy();
+  });
+
+  it('keeps bare Enter as a newline in the notes quick-edit; Ctrl+Enter saves (FB-002)', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([{ ...row, version: 3 }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
+    const notes = await screen.findByLabelText('Ghi chú cho khách hàng');
+    fireEvent.change(notes, { target: { value: 'Dòng một' } });
+
+    fireEvent.keyDown(notes, { key: 'Enter' });
+    expect(apiPut).not.toHaveBeenCalled();
+    // The help copy names the combo that does save.
+    expect(screen.getByText('Enter để xuống dòng; Ctrl/Cmd+Enter để lưu.')).toBeTruthy();
+
+    fireEvent.keyDown(notes, { key: 'Enter', ctrlKey: true });
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
+      customerNotes: 'Dòng một',
+    })));
+  });
+
   it('joins every declaration number in the Chứng từ cell, XLSX-style', async () => {
     const multiDeclaration: ShipmentCusWorkspaceListItem = {
       ...row,

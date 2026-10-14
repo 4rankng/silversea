@@ -669,6 +669,28 @@ export default function ShipmentsPage() {
               if (!event.currentTarget.reportValidity()) return;
               void saveQuickEdit(quickEditItem);
             }}
+            onKeyDown={(event) => {
+              // FB-002 (round 17): the save button lives in the modal FOOTER,
+              // outside this form, so the browser's implicit submission never
+              // fires for the multi-field modes (documents with tờ khai rows,
+              // cargo, classification) — Enter went dead. The form answers
+              // Enter itself, through the same submit path the footer button
+              // rides (requestSubmit keeps constraint validation intact).
+              if (event.defaultPrevented) return;
+              if (event.key !== 'Enter' || event.nativeEvent.isComposing || savingQuickEdit) return;
+              const target = event.target as HTMLElement;
+              // The segmented date/time pickers own their Enter (commit the
+              // draft / close the panel) — never steal it.
+              if (target.closest('[data-date-picker], .time-picker__popup, [data-time-picker-overlay]')) return;
+              if (target.isContentEditable || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.closest('.searchable-select, [role="listbox"], [role="option"]')) return;
+              // Multiline notes: bare Enter inserts a newline; the modified
+              // combo (Ctrl/Cmd+Enter) is what saves — same law as the
+              // Chi tiết lô hàng inline editor.
+              if (target.tagName === 'TEXTAREA' && !event.ctrlKey && !event.metaKey) return;
+              if (event.shiftKey) return;
+              event.preventDefault();
+              quickEditFormRef.current?.requestSubmit();
+            }}
           >
             <p className="cus-quick-edit-modal__context">{quickEditItem.billOrBookNumber || quickEditItem.declarationNumber || quickEditItem.customerName || 'Lô hàng'}</p>
             <ShipmentQuickEditFields
