@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react';
+import { LCL_PACKAGE_TYPE_SUGGESTIONS } from '@tingting/shared';
 import type { OperationalSite } from '../../../api/shipmentClient';
 import {
   USearchableField as SearchableField,
@@ -9,14 +10,12 @@ import type { ShipmentCreateFormState } from './shipment-create-model';
 
 type FormState = ShipmentCreateFormState;
 
-/** Common packaging formats (FB-079, card 091026180800) — the values the
- * old free-text placeholder taught ("Ví dụ: Pallet, Roll, Carton, Thùng
- * gỗ, Bao, Can…"). Suggestions only: any custom value still types through,
- * preserving the 2026-09-06 free-text guarantee. A fixed catalog is a
- * separate card when the owner wants one. */
-const PACKAGE_TYPE_SUGGESTIONS = ['Pallet', 'Roll', 'Carton', 'Thùng gỗ', 'Bao', 'Can'];
-
-const packageTypeOptions = PACKAGE_TYPE_SUGGESTIONS.map((label) => ({ value: label, label }));
+/** Round 19 ("để trưởng gọi ý giống nhà máy - sau thêm trường cố định"):
+ *  the curated packaging suggestions live in shared
+ *  (LCL_PACKAGE_TYPE_SUGGESTIONS) so the future fixed-catalog card and any
+ *  sibling surface read one vocabulary. Suggestions only: any custom value
+ *  still types through, preserving the 2026-09-06 free-text guarantee. */
+const packageTypeOptions = LCL_PACKAGE_TYPE_SUGGESTIONS.map((label) => ({ value: label, label }));
 
 export interface ShipmentCreateLclCargoFieldsProps {
   form: FormState;

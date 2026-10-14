@@ -1080,6 +1080,30 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect((packageType as HTMLInputElement).value).toBe('Thùng carton 5 lớp');
   });
 
+  // Round 19 ("để trưởng gọi ý giống nhà máy - sau thêm trường cố định"):
+  // the suggestion list is the shared curated vocabulary — every
+  // manufacturer-style format the customer enumerated must be offered.
+  it('offers the full factory-style packaging vocabulary from the shared constant', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await choose('Khách hàng', '7');
+    await choose('Hình thức xuất nhập khẩu', 'IMPORT');
+    fireEvent.change(screen.getByLabelText(/^Số Bill\/Booking/), { target: { value: 'BL-LCL-PKG' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
+    await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
+
+    const packageType = screen.getByRole('combobox', { name: 'Quy cách đóng gói' });
+    // Opening the menu without typing lists every curated option (the FB-079
+    // contract: click/arrow still opens the full list).
+    fireEvent.focus(packageType);
+    fireEvent.keyDown(packageType, { key: 'ArrowDown' });
+    for (const suggestion of ['Thùng gỗ', 'Pallet', 'Roll', 'Carton', 'Box', 'Crate', 'Khung', 'Bao', 'Can']) {
+      // eslint-disable-next-line no-await-in-loop
+      const option = await screen.findByRole('option', { name: suggestion }, { timeout: 3000 });
+      expect(option).toBeTruthy();
+    }
+  });
+
   // Helpdesk 2026-10-13 (ops Tiếp Vu): "PHẦN HÀNG LẺ: CHỖ NGÀY GIAO DỰ KIẾN
   // THAY LUÔN LÀ NGÀY GIAO HÀNG". The shipment-level delivery date only
   // renders on the LCL path, so the rename is unconditional — the field id
