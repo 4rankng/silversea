@@ -1098,7 +1098,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.focus(packageType);
     fireEvent.keyDown(packageType, { key: 'ArrowDown' });
     for (const suggestion of ['Thùng gỗ', 'Pallet', 'Roll', 'Carton', 'Box', 'Crate', 'Khung', 'Bao', 'Can']) {
-      // eslint-disable-next-line no-await-in-loop
+      // Sequential awaits: jsdom combobox timing needs each option to settle.
       const option = await screen.findByRole('option', { name: suggestion }, { timeout: 3000 });
       expect(option).toBeTruthy();
     }

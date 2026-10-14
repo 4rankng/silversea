@@ -1,0 +1,44 @@
+▶ quick-add container inherits the lot (FB-086, round 19)
+  ✔ an omitted column falls back to the first non-null sibling value (47.215292ms)
+  ✔ an explicit add input still overrides the lot default (41.127292ms)
+✔ quick-add container inherits the lot (FB-086, round 19) (132.496208ms)
+▶ quick-add container validation (cards _75/_76)
+  ✔ legacy row fails, new number passes the shared ISO 6346 validator (0.395083ms)
+  ✔ AC2 quick-add with a VALID new number succeeds despite the legacy row (38.55725ms)
+  ✔ AC2 the error names the INPUT, not a legacy row (invalid format) (0.8025ms)
+  ✔ duplicate of an existing row still rejected (11.111875ms)
+✔ quick-add container validation (cards _75/_76) (90.312583ms)
+▶ reassignTrip after driver acceptance (card 091026190520, option b)
+  ✔ acknowledged IN_TRANSIT: vehicle-only change is allowed, driver preserved (41.726459ms)
+  ✔ acknowledged IN_TRANSIT: driver change stays rejected with the vehicle-only message (9.88275ms)
+  ✔ acknowledged IN_TRANSIT: carrier-type switch (drops the driver) stays rejected (8.717333ms)
+  ✔ acknowledged IN_TRANSIT EXTERNAL: plate change with the same driver is allowed (9.189834ms)
+  ✔ unacknowledged IN_TRANSIT keeps the full reassignment window (13.203167ms)
+✔ reassignTrip after driver acceptance (card 091026190520, option b) (83.208833ms)
+▶ route path (reassignIssuedDispatchWriteCommand) — card 091026190520 rework
+  ✔ acknowledged trip: truck swap with the driver kept is allowed (73.427125ms)
+  ✔ acknowledged trip: driver change still blocked with the vehicle-only message (56.585458ms)
+✔ route path (reassignIssuedDispatchWriteCommand) — card 091026190520 rework (130.275791ms)
+ℹ tests 13
+ℹ suites 4
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 941.906083
+▶ resolveReassignExternalVehicleId (round 19 change-carrier)
+  ✔ keeps the issued vehicle when the payload changes neither carrier nor plate (0.255417ms)
+  ✔ drops the issued vehicle when the payload switches carrier (TC-R19-REASSIGN-01) (0.047ms)
+  ✔ drops the issued vehicle when a different plate is typed for the same carrier (0.049417ms)
+  ✔ an explicit picker-provided vehicle id always wins (0.038834ms)
+  ✔ a vehicle-less issued trip stays vehicle-less unless the picker names one (0.042ms)
+✔ resolveReassignExternalVehicleId (round 19 change-carrier) (0.790417ms)
+ℹ tests 5
+ℹ suites 1
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 558.320541
