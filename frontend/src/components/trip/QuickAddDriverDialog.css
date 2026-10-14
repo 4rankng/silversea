@@ -1,0 +1,60 @@
+/* FB-066 (2026-10-14) — quick-add driver dialog, the same house-token
+   geometry as QuickAddVehicleDialog (card 20261004_357). */
+.quick-add-driver {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-add-driver__hint {
+  margin: 0;
+  font-size: var(--text-caption-size, 13px);
+  line-height: 1.45;
+  color: var(--fg-2);
+}
+
+.quick-add-driver__error {
+  padding: 8px 10px;
+  border: 1px solid var(--danger, var(--border-2));
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--danger, var(--fg-1));
+  font-size: var(--text-caption-size, 13px);
+}
+
+.quick-add-driver__field {
+  display: grid;
+  gap: 6px;
+}
+
+.quick-add-driver__field--action .quick-add-driver__field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-add-driver__field label {
+  color: var(--fg-2);
+  font-size: var(--text-label-size, 13px);
+  font-weight: var(--fw-semibold, 600);
+}
+
+.quick-add-driver__field input {
+  min-height: var(--control-compact-h, 34px);
+  padding: 6px 10px;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg-1);
+  font: inherit;
+  font-size: var(--text-control-size, 14px);
+}
+
+.quick-add-driver__field input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.quick-add-driver__field input:disabled {
+  opacity: 0.65;
+}
