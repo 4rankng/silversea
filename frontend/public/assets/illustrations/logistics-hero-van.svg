@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536" viewBox="0 0 1024 1536" role="img">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#0a2740"/>
+      <stop offset="0.5" stop-color="#071d32"/>
+      <stop offset="1" stop-color="#04121f"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22c55e" stop-opacity="0.20"/>
+      <stop offset="0.5" stop-color="#2dd4a7" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#22c55e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#03101c" stop-opacity="0"/>
+      <stop offset="0.45" stop-color="#03101c" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#03101c" stop-opacity="0.92"/>
+    </linearGradient>
+    <linearGradient id="boxFace" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#04693a"/>
+      <stop offset="1" stop-color="#023d21"/>
+    </linearGradient>
+    <linearGradient id="cabFace" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#068744"/>
+      <stop offset="1" stop-color="#04552b"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#3f7ea8"/>
+      <stop offset="1" stop-color="#123049"/>
+    </linearGradient>
+    <linearGradient id="cardFace" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e6eef6"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+    <filter id="tight" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1536" fill="url(#bg)"/>
+  <ellipse cx="512" cy="560" rx="430" ry="370" fill="url(#halo)"/>
+
+  <!-- route arcs: quiet structure behind the subject -->
+  <g fill="none" stroke="#4ade80" stroke-opacity="0.14" stroke-width="1.5">
+    <circle cx="512" cy="560" r="286"/>
+    <circle cx="512" cy="560" r="376" stroke-dasharray="10 14" stroke-opacity="0.11"/>
+    <circle cx="512" cy="560" r="464" stroke-opacity="0.07"/>
+  </g>
+
+  <!-- container stack, upper left: the cargo behind the van -->
+  <g transform="translate(112 286) rotate(-4)">
+    <rect width="150" height="78" rx="7" fill="#0b4d6b" stroke="#2dd4a7" stroke-opacity="0.32" stroke-width="1.5"/>
+    <g stroke="#2dd4a7" stroke-opacity="0.22" stroke-width="1.5">
+      <line x1="23" y1="11" x2="23" y2="67"/>
+      <line x1="46" y1="11" x2="46" y2="67"/>
+      <line x1="69" y1="11" x2="69" y2="67"/>
+      <line x1="92" y1="11" x2="92" y2="67"/>
+      <line x1="115" y1="11" x2="115" y2="67"/>
+      <line x1="138" y1="11" x2="138" y2="67"/>
+    </g>
+  </g>
+
+  <!-- incoming route: origin pin to the van's load bed -->
+  <path d="M 104 300 C 148 344, 176 384, 196 424"
+        fill="none" stroke="#22c55e" stroke-opacity="0.30" stroke-width="6"
+        stroke-linecap="round" filter="url(#soft)"/>
+  <path d="M 104 300 C 148 344, 176 384, 196 424"
+        fill="none" stroke="#6ee7a8" stroke-opacity="0.45" stroke-width="2"
+        stroke-linecap="round" stroke-dasharray="14 12"/>
+
+  <!-- origin pin -->
+  <g transform="translate(104 262) scale(0.78)" opacity="0.85">
+    <path d="M 0 -34 C -21 -34, -36 -19, -36 2 C -36 26, 0 58, 0 58 C 0 58, 36 26, 36 2 C 36 -19, 21 -34, 0 -34 Z"
+          fill="#4ade80" fill-opacity="0.72"/>
+    <circle cx="0" cy="1" r="12" fill="#04241a"/>
+  </g>
+
+  <!-- outbound route: the cab to the destination pin -->
+  <path d="M 700 500 C 790 445, 845 360, 868 280"
+        fill="none" stroke="#22c55e" stroke-opacity="0.30" stroke-width="6"
+        stroke-linecap="round" filter="url(#soft)"/>
+  <path d="M 700 500 C 790 445, 845 360, 868 280"
+        fill="none" stroke="#6ee7a8" stroke-opacity="0.45" stroke-width="2"
+        stroke-linecap="round" stroke-dasharray="14 12"/>
+
+  <!-- destination pin -->
+  <g transform="translate(872 252)">
+    <path d="M 0 -34 C -21 -34, -36 -19, -36 2 C -36 26, 0 58, 0 58 C 0 58, 36 26, 36 2 C 36 -19, 21 -34, 0 -34 Z"
+          fill="#34d399"/>
+    <circle cx="0" cy="1" r="12" fill="#04241a"/>
+  </g>
+
+  <!-- floating dispatch chip, upper right -->
+  <g transform="translate(608 252)">
+    <rect width="196" height="100" rx="14" fill="url(#cardFace)" opacity="0.97"/>
+    <circle cx="36" cy="36" r="14" fill="#22c55e"/>
+    <path d="M 29 36 l 6 6 l 10 -12" fill="none" stroke="#04241a" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="60" y="27" width="112" height="9" rx="4.5" fill="#0f2b45"/>
+    <rect x="60" y="44" width="76" height="8" rx="4" fill="#7d93a8"/>
+    <rect x="20" y="70" width="156" height="9" rx="4.5" fill="#d7e3ee"/>
+  </g>
+
+  <!-- ============ hero van ============ -->
+  <g transform="translate(194 418) scale(1.08)">
+    <!-- ground contact glow -->
+    <ellipse cx="294" cy="254" rx="318" ry="28" fill="#22c55e" opacity="0.18" filter="url(#soft)"/>
+    <ellipse cx="294" cy="250" rx="286" ry="19" fill="#020a12" opacity="0.5" filter="url(#tight)"/>
+
+    <!-- cargo box -->
+    <rect x="0" y="14" width="344" height="176" rx="13" fill="url(#boxFace)"/>
+    <rect x="0" y="14" width="344" height="10" rx="5" fill="#ffffff" fill-opacity="0.13"/>
+    <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="2">
+      <line x1="40" y1="42" x2="40" y2="170"/>
+      <line x1="92" y1="42" x2="92" y2="170"/>
+      <line x1="144" y1="42" x2="144" y2="170"/>
+      <line x1="196" y1="42" x2="196" y2="170"/>
+      <line x1="248" y1="42" x2="248" y2="170"/>
+      <line x1="300" y1="42" x2="300" y2="170"/>
+    </g>
+    <!-- emerald accent band across the box -->
+    <rect x="0" y="120" width="344" height="20" fill="#22c55e" fill-opacity="0.92"/>
+    <rect x="0" y="140" width="344" height="8" fill="#0b3a22" fill-opacity="0.45"/>
+
+    <!-- cab -->
+    <path d="M 348 190 L 348 84 Q 348 70 362 70 L 456 70 Q 470 70 479 83 L 526 132
+             Q 534 141 548 141 L 574 141 Q 588 141 588 155 L 588 190 Z"
+          fill="url(#cabFace)"/>
+    <!-- windshield -->
+    <path d="M 364 84 L 450 84 Q 459 84 465 92 L 500 132 L 364 132 Z" fill="url(#glass)"/>
+    <path d="M 372 92 L 404 92 L 430 124 L 372 124 Z" fill="#ffffff" fill-opacity="0.16"/>
+    <!-- side window -->
+    <rect x="514" y="141" width="52" height="27" fill="url(#glass)"/>
+    <!-- door handle + mirror -->
+    <rect x="518" y="176" width="28" height="6" rx="3" fill="#0b3a22" fill-opacity="0.8"/>
+    <rect x="536" y="98" width="5" height="26" rx="2.5" fill="#0b3a22"/>
+    <!-- headlight -->
+    <rect x="576" y="148" width="12" height="12" rx="4" fill="#a7f3d0"/>
+
+    <!-- chassis rail -->
+    <rect x="0" y="184" width="588" height="14" fill="#052a18"/>
+
+    <!-- wheels -->
+    <g>
+      <circle cx="118" cy="200" r="46" fill="#0a121c"/>
+      <circle cx="118" cy="200" r="46" fill="none" stroke="#1e293b" stroke-width="3"/>
+      <circle cx="118" cy="200" r="20" fill="#3d4f63"/>
+      <circle cx="118" cy="200" r="8" fill="#94a3b8"/>
+      <circle cx="470" cy="200" r="46" fill="#0a121c"/>
+      <circle cx="470" cy="200" r="46" fill="none" stroke="#1e293b" stroke-width="3"/>
+      <circle cx="470" cy="200" r="20" fill="#3d4f63"/>
+      <circle cx="470" cy="200" r="8" fill="#94a3b8"/>
+    </g>
+  </g>
+
+  <!-- motion lines trailing the van -->
+  <g stroke="#4ade80" stroke-opacity="0.28" stroke-width="4" stroke-linecap="round">
+    <line x1="84" y1="524" x2="172" y2="524"/>
+    <line x1="112" y1="560" x2="160" y2="560"/>
+    <line x1="96" y1="596" x2="176" y2="596"/>
+  </g>
+
+  <!-- bottom scrim: gradient fade into the text overlay zone (no seam) -->
+  <rect x="0" y="860" width="1024" height="676" fill="url(#scrim)"/>
+</svg>
