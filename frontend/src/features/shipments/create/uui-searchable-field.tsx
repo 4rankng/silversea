@@ -98,8 +98,11 @@ export function USearchableField({
   const selectedLabel = selected?.label;
   // Local input text so type-to-search survives the controlled re-renders.
   // Synced with the selected option's label whenever `value` changes externally
-  // (form reset, dialog-create success, etc.).
-  const [inputValue, setInputValue] = useState<string>(selected?.label ?? '');
+  // (form reset, dialog-create success, etc.). A custom (allowsCustomValue)
+  // value that is NOT in the catalog must show at mount too — the same rule
+  // the sync effect applies later (round 19: the reassign dialog seeds a
+  // plate the carrier list may not carry yet).
+  const [inputValue, setInputValue] = useState<string>(selected?.label ?? (allowsCustomValue ? value ?? '' : ''));
   // The user's LAST REAL PICK only. Typing is tracked by inputValue and must
   // never touch selectedKey: with allowsCustomValue each keystroke calls
   // onChange(text), and a selectedKey that follows the form value makes

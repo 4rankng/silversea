@@ -134,7 +134,7 @@ export const tripClient = {
 
   cancelTrip: (id: number) => api.post<Trip>(TRIPS.CANCEL(id), {}),
 
-  reassignTrip: (id: number, data: { carrierType?: 'OWN' | 'EXTERNAL', truckId?: number | null, driverId?: number | null, trailerId?: number | null, externalCarrierId?: number | null, externalPlateNumber?: string | null, externalDriverName?: string | null, externalDriverPhone?: string | null, reason: string, expectedVersion?: number, rigOverlapCompletedConfirmed?: boolean }) =>
+  reassignTrip: (id: number, data: { carrierType?: 'OWN' | 'EXTERNAL', truckId?: number | null, driverId?: number | null, trailerId?: number | null, externalCarrierId?: number | null, /** Round 19: the carrier-fleet vehicle id resolved from the plate picker; null = free-text plate. */ externalCarrierVehicleId?: number | null, externalPlateNumber?: string | null, externalDriverName?: string | null, externalDriverPhone?: string | null, reason: string, expectedVersion?: number, rigOverlapCompletedConfirmed?: boolean }) =>
     api.patch<TripDetail>(TRIPS.REASSIGN(id), data),
 
   getPricing: (customerId: number, routeId: number, date?: string) =>
