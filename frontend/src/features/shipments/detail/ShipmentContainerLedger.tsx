@@ -71,6 +71,16 @@ export interface ShipmentDocumentsDraft {
   declarationNumber: string | null;
 }
 
+/** Result of a documents save, reported to the hosting page so it can toast.
+ *  `autoCopy` is present only when the save entered the lot's FIRST
+ *  declaration (the saved container is the only one with a number) and the
+ *  hook tried to fan it out to the still-empty siblings (tickets
+ *  141026201700 / FB-085 / 131026200630). The number itself is ALWAYS saved
+ *  before any auto-copy attempt — a copy failure never rolls the save back. */
+export type ShipmentDocumentsSaveOutcome = {
+  autoCopy?: { kind: 'copied'; written: number } | { kind: 'failed'; message: string } | { kind: 'conflict' };
+};
+
 export interface ShipmentContainerDraft {
   containerNumber: string | null;
   containerTypeId: number | null;
@@ -159,7 +169,7 @@ function InlineEditor({
   onSaveSchedule: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
   onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
   onSaveIdentity: (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => Promise<void>;
-  onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<void>;
+  onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<ShipmentDocumentsSaveOutcome | void>;
   onSaveContainer: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => Promise<void>;
   /** Card 261013200312: copy this row's tờ khai number onto the lot's
    *  still-empty containers — returns how many containers were written. */
@@ -472,11 +482,13 @@ function InlineEditor({
           <label><span>Hãng tàu</span><input value={shippingLineName} onChange={(event) => setShippingLineName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.shippingLineName.mode === 'READ_ONLY'} /></label>
           {/* Card 261013200312 (dev-lead ruling): số tờ khai nhập theo TỪNG
               CONT — entered and edited right here, no tab-out to another
-              surface. The explicit copy button (the ruling's "(hoặc nút copy)"
-              option) repeats this number onto the lot's still-empty containers
-              in ONE server call; never overwrites, so divergence stays
-              possible afterwards. Mirrors the reviewed appointment-copy
-              affordance on the sibling CUS drawer. */}
+              surface. Entering the lot's FIRST declaration auto-copies it
+              onto the still-empty siblings (tickets 141026201700 / FB-085 /
+              131026200630), and the explicit copy button (the ruling's
+              "(hoặc nút copy)" option) repeats the same one-call fan-out on
+              demand; never overwrites, so divergence stays possible
+              afterwards. Mirrors the reviewed appointment-copy affordance on
+              the sibling CUS drawer. */}
           <label><span>Số tờ khai</span><input value={declarationNumber} onChange={(event) => setDeclarationNumber(event.target.value)} maxLength={50} disabled={saving || declarationAccess.mode === 'READ_ONLY'} title={declarationAccess.mode === 'READ_ONLY' ? declarationAccess.reason : undefined} /></label>
           {/* Review M2 (card 261013200312): the server copies the PERSISTED
               number, so the button only shows when the input still matches it
@@ -497,7 +509,7 @@ function InlineEditor({
               </button>
             </div>
           )}
-          <small>Số tờ khai lưu theo từng container của lô; copy chỉ điền các cont còn thiếu số, sau đó mỗi cont sửa riêng được.</small>
+          <small>Số tờ khai lưu theo từng container của lô; số đầu tiên của lô được tự copy sang các cont còn trống, cont đã có số không bị ghi đè; sau đó mỗi cont sửa riêng được.</small>
         </div>
       )}
       {mode === 'container' && (
@@ -660,7 +672,7 @@ interface ShipmentContainerLedgerProps {
   onSaveSchedule: (line: ShipmentCusWorkspaceContainerLine, row: ShipmentCusContainerFlatRow, draft: ShipmentScheduleDraft) => Promise<void>;
   onSaveNotes: (row: ShipmentCusContainerFlatRow, draft: ShipmentNotesDraft) => Promise<void>;
   onSaveIdentity: (row: ShipmentCusContainerFlatRow, draft: ShipmentIdentityDraft) => Promise<void>;
-  onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<void>;
+  onSaveDocuments: (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => Promise<ShipmentDocumentsSaveOutcome | void>;
   onSaveContainer: (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => Promise<void>;
   /** Card 20260921_2 — add/remove rows (per-row trip guard lives server-side). */
   onAddContainer?: (shipmentId: number, payload: ShipmentCusContainerAddInput, rowId?: number) => Promise<void>;
