@@ -178,7 +178,7 @@ describe('RoleWorkInbox', () => {
   });
 
   it('sorts the queue server-side: fresh column asc, re-click flips, URL restores the order (QA2-004)', async () => {
-    let calls: string[] = [];
+    const calls: string[] = [];
     apiGet.mockImplementation(async (url: string) => { calls.push(url); return response([operationsItem]); });
     renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
     await screen.findByRole('table');

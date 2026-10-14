@@ -208,6 +208,11 @@ type TitleRule = {
 // receive the role-branched variant for the rules below.
 const ROLE_BRANCHED_TITLES: Record<string, (role: string) => string> = {
   [routes.recoverableCosts]: (role) => role === 'CUS' ? 'Chi phí thu hộ cần đối soát' : 'Chi phí cần kiểm tra',
+  // qa2-008: the dispatcher's supplier page is framed as contractors
+  // ("Nhà thầu"); every other audience reads the catalog title. Living here
+  // (not in Layout.getPageTitle) is what lets the sidebar derive its labels
+  // from the same title authority the topbar uses.
+  [routes.suppliers]: (role) => role === 'DISPATCHER' ? 'Nhà thầu' : 'Nhà cung cấp',
 };
 
 // Order is load-bearing precedence (first match wins). The title strings are

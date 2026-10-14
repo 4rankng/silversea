@@ -1,10 +1,12 @@
-// QA2-004 rung-3 driver — LOCAL stack (my worktree's FE on 7176 + BE on 3003).
-// Drives the real sort controls on /my-orders (OPS), captures screenshots,
-// request URLs, aria-sort, and the persisted-state identity query.
+// QA2-004 rung-3 driver — drives the real sort controls on /my-orders (OPS).
+// Ports follow the dev-port contract by default (7175 FE / 3002 API); export
+// QA_LOCAL_FRONTEND_PORT / QA_LOCAL_API_PORT to point at an isolated stack
+// (the 2026-10-14 run used 7176/3003 so a concurrently-running dev stack
+// could not desync the evidence).
 import puppeteer from 'puppeteer';
 import { mkdirSync, appendFileSync, writeFileSync } from 'node:fs';
 
-const BASE = 'http://localhost:7176';
+const BASE = `http://localhost:${process.env.QA_LOCAL_FRONTEND_PORT ?? 7175}`;
 const dir = 'qa/evidence/2026-10-14_qa2-004-sort';
 mkdirSync(dir, { recursive: true });
 const log = `${dir}/driver.log`;

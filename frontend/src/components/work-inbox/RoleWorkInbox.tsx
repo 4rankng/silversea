@@ -54,10 +54,6 @@ type Props = {
   scopeReady?: boolean;
 };
 
-/** The three data columns QA2-004 names (order code / status / date) map to
- *  the backend WORK_INBOX_SORT_KEYS whitelist; the owner route reuses it. */
-const SORTABLE_COLUMNS = ['title', 'state', 'freshness'] as const;
-
 function endpointFor(role: Role, customerId: number | null | undefined, state: typeof states[number], page: number, search: string, sort: TableSortState | null) {
   const params = new URLSearchParams({ view: state, page: String(page), limit: '100' });
   if (search.trim()) params.set('search', search.trim());
@@ -256,9 +252,11 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
     setPage(1);
   };
 
-  const sortable = (label: string, key: (typeof SORTABLE_COLUMNS)[number]) => (
-    <SortHeader label={label} sortKey={key} sort={sort} onSortChange={handleSortChange} />
-  );
+/** The three data columns QA2-004 names (order code / status / date) map to
+ *  the backend WORK_INBOX_SORT_KEYS whitelist; the owner route reuses it. */
+const sortable = (label: string, key: 'title' | 'state' | 'freshness') => (
+  <SortHeader label={label} sortKey={key} sort={sort} onSortChange={handleSortChange} />
+);
 
   // Queue group — the shared boxed Tabs primitive (operator ruling
   // 2026-09-27). Ids are the queue index so the URL/state contract is intact;
