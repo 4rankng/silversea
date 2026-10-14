@@ -41,12 +41,21 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, isInvalid, size, placehold
         <AriaButton
             data-uui-control="select"
             data-control-size={size}
+            aria-invalid={isInvalid || undefined}
             className={cx(
                 "relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear",
-                // Error wins over focus: a focused invalid control outlines red;
-                // the brand-green focus ring never co-renders with errors.
-                isInvalid && (isFocused || isOpen)
-                    ? "border-error outline-2 outline-offset-1 outline-error"
+                // FB-048 (2026-10-14): an invalid trigger paints its danger
+                // border AT REST — gating on focus left the resting control
+                // on the neutral border while native .input fields and
+                // SearchableSelect already paint red (QA-AUDIT-UI57; aria-
+                // invalid above lets that house paint reach this boundary
+                // too). Error still wins over focus: the brand-green ring
+                // never co-renders with errors.
+                isInvalid
+                    ? cx(
+                          "border-error",
+                          (isFocused || isOpen) && "outline-2 outline-offset-1 outline-error",
+                      )
                     : cx(
                           "outline-focus-ring",
                           (isFocused || isOpen) && "border-brand outline-2 outline-offset-1",

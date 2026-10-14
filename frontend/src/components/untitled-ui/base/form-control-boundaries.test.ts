@@ -48,4 +48,25 @@ describe('Untitled UI flat-surface control boundaries', () => {
     expect(css).toMatch(/:is\(#root, body\) \[data-uui-control='input'\] > input:not\([^}]+min-height: 0;\s*height: calc\(var\(--uui-control-h\) - 2px\)/);
     expect(css).toMatch(/:is\(#root, body\) \[data-uui-control='combobox'\] input\[role='combobox'\]:not\([^}]+min-height: 0;\s*height: auto/);
   });
+
+  // FB-048 (2026-10-14): an invalid select/combobox must paint its danger
+  // border AT REST. The old paint gated on focus/open, so a failed-validation
+  // select sat on the neutral border until clicked — while native .input
+  // fields and SearchableSelect already painted red. aria-invalid also feeds
+  // the house QA-AUDIT-UI57 boundary paint in base.css.
+  it.each([
+    ['select trigger', 'src/components/untitled-ui/base/select/select.tsx', 'AriaButton', 'data-uui-control="select"'],
+    ['combobox group', 'src/components/untitled-ui/base/select/combobox.tsx', 'AriaGroup', 'data-uui-control="combobox"'],
+  ])('%s paints the invalid danger border at rest and exposes aria-invalid', (_label, path, _node, marker) => {
+    const source = read(path);
+    expect(source).toContain(marker);
+    // Rest-state paint: border-error no longer keys on focus/open.
+    expect(source).toMatch(/isInvalid\s*\?\s*cx\(\s*"border-error"/);
+    expect(source).not.toMatch(/isInvalid && \(isFocused \|\| isOpen\)/);
+    expect(source).not.toMatch(/isInvalid && isFocusWithin\s*\?\s*"border-error/);
+    // Semantics for the QA-AUDIT-UI57 house paint.
+    expect(source).toContain('aria-invalid={isInvalid || undefined}');
+    // Error still wins over focus: no brand ring on an invalid control.
+    expect(source).not.toMatch(/isInvalid[\s\S]{0,200}border-brand/);
+  });
 });

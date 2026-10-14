@@ -100,16 +100,22 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
             data-size={size}
             data-uui-control="combobox"
             data-control-size={size}
+            aria-invalid={isInvalid || undefined}
             data-default-search-icon={IconProp == null || (!isReactComponent(IconProp) && !isValidElement(IconProp)) ? true : undefined}
             className={({ isFocusWithin, isDisabled }) =>
                 cx(
                     "uui-combobox relative flex w-full items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear",
                     isDisabled && "cursor-not-allowed opacity-50",
-                    // Error wins over focus: a focused invalid control outlines
-                    // red; the brand-green focus ring never co-renders with the
-                    // error state.
-                    isInvalid && isFocusWithin
-                        ? "border-error outline-2 outline-offset-1 outline-error"
+                    // FB-048 (2026-10-14): same law as the select trigger —
+                    // an invalid combobox paints its danger border at rest
+                    // (aria-invalid above feeds the QA-AUDIT-UI57 house
+                    // paint); the brand-green ring never co-renders with
+                    // the error state.
+                    isInvalid
+                        ? cx(
+                              "border-error",
+                              isFocusWithin && "outline-2 outline-offset-1 outline-error",
+                          )
                         : cx(
                               "outline-focus-ring",
                               isFocusWithin && "border-brand outline-2 outline-offset-1",
