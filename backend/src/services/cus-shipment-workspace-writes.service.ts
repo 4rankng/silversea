@@ -25,7 +25,7 @@ import {
   type ShipmentCusContainerDeclarationCopyInput,
   type ShipmentCusContainerDeclarationCopyResult,
 } from '@tingting/shared';
-import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 
 import { runInTx } from '../lib/tx';
 import { cacheInvalidate } from '../lib/redis';
@@ -956,9 +956,22 @@ export async function addCusShipmentContainer(args: {
     if (!inputValid) {
       throw new ApiError(400, `Số container "${requestedNumber}" không hợp lệ: ${inputMessage}`);
     }
-    const existingRows = await tx.select({ containerNumber: s.shipmentContainers.containerNumber })
+    const existingRows = await tx.select({
+      containerNumber: s.shipmentContainers.containerNumber,
+      // FB-086 (round 19): the lot's own values default the added row —
+      // an added container rides the lot like a create-time row rides the
+      // previous row (createContainerFromPrevious). Read them here so the
+      // insert below can fall back per column.
+      containerTypeId: s.shipmentContainers.containerTypeId,
+      routeId: s.shipmentContainers.routeId,
+      pickupPortId: s.shipmentContainers.pickupPortId,
+      dropoffPortId: s.shipmentContainers.dropoffPortId,
+      operationalSiteId: s.shipmentContainers.operationalSiteId,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+    })
       .from(s.shipmentContainers)
-      .where(eq(s.shipmentContainers.shipmentId, args.shipmentId));
+      .where(eq(s.shipmentContainers.shipmentId, args.shipmentId))
+      .orderBy(asc(s.shipmentContainers.id));
     const duplicate = existingRows.some((candidate) => (
       candidate.containerNumber != null
       && normalizeContainerNumber(candidate.containerNumber) === normalizeContainerNumber(requestedNumber)
@@ -966,18 +979,30 @@ export async function addCusShipmentContainer(args: {
     if (duplicate) {
       throw new ApiError(400, `Số container "${requestedNumber}" đã tồn tại trong lô hàng.`);
     }
+    // First non-null sibling value per column — deterministic (id order) and
+    // each column falls back independently, so a lot whose rows disagree
+    // still inherits the oldest row's authority for the columns it owns.
+    const inheritLotDefault = <T>(pick: (row: (typeof existingRows)[number]) => T | null): T | null => {
+      for (const row of existingRows) {
+        const value = pick(row);
+        if (value != null) return value;
+      }
+      return null;
+    };
 
     const [inserted] = await tx.insert(s.shipmentContainers).values({
       shipmentId: args.shipmentId,
       containerNumber: requestedNumber,
-      containerTypeId: args.input.containerTypeId ?? null,
+      containerTypeId: args.input.containerTypeId ?? inheritLotDefault((row) => row.containerTypeId),
       cargoWeightKg: args.input.cargoWeightKg ?? null,
       cargoVolumeCbm: args.input.cargoVolumeCbm ?? null,
-      routeId: args.input.routeId ?? null,
-      pickupPortId: args.input.liftSiteId ?? null,
-      dropoffPortId: args.input.dropoffSiteId ?? null,
-      operationalSiteId: args.input.operationalSiteId ?? null,
-      customerAppointmentAt: args.input.customerAppointmentAt ? new Date(args.input.customerAppointmentAt) : null,
+      routeId: args.input.routeId ?? inheritLotDefault((row) => row.routeId),
+      pickupPortId: args.input.liftSiteId ?? inheritLotDefault((row) => row.pickupPortId),
+      dropoffPortId: args.input.dropoffSiteId ?? inheritLotDefault((row) => row.dropoffPortId),
+      operationalSiteId: args.input.operationalSiteId ?? inheritLotDefault((row) => row.operationalSiteId),
+      customerAppointmentAt: args.input.customerAppointmentAt
+        ? new Date(args.input.customerAppointmentAt)
+        : inheritLotDefault((row) => row.customerAppointmentAt),
       createdBy: args.actor.userId,
       updatedAt: new Date(),
     }).returning({ id: s.shipmentContainers.id });

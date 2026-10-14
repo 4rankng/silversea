@@ -7,14 +7,16 @@ import { ToastProvider } from '../../../components/shared/Toast';
 import { ContainerLedger } from './CusContainerLedger';
 import { getOffsetDateString } from './cusAppointmentUtils';
 
-const { updateCusShipmentContainerLine, removeCusShipmentContainerRow } = vi.hoisted(() => ({
+const { updateCusShipmentContainerLine, removeCusShipmentContainerRow, addCusShipmentContainerRow } = vi.hoisted(() => ({
   updateCusShipmentContainerLine: vi.fn(),
   removeCusShipmentContainerRow: vi.fn(),
+  addCusShipmentContainerRow: vi.fn(),
 }));
 vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../api/shipmentClient')>()),
   updateCusShipmentContainerLine,
   removeCusShipmentContainerRow,
+  addCusShipmentContainerRow,
 }));
 const { completeDispatchExternalTrip } = vi.hoisted(() => ({
   completeDispatchExternalTrip: vi.fn(),
@@ -762,5 +764,68 @@ describe('071026100800 — xóa container làm tươi hàng tổng quan', () => 
       </ToastProvider>,
     );
     expect(screen.queryByRole('button', { name: 'Thêm container' })).toBeNull();
+  });
+});
+
+// FB-086 (round 19): the drawer's Thêm container must recover from the
+// optimistic-version 409 instead of dead-ending — the stale detail is
+// force-reloaded by the host (onDetailStale) so an immediate retry carries
+// the fresh expectedShipmentVersion.
+describe('add-container version-409 recovery (FB-086, round 19)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls onDetailStale and appends the retry hint when the add hits the version 409', async () => {
+    addCusShipmentContainerRow.mockRejectedValueOnce(
+      new ApiError(409, { error: 'Lô hàng vừa thay đổi. Vui lòng tải lại và thử lại.' }, 'Lô hàng vừa thay đổi. Vui lòng tải lại và thử lại.'),
+    );
+    const onDetailStale = vi.fn();
+    render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={{ ...detail, summary: { ...detail.summary, cargoMode: 'FCL' } }}
+          onLineSaved={async () => {}}
+          onDetailStale={onDetailStale}
+          getIdempotencyKey={() => 'k'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="add-409"
+        />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    const numberInput = await screen.findByLabelText('Số container');
+    fireEvent.change(numberInput, { target: { value: 'MSKU9991234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm', exact: true }));
+    await screen.findByText(/Đã tải lại dữ liệu lô — bấm Thêm lần nữa/);
+    expect(onDetailStale).toHaveBeenCalledTimes(1);
+    // The add row stays open so the retry keeps the typed number.
+    expect(screen.getByLabelText('Số container')).toBeTruthy();
+  });
+
+  it('keeps the plain error (no recovery hint, no reload) for a non-version failure', async () => {
+    addCusShipmentContainerRow.mockRejectedValueOnce(
+      new ApiError(400, { error: 'Số container "MSKU9991234" đã tồn tại trong lô hàng.' }, 'Số container "MSKU9991234" đã tồn tại trong lô hàng.'),
+    );
+    const onDetailStale = vi.fn();
+    render(
+      <ToastProvider>
+        <ContainerLedger
+          detail={{ ...detail, summary: { ...detail.summary, cargoMode: 'FCL' } }}
+          onLineSaved={async () => {}}
+          onDetailStale={onDetailStale}
+          getIdempotencyKey={() => 'k'}
+          clearIdempotencyKey={() => {}}
+          idPrefix="add-400"
+        />
+      </ToastProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    const numberInput = await screen.findByLabelText('Số container');
+    fireEvent.change(numberInput, { target: { value: 'MSKU9991234' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm', exact: true }));
+    await screen.findByText(/đã tồn tại trong lô hàng/);
+    expect(screen.queryByText(/Đã tải lại dữ liệu lô/)).toBeNull();
+    expect(onDetailStale).not.toHaveBeenCalled();
   });
 });
