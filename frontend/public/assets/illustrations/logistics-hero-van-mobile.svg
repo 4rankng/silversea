@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1672" height="941" viewBox="0 0 1672 941" role="img">
+  <defs>
+    <linearGradient id="mbg" x1="0" y1="0" x2="0.25" y2="1">
+      <stop offset="0" stop-color="#0a2740"/>
+      <stop offset="0.5" stop-color="#071d32"/>
+      <stop offset="1" stop-color="#04121f"/>
+    </linearGradient>
+    <radialGradient id="mhalo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22c55e" stop-opacity="0.20"/>
+      <stop offset="0.5" stop-color="#2dd4a7" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#22c55e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mscrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#03101c" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#03101c" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#03101c" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="mboxFace" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#04693a"/>
+      <stop offset="1" stop-color="#023d21"/>
+    </linearGradient>
+    <linearGradient id="mcabFace" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#068744"/>
+      <stop offset="1" stop-color="#04552b"/>
+    </linearGradient>
+    <linearGradient id="mglass" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#3f7ea8"/>
+      <stop offset="1" stop-color="#123049"/>
+    </linearGradient>
+    <linearGradient id="mcardFace" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e6eef6"/>
+    </linearGradient>
+    <filter id="msoft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="mtight" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+
+  <rect width="1672" height="941" fill="url(#mbg)"/>
+  <ellipse cx="590" cy="400" rx="620" ry="400" fill="url(#mhalo)"/>
+
+  <g fill="none" stroke="#4ade80" stroke-opacity="0.13" stroke-width="1.5">
+    <circle cx="590" cy="400" r="300"/>
+    <circle cx="590" cy="400" r="400" stroke-dasharray="10 14" stroke-opacity="0.1"/>
+  </g>
+
+  <!-- container, far left, low -->
+  <g transform="translate(126 344) rotate(-4)">
+    <rect width="150" height="78" rx="7" fill="#0b4d6b" stroke="#2dd4a7" stroke-opacity="0.32" stroke-width="1.5"/>
+    <g stroke="#2dd4a7" stroke-opacity="0.22" stroke-width="1.5">
+      <line x1="23" y1="11" x2="23" y2="67"/>
+      <line x1="46" y1="11" x2="46" y2="67"/>
+      <line x1="69" y1="11" x2="69" y2="67"/>
+      <line x1="92" y1="11" x2="92" y2="67"/>
+      <line x1="115" y1="11" x2="115" y2="67"/>
+      <line x1="138" y1="11" x2="138" y2="67"/>
+    </g>
+  </g>
+
+  <!-- route in from the origin pin -->
+  <path d="M 158 282 C 220 296, 280 322, 348 350"
+        fill="none" stroke="#22c55e" stroke-opacity="0.30" stroke-width="6"
+        stroke-linecap="round" filter="url(#msoft)"/>
+  <path d="M 158 282 C 220 296, 280 322, 348 350"
+        fill="none" stroke="#6ee7a8" stroke-opacity="0.45" stroke-width="2"
+        stroke-linecap="round" stroke-dasharray="14 12"/>
+  <g transform="translate(158 234) scale(0.78)" opacity="0.85">
+    <path d="M 0 -34 C -21 -34, -36 -19, -36 2 C -36 26, 0 58, 0 58 C 0 58, 36 26, 36 2 C 36 -19, 21 -34, 0 -34 Z"
+          fill="#4ade80" fill-opacity="0.72"/>
+    <circle cx="0" cy="1" r="12" fill="#04241a"/>
+  </g>
+
+  <!-- route out to the destination pin -->
+  <path d="M 910 330 C 1000 300, 1100 268, 1196 244"
+        fill="none" stroke="#22c55e" stroke-opacity="0.30" stroke-width="6"
+        stroke-linecap="round" filter="url(#msoft)"/>
+  <path d="M 910 330 C 1000 300, 1100 268, 1196 244"
+        fill="none" stroke="#6ee7a8" stroke-opacity="0.45" stroke-width="2"
+        stroke-linecap="round" stroke-dasharray="14 12"/>
+  <g transform="translate(1210 226)">
+    <path d="M 0 -34 C -21 -34, -36 -19, -36 2 C -36 26, 0 58, 0 58 C 0 58, 36 26, 36 2 C 36 -19, 21 -34, 0 -34 Z"
+          fill="#34d399"/>
+    <circle cx="0" cy="1" r="12" fill="#04241a"/>
+  </g>
+
+  <!-- dispatch card, right -->
+  <g transform="translate(1200 342)">
+    <rect width="352" height="186" rx="16" fill="url(#mcardFace)" opacity="0.97"/>
+    <circle cx="48" cy="46" r="20" fill="#22c55e"/>
+    <path d="M 39 46 l 8 8 l 14 -17" fill="none" stroke="#04241a" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="84" y="34" width="180" height="12" rx="6" fill="#0f2b45"/>
+    <rect x="84" y="58" width="124" height="11" rx="5.5" fill="#7d93a8"/>
+    <rect x="28" y="98" width="34" height="60" rx="5" fill="#22c55e"/>
+    <rect x="72" y="118" width="34" height="40" rx="5" fill="#4ade80" fill-opacity="0.7"/>
+    <rect x="116" y="108" width="34" height="50" rx="5" fill="#4ade80" fill-opacity="0.5"/>
+    <rect x="160" y="128" width="34" height="30" rx="5" fill="#cbd5e1"/>
+    <rect x="28" y="168" width="240" height="9" rx="4.5" fill="#d7e3ee"/>
+  </g>
+
+  <!-- ============ hero van ============ -->
+  <g transform="translate(340 249) scale(1.05)">
+    <ellipse cx="294" cy="254" rx="330" ry="26" fill="#22c55e" opacity="0.18" filter="url(#msoft)"/>
+    <ellipse cx="294" cy="250" rx="296" ry="18" fill="#020a12" opacity="0.5" filter="url(#mtight)"/>
+
+    <rect x="0" y="14" width="344" height="176" rx="13" fill="url(#mboxFace)"/>
+    <rect x="0" y="14" width="344" height="10" rx="5" fill="#ffffff" fill-opacity="0.13"/>
+    <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="2">
+      <line x1="40" y1="42" x2="40" y2="170"/>
+      <line x1="92" y1="42" x2="92" y2="170"/>
+      <line x1="144" y1="42" x2="144" y2="170"/>
+      <line x1="196" y1="42" x2="196" y2="170"/>
+      <line x1="248" y1="42" x2="248" y2="170"/>
+      <line x1="300" y1="42" x2="300" y2="170"/>
+    </g>
+    <rect x="0" y="120" width="344" height="20" fill="#22c55e" fill-opacity="0.92"/>
+    <rect x="0" y="140" width="344" height="8" fill="#0b3a22" fill-opacity="0.45"/>
+
+    <path d="M 348 190 L 348 84 Q 348 70 362 70 L 456 70 Q 470 70 479 83 L 526 132
+             Q 534 141 548 141 L 574 141 Q 588 141 588 155 L 588 190 Z"
+          fill="url(#mcabFace)"/>
+    <path d="M 364 84 L 450 84 Q 459 84 465 92 L 500 132 L 364 132 Z" fill="url(#mglass)"/>
+    <path d="M 372 92 L 404 92 L 430 124 L 372 124 Z" fill="#ffffff" fill-opacity="0.16"/>
+    <rect x="514" y="141" width="52" height="27" fill="url(#mglass)"/>
+    <rect x="518" y="176" width="28" height="6" rx="3" fill="#0b3a22" fill-opacity="0.8"/>
+    <rect x="536" y="98" width="5" height="26" rx="2.5" fill="#0b3a22"/>
+    <rect x="576" y="148" width="12" height="12" rx="4" fill="#a7f3d0"/>
+
+    <rect x="0" y="184" width="588" height="14" fill="#052a18"/>
+
+    <g>
+      <circle cx="118" cy="200" r="46" fill="#0a121c"/>
+      <circle cx="118" cy="200" r="46" fill="none" stroke="#1e293b" stroke-width="3"/>
+      <circle cx="118" cy="200" r="20" fill="#3d4f63"/>
+      <circle cx="118" cy="200" r="8" fill="#94a3b8"/>
+      <circle cx="470" cy="200" r="46" fill="#0a121c"/>
+      <circle cx="470" cy="200" r="46" fill="none" stroke="#1e293b" stroke-width="3"/>
+      <circle cx="470" cy="200" r="20" fill="#3d4f63"/>
+      <circle cx="470" cy="200" r="8" fill="#94a3b8"/>
+    </g>
+  </g>
+
+  <!-- motion lines -->
+  <g stroke="#4ade80" stroke-opacity="0.28" stroke-width="4" stroke-linecap="round">
+    <line x1="276" y1="330" x2="336" y2="330"/>
+    <line x1="300" y1="366" x2="334" y2="366"/>
+    <line x1="288" y1="402" x2="348" y2="402"/>
+  </g>
+
+  <!-- bottom scrim: gradient fade into the text overlay zone -->
+  <rect x="0" y="600" width="1672" height="341" fill="url(#mscrim)"/>
+</svg>
