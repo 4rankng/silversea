@@ -1,0 +1,5 @@
+      Tests  2 failed | 4764 passed (4766)
+   Start at  22:07:36
+   Duration  248.85s (transform 39.01s, setup 153.48s, import 665.31s, tests 639.57s, environment 644.70s)
+
+ ELIFECYCLE  Test failed. See above for more details.

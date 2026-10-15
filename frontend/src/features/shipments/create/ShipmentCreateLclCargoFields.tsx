@@ -42,6 +42,7 @@ export function ShipmentCreateLclCargoFields({
         <SearchableField
           id="shipment-pickup-warehouse"
           label="Kho lấy hàng"
+          required
           value={form.pickupWarehouseSiteId}
           onChange={(value) => update('pickupWarehouseSiteId', value)}
           options={warehouseSites.map((site) => ({
@@ -111,6 +112,7 @@ export function ShipmentCreateLclCargoFields({
           <SearchableField
             id="shipment-package-type"
             label="Quy cách đóng gói"
+            required
             value={form.packageType}
             onChange={(value) => update('packageType', value)}
             allowsCustomValue
@@ -125,6 +127,7 @@ export function ShipmentCreateLclCargoFields({
           <TextField
             id="shipment-package-count"
             label="Số lượng"
+            required
             type="number"
             min="1"
             step="1"
@@ -138,6 +141,7 @@ export function ShipmentCreateLclCargoFields({
           <TextField
             id="shipment-cargo-weight"
             label="Trọng lượng (kg)"
+            required
             type="number"
             min="0"
             step="0.01"
@@ -148,6 +152,10 @@ export function ShipmentCreateLclCargoFields({
           />
         </div>
         <div data-field-id="shipment-cargo-volume">
+          {/* QA1-007: deliberately NOT `required` — CBM is optional for LCL
+              (helpdesk 2026-10-13, ops Tiếp Vu); an entered value must only be
+              > 0 (shipment-create-model readiness). The missing asterisk is
+              the contract, not a gap. */}
           <TextField
             id="shipment-cargo-volume"
             label="Thể tích (CBM)"

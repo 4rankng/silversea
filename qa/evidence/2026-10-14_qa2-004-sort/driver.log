@@ -1,0 +1,12 @@
+{"at":"2026-10-14T14:37:43.589Z","step":"login","url":"http://localhost:7176/my-orders"}
+{"at":"2026-10-14T14:38:14.550Z","step":"FAIL","error":"TimeoutError: Waiting for selector `table.role-work-inbox__table, [class*=\"work-inbox\"] table` failed","stack":"TimeoutError: Waiting for selector `table.role-work-inbox__table, [class*=\"work-inbox\"] table` failed\n    at CSSQueryHandler.waitFor (file:///Users/dev/.paseo/worktrees/1njkloyy/wicked-koala/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/common/QueryHandler.js:211:46)\n    at async CdpFrame.waitForSelector (file:///Users/dev/.paseo/worktrees/1njkloyy/wicked-koala/node_modules/.pnpm/puppeteer-core@25.1.0/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:541"}
+{"at":"2026-10-14T14:40:08.764Z","step":"login","url":"http://localhost:7176/my-orders"}
+{"at":"2026-10-14T14:40:10.949Z","step":"initial","url":"http://localhost:7176/my-orders"}
+{"at":"2026-10-14T14:40:10.965Z","step":"click-title","result":{"before":"none","label":"Công việc"}}
+{"at":"2026-10-14T14:40:12.468Z","step":"after-title-asc","aria":[{"label":"Công việc","sort":"ascending"},{"label":"Trạng thái","sort":"none"},{"label":"Cập nhật","sort":"none"}],"url":"http://localhost:7176/my-orders?sort=title&dir=asc"}
+{"at":"2026-10-14T14:40:14.035Z","step":"after-title-desc","aria":[{"label":"Công việc","sort":"descending"},{"label":"Trạng thái","sort":"none"},{"label":"Cập nhật","sort":"none"}],"url":"http://localhost:7176/my-orders?sort=title&dir=desc"}
+{"at":"2026-10-14T14:40:15.601Z","step":"after-freshness-asc","aria":[{"label":"Công việc","sort":"none"},{"label":"Trạng thái","sort":"none"},{"label":"Cập nhật","sort":"ascending"}],"url":"http://localhost:7176/my-orders?sort=freshness&dir=asc"}
+{"at":"2026-10-14T14:40:17.169Z","step":"after-state-asc","aria":[{"label":"Công việc","sort":"none"},{"label":"Trạng thái","sort":"ascending"},{"label":"Cập nhật","sort":"none"}],"url":"http://localhost:7176/my-orders?sort=state&dir=asc"}
+{"at":"2026-10-14T14:40:19.557Z","step":"after-reload","aria":[{"label":"Công việc","sort":"none"},{"label":"Trạng thái","sort":"ascending"},{"label":"Cập nhật","sort":"none"}],"url":"http://localhost:7176/my-orders?sort=state&dir=asc"}
+{"at":"2026-10-14T14:40:19.627Z","step":"api-calls","count":22}
+{"at":"2026-10-14T14:40:19.627Z","step":"DONE","ok":true}
