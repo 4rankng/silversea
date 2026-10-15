@@ -247,7 +247,9 @@ describe('DetailedPlanGrid', () => {
       container: { containerNumber: null, containerTypeLabel: null, cargoWeightKg: '3200.00' },
     })]);
 
-    expect(screen.getByText('Lô hàng lẻ')).toBeTruthy();
+    // FB-092: the LCL kind line is "Lẻ" (+" · Xe {class}" once grouped); the
+    // pre-FB-092 "Lô hàng lẻ" wording is gone.
+    expect(screen.getByText('Lẻ')).toBeTruthy();
     expect(screen.queryByText('MSCU1234567')).toBeNull();
     expect(screen.getByText(/3\.200 kg/)).toBeTruthy();
   });

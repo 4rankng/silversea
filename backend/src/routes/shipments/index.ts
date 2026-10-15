@@ -38,6 +38,7 @@ import { registerAuditEvent } from '../../services/audit-registry';
 import { AuditEvent } from '../../services/audit-types';
 import { cusWorkspaceRoutes } from './cus-workspace.routes';
 import { dispatchPlanningRoutes } from './dispatch-planning.routes';
+import { lclGroupingRoutes } from './lcl-grouping.routes';
 import { coreRoutes } from './core.routes';
 import { documentsRoutes } from './documents.routes';
 import { podRoutes } from './pod.routes';
@@ -80,6 +81,7 @@ registerAuditEvent('PUT', '/api/shipments/', '/containers', AuditEvent.SHIPMENT_
 registerAuditEvent('PUT', '/api/shipments/', '', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('PATCH', '/api/shipments/', '/dispatch-detail-plan-rows/', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('DELETE', '/api/shipments/', '', AuditEvent.SHIPMENT_DELETED);
+registerAuditEvent('POST', '/api/shipments/lcl/cost-group', AuditEvent.SHIPMENT_LCL_COST_GROUP_ASSIGNED);
 // Master-data CRUD: creating a factory/warehouse from the intake form is an
 // entity-level change, not a shipment-lifecycle event, so it uses ENTITY_*.
 registerAuditEvent('POST', '/api/shipments/operational-sites', AuditEvent.ENTITY_CREATED);
@@ -89,6 +91,7 @@ const router = Router();
 router.use(financeRecordsRoutes);
 router.use(cusWorkspaceRoutes);
 router.use(dispatchPlanningRoutes);
+router.use(lclGroupingRoutes);
 router.use(coreRoutes);
 router.use(documentsRoutes);
 router.use(podRoutes);

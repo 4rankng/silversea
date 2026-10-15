@@ -1029,3 +1029,23 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* FB-092 — LCL cost-group tag in the Phân loại cell: names the lot's place in
+   its group ("Lẻ · Ghép (1/5)"); static text, never looks actionable. */
+.detailed-plan-grid__lcl-group-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  background: var(--app-accent-emerald-soft, #e6f4ee);
+  color: var(--app-accent-emerald-ink, #05603a);
+  border: 1px solid var(--app-accent-emerald-border, #abebc6);
+}
+
+/* FB-092 — LCL selection checkbox column alignment inside the schedule cell. */
+.detailed-plan-grid__cell--schedule .react-aria-Checkbox {
+  margin-bottom: 4px;
+}

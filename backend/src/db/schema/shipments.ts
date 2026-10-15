@@ -63,6 +63,25 @@ export const shipments = pgTable('shipments', {
   customerNotes: text('customer_notes'),
   pickupLocation: varchar('pickup_location', { length: 255 }),
   deliveryLocation: varchar('delivery_location', { length: 255 }),
+  // ── FB-092 LCL lot grouping (DEV SPEC Hàng lẻ §II.2.2) ───────────────────
+  // One lô may share a physical truck with other lôs. The COST group (cước trả
+  // ĐV — dispatch side) groups here: `cost_group_order` 1 is the principal lot
+  // carrying 100% of the vendor freight; members 2..N carry 0₫ — their live
+  // trip's external_freight_cost is zeroed by the grouping service.
+  costGroupId: varchar('cost_group_id', { length: 36 }),
+  costGroupOrder: integer('cost_group_order'),
+  // The group's truck identity. actualTruckNo = BKS thực (what runs the
+  // lane); billingTruckNo = BKS báo khách ("xe ảo", FB-092) — what the
+  // customer is told. Billing auto-copies actual at assignment and may
+  // diverge afterwards; the debit note (FB-094) MUST print billing, never
+  // actual.
+  actualTruckNo: varchar('actual_truck_no', { length: 20 }),
+  billingTruckNo: varchar('billing_truck_no', { length: 20 }),
+  // Loại xe tính cước trả ĐV — link into the FB-090 vehicle_size_classes
+  // catalog (trọng tải 1.25T…15T or CONT20/40). Plain integer on purpose:
+  // cross-file link enforced by the grouping service, matching
+  // trips.activeTripPairId's house pattern.
+  costVehicleClassId: integer('cost_vehicle_class_id'),
   contactName: varchar('contact_name', { length: 100 }),
   contactPhone: varchar('contact_phone', { length: 20 }),
   createdBy: integer('created_by'),
@@ -83,6 +102,9 @@ export const shipments = pgTable('shipments', {
   index('shipments_status_idx').on(table.status),
   index('shipments_operational_site_idx').on(table.operationalSiteId),
   index('shipments_pickup_warehouse_idx').on(table.pickupWarehouseSiteId),
+  // FB-092 LCL grouping: group members are always fetched together,
+  // so the cost group key gets its own index.
+  index('shipments_cost_group_idx').on(table.costGroupId),
 ]);
 
 

@@ -113,3 +113,56 @@
     padding: 0;
   }
 }
+
+/* ─── FB-092 LCL selection bar ──────────────────────────────────────────────
+   Sticky summary shown while the dispatcher has LCL lots selected for a
+   cost-group assignment. Totals mirror the grid's own measure formatting
+   (kg · CBM) so the bar can never disagree with the rows. */
+.lcl-selection-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--app-radius-md);
+  background: var(--app-surface-raised, #fff);
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.16);
+  border: 1px solid var(--app-border, #e4e7ec);
+}
+
+.lcl-selection-bar__totals {
+  font-weight: 600;
+}
+
+.lcl-selection-bar__first {
+  color: var(--app-text-muted, #475467);
+  font-size: 0.875rem;
+}
+
+.lcl-selection-bar__clear {
+  margin-inline-start: auto;
+  border: none;
+  background: none;
+  color: var(--app-text-muted, #475467);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lcl-selection-bar__assign {
+  border: none;
+  border-radius: var(--app-radius-sm, 8px);
+  padding: 8px 14px;
+  background: var(--app-accent-emerald, #027a48);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lcl-selection-bar__assign:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

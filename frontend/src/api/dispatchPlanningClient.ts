@@ -1,4 +1,5 @@
 import { api } from '../lib/api';
+import { SHIPMENTS } from '@tingting/shared';
 import type { CursorPaginatedResponse, PaginatedResponse, DispatchClassification, TruckSuggestion } from '@tingting/shared';
 
 export interface DispatchTruck {
@@ -196,6 +197,35 @@ export function issueDispatchOrder(item: DispatchQueueItem, body: {
 
 // ─── Dispatch detail plan grid ("Kế hoạch Chi tiết Xe") ─────────────────────
 
+/** FB-092 — LCL row facts: the lot's own cargo + its cost-group identity. */
+export interface LclRowFacts {
+  packageCount: number | null;
+  packageType: string | null;
+  cargoVolumeCbm: string | null;
+  group: {
+    groupId: string;
+    order: number | null;
+    memberCount: number | null;
+    actualTruckNo: string | null;
+    billingTruckNo: string | null;
+    vehicleClassCode: string | null;
+    vehicleClassName: string | null;
+  } | null;
+}
+
+/** FB-092 — assign one truck to the selected LCL lots (cost group). */
+export async function assignLclCostGroup(input: {
+  shipmentIds: number[];
+  vehicleSizeClassId: number;
+  actualTruckNo: string;
+  billingTruckNo?: string;
+}) {
+  return api.post<{ groupId: string; memberCount: number; members: Array<{ shipmentId: number; order: number; reference: string }> }>(
+    SHIPMENTS.LCL_COST_GROUP,
+    input,
+  );
+}
+
 export interface DispatchDetailPlanRow {
   fulfillmentId: number;
   version: number;
@@ -214,6 +244,10 @@ export interface DispatchDetailPlanRow {
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName?: string | null };
   docs: { billNumber: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
   container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
+  /** FB-092 LCL facts — the lot's own cargo for the CONTAINER cell's 2nd/3rd
+   *  lines and its cost-group tag/truck identity. Absent on older fixtures
+   *  and on FCL rows. */
+  lcl?: LclRowFacts | null;
   notes: { vehicleNote: string | null; customerNote: string | null; opsRecoveryNotes?: string[] };
   dispatch: {
     /** Present once the dispatch order has created a live trip. */

@@ -1032,6 +1032,13 @@
       "when": 1792000006000,
       "tag": "20261015103000_lcl_vehicle_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1792010600000,
+      "tag": "20261015110000_lcl_lot_grouping",
+      "breakpoints": true
     }
   ]
 }
