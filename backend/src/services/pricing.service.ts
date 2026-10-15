@@ -25,7 +25,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
-import { and, desc, eq, inArray, isNull, lte, ne, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import { computeFuelSurcharge, computeTripTotals, FuelMode } from '@tingting/shared';
 import type { FuelSurchargeSnapshot } from '@tingting/shared';
 import { ApiError } from '../errors';
@@ -692,6 +692,178 @@ async function resolveTablePrice(
 /** Resolve the fixed-price table without requiring a cargo-type decision. */
 export async function resolveTableFreightPrice(input: Omit<ResolveFreightPriceInput, 'cargoTypeId'>): Promise<ResolvedFreightPrice> {
   return resolveTablePrice({ ...input, cargoTypeId: 0 });
+}
+
+// ─── FB-090: vehicle-class lane pricing (LCL foundation) ────────────────────
+//
+// Two lookups key on the Danh mục Loại xe (vehicle_size_classes):
+//   1. Cước thu khách  — pricing_tables row per (customer × route × class),
+//      shared with the legacy rateKey rows (the write path denormalizes
+//      rateKey = class code, so both ID- and CODE-linked rows match).
+//   2. Cước trả nhà xe — carrier_route_pricing per (route × class × [nhà xe]):
+//      supplier-specific row wins over the generic (supplier NULL) row.
+
+export interface ResolveCustomerVehicleClassPriceInput {
+  customerId: number;
+  routeId: number;
+  /** Catalog id and/or code — at least one must be present. */
+  vehicleSizeClassId?: number | null;
+  vehicleSizeClassCode?: string | null;
+  /** Departure or trip date (YYYY-MM-DD). */
+  date: string;
+}
+
+export interface ResolvedCustomerVehicleClassPrice {
+  /** Unit freight for the lane (integer VND). */
+  price: number;
+  pricingTableId: number;
+  effectiveDate: string;
+  /** 'ID' = row linked via vehicle_size_class_id; 'CODE' = legacy row
+   *  matched via rate_key = class code. Same price semantics either way. */
+  matchedVia: 'ID' | 'CODE';
+}
+
+/** Internal: resolve the class row from an id and/or code. */
+async function findVehicleSizeClass(input: {
+  vehicleSizeClassId?: number | null;
+  vehicleSizeClassCode?: string | null;
+  executor?: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+}): Promise<{ id: number; code: string } | null> {
+  const executor = input.executor ?? db;
+  const code = normalizePricingRateKey(input.vehicleSizeClassCode);
+  if (input.vehicleSizeClassId != null) {
+    const [row] = await executor.select({ id: s.vehicleSizeClasses.id, code: s.vehicleSizeClasses.code })
+      .from(s.vehicleSizeClasses)
+      .where(and(
+        eq(s.vehicleSizeClasses.id, input.vehicleSizeClassId),
+        isNull(s.vehicleSizeClasses.deletedAt),
+      ))
+      .limit(1);
+    if (row) return row;
+    return null;
+  }
+  if (code != null) {
+    const [row] = await executor.select({ id: s.vehicleSizeClasses.id, code: s.vehicleSizeClasses.code })
+      .from(s.vehicleSizeClasses)
+      .where(and(
+        eq(s.vehicleSizeClasses.code, code),
+        isNull(s.vehicleSizeClasses.deletedAt),
+      ))
+      .limit(1);
+    return row ?? null;
+  }
+  return null;
+}
+
+/**
+ * Cước thu khách theo loại xe — latest pricing_tables row for
+ * (customer × route × vehicle class) with effectiveDate ≤ date.
+ * Null when no row exists (the caller treats it as MANUAL, mirroring
+ * resolveFreightPrice); never throws for a missing price.
+ */
+export async function resolveCustomerVehicleClassPrice(
+  input: ResolveCustomerVehicleClassPriceInput,
+): Promise<ResolvedCustomerVehicleClassPrice | null> {
+  const vehicleClass = await findVehicleSizeClass(input);
+  if (!vehicleClass) return null;
+
+  const [row] = await db.select({
+    id: s.pricingTables.id,
+    price: s.pricingTables.price,
+    effectiveDate: s.pricingTables.effectiveDate,
+    vehicleSizeClassId: s.pricingTables.vehicleSizeClassId,
+  }).from(s.pricingTables)
+    .where(and(
+      eq(s.pricingTables.customerId, input.customerId),
+      eq(s.pricingTables.routeId, input.routeId),
+      lte(s.pricingTables.effectiveDate, input.date),
+      isNull(s.pricingTables.deletedAt),
+      // ID-linked row or legacy rate-key row — the write path keeps both
+      // shapes in sync (rateKey = class code).
+      or(
+        eq(s.pricingTables.vehicleSizeClassId, vehicleClass.id),
+        eq(s.pricingTables.rateKey, vehicleClass.code),
+      ),
+    ))
+    .orderBy(
+      desc(s.pricingTables.effectiveDate),
+      // Prefer the ID-linked row on a tie: it is the maintained shape.
+      sql`(${s.pricingTables.vehicleSizeClassId} = ${vehicleClass.id}) desc`,
+      desc(s.pricingTables.id),
+    )
+    .limit(1);
+
+  if (!row) return null;
+  return {
+    price: Number(row.price),
+    pricingTableId: row.id,
+    effectiveDate: row.effectiveDate,
+    matchedVia: row.vehicleSizeClassId === vehicleClass.id ? 'ID' : 'CODE',
+  };
+}
+
+export interface ResolveCarrierVehicleClassPriceInput {
+  routeId: number;
+  vehicleSizeClassId: number;
+  /** The nhà xe being dispatched. Null/absent = generic price only. */
+  supplierId?: number | null;
+  /** Departure or trip date (YYYY-MM-DD). */
+  date: string;
+}
+
+export interface ResolvedCarrierVehicleClassPrice {
+  /** Cước trả nhà xe for the lane (integer VND). */
+  price: number;
+  carrierRoutePricingId: number;
+  effectiveDate: string;
+  /** 'SUPPLIER' = the nhà xe's own row; 'GENERIC' = giá chung fallback. */
+  matched: 'SUPPLIER' | 'GENERIC';
+}
+
+/**
+ * Cước trả nhà xe theo loại xe — cascade: the supplier's own
+ * carrier_route_pricing row (route × class × supplier) wins; without one,
+ * the generic row (supplier NULL) applies. Latest effectiveDate ≤ date.
+ * Null when neither exists.
+ */
+export async function resolveCarrierVehicleClassPrice(
+  input: ResolveCarrierVehicleClassPriceInput,
+): Promise<ResolvedCarrierVehicleClassPrice | null> {
+  const findLatest = (selector: SQL) => db.select({
+    id: s.carrierRoutePricing.id,
+    price: s.carrierRoutePricing.price,
+    effectiveDate: s.carrierRoutePricing.effectiveDate,
+    supplierId: s.carrierRoutePricing.supplierId,
+  }).from(s.carrierRoutePricing)
+    .where(and(
+      eq(s.carrierRoutePricing.routeId, input.routeId),
+      eq(s.carrierRoutePricing.vehicleSizeClassId, input.vehicleSizeClassId),
+      lte(s.carrierRoutePricing.effectiveDate, input.date),
+      isNull(s.carrierRoutePricing.deletedAt),
+      selector,
+    ))
+    .orderBy(desc(s.carrierRoutePricing.effectiveDate), desc(s.carrierRoutePricing.id))
+    .limit(1);
+
+  if (input.supplierId != null) {
+    const [own] = await findLatest(eq(s.carrierRoutePricing.supplierId, input.supplierId));
+    if (own) {
+      return {
+        price: Number(own.price),
+        carrierRoutePricingId: own.id,
+        effectiveDate: own.effectiveDate,
+        matched: 'SUPPLIER',
+      };
+    }
+  }
+  const [generic] = await findLatest(isNull(s.carrierRoutePricing.supplierId));
+  if (!generic) return null;
+  return {
+    price: Number(generic.price),
+    carrierRoutePricingId: generic.id,
+    effectiveDate: generic.effectiveDate,
+    matched: 'GENERIC',
+  };
 }
 
 // ─── Overlap validators ─────────────────────────────────────────────────────

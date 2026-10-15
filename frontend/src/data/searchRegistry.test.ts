@@ -91,7 +91,10 @@ describe('role-aware search destinations', () => {
       .sort();
     // /config hub and most sub-routes stay adminOnly; the officeStaffOnly
     // exceptions are the only config cards accountants may be offered.
+    // FB-090: carrier-route-pricing joins pricing-tables — kế toán reads
+    // cước trả nhà xe for reconciliation.
     expect(configPaths).toEqual([
+      '/config/carrier-route-pricing',
       '/config/company-info',
       '/config/debit-note-templates',
       '/config/pricing-tables',

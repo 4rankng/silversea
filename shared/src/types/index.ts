@@ -216,6 +216,10 @@ export interface PricingTable {
   price: string;
   containerTypeId: number | null;
   rateKey: string | null;
+  // FB-090: FK-pointer into vehicle_size_classes. When set, the write path
+  // denormalizes rateKey = the class code so every legacy rateKey resolver
+  // keeps working; NULL = legacy general/container row.
+  vehicleSizeClassId: number | null;
   effectiveDate: string;
   createdAt: string;
   updatedAt: string;
@@ -775,6 +779,37 @@ export interface ContainerType {
   code: string;   // e.g. "20DC", "40HC"
   name: string;   // e.g. "20'DC", "40'HC"
   notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+// Vehicle size class catalog (`vehicle_size_classes`): the FB-090 LCL
+// "Danh mục Loại xe" — truck tonnage classes (1.25T…15T) alongside the
+// container classes (CONT20/CONT40 and the weight-split price classes).
+// `sourcingRule` is derived from `isContainer` (shared constant
+// LCL_VEHICLE_SOURCING), never stored — see constants/index.ts.
+export interface VehicleSizeClass {
+  id: number;
+  code: string;        // e.g. "5T", "CONT20", "CONT40.HEAVY"
+  name: string;        // e.g. "Xe 5 tấn", "Container 20 feet"
+  isContainer: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+// FB-090: Cước trả nhà xe theo (tuyến × loại xe × [nhà xe]). supplierId
+// NULL = "giá chung" áp cho mọi nhà xe chưa có giá riêng trên lane đó.
+export interface CarrierRoutePricing {
+  id: number;
+  routeId: number;
+  vehicleSizeClassId: number;
+  supplierId: number | null;
+  price: string;
+  effectiveDate: string;
+  note: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

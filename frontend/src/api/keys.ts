@@ -81,6 +81,9 @@ export const qk = {
     /** Templates filtered by document type (DEBIT_NOTE | PAYMENT_STATEMENT). */
     debitNoteTemplatesByType: (type: string) => ['debit-note-templates', type] as const,
     pricingTables: ['pricing-tables'],
+    // FB-090 LCL: Danh mục Loại xe + bảng giá cước trả nhà xe.
+    vehicleSizeClasses: ['vehicle-size-classes'],
+    carrierRoutePricing: ['carrier-route-pricing'],
     // Freight pricing engine (docx "Phương án tính cước tự động").
     fuelPricePeriods: ['fuel-price-periods'],
     freightRateTerms: ['freight-rate-terms'],
@@ -142,6 +145,8 @@ export const qk = {
     'debit-note-templates',
     'debit-note-template',
     'pricing-tables',
+    'vehicle-size-classes',
+    'carrier-route-pricing',
     'fuel-price-periods',
     'freight-rate-terms',
     'debit-note-override',
@@ -589,6 +594,8 @@ export const qk = {
     debitNoteTemplates: ['cfg-count', 'debit-note-templates'],
     fuelPricePeriods: ['cfg-count', 'fuel-price-periods'],
     freightRateTerms: ['cfg-count', 'freight-rate-terms'],
+    vehicleSizeClasses: ['cfg-count', 'vehicle-size-classes'],
+    carrierRoutePricing: ['cfg-count', 'carrier-route-pricing'],
   },
 
   /* ── Generic CRUD page (CrudTable uses [endpoint] as key) ──────────── */

@@ -12,6 +12,7 @@ import type {
   CapTableHistory,
   Port as PortType,
   ContainerType as ContainerTypeType,
+  VehicleSizeClass as VehicleSizeClassType,
 } from '@tingting/shared';
 
 export function useCapTable() {
@@ -136,6 +137,16 @@ export function useContainerTypes() {
   return useQuery<ContainerTypeType[]>({
     queryKey: qk.catalogs.containerTypes,
     queryFn: () => configClient.getContainerTypes(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// FB-090: Danh mục Loại xe (trọng tải xe tải + container classes) — feeds
+// the pricing selectors and the LCL gán-xe flows (FB-092/093).
+export function useVehicleSizeClasses() {
+  return useQuery<VehicleSizeClassType[]>({
+    queryKey: qk.catalogs.vehicleSizeClasses,
+    queryFn: () => configClient.getVehicleSizeClasses(),
     staleTime: 5 * 60 * 1000,
   });
 }

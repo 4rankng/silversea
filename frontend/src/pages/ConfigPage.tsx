@@ -62,6 +62,15 @@ export default function ConfigPage() {
       { queryKey: qk.configCounts.freightRateTerms,     queryFn: () => api.get<ListResponse>('/freight-rate-terms?limit=1'),     staleTime: 60_000 },
     ],
   });
+  // FB-090 LCL counts ride a second useQueries call: TanStack's tuple
+  // inference for heterogeneous query arrays collapses past the size of the
+  // original block (results widen to {}), so the LCL pair stays isolated.
+  const lclSummaryQueries = useQueries({
+    queries: [
+      { queryKey: qk.configCounts.vehicleSizeClasses,   queryFn: () => api.get<ListResponse>('/vehicle-size-classes?limit=1'),   staleTime: 60_000 },
+      { queryKey: qk.configCounts.carrierRoutePricing,  queryFn: () => api.get<ListResponse>('/carrier-route-pricing?limit=1'), staleTime: 60_000 },
+    ],
+  });
 
   const [
     penaltyReasons,
@@ -85,6 +94,7 @@ export default function ConfigPage() {
     fuelPricePeriods,
     freightRateTerms,
   ] = summaryQueries;
+  const [vehicleSizeClasses, carrierRoutePricing] = lclSummaryQueries;
 
   function salaryStatus(): string {
     if (salaryDefault.isLoading) return '—';
@@ -128,6 +138,8 @@ export default function ConfigPage() {
     'pricing-tables':           { status: countLabel(pricingTables.data?.total, 'đơn giá') },
     'fuel-price-periods':       { status: countLabel(fuelPricePeriods.data?.total, 'kỳ giá') },
     'freight-rate-terms':       { status: countLabel(freightRateTerms.data?.total, 'điều khoản') },
+    'vehicle-size-classes':     { status: countLabel(vehicleSizeClasses.data?.total, 'loại xe') },
+    'carrier-route-pricing':    { status: countLabel(carrierRoutePricing.data?.total, 'đơn giá') },
     'salary-periods':           { status: salaryStatus() },
     'expense-categories':       { status: countLabel(expenseCategories.data?.total, 'hạng mục') },
     'forwarder-expense-types':  { status: countLabel(forwarderExpenseTypes.data?.total, 'loại') },
@@ -141,6 +153,7 @@ export default function ConfigPage() {
     'customers': customers, 'routes': routes, 'trucks': trucks, 'tire-positions': tirePositions,
     'trailers': trailers, 'cargo-types': cargoTypes, 'pricing-tables': pricingTables,
     'fuel-price-periods': fuelPricePeriods, 'freight-rate-terms': freightRateTerms,
+    'vehicle-size-classes': vehicleSizeClasses, 'carrier-route-pricing': carrierRoutePricing,
     'salary-periods': salaryDefault, 'expense-categories': expenseCategories,
     'forwarder-expense-types': forwarderExpenseTypes, 'debit-note-templates': debitNoteTemplates,
   };

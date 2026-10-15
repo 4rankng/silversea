@@ -18,6 +18,7 @@ import * as H from './config-helpers';
 import { CustomerMutationPayload, PenaltyReasonPayload, DriverPayload, ExpenseCategoryPayload } from './config-helpers';
 import { lockApplicationOwnedUniqueness } from '../../services/application-owned-uniqueness.service';
 import { getBootstrapData, getPricing, syncTrailerFields, validateCustomerUniqueness } from '../../services/config.service';
+import { resolveCarrierVehicleClassPrice } from '../../services/pricing.service';
 import { getPenaltyStats } from '../../services/reporting.service';
 import { restrictRouteCreateForIntake, restrictRouteUpdateForIntake } from '../../services/route-intake.service';
 import { restrictCustomerCreateForIntake, restrictCustomerUpdateForIntake, intakeCreatedBy } from '../../services/customer-intake.service';
@@ -32,7 +33,7 @@ import customersScreenRouter from './customers.routes';
 // covers static imports, not dynamic specifiers — dist trap pinned by
 // shipment-debit-summary.test.ts and dist-safe-dynamic-imports.test.ts).
 import { spawnQuotationFuelApprovals } from '../../services/quotation.service';
-import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, portZoneSurchargeSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema, fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema } from '@tingting/shared';
+import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, portZoneSurchargeSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema, fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema, carrierRoutePricingSchema } from '@tingting/shared';
 import { ZONE_SURCHARGE_KIND } from '../../services/zone-surcharge.service';
 import { declareMaterialWrite } from '../../middleware/material-write';
 
@@ -185,11 +186,96 @@ router.get('/pricing', asyncHandler(async (req: Request, res: Response) => {
   res.json({ price: pricing.price ?? 0 });
 }));
 
-function validatePricingSelector<T extends { containerTypeId?: number | null; rateKey?: string | null }>(data: T): T {
+// FB-090: Cước trả nhà xe lookup — (tuyến × loại xe × [nhà xe]) → giá, cascade
+// giá riêng của nhà xe → giá chung. `matched` tells the caller which lane
+// answered ('SUPPLIER' | 'GENERIC'); null = unpriced lane (price 0).
+router.get('/carrier-pricing', asyncHandler(async (req: Request, res: Response) => {
+  const routeId = parseInt(req.query.routeId as string, 10);
+  const vehicleSizeClassId = parseInt(req.query.vehicleSizeClassId as string, 10);
+  const supplierIdRaw = req.query.supplierId as string | undefined;
+  const supplierId = supplierIdRaw ? parseInt(supplierIdRaw, 10) : null;
+  const date = (req.query.date as string) || new Date().toISOString().split('T')[0];
+
+  if (Number.isNaN(routeId) || Number.isNaN(vehicleSizeClassId)) {
+    throw new ApiError(400, 'routeId và vehicleSizeClassId là bắt buộc');
+  }
+  if (supplierIdRaw && (supplierId == null || Number.isNaN(supplierId))) {
+    throw new ApiError(400, 'supplierId không hợp lệ');
+  }
+
+  const resolved = await resolveCarrierVehicleClassPrice({
+    routeId, vehicleSizeClassId, supplierId, date,
+  });
+  res.json(resolved ?? { price: 0, matched: null, carrierRoutePricingId: null, effectiveDate: null });
+}));
+
+function validatePricingSelector<T extends { containerTypeId?: number | null; rateKey?: string | null; vehicleSizeClassId?: number | null }>(data: T): T {
   if (data.containerTypeId != null && data.rateKey != null) {
     throw new ApiError(400, 'Chỉ được chọn một trong hai: loại container hoặc mã lớp giá');
   }
+  // FB-090: the structured Loại xe selector is a third, exclusive axis — a
+  // row prices exactly one lane shape (container / vehicle class / general).
+  if (data.vehicleSizeClassId != null && (data.containerTypeId != null || data.rateKey != null)) {
+    throw new ApiError(400, 'Chỉ được chọn một trục giá: loại xe, loại container, hoặc để trống (áp dụng chung)');
+  }
   return data;
+}
+
+/**
+ * FB-090: when a pricing row targets a Danh mục Loại xe entry, denormalize
+ * rateKey = the class CODE. Every legacy rateKey resolver (freight engine,
+ * resolveTablePrice, seeds, snapshots) and the existing rate-key unique
+ * index keep working unchanged; vehicleSizeClassId stays the relational
+ * link for the admin UI and lookups. A client-sent rateKey that disagrees
+ * with the class code is a client bug — rejected loudly, never ignored.
+ */
+async function denormalizeVehicleClassSelector<
+  T extends { containerTypeId?: number | null; rateKey?: string | null; vehicleSizeClassId?: number | null },
+>(tx: H.CrudTx, data: T): Promise<T> {
+  if (data.vehicleSizeClassId == null) return data;
+  const [cls] = await tx.select({ code: s.vehicleSizeClasses.code })
+    .from(s.vehicleSizeClasses)
+    .where(eq(s.vehicleSizeClasses.id, data.vehicleSizeClassId))
+    .limit(1);
+  if (!cls) throw new ApiError(400, 'Loại xe không tồn tại');
+  if (data.rateKey != null && data.rateKey !== cls.code) {
+    throw new ApiError(400, `Mã lớp giá (${data.rateKey}) không khớp mã loại xe (${cls.code}) — chỉ gửi loại xe`);
+  }
+  return { ...data, rateKey: cls.code };
+}
+
+/**
+ * FB-090 carrier_route_pricing lane guard: validates the referenced catalogs
+ * and rejects a second live row on the same lane (route × class × supplier
+ * shape × effectiveDate), mirroring the two partial unique indexes. The
+ * 0-supplier slot in the advisory-lock key keeps generic and supplier lanes
+ * from racing each other on insert.
+ */
+async function assertCarrierPricingLaneFree(
+  tx: H.CrudTx,
+  data: { routeId: number; vehicleSizeClassId: number; supplierId?: number | null; effectiveDate: string },
+  excludeId?: number,
+): Promise<void> {
+  await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+  await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, data.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
+  await H.requireActiveCatalogRow(tx, 'supplier', s.suppliers, data.supplierId, 'Nhà xe không tồn tại hoặc đã ngưng dùng');
+  await lockApplicationOwnedUniqueness(tx, 'catalog.carrier-pricing.lane', [
+    data.routeId, data.vehicleSizeClassId, data.supplierId ?? 0, data.effectiveDate,
+  ]);
+  const [duplicate] = await tx.select({ id: s.carrierRoutePricing.id }).from(s.carrierRoutePricing)
+    .where(and(
+      eq(s.carrierRoutePricing.routeId, data.routeId),
+      eq(s.carrierRoutePricing.vehicleSizeClassId, data.vehicleSizeClassId),
+      data.supplierId == null ? isNull(s.carrierRoutePricing.supplierId) : eq(s.carrierRoutePricing.supplierId, data.supplierId),
+      eq(s.carrierRoutePricing.effectiveDate, data.effectiveDate),
+      isNull(s.carrierRoutePricing.deletedAt),
+      ...(excludeId != null ? [ne(s.carrierRoutePricing.id, excludeId)] : []),
+    )).limit(1);
+  if (duplicate) {
+    throw new ApiError(409, data.supplierId == null
+      ? 'Giá chung cho tuyến × loại xe × ngày hiệu lực này đã tồn tại'
+      : 'Giá riêng của nhà xe cho tuyến × loại xe × ngày hiệu lực này đã tồn tại');
+  }
 }
 
 // ─── CRUD routes ─────────────────────────────────────────────────────────────
@@ -631,49 +717,86 @@ router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes,
 router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema, { materialWritePath: '/api/pricing-tables',
   beforeCreate: async (data, _req, tx) => {
     validatePricingSelector(data);
-    await H.requireActiveCatalogRow(tx, 'customer', s.customers, data.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'route', s.routes, data.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'container-type', s.containerTypes, data.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+    const normalized = await denormalizeVehicleClassSelector(tx, data);
+    await H.requireActiveCatalogRow(tx, 'customer', s.customers, normalized.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+    await H.requireActiveCatalogRow(tx, 'route', s.routes, normalized.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    await H.requireActiveCatalogRow(tx, 'container-type', s.containerTypes, normalized.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+    await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, normalized.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
     await lockApplicationOwnedUniqueness(tx, 'catalog.pricing-table.selector', [
-      data.customerId, data.routeId, data.containerTypeId ?? null,
-      H.normalizeCatalogKey(data.rateKey), data.effectiveDate,
+      normalized.customerId, normalized.routeId, normalized.containerTypeId ?? null,
+      H.normalizeCatalogKey(normalized.rateKey), normalized.effectiveDate,
     ]);
     const [duplicate] = await tx.select({ id: s.pricingTables.id }).from(s.pricingTables)
       .where(and(
-        eq(s.pricingTables.customerId, data.customerId),
-        eq(s.pricingTables.routeId, data.routeId),
-        data.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, data.containerTypeId),
-        data.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, data.rateKey),
-        eq(s.pricingTables.effectiveDate, data.effectiveDate),
+        eq(s.pricingTables.customerId, normalized.customerId),
+        eq(s.pricingTables.routeId, normalized.routeId),
+        normalized.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, normalized.containerTypeId),
+        normalized.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, normalized.rateKey),
+        eq(s.pricingTables.effectiveDate, normalized.effectiveDate),
         isNull(s.pricingTables.deletedAt),
       )).limit(1);
     if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
-    return data;
+    return normalized;
   },
   beforeUpdate: async (id, data, _req, tx) => {
     const [current] = await tx.select().from(s.pricingTables).where(eq(s.pricingTables.id, id)).limit(1);
     if (!current) throw new ApiError(404, 'Không tìm thấy bảng giá');
     const final = validatePricingSelector({ ...current, ...data });
-    await H.requireActiveCatalogRow(tx, 'customer', s.customers, final.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'route', s.routes, final.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'container-type', s.containerTypes, final.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+    const normalizedFinal = await denormalizeVehicleClassSelector(tx, final);
+    await H.requireActiveCatalogRow(tx, 'customer', s.customers, normalizedFinal.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+    await H.requireActiveCatalogRow(tx, 'route', s.routes, normalizedFinal.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+    await H.requireActiveCatalogRow(tx, 'container-type', s.containerTypes, normalizedFinal.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+    await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, normalizedFinal.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
     await lockApplicationOwnedUniqueness(tx, 'catalog.pricing-table.selector', [
-      final.customerId, final.routeId, final.containerTypeId ?? null,
-      H.normalizeCatalogKey(final.rateKey), final.effectiveDate,
+      normalizedFinal.customerId, normalizedFinal.routeId, normalizedFinal.containerTypeId ?? null,
+      H.normalizeCatalogKey(normalizedFinal.rateKey), normalizedFinal.effectiveDate,
     ]);
     const [duplicate] = await tx.select({ id: s.pricingTables.id }).from(s.pricingTables)
       .where(and(
-        eq(s.pricingTables.customerId, final.customerId), eq(s.pricingTables.routeId, final.routeId),
-        final.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, final.containerTypeId),
-        final.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, final.rateKey),
-        eq(s.pricingTables.effectiveDate, final.effectiveDate), isNull(s.pricingTables.deletedAt),
+        eq(s.pricingTables.customerId, normalizedFinal.customerId), eq(s.pricingTables.routeId, normalizedFinal.routeId),
+        normalizedFinal.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, normalizedFinal.containerTypeId),
+        normalizedFinal.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, normalizedFinal.rateKey),
+        eq(s.pricingTables.effectiveDate, normalizedFinal.effectiveDate), isNull(s.pricingTables.deletedAt),
         ne(s.pricingTables.id, id),
       )).limit(1);
     if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
-    return data;
+    // The patch must carry the denormalized selector even when the client
+    // only sent vehicleSizeClassId, so the row's rateKey follows the class.
+    return {
+      ...data,
+      ...(normalizedFinal.rateKey !== current.rateKey || normalizedFinal.vehicleSizeClassId !== current.vehicleSizeClassId
+        ? { rateKey: normalizedFinal.rateKey, vehicleSizeClassId: normalizedFinal.vehicleSizeClassId }
+        : {}),
+    };
   },
   governance: {
     reasonLabel: 'bảng giá cước',
+  },
+}));
+
+// FB-090: Bảng giá cước trả nhà xe — (tuyến × loại xe × [nhà xe NULL = giá
+// chung]) → giá trả. Duplicate guard mirrors pricing-tables: one row per
+// lane per effectiveDate, split by generic vs supplier-specific partial
+// lanes (matching the DB's two partial unique indexes).
+router.use('/carrier-route-pricing', createCrudRouter(s.carrierRoutePricing, carrierRoutePricingSchema, { materialWritePath: '/api/carrier-route-pricing',
+  beforeCreate: async (data, _req, tx) => {
+    await assertCarrierPricingLaneFree(tx, data);
+    return data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    const [current] = await tx.select().from(s.carrierRoutePricing).where(eq(s.carrierRoutePricing.id, id)).limit(1);
+    if (!current) throw new ApiError(404, 'Không tìm thấy bảng giá trả nhà xe');
+    const final = { ...current, ...data };
+    // Clearing back to generic or moving to a specific nhà xe both change
+    // the lane — validate the final supplierId shape explicitly.
+    if (final.supplierId != null && !Number.isInteger(final.supplierId)) {
+      throw new ApiError(400, 'Nhà xe không hợp lệ');
+    }
+    await assertCarrierPricingLaneFree(tx, final, id);
+    return data;
+  },
+  governance: {
+    reasonLabel: 'bảng giá cước trả nhà xe',
   },
 }));
 router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceSchema, { materialWritePath: '/api/road-allowances',
