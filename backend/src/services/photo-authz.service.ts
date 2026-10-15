@@ -4,7 +4,7 @@ import * as s from '../db/schema';
 import { and, eq, sql, or } from 'drizzle-orm';
 import { hydrateExpenseAccountingSource } from './expense-accounting-source.service';
 import { Role } from '@tingting/shared';
-import { assertOpsLotCostPolicy } from './expense-owner-scope.service';
+import { assertOpsExpenseAssignment } from './expense-owner-scope.service';
 import { ApiError } from '../errors';
 
 /**
@@ -143,16 +143,14 @@ export async function authorizeExpensePhoto(
       && fuelRows[0].ownerUserStatus === 'ACTIVE');
   const okDriver = driverRows.every(row => FINANCE_ROLES.has(user.role) || (user.role === Role.DRIVER && row.ownerUserId === user.userId
     && row.ownerStatus === 'ACTIVE' && row.driverStatus === 'ACTIVE' && row.currentDriverId === row.claimDriverId));
-  // Match the expense workflow's current scope: the OPS role policy on the
-  // lot (any live lot). Cache per shipment for shared keys.
+  // Match the expense workflow's current scope: a manual link, active truck
+  // assignment, or the user's saved expense. Cache per shipment for shared keys.
   const opsScopes = new Map<number, Promise<boolean>>();
   const canReadOpsShipment = (shipmentId: number) => {
     let decision = opsScopes.get(shipmentId);
     if (!decision) {
-      decision = assertOpsLotCostPolicy(executor, shipmentId).then(() => true).catch((error: unknown) => {
-        // A deleted lot's photos are as unreadable as an unauthorized one —
-        // a 404 policy verdict must not surface as a photo-gate 500.
-        if (error instanceof ApiError && (error.statusCode === 403 || error.statusCode === 404)) return false;
+      decision = assertOpsExpenseAssignment(executor, user.userId, shipmentId).then(() => true).catch((error: unknown) => {
+        if (error instanceof ApiError && error.statusCode === 403) return false;
         throw error;
       });
       opsScopes.set(shipmentId, decision);

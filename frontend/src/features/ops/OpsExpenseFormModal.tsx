@@ -1,5 +1,5 @@
 import { PhotoImage } from '../../components/shared/PhotoImage';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2, X } from 'lucide-react';
 import { useOpsExpenseTypes, useCreateOpsExpense } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsOrderItem } from '../../api/opsClient';
@@ -7,7 +7,6 @@ import { compressImageFile } from '../../lib/imageCompression';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
-import { useAuth } from '../../hooks/useAuth';
 import { localDateInputValue } from './opsStatus';
 import { formatMoney } from '../../lib/format';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
@@ -65,27 +64,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Card 071026210510 — the grant check moves in FRONT of the input: an OPS
-  // without the assignment learns the refusal on open (backend's own reason),
-  // not after filling the whole form. The probe never blocks on its own
-  // failure — an unavailable scope answer leaves the save-time guard as the
-  // backstop, exactly the pre-card behavior.
-  const auth = useAuth();
-  const isOps = auth?.user?.role === 'OPS';
-  const [scopeBlocked, setScopeBlocked] = useState(false);
-  const [blockedReason, setBlockedReason] = useState('');
-  useEffect(() => {
-    if (!isOps) return;
-    let alive = true;
-    opsClient.getExpenseWriteScope(order.id)
-      .then((scope) => {
-        if (!alive || scope.writable) return;
-        setScopeBlocked(true);
-        setBlockedReason(scope.reason || 'Bạn không có quyền khai chi phí cho lô này.');
-      })
-      .catch(() => { /* probe unavailable — keep the form usable */ });
-    return () => { alive = false; };
-  }, [isOps, order.id]);
+  // Card 071026210510's open-time grant probe is retired with the per-person
+  // grant itself (2026-10-14 accountant doc): every OPS may declare any lot's
+  // costs, so there is nothing left to ask before input.
 
   const groupedTypes = useMemo(() => {
     const items = typesData?.items ?? [];
@@ -131,7 +112,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const customerCharge = opsCustomerCharge(financial, amountValid ? Number(amount) : 0);
   const noteRequired = customerCharge <= 0;
   const canSubmit = typesReady && Boolean(typeCode) && amountValid && (!noteRequired || note.trim() !== '')
-    && !createExpense.isPending && !uploading && pendingFiles.length === 0 && !scopeBlocked;
+    && !createExpense.isPending && !uploading && pendingFiles.length === 0;
 
   async function handleFiles(files: FileList | File[] | null) {
     if (!files?.length || uploading || savingRef.current) return;
@@ -190,8 +171,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         </header>
 
         <div className="ops-modal__body">
-          {scopeBlocked && <p className="ops-modal__refusal" role="alert">{blockedReason}</p>}
-          <fieldset className="ops-modal__fieldset" disabled={scopeBlocked}>
+          <fieldset className="ops-modal__fieldset">
           {typesQuery.isPending && <p role="status">Đang tải danh mục loại phí…</p>}
           {typesQuery.isError && <div role="alert">
             <p>Không tải được danh mục loại phí. Nội dung đang nhập vẫn được giữ.</p>
