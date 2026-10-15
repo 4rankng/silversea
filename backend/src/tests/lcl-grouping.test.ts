@@ -519,6 +519,42 @@ describe('LCL grouping — FB-095 un-merge safety', () => {
     }
   });
 
+  test('the lone survivor of a dissolved group keeps its vehicle class (QA C-1)', async () => {
+    // FB-095 contract: "a lone survivor dissolves the group (ungrouped, keeps
+    // class + BKS + money)". The dissolved branch used to reuse the leaver's
+    // patch and null *VehicleClassId too, so the dispatch/accounting boards
+    // and the Debit Note lost the survivor's loại xe (staging QA 2026-10-16,
+    // api-matrix T3c/T7b: cls:null). Only the membership fields may go.
+    const customer = await mkCustomer('FB095 dissolve');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB095-L1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB095-L2-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('5T');
+    const vanClass = await vehicleClassByCode('3.5T');
+
+    // COST: a 2-lot group whose principal leaves dissolves.
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-222.22',
+    }, actor);
+    const costResult = await unmergeLclLot({ shipmentId: lot1.id, dimension: 'COST' }, actor);
+    assert.equal(costResult.dissolved, true);
+    const [costSurvivor] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot2.id));
+    assert.equal(costSurvivor.costGroupId, null, 'the group dissolved');
+    assert.equal(costSurvivor.costGroupOrder, null);
+    assert.equal(costSurvivor.costVehicleClassId, truckClass.id, 'the survivor keeps its cost vehicle class');
+
+    // REV: the same dissolve shape on the revenue dimension.
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: vanClass.id }, actor);
+    const revResult = await unmergeLclLot({ shipmentId: lot1.id, dimension: 'REV' }, actor);
+    assert.equal(revResult.dissolved, true);
+    const [revSurvivor] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot2.id));
+    assert.equal(revSurvivor.revGroupId, null, 'the group dissolved');
+    assert.equal(revSurvivor.revGroupOrder, null);
+    assert.equal(revSurvivor.revVehicleClassId, vanClass.id, 'the survivor keeps its rev vehicle class');
+  });
+
   test('a settled group refuses un-merge — an active accounting lock freezes it (FB095-03)', async () => {
     const customer = await mkCustomer('FB095 settled');
     const route = await mkRoute();
@@ -628,6 +664,7 @@ describe('LCL grouping — FB-095 un-merge safety', () => {
     const [after2] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot2.id));
     assert.equal(after2.costGroupId, null);
     assert.equal(after2.costGroupOrder, null);
+    assert.equal(after2.costVehicleClassId, truckClass.id, 'the survivor keeps its cost vehicle class (QA C-1)');
     assert.equal(after2.deletedAt, null, 'the survivor lives on');
     const events = await groupAuditEvents(lot1.id);
     assert.ok(events.includes('SHIPMENT_LCL_GROUP_UNMERGED'), 'the promotion is audited');
