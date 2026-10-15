@@ -586,6 +586,11 @@ export interface ShipmentCarrierAllocationSummaryEntry {
 
 export interface ShipmentListItem extends Shipment {
   customerName: string | null;
+  /** LCL "Kho lấy" — operational name (short-name authority) of the lot's
+   *  `pickupWarehouseSiteId`, or null when the lot has not chosen one. The
+   *  dispatch master plan's Cảng nâng column shows it for LCL rows, which own
+   *  no container and therefore no container port pair. */
+  pickupWarehouseSiteName?: string | null;
   /** Route operational name (short-name authority) for the master-plan
    *  primary line; null when the shipment has no route. */
   routeName?: string | null;

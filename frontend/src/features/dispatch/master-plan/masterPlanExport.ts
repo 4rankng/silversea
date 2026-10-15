@@ -12,11 +12,11 @@
 
 import { listShipments, type ShipmentListItem } from '../../../api/shipmentClient';
 import { downloadCSV } from '../../../lib/csv';
-import { formatDateTimeShort, formatNumber, formatWeight } from '../../../lib/format';
+import { formatDateTimeShort, formatNumber } from '../../../lib/format';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import {
   aggregateContainerPortGroupLines,
-  dayContainerSummary,
+  cargoCellLines,
   formatContainerSummaryLines,
   scheduleBlocks,
 } from './MasterPlanGrid';
@@ -99,10 +99,7 @@ export function mapMasterPlanExportRow(item: ShipmentListItem, scheduleDate?: st
     ].join('\n'),
     liftLines.join('\n'),
     dropLines.join('\n'),
-    [
-      ...formatContainerSummaryLines(dayContainerSummary(item, scheduleDate) ?? item.containerTypeSummary),
-      formatWeight(item.totalCargoWeightKg),
-    ].join('\n'),
+    cargoCellLines(item, scheduleDate).map((line) => line.text).join('\n'),
     allocationLines(item).join('\n'),
     [
       displayNote(item.operationalNotes),
