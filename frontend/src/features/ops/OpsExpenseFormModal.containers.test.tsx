@@ -11,9 +11,8 @@ import { OpsExpenseFormModal, opsContainerId } from './OpsExpenseFormModal';
 // choice must survive Loại phí / Nhóm chi phí edits, a no-container submit
 // must never serialize container 0, and suggestion chips fill Tên khoản chi —
 // not the expense-type field.
-const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
+const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
-
 
 const types = { items: [
   { id: 1, code: 'SOI_CHIEU', name: 'Phí soi chiếu', requiresInvoice: true },
@@ -65,6 +64,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   api.getExpenseTypes.mockResolvedValue(types);
   api.getExpensePhotos.mockResolvedValue({ items: [] });
+  api.getContainerClaimants.mockResolvedValue([]);
   api.createExpense.mockResolvedValue(entry);
 });
 
@@ -161,5 +161,49 @@ describe('ops expense form — Số Cont persistence (audit c12 cluster A)', { t
     fireEvent.change(screen.getByLabelText('Thực thu (thu khách)'), { target: { value: '250000' } });
     expect(save).toBeEnabled();
     expect(api.createExpense).not.toHaveBeenCalled();
+  });
+});
+
+// Plan step 5 (Ops scope): the assignment grant is gone — the dialog opens
+// usable for an Ops with no prior link to the lot, and the duplicate-cont
+// answer is a WARNING naming the earlier claimant, never a block.
+describe('plan step 5 — open Ops scope + duplicate-cont warning', { timeout: 20_000 }, () => {
+  it('opens usable with no permission refusal — an unassigned Ops can save', async () => {
+    show();
+    await screen.findByLabelText(/Số Bill/);
+    expect(screen.queryByText(/không có quyền khai chi phí/i)).toBeNull();
+    expect(screen.queryByText(/không thuộc xe bạn phụ trách/i)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    await chooseType('Phí soi chiếu');
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '450000' } });
+    const save = screen.getByRole('button', { name: 'Lưu' });
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+  });
+
+  it('a claimed cont warns with the earlier claimant — and Lưu stays enabled', async () => {
+    api.getContainerClaimants.mockResolvedValue([
+      { containerId: 33, containerNumber: 'TGHU1234567', paidByName: 'Ops Trần' },
+    ]);
+    show();
+    await openMenu(soContTrigger());
+    fireEvent.click(await screen.findByRole('option', { name: 'TGHU1234567' }));
+    const warning = await screen.findByRole('alert');
+    expect(warning.textContent).toBe('Cont TGHU1234567 đã có Ops Trần nhập trước — bạn vẫn tiếp tục nhập chứ.');
+    // The warning never disables the save: fill the form and it is clickable.
+    await chooseType('Phí soi chiếu');
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '450000' } });
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
+  });
+
+  it('a lot-wide fee (Phí chung lô) never triggers the warning', async () => {
+    api.getContainerClaimants.mockResolvedValue([
+      { containerId: 33, containerNumber: 'TGHU1234567', paidByName: 'Ops Trần' },
+    ]);
+    show();
+    await screen.findByLabelText(/Số Bill/);
+    expect(soContTrigger().textContent).toContain('Phí chung lô');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

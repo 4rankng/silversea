@@ -45,10 +45,13 @@ export function ExpenseEntryDrawer({ entry, staff, chargeOnly = false, onClose }
       recoveryNote: recoveryNote.trim() || null,
       ...(!chargeOnly ? { ...(entry.sourceKind === 'DRIVER' && driverCostType ? { driverCostType } : {}), amount, costGroup: group || undefined, feeName: name, expenseDate: date,
         invoiceNumber: invoice.trim() || null, invoiceDate: invoiceDate || null,
-        payerKind, payerUserId: payerKind === 'USER' ? Number(payerId) || null : null } : {}),
+        // Card 20261005 — "Người chi" gỡ khỏi chi phí lái xe: nguồn DRIVER không
+        // gửi trường người chi (form dưới cũng ẩn 2 ô chọn), chỉ nguồn khác giữ
+        // nguyên đường cũ.
+        ...(entry.sourceKind === 'DRIVER' ? {} : { payerKind, payerUserId: payerKind === 'USER' ? Number(payerId) || null : null }) } : {}),
     });
     if (!payload.success) { setError('Kiểm tra số tiền, tên khoản chi, ngày hợp lệ và lý do điều chỉnh. Số thu khách có thể bằng 0.'); return; }
-    if (!chargeOnly && payerKind === 'USER' && !payerId) { setError('Chọn người thực chi.'); return; }
+    if (!chargeOnly && entry.sourceKind !== 'DRIVER' && payerKind === 'USER' && !payerId) { setError('Chọn người thực chi.'); return; }
     lock.current = true; setError(null);
     try { await (correcting ? correct : update).mutateAsync({ entry, body: payload.data }); onClose(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa lưu được điều chỉnh. Nội dung vẫn được giữ.'); }
@@ -78,8 +81,15 @@ export function ExpenseEntryDrawer({ entry, staff, chargeOnly = false, onClose }
         <UuiSelectField label="Nhóm chi phí" value={group} disabled={disabled} onChange={(event) => setGroup(event.target.value as ExpenseCostGroup)} options={[{ value: '', label: 'Chọn nhóm chi phí' }, ...Object.entries(EXPENSE_COST_GROUP_LABELS).map(([value, label]) => ({ value, label }))]} />
         <TextField controlSize="sm" label="Tên khoản chi" value={name} disabled={disabled} required maxLength={200} onChange={(event) => setName(event.target.value)} />
         <DateField controlSize="sm" label="Ngày chi" value={date} disabled={disabled} required onChange={setDate} />
-        <UuiSelectField label="Bên thực chi" value={payerKind} disabled={disabled} onChange={(event) => setPayerKind(event.target.value as typeof payerKind)} options={[{ value: 'USER', label: 'Nhân viên chi' }, { value: 'COMPANY', label: 'Công ty trả trực tiếp' }, ...(entry.payerKind === 'SUPPLIER' ? [{ value: 'SUPPLIER', label: 'Nhà cung cấp' }] : [])]} />
-        {payerKind === 'USER' && <UuiSelectField label="Người thực chi" value={payerId} disabled={disabled} onChange={(event) => setPayerId(event.target.value)} options={[{ value: '', label: 'Chọn nhân viên' }, ...staff.map(item => ({ value: String(item.id), label: item.name })), ...(entry.payerUserId && !staff.some(item => item.id === entry.payerUserId) ? [{ value: String(entry.payerUserId), label: entry.payerName?.trim() || 'Chưa có tên nhân viên' }] : [])]} />}
+        {/* Card 20261005 — nguồn DRIVER ẩn cả "Bên thực chi" lẫn "Người thực chi":
+            chi phí lái xe không còn khái niệm Người chi (lái xe ghi khoản đã chi,
+            kế toán ghi nhận bên thực chi khi tạo khoản từ bảng kế toán). Dòng
+            "Người thực chi" ở phần thông tin phía trên vẫn hiển thị giá trị đã
+            ghi nhận (nếu có). Nguồn khác giữ nguyên 2 ô chọn. */}
+        {entry.sourceKind !== 'DRIVER' && <>
+          <UuiSelectField label="Bên thực chi" value={payerKind} disabled={disabled} onChange={(event) => setPayerKind(event.target.value as typeof payerKind)} options={[{ value: 'USER', label: 'Nhân viên chi' }, { value: 'COMPANY', label: 'Công ty trả trực tiếp' }, ...(entry.payerKind === 'SUPPLIER' ? [{ value: 'SUPPLIER', label: 'Nhà cung cấp' }] : [])]} />
+          {payerKind === 'USER' && <UuiSelectField label="Người thực chi" value={payerId} disabled={disabled} onChange={(event) => setPayerId(event.target.value)} options={[{ value: '', label: 'Chọn nhân viên' }, ...staff.map(item => ({ value: String(item.id), label: item.name })), ...(entry.payerUserId && !staff.some(item => item.id === entry.payerUserId) ? [{ value: String(entry.payerUserId), label: entry.payerName?.trim() || 'Chưa có tên nhân viên' }] : [])]} />}
+        </>}
         <TextField controlSize="sm" label="Số hóa đơn" value={invoice} disabled={disabled} maxLength={100} onChange={(event) => setInvoice(event.target.value)} />
         <DateField controlSize="sm" label="Ngày hóa đơn" value={invoiceDate} disabled={disabled} onChange={setInvoiceDate} />
       </div>}

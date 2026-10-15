@@ -12,10 +12,14 @@ import { useReasonPrompt } from '../../components/reason-prompt';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
 import { Money } from '../../components/shared/Money';
 import { PhoiPhieuDetailSummary } from './PhoiPhieuDetailSummary';
+import { DepositBillField } from './DepositBillField';
 import './phoi-phieu-dialogs.css';
 
 interface Props {
   tripId: number;
+  /** The lot this trip runs for — required by the accountant expense drawer
+   *  (shipment-level expenses anchor on the lot, not the trip). */
+  shipmentId: number;
   billOrBooking?: string | null;
   onClose: () => void;
   onSaved: () => void;
@@ -35,7 +39,7 @@ function liveAmount(
   return edit === undefined ? row.amount ?? 0 : edit === '' ? 0 : edit;
 }
 
-export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSaved }: Props) {
+export function PhoiPhieuTienDuongDialog({ tripId, shipmentId, billOrBooking, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const detail = useQuery({
     queryKey: qk.phoiPhieu.tienDuong(tripId),
@@ -188,6 +192,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
         </>}
       >
       <div className="phoi-detail-body">
+        <DepositBillField tripId={tripId} onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })} />
         {detail.isLoading && <p>Đang tải…</p>}
         {(error || detail.isError) && <div role="alert" className="phoi-detail-error">
           <p>{error || detail.error?.message}</p>
@@ -261,7 +266,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, billOrBooking, onClose, onSav
       </div>
     </Modal>}
       {addPanelOpen && catalog.data && <ExpenseCreateDrawer
-        work={{ tripId, shipmentCode: billBookingReference(billOrBooking), containerNumber: null }}
+        work={{ tripId, shipmentId, shipmentCode: billBookingReference(billOrBooking), containerNumber: null }}
         catalog={catalog.data} initialGroup="DRIVER_ROAD"
         onClose={() => setAdding(false)}
         onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.tienDuong(tripId) }); onSaved(); }}

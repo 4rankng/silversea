@@ -6,24 +6,15 @@ import type { ExpenseAccountingSource } from './expense-accounting-source.servic
 import { ApiError } from '../errors';
 
 /**
- * The ONE seam that decides whether an OPS user may declare costs (and, via
- * photo authz, read a lot's expense photos). Retired 2026-10-14 per the
- * accountant document "Fix lại các chi phí của từng phân hệ" (Ops section):
- * "không chia cá nhân nào nhận bao nhiêu xe, tất cả các Ops đều được điền chi
- * phí" — the former grant chain (manual user↔shipment link, active truck-ops
- * assignment whose truck hauled the lot, or the ops's own saved expense) no
- * longer restricts who may declare a lot's costs. The seam stays so a future
- * policy change lands in exactly one place and every save path keeps its
- * single chokepoint.
+ * Owner write-scope for a cost row.
+ *
+ * OPS has NO per-lot grant: every Ops may declare and correct expenses on any
+ * lot (the old user-link / truck-assignment / prior-expense grant is gone — it
+ * could never be acquired by an Ops who had not yet declared an expense).
+ * Only the DRIVER side keeps a scope: the trip must still be assigned to the
+ * driver, so a driver cut off mid-trip cannot keep writing on it.
  */
-export async function assertOpsExpenseAssignment(
-  _executor: Pick<Executor, 'select'>,
-  _userId: number,
-  _shipmentId: number,
-): Promise<void> {}
-
 export async function assertExpenseOwnerWriteScope(executor: Executor, actor: { userId: number; role: Role }, source: ExpenseAccountingSource) {
-  // OPS actors: open grant (see assertOpsExpenseAssignment above).
   if (actor.role === Role.DRIVER) {
     const [trip] = source.tripId ? await executor.select({ id: s.trips.id }).from(s.trips)
       .innerJoin(s.drivers, eq(s.drivers.id, s.trips.driverId))

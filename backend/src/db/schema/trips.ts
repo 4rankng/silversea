@@ -67,6 +67,11 @@ export const trips = pgTable('trips', {
   fulfillmentId: integer('fulfillment_id')
     .references(() => shipmentFulfillments.id, { onDelete: 'restrict' }),
   sourceShipmentVersion: integer('source_shipment_version'),
+  // Card 20261005 — "Cược" (Bill/Book number the driver was given to bid on)
+  // on the phơi phiếu screen. Resolved from the shipment list, so no new
+  // column on the customer profile; NULL = chưa nhập cược.
+  depositShipmentId: integer('deposit_shipment_id'),
+  depositBillNumber: varchar('deposit_bill_number', { length: 100 }),
   completedAt: timestamp('completed_at'),
   // O2C POD-recovery gate (docs/prd/QuyTrinhO2C.docx). Distinct from digital e-POD
   // acceptance (TripPodStatus.ACCEPTED): this records "Đã thu hồi chứng từ gốc

@@ -3,14 +3,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import type { ExpenseReconciliation } from '@tingting/shared';
-const api = vi.hoisted(() => ({ reconciliations: vi.fn(), get: vi.fn(), releaseReconciliation: vi.fn() }));
+const api = vi.hoisted(() => ({ reconciliations: vi.fn(), get: vi.fn(), releaseReconciliation: vi.fn(), settleRefund: vi.fn() }));
 vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: api }));
 vi.mock('../../components/UI', () => ({ Drawer: ({ children, footer, title }: { children: ReactNode; footer?: ReactNode; title: string }) => <section role="dialog" aria-label={title}>{children}{footer}</section> }));
 import { ExpenseReconciliationHistory, filterReconciliations } from './ExpenseReconciliationHistory';
 import { ReleaseReconciliationDrawer } from './ReleaseReconciliationDrawer';
-const batch: ExpenseReconciliation = { id: 1, code: 'HU-1', opsUserId: 8, from: '2026-09-01', to: '2026-09-15', amount: 500000, advanceAmount: 100000, initialDifference: 400000, paidAmount: 0, refundedAmount: 0, remainingDifference: 400000, createdAt: '2026-09-15T00:00:00Z', note: 'Kiểm hóa', entries: [{ sourceKind: 'OPS', sourceId: 2, expectedVersion: 3 }] };
+const batch: ExpenseReconciliation = { id: 1, code: 'HU-1', opsUserId: 8, from: '2026-09-01', to: '2026-09-15', amount: 500000, advanceAmount: 100000, initialDifference: 400000, paidAmount: 0, refundedAmount: 0, remainingDifference: 400000, refundSettledAt: null, refundSettledByName: null, createdAt: '2026-09-15T00:00:00Z', note: 'Kiểm hóa', entries: [{ sourceKind: 'OPS', sourceId: 2, expectedVersion: 3 }] };
 function show(children: ReactNode) { return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>{children}</QueryClientProvider>); }
-beforeEach(() => { api.reconciliations.mockReset().mockResolvedValue({ items: [batch] }); api.get.mockReset().mockResolvedValue({ feeName: 'Kiểm hóa', shipmentCode: 'BL-1', amount: 500000 }); api.releaseReconciliation.mockReset(); });
+beforeEach(() => { api.reconciliations.mockReset().mockResolvedValue({ items: [batch] }); api.get.mockReset().mockResolvedValue({ feeName: 'Kiểm hóa', shipmentCode: 'BL-1', amount: 500000 }); api.releaseReconciliation.mockReset(); api.settleRefund.mockReset().mockResolvedValue({}); });
 it('filters the displayed/exported batches by period and person without changing recorded amounts', () => {
   const names = new Map([[8, 'Nguyễn Văn A']]);
   expect(filterReconciliations([batch], 'văn a', '2026-09-15', '2026-09-20', names)).toEqual([batch]);
@@ -43,4 +43,28 @@ it('keeps reason and the same idempotency key after a failed release', async () 
   fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác đối chiếu' }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   expect(api.releaseReconciliation.mock.calls[1]).toEqual(api.releaseReconciliation.mock.calls[0]);
+});
+
+it('ghi nhận hoàn ứng xong: chỉ hiện nút khi số còn phải hoàn đã về 0 và lưu đúng một lần', async () => {
+  api.reconciliations.mockResolvedValue({ items: [{ ...batch, amount: 100000, advanceAmount: 100000, initialDifference: 0, remainingDifference: 0 }] });
+  show(<ExpenseReconciliationHistory />);
+  const checkbox = await screen.findByRole('checkbox', { name: 'Đã hoàn ứng xong' });
+  expect(checkbox).not.toBeChecked();
+  fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận hoàn ứng xong' }));
+  await waitFor(() => expect(api.settleRefund).toHaveBeenCalledWith(1, { expectedVersion: 1, settled: true }));
+});
+
+it('đã chốt hoàn ứng: checkbox checked và disabled, không còn nút ghi nhận', async () => {
+  api.reconciliations.mockResolvedValue({ items: [{ ...batch, remainingDifference: 0, refundSettledAt: '2026-09-20T00:00:00Z', refundSettledByName: 'Kế toán' }] });
+  show(<ExpenseReconciliationHistory />);
+  const checkbox = await screen.findByRole('checkbox', { name: 'Đã hoàn ứng xong' });
+  expect(checkbox).toBeChecked();
+  expect(checkbox).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Ghi nhận hoàn ứng xong' })).not.toBeInTheDocument();
+});
+
+it('đợt còn chênh lệch chưa cho chốt hoàn ứng', async () => {
+  show(<ExpenseReconciliationHistory />);
+  await screen.findByRole('checkbox', { name: 'Đã hoàn ứng xong' });
+  expect(screen.queryByRole('button', { name: 'Ghi nhận hoàn ứng xong' })).not.toBeInTheDocument();
 });

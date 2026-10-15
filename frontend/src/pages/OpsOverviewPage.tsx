@@ -42,7 +42,9 @@ export default function OpsOverviewPage() {
   const pendingOrders = orders.filter((order) => order.status !== 'COMPLETED').length;
   const trucks = fleetQuery.data?.items ?? [];
   const runningTrucks = trucks.filter((truck) => truck.status === 'IN_TRANSIT').length;
-  const pendingAdvances = advancesQuery.data?.statusCounts?.DRAFT ?? 0;
+  // KP-148: yêu cầu Ops tạo ra giờ ở PENDING (chờ kế toán duyệt) — vẫn là "chờ
+  // duyệt" của thẻ này; DRAFT (nháp cũ chưa ghi sổ) vẫn tính cùng.
+  const pendingAdvances = (advancesQuery.data?.statusCounts?.DRAFT ?? 0) + (advancesQuery.data?.statusCounts?.PENDING ?? 0);
 
   const ordersReady = !ordersQuery.isLoading && !ordersQuery.isError;
   const fleetReady = !fleetQuery.isLoading && !fleetQuery.isError;

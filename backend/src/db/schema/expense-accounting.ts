@@ -37,6 +37,10 @@ export const expenseReconciliations = pgTable('expense_reconciliations', {
   id: serial('id').primaryKey(), code: text('code').notNull(), opsUserId: integer('ops_user_id').notNull(),
   from: date('from_date').notNull(), to: date('to_date').notNull(), amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
   advanceAmount: numeric('advance_amount', { precision: 15, scale: 0 }).notNull(), note: text('note'),
+  // Card 20261005 — kế toán xác nhận "đã hoàn ứng xong" bằng một thao tác
+  // lưu (không auto-write sau render). NULL = chưa chốt.
+  refundSettledAt: timestamp('refund_settled_at', { withTimezone: true }),
+  refundSettledBy: integer('refund_settled_by'),
   createdById: integer('created_by_id').notNull(), createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, t => [uniqueIndex('expense_reconciliations_code_uniq').on(t.code), index('expense_reconciliations_user_idx').on(t.opsUserId)]);
 

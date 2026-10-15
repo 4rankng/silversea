@@ -14,6 +14,7 @@ import { ApiError } from '../errors';
 import logger from '../lib/logger';
 import { billBookingTitle } from '../lib/business-keys';
 import { hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
+import { listExpenseCarriers } from './expense-accounting-carriers.service';
 
 type Actor = Pick<AuthUser, 'userId' | 'role'>;
 type Source = ExpenseAccountingSource & { legacy?: boolean };
@@ -170,8 +171,10 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
       shipmentId: t.shipmentId, tripId: t.id, truckId: t.truckId, customerId: t.customerId, expenseTypeCode: e.costType, amount: e.amount,
       expenseDate: e.occurredAt, costGroup: e.costGroup, feeName: e.feeName ?? '',
       customerChargeAmount: e.customerChargeAmount, invoiceNumber: e.invoiceNumber, invoiceDate: e.invoiceDate,
-      payerKind: e.payerKind ?? 'USER', payerUserId: e.payerKind === 'COMPANY' ? null : userId,
-      payableEntityType: e.payerKind === 'COMPANY' ? null : 'DRIVER', payableEntityId: e.payerKind === 'COMPANY' ? null : e.driverId,
+      // Card 20261005 — không còn mặc định "người chi = lái xe" (đồng bộ với
+      // nhánh DRIVER của hydrateExpenseAccountingSource).
+      payerKind: e.payerKind ?? null, payerUserId: e.payerKind && e.payerKind !== 'COMPANY' ? userId : null,
+      payableEntityType: e.payerKind && e.payerKind !== 'COMPANY' ? 'DRIVER' : null, payableEntityId: e.payerKind && e.payerKind !== 'COMPANY' ? e.driverId : null,
       recordedById: e.recordedBy, note: e.note, recoveryNote: e.recoveryNote,
       photoStorageKeys: e.photoStorageKeys.length ? e.photoStorageKeys : e.receiptStorageKey ? [e.receiptStorageKey] : [] })]),
     ...trip.flatMap(({ expense: e, trip: t }) => t.shipmentId == null ? [] : [legacySource({ sourceKind: 'TRIP', sourceId: e.id, version: e.version,
@@ -365,7 +368,13 @@ export async function getExpenseReconciliation(actor: Actor, id: number, executo
     .where(eq(s.expenseReconciliationAdvances.reconciliationId, id)).orderBy(asc(s.expenseReconciliationAdvances.advanceRequestId));
   const initialDifference = round2dp(Number(row.amount) - Number(row.advanceAmount));
   const paidAmount = sum(payments.map(payment => Number(payment.amount))), refundedAmount = sum(refunds.map(refund => Number(refund.amount)));
+  // Card 20261005 — ô chốt "đã hoàn ứng xong": tên người chốt đọc kèm để phiếu
+  // tự kể ai đã xác nhận (FK mềm refund_settled_by → users, không join cứng).
+  const [settler] = row.refundSettledBy
+    ? await executor.select({ fullName: s.users.fullName }).from(s.users).where(eq(s.users.id, row.refundSettledBy)).limit(1)
+    : [];
   return { ...row, voidedAt: row.voidedAt?.toISOString() ?? null, amount: Number(row.amount), advanceAmount: Number(row.advanceAmount), initialDifference, paidAmount, refundedAmount,
+    refundSettledAt: row.refundSettledAt?.toISOString() ?? null, refundSettledByName: settler?.fullName ?? null,
     remainingDifference: row.voidedAt ? 0 : round2dp(initialDifference - paidAmount + refundedAmount), createdAt: row.createdAt.toISOString(),
     entries: entries.map(entry => ({ sourceKind: entry.sourceKind, sourceId: entry.sourceId, expectedVersion: entry.version })),
     advances: advances.map(advance => ({ ...advance, amount: Number(advance.amount) })) };
@@ -435,19 +444,25 @@ export async function getExpenseAccountingCatalog(actor: Actor, executor: Execut
   const norms = await executor.select({ code: s.driverFeeNorms.code, label: s.driverFeeNorms.label, amount: s.driverFeeNorms.amount }).from(s.driverFeeNorms)
     .where(eq(s.driverFeeNorms.status, 'ACTIVE')).orderBy(asc(s.driverFeeNorms.code));
   const base = { costGroups: Object.entries(EXPENSE_COST_GROUP_LABELS).map(([code, label]) => ({ code, label })), driverCostSuggestions: norms.map(norm => ({ ...norm, amount: Number(norm.amount) })), opsFeeSuggestions: OPS_EXPENSE_SUGGESTIONS };
-  if (!isFinance(actor)) return { ...base, treasuryAccounts: [], accountants: [], opsUsers: [], truckAssignments: [], advances: [], pendingAdvances: [] };
-  const [treasuryAccounts, people, truckAssignments, advances] = await Promise.all([
+  if (!isFinance(actor)) return { ...base, treasuryAccounts: [], accountants: [], opsUsers: [], truckAssignments: [], advances: [], pendingAdvances: [], carriers: [] };
+  const [treasuryAccounts, people, truckAssignments, advances, awaitingApproval, carriers] = await Promise.all([
     executor.select().from(s.treasuryAccounts).where(eq(s.treasuryAccounts.status, 'ACTIVE')).orderBy(asc(s.treasuryAccounts.name)),
     executor.select({ id: s.users.id, name: s.users.fullName, username: s.users.username, role: s.users.role }).from(s.users)
       .where(and(inArray(s.users.role, [Role.ACCOUNTANT, Role.OPS, Role.DRIVER]), eq(s.users.status, 'ACTIVE'), isNull(s.users.deletedAt)))
       .then(rows => rows.map(person => ({ ...person, name: person.name?.trim() || person.username }))),
     listTruckAccountantAssignments(actor, executor),
     executor.select().from(s.advanceRequests).where(eq(s.advanceRequests.status, 'RECORDED')),
+    // KP-148 — tab "Tạm ứng chờ duyệt" đọc catalog.pendingAdvances, nên yêu cầu
+    // Ops tạo ra (PENDING) được nạp thêm TẠI ĐÂY và chỉ rơi vào pendingAdvances.
+    // advances/eligible (số liệu phân bổ tiền) vẫn một mực là RECORDED.
+    executor.select().from(s.advanceRequests).where(eq(s.advanceRequests.status, 'PENDING')),
+    listExpenseCarriers(executor),
   ]);
   const ids = advances.map(row => row.id);
   const [funded, consumed] = await Promise.all([getAdvanceFundedAmounts(executor, ids), getAdvanceConsumedAmounts(executor, ids)]);
-  const pendingAdvances = advances.filter(row => !funded.has(row.id)).map(row => ({ id: row.id, opsUserId: row.requesterId,
-    amount: Number(row.amount), reason: row.reason, date: row.createdAt.toISOString().slice(0, 10), name: row.requesterNameSnapshot }));
+  const pendingAdvances = [...advances.filter(row => !funded.has(row.id)), ...awaitingApproval].map(row => ({ id: row.id, opsUserId: row.requesterId,
+    amount: Number(row.amount), reason: row.reason, date: row.createdAt.toISOString().slice(0, 10), name: row.requesterNameSnapshot,
+    status: row.status, version: row.version }));
   const eligible = new Map<number, { id: number; opsUserId: number; amount: number; remainingAmount: number; date: string; name: string | null }>();
   for (const advance of advances) {
     const allocated = consumed.get(advance.id) ?? 0;
@@ -455,5 +470,5 @@ export async function getExpenseAccountingCatalog(actor: Actor, executor: Execut
     const remainingAmount = round2dp(amount - allocated);
     if (remainingAmount > 0) eligible.set(advance.id, { id: advance.id, opsUserId: advance.requesterId, amount, remainingAmount, date: advance.createdAt.toISOString().slice(0, 10), name: advance.requesterNameSnapshot });
   }
-  return { ...base, accounts: treasuryAccounts, staff: people, suppliers: await executor.select().from(s.suppliers).where(eq(s.suppliers.status, 'ACTIVE')), expenseTypes: await executor.select().from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.status, 'ACTIVE')), treasuryAccounts, accountants: people.filter(person => person.role === Role.ACCOUNTANT), opsUsers: people.filter(person => person.role === Role.OPS), truckAssignments, pendingAdvances, advances: [...eligible.values()] };
+  return { ...base, accounts: treasuryAccounts, staff: people, suppliers: await executor.select().from(s.suppliers).where(eq(s.suppliers.status, 'ACTIVE')), expenseTypes: await executor.select().from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.status, 'ACTIVE')), treasuryAccounts, accountants: people.filter(person => person.role === Role.ACCOUNTANT), opsUsers: people.filter(person => person.role === Role.OPS), truckAssignments, pendingAdvances, advances: [...eligible.values()], carriers };
 }

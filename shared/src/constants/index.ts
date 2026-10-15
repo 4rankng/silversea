@@ -656,6 +656,10 @@ export const NO_INVOICE_POLICY_DEFAULTS = {
 };
 
 export enum AdvanceRequestStatus {
+  // Card 20261005 — Ops tạo yêu cầu tạm ứng ở trạng thái chờ duyệt; Kế toán
+  // duyệt mới ghi ledger + treasury. Các truy vấn số dư đang lọc RECORDED nên
+  // khoản PENDING tự động không lọt vào ví hay báo cáo hoàn ứng.
+  PENDING = 'PENDING',
   RECORDED = 'RECORDED',
   DRAFT = 'DRAFT',
   VOIDED = 'VOIDED',
@@ -700,6 +704,7 @@ export const TRUCK_CAP_ROLE_LABELS: Record<TruckCapRole, string> = {
 };
 
 export const ADVANCE_REQUEST_STATUS_LABELS: Record<AdvanceRequestStatus, string> = {
+  [AdvanceRequestStatus.PENDING]: 'Chờ phê duyệt',
   [AdvanceRequestStatus.RECORDED]: 'Đã ghi nhận',
   [AdvanceRequestStatus.DRAFT]: 'Chưa ghi sổ',
   [AdvanceRequestStatus.VOIDED]: 'Đã hủy',

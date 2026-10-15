@@ -113,7 +113,7 @@ afterEach(() => {
 
 describe('phôi phiếu detail dialogs render in the house modal shell (card 20260922_67)', () => {
   it('Chi hộ dialog portals into document.body inside the fixed backdrop — not the page flow', async () => {
-    render(<PhoiPhieuChiHoDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    render(<PhoiPhieuChiHoDialog tripId={7} shipmentId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
     const dialog = await screen.findByRole('dialog', { name: 'Chi tiết chi hộ' });
     // Portal proof: the backdrop div is a DIRECT child of document.body, so
     // the dialog's on-screen position can never inherit the 100+-row board's
@@ -125,7 +125,7 @@ describe('phôi phiếu detail dialogs render in the house modal shell (card 202
 
   it('Chi hộ dialog: ✕ and Escape both dismiss; body scroll locks while open and restores after', async () => {
     const onClose = vi.fn();
-    const { unmount } = render(<PhoiPhieuChiHoDialog tripId={7} onClose={onClose} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    const { unmount } = render(<PhoiPhieuChiHoDialog tripId={7} shipmentId={7} onClose={onClose} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
     await screen.findByRole('dialog', { name: 'Chi tiết chi hộ' });
     expect(document.body.style.overflow).toBe('hidden');
     fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
@@ -140,7 +140,7 @@ describe('phôi phiếu detail dialogs render in the house modal shell (card 202
     const opener = document.createElement('button');
     document.body.append(opener);
     opener.focus();
-    const { unmount } = render(<PhoiPhieuChiHoDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    const { unmount } = render(<PhoiPhieuChiHoDialog tripId={7} shipmentId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
     await screen.findByRole('dialog', { name: 'Chi tiết chi hộ' });
     unmount();
     expect(opener).toHaveFocus();
@@ -149,7 +149,7 @@ describe('phôi phiếu detail dialogs render in the house modal shell (card 202
 
   it('Tiền đường dialog portals into document.body and ✕ dismisses', async () => {
     const onClose = vi.fn();
-    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={onClose} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    render(<PhoiPhieuTienDuongDialog tripId={7} shipmentId={7} onClose={onClose} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
     const dialog = await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
     expect(dialog.parentElement).toBe(document.body);
     expect(dialog).toHaveClass('modal');
@@ -335,7 +335,7 @@ describe('card 20260928_171 — chi tiết tiền đường: sửa số tiền, 
   });
 
   it('AC2: sửa số tiền dòng CHƯA duyệt lưu qua đường update của khoản chi lái xe, kèm version + lý do', async () => {
-    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    render(<PhoiPhieuTienDuongDialog tripId={7} shipmentId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
     await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
     await screen.findByLabelText('Thực chi dòng 2');
 
@@ -350,7 +350,7 @@ describe('card 20260928_171 — chi tiết tiền đường: sửa số tiền, 
   });
 
   it('AC2: sửa số tiền dòng ĐÃ duyệt (do lái xe nhập) đi đường điều chỉnh có lưu vết, không ghi đè', async () => {
-    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    render(<PhoiPhieuTienDuongDialog tripId={7} shipmentId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
     await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
     await screen.findByLabelText('Thực chi dòng 1');
 
@@ -365,7 +365,7 @@ describe('card 20260928_171 — chi tiết tiền đường: sửa số tiền, 
   });
 
   it('AC3: "＋ Thêm dòng" mở đúng panel thêm khoản chi của nhà, nhóm Tiền đường, và chỉ một bề mặt hiện ra', async () => {
-    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    render(<PhoiPhieuTienDuongDialog tripId={7} shipmentId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
     await screen.findByRole('dialog', { name: 'Chi tiết tiền đường' });
     await screen.findByLabelText('Thực chi dòng 1');
 
@@ -406,7 +406,7 @@ describe('PHOI08 Tiền đường authoritative partial-save retry', () => {
     });
     vi.mocked(expenseAccountingClient.update).mockRejectedValueOnce(new Error('Dòng tiền đường tiếp theo không lưu được'));
     const onClose = vi.fn(); const onSaved = vi.fn();
-    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={onClose} onSaved={onSaved} />, { wrapper: makeWrapper() });
+    render(<PhoiPhieuTienDuongDialog tripId={7} shipmentId={7} onClose={onClose} onSaved={onSaved} />, { wrapper: makeWrapper() });
     await screen.findByLabelText('Thực chi dòng 2');
     fireEvent.change(screen.getByLabelText('Thực chi dòng 1'), { target: { value: '2100000' } });
     fireEvent.change(screen.getByLabelText('Thực chi dòng 2'), { target: { value: '70000' } });
@@ -448,7 +448,7 @@ describe('PHOI08 Tiền đường authoritative partial-save retry', () => {
     });
     vi.mocked(expenseAccountingClient.update).mockRejectedValueOnce(new Error('Dòng tiền đường tiếp theo không lưu được'));
     const onClose = vi.fn(); const onSaved = vi.fn();
-    render(<PhoiPhieuTienDuongDialog tripId={7} onClose={onClose} onSaved={onSaved} />, { wrapper: makeWrapper() });
+    render(<PhoiPhieuTienDuongDialog tripId={7} shipmentId={7} onClose={onClose} onSaved={onSaved} />, { wrapper: makeWrapper() });
     await screen.findByLabelText('Thực chi dòng 2');
     fireEvent.change(screen.getByLabelText('Thực chi dòng 1'), { target: { value: '2100000' } });
     fireEvent.change(screen.getByLabelText('Thực chi dòng 2'), { target: { value: '70000' } });
@@ -491,7 +491,7 @@ describe('PHOI08 Tiền đường authoritative partial-save retry', () => {
 
 describe('PHOI13 Chi hộ dialog keeps its content readable (card 20261002_278)', () => {
   it('re-pins the table header to the dialog scrollport', async () => {
-    render(<PhoiPhieuChiHoDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
+    render(<PhoiPhieuChiHoDialog tripId={7} shipmentId={7} onClose={vi.fn()} onSaved={vi.fn()} />, { wrapper: makeWrapper() });
     const table = await screen.findByRole('table');
 
     // The page-level sticky offset (-24px) is tuned for `.app-body`; inside the

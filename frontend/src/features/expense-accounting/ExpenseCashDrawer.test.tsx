@@ -6,7 +6,7 @@ const fundAdvance = vi.hoisted(() => vi.fn());
 vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: { fundAdvance } }));
 vi.mock('../../components/UI', () => ({ Drawer: ({ children, footer }: { children: ReactNode; footer: ReactNode }) => <section>{children}{footer}</section> }));
 import { ExpenseCashDrawer } from './ExpenseCashDrawer';
-const catalog = { staff: [], accounts: [{ id: 3, name: 'Quỹ test', fundCode: 'COMPANY' as const }], accountants: [], opsUsers: [{ id: 7, name: 'OPS Test' }], advances: [], suppliers: [], expenseTypes: [], pendingAdvances: [{ id: 12, opsUserId: 7, amount: 1000000, reason: 'Ứng phí cảng', date: '2026-09-17', name: 'OPS Test' }] };
+const catalog = { staff: [], accounts: [{ id: 3, name: 'Quỹ test', fundCode: 'COMPANY' as const }], accountants: [], opsUsers: [{ id: 7, name: 'OPS Test' }], advances: [], suppliers: [], carriers: [], expenseTypes: [], pendingAdvances: [{ id: 12, opsUserId: 7, amount: 1000000, reason: 'Ứng phí cảng', date: '2026-09-17', name: 'OPS Test', status: 'RECORDED' as const, version: 1 }] };
 beforeEach(() => { fundAdvance.mockReset().mockResolvedValue({ id: 12 }); });
 // Measured, not guessed: this case drives six combobox opens plus a
 // reject→retry cycle, and it exceeds the 5000ms default on its own (5.1s when

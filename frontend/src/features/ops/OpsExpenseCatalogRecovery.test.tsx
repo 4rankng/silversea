@@ -7,7 +7,7 @@ import type { OpsExpenseRow, OpsOrderItem } from '../../api/opsClient';
 import { OpsExpenseFormModal } from './OpsExpenseFormModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
 
-const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
+const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 const types = { items: [{ id: 1, code: 'HANDLING', name: 'Làm hàng', requiresInvoice: false }] };
 const order: OpsOrderItem = { id: 8, shipmentCode: 'OPS-RECOVERY', status: 'CREATED', tradeDirection: 'IMPORT', billRef: 'BL-RECOVERY', customerName: 'Khách hàng', routeName: 'Hải Phòng', pinned: false, pinnedAt: null, containerCount: 0, containerNumbers: [], containerIds: [] };
@@ -27,6 +27,7 @@ describe('OPS expense catalog failure recovery', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     api.getExpensePhotos.mockResolvedValue({ items: [] });
+    api.getContainerClaimants.mockResolvedValue([]);
     api.createExpense.mockResolvedValue(entry);
     api.updateExpense.mockResolvedValue(entry);
   });

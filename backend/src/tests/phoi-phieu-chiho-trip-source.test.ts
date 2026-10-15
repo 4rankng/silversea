@@ -73,6 +73,7 @@ test('chi-hộ read shows a COMPANY-paid (TRIP-kind) entry created for the trip'
   // source (the branch qa's taps exercised on staging).
   const recorded = await db.transaction(tx => createAccountingExpense(tx, actor, {
     tripId: trip.id,
+    shipmentId: shipment.id,
     expenseTypeCode: feeType.code,
     amount: 150000,
     customerChargeAmount: 150000,

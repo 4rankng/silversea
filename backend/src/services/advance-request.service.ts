@@ -16,8 +16,14 @@ export async function createAdvanceRequest(
   requesterId: number,
   data: { amount: number; reason: string },
   transaction?: Tx,
+  // `pending`: route Ops tự tạo yêu cầu — ghi PENDING và chờ kế toán phê duyệt
+  // (chưa có người duyệt, chưa có tiền). Mọi đường khác (ghi chi tạm ứng có
+  // thật, seed, phục hồi nháp cũ) vẫn ghi thẳng RECORDED vì tiền đi cùng giao
+  // dịch trong cùng transaction.
+  options?: { pending?: boolean },
 ) {
-  // Record the request directly without approval. Only actual funding posts money.
+  // Record the request directly. Only the approval (Ops path) or actual funding posts money.
+  const pending = options?.pending === true;
   const execute = async (tx: Tx) => {
     const [requester] = await tx.select({ fullName: s.users.fullName })
       .from(s.users)
@@ -28,9 +34,9 @@ export async function createAdvanceRequest(
       requesterNameSnapshot: requester?.fullName?.trim() || null,
       amount: String(data.amount),
       reason: data.reason,
-      status: 'RECORDED',
-      approvedBy: requesterId,
-      approvedAt: new Date(),
+      status: pending ? 'PENDING' : 'RECORDED',
+      approvedBy: pending ? null : requesterId,
+      approvedAt: pending ? null : new Date(),
     }).returning();
 
     const [enriched] = await enrichWithNames([inserted], tx);

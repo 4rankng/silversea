@@ -116,7 +116,8 @@ export interface OpsExpenseRow {
   rejectionReason: string | null;
   opsSettlementId: number | null;
   hasPhoto: boolean;
-  paidById: number;
+  /** Nullable since card 20261005 — shipment-level accountant expenses have no individual payer. */
+  paidById: number | null;
   paidByName: string | null;
   createdAt: string;
   version?: number;
@@ -134,6 +135,15 @@ export interface OpsExpensePhoto {
   storageKey: string;
   url: string;
   uploadedAt: string;
+}
+
+/** A cont that already carries someone's live cost declaration — the data
+ *  behind the duplicate-cont warning on the declaration form (plan step 5).
+ *  Warning-only: the form shows it and keeps saving enabled. */
+export interface OpsContainerClaimant {
+  containerId: number;
+  containerNumber: string | null;
+  paidByName: string | null;
 }
 
 export interface OpsFleetTruck {
@@ -271,6 +281,10 @@ export const opsClient = {
   // ── Khoản chi ──
   getExpenseTypes: () =>
     api.get<{ items: OpsExpenseTypeOption[] }>('/ops/expense-types'),
+  // Duplicate-cont heads-up: who already declared against each cont of the
+  // lot. Warning-only — never a write verdict (plan step 5 removed the grant).
+  getContainerClaimants: (shipmentId: number) =>
+    api.get<OpsContainerClaimant[]>(`/ops/expenses/cont-claimants${qs({ shipmentId })}`),
   createExpense: (body: {
     shipmentId: number;
     shipmentContainerId?: number | null;

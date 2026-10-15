@@ -11,6 +11,10 @@
  *   - ownership: recording on another driver's trip → 403.
  *   - missing trip → 404.
  *   - O2C: COMPLETED trip allows costs (no hard-freeze; AR snapshot tracks drift).
+ *   - Card 20261005: no "Người chi" on a driver cost — payer fields come back
+ *     cleared/null on the accounting source.
+ *   - Card 20261005: system-recorded rows (ROAD_ALLOWANCE, LIFT_DROP_ZONE
+ *     without a fee norm) are refused; the LIFT_DROP_ALLOWANCE norm still lands.
  *   - list returns costs newest-first.
  */
 import { after, describe, test } from 'node:test';
@@ -112,7 +116,7 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
     const cat = await mkCatalogs();
     const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
     const body = { costType: DriverIncidentalCostType.TOLL, amount: 80000, occurredAt: TODAY,
-      costGroup: 'DRIVER_ROAD' as const, payerKind: 'COMPANY' as const, feeName: 'Vé cầu đường thực tế',
+      costGroup: 'DRIVER_ROAD' as const, feeName: 'Vé cầu đường thực tế',
       invoiceNumber: 'HD-standalone', invoiceDate: TODAY };
     const key = `standalone-${suffix}-${trip.id}`;
     const first = await recordIncidentalCost(trip.id, driver.id, body, user.id, key);
@@ -121,7 +125,9 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
     assert.equal(replay.cost.id, first.cost.id);
     assert.equal(replay.replayed, true);
     const [native] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, first.cost.id));
-    assert.equal(native.payerKind, 'COMPANY');
+    // Card 20261005 — "Người chi" gỡ khỏi chi phí lái xe: dòng do lái xe ghi
+    // không còn payer (cũ: payerKind 'COMPANY'/'USER' do lái xe tự khai).
+    assert.equal(native.payerKind, null);
     assert.equal(native.costGroup, 'DRIVER_ROAD');
     assert.equal(native.customerChargeAmount, '0');
     assert.equal(native.feeName, body.feeName);
@@ -136,7 +142,11 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
         customerId: cat.customer.id, createdBy: user.id }).returning();
       await tx.update(s.trips).set({ shipmentId: shipment.id }).where(eq(s.trips.id, trip.id));
       const beforeLink = await getExpenseAccountingEntry({ userId: user.id, role: Role.DRIVER }, 'DRIVER', native.id, tx);
-      assert.equal(beforeLink.payerKind, 'COMPANY');
+      // Nguồn kế toán của một khoản lái xe ghi: các trường người chi/phải trả
+      // bị xóa sạch (null), không còn suy ra "lái xe đã chi".
+      assert.equal(beforeLink.payerKind, null);
+      assert.equal(beforeLink.payerUserId, null);
+      assert.equal(beforeLink.payableEntityType, null);
       assert.equal(beforeLink.payableEntityId, null);
       assert.equal(beforeLink.customerChargeAmount, 0);
       assert.equal(beforeLink.costGroup, 'DRIVER_ROAD');
@@ -146,7 +156,9 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
       assert.equal(linked.tripId, trip.id);
       assert.equal(linked.paymentHistoryUnattributed, false, 'known standalone native creation remains known after actual shipment linkage');
       assert.equal(linked.sourceId, native.id);
-      assert.equal(linked.payerKind, 'COMPANY');
+      assert.equal(linked.payerKind, null);
+      assert.equal(linked.payerUserId, null);
+      assert.equal(linked.payableEntityType, null);
       assert.equal(linked.payableEntityId, null);
       assert.equal(linked.customerChargeAmount, '0');
       assert.equal(linked.costGroup, 'DRIVER_ROAD');
@@ -194,6 +206,29 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
       { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY }, user.id, `completed-${suffix}-${trip.id}`);
     assert.ok(result.cost, 'incidental cost recorded on a completed trip');
     createdCostIds.push(result.cost.id);
+  });
+
+  test('system rows are refused — ROAD_ALLOWANCE never, LIFT_DROP_ZONE only via its fee norm', async () => {
+    const { user, driver } = await mkUserAndDriver();
+    const cat = await mkCatalogs();
+    const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
+    // "Tiền đường" được hệ thống tự ghi nhận từ bảng giá lúc tạo chuyến — lái xe
+    // tạo tay là trùng số liệu, chặn ngay trước khi insert trong đường ghi chung
+    // (insertDriverIncidentalCostTx — áp dụng cho cả lô đơn lẫn /batch).
+    const road = await assertStatus(() => recordIncidentalCost(trip.id, driver.id,
+      { costType: DriverIncidentalCostType.ROAD_ALLOWANCE, amount: 300000, occurredAt: TODAY }, user.id, `guard-road-${suffix}-${trip.id}`), 400);
+    assert.equal(road.message, 'Khoản này do hệ thống tự ghi nhận.');
+    // LIFT_DROP_ZONE không kèm định mức cũng bị chặn…
+    const zone = await assertStatus(() => recordIncidentalCost(trip.id, driver.id,
+      { costType: DriverIncidentalCostType.LIFT_DROP_ZONE, amount: 50000, occurredAt: TODAY }, user.id, `guard-zone-${suffix}-${trip.id}`), 400);
+    assert.equal(zone.message, 'Khoản này do hệ thống tự ghi nhận.');
+    // …nhưng request mang feeNormCode phải đi qua: định mức LIFT_DROP_ALLOWANCE
+    // bị insertDriverIncidentalCostTx ép costType = LIFT_DROP_ZONE, chặn vô điều
+    // kiện sẽ làm hỏng định mức hợp lệ đó.
+    const { cost } = await recordIncidentalCost(trip.id, driver.id,
+      { costType: DriverIncidentalCostType.OTHER, feeNormCode: 'LIFT_DROP_ALLOWANCE', amount: 50000, occurredAt: TODAY }, user.id, `guard-norm-${suffix}-${trip.id}`);
+    createdCostIds.push(cost.id);
+    assert.equal(cost.costType, DriverIncidentalCostType.LIFT_DROP_ZONE);
   });
 
   test('list returns costs newest-first', async () => {

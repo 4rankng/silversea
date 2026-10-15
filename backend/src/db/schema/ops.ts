@@ -48,7 +48,11 @@ export const opsExpenseEntries = pgTable('ops_expense_entries', {
   // App-level FK → forwarder_expense_types.code.
   expenseTypeCode: varchar('expense_type_code', { length: 50 }).notNull(),
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),
-  paidById: integer('paid_by_id').notNull(),
+  // Card 20261005 — nullable: a shipment-level accountant expense has no
+  // individual payer (the company paid it directly). NULL rows match no user,
+  // so wallet/reconciliation aggregations never fold them into someone's
+  // advance balance.
+  paidById: integer('paid_by_id'),
   paidAt: date('paid_at').notNull(),
   note: text('note'),
   approvalStatus: opsExpenseStatusEnum('approval_status').default('RECORDED').notNull(),

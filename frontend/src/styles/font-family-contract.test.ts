@@ -10,6 +10,10 @@ const printableDocumentSource = join(sourceRoot, 'pages/config/debit-note-templa
 // aside. Its CSS is exempt from the no-tabular-nums scan like the print
 // canvas above.
 const debitSettlementSource = join(sourceRoot, 'pages/ShipmentDebitPage.css');
+// Same exemption as ShipmentDebitPage: the chốt-debit board (card 20261005)
+// is a money matrix, so its money columns carry `tabular-nums` for a shared
+// digit edge. Exempt from the no-tabular-nums scan like the two pages above.
+const debitCloseSource = join(sourceRoot, 'pages/accounting/AccountingDebitClosePage.css');
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 
 function sourceFiles(directory: string): string[] {
@@ -45,7 +49,7 @@ describe('frontend font-family contract', () => {
     expect(declarations.length).toBeGreaterThan(0);
     expect(declarations.filter((value) => !/^var\(--font-(?:body|display|sans|data)(?:,\s*[^)]+)?\)$|^inherit$/.test(value))).toEqual([]);
     const applicationSource = [
-      ...sourceFiles(sourceRoot).filter((path) => path !== debitSettlementSource),
+      ...sourceFiles(sourceRoot).filter((path) => path !== debitSettlementSource && path !== debitCloseSource),
       join(frontendRoot, 'index.html'),
     ].map((path) => readFileSync(path, 'utf8')).join('\n');
 

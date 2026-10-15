@@ -9,7 +9,7 @@ import { PhoiPhieuTienDuongDialog } from './PhoiPhieuTienDuongDialog';
 const row = { sourceId: 7, version: 4, costType: 'OTHER', feeName: 'Phụ cấp cấu hình', driverEnteredAmount: 73000, amount: 75000, confirmed: false, driverName: 'Lái xe kiểm thử', payerName: 'Kế toán kiểm thử', occurredAt: '2026-09-22' };
 const detail = { tripId: 8, tripCode: 'TRP-TEST', rows: [row], totals: { total: 75000, confirmed: 0 } };
 const saved = vi.fn();
-function mount() { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PhoiPhieuTienDuongDialog tripId={8} onClose={vi.fn()} onSaved={saved} /></QueryClientProvider>); }
+function mount() { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PhoiPhieuTienDuongDialog tripId={8} shipmentId={8} onClose={vi.fn()} onSaved={saved} /></QueryClientProvider>); }
 describe('driver cost confirmation uses current source version', () => {
   beforeEach(() => { vi.clearAllMocks(); api.get.mockResolvedValue(detail); api.confirm.mockResolvedValue({}); });
   it('PHOI07 excludes signed negative costs from gross and approved draft totals without hiding rows', async () => {

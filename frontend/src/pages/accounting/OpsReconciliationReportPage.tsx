@@ -193,6 +193,7 @@ export default function OpsReconciliationReportPage() {
                 <th className="num">Số tiền ĐNTT</th>
                 <th className="num">Số tiền đã ứng</th>
                 <th className="num">Còn phải hoàn ứng</th>
+                <th className="num">Còn phải hoàn ứng (có dấu)</th>
                 <th>Ghi chú</th>
                 <th aria-label="Thao tác" />
               </tr>
@@ -246,8 +247,13 @@ function ReportRow({ row, index, actionLot, onVoucher }: {
       <td data-label="Số tiền ĐNTT" className="num"><Money value={row.dntt} /></td>
       <td data-label="Số tiền đã ứng" className="num"><Money value={row.advanced} /></td>
       <td data-label="Còn phải hoàn ứng" className="num"><Money value={Math.abs(row.remaining)} sign={row.remaining > 0 ? '+' : row.remaining < 0 ? '−' : undefined} /></td>
+      {/* Chênh lệch CÓ DẤU theo chữ spec "ĐNTT − ĐÃ ỨNG" — số âm giữ nguyên
+          dấu (formatMoney) để thấy ngay tiền ứng vượt chi phí thực tế. */}
+      <td data-label="Còn phải hoàn ứng (có dấu)" className="num">{formatMoney(row.remainingSigned)} ₫</td>
       <td data-label="Ghi chú">
-        <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>
+        {row.needsCollection
+          ? <StatusText variant="danger">Đề nghị thu tiền ứng</StatusText>
+          : <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>}
       </td>
       <td data-label="" className="record-table__action">
         {actionLot && (

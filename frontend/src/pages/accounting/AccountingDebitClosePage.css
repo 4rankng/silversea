@@ -65,6 +65,11 @@ p.debit-note { margin: 0 0 8px; }
   min-width: 104px;
   text-align: right;
 }
+/* Money rides the global `.num` cell class; pin its face to the tabular
+   variant so the digits stack down the column (a proportional face would let
+   111 and 888 read as ragged edges in a money matrix). */
+.debit-board .num,
+.debit-board td.debit-col--money { font-variant-numeric: tabular-nums; }
 .debit-board td.debit-col--money { white-space: nowrap; }
 .debit-board th.debit-col--lot,
 .debit-board td.debit-col--lot { min-width: 188px; }
@@ -143,13 +148,22 @@ p.debit-note { margin: 0 0 8px; }
 }
 
 /* Selection strip: "chọn tất cả" and the bulk actions belong to the selection,
-   so the strip states it once instead of two rows of dead "(0 dòng)" buttons. */
+   so the strip states it once instead of two rows of dead "(0 dòng)" buttons.
+   Card 20261005 — the strip now sits DIRECTLY under the filter bar and stays
+   pinned while the money matrix scrolls beneath it, so the selected count and
+   the two primary actions (Đối soát / Hoàn tác) are always in reach. */
 .debit-selection {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   margin: 0 0 12px;
+  padding: 8px 0;
+  background: var(--surface, var(--bg, #fff));
+  border-bottom: 1px solid var(--border);
 }
 
 /* ── Second board: the settlement rounds ───────────────────────────────────

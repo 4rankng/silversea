@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { formatCurrency, formatDate } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
+import { StatusPill } from '../../components/UI';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
@@ -135,12 +136,15 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   {
     key: 'doiSoat', label: 'Đối soát', className: 'debit-col--status', pinned: true,
     cell: (row, { confirm, withdraw, isBusy }) => {
-      if (row.adjustment.status === 'NONE') return 'Chưa gửi';
-      if (row.adjustment.status === 'CONFIRMED') return 'Đã đối soát';
       const requestId = row.adjustment.requestId;
+      // One status per lot, always as a StatusPill so the whole board reads as
+      // one voice (never a bare word beside pills elsewhere). The pending case
+      // keeps its two row actions beside the pill — layout only, no logic moved.
+      if (row.adjustment.status === 'NONE') return <StatusPill variant="neutral">Chưa gửi</StatusPill>;
+      if (row.adjustment.status === 'CONFIRMED') return <StatusPill variant="success">Đã đối soát</StatusPill>;
       return (
         <span className="debit-pending">
-          Chờ xác nhận
+          <StatusPill variant="warn">Chờ xác nhận</StatusPill>
           <button type="button" className="btn btn--secondary btn--sm" disabled={isBusy || requestId == null} onClick={() => requestId != null && confirm([requestId])}>Xác nhận</button>
           <button type="button" className="btn btn--ghost btn--sm" disabled={isBusy || requestId == null} onClick={() => requestId != null && withdraw([requestId])}>Rút</button>
         </span>

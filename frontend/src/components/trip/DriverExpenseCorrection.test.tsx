@@ -15,7 +15,7 @@ describe('driver own-cost correction', () => {
   it('uses the current version and only driver-permitted fields, then refreshes saved costs', async () => {
     form(); change(); submit(); await waitFor(() => expect(saved).toHaveBeenCalledOnce());
     expect(api.update).toHaveBeenCalledWith({ sourceKind: 'DRIVER', sourceId: 7, expectedVersion: 3 }, { expectedVersion: 3, amount: 110000, feeName: 'Trả đêm', expenseDate: '2026-09-22', invoiceNumber: null, invoiceDate: null, note: 'Ghi nhận', reason: 'Sửa số thực chi' });
-    expect(api.update.mock.calls[0][1]).not.toHaveProperty('payerKind'); expect(api.update.mock.calls[0][1]).not.toHaveProperty('customerChargeAmount');
+    expect(api.update.mock.calls[0][1]).not.toHaveProperty('payerKind'); expect(api.update.mock.calls[0][1]).not.toHaveProperty('payerUserId'); expect(api.update.mock.calls[0][1]).not.toHaveProperty('customerChargeAmount');
   });
   it('rejects invalid amounts and a missing correction reason without a write', async () => {
     form(); fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '0' } }); submit();

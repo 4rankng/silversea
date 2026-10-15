@@ -6,12 +6,11 @@
 import { listLegacyOpsExpenseHistory } from './ops-legacy-expense-history.service';
 import { db, type Executor, type Tx } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, exists, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, exists, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
 import { opsInvoicedCostGroupOf, type ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
-import { assertOpsExpenseAssignment } from './expense-owner-scope.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
 // Tx / Executor come from ../db (the one Executor seam).
@@ -175,7 +174,6 @@ export async function createOpsExpense(
   executor: Executor = db,
 ): Promise<OpsExpenseWriteResult> {
   if (executor === db) return db.transaction(tx => createOpsExpense(userId, input, tx));
-  await assertOpsExpenseAssignment(executor, userId, input.shipmentId);
   const amount = parseOpsMoney(input.amount);
   assertValidPaidAt(input.paidAt);
   const expenseType = await assertActiveExpenseType(input.expenseTypeCode);
@@ -283,7 +281,6 @@ export async function updateOpsExpense(
 ): Promise<OpsExpenseWriteResult> {
   if (executor === db) return db.transaction(tx => updateOpsExpense(userId, expenseId, patch, tx));
   const entry = await getEditableExpense(userId, expenseId, executor);
-  await assertOpsExpenseAssignment(executor, userId, entry.shipmentId);
   if (!patch.reason?.trim()) throw new ApiError(400, 'Nhập lý do điều chỉnh khoản chi.');
   await assertShipmentAccountingUnlocked(executor, entry.shipmentId);
   const source = await lockExpenseSource(executor, 'OPS', expenseId);
@@ -366,8 +363,10 @@ export async function deleteOpsExpense(
   // mandatory and persisted on the row with the actor.
   if (!reason || !reason.trim()) throw new ApiError(400, 'Lý do xóa là bắt buộc.');
   if (executor === db) return db.transaction(tx => deleteOpsExpense(userId, expenseId, reason, tx));
-  const entry = await getEditableExpense(userId, expenseId, executor);
-  await assertOpsExpenseAssignment(executor, userId, entry.shipmentId);
+  // Guard only: throws 404 if not owned/editable and 409 if already voided.
+  // The return value is unused — the soft-void update below filters by id +
+  // paidById itself, so there is nothing to carry forward from the row.
+  await getEditableExpense(userId, expenseId, executor);
   const source = await lockExpenseSource(executor, 'OPS', expenseId);
   if (source) {
     await assertExpenseSourceMutable(executor, source);
@@ -406,7 +405,6 @@ export async function attachOpsExpensePhoto(userId: number, expenseId: number, s
   return db.transaction(async tx => {
     const [entry] = await tx.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, expenseId)).for('update');
     if (!entry || entry.paidById !== userId) throw new ApiError(404, 'Không tìm thấy khoản chi.');
-    await assertOpsExpenseAssignment(tx, userId, entry.shipmentId);
     if (['VOIDED', 'REJECTED'].includes(entry.approvalStatus)) throw new ApiError(409, 'Khoản chi đã hủy; giữ nguyên chứng từ lịch sử.');
     assertOwnStorageKey(userId, storageKey);
     const [photo] = await tx.insert(s.opsExpensePhotos).values({ opsExpenseId: expenseId, storageKey, uploadedById: userId }).onConflictDoNothing().returning();
@@ -420,7 +418,6 @@ export async function deleteOpsExpensePhoto(userId: number, photoId: number): Pr
     if (!photo) throw new ApiError(404, 'Không tìm thấy ảnh.');
     const [entry] = await tx.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, photo.opsExpenseId)).for('update');
     if (!entry || entry.paidById !== userId) throw new ApiError(404, 'Không tìm thấy ảnh.');
-    await assertOpsExpenseAssignment(tx, userId, entry.shipmentId);
     const source = await lockExpenseSource(tx, 'OPS', entry.id);
     if (source?.confirmedAt || entry.opsSettlementId || ['VOIDED', 'REJECTED'].includes(entry.approvalStatus)) throw new ApiError(409, 'Giữ nguyên chứng từ đã đối chiếu; chỉ bổ sung ảnh.');
     await tx.delete(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.id, photoId));
@@ -512,6 +509,45 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
     .orderBy(s.forwarderExpenseTypes.name);
 }
 
+export interface OpsContainerClaimant {
+  containerId: number;
+  containerNumber: string | null;
+  paidByName: string | null;
+}
+
+/** Who already declared a cost against each container of a lot — the data
+ *  behind the "Cont … đã có … nhập trước" heads-up on the declaration form.
+ *  WARNING-only: the dialog shows it and lets the operator continue, so this
+ *  lists live rows (non-voided) per container and never blocks anything.
+ *  One row per container (first claim wins in UI terms); a lot-wide row
+ *  (no container) is not a container claim and stays out. */
+export async function listOpsExpenseContainerClaimants(shipmentId: number): Promise<OpsContainerClaimant[]> {
+  const rows = await db
+    .select({
+      containerId: s.opsExpenseEntries.shipmentContainerId,
+      containerNumber: s.shipmentContainers.containerNumber,
+      paidByName: s.users.fullName,
+    })
+    .from(s.opsExpenseEntries)
+    .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.opsExpenseEntries.shipmentContainerId))
+    .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
+    .where(and(
+      eq(s.opsExpenseEntries.shipmentId, shipmentId),
+      isNotNull(s.opsExpenseEntries.shipmentContainerId),
+      ne(s.opsExpenseEntries.approvalStatus, 'VOIDED'),
+    ))
+    .orderBy(s.opsExpenseEntries.id);
+  // Dedupe by container: a cont claimed twice still warns once.
+  const byContainer = new Map<number, OpsContainerClaimant>();
+  for (const row of rows) {
+    const containerId = row.containerId!;
+    if (!byContainer.has(containerId)) {
+      byContainer.set(containerId, { containerId, containerNumber: row.containerNumber, paidByName: row.paidByName });
+    }
+  }
+  return [...byContainer.values()];
+}
+
 export interface OpsExpenseListRow {
   sourceKind?: 'OPS' | 'TRIP';
   sourceId?: number;
@@ -541,7 +577,9 @@ export interface OpsExpenseListRow {
   rejectionReason: string | null;
   opsSettlementId: number | null;
   hasPhoto: boolean;
-  paidById: number;
+  // Nullable since card 20261005: a shipment-level accountant expense has no
+  // individual payer (company paid it directly), so `paid_by_id` is NULL there.
+  paidById: number | null;
   paidByName: string | null;
   createdAt: string;
 }

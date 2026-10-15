@@ -110,6 +110,14 @@ export default function AccountingDebitClosePage() {
     () => selectableRows.filter((row) => isSelected(row.shipmentId)),
     [selectableRows, isSelected],
   );
+  // Bulk actions in the sticky selection strip act on the SELECTED rows'
+  // adjustment requests — the same requestIds the per-row "Xác nhận/Rút"
+  // buttons feed into confirmMutation/withdrawMutation, so no new business
+  // path is created, only a second entry point over the current selection.
+  const selectedRequestIds = useMemo(
+    () => selectedRows.map((row) => row.adjustment.requestId).filter((id): id is number => id != null),
+    [selectedRows],
+  );
   const allSelected = allOfSelected(selectableIds);
 
   const summary = useMemo(() => [
@@ -271,10 +279,12 @@ export default function AccountingDebitClosePage() {
         </FilterDropdown>
       </FilterBar>
 
-      <span aria-live="polite">
-        {message && <p role={message.kind === 'ok' ? 'status' : 'alert'} className="debit-note">{message.text}</p>}
-      </span>
-
+      {/* Card 20261005 — the selection strip sits DIRECTLY under the filter bar
+          and stays pinned while the money matrix scrolls beneath it: the
+          selected count and the two primary actions (Đối soát / Hoàn tác) are
+          always in reach. The actions feed the SAME confirm/withdraw mutations
+          the per-row buttons use, over the current selection — a second entry
+          point, not a new business path. */}
       <div className="debit-selection">
         <button
           type="button"
@@ -285,9 +295,27 @@ export default function AccountingDebitClosePage() {
         >
           {allSelected ? 'Bỏ chọn tất cả' : `Chọn tất cả ${selectableIds.length} lô đủ điều kiện`}
         </button>
+        {selectedCount > 0 && <span className="debit-note">Đã chọn {selectedCount} lô</span>}
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          disabled={selectedRequestIds.length === 0 || confirmMutation.isPending}
+          title={selectedRequestIds.length === 0 ? 'Chọn ít nhất một dòng đang chờ xác nhận để đối soát' : undefined}
+          onClick={() => confirmMutation.mutate(selectedRequestIds)}
+        >
+          {confirmMutation.isPending ? 'Đang đối soát…' : 'Đối soát'}
+        </button>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          disabled={selectedRequestIds.length === 0 || withdrawMutation.isPending}
+          title={selectedRequestIds.length === 0 ? 'Chọn ít nhất một dòng để hoàn tác yêu cầu điều chỉnh' : undefined}
+          onClick={() => withdrawMutation.mutate(selectedRequestIds)}
+        >
+          {withdrawMutation.isPending ? 'Đang hoàn tác…' : 'Hoàn tác'}
+        </button>
         {selectedCount > 0 && (
           <>
-            <span className="debit-note">Đã chọn {selectedCount} lô</span>
             <button
               type="button"
               className="btn btn--secondary btn--sm"
@@ -300,6 +328,10 @@ export default function AccountingDebitClosePage() {
           </>
         )}
       </div>
+
+      <span aria-live="polite">
+        {message && <p role={message.kind === 'ok' ? 'status' : 'alert'} className="debit-note">{message.text}</p>}
+      </span>
 
       <SummaryRail ariaLabel="Tổng hợp chốt debit" items={summary} />
 

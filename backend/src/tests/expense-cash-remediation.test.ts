@@ -92,7 +92,7 @@ test('FIX17-CASH-04 accountant OPS proxy uses one native expense, separate recor
   const [cargo] = await tx.insert(s.cargoTypes).values({ name: ctx.key }).returning();
   const [type] = await tx.insert(s.forwarderExpenseTypes).values({ code: ctx.key, name: ctx.key, status: 'ACTIVE' }).returning();
   const trip = await insertTripComposite(tx, { tripCode: ctx.key, shipmentId: ctx.shipment.id, customerId: ctx.customer.id, routeId: route.id, cargoTypeId: cargo.id, departureDate: '2026-09-10', status: 'CREATED', carrierType: 'OWN' });
-  const entry = await createAccountingExpense(tx, ctx.actor, { tripId: trip.id, costGroup: 'OPS_REGULAR', expenseTypeCode: type.code, feeName: ctx.key, amount: 333000, customerChargeAmount: 0, expenseDate: '2026-09-10', payerKind: 'USER', payerUserId: ctx.ops.id });
+  const entry = await createAccountingExpense(tx, ctx.actor, { tripId: trip.id, shipmentId: ctx.shipment.id, costGroup: 'OPS_REGULAR', expenseTypeCode: type.code, feeName: ctx.key, amount: 333000, customerChargeAmount: 0, expenseDate: '2026-09-10', payerKind: 'USER', payerUserId: ctx.ops.id });
   assert.equal(entry.sourceKind, 'OPS'); assert.equal(entry.payerUserId, ctx.ops.id); assert.equal(entry.recordedById, ctx.actor.userId);
   assert.ok(entry.linkedTripExpenseId); assert.equal((await getOpsWalletSummary(ctx.ops.id, tx)).approved, '333000');
   await confirmAccountingExpenses(tx, ctx.actor, [{ sourceKind: 'OPS', sourceId: entry.sourceId, expectedVersion: entry.version }]);

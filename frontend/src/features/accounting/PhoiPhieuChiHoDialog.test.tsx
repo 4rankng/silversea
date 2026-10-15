@@ -16,7 +16,7 @@ beforeEach(() => {
   api.update.mockResolvedValue({}); api.remove.mockResolvedValue({});
   expenseApi.catalog.mockResolvedValue({ staff: [], accounts: [], accountants: [], opsUsers: [], advances: [], suppliers: [], expenseTypes: [] });
 });
-function page() { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PhoiPhieuChiHoDialog tripId={7} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>); }
+function page() { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PhoiPhieuChiHoDialog tripId={7} shipmentId={7} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>); }
 describe('phơi chi-hộ row identity', () => {
   it('PHOI08 refreshes successful row versions after a later row failure and retries only the remaining change', async () => {
     let authoritative = rows.map(row => ({ ...row }));
@@ -61,7 +61,7 @@ describe('phơi chi-hộ row identity', () => {
     api.update.mockImplementation(async (_tripId, entryId, payload) => { authoritative = authoritative.map(row => row.entryId === entryId ? { ...row, amountThu: payload.customerChargeAmount, version: row.version + 1 } : row); });
     api.meta.mockRejectedValueOnce(new Error('Không lưu được trạng thái phơi'));
     const onClose = vi.fn(); const onSaved = vi.fn();
-    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PhoiPhieuChiHoDialog tripId={7} onClose={onClose} onSaved={onSaved} /></QueryClientProvider>);
+    render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PhoiPhieuChiHoDialog tripId={7} shipmentId={7} onClose={onClose} onSaved={onSaved} /></QueryClientProvider>);
     await screen.findByText('First fee');
     fireEvent.change(screen.getByLabelText('Số tiền thu dòng 1'), { target: { value: '60001' } });
     fireEvent.change(screen.getByLabelText('Trạng thái lấy'), { target: { value: 'Đã lấy' } });
@@ -97,7 +97,7 @@ describe('phơi chi-hộ row identity', () => {
   it('PHOI08 keeps date and status drafts local until Cancel with no mutation', async () => {
     const onClose = vi.fn();
     api.detail.mockResolvedValue({ tripId: 7, rows, ngayLayPhoi: '2026-09-22', trangThaiLay: 'Chưa lấy' });
-    render(<QueryClientProvider client={new QueryClient()}><PhoiPhieuChiHoDialog tripId={7} onClose={onClose} onSaved={vi.fn()} /></QueryClientProvider>);
+    render(<QueryClientProvider client={new QueryClient()}><PhoiPhieuChiHoDialog tripId={7} shipmentId={7} onClose={onClose} onSaved={vi.fn()} /></QueryClientProvider>);
     await screen.findByText('First fee');
     fireEvent.change(screen.getByLabelText('Ngày lấy phơi'), { target: { value: '23/09/2026' } });
     const status = screen.getByLabelText('Trạng thái lấy');
@@ -144,7 +144,7 @@ describe('phơi chi-hộ row identity', () => {
     const onClose = vi.fn(); const onSaved = vi.fn();
     api.detail.mockResolvedValue({ tripId: 7, rows, ngayLayPhoi: null, trangThaiLay: null });
     api.meta.mockRejectedValueOnce(new Error('Không lưu được trạng thái phơi'));
-    render(<QueryClientProvider client={new QueryClient()}><PhoiPhieuChiHoDialog tripId={7} onClose={onClose} onSaved={onSaved} /></QueryClientProvider>);
+    render(<QueryClientProvider client={new QueryClient()}><PhoiPhieuChiHoDialog tripId={7} shipmentId={7} onClose={onClose} onSaved={onSaved} /></QueryClientProvider>);
     await screen.findByText('First fee');
     fireEvent.change(screen.getByLabelText('Trạng thái lấy'), { target: { value: 'Đã lấy' } });
     fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
@@ -187,7 +187,7 @@ describe('phơi chi-hộ row identity', () => {
   it('PHOI05 keeps confirmed and unconfirmed detail caches distinct on the same trip', async () => {
     api.detail.mockImplementation((_id, confirmation) => Promise.resolve({ tripId: 7, rows: rows.filter(row => confirmation === 'CONFIRMED' ? row.confirmed : !row.confirmed) }));
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const view = (confirmation: 'CONFIRMED' | 'UNCONFIRMED') => <QueryClientProvider client={queryClient}><PhoiPhieuChiHoDialog tripId={7} confirmation={confirmation} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>;
+    const view = (confirmation: 'CONFIRMED' | 'UNCONFIRMED') => <QueryClientProvider client={queryClient}><PhoiPhieuChiHoDialog tripId={7} shipmentId={7} confirmation={confirmation} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>;
     const { rerender } = render(view('CONFIRMED'));
     await screen.findByText('Confirmed fee');
     expect(screen.queryByText('First fee')).not.toBeInTheDocument();

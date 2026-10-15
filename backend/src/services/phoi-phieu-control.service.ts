@@ -791,6 +791,72 @@ export async function updatePhoiPhieuMeta(tripId: number, input: {
   };
   return outer ? run(outer) : db.transaction(run);
 }
+
+/** Card 20261005 — "Cược" Bill/Book trên phơi phiếu.
+ *
+ *  Lưu số Bill/Book mà lái xe được giao để đi cược, gắn với chính lô hàng đã
+ *  chọn từ ô gợi ý. `expectedVersion` là optimistic lock của trips (mọi màn
+ *  hình tài chính khác đều vậy): gửi sai bản thì 409 chứ không ghi đè âm thầm.
+ *  Xóa cược là hợp lệ — gửi cả hai giá trị null. */
+export async function setPhoiPhieuDeposit(tripId: number, input: {
+  depositShipmentId: number | null;
+  depositBillNumber: string | null;
+  expectedVersion: number;
+}, userId: number, outer?: Tx): Promise<{ ok: true; version: number }> {
+  const run = async (tx: Tx): Promise<{ ok: true; version: number }> => {
+    const [trip] = await tx.select({ id: s.trips.id, version: s.trips.version })
+      .from(s.trips).where(eq(s.trips.id, tripId)).limit(1).for('update');
+    if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến.');
+    if (trip.version !== input.expectedVersion) {
+      throw new ApiError(409, 'Số liệu chuyến đã thay đổi. Tải lại trước khi lưu cược.');
+    }
+    const version = trip.version + 1;
+    await tx.update(s.trips).set({
+      depositShipmentId: input.depositShipmentId,
+      depositBillNumber: input.depositBillNumber,
+      version,
+    }).where(eq(s.trips.id, tripId));
+    await tx.insert(s.auditLogs).values({
+      userId, entityType: 'trip', entityId: tripId,
+      message: 'PHOI_PHEU_DEPOSIT_SET',
+      payload: { depositShipmentId: input.depositShipmentId, depositBillNumber: input.depositBillNumber },
+    });
+    return { ok: true, version };
+  };
+  return outer ? run(outer) : db.transaction(run);
+}
+
+/** Card 20261005 — đọc trạng thái "Cược" hiện tại của một chuyến cho ô nhập.
+ *  Tách riêng khỏi getPhoiPhieuTienDuong/ChiHo để hai payload chi tiết kia
+ *  không phải đổi shape. `depositCustomerName` là khách của LÔ ĐƯỢC CƯỢC
+ *  (không phải khách của chuyến) — join qua deposit_shipment_id. */
+export async function getPhoiPhieuDeposit(tripId: number): Promise<{
+  depositBillNumber: string | null;
+  depositShipmentId: number | null;
+  depositCustomerName: string | null;
+  tripVersion: number;
+}> {
+  const [trip] = await db.select({
+    depositBillNumber: s.trips.depositBillNumber,
+    depositShipmentId: s.trips.depositShipmentId,
+    version: s.trips.version,
+  }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến.');
+  let depositCustomerName: string | null = null;
+  if (trip.depositShipmentId) {
+    const [bid] = await db.select({ customerName: s.customers.name })
+      .from(s.shipments)
+      .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+      .where(eq(s.shipments.id, trip.depositShipmentId)).limit(1);
+    depositCustomerName = bid?.customerName ?? null;
+  }
+  return {
+    depositBillNumber: trip.depositBillNumber,
+    depositShipmentId: trip.depositShipmentId,
+    depositCustomerName,
+    tripVersion: trip.version,
+  };
+}
 /** Card 2026-10-05_373 — a DRIVER row is a value the DRIVER entered, and the
  *  accountant rejecting it is exactly the "Từ chối" action: the row leaves the
  *  dialog while the driver's own cost record (including `driverEnteredAmount`)

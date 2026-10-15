@@ -233,14 +233,17 @@
 
 .ops-field-error { color: var(--danger-text); font-size: var(--text-label-size); font-weight: 500; }
 
-/* Card 071026210510: the grant refusal shows as an alert banner above the
-   form; the fieldset wrapper disables every input without per-control edits,
-   and resets the native frame the browser would draw. */
-.ops-modal__refusal {
-  color: var(--danger-text);
+/* Plan step 5: the duplicate-cont heads-up shows as a warning banner inside
+   the form — tone warning, never a block. The fieldset wrapper is a plain
+   layout reset (no disabled state any more). */
+.ops-modal__warning {
+  background: var(--warning-soft);
+  color: var(--warning-text);
   font-size: var(--text-label-size);
   font-weight: 500;
   margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
 }
 .ops-modal__fieldset {
   border: 0;

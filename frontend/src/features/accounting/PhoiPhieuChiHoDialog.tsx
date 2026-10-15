@@ -15,10 +15,13 @@ import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateI
 import { EmptyState, Modal, NumberField, TextField } from '../../design-system';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
 import { PhoiPhieuDetailSummary } from './PhoiPhieuDetailSummary';
+import { DepositBillField } from './DepositBillField';
 import './phoi-phieu-dialogs.css';
 
 interface Props {
   tripId: number;
+  /** The lot this trip runs for — required by the accountant expense drawer. */
+  shipmentId: number;
   billOrBooking?: string | null;
   confirmation?: ChiHoConfirmation;
   onClose: () => void;
@@ -44,7 +47,7 @@ function liveAmount(
   return value === '' ? 0 : value;
 }
 
-export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onClose, onSaved }: Props) {
+export function PhoiPhieuChiHoDialog({ tripId, shipmentId, billOrBooking, confirmation, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const detail = useQuery({
     queryKey: qk.phoiPhieu.chiHo(tripId, confirmation),
@@ -202,6 +205,7 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
         </>}
       >
       <div className="phoi-detail-body">
+        <DepositBillField tripId={tripId} />
         {detail.isLoading && <p>Đang tải…</p>}
         {error && <div role="alert" className="phoi-detail-error">
           <p>{error}</p>
@@ -300,7 +304,7 @@ export function PhoiPhieuChiHoDialog({ tripId, billOrBooking, confirmation, onCl
       </div>
       </Modal>}
       {addPanelOpen && catalog.data && <ExpenseCreateDrawer
-      work={{ tripId, shipmentCode: billBookingReference(billOrBooking), containerNumber: null }}
+      work={{ tripId, shipmentId, shipmentCode: billBookingReference(billOrBooking), containerNumber: null }}
       catalog={catalog.data} initialGroup="OPS_INCIDENTAL" entryScope="OPS"
       onClose={() => setAdding(false)}
       onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) }); onSaved(); }}

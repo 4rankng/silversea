@@ -22,7 +22,9 @@ export function ExpenseCashDrawer({ catalog, reconciliation, onClose }: { catalo
   const [error, setError] = useState('');
   const lock = useRef(false);
   const command = useRef<{ payload: string; key: string } | null>(null);
-  const requests = (catalog.pendingAdvances ?? []).filter(item => String(item.opsUserId) === person);
+  // KP-148: yêu cầu PENDING phải được kế toán phê duyệt trước khi ghi tiền —
+  // chỉ đưa yêu cầu đã ghi sổ (RECORDED, chưa có tiền thật) vào danh sách chọn.
+  const requests = (catalog.pendingAdvances ?? []).filter(item => String(item.opsUserId) === person && item.status !== 'PENDING');
   const accounts = catalog.accounts.filter(item => item.fundCode === fund);
   const mutation = useMutation({ mutationFn: async () => {
     const body = { amount: Number(amount), reason: reason.trim(), treasuryAccountId: Number(account), valueDate: date, physicalReference: reference.trim() };

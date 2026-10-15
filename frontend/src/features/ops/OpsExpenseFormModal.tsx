@@ -1,7 +1,7 @@
 import { PhotoImage } from '../../components/shared/PhotoImage';
 import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2, X } from 'lucide-react';
-import { useOpsExpenseTypes, useCreateOpsExpense } from '../../hooks/useOpsQueries';
+import { useOpsExpenseTypes, useOpsContainerClaimants, useCreateOpsExpense } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsOrderItem } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
@@ -64,9 +64,19 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Card 071026210510's open-time grant probe is retired with the per-person
-  // grant itself (2026-10-14 accountant doc): every OPS may declare any lot's
-  // costs, so there is nothing left to ask before input.
+  // Duplicate-cont heads-up (plan step 5): any Ops may declare on any lot, so
+  // two people can land on the same cont. The answer is a WARNING naming the
+  // earlier claimant — never a block; Lưu stays enabled either way. A failed
+  // probe simply shows no warning.
+  const claimantsQuery = useOpsContainerClaimants(order.id);
+  const containerId = opsContainerId(containerChoice);
+  const claimant = useMemo(() => {
+    if (containerId == null) return null; // 'LOT' / '' is a lot-wide fee — never warns
+    return claimantsQuery.data?.find((row) => row.containerId === containerId) ?? null;
+  }, [claimantsQuery.data, containerId]);
+  const claimedContainerLabel = claimant
+    ? claimant.containerNumber ?? order.containerNumbers[order.containerIds.indexOf(claimant.containerId)] ?? String(claimant.containerId)
+    : '';
 
   const groupedTypes = useMemo(() => {
     const items = typesData?.items ?? [];
@@ -139,7 +149,6 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     event.preventDefault();
     if (!canSubmit || savingRef.current) return;
     savingRef.current = true;
-    const containerId = opsContainerId(containerChoice);
     try {
       await createExpense.mutateAsync({
         shipmentId: order.id,
@@ -215,6 +224,12 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               <DateInput value={paidAt} onChange={setPaidAt} required />
             </label>
           </div>
+
+          {claimant && (
+            <p className="ops-modal__warning" role="alert">
+              {`Cont ${claimedContainerLabel} đã có ${claimant.paidByName ?? 'người khác'} nhập trước — bạn vẫn tiếp tục nhập chứ.`}
+            </p>
+          )}
 
           <OpsExpenseFinancialFields value={financial} onChange={setFinancial} amount={amountValid ? Number(amount) : 0} disabled={busy || uploading} />
 

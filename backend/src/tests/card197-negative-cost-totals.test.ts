@@ -527,10 +527,10 @@ describe('card 20260928_197 — a negative cost row can be saved, and charges no
     return code;
   }
 
-  /** Seed a prior expense row so the scenario matches a real returning
-   *  forwarder. Since the 2026-10-14 open scope, no grant is needed to save —
-   *  the test is about the charge, not the scope. */
-  async function mkGranted(fixture: Fixture, expenseTypeCode: string) {
+  /** Seed a prior saved expense by the same payer — the fixture's realistic
+   *  history (a returning forwarder's lot already carries their own row).
+   *  No scope grant is involved any more: every Ops may declare on any lot. */
+  async function mkPriorExpense(fixture: Fixture, expenseTypeCode: string) {
     const [seed] = await db.insert(s.opsExpenseEntries).values({
       shipmentId: fixture.lot.id, expenseTypeCode, amount: '1000',
       paidById: fixture.payer.id, paidAt: fixture.day, approvalStatus: 'RECORDED',
@@ -541,7 +541,7 @@ describe('card 20260928_197 — a negative cost row can be saved, and charges no
   test('an INVOICED_ ops row with a negative amount saves, with a 0 receivable', async () => {
     const fixture = await mkFixture('chg');
     const code = await mkActiveType('chg');
-    await mkGranted(fixture, code);
+    await mkPriorExpense(fixture, code);
 
     const created = await createOpsExpense(fixture.payer.id, {
       shipmentId: fixture.lot.id,
@@ -560,7 +560,7 @@ describe('card 20260928_197 — a negative cost row can be saved, and charges no
   test('a POSITIVE INVOICED_ row still charges the full amount (the invariant is untouched)', async () => {
     const fixture = await mkFixture('pos');
     const code = await mkActiveType('pos');
-    await mkGranted(fixture, code);
+    await mkPriorExpense(fixture, code);
 
     const created = await createOpsExpense(fixture.payer.id, {
       shipmentId: fixture.lot.id,
@@ -577,7 +577,7 @@ describe('card 20260928_197 — a negative cost row can be saved, and charges no
   test('an explicit negative customerChargeAmount override is refused, naming the field', async () => {
     const fixture = await mkFixture('ovr');
     const code = await mkActiveType('ovr');
-    await mkGranted(fixture, code);
+    await mkPriorExpense(fixture, code);
 
     // A caller may not push a negative receivable in through the override
     // either. It used to surface as the same field-less "must be >= 0".

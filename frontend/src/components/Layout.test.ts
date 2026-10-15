@@ -11,6 +11,7 @@ import {
   getPageTitle,
 } from './Layout';
 import { titleForPath } from '../lib/routes';
+import { expenseAccountingViewsFor } from '../features/expense-accounting/ExpenseAccountingWorkspace';
 
 describe('getNavItems', () => {
   it.each([
@@ -309,11 +310,12 @@ describe('getNavItems', () => {
     }
   });
 
-  it('does not advertise internal approval workflows in role navigation', () => {
-    for (const role of Object.values(Role)) {
-      expect(getNavSections(role).some(section => /phê duyệt/i.test(section.label)), role).toBe(false);
-      expect(getNavItems(role).some(item => /approval|approve|phê duyệt/i.test(`${item.path} ${item.label}`)), role).toBe(false);
-    }
+  it('shows the pending-advance approval tab to the approving office roles only', () => {
+    // KP-148 — bước phê duyệt tạm ứng quay lại: tab "Tạm ứng chờ duyệt" hiện
+    // cho vai trò có quyền duyệt (ACCOUNTANT/ADMIN/MANAGER) và không hiện cho OPS.
+    expect(expenseAccountingViewsFor(Role.ACCOUNTANT).some((view) => view.id === 'pending-advances' && view.label === 'Tạm ứng chờ duyệt')).toBe(true);
+    expect(expenseAccountingViewsFor(Role.ADMIN).some((view) => view.id === 'pending-advances')).toBe(true);
+    expect(expenseAccountingViewsFor(Role.OPS).some((view) => view.id === 'pending-advances')).toBe(false);
   });
 
   it('uses one canonical advance workspace item for office roles', () => {

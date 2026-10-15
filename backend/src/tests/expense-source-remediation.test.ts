@@ -49,19 +49,31 @@ async function trip(tx: Tx, ctx: Awaited<ReturnType<typeof setup>>) {
     routeId: ctx.route.id, cargoTypeId: ctx.cargo.id, departureDate: '2026-09-16', status: 'CREATED', carrierType: 'OWN', fulfillmentId: fulfillment.id });
 }
 
-test('FIX17-S01 open OPS scope: an unlinked ops still writes any lot; the update reason rule stays', async () => fixture(async (tx, ctx) => {
-  const source = await ops(tx, ctx);
-  const actor = { userId: ctx.user.id, role: Role.OPS };
-  // 2026-10-14 accountant doc: the per-person grant is retired, so an ops
-  // with NO link, NO assignment and NO prior expense now writes a fresh lot.
-  const [fresh] = await tx.insert(s.shipments).values({ shipmentCode: `${ctx.shipment.shipmentCode}-fresh`, customerId: ctx.customer.id }).returning();
-  await createOpsExpense(ctx.user.id, { shipmentId: fresh.id, expenseTypeCode: 'OTHER', amount: 500, paidAt: '2026-09-16' }, tx);
-  await assertExpenseOwnerWriteScope(tx, actor, { ...source, shipmentId: fresh.id });
-  // Owner deletes are soft voids with a mandatory reason — that rule is
-  // independent of the scope and must survive the grant retirement.
-  await assert.rejects(updateOpsExpense(ctx.user.id, source.sourceId, { amount: 600, expectedVersion: source.version }, tx), /lý do/);
-  await assertExpenseOwnerWriteScope(tx, ctx.actor, source);
-}));
+test('FIX17-S01 every Ops may declare on any lot — the assignment grant is gone', async () => {
+  // `assertActiveExpenseType` reads through `db` (outside the fixture's
+  // rolled-back tx), so the catalog row must exist committed for the duration.
+  const [type] = await db.insert(s.forwarderExpenseTypes).values({
+    code: `FIX17S01${crypto.randomUUID().replace(/[^A-Za-z0-9]/g, '').slice(0, 10)}`,
+    name: 'FIX17-S01 scope probe', status: 'ACTIVE', requiresInvoice: true, category: 'LIFT',
+  }).returning();
+  try {
+    await fixture(async (tx, ctx) => {
+      const source = await ops(tx, ctx);
+      const actor = { userId: ctx.user.id, role: Role.OPS };
+      // Plan step 5 removed the grant: a fresh lot — no user link, no truck
+      // chain, no prior expense — is writable, so the old 403 case now saves.
+      const [fresh] = await tx.insert(s.shipments).values({ shipmentCode: `${ctx.shipment.shipmentCode}-fresh`, customerId: ctx.customer.id }).returning();
+      const created = await createOpsExpense(ctx.user.id, { shipmentId: fresh.id, expenseTypeCode: type.code, amount: 500, paidAt: '2026-09-16' }, tx);
+      assert.equal(created.shipmentId, fresh.id);
+      // Evidence write-scope no longer gates OPS either; finance stays open.
+      await assertExpenseOwnerWriteScope(tx, actor, { ...source, shipmentId: fresh.id });
+      await assert.rejects(updateOpsExpense(ctx.user.id, source.sourceId, { amount: 600, expectedVersion: source.version }, tx), /lý do/);
+      await assertExpenseOwnerWriteScope(tx, ctx.actor, source);
+    });
+  } finally {
+    await db.delete(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.id, type.id));
+  }
+});
 test('FIX17-S02 OPS receipt rows are authoritative over stale native JSON', async () => fixture(async (tx, ctx) => {
   const source = await ops(tx, ctx);
   await tx.update(s.opsExpenseEntries).set({ photoStorageKeys: ['stale-deleted.jpg'] }).where(eq(s.opsExpenseEntries.id, source.sourceId));

@@ -66,6 +66,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     apiUpload.mockReset();
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/orders')) return Promise.resolve(makeItems());
+      if (url.startsWith('/ops/expenses/cont-claimants')) return Promise.resolve([]);
       if (url.startsWith('/ops/expense-types')) {
         return Promise.resolve({
           items: [

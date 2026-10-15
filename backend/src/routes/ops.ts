@@ -29,6 +29,7 @@ import {
   deleteOpsExpense,
   deleteOpsExpensePhoto,
   listActiveOpsExpenseTypes,
+  listOpsExpenseContainerClaimants,
   listOpsExpensePhotos,
   listOpsExpenses,
   updateOpsExpense,
@@ -138,9 +139,9 @@ router.post('/wallet/advance-requests', declareMaterialWrite('ops.advance-reques
     payload: { ...parsed, userId: user.userId },
     createdBy: user.userId,
     responseStatusCode: 201,
-    // Direct-effect save: the requester's own create applies the advance
-    // (status + ledger) in the same transaction — no approval handoff.
-    create: (tx) => createAdvanceRequest(user.userId, parsed, tx),
+    // Yêu cầu của Ops đi qua bước phê duyệt: ghi PENDING, chưa có bút toán và
+    // chưa có tiền vào quỹ — kế toán phê duyệt mới ghi sổ (KP-148).
+    create: (tx) => createAdvanceRequest(user.userId, parsed, tx, { pending: true }),
   });
   res.status(outcome.statusCode).json(outcome.result);
 }));
@@ -185,6 +186,14 @@ const expensePatchSchema = z.object({
   note: z.string().max(1000).nullable().optional(),
 });
 
+
+// Duplicate-cont heads-up (every Ops may declare on any lot, so two Ops can
+// legitimately land on the same cont): the dialog shows WHO already declared
+// there and lets the operator continue — a warning, never a block.
+router.get('/expenses/cont-claimants', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+  const shipmentId = parseId(typeof req.query.shipmentId === 'string' ? req.query.shipmentId : undefined, 'Lô hàng');
+  res.json(await listOpsExpenseContainerClaimants(shipmentId));
+}));
 
 router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);

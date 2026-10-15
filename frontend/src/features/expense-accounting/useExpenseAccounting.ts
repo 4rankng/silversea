@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ExpenseAccountingEntry, ExpenseAccountingUpdate, ExpenseVoucherInput, ExpenseReconciliationInput, ExpenseAccountingCreate } from '@tingting/shared';
+import type { ExpenseAccountingEntry, ExpenseAccountingUpdate, ExpenseVoucherInput, ExpenseReconciliationInput, ExpenseAccountingCreate, ExpenseAccountingCreateBatch } from '@tingting/shared';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { sourceRef } from './expense-accounting-model';
@@ -17,6 +17,8 @@ export function useExpenseMutations() {
   };
   return {
     create: useMutation({ mutationFn: ({ body, key }: { body: ExpenseAccountingCreate; key: string }) => expenseAccountingClient.create(body, key), onSuccess: invalidate }),
+    /** Card 20261005 — lưu nhiều khoản chi một lần (all-or-nothing phía server). */
+    createBatch: useMutation({ mutationFn: ({ body, key }: { body: ExpenseAccountingCreateBatch; key: string }) => expenseAccountingClient.createBatch(body, key), onSuccess: invalidate }),
     reverse: useMutation({ mutationFn: ({ id, body, key }: { id: number; body: Parameters<typeof expenseAccountingClient.reverseVoucher>[1]; key: string }) => expenseAccountingClient.reverseVoucher(id, body, key), onSuccess: invalidate }),
     update: useMutation({ mutationFn: ({ entry, body }: { entry: ExpenseAccountingEntry; body: ExpenseAccountingUpdate }) => expenseAccountingClient.update(sourceRef(entry), body), onSuccess: invalidate }),
     correct: useMutation({ mutationFn: ({ entry, body }: { entry: ExpenseAccountingEntry; body: ExpenseAccountingUpdate }) => expenseAccountingClient.correct(sourceRef(entry), body), onSuccess: invalidate }),
