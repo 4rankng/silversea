@@ -135,7 +135,7 @@ function isoOrNull(value: Date | null): string | null {
 function assertMonthOwnsDate(year: number, month: number, workDate: string): void {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(workDate);
   if (!match) throw new ApiError(400, `Ngày không hợp lệ: ${workDate}.`);
-  const [, y, m, d] = match;
+  const [, y, m] = match;
   if (Number(y) !== year || Number(m) !== month) {
     throw new ApiError(400, `Ngày ${workDate} không thuộc tháng ${String(month).padStart(2, '0')}/${year}.`);
   }

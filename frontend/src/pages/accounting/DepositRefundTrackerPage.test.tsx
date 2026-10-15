@@ -154,7 +154,7 @@ describe('deposit tracker workflows', () => {
     fireEvent.click(form.getByRole('button', { name: 'Lưu dòng' }));
     await waitFor(() => expect(api.createDepositTracker).toHaveBeenCalledExactlyOnceWith({
       billNumber: 'QA-NEW', customerName: 'QA customer', carrierName: 'QA carrier',
-      depositAmount: 5000000,
+      depositAmount: 5000000, shipmentId: null,
       cvSubmittedDate: '2026-10-01', expectedRefundDate: '2026-10-15',
       note: null, depositDate: '2026-10-03', status: 'DA_HOAN_CUOC',
     }));
@@ -169,7 +169,7 @@ describe('deposit tracker workflows', () => {
     fireEvent.click(form.getByRole('button', { name: 'Lưu dòng' }));
     await waitFor(() => expect(api.createDepositTracker).toHaveBeenCalledExactlyOnceWith({
       billNumber: 'QA-NEW', customerName: 'QA customer', carrierName: 'QA carrier',
-      depositAmount: 5000000,
+      depositAmount: 5000000, shipmentId: null,
       cvSubmittedDate: null, expectedRefundDate: null, note: null, depositDate: null,
       status: 'CHUA_HOAN_CUOC',
     }));

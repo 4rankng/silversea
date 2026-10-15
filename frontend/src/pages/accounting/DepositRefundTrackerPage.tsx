@@ -418,7 +418,7 @@ function CreateForm({ onSaved }: {
           </li>
         ))}
         {billLookup.length === 4 && (suggestionQuery.data ?? []).length === 0 && (
-          <li className="bill-suggestions__empty">Không có lô hàng nào kết thúc bằng {billLookup}. Nhập tay bên dưới.</li>
+          <li className="bill-suggestions__no-match">Không có lô hàng nào kết thúc bằng {billLookup}. Nhập tay bên dưới.</li>
         )}
       </ul>
       <FormGroup label="Số Bill"><input className="input" value={billNumber} onChange={(event) => { setBillNumber(event.target.value); setShipmentId(null); }} required maxLength={80} /></FormGroup>

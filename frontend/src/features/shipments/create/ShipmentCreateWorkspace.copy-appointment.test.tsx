@@ -272,7 +272,7 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     expect(copyButton()).toBeNull();
     // …yet the time itself is copyable.
     const copyTime = screen.getByRole('button', { name: 'Copy Giờ hẹn đóng trả' });
-    expect(copyTime.closest('td')?.dataset.label).toBe('Ngày giờ đóng trả');
+    expect(copyTime.closest('td')?.dataset.label).toBe('Ngày giờ đóng trả *');
 
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
