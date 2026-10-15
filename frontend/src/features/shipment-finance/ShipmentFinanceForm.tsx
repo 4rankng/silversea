@@ -18,7 +18,12 @@ export function ShipmentFinanceForm({ editor, shipmentId, principalLocked = fals
   const formId = useId();
   const invoice = editor.kind === 'invoice' ? editor.record : undefined;
   const deposit = editor.kind === 'deposit' ? editor.record : undefined;
-  const [lot, setLot] = useState(String(editor.record?.shipmentId ?? shipmentId ?? ''));
+  // CPB-02: the lot is DERIVED from the record/panel context until the user
+  // explicitly picks one. The old one-shot useState captured whatever context
+  // existed at mount, so a form mounted before the lot context arrived stayed
+  // empty forever and every save refused with 'Chọn lô hàng trước khi lưu.'.
+  const [lotChoice, setLotChoice] = useState<string | null>(null);
+  const lot = lotChoice ?? String(editor.record?.shipmentId ?? shipmentId ?? '');
   const [lotSearch, setLotSearch] = useState('');
   const [supplierId, setSupplierId] = useState(String(invoice?.supplierId ?? ''));
   const [invoiceNumber, setInvoiceNumber] = useState(invoice?.invoiceNumber ?? '');
@@ -76,7 +81,7 @@ export function ShipmentFinanceForm({ editor, shipmentId, principalLocked = fals
       {error && <p role="alert" className="shipment-finance__error">{error}</p>}
       {!shipmentId && !editor.record && <>
         <TextField controlSize="sm" label="Tìm lô hàng" value={lotSearch} onChange={(event) => setLotSearch(event.target.value)} placeholder="Mã lô, Bill hoặc khách hàng" disabled={busy} />
-        <UuiSelectField label="Lô hàng" disabled={busy} required value={lot} onChange={(event) => { setLot(event.target.value); setSourceExpenseId(''); setTripId(''); }}
+        <UuiSelectField label="Lô hàng" disabled={busy} required value={lot} onChange={(event) => { setLotChoice(event.target.value); setSourceExpenseId(''); setTripId(''); }}
           options={[{ value: '', label: 'Chọn lô hàng' }, ...(lots.data?.items ?? []).map((item) => ({ value: String(item.id), label: [item.blNumber, item.customerName].filter(Boolean).join(' · ') || '—' }))]} />
         {lots.isError && <p role="alert">Không tải được lô hàng. <button type="button" className="btn btn--ghost" onClick={() => void lots.refetch()}>Thử lại</button></p>}
       </>}

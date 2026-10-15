@@ -123,6 +123,13 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
     // the same distinction the board and the export both preserve.
     const comAmountTrimmed = comAmount.trim();
     const comAmountValue = comAmountTrimmed === '' ? null : Number(comAmountTrimmed);
+    // CPB-02: a picked lot whose trip list is still loading is NOT a missing
+    // lot — refuse with the loading state instead of the recurring
+    // 'Chọn lô hàng và chuyến trước khi lưu.' the accountants kept hitting.
+    if (mode === 'create' && detailLoading) {
+      setFormError('Đang tải thông tin lô — chờ danh sách chuyến rồi lưu lại.');
+      return;
+    }
     const problems: string[] = [];
     if (!trimmedInvoiceNumber) problems.push('Số hóa đơn là bắt buộc.');
     if (!Number.isInteger(invoiceAmountValue) || invoiceAmountValue < 0) problems.push('Số tiền hóa đơn phải là số nguyên không âm.');
@@ -257,7 +264,7 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
 
         <footer className="invoice-tracking-form__footer">
           <Btn variant="secondary" size="sm" onClick={closeWhenIdle} disabled={saving}>Hủy</Btn>
-          <Btn variant="primary" size="sm" onClick={() => void handleSubmit()} disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu'}</Btn>
+          <Btn variant="primary" size="sm" onClick={() => void handleSubmit()} disabled={saving || detailLoading} title={detailLoading ? 'Đang tải thông tin lô' : undefined}>{saving ? 'Đang lưu…' : detailLoading ? 'Đang tải lô…' : 'Lưu'}</Btn>
         </footer>
       </fieldset>
     </Modal>

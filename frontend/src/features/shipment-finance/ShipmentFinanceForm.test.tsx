@@ -70,3 +70,47 @@ it('FIX-WS-17: locked deposit preserves principal controls while allowing docume
   expect(screen.getByLabelText(/Đã nhận hoàn \(đ\)/)).not.toBeDisabled();
   expect(screen.getByLabelText('Ghi chú')).not.toBeDisabled();
 });
+
+// CPB-02 (accountant P0): a cost form mounted before the lot context arrives
+// must pick the lot up reactively — the old one-shot useState captured ''
+// at mount and never adopted the lot, so the save refused forever with
+// 'Chọn lô hàng trước khi lưu.'.
+describe('CPB-02 — lot context arrives after mount', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    api.options.mockResolvedValue({ suppliers: [{ id: 3, name: 'Hãng tàu' }], expenses: [] });
+    api.saveDeposit.mockResolvedValue({ id: 9 });
+  });
+  const fillDepositDraft = () => {
+    fireEvent.change(screen.getByLabelText(/Số Bill/), { target: { value: 'BL-44' } });
+    fireEvent.change(screen.getByLabelText(/Hãng tàu/), { target: { value: 'MSC' } });
+    fireEvent.change(screen.getByLabelText(/Tiền cược \(đ\)/), { target: { value: '2000000' } });
+  };
+  it('adopts a late-arriving shipmentId instead of refusing forever', async () => {
+    // Mount with NO lot context (the create-from-global path), then hand the
+    // same mounted form its lot context — the save must target that lot.
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { rerender } = render(
+      <QueryClientProvider client={cache}><ShipmentFinanceForm editor={{ kind: 'deposit' }} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>,
+    );
+    fillDepositDraft();
+    rerender(
+      <QueryClientProvider client={cache}><ShipmentFinanceForm editor={{ kind: 'deposit' }} shipmentId={44} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>,
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu hồ sơ' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }));
+    await waitFor(() => expect(api.saveDeposit).toHaveBeenCalledTimes(1));
+    expect(api.saveDeposit.mock.calls[0][0]).toBe(44);
+  });
+  it('saves against the panel lot context when no explicit choice was made', async () => {
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={cache}><ShipmentFinanceForm editor={{ kind: 'deposit' }} shipmentId={12} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>,
+    );
+    fillDepositDraft();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu hồ sơ' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }));
+    await waitFor(() => expect(api.saveDeposit).toHaveBeenCalledTimes(1));
+    expect(api.saveDeposit.mock.calls[0][0]).toBe(12);
+  });
+});
