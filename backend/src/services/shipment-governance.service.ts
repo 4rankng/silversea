@@ -54,6 +54,11 @@ export async function requestShipmentDelete(args: {
     const deleted = await softDeleteShipment(args.shipmentId, {
       version: args.version,
       deletedBy: args.actor.userId,
+      actor: {
+        userId: args.actor.userId,
+        role: args.actor.role,
+        actorName: args.actor.fullName ?? args.actor.username ?? undefined,
+      },
     }, tx);
     return { action: null, deleted };
   };

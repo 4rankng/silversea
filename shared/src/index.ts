@@ -90,16 +90,18 @@ export type {
 export { parseThreshold } from './types';
 export { shipmentInvoiceRecordSchema, containerDepositSchema } from './schemas/shipment-finance';
 export type { ShipmentInvoiceRecordInput, ContainerDepositInput } from './schemas/shipment-finance';
-// FB-092/093 — LCL lot grouping commands + wire facts.
+// FB-092/093/095 — LCL lot grouping commands + wire facts.
 export {
   assignLclCostGroupSchema,
   mergeLclRevGroupSchema,
+  unmergeLclLotSchema,
   updateLclTruckSchema,
   LCL_GROUP_DIMENSIONS,
 } from './schemas/lcl-grouping';
 export type {
   AssignLclCostGroupInput,
   MergeLclRevGroupInput,
+  UnmergeLclLotInput,
   UpdateLclTruckInput,
   LclGroupDimension,
   LclGroupWire,

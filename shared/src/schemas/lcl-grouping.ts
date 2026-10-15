@@ -44,6 +44,14 @@ export type MergeLclRevGroupInput = z.infer<typeof mergeLclRevGroupSchema>;
 export const LCL_GROUP_DIMENSIONS = ['COST', 'REV'] as const;
 export type LclGroupDimension = (typeof LCL_GROUP_DIMENSIONS)[number];
 
+/** FB-095 — tách một lô khỏi nhóm ghép của một chiều tiền. */
+export const unmergeLclLotSchema = z.object({
+  shipmentId: z.number().int().positive(),
+  /** Chiều tiền cần tách: COST (trả ĐV) hoặc REV (thu khách). */
+  dimension: z.enum(LCL_GROUP_DIMENSIONS),
+});
+export type UnmergeLclLotInput = z.infer<typeof unmergeLclLotSchema>;
+
 /** FB-093 — quick-edit of a lot's (or its whole cost group's) BKS pair. */
 export const updateLclTruckSchema = z.object({
   shipmentId: z.number().int().positive(),

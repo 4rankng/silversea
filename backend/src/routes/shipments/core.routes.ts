@@ -898,6 +898,7 @@ coreRoutes.delete(
         const shipment = await softDeleteShipment(id, {
           version,
           deletedBy: user.userId,
+          actor: { userId: user.userId, role: user.role, actorName: user.fullName ?? user.username ?? undefined },
         }, tx);
         return {
           body: { ok: true },

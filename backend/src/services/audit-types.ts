@@ -22,6 +22,9 @@ export const AuditEvent = {
   // LCL lot grouping (FB-092/093) — the two money dimensions group independently.
   SHIPMENT_LCL_COST_GROUP_ASSIGNED: 'SHIPMENT_LCL_COST_GROUP_ASSIGNED',
   SHIPMENT_LCL_REV_GROUP_MERGED: 'SHIPMENT_LCL_REV_GROUP_MERGED',
+  // FB-095 — a lot left a group (un-merge or principal deletion); promotion
+  // of the next principal rides the payload.
+  SHIPMENT_LCL_GROUP_UNMERGED: 'SHIPMENT_LCL_GROUP_UNMERGED',
 
   // Financial
   PAYMENT_RECEIVED: 'PAYMENT_RECEIVED',

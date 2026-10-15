@@ -10,8 +10,9 @@
  *   "Ghép cước cùng Bill X", plus the settlement row projection.
  *   FB-094 debit note + board: the note prints the billing BKS (never the
  *   actual plate) and the accounting board row carries the LCL facts.
- *
- * The promote-on-unmerge safety (FB-095) adds its cases to this same file.
+ *   FB-095 un-merge safety: a settled group refuses composition changes;
+ *   leaving Lô 1 auto-promotes Lô 2 with 100% of the money (both dimensions),
+ *   with audit; deleting the principal promotes inside the delete txn.
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,7 +28,9 @@ import type { CustomerDebitTripCandidate } from '../services/billing-document-sh
 import {
   assignLclCostGroup,
   mergeLclRevGroup,
+  unmergeLclLot,
 } from '../services/lcl-grouping.service';
+import { softDeleteShipment } from '../services/shipment-lifecycle.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const actor = { userId: 1, role: 'ADMIN', actorName: 'FB092 test' };
@@ -37,6 +40,8 @@ const createdCustomerIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdTripIds: number[] = [];
 const createdPricingTableIds: number[] = [];
+const createdAccountingLockIds: number[] = [];
+const createdBillingDocIds: number[] = [];
 
 async function mkCustomer(name: string) {
   const [customer] = await db.insert(s.customers).values({ name: `${name} ${suffix}` }).returning();
@@ -403,9 +408,242 @@ describe('LCL grouping — FB-094 debit note + board', () => {
   });
 });
 
+describe('LCL grouping — FB-095 un-merge safety', () => {
+  async function mkAccountingLock(shipmentId: number, shipmentVersion: number, customerId: number) {
+    const [doc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE',
+      entityType: 'CUSTOMER',
+      entityId: customerId,
+      entityName: `FB095 lock doc ${suffix}`,
+      rangeFrom: '2026-10-01',
+      rangeTo: '2026-10-31',
+      totalInclVat: '0',
+    }).returning();
+    createdBillingDocIds.push(doc.id);
+    const [lock] = await db.insert(s.shipmentAccountingLocks).values({
+      shipmentId,
+      billingDocumentId: doc.id,
+      billingDocumentVersion: 1,
+      billingPeriodSnapshot: {
+        rangeFrom: '2026-10-01',
+        rangeTo: '2026-10-31',
+        issuedAt: '2026-10-31T00:00:00.000Z',
+      },
+      shipmentVersionAtLock: shipmentVersion,
+      reason: 'FB095 settled-group guard fixture',
+      activatedBy: actor.userId,
+    }).returning();
+    createdAccountingLockIds.push(lock.id);
+    return lock;
+  }
+
+  test('un-merging Lô 1 (COST) promotes Lô 2 with 100% of the freight (FB095-01)', async () => {
+    const customer = await mkCustomer('FB095 cost');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB095-C1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB095-C2-${suffix.slice(-6)}`);
+    const lot3 = await mkLclLot(customer.id, route.id, `FB095-C3-${suffix.slice(-6)}`);
+    const trip1 = await mkTrip(lot1.id, customer.id, route.id);
+    const trip2 = await mkTrip(lot2.id, customer.id, route.id);
+    const trip3 = await mkTrip(lot3.id, customer.id, route.id);
+    await upsertTripCarrierInfo(db, trip1.id, { carrierType: 'EXTERNAL', externalFreightCost: '2400000' });
+    await upsertTripCarrierInfo(db, trip2.id, { carrierType: 'EXTERNAL', externalFreightCost: '800000' });
+    await upsertTripCarrierInfo(db, trip3.id, { carrierType: 'EXTERNAL', externalFreightCost: '600000' });
+    const truckClass = await vehicleClassByCode('5T');
+    const group = await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id, lot3.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-777.77',
+    }, actor);
+
+    const result = await unmergeLclLot({ shipmentId: lot1.id, dimension: 'COST' }, actor);
+    assert.equal(result.promoted!.shipmentId, lot2.id);
+    assert.equal(result.transferredAmount, '2400000');
+    assert.equal(result.dissolved, false);
+    assert.deepEqual(result.remaining.map((m) => [m.shipmentId, m.order]), [[lot2.id, 1], [lot3.id, 2]]);
+
+    // The freight followed the crown; it never fell to 0₫.
+    const t1 = await liveTrip(lot1.id);
+    const t2 = await liveTrip(lot2.id);
+    assert.equal(t1!.externalFreightCost, '0');
+    assert.equal(t2!.externalFreightCost, '2400000');
+
+    // Row facts: leaver ungrouped; survivors renumbered under the same group.
+    const rows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot2.id, lot3.id]));
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    assert.equal(byId.get(lot1.id)!.costGroupId, null);
+    assert.equal(byId.get(lot2.id)!.costGroupId, group.groupId);
+    assert.equal(byId.get(lot2.id)!.costGroupOrder, 1);
+    assert.equal(byId.get(lot3.id)!.costGroupOrder, 2);
+
+    const events = await groupAuditEvents(lot1.id);
+    assert.ok(events.includes('SHIPMENT_LCL_GROUP_UNMERGED'));
+  });
+
+  test('un-merging Lô 1 (REV) transfers the bill money and dissolves a 2-lot group (FB095-02)', async () => {
+    const customer = await mkCustomer('FB095 rev');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB095-R1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB095-R2-${suffix.slice(-6)}`);
+    const trip1 = await mkTrip(lot1.id, customer.id, route.id);
+    const trip2 = await mkTrip(lot2.id, customer.id, route.id);
+    await upsertTripFinancialState(db, trip1.id, { revenue: '3150000' });
+    await upsertTripFinancialState(db, trip2.id, { revenue: '700000' });
+    const truckClass = await vehicleClassByCode('3.5T');
+    const [pricingRow] = await db.insert(s.pricingTables).values({
+      customerId: customer.id,
+      routeId: route.id,
+      vehicleSizeClassId: truckClass.id,
+      rateKey: truckClass.code,
+      price: '3150000',
+    }).returning();
+    createdPricingTableIds.push(pricingRow.id);
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: truckClass.id }, actor);
+
+    const result = await unmergeLclLot({ shipmentId: lot1.id, dimension: 'REV' }, actor);
+    assert.equal(result.promoted!.shipmentId, lot2.id);
+    assert.equal(result.transferredAmount, '3150000');
+    assert.equal(result.dissolved, true, 'a lone survivor is not a group');
+    assert.deepEqual(result.remaining, []);
+
+    const t1 = await liveTrip(lot1.id);
+    const t2 = await liveTrip(lot2.id);
+    assert.equal(t1!.revenue, '0');
+    assert.equal(t2!.revenue, '3150000');
+    assert.match(t2!.revenueOverrideReason!, /Đón cước chính khi tách nhóm/);
+    assert.match(t1!.revenueOverrideReason!, /chuyển 100% cước/);
+
+    const rows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot2.id]));
+    for (const row of rows) {
+      assert.equal(row.revGroupId, null, 'the group dissolved');
+    }
+  });
+
+  test('a settled group refuses un-merge — an active accounting lock freezes it (FB095-03)', async () => {
+    const customer = await mkCustomer('FB095 settled');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB095-S1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB095-S2-${suffix.slice(-6)}`);
+    const trip1 = await mkTrip(lot1.id, customer.id, route.id);
+    await upsertTripCarrierInfo(db, trip1.id, { carrierType: 'EXTERNAL', externalFreightCost: '1500000' });
+    const truckClass = await vehicleClassByCode('5T');
+    const group = await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-666.66',
+    }, actor);
+    // The MEMBER (not even the leaver) is settled — the whole group freezes.
+    await mkAccountingLock(lot2.id, (await db.select().from(s.shipments).where(eq(s.shipments.id, lot2.id)))[0]!.version, customer.id);
+
+    await assert.rejects(
+      unmergeLclLot({ shipmentId: lot1.id, dimension: 'COST' }, actor),
+      /đã chốt kế toán/,
+    );
+
+    // Nothing changed: money, membership and ordering all still read grouped.
+    const t1 = await liveTrip(lot1.id);
+    assert.equal(t1!.externalFreightCost, '1500000');
+    const rows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot2.id]));
+    for (const row of rows) {
+      assert.equal(row.costGroupId, group.groupId);
+      assert.equal(row.costGroupOrder, row.id === lot1.id ? 1 : 2);
+    }
+  });
+
+  test('a member leaving moves no money; renumbering + REV zero re-stamp apply (FB095-04)', async () => {
+    const customer = await mkCustomer('FB095 member');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB095-M1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB095-M2-${suffix.slice(-6)}`);
+    const lot3 = await mkLclLot(customer.id, route.id, `FB095-M3-${suffix.slice(-6)}`);
+    for (const lot of [lot1, lot2, lot3]) {
+      await mkTrip(lot.id, customer.id, route.id);
+    }
+    const t2 = await liveTrip(lot2.id);
+    await upsertTripCarrierInfo(db, t2!.tripId, { carrierType: 'EXTERNAL', externalFreightCost: '800000' });
+    await upsertTripFinancialState(db, t2!.tripId, { revenue: '700000' });
+    const truckClass = await vehicleClassByCode('5T');
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id, lot3.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-555.55',
+    }, actor);
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id, lot3.id], vehicleSizeClassId: truckClass.id }, actor);
+
+    const result = await unmergeLclLot({ shipmentId: lot2.id, dimension: 'COST' }, actor);
+    assert.equal(result.promoted, null);
+    assert.equal(result.transferredAmount, null);
+    assert.deepEqual(result.remaining.map((m) => [m.shipmentId, m.order]), [[lot1.id, 1], [lot3.id, 2]]);
+    const after2 = await liveTrip(lot2.id);
+    assert.equal(after2!.externalFreightCost, '0', 'member cost stays zero');
+
+    // REV member exit: the stale "Ghép cùng Bill X" stamp becomes current.
+    const revResult = await unmergeLclLot({ shipmentId: lot2.id, dimension: 'REV' }, actor);
+    assert.equal(revResult.promoted, null);
+    const revAfter = await liveTrip(lot2.id);
+    assert.equal(revAfter!.revenue, '0');
+    assert.equal(revAfter!.revenueOverrideReason, 'Tách khỏi nhóm ghép — chờ định giá lại');
+  });
+
+  test('refuses to orphan the freight: promotee without a live trip blocks Lô 1 exit (FB095-05)', async () => {
+    const customer = await mkCustomer('FB095 orphan');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB095-O1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB095-O2-${suffix.slice(-6)}`);
+    const trip1 = await mkTrip(lot1.id, customer.id, route.id);
+    await upsertTripCarrierInfo(db, trip1.id, { carrierType: 'EXTERNAL', externalFreightCost: '2000000' });
+    const truckClass = await vehicleClassByCode('5T');
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-444.44',
+    }, actor);
+
+    await assert.rejects(
+      unmergeLclLot({ shipmentId: lot1.id, dimension: 'COST' }, actor),
+      /chưa có chuyến live để giữ cước/,
+    );
+    const t1 = await liveTrip(lot1.id);
+    assert.equal(t1!.externalFreightCost, '2000000', 'the money stayed on the principal');
+  });
+
+  test('deleting Lô 1 promotes the survivor inside the delete transaction (FB095-06)', async () => {
+    const customer = await mkCustomer('FB095 delete');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB095-D1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB095-D2-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('5T');
+    // No trips at all — the delete boundary requires that.
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-333.33',
+    }, actor);
+
+    const [fresh1] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot1.id));
+    await softDeleteShipment(lot1.id, { version: fresh1.version, deletedBy: actor.userId, actor });
+
+    // The survivor was NOT left pointing at a headless group: with one member
+    // left, the group dissolved and lot2 stands alone.
+    const [after2] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot2.id));
+    assert.equal(after2.costGroupId, null);
+    assert.equal(after2.costGroupOrder, null);
+    assert.equal(after2.deletedAt, null, 'the survivor lives on');
+    const events = await groupAuditEvents(lot1.id);
+    assert.ok(events.includes('SHIPMENT_LCL_GROUP_UNMERGED'), 'the promotion is audited');
+  });
+});
+
 after(async () => {
   // Trips first (FKs), then carrier/financial sidecars ride the trip delete,
   // then shipments, pricing tables, routes, customers.
+  if (createdAccountingLockIds.length > 0) {
+    await db.delete(s.shipmentAccountingLocks).where(inArray(s.shipmentAccountingLocks.id, createdAccountingLockIds));
+  }
+  if (createdBillingDocIds.length > 0) {
+    await db.delete(s.billingDocumentLines).where(inArray(s.billingDocumentLines.documentId, createdBillingDocIds));
+    await db.delete(s.billingDocuments).where(inArray(s.billingDocuments.id, createdBillingDocIds));
+  }
   if (createdTripIds.length > 0) {
     await db.delete(s.tripCarrierInfo).where(inArray(s.tripCarrierInfo.tripId, createdTripIds));
     await db.delete(s.tripFinancialState).where(inArray(s.tripFinancialState.tripId, createdTripIds));

@@ -8,13 +8,14 @@
 //   POST /api/shipments/lcl/cost-group — dispatch "Gán xe nhóm" (FB-092)
 //   POST /api/shipments/lcl/rev-group  — CUS "Ghép cước thu khách" (FB-093)
 //   POST /api/shipments/lcl/truck      — BKS quick-edit from settlement
-// The un-merge safety command (FB-095) lands on this same leaf.
+//   POST /api/shipments/lcl/unmerge    — one lot leaves a dimension (FB-095)
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import {
   assignLclCostGroupSchema,
   mergeLclRevGroupSchema,
+  unmergeLclLotSchema,
   updateLclTruckSchema,
   Role,
 } from '@tingting/shared';
@@ -25,6 +26,7 @@ import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   assignLclCostGroup,
   mergeLclRevGroup,
+  unmergeLclLot,
   updateLclGroupTruck,
 } from '../../services/lcl-grouping.service';
 
@@ -59,6 +61,22 @@ lclGroupingRoutes.post(
       actorName: actor.fullName ?? actor.username ?? undefined,
     });
     res.status(201).json(result);
+  }),
+);
+
+lclGroupingRoutes.post(
+  '/lcl/unmerge',
+  declareMaterialWrite('shipments.lcl.unmerge', { method: 'POST', path: '/api/shipments/lcl/unmerge' }),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = unmergeLclLotSchema.parse(req.body);
+    const actor = getUser(req);
+    const result = await unmergeLclLot(input, {
+      userId: actor.userId,
+      role: actor.role,
+      actorName: actor.fullName ?? actor.username ?? undefined,
+    });
+    res.json(result);
   }),
 );
 

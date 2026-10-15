@@ -23,6 +23,7 @@ import {
 } from './shipment-coordination.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { transitionTripStatus } from './trip-status-machine.service';
+import { promoteLclGroupsOnShipmentDelete, type LclGroupActor } from './lcl-grouping.service';
 import {
   assertShipmentDirectCloseTripReadiness,
   loadTripExpenseScopeState,
@@ -437,7 +438,7 @@ export async function cancelShipmentFulfillment(args: {
 
 export async function softDeleteShipment(
   shipmentId: number,
-  options: { deletedBy?: number | null; version: number },
+  options: { deletedBy?: number | null; version: number; actor?: LclGroupActor },
   transaction?: Tx,
 ) {
   const execute = async (tx: Tx) => {
@@ -473,6 +474,16 @@ export async function softDeleteShipment(
         'Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh.',
       );
     }
+
+    // FB-095 — deleting a group principal promotes the next member inside
+    // this transaction: the survivors must never point at a headless group.
+    // (The delete boundary above guarantees the leaver holds no live trip,
+    // so no money moves — only Lô-1 rights and ordering.)
+    await promoteLclGroupsOnShipmentDelete(tx, existing, options.actor ?? {
+      userId: options.deletedBy ?? 0,
+      role: 'UNKNOWN',
+      actorName: 'Xóa lô hàng',
+    });
 
     // Cards 351/352: Cancel any uncancelled fulfillments for this shipment to cleanly cascade
     await tx.update(s.shipmentFulfillments).set({
