@@ -134,6 +134,18 @@ function oldHasRouteScopedRoleAllowance(
   ) {
     return true;
   }
+  // QA B-1 (ruling change, same-commit oracle update per this file's rule):
+  // CUS must read the vehicle-size-class catalog to pick the billing class
+  // in the FB-093 revenue-merge dialog. Before this ruling the row was
+  // absent and the dialog's dropdown died 403, blocking the merge for CUS.
+  if (
+    resource === 'config'
+    && role === Role.CUS
+    && method === 'GET'
+    && /^\/vehicle-size-classes\/?$/.test(path)
+  ) {
+    return true;
+  }
   if (
     resource === 'financial'
     && role === Role.CUS
@@ -285,6 +297,14 @@ const CONFIG_PATHS = [
   '/quotations/fees/active/export',
   '/pricing-tables',
   '/expense-categories',
+  // QA B-1 — the granted vehicle-size-class list read, plus the near-miss
+  // shapes that must stay denied (detail row, deeper paths, prefix family).
+  '/vehicle-size-classes',
+  '/vehicle-size-classes/',
+  '/vehicle-size-classes/3',
+  '/vehicle-size-classes/3/',
+  '/vehicle-size-class',
+  '/vehicle-size-classes/export',
   '/customers?include=archived',
   '/routes?q=',
 ] as const;
@@ -337,8 +357,10 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
       // Card 071026141580 ("fix all issues" 2026-10-07): one more bypass —
       // the wallet's trip-expense PUT/DELETE bridge for OPS (the payer edits/
       // deletes their own khai-chi-hô rows; casbin grants OPS trips read only).
-      assert.equal(ROUTE_GRANT_RULES.length, 17);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 15);
+      // QA B-1 (FB-093, staging 2026-10-16): one more bypass — CUS reads the
+      // vehicle-size-class list for the revenue-merge dialog dropdown.
+      assert.equal(ROUTE_GRANT_RULES.length, 18);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 16);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 
@@ -414,6 +436,8 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
       { label: 'CUS creates a route inline', resource: 'config', role: Role.CUS, method: 'POST', path: '/routes' },
       { label: 'DISPATCHER creates a port inline', resource: 'config', role: Role.DISPATCHER, method: 'POST', path: '/ports' },
       { label: 'CUS reads the customer catalog', resource: 'config', role: Role.CUS, method: 'GET', path: '/customers' },
+      { label: 'CUS reads the vehicle-size-class list (QA B-1)', resource: 'config', role: Role.CUS, method: 'GET', path: '/vehicle-size-classes' },
+      { label: 'DRIVER cannot read vehicle-size-classes (CUS-only grant)', resource: 'config', role: Role.DRIVER, method: 'GET', path: '/vehicle-size-classes' },
       { label: 'CUS edits a customer identity field', resource: 'config', role: Role.CUS, method: 'PUT', path: '/customers/7' },
       { label: 'DISPATCHER deletes a supplier', resource: 'config', role: Role.DISPATCHER, method: 'DELETE', path: '/suppliers/5' },
       { label: 'CUS patches a fuel-price period (any-verb row)', resource: 'config', role: Role.CUS, method: 'PATCH', path: '/fuel-price-periods/9' },
