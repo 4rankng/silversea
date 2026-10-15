@@ -1,24 +1,58 @@
-# FB-086 re-file verification — STALE verdict (2026-10-14)
+# Driver cost UX (cost-doc wave B) — frontend panel redesign
 
-- Controller: opencode session, worktree
-  `/Users/dev/.paseo/worktrees/1njkloyy/melodic-sloth`, branch
-  `verify/fb-086-refile` @ `398a9c57` (pre-created; adopted, nothing rebased).
-- Goal: decide whether the Muse TODO re-file "FB-086: them container khong
-  cap nhat tong quan" is the round-19 scenario (STALE) or new (fix).
-- Status: **DONE — STALE.** Same scenario as ticket 131026201000 symptom (a),
-  fixed by `81c38d9e` (+`ad1fb9a3`, workboard `747c7d7d`) under merge
-  `c7dcc286`, all ancestors of prod pointer `398a9c57` (verified
-  `git merge-base --is-ancestor`). No code changed.
-- Deliverable for Muse:
-  `testplan/cycles/2026-10/2026-10-14-fb086-refile-stale-verdict.md`
-  (commit + test evidence + reopen conditions).
-- Fresh test evidence at HEAD: `qa/2026-10-14_fb086-refile_be-test.log`
-  (8/8, exit 0), `qa/2026-10-14_fb086-refile_fe-test.log` (149/149 across the
-  4 FB-086 suites, exit 0). Round-19 rung-3 artifacts cited, not re-driven.
-- Non-goals / not done: no UI drive this round (rung-3 claim rests on R19's
-  recorded artifacts); no full FE 4756 sweep; no prod access; nothing pushed.
-- Preserved hazard from the R19 handoff (still true): a vite started WITHOUT
-  `VITE_API_PROXY_TARGET` can proxy to a stray stack on :3002 (ss-prod-db
-  data) — always pass `VITE_API_PROXY_TARGET` for any future UI driver here.
-- Next: owner forwards the verdict brief to Muse to close the TODO; QA party
-  must supply build provenance + repro for any reopen (≥ c7dcc286).
+- Controller: opencode agent "cost-doc wave B: driver cost UX (lái xe)", worktree
+  `/Users/dev/.paseo/worktrees/1njkloyy/dreamy-eel`, branch `feat/driver-cost-ux`
+  @ `111bc2f7`, pushed to origin. Last updated: 2026-10-15 ~08:45 +0700.
+  (Previous handoff in this file was the completed FB-086 re-file verdict from
+  the `melodic-sloth` worktree — its deliverable lives at
+  `testplan/cycles/2026-10/2026-10-14-fb086-refile-stale-verdict.md`; nothing
+  of it is pending here.)
+- Goal: accountant-doc driver cost UX — end-of-lot panel restructure, FRONTEND
+  driver cost components only; shared `LotCostForm` base for waves C/D.
+- Status: **wave slice 1 COMMITTED + PUSHED.** Delivered: two record tables
+  (Chi phí lô hàng + Tiền đường, per-table add), người chi column removed,
+  số hóa đơn/ngày hóa đơn fields removed, "Chứng từ kèm theo" Hóa đơn/Phiếu thu
+  segmented (catalog-classified fees locked, per cards 20260928_163/164),
+  receipt capture block in the shared base, road entry slimmed to
+  picker + amount, shared base `components/costs/LotCostForm.tsx`.
+  NOTE: an external consolidation pass created the single commit `111bc2f7`
+  ("feat: wave deliverables — dreamy-eel") from this worktree at 08:22 +0700
+  and pushed it; per §4 append-only it was not split into per-feature commits.
+- NOT yet implemented (remaining waves of this task): (a) receipt photo
+  REQUIRED gating for lot rows (capture UI exists; the save button does not yet
+  block without a photo for non-ROAD_REPAIR fees); (b) Tiền đường SYSTEM-AUTO
+  read-only rows (Tiền đường = trip total_road_allowance; Nâng/Hạ Lạch Huyện =
+  `LIFT_DROP_ALLOWANCE` fee norm); (c) continuous entry (staged rows + single
+  save). Regression cases DCUX-03/04/05 in
+  `testplan/2026-10-14-driver-cost-ux-redesign.md` cover them.
+- Cross-wave dependency (reported, not fixable frontend-only): backend
+  `insertDriverIncidentalCostTx` (backend/src/services/driver-fulfillment.service.ts
+  ~line 354) still rejects catalog-INVOICED fees without an invoice number
+  ("Phí có hóa đơn phải kèm số hóa đơn."). The redesign moves invoice-number
+  capture to accountant reconciliation; until a backend wave lifts that gate,
+  an invoiced-class driver save surfaces the server's own 400. No client-side
+  fabrication was added.
+- Files owned: `frontend/src/components/costs/LotCostForm.{tsx,css}`,
+  `frontend/src/components/trip/ShipmentCostEntryForm.{tsx,css,test.tsx}`,
+  `frontend/src/features/driver/useDriverExpenseEntry.ts`,
+  `testplan/2026-10-14-driver-cost-ux-redesign.md`.
+- Unrelated/concurrent: the audit-recovery consolidation commit itself;
+  `qa/` artifacts are git-ignored as designed.
+- Gates: fe `tsc -b` 0 errors; focused suite 26/26; affected batch green
+  (trip/driver/driver-pages/styles; 4 timeout casualties of my own job
+  concurrency re-run green); `pnpm build` OK; `pnpm check:ui` PASS; root
+  `pnpm lint` 0 errors. Full fe suite 4778/4788 — the 10 failures are all in
+  files byte-identical to base `b47fffc5` (load-induced timeouts + 3 quiet-rerun
+  stragglers in RoleWorkInbox/OpsExpenseCatalogRecovery/TripListPage sort +
+  dev-port-contract scanning `testplan/qa/scripts`, untouched by this diff).
+  PRE-EXISTING at base, not introduced here: `pnpm design:drift` baseline stale
+  vs recent merges (identical growth with the diff stashed); `pnpm size-check`
+  script points at the retired `structure.guard.test.ts` (e54504bf).
+- QA artifacts: `qa/2026-10-15_driver-cost-ux_*.log` (tsc, cost-panel suite,
+  affected batch + concurrency rerun, build, full suite, check:ui via transcript,
+  design-drift, root lint).
+- Blockers/next: owner routes DCUX-03/04/05 (photo-required gate, system-auto
+  rows, continuous entry) and the backend invoice-gate wave; UI drive at
+  375/1280 as driver still pending for the delivered slice (needs
+  `VITE_API_PROXY_TARGET` per the preserved hazard — a vite without it proxies
+  to a stray :3002 stack).
