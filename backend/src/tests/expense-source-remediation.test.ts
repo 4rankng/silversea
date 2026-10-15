@@ -55,7 +55,7 @@ test('FIX17-S01 open OPS scope: an unlinked ops still writes any lot; the update
   // 2026-10-14 accountant doc: the per-person grant is retired, so an ops
   // with NO link, NO assignment and NO prior expense now writes a fresh lot.
   const [fresh] = await tx.insert(s.shipments).values({ shipmentCode: `${ctx.shipment.shipmentCode}-fresh`, customerId: ctx.customer.id }).returning();
-  await createOpsExpense(ctx.user.id, { shipmentId: fresh.id, expenseTypeCode: 'OTHER', amount: 500, paidAt: '2026-09-16' }, tx);
+  await createOpsExpense(ctx.user.id, { shipmentId: fresh.id, expenseTypeCode: 'OTHER', amount: 500, paidAt: '2026-09-16', note: 'mở quyền khai chi — ghi chú theo luật dòng không thu khách' }, tx);
   await assertExpenseOwnerWriteScope(tx, actor, { ...source, shipmentId: fresh.id });
   // Owner deletes are soft voids with a mandatory reason — that rule is
   // independent of the scope and must survive the grant retirement.

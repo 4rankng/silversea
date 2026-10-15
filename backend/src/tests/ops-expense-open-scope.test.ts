@@ -38,12 +38,14 @@ test('ops expense scope: any OPS declares costs on any lot, no grant chain requi
     await assertOpsExpenseAssignment(tx, opsB.id, lotOthers.id);
 
     // The save path that used to answer 403 "Lô này không thuộc xe bạn phụ
-    // trách" now records the row.
+    // trách" now records the row. The note satisfies the separate uncharged-
+    // row rule (card 20260928_162) — this test is about the scope, not that.
     const created = await createOpsExpense(opsB.id, {
       shipmentId: lotUntouched.id,
       expenseTypeCode: 'OTHER',
       amount: '250000',
       paidAt: '2026-10-14',
+      note: 'QA: xác nhận mở quyền khai chi phí cho mọi Ops',
     }, tx);
     assert.equal(created.shipmentId, lotUntouched.id);
     assert.equal(String(created.paidById), String(opsB.id));
