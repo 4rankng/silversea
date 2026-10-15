@@ -52,4 +52,4 @@
 .bill-suggestions__item:hover { background: var(--surface-hover); }
 .bill-suggestions__item > span:first-child { font-family: var(--font-data); font-weight: 600; }
 .bill-suggestions__item > span:last-child:not(:first-child) { color: var(--warning-text); }
-.bill-suggestions__empty { font-size: 0.8rem; color: var(--fg-3); }
+.bill-suggestions__none { font-size: 0.8rem; color: var(--fg-3); }

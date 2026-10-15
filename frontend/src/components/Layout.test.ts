@@ -32,6 +32,7 @@ describe('getNavItems', () => {
       ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
       ['Kế toán chốt debit', '/accounting/chot-debit'],
       ['Lương & Chấm công', '/salary'],
+      ['Chấm công lái xe', '/timesheet'],
       ['Danh sách nhân sự', '/hr/roster'],
       ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'],
@@ -61,6 +62,7 @@ describe('getNavItems', () => {
       ['Tạm ứng & Hoàn ứng', '/advances'],
       ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Lương & Chấm công', '/salary'],
+      ['Chấm công lái xe', '/timesheet'],
       ['Danh sách nhân sự', '/hr/roster'],
       ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'],
@@ -86,6 +88,7 @@ describe('getNavItems', () => {
       ['Tạm ứng & Hoàn ứng', '/advances'],
       ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Lương & Chấm công', '/salary'],
+      ['Đối chiếu chấm công', '/timesheet/doi-chieu'],
       ['Danh sách nhân sự', '/hr/roster'],
       ['Giá dầu theo kỳ', '/config/fuel-price-periods'],
       ['Điều khoản cước theo tuyến', '/config/freight-rate-terms'],
@@ -136,6 +139,8 @@ describe('getNavItems', () => {
       ['Khách hàng', '/config/customers'],
       ['Tuyến đường', '/config/routes'],
       ['Nhà máy / Kho', '/config/factories'],
+      // 2026-10-14: Điều vận fills the driver-timesheet grid (dispatchOnly).
+      ['Chấm công lái xe', '/timesheet'],
     ]],
     [Role.CUSTOMER, [
       ['Lô hàng của tôi', '/portal/shipments'],
@@ -211,7 +216,7 @@ describe('getNavItems', () => {
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/hr/roster',
+      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet/doi-chieu', '/hr/roster',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/audit-logs',
     ]);
@@ -368,16 +373,18 @@ describe('kế toán danh mục (spec 5.10)', () => {
     // Owner ruling 2026-10-12 (QA2-008): the HR items moved to Nhân sự —
     // the Khác danh mục is empty for the sidebar and self-hides.
     expect(itemsFor(Role.ADMIN, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.ADMIN, 'hr')).toEqual(['salary', 'hr-roster', 'penalties']);
+    // 2026-10-14: timesheet grid joins Nhân sự for ADMIN/MANAGER (dispatchOnly admits them).
+    expect(itemsFor(Role.ADMIN, 'hr')).toEqual(['salary', 'timesheet', 'hr-roster', 'penalties']);
 
     expect(itemsFor(Role.MANAGER, PHƠI_PHIEU)).toEqual(['expenses', 'advances', 'hoan-ung']);
     expect(itemsFor(Role.MANAGER, CÔNG_NỢ)).toEqual(['debt', 'payables']);
     expect(itemsFor(Role.MANAGER, QUỸ)).toEqual(['treasury']);
     expect(itemsFor(Role.MANAGER, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.MANAGER, 'hr')).toEqual(['salary', 'hr-roster', 'penalties']);
+    expect(itemsFor(Role.MANAGER, 'hr')).toEqual(['salary', 'timesheet', 'hr-roster', 'penalties']);
 
     expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'hr-roster']);
+    // Kế toán reaches the reconciliation board (accountantOnly), not the grid.
+    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'timesheet-reconciliation', 'hr-roster']);
 
     expect(itemsFor(Role.ACCOUNTANT, PHƠI_PHIEU)).toEqual([
       'invoice-tracking', 'deposit-tracker', 'phoi-phieu', 'chot-debit',
@@ -462,7 +469,8 @@ describe('kế toán danh mục (spec 5.10)', () => {
     // a real destination and the danh mục must not render empty for them.
     // /hr/roster joins it with the same guard (card 385 rework).
     expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'hr-roster']);
+    // 2026-10-14: Kế toán's timesheet destination is the reconciliation board.
+    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'timesheet-reconciliation', 'hr-roster']);
     expect(getNavSections(Role.ACCOUNTANT).map((section) => section.key)).toContain(KHÁC);
   });
 });

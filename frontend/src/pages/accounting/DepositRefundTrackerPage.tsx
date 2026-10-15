@@ -372,7 +372,10 @@ function CreateForm({ onSaved }: {
   });
   const createMutation = useMutation({
     mutationFn: () => createDepositTracker({
-      shipmentId, billNumber, customerName, carrierName,
+      // Only sent when the row came from the Bill lookup: a hand-typed deposit
+      // keeps the original payload shape (no null key on the wire).
+      ...(shipmentId ? { shipmentId } : {}),
+      billNumber, customerName, carrierName,
       depositAmount: parseDepositAmount(amount === '' ? '' : String(amount)),
       cvSubmittedDate: cvDate || null,
       expectedRefundDate: expected || null,
@@ -418,7 +421,7 @@ function CreateForm({ onSaved }: {
           </li>
         ))}
         {billLookup.length === 4 && (suggestionQuery.data ?? []).length === 0 && (
-          <li className="bill-suggestions__empty">Không có lô hàng nào kết thúc bằng {billLookup}. Nhập tay bên dưới.</li>
+          <li className="bill-suggestions__none">Không có lô hàng nào kết thúc bằng {billLookup}. Nhập tay bên dưới.</li>
         )}
       </ul>
       <FormGroup label="Số Bill"><input className="input" value={billNumber} onChange={(event) => { setBillNumber(event.target.value); setShipmentId(null); }} required maxLength={80} /></FormGroup>
