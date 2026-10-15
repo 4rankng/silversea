@@ -527,9 +527,9 @@ describe('card 20260928_197 — a negative cost row can be saved, and charges no
     return code;
   }
 
-  /** Grant the OPS payer the lot via branch 3 of `assertOpsExpenseAssignment`
-   *  (their own saved, non-voided expense) — the branch a real returning
-   *  forwarder already has, so the test is about the charge, not the scope. */
+  /** Seed a prior expense row so the scenario matches a real returning
+   *  forwarder. Since the 2026-10-14 open scope, no grant is needed to save —
+   *  the test is about the charge, not the scope. */
   async function mkGranted(fixture: Fixture, expenseTypeCode: string) {
     const [seed] = await db.insert(s.opsExpenseEntries).values({
       shipmentId: fixture.lot.id, expenseTypeCode, amount: '1000',

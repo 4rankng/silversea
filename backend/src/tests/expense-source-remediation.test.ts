@@ -13,7 +13,7 @@ import { confirmAccountingExpenses, updateAccountingExpense } from '../services/
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
 import { getPhoiPhieuTienDuong } from '../services/phoi-phieu-control.service';
 import { createOpsExpense, updateOpsExpense } from '../services/ops-expenses.service';
-import { assertExpenseOwnerWriteScope, assertOpsExpenseAssignment } from '../services/expense-owner-scope.service';
+import { assertExpenseOwnerWriteScope } from '../services/expense-owner-scope.service';
 import { updateTripExpense, deleteTripExpenseGuarded } from '../services/forwarder.service';
 import { insertTripComposite, getTripCompositeInTx, upsertTripFinancialState } from '../services/trip-composite.service';
 
@@ -49,18 +49,16 @@ async function trip(tx: Tx, ctx: Awaited<ReturnType<typeof setup>>) {
     routeId: ctx.route.id, cargoTypeId: ctx.cargo.id, departureDate: '2026-09-16', status: 'CREATED', carrierType: 'OWN', fulfillmentId: fulfillment.id });
 }
 
-test('FIX17-S01 revoked OPS writes and evidence scope fail; finance remains available', async () => fixture(async (tx, ctx) => {
+test('FIX17-S01 open OPS scope: an unlinked ops still writes any lot; the update reason rule stays', async () => fixture(async (tx, ctx) => {
   const source = await ops(tx, ctx);
   const actor = { userId: ctx.user.id, role: Role.OPS };
-  // The lot already carries the ops's own saved expense, so the truck-assignment
-  // gate keeps the right here even with no live assignment — revocation only
-  // removes lots never expensed. The blocked case moves to a fresh lot.
-  await assertOpsExpenseAssignment(tx, ctx.user.id, ctx.shipment.id);
+  // 2026-10-14 accountant doc: the per-person grant is retired, so an ops
+  // with NO link, NO assignment and NO prior expense now writes a fresh lot.
   const [fresh] = await tx.insert(s.shipments).values({ shipmentCode: `${ctx.shipment.shipmentCode}-fresh`, customerId: ctx.customer.id }).returning();
-  await assert.rejects(createOpsExpense(ctx.user.id, { shipmentId: fresh.id, expenseTypeCode: 'OTHER', amount: 500, paidAt: '2026-09-16' }, tx), /Quản trị viên/);
-  await assert.rejects(assertExpenseOwnerWriteScope(tx, actor, { ...source, shipmentId: fresh.id }), /Quản trị viên/);
-  await tx.insert(s.userShipmentLinks).values({ userId: ctx.user.id, shipmentId: ctx.shipment.id });
-  await assertExpenseOwnerWriteScope(tx, actor, source);
+  await createOpsExpense(ctx.user.id, { shipmentId: fresh.id, expenseTypeCode: 'OTHER', amount: 500, paidAt: '2026-09-16' }, tx);
+  await assertExpenseOwnerWriteScope(tx, actor, { ...source, shipmentId: fresh.id });
+  // Owner deletes are soft voids with a mandatory reason — that rule is
+  // independent of the scope and must survive the grant retirement.
   await assert.rejects(updateOpsExpense(ctx.user.id, source.sourceId, { amount: 600, expectedVersion: source.version }, tx), /lý do/);
   await assertExpenseOwnerWriteScope(tx, ctx.actor, source);
 }));
