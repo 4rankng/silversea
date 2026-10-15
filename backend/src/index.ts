@@ -56,6 +56,7 @@ import accountingRoutes from './routes/accounting';
 import accountingDepositRoutes from './routes/accounting-deposit';
 import accountingDebitRoutes from './routes/accounting-debit';
 import salaryRoutes from './routes/salary';
+import timesheetRoutes from './routes/timesheet';
 import geotagRoutes from './routes/geotag';
 import recoverableCostRoutes from './routes/recoverable-costs';
 import fleetProductivityRoutes from './routes/fleet-productivity.routes';
@@ -245,6 +246,13 @@ app.use('/api', authMiddleware, catalogBootstrapRouter);
 // These routes enforce per-command CUS/OPS/driver/finance scopes themselves.
 // They must precede the generic office-only config and financial gates.
 app.use('/api/expense-accounting', authMiddleware, expenseAccountingRoutes);
+// Driver timesheet (chấm công lái xe): Điều vận fills the symbol grid, Kế toán
+// reconciles. Role split is enforced per endpoint inside the router.
+// MUST mount ABOVE the generic /api config + financial catch-alls below:
+// those gates answer 403 themselves, and DISPATCHER holds neither `config`
+// write nor any `financial` grant — mounted later, Điều vận could not reach
+// its own grid.
+app.use('/api/timesheet', authMiddleware, casbinAuthz('timesheet'), timesheetRoutes);
 // Config must mount before the generic /api financial catch-all,
 // otherwise financial Casbin gate blocks FORWARDER from /catalogs/bootstrap etc.
 app.use('/api', authMiddleware, casbinAuthz('config'), configRoutes);
@@ -257,6 +265,12 @@ app.use('/api/audit-logs', authMiddleware, casbinAuthz('audit_logs'), auditLogRo
 app.use('/api/fleet/tires', authMiddleware, casbinAuthz('config'), tireLifecycleRouter);
 app.use('/api/fleet/productivity', authMiddleware, fleetProductivityRoutes);
 app.use('/api/salary', authMiddleware, casbinAuthz('salary'), salaryRoutes);
+// Driver timesheet (chấm công lái xe): Điều vận fills the symbol grid, Kế toán
+// reconciles. Role split is enforced per endpoint inside the router.
+// MUST mount ABOVE the generic /api config + financial catch-alls below:
+// those gates answer 403 themselves, and DISPATCHER has neither `config`
+// write nor any `financial` grant — mounted later, Điều vận could not reach
+// its own grid.
 
 // Boot-time material-write coverage gate: a mounted write route that declares
 // nothing and has no hand-written registry row kills boot here, instead of

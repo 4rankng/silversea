@@ -432,6 +432,9 @@ export const qk = {
     /** Filtered list — from/to/status ride the key. */
     list: (from: string, to: string, status: string) =>
       ['deposit-refund', from, to, status] as const,
+    /** "Thêm cược" typeahead — keyed by the last four digits. */
+    billSuggestions: (digits: string) =>
+      ['deposit-refund', 'bill-suggestions', digits] as const,
   },
 
   /* ── Combined-invoice tracking (theo dõi hóa đơn kết hợp) ───────────── */
@@ -469,8 +472,18 @@ export const qk = {
     reviewsAll: ['fuel-evidence-reviews'] as const,
   },
 
-  /* ── Salary ─────────────────────────────────────────────────────────── */
+  /* ── Driver timesheet ───────────────────────────────────────────────── */
 
+  timesheet: {
+    /** Broad prefix — matches every timesheet query, including the rollup. */
+    all: ['timesheet'] as const,
+    drivers: (year: number, month: number) => ['timesheet', 'drivers', year, month] as const,
+    months: (year: number, month: number) => ['timesheet', 'months', year, month] as const,
+    month: (driverId: number | null, year: number, month: number) =>
+      ['timesheet', 'month', driverId, year, month] as const,
+    rollup: (year: number, month: number) => ['timesheet', 'rollup', year, month] as const,
+  },
+  /* ── Salary ─────────────────────────────────────────────────────────── */
   salary: {
     list: (year: number, month: number) =>
       ['salary-list', year, month] as const,

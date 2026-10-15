@@ -28,6 +28,7 @@ import {
   Activity,
   Bell,
   ClipboardList,
+  ClipboardCheck,
   Fuel,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -133,6 +134,10 @@ export function getNavItems(
         // accounting Khác danh mục for the sidebar; the empty Khác section
         // self-hides (Sidebar renders no empty section).
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
+        // Chấm công lái xe (2026-10-14). Only the grid: the reconciliation
+        // board is ACCOUNTANT-only, so listing it here would be a dead link
+        // (App.nav-sweep pins nav == guard).
+        { key: 'timesheet', label: 'Chấm công lái xe', path: routes.timesheet, icon: CalendarDays, section: 'hr' as SectionName },
         { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
@@ -188,6 +193,10 @@ export function getNavItems(
         // accounting Khác danh mục for the sidebar; the empty Khác section
         // self-hides (Sidebar renders no empty section).
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
+        // Chấm công lái xe (2026-10-14). Only the grid: the reconciliation
+        // board is ACCOUNTANT-only, so listing it here would be a dead link
+        // (App.nav-sweep pins nav == guard).
+        { key: 'timesheet', label: 'Chấm công lái xe', path: routes.timesheet, icon: CalendarDays, section: 'hr' as SectionName },
         { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
         { key: 'penalties', label: 'Kỷ luật', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
@@ -246,6 +255,10 @@ export function getNavItems(
         // Khác placement. /salary stays officeStaffOnly (real destination,
         // not a dead link); the Khác section self-hides when empty.
         { key: 'salary', label: 'Lương & Chấm công', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
+        // Chấm công lái xe (2026-10-14). Kế toán reaches the RECONCILIATION
+        // board; the entry grid is dispatchOnly and stays out of this menu
+        // (App.nav-sweep pins nav == guard).
+        { key: 'timesheet-reconciliation', label: 'Đối chiếu chấm công', path: routes.timesheetReconciliation, icon: ClipboardCheck, section: 'hr' as SectionName },
         { key: 'hr-roster', label: 'Danh sách nhân sự', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
 
         // Pricing config entry points (docx §5-1): accountant fuel-price entry + per-customer×route rate terms.
@@ -304,6 +317,10 @@ export function getNavItems(
         { key: 'customers', label: 'Khách hàng', path: routes.configCustomers, icon: Users, section: 'master-data' as SectionName },
         { key: 'config-routes', label: 'Tuyến đường', path: routes.configRoutes, icon: Route, section: 'master-data' as SectionName },
         { key: 'config-factories', label: 'Nhà máy / Kho', path: routes.configFactories, icon: Store, section: 'master-data' as SectionName },
+
+        // Chấm công lái xe (2026-10-14): Điều vận fills the symbol grid. It sits
+        // with dispatch planning — the roster board IS a dispatch job.
+        { key: 'timesheet', label: 'Chấm công lái xe', path: routes.timesheet, icon: CalendarDays, section: 'dispatch-planning' as SectionName },
       ];
     }
 

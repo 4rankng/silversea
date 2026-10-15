@@ -41,8 +41,26 @@ export async function listDepositTrackers(from?: string, to?: string, status?: D
   return api.get<DepositTrackerListResponse>(`/accounting/deposits${qs ? `?${qs}` : ''}`);
 }
 
+/** "Thêm cược" typeahead: match lots by the LAST FOUR DIGITS of Bill/Booking. */
+export interface BillSuggestion {
+  shipmentId: number;
+  billNumber: string | null;
+  bookingRef: string | null;
+  billDisplay: string;
+  carrierName: string | null;
+  customerName: string;
+  existingTrackerCount: number;
+}
+
+export async function searchBillSuggestions(q: string): Promise<BillSuggestion[]> {
+  const result = await api.get<{ items: BillSuggestion[] }>(`/accounting/deposits/bill-suggestions?q=${encodeURIComponent(q)}`);
+  return result.items;
+}
+
 export async function createDepositTracker(body: {
   billNumber: string; customerName: string; carrierName: string; depositAmount: number | string;
+  /** Set when the row came from the Bill typeahead, so the tracker links the lot. */
+  shipmentId?: number | null;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
   depositDate?: string | null; status?: DepositStatus;
 }): Promise<DepositTrackerRow> {
