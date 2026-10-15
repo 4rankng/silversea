@@ -863,6 +863,33 @@ export const SUPPLIER_TYPE_LABELS: Record<SupplierType, string> = {
   [SupplierType.FUEL]: 'Nhiên liệu',
 };
 
+// ─── FB-090: LCL vehicle sourcing rule (DEV SPEC Hàng lẻ §I) ────────────────
+//
+// "Hàng lẻ Xe tải = 100% Xe ngoài; Hàng lẻ Cont 20'/40' = Xe nội bộ hoặc
+// Xe ngoài." The rule keys on the vehicle-class KIND (truck tonnage vs
+// container), which is exactly `vehicle_size_classes.is_container` — so it
+// is DERIVED, never a stored column: an operator cannot flip a truck class
+// to internal-only by editing a row. FB-092's gán-xe popup and FB-093's
+// settlement consume this to gate the internal-fleet option.
+export enum LclVehicleSourcing {
+  /** 100% xe ngoài — truck tonnage classes (LCL xe tải). */
+  EXTERNAL_ONLY = 'EXTERNAL_ONLY',
+  /** Xe nội bộ hoặc xe ngoài — container classes (LCL cont 20'/40'). */
+  INTERNAL_OR_EXTERNAL = 'INTERNAL_OR_EXTERNAL',
+}
+
+export const LCL_VEHICLE_SOURCING_LABELS: Record<LclVehicleSourcing, string> = {
+  [LclVehicleSourcing.EXTERNAL_ONLY]: '100% xe ngoài',
+  [LclVehicleSourcing.INTERNAL_OR_EXTERNAL]: 'Xe nội bộ hoặc xe ngoài',
+};
+
+/** Resolve the LCL sourcing rule for a vehicle size class. */
+export function lclVehicleSourcingRule(isContainer: boolean): LclVehicleSourcing {
+  return isContainer
+    ? LclVehicleSourcing.INTERNAL_OR_EXTERNAL
+    : LclVehicleSourcing.EXTERNAL_ONLY;
+}
+
 /**
  * Company VAT default (card 081026104400-511, LEAD RULING 2026-10-08): VN VAT
  * standard 10%; the 2% reduction → 8% applies to eligible services

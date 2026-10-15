@@ -882,6 +882,9 @@ export const pricingTableSchema = z.object({
   price: positiveNumeric,
   containerTypeId: z.coerce.number().int().positive().optional().nullable(),
   rateKey: z.string().trim().max(32).optional().nullable().transform(v => (v == null || v === '' ? null : v.toUpperCase())),
+  // FB-090: structured vehicle-class selector (Danh mục Loại xe). The write
+  // path denormalizes rateKey from the class code — clients send the id only.
+  vehicleSizeClassId: z.coerce.number().int().positive().optional().nullable(),
   effectiveDate: z.string().min(1).default(() => new Date().toISOString().slice(0, 10)),
 });
 
@@ -1012,6 +1015,18 @@ export const vehicleSizeClassSchema = z.object({
   name: z.string().trim().min(1).max(50),
   isContainer: z.boolean().default(false),
   sortOrder: z.coerce.number().int().min(0).default(0),
+});
+
+// FB-090: Bảng giá cước trả nhà xe — (tuyến × loại xe × [nhà xe]) → giá.
+// supplierId NULL/absent = "giá chung" (mọi nhà xe chưa có giá riêng);
+// một nhà xe cụ thể = giá riêng cho lane đó. Lookup cascade: riêng → chung.
+export const carrierRoutePricingSchema = z.object({
+  routeId: z.coerce.number().int().positive(),
+  vehicleSizeClassId: z.coerce.number().int().positive(),
+  supplierId: z.coerce.number().int().positive().optional().nullable(),
+  price: positiveNumeric,
+  effectiveDate: isoDateOnlySchema.default(() => new Date().toISOString().slice(0, 10)),
+  note: z.string().trim().max(500).optional().nullable(),
 });
 
 // Debit-note freight override (docx §4): the accountant may replace the frozen
@@ -2176,6 +2191,8 @@ export type CreateAdvanceRequestInput = z.infer<typeof createAdvanceRequestSchem
 export type CreateAdvanceSettlementInput = z.infer<typeof createAdvanceSettlementSchema>;
 export type UpdateAdvanceSettlementInput = z.infer<typeof updateAdvanceSettlementSchema>;
 export type ContainerTypeInput = z.infer<typeof containerTypeSchema>;
+export type VehicleSizeClassInput = z.infer<typeof vehicleSizeClassSchema>;
+export type CarrierRoutePricingInput = z.infer<typeof carrierRoutePricingSchema>;
 export type SealTypeInput = z.infer<typeof sealTypeSchema>;
 export type PortInput = z.infer<typeof portSchema>;
 export type DispatchZoneInput = z.infer<typeof dispatchZoneSchema>;
