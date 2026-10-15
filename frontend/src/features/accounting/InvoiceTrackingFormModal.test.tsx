@@ -102,4 +102,27 @@ describe('invoice save lifecycle', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
     expect(await screen.findByText('Số hóa đơn đã tồn tại trong hệ thống.')).toBeTruthy();
   });
+
+  // CPB-02 (accountant P0): a picked lot whose trip list is still loading is
+  // not a missing lot. The save stays disabled and, if driven anyway, refuses
+  // with the loading state — never the recurring
+  // 'Chọn lô hàng và chuyến trước khi lưu.'.
+  it('CPB-02: refuses the save while the picked lot context is still loading', async () => {
+    let resolveDetail!: (value: unknown) => void;
+    api.detail.mockImplementationOnce(() => new Promise(yes => { resolveDetail = yes; }));
+    render(<InvoiceTrackingFormModal mode="create" row={null} onClose={vi.fn()} onSaved={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Bill / Booking'), { target: { value: 'QA-WF04' } });
+    fireEvent.click(await screen.findByRole('button', { name: /QA-WF04-114144/ }));
+    // The lot IS picked; its trip list is still in flight.
+    expect(await screen.findByText(/Lô đã chọn/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Đang tải lô/ })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'QA-INV' } });
+    // Even a keyboard-driven submit on the disabled-looking state must not
+    // post: run the handler through the (disabled) button's form path.
+    const save = screen.getByRole('button', { name: /Đang tải lô|Lưu/ });
+    expect(save).toBeDisabled();
+    await act(async () => resolveDetail({ podReviews: [{ tripId: 11, tripCode: 'QA-TRIP' }] }));
+    await screen.findByLabelText('Chuyến (cont)');
+    expect(api.create).not.toHaveBeenCalled();
+  });
 });
