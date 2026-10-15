@@ -70,11 +70,37 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'container', label: 'Thông số container', className: 'debit-col--container',
-    cell: (row) => (row.containers.length > 0 ? row.containers.join(' · ') : '—'),
+    // FB-094: an LCL row states its own label — "Lẻ · Thu: 5T / Trả: 10T"
+    // plus the "Ghép cùng Bill X" note when the lot is a group member.
+    cell: (row) => row.lcl ? (
+      <div className="record-cell-stack">
+        <span>
+          {row.lcl.label}
+          {row.lcl.ghépCùngRef ? ` (Ghép cùng Bill ${row.lcl.ghépCùngRef})` : ''}
+        </span>
+      </div>
+    ) : (row.containers.length > 0 ? row.containers.join(' · ') : '—'),
   },
   {
     key: 'phanXe', label: 'Phân xe', className: 'debit-col--truck',
-    cell: (row) => (row.phanXe.length > 0 ? row.phanXe.join(', ') : '—'),
+    // FB-094: the group's two plates — actual + billing; the orange badge
+    // fires only when the "xe ảo" differs from what really ran the lane.
+    cell: (row) => {
+      if (row.lcl) {
+        return (
+          <div className="record-cell-stack">
+            {row.lcl.actualTruckNo && <span>{row.lcl.actualTruckNo}</span>}
+            {row.lcl.billingTruckNo && row.lcl.billingTruckNo !== row.lcl.actualTruckNo && (
+              <span className="debit-billing-badge" title="Debit Note in BKS báo khách, không in BKS thực">
+                Báo khách (Ảo): {row.lcl.billingTruckNo}
+              </span>
+            )}
+            {!row.lcl.actualTruckNo && !row.lcl.billingTruckNo && <span>—</span>}
+          </div>
+        );
+      }
+      return row.phanXe.length > 0 ? row.phanXe.join(', ') : '—';
+    },
   },
   {
     key: 'cuocThu', label: 'Cước thu (tự động)', className: 'debit-col--money', group: 'thu',

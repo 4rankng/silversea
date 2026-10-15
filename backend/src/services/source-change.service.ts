@@ -83,6 +83,7 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
     notes: s.tripsComposite.notes,
     truckPlate: s.trucks.licensePlate,
     externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    billingTruckNo: s.shipments.billingTruckNo,
     version: s.tripsComposite.version,
     updatedAt: s.tripsComposite.updatedAt,
     status: s.tripsComposite.status,
@@ -95,6 +96,9 @@ async function buildTripDraftLineTx(tx: Tx, tripId: number): Promise<{
     .from(s.tripsComposite)
     .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    // FB-094: the lot's billing BKS ("xe ảo") rides along so re-rendered
+    // lines keep printing it in preference to the actual plate.
+    .leftJoin(s.shipments, eq(s.tripsComposite.shipmentId, s.shipments.id))
     .innerJoin(s.tripFinancialPostings, and(
       eq(s.tripFinancialPostings.tripId, s.tripsComposite.id),
       eq(s.tripFinancialPostings.status, 'ACTIVE'),
@@ -181,6 +185,7 @@ async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
     notes: s.trips.notes,
     truckPlate: s.trucks.licensePlate,
     externalPlateNumber: s.tripCarrierInfo.externalPlateNumber,
+    billingTruckNo: s.shipments.billingTruckNo,
     tripStatus: s.trips.status,
   })
     .from(s.tripExpenses)
@@ -188,6 +193,8 @@ async function buildExpenseDraftLineTx(tx: Tx, expenseId: number): Promise<{
     .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+    // FB-094: keep the billing BKS on expense-sourced re-renders too.
+    .leftJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
     .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
     .where(eq(s.tripExpenses.id, expenseId))
     .limit(1);

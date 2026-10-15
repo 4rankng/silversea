@@ -305,6 +305,17 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       packageType: s.shipments.packageType,
       packageCount: s.shipments.packageCount,
       cargoWeightKg: s.shipments.cargoWeightKg,
+      // FB-092: the LCL CONTAINER cell states the lot's own cargo (số lượng ·
+      // bao bì over kg · CBM) and its group tag; volume was selected nowhere
+      // before, so it rides along now.
+      cargoVolumeCbm: s.shipments.cargoVolumeCbm,
+      costGroupId: s.shipments.costGroupId,
+      costGroupOrder: s.shipments.costGroupOrder,
+      actualTruckNo: s.shipments.actualTruckNo,
+      billingTruckNo: s.shipments.billingTruckNo,
+      costVehicleClassId: s.shipments.costVehicleClassId,
+      costVehicleClassCode: s.vehicleSizeClasses.code,
+      costVehicleClassName: s.vehicleSizeClasses.name,
       customerId: s.customers.id,
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,
@@ -350,6 +361,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         eq(s.tripPairs.id, s.trips.activeTripPairId),
         eq(s.tripPairs.status, 'ACTIVE'),
       ))
+      // FB-092: the cost vehicle class (loại xe tính cước trả ĐV) names the
+      // LCL cell's first line ("Lẻ · Xe 5T").
+      .leftJoin(s.vehicleSizeClasses, eq(s.shipments.costVehicleClassId, s.vehicleSizeClasses.id))
       .where(and(rowFilters, pageKeyPredicate(s.shipmentFulfillments.id, fulfillmentIds)))
       .orderBy(...dispatchDetailPriorityOrderSql()),
       // Card 20261008_3 — chip counts, same scan as the old total: one grouped
@@ -388,6 +402,18 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // free text only, never an amount (file standing ruling), so opening it for
     // ACCOUNTANT does not widen what the role can see.
     const opsRecoveryNotes = await loadDispatchExpenseNotes(shipmentIds, tx);
+    // FB-092: the "Lẻ · Ghép (i/N)" tag needs the group's member count — one
+    // grouped count over the page's cost groups.
+    const costGroupIds = [...new Set(
+      pageRows.map((row) => row.costGroupId).filter((id): id is string => id != null),
+    )];
+    const costGroupSizes = new Map(costGroupIds.length === 0 ? [] : await tx.select({
+      costGroupId: s.shipments.costGroupId,
+      memberCount: sql<number>`count(*)`,
+    }).from(s.shipments)
+      .where(inArray(s.shipments.costGroupId, costGroupIds))
+      .groupBy(s.shipments.costGroupId)
+      .then((rows) => rows.map((row) => [row.costGroupId!, Number(row.memberCount)] as const)));
     const carrierIds = pageRows
       .map((row) => row.plannedExternalCarrierId)
       .filter((id): id is number => id != null);
@@ -474,6 +500,22 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             containerNumber: row.containerNumber,
             containerTypeLabel: row.containerTypeName ?? row.containerTypeCode ?? null,
             cargoWeightKg: row.containerCargoWeightKg ?? row.cargoWeightKg,
+          },
+          // FB-092 LCL facts — the lot's own cargo (the CONTAINER cell's 2nd/3rd
+          // lines) and its cost-group tag + truck identity.
+          lcl: {
+            packageCount: row.packageCount,
+            packageType: row.packageType,
+            cargoVolumeCbm: row.cargoVolumeCbm,
+            group: row.costGroupId != null ? {
+              groupId: row.costGroupId,
+              order: row.costGroupOrder ?? null,
+              memberCount: costGroupSizes.get(row.costGroupId) ?? null,
+              actualTruckNo: row.actualTruckNo,
+              billingTruckNo: row.billingTruckNo,
+              vehicleClassCode: row.costVehicleClassCode ?? null,
+              vehicleClassName: row.costVehicleClassName ?? null,
+            } : null,
           },
           notes: {
             vehicleNote: input.actor.role === Role.ACCOUNTANT ? null : row.operationalNotes,

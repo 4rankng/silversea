@@ -26,10 +26,38 @@ import { displayNote } from '../../shipments/cus/cusUtils';
 import { DispatchDriverNote } from './DispatchDriverNote';
 import { detailRowKey } from './DispatchPlanCellValues';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
+import { Checkbox as UUICheckbox } from '../../../components/untitled-ui/base/checkbox/checkbox';
 
 import '../../../styles/operational-table-typography.css';
 import './DetailedPlanGrid.css';
-import { formatWeight } from '../../../lib/format';
+import { formatNumber, formatVolumeCbm, formatWeight } from '../../../lib/format';
+
+/** FB-092 — the LCL CONTAINER cell's cargo line: `{số lượng} {bao bì}`
+ *  (e.g. "5 PALLET"); each half joins only when the lot has one. Null when
+ *  neither is set (the cell prints its "—" placeholder). */
+export function lclCargoLine(row: DispatchDetailPlanRow): string | null {
+  const lcl = row.lcl;
+  if (!lcl) return null;
+  return [
+    lcl.packageCount != null ? formatNumber(lcl.packageCount) : null,
+    lcl.packageType?.trim() || null,
+  ].filter(Boolean).join(' ') || null;
+}
+
+/** FB-092 — the LCL CONTAINER cell's measure line: `{kg} · {CBM}`, each half
+ *  joining only when the lot has one (CBM is optional for LCL). Falls back to
+ *  the weight-only line on pre-FB-092 wire shapes. */
+export function lclMeasureLine(row: DispatchDetailPlanRow): string | null {
+  const lcl = row.lcl;
+  const weight = row.container.cargoWeightKg != null && row.container.cargoWeightKg !== ''
+    ? formatWeight(row.container.cargoWeightKg)
+    : null;
+  if (!lcl) return weight;
+  return [
+    weight,
+    lcl.cargoVolumeCbm ? formatVolumeCbm(lcl.cargoVolumeCbm) : null,
+  ].filter(Boolean).join(' · ') || null;
+}
 
 interface DetailedPlanGridProps {
   filters: DetailedPlanFilterState;
@@ -87,6 +115,11 @@ interface DetailedPlanGridProps {
   /** Opens the ghép chuyến dialog anchored on this row's trip (optional —
    * pages that don't mount the dialog simply don't get the button). */
   onOpenPair?: (row: DispatchDetailPlanRow) => void;
+  /** FB-092 LCL grouping: when present, LCL rows get a selection checkbox and
+   *  the toggles flow to the page's selection state (sticky total bar + the
+   *  gán-xe-nhóm dialog). Pages that don't pass it see no checkboxes. */
+  selectedLclShipmentIds?: ReadonlySet<number>;
+  onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
 }
 
 /**
@@ -118,6 +151,8 @@ export function DetailedPlanGrid({
   onCompleteExternalTrip,
   onIssueOrder,
   onOpenPair,
+  selectedLclShipmentIds,
+  onToggleLclSelection,
   onEnsureFulfillment,
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
@@ -313,6 +348,13 @@ export function DetailedPlanGrid({
                         height is uniform by construction, not by column
                         tuning (the R22/141026001010 regression class). */}
                     <div className="detailed-plan-grid__cell-body">
+                      {onToggleLclSelection && row.cargoMode === 'LCL' && (
+                        <UUICheckbox
+                          isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
+                          onChange={(next: boolean) => onToggleLclSelection(row.shipmentId, next)}
+                          aria-label={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
+                        />
+                      )}
                       <div className="ops-schedule">
                         <strong className="ops-schedule__datetime" title={scheduleValue}>{scheduleValue}</strong>
                         <span className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={!row.docs.tradeDirection ? 'true' : undefined} title={row.docs.tradeDirection || differentTransportDate ? `${row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : ''}${differentTransportDate ? ` · Ngày vận chuyển: ${differentTransportDate}` : ''}` : undefined}>
@@ -411,9 +453,25 @@ export function DetailedPlanGrid({
                         </>
                       ) : (
                         <>
-                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">Lô hàng lẻ</div>
-                          <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined} title={formatWeight(row.container.cargoWeightKg)}>
-                            {formatWeight(row.container.cargoWeightKg)}
+                          {/* FB-092: a containerless lot states its own kind,
+                              cargo and (when grouped) its truck class — never
+                              a container placeholder (FB-091 law). */}
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
+                            Lẻ{row.lcl?.group?.vehicleClassCode ? ` · Xe ${row.lcl.group.vehicleClassCode}` : ''}
+                          </div>
+                          <div
+                            className="detailed-plan-grid__line"
+                            data-empty={row.lcl?.packageCount == null && !row.lcl?.packageType ? 'true' : undefined}
+                            title={lclCargoLine(row) ?? undefined}
+                          >
+                            {lclCargoLine(row) ?? '—'}
+                          </div>
+                          <div
+                            className="detailed-plan-grid__line detailed-plan-grid__line--muted"
+                            data-empty={lclMeasureLine(row) == null ? 'true' : undefined}
+                            title={lclMeasureLine(row) ?? undefined}
+                          >
+                            {lclMeasureLine(row) ?? '—'}
                           </div>
                         </>
                       )}
@@ -436,6 +494,14 @@ export function DetailedPlanGrid({
                       <span className="detailed-plan-grid__classification">
                         {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                       </span>
+                      {row.cargoMode === 'LCL' && row.lcl?.group && (
+                        <span
+                          className="detailed-plan-grid__lcl-group-tag"
+                          title={`Ghép trả ĐV · BKS ${row.lcl.group.actualTruckNo ?? '—'}${row.lcl.group.billingTruckNo && row.lcl.group.billingTruckNo !== row.lcl.group.actualTruckNo ? ` · Báo khách ${row.lcl.group.billingTruckNo}` : ''}`}
+                        >
+                          Lẻ · Ghép ({row.lcl.group.order ?? '?'}/{row.lcl.group.memberCount ?? '?'})
+                        </span>
+                      )}
                       <DispatchPairAction row={row} onOpenPair={onOpenPair} />
                     </div>
                   </td>

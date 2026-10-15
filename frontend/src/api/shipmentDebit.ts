@@ -30,6 +30,24 @@ export interface ShipmentDebitLotRow {
   profit: number | null;
   lockStatus: 'OPEN' | 'LOCKED';
   lockedAt: string | null;
+  // ── FB-092/093 LCL grouping facts (all null on FCL / ungrouped rows) ──────
+  cargoMode?: 'FCL' | 'LCL' | null;
+  costGroupId?: string | null;
+  costGroupOrder?: number | null;
+  revGroupId?: string | null;
+  revGroupOrder?: number | null;
+  costGroupMemberCount?: number | null;
+  revGroupMemberCount?: number | null;
+  /** BKS thực (what runs the lane). */
+  actualTruckNo?: string | null;
+  /** BKS báo khách ("ảo") — what the debit note MUST print (FB-094). */
+  billingTruckNo?: string | null;
+  /** Loại xe tính cước — trả ĐV (cost) / thu khách (rev). */
+  costVehicleClassCode?: string | null;
+  revVehicleClassCode?: string | null;
+  /** The principal lot's Bill/Booking for "Ghép cước cùng Bill X" notes. */
+  revGroupPrincipalRef?: string | null;
+  costGroupPrincipalRef?: string | null;
 }
 
 export interface ShipmentDebitSummary {

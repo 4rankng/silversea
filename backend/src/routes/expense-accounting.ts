@@ -216,7 +216,7 @@ router.post('/entries', declareMaterialWrite('expense-accounting.create', { meth
 // every item runs inside this one transaction through the same
 // `createAccountingExpense` a single save uses, so a bad row aborts the whole
 // batch (nothing written) and the error names the 1-based row it failed on.
-router.post('/entries/batch', declareMaterialWrite('expense-accounting.create-batch', { method: 'POST', path: '/api/expense-accounting/entries/batch' }),  asyncHandler(async (req, res) => {
+router.post('/entries/batch', declareMaterialWrite(IDEMPOTENCY_ENDPOINTS.EXPENSE_ACCOUNTING_ENTRY_BATCH, { method: 'POST', path: '/api/expense-accounting/entries/batch' }),  asyncHandler(async (req, res) => {
   const input = parse(expenseAccountingCreateBatchSchema, req.body);
   requireShipmentIdempotencyKey(req, 'Cần mã thao tác để tránh ghi trùng khoản chi.');
   const result = await runShipmentWrite(req, IDEMPOTENCY_ENDPOINTS.EXPENSE_ACCOUNTING_ENTRY_BATCH, input, async tx => {

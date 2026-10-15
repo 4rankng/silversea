@@ -163,6 +163,19 @@ export async function listFulfillmentLessReadyRows(
       packageType: s.shipments.packageType,
       packageCount: s.shipments.packageCount,
       cargoWeightKg: s.shipments.cargoWeightKg,
+      // FB-092 LCL fields — shipment-level, so both row families read the
+      // same group facts (branch rows are pre-fulfillment, where grouping
+      // actually begins).
+      cargoVolumeCbm: s.shipments.cargoVolumeCbm,
+      costGroupId: s.shipments.costGroupId,
+      costGroupOrder: s.shipments.costGroupOrder,
+      actualTruckNo: s.shipments.actualTruckNo,
+      billingTruckNo: s.shipments.billingTruckNo,
+      costVehicleClassId: s.shipments.costVehicleClassId,
+      // No fulfillment ⇒ no vehicle-class join in this branch; the code path
+      // can still resolve the class through costVehicleClassId when needed.
+      costVehicleClassCode: sql<null>`null`,
+      costVehicleClassName: sql<null>`null`,
       customerId: s.customers.id,
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,

@@ -24,6 +24,9 @@ export * from './ocr-settings';
 // the geotag route/service (backend) and the geotag client (frontend).
 export * from './geotag';
 
+// FB-092/093 — LCL lot grouping commands (cost/rev groups, virtual truck).
+export * from './lcl-grouping';
+
 // Reusable numeric transform helpers to prevent string concatenation bugs and parse PG numeric types
 export const numericMoney = z.union([z.number(), z.string()]).transform((val, ctx) => {
   const num = Number(val);

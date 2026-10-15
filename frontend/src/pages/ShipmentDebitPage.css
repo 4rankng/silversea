@@ -371,3 +371,73 @@
     height: var(--control-max-h);
   }
 }
+
+/* ─── FB-093: LCL lot facts strip (expanded lot detail) ───────────────────── */
+.debit-lot-lcl-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--color-border, #e4e7ec);
+  border-radius: 10px;
+  background: var(--surface, #fafafa);
+}
+
+.debit-lot-lcl-facts__block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+}
+
+.debit-lot-lcl-facts__block small {
+  color: var(--color-text-tertiary, #475467);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.debit-lot-lcl-facts__truck {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.debit-lot-lcl-facts__billing-warn {
+  color: #b54708;
+  font-size: 12px;
+}
+
+.debit-lot-lcl-facts__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.debit-lot-lcl-facts__groups em {
+  color: var(--color-text-tertiary, #475467);
+  font-style: normal;
+}
+
+.merge-rev-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.merge-rev-group__lots {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.merge-rev-group__error {
+  color: #d92d20;
+  font-size: 13px;
+  margin: 0;
+}

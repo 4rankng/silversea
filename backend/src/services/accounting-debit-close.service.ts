@@ -48,6 +48,15 @@ export interface AccountingDebitBoardRow {
   billOrBooking: string | null;
   containers: string[];
   phanXe: string[];
+  /** FB-094 — LCL grouping facts: the container-params label cites the thu/tra
+   *  vehicle classes, and the two plates drive the orange "Báo khách (Ảo)"
+   *  badge when billing differs from the actual. Null on FCL/ungrouped rows. */
+  lcl: {
+    label: string;
+    actualTruckNo: string | null;
+    billingTruckNo: string | null;
+    ghépCùngRef: string | null;
+  } | null;
   thu: {
     cuocThu: string | null;
     lachHuyen: string | null;
@@ -89,6 +98,16 @@ export async function getAccountingDebitBoard(query: {
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
     tradeDirection: s.shipments.tradeDirection,
+    // FB-094 LCL grouping facts for the container-params cell + plate badge.
+    cargoMode: s.shipments.cargoMode,
+    costGroupId: s.shipments.costGroupId,
+    costGroupOrder: s.shipments.costGroupOrder,
+    revGroupId: s.shipments.revGroupId,
+    revGroupOrder: s.shipments.revGroupOrder,
+    actualTruckNo: s.shipments.actualTruckNo,
+    billingTruckNo: s.shipments.billingTruckNo,
+    costVehicleClassId: s.shipments.costVehicleClassId,
+    revVehicleClassId: s.shipments.revVehicleClassId,
   })
     .from(s.shipments)
     .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
@@ -96,6 +115,54 @@ export async function getAccountingDebitBoard(query: {
     .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
   if (lots.length === 0) return { items: [], total: 0 };
   const lotIds = lots.map((lot) => lot.id);
+
+  // FB-094 — vehicle-class codes for the LCL container-params label, plus each
+  // grouped lot's principal reference ("Ghép cùng Bill X").
+  const lclVehicleClassIds = [...new Set(
+    lots.flatMap((lot) => [lot.costVehicleClassId, lot.revVehicleClassId])
+      .filter((id): id is number => id != null),
+  )];
+  const lclClassCodes = new Map(
+    lclVehicleClassIds.length === 0
+      ? []
+      : (await executor.select({ id: s.vehicleSizeClasses.id, code: s.vehicleSizeClasses.code })
+        .from(s.vehicleSizeClasses)
+        .where(inArray(s.vehicleSizeClasses.id, lclVehicleClassIds)))
+        .map((row) => [row.id, row.code] as const),
+  );
+  const lclGroupIds = [...new Set(lots.flatMap((lot) => [lot.costGroupId, lot.revGroupId]).filter((id): id is string => id != null))];
+  const lclPrincipalRefs = new Map<string, string>();
+  if (lclGroupIds.length > 0) {
+    const principals = await executor.select({
+      costGroupId: s.shipments.costGroupId,
+      revGroupId: s.shipments.revGroupId,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+    }).from(s.shipments)
+      .where(and(
+        eq(s.shipments.costGroupOrder, 1),
+        inArray(s.shipments.costGroupId, lclGroupIds),
+      ));
+    const revPrincipals = await executor.select({
+      revGroupId: s.shipments.revGroupId,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+    }).from(s.shipments)
+      .where(and(
+        eq(s.shipments.revGroupOrder, 1),
+        inArray(s.shipments.revGroupId, lclGroupIds),
+      ));
+    for (const principal of principals) {
+      const ref = principal.blNumber ?? principal.bookingRef;
+      if (ref == null || principal.costGroupId == null) continue;
+      lclPrincipalRefs.set(principal.costGroupId, ref);
+    }
+    for (const principal of revPrincipals) {
+      const ref = principal.blNumber ?? principal.bookingRef;
+      if (ref == null || principal.revGroupId == null) continue;
+      lclPrincipalRefs.set(principal.revGroupId, ref);
+    }
+  }
 
   // Cước thu auto + Phụ ps auto: the active freight-rate grain (per-trip
   // freezes are additive legs; the dispatch freeze supersedes the intake
@@ -433,6 +500,22 @@ export async function getAccountingDebitBoard(query: {
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       containers: containersByLot.get(lot.id) ?? [],
       phanXe: phanXeByLot.get(lot.id) ?? [],
+      lcl: lot.cargoMode === 'LCL' ? {
+        label: [
+          'Lẻ',
+          lot.revVehicleClassId != null && lclClassCodes.has(lot.revVehicleClassId)
+            ? `Thu: ${lclClassCodes.get(lot.revVehicleClassId)}` : null,
+          lot.costVehicleClassId != null && lclClassCodes.has(lot.costVehicleClassId)
+            ? `Trả: ${lclClassCodes.get(lot.costVehicleClassId)}` : null,
+        ].filter(Boolean).join(' · '),
+        actualTruckNo: lot.actualTruckNo,
+        billingTruckNo: lot.billingTruckNo,
+        ghépCùngRef: (lot.revGroupId != null && (lot.revGroupOrder ?? 1) > 1
+          ? lclPrincipalRefs.get(lot.revGroupId) ?? null
+          : lot.costGroupId != null && (lot.costGroupOrder ?? 1) > 1
+            ? lclPrincipalRefs.get(lot.costGroupId) ?? null
+            : null),
+      } : null,
       thu: { cuocThu, lachHuyen: lachHuyenThu, phuPs, phatSinhCus, tongThu },
       tra: { cuocTraDv, lachHuyenDv, phatSinhDv, tong1, phiRu },
       loiNhuan,

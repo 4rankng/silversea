@@ -4,10 +4,12 @@ import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
 import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
+import { AssignTruckGroupDialog } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { billBookingReference } from '../lib/business-reference';
+import { formatVolumeCbm, formatWeight } from '../lib/format';
 import './DispatchPlanPage.css';
 
 /**
@@ -31,6 +33,35 @@ export default function DispatchDetailPlanPage() {
   // app, so dispatch/CUS confirm the completion from the grid row.
   const [completingRow, setCompletingRow] = useState<DispatchDetailPlanRow | null>(null);
   const [completing, setCompleting] = useState(false);
+
+  // FB-092 LCL grouping: the dispatcher's selected lots in click order —
+  // index 0 becomes Lô 1 (100% cước trả ĐV). Only ungrouped LCL rows join a
+  // new group; rows already in one are refused until un-merged (FB-095).
+  const [selectedLclRows, setSelectedLclRows] = useState<DispatchDetailPlanRow[]>([]);
+  const [truckGroupOpen, setTruckGroupOpen] = useState(false);
+  const selectedIds = useMemo(
+    () => new Set(selectedLclRows.map((row) => row.shipmentId)),
+    [selectedLclRows],
+  );
+  const selectionTotals = useMemo(() => {
+    let weight = 0;
+    let volume = 0;
+    for (const row of selectedLclRows) {
+      const kg = Number(row.container.cargoWeightKg);
+      if (Number.isFinite(kg)) weight += kg;
+      const cbm = Number(row.lcl?.cargoVolumeCbm);
+      if (Number.isFinite(cbm)) volume += cbm;
+    }
+    return { weight, volume };
+  }, [selectedLclRows]);
+
+  function toggleLclSelection(shipmentId: number, next: boolean) {
+    setSelectedLclRows((current) => {
+      if (!next) return current.filter((row) => row.shipmentId !== shipmentId);
+      const row = detailPlan.items.find((item) => item.shipmentId === shipmentId);
+      return row ? [...current, row] : current;
+    });
+  }
 
   async function confirmCompleteExternalTrip() {
     if (!completingRow) return;
@@ -83,7 +114,37 @@ export default function DispatchDetailPlanPage() {
           onEnsureFulfillment={detailPlan.ensureFulfillment}
           autoOpenFulfillmentId={detailPlan.autoOpenFulfillmentId}
           onAutoOpenConsumed={detailPlan.consumeAutoOpen}
+          selectedLclShipmentIds={selectedIds}
+          onToggleLclSelection={toggleLclSelection}
         />
+        {selectedLclRows.length > 0 && (
+          <div className="lcl-selection-bar" role="status">
+            <span className="lcl-selection-bar__totals">
+              Đang chọn {selectedLclRows.length} lô: Tổng {formatWeight(String(selectionTotals.weight))}
+              {' | '}
+              {formatVolumeCbm(String(selectionTotals.volume))}
+            </span>
+            <span className="lcl-selection-bar__first" title="Lô 1 giữ 100% cước trả ĐV">
+              Lô 1: {billBookingReference(selectedLclRows[0]!.docs.billNumber)}
+            </span>
+            <button
+              type="button"
+              className="lcl-selection-bar__clear"
+              onClick={() => setSelectedLclRows([])}
+            >
+              Bỏ chọn
+            </button>
+            <button
+              type="button"
+              className="lcl-selection-bar__assign"
+              disabled={selectedLclRows.length < 2}
+              title={selectedLclRows.length < 2 ? 'Nhóm ghép cần ít nhất 2 lô' : 'Gán xe nhóm trả ĐV'}
+              onClick={() => setTruckGroupOpen(true)}
+            >
+              Gán xe nhóm
+            </button>
+          </div>
+        )}
         {detailPlan.total > detailPlan.pageSize && (
           <Pagination
             page={detailPlan.page}
@@ -107,6 +168,17 @@ export default function DispatchDetailPlanPage() {
         onClose={() => setPairRow(null)}
         onPaired={detailPlan.refresh}
       />
+
+      {truckGroupOpen && selectedLclRows.length > 0 && (
+        <AssignTruckGroupDialog
+          rows={selectedLclRows}
+          onClose={() => setTruckGroupOpen(false)}
+          onAssigned={() => {
+            setSelectedLclRows([]);
+            void detailPlan.refresh();
+          }}
+        />
+      )}
 
       <ConfirmDialog
         isOpen={completingRow != null}

@@ -20,6 +20,8 @@ import { Button as UUIButton } from '../components/untitled-ui/base/buttons/butt
 import { EmptyState, SearchableSelect } from '../design-system';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
+import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
+import { DebitLotLclFacts } from '../features/shipments/debit/DebitLotLclFacts';
 import { DisabledActionTip } from '../components/shared/DisabledActionTip';
 import './ShipmentDebitPage.css';
 
@@ -45,7 +47,7 @@ function overlappingLotCodesFrom(cause: unknown): string[] | null {
  *  first cell beside [+] (no tenth column), TỔNG PHẢI TRẢ rides its own
  *  wire field — null stays "Chưa xác định", never derived, never 0. */
 function DebitLotRow({
-  row, expanded, onToggle, onSaved, selected, onSelect, canManage,
+  row, expanded, onToggle, onSaved, selected, onSelect, canManage, plateOptions,
 }: {
   row: ShipmentDebitLotRow;
   canManage: boolean;
@@ -54,6 +56,8 @@ function DebitLotRow({
   onSaved: () => void;
   selected: boolean;
   onSelect: (id: number, next: boolean) => void;
+  /** FB-093: BKS combobox suggestions for the PHÂN XE quick edit. */
+  plateOptions: Array<{ value: string; label: string; searchText?: string }>;
 }) {
   // Identity renders from business keys only — DB ids and id-derived codes
   // never surface as user-visible text; absent keys collapse to '—'.
@@ -64,7 +68,8 @@ function DebitLotRow({
       className="shipment-debit-row"
       data-locked={row.lockStatus === 'LOCKED' ? '' : undefined}
       data-selected={selected || undefined}
-      onClick={() => { if (canManage && row.lockStatus === 'LOCKED') onSelect(row.shipmentId, !selected); }}
+      onClick={() => { if (canManage) onSelect(row.shipmentId, !selected); }}
+      title={canManage ? 'Chọn lô (ghép cước thu khách / xuất Debit Note)' : undefined}
     >
       <td className="shipment-debit-row__lead">
         {canManage ? <button
@@ -112,6 +117,13 @@ function DebitLotRow({
       {canManage && expanded && (
         <tr className="shipment-debit-expand">
           <td colSpan={9}>
+            {/* FB-093: the lot's own LCL facts — THÔNG SỐ CONTAINER, the
+                PHÂN XE two-plate quick edit, group tags and Hủy ghép — sit
+                ABOVE the fee workspace so the settlement reads the group
+                state before touching money. */}
+            {row.cargoMode === 'LCL' && (
+              <DebitLotLclFacts row={row} plateOptions={plateOptions} onChanged={onSaved} />
+            )}
             {/* Card _202: the fee catalog keys off the ROW's customer — the
                 list can span customers, so the page's filter is not the truth. */}
             <ShipmentDebitWorkspace shipmentId={row.shipmentId} customerId={row.customerId} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
@@ -143,6 +155,7 @@ export function ShipmentDebitPage() {
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [issuing, setIssuing] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const { toast } = useToast();
 
   // Xuất Debit Note: ONE issue call carries every selected locked lot id and
@@ -227,6 +240,29 @@ export function ShipmentDebitPage() {
   const customers = bootstrap.data?.customers ?? [];
   const items = summary.data?.items ?? [];
   const anyLockedSelected = items.some((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED');
+  // FB-093 — the merge works on the SELECTION (row click; OPEN lots included —
+  // merging is a pre-lock action). Only ungrouped LCL lots may join a new
+  // group; the same-customer gate runs in the dialog and on the server.
+  const selectedRows = items.filter((row) => selectedIds.has(row.shipmentId));
+  const mergeableRows = selectedRows.filter((row) => row.cargoMode === 'LCL' && row.revGroupId == null);
+  const mergeDisabledReason = mergeableRows.length < 2
+    ? 'Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.'
+    : null;
+  const mergeDisabled = mergeDisabledReason != null;
+  // FB-093: BKS quick-edit suggestions — the bootstrap fleet's plates plus
+  // every plate already on the page's lots (group trucks a dispatcher typed).
+  const plateOptions = (() => {
+    const plates = new Set<string>();
+    for (const truck of (bootstrap.data?.trucks ?? [])) {
+      if (truck.licensePlate?.trim()) plates.add(truck.licensePlate.trim());
+    }
+    for (const row of items) {
+      for (const plate of [row.actualTruckNo, row.billingTruckNo]) {
+        if (plate?.trim()) plates.add(plate.trim());
+      }
+    }
+    return [...plates].map((plate) => ({ value: plate, label: plate, searchText: plate }));
+  })();
   // The ribbon is presentational, so the API shape is mapped to the shared
   // combobox options here and the URL semantics stay on this side too
   // (card 20260927_153).
@@ -269,6 +305,17 @@ export function ShipmentDebitPage() {
           <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
           {canManage && (
             <span className="shipment-debit-header__export">
+              <DisabledActionTip id="shipment-debit-merge-rev" reason={mergeDisabledReason}>
+                <UUIButton
+                  className="shipment-debit-merge-rev"
+                  size="sm"
+                  color="secondary"
+                  aria-disabled={mergeDisabled || undefined}
+                  onPress={() => { if (mergeDisabled) return; setMergeOpen(true); }}
+                >
+                  Ghép cước thu khách
+                </UUIButton>
+              </DisabledActionTip>
               <DisabledActionTip id="shipment-debit-export" reason={exportDisabledReason}>
                 <UUIButton
                   className="shipment-debit-export"
@@ -372,6 +419,7 @@ export function ShipmentDebitPage() {
                       if (next) set.add(id); else set.delete(id);
                       return set;
                     })}
+                    plateOptions={plateOptions}
                   />
                 ))}
               </tbody>
@@ -384,6 +432,17 @@ export function ShipmentDebitPage() {
           </>
         )}
       </section>
+
+      {mergeOpen && (
+        <MergeRevGroupDialog
+          rows={mergeableRows}
+          onClose={() => setMergeOpen(false)}
+          onMerged={() => {
+            setSelectedIds(new Set());
+            void summary.refetch();
+          }}
+        />
+      )}
     </div>
   );
 }
