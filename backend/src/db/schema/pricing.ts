@@ -14,6 +14,12 @@ export const pricingTables = pgTable('pricing_tables', {
   price: numeric('price', { precision: 15, scale: 0 }).notNull(),
   containerTypeId: integer('container_type_id'),
   rateKey: varchar('rate_key', { length: 32 }),
+  // FB-090 LCL: structured link into vehicle_size_classes (the "Danh mục
+  // Loại xe"). The write path denormalizes rateKey = the class CODE, so
+  // rows land in the existing rate_key unique index and every legacy
+  // rateKey resolver (freight engine, resolveTablePrice, seeds) keeps
+  // working unchanged. Plain integer — repo FK convention.
+  vehicleSizeClassId: integer('vehicle_size_class_id'),
   effectiveDate: date('effective_date').notNull().defaultNow(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -28,6 +34,32 @@ export const pricingTables = pgTable('pricing_tables', {
   uniqueIndex('pricing_tables_rate_key_date_idx')
     .on(table.customerId, table.routeId, table.rateKey, table.effectiveDate)
     .where(sql`${table.containerTypeId} is null and ${table.rateKey} is not null`),
+]);
+
+// FB-090 LCL: Bảng giá cước trả nhà xe — (tuyến × loại xe × [nhà xe]) → giá.
+// supplierId NULL = "giá chung" áp cho mọi nhà xe chưa có giá riêng trên
+// lane đó; supplierId set = giá riêng của nhà xe đó. Lookup cascade in
+// pricing.service: giá riêng → giá chung. Two partial unique indexes keep
+// each lane single-priced per effectiveDate (NULL supplier rows need their
+// own index — Postgres UNIQUE treats NULLs as distinct).
+export const carrierRoutePricing = pgTable('carrier_route_pricing', {
+  id: serial('id').primaryKey(),
+  routeId: integer('route_id').notNull(),
+  vehicleSizeClassId: integer('vehicle_size_class_id').notNull(),
+  supplierId: integer('supplier_id'),
+  price: numeric('price', { precision: 15, scale: 0 }).notNull(),
+  effectiveDate: date('effective_date').notNull().defaultNow(),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
+}, (table) => [
+  uniqueIndex('carrier_route_pricing_generic_date_uniq')
+    .on(table.routeId, table.vehicleSizeClassId, table.effectiveDate)
+    .where(sql`${table.supplierId} is null and ${table.deletedAt} is null`),
+  uniqueIndex('carrier_route_pricing_supplier_date_uniq')
+    .on(table.routeId, table.vehicleSizeClassId, table.supplierId, table.effectiveDate)
+    .where(sql`${table.supplierId} is not null and ${table.deletedAt} is null`),
 ]);
 
 export const roadAllowances = pgTable('road_allowances', {
