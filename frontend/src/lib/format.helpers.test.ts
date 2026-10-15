@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatISODate, formatMoney, formatDateTimeShort } from './format';
+import { formatISODate, formatMoney, formatDateTimeShort, formatVolumeCbm, formatWeight } from './format';
 
 describe('formatMoney', () => {
   it('formats integers with vi-VN grouping and no symbol', () => {
@@ -58,3 +58,28 @@ describe('formatDateTimeShort', () => {
   });
 });
 
+describe('formatVolumeCbm (FB-091)', () => {
+  it('groups like every house measure and drops the stored trailing zeros', () => {
+    expect(formatVolumeCbm('4.000')).toBe('4 CBM');
+    expect(formatVolumeCbm(4)).toBe('4 CBM');
+    expect(formatVolumeCbm('52.5')).toBe('52,5 CBM');
+    expect(formatVolumeCbm('1250.75')).toBe('1.250,75 CBM');
+  });
+  it('keeps the column\'s third fraction digit and rounds nothing away', () => {
+    // cargo_volume_cbm is numeric(12,3): a stored 4.125 must survive, and a
+    // 4th digit is the one thing the 3-digit cap is allowed to drop.
+    expect(formatVolumeCbm('4.125')).toBe('4,125 CBM');
+    expect(formatVolumeCbm('4.1254')).toBe('4,125 CBM');
+  });
+  it('renders an em dash for null/empty and echoes a bad column value verbatim', () => {
+    expect(formatVolumeCbm(null)).toBe('—');
+    expect(formatVolumeCbm(undefined)).toBe('—');
+    expect(formatVolumeCbm('')).toBe('—');
+    // A bad column value is echoed exactly as the record states it, with no unit
+    // appended — the same contract formatWeight keeps ("NaN kg" is never shown).
+    expect(formatVolumeCbm('n/a')).toBe('n/a');
+    // Whitespace is not "empty": Number('   ') is 0, exactly as formatWeight
+    // treats it ("0 kg"). Pinned so the two house measures cannot drift apart.
+    expect(formatVolumeCbm('   ')).toBe(formatWeight('   ').replace('kg', 'CBM'));
+  });
+});

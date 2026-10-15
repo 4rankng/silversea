@@ -8,7 +8,7 @@ import {
   displayNote,
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
-import { formatDateTimeShort, formatISODate, formatWeight } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate, formatNumber, formatVolumeCbm, formatWeight } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
 import {
   isNoteLong,
@@ -138,19 +138,42 @@ export type ContainerPortGroupLine = {
 type ContainerPortGroupKey = string;
 
 /**
- * The backend exposes one `containerPortGroup` per appointment instant (per-day
- * when a lot splits across close/return dates), so a single shipment can carry
- * N groups for the SAME (pickup → dropoff) pair — each with a partial
- * container count. Dispatch needs the TOTAL demand per lift/drop pair, not
- * the per-day split. We aggregate groups by (pickup, dropoff) and sum the
- * container-type counts so each port column reads "Cảng HP · 3 x 40DC"
- * instead of three "1 x 40DC" lines.
+ * Lift/drop lines for one row's Cảng nâng / Cảng hạ columns.
  *
- * Customer feedback L2 (24/08/2026) — when `scheduleDate` is set, only
- * groups whose `localDate` matches are aggregated, so the cảng cells reflect
- * only the conts running on that day.
+ * LCL — its two sites, no aggregation (see the branch below).
+ *
+ * FCL — the backend exposes one `containerPortGroup` per appointment instant
+ * (per-day when a lot splits across close/return dates), so a single shipment
+ * can carry N groups for the SAME (pickup → dropoff) pair — each with a partial
+ * container count. Dispatch needs the TOTAL demand per lift/drop pair, not the
+ * per-day split. We aggregate groups by (pickup, dropoff) and sum the
+ * container-type counts so each port column reads "Cảng HP · 3 x 40DC" instead
+ * of three "1 x 40DC" lines.
+ *
+ * Customer feedback L2 (24/08/2026) — for FCL, when `scheduleDate` is set, only
+ * groups whose `localDate` matches are aggregated, so the cảng cells reflect only
+ * the conts running on that day.
+ *
+ * An LCL lot owns no container (LCL + container is refused at intake), so it has
+ * no container port pair to aggregate. Its two columns name the sites CUS fills
+ * at intake instead: "Kho lấy" (`pickupWarehouseSiteId`, projected as
+ * `pickupWarehouseSiteName`) under Cảng nâng and the delivery point — the lot's
+ * operational site, the same column the detailed-plan "Điểm trả" facet filters
+ * on, projected here as `factoryName` — under Cảng hạ. A site the lot has not
+ * chosen yet reads "—", never "Chưa có cont" (FB-091: a container placeholder
+ * on a lot that can never have a container names a false fact).
+ *
+ * A single-day filter does not blank these: an LCL lot's schedule IS its
+ * `expectedDeliveryDate` (`resolveEffectiveFulfillmentDate`), so both sites
+ * stay true on every day the lot appears.
  */
 export function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?: string | null): ContainerPortGroupLine[] {
+  if (item.cargoMode === 'LCL') {
+    return [
+      { direction: 'lift', label: 'Nâng', portName: item.pickupWarehouseSiteName?.trim() || '—', containerSummary: null },
+      { direction: 'drop', label: 'Hạ', portName: item.factoryName?.trim() || '—', containerSummary: null },
+    ];
+  }
   const allGroups = item.containerPortGroups ?? [];
   const containerPortGroups = scheduleDate
     ? allGroups.filter((group) => group.localDate === scheduleDate)
@@ -231,6 +254,50 @@ export function dayContainerSummary(item: ShipmentListItem, scheduleDate?: strin
   return Array.from(merged.entries())
     .map(([label, qty]) => `${qty} x ${label}`)
     .join(' + ');
+}
+
+/** One rendered line of the Tổng quan hàng hóa cell. `muted` marks the
+ *  supporting measure line under the composition line; `empty` marks a line that
+ *  rendered no value, which the phone record card collapses (`data-empty`). The
+ *  flag is explicit rather than inferred from the text: two lines can carry the
+ *  same placeholder, and a custom `FormatValueOptions.empty` label must not
+ *  silently stop collapsing. */
+export type CargoCellLine = { text: string; muted: boolean; empty: boolean };
+
+/**
+ * Cargo-cell lines, in render order — the ONE source both the grid and the XLSX
+ * export read, so the sheet can never disagree with the screen.
+ *
+ * LCL (FB-091) — a containerless lot has no container demand to print, so the
+ * cell states the lot's own CUS cargo fields instead of "Chưa có cont":
+ * `[số lượng] [loại bao bì]` over `[kg] · [CBM]`, e.g.
+ * `5 PALLET` / `1.922 kg · 4 CBM`. CBM is optional for LCL (helpdesk
+ * 2026-10-13), so each measure joins the line only when the lot has one;
+ * a lot that entered neither keeps "—" rather than a bare unit.
+ *
+ * FCL — the container-type demand lines (narrowed to the active day when a
+ * single-day filter is on) plus the lot's aggregated weight.
+ */
+export function cargoCellLines(item: ShipmentListItem, scheduleDate?: string | null): CargoCellLine[] {
+  if (item.cargoMode === 'LCL') {
+    const demand = [item.packageCount != null ? formatNumber(item.packageCount) : null, item.packageType?.trim() || null]
+      .filter(Boolean)
+      .join(' ');
+    const measures = [
+      item.cargoWeightKg ? formatWeight(item.cargoWeightKg) : null,
+      item.cargoVolumeCbm ? formatVolumeCbm(item.cargoVolumeCbm) : null,
+    ].filter(Boolean).join(' · ');
+    return [
+      { text: demand || '—', muted: false, empty: !demand },
+      { text: measures || '—', muted: true, empty: !measures },
+    ];
+  }
+  const weight = formatWeight(item.totalCargoWeightKg);
+  return [
+    ...formatContainerSummaryLines(dayContainerSummary(item, scheduleDate) ?? item.containerTypeSummary)
+      .map((text): CargoCellLine => ({ text, muted: false, empty: false })),
+    { text: weight, muted: true, empty: item.totalCargoWeightKg == null },
+  ];
 }
 
 /** The statuses a DISPATCHER may write (`assertDispatcherCanMutateShipmentIntake`). */
@@ -380,14 +447,15 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa" data-label-short="Hàng">
                   <div className="master-plan-grid__cargo-content">
                     <div className="master-plan-grid__cargo-summary">
-                      {formatContainerSummaryLines(dayContainerSummary(item, scheduleDate) ?? item.containerTypeSummary).map((summaryLine) => (
-                        <div key={summaryLine} className="master-plan-grid__line">
-                          {summaryLine}
+                      {cargoCellLines(item, scheduleDate).map((line, index) => (
+                        <div
+                          key={`${index}-${line.text}`}
+                          className={`master-plan-grid__line${line.muted ? ' master-plan-grid__line--muted' : ''}`}
+                          data-empty={line.empty ? 'true' : undefined}
+                        >
+                          {line.text}
                         </div>
                       ))}
-                      <div className="master-plan-grid__line master-plan-grid__line--muted" data-empty={item.totalCargoWeightKg == null ? 'true' : undefined}>
-                        {formatWeight(item.totalCargoWeightKg)}
-                      </div>
                     </div>
                     {Boolean(
                       (item.containerTotal != null
