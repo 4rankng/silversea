@@ -106,6 +106,42 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     guards: [],
   },
   {
+    // Ticket "QAC1 KH CLOSE 0919" (2026-10-14, FB-061 cousin): the QA close
+    // rung authored DEBIT_NOTE billing_documents for a QA-named customer
+    // (entity_name 'QAC1 KH CLOSE 0919', ids 16/17/21 on staging) and every
+    // purge skipped the table — no surface existed, so the customer's name
+    // stayed visible on the debit-note views long after the customer itself
+    // was soft-deleted. Lines go first (leaf children, nothing references
+    // them); the documents then soft-delete like the other AR-adjacent
+    // surfaces so payment_allocations / shipment_accounting_locks /
+    // customer_email_logs FKs stay valid. The QA-prefix class is verified by
+    // enumeration: real debit notes name real customers, never 'QA%'.
+    table: 'billing_document_lines',
+    label: 'Billing document lines of QA debit notes',
+    predicate: `document_id IN (SELECT id FROM billing_documents WHERE entity_name ILIKE 'QA%' OR note ILIKE 'QA%')`,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
+    table: 'billing_documents',
+    label: 'QA debit notes / billing documents (entity_name or note)',
+    predicate: `entity_name ILIKE 'QA%' OR note ILIKE 'QA%'`,
+    action: 'soft-delete',
+    guards: [],
+  },
+  {
+    // Same ticket: the QA close rung also authored a dispatch zone
+    // ("QAC1 Vùng QA-P3B") that surfaced in zone pickers. FK-pinned master
+    // data is renamed in place (ports/operational_sites treatment): the label
+    // scrubs to 'Chưa xác định', the boundary-validation code stays.
+    table: 'dispatch_zones',
+    label: 'QA-named dispatch zones',
+    predicate: `label ILIKE 'QA%' OR code ILIKE 'QA%'`,
+    action: 'scrub',
+    guards: [],
+    scrubColumns: ['label'],
+  },
+  {
     table: 'trip_expenses',
     label: 'Trip expenses (QA-named or on QA shipments)',
     predicate: `expense_type ILIKE 'QA%' OR note ILIKE 'QA%' OR ${QA_TRIPS_SQL}`,

@@ -48,10 +48,14 @@ export async function censusSurface(surface: QaFixtureSurface): Promise<number> 
 
 /** Census filtered to APP-VISIBLE rows: soft-deleted rows still match the
  *  identifier predicate but no page renders them, so counting them made the
- *  re-census report purged surfaces as remaining (cut #9 deploy log). */
+ *  re-census report purged surfaces as remaining (cut #9 deploy log). The
+ *  predicate is parenthesized: several registry predicates are OR-chains, and
+ *  an unparenthesized `A OR B AND deleted_at IS NULL` binds the filter to the
+ *  last branch only (ticket QAC1 KH CLOSE 0919 — a QA-named debit note stayed
+ *  "visible" in the census after its soft-delete). */
 export async function censusVisible(surface: QaFixtureSurface): Promise<number> {
   if (!(await columnExists(surface.table, 'deleted_at'))) return censusSurface(surface);
-  const found = await rows(`SELECT count(*)::int AS count FROM ${surface.table} WHERE ${surface.predicate} AND deleted_at IS NULL`);
+  const found = await rows(`SELECT count(*)::int AS count FROM ${surface.table} WHERE (${surface.predicate}) AND deleted_at IS NULL`);
   return Number(found[0].count);
 }
 
@@ -103,10 +107,12 @@ export async function purgeSurface(surface: QaFixtureSurface, dryRun: boolean): 
   let skipped = 0;
 
   if (surface.action === 'soft-delete') {
-    const res = await rows(`UPDATE ${surface.table} SET deleted_at = now() WHERE ${surface.predicate} AND deleted_at IS NULL RETURNING id`);
+    // Parenthesized predicate + deleted_at IS NULL: idempotent re-runs must
+    // not rewrite deleted_at on rows the same predicate already hid.
+    const res = await rows(`UPDATE ${surface.table} SET deleted_at = now() WHERE (${surface.predicate}) AND deleted_at IS NULL RETURNING id`);
     deleted = res.length;
   } else if (surface.action === 'deactivate-plus-soft-delete') {
-    const res = await rows(`UPDATE ${surface.table} SET status = 'INACTIVE', deleted_at = now() WHERE ${surface.predicate} AND (deleted_at IS NULL OR status <> 'INACTIVE') RETURNING id`);
+    const res = await rows(`UPDATE ${surface.table} SET status = 'INACTIVE', deleted_at = now() WHERE (${surface.predicate}) AND (deleted_at IS NULL OR status <> 'INACTIVE') RETURNING id`);
     deleted = res.length;
   } else if (surface.action === 'deactivate') {
     const res = await rows(`UPDATE ${surface.table} SET status = 'INACTIVE' WHERE ${surface.predicate} AND status <> 'INACTIVE' RETURNING id`);

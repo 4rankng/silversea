@@ -3,7 +3,7 @@ import { strict } from 'node:assert';
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { QA_FIXTURE_REGISTRY, registryTables } from '../seed/qa-fixture-registry.js';
-import { censusSurface, purgeSurface } from '../seed/purge-qa-fixtures.js';
+import { censusSurface, censusVisible, purgeSurface } from '../seed/purge-qa-fixtures.js';
 
 describe('QA fixture purge', () => {
   it('registry integrity: unique tables, valid actions, guarded hard-deletes', () => {
@@ -214,5 +214,108 @@ describe('QA fixture purge', () => {
 
     await db.execute(sql.raw(`DELETE FROM fuel_invoice_allocations WHERE fuel_invoice_id IN (${qaInvoiceId}, ${guardedId})`));
     await db.execute(sql.raw(`DELETE FROM fuel_invoices WHERE invoice_number IN ('${qaNumber}', '${realNumber}', 'QA-GUARD-${suffix}')`));
+  });
+
+  // Ticket "QAC1 KH CLOSE 0919" (2026-10-14, FB-061 cousin): the QA close
+  // rung authored DEBIT_NOTE billing_documents for a QA-named customer and no
+  // registry surface existed, so the customer's name stayed visible on the
+  // debit-note views after every purge. The dispatch zone followed the same
+  // escape (QA-named label in the pickers).
+  it('soft-deletes QA debit notes, hard-deletes their lines, scrubs QA zone labels', async () => {
+    const suffix = Date.now() % 1000000;
+    const idRowsOf = async (query: string): Promise<Array<Record<string, unknown>>> => {
+      const result = await db.execute(sql.raw(query));
+      return Array.isArray(result) ? result : (result as { rows: Array<Record<string, unknown>> }).rows;
+    };
+    const qaEntity = `QAC1 KH CLOSE ${suffix}`;
+    const realEntity = 'Khách hàng thật kiểm thử chứng từ';
+
+    const docs = await db.execute(sql.raw(`
+      INSERT INTO billing_documents (type, entity_type, entity_id, entity_name, range_from, range_to, note)
+      VALUES ('DEBIT_NOTE', 'CUSTOMER', 0, '${qaEntity}', CURRENT_DATE, CURRENT_DATE, 'QA close rung probe'),
+             ('DEBIT_NOTE', 'CUSTOMER', 0, '${realEntity}', CURRENT_DATE, CURRENT_DATE, NULL)
+      RETURNING id`));
+    const docRows = (Array.isArray(docs) ? docs : (docs as { rows: Array<{ id: number }> }).rows);
+    const qaDocId = Number(docRows[0]!.id);
+    const realDocId = Number(docRows[1]!.id);
+    await db.execute(sql.raw(`
+      INSERT INTO billing_document_lines (document_id, source_type, line_type, type_label, unit, description, base_amount)
+      VALUES (${qaDocId}, 'ADHOC', 'FREIGHT', 'Cước vận tải (auto)', 'lần', 'Cước vận tải (auto) — lô QA${suffix}', 1000000)`,
+    ));
+
+    const zones = await db.execute(sql.raw(`
+      INSERT INTO dispatch_zones (code, label, sort_order, is_active)
+      VALUES ('QA${suffix}', 'QAC1 Vùng QA ${suffix}', 0, true), ('REAL${suffix}', 'Vùng thật ${suffix}', 1, true)
+      RETURNING id, label`));
+    const zoneRows = (Array.isArray(zones) ? zones : (zones as { rows: Array<{ id: number; label: string }> }).rows);
+
+    const linesSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'billing_document_lines');
+    const docsSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'billing_documents');
+    const zoneSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'dispatch_zones');
+    strict.ok(linesSurface && docsSurface && zoneSurface);
+
+    strict.ok(await censusSurface(docsSurface) >= 1, 'QA debit note visible to census');
+    const linesResult = await purgeSurface(linesSurface, false);
+    strict.ok(linesResult.deleted >= 1, 'QA document lines hard-deleted');
+    const docsResult = await purgeSurface(docsSurface, false);
+    strict.ok(docsResult.deleted >= 1, 'QA debit note soft-deleted');
+    await purgeSurface(zoneSurface, false);
+
+    const linesLeft = await idRowsOf(`SELECT 1 AS hit FROM billing_document_lines WHERE document_id = ${qaDocId}`);
+    strict.equal(linesLeft.length, 0, 'QA line gone with the purge');
+    const docState = await db.execute(sql.raw(`SELECT id, deleted_at FROM billing_documents WHERE id IN (${qaDocId}, ${realDocId})`));
+    const docRowsAfter = (Array.isArray(docState) ? docState : (docState as { rows: Array<{ id: number; deleted_at: Date | null }> }).rows);
+    strict.ok(docRowsAfter.find((row) => row.id === qaDocId)?.deleted_at != null, 'QA document soft-deleted, not destroyed');
+    strict.ok(docRowsAfter.find((row) => row.id === realDocId)?.deleted_at == null, 'real-named document untouched');
+
+    const zoneState = await db.execute(sql.raw(`SELECT id, label FROM dispatch_zones WHERE id IN (${zoneRows.map((row) => row.id).join(',')})`));
+    const zoneRowsAfter = (Array.isArray(zoneState) ? zoneState : (zoneState as { rows: Array<{ id: number; label: string }> }).rows)
+      .map((row) => ({ id: Number(row.id), label: row.label }))
+      .sort((a, b) => a.id - b.id);
+    strict.equal(zoneRowsAfter[0]!.label, 'Chưa xác định', 'QA zone label scrubbed in place');
+    strict.equal(zoneRowsAfter[1]!.label, `Vùng thật ${suffix}`, 'real zone label untouched');
+
+    await db.execute(sql.raw(`DELETE FROM billing_document_lines WHERE document_id IN (${qaDocId}, ${realDocId})`));
+    await db.execute(sql.raw(`DELETE FROM billing_documents WHERE id IN (${qaDocId}, ${realDocId})`));
+    await db.execute(sql.raw(`DELETE FROM dispatch_zones WHERE id IN (${zoneRows.map((row) => row.id).join(',')})`));
+  });
+
+  it('censusVisible and soft-delete parenthesize OR predicates — the deleted filter binds the whole predicate', async () => {
+    const suffix = Date.now() % 1000000;
+    const idRowsOf = async (query: string): Promise<Array<Record<string, unknown>>> => {
+      const result = await db.execute(sql.raw(query));
+      return Array.isArray(result) ? result : (result as { rows: Array<Record<string, unknown>> }).rows;
+    };
+    // Two rows match the OR predicate's FIRST branch (entity_name); one is
+    // already soft-deleted. The unparenthesized census counted it as visible
+    // (`A OR B AND deleted_at IS NULL` ≡ `A OR (B AND …)`) and a re-run
+    // rewrote its deleted_at.
+    const docs = await idRowsOf(`
+      INSERT INTO billing_documents (type, entity_type, entity_id, entity_name, range_from, range_to, note)
+      VALUES ('DEBIT_NOTE', 'CUSTOMER', 0, 'QAC1 OR-PROBE A ${suffix}', CURRENT_DATE, CURRENT_DATE, NULL),
+             ('DEBIT_NOTE', 'CUSTOMER', 0, 'QAC1 OR-PROBE B ${suffix}', CURRENT_DATE, CURRENT_DATE, NULL)
+      RETURNING id`);
+    const docA = Number(docs[0]!.id);
+    const docB = Number(docs[1]!.id);
+    await db.execute(sql.raw(`UPDATE billing_documents SET deleted_at = now() WHERE id = ${docB}`));
+
+    const surface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'billing_documents')!;
+    // Scope the census assertions to this run's rows — the shared dev DB
+    // carries older soft-deleted QA documents that censusSurface would count.
+    const scoped: typeof surface = { ...surface, predicate: `entity_name LIKE 'QAC1 OR-PROBE %${suffix}'` };
+    strict.equal(await censusSurface(scoped), 2, 'identifier census counts soft-deleted rows by design');
+    strict.equal(await censusVisible(scoped), 1, 'visibility census must hide soft-deleted rows across every OR branch');
+    const before = await idRowsOf(`SELECT deleted_at FROM billing_documents WHERE id = ${docB}`);
+    const stampBBefore = Number(before[0]!.deleted_at);
+
+    const rerun = await purgeSurface(surface, false);
+    strict.ok(rerun.deleted >= 1, 're-run soft-deletes only the still-visible row');
+    const stamps = await idRowsOf(`SELECT id, deleted_at FROM billing_documents WHERE id IN (${docA}, ${docB})`);
+    const stampA = stamps.find((row) => Number(row.id) === docA)!;
+    const stampB = stamps.find((row) => Number(row.id) === docB)!;
+    strict.ok(stampA.deleted_at != null, 'the visible row is soft-deleted by the rerun');
+    strict.equal(Number(stampB.deleted_at), stampBBefore, 'already-deleted row keeps its original deleted_at');
+
+    await db.execute(sql.raw(`DELETE FROM billing_documents WHERE id IN (${docA}, ${docB})`));
   });
 });
