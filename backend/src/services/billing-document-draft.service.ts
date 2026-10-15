@@ -86,6 +86,7 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     truckPlate: s.trucks.licensePlate,
     trailerPlateNumber: s.trailers.licensePlate,
     externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    billingTruckNo: s.shipments.billingTruckNo,
     version: s.tripsComposite.version,
     vatRate: s.tripsComposite.vatRate,
     updatedAt: s.tripsComposite.updatedAt,
@@ -497,6 +498,9 @@ export function buildTripRenderData(input: {
     notes: string | null;
     truckPlate: string | null;
     externalPlateNumber: string | null;
+    /** FB-094: BKS báo khách ("ảo"). When the lot carries one, the debit note
+     *  MUST print it — never the actual/external plate. */
+    billingTruckNo?: string | null;
     fuelSurchargeAmount?: string | null;
   };
   containers: ContainerRenderInfo[];
@@ -509,7 +513,12 @@ export function buildTripRenderData(input: {
     tripId: input.tripId ?? null,
     tripCode: input.trip.tripCode ?? null,
     departureDate: input.trip.departureDate,
-    truckPlate: input.trip.truckPlate ?? input.trip.externalPlateNumber ?? null,
+    // FB-094 absolute rule: billing BKS wins over every actual plate — the
+    // customer is told the "xe ảo", never what really ran the lane.
+    truckPlate: input.trip.billingTruckNo?.trim()
+      || input.trip.truckPlate
+      || input.trip.externalPlateNumber
+      || null,
     // BK VIETSUN-style "Đóng / Trả" mapping. HANG = loaded leg (ĐÓNG) = "delivering",
     // VO = empty return leg (TRẢ) = "returning without cargo". Null if the source
     // billing line has no legs (e.g. ADHOC service fees) — users hide the column

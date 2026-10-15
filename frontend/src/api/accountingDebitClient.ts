@@ -29,6 +29,13 @@ export interface AccountingDebitBoardRow {
   billOrBooking: string | null;
   containers: string[];
   phanXe: string[];
+  /** FB-094 — LCL grouping facts (null on FCL/ungrouped rows). */
+  lcl?: {
+    label: string;
+    actualTruckNo: string | null;
+    billingTruckNo: string | null;
+    ghépCùngRef: string | null;
+  } | null;
   thu: AccountingDebitBoardThu;
   tra: AccountingDebitBoardTra;
   loiNhuan: string | null;

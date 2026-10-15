@@ -169,3 +169,16 @@ p.debit-note { margin: 0 0 8px; }
 /* ── Second board: the settlement rounds ───────────────────────────────────
  * An 11-column ledger that fits; same scroll box, no column floor at all. */
 .debit-rounds { margin-top: 20px; }
+
+/* FB-094 — the "xe ảo" badge: billing BKS that differs from the actual plate
+   (orange = the customer is told a different truck than the one that ran). */
+.debit-billing-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b54708;
+  background: #fef0c7;
+  border: 1px solid #f5c26b;
+}

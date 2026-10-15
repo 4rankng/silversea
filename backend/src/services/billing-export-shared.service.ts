@@ -212,6 +212,9 @@ export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]
     notes: s.tripsComposite.notes,
     truckPlate: s.trucks.licensePlate,
     externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    // FB-094: billing BKS ("xe ảo") — printed on the debit note in preference
+    // to every actual plate.
+    billingTruckNo: s.shipments.billingTruckNo,
     billNumber: s.shipments.blNumber,
     shipmentId: s.tripsComposite.shipmentId,
   }).from(s.tripsComposite)

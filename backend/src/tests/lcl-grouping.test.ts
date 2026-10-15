@@ -1,5 +1,5 @@
 /**
- * FB-092/093 — LCL lot grouping service contracts.
+ * FB-092/093/094 — LCL lot grouping service contracts.
  *
  * Pins the group laws end-to-end at the service boundary (DB-backed):
  *   FB-092 cost group: assignment order → Lô 1..N, billing auto-copy from
@@ -8,9 +8,10 @@
  *   FB-093 rev group: same-customer validation, principal AUTO re-price from
  *   the customer × route × class lane, member zeroing with reason
  *   "Ghép cước cùng Bill X", plus the settlement row projection.
+ *   FB-094 debit note + board: the note prints the billing BKS (never the
+ *   actual plate) and the accounting board row carries the LCL facts.
  *
- * The debit note/board (FB-094) and the promote-on-unmerge safety (FB-095)
- * add their cases to this same file.
+ * The promote-on-unmerge safety (FB-095) adds its cases to this same file.
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,6 +21,8 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { upsertTripCarrierInfo, upsertTripFinancialState } from '../services/trip-composite.service';
 import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
+import { getAccountingDebitBoard } from '../services/accounting-debit-close.service';
+import { buildTripRenderData } from '../services/billing-document.service';
 import {
   assignLclCostGroup,
   mergeLclRevGroup,
@@ -317,6 +320,63 @@ describe('LCL grouping — FB-093 debit-summary projection', () => {
   });
 });
 
+describe('LCL grouping — FB-094 debit note + board', () => {
+  test('the debit note prints billing_truck_no, never the actual plate', async () => {
+    // Pure render rule (FB-094's absolute law): billing wins over both the
+    // internal plate and the external carrier plate.
+    const renderData = buildTripRenderData({
+      trip: {
+        tripCode: 'TC-1',
+        departureDate: '2026-10-20',
+        routeName: null,
+        notes: null,
+        truckPlate: '30A-111.22',
+        externalPlateNumber: '29C-333.44',
+        billingTruckNo: '30C-999.88',
+      },
+      containers: [],
+    });
+    assert.equal(renderData.truckPlate, '30C-999.88');
+    // Without a billing BKS the historical precedence stands.
+    const fallback = buildTripRenderData({
+      trip: {
+        tripCode: 'TC-1', departureDate: '2026-10-20', routeName: null, notes: null,
+        truckPlate: '30A-111.22', externalPlateNumber: '29C-333.44', billingTruckNo: null,
+      },
+      containers: [],
+    });
+    assert.equal(fallback.truckPlate, '30A-111.22');
+  });
+
+  test('the accounting debit board carries the LCL label, plates and principal ref', async () => {
+    const customer = await mkCustomer('FB094 board');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB094-1-${suffix.slice(-6)}`, { expectedDeliveryDate: '2026-10-21' });
+    const lot2 = await mkLclLot(customer.id, route.id, `FB094-2-${suffix.slice(-6)}`, { expectedDeliveryDate: '2026-10-21' });
+    const truckClass = await vehicleClassByCode('5T');
+    const contClass = await vehicleClassByCode('CONT20');
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: contClass.id,
+      actualTruckNo: '31B-456.78',
+      billingTruckNo: '35C-000.01',
+    }, actor);
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: truckClass.id }, actor);
+
+    const board = await getAccountingDebitBoard({ dateFrom: '2026-10-01', dateTo: '2026-10-31' });
+    const member = board.items.find((row) => row.shipmentId === lot2.id);
+    assert.ok(member, 'the grouped member is on the board');
+    assert.ok(member.lcl, 'the LCL facts ride the row');
+    assert.equal(member.lcl!.label, 'Lẻ · Thu: 5T · Trả: CONT20');
+    assert.equal(member.lcl!.actualTruckNo, '31B-456.78');
+    assert.equal(member.lcl!.billingTruckNo, '35C-000.01');
+    assert.equal(member.lcl!.ghépCùngRef, lot1.blNumber);
+
+    const principal = board.items.find((row) => row.shipmentId === lot1.id);
+    assert.ok(principal?.lcl);
+    assert.equal(principal.lcl!.ghépCùngRef, null, 'the principal cites nobody');
+  });
+});
 
 after(async () => {
   // Trips first (FKs), then carrier/financial sidecars ride the trip delete,
