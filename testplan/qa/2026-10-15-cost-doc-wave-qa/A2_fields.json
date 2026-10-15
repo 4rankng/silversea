@@ -1,0 +1,92 @@
+[
+  {
+    "tag": "input",
+    "type": "file",
+    "name": "",
+    "ph": "",
+    "label": "Chọn ảnh cont",
+    "req": false,
+    "dis": false,
+    "val": ""
+  },
+  {
+    "tag": "input",
+    "type": "file",
+    "name": "",
+    "ph": "",
+    "label": "Chọn ảnh seal",
+    "req": false,
+    "dis": false,
+    "val": ""
+  },
+  {
+    "tag": "input",
+    "type": "file",
+    "name": "",
+    "ph": "",
+    "label": "Chọn ảnh biên bản",
+    "req": false,
+    "dis": false,
+    "val": ""
+  },
+  {
+    "tag": "input",
+    "type": "text",
+    "name": "",
+    "ph": "Gõ để tìm kiếm",
+    "label": "Loại chi phí",
+    "req": false,
+    "dis": false,
+    "val": "Phí nâng"
+  },
+  {
+    "tag": "input",
+    "type": "text",
+    "name": "",
+    "ph": "0",
+    "label": "Thực chi (VND) *",
+    "req": true,
+    "dis": false,
+    "val": ""
+  },
+  {
+    "tag": "input",
+    "type": "text",
+    "name": "",
+    "ph": "DD/MM/YYYY",
+    "label": "Ngày chi *",
+    "req": true,
+    "dis": false,
+    "val": "15/10/2026"
+  },
+  {
+    "tag": "select",
+    "type": "select-one",
+    "name": "",
+    "ph": "",
+    "label": "Hóa đơn\nPhiếu thu",
+    "req": false,
+    "dis": false,
+    "val": "RECEIPT"
+  },
+  {
+    "tag": "input",
+    "type": "text",
+    "name": "",
+    "ph": "",
+    "label": "Ghi chú khoản chi",
+    "req": false,
+    "dis": false,
+    "val": ""
+  },
+  {
+    "tag": "input",
+    "type": "file",
+    "name": "",
+    "ph": "",
+    "label": "Chụp / chọn biên lai",
+    "req": false,
+    "dis": false,
+    "val": ""
+  }
+]

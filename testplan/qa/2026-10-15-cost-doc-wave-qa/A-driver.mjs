@@ -1,0 +1,17 @@
+import { login, api, session, goto, mainText, shot, controls, fields, log, sleep } from './qa-lib.mjs';
+const tok = await login('bqhuong');
+const t = await api(tok,'GET','/driver/me/trips?limit=20');
+const items = t.data.items;
+console.log('TRIPS:', items.map(r=>`${r.id}:${r.status}`).join(' '));
+const target = items.find(r=>r.status==='COMPLETED') ?? items[0];
+const s = await session(tok);
+await goto(s.page, `/my-trips/${target.id}`);
+console.log('URL', s.page.url());
+const txt = await mainText(s.page);
+console.log('--- MAIN ---\n'+txt.slice(0,4000));
+console.log('--- CONTROLS ---'); console.log(JSON.stringify(await controls(s.page)));
+console.log('--- FIELDS ---'); console.log(JSON.stringify(await fields(s.page)));
+await shot(s.page,'A1_trip_detail_full',{full:true});
+console.log('ERR',s.errors.slice(0,5),'NET',[...new Set(s.netErrors)]);
+log('A1_trip',{trip:target, url:s.page.url(), main:txt, controls:await controls(s.page)});
+await s.browser.close();

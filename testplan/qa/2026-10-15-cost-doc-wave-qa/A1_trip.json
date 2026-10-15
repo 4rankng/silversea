@@ -1,0 +1,118 @@
+{
+  "trip": {
+    "id": 123,
+    "shipmentId": 312,
+    "fulfillmentId": 214,
+    "tripCode": "TRP-202610-0031",
+    "departureDate": "2026-10-20",
+    "status": "COMPLETED",
+    "fuelLiters": null,
+    "totalRoadAllowance": "0",
+    "driverSalary": null,
+    "routeName": "Hải Phòng",
+    "truckPlate": "15H-117.55",
+    "customerName": "QA-CUS01",
+    "containerNumbers": [
+      "EEUU1234560"
+    ]
+  },
+  "url": "https://vantai.tingting.vip/my-trips/123",
+  "main": "E2E-BILL-001\nChưa xác định\nHoàn thành\nTrả\nQA-CUS01\nChứng từ 2/2\nẢnh 0/3\nChi phí 1\nChuyến đã hoàn thành\nXem chứng từ giao hàng\nThông tin lệnh\nNgày giờ kế hoạch\n10:00 20/10/2026\nTên nhà máy\nChưa xác định\nĐịa chỉ nhà máy\nQA-Test Address, KCN QA, TP.HCM\nSĐT kho\n0900000002\nContainer / lô hàng\nEEUU1234560 · 20DC\nCảng nâng\nBãi Đình Vũ\nCảng hạ\nChưa có cảng hạ\nĐịa chỉ giao hàng\nChưa xác định, QA-Test Address, KCN QA, TP.HCM\nGọi kho\nTác vụ\nKhông có tác vụ\n\nChưa có việc nào được giao cho chuyến này.\n\nGhi chú\n\nKhông có ghi chú.\n\nSố cont & seal\nSố cont\nEEUU1234560\n20'DC · 15.000 kg\nSeal\n—\nHình ảnh\nCont\nSeal\nQuy định tại điểm làm hàng\n\nChưa có quy định tại điểm làm hàng.\n\nẢnh nhiên liệu\nChụp màn hình bơm gần nhất\nChưa có ảnh nhiên liệu nào cho chuyến này.\nChụp ảnh nhiên liệu\nChưa có ảnh nhiên liệu\n\nChụp màn hình bơm để làm bằng chứng nhiên liệu.\n\nChi phí lô hàng & tiền đường\n\nGhi khoản thực tế bạn đã chi; kế toán đối chiếu và thanh toán riêng.\n\nThêm chi phí\n\nChưa có định mức tiền tuyến. Nhập số tiền thực tế; chưa có định mức không có nghĩa là 0đ.\n\nVé cầu đường\n15.000 ₫\n05/10/2026\nTiền đường\nChưa phân loại chứng từ\nXem / bổ sung chứng từ\nSửa khoản chi\nThêm ghi chú cho kế toán\nThông tin xuất hóa đơn",
+  "controls": [
+    {
+      "tag": "a",
+      "text": "Bỏ qua đến nội dung chính",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Công việc của tôi",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Hành trình",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Thông báo",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Thu nhập",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Kỷ luật",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Bùi Quang Hường Lái xe",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Tháng 10/2026 · 01/10 – 31/10",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "39",
+      "dis": false
+    },
+    {
+      "tag": "a",
+      "text": "Xem chứng từ giao hàng",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Thông tin lệnh",
+      "dis": false
+    },
+    {
+      "tag": "a",
+      "text": "0900000002",
+      "dis": false
+    },
+    {
+      "tag": "a",
+      "text": "Gọi kho",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Chụp ảnh nhiên liệu",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Thêm chi phí",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Xem / bổ sung chứng từ",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Sửa khoản chi",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Thêm ghi chú cho kế toán",
+      "dis": false
+    },
+    {
+      "tag": "button",
+      "text": "Thông tin xuất hóa đơn",
+      "dis": false
+    }
+  ]
+}
