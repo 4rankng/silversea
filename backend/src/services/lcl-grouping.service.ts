@@ -346,7 +346,9 @@ async function promotePrincipalOnRemoval(
  *   - leaving Lô 1 auto-promotes the next member with 100% of the money —
  *     the group's freight never falls to 0₫;
  *   - a member leaving keeps its 0₫ awaiting re-pricing (re-stamped REV
- *     reason — the "Ghép cùng Bill X" stamp would be stale);
+ *     reason — the "Ghép cùng Bill X" stamp would be stale); the survivors
+ *     are renumbered, or the group dissolves when one member remains (QA C-2 —
+ *     the response/audit must report the DB post-state, never a ghost group);
  *   - both dimensions apply independently; audit rides every exit.
  */
 export async function unmergeLclLot(
@@ -374,6 +376,15 @@ export async function unmergeLclLot(
     const { promoted, transferredAmount } = leaverOrder === 1
       ? await promotePrincipalOnRemoval(tx, input.dimension, groupId, leaver, ordered, tripFacts, actor)
       : { promoted: null, transferredAmount: null };
+
+    // QA C-2 — a member's exit must rewrite the survivors too: renumber the
+    // rest under the same group, or dissolve it when one member remains.
+    // Skipping this left a ghost group id (409 on re-merge) and order gaps,
+    // while the response/audit below claimed a renumber the DB never got.
+    // No money moves here — only the principal's exit transfers money.
+    if (leaverOrder !== 1) {
+      await rewriteSurvivors(tx, input.dimension, survivors, groupId, actor);
+    }
 
     // The leaver leaves: dimension fields cleared, version bumped. A member
     // whose REV zero cites the dead group gets a current reason instead.

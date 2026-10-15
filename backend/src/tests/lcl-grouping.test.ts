@@ -109,10 +109,14 @@ async function liveTrip(shipmentId: number) {
   return row ?? null;
 }
 
-async function groupAuditEvents(shipmentId: number) {
+async function groupAuditPayloads(shipmentId: number) {
   const rows = await db.select({ payload: s.auditLogs.payload }).from(s.auditLogs)
     .where(and(eq(s.auditLogs.entityType, 'shipment'), eq(s.auditLogs.entityId, shipmentId)));
-  return rows.map((row) => (row.payload as Record<string, unknown>).event as string);
+  return rows.map((row) => row.payload as Record<string, unknown>);
+}
+
+async function groupAuditEvents(shipmentId: number) {
+  return (await groupAuditPayloads(shipmentId)).map((payload) => payload.event as string);
 }
 
 describe('LCL grouping — FB-092 cost dimension', () => {
@@ -555,6 +559,100 @@ describe('LCL grouping — FB-095 un-merge safety', () => {
     assert.equal(revSurvivor.revVehicleClassId, vanClass.id, 'the survivor keeps its rev vehicle class');
   });
 
+  test('a member leaving a 2-lot group dissolves it — survivor ungrouped, keeps class, re-merge OK (QA C-2)', async () => {
+    // Staging 2026-10-16 round 2, finding C-2(a): the member-exit branch only
+    // cleared the leaver — the survivor kept a ghost revGroupId, so a re-merge
+    // 409'd with "đã thuộc nhóm ghép" while the response claimed dissolved.
+    const customer = await mkCustomer('FB095 c2 rev');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB095-N1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB095-N2-${suffix.slice(-6)}`);
+    const lot3 = await mkLclLot(customer.id, route.id, `FB095-N3-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('5T');
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: truckClass.id }, actor);
+
+    // Member (order 2) exits: no promotion, no money moves, one survivor
+    // cannot stay a group.
+    const result = await unmergeLclLot({ shipmentId: lot2.id, dimension: 'REV' }, actor);
+    assert.equal(result.promoted, null);
+    assert.equal(result.transferredAmount, null);
+    assert.equal(result.dissolved, true, 'one survivor is not a group');
+    assert.deepEqual(result.remaining, []);
+
+    // The response must be the DB post-state: survivor ungrouped (no ghost
+    // id) yet keeps its class (C-1 law); leaver fully cleared incl. class.
+    const rows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot2.id]));
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const survivor = byId.get(lot1.id)!;
+    assert.equal(survivor.revGroupId, null, 'survivor left the group — no ghost id (QA C-2)');
+    assert.equal(survivor.revGroupOrder, null);
+    assert.equal(survivor.revVehicleClassId, truckClass.id, 'survivor keeps its rev vehicle class');
+    const leaver = byId.get(lot2.id)!;
+    assert.equal(leaver.revGroupId, null);
+    assert.equal(leaver.revGroupOrder, null);
+    assert.equal(leaver.revVehicleClassId, null, 'leaver fully cleared incl. vehicle class (FB-095)');
+
+    // The audit payload rides the same post-state as the response.
+    const unmerged = (await groupAuditPayloads(lot2.id))
+      .filter((payload) => payload.event === 'SHIPMENT_LCL_GROUP_UNMERGED');
+    assert.equal(unmerged.length, 1);
+    assert.equal(unmerged[0]!.dissolved, true);
+    assert.deepEqual(unmerged[0]!.remaining, []);
+
+    // The staging 409 itself: re-merging the survivor with a fresh lot must
+    // now succeed — no stale revGroupId survives to trip assertGroupable.
+    const remerge = await mergeLclRevGroup({
+      shipmentIds: [lot1.id, lot3.id],
+      vehicleSizeClassId: truckClass.id,
+    }, actor);
+    assert.equal(remerge.memberCount, 2);
+    const [remerged1] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot1.id));
+    assert.equal(remerged1.revGroupId, remerge.groupId);
+    assert.equal(remerged1.revGroupOrder, 1);
+  });
+
+  test('a middle member leaving a 3-lot group renumbers survivors contiguously — response = DB (QA C-2)', async () => {
+    // Staging 2026-10-16 round 2, finding C-2(b): the response claimed
+    // [{I,1},{J,2}] while the DB kept orders 1 and 3 with a gap.
+    const customer = await mkCustomer('FB095 c2 cost');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB095-E1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB095-E2-${suffix.slice(-6)}`);
+    const lot3 = await mkLclLot(customer.id, route.id, `FB095-E3-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('5T');
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id, lot3.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-121.21',
+    }, actor);
+
+    // The middle member (order 2) exits: orders 1 and 3 must close up.
+    const result = await unmergeLclLot({ shipmentId: lot2.id, dimension: 'COST' }, actor);
+    assert.equal(result.promoted, null);
+    assert.equal(result.transferredAmount, null);
+    assert.equal(result.dissolved, false);
+    assert.deepEqual(result.remaining.map((m) => [m.shipmentId, m.order]), [[lot1.id, 1], [lot3.id, 2]]);
+
+    // The renumbered remaining list is the actual DB post-state — no gap.
+    const rows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot2.id, lot3.id]));
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    assert.equal(byId.get(lot1.id)!.costGroupId, result.groupId);
+    assert.equal(byId.get(lot1.id)!.costGroupOrder, 1);
+    assert.equal(byId.get(lot3.id)!.costGroupId, result.groupId);
+    assert.equal(byId.get(lot3.id)!.costGroupOrder, 2, 'no order gap (QA C-2)');
+    const leaver = byId.get(lot2.id)!;
+    assert.equal(leaver.costGroupId, null);
+    assert.equal(leaver.costGroupOrder, null);
+    assert.equal(leaver.costVehicleClassId, null, 'leaver fully cleared incl. vehicle class (FB-095)');
+
+    // The audit claims exactly the same post-state the DB reached.
+    const unmerged = (await groupAuditPayloads(lot2.id))
+      .filter((payload) => payload.event === 'SHIPMENT_LCL_GROUP_UNMERGED');
+    assert.equal(unmerged.length, 1);
+    assert.equal(unmerged[0]!.dissolved, false);
+    assert.deepEqual(unmerged[0]!.remaining, result.remaining);
+  });
+
   test('a settled group refuses un-merge — an active accounting lock freezes it (FB095-03)', async () => {
     const customer = await mkCustomer('FB095 settled');
     const route = await mkRoute();
@@ -613,12 +711,30 @@ describe('LCL grouping — FB-095 un-merge safety', () => {
     const after2 = await liveTrip(lot2.id);
     assert.equal(after2!.externalFreightCost, '0', 'member cost stays zero');
 
+    // QA C-2: the renumbered remaining list must be the DB post-state, not an
+    // unexecuted response claim (the old member-exit path never rewrote rows).
+    const costRows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot2.id, lot3.id]));
+    const costById = new Map(costRows.map((row) => [row.id, row]));
+    assert.equal(costById.get(lot1.id)!.costGroupId, result.groupId);
+    assert.equal(costById.get(lot1.id)!.costGroupOrder, 1);
+    assert.equal(costById.get(lot3.id)!.costGroupId, result.groupId);
+    assert.equal(costById.get(lot3.id)!.costGroupOrder, 2);
+    assert.equal(costById.get(lot2.id)!.costGroupId, null);
+
     // REV member exit: the stale "Ghép cùng Bill X" stamp becomes current.
     const revResult = await unmergeLclLot({ shipmentId: lot2.id, dimension: 'REV' }, actor);
     assert.equal(revResult.promoted, null);
     const revAfter = await liveTrip(lot2.id);
     assert.equal(revAfter!.revenue, '0');
     assert.equal(revAfter!.revenueOverrideReason, 'Tách khỏi nhóm ghép — chờ định giá lại');
+
+    // QA C-2: the REV survivors renumber in the DB too.
+    const revRows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot3.id]));
+    const revById = new Map(revRows.map((row) => [row.id, row]));
+    assert.equal(revById.get(lot1.id)!.revGroupId, revResult.groupId);
+    assert.equal(revById.get(lot1.id)!.revGroupOrder, 1);
+    assert.equal(revById.get(lot3.id)!.revGroupId, revResult.groupId);
+    assert.equal(revById.get(lot3.id)!.revGroupOrder, 2);
   });
 
   test('refuses to orphan the freight: promotee without a live trip blocks Lô 1 exit (FB095-05)', async () => {
