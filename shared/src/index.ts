@@ -31,6 +31,7 @@ export {
   FINANCIAL_ROLES, isFinancialRole,
   TIRES,
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
+  LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS, lclVehicleSourcingRule,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
   LCL_PICKUP_TRAILER_TYPE,
   LCL_PACKAGE_TYPE_SUGGESTIONS,
@@ -56,7 +57,7 @@ export type {
 
 export type {
   User, UserPublic, Driver, Customer, Truck, Trailer, Route, CargoType,
-  PricingTable, RoadAllowance, FuelConfig, FuelPriceHistory, PenaltyReason, RoadConfig, AppSetting, CompanyInfo, VatConfig,
+  PricingTable, VehicleSizeClass, CarrierRoutePricing, RoadAllowance, FuelConfig, FuelPriceHistory, PenaltyReason, RoadConfig, AppSetting, CompanyInfo, VatConfig,
   Trip, TripLeg, TripDetail, TripInstruction, ShipmentAccountingLockSummary, LedgerEntry, Penalty,
   TripPairSummary, TripPairRecord, TripPairStatus, TripPairBreakReason, TripPairKind, DriverOrderedPairView,
   CapTableHistory, TruckCapEntry, Distribution, ManagementFee, AuditLog, Notification, PushSubscriptionPayload,

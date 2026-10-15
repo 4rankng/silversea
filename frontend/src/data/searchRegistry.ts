@@ -73,6 +73,8 @@ export const CONFIG_ITEMS: SearchItem[] = [
   { id: 'trailers',               type: 'config', label: 'Rơ-moóc',                      description: 'Danh sách rơ-moóc, loại rơ-moóc và thông tin đăng kiểm.',                                          path: '/config/trailers',            iconName: 'semi-trailer', action: 'Sửa' },
   { id: 'cargo-types',            type: 'config', label: 'Loại hàng hóa',                description: 'Bảng quy chuẩn loại hàng hóa vận chuyển ảnh hưởng đến việc phân xe chặng.',                       path: '/config/cargo-types',         iconName: 'cargo',        action: 'Sửa' },
   { id: 'pricing-tables',         type: 'config', label: 'Bảng giá cước',                 description: 'Bảng giá cước chi tiết thỏa thuận với từng đối tác khách hàng trên mỗi tuyến.',                  path: '/config/pricing-tables',      iconName: 'pricing-rate', action: 'Sửa' },
+  { id: 'vehicle-size-classes',   type: 'config', label: 'Loại xe (Hàng lẻ)',             description: 'Danh mục loại xe cho hàng lẻ: trọng tải xe tải (1.25T…15T) và các loại container. Xe tải = 100% xe ngoài.', path: '/config/vehicle-size-classes', iconName: 'truck', action: 'Sửa' },
+  { id: 'carrier-route-pricing',  type: 'config', label: 'Bảng giá cước trả nhà xe',      description: 'Đơn giá trả nhà xe theo Tuyến × Loại xe — giá chung hoặc giá riêng cho từng nhà xe.',            path: '/config/carrier-route-pricing', iconName: 'pricing-rate', action: 'Sửa' },
   { id: 'fuel-price-periods',     type: 'config', label: 'Giá dầu theo kỳ',               description: 'Giá dầu Petrolimex công bố theo kỳ — đầu vào cho động cơ tính cước tự động.',                    path: '/config/fuel-price-periods',  iconName: 'fuel',         action: 'Sửa' },
   { id: 'freight-rate-terms',     type: 'config', label: 'Điều khoản cước theo tuyến',    description: 'Hệ số chia sẻ, km tính cước, giá gốc dầu và ngưỡng điều chỉnh giá dầu cho từng khách hàng × tuyến.', path: '/config/freight-rate-terms',  iconName: 'pricing-rate', action: 'Sửa' },
   { id: 'salary-periods',         type: 'config', label: 'Kỳ lương',                      description: 'Cấu hình kỳ lương hàng tháng. Mặc định: ngày 1 đến cuối tháng.',               path: '/config/salary-periods',      iconName: 'salary-period', action: 'Sửa' },
@@ -130,7 +132,7 @@ const FORWARDER_ITEMS: SearchItem[] = [
 // the officeStaffOnly exceptions below (plus pricing-tables, opened for
 // reconciliation lookups) are the only ones the palette may offer — anything
 // else recreates the dead-link bug the route guards already prevent.
-const ACCOUNTANT_CONFIG_IDS = new Set(['company-info', 'tire-positions', 'debit-note-templates', 'pricing-tables']);
+const ACCOUNTANT_CONFIG_IDS = new Set(['company-info', 'tire-positions', 'debit-note-templates', 'pricing-tables', 'carrier-route-pricing']);
 
 export function getSearchItems(role: string, capabilities: readonly string[] = []): SearchItem[] {
   const normRole = String(role || '').toUpperCase();

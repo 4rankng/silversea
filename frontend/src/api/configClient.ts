@@ -26,6 +26,8 @@ import type {
   RoadAllowance,
   Trailer,
   PricingTable,
+  VehicleSizeClass,
+  CarrierRoutePricing,
   DebitNoteTemplate,
   DebitNoteTemplateInput,
   BillingDocumentType,
@@ -161,6 +163,11 @@ export const configClient = {
   getTrailers: () => fetchAllPaginated<Trailer>(CONFIG.TRAILERS),
 
   getPricingTables: () => fetchAllPaginated<PricingTable>(CONFIG.PRICING_TABLES),
+
+  // FB-090 LCL: vehicle size class catalog + carrier buy-price table.
+  getVehicleSizeClasses: () => fetchAllPaginated<VehicleSizeClass>(CONFIG.VEHICLE_SIZE_CLASSES),
+
+  getCarrierRoutePricing: () => fetchAllPaginated<CarrierRoutePricing>(CONFIG.CARRIER_ROUTE_PRICING),
 
   getAllSuppliers: () => fetchAllPaginated<Supplier>(CONFIG.SUPPLIERS),
 

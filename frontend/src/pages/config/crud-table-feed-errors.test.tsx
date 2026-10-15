@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   portsQuery: { data: [] as Array<{ id: number; name: string }>, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
   containerTypesQuery: { data: [] as Array<{ id: number; code: string; name: string }>, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
   customersQuery: { data: [] as Array<{ id: number; name: string; shortName?: string }>, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
+  vehicleClassesQuery: { data: [] as Array<{ id: number; code: string; name: string; isContainer: boolean; sortOrder: number }>, isLoading: false, isError: false, error: null as Error | null, refetch: vi.fn() },
   lastCrudProps: null as MockCrudProps | null,
 }));
 
@@ -40,6 +41,7 @@ vi.mock('../../hooks/useCatalogQueries', () => ({
   usePorts: () => mocks.portsQuery,
   useContainerTypes: () => mocks.containerTypesQuery,
   useAllCustomers: () => mocks.customersQuery,
+  useVehicleSizeClasses: () => mocks.vehicleClassesQuery,
 }));
 
 function makeWrapper() {
@@ -56,6 +58,7 @@ describe('CrudTable dropdown feeds error handling (card 20261004_337 Group 3)', 
     mocks.portsQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
     mocks.containerTypesQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
     mocks.customersQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
+    mocks.vehicleClassesQuery = { data: [], isLoading: false, isError: false, error: null, refetch: vi.fn() };
   });
 
   it('FuelNormsConfigPage: renders feed error alert and disables routes select on error', () => {
@@ -111,17 +114,21 @@ describe('CrudTable dropdown feeds error handling (card 20261004_337 Group 3)', 
     expect(mocks.containerTypesQuery.refetch).toHaveBeenCalled();
   });
 
-  it('PricingTablesConfigPage: renders alerts for the routes and container-types feeds', () => {
+  it('PricingTablesConfigPage: renders alerts for the routes, container-types and vehicle-classes feeds', () => {
     mocks.routesQuery.isError = true;
     mocks.containerTypesQuery.isError = true;
+    mocks.vehicleClassesQuery.isError = true;
     render(<PricingTablesConfigPage />, { wrapper: makeWrapper() });
     expect(screen.getByText('Không thể tải danh mục tuyến đường.')).toBeInTheDocument();
     expect(screen.getByText('Không thể tải danh mục loại container.')).toBeInTheDocument();
+    expect(screen.getByText('Không thể tải danh mục loại xe.')).toBeInTheDocument();
     const retryButtons = screen.getAllByRole('button', { name: 'Thử lại' });
     fireEvent.click(retryButtons[0]!);
     expect(mocks.routesQuery.refetch).toHaveBeenCalled();
     fireEvent.click(retryButtons[1]!);
     expect(mocks.containerTypesQuery.refetch).toHaveBeenCalled();
+    fireEvent.click(retryButtons[2]!);
+    expect(mocks.vehicleClassesQuery.refetch).toHaveBeenCalled();
   });
 
   it('FreightRateTermsConfigPage: renders a separate alert for the customers feed', () => {

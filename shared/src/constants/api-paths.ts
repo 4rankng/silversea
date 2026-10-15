@@ -80,6 +80,9 @@ export const CONFIG = {
   CARGO_TYPE: (id: number) => `/cargo-types/${id}`,
   PRICING_TABLES: '/pricing-tables',
   PRICING_TABLE: (id: number) => `/pricing-tables/${id}`,
+  // FB-090 LCL: Danh mục Loại xe + bảng giá cước trả nhà xe.
+  VEHICLE_SIZE_CLASSES: '/vehicle-size-classes',
+  CARRIER_ROUTE_PRICING: '/carrier-route-pricing',
   ROAD_ALLOWANCES: '/road-allowances',
   ROAD_ALLOWANCE: (id: number) => `/road-allowances/${id}`,
   PENALTY_REASONS: '/penalty-reasons',

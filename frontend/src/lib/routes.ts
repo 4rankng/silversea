@@ -95,6 +95,9 @@ export const routes = {
   // strings, not catalog entries: title falls through the /config catch-all.
   configFuelPricePeriods: '/config/fuel-price-periods',
   configFreightRateTerms: '/config/freight-rate-terms',
+  // FB-090 LCL: vehicle-class catalog + carrier buy-price table.
+  configVehicleSizeClasses: '/config/vehicle-size-classes',
+  configCarrierRoutePricing: '/config/carrier-route-pricing',
   configTripExpense: PAGE_CATALOG.configTripExpense.path,
   configCapTable: PAGE_CATALOG.configCapTable.path,
   configCustomers: PAGE_CATALOG.configCustomers.path,
