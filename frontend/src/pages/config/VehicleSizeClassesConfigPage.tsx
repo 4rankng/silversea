@@ -32,7 +32,7 @@ function VehicleClassForm({
   return (
     <InlineForm colSpan={5}>
       <div style={{ flex: 1, minWidth: 130 }}>
-        <Field label="Mã loại xe"><input className="input" value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="VD: 5T, CONT20" maxLength={20} disabled={!!item} /></Field>
+        <Field label="Mã loại xe"><input className="input" value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="Ví dụ: 5T, CONT20" maxLength={20} disabled={!!item} /></Field>
       </div>
       <div style={{ flex: 2, minWidth: 180 }}>
         <Field label="Tên hiển thị"><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="VD: Xe 5 tấn" maxLength={50} /></Field>
