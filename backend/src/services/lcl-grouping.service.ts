@@ -211,11 +211,27 @@ async function lockGroupMembers(tx: Tx, dimension: LclGroupDimension, groupId: s
     || a.id - b.id);
 }
 
-/** Clear one dimension's membership on a row (BKS/class facts stay). */
-function clearDimensionPatch(dimension: LclGroupDimension): Partial<typeof s.shipments.$inferInsert> {
+/**
+ * The LEAVER's patch — the lot that exits a group: membership AND the
+ * dimension's class stamp go (BKS facts stay), so the leaver is fully
+ * ungrouped and unpriced until it groups again.
+ */
+function clearLeaverDimensionPatch(dimension: LclGroupDimension): Partial<typeof s.shipments.$inferInsert> {
   return dimension === 'COST'
     ? { costGroupId: null, costGroupOrder: null, costVehicleClassId: null }
     : { revGroupId: null, revGroupOrder: null, revVehicleClassId: null };
+}
+
+/**
+ * The DISSOLVE patch — a lone survivor is not a group: only the membership
+ * fields go, so it can group again later. Its class + BKS + money stay
+ * (FB-095 law; QA C-1 — clearing the class here stripped the dispatch and
+ * accounting boards, and the Debit Note, of the survivor's loại xe).
+ */
+function dissolveGroupMembershipPatch(dimension: LclGroupDimension): Partial<typeof s.shipments.$inferInsert> {
+  return dimension === 'COST'
+    ? { costGroupId: null, costGroupOrder: null }
+    : { revGroupId: null, revGroupOrder: null };
 }
 
 /** Write the renumbered survivor rows (a lone survivor dissolves the group). */
@@ -236,7 +252,7 @@ async function rewriteSurvivors(
     if (dissolved) {
       // One member is not a group: the survivor keeps its class + BKS + money
       // but leaves the group id so it can group again later.
-      Object.assign(patch, clearDimensionPatch(dimension));
+      Object.assign(patch, dissolveGroupMembershipPatch(dimension));
     } else if (dimension === 'COST') {
       patch.costGroupId = groupId;
       patch.costGroupOrder = index + 1;
@@ -362,7 +378,7 @@ export async function unmergeLclLot(
     // The leaver leaves: dimension fields cleared, version bumped. A member
     // whose REV zero cites the dead group gets a current reason instead.
     await tx.update(s.shipments).set({
-      ...clearDimensionPatch(input.dimension),
+      ...clearLeaverDimensionPatch(input.dimension),
       version: leaver.version + 1,
       updatedBy: actor.userId,
       updatedAt: new Date(),

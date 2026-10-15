@@ -193,6 +193,24 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     source: 'PM ruling 2026-10-03 (card 20261002_220)',
   },
   {
+    // QA B-1 (FB-093, staging 2026-10-16): the CUS revenue-merge dialog on
+    // /shipments-debit fills its "Loại xe tính cước thu khách" dropdown from
+    // GET /api/vehicle-size-classes, but CUS holds no config policy row, so
+    // the catalog answered 403 and the merge could never be submitted even
+    // though the merge route itself names Role.CUS. Same shape as the
+    // quotation-fee read above: scoped to this ONE GET list path, not a
+    // `p, CUS, config, read` policy row (that would hand CUS every pricing
+    // table, norm and expense category this ruling says nothing about).
+    resource: 'config',
+    methods: ['GET'],
+    pathPattern: /^\/vehicle-size-classes\/?$/,
+    roles: [Role.CUS],
+    effect: 'bypass',
+    reason:
+      'CUS merges same-customer lots into one bill (FB-093 "Ghép cước thu khách") and must pick the billing vehicle class from the catalog. CUS has no config-tree grant, so bridge route-scoped to the vehicle-size-class list read only; every other config catalog and verb stays Casbin-governed for CUS.',
+    source: 'QA finding B-1 (FB-093, staging 2026-10-16)',
+  },
+  {
     resource: 'financial',
     methods: ['GET'],
     pathPattern: /^\/finance\/billing-documents\/\d+(\/export)?$/,
