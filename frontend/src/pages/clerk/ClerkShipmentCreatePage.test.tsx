@@ -1118,7 +1118,12 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await screen.findByRole('heading', { name: 'Lịch & ghi chú' });
 
-    const deliveryDate = screen.getByLabelText('Ngày giao hàng');
+    // QA1-007: the label now carries the visual required mark, so the match
+    // is a prefix regex resolved to the segmented dd input; the accessible
+    // name itself is unchanged.
+    const deliveryDate = screen.getAllByLabelText(/Ngày giao hàng/)
+      .find((el) => (el as HTMLInputElement).id === 'shipment-expected-delivery');
+    expect(deliveryDate).toBeTruthy();
     expect((deliveryDate as HTMLInputElement).id).toBe('shipment-expected-delivery');
     expect(screen.queryByLabelText('Ngày giao dự kiến')).toBeNull();
   });
@@ -1140,12 +1145,15 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // FB-079: Quy cách is a suggestion combobox that still takes free text —
     // a direct change commits the value without opening the menu.
     fireEvent.change(screen.getByRole('combobox', { name: 'Quy cách đóng gói' }), { target: { value: 'Pallet' } });
-    fireEvent.change(screen.getByLabelText('Số lượng'), { target: { value: '8' } });
-    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '1200' } });
+    // QA1-007: the two required LCL cargo labels carry the visual mark now —
+    // prefix regex keeps the match on the label text proper.
+    fireEvent.change(screen.getByLabelText(/Số lượng/), { target: { value: '8' } });
+    fireEvent.change(screen.getByLabelText(/Trọng lượng \(kg\)/), { target: { value: '1200' } });
     // Thể tích (CBM) stays blank on purpose. "Tạo lô hàng" runs the full
     // CREATE intake validation (prod round-16), so the delivery date must be
-    // set — the segmented field accepts DD/MM/YYYY in one change.
-    fireEvent.change(screen.getByLabelText('Ngày giao hàng'), { target: { value: '20/09/2026' } });
+    // set — the segmented field accepts DD/MM/YYYY in one change. (QA1-007:
+    // the dd segment owns the label association; resolve it by field id.)
+    fireEvent.change(document.getElementById('shipment-expected-delivery')!, { target: { value: '20/09/2026' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(

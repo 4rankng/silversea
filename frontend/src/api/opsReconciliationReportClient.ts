@@ -5,7 +5,7 @@
 // query-string assembly — the same pattern expenseAccountingClient uses.
 import { api } from '../lib/api';
 
-export type OpsReconciliationDirection = 'CTY_THANH_TOAN_HOAN_UNG' | 'CTY_YEU_CAU_HOAN_TRA' | 'KHONG_CON_GI';
+export type OpsReconciliationDirection = 'CTY_THANH_TOAN_HOAN_UNG' | 'CTY_YEU_CAU_HOAN_TRA' | 'CTY_YEU_CAU_THU_TIEN_UNG' | 'KHONG_CON_GI';
 
 export interface OpsReconciliationReportRow {
   staffId: number;
@@ -14,8 +14,12 @@ export interface OpsReconciliationReportRow {
   dntt: number;
   /** ĐÃ ỨNG — held advances; scoped to a đợt, what that lot allocated. */
   advanced: number;
-  /** Còn phải hoàn ứng = ĐNTT − ĐÃ ỨNG. + company pays back, − staff pays back. */
+  /** Còn phải hoàn ứng = sổ quỹ closing number (lệnh PM 2026-09-29), ≥ 0. */
   remaining: number;
+  /** Chênh lệch CÓ DẤU theo chữ spec "ĐNTT − ĐÃ ỨNG": âm = tiền ứng vượt chi phí. */
+  remainingSigned: number;
+  /** Âm và nhân viên còn nắm tiền đã cấp — đề nghị thu tiền ứng. */
+  needsCollection: boolean;
   direction: OpsReconciliationDirection;
   note: string;
 }

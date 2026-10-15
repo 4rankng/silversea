@@ -148,6 +148,39 @@ export interface DriverTaskEvidenceStatus {
   hasSubmittedPod?: boolean;
 }
 
+/** Wire row of a saved driver incidental cost — create result and list item
+ *  share one shape. */
+export interface DriverIncidentalCostView {
+  id: number;
+  tripId: number;
+  driverId: number;
+  costType: DriverIncidentalCostType;
+  amount: string;
+  occurredAt: string;
+  note: string | null;
+  receiptStorageKey: string | null;
+  createdAt: string;
+  costGroup?: string | null;
+  feeName?: string | null;
+  invoiceNumber?: string | null;
+  invoiceDate?: string | null;
+  /** Step 2 evidence classification (Hóa đơn / Phiếu thu). Legacy rows stay
+   *  null — never backfilled; only a re-open writes a value. */
+  evidenceKind?: 'INVOICE' | 'RECEIPT' | null;
+}
+
+/** One driver cost row on the write path (single create body and `…/batch`
+ *  items). */
+export interface DriverIncidentalCostItem {
+  feeNormCode?: string; expenseTypeCode?: string;
+  costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string;
+  costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string;
+  /** Lot costs only (the evidence selector is scoped to `DRIVER_SHIPMENT`).
+   *  `RECEIPT` without a photo is refused server-side. */
+  evidenceKind?: 'INVOICE' | 'RECEIPT';
+  invoiceNumber?: string; invoiceDate?: string;
+}
+
 export interface DriverTaskDetail {
   id: number;
   version: number;
@@ -618,44 +651,29 @@ export const driverClient = {
 
   createIncidentalCost: async (
     tripId: number,
-    body: { feeNormCode?: string; expenseTypeCode?: string; payerKind?: 'USER' | 'COMPANY'; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },
+    body: { feeNormCode?: string; expenseTypeCode?: string; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },
     idempotencyKey: string,
   ) => {
-    return api.post<{
-      id: number;
-      tripId: number;
-      driverId: number; payerKind?: 'USER' | 'COMPANY';
-      costType: DriverIncidentalCostType;
-      amount: string;
-      occurredAt: string;
-      note: string | null;
-      receiptStorageKey: string | null;
-      createdAt: string;
-      costGroup?: string | null;
-      feeName?: string | null;
-      invoiceNumber?: string | null;
-      invoiceDate?: string | null;
-    }>(DRIVER_TASK.INCIDENTAL_COSTS(tripId), body, {
+    return api.post<DriverIncidentalCostView>(DRIVER_TASK.INCIDENTAL_COSTS(tripId), body, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    });
+  },
+
+  /** Step 3 — all-or-nothing batch save: ONE Idempotency-Key covers the whole
+   *  batch; a single invalid row rolls every row back, and the error message
+   *  names the offending 1-based row. */
+  createIncidentalCosts: async (
+    tripId: number,
+    items: DriverIncidentalCostItem[],
+    idempotencyKey: string,
+  ) => {
+    return api.post<{ items: DriverIncidentalCostView[] }>(`${DRIVER_TASK.INCIDENTAL_COSTS(tripId)}/batch`, { items }, {
       headers: { 'Idempotency-Key': idempotencyKey },
     });
   },
 
   listIncidentalCosts: async (tripId: number) => {
-    const wire = await api.get<{ items: Array<{
-      id: number;
-      tripId: number;
-      driverId: number; payerKind?: 'USER' | 'COMPANY';
-      costType: DriverIncidentalCostType;
-      amount: string;
-      occurredAt: string;
-      note: string | null;
-      receiptStorageKey: string | null;
-      createdAt: string;
-      costGroup?: string | null;
-      feeName?: string | null;
-      invoiceNumber?: string | null;
-      invoiceDate?: string | null;
-    }> }>(DRIVER_TASK.INCIDENTAL_COSTS(tripId));
+    const wire = await api.get<{ items: DriverIncidentalCostView[] }>(DRIVER_TASK.INCIDENTAL_COSTS(tripId));
     return wire.items;
   },
 

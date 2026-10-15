@@ -56,7 +56,10 @@ export function ShipmentCreateLclRouteSection({
           <SearchableField
             id="shipment-route"
             label="Tuyến đường"
-            required
+            // QA1-007: the asterisk must match the validation — ad-hoc lots
+            // waive the catalog route (MasterDataNhaMay §4.1), so the mark
+            // only stands for catalog lots.
+            required={!form.isAdHoc}
             value={form.routeId}
             onChange={(value) => update('routeId', value)}
             options={routeOptions}

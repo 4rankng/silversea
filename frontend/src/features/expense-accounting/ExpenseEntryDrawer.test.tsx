@@ -64,4 +64,16 @@ describe('expense charge correction', () => {
     expect(screen.getByLabelText('Nhập Thu và Trả bằng nhau')).toBeInTheDocument();
     expect(screen.queryByLabelText('Thu bằng trả')).not.toBeInTheDocument();
   });
+  it('driver costs: hides both payer selects and sends no payer fields (card 20261005)', async () => {
+    // "Người chi" gỡ khỏi chi phí lái xe: nguồn DRIVER không còn ô chọn Bên/Người
+    // thực chi và payload sửa không mang trường người chi. Nguồn OPS giữ nguyên.
+    show(false, { sourceKind: 'DRIVER' });
+    expect(screen.queryByLabelText('Bên thực chi')).toBeNull();
+    expect(screen.queryByLabelText('Người thực chi')).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Lý do điều chỉnh/), { target: { value: 'Sửa số thực chi' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
+    expect(update.mock.calls[0][1]).not.toHaveProperty('payerKind');
+    expect(update.mock.calls[0][1]).not.toHaveProperty('payerUserId');
+  });
 });

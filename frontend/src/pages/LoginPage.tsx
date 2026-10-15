@@ -179,11 +179,11 @@ export default function LoginPage() {
           <picture>
             <source
               media="(max-width: 900px)"
-              srcSet="/assets/illustrations/login-business-control-mobile-v3.webp"
+              srcSet="/assets/illustrations/logistics-hero-van-mobile.webp"
             />
             <img
-              src="/assets/illustrations/login-business-control-v3.webp"
-              alt=""
+              src="/assets/illustrations/logistics-hero-van.webp"
+              alt="Minh họa xe vận tải chở hàng trên tuyến giao hàng"
               className="login-visual__image"
               width="1024"
               height="1536"

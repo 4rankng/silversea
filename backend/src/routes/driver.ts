@@ -71,9 +71,16 @@ import { sniffImageType } from '../lib/format';
 import { getRequestIdempotencyKey } from './utils/idempotency';
 import {
   findIdempotencyRecord,
+  IDEMPOTENCY_ENDPOINTS,
   runIdempotent,
   waitForIdempotencyRecord,
 } from '../services/idempotency.service';
+import {
+  assertTripAcceptsIncidentalCostTx,
+  insertDriverIncidentalCostTx,
+  type DriverIncidentalCost,
+} from '../services/driver-fulfillment.service';
+import { lockTripFinancialAuthority } from '../services/trip-financial-authority-lock.service';
 import type { Tx } from '../services/trip-shared';
 import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
 import { runWithAuditRequestContext } from '../services/audit.service';
@@ -671,6 +678,58 @@ router.post('/trips/:tripId/incidental-costs', declareMaterialWrite('driver.inci
     idempotencyKey,
   );
   res.status(replayed ? 200 : 201).json(cost);
+}));
+
+// Step 3 — the driver's draft TABLE saves all-or-nothing: ONE Idempotency-Key
+// covers the whole batch (up to 50 rows), every row is written sequentially in
+// the SAME transaction, and a single bad row rolls the whole batch back with
+// its 1-based row number in the message (`Dòng ${n + 1}: …`). Each row goes
+// through the exact per-item write of the single create above, so one rule set
+// (evidence, catalog class, fee norms, photo ownership) governs both paths.
+router.post('/trips/:tripId/incidental-costs/batch', declareMaterialWrite('driver.incidental-cost-batch', { method: 'POST', path: '/api/driver/me/trips/:tripId/incidental-costs/batch' }),  asyncHandler(async (req: Request, res: Response) => {
+  const tripId = parseInt(req.params.tripId as string, 10);
+  if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'ID chuyến đi không hợp lệ');
+  const parsed = z.object({
+    items: z.array(driverIncidentalCostSchema.extend({
+      expenseTypeCode: z.string().trim().max(50).nullable().optional(),
+      feeNormCode: z.string().trim().max(50).nullable().optional(),
+    })).min(1).max(50),
+  }).safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((i: { message: string }) => i.message).join('; '));
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  await assertTripOwnedByDriver(tripId, driver.id);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_INCIDENTAL_COST_BATCH,
+    idempotencyKey: req.header('Idempotency-Key') as string | undefined,
+    payload: { tripId, driverId: driver.id, items: parsed.data.items },
+    createdBy: getUser(req).userId,
+    entityType: 'driver_incidental_cost',
+    create: async (tx) => {
+      await lockTripFinancialAuthority(tx, [tripId]);
+      await assertTripAcceptsIncidentalCostTx(tx, tripId);
+      const [assigned] = await tx.select({ driverId: s.trips.driverId }).from(s.trips).where(eq(s.trips.id, tripId)).for('update');
+      if (assigned?.driverId !== driver.id) throw new ApiError(409, 'Công việc vừa thay đổi lái xe. Vui lòng tải lại.');
+      const costs: DriverIncidentalCost[] = [];
+      for (const [index, item] of parsed.data.items.entries()) {
+        try {
+          costs.push(await insertDriverIncidentalCostTx(tx, tripId, driver.id, item, getUser(req).userId));
+        } catch (cause) {
+          // Throwing out of `create` rolls the WHOLE batch back — one bad row
+          // never half-writes. The message names the offending row so the form
+          // can point at it.
+          const message = cause instanceof ApiError ? cause.message : 'Không lưu được khoản chi.';
+          throw new ApiError(cause instanceof ApiError ? cause.statusCode : 500, `Dòng ${index + 1}: ${message}`, cause instanceof ApiError ? cause.details : undefined);
+        }
+      }
+      return costs;
+    },
+    // The batch has no single entity id to point at — the stored response
+    // snapshot is the replay source (same rows, same order).
+    deserializeResult: (snapshot) => snapshot as DriverIncidentalCost[],
+  });
+  res.status(replayed ? 200 : 201).json({ items: result });
 }));
 
 router.get('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, res: Response) => {

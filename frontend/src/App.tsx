@@ -98,6 +98,7 @@ const BusinessCalendarConfigPage = lazy(() => import('./pages/config/BusinessCal
 const CargoTypesConfigPage = lazy(() => import('./pages/config/CargoTypesConfigPage'));
 const PricingTablesConfigPage = lazy(() => import('./pages/config/PricingTablesConfigPage'));
 const RoadAllowancesConfigPage = lazy(() => import('./pages/config/RoadAllowancesConfigPage'));
+const PortZoneSurchargesConfigPage = lazy(() => import('./pages/config/PortZoneSurchargesConfigPage'));
 const PenaltyReasonsConfigPage = lazy(() => import('./pages/config/PenaltyReasonsConfigPage'));
 const FuelConfigPage = lazy(() => import('./pages/config/FuelConfigPage'));
 const FuelNormsConfigPage = lazy(() => import('./pages/config/FuelNormsConfigPage'));
@@ -124,6 +125,8 @@ const ExpenseEntryPage = lazy(() => import('./pages/ExpenseEntryPage'));
 const PayableListPage = lazy(() => import('./pages/PayableListPage'));
 const PayableDetailPage = lazy(() => import('./pages/PayableDetailPage'));
 const SalaryAttendancePage = lazy(() => import('./pages/SalaryAttendancePage'));
+const TimesheetGridPage = lazy(() => import('./pages/TimesheetGridPage'));
+const TimesheetReconciliationPage = lazy(() => import('./pages/TimesheetReconciliationPage'));
 
 const ExpenseCategoriesConfigPage = lazy(() => import('./pages/config/ExpenseCategoriesConfigPage'));
 const ForwarderExpenseTypesConfigPage = lazy(() => import('./pages/config/ForwarderExpenseTypesConfigPage'));
@@ -437,6 +440,7 @@ export function AppRoutes() {
           <Route path="/config/cargo-types" element={adminOnly(page(<CargoTypesConfigPage />))} />
           <Route path="/config/pricing-tables" element={officeStaffOnly(page(<PricingTablesConfigPage />))} />
           <Route path="/config/road-allowances" element={adminOnly(page(<RoadAllowancesConfigPage />))} />
+          <Route path="/config/port-zone-surcharges" element={adminOnly(page(<PortZoneSurchargesConfigPage />))} />
           <Route path="/config/penalty-reasons" element={adminOnly(page(<PenaltyReasonsConfigPage />))} />
           <Route path="/config/fuel" element={adminOnly(page(<FuelConfigPage />))} />
           <Route path="/config/fuel-norms" element={adminOnly(page(<FuelNormsConfigPage />))} />
@@ -482,6 +486,10 @@ export function AppRoutes() {
           <Route path="/payables" element={financeReaderOnly(page(<PayableListPage />))} />
           <Route path="/payables/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/salary" element={officeStaffOnly(page(<SalaryAttendancePage />))} />
+          {/* Chấm công lái xe (2026-10-14): Điều vận fills the symbol grid;
+              Kế toán reconciles on the companion board. */}
+          <Route path="/timesheet" element={dispatchOnly(page(<TimesheetGridPage />))} />
+          <Route path="/timesheet/doi-chieu" element={accountantOnly(page(<TimesheetReconciliationPage />))} />
           <Route path="/users" element={userAdminOnly(page(<UsersPage />))} />
           <Route path="/hr/roster" element={officeStaffOnly(page(<HrRosterPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />

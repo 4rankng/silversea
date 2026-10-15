@@ -1,0 +1,19 @@
+-- Card 20261005 — "Người chi" (Tôi chi / Công ty chi) bị gỡ khỏi chi phí lái xe:
+-- lái xe chỉ ghi khoản đã chi, kế toán quyết định bên thực chi. Xóa hẳn giá trị
+-- cũ đã ghi: từ nay `driver_incidental_costs.payer_kind` là NULL cho tới khi kế
+-- toán ghi nhận bên thực chi qua đường bảng kế toán (createAccountingExpense /
+-- updateAccountingExpense vẫn ghi được cột này).
+--
+-- Không drop cột: `payer_kind` đến từ `expenseMetadataColumns()` dùng chung với
+-- `ops_expense_entries`, bảng Ops vẫn dùng.
+--
+-- Về phía `expense_accounting_sources`: bảng này KHÔNG có các cột
+-- payer_kind / payer_user_id / payable_entity_type / payable_entity_id — chúng là
+-- giá trị dẫn xuất khi hydrate (expense-accounting-source.service.ts) từ
+-- `driver_incidental_costs.payer_kind` + liên kết `drivers`. Nên xóa dữ liệu ở
+-- dòng chi phí lái xe ở trên là xóa ở mọi bề mặt hiển thị của nguồn kế toán.
+--
+-- An toàn về tiền: khoản chi lái xe có sourceKind = 'DRIVER' và
+-- ExpenseReconciliationDrawer chỉ nhận dòng 'OPS' vào đợt đối chiếu, nên việc
+-- xóa payer/payable của DRIVER không làm đổi số liệu hoàn ứng.
+UPDATE driver_incidental_costs SET payer_kind = NULL;

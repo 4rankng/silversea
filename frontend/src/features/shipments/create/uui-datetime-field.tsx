@@ -19,7 +19,10 @@ interface UDateTimeFieldProps {
 }
 
 /** Two independent 24h time/date controls share the existing complete ISO
- * event contract used by every shipment-create datetime consumer. */
+ * event contract used by every shipment-create datetime consumer. A native
+ * `required` is deliberately NOT forwarded (QA1-007): the save() gate reads
+ * [data-split-datetime] input:invalid, so the constraint would preempt the
+ * app-owned summary — the cell header carries the visible mark instead. */
 export function UDateTimeField({
   id,
   label,

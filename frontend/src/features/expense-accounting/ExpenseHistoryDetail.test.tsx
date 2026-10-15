@@ -5,7 +5,7 @@ import { expect, it, vi } from 'vitest';
 import type { ExpenseReconciliation } from '@tingting/shared';
 vi.mock('../../components/UI', () => ({ Drawer: ({ children }: { children: ReactNode }) => <section role="dialog">{children}</section> }));
 import { ExpenseHistoryDetail } from './ExpenseHistoryDetail';
-const batch: ExpenseReconciliation = { id: 1, code: 'HU-1', opsUserId: 8, from: '2026-09-01', to: '2026-09-15', amount: 500000, advanceAmount: 300000, initialDifference: 200000, paidAmount: 0, refundedAmount: 0, remainingDifference: 200000, createdAt: '2026-09-15T00:00:00Z', note: null, entries: [] };
+const batch: ExpenseReconciliation = { id: 1, code: 'HU-1', opsUserId: 8, from: '2026-09-01', to: '2026-09-15', amount: 500000, advanceAmount: 300000, initialDifference: 200000, paidAmount: 0, refundedAmount: 0, remainingDifference: 200000, refundSettledAt: null, refundSettledByName: null, createdAt: '2026-09-15T00:00:00Z', note: null, entries: [] };
 function show(item: ExpenseReconciliation) {
   render(<QueryClientProvider client={new QueryClient()}><ExpenseHistoryDetail item={item} onClose={vi.fn()} /></QueryClientProvider>);
 }

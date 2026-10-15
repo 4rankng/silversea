@@ -56,6 +56,8 @@ export const routes = {
   advances: PAGE_CATALOG.advances.path,
   adminAdvanceSettlements: PAGE_CATALOG.adminAdvanceSettlements.path,
   salary: PAGE_CATALOG.salary.path,
+  timesheet: PAGE_CATALOG.timesheet.path,
+  timesheetReconciliation: PAGE_CATALOG.timesheetReconciliation.path,
   users: PAGE_CATALOG.users.path,
   hrRoster: PAGE_CATALOG.hrRoster.path,
   auditLogs: PAGE_CATALOG.auditLogs.path,
@@ -208,6 +210,11 @@ type TitleRule = {
 // receive the role-branched variant for the rules below.
 const ROLE_BRANCHED_TITLES: Record<string, (role: string) => string> = {
   [routes.recoverableCosts]: (role) => role === 'CUS' ? 'Chi phí thu hộ cần đối soát' : 'Chi phí cần kiểm tra',
+  // qa2-008: the dispatcher's supplier page is framed as contractors
+  // ("Nhà thầu"); every other audience reads the catalog title. Living here
+  // (not in Layout.getPageTitle) is what lets the sidebar derive its labels
+  // from the same title authority the topbar uses.
+  [routes.suppliers]: (role) => role === 'DISPATCHER' ? 'Nhà thầu' : 'Nhà cung cấp',
 };
 
 // Order is load-bearing precedence (first match wins). The title strings are
@@ -295,6 +302,8 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.advances), title: PAGE_CATALOG.advances.title },
   { test: p => p.startsWith(routes.adminAdvanceSettlements), title: PAGE_CATALOG.adminAdvanceSettlements.title },
   { test: p => p.startsWith(routes.salary), title: PAGE_CATALOG.salary.title },
+  { test: p => p.startsWith(routes.timesheetReconciliation), title: PAGE_CATALOG.timesheetReconciliation.title },
+  { test: p => p.startsWith(routes.timesheet), title: PAGE_CATALOG.timesheet.title },
 ];
 
 export function titleForPath(pathname: string, role?: string | null): string {

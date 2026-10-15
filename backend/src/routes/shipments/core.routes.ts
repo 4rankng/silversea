@@ -58,6 +58,7 @@ import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { getShipmentDebitDetail, saveDebitEdits } from '../../services/shipment-debit-detail.service';
+import { searchBillBook } from '../../services/bill-book-search.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
@@ -319,6 +320,23 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     actor: getUser(req),
   });
   res.json(result);
+}));
+
+// ─── GET /bill-book-search — ô "Cược" Bill/Book trên phơi phiếu ─────────────
+//
+// Kế toán gõ 1–4 chữ số; hệ thống dò trong các lô hàng còn sống (chưa xóa)
+// theo bl_number/booking_ref và trả về tối đa 10 dòng gợi ý kèm Hãng tàu và
+// Tên khách hàng. Chuỗi rỗng → [] không query, để ô trống không gây quét bảng.
+const billBookSearchQuerySchema = z.object({
+  digits: z.string().trim().max(4),
+});
+coreRoutes.get('/bill-book-search', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS), asyncHandler(async (req, res) => {
+  const parsed = billBookSearchQuerySchema.safeParse(req.query);
+  if (!parsed.success) throwValidation(parsed.error);
+  if (parsed.data.digits.length > 0 && !/^[0-9]+$/.test(parsed.data.digits)) {
+    throw new ApiError(400, 'Ô cược chỉ nhận ký tự số.');
+  }
+  res.json({ items: await searchBillBook(parsed.data.digits) });
 }));
 
 // ─── GET /duplicate-check — pre-flight Bill/Booking/declaration guard ──────

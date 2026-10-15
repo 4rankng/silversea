@@ -3,10 +3,13 @@ import { AdvanceSettlementStatus, AdvanceRequestStatus, ADVANCE_REQUEST_STATUS_L
 import { settlementActionPermissions } from './SettlementPrintPage';
 
 describe('direct financial action permissions', () => {
-  it('exposes direct advance records and unresolved historical drafts without review states', () => {
-    expect(Object.values(AdvanceRequestStatus)).toEqual(['RECORDED', 'DRAFT', 'VOIDED']);
+  it('models the advance-request approval step (PENDING → RECORDED/VOIDED) added by KP-148', () => {
+    // Step 9 (KP-148): Ops tạo yêu cầu tạm ứng ở PENDING ("Chờ phê duyệt") —
+    // không còn ghi thẳng vào RECORDED. Kế toán duyệt mới ghi sổ; từ chối thì
+    // VOIDED. DRAFT/VOIDED giữ nguyên ngữ nghĩa lịch sử.
+    expect(Object.values(AdvanceRequestStatus)).toEqual(['PENDING', 'RECORDED', 'DRAFT', 'VOIDED']);
     expect(ADVANCE_REQUEST_STATUS_LABELS.DRAFT).toBe('Chưa ghi sổ');
-    expect(Object.values(ADVANCE_REQUEST_STATUS_LABELS).join(' ')).not.toMatch(/duyệt|Từ chối/);
+    expect(ADVANCE_REQUEST_STATUS_LABELS.PENDING).toBe('Chờ phê duyệt');
   });
 
   it.each([Role.ACCOUNTANT, Role.ADMIN])('lets %s record drafts and correct recorded settlements directly', (role) => {

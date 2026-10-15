@@ -133,6 +133,8 @@ export const IDEMPOTENCY_ENDPOINTS = {
   TRIP_POD_FILE_DELETE: 'trips.pod.files.delete',
   TRIP_POD_SUBMIT: 'trips.pod.submit',
   DRIVER_INCIDENTAL_COST: 'driver.incidental-cost',
+  /** Step 3 batch — ONE key covers the whole all-or-nothing draft table. */
+  DRIVER_INCIDENTAL_COST_BATCH: 'driver.incidental-cost-batch',
   DEBT_OFFSET_CREATE: 'debt-offsets.create',
   DEBT_OFFSET_CANCEL: 'debt-offsets.cancel',
   // Card 20260921_21/19/8+13 governance rider: every financial-write route
@@ -146,6 +148,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   DEPOSIT_TRACKER_DATES: 'accounting.deposit-tracker.dates',
   DEPOSIT_TRACKER_REFUND: 'accounting.deposit-tracker.refund',
   PHOI_PHIEU_VOUCHER: 'expense-accounting.phoi-phieu.voucher',
+  EXPENSE_ACCOUNTING_ENTRY_BATCH: 'expense-accounting.entries.batch',
   PHOI_PHIEU_ROW_VOID: 'expense-accounting.phoi-phieu.row-void',
   PHOI_PHIEU_PHOI_META: 'expense-accounting.phoi-phieu.phoi-meta',
   PHOI_PHIEU_TRUCK_ASSIGN: 'expense-accounting.phoi-phieu.truck-assign',

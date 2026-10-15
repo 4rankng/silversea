@@ -1,13 +1,12 @@
 import { PhotoImage } from '../../components/shared/PhotoImage';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2, X } from 'lucide-react';
-import { useOpsExpenseTypes, useCreateOpsExpense } from '../../hooks/useOpsQueries';
+import { useOpsExpenseTypes, useOpsContainerClaimants, useCreateOpsExpense } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsOrderItem } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
-import { useAuth } from '../../hooks/useAuth';
 import { localDateInputValue } from './opsStatus';
 import { formatMoney } from '../../lib/format';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
@@ -65,27 +64,19 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Card 071026210510 — the grant check moves in FRONT of the input: an OPS
-  // without the assignment learns the refusal on open (backend's own reason),
-  // not after filling the whole form. The probe never blocks on its own
-  // failure — an unavailable scope answer leaves the save-time guard as the
-  // backstop, exactly the pre-card behavior.
-  const auth = useAuth();
-  const isOps = auth?.user?.role === 'OPS';
-  const [scopeBlocked, setScopeBlocked] = useState(false);
-  const [blockedReason, setBlockedReason] = useState('');
-  useEffect(() => {
-    if (!isOps) return;
-    let alive = true;
-    opsClient.getExpenseWriteScope(order.id)
-      .then((scope) => {
-        if (!alive || scope.writable) return;
-        setScopeBlocked(true);
-        setBlockedReason(scope.reason || 'Bạn không có quyền khai chi phí cho lô này.');
-      })
-      .catch(() => { /* probe unavailable — keep the form usable */ });
-    return () => { alive = false; };
-  }, [isOps, order.id]);
+  // Duplicate-cont heads-up (plan step 5): any Ops may declare on any lot, so
+  // two people can land on the same cont. The answer is a WARNING naming the
+  // earlier claimant — never a block; Lưu stays enabled either way. A failed
+  // probe simply shows no warning.
+  const claimantsQuery = useOpsContainerClaimants(order.id);
+  const containerId = opsContainerId(containerChoice);
+  const claimant = useMemo(() => {
+    if (containerId == null) return null; // 'LOT' / '' is a lot-wide fee — never warns
+    return claimantsQuery.data?.find((row) => row.containerId === containerId) ?? null;
+  }, [claimantsQuery.data, containerId]);
+  const claimedContainerLabel = claimant
+    ? claimant.containerNumber ?? order.containerNumbers[order.containerIds.indexOf(claimant.containerId)] ?? String(claimant.containerId)
+    : '';
 
   const groupedTypes = useMemo(() => {
     const items = typesData?.items ?? [];
@@ -131,7 +122,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const customerCharge = opsCustomerCharge(financial, amountValid ? Number(amount) : 0);
   const noteRequired = customerCharge <= 0;
   const canSubmit = typesReady && Boolean(typeCode) && amountValid && (!noteRequired || note.trim() !== '')
-    && !createExpense.isPending && !uploading && pendingFiles.length === 0 && !scopeBlocked;
+    && !createExpense.isPending && !uploading && pendingFiles.length === 0;
 
   async function handleFiles(files: FileList | File[] | null) {
     if (!files?.length || uploading || savingRef.current) return;
@@ -158,7 +149,6 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     event.preventDefault();
     if (!canSubmit || savingRef.current) return;
     savingRef.current = true;
-    const containerId = opsContainerId(containerChoice);
     try {
       await createExpense.mutateAsync({
         shipmentId: order.id,
@@ -190,8 +180,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         </header>
 
         <div className="ops-modal__body">
-          {scopeBlocked && <p className="ops-modal__refusal" role="alert">{blockedReason}</p>}
-          <fieldset className="ops-modal__fieldset" disabled={scopeBlocked}>
+          <fieldset className="ops-modal__fieldset">
           {typesQuery.isPending && <p role="status">Đang tải danh mục loại phí…</p>}
           {typesQuery.isError && <div role="alert">
             <p>Không tải được danh mục loại phí. Nội dung đang nhập vẫn được giữ.</p>
@@ -235,6 +224,12 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               <DateInput value={paidAt} onChange={setPaidAt} required />
             </label>
           </div>
+
+          {claimant && (
+            <p className="ops-modal__warning" role="alert">
+              {`Cont ${claimedContainerLabel} đã có ${claimant.paidByName ?? 'người khác'} nhập trước — bạn vẫn tiếp tục nhập chứ.`}
+            </p>
+          )}
 
           <OpsExpenseFinancialFields value={financial} onChange={setFinancial} amount={amountValid ? Number(amount) : 0} disabled={busy || uploading} />
 

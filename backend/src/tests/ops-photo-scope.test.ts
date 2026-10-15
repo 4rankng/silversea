@@ -7,7 +7,7 @@ import * as s from '../db/schema';
 import { authorizeExpensePhoto } from '../services/photo-authz.service';
 const ids: { users: number[]; customer?: number; shipment?: number; cost?: number; photo?: number; source?: number; evidence?: number } = { users: [] };
 const key = `ops-photo-scope-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-test('OPS receipt access matches own saved expense scope without granting other users', async () => {
+test('OPS receipt access follows ownership — the author reads own receipts, never another user’s', async () => {
   for (const role of [Role.OPS, Role.OPS, Role.DRIVER]) {
     const [u] = await db.insert(s.users).values({ username: `${key}-${ids.users.length}`, passwordHash: 'x', role, status: 'ACTIVE' }).returning(); ids.users.push(u.id);
   }
@@ -22,15 +22,19 @@ test('OPS receipt access matches own saved expense scope without granting other 
   const [evidence] = await db.insert(s.expenseAccountingEvidence).values({ expenseAccountingSourceId: source.id, storageKey: evidenceKey, uploadedById: owner }).returning(); ids.evidence = evidence.id;
   await db.insert(s.userShipmentLinks).values({ userId: other, shipmentId: shipment.id });
   for (const receipt of [storageKey, evidenceKey]) {
-    assert.equal((await authorizeExpensePhoto(receipt, { userId: owner, role: Role.OPS })).allow, true, 'Saved own expense grants its receipt without a manual link');
-    assert.equal((await authorizeExpensePhoto(receipt, { userId: other, role: Role.OPS })).allow, false, 'Same shipment assignment never grants another author receipt');
+    assert.equal((await authorizeExpensePhoto(receipt, { userId: owner, role: Role.OPS })).allow, true, 'The author reads their own receipt wherever the expense sits');
+    assert.equal((await authorizeExpensePhoto(receipt, { userId: other, role: Role.OPS })).allow, false, 'A shipment link never grants another author receipt');
     assert.equal((await authorizeExpensePhoto(receipt, { userId: driver, role: Role.DRIVER })).allow, false);
   }
   await db.update(s.users).set({ status: 'DISABLED' }).where(eq(s.users.id, owner));
   for (const receipt of [storageKey, evidenceKey]) assert.equal((await authorizeExpensePhoto(receipt, { userId: owner, role: Role.OPS })).allow, false, 'Disabled owner denied');
   await db.update(s.users).set({ status: 'ACTIVE' }).where(eq(s.users.id, owner));
   await db.update(s.opsExpenseEntries).set({ approvalStatus: 'VOIDED' }).where(eq(s.opsExpenseEntries.id, cost.id));
-  for (const receipt of [storageKey, evidenceKey]) assert.equal((await authorizeExpensePhoto(receipt, { userId: owner, role: Role.OPS })).allow, false, 'Voided-only expense without another grant denied');
+  // Plan step 5 removed the per-lot grant, so photo reads follow ownership
+  // only — and the list endpoint already serves the author a voided row's
+  // preserved receipts ("giữ nguyên chứng từ lịch sử"). The author keeps their
+  // own historical evidence; the "another user" denial above is the invariant.
+  for (const receipt of [storageKey, evidenceKey]) assert.equal((await authorizeExpensePhoto(receipt, { userId: owner, role: Role.OPS })).allow, true, 'Author still reads own preserved receipts after the row is voided');
 });
 after(async () => { try {
   if (ids.evidence) await db.delete(s.expenseAccountingEvidence).where(eq(s.expenseAccountingEvidence.id, ids.evidence));

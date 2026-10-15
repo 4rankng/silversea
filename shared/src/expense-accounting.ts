@@ -114,6 +114,9 @@ export interface ExpenseReconciliation {
   voidedAt?: string | null;
   id: number; code: string; opsUserId: number; from: string; to: string; amount: number; advanceAmount: number;
   initialDifference: number; paidAmount: number; refundedAmount: number; remainingDifference: number;
+  // Card 20261005 — "đã hoàn ứng xong" là một sự kiện nghiệp vụ do kế toán xác
+  // nhận, không phải hệ quả của số 0 (nếu suy ra từ số thì sẽ tự ghi khi render).
+  refundSettledAt: string | null; refundSettledByName: string | null;
   entries: ExpenseSourceRef[]; createdAt: string; note: string | null;
   advances?: Array<{ advanceRequestId: number; amount: number; reason: string | null }>;
 }
@@ -140,7 +143,11 @@ export interface ExpenseWorkList {
   totals: { receivable: number | null; payable: number | null; road: number | null };
 }
 export const expenseAccountingCreateSchema = z.object({
-  tripId: z.number().int().positive(), expenseTypeCode: z.string().trim().min(1).max(50),
+  // Card 20261005 — a shipment-level expense needs NO trip: lô hàng chưa có
+  // chuyến vận chuyển vẫn phải khai được chi phí. `shipmentId` is the anchor;
+  // `tripId` is optional context (null = phí chung của lô, không thuộc chuyến).
+  tripId: z.number().int().positive().nullable(),
+  shipmentId: z.number().int().positive(), expenseTypeCode: z.string().trim().min(1).max(50),
   // Card 20260928_197 — the expense amount is SIGNED (card 20260928_181's
   // `signedExpenseVndSchema`); every total that reads it drops negative rows
   // via `sumExcludingNegative`. `customerChargeAmount` is the receivable side
@@ -153,3 +160,8 @@ export const expenseAccountingCreateSchema = z.object({
   driverCostType: z.nativeEnum(DriverIncidentalCostType).optional(),
 }).strict();
 export type ExpenseAccountingCreate = z.infer<typeof expenseAccountingCreateSchema>;
+/** Card 20261005 — nhập nhiều khoản chi liên tục, ghi all-or-nothing trong 1 tx. */
+export const expenseAccountingCreateBatchSchema = z.object({
+  items: z.array(expenseAccountingCreateSchema).min(1).max(50),
+}).strict();
+export type ExpenseAccountingCreateBatch = z.infer<typeof expenseAccountingCreateBatchSchema>;

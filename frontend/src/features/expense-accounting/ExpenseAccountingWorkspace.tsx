@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Role, type ExpenseAccountingEntry, type ExpenseListQuery, type ExpenseWorkRow } from '@tingting/shared';
 import { Drawer } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { DateRangeFields, FilterBar, Tabs, UuiSelectField } from '../../design-system';
-import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { DateRangeFields, EmptyState, FilterBar, Tabs, UuiSelectField } from '../../design-system';
+import { expenseAccountingClient, type ExpenseAccountingCatalog } from '../../api/expenseAccountingClient';
+import { forwarderClient } from '../../api/forwarderClient';
+import { useReasonPrompt } from '../../components/reason-prompt';
 import { qk } from '../../api/keys';
-import { businessDateISO } from '../../lib/format';
+import { businessDateISO, formatDate } from '../../lib/format';
 import { useAuth } from '../../hooks/useAuth';
 import { ShipmentFinancePanel } from '../shipment-finance/ShipmentFinancePanel';
 import { ExpenseBoard } from './ExpenseBoard';
@@ -21,7 +23,7 @@ import { ExpenseAssignments } from './ExpenseAssignments';
 import { ExpenseCashDrawer } from './ExpenseCashDrawer';
 import { ExpenseHistory } from './ExpenseHistory';
 import { FundBookSection } from './FundBookSection';
-import { groupVoucherEntries } from './expense-accounting-model';
+import { expenseMoney, groupVoucherEntries } from './expense-accounting-model';
 import type { WorkFeeGroup } from './ExpenseWorkRows';
 import './ExpenseAccounting.css';
 
@@ -30,14 +32,28 @@ const views = [
   { id: 'fund-book', label: 'Sổ quỹ' },
   { id: 'reports', label: 'Báo cáo' }, { id: 'history', label: 'Lịch sử thu chi' },
   { id: 'records', label: 'Hóa đơn / cược' }, { id: 'assignments', label: 'Phân công xe' },
+  // KP-148 — bước kế toán phê duyệt tạm ứng.
+  { id: 'pending-advances', label: 'Tạm ứng chờ duyệt' },
 ];
+
+/**
+ * Danh sách tab theo vai trò — "Tạm ứng chờ duyệt" chỉ mở cho vai trò có quyền
+ * phê duyệt (đồng bộ với requireRoles của POST /advance-requests/:id/approve).
+ * Layout.test chốt quyền hiển thị của tab bằng chính hàm này.
+ */
+export function expenseAccountingViewsFor(role: Role | undefined) {
+  return role === Role.ADMIN || role === Role.MANAGER || role === Role.ACCOUNTANT
+    ? views
+    : views.filter(item => item.id !== 'pending-advances');
+}
 type VoucherSelection = { entries: ExpenseAccountingEntry[]; direction: 'IN' | 'OUT' };
 
 export function ExpenseAccountingWorkspace() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const today = businessDateISO();
-  const view = views.some(item => item.id === params.get('view')) ? params.get('view')! : 'ops';
+  const visibleViews = expenseAccountingViewsFor(user?.role);
+  const view = visibleViews.some(item => item.id === params.get('view')) ? params.get('view')! : 'ops';
   const search = params.get('search') ?? '';
   const [draftSearch, setDraftSearch] = useState(search);
   useEffect(() => { setDraftSearch(search); }, [search]);
@@ -78,7 +94,7 @@ export function ExpenseAccountingWorkspace() {
     else setVoucher({ entries, direction });
   };
   return <div className="expense-accounting">
-    <Tabs ariaLabel="Nghiệp vụ chi phí" variant="bordered" className="expense-accounting-tabs" value={view} tabs={views} onChange={next => update({ view: next, payerId: '', accountantId: '', confirmed: '' })} />
+    <Tabs ariaLabel="Nghiệp vụ chi phí" variant="bordered" className="expense-accounting-tabs" value={view} tabs={visibleViews} onChange={next => update({ view: next, payerId: '', accountantId: '', confirmed: '' })} />
     {view === 'ops' && catalog.data && <div className="expense-accounting-toolbar-actions"><button type="button" className="btn btn--secondary btn--sm" onClick={() => setAdvance(true)}>Chi tạm ứng OPS</button></div>}
     {catalog.isError && <p role="alert" className="expense-accounting-error">Không tải được danh mục thao tác. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void catalog.refetch()}>Thử lại</button></p>}
     {['ops', 'work', 'reports'].includes(view) && <form onSubmit={event => { event.preventDefault(); update({ search: draftSearch.trim() }); }}>
@@ -108,12 +124,62 @@ export function ExpenseAccountingWorkspace() {
     {view === 'history' && catalog.data && <ExpenseHistory catalog={catalog.data} onVoucher={openVoucher} />}
     {view === 'records' && <ShipmentFinancePanel />}
     {view === 'assignments' && catalog.data && <ExpenseAssignments catalog={catalog.data} />}
+    {view === 'pending-advances' && <PendingAdvanceApprovals requests={catalog.data?.pendingAdvances ?? []} />}
     {work && !editing && <ExpenseWorkDrawer work={work.row} group={work.group} onClose={() => setWork(null)} onEdit={setEditing} onCreate={(row, group) => { setWork(null); setCreating({ row, group }); }} onVoucher={openVoucher} />}
     {editing && <ExpenseEntryDrawer entry={editing} staff={catalog.data?.staff ?? []} onClose={() => { setEditing(null); setWork(null); }} />}
-    {creating && catalog.data && <ExpenseCreateDrawer work={creating.row} initialGroup={creating.group === 'road' ? 'DRIVER_ROAD' : 'INVOICED_OTHER'} catalog={catalog.data} onClose={() => setCreating(null)} />}
+    {creating && catalog.data && <ExpenseCreateDrawer work={{ tripId: creating.row.tripId, shipmentId: creating.row.shipmentId, shipmentCode: creating.row.shipmentCode, containerNumber: creating.row.containerNumber }} initialGroup={creating.group === 'road' ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT'} catalog={catalog.data} onClose={() => setCreating(null)} onSaved={() => setRefresh(value => value + 1)} />}
     {voucher && catalog.data && <ExpenseVoucherDrawer {...voucher} accounts={catalog.data.accounts} onClose={() => setVoucher(null)} onSaved={() => { setVoucher(null); setRefresh(value => value + 1); }} />}
     {reconciliation && catalog.data && <ExpenseReconciliationDrawer entries={reconciliation} catalog={catalog.data} onClose={() => setReconciliation(null)} onSaved={() => { setReconciliation(null); setRefresh(value => value + 1); }} />}
     {advance && catalog.data && <ExpenseCashDrawer catalog={catalog.data} onClose={() => setAdvance(false)} />}
     {groups && <Drawer isOpen title="Tách phiếu theo đối tượng" onClose={() => setGroups(null)} className="expense-accounting-drawer"><p>Mỗi phiếu dùng một đối tượng và một tài khoản. Chọn nhóm để kiểm tra số tiền trước khi ghi.</p><div className="expense-accounting-group-list">{groupVoucherEntries(groups.entries, groups.direction).map(group => <button type="button" key={group.key} onClick={() => { setVoucher({ entries: group.entries, direction: groups.direction }); setGroups(null); }}><span>{group.label}<small>{group.entries.length} khoản</small></span><span>Mở phiếu →</span></button>)}</div></Drawer>}
   </div>;
+}
+
+type PendingAdvanceRow = NonNullable<ExpenseAccountingCatalog['pendingAdvances']>[number];
+
+/**
+ * KP-148 — tab "Tạm ứng chờ duyệt": yêu cầu Ops tạo ra (PENDING) chờ kế toán
+ * phê duyệt. Duyệt = giải ngân luôn (bút toán + treasury OUT ghi phía backend);
+ * từ chối bắt buộc lý do. Danh sách rỗng vẫn giữ tab, chỉ hiện EmptyState.
+ */
+function PendingAdvanceApprovals({ requests }: { requests: PendingAdvanceRow[] }) {
+  const cache = useQueryClient();
+  const { prompt, dialog } = useReasonPrompt();
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState<number | null>(null);
+  const rows = requests.filter(item => item.status === 'PENDING');
+  async function approve(row: PendingAdvanceRow) {
+    if (busy) return;
+    setBusy(row.id); setError('');
+    try {
+      await forwarderClient.approveAdvanceRequest(row.id, row.version);
+      await cache.invalidateQueries({ queryKey: qk.expenseAccounting.catalog });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không phê duyệt được yêu cầu. Thử lại.'); }
+    finally { setBusy(null); }
+  }
+  async function reject(row: PendingAdvanceRow) {
+    if (busy) return;
+    const reason = await prompt('Nhập lý do từ chối yêu cầu tạm ứng.', { confirmLabel: 'Từ chối', reasonLabel: 'Lý do từ chối (bắt buộc)' });
+    if (!reason) return;
+    setBusy(row.id); setError('');
+    try {
+      await forwarderClient.rejectAdvanceRequest(row.id, row.version, reason);
+      await cache.invalidateQueries({ queryKey: qk.expenseAccounting.catalog });
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không từ chối được yêu cầu. Thử lại.'); }
+    finally { setBusy(null); }
+  }
+  return <section className="expense-accounting" aria-label="Tạm ứng chờ duyệt">
+    {dialog}
+    {error && <p role="alert" className="expense-accounting-error">{error}</p>}
+    {!rows.length
+      ? <EmptyState variant="compact" context="wallet" title="Chưa có yêu cầu tạm ứng nào chờ phê duyệt." />
+      : <div className="expense-accounting-history">{rows.map(row => <article key={row.id}>
+        <header><span>{row.name ?? `OPS #${row.opsUserId}`}</span><span>{formatDate(row.date)} · {expenseMoney(row.amount)}</span></header>
+        <p>{row.reason}</p>
+        <div className="expense-accounting-toolbar-actions">
+          <button type="button" className="btn btn--primary btn--sm" disabled={busy === row.id} onClick={() => void approve(row)}>Phê duyệt</button>
+          <button type="button" className="btn btn--secondary btn--sm" disabled={busy === row.id} onClick={() => void reject(row)}>Từ chối</button>
+        </div>
+      </article>)}</div>}
+  </section>;
 }

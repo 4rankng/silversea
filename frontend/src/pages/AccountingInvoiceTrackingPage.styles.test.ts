@@ -15,6 +15,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { Role } from '@tingting/shared';
+import { getNavItems } from '../components/Layout';
 
 const cwd = process.cwd();
 const read = (relativePath: string) => readFileSync(resolve(cwd, relativePath), 'utf8');
@@ -103,17 +105,21 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
 });
 
 describe('invoice-tracking command strip (card 20260929_ivt — shared primitives)', () => {
-  const layout = read('src/components/Layout.tsx');
-
   it('names the screen once, with the sidebar label, through the shared PageHeader', () => {
-    const navLabel = layout.match(/path: '\/accounting\/invoice-tracking'[\s\S]{0,40}?/)?.[0] ?? '';
-    expect(navLabel).toBeTruthy();
-    // The three role navs (admin/accountant/CUS) must agree on the one name.
-    const labels = [...layout.matchAll(/label: '([^']+)', path: '\/accounting\/invoice-tracking'/g)].map((m) => m[1]);
-    expect(new Set(labels).size, `nav labels disagree: ${labels.join(' | ')}`).toBe(1);
+    // qa2-008: the sidebar label no longer lives as a Layout.tsx literal —
+    // every role's nav derives it from the nav-config title (titleForPath).
+    // Agreement across the three role navs is asserted on the derived labels,
+    // which is the same authority the page's PageHeader must echo.
+    const roles = [Role.ADMIN, Role.ACCOUNTANT, Role.CUS];
+    const labels = new Set(roles.map((role) =>
+      getNavItems(role).find((item) => item.path === '/accounting/invoice-tracking')?.label,
+    ));
+    expect(labels.size, `nav labels disagree: ${[...labels].join(' | ')}`).toBe(1);
+    const navLabel = [...labels][0];
+    expect(navLabel).toBe('Theo dõi hóa đơn');
 
     expect(tsx).toContain('<PageHeader');
-    expect(tsx).toContain(`title="${labels[0]}"`);
+    expect(tsx).toContain(`title="${navLabel}"`);
     // The hand-rolled <header> band and its KPI ribbon are retired.
     expect(tsx).not.toMatch(/invoice-tracking-header/);
     expect(tsx).not.toMatch(/invoice-tracking-kpi/);

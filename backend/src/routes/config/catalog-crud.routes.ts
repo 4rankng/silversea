@@ -32,7 +32,8 @@ import customersScreenRouter from './customers.routes';
 // covers static imports, not dynamic specifiers — dist trap pinned by
 // shipment-debit-summary.test.ts and dist-safe-dynamic-imports.test.ts).
 import { spawnQuotationFuelApprovals } from '../../services/quotation.service';
-import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema, fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema } from '@tingting/shared';
+import { customerSchema, customerUpdateSchema, truckSchema, trailerSchema, routeSchema, cargoTypeSchema, pricingTableSchema, roadAllowanceSchema, portZoneSurchargeSchema, penaltyReasonSchema, driverSchema, managementFeeSchema, capTableSchema, truckCapSchema, supplierSchema, expenseCategorySchema, containerTypeSchema, sealTypeSchema, portSchema, dispatchZoneSchema, dispatchZoneUpdateSchema, forwarderExpenseTypeSchema, tireSchema, tirePositionSchema, fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema, businessCalendarDaySchema, fuelPricePeriodSchema, freightRateTermSchema, fuelConsumptionNormSchema, vehicleSizeClassSchema } from '@tingting/shared';
+import { ZONE_SURCHARGE_KIND } from '../../services/zone-surcharge.service';
 import { declareMaterialWrite } from '../../middleware/material-write';
 
 // Catalog CRUD routes (T3c split) — the 26 crud-factory mounts plus the
@@ -699,6 +700,37 @@ router.use('/road-allowances', createCrudRouter(s.roadAllowances, roadAllowanceS
   },
   governance: {
     reasonLabel: 'phụ cấp đường',
+  },
+}));
+// Card 20261005 — giá một lần nâng/hạ theo cảng (phí Lạch Huyện). Một dòng
+// cho mỗi cảng: `kindSlug` là cấu trúc (chỉ có một loại phí theo cảng) nên
+// được ép ở cả create lẫn update, không bao giờ nhận từ người nhập.
+router.use('/port-zone-surcharges', createCrudRouter(s.portZoneSurcharges, portZoneSurchargeSchema, { materialWritePath: '/api/port-zone-surcharges',
+  searchableField: 'label',
+  beforeCreate: async (data, _req, tx) => {
+    const final = { ...data, kindSlug: ZONE_SURCHARGE_KIND };
+    await H.requireActiveCatalogRow(tx, 'port', s.ports, final.portId, 'Cảng không tồn tại hoặc đã ngưng dùng');
+    await lockApplicationOwnedUniqueness(tx, 'catalog.port-zone-surcharge.port-kind', [final.portId, final.kindSlug]);
+    const [duplicate] = await tx.select({ id: s.portZoneSurcharges.id }).from(s.portZoneSurcharges)
+      .where(and(eq(s.portZoneSurcharges.portId, final.portId), eq(s.portZoneSurcharges.kindSlug, final.kindSlug), isNull(s.portZoneSurcharges.deletedAt)))
+      .limit(1);
+    if (duplicate) throw new ApiError(409, 'Giá nâng/hạ cho cảng này đã tồn tại');
+    return final as typeof data;
+  },
+  beforeUpdate: async (id, data, _req, tx) => {
+    const [current] = await tx.select().from(s.portZoneSurcharges).where(eq(s.portZoneSurcharges.id, id)).limit(1);
+    if (!current) throw new ApiError(404, 'Không tìm thấy giá nâng/hạ');
+    const final = { ...current, ...data, kindSlug: ZONE_SURCHARGE_KIND };
+    await H.requireActiveCatalogRow(tx, 'port', s.ports, final.portId, 'Cảng không tồn tại hoặc đã ngưng dùng');
+    await lockApplicationOwnedUniqueness(tx, 'catalog.port-zone-surcharge.port-kind', [final.portId, final.kindSlug]);
+    const [duplicate] = await tx.select({ id: s.portZoneSurcharges.id }).from(s.portZoneSurcharges)
+      .where(and(eq(s.portZoneSurcharges.portId, final.portId), eq(s.portZoneSurcharges.kindSlug, final.kindSlug), isNull(s.portZoneSurcharges.deletedAt), ne(s.portZoneSurcharges.id, id)))
+      .limit(1);
+    if (duplicate) throw new ApiError(409, 'Giá nâng/hạ cho cảng này đã tồn tại');
+    return { ...data, kindSlug: ZONE_SURCHARGE_KIND } as typeof data;
+  },
+  governance: {
+    reasonLabel: 'phí nâng/hạ theo cảng',
   },
 }));
 

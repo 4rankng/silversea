@@ -80,7 +80,12 @@ export async function hydrateExpenseAccountingSource(executor: Tx | typeof db, l
     const { e, t, d } = data;
     return { ...base, ...e, ...link, tripId: e.tripId, truckId: t.truckId, customerId: t.customerId,
       expenseTypeCode: e.costType, feeName: e.feeName ?? e.costType, expenseDate: e.occurredAt,
-      payerKind: e.payerKind ?? 'USER', payerUserId: e.payerKind === 'COMPANY' ? null : d.userId, payableEntityType: e.payerKind === 'COMPANY' ? null : 'DRIVER', payableEntityId: e.payerKind === 'COMPANY' ? null : d.id,
+      // Card 20261005 — "Người chi" đã gỡ khỏi chi phí lái xe: một khoản do lái
+      // xe ghi KHÔNG có người chi cho tới khi kế toán ghi nhận qua đường bảng kế
+      // toán. Không mặc định "lái xe đã chi" nữa — payer null thì mọi trường
+      // payer/payable đều null để bảng kế toán hiện đúng "chưa xác định".
+      payerKind: e.payerKind ?? null, payerUserId: e.payerKind && e.payerKind !== 'COMPANY' ? d.userId : null,
+      payableEntityType: e.payerKind && e.payerKind !== 'COMPANY' ? 'DRIVER' : null, payableEntityId: e.payerKind && e.payerKind !== 'COMPANY' ? d.id : null,
       photoStorageKeys: e.photoStorageKeys.length ? e.photoStorageKeys : e.receiptStorageKey ? [e.receiptStorageKey] : [] };
   }
   if (link.sourceKind === 'INVOICE') {
@@ -216,8 +221,11 @@ export async function ensureLegacyExpenseSource(executor: Executor, kind: Expens
       costGroup: e.costGroup, feeName: e.feeName ?? e.costType, amount: Number(e.amount),
       customerChargeAmount: e.customerChargeAmount == null ? null : Number(e.customerChargeAmount), expenseDate: e.occurredAt,
       invoiceNumber: e.invoiceNumber, invoiceDate: e.invoiceDate, recoveryNote: e.recoveryNote,
-      payerKind: e.payerKind ?? 'USER', payerUserId: e.payerKind === 'COMPANY' ? null : driver?.userId,
-      payableEntityType: e.payerKind === 'COMPANY' ? null : 'DRIVER', payableEntityId: e.payerKind === 'COMPANY' ? null : e.driverId,
+      // Card 20261005 — không còn mặc định "người chi = lái xe" (xem nhánh
+      // DRIVER của hydrateExpenseAccountingSource): payer null thì payer/payable
+      // đều null, kế toán ghi nhận bên thực chi sau.
+      payerKind: e.payerKind ?? null, payerUserId: e.payerKind && e.payerKind !== 'COMPANY' ? driver?.userId ?? null : null,
+      payableEntityType: e.payerKind && e.payerKind !== 'COMPANY' ? 'DRIVER' : null, payableEntityId: e.payerKind && e.payerKind !== 'COMPANY' ? e.driverId : null,
       recordedById: e.recordedBy, note: e.note,
       photoStorageKeys: e.photoStorageKeys.length ? e.photoStorageKeys : e.receiptStorageKey ? [e.receiptStorageKey] : [] });
     const [nativeRecord] = await executor.select({ id: s.auditLogs.id }).from(s.auditLogs).where(and(

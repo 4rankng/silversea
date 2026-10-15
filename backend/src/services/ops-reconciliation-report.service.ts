@@ -7,7 +7,7 @@ import { getOutstandingAdvanceBalances } from './advance-shared.service';
 import { ApiError } from '../errors';
 import { expenseDateSchema } from '@tingting/shared';
 
-export const OPS_RECONCILIATION_DIRECTIONS = ['CTY_THANH_TOAN_HOAN_UNG', 'CTY_YEU_CAU_HOAN_TRA', 'KHONG_CON_GI'] as const;
+export const OPS_RECONCILIATION_DIRECTIONS = ['CTY_THANH_TOAN_HOAN_UNG', 'CTY_YEU_CAU_HOAN_TRA', 'CTY_YEU_CAU_THU_TIEN_UNG', 'KHONG_CON_GI'] as const;
 export type OpsReconciliationDirection = typeof OPS_RECONCILIATION_DIRECTIONS[number];
 
 export interface OpsReconciliationReportRow {
@@ -16,6 +16,11 @@ export interface OpsReconciliationReportRow {
   dntt: number;
   advanced: number;
   remaining: number;
+  /** Chênh lệch CÓ DẤU theo đúng chữ của spec — "ĐNTT − ĐÃ ỨNG" (card 377:
+   *  800.000 − 200.000 = 600.000). Số âm = tiền ứng vượt chi phí thực tế. */
+  remainingSigned: number;
+  /** Âm và nhân viên còn nắm tiền ĐÃ CẤP để thu về. */
+  needsCollection: boolean;
   direction: OpsReconciliationDirection;
   note: string;
 }
@@ -110,6 +115,10 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     .innerJoin(s.expenseAccountingSources, and(...sourceJoin))
     .where(and(
       eq(s.opsExpenseEntries.approvalStatus, 'RECORDED'),
+      // Card 20261005 — a shipment-level accountant expense has no payer
+      // (paidById NULL); it belongs to no employee, so it must not aggregate
+      // into a per-staff report row ('NV #NaN').
+      isNotNull(s.opsExpenseEntries.paidById),
       // Unscoped, the report is the monthly per-staff view: costs are owned by
       // the period window. Scoped, the lot's own rows are the period — its
       // window only rides along on the response for display.
@@ -178,12 +187,20 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     const advanced = heldByStaff.get(key) ?? 0;
     const remaining = outstandingByStaff.get(key) ?? 0;
     if (dntt === 0 && advanced === 0 && remaining === 0) continue;
-    const direction: OpsReconciliationDirection = remaining > 0 ? 'CTY_YEU_CAU_HOAN_TRA' : 'KHONG_CON_GI';
-    const note = remaining > 0 ? 'Công ty yêu cầu nhân viên hoàn trả tạm ứng' : 'Không còn chênh lệch';
+    // Số âm: chênh lệch có dấu theo đúng chữ spec "ĐNTT − ĐÃ ỨNG", giữ nguyên
+    // `remaining` là số sổ quỹ (lệnh PM 2026-09-29) nên tổng và ví không đổi.
+    const remainingSigned = dntt - advanced;
+    // "Đề nghị thu tiền ứng" chỉ dựng khi nhân viên thật sự còn tiền ĐÃ CẤP để
+    // thu (remaining > 0): một yêu cầu chưa giải ngân không phải tiền — đúng
+    // luật "request without money is not an advance" mà card11 đã chốt.
+    const needsCollection = remainingSigned < 0 && remaining > 0;
+    const direction: OpsReconciliationDirection = needsCollection ? 'CTY_YEU_CAU_THU_TIEN_UNG' : remaining > 0 ? 'CTY_YEU_CAU_HOAN_TRA' : 'KHONG_CON_GI';
+    const note = direction === 'CTY_YEU_CAU_THU_TIEN_UNG' ? 'Đề nghị thu tiền ứng'
+      : direction === 'CTY_YEU_CAU_HOAN_TRA' ? 'Công ty yêu cầu nhân viên hoàn trả tạm ứng' : 'Không còn chênh lệch';
     rows.push({
       staffId,
       staffName: nameByStaff.get(staffId) ?? `NV #${staffId}`,
-      dntt, advanced, remaining, direction, note,
+      dntt, advanced, remaining, remainingSigned, needsCollection, direction, note,
     });
   }
   // Card 20260928_169 — the employee axis: unscoped, a single staff filter

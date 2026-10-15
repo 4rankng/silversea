@@ -12,6 +12,7 @@ import { throwValidation } from '../lib/validation';
 import { requireExpenseFinance } from '../services/expense-accounting-write.service';
 import { allocateOutstandingExpenseVoucher, createExpenseVoucher, reverseExpenseVoucher } from '../services/expense-accounting-voucher.service';
 import { createExpenseReconciliation, recordFundedOpsAdvance, refundExpenseReconciliation } from '../services/expense-accounting-reconciliation.service';
+import { settleExpenseReconciliationRefund } from '../services/expense-reconciliation-settle.service';
 import { getExpenseReconciliation, getExpenseVoucher, listExpenseReconciliations, listExpenseVouchers } from '../services/expense-accounting-reads.service';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
 import { normalizeTreasuryPhysicalReference } from '../services/treasury.service';
@@ -148,6 +149,16 @@ router.post('/reconciliations/:id/refund', declareMaterialWrite('expenses.reconc
     payload: { id, ...input }, createdBy: actor.userId, entityType: 'expense_cash_voucher',
     create: async tx => { const row = await refundExpenseReconciliation(tx, actor, id, input); return getExpenseVoucher(actor, row.id, tx); } });
   res.json({ ...result.result, replayed: result.replayed });
+}));
+// Card 20261005 — ô chốt "đã hoàn ứng xong": ghi/nhả cột refund_settled_* của
+// đợt, chỉ khi số còn phải hoàn đã bằng 0 (service ném 409 nếu chưa).
+router.post('/reconciliations/:id/settle-refund', declareMaterialWrite('expense-reconciliation.settle-refund', { method: 'POST', path: '/api/expense-accounting/reconciliations/:id/settle-refund' }),  asyncHandler(async (req, res) => {
+  const actor = getUser(req); const id = parse(positiveId, req.params.id);
+  const input = parse(z.object({ expectedVersion: positiveId, settled: z.boolean() }).strict(), req.body);
+  const result = await runIdempotent({ endpoint: 'expense-reconciliation.settle-refund', idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
+    payload: { id, ...input }, createdBy: actor.userId, entityType: 'expense_reconciliation', responseStatusCode: 200,
+    create: async tx => { await settleExpenseReconciliationRefund(tx, actor, id, input); return getExpenseReconciliation(actor, id, tx); } });
+  res.status(result.statusCode).json(result.result);
 }));
 router.post('/advances', declareMaterialWrite('ops.advance-requests.create', { method: 'POST', path: '/api/expense-accounting/advances' }),  asyncHandler(async (req, res) => {
   const actor = getUser(req);

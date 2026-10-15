@@ -3,11 +3,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverIncidentalCostType } from '@tingting/shared';
 
-const api = vi.hoisted(() => ({ listIncidentalCosts: vi.fn(), createIncidentalCost: vi.fn(), uploadReceiptPhoto: vi.fn(), updateCostSubmissionNote: vi.fn(), getFeeNorms: vi.fn() }));
+const api = vi.hoisted(() => ({ listIncidentalCosts: vi.fn(), createIncidentalCost: vi.fn(), createIncidentalCosts: vi.fn(), uploadReceiptPhoto: vi.fn(), updateCostSubmissionNote: vi.fn(), getFeeNorms: vi.fn() }));
 vi.mock('../../api/driverClient', () => ({ driverClient: api }));
 import { ShipmentCostEntryForm } from './ShipmentCostEntryForm';
 
-const entry = { id: 1, tripId: 42, driverId: 7, costType: DriverIncidentalCostType.LIFT_FEE, costGroup: 'DRIVER_SHIPMENT', feeName: 'Nâng container', amount: '500000', occurredAt: '2026-09-16', note: 'Cảng A', receiptStorageKey: null, invoiceNumber: 'HD-101', createdAt: '2026-09-16T02:00:00Z' };
+const entry = { id: 1, tripId: 42, driverId: 7, costType: DriverIncidentalCostType.LIFT_FEE, costGroup: 'DRIVER_SHIPMENT', feeName: 'Nâng container', amount: '500000', occurredAt: '2026-09-16', note: 'Cảng A', receiptStorageKey: null, evidenceKind: 'INVOICE', invoiceNumber: 'HD-101', createdAt: '2026-09-16T02:00:00Z' };
 function setup(props: Partial<React.ComponentProps<typeof ShipmentCostEntryForm>> = {}) {
   return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ShipmentCostEntryForm tripId={42} totalRoadAllowance={null} {...props} /></QueryClientProvider>);
 }
@@ -16,13 +16,19 @@ async function choose(label: string) {
   fireEvent.click(screen.getByRole('combobox', { name: 'Loại chi phí' }));
   fireEvent.click(await screen.findByRole('option', { name: label }));
 }
+async function chooseEvidence(label: 'Hóa đơn' | 'Phiếu thu') {
+  // 2 options → plain Select variant: the trigger is a button (the >= 5-option
+  // "Loại chi phí" renders a combobox instead).
+  fireEvent.click(screen.getByRole('button', { name: /Loại chứng từ/ }));
+  fireEvent.click(await screen.findByRole('option', { name: label }));
+}
 
 describe('driver expense workflow — TC-CP-LX', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.listIncidentalCosts.mockResolvedValue([]);
     api.getFeeNorms.mockResolvedValue({ items: [{ code: 'NIGHT_RETURN', label: 'Trả đêm', amount: '100000' }, { code: 'OVERLOAD', label: 'Chạy quá tải', amount: '200000' }, { code: 'SHIFT', label: 'Lưu ca', amount: '200000' }] });
-    api.createIncidentalCost.mockResolvedValue(entry);
+    api.createIncidentalCosts.mockResolvedValue(entry);
     api.updateCostSubmissionNote.mockResolvedValue({});
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   });
@@ -34,8 +40,8 @@ describe('driver expense workflow — TC-CP-LX', () => {
   // was fixed at one surface only.
   it('labels a negative saved row as an adjusting entry, and leaves a positive row alone', async () => {
     api.listIncidentalCosts.mockResolvedValue([
-      { ...entry, id: 22, costType: DriverIncidentalCostType.TOLL, costGroup: 'DRIVER_ROAD', feeName: 'TOLL', amount: '-30000', payerKind: 'USER' },
-      { ...entry, id: 23, costType: DriverIncidentalCostType.TOLL, costGroup: 'DRIVER_ROAD', feeName: 'TOLL', amount: '30000', payerKind: 'USER' },
+      { ...entry, id: 22, costType: DriverIncidentalCostType.TOLL, costGroup: 'DRIVER_ROAD', feeName: 'TOLL', amount: '-30000' },
+      { ...entry, id: 23, costType: DriverIncidentalCostType.TOLL, costGroup: 'DRIVER_ROAD', feeName: 'TOLL', amount: '30000' },
     ]);
     setup();
     await screen.findAllByText('TOLL');
@@ -52,7 +58,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
     setup();
     await screen.findByText('Chưa có chi phí phát sinh');
     expect(screen.getByTestId('shipment-cost-route-reference').textContent).toContain('Chưa có định mức');
-    expect(api.createIncidentalCost).not.toHaveBeenCalled();
+    expect(api.createIncidentalCosts).not.toHaveBeenCalled();
   });
 
   it('card _29: costs empty renders the driver-costs illustration empty state', async () => {
@@ -81,13 +87,15 @@ describe('driver expense workflow — TC-CP-LX', () => {
 
   it('submits invoice metadata without claiming customer cash received', async () => {
     setup(); await open();
+    // Step 2: the invoice fields appear only for the "Hóa đơn" evidence choice.
+    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '500000' } });
     fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'HD-101' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: 500000, invoiceNumber: 'HD-101', feeName: 'Phí nâng' });
-    expect(api.createIncidentalCost.mock.calls[0][1]).not.toHaveProperty('customerChargeAmount');
-    expect(api.createIncidentalCost.mock.calls[0][1]).not.toHaveProperty('receivedAmount');
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: 500000, invoiceNumber: 'HD-101', feeName: 'Phí nâng' });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).not.toHaveProperty('customerChargeAmount');
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).not.toHaveProperty('receivedAmount');
     await waitFor(() => expect(api.listIncidentalCosts).toHaveBeenCalledTimes(2));
   });
 
@@ -99,18 +107,19 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(screen.getByText(/Gợi ý 100.000/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '120000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
-    expect(api.createIncidentalCost).not.toHaveBeenCalled();
+    expect(api.createIncidentalCosts).not.toHaveBeenCalled();
   });
 
   it('records road money by explicit selected category, without an invoice or cash charge', async () => {
     setup(); await open();
+    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'OLD-INVOICE' } });
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Chạy quá tải');
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ costType: 'OTHER', costGroup: 'DRIVER_ROAD', feeName: 'Chạy quá tải', amount: 200000 });
-    expect(api.createIncidentalCost.mock.calls[0][1].invoiceNumber).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costType: 'OTHER', costGroup: 'DRIVER_ROAD', feeName: 'Chạy quá tải', amount: 200000 });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceNumber).toBeUndefined();
   });
 
   // Card 20260928_197 — the PM's words are "MỌI màn hình nhập chi phí (Ops,
@@ -144,10 +153,10 @@ describe('driver expense workflow — TC-CP-LX', () => {
     // the user sees and the value the server receives are the real contract.
     expect(field.value).toBe('-30.000');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
 
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ amount: -30000 });
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ amount: -30000 });
     expect(screen.queryByText(/nguyên dương/)).toBeNull();
   });
   // Card 20260928_181, tiêu chí 5 — the note that says what a negative does.
@@ -178,20 +187,31 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Chạy quá tải');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '0' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
-    expect(api.createIncidentalCost).not.toHaveBeenCalled();
+    expect(api.createIncidentalCosts).not.toHaveBeenCalled();
   });
 
-  it('distinguishes company-paid money and documents agreed shift allowance without adding an extra', async () => {
-    setup(); await open();
+  // Card 20261005 — "Người chi" (Tôi chi / Công ty chi) gỡ khỏi chi phí lái xe:
+  // lái xe ghi khoản đã chi, kế toán quyết định bên thực chi. Form không còn
+  // combobox Người chi, payload không mang payerKind, và dòng đã lưu không in
+  // "Tôi chi" / "Công ty đã trả". Định mức đồng ý (Lưu ca) giữ nguyên: ghi đúng
+  // số tiền định mức, không cộng thêm.
+  it('records a fee norm with no payer choice — no Người chi control, no payerKind in the payload', async () => {
+    api.listIncidentalCosts.mockResolvedValue([
+      { ...entry, id: 24, costType: DriverIncidentalCostType.OTHER, costGroup: 'DRIVER_ROAD', feeName: 'Lưu ca', amount: '200000' },
+    ]);
+    setup(); await screen.findByText('Lưu ca');
+    expect(screen.queryByText('Tôi chi')).toBeNull();
+    expect(screen.queryByText('Công ty đã trả')).toBeNull();
+    await open();
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Lưu ca');
-    fireEvent.click(screen.getByRole('button', { name: /Người chi/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Công ty đã trả' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ payerKind: 'COMPANY', costType: 'OTHER', feeNormCode: 'SHIFT', feeName: 'Lưu ca', amount: 200000 });
+    expect(screen.queryByRole('combobox', { name: 'Người chi' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costType: 'OTHER', feeNormCode: 'SHIFT', feeName: 'Lưu ca', amount: 200000 });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).not.toHaveProperty('payerKind');
   });
 
   it('uses a configured custom fee and amount while preserving its authoritative code', async () => {
@@ -199,40 +219,43 @@ describe('driver expense workflow — TC-CP-LX', () => {
     setup(); await open(); fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' })); await choose('Phụ cấp bãi kiểm thử mới');
     expect(screen.getByLabelText(/Thực chi/)).toHaveValue('73.000');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '75000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledOnce());
-    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ feeNormCode: 'CUSTOM_HARBOR', amount: 75000, costGroup: 'DRIVER_ROAD' });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledOnce());
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ feeNormCode: 'CUSTOM_HARBOR', amount: 75000, costGroup: 'DRIVER_ROAD' });
   });
 
   it('keeps manual entry available and exposes retry when norms fail to load', async () => {
     api.getFeeNorms.mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ items: [] });
     setup(); await open(); expect(await screen.findByText(/Không tải được định mức tiền đường/)).toBeInTheDocument();
+    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại định mức' }));
     await waitFor(() => expect(api.getFeeNorms).toHaveBeenCalledTimes(2));
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledOnce());
-    expect(api.createIncidentalCost.mock.calls[0][1]).not.toHaveProperty('feeNormCode');
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledOnce());
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).not.toHaveProperty('feeNormCode');
   });
 
   it('retries the same failed save with the same key and retained input', async () => {
-    api.createIncidentalCost.mockRejectedValueOnce(new Error('Mất phản hồi')).mockResolvedValueOnce(entry);
+    api.createIncidentalCosts.mockRejectedValueOnce(new Error('Mất phản hồi')).mockResolvedValueOnce(entry);
     setup(); await open();
+    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '123000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Mất phản hồi');
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(2));
-    expect(api.createIncidentalCost.mock.calls[0][2]).toBe(api.createIncidentalCost.mock.calls[1][2]);
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(2));
+    expect(api.createIncidentalCosts.mock.calls[0][2]).toBe(api.createIncidentalCosts.mock.calls[1][2]);
   });
 
   it('blocks a repeated click while a save is unresolved', async () => {
-    api.createIncidentalCost.mockReturnValue(new Promise(() => {}));
+    api.createIncidentalCosts.mockReturnValue(new Promise(() => {}));
     setup(); await open();
+    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
-    const save = screen.getByRole('button', { name: 'Lưu chi phí' });
+    const save = screen.getByRole('button', { name: /^Lưu tất cả/ });
     fireEvent.click(save); fireEvent.click(save);
-    expect(api.createIncidentalCost).toHaveBeenCalledTimes(1);
+    expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the amount when receipt upload fails and allows retry', async () => {
@@ -254,10 +277,10 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(screen.queryByAltText('Biên lai đã chọn')).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Biên lai đã chọn (không tải được)' })).toHaveTextContent('Không tải được');
     expect(document.querySelector('img[src=""]')).toBeNull();
-    expect(api.createIncidentalCost).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledOnce());
-    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ amount: 35000, receiptStorageKey: 'receipt.png' });
+    expect(api.createIncidentalCosts).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledOnce());
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ amount: 35000, receiptStorageKey: 'receipt.png' });
   });
 
   it('does not autosave notes and explicitly stores the correct trip note once', async () => {
@@ -272,19 +295,21 @@ describe('driver expense workflow — TC-CP-LX', () => {
 
   it('attempts the actual business request even when the browser connectivity hint is offline', async () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
-    api.createIncidentalCost.mockRejectedValue(new Error('Máy chủ chưa trả lời'));
+    api.createIncidentalCosts.mockRejectedValue(new Error('Máy chủ chưa trả lời'));
     setup(); await open();
+    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '99000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await screen.findByText('Máy chủ chưa trả lời');
-    expect(api.createIncidentalCost).toHaveBeenCalledTimes(1);
+    expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText(/Thực chi/)).toHaveValue('99.000');
     window.dispatchEvent(new Event('online'));
-    expect(api.createIncidentalCost).toHaveBeenCalledTimes(1);
+    expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1);
   });
 
   it('displays Thực chi with vi-VN grouping while the saved amount stays a plain integer (card 20260924_1, image12)', async () => {
     setup(); await open();
+    await chooseEvidence('Hóa đơn');
     const field = screen.getByLabelText(/Thực chi/);
     fireEvent.change(field, { target: { value: '1200000' } });
     expect(field).toHaveValue('1.200.000');
@@ -292,9 +317,9 @@ describe('driver expense workflow — TC-CP-LX', () => {
     // display format never leaks into the data contract.
     fireEvent.change(field, { target: { value: '1.200.000' } });
     expect(field).toHaveValue('1.200.000');
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({ amount: 1200000 });
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ amount: 1200000 });
   });
 
   it('keeps cancelled/locked trip expenses read-only', async () => {
@@ -306,33 +331,41 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm ghi chú cho kế toán' }));
     expect(screen.getByLabelText('Ghi chú cho kế toán')).toBeDisabled();
   });
-  it('card 20260928_163: an invoiced lot-cost fee offers Số hóa đơn and carries its catalog code', async () => {
+  it('card 20260928_163: an invoiced lot-cost fee offers Số hóa đơn via Loại chứng từ and carries its catalog code', async () => {
     setup(); await open();
-    // 'Phí nâng' is catalog-classified as LIFTING (requires_invoice) — the field
-    // is offered because the CATALOG says so, not because the driver typed.
+    // Step 2 replaced the catalog rule: "Hóa đơn" mounts Số/Ngày hóa đơn for
+    // EVERY lot cost, whatever the catalog says (the server still enforces its
+    // own invoiced-catalog rule). Before any choice the fields are not mounted.
+    expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
+    await chooseEvidence('Hóa đơn');
     expect(screen.getByLabelText('Số hóa đơn')).toBeTruthy();
     await choose('Phí vệ sinh');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
     fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'HD-163' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCost.mock.calls[0][1]).toMatchObject({
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({
       expenseTypeCode: 'FEE_CLEANING', invoiceNumber: 'HD-163', invoiceDate: undefined, costGroup: 'DRIVER_SHIPMENT', feeName: 'Phí vệ sinh',
     });
   });
 
   it('card 20260928_164: a no-invoice lot-cost fee offers no Số hóa đơn and never sends one', async () => {
+    api.uploadReceiptPhoto.mockResolvedValue({ storageKey: 'receipt.png', url: 'blob:receipt' });
     setup(); await open();
     await choose('Đảo vỏ');
-    // CONTAINER_SWAP is catalog-classified no-invoice: the field is gone, and even
-    // a number left over from an earlier pick must not reach the payload — that is
+    // CONTAINER_SWAP is catalog-classified no-invoice and the row stays on the
+    // default "Phiếu thu": there is no invoice field to type into, and even a
+    // number left over from an earlier pick must not reach the payload — that is
     // what pushed these rows into phải thu khách hàng.
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '90000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
-    await waitFor(() => expect(api.createIncidentalCost).toHaveBeenCalledTimes(1));
-    const body = api.createIncidentalCost.mock.calls[0][1];
-    expect(body).toMatchObject({ expenseTypeCode: 'CONTAINER_SWAP', costGroup: 'DRIVER_SHIPMENT', feeName: 'Đảo vỏ' });
+    // "Phiếu thu" mandates the biên lai photo before the save opens (step 2).
+    fireEvent.change(screen.getByLabelText('Chọn ảnh biên lai'), { target: { files: [new File(['photo'], 'receipt.png', { type: 'image/png' })] } });
+    await screen.findByText('Ảnh sẽ gắn với khoản chi này');
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    const body = api.createIncidentalCosts.mock.calls[0][1][0];
+    expect(body).toMatchObject({ expenseTypeCode: 'CONTAINER_SWAP', costGroup: 'DRIVER_SHIPMENT', feeName: 'Đảo vỏ', evidenceKind: 'RECEIPT' });
     expect(body.invoiceNumber).toBeUndefined();
     expect(body.invoiceDate).toBeUndefined();
   });
@@ -346,7 +379,24 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại' }));
     expect(await screen.findByText('Nâng container')).toBeTruthy();
     expect(screen.queryByText('Không tải được chi phí QA')).toBeNull();
-    expect(api.createIncidentalCost).not.toHaveBeenCalled();
+    expect(api.createIncidentalCosts).not.toHaveBeenCalled();
+  });
+
+  // Card 20261005 — dòng hệ thống tự ghi nhận bị khóa với lái xe: "Tiền đường"
+  // (ROAD_ALLOWANCE) và "Phí nâng/hạ theo vùng" (LIFT_DROP_ZONE) không có nút
+  // sửa / nút chứng từ, chỉ dòng "Hệ thống tự ghi nhận"; loại phí khác (OTHER)
+  // vẫn có nút sửa như bình thường.
+  it('locks system-recorded rows (ROAD_ALLOWANCE, LIFT_DROP_ZONE) while an OTHER row stays editable', async () => {
+    api.listIncidentalCosts.mockResolvedValue([
+      { ...entry, id: 31, costType: DriverIncidentalCostType.ROAD_ALLOWANCE, costGroup: 'DRIVER_ROAD', feeName: 'Tiền đường hệ thống', amount: '300000' },
+      { ...entry, id: 32, costType: DriverIncidentalCostType.LIFT_DROP_ZONE, costGroup: 'DRIVER_ROAD', feeName: 'Nâng/hạ theo vùng', amount: '50000' },
+      { ...entry, id: 33, costType: DriverIncidentalCostType.OTHER, costGroup: 'DRIVER_ROAD', feeName: 'Tiền đường khác', amount: '70000' },
+    ]);
+    setup();
+    await screen.findByText('Tiền đường hệ thống');
+    expect(screen.getAllByText('Hệ thống tự ghi nhận — Kế toán điều chỉnh tại màn hình phơi phiếu.')).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Sửa khoản chi' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Xem / bổ sung chứng từ' })).toHaveLength(1);
   });
 
 });

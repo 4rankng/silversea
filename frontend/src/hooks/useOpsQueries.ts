@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '../api/keys';
 import {
   opsClient,
+  type OpsContainerClaimant,
   type OpsExpensePhoto,
   type OpsExpenseRow,
   type OpsExpenseStatus,
@@ -23,6 +24,7 @@ import {
 export const opsKeys = {
   orders: (date: string, q?: string) => ['ops', 'orders', date, q ?? ''] as const,
   expenseTypes: () => ['ops', 'expense-types'] as const,
+  containerClaimants: (shipmentId: number) => ['ops', 'container-claimants', shipmentId] as const,
   walletSummary: () => ['ops', 'wallet-summary'] as const,
   // Card 20260928_168: the window is part of the key, so two different
   // windows can never serve each other's cached rows.
@@ -72,6 +74,16 @@ export function useOpsExpenseTypes() {
     queryKey: opsKeys.expenseTypes(),
     queryFn: () => opsClient.getExpenseTypes(),
     staleTime: 5 * 60_000,
+  });
+}
+
+/** Duplicate-cont warning source (plan step 5): fetched when the declaration
+ *  dialog opens; a failure degrades to "no warning", never to a blocked form. */
+export function useOpsContainerClaimants(shipmentId: number) {
+  return useQuery<OpsContainerClaimant[]>({
+    queryKey: opsKeys.containerClaimants(shipmentId),
+    queryFn: () => opsClient.getContainerClaimants(shipmentId),
+    staleTime: 30_000,
   });
 }
 

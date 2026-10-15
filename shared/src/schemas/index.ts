@@ -891,6 +891,15 @@ export const roadAllowanceSchema = z.object({
   baseAmount: positiveNumeric,
 });
 
+/** Card 20261005 — giá một lần nâng/hạ theo cảng (phí Lạch Huyện). `kindSlug`
+ *  cố định: chỉ có một loại phí theo cảng nên không cho nhập tay. */
+export const portZoneSurchargeSchema = z.object({
+  portId: z.number().int().positive(),
+  kindSlug: z.literal('zone_lift_drop_surcharge'),
+  label: z.string().trim().min(1).max(255),
+  amount: expenseVndSchema,
+});
+
 export const fuelConfigSchema = z.object({
   loadedNorm: positiveNumeric,
   emptyNorm: positiveNumeric,
@@ -2070,7 +2079,11 @@ export type DriverProgressInput = z.infer<typeof driverProgressSchema>;
 // expense (per-diem, lift fee, parking, toll, fuel, other) against a trip.
 // Server-side idempotent (PRD M08-04-03 offline-safe replay).
 export const driverIncidentalCostSchema = z.object({
-  payerKind: z.enum(['USER', 'COMPANY']).optional(),
+  // Card 20261005 — "Người chi" (Tôi chi / Công ty chi) bị gỡ khỏi chi phí
+  // lái xe hoàn toàn: lái xe ghi khoản đã chi, kế toán quyết định bên thực
+  // chi. `evidenceKind` thay cho cặp Số/Ngày hóa đơn: phiếu thu không có
+  // số hoá đơn mà bắt buộc có biên lai.
+  evidenceKind: z.enum(['INVOICE', 'RECEIPT']).optional(),
   ...expenseInputFields,
   costType: z.nativeEnum(DriverIncidentalCostType),
   // Card 20260928_197 — O/D (Ops expense, driver incidental) amounts are now

@@ -10,95 +10,100 @@ import {
   COMPACT_DESKTOP_MEDIA_QUERY,
   getPageTitle,
 } from './Layout';
+import { titleForPath } from '../lib/routes';
+import { expenseAccountingViewsFor } from '../features/expense-accounting/ExpenseAccountingWorkspace';
 
 describe('getNavItems', () => {
   it.each([
     [Role.ADMIN, [
-      ['Tổng quan Quản trị', '/dashboard'],
+      ['Tổng quan', '/dashboard'],
       ['Tổng quan lô hàng', '/shipments'],
-      ['Điều vận', '/dispatch'],
+      ['Kế hoạch Tổng quát', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
-      ['Báo cáo Lãi lỗ', '/finance'],
-      ['Báo cáo Lợi nhuận', '/profit'],
-      ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
+      ['Báo cáo lãi lỗ', '/finance'],
+      ['Phân chia lợi nhuận', '/profit'],
+      ['Sổ quỹ / ngân hàng', '/finance/treasury'],
       ['Công nợ phải thu', '/debt'],
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
-      ['Tạm ứng & Hoàn ứng', '/advances'],
+      ['Tạm ứng & hoàn ứng', '/advances'],
       ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
       ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
       ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
       ['Kế toán chốt debit', '/accounting/chot-debit'],
       ['Lương & Chấm công', '/salary'],
+      ['Chấm công lái xe', '/timesheet'],
       ['Danh sách nhân sự', '/hr/roster'],
       ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'],
-      ['Nhà xe / Nhà cung cấp', '/suppliers'],
+      ['Nhà cung cấp', '/suppliers'],
       ['Tuyến đường', '/config/routes'],
       ['Nhà máy / Kho', '/config/factories'],
-      ['Cảng / Bãi & Biểu phí', '/config/ports'],
+      ['Cảng / Bãi', '/config/ports'],
       ['Bảng giá cước', '/config/pricing-tables'],
       ['Trung tâm quản trị', '/admin-center'],
-      ['Quản lý Người dùng', '/users'],
-      ['Nhật ký hệ thống', '/audit-logs'],
+      ['Người dùng', '/users'],
+      ['Nhật ký người dùng', '/audit-logs'],
       ['Cài đặt ứng dụng', '/config/app-settings'],
-      ['Cấu hình chung', '/config'],
+      ['Cấu hình hệ thống', '/config'],
     ]],
     [Role.MANAGER, [
-      ['Tổng quan Quản trị', '/dashboard'],
+      ['Tổng quan', '/dashboard'],
       ['Tổng quan lô hàng', '/shipments'],
-      ['Điều vận', '/dispatch'],
+      ['Kế hoạch Tổng quát', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
-      ['Báo cáo Lãi lỗ', '/finance'],
-      ['Báo cáo Lợi nhuận', '/profit'],
-      ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
+      ['Báo cáo lãi lỗ', '/finance'],
+      ['Phân chia lợi nhuận', '/profit'],
+      ['Sổ quỹ / ngân hàng', '/finance/treasury'],
       ['Công nợ phải thu', '/debt'],
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
-      ['Tạm ứng & Hoàn ứng', '/advances'],
+      ['Tạm ứng & hoàn ứng', '/advances'],
       ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Lương & Chấm công', '/salary'],
+      ['Chấm công lái xe', '/timesheet'],
       ['Danh sách nhân sự', '/hr/roster'],
       ['Kỷ luật', '/penalties'],
       ['Khách hàng', '/customers'],
-      ['Nhà xe / Nhà cung cấp', '/suppliers'],
+      ['Nhà cung cấp', '/suppliers'],
       ['Tuyến đường', '/config/routes'],
       ['Nhà máy / Kho', '/config/factories'],
-      ['Cảng / Bãi & Biểu phí', '/config/ports'],
+      ['Cảng / Bãi', '/config/ports'],
       ['Bảng giá cước', '/config/pricing-tables'],
-      ['Quản lý Người dùng', '/users'],
-      ['Nhật ký hệ thống', '/audit-logs'],
-      ['Cấu hình chung', '/config'],
+      ['Người dùng', '/users'],
+      ['Nhật ký người dùng', '/audit-logs'],
+      ['Cấu hình hệ thống', '/config'],
     ]],
     [Role.ACCOUNTANT, [
-      ['Tổng Quan Kế Toán', '/accounting'],
+      ['Tổng Quan', '/accounting'],
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
       ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
       ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
       ['Kế toán chốt debit', '/accounting/chot-debit'],
-      ['Sổ quỹ / Ngân hàng', '/finance/treasury'],
+      ['Sổ quỹ / ngân hàng', '/finance/treasury'],
       ['Công nợ phải thu', '/debt'],
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
-      ['Tạm ứng & Hoàn ứng', '/advances'],
+      ['Tạm ứng & hoàn ứng', '/advances'],
       ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Lương & Chấm công', '/salary'],
+      ['Đối chiếu chấm công', '/timesheet/doi-chieu'],
       ['Danh sách nhân sự', '/hr/roster'],
       ['Giá dầu theo kỳ', '/config/fuel-price-periods'],
       ['Điều khoản cước theo tuyến', '/config/freight-rate-terms'],
-      ['Báo cáo Lãi lỗ', '/finance'],
-      ['Báo cáo Lợi nhuận', '/profit'],
+      ['Báo cáo lãi lỗ', '/finance'],
+      ['Phân chia lợi nhuận', '/profit'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
       ['Kỷ luật', '/penalties'],
       ['Tổng quan lô hàng', '/shipments'],
-      ['Nhật ký hệ thống', '/audit-logs'],
+      ['Nhật ký người dùng', '/audit-logs'],
     ]],
     [Role.DRIVER, [
-      ['Hành trình của tôi', '/my-trips'],
+      ['Hành trình', '/my-trips'],
       ['Thông báo', '/notifications'],
       ['Thu nhập', '/my-earnings'],
       ['Kỷ luật', '/my-penalties'],
@@ -109,8 +114,8 @@ describe('getNavItems', () => {
       ['Theo dõi phương tiện', '/ops/fleet-tracking'],
       ['Quỹ tạm ứng', '/ops/wallet'],
       ['Lệnh giao nhận', '/my-orders'],
-      ['Yêu cầu Tạm ứng', '/my-advances'],
-      ['Phiếu thanh toán / Hoàn ứng', '/my-settlements'],
+      ['Tạm ứng', '/my-advances'],
+      ['Phiếu thanh toán', '/my-settlements'],
     ]],
     [Role.CUS, [
       ['Tổng quan lô hàng', '/shipments'],
@@ -120,22 +125,23 @@ describe('getNavItems', () => {
       // Card 20260922_29: Theo dõi hoàn cược removed for CUS — the route
       // guard admits only ADMIN/MANAGER/ACCOUNTANT; nav must not advertise
       // a path the role cannot open.
-      ['Chi phí cần kiểm tra', '/recoverable-costs'],
-      ['Khách hàng', '/config/customers'],
+      ['Chi phí thu hộ cần đối soát', '/recoverable-costs'],
+      ['Khách hàng & Đối tác', '/config/customers'],
       ['Tuyến đường', '/config/routes'],
       ['Giá dầu theo kỳ', '/config/fuel-price-periods'],
       ['Nhà máy / Kho', '/config/factories'],
     ]],
     [Role.DISPATCHER, [
-      ['Kế hoạch tổng quát', '/dispatch'],
-      ['Kế hoạch chi tiết', '/dispatch-detail'],
-      ['Xe nội bộ', '/fleet/vehicles'],
-      ['Tài xế', '/fleet/drivers'],
+      ['Kế hoạch Tổng quát', '/dispatch'],
+      ['Kế hoạch Chi tiết Xe', '/dispatch-detail'],
+      ['Danh mục Xe nội bộ', '/fleet/vehicles'],
+      ['Danh mục Tài xế', '/fleet/drivers'],
       ['Xe ngoài', '/fleet/external'],
       ['Nhà thầu', '/suppliers'],
-      ['Khách hàng', '/config/customers'],
+      ['Khách hàng & Đối tác', '/config/customers'],
       ['Tuyến đường', '/config/routes'],
       ['Nhà máy / Kho', '/config/factories'],
+      ['Chấm công lái xe', '/timesheet'],
     ]],
     [Role.CUSTOMER, [
       ['Lô hàng của tôi', '/portal/shipments'],
@@ -146,6 +152,27 @@ describe('getNavItems', () => {
     const actual = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read'])
       .map(({ label, path }) => [label, path]);
     expect(actual).toEqual(expected);
+  });
+
+  // qa2-008: single source of truth — a sidebar item's label must BE the
+  // title of the page it opens (topbar/breadcrumb authority). If a catalog
+  // title changes, this pin forces the matrix above to move with it instead
+  // of letting the two drift apart again.
+  it.each([
+    Role.ADMIN,
+    Role.MANAGER,
+    Role.ACCOUNTANT,
+    Role.DISPATCHER,
+    Role.CUS,
+    Role.OPS,
+    Role.DRIVER,
+    Role.CUSTOMER,
+  ] as const)('derives every sidebar label from the nav-config title for %s', (role) => {
+    const items = getNavItems(role, undefined, undefined, ['treasury.read', 'recoverable_costs.read']);
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item.label, `${role} ${item.key} (${item.path})`).toBe(titleForPath(item.path, role));
+    }
   });
 
   it('omits live-route tracking from the dispatcher sidebar without changing its route', () => {
@@ -161,7 +188,7 @@ describe('getNavItems', () => {
 
   it('puts the dedicated accounting home first for ACCOUNTANT', () => {
     const items = getNavItems(Role.ACCOUNTANT);
-    expect(items[0]).toMatchObject({ key: 'accounting', path: '/accounting', label: 'Tổng Quan Kế Toán' });
+    expect(items[0]).toMatchObject({ key: 'accounting', path: '/accounting', label: 'Tổng Quan' });
     expect(getNavItems(Role.MANAGER).some((item) => item.key === 'accounting')).toBe(false);
   });
 
@@ -211,7 +238,7 @@ describe('getNavItems', () => {
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/hr/roster',
+      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet/doi-chieu', '/hr/roster',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/audit-logs',
     ]);
@@ -259,7 +286,7 @@ describe('getNavItems', () => {
 
   it('keeps Tổng Quan Kế Toán as the accountant’s only sidebar home', () => {
     const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['executive_dashboard.read']);
-    expect(items.filter((item) => !item.section).map((item) => item.label)).toEqual(['Tổng Quan Kế Toán']);
+    expect(items.filter((item) => !item.section).map((item) => item.label)).toEqual(['Tổng Quan']);
     expect(items.some((item) => item.key === 'dashboard')).toBe(false);
   });
   it('includes audit logs for ACCOUNTANT in the shared office nav source', () => {
@@ -287,18 +314,19 @@ describe('getNavItems', () => {
     }
   });
 
-  it('does not advertise internal approval workflows in role navigation', () => {
-    for (const role of Object.values(Role)) {
-      expect(getNavSections(role).some(section => /phê duyệt/i.test(section.label)), role).toBe(false);
-      expect(getNavItems(role).some(item => /approval|approve|phê duyệt/i.test(`${item.path} ${item.label}`)), role).toBe(false);
-    }
+  it('shows the pending-advance approval tab to the approving office roles only', () => {
+    // KP-148 — bước phê duyệt tạm ứng quay lại: tab "Tạm ứng chờ duyệt" hiện
+    // cho vai trò có quyền duyệt (ACCOUNTANT/ADMIN/MANAGER) và không hiện cho OPS.
+    expect(expenseAccountingViewsFor(Role.ACCOUNTANT).some((view) => view.id === 'pending-advances' && view.label === 'Tạm ứng chờ duyệt')).toBe(true);
+    expect(expenseAccountingViewsFor(Role.ADMIN).some((view) => view.id === 'pending-advances')).toBe(true);
+    expect(expenseAccountingViewsFor(Role.OPS).some((view) => view.id === 'pending-advances')).toBe(false);
   });
 
   it('uses one canonical advance workspace item for office roles', () => {
     const items = getNavItems(Role.ADMIN);
     expect(items.filter((item) => item.key === 'advances')).toEqual([
       expect.objectContaining({
-        label: 'Tạm ứng & Hoàn ứng',
+        label: 'Tạm ứng & hoàn ứng',
         path: '/advances',
       }),
     ]);
@@ -368,16 +396,16 @@ describe('kế toán danh mục (spec 5.10)', () => {
     // Owner ruling 2026-10-12 (QA2-008): the HR items moved to Nhân sự —
     // the Khác danh mục is empty for the sidebar and self-hides.
     expect(itemsFor(Role.ADMIN, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.ADMIN, 'hr')).toEqual(['salary', 'hr-roster', 'penalties']);
+    expect(itemsFor(Role.ADMIN, 'hr')).toEqual(['salary', 'timesheet', 'hr-roster', 'penalties']);
 
     expect(itemsFor(Role.MANAGER, PHƠI_PHIEU)).toEqual(['expenses', 'advances', 'hoan-ung']);
     expect(itemsFor(Role.MANAGER, CÔNG_NỢ)).toEqual(['debt', 'payables']);
     expect(itemsFor(Role.MANAGER, QUỸ)).toEqual(['treasury']);
     expect(itemsFor(Role.MANAGER, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.MANAGER, 'hr')).toEqual(['salary', 'hr-roster', 'penalties']);
+    expect(itemsFor(Role.MANAGER, 'hr')).toEqual(['salary', 'timesheet', 'hr-roster', 'penalties']);
 
     expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'hr-roster']);
+    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'timesheet-reconciliation', 'hr-roster']);
 
     expect(itemsFor(Role.ACCOUNTANT, PHƠI_PHIEU)).toEqual([
       'invoice-tracking', 'deposit-tracker', 'phoi-phieu', 'chot-debit',
@@ -462,7 +490,7 @@ describe('kế toán danh mục (spec 5.10)', () => {
     // a real destination and the danh mục must not render empty for them.
     // /hr/roster joins it with the same guard (card 385 rework).
     expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'hr-roster']);
+    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'timesheet-reconciliation', 'hr-roster']);
     expect(getNavSections(Role.ACCOUNTANT).map((section) => section.key)).toContain(KHÁC);
   });
 });

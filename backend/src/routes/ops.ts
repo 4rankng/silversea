@@ -11,7 +11,6 @@ import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { Role, createAdvanceRequestSchema } from '@tingting/shared';
-import { opsExpenseWriteScope } from '../services/expense-owner-scope.service';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { requireRoles } from '../middleware/casbin';
 import { getUser } from '../middleware/auth';
@@ -30,6 +29,7 @@ import {
   deleteOpsExpense,
   deleteOpsExpensePhoto,
   listActiveOpsExpenseTypes,
+  listOpsExpenseContainerClaimants,
   listOpsExpensePhotos,
   listOpsExpenses,
   updateOpsExpense,
@@ -139,9 +139,9 @@ router.post('/wallet/advance-requests', declareMaterialWrite('ops.advance-reques
     payload: { ...parsed, userId: user.userId },
     createdBy: user.userId,
     responseStatusCode: 201,
-    // Direct-effect save: the requester's own create applies the advance
-    // (status + ledger) in the same transaction — no approval handoff.
-    create: (tx) => createAdvanceRequest(user.userId, parsed, tx),
+    // Yêu cầu của Ops đi qua bước phê duyệt: ghi PENDING, chưa có bút toán và
+    // chưa có tiền vào quỹ — kế toán phê duyệt mới ghi sổ (KP-148).
+    create: (tx) => createAdvanceRequest(user.userId, parsed, tx, { pending: true }),
   });
   res.status(outcome.statusCode).json(outcome.result);
 }));
@@ -187,13 +187,12 @@ const expensePatchSchema = z.object({
 });
 
 
-// Card 071026210510: the expense dialog checks the grant BEFORE the operator
-// types anything — the verdict comes from the same assert the save runs, so
-// the open-time answer and the save-time refusal can never disagree.
-router.get('/expenses/write-scope', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
-  const user = getUser(req);
+// Duplicate-cont heads-up (every Ops may declare on any lot, so two Ops can
+// legitimately land on the same cont): the dialog shows WHO already declared
+// there and lets the operator continue — a warning, never a block.
+router.get('/expenses/cont-claimants', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(typeof req.query.shipmentId === 'string' ? req.query.shipmentId : undefined, 'Lô hàng');
-  res.json(await opsExpenseWriteScope(user.userId, shipmentId));
+  res.json(await listOpsExpenseContainerClaimants(shipmentId));
 }));
 
 router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {

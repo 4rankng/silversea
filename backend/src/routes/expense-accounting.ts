@@ -1,18 +1,19 @@
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
-import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow, getPhoiPhieuTienDuong, getPhoiPhieuReport } from '../services/phoi-phieu-control.service';
+import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow, getPhoiPhieuTienDuong, getPhoiPhieuReport, setPhoiPhieuDeposit, getPhoiPhieuDeposit } from '../services/phoi-phieu-control.service';
 import multer from 'multer';
 import { attachAccountingExpensePhoto } from '../services/expense-accounting-photo.service';
 import { ApiError } from '../errors';
 import { Router } from 'express';
 import { z } from 'zod';
-import { expenseAccountingCreateSchema, expenseAccountingUpdateSchema, expenseConfirmSchema, expenseDateSchema, expenseListQuerySchema, EXPENSE_SOURCE_KINDS } from '@tingting/shared';
+import { expenseAccountingCreateSchema, expenseAccountingCreateBatchSchema, expenseAccountingUpdateSchema, expenseConfirmSchema, expenseDateSchema, expenseListQuerySchema, EXPENSE_SOURCE_KINDS } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
 import { requireRoles } from '../middleware/casbin';
 import { Role } from '@tingting/shared';
 import { throwValidation } from '../lib/validation';
-import { assignTruckAccountant, assignTruckAccountantsBatch, confirmAccountingExpenses, updateAccountingExpense } from '../services/expense-accounting-write.service';
+import { assignTruckAccountant, assignTruckAccountantsBatch, confirmAccountingExpenses, updateAccountingExpense, requireExpenseFinance } from '../services/expense-accounting-write.service';
 import { createAccountingExpense } from '../services/expense-accounting-create.service';
+import type { ExpenseAccountingSource } from '../services/expense-accounting-source.service';
 import { getExpenseAccountingCatalog, getExpenseAccountingEntry, getExpenseAccountingReport, listExpenseAccountingEntries, listTruckAccountantAssignments } from '../services/expense-accounting-reads.service';
 import { listExpenseAccountingWork } from '../services/expense-accounting-work.service';
 import { listPhoiPhieuTruckAssignments } from '../services/phoi-phieu-control.service';
@@ -125,6 +126,23 @@ router.put('/phoi-phieu/:tripId/phoi-meta', declareMaterialWrite('expense-accoun
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
+router.get('/phoi-phieu/:tripId/deposit', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
+  const tripId = parse(idSchema, req.params.tripId);
+  res.json(await getPhoiPhieuDeposit(tripId));
+}));
+
+router.put('/phoi-phieu/:tripId/deposit', declareMaterialWrite('expense-accounting.phoi-phieu.deposit', { method: 'PUT', path: '/api/expense-accounting/phoi-phieu/:tripId/deposit' }), requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
+  const tripId = parse(idSchema, req.params.tripId);
+  requireExpenseFinance(getUser(req));
+  const input = parse(z.object({
+    depositShipmentId: z.number().int().positive().nullable(),
+    depositBillNumber: z.string().trim().max(100).nullable(),
+    expectedVersion: z.number().int().positive(),
+  }).strict(), req.body);
+  const user = getUser(req);
+  res.json(await setPhoiPhieuDeposit(tripId, input, user.userId));
+}));
+
 router.delete('/phoi-phieu/:tripId/rows/:sourceId', declareMaterialWrite('expense-accounting.phoi-phieu.row-void', { method: 'DELETE', path: '/api/expense-accounting/phoi-phieu/:tripId/rows/:sourceId' }),  requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const tripId = parse(idSchema, req.params.tripId);
   const sourceId = parse(idSchema, req.params.sourceId);
@@ -191,6 +209,26 @@ router.post('/entries', declareMaterialWrite('expense-accounting.create', { meth
   const result = await runShipmentWrite(req, 'expense-accounting.create', input, async tx => {
     const row = await createAccountingExpense(tx, getUser(req), input);
     return { body: await getExpenseAccountingEntry(getUser(req), row.sourceKind, row.sourceId, tx), status: 201, auditEntityId: row.id };
+  });
+  sendShipmentWrite(res, result.result);
+}));
+// Card 20261005 — nhập nhiều khoản chi liên tục, lưu một lần. All-or-nothing:
+// every item runs inside this one transaction through the same
+// `createAccountingExpense` a single save uses, so a bad row aborts the whole
+// batch (nothing written) and the error names the 1-based row it failed on.
+router.post('/entries/batch', declareMaterialWrite('expense-accounting.create-batch', { method: 'POST', path: '/api/expense-accounting/entries/batch' }),  asyncHandler(async (req, res) => {
+  const input = parse(expenseAccountingCreateBatchSchema, req.body);
+  requireShipmentIdempotencyKey(req, 'Cần mã thao tác để tránh ghi trùng khoản chi.');
+  const result = await runShipmentWrite(req, IDEMPOTENCY_ENDPOINTS.EXPENSE_ACCOUNTING_ENTRY_BATCH, input, async tx => {
+    const rows: ExpenseAccountingSource[] = [];
+    for (const [index, item] of input.items.entries()) {
+      try { rows.push(await createAccountingExpense(tx, getUser(req), item)); }
+      catch (error) {
+        if (error instanceof ApiError) throw new ApiError(error.statusCode, `Dòng ${index + 1}: ${error.message}`, error.details);
+        throw error;
+      }
+    }
+    return { body: { items: await Promise.all(rows.map(row => getExpenseAccountingEntry(getUser(req), row.sourceKind, row.sourceId, tx))) }, status: 201, auditEntityId: rows[0].id };
   });
   sendShipmentWrite(res, result.result);
 }));

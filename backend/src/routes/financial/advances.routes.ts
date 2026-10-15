@@ -24,6 +24,7 @@ import {
   requestAdvanceSettlementReversal,
 } from '../../services/advance.service';
 import { ADVANCE_REQUEST_SORT_KEYS } from '../../services/advance-request.service';
+import { approveAdvanceRequest, rejectAdvanceRequest } from '../../services/advance-funding.service';
 import { throwValidation } from '../../lib/validation';
 import { formatLocalDate } from '../../lib/format';
 import { parsePagination } from '../utils/pagination';
@@ -54,7 +55,32 @@ router.get('/advance-requests', asyncHandler(async (req: Request, res: Response)
   res.json(await listAdvanceRequestsPaginated({ status, search, page, limit, sortBy, sortDir }));
 }));
 
-// KP-148: advance request approve/reject endpoints removed — requests apply immediately.
+// KP-148: trở lại bước kế toán phê duyệt — yêu cầu Ops tạo ra ở trạng thái
+// PENDING chỉ thành tiền khi kế toán duyệt (bút toán + treasury OUT ghi ngay
+// trong lệnh duyệt), hoặc thành VOIDED kèm lý do khi từ chối. Không chạy qua
+// runIdempotent: chính trạng thái PENDING + expectedVersion là khóa chặn ghi
+// hai lần (lệnh thứ hai trả 409 thay vì replay).
+const advanceApprovalDecisionSchema = z.object({ expectedVersion: z.number().int().positive() }).strict();
+const advanceRejectionDecisionSchema = z.object({
+  expectedVersion: z.number().int().positive(),
+  reason: z.string().trim().min(1).max(500),
+}).strict();
+
+router.post('/advance-requests/:id/approve', declareMaterialWrite('advance-requests.approve', { method: 'POST', path: '/api/advance-requests/:id/approve' }), requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string);
+  const parsed = advanceApprovalDecisionSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  res.json(await approveAdvanceRequest(id, parsed.data, actor));
+}));
+
+router.post('/advance-requests/:id/reject', declareMaterialWrite('advance-requests.reject', { method: 'POST', path: '/api/advance-requests/:id/reject' }), requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string);
+  const parsed = advanceRejectionDecisionSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  res.json(await rejectAdvanceRequest(id, parsed.data, actor));
+}));
 
 // ─── Advance Balances (admin) — F1 outstanding per forwarder ──────────────────
 

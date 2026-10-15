@@ -27,6 +27,7 @@ export function ExpenseReconciliationHistory({ people = [], onPay, canRelease = 
   const [opened, setOpened] = useState<ExpenseReconciliation | null>(null);
   const [releasing, setReleasing] = useState<ExpenseReconciliation | null>(null);
   const [exporting, setExporting] = useState(false), [error, setError] = useState('');
+  const [settling, setSettling] = useState(false);
   const names = new Map(people.map(person => [person.id, person.name]));
   const valid = !from || !to || from <= to;
   const rows = valid ? filterReconciliations(query.data?.items ?? [], search, from, to, names) : [];
@@ -35,6 +36,18 @@ export function ExpenseReconciliationHistory({ people = [], onPay, canRelease = 
     try { await downloadCSV('doi-chieu-hoan-ung.xlsx', ['Mã', 'Trạng thái', 'OPS', 'Từ ngày', 'Đến ngày', 'Thực chi', 'Ứng phân bổ', 'Đã trả thêm', 'Đã hoàn', 'Chênh lệch còn lại'], rows.map(item => [item.code, item.voidedAt ? 'Đã hoàn tác' : 'Đã đối chiếu', names.get(item.opsUserId) ?? String(item.opsUserId), item.from, item.to, item.amount, item.advanceAmount, item.paidAmount, item.refundedAmount, item.remainingDifference]), { title: 'ĐỐI CHIẾU HOÀN ỨNG', columnTypes: ['text', 'text', 'text', 'date', 'date', 'currency', 'currency', 'currency', 'currency', 'currency'], hideTotals: true }); }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Không xuất được lịch sử.'); }
     finally { setExporting(false); }
+  }
+  // Card 20261005 — "Ghi nhận hoàn ứng xong": lưu đúng một lần cho tới khi bấm
+  // (không auto-write sau render). expectedVersion là token trạng thái chốt.
+  async function settle(item: ExpenseReconciliation) {
+    if (settling) return;
+    setSettling(true); setError('');
+    try {
+      await expenseAccountingClient.settleRefund(item.id, { expectedVersion: item.refundSettledAt ? 2 : 1, settled: true });
+      await query.refetch();
+    }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Không ghi nhận được trạng thái hoàn ứng.'); }
+    finally { setSettling(false); }
   }
   return <section className="expense-accounting" aria-label="Lịch sử đối chiếu hoàn ứng">
     <h2 className="expense-accounting-subtitle">Đối chiếu hoàn ứng</h2>
@@ -56,8 +69,12 @@ export function ExpenseReconciliationHistory({ people = [], onPay, canRelease = 
     {query.isError ? <p role="alert">Không tải được đối chiếu. <button type="button" className="btn btn--secondary" onClick={() => void query.refetch()}>Thử lại</button></p> : query.isPending ? <p role="status">Đang tải đối chiếu…</p> : <div className="expense-accounting-history">{rows.map(item => <article key={item.id}>
       <header><button type="button" className="btn btn--ghost btn--sm expense-register-open" onClick={() => setOpened(item)}>{item.code}</button><span>{names.get(item.opsUserId) ?? ''} · {formatDate(item.from)} – {formatDate(item.to)}</span></header>
       <dl><div><dt>Thực chi</dt><dd>{expenseMoney(item.amount)}</dd></div><div><dt>Ứng phân bổ</dt><dd>{expenseMoney(item.advanceAmount)}</dd></div><div><dt>{item.remainingDifference < 0 ? 'OPS còn phải hoàn' : 'Công ty còn phải trả'}</dt><dd>{expenseMoney(Math.abs(item.remainingDifference))}</dd></div></dl>
+      {/* Card 20261005 — ô chốt "đã hoàn ứng xong": chỉ là chỉ báo trạng thái
+          (readOnly/disabled), việc ghi nhận nằm ở nút bên dưới — không auto-write
+          sau render. */}
+      <label className="expense-accounting-check"><input type="checkbox" checked={Boolean(item.refundSettledAt)} disabled readOnly /> Đã hoàn ứng xong</label>
       {item.voidedAt && <p>Đã hoàn tác · {formatDate(item.voidedAt)}</p>}
-      {item.note && <p>{item.note}</p>}{!item.voidedAt && <div className="expense-accounting-toolbar-actions">{onPay && item.remainingDifference !== 0 && <button type="button" className="btn btn--secondary btn--sm" onClick={() => onPay(item)}>{item.remainingDifference < 0 ? 'Thu hoàn ứng' : 'Trả phần chênh lệch'}</button>}{canRelease && <button type="button" className="btn btn--secondary btn--sm" onClick={() => setReleasing(item)}>Hoàn tác đối chiếu</button>}</div>}
+      {item.note && <p>{item.note}</p>}{!item.voidedAt && <div className="expense-accounting-toolbar-actions">{item.remainingDifference === 0 && !item.refundSettledAt && <button type="button" className="btn btn--primary btn--sm" disabled={settling} onClick={() => void settle(item)}>{settling ? 'Đang ghi…' : 'Ghi nhận hoàn ứng xong'}</button>}{onPay && item.remainingDifference !== 0 && <button type="button" className="btn btn--secondary btn--sm" onClick={() => onPay(item)}>{item.remainingDifference < 0 ? 'Thu hoàn ứng' : 'Trả phần chênh lệch'}</button>}{canRelease && <button type="button" className="btn btn--secondary btn--sm" onClick={() => setReleasing(item)}>Hoàn tác đối chiếu</button>}</div>}
     </article>)}{!rows.length && <p>Không có đối chiếu phù hợp.</p>}</div>}
     {opened && <ExpenseHistoryDetail item={opened} onClose={() => setOpened(null)} />}
     {releasing && <ReleaseReconciliationDrawer item={releasing} onClose={() => setReleasing(null)} />}

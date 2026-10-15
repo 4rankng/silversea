@@ -52,6 +52,8 @@ export const qk = {
     /** Canonical-route options for the admin operational-site editor. */
     adminSiteRoutes: ['admin-site-routes'] as const,
     roadAllowances: ['road-allowances'],
+    /** Per-port lift/drop fee config (/config/port-zone-surcharges). */
+    portZoneSurcharges: ['port-zone-surcharges'],
     roadConfig: ['road-config'],
     companyInfo: ['company-info'],
     fuelConfig: ['fuel-config'],
@@ -121,6 +123,7 @@ export const qk = {
     'admin-operational-sites',
     'admin-site-routes',
     'road-allowances',
+    'port-zone-surcharges',
     'road-config',
     'company-info',
     'fuel-config',
@@ -417,6 +420,8 @@ export const qk = {
     stk: ['phoi-phieu-stk'] as const,
     /** Per-trip road-money dialog detail. */
     tienDuong: (tripId: number) => ['phoi-phieu-tien-duong', tripId] as const,
+    /** Per-trip "Cược" Bill/Book state (ô cược dưới tiêu đề phơi phiếu). */
+    deposit: (tripId: number) => ['phoi-phieu-deposit', tripId] as const,
     /** Monthly receivable/payable report, per kind + range + scope. */
     report: (kind: 'THU' | 'TRA', dateFrom: string, dateTo: string, scope?: 'SELF' | 'ALL' | 'UNASSIGNED') =>
       ['phoi-phieu-report', kind, dateFrom, dateTo, scope] as const,
@@ -432,6 +437,9 @@ export const qk = {
     /** Filtered list — from/to/status ride the key. */
     list: (from: string, to: string, status: string) =>
       ['deposit-refund', from, to, status] as const,
+    /** "Thêm cược" typeahead — keyed by the last four digits. */
+    billSuggestions: (digits: string) =>
+      ['deposit-refund', 'bill-suggestions', digits] as const,
   },
 
   /* ── Combined-invoice tracking (theo dõi hóa đơn kết hợp) ───────────── */
@@ -469,8 +477,18 @@ export const qk = {
     reviewsAll: ['fuel-evidence-reviews'] as const,
   },
 
-  /* ── Salary ─────────────────────────────────────────────────────────── */
+  /* ── Driver timesheet ───────────────────────────────────────────────── */
 
+  timesheet: {
+    /** Broad prefix — matches every timesheet query, including the rollup. */
+    all: ['timesheet'] as const,
+    drivers: (year: number, month: number) => ['timesheet', 'drivers', year, month] as const,
+    months: (year: number, month: number) => ['timesheet', 'months', year, month] as const,
+    month: (driverId: number | null, year: number, month: number) =>
+      ['timesheet', 'month', driverId, year, month] as const,
+    rollup: (year: number, month: number) => ['timesheet', 'rollup', year, month] as const,
+  },
+  /* ── Salary ─────────────────────────────────────────────────────────── */
   salary: {
     list: (year: number, month: number) =>
       ['salary-list', year, month] as const,
@@ -548,6 +566,7 @@ export const qk = {
     adminHealth: ['cfg-count', 'admin-health'] as const,
     penaltyReasons: ['cfg-count', 'penalty-reasons'],
     roadAllowances: ['cfg-count', 'road-allowances'],
+    portZoneSurcharges: ['cfg-count', 'port-zone-surcharges'],
     drivers: ['cfg-count', 'drivers'],
     capTable: ['cfg-count', 'cap-table'],
     vatConfig: ['cfg-count', 'vat-config'],

@@ -358,6 +358,10 @@ export const driverProgressEvents = pgTable('driver_progress_events', {
 
 export const driverIncidentalCosts = pgTable('driver_incidental_costs', {
   ...expenseMetadataColumns(),
+  // Card 20261005 — replaces the "Số/Ngày hoá đơn" pair for driver entries:
+  // RECEIPT (phiếu thu, biên lai bắt buộc) or INVOICE (có số hoá đơn). NULL =
+  // legacy rows written before the card; they show "Chưa phân loại chứng từ".
+  evidenceKind: text('evidence_kind').$type<'INVOICE' | 'RECEIPT'>(),
   id: serial('id').primaryKey(),
   tripId: integer('trip_id')
     .notNull(),

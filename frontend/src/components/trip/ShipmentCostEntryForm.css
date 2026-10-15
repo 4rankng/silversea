@@ -56,6 +56,24 @@
   color: var(--ink);
   font-weight: 500;
 }
+
+/* Step 3 — the draft TABLE: each row is one self-contained expense block the
+   driver keeps adding to before a single all-or-nothing save. */
+.shipment-cost-entry__draft-row {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.shipment-cost-entry__draft-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-data-size);
+}
+.shipment-cost-entry__draft-add { justify-self: start; }
 @media (max-width: 600px) {
   .shipment-cost-entry { padding: 10px 8px; }
   .shipment-cost-entry__head { flex-wrap: wrap; }

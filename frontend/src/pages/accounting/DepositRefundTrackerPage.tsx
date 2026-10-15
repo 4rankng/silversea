@@ -18,6 +18,7 @@ import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateI
 import {
   createDepositTracker,
   listDepositTrackers,
+  searchBillSuggestions,
   markDepositRefunded,
   updateDepositTrackerDates,
   type DepositStatus,
@@ -360,9 +361,18 @@ function CreateForm({ onSaved }: {
   const [expected, setExpected] = useState('');
   const [status, setStatus] = useState<DepositStatus>('CHUA_HOAN_CUOC');
   const [note, setNote] = useState('');
+  // Bill typeahead: only the LAST FOUR DIGITS are searched (the customer's
+  // lookup habit from the paper Bill). Digits only, and never below four.
+  const [billLookup, setBillLookup] = useState('');
+  const [shipmentId, setShipmentId] = useState<number | null>(null);
+  const suggestionQuery = useQuery({
+    queryKey: qk.depositTracker.billSuggestions(billLookup),
+    queryFn: () => searchBillSuggestions(billLookup),
+    enabled: /^\d{4}$/.test(billLookup),
+  });
   const createMutation = useMutation({
     mutationFn: () => createDepositTracker({
-      billNumber, customerName, carrierName,
+      shipmentId, billNumber, customerName, carrierName,
       depositAmount: parseDepositAmount(amount === '' ? '' : String(amount)),
       cvSubmittedDate: cvDate || null,
       expectedRefundDate: expected || null,
@@ -376,9 +386,44 @@ function CreateForm({ onSaved }: {
   });
   return (
     <form className="deposit-tracker-form" onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }}>
-      <FormGroup label="Số Bill"><input className="input" value={billNumber} onChange={(event) => setBillNumber(event.target.value)} required maxLength={80} /></FormGroup>
-      <FormGroup label="Khách hàng"><input className="input" value={customerName} onChange={(event) => setCustomerName(event.target.value)} required /></FormGroup>
-      <FormGroup label="Hãng tàu"><input className="input" value={carrierName} onChange={(event) => setCarrierName(event.target.value)} required /></FormGroup>
+      <FormGroup label="Tra cứu Bill (4 số cuối)" helpText="Gõ 4 số cuối số Bill/Booking để chọn nhanh lô hàng.">
+        <input
+          className="input"
+          value={billLookup}
+          inputMode="numeric"
+          maxLength={4}
+          placeholder="4 số cuối"
+          onChange={(event) => setBillLookup(event.target.value.replace(/\D/g, '').slice(0, 4))}
+        />
+      </FormGroup>
+      <ul id="bill-suggestions" className="bill-suggestions" aria-label="Lô hàng khớp 4 số cuối">
+        {(suggestionQuery.data ?? []).map(suggestion => (
+          <li key={suggestion.shipmentId}>
+            <button
+              type="button"
+              className="bill-suggestions__item"
+              onClick={() => {
+                setBillNumber(suggestion.billNumber ?? suggestion.bookingRef ?? '');
+                setCustomerName(suggestion.customerName);
+                setCarrierName(suggestion.carrierName ?? '');
+                setShipmentId(suggestion.shipmentId);
+                setBillLookup('');
+              }}
+            >
+              <span>{suggestion.billDisplay}</span>
+              <span>{suggestion.carrierName || '—'}</span>
+              <span>{suggestion.customerName || '—'}</span>
+              {suggestion.existingTrackerCount > 0 && <span>Đã cược {suggestion.existingTrackerCount} lần</span>}
+            </button>
+          </li>
+        ))}
+        {billLookup.length === 4 && (suggestionQuery.data ?? []).length === 0 && (
+          <li className="bill-suggestions__no-match">Không có lô hàng nào kết thúc bằng {billLookup}. Nhập tay bên dưới.</li>
+        )}
+      </ul>
+      <FormGroup label="Số Bill"><input className="input" value={billNumber} onChange={(event) => { setBillNumber(event.target.value); setShipmentId(null); }} required maxLength={80} /></FormGroup>
+      <FormGroup label="Khách hàng"><input className="input" value={customerName} onChange={(event) => { setCustomerName(event.target.value); setShipmentId(null); }} required /></FormGroup>
+      <FormGroup label="Hãng tàu"><input className="input" value={carrierName} onChange={(event) => { setCarrierName(event.target.value); setShipmentId(null); }} required /></FormGroup>
       <NumberField label="Số tiền cược (₫)" grouped value={amount} onChange={setAmount} />
       <BufferedUuiDateInput label="Ngày cược" value={depositDate} onChange={setDepositDate} />
       <BufferedUuiDateInput label="Ngày nộp CV (tùy chọn)" value={cvDate} onChange={(value) => {

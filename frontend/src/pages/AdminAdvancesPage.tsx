@@ -303,12 +303,14 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
   const totalCount =
     countOf(AdvanceRequestStatus.RECORDED) +
     countOf(AdvanceRequestStatus.DRAFT) +
+    countOf(AdvanceRequestStatus.PENDING) +
     countOf(AdvanceRequestStatus.VOIDED);
 
   const tabCounts: Record<StatusFilter, number> = {
     '': totalCount,
     [AdvanceRequestStatus.DRAFT]: countOf(AdvanceRequestStatus.DRAFT),
     [AdvanceRequestStatus.RECORDED]: countOf(AdvanceRequestStatus.RECORDED),
+    [AdvanceRequestStatus.PENDING]: countOf(AdvanceRequestStatus.PENDING),
     [AdvanceRequestStatus.VOIDED]: countOf(AdvanceRequestStatus.VOIDED),
   };
 

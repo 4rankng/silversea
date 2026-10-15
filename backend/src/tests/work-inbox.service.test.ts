@@ -199,6 +199,26 @@ describe('work inbox projection', () => {
     assert.deepEqual(paged.items.map((row) => row.id), ['c']);
   });
 
+  test('sortBy=state orders by the workflow state with the default chain as tiebreaker (qa2-004)', () => {
+    const rows = [
+      item({ id: 'done', title: 'Same Title', state: 'DONE', priority: 50 }),
+      item({ id: 'action', title: 'Same Title', state: 'ACTION', priority: 50 }),
+      item({ id: 'waiting', title: 'Same Title', state: 'WAITING', priority: 50 }),
+    ];
+
+    // ACTION < DONE < WAITING is plain string order; the point of the pin is
+    // that the key is whitelisted, sorts deterministically, and falls back to
+    // the default chain for equal values.
+    assert.deepEqual(
+      pageWorkInboxItems(rows, { view: undefined, page: 1, limit: 10, sortBy: 'state', sortDir: 'asc' }).items.map((row) => row.id),
+      ['action', 'done', 'waiting'],
+    );
+    assert.deepEqual(
+      pageWorkInboxItems(rows, { view: undefined, page: 1, limit: 10, sortBy: 'state', sortDir: 'desc' }).items.map((row) => row.id),
+      ['waiting', 'done', 'action'],
+    );
+  });
+
   test('manager-lane keys sort by owner label, age, and impact with absent values last', () => {
     const managerRows: ManagerWorkInboxItem[] = [
       {

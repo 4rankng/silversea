@@ -319,7 +319,7 @@ test('accountant records company-paid driver toll in its native source without c
   const [driver] = await tx.insert(s.drivers).values({ name: 'Company-paid fixture' }).returning();
   const work = await trip(tx, ctx);
   await tx.update(s.trips).set({ driverId: driver.id }).where(eq(s.trips.id, work.id));
-  const input = { tripId: work.id, expenseTypeCode: 'OTHER', amount: 80_000, customerChargeAmount: 0, expenseDate: '2026-09-16',
+  const input = { tripId: work.id, shipmentId: ctx.shipment.id, expenseTypeCode: 'OTHER', amount: 80_000, customerChargeAmount: 0, expenseDate: '2026-09-16',
     costGroup: 'DRIVER_ROAD' as const, feeName: 'Vé cầu đường', payerKind: 'COMPANY' as const, driverCostType: DriverIncidentalCostType.TOLL };
   await assert.rejects(createAccountingExpense(tx, ctx.actor, { ...input, customerChargeAmount: 10_000 }), /Tiền đường không thu khách/);
   const entry = await createAccountingExpense(tx, ctx.actor, input);
@@ -340,7 +340,7 @@ for (const pairKind of ['KEP', 'KET_HOP']) test(`${pairKind}: one toll receipt i
     await upsertTripFinancialState(tx, work.id, { totalRoadAllowance: '200000', tollCost: work.id === first.id ? '100000' : '0',
       tollDeduction: work.id === first.id ? '0' : '100000', totalCost: work.id === first.id ? '300000' : '200000' });
   }
-  const fee = await createAccountingExpense(tx, ctx.actor, { tripId: first.id, expenseTypeCode: 'OTHER', amount: 80_000, customerChargeAmount: 0,
+  const fee = await createAccountingExpense(tx, ctx.actor, { tripId: first.id, shipmentId: ctx.shipment.id, expenseTypeCode: 'OTHER', amount: 80_000, customerChargeAmount: 0,
     expenseDate: '2026-09-16', costGroup: 'DRIVER_ROAD', feeName: 'Vé chung chuyến', payerKind: 'USER', payerUserId: driverUser.id, driverCostType: DriverIncidentalCostType.TOLL });
   await confirmAccountingExpenses(tx, ctx.actor, [{ sourceKind: fee.sourceKind, sourceId: fee.sourceId, expectedVersion: fee.version }]);
   await refreshExpenseTripCosts(tx, second.id);
@@ -370,7 +370,7 @@ test('breaking and reforming a pair reprojects its confirmed toll from the origi
     return createTripPair({ firstTripId: firstId, secondTripId: secondId, pairKind: 'KEP', firstTrip: draft(a), secondTrip: draft(b) }, ctx.accountant.id, tx);
   };
   const original = await pair(first.id, second.id);
-  const fee = await createAccountingExpense(tx, ctx.actor, { tripId: second.id, expenseTypeCode: 'TOLL', driverCostType: DriverIncidentalCostType.TOLL,
+  const fee = await createAccountingExpense(tx, ctx.actor, { tripId: second.id, shipmentId: ctx.shipment.id, expenseTypeCode: 'TOLL', driverCostType: DriverIncidentalCostType.TOLL,
     amount: 80000, customerChargeAmount: 0, expenseDate: '2026-09-16', costGroup: 'DRIVER_ROAD', feeName: 'Vé gốc', payerKind: 'COMPANY' });
   await confirmAccountingExpenses(tx, ctx.actor, [{ sourceKind: fee.sourceKind, sourceId: fee.sourceId, expectedVersion: fee.version }]);
   assert.equal((await getTripCompositeInTx(tx, first.id))?.reconciledTollCost, '80000');
