@@ -83,6 +83,7 @@ export {
   expenseDocumentCode,
   splitRouteName,
   buildTripRenderData,
+  vehicleTypeLabel,
   loadContainersByTrip,
   loadLegRenderDataByTrip,
   generateDraft,

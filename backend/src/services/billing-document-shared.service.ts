@@ -124,6 +124,11 @@ export type CustomerDebitTripCandidate = {
   truckPlate: string | null;
   trailerPlateNumber: string | null;
   externalPlateNumber: string | null;
+  /** FB-094: BKS báo khách ("xe ảo") — wins over every actual plate on the note. */
+  billingTruckNo: string | null;
+  /** FB-094: loại xe tính cước thu (vehicle_size_classes of the rev group). */
+  revVehicleClassName: string | null;
+  revVehicleClassCode: string | null;
   version: number;
   vatRate: string;
   updatedAt: Date;

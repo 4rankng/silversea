@@ -26,6 +26,11 @@ FB-090/092/093. Ngày: 2026-10-15.
    billingTruckNo khác nhau → truckPlate = billingTruckNo.
 2. billingTruckNo null → giữ precedence cũ (trucks.licensePlate → external).
 
+### FB094-01b — Debit Note loại xe theo loại tính cước thu
+1. `vehicleTypeLabel`: candidate có revVehicleClassName/Code (nhóm thu) →
+   in tên lớp (fallback mã), không in 'LCL' hay đơn vị cont.
+2. Không có lớp thu → giữ nhãn cũ ('LCL' khi có packageCount).
+
 ### FB094-02 — board dòng Lẻ
 1. Lô Lẻ thuộc nhóm (thu 5T / trả 10T, member Bill X): ô THÔNG SỐ CONTAINER
    hiện đúng label + "(Ghép cùng Bill X)".
@@ -47,6 +52,6 @@ FB-090/092/093. Ngày: 2026-10-15.
 
 ## Gate
 
-- backend: tsc + lcl-grouping.test.ts (11 case) + accounting-debit-close +
+- backend: tsc + lcl-grouping.test.ts (9 case) + accounting-debit-close +
   billing tests hiện có.
 - frontend: tsc -b + vitest board columns + full suite.

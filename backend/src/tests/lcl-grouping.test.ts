@@ -22,7 +22,8 @@ import * as s from '../db/schema';
 import { upsertTripCarrierInfo, upsertTripFinancialState } from '../services/trip-composite.service';
 import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
 import { getAccountingDebitBoard } from '../services/accounting-debit-close.service';
-import { buildTripRenderData } from '../services/billing-document.service';
+import { buildTripRenderData, vehicleTypeLabel } from '../services/billing-document.service';
+import type { CustomerDebitTripCandidate } from '../services/billing-document-shared.service';
 import {
   assignLclCostGroup,
   mergeLclRevGroup,
@@ -346,6 +347,30 @@ describe('LCL grouping — FB-094 debit note + board', () => {
       containers: [],
     });
     assert.equal(fallback.truckPlate, '30A-111.22');
+  });
+
+  test('the debit note names the thu billing class as loại xe (FB094-01b)', async () => {
+    // Pure label rule: an LCL row with a rev billing class prints that class
+    // (name preferred, code fallback); a lot without one keeps 'LCL'.
+    const candidate = {
+      id: 1, tripCode: 'TC-1', customerId: 1, shipmentId: 1, fulfillmentId: null,
+      status: 'COMPLETED', departureDate: '2026-10-20', completionDate: '2026-10-21',
+      revenue: null, fuelSurchargeAmount: null, routeName: null, notes: null,
+      truckPlate: null, trailerPlateNumber: null, externalPlateNumber: null,
+      billingTruckNo: null,
+      revVehicleClassName: 'Xe 3.5 tấn', revVehicleClassCode: '3.5T',
+      version: 1, vatRate: '0', updatedAt: new Date(),
+      financialPostingId: 1, financialPostingVersion: 1, financialPostingTripVersion: 1,
+      financialPostingReason: 'COMPLETION', financialPostingEffectiveAt: new Date(),
+      shipmentCustomerId: 1, tradeDirection: 'IMPORT', billNumber: 'BL-1',
+      factoryName: null, expectedDeliveryDate: '2026-10-21',
+      cargoVolumeCbm: '4', packageCount: 5, packageType: 'PALLET',
+    } as const satisfies CustomerDebitTripCandidate;
+    assert.equal(vehicleTypeLabel(candidate, []), 'Xe 3.5 tấn');
+    assert.equal(vehicleTypeLabel({ ...candidate, revVehicleClassName: null }, []), '3.5T');
+    assert.equal(vehicleTypeLabel({
+      ...candidate, revVehicleClassName: null, revVehicleClassCode: null,
+    }, []), 'LCL');
   });
 
   test('the accounting debit board carries the LCL label, plates and principal ref', async () => {

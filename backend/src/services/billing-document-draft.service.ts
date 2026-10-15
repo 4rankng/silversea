@@ -87,6 +87,9 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     trailerPlateNumber: s.trailers.licensePlate,
     externalPlateNumber: s.tripsComposite.externalPlateNumber,
     billingTruckNo: s.shipments.billingTruckNo,
+    // FB-094: the note's loại xe follows the thu billing class.
+    revVehicleClassName: s.vehicleSizeClasses.name,
+    revVehicleClassCode: s.vehicleSizeClasses.code,
     version: s.tripsComposite.version,
     vatRate: s.tripsComposite.vatRate,
     updatedAt: s.tripsComposite.updatedAt,
@@ -112,6 +115,8 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
     .leftJoin(s.trailers, eq(s.tripsComposite.trailerId, s.trailers.id))
     .leftJoin(s.shipments, eq(s.tripsComposite.shipmentId, s.shipments.id))
+    // FB-094: join the rev billing class so LCL note rows name the thu class.
+    .leftJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.shipments.revVehicleClassId))
     .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
     .where(and(
       eq(s.tripsComposite.customerId, customerId),
@@ -445,10 +450,18 @@ function quantityLabelFromCandidate(
   return null;
 }
 
-function vehicleTypeLabel(
+/**
+ * FB-094: on the debit note, an LCL row's loại xe is the loại tính cước thu
+ * (the rev group's vehicle class, e.g. "Xe 3.5 tấn") — never a container unit.
+ * Non-LCL rows keep the historical container-unit/package labels.
+ */
+export function vehicleTypeLabel(
   candidate: CustomerDebitTripCandidate,
   containers: ContainerRenderInfo[],
 ): string | null {
+  if (candidate.revVehicleClassName ?? candidate.revVehicleClassCode) {
+    return candidate.revVehicleClassName ?? candidate.revVehicleClassCode;
+  }
   const unit = containerUnit(containers);
   if (unit !== 'cont') return unit;
   if (candidate.packageCount && candidate.packageCount > 0) return 'LCL';
