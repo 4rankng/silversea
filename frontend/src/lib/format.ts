@@ -231,6 +231,24 @@ export function formatWeight(kg: string | number | null | undefined, options?: F
   return `${value.toLocaleString('vi-VN')} kg`;
 }
 
+/**
+ * Cargo volume with locale grouping and the "CBM" unit, e.g. "4 CBM" /
+ * "1,25 CBM".
+ *
+ * Accepts the string column value the grids read as well as a number, exactly
+ * like formatWeight. Three fraction digits match `cargo_volume_cbm`'s column
+ * precision (numeric(12,3)), so a stored 4.250 keeps its third digit instead of
+ * being rounded to 4,25. A non-numeric non-empty value is echoed back verbatim
+ * rather than becoming "NaN CBM".
+ */
+export function formatVolumeCbm(cbm: string | number | null | undefined, options?: FormatValueOptions): string {
+  const empty = options?.empty ?? '—';
+  if (cbm == null || cbm === '') return empty;
+  const value = Number(cbm);
+  if (!Number.isFinite(value)) return String(cbm);
+  return `${value.toLocaleString('vi-VN', { maximumFractionDigits: 3 })} CBM`;
+}
+
 /** Edit-input counterpart of the display measure axis above (card
  *  20261005_360; FB-069): Postgres numeric strings carry two dead decimals
  *  ("10000.00") — edit inputs hydrate without them; a genuine decimal keeps

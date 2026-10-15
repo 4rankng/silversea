@@ -15,6 +15,7 @@ import * as s from '../../db/schema';
 import { CARGO_MODE } from '../../db/schema';
 import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
 
 import type { DispatchSummary } from '@tingting/shared';
@@ -23,9 +24,23 @@ import type { DispatchSummary } from '@tingting/shared';
 // expression (see driver/gps/dispatch-planning/trip-queries services).
 
 import { AllocationStatus, INTERNAL_FLEET_CARRIER_NAME, CUSTOMER_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME } from './shared';
+import { operationalName } from '../../db/master-data-name';
 import { buildShipmentSearchPredicate, buildDispatchPortFacetPredicate, buildDispatchCarrierFacetPredicate, loadShipmentDispatchAggregates, computeDispatchSummaryForSet } from './dispatch-aggregates';
 import type { ShipmentContainerPortGroup } from './container-aggregates';
 import { loadShipmentListContainerPortGroups } from './container-aggregates';
+
+// LCL lots carry their own two sites: `pickup_warehouse_site_id` is the "Kho
+// lấy" CUS fills at intake and `operational_site_id` is the delivery point the
+// dispatch master plan shows under Cảng hạ ("Điểm trả" — the same column the
+// detailed-plan delivery-point facet filters on, dispatch-detail-plan-
+// fulfillment-less.ts:93). The row query already joins `operationalSites` on
+// operational_site_id, so the warehouse needs its own alias to be read in the
+// same pass instead of a second query per page.
+const pickupWarehouseSite = alias(s.operationalSites, 'shipment_list_pickup_warehouse_site');
+const PICKUP_WAREHOUSE_OPERATIONAL_NAME = operationalName(
+  pickupWarehouseSite.shortName,
+  pickupWarehouseSite.name,
+);
 
 
 export type ShipmentListSummary = {
@@ -753,9 +768,13 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     routeName: ROUTE_OPERATIONAL_NAME,
     // "Ghi chú nhà máy": the factory's operating notes (strict rules).
     factoryNotes: s.operationalSites.strictRules,
+    // LCL "Kho lấy" — the pickup warehouse CUS fills at intake, read through
+    // its own alias (see PICKUP_WAREHOUSE_OPERATIONAL_NAME).
+    pickupWarehouseSiteName: PICKUP_WAREHOUSE_OPERATIONAL_NAME,
   }).from(s.shipments)
     .leftJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
     .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+    .leftJoin(pickupWarehouseSite, eq(s.shipments.pickupWarehouseSiteId, pickupWarehouseSite.id))
     .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
     .where(and(...conditions))
     .orderBy(desc(s.shipments.createdAt));
@@ -768,6 +787,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     shipment: typeof s.shipments.$inferSelect;
     customerName: string | null;
     operationalSiteName: string | null;
+    pickupWarehouseSiteName: string | null;
     routeName: string | null;
     factoryNotes: string | null;
   }> = [];
@@ -781,11 +801,13 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
         shipment: s.shipments,
         customerName: CUSTOMER_OPERATIONAL_NAME,
         operationalSiteName: SITE_OPERATIONAL_NAME,
+        pickupWarehouseSiteName: PICKUP_WAREHOUSE_OPERATIONAL_NAME,
         routeName: ROUTE_OPERATIONAL_NAME,
         factoryNotes: s.operationalSites.strictRules,
       }).from(s.shipments)
         .leftJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
         .leftJoin(s.operationalSites, eq(s.shipments.operationalSiteId, s.operationalSites.id))
+        .leftJoin(pickupWarehouseSite, eq(s.shipments.pickupWarehouseSiteId, pickupWarehouseSite.id))
         .leftJoin(s.routes, eq(s.shipments.routeId, s.routes.id))
         .where(and(...conditions))
         .orderBy(desc(s.shipments.createdAt));
@@ -870,6 +892,12 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // Operational-site short-name authority with stored factory text fallback
     // (master-plan "Xưởng/Điểm" projection, plan phase-02).
     factoryName: row.operationalSiteName ?? row.shipment.factoryName,
+    // LCL lots own two sites and no containers, so the dispatch master plan
+    // reads them instead of a container port pair: "Kho lấy" on the Cảng nâng
+    // side, the delivery point ("Điểm trả", projected above as `factoryName`
+    // from the same operational_site_id the detailed-plan delivery-point facet
+    // filters on) on the Cảng hạ side. Null for a lot that has not chosen yet.
+    pickupWarehouseSiteName: row.pickupWarehouseSiteName,
     // Factory operating notes for the master-plan notes column.
     factoryNotes: row.factoryNotes,
     opsRecoveryNotes: opsRecoveryNotes.get(row.shipment.id) ?? [],
