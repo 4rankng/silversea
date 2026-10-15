@@ -62,3 +62,15 @@
   .shipment-cost-entry__head > div { flex: 1 1 200px; }
   .shipment-cost-entry__fields { grid-template-columns: 1fr; gap: 12px; }
 }
+
+/* Cost-doc redesign — the panel's two record tables ("Chi phí lô hàng" /
+   "Tiền đường") ride the shared record-table band (its @container collapse
+   renders each row as a labelled record card on the driver's phone); these
+   rules only place and caption the tables, never re-skin the band. */
+.shipment-cost-entry__table { display: grid; gap: 6px; }
+.shipment-cost-entry__table-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.shipment-cost-entry__table-title { margin: 0; font-size: var(--text-data-size); font-weight: 600; }
+.shipment-cost-entry__cell-meta { display: block; color: var(--ink-3); font-size: var(--text-caption-size); }
+.shipment-cost-entry__receipt-cell { display: inline-flex; }
+.shipment-cost-entry__empty-cell { color: var(--ink-3); font-size: var(--text-caption-size); }
+.shipment-cost-entry__cell-actions { display: grid; gap: 4px; justify-items: start; }
