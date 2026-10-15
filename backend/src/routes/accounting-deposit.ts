@@ -12,6 +12,7 @@ import {
   listDepositTrackers, createDepositTracker, updateDepositTrackerDates, markDepositRefunded, normalizeDepositDate,
   getDepositWeeklySummary,
 } from '../services/deposit-refund-tracker.service';
+import { findBillSuggestions, parseBillDigits } from '../services/deposit-bill-suggestions.service';
 
 const router = Router()
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
@@ -36,6 +37,13 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json(await listDepositTrackers(getUser(req), { from: query.from, to: query.to, status: query.status }));
 }));
 
+// "Thêm cược" typeahead: the last four digits of a Bill/Booking surface the
+// matching lots (owner ruling 2026-10-14). Fixed path — registered before /:id.
+router.get('/bill-suggestions', asyncHandler(async (req, res) => {
+  const query = parse(z.object({ q: z.string().max(20) }), req.query);
+  res.json({ items: await findBillSuggestions(parseBillDigits(query.q)) });
+}));
+
 // Registered before the /:id/... routes — weekly summary is a fixed path read.
 router.get('/weekly-summary', asyncHandler(async (req, res) => {
   const query = parse(z.object({
@@ -48,6 +56,7 @@ router.get('/weekly-summary', asyncHandler(async (req, res) => {
 router.post('/', declareMaterialWrite('accounting.deposit-tracker.create', { method: 'POST', path: '/api/accounting/deposits/' }),  asyncHandler(async (req, res) => {
   const user = getUser(req);
   const input = parse(z.object({
+    shipmentId: z.number().int().positive().nullable().optional(),
     billNumber: z.string().trim().min(1).max(80),
     customerName: z.string().trim().min(1).max(255),
     carrierName: z.string().trim().min(1).max(255),

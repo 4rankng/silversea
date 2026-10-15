@@ -333,6 +333,29 @@ export type {
   AccountingTransportRegisterResponse,
 } from './schemas';
 
+export {
+  TIMESHEET_SYMBOLS,
+  TIMESHEET_SYMBOL_RULES,
+  TIMESHEET_SALARY_MODES,
+  PER_TRIP_RATE,
+  EXTRA_TRIP_THRESHOLD,
+  EXTRA_TRIP_RATE,
+  isSundayUtc,
+  countDayTrips,
+  countDayWorkday,
+  computeTimesheetSalary,
+  daysOfMonth,
+  monthOfDay,
+} from './calculations/timesheetSalary';
+export type {
+  TimesheetSymbol,
+  TimesheetSalaryMode,
+  TimesheetSymbolCounts,
+  TimesheetDayInput,
+  TimesheetSalaryInput,
+  TimesheetSalaryResult,
+} from './calculations/timesheetSalary';
+
 export { round2dp, roundInt, roundHalfAwayFromZero } from './calculations/round';
 export { sumExcludingNegative } from './calculations/expenseTotals';
 export { vatForAmount, debitRoundVatTotals } from './calculations/vat';

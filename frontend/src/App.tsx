@@ -124,6 +124,8 @@ const ExpenseEntryPage = lazy(() => import('./pages/ExpenseEntryPage'));
 const PayableListPage = lazy(() => import('./pages/PayableListPage'));
 const PayableDetailPage = lazy(() => import('./pages/PayableDetailPage'));
 const SalaryAttendancePage = lazy(() => import('./pages/SalaryAttendancePage'));
+const TimesheetGridPage = lazy(() => import('./pages/TimesheetGridPage'));
+const TimesheetReconciliationPage = lazy(() => import('./pages/TimesheetReconciliationPage'));
 
 const ExpenseCategoriesConfigPage = lazy(() => import('./pages/config/ExpenseCategoriesConfigPage'));
 const ForwarderExpenseTypesConfigPage = lazy(() => import('./pages/config/ForwarderExpenseTypesConfigPage'));
@@ -482,6 +484,10 @@ export function AppRoutes() {
           <Route path="/payables" element={financeReaderOnly(page(<PayableListPage />))} />
           <Route path="/payables/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/salary" element={officeStaffOnly(page(<SalaryAttendancePage />))} />
+          {/* Chấm công lái xe (2026-10-14): Điều vận fills the symbol grid;
+              Kế toán reconciles on the companion board. */}
+          <Route path="/timesheet" element={dispatchOnly(page(<TimesheetGridPage />))} />
+          <Route path="/timesheet/doi-chieu" element={accountantOnly(page(<TimesheetReconciliationPage />))} />
           <Route path="/users" element={userAdminOnly(page(<UsersPage />))} />
           <Route path="/hr/roster" element={officeStaffOnly(page(<HrRosterPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />

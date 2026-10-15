@@ -149,3 +149,14 @@ p, CUS, shipment_fulfillments, read
 p, CUS, epod_review, read
 p, CUS, epod_review, write
 p, CUS, customer_portal, read
+
+// Driver timesheet (chấm công lái xe) — new module 2026-10-14. Điều vận fills
+// the grid; Kế toán reconciles last. Read access covers leadership rollups.
+p, DISPATCHER, timesheet, read
+p, DISPATCHER, timesheet, write
+p, ACCOUNTANT, timesheet, read
+p, ACCOUNTANT, timesheet, write
+p, MANAGER, timesheet, read
+p, MANAGER, timesheet, write
+p, ADMIN, timesheet, read
+p, ADMIN, timesheet, write

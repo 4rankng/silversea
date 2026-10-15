@@ -181,6 +181,19 @@ export const PAGE_CATALOG = {
     path: '/admin/advance-settlements',
     section: 'financials',
   },
+  timesheet: {
+    // Driver timesheet (chấm công lái xe): Điều vận fills the symbol grid.
+    // Distinct from `salary`, which is the office payroll/attendance surface.
+    title: 'Chấm công lái xe',
+    path: '/timesheet',
+    section: 'operations',
+  },
+  timesheetReconciliation: {
+    // Kế toán's reconciliation board + month rollup for leadership.
+    title: 'Đối chiếu chấm công',
+    path: '/timesheet/doi-chieu',
+    section: 'operations',
+  },
   salary: {
     title: 'Lương & Chấm công',
     path: '/salary',
