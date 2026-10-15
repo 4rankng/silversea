@@ -89,11 +89,12 @@ const roleDef = getRole(roleKey);   // fallback only; the resolved account is wh
  *   staging OPS: hoangnh, hungld, …
  * The factory used to take ROLES[role].username unconditionally — i.e. always
  * `giaonhan` — so on staging it created the scenario as an account the harness
- * never logs in as. The harness then drove the app as `hoangnh`, who owns
- * nothing in the scenario, and every write was refused with
- * "Lô này không thuộc xe bạn phụ trách". Seeding under a DIFFERENT account
- * than the one that will drive the page is the single cause behind the blocked
- * rungs on cards 197, 157 and 173.
+ * never logs in as. The harness then drove the app as `hoangnh`, who owned
+ * nothing in the scenario. (Back then every expense write was also refused
+ * with "Lô này không thuộc xe bạn phụ trách" — that grant is gone since plan
+ * step 5, but rows still carry their author, so seeding under a DIFFERENT
+ * account than the one that will drive the page stays wrong.) This is the
+ * single cause behind the blocked rungs on cards 197, 157 and 173.
  *
  * Mirrors createSession in testplan/qa/lib/harness.mjs: same list, same
  * walk, same env-tagged block.
@@ -329,16 +330,11 @@ if (NO_CREATE) {
     }
 
     // ── Step 4: a TRIP on a truck, plus that truck assigned to the driving OPS
-    // account. Without both, every write by the OPS user is refused by
-    // assertOpsExpenseAssignment (expense-owner-scope.service.ts:20-46) with
-    // "Lô này không thuộc xe bạn phụ trách".
-    //
-    // That guard grants on three alternatives:
-    //   (1) user_shipment_links — NO route writes that table, unreachable;
-    //   (2) truck_ops_assignments (active) + a trip of this shipment on that
-    //       truck — the only branch reachable through the API;
-    //   (3) an opsExpenseEntries row already written by that user — the thing
-    //       we are trying to create.
+    // account. No longer a WRITE prerequisite — plan step 5 removed the
+    // per-lot expense grant ("Lô này không thuộc xe bạn phụ trách" is gone,
+    // every Ops may declare on any lot) — but the trip and assignment keep the
+    // scenario realistic: the truck shows under the Ops's fleet view and the
+    // QA roster keeps its driving account attached to the hauling truck.
     //
     // Note the asymmetry: the account that CREATES a shipment must be
     // ADMIN/MANAGER/CUS/DISPATCHER (SHIPMENT_INTAKE_MUTATION_ROLES) — an OPS

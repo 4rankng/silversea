@@ -39,6 +39,15 @@
 .phoi-detail-note { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); }
 .phoi-detail-error { color: var(--danger-text); }
 
+/* Card 20261005 — ô "Cược" Bill/Book dưới tiêu đề phơi phiếu. */
+.deposit-bill-field { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-bottom: 12px; }
+.deposit-bill-field__row { display: flex; align-items: end; gap: 8px; }
+.deposit-bill-field__summary { margin: 0; flex: 1 1 100%; font-size: var(--text-body-size); color: var(--fg-1); }
+.deposit-bill-field__error { margin: 0; flex: 1 1 100%; color: var(--danger-text); font-size: var(--text-caption-size); }
+.deposit-bill-field__suggest { list-style: none; margin: 0; padding: 0; flex: 1 1 100%; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.deposit-bill-field__option { display: block; width: 100%; text-align: left; padding: 8px 12px; background: none; border: 0; cursor: pointer; font-size: var(--text-body-size); color: var(--fg-1); }
+.deposit-bill-field__option:hover { background: var(--fg-3); }
+
 @container (max-width: 1100px) {
   .phoi-detail-matrix td[class] { min-width: 0; white-space: normal; }
 }

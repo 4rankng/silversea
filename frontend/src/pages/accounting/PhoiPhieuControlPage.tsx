@@ -359,6 +359,7 @@ export default function PhoiPhieuControlPage() {
       {tienDuongTripId != null && (
         <PhoiPhieuTienDuongDialog
           tripId={tienDuongTripId}
+          shipmentId={rows.find((row) => row.tripId === tienDuongTripId)!.shipmentId}
           billOrBooking={rows.find((row) => row.tripId === tienDuongTripId)?.billOrBooking}
           onClose={() => setTienDuongTripId(null)}
           onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })}
@@ -389,6 +390,7 @@ export default function PhoiPhieuControlPage() {
       {chiHoTripId != null && (
         <PhoiPhieuChiHoDialog
           tripId={chiHoTripId}
+          shipmentId={rows.find((row) => row.tripId === chiHoTripId)!.shipmentId}
           billOrBooking={rows.find((row) => row.tripId === chiHoTripId)?.billOrBooking}
           confirmation={filters.confirmation || undefined}
           onClose={() => setChiHoTripId(null)}

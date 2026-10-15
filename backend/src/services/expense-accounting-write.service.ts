@@ -96,7 +96,12 @@ export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
   const { reason } = input;
   if (kind === 'INVOICE') throw new ApiError(409, 'Sửa chi phí hóa đơn từ hồ sơ hóa đơn kết hợp để giữ đồng bộ nguồn.');
   if (kind === 'OPS' && payerKind !== 'COMPANY' && (payerKind !== 'USER' || payableEntityType !== 'FORWARDER')) throw new ApiError(400, 'Khoản chi Ops phải giữ người chi Ops; thêm chi công ty từ bảng kế toán.');
-  if (kind === 'DRIVER' && payerKind !== 'COMPANY' && (payerKind !== 'USER' || payableEntityType !== 'DRIVER')) throw new ApiError(400, 'Khoản chi lái xe phải liên kết đúng lái xe.');
+  // Card 20261005 — nguồn DRIVER không còn bắt buộc có "người chi": đường sửa của
+  // lái xe (DriverExpenseCorrection) không gửi trường payer, và drawer của kế
+  // toán ẩn Bên thực chi với nguồn DRIVER, nên payer null (chưa quyết định) phải
+  // được đi qua. Người chi đã quyết định vẫn phải đúng luật: nhân viên chi thì
+  // phải là lái xe được phân công, công ty chi thì không liên kết phải trả.
+  if (kind === 'DRIVER' && payerKind != null && payerKind !== 'COMPANY' && (payerKind !== 'USER' || payableEntityType !== 'DRIVER')) throw new ApiError(400, 'Khoản chi lái xe phải liên kết đúng lái xe.');
   const metadata = { payerKind: payerKind === 'SUPPLIER' ? null : payerKind, costGroup: input.costGroup ?? before.costGroup, feeName: input.feeName ?? before.feeName,
     invoiceNumber: input.invoiceNumber === undefined ? before.invoiceNumber : input.invoiceNumber,
     invoiceDate: input.invoiceDate === undefined ? before.invoiceDate : input.invoiceDate,
@@ -227,7 +232,11 @@ export async function confirmAccountingExpenses(tx: Tx, actor: ExpenseActor, ent
         .where(and(eq(s.settlementExpenses.tripExpenseId, before.sourceId), notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))).limit(1);
       if (legacySettlement) throw new ApiError(409, 'Khoản chi đã ghi nhận trong phiếu hoàn ứng hiện hành; không đối chiếu lại.');
     }
-    if (!before.costGroup || before.customerChargeAmount == null || !before.payerKind) throw new ApiError(409, 'Hoàn thiện phân loại, người chi và khoản thu khách trước khi đối chiếu.');
+    // Card 20261005 — nguồn DRIVER bỏ điều kiện "người chi": chi phí lái xe không
+    // còn khái niệm Người chi (form lái xe gỡ, drawer kế toán ẩn với nguồn
+    // DRIVER), nên yêu cầu payerKind ở đây sẽ làm mọi khoản chi lái xe không bao
+    // giờ đối chiếu được. Nguồn OPS/TRIP giữ nguyên luật cũ.
+    if (!before.costGroup || before.customerChargeAmount == null || (before.sourceKind !== 'DRIVER' && !before.payerKind)) throw new ApiError(409, 'Hoàn thiện phân loại, người chi và khoản thu khách trước khi đối chiếu.');
     if (before.costGroup.startsWith('INVOICED_') && (!before.invoiceNumber || !before.invoiceDate)) throw new ApiError(409, 'Bổ sung số và ngày hóa đơn trước khi đối chiếu.');
     const [row] = await tx.update(s.expenseAccountingSources).set({ confirmedById: actor.userId, confirmedAt: new Date(),
       version: before.version + 1, updatedAt: new Date() }).where(eq(s.expenseAccountingSources.id, before.id)).returning();

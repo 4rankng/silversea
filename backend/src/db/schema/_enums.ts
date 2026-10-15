@@ -44,7 +44,9 @@ export const trailerStatusEnum = applicationEnum(['ACTIVE', 'MAINTENANCE', 'INAC
 
 // NOTE: forwarder_expense_type pgEnum removed — replaced by forwarder_expense_types config table.
 // trip_expenses.expense_type is now varchar(50) referencing config codes.
-export const advanceRequestStatusEnum = applicationEnum(['RECORDED', 'DRAFT', 'VOIDED']);
+// PENDING = yêu cầu Ops tạo ra đang chờ kế toán phê duyệt (applicationEnum is a
+// text column — additive value, no migration). Tiền chỉ vào sổ khi duyệt.
+export const advanceRequestStatusEnum = applicationEnum(['RECORDED', 'DRAFT', 'VOIDED', 'PENDING']);
 
 export const advanceSettlementStatusEnum = applicationEnum(['DRAFT', 'RECORDED', 'VOIDED', 'REVERSED']);
 

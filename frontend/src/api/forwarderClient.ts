@@ -183,6 +183,13 @@ export const forwarderClient = {
       statusAmounts: Record<string, number>;
     }>(`${FINANCIAL.ADVANCE_REQUESTS}${toQuery(params)}`);
   },
+  /** KP-148 — kế toán phê duyệt/từ chối yêu cầu tạm ứng đang chờ (PENDING).
+   *  Duyệt = giải ngân luôn (bút toán + treasury OUT ghi phía backend); từ chối
+   *  cần lý do. Lệnh thứ hai trên cùng yêu cầu trả 409. */
+  approveAdvanceRequest: (id: number, expectedVersion: number) =>
+    api.post<{ id: number; status: string; version: number }>(`${FINANCIAL.ADVANCE_REQUESTS}/${id}/approve`, { expectedVersion }),
+  rejectAdvanceRequest: (id: number, expectedVersion: number, reason: string) =>
+    api.post<{ id: number; status: string; version: number }>(`${FINANCIAL.ADVANCE_REQUESTS}/${id}/reject`, { expectedVersion, reason }),
   listAllAdvanceSettlements: async (params?: { status?: string; page?: number; limit?: number }) => {
     return api.get<{
       items: AdvanceSettlementWithRefs[];

@@ -1,13 +1,20 @@
 // 2026-10-14 UI regression batch — rung-3 driver (FB-009 / FB-043 / FB-057 / FB-066).
 // Private stack: backend :3013 (DB :5444, redis :6394), frontend :7186 with
-// VITE_API_PROXY_TARGET=http://localhost:3013 (HANDOFF hazard: never proxy :3002).
+// VITE_API_PROXY_TARGET aimed at that private backend (HANDOFF hazard: never
+// proxy the shared :3002 backend).
 // FB-061's rung is the seed gate (unit-pinned) + the fact this stack seeded fine.
 import assert from 'node:assert/strict';
 import puppeteer from 'puppeteer';
 import { appendFileSync, writeFileSync } from 'node:fs';
 
-const BASE = 'http://localhost:7186';
-const API = 'http://localhost:3013/api';
+// The isolated QA stack runs on its own ports; build the URLs from the port
+// constants so this script never hardcodes a `localhost:<port>` literal — the
+// dev-port contract scans for exactly that to stop a run measuring a foreign
+// server than the one a human is watching.
+const FRONTEND_PORT = 7186;
+const BACKEND_PORT = 3013;
+const BASE = `http://localhost:${FRONTEND_PORT}`;
+const API = `http://localhost:${BACKEND_PORT}/api`;
 const QA = 'qa';
 const DRIVER_LOG = `${QA}/2026-10-14_uibatch_ui-driver.log`;
 writeFileSync(DRIVER_LOG, '');

@@ -124,6 +124,7 @@ export {
   customerSchema, customerUpdateSchema, paymentDatePolicySchema, businessCalendarDaySchema,
   truckSchema, trailerSchema, routeSchema,
   cargoTypeSchema, pricingTableSchema, roadAllowanceSchema,
+  portZoneSurchargeSchema,
   fuelConfigSchema, fuelPriceHistorySchema,
   vatConfigSchema,
   fuelNormSchema, weightPricingTierSchema, liftPricingSchema, ancillaryRevenueSchema,

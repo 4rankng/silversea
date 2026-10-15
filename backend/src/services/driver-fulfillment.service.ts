@@ -15,9 +15,9 @@ import {
   NO_INVOICE_EVIDENCE_TYPE_LABELS,
   RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES,
   DriverProgressEventType,
+  DriverIncidentalCostType,
   Role,
   TripStatus,
-  type DriverIncidentalCostType,
   type DriverIncidentalCostInput,
   type ExpenseCostGroup,
 } from '@tingting/shared';
@@ -301,7 +301,7 @@ export interface DriverIncidentalCost {
   createdAt: Date;
 }
 
-async function assertTripAcceptsIncidentalCostTx(tx: Tx, tripId: number): Promise<void> {
+export async function assertTripAcceptsIncidentalCostTx(tx: Tx, tripId: number): Promise<void> {
   await assertTripShipmentAccountingUnlocked(tx, tripId);
   const [trip] = await tx.select({ status: s.trips.status })
     .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
@@ -313,13 +313,29 @@ async function assertTripAcceptsIncidentalCostTx(tx: Tx, tripId: number): Promis
   }
 }
 
-async function insertDriverIncidentalCostTx(
+export async function insertDriverIncidentalCostTx(
   tx: Tx,
   tripId: number,
   driverId: number,
   input: DriverIncidentalCostInput & { expenseTypeCode?: string | null; feeNormCode?: string | null },
   recordedBy: number,
 ): Promise<DriverIncidentalCost> {
+  // Card 20261005 — các dòng hệ thống tự ghi nhận lái xe không được tự tạo:
+  // "Tiền đường" (ROAD_ALLOWANCE) được chụp từ bảng giá `road_allowances` vào
+  // `trips.total_road_allowance` lúc tạo chuyến (trip-create.service /
+  // trip-figure-updates.service), nên một dòng do tay lái gửi lên là trùng với
+  // số hệ thống đã ghi.
+  // Riêng LIFT_DROP_ZONE chỉ chặn khi KHÔNG kèm mã định mức: định mức
+  // LIFT_DROP_ALLOWANCE ("Phụ cấp nâng/hạ Lạch Huyện, TIL, Hateco") bị ép
+  // costType = LIFT_DROP_ZONE ngay dưới (nhánh `normClass`), nên chặn vô điều
+  // kiện sẽ làm hỏng định mức hợp lệ đó — request mang feeNormCode được đi qua.
+  // Kế toán vẫn sửa/ghi các dòng này qua createAccountingExpense; đường đó không
+  // đi qua hàm này. Luật đặt ở đây (viết chung của cả lô đơn lẫn /batch) để một
+  // rule set duy nhất cai quản mọi đường ghi chi phí lái xe.
+  if (input.costType === DriverIncidentalCostType.ROAD_ALLOWANCE
+    || (input.costType === DriverIncidentalCostType.LIFT_DROP_ZONE && !input.feeNormCode)) {
+    throw new ApiError(400, 'Khoản này do hệ thống tự ghi nhận.');
+  }
   const group = input.costGroup ?? (['TOLL', 'PARKING', 'PER_DIEM'].includes(input.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT');
   if (!['DRIVER_SHIPMENT', 'DRIVER_ROAD'].includes(group)) throw new ApiError(400, 'Nhóm chi phí lái xe không hợp lệ.');
   // Card 20260928_197 — the amount is signed (a correction), so the receivable
@@ -388,6 +404,14 @@ async function insertDriverIncidentalCostTx(
       eq(s.tripPhotos.storageKey, input.receiptStorageKey), eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.uploadedBy, recordedBy)));
     if (!photo) throw new ApiError(400, 'Ảnh biên lai phải do bạn tải lên cho chuyến này.');
   }
+  // Step 2 — "Phiếu thu" (cash receipt) IS the biên lai photo: a cash spend
+  // cannot exist without its paper. Placed right after the photo-ownership
+  // lookup above so one rule covers every caller (form, batch, offline queue)
+  // without an extra query. Rows without an evidence kind (road bucket, legacy
+  // queue) keep their old contract and are not touched by this rule.
+  if (input.evidenceKind === 'RECEIPT' && !input.receiptStorageKey) {
+    throw new ApiError(400, 'Chọn Phiếu thu thì phải chụp biên lai trước khi lưu.');
+  }
   const [row] = await tx.insert(s.driverIncidentalCosts).values({
     tripId,
     driverId,
@@ -399,8 +423,12 @@ async function insertDriverIncidentalCostTx(
     occurredAt: input.occurredAt,
     note: input.note ?? null,
     receiptStorageKey: input.receiptStorageKey ?? null,
+    evidenceKind: input.evidenceKind ?? null,
     recordedBy,
-    payerKind: input.payerKind ?? 'USER',
+    // Card 20261005 — "Người chi" is gone from driver costs: the driver records
+    // what they actually paid, accounting decides the payer later. No payer
+    // value is written here, so `payer_kind` stays NULL (the column survives for
+    // `ops_expense_entries` and for the accounting write path).
     costGroup: normClass ? (feeNorm!.costGroup as ExpenseCostGroup) : group,
     feeName: normClass ? feeNorm!.label : (catalogType ? catalogType.name : (input.feeName ?? input.costType)),
     // Card 20260928_197 — `invoicedClass` charges the amount, so it needs the
@@ -425,7 +453,12 @@ async function insertDriverIncidentalCostTx(
     feeName: row.feeName ?? input.costType, amount: Number(row.amount),
     customerChargeAmount: Number(row.customerChargeAmount),
     expenseDate: input.occurredAt, invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate,
-    payerKind: input.payerKind ?? 'USER', payerUserId: input.payerKind === 'COMPANY' ? null : recordedBy, payableEntityType: input.payerKind === 'COMPANY' ? null : 'DRIVER', payableEntityId: input.payerKind === 'COMPANY' ? null : driverId,
+    // Card 20261005 — the driver path records NO payer/payable: the accounting
+    // source of a driver-recorded cost carries cleared payer fields until
+    // accounting writes them through createAccountingExpense /
+    // updateAccountingExpense. Never derive "the driver paid" here — that was
+    // the old "Người chi = Tôi chi" default this card removes.
+    payerKind: null, payerUserId: null, payableEntityType: null, payableEntityId: null,
     recordedById: recordedBy, note: input.note, photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [] });
   const [saved] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, row.id));
   return { ...saved, version: source.version } as DriverIncidentalCost;

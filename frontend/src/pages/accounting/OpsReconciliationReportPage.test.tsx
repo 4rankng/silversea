@@ -27,11 +27,20 @@ const TODAY = '2026-09-29';
 // > 0 the staff still holds unspent advance, 0 nothing left to settle.
 const rowPositive: OpsReconciliationReportRow = {
   staffId: 5, staffName: 'NV A', dntt: 250000, advanced: 100000, remaining: 150000,
+  remainingSigned: 150000, needsCollection: false,
   direction: 'CTY_YEU_CAU_HOAN_TRA', note: 'Công ty yêu cầu nhân viên hoàn trả tạm ứng',
 };
 const rowSettled: OpsReconciliationReportRow = {
   staffId: 6, staffName: 'NV B', dntt: 120000, advanced: 120000, remaining: 0,
+  remainingSigned: 0, needsCollection: false,
   direction: 'KHONG_CON_GI', note: 'Không còn chênh lệch',
+};
+// Số âm: ĐNTT − ĐÃ ỨNG = 300.000 − 500.000 — tiền ứng vượt chi phí và nhân
+// viên vẫn còn nắm tiền đã cấp, nên đề nghị thu tiền ứng.
+const rowCollection: OpsReconciliationReportRow = {
+  staffId: 9, staffName: 'NV C', dntt: 300000, advanced: 500000, remaining: 500000,
+  remainingSigned: -200000, needsCollection: true,
+  direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
 };
 const unscopedReport = {
   from: TODAY, to: TODAY, rows: [rowPositive, rowSettled],
@@ -48,6 +57,7 @@ function mkLot(row: OpsReconciliationReportRow, remainingDifference: number): Ex
     id: 7, code: 'HU-QA-169', opsUserId: row.staffId, from: '2026-09-28', to: TODAY,
     amount: row.dntt, advanceAmount: row.advanced, initialDifference: remainingDifference,
     paidAmount: 0, refundedAmount: 0, remainingDifference,
+    refundSettledAt: null, refundSettledByName: null,
     entries: [{ sourceKind: 'OPS', sourceId: 11, expectedVersion: 3 }],
     createdAt: TODAY, note: null, voidedAt: null,
   };
@@ -127,6 +137,20 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
     await screen.findByText('NV B', { selector: 'td' });
     expect(screen.queryByRole('button', { name: 'Lập phiếu chi' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Lập phiếu thu' })).not.toBeInTheDocument();
+  });
+
+  it('a row with a negative difference shows the signed amount and the collection warning', async () => {
+    reportApi.report.mockResolvedValue({
+      from: TODAY, to: TODAY, rows: [rowCollection],
+      totals: { dntt: 300000, advanced: 500000, remaining: 500000 },
+    });
+    page();
+    await screen.findByText('NV C', { selector: 'td' });
+    const row = screen.getByText('NV C', { selector: 'td' }).closest('tr')!;
+    // Số âm hiện đúng dấu trong cột có dấu.
+    expect(row.querySelector('td[data-label="Còn phải hoàn ứng (có dấu)"]')?.textContent).toBe('-200.000 ₫');
+    expect(row.querySelector('td[data-label="Còn phải hoàn ứng"] .money')?.textContent).toBe('+500.000 ₫');
+    expect(screen.getByText('Đề nghị thu tiền ứng')).toBeTruthy();
   });
 
   it('a đợt the company owes offers ONLY the phiếu chi action (AC3)', async () => {

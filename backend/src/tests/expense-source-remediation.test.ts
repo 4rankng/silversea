@@ -13,7 +13,7 @@ import { confirmAccountingExpenses, updateAccountingExpense } from '../services/
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
 import { getPhoiPhieuTienDuong } from '../services/phoi-phieu-control.service';
 import { createOpsExpense, updateOpsExpense } from '../services/ops-expenses.service';
-import { assertExpenseOwnerWriteScope, assertOpsExpenseAssignment } from '../services/expense-owner-scope.service';
+import { assertExpenseOwnerWriteScope } from '../services/expense-owner-scope.service';
 import { updateTripExpense, deleteTripExpenseGuarded } from '../services/forwarder.service';
 import { insertTripComposite, getTripCompositeInTx, upsertTripFinancialState } from '../services/trip-composite.service';
 
@@ -49,21 +49,31 @@ async function trip(tx: Tx, ctx: Awaited<ReturnType<typeof setup>>) {
     routeId: ctx.route.id, cargoTypeId: ctx.cargo.id, departureDate: '2026-09-16', status: 'CREATED', carrierType: 'OWN', fulfillmentId: fulfillment.id });
 }
 
-test('FIX17-S01 revoked OPS writes and evidence scope fail; finance remains available', async () => fixture(async (tx, ctx) => {
-  const source = await ops(tx, ctx);
-  const actor = { userId: ctx.user.id, role: Role.OPS };
-  // The lot already carries the ops's own saved expense, so the truck-assignment
-  // gate keeps the right here even with no live assignment — revocation only
-  // removes lots never expensed. The blocked case moves to a fresh lot.
-  await assertOpsExpenseAssignment(tx, ctx.user.id, ctx.shipment.id);
-  const [fresh] = await tx.insert(s.shipments).values({ shipmentCode: `${ctx.shipment.shipmentCode}-fresh`, customerId: ctx.customer.id }).returning();
-  await assert.rejects(createOpsExpense(ctx.user.id, { shipmentId: fresh.id, expenseTypeCode: 'OTHER', amount: 500, paidAt: '2026-09-16' }, tx), /Quản trị viên/);
-  await assert.rejects(assertExpenseOwnerWriteScope(tx, actor, { ...source, shipmentId: fresh.id }), /Quản trị viên/);
-  await tx.insert(s.userShipmentLinks).values({ userId: ctx.user.id, shipmentId: ctx.shipment.id });
-  await assertExpenseOwnerWriteScope(tx, actor, source);
-  await assert.rejects(updateOpsExpense(ctx.user.id, source.sourceId, { amount: 600, expectedVersion: source.version }, tx), /lý do/);
-  await assertExpenseOwnerWriteScope(tx, ctx.actor, source);
-}));
+test('FIX17-S01 every Ops may declare on any lot — the assignment grant is gone', async () => {
+  // `assertActiveExpenseType` reads through `db` (outside the fixture's
+  // rolled-back tx), so the catalog row must exist committed for the duration.
+  const [type] = await db.insert(s.forwarderExpenseTypes).values({
+    code: `FIX17S01${crypto.randomUUID().replace(/[^A-Za-z0-9]/g, '').slice(0, 10)}`,
+    name: 'FIX17-S01 scope probe', status: 'ACTIVE', requiresInvoice: true, category: 'LIFT',
+  }).returning();
+  try {
+    await fixture(async (tx, ctx) => {
+      const source = await ops(tx, ctx);
+      const actor = { userId: ctx.user.id, role: Role.OPS };
+      // Plan step 5 removed the grant: a fresh lot — no user link, no truck
+      // chain, no prior expense — is writable, so the old 403 case now saves.
+      const [fresh] = await tx.insert(s.shipments).values({ shipmentCode: `${ctx.shipment.shipmentCode}-fresh`, customerId: ctx.customer.id }).returning();
+      const created = await createOpsExpense(ctx.user.id, { shipmentId: fresh.id, expenseTypeCode: type.code, amount: 500, paidAt: '2026-09-16' }, tx);
+      assert.equal(created.shipmentId, fresh.id);
+      // Evidence write-scope no longer gates OPS either; finance stays open.
+      await assertExpenseOwnerWriteScope(tx, actor, { ...source, shipmentId: fresh.id });
+      await assert.rejects(updateOpsExpense(ctx.user.id, source.sourceId, { amount: 600, expectedVersion: source.version }, tx), /lý do/);
+      await assertExpenseOwnerWriteScope(tx, ctx.actor, source);
+    });
+  } finally {
+    await db.delete(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.id, type.id));
+  }
+});
 test('FIX17-S02 OPS receipt rows are authoritative over stale native JSON', async () => fixture(async (tx, ctx) => {
   const source = await ops(tx, ctx);
   await tx.update(s.opsExpenseEntries).set({ photoStorageKeys: ['stale-deleted.jpg'] }).where(eq(s.opsExpenseEntries.id, source.sourceId));

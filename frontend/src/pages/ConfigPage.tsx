@@ -42,6 +42,7 @@ export default function ConfigPage() {
     queries: [
       { queryKey: qk.configCounts.penaltyReasons,        queryFn: () => api.get<ListResponse>('/penalty-reasons?limit=1'),    staleTime: 60_000 },
       { queryKey: qk.configCounts.roadAllowances,        queryFn: () => api.get<ListResponse>('/road-allowances?limit=1'),    staleTime: 60_000 },
+      { queryKey: qk.configCounts.portZoneSurcharges,   queryFn: () => api.get<ListResponse>('/port-zone-surcharges?limit=1'), staleTime: 60_000 },
       { queryKey: qk.configCounts.drivers,               queryFn: () => api.get<ListResponse>('/drivers?limit=1'),            staleTime: 60_000 },
       { queryKey: qk.configCounts.capTable,              queryFn: () => api.get<ListResponse>('/cap-table?limit=1'),          staleTime: 60_000 },
       { queryKey: qk.configCounts.customers,             queryFn: () => api.get<ListResponse>('/customers?limit=1'),          staleTime: 60_000 },
@@ -65,6 +66,7 @@ export default function ConfigPage() {
   const [
     penaltyReasons,
     roadAllowances,
+    portZoneSurcharges,
     drivers,
     capTable,
     customers,
@@ -112,6 +114,7 @@ export default function ConfigPage() {
     'fuel':                     { status: fuelStatus() },
     'company-info':             { status: companyInfoStatus() },
     'road-allowances':          { status: countLabel(roadAllowances.data?.total, 'tuyến') },
+    'port-zone-surcharges':     { status: countLabel(portZoneSurcharges.data?.total, 'cảng') },
     'trip-expense':             { status: '5 mục', statusColor: '#10B981' },
     'penalty-reasons':          { status: countLabel(penaltyReasons.data?.total, 'quy tắc') },
     'drivers':                  { status: countLabel(drivers.data?.total, 'lái xe') },
@@ -133,6 +136,7 @@ export default function ConfigPage() {
 
   const cardQueries = {
     'fuel': fuelConfig, 'company-info': companyInfo, 'road-allowances': roadAllowances,
+    'port-zone-surcharges': portZoneSurcharges,
     'penalty-reasons': penaltyReasons, 'drivers': drivers, 'cap-table': capTable,
     'customers': customers, 'routes': routes, 'trucks': trucks, 'tire-positions': tirePositions,
     'trailers': trailers, 'cargo-types': cargoTypes, 'pricing-tables': pricingTables,

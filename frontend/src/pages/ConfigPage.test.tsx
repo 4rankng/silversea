@@ -11,7 +11,11 @@ vi.mock('../hooks/animations', () => ({ usePageAnimations: () => ({ rootRef: { c
 describe('configuration discovery and partial failures', () => {
   beforeEach(() => {
     state.role = 'ADMIN';
-    state.queries = Array.from({ length: 19 }, () => ({ data: { total: 3 }, isLoading: false, isError: false, isFetching: false, refetch: vi.fn().mockResolvedValue({}) }));
+    // Length must cover every query `ConfigPage` requests (currently 20 —
+    // the last is `freightRateTerms`); the mock returns a uniform { total: 3 }
+    // so index 0..N are all defined and the destructuring in ConfigPage never
+    // reads undefined. Bump when a query is added to the summary list.
+    state.queries = Array.from({ length: 20 }, () => ({ data: { total: 3 }, isLoading: false, isError: false, isFetching: false, refetch: vi.fn().mockResolvedValue({}) }));
   });
   const mount = () => render(<MemoryRouter><ConfigPage /></MemoryRouter>);
 
@@ -29,14 +33,16 @@ describe('configuration discovery and partial failures', () => {
   });
 
   it('shows failed summaries as unavailable, retains navigation, and retries only failed reads', () => {
-    state.queries[14] = { ...state.queries[14]!, data: undefined, isError: true };
+    // Company-info is the 16th query (index 15) in ConfigPage's summary list —
+    // index 14 is fuelConfig. Keep this in sync with the `useQueries` order.
+    state.queries[15] = { ...state.queries[15]!, data: undefined, isError: true };
     mount();
     const company = screen.getByRole('button', { name: /Thông tin công ty Tên pháp lý/ });
     expect(company).not.toBeDisabled();
     expect(within(company).getByText('Không tải được')).toBeVisible();
     expect(within(company).queryByText('Chưa cấu hình')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    expect(state.queries[14]!.refetch).toHaveBeenCalledTimes(1);
+    expect(state.queries[15]!.refetch).toHaveBeenCalledTimes(1);
     expect(state.queries[0]!.refetch).not.toHaveBeenCalled();
   });
 

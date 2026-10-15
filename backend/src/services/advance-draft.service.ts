@@ -25,7 +25,9 @@ export async function resolveAdvanceDraft(tx: Tx, input: {
   // settlement claims it — both conditions are enforced below. Every other
   // status stays refused with the same message, and the office side keeps its
   // DRAFT-only rule.
-  const ownerVoid = !office && input.action === 'void' && before.status === 'RECORDED';
+  // PENDING lọt vào cùng nhánh với RECORDED: yêu cầu Ops tạo ra (KP-148) chờ
+  // phê duyệt, chưa có tiền — chủ yêu cầu vẫn tự hủy được trước khi duyệt.
+  const ownerVoid = !office && input.action === 'void' && (before.status === 'RECORDED' || before.status === 'PENDING');
   if (before.status !== 'DRAFT' && !ownerVoid) throw new ApiError(409, 'Chỉ tạm ứng chưa ghi sổ được xử lý.');
   if (before.version !== input.expectedVersion) throw new ApiError(409, 'Tạm ứng đã thay đổi. Tải lại trước khi tiếp tục.');
   // "Chưa giao tiền" is the whole licence for that withdrawal, and this ledger

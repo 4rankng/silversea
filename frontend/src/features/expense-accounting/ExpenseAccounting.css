@@ -122,3 +122,9 @@
   .expense-work-table .num { text-align: start; white-space: normal; }
   .expense-work-table tr[data-vehicle-start="true"] td { border-top: 0; }
 }
+
+/* Card 20261005 — bảng nháp nhiều dòng của "Thêm khoản chi" (lưu một lần). */
+.expense-accounting-drafts { display: grid; gap: 12px; }
+.expense-accounting-draft-row { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
+.expense-accounting-draft-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.expense-accounting-draft-head h4 { margin: 0; font-size: var(--text-label-size); color: var(--fg-2); }

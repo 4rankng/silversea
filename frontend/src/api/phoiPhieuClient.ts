@@ -129,6 +129,38 @@ export async function updatePhoiPhieuMeta(tripId: number, body: {
   });
 }
 
+// Card 20261005 — ô "Cược" Bill/Book. Tra từ chính các lô hàng còn sống theo
+// 1–4 chữ số; server trả tối đa 10 dòng gợi ý.
+export interface BillBookMatch {
+  shipmentId: number;
+  reference: string;
+  shippingLineName: string | null;
+  customerName: string | null;
+}
+
+export async function searchBillBook(digits: string): Promise<{ items: BillBookMatch[] }> {
+  return api.get(`/shipments/bill-book-search?digits=${encodeURIComponent(digits)}`);
+}
+
+export async function setPhoiPhieuDeposit(tripId: number, body: {
+  depositShipmentId: number | null;
+  depositBillNumber: string | null;
+  expectedVersion: number;
+}): Promise<{ ok: true; version: number }> {
+  return api.put(`/expense-accounting/phoi-phieu/${tripId}/deposit`, body);
+}
+
+export interface PhoiPhieuDepositState {
+  depositBillNumber: string | null;
+  depositShipmentId: number | null;
+  depositCustomerName: string | null;
+  tripVersion: number;
+}
+
+export async function getPhoiPhieuDeposit(tripId: number): Promise<PhoiPhieuDepositState> {
+  return api.get(`/expense-accounting/phoi-phieu/${tripId}/deposit`);
+}
+
 export async function updatePhoiPhieuRowAmounts(tripId: number, sourceId: number, body: {
   expectedVersion: number; reason: string; amount?: number; customerChargeAmount?: number;
   payerUserId?: number | null;

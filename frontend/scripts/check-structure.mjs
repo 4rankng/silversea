@@ -456,6 +456,14 @@ const FROZEN_MAX_LOC = {
   // fresh token (request/requestOnce split + heal branch + dev warn).
   // Reviewed as a contract change; future splits should restore smaller.
   'src/lib/api/client.ts': 430,
+  // Baseline 432 (was new-file capped 400): 2026-10-14 card 20261005 — the
+  // chốt-debit layout rework. The selection strip moved up under the filter
+  // bar, pinned on scroll, and gained the two primary actions (Đối soát /
+  // Hoàn tác) over the current selection, plus the selectedRequestIds memo.
+  // Reviewed as a layout-only contract change (no business path moved); split
+  // candidate: extract the sticky selection strip into its own seam alongside
+  // columns.tsx / rounds.tsx to restore a smaller ceiling.
+  'src/pages/accounting/AccountingDebitClosePage.tsx': 432,
 };
 
 const SIZE_ROOTS = ['src/pages', 'src/features', 'src/components', 'src/hooks', 'src/api', 'src/lib', 'src/design-system', 'src/context'];
