@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
-// ─── FB-092: LCL lot grouping commands (DEV SPEC Hàng lẻ §II.2.2)
+// ─── FB-092/093: LCL lot grouping commands (DEV SPEC Hàng lẻ §II.2.2–§II.3)
 //
-// Grouping law (FB-092, COST dimension = cước trả ĐV): inside a group
-// `cost_group_order` 1 is the principal lot and carries 100% of the vendor
-// freight; members 2..N carry 0₫ (their live trip's money column is zeroed by
-// the grouping service). The REV dimension (cước thu khách) lands with FB-093
-// and reuses this same shape law.
+// Both money dimensions share one shape law: inside a group, `*_order` 1 is
+// the principal lot and carries 100% of that dimension's money; members 2..N
+// carry 0₫ (their live trip's money column is zeroed by the grouping service).
+//   COST = cước trả ĐV (dispatch assigns the truck, FB-092)
+//   REV  = cước thu khách (CUS merges the bill, FB-093, same customer only)
 //
 // These schemas are the single wire contract: routes validate with them and
 // the frontend clients import the inferred types.
@@ -29,14 +29,35 @@ export const assignLclCostGroupSchema = z.object({
 });
 export type AssignLclCostGroupInput = z.infer<typeof assignLclCostGroupSchema>;
 
-/** FB-092 — the money dimensions a lot group can live in (REV lands FB-093). */
+/** FB-093 — CUS "Ghép cước thu khách" (rev dimension, one customer only). */
+export const mergeLclRevGroupSchema = z.object({
+  /** Selected lots in operator order: index 0 becomes Lô 1 (100% cước thu). */
+  shipmentIds: shipmentIdList,
+  /** Loại xe tính cước thu khách — vehicle_size_classes.id (FB-090 catalog). */
+  vehicleSizeClassId: z.number().int().positive(),
+  /** BKS ảo chung nhóm. Omitted ⇒ copies the group's actual if already set. */
+  billingTruckNo: truckNo.optional(),
+});
+export type MergeLclRevGroupInput = z.infer<typeof mergeLclRevGroupSchema>;
+
+/** FB-092/093 — the money dimensions a lot group can live in. */
 export const LCL_GROUP_DIMENSIONS = ['COST', 'REV'] as const;
 export type LclGroupDimension = (typeof LCL_GROUP_DIMENSIONS)[number];
 
-/** Group facts every list surface renders the same way (FB-092 §display). */
+/** FB-093 — quick-edit of a lot's (or its whole cost group's) BKS pair. */
+export const updateLclTruckSchema = z.object({
+  shipmentId: z.number().int().positive(),
+  actualTruckNo: truckNo.optional(),
+  billingTruckNo: truckNo.optional(),
+});
+export type UpdateLclTruckInput = z.infer<typeof updateLclTruckSchema>;
+
+/** Group facts every list surface renders the same way (FB-092/093 §display). */
 export interface LclGroupWire {
   costGroupId: string | null;
   costGroupOrder: number | null;
+  revGroupId: string | null;
+  revGroupOrder: number | null;
   actualTruckNo: string | null;
   billingTruckNo: string | null;
   /** vehicle_size_classes.code, e.g. '5T' / 'CONT20' (null = chưa gán). */

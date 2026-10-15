@@ -1,13 +1,16 @@
 /**
- * FB-092 — LCL lot grouping service contracts (COST dimension).
+ * FB-092/093 — LCL lot grouping service contracts.
  *
- * Pins the cost group laws end-to-end at the service boundary (DB-backed):
- * assignment order → Lô 1..N, billing auto-copy from actual, the sourcing
- * rule (xe tải = 100% xe ngoài), and the money jump — members 2..N's live
- * trip external freight cost drops to 0.
+ * Pins the group laws end-to-end at the service boundary (DB-backed):
+ *   FB-092 cost group: assignment order → Lô 1..N, billing auto-copy from
+ *   actual, sourcing rule (xe tải = 100% xe ngoài), and the money jump —
+ *   members 2..N's live trip external freight cost drops to 0.
+ *   FB-093 rev group: same-customer validation, principal AUTO re-price from
+ *   the customer × route × class lane, member zeroing with reason
+ *   "Ghép cước cùng Bill X", plus the settlement row projection.
  *
- * The rev dimension (FB-093), the debit note/board (FB-094) and the
- * promote-on-unmerge safety (FB-095) add their cases to this same file.
+ * The debit note/board (FB-094) and the promote-on-unmerge safety (FB-095)
+ * add their cases to this same file.
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,8 +18,12 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { upsertTripCarrierInfo } from '../services/trip-composite.service';
-import { assignLclCostGroup } from '../services/lcl-grouping.service';
+import { upsertTripCarrierInfo, upsertTripFinancialState } from '../services/trip-composite.service';
+import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
+import {
+  assignLclCostGroup,
+  mergeLclRevGroup,
+} from '../services/lcl-grouping.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const actor = { userId: 1, role: 'ADMIN', actorName: 'FB092 test' };
@@ -213,6 +220,103 @@ describe('LCL grouping — FB-092 cost dimension', () => {
     );
   });
 });
+
+describe('LCL grouping — FB-093 rev dimension', () => {
+  test('prices the principal AUTO from the class lane, zeroes members with the Bill note (FB-093)', async () => {
+    const customer = await mkCustomer('FB093 rev');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB093-R1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB093-R2-${suffix.slice(-6)}`);
+    const trip1 = await mkTrip(lot1.id, customer.id, route.id);
+    const trip2 = await mkTrip(lot2.id, customer.id, route.id);
+    await upsertTripFinancialState(db, trip1.id, { revenue: '1000000' });
+    await upsertTripFinancialState(db, trip2.id, { revenue: '700000' });
+
+    const truckClass = await vehicleClassByCode('3.5T');
+    const [pricingRow] = await db.insert(s.pricingTables).values({
+      customerId: customer.id,
+      routeId: route.id,
+      vehicleSizeClassId: truckClass.id,
+      rateKey: truckClass.code,
+      price: '3150000',
+    }).returning();
+    createdPricingTableIds.push(pricingRow.id);
+
+    const result = await mergeLclRevGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+    }, actor);
+    assert.equal(result.memberCount, 2);
+
+    const rows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot2.id]));
+    for (const row of rows) {
+      assert.equal(row.revGroupId, result.groupId);
+      assert.equal(row.revVehicleClassId, truckClass.id);
+    }
+
+    // Principal = 100% CƯỚC VẬN TẢI (AUTO from the lane); member = 0₫ with
+    // the "Ghép cước cùng Bill X" stamp.
+    const t1 = await liveTrip(lot1.id);
+    const t2 = await liveTrip(lot2.id);
+    assert.equal(t1!.revenue, '3150000');
+    assert.equal(t2!.revenue, '0');
+    assert.equal(t2!.revenueOriginal, '700000');
+    assert.equal(t2!.revenueOverrideReason, `Ghép cước cùng Bill ${lot1.blNumber}`);
+
+    const events = await groupAuditEvents(lot1.id);
+    assert.ok(events.includes('SHIPMENT_LCL_REV_GROUP_MERGED'));
+  });
+
+  test('blocks merging lots of different customers (FB-093)', async () => {
+    const customerA = await mkCustomer('FB093 cust A');
+    const customerB = await mkCustomer('FB093 cust B');
+    const route = await mkRoute();
+    const lotA = await mkLclLot(customerA.id, route.id, `FB093-A-${suffix.slice(-6)}`);
+    const lotB = await mkLclLot(customerB.id, route.id, `FB093-B-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('5T');
+    await assert.rejects(
+      mergeLclRevGroup({ shipmentIds: [lotA.id, lotB.id], vehicleSizeClassId: truckClass.id }, actor),
+      /cùng một khách hàng/,
+    );
+  });
+});
+
+
+describe('LCL grouping — FB-093 debit-summary projection', () => {
+  test('rows carry cargoMode, both group facts, plates, class codes and the principal ref', async () => {
+    const customer = await mkCustomer('FB093 summary');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB093S-1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB093S-2-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('5T');
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-321.65',
+    }, actor);
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: truckClass.id }, actor);
+
+    const summary = await getShipmentDebitSummary({ lockStatus: 'ALL' });
+    const row1 = summary.items.find((item) => item.shipmentId === lot1.id);
+    const row2 = summary.items.find((item) => item.shipmentId === lot2.id);
+    assert.ok(row1 && row2, 'both grouped lots are on the board');
+    for (const row of [row1, row2]) {
+      assert.equal(row.cargoMode, 'LCL');
+      assert.equal(row.actualTruckNo, '29C-321.65');
+      assert.equal(row.billingTruckNo, '29C-321.65');
+      assert.equal(row.costVehicleClassCode, '5T');
+      assert.equal(row.revVehicleClassCode, '5T');
+      assert.equal(row.costGroupMemberCount, 2);
+      assert.equal(row.revGroupMemberCount, 2);
+    }
+    // The principal cites nobody; the member cites the principal's Bill.
+    assert.equal(row1.revGroupOrder, 1);
+    assert.equal(row1.revGroupPrincipalRef, null);
+    assert.equal(row2.revGroupOrder, 2);
+    assert.equal(row2.revGroupPrincipalRef, lot1.blNumber);
+  });
+});
+
 
 after(async () => {
   // Trips first (FKs), then carrier/financial sidecars ride the trip delete,

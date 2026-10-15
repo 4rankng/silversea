@@ -52,6 +52,24 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // persistence. Until then every lot reads OPEN.
   lockStatus: z.enum(['OPEN', 'LOCKED']),
   lockedAt: z.string().datetime().nullable(),
+  // ── FB-092/093 LCL grouping facts ────────────────────────────────────────
+  cargoMode: z.enum(['FCL', 'LCL']).nullable(),
+  costGroupId: z.string().nullable(),
+  costGroupOrder: z.number().int().nullable(),
+  revGroupId: z.string().nullable(),
+  revGroupOrder: z.number().int().nullable(),
+  // Group member count (either dimension; null when ungrouped).
+  costGroupMemberCount: z.number().int().nullable(),
+  revGroupMemberCount: z.number().int().nullable(),
+  actualTruckNo: z.string().nullable(),
+  billingTruckNo: z.string().nullable(),
+  // Loại xe tính cước — trả ĐV (cost) / thu khách (rev); codes like '5T'.
+  costVehicleClassCode: z.string().nullable(),
+  revVehicleClassCode: z.string().nullable(),
+  // The principal lot's Số Bill/Số Booking for "Ghép cước cùng Bill X" —
+  // null when ungrouped or when the row IS the principal.
+  revGroupPrincipalRef: z.string().nullable(),
+  costGroupPrincipalRef: z.string().nullable(),
 });
 
 export const shipmentDebitSummaryResponseSchema = z.object({

@@ -400,12 +400,13 @@ export function groupShipmentAppointmentGroups(
  * factory text — so both views can never disagree on the label for a site.
  */
 /**
- * FB-092 LCL grouping — each member row's group principal reference.
+ * FB-092/093 LCL grouping — each member row's group principal reference.
  *
- * Returns keys 'COST:<groupId>' → the principal lot's (order 1) Số Bill /
- * Số Booking. The lot's document reference is the display key (house law);
- * internal ids never are. Only groups that appear among the page's MEMBER
- * rows (order > 1) are resolved — a principal never cites itself.
+ * Returns keys 'COST:<groupId>' / 'REV:<groupId>' → the principal lot's
+ * (order 1) Số Bill / Số Booking. The lot's document reference is the display
+ * key (house law); internal ids never are. Only groups that appear among the
+ * page's MEMBER rows (order > 1) are resolved — a principal never cites
+ * itself.
  */
 export async function loadShipmentListGroupPrincipalRefs(
   shipments: Array<typeof s.shipments.$inferSelect>,
@@ -414,19 +415,33 @@ export async function loadShipmentListGroupPrincipalRefs(
     shipments.filter((sh) => sh.costGroupId != null && (sh.costGroupOrder ?? 1) > 1)
       .map((sh) => sh.costGroupId),
   )] as string[];
-  if (costGroupIds.length === 0) return new Map();
+  const revGroupIds = [...new Set(
+    shipments.filter((sh) => sh.revGroupId != null && (sh.revGroupOrder ?? 1) > 1)
+      .map((sh) => sh.revGroupId),
+  )] as string[];
+  if (costGroupIds.length === 0 && revGroupIds.length === 0) return new Map();
 
+  const principalConditions = [
+    ...costGroupIds.length > 0
+      ? [and(eq(s.shipments.costGroupOrder, 1), inArray(s.shipments.costGroupId, costGroupIds))!]
+      : [],
+    ...revGroupIds.length > 0
+      ? [and(eq(s.shipments.revGroupOrder, 1), inArray(s.shipments.revGroupId, revGroupIds))!]
+      : [],
+  ];
   const principals = await db.select({
     costGroupId: s.shipments.costGroupId,
+    revGroupId: s.shipments.revGroupId,
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
   }).from(s.shipments)
-    .where(and(eq(s.shipments.costGroupOrder, 1), inArray(s.shipments.costGroupId, costGroupIds)));
+    .where(or(...principalConditions));
 
   const refs = new Map<string, string>();
   for (const principal of principals) {
     const ref = principal.blNumber ?? principal.bookingRef;
     if (principal.costGroupId != null && ref != null) refs.set(`COST:${principal.costGroupId}`, ref);
+    if (principal.revGroupId != null && ref != null) refs.set(`REV:${principal.revGroupId}`, ref);
   }
   return refs;
 }
@@ -953,6 +968,8 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // FB-092 LCL grouping wire facts (flat, one shape for every surface).
     costGroupId: row.shipment.costGroupId,
     costGroupOrder: row.shipment.costGroupOrder,
+    revGroupId: row.shipment.revGroupId,
+    revGroupOrder: row.shipment.revGroupOrder,
     actualTruckNo: row.shipment.actualTruckNo,
     billingTruckNo: row.shipment.billingTruckNo,
     costVehicleClassId: row.shipment.costVehicleClassId,
@@ -968,6 +985,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // "Ghép cước cùng Bill X" — the PRINCIPAL lot's Số Bill/Số Booking of the
     // row's group (null when ungrouped or when the row IS the principal).
     costGroupPrincipalRef: groupPrincipalRefs.get(`COST:${row.shipment.costGroupId}`) ?? null,
+    revGroupPrincipalRef: groupPrincipalRefs.get(`REV:${row.shipment.revGroupId}`) ?? null,
     // Factory operating notes for the master-plan notes column.
     factoryNotes: row.factoryNotes,
     opsRecoveryNotes: opsRecoveryNotes.get(row.shipment.id) ?? [],

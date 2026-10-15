@@ -51,10 +51,12 @@ export const SHIPMENTS = {
   CUS_WORKSPACE_REOPEN_REQUEST: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/reopen-requests`,
   CUS_WORKSPACE_REOPEN_DECISION: (shipmentId: number, actionId: number) => `/shipments/cus-workspace/${shipmentId}/reopen-requests/${actionId}/decision`,
   RECOVERY_FACTS: (shipmentId: number) => `/shipments/${shipmentId}/recovery-facts`,
-  // FB-092 — LCL lot grouping command (cost = cước trả ĐV). POST-shaped on
-  // purpose: the /api/shipments mount maps DELETE to casbin's delete action,
-  // which CUS/DISPATCHER do not hold.
+  // FB-092/093 — LCL lot grouping commands (cost = cước trả ĐV, rev = cước
+  // thu khách). POST-shaped on purpose: the /api/shipments mount maps DELETE
+  // to casbin's delete action, which CUS/DISPATCHER do not hold.
   LCL_COST_GROUP: '/shipments/lcl/cost-group',
+  LCL_REV_GROUP: '/shipments/lcl/rev-group',
+  LCL_TRUCK: '/shipments/lcl/truck',
 } as const;
 
 // ─── Geotag (mobile phone GPS geotagging on photo submission) ─────────────────

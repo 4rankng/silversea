@@ -1039,6 +1039,13 @@
       "when": 1792010600000,
       "tag": "20261015110000_lcl_lot_grouping",
       "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1792010800000,
+      "tag": "20261015120000_lcl_lot_rev_grouping",
+      "breakpoints": true
     }
   ]
 }

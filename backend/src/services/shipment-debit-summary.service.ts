@@ -9,6 +9,7 @@
 // Debit-lock sync: 🔓/🔒 follows the shipment_cost_locks active lock (a lô
 // lock, NOT the kỳ kế toán lock) — LOCKED + lockedAt while one is active.
 import { and, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
@@ -42,6 +43,17 @@ export async function getShipmentDebitSummary(query: {
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
     tradeDirection: s.shipments.tradeDirection,
+    // FB-092/093 LCL grouping facts (read raw here; class codes + member
+    // counts resolve in the batched lookups below).
+    cargoMode: s.shipments.cargoMode,
+    costGroupId: s.shipments.costGroupId,
+    costGroupOrder: s.shipments.costGroupOrder,
+    revGroupId: s.shipments.revGroupId,
+    revGroupOrder: s.shipments.revGroupOrder,
+    actualTruckNo: s.shipments.actualTruckNo,
+    billingTruckNo: s.shipments.billingTruckNo,
+    costVehicleClassId: s.shipments.costVehicleClassId,
+    revVehicleClassId: s.shipments.revVehicleClassId,
   })
   .from(s.shipments)
   .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
@@ -50,6 +62,54 @@ export async function getShipmentDebitSummary(query: {
     .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
   if (lots.length === 0) return { items: [], total: 0, excludedCount: 0, excludedSum: '0' };
   const lotIds = lots.map((lot) => lot.id);
+
+  // FB-092/093 — vehicle class codes for both pricing dimensions (thu ≠ trả
+  // by design: the spec prices one group at "Thu: 3.5T | Trả: 10T").
+  const vehicleClassIds = [...new Set(
+    lots.flatMap((lot) => [lot.costVehicleClassId, lot.revVehicleClassId])
+      .filter((id): id is number => id != null),
+  )];
+  const vehicleClassCodesById = new Map(
+    vehicleClassIds.length === 0
+      ? []
+      : (await db.select({ id: s.vehicleSizeClasses.id, code: s.vehicleSizeClasses.code })
+        .from(s.vehicleSizeClasses)
+        .where(inArray(s.vehicleSizeClasses.id, vehicleClassIds)))
+        .map((row) => [row.id, row.code] as const),
+  );
+  // Group member counts + each member's principal reference, both dimensions.
+  const costGroupIds = [...new Set(lots.map((lot) => lot.costGroupId).filter((id): id is string => id != null))];
+  const revGroupIds = [...new Set(lots.map((lot) => lot.revGroupId).filter((id): id is string => id != null))];
+  const countGroups = async (groupIds: string[], column: AnyPgColumn) => {
+    if (groupIds.length === 0) return new Map<string, number>();
+    const rows = await db.select({ groupId: column, memberCount: sql<number>`count(*)` })
+      .from(s.shipments)
+      .where(inArray(column, groupIds))
+      .groupBy(column);
+    return new Map(rows.map((row) => [row.groupId as string, Number(row.memberCount)] as const));
+  };
+  const loadPrincipalRefs = async (
+    groupIds: string[],
+    groupColumn: AnyPgColumn,
+    orderColumn: AnyPgColumn,
+  ): Promise<Map<string, string>> => {
+    if (groupIds.length === 0) return new Map();
+    const principals = await db.select({
+      groupId: groupColumn,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+    }).from(s.shipments)
+      .where(and(eq(orderColumn, 1), inArray(groupColumn, groupIds)));
+    return new Map(principals
+      .map((row) => [row.groupId!, row.blNumber ?? row.bookingRef ?? ''] as const)
+      .filter(([, ref]) => ref !== ''));
+  };
+  const [costGroupCounts, revGroupCounts, costPrincipalRefs, revPrincipalRefs] = await Promise.all([
+    countGroups(costGroupIds, s.shipments.costGroupId),
+    countGroups(revGroupIds, s.shipments.revGroupId),
+    loadPrincipalRefs(costGroupIds, s.shipments.costGroupId, s.shipments.costGroupOrder),
+    loadPrincipalRefs(revGroupIds, s.shipments.revGroupId, s.shipments.revGroupOrder),
+  ]);
 
   const declarations = await db.select({
     shipmentId: s.shipmentDeclarations.shipmentId,
@@ -342,6 +402,29 @@ export async function getShipmentDebitSummary(query: {
       profit: profit == null ? null : String(profit),
       lockStatus: (lock != null ? 'LOCKED' : 'OPEN') as 'LOCKED' | 'OPEN',
       lockedAt: lock?.lockedAt.toISOString() ?? null,
+      // FB-092/093 LCL grouping facts.
+      cargoMode: lot.cargoMode ?? null,
+      costGroupId: lot.costGroupId,
+      costGroupOrder: lot.costGroupOrder,
+      revGroupId: lot.revGroupId,
+      revGroupOrder: lot.revGroupOrder,
+      costGroupMemberCount: lot.costGroupId != null ? costGroupCounts.get(lot.costGroupId) ?? null : null,
+      revGroupMemberCount: lot.revGroupId != null ? revGroupCounts.get(lot.revGroupId) ?? null : null,
+      actualTruckNo: lot.actualTruckNo,
+      billingTruckNo: lot.billingTruckNo,
+      costVehicleClassCode: lot.costVehicleClassId != null
+        ? vehicleClassCodesById.get(lot.costVehicleClassId) ?? null
+        : null,
+      revVehicleClassCode: lot.revVehicleClassId != null
+        ? vehicleClassCodesById.get(lot.revVehicleClassId) ?? null
+        : null,
+      // Members cite their principal's Bill/Booking; a principal cites nothing.
+      costGroupPrincipalRef: lot.costGroupId != null && (lot.costGroupOrder ?? 1) > 1
+        ? costPrincipalRefs.get(lot.costGroupId) ?? null
+        : null,
+      revGroupPrincipalRef: lot.revGroupId != null && (lot.revGroupOrder ?? 1) > 1
+        ? revPrincipalRefs.get(lot.revGroupId) ?? null
+        : null,
     };
   });
   const visible = query.lockStatus === 'ALL'

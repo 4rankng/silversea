@@ -1,26 +1,35 @@
 /**
- * LCL lot grouping (FB-092, DEV SPEC Hàng lẻ §II.2.2).
+ * LCL lot grouping (FB-092/093, DEV SPEC Hàng lẻ §II.2.2–§II.3).
  *
  * One lô may share a physical truck with other lôs. Two independent money
- * dimensions group independently on `shipments`; this ticket lands the COST
- * one — cước trả ĐV — that dispatch assigns with "Gán xe nhóm": one truck to
- * N lots. Lô 1 (order 1) keeps 100% of the vendor freight; Lô 2..N's live
- * trip external_freight_cost is zeroed ("nhảy tiền").
+ * dimensions group independently on `shipments`:
+ *   COST — cước trả ĐV: dispatch assigns one truck to N lots ("Gán xe nhóm",
+ *          FB-092). Lô 1 keeps 100% of the vendor freight; Lô 2..N's live
+ *          trip external_freight_cost is zeroed.
+ *   REV  — cước thu khách: CUS merges N same-customer lots into one bill
+ *          (FB-093). Lô 1 keeps 100% of CƯỚC VẬN TẢI (AUTO-priced by the
+ *          chosen vehicle class); Lô 2..N's live trip revenue is zeroed with
+ *          the override reason "Ghép cước cùng Bill X".
  *
- * The REV dimension (cước thu khách, FB-093) and the promote-on-unmerge
- * safety law (FB-095) land on this same service.
+ * The promote-on-unmerge safety law (FB-095) lands on this same service.
  */
-import { and, eq, inArray, isNull, ne, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db, type Tx } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { lclVehicleSourcingRule, LclVehicleSourcing } from '@tingting/shared';
-import type { AssignLclCostGroupInput } from '@tingting/shared';
+import type {
+  AssignLclCostGroupInput,
+  LclGroupDimension,
+  MergeLclRevGroupInput,
+  UpdateLclTruckInput,
+} from '@tingting/shared';
 import { AuditEvent } from './audit-types';
 import { persistAuditInTransaction } from './audit.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
-import { upsertTripCarrierInfo } from './trip-composite.service';
+import { upsertTripCarrierInfo, upsertTripFinancialState } from './trip-composite.service';
+import { resolveCustomerVehicleClassPrice } from './pricing.service';
 
 export interface LclGroupActor {
   userId: number;
@@ -48,6 +57,8 @@ interface LiveTripFacts {
   tripId: number;
   status: string;
   externalFreightCost: string | null;
+  revenue: string | null;
+  revenueOriginal: string | null;
 }
 
 async function loadLiveTripFactsByShipment(
@@ -64,9 +75,12 @@ async function loadLiveTripFactsByShipment(
     tripId: s.trips.id,
     status: s.trips.status,
     externalFreightCost: s.tripCarrierInfo.externalFreightCost,
+    revenue: s.tripFinancialState.revenue,
+    revenueOriginal: s.tripFinancialState.revenueOriginal,
   }).from(s.trips)
     .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
     .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
     .where(and(
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
@@ -84,6 +98,8 @@ async function loadLiveTripFactsByShipment(
         tripId: row.tripId,
         status: row.status ?? 'CREATED',
         externalFreightCost: row.externalFreightCost,
+        revenue: row.revenue,
+        revenueOriginal: row.revenueOriginal,
       });
     }
   }
@@ -103,8 +119,8 @@ function lotReference(shipment: ShipmentRow): string {
   return shipment.blNumber ?? shipment.bookingRef ?? shipment.shipmentCode ?? `Lô #${shipment.id}`;
 }
 
-/** Every selected lot must be a live LCL lot that is not already grouped. */
-function assertGroupable(rows: ShipmentRow[], shipmentIds: number[]): void {
+/** Every selected lot must be a live LCL lot not already grouped in this dimension. */
+function assertGroupable(rows: ShipmentRow[], shipmentIds: number[], dimension: LclGroupDimension): void {
   if (rows.length !== shipmentIds.length) {
     throw new ApiError(404, 'Có lô không tồn tại hoặc đã bị xóa trong danh sách ghép');
   }
@@ -112,7 +128,8 @@ function assertGroupable(rows: ShipmentRow[], shipmentIds: number[]): void {
     if (row.cargoMode !== 'LCL') {
       throw new ApiError(400, `Lô ${lotReference(row)} không phải hàng lẻ — chỉ gom được các lô LCL`);
     }
-    if (row.costGroupId != null) {
+    const groupId = dimension === 'COST' ? row.costGroupId : row.revGroupId;
+    if (groupId != null) {
       throw new ApiError(409, `Lô ${lotReference(row)} đã thuộc nhóm ghép — tách khỏi nhóm trước khi gom lại`);
     }
   }
@@ -173,7 +190,7 @@ export async function assignLclCostGroup(
       throw new ApiError(400, 'Nhóm ghép cần ít nhất 2 lô');
     }
     const rows = await lockShipments(tx, input.shipmentIds);
-    assertGroupable(rows, input.shipmentIds);
+    assertGroupable(rows, input.shipmentIds, 'COST');
     const vehicleClass = await loadVehicleClass(tx, input.vehicleSizeClassId);
     const actualTruckNo = input.actualTruckNo.trim();
     const billingTruckNo = (input.billingTruckNo?.trim() || actualTruckNo);
@@ -236,5 +253,162 @@ export async function assignLclCostGroup(
         reference: lotReference(row),
       })),
     };
+  });
+}
+
+/**
+ * FB-093 — CUS "Ghép cước thu khách" (REV dimension).
+ *
+ * Only same-customer lots may share a bill. Lô 1 keeps 100% of CƯỚC VẬN TẢI —
+ * re-priced AUTO from the customer × route × vehicle-class lane when one
+ * exists — while members 2..N are zeroed with reason "Ghép cước cùng Bill X".
+ */
+export async function mergeLclRevGroup(
+  input: MergeLclRevGroupInput,
+  actor: LclGroupActor,
+): Promise<LclGroupAssignResult> {
+  return db.transaction(async (tx) => {
+    if (input.shipmentIds.length < 2) {
+      throw new ApiError(400, 'Nhóm ghép cần ít nhất 2 lô');
+    }
+    const rows = await lockShipments(tx, input.shipmentIds);
+    assertGroupable(rows, input.shipmentIds, 'REV');
+    const vehicleClass = await loadVehicleClass(tx, input.vehicleSizeClassId);
+
+    const customerId = rows[0]!.customerId;
+    if (customerId == null || rows.some((row) => row.customerId !== customerId)) {
+      const names = new Map(rows.map((row) => [row.id, lotReference(row)]));
+      throw new ApiError(400, `Chỉ ghép cước thu được các lô của cùng một khách hàng — lô ${input.shipmentIds.map((id) => names.get(id)).join(', ')} khác khách hàng`);
+    }
+
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const ordered = input.shipmentIds.map((id) => byId.get(id)!);
+    const tripFacts = await loadLiveTripFactsByShipment(tx, ordered.map((row) => row.id));
+    await assertMergeableMoney(tx, ordered, tripFacts);
+
+    const groupId = randomUUID();
+    const principalRef = lotReference(ordered[0]!);
+    // BKS ảo chung nhóm: explicit input wins; else keep the lot's existing
+    // billing; else copy the actual BKS a cost-group assignment may have set.
+    const billingTruckNo = input.billingTruckNo?.trim()
+      || ordered[0]!.billingTruckNo?.trim()
+      || ordered[0]!.actualTruckNo?.trim()
+      || null;
+
+    for (const [index, row] of ordered.entries()) {
+      await tx.update(s.shipments).set({
+        revGroupId: groupId,
+        revGroupOrder: index + 1,
+        revVehicleClassId: vehicleClass.id,
+        ...(billingTruckNo != null ? { billingTruckNo } : {}),
+        version: row.version + 1,
+        updatedBy: actor.userId,
+        updatedAt: new Date(),
+      }).where(eq(s.shipments.id, row.id));
+
+      const trip = tripFacts.get(row.id);
+      if (!trip) continue;
+      if (index === 0) {
+        // Lô 1 = 100% CƯỚC VẬN TẢI (AUTO): resolve the customer × route ×
+        // class lane at the lot's delivery date. No lane ⇒ keep the current
+        // revenue (MANUAL semantics; the pricing lookup never throws).
+        if (row.routeId != null && row.expectedDeliveryDate != null) {
+          const price = await resolveCustomerVehicleClassPrice({
+            customerId,
+            routeId: row.routeId,
+            vehicleSizeClassId: vehicleClass.id,
+            date: row.expectedDeliveryDate,
+          });
+          if (price != null) {
+            await upsertTripFinancialState(tx, trip.tripId, { revenue: String(price.price) });
+          }
+        }
+      } else {
+        // Members 2..N = 0₫, stamped with the standard override markers so
+        // accounting can always answer "why is this zero" (card law: a
+        // computed financial zero is a value — it must cite its reason).
+        const previous = trip.revenueOriginal ?? trip.revenue ?? '0';
+        await upsertTripFinancialState(tx, trip.tripId, {
+          revenue: '0',
+          revenueOriginal: previous,
+          revenueOverriddenBy: actor.userId,
+          revenueOverriddenAt: new Date(),
+          revenueOverrideReason: `Ghép cước cùng Bill ${principalRef}`,
+        });
+      }
+    }
+
+    await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_LCL_REV_GROUP_MERGED, ordered[0]!, {
+      dimension: 'REV',
+      groupId,
+      memberCount: ordered.length,
+      vehicleClassCode: vehicleClass.code,
+      customerId,
+      principalRef,
+      members: ordered.map((row, index) => ({ shipmentId: row.id, order: index + 1 })),
+    });
+
+    return {
+      groupId,
+      memberCount: ordered.length,
+      members: ordered.map((row, index) => ({
+        shipmentId: row.id,
+        order: index + 1,
+        reference: lotReference(row),
+      })),
+    };
+  });
+}
+
+/**
+ * FB-093 — quick-edit the BKS pair from the settlement screen. The truck is
+ * the COST group's shared identity, so an edit rewrites every live member of
+ * the lot's cost group (the lot alone when ungrouped). The rev dimension's
+ * billing copy follows only when the caller names it.
+ */
+export async function updateLclGroupTruck(
+  input: UpdateLclTruckInput,
+  actor: LclGroupActor,
+): Promise<{ updatedShipmentIds: number[] }> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(s.shipments)
+      .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update');
+    if (!row) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    if (input.actualTruckNo == null && input.billingTruckNo == null) {
+      throw new ApiError(400, 'Không có gì để cập nhật — truyền BKS thực hoặc BKS báo khách');
+    }
+    await assertShipmentAccountingUnlocked(tx, row.id);
+
+    // The cost group shares one physical truck; ungrouped edits touch the lot.
+    const targets = row.costGroupId != null
+      ? await tx.select().from(s.shipments)
+        .where(and(eq(s.shipments.costGroupId, row.costGroupId), isNull(s.shipments.deletedAt)))
+        .orderBy(asc(s.shipments.id))
+        .for('update')
+      : [row];
+
+    const patch: Partial<typeof s.shipments.$inferInsert> = {
+      updatedBy: actor.userId,
+      updatedAt: new Date(),
+    };
+    if (input.actualTruckNo != null) patch.actualTruckNo = input.actualTruckNo;
+    if (input.billingTruckNo != null) patch.billingTruckNo = input.billingTruckNo;
+
+    const updatedIds: number[] = [];
+    for (const target of targets) {
+      await tx.update(s.shipments).set({ ...patch, version: target.version + 1 })
+        .where(eq(s.shipments.id, target.id));
+      updatedIds.push(target.id);
+    }
+
+    await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_UPDATED, row, {
+      dimension: 'COST',
+      action: 'truck-quick-edit',
+      updatedShipmentIds: updatedIds,
+      actualTruckNo: input.actualTruckNo ?? undefined,
+      billingTruckNo: input.billingTruckNo ?? undefined,
+    });
+    return { updatedShipmentIds: updatedIds };
   });
 }

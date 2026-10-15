@@ -141,6 +141,7 @@ const templates: Record<string, (c: TemplateContext) => string> = {
   [AuditEvent.SHIPMENT_DOCUMENT_UPLOADED]: (c) => `${subj(c)} đã đính kèm tài liệu cho lô hàng${c.entityKey ? ` ${c.entityKey}` : ''}`,
   [AuditEvent.SHIPMENT_CONTAINERS_UPDATED]: (c) => `${subj(c)} đã cập nhật danh sách container của lô hàng${c.entityKey ? ` ${c.entityKey}` : ''}`,
   [AuditEvent.SHIPMENT_LCL_COST_GROUP_ASSIGNED]: (c) => `${subj(c)} đã gán nhóm xe trả ĐV cho lô hàng lẻ${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  [AuditEvent.SHIPMENT_LCL_REV_GROUP_MERGED]: (c) => `${subj(c)} đã ghép cước thu khách cho nhóm lô lẻ${c.entityKey ? ` ${c.entityKey}` : ''}`,
   [AuditEvent.SHIPMENT_DELETED]: (c) => `${subj(c)} đã xóa lô hàng${c.entityKey ? ` ${c.entityKey}` : ''}`,
 
   [AuditEvent.PAYMENT_RECEIVED]: (c) => `${subj(c)} đã ghi nhận thanh toán${c.entityKey ? ` ${c.entityKey}` : ''}`,

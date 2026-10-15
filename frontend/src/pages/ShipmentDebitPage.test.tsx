@@ -207,7 +207,9 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     // Unknown money (freight/receivable/payable/profit on row 2, payable on
     // row 1) stays "Chưa xác định" — null never renders as 0.
     expect(screen.getAllByText('Chưa xác định').length).toBeGreaterThanOrEqual(5);
-    // The locked row selects on click; the open row ignores clicks.
+    // The locked row selects on click. FB-093 widened selection to OPEN rows
+    // too (merging cước thu is a pre-lock action); the export button still
+    // ignores open-only selections (see the dedicated export tests below).
     const lockedRow = screen.getAllByText('BL-1')[0].closest('tr')!;
     expect(lockedRow.getAttribute('data-locked')).toBe('');
     expect(lockedRow.getAttribute('data-selected')).toBeNull();

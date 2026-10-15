@@ -70,6 +70,11 @@ export const shipments = pgTable('shipments', {
   // trip's external_freight_cost is zeroed by the grouping service.
   costGroupId: varchar('cost_group_id', { length: 36 }),
   costGroupOrder: integer('cost_group_order'),
+  // FB-093 — the REV group (cước thu khách, CUS side). `rev_group_order` 1 is
+  // the principal lot carrying 100% of CƯỚC VẬN TẢI; members 2..N carry 0₫
+  // with the override reason "Ghép cước cùng Bill X".
+  revGroupId: varchar('rev_group_id', { length: 36 }),
+  revGroupOrder: integer('rev_group_order'),
   // The group's truck identity. actualTruckNo = BKS thực (what runs the
   // lane); billingTruckNo = BKS báo khách ("xe ảo", FB-092) — what the
   // customer is told. Billing auto-copies actual at assignment and may
@@ -82,6 +87,10 @@ export const shipments = pgTable('shipments', {
   // cross-file link enforced by the grouping service, matching
   // trips.activeTripPairId's house pattern.
   costVehicleClassId: integer('cost_vehicle_class_id'),
+  // Loại xe tính cước THU khách (FB-093). Separate link on purpose: the spec
+  // prices one group at "Thu: Xe 3.5T | Trả: Xe 10T" — the two classes must
+  // never alias.
+  revVehicleClassId: integer('rev_vehicle_class_id'),
   contactName: varchar('contact_name', { length: 100 }),
   contactPhone: varchar('contact_phone', { length: 20 }),
   createdBy: integer('created_by'),
@@ -102,9 +111,10 @@ export const shipments = pgTable('shipments', {
   index('shipments_status_idx').on(table.status),
   index('shipments_operational_site_idx').on(table.operationalSiteId),
   index('shipments_pickup_warehouse_idx').on(table.pickupWarehouseSiteId),
-  // FB-092 LCL grouping: group members are always fetched together,
-  // so the cost group key gets its own index.
+  // FB-092/093 LCL grouping: group members are always fetched together (and the
+  // debit board filters by group), so both group keys get their own index.
   index('shipments_cost_group_idx').on(table.costGroupId),
+  index('shipments_rev_group_idx').on(table.revGroupId),
 ]);
 
 

@@ -82,6 +82,8 @@ registerAuditEvent('PUT', '/api/shipments/', '', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('PATCH', '/api/shipments/', '/dispatch-detail-plan-rows/', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('DELETE', '/api/shipments/', '', AuditEvent.SHIPMENT_DELETED);
 registerAuditEvent('POST', '/api/shipments/lcl/cost-group', AuditEvent.SHIPMENT_LCL_COST_GROUP_ASSIGNED);
+registerAuditEvent('POST', '/api/shipments/lcl/rev-group', AuditEvent.SHIPMENT_LCL_REV_GROUP_MERGED);
+registerAuditEvent('POST', '/api/shipments/lcl/truck', AuditEvent.SHIPMENT_UPDATED);
 // Master-data CRUD: creating a factory/warehouse from the intake form is an
 // entity-level change, not a shipment-lifecycle event, so it uses ENTITY_*.
 registerAuditEvent('POST', '/api/shipments/operational-sites', AuditEvent.ENTITY_CREATED);

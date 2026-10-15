@@ -226,6 +226,23 @@ export async function assignLclCostGroup(input: {
   );
 }
 
+/** FB-093 — merge the selected same-customer LCL lots into one bill (rev group). */
+export async function mergeLclRevGroup(input: {
+  shipmentIds: number[];
+  vehicleSizeClassId: number;
+  billingTruckNo?: string;
+}) {
+  return api.post<{ groupId: string; memberCount: number; members: Array<{ shipmentId: number; order: number; reference: string }> }>(
+    SHIPMENTS.LCL_REV_GROUP,
+    input,
+  );
+}
+
+/** FB-093 — quick-edit a lot's (or its cost group's) BKS pair. */
+export async function updateLclTruck(input: { shipmentId: number; actualTruckNo?: string; billingTruckNo?: string }) {
+  return api.post<{ updatedShipmentIds: number[] }>(SHIPMENTS.LCL_TRUCK, input);
+}
+
 export interface DispatchDetailPlanRow {
   fulfillmentId: number;
   version: number;
