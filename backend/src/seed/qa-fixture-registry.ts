@@ -112,23 +112,6 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     guards: [{ table: 'settlement_expenses', column: 'settlement_id' }],
   },
   {
-    // KP-148 funding pair of approved QA advance requests: the treasury OUT
-    // row is found through its ledger link (physical_reference is TU-<id>,
-    // not QA-prefixed).
-    table: 'treasury_movements',
-    label: 'QA advance funding treasury OUT rows',
-    predicate: `ledger_entry_id IN (SELECT id FROM ledger WHERE note ILIKE '%QA-W1-%')`,
-    action: 'hard-delete-guarded',
-    guards: [{ table: 'deposit_refund_trackers', column: 'refund_posted_movement_id' }],
-  },
-  {
-    table: 'ledger',
-    label: 'QA advance funding ledger rows (QA-W1 in note)',
-    predicate: `note ILIKE '%QA-W1-%'`,
-    action: 'hard-delete-guarded',
-    guards: [{ table: 'treasury_movements', column: 'ledger_entry_id' }],
-  },
-  {
     table: 'advance_requests',
     label: 'QA advance requests',
     predicate: `reason ILIKE 'QA%' OR requester_name_snapshot ILIKE 'QA%'`,
@@ -234,15 +217,18 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   },
   {
     table: 'ledger',
-    label: 'QA-signed ledger adjustments (QA0922 fixture family in note)',
-    predicate: `note ILIKE '%QA0922-%'`,
+    label: 'QA-signed ledger adjustments (QA0922 + W1 funding families in note)',
+    predicate: `note ILIKE '%QA0922-%' OR note ILIKE '%QA-W1-%'`,
     action: 'hard-delete-guarded',
     guards: [{ table: 'treasury_movements', column: 'ledger_entry_id' }],
   },
   {
+    // treasury half of the QA0922 adjustments (QA-prefixed references) plus
+    // the W1 advance-funding OUT rows, which are found through their ledger
+    // link (physical_reference is TU-<id>, not QA-prefixed).
     table: 'treasury_movements',
-    label: 'QA treasury movements',
-    predicate: `physical_reference ILIKE 'QA%' OR external_reference ILIKE 'QA%'`,
+    label: 'QA treasury movements (QA refs + W1 funding OUT rows via ledger)',
+    predicate: `physical_reference ILIKE 'QA%' OR external_reference ILIKE 'QA%' OR ledger_entry_id IN (SELECT id FROM ledger WHERE note ILIKE '%QA-W1-%')`,
     action: 'hard-delete-guarded',
     guards: [{ table: 'deposit_refund_trackers', column: 'refund_posted_movement_id' }],
   },

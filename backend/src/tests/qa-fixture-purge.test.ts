@@ -32,6 +32,8 @@ describe('QA fixture purge', () => {
     for (const surface of QA_FIXTURE_REGISTRY) {
       const gated = surface.predicate.includes("ILIKE 'QA%'")
         || surface.predicate.includes("ILIKE '%QA0922-%'")
+        || surface.predicate.includes("ILIKE '%QA-W1-%'")
+        || surface.predicate.includes('year = 2099')
         || (surface.action === 'scrub' && surface.predicate.includes("ILIKE '%QA%'"));
       strict.ok(gated, `predicate not QA-gated: ${surface.table}`);
       strict.ok(validActions.includes(surface.action), `invalid action: ${surface.table}`);
