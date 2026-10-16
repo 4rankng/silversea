@@ -90,6 +90,7 @@ describe('getNavItems', () => {
       ['Tạm ứng & hoàn ứng', '/advances'],
       ['Báo cáo hoàn ứng', '/accounting/hoan-ung'],
       ['Lương & Chấm công', '/salary'],
+      ['Chấm công lái xe', '/timesheet'],
       ['Đối chiếu chấm công', '/timesheet/doi-chieu'],
       ['Danh sách nhân sự', '/hr/roster'],
       ['Giá dầu theo kỳ', '/config/fuel-price-periods'],
@@ -238,7 +239,7 @@ describe('getNavItems', () => {
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet/doi-chieu', '/hr/roster',
+      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet', '/timesheet/doi-chieu', '/hr/roster',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/audit-logs',
     ]);
@@ -405,7 +406,7 @@ describe('kế toán danh mục (spec 5.10)', () => {
     expect(itemsFor(Role.MANAGER, 'hr')).toEqual(['salary', 'timesheet', 'hr-roster', 'penalties']);
 
     expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'timesheet-reconciliation', 'hr-roster']);
+    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'timesheet', 'timesheet-reconciliation', 'hr-roster']);
 
     expect(itemsFor(Role.ACCOUNTANT, PHƠI_PHIEU)).toEqual([
       'invoice-tracking', 'deposit-tracker', 'phoi-phieu', 'chot-debit',
@@ -490,7 +491,7 @@ describe('kế toán danh mục (spec 5.10)', () => {
     // a real destination and the danh mục must not render empty for them.
     // /hr/roster joins it with the same guard (card 385 rework).
     expect(itemsFor(Role.ACCOUNTANT, KHÁC)).toEqual([]);
-    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'timesheet-reconciliation', 'hr-roster']);
+    expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'timesheet', 'timesheet-reconciliation', 'hr-roster']);
     expect(getNavSections(Role.ACCOUNTANT).map((section) => section.key)).toContain(KHÁC);
   });
 });

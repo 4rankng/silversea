@@ -262,9 +262,10 @@ function buildNavItems(
         // Khác placement. /salary stays officeStaffOnly (real destination,
         // not a dead link); the Khác section self-hides when empty.
         { key: 'salary', path: routes.salary, icon: CalendarDays, section: 'hr' as SectionName },
-        // Chấm công lái xe (2026-10-14). Kế toán reaches the RECONCILIATION
-        // board; the entry grid is dispatchOnly and stays out of this menu
-        // (App.nav-sweep pins nav == guard).
+        // Chấm công lái xe (2026-10-14). FB-101 (card 141026230780): mục grid
+        // KHÔNG còn bị ẩn với kế toán — xem lưới tại đây (chỉ xem; ghi lưới là
+        // việc của Điều vận), đối chiếu ở bàn kế toán bên dưới.
+        { key: 'timesheet', path: routes.timesheet, icon: CalendarDays, section: 'hr' as SectionName },
         { key: 'timesheet-reconciliation', path: routes.timesheetReconciliation, icon: ClipboardCheck, section: 'hr' as SectionName },
         { key: 'hr-roster', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
 

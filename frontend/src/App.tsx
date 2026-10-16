@@ -254,6 +254,14 @@ export function AppRoutes() {
       ? el
       : <DeniedRedirect to={homeRedirect} />
   );
+  // FB-101 (card 141026230780) — chấm công KHÔNG bị ẩn với kế toán: lưới xem
+  // được cho cả ACCOUNTANT (ghi lưới vẫn là việc của Điều vận — backend
+  // dispatcherOrAbove); đối chiếu ở /timesheet/doi-chieu.
+  const timesheetStaffOnly = (el: ReactElement) => (
+    isAdmin || currentRole === Role.MANAGER || isDispatcher || currentRole === Role.ACCOUNTANT
+      ? el
+      : <DeniedRedirect to={homeRedirect} />
+  );
   // Trip drill-down is shared by dispatch planning and office audit. The
   // PRD pins "Vận hành liên quan" (fleet/trips/shipments) as visible — and
   // therefore reachable — for ACCOUNTANT, and backend Casbin already grants
@@ -491,8 +499,9 @@ export function AppRoutes() {
           <Route path="/payables/:id" element={financeReaderOnly(page(<PayableDetailPage />))} />
           <Route path="/salary" element={officeStaffOnly(page(<SalaryAttendancePage />))} />
           {/* Chấm công lái xe (2026-10-14): Điều vận fills the symbol grid;
-              Kế toán reconciles on the companion board. */}
-          <Route path="/timesheet" element={dispatchOnly(page(<TimesheetGridPage />))} />
+              Kế toán reconciles on the companion board. FB-101 — lưới mở cho
+              cả kế toán (chỉ xem), mục không còn bị ẩn với vai trò này. */}
+          <Route path="/timesheet" element={timesheetStaffOnly(page(<TimesheetGridPage />))} />
           <Route path="/timesheet/doi-chieu" element={accountantOnly(page(<TimesheetReconciliationPage />))} />
           <Route path="/users" element={userAdminOnly(page(<UsersPage />))} />
           <Route path="/hr/roster" element={officeStaffOnly(page(<HrRosterPage />))} />

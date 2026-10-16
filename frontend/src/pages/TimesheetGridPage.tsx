@@ -7,13 +7,14 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { TIMESHEET_SYMBOL_RULES, countDayTrips, type TimesheetSymbol } from '@tingting/shared';
+import { Role, TIMESHEET_SYMBOL_RULES, countDayTrips, type TimesheetSymbol } from '@tingting/shared';
 import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 
 import { Btn, PageHeader } from '../components/UI';
 import { SummaryRail } from '../design-system';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { useMonthRoute } from '../design-system/hooks/useMonthRoute';
+import { useAuth } from '../hooks/useAuth';
 import { TimesheetGridCell, type TimesheetMove } from '../features/timesheet/TimesheetGrid';
 import { qk } from '../api/keys';
 import {
@@ -35,6 +36,11 @@ export default function TimesheetGridPage() {
   const { month, year, goPrev, goNext } = useMonthRoute();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  // FB-101 — kế toán xem được lưới (mục không còn bị ẩn) nhưng KHÔNG ghi ký
+  // hiệu: backend chặn ghi lưới ngoài dispatcherOrAbove. Ô để read-only, nút
+  // "Lưu lưới" chỉ hiện cho vai trò ghi được.
+  const { user } = useAuth();
+  const canEditGrid = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER;
   const cellRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const [driverId, setDriverId] = useState<number | null>(null);
@@ -120,9 +126,11 @@ export default function TimesheetGridPage() {
       <PageHeader
         title="Chấm công lái xe"
         action={
-          <Btn onClick={() => saveMutation.mutate(Object.entries(pending).map(([workDate, symbol]) => ({ workDate, symbol })))} disabled={!dirty || saveMutation.isPending}>
-            <Save size={16} /> Lưu lưới
-          </Btn>
+          canEditGrid ? (
+            <Btn onClick={() => saveMutation.mutate(Object.entries(pending).map(([workDate, symbol]) => ({ workDate, symbol })))} disabled={!dirty || saveMutation.isPending}>
+              <Save size={16} /> Lưu lưới
+            </Btn>
+          ) : undefined
         }
       />
 
@@ -181,6 +189,7 @@ export default function TimesheetGridPage() {
                         {day && (
                           <TimesheetGridCell
                             day={day}
+                            readOnly={!canEditGrid}
                             registerRef={element => {
                               cellRefs.current[days.findIndex(row => row.workDate === day.workDate)] = element;
                             }}
