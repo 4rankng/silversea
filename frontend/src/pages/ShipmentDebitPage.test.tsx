@@ -405,6 +405,9 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     listSummary.mockResolvedValue({ items: [row()], total: 1, excludedCount: 2, excludedSum: '1150000' });
     renderPage('/shipments-debit?customer=1');
     expect(await screen.findByText(/2 chuyến chưa gán đầu việc vận chuyển — 1\.150\.000 ₫ chưa vào chốt/)).toBeTruthy();
+    // Case 2026-10-17 skew defense: count without identities → the plain line,
+    // never a toggle that opens onto nothing.
+    expect(screen.queryByRole('button', { name: /Xem danh sách/ })).toBeNull();
   });
 
   it('F1 (card 20260924_2): keeps the shadow line hidden when nothing is excluded', async () => {
@@ -412,6 +415,49 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     expect(screen.queryByText(/chưa gán đầu việc vận chuyển/)).toBeNull();
+  });
+
+  it('case 2026-10-17: the line expands to the trips it names, for any role', async () => {
+    listSummary.mockResolvedValue({
+      items: [row()], total: 1, excludedCount: 1, excludedSum: '100000',
+      excludedTrips: [{
+        tripId: 501, tripCode: 'TRP-SHADOW-1', shipmentId: 101, lotLabel: 'BL-1',
+        customerName: 'KH A', departureDate: '2026-10-15', feeSum: '100000',
+      }],
+    });
+    renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText(/1 chuyến chưa gán đầu việc vận chuyển — 100\.000 ₫ chưa vào chốt/)).toBeTruthy();
+
+    const toggle = screen.getByRole('button', { name: 'Xem danh sách (1)' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // Collapsed = not rendered at all (no hidden DOM to drift).
+    expect(screen.queryByText('TRP-SHADOW-1')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Ẩn danh sách' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('TRP-SHADOW-1')).toBeTruthy();
+    expect(screen.getByText(/BL-1 · KH A/)).toBeTruthy();
+    // Scoped to the list: the status line itself also contains "100.000 ₫".
+    const list = document.getElementById('shipment-debit-shadow-trips') as HTMLElement;
+    expect(within(list).getByText(/100\.000 ₫/)).toBeTruthy();
+    expect(within(list).getByText(/2026-10-15/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ẩn danh sách' }));
+    expect(screen.queryByText('TRP-SHADOW-1')).toBeNull();
+  });
+
+  it('case 2026-10-17: the toggle is a house link action while the status text stays static red', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
+    const ruleOf = (re: RegExp) => css.match(re)?.[1] ?? '';
+    const toggle = ruleOf(/\.shipment-debit-shadow-line__toggle\s*\{([^}]*)\}/);
+    expect(toggle).toMatch(/color:\s*var\(--color-primary/);
+    expect(toggle).toMatch(/text-decoration:\s*underline/);
+    expect(toggle).toMatch(/min-height:\s*var\(--control-h\)/);
+    expect(toggle).toMatch(/background:\s*none/);
+    // The status half keeps its needs-attention ink and claims no pointer.
+    const line = ruleOf(/\.shipment-debit-shadow-line\s*\{([^}]*)\}/);
+    expect(line).toMatch(/color:\s*var\(--danger/);
+    expect(line).not.toMatch(/cursor:\s*pointer/);
   });
 });
 

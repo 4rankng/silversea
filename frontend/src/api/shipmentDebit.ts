@@ -56,6 +56,18 @@ export interface ShipmentDebitLotRow {
   costGroupPrincipalRef?: string | null;
 }
 
+export interface ShipmentDebitExcludedTrip {
+  tripId: number;
+  tripCode: string | null;
+  shipmentId: number;
+  /** The row's own identity chain: Số Bill / Số Booking → Số tờ khai → '—'. */
+  lotLabel: string;
+  customerName: string | null;
+  departureDate: string | null;
+  /** That trip's positive buy-sum — entries add up to `excludedSum`. */
+  feeSum: string;
+}
+
 export interface ShipmentDebitSummary {
   items: ShipmentDebitLotRow[];
   total: number;
@@ -63,6 +75,10 @@ export interface ShipmentDebitSummary {
    *  excluded from chốt — count of CHUYẾN and their chi-hộ buy-sum. */
   excludedCount: number;
   excludedSum: string;
+  /** Case 2026-10-17: the trips behind the line, so it can name them.
+   *  Optional for skew — a backend that predates the field renders the plain
+   *  line without a dead toggle. */
+  excludedTrips?: ShipmentDebitExcludedTrip[];
 }
 
 /** Settlement rollup per lot. Delivery date = shipments.expectedDeliveryDate.

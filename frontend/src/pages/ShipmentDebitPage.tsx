@@ -181,6 +181,9 @@ export function ShipmentDebitPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [issuing, setIssuing] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+  // Case 2026-10-17 — the shadow line's trip list (open state is the user's;
+  // a filter change keeps it where it was, the rows just re-render).
+  const [shadowOpen, setShadowOpen] = useState(false);
   const { toast } = useToast();
 
   // Xuất Debit Note: ONE issue call carries every selected locked lot id and
@@ -264,6 +267,9 @@ export function ShipmentDebitPage() {
 
   const customers = bootstrap.data?.customers ?? [];
   const items = summary.data?.items ?? [];
+  // Case 2026-10-17 — the identities behind the red line; absent on a skewed
+  // backend, which renders the plain line with no dead toggle.
+  const shadowTrips = summary.data?.excludedTrips ?? [];
   const anyLockedSelected = items.some((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED');
   // FB-093 — the merge works on the SELECTION (row click; OPEN lots included —
   // merging is a pre-lock action). Only ungrouped LCL lots may join a new
@@ -415,11 +421,49 @@ export function ShipmentDebitPage() {
                 instead of a silent gap. Hidden at zero; red needs-attention ink
                 now lives in the class rule. It sits BESIDE the scroll box
                 (card 20260924_9): inside the overflow-x wrap the line rode the
-                table's sideways scroll and its tail clipped at the right edge. */}
+                table's sideways scroll and its tail clipped at the right edge.
+                Case 2026-10-17: the line also NAMES what it excludes — a house
+                link-action after the static red text expands the trip
+                identities (Mã chuyến · lô · khách hàng · ngày chạy · phí).
+                No canManage gate: every role that can see the line can open it. */}
             {(summary.data?.excludedCount ?? 0) > 0 && (
-              <p className="shipment-debit-shadow-line" role="status">
-                {summary.data?.excludedCount} chuyến chưa gán đầu việc vận chuyển — {`${formatMoney(Number(summary.data?.excludedSum ?? '0'))} ₫`} chưa vào chốt
-              </p>
+              <div className="shipment-debit-shadow">
+                <p className="shipment-debit-shadow-line" role="status">
+                  <span className="shipment-debit-shadow-line__text">
+                    {summary.data?.excludedCount} chuyến chưa gán đầu việc vận chuyển — {`${formatMoney(Number(summary.data?.excludedSum ?? '0'))} ₫`} chưa vào chốt
+                  </span>
+                  {shadowTrips.length > 0 && (
+                    <button
+                      type="button"
+                      className="shipment-debit-shadow-line__toggle"
+                      aria-expanded={shadowOpen}
+                      onClick={() => setShadowOpen((open) => !open)}
+                    >
+                      {shadowOpen ? 'Ẩn danh sách' : `Xem danh sách (${shadowTrips.length})`}
+                    </button>
+                  )}
+                </p>
+                {/* Rendered only while open: no dangling aria-controls id, no
+                    hidden DOM to keep in sync — aria-expanded carries state. */}
+                {shadowOpen && (
+                  <ul id="shipment-debit-shadow-trips" className="shipment-debit-shadow-trips">
+                    {shadowTrips.map((trip) => (
+                      <li key={trip.tripId} className="shipment-debit-shadow-trips__item">
+                        <span className="shipment-debit-shadow-trips__code">{trip.tripCode ?? 'Chưa có mã chuyến'}</span>
+                        <span className="shipment-debit-shadow-trips__lot">
+                          <small>Lô</small> {trip.lotLabel}{trip.customerName ? ` · ${trip.customerName}` : ''}
+                        </span>
+                        <span className="shipment-debit-shadow-trips__date">
+                          <small>Ngày chạy</small> {trip.departureDate ?? '—'}
+                        </span>
+                        <span className="shipment-debit-shadow-trips__sum">
+                          <small>Phí ngoài chốt</small> {formatMoney(Number(trip.feeSum))} ₫
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
             {phone && !print ? <ShipmentDebitRecords key={JSON.stringify([customerId, deliveryFrom, deliveryTo, lockStatus])}
               rows={items} canManage={canManage} selectedIds={selectedIds} expandedId={expandedId}

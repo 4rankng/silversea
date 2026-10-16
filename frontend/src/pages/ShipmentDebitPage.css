@@ -187,6 +187,76 @@
   font-weight: 600;
   white-space: normal;
   overflow-wrap: break-word;
+  /* Case 2026-10-17: text + trailing action share one wrapping row — the
+     action drops cleanly to its own line on narrow widths. */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-sm);
+}
+
+/* The action half of the shadow line. Static red status ink must never look
+   actionable — this trailing toggle is the ONLY actionable piece, styled as a
+   house link action: --color-primary + underline, --control-h hit area,
+   --brand focus ring (the tokens LedgerRecordList gives its disclosure
+   summary). */
+.shipment-debit-shadow-line__toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-h);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.shipment-debit-shadow-line__toggle:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Trip identities behind the line. Row shape (label left of its value, one
+   divided row per trip) consulted Tailkit a-c-list-groups-01; Tailkit classes
+   are banned by contract, so the rows are rebuilt on house tokens. */
+.shipment-debit-shadow-trips {
+  margin: 0 0 var(--space-sm);
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.shipment-debit-shadow-trips__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--line);
+  overflow-wrap: break-word;
+}
+
+.shipment-debit-shadow-trips__item:first-child {
+  border-top: 0;
+}
+
+.shipment-debit-shadow-trips__code {
+  font-weight: 650;
+}
+
+.shipment-debit-shadow-trips__item small {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+}
+
+.shipment-debit-shadow-trips__sum {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Scroll cue for the L1 table (card 20260924_9): silent on desktop, revealed
