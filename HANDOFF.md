@@ -1,3 +1,56 @@
+# FB-061 + W3b purge + FB-100 ruling — DONE, pushed (2026-10-16 ~10:45Z)
+
+Controller: this session (Paseo agent), branch
+`fix/fb061-deleted-entities-and-carrier-purge` (base = origin/main `2888f77f`;
+staging was code-current at that hash). Owner instruction: three items, push
+after every green commit. Commits (in order, each pushed immediately):
+`af357f33` FB-061 code fix, `4ccb4438` FB-061 scrub evidence, `31c18c7b` W3b
+carrier purge, `31c18c7b..HEAD` FB-100 ruling note.
+
+- **ITEM 1 FB-061 (MAJOR) — FIXED (code) + SCRUBBED (data).** All five
+  customers/suppliers joins in `phoi-phieu-control.service.ts` now filter
+  `deleted_at`: board carrierCustomer/carrierSupplier, money-report THU
+  `trips.customer_id`, money-report TRA carrier masters, sibling
+  `getPhoiPhieuDeposit`. Deleted carriers render the designed fallback
+  'Đơn vị vận chuyển không còn trong danh mục'; deleted-customer money keeps
+  reporting under 'Chưa xác định'. Regression
+  `backend/src/tests/phoi-phieu-soft-delete-leak.test.ts` 4/4, red-green
+  proven (4/4 fail without the fix); sibling suites 62/62; card197 8/10 =
+  pre-existing failures verified identical with the fix reverted. Staging
+  scrub: `trip_carrier_info` id 28 entity link nulled (guarded UPDATE 1; plate
+  15H-021.39 + real lot EBKG18452303 intact) — board API on the PRE-fix build
+  already shows `carrierName: null`. Residual: money-report THU 'QA0915'
+  party closes when `af357f33` deploys (auto-ship owns deploy). Case:
+  `testplan/2026-10-16-fb061-deleted-entity-leak.md`; evidence
+  `qa/2026-10-16_fb061-fix_*`, `qa/2026-10-16_fb061-scrub_*`.
+- **ITEM 2 W3b carrier purge — DONE, TC PASS.** Read the census (25 = 18 real
+  + 7 `Nhà xe E2E <hex>`, ids 77-89 odd, created 2026-09-30), then purged
+  exactly those 7 via the governed admin API (soft-delete; one aborted 409
+  first attempt deleted NOTHING — ms-truncating version token, fixed to raw
+  ISO like the FE transport). After: 18 real carriers byte-identical, KH list
+  12 unchanged, CUS picker 9 clean; census re-run TC CUSTOMER-SEED-VISIBILITY
+  **PASS** on build `2888f77f`. Driver
+  `testplan/qa/scripts/fb061-w3b-carrier-purge.mjs`; record updated in
+  `testplan/2026-10-16-w3b-r20-verify.md`; evidence
+  `qa/2026-10-16_w3b-r20-verify/{carrier-purge_log.json,*_postpurge.*}`.
+- **ITEM 3 FB-100 DRAFT-gate NEEDS-INFO — DOCUMENTED, deliberately not
+  implemented.** After reading card 141026230770 + CPB-03/04 + the code and
+  its history (2026-09-15 streamline severed the APPROVED→RECORDED record
+  step; 2026-09-10 ruling 'phê duyệt removed — applies at creation'; PRD
+  OpsVanHanh §9.1 'không có duyệt cả phiếu của người thứ hai' vs CPB-03's
+  SHIPPED maker-checker for tạm ứng), the ticker's identity and money timing
+  are a business rule the specs leave genuinely open. Two options + ripple
+  lists + recommendation (Option B: tick on the live Ops submit + checkedBy at
+  create + remove the dead block) in
+  `testplan/2026-10-16-fb100-draft-gate-ruling.md` — owner to pick A or B.
+- Ops note: a `git stash pop` in this worktree briefly applied the shared
+  repo's pre-existing stash@{0} ('silversea-main-extras…', watchdog); fully
+  reverted via `git restore --source=HEAD`, stash entry untouched for its
+  owner. Root-lint failures on this head are pre-existing in untouched W1
+  verify scripts (proof appended in `qa/2026-10-16_fb061-fix_lint.log`).
+
+---
+
 # W5+W4 staging QA verify — DONE, pushed (2026-10-16 08:35Z)
 
 Controller: this session (Paseo agent). Branch `qa/w5-w4-verify` (evidence
