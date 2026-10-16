@@ -151,6 +151,7 @@ router.put('/advance-settlements/:id', declareMaterialWrite('advance-settlements
     create: (tx) => updateAdvanceSettlement(id, parsed.data, {
       transaction: tx,
       emitNotification: false,
+      checkedBy: actor.userId,
     }),
     getEntityId: () => id,
   });

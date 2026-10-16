@@ -108,6 +108,29 @@ test('recorded settlement correction preserves original snapshots and writes an 
   assert.equal(audit[0].payload?.event, 'FINANCIAL_ACTION_APPLIED');
 }));
 
+test('FB-100 — signed refund: phiếu hoàn ứng ghi nhận số âm khi ứng cao hơn chi phí và lưu người xác nhận', () => isolated(async tx => {
+  const f = await settlementFixture(tx);
+  // Ops ứng 1.500, chi phí 2.000 → còn phải hoàn ứng = -500 (đề nghị thu tiền ứng).
+  await tx.update(s.tripExpenses).set({ buyAmount: '2000' }).where(eq(s.tripExpenses.id, f.expense.id));
+  const [draft] = await tx.insert(s.advanceSettlements).values({
+    code: `FB100-${f.owner.id}`.slice(0, 20), forwarderId: f.owner.id,
+    totalExpenseAmount: '0', refundAmount: '0', status: 'DRAFT',
+  }).returning();
+  // Chưa cân đối vẫn bị từ chối — kể cả với số âm hợp lệ.
+  await assert.rejects(updateAdvanceSettlement(draft.id, {
+    expectedVersion: draft.version, advanceRequestIds: [f.advance.id], tripExpenseIds: [f.expense.id], refundAmount: -400,
+  }, { transaction: tx, emitNotification: false, checkedBy: f.actor.id }), /chưa cân đối/);
+  const updated = await updateAdvanceSettlement(draft.id, {
+    expectedVersion: draft.version, advanceRequestIds: [f.advance.id], tripExpenseIds: [f.expense.id], refundAmount: -500,
+  }, { transaction: tx, emitNotification: false, checkedBy: f.actor.id });
+  assert.equal(updated.status, 'RECORDED');
+  assert.equal(Number(updated.refundAmount), -500);
+  const [saved] = await tx.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.id, draft.id));
+  assert.equal(saved.refundAmount, '-500');
+  assert.equal(saved.checkedBy, f.actor.id);
+  assert.ok(saved.checkedAt);
+}));
+
 test('recorded settlement reversal retains audit and appends exactly one reversing ledger entry', () => isolated(async tx => {
   const f = await settlementFixture(tx);
   const settlement = await createAdvanceSettlement(f.owner.id, { advanceRequestIds: [f.advance.id], tripExpenseIds: [f.expense.id], refundAmount: 500 }, tx);

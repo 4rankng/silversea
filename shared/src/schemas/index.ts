@@ -71,6 +71,22 @@ const nonNegNumeric = z.union([z.number(), z.string()]).transform((val, ctx) => 
   return num;
 });
 
+// FB-100 (card 141026230770) — số CÓ DẤU: tiền hoàn lại của phiếu hoàn ứng có
+// thể ÂM khi Ops ứng cao hơn chi phí làm hàng (hệ thống cảnh báo, đề nghị thu
+// lại tiền ứng). Ký tự số thập phân có dấu, không nhận hex/exotic literal.
+const signedNumeric = z.union([z.number(), z.string()]).transform((val, ctx) => {
+  if (typeof val === 'string' && !/^-?\d+(\.\d+)?$/.test(val.trim())) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số' });
+    return z.NEVER;
+  }
+  const num = Number(val);
+  if (!Number.isFinite(num)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Phải là số' });
+    return z.NEVER;
+  }
+  return num;
+});
+
 function fixedScaleDecimal(label: string, integerDigits: number, scale: number) {
   return z.union([z.number().finite(), z.string()]).transform((value, ctx) => {
     const raw = String(value).trim();
@@ -1621,7 +1637,7 @@ const uniquePositiveIdsMinOne = positiveIds
 
 export const createAdvanceSettlementSchema = z.object({
   totalExpenseAmount: nonNegNumeric.optional(),
-  refundAmount: nonNegNumeric.optional().default(0),
+  refundAmount: signedNumeric.optional().default(0),
   note: z.string().optional().nullable(),
   tripExpenseIds: uniquePositiveIds.optional(),
   advanceRequestIds: uniquePositiveIdsMinOne,
@@ -1629,7 +1645,7 @@ export const createAdvanceSettlementSchema = z.object({
 
 export const updateAdvanceSettlementSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
-  refundAmount: nonNegNumeric,
+  refundAmount: signedNumeric,
   note: z.string().trim().max(2000).optional().nullable(),
   tripExpenseIds: uniquePositiveIds,
   advanceRequestIds: uniquePositiveIdsMinOne,

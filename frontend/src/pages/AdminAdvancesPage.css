@@ -251,6 +251,11 @@
 }
 
 /* ── Loading / empty states ───────────────────────────────────────────── */
+.adv-page .adv-approve-error {
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  margin: 0 0 10px;
+}
 .adv-page .adv-loading {
   text-align: center;
   padding: 48px 24px;

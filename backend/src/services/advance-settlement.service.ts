@@ -407,7 +407,9 @@ function assertSettlementBalanced(input: {
 export async function updateAdvanceSettlement(
   settlementId: number,
   data: { expectedVersion?: number; advanceRequestIds: number[]; tripExpenseIds: number[]; refundAmount: number; note?: string | null },
-  options: { transaction?: Tx; emitNotification?: boolean } = {},
+  // FB-100 — checkedBy: kế toán tick "Xác nhận hoàn ứng" khi ghi nhận phiếu;
+  // lưu người xác nhận + thời điểm (checked_by/checked_at).
+  options: { transaction?: Tx; emitNotification?: boolean; checkedBy?: number } = {},
 ) {
   const execute = async (tx: Tx) => {
     const [settlement] = await tx.select().from(s.advanceSettlements)
@@ -501,6 +503,7 @@ export async function updateAdvanceSettlement(
       refundAmount: String(data.refundAmount),
       note: data.note ?? null,
       status: 'RECORDED',
+      ...(options.checkedBy != null ? { checkedBy: options.checkedBy, checkedAt: new Date() } : {}),
       updatedAt: new Date(),
       version: sql`${s.advanceSettlements.version} + 1`,
     }).where(and(

@@ -518,5 +518,6 @@
 .settlement-finalize { margin-top: 18px; padding: 18px; border: 1px solid color-mix(in srgb, var(--success) 28%, var(--line)); border-radius: 12px; background: var(--success-soft); }
 .settlement-finalize__fields { display: grid; grid-template-columns: minmax(160px, .35fr) minmax(240px, 1fr); gap: 14px; margin-bottom: 14px; }
 .settlement-finalize__fields label { display: grid; gap: 6px; color: var(--ink-2); font-size: var(--fs-xs); font-weight: var(--fw-semibold); }
+.settlement-finalize__confirm { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--ink-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
 .settlement-finalize__error { color: var(--danger); margin: 0 0 10px; font-size: var(--fs-sm); }
 @media (max-width: 720px) { .settlement-finalize__fields { grid-template-columns: 1fr; } .settlement-expense-option { align-items: flex-start; flex-direction: column; } }

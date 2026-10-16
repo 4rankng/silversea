@@ -5,10 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdvanceRequestStatus, Role } from '@tingting/shared';
 
 const listAllAdvanceRequests = vi.fn();
+const approveAdvanceRequest = vi.fn();
 
 vi.mock('../api/forwarderClient', () => ({
   forwarderClient: {
     listAllAdvanceRequests: (...args: unknown[]) => listAllAdvanceRequests(...args),
+    approveAdvanceRequest: (...args: unknown[]) => approveAdvanceRequest(...args),
   },
 }));
 
@@ -224,5 +226,29 @@ describe('advance card creator line (card 071026141630)', () => {
     expect(text.join(' ')).toContain('Bình Trần');
     // A bare "bởi" with no name must never render.
     for (const t of text) expect(t.replace(/bởi/, '').trim().length).toBeGreaterThan(0);
+  });
+});
+
+describe('PHÊ DUYỆT TẠM ỨNG (FB-100 — card 141026230770)', () => {
+  beforeEach(() => {
+    approveAdvanceRequest.mockReset().mockResolvedValue({ id: 9, status: 'RECORDED', version: 2 });
+  });
+
+  it('dòng PENDING có nút Phê duyệt tạm ứng; bấm gọi approve theo version của dòng', async () => {
+    listAllAdvanceRequests.mockReset().mockResolvedValue({
+      ...envelope,
+      items: [makeRequest(9, AdvanceRequestStatus.PENDING, 'Cường Phạm')],
+    });
+    renderPage();
+    const buttons = await screen.findAllByRole('button', { name: 'Phê duyệt tạm ứng' });
+    expect(buttons.length).toBeGreaterThan(0);
+    fireEvent.click(buttons[0]);
+    await waitFor(() => expect(approveAdvanceRequest).toHaveBeenCalledWith(9, 1));
+  });
+
+  it('dòng đã ghi nhận/không phải PENDING không có nút phê duyệt', async () => {
+    renderPage();
+    await screen.findAllByText('An Nguyễn');
+    expect(screen.queryAllByRole('button', { name: 'Phê duyệt tạm ứng' })).toHaveLength(0);
   });
 });

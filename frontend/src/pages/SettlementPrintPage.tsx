@@ -184,6 +184,9 @@ export default function SettlementPrintPage() {
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<number>>(new Set());
   const [refundAmount, setRefundAmount] = useState('0');
   const [settlementNote, setSettlementNote] = useState('');
+  // FB-100 (card 141026230770) — tick "Xác nhận hoàn ứng" là điều kiện ghi nhận
+  // phiếu; backend lưu người xác nhận + thời điểm (checked_by/checked_at).
+  const [refundConfirmed, setRefundConfirmed] = useState(false);
   const [selectionReady, setSelectionReady] = useState(false);
   const [reversalReason, setReversalReason] = useState('');
   const [governanceNotice, setGovernanceNotice] = useState<string | null>(null);
@@ -232,6 +235,7 @@ export default function SettlementPrintPage() {
     setSelectedExpenseIds(new Set((loadedSettlement.linkedExpenses ?? []).map(expense => expense.id)));
     setRefundAmount(String(Number(loadedSettlement.refundAmount || 0)));
     setSettlementNote(loadedSettlement.note ?? '');
+    setRefundConfirmed(false);
     setSelectionReady(true);
   }, [loadedSettlement, selectionReady]);
 
@@ -291,7 +295,7 @@ export default function SettlementPrintPage() {
   };
 
   const handleRecord = async () => {
-    if (selectedRequestIds.size === 0) return;
+    if (selectedRequestIds.size === 0 || !refundConfirmed) return;
     await updateSettlement.mutateAsync({
       settlementId: s.id,
       expectedVersion: s.version,
@@ -574,11 +578,15 @@ export default function SettlementPrintPage() {
         {canEditExpenses && (
           <div className="settlement-finalize no-print">
             <div className="settlement-finalize__fields">
-              <label>Tiền hoàn lại<input className="input" type="number" min="0" value={refundAmount} onChange={event => setRefundAmount(event.target.value)} /></label>
+              <label>Tiền hoàn lại<input className="input" type="number" value={refundAmount} onChange={event => setRefundAmount(event.target.value)} /></label>
               <label>Ghi chú<textarea className="input" rows={2} value={settlementNote} onChange={event => setSettlementNote(event.target.value)} /></label>
             </div>
             {updateSettlement.error && <p className="settlement-finalize__error">{String(updateSettlement.error)}</p>}
-            <button className="btn btn--primary" disabled={selectedRequestIds.size === 0 || updateSettlement.isPending} onClick={handleRecord}>
+            <label className="settlement-finalize__confirm">
+              <input type="checkbox" checked={refundConfirmed} onChange={event => setRefundConfirmed(event.target.checked)} />
+              Xác nhận hoàn ứng
+            </label>
+            <button className="btn btn--primary" disabled={selectedRequestIds.size === 0 || !refundConfirmed || updateSettlement.isPending} onClick={handleRecord}>
               {updateSettlement.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}Ghi nhận phiếu
             </button>
           </div>
