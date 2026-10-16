@@ -101,6 +101,14 @@
   border-spacing: 0;
   table-layout: fixed;
   font-size: var(--ops-table-supporting-size);
+  /* FB-043 (card 141026001010, re-report 2): the uniform row-height budget.
+     Round 1 fixed this class only on the detail-plan grid, so /dispatch kept
+     the defect the card reports — a lot with stacked trips (each block is a
+     head + a "nhà máy · container" sub line) rendered ~2x a single-trip lot.
+     The component, not a column rebalance, now bounds every cell body: the
+     budget holds two trip blocks (4 dense lines ≈ 72px) plus one status line,
+     so ordinary lots never clip and pathological ones truncate. */
+  --mpg-row-h: 96px;
 }
 
 /* Card 091026091550: with the one-line header law every column's floor is
@@ -191,6 +199,49 @@
   color: var(--fg-2);
   min-width: 0;
   overflow: hidden;
+}
+
+/* FB-043 (card 141026001010, re-report 2): the row budget is a property of
+   the table, not of any one column — stacked trips, port groups, cargo and
+   the "Xem thêm" note all ride it, so no cell can inflate the row on its own.
+   Table form only: the ≤900px card bands below let records own their height
+   (they are stacked records, not dense rows) and must reset this. */
+.master-plan-grid__cell-body {
+  min-width: 0;
+}
+@container (min-width: 901px) {
+  .master-plan-grid__cell-body {
+    display: flex;
+    flex-direction: column;
+    height: var(--mpg-row-h);
+    overflow: hidden;
+  }
+  /* Value lines hold one line: the budget decides which facts a dense row
+     shows, and the ellipsis marks the rest instead of a hard clip. */
+  .master-plan-grid__cell-body .master-plan-grid__line,
+  .master-plan-grid__cell-body .master-plan-grid__location-block,
+  .master-plan-grid__cell-body .master-plan-grid__route-shipping {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* The row action stays reachable: it never gives ground to the values.
+     (0,2,0) beats the base trigger rules, so the pin holds wherever the
+     trigger sits — the cargo column nests it under __cargo-content. */
+  .master-plan-grid__cell-body .master-plan-grid__container-detail-trigger {
+    flex: 0 0 auto;
+  }
+  /* The notes stack gives ground instead: the note text clips, its
+     "Xem thêm" trigger keeps its own line so the full note stays one click
+     away (the card's "ghi chú có 'Xem thêm' cũng cao thấp khác nhau"). */
+  .master-plan-grid__cell-body > .master-plan-grid__line--notes {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .master-plan-grid__cell-body .master-plan-grid__note-detail-trigger {
+    flex: 0 0 auto;
+  }
 }
 
 .master-plan-grid__line {
@@ -596,9 +647,19 @@
     text-transform: none;
   }
 
+  /* FB-043: the card layout is a stacked RECORD, not a dense row — it owns
+     its height, so the desktop row budget and its one-line law are undone
+     here (a card band and the desktop band can never co-apply). */
+  .master-plan-grid__cell-body {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
   .master-plan-grid__line {
     white-space: normal;
     overflow-wrap: anywhere;
+    text-overflow: clip;
   }
 
   .master-plan-grid__container-detail-trigger,

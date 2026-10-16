@@ -373,6 +373,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             return (
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
+                  {/* FB-043 (card 141026001010, re-report 2): every cell rides
+                      the fixed-height body so a lot with stacked trips can no
+                      longer render twice as tall as a single-trip lot. */}
+                  <div className="master-plan-grid__cell-body">
                   {scheduleBlocks(item, scheduleDate).map((block, blockIdx) => (
                     <div className="master-plan-grid__schedule-block" key={`${item.id}-${blockIdx}`}>
                       {block.head && <div className="master-plan-grid__line">{block.head}</div>}
@@ -396,16 +400,20 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       Hạn hoàn tất hải quan: {formatDateTimeShort(item.customsCutoffAt)}
                     </div>
                   )}
+                  </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy" data-label-short="Khách">
+                  <div className="master-plan-grid__cell-body">
                   <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!item.customerName ? 'true' : undefined}>{item.customerName ?? '—'}</div>
                   <div className="master-plan-grid__line" data-empty={!(item.factoryNames?.length || item.factoryName) ? 'true' : undefined}>{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!(item.blNumber || item.bookingRef || item.isAdHoc) ? 'true' : undefined}>
                     {item.blNumber || item.bookingRef || '—'}
                     {item.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
                   </div>
+                  </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Tuyến đường & hãng tàu" data-label-short="Tuyến">
+                  <div className="master-plan-grid__cell-body">
                   <div className="master-plan-grid__route-shipping">
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-route" data-empty={!item.routeName ? 'true' : undefined}>
                       {item.routeName ?? '—'}
@@ -419,8 +427,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     </div>
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier" data-empty={!item.shippingLineName ? 'true' : undefined}>{item.shippingLineName ?? '—'}</div>
                   </div>
+                  </div>
                 </td>
                 <td className="master-plan-grid__cell master-plan-grid__cell--lift-port" data-label="Cảng nâng" data-label-short="Nâng">
+                  <div className="master-plan-grid__cell-body">
                   {portGroupLines
                     .filter((line) => line.direction === 'lift')
                     .map((line, index) => (
@@ -431,8 +441,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         ))}
                       </div>
                     ))}
+                  </div>
                 </td>
                 <td className="master-plan-grid__cell master-plan-grid__cell--drop-port" data-label="Cảng hạ" data-label-short="Hạ">
+                  <div className="master-plan-grid__cell-body">
                   {portGroupLines
                     .filter((line) => line.direction === 'drop')
                     .map((line, index) => (
@@ -443,8 +455,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         ))}
                       </div>
                     ))}
+                  </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa" data-label-short="Hàng">
+                  <div className="master-plan-grid__cell-body">
                   <div className="master-plan-grid__cargo-content">
                     <div className="master-plan-grid__cargo-summary">
                       {cargoCellLines(item, scheduleDate).map((line, index) => (
@@ -474,6 +488,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       </UUIButton>
                     )}
                   </div>
+                  </div>
                 </td>
                 <td
                   className="master-plan-grid__cell master-plan-grid__cell--action"
@@ -488,6 +503,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     onAllocate(item, trigger);
                   }}
                 >
+                  <div className="master-plan-grid__cell-body">
                   {/* Sweep (card 081026093510): the trigger used to disable
                       silently. It now rides the aria-described + aria-disabled
                       pattern (DisabledActionTip) so the lock reason is
@@ -535,8 +551,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     )}
                     </UUIButton>
                   </DisabledActionTip>
+                  </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Ghi chú" data-label-short="Ghi chú">
+                  <div className="master-plan-grid__cell-body">
                   {editingNotesId === item.id && !notesLocked ? (
                     <div className="master-plan-grid__notes-editor">
                       <textarea
@@ -662,6 +680,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       )}
                     </>
                   )}
+                  </div>
                 </td>
               </tr>
             );
