@@ -1,0 +1,637 @@
+[
+  {
+    "shipmentId": 171,
+    "ngay": "2026-08-05",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 178,
+    "ngay": "2026-08-08",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 163,
+    "ngay": "2026-08-20",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 172,
+    "ngay": "2026-08-21",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 180,
+    "ngay": "2026-08-22",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 179,
+    "ngay": "2026-08-24",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 181,
+    "ngay": "2026-08-25",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 2,
+    "ngay": "2026-09-07",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 3,
+    "ngay": "2026-09-07",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 4,
+    "ngay": "2026-09-07",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 5,
+    "ngay": "2026-09-07",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 6,
+    "ngay": "2026-09-08",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 7,
+    "ngay": "2026-09-08",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 8,
+    "ngay": "2026-09-08",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 221,
+    "ngay": "2026-09-08",
+    "cuocThu": "2000000"
+  },
+  {
+    "shipmentId": 11,
+    "ngay": "2026-09-09",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 10,
+    "ngay": "2026-09-10",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 13,
+    "ngay": "2026-09-12",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 14,
+    "ngay": "2026-09-12",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 15,
+    "ngay": "2026-09-12",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 16,
+    "ngay": "2026-09-13",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 17,
+    "ngay": "2026-09-13",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 24,
+    "ngay": "2026-09-15",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 25,
+    "ngay": "2026-09-15",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 12,
+    "ngay": "2026-09-16",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 26,
+    "ngay": "2026-09-16",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 30,
+    "ngay": "2026-09-18",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 144,
+    "ngay": "2026-09-21",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 28,
+    "ngay": "2026-09-22",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 208,
+    "ngay": "2026-09-24",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 220,
+    "ngay": "2026-09-24",
+    "cuocThu": "1000000"
+  },
+  {
+    "shipmentId": 184,
+    "ngay": "2026-09-25",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 200,
+    "ngay": "2026-09-25",
+    "cuocThu": "1000000"
+  },
+  {
+    "shipmentId": 201,
+    "ngay": "2026-09-26",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 217,
+    "ngay": "2026-09-26",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 218,
+    "ngay": "2026-09-26",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 202,
+    "ngay": "2026-09-27",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 203,
+    "ngay": "2026-09-28",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 239,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 240,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 241,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 242,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 243,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 244,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 245,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 246,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 247,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 248,
+    "ngay": "2026-09-29",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 249,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 250,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 251,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 252,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 253,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 254,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 255,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 256,
+    "ngay": "2026-09-29",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 257,
+    "ngay": "2026-09-30",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 260,
+    "ngay": "2026-10-01",
+    "cuocThu": "2000000"
+  },
+  {
+    "shipmentId": 265,
+    "ngay": "2026-10-01",
+    "cuocThu": "2000000"
+  },
+  {
+    "shipmentId": 266,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 267,
+    "ngay": "2026-10-01",
+    "cuocThu": "2000000"
+  },
+  {
+    "shipmentId": 268,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 269,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 270,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 271,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 272,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 273,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 274,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 275,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 276,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 277,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 278,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 279,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 280,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 281,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 282,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 283,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 284,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 285,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 286,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 287,
+    "ngay": "2026-10-01",
+    "cuocThu": "2000000"
+  },
+  {
+    "shipmentId": 288,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 289,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 290,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 291,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 292,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 294,
+    "ngay": "2026-10-01",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 264,
+    "ngay": "2026-10-02",
+    "cuocThu": "1000000"
+  },
+  {
+    "shipmentId": 135,
+    "ngay": "2026-10-05",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 136,
+    "ngay": "2026-10-05",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 137,
+    "ngay": "2026-10-05",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 204,
+    "ngay": "2026-10-05",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 238,
+    "ngay": "2026-10-05",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 138,
+    "ngay": "2026-10-06",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 139,
+    "ngay": "2026-10-06",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 140,
+    "ngay": "2026-10-06",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 141,
+    "ngay": "2026-10-06",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 142,
+    "ngay": "2026-10-06",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 143,
+    "ngay": "2026-10-06",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 237,
+    "ngay": "2026-10-06",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 298,
+    "ngay": "2026-10-06",
+    "cuocThu": "2000000"
+  },
+  {
+    "shipmentId": 233,
+    "ngay": "2026-10-07",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 326,
+    "ngay": "2026-10-07",
+    "cuocThu": "1000000"
+  },
+  {
+    "shipmentId": 332,
+    "ngay": "2026-10-07",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 293,
+    "ngay": "2026-10-08",
+    "cuocThu": "2000000"
+  },
+  {
+    "shipmentId": 403,
+    "ngay": "2026-10-08",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 404,
+    "ngay": "2026-10-08",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 235,
+    "ngay": "2026-10-09",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 145,
+    "ngay": "2026-10-10",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 426,
+    "ngay": "2026-10-10",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 427,
+    "ngay": "2026-10-10",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 464,
+    "ngay": "2026-10-12",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 477,
+    "ngay": "2026-10-12",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 478,
+    "ngay": "2026-10-12",
+    "cuocThu": "1000000"
+  },
+  {
+    "shipmentId": 436,
+    "ngay": "2026-10-15",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 479,
+    "ngay": "2026-10-15",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 515,
+    "ngay": "2026-10-15",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 175,
+    "ngay": "2026-10-16",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 624,
+    "ngay": "2026-10-17",
+    "cuocThu": "7654321"
+  },
+  {
+    "shipmentId": 625,
+    "ngay": "2026-10-17",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 626,
+    "ngay": "2026-10-17",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 627,
+    "ngay": "2026-10-17",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 628,
+    "ngay": "2026-10-17",
+    "cuocThu": "0"
+  },
+  {
+    "shipmentId": 505,
+    "ngay": "2026-10-20",
+    "cuocThu": "1000000"
+  },
+  {
+    "shipmentId": 506,
+    "ngay": "2026-10-20",
+    "cuocThu": "1000000"
+  },
+  {
+    "shipmentId": 619,
+    "ngay": "2026-10-20",
+    "cuocThu": null
+  },
+  {
+    "shipmentId": 620,
+    "ngay": "2026-10-20",
+    "cuocThu": null
+  }
+]

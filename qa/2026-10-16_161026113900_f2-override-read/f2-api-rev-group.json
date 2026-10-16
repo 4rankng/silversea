@@ -1,0 +1,16 @@
+{
+  "groupId": "642e2b12-1c37-4b40-9033-4cfe8fe184d2",
+  "memberCount": 2,
+  "members": [
+    {
+      "shipmentId": 624,
+      "order": 1,
+      "reference": "QA-F2-10162045-A"
+    },
+    {
+      "shipmentId": 625,
+      "order": 2,
+      "reference": "QA-F2-10162045-B"
+    }
+  ]
+}
