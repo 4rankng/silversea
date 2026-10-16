@@ -252,6 +252,30 @@ async function denormalizeVehicleClassSelector<
 }
 
 /**
+ * Card 161026121500 (residual, 2026-10-17): pricing-table soft-delete leaves
+ * a tombstone that no reader surfaces but that stays in the table forever —
+ * re-adding the same selector then shows one live row beside one stale row
+ * (manual QA). On create — and on an update that moves a row onto a selector
+ * occupied only by tombstones — the stale rows for that exact selector shape
+ * are hard-deleted, so the table holds exactly one physical row per selector.
+ * The partial unique indexes (migration 20261016143000) already ignore
+ * tombstones; this purge removes them instead of merely bypassing them.
+ */
+async function purgePricingTableSelectorTombstones(
+  tx: H.CrudTx,
+  selector: { customerId: number; routeId: number; containerTypeId?: number | null; rateKey?: string | null; effectiveDate: string },
+): Promise<void> {
+  await tx.delete(s.pricingTables).where(and(
+    eq(s.pricingTables.customerId, selector.customerId),
+    eq(s.pricingTables.routeId, selector.routeId),
+    selector.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, selector.containerTypeId),
+    selector.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, selector.rateKey),
+    eq(s.pricingTables.effectiveDate, selector.effectiveDate),
+    isNotNull(s.pricingTables.deletedAt),
+  ));
+}
+
+/**
  * FB-090 carrier_route_pricing lane guard: validates the referenced catalogs
  * and rejects a second live row on the same lane (route × class × supplier
  * shape × effectiveDate), mirroring the two partial unique indexes. The
@@ -743,6 +767,7 @@ router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSche
         isNull(s.pricingTables.deletedAt),
       )).limit(1);
     if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
+    await purgePricingTableSelectorTombstones(tx, normalized);
     return normalized;
   },
   beforeUpdate: async (id, data, _req, tx) => {
@@ -767,6 +792,7 @@ router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSche
         ne(s.pricingTables.id, id),
       )).limit(1);
     if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
+    await purgePricingTableSelectorTombstones(tx, normalizedFinal);
     // The patch must carry the denormalized selector even when the client
     // only sent vehicleSizeClassId, so the row's rateKey follows the class.
     return {

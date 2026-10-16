@@ -62,3 +62,24 @@ Ghi chú rung-3: DateInput không nhận synthetic date (hàng rơi về
 tạo/xóa/tạo-lại (cùng customer × route × date) nên repro vẫn đúng đường
 defect. DB sau chạy: 3 dòng sentinel đều tombstone (dọn sạch).
 
+## Case BGX05 — residual 2026-10-17: dòng stale tồn tại sau xóa- rồi-thêm-lại
+
+QA thủ công tái hiện 2026-10-17: sau xóa mềm + thêm lại cùng selector, bảng
+giữ 2 dòng vật lý (1 sống + 1 tombstone). Partial index chỉ cho INSERT qua —
+tombstone không bị dọn.
+
+1. (DB) INSERT selector X → soft-delete → INSERT lại selector X → SELECT mọi
+   dòng (kể cả tombstone): trước fix total=2 (1 live + 1 stale).
+2. (fix) `purgePricingTableSelectorTombstones` hard-delete tombstone cùng
+   selector trên create + update-đổi-selector; không đổi semantics soft-delete
+   hay guard trùng dòng sống.
+3. (test) `backend/src/tests/pricing-table-phantom-dup.test.ts`: qua route
+   thật POST → DELETE → POST cùng selector; chỉ duy nhất dòng sống tồn tại;
+   dòng sống thứ hai cùng selector vẫn 409.
+
+| Case | Kết quả | Bằng chứng |
+|---|---|---|
+| BGX05 repro (trước fix) | FAIL như mô tả — total=2 | `qa/2026-10-17_price-phantom-dup_repro.log` |
+| BGX05 (sau fix) | PASS | `qa/2026-10-17_price-phantom-dup_gates.log` |
+
+
