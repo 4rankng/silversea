@@ -124,6 +124,12 @@
    compact, and the exact-time entry stays the compact inline row it now is
    everywhere (the shared `.dtp-time__exact` anatomy above). */
 .date-picker__popup.combined-datetime__popup { width: min(424px, calc(100vw - 16px)); }
+/* FB-009 (card 131026233500): the "Chọn ngày giờ" dialog carries the copy-time
+   affordance the card reported missing. It rides the header beside the close
+   button as an ordinary icon control (no overlay, no hover-reveal). */
+.combined-datetime__header-actions { display: inline-flex; align-items: center; gap: 4px; }
+.combined-datetime__copy { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-3); cursor: pointer; }
+.combined-datetime__copy:hover { background: var(--surface-2); color: var(--fg-1); }
 .combined-datetime__body { display: flex; gap: 12px; align-items: flex-start; }
 .combined-datetime__date { flex: 0 0 220px; min-width: 0; }
 .combined-datetime__time { flex: 1 1 168px; min-width: 0; max-width: 200px; }

@@ -12,6 +12,7 @@ import { usePopoverPosition } from '../../hooks/usePopoverPosition';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { registerOverlayToken, unregisterOverlayToken } from '../../hooks/useAnimatedOverlay';
+import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
 import './SplitDateTimeField.css';
 
 /**
@@ -21,10 +22,14 @@ import './SplitDateTimeField.css';
  * positioning and dismissal (its children are inline panels). Opt-in via
  * `combinedPicker`; hosts without it keep the per-part popups untouched.
  */
-function CombinedDateTimeSurface({ id, label, dateValue, timeValue, min, max, onDatePick, onTimePick, onApply, onDismiss, onExit, panelRef, anchorRef, additionalRefs = [], keyboard = false }: {
+function CombinedDateTimeSurface({ id, label, dateValue, timeValue, min, max, onDatePick, onTimePick, onApply, onDismiss, onExit, onCopied, panelRef, anchorRef, additionalRefs = [], keyboard = false }: {
   id?: string; label: string; dateValue: string; timeValue: string; min?: string; max?: string;
   onDatePick: (date: string) => void; onTimePick: (time: string) => void; onApply: (time: string) => void;
   onDismiss: () => void; onExit: () => void;
+  /** FB-009 (card 131026233500): the dialog carries the copy-time affordance
+   * the card reported missing — it appears the moment both halves of the draft
+   * parse, so a clerk can paste the picked time without closing first. */
+  onCopied?: (formatted: string) => void;
   panelRef: React.RefObject<HTMLDivElement | null>; anchorRef: React.RefObject<HTMLElement | null>;
   additionalRefs?: React.RefObject<HTMLElement | null>[]; keyboard?: boolean;
 }) {
@@ -44,6 +49,10 @@ function CombinedDateTimeSurface({ id, label, dateValue, timeValue, min, max, on
   const closeWhenFocusLeaves = (next: Node | null) => {
     if (![panelRef, anchorRef, ...additionalRefs].some((ref) => ref.current?.contains(next))) onExit();
   };
+  // FB-009: a half-picked draft has no time to copy, so the affordance only
+  // exists once both halves parse — the same 'HH:mm DD/MM/YYYY' shape the
+  // clipboard button on the host field writes.
+  const copyValue = formatDateTime24(`${dateValue}T${timeValue}`);
   return createPortal(
     <div id={id} ref={panelRef} className="date-picker__popup combined-datetime__popup"
       data-positioned={position ? 'true' : undefined}
@@ -67,7 +76,10 @@ function CombinedDateTimeSurface({ id, label, dateValue, timeValue, min, max, on
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onDismiss(); }
         if (event.key === 'Enter') event.stopPropagation();
       }}>
-      <header><strong>Chọn ngày giờ</strong><button type="button" aria-label="Đóng lịch" onClick={onDismiss}><X size={14} aria-hidden="true" /></button></header>
+      <header><strong>Chọn ngày giờ</strong><span className="combined-datetime__header-actions">
+        {copyValue && <CopyCodeButton className="combined-datetime__copy" value={copyValue} label="giờ hẹn trong hộp thoại" onCopied={() => onCopied?.(copyValue)} />}
+        <button type="button" aria-label="Đóng lịch" onClick={onDismiss}><X size={14} aria-hidden="true" /></button>
+      </span></header>
       <div className="combined-datetime__body">
         <div className="combined-datetime__date"><DatePanel value={dateValue} min={min} max={max} onChange={onDatePick} /></div>
         <div className="combined-datetime__time"><TimePanel value={timeValue} onPick={onTimePick} onApply={onApply} /></div>
@@ -84,7 +96,7 @@ function splitValue(value: string) {
 /** Independent, editable 24h time/date controls with one complete datetime
  * contract. Partial drafts stay visible and invalidate their form inputs;
  * they never silently preserve an older complete timestamp for submission. */
-export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onCommit, onCompletenessChange, disabled, readOnly, required, error, hideLabel, className, min, max, name, groupRef: externalGroupRef, inputProps, inputClassName, wrapperClassName, size = 'sm', combinedPicker = false }: {
+export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onCommit, onCompletenessChange, onCopied, disabled, readOnly, required, error, hideLabel, className, min, max, name, groupRef: externalGroupRef, inputProps, inputClassName, wrapperClassName, size = 'sm', combinedPicker = false }: {
   id?: string; label: string; value: string; onChange: (value: string) => void;
   onCommit?: (value: string) => void;
   /** 'complete' = parsed datetime; 'empty' = all segments cleared;
@@ -94,6 +106,9 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
   disabled?: boolean; readOnly?: boolean; required?: boolean; error?: string; hideLabel?: boolean; className?: string;
   min?: string; max?: string; name?: string; groupRef?: Ref<HTMLDivElement>; size?: 'sm' | 'md' | 'lg';
   inputClassName?: string; wrapperClassName?: string;
+  /** FB-009 (card 131026233500): raised after the combined dialog copies the
+   *  picked giờ hẹn, so the host can raise its "Đã copy" toast. */
+  onCopied?: (formatted: string) => void;
   /** Card 071026204700 (FB-001): open ONE popup carrying both the calendar
    *  and the 24h time grid instead of one popup per segment group. Default
    *  off — every existing host keeps its current pickers byte for byte. */
@@ -269,6 +284,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
     {active && open && combinedPicker && <CombinedDateTimeSurface id={`${id}-picker`} label={`Chọn ngày giờ — ${label}`}
       dateValue={dateValue} timeValue={draft.time} min={min?.slice(0, 10)} max={max?.slice(0, 10)}
       panelRef={panelRef} anchorRef={trigger} additionalRefs={[groupRef]} keyboard={keyboardPicker}
+      onCopied={onCopied}
       onDismiss={close} onExit={() => { setTouched(true); setOpen(null); }}
       onDatePick={(next) => { update('date', `${next.slice(8, 10)}/${next.slice(5, 7)}/${next.slice(0, 4)}`); }}
       onTimePick={(next) => update('time', next)} onApply={() => close()} />}

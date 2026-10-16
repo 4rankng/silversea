@@ -14,6 +14,9 @@ interface UDateTimeFieldProps {
   disabled?: boolean;
   error?: string;
   hideLabel?: boolean;
+  /** FB-009 (card 131026233500): raised when the "Chọn ngày giờ" dialog
+   * copies the picked giờ hẹn, so the host can raise its "Đã copy" toast. */
+  onCopied?: (formatted: string) => void;
   /** Card 071026204700 (FB-001): one combined ngày+giờ popup. */
   combinedPicker?: boolean;
 }
@@ -31,6 +34,7 @@ export function UDateTimeField({
   disabled,
   error,
   hideLabel,
+  onCopied,
   combinedPicker,
 }: UDateTimeFieldProps) {
   return (
@@ -42,6 +46,7 @@ export function UDateTimeField({
       onChange={(next) => onChange(asEvent(next))}
       disabled={disabled}
       error={error}
+      onCopied={onCopied}
       combinedPicker={combinedPicker}
       className="csc-uui-field"
     />

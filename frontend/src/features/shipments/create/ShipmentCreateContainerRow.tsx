@@ -383,6 +383,7 @@ export function ShipmentCreateContainerRow({
           onChange={(event) => updateContainer(row.key, 'customerAppointmentAt', event.target.value)}
           disabled={saving}
           error={issueByField.get(`container-${row.key}-customer-appointment`)}
+          onCopied={onAppointmentCopied}
           combinedPicker
         />
       </ShipmentContainerCell>
