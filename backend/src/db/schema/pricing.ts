@@ -25,15 +25,19 @@ export const pricingTables = pgTable('pricing_tables', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
+  // Partial unique indexes mirror the app guard in catalog-crud.routes:
+  // one LIVE row per selector shape × effectiveDate. Tombstones
+  // (deletedAt) release their slot — a deleted bảng giá can be re-added
+  // (card 161026121500: "xóa rồi thêm lại báo trùng ảo").
   uniqueIndex('pricing_tables_general_date_idx')
     .on(table.customerId, table.routeId, table.effectiveDate)
-    .where(sql`${table.containerTypeId} is null and ${table.rateKey} is null`),
+    .where(sql`${table.containerTypeId} is null and ${table.rateKey} is null and ${table.deletedAt} is null`),
   uniqueIndex('pricing_tables_container_date_idx')
     .on(table.customerId, table.routeId, table.containerTypeId, table.effectiveDate)
-    .where(sql`${table.containerTypeId} is not null and ${table.rateKey} is null`),
+    .where(sql`${table.containerTypeId} is not null and ${table.rateKey} is null and ${table.deletedAt} is null`),
   uniqueIndex('pricing_tables_rate_key_date_idx')
     .on(table.customerId, table.routeId, table.rateKey, table.effectiveDate)
-    .where(sql`${table.containerTypeId} is null and ${table.rateKey} is not null`),
+    .where(sql`${table.containerTypeId} is null and ${table.rateKey} is not null and ${table.deletedAt} is null`),
 ]);
 
 // FB-090 LCL: Bảng giá cước trả nhà xe — (tuyến × loại xe × [nhà xe]) → giá.
@@ -71,7 +75,10 @@ export const roadAllowances = pgTable('road_allowances', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  uniqueIndex('road_allowances_route_type_idx').on(table.routeId, table.trailerType),
+  // One LIVE allowance per (route × trailerType) — tombstones release the
+  // slot, mirroring the app guard (card 161026121500 defect class).
+  uniqueIndex('road_allowances_route_type_idx').on(table.routeId, table.trailerType)
+    .where(sql`${table.deletedAt} is null`),
 ]);
 
 export const fuelConfig = pgTable('fuel_config', {
@@ -154,7 +161,10 @@ export const liftPricing = pgTable('lift_pricing', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => [
-  uniqueIndex('lift_pricing_port_type_state_dir_date_uniq').on(table.portId, table.containerTypeId, table.direction, table.loadState, table.effectiveDate),
+  // One LIVE price per selector × date — tombstones release the slot,
+  // mirroring the app guard (card 161026121500 defect class).
+  uniqueIndex('lift_pricing_port_type_state_dir_date_uniq').on(table.portId, table.containerTypeId, table.direction, table.loadState, table.effectiveDate)
+    .where(sql`${table.deletedAt} is null`),
 ]);
 
 
