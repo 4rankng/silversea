@@ -87,6 +87,8 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     trailerPlateNumber: s.trailers.licensePlate,
     externalPlateNumber: s.tripsComposite.externalPlateNumber,
     billingTruckNo: s.shipments.billingTruckNo,
+    actualTruckNo: s.shipments.actualTruckNo,
+    cargoMode: s.shipments.cargoMode,
     // FB-094: the note's loại xe follows the thu billing class.
     revVehicleClassName: s.vehicleSizeClasses.name,
     revVehicleClassCode: s.vehicleSizeClasses.code,
@@ -553,6 +555,8 @@ export function buildTripRenderData(input: {
     /** FB-094: BKS báo khách ("ảo"). When the lot carries one, the debit note
      *  MUST print it — never the actual/external plate. */
     billingTruckNo?: string | null;
+    actualTruckNo?: string | null;
+    cargoMode?: string | null;
     fuelSurchargeAmount?: string | null;
   };
   containers: ContainerRenderInfo[];
@@ -565,12 +569,14 @@ export function buildTripRenderData(input: {
     tripId: input.tripId ?? null,
     tripCode: input.trip.tripCode ?? null,
     departureDate: input.trip.departureDate,
-    // FB-094 absolute rule: billing BKS wins over every actual plate — the
-    // customer is told the "xe ảo", never what really ran the lane.
+    // GAP 3 (spec line 86): Cot Bien so xe (BKS) tren file Excel/PDF xuat ra
+    // BAT BUOC lay tu truong BKS Báo khach (Xe ao) (billing_truck_no).
+    // Tuyet doi khong in BKS Thuc te len Debit gui khach.
     truckPlate: input.trip.billingTruckNo?.trim()
-      || input.trip.truckPlate
-      || input.trip.externalPlateNumber
-      || null,
+      ? input.trip.billingTruckNo.trim()
+      : (input.trip.actualTruckNo != null || input.trip.cargoMode === 'LCL')
+        ? null
+        : (input.trip.truckPlate || input.trip.externalPlateNumber || null),
     // BK VIETSUN-style "Đóng / Trả" mapping. HANG = loaded leg (ĐÓNG) = "delivering",
     // VO = empty return leg (TRẢ) = "returning without cargo". Null if the source
     // billing line has no legs (e.g. ADHOC service fees) — users hide the column

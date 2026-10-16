@@ -843,6 +843,83 @@ describe('LCL grouping — FB-094 debit note + board', () => {
     assert.ok(principal?.lcl);
     assert.equal(principal.lcl!.ghépCùngRef, null, 'the principal cites nobody');
   });
+
+  test('customer-facing export uses billing_truck_no when differing from actual_truck_no, and vendor view uses actual_truck_no (GAP 3, spec line 86)', async () => {
+    const customer = await mkCustomer('GAP3 plate');
+    const route = await mkRoute();
+    const truckClass = await vehicleClassByCode('5T');
+    const lot = await mkLclLot(customer.id, route.id, `GAP3-PL-${suffix.slice(-6)}`, { expectedDeliveryDate: '2026-10-21' });
+    const lotPartner = await mkLclLot(customer.id, route.id, `GAP3-PT-${suffix.slice(-6)}`, { expectedDeliveryDate: '2026-10-21' });
+
+    const actualPlate = '29C-111.11';
+    const virtualPlate = '29C-999.99';
+
+    await assignLclCostGroup({
+      shipmentIds: [lot.id, lotPartner.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: actualPlate,
+      billingTruckNo: virtualPlate,
+    }, actor);
+
+    // 1. Customer-facing export: buildTripRenderData binds to billing_truck_no (xe ảo)
+    const customerExportRow = buildTripRenderData({
+      trip: {
+        tripCode: 'TC-GAP3',
+        departureDate: '2026-10-21',
+        routeName: null,
+        notes: null,
+        truckPlate: actualPlate,
+        externalPlateNumber: null,
+        actualTruckNo: actualPlate,
+        billingTruckNo: virtualPlate,
+        cargoMode: 'LCL',
+      },
+      containers: [],
+    });
+    assert.equal(
+      customerExportRow.truckPlate,
+      virtualPlate,
+      'Customer-facing export row uses billing_truck_no when differing from actual_truck_no',
+    );
+    assert.notEqual(
+      customerExportRow.truckPlate,
+      actualPlate,
+      'Actual plate never reaches customer-facing debit note',
+    );
+
+    // Also assert that if an LCL lot has no virtual plate, actual plate is never leaked:
+    const noVirtualRow = buildTripRenderData({
+      trip: {
+        tripCode: 'TC-GAP3-NO-VIRTUAL',
+        departureDate: '2026-10-21',
+        routeName: null,
+        notes: null,
+        truckPlate: actualPlate,
+        externalPlateNumber: null,
+        actualTruckNo: actualPlate,
+        billingTruckNo: null,
+        cargoMode: 'LCL',
+      },
+      containers: [],
+    });
+    assert.equal(noVirtualRow.truckPlate, null, 'Actual plate is never leaked even when billingTruckNo is null');
+
+    // 2. Vendor settlement view (accounting debit board): MUST still use actual_truck_no
+    const board = await getAccountingDebitBoard({ dateFrom: '2026-10-01', dateTo: '2026-10-31' });
+    const row = board.items.find((item) => item.shipmentId === lot.id);
+    assert.ok(row, 'lot is found on the board');
+    assert.ok(row.lcl, 'lcl facts present');
+    assert.equal(
+      row.lcl!.actualTruckNo,
+      actualPlate,
+      'Vendor settlement view is REQUIRED to use actual_truck_no',
+    );
+    assert.equal(
+      row.lcl!.billingTruckNo,
+      virtualPlate,
+      'Vendor settlement view also carries billingTruckNo for reference',
+    );
+  });
 });
 
 describe('LCL grouping — FB-095 un-merge safety', () => {
