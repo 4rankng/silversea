@@ -1,5 +1,11 @@
 # FB-009 (card 131026233500) — SKIPPED as out of wave scope
 
+> **Superseded 2026-10-16 (second attempt).** The card body was recovered from
+> the Google Drive kanban export and the two surfaces it names — the
+> *Chọn ngày giờ* dialog and the *Lịch & ghi chú* group — are now fixed; see
+> `case-2026-10-16-fb009-copy-time-dialog-and-section.md`. The wider surface
+> census below (outside this card) remains open.
+
 **Status: skipped, not fixed.** Documented per the W5 brief ("if any card turns
 out to be large/unclear, skip it, document why, move on — breadth first").
 

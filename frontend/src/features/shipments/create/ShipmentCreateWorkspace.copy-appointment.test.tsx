@@ -287,4 +287,29 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     expect(screen.queryByRole('button', { name: 'Copy Giờ hẹn đóng trả' })).toBeNull();
   });
+
+  // FB-009 (card 131026233500): "mục 'Lịch & ghi chú' … KHÔNG có nút copy
+  // thời gian" — the section named by the card had no clipboard affordance at
+  // all, only the copy-DOWN button that fills sibling rows. The section now
+  // carries the clipboard button beside the group field, and it copies the
+  // value typed there (never a sibling row's).
+  it('copies the section bulk giờ hẹn to the clipboard from the Lịch & ghi chú group', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    addContainer();
+    const group = document.querySelector('[data-field-id="shipment-bulk-appointment"]')!;
+    expect(group).toBeTruthy();
+    // Nothing typed yet: there is no complete time to copy.
+    expect(group.querySelector('button[aria-label^="Copy giờ hẹn"]')).toBeNull();
+
+    fireEvent.change(group.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-date"]')!, { target: { value: '20/09/2026' } });
+    fireEvent.change(group.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]')!, { target: { value: '14:00' } });
+
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    fireEvent.click(screen.getByRole('button', { name: 'Copy giờ hẹn đóng trả' }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('14:00 20/09/2026'));
+    expect(await screen.findByText('Đã copy giờ hẹn 14:00 20/09/2026')).toBeInTheDocument();
+  });
 });

@@ -460,9 +460,28 @@
   flex: 0 1 260px;
   min-width: 220px;
 }
+/* FB-009 (card 131026233500): the section-level copy-time affordance sits on
+   the same wrapping row as the group field and its apply button — a small
+   icon button aligned to the control row, never an overlay. Always visible
+   (no hover-reveal): the card reports a clerk hunting for it by name. */
+.csc-bulk-appointment__copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg-3);
+  cursor: pointer;
+}
+.csc-bulk-appointment__copy:hover { background: var(--surface-2); color: var(--fg-1); }
 @media (max-width: 640px) {
   .csc-bulk-appointment { flex-direction: column; align-items: stretch; }
   .csc-bulk-appointment .csc-utility-button { width: 100%; }
+  .csc-bulk-appointment__copy { align-self: flex-start; }
 }
 
 /* Bulk appointment copy (user ruling 2026-09-18): the affordance lives in the

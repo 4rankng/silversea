@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SplitDateTimeField } from './SplitDateTimeField';
 
@@ -153,5 +153,49 @@ describe('SplitDateTimeField combinedPicker — auto-advance through this host (
     fireEvent.change(hh, { target: { value: '15' } });
 
     expect(document.activeElement).toBe(mm);
+  });
+});
+
+/**
+ * Card 131026233500 (FB-009 re-report): the "Chọn ngày giờ" dialog itself
+ * carried no copy button — the clerk opens the dialog, picks a time, and has
+ * nowhere to copy it from. The affordance lives in the dialog header beside
+ * "Đóng lịch" and writes the same 'HH:mm DD/MM/YYYY' shape the row button
+ * writes, so a pasted time matches what the field shows.
+ */
+describe('SplitDateTimeField combinedPicker — copy giờ hẹn in the dialog (FB-009, card 131026233500)', () => {
+  it('copies the picked datetime from the dialog header and reports it to the host', async () => {
+    const onCopied = vi.fn();
+    render(
+      <SplitDateTimeField id="apt" label="Ngày giờ đóng trả" value="2026-09-20T09:30" onChange={vi.fn()} combinedPicker onCopied={onCopied} />,
+    );
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    openPart('date');
+    const copy = screen.getByRole('button', { name: 'Copy giờ hẹn trong hộp thoại' });
+    const dialog = copy.closest('[role="dialog"]')!;
+    expect(dialog.textContent).toContain('Chọn ngày giờ');
+    expect(copy.closest('header')).not.toBeNull();
+
+    fireEvent.click(copy);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('09:30 20/09/2026'));
+    expect(onCopied).toHaveBeenCalledWith('09:30 20/09/2026');
+  });
+
+  it('offers no copy button while the draft has no complete time yet', () => {
+    render(
+      <SplitDateTimeField id="apt" label="Ngày giờ đóng trả" value="" onChange={vi.fn()} combinedPicker />,
+    );
+    openPart('date');
+    expect(screen.queryByRole('button', { name: 'Copy giờ hẹn trong hộp thoại' })).toBeNull();
+
+    // Half a draft still has no time to copy; the whole 'HH:mm DD/MM/YYYY'
+    // value only exists once both halves parse.
+    const group = document.querySelector('[data-seg-part="time"]')!;
+    const hh = group.querySelector<HTMLInputElement>('input')!;
+    fireEvent.focus(hh);
+    fireEvent.change(hh, { target: { value: '09' } });
+    expect(screen.queryByRole('button', { name: 'Copy giờ hẹn trong hộp thoại' })).toBeNull();
   });
 });

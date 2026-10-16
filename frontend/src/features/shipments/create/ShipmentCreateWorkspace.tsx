@@ -9,6 +9,7 @@ import {
 } from './uui-fields';
 import { UDateTimeField } from './uui-datetime-field';
 import { useToast } from '../../../components/shared/Toast';
+import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
   listOperationalSites,
@@ -447,6 +448,11 @@ export function ShipmentCreateWorkspace() {
   // sources from the first row that has an appointment; the per-row hover
   // buttons keep copying their own values.
   const copySourceRow = containers.find((row) => row.customerAppointmentAt);
+  // FB-009 (card 131026233500): the value the section-level copy button
+  // writes. Empty until the group holds a COMPLETE datetime — a half-typed
+  // draft has no time to copy, and 'HH:mm DD/MM/YYYY' is the shape the row
+  // and dialog copy buttons already write.
+  const bulkAppointmentCopyValue = formatDateTime24(bulkAppointment);
   function copyAppointmentToEmpty(fromKey: string) {
     const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
     if (!source) return;
@@ -518,11 +524,26 @@ export function ShipmentCreateWorkspace() {
   }
 
   async function save(intent: SaveIntent) {
+    // FB-048 (card 141026003600): the native pre-gate used to run FIRST and
+    // return, so a partially-typed date/Time field (which sets customValidity
+    // on its segments) starved every OTHER required field of its issue — the
+    // card's exact symptom: "chỉ ô ngày/giờ nhập dở mới có viền đỏ", while
+    // Khách hàng / Hình thức XNK / Số Bill-Booking / Loại container stayed
+    // neutral on an all-empty submit.
+    //
+    // The app-owned pass now runs first: it paints every invalid field and
+    // blocks the save on its own. The native gate stays as the fallback for a
+    // constraint the model does not express (an empty value passes validation
+    // but the input is still `:invalid`), so nothing can slip through a save.
     const incomplete = workspaceFormRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid, [data-split-datetime] input:invalid');
-    if (incomplete) { incomplete.focus(); incomplete.reportValidity(); return; }
     const result = await runSave(intent);
+    // A partial date/time draft still earns its own native message
+    // ("Nhập đủ giờ và ngày hợp lệ.") — reported on top of the app-owned paint,
+    // never instead of it.
+    if (incomplete) incomplete.reportValidity();
     if (result.issues.length > 0) {
       window.requestAnimationFrame(() => focusIssue(result.issues[0].fieldId));
+      return;
     }
   }
 
@@ -756,6 +777,20 @@ export function ShipmentCreateWorkspace() {
                     >
                       <CalendarDays size={15} aria-hidden="true" />Áp dụng cho {emptyAppointmentCount} container
                     </button>
+                    {/* FB-009 (card 131026233500, "nút copy thời gian vẫn không
+                        tồn tại ở bất kỳ đâu"): the section-level clipboard
+                        affordance the card looked for next to this group. It
+                        copies the value typed HERE — the copy-down button
+                        below fills sibling rows instead and is a different
+                        feature. */}
+                    {bulkAppointmentCopyValue && (
+                      <CopyCodeButton
+                        className="csc-bulk-appointment__copy"
+                        value={bulkAppointmentCopyValue}
+                        label="giờ hẹn đóng trả"
+                        onCopied={() => notifyAppointmentCopied(bulkAppointmentCopyValue)}
+                      />
+                    )}
                   </div>
                 )}
                 {copySourceRow && emptyAppointmentCount >= 1 && (

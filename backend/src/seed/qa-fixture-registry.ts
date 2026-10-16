@@ -25,9 +25,33 @@ export interface QaFixtureSurface {
   scrubColumns?: string[];
 }
 
-export const QA_SHIPMENT_FIELDS_SQL = `bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%' OR shipment_code ILIKE 'QA%' OR bl_number ILIKE 'CARD226-QA-%' OR bl_number ILIKE 'BILL-QAC1%' OR operational_notes ILIKE 'QA-BUG3%' OR operational_notes ILIKE 'card226 advisory-lock probe%'`;
+export const QA_SHIPMENT_FIELDS_SQL = `bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%' OR shipment_code ILIKE 'QA%' OR bl_number ILIKE 'CARD226-QA-%' OR bl_number ILIKE 'BILL-QAC1%' OR operational_notes ILIKE 'QA-BUG3%' OR operational_notes ILIKE 'card226 advisory-lock probe%'
+  /* FB-061 (card 141026012010): the Kiểm soát phơi phiếu board showed
+     "BL-QAKE-<timestamp>" and "E2E-*" bills. Neither matches a QA% prefix —
+     the QA lanes name their lots by probe family — so the shipments soft
+     delete never reached them and the board (which filters on
+     shipments.deleted_at) kept rendering them. */
+  OR bl_number ILIKE 'BL-QAKE%' OR booking_ref ILIKE 'BL-QAKE%' OR shipment_code ILIKE 'BL-QAKE%'
+  OR bl_number ILIKE 'E2E-%' OR booking_ref ILIKE 'E2E-%' OR shipment_code ILIKE 'E2E-%'`;
 export const QA_SHIPMENTS_SQL = `shipment_id IN (SELECT id FROM shipments WHERE ${QA_SHIPMENT_FIELDS_SQL})`;
 const QA_TRIPS_SQL = `trip_id IN (SELECT t.id FROM trips t JOIN shipments s ON s.id = t.shipment_id WHERE s.bl_number ILIKE 'QA%' OR s.booking_ref ILIKE 'QA%' OR s.shipment_code ILIKE 'QA%' OR s.bl_number ILIKE 'CARD226-QA-%' OR s.bl_number ILIKE 'BILL-QAC1%' OR s.operational_notes ILIKE 'QA-BUG3%')`;
+
+/**
+ * FB-061 (card 141026012010) — the board's three vehicle columns
+ * (biển số / lái xe / nhà vận tải) project from `trip_carrier_info`
+ * (external carriers) and from `trucks` / `drivers` (own fleet). None of those
+ * three tables had a registry surface, so a probe plate or driver survived
+ * every wave's `make qapurge` while the card kept reporting it on
+ * `/accounting/phoi-phieu`.
+ *
+ * The signatures are the ones the card quotes from staging
+ * (2026-10-14, admin): plate `99T-99999`, probe plate `51K-PROBE`, driver
+ * `Test Driver …`. Each branch is anchored on a QA token or a probe token —
+ * no branch matches a real fleet number or a real driver's name.
+ */
+export const QA_EXTERNAL_CARRIER_SQL = `external_plate_number ILIKE 'QA%' OR external_driver_name ILIKE 'QA%' OR external_plate_number ILIKE '99T-99999' OR external_plate_number ILIKE '51K-PROBE%' OR external_driver_name ILIKE 'Test Driver%'`;
+export const QA_TRUCK_SQL = `license_plate ILIKE 'QA%' OR license_plate ILIKE '99T-99999' OR license_plate ILIKE '51K-PROBE%' OR license_plate ~ '-[0-9]{10,13}$'`;
+export const QA_DRIVER_SQL = `name ILIKE 'QA%' OR name ILIKE 'Test Driver%' OR name ~ '-[0-9]{10,13}$'`;
 
 export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
@@ -200,14 +224,18 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
     table: 'customers',
     label: 'QA customers',
-    predicate: `name ILIKE 'QA%'`,
+    // FB-061 (card 141026012010): the board also showed "QA0915 QA-138 Credit
+    // Customer" (matches QA%) and the probe carrier family "STG VERIFY …"
+    // (does not). The customers join on the board filters deleted_at, so a
+    // soft delete removes the name from every projection that uses it.
+    predicate: `name ILIKE 'QA%' OR name ILIKE 'STG VERIFY%'`,
     action: 'soft-delete',
     guards: [],
   },
   {
     table: 'suppliers',
     label: 'QA suppliers',
-    predicate: `name ILIKE 'QA%'`,
+    predicate: `name ILIKE 'QA%' OR name ILIKE 'STG VERIFY%'`,
     action: 'soft-delete',
     guards: [],
   },
@@ -259,7 +287,7 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
     table: 'trips',
     label: 'QA text fields on trips (references, notes, factory names)',
-    predicate: `customer_reference ILIKE 'QA%' OR notes ILIKE 'QA%' OR factory_site_address ILIKE 'QA%' OR factory_site_name ILIKE 'QA%'`,
+    predicate: `customer_reference ILIKE 'QA%' OR notes ILIKE 'QA%' OR factory_site_address ILIKE 'QA%' OR factory_site_name ILIKE 'QA%' OR factory_site_name ILIKE 'KHO-SEAM%'`,
     action: 'scrub',
     guards: [],
     scrubColumns: ['customer_reference', 'notes', 'factory_site_address', 'factory_site_name'],
@@ -274,7 +302,10 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     // matches exactly ids 436/437 (FB080-RUNG-1 "FB-080 rung", FB080-RUNG-2
     // "FB-080 rung minimal"). Real factory names in the same census
     // ("Nhà máy YuanFang", "SJ", "Chưa xác định") match no branch.
-    predicate: `operational_notes ILIKE 'QA%' OR customer_notes ILIKE 'QA%' OR factory_name ILIKE 'QA%' OR bl_number ILIKE 'FB08%RUNG%' OR factory_name ILIKE 'FB-0% rung%'`,
+    predicate: `operational_notes ILIKE 'QA%' OR customer_notes ILIKE 'QA%' OR factory_name ILIKE 'QA%' OR bl_number ILIKE 'FB08%RUNG%' OR factory_name ILIKE 'FB-0% rung%'
+      /* FB-061 (card 141026012010): "KHO-SEAM-1789702634486" — a probe site
+         name stamped with an epoch, shown as the board's Nhà máy. */
+      OR factory_name ILIKE 'KHO-SEAM%'`,
     action: 'scrub',
     guards: [],
     scrubColumns: ['operational_notes', 'customer_notes', 'factory_name'],
@@ -288,9 +319,41 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     scrubColumns: ['notes'],
   },
   {
+    table: 'trip_carrier_info',
+    label: 'QA external-carrier rows (probe plate / driver on Kiểm soát phơi phiếu)',
+    // FB-061 (card 141026012010): one child of trips, and the source of the
+    // board's biển số / lái xe / nhà vận tải columns for EXTERNAL carriers.
+    // No deleted_at and no status column, so the row cannot be hidden — it
+    // must go, and it goes before its trip's other children.
+    predicate: QA_EXTERNAL_CARRIER_SQL,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
+    table: 'trucks',
+    label: 'QA probe trucks (own-fleet plate on Kiểm soát phơi phiếu)',
+    // Soft delete, not delete: trips.truck_id is a bare integer with no DB FK,
+    // so a hard delete would orphan live trip rows. See the record's note on
+    // the board's left join.
+    predicate: QA_TRUCK_SQL,
+    action: 'soft-delete',
+    guards: [],
+  },
+  {
+    table: 'drivers',
+    label: 'QA probe drivers (own-fleet driver on Kiểm soát phơi phiếu)',
+    predicate: QA_DRIVER_SQL,
+    action: 'soft-delete',
+    guards: [],
+  },
+  {
     table: 'operational_sites',
     label: 'QA-named operational sites (FK-pinned master data - renamed in place)',
-    predicate: `name ILIKE 'QA%' OR short_name ILIKE 'QA%'`,
+    // FB-061 (card 141026012010): `code` was never in the predicate, so a
+    // probe site whose NAME reads like a real factory while its CODE carries
+    // the probe token survived; and the card's visible value was a
+    // name-stamped `KHO-SEAM-<epoch>` on both columns.
+    predicate: `name ILIKE 'QA%' OR short_name ILIKE 'QA%' OR code ILIKE 'QA%' OR name ILIKE 'KHO-SEAM%' OR short_name ILIKE 'KHO-SEAM%'`,
     action: 'scrub',
     guards: [],
     scrubColumns: ['name', 'short_name'],
