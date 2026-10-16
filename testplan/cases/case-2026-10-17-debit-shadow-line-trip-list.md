@@ -55,8 +55,11 @@ line; Tailkit `search_components` ×2 → no hits, `browse_catalog` →
 `application-ui/components/list-groups` → `get_component_code
 (["a-c-list-groups-01"])` consulted for the label-left/status-right row shape;
 Tailkit classes are banned by contract, so rows are rebuilt on house tokens.
-Disclosure control reuses the house pattern from `LedgerRecordList`
-(`--control-h`, `--ink-2`, `--brand` focus ring).
+Disclosure control follows the house link-action pattern (page's own
+`.shipment-debit-row__detail-link` precedent: `--color-primary`, underline)
+with the disclosure tokens LedgerRecordList uses for its summary
+(`--control-h` hit area, `--brand` focus ring) — `--ink-2` was deliberately
+NOT used: the toggle must read as an action, not as static status ink.
 
 ## Verification
 - BE pin: `backend/src/tests/shipment-debit-summary.test.ts` (shadow describe —
