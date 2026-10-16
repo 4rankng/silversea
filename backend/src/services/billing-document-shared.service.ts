@@ -126,6 +126,9 @@ export type CustomerDebitTripCandidate = {
   externalPlateNumber: string | null;
   /** FB-094: BKS báo khách ("xe ảo") — wins over every actual plate on the note. */
   billingTruckNo: string | null;
+  /** Actual truck plate (runs the lane). GAP 3: must never reach customer debit note. */
+  actualTruckNo?: string | null;
+  cargoMode?: string | null;
   /** FB-094: loại xe tính cước thu (vehicle_size_classes of the rev group). */
   revVehicleClassName: string | null;
   revVehicleClassCode: string | null;
