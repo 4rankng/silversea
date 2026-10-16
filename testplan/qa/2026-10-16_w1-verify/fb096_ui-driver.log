@@ -1,0 +1,19 @@
+[2026-10-16T07:29:34.036Z] API GET /api/shipments?page=1&limit=50 as hoapt -> 200
+[2026-10-16T07:29:34.289Z] API GET /api/shipments?page=2&limit=50 as hoapt -> 200
+[2026-10-16T07:29:37.842Z] GOTO /accounting/dehot-tracker
+[2026-10-16T07:29:41.112Z] GOTO /accounting/deposit-tracker
+[2026-10-16T07:29:41.217Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb096_01-tracker.png
+[2026-10-16T07:29:41.218Z] ASSERT button "Thêm cược" = true
+[2026-10-16T07:29:41.218Z] ASSERT old "Thêm dòng" label absent = true
+[2026-10-16T07:29:41.228Z] CLICK "Thêm cược" -> "Thêm cược"
+[2026-10-16T07:29:42.449Z] ASSERT dialog title = "Thêm cược"
+[2026-10-16T07:29:44.649Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb096_02-suggestions.png
+[2026-10-16T07:29:44.650Z] ASSERT suggestion items = ["BLCUS6159Hãng tàu AccessibilityCÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"]
+[2026-10-16T07:29:45.573Z] ASSERT autofill values = {"Tra cứu Bill (4 số cuối)":"","Số Bill":"BLCUS6159","Khách hàng":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH","Hãng tàu":"Hãng tàu Accessibility","Ghi chú":""}
+[2026-10-16T07:29:46.444Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb096_03-filled.png
+[2026-10-16T07:29:46.447Z] CLICK "Lưu dòng" -> "Lưu dòng"
+[2026-10-16T07:29:49.854Z] ASSERT dialog closed = true
+[2026-10-16T07:29:49.856Z] ASSERT dialog error text after save = null
+[2026-10-16T07:29:49.950Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb096_04-after-save.png
+[2026-10-16T07:29:49.951Z] ASSERT row visible in table = true
+[2026-10-16T07:29:50.356Z] API GET /api/accounting/deposits as hoapt -> 200
