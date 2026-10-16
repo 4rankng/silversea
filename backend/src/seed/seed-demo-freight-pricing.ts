@@ -45,6 +45,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema/index.js';
 import { pricing } from './data/index.js';
+import { demoSeedBlocked } from './demo-seed-gate.js';
 
 const LONG_MINH_NAME = 'CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH';
 
@@ -156,6 +157,17 @@ const PRICING_ROUTE_SEEDS = [
 ] as const;
 
 export async function seedDemoFreightPricing(): Promise<void> {
+  // FB-061 (card 141026012010 re-report): this module's own header calls it a
+  // DEMO seeder for "dev + staging ONLY", and the Makefile stages it that way
+  // — yet it self-executes with no production check, so an invented contract
+  // ladder could be written to a production database unchecked. That is
+  // precisely the self-authored-row class FB-061 exists to prevent. Share the
+  // one gate with the other demo seeders. The sanctioned production path
+  // (seed-prod.ts) deliberately excludes this module, so nothing real is
+  // blocked: dev/test and the documented staging opt-in still work.
+  const blocked = demoSeedBlocked();
+  if (blocked) throw new Error(blocked);
+
   await ensureVehicleSizeClasses();
   await ensureFuelPricePeriods();
   await ensureFuelConsumptionNorms();

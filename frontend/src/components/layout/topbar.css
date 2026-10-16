@@ -515,8 +515,18 @@
 .topbar__search:focus-within {
   max-width: 560px;
 }
+/* FB-057 (2026-10-16 re-report, card 141026012000): the fluid-growth tier
+   above 1280px was defeated the moment the field took focus. The rest cap
+   and the focus relaxation are different selectors — `:focus-within` is
+   (0,2,0) while the media block below is (0,1,0) — so the 560px focus clamp
+   won on specificity alone and the "no hard ceiling above 1280px" ruling
+   silently reverted to a 560px cap for exactly the state the ruling was
+   written for (the field in use). Re-state the focus selector inside the
+   tier so the unbounded rule outranks it, instead of raising the whole
+   block and disturbing the ≤1279px rest/focus ladder. */
 @media (min-width: 1280px) {
-  .topbar__search {
+  .topbar__search,
+  .topbar__search:focus-within {
     max-width: none;
   }
 }

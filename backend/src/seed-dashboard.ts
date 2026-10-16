@@ -11,6 +11,7 @@ import { db } from './db';
 import * as s from './db/schema';
 import { sql, eq, isNull } from 'drizzle-orm';
 import { insertTripComposite } from './services/trip-composite.service';
+import { demoSeedBlocked } from './seed/demo-seed-gate';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function vnd(n: number): string {
@@ -579,6 +580,15 @@ async function seedExpenses() {
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
+  // FB-061 (card 141026012010 re-report): this is a second demo seeder that
+  // writes trips, ledger entries and expenses — the same self-authored rows
+  // the `pnpm seed` gate exists to keep out of production. It was the one
+  // demo entrypoint still unguarded, so `npx tsx src/seed-dashboard.ts`
+  // against a production DATABASE_URL wrote demo rows unchecked. Refuse here,
+  // before the first write, using the one shared law.
+  const blocked = demoSeedBlocked();
+  if (blocked) throw new Error(blocked);
+
   console.log('🌱 Seeding dashboard data...\n');
   console.log('📅 Current date: June 2026');
   console.log('📅 Salary period default: 25th → 24th');
