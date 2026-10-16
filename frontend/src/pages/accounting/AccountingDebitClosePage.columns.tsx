@@ -83,19 +83,31 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'phanXe', label: 'Phân xe', className: 'debit-col--truck',
-    // FB-094: the group's two plates — actual + billing; the orange badge
-    // fires only when the "xe ảo" differs from what really ran the lane.
+    // Card 161026232419 (§II.4) + FB-094: an LCL row states BOTH facts so kế
+    // toán can check them side by side — line 1 is the lot's real carrier
+    // identity next to the plate that actually ran the lane, line 2 is the
+    // orange "xe ảo" badge that fires only when the billing plate differs.
+    // The carrier half reuses `row.phanXe`, the SAME active-trip labels the
+    // FCL cell renders below (subcontracted ⇒ nhà xe name, own fleet ⇒ own
+    // plate) — the service batches that lookup once for the whole board, so
+    // this cell MUST NOT resolve a carrier of its own.
     cell: (row) => {
       if (row.lcl) {
+        const carrier = row.phanXe.filter((label) => label.trim() !== '').join(', ') || null;
+        const actual = row.lcl.actualTruckNo?.trim() || null;
+        const billing = row.lcl.billingTruckNo?.trim() || null;
+        const xeoAo = billing != null && billing !== actual ? billing : null;
+        // Absence is not data: an LCL row carrying neither identity renders
+        // the ONE em-dash, never an empty string or a bare "Thực: undefined".
+        if (carrier == null && actual == null && xeoAo == null) return <span>—</span>;
         return (
           <div className="record-cell-stack">
-            {row.lcl.actualTruckNo && <span>{row.lcl.actualTruckNo}</span>}
-            {row.lcl.billingTruckNo && row.lcl.billingTruckNo !== row.lcl.actualTruckNo && (
+            <span>{carrier ?? '—'} · Thực: {actual ?? '—'}</span>
+            {xeoAo != null && (
               <span className="debit-billing-badge" title="Debit Note in BKS báo khách, không in BKS thực">
-                Báo khách (Ảo): {row.lcl.billingTruckNo}
+                Báo khách (Ảo): {xeoAo}
               </span>
             )}
-            {!row.lcl.actualTruckNo && !row.lcl.billingTruckNo && <span>—</span>}
           </div>
         );
       }

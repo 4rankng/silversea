@@ -1,13 +1,18 @@
 /**
- * FB-094 — the chốt-debit board's LCL cells: the container-params label cites
- * the thu/tra vehicle classes + "Ghép cùng Bill X", and PHÂN XE shows the two
- * plates with the orange "Báo khách (Ảo)" badge only when billing ≠ actual.
+ * FB-094 + card 161026232419 — the chốt-debit board's LCL cells.
+ *
+ * PHÂN XE line 1 (§II.4) states the lot's REAL carrier identity and the plate
+ * that ran the lane — `[Nhà xe thực tế] · Thực: [BKS thực tế]` — where the
+ * carrier half is the same `row.phanXe` label the FCL cell renders
+ * (subcontracted ⇒ nhà xe name, own fleet ⇒ own plate). Line 2 is the orange
+ * "Báo khách (Ảo)" badge, only when the billing plate differs from the actual
+ * one. The container-params cell cites the thu/tra vehicle classes +
+ * "Ghép cùng Bill X".
  */
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
-
-const { BOARD_COLUMNS } = await import('./AccountingDebitClosePage.columns');
+import { BOARD_COLUMNS } from './AccountingDebitClosePage.columns';
 
 const noContext = { confirm: () => {}, withdraw: () => {}, isBusy: false };
 
@@ -35,6 +40,20 @@ function cellFor(key: string, target: AccountingDebitBoardRow) {
   return column.cell(target, noContext);
 }
 
+function textOf(key: string, target: AccountingDebitBoardRow) {
+  return render(<>{cellFor(key, target)}</>).container;
+}
+
+const lcl = (
+  over: Partial<NonNullable<AccountingDebitBoardRow['lcl']>> = {},
+): NonNullable<AccountingDebitBoardRow['lcl']> => ({
+  label: 'Lẻ',
+  actualTruckNo: null,
+  billingTruckNo: null,
+  ghépCùngRef: null,
+  ...over,
+});
+
 describe('FB-094 — board LCL cells', () => {
   it('container params read the LCL label + the group note, not container lines', () => {
     const view = cellFor('container', row({
@@ -48,24 +67,73 @@ describe('FB-094 — board LCL cells', () => {
     expect(container.textContent).toContain('Lẻ · Thu: 5T · Trả: 10T (Ghép cùng Bill BL-9)');
   });
 
+  // Card 161026232419 (§II.4): line 1 carries the carrier name AND the real
+  // plate — "Nhà xe Gaya · Thực: 29C-1". An own-fleet lot names its own-fleet
+  // identity exactly as the FCL cell does: the own plate (phanXe label).
+  it('PHÂN XE line 1 names the real carrier and labels the actual plate', () => {
+    const subcontract = textOf('phanXe', row({
+      phanXe: ['Nhà xe Gaya'],
+      lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '29C-1' }),
+    }));
+    expect(subcontract.textContent).toContain('Nhà xe Gaya · Thực: 29C-1');
+    expect(subcontract.querySelector('.debit-billing-badge')).toBeNull();
+
+    const ownFleet = textOf('phanXe', row({
+      phanXe: ['29C-123.45'],
+      lcl: lcl({ actualTruckNo: '29C-123.45', billingTruckNo: '29C-123.45' }),
+    }));
+    expect(ownFleet.textContent).toContain('29C-123.45 · Thực: 29C-123.45');
+  });
+
   it('PHÂN XE shows both plates and the orange badge only when they differ', () => {
-    const differing = render(<>{cellFor('phanXe', row({
-      lcl: { label: 'Lẻ', actualTruckNo: '29C-1', billingTruckNo: '30C-2', ghépCùngRef: null },
-    }))}</>).container;
-    expect(differing.textContent).toContain('29C-1');
+    const differing = textOf('phanXe', row({
+      phanXe: ['Nhà xe Gaya'],
+      lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '30C-2' }),
+    }));
+    expect(differing.textContent).toContain('Nhà xe Gaya · Thực: 29C-1');
     expect(differing.textContent).toContain('Báo khách (Ảo): 30C-2');
     expect(differing.querySelector('.debit-billing-badge')).toBeTruthy();
 
-    const matching = render(<>{cellFor('phanXe', row({
-      lcl: { label: 'Lẻ', actualTruckNo: '29C-1', billingTruckNo: '29C-1', ghépCùngRef: null },
-    }))}</>).container;
+    const matching = textOf('phanXe', row({
+      phanXe: ['Nhà xe Gaya'],
+      lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '29C-1' }),
+    }));
     expect(matching.querySelector('.debit-billing-badge')).toBeNull();
+    expect(matching.textContent).toContain('Nhà xe Gaya · Thực: 29C-1');
+  });
+
+  it('PHÂN XE degrades missing carrier/plate to —, never "" or undefined', () => {
+    const bare = textOf('phanXe', row({ lcl: lcl() }));
+    expect(bare.textContent).toBe('—');
+    expect(bare.textContent).not.toContain('undefined');
+
+    const noCarrier = textOf('phanXe', row({
+      lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '29C-1' }),
+    }));
+    expect(noCarrier.textContent).toContain('— · Thực: 29C-1');
+    expect(noCarrier.textContent).not.toContain('undefined');
+
+    const noPlate = textOf('phanXe', row({
+      phanXe: ['Nhà xe Gaya'],
+      lcl: lcl(),
+    }));
+    expect(noPlate.textContent).toContain('Nhà xe Gaya · Thực: —');
+
+    // Whitespace-only plates are absence, not data.
+    const blank = textOf('phanXe', row({
+      phanXe: ['Nhà xe Gaya'],
+      lcl: lcl({ actualTruckNo: '  ', billingTruckNo: '' }),
+    }));
+    expect(blank.textContent).toContain('Nhà xe Gaya · Thực: —');
+    expect(blank.textContent).not.toContain('undefined');
   });
 
   it('FCL rows keep the container list and the phanXe join', () => {
-    const fclContainer = render(<>{cellFor('container', row({ containers: ['MSCU1 · 40HC'] }))}</>).container;
+    const fclContainer = textOf('container', row({ containers: ['MSCU1 · 40HC'] }));
     expect(fclContainer.textContent).toContain('MSCU1 · 40HC');
-    const fcl = render(<>{cellFor('phanXe', row({ phanXe: ['Xe nhà · 30A-111'] }))}</>).container;
-    expect(fcl.textContent).toContain('Xe nhà · 30A-111');
+    const fcl = textOf('phanXe', row({ phanXe: ['Xe nhà · 30A-111'] }));
+    expect(fcl.textContent).toBe('Xe nhà · 30A-111');
+    expect(fcl.textContent).not.toContain('Thực:');
+    expect(textOf('phanXe', row()).textContent).toBe('—');
   });
 });

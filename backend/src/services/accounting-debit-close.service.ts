@@ -530,6 +530,10 @@ export async function getAccountingDebitBoard(query: {
       ngay: lot.ngay,
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       containers: containersByLot.get(lot.id) ?? [],
+      // Card 161026232419: the LCL PHÂN XE cell renders its line 1 name from
+      // THESE labels — derived in memory from the ONE batched trip query
+      // above, never a per-row read — so every LCL lot ships the same nhà xe
+      // identity the FCL cell shows.
       phanXe: phanXeByLot.get(lot.id) ?? [],
       lcl: lot.cargoMode === 'LCL' ? {
         label: [
