@@ -1,0 +1,18 @@
+{
+  "pin": "e3286338",
+  "date": "2026-10-16T13:37:37.764Z",
+  "results": {
+    "A.6.add-by-class": {
+      "verdict": "PASS",
+      "note": "add price WITH Loại xe \"Xe 2.5 tấn\": saved=true, row visible=true, no axis error=true"
+    },
+    "A.6.readd-after-delete": {
+      "verdict": "PASS",
+      "note": "delete → re-add same trio: reAddOk=true, duplicate-error=false"
+    },
+    "A.6": {
+      "verdict": "PASS",
+      "note": "classes API tons=true cont=true, picker=true, add-by-class=true, re-add=true"
+    }
+  }
+}

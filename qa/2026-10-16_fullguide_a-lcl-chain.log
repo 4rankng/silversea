@@ -1,0 +1,28 @@
+# fullguide a-lcl-chain driver — 2026-10-16T13:07:06.784Z pin=227a08b2
+2026-10-16T13:07:06.828Z health {"status":"ok","timestamp":"2026-10-16T13:07:06.853Z","buildHash":"227a08b2"}
+2026-10-16T13:07:07.436Z logins {"cus":true,"disp":true,"admin":true}
+2026-10-16T13:07:07.468Z customer {"id":1,"name":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"}
+2026-10-16T13:07:07.497Z route {"id":6,"name":"KCN Quế Võ, Nam Sơn, Bắc Ninh","code":"KCN Quế Võ"}
+2026-10-16T13:07:07.530Z vehicle-class {"id":1,"name":"Xe 1.25 tấn","code":"1.25T"}
+2026-10-16T13:07:07.699Z qa-pricing-row {"status":201,"id":116,"body":"{\"id\":116,\"customerId\":1,\"routeId\":6,\"price\":\"1200000\",\"containerTypeId\":null,\"rateKey\":\"1.25T\",\"vehicleSizeClassId\":1,\"effectiveDate\":\"2026-10-16\",\"createdAt\":\"2026-10-16T13:07:07.667Z\",\"updatedAt\":\""}
+2026-10-16T13:07:15.295Z a1-mode-lcl {"lclOn":true}
+2026-10-16T13:07:18.533Z a1-error {"error":"Invalid regular expression flags"}
+2026-10-16T13:07:19.669Z VERDICT {"id":"A.1","verdict":"FAIL","note":"Invalid regular expression flags"}
+2026-10-16T13:07:19.767Z a1-db {"row":"no-id"}
+2026-10-16T13:07:19.767Z a1-captured-payload {"payload":null}
+2026-10-16T13:07:19.996Z fixture-create {"ref":"QA-FG16-B-bb1586","status":201,"id":621,"err":null}
+2026-10-16T13:07:20.289Z fixture-create {"ref":"QA-FG16-C-bb1586","status":201,"id":622,"err":null}
+2026-10-16T13:07:20.408Z fixture-create {"ref":"QA-FG16-D-bb1586","status":201,"id":623,"err":null}
+2026-10-16T13:07:46.845Z a2-row {"found":false,"headers":["Thời gian & lịch trình","Khách hàng & nhà máy","Tuyến đường & hãng tàu","Cảng nâng","Cảng hạ","Tổng quan hàng hóa","Phân bổ nhà xe","Ghi chú"],"rowText":[],"cargoOk":false,"hasEmDash":false}
+2026-10-16T13:07:46.845Z VERDICT {"id":"A.2","verdict":"FAIL","note":"master plan row: found=false, cargoOverview=false, rows=[]"}
+2026-10-16T13:08:13.015Z a3-checkboxes {"count":8,"visible":8}
+2026-10-16T13:08:14.233Z a3-selection {"checked":["QA-FG16-B-bb1586"],"barOk":false,"barSnippet":"Đang chọn 1 lô: Tổng 0 kg | 0 CBM"}
+2026-10-16T13:08:16.079Z a3-dialog {"opened":false,"dialogText":null}
+2026-10-16T13:08:16.422Z a3-error {"error":"Cannot read properties of undefined (reading 'querySelectorAll')"}
+2026-10-16T13:08:16.640Z VERDICT {"id":"A.3","verdict":"FAIL","note":"Cannot read properties of undefined (reading 'querySelectorAll')"}
+2026-10-16T13:08:27.207Z a4-dialog {"selected":{"boxes":[],"clicked":["QA-FG16-C-bb1586","QA-FG16-D-bb1586"]},"mergeBtn":true,"dialogText":"Hủy Ghép cước thu khách"}
+2026-10-16T13:08:35.165Z a4-after {"merged":true,"rowsInfo":["+ QA-FG16-C-bb1586 CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Số Bill: QA-FG16-C-bb1586 Số tờ khai: Chưa có Chi tiết lô hàng → Chưa xác định Chưa xác định Chưa xác định Chưa xác định Chưa xác định Đang mở","+ QA-FG16-D-bb1586 CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Số Bill: QA-FG16-D-bb1586 Số tờ khai: Chưa có Chi tiết lô hàng → Chưa xác định Chưa xác định Chưa xác định Chưa xác định Chưa xác định Đang mở"],"moneyC":false,"zeroD":false,"note":false}
+2026-10-16T13:08:37.148Z a4-db {"rev":"622|QA-FG16-C-bb1586|||\n623|QA-FG16-D-bb1586|||","snapshots":""}
+2026-10-16T13:08:37.149Z VERDICT {"id":"A.4","verdict":"FAIL","note":"rev merge: merged=true, Lô1 money=false (want 1200000), member 0₫=false, note=false, dbRev=[622|QA-FG16-C-bb1586|||\n623|QA-FG16-D-bb1586|||], dbSnap=[]"}
+2026-10-16T13:08:37.253Z SUMMARY {"A.1":{"verdict":"FAIL","note":"Invalid regular expression flags"},"A.2":{"verdict":"FAIL","note":"master plan row: found=false, cargoOverview=false, rows=[]"},"A.3":{"verdict":"FAIL","note":"Cannot read properties of undefined (reading 'querySelectorAll')"},"A.4":{"verdict":"FAIL","note":"rev merge: merged=true, Lô1 money=false (want 1200000), member 0₫=false, note=false, dbRev=[622|QA-FG16-C-bb1586|||\n623|QA-FG16-D-bb1586|||], dbSnap=[]"}}
+DRIVER A DONE

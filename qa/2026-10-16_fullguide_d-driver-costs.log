@@ -1,0 +1,7 @@
+# fullguide d-driver-costs driver — 2026-10-16T13:37:45.160Z pin=e3286338
+2026-10-16T13:37:45.216Z health {"status":"ok","timestamp":"2026-10-16T13:37:45.239Z","buildHash":"e3286338"}
+2026-10-16T13:37:45.680Z d-trips {"count":14,"statuses":["COMPLETED","CREATED","IN_TRANSIT"]}
+2026-10-16T13:37:45.680Z d-target {"id":123,"status":"COMPLETED","shipmentId":312}
+2026-10-16T13:37:53.167Z d-detail {"url":"https://vantai.tingting.vip/my-trips/123","ready":true,"sectionHeader":true,"twoTables":true,"buttons":{"addCost":true,"receipt":true,"note":true},"costRows":[],"snippet":"Chi phí 2\nChuyến đã hoàn thành\nXem chứng từ giao hàng\nThông tin lệnh\nNgày giờ kế hoạch\n10:00 20/10/2026\nTên nhà máy\nChưa xác định\nĐịa chỉ nhà máy\nQA-Test Address, KCN QA, TP.HCM\nSĐT kho\n0900000002\nContainer / lô hàng\nEEUU1234560 · 20DC\nCảng nâng\nBãi Đình Vũ\nCảng hạ\nChưa có cảng hạ\nĐịa chỉ giao hàng\nChưa xác định, QA-Test Address, KCN QA, TP.HCM\nGọi kho\nTác vụ\nKhông có tác vụ\n\nChưa có việc nào được"}
+2026-10-16T13:37:53.167Z VERDICT {"id":"B.1","verdict":"PASS","note":"trip 123 detail: section=true, twoTables=true, buttons={\"addCost\":true,\"receipt\":true,\"note\":true}, tables=[]"}
+2026-10-16T13:37:53.260Z SUMMARY {"B.1":{"verdict":"PASS","note":"trip 123 detail: section=true, twoTables=true, buttons={\"addCost\":true,\"receipt\":true,\"note\":true}, tables=[]"}}

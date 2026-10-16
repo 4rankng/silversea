@@ -1,0 +1,14 @@
+# fullguide f-ketoan-chi driver — 2026-10-16T14:02:55.400Z pin=e3286338
+2026-10-16T14:02:55.456Z health {"status":"ok","timestamp":"2026-10-16T14:02:55.476Z","buildHash":"e3286338"}
+2026-10-16T14:02:55.939Z f-target {"id":175,"code":"DNKM13336","conts":["MSDU1245780","TGBU3190086"]}
+2026-10-16T14:03:06.271Z f-drawer-open {"opened":true,"drawerText":"Thêm khoản chi DNKM13336 · Chung lô Khoản 1 Xóa dòng Nhóm chi phí Chi phí lô hàng Chi phí lô hàng Tiền đường Loại chi phí lái xe * Thực chi (VND) * Thực thu — thu khách (VND) * Nhập Thu và Trả bằng nhau Tên khoản chi * Ngày chi * Bên thực chi Công ty trả trực tiếp Công ty trả trực tiếp Nhân viên chi Nhà cung cấp Số hóa đơn Ngày hóa đơn + Thêm dòng Lưu khoản chi không ghi tiền vào hoặc ra quỹ. Kế toán lập phiếu khi đã giao nhận tiền. Đóng Lưu 1 khoản chi"}
+2026-10-16T14:03:06.571Z f-drawer-fields {"hasNhomChiPhi":true,"hasLoaiChiPhi":true,"hasThucChi":true,"hasThucThu":true,"hasEqual":true,"hasTenKhoanChi":true,"hasNgayChi":true,"hasBenThucChi":true,"has3Ben":true,"hasEvidence":true,"inputs":8}
+2026-10-16T14:03:09.497Z f-filled {"groupOk":false,"typeOk":true,"moneySet":true,"nameSet":true,"balanced":"checkbox"}
+2026-10-16T14:03:12.967Z f-save1 {"saved":true,"savedMsg":true,"stillOpen":true}
+2026-10-16T14:03:19.134Z f-save2 {"saved2":true,"err2":null,"vals2":["","","","on","","16/10/2026","",""]}
+2026-10-16T14:03:20.600Z f-db {"dbRows":"OPS|67|QA fullguide B.4 — tự xóa|50000\nOPS|68|QA fullguide B.4 thứ hai — tự xóa|50000"}
+2026-10-16T14:03:20.600Z VERDICT {"id":"B.4","verdict":"PASS","note":"Thêm khoản chi drawer: fields={\"hasNhomChiPhi\":true,\"hasLoaiChiPhi\":true,\"hasThucChi\":true,\"hasThucThu\":true,\"hasEqual\":true,\"hasTenKhoanChi\":true,\"hasNgayChi\":true,\"hasBenThucChi\":true,\"has3Ben\":true,\"hasEvidence\":true,\"inputs\":8}, fill(type=true, money=true, name=true, balanced=checkbox), save1=true(msg=true, drawer stays open=true), save2=true, DB rows: OPS|67|QA fullguide B.4 — tự xóa|50000; OPS|68|QA fullguide B.4 thứ hai — tự xóa|50000"}
+2026-10-16T14:03:22.274Z f-cleanup {"kind":"OPS","id":67,"sourceId":"85","status":200,"body":"{\"ok\":true}"}
+2026-10-16T14:03:23.570Z f-cleanup {"kind":"OPS","id":68,"sourceId":"86","status":200,"body":"{\"ok\":true}"}
+2026-10-16T14:03:23.979Z f-cleanup-db {"remaining":"0"}
+2026-10-16T14:03:23.980Z SUMMARY {"B.4":{"verdict":"PASS","note":"Thêm khoản chi drawer: fields={\"hasNhomChiPhi\":true,\"hasLoaiChiPhi\":true,\"hasThucChi\":true,\"hasThucThu\":true,\"hasEqual\":true,\"hasTenKhoanChi\":true,\"hasNgayChi\":true,\"hasBenThucChi\":true,\"has3Ben\":true,\"hasEvidence\":true,\"inputs\":8}, fill(type=true, money=true, name=true, balanced=checkbox), save1=true(msg=true, drawer stays open=true), save2=true, DB rows: OPS|67|QA fullguide B.4 — tự xóa|50000; OPS|68|QA fullguide B.4 thứ hai — tự xóa|50000"}}

@@ -232,7 +232,12 @@ export async function getAccountingDebitBoard(query: {
     const qualified = lot.cargoMode === 'LCL'
       && (lot.revGroupId != null || (override?.stamped ?? false));
     effectiveFreightByLot.set(lot.id,
-      qualified ? override?.total ?? null : freightByLot.get(lot.id) ?? null);
+      qualified
+        // 161026204709: merged-but-undispatched lots hold their merge money
+        // as shipment-level snapshots (no trip ⇒ no override total) — fall
+        // back to the snapshot channel instead of forcing "Chưa xác định".
+        ? override?.total ?? freightByLot.get(lot.id) ?? null
+        : freightByLot.get(lot.id) ?? null);
   }
 
   // Lạch Huyện cells + Phát sinh ĐV: ops-expense rows per lot.

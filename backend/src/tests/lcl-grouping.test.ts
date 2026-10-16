@@ -503,6 +503,93 @@ describe('F-2 (card 161026113900) — money boards read the override channel (ru
   });
 });
 
+describe('161026204709 (TC-A12) — merged-but-undispatched LCL lots materialize the merge money', () => {
+  // The customer's reported state: 2 same-customer LCL lots, NO live trip
+  // (chưa phân bổ xe), a class-lane price configured — the merge dialog
+  // promises "Lô 1 giữ 100% tiền vận tải (tự động), các lô còn lại 0đ" but
+  // the boards used to stay blank because FB-093's money writes all ride the
+  // trip. The merge now persists shipment-level (trip-less) freight
+  // snapshots, and the boards' override read falls back to that channel when
+  // the lot qualifies with no override total.
+  async function seedUndispatchedPair(label: string, { withLane = true } = {}) {
+    const customer = await mkCustomer(`A12 ${label}`);
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `A12-${label}1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `A12-${label}2-${suffix.slice(-6)}`);
+    let lanePrice: string | null = null;
+    if (withLane) {
+      const truckClass = await vehicleClassByCode('3.5T');
+      const [pricingRow] = await db.insert(s.pricingTables).values({
+        customerId: customer.id,
+        routeId: route.id,
+        vehicleSizeClassId: truckClass.id,
+        rateKey: truckClass.code,
+        price: '2800000',
+      }).returning();
+      createdPricingTableIds.push(pricingRow.id);
+      lanePrice = '2800000';
+      await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: truckClass.id }, actor);
+      return { customer, lot1, lot2, lanePrice };
+    }
+    const anyClass = await vehicleClassByCode('3.5T');
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: anyClass.id }, actor);
+    return { customer, lot1, lot2, lanePrice: null };
+  }
+
+  test('CUS board: principal = lane price, member = 0₫ + group note (A12-01)', async () => {
+    const { customer, lot1, lot2, lanePrice } = await seedUndispatchedPair('a');
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const principal = summary.items.find((row) => row.shipmentId === lot1.id)!;
+    const member = summary.items.find((row) => row.shipmentId === lot2.id)!;
+    assert.equal(principal.freightAuto, lanePrice, 'Lô 1 hiện 100% tiền thu (merge snapshot lane price)');
+    assert.equal(member.freightAuto, '0', 'lô ghép hiện 0₫');
+    assert.equal(member.freightOverrideReason, `Ghép cước cùng Bill ${lot1.blNumber}`);
+    assert.equal(principal.receivableTotal, lanePrice, 'receivable addend follows the effective freight');
+    assert.equal(member.receivableTotal, '0');
+  });
+
+  test('accounting board: thu.cuocThu follows the same law (A12-02)', async () => {
+    const { customer, lot1, lot2, lanePrice } = await seedUndispatchedPair('b');
+    const board = await getAccountingDebitBoard({ dateFrom: '2026-10-20', dateTo: '2026-10-20' });
+    const principal = board.items.find((row) => row.shipmentId === lot1.id && row.customerId === customer.id)!;
+    const member = board.items.find((row) => row.shipmentId === lot2.id && row.customerId === customer.id)!;
+    assert.equal(principal.thu.cuocThu, lanePrice, 'Kế toán board: Lô 1 hiện 100%');
+    assert.equal(member.thu.cuocThu, '0', 'Kế toán board: lô ghép 0₫');
+  });
+
+  test('un-merge transfers the merge snapshot money to the survivor (A12-03)', async () => {
+    const { customer, lot1, lot2, lanePrice } = await seedUndispatchedPair('c');
+    await unmergeLclLot({ shipmentId: lot1.id, dimension: 'REV' }, actor);
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const leaver = summary.items.find((row) => row.shipmentId === lot1.id)!;
+    const survivor = summary.items.find((row) => row.shipmentId === lot2.id)!;
+    assert.equal(survivor.freightAuto, lanePrice, 'the promoted survivor keeps 100% via its transfer snapshot');
+    assert.equal(leaver.freightAuto, '0', 'the leaver reads its cited transfer zero');
+    // Residual by design: a trip-less leaver is ungrouped AND unstamped, so
+    // no note rides the row (the citation lives on the snapshot's formula
+    // text for auditors) — the trip-ful FB-095 leaver shows the same zero
+    // WITH its stamp because trips carry a reason column.
+    assert.equal(leaver.freightOverrideReason, null);
+  });
+
+  test('a trip-less member leaving keeps its cited zero as stale-priced (A12-04)', async () => {
+    const { customer, lot2 } = await seedUndispatchedPair('d');
+    await unmergeLclLot({ shipmentId: lot2.id, dimension: 'REV' }, actor);
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const leaver = summary.items.find((row) => row.shipmentId === lot2.id)!;
+    assert.equal(leaver.freightAuto, '0', 'the ex-member reads its re-cited snapshot zero');
+  });
+
+  test('lane miss keeps the principal MANUAL/blank, member still 0₫ (A12-05)', async () => {
+    const { customer, lot1, lot2 } = await seedUndispatchedPair('e', { withLane: false });
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const principal = summary.items.find((row) => row.shipmentId === lot1.id)!;
+    const member = summary.items.find((row) => row.shipmentId === lot2.id)!;
+    assert.equal(principal.freightAuto, null, 'no lane ⇒ Chưa xác định, never a fabricated number');
+    assert.equal(member.freightAuto, '0', 'the member zero is still a cited value');
+  });
+});
+
 describe('LCL grouping — FB-094 debit note + board', () => {
   test('the debit note prints billing_truck_no, never the actual plate', async () => {
     // Pure render rule (FB-094's absolute law): billing wins over both the
