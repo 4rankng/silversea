@@ -69,4 +69,29 @@ describe('Untitled UI flat-surface control boundaries', () => {
     // Error still wins over focus: no brand ring on an invalid control.
     expect(source).not.toMatch(/isInvalid[\s\S]{0,200}border-brand/);
   });
+
+  // FB-048 (2026-10-16 re-report, card 141026003600): the pins above only
+  // prove the COMPONENT emits `border-error` + `aria-invalid`. They cannot
+  // prove the paint reaches the border — and they cannot fail if the danger
+  // rule in base.css loses its select/combobox selectors, which would restore
+  // exactly the reported defect (a neutral border at rest) with every
+  // component-side pin still green. Pin the half that actually paints.
+  it('the house danger paint covers the select and combobox boundaries', () => {
+    const base = read('src/styles/base.css');
+    // The rule that paints var(--danger) must name both UUI boundaries…
+    const paint = base.match(/:is\(#root, body\)[^{]*:where\(([\s\S]*?)\)\s*\{[^}]*border-color:\s*var\(--danger\)/)?.[1] ?? '';
+    expect(paint).toContain("[data-uui-control='select'][aria-invalid='true']");
+    expect(paint).toContain("[data-uui-control='combobox'][aria-invalid='true']");
+  });
+
+  it('the neutral border rule never overpaints an invalid control', () => {
+    // The neutral rule is the only higher-specificity competitor. It must keep
+    // excluding invalid controls, or it would repaint the danger border the
+    // moment focus leaves.
+    const base = read('src/styles/base.css');
+    const neutral = base.match(/border-color:\s*var\(--control-border\)/) ? base.slice(0, base.indexOf('border-color: var(--control-border)')) : '';
+    const guard = neutral.slice(neutral.lastIndexOf(':not('));
+    expect(guard).toContain("[aria-invalid='true']");
+    expect(guard).toContain('.border-error');
+  });
 });
