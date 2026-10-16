@@ -990,7 +990,7 @@ export function ShipmentContainerLedger({
                       {/* Lot-level rows own no container line — add/remove are
                           container-set writes and never apply to them. */}
                       {canMutateRows && row.isLotLevel !== true && (
-                      <div className="shipment-container-ledger__multiline">
+                      <div className="shipment-container-ledger__multiline shipment-container-ledger__row-actions">
                         <button
                           type="button"
                           className="btn btn--secondary btn--sm"

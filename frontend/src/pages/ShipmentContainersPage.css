@@ -496,6 +496,16 @@
   .shipment-container-ledger__cell-editor[data-mode="documents"] > .shipment-container-ledger__cell-trigger::before { content: "CHỨNG TỪ"; }
 }
 
+/* Owner report 2026-10-16 (mobile screenshot): in card mode the Thao tác cell
+   is a wide record band, so its add/remove pair shares one equal row — 50/50
+   tracks, stretched buttons — instead of two fit-content chips stacked. The
+   desktop table keeps the stacked layout: its 7% actions column shears
+   side-by-side labels (column ladder above). */
+@container shipments-detail (max-width: 1000px) {
+  .shipment-container-ledger__cell--actions .shipment-container-ledger__row-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 8px; }
+  .shipment-container-ledger__cell--actions .shipment-container-ledger__row-actions > .btn { width: 100%; }
+}
+
 @media (max-width: 760px) {
   .shipments-detail-page { gap: 10px; }
   .shipments-detail-workspace { border: 0; border-radius: 0; }
