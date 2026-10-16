@@ -785,6 +785,20 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   // genuinely unassigned vehicle (Chưa gán biển số).
   carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   plateNumber: z.string().nullable(),
+  // Card 161026232339 (DEV SPEC Hàng lẻ §II.3.1) — the FB-092/093 group truck
+  // and the two BILLING classes ride the row, so the Chi Tiết workboard can
+  // print "Lô hàng lẻ | Thu: Xe 3.5T | Trả: Xe 10T" and the two-line phân xe
+  // cell (BKS thực / BKS báo khách) without a per-row fetch.
+  //   actualTruckNo  = BKS thực (what runs the lane)
+  //   billingTruckNo = BKS báo khách ("xe ảo", what the customer is told)
+  //   *VehicleClassCode = vehicle_size_classes.code of the cước thu khách
+  //     (rev) / cước trả ĐV (cost) class.
+  // All four are null on FCL container rows — the grouping fields never carry
+  // a container line — and blank renders as `—`, never `undefined`.
+  actualTruckNo: z.string().nullable(),
+  billingTruckNo: z.string().nullable(),
+  revVehicleClassCode: z.string().nullable(),
+  costVehicleClassCode: z.string().nullable(),
   liftSite: z.string().nullable(),
   dropoffSite: z.string().nullable(),
   transportDate: z.string().date().nullable(),
