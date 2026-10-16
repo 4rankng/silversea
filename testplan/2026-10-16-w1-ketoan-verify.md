@@ -59,3 +59,22 @@
  giới hạn, không phải defects.
 - Evidence: fb097_01…05 png, fb097_assertions.json, fb097_ui-driver.log,
  fb097-expense-drawer.mjs.
+
+## FB-098 — nút "Khai chi phí" trên chi tiết lô — PASS (rung 3)
+
+- UI: /shipments/7 as `hoapt` (SHP-2609-00007, lot không khóa) → header có nút
+  **"Khai chi phí"** + panel giữ "+ Thêm khoản chi" → click header → drawer
+  **"Thêm khoản chi"** mở ở mức lô (subtitle tên lô, không gắn chuyến).
+- Lưu 1 khoản DRIVER_SHIPMENT `QA-W1 khai chi phí lô fixture` (Thu = Trả) →
+  dòng trạng thái "Đã lưu khoản chi."; **"Đóng"** → panel Chi phí / thực thu
+  hiện dòng QA-W1 ngay (invalidate không cần reload).
+- Persisted: `GET /api/expense-accounting/entries?shipmentId=7` chứa thêm
+  **"QA-W1 khai chi phí lô fixture"**.
+- Role gate: `tiepvv` (CUS) mở cùng lô → **không** có nút "Khai chi phí"
+  (đúng cùng vai trò panel).
+- Điều tra chuỗi lỗi "chưa có thông tin lô" (phần 1 của card): CODE-READ ONLY —
+  chuỗi nguyên văn không tồn tại trong build hiện hành; guard gần nhất
+  "Đang tải thông tin lô…" giữ nguyên hành vi (đúng hợp đồng testplan). Không
+  tái hiện được lỗi khách trên build 7dcdcf33.
+- Evidence: fb098_01…05 png, fb098_assertions.json, fb098_ui-driver.log,
+  fb098-lot-cost.mjs.
