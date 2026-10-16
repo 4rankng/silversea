@@ -1,6 +1,6 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, isNull } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
@@ -78,7 +78,10 @@ test('PHOI02 reads OWN truck and EXTERNAL persisted plate independently, preserv
 test('PHOI09 carrier/driver facts follow typed carrier ownership without changing row money or membership', async () => {
   const [carrier] = await db.select().from(s.customers).where(eq(s.customers.isCarrier, true)).limit(1);
   assert.ok(carrier);
-  const suppliers = await db.select().from(s.suppliers).limit(30);
+  // FB-061: only LIVE suppliers qualify — a tombstoned supplier renders the
+  // board's 'không còn trong danh mục' fallback by law now, so it is no longer
+  // a displayable collision candidate.
+  const suppliers = await db.select().from(s.suppliers).where(isNull(s.suppliers.deletedAt)).limit(30);
   let collision: typeof suppliers[number] | undefined;
   for (const supplier of suppliers) {
     const [sameIdCustomer] = await db.select({ name: s.customers.name }).from(s.customers).where(eq(s.customers.id, supplier.id)).limit(1);
