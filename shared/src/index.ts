@@ -96,6 +96,7 @@ export {
   mergeLclRevGroupSchema,
   setLclLotRevClassSchema,
   unmergeLclLotSchema,
+  unmergeLclGroupSchema,
   updateLclTruckSchema,
   LCL_GROUP_DIMENSIONS,
 } from './schemas/lcl-grouping';
@@ -104,6 +105,7 @@ export type {
   MergeLclRevGroupInput,
   SetLclLotRevClassInput,
   UnmergeLclLotInput,
+  UnmergeLclGroupInput,
   UpdateLclTruckInput,
   LclGroupDimension,
   LclGroupWire,

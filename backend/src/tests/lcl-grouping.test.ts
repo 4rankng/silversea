@@ -39,6 +39,7 @@ import {
   assignLclCostGroup,
   mergeLclRevGroup,
   unmergeLclLot,
+  unmergeLclGroup,
 } from '../services/lcl-grouping.service';
 import { softDeleteShipment } from '../services/shipment-lifecycle.service';
 
@@ -220,6 +221,15 @@ async function liveTrip(shipmentId: number) {
     .where(and(eq(s.trips.shipmentId, shipmentId), isNull(s.trips.deletedAt)))
     .limit(1);
   return row ?? null;
+}
+
+async function latestSnapshot(shipmentId: number) {
+  const rows = await db.select({ totalAmount: s.freightRateSnapshots.totalAmount })
+    .from(s.freightRateSnapshots)
+    .where(and(eq(s.freightRateSnapshots.shipmentId, shipmentId), isNull(s.freightRateSnapshots.tripId)))
+    .orderBy(s.freightRateSnapshots.id);
+  const row = rows.at(-1);
+  return row ? Number(row.totalAmount) : null;
 }
 
 async function groupAuditPayloads(shipmentId: number) {
@@ -1171,6 +1181,206 @@ describe('LCL grouping — FB-095 un-merge safety', () => {
     assert.equal(after2.deletedAt, null, 'the survivor lives on');
     const events = await groupAuditEvents(lot1.id);
     assert.ok(events.includes('SHIPMENT_LCL_GROUP_UNMERGED'), 'the promotion is audited');
+  });
+});
+
+describe('GAP 1 — money safety on unshipping / deleting a group (spec line 92)', () => {
+  test('un-merging the whole group strictly conserves the total group freight (both REV and COST)', async () => {
+    // 1. REV dimension (undispatched lots, snapshot money channel)
+    const customer = await mkCustomer('GAP1 unmerge REV');
+    const route = await mkRoute();
+    const truckClass = await vehicleClassByCode('3.5T');
+    const [pricing] = await db.insert(s.pricingTables).values({
+      customerId: customer.id,
+      routeId: route.id,
+      vehicleSizeClassId: truckClass.id,
+      rateKey: truckClass.code,
+      price: '3600000',
+    }).returning();
+    createdPricingTableIds.push(pricing.id);
+
+    const rLot1 = await mkLclLot(customer.id, route.id, `GAP1-UR1-${suffix.slice(-6)}`);
+    const rLot2 = await mkLclLot(customer.id, route.id, `GAP1-UR2-${suffix.slice(-6)}`);
+    const rLot3 = await mkLclLot(customer.id, route.id, `GAP1-UR3-${suffix.slice(-6)}`);
+
+    const revMergeResult = await mergeLclRevGroup({
+      shipmentIds: [rLot1.id, rLot2.id, rLot3.id],
+      vehicleSizeClassId: truckClass.id,
+    }, actor);
+
+    const revBefore1 = await latestSnapshot(rLot1.id);
+    const revBefore2 = await latestSnapshot(rLot2.id);
+    const revBefore3 = await latestSnapshot(rLot3.id);
+    assert.equal(revBefore1, 3600000, 'Lô 1 holds 100% of freight before unmerge');
+    assert.equal(revBefore2, 0, 'Lô 2 holds 0₫ before unmerge');
+    assert.equal(revBefore3, 0, 'Lô 3 holds 0₫ before unmerge');
+    const totalRevBefore = (revBefore1 ?? 0) + (revBefore2 ?? 0) + (revBefore3 ?? 0);
+    assert.equal(totalRevBefore, 3600000);
+
+    // Unmerge whole REV group
+    const revUnmerge = await unmergeLclGroup({ groupId: revMergeResult.groupId, dimension: 'REV' }, actor);
+    assert.equal(revUnmerge.dissolved, true);
+    assert.equal(revUnmerge.memberCount, 3);
+
+    const [afterRLot1] = await db.select().from(s.shipments).where(eq(s.shipments.id, rLot1.id));
+    const [afterRLot2] = await db.select().from(s.shipments).where(eq(s.shipments.id, rLot2.id));
+    const [afterRLot3] = await db.select().from(s.shipments).where(eq(s.shipments.id, rLot3.id));
+    assert.equal(afterRLot1.revGroupId, null);
+    assert.equal(afterRLot2.revGroupId, null);
+    assert.equal(afterRLot3.revGroupId, null);
+
+    const revAfter1 = await latestSnapshot(rLot1.id);
+    const revAfter2 = await latestSnapshot(rLot2.id);
+    const revAfter3 = await latestSnapshot(rLot3.id);
+    const totalRevAfter = (revAfter1 ?? 0) + (revAfter2 ?? 0) + (revAfter3 ?? 0);
+    assert.equal(totalRevAfter, totalRevBefore, 'REV group total freight is strictly conserved after un-merging the whole group');
+    assert.equal(revAfter1, 3600000, 'Lô 1 retained 100% of the freight');
+
+    // 2. COST dimension (trips with carrier cost)
+    const cLot1 = await mkLclLot(customer.id, route.id, `GAP1-UC1-${suffix.slice(-6)}`);
+    const cLot2 = await mkLclLot(customer.id, route.id, `GAP1-UC2-${suffix.slice(-6)}`);
+    const cLot3 = await mkLclLot(customer.id, route.id, `GAP1-UC3-${suffix.slice(-6)}`);
+    const trip1 = await mkTrip(cLot1.id, customer.id, route.id);
+    const trip2 = await mkTrip(cLot2.id, customer.id, route.id);
+    const trip3 = await mkTrip(cLot3.id, customer.id, route.id);
+    await upsertTripCarrierInfo(db, trip1.id, { carrierType: 'EXTERNAL', externalFreightCost: '2100000' });
+    await upsertTripCarrierInfo(db, trip2.id, { carrierType: 'EXTERNAL', externalFreightCost: '700000' });
+    await upsertTripCarrierInfo(db, trip3.id, { carrierType: 'EXTERNAL', externalFreightCost: '500000' });
+
+    const costMergeResult = await assignLclCostGroup({
+      shipmentIds: [cLot1.id, cLot2.id, cLot3.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-555.55',
+    }, actor);
+
+    const costT1Before = await liveTrip(cLot1.id);
+    const costT2Before = await liveTrip(cLot2.id);
+    const costT3Before = await liveTrip(cLot3.id);
+    const totalCostBefore = Number(costT1Before!.externalFreightCost) + Number(costT2Before!.externalFreightCost) + Number(costT3Before!.externalFreightCost);
+    assert.equal(totalCostBefore, 2100000, 'COST group total is 2.1M before unmerge');
+
+    // Unmerge whole COST group
+    const costUnmerge = await unmergeLclGroup({ groupId: costMergeResult.groupId, dimension: 'COST' }, actor);
+    assert.equal(costUnmerge.dissolved, true);
+
+    const [afterCLot1] = await db.select().from(s.shipments).where(eq(s.shipments.id, cLot1.id));
+    const [afterCLot2] = await db.select().from(s.shipments).where(eq(s.shipments.id, cLot2.id));
+    const [afterCLot3] = await db.select().from(s.shipments).where(eq(s.shipments.id, cLot3.id));
+    assert.equal(afterCLot1.costGroupId, null);
+    assert.equal(afterCLot2.costGroupId, null);
+    assert.equal(afterCLot3.costGroupId, null);
+
+    const costT1After = await liveTrip(cLot1.id);
+    const costT2After = await liveTrip(cLot2.id);
+    const costT3After = await liveTrip(cLot3.id);
+    const totalCostAfter = Number(costT1After!.externalFreightCost) + Number(costT2After!.externalFreightCost) + Number(costT3After!.externalFreightCost);
+    assert.equal(totalCostAfter, totalCostBefore, 'COST group total freight is strictly conserved after un-merging the whole group');
+    assert.equal(Number(costT1After!.externalFreightCost), 2100000, 'Lô 1 retained 100% of vendor freight');
+  });
+
+  test('deleting the primary lot atomically promotes the next lot and transfers 100% freight (spec line 92)', async () => {
+    const customer = await mkCustomer('GAP1 delete L1');
+    const route = await mkRoute();
+    const truckClass = await vehicleClassByCode('5T');
+    const [pricing] = await db.insert(s.pricingTables).values({
+      customerId: customer.id,
+      routeId: route.id,
+      vehicleSizeClassId: truckClass.id,
+      rateKey: truckClass.code,
+      price: '4200000',
+    }).returning();
+    createdPricingTableIds.push(pricing.id);
+
+    const lot1 = await mkLclLot(customer.id, route.id, `GAP1-DL1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `GAP1-DL2-${suffix.slice(-6)}`);
+    const lot3 = await mkLclLot(customer.id, route.id, `GAP1-DL3-${suffix.slice(-6)}`);
+
+    const mergeResult = await mergeLclRevGroup({
+      shipmentIds: [lot1.id, lot2.id, lot3.id],
+      vehicleSizeClassId: truckClass.id,
+    }, actor);
+
+    const snap1Before = await latestSnapshot(lot1.id);
+    const snap2Before = await latestSnapshot(lot2.id);
+    const snap3Before = await latestSnapshot(lot3.id);
+    assert.equal(snap1Before, 4200000, 'Lot 1 holds 100% before delete');
+    assert.equal(snap2Before, 0);
+    assert.equal(snap3Before, 0);
+    const totalBefore = (snap1Before ?? 0) + (snap2Before ?? 0) + (snap3Before ?? 0);
+    assert.equal(totalBefore, 4200000);
+
+    // Atomically delete Lô 1 (primary lot)
+    const [fresh1] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot1.id));
+    await softDeleteShipment(lot1.id, { version: fresh1.version, deletedBy: actor.userId, actor });
+
+    // Lot 2 was promoted to primary (order 1), Lot 3 renumbered to order 2
+    const [after2] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot2.id));
+    const [after3] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot3.id));
+    assert.equal(after2.revGroupId, mergeResult.groupId, 'Lot 2 remains in group');
+    assert.equal(after2.revGroupOrder, 1, 'Lot 2 promoted to primary (order 1)');
+    assert.equal(after2.revVehicleClassId, truckClass.id, 'Lot 2 inherits vehicle class');
+    assert.equal(after3.revGroupId, mergeResult.groupId, 'Lot 3 remains in group');
+    assert.equal(after3.revGroupOrder, 2, 'Lot 3 renumbered to order 2');
+
+    // Invariant: Promoted lot (Lot 2) MUST hold EXACTLY 100% of the freight amount (4,200,000₫)
+    const snap2After = await latestSnapshot(lot2.id);
+    const snap3After = await latestSnapshot(lot3.id);
+    assert.equal(snap2After, 4200000, 'Promoted Lot 2 holds exactly 100% of the freight');
+    assert.equal(snap3After, 0, 'Lot 3 still holds 0₫');
+
+    const totalAfter = (snap2After ?? 0) + (snap3After ?? 0);
+    assert.equal(totalAfter, totalBefore, 'Money conservation invariant: group total freight is identical before and after primary deletion');
+  });
+
+  test('deleting the last-but-one lot dissolves group cleanly and primary retains 100% freight', async () => {
+    const customer = await mkCustomer('GAP1 delete member');
+    const route = await mkRoute();
+    const truckClass = await vehicleClassByCode('5T');
+    const [pricing] = await db.insert(s.pricingTables).values({
+      customerId: customer.id,
+      routeId: route.id,
+      vehicleSizeClassId: truckClass.id,
+      rateKey: truckClass.code,
+      price: '3900000',
+    }).returning();
+    createdPricingTableIds.push(pricing.id);
+
+    const lot1 = await mkLclLot(customer.id, route.id, `GAP1-ML1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `GAP1-ML2-${suffix.slice(-6)}`);
+
+    await mergeLclRevGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+    }, actor);
+
+    const snap1Before = await latestSnapshot(lot1.id);
+    const snap2Before = await latestSnapshot(lot2.id);
+    assert.equal(snap1Before, 3900000);
+    assert.equal(snap2Before, 0);
+    const totalBefore = (snap1Before ?? 0) + (snap2Before ?? 0);
+
+    // Delete lot2 (last-but-one lot leaving only lot1)
+    const [fresh2] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot2.id));
+    await softDeleteShipment(lot2.id, { version: fresh2.version, deletedBy: actor.userId, actor });
+
+    // Lot 1 stands alone, group dissolved cleanly (no ghost group ID)
+    const [after1] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot1.id));
+    assert.equal(after1.revGroupId, null, 'Group dissolved cleanly: revGroupId is null');
+    assert.equal(after1.revGroupOrder, null, 'revGroupOrder is null');
+    assert.equal(after1.revVehicleClassId, truckClass.id, 'Lot 1 keeps its vehicle class');
+
+    // Money conservation: lot 1 retains 100% of the freight
+    const snap1After = await latestSnapshot(lot1.id);
+    assert.equal(snap1After, 3900000, 'Lot 1 retains exactly 100% of freight');
+    assert.equal(snap1After, totalBefore, 'Total freight is conserved when member is deleted');
+
+    // Verify no ghost group: Lot 1 can be merged into a new group without conflict
+    const lot3 = await mkLclLot(customer.id, route.id, `GAP1-ML3-${suffix.slice(-6)}`);
+    const newMerge = await mergeLclRevGroup({
+      shipmentIds: [lot1.id, lot3.id],
+      vehicleSizeClassId: truckClass.id,
+    }, actor);
+    assert.equal(newMerge.memberCount, 2, 'Lot 1 re-merges cleanly with no ghost group error');
   });
 });
 

@@ -267,6 +267,30 @@ export async function setLclLotRevClass(input: { shipmentId: number; vehicleSize
   }>('/shipments/lcl/rev-class', input);
 }
 
+/** FB-095 — un-merge one lot from a group dimension. */
+export async function unmergeLclLot(input: { shipmentId: number; dimension: 'COST' | 'REV' }) {
+  return api.post<{
+    dimension: 'COST' | 'REV';
+    groupId: string;
+    leaver: { shipmentId: number; order: number; reference: string };
+    promoted: { shipmentId: number; order: number; reference: string } | null;
+    transferredAmount: string | null;
+    remaining: Array<{ shipmentId: number; order: number; reference: string }>;
+    dissolved: boolean;
+  }>(SHIPMENTS.LCL_UNMERGE, input);
+}
+
+/** FB-095 — un-merge / dissolve an entire LCL group. */
+export async function unmergeLclGroup(input: { groupId: string; dimension: 'COST' | 'REV' }) {
+  return api.post<{
+    dimension: 'COST' | 'REV';
+    groupId: string;
+    memberCount: number;
+    members: Array<{ shipmentId: number; order: number; reference: string }>;
+    dissolved: true;
+  }>(SHIPMENTS.LCL_UNMERGE_GROUP, input);
+}
+
 export interface DispatchDetailPlanRow {
   fulfillmentId: number;
   version: number;

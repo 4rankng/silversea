@@ -57,6 +57,8 @@ export const SHIPMENTS = {
   LCL_COST_GROUP: '/shipments/lcl/cost-group',
   LCL_REV_GROUP: '/shipments/lcl/rev-group',
   LCL_TRUCK: '/shipments/lcl/truck',
+  LCL_UNMERGE: '/shipments/lcl/unmerge',
+  LCL_UNMERGE_GROUP: '/shipments/lcl/unmerge-group',
 } as const;
 
 // ─── Geotag (mobile phone GPS geotagging on photo submission) ─────────────────
