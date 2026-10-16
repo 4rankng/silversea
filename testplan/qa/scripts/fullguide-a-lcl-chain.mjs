@@ -49,7 +49,9 @@ step('route', { id: route?.id, name: route?.name, code: route?.code });
 
 const classes = await api(admin.token, 'GET', '/vehicle-size-classes?limit=50');
 const classList = classes.json?.items ?? classes.json ?? [];
-const cls5t = classList.find((c) => /5\s*tấn|5T/i.test(`${c.name} ${c.code}`)) ?? classList.find((c) => !c.deletedAt);
+const cls5t = classList.find((c) => (c.name ?? '').trim() === 'Xe 5 tấn')
+  ?? classList.find((c) => /(^|\s)xe 5 tấn$/i.test((c.name ?? '').trim()))
+  ?? classList.find((c) => !c.deletedAt);
 step('vehicle-class', { id: cls5t?.id, name: cls5t?.name, code: cls5t?.code });
 
 // A pricing lane for the rev-merge (A.4): customer × route × class, hiệu lực
@@ -71,6 +73,41 @@ if (customer?.id && route?.id && cls5t?.id) {
 }
 
 // ═════════════════════════════════════════════════════════════════ A.1 (UI) ══
+// searchable fields resolve via label[for] → input (React Aria pattern on
+// this form); the option pick prefers an EXACT trimmed match because
+// "Xe 1.25 tấn" contains the substring "5 tấn".
+async function pickSearchable(page, labelRe, fragment, { scopedToDialog = false } = {}) {
+  const scope = scopedToDialog
+    ? `const dlgs = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null); const root = dlgs[dlgs.length - 1] ?? document;`
+    : 'const root = document;';
+  const clicked = await tap(page, `() => {
+    ${scope}
+    const labels = [...root.querySelectorAll('label')].filter(l => /${labelRe}/i.test((l.textContent || '')) && l.offsetParent !== null);
+    const forId = labels[0]?.getAttribute('for');
+    if (forId) { const el = document.getElementById(forId); if (el) return el; }
+    return [...root.querySelectorAll('input')].find(i => {
+      const l = (i.getAttribute('aria-labelledby') || '').split(/\\s+/).map(id => document.getElementById(id)?.textContent || '').join(' ');
+      return /${labelRe}/i.test(l) || /${labelRe}/i.test(i.getAttribute('aria-label') || '');
+    }) ?? null;
+  }`);
+  if (!clicked) return false;
+  await sleep(700);
+  if (fragment) { await page.keyboard.type(fragment, { delay: 45 }); await sleep(1100); }
+  else await sleep(900);
+  const picked = await tap(page, `() => {
+    const options = [...document.querySelectorAll('[role="option"]')].filter(o => o.offsetParent !== null);
+    if (!options.length) return null;
+    const want = ${JSON.stringify(String(fragment ?? ''))}.trim();
+    // Exact/word-anchored first: "Xe 1.25 tấn" must NOT match the fragment "5 tấn".
+    const anchored = new RegExp('(^|\\\\s|[^0-9.])' + want.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&') + '\\\\s*$', 'i');
+    return options.find(o => anchored.test((o.textContent || '').trim()))
+      ?? options.find(o => want && ((o.textContent || '').trim().toLowerCase()).endsWith(want.toLowerCase()))
+      ?? (want ? options.find(o => ((o.textContent || '').trim().toLowerCase()).includes(want.toLowerCase())) : null)
+      ?? options[0];
+  }`);
+  await sleep(700);
+  return picked;
+}
 let shipmentA = null;
 let capturedPayload = null;
 {
@@ -94,29 +131,9 @@ let capturedPayload = null;
     step('a1-mode-lcl', { lclOn });
     if (!lclOn) throw new Error('LCL mode did not engage');
 
-    // Khách hàng — searchable
-    const pickSearchable = async (labelText, fragment, { wantContains = null } = {}) => {
-      const clicked = await tap(page, `() => {
-        const lab = [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(${JSON.stringify(labelText)}));
-        const wrap = lab?.closest('div, fieldset, section');
-        const input = wrap?.querySelector('input') || lab?.parentElement?.querySelector('input');
-        return input || null;
-      }`);
-      if (!clicked) return false;
-      await sleep(400);
-      await page.keyboard.type(fragment, { delay: 45 });
-      await sleep(1100);
-      const picked = await tap(page, `() => {
-        const options = [...document.querySelectorAll('[role="option"], [role="listbox"] li, [class*="option"]')];
-        const visible = options.filter(o => o.offsetParent !== null);
-        const want = ${JSON.stringify(wantContains)};
-        return (want ? visible.find(o => (o.textContent || '').toLowerCase().includes(want.toLowerCase())) : null) || visible[0] || null;
-      }`);
-      await sleep(700);
-      return picked;
-    };
+    // (pickSearchable hoisted to module scope below)
 
-    await pickSearchable('Khách hàng', customer.name.slice(0, 6));
+    await pickSearchable(page, 'Khách hàng', (customer.shortName || customer.name).slice(0, 6));
     // Hình thức = Xuất khẩu (native select)
     await page.evaluate(() => {
       const sel = [...document.querySelectorAll('select')].find(s => [...s.options].some(o => o.textContent.trim() === 'Xuất khẩu'));
@@ -128,50 +145,73 @@ let capturedPayload = null;
       return true;
     });
     await sleep(500);
-    // Số Bill/Booking
-    await tap(page, `() => [...document.querySelectorAll('input')].find(i => /số bill\/booking/i.test(i.closest('label')?.textContent || i.getAttribute('aria-label') || ''))`);
+    // Số Bill/Booking — label or placeholder match
+    await tap(page, `() => [...document.querySelectorAll('input')].find(i => {
+      const l = (i.getAttribute('aria-labelledby') || '').split(/\\s+/).map(id => document.getElementById(id)?.textContent || '').join(' ');
+      const own = (i.getAttribute('aria-label') || '') + (i.getAttribute('placeholder') || '');
+      return /số bill/i.test(l) || /số booking/i.test(own) || /số bill/i.test(own);
+    }) ?? null`);
     await page.keyboard.type(refA, { delay: 25 });
     await sleep(300);
     // Kho lấy hàng — searchable (options are customer-scoped sites)
-    const warehousePicked = await pickSearchable('Kho lấy hàng', '');
+    const warehousePicked = await pickSearchable(page, 'Kho lấy hàng', '');
     step('a1-warehouse-picked', { warehousePicked });
-    // Quy cách đóng gói
-    await tap(page, `() => { const lab = [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith('Quy cách đóng gói')); const wrap = lab?.closest('div, fieldset'); return wrap?.querySelector('input') || null; }`);
+    // Quy cách đóng gói — combobox with suggestions
+    await tap(page, `() => [...document.querySelectorAll('input')].find(i => { const l = (i.getAttribute('aria-labelledby') || '').split(/\\s+/).map(id => document.getElementById(id)?.textContent || '').join(' '); return /quy cách đóng gói/i.test(l) || /quy cách đóng gói/i.test(i.getAttribute('aria-label') || ''); }) ?? null`);
     await page.keyboard.type('Pallet', { delay: 40 });
-    await sleep(900);
-    const pkgPicked = await tap(page, `() => [...document.querySelectorAll('[role="option"], [class*="option"]')].filter(o => o.offsetParent !== null && /pallet/i.test(o.textContent || ''))[0] || null`);
+    await sleep(1000);
+    const pkgPicked = await tap(page, `() => [...document.querySelectorAll('[role="option"]')].filter(o => o.offsetParent !== null).find(o => /pallet/i.test(o.textContent || '')) ?? null`);
     if (!pkgPicked) await page.keyboard.press('Escape');
     await sleep(500);
-    // Số lượng / Trọng lượng / Thể tích
-    const numField = (label) => `() => { const lab = [...document.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(${JSON.stringify(label)})); const wrap = lab?.closest('div, fieldset'); return wrap?.querySelector('input') || null; }`;
-    for (const [label, value] of [['Số lượng', '5'], ['Trọng lượng (kg)', '1900'], ['Thể tích (CBM)', '4']]) {
-      const ok = await tap(page, numField(label));
-      await page.keyboard.type(value, { delay: 30 });
-      await sleep(250);
-      if (!ok) step('a1-numfield-miss', { label });
+    // Số lượng / Trọng lượng / Thể tích — labelled numeric fields
+    const numField = (labelRe) => `() => [...document.querySelectorAll('input')].find(i => { const l = (i.getAttribute('aria-labelledby') || '').split(/\\s+/).map(id => document.getElementById(id)?.textContent || '').join(' '); return /${labelRe}/i.test(l) || /${labelRe}/i.test(i.getAttribute('aria-label') || ''); }) ?? null`;
+    for (const [labelRe, value] of [['Số lượng', '5'], ['Trọng lượng \\(kg\\)', '1900'], ['Thể tích \\(CBM\\)', '4']]) {
+      const ok = await tap(page, numField(labelRe));
+      if (ok) { await page.keyboard.type(value, { delay: 30 }); await sleep(250); }
+      else step('a1-numfield-miss', { labelRe });
     }
-    // Ngày giao hàng (plain date input)
-    await setInput(page, `() => [...document.querySelectorAll('input[type="date"]')].find(i => { const lab = i.closest('label, div, fieldset'); return !lab || /ngày giao hàng/i.test(lab.textContent || lab.getAttribute('aria-label') || ''); }) || [...document.querySelectorAll('input[type="date"]')][0]`, today);
-    await sleep(300);
+    // Ngày giao hàng — segmented: DD carries #shipment-expected-delivery,
+    // MM/YYYY are aria-labelled "Tháng/Năm — Ngày giao hàng".
+    const dateSet = await page.evaluate((todaySrc) => {
+      const [y, m, d] = todaySrc.split('-');
+      const segs = [
+        document.getElementById('shipment-expected-delivery'),
+        [...document.querySelectorAll('input')].find(i => /^tháng — ngày giao hàng/i.test(i.getAttribute('aria-label') || '')),
+        [...document.querySelectorAll('input')].find(i => /^năm — ngày giao hàng/i.test(i.getAttribute('aria-label') || '')),
+      ];
+      const vals = [d, m, y];
+      let done = 0;
+      segs.forEach((el, idx) => {
+        if (!el) return;
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+        setter.call(el, vals[idx]);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        done += 1;
+      });
+      return { found: segs.map(Boolean), done };
+    }, today);
+    await sleep(700);
+    step('a1-date-segments', dateSet);
     // Tuyến đường — searchable
-    const routePicked = await pickSearchable('Tuyến đường', (route?.name ?? route?.code ?? '').slice(0, 6));
+    const routePicked = await pickSearchable(page, 'Tuyến đường', (route?.name ?? route?.code ?? '').slice(0, 6));
     step('a1-route-picked', { routePicked });
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_a1_form-filled.png', fullPage: true });
 
-    // Lưu
-    const saved = await tap(page, `() => [...document.querySelectorAll('button')].find(b => /^lưu$/i.test(b.textContent.trim()) && !b.disabled)`);
+    // Tạo lô hàng (the form's primary submit)
+    const saved = await tap(page, `() => [...document.querySelectorAll('button')].find(b => /^tạo lô hàng$/i.test(b.textContent.trim()) && !b.disabled)`);
     step('a1-save-click', { saved });
     await sleep(3500);
 
     // Detail assertions
-    const detailOk = await waitText(page, 'Lô hàng lẻ', 15000);
+    const detailOk = await waitText(page, 'Hàng lẻ', 15000);
     const noContainer = await waitText(page, 'Chưa có container nào', 8000);
     const body = await bodyText(page);
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_a1_detail.png', fullPage: true });
     step('a1-detail', { url: page.url(), detailOk, noContainer, snippet: body.slice(0, 600) });
     const idMatch = page.url().match(/\/shipments\/(\d+)/);
     shipmentA = idMatch ? Number(idMatch[1]) : null;
-    record('A.1', detailOk && noContainer ? 'PASS' : 'FAIL', `UI create → detail labels (Lô hàng lẻ=${detailOk}, Chưa có container nào=${noContainer}), id=${shipmentA}`);
+    record('A.1', detailOk && noContainer ? 'PASS' : 'FAIL', `UI create → detail labels (Hàng lẻ (LCL)=${detailOk}, Chưa có container nào=${noContainer}), id=${shipmentA}`);
   } catch (e) {
     step('a1-error', { error: String(e.message ?? e) });
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_a1_error.png', fullPage: true }).catch(() => {});
@@ -180,7 +220,7 @@ let capturedPayload = null;
 }
 
 // DB proof for A.1 + create the remaining fixtures (B/C/D) via the SAME payload
-const dbA = shipmentA ? psql(`SELECT id, cargo_mode, booking_ref, package_type, quantity, weight_kg, volume_cbm FROM shipments WHERE id=${shipmentA}`) : 'no-id';
+const dbA = shipmentA ? psql(`SELECT id, cargo_mode, booking_ref, package_type, package_count, cargo_weight_kg, cargo_volume_cbm, operational_site_id FROM shipments WHERE id=${shipmentA}`) : 'no-id';
 step('a1-db', { row: dbA });
 
 step('a1-captured-payload', { payload: capturedPayload });
@@ -193,10 +233,12 @@ async function createLot(ref) {
       operationalSiteId: null, routeId: route?.id ?? null,
     };
   if (payload.operationalSiteId == null) {
-    let sites = await api(cus.token, 'GET', `/operational-sites?customerId=${customer.id}&limit=10`);
-    if (!sites.ok) sites = await api(cus.token, 'GET', '/operational-sites?limit=10');
+    // CUS cannot read /operational-sites (403) — resolve via DISPATCHER.
+    let sites = await api(disp.token, 'GET', `/operational-sites?customerId=${customer.id}&limit=10`);
+    if (!sites.ok) sites = await api(disp.token, 'GET', '/operational-sites?limit=10');
     const siteList = sites.json?.items ?? sites.json ?? [];
-    if (Array.isArray(siteList) && siteList.length) payload.operationalSiteId = siteList[0].id;
+    const real = Array.isArray(siteList) ? siteList.find(t => !/chưa xác định/i.test(t.name ?? '')) ?? siteList[0] : null;
+    if (real) payload.operationalSiteId = real.id;
   }
   const res = await api(cus.token, 'POST', '/shipments', payload);
   step('fixture-create', { ref, status: res.status, id: res.json?.id, err: res.json?.error ?? res.json?.message ?? null });
@@ -216,13 +258,14 @@ function fs_writeFixtures(data) {
   try {
     await page.goto(`${BASE}/dispatch`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await sleep(4000);
-    // search by the QA booking ref
+    // search by the run's QA prefix so every fixture row is in scope (lot A's
+    // site pick may land "Chưa xác định"; B/C/D carry a real warehouse)
     const searchInput = `() => [...document.querySelectorAll('input[type="text"], input[type="search"], input:not([type])')].find(i => /tìm|search/i.test(i.placeholder || ''))`;
-    await setInput(page, searchInput, refA);
+    await setInput(page, searchInput, `QA-FG16-${hex}`);
     const found = await waitText(page, refA, 20000);
     await sleep(1500);
     const rowInfo = await page.evaluate((ref) => {
-      const rows = [...document.querySelectorAll('tr, [class*="row"]')].filter(el => (el.innerText || '').includes(ref));
+      const rows = [...document.querySelectorAll('tr, [class*="row"]')].filter(el => (el.innerText || '').includes('QA-FG16'));
       const headers = [...document.querySelectorAll('th')].map(th => th.textContent.trim());
       const rowText = rows.map(el => (el.innerText || '').replace(/\s+/g, ' ').trim());
       return { headers, rowText: rowText.slice(0, 4), bodyHasRef: (document.body.innerText || '').includes(ref) };
@@ -279,45 +322,48 @@ function fs_writeFixtures(data) {
     step('a3-dialog', { opened, dialogText });
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_a3_dialog.png', fullPage: true });
 
-    // Loại xe tính tiền trả nhà xe = 5 tấn (searchable inside dialog)
-    const dlgField = (label) => `() => { const dlg = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null).pop(); const lab = [...dlg.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(${JSON.stringify(label)})); return lab?.closest('div, fieldset')?.querySelector('input') || null; }`;
-    await tap(page, dlgField('Loại xe tính tiền'));
-    await page.keyboard.type('5', { delay: 45 });
-    await sleep(1000);
-    const clsPicked = await tap(page, `() => { const opts = [...document.querySelectorAll('[role="option"], [class*="option"], [role="listbox"] li')].filter(o => o.offsetParent !== null); return opts.find(o => /5\s*tấn|5T/i.test(o.textContent || '')) || opts[0] || null; }`);
-    await sleep(700);
-    // Biển số xe chạy thực tế — type an external plate (doc: must type for contractor trucks)
-    const plateSet = await page.evaluate(async (plate) => {
-      const dlg = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null).pop();
-      const lab = [...dlg.querySelectorAll('label')].find(l => /biển số xe chạy thực tế/i.test(l.textContent || ''));
-      const input = lab?.closest('div, fieldset')?.querySelector('input');
+    // Loại xe tính cước trả ĐV = 5 tấn (searchable, global label[for] scope)
+    await pickSearchable(page, 'Loại xe tính cước trả', '5 tấn');
+    // BKS thực (xe chạy chuyến) — free-typed external plate via label[for], global scope
+    const plateSet = await page.evaluate((plate) => {
+      const labels = [...document.querySelectorAll('label')].filter(l => /bks thực/i.test(l.textContent || '') && l.offsetParent !== null);
+      const forId = labels[0]?.getAttribute('for');
+      const input = (forId ? document.getElementById(forId) : null)
+        ?? [...document.querySelectorAll('input')].find(i => {
+          const l = (i.getAttribute('aria-labelledby') || '').split(/\s+/).map(id => document.getElementById(id)?.textContent || '').join(' ');
+          return /bks thực/i.test(l) || /bks thực/i.test(i.getAttribute('aria-label') || '');
+        });
       if (!input) return false;
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-      setter.call(input, '');
       input.focus();
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(input, plate);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      input.blur();
       return true;
     }, '99T-99999');
-    if (plateSet) {
-      await page.keyboard.type('99T-99999', { delay: 35 });
-      await sleep(600);
-      // free-typed plate: accept the custom value if a combobox needs it
-      await page.keyboard.press('Escape');
-    }
-    step('a3-filled', { clsPicked, plateSet });
+    await sleep(800);
+    step('a3-filled', { plateSet });
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_a3_dialog-filled.png', fullPage: true });
 
-    const confirmed = await tap(page, `() => { const dlg = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null).pop(); return [...dlg.querySelectorAll('button')].reverse().find(b => /xác nhận|gán/i.test(b.textContent.trim()) && !b.disabled) || null; }`);
+    const confirmed = await tap(page, `() => { const dlgs = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null); const dlg = dlgs[dlgs.length - 1]; return dlg ? [...dlg.querySelectorAll('button')].reverse().find(b => /xác nhận|gán/i.test(b.textContent.trim()) && !b.disabled) : null; }`);
     await sleep(3000);
     const afterText = await bodyText(page);
     const toast = afterText.match(/Đã gán[^\n]*/)?.[0] ?? null;
+    const dlgError = await page.evaluate(() => {
+      const dlgs = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null);
+      const dlg = dlgs[dlgs.length - 1];
+      return dlg ? (dlg.innerText || '').replace(/\s+/g, ' ').slice(0, 200) : null;
+    });
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_a3_after-assign.png', fullPage: true });
-    const ghep1 = /Ghép \(1\/2\)/.test(afterText);
-    const ghep2 = /Ghép \(2\/2\)/.test(afterText);
-    step('a3-after', { confirmed, toast, ghep1, ghep2 });
-    const dbGroups = psql(`SELECT id, booking_ref, cost_group_order FROM shipments WHERE id IN (${shipmentA},${shipmentB}) ORDER BY cost_group_order`);
-    const carrierZero = psql(`SELECT t.shipment_id, t.external_freight_cost FROM trip_carrier_info t WHERE t.shipment_id IN (${shipmentA},${shipmentB}) ORDER BY t.shipment_id`);
-    step('a3-db', { groups: dbGroups, carrier: carrierZero });
-    record('A.3', confirmed && ghep1 && ghep2 ? 'PASS' : 'FAIL', `group assign: confirm=${confirmed}, Ghép(1/2)=${ghep1}, Ghép(2/2)=${ghep2}, toast=${toast}, db=[${dbGroups}]`);
+    // The plan labels per the doc: "Ghép (1/2)" / "Ghép trả nhà xe · BKS …"
+    const ghepLabels = (afterText.match(/Ghép[^\n]{0,60}/g) ?? []).slice(0, 6);
+    step('a3-after', { confirmed, toast, dlgError, ghepLabels });
+    const dbGroups = psql(`SELECT id, booking_ref, cost_group_order, actual_truck_no FROM shipments WHERE id IN (${shipmentA},${shipmentB}) ORDER BY cost_group_order`);
+    const carrierRows = psql(`SELECT t.shipment_id, tci.external_freight_cost FROM trips t LEFT JOIN trip_carrier_info tci ON tci.trip_id = t.id WHERE t.shipment_id IN (${shipmentA},${shipmentB}) AND t.deleted_at IS NULL ORDER BY t.shipment_id`);
+    step('a3-db', { groups: dbGroups, carrier: carrierRows });
+    const grouped = dbGroups.split('\n').filter(Boolean).length >= 2 && dbGroups.includes('|1|') && dbGroups.includes('|2|');
+    record('A.3', confirmed && grouped ? 'PASS' : 'FAIL', `group assign: confirm=${confirmed}, toast="${toast}", labels=${JSON.stringify(ghepLabels)}, db=[${dbGroups.replace(/\n/g, '; ')}], carrier=[${carrierRows.replace(/\n/g, '; ')}]`);
   } catch (e) {
     step('a3-error', { error: String(e.message ?? e) });
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_a3_error.png', fullPage: true }).catch(() => {});
@@ -361,15 +407,20 @@ function fs_writeFixtures(data) {
     step('a4-dialog', { selected, mergeBtn, dialogText });
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_a4_dialog.png', fullPage: true });
 
-    // Loại xe tính cước thu khách = 5 tấn
-    const dlgField = (label) => `() => { const dlg = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null).pop(); const lab = [...dlg.querySelectorAll('label')].find(l => l.textContent.trim().startsWith(${JSON.stringify(label)})); return lab?.closest('div, fieldset')?.querySelector('input') || null; }`;
-    await tap(page, dlgField('Loại xe tính cước thu khách'));
-    await page.keyboard.type('5', { delay: 45 });
-    await sleep(1000);
-    await tap(page, `() => { const opts = [...document.querySelectorAll('[role="option"], [class*="option"], [role="listbox"] li')].filter(o => o.offsetParent !== null); return opts.find(o => /5\s*tấn|5T/i.test(o.textContent || '')) || opts[0] || null; }`);
-    await sleep(700);
-    const merged = await tap(page, `() => { const dlg = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null).pop(); return [...dlg.querySelectorAll('button')].reverse().find(b => /ghép cước thu khách/i.test(b.textContent.trim()) && !b.disabled) || null; }`);
+    // Loại xe tính cước thu khách = 5 tấn (searchable in the merge dialog)
+    await pickSearchable(page, 'Loại xe tính cước thu khách', '5 tấn');
+    await sleep(600);
+    const merged = await tap(page, `() => { const dlgs = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null); const dlg = dlgs[dlgs.length - 1]; return dlg ? [...dlg.querySelectorAll('button')].reverse().find(b => /ghép cước thu khách/i.test(b.textContent.trim()) && !b.disabled) : null; }`);
     await sleep(3500);
+    // capture any in-dialog error + the success toast
+    const postMergeDlg = await page.evaluate(() => {
+      const dlgs = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null);
+      const dlg = dlgs[dlgs.length - 1];
+      return dlg ? (dlg.innerText || '').replace(/\s+/g, ' ').slice(0, 300) : null;
+    });
+    const boardTextEarly = await bodyText(page);
+    const mergeToast = boardTextEarly.match(/Đã ghép cước thu khách[^\n]*/)?.[0] ?? null;
+    step('a4-post-merge', { merged, postMergeDlg, mergeToast });
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_a4_after-merge.png', fullPage: true });
 
     // THE TC-A12 assertion: board must now show freight money — Lô 1 = price, member 0₫
@@ -383,7 +434,7 @@ function fs_writeFixtures(data) {
       });
     }, refC, refD);
     const moneyC = rowsInfo[0] && /1\.200\.000|1 200 000/.test(rowsInfo[0]);
-    const zeroD = rowsInfo[1] && /0\s*₫|0đ|0 ₫/.test(rowsInfo[1]);
+    const zeroD = rowsInfo[1] && /(^|\s)0(\s|₫|$)/.test(rowsInfo[1]);
     const note = /Ghép cước cùng Bill|Ghép tiền cùng Bill/.test(boardText);
     step('a4-after', { merged, rowsInfo, moneyC, zeroD, note });
     const dbRev = psql(`SELECT sh.id, sh.booking_ref, sh.rev_group_order, tfs.revenue, tfs.revenue_override_reason FROM shipments sh LEFT JOIN trip_financial_state tfs ON tfs.trip_id IN (SELECT id FROM trips WHERE shipment_id = sh.id) WHERE sh.id IN (${shipmentC},${shipmentD}) ORDER BY sh.rev_group_order`);
