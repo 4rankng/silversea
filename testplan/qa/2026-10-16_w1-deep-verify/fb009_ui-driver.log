@@ -1,0 +1,17 @@
+[2026-10-16T08:54:11.685Z] HEALTH buildHash=9e400e63 (pin 9e400e63)
+[2026-10-16T08:54:15.819Z] GOTO /shipments/new
+[2026-10-16T08:54:15.829Z] FORM-LOADED /shipments/new as cus
+[2026-10-16T08:54:15.889Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-fb009-verify-1016/testplan/qa/2026-10-16_w1-deep-verify/fb009_01-form.png
+[2026-10-16T08:54:15.890Z] S1 copy absent on empty value -> true
+[2026-10-16T08:54:16.875Z] S1 probe {"aria":"Copy giờ hẹn đóng trả","opacity":"1","visibility":"visible","hitIsSelf":true}
+[2026-10-16T08:54:16.927Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-fb009-verify-1016/testplan/qa/2026-10-16_w1-deep-verify/fb009_02-s1-copy-present.png
+[2026-10-16T08:54:17.639Z] S1 clicked: toast="Đã copy giờ hẹn 09:00 20/10/2026" clipboard="09:00 20/10/2026"
+[2026-10-16T08:54:17.731Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-fb009-verify-1016/testplan/qa/2026-10-16_w1-deep-verify/fb009_03-s1-after-copy.png
+[2026-10-16T08:54:18.656Z] S2 copy absent on empty draft -> true
+[2026-10-16T08:54:18.714Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-fb009-verify-1016/testplan/qa/2026-10-16_w1-deep-verify/fb009_04-s2-dialog-empty.png
+[2026-10-16T08:54:21.349Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-fb009-verify-1016/testplan/qa/2026-10-16_w1-deep-verify/fb009_05-s2-dialog-parsed.png
+[2026-10-16T08:54:21.350Z] S2 probe {"dialog":true,"copy":true,"aria":"Copy giờ hẹn trong hộp thoại","closeBesideCopy":true}
+[2026-10-16T08:54:22.068Z] S2 clicked: toast="Đã copy giờ hẹn 10:30 21/10/2026" clipboard="10:30 21/10/2026"
+[2026-10-16T08:54:22.149Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-fb009-verify-1016/testplan/qa/2026-10-16_w1-deep-verify/fb009_06-s2-after-copy.png
+[2026-10-16T08:54:26.198Z] per-row copy: {"present":true,"rows":2} row2="10|30|21|10|2026"
+[2026-10-16T08:54:26.198Z] note: create form never saved — read-only phase by design (clipboard + toast only)

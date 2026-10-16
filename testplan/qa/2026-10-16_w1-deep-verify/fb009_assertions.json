@@ -1,0 +1,20 @@
+{
+  "buildHash": "9e400e63",
+  "s1_absent_when_empty": true,
+  "s1_present_when_parsed": true,
+  "s1_aria": "Copy giờ hẹn đóng trả",
+  "s1_always_visible": true,
+  "s1_toast": "Đã copy giờ hẹn 09:00 20/10/2026",
+  "s1_clipboard": "09:00 20/10/2026",
+  "s1_copy_ok": true,
+  "s2_absent_when_empty": true,
+  "s2_dialog_opened_on_empty": true,
+  "s2_dialog_with_copy": true,
+  "s2_aria": "Copy giờ hẹn trong hộp thoại",
+  "s2_beside_close_button": true,
+  "s2_toast": "Đã copy giờ hẹn 10:30 21/10/2026",
+  "s2_clipboard": "10:30 21/10/2026",
+  "s2_copy_ok": true,
+  "per_row_present": true,
+  "per_row_filled_empty_sibling": true
+}
