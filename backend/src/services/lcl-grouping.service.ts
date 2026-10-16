@@ -371,7 +371,7 @@ async function promotePrincipalOnRemoval(
  * so the total group freight is strictly conserved.
  */
 export async function unmergeLclGroup(
-  input: { groupId: string; dimension: LclGroupDimension },
+  input: UnmergeLclGroupInput,
   actor: LclGroupActor,
 ): Promise<LclGroupDissolveResult> {
   return db.transaction(async (tx) => {
