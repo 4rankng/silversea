@@ -5,6 +5,18 @@ import { db } from '../db/index.js';
 import { QA_FIXTURE_REGISTRY, registryTables } from '../seed/qa-fixture-registry.js';
 import { censusSurface, censusVisible, purgeSurface } from '../seed/purge-qa-fixtures.js';
 
+/** `db.execute` returns the row array in some driver modes and `{ rows }` in
+ *  others; every case in this suite reads both shapes. One validated boundary
+ *  beats repeating an unchecked cast at each read. */
+function rowsOf(result: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(result)) return result as Array<Record<string, unknown>>;
+  if (result && typeof result === 'object' && 'rows' in result) {
+    const rows = (result as { rows: unknown }).rows;
+    if (Array.isArray(rows)) return rows as Array<Record<string, unknown>>;
+  }
+  throw new Error('unexpected db.execute result shape');
+}
+
 describe('QA fixture purge', () => {
   it('registry integrity: unique tables, valid actions, guarded hard-deletes', () => {
     const tables = registryTables();
@@ -317,5 +329,96 @@ describe('QA fixture purge', () => {
     strict.equal(Number(stampB.deleted_at), stampBBefore, 'already-deleted row keeps its original deleted_at');
 
     await db.execute(sql.raw(`DELETE FROM billing_documents WHERE id IN (${docA}, ${docB})`));
+  });
+
+  // FB-061 (card 141026012010): the Kiểm soát phơi phiếu board showed the
+  // fixture class in its own vehicle columns — biển số '99T-99999' /
+  // '51K-PROBE' and lái xe 'Test Driver R15'. Both project from tables the
+  // registry never covered: `trip_carrier_info` (external carriers) and the
+  // own-fleet `trucks` / `drivers`. These cases prove each new surface
+  // catches its signature and spares a real fleet row.
+it('purges QA external-carrier rows and spares a real carrier row (FB-061, card 141026012010)', async () => {
+    const suffix = Date.now() % 1000000;
+    const realPlate = `51K-${suffix}`;
+    // trip_carrier_info is one row per trip, so the fixtures need three trips
+    // that carry no carrier row yet.
+    const free = rowsOf(await db.execute(sql.raw(`
+      SELECT t.id FROM trips t LEFT JOIN trip_carrier_info ci ON ci.trip_id = t.id WHERE ci.id IS NULL ORDER BY t.id LIMIT 3`)))
+      .map((row) => Number(row.id));
+    strict.equal(free.length, 3, 'the purge suite needs three trips without a carrier row');
+
+    await db.execute(sql.raw(`
+      INSERT INTO trip_carrier_info (trip_id, carrier_type, external_entity_type, external_plate_number, external_driver_name)
+      VALUES (${free[0]}, 'EXTERNAL', 'CUSTOMER', '99T-99999', 'Test Driver R15'),
+             (${free[1]}, 'EXTERNAL', 'CUSTOMER', '51K-PROBE-${suffix}', 'Tài xế thật ${suffix}'),
+             (${free[2]}, 'EXTERNAL', 'CUSTOMER', '${realPlate}', 'Tài xế thật ${suffix}')`));
+
+    const surface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'trip_carrier_info');
+    strict.ok(surface, 'trip_carrier_info must be a registered QA fixture surface');
+    strict.equal(surface!.action, 'hard-delete', 'the table has no deleted_at/status column');
+    strict.ok(await censusSurface(surface!) >= 1, 'the probe plate must be a purge candidate');
+
+    await purgeSurface(surface!, false);
+
+    const left = rowsOf(await db.execute(sql.raw(
+      `SELECT external_plate_number FROM trip_carrier_info WHERE trip_id IN (${free[0]}, ${free[1]}, ${free[2]})`,
+    ))).map((row) => row.external_plate_number);
+    strict.deepEqual(left, [realPlate], 'the card-reported probe plate and the probe family go; the real carrier row stays');
+
+    await db.execute(sql.raw(`DELETE FROM trip_carrier_info WHERE trip_id IN (${free[0]}, ${free[1]}, ${free[2]})`));
+  });
+
+  it('soft-deletes QA probe trucks and drivers, sparing the real fleet (FB-061, card 141026012010)', async () => {
+    const suffix = Date.now() % 1000000;
+    const probePlate = '99T-99999';
+    const probeFamilyPlate = `51K-PROBE-${suffix}`;
+    const realPlate = `51K-${suffix}`;
+    await db.execute(sql.raw(`INSERT INTO trucks (license_plate, status) VALUES ('${probePlate}', 'ACTIVE'), ('${probeFamilyPlate}', 'ACTIVE'), ('${realPlate}', 'ACTIVE')`));
+    await db.execute(sql.raw(`INSERT INTO drivers (name, status) VALUES ('Test Driver R15', 'ACTIVE'), ('Tài xế thật ${suffix}', 'ACTIVE')`));
+
+    for (const table of ['trucks', 'drivers']) {
+      const surface = QA_FIXTURE_REGISTRY.find((s) => s.table === table);
+      strict.ok(surface, `${table} must be a registered QA fixture surface`);
+      strict.ok(await censusSurface(surface!) >= 1, `${table} probe rows must be purge candidates`);
+      await purgeSurface(surface!, false);
+    }
+
+    const visibleTrucks = rowsOf(await db.execute(sql.raw(
+      `SELECT license_plate FROM trucks WHERE license_plate IN ('${probePlate}', '${probeFamilyPlate}', '${realPlate}') AND deleted_at IS NULL`,
+    ))).map((row) => row.license_plate);
+    strict.deepEqual(visibleTrucks, [realPlate], 'both probe plates leave, the real fleet plate stays');
+
+    const visibleDrivers = rowsOf(await db.execute(sql.raw(
+      `SELECT name FROM drivers WHERE name IN ('Test Driver R15', 'Tài xế thật ${suffix}') AND deleted_at IS NULL`,
+    ))).map((row) => row.name);
+    strict.deepEqual(visibleDrivers, [`Tài xế thật ${suffix}`], 'only the probe driver is soft-deleted');
+
+    await db.execute(sql.raw(`DELETE FROM trucks WHERE license_plate IN ('${probePlate}', '${probeFamilyPlate}', '${realPlate}')`));
+    await db.execute(sql.raw(`DELETE FROM drivers WHERE name IN ('Test Driver R15', 'Tài xế thật ${suffix}')`));
+  });
+
+  // The board filters `shipments.deleted_at`, so a lot whose bill carries a
+  // probe family must leave the board entirely — not merely be hidden from
+  // the shipments list. The card quotes BL-QAKE-<timestamp> and E2E-*.
+  it('soft-deletes probe bill families so the board stops rendering the lot (FB-061, card 141026012010)', async () => {
+    const suffix = Date.now() % 1000000;
+    const probeBl = `BL-QAKE-1789702634${suffix}`;
+    const e2eBl = `E2E-${suffix}`;
+    const realBl = `BL-REAL-${suffix}`;
+
+    await db.execute(sql.raw(`INSERT INTO shipments (bl_number) VALUES ('${probeBl}'), ('${e2eBl}'), ('${realBl}')`));
+
+    const surface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'shipments' && s.action === 'soft-delete');
+    strict.ok(surface, 'shipments soft-delete surface must exist');
+    await purgeSurface(surface!, false);
+
+    const deletedByBill = new Map(rowsOf(await db.execute(sql.raw(
+      `SELECT bl_number, deleted_at FROM shipments WHERE bl_number IN ('${probeBl}', '${e2eBl}', '${realBl}')`,
+    ))).map((row) => [row.bl_number, row.deleted_at]));
+    strict.ok(deletedByBill.get(probeBl), 'the BL-QAKE lot must be soft-deleted');
+    strict.ok(deletedByBill.get(e2eBl), 'the E2E- lot must be soft-deleted');
+    strict.equal(deletedByBill.get(realBl), null, 'a real bill number must survive');
+
+    await db.execute(sql.raw(`DELETE FROM shipments WHERE bl_number IN ('${probeBl}', '${e2eBl}', '${realBl}')`));
   });
 });
