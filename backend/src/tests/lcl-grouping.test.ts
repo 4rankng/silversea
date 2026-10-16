@@ -27,6 +27,7 @@ import * as s from '../db/schema';
 import { upsertTripCarrierInfo, upsertTripFinancialState } from '../services/trip-composite.service';
 import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
 import { getAccountingDebitBoard } from '../services/accounting-debit-close.service';
+import { getCustomerDebtSummary } from '../services/customer-debt-summary.service';
 import { buildTripRenderData, vehicleTypeLabel } from '../services/billing-document.service';
 import type { CustomerDebitTripCandidate } from '../services/billing-document-shared.service';
 import {
@@ -1044,6 +1045,123 @@ describe('LCL grouping — FB-095 un-merge safety', () => {
     assert.equal(after2.deletedAt, null, 'the survivor lives on');
     const events = await groupAuditEvents(lot1.id);
     assert.ok(events.includes('SHIPMENT_LCL_GROUP_UNMERGED'), 'the promotion is audited');
+  });
+});
+
+describe('C5 (card 1016212936) — the customer debt report reads the same override channel', () => {
+  // Independent review's C5 residual: after the F-2 ruling (b) the two money
+  // boards read trip_financial_state.revenue for LCL REV-grouped /
+  // override-stamped lots, but `getCustomerDebtSummary` (the customers-screen
+  // debt projection) still summed freight_rate_snapshots.freightAmount — so
+  // the debt report showed the PRE-MERGE money while the boards showed the
+  // merged 100%/0₫. These cases pin the debt reader to the SAME channel via
+  // the ONE shared helper, and pin the equality that is the AC: the debt
+  // line's cước thu must equal the CUS "Chi phí - Quyết toán" row's figure
+  // for the very same lot.
+  async function seedMergedTrippedPair(label: string) {
+    const customer = await mkCustomer(`C5 ${label}`);
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `C5-${label}1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `C5-${label}2-${suffix.slice(-6)}`);
+    const trip1 = await mkBoardTrip(lot1.id, customer.id, route.id);
+    const trip2 = await mkBoardTrip(lot2.id, customer.id, route.id);
+    await mkFreightSnapshot(lot1.id, trip1.id, '1200000', '50000');
+    await mkFreightSnapshot(lot2.id, trip2.id, '900000', '30000');
+    await upsertTripFinancialState(db, trip1.id, { revenue: '1200000' });
+    await upsertTripFinancialState(db, trip2.id, { revenue: '900000' });
+    const truckClass = await vehicleClassByCode('3.5T');
+    const [pricingRow] = await db.insert(s.pricingTables).values({
+      customerId: customer.id,
+      routeId: route.id,
+      vehicleSizeClassId: truckClass.id,
+      rateKey: truckClass.code,
+      price: '3150000',
+    }).returning();
+    createdPricingTableIds.push(pricingRow.id);
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: truckClass.id }, actor);
+    return { customer, route, lot1, lot2, trip1, trip2, lanePrice: '3150000' };
+  }
+
+  test('C5-01: the debt line cước thu equals the CUS board figure for the merged pair (100%/0₫ + note)', async () => {
+    const { customer, lot1, lot2 } = await seedMergedTrippedPair('a');
+
+    // The reader the AC names, on the very same seeded group.
+    const board = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const boardPrincipal = board.items.find((row) => row.shipmentId === lot1.id)!;
+    const boardMember = board.items.find((row) => row.shipmentId === lot2.id)!;
+    assert.equal(boardPrincipal.freightAuto, '3150000', 'CUS board: Lô 1 = 100% tiền nhóm');
+    assert.equal(boardMember.freightAuto, '0', 'CUS board: lô ghép = 0₫');
+
+    const debt = await getCustomerDebtSummary({ customerIds: [customer.id], excludeOwnFleet: false });
+    const row = debt.items.find((item) => item.customerId === customer.id)!;
+    const linePrincipal = row.lines.find((line) => line.shipmentId === lot1.id)!;
+    const lineMember = row.lines.find((line) => line.shipmentId === lot2.id)!;
+
+    // The defect: these read the pre-merge snapshots 1.200.000 / 900.000.
+    assert.equal(linePrincipal.freightRevenue, Number(boardPrincipal.freightAuto), 'debt Lô 1 = CUS Quyết toán Lô 1');
+    assert.equal(lineMember.freightRevenue, Number(boardMember.freightAuto), 'debt lô ghép = CUS Quyết toán lô ghép');
+    assert.equal(linePrincipal.freightRevenue, 3_150_000);
+    assert.equal(lineMember.freightRevenue, 0);
+    // The customer aggregate follows the same lines: the group's money once.
+    assert.equal(row.freightRevenue, 3_150_000, 'customer cước thu = 100% of the group money, once');
+    // The note that explains the 0₫ rides the line (the boards' own reason).
+    assert.equal(lineMember.freightOverrideReason, `Ghép cước cùng Bill ${lot1.blNumber}`);
+    assert.equal(linePrincipal.freightOverrideReason, null, 'the un-marked principal carries no note');
+    // Only the freight component follows the group law — cước trả is untouched.
+    assert.equal(linePrincipal.freightPayable, 0, 'the group law owns cước thu only');
+  });
+
+  test('C5-02: an ungrouped, un-overridden LCL lot keeps the snapshot grain byte-for-byte', async () => {
+    const customer = await mkCustomer('C5 control');
+    const route = await mkRoute();
+    const lot = await mkLclLot(customer.id, route.id, `C5-CTL-${suffix.slice(-6)}`);
+    const trip = await mkBoardTrip(lot.id, customer.id, route.id);
+    await mkFreightSnapshot(lot.id, trip.id, '1234000', '60000');
+    // Trip revenue DELIBERATELY differs from the snapshot — ungrouped and
+    // unstamped, so the snapshot must win (a broken always-override
+    // precedence would read 999000).
+    await upsertTripFinancialState(db, trip.id, { revenue: '999000' });
+
+    const debt = await getCustomerDebtSummary({ customerIds: [customer.id], excludeOwnFleet: false });
+    const line = debt.items.find((item) => item.customerId === customer.id)!.lines
+      .find((item) => item.shipmentId === lot.id)!;
+    assert.equal(line.freightRevenue, 1_234_000, 'snapshot freight component, unchanged');
+    assert.equal(line.freightOverrideReason, null, 'no note outside the group law');
+  });
+
+  test('C5-03: an override-stamped FCL lot keeps the snapshot channel (LCL-only scope)', async () => {
+    const customer = await mkCustomer('C5 fcl stamp');
+    const route = await mkRoute();
+    const lot = await mkLclLot(customer.id, route.id, `C5-FCL-${suffix.slice(-6)}`, { cargoMode: 'FCL' });
+    const trip = await mkBoardTrip(lot.id, customer.id, route.id);
+    await mkFreightSnapshot(lot.id, trip.id, '2000000', '0');
+    await upsertTripFinancialState(db, trip.id, {
+      revenue: '2500000',
+      revenueOverriddenAt: new Date(),
+      revenueOverrideReason: 'Khách hàng thoả thuận giá mới',
+    });
+
+    const debt = await getCustomerDebtSummary({ customerIds: [customer.id], excludeOwnFleet: false });
+    const line = debt.items.find((item) => item.customerId === customer.id)!.lines
+      .find((item) => item.shipmentId === lot.id)!;
+    assert.equal(line.freightRevenue, 2_000_000, 'stamped FCL keeps the snapshot channel');
+    assert.equal(line.freightOverrideReason, null, 'no note outside the LCL domain');
+  });
+
+  test('C5-04: after an FB-095 un-merge the stamped survivor keeps 100%, the leaver reads 0₫ + the transfer note', async () => {
+    const { customer, lot1, lot2 } = await seedMergedTrippedPair('c');
+    await unmergeLclLot({ shipmentId: lot1.id, dimension: 'REV' }, actor);
+
+    // The survivor is UNGROUPED (the 2-lot group dissolved) — only its
+    // override stamp keeps the reader on the channel where the money moved.
+    const debt = await getCustomerDebtSummary({ customerIds: [customer.id], excludeOwnFleet: false });
+    const lines = debt.items.find((item) => item.customerId === customer.id)!.lines;
+    const survivor = lines.find((line) => line.shipmentId === lot2.id)!;
+    const leaver = lines.find((line) => line.shipmentId === lot1.id)!;
+    assert.equal(survivor.freightRevenue, 3_150_000, 'the promoted survivor keeps 100% of the bill money');
+    assert.equal(leaver.freightRevenue, 0, 'the leaver reads its stamped 0₫, not its old snapshot');
+    assert.equal(leaver.freightOverrideReason, `Tách nhóm — chuyển 100% cước cho Bill ${lot2.blNumber}`);
+    assert.equal(debt.items.find((item) => item.customerId === customer.id)!.freightRevenue, 3_150_000);
   });
 });
 

@@ -37,6 +37,7 @@ function fact(overrides: Partial<CustomerFreightFact> & { customerId: number }):
     carrierKey: 'CUST:9',
     ownership: 'EXTERNAL',
     freightRevenue: 0,
+    freightOverrideReason: null,
     freightPayable: 0,
     ...overrides,
   };

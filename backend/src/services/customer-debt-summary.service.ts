@@ -21,11 +21,19 @@
 // legs, restricted to active trips; a shipment-level freeze (trip_id NULL) lands
 // on the shipment's lowest-id active trip exactly once. Cước trả is
 // `trip_carrier_info.external_freight_cost`, the board's own source.
+//
+// C5 (card 1016212936) — CƯỚC THU follows the F-2/§3.2 group law for an LCL lot
+// that is REV-grouped or whose live trip carries an override stamp: the figure
+// comes from the ONE shared helper (`revenue-override-read.service`), exactly
+// like the CUS and Kế toán boards, so a merged group's 100%/0₫ reaches this
+// report too instead of the pre-merge snapshot. Everything else keeps the
+// snapshot grain byte-for-byte (FCL included — the ruling's LCL-only caveat).
 import { and, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { activeTripConditions } from './active-trip-scope';
 import { carrierKeyForEntry } from './debit-settlement-shared';
+import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 
 /** One shipment/trip row of the projection — carries its own-vs-external identity. */
 export interface CustomerFreightLine {
@@ -41,6 +49,10 @@ export interface CustomerFreightLine {
   carrierKey: string;
   /** Cước thu của chuyến (frozen freight amount). */
   freightRevenue: number;
+  /** C5 (card 1016212936) — the group-law note that explains a 0₫/100% cước thu
+   *  line: the merge note ("Ghép cước cùng Bill X") or the trip's own override
+   *  reason. Null whenever the line reads the historical snapshot channel. */
+  freightOverrideReason: string | null;
   /** Cước trả của chuyến (external carrier cost). */
   freightPayable: number;
 }
@@ -187,6 +199,13 @@ export async function getCustomerDebtSummary(
     id: s.shipments.id,
     code: s.shipments.shipmentCode,
     customerId: s.shipments.customerId,
+    // C5 — the qualification facts the boards read (LCL + REV group), plus the
+    // principal reference the member note cites.
+    cargoMode: s.shipments.cargoMode,
+    revGroupId: s.shipments.revGroupId,
+    revGroupOrder: s.shipments.revGroupOrder,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
   })
     .from(s.shipments)
     .where(and(...lotConditions))
@@ -203,6 +222,33 @@ export async function getCustomerDebtSummary(
   }
   const lotIds = lots.map((lot) => lot.id);
   const codeByLot = new Map(lots.map((lot) => [lot.id, lot.code]));
+  const lotById = new Map(lots.map((lot) => [lot.id, lot] as const));
+
+  // C5 — the rev-group principal's reference, for the member note
+  // ("Ghép cước cùng Bill X"). Same lookup the money boards use: the member at
+  // rev group order 1 is the principal, cited by its Bill number (booking ref
+  // as the fallback).
+  const revGroupIds = [...new Set(lots.map((lot) => lot.revGroupId).filter((id): id is string => id != null))];
+  const revPrincipalRefs = new Map<string, string>();
+  if (revGroupIds.length > 0) {
+    const principals = await db.select({
+      groupId: s.shipments.revGroupId,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+    }).from(s.shipments)
+      .where(and(eq(s.shipments.revGroupOrder, 1), inArray(s.shipments.revGroupId, revGroupIds)));
+    for (const principal of principals) {
+      const ref = principal.blNumber ?? principal.bookingRef ?? '';
+      if (principal.groupId != null && ref !== '') revPrincipalRefs.set(principal.groupId, ref);
+    }
+  }
+  // C5 (card 1016212936) — the ONE shared read law, never a forked one: the
+  // same helper the CUS and Kế toán boards call. Its grain is the LOT; this
+  // report's grain is the trip line, so the lot's effective figure is anchored
+  // on the lot's first active trip below (the device this function already uses
+  // for a shipment-level freeze) and the lot's remaining legs read the group
+  // law's 0₫.
+  const overrideByLot = await loadRevenueOverrideByLot(db, lotIds);
 
   // Cước trả + the own/external axis + the carrier identity, per active trip.
   const tripRows = await db.select({
@@ -283,8 +329,33 @@ export async function getCustomerDebtSummary(
       carrierKey,
       ownership,
       freightRevenue: (revenueByTrip.get(row.tripId) ?? 0) + shipmentLevel,
+      freightOverrideReason: null,
       freightPayable: money(row.externalFreightCost),
     });
+  }
+
+  // C5 — the group law owns the lot's CƯỚC THU for an LCL lot that is
+  // REV-grouped (FB-093 re-prices the principal with no override marker) or
+  // whose live trip carries an override stamp (FB-095 transfers/re-stamps, and
+  // the survivor of a dissolved group is ungrouped). The figure comes from the
+  // shared helper; only when that channel holds no total does the snapshot
+  // channel stand (161026204709: a merged lot's money may live in a
+  // shipment-level snapshot). FCL and unqualified lots are untouched.
+  const snapshotTotalByLot = new Map<number, number>();
+  for (const fact of facts) {
+    snapshotTotalByLot.set(fact.shipmentId, (snapshotTotalByLot.get(fact.shipmentId) ?? 0) + fact.freightRevenue);
+  }
+  for (const fact of facts) {
+    const lot = lotById.get(fact.shipmentId);
+    if (!lot) continue;
+    const override = overrideByLot.get(fact.shipmentId);
+    if (lot.cargoMode !== 'LCL' || (lot.revGroupId == null && !(override?.stamped ?? false))) continue;
+    const effective = override?.total ?? snapshotTotalByLot.get(fact.shipmentId) ?? 0;
+    fact.freightRevenue = firstActiveTripByLot.get(fact.shipmentId) === fact.tripId ? effective : 0;
+    fact.freightOverrideReason = override?.reason
+      ?? ((lot.revGroupOrder ?? 1) > 1
+        ? `Ghép cước cùng Bill ${revPrincipalRefs.get(lot.revGroupId!) ?? ''}`.trim()
+        : null);
   }
 
   const ids = [...new Set(facts.map((fact) => fact.customerId))];
