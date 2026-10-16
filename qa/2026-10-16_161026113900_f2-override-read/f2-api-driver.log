@@ -1,0 +1,96 @@
+{"at":"2026-10-16T13:44:42.302Z","step":"health","status":"ok","timestamp":"2026-10-16T13:44:42.314Z","buildHash":"e3286338"}
+{"at":"2026-10-16T13:44:42.551Z","step":"login","identifier":"tiepvv","status":200,"gotToken":true,"role":"CUS"}
+{"at":"2026-10-16T13:44:42.765Z","step":"login","identifier":"hoapt","status":200,"gotToken":true,"role":"ACCOUNTANT"}
+{"at":"2026-10-16T13:44:42.953Z","step":"login","identifier":"admin","status":200,"gotToken":true,"role":"ADMIN"}
+{"at":"2026-10-16T13:44:42.999Z","step":"catalog","path":"/vehicle-size-classes","status":200,"count":13}
+{"at":"2026-10-16T13:44:43.056Z","step":"catalog","path":"/routes","status":200,"count":15}
+{"at":"2026-10-16T13:44:43.087Z","step":"catalog","path":"/cargo-types","status":403,"count":0}
+{"at":"2026-10-16T13:45:05.325Z","step":"health","status":"ok","timestamp":"2026-10-16T13:45:05.339Z","buildHash":"e3286338"}
+{"at":"2026-10-16T13:45:05.665Z","step":"login","identifier":"tiepvv","status":200,"gotToken":true,"role":"CUS"}
+{"at":"2026-10-16T13:45:05.969Z","step":"login","identifier":"hoapt","status":200,"gotToken":true,"role":"ACCOUNTANT"}
+{"at":"2026-10-16T13:45:06.227Z","step":"login","identifier":"admin","status":200,"gotToken":true,"role":"ADMIN"}
+{"at":"2026-10-16T13:45:06.319Z","step":"catalog","path":"/vehicle-size-classes","status":200,"count":13}
+{"at":"2026-10-16T13:45:06.416Z","step":"catalog","path":"/routes","status":200,"count":15}
+{"at":"2026-10-16T13:45:06.560Z","step":"catalog","path":"/cargo-types","status":200,"count":2}
+{"at":"2026-10-16T13:45:06.641Z","step":"catalog","path":"/container-types","status":200,"count":8}
+{"at":"2026-10-16T13:45:06.641Z","step":"catalog-picks","vscId":4,"vscCode":"5T","routeId":6,"routeName":"KCN Quế Võ, Nam Sơn, Bắc Ninh","cargoTypeId":1,"contTypeId":1}
+{"at":"2026-10-16T13:45:06.844Z","step":"customer-create","status":201,"id":96}
+{"at":"2026-10-16T13:45:06.898Z","step":"shipment-create","suffix":"A","status":400,"err":"{\"error\":\"Một lô hàng chỉ có Số Bill (hàng Nhập) hoặc Số Booking (hàng Xuất).\",\"details\":[{\"code\":\"custom\",\"message\":\"Một lô hàng chỉ có Số Bill (hàng Nhập) hoặc Số Booking (hàng Xuất).\",\"path\":[\"blNumber\"]},{\"code\":\"custom\",\"message\":\"Một lô hàng chỉ có Số Bill (hàng Nhập) hoặc Số Booking (hàng Xuấ"}
+{"at":"2026-10-16T13:45:30.823Z","step":"health","status":"ok","timestamp":"2026-10-16T13:45:30.831Z","buildHash":"e3286338"}
+{"at":"2026-10-16T13:45:31.162Z","step":"login","identifier":"tiepvv","status":200,"gotToken":true,"role":"CUS"}
+{"at":"2026-10-16T13:45:31.381Z","step":"login","identifier":"hoapt","status":200,"gotToken":true,"role":"ACCOUNTANT"}
+{"at":"2026-10-16T13:45:31.616Z","step":"login","identifier":"admin","status":200,"gotToken":true,"role":"ADMIN"}
+{"at":"2026-10-16T13:45:31.676Z","step":"catalog","path":"/vehicle-size-classes","status":200,"count":13}
+{"at":"2026-10-16T13:45:31.709Z","step":"catalog","path":"/routes","status":200,"count":15}
+{"at":"2026-10-16T13:45:31.747Z","step":"catalog","path":"/cargo-types","status":200,"count":2}
+{"at":"2026-10-16T13:45:31.790Z","step":"catalog","path":"/container-types","status":200,"count":8}
+{"at":"2026-10-16T13:45:31.791Z","step":"catalog-picks","vscId":4,"vscCode":"5T","routeId":6,"routeName":"KCN Quế Võ, Nam Sơn, Bắc Ninh","cargoTypeId":1,"contTypeId":1}
+{"at":"2026-10-16T13:45:31.870Z","step":"customer-reuse","id":96}
+{"at":"2026-10-16T13:45:32.134Z","step":"shipment-create","suffix":"A","status":201,"id":624,"ref":"QA-F2-10162045-A"}
+{"at":"2026-10-16T13:45:32.366Z","step":"shipment-create","suffix":"B","status":201,"id":625,"ref":"QA-F2-10162045-B"}
+{"at":"2026-10-16T13:45:32.597Z","step":"shipment-create","suffix":"C","status":201,"id":626,"ref":"QA-F2-10162045-C"}
+{"at":"2026-10-16T13:45:32.955Z","step":"trip-create","suffix":"A","status":201,"tripId":189}
+{"at":"2026-10-16T13:45:33.203Z","step":"trip-create","suffix":"B","status":201,"tripId":190}
+{"at":"2026-10-16T13:45:33.410Z","step":"trip-create","suffix":"C","status":201,"tripId":191}
+{"at":"2026-10-16T13:45:33.967Z","step":"trip-pre","suffix":"A","status":200,"revenue":"0","pricingSource":null,"revenueOverrideReason":null}
+{"at":"2026-10-16T13:45:34.044Z","step":"trip-pre","suffix":"B","status":200,"revenue":"0","pricingSource":null,"revenueOverrideReason":null}
+{"at":"2026-10-16T13:45:34.132Z","step":"trip-pre","suffix":"C","status":200,"revenue":"0","pricingSource":null,"revenueOverrideReason":null}
+{"at":"2026-10-16T13:45:34.217Z","step":"rev-group","status":201,"body":{"groupId":"642e2b12-1c37-4b40-9033-4cfe8fe184d2","memberCount":2,"members":[{"shipmentId":624,"order":1,"reference":"QA-F2-10162045-A"},{"shipmentId":625,"order":2,"reference":"QA-F2-10162045-B"}]}}
+{"at":"2026-10-16T13:45:35.289Z","step":"debit-summary-row","suffix":"A","as":"tiepvv(CUS)","row":{"shipmentId":624,"freightAuto":"0","freightOverrideReason":null,"revGroupId":"642e2b12-1c37-4b40-9033-4cfe8fe184d2","revGroupOrder":1,"revGroupMemberCount":2,"revGroupPrincipalRef":null}}
+{"at":"2026-10-16T13:45:35.289Z","step":"debit-summary-row","suffix":"B","as":"tiepvv(CUS)","row":{"shipmentId":625,"freightAuto":"0","freightOverrideReason":"Ghép cước cùng Bill QA-F2-10162045-A","revGroupId":"642e2b12-1c37-4b40-9033-4cfe8fe184d2","revGroupOrder":2,"revGroupMemberCount":2,"revGroupPrincipalRef":"QA-F2-10162045-A"}}
+{"at":"2026-10-16T13:45:35.290Z","step":"debit-summary-row","suffix":"C","as":"tiepvv(CUS)","row":{"shipmentId":626,"freightAuto":null,"freightOverrideReason":null,"revGroupId":null,"revGroupOrder":null,"revGroupMemberCount":null,"revGroupPrincipalRef":null}}
+{"at":"2026-10-16T13:45:35.431Z","step":"debit-board","status":200,"note":"accounting board fetch (path may 404 — probed below)"}
+{"at":"2026-10-16T13:45:35.481Z","step":"trip-post","suffix":"A","status":200,"revenue":"0","revenueOverrideReason":null,"revenueOverriddenAt":null}
+{"at":"2026-10-16T13:45:35.566Z","step":"trip-post","suffix":"B","status":200,"revenue":"0","revenueOverrideReason":"Ghép cước cùng Bill QA-F2-10162045-A","revenueOverriddenAt":"2026-10-16T13:45:34.220Z"}
+{"at":"2026-10-16T13:45:35.599Z","step":"trip-post","suffix":"C","status":200,"revenue":"0","revenueOverrideReason":null,"revenueOverriddenAt":null}
+{"at":"2026-10-16T13:45:35.600Z","step":"done","QATAG":"QA-F2-10162045","lots":{"A":{"id":624,"tripId":189},"B":{"id":625,"tripId":190},"C":{"id":626,"tripId":191}}}
+{"at":"2026-10-16T13:49:35.080Z","step":"stamp-revenue","tripId":189,"status":200}
+{"at":"2026-10-16T13:50:02.433Z","step":"stamp-revenue","tripId":189,"status":"already-stamped (rerun)"}
+{"at":"2026-10-16T13:50:03.872Z","step":"snapshots-after-stamp","rows":180}
+{"at":"2026-10-16T13:50:04.003Z","step":"debit-summary-after-stamp","suffix":"A","freightAuto":"7654321","reason":null}
+{"at":"2026-10-16T13:50:04.004Z","step":"debit-summary-after-stamp","suffix":"B","freightAuto":"0","reason":"Ghép cước cùng Bill QA-F2-10162045-A"}
+{"at":"2026-10-16T13:50:04.004Z","step":"debit-summary-after-stamp","suffix":"C","freightAuto":null,"reason":null}
+{"at":"2026-10-16T13:50:04.358Z","step":"shipment-create","suffix":"D","status":201,"id":627}
+{"at":"2026-10-16T13:50:04.561Z","step":"trip-create","suffix":"D","status":201,"tripId":192}
+{"at":"2026-10-16T13:50:04.692Z","step":"shipment-create","suffix":"E","status":201,"id":628}
+{"at":"2026-10-16T13:50:05.014Z","step":"trip-create","suffix":"E","status":201,"tripId":193}
+{"at":"2026-10-16T13:50:06.136Z","step":"rev-group-2","status":201,"body":{"groupId":"268bb7e0-9021-48da-b1ae-0fdcfbf8ebc4","memberCount":2,"members":[{"shipmentId":627,"order":1,"reference":"QA-F2-10162045-D"},{"shipmentId":628,"order":2,"reference":"QA-F2-10162045-E"}]}}
+{"at":"2026-10-16T13:50:07.034Z","step":"snapshot-diff-merge2","rowsBefore":180,"rowsAfter":180,"identical":true}
+{"at":"2026-10-16T13:50:07.035Z","step":"snapshot-diff-stamp-vs-merge2","identical":true}
+{"at":"2026-10-16T13:50:07.131Z","step":"debit-summary-de","suffix":"D","freightAuto":"0","reason":null}
+{"at":"2026-10-16T13:50:07.199Z","step":"trip-get-de","suffix":"D","revenue":"0","reason":null,"overriddenAt":null}
+{"at":"2026-10-16T13:50:07.200Z","step":"debit-summary-de","suffix":"E","freightAuto":"0","reason":"Ghép cước cùng Bill QA-F2-10162045-D"}
+{"at":"2026-10-16T13:50:07.249Z","step":"trip-get-de","suffix":"E","revenue":"0","reason":"Ghép cước cùng Bill QA-F2-10162045-D","overriddenAt":"2026-10-16T13:50:06.137Z"}
+{"at":"2026-10-16T13:50:07.252Z","step":"done-phase1b","lotsDe":{"D":{"id":627,"tripId":192,"ref":"QA-F2-10162045-D"},"E":{"id":628,"tripId":193,"ref":"QA-F2-10162045-E"}}}
+{"at":"2026-10-16T13:51:40.513Z","step":"board-post","suffix":"A","shipmentId":624,"cuocThu":"7654321","tongThu":"7654321","traDv":"1500000"}
+{"at":"2026-10-16T13:51:40.515Z","step":"board-post","suffix":"B","shipmentId":625,"cuocThu":"0","tongThu":"0","traDv":"1500000"}
+{"at":"2026-10-16T13:51:40.516Z","step":"board-post","suffix":"C","shipmentId":626,"cuocThu":"__NOT_ON_BOARD__","tongThu":null,"traDv":"1500000"}
+{"at":"2026-10-16T13:51:40.516Z","step":"board-post","suffix":"D","shipmentId":627,"cuocThu":"0","tongThu":"0","traDv":"1500000"}
+{"at":"2026-10-16T13:51:40.517Z","step":"board-post","suffix":"E","shipmentId":628,"cuocThu":"0","tongThu":"0","traDv":"1500000"}
+{"at":"2026-10-16T13:51:41.876Z","step":"control-candidates","controls":[]}
+{"at":"2026-10-16T13:54:09.919Z","step":"controls-raw","controls":[{"shipmentId":506,"cusExpected":"1000000","accFreightRaw":"1000000","intakeTotal":null,"edd":"2026-10-20","nTrips":1,"accExpected":"1000000"},{"shipmentId":505,"cusExpected":"1000000","accFreightRaw":"1000000","intakeTotal":null,"edd":"2026-10-20","nTrips":1,"accExpected":"1000000"},{"shipmentId":478,"cusExpected":"1000000","accFreightRaw":"1000000","intakeTotal":null,"edd":"2026-10-12","nTrips":1,"accExpected":"1000000"},{"shipmentId":404,"cusExpected":"0","accFreightRaw":"0","intakeTotal":null,"edd":"2026-10-08","nTrips":2,"accExpected":"0"},{"shipmentId":326,"cusExpected":"1000000","accFreightRaw":"1000000","intakeTotal":null,"edd":"2026-10-07","nTrips":1,"accExpected":"1000000"},{"shipmentId":287,"cusExpected":"2000000","accFreightRaw":"2000000","intakeTotal":null,"edd":"2026-10-01","nTrips":1,"accExpected":"2000000"}]}
+{"at":"2026-10-16T13:54:10.427Z","step":"control-check","shipmentId":506,"edd":"2026-10-20","nLiveTrips":1,"expectedCus":"1000000","gotCus":"1000000","expectedAcc":"1000000","gotAcc":"1000000","cusOk":true,"accOk":true,"verdict":"PASS"}
+{"at":"2026-10-16T13:54:10.428Z","step":"control-check","shipmentId":505,"edd":"2026-10-20","nLiveTrips":1,"expectedCus":"1000000","gotCus":"1000000","expectedAcc":"1000000","gotAcc":"1000000","cusOk":true,"accOk":true,"verdict":"PASS"}
+{"at":"2026-10-16T13:54:10.429Z","step":"control-check","shipmentId":478,"edd":"2026-10-12","nLiveTrips":1,"expectedCus":"1000000","gotCus":"1000000","expectedAcc":"1000000","gotAcc":"1000000","cusOk":true,"accOk":true,"verdict":"PASS"}
+{"at":"2026-10-16T13:54:10.429Z","step":"control-check","shipmentId":404,"edd":"2026-10-08","nLiveTrips":2,"expectedCus":"0","gotCus":"0","expectedAcc":"0","gotAcc":"0","cusOk":true,"accOk":true,"verdict":"PASS"}
+{"at":"2026-10-16T13:54:10.430Z","step":"control-check","shipmentId":326,"edd":"2026-10-07","nLiveTrips":1,"expectedCus":"1000000","gotCus":"1000000","expectedAcc":"1000000","gotAcc":"1000000","cusOk":true,"accOk":true,"verdict":"PASS"}
+{"at":"2026-10-16T13:54:10.431Z","step":"control-check","shipmentId":287,"edd":"2026-10-01","nLiveTrips":1,"expectedCus":"2000000","gotCus":"2000000","expectedAcc":"2000000","gotAcc":"2000000","cusOk":true,"accOk":true,"verdict":"PASS"}
+{"at":"2026-10-16T13:54:10.432Z","step":"done-controls","pass":6,"fail":0}
+{"at":"2026-10-16T13:58:13.396Z","step":"trip-delete","id":189,"status":200}
+{"at":"2026-10-16T13:58:13.598Z","step":"trip-delete","id":190,"status":200}
+{"at":"2026-10-16T13:58:13.852Z","step":"trip-delete","id":191,"status":200}
+{"at":"2026-10-16T13:58:14.022Z","step":"trip-delete","id":192,"status":200}
+{"at":"2026-10-16T13:58:14.191Z","step":"trip-delete","id":193,"status":200}
+{"at":"2026-10-16T13:58:14.273Z","step":"shipment-delete","id":624,"status":400,"err":"{\"error\":\"version là bắt buộc để xóa lô hàng\"}"}
+{"at":"2026-10-16T13:58:14.293Z","step":"shipment-delete","id":625,"status":400,"err":"{\"error\":\"version là bắt buộc để xóa lô hàng\"}"}
+{"at":"2026-10-16T13:58:14.313Z","step":"shipment-delete","id":626,"status":400,"err":"{\"error\":\"version là bắt buộc để xóa lô hàng\"}"}
+{"at":"2026-10-16T13:58:14.330Z","step":"shipment-delete","id":627,"status":400,"err":"{\"error\":\"version là bắt buộc để xóa lô hàng\"}"}
+{"at":"2026-10-16T13:58:14.346Z","step":"shipment-delete","id":628,"status":400,"err":"{\"error\":\"version là bắt buộc để xóa lô hàng\"}"}
+{"at":"2026-10-16T13:58:14.347Z","step":"done-purge-api","tripIds":[189,190,191,192,193],"shipIds":[624,625,626,627,628]}
+{"at":"2026-10-16T13:58:52.883Z","step":"shipment-delete","id":"624","version":"2","status":200,"body":"{\"ok\":true}"}
+{"at":"2026-10-16T13:58:52.924Z","step":"shipment-delete","id":"625","version":"2","status":409,"body":"{\"error\":\"Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.\"}"}
+{"at":"2026-10-16T13:58:52.967Z","step":"shipment-delete","id":"626","version":"1","status":200,"body":"{\"ok\":true}"}
+{"at":"2026-10-16T13:58:53.033Z","step":"shipment-delete","id":"627","version":"3","status":200,"body":"{\"ok\":true}"}
+{"at":"2026-10-16T13:58:53.062Z","step":"shipment-delete","id":"628","version":"3","status":409,"body":"{\"error\":\"Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.\"}"}
+{"at":"2026-10-16T13:59:06.629Z","step":"shipment-delete-retry","id":"625","version":"3","status":200,"body":"{\"ok\":true}"}
+{"at":"2026-10-16T13:59:06.676Z","step":"shipment-delete-retry","id":"628","version":"4","status":200,"body":"{\"ok\":true}"}

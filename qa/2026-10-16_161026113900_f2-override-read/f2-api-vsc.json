@@ -1,0 +1,132 @@
+[
+  {
+    "id": 1,
+    "code": "1.25T",
+    "name": "Xe 1.25 tấn",
+    "isContainer": false,
+    "sortOrder": 1,
+    "createdAt": "2026-09-10T02:09:39.779Z",
+    "updatedAt": "2026-09-10T02:09:39.779Z",
+    "deletedAt": null
+  },
+  {
+    "id": 2,
+    "code": "2.5T",
+    "name": "Xe 2.5 tấn",
+    "isContainer": false,
+    "sortOrder": 2,
+    "createdAt": "2026-09-10T02:09:39.831Z",
+    "updatedAt": "2026-09-10T02:09:39.831Z",
+    "deletedAt": null
+  },
+  {
+    "id": 3,
+    "code": "3.5T",
+    "name": "Xe 3.5 tấn",
+    "isContainer": false,
+    "sortOrder": 3,
+    "createdAt": "2026-09-10T02:09:39.846Z",
+    "updatedAt": "2026-09-10T02:09:39.846Z",
+    "deletedAt": null
+  },
+  {
+    "id": 4,
+    "code": "5T",
+    "name": "Xe 5 tấn",
+    "isContainer": false,
+    "sortOrder": 4,
+    "createdAt": "2026-09-10T02:09:39.869Z",
+    "updatedAt": "2026-09-10T02:09:39.869Z",
+    "deletedAt": null
+  },
+  {
+    "id": 5,
+    "code": "8T",
+    "name": "Xe 8 tấn",
+    "isContainer": false,
+    "sortOrder": 5,
+    "createdAt": "2026-09-10T02:09:39.894Z",
+    "updatedAt": "2026-09-10T02:09:39.894Z",
+    "deletedAt": null
+  },
+  {
+    "id": 6,
+    "code": "10T",
+    "name": "Xe 10 tấn",
+    "isContainer": false,
+    "sortOrder": 6,
+    "createdAt": "2026-09-10T02:09:39.910Z",
+    "updatedAt": "2026-09-10T02:09:39.910Z",
+    "deletedAt": null
+  },
+  {
+    "id": 7,
+    "code": "15T",
+    "name": "Xe 15 tấn",
+    "isContainer": false,
+    "sortOrder": 7,
+    "createdAt": "2026-09-10T02:09:39.924Z",
+    "updatedAt": "2026-09-10T02:09:39.924Z",
+    "deletedAt": null
+  },
+  {
+    "id": 8,
+    "code": "CONT20",
+    "name": "Container 20 feet",
+    "isContainer": true,
+    "sortOrder": 8,
+    "createdAt": "2026-09-10T02:09:39.942Z",
+    "updatedAt": "2026-09-10T02:09:39.942Z",
+    "deletedAt": null
+  },
+  {
+    "id": 9,
+    "code": "CONT40",
+    "name": "Container 40 feet",
+    "isContainer": true,
+    "sortOrder": 9,
+    "createdAt": "2026-09-10T02:09:39.959Z",
+    "updatedAt": "2026-09-10T02:09:39.959Z",
+    "deletedAt": null
+  },
+  {
+    "id": 10,
+    "code": "CONT20.LIGHT",
+    "name": "Cont 20 - Trọng tải < 20 tấn",
+    "isContainer": true,
+    "sortOrder": 10,
+    "createdAt": "2026-09-22T15:48:08.102Z",
+    "updatedAt": "2026-09-22T15:48:08.102Z",
+    "deletedAt": null
+  },
+  {
+    "id": 11,
+    "code": "CONT20.HEAVY",
+    "name": "Cont 20 - Trọng tải > 20 tấn",
+    "isContainer": true,
+    "sortOrder": 11,
+    "createdAt": "2026-09-22T15:48:08.102Z",
+    "updatedAt": "2026-09-22T15:48:08.102Z",
+    "deletedAt": null
+  },
+  {
+    "id": 12,
+    "code": "CONT40.LIGHT",
+    "name": "Cont 40 nhẹ - Trọng tải < 20 tấn",
+    "isContainer": true,
+    "sortOrder": 12,
+    "createdAt": "2026-09-22T15:48:08.102Z",
+    "updatedAt": "2026-09-22T15:48:08.102Z",
+    "deletedAt": null
+  },
+  {
+    "id": 13,
+    "code": "CONT40.HEAVY",
+    "name": "Cont 40 nặng - Trọng tải > 20 tấn",
+    "isContainer": true,
+    "sortOrder": 13,
+    "createdAt": "2026-09-22T15:48:08.102Z",
+    "updatedAt": "2026-09-22T15:48:08.102Z",
+    "deletedAt": null
+  }
+]
