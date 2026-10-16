@@ -48,3 +48,17 @@ Trường `shipment-expected-delivery` chỉ render trong nhánh `form.cargoMode
 - Cross-check: `OpsOrdersPage.test.tsx` (pin nhãn riêng của trang đó — phải giữ xanh).
 - Gate: `pnpm lint`, `cd frontend && npx tsc -b`, `cd backend && npx tsc --noEmit`.
 - Backend suite DB chung: KHÔNG chạy (hang đã ghi nhận trong chỉ dẫn của controller).
+
+## Re-run 2026-10-16 — kanban wave 1016c (Phiếu 1 · FB-083 nhãn "Ngày giao hàng")
+
+Implementation status: đã có trên `origin/main` từ dispatch gốc `69708174`, pin
+đã ghim bởi wave 1016b (`8374666c`); wave này chỉ re-run bằng chứng theo §6/§7,
+không sửa mã.
+
+| Gate | Kết quả | Evidence |
+|---|---|---|
+| `frontend npx tsc --noEmit` | exit 0 | `qa/2026-10-16_kanban-1016c-fb083_fe-tsc.log` |
+| FE vitest 2 file pin `-t "Ngày giao hàng"` (asterisk-contract + ClerkShipmentCreatePage) | 2/2 PASS | `qa/2026-10-16_kanban-1016c-fb083_fe-vitest.log` |
+
+Rung giữ nguyên mức 3 của lần drive 2026-10-16 (w3a-r17-verify `cus-create_log.json`);
+lần re-run này là rung ≤2 (chạy pin, không drive UI).
