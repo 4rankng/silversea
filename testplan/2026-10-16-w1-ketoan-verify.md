@@ -131,3 +131,22 @@
 - **Cleanup:** phiếu 8 → **REVERSED** qua reversal endpoint (201) trước purge.
 - Evidence: fb100_01…08 png, fb100_assertions.json, fb100_ui-driver.log,
   fb100-advances.mjs.
+
+## FB-101 — chấm công hiện cho kế toán, lưới phân vai — PASS (rung 3)
+
+- Nav + route (hoapt, ACCOUNTANT): "Chấm công lái xe" có trong mục Nhân sự;
+  /timesheet tải bình thường; /timesheet/doi-chieu tải ("Đối chiếu chấm công");
+  /timesheet/bao-cao tải ("Tổng hợp xếp lệnh tháng") — hết "bị ẩn".
+- Lưới read-only cho kế toán: nút **"Lưu lưới" KHÔNG** hiện cho hoapt;
+  backend chặn ghi lưới: `PUT /api/timesheet/months/:id/days` as hoapt →
+  **403 "Không có quyền truy cập"**; `POST /api/timesheet/months` as hoapt →
+  404 "Không tìm thấy lái xe." (route accountantOnly CHO hoapt đi qua — đúng
+  vai trò mở bảng).
+- DISPATCHER `dungnv`: nav có "Chấm công lái xe", KHÔNG có "Tổng hợp xếp lệnh
+  tháng" (officeStaffOnly); /timesheet tải (ghi được lưới — dùng ở FB-102).
+- ADMIN `admin`: cả grid + report nav.
+- CUS `tiepvv`: /timesheet bị đá về /shipments (route guard) — không thấy mục.
+- Nav chạy theo ngữ cảnh section (sidebar hiện mục của section đang đứng) —
+  ma trận nav assert trên chính /timesheet (fb101_04-nav-*.png).
+- Evidence: fb101_01…04 png, fb101_assertions.json, fb101_ui-driver.log,
+  fb101-timesheet-visibility.mjs.

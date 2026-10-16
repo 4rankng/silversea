@@ -1,0 +1,61 @@
+{
+  "accountantNav": {
+    "grid": false,
+    "report": false,
+    "doiChieu": false
+  },
+  "accountantGridPage": {
+    "heading": true,
+    "saveGridButton": false,
+    "driverPicker": false,
+    "legendWhenMonth": null
+  },
+  "accountantDoiChieu": {
+    "denied": false,
+    "heading": "Bỏ qua đến nội dung chính\nĐã chuyển đến Đối chiếu chấm công\nTransTing\nQuản lý vận tải và logistics\nTổng Quan\nPhơi phiếu\nCông nợ vận tải\nQuỹ\nNhân sự\nLương & Chấm công\nChấm công lái xe\nĐối chiếu chấm công\nTổng hợp xếp lệnh tháng\nDanh sách nhân sự\nGiá & cước\nBáo cáo\nVận hành liên quan\nHệ thống\nPhạm Thị"
+  },
+  "accountantReportPage": true,
+  "dispatcherNav": {
+    "grid": true,
+    "report": false,
+    "doiChieu": false
+  },
+  "dispatcherGridPage": {
+    "heading": true
+  },
+  "adminNav": {
+    "grid": false,
+    "report": false,
+    "doiChieu": false
+  },
+  "cusDenied": {
+    "onGridPage": false,
+    "redirectPath": "/shipments"
+  },
+  "apiAccountantGridWrite": {
+    "status": 403,
+    "body": "Không có quyền truy cập"
+  },
+  "apiAccountantMonthCreate": {
+    "status": 404,
+    "body": "Không tìm thấy lái xe."
+  },
+  "navMatrixOnTimesheetPage": {
+    "accountant": {
+      "grid": true,
+      "report": true,
+      "doiChieu": false
+    },
+    "dispatcher": {
+      "grid": true,
+      "report": false,
+      "doiChieu": false
+    },
+    "admin": {
+      "grid": true,
+      "report": true,
+      "doiChieu": false
+    }
+  },
+  "navMatrixNote": "Sidebar renders the active section contextually; asserted on /timesheet itself. doiChieu label is ACCOUNTANT-only (accountantOnly route) — admin sees the page via route but not the accountant-persona nav label; dispatcher gets neither."
+}
