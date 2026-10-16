@@ -529,7 +529,7 @@ async function mkRenderFixture(opts: { type: 'DEBIT_NOTE' | 'PAYMENT_STATEMENT';
   return { tag, docId: doc.id, tripId: trip.id, revClassName: revClass.name, costClassName: costClass.name, plates };
 }
 
-async function mkRenderLine(docId: number, values: Partial<typeof s.billingDocumentLines.$inferInsert>) {
+async function mkRenderLine(docId: number, values: Partial<typeof s.billingDocumentLines.$inferInsert> & { description?: string }) {
   const [line] = await db.insert(s.billingDocumentLines).values({
     documentId: docId,
     sourceType: 'ADHOC',
@@ -538,8 +538,9 @@ async function mkRenderLine(docId: number, values: Partial<typeof s.billingDocum
     typeLabel: 'Cước vận chuyển',
     unit: 'lần',
     baseAmount: '4000000',
+    description: '',
     ...values,
-  }).returning({ id: s.billingDocumentLines.id });
+  } as typeof s.billingDocumentLines.$inferInsert).returning({ id: s.billingDocumentLines.id });
   createdLineIds.push(line.id);
   return line.id;
 }
