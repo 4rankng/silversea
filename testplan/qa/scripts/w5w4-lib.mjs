@@ -6,7 +6,8 @@ import { mkdirSync, appendFileSync } from 'node:fs';
 
 export const BASE = 'https://vantai.tingting.vip';
 export const API = `${BASE}/api`;
-export const EXPECTED_BUILD = '5a139108';
+// Re-pinnable per dispatcher ruling (2026-10-16: 5a139108 → 9e400e63).
+export const EXPECTED_BUILD = process.env.W5W4_EXPECTED_BUILD ?? '5a139108';
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 export async function assertBuild(logger) {

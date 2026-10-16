@@ -21,3 +21,16 @@
 2026-10-16T08:17:49.876Z FB-061: hit in row 55: ["3","QA0915 QA-138 Credit Customer","0 ₫","0 ₫","488.456 ₫","488.456 ₫","0 ₫","488.456 ₫","—","—"]
 2026-10-16T08:17:49.876Z FAIL: ASSERT FAIL: no QA fixture signature visible on the board (found: STG VERIFY, QA0915)
 2026-10-16T08:17:49.953Z shot qa/2026-10-16_w5w4_fb061_FAIL-last-state.png
+
+=== run 2026-10-16T08:49:13.368Z ===
+2026-10-16T08:49:13.420Z buildHash gate OK: 9e400e63
+2026-10-16T08:49:13.794Z login admin OK
+2026-10-16T08:49:17.361Z FB-061: page header="Đang xemKiểm soát phơi phiếuTháng 10/2026·01/10 – 31/1025"
+2026-10-16T08:49:17.362Z FB-061: vehicle column header="Thông tin xe"
+2026-10-16T08:49:17.362Z FB-061: board rows=107
+2026-10-16T08:49:17.362Z FB-061: signature scan over full board text → HITS ["STG VERIFY","QA0915"]
+2026-10-16T08:49:17.363Z FB-061: board text saved to qa/2026-10-16_w5w4_fb061_board-text.txt (evidence)
+2026-10-16T08:49:17.366Z FB-061: hit in row 14: ["EBKG18452303","Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Nhà máy: SUNRISE Tuyến: KCN Vân Trung, Nếnh, Bắc Ninh","— 20'DC Trọng tải container: 28.200 kg Trọng lượng hàng: 5 kg","Bãi Medlog → TIL - HTIT","15H-021.39 Nhà vận tải: STG VERIFY NHA XE 09 Lái xe: Chưa có lái xe","Phải thu: Chưa xác định Phải trả: Chưa xác định","0 ₫ Xem chi tiết","Đã tạo chuyến Phơi: Chưa nhận phơi","08/09/2026"
+2026-10-16T08:49:17.366Z FB-061: hit in row 55: ["3","QA0915 QA-138 Credit Customer","0 ₫","0 ₫","140.000 ₫","140.000 ₫","0 ₫","140.000 ₫","—","—"]
+2026-10-16T08:49:17.366Z FAIL: ASSERT FAIL: no QA fixture signature visible on the board (found: STG VERIFY, QA0915)
+2026-10-16T08:49:17.417Z shot qa/2026-10-16_w5w4_fb061_FAIL-last-state.png
