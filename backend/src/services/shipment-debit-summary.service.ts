@@ -188,9 +188,22 @@ export async function getShipmentDebitSummary(query: {
     const override = overrideByLot.get(lot.id);
     const qualified = lot.cargoMode === 'LCL'
       && (lot.revGroupId != null || (override?.stamped ?? false));
-    effectiveFreightByLot.set(lot.id, qualified
-      ? { value: override?.total ?? null, reason: override?.reason ?? null }
-      : { value: freightByLot.get(lot.id) ?? null, reason: null });
+    if (!qualified) {
+      effectiveFreightByLot.set(lot.id, { value: freightByLot.get(lot.id) ?? null, reason: null });
+      continue;
+    }
+    // 161026204709: a merged lot with no live trip has no override-channel
+    // total (nothing to read there) — fall back to the snapshot channel,
+    // where the merge itself materialized the lane price / the cited member
+    // zero as a shipment-level row. Still null when neither channel holds a
+    // number ("Chưa xác định" — never a fabricated 0).
+    const memberNote = (lot.revGroupOrder ?? 1) > 1
+      ? `Ghép cước cùng Bill ${revPrincipalRefs.get(lot.revGroupId!) ?? ''}`.trim()
+      : null;
+    effectiveFreightByLot.set(lot.id, {
+      value: override?.total ?? freightByLot.get(lot.id) ?? null,
+      reason: override?.reason ?? memberNote,
+    });
   }
 
   // Tổng chi hộ: what SS pays on the lot's live trips (CVC + Ops fees).

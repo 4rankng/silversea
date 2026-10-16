@@ -1,5 +1,5 @@
 import { forwarderClient, type LinkedExpense, type LinkedRequest } from '../api/forwarderClient';
-import { useEffect, useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Printer, Loader2, FileSpreadsheet, X, Pencil, Save, CheckCircle2, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
@@ -7,7 +7,6 @@ import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '
 import {
   useForwarderSettlementDetail,
   useAdminSettlementDetail,
-  useUpdateAdvanceSettlement,
   useUpdateSettlementExpense,
   useReverseAdvanceSettlement,
 } from '../hooks/useForwarderQueries';
@@ -51,6 +50,7 @@ interface SettlementData {
   refundAmount: string;
   status: AdvanceSettlementStatus;
   checkedBy: number | null;
+  checkedAt?: string | null;
   checkerName?: string | null;
   approvedBy: number | null;
   approverName?: string | null;
@@ -180,18 +180,9 @@ export default function SettlementPrintPage() {
   const [editingExpense, setEditingExpense] = useState<LinkedExpense | null>(null);
   const [editedAmount, setEditedAmount] = useState('');
   const [adjustmentReason, setAdjustmentReason] = useState('');
-  const [selectedRequestIds, setSelectedRequestIds] = useState<Set<number>>(new Set());
-  const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<number>>(new Set());
-  const [refundAmount, setRefundAmount] = useState('0');
-  const [settlementNote, setSettlementNote] = useState('');
-  // FB-100 (card 141026230770) — tick "Xác nhận hoàn ứng" là điều kiện ghi nhận
-  // phiếu; backend lưu người xác nhận + thời điểm (checked_by/checked_at).
-  const [refundConfirmed, setRefundConfirmed] = useState(false);
-  const [selectionReady, setSelectionReady] = useState(false);
   const [reversalReason, setReversalReason] = useState('');
   const [governanceNotice, setGovernanceNotice] = useState<string | null>(null);
   const updateExpense = useUpdateSettlementExpense();
-  const updateSettlement = useUpdateAdvanceSettlement();
   const reverseSettlement = useReverseAdvanceSettlement();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -228,17 +219,6 @@ export default function SettlementPrintPage() {
     iframeRef.current?.contentWindow?.print();
   };
 
-  const loadedSettlement = settlement as SettlementData | undefined;
-  useEffect(() => {
-    if (!loadedSettlement || selectionReady) return;
-    setSelectedRequestIds(new Set((loadedSettlement.linkedRequests ?? []).map(request => request.id)));
-    setSelectedExpenseIds(new Set((loadedSettlement.linkedExpenses ?? []).map(expense => expense.id)));
-    setRefundAmount(String(Number(loadedSettlement.refundAmount || 0)));
-    setSettlementNote(loadedSettlement.note ?? '');
-    setRefundConfirmed(false);
-    setSelectionReady(true);
-  }, [loadedSettlement, selectionReady]);
-
   if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 10, color: 'var(--ink-3)' }}>
@@ -272,40 +252,12 @@ export default function SettlementPrintPage() {
   const rows = buildPrintRows(expenses);
   const totalFromRows = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
   const {
-    canEditDraft: canEditExpenses,
     canCorrectRecorded,
   } = settlementActionPermissions({
     isPortal,
     role: user?.role,
     settlement: s,
   });
-
-  const requestCandidates = [...requests, ...(s.eligibleAdvanceRequests ?? [])]
-    .filter((request, index, items) => items.findIndex(item => item.id === request.id) === index);
-  const expenseCandidates = [...expenses, ...(s.eligibleExpenses ?? [])]
-    .filter((expense, index, items) => items.findIndex(item => item.id === expense.id) === index);
-
-  const toggleSelection = (setter: React.Dispatch<React.SetStateAction<Set<number>>>, id: number) => {
-    setter(previous => {
-      const next = new Set(previous);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const handleRecord = async () => {
-    if (selectedRequestIds.size === 0 || !refundConfirmed) return;
-    await updateSettlement.mutateAsync({
-      settlementId: s.id,
-      expectedVersion: s.version,
-      advanceRequestIds: [...selectedRequestIds],
-      tripExpenseIds: [...selectedExpenseIds],
-      refundAmount: Number(refundAmount) || 0,
-      note: settlementNote.trim() || null,
-    });
-    setGovernanceNotice('Đã ghi nhận phiếu hoàn ứng.');
-  };
 
   const startEditingExpense = (expense: LinkedExpense) => {
     setEditingExpense(expense);
@@ -410,22 +362,6 @@ export default function SettlementPrintPage() {
           </div>
         )}
 
-        {canEditExpenses && (
-          <div className="settlement-detail__section no-print">
-            <h2 className="settlement-detail__section-title">Tạm ứng đưa vào phiếu</h2>
-            <p className="settlement-editor-hint">Chỉ các tạm ứng đã ghi nhận và còn đủ điều kiện mới có thể thêm vào phiếu.</p>
-            <div className="settlement-link-list">
-              {requestCandidates.map(request => (
-                <label key={request.id} className="settlement-link-option">
-                  <input type="checkbox" checked={selectedRequestIds.has(request.id)} onChange={() => toggleSelection(setSelectedRequestIds, request.id)} />
-                  <span>{request.reason}</span>
-                  <strong>{formatCurrency(Number(request.amount))}</strong>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* ── Expense Table ── */}
         <div className="settlement-detail__section">
           <h2 className="settlement-detail__section-title">Chi tiết chi phí</h2>
@@ -511,26 +447,6 @@ export default function SettlementPrintPage() {
               {reverseSettlement.error && <p className="settlement-finalize__error">{String(reverseSettlement.error)}</p>}
             </div>
           )}
-          {canEditExpenses && (
-            <div className="settlement-expense-actions no-print">
-              {expenseCandidates.map(expense => (
-                <div key={expense.id} className="settlement-expense-option">
-                  <label>
-                    <input type="checkbox" checked={selectedExpenseIds.has(expense.id)} onChange={() => toggleSelection(setSelectedExpenseIds, expense.id)} />
-                    <span>
-                      <strong>{expense.tripCode || 'Chuyến chưa có mã'} · {expense.containerNumber || 'Chi phí chung'}</strong>
-                      <small>{EXPENSE_TYPE_LABELS[expense.expenseType] || expense.expenseType} · {formatCurrency(Number(expense.buyAmount))}</small>
-                    </span>
-                  </label>
-                  {expenses.some(item => item.id === expense.id) && (
-                    <button className="btn btn--secondary btn--sm" onClick={() => startEditingExpense(expense)}>
-                      <Pencil size={14} /> Sửa số tiền
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* ── Summary ── */}
@@ -575,20 +491,17 @@ export default function SettlementPrintPage() {
           </div>
         )}
 
-        {canEditExpenses && (
-          <div className="settlement-finalize no-print">
-            <div className="settlement-finalize__fields">
-              <label>Tiền hoàn lại<input className="input" type="number" value={refundAmount} onChange={event => setRefundAmount(event.target.value)} /></label>
-              <label>Ghi chú<textarea className="input" rows={2} value={settlementNote} onChange={event => setSettlementNote(event.target.value)} /></label>
-            </div>
-            {updateSettlement.error && <p className="settlement-finalize__error">{String(updateSettlement.error)}</p>}
-            <label className="settlement-finalize__confirm">
-              <input type="checkbox" checked={refundConfirmed} onChange={event => setRefundConfirmed(event.target.checked)} />
-              Xác nhận hoàn ứng
-            </label>
-            <button className="btn btn--primary" disabled={selectedRequestIds.size === 0 || !refundConfirmed || updateSettlement.isPending} onClick={handleRecord}>
-              {updateSettlement.isPending ? <Loader2 size={16} className="spin" /> : <CheckCircle2 size={16} />}Ghi nhận phiếu
-            </button>
+        {/* ── FB-100 (card 141026230770, F-W1-1 ruling Option B): the
+            confirmation is the filer's own tick at creation, stamped
+            checked_by/checked_at — displayed here instead of the dead
+            DRAFT-only record block that no writer could ever reach. ── */}
+        {s.checkedBy != null && (
+          <div className="settlement-detail__confirm no-print" data-field-id="settlement-confirm-fact">
+            <CheckCircle2 size={14} />
+            <span>
+              Xác nhận hoàn ứng: <strong>{s.checkerName ?? `#${s.checkedBy}`}</strong>
+              {s.checkedAt ? ` · ${new Date(s.checkedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}` : ''}
+            </span>
           </div>
         )}
 

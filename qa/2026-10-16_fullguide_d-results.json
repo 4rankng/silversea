@@ -1,0 +1,10 @@
+{
+  "pin": "e3286338",
+  "date": "2026-10-16T13:37:53.260Z",
+  "results": {
+    "B.1": {
+      "verdict": "PASS",
+      "note": "trip 123 detail: section=true, twoTables=true, buttons={\"addCost\":true,\"receipt\":true,\"note\":true}, tables=[]"
+    }
+  }
+}

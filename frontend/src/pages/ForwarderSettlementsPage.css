@@ -814,6 +814,29 @@
   border-top: 1px solid var(--line);
 }
 
+/* FB-100 (card 141026230770, Option B) — the filer's mandatory confirmation
+ * tick sits directly above the actions band: ordinary control height, the
+ * page's own input label voice. */
+.fset-confirm-tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-2, rgba(255, 255, 255, 0.75));
+  font-size: var(--fs-sm);
+  color: var(--ink-2, inherit);
+  cursor: pointer;
+}
+.fset-confirm-tick input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary, #10b981);
+  cursor: pointer;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
  * SUCCESS STATE
  * ══════════════════════════════════════════════════════════════════════════ */

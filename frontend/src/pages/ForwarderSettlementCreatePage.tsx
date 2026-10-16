@@ -27,6 +27,10 @@ export default function ForwarderSettlementCreatePage() {
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<number>>(new Set());
   const [refundAmount, setRefundAmount] = useState('0');
   const [note, setNote] = useState('');
+  // FB-100 (card 141026230770, F-W1-1 ruling Option B): the live submit's own
+  // mandatory "Xác nhận hoàn ứng" tick — the phiếu applies at creation, so
+  // the filer confirms before "Ghi nhận phiếu thanh toán" unlocks.
+  const [refundConfirmed, setRefundConfirmed] = useState(false);
   const [created, setCreated] = useState<CreatedSettlement | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -151,7 +155,9 @@ export default function ForwarderSettlementCreatePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (selectedRequestIds.size === 0 || hasStaleAdvanceSelection || sourcesUnavailable || createSettlement.isPending) return;
+    // FB-100 (Option B): the tick gates BOTH the button and the handler — a
+    // keyboard/programmatic submit must not bypass the confirmation.
+    if (selectedRequestIds.size === 0 || !refundConfirmed || hasStaleAdvanceSelection || sourcesUnavailable || createSettlement.isPending) return;
     try {
       const result = await createSettlement.mutateAsync({
         totalExpenseAmount: totalExpense,
@@ -166,7 +172,7 @@ export default function ForwarderSettlementCreatePage() {
     }
   }
 
-  const isFormReady = selectedRequestIds.size > 0 && !hasStaleAdvanceSelection && !sourcesUnavailable;
+  const isFormReady = selectedRequestIds.size > 0 && !hasStaleAdvanceSelection && !sourcesUnavailable && refundConfirmed;
 
   // ── Success state ──
   if (created) {
@@ -464,6 +470,17 @@ export default function ForwarderSettlementCreatePage() {
           </div>
         )}
 
+        {/* ── FB-100: the submitter's own confirmation tick gates the record ── */}
+        <label className="fset-confirm-tick" data-field-id="settlement-refund-confirmed">
+          <input
+            type="checkbox"
+            checked={refundConfirmed}
+            onChange={e => setRefundConfirmed(e.target.checked)}
+            disabled={createSettlement.isPending}
+          />
+          Xác nhận hoàn ứng
+        </label>
+
         {/* ── Actions ── */}
         <div className="fset-form-actions">
           <button type="button" className="btn btn--secondary" onClick={handleBack}>
@@ -473,6 +490,7 @@ export default function ForwarderSettlementCreatePage() {
             type="submit"
             className={`btn btn--primary ${!isFormReady || createSettlement.isPending ? 'btn--disabled' : ''}`}
             disabled={!isFormReady || createSettlement.isPending}
+            title={!refundConfirmed ? 'Tích "Xác nhận hoàn ứng" trước khi ghi nhận phiếu.' : undefined}
           >
             {createSettlement.isPending ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
             Ghi nhận phiếu thanh toán

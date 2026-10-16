@@ -1,0 +1,10 @@
+{
+  "pin": "e3286338",
+  "date": "2026-10-16T14:03:23.979Z",
+  "results": {
+    "B.4": {
+      "verdict": "PASS",
+      "note": "Thêm khoản chi drawer: fields={\"hasNhomChiPhi\":true,\"hasLoaiChiPhi\":true,\"hasThucChi\":true,\"hasThucThu\":true,\"hasEqual\":true,\"hasTenKhoanChi\":true,\"hasNgayChi\":true,\"hasBenThucChi\":true,\"has3Ben\":true,\"hasEvidence\":true,\"inputs\":8}, fill(type=true, money=true, name=true, balanced=checkbox), save1=true(msg=true, drawer stays open=true), save2=true, DB rows: OPS|67|QA fullguide B.4 — tự xóa|50000; OPS|68|QA fullguide B.4 thứ hai — tự xóa|50000"
+    }
+  }
+}

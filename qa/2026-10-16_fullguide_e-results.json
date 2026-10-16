@@ -1,0 +1,18 @@
+{
+  "pin": "e3286338",
+  "date": "2026-10-16T13:38:28.716Z",
+  "results": {
+    "B.2": {
+      "verdict": "PASS",
+      "note": "OPS khai chi phí: modal ok (no refusal), saved=true, toast=\"Đã ghi nhận khoản chi.\", persisted row id=60 (YARD_STORAGE 15000₫ cont MSDU1245780 by Nguyễn Huy Hoàng)"
+    },
+    "B.3": {
+      "verdict": "PASS",
+      "note": "duplicate warning: headsUp=true, panel=\"Loại phí \"Lưu bãi (lúc hạ)\" đã được Nguyễn Huy Hoàng nhập trước đó — bạn vẫn tiếp tục nhập chứ?Nguyễn Huy Hoàng · 15.000\", Tiếp tục lưu enabled=true, confirmed=true, second row persisted id=61"
+    }
+  },
+  "target": {
+    "id": 175,
+    "cont": "MSDU1245780"
+  }
+}

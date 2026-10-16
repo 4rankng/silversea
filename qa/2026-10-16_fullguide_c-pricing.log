@@ -1,0 +1,17 @@
+# fullguide c-pricing driver — 2026-10-16T13:36:57.492Z pin=e3286338
+2026-10-16T13:36:57.540Z health {"status":"ok","timestamp":"2026-10-16T13:36:57.561Z","buildHash":"e3286338"}
+2026-10-16T13:36:57.749Z c-classes {"names":["Xe 1.25 tấn (1.25T)","Xe 2.5 tấn (2.5T)","Xe 3.5 tấn (3.5T)","Xe 5 tấn (5T)","Xe 8 tấn (8T)","Xe 10 tấn (10T)","Xe 15 tấn (15T)","Container 20 feet (CONT20)","Container 40 feet (CONT40)","Cont 20 - Trọng tải < 20 tấn (CONT20.LIGHT)","Cont 20 - Trọng tải > 20 tấn (CONT20.HEAVY)","Cont 40 nhẹ - Trọng tải < 20 tấn (CONT40.LIGHT)","Cont 40 nặng - Trọng tải > 20 tấn (CONT40.HEAVY)"],"tonsOk":true,"contOk":true}
+2026-10-16T13:36:57.795Z c-facts {"customer":1,"route":6,"cls5t":{"id":2,"name":"Xe 2.5 tấn"}}
+2026-10-16T13:37:07.038Z c-form-open {"opened":true,"classPickerOpts":["— Không áp dụng —","1.25T — Xe 1.25 tấn","2.5T — Xe 2.5 tấn","3.5T — Xe 3.5 tấn","5T — Xe 5 tấn","8T — Xe 8 tấn","10T — Xe 10 tấn","15T — Xe 15 tấn","CONT20 — Container 20 feet","CONT40 — Container 40 feet","CONT20.LIGHT — Cont 20 - Trọng tải < 20 tấn","CONT20.HEAVY — Cont 20 - Trọng tải > 20 tấn","CONT40.LIGHT — Cont 40 nhẹ - Trọng tải < 20 tấn","CONT40.HEAVY — Cont 40 nặng - Trọng tải > 20 tấn"]}
+2026-10-16T13:37:15.179Z c-form-filled {"customerOk":true,"routeOk":true,"moneySet":true,"classOk":true,"dateSet":true}
+2026-10-16T13:37:18.452Z c-save-by-class {"saved":true,"addByClassOk":true,"snippet":"75 CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH KCN Quế Võ, Nam Sơn, Bắc Ninh 2.5T — Xe 2.5 tấn — 2026-10-16 777.000 ₫"}
+2026-10-16T13:37:18.620Z VERDICT {"id":"A.6.add-by-class","verdict":"PASS","note":"add price WITH Loại xe \"Xe 2.5 tấn\": saved=true, row visible=true, no axis error=true"}
+2026-10-16T13:37:18.676Z c-qa-row {"pricingRowId":117,"qaRow":{"id":117,"customerId":1,"routeId":6,"price":"777000","containerTypeId":null,"rateKey":"2.5T","vehicleSizeClassId":2,"effectiveDate":"2026-10-16","createdAt":"2026-10-16T13:37:15.498Z","updatedAt":"2026-10-16T13:37:15.498Z","deletedAt":null}}
+2026-10-16T13:37:22.802Z c-delete-api-fallback {"status":200,"body":"{\"ok\":true}"}
+2026-10-16T13:37:22.802Z c-delete {"uiDeleted":false,"deleted":true}
+2026-10-16T13:37:36.182Z c-readd {"resaved":true,"reAddOk":true,"dupErr":false}
+2026-10-16T13:37:36.182Z VERDICT {"id":"A.6.readd-after-delete","verdict":"PASS","note":"delete → re-add same trio: reAddOk=true, duplicate-error=false"}
+2026-10-16T13:37:36.182Z VERDICT {"id":"A.6","verdict":"PASS","note":"classes API tons=true cont=true, picker=true, add-by-class=true, re-add=true"}
+2026-10-16T13:37:36.324Z c-cleanup {"id":118,"status":200}
+2026-10-16T13:37:37.666Z c-db {"liveQaRows":"0"}
+2026-10-16T13:37:37.764Z SUMMARY {"A.6.add-by-class":{"verdict":"PASS","note":"add price WITH Loại xe \"Xe 2.5 tấn\": saved=true, row visible=true, no axis error=true"},"A.6.readd-after-delete":{"verdict":"PASS","note":"delete → re-add same trio: reAddOk=true, duplicate-error=false"},"A.6":{"verdict":"PASS","note":"classes API tons=true cont=true, picker=true, add-by-class=true, re-add=true"}}

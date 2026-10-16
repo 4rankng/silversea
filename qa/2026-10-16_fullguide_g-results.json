@@ -1,0 +1,20 @@
+{
+  "pin": "e3286338",
+  "date": "2026-10-16T14:04:20.337Z",
+  "results": {
+    "B.6a": {
+      "verdict": "PASS",
+      "note": "\"Phê duyệt tạm ứng\" button=true, clicked=true, DB=[22|RECORDED|9|t|2]"
+    },
+    "B.6c": {
+      "verdict": "PASS",
+      "note": "Báo cáo hoàn ứng: signedCol=false, −200.000 shown=false, warn=true, API row={\"staffId\":3,\"staffName\":\"Nguyễn Huy Hoàng\",\"dntt\":0,\"advanced\":275000,\"remaining\":200000,\"remainingSigned\":-275000,\"needsCollection\":true,\"direction\":\"CTY_YEU_CAU_THU_TIEN_UNG\",\"note\":\"Đề nghị thu tiền ứng\"}"
+    },
+    "B.6b": {
+      "verdict": "FAIL",
+      "note": "live submit (/my-settlements/new): tick \"Xác nhận hoàn ứng\" present=false, submit=\"Ghi nhận phiếu thanh toán\" — F-W1-1: tick shipped DRAFT-only (dead block), unreachable in live flow"
+    }
+  },
+  "advanceId": 22,
+  "reason": "QA fullguide B6 tạm ứng 67fe0b"
+}

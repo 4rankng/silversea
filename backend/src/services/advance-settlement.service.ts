@@ -95,6 +95,12 @@ export async function createAdvanceSettlement(
       status: 'RECORDED',
       approvedBy: forwarderId,
       approvedAt: new Date(),
+      // FB-100 F-W1-1 ruling (Option B, card 141026230770): the phiếu applies
+      // at creation and the SUBMITTER'S OWN confirmation tick is the
+      // "xác nhận hoàn ứng" the card demands — the creating forwarder is the
+      // confirming actor, stamped here (checked_by = tự xác nhận).
+      checkedBy: forwarderId,
+      checkedAt: new Date(),
       note: data.note ?? null,
     }).returning();
 

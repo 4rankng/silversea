@@ -1,0 +1,34 @@
+{
+  "pin": "227a08b2",
+  "date": "2026-10-16T13:08:37.253Z",
+  "results": {
+    "A.1": {
+      "verdict": "FAIL",
+      "note": "Invalid regular expression flags"
+    },
+    "A.2": {
+      "verdict": "FAIL",
+      "note": "master plan row: found=false, cargoOverview=false, rows=[]"
+    },
+    "A.3": {
+      "verdict": "FAIL",
+      "note": "Cannot read properties of undefined (reading 'querySelectorAll')"
+    },
+    "A.4": {
+      "verdict": "FAIL",
+      "note": "rev merge: merged=true, Lô1 money=false (want 1200000), member 0₫=false, note=false, dbRev=[622|QA-FG16-C-bb1586|||\n623|QA-FG16-D-bb1586|||], dbSnap=[]"
+    }
+  },
+  "fixtures": {
+    "shipmentA": null,
+    "shipmentB": 621,
+    "shipmentC": 622,
+    "shipmentD": 623,
+    "refA": "QA-FG16-A-bb1586",
+    "refB": "QA-FG16-B-bb1586",
+    "refC": "QA-FG16-C-bb1586",
+    "refD": "QA-FG16-D-bb1586",
+    "pricingRowId": 116,
+    "hex": "bb1586"
+  }
+}
