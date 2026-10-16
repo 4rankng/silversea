@@ -1,0 +1,47 @@
+[
+  {
+    "at": "2026-10-16T07:29:14.304Z",
+    "step": "health",
+    "buildHash": "7dcdcf33",
+    "expect": "7dcdcf33"
+  },
+  {
+    "at": "2026-10-16T07:29:14.715Z",
+    "step": "identity",
+    "user": "bqhuong",
+    "jwtUsername": "bqhuong"
+  },
+  {
+    "at": "2026-10-16T07:29:15.131Z",
+    "step": "driver-trips",
+    "count": 14,
+    "chosen": 79
+  },
+  {
+    "at": "2026-10-16T07:29:22.832Z",
+    "step": "money-field",
+    "trip": 79,
+    "found": true,
+    "tag": "INPUT",
+    "id": "_r_g_",
+    "cls": "ds-field__input",
+    "x": 522,
+    "y": 2571.421875,
+    "w": 317,
+    "h": 30,
+    "labelText": "Thực chi (VND)"
+  },
+  {
+    "at": "2026-10-16T07:29:23.576Z",
+    "step": "fb035",
+    "displayed": "15.000"
+  },
+  {
+    "at": "2026-10-16T07:29:23.576Z",
+    "step": "TC",
+    "id": "FB-035/money-format",
+    "verdict": "PASS",
+    "typed": "15000",
+    "displayed": "15.000"
+  }
+]
