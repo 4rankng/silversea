@@ -1,9 +1,12 @@
 /* Chi phí - Quyết toán (card 20260918_17) — L1 collapsed lot list. UUI
    controls own control density; this file owns the page header, the promoted
-   customer bar and the settlement table only. Card 20260926_51 adds the
-   two-tier header: Row 1 title + Xuất Debit Note ghost top-right; Row 2 the
-   shared filter strip (card 20260927_153 — ShipmentDebitRibbon), whose layout
-   and control widths belong to FilterBar.css / ListFilterBar.css. */
+   customer bar and the settlement table only. The two-tier command header
+   (card 20260926_51): one 36px title+actions row and the shared filter strip
+   (card 20260927_153 — ShipmentDebitRibbon), whose layout and control widths
+   belong to FilterBar.css / ListFilterBar.css. The DOM order is the phone
+   band's reading order (picker → strip → actions → list), so the bulk-action
+   row sits directly above the rows it acts on; desktop re-pins the title row
+   on top of the workspace grid below. */
 
 .shipment-debit-page {
   display: grid;
@@ -11,8 +14,8 @@
   min-width: 0;
 }
 
-/* Row 1: title left, Xuất Debit Note pinned top-right on the same 36px
-   baseline. Flat; the export button keeps its disabled de-brand rule below. */
+/* Row 1: title left, the two bulk actions pinned top-right on the same 36px
+   baseline. Flat; both disabled actions share the de-brand rule below. */
 .shipment-debit-header {
   display: flex;
   align-items: center;
@@ -29,9 +32,21 @@
   line-height: 1;
 }
 
+.shipment-debit-header__export {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
 .shipment-debit-header__export[title] {
   cursor: help;
 }
+
+/* Desktop keeps the two-tier reading order — title row first — no matter
+   that the DOM order is the phone band's; the ≤640 block below hands the
+   order back. */
+.shipment-debit-workspace > .shipment-debit-header { order: -1; }
 
 /* Card _202: Khách hàng is OUT of the filter strip and rides its own bar, so
    it is always visible and never folded behind `Bộ lọc`. The customer-name
@@ -66,9 +81,35 @@
    family default `width: 100%` came back twice on 2026-09-27. */
 
 /* The title row holds at 390; the strip packs its own lines and folds its
-   criteria into `Bộ lọc` — the shared bar carries no phone band by design. */
+   criteria into `Bộ lọc` — the shared bar carries no phone band by design.
+   ≤640px the topbar prints the screen name (house phone-title law, the
+   PageHeader treatment): the H1 is sr-only — in the a11y tree, out of the
+   visual flow — and the header row becomes the actions' own line: a
+   two-cell row of 40px controls (the shared control ceiling) directly
+   above the rows they act on. */
 @media (max-width: 640px) {
-  .shipment-debit-header { height: auto; min-height: 36px; }
+  .shipment-debit-header { height: auto; min-height: 0; }
+  .shipment-debit-workspace > .shipment-debit-header { order: 0; }
+  .shipment-debit-header__title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .shipment-debit-header__export {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+  .shipment-debit-header__export > * { width: 100%; }
+  .shipment-debit-header__export .disabled-action-tip { display: flex; }
+  .shipment-debit-header__export button { width: 100%; }
   .shipment-debit-customer-bar { align-items: stretch; }
   .shipment-debit-customer-bar__picker { width: 100%; max-width: none; }
   .shipment-debit-customer-bar__hint { flex-basis: 100%; }
@@ -97,6 +138,7 @@
    rework M1), not just the page wrapper. Sweep card 20261008_1: the button
    rides aria-disabled (never the `disabled` attribute) so the reason stays
    hover/focus-reachable, hence the attribute selector. */
+.shipment-debit-workspace button.shipment-debit-merge-rev[aria-disabled="true"],
 .shipment-debit-workspace button.shipment-debit-export[aria-disabled="true"] {
   background: var(--surface-2);
   color: var(--fg-3);

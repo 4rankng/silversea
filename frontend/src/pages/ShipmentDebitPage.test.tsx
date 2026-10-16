@@ -164,6 +164,13 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     const customerBar = container.querySelector('.shipment-debit-customer-bar') as HTMLElement;
     expect(customerBar).not.toBeNull();
     expect(within(customerBar).getByRole('button', { name: 'Tất cả khách hàng' })).toBeTruthy();
+    // The reorder IS the fix: in the DOM the action row renders AFTER the
+    // customer bar and the strip (the phone band's reading order — the
+    // actions sit directly above the rows they act on); desktop only re-pins
+    // the title row visually via grid order. Pin the DOM order so a revert of
+    // the block order cannot pass while the defect is back.
+    const headerNode = container.querySelector('[data-component="shipment-debit-header"]') as HTMLElement;
+    expect(customerBar.compareDocumentPosition(headerNode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Row 1: Xuất Debit Note rides the title baseline, disabled without a
     // customer, with the DisabledActionTip bubble naming the prerequisite
     // (sweep card 20261008_1 — the reason is reachable on hover AND focus).
@@ -189,6 +196,25 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     expect(rule).toMatch(/background:\s*var\(--surface-2\);/);
     expect(rule).toMatch(/box-shadow:\s*none;/);
     expect(rule).not.toMatch(/brand|accent/);
+    // The merge action shares the exact de-brand: two inert buttons never
+    // out-shout each other, and neither reads as live while nothing is picked.
+    const mergeRule = css.match(/\.shipment-debit-workspace button\.shipment-debit-merge-rev\[aria-disabled="true"\],\s*\.shipment-debit-workspace button\.shipment-debit-export\[aria-disabled="true"\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(mergeRule).toMatch(/background:\s*var\(--surface-2\);/);
+    expect(mergeRule).toMatch(/color:\s*var\(--fg-3\);/);
+  });
+
+  it('pins the phone action band: sr-only title, two-cell 40px row above the list', () => {
+    // ≤640px the topbar owns the screen name, the header row is the bulk
+    // actions' own line, and the DOM order (picker → strip → actions → list)
+    // puts them directly above the rows they act on. CSS-source pins per the
+    // house convention — jsdom has no layout engine; the browser wave measures
+    // the computed result at 390.
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
+    const phoneBand = css.match(/@media \(max-width: 640px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(phoneBand).toMatch(/\.shipment-debit-header__title \{[\s\S]*?position: absolute;/);
+    expect(phoneBand).toMatch(/\.shipment-debit-header__export \{\s*display: grid;\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    // Desktop re-pins the title row on top of the workspace grid.
+    expect(css).toMatch(/\.shipment-debit-workspace > \.shipment-debit-header \{ order: -1; \}/);
   });
 
   it('renders money from the payload and shows Chưa xác định for unknown amounts', async () => {

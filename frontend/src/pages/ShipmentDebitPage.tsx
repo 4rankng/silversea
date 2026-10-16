@@ -296,40 +296,13 @@ export function ShipmentDebitPage() {
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
-        {/* Card _202: Row 1 is title + Xuất Debit Note (a per-customer action, so
-            it stays disabled until one customer is in scope); Row 2 is the
-            PROMOTED Khách hàng picker — the screen's primary axis, always
-            visible, never folded into `Bộ lọc`; Row 3 is the shared filter
-            strip (card 20260927_153) with the range and the lock criterion. */}
-        <header className="shipment-debit-header" data-component="shipment-debit-header">
-          <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
-          {canManage && (
-            <span className="shipment-debit-header__export">
-              <DisabledActionTip id="shipment-debit-merge-rev" reason={mergeDisabledReason}>
-                <UUIButton
-                  className="shipment-debit-merge-rev"
-                  size="sm"
-                  color="secondary"
-                  aria-disabled={mergeDisabled || undefined}
-                  onPress={() => { if (mergeDisabled) return; setMergeOpen(true); }}
-                >
-                  Ghép cước thu khách
-                </UUIButton>
-              </DisabledActionTip>
-              <DisabledActionTip id="shipment-debit-export" reason={exportDisabledReason}>
-                <UUIButton
-                  className="shipment-debit-export"
-                  size="sm"
-                  color="tertiary"
-                  aria-disabled={exportDisabled || undefined}
-                  onPress={() => { if (exportDisabled) return; void exportSelectedLockedLots(); }}
-                >
-                  Xuất Debit Note
-                </UUIButton>
-              </DisabledActionTip>
-            </span>
-          )}
-        </header>
+        {/* Card _202: the Khách hàng picker is the screen's primary axis — always
+            visible, never folded into `Bộ lọc`; the shared filter strip
+            (card 20260927_153) follows with the range and the lock criterion.
+            The action row comes last, directly above the rows it acts on: both
+            bulk actions work on the selection below, so the DOM order is the
+            phone's reading order and desktop re-pins the title row on top via
+            grid order (page CSS), never a second copy of the cluster. */}
         <div className="shipment-debit-customer-bar">
           <SearchableSelect
             id="shipment-debit-customer"
@@ -344,7 +317,7 @@ export function ShipmentDebitPage() {
           />
           <p className="shipment-debit-customer-bar__hint">
             {customerId === ''
-              ? 'Đang xem tất cả khách hàng. Chọn một khách để thu hẹp danh sách.'
+              ? 'Đang xem tất cả khách hàng.'
               : `Đang xem lô của ${selectedCustomerLabel}.`}
           </p>
         </div>
@@ -366,6 +339,44 @@ export function ShipmentDebitPage() {
             updateParam('lock', null);
           }}
         />
+        {/* The two-tier header (row 1: title + actions; row 2: the strip above).
+            The DOM position is the phone band's reading order — the actions
+            land directly above the rows they act on. Above 640px the workspace
+            grid re-pins this row on top (page CSS) so the title baseline keeps
+            its cluster: "Ghép cước thu khách" (needs ≥2 ungrouped LCL lots in
+            the selection) and "Xuất Debit Note" (needs a customer + a locked
+            lot). The export carries the live brand CTA face (card 20260922_31's
+            model: brand fill when live, neutral when not); the merge is the
+            quiet secondary. Both share the de-branded disabled face (page CSS). */}
+        <header className="shipment-debit-header" data-component="shipment-debit-header">
+          <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
+          {canManage && (
+            <span className="shipment-debit-header__export">
+              <DisabledActionTip id="shipment-debit-merge-rev" reason={mergeDisabledReason}>
+                <UUIButton
+                  className="shipment-debit-merge-rev"
+                  size="sm"
+                  color="secondary"
+                  aria-disabled={mergeDisabled || undefined}
+                  onPress={() => { if (mergeDisabled) return; setMergeOpen(true); }}
+                >
+                  Ghép cước thu khách
+                </UUIButton>
+              </DisabledActionTip>
+              <DisabledActionTip id="shipment-debit-export" reason={exportDisabledReason}>
+                <UUIButton
+                  className="shipment-debit-export"
+                  size="sm"
+                  color="primary"
+                  aria-disabled={exportDisabled || undefined}
+                  onPress={() => { if (exportDisabled) return; void exportSelectedLockedLots(); }}
+                >
+                  Xuất Debit Note
+                </UUIButton>
+              </DisabledActionTip>
+            </span>
+          )}
+        </header>
         {summary.isPending ? (
           <Skeleton height={320} />
         ) : items.length === 0 && !summary.isError ? (
