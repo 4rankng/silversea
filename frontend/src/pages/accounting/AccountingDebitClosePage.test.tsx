@@ -225,6 +225,23 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
     expect(within(first).getByRole('button', { name: 'Xác nhận' })).toBeInTheDocument();
   });
 
+  it('FB-099 — dòng PENDING ngồi ở vùng "Chờ xác nhận" riêng, không trộn vào bảng tổng hợp (TC-COSTUX-05)', async () => {
+    boardWith([
+      row(),
+      row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', adjustment: { status: 'PENDING', requestId: 55, requestedAt: null, confirmedAt: null } }),
+    ]);
+    renderPage();
+    const pendingRegion = await screen.findByRole('region', { name: 'Bảng chờ xác nhận điều chỉnh cước' });
+    const boardRegion = screen.getByRole('region', { name: 'Bảng kế hoạch điều động tổng hợp' });
+    expect(screen.getByRole('heading', { name: 'Chờ xác nhận' })).toBeInTheDocument();
+    expect(within(pendingRegion).getByText('BL-2')).toBeInTheDocument();
+    expect(within(pendingRegion).queryByText('BL-1')).toBeNull();
+    expect(within(boardRegion).getByText('BL-1')).toBeInTheDocument();
+    expect(within(boardRegion).queryByText('BL-2')).toBeNull();
+    // điều khiển Xác nhận/Rút của dòng PENDING vẫn ở nguyên vị trí của nó
+    expect(within(pendingRegion).getByRole('button', { name: 'Xác nhận' })).toBeInTheDocument();
+  });
+
   it('select-all covers the rows the filter is showing', async () => {
     boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2' })]);
     renderPage();

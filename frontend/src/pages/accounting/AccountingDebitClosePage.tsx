@@ -18,7 +18,8 @@ import { useHiddenColumns } from '../../hooks/useHiddenColumns';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
-import { BOARD_CAPTION, BOARD_COLUMNS, GROUP_LABELS, type CellContext } from './AccountingDebitClosePage.columns';
+import { BOARD_CAPTION, BOARD_COLUMNS, type CellContext } from './AccountingDebitClosePage.columns';
+import { DebitBoardTable } from './AccountingDebitClosePage.board';
 import { DebitRoundBoard } from './AccountingDebitClosePage.rounds';
 import { AccountingDebitRecords } from './AccountingDebitRecords';
 import './AccountingDebitClosePage.css';
@@ -101,6 +102,7 @@ export default function AccountingDebitClosePage() {
   const selection = useTableRowSelection<number>();
   const { isSelected, countAmong, allOfSelected } = selection;
   const pendingRows = useMemo(() => visibleRows.filter((row) => row.adjustment.status === 'PENDING'), [visibleRows]);
+  const settledRows = useMemo(() => visibleRows.filter((row) => row.adjustment.status !== 'PENDING'), [visibleRows]);
   const pendingIds = useMemo(
     () => pendingRows.map((row) => row.adjustment.requestId).filter((id): id is number => id != null),
     [pendingRows],
@@ -196,7 +198,6 @@ export default function AccountingDebitClosePage() {
   // summed the arrays' lengths, so 3 customers + 1 truck read "4 đang áp dụng"
   // while one `Đặt lại` cleared both, a count no operator could reach by clearing.
   const facetCount = (customerFilter.length ? 1 : 0) + (truckFilter.length ? 1 : 0);
-  const groupedHead = shown.filter((column) => column.group != null);
   const period = [filters.dateFrom, filters.dateTo].filter(Boolean).join(' – ');
   const roundItems = roundsQuery.data?.items ?? [];
 
@@ -355,63 +356,42 @@ export default function AccountingDebitClosePage() {
           {/* The board's own identity. The H1 names the SCREEN; this names the
               DOCUMENT the board renders, where the period can sit beside it
               instead of being welded onto the page title. */}
-          <h2 className="debit-board__title">
-            {BOARD_CAPTION}
-            {period !== '' && <span className="debit-note"> · kỳ {period}</span>}
-          </h2>
-          <AccountingDebitRecords rows={visibleRows} columns={shown} context={cellContext} selection={selection} />
-          <div className="debit-board__wrap ledger-desktop" role="region" aria-label="Bảng kế hoạch điều động tổng hợp" tabIndex={0}>
-            <table className="debit-board">
-              <caption className="sr-only">{BOARD_CAPTION} — thu/trả theo lô</caption>
-              <thead>
-                <tr>
-                  {shown.map((column, index) => {
-                    if (column.group == null) {
-                      return <th key={column.key} scope="col" rowSpan={2} className={column.className}>{column.label}</th>;
-                    }
-                    // One spanning header over the contiguous run of the group's
-                    // VISIBLE members: the run is measured, so a column hidden
-                    // through the picker can never leave the group header
-                    // covering the wrong cells.
-                    if (shown[index - 1]?.group === column.group) return null;
-                    const run = shown.filter((candidate) => candidate.group === column.group).length;
-                    return <th key={column.group} scope="colgroup" colSpan={run}>{GROUP_LABELS[column.group]}</th>;
-                  })}
-                </tr>
-                <tr>
-                  {groupedHead.map((column) => (
-                    <th key={column.key} scope="col" className={column.className}>{column.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {visibleRows.map((row) => {
-                  const pickable = row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED';
-                  const isRowSelected = isSelected(row.shipmentId);
-                  return (
-                    <tr
-                      key={row.shipmentId}
-                      className={pickable ? 'debit-row--pickable' : 'debit-row--locked'}
-                      data-selected={isRowSelected || undefined}
-                      aria-selected={pickable ? isRowSelected : undefined}
-                      tabIndex={pickable ? 0 : undefined}
-                      {...selection.rowProps(row.shipmentId, { selectable: pickable })}
-                    >
-                      {shown.map((column) => (
-                        <td
-                          key={column.key}
-                          className={`${column.className}${column.className === 'debit-col--money' ? ' num' : ''}`}
-                        >
-                          {column.cell(row, cellContext)}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="debit-board__hint ledger-desktop">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+          {/* FB-099 (card 141026230760) — ba vùng rõ: tổng hợp (SummaryRail) /
+              chờ xác nhận (dòng PENDING, vùng riêng) / tổng hợp công nợ (các
+              đợt chốt). Chỉ tách bố cục — dữ liệu, nút, quyền, câu chữ giữ
+              nguyên (TC-COSTUX-05). */}
+          {pendingRows.length > 0 && (
+            <>
+              <h2 className="debit-board__title">Chờ xác nhận</h2>
+              <AccountingDebitRecords rows={pendingRows} columns={shown} context={cellContext} selection={selection} />
+              <DebitBoardTable
+                rows={pendingRows}
+                columns={shown}
+                context={cellContext}
+                selection={selection}
+                ariaLabel="Bảng chờ xác nhận điều chỉnh cước"
+                caption="Chờ xác nhận — lô có yêu cầu điều chỉnh cước đang chờ"
+              />
+            </>
+          )}
+          {settledRows.length > 0 && (
+            <>
+              <h2 className="debit-board__title">
+                {BOARD_CAPTION}
+                {period !== '' && <span className="debit-note"> · kỳ {period}</span>}
+              </h2>
+              <AccountingDebitRecords rows={settledRows} columns={shown} context={cellContext} selection={selection} />
+              <DebitBoardTable
+                rows={settledRows}
+                columns={shown}
+                context={cellContext}
+                selection={selection}
+                ariaLabel="Bảng kế hoạch điều động tổng hợp"
+                caption={`${BOARD_CAPTION} — thu/trả theo lô`}
+              />
+              <p className="debit-board__hint ledger-desktop">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+            </>
+          )}
         </>
       ))}
 
