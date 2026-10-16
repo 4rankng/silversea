@@ -1,3 +1,35 @@
+# Shipment create mobile UX — grouped container editor (2026-10-16)
+
+- Scope: DESIGN-ONLY mobile refactor of the FCL container editor on
+  "Tạo lô hàng". No business logic, state, props (beyond one opt-in
+  presentational `mobileFieldChrome` flag), handlers, field ids, or aria
+  contracts changed. Desktop table untouched; worktree
+  `design/shipment-create-mobile-ux`, nothing committed/merged/pushed.
+- What landed: ≤620px container query now renders each container row as a
+  grouped 2-column form — three uppercase divider bands
+  (`.csc-container-row__group`, desktop `display:none`): THÔNG TIN CONTAINER
+  (Số container + Loại), LỘ TRÌNH (Nhà máy, Tuyến đường full-width;
+  Cảng nâng → Cảng hạ paired with a CSS chevron seam marker),
+  THỜI GIAN (Trọng lượng + Ngày giờ đóng trả; falls back to full width under
+  a 380px container so the date/time segments never shear). Per-field labels
+  moved into the cells (`.csc-container-cell__label`) with the required mark
+  re-colored via `--danger` while `data-label` keeps the full string
+  (QA1-007). Picker value bands got the shared outlined control treatment
+  (border/`--r-sm`/`--surface`/40px) + lucide ChevronDown; FB-006
+  reveal-on-menu-open mechanic untouched. Appointment copy-time button rides
+  below the control at phone widths (was an overlay over the year digits).
+- Contract pins updated WITH the redesign (intent preserved):
+  `ClerkShipmentCreatePage.styles.test.ts` — the 11/10 single-column phone
+  tier pin now asserts the grouped grid + divider bands; the 051026230627
+  "cluster never squeezed" pin now asserts the ≤380px full-width fallback.
+- Verification: fe vitest 641 files / 4881 tests green (needs a prior
+  `vite build` — numeric-identity bundle contracts read `dist/`);
+  `npx tsc --noEmit` 0 errors; `npx vite build` OK. Artifacts:
+  `qa/2026-10-16_shipment-create-mobile-ux_{vitest,vitest-contracts,tsc,build}.txt`.
+- Not covered: no browser drive of the changed screens at 390/768/1440
+  (user-scoped verification = vitest/tsc/build); CUS ledger shares
+  `ShipmentContainerCell` and is intentionally untouched (scoped selectors).
+
 # Driver cost UX (cost-doc wave B) — frontend panel redesign
 
 - Controller: opencode agent "cost-doc wave B: driver cost UX (lái xe)", worktree

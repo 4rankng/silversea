@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react';
 import {
   useRef,
   type FocusEvent,
@@ -27,6 +28,14 @@ interface ShipmentContainerCellProps {
    *  is open inside the cell — a committed pick collapses to the value text
    *  (plus any actions) even though the input keeps focus (card 101026163000). */
   picker?: boolean;
+  /** Grouped mobile chrome (mobile UX consult 16/10): renders the visible
+   *  field label — with the required asterisk as its own colored mark — above
+   *  the control, and a trailing chevron on picker value bands so every
+   *  control reads tappable on the stacked phone record. Presentational only:
+   *  the accessible name still comes from the real control, the `data-label`
+   *  attribute keeps the full label string (QA1-007 asterisk contract), and
+   *  hosts without the flag render exactly as before. */
+  mobileFieldChrome?: boolean;
   onRevert?: (value: string) => void;
 }
 
@@ -50,9 +59,15 @@ export function ShipmentContainerCell({
   onRevert,
   alwaysVisible,
   picker,
+  mobileFieldChrome,
 }: ShipmentContainerCellProps) {
   const cellRef = useRef<HTMLTableCellElement>(null);
   const valueAtFocus = useRef(value);
+  // The visible mobile label re-colors the required mark, so the trailing
+  // " *" is split out of the rendered text; `data-label` below keeps the
+  // full string byte-for-byte (asterisk-contract QA1-007).
+  const requiredMark = label.endsWith(' *');
+  const labelText = requiredMark ? label.slice(0, -2) : label;
 
   const activateCell = (event: MouseEvent<HTMLTableCellElement>) => {
     const target = event.target as Element;
@@ -108,6 +123,12 @@ export function ShipmentContainerCell({
       onFocusCapture={captureStartingValue}
       onKeyDownCapture={handleCellKeyDown}
     >
+      {mobileFieldChrome && (
+        <span className="csc-container-cell__label" aria-hidden="true">
+          {labelText}
+          {requiredMark && <span className="csc-container-cell__label-req">*</span>}
+        </span>
+      )}
       <div className="csc-container-cell__value">
         <span
           className={`csc-container-cell__display${value ? '' : ' csc-container-cell__display--empty'}`}
@@ -115,6 +136,9 @@ export function ShipmentContainerCell({
           title={(displayTitle ?? value) || undefined}
         >
           {value || placeholder}
+          {mobileFieldChrome && picker && (
+            <ChevronDown size={14} className="csc-container-cell__chevron" aria-hidden="true" />
+          )}
         </span>
         <div className="csc-container-cell__editor">{children}</div>
       </div>
