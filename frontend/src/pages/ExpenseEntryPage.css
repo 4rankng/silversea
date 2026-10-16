@@ -79,33 +79,11 @@
   gap: 16px;
 }
 
-/* Inputs */
-.expense-input {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: var(--control-default-h);
-  background: var(--bg-1);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 7px 10px;
-  color: var(--ink);
-  font-family: inherit;
-  font-size: var(--control-field-font-size);
-  line-height: 18px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-@media (pointer: coarse) {
-  .expense-input { min-height: var(--control-touch-h); }
-}
-.expense-input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
-}
-.expense-input::placeholder {
-  color: var(--ink-4);
-}
+/* Inputs — retired the bespoke `.expense-input` skin (audit 2026-10-16
+   Wave 1, pattern C): the form's raw inputs and DateInput fields ride the
+   shared `.input` class from components/Input.css (global via index.css),
+   which owns the boundary, focus ring, invalid border and the phone/coarse
+   height floors (styles/responsive.css). */
 
 /* Grid */
 .expense-grid {
@@ -130,6 +108,45 @@
   color: var(--ink-2);
   margin-bottom: 6px;
   display: block;
+}
+
+/* ── Grouped sub-sections with uppercase divider headers (audit 2026-10-16
+   Wave 1, pattern A — same eyebrow vocabulary as .fwd-section-label and
+   EntityFormSection): one shared panel, five labelled groups. */
+.expense-sections {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.expense-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.expense-section__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.expense-section__label {
+  margin: 0;
+  font-size: var(--text-label-size);
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.expense-section__rule {
+  flex: 1 1 auto;
+  min-width: 12px;
+  height: 1px;
+  background: var(--line);
 }
 
 /* Photo thumbnails */
@@ -223,10 +240,9 @@
   margin-bottom: 0;
 }
 
-/* ── Required asterisk ── */
-.expense-required {
-  color: var(--danger);
-}
+/* ── Required asterisk — retired `.expense-required` for the shared rose
+   marker `.ds-field__required` (design-system/forms/TextField.css), the same
+   primitive the ds form fields render (audit 2026-10-16 Wave 1, pattern D). */
 
 /* Catalog actions use the shared compact ghost button. */
 .expense-quick-create-row {
@@ -235,8 +251,9 @@
   align-items: center;
 }
 
-.expense-quick-create-row .expense-input {
+.expense-quick-create-row .input {
   flex: 1;
+  min-width: 0;
 }
 
 /* ── Field error message ── */
@@ -330,7 +347,6 @@
 .expense-page-wrap .expense-select { padding: 0; }
 .expense-page-wrap .expense-group { min-width: 0; }
 .expense-label-row { gap: 8px; flex-wrap: wrap; }
-.expense-quick-create-row .expense-input { min-width: 0; }
 .expense-page-wrap .expense-select > span { padding-inline: 10px; }
 .expense-page-wrap .expense-select [data-combobox-value] { padding-block: 0; }
 @media (prefers-reduced-motion: reduce) {
@@ -366,6 +382,5 @@
   }
 }
 
-.expense-input[aria-invalid="true"] {
-  border-color: var(--danger);
-}
+/* Invalid border for the shared `.input` fields is owned by
+   components/Input.css (`.input[aria-invalid="true"]`) — no page-local rule. */

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { INVOICE_TRACKING_PROGRESS, INVOICE_TRACKING_PROGRESS_LABELS, type InvoiceTrackingProgress, type InvoiceTrackingRow } from '@tingting/shared';
-import { Btn, FormGroup, Modal } from '../../components/UI';
+import { Btn, Modal } from '../../components/UI';
+import { Input } from '../../components/untitled-ui/base/input/input';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { createInvoiceTracking, updateInvoiceTracking } from '../../api/invoiceTrackingClient';
 import { getShipmentDetail, listShipments } from '../../api/shipmentClient';
@@ -181,15 +182,14 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
       <fieldset className="invoice-tracking-form" disabled={saving} aria-busy={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         {mode === 'create' && (
           <div className="invoice-tracking-lot-picker">
-            <FormGroup label="Bill / Booking" htmlFor="ivt-lot">
-              <input
-                id="ivt-lot"
-                className="input"
-                value={lotQuery}
-                placeholder="Nhập tối thiểu 4 ký tự để tìm lô"
-                onChange={(event) => void searchLots(event.target.value)}
-              />
-            </FormGroup>
+            <Input
+              id="ivt-lot"
+              size="sm"
+              label="Bill / Booking"
+              value={lotQuery}
+              placeholder="Nhập tối thiểu 4 ký tự để tìm lô"
+              onChange={(value) => void searchLots(value)}
+            />
             {(searchLoading || detailLoading) && <p className="ivt-hint">Đang tìm lô…</p>}
             {lotResults.length > 0 && (
               <ul className="ivt-lot-results">
@@ -221,31 +221,73 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
           </div>
         )}
 
+        {/* One field anatomy per form (audit 2026-10-16 Wave 1, pattern C):
+            every control rides the UUI field family at one size — Input /
+            BufferedUuiDateInput / UuiSelectField — no raw `.input` fields
+            beside the selects. Field ids and labels are unchanged. */}
         <div className="invoice-tracking-form__grid">
-          <FormGroup label="Số hóa đơn" htmlFor="ivt-invoice-number">
-            <input id="ivt-invoice-number" className="input" value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} />
-          </FormGroup>
-          <FormGroup label="Ngày" htmlFor="ivt-expense-date">
-            <BufferedUuiDateInput id="ivt-expense-date" value={expenseDate} onChange={setExpenseDate} />
-          </FormGroup>
-          <FormGroup label="Số tiền hóa đơn (₫)" htmlFor="ivt-invoice-amount">
-            <input id="ivt-invoice-amount" className="input" type="number" min="0" step="1" value={invoiceAmount} onChange={(event) => setInvoiceAmount(event.target.value)} />
-          </FormGroup>
-          <FormGroup label="Số tiền trả NCC (₫)" htmlFor="ivt-supplier-payment">
-            <input id="ivt-supplier-payment" className="input" type="number" min="0" step="1" value={supplierPayment} onChange={(event) => setSupplierPayment(event.target.value)} />
-          </FormGroup>
-          <FormGroup label="MST" htmlFor="ivt-tax-code">
-            <input id="ivt-tax-code" className="input" value={taxCode} onChange={(event) => setTaxCode(event.target.value)} />
-          </FormGroup>
-          <FormGroup label="Nhà cung cấp" htmlFor="ivt-supplier-name">
-            <input id="ivt-supplier-name" className="input" value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
-          </FormGroup>
-          <FormGroup label="COM (₫)" htmlFor="ivt-com-amount">
-            <input id="ivt-com-amount" className="input" type="number" min="0" step="1" value={comAmount} onChange={(event) => setComAmount(event.target.value)} />
-          </FormGroup>
-          <FormGroup label="Ghi chú COM" htmlFor="ivt-com-note">
-            <input id="ivt-com-note" className="input" value={comNote} onChange={(event) => setComNote(event.target.value)} />
-          </FormGroup>
+          <Input
+            id="ivt-invoice-number"
+            size="sm"
+            label="Số hóa đơn"
+            value={invoiceNumber}
+            onChange={setInvoiceNumber}
+          />
+          <BufferedUuiDateInput
+            id="ivt-expense-date"
+            size="sm"
+            label="Ngày"
+            value={expenseDate}
+            onChange={setExpenseDate}
+          />
+          <Input
+            id="ivt-invoice-amount"
+            size="sm"
+            label="Số tiền hóa đơn (₫)"
+            type="number"
+            inputProps={{ min: 0, step: 1 }}
+            value={invoiceAmount}
+            onChange={setInvoiceAmount}
+          />
+          <Input
+            id="ivt-supplier-payment"
+            size="sm"
+            label="Số tiền trả NCC (₫)"
+            type="number"
+            inputProps={{ min: 0, step: 1 }}
+            value={supplierPayment}
+            onChange={setSupplierPayment}
+          />
+          <Input
+            id="ivt-tax-code"
+            size="sm"
+            label="MST"
+            value={taxCode}
+            onChange={setTaxCode}
+          />
+          <Input
+            id="ivt-supplier-name"
+            size="sm"
+            label="Nhà cung cấp"
+            value={supplierName}
+            onChange={setSupplierName}
+          />
+          <Input
+            id="ivt-com-amount"
+            size="sm"
+            label="COM (₫)"
+            type="number"
+            inputProps={{ min: 0, step: 1 }}
+            value={comAmount}
+            onChange={setComAmount}
+          />
+          <Input
+            id="ivt-com-note"
+            size="sm"
+            label="Ghi chú COM"
+            value={comNote}
+            onChange={setComNote}
+          />
           <UuiSelectField
             id="ivt-progress"
             label="Tiến độ"
@@ -254,9 +296,13 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
             options={INVOICE_TRACKING_PROGRESS.map((value) => ({ value, label: INVOICE_TRACKING_PROGRESS_LABELS[value] }))}
           />
           <div style={{ gridColumn: '1 / -1' }}>
-            <FormGroup label="Ghi chú" htmlFor="ivt-note">
-              <input id="ivt-note" className="input" value={note} onChange={(event) => setNote(event.target.value)} />
-            </FormGroup>
+            <Input
+              id="ivt-note"
+              size="sm"
+              label="Ghi chú"
+              value={note}
+              onChange={setNote}
+            />
           </div>
         </div>
 

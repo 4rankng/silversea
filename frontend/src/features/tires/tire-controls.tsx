@@ -9,6 +9,9 @@ import { formatErrorMessage } from "../../lib/api";
 import { useClickOutside } from "../../hooks/useClickOutside";
 import { Modal } from "../../design-system/Modal";
 import { DateInput } from "../../design-system/forms/DateInput";
+// Shared rose required marker (`.ds-field__required`) — the ds form stylesheet
+// is not part of the global bundle, so import it where the marker renders.
+import "../../design-system/forms/TextField.css";
 import { cleanText, normalizedCatalogLabel, positionPayloadFromLabel, supplierIdFromText, textMatches } from "../../features/tires/tireUtils";
 import { floatingPickerMenuStyle } from "./tire-picker-placement";
 import "../../pages/TruckTiresPage.css";
@@ -63,7 +66,7 @@ export function AddTireForm({
   return (
     <div className="ttp-add">
       <div className="ttp-field ttp-field--serial">
-        <label htmlFor="tire-serial">Serial lốp *</label>
+        <label htmlFor="tire-serial">Serial lốp <span className="ds-field__required" aria-hidden="true">*</span></label>
         <input id="tire-serial" name="serial" className="input" value={serial} onChange={(e) => setSerial(e.target.value)} placeholder="Ví dụ: 12345678" />
       </div>
       <div className="ttp-field">

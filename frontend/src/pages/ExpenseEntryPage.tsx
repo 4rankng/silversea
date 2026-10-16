@@ -26,6 +26,9 @@ import { ExpenseBasicFields, ExpenseLoading, ExpensePhotoAside } from './expense
 import { useExpenseReceiptPhotos } from '../features/expenses/useExpenseReceiptPhotos';
 import { DateInput } from '../design-system/forms/DateInput';
 import { UuiSelectField, NumberField } from '../design-system';
+// The shared rose required marker (`.ds-field__required`) lives in the ds form
+// stylesheet; it is not part of the global bundle (see SalaryAttendancePage).
+import '../design-system/forms/TextField.css';
 import './ExpenseEntryPage.css';
 
 export default function ExpenseEntryPage() {
@@ -395,284 +398,324 @@ export default function ExpenseEntryPage() {
           <div className="expense-page-layout">
             <fieldset disabled={savedExpenseId != null} className="expense-layout__main" style={{ minWidth: 0, border: 0, padding: 0, margin: 0 }}>
               <div className="panel expense-panel">
-                <div className="panel__head">
-                  <h2 className="panel__title">Thông tin chung</h2>
-                </div>
+                {/* Wave 1 (audit 2026-10-16, pattern A): the flat one-h2 form is
+                    grouped into uppercase-divider sub-sections. */}
+                <div className="panel__body expense-sections">
 
-                <div className="panel__body expense-grid">
-              <ExpenseBasicFields form={form} errors={errors} isEdit={isEdit} existingExpense={existingExpense} set={set} />
+                  <section className="expense-section">
+                    <div className="expense-section__head">
+                      <h3 className="expense-section__label">Thông tin chung</h3>
+                      <span className="expense-section__rule" aria-hidden="true" />
+                    </div>
+                    <div className="expense-grid">
+                      <ExpenseBasicFields form={form} errors={errors} isEdit={isEdit} existingExpense={existingExpense} set={set} />
 
-              <div className="expense-group expense-group--catalog">
-                <div className="expense-label-row">
-                  <label htmlFor={showNewSupplier ? 'newSupplierName' : 'supplierId'} className="expense-label">Nhà cung cấp <span className="expense-required">*</span></label>
-                  {!showNewSupplier && (
-                    <button type="button" onClick={() => setShowNewSupplier(true)} className="btn btn--ghost btn--sm">
-                      <Plus size={14} /> Thêm mới
-                    </button>
+                      <div className="expense-group expense-group--full">
+                        <label htmlFor="note" className="expense-label">Ghi chú</label>
+                        <input
+                          type="text"
+                          name="note"
+                          id="note"
+                          className="input"
+                          value={form.note}
+                          onChange={e => set('note', e.target.value)}
+                          placeholder="Ghi chú thêm…"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="expense-section">
+                    <div className="expense-section__head">
+                      <h3 className="expense-section__label">Danh mục</h3>
+                      <span className="expense-section__rule" aria-hidden="true" />
+                    </div>
+                    <div className="expense-grid">
+                      <div className="expense-group expense-group--catalog">
+                        <div className="expense-label-row">
+                          <label htmlFor={showNewSupplier ? 'newSupplierName' : 'supplierId'} className="expense-label">Nhà cung cấp <span className="ds-field__required" aria-hidden="true">*</span></label>
+                          {!showNewSupplier && (
+                            <button type="button" onClick={() => setShowNewSupplier(true)} className="btn btn--ghost btn--sm">
+                              <Plus size={14} /> Thêm mới
+                            </button>
+                          )}
+                        </div>
+                        {showNewSupplier ? (
+                          <div className="expense-quick-create-row">
+                            <input
+                              type="text"
+                              name="newSupplierName"
+                              id="newSupplierName"
+                              className="input"
+                              placeholder="Tên nhà cung cấp…"
+                              value={newSupplierName}
+                              onChange={e => setNewSupplierName(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateSupplier(); } if (e.key === 'Escape') { setShowNewSupplier(false); setNewSupplierName(''); } }}
+                              autoFocus
+                            />
+                            <button type="button" aria-label="Lưu nhà cung cấp mới" className="btn btn--primary btn--icon btn--sm" disabled={creatingSupplier || !newSupplierName.trim()} onClick={handleCreateSupplier}>
+                              {creatingSupplier ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
+                            </button>
+                            <button type="button" aria-label="Hủy thêm nhà cung cấp" className="btn btn--ghost btn--icon btn--sm" onClick={() => { setShowNewSupplier(false); setNewSupplierName(''); }}>
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <UuiSelectField
+                            size="md"
+                            id="supplierId"
+                            label="Nhà cung cấp"
+                            hideLabel
+                            value={form.supplierId === null || form.supplierId === undefined ? '' : String(form.supplierId)}
+                            disabled={catalogsUnavailable}
+                            onChange={e => set('supplierId', e.target.value ? Number(e.target.value) : '')}
+                            controlClassName="expense-select"
+                            error={errors.supplierId}
+                            options={[
+                              { value: '', label: loadingExpenseCatalogs ? 'Đang tải nhà cung cấp…' : 'Chọn nhà cung cấp…' },
+                              ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
+                            ]}
+                          />
+                        )}
+                      </div>
+
+                      <div className="expense-group expense-group--catalog">
+                        <div className="expense-label-row">
+                          <label htmlFor={showNewCategory ? 'newCategoryName' : 'categoryId'} className="expense-label">Hạng mục <span className="ds-field__required" aria-hidden="true">*</span></label>
+                          {!showNewCategory && (
+                            <button type="button" onClick={() => setShowNewCategory(true)} className="btn btn--ghost btn--sm">
+                              <Plus size={14} /> Thêm mới
+                            </button>
+                          )}
+                        </div>
+                        {showNewCategory ? (
+                          <div className="expense-quick-create-row">
+                            <input
+                              type="text"
+                              name="newCategoryName"
+                              id="newCategoryName"
+                              className="input"
+                              placeholder="Tên hạng mục…"
+                              value={newCategoryName}
+                              onChange={e => setNewCategoryName(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); } if (e.key === 'Escape') { setShowNewCategory(false); setNewCategoryName(''); } }}
+                              autoFocus
+                            />
+                            <button type="button" aria-label="Lưu hạng mục mới" className="btn btn--primary btn--icon btn--sm" disabled={creatingCategory || !newCategoryName.trim()} onClick={handleCreateCategory}>
+                              {creatingCategory ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
+                            </button>
+                            <button type="button" aria-label="Hủy thêm hạng mục" className="btn btn--ghost btn--icon btn--sm" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}>
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <UuiSelectField
+                            size="md"
+                            id="categoryId"
+                            label="Hạng mục"
+                            hideLabel
+                            value={form.categoryId === null || form.categoryId === undefined ? '' : String(form.categoryId)}
+                            disabled={catalogsUnavailable}
+                            onChange={e => set('categoryId', e.target.value ? Number(e.target.value) : '')}
+                            controlClassName="expense-select"
+                            error={errors.categoryId}
+                            options={[
+                              { value: '', label: loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Chọn hạng mục…' },
+                              ...categories.map(c => ({ value: String(c.id), label: c.name })),
+                            ]}
+                          />
+                        )}
+                      </div>
+
+                      <div className="expense-group">
+                        <label htmlFor="expenseType" className="expense-label">Loại chi phí</label>
+                        <UuiSelectField
+                            size="md"
+                          id="expenseType"
+                          label="Loại chi phí"
+                          hideLabel
+                          value={expenseType}
+                          onChange={e => {
+                            const val = e.target.value as 'COMPANY' | 'TRUCK' | 'TRAILER';
+                            setExpenseType(val);
+                            if (val === 'COMPANY') {
+                              set('truckId', '');
+                            } else {
+                              set('vehicleComponent', val);
+                              set('truckId', '');
+                            }
+                          }}
+                          controlClassName="expense-select"
+                          options={[
+                            { value: 'COMPANY', label: 'Chi phí công ty' },
+                            { value: 'TRUCK', label: 'Xe (Đầu kéo)' },
+                            { value: 'TRAILER', label: 'Rơ-moóc' },
+                          ]}
+                        />
+                      </div>
+
+                      {expenseType === 'TRUCK' && (
+                        <div className="expense-group">
+                          <label htmlFor="truckId" className="expense-label">Biển số xe <span className="ds-field__required" aria-hidden="true">*</span></label>
+                          <UuiSelectField
+                            size="md"
+                            id="truckId"
+                            label="Biển số xe"
+                            hideLabel
+                            value={form.truckId === null || form.truckId === undefined ? '' : String(form.truckId)}
+                            onChange={e => set('truckId', e.target.value ? Number(e.target.value) : '')}
+                            controlClassName="expense-select"
+                            options={[
+                              { value: '', label: 'Chọn xe…' },
+                              ...trucks.map(t => ({ value: String(t.id), label: t.licensePlate })),
+                            ]}
+                          />
+                          {errors.truckId && <p className="expense-field-error">{errors.truckId}</p>}
+                        </div>
+                      )}
+
+                      {expenseType === 'TRAILER' && (
+                        <div className="expense-group">
+                          <label htmlFor="truckId" className="expense-label">Biển số rơ-moóc <span className="ds-field__required" aria-hidden="true">*</span></label>
+                          <UuiSelectField
+                            size="md"
+                            id="truckId"
+                            label="Biển số rơ-moóc"
+                            hideLabel
+                            value={form.truckId === null || form.truckId === undefined ? '' : String(form.truckId)}
+                            onChange={e => set('truckId', e.target.value ? Number(e.target.value) : '')}
+                            controlClassName="expense-select"
+                            options={[
+                              { value: '', label: 'Chọn rơ-moóc…' },
+                              ...trailers.map(t => ({ value: String(t.id), label: t.licensePlate })),
+                            ]}
+                          />
+                          {errors.truckId && <p className="expense-field-error">{errors.truckId}</p>}
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="expense-section">
+                    <div className="expense-section__head">
+                      <h3 className="expense-section__label">Số tiền</h3>
+                      <span className="expense-section__rule" aria-hidden="true" />
+                    </div>
+                    <div className="expense-grid">
+                      <div className="expense-group">
+                        <label htmlFor="amount" className="expense-label">Số tiền (đ) <span className="ds-field__required" aria-hidden="true">*</span></label>
+                        <NumberField
+                          id="amount"
+                          grouped
+                          signed
+                          suffix="đ"
+                          className="expense-amount"
+                          aria-invalid={Boolean(errors.amount) || undefined}
+                          value={form.amount}
+                          onChange={n => set('amount', n)}
+                          placeholder="0"
+                        />
+                        {errors.amount && <p className="expense-field-error">{errors.amount}</p>}
+                      </div>
+
+                      <div className="expense-group">
+                        <label htmlFor="receiptId" className="expense-label">Mã biên lai</label>
+                        <input
+                          type="text"
+                          name="receiptId"
+                          id="receiptId"
+                          className="input"
+                          value={form.receiptId}
+                          onChange={e => set('receiptId', e.target.value)}
+                          placeholder="Nhập mã biên lai…"
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {showValidityFields && (
+                    <section className="expense-section">
+                      <div className="expense-section__head">
+                        <h3 className="expense-section__label">Hiệu lực</h3>
+                        <span className="expense-section__rule" aria-hidden="true" />
+                      </div>
+                      <div className="expense-grid">
+                        {/* QA-088: the two validity dates always share one grid row
+                            (full-width wrapper with an internal 2-col grid), and the
+                            receipt/action aside follows the viewport so the long form
+                            does not outgrow it. */}
+                        <div className="expense-validity-pair">
+                          <div className="expense-group">
+                            <label htmlFor="validFrom" className="expense-label">Hiệu lực từ <span className="ds-field__required" aria-hidden="true">*</span></label>
+                            <DateInput
+                              name="validFrom"
+                              id="validFrom"
+                              className="input"
+                              value={form.validFrom}
+                              onChange={(value) => set('validFrom', value)}
+                            />
+                            {errors.validFrom && <p className="expense-field-error">{errors.validFrom}</p>}
+                          </div>
+                          <div className="expense-group">
+                            <label htmlFor="validTo" className="expense-label">Hiệu lực đến <span className="ds-field__required" aria-hidden="true">*</span></label>
+                            <DateInput
+                              name="validTo"
+                              id="validTo"
+                              className="input"
+                              value={form.validTo}
+                              onChange={(value) => set('validTo', value)}
+                            />
+                            {errors.validTo && <p className="expense-field-error">{errors.validTo}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    </section>
                   )}
-                </div>
-                {showNewSupplier ? (
-                  <div className="expense-quick-create-row">
-                    <input
-                      type="text"
-                      name="newSupplierName"
-                      id="newSupplierName"
-                      className="expense-input"
-                      placeholder="Tên nhà cung cấp…"
-                      value={newSupplierName}
-                      onChange={e => setNewSupplierName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateSupplier(); } if (e.key === 'Escape') { setShowNewSupplier(false); setNewSupplierName(''); } }}
-                      autoFocus
-                    />
-                    <button type="button" aria-label="Lưu nhà cung cấp mới" className="btn btn--primary btn--icon btn--sm" disabled={creatingSupplier || !newSupplierName.trim()} onClick={handleCreateSupplier}>
-                      {creatingSupplier ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
-                    </button>
-                    <button type="button" aria-label="Hủy thêm nhà cung cấp" className="btn btn--ghost btn--icon btn--sm" onClick={() => { setShowNewSupplier(false); setNewSupplierName(''); }}>
-                      <X size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <UuiSelectField
-                    size="md"
-                    id="supplierId"
-                    label="Nhà cung cấp"
-                    hideLabel
-                    value={form.supplierId === null || form.supplierId === undefined ? '' : String(form.supplierId)}
-                    disabled={catalogsUnavailable}
-                    onChange={e => set('supplierId', e.target.value ? Number(e.target.value) : '')}
-                    controlClassName="expense-select"
-                    error={errors.supplierId}
-                    options={[
-                      { value: '', label: loadingExpenseCatalogs ? 'Đang tải nhà cung cấp…' : 'Chọn nhà cung cấp…' },
-                      ...suppliers.map(s => ({ value: String(s.id), label: s.name })),
-                    ]}
-                  />
-                )}
-              </div>
 
-              <div className="expense-group expense-group--catalog">
-                <div className="expense-label-row">
-                  <label htmlFor={showNewCategory ? 'newCategoryName' : 'categoryId'} className="expense-label">Hạng mục <span className="expense-required">*</span></label>
-                  {!showNewCategory && (
-                    <button type="button" onClick={() => setShowNewCategory(true)} className="btn btn--ghost btn--sm">
-                      <Plus size={14} /> Thêm mới
-                    </button>
+                  {isEdit && (
+                    <section className="expense-section">
+                      <div className="expense-section__head">
+                        <h3 className="expense-section__label">Lý do</h3>
+                        <span className="expense-section__rule" aria-hidden="true" />
+                      </div>
+                      <div className="expense-grid">
+                        <div className="expense-group expense-group--full">
+                          <label htmlFor="governanceReason" className="expense-label">
+                            Lý do điều chỉnh <span className="ds-field__required" aria-hidden="true">*</span>
+                          </label>
+                          <textarea
+                            name="governanceReason"
+                            id="governanceReason"
+                            className="input"
+                            value={governanceReason}
+                            onChange={event => {
+                              setGovernanceReason(event.target.value);
+                              if (errors.governanceReason) {
+                                setErrors(previous => {
+                                  const next = { ...previous };
+                                  delete next.governanceReason;
+                                  return next;
+                                });
+                              }
+                            }}
+                            placeholder="Nêu mục đích và căn cứ của khoản chi…"
+                            rows={3}
+                          />
+                          {errors.governanceReason && (
+                            <p className="expense-field-error">
+                              {errors.governanceReason}
+                            </p>
+                          )}
+                          <p className="expense-hint">
+                            {existingExpense?.paymentStatus === 'PAID'
+                              ? 'Phiếu đã quyết toán — thay đổi cập nhật trực tiếp, chứng từ gốc được giữ.'
+                              : 'Khoản chi và công nợ được ghi nhận trực tiếp vào sổ kế toán.'}
+                          </p>
+                        </div>
+                      </div>
+                    </section>
                   )}
-                </div>
-                {showNewCategory ? (
-                  <div className="expense-quick-create-row">
-                    <input
-                      type="text"
-                      name="newCategoryName"
-                      id="newCategoryName"
-                      className="expense-input"
-                      placeholder="Tên hạng mục…"
-                      value={newCategoryName}
-                      onChange={e => setNewCategoryName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateCategory(); } if (e.key === 'Escape') { setShowNewCategory(false); setNewCategoryName(''); } }}
-                      autoFocus
-                    />
-                    <button type="button" aria-label="Lưu hạng mục mới" className="btn btn--primary btn--icon btn--sm" disabled={creatingCategory || !newCategoryName.trim()} onClick={handleCreateCategory}>
-                      {creatingCategory ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
-                    </button>
-                    <button type="button" aria-label="Hủy thêm hạng mục" className="btn btn--ghost btn--icon btn--sm" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }}>
-                      <X size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <UuiSelectField
-                    size="md"
-                    id="categoryId"
-                    label="Hạng mục"
-                    hideLabel
-                    value={form.categoryId === null || form.categoryId === undefined ? '' : String(form.categoryId)}
-                    disabled={catalogsUnavailable}
-                    onChange={e => set('categoryId', e.target.value ? Number(e.target.value) : '')}
-                    controlClassName="expense-select"
-                    error={errors.categoryId}
-                    options={[
-                      { value: '', label: loadingExpenseCatalogs ? 'Đang tải hạng mục…' : 'Chọn hạng mục…' },
-                      ...categories.map(c => ({ value: String(c.id), label: c.name })),
-                    ]}
-                  />
-                )}
-              </div>
 
-              <div className="expense-group">
-                <label htmlFor="expenseType" className="expense-label">Loại chi phí</label>
-                <UuiSelectField
-                    size="md"
-                  id="expenseType"
-                  label="Loại chi phí"
-                  hideLabel
-                  value={expenseType}
-                  onChange={e => {
-                    const val = e.target.value as 'COMPANY' | 'TRUCK' | 'TRAILER';
-                    setExpenseType(val);
-                    if (val === 'COMPANY') {
-                      set('truckId', '');
-                    } else {
-                      set('vehicleComponent', val);
-                      set('truckId', '');
-                    }
-                  }}
-                  controlClassName="expense-select"
-                  options={[
-                    { value: 'COMPANY', label: 'Chi phí công ty' },
-                    { value: 'TRUCK', label: 'Xe (Đầu kéo)' },
-                    { value: 'TRAILER', label: 'Rơ-moóc' },
-                  ]}
-                />
-              </div>
-
-              {expenseType === 'TRUCK' && (
-                <div className="expense-group">
-                  <label htmlFor="truckId" className="expense-label">Biển số xe <span className="expense-required">*</span></label>
-                  <UuiSelectField
-                    size="md"
-                    id="truckId"
-                    label="Biển số xe"
-                    hideLabel
-                    value={form.truckId === null || form.truckId === undefined ? '' : String(form.truckId)}
-                    onChange={e => set('truckId', e.target.value ? Number(e.target.value) : '')}
-                    controlClassName="expense-select"
-                    options={[
-                      { value: '', label: 'Chọn xe…' },
-                      ...trucks.map(t => ({ value: String(t.id), label: t.licensePlate })),
-                    ]}
-                  />
-                  {errors.truckId && <p className="expense-field-error">{errors.truckId}</p>}
-                </div>
-              )}
-
-              {expenseType === 'TRAILER' && (
-                <div className="expense-group">
-                  <label htmlFor="truckId" className="expense-label">Biển số rơ-moóc <span className="expense-required">*</span></label>
-                  <UuiSelectField
-                    size="md"
-                    id="truckId"
-                    label="Biển số rơ-moóc"
-                    hideLabel
-                    value={form.truckId === null || form.truckId === undefined ? '' : String(form.truckId)}
-                    onChange={e => set('truckId', e.target.value ? Number(e.target.value) : '')}
-                    controlClassName="expense-select"
-                    options={[
-                      { value: '', label: 'Chọn rơ-moóc…' },
-                      ...trailers.map(t => ({ value: String(t.id), label: t.licensePlate })),
-                    ]}
-                  />
-                  {errors.truckId && <p className="expense-field-error">{errors.truckId}</p>}
-                </div>
-              )}
-
-              <div className="expense-group">
-                <label htmlFor="amount" className="expense-label">Số tiền (đ) <span className="expense-required">*</span></label>
-                <NumberField
-                  id="amount"
-                  grouped
-                  signed
-                  suffix="đ"
-                  className="expense-amount"
-                  aria-invalid={Boolean(errors.amount) || undefined}
-                  value={form.amount}
-                  onChange={n => set('amount', n)}
-                  placeholder="0"
-                />
-                {errors.amount && <p className="expense-field-error">{errors.amount}</p>}
-              </div>
-
-              {showValidityFields && (
-                <>
-                  {/* QA-088: the validity pair always occupies one grid row
-                      together — the conditional fuel-truck group above flips
-                      auto-placement parity, which used to push the two
-                      dates onto diagonal rows. */}
-                  <div className="expense-validity-pair">
-                  <div className="expense-group">
-                    <label htmlFor="validFrom" className="expense-label">Hiệu lực từ <span className="expense-required">*</span></label>
-                    <DateInput
-                      name="validFrom"
-                      id="validFrom"
-                      className="expense-input"
-                      value={form.validFrom}
-                      onChange={(value) => set('validFrom', value)}
-                    />
-                    {errors.validFrom && <p className="expense-field-error">{errors.validFrom}</p>}
-                  </div>
-                  <div className="expense-group">
-                    <label htmlFor="validTo" className="expense-label">Hiệu lực đến <span className="expense-required">*</span></label>
-                    <DateInput
-                      name="validTo"
-                      id="validTo"
-                      className="expense-input"
-                      value={form.validTo}
-                      onChange={(value) => set('validTo', value)}
-                    />
-                    {errors.validTo && <p className="expense-field-error">{errors.validTo}</p>}
-                  </div>
-                  </div>
-                </>
-              )}
-
-              <div className="expense-group">
-                <label htmlFor="receiptId" className="expense-label">Mã biên lai</label>
-                <input
-                  type="text"
-                  name="receiptId"
-                  id="receiptId"
-                  className="expense-input"
-                  value={form.receiptId}
-                  onChange={e => set('receiptId', e.target.value)}
-                  placeholder="Nhập mã biên lai…"
-                />
-              </div>
-
-              <div className="expense-group expense-group--full">
-                <label htmlFor="note" className="expense-label">Ghi chú</label>
-                <input
-                  type="text"
-                  name="note"
-                  id="note"
-                  className="expense-input"
-                  value={form.note}
-                  onChange={e => set('note', e.target.value)}
-                  placeholder="Ghi chú thêm…"
-                />
-              </div>
-
-              {isEdit && <div className="expense-group expense-group--full">
-                <label htmlFor="governanceReason" className="expense-label">
-                  Lý do điều chỉnh <span className="expense-required">*</span>
-                </label>
-                <textarea
-                  name="governanceReason"
-                  id="governanceReason"
-                  className="expense-input"
-                  value={governanceReason}
-                  onChange={event => {
-                    setGovernanceReason(event.target.value);
-                    if (errors.governanceReason) {
-                      setErrors(previous => {
-                        const next = { ...previous };
-                        delete next.governanceReason;
-                        return next;
-                      });
-                    }
-                  }}
-                  placeholder="Nêu mục đích và căn cứ của khoản chi…"
-                  rows={3}
-                />
-                {errors.governanceReason && (
-                  <p className="expense-field-error">
-                    {errors.governanceReason}
-                  </p>
-                )}
-                <p className="expense-hint">
-                  {existingExpense?.paymentStatus === 'PAID'
-                    ? 'Phiếu đã quyết toán — thay đổi cập nhật trực tiếp, chứng từ gốc được giữ.'
-                    : 'Khoản chi và công nợ được ghi nhận trực tiếp vào sổ kế toán.'}
-                </p>
-              </div>}
                 </div>
               </div>
             </fieldset>

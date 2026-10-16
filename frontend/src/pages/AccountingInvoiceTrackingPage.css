@@ -141,6 +141,16 @@
   gap: 10px 12px;
 }
 
+/* Phone ladder (audit 2026-10-16 Wave 1, pattern B — same treatment as the
+   AccountingWorkspacePage period fields): the 2-col field pairs collapse to
+   one full-width column under 640px instead of squeezing two ~170px columns
+   on a 390px phone. */
+@media (max-width: 640px) {
+  .invoice-tracking-form__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .ivt-hint {
   margin: 0;
   color: var(--ink-2);

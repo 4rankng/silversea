@@ -5,6 +5,8 @@ import type { ExpenseWithRefs } from '@tingting/shared';
 import type { FormState } from './expense-entry-utils';
 import { DateInput } from '../design-system/forms/DateInput';
 import { UuiSelectField } from '../design-system';
+// Shared rose required marker class (see the page's TextField.css import).
+import '../design-system/forms/TextField.css';
 import { Btn } from '../components/UI';
 import { useState } from 'react';
 import { useAuthedPhotoUrls } from '../lib/api/photo';
@@ -14,11 +16,11 @@ interface BasicFieldsProps { form: FormState; errors: Record<string, string>; is
 export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set }: BasicFieldsProps) {
   return <>
                   <div className="expense-group">
-                    <label htmlFor="expenseDate" className="expense-label">Ngày phát sinh chi phí <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <label htmlFor="expenseDate" className="expense-label">Ngày phát sinh chi phí <span className="ds-field__required" aria-hidden="true">*</span></label>
                     <DateInput
                       name="expenseDate"
                       id="expenseDate"
-                      className="expense-input"
+                      className="input"
                       value={form.expenseDate}
                       onChange={(value) => set('expenseDate', value)}
                     />
