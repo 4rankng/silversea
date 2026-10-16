@@ -1,31 +1,33 @@
-# Wave 1 form contract — UI audit 2026-10-16 (2026-10-16)
+# Kanban wave 1016b — five IN_PROGRESS cards verified on main (2026-10-16)
 
-- Controller: this session (Paseo agent). Branch `ui/wave1-form-contract`,
-  commits 8dc83a08 (expenses) · acc3b65b (invoice modal) · 13567cac (tires)
-  · 11eed7d6 (trip detail). NOT merged/pushed/deployed — Hermes reviews.
-- Goal: implement Wave 1 of `docs/ui-audit-2026-10-16.md`. Status: DONE —
-  implementation, gates, per-page commits. UI NOT driven in a browser (§9
-  rung ≤2; user's pass bar was scoped green + tsc 0; see report).
-- Decisions (details in `plans/2026-10-16-ui-wave1-form-contract/plan.md`):
-  - Shared rose marker = `.ds-field__required` + TextField.css import at each
-    rendering module (bundle-verified: rule lands in the global entry CSS).
-  - Expense form: one shared panel, five uppercase-divider sections; h2
-    "Thông tin chung" retired; receiptId→SỐ TIỀN, note→THÔNG TIN CHUNG;
-    `.expense-input` skin deleted in favor of shared `.input`.
-  - Invoice modal: UUI field family at size sm; ≤640 1-col band;
-    `AccountingInvoiceTrackingPage.styles.test.ts` @media pin widened to a
-    closed set of two byte-exact bands (flagged for Hermes).
-  - Sibling sweep beyond the audit's named file: tire-dialogs.tsx ×3 labels
-    + expense-entry-sections.tsx inline marker (flagged for Hermes).
-- Gates: tsc 0 · scoped vitest 13 files/88 tests green · full vitest
-  642 files/4886 tests green · vite build OK · design:drift FAILS
-  PRE-EXISTING at clean HEAD (baseline `340f6463` predates recent merges;
-  my delta = −1 untokenized transition, 0 elsewhere; baseline NOT updated —
-  owner decision). Artifacts: `qa/2026-10-16_wave1-form-contract_*`.
-- Incident: macOS TCC briefly denied access to the main repo's `.git` on
-  /Volumes/LexarSSD (~10:47–10:58); recovered on its own; all four commits
-  landed after recovery. cua-driver screen check was started but abandoned
-  (needs a Screen Recording grant); its serve process timed out unused.
-- Next for Hermes: review the 4 commits; decide the design:drift baseline
-  question and the invoice-modal @media pin widening; optionally order a
-  rung-3 browser drive of the 4 screens at 390/768/1440 before merge.
+- Controller: this session (Paseo agent). Branch `feat/kanban-wave-1016b`,
+  cut from origin/main @ `1e2beebe`. One commit: `8374666c` (FB-083 label
+  pin). Pushed. Backend not touched (BE tsc 0 recorded anyway).
+- Headline finding: ALL FIVE cards' features were already merged to
+  origin/main by their original per-card dispatch branches (13–14/10) —
+  the prior "lost" wave agent's work was not needed. The IN_PROGRESS
+  folder was stale; that is why the wave was re-dispatched.
+  - QA2-005 search: ShipmentsPage search box + server-side
+    `cusRecordSearchCondition` (bill/booking/mã lô/cont/tờ khai/customer).
+    Pins: ShipmentsPage.test.tsx + backend cus-shipment-workspace.test.ts.
+  - FB-066 quick-add: TripInfoCard `+ Thêm nhanh` on Xe đầu kéo/Lái xe
+    (owner ruling 2026-10-14, commit b51d063b via e2dc48a6). Pin:
+    TripInfoCard.quick-add.test.tsx.
+  - FB-083 label: "Ngày giao hàng" (69708174). Was unpinned → this wave
+    added the label pin (8374666c).
+  - FB-084 CBM optional: FE unmarked + BE intake not enforced (69708174).
+    Pins: asterisk-contract test + backend shipment-intake-lcl-cargo.test
+    (3/3 green; needs `pnpm --dir shared build` first in a fresh worktree).
+  - FB-085 per-cont tờ khai: schema + migration 20261013210105/06 backfill
+    + ledger UI + copy + divergence (5ef12393, b47fffc5). Pins: 61 FE tests
+    incl. the four mandated scenarios (per-cont edit, copy propagation,
+    diverge-after-copy, single-cont lot unchanged).
+- Board hygiene: all five card .docx moved IN_PROGRESS → DEV_COMPLETED on
+  the Google Drive Kanban board (dev-done lane; QA lane is next).
+- Gates this wave: FE tsc 0 · scoped vitest asterisk-contract 5/5 ·
+  ledger+declarations 61/61 · trip quick-add 9/9 · BE tsc 0 · BE intake
+  3/3. Logs: qa/2026-10-16_kanban-wave-fb083_*.log.
+- UI rung: ≤2 for every card — code-read + executed pins; no browser drive
+  this session (features carry their own landed rung-3 evidence in qa/
+  from their original dispatches). Auto-ship merges + deploys main; the
+  only delta is the FB-083 test pin.
