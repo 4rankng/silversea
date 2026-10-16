@@ -1,3 +1,22 @@
+# W5+W4 staging QA verify — DONE, pushed (2026-10-16 08:35Z)
+
+Controller: this session (Paseo agent). Branch `qa/w5-w4-verify` (evidence
+commit pushed). Ran on staging `5a139108` (gate per phase; two records-only
+auto-ship re-cuts mid-morning were ride-throughs with 0 src-file diffs).
+Verdicts: FB-009/043/048/057 PASS (rung 3), FB-061 PASS-in-scope, W4
+tombstone BGX01-03 PASS (rung 3 + DB proof). **1 MAJOR finding (owner
+decision):** Kiểm soát phơi phiếu still prints soft-deleted QA entities on 2
+rows via unfiltered joins (`STG VERIFY NHA XE 09` on real lot EBKG18452303 —
+customers id 23 deleted 2026-10-04, reached via trip_carrier_info id 28;
+`QA0915 QA-138 Credit Customer` on the money-report table). Remedies: board
+query deleted_at filter (behaviour change) or scrub trip_carrier_info id 28.
+Record `testplan/2026-10-16-w5-w4-verify.md`; evidence `qa/2026-10-16_w5w4_*`;
+drivers `testplan/qa/scripts/w5w4-*.mjs`. Fixtures: 12 pricing sentinels
+tombstoned, 0 live; qapurge-dry census shows 53 pre-existing QA rows on other
+surfaces (NOT purged — owner-gated). Staging was not re-cut by this run.
+
+---
+
 # STAGING STATE (auto-ship, 2026-10-16 ~07:12Z) — staging is CODE-CURRENT, no deploy needed
 
 # Shipped-waves QA verify — 4 waves re-driven on staging, 21 PASS / 0 FAIL (2026-10-16)
