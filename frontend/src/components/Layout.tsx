@@ -145,6 +145,7 @@ function buildNavItems(
         // board is ACCOUNTANT-only, so listing it here would be a dead link
         // (App.nav-sweep pins nav == guard).
         { key: 'timesheet', path: routes.timesheet, icon: CalendarDays, section: 'hr' as SectionName },
+        { key: 'timesheet-report', path: routes.timesheetReport, icon: FileSpreadsheet, section: 'hr' as SectionName },
         { key: 'hr-roster', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
         { key: 'penalties', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
@@ -204,6 +205,7 @@ function buildNavItems(
         // board is ACCOUNTANT-only, so listing it here would be a dead link
         // (App.nav-sweep pins nav == guard).
         { key: 'timesheet', path: routes.timesheet, icon: CalendarDays, section: 'hr' as SectionName },
+        { key: 'timesheet-report', path: routes.timesheetReport, icon: FileSpreadsheet, section: 'hr' as SectionName },
         { key: 'hr-roster', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
         { key: 'penalties', path: routes.penalties, icon: AlertTriangle, section: 'hr' as SectionName, count: penaltiesCount },
 
@@ -267,6 +269,7 @@ function buildNavItems(
         // việc của Điều vận), đối chiếu ở bàn kế toán bên dưới.
         { key: 'timesheet', path: routes.timesheet, icon: CalendarDays, section: 'hr' as SectionName },
         { key: 'timesheet-reconciliation', path: routes.timesheetReconciliation, icon: ClipboardCheck, section: 'hr' as SectionName },
+        { key: 'timesheet-report', path: routes.timesheetReport, icon: FileSpreadsheet, section: 'hr' as SectionName },
         { key: 'hr-roster', path: routes.hrRoster, icon: Users, section: 'hr' as SectionName },
 
         // Pricing config entry points (docx §5-1): accountant fuel-price entry + per-customer×route rate terms.
