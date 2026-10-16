@@ -16,11 +16,14 @@ async function choose(label: string) {
   fireEvent.click(screen.getByRole('combobox', { name: 'Loại chi phí' }));
   fireEvent.click(await screen.findByRole('option', { name: label }));
 }
+// Card 141026230700 — Hóa đơn / Phiếu thu are two small toggle buttons now,
+// not a dropdown's options.
 async function chooseEvidence(label: 'Hóa đơn' | 'Phiếu thu') {
-  // 2 options → plain Select variant: the trigger is a button (the >= 5-option
-  // "Loại chi phí" renders a combobox instead).
-  fireEvent.click(screen.getByRole('button', { name: /Loại chứng từ/ }));
-  fireEvent.click(await screen.findByRole('option', { name: label }));
+  fireEvent.click(screen.getByRole('button', { name: label }));
+}
+async function uploadReceipt() {
+  fireEvent.change(screen.getByLabelText('Chọn ảnh biên lai'), { target: { files: [new File(['photo'], 'receipt.png', { type: 'image/png' })] } });
+  await screen.findByText('Ảnh sẽ gắn với khoản chi này');
 }
 
 describe('driver expense workflow — TC-CP-LX', () => {
@@ -29,6 +32,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
     api.listIncidentalCosts.mockResolvedValue([]);
     api.getFeeNorms.mockResolvedValue({ items: [{ code: 'NIGHT_RETURN', label: 'Trả đêm', amount: '100000' }, { code: 'OVERLOAD', label: 'Chạy quá tải', amount: '200000' }, { code: 'SHIFT', label: 'Lưu ca', amount: '200000' }] });
     api.createIncidentalCosts.mockResolvedValue(entry);
+    api.uploadReceiptPhoto.mockResolvedValue({ storageKey: 'receipt.png', url: 'blob:receipt' });
     api.updateCostSubmissionNote.mockResolvedValue({});
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   });
@@ -85,15 +89,54 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(screen.getByText('500.000 ₫')).toBeTruthy();
   });
 
-  it('submits invoice metadata without claiming customer cash received', async () => {
+  it('card 141026230700: the two cost tables always render — lot and road rows land in their own table', async () => {
+    api.listIncidentalCosts.mockResolvedValue([
+      { ...entry, id: 40, costType: DriverIncidentalCostType.LIFT_FEE, costGroup: 'DRIVER_SHIPMENT', feeName: 'Nâng container', amount: '500000' },
+      { ...entry, id: 41, costType: DriverIncidentalCostType.TOLL, costGroup: 'DRIVER_ROAD', feeName: 'Vé cầu đường', amount: '30000' },
+    ]);
+    setup();
+    await screen.findByText('Nâng container');
+    const lotTable = screen.getByRole('region', { name: 'Bảng Chi phí lô hàng' });
+    const roadTable = screen.getByRole('region', { name: 'Bảng Tiền đường' });
+    expect(lotTable.textContent).toContain('Nâng container');
+    expect(lotTable.textContent).not.toContain('Vé cầu đường');
+    expect(roadTable.textContent).toContain('Vé cầu đường');
+  });
+
+  it('card 141026230700: legacy rows without costGroup follow the write-path fallback', async () => {
+    api.listIncidentalCosts.mockResolvedValue([
+      { ...entry, id: 42, costType: DriverIncidentalCostType.TOLL, costGroup: null, feeName: 'Vé (cũ)', amount: '30000' },
+      { ...entry, id: 43, costType: DriverIncidentalCostType.LIFT_FEE, costGroup: null, feeName: 'Nâng (cũ)', amount: '500000' },
+    ]);
+    setup();
+    await screen.findByText('Vé (cũ)');
+    expect(screen.getByRole('region', { name: 'Bảng Tiền đường' }).textContent).toContain('Vé (cũ)');
+    expect(screen.getByRole('region', { name: 'Bảng Chi phí lô hàng' }).textContent).toContain('Nâng (cũ)');
+  });
+
+  it('card 141026230700: each empty table names its bucket instead of one combined silence', async () => {
+    setup();
+    await screen.findByText('Chưa có chi phí phát sinh');
+    expect(screen.getByText('Chưa có chi phí lô hàng phát sinh.')).toBeTruthy();
+    expect(screen.getByText('Chưa có tiền đường phát sinh.')).toBeTruthy();
+  });
+
+  it('submits the evidence kind with no typed invoice pair — the photo is the paper', async () => {
     setup(); await open();
-    // Step 2: the invoice fields appear only for the "Hóa đơn" evidence choice.
+    // Card 141026230700: Hóa đơn / Phiếu thu are 2 small ticks; the typed
+    // Số/Ngày hóa đơn pair no longer exists on the driver surface, and every
+    // lot cost needs its biên lai photo before the save opens.
+    expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
+    expect(screen.queryByLabelText('Ngày hóa đơn')).toBeNull();
     await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '500000' } });
-    fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'HD-101' } });
+    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: 500000, invoiceNumber: 'HD-101', feeName: 'Phí nâng' });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: 500000, evidenceKind: 'INVOICE', receiptStorageKey: 'receipt.png', feeName: 'Phí nâng' });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceNumber).toBeUndefined();
+    expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceDate).toBeUndefined();
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).not.toHaveProperty('customerChargeAmount');
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).not.toHaveProperty('receivedAmount');
     await waitFor(() => expect(api.listIncidentalCosts).toHaveBeenCalledTimes(2));
@@ -112,8 +155,6 @@ describe('driver expense workflow — TC-CP-LX', () => {
 
   it('records road money by explicit selected category, without an invoice or cash charge', async () => {
     setup(); await open();
-    await chooseEvidence('Hóa đơn');
-    fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'OLD-INVOICE' } });
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Chạy quá tải');
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
@@ -227,8 +268,8 @@ describe('driver expense workflow — TC-CP-LX', () => {
   it('keeps manual entry available and exposes retry when norms fail to load', async () => {
     api.getFeeNorms.mockRejectedValueOnce(new Error('offline')).mockResolvedValue({ items: [] });
     setup(); await open(); expect(await screen.findByText(/Không tải được định mức tiền đường/)).toBeInTheDocument();
-    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại định mức' }));
     await waitFor(() => expect(api.getFeeNorms).toHaveBeenCalledTimes(2));
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
@@ -239,8 +280,8 @@ describe('driver expense workflow — TC-CP-LX', () => {
   it('retries the same failed save with the same key and retained input', async () => {
     api.createIncidentalCosts.mockRejectedValueOnce(new Error('Mất phản hồi')).mockResolvedValueOnce(entry);
     setup(); await open();
-    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '123000' } });
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Mất phản hồi');
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
@@ -251,8 +292,8 @@ describe('driver expense workflow — TC-CP-LX', () => {
   it('blocks a repeated click while a save is unresolved', async () => {
     api.createIncidentalCosts.mockReturnValue(new Promise(() => {}));
     setup(); await open();
-    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
+    await uploadReceipt();
     const save = screen.getByRole('button', { name: /^Lưu tất cả/ });
     fireEvent.click(save); fireEvent.click(save);
     expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1);
@@ -297,8 +338,8 @@ describe('driver expense workflow — TC-CP-LX', () => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
     api.createIncidentalCosts.mockRejectedValue(new Error('Máy chủ chưa trả lời'));
     setup(); await open();
-    await chooseEvidence('Hóa đơn');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '99000' } });
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await screen.findByText('Máy chủ chưa trả lời');
     expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1);
@@ -309,7 +350,6 @@ describe('driver expense workflow — TC-CP-LX', () => {
 
   it('displays Thực chi with vi-VN grouping while the saved amount stays a plain integer (card 20260924_1, image12)', async () => {
     setup(); await open();
-    await chooseEvidence('Hóa đơn');
     const field = screen.getByLabelText(/Thực chi/);
     fireEvent.change(field, { target: { value: '1200000' } });
     expect(field).toHaveValue('1.200.000');
@@ -317,6 +357,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
     // display format never leaks into the data contract.
     fireEvent.change(field, { target: { value: '1.200.000' } });
     expect(field).toHaveValue('1.200.000');
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ amount: 1200000 });
@@ -331,22 +372,22 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm ghi chú cho kế toán' }));
     expect(screen.getByLabelText('Ghi chú cho kế toán')).toBeDisabled();
   });
-  it('card 20260928_163: an invoiced lot-cost fee offers Số hóa đơn via Loại chứng từ and carries its catalog code', async () => {
+  it('card 163 → 141026230700: an invoiced lot-cost fee carries its catalog code, no typed invoice, photo mandatory', async () => {
     setup(); await open();
-    // Step 2 replaced the catalog rule: "Hóa đơn" mounts Số/Ngày hóa đơn for
-    // EVERY lot cost, whatever the catalog says (the server still enforces its
-    // own invoiced-catalog rule). Before any choice the fields are not mounted.
-    expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
-    await chooseEvidence('Hóa đơn');
-    expect(screen.getByLabelText('Số hóa đơn')).toBeTruthy();
+    // The typed invoice pair is gone for EVERY lot cost whatever the catalog
+    // says; the server keeps its invoiced-catalog classification (the
+    // charge-the-customer side) and now demands the biên lai photo instead.
     await choose('Phí vệ sinh');
+    expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
-    fireEvent.change(screen.getByLabelText('Số hóa đơn'), { target: { value: 'HD-163' } });
+    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({
-      expenseTypeCode: 'FEE_CLEANING', invoiceNumber: 'HD-163', invoiceDate: undefined, costGroup: 'DRIVER_SHIPMENT', feeName: 'Phí vệ sinh',
+      expenseTypeCode: 'FEE_CLEANING', evidenceKind: 'RECEIPT', receiptStorageKey: 'receipt.png', costGroup: 'DRIVER_SHIPMENT', feeName: 'Phí vệ sinh',
     });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceNumber).toBeUndefined();
   });
 
   it('card 20260928_164: a no-invoice lot-cost fee offers no Số hóa đơn and never sends one', async () => {

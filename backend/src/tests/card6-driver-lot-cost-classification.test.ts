@@ -23,6 +23,15 @@ async function mkAccountant() {
   return u;
 }
 
+/** Card 141026230700 — lot-bucket rows must carry a biên lai photo; seed one
+ *  owned by the recording user the way the upload path does. */
+async function mkReceiptPhoto(tripId: number, uploadedBy: number): Promise<string> {
+  const storageKey = `card6/receipt-${suffix}-${cleanup.length}.jpg`;
+  const [photo] = await db.insert(s.tripPhotos).values({ tripId, type: 'OTHER', storageKey, uploadedBy }).returning();
+  track(async () => { await db.delete(s.tripPhotos).where(eq(s.tripPhotos.id, photo.id)); });
+  return storageKey;
+}
+
 async function mkDriverTrip() {
   const [u] = await db.insert(s.users).values({
     username: `card6-${suffix}-${cleanup.length}`, passwordHash: 'x', role: 'DRIVER',
@@ -90,11 +99,13 @@ describe('card 20260921_6 - driver lot-cost classification', () => {
     }
   });
 
-  test('invoiced type: invoice mandatory, charges customer, replay honors catalog ref (AC1/AC2)', async () => {
+  test('invoiced type: charges customer, replay honors catalog ref (AC1/AC2)', async () => {
     const { user, driver, trip } = await mkDriverTrip();
+    // An offline-style caller may still type the number — it is stored.
     const body = {
       costType: DriverIncidentalCostType.OTHER, expenseTypeCode: 'FEE_CLEANING',
       amount: 250000, occurredAt: TODAY, invoiceNumber: 'card6-HD-1', invoiceDate: TODAY,
+      receiptStorageKey: await mkReceiptPhoto(trip.id, user.id),
     };
     const { cost, replayed } = await recordIncidentalCost(trip.id, driver.id, body, user.id, `card6-key-${suffix}-inv`);
     track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)); });
@@ -113,17 +124,31 @@ describe('card 20260921_6 - driver lot-cost classification', () => {
     assert.equal(replay.cost.id, cost.id);
   });
 
-  test('invoiced without invoice number is rejected (AC1)', async () => {
+  test('card 141026230700: an invoiced type saves WITHOUT a typed number once the biên lai photo exists', async () => {
+    const { user, driver, trip } = await mkDriverTrip();
+    // The driver surface dropped Số/Ngày hóa đơn; the photo is the paper and
+    // the customer-charge semantics are unchanged.
+    const { cost } = await recordIncidentalCost(trip.id, driver.id, {
+      costType: DriverIncidentalCostType.OTHER, expenseTypeCode: 'FEE_CLEANING',
+      amount: 250000, occurredAt: TODAY, receiptStorageKey: await mkReceiptPhoto(trip.id, user.id),
+    }, user.id, `card6-key-${suffix}-noinv`);
+    track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)); });
+    const [entryRow] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
+    assert.equal(entryRow.customerChargeAmount, '250000');
+    assert.equal(entryRow.invoiceNumber, null);
+  });
+
+  test('card 141026230700: a lot-bucket row without the biên lai photo is rejected', async () => {
     const { user, driver, trip } = await mkDriverTrip();
     await recordIncidentalCost(trip.id, driver.id, {
       costType: DriverIncidentalCostType.OTHER, expenseTypeCode: 'FEE_CLEANING',
       amount: 250000, occurredAt: TODAY,
-    }, user.id, `card6-key-${suffix}-noinv`).then(
+    }, user.id, `card6-key-${suffix}-nophoto`).then(
       () => { throw new Error('expected 400 rejection'); },
       (err: unknown) => {
         assert.ok(err instanceof ApiError, `expected ApiError, got ${(err as Error).name}`);
         assert.equal((err as ApiError).statusCode, 400);
-        assert.match((err as ApiError).message, /số hóa đơn/);
+        assert.match((err as ApiError).message, /ảnh biên lai/);
       },
     );
   });
@@ -133,6 +158,7 @@ describe('card 20260921_6 - driver lot-cost classification', () => {
     const { cost } = await recordIncidentalCost(trip.id, driver.id, {
       costType: DriverIncidentalCostType.OTHER, expenseTypeCode: 'WAREHOUSE_LABOR',
       amount: 120000, occurredAt: TODAY, invoiceNumber: 'card6-HD-should-be-dropped', invoiceDate: TODAY,
+      receiptStorageKey: await mkReceiptPhoto(trip.id, user.id),
     }, user.id, `card6-key-${suffix}-noinvoice`);
     track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)); });
     const [entryRow] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
@@ -145,6 +171,7 @@ describe('card 20260921_6 - driver lot-cost classification', () => {
     const withInvoice = await recordIncidentalCost(trip.id, driver.id, {
       costType: DriverIncidentalCostType.OTHER, amount: 60000, occurredAt: TODAY,
       invoiceNumber: 'card6-HD-legacy', invoiceDate: TODAY,
+      receiptStorageKey: await mkReceiptPhoto(trip.id, user.id),
     }, user.id, `card6-key-${suffix}-legacy-1`);
     track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, withInvoice.cost.id)); });
     const [withInvoiceRow] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, withInvoice.cost.id));
@@ -163,6 +190,7 @@ describe('card 20260921_6 - driver lot-cost classification', () => {
     const { cost } = await recordIncidentalCost(trip.id, driver.id, {
       costType: DriverIncidentalCostType.OTHER, expenseTypeCode: 'FEE_CLEANING',
       amount: 250000, occurredAt: TODAY, invoiceNumber: 'card6-HD-2', invoiceDate: TODAY,
+      receiptStorageKey: await mkReceiptPhoto(trip.id, user.id),
     }, user.id, `card6-key-${suffix}-confirm`);
     track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)); });
     const [source] = await db.select().from(s.expenseAccountingSources).where(and(
@@ -200,23 +228,27 @@ describe('card 20260928_163 — nâng / hạ / phí khác có HĐ ride ONE table
   ] as const;
 
   for (const { kind, code, feeName } of KINDS) {
-    test(`${kind} (${code}): bắt buộc số HĐ, thu khách = số tiền, chỉ vào phải thu sau khi KT xác nhận`, async () => {
+    test(`${kind} (${code}): thu khách = số tiền, phải có biên lai, chỉ vào phải thu sau khi KT xác nhận`, async () => {
       const { user, driver, trip } = await mkDriverTrip();
       const accountant = await mkAccountant();
 
+      // Card 141026230700 — the typed invoice number is no longer mandatory
+      // on the driver path; the biên lai photo is. A lot row without the
+      // photo is refused whatever its catalog class.
       await recordIncidentalCost(trip.id, driver.id, {
         costType: DriverIncidentalCostType.OTHER, expenseTypeCode: code, amount: 300000, occurredAt: TODAY,
-      }, user.id, `card163-${suffix}-${code}-noinv`).then(
-        () => { throw new Error(`${kind}: expected the invoice number to be mandatory`); },
+      }, user.id, `card163-${suffix}-${code}-nophoto`).then(
+        () => { throw new Error(`${kind}: expected the biên lai photo to be mandatory`); },
         (err: unknown) => {
           assert.ok(err instanceof ApiError, `${kind}: expected ApiError, got ${(err as Error).name}`);
-          assert.match((err as ApiError).message, /số hóa đơn/);
+          assert.match((err as ApiError).message, /ảnh biên lai/);
         },
       );
 
       const { cost } = await recordIncidentalCost(trip.id, driver.id, {
         costType: DriverIncidentalCostType.OTHER, expenseTypeCode: code, amount: 300000, occurredAt: TODAY,
         invoiceNumber: `card163-HD-${code}`, invoiceDate: TODAY,
+        receiptStorageKey: await mkReceiptPhoto(trip.id, user.id),
       }, user.id, `card163-${suffix}-${code}`);
       track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)); });
 

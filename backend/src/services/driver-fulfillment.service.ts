@@ -349,10 +349,12 @@ export async function insertDriverIncidentalCostTx(
     throw new ApiError(400, 'Chỉ chọn một nguồn phân loại: định mức hoặc loại phí trong danh mục.');
   }
   // Card 20260921_6: when the entry carries a catalog ref, invoiced-vs-no-invoice
-  // is DATA (requiresInvoice) — invoiced types must carry an invoice number and
-  // charge the customer; no-invoice types never charge, whatever the driver
-  // typed. Entries without a catalog ref keep the heuristic above unchanged
-  // (legacy enum-only entries and the offline app queue).
+  // is DATA (requiresInvoice) — the classification still drives the
+  // charge-the-customer side. Card 141026230700 removed the TYPED invoice pair
+  // from the driver surface ("bỏ số hóa đơn và ngày hóa đơn"): the biên lai
+  // photo is the paper and kế toán reads numbers off it at phơi phiếu, so the
+  // driver path no longer demands an invoice number. Legacy callers (offline
+  // queue) that still send one keep it stored.
   const [catalogType] = input.expenseTypeCode
     ? await tx.select({ name: s.forwarderExpenseTypes.name, requiresInvoice: s.forwarderExpenseTypes.requiresInvoice })
         .from(s.forwarderExpenseTypes)
@@ -367,9 +369,6 @@ export async function insertDriverIncidentalCostTx(
     throw new ApiError(400, `Loại phí "${input.expenseTypeCode}" không tồn tại hoặc đã ngừng hiệu lực — chọn lại loại phí trong danh sách.`);
   }
   const invoicedClass = catalogType?.requiresInvoice === true;
-  if (invoicedClass && !input.invoiceNumber?.trim()) {
-    throw new ApiError(400, 'Phí có hóa đơn phải kèm số hóa đơn.');
-  }
   // Card 20260928_165 — a fee whose supporting document is a hand-written
   // receipt cannot exist without that paper: the accountant files and settles
   // the phơi-phiếu row against it. Enforced HERE and not only in the driver
@@ -404,11 +403,24 @@ export async function insertDriverIncidentalCostTx(
       eq(s.tripPhotos.storageKey, input.receiptStorageKey), eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.uploadedBy, recordedBy)));
     if (!photo) throw new ApiError(400, 'Ảnh biên lai phải do bạn tải lên cho chuyến này.');
   }
+  // Card 141026230700 — "yêu cầu chụp biên lai nếu có phát sinh chi phí lô
+  // hàng": every lot-bucket row (DRIVER_SHIPMENT) carries its biên lai photo,
+  // Hóa đơn or Phiếu thu alike — the photo replaced the typed invoice pair as
+  // the driver's evidence. Road-bucket rows (tolls, norms) keep the optional
+  // photo contract. The bucket is the EFFECTIVE one: a fee norm pins its own
+  // costGroup (road), so a norm row without an explicit costGroup never falls
+  // into the lot bucket by the enum fallback. Enforced HERE so the form, the
+  // batch and the offline queue obey one rule; placed BEFORE the Phiếu-thu
+  // clause so every lot row answers with the same message whatever its kind.
+  const effectiveGroup = normClass ? (feeNorm!.costGroup as typeof group) : group;
+  if (effectiveGroup === 'DRIVER_SHIPMENT' && !input.receiptStorageKey) {
+    throw new ApiError(400, 'Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
+  }
   // Step 2 — "Phiếu thu" (cash receipt) IS the biên lai photo: a cash spend
   // cannot exist without its paper. Placed right after the photo-ownership
   // lookup above so one rule covers every caller (form, batch, offline queue)
-  // without an extra query. Rows without an evidence kind (road bucket, legacy
-  // queue) keep their old contract and are not touched by this rule.
+  // without an extra query. Lot rows are already covered above; this clause
+  // now guards a road-bucket row that claims a receipt kind.
   if (input.evidenceKind === 'RECEIPT' && !input.receiptStorageKey) {
     throw new ApiError(400, 'Chọn Phiếu thu thì phải chụp biên lai trước khi lưu.');
   }
@@ -436,7 +448,7 @@ export async function insertDriverIncidentalCostTx(
     // the one that actually reaches the row when a catalog type decides the
     // group. Both go through `receivableForDerivedCharge` so neither can drift.
     customerChargeAmount: String(normClass ? 0 : (invoicedClass ? receivableForDerivedCharge(input.amount) : (catalogType ? 0 : customerChargeAmount))),
-    invoiceNumber: normClass ? null : (invoicedClass ? input.invoiceNumber!.trim() : catalogType ? null : (input.invoiceNumber?.trim() || null)),
+    invoiceNumber: normClass ? null : (invoicedClass ? (input.invoiceNumber?.trim() || null) : catalogType ? null : (input.invoiceNumber?.trim() || null)),
     invoiceDate: normClass ? null : (catalogType && !invoicedClass ? null : (input.invoiceDate || null)),
     photoStorageKeys: input.receiptStorageKey ? [input.receiptStorageKey] : [],
   }).returning();

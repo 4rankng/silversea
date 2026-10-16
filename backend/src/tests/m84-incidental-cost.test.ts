@@ -39,6 +39,16 @@ const createdUserIds: number[] = [];
 const createdRouteIds: number[] = [];
 const createdCargoTypeIds: number[] = [];
 const createdCustomerIds: number[] = [];
+const createdPhotoIds: number[] = [];
+
+/** Card 141026230700 — lot-bucket incidental costs must carry a biên lai
+ *  photo; seed one owned by the recording user, mirroring the upload path. */
+async function mkReceiptPhoto(tripId: number, uploadedBy: number): Promise<string> {
+  const storageKey = `m84ic/receipt-${suffix}-${createdPhotoIds.length}.jpg`;
+  const [photo] = await db.insert(s.tripPhotos).values({ tripId, type: 'OTHER', storageKey, uploadedBy }).returning();
+  createdPhotoIds.push(photo.id);
+  return storageKey;
+}
 
 async function mkUserAndDriver() {
   const [u] = await db.insert(s.users).values({
@@ -102,7 +112,9 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
     const cat = await mkCatalogs();
     const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
     const key = `ic-${suffix}-${Math.random().toString(36).slice(2, 8)}`;
-    const body = { costType: DriverIncidentalCostType.LIFT_FEE, amount: 150000, occurredAt: TODAY };
+    // Card 141026230700 — LIFT_FEE falls in the lot bucket, so the row needs
+    // its biên lai photo before the write path accepts it.
+    const body = { costType: DriverIncidentalCostType.LIFT_FEE, amount: 150000, occurredAt: TODAY, receiptStorageKey: await mkReceiptPhoto(trip.id, user.id) };
     const first = await recordIncidentalCost(trip.id, driver.id, body, user.id, key);
     createdCostIds.push(first.cost.id);
     const replay = await recordIncidentalCost(trip.id, driver.id, body, user.id, key);
@@ -202,8 +214,9 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
     const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id, { status: 'COMPLETED' });
     // O2C: costs stay editable after COMPLETED. Formerly rejected with 409;
     // now allowed (the AR dirty-flag surfaces the change to reconciliation).
+    // FUEL lands in the lot bucket by the write-path fallback → photo needed.
     const result = await recordIncidentalCost(trip.id, driver.id,
-      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY }, user.id, `completed-${suffix}-${trip.id}`);
+      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY, receiptStorageKey: await mkReceiptPhoto(trip.id, user.id) }, user.id, `completed-${suffix}-${trip.id}`);
     assert.ok(result.cost, 'incidental cost recorded on a completed trip');
     createdCostIds.push(result.cost.id);
   });
@@ -238,7 +251,7 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
     const a = await recordIncidentalCost(trip.id, driver.id,
       { costType: DriverIncidentalCostType.PER_DIEM, amount: 200000, occurredAt: TODAY }, user.id, `timeline-a-${suffix}-${trip.id}`);
     const b = await recordIncidentalCost(trip.id, driver.id,
-      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY }, user.id, `timeline-b-${suffix}-${trip.id}`);
+      { costType: DriverIncidentalCostType.FUEL, amount: 300000, occurredAt: TODAY, receiptStorageKey: await mkReceiptPhoto(trip.id, user.id) }, user.id, `timeline-b-${suffix}-${trip.id}`);
     createdCostIds.push(a.cost.id, b.cost.id);
     const items = await listIncidentalCosts(trip.id, driver.id);
     assert.equal(items.length, 2);
@@ -251,6 +264,7 @@ after(async () => {
   try {
     if (createdCostIds.length > 0) await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.entityId, createdCostIds));
     if (createdCostIds.length > 0) await db.delete(s.driverIncidentalCosts).where(inArray(s.driverIncidentalCosts.id, createdCostIds));
+    if (createdPhotoIds.length > 0) await db.delete(s.tripPhotos).where(inArray(s.tripPhotos.id, createdPhotoIds));
     if (createdTripIds.length > 0) {
       await db.delete(s.tripContainers).where(inArray(s.tripContainers.tripId, createdTripIds));
       await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
