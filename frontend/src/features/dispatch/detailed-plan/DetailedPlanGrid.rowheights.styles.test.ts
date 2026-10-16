@@ -104,6 +104,23 @@ describe('DetailedPlanGrid uniform row-height contract (FB-043)', () => {
     expect(band).toMatch(/\.dispatch-assignment-cell__plate,[\s\S]*?\.dispatch-assignment-cell__driver,[\s\S]*?\{[\s\S]*?text-overflow:\s*ellipsis;/);
   });
 
+  it('scopes the assignment-cell band above the base rules it must beat', () => {
+    // FB-043 re-report (card 141026001010): the desktop band declared
+    // nowrap/ellipsis on bare class names — (0,1,0), exactly equal to the
+    // card-band base rules later in the file. Later source order won, so the
+    // band was dead code and the value lines wrapped and hard-clipped. The
+    // row height stayed correct (the parent clips at a fixed height), which
+    // is exactly why every pre-existing pin stayed green through the
+    // regression. Assert the band actually outranks what it overrides.
+    const band = editorCss.match(/@container\s*\(min-width:\s*901px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(band).toMatch(/\.dispatch-assignment-cell \.dispatch-assignment-cell__plate,/);
+    expect(band).toMatch(/\.dispatch-assignment-cell \.dispatch-assignment-cell__vehicle-group\s*\{[^}]*flex-wrap:\s*nowrap;/);
+    // Guard the regression directly: a bare-name selector in the band is the
+    // defect, so fail if one comes back.
+    expect(band).not.toMatch(/^\s*\.dispatch-assignment-cell__plate,/m);
+    expect(band).not.toMatch(/^\s*\.dispatch-assignment-cell__vehicle-group\s*\{/m);
+  });
+
   it('mounts the cell body from the component — every column renders through it', () => {
     const tsx = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx'), 'utf8');
     // One cell-body per data column: schedule, route, both ports, documents,
