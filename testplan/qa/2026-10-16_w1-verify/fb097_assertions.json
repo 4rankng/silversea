@@ -1,0 +1,46 @@
+{
+  "boardRows": 52,
+  "pageLoaded": true,
+  "targetTrip": {
+    "tripId": 78,
+    "bill": "BLEHPH260900002",
+    "driver": "Lương Văn Long",
+    "carrierSupplierId": null
+  },
+  "tienDuongDialog": "Chi tiết tiền đường BLEHPH260900002",
+  "drawerTitle": [
+    "Thêm khoản chi"
+  ],
+  "contractForm": {
+    "ghiChoKhoanChiAbsent": true,
+    "soHoaDonVisible": true,
+    "ngayHoaDonVisible": true,
+    "loaiPhiSelectPresent": true,
+    "ngayChiPresent": true,
+    "groupOptions": [
+      " ",
+      "Chi phí lô hàng",
+      "Tiền đường"
+    ]
+  },
+  "pickedLoai": "Tiền đường khác",
+  "supplierAutofill": {
+    "supplierValue": null,
+    "fallbackHint": true
+  },
+  "supplierManualPick": {
+    "ok": true,
+    "picked": "Công ty trả trực tiếp"
+  },
+  "afterSave": {
+    "drawerOpen": true,
+    "statusLine": true,
+    "nameCleared": true,
+    "dongButton": true,
+    "error": null
+  },
+  "persistedQaW1Refs": [
+    "QA-W1 phí tiền đường fixture"
+  ],
+  "persistedViaApi": true
+}
