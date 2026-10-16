@@ -1,354 +1,73 @@
-# FB-061 + W3b purge + FB-100 ruling — DONE, pushed (2026-10-16 ~10:45Z)
+# F-2 card 161026113900 — money boards read the override channel — DONE, local commits (2026-10-16 ~21:20Z)
 
-Controller: this session (Paseo agent), branch
-`fix/fb061-deleted-entities-and-carrier-purge` (base = origin/main `2888f77f`;
-staging was code-current at that hash). Owner instruction: three items, push
-after every green commit. Commits (in order, each pushed immediately):
-`af357f33` FB-061 code fix, `4ccb4438` FB-061 scrub evidence, `31c18c7b` W3b
-carrier purge, `31c18c7b..HEAD` FB-100 ruling note.
-
-- **ITEM 1 FB-061 (MAJOR) — FIXED (code) + SCRUBBED (data).** All five
-  customers/suppliers joins in `phoi-phieu-control.service.ts` now filter
-  `deleted_at`: board carrierCustomer/carrierSupplier, money-report THU
-  `trips.customer_id`, money-report TRA carrier masters, sibling
-  `getPhoiPhieuDeposit`. Deleted carriers render the designed fallback
-  'Đơn vị vận chuyển không còn trong danh mục'; deleted-customer money keeps
-  reporting under 'Chưa xác định'. Regression
-  `backend/src/tests/phoi-phieu-soft-delete-leak.test.ts` 4/4, red-green
-  proven (4/4 fail without the fix); sibling suites 62/62; card197 8/10 =
-  pre-existing failures verified identical with the fix reverted. Staging
-  scrub: `trip_carrier_info` id 28 entity link nulled (guarded UPDATE 1; plate
-  15H-021.39 + real lot EBKG18452303 intact) — board API on the PRE-fix build
-  already shows `carrierName: null`. Residual: money-report THU 'QA0915'
-  party closes when `af357f33` deploys (auto-ship owns deploy). Case:
-  `testplan/2026-10-16-fb061-deleted-entity-leak.md`; evidence
-  `qa/2026-10-16_fb061-fix_*`, `qa/2026-10-16_fb061-scrub_*`.
-- **ITEM 2 W3b carrier purge — DONE, TC PASS.** Read the census (25 = 18 real
-  + 7 `Nhà xe E2E <hex>`, ids 77-89 odd, created 2026-09-30), then purged
-  exactly those 7 via the governed admin API (soft-delete; one aborted 409
-  first attempt deleted NOTHING — ms-truncating version token, fixed to raw
-  ISO like the FE transport). After: 18 real carriers byte-identical, KH list
-  12 unchanged, CUS picker 9 clean; census re-run TC CUSTOMER-SEED-VISIBILITY
-  **PASS** on build `2888f77f`. Driver
-  `testplan/qa/scripts/fb061-w3b-carrier-purge.mjs`; record updated in
-  `testplan/2026-10-16-w3b-r20-verify.md`; evidence
-  `qa/2026-10-16_w3b-r20-verify/{carrier-purge_log.json,*_postpurge.*}`.
-- **ITEM 3 FB-100 DRAFT-gate NEEDS-INFO — DOCUMENTED, deliberately not
-  implemented.** After reading card 141026230770 + CPB-03/04 + the code and
-  its history (2026-09-15 streamline severed the APPROVED→RECORDED record
-  step; 2026-09-10 ruling 'phê duyệt removed — applies at creation'; PRD
-  OpsVanHanh §9.1 'không có duyệt cả phiếu của người thứ hai' vs CPB-03's
-  SHIPPED maker-checker for tạm ứng), the ticker's identity and money timing
-  are a business rule the specs leave genuinely open. Two options + ripple
-  lists + recommendation (Option B: tick on the live Ops submit + checkedBy at
-  create + remove the dead block) in
-  `testplan/2026-10-16-fb100-draft-gate-ruling.md` — owner to pick A or B.
-- Ops note: a `git stash pop` in this worktree briefly applied the shared
-  repo's pre-existing stash@{0} ('silversea-main-extras…', watchdog); fully
-  reverted via `git restore --source=HEAD`, stash entry untouched for its
-  owner. Root-lint failures on this head are pre-existing in untouched W1
-  verify scripts (proof appended in `qa/2026-10-16_fb061-fix_lint.log`).
-
----
-
-# W5+W4 staging QA verify — DONE, pushed (2026-10-16 08:35Z)
-
-Controller: this session (Paseo agent). Branch `qa/w5-w4-verify` (evidence
-commit pushed). Ran on staging `5a139108` (gate per phase; two records-only
-auto-ship re-cuts mid-morning were ride-throughs with 0 src-file diffs).
-Verdicts: FB-009/043/048/057 PASS (rung 3), FB-061 PASS-in-scope, W4
-tombstone BGX01-03 PASS (rung 3 + DB proof). **1 MAJOR finding (owner
-decision):** Kiểm soát phơi phiếu still prints soft-deleted QA entities on 2
-rows via unfiltered joins (`STG VERIFY NHA XE 09` on real lot EBKG18452303 —
-customers id 23 deleted 2026-10-04, reached via trip_carrier_info id 28;
-`QA0915 QA-138 Credit Customer` on the money-report table). Remedies: board
-query deleted_at filter (behaviour change) or scrub trip_carrier_info id 28.
-Record `testplan/2026-10-16-w5-w4-verify.md`; evidence `qa/2026-10-16_w5w4_*`;
-drivers `testplan/qa/scripts/w5w4-*.mjs`. Fixtures: 12 pricing sentinels
-tombstoned, 0 live; qapurge-dry census shows 53 pre-existing QA rows on other
-surfaces (NOT purged — owner-gated). Staging was not re-cut by this run.
-
----
-
-# STAGING STATE (auto-ship, 2026-10-16 ~07:12Z) — staging is CODE-CURRENT, no deploy needed
-
-# Shipped-waves QA verify — 4 waves re-driven on staging, 21 PASS / 0 FAIL (2026-10-16)
-
-- Branch `qa/shipped-waves-verify-1016` (base ae419e3d). Waves (a) UI-audit-1
-  c5f1cd3e, (b) W5 fb-regressions 7c44a1fd, (c) kanban-1016b a6ba72c5,
-  (d) W3a-r17 ae419e3d — all PASS per their own QA records; record:
-  `testplan/2026-10-16-shipped-waves-verify.md`, evidence `qa/1016-shipped/`.
-- Build gate: staging re-cut mid-run ae419e3d→7dcdcf33 (deploy-hold actor);
-  continued on 7dcdcf33 — a verified superset with an EMPTY diff on every
-  tested surface; every phase asserted buildHash before driving.
-- 0 product defects → 0 fix commits. Raw-log FAILs are driver bugs
-  (FB-057 focus persistence, FB-085 select-all), corrected + re-driven PASS.
-- Local pins at HEAD: FE 49+7+145, BE 18+3+18 — all green.
-- Sweep clean: ?q=QAW16/QAW3A/QAWU200 → 0. No merge, no deploy (Hermes).
-
-# Kanban wave 1016b — five IN_PROGRESS cards verified on main (2026-10-16)
-
-Staging vantai.tingting.vip runs buildHash `7dcdcf33` (= main incl. W1
-ketoan+cham-cong; images built 06:54-06:55Z by a parallel process — likely the
-Muse-QA agent deploying main itself). main (aa3e7ba3) is ahead ONLY by
-QA-evidence files + these notes — ZERO source diff, do NOT `make demo` again
-while QA runs are in flight. In flight vs staging: paseo 99f8bdb (Muse QA 4
-shipped waves, cut over ae419e3d→7dcdcf33 mid-run ~06:58Z — its post-cutover
-evidence is against 7dcdcf33, pre-cutover against ae419e3d) and d540efb (w3b
-r20 retests, started on ae419e3d — check its buildHash note in findings).
-NEXT: when 99f8bdb is done → dispatch W1 Muse QA on staging (buildHash must be
-7dcdcf33+; testplan/2026-10-16-card141026*, role accounts
-testplan/testaccounts.txt, Idempotency-Key on every write, clean fixtures).
-
-# Kanban wave 1016c — same five cards: re-run evidence, one commit per card (2026-10-16)
-
-- Controller: this session (Paseo agent). Branch `feat/kanban-wave-1016c`, cut
-  from origin/main @ `ae419e3d`. Five commits (one per card), pushed after each
-  green one — the batching death of the two prior 1016c lanes is why. No code
-  changes: every card's behavior was already on main (1016b wave and each
-  card's original dispatch). This wave landed only §6/§7 re-run evidence.
-- Per card (commit · gates):
-  - QA2-005 `qa2-005` commit · FE tsc 0 · ShipmentsPage 135/135 · BE tsc 0 ·
-    cus-record-search 6/6 · shared cus-shipment-workspace 18/18.
-  - FB-066 `fb066` commit · FE tsc 0 · TripInfoCard.quick-add 5/5.
-  - FB-083 `fb083` commit · FE tsc 0 · label pins 2/2 (asterisk-contract +
-    ClerkShipmentCreatePage, `-t "Ngày giao hàng"`).
-  - FB-084 `fb084` commit · FE tsc 0 · asterisk+model 27/27 · BE tsc 0 ·
-    shipment-intake-lcl-cargo 3/3.
-  - FB-085 `fb085` commit · FE tsc 0 · declarations+ledger 53/53 · BE tsc 0 ·
-    cus-container-declaration-wire 6/6.
-- Rung: ≤2 this wave (pins executed, no UI drive); rung-3 evidence for all five
-  lives in `qa/2026-10-16_w3a-r17-verify/` and `qa/2026-10-14_fb066-*` from the
-  earlier drives. Card .docx were unreadable (0-byte stubs; Drive IN_PROGRESS
-  empty) — scope reconstructed from dispatcher summaries + testplan records.
-
-# Wave W1 ketoan + chấm công — DONE, pushed (2026-10-16)
-
-- Controller: this session (Paseo agent). Branch `feat/w1-ketoan-chamcong`
-  (tracking origin; auto-ship takes it from here). 9 cards = 9 FB commits,
-  all pushed.
-- Goal: backlog wave W1 (cards 141026230730…230810 from `.backlog-cards/`).
-  Status: DONE per user gate contract (FE tsc + scoped vitest per commit,
-  BE tsc when touched). UI NOT driven in a browser (§9 rung ≤2).
-- Commits: 48ed1fe1 FB-096 · d57c6b53 FB-097 · d49b0920 FB-098 · 8221fccc
-  FB-099 · 4ee08710 FB-100 · f2c413fc FB-101 · 4685f0ca FB-102 · fc537cb1
-  FB-103 · 8907f766 (Hermes salvage snapshot of FB-104 mid-flight) +
-  1623de28 FB-104 finish.
-- Sources: 7/9 card docx on the SSD were 0-byte truncations; specs read from
-  the Google Drive originals (`My Drive/SilverSea/Kanban/TODO/*.docx`).
-  `testplan/2026-10-16-card141026*` cases record per-card contract+status.
-- Decisions: FB numbering continues the kanban sequence (FB-096…104).
-  `tsc --noEmit=0` (user's literal gate) is TS5025-invalid → repo gates used
-  (`frontend npx tsc -b`, `backend npx tsc --noEmit`). FB-104 Excel image
-  unavailable → màu ô (xanh K/Q/Đ, vàng Chủ nhật+lưu ca, đỏ N/P), "Số chuyến
-  quay đầu = 2×Q", "Tỷ lệ % = kẹp/tổng lệnh ngày" documented in the case.
-- Known pre-existing (untouched): shared `computeFifoAging` 10 failing tests
-  at base (verified fail identically with FB-100's schema change stashed).
-- Next for Hermes: merge/auto-ship; if the customer's Excel image contradicts
-  the FB-104 mapping, it changes in one place (`cellClass`/`perDay` in
-  TimesheetMonthlyReportPage.tsx).
-
----
-
-# W4 ops/chiphí/bảng giá — wave handoff (2026-10-16)
-
-Controller: this session (Paseo agent), branch `feat/w4-ops-chiphi-banggia`
-(cut from the W3a verify head `ae419e3d`). Seven cards dispatched; six card
-.docx files arrived 0-byte at 14:02 (content never synced), one readable.
-
-## Per-card outcome
-
-| Card | Status | Evidence |
-|---|---|---|
-| 161026121500 bảng giá xóa rồi thêm lại báo trùng ảo | FIXED, rung 3 | commit (this wave); `testplan/2026-10-16-bang-gia-xoa-roi-them-lai.md`; `qa/2026-10-16_bang-gia-tombstone_*` |
-| 161026095800 bảng giá không thêm được theo loại xe | ALREADY ON MAIN (F-1) | fix `b9b22bf9` merged via `0ca5b428`; regression pin `backend/src/tests/pricing-table-selector-axis.test.ts` header names this ticket; FE page test 4/4 this wave |
-| 161026113900 F-2 LCL merge money channel owner ruling | DOCUMENTED, no implementation | question below; `testplan/2026-10-16-lcl-cost-closed-loop.md` §F-2 |
-| 141026230700 driver chi phí lô hàng tiền đường redesign | BLOCKED — card 0 bytes | needs the card's UI spec; do not redesign from a title |
-| 141026230710 ops không khai được chi phí lô hàng | BLOCKED — card 0 bytes | TC-B2 (`testplan/2026-10-16-lcl-cost-closed-loop.md`): OPS GET /api/shipments 403 is the FB-033 owner ruling (2026-10-12, `016b0d0b`): Khai-chi-phí dialog stays OPS-only per-vehicle scope. Reopening an owner ruling requires the card text. |
-| 141026230720 ops khai chi phí tất cả + cảnh báo trùng | BLOCKED — card 0 bytes | title reads as an FB-033 scope change (declare for ALL lots) — owner decision, card unreadable |
-| 161026100400 lô lẻ chưa gắn xe không hiện kế hoạch chi tiết xe | BLOCKED — card 0 bytes | FB-092 spec (`testplan/2026-10-15-fb092-*.md`) defines unassigned display as bare `Lẻ`; exact repro/expected unknown without card |
-
-## F-2 owner ruling still open (money logic — affects FCL too)
-
-FB-093 merge writes the 100%/0đ jump to `trip_financial_state.revenue`, but
-both money boards read other channels: CUS "Chi phí - Quyết toán" reads
-`freightAuto` ← `freight_rate_snapshots`; Kế toán "Kế hoạch điều động tổng
-hợp" reads `thu.cuocThu` ← trip legs `freight_amount`. After a merge the
-boards keep each lot's own AUTO freight; spec §3.2/§4 display law (Lô 1 =
-100%, members 0₫ + "Ghép cước cùng Bill") is not reflected on money
-columns. Decision needed between:
-(a) merge writes snapshot overrides,
-(b) boards read the override channel (`trip_financial_state.revenue`),
-(c) snapshot recapture on merge.
-Related minor F-4 (no card): trip GET omits `revenueOverrideReason` —
-one-line select addition when an operator surface for the zero reason is
-wanted. Routed for owner/Hermes; nothing implemented this wave.
-
-## The fix that landed (161026121500)
-
-Defect class: pricing-catalog CRUD soft-deletes rows and every app guard
-excludes tombstones, but five DB unique indexes still counted them —
-delete → re-add passed the guard and failed the INSERT (phantom duplicate).
-Sweep (5 indexes): `pricing_tables` ×3, `road_allowances`, `lift_pricing`
-gained `deleted_at is null` predicates (schema + migration
-`20261016143000_pricing_tombstone_unique_idx`, journal idx 150, house
-hand-SQL pattern). `carrier_route_pricing` ×2 and `port_zone_surcharges`
-already had the law and are pinned unchanged. No money calculation
-changed — uniqueness only; live-row duplicate protection intact (BGX02
-DB + UI both prove the 409 path).
-
-Gates: BE tsc 0 · BE unit (new pin) 5/5 · FE tsc 0 · FE scoped vitest
-(PricingTablesConfigPage.vehicle-class) 4/4 · root lint 0 errors ·
-make build 0. Full `pnpm test` is BANNED on this host (hangs 40+ min on
-the shared DB — owner instruction 2026-10-16); scoped files only. Two
-partial full-suite runs (pre- and post-migration) failed with IDENTICAL
-failure sets (card10-ops-review AC1, card197 negative-amount validators,
-CUS container-flat projection, E2E dispatch/financial, customer account
-linkage) — pre-existing on this branch head/shared-DB state, no code-path
-overlap with the index predicates (assertion mismatches in unrelated
-listings, not insert failures). Not fixed in this lane (unrelated to the
-card; owner scoped the gates). UI rung 3: create → delete → re-create
-same selector on /config/pricing-tables as admin — SUCCESS; real
-duplicate still blocked; screenshots + DOM + DB rows + driver log in
-qa/2026-10-16_bang-gia-tombstone_*.
-
-## Environment notes for the next session
-
-- Shared dev containers `ss-prod-db`/`ss-prod-redis` were already up;
-  `make dev` fails on container-create — start backend/frontend directly
-  (PORT=3002 / vite 7175) and reuse :5441/:6391.
-- Fresh worktree needs `pnpm install --prefer-offline` +
-  `pnpm --dir shared build` before any gate.
-- Puppeteer lesson (cost ~20 min): `page.evaluate` serializes a RegExp
-  argument to `{}`; `new RegExp({})` becomes a `[object Object]` character
-  class that matches almost anything — pass regex SOURCE as a string.
-  Also use `{ polling: 120 }` on waitForFunction in headless tabs (rAF
-  polling stalls on occluded pages).
-
-## Wave status (final)
-
-- 161026121500: FIXED, rung 3, committed + pushed per-ticket.
-- 161026095800: already on main (F-1 `b9b22bf9`), verified this wave.
-- 161026113900 (F-2): owner ruling documented, nothing implemented.
-- Four 0-byte cards (141026230700/710/720, 161026100400): UNBLOCKED and
-  resolved the same day — see the W4b section below (2 implemented, 2 →
-  FB-033 owner ruling; cards stay in Kanban/TODO until (a) is answered).
-- Backend full `pnpm test` HANGS on this host (40+ min on the shared
-  ss-prod-db, owner-killed twice) — run scoped test files with explicit
-  timeouts only. Pre-existing failures to be aware of on this branch head:
-  card10-ops-review.test.ts (AC1), card197-negative-cost-totals.test.ts
-  (validators + phoi-phieu), CUS container-flat projection, both E2E
-  dispatch/financial suites, customer account linkage.
-# W4b ops/chi-phí — 4 blocked cards unblocked (2026-10-16, this wave)
-
-Controller: this session (Paseo agent), branch `feat/w4b-ops-chiphi-cards`,
-cut from `e717d2cb` (= origin/main after W4's tombstone merge). All four W4
-0-byte cards re-read from the Google Drive originals
-(`My Drive/SilverSea/Kanban/TODO/*.docx` — all four readable this time).
-Every green commit pushed immediately (never batched). auto-ship owns
-merge/deploy/QA from here.
-
-## Per-card outcome
-
-| Card | Status | Evidence |
-|---|---|---|
-| 141026230700 driver chi phí lô hàng/tiền đường redesign | IMPLEMENTED · commit `fc72763a` | `testplan/2026-10-16-card141026230700-driver-chiphi-hai-bang.md`; FE tsc 0 + vitest 48/48 (4 files) · BE tsc 0 + tsx 38/38 (5 files); `qa/2026-10-16_card141026230700_*` |
-| 161026100400 lô lẻ chưa gắn xe không hiện Kế hoạch Chi tiết Xe | FIXED (real defect, no FB-092 conflict) · commit `7580ff32` | `testplan/2026-10-16-card161026100400-lo-le-chi-tiet-xe.md`; BE tsc 0 + tsx 133/133 (new pin 2/2 + board suites + create-path sweep); `qa/2026-10-16_card161026100400_*` |
-| 141026230710 ops không khai được chi phí lô hàng (P1) | NOT IMPLEMENTED — FB-033 owner ruling, question below | facts below; `testplan/2026-10-16-lcl-cost-closed-loop.md` TC-B2 |
-| 141026230720 ops khai chi phí tất cả + cảnh báo trùng | NOT IMPLEMENTED — same ruling; the duplicate-warning HALF is already on main | facts below |
+Controller: this session (Paseo agent), branch `fix/f2-money-override-read-r2`
+(worktree-isolated; NOT pushed/merged/deployed — Hermes consolidates).
 
 ## What landed
 
-### 141026230700 — driver trip-end costs, 2 tables (rung ≤2: pins + service
-integration; UI not driven in a browser)
+Owner ruling option (b) implemented: the two money boards read the override
+channel `trip_financial_state.revenue` for the CƯỚC THU columns so FB-093's
+100%/0₫ merge jump and FB-095's transfer aftermath reach the boards.
 
-Already on main before this wave (verified, not re-done): payer selector gone
-(card 20261005), system rows locked (ROAD_ALLOWANCE + LIFT_DROP_ZONE: driver
-cannot create, saved rows view-only), continuous draft-table add with one
-"Lưu tất cả" save.
+Read law (ONE shared helper, `backend/src/services/revenue-override-read.service.ts`):
+per lot, cước thu = Σ live-trip `trip_financial_state.revenue` (direct or
+fulfillment link, active scope — FB-093's own attribution) when the lot is
+**LCL** and (in a REV group OR any live trip override-stamped); otherwise the
+historical freight-snapshot grain byte-for-byte. LCL-only scope is the review
+C1 hardening: FCL can never flip (groups are LCL-only; operator M2.1 stamps on
+FCL stay snapshot — pinned F2-05 BE).
 
-This wave: the section now renders TWO always-visible tables — "Chi phí lô
-hàng" and "Tiền đường" (legacy rows without costGroup follow the write path's
-TOLL/PARKING/PER_DIEM fallback); lot-cost draft rows carry two small toggle
-buttons Hóa đơn / Phiếu thu (≤40px, house `btn--sm`) replacing the "Loại chứng
-từ" dropdown; the typed Số/Ngày hóa đơn pair is GONE from the driver surface
-(payload never sends it; the biên lai photo is the paper, kế toán reads
-numbers at phơi phiếu); the biên lai photo is now MANDATORY for every lot
-cost (FE blocks the save + reminder, BE refuses `DRIVER_SHIPMENT` rows
-without `receiptStorageKey` — effective after the norm override so fee-norm
-road rows stay exempt); the dead "Tiền tuyến đã thỏa thuận" option (BE 400s
-driver-sent ROAD_ALLOWANCE since 20261005) left the picker. Contract note:
-card 20260921_6/163's "invoiced types must carry a typed invoice number" is
-superseded ON THE DRIVER PATH by this newer card — customer-charge semantics
-unchanged; offline callers still sending a number keep it stored.
+- CUS "Chi phí - Quyết toán" (`shipment-debit-summary.service.ts`):
+  `freightAuto` + the receivable addend + profit use ONE effective freight;
+  row exposes `freightOverrideReason` (shared zod schema + FE type). Locked
+  lots keep the frozen receivable (card _19).
+- Kế toán "Kế hoạch điều động tổng hợp" (`accounting-debit-close.service.ts`):
+  `thu.cuocThu` switches (feeds tongThu/loiNhuan); `phuPs` stays snapshot.
+- FE: note under the Cước vận tải (Auto) cell per spec §3.2 (desktop
+  `ShipmentDebitPage.tsx` + phone `ShipmentDebitRecords.tsx` via
+  `freightFact`; CSS `shipment-debit-row__freight-note`).
+- F-4 riding minor: `getTripById` selects `revenueOverrideReason` (+ optional
+  field on shared `Trip` type) so an operator surface can show the zero reason.
 
-### 161026100400 — born-ready LCL lots were invisible (rung ≤2: service
-integration; no UI change)
+TRẢ side needed no change: both boards already read
+`trip_carrier_info.external_freight_cost` (the channel FB-092 zeroes).
 
-The card reports inconsistency, NOT an FB-092 conflict — FB-092's display law
-(unassigned LCL row renders bare `Lẻ`) is what the card wants enforced, so
-this was fixed, not closed. Root cause: `createShipmentTx` never decomposed
-fulfillments, and a lot born READY_FOR_DISPATCH (dates at intake) never
-passes the `becomesReady` branch where BUG 5 fixed decomposition; the detail
-plan's fulfillment-less union branch inner-joins containers, and LCL lots own
-none — so an undecomposed LCL lot was invisible until any later write
-decomposed it. Fix mirrors becomesReady: born-ready LCL decomposes in the
-create transaction. Documented residual (not fixed, next pass if owner wants):
-PRE-FIX stuck LCL lots still need one write to surface (union branch is
-FCL-only by the 9e design; extending it needs a shipment-keyed page-key arm);
-FCL born-ready keeps the union-branch contract.
+## Commits (local, not pushed)
 
-## FB-033 owner ruling — cards 141026230710 (P1) + 141026230720
+- `b859d0b8` — code + tests (a consolidator WIP snapshot taken mid-flight at
+  21:12:50 AFTER all gates were green on the identical tree; could not be
+  re-split per-ticket without history rewrite — banned. Content = final
+  reviewed state, verified by `git diff` against the working tree).
+- `f4021c53` — testplan records completion (read law, review resolution,
+  case results).
 
-NOT implemented; per TC-B2 these reopen an owner ruling. Facts on main
-(`e717d2cb`) so the question is answerable without digging:
+## Gates (final content)
 
-1. What the cards ask (710): "Ops khai được chi phí MỌI lô hàng (yêu cầu T3:
-   không chia theo cá nhân/xe)". Repro blockers the card hit: (a) OPS opens
-   `/shipments` → 403 "Bạn không có quyền truy cập trang này" — role OPS has
-   deliberately NO shipments policy row (`backend/src/casbin/policy.csv`,
-   comment "CUSTOMER/DRIVER/OPS are deliberately absent"); (b) the per-vehicle
-   grant refusal inside the khai-chi-phí dialog ("Lô này không thuộc xe bạn
-   phụ trách") is ALREADY GONE — landed with card 071026210510 / the
-   20261005 batch; regression-pinned absent in
-   `frontend/src/features/ops/OpsExpenseFormModal.containers.test.tsx`
-   ("plan step 5 — open Ops scope").
-2. What already works: `/ops/orders` ("Kế hoạch làm hàng", OPS-only) lists
-   EVERY lot company-wide by expected delivery date — not per-vehicle — and
-   every row has "Khai chi phí"; any Ops can save on any lot (open scope).
-3. 720's duplicate-warning half is ALREADY on main since `2a64156f`
-   (20261005 batch): picking a cont another Ops already declared shows
-   "Cont {số} đã có {tên Ops} nhập trước — bạn vẫn tiếp tục nhập chứ." —
-   warning-only, Lưu stays enabled; lot-wide fees (Phí chung lô, no cont)
-   never warn by design (pinned in the same file).
-
-**Ruling question for the owner:**
-(a) Có cấp role OPS đọc `/api/shipments` (+ trang /shipments và
-/shipments-detail để vào "kế hoạch công việc" của lô rồi bấm Khai chi phí
-ngay trên lô), hay giữ FB-033 status quo — Ops khai chi phí chỉ qua
-`/ops/orders` (Kế hoạch làm hàng), vốn đã là danh sách công ty không chia
-xe? Việc cấp policy `read shipments` cho OPS là thay đổi RBAC ảnh hưởng mọi
-màn đọc lô (dashboard, tìm kiếm, workboard) — không tự quyết được.
-(b) 720 sau khi (a) được duyệt: phần "cảnh báo trùng" đã có sẵn per-CONT;
-còn "chọn toàn bộ số cont" / Phí chung lô hiện KHÔNG cảnh báo theo thiết kế
-— có cần nâng cảnh báo lên mức lô không, hay per-CONT là đủ?
-
-Both Drive cards stay in `Kanban/TODO/` for the owner — do not dispatch them
-again until (a) is answered.
-
-## Gates run this wave (per commit, before each push)
-
-- `fc72763a`: FE `npx tsc -b` = 0 · FE vitest 4 files 48/48 · BE
-  `pnpm exec tsc --noEmit` = 0 · BE `pnpm exec tsx --test` 38/38 across
-  card6/card164/m84/card7/card165 · pre-commit hook green.
-- `7580ff32`: BE tsc 0 · BE tsx 133/133 (new pin 2/2, dispatch-detail-plan
-  88, create-path consumers 43) · FE untouched.
+BE tsc 0 · `lcl-grouping.test.ts` 23/23 (4 new F-2 cases + FCL guard) ·
+board siblings + consumers + m21 51/51 · FE `tsc -b` 0 · FE vitest 4 files
+38/38 · shared build/tsc 0 · root lint errors pre-existing in untouched W1
+verify scripts (identical on stashed base). Evidence:
+`qa/2026-10-16_f2-override-read_*`, `qa/2026-10-16_f4-trip-get-reason_*`.
+Independent code review: 7/7 hard constraints PASS; C1/C2/C3/C4/C6 applied,
+C5 documented residual. Case record:
+`testplan/2026-10-16-card161026113900-f2-money-override-read.md`.
 
 ## Verification coverage
 
 | Claim / bug | Rung | Evidence | Not covered |
 |---|---|---|---|
-| 141026230700 two tables + ticks + mandatory biên lai + no typed invoice (FE) | CODE-READ + component tests (rung ≤2) | `qa/2026-10-16_card141026230700_fe-vitest.log` (48/48) | No browser drive at 390/768/1440; driver role only; upload path mocked in tests; error/rollback path (failed upload retry) not re-driven |
-| 141026230700 BE lot-photo rule + invoiced-without-number accepted | DB/API VERIFIED | `qa/2026-10-16_card141026230700_be-test.log` (38/38, real DB) | Offline-queue caller not exercised; accounting surfaces untouched |
-| 161026100400 born-ready LCL visible immediately | DB/API VERIFIED | `qa/2026-10-16_card161026100400_be-test.log` (pin 2/2: fulfillment row + board row + UNASSIGNED count) | UI not driven (no browser click on Kế hoạch Chi tiết Xe); pre-fix stuck lots not backfilled; staging not touched |
-| 710/720 ruling facts (403, open modal scope, warning text) | CODE-READ ONLY | policy.csv, OpsExpenseFormModal.containers.test.tsx, HANDOFF refs | No staging re-drive this wave (TC-B2 2026-10-16 is the last rung-2 evidence) |
+| Merged boards show Lô 1 = 100% lane price, member 0₫ + reason (CUS + Kế toán) | DB/API VERIFIED (service + real DB) | `qa/2026-10-16_f2-override-read_be-lcl-grouping.log` 23/23 | UI not driven in a browser (no rung-3 click on either board); staging not touched; locked-lot live-column mix pre-existing |
+| FB-095 unmerge keeps boards on the override channel (stamp) | DB/API VERIFIED | same log, F2-03 | delete-principal path pinned only at service level (existing FB095-06) |
+| Unqualified lots byte-identical + stamped FCL stays snapshot | DB/API VERIFIED | same log, F2-04/F2-05 BE | multi-leg FCL lots not fixture-tested |
+| FE note under freight cell | CODE-READ + component tests | `qa/2026-10-16_f2-override-read_fe-vitest.log` 38/38 | No browser drive at 390/768/1440; phone variant covered via shared freightFact contract only |
+| F-4 trip GET returns revenueOverrideReason | DB/API VERIFIED | `qa/2026-10-16_f4-trip-get-reason_be-m21.log` 6/6 | No FE consumer exists yet (by design) |
+
+## Residuals / next for Hermes
+
+- **C5 follow-up card needed**: `customer-debt-summary.service.ts` still reads
+  the snapshot freight channel (third reader of the same defect class,
+  outside this card's two-board ruling scope) — merged-lot receivable can
+  desync between boards and the debt report until it reads the same channel.
+- Rung-3 UI drive of both boards with a merged pair (local or staging) still
+  open; services are rung-2 verified on the real DB.
+- Local commits only — merge/push/deploy owned by Hermes per task contract.
