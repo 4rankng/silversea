@@ -5,7 +5,7 @@
 // verbatim (pure code movement); leaves import these one-way.
 import { db } from '../db';
 import * as s from '../db/schema';
-import { inArray, eq } from 'drizzle-orm';
+import { inArray, and, eq, isNull } from 'drizzle-orm';
 import { canonicalFreightDescription } from '@tingting/shared';
 import type { BillingDocumentLine, DebitNoteTemplateColumn } from '@tingting/shared';
 import {
@@ -172,6 +172,70 @@ export function renderColumnValue(line: BillingDocumentLine, col: DebitNoteTempl
   }
 }
 
+/** FB-094 / cards 161026232429: frozen Debit Note lines issued before the plate
+ *  fix carry no renderData and no sourceId, so the BKS / loại xe cells rendered
+ *  empty. Resolve them at render time through the document's OWN lot claims
+ *  (debit_note_lots): a single-lot note by identity, a multi-lot consolidated
+ *  note by the lot code the frozen builder stamped into the description.
+ *  Anything unresolved is left untouched — never a guessed plate. */
+type LegacyFrozenLotRenderInfo = { truckPlate: string | null; vehicleType: string | null };
+
+async function loadLegacyFrozenLotRenderInfo(
+  lines: readonly BillingDocumentLine[],
+): Promise<Map<number, Map<string, LegacyFrozenLotRenderInfo>>> {
+  const byDocument = new Map<number, Map<string, LegacyFrozenLotRenderInfo>>();
+  const documentIds = [...new Set(lines
+    .filter((line) => line.sourceType === 'ADHOC' && !line.renderData && line.documentId != null)
+    .map((line) => Number(line.documentId))
+    .filter((id) => Number.isFinite(id) && id > 0))];
+  if (documentIds.length === 0) return byDocument;
+  const rows = await db.select({
+    documentId: s.debitNoteLots.documentId,
+    shipmentId: s.debitNoteLots.shipmentId,
+    shipmentCode: s.shipments.shipmentCode,
+    billingTruckNo: s.shipments.billingTruckNo,
+    revVehicleClassName: s.vehicleSizeClasses.name,
+    revVehicleClassCode: s.vehicleSizeClasses.code,
+  }).from(s.debitNoteLots)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.debitNoteLots.shipmentId))
+    .leftJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.shipments.revVehicleClassId))
+    .where(and(
+      inArray(s.debitNoteLots.documentId, documentIds),
+      isNull(s.debitNoteLots.releasedAt),
+    ));
+  for (const row of rows) {
+    const info: LegacyFrozenLotRenderInfo = {
+      truckPlate: row.billingTruckNo?.trim() || null,
+      vehicleType: row.revVehicleClassName ?? row.revVehicleClassCode ?? null,
+    };
+    let lots = byDocument.get(row.documentId);
+    if (!lots) {
+      lots = new Map();
+      byDocument.set(row.documentId, lots);
+    }
+    // Both keys the frozen builder can name a lot by: the lot code, or its id.
+    lots.set(row.shipmentCode ?? String(row.shipmentId), info);
+    lots.set(String(row.shipmentId), info);
+  }
+  return byDocument;
+}
+
+const FROZEN_LOT_CODE_IN_DESCRIPTION = /— lô (\S+) \(chốt từ snapshot khóa lô\)\s*$/;
+
+function legacyFrozenLotInfo(
+  line: BillingDocumentLine,
+  byDocument: Map<number, Map<string, LegacyFrozenLotRenderInfo>>,
+): LegacyFrozenLotRenderInfo | null {
+  const lots = line.documentId != null ? byDocument.get(Number(line.documentId)) : undefined;
+  if (!lots) return null;
+  const lotCodes = [...new Set(lots.keys())];
+  if (lotCodes.length === 0) return null;
+  const lotCode = FROZEN_LOT_CODE_IN_DESCRIPTION.exec(line.description)?.[1];
+  if (lotCode) return lots.get(lotCode) ?? null;
+  // No lot code in the description (single-lot note): only one lot can own it.
+  return lots.size === 1 ? lots.get(lotCodes[0]!) ?? null : null;
+}
+
 export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]): Promise<BillingDocumentLine[]> {
   const normalizedLines = lines.map((line) => ({
     ...line,
@@ -201,7 +265,15 @@ export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]
     ...directTripIds,
     ...expenseTripRows.map((row) => row.tripId),
   ]));
-  if (tripIds.length === 0 && expenseById.size === 0) return normalizedLines;
+  const legacyLotRenderInfo = await loadLegacyFrozenLotRenderInfo(normalizedLines);
+  if (tripIds.length === 0 && expenseById.size === 0) {
+    return normalizedLines.map((line) => {
+      const lotInfo = line.renderData || line.sourceType !== 'ADHOC'
+        ? null
+        : legacyFrozenLotInfo(line, legacyLotRenderInfo);
+      return lotInfo ? { ...line, renderData: { ...lotInfo } } : line;
+    });
+  }
 
   const trips = await db.select({
     id: s.tripsComposite.id,
@@ -254,6 +326,12 @@ export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]
           documentCode: line.renderData.documentCode ?? documentCode,
         },
       };
+    }
+    // Legacy frozen lot lines (issued before FB-094): the plate/class come from
+    // the document's own lot claim, not from a guess.
+    if (line.sourceType === 'ADHOC') {
+      const lotInfo = legacyFrozenLotInfo(line, legacyLotRenderInfo);
+      return lotInfo ? { ...line, renderData: { ...lotInfo } } : line;
     }
     if (!line.sourceId) return line;
     const tripId = line.sourceType === 'TRIP'

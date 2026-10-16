@@ -1,6 +1,15 @@
-import type { BillingDocumentLine } from '@tingting/shared';
+import type { BillingDocumentLine, BillingLineRenderData } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { calculateVatSnapshot } from './billing-document-shared.service';
+
+/** FB-094 (card 161026232429): what the customer-facing Debit Note must print
+ *  per lot — the BKS báo khách ("xe ảo") and the THU billing class. Resolved by
+ *  the caller from the live lot; never from the frozen money snapshot (a plate
+ *  or class rename must not need a re-lock, and BKS is not a money value). */
+export type FrozenDebitLotRenderInfo = {
+  billingTruckNo?: string | null;
+  vehicleType?: string | null;
+};
 
 /** Read only frozen amounts. A null customer total is unknown, not zero. */
 function frozenMoney(snapshot: Record<string, unknown>, key: string): number | null {
@@ -19,10 +28,19 @@ function frozenMoney(snapshot: Record<string, unknown>, key: string): number | n
 export function buildFrozenShipmentDebitLines(
   snapshot: Record<string, unknown>,
   lotCode: string,
+  lot: FrozenDebitLotRenderInfo = {},
 ): BillingDocumentLine[] {
   const freight = frozenMoney(snapshot, 'freightAuto') ?? 0;
   const receivable = frozenMoney(snapshot, 'receivableTotal');
   const lines: BillingDocumentLine[] = [];
+  // FB-094 §II.4: the file's Biển số xe column is the BKS báo khách and the
+  // Loại xe column the THU billing class — stamped onto every line of the lot
+  // so the export never renders an empty BKS (the enrich loader skips lines
+  // with no sourceId, which is exactly what these frozen ADHOC lines are).
+  const renderData: BillingLineRenderData = {
+    truckPlate: lot.billingTruckNo?.trim() || null,
+    vehicleType: lot.vehicleType ?? null,
+  };
   const add = (lineType: 'FREIGHT' | 'SERVICE_FEE', typeLabel: string, amount: number) => {
     if (amount === 0) return;
     // The existing lot export has no frozen tax classification. Preserve its
@@ -31,6 +49,7 @@ export function buildFrozenShipmentDebitLines(
     lines.push({
       sourceType: 'ADHOC', sourceId: null, lineType, typeLabel, unit: 'lần',
       description: `${typeLabel} — lô ${lotCode} (chốt từ snapshot khóa lô)`,
+      renderData: { ...renderData },
       baseAmount: vat.netAmount, ...vat, sortOrder: lines.length,
     });
   };

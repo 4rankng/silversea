@@ -284,7 +284,13 @@ export async function createDebitNoteFromCostLock(
         rawCustomerName: s.shipments.rawCustomerName,
         shipmentCode: s.shipments.shipmentCode,
         expectedDeliveryDate: s.shipments.expectedDeliveryDate,
-      }).from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
+        // FB-094 §II.4: the file must print BKS báo khách + loại xe tính cước thu.
+        billingTruckNo: s.shipments.billingTruckNo,
+        revVehicleClassName: s.vehicleSizeClasses.name,
+        revVehicleClassCode: s.vehicleSizeClasses.code,
+      }).from(s.shipments)
+        .leftJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.shipments.revVehicleClassId))
+        .where(eq(s.shipments.id, input.shipmentId)).limit(1);
       if (!lot) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
       const [lock] = await tx.select({ snapshot: s.shipmentCostLocks.costSnapshot })
         .from(s.shipmentCostLocks)
@@ -297,7 +303,14 @@ export async function createDebitNoteFromCostLock(
       await assertLotsNotInIssuedDebitNote(tx, [input.shipmentId]);
       const { rangeFrom, rangeTo } = deriveRangeFromSelection([lot]);
       const snapshot = (lock.snapshot ?? {}) as Record<string, unknown>;
-      const lineRows = buildFrozenShipmentDebitLines(snapshot, lot.shipmentCode ?? String(input.shipmentId));
+      const lineRows = buildFrozenShipmentDebitLines(
+        snapshot,
+        lot.shipmentCode ?? String(input.shipmentId),
+        {
+          billingTruckNo: lot.billingTruckNo,
+          vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
+        },
+      );
       const totals = documentVatTotals(lineRows);
       const [doc] = await tx.insert(s.billingDocuments).values({
         type: 'DEBIT_NOTE',
@@ -317,6 +330,9 @@ export async function createDebitNoteFromCostLock(
           documentId: doc.id,
           sourceType: 'ADHOC' as const,
           sourceId: null,
+          // FB-094 §II.4: BKS báo khách + loại xe tính cước thu ride on the
+          // frozen line so both the file export and the read API render them.
+          renderData: line.renderData ? { ...line.renderData } : null,
           lineType: line.lineType,
           typeLabel: line.typeLabel,
           description: line.description,
@@ -361,7 +377,12 @@ export async function createConsolidatedDebitNote(
     rawCustomerName: s.shipments.rawCustomerName,
     shipmentCode: s.shipments.shipmentCode,
     expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+    // FB-094 §II.4: BKS báo khách + loại xe tính cước thu khách per lot.
+    billingTruckNo: s.shipments.billingTruckNo,
+    revVehicleClassName: s.vehicleSizeClasses.name,
+    revVehicleClassCode: s.vehicleSizeClasses.code,
   }).from(s.shipments)
+    .leftJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.shipments.revVehicleClassId))
     .where(inArray(s.shipments.id, shipmentIds));
   if (lots.length !== shipmentIds.length) throw new ApiError(404, 'Có lô hàng không tồn tại hoặc đã bị xóa.');
   const customerIds = new Set(lots.map((lot) => lot.customerId));
@@ -391,7 +412,12 @@ export async function createConsolidatedDebitNote(
       const lineRows = lots.flatMap((lot) => {
         const lockRow = lockRows.find((row) => row.shipmentId === lot.id);
         return buildFrozenShipmentDebitLines(
-          (lockRow?.snapshot ?? {}) as Record<string, unknown>, lot.shipmentCode ?? String(lot.id),
+          (lockRow?.snapshot ?? {}) as Record<string, unknown>,
+          lot.shipmentCode ?? String(lot.id),
+          {
+            billingTruckNo: lot.billingTruckNo,
+            vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
+          },
         );
       });
       const totals = documentVatTotals(lineRows);
@@ -413,6 +439,9 @@ export async function createConsolidatedDebitNote(
           documentId: doc.id,
           sourceType: 'ADHOC' as const,
           sourceId: null,
+          // FB-094 §II.4: BKS báo khách + loại xe tính cước thu ride on the
+          // frozen line so both the file export and the read API render them.
+          renderData: line.renderData ? { ...line.renderData } : null,
           lineType: line.lineType,
           typeLabel: line.typeLabel,
           description: line.description,
