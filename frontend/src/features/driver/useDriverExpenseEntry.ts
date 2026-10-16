@@ -11,11 +11,14 @@ export type DriverEvidenceKind = 'INVOICE' | 'RECEIPT';
 export interface DriverExpenseDraft {
   // Card 20261005 — "Người chi" gỡ khỏi chi phí lái xe: lái xe ghi khoản đã chi,
   // kế toán quyết định bên thực chi. Draft không còn trường payerKind.
+  // Card 141026230700 — Số/Ngày hóa đơn rời màn lái xe: chứng từ là ảnh biên
+  // lai (bắt buộc với mọi dòng lô hàng), kế toán đọc số trên ảnh ở màn phơi
+  // phiếu. Draft không còn trường invoiceNumber/invoiceDate.
   option: string; amount: number | ''; occurredAt: string; note: string;
-  feeName: string; evidenceKind: DriverEvidenceKind; invoiceNumber: string; invoiceDate: string; receiptStorageKey: string | null;
+  feeName: string; evidenceKind: DriverEvidenceKind; receiptStorageKey: string | null;
 }
 
-const blankDraft = (): DriverExpenseDraft => ({ option: 'lift', amount: '', occurredAt: businessDateISO(), note: '', feeName: '', evidenceKind: 'RECEIPT', invoiceNumber: '', invoiceDate: '', receiptStorageKey: null });
+const blankDraft = (): DriverExpenseDraft => ({ option: 'lift', amount: '', occurredAt: businessDateISO(), note: '', feeName: '', evidenceKind: 'RECEIPT', receiptStorageKey: null });
 
 export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
   const norms = useQuery({ queryKey: qk.driverFeeNorms, queryFn: driverClient.getFeeNorms, staleTime: 60_000, refetchOnWindowFocus: false });
@@ -61,7 +64,7 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
   function chooseOptionFor(index: number, code: string) {
     const option = driverExpenseOption(code, options);
     setDrafts(current => current.map((row, i) => (i === index
-      ? { ...row, option: code, feeName: option.label, amount: option.amount ?? '', invoiceNumber: '', invoiceDate: '' }
+      ? { ...row, option: code, feeName: option.label, amount: option.amount ?? '' }
       : row)));
   }
   function addDraft() { setDrafts(current => [...current, blankDraft()]); }
@@ -107,10 +110,11 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
       const option = options.find(item => item.code === row.option);
       if (!option) { setError(`Dòng ${index + 1}: Định mức đã thay đổi. Chọn lại loại chi phí trước khi lưu.`); return; }
       // One draft row → one batch item. Only LOT costs (`DRIVER_SHIPMENT`)
-      // carry the evidence classification (Hóa đơn / Phiếu thu) and its invoice
-      // fields — the road bucket keeps its old contract (no evidence kind,
-      // never an invoice), and a no-invoice row can never send one (card
-      // 20260928_164: that is what pushed these rows into phải thu khách hàng).
+      // carry the evidence classification (Hóa đơn / Phiếu thu) — the road
+      // bucket keeps its old contract (no evidence kind, never an invoice).
+      // Card 141026230700 — the typed invoice pair is GONE from the driver
+      // surface: the biên lai photo is the paper, accounting reads numbers off
+      // it at phơi phiếu, so the driver payload never carries them.
       const lotCost = option.group === 'DRIVER_SHIPMENT';
       items.push({
         ...(option.expenseTypeCode ? { expenseTypeCode: option.expenseTypeCode } : {}),
@@ -118,8 +122,6 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
         costType: option.type, costGroup: option.group, feeName: row.feeName.trim() || option.label,
         amount: row.amount, occurredAt: row.occurredAt, note: row.note.trim() || undefined,
         ...(lotCost ? { evidenceKind: row.evidenceKind } : {}),
-        invoiceNumber: lotCost && row.evidenceKind === 'INVOICE' ? row.invoiceNumber.trim() || undefined : undefined,
-        invoiceDate: lotCost && row.evidenceKind === 'INVOICE' ? row.invoiceDate || undefined : undefined,
         receiptStorageKey: row.receiptStorageKey ?? undefined });
     }
     // Idempotency discipline unchanged: the key is regenerated the moment the

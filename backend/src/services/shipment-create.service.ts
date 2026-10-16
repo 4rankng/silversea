@@ -11,6 +11,7 @@ import type { Tx } from './trip-shared';
 import type { ShipmentStatus } from './shipment-types';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
+import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { recordDepositFromIntake } from './deposit-refund-tracker.service';
 import { assertContainerSetValid, reconcileShipmentContainersInTx } from './shipment-containers.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
@@ -236,6 +237,29 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
 
   if (initialStatus === 'READY_FOR_DISPATCH') {
     await ensureReadyShipmentHandoff(tx, finalized, input.createdBy ?? actor?.userId ?? null);
+    // Card 161026100400 — BUG-5's sibling on the CREATE path: a lot born
+    // READY_FOR_DISPATCH (dates present at intake) never passes through the
+    // becomesReady flip that decomposes fulfillments, and the detail plan's
+    // fulfillment-less union branch is FCL-only (it inner-joins container
+    // rows; LCL lots own none by law). An undecomposed LCL lot was therefore
+    // invisible on "Kế hoạch Chi tiết Xe" until some later write decomposed
+    // it — the inconsistent appearance the card reproduced (one fresh lot
+    // absent, later ones visible). Decompose born-ready LCL here, mirroring
+    // the becomesReady branch in shipment-update.service (same intake actor +
+    // allowClerkIntake). FCL keeps the current contract: the union branch
+    // surfaces its undecomposed containers, and container writes own their
+    // decomposition. A null-actor programmatic create cannot decompose —
+    // same rule as the update path's readyActorId guard.
+    if (finalized.cargoMode === 'LCL') {
+      const decomposeActorId = input.createdBy ?? actor?.userId ?? null;
+      if (decomposeActorId != null) {
+        await ensureShipmentFulfillmentsInTx(tx, {
+          shipmentId: finalized.id,
+          actorId: decomposeActorId,
+          allowClerkIntake: true,
+        });
+      }
+    }
   }
 
   return { shipment: finalized, initialDeclarationId };

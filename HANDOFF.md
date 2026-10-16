@@ -158,11 +158,125 @@ qa/2026-10-16_bang-gia-tombstone_*.
 - 161026121500: FIXED, rung 3, committed + pushed per-ticket.
 - 161026095800: already on main (F-1 `b9b22bf9`), verified this wave.
 - 161026113900 (F-2): owner ruling documented, nothing implemented.
-- Four 0-byte cards (141026230700/710/720, 161026100400): BLOCKED with
-  reasons above — re-dispatch once readable card content exists.
+- Four 0-byte cards (141026230700/710/720, 161026100400): UNBLOCKED and
+  resolved the same day — see the W4b section below (2 implemented, 2 →
+  FB-033 owner ruling; cards stay in Kanban/TODO until (a) is answered).
 - Backend full `pnpm test` HANGS on this host (40+ min on the shared
   ss-prod-db, owner-killed twice) — run scoped test files with explicit
   timeouts only. Pre-existing failures to be aware of on this branch head:
   card10-ops-review.test.ts (AC1), card197-negative-cost-totals.test.ts
   (validators + phoi-phieu), CUS container-flat projection, both E2E
   dispatch/financial suites, customer account linkage.
+# W4b ops/chi-phí — 4 blocked cards unblocked (2026-10-16, this wave)
+
+Controller: this session (Paseo agent), branch `feat/w4b-ops-chiphi-cards`,
+cut from `e717d2cb` (= origin/main after W4's tombstone merge). All four W4
+0-byte cards re-read from the Google Drive originals
+(`My Drive/SilverSea/Kanban/TODO/*.docx` — all four readable this time).
+Every green commit pushed immediately (never batched). auto-ship owns
+merge/deploy/QA from here.
+
+## Per-card outcome
+
+| Card | Status | Evidence |
+|---|---|---|
+| 141026230700 driver chi phí lô hàng/tiền đường redesign | IMPLEMENTED · commit `fc72763a` | `testplan/2026-10-16-card141026230700-driver-chiphi-hai-bang.md`; FE tsc 0 + vitest 48/48 (4 files) · BE tsc 0 + tsx 38/38 (5 files); `qa/2026-10-16_card141026230700_*` |
+| 161026100400 lô lẻ chưa gắn xe không hiện Kế hoạch Chi tiết Xe | FIXED (real defect, no FB-092 conflict) · commit `7580ff32` | `testplan/2026-10-16-card161026100400-lo-le-chi-tiet-xe.md`; BE tsc 0 + tsx 133/133 (new pin 2/2 + board suites + create-path sweep); `qa/2026-10-16_card161026100400_*` |
+| 141026230710 ops không khai được chi phí lô hàng (P1) | NOT IMPLEMENTED — FB-033 owner ruling, question below | facts below; `testplan/2026-10-16-lcl-cost-closed-loop.md` TC-B2 |
+| 141026230720 ops khai chi phí tất cả + cảnh báo trùng | NOT IMPLEMENTED — same ruling; the duplicate-warning HALF is already on main | facts below |
+
+## What landed
+
+### 141026230700 — driver trip-end costs, 2 tables (rung ≤2: pins + service
+integration; UI not driven in a browser)
+
+Already on main before this wave (verified, not re-done): payer selector gone
+(card 20261005), system rows locked (ROAD_ALLOWANCE + LIFT_DROP_ZONE: driver
+cannot create, saved rows view-only), continuous draft-table add with one
+"Lưu tất cả" save.
+
+This wave: the section now renders TWO always-visible tables — "Chi phí lô
+hàng" and "Tiền đường" (legacy rows without costGroup follow the write path's
+TOLL/PARKING/PER_DIEM fallback); lot-cost draft rows carry two small toggle
+buttons Hóa đơn / Phiếu thu (≤40px, house `btn--sm`) replacing the "Loại chứng
+từ" dropdown; the typed Số/Ngày hóa đơn pair is GONE from the driver surface
+(payload never sends it; the biên lai photo is the paper, kế toán reads
+numbers at phơi phiếu); the biên lai photo is now MANDATORY for every lot
+cost (FE blocks the save + reminder, BE refuses `DRIVER_SHIPMENT` rows
+without `receiptStorageKey` — effective after the norm override so fee-norm
+road rows stay exempt); the dead "Tiền tuyến đã thỏa thuận" option (BE 400s
+driver-sent ROAD_ALLOWANCE since 20261005) left the picker. Contract note:
+card 20260921_6/163's "invoiced types must carry a typed invoice number" is
+superseded ON THE DRIVER PATH by this newer card — customer-charge semantics
+unchanged; offline callers still sending a number keep it stored.
+
+### 161026100400 — born-ready LCL lots were invisible (rung ≤2: service
+integration; no UI change)
+
+The card reports inconsistency, NOT an FB-092 conflict — FB-092's display law
+(unassigned LCL row renders bare `Lẻ`) is what the card wants enforced, so
+this was fixed, not closed. Root cause: `createShipmentTx` never decomposed
+fulfillments, and a lot born READY_FOR_DISPATCH (dates at intake) never
+passes the `becomesReady` branch where BUG 5 fixed decomposition; the detail
+plan's fulfillment-less union branch inner-joins containers, and LCL lots own
+none — so an undecomposed LCL lot was invisible until any later write
+decomposed it. Fix mirrors becomesReady: born-ready LCL decomposes in the
+create transaction. Documented residual (not fixed, next pass if owner wants):
+PRE-FIX stuck LCL lots still need one write to surface (union branch is
+FCL-only by the 9e design; extending it needs a shipment-keyed page-key arm);
+FCL born-ready keeps the union-branch contract.
+
+## FB-033 owner ruling — cards 141026230710 (P1) + 141026230720
+
+NOT implemented; per TC-B2 these reopen an owner ruling. Facts on main
+(`e717d2cb`) so the question is answerable without digging:
+
+1. What the cards ask (710): "Ops khai được chi phí MỌI lô hàng (yêu cầu T3:
+   không chia theo cá nhân/xe)". Repro blockers the card hit: (a) OPS opens
+   `/shipments` → 403 "Bạn không có quyền truy cập trang này" — role OPS has
+   deliberately NO shipments policy row (`backend/src/casbin/policy.csv`,
+   comment "CUSTOMER/DRIVER/OPS are deliberately absent"); (b) the per-vehicle
+   grant refusal inside the khai-chi-phí dialog ("Lô này không thuộc xe bạn
+   phụ trách") is ALREADY GONE — landed with card 071026210510 / the
+   20261005 batch; regression-pinned absent in
+   `frontend/src/features/ops/OpsExpenseFormModal.containers.test.tsx`
+   ("plan step 5 — open Ops scope").
+2. What already works: `/ops/orders` ("Kế hoạch làm hàng", OPS-only) lists
+   EVERY lot company-wide by expected delivery date — not per-vehicle — and
+   every row has "Khai chi phí"; any Ops can save on any lot (open scope).
+3. 720's duplicate-warning half is ALREADY on main since `2a64156f`
+   (20261005 batch): picking a cont another Ops already declared shows
+   "Cont {số} đã có {tên Ops} nhập trước — bạn vẫn tiếp tục nhập chứ." —
+   warning-only, Lưu stays enabled; lot-wide fees (Phí chung lô, no cont)
+   never warn by design (pinned in the same file).
+
+**Ruling question for the owner:**
+(a) Có cấp role OPS đọc `/api/shipments` (+ trang /shipments và
+/shipments-detail để vào "kế hoạch công việc" của lô rồi bấm Khai chi phí
+ngay trên lô), hay giữ FB-033 status quo — Ops khai chi phí chỉ qua
+`/ops/orders` (Kế hoạch làm hàng), vốn đã là danh sách công ty không chia
+xe? Việc cấp policy `read shipments` cho OPS là thay đổi RBAC ảnh hưởng mọi
+màn đọc lô (dashboard, tìm kiếm, workboard) — không tự quyết được.
+(b) 720 sau khi (a) được duyệt: phần "cảnh báo trùng" đã có sẵn per-CONT;
+còn "chọn toàn bộ số cont" / Phí chung lô hiện KHÔNG cảnh báo theo thiết kế
+— có cần nâng cảnh báo lên mức lô không, hay per-CONT là đủ?
+
+Both Drive cards stay in `Kanban/TODO/` for the owner — do not dispatch them
+again until (a) is answered.
+
+## Gates run this wave (per commit, before each push)
+
+- `fc72763a`: FE `npx tsc -b` = 0 · FE vitest 4 files 48/48 · BE
+  `pnpm exec tsc --noEmit` = 0 · BE `pnpm exec tsx --test` 38/38 across
+  card6/card164/m84/card7/card165 · pre-commit hook green.
+- `7580ff32`: BE tsc 0 · BE tsx 133/133 (new pin 2/2, dispatch-detail-plan
+  88, create-path consumers 43) · FE untouched.
+
+## Verification coverage
+
+| Claim / bug | Rung | Evidence | Not covered |
+|---|---|---|---|
+| 141026230700 two tables + ticks + mandatory biên lai + no typed invoice (FE) | CODE-READ + component tests (rung ≤2) | `qa/2026-10-16_card141026230700_fe-vitest.log` (48/48) | No browser drive at 390/768/1440; driver role only; upload path mocked in tests; error/rollback path (failed upload retry) not re-driven |
+| 141026230700 BE lot-photo rule + invoiced-without-number accepted | DB/API VERIFIED | `qa/2026-10-16_card141026230700_be-test.log` (38/38, real DB) | Offline-queue caller not exercised; accounting surfaces untouched |
+| 161026100400 born-ready LCL visible immediately | DB/API VERIFIED | `qa/2026-10-16_card161026100400_be-test.log` (pin 2/2: fulfillment row + board row + UNASSIGNED count) | UI not driven (no browser click on Kế hoạch Chi tiết Xe); pre-fix stuck lots not backfilled; staging not touched |
+| 710/720 ruling facts (403, open modal scope, warning text) | CODE-READ ONLY | policy.csv, OpsExpenseFormModal.containers.test.tsx, HANDOFF refs | No staging re-drive this wave (TC-B2 2026-10-16 is the last rung-2 evidence) |

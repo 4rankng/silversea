@@ -49,7 +49,11 @@ export const DRIVER_EXPENSE_OPTIONS: DriverExpenseOption[] = [
   { code: 'transload', label: 'Đảo hàng', type: Type.OTHER, group: 'DRIVER_SHIPMENT', expenseTypeCode: 'CARGO_RESTACK' },
   { code: 'forklift', label: 'Xe nâng / hạ', type: Type.OTHER, group: 'DRIVER_SHIPMENT', expenseTypeCode: 'FORKLIFT_DANGKHOA' },
   { code: 'other-shipment', label: 'Chi phí lô hàng khác', type: Type.OTHER, group: 'DRIVER_SHIPMENT' },
-  { code: 'route', label: 'Tiền tuyến đã thỏa thuận', type: Type.ROAD_ALLOWANCE, group: 'DRIVER_ROAD' },
+  // Card 141026230700 — "Tiền tuyến đã thỏa thuận" (ROAD_ALLOWANCE) rời danh
+  // sách chọn: backend đã chặn mọi dòng ROAD_ALLOWANCE do lái xe gửi từ
+  // 20261005 ("Khoản này do hệ thống tự ghi nhận."), nên option này chỉ còn ra
+  // lỗi; card cũng chốt tiền đường do hệ thống ghi, lái xe chỉ được nhìn.
+  // Định mức tiền đường (feeNorm) là đường riêng được phép — giữ nguyên.
   { code: 'toll', label: 'Vé cầu đường', type: Type.TOLL, group: 'DRIVER_ROAD' },
   { code: 'scan', label: 'Soi / kiểm hóa', type: Type.OTHER, group: 'DRIVER_ROAD' },
   // Card 20260928_165 — the road-repair fee carries a CATALOG identity so the

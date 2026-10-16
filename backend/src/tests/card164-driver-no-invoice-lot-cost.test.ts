@@ -80,6 +80,15 @@ async function mkDriverTrip() {
   return { user: u, driver: d, shipment, trip };
 }
 
+/** Card 141026230700 — lot-bucket rows must carry a biên lai photo; seed one
+ *  owned by the recording user the way the upload path does. */
+async function mkReceiptPhoto(tripId: number, uploadedBy: number): Promise<string> {
+  const storageKey = `card164/receipt-${suffix}-${cleanup.length}.jpg`;
+  const [photo] = await db.insert(s.tripPhotos).values({ tripId, type: 'OTHER', storageKey, uploadedBy }).returning();
+  track(async () => { await db.delete(s.tripPhotos).where(eq(s.tripPhotos.id, photo.id)); });
+  return storageKey;
+}
+
 describe('card 20260928_164 — chi phí lái xe không hóa đơn', () => {
   test('AC1: 7 mã PM liệt kê đều ACTIVE, không hóa đơn, không trùng nhãn', async () => {
     const rows = await db.select({
@@ -112,10 +121,12 @@ describe('card 20260928_164 — chi phí lái xe không hóa đơn', () => {
       const amount = 175000;
 
       // The driver types an invoice number even though the row is classed
-      // no-invoice: the catalog wins, the number is dropped.
+      // no-invoice: the catalog wins, the number is dropped. Card 141026230700:
+      // the row carries its biên lai photo like every lot cost.
       const { cost } = await recordIncidentalCost(trip.id, driver.id, {
         costType: DriverIncidentalCostType.OTHER, expenseTypeCode: code, amount, occurredAt: TODAY,
         invoiceNumber: 'card164-HD-must-be-dropped', invoiceDate: TODAY,
+        receiptStorageKey: await mkReceiptPhoto(trip.id, user.id),
       }, user.id, `card164-${suffix}-${code}`);
       track(async () => { await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id)); });
 

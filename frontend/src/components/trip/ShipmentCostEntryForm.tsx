@@ -10,9 +10,8 @@ import { driverClient, type DriverIncidentalCostView } from '../../api/driverCli
 import { NumberField, DateField, TextField, UuiSelectField, Tabs, EmptyState } from '../../design-system';
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
-import { driverExpenseOption, driverExpenseOptionInvoiceClass, requiredEvidenceTypeForExpenseCode, type DriverExpenseOption } from '../../features/driver/driver-expense-options';
-import { useDriverExpenseEntry, type DriverExpenseDraft } from '../../features/driver/useDriverExpenseEntry';
-import { ExpenseEvidenceFields } from '../../features/expense-accounting/ExpenseEvidenceFields';
+import { driverExpenseOption, requiredEvidenceTypeForExpenseCode, type DriverExpenseOption } from '../../features/driver/driver-expense-options';
+import { useDriverExpenseEntry, type DriverExpenseDraft, type DriverEvidenceKind } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
 import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
 import { DriverExpenseCorrection } from './DriverExpenseCorrection';
@@ -30,22 +29,66 @@ export interface ShipmentCostEntryFormProps {
 
 /**
  * The ONE photo rule for a draft row, shared by the row's reminder/disable and
- * the form's submit gate (card 20260928_165 mechanism, widened by step 2):
- * a "Phiếu thu" lot cost is a cash spend whose biên lai photo IS its evidence,
- * and a required-evidence code needs its paper whatever the picker says.
+ * the form's submit gate (card 20260928_165 mechanism, widened twice):
+ * a required-evidence code needs its paper whatever the picker says, and —
+ * card 141026230700 — EVERY lot cost ("Chi phí lô hàng" bucket) carries a
+ * biên lai photo: the paper replaced the typed invoice pair as the driver's
+ * evidence, so no lot row exists without one.
  */
-function receiptStillNeeded(selected: DriverExpenseOption, row: DriverExpenseDraft): boolean {
+function receiptStillNeeded(selected: DriverExpenseOption): boolean {
   return requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode) != null
-    || (selected.group === 'DRIVER_SHIPMENT' && row.evidenceKind === 'RECEIPT');
+    || selected.group === 'DRIVER_SHIPMENT';
 }
 
-/** Saved-row caption: the paper the row carries (or still needs). Legacy rows
- *  (`evidence_kind` NULL) were never backfilled — "Chưa phân loại chứng từ";
- *  only re-opening the lot writes a value. */
+/** Saved-row caption: the paper the row carries. Legacy rows (`evidence_kind`
+ *  NULL) were never backfilled — "Chưa phân loại chứng từ"; only re-opening the
+ *  lot writes a value. Card 141026230700: drivers no longer type invoice
+ *  numbers, so an INVOICE row without one just says its kind (the number lives
+ *  on the photographed paper for kế toán phơi phiếu). */
 function evidenceCaption(entry: DriverIncidentalCostView): string {
   if (entry.evidenceKind == null) return 'Chưa phân loại chứng từ';
-  if (entry.evidenceKind === 'INVOICE') return entry.invoiceNumber ? `HĐ ${entry.invoiceNumber}` : 'Cần số hóa đơn';
-  return 'Cần chụp biên lai';
+  if (entry.evidenceKind === 'INVOICE') return entry.invoiceNumber ? `HĐ ${entry.invoiceNumber}` : 'Hóa đơn';
+  return 'Phiếu thu';
+}
+
+/** Which of the two card-141026230700 tables a SAVED row belongs to. Rows
+ *  written before `costGroup` existed (NULL) follow the same fallback the
+ *  write path uses: TOLL/PARKING/PER_DIEM are road money, everything else is
+ *  a lot cost. */
+function tableGroupOf(entry: DriverIncidentalCostView): 'DRIVER_SHIPMENT' | 'DRIVER_ROAD' {
+  if (entry.costGroup === 'DRIVER_SHIPMENT' || entry.costGroup === 'DRIVER_ROAD') return entry.costGroup;
+  return ([
+    DriverIncidentalCostType.TOLL,
+    DriverIncidentalCostType.PARKING,
+    DriverIncidentalCostType.PER_DIEM,
+  ] as DriverIncidentalCostType[]).includes(entry.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT';
+}
+
+/** Card 141026230700 — "2 ô chọn nhỏ: Hóa đơn / Phiếu thu": a compact pair of
+ *  house toggle buttons (btn sm, ≤40px) replacing the old "Loại chứng từ"
+ *  dropdown. The choice is DATA for the phơi-phiếu pass, not a tab, so it is a
+ *  pressed-button group — never a restyled Tabs primitive. */
+function EvidenceKindTicks({ value, onChange, disabled }: {
+  value: DriverEvidenceKind;
+  onChange: (kind: DriverEvidenceKind) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="shipment-cost-entry__evidence-ticks" role="group" aria-label="Loại chứng từ">
+      {(['INVOICE', 'RECEIPT'] as const).map((kind) => (
+        <button
+          key={kind}
+          type="button"
+          className={`btn btn--sm ${value === kind ? 'btn--primary' : 'btn--secondary'}`}
+          aria-pressed={value === kind}
+          disabled={disabled}
+          onClick={() => onChange(kind)}
+        >
+          {kind === 'INVOICE' ? 'Hóa đơn' : 'Phiếu thu'}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 interface CostDraftRowProps {
@@ -69,21 +112,20 @@ interface CostDraftRowProps {
 function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, onPatch, onChooseOption, onUpload, onRemove, onDiscardPendingFile }: CostDraftRowProps) {
   const receiptUrl = useAuthedPhotoUrls([row.receiptStorageKey])[0] ?? '';
   const selected = driverExpenseOption(row.option, options);
-  // Card 20260928_163/164 — the catalog class no longer decides WHETHER the
-  // invoice fields appear (step 2: the driver picks Loại chứng từ for every lot
-  // cost); it still carries the "invoice-bearing fee" hint on the number field,
-  // and the server keeps enforcing the invoiced-catalog rule itself.
-  const invoiceClass = driverExpenseOptionInvoiceClass(selected);
+  // Card 141026230700 — the invoice pair (Số/Ngày hóa đơn) is gone from the
+  // driver surface: the biên lai photo is the evidence for every lot cost, kế
+  // toán reads numbers off the paper at phơi phiếu. The server still keeps the
+  // invoiced-catalog classification (charge-the-customer side) untouched.
   const catalogClassified = selected.expenseTypeCode != null;
   const requiredEvidence = requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode);
   const requiresReceipt = requiredEvidence != null;
   const evidenceLabel = requiredEvidence == null ? '' : NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidence];
   const lotCost = selected.group === 'DRIVER_SHIPMENT';
-  const receiptMissing = receiptStillNeeded(selected, row) && !row.receiptStorageKey;
+  const receiptMissing = receiptStillNeeded(selected) && !row.receiptStorageKey;
   const cameraLabel = uploading ? 'Đang tải…'
     : row.receiptStorageKey ? 'Thay ảnh chứng từ'
-    : lotCost && row.evidenceKind === 'RECEIPT' ? 'Chụp / chọn biên lai'
     : requiresReceipt ? `Chụp / chọn ${evidenceLabel} (bắt buộc)`
+    : lotCost ? 'Chụp / chọn biên lai (bắt buộc)'
     : 'Chụp / chọn biên lai';
 
   return (
@@ -113,31 +155,25 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
           </p>
         )}
         <DateField controlSize="sm" label="Ngày chi" value={row.occurredAt} onChange={(occurredAt) => onPatch({ occurredAt })} required disabled={disabled} />
-        {lotCost && <ExpenseEvidenceFields
-          kind={row.evidenceKind}
-          onKindChange={(evidenceKind) => onPatch({ evidenceKind })}
-          invoiceNumber={row.invoiceNumber}
-          onInvoiceNumber={(invoiceNumber) => onPatch({ invoiceNumber })}
-          invoiceDate={row.invoiceDate}
-          onInvoiceDate={(invoiceDate) => onPatch({ invoiceDate })}
-          required={invoiceClass === 'INVOICED'}
-          disabled={disabled}
-        />}
+        {/* Card 141026230700 — 2 ô chọn nhỏ Hóa đơn / Phiếu thu thay cho select
+            "Loại chứng từ" + cặp Số/Ngày hóa đơn: chứng từ lái xe là ảnh biên
+            lai, số HĐ kế toán đọc trên giấy lúc phơi phiếu. */}
+        {lotCost && <EvidenceKindTicks value={row.evidenceKind} onChange={(evidenceKind) => onPatch({ evidenceKind })} disabled={disabled} />}
       </div>
       <TextField controlSize="sm" label="Ghi chú khoản chi" value={row.note} onChange={(event) => onPatch({ note: event.target.value })} maxLength={2000} disabled={disabled} />
       {requiresReceipt && <p className="shipment-cost-entry__empty">Chứng từ: {evidenceLabel}.</p>}
-      {selected.type === DriverIncidentalCostType.ROAD_ALLOWANCE && <p className="shipment-cost-entry__empty">Khoản đã thỏa thuận được giữ trong định mức chuyến; chứng từ này không cộng thêm phụ cấp lần nữa.</p>}
-      <p className="shipment-cost-entry__empty">{selected.group === 'DRIVER_ROAD' ? 'Tiền đường không thu thêm khách hàng.' : 'Kế toán đối chiếu hóa đơn và số thu khách. Khoản không hóa đơn được theo dõi là chi phí xe.'}</p>
+      <p className="shipment-cost-entry__empty">{selected.group === 'DRIVER_ROAD' ? 'Tiền đường không thu thêm khách hàng.' : 'Kế toán đối chiếu biên lai và số thu khách. Khoản không hóa đơn được theo dõi là chi phí xe.'}</p>
       <label className="btn btn--secondary shipment-cost-entry__camera-btn"><Camera size={16} /> {cameraLabel}
         <input type="file" accept="image/*" className="sr-only" aria-label="Chọn ảnh biên lai" disabled={disabled} onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ''; if (file) onUpload(file); }} />
       </label>
       {pendingFile && <div className="shipment-cost-entry__upload-retry" role="status"><span>{pendingFile.name} · Chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" disabled={disabled} onClick={() => onUpload(pendingFile)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={onDiscardPendingFile}>Bỏ ảnh chưa tải</button></div>}
       {row.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><PhotoImage src={receiptUrl} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
-      {/* Card 20260928_165 — the supporting paper cannot exist without the
-          entry: the form blocks the submit (never silently) until it is
-          attached, and the server refuses the row without it. Step 2 widens
-          the same mechanism to every "Phiếu thu" lot cost. */}
-      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{lotCost && row.evidenceKind === 'RECEIPT' ? 'Chọn Phiếu thu thì phải chụp biên lai trước khi lưu.' : `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.`}</p>}
+      {/* Card 20260928_165 + card 141026230700 — the supporting paper cannot
+          exist without the entry: the form blocks the submit (never silently)
+          until it is attached, and the server refuses the row without it. Every
+          lot cost needs its biên lai; a mandated-evidence road fee needs its
+          named paper. */}
+      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{lotCost ? 'Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.' : `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.`}</p>}
     </section>
   );
 }
@@ -169,7 +205,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
     finally { noteLock.current = false; setNoteSaving(false); }
   }
   // The submit gate reads the same per-row photo rule the rows display.
-  const blockedRow = state.drafts.some(row => receiptStillNeeded(driverExpenseOption(row.option, state.options), row) && !row.receiptStorageKey);
+  const blockedRow = state.drafts.some(row => receiptStillNeeded(driverExpenseOption(row.option, state.options)) && !row.receiptStorageKey);
 
   return <section className="shipment-cost-entry" aria-label="Chi phí chuyến">
     <header className="shipment-cost-entry__head">
@@ -183,50 +219,71 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         ? `Tiền tuyến tham chiếu: ${formatCurrency(totalRoadAllowance)}. Chỉ ghi khoản phát sinh thực tế, không cộng thêm nếu đã có trong danh sách.`
         : 'Chưa có định mức tiền tuyến. Nhập số tiền thực tế; chưa có định mức không có nghĩa là 0đ.'}
     </p>
-    {state.loading ? <p role="status">Đang tải chi phí…</p> : state.entries.length === 0 ? (!state.loadError && (
-      <EmptyState
-        variant="compact"
-        context="driver-costs"
-        title="Chưa có chi phí phát sinh"
-        description="Thêm khoản thực chi trong chuyến; kế toán đối chiếu và thanh toán riêng."
-      />
-    )) :
-      <ul className="shipment-cost-entry__list">{state.entries.map((entry, index) => <li key={entry.id} className="shipment-cost-entry__item">
-        {entry.receiptStorageKey && <a href={receiptUrls[index] || undefined} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><PhotoImage src={receiptUrls[index]} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}
-        <div className="shipment-cost-entry__item-body"><div className="shipment-cost-entry__item-top"><strong>{entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong><span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span></div>
-          <div className="shipment-cost-entry__item-meta"><span>{formatISODate(entry.occurredAt)}</span>{entry.costGroup && <span>{entry.costGroup === 'DRIVER_ROAD' ? 'Tiền đường' : 'Chi phí lô hàng'}</span>}<span>{evidenceCaption(entry)}</span>
-          {/* Card 081026091900 — trip 79 showed a TOLL pair (-30.000 then +30.000),
-              BOTH captioned "Tôi chi / Tiền đường". A negative row is an
-              adjusting entry, not a spend: ruling 20260928_197, shipped and
-              QA PASSED on the Ops wallet (071026210530). That fix reached only
-              that surface — the driver list is the same defect class. Reusing the
-              already-approved wording keeps one rule across both screens. */}
-          {Number(entry.amount) < 0 && (
-            <span
-              className="shipment-cost-entry__item-adjustment"
-              title="Dòng âm là bút toán điều chỉnh — tương đương bỏ/bớt khoản, KHÔNG phải một khoản chi, và không được cộng vào tổng."
-            >
-              — bút toán điều chỉnh (dòng âm)
-            </span>
-          )}
-        </div>
-          {entry.note && <span className="shipment-cost-entry__item-note">{entry.note}</span>}
-          {/* Card 20261005 — dòng hệ thống tự ghi nhận bị khóa với lái xe:
-              "Tiền đường" (ROAD_ALLOWANCE, hệ thống chép từ bảng giá
-              `road_allowances` vào tổng chuyến) và "Phí nâng/hạ theo vùng"
-              (LIFT_DROP_ZONE, giá cấu hình theo cảng). Không nút sửa, không nút
-              chứng từ — sửa sẽ trùng số liệu hệ thống; kế toán điều chỉnh tại
-              màn hình phơi phiếu. Các loại phí khác giữ nguyên nút sửa/chứng từ. */}
-          {entry.costType === DriverIncidentalCostType.ROAD_ALLOWANCE || entry.costType === DriverIncidentalCostType.LIFT_DROP_ZONE ? (
-            <p className="shipment-cost-entry__item-note">Hệ thống tự ghi nhận — Kế toán điều chỉnh tại màn hình phơi phiếu.</p>
-          ) : (
-            <>
-              <DriverSavedExpenseProofs expenseId={entry.id} />
-              {!readOnly && <DriverExpenseCorrection expenseId={entry.id} onSaved={state.refresh} />}
-            </>
-          )}
-        </div>
-      </li>)}</ul>}
+    {/* Card 141026230700 — TWO tables, "Chi phí lô hàng" and "Tiền đường",
+        always both visible (the customer could not tell there were two cost
+        buckets behind one combined list). The section-level illustration stays
+        for the fully-empty case (card 20260926_29); each table carries its own
+        empty line so the split reads even when one bucket has nothing. */}
+    {state.loading ? <p role="status">Đang tải chi phí…</p> : !state.loadError && <>
+      {state.entries.length === 0 && (
+        <EmptyState
+          variant="compact"
+          context="driver-costs"
+          title="Chưa có chi phí phát sinh"
+          description="Thêm khoản thực chi trong chuyến; kế toán đối chiếu và thanh toán riêng."
+        />
+      )}
+      <div className="shipment-cost-entry__tables">
+        {([['lot', 'Chi phí lô hàng', 'DRIVER_SHIPMENT', 'Chưa có chi phí lô hàng phát sinh.'], ['road', 'Tiền đường', 'DRIVER_ROAD', 'Chưa có tiền đường phát sinh.']] as const).map(([, title, group, emptyText]) => {
+          // receiptUrls is index-aligned with state.entries — pair each entry
+          // with its URL BEFORE partitioning, or the split shifts the indices.
+          const rows = state.entries.map((entry, index) => ({ entry, url: receiptUrls[index] })).filter(({ entry }) => tableGroupOf(entry) === group);
+          return (
+            <section key={group} className="shipment-cost-entry__table" aria-label={`Bảng ${title}`}>
+              <h3 className="shipment-cost-entry__table-title">{title}</h3>
+              {rows.length === 0
+                ? <p className="shipment-cost-entry__empty">{emptyText}</p>
+                : <ul className="shipment-cost-entry__list">{rows.map(({ entry, url }) => <li key={entry.id} className="shipment-cost-entry__item">
+                  {entry.receiptStorageKey && <a href={url || undefined} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><PhotoImage src={url} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}
+                  <div className="shipment-cost-entry__item-body"><div className="shipment-cost-entry__item-top"><strong>{entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}</strong><span className="shipment-cost-entry__item-amount">{formatCurrency(entry.amount)}</span></div>
+                    <div className="shipment-cost-entry__item-meta"><span>{formatISODate(entry.occurredAt)}</span><span>{evidenceCaption(entry)}</span>
+                    {/* Card 081026091900 — trip 79 showed a TOLL pair (-30.000 then +30.000),
+                        BOTH captioned "Tôi chi / Tiền đường". A negative row is an
+                        adjusting entry, not a spend: ruling 20260928_197, shipped and
+                        QA PASSED on the Ops wallet (071026210530). That fix reached only
+                        that surface — the driver list is the same defect class. Reusing the
+                        already-approved wording keeps one rule across both screens. */}
+                    {Number(entry.amount) < 0 && (
+                      <span
+                        className="shipment-cost-entry__item-adjustment"
+                        title="Dòng âm là bút toán điều chỉnh — tương đương bỏ/bớt khoản, KHÔNG phải một khoản chi, và không được cộng vào tổng."
+                      >
+                        — bút toán điều chỉnh (dòng âm)
+                      </span>
+                    )}
+                  </div>
+                    {entry.note && <span className="shipment-cost-entry__item-note">{entry.note}</span>}
+                    {/* Card 20261005 — dòng hệ thống tự ghi nhận bị khóa với lái xe:
+                        "Tiền đường" (ROAD_ALLOWANCE, hệ thống chép từ bảng giá
+                        `road_allowances` vào tổng chuyến) và "Phí nâng/hạ theo vùng"
+                        (LIFT_DROP_ZONE, giá cấu hình theo cảng). Không nút sửa, không nút
+                        chứng từ — sửa sẽ trùng số liệu hệ thống; kế toán điều chỉnh tại
+                        màn hình phơi phiếu. Các loại phí khác giữ nguyên nút sửa/chứng từ. */}
+                    {entry.costType === DriverIncidentalCostType.ROAD_ALLOWANCE || entry.costType === DriverIncidentalCostType.LIFT_DROP_ZONE ? (
+                      <p className="shipment-cost-entry__item-note">Hệ thống tự ghi nhận — Kế toán điều chỉnh tại màn hình phơi phiếu.</p>
+                    ) : (
+                      <>
+                        <DriverSavedExpenseProofs expenseId={entry.id} />
+                        {!readOnly && <DriverExpenseCorrection expenseId={entry.id} onSaved={state.refresh} />}
+                      </>
+                    )}
+                  </div>
+                </li>)}</ul>}
+            </section>
+          );
+        })}
+      </div>
+    </>}
 
     {state.open && <form className="shipment-cost-entry__form" onSubmit={(event) => void state.save(event)}>
       {/* Step 3 — draft table: rows accumulate, then ONE all-or-nothing save. */}
