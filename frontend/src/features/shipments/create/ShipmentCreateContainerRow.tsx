@@ -123,6 +123,11 @@ export function ShipmentCreateContainerRow({
           </button>
         )}
       </th>
+      {/* Mobile UX consult 16/10: the stacked phone record groups its fields
+          into three labelled sub-sections. Desktop hides these bands
+          (.csc-container-row__group below + thead owns the column labels);
+          the ≤620px container rules turn them into uppercase dividers. */}
+      <td className="csc-container-row__group" aria-hidden="true">Thông tin container</td>
       <ShipmentContainerCell
         label="Số container"
         value={row.containerNumber}
@@ -130,6 +135,7 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-number`}
         error={issueByField.get(`container-${row.key}-number`)}
         onRevert={(value) => updateContainer(row.key, 'containerNumber', value)}
+        mobileFieldChrome
       >
         <TextField
           id={`container-${row.key}-number`}
@@ -159,6 +165,7 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-type`}
         error={issueByField.get(`container-${row.key}-type`)}
         picker
+        mobileFieldChrome
       >
         <ContainerTypeCellPicker
           value={row.containerTypeId}
@@ -170,6 +177,7 @@ export function ShipmentCreateContainerRow({
           openApiRef={typePickerOpenApi}
         />
       </ShipmentContainerCell>
+      <td className="csc-container-row__group" aria-hidden="true">Lộ trình</td>
       <ShipmentContainerCell
         label={isAdHoc ? 'Nhà máy' : 'Nhà máy *'}
         value={factoryName}
@@ -177,6 +185,7 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-factory`}
         error={issueByField.get(`container-${row.key}-factory`)}
         picker
+        mobileFieldChrome
         actions={factory ? (
           <button
             type="button"
@@ -231,6 +240,7 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-route`}
         error={issueByField.get(`container-${row.key}-route`)}
         picker
+        mobileFieldChrome
       >
         <div className="csc-route-picker">
           <SearchableField
@@ -266,6 +276,7 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-pickup-port`}
         error={issueByField.get(`container-${row.key}-pickup-port`)}
         picker
+        mobileFieldChrome
       >
         <div className="csc-route-picker">
           <SearchableField
@@ -299,6 +310,7 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-dropoff-port`}
         error={issueByField.get(`container-${row.key}-dropoff-port`)}
         picker
+        mobileFieldChrome
       >
         <div className="csc-route-picker">
           <SearchableField
@@ -324,12 +336,14 @@ export function ShipmentCreateContainerRow({
           />
         </div>
       </ShipmentContainerCell>
+      <td className="csc-container-row__group" aria-hidden="true">Thời gian</td>
       <ShipmentContainerCell
         label="Trọng lượng (kg)"
         value={formatContainerWeight(row.cargoWeightKg)}
         placeholder="Nhập kg"
         className="csc-container-cell--numeric csc-container-cell--weight"
         onRevert={(value) => updateContainer(row.key, 'cargoWeightKg', value)}
+        mobileFieldChrome
       >
         <TextField
           label="Trọng lượng (kg)"
@@ -351,6 +365,7 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-customer-appointment`}
         error={issueByField.get(`container-${row.key}-customer-appointment`)}
         onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
+        mobileFieldChrome
         actions={row.customerAppointmentAt ? (
           <CopyCodeButton
             className="csc-container-cell__action"

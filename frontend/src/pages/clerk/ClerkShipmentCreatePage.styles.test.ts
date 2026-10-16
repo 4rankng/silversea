@@ -99,8 +99,14 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-container-table thead th\s*\{[^}]*background:\s*var\(--surface-2\);[^}]*font-weight:\s*700;/);
     expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-table thead,\s*\.csc-container-table colgroup\s*\{[^}]*display:\s*none;/);
     expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
+    // Mobile UX consult 16/10 supersedes the 11/10 single-column phone tier:
+    // the stacked record stays a grouped 2-column form at EVERY phone width —
+    // labelled divider bands open the sub-sections, and only the appointment
+    // pair gives its right half back below the segment min-content width
+    // (see the cluster-geometry pin below). Phones keep the grouped grid.
+    expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-row__group\s*\{[^}]*text-transform:\s*uppercase;/);
     expect(css).toMatch(
-      /@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
+      /@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-row\s*\{[^}]*padding:\s*8px 8px 10px;/,
     );
   });
 
@@ -366,9 +372,13 @@ describe('CUS "Ngày giờ đóng trả" cluster geometry (cards 051026230627 �
   });
 
   it('claims full row width on phones so the cluster is never squeezed', () => {
-    const mobile = css.slice(css.indexOf('@media (max-width: 640px)'));
-    expect(mobile).toMatch(
-      /\.csc-container-row > \.csc-container-cell--appointment\s*\{\s*grid-column:\s*1 \/ -1/,
+    // Mobile UX consult 16/10: Ngày giờ đóng trả pairs with Trọng lượng in the
+    // grouped 2-column record, but the SplitDateTimeField's segment groups
+    // hold a ~150px min-content — the law (cards 051026230627 → 111026173000,
+    // "never squeezed") now pins the fallback: below a 380px container the
+    // appointment returns to full row width instead of shearing the date half.
+    expect(css).toMatch(
+      /@container\s*\(max-width:\s*380px\)[\s\S]*?\.csc-container-cell--appointment\s*\{[^}]*grid-column:\s*1 \/ -1;/,
     );
   });
 

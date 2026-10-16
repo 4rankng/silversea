@@ -39,3 +39,50 @@
 .csc-container-cell:has([role='combobox'][aria-expanded='true']) .csc-container-cell__actions { opacity: 0; pointer-events: none; }
 .csc-container-cell__action { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--fg-3); cursor: pointer; }
 .csc-container-cell__action:hover { background: var(--surface-2); color: var(--fg-1); }
+
+/* ── Grouped mobile field chrome (mobile UX consult 16/10) ─────────────
+ * Desktop keeps the value-first spreadsheet chrome above. On the stacked
+ * ≤620px phone record each field renders a real label element — the
+ * required asterisk becomes its own danger-colored mark while `data-label`
+ * keeps the full string (QA1-007) — and picker values sit on an outlined
+ * trigger band with a trailing chevron so text inputs, pickers and the
+ * date-time cluster all read equally tappable. Scoped to .csc-container-row:
+ * the CUS ledger shares this cell and keeps its own record treatment. */
+.csc-container-cell__label,
+.csc-container-cell__chevron { display: none; }
+
+@container (max-width: 620px) {
+  .csc-container-row .csc-container-cell__label {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    margin: 0 0 4px;
+    color: var(--fg-2);
+    font-size: var(--text-label-size);
+    font-weight: 700;
+    line-height: 1.35;
+  }
+  .csc-container-row .csc-container-cell__label-req { color: var(--danger); }
+  /* The picker display band keeps its absolute overlay + reveal mechanics
+     (card 101026163000); only its paint becomes the shared outlined control
+     surface — same height, border, radius and fill as the row's inputs. */
+  .csc-container-row .csc-container-cell--picker .csc-container-cell__display {
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 12px;
+    border: 1px solid var(--control-border);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+  }
+  .csc-container-row .csc-container-cell--picker .csc-container-cell__chevron { display: block; flex: 0 0 auto; color: var(--fg-3); }
+  /* The factory detail peek shares the band's trailing edge — the chevron
+     steps left so both affordances stay visible. */
+  .csc-container-row .csc-container-cell--picker:has(.csc-container-cell__actions) .csc-container-cell__display { padding-right: 44px; }
+  .csc-container-row .csc-container-cell:has(.csc-container-cell__actions) .csc-container-cell__chevron { margin-right: 28px; }
+  .csc-container-row .csc-container-cell--picker.csc-container-cell--error:not(:focus-within) .csc-container-cell__display { border-color: var(--danger); }
+  .csc-container-row .csc-container-cell--picker.csc-container-cell--error:not(:focus-within) { box-shadow: none; }
+  /* One control height for every editor in the stacked record. Phone media
+     bands already floor these; the token covers narrow desktop windows that
+     land inside this container query without them. */
+  .csc-container-row .csc-container-cell [data-uui-control] { --uui-control-h: var(--control-touch-h); }
+}
