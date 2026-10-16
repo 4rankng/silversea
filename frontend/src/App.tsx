@@ -128,6 +128,7 @@ const PayableListPage = lazy(() => import('./pages/PayableListPage'));
 const PayableDetailPage = lazy(() => import('./pages/PayableDetailPage'));
 const SalaryAttendancePage = lazy(() => import('./pages/SalaryAttendancePage'));
 const TimesheetGridPage = lazy(() => import('./pages/TimesheetGridPage'));
+const TimesheetMonthlyReportPage = lazy(() => import('./pages/TimesheetMonthlyReportPage'));
 const TimesheetReconciliationPage = lazy(() => import('./pages/TimesheetReconciliationPage'));
 
 const ExpenseCategoriesConfigPage = lazy(() => import('./pages/config/ExpenseCategoriesConfigPage'));
@@ -503,6 +504,8 @@ export function AppRoutes() {
               cả kế toán (chỉ xem), mục không còn bị ẩn với vai trò này. */}
           <Route path="/timesheet" element={timesheetStaffOnly(page(<TimesheetGridPage />))} />
           <Route path="/timesheet/doi-chieu" element={accountantOnly(page(<TimesheetReconciliationPage />))} />
+          {/* FB-104 — báo cáo Tổng hợp xếp lệnh tháng (mẫu Excel của khách). */}
+          <Route path="/timesheet/bao-cao" element={officeStaffOnly(page(<TimesheetMonthlyReportPage />))} />
           <Route path="/users" element={userAdminOnly(page(<UsersPage />))} />
           <Route path="/hr/roster" element={officeStaffOnly(page(<HrRosterPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />

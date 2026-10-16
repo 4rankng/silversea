@@ -44,6 +44,9 @@ export interface TimesheetDriverRow {
   id: number;
   name: string;
   status: string;
+  /** FB-104 (card 141026230810) — xe đang gán cho lái xe (báo cáo xếp lệnh). */
+  plateNumber: string | null;
+  vehicleClass: string | null;
   monthId: number | null;
   salaryMode: TimesheetSalaryMode | null;
   monthStatus: 'OPEN' | 'RECONCILED' | null;

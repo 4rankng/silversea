@@ -40,7 +40,8 @@ const day = (workDate: string, overrides: Partial<TimesheetDayCell> = {}): Times
 });
 
 const driver: TimesheetDriverRow = {
-  id: 1, name: 'Tài xế A', status: 'ACTIVE', monthId: 5, salaryMode: 'PER_TRIP', monthStatus: 'OPEN',
+  id: 1, name: 'Tài xế A', status: 'ACTIVE', plateNumber: '29H-12345', vehicleClass: 'Đầu kéo',
+  monthId: 5, salaryMode: 'PER_TRIP', monthStatus: 'OPEN',
 };
 
 const month: TimesheetMonth = {

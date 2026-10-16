@@ -1,0 +1,44 @@
+/* FB-104 — báo cáo Tổng hợp xếp lệnh tháng (mẫu Excel của khách).
+ * Màu ô = ý nghĩa nghiệp vụ theo mô tả khách: xanh = ô tạo chuyến tính lương
+ * chuyến, vàng = Chủ nhật/lưu ca (không tạo chuyến), đỏ = nghỉ. Chủ nhật dùng
+ * đúng cách đánh dấu của lưới chấm công (tint nhạt, không pill — design §1). */
+.ts-report__title {
+  margin: 12px 0 8px;
+  font-size: var(--text-body-size);
+}
+
+.ts-report .ts-report__day {
+  text-align: center;
+  min-width: 30px;
+}
+
+.ts-report .ts-report__day small {
+  display: block;
+  font-weight: var(--fw-regular);
+  color: var(--ink-3);
+}
+
+.ts-report .ts-report__cell {
+  text-align: center;
+  min-width: 30px;
+}
+
+.ts-report .ts-report__cell--trip {
+  color: var(--success-text);
+  font-weight: var(--fw-semibold);
+}
+
+.ts-report .ts-report__cell--standby {
+  color: var(--warning-text);
+  font-weight: var(--fw-semibold);
+}
+
+.ts-report .ts-report__cell--off {
+  color: var(--danger-text);
+  font-weight: var(--fw-semibold);
+}
+
+.ts-report .ts-report__cell--sunday {
+  background: var(--surface-2);
+  color: var(--ink-2);
+}

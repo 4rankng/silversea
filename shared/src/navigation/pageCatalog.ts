@@ -194,6 +194,12 @@ export const PAGE_CATALOG = {
     path: '/timesheet/doi-chieu',
     section: 'operations',
   },
+  timesheetReport: {
+    // FB-104 — báo cáo Tổng hợp xếp lệnh tháng theo mẫu Excel của khách.
+    title: 'Tổng hợp xếp lệnh tháng',
+    path: '/timesheet/bao-cao',
+    section: 'operations',
+  },
   salary: {
     title: 'Lương & Chấm công',
     path: '/salary',

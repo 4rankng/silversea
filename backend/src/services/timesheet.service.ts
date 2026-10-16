@@ -154,7 +154,12 @@ export async function listTimesheetDrivers(year: number, month: number) {
     id: s.drivers.id,
     name: s.drivers.name,
     status: s.drivers.status,
+    // FB-104 (card 141026230810) — báo cáo Tổng hợp xếp lệnh tháng in Loại xe +
+    // Biển kiểm soát của xe đang gán cho lái xe.
+    plateNumber: s.trucks.licensePlate,
+    vehicleClass: s.trucks.vehicleClass,
   }).from(s.drivers)
+    .leftJoin(s.trucks, and(eq(s.trucks.id, s.drivers.assignedTruckId), isNull(s.trucks.deletedAt)))
     .where(isNull(s.drivers.deletedAt))
     .orderBy(asc(s.drivers.name));
 
