@@ -20,11 +20,15 @@ import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 
 export interface MergeRevGroupDialogProps {
   rows: ShipmentDebitLotRow[];
+  /** BKS báo khách (xe ảo) catalog — the plate list the caller sources (the
+   *  same fleet the Điều vận "Gán xe nhóm" dialog offers). The dialog stays
+   *  presentational: it lists what it is handed and never fetches a catalog. */
+  plateOptions: Array<{ value: string; label: string; searchText?: string }>;
   onClose: () => void;
   onMerged: () => void;
 }
 
-export function MergeRevGroupDialog({ rows, onClose, onMerged }: MergeRevGroupDialogProps) {
+export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: MergeRevGroupDialogProps) {
   const { toast } = useToast();
   const vehicleClasses = useVehicleSizeClasses();
   const [vehicleClassId, setVehicleClassId] = useState('');
@@ -112,8 +116,9 @@ export function MergeRevGroupDialog({ rows, onClose, onMerged }: MergeRevGroupDi
           label="BKS báo khách (ảo) chung nhóm"
           value={billingTruckNo}
           onChange={setBillingTruckNo}
-          options={[]}
-          placeholder="Để trống = giữ BKS hiện tại của nhóm"
+          options={plateOptions}
+          placeholder="Chọn BKS hệ thống hoặc gõ mới"
+          hint="Để trống = giữ BKS hiện tại của nhóm."
           allowsCustomValue
           searchable
           onCustomValue={setBillingTruckNo}

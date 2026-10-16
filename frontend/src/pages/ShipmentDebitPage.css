@@ -215,10 +215,12 @@
      unmeasured column — at a 390px viewport it inherited just
      900 − 840 = 60px, so the QA0915-138-EXC chip shattered per character
      into a vertical sliver. Floor the table at the honest sum of its nine
-     columns (840 measured + 224 identity = 1064): the identity cell always
-     gets a word-wrap floor, and the overflow-x wrap scrolls sideways
-     (with the phone-visible hint below) instead of shredding content. */
-  min-width: 1088px;
+     columns (measured + 224 identity): the identity cell always gets a
+     word-wrap floor, and the overflow-x wrap scrolls sideways (with the
+     phone-visible hint below) instead of shredding content.
+     Card 161026232359 widened the lead column 56 → 76px, so the measured sum
+     is now 884 and the floor moves 1088 → 884 + 224 = 1108. */
+  min-width: 1108px;
 }
 
 .shipment-debit-table th {
@@ -241,9 +243,13 @@
    without horizontal scroll: long money headers wrap to two lines (their
    values set the minimum), text headers stay single-line, and TRẠNG THÁI is
    fixed per the standing fixed-status-column ruling. */
-/* The shared coarse control is40px. Reserve56px including matching6px
-   cell insets at every width; the old32px column leaked into the identity. */
-.shipment-debit-table th.shipment-debit-col--lead { width: 56px; padding-inline: 6px; }
+/* The shared coarse control is40px. Reserve76px including matching6px
+   cell insets at every width; the old32px column leaked into the identity.
+   Card 161026232359 re-derived the budget: the lead cell now carries the row
+   tick (16px) + its 6px gap + the [+] control (24px desktop / control-max-h
+   =40px at coarse pointer) = 62px of content, + 2×6px insets = 74px, rounded
+   to 76px so the tick can never clip inside this fixed-layout column. */
+.shipment-debit-table th.shipment-debit-col--lead { width: 76px; padding-inline: 6px; }
 .shipment-debit-table th.shipment-debit-col--docs { width: 118px; }
 .shipment-debit-table th.shipment-debit-col--money { white-space: normal; }
 .shipment-debit-table th.shipment-debit-col--freight { width: 110px; }
@@ -282,6 +288,26 @@
 .shipment-debit-table td.shipment-debit-row__lead {
   padding-inline: 6px;
   white-space: nowrap;
+}
+
+/* Card 161026232359 — the row tick the CUS asked for, FIRST in the lead cell
+   beside [+]. The pair rides an inline-flex WRAPPER (never a flex on the <td>
+   itself — see the note directly above), so the tick and the control stay on
+   one line with a 6px breath. accent-color uses the house checkbox pattern
+   (expense-accounting / clerk shipment create): brand token, no ad-hoc hex. */
+.shipment-debit-row__lead-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shipment-debit-row__select {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--brand);
+  cursor: pointer;
 }
 
 /* Identity block: code chip on top, customer in caps, factory in parens,
@@ -394,20 +420,34 @@
   color: var(--ink-3);
 }
 
-/* Row-click selection (user ruling 2026-09-19): the checkbox never existed
-   in the drawing — a locked row highlights instead of a tick. */
+/* Row-click selection — ruling 2026-09-19 ("no tick in the drawing, a picked
+   row highlights") is SUPERSEDED IN PART by card 161026232359 / CUS spec
+   §II.3.2: the explicit tick is back, as the first thing in the lead cell,
+   because merging cước thu / exporting a Debit Note now starts from a
+   deliberate per-lot pick. The ruling's surviving half is kept verbatim: the
+   whole row is still a selection ALIAS (the checkbox stops propagation so the
+   two can never double-toggle) and the picked row still highlights; locked
+   rows keep their own tint + pointer cursor (below).
+   Card 161026232359 also aligned the highlight PALETTE to the app-wide
+   convention: the lone `rgba(37, 99, 235, .08)` / `#2563eb` blue was the only
+   ad-hoc selection hex in the app, and it put a SECOND accent inside a row
+   that now carries a var(--brand) tick. ExpenseAccounting.css,
+   LedgerRecordList.css (this screen's own phone list), CustomersPage.css,
+   AccountingDebitClosePage.css and AccountingWorkspacePage.css already read
+   `var(--surface)` + the inset ink bar. */
 .shipment-debit-row[data-locked] { cursor: pointer; }
-.shipment-debit-row[data-selected] { background: rgba(37, 99, 235, 0.08); box-shadow: inset 2px 0 0 #2563eb; }
+.shipment-debit-row[data-selected] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }
 
 /* ============================================================================
  * Card 20260924_9 — phone media block (390 / 640 / coarse pointer).
  *
- * The L1 table keeps its1088px floor so the identity cell never slivers
+ * The L1 table keeps its1108px floor so the identity cell never slivers
  * (the 900px rail inherited from components/Table.css shredded the
  * QA0915-138-EXC chip per character). The wrap then scrolls sideways — say
  * so plainly with the hidden-by-default `.shipment-debit-scroll-hint` and
  * give the leading expand control the shared40px touch floor. The base
- * leading column already reserves56px with matching6px cell insets.
+ * leading column already reserves76px (card 161026232359: the row tick +
+ * gap + the coarse control) with matching6px cell insets.
  *
  * Match the project's house media syntax (responsive.css + debit's own
  * coarse query): `(max-width: 640px), (hover: none) and (pointer: coarse)`.

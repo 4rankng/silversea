@@ -174,6 +174,182 @@ describe('FB-093 — Ghép cước thu khách', () => {
     })));
   });
 
+  // ── Card 161026232359 — the desktop tick + the [Ghép cước thu khách] gate ──
+  it('gives every desktop row a leading checkbox that ticks exactly that lot (card 161026232359)', async () => {
+    listSummary.mockResolvedValue({
+      items: [lclRow(), lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002' })],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+
+    const rowA = screen.getAllByText('BL-1')[0]!.closest('tr')!;
+    const rowB = screen.getAllByText('BL-2')[0]!.closest('tr')!;
+    const checkA = within(rowA).getByRole('checkbox', { name: 'Chọn lô BL-1' });
+    const checkB = within(rowB).getByRole('checkbox', { name: 'Chọn lô BL-2' });
+    // The tick IS the first cell's content (tick beside [+], no tenth column).
+    expect(rowA.querySelector('td')).toBe(checkA.closest('td'));
+    expect(rowB.querySelector('td')).toBe(checkB.closest('td'));
+
+    // One click, one toggle — the row-click alias must not double-toggle it.
+    fireEvent.click(checkA);
+    expect(checkA).toBeChecked();
+    expect(rowA.getAttribute('data-selected')).not.toBeNull();
+    expect(checkB).not.toBeChecked();
+    expect(rowB.getAttribute('data-selected')).toBeNull();
+
+    fireEvent.click(checkA);
+    expect(checkA).not.toBeChecked();
+    expect(rowA.getAttribute('data-selected')).toBeNull();
+
+    // The whole-row click stays a selection ALIAS (kept, not removed): it
+    // still selects and it keeps the tick in sync with the row state.
+    fireEvent.click(rowB);
+    expect(rowB.getAttribute('data-selected')).not.toBeNull();
+    expect(within(rowB).getByRole('checkbox', { name: 'Chọn lô BL-2' })).toBeChecked();
+  });
+
+  it('arms Ghép cước thu khách from the checkbox picks and keeps the tick across expand/collapse (card 161026232359)', async () => {
+    listSummary.mockResolvedValue({
+      items: [lclRow(), lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002' })],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
+    expect(screen.getByRole('button', { name: 'Ghép cước thu khách' })).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Ghép cước thu khách' })).not.toHaveAttribute('aria-disabled');
+    });
+
+    // Criterion 3 — the tick is the row's own state, not a transient highlight.
+    fireEvent.click(screen.getByRole('button', { name: 'Mở chi tiết lô BL-1' }));
+    expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng chi tiết lô BL-1' }));
+    expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeChecked();
+
+    // …and the dialog opens with exactly those two picks, in click order.
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép cước thu khách' }));
+    const dialog = await screen.findByRole('dialog');
+    const lots = within(dialog).getAllByRole('listitem');
+    expect(lots[0]!.textContent).toContain('Lô 1 · BL-1');
+    expect(lots[1]!.textContent).toContain('Lô 2 · BL-2');
+  });
+
+  it('blocks mixed-customer checkbox picks with the same-customer message (card 161026232359)', async () => {
+    listSummary.mockResolvedValue({
+      items: [
+        lclRow(),
+        lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002' }),
+        lclRow({ shipmentId: 103, billOrBookNumber: 'BL-3', code: 'SHP-26-0003', customerId: 2 }),
+      ],
+      total: 3,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép cước thu khách' }));
+    expect(await screen.findByText(/cùng một khách hàng/)).toBeTruthy();
+    expect(mergeRev).not.toHaveBeenCalled();
+  });
+
+  // ── Card 161026232409 — BKS Báo khách (xe ảo) picks from the catalog ──
+  it('offers the fleet plate catalog in the merge BKS báo khách field, submits the pick and re-shows it (card 161026232409)', async () => {
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      trucks: [{ id: 9, licensePlate: '29C-111.22', trailerPlateNumber: null, trailerType: null, currentTrailerId: null }],
+    });
+    listSummary.mockResolvedValue({
+      items: [lclRow(), lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002' })],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    // Row-click selection (the kept alias) — this red pins the OPTION LIST.
+    fireEvent.click(screen.getAllByText('BL-1')[0]!.closest('tr')!);
+    fireEvent.click(screen.getAllByText('BL-2')[0]!.closest('tr')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép cước thu khách' }));
+    const dialog = await screen.findByRole('dialog');
+
+    // Class pick (required) then BKS báo khách = the dialog's second combobox.
+    const classCombo = within(dialog).getAllByRole('combobox')[0]!;
+    fireEvent.focusIn(classCombo);
+    fireEvent.click(classCombo);
+    fireEvent.change(classCombo, { target: { value: '3.5' } });
+    fireEvent.click(await screen.findByRole('option', { name: /Xe 3\.5 tấn/ }));
+
+    // Criterion 5 — the field lists the plates the caller handed in, not [].
+    const bksCombo = within(dialog).getAllByRole('combobox')[1]!;
+    fireEvent.focusIn(bksCombo);
+    fireEvent.click(bksCombo);
+    const plate = await screen.findByRole('option', { name: /29C-111\.22/ });
+    fireEvent.click(plate);
+
+    // The refetched list is the merged group: both lots carry the picked plate.
+    listSummary.mockResolvedValue({
+      items: [
+        lclRow({
+          revGroupId: 'rev-1', revGroupOrder: 1, revGroupMemberCount: 2, revVehicleClassCode: '3.5T',
+          actualTruckNo: '51C-777.77', billingTruckNo: '29C-111.22',
+        }),
+        lclRow({
+          shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002', revGroupId: 'rev-1',
+          revGroupOrder: 2, revGroupMemberCount: 2, revVehicleClassCode: '3.5T',
+          actualTruckNo: '51C-777.77', billingTruckNo: '29C-111.22',
+        }),
+      ],
+      total: 2,
+    });
+    mergeRev.mockResolvedValue({
+      groupId: 'g', memberCount: 2,
+      members: [{ shipmentId: 101, order: 1, reference: 'BL-1' }, { shipmentId: 102, order: 2, reference: 'BL-2' }],
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ghép cước thu khách' }));
+    await waitFor(() => expect(mergeRev).toHaveBeenCalledWith(expect.objectContaining({
+      shipmentIds: [101, 102],
+      billingTruckNo: '29C-111.22',
+    })));
+
+    // Criterion 6 — the value is re-displayed on the merged lots afterwards.
+    fireEvent.click(await screen.findByRole('button', { name: /Mở chi tiết lô BL-1/ }));
+    expect(await screen.findByText(/Báo khách \(Ảo\): 29C-111\.22/)).toBeTruthy();
+  });
+
+  it('still submits a free-typed BKS báo khách with the merge (card 161026232409)', async () => {
+    listSummary.mockResolvedValue({
+      items: [lclRow(), lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002' })],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    // Row-click selection (the kept alias) — this red pins the OPTION LIST.
+    fireEvent.click(screen.getAllByText('BL-1')[0]!.closest('tr')!);
+    fireEvent.click(screen.getAllByText('BL-2')[0]!.closest('tr')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép cước thu khách' }));
+    const dialog = await screen.findByRole('dialog');
+
+    const classCombo = within(dialog).getAllByRole('combobox')[0]!;
+    fireEvent.focusIn(classCombo);
+    fireEvent.click(classCombo);
+    fireEvent.change(classCombo, { target: { value: '3.5' } });
+    fireEvent.click(await screen.findByRole('option', { name: /Xe 3\.5 tấn/ }));
+
+    const bksCombo = within(dialog).getAllByRole('combobox')[1]!;
+    fireEvent.focusIn(bksCombo);
+    fireEvent.click(bksCombo);
+    fireEvent.change(bksCombo, { target: { value: '51C-000.01' } });
+
+    mergeRev.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ghép cước thu khách' }));
+    await waitFor(() => expect(mergeRev).toHaveBeenCalledWith(expect.objectContaining({
+      billingTruckNo: '51C-000.01',
+    })));
+  });
+
   it('shows the LCL facts strip (THÔNG SỐ CONTAINER / PHÂN XE / Ghép cùng Bill) in the expanded lot', async () => {
     listSummary.mockResolvedValue({
       items: [lclRow({

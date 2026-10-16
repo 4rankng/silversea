@@ -72,15 +72,30 @@ function DebitLotRow({
       title={canManage ? 'Chọn lô (ghép cước thu khách / xuất Debit Note)' : undefined}
     >
       <td className="shipment-debit-row__lead">
-        {canManage ? <button
-          type="button"
-          className="shipment-debit-row__expand-button"
-          aria-expanded={expanded}
-          aria-label={`${expanded ? 'Đóng' : 'Mở'} chi tiết lô ${lotLabel}`}
-          onClick={(event) => { event.stopPropagation(); onToggle(); }}
-        >
-          {expanded ? '−' : '+'}
-        </button> : <span aria-label="Chỉ xem tổng hợp">—</span>}
+        {canManage ? <span className="shipment-debit-row__lead-controls">
+          {/* Card 161026232359 — the leading tick the CUS asked for: the first
+              thing in the row, beside [+]. `stopPropagation` keeps the row's
+              own click (kept as a selection ALIAS) from toggling it a second
+              time; the tick is the row's own state, so it survives expand and
+              collapse and never rests on the row highlight alone. */}
+          <input
+            type="checkbox"
+            className="shipment-debit-row__select"
+            checked={selected}
+            aria-label={`Chọn lô ${lotLabel}`}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => onSelect(row.shipmentId, event.target.checked)}
+          />
+          <button
+            type="button"
+            className="shipment-debit-row__expand-button"
+            aria-expanded={expanded}
+            aria-label={`${expanded ? 'Đóng' : 'Mở'} chi tiết lô ${lotLabel}`}
+            onClick={(event) => { event.stopPropagation(); onToggle(); }}
+          >
+            {expanded ? '−' : '+'}
+          </button>
+        </span> : <span aria-label="Chỉ xem tổng hợp">—</span>}
       </td>
       <td className="shipment-debit-row__identity">
         <span className="shipment-debit-row__code">{lotLabel}</span>
@@ -99,7 +114,7 @@ function DebitLotRow({
             onClick={(e) => e.stopPropagation()}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '12px', color: 'var(--color-primary, #059669)', textDecoration: 'underline' }}
           >
-            Chi tiết lô hàng →
+            Chi tiết →
           </Link>
         )}
       </td>
@@ -259,8 +274,10 @@ export function ShipmentDebitPage() {
     ? 'Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.'
     : null;
   const mergeDisabled = mergeDisabledReason != null;
-  // FB-093: BKS quick-edit suggestions — the bootstrap fleet's plates plus
-  // every plate already on the page's lots (group trucks a dispatcher typed).
+  // FB-093 + card 161026232409: BKS suggestions for the PHÂN XE quick edit and
+  // the merge dialog's "BKS báo khách (ảo)" field — the bootstrap fleet's plates
+  // (the same fleet the Điều vận "Gán xe nhóm" dialog sources) plus every plate
+  // already on the page's lots (group trucks a dispatcher typed).
   const plateOptions = (() => {
     const plates = new Set<string>();
     for (const truck of (bootstrap.data?.trucks ?? [])) {
@@ -457,6 +474,7 @@ export function ShipmentDebitPage() {
       {mergeOpen && (
         <MergeRevGroupDialog
           rows={mergeableRows}
+          plateOptions={plateOptions}
           onClose={() => setMergeOpen(false)}
           onMerged={() => {
             setSelectedIds(new Set());

@@ -128,6 +128,19 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     expect(screen.getAllByText('KH B').length).toBeGreaterThan(0);
   });
 
+  // Owner copy fix (2026-10-16): the CHỨNG TỪ cell's link says only what it
+  // is — "Chi tiết →". The row already sits under a lô-hàng screen, so the
+  // long label just wrapped inside the narrow docs column.
+  it('links the CHỨNG TỪ cell with the short "Chi tiết →" label', async () => {
+    listSummary.mockResolvedValue({ items: [row()], total: 1 });
+    renderPage('/shipments-debit?customer=1');
+    expect((await screen.findAllByText('BL-1')).length).toBeGreaterThan(0);
+    const link = screen.getByRole('link', { name: 'Chi tiết →' });
+    expect(link).toHaveAttribute('href', '/shipments/101');
+    // The hover affordance still names the destination for anyone unsure.
+    expect(link).toHaveAttribute('title', 'Xem chi tiết lô hàng');
+  });
+
   it('keeps customer, delivery-date range and lock status in the URL', async () => {
     listSummary.mockResolvedValue({ items: [], total: 0 });
     renderPage('/shipments-debit?customer=1&from=2026-09-01&to=2026-09-30&lock=LOCKED');
@@ -447,8 +460,10 @@ describe('L1 mobile-390 presentation (card 20260924_9)', () => {
   it('holds a word-wrap floor under the identity column so the code chip never slivers', () => {
     // The identity cell is the table's only unmeasured column: at 390 the old
     // 900px floor left it ~60px and overflow-wrap:anywhere shredded
-    // QA0915-138-EXC into a per-character column.
-    expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/min-width:\s*1088px/);
+    // QA0915-138-EXC into a per-character column. Card 161026232359 widened
+    // the lead column 56 → 76px for the row tick, so the honest sum of the
+    // nine columns is now 884 measured + 224 identity = 1108.
+    expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/min-width:\s*1108px/);
     const chip = rule(/\.shipment-debit-row__code\s*\{([^}]*)\}/);
     expect(chip).toMatch(/overflow-wrap:\s*break-word/);
     expect(chip).not.toMatch(/anywhere/);
@@ -464,9 +479,33 @@ describe('L1 mobile-390 presentation (card 20260924_9)', () => {
     const source = cssSource();
     expect(source).toMatch(/@media \(max-width: 640px\), \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.shipment-debit-row__expand-button\s*\{[^}]*width:\s*var\(--control-max-h\)/);
     expect(source).toMatch(/@media \(max-width: 640px\), \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.shipment-debit-row__expand-button\s*\{[^}]*height:\s*var\(--control-max-h\)/);
-    // The existing56px lead row keeps its cell padding around the shared40px control.
-    expect(rule(/\.shipment-debit-table th\.shipment-debit-col--lead\s*\{([^}]*)\}/)).toMatch(/width:\s*56px/);
+    // Card 161026232359: the lead column now funds the tick PLUS the shared
+    // control — 16px tick + 6px gap + 40px coarse control + 2×6px insets = 74px,
+    // deliberately rounded to 76px so the tick can never clip in a fixed layout.
+    expect(rule(/\.shipment-debit-table th\.shipment-debit-col--lead\s*\{([^}]*)\}/)).toMatch(/width:\s*76px/);
     expect(rule(/\.shipment-debit-table td\.shipment-debit-row__lead\s*\{([^}]*)\}/)).toMatch(/padding-inline:\s*6px/);
+    // The tick is a real design-system control: the pair rides a wrapper rule
+    // (never a flex on the <td>) and the accent rides the brand token.
+    expect(rule(/\.shipment-debit-row__lead-controls\s*\{([^}]*)\}/)).toMatch(/display:\s*inline-flex/);
+    expect(rule(/\.shipment-debit-row__lead-controls\s*\{([^}]*)\}/)).toMatch(/gap:\s*6px/);
+    const tick = rule(/\.shipment-debit-row__select\s*\{([^}]*)\}/);
+    expect(tick).toMatch(/accent-color:\s*var\(--brand\)/);
+    expect(tick).toMatch(/width:\s*16px/);
+    expect(tick).not.toMatch(/#[0-9a-fA-F]{3,6}/);
+  });
+
+  it('marks a picked row with the house surface + ink bar, never a lone accent hex (card 161026232359)', () => {
+    // The highlight used to be the app's ONLY blue selection hex
+    // (rgba(37,99,235,.08) / #2563eb) — a second accent inside a row that now
+    // carries the brand-green tick. Card 161026232359 aligned it with the
+    // convention five sibling tables already share (ExpenseAccounting,
+    // LedgerRecordList — this screen's own phone list — CustomersPage,
+    // AccountingDebitClosePage, AccountingWorkspacePage). Pin BOTH new
+    // declarations so the rule cannot silently drift back to a lone hex.
+    const selected = rule(/\.shipment-debit-row\[data-selected\]\s*\{([^}]*)\}/);
+    expect(selected).toMatch(/background:\s*var\(--surface\)/);
+    expect(selected).toMatch(/box-shadow:\s*inset 3px 0 0 var\(--ink\)/);
+    expect(selected).not.toMatch(/#[0-9a-fA-F]{3,6}|rgba?\(/);
   });
 });
 
