@@ -125,11 +125,20 @@ already had the law and are pinned unchanged. No money calculation
 changed — uniqueness only; live-row duplicate protection intact (BGX02
 DB + UI both prove the 409 path).
 
-Gates: BE tsc 0 · BE unit 5/5 (new pin) · BE full suite (see qa log) ·
-FE tsc 0 · FE scoped vitest 4/4 · root lint 0 errors · make build 0.
-UI rung 3: create → delete → re-create same selector on
-/config/pricing-tables as admin — SUCCESS; real duplicate still blocked;
-screenshots + DOM + DB rows + driver log in qa/2026-10-16_bang-gia-tombstone_*.
+Gates: BE tsc 0 · BE unit (new pin) 5/5 · FE tsc 0 · FE scoped vitest
+(PricingTablesConfigPage.vehicle-class) 4/4 · root lint 0 errors ·
+make build 0. Full `pnpm test` is BANNED on this host (hangs 40+ min on
+the shared DB — owner instruction 2026-10-16); scoped files only. Two
+partial full-suite runs (pre- and post-migration) failed with IDENTICAL
+failure sets (card10-ops-review AC1, card197 negative-amount validators,
+CUS container-flat projection, E2E dispatch/financial, customer account
+linkage) — pre-existing on this branch head/shared-DB state, no code-path
+overlap with the index predicates (assertion mismatches in unrelated
+listings, not insert failures). Not fixed in this lane (unrelated to the
+card; owner scoped the gates). UI rung 3: create → delete → re-create
+same selector on /config/pricing-tables as admin — SUCCESS; real
+duplicate still blocked; screenshots + DOM + DB rows + driver log in
+qa/2026-10-16_bang-gia-tombstone_*.
 
 ## Environment notes for the next session
 
@@ -143,4 +152,17 @@ screenshots + DOM + DB rows + driver log in qa/2026-10-16_bang-gia-tombstone_*.
   class that matches almost anything — pass regex SOURCE as a string.
   Also use `{ polling: 120 }` on waitForFunction in headless tabs (rAF
   polling stalls on occluded pages).
-- Backend full `pnpm test` needs >15 min (integration tier, concurrency 1).
+
+## Wave status (final)
+
+- 161026121500: FIXED, rung 3, committed + pushed per-ticket.
+- 161026095800: already on main (F-1 `b9b22bf9`), verified this wave.
+- 161026113900 (F-2): owner ruling documented, nothing implemented.
+- Four 0-byte cards (141026230700/710/720, 161026100400): BLOCKED with
+  reasons above — re-dispatch once readable card content exists.
+- Backend full `pnpm test` HANGS on this host (40+ min on the shared
+  ss-prod-db, owner-killed twice) — run scoped test files with explicit
+  timeouts only. Pre-existing failures to be aware of on this branch head:
+  card10-ops-review.test.ts (AC1), card197-negative-cost-totals.test.ts
+  (validators + phoi-phieu), CUS container-flat projection, both E2E
+  dispatch/financial suites, customer account linkage.
