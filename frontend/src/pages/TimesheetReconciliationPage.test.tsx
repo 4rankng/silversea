@@ -11,6 +11,7 @@ import {
   adjustTimesheetDay,
   getTimesheetRollup,
   listTimesheetMonths,
+  updateTimesheetMode,
 } from '../api/timesheetClient';
 import { ToastProvider } from '../components/shared/Toast';
 import type { TimesheetMonth } from '../api/timesheetClient';
@@ -24,6 +25,7 @@ vi.mock('../api/timesheetClient', async () => {
     adjustTimesheetDay: vi.fn(),
     reconcileTimesheetMonth: vi.fn(),
     reopenTimesheetMonth: vi.fn(),
+    updateTimesheetMode: vi.fn(),
   };
 });
 
@@ -113,5 +115,18 @@ describe('TimesheetReconciliationPage', () => {
   it('tells the accountant a negative correction is allowed', async () => {
     renderBoard();
     expect(await screen.findByText(/Chỉnh lệch chuyến nhập số âm được/)).toBeTruthy();
+  });
+
+  it('FB-103 — đổi hình thức lương gửi PATCH mode kèm tham số của chế độ mới', async () => {
+    vi.mocked(updateTimesheetMode).mockResolvedValue(month);
+    renderBoard();
+    await screen.findByText('Tổng lương');
+    fireEvent.click(screen.getByRole('button', { name: /Hình thức lương/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lương theo tháng (trốn vé)' }));
+    fireEvent.change(screen.getByLabelText('Lương tháng cố định (VND)'), { target: { value: '10000000' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu chế độ lương/ }));
+    await waitFor(() => expect(updateTimesheetMode).toHaveBeenCalledWith(7, {
+      salaryMode: 'FLAT_MONTHLY', dailyBase: null, flatAmount: 10000000,
+    }));
   });
 });

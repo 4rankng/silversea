@@ -681,4 +681,52 @@ describe('ShipmentDetailPage', () => {
       });
     });
   });
+
+  describe('Khai chi phí affordance (FB-098 — card 141026230750)', () => {
+    it('offers Khai chi phí to the cost-declaring roles on an unlocked lot and opens the drawer flow', async () => {
+      currentUser.role = Role.ACCOUNTANT;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: /Khai chi phí/ }));
+      expect(await screen.findByText('Đang tải danh mục khoản chi…')).toBeTruthy();
+    });
+
+    it('hides Khai chi phí from roles without cost write and while the accounting lock is active', async () => {
+      currentUser.role = Role.DISPATCHER;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      await screen.findByText('Khách hàng');
+      expect(screen.queryByRole('button', { name: /Khai chi phí/ })).toBeNull();
+
+      currentUser.role = Role.ACCOUNTANT;
+      getShipmentDetailMock.mockResolvedValue(detail);
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      await screen.findByText(/Khóa lô do CUS/);
+      expect(screen.queryByRole('button', { name: /Khai chi phí/ })).toBeNull();
+    });
+  });
 });

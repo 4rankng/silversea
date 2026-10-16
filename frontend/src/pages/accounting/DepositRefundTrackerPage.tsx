@@ -165,7 +165,7 @@ export default function DepositRefundTrackerPage() {
           actions={(
             <>
               <Btn variant="secondary" size="sm" onClick={() => void query.refetch()}>Lọc</Btn>
-              <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setCreateModal(true)}>Thêm dòng</Btn>
+              <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setCreateModal(true)}>Thêm cược</Btn>
             </>
           )}
         >
@@ -302,7 +302,7 @@ export default function DepositRefundTrackerPage() {
         )}
       </Modal>
 
-      <Modal isOpen={createModal} title="Thêm dòng theo dõi hoàn cược" onClose={() => setCreateModal(false)}>
+      <Modal isOpen={createModal} title="Thêm cược" onClose={() => setCreateModal(false)}>
         <CreateForm
           onSaved={() => {
             setCreateModal(false);

@@ -24,6 +24,8 @@ export interface PhoiPhieuRow {
   plateNumber: string | null;
   driverName: string | null;
   carrierName?: string | null;
+  /** FB-097 — NCC nhà xe của chuyến (suppliers.id khi external là SUPPLIER). */
+  carrierSupplierId?: number | null;
   departureDate: string | null;
   /** Appointment day in Vietnam, or the established shipment schedule fallback. */
   transportDate?: string | null;

@@ -21,6 +21,8 @@ interface Props {
    *  (shipment-level expenses anchor on the lot, not the trip). */
   shipmentId: number;
   billOrBooking?: string | null;
+  /** FB-097 — nhà xe chạy chuyến (để form "Thêm khoản chi" tự điền NCC). */
+  carrier?: { supplierId: number | null; name: string | null };
   onClose: () => void;
   onSaved: () => void;
 }
@@ -39,7 +41,7 @@ function liveAmount(
   return edit === undefined ? row.amount ?? 0 : edit === '' ? 0 : edit;
 }
 
-export function PhoiPhieuTienDuongDialog({ tripId, shipmentId, billOrBooking, onClose, onSaved }: Props) {
+export function PhoiPhieuTienDuongDialog({ tripId, shipmentId, billOrBooking, carrier, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const detail = useQuery({
     queryKey: qk.phoiPhieu.tienDuong(tripId),
@@ -267,7 +269,7 @@ export function PhoiPhieuTienDuongDialog({ tripId, shipmentId, billOrBooking, on
     </Modal>}
       {addPanelOpen && catalog.data && <ExpenseCreateDrawer
         work={{ tripId, shipmentId, shipmentCode: billBookingReference(billOrBooking), containerNumber: null }}
-        catalog={catalog.data} initialGroup="DRIVER_ROAD"
+        catalog={catalog.data} initialGroup="DRIVER_ROAD" carrier={carrier}
         onClose={() => setAdding(false)}
         onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.tienDuong(tripId) }); onSaved(); }}
       />}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, FileText, FileCheck2, Container, History, Loader2, Trash2, X,
 } from 'lucide-react';
@@ -7,6 +8,9 @@ import { ApiError } from '../lib/api';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
+import { qk } from '../api/keys';
+import { expenseAccountingClient } from '../api/expenseAccountingClient';
+import { ExpenseCreateDrawer } from '../features/expense-accounting/ExpenseCreateDrawer';
 import {
   SHIPMENT_STATUS_LABELS,
   SHIPMENT_DOCUMENT_TYPE_LABELS,
@@ -67,6 +71,12 @@ export default function ShipmentDetailPage() {
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteBlockedMessage, setDeleteBlockedMessage] = useState<string | null>(null);
+
+  // FB-098 (card 141026230750) — nút "Khai chi phí" ngay trên chi tiết lô, mở
+  // đúng drawer "Thêm khoản chi" dùng chung (khớp thao tác khách mô tả).
+  const [costDrawerOpen, setCostDrawerOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const costCatalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: costDrawerOpen });
 
   const handleRequestDelete = useCallback(() => {
     if (!data) return;
@@ -228,6 +238,9 @@ export default function ShipmentDetailPage() {
   const shipmentLabel = billBookingReference(shipment.blNumber, shipment.bookingRef);
   const customerLabel = shipment.customerName?.trim() || 'Chưa có tên khách hàng';
   const accountingLock = data.accountingLock ?? null;
+  // FB-098 — cùng vai trò với nút "+ Thêm khoản chi" trong panel chi phí.
+  const canDeclareCost = !accountingLock
+    && (user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT);
   const carrierAllocationSummary = allocationSummaryFromDetail(data);
   const lockReason = accountingLock
     ? `Khóa lô do CUS${accountingLock.activatedByName ? ` (${accountingLock.activatedByName})` : ''}${accountingLock.activatedAt ? ` lúc ${formatDateTime(accountingLock.activatedAt)}` : ''}. ${accountingLock.reason}`
@@ -245,14 +258,27 @@ export default function ShipmentDetailPage() {
         description={`Trạng thái: ${SHIPMENT_STATUS_LABELS[shipment.status]}`}
         onBack={() => navigate('/shipments')}
         action={
-          canDeleteLot ? (
-            <button
-              type="button"
-              className="btn btn--danger-outline btn--sm"
-              onClick={handleRequestDelete}
-            >
-              <Trash2 size={14} aria-hidden="true" /> Xóa lô
-            </button>
+          (canDeclareCost || canDeleteLot) ? (
+            <>
+              {canDeclareCost && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => setCostDrawerOpen(true)}
+                >
+                  Khai chi phí
+                </button>
+              )}
+              {canDeleteLot && (
+                <button
+                  type="button"
+                  className="btn btn--danger-outline btn--sm"
+                  onClick={handleRequestDelete}
+                >
+                  <Trash2 size={14} aria-hidden="true" /> Xóa lô
+                </button>
+              )}
+            </>
           ) : undefined
         }
       />
@@ -463,6 +489,16 @@ export default function ShipmentDetailPage() {
           )}
         </section>
       </div>
+
+      {costDrawerOpen && !costCatalog.data && <p role="status">Đang tải danh mục khoản chi…</p>}
+      {costDrawerOpen && costCatalog.data && (
+        <ExpenseCreateDrawer
+          work={{ tripId: null, shipmentId: shipment.id, shipmentCode: shipmentLabel, containerNumber: null }}
+          catalog={costCatalog.data}
+          onClose={() => setCostDrawerOpen(false)}
+          onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.expenseAccounting.all }); }}
+        />
+      )}
 
       {deleteModalOpen && (
         <Modal

@@ -58,6 +58,7 @@ export const routes = {
   salary: PAGE_CATALOG.salary.path,
   timesheet: PAGE_CATALOG.timesheet.path,
   timesheetReconciliation: PAGE_CATALOG.timesheetReconciliation.path,
+  timesheetReport: PAGE_CATALOG.timesheetReport.path,
   users: PAGE_CATALOG.users.path,
   hrRoster: PAGE_CATALOG.hrRoster.path,
   auditLogs: PAGE_CATALOG.auditLogs.path,
@@ -305,6 +306,7 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.advances), title: PAGE_CATALOG.advances.title },
   { test: p => p.startsWith(routes.adminAdvanceSettlements), title: PAGE_CATALOG.adminAdvanceSettlements.title },
   { test: p => p.startsWith(routes.salary), title: PAGE_CATALOG.salary.title },
+  { test: p => p.startsWith(routes.timesheetReport), title: PAGE_CATALOG.timesheetReport.title },
   { test: p => p.startsWith(routes.timesheetReconciliation), title: PAGE_CATALOG.timesheetReconciliation.title },
   { test: p => p.startsWith(routes.timesheet), title: PAGE_CATALOG.timesheet.title },
 ];

@@ -2,9 +2,7 @@ import { DateField, TextField, UuiSelectField } from '../../design-system';
 
 export type ExpenseEvidenceKind = 'INVOICE' | 'RECEIPT';
 
-export interface ExpenseEvidenceFieldsProps {
-  kind: ExpenseEvidenceKind;
-  onKindChange: (kind: ExpenseEvidenceKind) => void;
+interface ExpenseEvidenceFieldsBase {
   invoiceNumber: string;
   onInvoiceNumber: (value: string) => void;
   invoiceDate: string;
@@ -16,39 +14,55 @@ export interface ExpenseEvidenceFieldsProps {
   disabled?: boolean;
 }
 
+export type ExpenseEvidenceFieldsProps = ExpenseEvidenceFieldsBase & (
+  | {
+      /** Driver lot-cost surface: the "Loại chứng từ" picker gates the pair —
+       *  the driver payload carries `evidenceKind` and the photo rule hangs on
+       *  it ("Phiếu thu" hides the invoice fields so no leftover text leaks). */
+      variant?: 'kind-picker';
+      kind: ExpenseEvidenceKind;
+      onKindChange: (kind: ExpenseEvidenceKind) => void;
+    }
+  | {
+      /** FB-097 (card 141026230740) — accounting "Thêm khoản chi": gọn theo
+       *  card, không có ô "Loại chứng từ" (hợp đồng lưu không ghi trường này);
+       *  cặp số/ngày hóa đơn hiển thị sẵn, điền hoặc không đều được. */
+      variant: 'invoice-pair';
+    }
+);
+
 /**
- * Loại chứng từ (Hóa đơn / Phiếu thu) + số/ngày hóa đơn — one picker for every
- * cost-entry screen (driver lot costs and the accounting drawer), so the two
- * surfaces cannot drift on what a "Phiếu thu" row hides or sends.
- *
- * "Phiếu thu" (cash receipt) carries no VAT invoice: the number/date fields are
- * simply not mounted, so no leftover text can leak into the payload. "Hóa đơn"
- * shows them. Whether a photo is MANDATORY is the caller's rule (driver: yes
- * for Phiếu thu; accounting: no) — this component never owns the photo button.
+ * Số/ngày hóa đơn cho mọi màn hình khai chi phí. Hai biến thể:
+ * - `kind-picker` (mặc định, màn hình lái xe): "Loại chứng từ" (Hóa đơn / Phiếu
+ *   thu) quyết định cặp số/ngày hóa đơn có hiển thị hay không.
+ * - `invoice-pair` (form kế toán): chỉ cặp số/ngày hóa đơn, luôn hiển thị, tùy
+ *   chọn. Component không sở hữu nút ảnh — quy tắc ảnh là của nơi gọi.
  */
-export function ExpenseEvidenceFields({
-  kind,
-  onKindChange,
-  invoiceNumber,
-  onInvoiceNumber,
-  invoiceDate,
-  onInvoiceDate,
-  required = false,
-  disabled = false,
-}: ExpenseEvidenceFieldsProps) {
+export function ExpenseEvidenceFields(props: ExpenseEvidenceFieldsProps) {
+  const {
+    invoiceNumber,
+    onInvoiceNumber,
+    invoiceDate,
+    onInvoiceDate,
+    required = false,
+    disabled = false,
+  } = props;
+  const showPair = props.variant === 'invoice-pair' || props.kind === 'INVOICE';
   return (
     <>
-      <UuiSelectField
-        label="Loại chứng từ"
-        value={kind}
-        disabled={disabled}
-        onChange={(event) => onKindChange(event.target.value as ExpenseEvidenceKind)}
-        options={[
-          { value: 'INVOICE', label: 'Hóa đơn' },
-          { value: 'RECEIPT', label: 'Phiếu thu' },
-        ]}
-      />
-      {kind === 'INVOICE' && (
+      {props.variant !== 'invoice-pair' && (
+        <UuiSelectField
+          label="Loại chứng từ"
+          value={props.kind}
+          disabled={disabled}
+          onChange={(event) => props.onKindChange(event.target.value as ExpenseEvidenceKind)}
+          options={[
+            { value: 'INVOICE', label: 'Hóa đơn' },
+            { value: 'RECEIPT', label: 'Phiếu thu' },
+          ]}
+        />
+      )}
+      {showPair && (
         <>
           <TextField
             controlSize="sm"

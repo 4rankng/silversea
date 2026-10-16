@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Wallet, ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { usePageAnimations } from '../hooks/animations';
 import { formatNumber, formatDate } from '../lib/format';
@@ -135,9 +137,14 @@ function AdvKPI({ label, value, meta, variant, active = false, hasItems = false,
 function AdvanceGridRow({
   req,
   focusId,
+  onApprove,
+  approveBusy,
 }: {
   req: AdvanceRequest;
   focusId?: string;
+  /** FB-100 — "PHÊ DUYỆT TẠM ỨNG" cho dòng PENDING (kế toán). */
+  onApprove?: (req: AdvanceRequest) => void;
+  approveBusy?: boolean;
 }) {
   const isDraft = req.status === 'DRAFT';
 
@@ -173,19 +180,25 @@ function AdvanceGridRow({
       {/* Reason */}
       <div className="adv-reason">{req.reason}</div>
 
-      {/* Direct-effect save: no approve/reject handoff remains. Legacy
-          PENDING rows (pre-removal data) render read-only. */}
+      {/* FB-100 (card 141026230770) — dòng PENDING (Ops mới gửi) có nút
+          "PHÊ DUYỆT TẠM ỨNG" cho kế toán; duyệt = giải ngân (KP-148). */}
       <div className="adv-actions">
         {isDraft ? (
           <AdvanceDraftActions request={req} />
         ) : (
           // Card 071026141630: the line names the REQUESTER (who asked for the
           // advance — the audit trail the report missed), '—' when the system
-          // created it. The legacy approver display rendered nothing on
-          // never-approved rows, leaving the card with no creator at all.
-          <div className="adv-approver">
-            bởi <strong>{req.requesterName || '—'}</strong>
-          </div>
+          // created it.
+          <>
+            {req.status === AdvanceRequestStatus.PENDING && onApprove && (
+              <button type="button" className="btn btn--primary btn--sm" disabled={approveBusy} onClick={() => onApprove(req)}>
+                {approveBusy ? 'Đang phê duyệt…' : 'Phê duyệt tạm ứng'}
+              </button>
+            )}
+            <div className="adv-approver">
+              bởi <strong>{req.requesterName || '—'}</strong>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -197,9 +210,14 @@ function AdvanceGridRow({
 function AdvanceMobileCard({
   req,
   focusId,
+  onApprove,
+  approveBusy,
 }: {
   req: AdvanceRequest;
   focusId?: string;
+  /** FB-100 — "PHÊ DUYỆT TẠM ỨNG" cho dòng PENDING (kế toán). */
+  onApprove?: (req: AdvanceRequest) => void;
+  approveBusy?: boolean;
 }) {
   const isDraft = req.status === 'DRAFT';
 
@@ -239,10 +257,16 @@ function AdvanceMobileCard({
         )}
       </div>
 
-      {/* Actions — direct-effect save: no approve/reject handoff remains. */}
+      {/* Actions — FB-100: dòng PENDING có nút "PHÊ DUYỆT TẠM ỨNG". */}
       {isDraft ? (
         <div className="adv-readonly-state adv-readonly-state--mobile">
           <AdvanceDraftActions request={req} />
+        </div>
+      ) : req.status === AdvanceRequestStatus.PENDING && onApprove ? (
+        <div className="adv-readonly-state adv-readonly-state--mobile">
+          <button type="button" className="btn btn--primary btn--sm" disabled={approveBusy} onClick={() => onApprove(req)}>
+            {approveBusy ? 'Đang phê duyệt…' : 'Phê duyệt tạm ứng'}
+          </button>
         </div>
       ) : req.approverName ? (
         <div className="adv-mcard__meta-row" style={{ marginTop: 4 }}>
@@ -273,6 +297,27 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
   });
   const { data: balancesData } = useAdminAdvanceBalances();
   const { rootRef } = usePageAnimations({ ready: !table.isLoading });
+
+  // FB-100 (card 141026230770) — "PHÊ DUYỆT TẠM ỨNG" cho kế toán ngay trên
+  // danh sách Yêu cầu tạm ứng. Duyệt = giải ngân (KP-148) — cùng endpoint với
+  // tab "Tạm ứng chờ duyệt" của màn chi phí.
+  const cache = useQueryClient();
+  const [approveBusyId, setApproveBusyId] = useState<number | null>(null);
+  const [approveError, setApproveError] = useState('');
+  const approveRequest = async (req: AdvanceRequest) => {
+    if (approveBusyId !== null) return;
+    setApproveBusyId(req.id);
+    setApproveError('');
+    try {
+      await forwarderClient.approveAdvanceRequest(req.id, req.version);
+      await cache.invalidateQueries({ queryKey: qk.adminForwarder.advanceRequestsAll });
+      await cache.invalidateQueries({ queryKey: qk.adminForwarder.advanceBalances });
+    } catch (cause) {
+      setApproveError(cause instanceof Error ? cause.message : 'Không phê duyệt được yêu cầu tạm ứng. Thử lại.');
+    } finally {
+      setApproveBusyId(null);
+    }
+  };
 
   const statusFilter = (table.filters.status ?? '') as StatusFilter;
   const setStatusFilter = (next: StatusFilter) => {
@@ -394,6 +439,8 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           </div>
         ) : (
           <>
+            {approveError && <p role="alert" className="adv-approve-error">{approveError}</p>}
+
             {/* Desktop: grid header + rows */}
             <div className="adv-grid-head ops-table">
               <GridSortHeader label="Người yêu cầu" sortKey="requesterName" sort={sort} onSortChange={handleSort} />
@@ -410,6 +457,8 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
                   key={req.id}
                   req={req}
                   focusId={`adv-${req.id}`}
+                  onApprove={approveRequest}
+                  approveBusy={approveBusyId === req.id}
                 />
               ))}
             </div>
@@ -421,6 +470,8 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
                   key={req.id}
                   req={req}
                   focusId={`adv-${req.id}`}
+                  onApprove={approveRequest}
+                  approveBusy={approveBusyId === req.id}
                 />
               ))}
             </div>
