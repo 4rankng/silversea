@@ -571,3 +571,29 @@ class-law pin in
 those own-surface files, with the sheet rule scoped inside
 `ShipmentContainersPage.css`).
 *Source:* card 20261009_3 rework, owner ruling 2026-10-09.
+
+**Amendment 2026-10-16 (owner phone report, issue #8 / MOBFOOT-1016).** The
+counted-once law gains a second sanctioned own-surface shape for pages whose
+terminal block is a real surface: `/shipments` neutralized the shell band
+while its worksheet pagination is mounted
+(`.app-main:not(.driver-mode) .app-body:has(> .shipments-page
+.cus-dashboard-viewport > .ds-pagination) { padding-bottom: 0 }`, the
+`.csc-page` pattern; empty/loading states keep the standard shell band) and
+moved the clearance into the terminal pagination
+(`.cus-dashboard-viewport > .ds-pagination { padding-bottom: calc(12px +
+max(0px, env(safe-area-inset-bottom, 0px))) }` — declared AFTER the base
+`padding: 12px` rule: same selector and specificity, media queries add none,
+so source order is load-bearing and pinned). Reason: painted in page tone
+under the white pagination, the shell band read as a solid empty grey stray
+footer below the last lot card on the owner's phone (34px on-device, ~59px
+with iOS dynamic-viewport growth the inner `.app-body` scroller does not
+re-absorb — shell-wide residual, not page-specific). The total stays counted
+once; the last painted pixel is the terminal surface. Enforcement:
+`ShipmentsPage.mobile-footer.styles.test.ts` pins the pair AND the cascade
+order; `mobile-viewport-fill-contract.styles.test.ts` accepts the env() term
+ONLY inside the ≤640 pagination rule AND only while the neutralizer exists.
+Residuals: the grey trailing band persists at 641–1023px (tablet band,
+includes phones in landscape); the iOS dynamic-viewport growth slack is
+shell-wide and transient.
+*Source:* owner phone report 2026-10-16 21:07 SGT, screenshot
+`img_4391901f3bfc.jpg`.

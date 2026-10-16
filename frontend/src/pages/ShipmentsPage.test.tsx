@@ -754,6 +754,31 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByLabelText('Số dòng mỗi trang')).toBeTruthy();
   });
 
+  it('ends the worksheet at the pagination surface — no block renders after the list (MOBFOOT-1016)', async () => {
+    // Owner phone report 2026-10-16: an empty grey band below the last lot
+    // card read as a stray footer. The DOM side of that contract: the page's
+    // element chain terminates in the worksheet, and the worksheet's own
+    // terminal block is the pagination surface — a footer, empty-state block
+    // or spacer appended after it would recreate the stray-band reading.
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve({ ...listResponse(), total: 144, totalPages: 3 })
+    ));
+    renderPage('/shipments');
+    const nav = await screen.findByRole('navigation', { name: 'Phân trang' });
+    expect(nav.classList.contains('ds-pagination')).toBe(true);
+
+    const viewport = nav.closest('.cus-dashboard-viewport');
+    expect(viewport).not.toBeNull();
+    expect(viewport?.lastElementChild).toBe(nav);
+
+    const pageEl = nav.closest('.shipments-page');
+    expect(pageEl).not.toBeNull();
+    expect(pageEl?.lastElementChild).toBe(nav.closest('.cus-workspace'));
+    expect(pageEl?.parentElement?.lastElementChild).toBe(pageEl);
+  });
+
   it('falls back to 20 rows when the URL carries an unsupported size', async () => {
     renderPage('/shipments?limit=37');
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=20')));
