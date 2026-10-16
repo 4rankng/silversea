@@ -187,6 +187,24 @@ describe('phone-band trailing clearance class law (rework 2026-10-09)', () => {
           if (!sheetSpans.some(([a, b]) => idx >= a && idx < b)) {
             offenders.push(`${base}: ${hit[0].trim()}`);
           }
+        } else if (base === 'ShipmentsPage.css') {
+          // MOBFOOT-1016 (issue #8, 2026-10-16): the worksheet's terminal
+          // pagination surface owns the phone bottom edge under the 2026-10-09
+          // law's own-surface clause — LEGAL ONLY as the counted-once pair:
+          // the shell band is neutralized for this page while the pagination
+          // is mounted (the `.csc-page` pattern) AND every env() hit sits
+          // inside the ≤640 pagination rule that replaces it. Any other env()
+          // padding in this file re-counts the band.
+          const neutralized = /:has\(> \.shipments-page \.cus-dashboard-viewport > \.ds-pagination\)\s*\{\s*padding-bottom:\s*0;/.test(text);
+          const phoneSpans = [...text.matchAll(/@media \(max-width: 640px\)\s*\{(?:[^{}]|\{[^{}]*\})*\}/g)].map(
+            (m) => [(m.index ?? 0), (m.index ?? 0) + m[0].length] as const,
+          );
+          const paginationSpans = [...text.matchAll(/\.cus-dashboard-viewport > \.ds-pagination\s*\{[^}]*\}/g)]
+            .filter((m) => phoneSpans.some(([a, b]) => (m.index ?? 0) >= a && (m.index ?? 0) < b))
+            .map((m) => [(m.index ?? 0), (m.index ?? 0) + m[0].length] as const);
+          if (!neutralized || !paginationSpans.some(([a, b]) => idx >= a && idx < b)) {
+            offenders.push(`${base}: ${hit[0].trim()}`);
+          }
         } else if (!ALLOWED_ENV_BOTTOM_FILES.has(base)) {
           offenders.push(`${base}: ${hit[0].trim()}`);
         }

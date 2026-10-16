@@ -25,7 +25,10 @@
 /* Rework 2026-10-09 (card 20261009_3, owner ruling): the page keeps only its
    flat rhythm padding — in the phone band the page's trailing padding dies
    entirely and the ≤640 shell clearance max(16px, env(safe-area-inset-bottom))
-   is the single, counted-once trailing band. */
+   is the single, counted-once trailing band. See the trailing-band block next
+   to the `.cus-dashboard-viewport > .ds-pagination` base rule for the
+   2026-10-16 amendment that lets the worksheet's terminal surface own this
+   page's phone bottom edge. */
 @media (max-width: 640px) {
   .shipments-page { padding-bottom: 0; }
 }
@@ -399,6 +402,32 @@
   padding: 12px;
   border-top: 1px solid var(--line);
   background: var(--surface);
+}
+
+/* Trailing band, amended 2026-10-16 (owner phone report, issue #8 /
+   MOBFOOT-1016): painted in page tone under this white pagination, the ≤640
+   shell clearance read as a solid empty grey stray footer below the last lot
+   card (34px on-device, ~59px with iOS dynamic-viewport growth the inner
+   scroller does not re-absorb). Per the 2026-10-09 counted-once law's
+   own-surface clause (the `.csc-page` pattern), on this page the terminal
+   worksheet block owns the phone bottom edge instead: the shell band is
+   scoped out WHILE the pagination is mounted (empty/loading states keep the
+   shell band like every sibling page), and the safe-area clearance moves
+   INTO the pagination surface — still counted once, but the last painted
+   pixel is a surface, not page tone.
+   CASCADE ORDER IS LOAD-BEARING: this block sits AFTER the base rule above
+   on purpose — same selector, same specificity, and a media query adds none,
+   so a `padding: 12px` shorthand above would silently kill the env() term
+   (that exact dead-rule defect is what the independent review caught). The
+   styles test pins the source order. */
+@media (max-width: 640px) {
+  .app-main:not(.driver-mode) .app-body:has(> .shipments-page .cus-dashboard-viewport > .ds-pagination) {
+    padding-bottom: 0;
+  }
+
+  .cus-dashboard-viewport > .ds-pagination {
+    padding-bottom: calc(12px + max(0px, env(safe-area-inset-bottom, 0px)));
+  }
 }
 
 .cus-dashboard-table {
