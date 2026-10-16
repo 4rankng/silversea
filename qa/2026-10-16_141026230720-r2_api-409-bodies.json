@@ -1,0 +1,77 @@
+{
+  "sameAuthor": {
+    "status": 409,
+    "body": {
+      "error": "Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên cont MSDU1245780 — kiểm tra lại để tránh nhập trùng; vẫn tiếp tục lưu nếu đây là lần chi hợp lệ.",
+      "code": "OPS_EXPENSE_DUPLICATE",
+      "duplicates": [
+        {
+          "id": 53,
+          "expenseTypeName": "Cân lốp",
+          "containerNumber": "MSDU1245780",
+          "paidByName": "Nguyễn Huy Hoàng",
+          "amount": "150000",
+          "paidAt": "2026-10-16"
+        },
+        {
+          "id": 54,
+          "expenseTypeName": "Cân lốp",
+          "containerNumber": "MSDU1245780",
+          "paidByName": "Nguyễn Huy Hoàng",
+          "amount": "180000",
+          "paidAt": "2026-10-16"
+        }
+      ]
+    }
+  },
+  "secondAccount": {
+    "status": 409,
+    "body": {
+      "error": "Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên cont MSDU1245780 — kiểm tra lại để tránh nhập trùng; vẫn tiếp tục lưu nếu đây là lần chi hợp lệ.",
+      "code": "OPS_EXPENSE_DUPLICATE",
+      "duplicates": [
+        {
+          "id": 53,
+          "expenseTypeName": "Cân lốp",
+          "containerNumber": "MSDU1245780",
+          "paidByName": "Nguyễn Huy Hoàng",
+          "amount": "150000",
+          "paidAt": "2026-10-16"
+        },
+        {
+          "id": 54,
+          "expenseTypeName": "Cân lốp",
+          "containerNumber": "MSDU1245780",
+          "paidByName": "Nguyễn Huy Hoàng",
+          "amount": "180000",
+          "paidAt": "2026-10-16"
+        }
+      ]
+    }
+  },
+  "secondConfirmed": {
+    "status": 409,
+    "body": {
+      "error": "Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên cont MSDU1245780 — kiểm tra lại để tránh nhập trùng; vẫn tiếp tục lưu nếu đây là lần chi hợp lệ.",
+      "code": "OPS_EXPENSE_DUPLICATE",
+      "duplicates": [
+        {
+          "id": 53,
+          "expenseTypeName": "Cân lốp",
+          "containerNumber": "MSDU1245780",
+          "paidByName": "Nguyễn Huy Hoàng",
+          "amount": "150000",
+          "paidAt": "2026-10-16"
+        },
+        {
+          "id": 54,
+          "expenseTypeName": "Cân lốp",
+          "containerNumber": "MSDU1245780",
+          "paidByName": "Nguyễn Huy Hoàng",
+          "amount": "180000",
+          "paidAt": "2026-10-16"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,224 @@
+[
+  {
+    "at": "2026-10-16T12:54:54.948Z",
+    "method": "POST",
+    "status": 201,
+    "body": {
+      "payerKind": null,
+      "costGroup": "OPS_REGULAR",
+      "feeName": "",
+      "customerChargeAmount": "0",
+      "invoiceNumber": null,
+      "invoiceDate": null,
+      "recoveryNote": null,
+      "photoStorageKeys": [],
+      "id": 53,
+      "shipmentId": 175,
+      "shipmentContainerId": 145,
+      "expenseTypeCode": "TIRE_WEIGH",
+      "amount": "150000",
+      "paidById": 3,
+      "paidAt": "2026-10-16",
+      "note": "QA 141026230720-r2 — duplicate-warning verify, xóa ngay sau kiểm tra",
+      "approvalStatus": "RECORDED",
+      "approvedById": null,
+      "approvedAt": null,
+      "rejectionReason": null,
+      "opsSettlementId": null,
+      "deletionReason": null,
+      "deletedBy": null,
+      "createdAt": "2026-10-16T12:54:54.912Z",
+      "updatedAt": "2026-10-16T12:54:54.912Z",
+      "version": 1
+    }
+  },
+  {
+    "at": "2026-10-16T12:55:03.404Z",
+    "method": "POST",
+    "status": 409,
+    "body": {
+      "error": "Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên cont MSDU1245780 — kiểm tra lại để tránh nhập trùng; vẫn tiếp tục lưu nếu đây là lần chi hợp lệ.",
+      "code": "OPS_EXPENSE_DUPLICATE",
+      "duplicates": [
+        {
+          "id": 53,
+          "expenseTypeName": "Cân lốp",
+          "containerNumber": "MSDU1245780",
+          "paidByName": "Nguyễn Huy Hoàng",
+          "amount": "150000",
+          "paidAt": "2026-10-16"
+        }
+      ]
+    }
+  },
+  {
+    "at": "2026-10-16T12:55:06.965Z",
+    "method": "POST",
+    "status": 409,
+    "body": {
+      "error": "Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên cont MSDU1245780 — kiểm tra lại để tránh nhập trùng; vẫn tiếp tục lưu nếu đây là lần chi hợp lệ.",
+      "code": "OPS_EXPENSE_DUPLICATE",
+      "duplicates": [
+        {
+          "id": 53,
+          "expenseTypeName": "Cân lốp",
+          "containerNumber": "MSDU1245780",
+          "paidByName": "Nguyễn Huy Hoàng",
+          "amount": "150000",
+          "paidAt": "2026-10-16"
+        }
+      ]
+    }
+  },
+  {
+    "at": "2026-10-16T12:55:07.792Z",
+    "method": "POST",
+    "status": 201,
+    "body": {
+      "payerKind": null,
+      "costGroup": "OPS_REGULAR",
+      "feeName": "",
+      "customerChargeAmount": "0",
+      "invoiceNumber": null,
+      "invoiceDate": null,
+      "recoveryNote": null,
+      "photoStorageKeys": [],
+      "id": 54,
+      "shipmentId": 175,
+      "shipmentContainerId": 145,
+      "expenseTypeCode": "TIRE_WEIGH",
+      "amount": "180000",
+      "paidById": 3,
+      "paidAt": "2026-10-16",
+      "note": "QA 141026230720-r2 — duplicate-warning verify, xóa ngay sau kiểm tra",
+      "approvalStatus": "RECORDED",
+      "approvedById": null,
+      "approvedAt": null,
+      "rejectionReason": null,
+      "opsSettlementId": null,
+      "deletionReason": null,
+      "deletedBy": null,
+      "createdAt": "2026-10-16T12:55:07.766Z",
+      "updatedAt": "2026-10-16T12:55:07.766Z",
+      "version": 1
+    }
+  },
+  {
+    "at": "2026-10-16T12:55:14.856Z",
+    "method": "POST",
+    "status": 201,
+    "body": {
+      "payerKind": null,
+      "costGroup": "OPS_REGULAR",
+      "feeName": "",
+      "customerChargeAmount": "0",
+      "invoiceNumber": null,
+      "invoiceDate": null,
+      "recoveryNote": null,
+      "photoStorageKeys": [],
+      "id": 55,
+      "shipmentId": 175,
+      "shipmentContainerId": null,
+      "expenseTypeCode": "WAREHOUSE_LABOR",
+      "amount": "100000",
+      "paidById": 3,
+      "paidAt": "2026-10-16",
+      "note": "QA 141026230720-r2 — duplicate-warning verify, xóa ngay sau kiểm tra",
+      "approvalStatus": "RECORDED",
+      "approvedById": null,
+      "approvedAt": null,
+      "rejectionReason": null,
+      "opsSettlementId": null,
+      "deletionReason": null,
+      "deletedBy": null,
+      "createdAt": "2026-10-16T12:55:14.838Z",
+      "updatedAt": "2026-10-16T12:55:14.838Z",
+      "version": 1
+    }
+  },
+  {
+    "at": "2026-10-16T12:55:21.507Z",
+    "method": "POST",
+    "status": 409,
+    "body": {
+      "error": "Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên phí chung lô — kiểm tra lại để tránh nhập trùng; vẫn tiếp tục lưu nếu đây là lần chi hợp lệ.",
+      "code": "OPS_EXPENSE_DUPLICATE",
+      "duplicates": [
+        {
+          "id": 55,
+          "expenseTypeName": "Chi công nhân tại kho",
+          "containerNumber": null,
+          "paidByName": "Nguyễn Huy Hoàng",
+          "amount": "100000",
+          "paidAt": "2026-10-16"
+        }
+      ]
+    }
+  },
+  {
+    "at": "2026-10-16T12:55:22.589Z",
+    "method": "POST",
+    "status": 201,
+    "body": {
+      "payerKind": null,
+      "costGroup": "OPS_REGULAR",
+      "feeName": "",
+      "customerChargeAmount": "0",
+      "invoiceNumber": null,
+      "invoiceDate": null,
+      "recoveryNote": null,
+      "photoStorageKeys": [],
+      "id": 56,
+      "shipmentId": 175,
+      "shipmentContainerId": null,
+      "expenseTypeCode": "WAREHOUSE_LABOR",
+      "amount": "110000",
+      "paidById": 3,
+      "paidAt": "2026-10-16",
+      "note": "QA 141026230720-r2 — duplicate-warning verify, xóa ngay sau kiểm tra",
+      "approvalStatus": "RECORDED",
+      "approvedById": null,
+      "approvedAt": null,
+      "rejectionReason": null,
+      "opsSettlementId": null,
+      "deletionReason": null,
+      "deletedBy": null,
+      "createdAt": "2026-10-16T12:55:22.518Z",
+      "updatedAt": "2026-10-16T12:55:22.518Z",
+      "version": 1
+    }
+  },
+  {
+    "at": "2026-10-16T12:55:31.474Z",
+    "method": "POST",
+    "status": 201,
+    "body": {
+      "payerKind": null,
+      "costGroup": "OPS_REGULAR",
+      "feeName": "",
+      "customerChargeAmount": "0",
+      "invoiceNumber": null,
+      "invoiceDate": null,
+      "recoveryNote": null,
+      "photoStorageKeys": [],
+      "id": 57,
+      "shipmentId": 175,
+      "shipmentContainerId": 145,
+      "expenseTypeCode": "WAREHOUSE_LABOR",
+      "amount": "130000",
+      "paidById": 3,
+      "paidAt": "2026-10-16",
+      "note": "QA 141026230720-r2 — duplicate-warning verify, xóa ngay sau kiểm tra",
+      "approvalStatus": "RECORDED",
+      "approvedById": null,
+      "approvedAt": null,
+      "rejectionReason": null,
+      "opsSettlementId": null,
+      "deletionReason": null,
+      "deletedBy": null,
+      "createdAt": "2026-10-16T12:55:31.458Z",
+      "updatedAt": "2026-10-16T12:55:31.458Z",
+      "version": 1
+    }
+  }
+]

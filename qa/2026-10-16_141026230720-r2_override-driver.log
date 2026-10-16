@@ -1,0 +1,5 @@
+{"at":"2026-10-16T12:56:52.261Z","step":"seed-live-row","status":201,"id":58}
+{"at":"2026-10-16T12:56:52.318Z","step":"override-absent","status":409,"code":"OPS_EXPENSE_DUPLICATE","note":"expect 409 — same pair, no duplicateConfirmed"}
+{"at":"2026-10-16T12:56:52.409Z","step":"override-present","status":201,"id":59,"note":"expect 201 — explicit duplicateConfirmed override saves"}
+{"at":"2026-10-16T12:56:52.530Z","step":"cleanup-void","id":58,"by":"hoangnh","status":200}
+{"at":"2026-10-16T12:56:52.587Z","step":"cleanup-void","id":59,"by":"hungld","status":200}
