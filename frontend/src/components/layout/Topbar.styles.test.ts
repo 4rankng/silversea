@@ -69,4 +69,26 @@ describe('topbar visibility contract', () => {
     // Belt-and-braces: no width clamp may survive anywhere inside the tier.
     expect(tier![1]).not.toMatch(/max-width:\s*(360px|560px)/);
   });
+
+  it('keeps the search GROWING into the free topbar space, not merely uncapped (FB-057, card 141026012000)', () => {
+    // Card 141026012000 measured ~364px at a 1920px viewport. `max-width:
+    // none` alone does not produce a wide field — with no growth the item
+    // falls back to its basis and renders at exactly the 360px floor, which
+    // is the number the card read. The tier's `max-width: none` is therefore
+    // only half the contract: `flex: 1 1 0` is the half that actually spends
+    // the free space, and nothing pinned it before this card.
+    const base = topbarCss.match(/\.topbar__search\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(base, 'the base search rule must exist').toBeTruthy();
+    expect(base).toMatch(/flex:\s*1 1 0;/);
+    expect(base).toMatch(/min-width:\s*360px;/);
+    // Nothing else in the bar may steal the leftover space: the actions block
+    // sits on `margin-left: auto`, which flexbox resolves AFTER distributing
+    // free space to the growing item — so it cannot starve the field.
+    const actions = topbarCss.match(/\.topbar__actions\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(actions).toMatch(/margin-left:\s*auto;/);
+    // The bar itself is never clamped: a max-width on `.topbar` would put a
+    // ceiling back on the growing field.
+    const topbarBlock = topbarCss.match(/\.topbar\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(topbarBlock).not.toMatch(/max-width/);
+  });
 });
