@@ -46,9 +46,27 @@ describe('topbar visibility contract', () => {
     // stopping at 360/560px.
     expect(topbarCss).toMatch(/\.topbar__search\s*\{[^}]*min-width:\s*360px;/);
     expect(topbarCss).not.toMatch(/\.topbar__search\s*\{[^}]*min-width:\s*200px;/);
-    expect(topbarCss).toMatch(/@media\s*\(min-width:\s*1280px\)\s*\{\s*\.topbar__search\s*\{[^}]*max-width:\s*none;/);
+    expect(topbarCss).toMatch(/@media\s*\(min-width:\s*1280px\)\s*\{[\s\S]*?\.topbar__search\s*(,|\{)[^}]*max-width:\s*none;/);
     // Mobile tiers keep their smaller minimum — a 390px phone cannot hold a
     // 360px search beside the context and actions.
     expect(responsiveCss).toMatch(/\.topbar__search\s*\{[^}]*min-width:\s*120px;/);
+  });
+
+  it('keeps the search uncapped above 1280px while focused, not just at rest (FB-057 re-report)', () => {
+    // The 2026-10-14 fix only unbounded the REST state. `:focus-within` is
+    // (0,2,0) against the media block's (0,1,0), so the 560px focus clamp
+    // won on specificity and the field snapped back to a hard cap in exactly
+    // the state the ruling protects — the field in use. The tier must
+    // re-state the focus selector, or no fixed ceiling survives contact
+    // with a real click. This is the regression the pin above could not see:
+    // its regex only asked that `.topbar__search` appear in the media block,
+    // which stayed true while focus was capped.
+    const tier = topbarCss.match(
+      /@media\s*\(min-width:\s*1280px\)\s*\{([\s\S]*?)\n\}/,
+    );
+    expect(tier).not.toBeNull();
+    expect(tier![1]).toMatch(/\.topbar__search:focus-within\s*\{[^}]*max-width:\s*none;/);
+    // Belt-and-braces: no width clamp may survive anywhere inside the tier.
+    expect(tier![1]).not.toMatch(/max-width:\s*(360px|560px)/);
   });
 });
