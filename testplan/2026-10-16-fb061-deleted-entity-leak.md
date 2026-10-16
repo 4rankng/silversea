@@ -53,6 +53,24 @@ Scrub = null the entity link (keep carrier_type EXTERNAL, plate, driver name —
 real operational data of a live trip). Evidence: before/after SELECT + guarded
 UPDATE, `qa/2026-10-16_fb061-scrub_*`.
 
+## Outcome (2026-10-16)
+
+- **Code fix (A): COMMIT `af357f33`, pushed** — all five join sites filtered;
+  regression `phoi-phieu-soft-delete-leak.test.ts` 4/4 (red-green proven);
+  sibling suites 62/62. Gates in `qa/2026-10-16_fb061-fix_*`.
+- **Scrub (B): EXECUTED on staging** — guarded `UPDATE 1` on trip_carrier_info
+  id 28 (`external_entity_id=23/CUSTOMER → NULL NULL`, plate `15H-021.39`
+  kept, customer 23 untouched). API proof on the pre-fix build: board row for
+  `EBKG18452303` now `carrierName: null` (name GONE), real customer name
+  intact. Rung 2 (DB/API VERIFIED; the board UI itself not re-driven — the
+  row JSON is the API the board renders).
+- **Residual (closed by deploy, not by data):** money-report THU still prints
+  `QA0915 QA-138 Credit Customer | 140000` on the pre-fix build; commit
+  `af357f33` buckets it under `Chưa xác định` once auto-ship deploys. No data
+  scrub was done there (a trip's customer_id is real business data; the
+  permanent fix is the query law, per LEAK-3).
+
+
 ## Gates
 
 - `cd backend && npx tsc --noEmit` → 0
