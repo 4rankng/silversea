@@ -35,13 +35,20 @@ test('debitNoteColumnSchema — rejects width > 80', () => {
 
 test('defaultDebitNoteColumns — exported as vertical debt-note columns', () => {
   assert.ok(Array.isArray(defaultDebitNoteColumns));
-  assert.equal(defaultDebitNoteColumns.length, 7);
+  // 7 fixed vertical columns + the two §II.4 render columns appended last
+  // (loại xe tính cước THU, BKS báo khách) — card 171026004331.
+  assert.equal(defaultDebitNoteColumns.length, 9);
   assert.equal(defaultDebitNoteColumns[0].variable, 'departureDate');
   assert.equal(defaultDebitNoteColumns[1].variable, 'documentCode');
   assert.equal(defaultDebitNoteColumns[2].variable, 'description');
   const amountCol = defaultDebitNoteColumns.find(c => c.id === 'thanh_tien');
   assert.ok(amountCol, 'amount column should exist');
   assert.equal(amountCol.total, true);
+  assert.deepEqual(
+    defaultDebitNoteColumns.slice(7).map(c => [c.id, c.variable]),
+    [['loai_xe', 'vehicleType'], ['bien_so', 'truckPlate']],
+    'the note carries the THU class and the billing BKS, appended after the money columns',
+  );
 });
 
 test('defaultDebitNoteColumns — every column validates against debitNoteColumnSchema', () => {

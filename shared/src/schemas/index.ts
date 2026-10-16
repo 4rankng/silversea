@@ -587,6 +587,13 @@ export const defaultDebitNoteColumns: Array<z.infer<typeof debitNoteColumnSchema
   { id: 'so_luong', label: 'Số lượng', variable: 'containerCount', headerGroup: null, width: 9, align: 'center', format: 'number', total: false },
   { id: 'don_gia', label: 'Đơn giá', variable: 'amount', headerGroup: null, width: 15, align: 'right', format: 'currency', total: false },
   { id: 'thanh_tien', label: 'Thành tiền', variable: 'amount', headerGroup: null, width: 16, align: 'right', format: 'currency', total: true },
+  // Spec §II.4 (card 171026004331): every exported Debit Note carries the loại
+  // xe tính cước THU and the BKS báo khách ("xe ảo" = billing_truck_no). Both
+  // bind to renderData, so the printed value is the frozen/derived lot fact —
+  // never the actual plate. Appended last so every existing column keeps its
+  // printed position (the same rule the LONG MINH template used for GHI CHÚ).
+  { id: 'loai_xe', label: 'Loại xe', variable: 'vehicleType', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
+  { id: 'bien_so', label: 'Biển số xe', variable: 'truckPlate', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
 ];
 
 export const defaultPaymentStatementColumns: Array<z.infer<typeof debitNoteColumnSchema>> = [

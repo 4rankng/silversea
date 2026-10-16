@@ -99,6 +99,24 @@ describe('card 20260924_2 — L1 shadow totals (fulfillment-less trips)', () => 
     assert.equal(shadow.receivableTotal, null, 'no chốt-able revenue stays null');
     assert.equal(result.excludedCount, 1, 'N counts trips, not fees');
     assert.equal(result.excludedSum, '130000', 'X = the excluded fees buy-sum (123000 + 7000)');
+    // Case 2026-10-17: the line can NAME the trip it excludes.
+    const listed = result.excludedTrips.find((trip) => trip.tripId === shadowTrip.id);
+    assert.ok(listed, 'excludedTrips carries the shadow trip itself');
+    assert.equal(listed.shipmentId, shadowLot.id, 'the entry points at the shadow lot');
+    assert.equal(listed.feeSum, '130000', 'per-trip money is the same >0 buy-sum filter');
+    assert.equal(result.excludedTrips.length, result.excludedCount, 'one entry per counted trip');
+    assert.equal(
+      Number(result.excludedTrips.reduce((sum, trip) => sum + Number(trip.feeSum), 0)),
+      Number(result.excludedSum),
+      'entries sum to excludedSum',
+    );
+    const shadowItem = result.items.find((row) => row.shipmentId === shadowLot.id)!;
+    assert.equal(
+      listed.lotLabel,
+      shadowItem.billOrBookNumber || shadowItem.customsNumber || '—',
+      'lotLabel reuses the row identity chain',
+    );
+    assert.equal(listed.customerName, shadowItem.customerName, 'the entry carries the lot customer');
   });
 
   test('no shadow → excludedCount 0 / excludedSum "0" (the summary line hides)', async () => {
@@ -110,6 +128,7 @@ describe('card 20260924_2 — L1 shadow totals (fulfillment-less trips)', () => 
     const result = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
     assert.equal(result.excludedCount, 0);
     assert.equal(result.excludedSum, '0');
+    assert.deepEqual(result.excludedTrips, [], 'no shadow → no identities (the toggle never renders)');
     assert.equal(result.items.find((row) => row.shipmentId === lot.id)!.chiHoTotal, '300000');
   });
 });

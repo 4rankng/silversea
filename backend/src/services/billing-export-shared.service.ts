@@ -6,6 +6,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { inArray, and, eq, isNull } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { canonicalFreightDescription } from '@tingting/shared';
 import type { BillingDocumentLine, DebitNoteTemplateColumn } from '@tingting/shared';
 import {
@@ -236,11 +237,44 @@ function legacyFrozenLotInfo(
   return lots.size === 1 ? lots.get(lotCodes[0]!) ?? null : null;
 }
 
-export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]): Promise<BillingDocumentLine[]> {
+/**
+ * Card 171026004332: which side of the lane a document is addressed to.
+ * `AR` = the customer note (BKS báo khách + loại xe tính cước THU); `AP` = the
+ * carrier/vendor payable statement (BKS thực tế + loại xe tính cước TRẢ).
+ */
+export type BillingExportPerspective = 'AR' | 'AP';
+
+/**
+ * Resolve the perspective of a document on its way out, mirroring the explicit
+ * dispatch createDraft uses for carrier statements: a VENDOR document is
+ * payable, and a CUSTOMER payment statement is payable only when that customer
+ * is a carrier (everything else, including every Debit Note, is receivable).
+ * An unknown counterparty stays AR — the customer-facing reading.
+ */
+export async function resolveBillingExportPerspective(doc: {
+  type: string;
+  entityType: string;
+  entityId: number;
+}): Promise<BillingExportPerspective> {
+  if (doc.entityType === 'VENDOR') return 'AP';
+  if (doc.type !== 'PAYMENT_STATEMENT' || doc.entityType !== 'CUSTOMER') return 'AR';
+  const [counterparty] = await db.select({ isCarrier: s.customers.isCarrier })
+    .from(s.customers)
+    .where(and(eq(s.customers.id, doc.entityId), isNull(s.customers.deletedAt)))
+    .limit(1);
+  return counterparty?.isCarrier ? 'AP' : 'AR';
+}
+
+export async function enrichLinesForDebitNoteRender(
+  lines: BillingDocumentLine[],
+  perspective: BillingExportPerspective = 'AR',
+): Promise<BillingDocumentLine[]> {
   const normalizedLines = lines.map((line) => ({
     ...line,
     description: canonicalFreightDescription(line),
   }));
+  const revVehicleClass = alias(s.vehicleSizeClasses, 'billing_export_rev_vehicle_class');
+  const costVehicleClass = alias(s.vehicleSizeClasses, 'billing_export_cost_vehicle_class');
   const directTripIds = normalizedLines
     .filter((line) => line.sourceType === 'TRIP' && line.sourceId && !line.renderData)
     .map((line) => Number(line.sourceId))
@@ -287,12 +321,24 @@ export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]
     // FB-094: billing BKS ("xe ảo") — printed on the debit note in preference
     // to every actual plate.
     billingTruckNo: s.shipments.billingTruckNo,
+    // Card 171026004332: the payable statement's own truck identity is the
+    // truck that actually ran, and its loại xe is the TRẢ cost class — the two
+    // facts that mirror the note's BKS báo khách + THU class.
+    actualTruckNo: s.shipments.actualTruckNo,
+    revVehicleClassName: revVehicleClass.name,
+    revVehicleClassCode: revVehicleClass.code,
+    costVehicleClassName: costVehicleClass.name,
+    costVehicleClassCode: costVehicleClass.code,
     billNumber: s.shipments.blNumber,
     shipmentId: s.tripsComposite.shipmentId,
   }).from(s.tripsComposite)
     .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
     .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
     .leftJoin(s.shipments, eq(s.shipments.id, s.tripsComposite.shipmentId))
+    // Two aliases of one catalog: the two billing classes must never alias
+    // (the spec prices one group "Thu: Xe 3.5T | Trả: Xe 10T").
+    .leftJoin(revVehicleClass, eq(revVehicleClass.id, s.shipments.revVehicleClassId))
+    .leftJoin(costVehicleClass, eq(costVehicleClass.id, s.shipments.costVehicleClassId))
     .where(inArray(s.tripsComposite.id, tripIds));
   const tripsById = new Map(trips.map((trip) => [trip.id, trip]));
   // Batched explicit read: declaration numbers per lot (raw-sql aggregates in
@@ -343,6 +389,22 @@ export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]
     const trip = tripsById.get(tripId);
     if (!trip) return line;
     const containers = containersByTrip.get(trip.id) ?? [];
+    // Card 171026004332: a document saved before FB-094 carries TRIP lines with
+    // no renderData, and this repair used to read every one of them AR-first —
+    // so a re-exported carrier statement printed the customer's virtual BKS.
+    // The document's own side decides: AR keeps the AR-first builder (billing
+    // BKS + loại xe tính cước THU); AP prints the truck that actually ran and
+    // the TRẢ cost class, exactly what buildCarrierPaymentLines stamps on a
+    // fresh draft. Amounts and lock semantics are untouched — plates and classes
+    // are not money.
+    const sidesRenderData = perspective === 'AP'
+      ? {
+          truckPlate: trip.actualTruckNo?.trim() || trip.truckPlate || trip.externalPlateNumber || null,
+          vehicleType: trip.costVehicleClassName ?? trip.costVehicleClassCode ?? null,
+        }
+      : {
+          vehicleType: trip.revVehicleClassName ?? trip.revVehicleClassCode ?? null,
+        };
     const enrichedLine = {
       ...line,
       routeName: line.routeName ?? trip.routeName ?? null,
@@ -355,6 +417,7 @@ export async function enrichLinesForDebitNoteRender(lines: BillingDocumentLine[]
           legs: legsByTrip.get(trip.id),
           note: trip.notes ?? null,
         }),
+        ...sidesRenderData,
         // Business keys for the export cells (Số Bill/tờ khai) — same fields
         // the draft path stamps, so fresh lines render identical to stored ones.
         billNumber: trip.billNumber ?? null,

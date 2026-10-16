@@ -6,8 +6,7 @@ import express from 'express';
 import ExcelJS from 'exceljs';
 import { eq, inArray } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
-import type { DebitNoteTemplateColumn } from '@tingting/shared';
-
+import type { DebitNoteTemplateColumn, DebitNoteTemplateSnapshot } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
@@ -16,7 +15,8 @@ import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import shipmentRoutes from '../routes/shipments';
 import { insertTripComposite } from '../services/trip-composite.service';
-import { generateDraft } from '../services/billing-document.service';
+import { generateDraft, getDocument, resolveDebitNoteTemplateForDoc } from '../services/billing-document.service';
+import { renderTemplatedXlsx } from '../services/billing-export.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const shipmentIds: number[] = [];
@@ -737,5 +737,247 @@ describe('card 161026232439 — merged member freight row cites "Ghép xe cùng 
     const feeLine = draft.lines.find((line) => line.sourceId === fee.id);
     assert.ok(feeLine, 'the chi hộ row is still billed');
     assert.doesNotMatch(String(feeLine.renderData?.note), /Ghép xe cùng Bill/, 'fee rows keep their own note');
+  });
+});
+
+// ─── cards 171026004331 / 171026004332 — the render layer ────────────────────
+
+/** Cell map of the first worksheet, keyed `row:column`. The spec's own
+ *  verification rule (§II.4) is to READ CELLS, not to inspect the structure. */
+async function loadSheetCells(buf: Buffer | ArrayBuffer) {
+  const wb = await loadWorkbook(buf);
+  const ws = wb.worksheets[0]!;
+  const cells = new Map<string, unknown>();
+  ws.eachRow((row, rowNumber) => row.eachCell((cell, colNumber) => {
+    cells.set(`${rowNumber}:${colNumber}`, cell.value);
+  }));
+  return cells;
+}
+
+function cellText(cells: Map<string, unknown>, key: string): string {
+  const value = cells.get(key);
+  return value == null ? '' : String(value);
+}
+
+/** A statement template as a customer saved it: the BKS + loại xe columns the
+ *  statement prints, plus its money column. */
+const STATEMENT_COLUMNS: DebitNoteTemplateColumn[] = [
+  { id: 'bien_so', label: 'Biển số xe', variable: 'truckPlate', headerGroup: null, width: 14, align: 'center', format: 'text', total: false },
+  { id: 'loai_xe', label: 'Loại xe', variable: 'vehicleType', headerGroup: null, width: 14, align: 'center', format: 'text', total: false },
+  { id: 'gia_vc', label: 'Giá VC', variable: 'amount', headerGroup: null, width: 16, align: 'right', format: 'currency', total: true },
+];
+
+function mkStatementSnapshot(marker: string): DebitNoteTemplateSnapshot {
+  return {
+    id: null, name: `Bảng kê ${marker}`.slice(0, 100), titleText: 'BẢNG KÊ CƯỚC VẬN CHUYỂN',
+    issuerName: null, issuerAddress: null, issuerTaxCode: null, issuerRepresentative: null,
+    accentColor: '#1F4E79', showContainerColumn: true, showUnitColumn: true, groupingMode: 'NONE',
+    columns: STATEMENT_COLUMNS.map((col) => ({ ...col })),
+    orientation: 'landscape', termsText: null,
+    signatureLeftLabel: 'Khách hàng', signatureLeftName: null,
+    signatureRightLabel: 'Người lập', signatureRightName: null,
+  };
+}
+
+/** A statement exactly as the pre-FB-094 code saved it: a TRIP line with NULL
+ *  renderData — the document itself carries no plate/class. */
+async function mkLegacyStatement(input: {
+  type: 'DEBIT_NOTE' | 'PAYMENT_STATEMENT';
+  marker: string;
+  entityId: number;
+  entityName: string;
+  tripId: number;
+  amount: string;
+}) {
+  const [doc] = await db.insert(s.billingDocuments).values({
+    type: input.type, entityType: 'CUSTOMER', entityId: input.entityId, entityName: input.entityName,
+    rangeFrom: '2026-10-01', rangeTo: '2026-10-31', issuedAt: new Date('2026-11-01T00:00:00.000Z'),
+    debitNoteStatus: input.type === 'DEBIT_NOTE' ? 'SENT' : null,
+    debitNoteTemplateSnapshot: mkStatementSnapshot(input.marker),
+    totalInclVat: input.amount, totalNet: input.amount, totalTax: '0', totalGross: input.amount,
+    vatTreatmentVersion: 'VAT-V1', createdBy: accountantId,
+  }).returning({ id: s.billingDocuments.id });
+  docIds.push(doc.id);
+  await db.insert(s.billingDocumentLines).values({
+    documentId: doc.id, sourceType: 'TRIP', sourceId: input.tripId, lineType: 'FREIGHT',
+    typeLabel: 'Doanh thu', unit: 'lần',
+    description: `Cước thuê ngoài — ${input.marker}`,
+    baseAmount: input.amount, netAmount: input.amount, taxAmount: '0', grossAmount: input.amount,
+    vatTreatment: 'EXEMPT', vatRate: '0', vatTreatmentVersion: 'VAT-V1', sortOrder: 0,
+  });
+  return doc.id;
+}
+
+/** The export chain the financial route runs for a saved document
+ *  (billing-documents.routes.ts: getDocument → resolve template → render). */
+async function exportSavedDocument(documentId: number) {
+  const doc = await getDocument(documentId);
+  const snap = await resolveDebitNoteTemplateForDoc(doc, {});
+  assert.ok(snap, 'a saved document always resolves a template snapshot');
+  return renderTemplatedXlsx(doc, snap);
+}
+
+describe('card 171026004331 — the default template prints its own BKS + loại xe columns', () => {
+  test('a customer on the DEFAULT template reads billing_truck_no + the THU class out of the exported file', async () => {
+    const marker = `${suffix}-default`;
+    const vehicleClass = await mkVehicleClass(marker);
+    // No template assigned: resolveDebitNoteTemplateForDoc falls back to the
+    // shared default snapshot — what every non-Long-Minh customer uses.
+    const customer = await mkCustomer(`Default cust ${marker}`);
+    const billingPlate = `BILLDEF${marker}`.slice(0, 20);
+    const actualPlate = `ACTDEF${marker}`.slice(0, 20);
+    const lot = await mkLockedLotForCustomer(customer.id, '2026-10-05');
+    await db.update(s.shipments).set({
+      shipmentCode: `SHP-DEF-${marker}`.slice(0, 40),
+      billingTruckNo: billingPlate,
+      actualTruckNo: actualPlate,
+      revVehicleClassId: vehicleClass.id,
+    }).where(eq(s.shipments.id, lot.id));
+    await db.update(s.shipmentCostLocks).set({
+      costSnapshot: { freightAuto: '1000000', chiHoTotal: '200000', receivableTotal: '1200000' },
+    }).where(eq(s.shipmentCostLocks.shipmentId, lot.id));
+
+    const issued = await api('POST', '/api/shipments/debit-notes', cusId, { shipmentIds: [lot.id] });
+    assert.equal(issued.status, 201, JSON.stringify(issued.body));
+    const docId = Number(issued.body.id);
+    docIds.push(docId);
+
+    const response = await fetch(`${baseUrl}/api/shipments/${lot.id}/debit-note/export?documentId=${docId}`, {
+      headers: { 'X-Test-User-Id': String(cusId) },
+    });
+    assert.equal(response.status, 200, `the issuing CUS must read the file — got ${response.status}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const cells = await loadSheetCells(buffer);
+
+    // The default template's own columns reach the file — they used to be
+    // dropped, because the renderer wrote seven fixed columns and ignored them.
+    assert.equal(cellText(cells, '15:9'), 'Loại xe', 'the default template prints its Loại xe column');
+    assert.equal(cellText(cells, '15:10'), 'Biển số xe', 'the default template prints its Biển số xe column');
+    const plateRows = [...cells.keys()]
+      .map((key) => Number(key.split(':')[0]))
+      .filter((row) => row >= 16 && row <= 40 && cellText(cells, `${row}:10`) !== '');
+    assert.ok(plateRows.length >= 2, `freight + chi hộ rows carry the plate — got ${JSON.stringify(plateRows)}`);
+    for (const row of plateRows) {
+      assert.equal(cellText(cells, `${row}:10`), billingPlate, `row ${row} BKS = billing_truck_no (xe ảo)`);
+      assert.equal(cellText(cells, `${row}:9`), vehicleClass.name, `row ${row} LOẠI XE = loại xe tính cước THU`);
+    }
+    assert.ok(!(await sheetStrings(buffer)).includes(actualPlate), 'BKS thực tế never reaches the customer file');
+    // AC 3: the money cells are untouched — same unit price, same row formula,
+    // same grand total the frozen grid holds.
+    assert.deepEqual(cells.get('17:7'), 1_000_000, 'freight unit price unchanged');
+    assert.deepEqual(cells.get('17:8'), { formula: 'G17*F17', result: 1_000_000 }, 'freight amount formula unchanged');
+    assert.deepEqual(cells.get('61:8'), { formula: 'SUM(H16:H60)', result: 1_200_000 }, 'grand total unchanged');
+  });
+});
+
+describe('card 171026004332 — a statement saved before the fix prints its own side', () => {
+  test('legacy carrier statement: actual plate + TRẢ cost class, never the virtual BKS', async () => {
+    const marker = `${suffix}-legacy-ap`;
+    const costClass = await mkVehicleClass(`${marker}-cost`);
+    const revClass = await mkVehicleClass(`${marker}-rev`);
+    const [carrier] = await db.insert(s.customers).values({ name: `Legacy AP carrier ${marker}`, isCarrier: true }).returning();
+    customerIds.push(carrier.id);
+    const [route] = await db.insert(s.routes).values({ name: `Legacy AP route ${marker}` }).returning();
+    routeIds.push(route.id);
+    const billingPlate = `BILLAP${marker}`.slice(0, 20);
+    const actualPlate = `ACTAP${marker}`.slice(0, 20);
+    const { shipment, trip } = await mkBillableLotTrip({ customerId: carrier.id, routeId: route.id, marker });
+    await db.update(s.shipments).set({
+      billingTruckNo: billingPlate, actualTruckNo: actualPlate,
+      revVehicleClassId: revClass.id, costVehicleClassId: costClass.id,
+    }).where(eq(s.shipments.id, shipment.id));
+
+    const documentId = await mkLegacyStatement({
+      type: 'PAYMENT_STATEMENT', marker, entityId: carrier.id, entityName: carrier.name,
+      tripId: trip.id, amount: '500000',
+    });
+    const buffer = await exportSavedDocument(documentId);
+    const cells = await loadSheetCells(buffer);
+    assert.equal(cellText(cells, '20:1'), actualPlate, 'the payable statement prints BKS thực tế');
+    assert.equal(cellText(cells, '20:2'), costClass.name, 'and the loại xe tính cước TRẢ nhà xe');
+    const all = await sheetStrings(buffer);
+    assert.ok(!all.includes(billingPlate), 'BKS báo khách never reaches the contractor file');
+    assert.ok(!all.includes(revClass.name), 'the THU class is the customer side, not the payable side');
+    assert.deepEqual(cells.get('20:3'), 500_000, 'the payable amount is untouched');
+  });
+
+  test('legacy customer statement keeps the billing plate and the THU class', async () => {
+    const marker = `${suffix}-legacy-ar`;
+    const costClass = await mkVehicleClass(`${marker}-cost`);
+    const revClass = await mkVehicleClass(`${marker}-rev`);
+    const customer = await mkCustomer(`Legacy AR cust ${marker}`);
+    const [route] = await db.insert(s.routes).values({ name: `Legacy AR route ${marker}` }).returning();
+    routeIds.push(route.id);
+    const billingPlate = `BILLAR${marker}`.slice(0, 20);
+    const actualPlate = `ACTAR${marker}`.slice(0, 20);
+    const { shipment, trip } = await mkBillableLotTrip({ customerId: customer.id, routeId: route.id, marker });
+    await db.update(s.shipments).set({
+      billingTruckNo: billingPlate, actualTruckNo: actualPlate,
+      revVehicleClassId: revClass.id, costVehicleClassId: costClass.id,
+    }).where(eq(s.shipments.id, shipment.id));
+
+    const documentId = await mkLegacyStatement({
+      type: 'PAYMENT_STATEMENT', marker, entityId: customer.id, entityName: customer.name,
+      tripId: trip.id, amount: '700000',
+    });
+    const buffer = await exportSavedDocument(documentId);
+    const cells = await loadSheetCells(buffer);
+    assert.equal(cellText(cells, '20:1'), billingPlate, 'the customer statement still prints the BKS báo khách');
+    assert.equal(cellText(cells, '20:2'), revClass.name, 'and the loại xe tính cước THU');
+    const all = await sheetStrings(buffer);
+    assert.ok(!all.includes(actualPlate), 'the customer never sees the actual plate');
+    assert.ok(!all.includes(costClass.name), 'the TRẢ class stays on the payable side');
+    assert.deepEqual(cells.get('20:3'), 700_000, 'the receivable amount is untouched');
+  });
+
+  test('an unresolvable lot leaves the BKS cells empty — never a guessed plate', async () => {
+    const marker = `${suffix}-unresolved`;
+    const vehicleClass = await mkVehicleClass(marker);
+    const customer = await mkCustomer(`Unresolved cust ${marker}`);
+    const claimedA = await mkLockedLotForCustomer(customer.id, '2026-10-05');
+    const claimedB = await mkLockedLotForCustomer(customer.id, '2026-10-06');
+    const plateA = `BILLA${marker}`.slice(0, 20);
+    const plateB = `BILLB${marker}`.slice(0, 20);
+    await db.update(s.shipments).set({ billingTruckNo: plateA, revVehicleClassId: vehicleClass.id })
+      .where(eq(s.shipments.id, claimedA.id));
+    await db.update(s.shipments).set({ billingTruckNo: plateB, revVehicleClassId: vehicleClass.id })
+      .where(eq(s.shipments.id, claimedB.id));
+
+    // Multi-lot note whose line names a THIRD lot the document never claimed:
+    // the repair cannot tell which lot the row belongs to, so it must not guess.
+    const [doc] = await db.insert(s.billingDocuments).values({
+      type: 'DEBIT_NOTE', entityType: 'CUSTOMER', entityId: customer.id, entityName: customer.name,
+      rangeFrom: '2026-10-05', rangeTo: '2026-10-06', issuedAt: new Date('2026-10-07T00:00:00.000Z'),
+      debitNoteStatus: 'SENT',
+      totalInclVat: '1000000', totalNet: '1000000', totalTax: '0', totalGross: '1000000',
+      vatTreatmentVersion: 'VAT-V1', createdBy: cusId,
+    }).returning({ id: s.billingDocuments.id });
+    docIds.push(doc.id);
+    await db.insert(s.billingDocumentLines).values({
+      documentId: doc.id, sourceType: 'ADHOC', sourceId: null, lineType: 'FREIGHT',
+      typeLabel: 'Cước vận tải (auto)', unit: 'lần',
+      description: `Cước vận tải (auto) — lô SHP-UNCLAIMED-${marker} (chốt từ snapshot khóa lô)`,
+      baseAmount: '1000000', netAmount: '1000000', taxAmount: '0', grossAmount: '1000000',
+      vatTreatment: 'EXEMPT', vatRate: '0', vatTreatmentVersion: 'VAT-V1', sortOrder: 0,
+    });
+    await db.insert(s.debitNoteLots).values([
+      { documentId: doc.id, shipmentId: claimedA.id, createdBy: cusId },
+      { documentId: doc.id, shipmentId: claimedB.id, createdBy: cusId },
+    ]);
+
+    const response = await fetch(`${baseUrl}/api/shipments/${claimedA.id}/debit-note/export?documentId=${doc.id}`, {
+      headers: { 'X-Test-User-Id': String(cusId) },
+    });
+    assert.equal(response.status, 200, `re-export must work — got ${response.status}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const cells = await loadSheetCells(buffer);
+    assert.equal(cellText(cells, '15:10'), 'Biển số xe', 'the BKS column is still printed');
+    assert.equal(cellText(cells, '17:10'), '', 'with no resolvable lot the BKS cell stays empty');
+    assert.equal(cellText(cells, '17:9'), '', 'and so does the loại xe cell');
+    const all = await sheetStrings(buffer);
+    for (const guessed of [plateA, plateB, vehicleClass.name]) {
+      assert.ok(!all.includes(guessed), `an unresolved lot must never be guessed into the file (${guessed})`);
+    }
+    assert.deepEqual(cells.get('17:8'), { formula: 'G17*F17', result: 1_000_000 }, 'the amount is still billed');
   });
 });

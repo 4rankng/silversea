@@ -409,8 +409,11 @@ async function buildCarrierPaymentLines(carrierId: number, from: string, to: str
       note: trip.notes ?? null,
     });
     // buildTripRenderData is AR-first (billing BKS wins). The payable statement
-    // must invert that preference: actual plate first, virtual BKS never.
-    renderData.truckPlate = trip.actualTruckNo?.trim() || renderData.truckPlate;
+    // must invert that preference: the truck that actually ran, then the booked
+    // truck's own plate — the virtual billing BKS is for the customer, never for
+    // the contractor paying for the lane (card 171026004332: the same rule the
+    // render-time repair applies to a statement saved before this fix).
+    renderData.truckPlate = trip.actualTruckNo?.trim() || trip.truckPlate || trip.externalPlateNumber || null;
     renderData.vehicleType = trip.costVehicleClassName ?? trip.costVehicleClassCode ?? null;
     lines.push({
       sourceType: 'TRIP', sourceId: trip.id, lineType: 'FREIGHT',

@@ -622,3 +622,109 @@ test('templateToSnapshot — copies render fields', () => {
   assert.equal(snap.showContainerColumn, false);
   assert.equal(snap.accentColor, '#123456');
 });
+
+// ─── card 171026004331 — the vertical renderer honours the template columns ──
+
+/** The default DEBIT_NOTE template as it stood before card 171026004331: the
+ *  seven fixed vertical columns only, exactly what a saved snapshot carries. */
+const LEGACY_DEFAULT_COLUMNS: DebitNoteTemplateColumn[] = [
+  { id: 'ngay', label: 'Ngày tháng', variable: 'departureDate', headerGroup: null, width: 12, align: 'center', format: 'date', total: false },
+  { id: 'chung_tu', label: 'Số\nchứng từ', variable: 'documentCode', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
+  { id: 'dien_giai', label: 'Diễn giải', variable: 'description', headerGroup: null, width: 52, align: 'left', format: 'text', total: false },
+  { id: 'dvt', label: 'ĐVT', variable: 'unit', headerGroup: null, width: 9, align: 'center', format: 'text', total: false },
+  { id: 'so_luong', label: 'Số lượng', variable: 'containerCount', headerGroup: null, width: 9, align: 'center', format: 'number', total: false },
+  { id: 'don_gia', label: 'Đơn giá', variable: 'amount', headerGroup: null, width: 15, align: 'right', format: 'currency', total: false },
+  { id: 'thanh_tien', label: 'Thành tiền', variable: 'amount', headerGroup: null, width: 16, align: 'right', format: 'currency', total: true },
+];
+
+const card331Doc: BillingDocument = {
+  ...debitDoc,
+  lines: [
+    line({ renderData: { departureDate: '2026-10-01', tripCode: 'TRIP-9', containerCount: 1, documentCode: 'HD-9', truckPlate: 'BKS-BAO-KHACH', vehicleType: 'Xe 3.5 tấn' } }),
+    line({
+      sourceType: 'EXPENSE', sourceId: 9, lineType: 'SERVICE_FEE', typeLabel: 'Phí chi hộ',
+      description: 'Phí hạ hàng', baseAmount: 200_000, sortOrder: 1,
+      renderData: { departureDate: '2026-10-01', tripCode: 'TRIP-9', containerCount: 1, truckPlate: 'BKS-BAO-KHACH', vehicleType: 'Xe 3.5 tấn' },
+    }),
+  ],
+};
+
+/** Every non-empty cell of the first sheet, keyed `row:column` — the comparison
+ *  unit for "this snapshot renders exactly as it did". */
+async function sheetCellMap(buf: Buffer) {
+  const wb = await loadWorkbook(buf);
+  const ws = wb.worksheets[0]!;
+  const cells = new Map<string, unknown>();
+  ws.eachRow((row, rowNumber) => row.eachCell((cell, colNumber) => {
+    cells.set(`${rowNumber}:${colNumber}`, cell.value);
+  }));
+  return cells;
+}
+
+test('renderTemplatedXlsx DEBIT_NOTE — a snapshot saved before card 171026004331 renders cell-for-cell unchanged', async () => {
+  const legacySnapshot: DebitNoteTemplateSnapshot = { ...defaultSnapshot, columns: LEGACY_DEFAULT_COLUMNS.map((c) => ({ ...c })) };
+  const buf = await renderTemplatedXlsx(card331Doc, legacySnapshot);
+  const cells = await sheetCellMap(buf);
+
+  // The seven-column geometry is untouched — no template column is appended
+  // when the template does not define one.
+  for (const [key] of cells) {
+    const column = Number(key.split(':')[1]);
+    assert.ok(column <= 8, `a 7-column snapshot must not grow a column (found ${key})`);
+  }
+  assert.deepEqual(
+    [...new Set([...cells.keys()].map((key) => Number(key.split(':')[1])))].sort((a, b) => a - b),
+    [2, 3, 4, 5, 6, 7, 8],
+    'the legacy sheet writes exactly the seven geometry columns',
+  );
+  assert.equal(cells.get('15:2'), 'Ngày tháng');
+  assert.equal(cells.get('15:8'), 'Thành tiền');
+  assert.deepEqual(cells.get('17:8'), { formula: 'G17*F17', result: 5_000_000 }, 'the freight money cell is unchanged');
+  assert.deepEqual(cells.get('61:8'), { formula: 'SUM(H16:H60)', result: 5_200_000 }, 'the grand total is unchanged');
+
+  // A template that does define them prints the two §II.4 columns after the
+  // money geometry, and every column the legacy snapshot already had is
+  // byte-identical (same values, same order — the extras land at I and J).
+  const grown = await sheetCellMap(await renderTemplatedXlsx(card331Doc, {
+    ...defaultSnapshot,
+    columns: defaultDebitNoteColumns as DebitNoteTemplateColumn[],
+  }));
+  for (const [key, value] of cells) {
+    assert.deepEqual(grown.get(key), value, `cell ${key} must not move or change when the template grows`);
+  }
+  assert.equal(grown.get('15:9'), 'Loại xe', 'the new default template prints Loại xe');
+  assert.equal(grown.get('15:10'), 'Biển số xe', 'the new default template prints Biển số xe');
+  assert.equal(grown.get('17:9'), 'Xe 3.5 tấn', 'LOẠI XE = the THU billing class');
+  assert.equal(grown.get('17:10'), 'BKS-BAO-KHACH', 'BKS = the billing plate carried on the line');
+  assert.equal(grown.get('18:9'), 'Xe 3.5 tấn', 'every charge row of the lot carries the class');
+  assert.equal(grown.get('18:10'), 'BKS-BAO-KHACH', 'every charge row of the lot carries the plate');
+});
+
+test('renderTemplatedXlsx DEBIT_NOTE — a Long Minh snapshot saved earlier still prints BKS + LOẠI XE and gains no column', async () => {
+  // The pre-161026232439 shape: the same template without the appended GHI CHÚ
+  // column, i.e. what a document issued before that card froze.
+  const earlierLongMinh = longMinhColumns.map((col) => ({ ...col }));
+  const doc: BillingDocument = {
+    ...debitDoc,
+    totalInclVat: 2_000_000,
+    lines: [line({
+      sourceType: 'TRIP', sourceId: 1, description: 'Cước vận chuyển', baseAmount: 2_000_000,
+      renderData: {
+        tripCode: 'TRIP-1', factoryName: 'Nhà máy Long Minh', tradeDirectionLabel: 'Nhập',
+        billNumber: 'BL-001', declarationNumber: 'TK-001', quantityLabel: '1 cont 40',
+        vehicleType: 'Xe 3.5 tấn', truckPlate: 'BKS-BAO-KHACH', cargoVolumeCbm: 20,
+        deliveryDate: '2026-06-05', freightAmount: 2_000_000,
+      },
+    })],
+  };
+  const buf = await renderTemplatedXlsx(doc, { ...defaultSnapshot, columns: earlierLongMinh });
+  const wb = await loadWorkbook(buf);
+  const ws = wb.worksheets[0];
+  assert.equal(ws.columnCount, earlierLongMinh.length, 'the saved template keeps exactly its own columns');
+  // LOẠI XE (7) and BKS (8) of the Long Minh header, then the trip row below it.
+  assert.equal(ws.getCell(16, 7).value, 'LOẠI XE');
+  assert.equal(ws.getCell(16, 8).value, 'BKS');
+  assert.equal(ws.getCell(17, 7).value, 'Xe 3.5 tấn');
+  assert.equal(ws.getCell(17, 8).value, 'BKS-BAO-KHACH');
+  assert.equal(ws.getCell(17, 13).value, 2_000_000, 'the freight money cell is unchanged');
+});
