@@ -219,6 +219,12 @@ export async function assignLclCostGroup(input: {
   vehicleSizeClassId: number;
   actualTruckNo: string;
   billingTruckNo?: string;
+  /** 161026232309 — the group's nhà xe (customers.isCarrier). */
+  carrierId?: number;
+  /** 161026232309 — OWN = Đội xe nội bộ SilverSea (container classes). */
+  carrierType?: 'OWN' | 'EXTERNAL';
+  /** 161026232319 — Điều vận nhập tay cước trả ĐV của Lô 1 (VND). */
+  freightCost?: number;
 }) {
   return api.post<{ groupId: string; memberCount: number; members: Array<{ shipmentId: number; order: number; reference: string }> }>(
     SHIPMENTS.LCL_COST_GROUP,

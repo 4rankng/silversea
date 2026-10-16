@@ -26,6 +26,24 @@ export const assignLclCostGroupSchema = z.object({
   actualTruckNo: truckNo,
   /** BKS báo khách ("xe ảo"). Omitted ⇒ server copies actualTruckNo. */
   billingTruckNo: truckNo.optional(),
+  /**
+   * 161026232309 — the nhà xe (Xe ngoài) the group's truck belongs to:
+   * a customers.id flagged isCarrier (the row every "Chọn nhà xe" dropdown
+   * reads). Persisted on the group's lots so the choice survives a reopen.
+   */
+  carrierId: z.number().int().positive().optional(),
+  /**
+   * 161026232309 — OWN = Đội xe nội bộ SilverSea (container classes only, the
+   * spec's "Cont 20'/40' → Xe nội bộ HOẶC Nhà thầu"). Derived server-side
+   * when omitted: carrierId ⇒ EXTERNAL, internal-fleet plate ⇒ OWN.
+   */
+  carrierType: z.enum(['OWN', 'EXTERNAL']).optional(),
+  /**
+   * 161026232319 — Điều vận nhập tay cước trả ĐV của Lô 1 (VND). Omitted ⇒ the
+   * server auto-traces the carrier price board (tuyến × loại xe × nhà xe).
+   * A manual value always wins over the traced one.
+   */
+  freightCost: z.number().int().min(0).optional(),
 });
 export type AssignLclCostGroupInput = z.infer<typeof assignLclCostGroupSchema>;
 

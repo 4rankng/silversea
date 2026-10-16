@@ -24,7 +24,11 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
+import { Role } from '@tingting/shared';
+import type { AuthUser } from '../middleware/auth';
 import { upsertTripCarrierInfo, upsertTripFinancialState } from '../services/trip-composite.service';
+import { getDriverTrips } from '../services/driver.service';
+import { listDispatchDetailPlanRows } from '../services/dispatch-planning-detail-plan-read.service';
 import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
 import { getAccountingDebitBoard } from '../services/accounting-debit-close.service';
 import { getCustomerDebtSummary } from '../services/customer-debt-summary.service';
@@ -49,6 +53,10 @@ const createdAccountingLockIds: number[] = [];
 const createdBillingDocIds: number[] = [];
 const createdFreightSnapshotIds: number[] = [];
 const createdFulfillmentIds: number[] = [];
+const createdCarrierPriceIds: number[] = [];
+const createdSupplierIds: number[] = [];
+const createdCarrierVehicleIds: number[] = [];
+const createdDriverIds: number[] = [];
 
 async function mkCustomer(name: string) {
   const [customer] = await db.insert(s.customers).values({ name: `${name} ${suffix}` }).returning();
@@ -135,13 +143,76 @@ async function vehicleClassByCode(code: string) {
   return vehicleClass;
 }
 
+/** 161026232309/232319 — a nhà xe (customers.isCarrier) plus the CARRIER-typed
+ *  supplier row the app links to it (supplier-carrier-link.service rule), which
+ *  is the key of the carrier price board's "giá riêng" lane. */
+async function mkCarrierWithSupplier(name: string) {
+  const [supplier] = await db.insert(s.suppliers).values({
+    name: `${name} NCC ${suffix}`,
+    shortName: `NCC ${name}`,
+    types: ['CARRIER'],
+    primaryType: 'CARRIER',
+  }).returning();
+  createdSupplierIds.push(supplier.id);
+  const [carrier] = await db.insert(s.customers).values({
+    name: `${name} ${suffix}`,
+    isCarrier: true,
+    status: 'ACTIVE',
+    linkedSupplierId: supplier.id,
+  }).returning();
+  createdCustomerIds.push(carrier.id);
+  await db.update(s.suppliers).set({ linkedCustomerId: carrier.id }).where(eq(s.suppliers.id, supplier.id));
+  return { carrier, supplier };
+}
+
+/** Bảng giá cước trả nhà xe — supplierId null = giá chung (generic row). */
+async function mkCarrierPricing(
+  routeId: number,
+  vehicleSizeClassId: number,
+  price: string,
+  supplierId: number | null = null,
+) {
+  const [row] = await db.insert(s.carrierRoutePricing).values({
+    routeId, vehicleSizeClassId, supplierId, price,
+  }).returning();
+  createdCarrierPriceIds.push(row.id);
+  return row;
+}
+
+async function mkCarrierFleetVehicle(carrierId: number, licensePlate: string) {
+  const [row] = await db.insert(s.carrierFleetVehicles).values({
+    carrierId,
+    licensePlate,
+    normalizedPlate: licensePlate.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''),
+  }).returning();
+  createdCarrierVehicleIds.push(row.id);
+  return row;
+}
+
+async function mkDriver(name: string) {
+  const [driver] = await db.insert(s.drivers).values({
+    name: `${name} ${suffix}`,
+    code: `DRV-${suffix.slice(-6)}`,
+  }).returning();
+  createdDriverIds.push(driver.id);
+  return driver;
+}
+
+async function assignTripDriver(tripId: number, driverId: number) {
+  await db.update(s.trips).set({ driverId }).where(eq(s.trips.id, tripId));
+}
+
 async function liveTrip(shipmentId: number) {
   const [row] = await db.select({
     tripId: s.trips.id,
     externalFreightCost: s.tripCarrierInfo.externalFreightCost,
+    carrierType: s.tripCarrierInfo.carrierType,
     revenue: s.tripFinancialState.revenue,
     revenueOriginal: s.tripFinancialState.revenueOriginal,
     revenueOverrideReason: s.tripFinancialState.revenueOverrideReason,
+    driverSalary: s.tripFinancialState.driverSalary,
+    totalRoadAllowance: s.tripFinancialState.totalRoadAllowance,
+    roadAllowanceOverride: s.tripFinancialState.roadAllowanceOverride,
   }).from(s.trips)
     .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
@@ -1165,6 +1236,326 @@ describe('C5 (card 1016212936) — the customer debt report reads the same overr
   });
 });
 
+// ─── 161026232319 — cước trả ĐV của Lô 1 from the carrier price board ────────
+
+describe('161026232319 — Lô 1 cước trả ĐV tra từ bảng giá cước trả nhà xe', () => {
+  /** A truck-class group of N LCL lots, each with a live trip already carrying
+   *  its own (stale) vendor freight. */
+  async function seedTrippedTruckLots(label: string, freights: string[]) {
+    const customer = await mkCustomer(`232319 ${label}`);
+    const route = await mkRoute();
+    const lots = [];
+    for (const [index, freight] of freights.entries()) {
+      const lot = await mkLclLot(customer.id, route.id, `232319-${label}${index + 1}-${suffix.slice(-6)}`);
+      const trip = await mkTrip(lot.id, customer.id, route.id);
+      await upsertTripCarrierInfo(db, trip.id, { carrierType: 'EXTERNAL', externalFreightCost: freight });
+      lots.push(lot);
+    }
+    const truckClass = await vehicleClassByCode('5T');
+    return { customer, route, lots, truckClass };
+  }
+
+  test('tra giá riêng của nhà xe (tuyến × loại xe × nhà xe) cho Lô 1, lô 2..N = 0₫', async () => {
+    const { route, lots, truckClass } = await seedTrippedTruckLots('a', ['2400000', '800000', '600000']);
+    await mkCarrierPricing(route.id, truckClass.id, '1750000'); // giá chung
+    const { carrier, supplier } = await mkCarrierWithSupplier('232319 nha xe');
+    await mkCarrierPricing(route.id, truckClass.id, '2100000', supplier.id); // giá riêng
+
+    const result = await assignLclCostGroup({
+      shipmentIds: lots.map((lot) => lot.id),
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29H-111.22',
+      carrierId: carrier.id,
+    }, actor);
+    assert.equal(result.memberCount, 3);
+
+    // Lô 1 = the nhà xe's OWN row (giá riêng wins over giá chung).
+    const t1 = await liveTrip(lots[0]!.id);
+    assert.equal(t1!.externalFreightCost, '2100000', 'Lô 1 = giá riêng của nhà xe');
+    // Members 2..N = 0₫ — the group pays the vendor once.
+    assert.equal((await liveTrip(lots[1]!.id))!.externalFreightCost, '0');
+    assert.equal((await liveTrip(lots[2]!.id))!.externalFreightCost, '0');
+
+    const assigned = (await groupAuditPayloads(lots[0]!.id))
+      .find((payload) => payload.event === 'SHIPMENT_LCL_COST_GROUP_ASSIGNED')!;
+    assert.deepEqual(assigned.principalFreight, { amount: '2100000', source: 'PRICE_BOARD' });
+    assert.equal(assigned.carrierId, carrier.id);
+    assert.equal(assigned.carrierType, 'EXTERNAL');
+  });
+
+  test('không chọn nhà xe ⇒ Lô 1 lấy giá chung của tuyến × loại xe', async () => {
+    const { route, lots, truckClass } = await seedTrippedTruckLots('b', ['900000', '500000']);
+    await mkCarrierPricing(route.id, truckClass.id, '1750000');
+
+    await assignLclCostGroup({
+      shipmentIds: [lots[0]!.id, lots[1]!.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29H-333.44',
+    }, actor);
+
+    assert.equal((await liveTrip(lots[0]!.id))!.externalFreightCost, '1750000');
+    assert.equal((await liveTrip(lots[1]!.id))!.externalFreightCost, '0');
+  });
+
+  test('bảng giá không có dòng nào ⇒ giữ nguyên giá trị cũ của Lô 1, không bịa 0₫', async () => {
+    // A route with NO carrier_route_pricing row at all.
+    const { lots, truckClass } = await seedTrippedTruckLots('c', ['999000', '400000']);
+
+    await assignLclCostGroup({
+      shipmentIds: [lots[0]!.id, lots[1]!.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29H-555.66',
+    }, actor);
+
+    assert.equal((await liveTrip(lots[0]!.id))!.externalFreightCost, '999000', 'tra trượt ⇒ giữ nguyên, không 0₫');
+    assert.equal((await liveTrip(lots[1]!.id))!.externalFreightCost, '0', 'lô ghép vẫn 0₫');
+
+    const assigned = (await groupAuditPayloads(lots[0]!.id))
+      .find((payload) => payload.event === 'SHIPMENT_LCL_COST_GROUP_ASSIGNED')!;
+    assert.equal(assigned.principalFreight, null, 'no price traced ⇒ nothing claimed');
+  });
+
+  test('Điều vận nhập tay thắng giá tra bảng', async () => {
+    const { route, lots, truckClass } = await seedTrippedTruckLots('d', ['2400000', '800000']);
+    await mkCarrierPricing(route.id, truckClass.id, '1750000');
+
+    await assignLclCostGroup({
+      shipmentIds: [lots[0]!.id, lots[1]!.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29H-777.88',
+      freightCost: 1250000,
+    }, actor);
+
+    assert.equal((await liveTrip(lots[0]!.id))!.externalFreightCost, '1250000');
+    const assigned = (await groupAuditPayloads(lots[0]!.id))
+      .find((payload) => payload.event === 'SHIPMENT_LCL_COST_GROUP_ASSIGNED')!;
+    assert.deepEqual(assigned.principalFreight, { amount: '1250000', source: 'MANUAL' });
+  });
+});
+
+// ─── 161026232309 — Chọn Nhà xe & BKS thực tế (nguồn xe của nhóm) ────────────
+
+describe('161026232309 — nguồn xe của nhóm (nhà xe / đội xe nội bộ)', () => {
+  test('lưu nhà xe + xe của nhà xe lên các lô và hiện lại khi mở lại', async () => {
+    const customer = await mkCustomer('232309 carrier');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `232309-A1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `232309-A2-${suffix.slice(-6)}`);
+    const boardTrip1 = await mkBoardTrip(lot1.id, customer.id, route.id);
+    const boardTrip2 = await mkBoardTrip(lot2.id, customer.id, route.id);
+    const truckClass = await vehicleClassByCode('5T');
+    const { carrier } = await mkCarrierWithSupplier('232309 nha xe');
+    const vehicle = await mkCarrierFleetVehicle(carrier.id, '29H-222.33');
+
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29H-222.33',
+      carrierId: carrier.id,
+    }, actor);
+
+    // The identity is PERSISTED (a nhà xe row + its fleet vehicle, not just a
+    // plate string) on the lot's "phân bổ xe" channel.
+    const fulfillments = await db.select().from(s.shipmentFulfillments)
+      .where(inArray(s.shipmentFulfillments.shipmentId, [lot1.id, lot2.id]));
+    assert.equal(fulfillments.length, 2);
+    for (const fulfillment of fulfillments) {
+      assert.equal(fulfillment.plannedCarrierType, 'EXTERNAL');
+      assert.equal(fulfillment.plannedExternalCarrierId, carrier.id);
+      assert.equal(fulfillment.plannedExternalCarrierVehicleId, vehicle.id);
+      assert.equal(fulfillment.plannedVehiclePlateNumber, '29H-222.33');
+    }
+
+    // …and it is what the Kế hoạch Chi tiết row hands the dialog on reopen.
+    const board = await listDispatchDetailPlanRows({
+      actor: { userId: actor.userId, role: Role.ADMIN } as AuthUser,
+      page: 1, limit: 50, q: lot1.blNumber!,
+    });
+    const row = board.items.find((item) => item.shipmentId === lot1.id);
+    assert.ok(row, 'the grouped lot is on the detail plan');
+    assert.equal(row.dispatch.carrierType, 'EXTERNAL');
+    assert.equal(row.dispatch.externalCarrierId, carrier.id);
+    assert.equal(row.dispatch.carrierName, carrier.name);
+    assert.equal(row.dispatch.assignedPlate, '29H-222.33');
+    assert.equal(row.lcl!.group!.actualTruckNo, '29H-222.33');
+    // No board row exists on this lane — Lô 1 keeps its (null) value, while
+    // the group law still zeroes the members.
+    assert.equal((await liveTrip(lot1.id))!.externalFreightCost, null);
+    assert.equal((await liveTrip(lot2.id))!.externalFreightCost, '0');
+    void boardTrip1; void boardTrip2;
+  });
+
+  test('xe tải (EXTERNAL_ONLY) từ chối xe nội bộ và từ chối khai Đội xe nội bộ', async () => {
+    const customer = await mkCustomer('232309 truck rule');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `232309-B1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `232309-B2-${suffix.slice(-6)}`);
+    const [internalTruck] = await db.insert(s.trucks).values({
+      licensePlate: `31B-${suffix.slice(-4)}.11`,
+    }).returning();
+    const truckClass = await vehicleClassByCode('5T');
+    const { carrier } = await mkCarrierWithSupplier('232309 nha xe 2');
+    try {
+      // Client bypass: an internal-fleet plate on a truck class.
+      await assert.rejects(assignLclCostGroup({
+        shipmentIds: [lot1.id, lot2.id],
+        vehicleSizeClassId: truckClass.id,
+        actualTruckNo: internalTruck.licensePlate,
+        carrierId: carrier.id,
+      }, actor), /100% xe ngoài/);
+
+      // Client bypass: claiming the SilverSea fleet for a truck class.
+      await assert.rejects(assignLclCostGroup({
+        shipmentIds: [lot1.id, lot2.id],
+        vehicleSizeClassId: truckClass.id,
+        actualTruckNo: '29H-123.45',
+        carrierType: 'OWN',
+      }, actor), /100% xe ngoài/);
+
+      // A stale nhà xe is refused.
+      await assert.rejects(assignLclCostGroup({
+        shipmentIds: [lot1.id, lot2.id],
+        vehicleSizeClassId: truckClass.id,
+        actualTruckNo: '29H-123.45',
+        carrierId: 2_000_000_000,
+      }, actor), /Nhà xe không tồn tại/);
+    } finally {
+      await db.delete(s.trucks).where(eq(s.trucks.id, internalTruck.id));
+    }
+  });
+
+  test('cont 20\' cho phép chọn Đội xe nội bộ SilverSea (OWN)', async () => {
+    const customer = await mkCustomer('232309 own cont');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `232309-C1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `232309-C2-${suffix.slice(-6)}`);
+    await mkBoardTrip(lot1.id, customer.id, route.id);
+    await mkBoardTrip(lot2.id, customer.id, route.id);
+    const [internalTruck] = await db.insert(s.trucks).values({
+      licensePlate: `31B-${suffix.slice(-4)}.22`,
+    }).returning();
+    const contClass = await vehicleClassByCode('CONT20');
+    try {
+      await assignLclCostGroup({
+        shipmentIds: [lot1.id, lot2.id],
+        vehicleSizeClassId: contClass.id,
+        actualTruckNo: internalTruck.licensePlate,
+        carrierType: 'OWN',
+      }, actor);
+
+      const fulfillments = await db.select().from(s.shipmentFulfillments)
+        .where(inArray(s.shipmentFulfillments.shipmentId, [lot1.id, lot2.id]));
+      assert.equal(fulfillments.length, 2);
+      for (const fulfillment of fulfillments) {
+        assert.equal(fulfillment.plannedCarrierType, 'OWN');
+        assert.equal(fulfillment.plannedExternalCarrierId, null, 'nội bộ ⇒ không có id nhà xe');
+        assert.equal(fulfillment.plannedVehiclePlateNumber, internalTruck.licensePlate);
+      }
+    } finally {
+      await db.delete(s.trucks).where(eq(s.trucks.id, internalTruck.id));
+    }
+  });
+});
+
+// ─── 161026232329 — tiền đường/lương chuyến của nhóm cont xe nội bộ ─────────
+
+describe('161026232329 — tiền đường/lương chuyến chỉ tính 1 lần vào Lô 1', () => {
+  /** A container-class group whose lots' trips each carry the driver's road
+   *  money (lương chuyến + tiền đường) — the money that must be counted once. */
+  async function seedTrippedContLots(label: string, count: number) {
+    const customer = await mkCustomer(`232329 ${label}`);
+    const route = await mkRoute();
+    const driver = await mkDriver(`232329 driver ${label}`);
+    const lots = [];
+    for (let index = 0; index < count; index++) {
+      const lot = await mkLclLot(customer.id, route.id, `232329-${label}${index + 1}-${suffix.slice(-6)}`);
+      const trip = await mkTrip(lot.id, customer.id, route.id);
+      await assignTripDriver(trip.id, driver.id);
+      await upsertTripFinancialState(db, trip.id, { driverSalary: '500000', totalRoadAllowance: '300000' });
+      lots.push(lot);
+    }
+    const contClass = await vehicleClassByCode('CONT20');
+    return { customer, route, driver, lots, contClass };
+  }
+
+  test('nhóm cont xe nội bộ: Lô 1 giữ 100%, lô 2..N = 0₫ trên mặt lương tài xế', async () => {
+    const { route, driver, lots, contClass } = await seedTrippedContLots('a', 3);
+    await assignLclCostGroup({
+      shipmentIds: lots.map((lot) => lot.id),
+      vehicleSizeClassId: contClass.id,
+      actualTruckNo: '51C-111.11',
+      carrierType: 'OWN',
+    }, actor);
+
+    // Lô 1 keeps 100% of the driver money.
+    const t1 = await liveTrip(lots[0]!.id);
+    assert.equal(t1!.driverSalary, '500000');
+    assert.equal(t1!.totalRoadAllowance, '300000');
+    // Members 2..N shed both columns, with the durable road-allowance input
+    // pinned to an explicit 0 (a later figure save must not re-derive it).
+    for (const lot of lots.slice(1)) {
+      const trip = await liveTrip(lot.id);
+      assert.equal(trip!.driverSalary, '0', 'lương chuyến của lô ghép = 0₫');
+      assert.equal(trip!.totalRoadAllowance, '0', 'tiền đường của lô ghép = 0₫');
+      assert.equal(trip!.roadAllowanceOverride, '0');
+    }
+
+    // The driver's own money surface sums what the group actually pays: once.
+    const driverTrips = await getDriverTrips(driver.id);
+    assert.equal(driverTrips.length, 3);
+    assert.equal(driverTrips.reduce((sum, trip) => sum + Number(trip.driverSalary ?? 0), 0), 500_000);
+    assert.equal(driverTrips.reduce((sum, trip) => sum + Number(trip.totalRoadAllowance ?? 0), 0), 300_000);
+    void route;
+  });
+
+  test('nhóm xe ngoài (xe tải) không đụng tiền đường của lái xe', async () => {
+    const { lots } = await seedTrippedContLots('b', 2);
+    const truckClass = await vehicleClassByCode('5T');
+    const { carrier } = await mkCarrierWithSupplier('232329 nha xe');
+
+    await assignLclCostGroup({
+      shipmentIds: [lots[0]!.id, lots[1]!.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29H-444.55',
+      carrierId: carrier.id,
+    }, actor);
+
+    // Outside-fleet group: the carrier pays its own crew — untouched.
+    for (const lot of lots) {
+      const trip = await liveTrip(lot.id);
+      assert.equal(trip!.driverSalary, '500000');
+      assert.equal(trip!.totalRoadAllowance, '300000');
+      assert.equal(trip!.roadAllowanceOverride, null);
+    }
+  });
+
+  test('tách Lô 1: tiền đường/lương chuyến theo lô kế vị + audit', async () => {
+    const { lots, contClass } = await seedTrippedContLots('c', 2);
+    await assignLclCostGroup({
+      shipmentIds: [lots[0]!.id, lots[1]!.id],
+      vehicleSizeClassId: contClass.id,
+      actualTruckNo: '51C-222.22',
+      carrierType: 'OWN',
+    }, actor);
+
+    const result = await unmergeLclLot({ shipmentId: lots[0]!.id, dimension: 'COST' }, actor);
+    assert.deepEqual(result.transferredDriverMoney, { driverSalary: '500000', totalRoadAllowance: '300000' });
+
+    const survivor = await liveTrip(lots[1]!.id);
+    assert.equal(survivor!.driverSalary, '500000', 'lô kế vị nhận 100% lương chuyến');
+    assert.equal(survivor!.totalRoadAllowance, '300000');
+    assert.equal(survivor!.roadAllowanceOverride, '300000', 'pinned so a figure save cannot re-derive it');
+
+    const leaver = await liveTrip(lots[0]!.id);
+    assert.equal(leaver!.driverSalary, '0');
+    assert.equal(leaver!.totalRoadAllowance, '0');
+
+    const unmerged = (await groupAuditPayloads(lots[0]!.id))
+      .find((payload) => payload.event === 'SHIPMENT_LCL_GROUP_UNMERGED')!;
+    assert.deepEqual(unmerged.transferredDriverMoney, { driverSalary: '500000', totalRoadAllowance: '300000' });
+  });
+});
+
 after(async () => {
   // Trips first (FKs), then carrier/financial sidecars ride the trip delete,
   // then shipments, pricing tables, routes, customers.
@@ -1192,6 +1583,24 @@ after(async () => {
   if (createdShipmentIds.length > 0) {
     await db.delete(s.shipmentStatusHistory).where(inArray(s.shipmentStatusHistory.shipmentId, createdShipmentIds));
     await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+  }
+  if (createdCarrierPriceIds.length > 0) {
+    await db.delete(s.carrierRoutePricing).where(inArray(s.carrierRoutePricing.id, createdCarrierPriceIds));
+  }
+  if (createdCarrierVehicleIds.length > 0) {
+    await db.delete(s.carrierFleetVehicles).where(inArray(s.carrierFleetVehicles.id, createdCarrierVehicleIds));
+  }
+  if (createdDriverIds.length > 0) {
+    await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
+  }
+  if (createdSupplierIds.length > 0) {
+    await db.update(s.suppliers).set({ linkedCustomerId: null }).where(inArray(s.suppliers.id, createdSupplierIds));
+    // The customer's own link back (customers.linked_supplier_id) must be cut
+    // first — it is the one real FK of the pair.
+    if (createdCustomerIds.length > 0) {
+      await db.update(s.customers).set({ linkedSupplierId: null }).where(inArray(s.customers.id, createdCustomerIds));
+    }
+    await db.delete(s.suppliers).where(inArray(s.suppliers.id, createdSupplierIds));
   }
   if (createdRouteIds.length > 0) {
     await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
