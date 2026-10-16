@@ -75,10 +75,29 @@ describe('direct settlement creation from actual funded advances', () => {
     state[`${source}Fetching`] = false; state[`${source}Error`] = null;
     rendered.rerender(page());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // FB-100 (Option B): the record stays locked until the confirmation tick.
+    expect(screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' })).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
     expect(screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' })).toBeEnabled();
     expect(screen.getByRole('checkbox', { name: /Ứng đã nhận/ })).toBeChecked();
     expect(screen.getByPlaceholderText('Ghi chú (không bắt buộc)')).toHaveValue('Giữ bản nhập');
     expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('FB-100 (Option B, card 141026230770) — "Ghi nhận phiếu thanh toán" bị khóa đến khi tích "Xác nhận hoàn ứng"', () => {
+    state.requests = [request(1, 'Ứng đã nhận', 1000000)];
+    render(page());
+    const submit = screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ứng đã nhận/ }));
+    // Selection alone no longer unlocks the record — the tick is mandatory.
+    expect(submit).toBeDisabled();
+    expect(screen.getByLabelText('Xác nhận hoàn ứng')).not.toBeChecked();
+    fireEvent.submit(document.querySelector('form')!);
+    expect(mutateAsync).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    expect(mutateAsync).toHaveBeenCalledOnce();
   });
 
   it('keeps zero summary deductions unsigned and neutral, while a positive refund retains its subtraction', () => {
@@ -119,6 +138,7 @@ describe('direct settlement creation from actual funded advances', () => {
     const submit = screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' });
     expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole('checkbox', { name: /Đã nhận đủ tiền/ }));
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
     fireEvent.click(submit);
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledExactlyOnceWith({
       totalExpenseAmount: 0, refundAmount: 0, note: undefined,
@@ -132,7 +152,9 @@ describe('direct settlement creation from actual funded advances', () => {
     state.requests = [request(2, 'Chưa giao tiền', 0), request(3, 'Giao một phần', 999999)];
     render(page());
     expect(screen.getByText('Chưa có tạm ứng đã nhận đủ tiền và chưa quyết toán.')).toBeVisible();
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    // No ADVANCE checkboxes are offered (the FB-100 confirmation tick is the
+    // only checkbox on the page and never selects funding).
+    expect(screen.queryByRole('checkbox', { name: /giao|nhận đủ/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' })).toBeDisabled();
   });
 
@@ -142,6 +164,7 @@ describe('direct settlement creation from actual funded advances', () => {
     render(page());
     fireEvent.click(screen.getByRole('checkbox', { name: /Ứng đã nhận/ }));
     fireEvent.change(screen.getByPlaceholderText('Ghi chú (không bắt buộc)'), { target: { value: 'Giữ lại ghi chú' } });
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
     fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledOnce());
     expect(screen.getByRole('checkbox', { name: /Ứng đã nhận/ })).toBeChecked();

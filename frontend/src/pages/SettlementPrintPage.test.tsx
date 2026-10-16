@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SettlementPrintPage from './SettlementPrintPage';
 import type { LinkedExpense } from '../api/forwarderClient';
 
-const { state, getBlob, recordSettlement } = vi.hoisted(() => ({ state: { role: 'ACCOUNTANT', status: 'RECORDED', linkedExpenses: [] as LinkedExpense[], linkedRequests: [] as Array<{ id: number; amount: string; allocatedAmount?: string; reason: string; status: string; createdAt: string }> }, getBlob: vi.fn(), recordSettlement: vi.fn() }));
+const { state, getBlob, recordSettlement } = vi.hoisted(() => ({ state: { role: 'ACCOUNTANT', status: 'RECORDED', checkedBy: null as number | null, checkedAt: null as string | null, checkerName: null as string | null, linkedExpenses: [] as LinkedExpense[], linkedRequests: [] as Array<{ id: number; amount: string; allocatedAmount?: string; reason: string; status: string; createdAt: string }> }, getBlob: vi.fn(), recordSettlement: vi.fn() }));
 vi.mock('../lib/api', () => ({ api: { getBlob } }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 7, role: state.role } }) }));
 vi.mock('../hooks/animations', () => ({ usePageAnimations: () => ({ rootRef: { current: null } }) }));
@@ -13,7 +13,8 @@ vi.mock('../hooks/useForwarderQueries', () => {
   const detail = () => ({ data: {
     id: 11, version: 1, code: 'HU-11', status: state.status, forwarderId: 7,
     forwarderName: 'OPS Test', totalExpenseAmount: '0', refundAmount: '0',
-    checkedBy: null, approvedBy: 7, note: null, createdAt: '2026-09-17T00:00:00.000Z',
+    checkedBy: state.checkedBy, checkedAt: state.checkedAt, checkerName: state.checkerName,
+    approvedBy: 7, note: null, createdAt: '2026-09-17T00:00:00.000Z',
     linkedRequests: state.linkedRequests, linkedExpenses: state.linkedExpenses,
   }, isLoading: false, error: null });
   return {
@@ -35,6 +36,9 @@ describe('settlement read-only exports', () => {
     recordSettlement.mockReset();
     state.role = 'ACCOUNTANT';
     state.status = 'RECORDED';
+    state.checkedBy = null;
+    state.checkedAt = null;
+    state.checkerName = null;
     state.linkedRequests = [];
     state.linkedExpenses = [];
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:export'), revokeObjectURL: vi.fn() }));
@@ -164,25 +168,33 @@ describe('settlement read-only exports', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('FB-100 — ghi nhận phiếu bắt buộc tick "Xác nhận hoàn ứng"; Tiền hoàn lại nhận số âm', async () => {
-    state.status = 'DRAFT';
+  it('FB-100 (Option B) — phiếu đã ghi nhận hiển thị người xác nhận hoàn ứng; không còn tick/ghi nhận chết trên trang phiếu', async () => {
+    // F-W1-1: the DRAFT-only tick block never rendered in the live flow (no
+    // writer births DRAFT). Option B moved the mandatory tick to the LIVE
+    // submit (ForwarderSettlementCreatePage) and stamps checked_by at create;
+    // this print page now shows the confirmation fact instead.
+    state.status = 'RECORDED';
+    state.checkedBy = 7;
+    state.checkedAt = '2026-10-16T09:30:00.000Z';
+    state.checkerName = 'OPS Test';
     state.linkedRequests = [{
       id: 10, amount: '1000000', allocatedAmount: '1000', reason: 'Tạm ứng một triệu',
       status: 'RECORDED', createdAt: '2026-09-17T00:00:00.000Z',
     }];
     page();
-    const record = await screen.findByRole('button', { name: /Ghi nhận phiếu/ });
-    // FB-100 — tick xác nhận là điều kiện ghi nhận phiếu.
-    expect(record).toBeDisabled();
-    const refund = screen.getByLabelText('Tiền hoàn lại');
-    // số âm được nhập (ứng cao hơn chi phí → còn phải hoàn ứng âm)
-    expect(refund).not.toHaveAttribute('min');
-    fireEvent.change(refund, { target: { value: '-500' } });
-    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
-    expect(record).toBeEnabled();
-    fireEvent.click(record);
-    await waitFor(() => expect(recordSettlement).toHaveBeenCalledWith(
-      expect.objectContaining({ settlementId: 11, refundAmount: -500 }),
-    ));
+    const fact = await screen.findByText(/Xác nhận hoàn ứng:/);
+    expect(fact).toHaveTextContent('OPS Test');
+    expect(screen.queryByLabelText('Xác nhận hoàn ứng')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Ghi nhận phiếu$/ })).not.toBeInTheDocument();
+    // The record path moved to creation — nothing left to call from here.
+    expect(recordSettlement).not.toHaveBeenCalled();
+  });
+
+  it('FB-100 (Option B) — phiếu chưa có checked_by không hiển thị dòng xác nhận', async () => {
+    state.status = 'RECORDED';
+    state.checkedBy = null;
+    page();
+    await screen.findByText('OPS Test');
+    expect(screen.queryByText(/Xác nhận hoàn ứng:/)).not.toBeInTheDocument();
   });
 });

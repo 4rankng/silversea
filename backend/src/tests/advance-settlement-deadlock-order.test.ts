@@ -127,7 +127,15 @@ describe('advance settle deadlock-order contract (card 20260930_226)', () => {
     const fulfilled = outcomes.filter((o) => o.status === 'fulfilled');
     const rejected = outcomes.filter((o) => o.status === 'rejected');
     assert.ok(fulfilled.length >= 1, 'at least one settlement completes — the pair serializes instead of deadlocking');
-    for (const r of fulfilled) cleanup.settlementIds.push((r.value as { id: number }).id);
+    for (const r of fulfilled) {
+      cleanup.settlementIds.push((r.value as { id: number }).id);
+      // FB-100 (Option B, card 141026230770): the phiếu applies at creation
+      // with the filer's own confirmation tick — checked_by/checked_at stamp
+      // the creating forwarder as the confirming actor.
+      const settled = r.value as typeof s.advanceSettlements.$inferSelect;
+      assert.equal(settled.checkedBy, owner.id, 'checked_by = the creating forwarder (tự xác nhận)');
+      assert.ok(settled.checkedAt != null, 'checked_at stamped at creation');
+    }
     for (const r of rejected) {
       // The loser must be a clean business rejection, never a crash.
       assert.ok(r.reason instanceof AdvanceError || r.reason instanceof Error, 'rejected with a typed error');

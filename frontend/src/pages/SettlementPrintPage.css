@@ -521,3 +521,9 @@
 .settlement-finalize__confirm { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--ink-2); font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
 .settlement-finalize__error { color: var(--danger); margin: 0 0 10px; font-size: var(--fs-sm); }
 @media (max-width: 720px) { .settlement-finalize__fields { grid-template-columns: 1fr; } .settlement-expense-option { align-items: flex-start; flex-direction: column; } }
+
+/* FB-100 (card 141026230770, Option B) — the confirmation FACT that replaces
+ * the dead DRAFT record block: who confirmed the hoàn ứng and when. */
+.settlement-detail__confirm { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--success) 28%, var(--line)); border-radius: 10px; background: var(--success-soft); color: var(--ink-2); font-size: var(--fs-sm); }
+.settlement-detail__confirm svg { color: var(--success); flex: none; }
+.settlement-detail__confirm strong { color: var(--ink-1); font-weight: var(--fw-semibold); }
