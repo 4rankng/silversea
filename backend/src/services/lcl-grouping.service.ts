@@ -774,8 +774,21 @@ export async function mergeLclRevGroup(
 
     const customerId = rows[0]!.customerId;
     if (customerId == null || rows.some((row) => row.customerId !== customerId)) {
-      const names = new Map(rows.map((row) => [row.id, lotReference(row)]));
-      throw new ApiError(400, `Chỉ ghép cước thu được các lô của cùng một khách hàng — lô ${input.shipmentIds.map((id) => names.get(id)).join(', ')} khác khách hàng`);
+      const customerIds = Array.from(new Set(rows.map((row) => row.customerId).filter((id): id is number => id != null)));
+      const customerRows = customerIds.length > 0
+        ? await tx.select({ id: s.customers.id, name: s.customers.name })
+            .from(s.customers)
+            .where(inArray(s.customers.id, customerIds))
+        : [];
+      const customerNameMap = new Map(customerRows.map((c) => [c.id, c.name]));
+      const details = rows.map((r) => {
+        const custName = r.customerId ? (customerNameMap.get(r.customerId) ?? `ID ${r.customerId}`) : 'Chưa có khách hàng';
+        return `Lô ${lotReference(r)} (Khách hàng: ${custName})`;
+      }).join(', ');
+      throw new ApiError(
+        400,
+        `Chỉ cho phép ghép các lô của cùng một khách hàng (CÙNG 1 KHÁCH HÀNG) — phát hiện xung đột: ${details}`,
+      );
     }
 
     const byId = new Map(rows.map((row) => [row.id, row]));

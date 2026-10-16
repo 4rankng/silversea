@@ -330,17 +330,53 @@ describe('LCL grouping — FB-093 rev dimension', () => {
     assert.ok(events.includes('SHIPMENT_LCL_REV_GROUP_MERGED'));
   });
 
-  test('blocks merging lots of different customers (FB-093)', async () => {
-    const customerA = await mkCustomer('FB093 cust A');
-    const customerB = await mkCustomer('FB093 cust B');
+  test('blocks merging lots of different customers with clear error naming the conflict and changes nothing (GAP 2, spec line 66)', async () => {
+    const customerA = await mkCustomer('GAP2 cust A');
+    const customerB = await mkCustomer('GAP2 cust B');
     const route = await mkRoute();
-    const lotA = await mkLclLot(customerA.id, route.id, `FB093-A-${suffix.slice(-6)}`);
-    const lotB = await mkLclLot(customerB.id, route.id, `FB093-B-${suffix.slice(-6)}`);
+    const lotA = await mkLclLot(customerA.id, route.id, `GAP2-A-${suffix.slice(-6)}`);
+    const lotB = await mkLclLot(customerB.id, route.id, `GAP2-B-${suffix.slice(-6)}`);
     const truckClass = await vehicleClassByCode('5T');
+
+    const [beforeA] = await db.select().from(s.shipments).where(eq(s.shipments.id, lotA.id));
+    const [beforeB] = await db.select().from(s.shipments).where(eq(s.shipments.id, lotB.id));
+
     await assert.rejects(
       mergeLclRevGroup({ shipmentIds: [lotA.id, lotB.id], vehicleSizeClassId: truckClass.id }, actor),
-      /cùng một khách hàng/,
+      (err: unknown) => {
+        assert.ok(err instanceof Error, 'is an Error');
+        assert.match(err.message, /CÙNG 1 KHÁCH HÀNG/);
+        assert.match(err.message, /xung đột/);
+        assert.ok(err.message.includes(lotA.blNumber!), 'names lot A');
+        assert.ok(err.message.includes(lotB.blNumber!), 'names lot B');
+        assert.ok(err.message.includes(customerA.name), 'names customer A');
+        assert.ok(err.message.includes(customerB.name), 'names customer B');
+        return true;
+      },
     );
+
+    // Assert database state is completely unchanged:
+    const [afterA] = await db.select().from(s.shipments).where(eq(s.shipments.id, lotA.id));
+    const [afterB] = await db.select().from(s.shipments).where(eq(s.shipments.id, lotB.id));
+    assert.equal(afterA.revGroupId, null, 'lotA revGroupId remains null');
+    assert.equal(afterA.revGroupOrder, null, 'lotA revGroupOrder remains null');
+    assert.equal(afterA.revVehicleClassId, null, 'lotA revVehicleClassId remains null');
+    assert.equal(afterA.version, beforeA.version, 'lotA version unchanged');
+
+    assert.equal(afterB.revGroupId, null, 'lotB revGroupId remains null');
+    assert.equal(afterB.revGroupOrder, null, 'lotB revGroupOrder remains null');
+    assert.equal(afterB.revVehicleClassId, null, 'lotB revVehicleClassId remains null');
+    assert.equal(afterB.version, beforeB.version, 'lotB version unchanged');
+
+    const snapA = await latestSnapshot(lotA.id);
+    const snapB = await latestSnapshot(lotB.id);
+    assert.equal(snapA, null, 'no snapshot created for lotA');
+    assert.equal(snapB, null, 'no snapshot created for lotB');
+
+    const eventsA = await groupAuditEvents(lotA.id);
+    const eventsB = await groupAuditEvents(lotB.id);
+    assert.equal(eventsA.length, 0, 'no audit events for lotA');
+    assert.equal(eventsB.length, 0, 'no audit events for lotB');
   });
 });
 
