@@ -210,3 +210,57 @@
   export downloads" — ghi nhận rõ: **không có export để tải**.
 - Evidence: fb104_01…02 png, fb104_assertions.json, fb104_ui-driver.log,
   fb104-report.mjs.
+
+## Cleanup — sanctioned purge (QA_PURGE_ENV=staging, dry-run → execute)
+
+- Registry additions (backend/src/seed/qa-fixture-registry.ts, children-first):
+  driver_timesheet_days + driver_timesheet_months (year = 2099),
+  advance_settlement_requests + advance_settlements (note ILIKE 'QA%'),
+  treasury_movements + ledger (QA-W1 funding pair via ledger note),
+  expense_accounting_sources (QA-named entries' source rows — first run
+  guard-skipped 19 entries without it). backend tsc 0.
+- Run 1: deleted 60 (my whole timesheet/settlement/funding chain; deposit row
+  already gone — lanes share the purge class and one of the concurrent lanes
+  removed it first). Run 2: +13 sources, +10 entries. Remaining guard-skips
+  (9 ops_expense_entries, 5 treasury_accounts, …) are OLDER QA-class rows from
+  other lanes — not W1 fixtures, owned by the standing registry.
+- **Final sweep (API, post-purge): deposits QA=0 · advance-requests QA=0 ·
+  settlements DRAFT/RECORDED/REVERSED QA=0 · timesheet 2099-12 months=0 ·
+  shipment-7 QA-W1 entries=0.**
+
+## Fixtures created → deleted
+
+| Fixture | Where | Deleted |
+|---|---|---|
+| deposit `QA-W1-DEP-6159` (id 7) | deposit_refund_trackers | ✅ (purge class; absent in final sweep) |
+| expense `QA-W1 phí tiền đường fixture` | ops_expense_entries + source row (trip 78/shipment 7) | ✅ (13 sources + 10 entries deleted) |
+| expense `QA-W1 khai chi phí lô fixture` | ops_expense_entries + source row (shipment 7, lot-level) | ✅ |
+| advance requests `QA-W1-mvao5n73/8xp9/ohgcf` + 1 earlier (ids 17,18,19,21) | advance_requests | ✅ (5 rows incl. one other-lane row) |
+| phiếu `PT-2610-0002` (id 8, REVERSED before purge) + allocations | advance_settlements + advance_settlement_requests | ✅ (4+4) |
+| funding pair (ledger `Phê duyệt tạm ứng: QA-W1-*` + treasury OUT ×3) | ledger + treasury_movements | ✅ (5+4) |
+| timesheet months 2099-12 (ids 2, 3) + 7 symbol days | driver_timesheet_months/days | ✅ (2+7) |
+| Accepted residue (precedent): audit_logs / idempotency keys / governance action rows referencing purged ids | — | registry has no surfaces for these (same as all prior waves); not app-visible |
+
+## Overall verdict
+
+**FINDINGS(1)** — 9/9 cards functionally PASS on staging build 7dcdcf33
+(8 rung-3 UI-driven; FB-104's report-mapping rung-3; the task's assumed
+"Excel export download" does not exist in this build — on-screen template
+table only). Findings:
+
+- **F-W1-1 (FB-100, NEEDS-INFO for owner):** the "Xác nhận hoàn ứng" tick +
+  "Ghi nhận phiếu" block is DRAFT-gated (SettlementPrintPage
+  `canEditExpenses`) while advance settlements are born RECORDED and no
+  writer creates a DRAFT phiếu (0 DRAFT on staging) — the tick gate is
+  unit-pinned but unreachable in any live flow. Suspects:
+  frontend/src/pages/SettlementPrintPage.tsx (gate),
+  backend/src/services/advance-settlement.service.ts (birth status). No code
+  touched per contract; chain decides the fix.
+- Coverage limits (not defects): FB-097 NCC-autofill-positive path (no
+  carrierSupplierId data on staging) + manual supplier pick (listbox
+  rendering); FB-100 signed-refund end-to-end (balance law needs real trip
+  expenses > advance — none eligible; schema + report pin covered by unit
+  tests); FB-101 doi-chieu nav label is accountant-persona-scoped;
+  FB-103 RECONCILED-lock path (fixture stayed OPEN); FB-102 "Đ" keystroke via
+  CDP (headless diacritics) — same write succeeded through the official API
+  path; FB-104 file export absent.
