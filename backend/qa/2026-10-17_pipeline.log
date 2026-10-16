@@ -365,3 +365,163 @@ M  shared/src/schemas/lcl-grouping.ts
 [2026-10-16T21:58:46.862699Z]   TSC: OK
 [2026-10-16T21:58:47.433043Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
 [2026-10-16T21:58:47.433281Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:03:47.534398Z] --- tick 43 ---
+[2026-10-16T22:03:47.873613Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:03:47.913488Z]   branches ahead of main: (none)
+[2026-10-16T22:03:47.932210Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:03:49.303240Z]   TSC: OK
+[2026-10-16T22:03:49.882970Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:03:49.883164Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:08:50.041725Z] --- tick 44 ---
+[2026-10-16T22:08:50.362798Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:08:50.403837Z]   branches ahead of main: (none)
+[2026-10-16T22:08:50.422790Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:08:51.762503Z]   TSC: OK
+[2026-10-16T22:08:52.333957Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:08:52.334261Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:13:52.495975Z] --- tick 45 ---
+[2026-10-16T22:13:52.825534Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:13:52.865459Z]   branches ahead of main: (none)
+[2026-10-16T22:13:52.884069Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:13:54.249515Z]   TSC: OK
+[2026-10-16T22:13:54.835943Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:13:54.836173Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:18:54.865075Z] --- tick 46 ---
+[2026-10-16T22:18:55.159265Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:18:55.199901Z]   branches ahead of main: (none)
+[2026-10-16T22:18:55.218712Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:18:56.678281Z]   TSC: OK
+[2026-10-16T22:18:57.257458Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:18:57.257680Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:23:57.407348Z] --- tick 47 ---
+[2026-10-16T22:23:57.734998Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:23:57.775819Z]   branches ahead of main: (none)
+[2026-10-16T22:23:57.794641Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:23:59.151769Z]   TSC: OK
+[2026-10-16T22:23:59.722412Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:23:59.722640Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:28:59.884423Z] --- tick 48 ---
+[2026-10-16T22:29:00.217329Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:29:00.258337Z]   branches ahead of main: (none)
+[2026-10-16T22:29:00.277258Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:29:01.683977Z]   TSC: OK
+[2026-10-16T22:29:02.264185Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:29:02.264409Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:34:02.352521Z] --- tick 49 ---
+[2026-10-16T22:34:02.682020Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:34:02.722916Z]   branches ahead of main: (none)
+[2026-10-16T22:34:02.741719Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:34:04.095240Z]   TSC: OK
+[2026-10-16T22:34:04.685084Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:34:04.685308Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:39:04.846687Z] --- tick 50 ---
+[2026-10-16T22:39:05.170965Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:39:05.211304Z]   branches ahead of main: (none)
+[2026-10-16T22:39:05.230102Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:39:06.641680Z]   TSC: OK
+[2026-10-16T22:39:07.227033Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:39:07.227289Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:44:07.264534Z] --- tick 51 ---
+[2026-10-16T22:44:07.589793Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:44:07.630897Z]   branches ahead of main: (none)
+[2026-10-16T22:44:07.649886Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:44:09.028373Z]   TSC: OK
+[2026-10-16T22:44:09.615867Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:44:09.616089Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:49:09.773750Z] --- tick 52 ---
+[2026-10-16T22:49:10.109330Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:49:10.151047Z]   branches ahead of main: (none)
+[2026-10-16T22:49:10.170025Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:49:11.542597Z]   TSC: OK
+[2026-10-16T22:49:12.125936Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:49:12.126169Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:54:12.150319Z] --- tick 53 ---
+[2026-10-16T22:54:12.474423Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:54:12.515596Z]   branches ahead of main: (none)
+[2026-10-16T22:54:12.534480Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:54:13.911050Z]   TSC: OK
+[2026-10-16T22:54:14.478644Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:54:14.478884Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T22:59:14.644180Z] --- tick 54 ---
+[2026-10-16T22:59:14.972169Z]   agent digest:
+(no silversea agents)
+[2026-10-16T22:59:15.012796Z]   branches ahead of main: (none)
+[2026-10-16T22:59:15.031469Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T22:59:16.413839Z]   TSC: OK
+[2026-10-16T22:59:16.994683Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T22:59:16.994917Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T23:04:17.026418Z] --- tick 55 ---
+[2026-10-16T23:04:17.350166Z]   agent digest:
+(no silversea agents)
+[2026-10-16T23:04:17.389894Z]   branches ahead of main: (none)
+[2026-10-16T23:04:17.408404Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T23:04:18.784997Z]   TSC: OK
+[2026-10-16T23:04:19.365989Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T23:04:19.366222Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T23:09:19.527963Z] --- tick 56 ---
+[2026-10-16T23:09:19.855178Z]   agent digest:
+(no silversea agents)
+[2026-10-16T23:09:19.896372Z]   branches ahead of main: (none)
+[2026-10-16T23:09:19.915301Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T23:09:21.300487Z]   TSC: OK
+[2026-10-16T23:09:21.882535Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T23:09:21.882781Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T23:14:22.035895Z] --- tick 57 ---
+[2026-10-16T23:14:22.361093Z]   agent digest:
+(no silversea agents)
+[2026-10-16T23:14:22.401938Z]   branches ahead of main: (none)
+[2026-10-16T23:14:22.420767Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T23:14:23.783203Z]   TSC: OK
+[2026-10-16T23:14:24.367373Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T23:14:24.367605Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T23:19:24.448052Z] --- tick 58 ---
+[2026-10-16T23:19:24.785604Z]   agent digest:
+(no silversea agents)
+[2026-10-16T23:19:24.825939Z]   branches ahead of main: (none)
+[2026-10-16T23:19:24.844788Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T23:19:26.268985Z]   TSC: OK
+[2026-10-16T23:19:26.858447Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T23:19:26.858684Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T23:24:26.961525Z] --- tick 59 ---
+[2026-10-16T23:24:27.289068Z]   agent digest:
+(no silversea agents)
+[2026-10-16T23:24:27.329943Z]   branches ahead of main: (none)
+[2026-10-16T23:24:27.348737Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T23:24:28.722134Z]   TSC: OK
+[2026-10-16T23:24:29.315840Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T23:24:29.316161Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T23:29:29.470113Z] --- tick 60 ---
+[2026-10-16T23:29:29.795247Z]   agent digest:
+(no silversea agents)
+[2026-10-16T23:29:29.836213Z]   branches ahead of main: (none)
+[2026-10-16T23:29:29.855124Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T23:29:31.302551Z]   TSC: OK
+[2026-10-16T23:29:31.891557Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T23:29:31.891801Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T23:34:31.958323Z] --- tick 61 ---
+[2026-10-16T23:34:32.286483Z]   agent digest:
+(no silversea agents)
+[2026-10-16T23:34:32.326621Z]   branches ahead of main: (none)
+[2026-10-16T23:34:32.345571Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T23:34:33.742262Z]   TSC: OK
+[2026-10-16T23:34:34.332525Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T23:34:34.332776Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
+[2026-10-16T23:39:34.495580Z] --- tick 62 ---
+[2026-10-16T23:39:34.820995Z]   agent digest:
+(no silversea agents)
+[2026-10-16T23:39:34.863993Z]   branches ahead of main: (none)
+[2026-10-16T23:39:34.882835Z]   tree: M backend/qa/2026-10-17_pipeline.log
+[2026-10-16T23:39:36.352690Z]   TSC: OK
+[2026-10-16T23:39:36.952593Z]   fix-161026095800-price-selector-400: no commits; agent state: UpdatedAt           2026-10-16T18:47:24.494Z
+[2026-10-16T23:39:36.952829Z]   readiness: NOT READY — fix-161026095800-price-selector-400: no commits; awaiting agent 4a80b48
