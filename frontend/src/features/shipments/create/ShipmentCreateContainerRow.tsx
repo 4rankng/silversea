@@ -248,7 +248,7 @@ export function ShipmentCreateContainerRow({
             allowsCustomValue={isAdHoc}
             {...(isAdHoc ? { onCustomValue: (text: string) => containerRouteCustomText(row.key, text) } : {})}
             createOption={{
-              label: (typed) => (typed.trim() ? `＋ Thêm tuyến “${typed.trim()}”…` : '＋ Thêm tuyến mới…'),
+              label: () => '+ Thêm',
               onSelect: (typed) => {
                 const name = typed.trim();
                 setRouteDialogTargetKey(row.key);
@@ -283,7 +283,7 @@ export function ShipmentCreateContainerRow({
             searchable
             {...(isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'pickupPortId', 'rawPickupPortName', text) } : {})}
             createOption={{
-              label: (typed) => (typed.trim() ? `＋ Thêm cảng “${typed.trim()}”…` : '＋ Thêm cảng mới…'),
+              label: () => '+ Thêm',
               onSelect: (typed) => {
                 const name = typed.trim();
                 setPortDialog({ open: true, target: { key: row.key, field: 'pickupPortId', name } });
@@ -315,7 +315,7 @@ export function ShipmentCreateContainerRow({
             searchable
             {...(isAdHoc ? { onCustomValue: (text: string) => portCustomText(row.key, 'dropoffPortId', 'rawDropoffPortName', text) } : {})}
             createOption={{
-              label: (typed) => (typed.trim() ? `＋ Thêm cảng “${typed.trim()}”…` : '＋ Thêm cảng mới…'),
+              label: () => '+ Thêm',
               onSelect: (typed) => {
                 const name = typed.trim();
                 setPortDialog({ open: true, target: { key: row.key, field: 'dropoffPortId', name } });

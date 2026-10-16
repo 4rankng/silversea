@@ -68,7 +68,7 @@ export function ContainerTypeCellPicker({ value, onChange, options, fieldId, sav
           disabled={Boolean(saving)}
           error={error}
           createOption={{
-            label: (typed) => (typed.trim() ? `＋ Thêm loại “${typed.trim()}”…` : '＋ Thêm loại container…'),
+            label: () => '+ Thêm',
             onSelect: (typed) => {
               setInitialCode(typed.trim());
               setCreateOpen(true);

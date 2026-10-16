@@ -1177,7 +1177,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.keyDown(combobox, { key: 'ArrowDown' });
     fireEvent.change(combobox, { target: { value: '45HC' } });
 
-    const createOption = await screen.findByRole('option', { name: /Thêm loại/ }, { timeout: 3000 });
+    const createOption = await screen.findByRole('option', { name: '+ Thêm' }, { timeout: 3000 });
     fireEvent.click(createOption);
 
     const dialog = await screen.findByRole('dialog', { name: 'Thêm loại container' });

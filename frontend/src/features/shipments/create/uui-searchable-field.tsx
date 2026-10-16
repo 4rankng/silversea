@@ -61,7 +61,7 @@ interface USearchableFieldProps {
    * committing a value — the create dialogs open from the dropdown, not the
    * row (20260920_26).
    */
-  createOption?: { label: (typed: string) => string; onSelect: (typed: string) => void };
+  createOption?: { label?: (typed: string) => string; onSelect: (typed: string) => void };
   /**
    * Receives the programmatic open handle once the combobox state exists
    * (card 20261002_272 — the paired-field Tab hand-off: the sibling field's
@@ -216,7 +216,7 @@ export function USearchableField({
           supportingText: option.supportingText,
         })).concat(createOption ? [{
           id: '__create__',
-          label: createOption.label(inputValue ?? ''),
+          label: createOption.label ? createOption.label(inputValue ?? '') : '+ Thêm',
           searchText: inputValue ?? '',
           supportingText: undefined,
         }] : [])}

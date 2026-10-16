@@ -70,12 +70,12 @@ function setup(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
 }
 
 describe("ShipmentCreateContainerRow create options (Card 20261009_11)", () => {
-  it("opens PortCreateDialog with empty name when clicking ＋ Thêm cảng mới… without typing in pickup port", async () => {
+  it("opens PortCreateDialog with empty name when clicking + Thêm without typing in pickup port", async () => {
     const { setPortDialog } = setup();
     const pickupInput = screen.getByRole("combobox", { name: "Cảng nâng" });
     fireEvent.click(pickupInput);
 
-    const createOption = await screen.findByRole("option", { name: "＋ Thêm cảng mới…" });
+    const createOption = await screen.findByRole("option", { name: "+ Thêm" });
     fireEvent.click(createOption);
 
     expect(setPortDialog).toHaveBeenCalledWith({
@@ -84,12 +84,12 @@ describe("ShipmentCreateContainerRow create options (Card 20261009_11)", () => {
     });
   });
 
-  it("opens PortCreateDialog with empty name when clicking ＋ Thêm cảng mới… without typing in dropoff port", async () => {
+  it("opens PortCreateDialog with empty name when clicking + Thêm without typing in dropoff port", async () => {
     const { setPortDialog } = setup();
     const dropoffInput = screen.getByRole("combobox", { name: "Cảng hạ" });
     fireEvent.click(dropoffInput);
 
-    const createOption = await screen.findByRole("option", { name: "＋ Thêm cảng mới…" });
+    const createOption = await screen.findByRole("option", { name: "+ Thêm" });
     fireEvent.click(createOption);
 
     expect(setPortDialog).toHaveBeenCalledWith({
@@ -98,12 +98,12 @@ describe("ShipmentCreateContainerRow create options (Card 20261009_11)", () => {
     });
   });
 
-  it("opens RouteCreateDialog with empty name when clicking ＋ Thêm tuyến mới… without typing in route", async () => {
+  it("opens RouteCreateDialog with empty name when clicking + Thêm without typing in route", async () => {
     const { setRouteDialogOpen, setRouteDialogInitialName, setRouteDialogTargetKey } = setup();
     const routeInput = screen.getByRole("combobox", { name: "Tuyến đường" });
     fireEvent.click(routeInput);
 
-    const createOption = await screen.findByRole("option", { name: "＋ Thêm tuyến mới…" });
+    const createOption = await screen.findByRole("option", { name: "+ Thêm" });
     fireEvent.click(createOption);
 
     expect(setRouteDialogTargetKey).toHaveBeenCalledWith("row-1");
