@@ -38,8 +38,15 @@ export const shipmentDebitSummaryItemSchema = z.object({
   customsNumber: z.string().nullable(),
   documentsSummary: z.string().nullable(),
   // Auto freight: the freight-rate snapshot totals (system-calculated), not
-  // the negotiated debit-note override.
+  // the negotiated debit-note override. F-2 ruling (b): a REV-grouped or
+  // override-stamped lot reads the trip_financial_state.revenue override
+  // channel instead (merged 100%/0₫ law).
   freightAuto: moneyString.nullable(),
+  // F-2: the override reason stamp behind freightAuto when the override
+  // channel produced it ("Ghép cước cùng Bill X", FB-095 re-stamps, M2.1
+  // operator reasons) — the spec §3.2 "chú thích nhỏ bên dưới" the money
+  // cell. null when the snapshot channel produced the value.
+  freightOverrideReason: z.string().nullable(),
   // What SS pays on the customer's behalf (CVC + Ops fees, trip expenses).
   chiHoTotal: moneyString.nullable(),
   receivableTotal: moneyString.nullable(),

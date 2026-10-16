@@ -2,7 +2,10 @@
 // per-lot thu/trả board + rate-adjustment requests that block debit export.
 //
 // Column sources (plan rev 4 §A3, P1 arithmetic):
-//   thu:  Cước thu auto = active freight-rate snapshots (freightAmount);
+//   thu:  Cước thu auto = active freight-rate snapshots (freightAmount) —
+//         F-2 ruling (b): an LCL REV-grouped/override-stamped lot reads the
+//         trip_financial_state.revenue override channel instead (spec §4:
+//         Lô 1 = 100% tiền cước nhóm, lô phụ = 0 ₫);
 //         Lạch Huyện auto = ops ZONE_SURCHARGE rows' customerChargeAmount;
 //         Phụ ps auto = snapshot surchargeAmount;
 //         Phát sinh cus = OTHER trip_expenses sellAmount;
@@ -25,6 +28,7 @@ import { sumExcludingNegative } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
+import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 import type { Tx } from './trip-shared';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { carrierKeysForLot } from './debit-settlement-shared';
@@ -210,6 +214,25 @@ export async function getAccountingDebitBoard(query: {
       freightByLot.set(lot, pick.freight);
       psAutoByLot.set(lot, pick.surcharge);
     }
+  }
+
+  // F-2 (card 161026113900, owner ruling b): CƯỚC THU (TỰ ĐỘNG) reads the
+  // override channel `trip_financial_state.revenue` for an LCL lot that is
+  // REV-grouped (the FB-093 merge re-prices the principal without override
+  // markers) or whose live trip carries an override stamp (FB-095
+  // transfers/re-stamps — the survivor of a dissolved 2-lot group is
+  // ungrouped). LCL-only keeps every FCL lot on the snapshot channel
+  // byte-for-byte. Spec §4: Lô 1 hiện 100% tiền cước nhóm, các lô phụ hiện
+  // 0 ₫. Phụ ps stays on the snapshot channel — the merge owns only the
+  // freight/revenue figure.
+  const overrideByLot = await loadRevenueOverrideByLot(executor, lotIds);
+  const effectiveFreightByLot = new Map<number, number | null>();
+  for (const lot of lots) {
+    const override = overrideByLot.get(lot.id);
+    const qualified = lot.cargoMode === 'LCL'
+      && (lot.revGroupId != null || (override?.stamped ?? false));
+    effectiveFreightByLot.set(lot.id,
+      qualified ? override?.total ?? null : freightByLot.get(lot.id) ?? null);
   }
 
   // Lạch Huyện cells + Phát sinh ĐV: ops-expense rows per lot.
@@ -450,7 +473,10 @@ export async function getAccountingDebitBoard(query: {
   // Row assembly — P1 arithmetic: Tổng 1 EXCLUDES Phí RU; lợi nhuận =
   // Tổng thu − Tổng 1 − Phí RU (null when any component null).
   const items: AccountingDebitBoardRow[] = lots.map((lot) => {
-    const freight = freightByLot.get(lot.id);
+    // F-2 ruling (b): the override-channel value when the lot qualifies, the
+    // snapshot value otherwise — ONE effective freight drives Cước thu and
+    // Tổng thu so the merged 100%/0₫ law cannot desync between them.
+    const freight = effectiveFreightByLot.get(lot.id) ?? null;
     const psAuto = psAutoByLot.get(lot.id);
     const zoneCharge = zoneChargeByLot.get(lot.id);
     const otherSell = otherSellByLot.get(lot.id);

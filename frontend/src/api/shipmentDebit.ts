@@ -18,8 +18,14 @@ export interface ShipmentDebitLotRow {
   customsNumber: string | null;
   /** Lot-level proof summary, e.g. "5/6" — null when nothing is recorded yet. */
   documentsSummary: string | null;
-  /** Auto freight for the whole lot. null = not computable yet, never 0-by-default. */
+  /** Auto freight for the whole lot. null = not computable yet, never 0-by-default.
+   *  F-2 ruling (b): a REV-grouped or override-stamped lot reads the
+   *  trip_financial_state.revenue override channel (merged 100%/0₫ law). */
   freightAuto: number | null;
+  /** F-2: the override reason stamp behind freightAuto ("Ghép cước cùng Bill
+   *  X" / FB-095 re-stamps / operator reasons) — rendered as the spec §3.2
+   *  note under the money cell. null when the snapshot channel produced it. */
+  freightOverrideReason?: string | null;
   /** chi hộ total: CVC + Ops-paid items. null = chưa xác định. */
   chiHoTotal: number | null;
   /** phải thu khách − phải trả. null = chưa xác định. */

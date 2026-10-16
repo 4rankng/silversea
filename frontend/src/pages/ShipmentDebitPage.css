@@ -367,6 +367,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* F-2 (card 161026113900, spec §3.2): the override-channel freight's reason
+   note rides under the money value — its own line, wrappable (the cell keeps
+   nowrap for the number itself), quiet mid ink at the docs-small size. */
+.shipment-debit-row__freight-note {
+  white-space: normal;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
 .shipment-debit-row__money--strong {
   font-weight: 700;
 }

@@ -1,9 +1,23 @@
+import type { ReactNode } from 'react';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 import { LedgerRecordList } from '../../../components/shared/LedgerRecordList';
 import { formatMoney } from '../../../lib/format';
 import { ShipmentDebitWorkspace } from './ShipmentDebitWorkspace';
 
 const money = (value: ShipmentDebitLotRow['payableTotal']) => value == null ? 'Chưa xác định' : formatMoney(value);
+
+/** F-2 (card 161026113900, spec §3.2): the money value plus its override
+ *  reason beneath — members read "Ghép cước cùng Bill X" under their 0₫. */
+function freightFact(row: ShipmentDebitLotRow): ReactNode {
+  const value = money(row.freightAuto);
+  if (!row.freightOverrideReason) return value;
+  return (
+    <span className="record-cell-stack">
+      <span>{value}</span>
+      <small className="shipment-debit-row__freight-note">{row.freightOverrideReason}</small>
+    </span>
+  );
+}
 
 export function ShipmentDebitRecords({ rows, canManage, selectedIds, expandedId, onSelect, onToggle, onSaved }: {
   rows: ShipmentDebitLotRow[]; canManage: boolean; selectedIds: Set<number>; expandedId: number | null;
@@ -25,7 +39,7 @@ export function ShipmentDebitRecords({ rows, canManage, selectedIds, expandedId,
         { key: 'customs', label: 'Số tờ khai', value: row.customsNumber ?? 'Chưa có' },
         { key: 'factory', label: 'Nhà máy', value: row.factoryName ?? '—' },
         { key: 'address', label: 'Địa chỉ nhà máy', value: row.factoryAddress ?? '—' },
-        { key: 'freight', label: 'Cước vận tải (Auto)', value: money(row.freightAuto) },
+        { key: 'freight', label: 'Cước vận tải (Auto)', value: freightFact(row) },
         { key: 'chiho', label: 'Tổng chi hộ', value: money(row.chiHoTotal) },
         ...(canManage ? [{ key: 'open', label: 'Quyết toán lô', primary: true, layout: expanded ? 'full-width' as const : undefined, value: <>
           <button type="button" className="btn btn--secondary btn--sm" aria-expanded={expanded}
