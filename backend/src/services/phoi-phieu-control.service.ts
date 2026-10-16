@@ -212,8 +212,11 @@ export async function listPhoiPhieuRows(query: {
     .leftJoin(s.routes, eq(s.routes.id, s.trips.routeId))
     .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
     .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
-    .leftJoin(carrierCustomer, and(eq(carrierCustomer.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER')))
-    .leftJoin(carrierSupplier, and(eq(carrierSupplier.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'SUPPLIER')))
+    // FB-061: carrier masters are soft-delete filtered — a tombstoned customer
+    // or supplier must never surface by name; the coalesce chain then renders
+    // the designed 'Đơn vị vận chuyển không còn trong danh mục' fallback.
+    .leftJoin(carrierCustomer, and(eq(carrierCustomer.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER'), isNull(carrierCustomer.deletedAt)))
+    .leftJoin(carrierSupplier, and(eq(carrierSupplier.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'SUPPLIER'), isNull(carrierSupplier.deletedAt)))
     .leftJoin(supplierCarrierCustomer, and(eq(supplierCarrierCustomer.id, carrierSupplier.linkedCustomerId), eq(supplierCarrierCustomer.isCarrier, true), eq(supplierCarrierCustomer.status, 'ACTIVE'), isNull(supplierCarrierCustomer.deletedAt)))
     .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id,
       sql`(select fc.shipment_container_id from shipment_fulfillments fc where fc.id = ${s.trips.fulfillmentId} limit 1)`))
@@ -852,7 +855,9 @@ export async function getPhoiPhieuDeposit(tripId: number): Promise<{
   if (trip.depositShipmentId) {
     const [bid] = await db.select({ customerName: s.customers.name })
       .from(s.shipments)
-      .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+      // FB-061 sibling sweep: same soft-delete law — a deleted customer never
+      // names the deposit leg; the dialog falls back to its empty state.
+      .leftJoin(s.customers, and(eq(s.customers.id, s.shipments.customerId), isNull(s.customers.deletedAt)))
       .where(eq(s.shipments.id, trip.depositShipmentId)).limit(1);
     depositCustomerName = bid?.customerName ?? null;
   }
@@ -1139,7 +1144,11 @@ export async function getPhoiPhieuReport(query: {
     const parties = await db.select({
       tripId: s.trips.id, name: s.customers.name, ghiChu: s.shipments.customerNotes,
     })
-      .from(s.trips).leftJoin(s.customers, eq(s.customers.id, s.trips.customerId))
+      .from(s.trips)
+      // FB-061: the THU party must never print a soft-deleted customer's name;
+      // its money keeps reporting under the 'Chưa xác định' bucket (the same
+      // law the NULL-trip branch follows — money is never silently dropped).
+      .leftJoin(s.customers, and(eq(s.customers.id, s.trips.customerId), isNull(s.customers.deletedAt)))
       .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
       .where(inArray(s.trips.id, tripIds));
     for (const row of parties) tripParty.set(row.tripId, { name: row.name, ghiChu: row.ghiChu });
@@ -1151,8 +1160,10 @@ export async function getPhoiPhieuReport(query: {
     })
       .from(s.trips)
       .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
-      .leftJoin(carrierCustomer, and(eq(carrierCustomer.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER')))
-      .leftJoin(carrierSupplier, and(eq(carrierSupplier.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'SUPPLIER')))
+      // FB-061: same soft-delete law as the board — deleted carrier masters
+      // fall through to the 'không còn trong danh mục' fallback, never a name.
+      .leftJoin(carrierCustomer, and(eq(carrierCustomer.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'CUSTOMER'), isNull(carrierCustomer.deletedAt)))
+      .leftJoin(carrierSupplier, and(eq(carrierSupplier.id, s.tripCarrierInfo.externalEntityId), eq(s.tripCarrierInfo.externalEntityType, 'SUPPLIER'), isNull(carrierSupplier.deletedAt)))
       .leftJoin(supplierCarrierCustomer, and(eq(supplierCarrierCustomer.id, carrierSupplier.linkedCustomerId), eq(supplierCarrierCustomer.isCarrier, true), eq(supplierCarrierCustomer.status, 'ACTIVE'), isNull(supplierCarrierCustomer.deletedAt)))
       .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId)).where(inArray(s.trips.id, tripIds));
     for (const row of parties) {
