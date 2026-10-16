@@ -209,13 +209,20 @@ router.get('/carrier-pricing', asyncHandler(async (req: Request, res: Response) 
   res.json(resolved ?? { price: 0, matched: null, carrierRoutePricingId: null, effectiveDate: null });
 }));
 
-function validatePricingSelector<T extends { containerTypeId?: number | null; rateKey?: string | null; vehicleSizeClassId?: number | null }>(data: T): T {
+export function validatePricingSelector<T extends { containerTypeId?: number | null; rateKey?: string | null; vehicleSizeClassId?: number | null }>(data: T): T {
   if (data.containerTypeId != null && data.rateKey != null) {
     throw new ApiError(400, 'Chỉ được chọn một trong hai: loại container hoặc mã lớp giá');
   }
-  // FB-090: the structured Loại xe selector is a third, exclusive axis — a
-  // row prices exactly one lane shape (container / vehicle class / general).
-  if (data.vehicleSizeClassId != null && (data.containerTypeId != null || data.rateKey != null)) {
+  // FB-090: a row prices exactly one lane shape (container / vehicle class /
+  // general), so the class selector and the container selector stay mutually
+  // exclusive. The class and rateKey fields are NOT two axes: the write path
+  // denormalizes rateKey = the class code, so the canonical class-linked row
+  // always carries both — rejecting the pair here made every governed
+  // vehicle-class create fail on its own normalized payload (the crud-factory
+  // ran beforeCreate, then the governance apply ran it again). A rateKey that
+  // disagrees with the class code is rejected loudly by
+  // denormalizeVehicleClassSelector, which runs alongside this guard.
+  if (data.vehicleSizeClassId != null && data.containerTypeId != null) {
     throw new ApiError(400, 'Chỉ được chọn một trục giá: loại xe, loại container, hoặc để trống (áp dụng chung)');
   }
   return data;
