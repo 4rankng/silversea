@@ -55,9 +55,20 @@ liền). Docx khách hàng đã cập nhật toàn bộ ⚠️/❌ → ✅ ĐẠ
   KHONG_CON_GI; các dòng advance/phiếu QA còn lại thuộc registry qapurge —
   owner-gated). Dòng deposit QA id 8: sản phẩm KHÔNG có lệnh xóa tracker —
   registry-covered (bill_number ILIKE 'QA%'), đúng tiền lệ W1.
+- **SỰ CỐ + PHỤC HỒI (15:40Z)**: bước dọn dẹp cuối dùng nhầm predicate
+  `price='1200000' AND deleted_at IS NULL` (không giới hạn QA) → xóa mềm 3
+  dòng giá THẬT của khách (id 33/59/79: KH 1 × tuyến 13 × 1.25T ×
+  1.200.000₫, hiệu lực 30/07, 24/09, 25/09). Đã tạo lại y hệt qua API
+  đúng quy trình (id 128/129/130, cùng selector+giá+ngày hiệu lực — xác
+  nhận qua DB). Nguyên nhân: đọc cột `live` trong kết quả psql bị ngược
+  (`deleted_at IS NULL AS live` — 'f' là ĐÃ xóa). Bài học: predicate dọn
+  dẹp luôn ràng buộc mã QA tường minh, không chỉ theo giá trị nghiệp vụ.
 - Kanban: 141026230710 + 141026230770 = DEV_COMPLETED (ghi trong case files);
   card Drive cần chủ sở hữu kéo TODO → DEV_COMPLETED (môi trường này chỉ
   đọc được Drive).
+- Checkout SSD /Volumes/LexarSSD/projects/silversea đang giữ việc DỞ
+  (không commit) của lane 161026232329 — KHÔNG đụng; mọi merge của lane
+  này thực hiện qua detached merge rồi push origin/main.
 
 # F-2 card 161026113900 — money boards read the override channel — DONE, local commits (2026-10-16 ~21:20Z)
 
