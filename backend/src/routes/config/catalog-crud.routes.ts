@@ -229,6 +229,31 @@ export function validatePricingSelector<T extends { containerTypeId?: number | n
 }
 
 /**
+ * FB-090 follow-up (161026095800): merge a pricing-table patch onto the
+ * current row for selector validation. On a class-linked row the stored
+ * rateKey is SERVER-OWNED denormalized data (it mirrors the class code),
+ * never a client assertion — so a patch that sets/moves vehicleSizeClassId
+ * without sending rateKey must rebase the stale key to null instead of
+ * inheriting it. Inheriting it presented the (class, old-rateKey) pair to
+ * denormalizeVehicleClassSelector as a client-sent mismatch → HTTP 400 on a
+ * selector the catalog branch should accept (every class-only patch on a
+ * row linked to a different class). A patch that sends rateKey explicitly
+ * still gets the loud mismatch rejection (real client bug).
+ */
+type PricingSelectorShape = {
+  containerTypeId?: number | null;
+  rateKey?: string | null;
+  vehicleSizeClassId?: number | null;
+};
+
+export function rebasePricingSelectorPatch<C extends PricingSelectorShape, D extends PricingSelectorShape>(current: C, data: D) {
+  if (data.vehicleSizeClassId != null && data.rateKey === undefined) {
+    return { ...current, ...data, rateKey: null } as C & D;
+  }
+  return { ...current, ...data } as C & D;
+}
+
+/**
  * FB-090: when a pricing row targets a Danh mục Loại xe entry, denormalize
  * rateKey = the class CODE. Every legacy rateKey resolver (freight engine,
  * resolveTablePrice, seeds, snapshots) and the existing rate-key unique
@@ -310,6 +335,98 @@ async function assertCarrierPricingLaneFree(
 }
 
 // ─── CRUD routes ─────────────────────────────────────────────────────────────
+
+/**
+ * pricing-tables write hooks (FB-090, ticket 161026095800). The duplicate
+ * lane guard keys on the STRUCTURAL selector (container / vehicle class /
+ * general), not on rateKey alone: rateKey is denormalized from the class
+ * code, and a row whose key was wiped historically must still collide with
+ * — and be blocked by — a live row on the same class lane.
+ */
+export async function pricingTableBeforeCreate(
+  data: H.PricingTablePayload,
+  _req: Request,
+  tx: H.CrudTx,
+) {
+  validatePricingSelector(data);
+  const normalized = await denormalizeVehicleClassSelector(tx, data);
+  await H.requireActiveCatalogRow(tx, 'customer', s.customers, normalized.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+  await H.requireActiveCatalogRow(tx, 'route', s.routes, normalized.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+  await H.requireActiveCatalogRow(tx, 'container-type', s.containerTypes, normalized.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+  await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, normalized.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
+  await lockApplicationOwnedUniqueness(tx, 'catalog.pricing-table.selector', [
+    normalized.customerId, normalized.routeId, normalized.containerTypeId ?? null,
+    H.normalizeCatalogKey(normalized.rateKey), normalized.effectiveDate,
+  ]);
+  const [duplicate] = await tx.select({ id: s.pricingTables.id }).from(s.pricingTables)
+    .where(and(
+      eq(s.pricingTables.customerId, normalized.customerId),
+      eq(s.pricingTables.routeId, normalized.routeId),
+      normalized.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, normalized.containerTypeId),
+      normalized.vehicleSizeClassId == null ? isNull(s.pricingTables.vehicleSizeClassId) : eq(s.pricingTables.vehicleSizeClassId, normalized.vehicleSizeClassId),
+      // For a class-linked row the CLASS is the lane (rateKey is denormalized
+      // from it); requiring rateKey equality too let historically wiped-key
+      // rows escape their own lane (161026095800). The rateKey term only
+      // discriminates legacy keyed / general rows, where the class is NULL.
+      normalized.vehicleSizeClassId == null
+        ? (normalized.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, normalized.rateKey))
+        : sql`true`,
+      eq(s.pricingTables.effectiveDate, normalized.effectiveDate),
+      isNull(s.pricingTables.deletedAt),
+    )).limit(1);
+  if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
+  await purgePricingTableSelectorTombstones(tx, normalized);
+  return normalized;
+}
+
+export async function pricingTableBeforeUpdate(
+  id: number,
+  data: Partial<H.PricingTablePayload>,
+  _req: Request,
+  tx: H.CrudTx,
+) {
+  const [current] = await tx.select().from(s.pricingTables).where(eq(s.pricingTables.id, id)).limit(1);
+  if (!current) throw new ApiError(404, 'Không tìm thấy bảng giá');
+  // 161026095800: rebase the stale denormalized key when the patch moves the
+  // class axis — the merged pair otherwise 400s at the mismatch guard.
+  const final = validatePricingSelector(rebasePricingSelectorPatch(current, data));
+  const normalizedFinal = await denormalizeVehicleClassSelector(tx, final);
+  await H.requireActiveCatalogRow(tx, 'customer', s.customers, normalizedFinal.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
+  await H.requireActiveCatalogRow(tx, 'route', s.routes, normalizedFinal.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
+  await H.requireActiveCatalogRow(tx, 'container-type', s.containerTypes, normalizedFinal.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
+  await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, normalizedFinal.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
+  await lockApplicationOwnedUniqueness(tx, 'catalog.pricing-table.selector', [
+    normalizedFinal.customerId, normalizedFinal.routeId, normalizedFinal.containerTypeId ?? null,
+    H.normalizeCatalogKey(normalizedFinal.rateKey), normalizedFinal.effectiveDate,
+  ]);
+  const [duplicate] = await tx.select({ id: s.pricingTables.id }).from(s.pricingTables)
+    .where(and(
+      eq(s.pricingTables.customerId, normalizedFinal.customerId), eq(s.pricingTables.routeId, normalizedFinal.routeId),
+      normalizedFinal.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, normalizedFinal.containerTypeId),
+      normalizedFinal.vehicleSizeClassId == null ? isNull(s.pricingTables.vehicleSizeClassId) : eq(s.pricingTables.vehicleSizeClassId, normalizedFinal.vehicleSizeClassId),
+      normalizedFinal.vehicleSizeClassId == null
+        ? (normalizedFinal.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, normalizedFinal.rateKey))
+        : sql`true`,
+      eq(s.pricingTables.effectiveDate, normalizedFinal.effectiveDate), isNull(s.pricingTables.deletedAt),
+      ne(s.pricingTables.id, id),
+    )).limit(1);
+  if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
+  await purgePricingTableSelectorTombstones(tx, normalizedFinal);
+  // 121500 phantom-duplicate fix — tombstone purge must run after the duplicate
+  // guard so we don't truncate a still-live row the user is editing.
+  // 095800 manual-QA fix — for a class-linked row the patch must ALWAYS carry
+  // the denormalized selector: the canonical edit payload sends rateKey:null
+  // alongside the class, and the previous only-on-change spread (which only
+  // updated when rateKey or class actually changed) let that null wipe the
+  // stored key on every unchanged-class edit. Fix: if vehicleSizeClassId
+  // is set, always overwrite rateKey + vehicleSizeClassId together.
+  return {
+    ...data,
+    ...(normalizedFinal.vehicleSizeClassId != null
+      ? { rateKey: normalizedFinal.rateKey, vehicleSizeClassId: normalizedFinal.vehicleSizeClassId }
+      : {}),
+  };
+}
 
 // Partner-list sort whitelists. Each key is the list page's URL sort key; the
 // value is the column or a correlated scalar subquery — exactly one value per
@@ -746,62 +863,8 @@ router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes,
   },
 }));
 router.use('/pricing-tables', createCrudRouter(s.pricingTables, pricingTableSchema, { materialWritePath: '/api/pricing-tables',
-  beforeCreate: async (data, _req, tx) => {
-    validatePricingSelector(data);
-    const normalized = await denormalizeVehicleClassSelector(tx, data);
-    await H.requireActiveCatalogRow(tx, 'customer', s.customers, normalized.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'route', s.routes, normalized.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'container-type', s.containerTypes, normalized.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, normalized.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
-    await lockApplicationOwnedUniqueness(tx, 'catalog.pricing-table.selector', [
-      normalized.customerId, normalized.routeId, normalized.containerTypeId ?? null,
-      H.normalizeCatalogKey(normalized.rateKey), normalized.effectiveDate,
-    ]);
-    const [duplicate] = await tx.select({ id: s.pricingTables.id }).from(s.pricingTables)
-      .where(and(
-        eq(s.pricingTables.customerId, normalized.customerId),
-        eq(s.pricingTables.routeId, normalized.routeId),
-        normalized.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, normalized.containerTypeId),
-        normalized.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, normalized.rateKey),
-        eq(s.pricingTables.effectiveDate, normalized.effectiveDate),
-        isNull(s.pricingTables.deletedAt),
-      )).limit(1);
-    if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
-    await purgePricingTableSelectorTombstones(tx, normalized);
-    return normalized;
-  },
-  beforeUpdate: async (id, data, _req, tx) => {
-    const [current] = await tx.select().from(s.pricingTables).where(eq(s.pricingTables.id, id)).limit(1);
-    if (!current) throw new ApiError(404, 'Không tìm thấy bảng giá');
-    const final = validatePricingSelector({ ...current, ...data });
-    const normalizedFinal = await denormalizeVehicleClassSelector(tx, final);
-    await H.requireActiveCatalogRow(tx, 'customer', s.customers, normalizedFinal.customerId, 'Khách hàng không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'route', s.routes, normalizedFinal.routeId, 'Tuyến đường không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'container-type', s.containerTypes, normalizedFinal.containerTypeId, 'Loại container không tồn tại hoặc đã ngưng dùng');
-    await H.requireActiveCatalogRow(tx, 'vehicle-size-class', s.vehicleSizeClasses, normalizedFinal.vehicleSizeClassId, 'Loại xe không tồn tại hoặc đã ngưng dùng');
-    await lockApplicationOwnedUniqueness(tx, 'catalog.pricing-table.selector', [
-      normalizedFinal.customerId, normalizedFinal.routeId, normalizedFinal.containerTypeId ?? null,
-      H.normalizeCatalogKey(normalizedFinal.rateKey), normalizedFinal.effectiveDate,
-    ]);
-    const [duplicate] = await tx.select({ id: s.pricingTables.id }).from(s.pricingTables)
-      .where(and(
-        eq(s.pricingTables.customerId, normalizedFinal.customerId), eq(s.pricingTables.routeId, normalizedFinal.routeId),
-        normalizedFinal.containerTypeId == null ? isNull(s.pricingTables.containerTypeId) : eq(s.pricingTables.containerTypeId, normalizedFinal.containerTypeId),
-        normalizedFinal.rateKey == null ? isNull(s.pricingTables.rateKey) : eq(s.pricingTables.rateKey, normalizedFinal.rateKey),
-        eq(s.pricingTables.effectiveDate, normalizedFinal.effectiveDate), isNull(s.pricingTables.deletedAt),
-        ne(s.pricingTables.id, id),
-      )).limit(1);
-    if (duplicate) throw new ApiError(409, 'Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại');
-    await purgePricingTableSelectorTombstones(tx, normalizedFinal);
-    // The patch must carry the denormalized selector even when the client
-    // only sent vehicleSizeClassId, so the row's rateKey follows the class.
-    return {
-      ...data,
-      ...(normalizedFinal.rateKey !== current.rateKey || normalizedFinal.vehicleSizeClassId !== current.vehicleSizeClassId
-        ? { rateKey: normalizedFinal.rateKey, vehicleSizeClassId: normalizedFinal.vehicleSizeClassId }
-        : {}),
-    };
-  },
+  beforeCreate: pricingTableBeforeCreate,
+  beforeUpdate: pricingTableBeforeUpdate,
   governance: {
     reasonLabel: 'bảng giá cước',
   },
