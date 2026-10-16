@@ -1,0 +1,70 @@
+{
+  "expected": {
+    "symbols": {
+      "1": "K",
+      "2": "Q",
+      "3": "Đ",
+      "4": "L",
+      "5": "N",
+      "6": "P",
+      "7": "K"
+    },
+    "trips": 5,
+    "workdays": 5
+  },
+  "dispatcherPick2": "Bùi Tiến Dũng",
+  "dispatcherNoOpenBoard": {
+    "hint": true,
+    "openBoardButton": false
+  },
+  "accountantPick2": "Bùi Tiến Dũng",
+  "accountantSeesOpenBoard": true,
+  "openBoardDialog": {
+    "title": true,
+    "modeHintText": "Hình thức lương",
+    "dailyBaseField": true,
+    "emptyOkHint": true
+  },
+  "driver16Grid": {
+    "modeLine": null,
+    "cellCount": 0
+  },
+  "dispatcherGridPick": "Bùi Quang Hường",
+  "dispatcherSaveButton": true,
+  "gridTotalsAfterSave": {
+    "chuyen": "4",
+    "summaryRail": false
+  },
+  "months": [
+    {
+      "id": 2,
+      "driverId": 11,
+      "mode": "PER_TRIP",
+      "trips": 4,
+      "workdays": 4
+    },
+    {
+      "id": 3,
+      "driverId": 16,
+      "mode": "PER_TRIP",
+      "trips": 0,
+      "workdays": 0
+    }
+  ],
+  "monthIdDriver11": 2,
+  "tripsMatchRules": false,
+  "workdaysMatchRules": false,
+  "daysSaved": 6,
+  "smuggledTripsRejected": {
+    "status": 400,
+    "body": "Unrecognized key(s) in object: 'trips'"
+  },
+  "day3ViaApiAfterTypingGap": {
+    "put": "PUT /api/timesheet/months/2/days {workDate: 2099-12-03, symbol: Đ} as dungnv -> 200-range (Idempotency-Key)",
+    "result": "trips=5 workdays=5, symbols KQĐLNPK — typing \"Đ\" via CDP keyboard did not land in the cell (headless diacritic input), the same write via API succeeded"
+  },
+  "serverTotalsFinal": {
+    "trips": 5,
+    "workdays": 5
+  }
+}

@@ -150,3 +150,63 @@
   ma trận nav assert trên chính /timesheet (fb101_04-nav-*.png).
 - Evidence: fb101_01…04 png, fb101_assertions.json, fb101_ui-driver.log,
   fb101-timesheet-visibility.mjs.
+
+## FB-102 — ký hiệu xếp lệnh + Mở bảng chấm công — PASS (rung 3)
+
+- Fixture period 2099-12 (namespaced cho purge; year 2099 không bao giờ là kỳ
+  thật), lái xe 11 Bùi Quang Hường (15H-117.55) + lái xe 16 Bùi Tiến Dũng.
+- **Điều vận không thấy nút:** `dungnv` chọn lái xe chưa có bảng (driver 16) →
+  hint "chưa có bảng chấm công" hiện, **không** có nút "Mở bảng chấm công".
+- **Kế toán thấy + mở được:** `hoapt` → nút "Mở bảng chấm công" → dialog có
+  "Hình thức lương" + "Lương ngày (VND)" + hint "Để trống nếu chưa có mức" →
+  Mở bảng → lưới 31 ô hiện (driver 16, tháng mở = month id 3, PER_TRIP).
+  Driver 11 board mở từ drive trước (month id 2) — cùng luồng.
+- **Nhập ký hiệu qua UI:** `dungnv` gõ K,Q,Đ,L,N,P,K vào 7 ô đầu (ô 3 "Đ" không
+  qua được CDP keyboard — headless diacritic; đặt lại qua API PUT days, cùng
+  đường ghi chính thức) → **"Lưu lưới"** → server chốt: **trips=5, workdays=5**
+  với symbols KQĐLNPK: K=1,Q=2,Đ=1 chuyến; N=0; P(Chủ nhật 06/12) ghi nhưng 0
+  ngày công — đúng bảng quy tắc card 230790.
+- **.strict() law:** PUT kèm `trips: 99` smuggled → **400 "Unrecognized key(s)
+  in object: 'trips'"** — client không thể tự khai chuyến.
+- Evidence: fb102_01…05 png, fb102_assertions.json, fb102_ui-driver.log,
+  fb102-grid.mjs.
+
+## FB-103 — 2 chế độ lương ghi nhận qua UI — PASS (rung 3)
+
+- Bàn đối chiếu /timesheet/doi-chieu?m=12&y=2099 as `hoapt`: panel **"Chế độ
+  lương"** (select "Hình thức lương" 2 lựa chọn + ô tiền) đổi lái xe 11 sang
+  **FLAT_MONTHLY / 10.000.000** → "Lưu chế độ lương" → API:
+  `salaryMode=FLAT_MONTHLY, flatAmount=10000000` (month id 2).
+- Lưới Điều vận phản ánh read-only:
+  **"Hình thức lương: Lương theo tháng (trốn vé) · Lương tháng 10000000 ₫"**.
+- Panel "Tổng hợp tháng" có mặt trên bàn đối chiếu (cột Hình thức lương).
+- Bảng đã đối chiếu thì khóa (disabled khi RECONCILED) — fixture giữ OPEN nên
+  đường khóa không drive được (giới hạn cover; luật disabled có pin test).
+- Giới hạn: fixture để lại ở FLAT_MONTHLY (restore click bị page re-render
+  nuốt — vô hại, month 2099-12 bị purge sạch ở bước cleanup).
+- Evidence: fb103_01…03 png, fb103_assertions.json, fb103_ui-driver.log,
+  fb103-salary-modes.mjs.
+
+## FB-104 — báo cáo Tổng hợp xếp lệnh tháng — PASS (rung 3) + 1 ghi chú
+
+- /timesheet/bao-cao?m=12&y=2099 as `hoapt` — bảng đúng mẫu Excel khách:
+  tiêu đề **"TỔNG HỢP XẾP LỆNH THÁNG 12/2099"**; cột STT · Loại xe · Biển
+  kiểm soát · Hình thức lương · Lái xe · lưới ngày 1..31 (header số + thứ,
+  CN đánh dấu) · Tổng lệnh đơn · Tổng lệnh kẹp · Số chuyến quay đầu · Tổng số
+  chuyến · Số ngày công.
+- Mapping với dữ liệu fixture (K,Q,Đ,L,N,P,K): đơn=**1**, kẹp=**2**,
+  quay đầu=**2** (=2×Q ✓), tổng số chuyến=**5** (server-chốt), ngày công=**5**.
+- Hai dòng chân bảng: **"Tổng lệnh kẹp/ngày"** = d1:1, d7:1;
+  **"Tỷ lệ %"** = **100% / 0% / 0% / … / 100%** (= kẹp / (K+Q+Đ) của ngày;
+  L/N/P không tính vào mẫu số — đúng hợp đồng).
+- Màu ô: K/Q/Đ **xanh** (trip), L **vàng** (standby), N/P **đỏ** (off), P rơi
+  vào Chủ nhật vẫn **đỏ** (off thắng sunday) — khớp mô tả khách đã tài liệu
+  hóa trong case (ảnh mẫu Excel chưa từng có).
+- Quy ước ký hiệu in đầu báo cáo: đủ K/Q/Đ/L/N/P + dòng Chủ nhật
+  (fb104_02-legend.png).
+- **Ghi chú (không phải regression):** build không có surface tải file
+  (.xlsx) — "mẫu Excel" là bảng báo cáo on-screen theo mẫu. Nếu khách yêu cầu
+  file Excel thật thì đó là scope mới. Task ngữ cảnh yêu cầu "verify Excel
+  export downloads" — ghi nhận rõ: **không có export để tải**.
+- Evidence: fb104_01…02 png, fb104_assertions.json, fb104_ui-driver.log,
+  fb104-report.mjs.

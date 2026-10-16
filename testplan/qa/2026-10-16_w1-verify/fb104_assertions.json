@@ -1,0 +1,488 @@
+{
+  "template": {
+    "title": true,
+    "legend": false,
+    "headers": [
+      "STT",
+      "Loại xe",
+      "Biển kiểm soát",
+      "Hình thức lương",
+      "Lái xe",
+      "1T3",
+      "2T4",
+      "3T5",
+      "4T6",
+      "5T7",
+      "6CN",
+      "7T2",
+      "8T3",
+      "9T4",
+      "10T5",
+      "11T6",
+      "12T7",
+      "13CN",
+      "14T2",
+      "15T3",
+      "16T4",
+      "17T5",
+      "18T6",
+      "19T7",
+      "20CN",
+      "21T2",
+      "22T3",
+      "23T4",
+      "24T5",
+      "25T6",
+      "26T7",
+      "27CN",
+      "28T2",
+      "29T3",
+      "30T4",
+      "31T5",
+      "Tổng lệnh đơn",
+      "Tổng lệnh kẹp",
+      "Số chuyến quay đầu",
+      "Tổng số chuyến",
+      "Số ngày công"
+    ],
+    "dayHeaderCount": 0,
+    "rowCount": 2,
+    "row1": [
+      [
+        {
+          "t": "1",
+          "cls": ""
+        },
+        {
+          "t": "1 CẦU 3 DÀN",
+          "cls": ""
+        },
+        {
+          "t": "15H-117.55",
+          "cls": ""
+        },
+        {
+          "t": "Lương theo tháng (trốn vé)",
+          "cls": ""
+        },
+        {
+          "t": "Bùi Quang Hường",
+          "cls": ""
+        },
+        {
+          "t": "K",
+          "cls": "ts-report__cell ts-report__cell--trip"
+        },
+        {
+          "t": "Q",
+          "cls": "ts-report__cell ts-report__cell--trip"
+        },
+        {
+          "t": "Đ",
+          "cls": "ts-report__cell ts-report__cell--trip"
+        },
+        {
+          "t": "L",
+          "cls": "ts-report__cell ts-report__cell--standby"
+        },
+        {
+          "t": "N",
+          "cls": "ts-report__cell ts-report__cell--off"
+        },
+        {
+          "t": "P",
+          "cls": "ts-report__cell ts-report__cell--off"
+        },
+        {
+          "t": "K",
+          "cls": "ts-report__cell ts-report__cell--trip"
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell ts-report__cell--sunday"
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell ts-report__cell--sunday"
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell ts-report__cell--sunday"
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "1",
+          "cls": "num"
+        },
+        {
+          "t": "2",
+          "cls": "num"
+        },
+        {
+          "t": "2",
+          "cls": "num"
+        },
+        {
+          "t": "5",
+          "cls": "num"
+        },
+        {
+          "t": "5",
+          "cls": "num"
+        }
+      ],
+      [
+        {
+          "t": "2",
+          "cls": ""
+        },
+        {
+          "t": "1 CẦU 3 DÀN",
+          "cls": ""
+        },
+        {
+          "t": "15H-104.03",
+          "cls": ""
+        },
+        {
+          "t": "Lương theo chuyến (không trốn vé)",
+          "cls": ""
+        },
+        {
+          "t": "Bùi Tiến Dũng",
+          "cls": ""
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell ts-report__cell--sunday"
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell ts-report__cell--sunday"
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell ts-report__cell--sunday"
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell ts-report__cell--sunday"
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "",
+          "cls": "ts-report__cell "
+        },
+        {
+          "t": "0",
+          "cls": "num"
+        },
+        {
+          "t": "0",
+          "cls": "num"
+        },
+        {
+          "t": "0",
+          "cls": "num"
+        },
+        {
+          "t": "0",
+          "cls": "num"
+        },
+        {
+          "t": "0",
+          "cls": "num"
+        }
+      ]
+    ],
+    "footerRows": [
+      "Tổng lệnh kẹp/ngày\t1\t\t\t\t\t\t1\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t",
+      "Tỷ lệ %\t100%\t0%\t0%\t\t\t\t100%\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"
+    ]
+  },
+  "fixtureSymbols": {
+    "1": "K",
+    "2": "Q",
+    "3": "Đ",
+    "4": "L",
+    "5": "N",
+    "6": "P",
+    "7": "K"
+  },
+  "mapping": {
+    "stt": "1",
+    "loaiXe": "1 CẦU 3 DÀN",
+    "bienSo": "15H-117.55",
+    "hinhThucLuong": "Lương theo tháng (trốn vé)",
+    "laiXe": "Bùi Quang Hường",
+    "day1": {
+      "symbol": "K",
+      "cls": "ts-report__cell ts-report__cell--trip"
+    },
+    "day2": {
+      "symbol": "Q",
+      "cls": "ts-report__cell ts-report__cell--trip"
+    },
+    "day3": {
+      "symbol": "Đ",
+      "cls": "ts-report__cell ts-report__cell--trip"
+    },
+    "day4": {
+      "symbol": "L",
+      "cls": "ts-report__cell ts-report__cell--standby"
+    },
+    "day5": {
+      "symbol": "N",
+      "cls": "ts-report__cell ts-report__cell--off"
+    },
+    "day6": {
+      "symbol": "P",
+      "cls": "ts-report__cell ts-report__cell--off"
+    },
+    "day7": {
+      "symbol": "K",
+      "cls": "ts-report__cell ts-report__cell--trip"
+    },
+    "tongDon": "1",
+    "tongKep": "2",
+    "quayDau": "2",
+    "tongChuyen": "5",
+    "ngayCong": "5"
+  },
+  "expectedMapping": {
+    "don": 1,
+    "kep": 2,
+    "quayDau": 2,
+    "tongChuyen": 5,
+    "ngayCong": 5,
+    "colorLaw": "K/Q/Đ green (trip), L yellow (standby), N/P red (off), Sunday yellow, off wins on Sunday"
+  },
+  "mappingMatches": true,
+  "perDay": {
+    "kepByDay": [
+      "1",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "1",
+      "",
+      "",
+      ""
+    ],
+    "pctByDay": [
+      "100%",
+      "0%",
+      "0%",
+      "",
+      "",
+      "",
+      "100%",
+      "",
+      "",
+      ""
+    ]
+  },
+  "perDayMatches": true,
+  "colors": {
+    "day1_K_green": true,
+    "day2_Q_green": true,
+    "day3_D_green": true,
+    "day4_L_yellow": true,
+    "day5_N_red": true,
+    "day6_P_sunday_red": true,
+    "day7_K_green": true
+  },
+  "exportSurface": {
+    "downloadLike": [],
+    "note": "FB-104 delivers the report as an on-screen Excel-template table; no .xlsx endpoint exists in this build."
+  },
+  "legendVerified": "K Kẹp 2 cont (1 chuyến) | Q Quay đầu (2 chuyến) | Đ Chạy đơn (1 chuyến) | L Lưu ca (0 chuyến) | N Nghỉ (0 chuyến) | P Nghỉ phép (xe hư) (0 chuyến) | Chủ nhật — ghi chuyến, không tính ngày công"
+}

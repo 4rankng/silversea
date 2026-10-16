@@ -1,0 +1,33 @@
+{
+  "pageState": {
+    "heading": true,
+    "driverNames": [
+      "Bùi Quang Hường",
+      "Bùi Tiến Dũng"
+    ],
+    "salaryPanel": true,
+    "modeLine": "Hình thức lương",
+    "tongHopPanel": true,
+    "reconcileLock": false
+  },
+  "modePanelControls": {
+    "nativeSelect": null,
+    "comboboxInput": false,
+    "saveButton": false
+  },
+  "afterFlat": {
+    "mode": "FLAT_MONTHLY",
+    "flatAmount": 10000000,
+    "dailyBase": null,
+    "trips": 5,
+    "workdays": 5,
+    "status": "OPEN"
+  },
+  "modePersisted": true,
+  "gridModeLine": "Hình thức lương: Lương theo tháng (trốn vé) · Lương tháng 10000000 ₫",
+  "restoredPerTrip": {
+    "mode": "FLAT_MONTHLY",
+    "dailyBase": null
+  },
+  "modeRoundTrip": false
+}
