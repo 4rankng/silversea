@@ -10,6 +10,9 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { UuiSelectField } from '../design-system';
+// Shared rose required marker (`.ds-field__required`) — the ds form stylesheet
+// is not part of the global bundle, so import it where the marker renders.
+import '../design-system/forms/TextField.css';
 import { billBookingReference } from '../lib/business-reference';
 
 // Feature: logic (.ts) + UI (.tsx)
@@ -160,7 +163,7 @@ export default function TripDetailPage() {
       >
         <label className="tdp-governance-label">
           <span className="tdp-governance-label-text">
-            Lý do <span className="tdp-governance-asterisk">*</span>
+            Lý do <span className="ds-field__required" aria-hidden="true">*</span>
           </span>
           <textarea
             aria-label="Lý do thay đổi"
