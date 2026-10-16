@@ -1,0 +1,12 @@
+HEALTH status=ok buildHash=1c00c17a pin=1c00c17a
+P1 lot-no-receipt batch -> 400 {"error":"Dòng 1: Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu."}
+P1 rows before=3 after=3 (unchanged=true)
+P2 ROAD_ALLOWANCE batch -> 400 {"error":"Dòng 1: Khoản này do hệ thống tự ghi nhận."}
+P3 road-no-receipt single -> 201 id=45 receipt=null evidenceKind=null
+P4 FEE_CLEANING+photo-no-number -> 201 invoiceNumber=null evidenceKind=null id=46
+P5 FEE_CLEANING+photo+typed-number -> 201 invoiceNumber="QA-W4B-HD-001" invoiceDate="2026-10-16" id=47
+P6 road+RECEIPT-kind-no-photo -> 400 {"error":"Chọn Phiếu thu thì phải chụp biên lai trước khi lưu."}
+FINAL trip=173 rows=6 qaMarked=45,42,43,44
+DONE
+SYSTEM-ROWS driver=bqhuong trip=105 status=IN_TRANSIT types=ROAD_ALLOWANCE
+SCAN-DONE
