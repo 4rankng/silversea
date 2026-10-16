@@ -2,16 +2,17 @@
 // xem được cho ACCOUNTANT nhưng ô read-only và KHÔNG có nút "Lưu lưới" (backend
 // chặn ghi lưới ngoài dispatcherOrAbove); Điều vận vẫn nhập bình thường.
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Role } from '@tingting/shared';
 import type { TimesheetDayCell, TimesheetDriverRow, TimesheetMonth } from '../api/timesheetClient';
 
-const { listDrivers, listMonths, saveDays, currentUser } = vi.hoisted(() => ({
+const { listDrivers, listMonths, saveDays, createMonth, currentUser } = vi.hoisted(() => ({
   listDrivers: vi.fn(),
   listMonths: vi.fn(),
   saveDays: vi.fn(),
+  createMonth: vi.fn(),
   currentUser: { userId: 1, role: 'DISPATCHER' as string },
 }));
 
@@ -19,6 +20,7 @@ vi.mock('../api/timesheetClient', () => ({
   listTimesheetDrivers: (...args: unknown[]) => listDrivers(...args),
   listTimesheetMonths: (...args: unknown[]) => listMonths(...args),
   saveTimesheetDays: (...args: unknown[]) => saveDays(...args),
+  createTimesheetMonth: (...args: unknown[]) => createMonth(...args),
 }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: currentUser }) }));
 vi.mock('../design-system/hooks/useMonthRoute', () => ({
@@ -67,6 +69,7 @@ beforeEach(() => {
   listDrivers.mockReset().mockResolvedValue([driver]);
   listMonths.mockReset().mockResolvedValue([month]);
   saveDays.mockReset();
+  createMonth.mockReset().mockResolvedValue(month);
   currentUser.role = Role.DISPATCHER;
 });
 
@@ -85,5 +88,23 @@ describe('TimesheetGridPage role surface (FB-101)', () => {
     await screen.findAllByRole('textbox');
     expect(screen.queryByRole('button', { name: /Lưu lưới/ })).toBeNull();
     for (const cell of screen.getAllByRole('textbox')) expect(cell).toHaveAttribute('readonly');
+  });
+});
+
+describe('mở bảng chấm công (FB-102 — card 141026230790)', () => {
+  it('tháng chưa có bảng: kế toán mở bảng chấm công ngay tại lưới', async () => {
+    currentUser.role = Role.ACCOUNTANT;
+    listMonths.mockReset().mockResolvedValue([]);
+    page();
+    const open = await screen.findByRole('button', { name: /Mở bảng chấm công/ });
+    fireEvent.click(open);
+    await waitFor(() => expect(createMonth).toHaveBeenCalledWith({ driverId: 1, year: 2026, month: 10 }));
+  });
+
+  it('Điều vận không thấy nút mở bảng — việc đó của kế toán', async () => {
+    listMonths.mockReset().mockResolvedValue([]);
+    page();
+    await screen.findByText(/chưa có bảng chấm công/);
+    expect(screen.queryByRole('button', { name: /Mở bảng chấm công/ })).toBeNull();
   });
 });

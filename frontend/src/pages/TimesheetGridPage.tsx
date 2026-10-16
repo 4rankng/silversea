@@ -18,6 +18,7 @@ import { useAuth } from '../hooks/useAuth';
 import { TimesheetGridCell, type TimesheetMove } from '../features/timesheet/TimesheetGrid';
 import { qk } from '../api/keys';
 import {
+  createTimesheetMonth,
   listTimesheetDrivers,
   listTimesheetMonths,
   saveTimesheetDays,
@@ -41,6 +42,8 @@ export default function TimesheetGridPage() {
   // "Lưu lưới" chỉ hiện cho vai trò ghi được.
   const { user } = useAuth();
   const canEditGrid = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER;
+  // FB-102 — mở bảng chấm công là việc của kế toán (POST /months accountantOnly).
+  const canOpenBoard = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
   const cellRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const [driverId, setDriverId] = useState<number | null>(null);
@@ -98,6 +101,17 @@ export default function TimesheetGridPage() {
   });
 
   const dirty = Object.keys(pending).length > 0;
+
+  // FB-102 (card 141026230790) — tháng mới chưa có bảng thì không nhập ký hiệu
+  // được; kế toán mở bảng ngay tại đây (POST /months), sau đó điền lưới.
+  const openBoardMutation = useMutation({
+    mutationFn: () => {
+      if (activeDriverId === null) throw new Error('Chọn lái xe trước khi mở bảng chấm công.');
+      return createTimesheetMonth({ driverId: activeDriverId, year, month });
+    },
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: qk.timesheet.all }); },
+    onError: (error) => toastActionError(toast, 'Mở bảng chấm công', error, 'Không mở được bảng chấm công.'),
+  });
 
   function moveFocus(fromIndex: number, move: TimesheetMove) {
     const target = Math.min(Math.max(fromIndex + move, 0), days.length - 1);
@@ -157,6 +171,15 @@ export default function TimesheetGridPage() {
       {!timesheet && (
         <p className="ts-hint">
           Lái xe này chưa có bảng chấm công tháng {String(month).padStart(2, '0')}/{year}. Kế toán mở bảng trước, sau đó Điều vận điền lưới.
+          {canOpenBoard && activeDriverId !== null && (
+            <Btn
+              size="sm"
+              disabled={openBoardMutation.isPending}
+              onClick={() => openBoardMutation.mutate()}
+            >
+              {openBoardMutation.isPending ? 'Đang mở bảng…' : 'Mở bảng chấm công'}
+            </Btn>
+          )}
         </p>
       )}
 
