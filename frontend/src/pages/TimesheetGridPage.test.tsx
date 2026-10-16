@@ -2,7 +2,7 @@
 // xem được cho ACCOUNTANT nhưng ô read-only và KHÔNG có nút "Lưu lưới" (backend
 // chặn ghi lưới ngoài dispatcherOrAbove); Điều vận vẫn nhập bình thường.
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Role } from '@tingting/shared';
@@ -91,14 +91,32 @@ describe('TimesheetGridPage role surface (FB-101)', () => {
   });
 });
 
-describe('mở bảng chấm công (FB-102 — card 141026230790)', () => {
-  it('tháng chưa có bảng: kế toán mở bảng chấm công ngay tại lưới', async () => {
+describe('mở bảng chấm công (FB-102/FB-103 — card 141026230790/230800)', () => {
+  it('tháng chưa có bảng: kế toán mở bảng với hình thức lương mặc định Lương theo chuyến', async () => {
     currentUser.role = Role.ACCOUNTANT;
     listMonths.mockReset().mockResolvedValue([]);
     page();
-    const open = await screen.findByRole('button', { name: /Mở bảng chấm công/ });
-    fireEvent.click(open);
-    await waitFor(() => expect(createMonth).toHaveBeenCalledWith({ driverId: 1, year: 2026, month: 10 }));
+    fireEvent.click(await screen.findByRole('button', { name: /Mở bảng chấm công/ }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Mở bảng/ }));
+    await waitFor(() => expect(createMonth).toHaveBeenCalledWith({
+      driverId: 1, year: 2026, month: 10, salaryMode: 'PER_TRIP', dailyBase: null,
+    }));
+  });
+
+  it('chọn Lương theo tháng (trốn vé) + lương tháng cố định khi mở bảng', async () => {
+    currentUser.role = Role.ACCOUNTANT;
+    listMonths.mockReset().mockResolvedValue([]);
+    page();
+    fireEvent.click(await screen.findByRole('button', { name: /Mở bảng chấm công/ }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Hình thức lương/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lương theo tháng (trốn vé)' }));
+    fireEvent.change(within(dialog).getByLabelText('Lương tháng cố định (VND)'), { target: { value: '10000000' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Mở bảng$/ }));
+    await waitFor(() => expect(createMonth).toHaveBeenCalledWith({
+      driverId: 1, year: 2026, month: 10, salaryMode: 'FLAT_MONTHLY', flatAmount: 10000000,
+    }));
   });
 
   it('Điều vận không thấy nút mở bảng — việc đó của kế toán', async () => {

@@ -7,15 +7,16 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Role, TIMESHEET_SYMBOL_RULES, countDayTrips, type TimesheetSymbol } from '@tingting/shared';
+import { Role, TIMESHEET_SYMBOL_RULES, countDayTrips, type TimesheetSymbol, type TimesheetSalaryMode } from '@tingting/shared';
 import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 
-import { Btn, PageHeader } from '../components/UI';
-import { SummaryRail } from '../design-system';
+import { Btn, Modal, PageHeader } from '../components/UI';
+import { NumberField, SummaryRail } from '../design-system';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { useMonthRoute } from '../design-system/hooks/useMonthRoute';
 import { useAuth } from '../hooks/useAuth';
 import { TimesheetGridCell, type TimesheetMove } from '../features/timesheet/TimesheetGrid';
+import { SALARY_MODE_LABELS, SALARY_MODE_OPTIONS } from '../features/timesheet/salary-modes';
 import { qk } from '../api/keys';
 import {
   createTimesheetMonth,
@@ -104,12 +105,28 @@ export default function TimesheetGridPage() {
 
   // FB-102 (card 141026230790) — tháng mới chưa có bảng thì không nhập ký hiệu
   // được; kế toán mở bảng ngay tại đây (POST /months), sau đó điền lưới.
+  // FB-103 (card 141026230800) — mở bảng = chọn hình thức lương của lái xe.
+  const [boardFormOpen, setBoardFormOpen] = useState(false);
+  const [boardMode, setBoardMode] = useState<TimesheetSalaryMode>('PER_TRIP');
+  const [boardDailyBase, setBoardDailyBase] = useState<number | ''>('');
+  const [boardFlatAmount, setBoardFlatAmount] = useState<number | ''>('');
   const openBoardMutation = useMutation({
     mutationFn: () => {
       if (activeDriverId === null) throw new Error('Chọn lái xe trước khi mở bảng chấm công.');
-      return createTimesheetMonth({ driverId: activeDriverId, year, month });
+      return createTimesheetMonth({
+        driverId: activeDriverId,
+        year,
+        month,
+        salaryMode: boardMode,
+        ...(boardMode === 'PER_TRIP'
+          ? { dailyBase: boardDailyBase === '' ? null : boardDailyBase }
+          : { flatAmount: boardFlatAmount === '' ? null : boardFlatAmount }),
+      });
     },
-    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: qk.timesheet.all }); },
+    onSuccess: () => {
+      setBoardFormOpen(false);
+      void queryClient.invalidateQueries({ queryKey: qk.timesheet.all });
+    },
     onError: (error) => toastActionError(toast, 'Mở bảng chấm công', error, 'Không mở được bảng chấm công.'),
   });
 
@@ -174,10 +191,9 @@ export default function TimesheetGridPage() {
           {canOpenBoard && activeDriverId !== null && (
             <Btn
               size="sm"
-              disabled={openBoardMutation.isPending}
-              onClick={() => openBoardMutation.mutate()}
+              onClick={() => setBoardFormOpen(true)}
             >
-              {openBoardMutation.isPending ? 'Đang mở bảng…' : 'Mở bảng chấm công'}
+              Mở bảng chấm công
             </Btn>
           )}
         </p>
@@ -189,6 +205,12 @@ export default function TimesheetGridPage() {
             {(['K', 'Q', 'Đ', 'L', 'N', 'P'] as TimesheetSymbol[]).map(symbol => (
               <span key={symbol}><b>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].trips} chuyến)</span>
             ))}
+          </p>
+
+          <p className="ts-hint">
+            {`Hình thức lương: ${SALARY_MODE_LABELS[timesheet.salaryMode]}`}
+            {timesheet.salaryMode === 'PER_TRIP' && timesheet.dailyBase !== null ? ` · Lương ngày ${timesheet.dailyBase} ₫` : ''}
+            {timesheet.salaryMode === 'FLAT_MONTHLY' && timesheet.flatAmount !== null ? ` · Lương tháng ${timesheet.flatAmount} ₫` : ''}
           </p>
 
           <div className="record-table-wrap">
@@ -240,6 +262,36 @@ export default function TimesheetGridPage() {
           />
         </>
       )}
+
+      {/* FB-103 — mở bảng = chọn hình thức lương của lái xe (POST /months). */}
+      <Modal
+        isOpen={boardFormOpen}
+        title="Mở bảng chấm công"
+        onClose={() => setBoardFormOpen(false)}
+        footer={(
+          <>
+            <button type="button" className="btn btn--secondary" disabled={openBoardMutation.isPending} onClick={() => setBoardFormOpen(false)}>Hủy</button>
+            <button type="button" className="btn btn--primary" disabled={openBoardMutation.isPending} onClick={() => openBoardMutation.mutate()}>
+              {openBoardMutation.isPending ? 'Đang mở bảng…' : 'Mở bảng'}
+            </button>
+          </>
+        )}
+      >
+        <div className="ts-mode-form">
+          <UuiSelectField
+            label="Hình thức lương"
+            value={boardMode}
+            onChange={event => setBoardMode(event.target.value as TimesheetSalaryMode)}
+            options={SALARY_MODE_OPTIONS}
+          />
+          {boardMode === 'PER_TRIP' ? (
+            <NumberField controlSize="sm" label="Lương ngày (VND)" value={boardDailyBase} min={0} step={1} onChange={setBoardDailyBase} />
+          ) : (
+            <NumberField controlSize="sm" label="Lương tháng cố định (VND)" value={boardFlatAmount} min={0} step={1} onChange={setBoardFlatAmount} />
+          )}
+          <p className="ts-hint">Để trống nếu chưa có mức — hệ thống cảnh báo tới khi kế toán nhập.</p>
+        </div>
+      </Modal>
     </div>
   );
 }

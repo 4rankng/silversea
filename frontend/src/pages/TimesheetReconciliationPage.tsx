@@ -5,16 +5,17 @@
 //
 // Design: shared record-table + ops-table + SummaryRail, no page-local skin.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { TIMESHEET_SYMBOL_RULES } from '@tingting/shared';
-import { CheckCircle2, ChevronLeft, ChevronRight, Lock, Unlock } from 'lucide-react';
+import { TIMESHEET_SYMBOL_RULES, type TimesheetSalaryMode } from '@tingting/shared';
+import { CheckCircle2, ChevronLeft, ChevronRight, Lock, Save, Unlock } from 'lucide-react';
 
 import { Btn, PageHeader, Panel } from '../components/UI';
 import { Money } from '../components/shared/Money';
-import { SummaryRail } from '../design-system';
+import { NumberField, SummaryRail } from '../design-system';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { useMonthRoute } from '../design-system/hooks/useMonthRoute';
+import { SALARY_MODE_LABELS, SALARY_MODE_OPTIONS } from '../features/timesheet/salary-modes';
 import { qk } from '../api/keys';
 import {
   adjustTimesheetDay,
@@ -22,6 +23,7 @@ import {
   listTimesheetMonths,
   reconcileTimesheetMonth,
   reopenTimesheetMonth,
+  updateTimesheetMode,
 } from '../api/timesheetClient';
 import { toastActionError } from '../lib/api/action-error';
 import { useToast } from '../components/shared';
@@ -34,6 +36,11 @@ export default function TimesheetReconciliationPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [monthId, setMonthId] = useState<number | null>(null);
+  // FB-103 (card 141026230800) — hình thức lương của từng lái xe: kế toán chọn
+  // khi mở bảng và đổi được tại đây (PATCH /months/:id/mode).
+  const [modeDraft, setModeDraft] = useState<TimesheetSalaryMode>('PER_TRIP');
+  const [modeDailyBase, setModeDailyBase] = useState<number | ''>('');
+  const [modeFlatAmount, setModeFlatAmount] = useState<number | ''>('');
 
   const monthsQuery = useQuery({
     queryKey: qk.timesheet.months(year, month),
@@ -42,6 +49,13 @@ export default function TimesheetReconciliationPage() {
   const months = monthsQuery.data ?? [];
   const activeId = monthId ?? months[0]?.id ?? null;
   const active = months.find(row => row.id === activeId) ?? null;
+
+  useEffect(() => {
+    if (!active) return;
+    setModeDraft(active.salaryMode);
+    setModeDailyBase(active.dailyBase ?? '');
+    setModeFlatAmount(active.flatAmount ?? '');
+  }, [active]);
 
   const rollupQuery = useQuery({
     queryKey: qk.timesheet.rollup(year, month),
@@ -75,6 +89,18 @@ export default function TimesheetReconciliationPage() {
   const reopenMutation = useMutation({
     mutationFn: () => (active ? reopenTimesheetMonth(active.id) : Promise.reject(new Error('Chưa chọn bảng.'))),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.timesheet.all }),
+  });
+  const modeMutation = useMutation({
+    mutationFn: () => {
+      if (!active) throw new Error('Chưa chọn bảng chấm công.');
+      return updateTimesheetMode(active.id, {
+        salaryMode: modeDraft,
+        dailyBase: modeDraft === 'PER_TRIP' ? (modeDailyBase === '' ? null : modeDailyBase) : null,
+        flatAmount: modeDraft === 'FLAT_MONTHLY' ? (modeFlatAmount === '' ? null : modeFlatAmount) : null,
+      });
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.timesheet.all }),
+    onError: (error) => toastActionError(toast, 'Lưu chế độ lương', error, 'Không lưu được chế độ lương.'),
   });
 
   const rows = rollupQuery.data ?? [];
@@ -136,6 +162,30 @@ export default function TimesheetReconciliationPage() {
               ? <><Lock size={14} /> Đã đối chiếu — mở lại để sửa.</>
               : <>Chỉnh lệch chuyến nhập số âm được (ví dụ −1 khi thiếu chứng từ).</>}
           </p>
+
+          {/* FB-103 — hình thức lương của lái xe: chọn khi mở bảng, đổi tại đây
+              (đổi tiền → phiên tự mở lại). Bảng chốt thì chỉ xem. */}
+          <Panel title="Chế độ lương">
+            <div className="ts-mode-form">
+              <UuiSelectField
+                label="Hình thức lương"
+                value={modeDraft}
+                disabled={active.status === 'RECONCILED'}
+                onChange={event => setModeDraft(event.target.value as TimesheetSalaryMode)}
+                options={SALARY_MODE_OPTIONS}
+              />
+              {modeDraft === 'PER_TRIP' ? (
+                <NumberField controlSize="sm" label="Lương ngày (VND)" value={modeDailyBase} min={0} step={1} disabled={active.status === 'RECONCILED'} onChange={setModeDailyBase} />
+              ) : (
+                <NumberField controlSize="sm" label="Lương tháng cố định (VND)" value={modeFlatAmount} min={0} step={1} disabled={active.status === 'RECONCILED'} onChange={setModeFlatAmount} />
+              )}
+              <div>
+                <Btn onClick={() => modeMutation.mutate()} disabled={active.status === 'RECONCILED' || modeMutation.isPending}>
+                  <Save size={16} /> Lưu chế độ lương
+                </Btn>
+              </div>
+            </div>
+          </Panel>
 
           <div className="record-table-wrap">
             <table className="record-table ops-table ts-grid">
@@ -218,6 +268,7 @@ export default function TimesheetReconciliationPage() {
             <thead>
               <tr>
                 <th scope="col">Lái xe</th>
+                <th scope="col">Hình thức lương</th>
                 <th scope="col">Đơn</th>
                 <th scope="col">Kẹp</th>
                 <th scope="col">Quay đầu</th>
@@ -237,6 +288,7 @@ export default function TimesheetReconciliationPage() {
               {rows.map(row => (
                 <tr key={row.driverId}>
                   <td data-label="Lái xe">{row.driverName}</td>
+                  <td data-label="Hình thức lương">{row.salaryMode ? SALARY_MODE_LABELS[row.salaryMode] : '—'}</td>
                   <td className="num" data-label="Đơn">{row.donCount}</td>
                   <td className="num" data-label="Kẹp">{row.kepCount}</td>
                   <td className="num" data-label="Quay đầu">{row.quayDauCount}</td>

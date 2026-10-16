@@ -39,6 +39,17 @@
   color: var(--ink-2);
 }
 
+/* FB-103 — form chọn/đổi hình thức lương (mở bảng + bàn đối chiếu). */
+.ts-mode-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+@media (max-width: 720px) {
+  .ts-mode-form { grid-template-columns: 1fr; }
+}
+
 /* One cell = one character, centred like the operator's paper grid. */
 .ts-grid .ts-cell {
   width: 100%;
