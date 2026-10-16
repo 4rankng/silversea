@@ -325,6 +325,7 @@ export async function enrichLinesForDebitNoteRender(
     // truck that actually ran, and its loại xe is the TRẢ cost class — the two
     // facts that mirror the note's BKS báo khách + THU class.
     actualTruckNo: s.shipments.actualTruckNo,
+    cargoMode: s.shipments.cargoMode,
     revVehicleClassName: revVehicleClass.name,
     revVehicleClassCode: revVehicleClass.code,
     costVehicleClassName: costVehicleClass.name,

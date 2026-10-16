@@ -88,6 +88,12 @@ export const unmergeLclLotSchema = z.object({
 });
 export type UnmergeLclLotInput = z.infer<typeof unmergeLclLotSchema>;
 
+export const unmergeLclGroupSchema = z.object({
+  groupId: z.string().uuid(),
+  dimension: z.enum(LCL_GROUP_DIMENSIONS),
+});
+export type UnmergeLclGroupInput = z.infer<typeof unmergeLclGroupSchema>;
+
 /** FB-093 — quick-edit of a lot's (or its whole cost group's) BKS pair. */
 export const updateLclTruckSchema = z.object({
   shipmentId: z.number().int().positive(),

@@ -19,6 +19,7 @@ import {
   mergeLclRevGroupSchema,
   setLclLotRevClassSchema,
   unmergeLclLotSchema,
+  unmergeLclGroupSchema,
   updateLclTruckSchema,
   Role,
 } from '@tingting/shared';
@@ -33,6 +34,7 @@ import {
   mergeLclRevGroup,
   setLclLotRevClass,
   unmergeLclLot,
+  unmergeLclGroup,
   updateLclGroupTruck,
 } from '../../services/lcl-grouping.service';
 
@@ -99,6 +101,22 @@ lclGroupingRoutes.post(
     const input = unmergeLclLotSchema.parse(req.body);
     const actor = getUser(req);
     const result = await unmergeLclLot(input, {
+      userId: actor.userId,
+      role: actor.role,
+      actorName: actor.fullName ?? actor.username ?? undefined,
+    });
+    res.json(result);
+  }),
+);
+
+lclGroupingRoutes.post(
+  '/lcl/unmerge-group',
+  declareMaterialWrite('shipments.lcl.unmerge-group', { method: 'POST', path: '/api/shipments/lcl/unmerge-group' }),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = unmergeLclGroupSchema.parse(req.body);
+    const actor = getUser(req);
+    const result = await unmergeLclGroup(input, {
       userId: actor.userId,
       role: actor.role,
       actorName: actor.fullName ?? actor.username ?? undefined,

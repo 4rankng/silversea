@@ -177,3 +177,51 @@ C5 documented residual. Case record:
 - Rung-3 UI drive of both boards with a merged pair (local or staging) still
   open; services are rung-2 verified on the real DB.
 - Local commits only — merge/push/deploy owned by Hermes per task contract.
+
+---
+
+# LCL Spec Gaps 1, 2, 3 Implementation & Staging Verification — DONE, deployed & verified on staging (2026-10-17)
+
+Controller: this session (Paseo agent), branch `fix/lcl-spec-gaps` (HEAD `249cb396`, pushed to `origin/fix/lcl-spec-gaps`).
+Staging deployment: `make demo` verified on `https://vantai.tingting.vip` (`buildHash: 359e12e8`).
+
+## 1. Commits Landed & Pushed
+- `c2373d2d`: `fix(lcl): enforce money conservation on un-merge and primary deletion (spec line 92)`
+  - Added atomic promotion on un-merge and deletion of primary lots with full 100% freight conservation (both REV and COST dimensions).
+  - Synchronized both trip and snapshot channels (`insertRevMergeSnapshot` + `upsertTripFinancialState`).
+  - Added whole-group un-merge endpoint (`POST /api/shipments/lcl/unmerge-group`).
+  - Clean dissolve and survivor renumbering when last-but-one lot is deleted.
+- `260a9fa3`: `fix(lcl): enforce same-customer validation on revenue merge (spec line 66)`
+  - Enforced strict server-side validation rejecting cross-customer revenue merges.
+  - Returned descriptive Vietnamese error naming the specific bill numbers and conflicting customer names (`Chỉ cho phép ghép các lô của cùng một khách hàng (CÙNG 1 KHÁCH HÀNG) — phát hiện xung đột: ...`).
+- `359e12e8`: `fix(lcl): bind customer debit note to virtual plate unconditionally (spec line 86)`
+  - Customer-facing export (Debit Note / bảng kê Excel/PDF) unconditionally binds `truckPlate` to `billingTruckNo` ("xe ảo") and never leaks `actualTruckNo` / physical plate.
+  - Preserved `actualTruckNo` for supplier / vendor settlement views (`getAccountingDebitBoard`, PHẢI TRẢ).
+- `249cb396`: `fix(lcl): use UnmergeLclGroupInput in unmergeLclGroup signature` (lint clean-up).
+
+## 2. Regression Tests
+- `backend/src/tests/lcl-grouping.test.ts`: 32/32 tests pass (8 suites, 0 fails).
+  - GAP 1: Money safety on unshipping / deleting group (whole group un-merge, primary lot deletion, last-but-one lot deletion).
+  - GAP 2: Same-customer merge validation (conflict error naming bills and customers, zero DB mutation).
+  - GAP 3: Debit note virtual plate binding (`billingTruckNo` on customer export, `actualTruckNo` on vendor view).
+- `frontend/src/pages/ShipmentDebitPage.lcl-merge.test.tsx`: 3/3 tests pass.
+- `backend/src/tests/unit/*.test.ts`: 289/289 tests pass (49 suites, 0 fails).
+
+## 3. Live Staging Verification Proof (`https://vantai.tingting.vip`)
+- Build hash confirmed: `{"status":"ok","buildHash":"359e12e8"}`.
+- Authenticated as `admin` (`userId: 61`).
+- Created 2 real LCL lots on staging:
+  - Lot 1: ID 668 (`blNumber: QA-LCL-1-1792168565804`, `routeId: 12`, `cargoMode: LCL`)
+  - Lot 2: ID 669 (`blNumber: QA-LCL-2-1792168565804`, `routeId: 12`, `cargoMode: LCL`)
+- Merged lots into Revenue Group `6e73fbbd-ce26-4826-9470-5526e296c20f` with `vehicleSizeClassId: 4` (Xe 5T, price 2.400.000₫):
+  - Lot 1 (Primary, order 1): freight snapshot = 2.400.000₫ (100%)
+  - Lot 2 (Member, order 2): freight snapshot = 0₫
+  - Total group freight before deletion: **2.400.000₫**
+- Deleted Lot 1 (Primary) via `DELETE /api/shipments/668?version=2`:
+  - Returned `{ ok: true }`.
+  - Atomically promoted Lot 2 to order 1 (and dissolved group cleanly).
+  - Lot 2 freight snapshot immediately received: **2.400.000₫** (100%).
+  - Total group freight after deletion: **2.400.000₫**
+  - **Invariant verified**: Initial 2.400.000₫ === Final 2.400.000₫ (freight strictly conserved, never falls to 0₫).
+- Cleaned up: Lot 2 soft-deleted, QA fixture rows hard-purged. Zero test debris remaining.
+
