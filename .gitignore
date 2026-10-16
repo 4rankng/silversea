@@ -140,3 +140,6 @@ openwiki/.run.json
 
 # deploy worktree (created by the release/deploy tooling, never source)
 .deploy-head/
+
+# kanban card sync working dir (agents read/write .docx cards here; never source)
+.backlog-cards/
