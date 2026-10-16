@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { inArray } from 'drizzle-orm';
 import type { SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { ApiError } from '../errors';
@@ -65,6 +66,10 @@ after(async () => {
   if (actorIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, actorIds));
   }
+  // generateDraft reads the company VAT rate through config.service -> lib/redis,
+  // which lazily opens an ioredis connection; without closing it the suite's
+  // process finishes the tests and then hangs instead of exiting.
+  await disconnectRedis();
   await client.end();
 });
 
