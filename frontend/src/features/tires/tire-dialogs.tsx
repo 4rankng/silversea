@@ -7,6 +7,9 @@ import { formatErrorMessage } from "../../lib/api";
 import { DateInput } from "../../design-system/forms/DateInput";
 import { UuiSelectField } from "../../design-system/forms/UuiSelectField";
 import { Modal } from "../../design-system/Modal";
+// Shared rose required marker (`.ds-field__required`) — the ds form stylesheet
+// is not part of the global bundle, so import it where the marker renders.
+import "../../design-system/forms/TextField.css";
 import { draftFromTire, patchFromDraft, positionPayloadFromLabel, type TireEditDraft, type TirePatch } from "../../features/tires/tireUtils";
 import "../../pages/TruckTiresPage.css";
 
@@ -59,7 +62,7 @@ export function TireEditDialog({
 
         <div className="ttp-edit-form">
           <div className="ttp-field">
-            <label>Serial lốp *</label>
+            <label>Serial lốp <span className="ds-field__required" aria-hidden="true">*</span></label>
             <input className="input" value={draft.serial} onChange={(e) => updateDraft("serial", e.target.value)} autoFocus />
           </div>
           <div className="ttp-field">
@@ -152,7 +155,7 @@ export function UnmountTireDialog({ tire, saving, oncancel, onremove, ondispose 
 
         {choice === "dispose" && (
           <div className="ttp-field ttp-unmount-reason">
-            <label>Lý do thanh lý *</label>
+            <label>Lý do thanh lý <span className="ds-field__required" aria-hidden="true">*</span></label>
             <UuiSelectField
               label="Lý do thanh lý"
               hideLabel
@@ -331,7 +334,7 @@ export function TransferTireDialog({
 
         <div className="ttp-edit-form">
           <div className="ttp-field">
-            <label>Phương tiện nhận lốp *</label>
+            <label>Phương tiện nhận lốp <span className="ds-field__required" aria-hidden="true">*</span></label>
             <UuiSelectField
               label="Phương tiện nhận lốp"
               hideLabel

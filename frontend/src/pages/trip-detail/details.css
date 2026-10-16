@@ -226,9 +226,10 @@ a.tdp-instructions-value:hover {
   font-size: var(--text-label-size);
   font-weight: 600;
 }
-.tdp-governance-asterisk {
-  color: var(--danger);
-}
+
+/* Required asterisk — retired `.tdp-governance-asterisk` for the shared rose
+   marker `.ds-field__required` (design-system/forms/TextField.css; imported
+   by the page). Audit 2026-10-16 Wave 1, pattern D. */
 
 /* ── Instructions notes margin ── */
 .tdp-instructions-notes {
