@@ -1,5 +1,21 @@
 # STAGING STATE (auto-ship, 2026-10-16 ~07:12Z) — staging is CODE-CURRENT, no deploy needed
 
+# Shipped-waves QA verify — 4 waves re-driven on staging, 21 PASS / 0 FAIL (2026-10-16)
+
+- Branch `qa/shipped-waves-verify-1016` (base ae419e3d). Waves (a) UI-audit-1
+  c5f1cd3e, (b) W5 fb-regressions 7c44a1fd, (c) kanban-1016b a6ba72c5,
+  (d) W3a-r17 ae419e3d — all PASS per their own QA records; record:
+  `testplan/2026-10-16-shipped-waves-verify.md`, evidence `qa/1016-shipped/`.
+- Build gate: staging re-cut mid-run ae419e3d→7dcdcf33 (deploy-hold actor);
+  continued on 7dcdcf33 — a verified superset with an EMPTY diff on every
+  tested surface; every phase asserted buildHash before driving.
+- 0 product defects → 0 fix commits. Raw-log FAILs are driver bugs
+  (FB-057 focus persistence, FB-085 select-all), corrected + re-driven PASS.
+- Local pins at HEAD: FE 49+7+145, BE 18+3+18 — all green.
+- Sweep clean: ?q=QAW16/QAW3A/QAWU200 → 0. No merge, no deploy (Hermes).
+
+# Kanban wave 1016b — five IN_PROGRESS cards verified on main (2026-10-16)
+
 Staging vantai.tingting.vip runs buildHash `7dcdcf33` (= main incl. W1
 ketoan+cham-cong; images built 06:54-06:55Z by a parallel process — likely the
 Muse-QA agent deploying main itself). main (aa3e7ba3) is ahead ONLY by
