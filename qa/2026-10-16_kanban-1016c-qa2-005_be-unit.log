@@ -1,0 +1,20 @@
+$ npx tsx --test src/tests/unit/cus-record-search.test.ts
+▶ cusRecordSearchCondition — field coverage (QA2-005)
+  ✔ shipment mode searches Bill, Booking, mã lô, container, tờ khai, customer name, and raw ad-hoc name (0.897292ms)
+  ✔ container mode searches the container number as a direct column (0.142958ms)
+  ✔ every arm is case-insensitive ilike — never a bare like (0.225708ms)
+✔ cusRecordSearchCondition — field coverage (QA2-005) (1.639ms)
+▶ cusRecordSearchCondition — pattern semantics
+  ✔ wraps the trimmed term as a substring pattern, preserving case (0.1375ms)
+  ✔ escapes LIKE wildcards even though the shared schema already forbids them (0.093958ms)
+  ✔ empty or whitespace-only search produces no condition (passthrough) (0.034708ms)
+✔ cusRecordSearchCondition — pattern semantics (0.339166ms)
+ℹ tests 6
+ℹ suites 2
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 445.479375
+exit: 0

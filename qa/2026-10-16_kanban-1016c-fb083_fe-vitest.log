@@ -1,0 +1,11 @@
+$ pnpm vitest run src/features/shipments/create/ShipmentCreateWorkspace.asterisk-contract.test.tsx -t "Ngày giao hàng" + src/pages/clerk/ClerkShipmentCreatePage.test.tsx -t "Ngày giao hàng"
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/feat-kanban-wave-1016c/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  2 passed | 58 skipped (60)
+   Start at  14:47:14
+   Duration  2.62s (transform 1.24s, setup 240ms, import 2.55s, tests 1.31s, environment 852ms)
+
+exit: 0

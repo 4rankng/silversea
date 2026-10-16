@@ -58,3 +58,19 @@ customer name") và so với pattern tham chiếu `/dispatch` (`shipmentQSearchP
 - Rung 3 UI-driven trên staging (cấm theo §2; local UI drive nếu stack khả dụng).
 - /shipments-detail chỉ được cập nhật placeholder (chia sẻ predicate); sweep rộng
   hơn thuộc surface khác.
+
+## Re-run 2026-10-16 — kanban wave 1016c (TC-20261013_QA2-005-01)
+
+Implementation status: đã có trên `origin/main` từ dispatch gốc (predicate +
+`CUS_SEARCH_PATTERN` + ô tìm đã nối `searchSuffix`); wave này chỉ re-run bằng
+chứng theo hợp đồng §6/§7, không sửa mã.
+
+| Gate | Kết quả | Evidence |
+|---|---|---|
+| `frontend npx tsc --noEmit` | exit 0 | `qa/2026-10-16_kanban-1016c-qa2-005_fe-tsc.log` |
+| FE vitest `src/pages/ShipmentsPage.test.tsx` | 135/135 PASS (gồm 3 pin QA2-005) | `qa/2026-10-16_kanban-1016c-qa2-005_fe-vitest.log` |
+| `backend npx tsc --noEmit` | exit 0 | `qa/2026-10-16_kanban-1016c-qa2-005_be-tsc.log` |
+| BE unit `src/tests/unit/cus-record-search.test.ts` | 6/6 PASS | `qa/2026-10-16_kanban-1016c-qa2-005_be-unit.log` |
+| shared `src/schemas/cus-shipment-workspace.test.ts` | 18/18 PASS | `qa/2026-10-16_kanban-1016c-qa2-005_shared-test.log` |
+
+Rung: ≤2 (code-read + executed pins; không drive UI đợt này).

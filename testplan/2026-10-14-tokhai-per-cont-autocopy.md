@@ -94,3 +94,21 @@ không bị ảnh hưởng.
 Claim staging "UI tờ khai + nút copy biến mất": UI và nút CÓ trong code
 (2ba09d85 đã merge main 2026-10-13) và chạy thực tế ở local — báo cáo staging
 là bundle stale (build churn), không phải regression code.
+
+## Re-run 2026-10-16 — kanban wave 1016c (FB-085 số tờ khai per-cont + auto-copy)
+
+Implementation status: đã có trên `origin/main` từ dispatch gốc (schema +
+migration `20261013210105/06`, ledger UI inline-edit, nút copy "Copy số tờ khai
+sang N cont chưa có số", auto-copy fan-out phía server — case
+`testplan/cases/case-QA-2026-10-13-261013200312-cus-tokhai-inline-propagate.md`);
+wave này chỉ re-run bằng chứng theo §6/§7, không sửa mã.
+
+| Gate | Kết quả | Evidence |
+|---|---|---|
+| `frontend npx tsc --noEmit` | exit 0 | `qa/2026-10-16_kanban-1016c-fb085_fe-tsc.log` |
+| FE vitest declarations + CusContainerLedger ×3 | 53/53 PASS (gồm 4 kịch bản bắt buộc: per-cont edit, copy propagation, diverge-after-copy, single-cont lot unchanged) | `qa/2026-10-16_kanban-1016c-fb085_fe-vitest.log` |
+| `backend npx tsc --noEmit` | exit 0 | `qa/2026-10-16_kanban-1016c-fb085_be-tsc.log` |
+| BE unit `src/tests/unit/cus-container-declaration-wire.test.ts` | 6/6 PASS | `qa/2026-10-16_kanban-1016c-fb085_be-unit.log` |
+
+Rung giữ nguyên mức 3 của lần drive 2026-10-16 (w3a-r17-verify `cus-fcl_0*.png` +
+API GET 0001/0002/0001); lần re-run này là rung ≤2 (chạy pin, không drive UI).
