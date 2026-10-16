@@ -1,0 +1,201 @@
+▶ CUS workspace ad-hoc list filter (20260917_12, §6.12)
+  ✔ isAdHoc=true returns only the lệnh chạy ngoài rows (50.831167ms)
+  ✔ absent filter returns both lots (no implicit ad-hoc narrowing) (141.190208ms)
+✔ CUS workspace ad-hoc list filter (20260917_12, §6.12) (229.593291ms)
+▶ CUS shipment workspace projection — OQ1 split notes
+  ✔ projects customerNotes and operationalNotes as separate fields (153.332875ms)
+  ✔ preserves typed line breaks in note fields through update + readback (card 20260914_35) (126.629041ms)
+  ✔ LCL lots read SCHEDULED from closingAt/plannedReturnAt alone (card 20260914_35 rework) (240.501542ms)
+  ✔ LCL lots with no schedule fields at all stay WAITING_DATE (empty-case preserved) (101.0555ms)
+  ✔ trims and nulls empty notes (103.020416ms)
+✔ CUS shipment workspace projection — OQ1 split notes (724.800041ms)
+▶ CUS shipment workspace projection — Chứng từ direction display
+  ✔ EXPORT shows the booking number; IMPORT shows the bill number (483.4995ms)
+  ✔ flat container rows mirror the same direction-aware number (65.478791ms)
+✔ CUS shipment workspace projection — Chứng từ direction display (549.124167ms)
+▶ Shipment document references — whitespace normalization
+  ✔ create collapses empty-string refs to null instead of hitting the direction CHECK (7.239167ms)
+  ✔ update trims surrounding whitespace and stores the clean value (5.127666ms)
+✔ Shipment document references — whitespace normalization (12.450167ms)
+▶ CUS shipment workspace projection — OQ2 aggregated cargo
+  ✔ sums per-container weight and volume across containers (114.019833ms)
+  ✔ falls back to shipment-level cargo when there are no containers (99.553291ms)
+  ✔ falls back to shipment-level cargo when all per-container values are null (101.818583ms)
+  ✔ returns null cargo when neither containers nor shipment-level figures exist (99.575709ms)
+✔ CUS shipment workspace projection — OQ2 aggregated cargo (415.109042ms)
+▶ CUS shipment workspace projection — OQ3 vehicle-assigned numerator
+  ✔ operational summary always surfaces assignedContainers as a non-negative integer (119.965458ms)
+✔ CUS shipment workspace projection — OQ3 vehicle-assigned numerator (120.045ms)
+▶ CUS shipment workspace projection — own-fleet plate sync
+  ✔ projects the dispatch allocation plate before an OWN trip exists (132.673458ms)
+✔ CUS shipment workspace projection — own-fleet plate sync (132.751125ms)
+▶ CUS shipment workspace projection — container classification
+  ✔ projects the fulfillment-owned classification and preserves canonical unplanned fallbacks (32.622083ms)
+  ✔ CUS call: FCL shipment created with isCombined=true defaults classification to COMBINED, isCombined=false to SINGLE (32.882917ms)
+  ✔ CUS call: updating shipment isCombined synchronizes unassigned FCL fulfillments to COMBINED or SINGLE (85.454083ms)
+✔ CUS shipment workspace projection — container classification (151.0835ms)
+▶ CUS shipment workspace projection — inline edit authority
+  ✔ keeps schedule and notes inline-editable after dispatch while the shipment is unlocked (98.343167ms)
+  ✔ workboard schedule and notes quick-edit opens to admin and dispatcher on unlocked lots (200.338375ms)
+  ✔ accounting lock closes the schedule quick-edit while notes stay open for every opened role (319.289792ms)
+  ✔ notes quick-edit survives the accounting lock for CUS, ADMIN and DISPATCHER (671.565666ms)
+  ✔ non-notes writes and unopened roles stay closed under the accounting lock (105.35275ms)
+  ✔ CUS supplements a placeholder container number directly with no approval request (28.540583ms)
+  ✔ completed lot rejects the workspace container edit with the terminal-lot guard (4.140041ms)
+✔ CUS shipment workspace projection — inline edit authority (1427.79825ms)
+✔ workspace detail returns safe route selectors for the route authority (15.614083ms)
+▶ CUS container-flat projection
+  ✔ flattens every container of every shipment with shipment context and operational fields (48.734084ms)
+  ✖ past-run-date container fields stay DIRECT for CUS (approval flow removed 2026-09-10) (34.25ms)
+  ✔ SISPROD-CUS-ACCESS CUS and DISPATCHER keep linked-trip identity and PORTS writable; routeId stays read-only (card 358 decision a) (158.837666ms)
+  ✔ port backfill writes on a tripped container succeed while routeId still 409s (45.915333ms)
+  ✔ searches a container suffix and returns only the matching container row (28.534542ms)
+  ✔ paginates container rows rather than shipment rows without overlap (61.828959ms)
+  ✔ sorts container rows by the requested column key server-side (62.6735ms)
+  ✔ carrier-name sort keys on the displayed short name, not the legal name (76.151916ms)
+  ✔ sorts by dispatch status rank through the fulfillment projection (99.453834ms)
+  ✔ container query schema whitelists sort keys and directions (0.862916ms)
+  ✔ customer filters span all customers — no actor scoping (52.303083ms)
+  ✔ shows unit-less shipments — no clerk unit scope (126.111791ms)
+  ✔ does not advertise schedule editing to a read-only role (67.055917ms)
+  ✔ sorts the overview by workspace column keys server-side (174.619917ms)
+  ✔ overview query schema whitelists its own sort keys, disjoint from the container enum (0.343375ms)
+  ✔ allows a CUS write to a shipment in another business unit (53.062584ms)
+  ✔ allows a CUS delete-request against a shipment in another business unit (12.259416ms)
+✖ CUS container-flat projection (1103.890333ms)
+▶ Overview operational priority ordering
+  ✔ unscheduled lots sort first, newest first; scheduled follow by delivery date (112.271375ms)
+  ✔ same-date ties rank Cont 20 before Cont 40 before Lẻ/unknown (134.208333ms)
+  ✔ keeps operational priority stable across overview pages (127.829041ms)
+  ✔ container workboard mirrors the overview priority queue per container row (46.411708ms)
+  ✔ appointment groups preserve every distinct close/return datetime and factory (SILVER L1) (112.081416ms)
+  ✔ VID-CUS-01: inherited catalog factory agrees between overview and container detail (133.397375ms)
+  ✔ VID-CUS-10: filling a container number preserves port names when its fulfillment is created (105.236417ms)
+  ✔ VID-CUS-11: full and suffix searches include padded historical references literally (391.272792ms)
+  ✔ legacy noon-UTC appointments group under their stored calendar date (99.804708ms)
+  ✔ CUS container boundary rejects malformed identifiers and another shipment row without partial writes (22.733291ms)
+  ✔ post-handoff container edits apply directly — approval workflow is parked (customer undecided 2026-09-08) (24.097417ms)
+  ✔ TC_UNAS_01 & TC_UNAS_02: ADMIN and MANAGER can update customerAppointmentAt on unassigned container even when shipment is DISPATCHED (50.918166ms)
+  ✔ TC_UNAS_03: when container has an assigned trip (tripId != null), updating schedule is blocked with clear message citing tripCode (11.828375ms)
+  ✔ pre-handoff container edits still save directly (36.24575ms)
+  ✔ CUS can plan and clear an internal-fleet plate alongside the OWN carrier (63.358291ms)
+  ✔ vehicle-only writes succeed on an appointment-bearing READY lot (32.152208ms)
+  ✔ route save repairs a legacy unclassified shipment that already has a container (32.718875ms)
+  ✔ explicit LCL shipment with a stray container is rejected, not repaired to FCL (9.157792ms)
+  ✔ no-op lift/drop port save does not bump shipment version (77.188833ms)
+  ✔ actual lift/drop port change still bumps the shipment version (29.639375ms)
+  ✔ allows a post-handoff port edit when the submitted route is unchanged (27.905541ms)
+✔ Overview operational priority ordering (1681.604334ms)
+▶ Container workboard "Chưa cập nhật" completeness
+  ✔ projects informationStatus and the exact applicable missing fields on a real FCL row (36.31475ms)
+  ✔ a fully-filled FCL row projects COMPLETE with empty missingFields (33.646959ms)
+  ✖ container ports clear LIFT_SITE/DROPOFF_SITE even when the snapshot halves are empty (67.460291ms)
+  ✔ projects the container shipping-line fallback used by completeness filtering (33.294ms)
+  ✖ informationStatus=MISSING returns only incomplete FCL rows with count parity (34.304166ms)
+  ✔ dispatchStatus splits rows by active carrier presence with count parity (54.2605ms)
+  ✔ dispatchStatus record statuses filter by the badge derivation (74.126292ms)
+  ✔ dispatchStatus reads Đã tạo chuyến only while the appointment date is missing (64.526208ms)
+  ✔ dispatchStatus reads Đã phân xe once a vehicle is on the line (189.269417ms)
+  ✔ FCL carrier readiness follows the container appointment, not the shipment date (56.816959ms)
+  ✔ BKS stays inapplicable for an own-fleet carrier (46.264208ms)
+✖ Container workboard "Chưa cập nhật" completeness (690.720958ms)
+▶ LCL delivery date — create persistence and workspace projection
+  ✔ an LCL lot created with a primary delivery date keeps and shows it without container rows (225.453917ms)
+✔ LCL delivery date — create persistence and workspace projection (225.738667ms)
+▶ Container appointment removal — drawer clear persistence
+  ✔ clearing an appointment on a partially dated PENDING_DATE lot persists as unscheduled (63.678917ms)
+  ✔ clearing the only dated appointment on a READY_FOR_DISPATCH lot is rejected with an explanation (8.117542ms)
+  ✔ line-update wire contract accepts the null clear and the offset-bearing set (0.623208ms)
+✔ Container appointment removal — drawer clear persistence (72.628083ms)
+▶ Linked-trip guard is value-aware (container number is identity, not an operational edit)
+  ✔ a number-only add on an assigned nonterminal container saves without the linked-trip guard (55.53525ms)
+  ✔ a rejected CUS container-line correction writes nothing (partial-write rollback) (8.544834ms)
+  ✔ the CUS dialog full-form echo (number + unchanged type/weight/volume) saves on a tripped row (36.271708ms)
+  ✔ a real container-type change on a tripped row still follows the linked-trip workflow (8.242333ms)
+  ✔ SISPROD-CUS-ACCESS linked-trip CUS route change still rejects; PORT changes backfill (card 358 decision a) (31.109791ms)
+  ✔ a same-value appointment echo does not trip the guard on a tripped row (25.70425ms)
+  ✔ terminal lots still refuse the number add with the terminal-lot message (4.795166ms)
+  ✔ a multi-container lot updates only the intended row; in-lot duplicate numbers still reject (33.038583ms)
+  ✔ an unnumbered unassigned container keeps saving numbers directly (26.818417ms)
+✔ Linked-trip guard is value-aware (container number is identity, not an operational edit) (230.41625ms)
+▶ container line vehicle plate clear (20260916_6)
+  ✔ clearVehicle removes the planned plate and vehicle while keeping the external carrier (30.605708ms)
+  ✔ an EXTERNAL carrier with NO plate saves — "Bổ sung sau" (card 071026205330 / REQ-07 #359) (33.918125ms)
+  ✔ clearVehicle cannot ride along with a vehicle selection or an inline new carrier (0.234917ms)
+✔ container line vehicle plate clear (20260916_6) (65.476ms)
+▶ FCL workspace factory source editing
+  ✔ replaces the effective factory only on the selected container, including snapshot and readback (100.9435ms)
+  ✔ rejects foreign, inactive, deleted and warehouse choices atomically; selector lists scoped active factories (30.347583ms)
+  ✔ combined factory and port edits retain the factory snapshot; null restores the inherited factory (83.131042ms)
+  ✔ preserves an unchanged historical factory and blocks changes once a real trip exists (29.538083ms)
+  ✔ preserves accounting locks and role boundaries for factory edits (24.969417ms)
+✔ FCL workspace factory source editing (269.127167ms)
+▶ Schedule editor save 2+ — clearing the schedule undoes a lot the editor itself drove ready (091026091510)
+  ✔ an LCL lot the editor drove to READY_FOR_DISPATCH clears back to Chưa chốt ngày when no live trip exists (13.154125ms)
+  ✔ a ready lot with a live dispatch trip still refuses to drop its last date (true protection kept) (13.817875ms)
+✔ Schedule editor save 2+ — clearing the schedule undoes a lot the editor itself drove ready (091026091510) (28.064292ms)
+ℹ tests 100
+ℹ suites 18
+ℹ pass 97
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8987.057667
+
+✖ failing tests:
+
+test at src/tests/cus-shipment-workspace.test.ts:1:34683
+✖ past-run-date container fields stay DIRECT for CUS (approval flow removed 2026-09-10) (34.25ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(past)
+  
+      at TestContext.<anonymous> (/Volumes/LexarSSD/projects/silversea/backend/src/tests/cus-shipment-workspace.test.ts:1063:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at src/tests/cus-shipment-workspace.test.ts:1:81432
+✖ container ports clear LIFT_SITE/DROPOFF_SITE even when the snapshot halves are empty (67.460291ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/Volumes/LexarSSD/projects/silversea/backend/src/tests/cus-shipment-workspace.test.ts:2377:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/tests/cus-shipment-workspace.test.ts:1:84292
+✖ informationStatus=MISSING returns only incomplete FCL rows with count parity (34.304166ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/Volumes/LexarSSD/projects/silversea/backend/src/tests/cus-shipment-workspace.test.ts:2455:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+EXIT=1

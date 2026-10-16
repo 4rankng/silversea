@@ -1,0 +1,42 @@
+
+> tingting@ lint /Volumes/LexarSSD/projects/silversea
+> eslint .
+
+
+/Volumes/LexarSSD/projects/silversea/backend/src/tests/scratch-census-probe.ts
+   7:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+   8:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+   9:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+  10:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+  11:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+
+/Volumes/LexarSSD/projects/silversea/backend/tmp-lcl-ui-seed.ts
+  0:0  error  Parsing error: /Volumes/LexarSSD/projects/silversea/backend/tmp-lcl-ui-seed.ts was not found by the project service. Consider either including it in the tsconfig.json or including it in allowDefaultProject
+
+/Volumes/LexarSSD/projects/silversea/backend/tmp-lcl-ui-seed2.ts
+  0:0  error  Parsing error: /Volumes/LexarSSD/projects/silversea/backend/tmp-lcl-ui-seed2.ts was not found by the project service. Consider either including it in the tsconfig.json or including it in allowDefaultProject
+
+/Volumes/LexarSSD/projects/silversea/testplan/qa/2026-10-16_w1-deep-verify/fb009-copy-time-staging.mjs
+  18:3  error  'closeBrowser' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Volumes/LexarSSD/projects/silversea/testplan/qa/2026-10-16_w1-verify/fb096-deposit-tracker.mjs
+  4:23  error  'bodyText' is defined but never used       @typescript-eslint/no-unused-vars
+  4:64  error  'setInputValue' is defined but never used  @typescript-eslint/no-unused-vars
+  5:16  error  'log' is defined but never used            @typescript-eslint/no-unused-vars
+  5:21  error  'BASE' is defined but never used           @typescript-eslint/no-unused-vars
+
+/Volumes/LexarSSD/projects/silversea/testplan/qa/2026-10-16_w1-verify/fb101-timesheet-visibility.mjs
+   5:48  error  'log' is defined but never used            @typescript-eslint/no-unused-vars
+  71:9   error  'text' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Volumes/LexarSSD/projects/silversea/testplan/qa/2026-10-16_w1-verify/fb102-grid.mjs
+  13:7  error  'DRIVER2_ID' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Volumes/LexarSSD/projects/silversea/testplan/qa/2026-10-16_w1-verify/fb103-salary-modes.mjs
+  12:23  error  'DRIVER_NAME' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  13:7   error  'MONTH_ID' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  17:16  error  'salaryPanel' is defined but never used           @typescript-eslint/no-unused-vars
+
+✖ 18 problems (13 errors, 5 warnings)
+
+ ELIFECYCLE  Command failed with exit code 1.

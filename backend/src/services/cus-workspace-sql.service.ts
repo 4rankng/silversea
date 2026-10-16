@@ -320,18 +320,21 @@ function containerMissingBitsSql(): SQL[] {
     // Shipment context (direction gates Bill/Booking via the DB CHECK).
     sql`${s.shipments.tradeDirection} is null`,
     sql`not (${trimmedPresentSql(s.shipments.blNumber)} or ${trimmedPresentSql(s.shipments.bookingRef)})`,
-    sql`not exists (
-      select 1 from ${s.shipmentDeclarations}
-      where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
-        and ${trimmedPresentSql(s.shipmentDeclarations.declarationNumber)}
-    )`,
-    // Card 261013200312: the per-container tờ khai attribute also clears the
-    // "Thiếu Số tờ khai" bit — the entry surface writes there, so a number
-    // living only on containers must not keep flagging the row as missing.
-    sql`not exists (
-      select 1 from ${s.shipmentContainers}
-      where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-        and ${trimmedPresentSql(s.shipmentContainers.declarationNumber)}
+    // Card 261013200312: ONE lot-scoped "Thiếu Số tờ khai" bit across both
+    // stores — a per-container tờ khai OR a lot-level entity number clears
+    // the flag, the exact OR containerMissingFields() applies. Keeping the
+    // per-container number as a separate AND-ed bit flagged every lot whose
+    // containers carry no number of their own.
+    sql`not (
+      exists (
+        select 1 from ${s.shipmentDeclarations}
+        where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
+          and ${trimmedPresentSql(s.shipmentDeclarations.declarationNumber)}
+      ) or exists (
+        select 1 from ${s.shipmentContainers}
+        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+          and ${trimmedPresentSql(s.shipmentContainers.declarationNumber)}
+      )
     )`,
     sql`case when ${s.shipments.cargoMode} = 'FCL'
       then ${s.shipmentContainers.routeId} is null

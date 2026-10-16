@@ -1,0 +1,7 @@
+src/services/shipment-debit-summary.service.ts(506,35): error TS2345: Argument of type 'number | null' is not assignable to parameter of type 'number'.
+  Type 'null' is not assignable to type 'number'.
+src/services/shipment-debit-summary.service.ts(522,5): error TS2322: Type '{ tripId: number; tripCode: string | null; shipmentId: number | null; lotLabel: string; customerName: string | null; departureDate: string; feeSum: string; }[]' is not assignable to type '{ shipmentId: number; customerName: string | null; tripId: number; tripCode: string | null; lotLabel: string; departureDate: string | null; feeSum: string; }[]'.
+  Type '{ tripId: number; tripCode: string | null; shipmentId: number | null; lotLabel: string; customerName: string | null; departureDate: string; feeSum: string; }' is not assignable to type '{ shipmentId: number; customerName: string | null; tripId: number; tripCode: string | null; lotLabel: string; departureDate: string | null; feeSum: string; }'.
+    Types of property 'shipmentId' are incompatible.
+      Type 'number | null' is not assignable to type 'number'.
+        Type 'null' is not assignable to type 'number'.

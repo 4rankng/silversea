@@ -1057,7 +1057,11 @@ describe('CUS container-flat projection', () => {
     await seedContainer(shipment.id, { containerNumber: `CUTOFF${suffix}PAST`, customerAppointmentAt: pastAppointment });
     await seedContainer(shipment.id, { containerNumber: `CUTOFF${suffix}FUTURE`, customerAppointmentAt: futureAppointment });
 
-    const response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: suffix }, cusActor);
+    // Unique-stem retrieval: the bare file-wide `suffix` matches EVERY row via
+    // the shared customer name (cusRecordSearchCondition covers it), so
+    // `limit: 20` paginated these two rows out of page 1 once earlier tests
+    // had seeded enough lots. The stem keeps the assertions untouched.
+    const response = await listCusShipmentContainers({ page: 1, limit: 20, searchSuffix: `CUTOFF${suffix}` }, cusActor);
     const past = response.items.find((row) => row.containerNumber === `CUTOFF${suffix}PAST`);
     const future = response.items.find((row) => row.containerNumber === `CUTOFF${suffix}FUTURE`);
     assert.ok(past);
@@ -2321,6 +2325,77 @@ describe('Container workboard "Chưa cập nhật" completeness', () => {
     assert.ok(row);
     assert.equal(row.informationStatus, 'COMPLETE');
     assert.deepEqual(row.missingFields, []);
+  });
+
+  test('a per-container tờ khai alone clears DECLARATION; none anywhere stays MISSING — SQL queue and JS projection agree', async () => {
+    const marker = Math.random().toString(36).slice(2, 7).toUpperCase().padEnd(5, 'X');
+    const route = await seedRoute();
+    const { liftPortId, dropPortId } = await seedLiftDropPorts();
+
+    // AC3: per-container tờ khai present, NO lot-level declaration row.
+    const contDeclared = await seedShipment({
+      blNumber: `CD-${marker}`,
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+      cargoMode: 'FCL',
+      routeId: route.id,
+      shippingLineName: 'Maersk',
+    });
+    const declaredContainer = await seedContainer(contDeclared.id, {
+      containerNumber: `CD-${marker}`.slice(0, 50),
+      routeId: route.id,
+      containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+      declarationNumber: `CDDECL-${marker}`,
+    });
+    await seedFulfillment(contDeclared.id, declaredContainer.id, {
+      plannedCarrierType: 'EXTERNAL',
+      plannedVehiclePlateNumber: '29C-123.45',
+    });
+
+    // AC4: identical fixture with NO declaration in either store.
+    const undeclared = await seedShipment({
+      blNumber: `ND-${marker}`,
+      expectedDeliveryDate: '2026-08-20',
+      tradeDirection: 'IMPORT',
+      cargoMode: 'FCL',
+      routeId: route.id,
+      shippingLineName: 'Maersk',
+    });
+    const undeclaredContainer = await seedContainer(undeclared.id, {
+      containerNumber: `ND-${marker}`.slice(0, 50),
+      routeId: route.id,
+      containerTypeId,
+      pickupPortId: liftPortId,
+      dropoffPortId: dropPortId,
+      customerAppointmentAt: new Date('2026-08-20T02:00:00Z'),
+    });
+    await seedFulfillment(undeclared.id, undeclaredContainer.id, {
+      plannedCarrierType: 'EXTERNAL',
+      plannedVehiclePlateNumber: '29C-123.46',
+    });
+
+    // JS projection (containerMissingFields).
+    const response = await listCusShipmentContainers({ page: 1, limit: 100, searchSuffix: marker }, cusActor);
+    const declaredRow = response.items.find((row) => row.shipmentId === contDeclared.id);
+    const undeclaredRow = response.items.find((row) => row.shipmentId === undeclared.id);
+    assert.ok(declaredRow);
+    assert.ok(undeclaredRow);
+    assert.equal(declaredRow.informationStatus, 'COMPLETE', 'a per-container số tờ khai alone clears the flag');
+    assert.deepEqual(declaredRow.missingFields, []);
+    assert.deepEqual(undeclaredRow.missingFields.map((field) => field.code), ['DECLARATION'],
+      'no declaration in either store stays exactly DECLARATION-missing');
+
+    // SQL twin agreement on the same fixture (MISSING filter + count parity).
+    const missingQueue = await listCusShipmentContainers(
+      { page: 1, limit: 100, searchSuffix: marker, informationStatus: 'MISSING' },
+      cusActor,
+    );
+    assert.equal(missingQueue.items.some((row) => row.shipmentId === contDeclared.id), false);
+    assert.ok(missingQueue.items.some((row) => row.shipmentId === undeclared.id));
+    assert.equal(missingQueue.total, missingQueue.items.length, 'count query agrees with item query');
   });
 
   test('container ports clear LIFT_SITE/DROPOFF_SITE even when the snapshot halves are empty', async () => {
