@@ -82,6 +82,12 @@ export default function PhoiPhieuControlPage() {
   });
   const stkQuery = useQuery({ queryKey: qk.phoiPhieu.stk, queryFn: () => listPhoiPhieuStk() });
   const rows = useMemo(() => rowsQuery.data?.items ?? [], [rowsQuery.data]);
+  /** FB-097 — nhà xe chạy chuyến cho form "Thêm khoản chi": NCC khớp theo id,
+   *  dự phòng theo tên; không có nhà xe ngoài thì form để chọn tay. */
+  const carrierOf = (tripId: number | null) => {
+    const row = rows.find((item) => item.tripId === tripId);
+    return row ? { supplierId: row.carrierSupplierId ?? null, name: row.carrierName ?? null } : undefined;
+  };
   // The column mini-filters narrow the ALREADY-grouped server window here in
   // the page — the fetch, its window and the grouped order stay the server's;
   // this is a plain match over each column's own text, so a filter can never
@@ -361,6 +367,7 @@ export default function PhoiPhieuControlPage() {
           tripId={tienDuongTripId}
           shipmentId={rows.find((row) => row.tripId === tienDuongTripId)!.shipmentId}
           billOrBooking={rows.find((row) => row.tripId === tienDuongTripId)?.billOrBooking}
+          carrier={carrierOf(tienDuongTripId)}
           onClose={() => setTienDuongTripId(null)}
           onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })}
         />
@@ -392,6 +399,7 @@ export default function PhoiPhieuControlPage() {
           tripId={chiHoTripId}
           shipmentId={rows.find((row) => row.tripId === chiHoTripId)!.shipmentId}
           billOrBooking={rows.find((row) => row.tripId === chiHoTripId)?.billOrBooking}
+          carrier={carrierOf(chiHoTripId)}
           confirmation={filters.confirmation || undefined}
           onClose={() => setChiHoTripId(null)}
           onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })}

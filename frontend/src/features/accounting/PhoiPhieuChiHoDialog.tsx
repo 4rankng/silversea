@@ -23,6 +23,8 @@ interface Props {
   /** The lot this trip runs for — required by the accountant expense drawer. */
   shipmentId: number;
   billOrBooking?: string | null;
+  /** FB-097 — nhà xe chạy chuyến (để form "Thêm khoản chi" tự điền NCC). */
+  carrier?: { supplierId: number | null; name: string | null };
   confirmation?: ChiHoConfirmation;
   onClose: () => void;
   onSaved: () => void;
@@ -47,7 +49,7 @@ function liveAmount(
   return value === '' ? 0 : value;
 }
 
-export function PhoiPhieuChiHoDialog({ tripId, shipmentId, billOrBooking, confirmation, onClose, onSaved }: Props) {
+export function PhoiPhieuChiHoDialog({ tripId, shipmentId, billOrBooking, carrier, confirmation, onClose, onSaved }: Props) {
   const queryClient = useQueryClient();
   const detail = useQuery({
     queryKey: qk.phoiPhieu.chiHo(tripId, confirmation),
@@ -305,7 +307,7 @@ export function PhoiPhieuChiHoDialog({ tripId, shipmentId, billOrBooking, confir
       </Modal>}
       {addPanelOpen && catalog.data && <ExpenseCreateDrawer
       work={{ tripId, shipmentId, shipmentCode: billBookingReference(billOrBooking), containerNumber: null }}
-      catalog={catalog.data} initialGroup="OPS_INCIDENTAL" entryScope="OPS"
+      catalog={catalog.data} initialGroup="OPS_INCIDENTAL" entryScope="OPS" carrier={carrier}
       onClose={() => setAdding(false)}
       onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.chiHo(tripId) }); onSaved(); }}
     />}</>

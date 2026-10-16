@@ -64,6 +64,10 @@ export interface PhoiPhieuRow {
   plateNumber: string | null;
   driverName: string | null;
   carrierName: string | null;
+  /** FB-097 (card 141026230740) — nhà xe chạy chuyến dưới dạng danh mục NCC:
+   *  `trip_carrier_info.external_entity_id` khi `external_entity_type='SUPPLIER'`.
+   *  Form "Thêm khoản chi" khớp danh mục nhà cung cấp theo id, dự phòng tên. */
+  carrierSupplierId: number | null;
   departureDate: string | null;
   transportDate: string | null;
   tripStatus: string | null;
@@ -200,6 +204,7 @@ export async function listPhoiPhieuRows(query: {
     plateNumber: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${s.tripCarrierInfo.externalPlateNumber} else ${s.trucks.licensePlate} end`,
     driverName: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then nullif(btrim(${s.tripCarrierInfo.externalDriverName}), '') else ${s.drivers.name} end`,
     carrierName: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'OWN' then N'Xe nhà' else ${externalCarrierName} end`,
+    carrierSupplierId: sql<number | null>`case when ${s.tripCarrierInfo.externalEntityType} = 'SUPPLIER' then ${s.tripCarrierInfo.externalEntityId} else null end`,
   })
     .from(s.trips)
     .innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
@@ -435,6 +440,7 @@ export async function listPhoiPhieuRows(query: {
       plateNumber: row.plateNumber,
       driverName: row.driverName,
       carrierName: row.carrierName,
+      carrierSupplierId: row.carrierSupplierId,
       departureDate: row.departureDate,
       transportDate: row.transportDate,
       tripStatus: row.tripStatus,
