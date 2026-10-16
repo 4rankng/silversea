@@ -78,6 +78,7 @@ export default defineConfig([
       // directly, never imported by shipped code). Same scratch class as the
       // evidence dirs above; linting them only pollutes the shipped-code gate.
       'testplan/qa/scripts/**',
+      'testplan/qa/*-qa/**',
       // Python e2e harness.
       'e2e/**',
       // The transient deploy checkout (gitignored, `.gitignore`): a full repo
