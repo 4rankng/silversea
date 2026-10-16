@@ -1,0 +1,15 @@
+import { login, session, goto, shot, sleep, mainText } from './qa-lib.mjs';
+const tok = await login('hoapt');
+const s = await session(tok);
+await goto(s.page,'/accounting/chot-debit');
+console.log('=== CHOT DEBIT ===');
+console.log('URL',s.page.url());
+console.log((await mainText(s.page)).slice(0,1600));
+await shot(s.page,'C3_chot_debit',{full:true});
+console.log('ERR',s.errors.slice(0,4),'NET',[...new Set(s.netErrors)]);
+await goto(s.page,'/accounting/phoi-phieu');
+console.log('=== PHOI PHIEU ===');
+console.log((await mainText(s.page)).slice(0,1400));
+await shot(s.page,'C4_phoi_phieu',{full:true});
+console.log('ERR2',s.errors.slice(0,4),'NET',[...new Set(s.netErrors)]);
+await s.browser.close();

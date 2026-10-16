@@ -1,0 +1,15 @@
+import { login, session, goto, shot, sleep, mainText } from './qa-lib.mjs';
+const tok = await login('hoapt');
+const s = await session(tok);
+await goto(s.page,'/timesheet/doi-chieu');
+console.log('=== DOI CHIEU ===');
+console.log('URL',s.page.url());
+console.log((await mainText(s.page)).slice(0,1800));
+await shot(s.page,'D4_timesheet_reconciliation',{full:true});
+console.log('ERR',s.errors.slice(0,5),'NET',[...new Set(s.netErrors)]);
+await goto(s.page,'/accounting/deposit-tracker');
+console.log('=== DEPOSIT TRACKER ===');
+console.log((await mainText(s.page)).slice(0,1200));
+await shot(s.page,'D5_deposit_tracker',{full:true});
+console.log('ERR2',s.errors.slice(0,5),'NET',[...new Set(s.netErrors)]);
+await s.browser.close();

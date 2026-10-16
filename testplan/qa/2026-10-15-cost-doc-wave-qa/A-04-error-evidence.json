@@ -1,0 +1,10 @@
+{
+  "apiErrors": [
+    {
+      "status": 400,
+      "url": "/api/driver/me/trips/123/incidental-costs/batch",
+      "body": "{\"error\":\"Dòng 1: Phí có hóa đơn phải kèm số hóa đơn.\"}"
+    }
+  ],
+  "visibleErrors": []
+}
