@@ -1,0 +1,30 @@
+{
+  "lookupDigits": "6159",
+  "buttonThemCuoc": true,
+  "oldLabelThemDongGone": true,
+  "dialogTitle": "Thêm cược",
+  "suggestionItems": [
+    "BLCUS6159Hãng tàu AccessibilityCÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"
+  ],
+  "suggestionsShown": true,
+  "autofill": {
+    "Tra cứu Bill (4 số cuối)": "",
+    "Số Bill": "BLCUS6159",
+    "Khách hàng": "CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH",
+    "Hãng tàu": "Hãng tàu Accessibility",
+    "Ghi chú": ""
+  },
+  "autofillBillFilled": true,
+  "autofillCustomerFilled": true,
+  "dialogClosedAfterSave": true,
+  "dialogErrorAfterSave": null,
+  "rowVisibleInTable": true,
+  "createdFixtureRows": [
+    {
+      "id": 7,
+      "billNumber": "QA-W1-DEP-6159",
+      "note": "QA-W1 fixture 16/10 — xóa theo purge QA"
+    }
+  ],
+  "persistedViaApi": true
+}
