@@ -1,3 +1,25 @@
+# Kanban wave 1016c — same five cards: re-run evidence, one commit per card (2026-10-16)
+
+- Controller: this session (Paseo agent). Branch `feat/kanban-wave-1016c`, cut
+  from origin/main @ `ae419e3d`. Five commits (one per card), pushed after each
+  green one — the batching death of the two prior 1016c lanes is why. No code
+  changes: every card's behavior was already on main (see 1016b below and each
+  card's original dispatch). This wave landed only §6/§7 re-run evidence.
+- Per card (commit · gates):
+  - QA2-005 `qa2-005` commit · FE tsc 0 · ShipmentsPage 135/135 · BE tsc 0 ·
+    cus-record-search 6/6 · shared cus-shipment-workspace 18/18.
+  - FB-066 `fb066` commit · FE tsc 0 · TripInfoCard.quick-add 5/5.
+  - FB-083 `fb083` commit · FE tsc 0 · label pins 2/2 (asterisk-contract +
+    ClerkShipmentCreatePage, `-t "Ngày giao hàng"`).
+  - FB-084 `fb084` commit · FE tsc 0 · asterisk+model 27/27 · BE tsc 0 ·
+    shipment-intake-lcl-cargo 3/3.
+  - FB-085 `fb085` commit · FE tsc 0 · declarations+ledger 53/53 · BE tsc 0 ·
+    cus-container-declaration-wire 6/6.
+- Rung: ≤2 this wave (pins executed, no UI drive); rung-3 evidence for all five
+  lives in `qa/2026-10-16_w3a-r17-verify/` and `qa/2026-10-14_fb066-*` from the
+  earlier drives. Card .docx were unreadable (0-byte stubs; Drive IN_PROGRESS
+  empty) — scope reconstructed from dispatcher summaries + testplan records.
+
 # Kanban wave 1016b — five IN_PROGRESS cards verified on main (2026-10-16)
 
 - Controller: this session (Paseo agent). Branch `feat/kanban-wave-1016b`,
