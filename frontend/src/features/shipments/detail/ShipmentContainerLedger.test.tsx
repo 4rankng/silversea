@@ -1216,4 +1216,40 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     expect(screen.queryByText(/BKS Thực/)).toBeNull();
     expect(screen.queryByText(/BKS Báo khách/)).toBeNull();
   });
+
+  // Card 171026000407 §II.3.1 — the container branch follows the same
+  // "Xe ảo khác Xe thực tế" rule the spec gives for Hàng lẻ: only a differing
+  // BKS báo khách earns the second line.
+  it('AC1 FCL rows with a differing billing plate print both phân xe lines', () => {
+    renderLot(baseRow({ plateNumber: '29H-123.45', carrierName: 'SilverSea', billingTruckNo: '29H-999.99' }));
+    expect(screen.getByText('SilverSea - BKS Thực: 29H-123.45')).toBeTruthy();
+    expect(screen.getByText('BKS Báo khách (Ảo): 29H-999.99')).toBeTruthy();
+  });
+
+  it('AC1/AC4 the FCL Ảo line quick-edits through the same updateLclTruck write', async () => {
+    updateLclTruckMock.mockClear();
+    renderLot(baseRow({ plateNumber: '29H-123.45', carrierName: 'SilverSea', billingTruckNo: '29H-999.99' }));
+
+    fireEvent.click(screen.getByText('BKS Báo khách (Ảo): 29H-999.99'));
+    const combo = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' });
+    combo.focus();
+    fireEvent.change(combo, { target: { value: '29H-777.77' } });
+    // The suggestion popover isolates the footer until it closes (same
+    // pattern as the lot-level quick-edit tests above).
+    fireEvent.keyDown(combo, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS báo khách' }));
+
+    await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledWith({ shipmentId: 1, billingTruckNo: '29H-777.77' }));
+    // One mutation, nothing else: the cell change never fetches per row.
+    expect(updateLclTruckMock).toHaveBeenCalledTimes(1);
+    // The optimistic overlay shows the saved plate before the page refetches.
+    expect(screen.getByText('BKS Báo khách (Ảo): 29H-777.77')).toBeTruthy();
+  });
+
+  it('AC2 an equal billing plate (normalized) keeps the single-plate FCL cell', () => {
+    renderLot(baseRow({ plateNumber: '29H-123.45', carrierName: 'SilverSea', billingTruckNo: '29h-123.45' }));
+    expect(screen.getByText('29H-123.45')).toBeTruthy();
+    expect(screen.queryByText(/BKS Thực/)).toBeNull();
+    expect(screen.queryByText(/BKS Báo khách/)).toBeNull();
+  });
 });

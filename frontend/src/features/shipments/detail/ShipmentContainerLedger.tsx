@@ -829,6 +829,52 @@ export function ShipmentContainerLedger({
     }
   }
 
+  // Card 171026000407 §II.3.1: the BKS báo khách quick edit renders from one
+  // place for BOTH branches (Hàng lẻ always, container rows when the ảo plate
+  // differs from BKS thực), so the two can never drift.
+  function billingPlateEditor(row: ShipmentCusContainerFlatRow) {
+    return (
+      <div className="shipment-container-ledger__inline-editor">
+        <div className="shipment-container-ledger__editor-grid">
+          <USearchableField
+            label="BKS báo khách (Ảo)"
+            value={billingDraft}
+            onChange={setBillingDraft}
+            onCustomValue={setBillingDraft}
+            options={plateSuggestions}
+            placeholder="Chọn hoặc nhập BKS"
+            allowsCustomValue
+            searchable
+            disabled={billingSaving}
+          />
+        </div>
+        <div className="shipment-container-ledger__editor-footer">
+          {billingError
+            ? <span className="shipment-container-ledger__edit-error" role="alert">{billingError}</span>
+            : <small>BKS báo khách là biển số in cho khách (xe ảo).</small>}
+          <EditActions
+            saving={billingSaving}
+            saveDisabled={billingDraft.trim() === ''}
+            label="BKS báo khách"
+            onCancel={() => setBillingEditorForRowId(null)}
+            onSave={() => void saveBillingPlate(row)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  function billingPlateTrigger(row: ShipmentCusContainerFlatRow, plate: string) {
+    return (
+      <button
+        type="button"
+        className="shipment-container-ledger__plate"
+        title="Sửa BKS báo khách"
+        onClick={() => openBillingEditor(row)}
+      >{`BKS Báo khách (Ảo): ${plate}`}</button>
+    );
+  }
+
   // The parent owns feedback (it owns the toast surface for this page); the
   // ledger owns only the busy state, so it stays presentational.
   async function submitCopyAppointment(row: ShipmentCusContainerFlatRow) {
@@ -1052,42 +1098,11 @@ export function ShipmentContainerLedger({
                               BKS thực (display) then BKS báo khách (Ảo), which
                               is click-to-edit. */}
                           <strong>{`${row.carrierName?.trim() || 'Chưa phân nhà xe'} - BKS Thực: ${lotActualPlate}`}</strong>
-                          {lotBillingEditing ? (
-                            <div className="shipment-container-ledger__inline-editor">
-                              <div className="shipment-container-ledger__editor-grid">
-                                <USearchableField
-                                  label="BKS báo khách (Ảo)"
-                                  value={billingDraft}
-                                  onChange={setBillingDraft}
-                                  onCustomValue={setBillingDraft}
-                                  options={plateSuggestions}
-                                  placeholder="Chọn hoặc nhập BKS"
-                                  allowsCustomValue
-                                  searchable
-                                  disabled={billingSaving}
-                                />
-                              </div>
-                              <div className="shipment-container-ledger__editor-footer">
-                                {billingError
-                                  ? <span className="shipment-container-ledger__edit-error" role="alert">{billingError}</span>
-                                  : <small>BKS báo khách là biển số in cho khách (xe ảo).</small>}
-                                <EditActions
-                                  saving={billingSaving}
-                                  saveDisabled={billingDraft.trim() === ''}
-                                  label="BKS báo khách"
-                                  onCancel={() => setBillingEditorForRowId(null)}
-                                  onSave={() => void saveBillingPlate(row)}
-                                />
-                              </div>
-                            </div>
-                          ) : lotBillingDiffers ? (
-                            <button
-                              type="button"
-                              className="shipment-container-ledger__plate"
-                              title="Sửa BKS báo khách"
-                              onClick={() => openBillingEditor(row)}
-                            >{`BKS Báo khách (Ảo): ${lotBillingPlate}`}</button>
-                          ) : (
+                          {lotBillingEditing
+                            ? billingPlateEditor(row)
+                            : lotBillingDiffers
+                              ? billingPlateTrigger(row, lotBillingPlate)
+                              : (
                             <button
                               type="button"
                               className="shipment-container-ledger__missing-fields-toggle"
@@ -1095,6 +1110,19 @@ export function ShipmentContainerLedger({
                               onClick={() => openBillingEditor(row)}
                             >{lotBillingPlate ? `BKS Báo khách (Ảo): ${lotBillingPlate} — sửa` : 'BKS Báo khách (Ảo): — sửa'}</button>
                           )}
+                        </>
+                      ) : lotBillingDiffers ? (
+                        <>
+                          {/* Card 171026000407 §II.3.1: "hoặc khi có gán Xe ảo
+                              khác Xe thực tế" — a container row whose BKS báo
+                              khách differs from BKS thực prints the same two
+                              lines as the lot-level branch, the Ảo line
+                              click-to-edit. Equal or absent keeps the
+                              single-plate cell below byte-for-byte. */}
+                          <strong>{`${row.carrierName?.trim() || 'Chưa phân nhà xe'} - BKS Thực: ${lotActualPlate}`}</strong>
+                          {lotBillingEditing
+                            ? billingPlateEditor(row)
+                            : billingPlateTrigger(row, lotBillingPlate)}
                         </>
                       ) : (
                         <>
