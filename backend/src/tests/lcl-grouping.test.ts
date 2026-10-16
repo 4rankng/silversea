@@ -33,6 +33,7 @@ import { getShipmentDebitSummary } from '../services/shipment-debit-summary.serv
 import { getAccountingDebitBoard } from '../services/accounting-debit-close.service';
 import { getCustomerDebtSummary } from '../services/customer-debt-summary.service';
 import { buildTripRenderData, vehicleTypeLabel } from '../services/billing-document.service';
+import { getShipmentFreightRateView } from '../services/freight-rate-snapshot-lifecycle.service';
 import type { CustomerDebitTripCandidate } from '../services/billing-document-shared.service';
 import {
   assignLclCostGroup,
@@ -618,6 +619,31 @@ describe('161026204709 (TC-A12) — merged-but-undispatched LCL lots materialize
     assert.equal(member.freightOverrideReason, `Ghép cước cùng Bill ${lot1.blNumber}`);
     assert.equal(principal.receivableTotal, lanePrice, 'receivable addend follows the effective freight');
     assert.equal(member.receivableTotal, '0');
+
+    // The merge snapshot's auditor note rides `formula_text` (1610262 snapshot
+    // -note defect): the row's trace ids are all 0 (the merge resolves a lane
+    // price, not the id-based engine), so the read-side rebuild would print a
+    // wrong "missing rate terms" hint — the frozen prose is the only truthful
+    // statement of WHY the row exists. Amounts/surcharge/grain unchanged.
+    const principalSnaps = await db.select().from(s.freightRateSnapshots)
+      .where(and(eq(s.freightRateSnapshots.shipmentId, lot1.id), isNull(s.freightRateSnapshots.tripId)));
+    const memberSnaps = await db.select().from(s.freightRateSnapshots)
+      .where(and(eq(s.freightRateSnapshots.shipmentId, lot2.id), isNull(s.freightRateSnapshots.tripId)));
+    assert.equal(principalSnaps.length, 1, 'one shipment-level snapshot for the principal');
+    assert.equal(memberSnaps.length, 1, 'one shipment-level snapshot for the member');
+    createdFreightSnapshotIds.push(principalSnaps[0]!.id, memberSnaps[0]!.id);
+    assert.equal(principalSnaps[0]!.tripId, null, 'trip-less grain');
+    assert.equal(principalSnaps[0]!.formulaText,
+      'Ghép cước thu khách — Lô 1 giữ 100% (bảng giá khách × tuyến × 3.5T, ngày 2026-10-20)',
+      'the principal snapshot carries its merge note');
+    assert.equal(memberSnaps[0]!.formulaText,
+      `Ghép cước cùng Bill ${lot1.blNumber} — lô ghép giữ 0₫ cước thu (chưa phân bổ xe)`,
+      'the member snapshot carries its merge note');
+    assert.equal(principalSnaps[0]!.freightAmount, lanePrice, 'freight = lane price, unchanged');
+    assert.equal(principalSnaps[0]!.surchargeAmount, '0', 'freight-only split, unchanged');
+    assert.equal(principalSnaps[0]!.totalAmount, lanePrice, 'total = lane price, unchanged');
+    assert.equal(memberSnaps[0]!.freightAmount, '0');
+    assert.equal(memberSnaps[0]!.totalAmount, '0');
   });
 
   test('accounting board: thu.cuocThu follows the same law (A12-02)', async () => {
@@ -642,6 +668,27 @@ describe('161026204709 (TC-A12) — merged-but-undispatched LCL lots materialize
     // text for auditors) — the trip-ful FB-095 leaver shows the same zero
     // WITH its stamp because trips carry a reason column.
     assert.equal(leaver.freightOverrideReason, null);
+
+    // Supersede contract: INSERT-only, max(id) wins per (shipment, grain). The
+    // survivor keeps its merge zero as history and gains a newer transfer row
+    // whose note explains the promotion; the auditor-facing reader prefers
+    // that stored prose over the id-based rebuild.
+    const survivorSnaps = await db.select().from(s.freightRateSnapshots)
+      .where(and(eq(s.freightRateSnapshots.shipmentId, lot2.id), isNull(s.freightRateSnapshots.tripId)))
+      .orderBy(s.freightRateSnapshots.id);
+    assert.equal(survivorSnaps.length, 2, 'the merge row is not updated — a newer row supersedes it');
+    createdFreightSnapshotIds.push(...survivorSnaps.map((row) => row.id));
+    assert.equal(survivorSnaps[0]!.totalAmount, '0', 'the historical merge zero survives byte-for-byte');
+    assert.equal(survivorSnaps[0]!.formulaText,
+      `Ghép cước cùng Bill ${lot1.blNumber} — lô ghép giữ 0₫ cước thu (chưa phân bổ xe)`);
+    assert.equal(survivorSnaps[1]!.totalAmount, lanePrice, 'the transfer row carries the promoted money');
+    assert.equal(survivorSnaps[1]!.formulaText,
+      `Đón cước chính khi tách nhóm (từ Bill ${lot1.blNumber}) — chưa phân bổ xe`);
+    const view = await getShipmentFreightRateView(lot2.id);
+    assert.equal(view.snapshotCount, 2);
+    assert.equal(view.latest!.id, survivorSnaps[1]!.id, 'max(id) is the live row');
+    assert.equal(view.latest!.formula, survivorSnaps[1]!.formulaText,
+      'the reader serves the stored note, not a rebuilt hint');
   });
 
   test('a trip-less member leaving keeps its cited zero as stale-priced (A12-04)', async () => {
@@ -650,6 +697,14 @@ describe('161026204709 (TC-A12) — merged-but-undispatched LCL lots materialize
     const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
     const leaver = summary.items.find((row) => row.shipmentId === lot2.id)!;
     assert.equal(leaver.freightAuto, '0', 'the ex-member reads its re-cited snapshot zero');
+    const snaps = await db.select().from(s.freightRateSnapshots)
+      .where(and(eq(s.freightRateSnapshots.shipmentId, lot2.id), isNull(s.freightRateSnapshots.tripId)))
+      .orderBy(s.freightRateSnapshots.id);
+    createdFreightSnapshotIds.push(...snaps.map((row) => row.id));
+    assert.equal(snaps.length, 2, 'the merge zero + its stale-priced re-cite');
+    assert.equal(snaps[1]!.totalAmount, '0');
+    assert.equal(snaps[1]!.formulaText, 'Tách khỏi nhóm ghép — chờ định giá lại',
+      'the re-cite carries the reason the zero still stands');
   });
 
   test('lane miss keeps the principal MANUAL/blank, member still 0₫ (A12-05)', async () => {

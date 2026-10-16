@@ -31,6 +31,7 @@ import { upsertTripFinancialState } from '../services/trip-composite.service';
 import { getShipmentDebitSummary } from '../services/shipment-debit-summary.service';
 import { getAccountingDebitBoard } from '../services/accounting-debit-close.service';
 import { getCustomerDebtSummary } from '../services/customer-debt-summary.service';
+import { getShipmentFreightRateView } from '../services/freight-rate-snapshot-lifecycle.service';
 import {
   mergeLclRevGroup,
   setLclLotRevClass,
@@ -290,6 +291,15 @@ describe('161026232349 — CUS single-lot thu vehicle class (§II.3.2 "Thu riên
     assert.equal(snapshots[0]!.freightAmount, LANE_PRICE);
     assert.equal(snapshots[0]!.surchargeAmount, '0');
     createdFreightSnapshotIds.push(snapshots[0]!.id);
+    // The note of WHY the row exists rides `formula_text` — the single-lot
+    // write reuses the merge helper, so it inherits the same audit note.
+    assert.equal(snapshots[0]!.formulaText,
+      `Chọn loại xe tính cước thu khách — 100% bảng giá khách × tuyến × ${truckClass.code}, ngày 2026-10-20`);
+    const view = await getShipmentFreightRateView(lot.id);
+    assert.equal(view.latest!.id, snapshots[0]!.id);
+    assert.equal(view.latest!.formula, snapshots[0]!.formulaText,
+      'the reader serves the stored note, not a rebuilt hint');
+    assert.equal(view.latest!.source, 'AUTO', 'a stored note marks the row as a computed (not to-be-typed) price');
 
     const cus = await cusBoardRow(customer.id, lot.id);
     assert.equal(cus.freightAuto, LANE_PRICE, 'CUS board reads the snapshot channel for a trip-less lot');

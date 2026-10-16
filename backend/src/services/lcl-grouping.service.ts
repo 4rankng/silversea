@@ -603,9 +603,19 @@ async function loadVehicleClass(tx: Tx, vehicleSizeClassId: number) {
  *
  * INSERT-only like every snapshot write (chốt 2026-09-09 Câu 2 = A): the
  * supersede contract is max(id)-wins, never UPDATE.
+ *
+ * `note` rides `formula_text` — the column the schema reserves for frozen
+ * prose the id-based rebuild cannot express, and the column the read side
+ * PREFERS over that rebuild (`snap.formulaText ?? buildFormulaHint(row)`).
+ * These rows carry all-zero trace ids (the merge resolves a class-lane price,
+ * not the id-based engine), so without the note the reader would print a
+ * wrong "thiếu điều khoản cước tự động — cần nhập tay" hint. Mirrors the
+ * surcharge-pending path, which also sets `formula` + `formulaText` to the
+ * same string. `formula` itself is never persisted (by design — the reader
+ * rebuilds it from trace ids); it is required by `ResolvedFreightRate` only.
  */
 async function insertRevMergeSnapshot(tx: Tx, shipmentId: number, amount: number, note: string): Promise<number> {
-  const synthesized: Omit<ResolvedFreightRate, 'formula'> = {
+  const synthesized: Omit<ResolvedFreightRate, 'formula' | 'formulaText'> = {
     freight: amount,
     surcharge: 0,
     total: amount,
@@ -619,7 +629,7 @@ async function insertRevMergeSnapshot(tx: Tx, shipmentId: number, amount: number
     sharePct: 0,
     source: 'AUTO',
   };
-  return persistFreightRateSnapshot({ ...synthesized, formula: note }, {
+  return persistFreightRateSnapshot({ ...synthesized, formula: note, formulaText: note }, {
     shipmentId,
     tripId: null,
     executor: tx,
