@@ -1,3 +1,15 @@
+# ⛔ DEPLOY HOLD (auto-ship, 2026-10-16 ~06:56Z) — do NOT `make demo` until lifted
+
+Main (1876eb9d) is AHEAD of staging (ae419e3d): W1 ketoan+cham-cong (7dcdcf33,
+gates green) + kanban 1016c QA records (1876eb9d) are merged but NOT deployed.
+Reason: two mandatory QA runs are in flight against staging @ ae419e3d —
+paseo 99f8bdb (Muse QA 4 shipped waves) and d540efb (w3b r20 retests).
+Redeploying mid-run changes buildHash under them and invalidates their evidence.
+LIFT CONDITION: both agents idle/done (paseo inspect 99f8bdb d540efb) →
+`make demo` → curl vantai.tingting.vip/api/health until buildHash == 1876eb9d+
+→ dispatch Muse QA for W1+1016c on staging (testplan/2026-10-16-card141026*,
+role accounts testplan/testaccounts.txt, Idempotency-Key on writes).
+
 # Kanban wave 1016c — same five cards: re-run evidence, one commit per card (2026-10-16)
 
 - Controller: this session (Paseo agent). Branch `feat/kanban-wave-1016c`, cut
