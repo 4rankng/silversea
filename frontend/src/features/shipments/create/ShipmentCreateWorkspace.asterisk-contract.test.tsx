@@ -81,6 +81,23 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     expect(document.querySelector('[data-field-id="shipment-cargo-volume"]')!.textContent).not.toContain('*');
   });
 
+  it('labels the LCL delivery-date field "Ngày giao hàng" — never "Ngày giao dự kiến"', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
+
+    // Helpdesk 2026-10-13 (ops Tiếp Vu): LCL copy for the delivery date is
+    // "Ngày giao hàng". The field renders only on the LCL path, so the label
+    // is pinned here alongside the marks contract.
+    const field = await waitFor(() => {
+      const node = document.querySelector('[data-field-id="shipment-expected-delivery"]');
+      expect(node).toBeTruthy();
+      return node!;
+    });
+    expect(field.textContent).toContain('Ngày giao hàng');
+    expect(field.textContent).not.toContain('dự kiến');
+  });
+
   it('drops the ad-hoc-waived marks when Lệnh chạy ngoài is on and keeps the rest', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
