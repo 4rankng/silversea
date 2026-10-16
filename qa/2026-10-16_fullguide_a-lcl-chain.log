@@ -1,28 +1,35 @@
-# fullguide a-lcl-chain driver — 2026-10-16T13:07:06.784Z pin=227a08b2
-2026-10-16T13:07:06.828Z health {"status":"ok","timestamp":"2026-10-16T13:07:06.853Z","buildHash":"227a08b2"}
-2026-10-16T13:07:07.436Z logins {"cus":true,"disp":true,"admin":true}
-2026-10-16T13:07:07.468Z customer {"id":1,"name":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"}
-2026-10-16T13:07:07.497Z route {"id":6,"name":"KCN Quế Võ, Nam Sơn, Bắc Ninh","code":"KCN Quế Võ"}
-2026-10-16T13:07:07.530Z vehicle-class {"id":1,"name":"Xe 1.25 tấn","code":"1.25T"}
-2026-10-16T13:07:07.699Z qa-pricing-row {"status":201,"id":116,"body":"{\"id\":116,\"customerId\":1,\"routeId\":6,\"price\":\"1200000\",\"containerTypeId\":null,\"rateKey\":\"1.25T\",\"vehicleSizeClassId\":1,\"effectiveDate\":\"2026-10-16\",\"createdAt\":\"2026-10-16T13:07:07.667Z\",\"updatedAt\":\""}
-2026-10-16T13:07:15.295Z a1-mode-lcl {"lclOn":true}
-2026-10-16T13:07:18.533Z a1-error {"error":"Invalid regular expression flags"}
-2026-10-16T13:07:19.669Z VERDICT {"id":"A.1","verdict":"FAIL","note":"Invalid regular expression flags"}
-2026-10-16T13:07:19.767Z a1-db {"row":"no-id"}
-2026-10-16T13:07:19.767Z a1-captured-payload {"payload":null}
-2026-10-16T13:07:19.996Z fixture-create {"ref":"QA-FG16-B-bb1586","status":201,"id":621,"err":null}
-2026-10-16T13:07:20.289Z fixture-create {"ref":"QA-FG16-C-bb1586","status":201,"id":622,"err":null}
-2026-10-16T13:07:20.408Z fixture-create {"ref":"QA-FG16-D-bb1586","status":201,"id":623,"err":null}
-2026-10-16T13:07:46.845Z a2-row {"found":false,"headers":["Thời gian & lịch trình","Khách hàng & nhà máy","Tuyến đường & hãng tàu","Cảng nâng","Cảng hạ","Tổng quan hàng hóa","Phân bổ nhà xe","Ghi chú"],"rowText":[],"cargoOk":false,"hasEmDash":false}
-2026-10-16T13:07:46.845Z VERDICT {"id":"A.2","verdict":"FAIL","note":"master plan row: found=false, cargoOverview=false, rows=[]"}
-2026-10-16T13:08:13.015Z a3-checkboxes {"count":8,"visible":8}
-2026-10-16T13:08:14.233Z a3-selection {"checked":["QA-FG16-B-bb1586"],"barOk":false,"barSnippet":"Đang chọn 1 lô: Tổng 0 kg | 0 CBM"}
-2026-10-16T13:08:16.079Z a3-dialog {"opened":false,"dialogText":null}
-2026-10-16T13:08:16.422Z a3-error {"error":"Cannot read properties of undefined (reading 'querySelectorAll')"}
-2026-10-16T13:08:16.640Z VERDICT {"id":"A.3","verdict":"FAIL","note":"Cannot read properties of undefined (reading 'querySelectorAll')"}
-2026-10-16T13:08:27.207Z a4-dialog {"selected":{"boxes":[],"clicked":["QA-FG16-C-bb1586","QA-FG16-D-bb1586"]},"mergeBtn":true,"dialogText":"Hủy Ghép cước thu khách"}
-2026-10-16T13:08:35.165Z a4-after {"merged":true,"rowsInfo":["+ QA-FG16-C-bb1586 CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Số Bill: QA-FG16-C-bb1586 Số tờ khai: Chưa có Chi tiết lô hàng → Chưa xác định Chưa xác định Chưa xác định Chưa xác định Chưa xác định Đang mở","+ QA-FG16-D-bb1586 CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Số Bill: QA-FG16-D-bb1586 Số tờ khai: Chưa có Chi tiết lô hàng → Chưa xác định Chưa xác định Chưa xác định Chưa xác định Chưa xác định Đang mở"],"moneyC":false,"zeroD":false,"note":false}
-2026-10-16T13:08:37.148Z a4-db {"rev":"622|QA-FG16-C-bb1586|||\n623|QA-FG16-D-bb1586|||","snapshots":""}
-2026-10-16T13:08:37.149Z VERDICT {"id":"A.4","verdict":"FAIL","note":"rev merge: merged=true, Lô1 money=false (want 1200000), member 0₫=false, note=false, dbRev=[622|QA-FG16-C-bb1586|||\n623|QA-FG16-D-bb1586|||], dbSnap=[]"}
-2026-10-16T13:08:37.253Z SUMMARY {"A.1":{"verdict":"FAIL","note":"Invalid regular expression flags"},"A.2":{"verdict":"FAIL","note":"master plan row: found=false, cargoOverview=false, rows=[]"},"A.3":{"verdict":"FAIL","note":"Cannot read properties of undefined (reading 'querySelectorAll')"},"A.4":{"verdict":"FAIL","note":"rev merge: merged=true, Lô1 money=false (want 1200000), member 0₫=false, note=false, dbRev=[622|QA-FG16-C-bb1586|||\n623|QA-FG16-D-bb1586|||], dbSnap=[]"}}
+# fullguide a-lcl-chain driver — 2026-10-16T15:12:23.262Z pin=a68d2e04
+2026-10-16T15:12:23.305Z health {"status":"ok","timestamp":"2026-10-16T15:12:23.347Z","buildHash":"a68d2e04"}
+2026-10-16T15:12:23.788Z logins {"cus":true,"disp":true,"admin":true}
+2026-10-16T15:12:23.815Z customer {"id":1,"name":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"}
+2026-10-16T15:12:23.840Z route {"id":6,"name":"KCN Quế Võ, Nam Sơn, Bắc Ninh","code":"KCN Quế Võ"}
+2026-10-16T15:12:23.863Z vehicle-class {"id":4,"name":"Xe 5 tấn","code":"5T"}
+2026-10-16T15:12:23.943Z qa-pricing-row {"status":201,"id":127,"body":"{\"id\":127,\"customerId\":1,\"routeId\":6,\"price\":\"1200000\",\"containerTypeId\":null,\"rateKey\":\"5T\",\"vehicleSizeClassId\":4,\"effectiveDate\":\"2026-10-16\",\"createdAt\":\"2026-10-16T15:12:23.929Z\",\"updatedAt\":\"202"}
+2026-10-16T15:12:30.836Z a1-mode-lcl {"lclOn":true}
+2026-10-16T15:12:37.611Z a1-warehouse-picked {"warehousePicked":true}
+2026-10-16T15:12:41.375Z a1-date-segments {"found":[true,true,true],"done":3}
+2026-10-16T15:12:44.275Z a1-route-picked {"routePicked":true}
+2026-10-16T15:12:44.512Z a1-save-click {"saved":true}
+2026-10-16T15:12:48.240Z a1-detail {"url":"https://vantai.tingting.vip/shipments/660","detailOk":true,"noContainer":true,"snippet":"15 options available.\n4 options available.\n3 options available.\n1 option available.\nKCN QUẾ VÕ, BẮC NINH\nKCN QUẾ VÕ, BẮC NINH, selected\nBỏ qua đến nội dung chính\nĐã chuyển đến Chi tiết lô hàng\nTransTing\nQuản lý vận tải và logistics\nNghiệp vụ Chứng từ\nTổng quan lô hàng\nChi tiết lô hàng\nChi phí - Quyết toán\nĐối soát\nTheo dõi hóa đơn\nQuản Lý\nKhách hàng & Đối tác\nTuyến đường\nGiá dầu theo kỳ\nNhà máy / Kho\nVũ Văn Tiệp\nChứng từ\nĐang xem\nChi tiết lô hàng\nTháng 10/2026\n·\n01/10 – 31/10\nQA-FG16-A-8dbc6d\nXóa lô\nSẵn sàng điều xe\nv2\nKhách hàng\nLONG MINH\nMã đặt chỗ\nQA-FG16-A-8dbc6d\nSố B/L\n—\nNơi nhận\n—\nNơi gi"}
+2026-10-16T15:12:48.241Z VERDICT {"id":"A.1","verdict":"PASS","note":"UI create → detail labels (Hàng lẻ (LCL)=true, Chưa có container nào=true), id=660"}
+2026-10-16T15:12:49.160Z a1-db {"row":"660|LCL|QA-FG16-A-8dbc6d|Pallet|5|1900.00|4.000|"}
+2026-10-16T15:12:49.160Z a1-captured-payload {"payload":null}
+2026-10-16T15:12:49.386Z fixture-create {"ref":"QA-FG16-B-8dbc6d","status":201,"id":661,"err":null}
+2026-10-16T15:12:49.511Z fixture-create {"ref":"QA-FG16-C-8dbc6d","status":201,"id":662,"err":null}
+2026-10-16T15:12:49.610Z fixture-create {"ref":"QA-FG16-D-8dbc6d","status":201,"id":663,"err":null}
+2026-10-16T15:12:55.981Z a2-row {"found":true,"headers":["Thời gian & lịch trình","Khách hàng & nhà máy","Tuyến đường & hãng tàu","Cảng nâng","Cảng hạ","Tổng quan hàng hóa","Phân bổ nhà xe","Ghi chú"],"rowText":["16/10/2026 LONG MINH — QA-FG16-D-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú","16/10/2026 LONG MINH — QA-FG16-C-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú","16/10/2026 LONG MINH — QA-FG16-B-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú","16/10/2026 LONG MINH — QA-FG16-A-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — Chưa xác định — 5 Pallet 1.900 kg · 4 CBM Chưa phân bổ Thêm ghi chú"],"cargoOk":true,"hasEmDash":true}
+2026-10-16T15:12:55.981Z VERDICT {"id":"A.2","verdict":"PASS","note":"master plan row: found=true, cargoOverview=true, rows=[\"16/10/2026 LONG MINH — QA-FG16-D-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú\",\"16/10/2026 LONG MINH — QA-FG16-C-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú\",\"16/10/2026 LONG MINH — QA-FG16-B-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet —"}
+2026-10-16T15:13:02.130Z a3-checkboxes {"count":9,"visible":9}
+2026-10-16T15:13:03.366Z a3-selection {"checked":["QA-FG16-A-8dbc6d","QA-FG16-B-8dbc6d"],"barOk":false,"barSnippet":"Đang chọn 2 lô: Tổng 1.900 kg | 4 CBM"}
+2026-10-16T15:13:05.184Z a3-dialog {"opened":true,"dialogText":"Hủy Gán nhóm xe"}
+2026-10-16T15:13:09.210Z a3-filled {"plateSet":true}
+2026-10-16T15:13:12.794Z a3-after {"confirmed":true,"toast":"Đã gán xe","dlgError":null,"ghepLabels":["Ghép","Ghép","Ghép","Ghép","Ghép","Ghép (1/2)"]}
+2026-10-16T15:13:14.784Z a3-db {"groups":"660|QA-FG16-A-8dbc6d|1|99T-99999\n661|QA-FG16-B-8dbc6d|2|99T-99999","carrier":""}
+2026-10-16T15:13:14.785Z VERDICT {"id":"A.3","verdict":"PASS","note":"group assign: confirm=true, toast=\"Đã gán xe\", labels=[\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép (1/2)\"], db=[660|QA-FG16-A-8dbc6d|1|99T-99999; 661|QA-FG16-B-8dbc6d|2|99T-99999], carrier=[]"}
+2026-10-16T15:13:25.342Z a4-dialog {"selected":{"boxes":[],"clicked":["QA-FG16-C-8dbc6d","QA-FG16-D-8dbc6d"]},"mergeBtn":true,"dialogText":"Hủy Ghép cước thu khách"}
+2026-10-16T15:13:32.530Z a4-post-merge {"merged":true,"postMergeDlg":null,"mergeToast":"Đã ghép cước thu khách cho 2 lô — Lô 1 (QA-FG16-C-8dbc6d) giữ 100% cước vận tải"}
+2026-10-16T15:13:34.738Z a4-after {"merged":true,"rowsInfo":["+ QA-FG16-C-8dbc6d CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Số Bill: QA-FG16-C-8dbc6d Số tờ khai: Chưa có Chi tiết lô hàng → 1.200.000 Chưa xác định 1.200.000 Chưa xác định Chưa xác định Đang mở","+ QA-FG16-D-8dbc6d CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Số Bill: QA-FG16-D-8dbc6d Số tờ khai: Chưa có Chi tiết lô hàng → 0 Ghép cước cùng Bill QA-FG16-C-8dbc6d Chưa xác định 0 Chưa xác định Chưa xác định Đang mở"],"moneyC":true,"zeroD":true,"note":true}
+2026-10-16T15:13:36.025Z a4-db {"rev":"662|QA-FG16-C-8dbc6d|1||\n663|QA-FG16-D-8dbc6d|2||","snapshots":"662|1200000|1200000|\n663|0|0|"}
+2026-10-16T15:13:36.025Z VERDICT {"id":"A.4","verdict":"PASS","note":"rev merge: merged=true, Lô1 money=true (want 1200000), member 0₫=true, note=true, dbRev=[662|QA-FG16-C-8dbc6d|1||\n663|QA-FG16-D-8dbc6d|2||], dbSnap=[662|1200000|1200000|\n663|0|0|]"}
+2026-10-16T15:13:36.108Z SUMMARY {"A.1":{"verdict":"PASS","note":"UI create → detail labels (Hàng lẻ (LCL)=true, Chưa có container nào=true), id=660"},"A.2":{"verdict":"PASS","note":"master plan row: found=true, cargoOverview=true, rows=[\"16/10/2026 LONG MINH — QA-FG16-D-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú\",\"16/10/2026 LONG MINH — QA-FG16-C-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú\",\"16/10/2026 LONG MINH — QA-FG16-B-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet —"},"A.3":{"verdict":"PASS","note":"group assign: confirm=true, toast=\"Đã gán xe\", labels=[\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép (1/2)\"], db=[660|QA-FG16-A-8dbc6d|1|99T-99999; 661|QA-FG16-B-8dbc6d|2|99T-99999], carrier=[]"},"A.4":{"verdict":"PASS","note":"rev merge: merged=true, Lô1 money=true (want 1200000), member 0₫=true, note=true, dbRev=[662|QA-FG16-C-8dbc6d|1||\n663|QA-FG16-D-8dbc6d|2||], dbSnap=[662|1200000|1200000|\n663|0|0|]"}}
 DRIVER A DONE

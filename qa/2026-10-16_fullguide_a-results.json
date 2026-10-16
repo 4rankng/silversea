@@ -1,34 +1,34 @@
 {
-  "pin": "227a08b2",
-  "date": "2026-10-16T13:08:37.253Z",
+  "pin": "a68d2e04",
+  "date": "2026-10-16T15:13:36.108Z",
   "results": {
     "A.1": {
-      "verdict": "FAIL",
-      "note": "Invalid regular expression flags"
+      "verdict": "PASS",
+      "note": "UI create → detail labels (Hàng lẻ (LCL)=true, Chưa có container nào=true), id=660"
     },
     "A.2": {
-      "verdict": "FAIL",
-      "note": "master plan row: found=false, cargoOverview=false, rows=[]"
+      "verdict": "PASS",
+      "note": "master plan row: found=true, cargoOverview=true, rows=[\"16/10/2026 LONG MINH — QA-FG16-D-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú\",\"16/10/2026 LONG MINH — QA-FG16-C-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú\",\"16/10/2026 LONG MINH — QA-FG16-B-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet —"
     },
     "A.3": {
-      "verdict": "FAIL",
-      "note": "Cannot read properties of undefined (reading 'querySelectorAll')"
+      "verdict": "PASS",
+      "note": "group assign: confirm=true, toast=\"Đã gán xe\", labels=[\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép (1/2)\"], db=[660|QA-FG16-A-8dbc6d|1|99T-99999; 661|QA-FG16-B-8dbc6d|2|99T-99999], carrier=[]"
     },
     "A.4": {
-      "verdict": "FAIL",
-      "note": "rev merge: merged=true, Lô1 money=false (want 1200000), member 0₫=false, note=false, dbRev=[622|QA-FG16-C-bb1586|||\n623|QA-FG16-D-bb1586|||], dbSnap=[]"
+      "verdict": "PASS",
+      "note": "rev merge: merged=true, Lô1 money=true (want 1200000), member 0₫=true, note=true, dbRev=[662|QA-FG16-C-8dbc6d|1||\n663|QA-FG16-D-8dbc6d|2||], dbSnap=[662|1200000|1200000|\n663|0|0|]"
     }
   },
   "fixtures": {
-    "shipmentA": null,
-    "shipmentB": 621,
-    "shipmentC": 622,
-    "shipmentD": 623,
-    "refA": "QA-FG16-A-bb1586",
-    "refB": "QA-FG16-B-bb1586",
-    "refC": "QA-FG16-C-bb1586",
-    "refD": "QA-FG16-D-bb1586",
-    "pricingRowId": 116,
-    "hex": "bb1586"
+    "shipmentA": 660,
+    "shipmentB": 661,
+    "shipmentC": 662,
+    "shipmentD": 663,
+    "refA": "QA-FG16-A-8dbc6d",
+    "refB": "QA-FG16-B-8dbc6d",
+    "refC": "QA-FG16-C-8dbc6d",
+    "refD": "QA-FG16-D-8dbc6d",
+    "pricingRowId": 127,
+    "hex": "8dbc6d"
   }
 }
