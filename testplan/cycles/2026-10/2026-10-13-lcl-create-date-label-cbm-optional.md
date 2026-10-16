@@ -62,3 +62,19 @@ không sửa mã.
 
 Rung giữ nguyên mức 3 của lần drive 2026-10-16 (w3a-r17-verify `cus-create_log.json`);
 lần re-run này là rung ≤2 (chạy pin, không drive UI).
+
+## Re-run 2026-10-16 — kanban wave 1016c (Phiếu 2 · FB-084 CBM không bắt buộc)
+
+Implementation status: đã có trên `origin/main` từ dispatch gốc `69708174` (FE
+bỏ dấu * + readiness bỏ điều kiện CBM; BE `assertIntakeReady` không ép CBM);
+wave này chỉ re-run bằng chứng theo §6/§7, không sửa mã.
+
+| Gate | Kết quả | Evidence |
+|---|---|---|
+| `frontend npx tsc --noEmit` | exit 0 | `qa/2026-10-16_kanban-1016c-fb084_fe-tsc.log` |
+| FE vitest asterisk-contract + shipment-create-model | 27/27 PASS (gồm pin "optional CBM unmarked" + payload nullable) | `qa/2026-10-16_kanban-1016c-fb084_fe-vitest.log` |
+| `backend npx tsc --noEmit` | exit 0 | `qa/2026-10-16_kanban-1016c-fb084_be-tsc.log` |
+| BE unit `src/tests/unit/shipment-intake-lcl-cargo.test.ts` | 3/3 PASS | `qa/2026-10-16_kanban-1016c-fb084_be-unit.log` |
+
+Rung giữ nguyên mức 3 của lần drive 2026-10-16 (w3a-r17-verify `cus-create_0{3,4}` + API GET `cargoVolumeCbm: null`);
+lần re-run này là rung ≤2 (chạy pin, không drive UI).
