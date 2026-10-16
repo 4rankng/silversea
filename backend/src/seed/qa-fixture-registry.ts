@@ -62,11 +62,71 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     guards: [],
   },
   {
+    // W1 staging QA (2026-10-16): accounting-created entries are wrapped by a
+    // source row; without this surface the entries surface guard-skips them
+    // (observed in the first W1 purge run: 19 skipped).
+    table: 'expense_accounting_sources',
+    label: 'QA accounting-expense source rows',
+    predicate: `source_id IN (SELECT id FROM ops_expense_entries WHERE fee_name ILIKE 'QA%' OR expense_type_code ILIKE 'QA%' OR note ILIKE 'QA%')`,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
     table: 'ops_expense_entries',
     label: 'OPS expenses (QA-named or on QA shipments)',
     predicate: `fee_name ILIKE 'QA%' OR expense_type_code ILIKE 'QA%' OR note ILIKE 'QA%' OR ${QA_SHIPMENTS_SQL}`,
     action: 'hard-delete-guarded',
     guards: [{ table: 'expense_accounting_sources', column: 'source_id' }],
+  },
+  {
+    // W1 staging QA (2026-10-16): the 2099-12 fixture period is never a real
+    // timesheet period. Days cascade on the month row, but the explicit
+    // children-first surface keeps the purge census legible.
+    table: 'driver_timesheet_days',
+    label: 'QA timesheet grid days (2099 fixture period)',
+    predicate: `month_id IN (SELECT id FROM driver_timesheet_months WHERE year = 2099)`,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
+    table: 'driver_timesheet_months',
+    label: 'QA timesheet months (2099 fixture period)',
+    predicate: `year = 2099`,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
+    // W1 staging QA (2026-10-16): children of the QA advance-request family —
+    // the funding/settlement chain the approve flow created.
+    table: 'advance_settlement_requests',
+    label: 'QA advance settlement allocations',
+    predicate: `settlement_id IN (SELECT id FROM advance_settlements WHERE note ILIKE 'QA%') OR advance_request_id IN (SELECT id FROM advance_requests WHERE reason ILIKE 'QA%')`,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
+    table: 'advance_settlements',
+    label: 'QA advance settlements (QA-named note)',
+    predicate: `note ILIKE 'QA%'`,
+    action: 'hard-delete-guarded',
+    guards: [{ table: 'settlement_expenses', column: 'settlement_id' }],
+  },
+  {
+    // KP-148 funding pair of approved QA advance requests: the treasury OUT
+    // row is found through its ledger link (physical_reference is TU-<id>,
+    // not QA-prefixed).
+    table: 'treasury_movements',
+    label: 'QA advance funding treasury OUT rows',
+    predicate: `ledger_entry_id IN (SELECT id FROM ledger WHERE note ILIKE '%QA-W1-%')`,
+    action: 'hard-delete-guarded',
+    guards: [{ table: 'deposit_refund_trackers', column: 'refund_posted_movement_id' }],
+  },
+  {
+    table: 'ledger',
+    label: 'QA advance funding ledger rows (QA-W1 in note)',
+    predicate: `note ILIKE '%QA-W1-%'`,
+    action: 'hard-delete-guarded',
+    guards: [{ table: 'treasury_movements', column: 'ledger_entry_id' }],
   },
   {
     table: 'advance_requests',

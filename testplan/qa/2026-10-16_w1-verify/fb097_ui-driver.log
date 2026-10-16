@@ -1,0 +1,22 @@
+[2026-10-16T07:41:48.880Z] GOTO /accounting/phoi-phieu
+[2026-10-16T07:41:48.943Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb097_01-board.png
+[2026-10-16T07:41:48.944Z] ASSERT board trip rows = 52
+[2026-10-16T07:41:49.399Z] API GET /api/expense-accounting/phoi-phieu/rows as hoapt -> 200
+[2026-10-16T07:41:49.439Z] CLICK "Xem chi tiết" for BLEHPH260900002 -> true
+[2026-10-16T07:41:51.940Z] ASSERT tiền đường dialog = "Chi tiết tiền đường BLEHPH260900002"
+[2026-10-16T07:41:51.943Z] CLICK "Thêm dòng" -> "＋ Thêm dòng"
+[2026-10-16T07:41:54.855Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb097_02-drawer.png
+[2026-10-16T07:41:54.856Z] ASSERT drawer title = ["Thêm khoản chi"]
+[2026-10-16T07:41:54.856Z] CONTRACT {"ghiChoKhoanChiAbsent":true,"soHoaDonVisible":true,"ngayHoaDonVisible":true,"loaiPhiSelectPresent":true,"ngayChiPresent":true,"groupOptions":[" ","Chi phí lô hàng","Tiền đường"]}
+[2026-10-16T07:41:57.047Z] PICK loại chi phí (combobox) -> Tiền đường khác
+[2026-10-16T07:41:57.553Z] SET Thực chi -> true
+[2026-10-16T07:41:57.959Z] PAYER SUPPLIER -> {"options":[" ","Công ty trả trực tiếp","Nhân viên chi","Nhà cung cấp"]}
+[2026-10-16T07:41:58.660Z] ASSERT supplier autofill state = {"supplierValue":null,"fallbackHint":true}
+[2026-10-16T07:41:58.664Z] MANUAL supplier pick -> {"ok":true,"picked":"Công ty trả trực tiếp"}
+[2026-10-16T07:41:59.354Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb097_03-supplier.png
+[2026-10-16T07:41:59.357Z] CLICK "Lưu 1 khoản chi" -> "Lưu 1 khoản chi"
+[2026-10-16T07:42:03.058Z] ASSERT after save state = {"drawerOpen":true,"statusLine":true,"nameCleared":true,"dongButton":true,"error":null}
+[2026-10-16T07:42:03.237Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb097_04-after-save.png
+[2026-10-16T07:42:03.250Z] CLICK "Đóng" -> "Đóng"
+[2026-10-16T07:42:06.135Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb097_05-after-close.png
+[2026-10-16T07:42:06.737Z] API GET /api/expense-accounting/entries?shipmentId=7 as hoapt -> 200

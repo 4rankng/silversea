@@ -1,0 +1,19 @@
+[2026-10-16T07:45:24.648Z] GOTO /shipments/7
+[2026-10-16T07:45:24.650Z] ASSERT lot code visible = null
+[2026-10-16T07:45:24.744Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb098_01-detail.png
+[2026-10-16T07:45:24.744Z] ASSERT "Khai chi phí" header button = true
+[2026-10-16T07:45:24.745Z] ASSERT panel "+ Thêm khoản chi" button = true
+[2026-10-16T07:45:24.748Z] CLICK "Khai chi phí" -> "Khai chi phí"
+[2026-10-16T07:45:26.452Z] DRAWER -> {"open":true,"subtitle":"BLEHPH260900002 · Chung lô"}
+[2026-10-16T07:45:26.543Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb098_02-drawer.png
+[2026-10-16T07:45:28.303Z] PICK loại (lot-level) -> Chọn loại chi phí
+[2026-10-16T07:45:28.809Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb098_03-filled.png
+[2026-10-16T07:45:28.813Z] CLICK "Lưu 1 khoản chi" -> "Lưu 1 khoản chi"
+[2026-10-16T07:45:32.514Z] ASSERT after save state = {"drawerOpen":true,"statusLine":true,"error":null}
+[2026-10-16T07:45:32.518Z] CLICK "Đóng" -> "Đóng"
+[2026-10-16T07:45:34.992Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb098_04-after-save.png
+[2026-10-16T07:45:34.993Z] ASSERT panel shows QA row = true
+[2026-10-16T07:45:35.380Z] API GET /api/expense-accounting/entries?shipmentId=7 as hoapt -> 200
+[2026-10-16T07:45:41.239Z] GOTO /shipments/7
+[2026-10-16T07:45:41.239Z] ASSERT CUS sees "Khai chi phí"? = false
+[2026-10-16T07:45:41.309Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb098_05-cus-no-button.png

@@ -1,0 +1,21 @@
+{
+  "lotCode": null,
+  "khaiChiPhiButton": true,
+  "panelAddButton": true,
+  "drawerOpen": {
+    "open": true,
+    "subtitle": "BLEHPH260900002 · Chung lô"
+  },
+  "pickedLoai": "Chọn loại chi phí",
+  "afterSave": {
+    "drawerOpen": true,
+    "statusLine": true,
+    "error": null
+  },
+  "panelShowsRow": true,
+  "persistedQaW1Refs": [
+    "QA-W1 khai chi phí lô fixture"
+  ],
+  "persistedViaApi": true,
+  "cusSeesKhaiChiPhi": false
+}

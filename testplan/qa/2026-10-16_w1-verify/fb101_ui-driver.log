@@ -1,0 +1,18 @@
+[2026-10-16T08:06:21.794Z] GOTO /dashboard
+[2026-10-16T08:06:26.817Z] GOTO /timesheet
+[2026-10-16T08:06:26.818Z] ASSERT hoapt /timesheet page state = {"heading":true,"saveGridButton":false,"driverPicker":false,"legendWhenMonth":null}
+[2026-10-16T08:06:26.893Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb101_01-accountant-grid.png
+[2026-10-16T08:06:31.833Z] GOTO /timesheet/doi-chieu
+[2026-10-16T08:06:31.835Z] ASSERT hoapt /timesheet/doi-chieu loads = {"denied":false,"heading":"Bỏ qua đến nội dung chính\nĐã chuyển đến Đối chiếu chấm công\nTransTing\nQuản lý vận tải và logistics\nTổng Quan\nPhơi phiếu\nCông nợ vận tải\nQuỹ\nNhân sự\nLương & Chấm công\nChấm công lái xe\nĐối chiếu chấm công\nTổng hợp xếp lệnh tháng\nDanh sách nhân sự\nGiá & cước\nBáo cáo\nVận hành liên quan\nHệ thống\nPhạm Thị"}
+[2026-10-16T08:06:37.015Z] GOTO /timesheet/bao-cao
+[2026-10-16T08:06:37.019Z] ASSERT hoapt /timesheet/bao-cao loads = true
+[2026-10-16T08:06:37.114Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb101_02-accountant-report.png
+[2026-10-16T08:06:41.477Z] GOTO /dashboard
+[2026-10-16T08:06:46.521Z] GOTO /timesheet
+[2026-10-16T08:06:46.524Z] ASSERT dungnv /timesheet loads = {"heading":true}
+[2026-10-16T08:06:46.613Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb101_03-dispatcher-grid.png
+[2026-10-16T08:06:52.507Z] GOTO /dashboard
+[2026-10-16T08:06:57.063Z] GOTO /timesheet
+[2026-10-16T08:06:57.065Z] ASSERT tiepvv /timesheet denied = {"onGridPage":false,"redirectPath":"/shipments"}
+[2026-10-16T08:06:57.339Z] API PUT /api/timesheet/months/999999/days as hoapt -> 403
+[2026-10-16T08:06:57.549Z] API POST /api/timesheet/months as hoapt -> 404

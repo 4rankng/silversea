@@ -1,0 +1,17 @@
+[2026-10-16T08:14:58.197Z] EXPECTED trips=5 workdays=5
+[2026-10-16T08:15:04.361Z] GOTO /timesheet?m=12&y=2099
+[2026-10-16T08:15:07.612Z] ASSERT dungnv: hint, no mở-bảng button = {"hint":true,"openBoardButton":false}
+[2026-10-16T08:15:07.689Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb102_01-dispatcher-no-button.png
+[2026-10-16T08:15:13.597Z] GOTO /timesheet?m=12&y=2099
+[2026-10-16T08:15:16.901Z] ASSERT hoapt sees Mở bảng chấm công = true
+[2026-10-16T08:15:18.509Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb102_02-dialog.png
+[2026-10-16T08:15:18.509Z] ASSERT Mở bảng dialog = {"title":true,"modeHintText":"Hình thức lương","dailyBaseField":true,"emptyOkHint":true}
+[2026-10-16T08:15:21.902Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb102_03-grid-opened.png
+[2026-10-16T08:15:21.903Z] ASSERT driver 16 grid after open = {"modeLine":null,"cellCount":0}
+[2026-10-16T08:15:27.802Z] GOTO /timesheet?m=12&y=2099
+[2026-10-16T08:15:31.171Z] ASSERT dungnv sees Lưu lưới = true
+[2026-10-16T08:15:33.722Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb102_04-typed.png
+[2026-10-16T08:15:36.811Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb102_05-after-save.png
+[2026-10-16T08:15:36.812Z] ASSERT grid running totals = {"chuyen":"4","summaryRail":false}
+[2026-10-16T08:15:37.171Z] API GET /api/timesheet/months?year=2099&month=12 as hoapt -> 200
+[2026-10-16T08:15:37.619Z] API PUT /api/timesheet/months/2/days as dungnv -> 400

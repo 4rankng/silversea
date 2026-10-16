@@ -1,0 +1,16 @@
+{
+  "zones": {
+    "summaryRail": true,
+    "pendingHeading": true,
+    "pendingCaption": true,
+    "pendingTablePresent": true,
+    "pendingRowCount": 134,
+    "planTablePresent": true,
+    "planRowCount": 22,
+    "planRowsWithPendingText": 0,
+    "roundsSection": true,
+    "chromeCells": 0,
+    "summaryChip": "134"
+  },
+  "columnParity": true
+}

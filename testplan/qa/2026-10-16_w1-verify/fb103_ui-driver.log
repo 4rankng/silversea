@@ -1,0 +1,13 @@
+[2026-10-16T08:19:32.104Z] GOTO /timesheet/doi-chieu?m=12&y=2099
+[2026-10-16T08:19:32.111Z] ASSERT doi-chieu page state = {"heading":true,"driverNames":["Bùi Quang Hường","Bùi Tiến Dũng"],"salaryPanel":true,"modeLine":"Hình thức lương","tongHopPanel":true,"reconcileLock":false}
+[2026-10-16T08:19:32.201Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb103_01-doi-chieu.png
+[2026-10-16T08:19:32.202Z] ASSERT mode panel controls = {"nativeSelect":null,"comboboxInput":false,"saveButton":false}
+[2026-10-16T08:19:32.202Z] MODE CONTROLS {"nativeSelect":null,"comboboxInput":false,"saveButton":false}
+[2026-10-16T08:19:32.206Z] SWITCH -> native-select
+[2026-10-16T08:19:35.320Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb103_02-flat-saved.png
+[2026-10-16T08:19:35.766Z] API GET /api/timesheet/months?year=2099&month=12 as hoapt -> 200
+[2026-10-16T08:19:40.907Z] GOTO /timesheet?m=12&y=2099
+[2026-10-16T08:19:40.908Z] ASSERT grid mode line (FLAT) = "Hình thức lương: Lương theo tháng (trốn vé) · Lương tháng 10000000 ₫"
+[2026-10-16T08:19:40.993Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb103_03-grid-flat.png
+[2026-10-16T08:19:47.430Z] GOTO /timesheet/doi-chieu?m=12&y=2099
+[2026-10-16T08:19:51.260Z] API GET /api/timesheet/months?year=2099&month=12 as hoapt -> 200
