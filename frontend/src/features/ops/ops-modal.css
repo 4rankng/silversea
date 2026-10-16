@@ -245,6 +245,19 @@
   padding: 8px 10px;
   border-radius: 8px;
 }
+/* Card 141026230720 — the duplicate-cost confirm panel reuses the warning
+   band and adds the earlier-row list + explicit override actions. */
+.ops-modal__duplicate p { margin: 0 0 6px; }
+.ops-modal__duplicate ul {
+  margin: 0 0 6px;
+  padding-left: 18px;
+}
+.ops-modal__duplicate li { list-style: disc; }
+.ops-modal__duplicate-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .ops-modal__fieldset {
   border: 0;
   margin: 0;

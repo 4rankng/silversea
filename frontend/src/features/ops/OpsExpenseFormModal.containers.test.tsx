@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../components/shared/Toast';
 import type { OpsOrderItem } from '../../api/opsClient';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { ApiError } from '../../lib/api/errors';
 import { OpsExpenseFormModal, opsContainerId } from './OpsExpenseFormModal';
 
 // Audit c12 cluster A (Kế hoạch làm hàng → Khai báo chi phí): the Số Cont
@@ -205,5 +206,70 @@ describe('plan step 5 — open Ops scope + duplicate-cont warning', { timeout: 2
     await screen.findByLabelText(/Số Bill/);
     expect(soContTrigger().textContent).toContain('Phí chung lô');
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+// Card 141026230720 — the write path's duplicate bounce (same expense type +
+// same scope twice) must surface as an explicit confirm panel, never a silent
+// block and never a straight save: only "Tiếp tục lưu" resends with
+// duplicateConfirmed, and a plain 409 without the code keeps the toast path.
+describe('141026230720 — duplicate cost-entry confirm (type + scope)', { timeout: 20_000 }, () => {
+  const dupError = () => new ApiError(409, {
+    code: 'OPS_EXPENSE_DUPLICATE',
+    duplicates: [{
+      id: 91, expenseTypeName: 'Phí soi chiếu', containerNumber: 'TGHU1234567',
+      paidByName: 'Ops Trần', amount: '450000', paidAt: '2026-10-14',
+    }],
+  }, 'Loại phí này đã có Ops Trần nhập trước — kiểm tra lại để tránh nhập trùng.');
+
+  async function fillAndSave() {
+    await chooseType('Phí soi chiếu');
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '450000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+  }
+
+  it('a duplicate 409 shows the confirm panel naming the earlier row — no resend yet', async () => {
+    api.createExpense.mockRejectedValueOnce(dupError());
+    show();
+    await fillAndSave();
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0].duplicateConfirmed).toBeUndefined();
+    const panel = await screen.findByRole('alert');
+    expect(panel.textContent).toContain('đã được Ops Trần nhập trước đó');
+    expect(panel.textContent).toContain('bạn vẫn tiếp tục nhập chứ?');
+    expect(panel.textContent).toContain('450.000');
+    expect(panel.textContent).toContain('cont TGHU1234567');
+  });
+
+  it('Tiếp tục lưu resends with duplicateConfirmed and closes on success', async () => {
+    api.createExpense.mockRejectedValueOnce(dupError()).mockResolvedValueOnce(entry);
+    const { close } = show();
+    await fillAndSave();
+    await screen.findByRole('alert');
+    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục lưu' }));
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
+    expect(api.createExpense.mock.calls[1][0].duplicateConfirmed).toBe(true);
+    await waitFor(() => expect(close).toHaveBeenCalled());
+  });
+
+  it('Kiểm tra lại dismisses the panel without a resend — the form stays editable', async () => {
+    api.createExpense.mockRejectedValueOnce(dupError());
+    show();
+    await fillAndSave();
+    await screen.findByRole('alert');
+    fireEvent.click(await screen.findByRole('button', { name: 'Kiểm tra lại' }));
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    expect(api.createExpense).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
+  });
+
+  it('a plain 409 without the duplicate code never opens the panel', async () => {
+    api.createExpense.mockRejectedValueOnce(new ApiError(409, { error: 'Dữ liệu đã tồn tại' }, 'Dữ liệu đã tồn tại'));
+    show();
+    await fillAndSave();
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByText(/nhập trước đó/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tiếp tục lưu' })).toBeNull();
   });
 });

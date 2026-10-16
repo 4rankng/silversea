@@ -2,11 +2,12 @@ import { PhotoImage } from '../../components/shared/PhotoImage';
 import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2, X } from 'lucide-react';
 import { useOpsExpenseTypes, useOpsContainerClaimants, useCreateOpsExpense } from '../../hooks/useOpsQueries';
-import { opsClient, type OpsOrderItem } from '../../api/opsClient';
+import { opsClient, type OpsOrderItem, type OpsExpenseDuplicateHit } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
+import { ApiError } from '../../lib/api/errors';
 import { localDateInputValue } from './opsStatus';
 import { formatMoney } from '../../lib/format';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
@@ -37,6 +38,20 @@ export function opsContainerId(containerChoice: string): number | null {
   return Number(containerChoice);
 }
 
+/** Card 141026230720 — recognize the write path's duplicate bounce (409
+ *  OPS_EXPENSE_DUPLICATE) and lift its earlier-row list for the confirm
+ *  panel. Anything else (including other 409s) returns null so the caller
+ *  keeps the ordinary red-toast handling. */
+export function opsDuplicateHitsFromError(error: unknown): OpsExpenseDuplicateHit[] | null {
+  if (error instanceof ApiError && error.status === 409) {
+    const raw = error.raw as { code?: unknown; duplicates?: unknown } | null;
+    if (raw?.code === 'OPS_EXPENSE_DUPLICATE' && Array.isArray(raw.duplicates) && raw.duplicates.length > 0) {
+      return raw.duplicates as OpsExpenseDuplicateHit[];
+    }
+  }
+  return null;
+}
+
 /**
  * "Khai báo chi phí" (OpsVanHanh §3.3): context-first form — mã lô + số bill
  * tự điền readonly, số cont chọn từ vỏ của lô, loại phí nhóm theo
@@ -55,6 +70,10 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const [paidAt, setPaidAt] = useState(localDateInputValue());
   const [note, setNote] = useState('');
   const [financial, setFinancial] = useOpsExpenseFinancialDraft();
+  // Card 141026230720 — live rows the write path bounced as duplicates
+  // (same type + same scope). Non-null renders the explicit confirm panel;
+  // only "Tiếp tục lưu" resends with duplicateConfirmed.
+  const [duplicateHits, setDuplicateHits] = useState<OpsExpenseDuplicateHit[] | null>(null);
   const savingRef = useRef(false);
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   // DRV-DET-08: receipt evidence loads with the Authorization header (blob),
@@ -145,8 +164,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     }
   }
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  async function save(duplicateConfirmed: boolean) {
     if (!canSubmit || savingRef.current) return;
     savingRef.current = true;
     try {
@@ -159,14 +177,28 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         note: note.trim() || null,
         photoStorageKeys: photos.map((photo) => photo.storageKey),
         ...opsFinancialPayload(financial),
+        duplicateConfirmed: duplicateConfirmed || undefined,
       });
       toast({ kind: 'success', message: 'Đã ghi nhận khoản chi.' });
       onClose();
     } catch (error) {
-      toastActionError(toast, 'lưu khoản chi', error, 'Lưu khoản chi thất bại.');
+      // Card 141026230720 — a duplicate bounce is a QUESTION, not a failure:
+      // show the confirm panel naming the earlier rows instead of a red
+      // toast, and let only an explicit "Tiếp tục lưu" override.
+      const hits = opsDuplicateHitsFromError(error);
+      if (hits) {
+        setDuplicateHits(hits);
+      } else {
+        toastActionError(toast, 'lưu khoản chi', error, 'Lưu khoản chi thất bại.');
+      }
     } finally {
       savingRef.current = false;
     }
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    await save(false);
   }
 
   const busy = createExpense.isPending;
@@ -197,7 +229,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             <UuiSelectField
               label="Số Cont"
               value={containerChoice}
-              onChange={(event) => setContainerChoice(event.target.value)}
+              onChange={(event) => { setContainerChoice(event.target.value); setDuplicateHits(null); }}
               options={[
                 { value: 'LOT', label: 'Phí chung lô' },
                 ...order.containerNumbers.map((containerNumber, index) => (
@@ -213,6 +245,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               onChange={(event) => {
                 const type = typesData?.items.find((item) => item.code === event.target.value);
                 setTypeCode(event.target.value);
+                setDuplicateHits(null);
                 setFinancial((current) => ({ ...current, costGroup: opsGroupForType(type) }));
               }}
               options={expenseTypeOptions}
@@ -229,6 +262,26 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             <p className="ops-modal__warning" role="alert">
               {`Cont ${claimedContainerLabel} đã có ${claimant.paidByName ?? 'người khác'} nhập trước — bạn vẫn tiếp tục nhập chứ.`}
             </p>
+          )}
+
+          {duplicateHits && (
+            <div className="ops-modal__warning ops-modal__duplicate" role="alert">
+              <p>
+                {`Loại phí "${duplicateHits[0].expenseTypeName ?? typeCode}" đã được ${duplicateHits[0].paidByName ?? 'người khác'} nhập trước đó — bạn vẫn tiếp tục nhập chứ?`}
+              </p>
+              <ul>
+                {duplicateHits.map((hit) => (
+                  <li key={hit.id}>
+                    {`${hit.paidByName ?? 'người khác'} · ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt}${hit.containerNumber ? ` · cont ${hit.containerNumber}` : ' · phí chung lô'}`}
+                  </li>
+                ))}
+              </ul>
+              <p className="ops-modal-hint">Kiểm tra lại để tránh nhập trùng. Nếu đây là lần chi hợp lệ (ví dụ tách thanh toán), bấm Tiếp tục lưu.</p>
+              <div className="ops-modal__duplicate-actions">
+                <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={() => setDuplicateHits(null)}>Kiểm tra lại</button>
+                <button type="button" className="btn btn--primary btn--sm" disabled={busy || uploading} onClick={() => void save(true)}>Tiếp tục lưu</button>
+              </div>
+            </div>
           )}
 
           <OpsExpenseFinancialFields value={financial} onChange={setFinancial} amount={amountValid ? Number(amount) : 0} disabled={busy || uploading} />

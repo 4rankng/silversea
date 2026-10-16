@@ -146,6 +146,18 @@ export interface OpsContainerClaimant {
   paidByName: string | null;
 }
 
+/** Card 141026230720 — one live row the write path bounced as a duplicate:
+ *  same expense type on the same scope (container, or lot-wide). Rendered by
+ *  the entry form's confirm panel before an explicit override resend. */
+export interface OpsExpenseDuplicateHit {
+  id: number;
+  expenseTypeName: string | null;
+  containerNumber: string | null;
+  paidByName: string | null;
+  amount: string;
+  paidAt: string;
+}
+
 export interface OpsFleetTruck {
   truckId: number;
   licensePlate: string;
@@ -298,6 +310,11 @@ export const opsClient = {
     invoiceNumber?: string | null;
     invoiceDate?: string | null;
     recoveryNote?: string | null;
+    /** Card 141026230720 — set only after the operator explicitly confirmed
+     *  the duplicate warning (legit split payments etc.). The unconfirmed
+     *  save bounces with 409 OPS_EXPENSE_DUPLICATE and the modal shows the
+     *  confirm panel instead of a red toast. */
+    duplicateConfirmed?: boolean;
   }) => api.post<OpsExpenseRow & { id: number }>('/ops/expenses', body),
   updateExpense: (id: number, body: Record<string, unknown>) =>
     api.patch<OpsExpenseRow>(`/ops/expenses/${id}`, body),
