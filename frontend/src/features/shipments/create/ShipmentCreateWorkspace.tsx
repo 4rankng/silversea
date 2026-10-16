@@ -524,11 +524,26 @@ export function ShipmentCreateWorkspace() {
   }
 
   async function save(intent: SaveIntent) {
+    // FB-048 (card 141026003600): the native pre-gate used to run FIRST and
+    // return, so a partially-typed date/Time field (which sets customValidity
+    // on its segments) starved every OTHER required field of its issue — the
+    // card's exact symptom: "chỉ ô ngày/giờ nhập dở mới có viền đỏ", while
+    // Khách hàng / Hình thức XNK / Số Bill-Booking / Loại container stayed
+    // neutral on an all-empty submit.
+    //
+    // The app-owned pass now runs first: it paints every invalid field and
+    // blocks the save on its own. The native gate stays as the fallback for a
+    // constraint the model does not express (an empty value passes validation
+    // but the input is still `:invalid`), so nothing can slip through a save.
     const incomplete = workspaceFormRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid, [data-split-datetime] input:invalid');
-    if (incomplete) { incomplete.focus(); incomplete.reportValidity(); return; }
     const result = await runSave(intent);
+    // A partial date/time draft still earns its own native message
+    // ("Nhập đủ giờ và ngày hợp lệ.") — reported on top of the app-owned paint,
+    // never instead of it.
+    if (incomplete) incomplete.reportValidity();
     if (result.issues.length > 0) {
       window.requestAnimationFrame(() => focusIssue(result.issues[0].fieldId));
+      return;
     }
   }
 

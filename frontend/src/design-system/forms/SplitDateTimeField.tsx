@@ -198,7 +198,11 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
       setKeyboardPicker(keyboard); setOpen(part);
     }
   };
-  const message = error || (touched ? validation : '');
+  // FB-048 (card 141026003600): a half-typed draft knows exactly what is wrong
+  // with it ("Nhập đủ giờ và ngày hợp lệ."), while the host's issue message is
+  // the field-level fallback. The draft's own message wins whenever this field
+  // has been touched; otherwise the host message stands.
+  const message = (touched ? validation : '') || error;
   const dateValue = parseDateTime24(`00:00 ${draft.date}`)?.slice(0, 10) ?? '';
 
   return <div ref={(node) => { groupRef.current = node; if (typeof externalGroupRef === 'function') externalGroupRef(node); else if (externalGroupRef) externalGroupRef.current = node; }} data-split-datetime className={['split-datetime', className].filter(Boolean).join(' ')} role="group" aria-label={label}
