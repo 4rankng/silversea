@@ -93,3 +93,41 @@
   diện").
 - Evidence: fb099_01…02 png, fb099_assertions.json, fb099_ui-driver.log,
   fb099-debit-zones.mjs.
+
+## FB-100 — Tạm ứng & hoàn ứng: phê duyệt + tick + số âm — PASS với FINDINGS(1) (rung 3 trừ 1 nhóm)
+
+- **Nút "Phê duyệt tạm ứng" (chạy đủ rung 3):** OPS `hoangnh` tạo yêu cầu
+  `POST /api/ops/wallet/advance-requests` (Idempotency-Key) → row
+  `QA-W1-mvaohgcf` **PENDING** hiện trên /advances?view=requests với nút
+  **"Phê duyệt tạm ứng"** → click → dòng đổi **"Đã ghi nhận"**, nút biến mất,
+  không banner lỗi. API: request **id 21 RECORDED, approvedBy=9 (hoapt),
+  approvedAt stamp, version 1→2** = duyệt = giải ngân KP-148.
+  Lưu ý điều tra: `/api/forwarder/me/advance-requests` là đường ghi thẳng
+  RECORDED (fixture id 17 — không chạm tiền); đường PENDING đúng hợp đồng
+  CPB-03 là `/api/ops/wallet/...`.
+- **Phiếu hoàn ứng gắn chú thích:** phiếu **PT-2610-0002 (id 8)** tạo qua
+  `POST /api/forwarder/me/advance-settlements` (refund +2,000,000 = cân đối
+  với 0 chi phí), trang /settlements/8 hiện "Đã ghi nhận" + note QA-W1.
+- **FINDING F-W1-1 (cho owner, không phải regression):** block "Xác nhận hoàn
+  ứng" + "Ghi nhận phiếu" chỉ render khi phiếu **DRAFT**
+  (`canEditExpenses = canManageSettlements && status==='DRAFT'`,
+  SettlementPrintPage.tsx) nhưng `createAdvanceSettlement` sinh phiếu thẳng
+  **RECORDED** và không có writer nào tạo phiếu DRAFT (staging: 0 phiếu
+  DRAFT, 2 RECORDED, 1 REVERSED). Tick gate đã có + unit-pinned
+  (SettlementPrintPage.test.tsx case FB-100 set status DRAFT) nhưng **không
+  tới được trong luồng sống**. Cần owner xác nhận (a) luồng DRAFT dự kiến
+  hoạt động thế nào hoặc (b) bỏ block chết. Root candidates:
+  frontend/src/pages/SettlementPrintPage.tsx (gate),
+  backend/src/services/advance-settlement.service.ts (birth status).
+- **Số âm:** luật cân đối `assertSettlementBalanced` đếm chi phí từ các dòng
+  trip-expense THẬT — hoàn ứng âm chỉ legal khi chi phí > tạm ứng; staging
+  không có bộ trip-expense đủ điều kiện của forwarder (0 candidate) nên
+  không dựng được phiếu âm thật. Schema signed + hiển thị −200.000 ₫ được pin
+  unit (OpsReconciliationReportPage.test.tsx:151). Giới hạn cover, không
+  phải defect.
+- **Báo cáo /accounting/hoan-ung (rung 3):** bảng có cột **"Còn phải hoàn ứng
+  (có dấu)"** + ghi chú **"Đề nghị thu tiền ứng"** (fb100_08-report-probe.png;
+  lần chạy script đầu thấy false do bảng chưa load xong — probe sau xác nhận).
+- **Cleanup:** phiếu 8 → **REVERSED** qua reversal endpoint (201) trước purge.
+- Evidence: fb100_01…08 png, fb100_assertions.json, fb100_ui-driver.log,
+  fb100-advances.mjs.

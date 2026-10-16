@@ -1,0 +1,24 @@
+[2026-10-16T08:00:51.524Z] API GET /api/advance-requests?status=PENDING&limit=200 as hoapt -> 200
+[2026-10-16T08:00:51.526Z] REUSE REQUEST id=21 status=PENDING
+[2026-10-16T08:00:59.887Z] GOTO /advances?view=requests
+[2026-10-16T08:01:00.000Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb100_01-requests.png
+[2026-10-16T08:01:00.007Z] ASSERT QA-W1 row before approve = {"found":true,"text":"Nguyễn Huy Hoàng | 2.000.000 ₫ | 16/10/2026 | Chờ phê duyệt | QA-W1-mvaohgcf tạm ứng fixture | Phê duyệt tạm ứng | bởi Nguyễn Huy Hoàng","hasApproveButton":true}
+[2026-10-16T08:01:00.013Z] CLICK Phê duyệt tạm ứng
+[2026-10-16T08:01:03.618Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb100_02-after-approve.png
+[2026-10-16T08:01:03.619Z] ASSERT QA-W1 row after approve = {"found":true,"text":"Nguyễn Huy Hoàng | 2.000.000 ₫ | 16/10/2026 | Đã ghi nhận | QA-W1-mvaohgcf tạm ứng fixture | bởi Nguyễn Huy Hoàng"}
+[2026-10-16T08:01:03.619Z] ASSERT approve error banner = null
+[2026-10-16T08:01:04.243Z] API GET /api/advance-requests?limit=200 as hoapt -> 200
+[2026-10-16T08:01:04.689Z] API POST /api/forwarder/me/advance-settlements as hoangnh -> 201
+[2026-10-16T08:01:04.689Z] PHIEU id=8 code=PT-2610-0002 status=RECORDED
+[2026-10-16T08:01:10.241Z] GOTO /settlements/8
+[2026-10-16T08:01:10.327Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb100_03-phieu.png
+[2026-10-16T08:01:10.328Z] ASSERT phiếu page state = {"phiếuStatus":"Đã ghi nhận","tickPresent":false,"buttonPresent":false,"refundInputPresent":false,"note":"QA-W1 phiếu visible"}
+[2026-10-16T08:01:10.328Z] RECORD BLOCK NOT REACHABLE (DRAFT-gated, zero DRAFT phiếu) — finding F-W1-1 recorded
+[2026-10-16T08:01:16.062Z] GOTO /accounting/hoan-ung
+[2026-10-16T08:01:16.136Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb100_07-report.png
+[2026-10-16T08:01:16.137Z] ASSERT hoàn ứng report surface = {"signedColumn":false,"thuTienUngNote":true}
+[2026-10-16T08:01:21.751Z] GOTO /accounting/hoan-ung
+[2026-10-16T08:01:21.843Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb100_07-report.png
+[2026-10-16T08:01:21.843Z] ASSERT hoàn ứng report surface = {"signedColumn":false,"thuTienUngNote":true,"fixtureVisible":false}
+[2026-10-16T08:01:22.278Z] API GET /api/advance-settlements/8 as hoapt -> 200
+[2026-10-16T08:01:22.683Z] API POST /api/advance-settlements/8/reversal as hoapt -> 201

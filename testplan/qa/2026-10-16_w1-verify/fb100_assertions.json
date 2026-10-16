@@ -1,0 +1,90 @@
+{
+  "createdRequest": {
+    "reused": true,
+    "id": 21,
+    "status": "PENDING"
+  },
+  "rowBeforeApprove": {
+    "found": true,
+    "text": "Nguyễn Huy Hoàng | 2.000.000 ₫ | 16/10/2026 | Chờ phê duyệt | QA-W1-mvaohgcf tạm ứng fixture | Phê duyệt tạm ứng | bởi Nguyễn Huy Hoàng",
+    "hasApproveButton": true
+  },
+  "rowAfterApprove": {
+    "found": true,
+    "text": "Nguyễn Huy Hoàng | 2.000.000 ₫ | 16/10/2026 | Đã ghi nhận | QA-W1-mvaohgcf tạm ứng fixture | bởi Nguyễn Huy Hoàng"
+  },
+  "approveError": null,
+  "requestAfterApprove": {
+    "id": 21,
+    "status": "RECORDED",
+    "approvedBy": 9,
+    "approvedAt": "2026-10-16T08:01:00.117Z",
+    "version": 2
+  },
+  "persistedApprove": true,
+  "createdPhieu": {
+    "id": 8,
+    "version": 1,
+    "code": "PT-2610-0002",
+    "forwarderId": 3,
+    "totalExpenseAmount": "0",
+    "refundAmount": "2000000",
+    "status": "RECORDED",
+    "checkedBy": null,
+    "checkedAt": null,
+    "approvedBy": 3,
+    "approvedAt": "2026-10-16T08:01:04.627Z",
+    "autoOffsetExpenseId": null,
+    "note": "QA-W1-mvaohh4t phiếu hoàn ứng fixture",
+    "createdAt": "2026-10-16T08:01:04.594Z",
+    "updatedAt": "2026-10-16T08:01:04.594Z",
+    "linkedRequests": [
+      {
+        "id": 21,
+        "version": 2,
+        "requesterId": 3,
+        "requesterNameSnapshot": "Nguyễn Huy Hoàng",
+        "amount": "2000000",
+        "reason": "QA-W1-mvaohgcf tạm ứng fixture",
+        "status": "RECORDED",
+        "approvedBy": 9,
+        "approvedAt": "2026-10-16T08:01:00.117Z",
+        "createdAt": "2026-10-16T08:00:51.221Z",
+        "updatedAt": "2026-10-16T08:01:00.117Z",
+        "allocatedAmount": "2000000"
+      }
+    ],
+    "linkedExpenses": [],
+    "replayed": false
+  },
+  "phiếuPageState": {
+    "phiếuStatus": "Đã ghi nhận",
+    "tickPresent": false,
+    "buttonPresent": false,
+    "refundInputPresent": false,
+    "note": "QA-W1 phiếu visible"
+  },
+  "recordBlockFinding": "FINDING F-W1-1: the tick/Ghi nhận record block is DRAFT-gated (canEditExpenses = canManageSettlements && status DRAFT, SettlementPrintPage.tsx) but advance settlements are born RECORDED (advance-settlement.service.ts createAdvanceSettlement) and no backend writer produces a DRAFT advance settlement — the FB-100 tick gate is unit-pinned (SettlementPrintPage.test.tsx FB-100 case sets status DRAFT) yet unreachable in the live flow; zero DRAFT phiếu exist on staging.",
+  "report": {
+    "signedColumn": false,
+    "thuTienUngNote": true,
+    "fixtureVisible": false
+  },
+  "phieuAfterRecord": {
+    "id": 8,
+    "status": "RECORDED",
+    "refundAmount": "2000000",
+    "checkedBy": null,
+    "version": 1
+  },
+  "persistedBalancedRefund": true,
+  "reversal": {
+    "status": 201,
+    "reversedStatus": "APPROVED"
+  },
+  "fixtures": {
+    "advanceRequestId": 21,
+    "advanceSettlementId": 8,
+    "note": "ledger note \"Phê duyệt tạm ứng: QA-W1-*\" + treasury movement link the funding pair"
+  }
+}
