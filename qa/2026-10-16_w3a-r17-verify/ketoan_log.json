@@ -1,0 +1,218 @@
+[
+  {
+    "at": "2026-10-16T05:31:33.257Z",
+    "step": "health",
+    "buildHash": "a2e5d48c",
+    "expect": "a2e5d48c"
+  },
+  {
+    "at": "2026-10-16T05:31:33.702Z",
+    "step": "identity",
+    "user": "hoapt",
+    "jwtUsername": "hoapt"
+  },
+  {
+    "at": "2026-10-16T05:31:40.980Z",
+    "step": "FB-042-driver-pick",
+    "total": 43,
+    "picked": null,
+    "sample": [
+      "id",
+      "name",
+      "baseSalary",
+      "status",
+      "salary"
+    ]
+  },
+  {
+    "at": "2026-10-16T05:31:46.050Z",
+    "step": "FB-042-chip",
+    "count": 3,
+    "areaBox": 713,
+    "details": [
+      {
+        "txt": "BLCUSa24BB",
+        "h": 18.5,
+        "ellipsized": false,
+        "hiddenOverflow": false,
+        "clamped": false,
+        "whiteSpace": "normal",
+        "clippedContent": false
+      },
+      {
+        "txt": "E2EROLE001",
+        "h": 18.5,
+        "ellipsized": false,
+        "hiddenOverflow": false,
+        "clamped": false,
+        "whiteSpace": "normal",
+        "clippedContent": false
+      },
+      {
+        "txt": "E2E-BILL-001",
+        "h": 35,
+        "ellipsized": false,
+        "hiddenOverflow": false,
+        "clamped": false,
+        "whiteSpace": "normal",
+        "clippedContent": false
+      }
+    ]
+  },
+  {
+    "at": "2026-10-16T05:31:46.050Z",
+    "step": "TC",
+    "id": "FB-042",
+    "verdict": "PASS",
+    "note": "trip codes render in full (wrap-at-hyphens law, card 20261004_338); no truncation idiom",
+    "count": 3,
+    "areaBox": 713,
+    "details": [
+      {
+        "txt": "BLCUSa24BB",
+        "h": 18.5,
+        "ellipsized": false,
+        "hiddenOverflow": false,
+        "clamped": false,
+        "whiteSpace": "normal",
+        "clippedContent": false
+      },
+      {
+        "txt": "E2EROLE001",
+        "h": 18.5,
+        "ellipsized": false,
+        "hiddenOverflow": false,
+        "clamped": false,
+        "whiteSpace": "normal",
+        "clippedContent": false
+      },
+      {
+        "txt": "E2E-BILL-001",
+        "h": 35,
+        "ellipsized": false,
+        "hiddenOverflow": false,
+        "clamped": false,
+        "whiteSpace": "normal",
+        "clippedContent": false
+      }
+    ]
+  },
+  {
+    "at": "2026-10-16T05:31:46.051Z",
+    "step": "FB-049-summary",
+    "gluedSample": [],
+    "hiểnThị": null
+  },
+  {
+    "at": "2026-10-16T05:31:53.348Z",
+    "step": "FB-046-charts",
+    "found": true,
+    "clipped": [],
+    "texts": [
+      "Cơ cấu chi phí 10/26",
+      "Nhiên liệu",
+      "73.500 ₫",
+      "1%",
+      "Vé cầu đường · phí công ty",
+      "15.000 ₫",
+      "0%",
+      "Khấu hao",
+      "7.500.000 ₫",
+      "87%",
+      "Cố định đội xe",
+      "1.000.000 ₫",
+      "12%",
+      "Top xe theo lợi nhuận – 10/26"
+    ],
+    "ticks": [
+      "73.500 ₫",
+      "15.000 ₫"
+    ]
+  },
+  {
+    "at": "2026-10-16T05:31:53.375Z",
+    "step": "TC",
+    "id": "FB-046",
+    "verdict": "PASS",
+    "labels": [
+      "Cơ cấu chi phí 10/26",
+      "Nhiên liệu",
+      "73.500 ₫",
+      "1%",
+      "Vé cầu đường · phí công ty",
+      "15.000 ₫",
+      "0%",
+      "Khấu hao",
+      "7.500.000 ₫",
+      "87%"
+    ],
+    "clipped": 0
+  },
+  {
+    "at": "2026-10-16T05:31:53.376Z",
+    "step": "TC",
+    "id": "FB-050",
+    "verdict": "PASS",
+    "ticks": [
+      "73.500 ₫",
+      "15.000 ₫"
+    ],
+    "negativeTick": false,
+    "note": "zero tick is real data when negative bars exist"
+  },
+  {
+    "at": "2026-10-16T05:31:59.435Z",
+    "step": "debt-row-click",
+    "found": true,
+    "txt": "CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINHNợ quá hạn5.9"
+  },
+  {
+    "at": "2026-10-16T05:32:01.991Z",
+    "step": "FB-048-pay-btn",
+    "found": true
+  },
+  {
+    "at": "2026-10-16T05:32:04.036Z",
+    "step": "FB-048-empty-guard",
+    "found": true,
+    "disabled": true
+  },
+  {
+    "at": "2026-10-16T05:32:04.605Z",
+    "step": "FB-048-btn-after-invalid-fill",
+    "disabled": false
+  },
+  {
+    "at": "2026-10-16T05:32:04.615Z",
+    "step": "FB-048-invalid-submit",
+    "clicked": true
+  },
+  {
+    "at": "2026-10-16T05:32:05.879Z",
+    "step": "FB-048-invalid-boundary",
+    "bannerText": "Số tiền không hợp lệ.",
+    "amtInvalid": "true",
+    "amtBorder": "rgb(160, 68, 78)"
+  },
+  {
+    "at": "2026-10-16T05:32:05.879Z",
+    "step": "TC",
+    "id": "FB-048",
+    "verdict": "PASS",
+    "note": "empty submit blocked by disabled button; invalid value paints red boundary + banner",
+    "bannerText": "Số tiền không hợp lệ.",
+    "amtInvalid": "true",
+    "amtBorder": "rgb(160, 68, 78)"
+  },
+  {
+    "at": "2026-10-16T05:32:05.883Z",
+    "step": "FB-048-cancel",
+    "cancel": true
+  },
+  {
+    "at": "2026-10-16T05:32:06.484Z",
+    "step": "page-errors",
+    "count": 0,
+    "sample": []
+  }
+]
