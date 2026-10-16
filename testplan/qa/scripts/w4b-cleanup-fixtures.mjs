@@ -6,7 +6,7 @@ const API = 'https://vantai.tingting.vip/api';
 const LOG = 'qa/2026-10-16_w4b-cleanup.log';
 const log = (l) => { console.log(l); fs.appendFileSync(LOG, l + '\n'); };
 async function login(id) {
-  const r = await fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application://json' === 'x' ? '' : 'application/json' }, body: JSON.stringify({ identifier: id, password: 'Abc123' }) });
+  const r = await fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: id, password: 'Abc123' }) });
   return r.ok ? (await r.json()).token : null;
 }
 const admin = await login('admin');
