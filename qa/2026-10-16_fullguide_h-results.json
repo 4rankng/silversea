@@ -1,0 +1,10 @@
+{
+  "pin": "a68d2e04",
+  "date": "2026-10-16T15:31:03.110Z",
+  "results": {
+    "B.3": {
+      "verdict": "PASS",
+      "note": "Thêm cược: dialog opened=true, lookup 4 số cuối (1975) suggestion=true, autofill fields=undefined, save=true, persisted row id=8"
+    }
+  }
+}
