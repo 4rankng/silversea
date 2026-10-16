@@ -56,3 +56,39 @@
   375/1280 as driver still pending for the delivered slice (needs
   `VITE_API_PROXY_TARGET` per the preserved hazard — a vite without it proxies
   to a stray :3002 stack).
+
+---
+
+# /config/customers phone-band UI polish — 2026-10-16
+
+- Controller: Claude (Claude Code session, this checkout). Last updated:
+  2026-10-16 ~09:55 +0700. Report:
+  `plans/reports/ui-261016-0958-config-customers-phone-polish.md`.
+- Goal: owner-reported "UI and style sucks" on the `/config/customers`
+  phone band. Delivered: rows adopt the shared record-card surface from
+  `styles/record-table.css` (page-local transparent hairline strips retired);
+  "Thông tin chi tiết" disclosure anchored with a hairline at 12px control
+  size; details facts ride one-line flex fact rows in a
+  `repeat(auto-fit, minmax(260px, 1fr))` grid (kills the 159px-cell email
+  confetti). Scope: `customer-config-density.css`,
+  `config-catalog-tabular.styles.test.ts`, new driver
+  `testplan/qa/scripts/ui-cfg-customers-phone-20261016.mjs`. Nothing above
+  the ≤1100px container band changed.
+- Gates: full fe suite 4886/4886 green; `tsc -b` 0 errors; root lint 0
+  errors; `check:ui`/`check:brand` PASS; `design:drift` RED but PRE-EXISTING
+  at base (growth lives in another lane's WIP `ShipmentContainersPage.css` /
+  `ShipmentDebitPage.css`; wave-B handoff above records the same baseline
+  staleness with its diff stashed). Baseline not `--update`d over foreign
+  WIP. Note: no pre-commit hook is wired in this checkout (`core.hooksPath`
+  unset; `scripts/githooks/` holds only `post-commit`) — the documented
+  pre-commit typecheck/drift gates are on-demand here.
+- Landed: **trunk `5d7a3aab`** after independent review (DONE_WITH_CONCERNS,
+  sound, zero critical/high/medium; low notes applied — driver try/finally
+  hardening re-smoke-tested, negative-pin brittleness informational). Only
+  this task's 3 files staged; foreign WIP untouched.
+- Unrelated/concurrent preserved: the `features/shipments/create/*`,
+  `ShipmentContainersPage.css`, `ShipmentDebitPage.*`,
+  `clerk/ShipmentCreatePage.test.tsx` WIP set in this checkout belongs to
+  another lane — do not stage or revert it.
+- Evidence: `qa/2026-10-16_cfg-customers-phone-ui/` (before/after 390/768
+  captures + computed probes; ADMIN account, local dev stack).
