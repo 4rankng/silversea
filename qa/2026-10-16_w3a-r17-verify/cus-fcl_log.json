@@ -1,0 +1,311 @@
+[
+  {
+    "at": "2026-10-16T05:14:37.586Z",
+    "step": "health",
+    "buildHash": "a2e5d48c",
+    "expect": "a2e5d48c"
+  },
+  {
+    "at": "2026-10-16T05:14:37.876Z",
+    "step": "identity",
+    "user": "tiepvv",
+    "jwtUsername": "tiepvv"
+  },
+  {
+    "at": "2026-10-16T05:14:38.847Z",
+    "step": "fcl-created",
+    "status": 201,
+    "id": 591
+  },
+  {
+    "at": "2026-10-16T05:14:38.847Z",
+    "step": "fcl-shape",
+    "sid": 591,
+    "ver": 1,
+    "keys": [
+      "id",
+      "shipmentCode",
+      "version",
+      "customerId",
+      "isAdHoc",
+      "rawCustomerName",
+      "rawRouteName",
+      "routeId",
+      "cargoTypeId",
+      "responsibleUnitId",
+      "status",
+      "bookingRef",
+      "blNumber",
+      "tradeDirection",
+      "cargoMode",
+      "operationalSiteId",
+      "pickupWarehouseSiteId",
+      "factoryName",
+      "isCombined",
+      "shippingLineName",
+      "expectedDeliveryDate",
+      "customsCutoffAt",
+      "closingAt",
+      "plannedReturnAt",
+      "orderExchangeStartedAt",
+      "orderExchangeStartedBy",
+      "orderExchangeCompletedAt",
+      "orderExchangeCompletedBy",
+      "cargoWeightKg",
+      "cargoVolumeCbm",
+      "packageCount",
+      "packageType",
+      "operationalNotes",
+      "customerNotes",
+      "pickupLocation",
+      "deliveryLocation",
+      "costGroupId",
+      "costGroupOrder",
+      "revGroupId",
+      "revGroupOrder",
+      "actualTruckNo",
+      "billingTruckNo",
+      "costVehicleClassId",
+      "revVehicleClassId",
+      "contactName",
+      "contactPhone",
+      "createdBy",
+      "updatedBy",
+      "createdAt",
+      "updatedAt",
+      "deletedAt"
+    ]
+  },
+  {
+    "at": "2026-10-16T05:14:39.201Z",
+    "step": "ver-refresh",
+    "ver": 2
+  },
+  {
+    "at": "2026-10-16T05:14:39.419Z",
+    "step": "fixture-ct",
+    "ctId": 1
+  },
+  {
+    "at": "2026-10-16T05:14:39.506Z",
+    "step": "containers-put",
+    "status": 200,
+    "body": {
+      "items": [
+        {
+          "id": 419,
+          "shipmentId": 591,
+          "containerTypeId": 1,
+          "containerNumber": "QAWA0000010",
+          "sealNumber": null,
+          "declarationNumber": null,
+          "psActualAmount": null,
+          "psActualNote": null,
+          "cargoWeightKg": null,
+          "cargoVolumeCbm": null,
+          "shippingLineName": "QA Line",
+          "routeId": null,
+          "customerAppointmentAt": null,
+          "pickupPortId": null,
+          "dropoffPortId": null,
+          "rawPickupPortName": null,
+          "rawDropoffPortName": null,
+          "rawFactoryName": null,
+          "rawRouteName": null,
+          "operationalSiteId": null,
+          "notes": null,
+          "chargeProposalVersion": 1,
+          "outboundTransportAmount": null,
+          "outboundHandlingAmount": null,
+          "outboundIncidentalAmount": null,
+          "inboundTransportAmount": null,
+          "inboundHandlingAmount": null,
+          "createdBy": 19,
+          "createdAt": "2026-10-16T05:14:39.472Z",
+          "updatedAt": "2026-10-16T05:14:39.504Z",
+          "containerTypeName": "20'DC",
+          "containerTypeCode": "20DC"
+        },
+        {
+          "id": 420,
+          "shipmentId": 591,
+          "containerTypeId": 1,
+          "containerNumber": "QAWA0000088",
+          "sealNumber": null,
+          "declarationNumber": null,
+          "psActualAmount": null,
+          "psActualNote": null,
+          "cargoWeightKg": null,
+          "cargoVolumeCbm": null,
+          "shippingLineName": "QA Line",
+          "routeId": null,
+          "customerAppointmentAt": null,
+          "pickupPortId": null,
+          "dropoffPortId": null,
+          "rawPickupPortName": null,
+          "rawDropoffPortName": null,
+          "rawFactoryName": null,
+          "rawRouteName": null,
+          "operationalSiteId": null,
+          "notes": null,
+          "chargeProposalVersion": 1,
+          "outboundTransportAmount": null,
+          "outboundHandlingAmount": null,
+          "outboundIncidentalAmount": null,
+          "inboundTransportAmount": null,
+          "inboundHandlingAmount": null,
+          "createdBy": 19,
+          "createdAt": "2026-10-16T05:14:39.472Z",
+          "updatedAt": "2026-10-16T05:14:39.508Z",
+          "containerTypeName": "20'DC",
+          "containerTypeCode": "20DC"
+        }
+      ],
+      "upsertedIds": [
+        419,
+        420
+      ],
+      "shipmentVersion": 3,
+      "changeMode": "DIRECT",
+      "changeRequestId": null,
+      "notificationDelivered": true
+    }
+  },
+  {
+    "at": "2026-10-16T05:14:45.446Z",
+    "step": "FB-085-bl-on-board",
+    "bl": "QAW3ACUS-FCL261016051437",
+    "blOnBoard": true
+  },
+  {
+    "at": "2026-10-16T05:14:45.502Z",
+    "step": "FB-085-trigger1",
+    "found": true,
+    "x": 460,
+    "y": 408,
+    "id": "shipment-detail-edit-documents-419"
+  },
+  {
+    "at": "2026-10-16T05:14:46.775Z",
+    "step": "FB-085-tk-input",
+    "found": true
+  },
+  {
+    "at": "2026-10-16T05:14:49.478Z",
+    "step": "FB-085-after-first-save",
+    "conts1": [
+      {
+        "no": "QAWA0000010",
+        "tk": "TK-W3A-0001"
+      },
+      {
+        "no": "QAWA0000088",
+        "tk": "TK-W3A-0001"
+      }
+    ]
+  },
+  {
+    "at": "2026-10-16T05:14:49.662Z",
+    "step": "containers-put-3rd",
+    "status": 200,
+    "body": null
+  },
+  {
+    "at": "2026-10-16T05:14:52.688Z",
+    "step": "FB-085-expand-cont1",
+    "found": true,
+    "x": 460,
+    "y": 408
+  },
+  {
+    "at": "2026-10-16T05:14:53.920Z",
+    "step": "FB-085-copy-btn",
+    "found": true,
+    "text": "Copy số tờ khai sang 1 cont chưa có số",
+    "x": 528,
+    "y": 752
+  },
+  {
+    "at": "2026-10-16T05:14:56.163Z",
+    "step": "FB-085-after-copy-click",
+    "conts4": [
+      {
+        "no": "QAWA0000154",
+        "tk": "TK-W3A-0001"
+      },
+      {
+        "no": "QAWA0000010",
+        "tk": "TK-W3A-0001"
+      },
+      {
+        "no": "QAWA0000088",
+        "tk": "TK-W3A-0001"
+      }
+    ]
+  },
+  {
+    "at": "2026-10-16T05:14:56.970Z",
+    "step": "FB-085-trigger2",
+    "found": true,
+    "x": 460,
+    "y": 530,
+    "id": "shipment-detail-edit-documents-420"
+  },
+  {
+    "at": "2026-10-16T05:14:58.209Z",
+    "step": "FB-085-set-tk2",
+    "found": true
+  },
+  {
+    "at": "2026-10-16T05:15:00.878Z",
+    "step": "FB-085-persisted",
+    "conts5": [
+      {
+        "no": "QAWA0000154",
+        "tk": "TK-W3A-0001"
+      },
+      {
+        "no": "QAWA0000010",
+        "tk": "TK-W3A-0001"
+      },
+      {
+        "no": "QAWA0000088",
+        "tk": "TK-W3A-0002"
+      }
+    ]
+  },
+  {
+    "at": "2026-10-16T05:15:00.879Z",
+    "step": "TC",
+    "id": "FB-085",
+    "verdict": "PASS",
+    "autoCopied": true,
+    "copyWorked": true,
+    "conts": [
+      {
+        "no": "QAWA0000154",
+        "tk": "TK-W3A-0001"
+      },
+      {
+        "no": "QAWA0000010",
+        "tk": "TK-W3A-0001"
+      },
+      {
+        "no": "QAWA0000088",
+        "tk": "TK-W3A-0002"
+      }
+    ]
+  },
+  {
+    "at": "2026-10-16T05:15:01.087Z",
+    "step": "cleanup",
+    "shipmentId": 591,
+    "deleteStatus": 200
+  },
+  {
+    "at": "2026-10-16T05:15:01.087Z",
+    "step": "page-errors",
+    "count": 0,
+    "sample": []
+  }
+]

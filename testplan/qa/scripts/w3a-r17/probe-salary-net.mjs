@@ -1,0 +1,24 @@
+import puppeteer from 'puppeteer';
+const API='https://vantai.tingting.vip/api';
+const login=await fetch(`${API}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:'hoapt',password:'Abc123'})});
+const token=(await login.json()).token;
+const b=await puppeteer.launch({headless:'new',args:['--no-sandbox']});
+const p=await b.newPage(); await p.setViewport({width:1440,height:960});
+await p.evaluateOnNewDocument((t,o)=>{if(location.origin===o)localStorage.setItem('token',t)},token,'https://vantai.tingting.vip');
+const net=[];
+p.on('response',r=>{if(r.url().includes('/api/')&&/salary|calendar|timesheet/.test(r.url()))net.push({u:r.url().replace('https://vantai.tingting.vip','').slice(0,120),s:r.status()})});
+const errs=[];
+p.on('pageerror',e=>errs.push(String(e).slice(0,200)));
+p.on('console',m=>{if(m.type()==='error')errs.push('console: '+m.text().slice(0,200))});
+await p.goto('https://vantai.tingting.vip/salary',{waitUntil:'networkidle2'});
+await new Promise(r=>setTimeout(r,2500));
+await p.evaluate(()=>{const row=[...document.querySelectorAll('tr,li,button,div')].filter(e=>e.offsetParent&&e.textContent.replace(/\s+/g,' ').trim()==='Nguyễn Văn Quỳnh')[0];if(row)row.click()});
+await new Promise(r=>setTimeout(r,5000));
+console.log('net:',JSON.stringify(net));
+console.log('errors:',JSON.stringify(errs.slice(0,6),null,1));
+const cal=await p.evaluate(()=>{
+  const el=[...document.querySelectorAll('div')].find(e=>e.offsetParent&&/T2|Th 2|Hôm nay|Mon/.test(e.textContent||'')&&e.getBoundingClientRect().width>600);
+  return el?{found:true,cls:String(el.className).slice(0,80),w:Math.round(el.getBoundingClientRect().width)}:{found:false};
+});
+console.log('calendar container:',JSON.stringify(cal));
+await b.close();

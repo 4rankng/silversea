@@ -24,17 +24,28 @@
     overflow: hidden;
   }
 
-  .dispatch-assignment-cell__carrier,
-  .dispatch-assignment-cell__plate,
-  .dispatch-assignment-cell__driver,
-  .dispatch-assignment-cell__estimate {
+  /* FB-043 (2026-10-16 re-report, card 141026001010): these selectors were
+     (0,1,0) — the SAME specificity as the card-band base rules further down
+     the file (`.dispatch-assignment-cell__plate { … white-space: normal }`
+     and `.dispatch-assignment-cell__vehicle-group { flex-wrap: wrap }`).
+     Later source order won, so this band was dead code: the plate/carrier/
+     driver lines wrapped and hard-clipped instead of ellipsizing on one line,
+     and the plate·driver pair stacked. The row HEIGHT still held (the parent
+     clips at a fixed height), which is why the height pins stayed green and
+     the regression survived. Scope under the cell to lift the band to (0,2,0)
+     so it beats the base rules regardless of order. Do not drop the band
+     selectors back to bare class names — that is the defect. */
+  .dispatch-assignment-cell .dispatch-assignment-cell__carrier,
+  .dispatch-assignment-cell .dispatch-assignment-cell__plate,
+  .dispatch-assignment-cell .dispatch-assignment-cell__driver,
+  .dispatch-assignment-cell .dispatch-assignment-cell__estimate {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     overflow-wrap: normal;
   }
 
-  .dispatch-assignment-cell__vehicle-group {
+  .dispatch-assignment-cell .dispatch-assignment-cell__vehicle-group {
     /* The plate·driver pair stays one line; a wrapped second line was the
        inflation mechanism the R22 pairing removed. */
     flex-wrap: nowrap;

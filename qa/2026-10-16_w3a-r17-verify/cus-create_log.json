@@ -1,0 +1,171 @@
+[
+  {
+    "at": "2026-10-16T05:38:36.332Z",
+    "step": "health",
+    "buildHash": "a2e5d48c",
+    "expect": "a2e5d48c"
+  },
+  {
+    "at": "2026-10-16T05:38:36.526Z",
+    "step": "identity",
+    "user": "tiepvv",
+    "jwtUsername": "tiepvv"
+  },
+  {
+    "at": "2026-10-16T05:38:41.636Z",
+    "step": "lcl-mode",
+    "lclPicked": true
+  },
+  {
+    "at": "2026-10-16T05:38:42.886Z",
+    "step": "labels",
+    "labelDump": [
+      "Khách hàng*",
+      "— Chọn hình thức —Nhập khẩuXuất khẩu",
+      "Số Bill/Booking*",
+      "Lệnh chạy ngoài",
+      "Có cược container",
+      "Đóng kết hợp",
+      "Tuyến đường*",
+      "Nhà máy",
+      "Hàng FCL",
+      "Hàng lẻ",
+      "Kho lấy hàng*",
+      "Quy cách đóng gói*",
+      "Số lượng*",
+      "Trọng lượng (kg)*",
+      "Thể tích (CBM)",
+      "Ngày giao hàng *"
+    ]
+  },
+  {
+    "at": "2026-10-16T05:38:42.886Z",
+    "step": "TC",
+    "id": "FB-083",
+    "verdict": "PASS",
+    "label": "Ngày giao hàng rendered, stale label absent"
+  },
+  {
+    "at": "2026-10-16T05:38:42.886Z",
+    "step": "FB-084-marker",
+    "labelFound": true,
+    "requiredMarker": false,
+    "labelCls": "flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold"
+  },
+  {
+    "at": "2026-10-16T05:38:46.127Z",
+    "step": "fill",
+    "picked": "YUANFANG"
+  },
+  {
+    "at": "2026-10-16T05:38:46.564Z",
+    "step": "fill",
+    "trade": {
+      "id": "",
+      "value": "IMPORT"
+    }
+  },
+  {
+    "at": "2026-10-16T05:38:48.867Z",
+    "step": "fill",
+    "route": "Thuận Thành"
+  },
+  {
+    "at": "2026-10-16T05:38:50.311Z",
+    "step": "fill",
+    "warehouse": "Kho Rung FB-077"
+  },
+  {
+    "at": "2026-10-16T05:38:52.584Z",
+    "step": "fill",
+    "deliveryDate": "20/10/2026"
+  },
+  {
+    "at": "2026-10-16T05:38:52.654Z",
+    "step": "submit-buttons",
+    "submitTxt": [
+      "Lưu nháp",
+      "Tạo lô hàng"
+    ]
+  },
+  {
+    "at": "2026-10-16T05:38:56.233Z",
+    "step": "FB-084-submit",
+    "afterUrl": "https://vantai.tingting.vip/shipments/592",
+    "err9": false,
+    "errCbm": false
+  },
+  {
+    "at": "2026-10-16T05:38:56.380Z",
+    "step": "TC",
+    "id": "FB-084",
+    "verdict": "PASS",
+    "shipmentId": 592,
+    "persisted": {
+      "cbm": null
+    }
+  },
+  {
+    "at": "2026-10-16T05:38:56.451Z",
+    "step": "cleanup",
+    "shipmentId": 592,
+    "deleteStatus": 403
+  },
+  {
+    "at": "2026-10-16T05:39:03.425Z",
+    "step": "FB-044-open",
+    "openPick": {
+      "found": true,
+      "trigBottom": 720,
+      "trigX": 447,
+      "trigW": 87
+    },
+    "pos": {
+      "popFound": true,
+      "popTop": 731,
+      "popLeft": 440,
+      "popW": 103,
+      "opensBelow": true
+    }
+  },
+  {
+    "at": "2026-10-16T05:39:03.425Z",
+    "step": "TC",
+    "id": "FB-044",
+    "verdict": "PASS",
+    "popFound": true,
+    "popTop": 731,
+    "popLeft": 440,
+    "popW": 103,
+    "opensBelow": true
+  },
+  {
+    "at": "2026-10-16T05:39:09.629Z",
+    "step": "TC",
+    "id": "FB-075",
+    "verdict": "PASS",
+    "activeIsField": false,
+    "activeCls": "m-0 w-full bg-transparent text-primary ring-0 outline-hidden",
+    "activeAria": "Tháng — Ngày giao hàng"
+  },
+  {
+    "at": "2026-10-16T05:39:09.630Z",
+    "step": "FB-040-nav",
+    "navFound": true,
+    "text": ""
+  },
+  {
+    "at": "2026-10-16T05:39:09.630Z",
+    "step": "TC",
+    "id": "FB-040",
+    "verdict": "NEEDS-INFO",
+    "navText": "",
+    "note": "still needs Muse info; nav scan attached"
+  },
+  {
+    "at": "2026-10-16T05:39:09.630Z",
+    "step": "page-errors",
+    "count": 0,
+    "sample": []
+  }
+]
