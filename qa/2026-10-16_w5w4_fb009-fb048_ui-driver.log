@@ -1,0 +1,70 @@
+
+=== run 2026-10-16T08:09:02.185Z ===
+2026-10-16T08:09:02.237Z buildHash gate OK: 5a139108
+
+=== run 2026-10-16T08:09:17.339Z ===
+
+=== run 2026-10-16T08:09:25.942Z ===
+2026-10-16T08:09:25.988Z buildHash gate OK: 5a139108
+2026-10-16T08:09:26.222Z login cus OK
+2026-10-16T08:09:26.698Z FB-009a: fill row 0 appointment 09:30 25/12/2026 via segments
+2026-10-16T08:09:28.235Z FB-009a: row copy button present, inside td[data-label="Ngày giờ đóng trả *"]
+2026-10-16T08:09:28.542Z FB-009a: clipboard="09:30 25/12/2026"
+2026-10-16T08:09:28.634Z shot qa/2026-10-16_w5w4_fb009-fb048_ui-01-row-copy-time-toast.png
+2026-10-16T08:09:28.634Z FB-009b: section group shipment-bulk-appointment
+2026-10-16T08:09:29.047Z FAIL: ASSERT FAIL: Lịch & ghi chú bulk appointment group present
+2026-10-16T08:09:29.129Z shot qa/2026-10-16_w5w4_fb009-fb048_FAIL-last-state.png
+
+=== run 2026-10-16T08:10:31.264Z ===
+2026-10-16T08:10:31.304Z buildHash gate OK: 5a139108
+2026-10-16T08:10:31.545Z login cus OK
+2026-10-16T08:10:31.877Z FB-009a: fill row 0 appointment 09:30 25/12/2026 via segments
+2026-10-16T08:10:33.542Z FB-009a: row copy button present, inside td[data-label="Ngày giờ đóng trả *"]
+2026-10-16T08:10:33.847Z FB-009a: clipboard="09:30 25/12/2026"
+2026-10-16T08:10:33.942Z shot qa/2026-10-16_w5w4_fb009-fb048_ui-01-row-copy-time-toast.png
+2026-10-16T08:10:33.942Z FB-009b: section group shipment-bulk-appointment
+2026-10-16T08:10:33.943Z FB-009b: cargo mode at load = FCL
+2026-10-16T08:10:34.958Z FB-009b: container rows 1 → 2
+2026-10-16T08:10:34.959Z FAIL: ASSERT FAIL: Lịch & ghi chú bulk appointment group present (FCL mode, ≥1 empty row)
+2026-10-16T08:10:35.006Z shot qa/2026-10-16_w5w4_fb009-fb048_FAIL-last-state.png
+
+=== run 2026-10-16T08:13:05.582Z ===
+2026-10-16T08:13:05.627Z buildHash gate OK: 5a139108
+2026-10-16T08:13:05.836Z login cus OK
+2026-10-16T08:13:06.200Z FB-009a: fill row 0 appointment 09:30 25/12/2026 via segments
+2026-10-16T08:13:07.712Z FB-009a: cargo mode at load = FCL
+2026-10-16T08:13:08.244Z FB-009a: container rows 1 → 2
+2026-10-16T08:13:08.308Z FB-009a: row copy button present, inside td[data-label="Ngày giờ đóng trả *"]
+2026-10-16T08:13:08.613Z FB-009a: clipboard="09:30 25/12/2026"
+2026-10-16T08:13:08.717Z shot qa/2026-10-16_w5w4_fb009-fb048_ui-01-row-copy-time-toast.png
+2026-10-16T08:13:08.717Z FB-009b: section group shipment-bulk-appointment
+2026-10-16T08:13:09.044Z FB-009b: clipboard="14:15 26/12/2026"
+2026-10-16T08:13:09.147Z shot qa/2026-10-16_w5w4_fb009-fb048_ui-02-section-copy-toast.png
+2026-10-16T08:13:09.147Z FB-009c: open Chọn ngày giờ dialog from row 0 appointment cell
+2026-10-16T08:13:09.148Z FAIL: ASSERT FAIL: appointment dialog trigger clicked
+2026-10-16T08:13:09.255Z shot qa/2026-10-16_w5w4_fb009-fb048_FAIL-last-state.png
+
+=== run 2026-10-16T08:13:47.951Z ===
+2026-10-16T08:13:47.997Z buildHash gate OK: 5a139108
+2026-10-16T08:13:48.297Z login cus OK
+2026-10-16T08:13:48.707Z FB-009a: fill row 0 appointment 09:30 25/12/2026 via segments
+2026-10-16T08:13:50.317Z FB-009a: cargo mode at load = FCL
+2026-10-16T08:13:50.851Z FB-009a: container rows 1 → 2
+2026-10-16T08:13:50.912Z FB-009a: row copy button present, inside td[data-label="Ngày giờ đóng trả *"]
+2026-10-16T08:13:51.218Z FB-009a: clipboard="09:30 25/12/2026"
+2026-10-16T08:13:51.323Z shot qa/2026-10-16_w5w4_fb009-fb048_ui-01-row-copy-time-toast.png
+2026-10-16T08:13:51.323Z FB-009b: section group shipment-bulk-appointment
+2026-10-16T08:13:51.651Z FB-009b: clipboard="14:15 26/12/2026"
+2026-10-16T08:13:51.765Z shot qa/2026-10-16_w5w4_fb009-fb048_ui-02-section-copy-toast.png
+2026-10-16T08:13:51.765Z FB-009c: open Chọn ngày giờ dialog from row 0 appointment cell
+2026-10-16T08:13:52.189Z FB-009c: dialog header — Đóng lịch=true, copy button="Copy giờ hẹn trong hộp thoại"
+2026-10-16T08:13:52.597Z FB-009c: clipboard="09:30 25/12/2026"
+2026-10-16T08:13:52.662Z shot qa/2026-10-16_w5w4_fb009-fb048_ui-03-dialog-copy-toast.png
+2026-10-16T08:13:52.968Z FB-048a: all-empty submit
+2026-10-16T08:13:54.250Z FB-048a: painted={"customer":true,"trade":true,"containerType":true}
+2026-10-16T08:13:54.336Z shot qa/2026-10-16_w5w4_fb009-fb048_ui-04-empty-submit-red-borders.png
+2026-10-16T08:13:54.336Z FB-048b: partial time-only draft, then submit
+2026-10-16T08:13:55.725Z FB-048b: painted={"customer":true,"trade":true,"containerType":true,"draftError":"Nhập đủ giờ và ngày hợp lệ."}
+2026-10-16T08:13:55.807Z shot qa/2026-10-16_w5w4_fb009-fb048_ui-05-partial-date-others-still-red.png
+2026-10-16T08:13:55.808Z writes issued through the SPA this session: []
+2026-10-16T08:13:55.876Z FB-009 + FB-048 ALL ASSERTIONS PASS

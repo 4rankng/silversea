@@ -1,0 +1,1072 @@
+Bỏ qua đến nội dung chính
+Đã chuyển đến Kiểm soát phơi phiếu
+TransTing
+Quản lý vận tải và logistics
+Tổng quan
+Vận hành
+Báo cáo
+Phơi phiếu
+Chi phí phát sinh
+Tạm ứng & hoàn ứng
+Báo cáo hoàn ứng
+Theo dõi hóa đơn
+Theo dõi hoàn cược
+Kiểm soát phơi phiếu
+Kế toán chốt debit
+Công nợ vận tải
+Quỹ
+Nhân sự
+Danh mục
+Hệ thống
+Quản trị viên
+Quản trị viên
+Đang xem
+Kiểm soát phơi phiếu
+Tháng 10/2026
+·
+01/10 – 31/10
+25
+Kiểm soát phơi phiếu
+Từ ngày
+Từ
+/
+/
+→
+Đến ngày
+Đến
+/
+/
+Trạng thái
+
+Tất cả
+
+ 
+Tất cả
+Đã tạo chuyến
+Đang chạy
+Đã hoàn thành
+Đối chiếu chi hộ
+
+Tất cả
+
+ 
+Tất cả
+Đã đối chiếu
+Chưa đối chiếu
+Sắp xếp
+
+Gom theo số xe
+
+ 
+Gom theo số xe
+Theo ngày
+Loại phiếu
+
+Phiếu chi
+
+ 
+Phiếu chi
+Phiếu thu
+Số tài khoản quỹ (STK)
+
+— Chọn STK —
+
+ 
+— Chọn STK —
+ACB - ACB - Tài khoản công ty
+TM - ACB - Tài khoản thương mại
+Chọn cả trang này (0)
+Lập phiếu chi
+
+Bấm vào một dòng để chọn · 0 dòng lập được phiếu trong kết quả
+
+Phơi phiếu và tiền đường theo chuyến
+SỐ BILL / BOOKING	
+Khách hàng / Nhà máy / Tuyến
+	THÔNG SỐ CONTAINER	ĐỊA ĐIỂM NÂNG / HẠ	
+Thông tin xe
+	CHI HỘ (THU / TRẢ)	TIỀN ĐƯỜNG	TRẠNG THÁI	NGÀY HẸN	GHI CHÚ VẬN TẢI	GHI CHÚ CHI PHÍ OPS	GHI CHÚ LÁI XE
+JJCTCHPDY260305	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-2
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	TWCU8170772
+40'HC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 5.242 kg	Cảng Nam Đình Vũ → Bãi JJ LOGISTICS	15C-123456
+Nhà vận tải: VÂN LAN
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+07/09/2026
+	Di động; Lấy vỏ ICD đi đóng; Đặt đầu; Trả về; verify-1788924545343	—	—
+YMJAE492321975	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: SUNRISE
+Tuyến: KCN Vân Trung, Nếnh, Bắc Ninh	YMLU0000112
+40'HC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 1 kg	Bãi Chân Thật - THT → Bãi GIC	15C-123456
+Nhà vận tải: DUYÊN HẢI
+Lái xe: Tài xế ngoài A	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+07/09/2026
+	—	—	—
+BLEHPH260900002	Khách hàng: CÔNG TY TNHH LOGCOM VIỆT NAM
+Nhà máy: NEWEB-1
+Tuyến: KCN Đồng Văn, Ninh Bình	EGHU3963060
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 2.942 kg	Cảng VIP Greenport → —	15C-167.31
+Nhà vận tải: Xe nhà
+Lái xe: Lương Văn Long	
+Phải thu: 300.000 ₫
+Phải trả: 300.000 ₫
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+08/09/2026
+	QUÁ TẢI KHO 1	
+
+OPS: Thu khách: QA-W1 khai chi phí lô fixture
+
+	—
+B2QA-KEP-02	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15C-167.31
+Nhà vận tải: Xe nhà
+Lái xe: Lương Văn Long	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+20/10/2026
+	—	—	—
+B2QA-KEP-01	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15C-167.31
+Nhà vận tải: Xe nhà
+Lái xe: Lương Văn Long	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+20/10/2026
+	Dòng 1: ghi chú test FB-010 Dòng 2: dòng thứ hai của ghi chú Dòng 3: dòng thứ ba — kiểm tra xuống dòng	—	—
+BLCUSa5DB0	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSKU1234565
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 24.000 kg	SITC - Lạch Huyện → SITC - Lạch Huyện	15E-016.26
+Nhà vận tải: Xe nhà
+Lái xe: Trần Văn Thắng	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+01/10/2026
+	CUS workspace E2E 5D08AC8E	—	—
+EGLV149607019409	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-2
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	EMCU6163403
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 4.401 kg	Cảng VIP Greenport → Sao Á DC	15H-021.39
+Nhà vận tải: Xe nhà
+Lái xe: Dương Văn Thực	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+07/09/2026
+	HẾT HẠN; ĐẢO VỎ kiểm tra seal trước khi rời kho	—	—
+Chưa có số Bill/Booking	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSCU7654329
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 20.000 kg	— → —	15H-021.39
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Thụ	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+26/09/2026
+	—	—	—
+Chưa có số Bill/Booking	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSCU7654329
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 18.000 kg	— → —	15H-021.39
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Thụ	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+26/09/2026
+	—	—	—
+SEAB-2609-778807	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: Chưa có nhà máy
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSCU7654329
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 18.000 kg	— → —	15H-021.39
+Nhà vận tải: Xe nhà
+Lái xe: Dương Văn Thực	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+24/09/2026
+	—	—	—
+SEAB-2609-778812	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: Chưa xác định
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSCU7654329
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 20.000 kg	— → —	15H-021.39
+Nhà vận tải: Xe nhà
+Lái xe: Dương Văn Thực	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+08/09/2026
+	—	—	—
+Chưa có số Bill/Booking	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSCU7654329
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 20.000 kg	— → —	15H-021.39
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Thụ	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+Chưa có số Bill/Booking	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSCU7654329
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 18.000 kg	— → —	15H-021.39
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Thụ	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+EBKG18452303	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: SUNRISE
+Tuyến: KCN Vân Trung, Nếnh, Bắc Ninh	—
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 5 kg	Bãi Medlog → TIL - HTIT	15H-021.39
+Nhà vận tải: STG VERIFY NHA XE 09
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+08/09/2026
+	—	—	—
+SEAB-2609-778899	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: Chưa xác định
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	—
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: Chưa có	— → —	15H-052.82
+Nhà vận tải: Xe nhà
+Lái xe: Đinh Thanh Thịnh	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+18/09/2026
+	—	—	—
+SEAB-2609-778899	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: Chưa xác định
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	—
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: Chưa có	— → —	15H-052.82
+Nhà vận tải: Xe nhà
+Lái xe: Đinh Thanh Thịnh	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+18/09/2026
+	—	—	—
+2337300010	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-2
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	—
+40'HC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 5.000 kg	Bãi GFT → Cảng Hateco	15H-052.82
+Nhà vận tải: Xe nhà
+Lái xe: Dương Văn Thực	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+11/09/2026
+	XƯỞNG 2 - GỬI ẢNH CONT TRƯỚC 8H SÁNG	—	—
+BLCUSa24BB	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSKU1234565
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 24.000 kg	Cảng Tân Vũ → SITC - Lạch Huyện	15H-061.14
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Quang Hường	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+01/10/2026
+	ĐẢO VỎ CUS workspace E2E 24B24765	—	—
+EGLV260904500013	Khách hàng: CÔNG TY TNHH LOGCOM VIỆT NAM
+Nhà máy: NEWEB-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	TSTU4182600
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 12.500,5 kg	Cảng Nam Đình Vũ → Bãi JJ LOGISTICS	15H-061.14
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Quang Hường	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+12/09/2026
+	—	—	—
+Chưa có số Bill/Booking	Khách hàng: CÔNG TY TNHH LOGCOM VIỆT NAM
+Nhà máy: Chưa có nhà máy
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-104.03
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Tiến Dũng	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+13/09/2026
+	HẾT HẠN; ĐẶT ĐUÔI QA CODEX 20260913 — kiểm tra dòng ghi chú đầy đủ. Chụp rõ số container và seal trước khi rời bãi; đối chiếu địa điểm nhận và trả hàng trên lệnh. Đây là dữ liệu kiểm thử staging để xác minh ghi chú dài, xuống dòng, lưu lại và chuyển đúng cho tài xế.	—	—
+E2EROLE001	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: LM Võ Cường
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	EEUU1000010
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 15.000 kg	— → —	15H-117.55
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Quang Hường	
+Phải thu: 0 ₫
+Phải trả: 20.000 ₫
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+07/10/2026
+	—	
+
+OPS: Chi hộ vé cầu đường cho chuyến E2EROLE001 (test E2E)
+
+	
+R17B3-LE-01	Khách hàng: CÔNG TY TNHH LINK - WIN VIỆT NAM
+Nhà máy: Chưa có nhà máy
+Tuyến: Hải Phòng-NEWEB	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-117.55
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Quang Hường	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+15/10/2026
+	—	—	—
+Chưa có số Bill/Booking	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: Chưa có nhà máy
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-117.55
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Quang Hường	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+12/10/2026
+	—	—	—
+R15B3-FCL-02	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: LM Võ Cường
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	—
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 15.000 kg	— → —	15H-118.97
+Nhà vận tải: Xe nhà
+Lái xe: Phạm Thanh Sơn	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+12/10/2026
+	—	—	—
+Chưa có số Bill/Booking	Khách hàng: CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM
+Nhà máy: Nhà máy YuanFang
+Tuyến: Thuận Thành, Bắc Ninh	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-119.64
+Nhà vận tải: Xe nhà
+Lái xe: Phan Văn Trường	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+08/10/2026
+	—	—	—
+Chưa có số Bill/Booking	Khách hàng: CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM
+Nhà máy: Nhà máy YuanFang
+Tuyến: Thuận Thành, Bắc Ninh	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-119.87
+Nhà vận tải: Xe nhà
+Lái xe: Lê Ngọc Long	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đang chạy
+Phơi: Chưa nhận phơi
+	
+08/10/2026
+	—	—	—
+2337300010	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-2
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-149.80
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Quỳnh	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+07/09/2026
+	XƯỞNG 2 - GỬI ẢNH CONT TRƯỚC 8H SÁNG	—	—
+DNKM13336	Khách hàng: Công ty CP Vận tải Biển Bạc
+Nhà máy: Chưa có nhà máy
+Tuyến: Hải Phòng-NEWEB	MSDU1245780
+40'HC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 19.800 kg	Cảng Đình Vũ → TC - HICT	15H-154.98
+Nhà vận tải: Gaya Container Lines
+Lái xe: Vũ Văn Giang	
+Phải thu: 500.000 ₫
+Phải trả: 500.000 ₫
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+16/10/2026
+	—	
+
+OPS: Thu khách: Phí công nhân
+
+	—
+BK-C197D89327827	Khách hàng: CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM
+Nhà máy: Chưa có nhà máy
+Tuyến: Thuận Thành, Bắc Ninh	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-209.51
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Quang Hường	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+30/09/2026
+	—	—	—
+EGLV790676233174	Khách hàng: CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM
+Nhà máy: Chưa có nhà máy
+Tuyến: KCN Đồng Văn, Ninh Bình	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-209.51
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Văn Kiệm	
+Phải thu: 100.000 ₫
+Phải trả: 100.000 ₫
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+29/09/2026
+	—	
+
+OPS: Thu khách: YARD_STORAGE_LIFT
+
+OPS: probe
+
+	—
+EGLV790676144110	Khách hàng: CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM
+Nhà máy: Chưa có nhà máy
+Tuyến: KCN Đồng Văn, Ninh Bình	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-209.51
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Văn Kiệm	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+29/09/2026
+	—	—	—
+EGLV790674829265	Khách hàng: CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM
+Nhà máy: Chưa có nhà máy
+Tuyến: KCN Đồng Văn, Ninh Bình	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-209.51
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Văn Kiệm	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+29/09/2026
+	—	—	—
+EGLV790674578745	Khách hàng: CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM
+Nhà máy: Chưa có nhà máy
+Tuyến: KCN Đồng Văn, Ninh Bình	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-209.51
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Văn Kiệm	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+29/09/2026
+	—	—	—
+EGLV790674380596	Khách hàng: CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM
+Nhà máy: Chưa có nhà máy
+Tuyến: KCN Đồng Văn, Ninh Bình	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	15H-209.51
+Nhà vận tải: Xe nhà
+Lái xe: Bùi Văn Kiệm	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+29/09/2026
+	—	—	—
+EGLV260904500010	Khách hàng: CÔNG TY TNHH LOGCOM VIỆT NAM
+Nhà máy: NEWEB-1
+Tuyến: KCN Đồng Văn, Ninh Bình	MNBU0000278
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: Chưa có	— → —	29C-123.45
+Nhà vận tải: VÂN LAN
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+10/09/2026
+	API verification shipment - staging regression wave 2026-09-09	—	—
+EGLV260904500010	Khách hàng: CÔNG TY TNHH LOGCOM VIỆT NAM
+Nhà máy: NEWEB-1
+Tuyến: KCN Đồng Văn, Ninh Bình	MNBU0000283
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: Chưa có	— → —	29C-123.45
+Nhà vận tải: VÂN LAN
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+11/09/2026
+	API verification shipment - staging regression wave 2026-09-09	—	—
+BOOK-C21-A	Khách hàng: Chưa có khách hàng
+Nhà máy: Chưa có nhà máy
+Tuyến: C21 route Hải Phòng	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	29C-211.52
+Nhà vận tải: Nhà xe C21 Alpha
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+Chưa xác định
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+25/09/2026
+	—	—	—
+EGLV260904500011	Khách hàng: CÔNG TY TNHH LOGCOM VIỆT NAM
+Nhà máy: Chưa có nhà máy
+Tuyến: KCN Đồng Văn, Ninh Bình	MSKU1234565
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 22.000 kg	— → —	51K-TEST
+Nhà vận tải: HÀ AN
+Lái xe: Reassign Test	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+09/09/2026
+	—	—	—
+105254549088	Khách hàng: Công ty TNHH XNK Hà Nội
+Nhà máy: Chưa có nhà máy
+Tuyến: Hải Phòng-NEWEB	BEAU4281650
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 20.800 kg	Cảng Hải Phòng → Cảng Đình Vũ	60C-12345
+Nhà vận tải: Xe nhà
+Lái xe: Phạm Văn Hùng	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+137465191612	Khách hàng: Công ty TNHH SX TM Dệt May Vân Trung
+Nhà máy: Chưa có nhà máy
+Tuyến: SUNRISE+ SJ	CMAU3145620
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 21.600 kg	Cảng Hải Phòng → Cảng Đình Vũ	60C-12345
+Nhà vận tải: Xe nhà
+Lái xe: Phạm Văn Hùng	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đang chạy
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+DNKM13335	Khách hàng: Công ty TNHH Điện tử ASKEY Việt Nam
+Nhà máy: Chưa có nhà máy
+Tuyến: ASKEY	MSBU1245654
+40'HC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 20.500 kg	Cảng Đình Vũ → TC - HICT	60C-23456
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Thụ	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đang chạy
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+Chưa có số Bill/Booking	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSCU7654329
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 18.000 kg	— → —	60C-23456
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Thụ	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+24/09/2026
+	—	—	—
+DNKM13338	Khách hàng: Công ty TNHH Điện tử ASKEY Việt Nam
+Nhà máy: Chưa có nhà máy
+Tuyến: ASKEY	TRHU4510296
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 18.700 kg	Cảng Đình Vũ → TC - HICT	60C-23456
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Thụ	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+137465191698	Khách hàng: Công ty CP Thực phẩm Đồng Văn
+Nhà máy: Chưa có nhà máy
+Tuyến: SUNRISE+ SJ	HLXU6109346
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 18.900 kg	Cảng Hải Phòng → Cảng Đình Vũ	60C-34567
+Nhà vận tải: Xe nhà
+Lái xe: Lê Văn Quyết	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+105254550147	Khách hàng: Công ty CP Vận tải Biển Bạc
+Nhà máy: Chưa có nhà máy
+Tuyến: Hải Phòng-NEWEB	OOLU8312661
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 17.800 kg	Cảng Hải Phòng → Cảng Đình Vũ	60C-34567
+Nhà vận tải: Xe nhà
+Lái xe: Lê Văn Quyết	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+137465192255	Khách hàng: Công ty TNHH Điện tử ASKEY Việt Nam
+Nhà máy: Chưa có nhà máy
+Tuyến: SUNRISE+ SJ	FCIU9034568
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 17.400 kg	Cảng Hải Phòng → Cảng Đình Vũ	60C-45678
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Phố	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+105254549001	Khách hàng: Công ty CP Vận tải Biển Bạc
+Nhà máy: Chưa có nhà máy
+Tuyến: Hải Phòng-NEWEB	TCLU5830190
+40'DC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 19.700 kg	Cảng Hải Phòng → Cảng Đình Vũ	60C-45678
+Nhà vận tải: Xe nhà
+Lái xe: Nguyễn Văn Phố	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+Chưa có ngày hẹn
+	—	—	—
+JJCTCHPDY260305	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-2
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	UETU5787415
+40'HC
+Trọng tải container: 26.500 kg
+Trọng lượng hàng: 5.242 kg	Cảng Nam Đình Vũ → Bãi JJ LOGISTICS	98C-048.26
+Nhà vận tải: ĐĂNG QUÂN
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+07/09/2026
+	Di động; Lấy vỏ ICD đi đóng; Đặt đầu; Trả về; verify-1788924545343	—	—
+BLCUSa43B6	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSKU1234565
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 22.000 kg	Cảng Tân Vũ → SITC - Lạch Huyện	CUS sẽ bổ sung
+Nhà vận tải: BIỂN XANH
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+01/10/2026
+	CUS workspace E2E 436913ED	—	—
+BLCUS6159	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: ASKEY-1
+Tuyến: KCN Quế Võ, Nam Sơn, Bắc Ninh	MSKU1234565
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 22.000 kg	Cảng Tân Vũ → SITC - Lạch Huyện	—
+Nhà vận tải: BIỂN XANH
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã tạo chuyến
+Phơi: Chưa nhận phơi
+	
+01/10/2026
+	CUS workspace accessibility 7D0F23A9	—	—
+TEST-R15-LCL-01	Khách hàng: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+Nhà máy: Chưa có nhà máy
+Tuyến: Hải Phòng-NEWEB	—
+
+Trọng tải container: —
+Trọng lượng hàng: Chưa có	— → —	—
+Nhà vận tải: Chưa xác định nhà vận tải
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+Đã hoàn thành
+Phơi: Chưa nhận phơi
+	
+15/10/2026
+	—	—	—
+EHPH26080202	Khách hàng: CÔNG TY TNHH LOGCOM VIỆT NAM
+Nhà máy: NEWEB-1
+Tuyến: KCN Đồng Văn, Ninh Bình	—
+20'DC
+Trọng tải container: 28.200 kg
+Trọng lượng hàng: 10.000 kg	Bãi SITC → Cảng 189	—
+Nhà vận tải: Chưa xác định nhà vận tải
+Lái xe: Chưa có lái xe	
+Phải thu: Chưa xác định
+Phải trả: Chưa xác định
+	
+0 ₫
+Xem chi tiết	
+CANCELLED
+Phơi: Chưa nhận phơi
+	
+08/09/2026
+	ĐẢO VỎ; KHO 1-F2	—	—
+Báo cáo tháng
+Phạm vi:
+
+Mặc định (của tôi với kế toán)
+
+ 
+Mặc định (của tôi với kế toán)
+Của tôi
+Tất cả
+Chưa gán
+
+Hiện dòng đã ẩn (0)
+
+Báo cáo Phải thu (theo khách hàng)
+STT	KHÁCH HÀNG	TIỀN NÂNG	TIỀN HẠ	PS KHÁC	PHẢI THU	TỔNG HỢP	GHI CHÚ
+TỔNG	ĐÃ THU	CÒN PHẢI THU
+1	Chưa xác định	250.000 ₫	0 ₫	1.938.000 ₫	2.188.000 ₫	0 ₫	2.188.000 ₫	—	—
+2	CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH	0 ₫	0 ₫	300.000 ₫	300.000 ₫	150.000 ₫	150.000 ₫	—	—
+3	QA0915 QA-138 Credit Customer	0 ₫	0 ₫	488.456 ₫	488.456 ₫	0 ₫	488.456 ₫	—	—
+TỔNG CỘNG	250.000 ₫	0 ₫	2.726.456 ₫	2.976.456 ₫	150.000 ₫	2.826.456 ₫	—	
+
+Hiện dòng đã ẩn (0)
+
+Báo cáo Phải trả (theo nhà xe)
+STT	NHÀ XE	TIỀN NÂNG	TIỀN HẠ	PS KHÁC	PHẢI TRẢ	TỔNG HỢP	GHI CHÚ
+TỔNG	ĐÃ TRẢ	CÒN PHẢI TRẢ
+1	Chưa xác định	250.000 ₫	0 ₫	1.938.000 ₫	2.188.000 ₫	0 ₫	2.188.000 ₫	—	—
+2	XE NHÀ — SILVER SEA	0 ₫	0 ₫	788.456 ₫	788.456 ₫	0 ₫	788.456 ₫	—	—
+TỔNG CỘNG	250.000 ₫	0 ₫	2.726.456 ₫	2.976.456 ₫	0 ₫	2.976.456 ₫	—	
+Phân công xe cho kế toán phơi phiếu
