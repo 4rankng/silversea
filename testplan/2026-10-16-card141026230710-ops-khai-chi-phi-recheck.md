@@ -1,5 +1,9 @@
 # Case 141026230710 — Ops không khai được chi phí lô hàng (P1) — RECHECK PASS (FIXED-on-recheck)
 
+> **Trạng thái kanban: DEV_COMPLETED** (xác thực lại 16/10/2026, build a68d2e04/edbafb04).
+> Card Drive hiện còn ở Kanban/TODO — chủ sở hữu di chuyển sang DEV_COMPLETED
+> (môi trường này chỉ đọc được Drive, không ghi được).
+
 - **Verdict:** FIXED-on-recheck. The reported permission failure no longer
   reproduces on staging build `8610a42b` (2026-10-16 12:07Z). Not fixed by
   this session — the fix shipped earlier (20261005 open-scope batch, merged
