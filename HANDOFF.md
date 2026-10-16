@@ -1,3 +1,36 @@
+# MOBFOOT-1016 mobile footer grey band — DONE, deployed to prod @ e6e2a653 (2026-10-16 ~22:12Z)
+
+Controller: this session (Paseo agent), branch `fix/mobile-footer-band`
+(reused the existing stale branch; base = origin/main `732c7ab9` via
+`e3286338`). Merge `e6e2a653` on main, pushed; `make demo` (staging
+curl-verified `e6e2a653`), `make deploy` PROD (silversea.tingting.vip
+health ok @ `e6e2a653`, steady-state curl ×3, frontend 200; rollback
+snapshot captured by the Makefile flow). Issue #8 closed with evidence.
+
+- Owner phone report 21:07 SGT: /shipments phone band showed an empty grey
+  band below the last lot card. Root cause: DOM ends at `nav.ds-pagination`;
+  the band = shell ≤640 trailing clearance painted in page tone (34px
+  on-device + ~25px iOS dvh slack; owner's 120–180px = 177 physical ≈ 59
+  CSS @3x). Fix per the 2026-10-09 counted-once law's own-surface clause:
+  shell band scoped off while the pagination is mounted; clearance moves
+  INTO the pagination surface. CASCADE ORDER IS LOAD-BEARING (same selector,
+  media queries add no specificity) — independent review caught the first
+  cut placed dead above the base rule; order now pinned by
+  `ShipmentsPage.mobile-footer.styles.test.ts` + substitution proof
+  (46px live / 12px reordered control).
+- Gates: FE tsc 0, full vitest 4937/4937 (pre- and post-F2-merge trees),
+  `make build` ok, `check:ui` ok, lint 0 new (11 pre-existing W1 baseline
+  unchanged, re-diffed against `qa/2026-10-16_fb061-fix_lint.log`).
+- Residuals (documented in design-guidelines + 04 slice): grey band remains
+  at 641–1023px (tablet band incl. landscape phones); iOS dynamic-viewport
+  growth slack is shell-wide and transient (inner `.app-body` scroller never
+  re-absorbs it — window-scroll compensation does not reach div scrollports).
+  Evidence local-only under `qa/1016-mobile-footer/`; case
+  `testplan/2026-10-16-mobile-footer-grey-band.md`; drivers
+  `testplan/qa/scripts/1016-mobile-footer-{rung,cascade-proof}.mjs`.
+
+---
+
 # F-2 card 161026113900 — money boards read the override channel — DONE, local commits (2026-10-16 ~21:20Z)
 
 Controller: this session (Paseo agent), branch `fix/f2-money-override-read-r2`
