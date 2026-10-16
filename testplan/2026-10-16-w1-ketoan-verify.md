@@ -78,3 +78,18 @@
   tái hiện được lỗi khách trên build 7dcdcf33.
 - Evidence: fb098_01…05 png, fb098_assertions.json, fb098_ui-driver.log,
   fb098-lot-cost.mjs.
+
+## FB-099 — chốt debit: ba vùng rõ — PASS (rung 3)
+
+- UI: /accounting/chot-debit as `hoapt` (kỳ 09/01→16/10, dữ liệu thật: 156 dòng).
+- Vùng 1: SummaryRail **"Tổng hợp chốt debit"** với chip "Chờ xác nhận: 134".
+- Vùng 2 riêng: h2 **"Chờ xác nhận"** + bảng caption "Chờ xác nhận — lô có
+  yêu cầu điều chỉnh cước đang chờ" — đúng **134 dòng PENDING**, không dòng
+  "Chờ xác nhận" nào còn trong bảng Kế hoạch điều động tổng hợp (0/22).
+- Vùng 3: section **"Tổng hợp công nợ khách hàng"** (các đợt chốt) có mặt.
+- Hai bảng dùng chung bộ cột (column parity true — một DebitBoardTable); ô
+  trạng thái chữ thuần (0 pill/badge/chip trong bảng).
+- Read-only — không đổi dữ liệu (đúng hợp đồng TC-COSTUX-05 "chỉ chỉnh giao
+  diện").
+- Evidence: fb099_01…02 png, fb099_assertions.json, fb099_ui-driver.log,
+  fb099-debit-zones.mjs.

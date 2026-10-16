@@ -1,0 +1,6 @@
+[2026-10-16T07:48:20.527Z] GOTO /accounting/chot-debit
+[2026-10-16T07:48:20.824Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb099_01-zones.png
+[2026-10-16T07:48:20.826Z] ASSERT three-zone structure = {"summaryRail":true,"pendingHeading":true,"pendingCaption":true,"pendingTablePresent":true,"pendingRowCount":134,"planTablePresent":true,"planRowCount":22,"planRowsWithPendingText":0,"roundsSection":true,"chromeCells":0,"summaryChip":"134"}
+[2026-10-16T07:48:20.826Z] ZONES {"summaryRail":true,"pendingHeading":true,"pendingCaption":true,"pendingTablePresent":true,"pendingRowCount":134,"planTablePresent":true,"planRowCount":22,"planRowsWithPendingText":0,"roundsSection":true,"chromeCells":0,"summaryChip":"134"}
+[2026-10-16T07:48:20.827Z] ASSERT column parity pending vs plan = true
+[2026-10-16T07:48:21.017Z] SHOT /Users/dev/.paseo/worktrees/1njkloyy/qa-w1-ketoan-staging-qa/testplan/qa/2026-10-16_w1-verify/fb099_02-full.png
