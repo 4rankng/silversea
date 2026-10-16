@@ -26,6 +26,7 @@ import type {
   LclGroupDimension,
   MergeLclRevGroupInput,
   UnmergeLclLotInput,
+  UnmergeLclGroupInput,
   UpdateLclTruckInput,
 } from '@tingting/shared';
 import { AuditEvent } from './audit-types';
@@ -67,6 +68,15 @@ export interface LclGroupUnmergeResult {
   /** Surviving members after renumbering (empty ⇒ the group dissolved). */
   remaining: LclGroupMemberResult[];
   dissolved: boolean;
+}
+
+/** Full group un-merge / dissolve result. */
+export interface LclGroupDissolveResult {
+  dimension: LclGroupDimension;
+  groupId: string;
+  memberCount: number;
+  members: LclGroupMemberResult[];
+  dissolved: true;
 }
 
 type ShipmentRow = typeof s.shipments.$inferSelect;
@@ -307,11 +317,9 @@ async function promotePrincipalOnRemoval(
     // as a shipment-level snapshot on lots that still have no trip, so the
     // FB-095 transfer reads/writes BOTH channels — trip revenue first, the
     // trip-less snapshot as the fallback grain.
-    const revenue = leaverTrip?.revenue != null
+    const revenue = leaverTrip?.revenue != null && Number(leaverTrip.revenue) !== 0
       ? leaverTrip.revenue
-      : leaverTrip == null
-        ? await latestShipmentLevelSnapshotAmount(tx, leaver.id)
-        : null;
+      : await latestShipmentLevelSnapshotAmount(tx, leaver.id);
     if (revenue != null && Number(revenue) !== 0) {
       // Card law: a computed financial zero is a value — cite its reason. The
       // promotee sheds its member-zero stamp and inherits the principal money.
@@ -322,14 +330,13 @@ async function promotePrincipalOnRemoval(
           revenueOverriddenAt: new Date(),
           revenueOverrideReason: `Đón cước chính khi tách nhóm (từ Bill ${lotReference(leaver)})`,
         });
-      } else {
-        await insertRevMergeSnapshot(
-          tx,
-          promotee.id,
-          Number(revenue),
-          `Đón cước chính khi tách nhóm (từ Bill ${lotReference(leaver)}) — chưa phân bổ xe`,
-        );
       }
+      await insertRevMergeSnapshot(
+        tx,
+        promotee.id,
+        Number(revenue),
+        `Đón cước chính khi tách nhóm (từ Bill ${lotReference(leaver)}) — 100% cước thu`,
+      );
       if (leaverTrip != null) {
         await upsertTripFinancialState(tx, leaverTrip.tripId, {
           revenue: '0',
@@ -355,6 +362,70 @@ async function promotePrincipalOnRemoval(
     promoted: { shipmentId: promotee.id, order: 1, reference: lotReference(promotee) },
     transferredAmount,
   };
+}
+
+/**
+ * Un-merge / dissolve an entire LCL group in one atomic transaction.
+ * All members are ungrouped; the primary member keeps 100% of the money
+ * (and vehicle class), while other members stay at 0₫ awaiting re-pricing,
+ * so the total group freight is strictly conserved.
+ */
+export async function unmergeLclGroup(
+  input: { groupId: string; dimension: LclGroupDimension },
+  actor: LclGroupActor,
+): Promise<LclGroupDissolveResult> {
+  return db.transaction(async (tx) => {
+    const ordered = await lockGroupMembers(tx, input.dimension, input.groupId);
+    if (ordered.length === 0) {
+      throw new ApiError(404, 'Không tìm thấy nhóm ghép');
+    }
+    const tripFacts = await loadLiveTripFactsByShipment(tx, ordered.map((row) => row.id));
+    await assertGroupMutable(tx, ordered, tripFacts);
+
+    for (const member of ordered) {
+      await tx.update(s.shipments).set({
+        ...dissolveGroupMembershipPatch(input.dimension),
+        version: member.version + 1,
+        updatedBy: actor.userId,
+        updatedAt: new Date(),
+      }).where(eq(s.shipments.id, member.id));
+
+      const { order } = dimensionGroupOf(member, input.dimension);
+      if (order !== 1 && input.dimension === 'REV') {
+        const trip = tripFacts.get(member.id);
+        if (trip && trip.revenue === '0') {
+          await upsertTripFinancialState(tx, trip.tripId, {
+            revenueOverriddenBy: actor.userId,
+            revenueOverriddenAt: new Date(),
+            revenueOverrideReason: 'Tách khỏi nhóm ghép — chờ định giá lại',
+          });
+        }
+        if (!trip) {
+          const snapshotAmount = await latestShipmentLevelSnapshotAmount(tx, member.id);
+          if (snapshotAmount === 0) {
+            await insertRevMergeSnapshot(tx, member.id, 0, 'Tách khỏi nhóm ghép — chờ định giá lại');
+          }
+        }
+      }
+    }
+
+    await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_LCL_GROUP_UNMERGED, ordered[0]!, {
+      dimension: input.dimension,
+      groupId: input.groupId,
+      cause: 'UNMERGE_GROUP',
+      dissolved: true,
+      memberCount: ordered.length,
+      members: ordered.map((row, idx) => ({ shipmentId: row.id, order: idx + 1, reference: lotReference(row) })),
+    });
+
+    return {
+      dimension: input.dimension,
+      groupId: input.groupId,
+      memberCount: ordered.length,
+      members: ordered.map((row, idx) => ({ shipmentId: row.id, order: idx + 1, reference: lotReference(row) })),
+      dissolved: true,
+    };
+  });
 }
 
 /**
@@ -477,24 +548,49 @@ export async function promoteLclGroupsOnShipmentDelete(
 ): Promise<void> {
   for (const dimension of ['COST', 'REV'] as const) {
     const { groupId, order } = dimensionGroupOf(leaver, dimension);
-    if (groupId == null || order !== 1) continue;
+    if (groupId == null) continue;
     const ordered = await lockGroupMembers(tx, dimension, groupId);
     const survivors = ordered.filter((row) => row.id !== leaver.id);
     if (survivors.length === 0) continue;
     const tripFacts = await loadLiveTripFactsByShipment(tx, ordered.map((row) => row.id));
     await assertGroupMutable(tx, ordered, tripFacts);
-    const { promoted } = await promotePrincipalOnRemoval(tx, dimension, groupId, leaver, ordered, tripFacts, actor);
-    const dissolved = survivors.length === 1;
-    await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_LCL_GROUP_UNMERGED, leaver, {
-      dimension,
-      groupId,
-      cause: 'DELETE',
-      leaver: { shipmentId: leaver.id, order, reference: lotReference(leaver) },
-      promoted: promoted == null ? null : { shipmentId: promoted.shipmentId, reference: promoted.reference },
-      transferredAmount: null,
-      remaining: dissolved ? [] : survivors.map((row, index) => ({ shipmentId: row.id, order: index + 1, reference: lotReference(row) })),
-      dissolved,
-    });
+
+    if (order === 1) {
+      const { promoted, transferredAmount } = await promotePrincipalOnRemoval(
+        tx,
+        dimension,
+        groupId,
+        leaver,
+        ordered,
+        tripFacts,
+        actor,
+      );
+      const dissolved = survivors.length === 1;
+      await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_LCL_GROUP_UNMERGED, leaver, {
+        dimension,
+        groupId,
+        cause: 'DELETE',
+        leaver: { shipmentId: leaver.id, order: order ?? 1, reference: lotReference(leaver) },
+        promoted: promoted == null ? null : { shipmentId: promoted.shipmentId, reference: promoted.reference },
+        transferredAmount,
+        remaining: dissolved ? [] : survivors.map((row, index) => ({ shipmentId: row.id, order: index + 1, reference: lotReference(row) })),
+        dissolved,
+      });
+    } else {
+      // Member (order > 1) deleted. Survivors renumbered, or dissolved if only 1 member remains.
+      await rewriteSurvivors(tx, dimension, survivors, groupId, actor);
+      const dissolved = survivors.length === 1;
+      await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_LCL_GROUP_UNMERGED, leaver, {
+        dimension,
+        groupId,
+        cause: 'DELETE',
+        leaver: { shipmentId: leaver.id, order: order ?? 0, reference: lotReference(leaver) },
+        promoted: null,
+        transferredAmount: null,
+        remaining: dissolved ? [] : survivors.map((row, index) => ({ shipmentId: row.id, order: index + 1, reference: lotReference(row) })),
+        dissolved,
+      });
+    }
   }
 }
 

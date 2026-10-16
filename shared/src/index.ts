@@ -95,6 +95,7 @@ export {
   assignLclCostGroupSchema,
   mergeLclRevGroupSchema,
   unmergeLclLotSchema,
+  unmergeLclGroupSchema,
   updateLclTruckSchema,
   LCL_GROUP_DIMENSIONS,
 } from './schemas/lcl-grouping';
@@ -102,6 +103,7 @@ export type {
   AssignLclCostGroupInput,
   MergeLclRevGroupInput,
   UnmergeLclLotInput,
+  UnmergeLclGroupInput,
   UpdateLclTruckInput,
   LclGroupDimension,
   LclGroupWire,
