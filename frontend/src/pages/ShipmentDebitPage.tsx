@@ -103,7 +103,17 @@ function DebitLotRow({
           </Link>
         )}
       </td>
-      <td className="shipment-debit-row__money">{row.freightAuto == null ? 'Chưa xác định' : formatMoney(row.freightAuto)}</td>
+      <td className="shipment-debit-row__money">
+        <div className="record-cell-stack shipment-debit-row__freight">
+          <span>{row.freightAuto == null ? 'Chưa xác định' : formatMoney(row.freightAuto)}</span>
+          {/* F-2 (card 161026113900, spec §3.2): a freight the override
+              channel produced carries its reason beneath the money —
+              members read "Ghép cước cùng Bill X" under their 0₫. */}
+          {row.freightOverrideReason && (
+            <small className="shipment-debit-row__freight-note">{row.freightOverrideReason}</small>
+          )}
+        </div>
+      </td>
       <td className="shipment-debit-row__money">{row.chiHoTotal == null ? 'Chưa xác định' : formatMoney(row.chiHoTotal)}</td>
       <td className="shipment-debit-row__money shipment-debit-row__money--strong">{row.receivableTotal == null ? 'Chưa xác định' : formatMoney(row.receivableTotal)}</td>
       <td className="shipment-debit-row__money">{row.payableTotal == null ? 'Chưa xác định' : formatMoney(row.payableTotal)}</td>

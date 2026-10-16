@@ -1,9 +1,11 @@
 // Chi phí - Quyết toán (Debit CUS) Lớp 1 — per-lot revenue rollup.
 //
 // One read-only service behind GET /api/shipments/debit-summary: per lot the
-// auto freight (freight-rate snapshots), tổng chi hộ (trip expenses = what SS
-// pays on the customer's behalf), tổng phải thu khách (attributed debit-note
-// lines) and the derived profit. PRD money fields are nullable; null means
+// auto freight (freight-rate snapshots; F-2 ruling (b): LCL REV-grouped or
+// override-stamped lots read the trip_financial_state.revenue override
+// channel instead), tổng chi hộ (trip expenses = what SS pays on the
+// customer's behalf), tổng phải thu khách (attributed debit-note lines) and
+// the derived profit. PRD money fields are nullable; null means
 // "chưa xác định" — never a false 0.
 //
 // Debit-lock sync: 🔓/🔒 follows the shipment_cost_locks active lock (a lô
@@ -16,6 +18,7 @@ import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue }
 import type { ShipmentDebitSummaryItem, ShipmentDebitSummaryResponse } from '@tingting/shared';
 import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
+import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -169,6 +172,25 @@ export async function getShipmentDebitSummary(query: {
     const intake = intakeFreight.get(lot);
     const freight = legs !== undefined ? legs : intake;
     if (freight !== undefined) freightByLot.set(lot, freight);
+  }
+
+  // F-2 (card 161026113900, owner ruling b): CƯỚC VẬN TẢI (AUTO) reads the
+  // override channel `trip_financial_state.revenue` for an LCL lot that is
+  // REV-grouped (the merge re-prices the principal without override markers)
+  // or whose live trip carries an override stamp (FB-095 transfers/re-stamps —
+  // and the survivor of a dissolved 2-lot group is ungrouped). LCL-only keeps
+  // every FCL lot on the snapshot channel byte-for-byte. Spec §3.2: members
+  // read 0₫ with the reason note; chi hộ still counts into TỔNG PHẢI THU
+  // KHÁCH — only the freight component follows the group law.
+  const overrideByLot = await loadRevenueOverrideByLot(db, lotIds);
+  const effectiveFreightByLot = new Map<number, { value: number | null; reason: string | null }>();
+  for (const lot of lots) {
+    const override = overrideByLot.get(lot.id);
+    const qualified = lot.cargoMode === 'LCL'
+      && (lot.revGroupId != null || (override?.stamped ?? false));
+    effectiveFreightByLot.set(lot.id, qualified
+      ? { value: override?.total ?? null, reason: override?.reason ?? null }
+      : { value: freightByLot.get(lot.id) ?? null, reason: null });
   }
 
   // Tổng chi hộ: what SS pays on the lot's live trips (CVC + Ops fees).
@@ -352,14 +374,20 @@ export async function getShipmentDebitSummary(query: {
   };
 
   const items: ShipmentDebitSummaryItem[] = lots.map((lot) => {
-    const freightAuto = freightByLot.get(lot.id);
+    // F-2 ruling (b): the override-channel value when the lot qualifies, the
+    // snapshot value otherwise — ONE effective freight drives the column, the
+    // receivable addend and profit so the merged 100%/0₫ law cannot desync
+    // between them. The locked-receivable freeze (card _19) never mutates;
+    // only these live columns follow the channel.
+    const effectiveFreight = effectiveFreightByLot.get(lot.id) ?? { value: null, reason: null };
+    const freightAuto = effectiveFreight.value;
     const chiHo = chiHoByLot.get(lot.id);
     const hasTrips = (tripCountByLot.get(lot.id) ?? 0) > 0;
     const lock = lockedByLot.get(lot.id);
     const revenue = revenueByLot.get(lot.id);
     const ps = psByLot.get(lot.id);
     const hasAnyRevenue = revenue != null
-      || freightByLot.has(lot.id)
+      || freightAuto != null
       || (ps?.known ?? false)
       || (opsChargeByLot.get(lot.id)?.known ?? false);
     const receivableValue = lock != null
@@ -367,7 +395,7 @@ export async function getShipmentDebitSummary(query: {
       : hasAnyRevenue
         ? (revenue?.otherSell ?? 0)
           + (revenue?.derived ?? 0)
-          + (freightByLot.get(lot.id) ?? 0)
+          + (freightAuto ?? 0)
           + (ps?.known ? ps.total : 0)
           + (opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : 0)
         : null;
@@ -396,6 +424,11 @@ export async function getShipmentDebitSummary(query: {
       customsNumber: [...(declarationNumbersByLot.get(lot.id) ?? [])].join(', ') || null,
       documentsSummary: null,
       freightAuto: freightAuto == null ? null : String(freightAuto),
+      // F-2: the override stamp behind the money column — the spec §3.2
+      // "chú thích nhỏ bên dưới" under CƯỚC VẬN TẢI (AUTO) ("Ghép cước cùng
+      // Bill X" / FB-095 re-stamps). null when the snapshot channel
+      // produced the value.
+      freightOverrideReason: effectiveFreight.reason,
       chiHoTotal: hasTrips || chiHo != null ? String(chiHo ?? 0) : null,
       receivableTotal: receivableValue == null ? null : String(receivableValue),
       payableTotal,

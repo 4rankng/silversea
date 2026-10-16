@@ -445,6 +445,9 @@ export interface Trip {
   revenueOriginal: string | null;
   revenueOverriddenBy: number | null;
   revenueOverriddenAt: string | null;
+  /** F-4: the override reason stamp ("Ghép cước cùng Bill X" / operator
+   *  reasons) — trip GET detail; absent on list projections. */
+  revenueOverrideReason?: string | null;
   photoUrls: string[] | null;
   notes: string | null;
   tripCode: string | null;

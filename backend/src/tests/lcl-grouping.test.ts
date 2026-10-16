@@ -13,6 +13,10 @@
  *   FB-095 un-merge safety: a settled group refuses composition changes;
  *   leaving Lô 1 auto-promotes Lô 2 with 100% of the money (both dimensions),
  *   with audit; deleting the principal promotes inside the delete txn.
+ *   F-2 (card 161026113900, ruling b): both money boards read the
+ *   trip_financial_state.revenue override channel for REV-grouped or
+ *   override-stamped lots — merged 100%/0₫ lands on the money columns while
+ *   ungrouped lots keep the freight-snapshot grain byte-for-byte.
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -42,6 +46,8 @@ const createdTripIds: number[] = [];
 const createdPricingTableIds: number[] = [];
 const createdAccountingLockIds: number[] = [];
 const createdBillingDocIds: number[] = [];
+const createdFreightSnapshotIds: number[] = [];
+const createdFulfillmentIds: number[] = [];
 
 async function mkCustomer(name: string) {
   const [customer] = await db.insert(s.customers).values({ name: `${name} ${suffix}` }).returning();
@@ -85,6 +91,40 @@ async function mkTrip(shipmentId: number, customerId: number, routeId: number) {
   }).returning();
   createdTripIds.push(trip.id);
   return trip;
+}
+
+/** F-2 — a per-trip freight-rate snapshot (the boards' historical channel),
+ * split freight vs surcharge so the phuPs contract is assertable. */
+async function mkFreightSnapshot(shipmentId: number, tripId: number, freight: string, surcharge = '0') {
+  const [row] = await db.insert(s.freightRateSnapshots).values({
+    shipmentId,
+    tripId,
+    freightAmount: freight, surchargeAmount: surcharge,
+    totalAmount: String(Number(freight) + Number(surcharge)),
+    rateTermsId: 1, pricingTableId: 1, fuelNormId: 1, fuelPricePeriodId: 1,
+    billedKm: '10', liters: '0', fuelDelta: '0', sharePct: '0',
+  }).returning();
+  createdFreightSnapshotIds.push(row.id);
+  return row;
+}
+
+/** F-2 — a board-visible trip: the money boards count per-trip money only
+ * for fulfillment-linked live trips (card 20260924_2 shadow rule), so the
+ * F-2 fixtures ride an LCL fulfillment exactly like dispatched production
+ * lots do. */
+async function mkBoardTrip(shipmentId: number, customerId: number, routeId: number) {
+  const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    dispatchClassification: 'LCL',
+    sourceShipmentVersion: 1,
+    siteSnapshot: {},
+  }).returning();
+  createdFulfillmentIds.push(fulfillment.id);
+  const trip = await mkTrip(shipmentId, customerId, routeId);
+  await db.update(s.trips).set({ fulfillmentId: fulfillment.id }).where(eq(s.trips.id, trip.id));
+  return { ...trip, fulfillmentId: fulfillment.id };
 }
 
 async function vehicleClassByCode(code: string) {
@@ -327,6 +367,139 @@ describe('LCL grouping — FB-093 debit-summary projection', () => {
     assert.equal(row1.revGroupPrincipalRef, null);
     assert.equal(row2.revGroupOrder, 2);
     assert.equal(row2.revGroupPrincipalRef, lot1.blNumber);
+  });
+});
+
+describe('F-2 (card 161026113900) — money boards read the override channel (ruling b)', () => {
+  // FB-093 writes the 100%/0₫ jump to trip_financial_state.revenue; the
+  // boards' cước-thu columns must read that channel for REV-grouped or
+  // override-stamped lots (owner ruling option (b)), while everything else
+  // keeps the freight-snapshot grain byte-for-byte.
+  async function seedMergedPair(label: string) {
+    const customer = await mkCustomer(`F2 ${label}`);
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `F2-${label}1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `F2-${label}2-${suffix.slice(-6)}`);
+    const trip1 = await mkBoardTrip(lot1.id, customer.id, route.id);
+    const trip2 = await mkBoardTrip(lot2.id, customer.id, route.id);
+    // Each lot's OWN auto freight on the snapshot channel — the stale money
+    // the defect kept showing after a merge.
+    await mkFreightSnapshot(lot1.id, trip1.id, '1200000', '50000');
+    await mkFreightSnapshot(lot2.id, trip2.id, '900000', '30000');
+    await upsertTripFinancialState(db, trip1.id, { revenue: '1200000' });
+    await upsertTripFinancialState(db, trip2.id, { revenue: '900000' });
+    const truckClass = await vehicleClassByCode('3.5T');
+    const [pricingRow] = await db.insert(s.pricingTables).values({
+      customerId: customer.id,
+      routeId: route.id,
+      vehicleSizeClassId: truckClass.id,
+      rateKey: truckClass.code,
+      price: '3150000',
+    }).returning();
+    createdPricingTableIds.push(pricingRow.id);
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: truckClass.id }, actor);
+    return { customer, lot1, lot2, lanePrice: '3150000' };
+  }
+
+  test('CUS board: principal reads the lane price, member 0₫ + reason note (F2-01)', async () => {
+    const { customer, lot1, lot2, lanePrice } = await seedMergedPair('a');
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const principal = summary.items.find((row) => row.shipmentId === lot1.id)!;
+    const member = summary.items.find((row) => row.shipmentId === lot2.id)!;
+    // The override channel wins over each lot's own snapshot freight.
+    assert.equal(principal.freightAuto, lanePrice, 'principal = 100% (lane price, not its own 1.250.000 snapshot)');
+    assert.equal(member.freightAuto, '0', 'member = 0₫ (not its own 930.000 snapshot)');
+    assert.equal(member.freightOverrideReason, `Ghép cước cùng Bill ${lot1.blNumber}`);
+    assert.equal(principal.freightOverrideReason, null, 'the un-marked principal carries no note');
+    // Spec §3.2: chỉ Cước vận tải = 0 — the receivable addend follows the
+    // effective freight (0 freight still reads as a known 0, not null).
+    assert.equal(member.receivableTotal, '0');
+    assert.equal(principal.receivableTotal, lanePrice);
+    // No chi-hộ rows exist ⇒ chi hộ unknown ⇒ profit null (PRD null law),
+    // even though chiHoTotal renders a truthful '0' because trips exist.
+    assert.equal(member.profit, null);
+    assert.equal(principal.profit, null);
+  });
+
+  test('accounting board: thu.cuocThu follows the group law, phuPs stays snapshot (F2-02)', async () => {
+    const { customer, lot1, lot2, lanePrice } = await seedMergedPair('b');
+    const board = await getAccountingDebitBoard({ dateFrom: '2026-10-20', dateTo: '2026-10-20' });
+    const principal = board.items.find((row) => row.shipmentId === lot1.id && row.customerId === customer.id)!;
+    const member = board.items.find((row) => row.shipmentId === lot2.id && row.customerId === customer.id)!;
+    assert.equal(principal.thu.cuocThu, lanePrice, 'Lô 1 hiện 100% tiền cước nhóm');
+    assert.equal(member.thu.cuocThu, '0', 'lô phụ hiện 0 ₫');
+    // Phụ ps reads the snapshot surcharge channel — the merge owns only the
+    // freight/revenue figure (spec: chỉ phần Cước vận tải = 0).
+    assert.equal(principal.thu.phuPs, '50000');
+    assert.equal(member.thu.phuPs, '30000');
+    assert.equal(principal.thu.tongThu, '3200000', 'tổng thu = effective freight + phu ps');
+    assert.equal(member.thu.tongThu, '30000');
+  });
+
+  test('un-merge keeps both boards on the override channel via the stamp (F2-03)', async () => {
+    const { customer, lot1, lot2, lanePrice } = await seedMergedPair('c');
+    await unmergeLclLot({ shipmentId: lot1.id, dimension: 'REV' }, actor);
+
+    // FB-095 transferred the bill money to lot2 and the group dissolved —
+    // the survivor is UNGROUPED, so only its override stamp keeps the boards
+    // on the channel where the money actually moved.
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const leaver = summary.items.find((row) => row.shipmentId === lot1.id)!;
+    const survivor = summary.items.find((row) => row.shipmentId === lot2.id)!;
+    assert.equal(survivor.freightAuto, lanePrice, 'the promoted survivor keeps 100% of the bill money');
+    assert.equal(leaver.freightAuto, '0', 'the leaver reads its stamped 0₫, not its old snapshot');
+    assert.equal(leaver.freightOverrideReason, `Tách nhóm — chuyển 100% cước cho Bill ${lot2.blNumber}`);
+
+    const board = await getAccountingDebitBoard({ dateFrom: '2026-10-20', dateTo: '2026-10-20' });
+    const boardLeaver = board.items.find((row) => row.shipmentId === lot1.id && row.customerId === customer.id)!;
+    const boardSurvivor = board.items.find((row) => row.shipmentId === lot2.id && row.customerId === customer.id)!;
+    assert.equal(boardSurvivor.thu.cuocThu, lanePrice);
+    assert.equal(boardLeaver.thu.cuocThu, '0');
+  });
+
+  test('ungrouped, un-overridden lots keep the snapshot channel byte-for-byte (F2-04)', async () => {
+    const customer = await mkCustomer('F2 control');
+    const route = await mkRoute();
+    const lot = await mkLclLot(customer.id, route.id, `F2-CTL-${suffix.slice(-6)}`);
+    const trip = await mkBoardTrip(lot.id, customer.id, route.id);
+    await mkFreightSnapshot(lot.id, trip.id, '1234000', '60000');
+    // Trip revenue DELIBERATELY differs from the snapshot total — the lot is
+    // ungrouped and unstamped, so the assertion below proves the snapshot
+    // wins (a broken always-override precedence would read 999000).
+    await upsertTripFinancialState(db, trip.id, { revenue: '999000' });
+
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const row = summary.items.find((item) => item.shipmentId === lot.id)!;
+    assert.equal(row.freightAuto, '1294000', 'no group + no stamp ⇒ snapshot total (freight + surcharge)');
+    assert.equal(row.freightOverrideReason, null);
+    const board = await getAccountingDebitBoard({ dateFrom: '2026-10-20', dateTo: '2026-10-20' });
+    const boardRow = board.items.find((item) => item.shipmentId === lot.id && item.customerId === customer.id)!;
+    assert.equal(boardRow.thu.cuocThu, '1234000', 'snapshot freight component');
+    assert.equal(boardRow.thu.phuPs, '60000', 'snapshot surcharge component');
+  });
+
+  test('an override-stamped FCL lot stays on the snapshot channel (F2-05 BE)', async () => {
+    // Review C1: the stamp clause is scoped to LCL — an operator M2.1 revenue
+    // edit on an FCL lot must not flip the boards' money (FCL semantics and
+    // the freight/phuPs split stay untouched by the ruling).
+    const customer = await mkCustomer('F2 fcl stamp');
+    const route = await mkRoute();
+    const lot = await mkLclLot(customer.id, route.id, `F2-FCL-${suffix.slice(-6)}`, { cargoMode: 'FCL' });
+    const trip = await mkBoardTrip(lot.id, customer.id, route.id);
+    await mkFreightSnapshot(lot.id, trip.id, '2000000', '0');
+    await upsertTripFinancialState(db, trip.id, {
+      revenue: '2500000',
+      revenueOverriddenAt: new Date(),
+      revenueOverrideReason: 'Khách hàng thoả thuận giá mới',
+    });
+
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const row = summary.items.find((item) => item.shipmentId === lot.id)!;
+    assert.equal(row.freightAuto, '2000000', 'stamped FCL keeps the snapshot channel');
+    assert.equal(row.freightOverrideReason, null, 'no note outside the LCL domain');
+    const board = await getAccountingDebitBoard({ dateFrom: '2026-10-20', dateTo: '2026-10-20' });
+    const boardRow = board.items.find((item) => item.shipmentId === lot.id && item.customerId === customer.id)!;
+    assert.equal(boardRow.thu.cuocThu, '2000000');
   });
 });
 
@@ -804,6 +977,12 @@ after(async () => {
   }
   if (createdPricingTableIds.length > 0) {
     await db.delete(s.pricingTables).where(inArray(s.pricingTables.id, createdPricingTableIds));
+  }
+  if (createdFreightSnapshotIds.length > 0) {
+    await db.delete(s.freightRateSnapshots).where(inArray(s.freightRateSnapshots.id, createdFreightSnapshotIds));
+  }
+  if (createdFulfillmentIds.length > 0) {
+    await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.id, createdFulfillmentIds));
   }
   if (createdShipmentIds.length > 0) {
     await db.delete(s.shipmentStatusHistory).where(inArray(s.shipmentStatusHistory.shipmentId, createdShipmentIds));

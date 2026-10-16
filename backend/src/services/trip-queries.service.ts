@@ -498,7 +498,11 @@ export async function getTripById(id: number) {
     totalCost: s.tripsComposite.totalCost, revenue: s.tripsComposite.revenue, revenueEmptyReturn: s.tripsComposite.revenueEmptyReturn,
     revenueCombine: s.tripsComposite.revenueCombine, grossProfit: s.tripsComposite.grossProfit,
     revenueOriginal: s.tripsComposite.revenueOriginal, revenueOverriddenBy: s.tripsComposite.revenueOverriddenBy,
-    revenueOverriddenAt: s.tripsComposite.revenueOverriddenAt, hasReturnCargo: s.tripsComposite.hasReturnCargo,
+    revenueOverriddenAt: s.tripsComposite.revenueOverriddenAt,
+    // F-4 (card 161026113900 lane): the zero-reason stamp ("Ghép cước cùng
+    // Bill X" / promotion or operator override reasons) so an operator
+    // surface can answer "why is this revenue zero" from the trip GET.
+    revenueOverrideReason: s.tripsComposite.revenueOverrideReason, hasReturnCargo: s.tripsComposite.hasReturnCargo,
     driverSalary: s.tripsComposite.driverSalary, notes: s.tripsComposite.notes,
     twoPointDeliveryBonus: s.tripsComposite.twoPointDeliveryBonus,
     vehicleShiftAllowance: s.tripsComposite.vehicleShiftAllowance,

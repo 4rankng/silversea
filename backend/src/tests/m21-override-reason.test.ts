@@ -16,6 +16,7 @@ import { inArray } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
+import { getTripById } from '../services/trip-queries.service';
 import { TripStatus, FuelMode, LoadingType, Role } from '@tingting/shared';
 import { updateTripFigures } from '../services/trip-mutations.service';
 import { ApiError } from '../errors';
@@ -174,5 +175,21 @@ describe('M2.1 — pricing override reason', () => {
       })),
       (err: unknown) => err instanceof ApiError && err.statusCode === 409,
     );
+  });
+
+  test('trip GET surfaces revenueOverrideReason (F-4, card 161026113900 lane)', async () => {
+    const customer = await mkCustomer();
+    const cat = await mkCatalogs();
+    const trip = await mkTrip({ customerId: customer.id, routeId: cat.route.id, cargoTypeId: cat.cargoType.id, pricingSource: 'TABLE', revenue: '5000000' });
+    await updateTripFigures(trip.id, baseUpdate(trip.id, trip.version, {
+      revenue: 6_000_000,
+      revenueOverrideReason: 'Khách hàng thoả thuận giá mới',
+    }));
+
+    const detail = await getTripById(trip.id);
+    // The zero/override reason was DB+audit-only before F-4 — the read API
+    // now carries it so an operator surface can answer "why this revenue".
+    assert.equal(detail.revenueOverrideReason, 'Khách hàng thoả thuận giá mới');
+    assert.equal(Number(detail.revenue), 6_000_000);
   });
 });
