@@ -18,7 +18,7 @@ beforeEach(() => { Object.values(api).forEach(fn => fn.mockReset()); api.listDep
 describe('deposit tracker workflows', () => {
   // Card 20260927_152: the filter region is the ONE shared strip — the from/to
   // pair, the status criterion (inline while the strip fits two rows) and the
-  // page's own Lọc / Thêm dòng actions in the bar's action slot.
+  // page's own Lọc / Thêm cược actions in the bar's action slot.
   it('renders the shared filter strip and keeps both page actions', async () => {
     const { container } = page();
     await screen.findByText('QA-BILL');
@@ -29,7 +29,7 @@ describe('deposit tracker workflows', () => {
     expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
     expect(within(bar).getByText('Trạng thái')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Lọc' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Thêm dòng' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thêm cược' })).toBeTruthy();
     // Blank range + blank status still queries all dates (behaviour preserved).
     expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined);
   });
@@ -93,7 +93,7 @@ describe('deposit tracker workflows', () => {
     await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, expectedRefundDate: null }));
   });
   it('keeps save failures and user input inside the create form, and rejects negative amounts', async () => {
-    page(); fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' })); const form = within(await screen.findByRole('dialog'));
+    page(); fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' })); const form = within(await screen.findByRole('dialog'));
     // Card 20260930_224: the money field is NumberField (unsigned grouped) — a
     // typed minus is dropped on entry, so the old negative-rejection alert is
     // unreachable by construction and the submit carries the POSITIVE digits.
@@ -112,8 +112,8 @@ describe('deposit tracker workflows', () => {
   // hoàn cược (CV + 14 default) and Trạng thái.
   it('renders the three spec 5.10 create fields and defaults Trạng thái to Chưa hoàn cược', async () => {
     page(); await screen.findByText('QA-BILL');
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' }));
-    const form = within(await screen.findByRole('dialog', { name: 'Thêm dòng theo dõi hoàn cược' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Thêm cược' }));
     expect(form.getByLabelText('Ngày cược')).toHaveValue('');
     expect(form.getByLabelText('Ngày dự kiến hoàn cược')).toHaveValue('');
     const status = form.getByRole('button', { name: /Trạng thái/ });
@@ -125,8 +125,8 @@ describe('deposit tracker workflows', () => {
 
   it('auto-fills Ngày dự kiến hoàn cược to CV + 14 on CV change and keeps a manual override', async () => {
     page(); await screen.findByText('QA-BILL');
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' }));
-    const form = within(await screen.findByRole('dialog', { name: 'Thêm dòng theo dõi hoàn cược' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Thêm cược' }));
     fireEvent.change(form.getByLabelText('Ngày nộp CV (tùy chọn)'), { target: { value: '01/10/2026' } });
     await waitFor(() => expect(form.getByLabelText('Ngày dự kiến hoàn cược')).toHaveValue('15'));
     expect(form.getByLabelText('Tháng — Ngày dự kiến hoàn cược')).toHaveValue('10');
@@ -143,8 +143,8 @@ describe('deposit tracker workflows', () => {
 
   it('submits depositDate + status and can mark Đã hoàn cược at creation', async () => {
     page(); await screen.findByText('QA-BILL');
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' }));
-    const form = within(await screen.findByRole('dialog', { name: 'Thêm dòng theo dõi hoàn cược' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Thêm cược' }));
     for (const [label, value] of [['Số Bill', 'QA-NEW'], ['Khách hàng', 'QA customer'], ['Hãng tàu', 'QA carrier'], ['Số tiền cược (₫)', '5000000']]) fireEvent.change(form.getByLabelText(label), { target: { value } });
     fireEvent.change(form.getByLabelText('Ngày cược'), { target: { value: '03/10/2026' } });
     fireEvent.change(form.getByLabelText('Ngày nộp CV (tùy chọn)'), { target: { value: '01/10/2026' } });
@@ -162,8 +162,8 @@ describe('deposit tracker workflows', () => {
 
   it('keeps the create payload at status CHUA_HOAN_CUOC with blank dates by default', async () => {
     page(); await screen.findByText('QA-BILL');
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng' }));
-    const form = within(await screen.findByRole('dialog', { name: 'Thêm dòng theo dõi hoàn cược' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' }));
+    const form = within(await screen.findByRole('dialog', { name: 'Thêm cược' }));
     for (const [label, value] of [['Số Bill', 'QA-NEW'], ['Khách hàng', 'QA customer'], ['Hãng tàu', 'QA carrier'], ['Số tiền cược (₫)', '5000000']]) fireEvent.change(form.getByLabelText(label), { target: { value } });
     api.createDepositTracker.mockResolvedValue(row);
     fireEvent.click(form.getByRole('button', { name: 'Lưu dòng' }));

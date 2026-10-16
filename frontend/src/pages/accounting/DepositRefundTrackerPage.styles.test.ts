@@ -142,7 +142,7 @@ describe('deposit tracker filter strip (card 20260927_152)', () => {
     // Behaviour preserved: the page's own two actions stay reachable and the
     // status criterion keeps its accessible name.
     expect(tsx).toContain('>Lọc</Btn>');
-    expect(tsx).toContain('>Thêm dòng</Btn>');
+    expect(tsx).toContain('>Thêm cược</Btn>');
     expect(tsx).toContain('ariaLabel="Trạng thái hoàn cược"');
   });
 
