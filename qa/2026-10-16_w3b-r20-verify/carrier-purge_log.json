@@ -1,0 +1,123 @@
+[
+  {
+    "at": "2026-10-16T10:38:55.031Z",
+    "step": "health",
+    "buildHash": "2888f77f",
+    "expect": "2888f77f"
+  },
+  {
+    "at": "2026-10-16T10:38:55.445Z",
+    "step": "before",
+    "carriersTotal": 25,
+    "realCarriers": 18,
+    "defaultKhCount": 12,
+    "targets": [
+      {
+        "id": 77,
+        "name": "Nhà xe E2E CEDF5502",
+        "createdAt": "2026-09-30T23:19:59.350Z"
+      },
+      {
+        "id": 79,
+        "name": "Nhà xe E2E 192F2C1D",
+        "createdAt": "2026-09-30T23:22:48.305Z"
+      },
+      {
+        "id": 81,
+        "name": "Nhà xe E2E F70A3096",
+        "createdAt": "2026-09-30T23:24:04.982Z"
+      },
+      {
+        "id": 83,
+        "name": "Nhà xe E2E 5D08AC8E",
+        "createdAt": "2026-09-30T23:25:25.560Z"
+      },
+      {
+        "id": 85,
+        "name": "Nhà xe E2E 80370462",
+        "createdAt": "2026-09-30T23:28:06.512Z"
+      },
+      {
+        "id": 87,
+        "name": "Nhà xe E2E 1DC488B5",
+        "createdAt": "2026-09-30T23:30:11.292Z"
+      },
+      {
+        "id": 89,
+        "name": "Nhà xe E2E 49D6997B",
+        "createdAt": "2026-09-30T23:31:17.323Z"
+      }
+    ]
+  },
+  {
+    "at": "2026-10-16T10:38:55.523Z",
+    "step": "delete",
+    "id": 77,
+    "name": "Nhà xe E2E CEDF5502",
+    "status": 200,
+    "body": "{\"ok\":true}"
+  },
+  {
+    "at": "2026-10-16T10:38:55.595Z",
+    "step": "delete",
+    "id": 79,
+    "name": "Nhà xe E2E 192F2C1D",
+    "status": 200,
+    "body": "{\"ok\":true}"
+  },
+  {
+    "at": "2026-10-16T10:38:55.724Z",
+    "step": "delete",
+    "id": 81,
+    "name": "Nhà xe E2E F70A3096",
+    "status": 200,
+    "body": "{\"ok\":true}"
+  },
+  {
+    "at": "2026-10-16T10:38:55.823Z",
+    "step": "delete",
+    "id": 83,
+    "name": "Nhà xe E2E 5D08AC8E",
+    "status": 200,
+    "body": "{\"ok\":true}"
+  },
+  {
+    "at": "2026-10-16T10:38:55.926Z",
+    "step": "delete",
+    "id": 85,
+    "name": "Nhà xe E2E 80370462",
+    "status": 200,
+    "body": "{\"ok\":true}"
+  },
+  {
+    "at": "2026-10-16T10:38:56.009Z",
+    "step": "delete",
+    "id": 87,
+    "name": "Nhà xe E2E 1DC488B5",
+    "status": 200,
+    "body": "{\"ok\":true}"
+  },
+  {
+    "at": "2026-10-16T10:38:56.109Z",
+    "step": "delete",
+    "id": 89,
+    "name": "Nhà xe E2E 49D6997B",
+    "status": 200,
+    "body": "{\"ok\":true}"
+  },
+  {
+    "at": "2026-10-16T10:38:56.225Z",
+    "step": "after",
+    "carriersTotal": 18,
+    "realCarriers": 18,
+    "qaRemaining": [],
+    "defaultKhCount": 12,
+    "realUnchanged": true
+  },
+  {
+    "at": "2026-10-16T10:38:56.225Z",
+    "step": "TC",
+    "id": "CARRIER-PURGE",
+    "verdict": "PASS"
+  }
+]
