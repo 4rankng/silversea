@@ -27,8 +27,10 @@ function track(run: () => Promise<unknown>) {
 }
 let server: http.Server;
 const createdEntryIds: number[] = [];
+const usedIdempotencyKeys: string[] = [];
 
 async function post(userId: number, body: unknown, key: string) {
+  usedIdempotencyKeys.push(key);
   const response = await fetch(`http://127.0.0.1:${(server.address() as AddressInfo).port}/api/ops/expenses`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Test-User-Id': String(userId), 'Idempotency-Key': key },
@@ -117,6 +119,14 @@ after(async () => {
         inArray(s.expenseAccountingSources.sourceId, createdEntryIds),
       ));
       await db.delete(s.opsExpenseEntries).where(inArray(s.opsExpenseEntries.id, createdEntryIds));
+    }
+    if (usedIdempotencyKeys.length) {
+      // Successful saves persist their key rows; bounced 409s roll back
+      // without one. Drop exactly this run's keys so the table doesn't grow.
+      await db.delete(s.idempotencyKeys).where(and(
+        eq(s.idempotencyKeys.endpoint, 'ops.expenses.create'),
+        inArray(s.idempotencyKeys.idempotencyKey, usedIdempotencyKeys),
+      ));
     }
     for (const remove of cleanup) {
       await remove();

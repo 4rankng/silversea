@@ -46,7 +46,10 @@ export function opsDuplicateHitsFromError(error: unknown): OpsExpenseDuplicateHi
   if (error instanceof ApiError && error.status === 409) {
     const raw = error.raw as { code?: unknown; duplicates?: unknown } | null;
     if (raw?.code === 'OPS_EXPENSE_DUPLICATE' && Array.isArray(raw.duplicates) && raw.duplicates.length > 0) {
-      return raw.duplicates as OpsExpenseDuplicateHit[];
+      // Defense-in-depth: a malformed element must not crash the render —
+      // drop non-object entries and only then admit the panel.
+      const hits = raw.duplicates.filter((hit): hit is OpsExpenseDuplicateHit => hit != null && typeof hit === 'object');
+      return hits.length > 0 ? hits : null;
     }
   }
   return null;
@@ -272,7 +275,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               <ul>
                 {duplicateHits.map((hit) => (
                   <li key={hit.id}>
-                    {`${hit.paidByName ?? 'người khác'} · ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt}${hit.containerNumber ? ` · cont ${hit.containerNumber}` : ' · phí chung lô'}`}
+                    {`${hit.paidByName ?? 'người khác'} · ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')}${hit.containerNumber ? ` · cont ${hit.containerNumber}` : ' · phí chung lô'}`}
                   </li>
                 ))}
               </ul>
