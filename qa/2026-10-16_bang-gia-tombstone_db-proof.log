@@ -1,0 +1,45 @@
+BEGIN
+SAVEPOINT
+INSERT 0 1
+UPDATE 1
+INSERT 0 1
+ case  | live_rows_after_readd 
+-------+-----------------------
+ BGX01 |                     1
+(1 row)
+
+RELEASE
+SAVEPOINT
+ERROR:  duplicate key value violates unique constraint "pricing_tables_general_date_idx"
+DETAIL:  Key (customer_id, route_id, effective_date)=(1, 1, 2099-12-31) already exists.
+ROLLBACK
+ case  |                       expectation                       
+-------+---------------------------------------------------------
+ BGX02 | unique violation above = still enforced among live rows
+(1 row)
+
+SAVEPOINT
+INSERT 0 1
+UPDATE 1
+INSERT 0 1
+  case  | live_rows_after_readd 
+--------+-----------------------
+ BGX03a |                     1
+(1 row)
+
+RELEASE
+SAVEPOINT
+INSERT 0 1
+UPDATE 1
+INSERT 0 1
+  case  | live_rows_after_readd 
+--------+-----------------------
+ BGX03b |                     1
+(1 row)
+
+RELEASE
+ROLLBACK
+ERROR:  operator does not exist: numeric ~~ unknown
+LINE 1: ...les WHERE effective_date = '2099-12-31' AND price LIKE '9999...
+                                                             ^
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.

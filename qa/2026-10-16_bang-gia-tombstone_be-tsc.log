@@ -1,0 +1,2 @@
+== cmd: cd backend && pnpm exec tsc --noEmit
+exit: 0

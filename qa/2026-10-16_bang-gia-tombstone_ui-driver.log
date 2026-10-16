@@ -1,0 +1,50 @@
+
+=== run 2026-10-16T06:47:15.960Z ===
+2026-10-16T06:47:16.073Z login admin: OK
+2026-10-16T06:47:19.623Z shot 01-page-loaded
+
+=== run 2026-10-16T06:49:46.215Z ===
+2026-10-16T06:49:46.300Z login admin: OK
+2026-10-16T06:49:49.563Z shot 01-page-loaded
+
+=== run 2026-10-16T06:51:44.954Z ===
+2026-10-16T06:51:45.041Z login admin: OK
+2026-10-16T06:51:48.330Z shot 01-page-loaded
+
+=== run 2026-10-16T06:53:18.421Z ===
+2026-10-16T06:53:18.505Z login admin: OK
+2026-10-16T06:53:21.769Z shot 01-page-loaded
+2026-10-16T06:53:26.567Z combo Khách hàng → LONG MINH
+2026-10-16T06:53:29.233Z combo Tuyến đường → LONG MINH
+2026-10-16T06:53:29.865Z shot 02-form-filled-create
+2026-10-16T06:53:31.084Z shot FAIL-create
+
+=== run 2026-10-16T06:56:39.100Z ===
+2026-10-16T06:56:39.184Z login admin: OK
+2026-10-16T06:56:42.485Z shot 01-page-loaded
+2026-10-16T06:56:47.654Z combo Khách hàng → LONG MINH
+2026-10-16T06:56:53.441Z combo Tuyến đường → Hải Phòng
+2026-10-16T06:56:54.047Z shot 02-form-filled-create
+2026-10-16T06:56:55.258Z step1 create: row visible OK
+2026-10-16T06:56:55.304Z shot 03-created
+2026-10-16T06:57:05.023Z step2 delete: row removed OK
+2026-10-16T06:57:05.074Z shot 04-deleted
+2026-10-16T06:57:09.682Z combo Khách hàng → LONG MINH
+2026-10-16T06:57:13.277Z combo Tuyến đường → Hải Phòng
+2026-10-16T06:57:13.871Z shot 05-form-filled-recreate
+2026-10-16T06:57:15.474Z step3 re-create same selector: SUCCESS (no duplicate error)
+2026-10-16T06:57:15.515Z shot 06-recreated-same-selector
+2026-10-16T06:57:20.058Z combo Khách hàng → LONG MINH
+2026-10-16T06:57:23.270Z combo Tuyến đường → Hải Phòng
+2026-10-16T06:57:25.442Z step4 real duplicate blocked: "Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại | Bảng giá cho phạm vi và ngày hiệu lực này đã tồn tại"
+2026-10-16T06:57:25.526Z shot 07-real-duplicate-still-blocked
+2026-10-16T06:57:34.233Z step5 cleanup: sentinel row deleted via UI
+2026-10-16T06:57:34.306Z shot 08-cleaned-up
+2026-10-16T06:57:34.473Z ALL STEPS PASS
+  id  | customer_id | route_id |   price   | effective_date | tombstoned 
+------+-------------+----------+-----------+----------------+------------
+ 1960 |           1 |        1 | 888777001 | 2099-12-31     | t
+ 1966 |           1 |        1 | 888777001 | 2026-10-16     | t
+ 1967 |           1 |        1 | 888777001 | 2026-10-16     | t
+(3 rows)
+
