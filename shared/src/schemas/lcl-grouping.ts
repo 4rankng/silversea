@@ -58,6 +58,24 @@ export const mergeLclRevGroupSchema = z.object({
 });
 export type MergeLclRevGroupInput = z.infer<typeof mergeLclRevGroupSchema>;
 
+/**
+ * 161026232349 (DEV SPEC Hàng lẻ §II.3.2 — "Trường hợp 1 · Thu riêng từng lô")
+ * — CUS picks the thu vehicle class for ONE ungrouped lot. The spec's law:
+ * "CUS không cần ghép ... chọn Loại xe tính cước thu khách ... Cột CƯỚC VẬN
+ * TẢI (AUTO) của từng lô sẽ nhảy 100% đơn giá của loại xe đã chọn cho lô đó."
+ *
+ * This is the single-lot sibling of `mergeLclRevGroupSchema`: same class
+ * catalog, same customer × route × class price lane, but NO group is created
+ * (`revGroupId` stays null) — a lot already inside a rev group is refused
+ * (tách nhóm trước).
+ */
+export const setLclLotRevClassSchema = z.object({
+  shipmentId: z.number().int().positive(),
+  /** Loại xe tính cước thu khách — vehicle_size_classes.id (FB-090 catalog). */
+  vehicleSizeClassId: z.number().int().positive(),
+});
+export type SetLclLotRevClassInput = z.infer<typeof setLclLotRevClassSchema>;
+
 /** FB-092/093 — the money dimensions a lot group can live in. */
 export const LCL_GROUP_DIMENSIONS = ['COST', 'REV'] as const;
 export type LclGroupDimension = (typeof LCL_GROUP_DIMENSIONS)[number];

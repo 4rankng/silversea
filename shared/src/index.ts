@@ -94,6 +94,7 @@ export type { ShipmentInvoiceRecordInput, ContainerDepositInput } from './schema
 export {
   assignLclCostGroupSchema,
   mergeLclRevGroupSchema,
+  setLclLotRevClassSchema,
   unmergeLclLotSchema,
   updateLclTruckSchema,
   LCL_GROUP_DIMENSIONS,
@@ -101,6 +102,7 @@ export {
 export type {
   AssignLclCostGroupInput,
   MergeLclRevGroupInput,
+  SetLclLotRevClassInput,
   UnmergeLclLotInput,
   UpdateLclTruckInput,
   LclGroupDimension,

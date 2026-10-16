@@ -249,6 +249,24 @@ export async function updateLclTruck(input: { shipmentId: number; actualTruckNo?
   return api.post<{ updatedShipmentIds: number[] }>(SHIPMENTS.LCL_TRUCK, input);
 }
 
+/**
+ * 161026232349 (§II.3.2 "Thu riêng từng lô") — CUS picks the thu vehicle class
+ * for ONE ungrouped LCL lot. The lot's CƯỚC VẬN TẢI (AUTO) jumps to 100% of
+ * that class' customer × route price lane; `freightAuto` comes back null
+ * (never 0) when the lane has no price row — the class still saves.
+ */
+export async function setLclLotRevClass(input: { shipmentId: number; vehicleSizeClassId: number }) {
+  return api.post<{
+    shipmentId: number;
+    reference: string;
+    vehicleSizeClassId: number;
+    vehicleClassCode: string;
+    freightAuto: string | null;
+    channel: 'TRIP' | 'SNAPSHOT' | 'NONE';
+    reason: string | null;
+  }>('/shipments/lcl/rev-class', input);
+}
+
 export interface DispatchDetailPlanRow {
   fulfillmentId: number;
   version: number;

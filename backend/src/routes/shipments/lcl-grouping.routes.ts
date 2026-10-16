@@ -7,6 +7,8 @@
 //
 //   POST /api/shipments/lcl/cost-group — dispatch "Gán xe nhóm" (FB-092)
 //   POST /api/shipments/lcl/rev-group  — CUS "Ghép cước thu khách" (FB-093)
+//   POST /api/shipments/lcl/rev-class  — CUS "Loại xe tính cước thu" của MỘT lô
+//                                        chưa ghép (161026232349, §II.3.2)
 //   POST /api/shipments/lcl/truck      — BKS quick-edit from settlement
 //   POST /api/shipments/lcl/unmerge    — one lot leaves a dimension (FB-095)
 
@@ -15,6 +17,7 @@ import type { Request, Response } from 'express';
 import {
   assignLclCostGroupSchema,
   mergeLclRevGroupSchema,
+  setLclLotRevClassSchema,
   unmergeLclLotSchema,
   updateLclTruckSchema,
   Role,
@@ -23,12 +26,19 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { declareMaterialWrite } from '../../middleware/material-write';
+import { registerAuditEvent } from '../../services/audit-registry';
+import { AuditEvent } from '../../services/audit-types';
 import {
   assignLclCostGroup,
   mergeLclRevGroup,
+  setLclLotRevClass,
   unmergeLclLot,
   updateLclGroupTruck,
 } from '../../services/lcl-grouping.service';
+
+// 161026232349 — the request-level audit label for the single-lot class
+// command; the service's own `auditGroupChange` record stays the authority.
+registerAuditEvent('POST', '/api/shipments/lcl/rev-class', AuditEvent.SHIPMENT_UPDATED);
 
 export const lclGroupingRoutes = Router();
 
@@ -61,6 +71,23 @@ lclGroupingRoutes.post(
       actorName: actor.fullName ?? actor.username ?? undefined,
     });
     res.status(201).json(result);
+  }),
+);
+
+lclGroupingRoutes.post(
+  '/lcl/rev-class',
+  declareMaterialWrite('shipments.lcl.rev-class', { method: 'POST', path: '/api/shipments/lcl/rev-class' }),
+  // Same roles as the rev-group merge: this is the CUS half of cước thu.
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = setLclLotRevClassSchema.parse(req.body);
+    const actor = getUser(req);
+    const result = await setLclLotRevClass(input, {
+      userId: actor.userId,
+      role: actor.role,
+      actorName: actor.fullName ?? actor.username ?? undefined,
+    });
+    res.json(result);
   }),
 );
 

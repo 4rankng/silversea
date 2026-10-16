@@ -25,6 +25,7 @@ import type {
   AssignLclCostGroupInput,
   LclGroupDimension,
   MergeLclRevGroupInput,
+  SetLclLotRevClassInput,
   UnmergeLclLotInput,
   UpdateLclTruckInput,
 } from '@tingting/shared';
@@ -70,6 +71,28 @@ export interface LclGroupUnmergeResult {
   /** Surviving members after renumbering (empty ⇒ the group dissolved). */
   remaining: LclGroupMemberResult[];
   dissolved: boolean;
+}
+
+/**
+ * 161026232349 (§II.3.2 "Thu riêng từng lô") — one ungrouped lot's thu class
+ * change: the class stamp plus the channel the resolved AUTO cước thu landed
+ * on. `freightAuto` is null (never 0) when the customer × route × class lane
+ * holds no price row — the class still saves so CUS can fix the price later.
+ */
+export interface LclSingleLotRevClassResult {
+  shipmentId: number;
+  reference: string;
+  vehicleSizeClassId: number;
+  /** vehicle_size_classes.code, e.g. '5T' / 'CONT20'. */
+  vehicleClassCode: string;
+  /** 100% of the chosen class' lane price (VND); null = Chưa xác định. */
+  freightAuto: string | null;
+  /** TRIP = the lot's live trip carries the override stamp; SNAPSHOT = the
+   *  lot has no live trip and the money materialized at the merge path's
+   *  shipment-level grain; NONE = no lane price ⇒ nothing written. */
+  channel: 'TRIP' | 'SNAPSHOT' | 'NONE';
+  /** The override reason / snapshot formula note; null on a lane miss. */
+  reason: string | null;
 }
 
 type ShipmentRow = typeof s.shipments.$inferSelect;
@@ -1061,6 +1084,142 @@ export async function mergeLclRevGroup(
         order: index + 1,
         reference: lotReference(row),
       })),
+    };
+  });
+}
+
+/**
+ * 161026232349 (DEV SPEC Hàng lẻ §II.3.2 — "Trường hợp 1 · Thu riêng từng lô")
+ * — CUS picks the thu vehicle class for ONE lot WITHOUT grouping it.
+ *
+ * The spec: "CUS không cần ghép ... chọn Loại xe tính cước thu khách (Xe
+ * 1.25T ... Cont 20'/40') ... Cột CƯỚC VẬN TẢI (AUTO) của từng lô sẽ nhảy
+ * 100% đơn giá của loại xe đã chọn cho lô đó."
+ *
+ * Money law — the SAME channel the money boards already read, never a
+ * parallel one (revenue-override-read.service's qualification: an LCL lot
+ * that is REV-grouped OR whose live trip carries an override stamp):
+ *   live trip ⇒ the lot's trip_financial_state.revenue is set to the resolved
+ *   customer × route × class lane price and stamped with the override markers
+ *   (so the CUS board, the Kế toán board and the customer-debt report all
+ *   read it — no board changes);
+ *   no live trip ⇒ the merge path's shipment-level freight snapshot grain
+ *   (insertRevMergeSnapshot, card 161026204709).
+ * The class is stamped LAST-free: `revGroupId` is never written (no group is
+ * created), and neither `costGroupId`/`costVehicleClassId` nor any cước TRẢ
+ * value is touched.
+ *
+ * A lane miss (no price row for customer × route × class, or no route/date
+ * key) writes NO money at all — the class still saves, and CƯỚC VẬN TẢI
+ * (AUTO) stays "Chưa xác định" instead of a fabricated 0₫ (D02 law).
+ *
+ * A lot already inside a REV group is refused: the group owns its members'
+ * cước thu (merge Lô-1 100% / 0₫ law), so CUS must tách nhóm first.
+ */
+export async function setLclLotRevClass(
+  input: SetLclLotRevClassInput,
+  actor: LclGroupActor,
+): Promise<LclSingleLotRevClassResult> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(s.shipments)
+      .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update');
+    if (!row) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    if (row.cargoMode !== 'LCL') {
+      throw new ApiError(400, `Lô ${lotReference(row)} không phải hàng lẻ — chỉ lô lẻ mới chọn được loại xe tính cước thu khách riêng`);
+    }
+    if (row.revGroupId != null) {
+      throw new ApiError(
+        409,
+        `Lô ${lotReference(row)} đã thuộc nhóm ghép cước thu khách — tách khỏi nhóm (Hủy ghép) trước khi chọn loại xe tính cước thu riêng cho lô này`,
+      );
+    }
+    await assertShipmentAccountingUnlocked(tx, row.id);
+
+    const vehicleClass = await loadVehicleClass(tx, input.vehicleSizeClassId);
+    const tripFacts = await loadLiveTripFactsByShipment(tx, [row.id]);
+    const trip = tripFacts.get(row.id);
+    if (trip && trip.status === 'COMPLETED') {
+      throw new ApiError(409, `Lô ${lotReference(row)} đã hoàn thành chuyến — không đổi loại xe tính cước thu được nữa`);
+    }
+
+    await tx.update(s.shipments).set({
+      revVehicleClassId: vehicleClass.id,
+      version: row.version + 1,
+      updatedBy: actor.userId,
+      updatedAt: new Date(),
+    }).where(eq(s.shipments.id, row.id));
+
+    const reason = `Chọn loại xe tính cước thu khách — Xe ${vehicleClass.code}`;
+    // The lane needs the customer (the lot's own), the route and a date to
+    // price against — the merge path's own key.
+    const laneDate = row.expectedDeliveryDate;
+    const price = row.customerId != null && row.routeId != null && laneDate != null
+      ? await resolveCustomerVehicleClassPrice({
+        customerId: row.customerId,
+        routeId: row.routeId,
+        vehicleSizeClassId: vehicleClass.id,
+        date: laneDate,
+      })
+      : null;
+
+    if (price == null) {
+      // Lane miss: the class saves (CUS fixes the price board later) while
+      // the money column stays "Chưa xác định" — never a fabricated 0₫.
+      await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_UPDATED, row, {
+        dimension: 'REV',
+        action: 'rev-class-single-lot',
+        vehicleSizeClassId: vehicleClass.id,
+        vehicleClassCode: vehicleClass.code,
+        channel: 'NONE',
+        freightAuto: null,
+      });
+      return {
+        shipmentId: row.id,
+        reference: lotReference(row),
+        vehicleSizeClassId: vehicleClass.id,
+        vehicleClassCode: vehicleClass.code,
+        freightAuto: null,
+        channel: 'NONE',
+        reason: null,
+      };
+    }
+
+    if (trip) {
+      const previous = trip.revenueOriginal ?? trip.revenue ?? '0';
+      await upsertTripFinancialState(tx, trip.tripId, {
+        revenue: String(price.price),
+        revenueOriginal: previous,
+        revenueOverriddenBy: actor.userId,
+        revenueOverriddenAt: new Date(),
+        revenueOverrideReason: reason,
+      });
+    } else {
+      await insertRevMergeSnapshot(
+        tx,
+        row.id,
+        price.price,
+        `Chọn loại xe tính cước thu khách — 100% bảng giá khách × tuyến × ${vehicleClass.code}, ngày ${laneDate}`,
+      );
+    }
+
+    await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_UPDATED, row, {
+      dimension: 'REV',
+      action: 'rev-class-single-lot',
+      vehicleSizeClassId: vehicleClass.id,
+      vehicleClassCode: vehicleClass.code,
+      channel: trip ? 'TRIP' : 'SNAPSHOT',
+      freightAuto: price.price,
+    });
+
+    return {
+      shipmentId: row.id,
+      reference: lotReference(row),
+      vehicleSizeClassId: vehicleClass.id,
+      vehicleClassCode: vehicleClass.code,
+      freightAuto: String(price.price),
+      channel: trip ? 'TRIP' : 'SNAPSHOT',
+      reason,
     };
   });
 }
