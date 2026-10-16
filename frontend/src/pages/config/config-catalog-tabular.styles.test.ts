@@ -87,11 +87,26 @@ describe('customer catalog uses compact scoped summary and record layouts', () =
     const responsiveRecords = css.slice(css.indexOf('@container (max-width: 1100px)'));
     expect(responsiveRecords).toMatch(/\.cfg-page--customers \.cfg-customer-table tbody tr\s*\{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\) 44px;/);
     expect(responsiveRecords).toMatch(/td\.record-table__action\s*\{[^}]*grid-column: 2;[^}]*grid-row: 1;/);
-    expect(responsiveRecords).toMatch(/\.cfg-customer-details dl\s*\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(responsiveRecords).toMatch(/\.cfg-customer-details dl\s*\{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(260px, 1fr\)\);/);
     expect(responsiveRecords).toMatch(/\.cfg-customer-details dd\s*\{[^}]*overflow-wrap: anywhere;/);
     expect(responsiveRecords).toMatch(/\.cfg-customer-details > summary:focus-visible\s*\{[^}]*outline: 2px solid var\(--focus\);/);
     expect(responsiveRecords).toMatch(/@media \(pointer: coarse\)\s*\{\s*\.cfg-customer-details > summary\s*\{\s*min-height: var\(--control-max-h\);/);
     expect(responsiveRecords).toContain('min-width: var(--control-max-h); min-height: var(--control-max-h);');
+  });
+
+  it('keeps the shared record-card surface on rows and the anchored fact-line details', () => {
+    // The card recipe (surface fill, 1px line, radius, card gap) is owned by
+    // styles/record-table.css; the page band must not re-strip it into a
+    // transparent hairline list, and must not re-declare the recipe itself.
+    const responsiveRecords = css.slice(css.indexOf('@container (max-width: 1100px)'));
+    expect(responsiveRecords).not.toContain('background: transparent;');
+    expect(responsiveRecords).not.toContain('border-radius: 0;');
+    expect(responsiveRecords).not.toContain('border-bottom: 1px solid var(--line);');
+    // The disclosure anchors with a hairline like the shared ledger record.
+    expect(responsiveRecords).toMatch(/\.cfg-customer-details\s*\{[^}]*border-top: 1px solid var\(--line\);/);
+    // Facts ride one line: label left, the value flooding the rest.
+    expect(responsiveRecords).toMatch(/\.cfg-customer-details dl > div\s*\{[^}]*display: flex;/);
+    expect(responsiveRecords).toMatch(/\.cfg-customer-details dd\s*\{[^}]*flex: 1 1 120px;/);
   });
 });
 

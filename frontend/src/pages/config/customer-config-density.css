@@ -104,9 +104,15 @@
 .cfg-customer-fetch-status { min-height: 20px; display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
 
 @container (max-width: 1100px) {
-  .cfg-page--customers .cfg-customer-table tbody { gap: 0; }
-  .cfg-page--customers .cfg-customer-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) 44px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
-  .cfg-page--customers .cfg-customer-table tbody tr > td { padding: 0; border: 0; text-align: start; }
+  /* 2026-10-16 polish pass: rows keep the SHARED record-card surface owned by
+     styles/record-table.css (--surface fill, 1px --line border, --app-radius-md
+     corners, 8px card gap) — the page band only resizes the card to its
+     identity + kebab geometry. The old page-local surface strips
+     (background: transparent / border-bottom hairline / border-radius: 0)
+     are retired: one card recipe, one owner. */
+  .cfg-page--customers .cfg-customer-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) 44px; padding: 10px 12px; }
+  /* #root outranks the shell's `#root table tbody td` phone padding (responsive.css). */
+  #root .cfg-page--customers .cfg-customer-table tbody tr > td { padding: 0; border: 0; text-align: start; }
   .cfg-page--customers .cfg-customer-table tbody tr > td:not(:first-child):not(.record-table__action) { display: none; }
   .cfg-page--customers .cfg-customer-table tbody tr > td:first-child { grid-column: 1; min-width: 0; }
   .cfg-page--customers .cfg-customer-table tbody tr > td::before { display: none; }
@@ -116,13 +122,21 @@
   .cfg-customer-full-name { display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
   .cfg-customer-short-name + .cfg-customer-full-name { color: var(--ink-3); font-weight: var(--fw-regular, 400); font-size: var(--text-caption-size); }
   .cfg-customer-compact-meta { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 3px; font-size: var(--text-caption-size); line-height: 1.4; color: var(--ink-3); }
-  .cfg-customer-details { display: block; }
-  .cfg-customer-details > summary { display: list-item; width: fit-content; min-height: 32px; align-content: center; color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--fw-medium, 500); cursor: pointer; }
+  /* The disclosure anchors to the card with a hairline, like the shared
+     ledger record's details band; the summary reads at the control size. */
+  .cfg-customer-details { display: block; margin-top: 4px; border-top: 1px solid var(--line); padding-top: 2px; }
+  .cfg-customer-details > summary { display: list-item; width: fit-content; min-height: 32px; align-content: center; color: var(--ink-2); font-size: var(--text-control-size); font-weight: var(--fw-medium, 500); cursor: pointer; }
   .cfg-customer-details > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
-  .cfg-customer-details dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 2px 0 4px; }
-  .cfg-customer-details dl > div { min-width: 0; }
-  .cfg-customer-details dt { color: var(--ink-3); font-size: var(--text-caption-size); font-weight: var(--fw-regular, 400); }
-  .cfg-customer-details dd { margin: 2px 0 0; overflow-wrap: anywhere; line-height: 1.4; font-size: var(--text-data-size); }
+  /* Facts ride the shared ledger-record fact line: one line per fact, the
+     caption label left and the value flooding the rest of the line, wrapping
+     with a hanging alignment. The track count measures itself (auto-fit,
+     260px floor) — one column at 390, two-three as the card widens; no new
+     breakpoint, and no 159px cell left to shred a long email into
+     one-character fragments. */
+  .cfg-customer-details dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 24px; margin: 4px 0 2px; }
+  .cfg-customer-details dl > div { display: flex; flex-wrap: wrap; column-gap: 8px; row-gap: 2px; align-items: baseline; min-width: 0; }
+  .cfg-customer-details dt { flex: 0 0 auto; color: var(--ink-3); font-size: var(--text-caption-size); font-weight: var(--fw-regular, 400); line-height: 1.5; }
+  .cfg-customer-details dd { flex: 1 1 120px; min-width: 0; margin: 0; overflow-wrap: anywhere; line-height: 1.5; font-size: var(--text-data-size); color: var(--ink); }
 }
 @media (pointer: coarse) { .cfg-customer-details > summary { min-height: var(--control-max-h); } }
 
