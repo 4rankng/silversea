@@ -31,6 +31,10 @@ export interface CreateOpsExpenseInput {
   /** Card 20260921_5 — the Thực-thu side of the no-invoice pair. Invoice
    *  rows ignore it (charge = amount invariant). */
   customerChargeAmount?: string | number | null;
+  /** Card 141026230720 — the operator explicitly confirmed the duplicate
+   *  warning (e.g. a legitimate split payment) and wants the save to
+   *  proceed despite an existing live row of the same type + scope. */
+  duplicateConfirmed?: boolean;
 }
 type OpsExpenseWriteResult = typeof s.opsExpenseEntries.$inferSelect & {
   version?: number; costGroup?: ExpenseCostGroup | null; feeName?: string | null; invoiceNumber?: string | null;
@@ -189,6 +193,29 @@ export async function createOpsExpense(
 
   if (input.shipmentContainerId != null) {
     await assertContainerInShipment(input.shipmentId, input.shipmentContainerId);
+  }
+
+  // Card 141026230720 — duplicate-entry warning at the write itself (not
+  // only the dialog's cont-level heads-up): saving the SAME cost type on the
+  // SAME scope twice is usually a mistake, so the unconfirmed save bounces
+  // with a 409 naming who entered what. Never a silent block: the operator
+  // can explicitly confirm (split payments, part-paid stages are legitimate)
+  // and the resend carries duplicateConfirmed to proceed. Checked inside the
+  // caller's executor so the refused save rolls back atomically.
+  if (!input.duplicateConfirmed) {
+    const duplicates = await findLiveDuplicateOpsExpenses(input.shipmentId, input.expenseTypeCode, input.shipmentContainerId, executor);
+    if (duplicates.length > 0) {
+      const scopeLabel = input.shipmentContainerId != null
+        ? `cont ${duplicates[0].containerNumber ?? input.shipmentContainerId}`
+        : 'phí chung lô';
+      const who = duplicates[0].paidByName ?? 'người khác';
+      throw new ApiError(
+        409,
+        `Loại phí này đã có ${who} nhập trước trên ${scopeLabel} — kiểm tra lại để tránh nhập trùng; vẫn tiếp tục lưu nếu đây là lần chi hợp lệ.`,
+        undefined,
+        { code: 'OPS_EXPENSE_DUPLICATE', duplicates },
+      );
+    }
   }
 
   const [entry] = await executor
@@ -513,6 +540,53 @@ export interface OpsContainerClaimant {
   containerId: number;
   containerNumber: string | null;
   paidByName: string | null;
+}
+
+export interface OpsExpenseDuplicateHit {
+  id: number;
+  expenseTypeName: string | null;
+  containerNumber: string | null;
+  paidByName: string | null;
+  amount: string;
+  paidAt: string;
+}
+
+/** Card 141026230720 — live rows that already carry this exact cost (same
+ *  expense type, same scope: one container, or lot-wide when both are
+ *  container-less). The answer backs the entry form's duplicate warning; a
+ *  VOIDED row never counts (it is a tombstone, not a cost) and a cont-scoped
+ *  row never collides with a lot-wide row of the same type — they are
+ *  different scopes by the 2a64156f cont-claim design. */
+export async function findLiveDuplicateOpsExpenses(
+  shipmentId: number,
+  expenseTypeCode: string,
+  shipmentContainerId: number | null | undefined,
+  executor: Executor = db,
+): Promise<OpsExpenseDuplicateHit[]> {
+  const scope = shipmentContainerId ?? null;
+  const rows = await executor
+    .select({
+      id: s.opsExpenseEntries.id,
+      expenseTypeName: s.forwarderExpenseTypes.name,
+      containerNumber: s.shipmentContainers.containerNumber,
+      paidByName: s.users.fullName,
+      amount: s.opsExpenseEntries.amount,
+      paidAt: s.opsExpenseEntries.paidAt,
+    })
+    .from(s.opsExpenseEntries)
+    .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
+    .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.opsExpenseEntries.shipmentContainerId))
+    .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
+    .where(and(
+      eq(s.opsExpenseEntries.shipmentId, shipmentId),
+      eq(s.opsExpenseEntries.expenseTypeCode, expenseTypeCode),
+      scope === null
+        ? isNull(s.opsExpenseEntries.shipmentContainerId)
+        : eq(s.opsExpenseEntries.shipmentContainerId, scope),
+      ne(s.opsExpenseEntries.approvalStatus, 'VOIDED'),
+    ))
+    .orderBy(s.opsExpenseEntries.id);
+  return rows.map((row) => ({ ...row, containerNumber: row.containerNumber ?? null }));
 }
 
 /** Who already declared a cost against each container of a lot — the data
