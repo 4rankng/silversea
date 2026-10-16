@@ -698,6 +698,39 @@ describe('Card 171026004331 — export?format=pdf|html carries renderData (BKS /
     for (const plate of [f.plates.billing, f.plates.actual, f.plates.tripTruck]) {
       assert.ok(!res.body.includes(plate), `no invented plate (${plate})`);
     }
+
+    // Byte-identity pin: the rendered page equals the pre-fix output for this
+    // document — the legacy projection (which is what the route built before
+    // the fix, and what `getDebitNoteData` still builds) renders the same
+    // page once the export date is normalised.
+    const doc = await getDocument(f.docId);
+    const legacyHtml = exportDebitNoteHtml({
+      documentId: doc.id,
+      entityName: doc.entityName ?? 'Khách hàng chưa xác định',
+      rangeFrom: doc.rangeFrom,
+      rangeTo: doc.rangeTo,
+      originalDueDate: doc.originalDueDate,
+      processingDueDate: doc.processingDueDate,
+      totalInclVat: String(doc.totalInclVat),
+      totalNet: String(doc.totalNet ?? doc.totalInclVat),
+      totalTax: String(doc.totalTax ?? 0),
+      totalGross: String(doc.totalGross ?? doc.totalInclVat),
+      vatTreatmentVersion: doc.vatTreatmentVersion ?? 'VAT-V1',
+      status: null,
+      lines: doc.lines.filter(l => !l.excluded).map(l => ({
+        lineType: l.lineType,
+        typeLabel: l.typeLabel,
+        description: l.description,
+        baseAmount: String(l.amountOverride ?? l.baseAmount),
+        netAmount: String(l.netAmount ?? l.baseAmount),
+        taxAmount: String(l.taxAmount ?? 0),
+        grossAmount: String(l.grossAmount ?? l.baseAmount),
+        routeName: l.routeName ?? null,
+      })),
+    }, RENDER_TEMPLATE, new Date().toLocaleDateString('vi-VN'));
+    const normalizeDate = (html: string) => html.replace(/\d{1,2}\/\d{1,2}\/\d{4}/g, 'DATE');
+    assert.equal(normalizeDate(res.body), normalizeDate(legacyHtml),
+      'a document with no renderData and nothing resolvable renders byte-for-byte as before the fix');
   });
 
   test('AC5 — money cells, totals, row/column layout are unchanged', async () => {
