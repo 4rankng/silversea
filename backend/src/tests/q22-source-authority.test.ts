@@ -3,6 +3,7 @@ import { after, before, describe, test } from 'node:test';
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { Role, type SaveBillingDocumentInput } from '@tingting/shared';
 import { client, db } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import { applyTripPatch, insertTripComposite } from '../services/trip-composite.service';
 import { withTestCleanup } from './helpers/db-isolation';
@@ -114,6 +115,7 @@ after(async () => {
   await cleanup.deleteAll(s.customers, customerIds);
   await cleanup.deleteAll(s.users, actorIds);
   } finally {
+    await disconnectRedis();
     await client.end();
   }
 });

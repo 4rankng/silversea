@@ -8,6 +8,7 @@ import {
   resolvePaymentDueDate,
 } from '../services/business-calendar.service';
 import { client, db } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { and, eq, sql } from 'drizzle-orm';
@@ -19,6 +20,7 @@ import { Role } from '@tingting/shared';
 import { createAdjustment } from '../services/financial.service';
 
 after(async () => {
+  await disconnectRedis();
   await client.end();
 });
 

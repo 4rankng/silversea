@@ -9,6 +9,7 @@ import {
   Role,
 } from '@tingting/shared';
 import { client, db } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { ApiError } from '../errors';
@@ -87,6 +88,7 @@ after(async () => {
   if (actorIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, actorIds));
   }
+  await disconnectRedis();
   await client.end();
 });
 

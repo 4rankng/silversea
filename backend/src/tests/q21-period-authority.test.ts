@@ -5,6 +5,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { insertTripComposite } from '../services/trip-composite.service';
 
 import { client, db } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import {
   buildExpenseSourceVersionToken,
@@ -530,5 +531,6 @@ after(async () => {
   } catch (err) {
     console.warn('[q21-period-authority.test] cleanup partial:', (err as Error).message);
   }
+  await disconnectRedis();
   await client.end();
 });

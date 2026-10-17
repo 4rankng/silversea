@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { and, eq, sql } from 'drizzle-orm';
 import { Role, DriverIncidentalCostType, TripStatus } from '@tingting/shared';
 import { client, db } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import type { Tx } from '../services/trip-shared';
 import { upsertExpenseAccountingSource, ensureTripExpenseAccountingSource, ensureLegacyExpenseSource } from '../services/expense-accounting-source.service';
@@ -19,7 +20,7 @@ import { createExpenseReconciliation, recordFundedOpsAdvance } from '../services
 import { createExpenseVoucher } from '../services/expense-accounting-voucher.service';
 import { applyTripPairLifecycleEffects, createTripPair } from '../services/trip-pairs.service';
 
-after(async () => { await client.end(); });
+after(async () => { await disconnectRedis(); await client.end(); });
 async function fixture(run: (tx: Tx, ctx: Awaited<ReturnType<typeof setup>>) => Promise<void>) {
   const rollback = Symbol('rollback expense source fixture');
   try { await db.transaction(async tx => { await run(tx, await setup(tx)); throw rollback; }); }
