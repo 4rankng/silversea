@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { formatQuantity } from '../cus/cusUtils';
 import { Container } from 'lucide-react';
 import type { ShipmentDetail } from '../../../api/shipmentClient';
@@ -26,8 +27,13 @@ function containerFacts(container: ContainerRow, assignment?: Assignment): Ledge
 }
 
 /** One value mapping for the phone records and the existing desktop matrix. */
-export function ShipmentDetailContainers({ containers, assignments }: {
+export function ShipmentDetailContainers({ containers, assignments, addAction }: {
   containers: ShipmentDetail['containers']; assignments: ShipmentDetail['carrierAssignments'];
+  /** FB-086 (card 171026113520): the host's "Thêm container" affordance. The
+   *  card owns the count line, so the action rides the SAME section head —
+   *  an action outside the container card made the composition point
+   *  unmissable-but-nowhere (the round-17 helpdesk report). */
+  addAction?: ReactNode;
 }) {
   const byContainer = new Map(assignments.filter((row) => row.shipmentContainerId != null)
     .map((row) => [row.shipmentContainerId, row]));
@@ -37,7 +43,10 @@ export function ShipmentDetailContainers({ containers, assignments }: {
     facts: containerFacts(container, byContainer.get(container.id)),
   }));
   return <section className="shipment-detail__card">
-    <h3 className="shipment-detail__section-title"><Container size={16} /> Containers ({containers.length})</h3>
+    <div className="shipment-detail__section-head">
+      <h3 className="shipment-detail__section-title"><Container size={16} /> Containers ({containers.length})</h3>
+      {addAction}
+    </div>
     {containers.length === 0 ? <EmptyState variant="compact" context="shipments" title="Chưa có container nào." /> : <>
       <LedgerRecordList rows={rows} />
       <div className="ds-table-scroll ledger-desktop"><table className="shipment-detail__table">

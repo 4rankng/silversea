@@ -1,16 +1,18 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Role, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentDetail as ShipmentDetailData } from '../api/shipmentClient';
 
-const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, createDeclarationMock, deleteDeclarationMock, currentUser } = vi.hoisted(() => ({
+const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, createDeclarationMock, deleteDeclarationMock, addContainerMock, getContainerTypesMock, currentUser } = vi.hoisted(() => ({
   getShipmentDetailMock: vi.fn(),
   listShipmentEventsMock: vi.fn(),
   deleteCusShipmentMock: vi.fn(),
   createDeclarationMock: vi.fn(),
   deleteDeclarationMock: vi.fn(),
+  addContainerMock: vi.fn(),
+  getContainerTypesMock: vi.fn(),
   currentUser: {
     userId: 11,
     role: 'ADMIN',
@@ -23,6 +25,13 @@ vi.mock('../api/shipmentClient', () => ({
   deleteCusShipment: deleteCusShipmentMock,
   createShipmentDeclaration: createDeclarationMock,
   deleteShipmentDeclaration: deleteDeclarationMock,
+  addCusShipmentContainerRow: addContainerMock,
+}));
+
+// The container-add dialog loads the type catalog when it opens; the other
+// queries this page runs are already stubbed at their own client modules.
+vi.mock('../api/configClient', () => ({
+  configClient: { getContainerTypes: getContainerTypesMock },
 }));
 
 vi.mock('../api/customerServiceFinanceClient', () => ({
@@ -80,6 +89,8 @@ const detail: ShipmentDetailData = {
     accountingLock: null,
     customerName: 'Công ty Silver Sea',
     effectiveFactoryName: 'Nhà máy Hải Phòng',
+    pickupWarehouseSiteName: null,
+    pickupWarehouseSiteType: null,
     routeName: 'Hải Phòng – NEWEB',
   },
   containers: [],
@@ -727,6 +738,257 @@ describe('ShipmentDetailPage', () => {
       );
       await screen.findByText(/Khóa lô do CUS/);
       expect(screen.queryByRole('button', { name: /Khai chi phí/ })).toBeNull();
+    });
+  });
+
+  // ── FB-086 (card 171026113520): container composition on the detail screen ─
+  // The helpdesk report was "Containers (0)" with no way to add one. The lot's
+  // container rows are already written by the create path, so the detail
+  // surface owes the user two things: the REAL count and the composition
+  // point.
+  describe('Containers + Thêm container (FB-086)', () => {
+    const container = (
+      overrides: Partial<ShipmentDetailData['containers'][number]>,
+    ): ShipmentDetailData['containers'][number] => ({
+      id: 501,
+      shipmentId: 1,
+      containerTypeId: 4,
+      containerTypeCode: '40DC',
+      containerTypeName: "40'DC",
+      containerNumber: 'MSKU1234567',
+      sealNumber: null,
+      cargoWeightKg: null,
+      notes: null,
+      ...overrides,
+    });
+
+    function renderLot() {
+      return render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+    }
+
+    it('lists the lot’s containers with the real count', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        containers: [container({ id: 501 }), container({ id: 502, containerNumber: 'TGHU7654321' })],
+      });
+      renderLot();
+      expect(await screen.findByText('Containers (2)')).toBeTruthy();
+      expect(screen.getByText('MSKU1234567')).toBeTruthy();
+      expect(screen.getByText('TGHU7654321')).toBeTruthy();
+    });
+
+    it('offers Thêm container on a container-less FCL lot and saves through the shipped add endpoint', async () => {
+      currentUser.role = Role.ADMIN;
+      addContainerMock.mockResolvedValue({ line: { id: 601 } });
+      getContainerTypesMock.mockResolvedValue([{ id: 4, code: '40DC', name: "40'DC" }]);
+      // The exact state the report started from: a lot with no container row.
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null, containers: [] });
+      renderLot();
+      expect(await screen.findByText('Containers (0)')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: /Thêm container/ }));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.change(within(dialog).getByLabelText('Số container'), { target: { value: 'msku5555501' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: /Thêm container/ }));
+
+      // Lower-cased input is normalized, and the lot's own version rides the
+      // optimistic lock — the same contract the drawer/workboard call.
+      await waitFor(() => expect(addContainerMock).toHaveBeenCalledWith(1, {
+        expectedShipmentVersion: 7,
+        containerNumber: 'MSKU5555501',
+      }));
+      // The page re-reads the lot, so count and rows show the write.
+      await waitFor(() => expect(getShipmentDetailMock).toHaveBeenCalledTimes(2));
+    });
+
+    it('withholds Thêm container on an LCL lot (an LCL lot owns no container)', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        shipment: { ...detail.shipment, cargoMode: 'LCL' },
+        containers: [],
+      });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+    });
+
+    it('hides Thêm container while the accounting lock is active', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, containers: [] });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+    });
+  });
+
+  // ── FB-106 (card 171026115810): 'Tạo lô mới' beside the lot actions ────────
+  describe('Tạo lô mới affordance (FB-106)', () => {
+    it('navigates to the create workspace', async () => {
+      currentUser.role = Role.ADMIN;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+              <Route path="/shipments/new" element={<div>Tạo lô hàng mới</div>} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: /Tạo lô mới/ }));
+      expect(await screen.findByText('Tạo lô hàng mới')).toBeTruthy();
+    });
+
+    it.each([Role.ADMIN, Role.CUS, Role.MANAGER, Role.DISPATCHER])(
+      'offers the button to %s — the roles the /shipments/new route admits',
+      async (role) => {
+        currentUser.role = role;
+        render(
+          <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+            <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+              <Routes>
+                <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+              </Routes>
+            </MemoryRouter></ToastProvider>
+          </QueryClientProvider>,
+        );
+        expect(await screen.findByRole('button', { name: /Tạo lô mới/ })).toBeTruthy();
+      },
+    );
+
+    it.each([Role.ACCOUNTANT, Role.DRIVER, Role.OPS, Role.CUSTOMER])(
+      'hides the button from %s — a role the create route refuses',
+      async (role) => {
+        currentUser.role = role;
+        render(
+          <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+            <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+              <Routes>
+                <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+              </Routes>
+            </MemoryRouter></ToastProvider>
+          </QueryClientProvider>,
+        );
+        await screen.findByText('Khách hàng');
+        expect(screen.queryByRole('button', { name: /Tạo lô mới/ })).toBeNull();
+      },
+    );
+  });
+
+  // ── FB-107 (card 171026115820): Nơi nhận / Nơi giao show the real points ──
+  // Both rows used to render the dormant pickup_location/delivery_location
+  // columns, which every form-created lot leaves empty — so both read '—'.
+  // The values now come from the one shared rule (`resolveLiftDropPoints`).
+  describe('Nơi nhận / Nơi giao (FB-107)', () => {
+    function fieldValue(label: string): string | null {
+      const dt = screen.getByText(label);
+      return dt.nextElementSibling?.textContent ?? null;
+    }
+
+    function renderLot() {
+      return render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+    }
+
+    it('FCL: names the container ports, never direction-swapped, joining several points', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        // The dormant free-text columns stay empty, as a form-created lot has them.
+        shipment: { ...detail.shipment, pickupLocation: null, deliveryLocation: null },
+        containers: [
+          { id: 501, shipmentId: 1, containerTypeId: 4, containerNumber: 'MSKU1234567', sealNumber: null, cargoWeightKg: null, notes: null, pickupPortName: 'Cảng nâng A', dropoffPortName: 'Cảng hạ B' },
+          { id: 502, shipmentId: 1, containerTypeId: 4, containerNumber: 'TGHU7654321', sealNumber: null, cargoWeightKg: null, notes: null, pickupPortName: 'Cảng nâng A', dropoffPortName: 'Cảng hạ C' },
+        ],
+      });
+      renderLot();
+      await screen.findByText('Containers (2)');
+      expect(fieldValue('Nơi nhận')).toBe('Cảng nâng A');
+      expect(fieldValue('Nơi giao')).toBe('Cảng hạ B · Cảng hạ C');
+    });
+
+    it('LCL Nhập: Nâng = Kho lấy hàng (CFS), Hạ = Nhà máy', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        shipment: {
+          ...detail.shipment,
+          cargoMode: 'LCL',
+          tradeDirection: 'IMPORT',
+          pickupLocation: null,
+          deliveryLocation: null,
+          pickupWarehouseSiteName: 'Kho ICD Hà Nội',
+          pickupWarehouseSiteType: 'WAREHOUSE',
+          effectiveFactoryName: 'Nhà máy Long Minh',
+        },
+        containers: [],
+      });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(fieldValue('Nơi nhận')).toBe('Kho ICD Hà Nội');
+      expect(fieldValue('Nơi giao')).toBe('Nhà máy Long Minh');
+    });
+
+    it('LCL Xuất: the two sides swap — Nâng = Nhà máy, Hạ = Kho trả hàng', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        shipment: {
+          ...detail.shipment,
+          cargoMode: 'LCL',
+          tradeDirection: 'EXPORT',
+          pickupLocation: null,
+          deliveryLocation: null,
+          pickupWarehouseSiteName: 'Kho ICD Hà Nội',
+          pickupWarehouseSiteType: 'WAREHOUSE',
+          effectiveFactoryName: 'Nhà máy Long Minh',
+        },
+        containers: [],
+      });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(fieldValue('Nơi nhận')).toBe('Nhà máy Long Minh');
+      expect(fieldValue('Nơi giao')).toBe('Kho ICD Hà Nội');
+    });
+
+    it('falls back to the stored free text when a side was never picked', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        shipment: {
+          ...detail.shipment,
+          cargoMode: 'LCL',
+          tradeDirection: 'IMPORT',
+          pickupLocation: null,
+          deliveryLocation: null,
+          pickupWarehouseSiteName: null,
+          pickupWarehouseSiteType: null,
+          effectiveFactoryName: null,
+          factoryName: 'Nhà máy không catalog',
+        },
+        containers: [],
+      });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(fieldValue('Nơi nhận')).toBe('—');
+      expect(fieldValue('Nơi giao')).toBe('Nhà máy không catalog');
     });
   });
 });

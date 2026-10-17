@@ -215,6 +215,11 @@ export interface ShipmentContainer {
   customerAppointmentAt?: string | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
+  /** FB-107: Cảng nâng / Cảng hạ display names resolved server-side for the
+   *  detail payload (short-name authority; the ad-hoc typed name stands in
+   *  when no catalog port is picked). Absent on other endpoints' rows. */
+  pickupPortName?: string | null;
+  dropoffPortName?: string | null;
   plannedCarrierType?: 'OWN' | 'EXTERNAL' | null;
   plannedExternalCarrierId?: number | null;
   plannedCarrierName?: string | null;
@@ -258,6 +263,11 @@ export interface ShipmentDetail {
      *  cus-workspace `effectiveFactoryNames` priority so the detail header
      *  agrees with the dashboard list (regression bug 2026-09-07). */
     effectiveFactoryName: string | null;
+    /** FB-107: LCL "Kho lấy hàng" site display name + its site type, resolved
+     *  from `shipments.pickup_warehouse_site_id` (short-name authority). Null
+     *  when the lot never picked one. */
+    pickupWarehouseSiteName: string | null;
+    pickupWarehouseSiteType: 'FACTORY' | 'WAREHOUSE' | null;
     /** Route display label with the overview's authority (container route →
      *  lot route → ad-hoc rawRouteName) so both views name the same route
      *  (card 101026163040 / FB-074). */
