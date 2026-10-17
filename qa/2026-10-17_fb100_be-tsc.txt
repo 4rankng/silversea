@@ -1,0 +1,2 @@
+CMD: pnpm exec tsc --noEmit  (worktree fix-141026230770-advance-refund-buttons @ 773c73b1, 2026-10-17)
+EXIT=0

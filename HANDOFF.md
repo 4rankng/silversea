@@ -225,3 +225,21 @@ Staging deployment: `make demo` verified on `https://vantai.tingting.vip` (`buil
   - **Invariant verified**: Initial 2.400.000₫ === Final 2.400.000₫ (freight strictly conserved, never falls to 0₫).
 - Cleaned up: Lot 2 soft-deleted, QA fixture rows hard-purged. Zero test debris remaining.
 
+## FB-100 (141026230770) tái xác minh + sửa fixture red-at-head — 17/10/2026 (worktree fix-141026230770-advance-refund-buttons @ 773c73b1)
+
+- Card 141026230770 (Tạm ứng & hoàn ứng: nút "Phê duyệt tạm ứng" / tick "Xác
+  nhận hoàn ứng" Option B / số âm + "Đề nghị thu tiền ứng") đã DEV_COMPLETED
+  từ wave W1 và nằm trên origin/main (`4ee08710`, `171fb358`, `055105dc`).
+  Worktree = origin/main → không có delta mã cho 3 mục (a)(b)(c); tái xác minh
+  bằng gates tại HEAD: BE/FE tsc 0, BE 20/20 (advance-approval,
+  advance-settlement-deadlock-order, transport-expense-direct-lifecycle,
+  card169-reconciliation-report, reconciliation-refund-settle), FE 43/43
+  (AdminAdvancesPage, ForwarderSettlementCreatePage, SettlementPrintPage,
+  OpsReconciliationReportPage). Artefact `qa/2026-10-17_fb100_*`.
+- Sửa red-at-head (va chạm 2 card đã land, không thuộc FB-100): fixture
+  `card169-reconciliation-report.test.ts` tạo 2 chi phí cùng loại + cùng lô →
+  guard card 141026230720 (`OPS_EXPENSE_DUPLICATE`) 409 lần lưu thứ hai.
+  Fixture thêm `duplicateConfirmed: true` đúng case split-payment guard cho
+  phép; guard + 4 pin của nó còn nguyên (`ops-expense-duplicate-warning.test.ts`
+  4/4). Chi tiết: `testplan/2026-10-16-card141026230770-tam-ung-hoan-ung.md`.
+
