@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
@@ -778,6 +778,41 @@ describe('071026100800 — xóa container làm tươi hàng tổng quan', () => 
       </ToastProvider>,
     );
     expect(screen.queryByRole('button', { name: 'Thêm container' })).toBeNull();
+  });
+});
+
+// FB-086 (round 21, card 171026175000): the add-container type dropdown must
+// load its options. The dialog QA drove starved to its "Chưa chọn loại cont"
+// placeholder because it read the config-catalog endpoint CUS cannot access;
+// this surface reads the workspace selectors instead — pin that every catalog
+// entry reaches the open dropdown, so a rewiring to a role-starved source (or
+// an empty selectors payload) fails here instead of at QA.
+describe('add-row loại-cont dropdown loads its options (FB-086, round 21)', () => {
+  it('fills the add-row loại-cont dropdown from the workspace selectors', async () => {
+    renderLedger({
+      detail: {
+        ...detail,
+        summary: { ...detail.summary, cargoMode: 'FCL' },
+        selectors: {
+          ...detail.selectors,
+          containerTypes: [
+            { id: 1, code: '20DC', name: "20'DC", label: "20DC - 20'DC" },
+            { id: 4, code: '40DC', name: "40'DC", label: "40DC - 40'DC" },
+            { id: 5, code: '40HC', name: "40'HC", label: "40HC - 40'HC" },
+          ],
+        },
+      } as unknown as ShipmentCusWorkspaceDetail,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    // The loại-cont picker is the house UuiSelectField: its trigger carries
+    // the placeholder text as its accessible name, and the options live in
+    // the portalled listbox (same interaction contract the ShipmentsPage
+    // drawer test pins).
+    fireEvent.click(await screen.findByRole('button', { name: /Chưa chọn loại cont/ }));
+    const listbox = await screen.findByRole('listbox');
+    const optionTexts = within(listbox).getAllByRole('option').map((option) => option.textContent);
+    expect(optionTexts.length).toBeGreaterThanOrEqual(1);
+    expect(optionTexts).toEqual(expect.arrayContaining(['20DC', '40DC', '40HC']));
   });
 });
 

@@ -1,6 +1,6 @@
 // QA1-007-COMPLETENESS-CHIP (card 171026113510, verify-fail lần 2) — rung 3 driver.
 // Spec: testplan/2026-10-17-card-qa1-007-completeness-chip.md
-// Drives /shipments/new on the LOCAL worktree stack (be :3003, fe :7176) and
+// Drives /shipments/new on the LOCAL worktree stack (be :3002, fe :7175) and
 // asserts the chip/panel contract across fill states:
 //   empty 0/9 → partial 1/9 → identity 3/9 + 'Cần bổ sung 6 thông tin' listing
 //   the six missing container-row fields. Best-effort all-9 afterwards.
@@ -14,8 +14,8 @@ import path from 'node:path';
 const require2 = createRequire('/Volumes/LexarSSD/projects/silversea/package.json');
 const puppeteer = require2('puppeteer');
 
-const BASE = process.env.QA_BASE || 'http://localhost:7176';
-const API = process.env.QA_API || 'http://localhost:3003/api';
+const BASE = process.env.QA_BASE || 'http://localhost:7175';
+const API = process.env.QA_API || 'http://localhost:3002/api';
 const OUT = path.resolve(import.meta.dirname, '../../../qa');
 fs.mkdirSync(OUT, { recursive: true });
 const LOG_PATH = path.join(OUT, '2026-10-17_qa1-007_ui-driver.log');
@@ -243,7 +243,7 @@ log('TC', {
   verdict: exitCode === 0 ? 'PASS' : 'FAIL',
   rung: 3,
   account: `CUS ${who} (local dev)`,
-  env: `${BASE} (worktree stack be:3003, fe:7176; shared dev DB ss-prod-db:5441)`,
+  env: `${BASE} (worktree stack be:3002, fe:7175; shared dev DB ss-prod-db:5441)`,
 });
 
 await browser.close().catch(() => {});
