@@ -352,6 +352,38 @@ describe('card 101026043000 — the overlap warning fires on weak slot evidence 
     } as never);
     assert.ok(saved, 'the confirmed retry must proceed — the warn tier must never dead-end');
   });
+
+  test('a provable cross-lot LCL holder keeps the HARD tier — the FCL scan must not leak it in as weak evidence (review M1)', async () => {
+    const a = await actor();
+    // Holder: a whole-lot LCL_SHIPMENT fulfillment whose closingAt IS its
+    // primary slot (full evidence, card 061026174603). The holder scan's
+    // left join once admitted LCL rows into the FCL branch, where their
+    // null container columns forced fallbackSlot=true and downgraded this
+    // fully-evidenced cross-lot overlap to a warn. The FCL scan excludes
+    // LCL_SHIPMENT holders; the LCL scan carries the provable slot, so the
+    // pinned hard tier survives.
+    const holder = await makeFixture(a, { appointment: null, closingAt: SLOT, expectedDeliveryDate: null });
+    await db.update(s.shipmentFulfillments)
+      .set({ fulfillmentType: 'LCL_SHIPMENT', shipmentContainerId: null, dispatchClassification: 'LCL' })
+      .where(eq(s.shipmentFulfillments.id, holder.fulfillmentId));
+    // Target: a fully-evidenced FCL row (explicit appointment) on the same rig.
+    const target = await makeFixture(a, { appointment: SLOT, closingAt: null });
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedVehiclePlateNumber: target.truckPlate })
+      .where(eq(s.shipmentFulfillments.id, holder.fulfillmentId));
+
+    await assert.rejects(
+      () => updateDispatchDetailPlan(saveInput(target) as never),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected the hard block, got: ${e.message}`);
+        assert.equal(e.payload?.code, undefined,
+          `a provable LCL closingAt overlap must keep the hard tier, not warn: ${e.message}`);
+        assert.match(String(e.message), /khung giờ trùng lặp/);
+        return true;
+      },
+    );
+  });
 });
 
 after(async () => {

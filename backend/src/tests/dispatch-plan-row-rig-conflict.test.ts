@@ -62,6 +62,40 @@ async function seedLot(tag: string, appointment: string) {
   return { shipmentId: shipment.id, shipmentVersion: shipment.version, fulfillmentId: fulfillment.id, fulfillmentVersion: 1 };
 }
 
+/** Card 171026121100 (FB-038/072 verify-fail 3): the staging shape — a lot
+ *  whose FCL fulfillments never decomposed a container row (no
+ *  shipmentContainerId), the slot riding the lot's date-only "Ngày giao".
+ *  Two such rows of ONE lot + one of ANOTHER lot, all sharing a delivery
+ *  day, mirror the silent-save repro exactly. */
+async function seedContainerLessLot(tag: string, rows: number, deliveryDay: string) {
+  const [customer] = await db.insert(s.customers).values({ name: `RigConflict customer ${suffix} ${tag}` }).returning();
+  ids.customers.push(customer.id);
+  const [route] = await db.insert(s.routes).values({ name: `RigConflict route ${suffix} ${tag}` }).returning();
+  ids.routes.push(route.id);
+  const [shipment] = await db.insert(s.shipments).values({
+    customerId: customer.id,
+    shipmentCode: `RGC-${suffix.slice(-8)}-${tag}`.slice(0, 50),
+    cargoMode: 'FCL',
+    status: 'READY_FOR_DISPATCH',
+    tradeDirection: 'EXPORT',
+    expectedDeliveryDate: deliveryDay,
+  }).returning();
+  ids.shipments.push(shipment.id);
+  const created: Array<{ shipmentId: number; shipmentVersion: number; fulfillmentId: number; fulfillmentVersion: number }> = [];
+  for (let i = 0; i < rows; i += 1) {
+    const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      // No shipmentContainerId: the pre-decompose branch-row shape.
+      sourceShipmentVersion: shipment.version,
+    }).returning();
+    ids.fulfillments.push(fulfillment.id);
+    created.push({ shipmentId: shipment.id, shipmentVersion: shipment.version, fulfillmentId: fulfillment.id, fulfillmentVersion: 1 });
+  }
+  return created;
+}
+
 async function currentVersions(fulfillmentId: number, shipmentId: number) {
   const [ful] = await db.select({ version: s.shipmentFulfillments.version }).from(s.shipmentFulfillments)
     .where(eq(s.shipmentFulfillments.id, fulfillmentId));
@@ -70,7 +104,7 @@ async function currentVersions(fulfillmentId: number, shipmentId: number) {
   return { fulfillmentVersion: ful.version, shipmentVersion: ship.version };
 }
 
-async function patchPlan(fulfillmentId: number, shipmentId: number, plannedEndAt: string) {
+async function patchPlan(fulfillmentId: number, shipmentId: number, plannedEndAt?: string, extra: { rigOverlapCompletedConfirmed?: boolean } = {}) {
   const { fulfillmentVersion, shipmentVersion } = await currentVersions(fulfillmentId, shipmentId);
   return updateDispatchDetailPlan({
     actor: { userId: actorId, role: Role.DISPATCHER } as Parameters<typeof updateDispatchDetailPlan>[0]['actor'],
@@ -82,7 +116,8 @@ async function patchPlan(fulfillmentId: number, shipmentId: number, plannedEndAt
     truckId,
     plannedRevenue: null,
     plannedCarrierCost: null,
-    plannedEndAt,
+    ...(plannedEndAt != null ? { plannedEndAt } : {}),
+    ...extra,
   });
 }
 
@@ -155,5 +190,65 @@ describe('dispatch plan-row rig conflict (card 20261003_317)', () => {
   test('A2 re-saving the same row with the same rig is allowed (self excluded)', async () => {
     const r = await patchPlan(lotA.fulfillmentId, lotA.shipmentId, `${DAY(2)}T18:00:00+07:00`);
     assert.equal(r.replayed, false);
+  });
+});
+
+// Card 171026121100 (FB-038/072 verify-fail 3): two container-less plan rows
+// of one lot (staging: lot 298's LONG MINH rows, date-only Ngày giao
+// 06/10/2026) took the SAME plate with two silent 200s — the holder scan's
+// INNER join on shipment_containers made a container-less holder invisible,
+// so the same-lot claim never fired. The left join restores the family law:
+// never a silent save; date-only lot slots stay weak evidence at the WARN
+// tier and the confirmed save proceeds.
+describe('container-less plan rows are rig holders too (card 171026121100)', () => {
+  const DAY_X = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
+  let sameLot: Awaited<ReturnType<typeof seedContainerLessLot>>;
+  let otherLot: Awaited<ReturnType<typeof seedContainerLessLot>>;
+
+  test('setup: one lot with two container-less rows, a second lot with one, all on the same delivery day', async () => {
+    sameLot = await seedContainerLessLot('cl-a', 2, DAY_X);
+    otherLot = await seedContainerLessLot('cl-b', 1, DAY_X);
+    assert.ok(sameLot.length === 2 && otherLot.length === 1);
+  });
+
+  test('the first plate assignment on a container-less row still saves', async () => {
+    const r = await patchPlan(sameLot[0].fulfillmentId, sameLot[0].shipmentId);
+    assert.equal(r.replayed, false);
+  });
+
+  test('the SAME plate on the sibling container-less row of the SAME lot warns once instead of saving silently', async () => {
+    await assert.rejects(
+      () => patchPlan(sameLot[1].fulfillmentId, sameLot[1].shipmentId),
+      (err: unknown) => {
+        const e = err as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected the same-lot warn, got: ${e.message}`);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED', 'warn-once family payload');
+        assert.match(String(e.message), /Vẫn lưu/, 'warn copy must invite the confirm');
+        return true;
+      },
+      'the silent same-plate stack of the verify-fail-3 repro must refuse once',
+    );
+  });
+
+  test('the confirmed retry of the same-lot warn proceeds', async () => {
+    const r = await patchPlan(sameLot[1].fulfillmentId, sameLot[1].shipmentId, undefined, { rigOverlapCompletedConfirmed: true });
+    assert.equal(r.replayed, false);
+  });
+
+  test('the SAME plate on a container-less row of ANOTHER lot warns once (cross-lot, display-slot evidence)', async () => {
+    await assert.rejects(
+      () => patchPlan(otherLot[0].fulfillmentId, otherLot[0].shipmentId),
+      (err: unknown) => {
+        const e = err as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected the cross-lot warn, got: ${e.message}`);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED', 'date-only lot slots stay at the warn tier, never a hard block');
+        assert.match(String(e.message), /Vẫn lưu/, 'warn copy must invite the confirm');
+        return true;
+      },
+      'a cross-lot container-less overlap must not save silently',
+    );
+
+    const r = await patchPlan(otherLot[0].fulfillmentId, otherLot[0].shipmentId, undefined, { rigOverlapCompletedConfirmed: true });
+    assert.equal(r.replayed, false, 'the confirmed retry must proceed');
   });
 });

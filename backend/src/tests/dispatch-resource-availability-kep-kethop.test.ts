@@ -436,4 +436,92 @@ describe('dispatch resource availability — Kẹp / Kết hợp same-rig matrix
       start: windows(29).incomingStart, end: windows(29).incomingEnd,
     });
   });
+
+  // Card 171026121100 (FB-038/072 verify-fail 3): the completed tier demanded
+  // a staged plannedStartAt, so a COMPLETED trip carrying only its departure
+  // day (staging: 15H-061.14 · BLCUSa24BB) was invisible and "Phân xe lại"
+  // onto that rig saved silently. The rig rows now claim the displayed day
+  // (12fcf20d law) at the same warn-once tier; the driver leg keeps the
+  // provable-window bar (2026-10-11 harmonization).
+  test('T15 a COMPLETED trip with only its departure day warns once on the rig', async () => {
+    const partner = await mkLot({ tag: 't15-partner', dayIndex: 23, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({
+      status: TripStatus.COMPLETED,
+      plannedStartAt: null,
+      plannedEndAt: null,
+    }).where(eq(s.trips.id, partner.trip.id));
+    const incoming = await mkLot({ tag: 't15-incoming', dayIndex: 23, classification: 'SINGLE', code: '20DC' });
+    await expectWarnOnce('T15', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(23).incomingStart, end: windows(23).incomingEnd,
+    });
+  });
+
+  test('T16 the confirmed retry of the date-only completed warn proceeds', async () => {
+    const partner = await mkLot({ tag: 't16-partner', dayIndex: 24, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({
+      status: TripStatus.COMPLETED,
+      plannedStartAt: null,
+      plannedEndAt: null,
+    }).where(eq(s.trips.id, partner.trip.id));
+    const incoming = await mkLot({ tag: 't16-incoming', dayIndex: 24, classification: 'SINGLE', code: '20DC' });
+    await expectNoConflict('T16', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(24).incomingStart, end: windows(24).incomingEnd,
+      confirmOverlap: true,
+    });
+  });
+
+  test('T17 control: a date-only COMPLETED trip on another day stays silent', async () => {
+    const partner = await mkLot({ tag: 't17-partner', dayIndex: 25, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({
+      status: TripStatus.COMPLETED,
+      plannedStartAt: null,
+      plannedEndAt: null,
+    }).where(eq(s.trips.id, partner.trip.id));
+    const incoming = await mkLot({ tag: 't17-incoming', dayIndex: 26, classification: 'SINGLE', code: '20DC' });
+    await expectNoConflict('T17', {
+      tripId: incoming.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(26).incomingStart, end: windows(26).incomingEnd,
+    });
+  });
+
+  // Review H1 (card 171026121100): the completed tier briefly matched the
+  // truck AND the trailer conjunctively, so a COMPLETED trip that ran the
+  // SAME tractor behind a DIFFERENT trailer turned invisible — the exact
+  // silent-save class this card closes. The completed rig rows must stay
+  // DISJOINT single-resource matches, exactly like the active tier's
+  // or(...predicates).
+  test('T18 a COMPLETED trip on the same tractor behind a DIFFERENT trailer still warns (both window laws)', async () => {
+    const [otherTrailer] = await db.insert(s.trailers).values({
+      licensePlate: `51R-${suffix.slice(-6)}-T18`.slice(0, 20), type: '20FT',
+    }).returning();
+    ids.trailers.push(otherTrailer.id);
+
+    // Date-only variant: the day claim alone must see it.
+    const partnerDateOnly = await mkLot({ tag: 't18a-partner', dayIndex: 27, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({
+      status: TripStatus.COMPLETED,
+      trailerId: otherTrailer.id,
+      plannedStartAt: null,
+      plannedEndAt: null,
+    }).where(eq(s.trips.id, partnerDateOnly.trip.id));
+    const incomingA = await mkLot({ tag: 't18a-incoming', dayIndex: 27, classification: 'SINGLE', code: '20DC' });
+    await expectWarnOnce('T18a', {
+      tripId: incomingA.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(27).incomingStart, end: windows(27).incomingEnd,
+    });
+
+    // Provable-window variant: same shape with staged timestamps.
+    const partnerSlotted = await mkLot({ tag: 't18b-partner', dayIndex: 28, classification: 'SINGLE', code: '20DC' });
+    await db.update(s.trips).set({
+      status: TripStatus.COMPLETED,
+      trailerId: otherTrailer.id,
+    }).where(eq(s.trips.id, partnerSlotted.trip.id));
+    const incomingB = await mkLot({ tag: 't18b-incoming', dayIndex: 28, classification: 'SINGLE', code: '20DC' });
+    await expectWarnOnce('T18b', {
+      tripId: incomingB.trip.id, code: '20DC', classification: 'SINGLE',
+      start: windows(28).incomingStart, end: windows(28).incomingEnd,
+    });
+  });
 });

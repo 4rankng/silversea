@@ -367,6 +367,85 @@ describe('the driver claim warns like the rig claim (round-17 sweep)', () => {
   });
 });
 
+// Card 171026121100 (FB-038/072 verify-fail 3): the completed tier required a
+// staged plannedStartAt, so a COMPLETED trip that only carried its departure
+// day (staging: 15H-061.14 · BLCUSa24BB · 01/10/2026) was invisible — both
+// the trip edit and the "Phân xe lại" fallback saved the same-day rig
+// double-booking silently. The RIG claim now measures the displayed day like
+// every other holder (12fcf20d law); the DRIVER harmonization above is
+// untouched (a date-only finished row still proves no driver occupancy).
+describe('a completed date-only trip claims its displayed day on the RIG (card 171026121100)', () => {
+  test('the trip edit warns once when the rig already ran a completed trip that day, and the confirmed retry proceeds', async () => {
+    const a = await actor();
+    const customerId = await makeCustomer();
+    const routeId = await makeRoute();
+    const shared = await makeTruck();
+    const other = await makeTruck();
+    // Holder: COMPLETED, no staged timestamps — only its departure day.
+    await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: shared.id,
+      plannedStartAt: null, plannedEndAt: null, status: 'COMPLETED',
+    });
+    const target = await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: other.id,
+      plannedStartAt: null, plannedEndAt: null, status: 'CREATED',
+    });
+
+    await assert.rejects(
+      () => updateTripFigures(target.id, figuresPayload(shared.id, target.version, { userId: a.userId, userRole: a.userRole })),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected the completed warn, got: ${e.message}`);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED', 'warn-once family payload');
+        assert.match(String(e.message), /Vẫn lưu/, 'warn copy must invite the confirm');
+        return true;
+      },
+    );
+
+    const saved = await updateTripFigures(target.id, figuresPayload(shared.id, target.version, {
+      userId: a.userId, userRole: a.userRole, confirmOverlap: true,
+    }));
+    assert.ok(saved, 'the confirmed retry must proceed (warning, not a hard block)');
+    const [row] = await db.select({ truckId: s.trips.truckId }).from(s.trips).where(eq(s.trips.id, target.id));
+    assert.equal(row.truckId, shared.id, 'the confirmed save really moved the tractor');
+  });
+
+  test('the "Phân xe lại" fallback warns on the same-day completed rig and the confirmed retry proceeds (staging repro)', async () => {
+    const customerId = await makeCustomer();
+    const routeId = await makeRoute();
+    const truckA = await makeTruck();
+    const truckB = await makeTruck();
+    const driverY = await makeDriver();
+    // The completed holder: date-only, riding truckA (the 15H-061.14 shape).
+    await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckA.id,
+      plannedStartAt: null, plannedEndAt: null, status: 'COMPLETED',
+    });
+    // No staged times + no fulfillment: exactly the trip shape the reassign
+    // route sends to the legacy fallback.
+    const target = await insertTrip({
+      customerId, routeId, departureDate: '2026-10-12', truckId: truckB.id, driverId: driverY,
+      plannedStartAt: null, plannedEndAt: null, status: 'CREATED',
+    });
+
+    await assert.rejects(
+      () => reassignTrip(target.id, { carrierType: 'OWN', truckId: truckA.id, driverId: driverY }),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected the fallback rig warn, got: ${e.message}`);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED', 'warn-once family payload on the fallback path');
+        assert.match(String(e.message), /Vẫn lưu/, 'warn copy must invite the confirm');
+        return true;
+      },
+    );
+
+    const reassigned = await reassignTrip(target.id, {
+      carrierType: 'OWN', truckId: truckA.id, driverId: driverY, confirmOverlap: true,
+    });
+    assert.equal(reassigned.truckId, truckA.id, 'the confirmed retry really moved the tractor');
+  });
+});
+
 after(async () => {
   // Test rows carry unique suffixes; remove only this run's fixtures.
   if (tripIds.length) await db.delete(s.trips).where(inArray(s.trips.id, tripIds));
