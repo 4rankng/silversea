@@ -187,6 +187,70 @@ function assertExistingDecompositionMatches(
   }
 }
 
+/** FB-110/FB-109 (cards 171026122110 / 171026122100): a PARTIAL-but-clean FCL
+ * set — every active row points at exactly one current container of the lot,
+ * some containers just have no row yet — is the state `addCusShipmentContainer`
+ * leaves on a born-READY lot (create intentionally skips FCL decomposition;
+ * the add path decomposes only the NEW container). The strict assert turned
+ * that state into a permanent 409 on every write for the row-less container,
+ * which is exactly where the per-container tờ khai save died. A clean partial
+ * set is healable: a row-less container cannot own a trip (trips hang off
+ * fulfillments), so minting its fulfillment restores the same planned state
+ * the from-empty decompose would have produced. Foreign shapes — a NULL-
+ * container row, a row pointing at a container that no longer belongs to the
+ * lot, or duplicates on one container — stay under the strict assert: those
+ * rows may carry dispatch/trip history and cancel-and-redecompose is a
+ * governed act, not something a container edit should improvise. */
+function healCleanPartialFclSet(
+  tx: Tx,
+  shipment: typeof s.shipments.$inferSelect,
+  containers: Array<typeof s.shipmentContainers.$inferSelect>,
+  rows: FulfillmentRow[],
+  actorId: number,
+): Promise<FulfillmentRow[]> {
+  if (shipment.cargoMode !== CARGO_MODE.FCL) {
+    assertExistingDecompositionMatches(shipment, containers, rows);
+    return Promise.resolve(rows);
+  }
+  const containerIds = new Set(containers.map((container) => container.id));
+  const covered = new Map<number, number>();
+  let foreign = false;
+  for (const row of rows) {
+    if (row.shipmentContainerId == null || !containerIds.has(row.shipmentContainerId)) {
+      foreign = true;
+      break;
+    }
+    const seen = covered.get(row.shipmentContainerId) ?? 0;
+    if (seen > 0) {
+      foreign = true;
+      break;
+    }
+    covered.set(row.shipmentContainerId, 1);
+  }
+  const naked = containers.filter((container) => !covered.has(container.id));
+  if (foreign || naked.length === 0) {
+    assertExistingDecompositionMatches(shipment, containers, rows);
+    return Promise.resolve(rows);
+  }
+  // Same insert values as the canonical from-empty decompose: per-container
+  // factory override when present, else the lot-level snapshot.
+  return (async () => {
+    const siteSnapshot = await loadSiteSnapshot(tx, shipment);
+    const containerSnapshots = await loadContainerSiteSnapshots(tx, shipment, naked);
+    const inserted = await tx.insert(s.shipmentFulfillments).values(naked.map((container) => ({
+      shipmentId: shipment.id,
+      fulfillmentType: 'FCL_CONTAINER' as const,
+      cargoMode: 'FCL' as const,
+      shipmentContainerId: container.id,
+      sourceShipmentVersion: shipment.version,
+      siteSnapshot: containerSnapshots.get(container.id) ?? siteSnapshot,
+      dispatchClassification: shipment.isCombined ? ('COMBINED' as const) : ('SINGLE' as const),
+      createdBy: actorId,
+    }))).returning();
+    return [...rows, ...inserted];
+  })();
+}
+
 export async function ensureShipmentFulfillmentsInTx(
   tx: Tx,
   input: EnsureShipmentFulfillmentsInTxInput,
@@ -239,8 +303,10 @@ export async function ensureShipmentFulfillmentsInTx(
 
   const existing = await listActiveRows(tx, shipment.id);
   if (existing.length > 0) {
-    assertExistingDecompositionMatches(shipment, containers, existing);
-    return existing;
+    // FB-110/FB-109: a clean partial FCL set heals here (missing rows are
+    // minted under the same lock this ensure already holds); foreign shapes
+    // still fall through to the strict assert. LCL keeps the strict law.
+    return healCleanPartialFclSet(tx, shipment, containers, existing, input.actorId);
   }
 
   const siteSnapshot = await loadSiteSnapshot(tx, shipment);
