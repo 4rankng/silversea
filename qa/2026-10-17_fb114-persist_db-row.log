@@ -1,0 +1,21 @@
+  id  |             name             |          short_name          | status |      types      | primary_type  |         created_at         | deleted_at 
+------+------------------------------+------------------------------+--------+-----------------+---------------+----------------------------+------------
+ 8371 | QA UI Persist 1792242344616  | QA UI Persist 1792242344616  | ACTIVE | {SHIPPING_LINE} | SHIPPING_LINE | 2026-10-17 13:05:50.805763 | 
+ 8373 | QA UI Persist 1792242493011  | QA UI Persist 1792242493011  | ACTIVE | {SHIPPING_LINE} | SHIPPING_LINE | 2026-10-17 13:08:18.771169 | 
+ 8374 | QA Cache Probe 1792242581423 | QA Cache Probe 1792242581423 | ACTIVE | {SHIPPING_LINE} | SHIPPING_LINE | 2026-10-17 13:09:41.5333   | 
+ 8375 | QA Cache Probe 1792242623100 | QA Cache Probe 1792242623100 | ACTIVE | {SHIPPING_LINE} | SHIPPING_LINE | 2026-10-17 13:10:23.204461 | 
+ 8376 | QA UI Persist 1792242635223  | QA UI Persist 1792242635223  | ACTIVE | {SHIPPING_LINE} | SHIPPING_LINE | 2026-10-17 13:10:41.18877  | 
+(5 rows)
+
+
+-- cleanup 2026-10-17: soft-delete QA drive/probe rows (fixture registry sweep class 'QA%')
+  id  |             name             |         deleted_at         
+------+------------------------------+----------------------------
+ 8371 | QA UI Persist 1792242344616  | 2026-10-17 13:11:42.762482
+ 8374 | QA Cache Probe 1792242581423 | 2026-10-17 13:11:42.762482
+ 8376 | QA UI Persist 1792242635223  | 2026-10-17 13:11:42.762482
+ 8373 | QA UI Persist 1792242493011  | 2026-10-17 13:11:42.762482
+ 8375 | QA Cache Probe 1792242623100 | 2026-10-17 13:11:42.762482
+(5 rows)
+
+UPDATE 5

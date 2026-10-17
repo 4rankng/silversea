@@ -4,10 +4,10 @@
 // `/:id` root read/update/delete, status transitions, dispatch order issue,
 // direct completion, fulfillment cancellation disposition, submit-for-dispatch,
 // carrier allocations, recovery facts, and the intake support endpoints
-// (operational sites, pricing preview).
+// (operational sites, shipping lines, pricing preview).
 
 import { Router } from 'express';
-import { Role, ShipmentStatus } from '@tingting/shared';
+import { Role, SHIPMENT_INTAKE_MUTATION_ROLES, ShipmentStatus } from '@tingting/shared';
 import { z } from 'zod';
 import {
   cancelShipmentFulfillmentSchema,
@@ -41,7 +41,7 @@ import {
   listShipmentReferenceConflicts,
   normalizeDocumentReference,
 } from '../../services/shipment-lifecycle-shared.service';
-import { assignShipmentCarriers, createOperationalSiteForIntake, deleteOperationalSiteForAdmin, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
+import { assignShipmentCarriers, createOperationalSiteForIntake, createShippingLineForIntake, deleteOperationalSiteForAdmin, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
@@ -63,7 +63,6 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
 import {
-  SHIPMENT_INTAKE_MUTATION_ROLES,
   parseId,
   requireShipmentIdempotencyKey,
   runShipmentWrite,
@@ -489,6 +488,36 @@ coreRoutes.delete(
       throw new ApiError(404, 'Không tìm thấy nhà máy / kho.');
     }
     res.json(await deleteOperationalSiteForAdmin(siteId, getUser(req)));
+  }),
+);
+
+// FB-114 verify-fail (ticket 171026185348): the shipping-line dialog on the
+// intake form must persist into the SHARED catalog on the server, not only
+// the lot's form field. The bootstrap `shippingLines` list derives from
+// DEFAULT_SHIPPING_LINES + SHIPPING_LINE suppliers (config.service.ts), so
+// the create mints that supplier row and busts the bootstrap cache. The name
+// still rides form.shippingLineName for the lot (unchanged free-text
+// contract). Name-keyed idempotent: 201 on create, 200 when the catalog
+// already holds the display name, 409 when a non-shipping-line supplier
+// already holds it.
+const shippingLineCreateSchema = z.object({
+  name: z.string().trim().min(1, 'Vui lòng nhập tên hãng tàu.').max(255, 'Tên hãng tàu tối đa 255 ký tự.'),
+});
+
+coreRoutes.post(
+  '/shipping-lines', declareNonMaterialWrite('Reference-data create (shipping-line supplier catalog entry). Name-keyed idempotent create — a replay returns the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'),
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = shippingLineCreateSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const result = await createShippingLineForIntake(parsed.data, getUser(req));
+    if (result.id != null) {
+      // Entity-level master-data change: name the minted supplier row in the
+      // audit entry (the supplier audit label resolves from entityId).
+      res.locals.auditEntityId = result.id;
+      res.locals.auditEntityKey = result.name;
+    }
+    res.status(result.created ? 201 : 200).json(result);
   }),
 );
 

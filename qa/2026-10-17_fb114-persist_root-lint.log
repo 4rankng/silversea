@@ -1,0 +1,16 @@
+== root pnpm lint ==
+
+> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-fb114-hangtau-catalog-1
+> eslint .
+
+
+/Users/dev/.paseo/worktrees/1njkloyy/fix-fb114-hangtau-catalog-1/backend/src/tests/scratch-census-probe.ts
+   7:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+   8:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+   9:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+  10:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+  11:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+
+✖ 5 problems (0 errors, 5 warnings)
+
+EXIT:0

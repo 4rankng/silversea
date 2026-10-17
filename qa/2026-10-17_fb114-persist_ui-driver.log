@@ -1,0 +1,9 @@
+LOGIN OK (admin) · name under test: "QA UI Persist 1792242635223"
+PASS — dialog closed after Áp dụng
+PASS — lot field holds the typed name :: field="QA UI Persist 1792242635223"
+PASS — after reload the dropdown lists the new name
+PASS — bootstrap shippingLines carries the name :: {"name":"QA UI Persist 1792242635223"}
+PASS — supplier row exists (SHIPPING_LINE catalog source) :: {"id":8376,"name":"QA UI Persist 1792242635223","status":"ACTIVE","types":["SHIPPING_LINE"],"primaryType":"SHIPPING_LINE"}
+
+DRIVER SUMMARY: 5/5 checks passed · exit 0
+EXIT:0

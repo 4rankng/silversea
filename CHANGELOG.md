@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-10-17 (tối) — FB-114 verify-fail: hãng tàu mới lưu vào danh mục chung trên server
+
+Nguồn: ticket 171026185348 (verify-fail của 171026122150): fix trước chỉ đổi
+label + lưu local form — hãng tàu vẫn mất khỏi dropdown sau reload với mọi
+người dùng. Yêu cầu thật: tạo record server-side (danh mục chung).
+
+- **BE** — `POST /api/shipments/shipping-lines` (mount `shipments` → casbin
+  `shipments:write`, `requireRoles(SHIPMENT_INTAKE_MUTATION_ROLES)` như
+  operational-sites): validate trim/non-empty/≤255, dedupe theo TÊN HIỂN THỊ
+  (`shortName || name`, trim + case-insensitive — cùng identity với
+  derivation `config.service.ts`, nay trim at read), tạo supplier
+  `types ['SHIPPING_LINE']`, bust cache `catalogs:bootstrap`. 201 khi tạo;
+  200 idempotent khi tên đã là default (echo casing canonical) hoặc đã là hãng
+  tàu ACTIVE (không tạo bản sao — verify bằng đếm row theo display name);
+  409 khi tên đang thuộc nhà cung cấp khác loại/INACTIVE; 400 validate.
+  Race window đóng bằng `lockApplicationOwnedUniqueness` trên display name
+  (advisory lock theo pattern application-owned-uniqueness) — select-then-insert
+  serialize theo tên. Audit `ENTITY_CREATED` + entityId/Key của supplier mới,
+  declareNonMaterialWrite. Role list single-source: `SHIPMENT_INTAKE_MUTATION_ROLES`
+  chuyển lên `@tingting/shared` (pattern `FINANCIAL_ROLES`), routes + service
+  cùng import — hết drift.
+- **FE** — `applyShippingLine` gọi API TRƯỚC, sau đó mới ghi
+  `form.shippingLineName` + merge catalog local (`mergeShippingLine`,
+  dedupe case-insensitive) + đóng dialog. Persist fail → dialog giữ nguyên +
+  hiện lỗi server (không fake success). Hint dưới ô Hãng tàu cập nhật đúng
+  scope: "Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập tay
+  lưu cùng lô hàng này; dùng nút bút chì để thêm vào danh mục chung." (copy cũ
+  "chỉ lưu cùng lô hàng này" thành sai; copy trung gian bị overclaim với
+  nhập tay — review S2). UX giữ nguyên: Pencil, tiêu đề dialog "Đặt tên hãng
+  tàu cho lô này", dialog body giữ nguyên theo yêu cầu ticket, field vẫn
+  free-text cho lô.
+- Regression: `backend/src/tests/shipping-line-intake-catalog.test.ts` (7
+  test qua mount thật: create → 201 + bootstrap liệt kê + row typed
+  SHIPPING_LINE; duplicate/case/default → 200 không nhân bản; empty/>255 →
+  400; va chạm NCC khác loại → 409; role matrix 403/401);
+  `frontend/src/features/shipments/create/ShipmentCreateWorkspace.shipping-line-persist.test.tsx`
+  (persist trước close, dropdown mirror, fail → dialog mở + lỗi). Testplan
+  `testplan/2026-10-17-card-fb114-hang-tau-plus.md` case
+  `2026-10-17-card-fb114-shipping-line-server-persist`; QA
+  `qa/2026-10-17_fb114-persist_*`.
+- Migration: KHÔNG tạo — dedupe application-level đủ cho form 1 người bấm;
+  unique index trên display name cần clean data trước (để lại nếu owner muốn
+  siết race window).
+
 ## 2026-10-17 (tối) — FB-038/072 verify-fail 3: gán xe trùng lịch còn 2 đường lưu thầm lặng
 
 Nguồn: docx `171026121100-fb038-072-verifyfail3-overlap-silent` (staging,

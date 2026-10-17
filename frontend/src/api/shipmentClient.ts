@@ -815,6 +815,25 @@ export async function createOperationalSite(body: CreateOperationalSiteBody): Pr
   return api.post<OperationalSite>('/shipments/operational-sites', body);
 }
 
+/** Result of `POST /api/shipments/shipping-lines` (FB-114, ticket 171026185348). */
+export interface ShippingLineCreateResult {
+  /** Supplier row id; null when the name is one of the built-in defaults. */
+  id: number | null;
+  /** Catalog display name (canonical casing) to merge into the dropdown. */
+  name: string;
+  created: boolean;
+}
+
+/**
+ * Persist a new shipping line into the SHARED catalog (supplier typed
+ * SHIPPING_LINE — the source the bootstrap `shippingLines` list derives
+ * from). Idempotent on the display name: `created: false` means the catalog
+ * already listed it; a name held by a non-shipping-line supplier is a 409.
+ */
+export async function createShippingLine(name: string): Promise<ShippingLineCreateResult> {
+  return api.post<ShippingLineCreateResult>('/shipments/shipping-lines', { name });
+}
+
 /** Master-data row for the ADMIN/MANAGER "Nhà máy" config surface. */
 export interface AdminOperationalSite extends OperationalSite {
   customerName: string;
