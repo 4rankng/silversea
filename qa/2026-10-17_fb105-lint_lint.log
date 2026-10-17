@@ -1,0 +1,25 @@
+# FB-105 [171026115800] — gate: pnpm lint (root)
+# Command: pnpm lint
+# Date: 2026-10-17
+#
+# First run (WIP tree): 20 problems (15 errors, 5 warnings), EXIT:1
+#   — all 15 errors pre-date this branch (red at merge-base f8fff11f):
+#     backend/src/tests/lcl-single-lot-rev-class.test.ts (3 unused bindings),
+#     frontend/src/pages/ShipmentDetailPage.tsx (native <select> — @tingting/no-native-select),
+#     testplan/qa/2026-10-16_w1-verify/{fb096,fb101,fb102,fb103}.mjs + w1-deep-verify/fb009-copy-time-staging.mjs (unused vars).
+#   Fixed by cherry-picking main's 802f42e3 (cherry-pick -x -> ead4a68f),
+#   which fixes exactly these files and was already green on main.
+#
+# Re-run on final tree:
+> eslint .
+
+/Users/dev/.paseo/worktrees/1njkloyy/fix-fb105-kho-lay-hang-1/backend/src/tests/scratch-census-probe.ts
+   7:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+   8:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+   9:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+  10:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+  11:1  warning  Unexpected console statement. Only these console methods are allowed: error, warn  no-console
+
+✖ 5 problems (0 errors, 5 warnings)
+
+EXIT:0

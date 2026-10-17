@@ -330,8 +330,9 @@ export default function ShipmentDetailPage() {
   // của lô, theo đúng một luật dùng chung (`resolveLiftDropPoints`): FCL lấy
   // tên cảng của container (không đảo theo chiều), LCL đổi vai theo Nhập/Xuất
   // (Nhập: Nâng = Kho, Hạ = Nhà máy; Xuất: ngược lại). Hai cột
-  // pickup_location/delivery_location nay chỉ còn là dự phòng cho bên chưa
-  // từng chọn điểm danh mục — lô tạo từ form để trống cả hai.
+  // pickup_location/delivery_location được form tạo lô ghi đúng chiều cho hàng
+  // lẻ (FB-105) và là dự phòng khi nửa điểm chưa từng chọn danh mục — các lô
+  // tạo trước FB-105/seed có thể để trống cả hai.
   const liftDropPoints = resolveLiftDropPoints({
     cargoMode: shipment.cargoMode,
     tradeDirection: shipment.tradeDirection,
