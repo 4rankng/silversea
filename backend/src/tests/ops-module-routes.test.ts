@@ -48,6 +48,12 @@ let cusToken: string;
 
 const today = new Date();
 const isoDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+// Ngày chi của fixture — phải đứng TRƯỚC trong sort `paidAt DESC` của
+// /admin/expenses (limit 100). Dev DB dùng chung đang có >1.200 dòng fixture
+// QA dò dỉ có paid_at tương lai (2031–2033, note "C197…"), nên ngày hôm nay
+// bị đẩy khỏi trang đầu. Ngày xa này cô lập test khỏi rác môi trường; hợp lệ
+// theo regex YYYY-MM-DD của route.
+const expensePaidAt = '2098-12-31';
 
 function sign(user: { id: number; username: string | null; role: Role | string }) {
   return jwt.sign(
@@ -354,7 +360,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
   test('recorded expenses retain receipt visibility and are editable by the owner until settled', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, shipmentContainerId: containerId, expenseTypeCode: withInvoiceCode, amount: '350000', paidAt: isoDate },
+      body: { shipmentId, shipmentContainerId: containerId, expenseTypeCode: withInvoiceCode, amount: '350000', paidAt: expensePaidAt },
     });
     assert.equal(created.status, 201);
     assert.equal(created.body.approvalStatus, 'RECORDED');
@@ -420,7 +426,7 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
   test('removed approval endpoints return 404; owner corrections record directly', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '90000', paidAt: isoDate, note: 'Cân xe' },
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '90000', paidAt: expensePaidAt, note: 'Cân xe' },
     });
     assert.equal(created.status, 201);
     assert.equal(created.body.approvalStatus, 'RECORDED');
@@ -494,7 +500,10 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     await db.insert(s.userShipmentLinks).values({ userId: ops2.id, shipmentId });
     const shared = await api('/expenses', {
       method: 'POST', token: ops2Token,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '70000', paidAt: isoDate, note: 'Chi nội bộ' },
+      // Sibling sweep theo tiền lệ 66f724cc (card169 fixture): chi tiêu cùng
+      // loại + cùng lô của Ops thứ hai là CỐ Ý (test gom 2 payer dưới một mã
+      // lô) — khai đúng qua duplicateConfirmed của guard 141026230720.
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '70000', paidAt: expensePaidAt, note: 'Chi nội bộ', duplicateConfirmed: true },
     });
     assert.equal(shared.status, 201);
     createdExpenseIds.push(shared.body.id);
@@ -518,7 +527,10 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
   test('settlement freeze; later entries stay open (KP-149: batch decisions removed)', async () => {
     const created = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '150000', paidAt: isoDate, note: 'Chi nội bộ' },
+      // Sibling sweep theo tiền lệ 66f724cc: thêm một chi phí cùng loại + cùng
+      // lô sau các dòng trước là cố ý (test freeze theo thời điểm ghi) — khai
+      // duplicateConfirmed; guard 141026230720 không đổi.
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '150000', paidAt: expensePaidAt, note: 'Chi nội bộ', duplicateConfirmed: true },
     });
     createdExpenseIds.push(created.body.id);
 
@@ -552,7 +564,10 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
 
     const after = await api('/expenses', {
       method: 'POST', token: opsToken,
-      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '10000', paidAt: isoDate, note: 'Chi nội bộ' },
+      // Sibling sweep theo tiền lệ 66f724cc: chi phí cùng loại + cùng lô SAU
+      // khi đã lập phiếu là cố ý (test "later entries stay open") — khai
+      // duplicateConfirmed; guard 141026230720 không đổi.
+      body: { shipmentId, expenseTypeCode: noInvoiceCode, amount: '10000', paidAt: expensePaidAt, note: 'Chi nội bộ', duplicateConfirmed: true },
     });
     createdExpenseIds.push(after.body.id);
     assert.equal(after.body.opsSettlementId, null);
