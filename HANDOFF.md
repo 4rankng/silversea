@@ -1,194 +1,72 @@
-# HANDOFF — 2026-10-17 consolidated (2 lanes)
-
-## Lane 1: filter-lane (Khách hàng dropdown vào filter lane) — DONE, merged
-
-# fix-shipments-debit-customer-in-filter-lane — Khách hàng dropdown vào filter lane — DONE (chưa merge)
+# HANDOFF — card 171026212000 (retry rb1) — DONE, branch pushed
 
 Controller: this session (Paseo agent), worktree
-`fix-shipments-debit-customer-in-filter-lane` (branch-off main @ 9fd0553c).
-Updated: 2026-10-17 (tối).
-
-## Mục tiêu + trạng thái
-
-Owner yêu cầu 2026-10-17: dropdown "Tất cả khách hàng" trên `/shipments-debit`
-chuyển TỪ bar riêng (`shipment-debit-customer-bar`, trên filter strip) VÀO
-filter control lane — control ĐẦU TIÊN của `ShipmentDebitRibbon`'s FilterBar,
-trước `DateRangeFields`. **REVERSES card _202** (ghi trong commit message).
-DONE: layout/DOM move only, không đổi filter logic.
-
-## Thay đổi (5 file code + 1 testplan, +96/−85)
-
-- `ShipmentDebitRibbon.tsx`: props mới `customerValue` / `customerOptions` /
-  `onCustomerChange`; `SearchableSelect` render là bar CHILD đầu tiên (bar
-  children never fold → luôn hiện); doc comment nêu reversal.
-- `ShipmentDebitPage.tsx`: xóa block customer-bar + hint "Đang xem…";
-  `selectedCustomerLabel` + import chết xóa sạch; handler chuyển NGUYÊN VẸN
-  (`setSelectedIds(new Set())` + `updateParam('customer', …)`).
-- `ShipmentDebitPage.css`: family `.shipment-debit-customer-bar*` xóa hết;
-  thay bằng `.shipment-debit-ribbon__customer { min-width:200px;
-  max-width:320px }` (sizing-only — band owns layout); phone full-width
-  override XÓA (band packing law: `ListFilterBar.css` `.list-filter-bar >
-  *:not(.ds-tabs) { min-width: 0 }` @≤640 — floor chỉ hiệu lực ≥641px, đã
-  đo confirmed).
-- Tests: pins đảo chiều _202 (picker TRONG ribbon, control đầu, precedes
-  range, DOM order ribbon→header); hint asserted gone; direct-mount test
-  thêm 3 props bắt buộc.
-
-## Quyết định đáng chú ý
-
-- Hint "Đang xem…" BỎ (không vừa gọn trong control lane; trùng lặp giá trị
-  trigger). Owner chỉ yêu cầu move dropdown — brief cho phép bỏ.
-- `hasFilters`/`Xóa lọc` KHÔNG tính customer (hard rule: không đổi logic).
-  → review note cho owner sau này: user lọc chỉ theo customer sẽ thấy
-  `Xóa lọc` disabled dù lane đang giữ giá trị — cần owner ruling riêng nếu
-  muốn đổi (logic-change task riêng).
-- Provenance: house primitives (`FilterBar` + `SearchableSelect`), không
-  consult catalog — không component/layout mới.
-
-## Lane 2: hãng tàu server-side catalog (FB-114/122150+185348) — DONE, merged
-
-# fix-171026122150+171026185348 — FB-114 verify-fail: hãng tàu lưu vào danh mục chung (server) — DONE (unmerged, chờ owner)
-
-Controller: this session (Paseo agent), worktree `fix-fb114-hangtau-catalog-1`
-renamed branch `fix-171026122150-185348-hang-tau-luu-danh-muc-chung`,
-branch-off from main @ e36c4a06. Không merge trunk (chỉ thị ticket).
-Updated: 2026-10-17 (tối).
+`fix-171026212000-deposit-bill-lookup-rb1` (branch-off 32168ada).
+Updated: 2026-10-18 (~01:15 local). Supersedes the 2026-10-17 two-lane
+handoff (both lanes were DONE + merged; nothing was lost).
 
 ## Goal + status
 
-Verify-fail 171026185348 của FB-114: fix trước (e11cd255/330169fc/…) chỉ đổi
-label + lưu local form — hãng tàu mất khỏi dropdown sau reload với mọi user.
-Yêu cầu thật: tạo record server-side (danh mục chung), dropdown sau refresh
-phải liệt kê, giữ nguyên UX (Pencil, "Đặt tên hãng tàu cho lô này",
-form.shippingLineName cho lô).
+FB-096 verify-fail: "Thêm cược" modal's Bill lookup (gợi ý bill từ 4 số
+cuối) showed NO suggestions for real lots. **DONE — fixed, gated, reviewed,
+UI-driven, committed and pushed** on branch
+`fix-171026212000-deposit-bill-lookup-rb1`.
 
-ĐÃ IMPLEMENT:
-- BE `POST /api/shipments/shipping-lines` (core.routes.ts +
-  shipment-intake.service.ts `createShippingLineForIntake`): trim/non-empty/
-  ≤255 (zod), dedupe theo display name (`shortName || name` ci — đúng
-  derivation config.service.ts), tạo supplier types ['SHIPPING_LINE'], bust
-  `catalogs:bootstrap`. 201 create / 200 idempotent (default hoặc hãng tàu
-  ACTIVE sẵn có, echo canonical casing) / 409 tên thuộc NCC khác loại hoặc
-  INACTIVE / 400 validate. requireRoles(SHIPMENT_INTAKE_MUTATION_ROLES) +
-  casbin('shipments') mount; audit ENTITY_CREATED; declareNonMaterialWrite.
-- FE `applyShippingLine`: API TRƯỚC → rồi update form.shippingLineName +
-  mergeShippingLine (catalogMerger.ts) + đóng dialog; fail → dialog giữ mở +
-  lỗi server (role=alert). Hint field sửa: "… lưu cùng lô hàng và được thêm
-  vào danh mục chung." Modal/ShipmentCreateModals onApply async + pending
-  disable.
+## Root cause (evidence: qa/2026-10-18_171026212000_repro-api.log)
 
-## Decisions / sources
+`findBillSuggestions` matched `right(col,4)=digits` — last four
+**characters** — while the ruling/label is last four **digits** of the
+printed number. 193/444 digit-tailable refs in the prod-mirror DB end in
+non-digit suffixes (`-IMP/-FCL/…-9bzut2`, `FB020-R21-RB1`) → never matched.
+Landing tests + staging QA only sampled pure-digit tails, so gates passed.
 
-- RBAC: đặt endpoint dưới mount `shipments` (casbin shipments:write) +
-  requireRoles SHIPMENT_INTAKE_MUTATION_ROLES — đúng precedent
-  `/operational-sites` (master-data tạo từ intake form). CUS/DISPATCHER
-  (2 role xài /shipments/new) đều qua; ACCOUNTANT/OPS/DRIVER 403. KHÔNG nới
-  POST /api/suppliers (config write) cho CUS.
-- Migration unique index: KHÔNG tạo (dedupe app-level đủ cho human form;
-  index display-name cần clean data trước). Ghi chú trong CHANGELOG nếu owner
-  muốn siết race window.
-- Không đụng `syncSupplier*Hook`: insert đã set types/primaryType/
-  isFuelSupplier canonical (normalizeSupplierTypeSelection); partnerId null
-  (không taxCode) — parity với POST /suppliers cho row không taxCode.
+## Changes (branch fix-171026212000-deposit-bill-lookup-rb1)
 
-## Files owned
+- `backend/src/services/bill-book-search.service.ts` — tail = last 4 digits
+  of the digit run: `right(regexp_replace(col,'[^0-9]','','g'),4)=digits`,
+  grouped in drizzle `or()` (review finding: the bare `sql\`A or B\`` inside
+  `and()` rendered `(deleted_at is null and A) or B`, bypassing the
+  soft-delete filter on the booking branch — pre-existing, now fixed +
+  pinned).
+- Deleted `backend/src/services/deposit-bill-suggestions.service.ts` —
+  orphaned duplicate (zero importers since F6) still carrying the old SQL.
+- FE `DepositRefundTrackerPage.tsx/.css` — failed lookup renders
+  `role="alert"` error line; "Không có lô hàng nào…" now requires
+  success (no flash during load, no lie on 401/5xx).
+- Tests: backend `deposit-bill-suggestions.test.ts` (suffix fixtures,
+  digit-run-extension pin q=4292, tombstone lot); FE page test +3
+  (typeahead/autofill, honest no-match, error line).
+- `testplan/2026-10-18-card171026212000-deposit-bill-lookup-digits.md` +
+  driver `testplan/qa/2026-10-18_card171026212000/`.
 
-backend/src/services/shipment-intake.service.ts, backend/src/routes/shipments/
-core.routes.ts, backend/src/routes/shipments/index.ts,
-backend/src/tests/shipping-line-intake-catalog.test.ts (new),
-frontend/src/api/shipmentClient.ts, frontend/src/features/shipments/create/
-{ShipmentCreateWorkspace.tsx,ShippingLineAddDialog.tsx,ShipmentCreateIdentitySection.tsx,
-ShipmentCreateModals.tsx,catalogMerger.ts,ShipmentCreateWorkspace.shipping-line-persist.test.tsx (new),
-ShipmentCreateAppendAction.test.tsx,ShipmentCreateWorkspace.deposit.test.tsx},
-frontend/src/pages/clerk/ClerkShipmentCreatePage.test.tsx,
-testplan/2026-10-17-card-fb114-hang-tau-plus.md (case
-2026-10-17-card-fb114-shipping-line-server-persist), CHANGELOG.md,
-qa/2026-10-17_fb114-persist_*, qa/drivers/2026-10-17-fb114-persist-ui-drive.mjs.
+## Decisions worth keeping
 
-## QA artifacts + results
+- Digit-run semantics: "4 số cuối" = last four digit characters of the
+  WHOLE printed number (a `…-9bzut2` suffix's 9,2 continue the run —
+  `RARBOOK-1792226038601-9bzut2` is looked up by 0192, not 8601).
+- `searchBillBook` (phơi phiếu substring probe, Card 20260905) deliberately
+  untouched — different ruling. Observed: its `ilike '%2021%'` also misses
+  separated digits; out of scope here, raise separately if the owner wants
+  the habit honored there too.
+- Sibling `q=9091` exact-empty assertion on the shared mirror DB is a known
+  latent flake (pre-existing, noted in its own comment).
 
-- 5 file frontend trên + `testplan/2026-10-17-owner-customer-in-filter-lane.md`
-- `qa/2026-10-17_customer-in-filter-lane_*` (ignored) + 2 driver
-  `qa/drivers/2026-10-17-customer-in-filter-lane-*.mjs`
+## Gates (qa/2026-10-18_171026212000_*.log, all EXIT=0)
 
-## QA artifacts + gates
+backend tsc · backend scoped tests 15/15 (deposit family) · frontend tsc ·
+frontend vitest 33/33 (page family) · root lint · make build · rung-3 UI
+drive (`_ui-driver.log` EXIT=0; screenshots `_ui-02/03/04`; DB identity +
+trackers 696→696 unchanged). Independent code-reviewer pass: DONE_WITH_
+CONCERNS → both findings (or() precedence, orphan file) fixed and re-gated.
 
-- fe `tsc -b` exit 0; `vitest run src/pages/ShipmentDebitPage*` 48/48 (2
-  lần chạy + final sau comment fix — đều exit 0).
-- Full fe suite: 5056 pass; 3 fail = 2 numeric-identity (cần dist — pass sau
-  `make build`, rerun 54/54 exit 0) + `dev-port-contract` PRE-EXISTING trên
-  HEAD (card khác, documented trong handoff trước).
-- Root lint exit 0 (5 warning pre-existing ở `backend/src/tests/
-  scratch-census-probe.ts`, ngoài diff). `make build` exit 0.
-- Rung 3 UI drive (CUS, vite :7275 từ worktree — :7175 thuộc worktree task
-  khác, không đụng; đã tắt sau QA): 1440 — picker 200×30 cùng dòng y=154 với
-  range 340×30 trong strip, FIRST control, legacy bar gone; CLICK chọn
-  "card11 cust…" → URL `?customer=6442`, API `debit-summary?customerId=6442`,
-  trigger hiển thị tên; 390 — picker trong strip, precedes range, doc
-  overflow 0. DB before/after: shipments 4606 / customers 4774 (read-only).
-- Independent review (code-reviewer): DONE, không blocking; 1 comment stale
-  đã sửa.
+## Non-goals / not covered
 
-## Unrelated / preserved
-
-- Vite :7175 + backend :3002 của main/checkout khác giữ nguyên.
-- Pre-existing fails như trên không thuộc ticket này.
+- Staging/prod verification (local dev DB mirror only; deployment needs
+  owner instruction).
+- Other roles/mobile widths for this modal; the phơi phiếu probe semantics.
+- The `…2021`-style examples in old FB-096 artifacts are arithmetically
+  wrong for digit-run tails; only new artifacts corrected.
 
 ## Next step
 
-- Commit trên branch này (message có "reverses card _202 per owner
-  2026-10-17"), KHÔNG merge — report hash cho owner.
-
-## Lane 2 QA artifacts + results
-
-- `qa/2026-10-17_fb114-persist_backend-tsc.log` exit 0;
-  `_frontend-tsc.log` exit 0; `_root-lint.log` exit 0 (5 warnings pre-existing
-  trong backend/src/tests/scratch-census-probe.ts — file khác, không diff);
-  `_build.log` (`make build`) exit 0.
-- `qa/2026-10-17_fb114-persist_backend-tests.log` — full `pnpm test` attempt:
-  interrupted bởi runner ở ~49' (0 fail trước interrupt, file đang chạy dở
-  debit-note-trip-claim-governance.test.ts) — KHÔNG phải fail; chạy lại set
-  ảnh hưởng bên dưới làm bằng chứng chính.
-- `qa/2026-10-17_fb114-persist_backend-affected-tests.log` — 12 file ảnh
-  hưởng (authz-grant-registry, master-data-import, master-data-short-names,
-  material-write-registry-exhaustive, operational-site-admin-crud,
-  shipment-audit, shipment-intake-adhoc-warehouse, shipment-intake-submit,
-  shipment-routes, shipping-line-intake-catalog, supplier-carrier-link,
-  unit/shipment-intake-lcl-cargo): 239 pass, 1 fail RED-AT-BASE đã chứng minh
-  bằng git stash (material-write-registry-exhaustive: route
-  `lcl/unmerge-group` của commit 8e0b22c8 thiếu durable-boundary — không thuộc
-  diff).
-- `qa/2026-10-17_fb114-persist_frontend-tests.log` — full suite 5065/5066
-  pass; 1 fail red-at-base KHÔNG thuộc diff: dev-port-contract.test.ts —
-  script `testplan/qa/scripts/qa-20261017-qa1-007-chip-rung.mjs` của card
-  QA1-007, commit f9b36180 upstream, hardcode 7176/3003 (contract đòi
-  7175/3002). Không đụng (unrelated card). numeric-identity.styles.test.ts
-  pass sau khi có dist/assets (`pnpm build`/`make build`).
-- New tests: BE 7/7 green qua mount thật (create→201+bootstrap liệt kê+row typed
-  SHIPPING_LINE; dup/case/default→200; empty/>255→400; va chạm NCC khác
-  loại→409; role matrix 403/401); FE persist test 3/3 xanh (persist trước
-  close + dropdown mirror, canonical echo created:false, fail → dialog mở +
-  lỗi).
-- UI rung 3 (server phụ :3092/:7176 của worktree này — stack chính
-  :3002/:7175 của main checkout giữ nguyên):
-  `qa/2026-10-17_fb114-persist_ui-driver.log` 5/5 exit 0 (dialog → field →
-  RELOAD → dropdown liệt kê tên → bootstrap shippingLines carry → suppliers
-  row), screenshots `_ui-01..03.png`, DB rows `_db-row.log` (5 row QA drive/
-  probe, đã soft-delete cleanup cuối log). Driver:
-  `qa/drivers/2026-10-17-fb114-persist-ui-drive.mjs`.
-
-## Unrelated / preserved
-
-- Container ss-prod-db :5441 / ss-prod-redis :6391 dùng chung — không reset.
-- main checkout không đụng. Dev stack chỉ bật khi UI drive (make dev).
-
-## Next step / còn lại
-
-- DONE: implement + review (code-reviewer, 0 blocker; S1–S5/N1–N5 đã sửa hoặc
-  ghi lý do từ chối — dialog body giữ nguyên theo hard rule của ticket) +
-  gates + UI rung 3 + commit trên nhánh `fix-171026122150-185348-hang-tau-luu-danh-muc-chung`
-  (KHÔNG merge main theo chỉ thị).
-- Owner còn lại: deploy staging khi sẵn sàng; quyết định có siết unique index
-  display-name (migration) cho race window triệt để; 2 red-at-base unrelated
-  (material-write-registry-exhaustive @ lcl/unmerge-group 8e0b22c8;
-  dev-port-contract @ qa1-007 script f9b36180) cần chủ card xử lý.
+Owner re-verify on staging after merge/deploy of this branch.

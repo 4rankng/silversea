@@ -66,10 +66,18 @@ export async function searchBillBook(digits: string): Promise<BillBookMatch[]> {
  * and the form fills Bill/Booking – Hãng tàu – Tên khách hàng from the
  * customer-side lot data.
  *
+ * The tail is the last four digits of the DIGIT RUN, not the last four
+ * characters (card 171026212000, FB-096 verify-fail): real references carry
+ * non-digit suffixes (`FB020-R21-RB1`, `…-IMP`, `RARBOOK-…-9bzut2`), and the
+ * accountant reads "4 số cuối" off the printed number — the digits, ignoring
+ * separators and letters. On the prod-mirror data set, 193 of 444
+ * digit-tailable references end in non-digit characters and could never match
+ * a last-4-characters comparison.
+ *
  * Consolidation 2026-10-15 (F6): this module is the single bill-search
  * service. Two ruled semantics live side by side — `searchBillBook` above is
  * the flexible 1–4-digit substring probe for the phơi phiếu "Cược" field
- * (Card 20261005), while the strict last-four match below belongs to the
+ * (Card 20261005), while the strict last-four-digits match below belongs to the
  * deposit-tracker add-flow, whose exact-tail semantics and
  * existing-tracker warning are part of that owner ruling. Same shipments
  * join, two contracts — do not collapse them into one query.
@@ -117,11 +125,18 @@ export async function findBillSuggestions(digits: string): Promise<BillSuggestio
     .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
     // Soft-deleted lots must never be offered: every other shipment read in
     // the codebase filters deletedAt, and a tombstoned lot would still be
-    // linkable into a new deposit tracker.
+    // linkable into a new deposit tracker. The two tail matches are grouped
+    // in drizzle's or() — a bare `sql\`A or B\`` inside and() would render
+    // `(deleted_at is null and A) or B`, letting the booking branch bypass
+    // the tombstone filter. The tail compares the last four DIGITS of each
+    // number's digit run (see the ruling note above), so a printed suffix
+    // like "-IMP" or "9bzut2" cannot hide a match.
     .where(and(
       isNull(s.shipments.deletedAt),
-      sql`right(${s.shipments.blNumber}, ${BILL_DIGITS}) = ${digits}
-        or right(${s.shipments.bookingRef}, ${BILL_DIGITS}) = ${digits}`,
+      or(
+        sql`right(regexp_replace(${s.shipments.blNumber}, '[^0-9]', '', 'g'), ${BILL_DIGITS}) = ${digits}`,
+        sql`right(regexp_replace(${s.shipments.bookingRef}, '[^0-9]', '', 'g'), ${BILL_DIGITS}) = ${digits}`,
+      ) as SQL,
     ))
     .orderBy(desc(s.shipments.createdAt), desc(s.shipments.id))
     .limit(BILL_SUGGESTION_LIMIT);
