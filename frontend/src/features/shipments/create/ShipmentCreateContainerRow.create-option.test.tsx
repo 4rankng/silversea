@@ -1,10 +1,12 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
+import { useState } from "react";
 import { ShipmentCreateContainerRow, type ShipmentCreateContainerRowProps } from "./ShipmentCreateContainerRow";
 import type { ShipmentContainerDraft } from "./shipment-create-model";
 import type { CatalogData } from "../../../api/tripClient";
+import type { OperationalSite } from "../../../api/shipmentClient";
 
-function setup(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
+function baseProps(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
   const setPortDialog = vi.fn();
   const setRouteDialogOpen = vi.fn();
   const setRouteDialogInitialName = vi.fn();
@@ -58,6 +60,11 @@ function setup(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
     ...overrides,
   };
 
+  return { props, setPortDialog, setRouteDialogOpen, setRouteDialogInitialName, setRouteDialogTargetKey };
+}
+
+function setup(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
+  const { props, ...mocks } = baseProps(overrides);
   const utils = render(
     <table>
       <tbody>
@@ -66,7 +73,7 @@ function setup(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
     </table>
   );
 
-  return { ...utils, setPortDialog, setRouteDialogOpen, setRouteDialogInitialName, setRouteDialogTargetKey };
+  return { ...utils, ...mocks };
 }
 
 describe("ShipmentCreateContainerRow create options (Card 20261009_11)", () => {
@@ -109,5 +116,136 @@ describe("ShipmentCreateContainerRow create options (Card 20261009_11)", () => {
     expect(setRouteDialogTargetKey).toHaveBeenCalledWith("row-1");
     expect(setRouteDialogInitialName).toHaveBeenCalledWith("");
     expect(setRouteDialogOpen).toHaveBeenCalledWith(true);
+  });
+});
+
+/**
+ * Card 171026113500 (FB-006 verify-fail round 17) — after a pointer pick the
+ * "Nhà máy" cell kept the full combobox and its "Xoá" button over the chosen
+ * factory name for as long as focus stayed inside the cell. The cell must read
+ * as the name + the detail magnifier only: the editor leaves the visible DOM —
+ * and the accessibility tree — behind the `--picked` modifier (see
+ * ShipmentContainerCell.css), and activating the cell is what brings it back
+ * for a re-pick. The row opts the catalog factory cell into that contract;
+ * Lệnh chạy ngoài keeps the free-text editor in place.
+ */
+describe("ShipmentCreateContainerRow factory cell collapse (card 171026113500)", () => {
+  const FACTORIES = [
+    { id: 41, siteType: "FACTORY", code: "ASK-1", shortName: "ASKEY-1", name: "CÔNG TY ASKEY 1", address: "" },
+    { id: 42, siteType: "FACTORY", code: "ASK-2", shortName: "ASKEY-2", name: "CÔNG TY ASKEY 2", address: "" },
+  ] as unknown as OperationalSite[];
+
+  function FactoryRow({ initialSiteId = "", isAdHoc = false }: { initialSiteId?: string; isAdHoc?: boolean }) {
+    const [operationalSiteId, setOperationalSiteId] = useState(initialSiteId);
+    const { props } = baseProps({ operationalSites: FACTORIES, customerId: isAdHoc ? "" : "1", isAdHoc });
+    return (
+      <table>
+        <tbody>
+          <ShipmentCreateContainerRow
+            {...props}
+            row={{ ...props.row, operationalSiteId }}
+            selectContainerFactory={(_, value) => setOperationalSiteId(value)}
+          />
+        </tbody>
+      </table>
+    );
+  }
+
+  async function openFactoryMenu(cell: HTMLElement) {
+    const input = within(cell).getByRole("combobox", { name: /^Nhà máy/ });
+    input.focus();
+    fireEvent.click(input);
+    return input;
+  }
+
+  it("collapses to the picked name + magnifier right after the pick, focus still inside the cell", async () => {
+    render(<FactoryRow />);
+    const cell = document.querySelector('td[data-field-id$="-factory"]') as HTMLElement;
+    await openFactoryMenu(cell);
+
+    fireEvent.click(await screen.findByRole("option", { name: /ASKEY-1/ }));
+
+    await waitFor(() => expect(cell.querySelector(".csc-container-cell__display")?.textContent).toBe("ASKEY-1"));
+    // The collapsed state the stylesheet turns into "editor out of the visible
+    // DOM / out of the a11y tree": no revealed combobox, no editing session.
+    expect(cell.classList.contains("csc-container-cell--picked")).toBe(true);
+    expect(cell.classList.contains("csc-container-cell--editing")).toBe(false);
+    expect(cell.querySelector("[role='combobox'][aria-expanded='true']")).toBeNull();
+    // Focus is not what decides the collapse: the pick leaves the input
+    // focused (no stylesheet in jsdom, so nothing blurs it) and the modifier
+    // is set anyway — the state that used to pin the combobox chrome on screen.
+    expect(cell.contains(document.activeElement)).toBe(true);
+    expect(within(cell).getByRole("button", { name: /Xem chi tiết nhà máy ASKEY-1/ })).toBeTruthy();
+  });
+
+  it("reopens the editor when the collapsed cell is clicked, and re-collapses on the next pick", async () => {
+    render(<FactoryRow initialSiteId="41" />);
+    const cell = document.querySelector('td[data-field-id$="-factory"]') as HTMLElement;
+    expect(cell.classList.contains("csc-container-cell--picked")).toBe(true);
+    expect(cell.classList.contains("csc-container-cell--editing")).toBe(false);
+
+    fireEvent.click(cell);
+
+    // Activating the cell reveals the editor (the stylesheet rule) and the
+    // shipped click-through focuses + opens the picker, so a re-pick is one
+    // pointer away — the collapsed cell is never a dead end.
+    await waitFor(() => expect(cell.classList.contains("csc-container-cell--editing")).toBe(true));
+    fireEvent.click(await screen.findByRole("option", { name: /ASKEY-2/ }));
+
+    await waitFor(() => expect(cell.querySelector(".csc-container-cell__display")?.textContent).toBe("ASKEY-2"));
+    expect(cell.classList.contains("csc-container-cell--picked")).toBe(true);
+    expect(cell.classList.contains("csc-container-cell--editing")).toBe(false);
+    expect(cell.querySelector("[role='combobox'][aria-expanded='true']")).toBeNull();
+  });
+
+  // Clearing stays where the shipped design put it: the combobox's own "Xoá",
+  // inside the editor — reachable again once the cell is activated. (While a
+  // picker menu is open react-aria hides the cell's other controls from the
+  // a11y tree, so the button is asserted with the menu dismissed.)
+  it("clears the pick through the combobox's own Xoá once the cell is activated", async () => {
+    render(<FactoryRow initialSiteId="41" />);
+    const cell = document.querySelector('td[data-field-id$="-factory"]') as HTMLElement;
+    fireEvent.click(cell);
+    await screen.findByRole("option", { name: /ASKEY-1/ });
+
+    const input = within(cell).getByRole("combobox", { name: /^Nhà máy/ });
+    fireEvent.keyDown(input, { key: "Escape" });
+    const clear = await waitFor(() => within(cell).getByRole("button", { name: "Xoá" }));
+    fireEvent.click(clear);
+
+    await waitFor(() => expect(cell.querySelector(".csc-container-cell__display")?.textContent).toBe("Chọn nhà máy"));
+    // The cell is back to an empty picker: the editor belongs to the cell
+    // again, and the collapse modifier goes with the value.
+    expect(cell.classList.contains("csc-container-cell--picked")).toBe(false);
+    expect(cell.classList.contains("csc-container-cell--editing")).toBe(false);
+  });
+
+  // An abandoned edit session must not keep the editor in the cell: moving on
+  // without picking collapses it again (the value never changed).
+  it("drops the edit session when focus leaves the activated cell", async () => {
+    render(<FactoryRow initialSiteId="41" />);
+    const cell = document.querySelector('td[data-field-id$="-factory"]') as HTMLElement;
+    fireEvent.click(cell);
+    await waitFor(() => expect(cell.classList.contains("csc-container-cell--editing")).toBe(true));
+
+    fireEvent.blur(within(cell).getByRole("combobox", { name: /^Nhà máy/ }), { relatedTarget: document.body });
+
+    await waitFor(() => expect(cell.classList.contains("csc-container-cell--editing")).toBe(false));
+    expect(cell.classList.contains("csc-container-cell--picked")).toBe(true);
+    expect(cell.querySelector(".csc-container-cell__display")?.textContent).toBe("ASKEY-1");
+  });
+
+  // Non-goal: Lệnh chạy ngoài keeps its free-text editor. The operator types
+  // into the field, so the catalog-collapse contract is not opted in and the
+  // cell never leaves its editor behind a `--picked` modifier.
+  it("leaves the free-text (Lệnh chạy ngoài) factory cell without the collapse contract", async () => {
+    render(<FactoryRow initialSiteId="41" isAdHoc />);
+    const cell = document.querySelector('td[data-field-id$="-factory"]') as HTMLElement;
+
+    fireEvent.click(cell);
+
+    await waitFor(() => expect(cell.querySelector("[role='combobox'][aria-expanded='true']")).toBeTruthy());
+    expect(cell.classList.contains("csc-container-cell--picked")).toBe(false);
+    expect(cell.classList.contains("csc-container-cell--editing")).toBe(false);
   });
 });

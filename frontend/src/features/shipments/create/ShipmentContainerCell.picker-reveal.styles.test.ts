@@ -90,3 +90,45 @@ describe('container cell picker reveal (card 101026163000)', () => {
     );
   });
 });
+
+/**
+ * Card 171026113500 (FB-006, verify fail round 17) — the fade above is decided
+ * by a descendant's `aria-expanded`, so the editor (the combobox and its "Xoá"
+ * button) stayed in the document and in the accessibility tree, and any state
+ * that kept the picker menu open put the full chrome back over the picked
+ * name. A `collapsePickedEditor` cell (the create-form "Nhà máy" cell) now
+ * takes its editor out of the visible DOM once a value is committed:
+ *
+ * 1. `--picked` (a value is committed) with no `--editing` session hides the
+ *    editor subtree from painting, hit-testing and the a11y tree. Only the
+ *    editor: the value band, the sub-value and the `actions` magnifier are not
+ *    part of it and stay on screen.
+ * 2. `visibility` — not `display: none` — so the box (and with it the column
+ *    width and the row height) never moves (law book §4 no-truncation).
+ * 3. Opening the picker menu restores the editor even without `--editing`, so
+ *    the reveal contract above keeps holding for every picker cell.
+ * 4. The two rules that already existed (or not) are untouched: this is an
+ *    addition, and the container-type cell never carries `--picked` (the row
+ *    opts only the factory cell in) — it keeps the Số container / type reveal.
+ */
+describe('container cell picked-editor collapse (card 171026113500)', () => {
+  it('hides the editor of a picked cell from the visible DOM and the a11y tree', () => {
+    expect(cellCss).toMatch(
+      /\.csc-container-cell--picked:not\(\.csc-container-cell--editing\) \.csc-container-cell__editor \{ visibility: hidden; \}/,
+    );
+    // Only the editor is hidden: the value band and the magnifier band are
+    // siblings, never descendants of it.
+    expect(cellCss).not.toMatch(/\.csc-container-cell--picked[^{]*\.csc-container-cell__display[^{]*\{[^}]*visibility:\s*hidden/);
+    expect(cellCss).not.toMatch(/\.csc-container-cell--picked[^{]*\.csc-container-cell__actions[^{]*\{[^}]*visibility:\s*hidden/);
+  });
+
+  it('never uses display:none for the collapse (the cell box must not move)', () => {
+    expect(cellCss).not.toMatch(/\.csc-container-cell--picked[^{]*\{[^}]*display:\s*none/);
+  });
+
+  it('restores the editor when a picker menu opens, editing session or not', () => {
+    expect(cellCss).toMatch(
+      /\.csc-container-cell:has\(\[role='combobox'\]\[aria-expanded='true'\]\) \.csc-container-cell__editor \{ visibility: visible; \}/,
+    );
+  });
+});
