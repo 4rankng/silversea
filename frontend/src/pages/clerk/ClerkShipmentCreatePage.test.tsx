@@ -558,7 +558,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // Focusing the invalid customer opens its options and temporarily hides
     // sibling regions from assistive technology. Dismiss it to read the summary.
     fireEvent.keyDown(customer, { key: 'Escape' });
-    expect((await screen.findByRole('alert')).textContent).toContain('Chọn khách hàng để tạo lô hàng');
+    // Two alert roles can coexist on the page (the live "Cần bổ sung" panel and
+    // the submit error), so read their combined text instead of assuming one.
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.map((node) => node.textContent).join(' ')).toContain('Chọn khách hàng để tạo lô hàng');
     expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
 
@@ -688,7 +691,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // TK-SECOND lands (id 79); TK-THIRD fails mid-extras — the attempt is
     // preserved for retry, TK-SECOND exists server-side.
     await waitFor(() => expect(mocks.createDeclaration).toHaveBeenCalledTimes(2));
-    await screen.findByRole('alert');
+    await screen.findAllByRole('alert');
 
     // Retry with unchanged rows: TK-THIRD (never landed) is retried — the
     // third call is TK-THIRD again, TK-SECOND is never replayed.
@@ -1141,6 +1144,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
     await choose('Tuyến đường', '11');
+    // FB-105: a hàng lẻ lot of a catalog customer now requires BOTH operating
+    // points — the Nhà máy and the Kho (CFS/Cảng).
+    await choose('Nhà máy', '41');
     await choose('Kho lấy hàng', '42');
     // FB-079: Quy cách is a suggestion combobox that still takes free text —
     // a direct change commits the value without opening the menu.

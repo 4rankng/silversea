@@ -582,7 +582,12 @@ export function ShipmentCreateWorkspace() {
       />
       <form ref={workspaceFormRef} noValidate onSubmit={(event) => { event.preventDefault(); void save('CREATE'); }} className="csc-workspace">
         <ShipmentCreateSummary
-          outstandingIssues={readiness.issues}
+          // QA1-007 wants the panel to exist BEFORE the first save (live
+          // readiness). After a failed save the panel must still speak the SAME
+          // wording as the field paint below — `validationIssues` is that list,
+          // and it is the only one carrying the DRAFT copy ("Chọn khách hàng để
+          // tạo lô hàng."). Prefer it while it is non-empty.
+          outstandingIssues={validationIssues.length > 0 ? validationIssues : readiness.issues}
           submitError={submitError}
           onFocusIssue={focusIssue}
         />

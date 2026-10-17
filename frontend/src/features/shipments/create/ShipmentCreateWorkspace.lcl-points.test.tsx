@@ -30,7 +30,6 @@ function renderWorkspace() {
 }
 
 const fieldText = (fieldId: string) => document.querySelector(`[data-field-id="${fieldId}"]`)!.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-const fieldPlaceholder = (fieldId: string) => document.querySelector<HTMLInputElement>(`[data-field-id="${fieldId}"] input`)!.placeholder;
 
 async function enterLclWithCatalogCustomer() {
   renderWorkspace();
@@ -71,7 +70,7 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     await chooseDirection('Nhập khẩu');
     expect(fieldText('shipment-operational-site')).toContain('Nhà máy (Điểm trả hàng)');
     expect(fieldText('shipment-pickup-warehouse')).toContain('Kho lấy hàng (CFS/Cảng)');
-    expect(fieldPlaceholder('shipment-pickup-warehouse')).toBe('Chọn hoặc nhập kho CFS lấy hàng...');
+    expect(document.querySelector<HTMLInputElement>('[data-field-id="shipment-pickup-warehouse"] input')!.placeholder).toBe('Chọn hoặc nhập kho CFS lấy hàng...');
     // Both points are enforced for a catalog lot.
     expect(fieldText('shipment-operational-site')).toContain('*');
     expect(fieldText('shipment-pickup-warehouse')).toContain('*');
@@ -79,7 +78,7 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     await chooseDirection('Xuất khẩu');
     expect(fieldText('shipment-operational-site')).toContain('Nhà máy (Điểm lấy hàng)');
     expect(fieldText('shipment-pickup-warehouse')).toContain('Kho trả hàng (CFS/Cảng)');
-    expect(fieldPlaceholder('shipment-pickup-warehouse')).toBe('Chọn hoặc nhập kho CFS hạ/giao hàng...');
+    expect(document.querySelector<HTMLInputElement>('[data-field-id="shipment-pickup-warehouse"] input')!.placeholder).toBe('Chọn hoặc nhập kho CFS hạ/giao hàng...');
   });
 
   it('keeps both operating points inside the "Điểm vận hành & tuyến" card', async () => {
@@ -95,6 +94,30 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     const cargoSection = document.querySelector('[data-field-id="shipment-package-type"]')!.closest('section')!;
     expect(cargoSection.textContent).toContain('Thông tin hàng');
     expect(cargoSection.contains(warehouse)).toBe(false);
+  });
+
+  it('counts typed operating points as filled (both fields accept free text)', async () => {
+    await enterLclWithCatalogCustomer();
+    await chooseDirection('Nhập khẩu');
+
+    const before = document.querySelector('.csc-topline__progress')!.textContent!.replace(/\s+/g, ' ').trim();
+
+    // Typing (not picking) must commit through onCustomValue: the field is a
+    // searchable combobox, so the raw text rides the custom-value channel.
+    fireEvent.change(document.querySelector<HTMLInputElement>('[data-field-id="shipment-operational-site"] input')!, { target: { value: 'Nhà máy gõ tay' } });
+    fireEvent.change(document.querySelector<HTMLInputElement>('[data-field-id="shipment-pickup-warehouse"] input')!, { target: { value: 'Kho CFS gõ tay' } });
+
+    await waitFor(() => {
+      const text = document.querySelector('.csc-topline__progress')!.textContent!.replace(/\s+/g, ' ').trim();
+      const [done, total] = text.replace('Bắt buộc: ', '').split('/').map(Number);
+      const [, beforeTotal] = before.replace('Bắt buộc: ', '').split('/').map(Number);
+      const [beforeDone] = before.replace('Bắt buộc: ', '').split('/').map(Number);
+      expect(total).toBe(beforeTotal);
+      expect(done).toBe(beforeDone + 2);
+    });
+    // …and neither point is reported missing any more.
+    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse"]')!.querySelector('.csc-searchable-field--error')).toBeNull();
+    expect(document.querySelector('[data-field-id="shipment-operational-site"]')!.querySelector('.csc-searchable-field--error')).toBeNull();
   });
 
   it('repeats the Huỷ / Lưu nháp / Tạo lô hàng cluster at the end of the page', async () => {

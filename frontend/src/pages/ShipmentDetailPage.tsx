@@ -727,7 +727,7 @@ export default function ShipmentDetailPage() {
                 value={containerAddFields.containerNumber}
                 onChange={(e) => setContainerAddFields((prev) => ({ ...prev, containerNumber: e.target.value }))}
                 maxLength={50}
-                placeholder="VD: MSKU1234567"
+                placeholder="Ví dụ: MSKU1234567"
                 disabled={containerAdding}
                 autoFocus
               />
@@ -753,7 +753,7 @@ export default function ShipmentDetailPage() {
                 value={containerAddFields.cargoWeightKg}
                 onChange={(e) => setContainerAddFields((prev) => ({ ...prev, cargoWeightKg: e.target.value }))}
                 inputMode="decimal"
-                placeholder="VD: 15000"
+                placeholder="Ví dụ: 15000"
                 disabled={containerAdding}
               />
             </label>
