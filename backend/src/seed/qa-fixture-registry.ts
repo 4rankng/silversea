@@ -305,6 +305,21 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     ],
   },
   {
+    table: 'user_business_unit_links',
+    label: 'QA-user links into QA-named business units (Bộ phận column + filter dropdown in /hr/roster)',
+    // FB-061 rework (card 111026105610, QA FAIL 2026-10-17): deactivating the
+    // QA units was NOT enough. listHrRoster() returns businessUnitIds verbatim
+    // from this table and HrRosterPage renders the linked unit name regardless
+    // of unit status; the "Lọc theo bộ phận" dropdown lists exactly the units
+    // linked to roster rows. So /hr/roster kept showing "QA Audit Unit 0914"
+    // after the staging purge. The links are leaves — nothing references them
+    // — so an unguarded hard-delete is safe and must run BEFORE the
+    // business_units deactivate below (children -> parents).
+    predicate: `business_unit_id IN (SELECT id FROM business_units WHERE name ILIKE 'QA%' OR code ILIKE 'QA%')`,
+    action: 'hard-delete',
+    guards: [],
+  },
+  {
     table: 'business_units',
     label: 'QA-named business units (Bộ phận in /hr/roster)',
     // FB-061 round 14: QA units surfaced in the roster's Bộ phận column
@@ -318,8 +333,10 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     predicate: `name ILIKE 'QA%' OR code ILIKE 'QA%'`,
     // NOT 'scrub': business_units_name_uniq_idx is UNIQUE on name and name is
     // NOT NULL, so collapsing the rows to one placeholder would violate the
-    // index. user_business_unit_links pins these ids, so deactivating in place
-    // keeps the FK valid — the treatment QA already applied to ids 2 and 3.
+    // index. Deactivating in place keeps the ids valid for any not-yet-purged
+    // user_business_unit_links row (QA applied the same treatment to ids 2
+    // and 3). The roster surface itself is fixed by the link purge ABOVE —
+    // deactivate alone was proven insufficient there (QA FAIL 2026-10-17).
     action: 'deactivate',
     guards: [],
   },

@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { QA_FIXTURE_REGISTRY, registryTables } from '../seed/qa-fixture-registry.js';
 import { censusSurface, censusVisible, purgeSurface } from '../seed/purge-qa-fixtures.js';
+import { listHrRoster } from '../services/user.service.js';
 
 /** `db.execute` returns the row array in some driver modes and `{ rows }` in
  *  others; every case in this suite reads both shapes. One validated boundary
@@ -422,5 +423,69 @@ it('purges QA external-carrier rows and spares a real carrier row (FB-061, card 
     strict.equal(deletedByBill.get(realBl), null, 'a real bill number must survive');
 
     await db.execute(sql.raw(`DELETE FROM shipments WHERE bl_number IN ('${probeBl}', '${e2eBl}', '${realBl}')`));
+  });
+
+  // FB-061 rework (card 111026105610, QA FAIL 2026-10-17): deactivating the QA
+  // units was not enough — /hr/roster joins user_business_unit_links and
+  // renders the linked unit name regardless of unit status, and its
+  // "Lọc theo bộ phận" dropdown lists exactly the units linked to roster rows.
+  // The purge must remove the links themselves, and the roster projection
+  // (listHrRoster) must stop exposing the QA unit to its linked drivers.
+  it('unlinks QA users from QA business units so /hr/roster stops rendering them (FB-061 rework)', async () => {
+    const suffix = Date.now() % 1000000;
+    const qaUnit = `QA Audit Unit ${suffix}`;
+    const realUnit = `Đơn vị thật ${suffix}`;
+
+    const unitRows = rowsOf(await db.execute(sql.raw(`
+      INSERT INTO business_units (code, name)
+      VALUES ('QA${suffix}', '${qaUnit}'), (NULL, '${realUnit}')
+      RETURNING id, name`)));
+    const qaUnitId = Number(unitRows.find((r) => r.name === qaUnit)!.id);
+    const realUnitId = Number(unitRows.find((r) => r.name === realUnit)!.id);
+
+    const [qaDriver] = rowsOf(await db.execute(sql.raw(`
+      INSERT INTO users (username, email, full_name, password_hash, role)
+      VALUES ('qa_roster_${suffix}', 'qa_roster_${suffix}@test.local', 'QA Roster Driver ${suffix}', 'x', 'DRIVER')
+      RETURNING id`)));
+    const [realDriver] = rowsOf(await db.execute(sql.raw(`
+      INSERT INTO users (username, email, full_name, password_hash, role)
+      VALUES ('real_roster_${suffix}', 'real_roster_${suffix}@test.local', 'Lái xe thật ${suffix}', 'x', 'DRIVER')
+      RETURNING id`)));
+    await db.execute(sql.raw(`
+      INSERT INTO user_business_unit_links (user_id, business_unit_id)
+      VALUES (${qaDriver!.id}, ${qaUnitId}), (${realDriver!.id}, ${realUnitId})`));
+
+    const linkSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'user_business_unit_links');
+    strict.ok(linkSurface, 'user_business_unit_links surface must exist — /hr/roster renders linked unit names regardless of unit status (QA FAIL 2026-10-17)');
+    const unitSurface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'business_units');
+    strict.ok(unitSurface, 'business_units surface must exist');
+    strict.ok(
+      registryTables().indexOf('user_business_unit_links') < registryTables().indexOf('business_units'),
+      'links must purge before their parent units (children -> parents)',
+    );
+
+    await purgeSurface(linkSurface!, false);
+    await purgeSurface(unitSurface!, false);
+
+    // Pin the actual page surface, not just the table: the roster projection
+    // is what /hr/roster renders (column ids + dropdown source).
+    const roster = await listHrRoster();
+    const qaRosterRow = roster.items.find((u) => u.fullName === `QA Roster Driver ${suffix}`);
+    strict.ok(qaRosterRow, 'the seeded driver must appear on the roster');
+    strict.ok(
+      !qaRosterRow!.businessUnitIds.includes(qaUnitId),
+      'the roster must not link the driver to the purged QA unit anymore',
+    );
+    strict.ok(
+      !roster.businessUnits.some((u) => u.name === qaUnit && u.status === 'ACTIVE'),
+      'the QA unit must not remain ACTIVE',
+    );
+    const realRosterRow = roster.items.find((u) => u.fullName === `Lái xe thật ${suffix}`);
+    strict.ok(realRosterRow, 'the real driver must appear on the roster');
+    strict.deepEqual(realRosterRow!.businessUnitIds, [realUnitId], 'a real link must survive the purge');
+
+    await db.execute(sql.raw(`DELETE FROM user_business_unit_links WHERE business_unit_id IN (${qaUnitId}, ${realUnitId})`));
+    await db.execute(sql.raw(`DELETE FROM users WHERE id IN (${qaDriver!.id}, ${realDriver!.id})`));
+    await db.execute(sql.raw(`DELETE FROM business_units WHERE id IN (${qaUnitId}, ${realUnitId})`));
   });
 });
