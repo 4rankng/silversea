@@ -368,6 +368,8 @@ export interface DispatchDetailPlanFilters {
   /** Zone code from the DB taxonomy (GET /dispatch-zones). */
   zone?: string;
   customerId?: number | null; dataStatus?: 'COMPLETE' | 'MISSING' | ''; // card _50 ribbon
+  /** Card 171026154000: lot cargo mode (Loại hàng) — LCL/FCL scope. */
+  cargoMode?: 'FCL' | 'LCL' | '';
 }
 
 /** Chip counts of the detail plan grid (card 20261008_3) — full-set over the

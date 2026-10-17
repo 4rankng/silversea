@@ -156,7 +156,7 @@ export function useDispatchDetailPlan() {
         setError('Không thể tải kế hoạch chi tiết. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [page, debouncedQ, filters.date, filters.dateFrom, filters.dateTo, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, filters.zone, filters.truckPlate, filters.driverId, filters.carrierClass, filters.trailerType, filters.routeId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps -- filters fields (minus debounced q) enumerated: object identity churns per setFilters spread, depending on it would refetch with stale data patches
+  }, [page, debouncedQ, filters.date, filters.dateFrom, filters.dateTo, filters.direction, filters.assignmentStatus, filters.pickupIds, filters.dropoffIds, filters.deliveryPointIds, filters.hourFrom, filters.hourTo, filters.zone, filters.truckPlate, filters.driverId, filters.carrierClass, filters.trailerType, filters.routeId, filters.cargoMode, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps -- filters fields (minus debounced q) enumerated: object identity churns per setFilters spread, depending on it would refetch with stale data patches
 
   const updateFilters = useCallback((patch: Partial<DetailedPlanFilterState>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
