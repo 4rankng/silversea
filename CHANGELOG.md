@@ -1,5 +1,64 @@
 # Changelog
 
+## 2026-10-17 (tối) — FB-105/106/107/108 + FB-006 + QA1-007 + FB-086 (verify-fail lần 2)
+
+Nguồn: docx "Điều chỉnh form tạo lô hàng lẻ" 17/10 + 7 card Kanban TODO
+(171026113500 · 171026113510 · 171026113520 · 171026115800 · 171026115810 ·
+171026115820 · 171026115830).
+
+- **FB-105 (171026115800, P1)** — hàng lẻ: ô "Kho lấy/trả hàng" nhận lại nguồn
+  thật (`operational_sites` WAREHOUSE theo khách đang chọn; `df08bd7c` từng ghim
+  về `[]`), label + placeholder đổi theo hình thức XNK (Nhập: "Nhà máy (Điểm
+  trả hàng) \*" / "Kho lấy hàng (CFS/Cảng) \*"; Xuất: "Nhà máy (Điểm lấy hàng)
+  \*" / "Kho trả hàng (CFS/Cảng) \*"), Nhà máy thành bắt buộc (trừ "Lệnh chạy
+  ngoài"), CẢ HAI ô chọn danh mục hoặc gõ text tự do, ô Kho chuyển vào card
+  "Điểm vận hành & tuyến". Payload ghi điểm nâng/hạ đúng chiều vào
+  `pickup_location`/`delivery_location` (2 cột sẵn có — **không migration**,
+  `make db-drift-check` vẫn no-op); BE chấp nhận điểm Kho dạng text
+  (`shipment-intake.service`: id hợp lệ HOẶC text, lệnh chạy ngoài vẫn được để
+  trống). Điều vận: Kế hoạch Tổng quát + Kế hoạch Chi tiết Xe dùng chung
+  `resolveLiftDropPoints` → lô lẻ Nhập Nâng=kho/Trả=nhà máy, Xuất đảo lại;
+  FCL giữ cặp cảng container (không đảo).
+- **FB-106 (171026115810, P2)** — nút "Tạo lô mới" cạnh "Xóa lô" trên chi tiết
+  lô, cùng bộ vai trò với route guard `shipmentCreatorOnly`. Điều hướng
+  create→chi tiết đã có từ FB-080 (kiểm chứng trên 3 lô lẻ tạo từ form).
+- **FB-107 (171026115820, P2)** — "Nơi nhận"/"Nơi giao" thôi đọc 2 cột
+  `pickup_location`/`delivery_location` (luôn trống với lô tạo từ form) và in
+  Nâng/Hạ thật; BE bổ sung tên kho (short-name authority) vào payload chi tiết.
+- **FB-108 (171026115830, P3)** — cụm "Huỷ / Lưu nháp / Tạo lô hàng" lặp ở cuối
+  trang nhờ component dùng chung `ShipmentCreateActions`; biến thể footer tự
+  định danh ("(cuối trang)") để 2 cụm không trùng accessible name. Phục hồi
+  thanh thao tác cuối trang mà mock 11/10 đã bỏ (chỉ thị 17/10).
+- **FB-006 (171026113500, verify-fail 2)** — cell "Nhà máy" của dòng container
+  thu gọn thật ngay sau khi chọn: bỏ phụ thuộc `:focus-within` (editor rời
+  DOM + a11y tree bằng `visibility`, không đổi bề rộng/chiều cao hàng) và
+  `activateCell` không còn tự kích hoạt lại cell do click xuyên portal, nên
+  menu vừa đóng không mở lại. Lệnh chạy ngoài giữ editor text tự do.
+- **QA1-007 (171026113510, verify-fail 2)** — chip "Bắt buộc: N/M" + panel "Cần
+  bổ sung" đọc readiness SỐNG (trước đây chỉ đọc danh sách issue sinh ra lúc
+  Lưu → form đủ 3 trường nhận diện báo "3/3"); mẫu số theo hình dạng form (FCL
+  catalog 9, LCL catalog 10, ad-hoc 7/5). Panel ưu tiên danh sách của lần Lưu
+  vừa rồi khi có, để câu chữ khớp đúng trường đang sơn lỗi (DRAFT: "Chọn khách
+  hàng để tạo lô hàng.").
+- **FB-086 (171026113520, verify-fail 2)** — mục Containers trên chi tiết lô có
+  nút "Thêm container" (dialog số cont/loại/trọng lượng/giờ hẹn → endpoint
+  composition sẵn có, tự tải lại chi tiết, cổng hiển thị khớp cổng endpoint);
+  container tạo qua form nằm đủ trong payload chi tiết (lô 109609: DB + API +
+  màn hình đều 1 container, thêm được container thứ 2).
+- **Fix kèm lượt này:** (a) bỏ PUT replay thừa ngay sau khi tạo lô — với lô
+  lệnh chạy ngoài PUT đó bị 400 "Khách hàng: Giá trị phải lớn hơn 0" nên tạo lô
+  xong mà màn hình vẫn báo lỗi, retry lặp lại lỗi; (b) `USearchableField` không
+  còn nuốt `hint` dạng ReactNode → empty-state "Chưa có kho/nhà máy" + link
+  thêm mới hiện đúng.
+
+Gates: `fe-tsc` 0 · `be-tsc` 0 · FE **653 file / 5034 test xanh** · BE unit
+290/290 + nhóm integration liên quan (intake, dispatch detail plan, detail
+projection, list projection) 152/152 xanh (suite BE đầy đủ vượt hạn 40' của
+phiên chạy, không tính là gate). E2E trình duyệt thật trên dev stack:
+109014/109015 (lô lẻ Nhập/Xuất), 109034/109035 (Nâng/Trả 2 màn điều vận +
+Nơi nhận/giao), 109609 (FCL containers + thêm container + Tạo lô mới);
+chip 0/9→3/9→10/10; cell nhà máy thu gọn ở trạng thái 2×RAF sau cú chọn.
+
 ## 2026-10-17 (chiều) — fix(141026230770) v2: /my-advances hết sinh "Đã ghi nhận" lậu + regression (a)(b)(c)
 
 Ticket 141026230770 (P2, hoapt/kế toán, staging 14/10) tái lập: (a) thiếu nút
