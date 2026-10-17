@@ -23,7 +23,8 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import type { DispatchActor } from '../services/dispatch-planning-utils.service';
-import { assertTripRigAvailable, updateDispatchDetailPlan } from '../services/dispatch-planning-detail-plan.service';
+import { updateDispatchDetailPlan } from '../services/dispatch-planning-detail-plan.service';
+import { assertTripRigAvailable } from '../services/dispatch-plan-conflict-scan.service';
 import { assertResourceAvailability } from '../services/dispatch-resource-availability.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

@@ -12,7 +12,7 @@ import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import {
   getTripCompositeInTx, splitTripPatch, tripCompositeSelect, upsertTripCarrierInfo,
 } from './trip-composite.service';
-import { assertTripRigAvailable } from './dispatch-planning-detail-plan.service';
+import { assertTripRigAvailable } from './dispatch-plan-conflict-scan.service';
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
 
