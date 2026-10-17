@@ -48,16 +48,32 @@ export interface AssignTruckGroupDialogProps {
   onClose: () => void;
   /** Called after a successful assignment (the page refreshes the grid). */
   onAssigned: () => void;
+  /**
+   * Card _171026133000: this popup unmounts on close, so the loại xe / nhà xe
+   * picks are held by the page and handed back here through these two seeds —
+   * a "Hủy" without assigning no longer costs the operator both picks.
+   */
+  initialVehicleClassId?: string;
+  initialCarrierKey?: string;
+  /** Reports the two picks upward so the page can carry them across a reopen. */
+  onDraftChange?: (draft: { vehicleClassId: string; carrierKey: string }) => void;
 }
 
-export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruckGroupDialogProps) {
+export function AssignTruckGroupDialog({
+  rows,
+  onClose,
+  onAssigned,
+  initialVehicleClassId,
+  initialCarrierKey,
+  onDraftChange,
+}: AssignTruckGroupDialogProps) {
   const { toast } = useToast();
   const vehicleClasses = useVehicleSizeClasses();
   const trucksAndDrivers = useTrucksAndDrivers({ enabled: rows.length > 0 });
   const carrierCatalog = useCarrierAllocationOptions();
 
-  const [vehicleClassId, setVehicleClassId] = useState('');
-  const [carrierKey, setCarrierKey] = useState('');
+  const [vehicleClassId, setVehicleClassId] = useState(initialVehicleClassId ?? '');
+  const [carrierKey, setCarrierKey] = useState(initialCarrierKey ?? '');
   const [actualTruckNo, setActualTruckNo] = useState('');
   const [billingTruckNo, setBillingTruckNo] = useState('');
   // A ref, not state: the flag only gates the auto-copy effect, and the seed
@@ -69,6 +85,15 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
   const [carrierVehicles, setCarrierVehicles] = useState<DispatchCarrierVehicle[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Report the two picks so the page can seed them back on the next open. The
+  // callback rides in a ref: an inline prop would otherwise re-fire this effect
+  // every render and spin the page's draft state.
+  const draftChangeRef = useRef(onDraftChange);
+  draftChangeRef.current = onDraftChange;
+  useEffect(() => {
+    draftChangeRef.current?.({ vehicleClassId, carrierKey });
+  }, [vehicleClassId, carrierKey]);
 
   const selectedClass = vehicleClasses.data?.find((vc) => String(vc.id) === vehicleClassId);
   const sourcingRule = selectedClass ? lclVehicleSourcingRule(selectedClass.isContainer) : null;

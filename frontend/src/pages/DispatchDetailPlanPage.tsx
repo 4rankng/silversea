@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
@@ -39,6 +39,30 @@ export default function DispatchDetailPlanPage() {
   // new group; rows already in one are refused until un-merged (FB-095).
   const [selectedLclRows, setSelectedLclRows] = useState<DispatchDetailPlanRow[]>([]);
   const [truckGroupOpen, setTruckGroupOpen] = useState(false);
+  // Card _171026133000: the group popup unmounts on close, so its loại xe /
+  // nhà xe picks are held here and survive a "Hủy" + reopen inside one
+  // selection session. Cleared with the selection itself, below.
+  const [groupDraft, setGroupDraft] = useState<{ vehicleClassId: string; carrierKey: string }>({
+    vehicleClassId: '',
+    carrierKey: '',
+  });
+
+  useEffect(() => {
+    if (selectedLclRows.length > 0) return;
+    setGroupDraft((current) => (
+      current.vehicleClassId || current.carrierKey
+        ? { vehicleClassId: '', carrierKey: '' }
+        : current
+    ));
+  }, [selectedLclRows.length]);
+
+  function handleGroupDraftChange(draft: { vehicleClassId: string; carrierKey: string }) {
+    setGroupDraft((current) => (
+      current.vehicleClassId === draft.vehicleClassId && current.carrierKey === draft.carrierKey
+        ? current
+        : draft
+    ));
+  }
   const selectedIds = useMemo(
     () => new Set(selectedLclRows.map((row) => row.shipmentId)),
     [selectedLclRows],
@@ -172,6 +196,9 @@ export default function DispatchDetailPlanPage() {
       {truckGroupOpen && selectedLclRows.length > 0 && (
         <AssignTruckGroupDialog
           rows={selectedLclRows}
+          initialVehicleClassId={groupDraft.vehicleClassId}
+          initialCarrierKey={groupDraft.carrierKey}
+          onDraftChange={handleGroupDraftChange}
           onClose={() => setTruckGroupOpen(false)}
           onAssigned={() => {
             setSelectedLclRows([]);
