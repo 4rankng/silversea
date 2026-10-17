@@ -35,7 +35,6 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
-import type { AuthUser } from '../middleware/auth';
 import { assignLclCostGroup } from '../services/lcl-grouping.service';
 import { resolveCarrierVehicleClassPrice } from '../services/pricing.service';
 import { issueFulfillmentDispatchOrder } from '../services/dispatch-planning-commands.service';
@@ -190,8 +189,8 @@ async function liveFreightCost(shipmentId: number): Promise<string | null> {
 
 async function boardCuocTraDv(shipmentIds: number[]): Promise<Map<number, string | null>> {
   const board = await getAccountingDebitBoard({ dateFrom: LOT_DATE, dateTo: LOT_DATE });
-  const byId = new Map(board.items.map((row) => [row.shipmentId, row.tra.cuocTraDv]));
-  return new Map(shipmentIds.map((id) => [id, byId.get(id) ?? undefined!]));
+  const byId = new Map(board.items.map((row) => [row.shipmentId, row.tra.cuocTraDv] as const));
+  return new Map(shipmentIds.map((id) => [id, byId.get(id) ?? null] as const));
 }
 
 describe('171026142500 — tra bảng giá cước trả nhà xe theo đúng thứ tự điều vận thật', () => {
