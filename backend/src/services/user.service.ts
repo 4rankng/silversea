@@ -440,18 +440,6 @@ async function attachCustomerIdsToUsers<T extends { id: number; customerId: numb
   ));
 }
 
-/** Verify a user's current password. Throws on failure. */
-export async function verifyPassword(userId: number, password: string): Promise<void> {
-  const [user] = await db.select({ passwordHash: users.passwordHash })
-    .from(users).where(eq(users.id, userId)).limit(1);
-  if (!user) throw new ApiError(404, 'Không tìm thấy người dùng');
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  // 400, not 401: a wrong current password is a field-validation failure —
-  // the session token is still valid, and a 401 here makes the FE's global
-  // session-expiry handler log the user out mid-dialog.
-  if (!valid) throw new ApiError(400, 'Mật khẩu hiện tại không đúng');
-}
-
 /**
  * Authenticate a user by identifier (username, email, or phone) and password.
  * Returns the full user row (without passwordHash) on success, or throws ApiError(401) on failure.
@@ -1055,14 +1043,6 @@ export async function getUserProfile(userId: number) {
   return userWithLinks;
 }
 
-/** Update current user's profile (username, fullName, email, phone). Syncs name/phone to linked driver. */
-export async function updateProfile(
-  userId: number,
-  data: { username?: string; fullName?: string; email?: string; phone?: string },
-) {
-  return db.transaction((tx) => updateProfileWithTx(userId, data, tx));
-}
-
 export async function updateProfileWithTx(
   userId: number,
   data: { username?: string; fullName?: string; email?: string; phone?: string },
@@ -1108,12 +1088,7 @@ export async function updateProfileWithTx(
   return updated;
 }
 
-/** Change password for current user. */
-export async function changePassword(userId: number, currentPassword: string, newPassword: string) {
-  const passwordHash = await bcrypt.hash(newPassword, 10);
-  return db.transaction((tx) => changePasswordWithTx(userId, currentPassword, passwordHash, tx));
-}
-
+/** Change password for current user (transactional variant). */
 export async function changePasswordWithTx(
   userId: number,
   currentPassword: string,
@@ -1124,7 +1099,9 @@ export async function changePasswordWithTx(
     .from(users).where(eq(users.id, userId)).limit(1).for('update');
   if (!user) throw new ApiError(404, 'Không tìm thấy người dùng');
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-  // Same class as verifyPassword above: field validation, session stays.
+  // 400, not 401: a wrong current password is a field-validation failure —
+  // the session token is still valid, and a 401 here makes the FE's global
+  // session-expiry handler log the user out mid-dialog.
   if (!valid) throw new ApiError(400, 'Mật khẩu hiện tại không đúng');
   await tx.update(users).set({ passwordHash: nextPasswordHash, updatedAt: sql`now()` })
     .where(eq(users.id, userId));

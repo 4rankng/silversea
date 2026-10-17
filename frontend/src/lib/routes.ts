@@ -323,16 +323,3 @@ export function titleForPath(pathname: string, role?: string | null): string {
   if (!match) return BRAND.name;
   return typeof match.title === 'function' ? match.title(pathname) : match.title;
 }
-
-/**
- * Build an absolute URL (https://host/path) from a SPA path, using the
- * browser's own origin. Used by the share-link feature so a copied URL works
- * on whichever production domain the sharer is on (nepo vs vantai) without
- * any backend/env config.
- *
- * Pure CSR (Vite SPA) — `window` is always defined at call time. Call from
- * event handlers / component bodies, not at module top-level.
- */
-export function absoluteUrl(path: string): string {
-  return `${window.location.origin}${path}`;
-}
