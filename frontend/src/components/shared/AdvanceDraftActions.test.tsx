@@ -47,6 +47,25 @@ describe('AdvanceDraftActions legacy recovery', () => {
     expect(mocks.post.mock.calls[0][1]).toEqual({ expectedVersion: 4, resolutionReason: 'Chưa nhận tiền' });
     expect(invalidate).toHaveBeenCalledTimes(5);
   });
+  // FB-100/CPB-03 (card 141026230770): PENDING sinh từ đường Ops gửi yêu cầu —
+  // chủ yêu cầu tự hủy được trước khi duyệt, cùng "chưa giao tiền" licence với
+  // RECORDED (backend resolveAdvanceDraft ownerVoid nhận cả 2 status).
+  it('PENDING chưa giao tiền: chủ yêu cầu hủy được trước khi duyệt', async () => {
+    mocks.post.mockResolvedValue({ status: 'VOIDED' });
+    mount({ ...request, status: 'PENDING', fundedAmount: 0 });
+    expect(screen.queryByRole('button', { name: /^Ghi sổ$/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy tạm ứng' }));
+    expect(screen.getByRole('dialog')).toHaveTextContent('Chưa giao tiền');
+    enterResolution('Chưa nhận tiền');
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(mocks.post).toHaveBeenCalledTimes(1);
+    expect(mocks.post.mock.calls[0][0]).toBe('/forwarder/me/advance-requests/18/void');
+    expect(mocks.post.mock.calls[0][1]).toEqual({ expectedVersion: 4, resolutionReason: 'Chưa nhận tiền' });
+  });
+  it('hides the PENDING withdrawal when fundedAmount is absent — unknown is not zero', () => {
+    mount({ ...request, status: 'PENDING' }); expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
   it('keeps invalid amounts and missing reason visibly editable without enabling record', () => {
     mount(); fireEvent.click(screen.getByRole('button', { name: /^Ghi sổ$/ }));
     const save = screen.getByRole('button', { name: 'Ghi sổ tạm ứng' }); expect(save).toBeDisabled();
