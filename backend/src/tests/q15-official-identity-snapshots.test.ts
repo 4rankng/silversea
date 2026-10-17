@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { eq, inArray, like, sql } from 'drizzle-orm';
 import { client, db } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import {
@@ -279,6 +280,7 @@ after(async () => {
   if (originalCompanyRows.length > 0) {
     await db.insert(s.appSettings).values(originalCompanyRows);
   }
+  await disconnectRedis();
   await client.end();
 });
 

@@ -545,6 +545,34 @@ describe('DriverTaskInfoSections', () => {
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
+  it('FB-020 (card 171026205400): a portless IMPORT wire names the delivery site as Cảng hạ — both rows carry their own value, never "Chưa có cảng hạ" beside the factory address', () => {
+    // Trip-135 shape (E2EROLE001): no container port, no dispatcher
+    // free-text override — the BE delivery-stage chain closes with the
+    // fulfillment's delivery-site snapshot, so the wire's dropPortName
+    // carries the discharge point. The driver reads the same place under
+    // both labels (PRD ManHinhLaiXe §2.3: "khi hai điểm là cùng một nơi thì
+    // hai hàng cùng tên") instead of an empty Hạ row that made the
+    // delivery address read as the only stop.
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'IMPORT',
+      fulfillment: {
+        pickupPortName: 'Cát Lái',
+        dropPortName: 'LM Võ Cường',
+        factoryName: 'LM Võ Cường',
+        factoryShortName: 'LM Võ Cường',
+        factoryFullName: 'Nhà máy Long Minh - Võ Cường',
+        factoryAddress: 'Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh',
+      },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('LM Võ Cường');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Nhà máy Long Minh - Võ Cường, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh');
+    // No cross-fallback either way: the Hạ row never echoes the factory
+    // ADDRESS, the delivery row never echoes the drop point.
+    expect(valueOf('Cảng hạ')).not.toContain('Khu 2');
+    expect(valueOf('Địa chỉ giao hàng')).not.toBe('LM Võ Cường');
+  });
+
   it('P1_5: IMPORT with return depot equal to drop port still shows the delivery row — naming the destination', () => {
     render(<DriverTaskInfoSections trip={makeTrip({
       tradeDirection: 'IMPORT',

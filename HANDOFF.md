@@ -109,3 +109,17 @@ button — so the operator reads the reason instead of guessing.
 4. `GET /api/health` on both, capture buildHash
 
 (Watchdog will execute this chain automatically per skill golden rule.)
+
+## Card 3 — 171026205400-bai-ha-portless (merged from rb2 worktree)
+
+FB-020 (portless IMPORT must name delivery site as "Cảng hạ" not "Chưa có cảng hạ"):
+gated green on rb2 at 3fd77532 (3 commits ahead of main). Pre-merge evidence:
+- root lint 0, BE tsc 0, FE tsc 0, make build 0
+- FE vitest full 5070/5070 (657 files)
+- BE node:test unit 300/300; integration 3267/3302 pass — 35 fail RED-AT-BASE
+  pre-existing on shared dev DB (verified by detached re-run at 9fd0553c),
+  unrelated to FB-020; FB-020's own 3 tests green at HEAD.
+- Zombie suites from orphan worktrees (cont-type-dropdown, salary-mode-dialog,
+  bai-ha-regression-rb1) killed before serial gate run; gate ran alone once.
+See HANDOFF.md in pre-merge worktree (rb2 worktree gone post-cleanup) and
+qa/2026-10-18_fb020_*.{log,md} for full evidence.

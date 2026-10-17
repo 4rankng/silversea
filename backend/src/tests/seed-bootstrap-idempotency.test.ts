@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { db, client } from '../db';
+import { disconnectRedis } from '../lib/redis';
 import * as s from '../db/schema';
 import { OPS_EXPENSE_TYPE_DEFAULTS, Role } from '@tingting/shared';
 import { seed } from '../seed';
@@ -195,6 +196,7 @@ async function fetchUserSnapshotById(id: number): Promise<UserSnapshot> {
 }
 
 after(async () => {
+  await disconnectRedis();
   await client.end();
 });
 

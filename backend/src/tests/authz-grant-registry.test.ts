@@ -359,8 +359,11 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
       // deletes their own khai-chi-hô rows; casbin grants OPS trips read only).
       // QA B-1 (FB-093, staging 2026-10-16): one more bypass — CUS reads the
       // vehicle-size-class list for the revenue-merge dialog dropdown.
-      assert.equal(ROUTE_GRANT_RULES.length, 18);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 16);
+      // FB-086 R21 (171026175000, 2026-10-17): one more bypass — CUS reads
+      // the container-type catalog list (the add-container dropdown starved
+      // to its placeholder on a silent 403).
+      assert.equal(ROUTE_GRANT_RULES.length, 19);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 17);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 
