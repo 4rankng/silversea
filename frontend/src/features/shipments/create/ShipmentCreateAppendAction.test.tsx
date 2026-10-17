@@ -23,7 +23,9 @@ type Update = <K extends keyof ShipmentCreateFormState>(key: K, value: ShipmentC
 
 /** Mirrors the workspace wiring under test: the pencil action opens the
  * naming dialog and its apply rides update('shippingLineName', …) into the
- * form — exactly what ShipmentCreateWorkspace.applyShippingLine does. */
+ * form — the lot-field half of ShipmentCreateWorkspace.applyShippingLine
+ * (the catalog persist half is pinned in
+ * ShipmentCreateWorkspace.shipping-line-persist.test.tsx). */
 function AppendActionHarness({ onUpdate }: { onUpdate: Update }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ShipmentCreateFormState>(baseForm);
@@ -52,7 +54,7 @@ function AppendActionHarness({ onUpdate }: { onUpdate: Update }) {
         isOpen={open}
         currentName={form.shippingLineName}
         onClose={() => setOpen(false)}
-        onApply={(name) => { update('shippingLineName', name); setOpen(false); }}
+        onApply={async (name) => { update('shippingLineName', name); setOpen(false); }}
       />
     </>
   );
@@ -110,9 +112,9 @@ describe('shipment-create append action — DOM placement and naming', () => {
     expect(lineButton.querySelector('svg.lucide-plus')).toBeNull();
   });
 
-  it('states where the dropdown catalog comes from and that a typed name is per-lot', () => {
+  it('states where the dropdown catalog comes from and scopes the catalog add to the pencil', () => {
     renderHarness();
-    expect(screen.getByText("Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập ở đây chỉ lưu cùng lô hàng này.")).toBeTruthy();
+    expect(screen.getByText("Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập tay lưu cùng lô hàng này; dùng nút bút chì để thêm vào danh mục chung.")).toBeTruthy();
   });
 });
 

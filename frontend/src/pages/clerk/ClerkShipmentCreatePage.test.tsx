@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   createCustomer: vi.fn(),
   createContainerType: vi.fn(),
   createSite: vi.fn(),
+  // FB-114 171026185348: the dialog apply persists to the shared catalog
+  // before touching the form; echo the name like the server does.
+  createShippingLine: vi.fn(async (name: string) => ({ id: 9, name, created: true })),
 }));
 
 vi.mock('../../api/tripClient', () => ({ tripClient: { getBootstrap: mocks.bootstrap } }));
@@ -50,6 +53,7 @@ vi.mock('../../api/shipmentClient', () => ({
   updateShipment: mocks.updateShipment,
   getShipmentDetail: mocks.getShipmentDetail,
   checkShipmentReferenceDuplicate: mocks.checkDuplicate,
+  createShippingLine: mocks.createShippingLine,
 }));
 
 // The duplicate guard reads its own thin client (kept off shipmentClient to
@@ -369,9 +373,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    // FB-114 honesty contract: the pencil action NAMES THE LOT ("Đặt tên
-    // hãng tàu cho lô này"), and the field hint states where the dropdown
-    // catalog comes from and that a typed name is per-lot only.
+    // FB-114 (171026122150 + verify-fail 171026185348): the pencil action
+    // NAMES THE LOT ("Đặt tên hãng tàu cho lô này") and persists the name to
+    // the shared catalog server-side; the field hint states both effects.
     const addButton = screen.getByRole('button', { name: 'Đặt tên hãng tàu cho lô này' });
     fireEvent.click(addButton);
 
@@ -386,8 +390,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Áp dụng' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Đặt tên hãng tàu cho lô này' })).toBeNull());
+    // Persist first (trimmed), then the lot field.
+    expect(mocks.createShippingLine).toHaveBeenCalledWith('Ocean Network Express');
     expect((screen.getByRole('combobox', { name: /^Hãng tàu/ }) as HTMLInputElement).value).toBe('Ocean Network Express');
-    expect(screen.getByText("Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập ở đây chỉ lưu cùng lô hàng này.")).toBeTruthy();
+    expect(screen.getByText("Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập tay lưu cùng lô hàng này; dùng nút bút chì để thêm vào danh mục chung.")).toBeTruthy();
     expect(addButton).toHaveFocus();
   });
 

@@ -40,3 +40,20 @@ export function mergeRoute(catalog: CatalogData | null, route: Route, merge: Cat
     ],
   } : current);
 }
+
+/** Append a shipping-line name to the bootstrap catalog (dedupe by name,
+ *  case-insensitive — the server dedupes display names case-insensitively
+ *  too). Mirrors the server derivation after `createShippingLine` persisted
+ *  the SHIPPING_LINE supplier — the local list stays a reflection of the
+ *  shared catalog, never a substitute for it. */
+export function mergeShippingLine(catalog: CatalogData | null, name: string, merge: CatalogMerger) {
+  if (!catalog) return;
+  const normalized = name.toLowerCase();
+  merge((current) => current ? {
+    ...current,
+    shippingLines: [
+      ...(current.shippingLines ?? []).filter((item) => item.name.trim().toLowerCase() !== normalized),
+      { name },
+    ],
+  } : current);
+}

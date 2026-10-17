@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import {
   Role,
+  SHIPMENT_INTAKE_MUTATION_ROLES,
   attachShipmentDocumentSchema,
   shipmentContainerBatchSchema,
 } from '@tingting/shared';
@@ -33,7 +34,6 @@ import { throwValidation } from '../../lib/validation';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { declareMaterialWrite } from '../../middleware/material-write';
 import {
-  SHIPMENT_INTAKE_MUTATION_ROLES,
   parseId,
   runShipmentWrite,
   sendShipmentWrite,

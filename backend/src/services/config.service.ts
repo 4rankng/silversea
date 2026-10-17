@@ -108,7 +108,10 @@ export async function getBootstrapData() {
       shippingLines: (() => {
         const supplierShippingLines = suppliersList
           .filter((sup) => sup.status === 'ACTIVE' && (sup.types?.includes('SHIPPING_LINE') || sup.primaryType === 'SHIPPING_LINE'))
-          .map((sup) => sup.shortName || sup.name);
+          // Trimmed display name — same identity the intake dialog's dedupe
+          // compares (createShippingLineForIntake); legacy padded shortName
+          // rows must not render whitespace into the option label.
+          .map((sup) => (sup.shortName || '').trim() || sup.name.trim());
         const set = new Set<string>([...DEFAULT_SHIPPING_LINES, ...supplierShippingLines]);
         return Array.from(set).map((name) => ({ name }));
       })(),

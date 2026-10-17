@@ -12,11 +12,12 @@ import { useToast } from '../../../components/shared/Toast';
 import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
+  createShippingLine,
   listOperationalSites,
   type OperationalSite,
 } from '../../../api/shipmentClient';
 import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-duplicate-guard';
-import { mergeCustomer, mergePort, mergeRoute } from './catalogMerger';
+import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine } from './catalogMerger';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
   createContainerFromPrevious,
@@ -307,14 +308,19 @@ export function ShipmentCreateWorkspace() {
     queueMicrotask(() => shippingLineAddButtonRef.current?.focus());
   }
 
-  function applyShippingLine(name: string) {
-    // FB-114 honesty contract: this action NAMES THE LOT, it does not create
-    // a catalog entry. Backend shippingLines is a derived list
-    // (config.service.ts: DEFAULT_SHIPPING_LINES + SHIPPING_LINE suppliers;
-    // no table, no POST), so the old session-local setCatalogs append was a
-    // lie that evaporated on reload — the dropdown stays the server catalog
-    // and the typed name rides form.shippingLineName (free-text contract).
+  async function applyShippingLine(name: string) {
+    // FB-114 verify-fail (ticket 171026185348): the name is BOTH this lot's
+    // shipping line AND a shared catalog entry. Persist to the server FIRST
+    // (the bootstrap `shippingLines` derives from SHIPPING_LINE suppliers —
+    // config.service.ts), then write the lot field and mirror the catalog
+    // locally. A failed persist rejects into the dialog, which stays open
+    // with the error — no more session-local merge that evaporated on reload
+    // and no fake success. The lot field keeps the USER's typed casing
+    // (free-text contract); the catalog mirror merges the server's canonical
+    // display name (result.name).
+    const result = await createShippingLine(name);
     update('shippingLineName', name);
+    mergeShippingLine(catalogs, result.name, setCatalogs);
     closeShippingLineDialog();
   }
 

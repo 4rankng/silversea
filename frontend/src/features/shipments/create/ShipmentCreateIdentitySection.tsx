@@ -213,11 +213,13 @@ export function ShipmentCreateIdentitySection({
               placeholder="Gõ chọn hoặc nhập hãng tàu"
               disabled={saving}
               error={issueByField.get('shipment-shipping-line')}
-              // FB-114 honesty contract: the dropdown is the SERVER catalog
-              // (defaults + SHIPPING_LINE suppliers); a typed name rides this
-              // lot only. Without this hint the pencil action read as catalog
-              // creation and the name "vanished" on reload.
-              hint="Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập ở đây chỉ lưu cùng lô hàng này."
+              // FB-114 verify-fail (171026185348): the dropdown is the SERVER
+              // catalog (defaults + SHIPPING_LINE suppliers). The pencil
+              // dialog persists its name there (survives reload for every
+              // user) AND writes this lot's field; a name typed straight into
+              // the field rides this lot only. The hint must never claim a
+              // catalog add the field itself does not make.
+              hint="Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập tay lưu cùng lô hàng này; dùng nút bút chì để thêm vào danh mục chung."
               searchable
             />
             <button

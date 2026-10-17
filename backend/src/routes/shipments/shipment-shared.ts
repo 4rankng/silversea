@@ -5,7 +5,6 @@
 // intake mutation role list shared by the core and documents leaves.
 
 import type { Request, Response } from 'express';
-import { Role } from '@tingting/shared';
 import { getUser } from '../../middleware/auth';
 import { ApiError } from '../../errors';
 import { runIdempotent } from '../../services/idempotency.service';
@@ -15,13 +14,9 @@ import type { Tx } from '../../services/trip-shared';
 
 // `/shipments/new` is shared by CUS and Điều vận. Keep every mutation used by
 // its durable quick-create -> optional root update -> declaration -> containers
-// sequence on one authority list so route guards cannot drift apart again.
-export const SHIPMENT_INTAKE_MUTATION_ROLES = [
-  Role.ADMIN,
-  Role.MANAGER,
-  Role.CUS,
-  Role.DISPATCHER,
-] as const;
+// sequence on one authority list so route guards cannot drift apart again:
+// `SHIPMENT_INTAKE_MUTATION_ROLES` lives in `@tingting/shared` and is imported
+// directly by the route leaves AND the intake service checks.
 
 export interface ShipmentWriteEnvelope<T> {
   body: T;

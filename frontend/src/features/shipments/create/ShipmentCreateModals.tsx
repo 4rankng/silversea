@@ -22,7 +22,7 @@ export interface ShipmentCreateModalsProps {
   shippingLineDialogOpen: boolean;
   currentShippingLineName: string;
   onCloseShippingLineDialog: () => void;
-  onApplyShippingLine: (name: string) => void;
+  onApplyShippingLine: (name: string) => Promise<void>;
   routeDialogOpen: boolean;
   onCloseRouteDialog: () => void;
   onRouteCreated: (route: Route) => void;
