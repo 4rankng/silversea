@@ -4,13 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ForwarderSettlementCreatePage from './ForwarderSettlementCreatePage';
 
 const { state, mutateAsync, retryRequests, retryExpenses } = vi.hoisted(() => ({
-  state: { requests: [] as Array<Record<string, unknown>>, requestsHasData: true, requestsPending: false, requestsFetching: false, requestsError: null as Error | null, expensesHasData: true, expensesPending: false, expensesFetching: false, expensesError: null as Error | null },
+  state: { requests: [] as Array<Record<string, unknown>>, requestsHasData: true, requestsPending: false, requestsFetching: false, requestsError: null as Error | null, expenses: [] as Array<Record<string, unknown>>, expensesHasData: true, expensesPending: false, expensesFetching: false, expensesError: null as Error | null },
   retryRequests: vi.fn(), retryExpenses: vi.fn(),
   mutateAsync: vi.fn(),
 }));
 vi.mock('../hooks/useForwarderQueries', () => ({
   useForwarderEligibleAdvanceRequests: () => ({ data: state.requestsPending || !state.requestsHasData ? undefined : { items: state.requests }, isPending: state.requestsPending, isFetching: state.requestsFetching, error: state.requestsError, refetch: retryRequests }),
-  useUnlinkedExpenses: () => ({ data: state.expensesPending || !state.expensesHasData ? undefined : { items: [] }, isPending: state.expensesPending, isFetching: state.expensesFetching, error: state.expensesError, refetch: retryExpenses }),
+  useUnlinkedExpenses: () => ({ data: state.expensesPending || !state.expensesHasData ? undefined : { items: state.expenses }, isPending: state.expensesPending, isFetching: state.expensesFetching, error: state.expensesError, refetch: retryExpenses }),
   useCreateAdvanceSettlement: () => ({ mutateAsync, isPending: false, error: null }),
 }));
 vi.mock('../hooks/useCatalogs', () => ({ useCatalogs: () => ({ data: {} }) }));
@@ -27,6 +27,7 @@ describe('direct settlement creation from actual funded advances', () => {
     mutateAsync.mockReset().mockResolvedValue({ id: 11, code: 'HU-11' });
     state.requests = [];
     state.requestsHasData = true; state.requestsPending = false; state.requestsFetching = false; state.requestsError = null;
+    state.expenses = [];
     state.expensesHasData = true; state.expensesPending = false; state.expensesFetching = false; state.expensesError = null;
     retryRequests.mockReset().mockResolvedValue({}); retryExpenses.mockReset().mockResolvedValue({});
   });
@@ -122,20 +123,32 @@ describe('direct settlement creation from actual funded advances', () => {
   });
 
   it('FB-100 (c, card 141026230770) — "Tiền hoàn lại" nhận số âm khi chi phí vượt tạm ứng', async () => {
+    // Phiếu cân đối đúng ngữ cảnh tiêu đề: ứng 1.000.000, chi phí 1.250.000 →
+    // hoàn lại −250.000 (assertSettlementBalanced: tạm ứng − chi phí − hoàn lại = 0).
     state.requests = [request(1, 'Ứng đã nhận', 1000000)];
-    render(page());
+    state.expenses = [{
+      id: 21, buyAmount: 1250000, completionStatus: 'COMPLETED', expenseType: 'TOLL',
+      tripId: 5, tripCode: 'T-QA-1', containerNumbers: 'CONT-QA-1',
+      departureDate: '2026-09-17', createdAt: '2026-09-17T00:00:00.000Z',
+    }];
+    const { container } = render(page());
     fireEvent.click(screen.getByRole('checkbox', { name: /Ứng đã nhận/ }));
+    // Group check-all mang chung nhãn CONT-QA-1 — chọn đúng ô của khoản chi.
+    const expenseBox = container.querySelector('label.fset-check-item--expense input[type="checkbox"]')!;
+    fireEvent.click(expenseBox);
+    expect(expenseBox).toBeChecked();
     const refund = screen.getByPlaceholderText('0') as HTMLInputElement;
     // Không còn ràng buộc min — trình duyệt từ chối submit khi input số âm bị
     // đánh dấu :invalid, nên chính thuộc tính này là thứ chặn "ghi nhận số âm".
     expect(refund).not.toHaveAttribute('min');
     fireEvent.change(refund, { target: { value: '-250000' } });
     expect(refund).toHaveValue(-250000);
+    expect(document.querySelector('.fset-summary__total .money')).toHaveTextContent('0 ₫');
     fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
     fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledExactlyOnceWith({
-      totalExpenseAmount: 0, refundAmount: -250000, note: undefined,
-      advanceRequestIds: [1], tripExpenseIds: undefined,
+      totalExpenseAmount: 1250000, refundAmount: -250000, note: undefined,
+      advanceRequestIds: [1], tripExpenseIds: [21],
     }));
   });
 
