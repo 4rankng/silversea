@@ -18,6 +18,7 @@ import { Role, TxnType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { settleExpenseReconciliationRefund } from '../services/expense-reconciliation-settle.service';
+import { createAdvanceRequest } from '../services/advance-request.service';
 import { recordFundedOpsAdvance } from '../services/expense-accounting-reconciliation.service';
 import { getExpenseReconciliation } from '../services/expense-accounting-reads.service';
 import { listMonthlyReconciliationReport } from '../services/ops-reconciliation-report.service';
@@ -127,5 +128,25 @@ describe('card 20261005 — chốt hoàn ứng', () => {
     assert.equal(row.direction, 'CTY_YEU_CAU_THU_TIEN_UNG');
     assert.equal(row.note, 'Đề nghị thu tiền ứng');
     assert.equal(row.remaining, 500000, 'cột sổ quỹ giữ nguyên — tổng và ví không đổi');
+  });
+
+  test('141026230770(c): yêu cầu đã ghi nhận không bị báo cáo về 0 — ĐÃ ỨNG hiện số, chênh lệch có dấu', async () => {
+    const accountant = await mkUser('ACCOUNTANT');
+    const ops = await mkUser('OPS');
+    const actor = { userId: accountant.id, role: Role.ACCOUNTANT };
+    // Triệu chứng ticket (c): "Báo cáo hoàn ứng — all zeros" với yêu cầu tạm
+    // ứng đã ghi nhận sitting trong kỳ. ĐÃ ỨNG lấy từ yêu cầu ĐÃ GHI NHẬN
+    // (không nhìn funding) — dòng không bao giờ bị ép về 0 khi có hoạt động.
+    const reason = `refund-settle đã ghi nhận ${suffix}`;
+    await createAdvanceRequest(ops.id, { amount: 270000, reason });
+    track(async () => { await db.delete(s.advanceRequests).where(and(eq(s.advanceRequests.requesterId, ops.id), eq(s.advanceRequests.reason, reason))); });
+
+    const row = (await listMonthlyReconciliationReport(actor, {})).rows.find(item => item.staffId === ops.id);
+    assert.ok(row, 'có dòng báo cáo cho nhân viên');
+    assert.equal(row.dntt, 0);
+    assert.equal(row.advanced, 270000, 'ĐÃ ỨNG phản ánh yêu cầu đã ghi nhận — không all-zero');
+    assert.equal(row.remainingSigned, -270000, 'ĐNTT − ĐÃ ỨNG có dấu');
+    assert.equal(row.needsCollection, false, 'chưa cấp tiền thật thì không đòi thu — "request without money is not an advance" (card11)');
+    assert.equal(row.note, 'Không còn chênh lệch');
   });
 });
