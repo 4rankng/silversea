@@ -18,8 +18,10 @@ import '../styles/operational-table-typography.css';
  * A different surface from /users (permission administration): this page
  * renders the personnel profile columns only (Mã NV, họ tên, bộ phận, email,
  * điện thoại, trạng thái) over the same users data, with no roles, no logins
- * and no row actions. Bộ phận derives exactly the way /users derives it:
- * businessUnitIds mapped to business unit names, joined per row.
+ * and no row actions. Bộ phận derives businessUnitIds mapped to business
+ * unit names, joined per row — ACTIVE units only (ticket 171026123000, owner
+ * ruling 2026-10-17). This is the intentional divergence from /users: the
+ * management surface keeps INACTIVE unit history visible, the roster does not.
  *
  * Owner ruling 2026-10-09 ('chấm công chỉ dành cho lái xe' / no office
  * staff): personnel and timekeeping are DRIVER-ONLY — office roles are
@@ -52,12 +54,17 @@ export default function HrRosterPage() {
     [data],
   );
 
+  // Card 171026123000: /hr/roster renders ACTIVE business units only — a
+  // deactivated unit must never surface as a Bộ phận name or a filter choice,
+  // even if the payload still carries it or a stale link points at it.
   const businessUnitMap = useMemo(
-    () => new Map((data?.businessUnits ?? []).map((unit) => [unit.id, unit.name])),
+    () => new Map((data?.businessUnits ?? [])
+      .filter((unit) => unit.status === 'ACTIVE')
+      .map((unit) => [unit.id, unit.name])),
     [data],
   );
 
-  // The filter lists only the business units actually linked to roster rows.
+  // The filter lists only the ACTIVE business units actually linked to roster rows.
   const departmentOptions = useMemo(() => {
     const used = new Set<number>();
     for (const u of personnel) {
@@ -66,8 +73,10 @@ export default function HrRosterPage() {
     return [
       { value: 'all', label: 'Tất cả bộ phận' },
       ...[...used]
-        .sort((a, b) => (businessUnitMap.get(a) ?? '').localeCompare(businessUnitMap.get(b) ?? ''))
-        .map((id) => ({ value: String(id), label: businessUnitMap.get(id) ?? `#${id}` })),
+        .map((id) => ({ id, label: businessUnitMap.get(id) }))
+        .filter((entry): entry is { id: number; label: string } => entry.label != null)
+        .sort((a, b) => a.label.localeCompare(b.label))
+        .map(({ id, label }) => ({ value: String(id), label })),
     ];
   }, [personnel, businessUnitMap]);
 

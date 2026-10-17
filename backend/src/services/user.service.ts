@@ -583,7 +583,11 @@ export async function listUsers(requesterRole?: string, params: ListUsersParams 
  * page. The page's menu audience is office staff (ADMIN/MANAGER/ACCOUNTANT),
  * but /auth/users is an admin surface — this read returns exactly the roster
  * columns (no salary, login or assignment metadata), and the 2026-10-09
- * owner ruling (personnel = drivers only) is enforced server-side as well. */
+ * owner ruling (personnel = drivers only) is enforced server-side as well.
+ * Business units render ACTIVE-only (ticket 171026123000, owner ruling
+ * 2026-10-17): "Ngừng sử dụng" must actually hide a unit from the Bộ phận
+ * column and the "Lọc theo bộ phận" dropdown, while the /users management
+ * surfaces keep listing INACTIVE units unchanged. */
 export async function listHrRoster() {
   const rows = await db.select({
     id: users.id,
@@ -597,21 +601,11 @@ export async function listHrRoster() {
     .where(and(isNull(users.deletedAt), eq(users.role, Role.DRIVER)))
     .orderBy(asc(users.id));
 
-  const links = rows.length
-    ? await db.select({
-      userId: userBusinessUnitLinks.userId,
-      businessUnitId: userBusinessUnitLinks.businessUnitId,
-    }).from(userBusinessUnitLinks)
-      .where(inArray(userBusinessUnitLinks.userId, rows.map((r) => r.id)))
-    : [];
-  const unitsByUser = new Map<number, number[]>();
-  for (const link of links) {
-    const list = unitsByUser.get(link.userId) ?? [];
-    list.push(link.businessUnitId);
-    unitsByUser.set(link.userId, list);
-  }
+  // ACTIVE-filtered link load (join business_units.status) — the roster never
+  // exposes a link to a deactivated unit.
+  const unitsByUser = await loadUsersBusinessUnitIdsMap(db, rows.map((r) => r.id));
 
-  const units = await listBusinessUnits();
+  const units = (await listBusinessUnits()).filter((unit) => unit.status === 'ACTIVE');
   return {
     items: rows.map((r) => ({ ...r, businessUnitIds: unitsByUser.get(r.id) ?? [] })),
     total: rows.length,

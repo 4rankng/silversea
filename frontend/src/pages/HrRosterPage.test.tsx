@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -110,5 +110,51 @@ describe('HrRosterPage', () => {
       target: { value: 'zzz-khong-co' },
     });
     expect(await screen.findByText('Không tìm thấy nhân sự')).toBeInTheDocument();
+  });
+
+  // Card 2026-10-18-card-171026123000-roster-inactive-units-hidden: after the
+  // staging purge deactivated the QA units, /hr/roster still listed
+  // "QA Audit Unit 0914" in the "Lọc theo bộ phận" dropdown and in the Bộ phận
+  // column. Owner ruling 2026-10-17 (option b): the roster renders ACTIVE
+  // business units only — even if the payload still carries an INACTIVE unit
+  // and links to it, it must not surface; a driver linked only to INACTIVE
+  // units shows the empty placeholder and never crashes.
+  it('never renders INACTIVE business units — not in the dropdown, not in Bộ phận (171026123000)', async () => {
+    getHrRosterMock.mockResolvedValue({
+      items: [
+        userRow({ id: 2, role: 'DRIVER', fullName: 'Lái xe A', employeeCode: 'TX001', email: 'laixe@example.com', phone: '0902', businessUnitIds: [2, 9] }),
+        userRow({ id: 8, role: 'DRIVER', fullName: 'Lái xe C', employeeCode: 'TX003', email: 'laixec@example.com', phone: '0908', businessUnitIds: [9] }),
+      ],
+      total: 2,
+      businessUnits: [
+        { id: 2, code: 'DR', name: 'Đội xe', status: 'ACTIVE', createdAt: '', updatedAt: '' },
+        { id: 9, code: 'QA', name: 'QA Audit Unit 0914', status: 'INACTIVE', createdAt: '', updatedAt: '' },
+      ],
+    });
+    renderPage();
+    await screen.findByText('Lái xe A');
+
+    // Bộ phận column: only the ACTIVE unit name; the inactive-only driver
+    // shows the placeholder.
+    const mixedRow = screen.getByText('Lái xe A').closest('tr')!;
+    expect(within(mixedRow).getAllByRole('cell')[2]).toHaveTextContent(/^Đội xe$/);
+    const inactiveRow = screen.getByText('Lái xe C').closest('tr')!;
+    expect(within(inactiveRow).getAllByRole('cell')[2]).toHaveTextContent(/^—$/);
+
+    // "Lọc theo bộ phận" dropdown: only ACTIVE units linked to roster rows.
+    const [trigger] = screen.getAllByRole('button').filter((b) => b.getAttribute('aria-haspopup') === 'listbox');
+    expect(trigger).toBeTruthy();
+    fireEvent.click(trigger);
+    const listbox = await screen.findByRole('listbox');
+    const optionLabels = within(listbox).getAllByRole('option').map((o) => o.textContent?.trim());
+    expect(optionLabels).toHaveLength(2);
+    expect(optionLabels).toContain('Tất cả bộ phận');
+    expect(optionLabels).toContain('Đội xe');
+    expect(optionLabels.some((label) => (label ?? '').includes('QA Audit Unit 0914'))).toBe(false);
+
+    // Picking the ACTIVE unit still filters rows (the visible-id path works).
+    fireEvent.click(within(listbox).getByRole('option', { name: 'Đội xe' }));
+    expect(screen.getByText('Lái xe A')).toBeInTheDocument();
+    expect(screen.queryByText('Lái xe C')).not.toBeInTheDocument();
   });
 });

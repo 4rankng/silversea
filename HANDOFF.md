@@ -1,72 +1,87 @@
-# HANDOFF — card 171026212000 (retry rb1) — DONE, branch pushed
+# HANDOFF — 2026-10-18 — fix-171026123000-roster-inactive-units
 
 Controller: this session (Paseo agent), worktree
-`fix-171026212000-deposit-bill-lookup-rb1` (branch-off 32168ada).
-Updated: 2026-10-18 (~01:15 local). Supersedes the 2026-10-17 two-lane
-handoff (both lanes were DONE + merged; nothing was lost).
+`fix-171026123000-roster-inactive-units` (branch-off main @ 1105d184).
+Updated: 2026-10-18.
 
 ## Goal + status
 
-FB-096 verify-fail: "Thêm cược" modal's Bill lookup (gợi ý bill từ 4 số
-cuối) showed NO suggestions for real lots. **DONE — fixed, gated, reviewed,
-UI-driven, committed and pushed** on branch
-`fix-171026212000-deposit-bill-lookup-rb1`.
+Ticket 171026123000-unaccented-seed-verifyfail: /hr/roster vẫn hiện unit
+INACTIVE ("QA Audit Unit 0914") sau khi staging deactivate 5/5 — dropdown
+"Lọc theo bộ phận" liệt kê unit INACTIVE, cột BỘ PHẬN render tên unit INACTIVE.
+Owner decision 2026-10-17 (hướng b): ẩn unit INACTIVE khỏi roster, không đụng
+data, KHÔNG sửa purge tool (hướng a bị loại).
+STATUS: DONE (chưa merge theo chỉ thị).
 
-## Root cause (evidence: qa/2026-10-18_171026212000_repro-api.log)
+## Changes (4 files code/test + 1 testplan)
 
-`findBillSuggestions` matched `right(col,4)=digits` — last four
-**characters** — while the ruling/label is last four **digits** of the
-printed number. 193/444 digit-tailable refs in the prod-mirror DB end in
-non-digit suffixes (`-IMP/-FCL/…-9bzut2`, `FB020-R21-RB1`) → never matched.
-Landing tests + staging QA only sampled pure-digit tails, so gates passed.
+- `backend/src/services/user.service.ts` — `listHrRoster()`: link nạp qua
+  `loadUsersBusinessUnitIdsMap` (join business_units.status ACTIVE) thay cho
+  query verbatim; `businessUnits` trả ACTIVE-only. `listBusinessUnits()` +
+  `GET /auth/business-units` + BusinessUnitsManager giữ nguyên (INACTIVE visible
+  ở /users management).
+- `frontend/src/pages/HrRosterPage.tsx` — guard render: name map +
+  dropdown options chỉ unit ACTIVE; id không resolve → không liệt kê (fallback
+  `#id` xóa — đó là đường rò tên unit INACTIVE); driver chỉ link INACTIVE hiện
+  '—', không crash. Doc comment ghi divergence chủ đích vs /users.
+- Tests: BE `hr-roster-read.test.ts` describe mới (unit INACTIVE không trong
+  `businessUnits`, link INACTIVE không trong `businessUnitIds`, driver chỉ link
+  INACTIVE vẫn có dòng + mảng rỗng); FE `HrRosterPage.test.tsx` (dropdown options
+  đúng ACTIVE-only, cột '—', mixed-link chỉ hiện tên ACTIVE, pick option vẫn
+  lọc được).
+- `testplan/2026-10-18-card-171026123000-roster-inactive-units.md` (case
+  2026-10-18-card-171026123000-roster-inactive-units-hidden).
 
-## Changes (branch fix-171026212000-deposit-bill-lookup-rb1)
+## Decisions / sources
 
-- `backend/src/services/bill-book-search.service.ts` — tail = last 4 digits
-  of the digit run: `right(regexp_replace(col,'[^0-9]','','g'),4)=digits`,
-  grouped in drizzle `or()` (review finding: the bare `sql\`A or B\`` inside
-  `and()` rendered `(deleted_at is null and A) or B`, bypassing the
-  soft-delete filter on the booking branch — pre-existing, now fixed +
-  pinned).
-- Deleted `backend/src/services/deposit-bill-suggestions.service.ts` —
-  orphaned duplicate (zero importers since F6) still carrying the old SQL.
-- FE `DepositRefundTrackerPage.tsx/.css` — failed lookup renders
-  `role="alert"` error line; "Không có lô hàng nào…" now requires
-  success (no flash during load, no lie on 401/5xx).
-- Tests: backend `deposit-bill-suggestions.test.ts` (suffix fixtures,
-  digit-run-extension pin q=4292, tombstone lot); FE page test +3
-  (typeahead/autofill, honest no-match, error line).
-- `testplan/2026-10-18-card171026212000-deposit-bill-lookup-digits.md` +
-  driver `testplan/qa/2026-10-18_card171026212000/`.
+- Filter ở cả 2 lớp: BE projection (data authority — endpoint không serve unit
+  INACTIVE) + FE render guard (display invariant — payload rò rỉ cũng không
+  hiện). FE test ghim đúng ngôn ngữ ticket ở UI layer.
+- `qa-fixture-registry.ts` / purge tool KHÔNG đụng (hard rule) — comment
+  "listHrRoster() returns businessUnitIds verbatim" trong registry giờ là lịch
+  sử; purge vẫn hard-delete links (belt) + deactivate (braces).
+- Review (code-reviewer subagent): 0 blocking; 1 Medium (stale doc comment) ĐÃ
+  sửa. Low còn lại không chặn: (a) department filter state trống nếu unit bị
+  deactivate giữa session (recoverable, không crash); (b) test hygiene
+  disconnectRedis trong after của describe 1 (pre-existing, vô hại);
+  (c) OUT-OF-SCOPE pre-existing: `syncUserBusinessUnitLinks` delete-all+reinsert
+  có thể drop link INACTIVE khi save user ở /users (vi phạm spirit "Lịch sử…
+  được giữ nguyên") — cần owner card riêng, KHÔNG thuộc diff này.
 
-## Decisions worth keeping
+## Files owned
 
-- Digit-run semantics: "4 số cuối" = last four digit characters of the
-  WHOLE printed number (a `…-9bzut2` suffix's 9,2 continue the run —
-  `RARBOOK-1792226038601-9bzut2` is looked up by 0192, not 8601).
-- `searchBillBook` (phơi phiếu substring probe, Card 20260905) deliberately
-  untouched — different ruling. Observed: its `ilike '%2021%'` also misses
-  separated digits; out of scope here, raise separately if the owner wants
-  the habit honored there too.
-- Sibling `q=9091` exact-empty assertion on the shared mirror DB is a known
-  latent flake (pre-existing, noted in its own comment).
+backend/src/services/user.service.ts, backend/src/tests/hr-roster-read.test.ts,
+frontend/src/pages/HrRosterPage.tsx, frontend/src/pages/HrRosterPage.test.tsx,
+testplan/2026-10-18-card-171026123000-roster-inactive-units.md.
+Driver + evidence: qa/drivers/2026-10-18-roster-inactive-units-ui-drive.mjs,
+qa/2026-10-18_roster-inactive-units_* (ignored, local evidence).
 
-## Gates (qa/2026-10-18_171026212000_*.log, all EXIT=0)
+## QA artifacts + results
 
-backend tsc · backend scoped tests 15/15 (deposit family) · frontend tsc ·
-frontend vitest 33/33 (page family) · root lint · make build · rung-3 UI
-drive (`_ui-driver.log` EXIT=0; screenshots `_ui-02/03/04`; DB identity +
-trackers 696→696 unchanged). Independent code-reviewer pass: DONE_WITH_
-CONCERNS → both findings (or() precedence, orphan file) fixed and re-gated.
+- Red-at-base (repro trước fix): `*_backend-tests-red.log` (unit INACTIVE vẫn
+  trong roster.businessUnits), `*_frontend-tests-red.log` (cột hiện
+  "Đội xe, QA Audit Unit 0914") — đúng symptom ticket.
+- Green: be-tsc 0; BE scoped (hr-roster-read + qa-fixture-purge) 22/22 exit 0;
+  fe-tsc 0; FE HrRosterPage 4/4 (re-run sau comment fix) exit 0; root lint 0;
+  `make build` exit 0. Full BE/FE suites KHÔNG chạy (owner-scoped gates; scoped
+  suites phủ mọi test file đụng module đổi).
+- UI rung 3 (admin, worktree parallel stack vite:7178→api:3094, shared dev DB
+  :5441 — main checkout 7175/3002 KHÔNG đụng): `*_ui-driver.log` 11/11 exit 0 —
+  Bộ phận '—', dropdown ["Tất cả bộ phận"] (không tên INACTIVE), API
+  /auth/users/roster identity sạch, DB fixture giữ nguyên khi UI ẩn (read-only),
+  768/390 ok; screenshots `_ui-01-row.png`, `_ui-02-dropdown.png`,
+  `_ui-w768.png`, `_ui-w390.png`; fixtures QA-named + cleanup DELETE 1 ×3.
+  Design provenance: house primitives (FilterBar/UuiSelectField/record-table),
+  không component mới → không consult catalog.
 
-## Non-goals / not covered
+## Unrelated / preserved
 
-- Staging/prod verification (local dev DB mirror only; deployment needs
-  owner instruction).
-- Other roles/mobile widths for this modal; the phơi phiếu probe semantics.
-- The `…2021`-style examples in old FB-096 artifacts are arithmetically
-  wrong for digit-run tails; only new artifacts corrected.
+- Stack chính :3002/:7175 + containers ss-prod-db/ss-prod-redis giữ nguyên.
+- qa/ artifacts là evidence cục bộ (git-ignored); commit chỉ chứa source +
+  testplan (ticket hard rule "stage ONLY files đã sửa").
 
 ## Next step
 
-Owner re-verify on staging after merge/deploy of this branch.
+- Commit trên branch `fix-171026123000-roster-inactive-units`, KHÔNG merge.
+- Owner: deploy staging khi sẵn sàng; orchestrator chạy lại purge nếu cần;
+  cân nhắc card riêng cho (c) syncUserBusinessUnitLinks drop-link-INACTIVE.
