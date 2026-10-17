@@ -527,10 +527,55 @@ describe('journey-board soft-delete filter — tombstoned shipments never surfac
 });
 
 // One delivery-stage resolution shared by the journey card and the
-// fulfillment detail (delivery-stage.ts): free text ?? snapshot site ?? port,
-// with the canonical IMPORT dropoff port retained even for same-place delivery.
+// fulfillment detail (delivery-stage.ts): port → dispatcher free text →
+// fulfillment-snapshot delivery site (FB-020 same-place closure), with the
+// canonical IMPORT dropoff port retained even for same-place delivery.
 // EXPORT exposes a separate return stage only when different from delivery.
 describe('delivery-stage chain — card + detail share one resolution', () => {
+  test('FB-020 (card 171026205400): a portless IMPORT job names its delivery site as Cảng hạ — same place, two rows, never "Chưa có cảng hạ"', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Long Minh - Võ Cường');
+    const { fulfillment } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tradeDirection: 'IMPORT',
+      // The E2EROLE001 / trip-135 shape: no dropoff port, no dispatcher
+      // free-text override — the only drop record is the fulfillment's own
+      // delivery-site snapshot, written at decompose from the container's
+      // operational site.
+      deliveryLocation: null,
+      deliverySiteName: 'LM Võ Cường',
+    });
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
+    assert.equal(card.dropPortName, 'LM Võ Cường', 'journey card HẠ chip names the discharge point (PRD ManHinhLaiXe §2.3 same-name clause)');
+    const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
+    assert.equal(detail.deliveryLocation, 'LM Võ Cường', 'detail agrees with the card');
+    assert.equal(detail.returnDepotName, null);
+    // The delivery block stays destination-owned (FB-082 retest): the wire's
+    // factory fields still name the same place under their own labels.
+    assert.equal(detail.factoryFullName, 'Nhà máy Long Minh - Võ Cường');
+  });
+
+  test('FB-020: EXPORT never takes the factory — a portless export keeps its drop empty', async () => {
+    const { driver, customer, route, cargoType, containerType } = await setup();
+    const site = await mkSite(customer.id, 'Nhà máy Xuất Không Cảng');
+    const { fulfillment } = await mkContainerTrip({
+      driverId: driver.id, customerId: customer.id, routeId: route.id, cargoTypeId: cargoType.id,
+      containerTypeId: containerType.id, siteId: site.id, notes: null, factoryName: null,
+      tradeDirection: 'EXPORT',
+      deliveryLocation: null,
+      deliverySiteName: 'Nhà máy Xuất Không Cảng',
+    });
+
+    const board = await getDriverJourneyBoard(driver.id);
+    const card = board.items.find((c) => c.fulfillmentId === fulfillment.id)!;
+    assert.equal(card.dropPortName, null, 'an export drops at the port (1f1133ae) — the snapshot factory never closes the EXPORT chain');
+    const detail = await getDriverFulfillmentDetail(driver.id, fulfillment.id);
+    assert.equal(detail.deliveryLocation, null);
+  });
+
   test('IMPORT: the drop is the port; the factory snapshot never takes HA', async () => {
     const { driver, customer, route, cargoType, containerType } = await setup();
     const site = await mkSite(customer.id, 'Nhà máy Nhập Hàng');
