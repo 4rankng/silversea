@@ -425,3 +425,42 @@ describe('debit-close facet badge counts criteria, not selected values (card 202
     }
   });
 });
+
+describe('BD-02 (161026204709) — merged 100%/0₫ Cước thu lane on the phone card face', () => {
+  it('renders both rows Cước thu (tự động) outside the Chi tiết disclosure, member reason visible', async () => {
+    window.matchMedia = (media): MediaQueryList => ({
+      media, matches: media === '(max-width: 640px)', onchange: null,
+      addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
+    });
+    boardWith([
+      row({
+        shipmentId: 1, billOrBooking: 'BL-P',
+        lcl: { label: 'Lẻ · Thu: 5T', actualTruckNo: null, billingTruckNo: null, ghépCùngRef: null },
+        thu: { cuocThu: '3150000', lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: '3150000' },
+      }),
+      row({
+        shipmentId: 2, billOrBooking: 'BL-M',
+        lcl: { label: 'Lẻ · Thu: 5T', actualTruckNo: null, billingTruckNo: null, ghépCùngRef: 'BL-P' },
+        thu: { cuocThu: '0', lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: '0' },
+      }),
+    ]);
+    renderPage();
+
+    // Lô 1 = 100% lane price on the card face.
+    const principal = await screen.findByRole('article', { name: 'BL-P' });
+    const principalLane = within(principal).getByText('Cước thu (tự động)').closest<HTMLElement>('.ledger-record__fact')!;
+    expect(principalLane.closest('details')).toBeNull();
+    expect(principalLane.textContent).toContain('3.150.000');
+
+    // Member = 0₫ on the card face, its reason visible beside it.
+    const member = await screen.findByRole('article', { name: 'BL-M' });
+    const memberLane = within(member).getByText('Cước thu (tự động)').closest<HTMLElement>('.ledger-record__fact')!;
+    expect(memberLane.closest('details')).toBeNull();
+    expect(memberLane.textContent).toContain('0 ₫');
+    expect(within(member).getByText(/Ghép cùng Bill BL-P/).closest('details')).toBeNull();
+
+    // The disclosure still holds the sibling columns — never the lane.
+    const details = within(member).getByText('Chi tiết').closest('details')!;
+    expect(within(details).queryByText('Cước thu (tự động)')).toBeNull();
+  });
+});
