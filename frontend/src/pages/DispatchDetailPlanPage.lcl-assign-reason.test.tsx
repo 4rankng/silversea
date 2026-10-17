@@ -164,6 +164,10 @@ describe('171026154000 (C) — Gán xe nhóm explains itself as text', () => {
     const assign = screen.getByRole('button', { name: 'Gán xe nhóm' });
     expect(assign).toHaveAttribute('aria-disabled', 'true');
     expect(assign).toHaveAttribute('aria-describedby', 'lcl-group-assign-reason');
+    // Review hardening: the native attribute must never come back — a
+    // natively disabled control is unfocusable, which is exactly the trap
+    // this pattern exists to avoid.
+    expect(assign).not.toHaveAttribute('disabled');
     expect(assign).toHaveAttribute('title', 'Gán xe nhóm trả ĐV');
 
     // aria-disabled does not block clicks — the handler guard must.
