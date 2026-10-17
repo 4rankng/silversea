@@ -150,4 +150,13 @@ describe('forwarder (Ops) palette covers the expense vocabulary (FB-033)', () =>
     }
     expect(ops.some(i => i.id === 'my-orders' && i.type === 'page')).toBe(true);
   });
+
+  // FB-033 follow-up (111026164510): the 'OPS' role value fell through to the
+  // switch's `default` branch, so the whole palette was empty for OPS users.
+  it('resolves the OPS role to the same palette as FORWARDER', () => {
+    const ops = getSearchItems('OPS');
+    expect(ops.length).toBeGreaterThan(0);
+    expect(ops.map(i => i.id)).toEqual(getSearchItems('FORWARDER').map(i => i.id));
+    expect(ops.some(i => i.id === 'my-orders-expense')).toBe(true);
+  });
 });

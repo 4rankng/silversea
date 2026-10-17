@@ -286,7 +286,7 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.CONTAINER_EDIT_REQUEST_DECISION',
   }],
   // LCL grouping family (FB-092/093/095 + 161026232349), reviewed 2026-10-17 in
-  // card 171026010018 by reading these five mounts against
+  // card 171026010018 by reading these six mounts against
   // lcl-grouping.service.ts. Each route is one `db.transaction` durable write;
   // its audit record is the `audit_logs` row that same transaction writes via
   // the service's own `auditGroupChange`, identified by the event (and, for the
@@ -315,6 +315,13 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     marker: 'export async function unmergeLclLot(',
     // audit_logs: entityType shipment, event SHIPMENT_LCL_GROUP_UNMERGED +
     // cause 'UNMERGE' (the delete hook shares the event with cause 'DELETE').
+  }],
+  ['shipments/lcl-grouping.routes.ts|POST|/lcl/unmerge-group', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
+    marker: 'export async function unmergeLclGroup(',
+    // audit_logs: entityType shipment, event SHIPMENT_LCL_GROUP_UNMERGED +
+    // cause 'UNMERGE_GROUP' (the lot unmerge above writes the same event with
+    // cause 'UNMERGE'; only the cause separates the two commands).
   }],
   ['shipments/lcl-grouping.routes.ts|POST|/lcl/truck', {
     serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
