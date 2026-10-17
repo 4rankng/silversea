@@ -325,10 +325,12 @@ export default function ShipmentDetailPage() {
     && shipment.status !== 'CANCELED'
     && (user?.role === Role.ADMIN || user?.role === Role.MANAGER
       || user?.role === Role.CUS || user?.role === Role.DISPATCHER);
-  // FB-107 (card 171026115820) — Nơi nhận / Nơi giao là hai điểm Nâng/Hạ thật
-  // của lô, theo đúng một luật dùng chung (`resolveLiftDropPoints`): FCL lấy
-  // tên cảng của container (không đảo theo chiều), LCL đổi vai theo Nhập/Xuất
-  // (Nhập: Nâng = Kho, Hạ = Nhà máy; Xuất: ngược lại). Hai cột
+  // FB-107 (card 171026115820) — hai dòng Nâng/Hạ là điểm lấy/nâng hàng và
+  // điểm hạ/trả hàng thật của lô, theo đúng một luật dùng chung
+  // (`resolveLiftDropPoints`): FCL lấy tên cảng của container (không đảo theo
+  // chiều), LCL đổi vai theo Nhập/Xuất (Nhập: Nâng = Kho, Hạ = Nhà máy; Xuất:
+  // ngược lại). Nhãn 'Nâng'/'Hạ' theo đề xuất card (thay 'Nơi nhận'/'Nơi giao'
+  // — 2 nhãn không rõ nghĩa nghiệp vụ) và khớp Kế hoạch Tổng quát. Hai cột
   // pickup_location/delivery_location nay chỉ còn là dự phòng cho bên chưa
   // từng chọn điểm danh mục — lô tạo từ form để trống cả hai.
   const liftDropPoints = resolveLiftDropPoints({
@@ -403,8 +405,8 @@ export default function ShipmentDetailPage() {
             <div><dt>Khách hàng</dt><dd>{customerLabel}</dd></div>
             <div><dt>Mã đặt chỗ</dt><dd>{shipment.bookingRef ?? '—'}</dd></div>
             <div><dt>Số B/L</dt><dd>{shipment.blNumber ?? '—'}</dd></div>
-            <div><dt>Nơi nhận</dt><dd>{liftDropPoints.lift ?? '—'}</dd></div>
-            <div><dt>Nơi giao</dt><dd>{liftDropPoints.drop ?? '—'}</dd></div>
+            <div><dt>Nâng</dt><dd>{liftDropPoints.lift ?? '—'}</dd></div>
+            <div><dt>Hạ</dt><dd>{liftDropPoints.drop ?? '—'}</dd></div>
             <div><dt>Liên hệ</dt><dd>{shipment.contactName ?? '—'}{shipment.contactPhone ? ` · ${shipment.contactPhone}` : ''}</dd></div>
             <div><dt>Ngày tạo</dt><dd>{formatDateTime(shipment.createdAt)}</dd></div>
             <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>

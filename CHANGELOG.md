@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-10-17 (chiều) — fix(fb-107): Chi tiết lô "Nơi giao"/"Nơi nhận" → nhãn Nâng/Hạ + portal hết 2 dòng trống
+
+Card 171026115820 (P2, Phạm Trung Kiên): trên Chi tiết lô hàng, "Nơi giao" và
+"Nơi nhận" để trống, chưa rõ nghĩa nghiệp vụ → thay bằng **Nâng** (điểm
+lấy/nâng hàng) và **Hạ** (điểm hạ/trả hàng).
+
+- **Trang nội bộ** `ShipmentDetailPage`: đổi nhãn 'Nơi nhận' → **'Nâng'**,
+  'Nơi giao' → **'Hạ'**. Giá trị đã là 2 điểm thật qua luật dùng chung
+  `resolveLiftDropPoints` (batch fb086/fb106/fb107) — không đổi binding; nhãn
+  khớp từ card đề xuất và khớp Kế hoạch Tổng quát ('Nâng'/'Hạ').
+- **Portal** `/portal/shipments/:id` (eyebrow cũng là "Chi tiết lô hàng", cùng
+  lớp lỗi): 2 dòng vẫn bind 2 cột dormant `pickup_location`/`delivery_location`
+  → thay bằng cùng luật `resolveLiftDropPoints`; BE `toCustomerShipmentDetail`
+  chiếu tiếp các fact `getShipmentDetail` đã có sẵn (tên kho CFS, nhà máy hiệu
+  lực, tên cảng nâng/hạ từng container) — hiển thị, không schema/migration.
+- **Pin:** `ShipmentDetailPage.test.tsx` (nhãn mới + nhãn cũ biến mất + 4 ca
+  giá trị), `PortalShipmentDetailPage.lift-drop.test.tsx` (mới — nhãn + 3 ca
+  binding qua luật), `shipment-detail-lift-drop-projection.test.ts` (portal
+  projection mang đủ fact cho 2 dòng).
+- Testplan: `testplan/2026-10-17-card-fb107-nang-ha.md`.
+
 ## 2026-10-17 (chiều) — fix(141026230770) v2: /my-advances hết sinh "Đã ghi nhận" lậu + regression (a)(b)(c)
 
 Ticket 141026230770 (P2, hoapt/kế toán, staging 14/10) tái lập: (a) thiếu nút

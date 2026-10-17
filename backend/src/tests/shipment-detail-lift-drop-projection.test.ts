@@ -1,5 +1,5 @@
 /**
- * FB-107 — the lot detail's Nơi nhận / Nơi giao payload fields.
+ * FB-107 — the lot detail's Nâng / Hạ payload fields.
  *
  * The detail page showed the dormant `pickup_location` / `delivery_location`
  * columns (every form-created lot leaves both empty, so both read '—'). It now
@@ -8,7 +8,10 @@
  * not carry: the LCL warehouse site (name + type, from
  * `shipments.pickup_warehouse_site_id`) and each FCL container's Cảng nâng /
  * Cảng hạ display names. This pins both joins — short-name authority, the
- * ad-hoc raw name as the fallback, and null when nothing was picked.
+ * ad-hoc raw name as the fallback, and null when nothing was picked — plus the
+ * portal projection (`toCustomerShipmentDetail`), whose "Chi tiết lô hàng"
+ * screen resolves the same rule for the customer and so must carry the same
+ * facts.
  */
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,6 +20,7 @@ import { inArray } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { getShipmentDetail } from '../services/shipment-detail-reads.service';
+import { toCustomerShipmentDetail } from '../routes/portal/index';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -145,5 +149,91 @@ describe('shipment detail — lift/drop projection (FB-107)', () => {
     assert.equal(catalogRow?.dropoffPortName, `Cảng hạ đầy đủ ${suffix}`);
     assert.equal(rawRow?.pickupPortName, `Bãi tự nhập ${suffix}`);
     assert.equal(rawRow?.dropoffPortName, null);
+  });
+
+  test('the portal projection carries every lift/drop fact its Nâng / Hạ rows resolve', async () => {
+    const [customer] = await db.insert(s.customers)
+      .values({ name: `FB107 portal customer ${suffix}` })
+      .returning();
+    createdCustomerIds.push(customer.id);
+    const [warehouse, factory] = await db.insert(s.operationalSites).values([
+      {
+        customerId: customer.id,
+        code: `FB107PW${suffix.slice(-5)}`,
+        name: `Kho portal đầy đủ ${suffix}`,
+        shortName: `Kho lấy ${suffix}`,
+        siteType: 'WAREHOUSE',
+        address: `Địa chỉ FB-107 ${suffix}`,
+        isActive: true,
+      },
+      {
+        customerId: customer.id,
+        code: `FB107PF${suffix.slice(-5)}`,
+        name: `Nhà máy portal đầy đủ ${suffix}`,
+        shortName: `Nhà máy ${suffix}`,
+        siteType: 'FACTORY',
+        address: `Địa chỉ FB-107 ${suffix}`,
+        isActive: true,
+      },
+    ]).returning();
+    createdSiteIds.push(warehouse.id, factory.id);
+    const [port] = await db.insert(s.ports).values({
+      name: `Cảng portal đầy đủ ${suffix}`,
+      shortName: `Nâng ${suffix.slice(-5)}`,
+    }).returning();
+    createdPortIds.push(port.id);
+
+    const [lcl, fcl] = await db.insert(s.shipments).values([
+      {
+        customerId: customer.id,
+        bookingRef: `FB107P-LCL-${suffix.slice(-8)}`,
+        tradeDirection: 'EXPORT',
+        cargoMode: 'LCL',
+        status: 'READY_FOR_DISPATCH',
+        expectedDeliveryDate: '2026-10-24',
+        pickupWarehouseSiteId: warehouse.id,
+        operationalSiteId: factory.id,
+        pickupLocation: `Nâng gõ tay ${suffix}`,
+        deliveryLocation: `Hạ gõ tay ${suffix}`,
+        packageCount: 1,
+        packageType: 'PALLET',
+        cargoWeightKg: '100.00',
+      },
+      {
+        customerId: customer.id,
+        blNumber: `FB107P-FCL-${suffix.slice(-8)}`,
+        tradeDirection: 'IMPORT',
+        cargoMode: 'FCL',
+        status: 'READY_FOR_DISPATCH',
+        expectedDeliveryDate: '2026-10-25',
+        factoryName: `Nhà máy gõ tay ${suffix}`,
+        packageCount: 1,
+        packageType: 'CONTAINER',
+        cargoWeightKg: '200.00',
+      },
+    ]).returning();
+    createdShipmentIds.push(lcl.id, fcl.id);
+    await db.insert(s.shipmentContainers).values({
+      shipmentId: fcl.id,
+      containerNumber: `FB107P${suffix.slice(-7).toUpperCase()}`,
+      pickupPortId: port.id,
+      // Lệnh chạy ngoài on one side: the typed name must ride the portal too.
+      rawDropoffPortName: `Hạ gõ tay ${suffix}`,
+    });
+
+    const lclPortal = toCustomerShipmentDetail(await getShipmentDetail(lcl.id));
+    assert.equal(lclPortal.shipment.cargoMode, 'LCL');
+    assert.equal(lclPortal.shipment.tradeDirection, 'EXPORT');
+    assert.equal(lclPortal.shipment.pickupWarehouseSiteName, `Kho lấy ${suffix}`);
+    assert.equal(lclPortal.shipment.effectiveFactoryName, `Nhà máy ${suffix}`);
+    assert.equal(lclPortal.shipment.factoryName, null);
+    assert.equal(lclPortal.shipment.pickupLocation, `Nâng gõ tay ${suffix}`);
+    assert.equal(lclPortal.shipment.deliveryLocation, `Hạ gõ tay ${suffix}`);
+
+    const fclPortal = toCustomerShipmentDetail(await getShipmentDetail(fcl.id));
+    assert.equal(fclPortal.shipment.factoryName, `Nhà máy gõ tay ${suffix}`);
+    assert.equal(fclPortal.containers.length, 1);
+    assert.equal(fclPortal.containers[0].pickupPortName, `Nâng ${suffix.slice(-5)}`);
+    assert.equal(fclPortal.containers[0].dropoffPortName, `Hạ gõ tay ${suffix}`);
   });
 });
