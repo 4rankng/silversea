@@ -720,8 +720,6 @@ describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
         onSaveIdentity={vi.fn(async () => {})}
         onSaveDocuments={vi.fn(async () => {})}
         onSaveContainer={vi.fn(async () => {})}
-        onAddContainer={vi.fn(async () => {})}
-        onRemoveContainer={vi.fn(async () => {})}
       />,
       { wrapper: MemoryRouter },
     );
@@ -736,7 +734,10 @@ describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
     expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
   });
 
-  it('a regular container row keeps its add/remove actions (the lot gate is scoped to isLotLevel)', () => {
+  // Card 171026182554 (supersedes FB-086's workboard row actions): container
+  // add/remove lives ONLY in the Tổng quan drawer now — the workboard's rows
+  // must not offer either button, on any row kind.
+  it('a regular container row offers no add/remove container actions (card 171026182554)', () => {
     render(
       <ShipmentContainerLedger
         rows={[baseRow()]}
@@ -756,16 +757,14 @@ describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
         onSaveIdentity={vi.fn(async () => {})}
         onSaveDocuments={vi.fn(async () => {})}
         onSaveContainer={vi.fn(async () => {})}
-        onAddContainer={vi.fn(async () => {})}
-        onRemoveContainer={vi.fn(async () => {})}
       />,
       { wrapper: MemoryRouter },
     );
-    expect(screen.getByRole('button', { name: /Thêm container cùng lô/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Xóa container/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Thêm container cùng lô/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
+    expect(screen.queryByTestId('add-container-form')).toBeNull();
   });
 });
-
 /* Card 20261009_3 — the "Chỉnh sửa khách hàng và lộ trình" editor docks as a
  * bottom sheet on phones (≤640px). The sheet MUST portal out of the ledger:
  * the page's `container-type: inline-size` makes `.shipments-detail-page` the
@@ -833,8 +832,6 @@ describe('bulk appointment copy affordance (card 111026111200)', () => {
         onSaveIdentity={vi.fn(async () => {})}
         onSaveDocuments={vi.fn(async () => {})}
         onSaveContainer={vi.fn(async () => {})}
-        onAddContainer={vi.fn(async () => {})}
-        onRemoveContainer={vi.fn(async () => {})}
         onCopyAppointment={onCopyAppointment}
       />,
       { wrapper: MemoryRouter },

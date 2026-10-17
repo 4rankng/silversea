@@ -1,3 +1,32 @@
+# fix-171026182554 — bỏ nút Thêm/Xóa container ở màn Chi tiết lô hàng — DONE (chưa merge)
+
+Controller: this session (Paseo agent), worktree
+`fix-171026182554-bo-nut-them-xoa-container-chi` (branch-off main @ e36c4a06).
+Updated: 2026-10-17 (tối).
+
+## Thay đổi (10 file, +53/−463)
+
+- Thao tác thêm/xóa container giờ CHỈ còn ở drawer Tổng quan (`/shipments`,
+  `CusContainerLedger` — không đụng). Bỏ: nút dòng ＋Thêm/Xóa +
+  `AddContainerRowForm` của `ShipmentContainerLedger` (`/shipments-detail`),
+  nút `Thêm container` + dialog của `ShipmentDetailPage` (`/shipments/:id`),
+  `addAction` của `ShipmentDetailContainers`, `addContainer`/`removeContainer`
+  của `use-cus-detail`, CSS `__row-actions` chết, và
+  `shipment-container-ledger-card-actions.styles.test.ts` (pin đúng cặp nút đã bỏ).
+- Card supersede FB-086/FB-112 trên 2 màn Chi tiết; endpoint server + RBAC +
+  form tạo lô + `ContainerInstancesCard` (chuyến) nguyên vẹn.
+- Rung 3 (CUS, backend :3002 + vite :7175 từ worktree, DB 5441): cả 2 màn
+  Chi tiết không còn nút (1440 + 390), 78 trigger "Chỉnh sửa ô…" còn nguyên,
+  drawer Tổng quan vẫn Thêm + Xóa (lô 110968, cont FBXF9069254/FBXG9069267),
+  DB unchanged. `qa/2026-10-17_card171026182554_*`.
+- Gates: lint 0 · be-tsc 0 · fe-tsc 0 · make build OK · FE vitest 5058/5059 —
+  fail duy nhất `dev-port-contract` là CỦA CARD KHÁC đã fail trên HEAD
+  (`testplan/qa/scripts/qa-20261017-qa1-007-chip-rung.mjs` hardcode 7176/3003,
+  commit f9b36180) — không sửa trong ticket này. Structure guard cũng vượt
+  ceiling sẵn ở HEAD trên nhiều file không liên quan.
+
+## Mục cũ (worktree khác, đã merge trunk — lịch sử)
+
 # fix-171026121100 — FB-038/072 verify-fail 3: overlap guard 2 lỗ hổng còn sót — DONE (pending trunk merge)
 
 Controller: this session (Paseo agent), worktree `fix-fb038-overlap-silent-glm`
