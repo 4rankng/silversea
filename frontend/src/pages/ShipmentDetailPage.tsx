@@ -8,11 +8,6 @@ import { ApiError } from '../lib/api';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
-import { BufferedUuiDateTimeInput } from '../design-system/forms/BufferedUuiDateTimeInput';
-import { UuiSelectField } from '../design-system/forms/UuiSelectField';
-import { localDateTimeToIso } from '../lib/shipment-operations';
-import { configClient } from '../api/configClient';
-import { isOptimisticShipmentConflict } from '../features/shipments/cus/cusDetailModel';
 import { resolveLiftDropPoints } from '../features/shipments/liftDropPoints';
 import { qk } from '../api/keys';
 import { expenseAccountingClient } from '../api/expenseAccountingClient';
@@ -30,7 +25,6 @@ import {
   deleteCusShipment,
   createShipmentDeclaration,
   deleteShipmentDeclaration,
-  addCusShipmentContainerRow,
   type ShipmentDetail as ShipmentDetailData,
   type ShipmentDeclaration,
 } from '../api/shipmentClient';
@@ -216,66 +210,11 @@ export default function ShipmentDetailPage() {
     }
   }, [data, declDeleteTarget, declSaving, fetchDetail]);
 
-  // FB-086 (card 171026113520): a lot's containers can be composed AFTER
-  // intake. The detail page rides the same shipped composition endpoint the
-  // CUS drawer and workboard already call (`addCusShipmentContainerRow` →
-  // POST /shipments/cus-workspace/:id/containers): it inserts ONE row and
-  // inherits the lot's column defaults, so this page never has to round-trip
-  // every existing row through the full-reconcile PUT.
-  const [containerAddOpen, setContainerAddOpen] = useState(false);
-  const [containerAddFields, setContainerAddFields] = useState({
-    containerNumber: '', containerTypeId: '', cargoWeightKg: '', customerAppointmentAt: '',
-  });
-  const [containerAddError, setContainerAddError] = useState<string | null>(null);
-  const [containerAdding, setContainerAdding] = useState(false);
-  // The type catalog is only needed while the dialog is open (the same lazy
-  // pattern the expense drawer's catalog uses above; same query key, so it
-  // shares the cache with useContainerTypes elsewhere).
-  const containerTypeCatalog = useQuery({
-    queryKey: qk.catalogs.containerTypes,
-    queryFn: () => configClient.getContainerTypes(),
-    enabled: containerAddOpen,
-  });
-
-  const openContainerAdd = useCallback(() => {
-    setContainerAddFields({ containerNumber: '', containerTypeId: '', cargoWeightKg: '', customerAppointmentAt: '' });
-    setContainerAddError(null);
-    setContainerAddOpen(true);
-  }, []);
-
-  const handleConfirmContainerAdd = useCallback(async () => {
-    if (!data || containerAdding) return;
-    const containerNumber = containerAddFields.containerNumber.trim().toUpperCase();
-    if (!containerNumber) {
-      setContainerAddError('Số container là bắt buộc.');
-      return;
-    }
-    setContainerAdding(true);
-    setContainerAddError(null);
-    try {
-      await addCusShipmentContainerRow(data.shipment.id, {
-        expectedShipmentVersion: data.shipment.version,
-        containerNumber,
-        ...(containerAddFields.containerTypeId ? { containerTypeId: Number(containerAddFields.containerTypeId) } : {}),
-        ...(containerAddFields.cargoWeightKg.trim() ? { cargoWeightKg: containerAddFields.cargoWeightKg.trim() } : {}),
-        ...(containerAddFields.customerAppointmentAt
-          ? { customerAppointmentAt: localDateTimeToIso(containerAddFields.customerAppointmentAt) }
-          : {}),
-      });
-      setContainerAddOpen(false);
-      await fetchDetail();
-    } catch (err) {
-      // A version 409 means this page's expectedVersion went stale (the lot
-      // advanced elsewhere). Re-read the detail so the retry sends the fresh
-      // version instead of dead-ending the dialog (FB-086 round-19 lesson).
-      if (isOptimisticShipmentConflict(err)) void fetchDetail();
-      setContainerAddError(isOptimisticShipmentConflict(err)
-        ? `${err.message} Đã tải lại dữ liệu lô — bấm Thêm lần nữa.`
-        : err instanceof ApiError ? err.message : 'Không thêm được container. Vui lòng thử lại.');
-    } finally {
-      setContainerAdding(false);
-    }
-  }, [data, containerAddFields, containerAdding, fetchDetail]);
+  // Card 171026182554 (supersedes FB-086's composition point here): adding or
+  // removing a lot's containers now lives ONLY in the Tổng quan drawer
+  // (/shipments). The detail screen stays read + business-edit; a second
+  // composition surface raced the drawer's optimistic version and dead-ended
+  // its dialog on 409s.
 
   if (loading) {
     return (
@@ -316,16 +255,6 @@ export default function ShipmentDetailPage() {
   // không được thấy nút này.
   const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS
     || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER;
-  // FB-086 — gương đúng các cổng của endpoint thêm container
-  // (POST /shipments/cus-workspace/:id/containers): vai trò workspace-writer,
-  // lô chưa khóa kế toán, chưa kết thúc, và không bao giờ là lô hàng lẻ (LCL
-  // không sở hữu container).
-  const canAddContainer = !accountingLock
-    && shipment.cargoMode === 'FCL'
-    && shipment.status !== 'COMPLETED'
-    && shipment.status !== 'CANCELED'
-    && (user?.role === Role.ADMIN || user?.role === Role.MANAGER
-      || user?.role === Role.CUS || user?.role === Role.DISPATCHER);
   // FB-107 (card 171026115820) — Nơi nhận / Nơi giao là hai điểm Nâng/Hạ thật
   // của lô, theo đúng một luật dùng chung (`resolveLiftDropPoints`): FCL lấy
   // tên cảng của container (không đảo theo chiều), LCL đổi vai theo Nhập/Xuất
@@ -499,16 +428,6 @@ export default function ShipmentDetailPage() {
         <ShipmentDetailContainers
           containers={containers}
           assignments={data.carrierAssignments}
-          addAction={canAddContainer ? (
-            <button
-              type="button"
-              className="btn btn--secondary btn--sm"
-              onClick={openContainerAdd}
-              disabled={containerAdding}
-            >
-              <Plus size={14} aria-hidden="true" /> Thêm container
-            </button>
-          ) : undefined}
         />
 
         {/* Documents */}
@@ -690,90 +609,6 @@ export default function ShipmentDetailPage() {
           )}
         >
           <p>{deleteBlockedMessage}</p>
-        </Modal>
-      )}
-
-      {containerAddOpen && (
-        <Modal
-          isOpen={containerAddOpen}
-          title="Thêm container"
-          onClose={() => { if (!containerAdding) setContainerAddOpen(false); }}
-          onConfirm={() => void handleConfirmContainerAdd()}
-          footer={(
-            <>
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() => setContainerAddOpen(false)}
-                disabled={containerAdding}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={() => void handleConfirmContainerAdd()}
-                disabled={containerAdding || !containerAddFields.containerNumber.trim()}
-              >
-                {containerAdding ? <Loader2 className="spin" size={17} aria-hidden="true" /> : null}
-                Thêm container
-              </button>
-            </>
-          )}
-        >
-          <div style={{ display: 'grid', gap: 12 }}>
-            <label style={{ display: 'grid', gap: 6 }}>
-              <span>Số container</span>
-              <input
-                className="input"
-                value={containerAddFields.containerNumber}
-                onChange={(e) => setContainerAddFields((prev) => ({ ...prev, containerNumber: e.target.value }))}
-                maxLength={50}
-                placeholder="Ví dụ: MSKU1234567"
-                disabled={containerAdding}
-                autoFocus
-              />
-            </label>
-            <UuiSelectField
-              id="container-add-type"
-              label="Loại container"
-              value={containerAddFields.containerTypeId}
-              onChange={(event) => setContainerAddFields((prev) => ({ ...prev, containerTypeId: event.target.value }))}
-              disabled={containerAdding}
-              placeholder="Chưa chọn loại cont"
-              options={[
-                { value: '', label: 'Chưa chọn loại cont' },
-                ...(containerTypeCatalog.data ?? []).map((type) => ({ value: String(type.id), label: type.name || type.code })),
-              ]}
-            />
-            <label style={{ display: 'grid', gap: 6 }}>
-              <span>Trọng lượng (kg)</span>
-              <input
-                className="input"
-                value={containerAddFields.cargoWeightKg}
-                onChange={(e) => setContainerAddFields((prev) => ({ ...prev, cargoWeightKg: e.target.value }))}
-                inputMode="decimal"
-                placeholder="Ví dụ: 15000"
-                disabled={containerAdding}
-              />
-            </label>
-            <label style={{ display: 'grid', gap: 6 }}>
-              <span>Giờ hẹn đóng/trả</span>
-              <BufferedUuiDateTimeInput
-                aria-label="Giờ hẹn đóng/trả"
-                value={containerAddFields.customerAppointmentAt}
-                onChange={(customerAppointmentAt) => setContainerAddFields((prev) => ({ ...prev, customerAppointmentAt }))}
-              />
-            </label>
-            <small style={{ color: 'var(--fg-3)' }}>
-              Cột để trống sẽ nhận giá trị mặc định của lô (tuyến, nhà máy, cảng nâng/hạ, lịch hẹn của container trước).
-            </small>
-          </div>
-          {containerAddError && (
-            <p className="shipment-detail__empty" role="alert" style={{ color: 'var(--danger, #dc2626)' }}>
-              {containerAddError}
-            </p>
-          )}
         </Modal>
       )}
 
