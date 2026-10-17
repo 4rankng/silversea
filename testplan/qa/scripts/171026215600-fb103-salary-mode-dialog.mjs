@@ -5,7 +5,7 @@
 // riêng (TimesheetReconciliationPage/MonthlyReport) — ở đây chốt DB side-effect.
 //
 // Usage (từ repo root, chống lại stack của worktree này):
-//   BASE_URL=http://localhost:7275 API_URL=http://localhost:3092/api \
+//   BASE_URL=http://localhost:7175 API_URL=http://localhost:3002/api \
 //   node testplan/qa/scripts/171026215600-fb103-salary-mode-dialog.mjs
 // Artifacts -> qa/2026-10-17_fb103-salary-mode_*
 import puppeteer from 'puppeteer';
