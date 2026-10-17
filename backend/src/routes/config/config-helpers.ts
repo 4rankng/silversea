@@ -320,6 +320,9 @@ export function hasMaterialCustomerUpdate(
 export const MATERIAL_DRIVER_FIELDS = new Set<keyof DriverPayload>([
   'baseSalary',
   'socialInsurance',
+  // FB-103 (ticket 171026215600) — hình thức lương là cấu hình lương của lái
+  // xe (mặc định chấm công tháng mới), cùng bậc với lương cứng.
+  'salaryMode',
 ]);
 
 export function hasMaterialDriverConfigChange(data: DriverPayload): boolean {

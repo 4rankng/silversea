@@ -99,6 +99,14 @@ trong router `accounting-deposit.ts` nên không cần dòng policy mới.
 | `PER_TRIP` — "không trốn vé" | `300_000 × trips` + `dailyBase × workdays` + thưởng chuyến vượt bậc |
 | `FLAT_MONTHLY` — lương tháng cố định | `flatAmount` ( ví dụ 10.000.000đ nếu đủ công) |
 
+Nơi chọn/cập nhật (sau verify-fail FB-103, ticket 171026215600):
+- **Mức lái xe (mặc định):** cột `drivers.salary_mode` (backfill từ `salary_type`
+  cũ: LƯƠNG CHUYẾN → PER_TRIP, LƯƠNG CỨNG → FLAT_MONTHLY). Sửa qua dialog
+  **"Sửa lương cứng"** (trang Lương & Chấm công) và dialog **sửa lái xe**
+  (Danh mục Tài xế) — select "Hình thức lương" 2 lựa chọn.
+- **Mức phiên tháng (override):** chọn khi mở bảng (modal "Mở bảng chấm công"
+  khởi tạo sẵn từ chế độ của lái xe) và đổi ở panel "Chế độ lương" bàn đối chiếu.
+
 Chi tiết chế độ PER_TRIP (định nghĩa gốc):
 - `300.000đ/chuyến` cho mọi chuyến.
 - `dailyBase` (lương ngày) theo **ngày công** (workdays), **không** theo Chủ nhật.

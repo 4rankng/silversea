@@ -339,7 +339,7 @@ export default function SalaryAttendancePage() {
                 </div>
               ) : salary ? (
                 <>
-	                  <SalarySummaryCard salary={salary} onEditBaseSalary={canReopenCompanyPeriod ? () => setShowBaseSalaryEdit(true) : undefined} driverName={drivers.find((d) => d.id === selectedDriverId)?.name} />
+	                  <SalarySummaryCard salary={salary} onEditBaseSalary={canReopenCompanyPeriod ? () => setShowBaseSalaryEdit(true) : undefined} driverName={drivers.find((d) => d.id === selectedDriverId)?.name} salaryMode={drivers.find((d) => d.id === selectedDriverId)?.salaryMode} />
 	                    <BaseSalaryEditModal
                     isOpen={showBaseSalaryEdit}
                     onClose={() => setShowBaseSalaryEdit(false)}

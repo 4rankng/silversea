@@ -525,6 +525,9 @@ export async function computeAllDriverSalaries(year: number, month: number) {
     name: s.drivers.name,
     baseSalary: s.drivers.baseSalary,
     status: s.drivers.status,
+    // FB-103 (ticket 171026215600) — hiển thị "Hình thức lương" trên card
+    // tổng kết lương và khởi tạo dialog "Sửa lương cứng".
+    salaryMode: s.drivers.salaryMode,
   }).from(s.drivers)
     .where(isNull(s.drivers.deletedAt))
     .orderBy(s.drivers.name);

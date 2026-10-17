@@ -8,6 +8,7 @@ import { db, type Tx } from '../db';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import { salaryModeFromSalaryType } from '../lib/driver-salary-mode';
 import { reassignTruckDriverInTx } from './truck-driver-assignment.service';
 import type { AuthUser } from '../middleware/auth';
 import {
@@ -1272,6 +1273,11 @@ async function applyParsedRows(
       bankName: payload.bankName ?? existing?.bankName ?? null,
       bankAccount: payload.bankAccount ?? existing?.bankAccount ?? null,
       salaryType: payload.salaryType ?? existing?.salaryType ?? null,
+      // FB-103 (ticket 171026215600) — enum đi cùng text nó dẫn xuất: sheet
+      // nhập lại "Hình thức lương" thì chế độ theo sheet; sheet bỏ trống thì
+      // giữ nguyên giá trị cũ đã có (coalesce ở trên ra null → PER_TRIP mặc
+      // định, đúng hành vi cũ với dòng mới).
+      salaryMode: salaryModeFromSalaryType(payload.salaryType ?? existing?.salaryType ?? null),
     };
     const entity = existing
       ? (await tx.update(s.drivers).set({ ...driverValues, updatedAt: new Date() })

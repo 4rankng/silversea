@@ -3,7 +3,7 @@ import type { OperationalSiteContact } from '@tingting/shared';
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
 import {
-  boolean, date, index, integer, jsonb, numeric, pgTable, serial, text, timestamp, uniqueIndex, varchar,
+  boolean, check, date, index, integer, jsonb, numeric, pgTable, serial, text, timestamp, uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { customerStatusEnum, driverStatusEnum, masterImportRowClassificationEnum, masterImportStatusEnum, operationalSiteTypeEnum, trailerStatusEnum, trailerTypeEnum, truckStatusEnum } from './_enums';
@@ -82,6 +82,14 @@ export const drivers = pgTable('drivers', {
   bankName: varchar('bank_name', { length: 160 }),
   bankAccount: varchar('bank_account', { length: 80 }),
   salaryType: varchar('salary_type', { length: 50 }),
+  // FB-103 (ticket 171026215600) — the enum-backed salary mode PER_TRIP /
+  // FLAT_MONTHLY. Deliberately a NEW column: legacy salaryType free text
+  // ("LƯƠNG CỨNG"/"LƯƠNG CHUYẾN" from the customer's sheet) is preserved
+  // verbatim; the migration backfills the enum from its meaning. The driver
+  // row's mode is the DEFAULT when Kế toán opens a new timesheet month
+  // without picking one (the per-month override lives in
+  // driver_timesheet_months.salaryMode).
+  salaryMode: varchar('salary_mode', { length: 20 }).notNull().default('PER_TRIP'),
   status: driverStatusEnum('status').default('ACTIVE'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -90,6 +98,10 @@ export const drivers = pgTable('drivers', {
   uniqueIndex('drivers_active_user_uniq_idx')
     .on(table.userId)
     .where(sql`${table.userId} is not null and ${table.deletedAt} is null`),
+  // Declared here as well as in the migration: the Drizzle schema is the
+  // source of truth, and a schema missing a constraint the database already
+  // has would make the next `generate` emit a DROP CONSTRAINT for it.
+  check('drivers_salary_mode_check', sql`${table.salaryMode} in ('PER_TRIP', 'FLAT_MONTHLY')`),
 ]);
 
 

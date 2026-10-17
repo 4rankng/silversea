@@ -1,9 +1,11 @@
 import { useState, useEffect, useId, useRef } from 'react';
-import { Save, X, Loader2, Hash, User, CreditCard, BadgeCheck, Phone, Landmark, Wallet, Banknote } from 'lucide-react';
+import { Save, X, Loader2, Hash, User, CreditCard, BadgeCheck, Phone, Landmark, Wallet } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { Input } from '../../components/untitled-ui/base/input/input';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { EntityFormSection, DateField, RequiredHint } from '../../components/shared/EntityFormParts';
-import type { Driver } from '@tingting/shared';
+import { SALARY_MODE_OPTIONS } from '../timesheet/salary-modes';
+import type { Driver, TimesheetSalaryMode } from '@tingting/shared';
 
 export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
   saving: boolean; item?: Driver; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
@@ -18,7 +20,11 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
   const [phone, setPhone] = useState(item?.phone || '');
   const [bankName, setBankName] = useState(item?.bankName || '');
   const [bankAccount, setBankAccount] = useState(item?.bankAccount || '');
-  const [salaryType, setSalaryType] = useState(item?.salaryType || '');
+  // FB-103 (ticket 171026215600) — "Hình thức lương" là chọn PER_TRIP /
+  // FLAT_MONTHLY (enum drivers.salary_mode), không còn text tự do. Giá trị
+  // salary_type cũ giữ nguyên trong DB (nhập/liệt kê nguồn), chỉ không còn
+  // field nhập tay ở dialog này.
+  const [salaryMode, setSalaryMode] = useState<TimesheetSalaryMode>(item?.salaryMode ?? 'PER_TRIP');
   useEffect(() => {
     if (isOpen) {
       setCode(item?.code || '');
@@ -29,9 +35,9 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
       setPhone(item?.phone || '');
       setBankName(item?.bankName || '');
       setBankAccount(item?.bankAccount || '');
-      setSalaryType(item?.salaryType || '');
+      setSalaryMode(item?.salaryMode ?? 'PER_TRIP');
     }
-  }, [isOpen, item?.id, item?.code, item?.name, item?.idNumber, item?.licenseNumber, item?.licenseExpiryDate, item?.phone, item?.bankName, item?.bankAccount, item?.salaryType]);
+  }, [isOpen, item?.id, item?.code, item?.name, item?.idNumber, item?.licenseNumber, item?.licenseExpiryDate, item?.phone, item?.bankName, item?.bankAccount, item?.salaryMode]);
   const handleSave = () => {
     if (saving || !name.trim() || !formRef.current?.reportValidity()) return;
     onsave({
@@ -43,7 +49,7 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
       phone: phone.trim() || undefined,
       bankName: bankName.trim() || undefined,
       bankAccount: bankAccount.trim() || undefined,
-      salaryType: salaryType.trim() || undefined,
+      salaryMode,
     });
   };
   return (
@@ -135,12 +141,12 @@ export function DriverFormModal({ saving, item, onsave, oncancel, isOpen }: {
             placeholder="Số tài khoản"
             inputClassName="tabular-nums"
           />
-          <Input
+          {/* FB-103 — chọn enum, không còn text tự do "Ví dụ: LUONG CUNG". */}
+          <UuiSelectField
             label="Hình thức lương"
-            icon={Banknote}
-            value={salaryType}
-            onChange={setSalaryType}
-            placeholder="Ví dụ: LUONG CUNG"
+            value={salaryMode}
+            onChange={event => setSalaryMode(event.target.value as TimesheetSalaryMode)}
+            options={SALARY_MODE_OPTIONS}
           />
         </EntityFormSection>
       </form>

@@ -37,6 +37,11 @@ const warehouseName = `Kho import ${suffix}`;
 const portName = `Cảng import ${suffix}`;
 const driverName = `Tài xế import ${suffix}`;
 const driverPhone = `09${String(Date.now()).slice(-8)}`;
+// FB-103 — hai lái xe sheet "Lái xe" mang hình thức lương text tự do.
+const cuuDriverName = `Tài xế cứng ${suffix}`;
+const cuuDriverPhone = `07${String(Date.now()).slice(-8)}`;
+const chuyenDriverName = `Tài xế chuyến ${suffix}`;
+const chuyenDriverPhone = `03${String(Date.now()).slice(-8)}`;
 const truckPlate = `15A-${String(Date.now()).slice(-5)}`;
 const trailerPlate = `15R-${String(Date.now() + 1).slice(-5)}`;
 const unknownDriverTruckPlate = `15B-${String(Date.now() + 2).slice(-5)}`;
@@ -87,6 +92,13 @@ async function buildWorkbookFixture(): Promise<Buffer> {
   setRow(fleet, 4, ['NẶNG 2 CẦU', truckPlate, trailerPlate, '', driverName]);
   setRow(fleet, 5, ['NẶNG 2 CẦU', unknownDriverTruckPlate, '', '', `Tài xế không có ${suffix}`]);
   setRow(fleet, 6, ['', '', '', '', '', '', '', '', '', '', '', '', '', 'Xe tải', '1250KG']);
+
+  // FB-103 (ticket 171026215600) — sheet "Lái xe" của mẫu 4.9 sep-2026 mang
+  // "Hình thức lương" text tự do; import phải ghi kèm salary_mode dẫn xuất.
+  const driverSheet = workbook.addWorksheet('Lái xe');
+  setRow(driverSheet, 2, ['Mã', 'Họ tên', 'CCCD', 'GPLX', 'Hạn GPLX', 'Điện thoại', 'Ngân hàng', 'Số TK', 'Hình thức lương']);
+  setRow(driverSheet, 3, [`TXC${String(Date.now()).slice(-6)}`, cuuDriverName, '', 'B2', '', cuuDriverPhone, '', '', 'LƯƠNG CỨNG']);
+  setRow(driverSheet, 4, [`TXCH${String(Date.now()).slice(-6)}`, chuyenDriverName, '', 'B2', '', chuyenDriverPhone, '', '', 'LƯƠNG CHUYẾN']);
 
   const ports = workbook.addWorksheet('THÔNG TIN CẢNG BÃI');
   setRow(ports, 2, ['STT', 'TÊN CẢNG', 'ĐỊA CHỈ', 'LINK WEB THỰC HIỆN TÁC NGHIỆP']);
@@ -566,7 +578,8 @@ describe('master-data apply', () => {
     assert.deepEqual(first.body.appliedCounts, {
       operational_site: 2,
       port: 1,
-      driver: 1,
+      // FB-103 (ticket 171026215600) — sheet "Lái xe" góp 2 lái xe nữa.
+      driver: 3,
       fleet: 1,
     });
     const replay = await requestJson('POST', `/api/config/master-data-imports/${batch.id}/apply`, {
@@ -622,6 +635,22 @@ describe('master-data apply', () => {
     assert.equal(drivers[0]!.userId, null);
     assert.equal(drivers[0]!.assignedTruckId, trucks[0]!.id);
     assert.equal(matchedUsers.length, 0);
+
+    // FB-103 (ticket 171026215600) — sheet "Lái xe" nhập "Hình thức lương"
+    // text tự do: import phải ghi kèm salary_mode dẫn xuất đúng nghĩa, nếu
+    // không lái xe LƯƠNG CỨNG bị nhầm PER_TRIP mà UI không còn hiện text cũ.
+    // (Tra theo phone: parse áp titleCaseName cho tên.)
+    const sheetDrivers = await db.select({
+      phone: s.drivers.phone,
+      salaryType: s.drivers.salaryType,
+      salaryMode: s.drivers.salaryMode,
+    }).from(s.drivers).where(inArray(s.drivers.phone, [cuuDriverPhone, chuyenDriverPhone]));
+    assert.equal(sheetDrivers.length, 2);
+    const byPhone = new Map(sheetDrivers.map((row) => [row.phone, row]));
+    assert.equal(byPhone.get(cuuDriverPhone)?.salaryType, 'LƯƠNG CỨNG');
+    assert.equal(byPhone.get(cuuDriverPhone)?.salaryMode, 'FLAT_MONTHLY');
+    assert.equal(byPhone.get(chuyenDriverPhone)?.salaryType, 'LƯƠNG CHUYẾN');
+    assert.equal(byPhone.get(chuyenDriverPhone)?.salaryMode, 'PER_TRIP');
 
     const status = await requestJson('GET', `/api/config/master-data-imports/${batch.id}`);
     assert.equal(status.status, 200);
@@ -845,6 +874,10 @@ after(async () => {
   const drivers = await db.select({ id: s.drivers.id }).from(s.drivers)
     .where(and(eq(s.drivers.name, driverName), eq(s.drivers.phone, driverPhone)));
   if (drivers.length > 0) await db.delete(s.drivers).where(inArray(s.drivers.id, drivers.map((row) => row.id)));
+  // FB-103 — hai lái xe từ sheet "Lái xe" của fixture (tra theo phone).
+  const sheetDrivers = await db.select({ id: s.drivers.id }).from(s.drivers)
+    .where(inArray(s.drivers.phone, [cuuDriverPhone, chuyenDriverPhone]));
+  if (sheetDrivers.length > 0) await db.delete(s.drivers).where(inArray(s.drivers.id, sheetDrivers.map((row) => row.id)));
   const trucks = await db.select({ id: s.trucks.id }).from(s.trucks).where(eq(s.trucks.licensePlate, truckPlate));
   if (trucks.length > 0) await db.delete(s.trucks).where(inArray(s.trucks.id, trucks.map((row) => row.id)));
   const trailers = await db.select({ id: s.trailers.id }).from(s.trailers).where(eq(s.trailers.licensePlate, trailerPlate));

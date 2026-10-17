@@ -7,6 +7,7 @@ import type {
   // straight from '../constants' further down, so an import only shadowed that
   // re-export (flagged unused by @typescript-eslint).
 } from '../constants';
+import type { TimesheetSalaryMode } from '../calculations/timesheetSalary';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@ export interface Driver {
   bankName: string | null;
   bankAccount: string | null;
   salaryType: string | null;
+  /** FB-103 (ticket 171026215600) — chế độ lương chính thức PER_TRIP/FLAT_MONTHLY.
+   *  NOT NULL default PER_TRIP; legacy free-text salaryType stays untouched. */
+  salaryMode: TimesheetSalaryMode;
   status: DriverStatus;
   createdAt: string;
   updatedAt: string;
