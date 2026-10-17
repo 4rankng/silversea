@@ -31,8 +31,7 @@ import { SortHeader } from '../../../components/shared/SortHeader';
 import { formatISODate, stripDecimalTrailingZeros } from '../../../lib/format';
 import '../../../styles/table-sort.css';
 import type { LedgerColumn } from '../../../lib/column-visibility';
-
-export type ShipmentDetailEditMode = 'identity' | 'documents' | 'container' | 'route' | 'schedule' | 'vehicle' | 'notes';
+import { modeLabelForTrigger, type ShipmentDetailEditMode } from './edit-mode';
 
 export interface ActiveShipmentDetailEdit {
   row: ShipmentCusContainerFlatRow;
@@ -124,19 +123,6 @@ const DISPATCH_STRIP_COLORS: Record<DispatchStatus, string> = {
   IN_TRANSIT: 'var(--info)',
   COMPLETED: 'var(--success)',
 };
-
-// Shared with the missing-fields summary control, whose jump-to-editor
-// buttons reuse the same cell vocabulary.
- 
-export function modeLabelForTrigger(mode: ShipmentDetailEditMode): string {
-  if (mode === 'identity') return 'khách hàng và lộ trình';
-  if (mode === 'documents') return 'chứng từ và hãng tàu';
-  if (mode === 'container') return 'thông số container';
-  if (mode === 'route') return 'điểm nâng hạ';
-  if (mode === 'vehicle') return 'phân xe';
-  if (mode === 'schedule') return 'lịch trình';
-  return 'ghi chú';
-}
 
 /* ── Card 161026232339 (DEV SPEC Hàng lẻ §II.3.1) ─────────────────────────
  * A lot-level row (a container-less LCL lot) has no container line, so its

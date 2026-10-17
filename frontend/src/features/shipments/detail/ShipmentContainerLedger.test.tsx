@@ -8,10 +8,10 @@ import type {
 } from '@tingting/shared';
 import {
   ShipmentContainerLedger,
-  type ShipmentDetailEditMode,
   type ShipmentDocumentsDraft,
   type ShipmentScheduleDraft,
 } from './ShipmentContainerLedger';
+import type { ShipmentDetailEditMode } from './edit-mode';
 
 // Minimal row/line/detail fixtures — the ledger only reads a per-mode subset,
 // mirroring the thin-cast fixture precedent in ShipmentContainerScheduleEditor.test.tsx.

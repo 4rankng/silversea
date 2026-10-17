@@ -36,8 +36,8 @@ import {
   type ShipmentRouteDraft,
   type ShipmentScheduleDraft,
   type ShipmentVehicleDraft,
-  type ShipmentDetailEditMode,
 } from '../detail/ShipmentContainerLedger';
+import type { ShipmentDetailEditMode } from '../detail/edit-mode';
 import { canEditMode, isOptimisticShipmentConflict, type DispatchStatusFilter } from './cusDetailModel';
 import { safeError } from './cusUtils';
 

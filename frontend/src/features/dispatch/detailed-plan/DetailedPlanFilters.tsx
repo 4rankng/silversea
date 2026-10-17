@@ -15,12 +15,7 @@ import type { DispatchDetailPlanAssignmentCounts } from '../../../api/dispatchPl
 import { DispatchTimeFilterField } from './DispatchTimeFilterField';
 import { useVehicleRouteOptions, VehicleDriverSelect, FleetFilterFields } from './DetailedPlanVehicleFilters';
 
-export interface FacetItem {
-  id: number;
-  name: string;
-}
-
-export type FacetLoader = (q?: string) => Promise<FacetItem[]>;
+import type { FacetLoader } from '../facet-types';
 
 interface DetailedPlanFiltersProps {
   filters: DetailedPlanFilterState;

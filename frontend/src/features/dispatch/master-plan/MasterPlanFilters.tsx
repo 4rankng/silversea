@@ -7,6 +7,7 @@ import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient'
 import type { MasterPlanFilters as FilterState } from './useDispatchMasterPlan';
 import './MasterPlanGrid.css';
 import { useCoarsePointer } from '../useCoarsePointer';
+import type { FacetItem, FacetLoader } from '../facet-types';
 
 interface MasterPlanFiltersProps {
   filters: FilterState;
@@ -15,12 +16,6 @@ interface MasterPlanFiltersProps {
   action?: ReactNode;
 }
 
-export interface FacetItem {
-  id: number;
-  name: string;
-}
-
-type FacetLoader = (q?: string) => Promise<FacetItem[]>;
 
 interface CarrierFacetItem extends FacetItem {
   isActive?: boolean;
