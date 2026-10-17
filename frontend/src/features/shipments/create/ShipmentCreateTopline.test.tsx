@@ -59,6 +59,19 @@ describe('required completion — the whole form, live', () => {
     expect(completion(EMPTY_SHIPMENT_CREATE_FORM)).toEqual({ done: 0, total: 9 });
   });
 
+  it('walks the chip math across fill states: empty → partial → all-identity → all-9 (QA1-007-COMPLETENESS-CHIP)', () => {
+    // One denominator throughout: the full required set of the form shape.
+    expect(completion(EMPTY_SHIPMENT_CREATE_FORM)).toEqual({ done: 0, total: 9 });
+    expect(completion({ ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '1' })).toEqual({ done: 1, total: 9 });
+    expect(completion({
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '1',
+      tradeDirection: 'IMPORT',
+    })).toEqual({ done: 2, total: 9 });
+    expect(completion(IDENTITY_FILLED)).toEqual({ done: 3, total: 9 });
+    expect(completion(IDENTITY_FILLED, [FULL_FCL_ROW])).toEqual({ done: 9, total: 9 });
+  });
+
   it('reads 3/9 once only the three identity fields are filled (the repro)', () => {
     const form = IDENTITY_FILLED;
     const containers = [createEmptyContainer()];
