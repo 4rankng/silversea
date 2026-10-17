@@ -311,8 +311,10 @@ describe('161026232349 — CUS single-lot thu vehicle class (§II.3.2 "Thu riên
     const route = await mkRoute();
     const lot1 = await mkLclLot(customer.id, route.id, `SRC-5-1-${suffix.slice(-6)}`);
     const lot2 = await mkLclLot(customer.id, route.id, `SRC-5-2-${suffix.slice(-6)}`);
-    const trip1 = await mkBoardTrip(lot1.id, customer.id, route.id);
-    const trip2 = await mkBoardTrip(lot2.id, customer.id, route.id);
+    // The board trips are the precondition (a live trip per lot); the rows
+    // themselves are never read here — keep the writes, drop the bindings.
+    await mkBoardTrip(lot1.id, customer.id, route.id);
+    await mkBoardTrip(lot2.id, customer.id, route.id);
     const groupClass = await vehicleClassByCode('3.5T');
     await mkCustomerLane(customer.id, route.id, groupClass.id, groupClass.code, LANE_PRICE);
     const grouped = await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id], vehicleSizeClassId: groupClass.id }, actor);
@@ -337,7 +339,7 @@ describe('161026232349 — CUS single-lot thu vehicle class (§II.3.2 "Thu riên
     const customer = await mkCustomer('single rev class bks');
     const route = await mkRoute();
     const lot = await mkLclLot(customer.id, route.id, `SRC-6-${suffix.slice(-6)}`);
-    const trip = await mkBoardTrip(lot.id, customer.id, route.id);
+    await mkBoardTrip(lot.id, customer.id, route.id);
     const truckClass = await vehicleClassByCode('3.5T');
     await mkCustomerLane(customer.id, route.id, truckClass.id, truckClass.code, LANE_PRICE);
     const saved = await setLclLotRevClass({ shipmentId: lot.id, vehicleSizeClassId: truckClass.id }, actor);

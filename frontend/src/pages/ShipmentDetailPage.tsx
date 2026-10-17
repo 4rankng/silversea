@@ -9,6 +9,7 @@ import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
 import { BufferedUuiDateTimeInput } from '../design-system/forms/BufferedUuiDateTimeInput';
+import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { localDateTimeToIso } from '../lib/shipment-operations';
 import { configClient } from '../api/configClient';
 import { isOptimisticShipmentConflict } from '../features/shipments/cus/cusDetailModel';
@@ -732,20 +733,18 @@ export default function ShipmentDetailPage() {
                 autoFocus
               />
             </label>
-            <label style={{ display: 'grid', gap: 6 }}>
-              <span>Loại container</span>
-              <select
-                className="input"
-                value={containerAddFields.containerTypeId}
-                onChange={(e) => setContainerAddFields((prev) => ({ ...prev, containerTypeId: e.target.value }))}
-                disabled={containerAdding}
-              >
-                <option value="">Chưa chọn loại cont</option>
-                {(containerTypeCatalog.data ?? []).map((type) => (
-                  <option key={type.id} value={String(type.id)}>{type.name || type.code}</option>
-                ))}
-              </select>
-            </label>
+            <UuiSelectField
+              id="container-add-type"
+              label="Loại container"
+              value={containerAddFields.containerTypeId}
+              onChange={(event) => setContainerAddFields((prev) => ({ ...prev, containerTypeId: event.target.value }))}
+              disabled={containerAdding}
+              placeholder="Chưa chọn loại cont"
+              options={[
+                { value: '', label: 'Chưa chọn loại cont' },
+                ...(containerTypeCatalog.data ?? []).map((type) => ({ value: String(type.id), label: type.name || type.code })),
+              ]}
+            />
             <label style={{ display: 'grid', gap: 6 }}>
               <span>Trọng lượng (kg)</span>
               <input

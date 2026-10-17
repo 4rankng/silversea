@@ -10,7 +10,7 @@ const CARD = 'fb102';
 const results = {};
 const YEAR = 2099, MONTH = 12;
 const DRIVER_ID = 11, DRIVER_NAME = 'Bùi Quang Hường';
-const DRIVER2_ID = 16, DRIVER2_NAME = 'Bùi Tiến Dũng';
+const DRIVER2_NAME = 'Bùi Tiến Dũng';
 
 const tripsOf = { K: 1, Q: 2, 'Đ': 1, L: 0, N: 0, P: 0 };
 const workdayOf = { K: 1, Q: 1, 'Đ': 1, L: 1, N: 0, P: 0 };

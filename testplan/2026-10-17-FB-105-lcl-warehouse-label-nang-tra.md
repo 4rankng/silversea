@@ -64,6 +64,15 @@ Chỉ thị người dùng 2026-10-17 kèm spec
 `shipments.delivery_location` (điểm hạ) — 2 cột đã có sẵn, đúng nghĩa
 "điểm lấy/trả" (seed đổ sẵn chúng cho mọi lô) → **không cần migration**.
 
+**Ranh giới FE/BE của luật "Nhà máy bắt buộc"** (chủ ý): ô Nhà máy bắt buộc là
+luật của FORM (spec §2 yêu cầu 5) nên chốt ở `getShipmentCreateReadiness` +
+dấu `*`; BE không thêm 409 mới cho nó. Riêng điểm Kho đã có luật BE sẵn
+(`assertReferenceIsActive`) nên được nới đúng mức: id hợp lệ **hoặc** text
+`pickup_location`/`delivery_location` theo chiều, lệnh chạy ngoài để trống.
+Lý do không siết thêm ở BE: luật là **có điều kiện** (chỉ lô lẻ của khách hàng
+danh mục) và mọi đường nhận lô đều dùng chung một chỗ; thêm 409 sẽ chặn cả các
+lô cũ/đường khác không đi qua form.
+
 ## Regression pin
 
 - `frontend/src/features/shipments/create/shipment-create-model.test.ts`:
