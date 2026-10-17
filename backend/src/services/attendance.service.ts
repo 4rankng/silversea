@@ -6,7 +6,7 @@ import { resolveSalaryPeriodDateRange } from './salary-period.service';
 import { ApiError } from '../errors';
 import { computeLiveSalary } from './salary-calculation.service';
 import { restoreSalarySnapshot, attendanceFingerprint } from './salary-confirmed-snapshot';
-import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import { lockApplicationOwnedUniqueness, lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { billBookingTitle } from '../lib/business-keys';
 
 
@@ -154,11 +154,22 @@ export async function batchUpsertWorkDays(
 ) {
   const execute = async (tx: Tx) => {
     const results = [];
+    // One canonical-order advisory-lock acquisition and one pre-read of the
+    // affected rows instead of a lock+select per item. `existingByDate` is
+    // updated as this loop writes, so duplicate dates in `items` still see
+    // the loop's own earlier writes (sequential visibility preserved).
+    await lockApplicationOwnedUniquenessSet(
+      tx,
+      items.map((item) => ({ scope: 'driver-work-day', parts: [driverId, item.date] })),
+    );
+    const dates = [...new Set(items.map((item) => item.date))];
+    const existingRows = dates.length > 0
+      ? await tx.select().from(s.driverWorkDays)
+        .where(and(eq(s.driverWorkDays.driverId, driverId), inArray(s.driverWorkDays.date, dates)))
+      : [];
+    const existingByDate = new Map(existingRows.map((row) => [row.date, row]));
     for (const item of items) {
-      await lockDriverWorkDay(tx, driverId, item.date);
-      const [existing] = await tx.select().from(s.driverWorkDays)
-        .where(and(eq(s.driverWorkDays.driverId, driverId), eq(s.driverWorkDays.date, item.date)))
-        .limit(1);
+      const existing = existingByDate.get(item.date);
       if (item.status === null) {
         // Delete/clear the work day
         if (existing) {
@@ -168,6 +179,7 @@ export async function batchUpsertWorkDays(
             continue;
           }
           await tx.delete(s.driverWorkDays).where(eq(s.driverWorkDays.id, existing.id));
+          existingByDate.delete(item.date);
         }
         results.push({ date: item.date, action: 'deleted' });
       } else {
@@ -204,6 +216,7 @@ export async function batchUpsertWorkDays(
           : await tx.insert(s.driverWorkDays)
             .values({ driverId, date: item.date, status: item.status, note: item.note ?? null, createdBy, tripId: null })
             .returning();
+        existingByDate.set(item.date, result);
         results.push({ date: item.date, action: 'upserted', result });
       }
     }
@@ -238,15 +251,25 @@ export async function syncTripWorkDays(
   }
 
   const execute = async (executor: Executor) => {
-    for (const date of dates) {
-      await lockDriverWorkDay(executor, driverId, date);
-      const [existing] = await executor.select({ id: s.driverWorkDays.id, existingTripId: s.driverWorkDays.tripId })
+    // One canonical-order advisory-lock acquisition + one pre-read for the
+    // whole date range instead of a lock+select per day. Contribution rules
+    // are unchanged and per-day writes stay as they were.
+    await lockApplicationOwnedUniquenessSet(
+      executor,
+      dates.map((date) => ({ scope: 'driver-work-day', parts: [driverId, date] })),
+    );
+    const existingRows = dates.length > 0
+      ? await executor.select({ id: s.driverWorkDays.id, date: s.driverWorkDays.date, existingTripId: s.driverWorkDays.tripId })
         .from(s.driverWorkDays)
         .where(and(
           eq(s.driverWorkDays.driverId, driverId),
-          eq(s.driverWorkDays.date, date),
+          inArray(s.driverWorkDays.date, dates),
         ))
-        .limit(1);
+      : [];
+    const existingByDate = new Map(existingRows.map((row) => [row.date, row]));
+
+    for (const date of dates) {
+      const existing = existingByDate.get(date);
 
       if (existing) {
         // Contribution-aware: preserve existing trip attribution if another

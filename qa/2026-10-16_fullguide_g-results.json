@@ -1,20 +1,20 @@
 {
-  "pin": "a68d2e04",
-  "date": "2026-10-16T15:22:03.384Z",
+  "pin": "11720424",
+  "date": "2026-10-17T14:53:53.179Z",
   "results": {
     "B.6a": {
       "verdict": "PASS",
-      "note": "\"Phê duyệt tạm ứng\" button=true, clicked=true, DB=[27|RECORDED|9|t|2]"
+      "note": "\"Phê duyệt tạm ứng\" button=true, clicked=true, DB=[29|RECORDED|9|t|2]"
     },
     "B.6c": {
       "verdict": "PASS",
-      "note": "Báo cáo hoàn ứng: signedCol=false, −200.000 shown=false, warn=true, API row={\"staffId\":3,\"staffName\":\"Nguyễn Huy Hoàng\",\"dntt\":0,\"advanced\":875000,\"remaining\":300000,\"remainingSigned\":-875000,\"needsCollection\":true,\"direction\":\"CTY_YEU_CAU_THU_TIEN_UNG\",\"note\":\"Đề nghị thu tiền ứng\"}"
+      "note": "Báo cáo hoàn ứng: signedCol=false, −200.000 shown=false, warn=true, API row={\"staffId\":3,\"staffName\":\"Nguyễn Huy Hoàng\",\"dntt\":0,\"advanced\":475000,\"remaining\":200000,\"remainingSigned\":-475000,\"needsCollection\":true,\"direction\":\"CTY_YEU_CAU_THU_TIEN_UNG\",\"note\":\"Đề nghị thu tiền ứng\"}"
     },
     "B.6b": {
       "verdict": "PASS",
-      "note": "live submit tick: present=true, gated=true, unlockedAfterTick=true, submitted=true, phiếu confirm fact=\"Xác nhận hoàn ứng: Nguyễn Huy Hoàng · 22:21:53 16/10/2026\""
+      "note": "live submit tick: present=true, gated=true, unlockedAfterTick=true, submitted=true, phiếu confirm fact=\"Xác nhận hoàn ứng: Nguyễn Huy Hoàng · 21:53:43 17/10/2026\""
     }
   },
-  "advanceId": 27,
-  "reason": "QA fullguide B6 tạm ứng 18690b"
+  "advanceId": 29,
+  "reason": "QA fullguide B6 tạm ứng 555ba9"
 }

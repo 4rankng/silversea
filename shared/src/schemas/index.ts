@@ -1760,6 +1760,14 @@ export const createShipmentSchema = createShipmentBaseSchema.superRefine((data, 
   validateShipmentAdHocIdentity(data, ctx);
 });
 
+/**
+ * Keys `POST /api/shipments` accepts. The route rejects anything outside this
+ * list instead of letting zod strip it silently: a caller sending the create
+ * form's own field ids (`quantity`, `weightKg`, `volumeCbm`) must be told, not
+ * handed a 201 whose lot carries no cargo facts.
+ */
+export const CREATE_SHIPMENT_KEYS: readonly string[] = Object.freeze(Object.keys(createShipmentBaseSchema.shape));
+
 // Quick create — M10.1 clerk mobile entry point. Minimum data set is just
 // `customerId` (the only NOT NULL column); every other field is optional
 // and typically filled later from the M10.2 doc-entry page. Optional
@@ -1804,17 +1812,22 @@ export const shipmentContainerItemSchema = z.object({
 
 // Create-workspace combined contract: root + containers in ONE idempotent
 // call - a containers failure rolls back the whole create.
-export const quickCreateShipmentSchema = createShipmentBaseSchema.extend({
+const quickCreateShipmentBaseSchema = createShipmentBaseSchema.extend({
   declarationNumber: z.string().trim().max(50).optional().nullable(),
   _requestId: z.string().min(1).max(100).optional(),
   // Create-workspace combined save: containers ride the idempotent create
   // call so a containers failure rolls back the root with it (no 0-cont
   // orphan lots).
   containers: z.array(shipmentContainerItemSchema).optional(),
-}).superRefine((data, ctx) => {
+});
+
+export const quickCreateShipmentSchema = quickCreateShipmentBaseSchema.superRefine((data, ctx) => {
   validateShipmentDocumentReferences(data, ctx);
   validateShipmentAdHocIdentity(data, ctx);
 });
+
+/** Keys `POST /api/shipments/quick` accepts (base + the quick-only channels). */
+export const QUICK_CREATE_SHIPMENT_KEYS: readonly string[] = Object.freeze(Object.keys(quickCreateShipmentBaseSchema.shape));
 
 // Update shipment. `expectedVersion` is the canonical optimistic-lock field;
 // legacy callers may still send `version` and are normalized onto

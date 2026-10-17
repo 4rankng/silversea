@@ -4,7 +4,7 @@
 //   3. Delete → re-add the same selector trio (phiếu 161026121500 regression).
 //   4. Cleanup: delete the QA row again; DB proof of tombstones.
 import {
-  BASE, PIN, sleep, uuid, makeLogger, healthGate, login, api, psql, boot, tap, setInput, waitText, waitCount, bodyText,
+  BASE, PIN, sleep, uuid, makeLogger, healthGate, login, api, psql, boot, tap, setInput, waitText, waitCount, bodyText, vnDate,
 } from './fullguide-lib.mjs';
 import { writeFileSync } from 'node:fs';
 
@@ -31,9 +31,17 @@ const customers = await api(admin.token, 'GET', '/customers?limit=50');
 const customer = (customers.json?.items ?? customers.json ?? []).find(c => !c.deletedAt && c.name && c.name.length <= 40);
 const routes = await api(admin.token, 'GET', '/routes?limit=50');
 const route = (routes.json?.items ?? routes.json ?? []).find(r => !r.deletedAt);
-const cls5t = classList.find(c => /(^|\D)5\s*tấn/i.test(c.name)) ?? classList.find(c => !c.deletedAt);
-const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
-step('c-facts', { customer: customer?.id, route: route?.id, cls5t: cls5t ? { id: cls5t.id, name: cls5t.name } : null });
+// "Xe 5 tấn" must be exact: the loose 5-tấn pattern also matched "Xe 2.5 tấn",
+// which is how this driver ended up writing its fixture row into the 2.5T lane
+// and then colliding with the lane the live price already owns.
+const cls5t = classList.find(c => /^xe\s*5\s*tấn$/i.test((c.name ?? '').trim()))
+  ?? classList.find(c => /(^|\s)xe\s*5\s*tấn/i.test(` ${c.name ?? ''} `))
+  ?? classList.find(c => !c.deletedAt);
+// A lane dated TODAY is already priced (tuyến × loại xe × today), so the create
+// legitimately 409s "đã tồn tại"; the add-cycle runs on a clean future date the
+// config page accepts.
+const laneDate = vnDate(1);
+step('c-facts', { customer: customer?.id, route: route?.id, cls5t: cls5t ? { id: cls5t.id, name: cls5t.name } : null, laneDate });
 
 const { browser, page } = await boot({ token: admin.token });
 let pricingRowId = null;
@@ -84,7 +92,7 @@ try {
     return picked;
   };
 
-  const todayVN = today.split('-').reverse().join('/');
+  const laneDateVN = laneDate.split('-').reverse().join('/');
   const customerLabel = customer.shortName || customer.name;
   const routeLabel = route.shortName || route.name || route.code;
   const customerOk = await pickUuiSelect('khách hàng', customerLabel.slice(0, 6));
@@ -98,7 +106,7 @@ try {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
   });
-  const classOk = await pickUuiSelect('loại xe', cls5t.code, cls5t.code);
+  const classOk = await pickUuiSelect('loại xe', cls5t.name, cls5t.name)  // the class NAME, not the code: '5T' also matches '1.25T';
   // Hiệu lực từ — DD/MM/YYYY typed into the date field
   const dateSet = await page.evaluate((todayVnSrc) => {
     const field = [...document.querySelectorAll('label, div')].find(l => /^hiệu lực từ/i.test((l.textContent || '').trim()));
@@ -109,23 +117,28 @@ try {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
     return true;
-  }, todayVN);
+  }, laneDateVN);
   step('c-form-filled', { customerOk, routeOk, moneySet, classOk, dateSet });
   await page.screenshot({ path: 'qa/2026-10-16_fullguide_c_form-filled.png', fullPage: true });
 
   const saved = await tap(page, `() => [...document.querySelectorAll('button')].find(b => /^thêm$/i.test((b.textContent || '').trim()) && !b.disabled)`);
   await sleep(3000);
   const afterSave = await bodyText(page);
-  const addByClassOk = saved && /777\.000|777000/.test(afterSave) && !/chỉ được chọn một trục giá/i.test(afterSave);
-  step('c-save-by-class', { saved, addByClassOk, snippet: afterSave.match(/[^\n]*777[^\n]*/)?.[0] ?? null });
+  const noAxisError = !/chỉ được chọn một trục giá/i.test(afterSave);
+  const noDuplicateError = !/đã tồn tại/i.test(afterSave);
+  const pageShowsRow = /777\.000|777000/.test(afterSave);
+  step('c-save-by-class', { saved, noAxisError, noDuplicateError, pageShowsRow, snippet: afterSave.match(/[^\n]*777[^\n]*/)?.[0] ?? null });
   await page.screenshot({ path: 'qa/2026-10-16_fullguide_c_after-add.png', fullPage: true });
-  record('A.6.add-by-class', addByClassOk ? 'PASS' : 'FAIL', `add price WITH Loại xe "${cls5t.name}": saved=${saved}, row visible=${/777/.test(afterSave)}, no axis error=${!/chỉ được chọn một trục giá/i.test(afterSave)}`);
 
-  // find the QA row id via API for delete + DB proof
+  // The board paginates, so the row's existence is proven by the API read-back
+  // (authoritative), not by finding "777.000" somewhere on the page.
   const rows = await api(admin.token, 'GET', '/pricing-tables?limit=200');
   const qaRow = (rows.json?.items ?? rows.json ?? []).find(r => r.price === '777000' && !r.deletedAt && r.routeId === route.id && r.customerId === customer.id);
+  const addByClassOk = saved && noAxisError && noDuplicateError && Boolean(qaRow?.id) && qaRow?.vehicleSizeClassId === cls5t.id;
+  record('A.6.add-by-class', addByClassOk ? 'PASS' : 'FAIL',
+    `add price WITH Loại xe "${cls5t.name}" hiệu lực ${laneDate}: saved=${saved}, axis error=${!noAxisError}, duplicate error=${!noDuplicateError}, page shows 777=${pageShowsRow}, persisted row id=${qaRow?.id} class=${qaRow?.vehicleSizeClassId} (want ${cls5t.id}) rateKey=${qaRow?.rateKey}`);
+  step('c-qa-row', { pricingRowId: qaRow?.id ?? null, qaRow });
   pricingRowId = qaRow?.id ?? null;
-  step('c-qa-row', { pricingRowId, qaRow });
 
   if (pricingRowId) {
     // delete via UI: the row's Xóa icon (aria-label="Xóa") + confirm dialog
@@ -166,7 +179,7 @@ try {
       input.dispatchEvent(new Event('input', { bubbles: true }));
       return true;
     });
-    await pickUuiSelect('loại xe', cls5t.code, cls5t.code);
+    await pickUuiSelect('loại xe', cls5t.name, cls5t.name)  // the class NAME, not the code: '5T' also matches '1.25T';
     await page.evaluate((todayVnSrc) => {
       const field = [...document.querySelectorAll('label, div')].find(l => /^hiệu lực từ/i.test((l.textContent || '').trim()));
       const input = field?.querySelector('input');
@@ -176,14 +189,17 @@ try {
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
       return true;
-    }, todayVN);
+    }, laneDateVN);
     const resaved = await tap(page, `() => [...document.querySelectorAll('button')].find(b => /^thêm$/i.test((b.textContent || '').trim()) && !b.disabled)`);
     await sleep(3000);
     const afterRe = await bodyText(page);
-    const reAddOk = resaved && !/đã tồn tại/i.test(afterRe) && /777/.test(afterRe);
+    const dupErr = /đã tồn tại/i.test(afterRe);
+    const liveRow = ((await api(admin.token, 'GET', '/pricing-tables?limit=200')).json?.items ?? [])
+      .find(r => r.price === '777000' && !r.deletedAt && r.routeId === route.id && r.customerId === customer.id);
+    const reAddOk = resaved && !dupErr && Boolean(liveRow?.id) && liveRow?.vehicleSizeClassId === cls5t.id;
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_c_after-readd.png', fullPage: true });
-    step('c-readd', { resaved, reAddOk, dupErr: /đã tồn tại/i.test(afterRe) });
-    record('A.6.readd-after-delete', reAddOk ? 'PASS' : 'FAIL', `delete → re-add same trio: reAddOk=${reAddOk}, duplicate-error=${/đã tồn tại/i.test(afterRe)}`);
+    step('c-readd', { resaved, reAddOk, dupErr, liveRowId: liveRow?.id ?? null, classId: liveRow?.vehicleSizeClassId ?? null, rateKey: liveRow?.rateKey ?? null });
+    record('A.6.readd-after-delete', reAddOk ? 'PASS' : 'FAIL', `delete → re-add the same trio (khách × tuyến × ${cls5t.name} × ${laneDate}): duplicate-error=${dupErr}, live row id=${liveRow?.id} class=${liveRow?.vehicleSizeClassId} (want ${cls5t.id}) rateKey=${liveRow?.rateKey}`);
 
     record('A.6', (tonsOk && contOk && pickerOk && addByClassOk && reAddOk) ? 'PASS' : 'FAIL',
       `classes API tons=${tonsOk} cont=${contOk}, picker=${pickerOk}, add-by-class=${addByClassOk}, re-add=${reAddOk}`);
@@ -205,6 +221,23 @@ try {
   await page.screenshot({ path: 'qa/2026-10-16_fullguide_c_error.png', fullPage: true }).catch(() => {});
   record('A.6', 'FAIL', String(e.message ?? e));
 } finally { await browser.close(); }
+
+// ── A.6 step 2: "Bảng giá tiền trả nhà xe" (tuyến × loại xe, Giá chung) ─────
+// The page posts to the same config CRUD; proved over the API it uses, then
+// tombstoned again (the row carries a note column, unlike pricing_tables).
+const carrierLane = {
+  routeId: route.id, vehicleSizeClassId: cls5t.id, supplierId: null,
+  price: 999000, effectiveDate: laneDate, note: `QA fullguide C carrier lane ${Date.now()}`,
+};
+const carrierCreate = await api(admin.token, 'POST', '/carrier-route-pricing', carrierLane);
+const carrierRow = ((await api(admin.token, 'GET', '/carrier-route-pricing?limit=200')).json?.items ?? [])
+  .find(r => (r.note ?? '') === carrierLane.note && !r.deletedAt) ?? null;
+record('A.6.carrier-price', carrierCreate.ok && carrierRow ? 'PASS' : 'FAIL',
+  `add Bảng giá tiền trả nhà xe (tuyến × ${cls5t.name}, Giá chung, hiệu lực ${laneDate}) → ${carrierCreate.status} ${carrierCreate.text?.slice(0, 140)}; read-back id=${carrierRow?.id} price=${carrierRow?.price}`);
+if (carrierRow) {
+  const d = await api(admin.token, 'DELETE', `/carrier-route-pricing/${carrierRow.id}`, undefined, { 'If-Unmodified-Since': carrierRow.updatedAt ?? '' });
+  step('c-carrier-cleanup', { id: carrierRow.id, status: d.status, body: d.text?.slice(0, 100) });
+}
 
 writeFileSync('qa/2026-10-16_fullguide_c-results.json', JSON.stringify({ pin: PIN, date: new Date().toISOString(), results }, null, 2));
 step('SUMMARY', results);

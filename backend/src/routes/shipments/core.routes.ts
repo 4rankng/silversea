@@ -12,6 +12,8 @@ import { z } from 'zod';
 import {
   cancelShipmentFulfillmentSchema,
   createShipmentSchema,
+  CREATE_SHIPMENT_KEYS,
+  QUICK_CREATE_SHIPMENT_KEYS,
   updateShipmentSchema,
   transitionShipmentStatusSchema,
   quickCreateShipmentSchema,
@@ -64,6 +66,7 @@ import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   SHIPMENT_INTAKE_MUTATION_ROLES,
+  assertKnownShipmentKeys,
   parseId,
   requireShipmentIdempotencyKey,
   runShipmentWrite,
@@ -516,19 +519,13 @@ coreRoutes.post(
   '/', declareMaterialWrite('shipments.create', { method: 'POST', path: '/api/shipments/' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
-    // Same contract guard as POST /quick: `containers` is not part of the
-    // create schema, zod strips unknown keys, and a silently-dropped array
-    // means the caller believes containers landed while the lot has none
-    // (and cannot derive a freight-rate key). Point at the reconcile
-    // endpoint, which fires the FCL intake lock. Empty arrays carry no
-    // data and stay accepted.
-    const containersPayload = (req.body as Record<string, unknown> | null | undefined)?.containers;
-    if (Array.isArray(containersPayload) && containersPayload.length > 0) {
-      throw new ApiError(
-        400,
-        'Tạo lô hàng không nhận kèm danh sách container — tạo lô rồi dùng PUT /api/shipments/{id}/containers để khai báo container.',
-      );
-    }
+    // `containers` is not part of the create schema and zod strips unknown
+    // keys, so a silently-dropped array means the caller believes containers
+    // landed while the lot has none (and cannot derive a freight-rate key).
+    // The guard rejects every unknown key — `containers` keeps its own message
+    // pointing at the reconcile endpoint, which fires the FCL intake lock.
+    // Empty arrays carry no data and stay accepted.
+    assertKnownShipmentKeys(req.body, CREATE_SHIPMENT_KEYS, 'tạo lô hàng');
     const parsed = createShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
@@ -579,6 +576,7 @@ coreRoutes.post(
     // containers failure rolls the root back — no 0-cont orphan lots. The
     // schema validates each row with the same contract the reconcile
     // endpoint enforces.
+    assertKnownShipmentKeys(req.body, QUICK_CREATE_SHIPMENT_KEYS, 'tạo lệnh giao nhận nhanh');
     const parsed = quickCreateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     // Header wins; fall back to body channel for the offline-queue lib.

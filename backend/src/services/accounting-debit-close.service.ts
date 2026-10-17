@@ -573,15 +573,6 @@ export async function getAccountingDebitBoard(query: {
 // existing editing surfaces. Roles enforced at the route level (office set).
 
 /** P2: a lot with an ACTIVE cost lock is frozen — no new requests. */
-async function findActiveCostLock(tx: Tx, shipmentId: number) {
-  const [lock] = await tx.select({ id: s.shipmentCostLocks.id })
-    .from(s.shipmentCostLocks)
-    .where(and(
-      eq(s.shipmentCostLocks.shipmentId, shipmentId),
-      isNull(s.shipmentCostLocks.unlockedAt),
-    ));
-  return lock ?? null;
-}
 
 export async function createRateAdjustmentRequests(input: {
   shipmentIds: number[];
@@ -594,19 +585,36 @@ export async function createRateAdjustmentRequests(input: {
     const requested: number[] = [];
     const alreadyPending: number[] = [];
     const locked: number[] = [];
+    if (shipmentIds.length === 0) return { requested, alreadyPending, locked };
+
+    // Three set reads instead of three reads per shipment; per-item outcomes
+    // are resolved in memory in the same sorted order as before.
+    const existingShipments = await tx.select({ id: s.shipments.id }).from(s.shipments)
+      .where(and(inArray(s.shipments.id, shipmentIds), isNull(s.shipments.deletedAt)));
+    const existingIds = new Set(existingShipments.map((r) => r.id));
+    const missingId = shipmentIds.find((id) => !existingIds.has(id));
+    if (missingId !== undefined) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
+
+    const activeLockRows = await tx.select({ shipmentId: s.shipmentCostLocks.shipmentId })
+      .from(s.shipmentCostLocks)
+      .where(and(inArray(s.shipmentCostLocks.shipmentId, shipmentIds), isNull(s.shipmentCostLocks.unlockedAt)));
+    const lockedIds = new Set(activeLockRows.map((r) => r.shipmentId));
+
+    const pendingRows = await tx.select({ shipmentId: s.shipmentRateAdjustmentRequests.shipmentId })
+      .from(s.shipmentRateAdjustmentRequests)
+      .where(and(inArray(s.shipmentRateAdjustmentRequests.shipmentId, shipmentIds),
+        eq(s.shipmentRateAdjustmentRequests.status, 'PENDING'), isNull(s.shipmentRateAdjustmentRequests.withdrawnAt)));
+    const pendingIds = new Set(pendingRows.map((r) => r.shipmentId));
+
+    const insertValues: Array<{ shipmentId: number; ghiChu: string | null; requestedBy: number }> = [];
     for (const shipmentId of shipmentIds) {
-      const [shipment] = await tx.select({ id: s.shipments.id }).from(s.shipments)
-        .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt))).limit(1);
-      if (!shipment) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
-      if (await findActiveCostLock(tx, shipmentId)) { locked.push(shipmentId); continue; }
-      const [live] = await tx.select({ id: s.shipmentRateAdjustmentRequests.id })
-        .from(s.shipmentRateAdjustmentRequests)
-        .where(and(eq(s.shipmentRateAdjustmentRequests.shipmentId, shipmentId),
-          eq(s.shipmentRateAdjustmentRequests.status, 'PENDING'), isNull(s.shipmentRateAdjustmentRequests.withdrawnAt)))
-        .limit(1);
-      if (live) { alreadyPending.push(shipmentId); continue; }
-      await tx.insert(s.shipmentRateAdjustmentRequests).values({ shipmentId, ghiChu: input.ghiChu ?? null, requestedBy: input.userId });
+      if (lockedIds.has(shipmentId)) { locked.push(shipmentId); continue; }
+      if (pendingIds.has(shipmentId)) { alreadyPending.push(shipmentId); continue; }
+      insertValues.push({ shipmentId, ghiChu: input.ghiChu ?? null, requestedBy: input.userId });
       requested.push(shipmentId);
+    }
+    if (insertValues.length > 0) {
+      await tx.insert(s.shipmentRateAdjustmentRequests).values(insertValues);
     }
     return { requested, alreadyPending, locked };
   };

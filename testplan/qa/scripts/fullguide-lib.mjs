@@ -130,3 +130,120 @@ export async function waitCount(page, selector, n = 1, timeout = 20000) {
 export async function bodyText(page) {
   return page.evaluate(() => (document.body.innerText || '').replace(/[ \t]+/g, ' '));
 }
+
+// ── shared toolkit (2026-10-17) ─────────────────────────────────────────────
+// The 16/10 drivers addressed the create form and the dispatch grids by LABEL
+// text and by `containerNumbers` fields the ops payload does not carry; both
+// drifted when FB-105 relabelled the LCL pickers and OPS moved the container
+// choice onto a lot-level default. These helpers address the stable contracts
+// instead: `data-field-id` anchors, the DB's optimistic-lock version, and the
+// sites endpoint the create form itself calls.
+
+/** Pick a value in a SearchableField addressed by its `data-field-id`. */
+export async function pickField(page, fieldId, fragment) {
+  const sel = `[data-field-id="${fieldId}"] input`;
+  const has = await page.evaluate((s) => Boolean(document.querySelector(s)), sel);
+  if (!has) return { ok: false, reason: 'field-missing' };
+  await page.evaluate((s) => { document.querySelector(s)?.scrollIntoView({ block: 'center' }); }, sel);
+  await page.click(sel);
+  await sleep(700);
+  if (fragment) { await page.keyboard.type(fragment, { delay: 45 }); await sleep(1400); } else await sleep(900);
+  const options = await page.evaluate(() => [...document.querySelectorAll('[role="option"]')]
+    .filter((o) => o.offsetParent !== null)
+    .map((o) => (o.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60))
+    .slice(0, 8));
+  const picked = await tap(page, `() => {
+    const opts = [...document.querySelectorAll('[role="option"]')].filter(o => o.offsetParent !== null);
+    if (!opts.length) return null;
+    const want = ${JSON.stringify(String(fragment ?? ''))}.trim().toLowerCase();
+    if (!want) return opts[0];
+    return opts.find(o => (o.textContent || '').trim().toLowerCase().includes(want)) ?? opts[0];
+  }`);
+  await sleep(600);
+  const value = await page.evaluate((s) => document.querySelector(s)?.value ?? null, sel);
+  return { ok: Boolean(picked), value, options };
+}
+
+/** The operational sites the create form itself offers for a customer. */
+export async function customerSites(token, customerId) {
+  const res = await api(token, 'GET', `/shipments/operational-sites?customerId=${customerId}`);
+  return res.json?.items ?? res.json ?? [];
+}
+
+/** First site of a `siteType` the picker can actually resolve. */
+export function siteOfType(sites, siteType, { named = true } = {}) {
+  const pool = named ? sites.filter((s) => !s.deletedAt && !/chưa xác định/i.test(s.name ?? '')) : sites;
+  return pool.find((s) => new RegExp(siteType, 'i').test(String(s.siteType)))
+    ?? sites.find((s) => new RegExp(siteType, 'i').test(String(s.siteType)))
+    ?? null;
+}
+
+/**
+ * Governed lot delete. `DELETE /api/shipments/:id` requires the optimistic-lock
+ * `version` (the detail payload nests it at `shipment.version`), so read it from
+ * the staging row and retry once if a concurrent write moved it.
+ */
+export async function deleteLot(token, id, reason = 'QA cleanup fullguide') {
+  const version = Number(psql(`SELECT version FROM shipments WHERE id=${id}`) || 0);
+  for (const attempt of [version, version + 1]) {
+    const res = await api(token, 'DELETE', `/shipments/${id}`, { version: attempt, reason });
+    if (res.ok) return { ok: true, version: attempt, status: res.status };
+    if (res.status !== 409) return { ok: false, version: attempt, status: res.status, body: res.text?.slice(0, 140) };
+  }
+  return { ok: false, status: 409, body: 'version kept moving' };
+}
+
+/** VN calendar date `today + offsetDays` — the price-lane dates the config page accepts. */
+export function vnDate(offsetDays = 0) {
+  return new Date(Date.now() + 7 * 3600 * 1000 + offsetDays * 86400 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * Real mouse click on the first visible button matching `textRe`. React Aria
+ * opens some popovers/dialogs only for a trusted click, so `element.click()`
+ * is not enough (the A.3 "Gán xe nhóm" dialog stayed shut for it).
+ */
+export async function clickByText(page, textRe) {
+  const box = await page.evaluate((re) => {
+    const rx = new RegExp(re, 'i');
+    const b = [...document.querySelectorAll('button')].find((x) => rx.test(x.textContent || '') && !x.disabled && x.offsetParent !== null);
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  }, textRe);
+  if (!box) return false;
+  await page.mouse.click(box.x, box.y);
+  return true;
+}
+
+/**
+ * Read the master-plan grid rows carrying each ref as aligned cells. The grid
+ * is a div table (no `tr`/`td`), so walk the text node up to the row element
+ * whose own text holds the ref and take its direct children as the columns.
+ * Returns `{ headerCells, rows: { [ref]: { cls, text, cells } | null } }`.
+ */
+export async function readPlanRows(page, refs) {
+  return page.evaluate((tokens) => {
+    const headerCells = [...document.querySelectorAll('[role="columnheader"], th')]
+      .map((h) => (h.innerText || '').replace(/\s+/g, ' ').trim());
+    const rowFor = (ref) => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let node = null;
+      let hit = null;
+      while ((node = walker.nextNode())) {
+        if ((node.nodeValue || '').includes(ref)) { hit = node.parentElement; break; }
+      }
+      if (!hit) return null;
+      let el = hit;
+      for (let i = 0; i < 8 && el; i += 1) {
+        const text = (el.innerText || '').replace(/\s+/g, ' ').trim();
+        if (text.includes(ref) && text.length > 40) {
+          return { cls: String(el.className ?? '').slice(0, 70), text, cells: [...el.children].map((c) => (c.innerText || '').replace(/\s+/g, ' ').trim()) };
+        }
+        el = el.parentElement;
+      }
+      return null;
+    };
+    return { headerCells, rows: Object.fromEntries(tokens.map((token) => [token, rowFor(token)])) };
+  }, refs);
+}

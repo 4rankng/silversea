@@ -1,10 +1,10 @@
 {
-  "pin": "e3286338",
-  "date": "2026-10-16T13:29:43.660Z",
+  "pin": "11720424",
+  "date": "2026-10-17T14:52:19.239Z",
   "results": {
     "B.5": {
       "verdict": "PASS",
-      "note": "board structure: PHẢI THU=true, PHẢI TRẢ=true, Tiền thu=false, buttons(Đối soát=true, Hoàn tác=true, Xác nhận=true, Chọn Debit=true), filters(search=true, dates=false)"
+      "note": "board structure: PHẢI THU=true, PHẢI TRẢ=true, Tiền thu=false, buttons(Đối soát=true, Hoàn tác=true, Xác nhận=true, Chọn Debit=true), filters(search=true, Từ/Đến ngày cells=true, khách hàng=true, nhà xe=true)"
     },
     "A.5": {
       "verdict": "PASS",

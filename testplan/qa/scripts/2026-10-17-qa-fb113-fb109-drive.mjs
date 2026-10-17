@@ -124,8 +124,21 @@ try {
     if (filled) {
       await page.keyboard.down('Control'); await page.keyboard.press('a'); await page.keyboard.up('Control');
       await page.keyboard.press('Backspace');
+      await sleep(150);
       await page.keyboard.type(decl, { delay: 30 });
-      await sleep(600);
+      await sleep(800);
+      const readback = await page.evaluate(() => {
+        const ed = document.querySelector('.shipment-container-ledger__cell-editor--expanded');
+        const lbl = [...ed.querySelectorAll('label')].find((l) => /số tờ khai/i.test(l.textContent || ''));
+        let el = lbl?.parentElement; let g = 0;
+        while (el && g++ < 6) {
+          const input = el.querySelector('input');
+          if (input) return { value: input.value, active: document.activeElement === input };
+          el = el.parentElement;
+        }
+        return { value: null };
+      });
+      console.log('input readback:', JSON.stringify(readback));
     }
   }
   let saveState = null;

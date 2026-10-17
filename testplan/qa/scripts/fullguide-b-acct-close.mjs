@@ -5,7 +5,7 @@
 //        + column groups PHẢI THU / PHẢI TRẢ.
 // Read-only drive: no chốt đợt is committed (dialog is opened + captured).
 import {
-  BASE, PIN, sleep, makeLogger, healthGate, login, boot, tap, setInput, waitText, bodyText,
+  BASE, PIN, sleep, makeLogger, healthGate, login, boot, tap, setInput, waitText, bodyText, vnDate,
 } from './fullguide-lib.mjs';
 import { writeFileSync } from 'node:fs';
 
@@ -23,22 +23,33 @@ const { browser, page } = await boot({ token: acct.token });
 try {
   await page.goto(`${BASE}/accounting/chot-debit`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await sleep(4000);
-  // widen the date window so the board actually has rows (default window can be empty)
-  const setDate = async (which, value) => {
-    const ok = await tap(page, `() => { const g = document.querySelector('[aria-label="Khoảng ngày lô hàng"]') || document; return [...g.querySelectorAll('input')].find(i => (i.getAttribute('aria-label') || '').toLowerCase().includes(${JSON.stringify(which)})) ?? (which === 'từ' ? g.querySelectorAll('input')[0] : g.querySelectorAll('input')[1]) ?? null; }`);
-    if (!ok) return false;
-    await page.keyboard.type(value, { delay: 25 });
-    await page.keyboard.press('Enter');
-    await page.keyboard.press('Tab');
-    await page.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); });
-    await sleep(800);
-    return true;
-  };
-  const fromSet = await setDate('từ ngày', '01/09/2026');
-  const toSet = await setDate('đến ngày', '16/10/2026');
+  // The filter bar is a segmented DD/MM/YYYY pair (no `input[type=date]`), so
+  // write all three cells of each end through the native setter. Widening the
+  // window also proves the doc's "Từ/Đến ngày" filter works.
+  const dateWindow = await page.evaluate((from, to) => {
+    const inputs = [...document.querySelectorAll('input')].filter(i => i.offsetParent !== null);
+    const idxOf = (label) => inputs.findIndex(i => new RegExp(label, 'i').test(i.getAttribute('aria-label') || ''));
+    const setVal = (el, value) => {
+      if (!el) return false;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+      setter.call(el, value);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    };
+    const writeEnd = (endLabel, date) => {
+      const [dd, mm, yyyy] = date.split('/');
+      const mmIdx = idxOf(`Tháng — ${endLabel}`);
+      const yyIdx = idxOf(`Năm — ${endLabel}`);
+      if (mmIdx < 0 || yyIdx < 0) return 'labels-not-found';
+      const cells = [setVal(inputs[mmIdx - 1] ?? null, dd), setVal(inputs[mmIdx], mm), setVal(inputs[yyIdx], yyyy)];
+      return cells.filter(Boolean).length;
+    };
+    return { from: writeEnd('Từ ngày', from), to: writeEnd('Đến ngày', to) };
+  }, '01/09/2026', vnDate(0).split('-').reverse().join('/'));
   await sleep(4000);
   const rowCount = await page.evaluate(() => document.querySelectorAll('tbody tr').length);
-  step('b-date-window', { fromSet, toSet, rowCount });
+  step('b-date-window', { dateWindow, rowCount });
   const ready = await waitText(page, 'Kế hoạch điều động tổng hợp', 20000) || await waitText(page, 'Đối soát', 15000);
   await sleep(2500);
   const boardText = await bodyText(page);
@@ -53,12 +64,13 @@ try {
   const btnDoiSoat = await page.evaluate(() => [...document.querySelectorAll('button')].some(b => /^đối soát$/i.test((b.textContent || '').trim())));
   const btnHoanTac = await page.evaluate(() => [...document.querySelectorAll('button')].some(b => /hoàn tác/i.test(b.textContent || '')));
   const hasSearch = await page.evaluate(() => Boolean([...document.querySelectorAll('input')].find(i => /tìm|search/i.test(i.placeholder || '') || /mã lô|bill|khách/i.test(i.placeholder || ''))));
-  const hasDateFilters = await page.evaluate(() => document.querySelectorAll('input[type="date"]').length >= 2);
+  const hasDateFilters = await page.evaluate(() => [...document.querySelectorAll('input')]
+    .filter(i => i.offsetParent !== null && /ngày/i.test(`${i.getAttribute('aria-label') ?? ''} ${i.getAttribute('placeholder') ?? ''}`)).length >= 4);
   const hasKhachHangSelect = /Khách hàng/.test(boardText);
   const hasNhaXeSelect = /Nhà xe/.test(boardText);
   step('b5-structure', { ready, hasPhaiThu, hasPhaiTra, hasTienThu, btnXacNhan, btnDebit, btnDoiSoat, btnHoanTac, hasSearch, hasDateFilters, hasKhachHangSelect, hasNhaXeSelect });
-  record('B.5', ready && hasPhaiThu && hasPhaiTra && btnDebit ? 'PASS' : 'FAIL',
-    `board structure: PHẢI THU=${hasPhaiThu}, PHẢI TRẢ=${hasPhaiTra}, Tiền thu=${hasTienThu}, buttons(Đối soát=${btnDoiSoat}, Hoàn tác=${btnHoanTac}, Xác nhận=${btnXacNhan}, Chọn Debit=${btnDebit}), filters(search=${hasSearch}, dates=${hasDateFilters})`);
+  record('B.5', ready && hasPhaiThu && hasPhaiTra && btnDebit && hasSearch && hasDateFilters ? 'PASS' : 'FAIL',
+    `board structure: PHẢI THU=${hasPhaiThu}, PHẢI TRẢ=${hasPhaiTra}, Tiền thu=${hasTienThu}, buttons(Đối soát=${btnDoiSoat}, Hoàn tác=${btnHoanTac}, Xác nhận=${btnXacNhan}, Chọn Debit=${btnDebit}), filters(search=${hasSearch}, Từ/Đến ngày cells=${hasDateFilters}, khách hàng=${hasKhachHangSelect}, nhà xe=${hasNhaXeSelect})`);
 
   // A.5 — select a PICKABLE row (adjustment status NONE/CONFIRMED) then open "Chọn Debit (N dòng)"
   const selected = await page.evaluate(() => {

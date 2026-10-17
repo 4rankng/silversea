@@ -1,16 +1,16 @@
-# fullguide e-ops-costs driver — 2026-10-16T13:37:57.703Z pin=e3286338
-2026-10-16T13:37:57.755Z health {"status":"ok","timestamp":"2026-10-16T13:37:57.774Z","buildHash":"e3286338"}
-2026-10-16T13:37:58.101Z logins {"hoangnh":true,"duongtt":true}
-2026-10-16T13:37:58.124Z e-target {"date":"2026-10-16","id":175,"billRef":"DNKM13336","conts":["MSDU1245780","TGBU3190086"]}
-2026-10-16T13:38:04.004Z e-b2-modal {"opened":" DNKM13336 Công ty CP Vận tải Biển Bạc Hải Phòng-NEWEB 2 · MSDU1245780, TGBU3190086 Đã phát lệnh Khai chi phí","modalOpen":true,"refusal":false}
-2026-10-16T13:38:09.997Z e-b2-filled {"contChosen":true,"typePicked":true,"typeName":"Lưu bãi (lúc hạ)"}
-2026-10-16T13:38:12.294Z e-b2-side-effect {"saved":true,"toastText":"Đã ghi nhận khoản chi.","row":{"id":60,"type":"YARD_STORAGE","amount":"15000","cont":"MSDU1245780","by":"Nguyễn Huy Hoàng"}}
-2026-10-16T13:38:12.295Z VERDICT {"id":"B.2","verdict":"PASS","note":"OPS khai chi phí: modal ok (no refusal), saved=true, toast=\"Đã ghi nhận khoản chi.\", persisted row id=60 (YARD_STORAGE 15000₫ cont MSDU1245780 by Nguyễn Huy Hoàng)"}
-2026-10-16T13:38:18.247Z e-b3-modal {"opened":" DNKM13336 Công ty CP Vận tải Biển Bạc Hải Phòng-NEWEB 2 · MSDU1245780, TGBU3190086 Đã phát lệnh Khai chi phí","modalOpen":true,"refusal":false}
-2026-10-16T13:38:23.752Z e-b3-filled {"contChosen":true,"typePicked":true,"typeName":"Lưu bãi (lúc hạ)"}
-2026-10-16T13:38:26.605Z e-b3-panel {"headsUp":true,"duplicatePanel":true,"panelText":"Loại phí \"Lưu bãi (lúc hạ)\" đã được Nguyễn Huy Hoàng nhập trước đó — bạn vẫn tiếp tục nhập chứ?Nguyễn Huy Hoàng · 15.000 ₫ · ngày 16/10/2026 · cont MSDU1245780Kiểm tra lại để tránh nhập trùng. Nếu đây là lần chi hợp lệ (ví dụ tách thanh toán), bấm Tiếp tục lưu.Kiểm tra lạiTiếp tục lưu","keepEnabled":true,"modalStillOpen":true}
-2026-10-16T13:38:28.327Z e-b3-side-effect {"confirmed":true,"toast2":"Đã ghi nhận khoản chi.","row2":{"id":61,"by":"Trần Thiên Dương"}}
-2026-10-16T13:38:28.327Z VERDICT {"id":"B.3","verdict":"PASS","note":"duplicate warning: headsUp=true, panel=\"Loại phí \"Lưu bãi (lúc hạ)\" đã được Nguyễn Huy Hoàng nhập trước đó — bạn vẫn tiếp tục nhập chứ?Nguyễn Huy Hoàng · 15.000\", Tiếp tục lưu enabled=true, confirmed=true, second row persisted id=61"}
-2026-10-16T13:38:28.657Z e-cleanup {"tag":"B.2","id":60,"status":200,"body":"{\"success\":true}"}
-2026-10-16T13:38:28.716Z e-cleanup {"tag":"B.3","id":61,"status":200,"body":"{\"success\":true}"}
-2026-10-16T13:38:28.717Z SUMMARY {"B.2":{"verdict":"PASS","note":"OPS khai chi phí: modal ok (no refusal), saved=true, toast=\"Đã ghi nhận khoản chi.\", persisted row id=60 (YARD_STORAGE 15000₫ cont MSDU1245780 by Nguyễn Huy Hoàng)"},"B.3":{"verdict":"PASS","note":"duplicate warning: headsUp=true, panel=\"Loại phí \"Lưu bãi (lúc hạ)\" đã được Nguyễn Huy Hoàng nhập trước đó — bạn vẫn tiếp tục nhập chứ?Nguyễn Huy Hoàng · 15.000\", Tiếp tục lưu enabled=true, confirmed=true, second row persisted id=61"}}
+# fullguide e-ops-costs driver — 2026-10-17T14:52:52.974Z pin=11720424
+2026-10-17T14:52:53.035Z health {"status":"ok","timestamp":"2026-10-17T14:52:53.053Z","buildHash":"11720424"}
+2026-10-17T14:52:54.839Z logins {"hoangnh":true,"duongtt":true}
+2026-10-17T14:52:55.005Z e-target {"date":"2026-10-16","id":175,"billRef":"DNKM13336","conts":["MSDU1245780","TGBU3190086"]}
+2026-10-17T14:53:01.499Z e-b2-modal {"opened":" TEST-FCL-1 CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Thuận Thành, Bắc Ninh Chưa có cont Sẵn sàng phát lệnh Khai chi phí","modalOpen":true,"refusal":false}
+2026-10-17T14:53:08.136Z e-b2-filled {"contChosen":true,"contOptions":["Phí chung lô"],"typePicked":true,"typeName":"Lưu bãi (lúc hạ)","amountSet":"15.000","dateFilled":"no-date-input"}
+2026-10-17T14:53:09.758Z e-b2-side-effect {"saved":true,"toastText":"Đã ghi nhận khoản chi.","row":{"id":76,"type":"YARD_STORAGE","amount":"15000","lot":772,"by":"Nguyễn Huy Hoàng"}}
+2026-10-17T14:53:09.758Z VERDICT {"id":"B.2","verdict":"PASS","note":"OPS khai chi phí: modal ok (no refusal), saved=true, toast=\"Đã ghi nhận khoản chi.\", persisted ops expense id=76 on lot 772 (YARD_STORAGE 15000₫ by Nguyễn Huy Hoàng)"}
+2026-10-17T14:53:15.786Z e-b3-modal {"opened":" TEST-FCL-1 CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Thuận Thành, Bắc Ninh Chưa có cont Sẵn sàng phát lệnh Khai chi phí","modalOpen":true,"refusal":false}
+2026-10-17T14:53:21.876Z e-b3-filled {"contChosen":true,"contOptions":["Phí chung lô"],"typePicked":true,"typeName":"Lưu bãi (lúc hạ)","amountSet":"15.000","dateFilled":"no-date-input"}
+2026-10-17T14:53:24.548Z e-b3-panel {"headsUp":false,"duplicatePanel":true,"panelText":"Loại phí \"Lưu bãi (lúc hạ)\" đã được Nguyễn Huy Hoàng nhập trước đó — bạn vẫn tiếp tục nhập chứ?Nguyễn Huy Hoàng · 15.000 ₫ · ngày 17/10/2026 · phí chung lôKiểm tra lại để tránh nhập trùng. Nếu đây là lần chi hợp lệ (ví dụ tách thanh toán), bấm Tiếp tục lưu.Kiểm tra lạiTiếp tục lưu","keepEnabled":true,"modalStillOpen":true}
+2026-10-17T14:53:26.281Z e-b3-side-effect {"confirmed":true,"toast2":"Đã ghi nhận khoản chi.","row2":{"id":79,"lot":772,"by":"Trần Thiên Dương"}}
+2026-10-17T14:53:26.281Z VERDICT {"id":"B.3","verdict":"PASS","note":"duplicate warning: headsUp=false, panel=\"Loại phí \"Lưu bãi (lúc hạ)\" đã được Nguyễn Huy Hoàng nhập trước đó — bạn vẫn tiếp tục nhập chứ?Nguyễn Huy Hoàng · 15.000\", Tiếp tục lưu enabled=true, confirmed=true, second row persisted id=79"}
+2026-10-17T14:53:26.508Z e-cleanup {"tag":"B.2","id":76,"status":200,"body":"{\"success\":true}"}
+2026-10-17T14:53:26.641Z e-cleanup {"tag":"B.3","id":79,"status":200,"body":"{\"success\":true}"}
+2026-10-17T14:53:26.648Z SUMMARY {"B.2":{"verdict":"PASS","note":"OPS khai chi phí: modal ok (no refusal), saved=true, toast=\"Đã ghi nhận khoản chi.\", persisted ops expense id=76 on lot 772 (YARD_STORAGE 15000₫ by Nguyễn Huy Hoàng)"},"B.3":{"verdict":"PASS","note":"duplicate warning: headsUp=false, panel=\"Loại phí \"Lưu bãi (lúc hạ)\" đã được Nguyễn Huy Hoàng nhập trước đó — bạn vẫn tiếp tục nhập chứ?Nguyễn Huy Hoàng · 15.000\", Tiếp tục lưu enabled=true, confirmed=true, second row persisted id=79"}}

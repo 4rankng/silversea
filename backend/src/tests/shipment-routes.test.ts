@@ -1449,6 +1449,30 @@ describe('POST /', () => {
     assert.match(String(r.data.error ?? ''), /containers/);
   });
 
+  test('an unknown create field is rejected by name, never silently stripped', async () => {
+    // The create form's own field ids (quantity/weightKg/volumeCbm) are not the
+    // API's field names. Zod would strip them and answer 201, landing a lot with
+    // no cargo facts while the caller believes they were saved.
+    const r = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: { customerId, bookingRef: `BK-${suffix}-unknown`, quantity: '5', weightKg: '1900' },
+    });
+    assert.equal(r.status, 400, JSON.stringify(r.data));
+    assert.match(String(r.data.error ?? ''), /quantity/);
+    assert.match(String(r.data.error ?? ''), /weightKg/);
+  });
+
+  test('an unknown field holding an EMPTY array stays accepted (no data to lose)', async () => {
+    const r = await testFetch('/', {
+      method: 'POST',
+      token: adminToken,
+      body: { customerId, bookingRef: `BK-${suffix}-empty-containers`, containers: [] },
+    });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    createdShipmentIds.push(r.data.id);
+  });
+
   test('ADMIN creates a draft shipment (201) with a generated code', async () => {
     const r = await testFetch('/', {
       method: 'POST',
