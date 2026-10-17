@@ -648,6 +648,13 @@ export const shipmentCusContainerLineUpdateSchema = z.object({
 
 export const shipmentCusContainerLineUpdateResultSchema = z.object({
   line: shipmentCusWorkspaceContainerLineSchema,
+  // Card 171026180010: present only when this save carried a non-empty tờ khai
+  // update and at least one OTHER container of the lot received the number in
+  // the same transaction (lot-wide sync). The ids are real sibling container
+  // ids — never the edited row, never a duplicate.
+  declarationSync: z.object({
+    updatedContainerIds: z.array(z.number().int().positive()),
+  }).optional(),
 }).strict();
 
 // Card 20260921_2 — CUS adds a container row after intake: the same fields
