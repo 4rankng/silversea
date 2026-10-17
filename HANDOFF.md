@@ -1,14 +1,25 @@
-# fix-171026121100 — FB-038/072 verify-fail 3: overlap guard 2 lỗ hổng còn sót — DONE (pending full-suite green)
+# fix-171026121100 — FB-038/072 verify-fail 3: overlap guard 2 lỗ hổng còn sót — DONE (pending trunk merge)
 
 Controller: this session (Paseo agent), worktree `fix-fb038-overlap-silent-glm`
-@ f1e36ecc (= origin/main khi bắt đầu). Updated: 2026-10-17.
+@ f1e36ecc → merged origin/main 66368f42 (merge commit 2514e663).
+Updated: 2026-10-17 (tối).
 
-## Goal & status
+## QUAN TRỌNG — va chạm nhánh với agent khác (đã giải quyết)
 
-Card `171026121100-fb038-072-verifyfail3-overlap-silent.docx`: gán cùng biển
-số cho 2 dòng kế hoạch trùng ngày + "Phân xe lại" đụng chuyến COMPLETED cùng
-ngày đều LƯU THẦM LẶNG trên staging. Điều tra xong; 2 lỗ hổng guard THẬT trên
-trunk (dữ liệu staging dính đúng shape), đã fix + test + UI driven.
+Trong lúc làm, trunk đã land fix MỘT PHẦN của chính card này từ agent
+`agy-fb038-overlap-claude` (merge `e6ea78ce`, WIP `4297fe78`): luật
+**date-only completed trip claim ngày hiển thị** (Gap B) qua shared
+`tripClaim*Sql` + `countDateOnlyTripClaims` + suite
+`dispatch-overlap-day-only-trips.test.ts`. Giải pháp theo authority order:
+- Gap B: NHẬN bản trunk làm law owner (revert phần mình, giữ nguyên file
+  `dispatch-resource-availability.service.ts` = trunk verbatim; conflict
+  trong `assertTripRigAvailable` resolve theo trunk).
+- Gap A (holder không container — kịch bản 1 của card, repro staging ff
+  198/199 cùng lô 298): trunk KHÔNG có — giữ nguyên fix của mình
+  (`scanPlanRowHolders` LEFT join + `ne('LCL_SHIPMENT')`, review M1-aware)
+  + toàn bộ test pins (T15–T18, container-less describe, LCL hard-tier pin,
+  date-only trip tests) — 68/68 xanh trên 7 suite liên quan gồm suite của
+  trunk.
 
 ## Root cause (chứng minh bằng staging read-only + local repro)
 
@@ -16,8 +27,8 @@ trunk (dữ liệu staging dính đúng shape), đã fix + test + UI driven.
    **không container** (`shipment_container_id` NULL). `scanPlanRowHolders`
    INNER JOIN `shipment_containers` → holder vô hình → lưu thầm lặng.
 2. **FB038-03B** — chuyến COMPLETED (trip 117 · BLCUSa24BB) **không planned
-   timestamps** (chỉ departureDate). Mọi scan tier-completed đòi
-   `isNotNull(planned_start_at)` → vô hình.
+   timestamps** (chỉ departureDate) — mọi scan tier-completed đòi
+   `isNotNull(planned_start_at)` → vô hình. (Trunk đã fix law này.)
 
 Lưu ý: 2 fix trước (111026105630, 121026185530) đã có trên trunk từ 07–14/10
 và có trong staging build; verify-fail 3 là do 2 shape dữ liệu trên, không
@@ -79,5 +90,7 @@ phải deploy lag.
 
 ## Next step
 
-- Full-suite run2 xanh (hoặc phân loại pre-existing) → review pass → commit
-  trunk theo §4 (gates xanh → review → commit).
+- ĐÃ LAND TRUNK: merge commit `9d109c0d` trên main (main checkout), sau khi
+  merge nhánh vào main @ b930be12; trunk tsc exit 0 sau land.
+- Còn lại cho owner: deploy staging (`make demo`) khi sẵn sàng + admin verify
+  FB038-03C (form sửa chuyên /trips/:id/edit — RBAC Điều vận không vào được).
