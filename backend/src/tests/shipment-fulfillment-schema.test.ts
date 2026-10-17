@@ -18,10 +18,8 @@ import {
 import { assertDispatchableDriverPrincipal } from '../services/driver.service';
 import { cancelShipmentFulfillment, updateShipment } from '../services/shipment.service';
 import { attachPodFile, createPodSubmission } from '../services/trip-pod.service';
-import {
-  analyzeMasterWorkbook,
-  MASTER_IMPORT_XLSX_MIME,
-} from '../services/master-data-import.service';
+import { analyzeMasterWorkbook } from '../services/master-data-import.service';
+import { MASTER_IMPORT_XLSX_MIME } from '../services/master-import-workbook.service';
 import { storageService } from '../services/storage.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

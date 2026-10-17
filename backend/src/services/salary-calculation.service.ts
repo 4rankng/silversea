@@ -2,7 +2,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, gte, lte, sql, isNull, ne } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { computeAttendanceSummary, type ConfirmationMap } from './attendance.service';
+import { computeAttendanceSummary, type ConfirmationMap } from './attendance-summary.service';
 
 type DbLike = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 

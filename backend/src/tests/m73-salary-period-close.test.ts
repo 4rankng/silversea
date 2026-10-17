@@ -17,8 +17,8 @@ import {
 import {
   batchUpsertWorkDays,
   confirmSalary,
-  getWorkDays,
 } from '../services/attendance.service';
+import { getWorkDays } from '../services/attendance-summary.service';
 import {
   requestSalaryPeriodAdjustment,
 } from '../services/salary-period-adjustment.service';

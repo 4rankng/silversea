@@ -11,6 +11,13 @@ import { lockDriverRowForUpdate, lockTrailerRow, lockTruckRow } from './applicat
 import { ensureSupplierCarrierLink } from './supplier-carrier-link.service';
 import { normalizeSupplierTypes, SupplierType } from './supplier-types.service';
 import {
+  type DriverPayload,
+  type ParsedRow,
+  type PortPayload,
+  type SitePayload,
+  type Tx,
+} from './master-data-import.service';
+import {
   blockedRow,
   cellsForRow,
   classifiedRow,
@@ -23,13 +30,8 @@ import {
   stableCode,
   templateRow,
   validateWorkbookFile,
-  type DriverPayload,
   type MasterWorkbookFile,
-  type ParsedRow,
-  type PortPayload,
-  type SitePayload,
-  type Tx,
-} from './master-data-import.service';
+} from './master-import-workbook.service';
 
 // Two-file merge for the Sep-2026 delivery (Data form.xlsx + User &
 // Role.xlsx). Each file is validated independently, then their worksheets

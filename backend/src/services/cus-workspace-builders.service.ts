@@ -26,7 +26,7 @@ import {
 import { getShipmentFinanceConfirmationSummary } from './shipment-accounting-lock.service';
 import { filterContainersByDateRange } from './container-date-filter';
 import type { AuthUser } from '../middleware/auth';
-import { ShipmentRow, ShipmentListRow, WorkspaceSupport, ContainerRow, AssignmentRow } from './cus-shipment-workspace-reads.service';
+import type { AssignmentRow, ContainerRow, ShipmentListRow, ShipmentRow, WorkspaceSupport } from './cus-shipment-workspace-reads.service';
 
 /**
  * Current-assignment identity: the planned allocation (the dispatch plan's

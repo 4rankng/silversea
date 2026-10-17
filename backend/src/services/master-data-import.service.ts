@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import path from 'node:path';
 import ExcelJS from 'exceljs';
 import { and, eq, isNull, sql } from 'drizzle-orm';
@@ -7,6 +6,22 @@ import { Role, operationalSiteContacts } from '@tingting/shared';
 import { db, type Tx } from '../db';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
+import {
+  blockedRow,
+  cellValue,
+  cellsForRow,
+  classifiedRow,
+  increment,
+  normalizeIdentifier,
+  lastRelevantRow,
+  normalizeLookup,
+  normalizeSpaces,
+  sha256,
+  stableCode,
+  templateRow,
+  validateWorkbookFile,
+  type MasterWorkbookFile,
+} from './master-import-workbook.service';
 import { ApiError } from '../errors';
 import { salaryModeFromSalaryType } from '../lib/driver-salary-mode';
 import { reassignTruckDriverInTx } from './truck-driver-assignment.service';
@@ -53,24 +68,14 @@ export type { Tx };
 // Canonical database-handle type lives in ../db (the one Executor seam).
 type Classification = typeof s.masterImportRowClassificationEnum.enumValues[number];
 
-export const MASTER_IMPORT_MAX_BYTES = 15 * 1024 * 1024;
 export const MASTER_IMPORT_PARSER_VERSION = 'silversea-master-v3';
 export const MASTER_IMPORT_APPLY_ENDPOINT = 'master-data-import.apply';
 export const MASTER_IMPORT_REJECT_ENDPOINT = 'master-data-import.reject';
-export const MASTER_IMPORT_XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 export const MASTER_IMPORT_SOURCE_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
-const MASTER_IMPORT_MAX_UNCOMPRESSED_BYTES = 100 * 1024 * 1024;
-const MASTER_IMPORT_MAX_ZIP_ENTRIES = 5_000;
+
 const MASTER_IMPORT_MAX_SHEETS = 20;
 const MASTER_IMPORT_MAX_ROWS_PER_SHEET = 5_000;
 const MASTER_IMPORT_MAX_COLUMNS_PER_SHEET = 100;
-
-export interface MasterWorkbookFile {
-  buffer: Buffer;
-  originalname: string;
-  mimetype: string;
-  size: number;
-}
 
 export interface SitePayload {
   kind: 'operational_site';
@@ -127,7 +132,7 @@ interface FleetPayload {
   driverName: string | null;
 }
 
-type AcceptedPayload = SitePayload | PortPayload | DriverPayload | FleetPayload
+export type AcceptedPayload = SitePayload | PortPayload | DriverPayload | FleetPayload
   | CustomerPayload | CarrierPayload | RoutePayload | TruckSpecPayload | TrailerSpecPayload | StaffUserPayload;
 
 export interface ParsedRow {
@@ -198,116 +203,12 @@ function requireAdmin(actor: Pick<AuthUser, 'userId' | 'role'>): void {
   if (actor.role !== Role.ADMIN) throw new ApiError(403, 'Không có quyền truy cập');
 }
 
-function sha256(value: Buffer | string): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
-export function normalizeSpaces(value: string): string {
-  return value.replace(/\s+/g, ' ').trim();
-}
-
-export function normalizeLookup(value: string): string {
-  return normalizeSpaces(value)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/gi, 'd')
-    .toUpperCase();
-}
-
-export function normalizeIdentifier(value: string): string {
-  return normalizeSpaces(value).toUpperCase().replace(/\s+/g, '');
-}
-
 function extractLabeledValue(source: string, labels: string[], maxLength: number): string | null {
   for (const label of labels) {
     const match = source.match(new RegExp(`${label}\\s*[:：-]?\\s*([^;,]{2,${maxLength}})`, 'iu'));
     if (match?.[1]) return normalizeSpaces(match[1]).slice(0, maxLength);
   }
   return null;
-}
-
-export function stableCode(prefix: string, value: string, maxLength: number): string {
-  const normalized = normalizeLookup(value)
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  const hash = sha256(value).slice(0, 8).toUpperCase();
-  const available = Math.max(1, maxLength - prefix.length - hash.length - 1);
-  const stem = (normalized || 'ITEM').slice(0, available);
-  return `${prefix}${stem}-${hash}`;
-}
-
-function cellValue(cell: ExcelJS.Cell): { text: string; formula: boolean } {
-  const value = cell.value;
-  if (value && typeof value === 'object' && 'formula' in value) {
-    return { text: '', formula: true };
-  }
-  if (value instanceof Date) return { text: value.toISOString().slice(0, 10), formula: false };
-  if (value && typeof value === 'object' && 'richText' in value) {
-    return {
-      text: normalizeSpaces(value.richText.map((part) => part.text).join('')),
-      formula: false,
-    };
-  }
-  if (value && typeof value === 'object' && 'text' in value) {
-    return { text: normalizeSpaces(String(value.text ?? '')), formula: false };
-  }
-  return { text: normalizeSpaces(cell.text || String(value ?? '')), formula: false };
-}
-
-export function cellsForRow(sheet: ExcelJS.Worksheet, rowNumber: number, columns: number[]): {
-  values: string[];
-  hasFormula: boolean;
-} {
-  const cells = columns.map((column) => cellValue(sheet.getCell(rowNumber, column)));
-  return { values: cells.map((cell) => cell.text), hasFormula: cells.some((cell) => cell.formula) };
-}
-
-export function lastRelevantRow(sheet: ExcelJS.Worksheet, startRow: number, columns: number[]): number {
-  for (let rowNumber = sheet.rowCount; rowNumber >= startRow; rowNumber -= 1) {
-    if (columns.some((column) => cellValue(sheet.getCell(rowNumber, column)).text !== '')) {
-      return rowNumber;
-    }
-  }
-  return startRow;
-}
-
-export function classifiedRow(input: Omit<ParsedRow, 'naturalKey' | 'payload'> & {
-  naturalKey?: string | null;
-  payload?: AcceptedPayload | null;
-}): ParsedRow {
-  return {
-    ...input,
-    naturalKey: input.naturalKey ?? null,
-    payload: input.payload ?? null,
-  };
-}
-
-export function templateRow(sheetName: string, rowNumber: number, entityType: string): ParsedRow {
-  return classifiedRow({
-    sheetName,
-    rowNumber,
-    entityType,
-    classification: 'TEMPLATE',
-    reasonCode: null,
-    redactedReason: null,
-  });
-}
-
-export function blockedRow(
-  sheetName: string,
-  rowNumber: number,
-  entityType: string,
-  reasonCode: string,
-  redactedReason: string,
-): ParsedRow {
-  return classifiedRow({
-    sheetName,
-    rowNumber,
-    entityType,
-    classification: 'BLOCKED',
-    reasonCode,
-    redactedReason,
-  });
 }
 
 function parseOrganizationReferences(
@@ -821,55 +722,6 @@ async function parseWorkbook(buffer: Buffer): Promise<ParsedWorkbook> {
   };
 }
 
-function inspectXlsxArchive(buffer: Buffer): void {
-  const centralDirectorySignature = Buffer.from([0x50, 0x4b, 0x01, 0x02]);
-  let offset = 0;
-  let entryCount = 0;
-  let totalUncompressedBytes = 0;
-  let hasContentTypes = false;
-  while (offset < buffer.length) {
-    const entryOffset = buffer.indexOf(centralDirectorySignature, offset);
-    if (entryOffset < 0) break;
-    if (entryOffset + 46 > buffer.length) throw new ApiError(415, 'Cấu trúc tệp XLSX không hợp lệ.');
-    const uncompressedBytes = buffer.readUInt32LE(entryOffset + 24);
-    const fileNameLength = buffer.readUInt16LE(entryOffset + 28);
-    const extraLength = buffer.readUInt16LE(entryOffset + 30);
-    const commentLength = buffer.readUInt16LE(entryOffset + 32);
-    const nameStart = entryOffset + 46;
-    const nameEnd = nameStart + fileNameLength;
-    if (nameEnd > buffer.length) throw new ApiError(415, 'Cấu trúc tệp XLSX không hợp lệ.');
-    const entryName = buffer.subarray(nameStart, nameEnd).toString('utf8').toLowerCase();
-    entryCount += 1;
-    totalUncompressedBytes += uncompressedBytes;
-    if (entryName === '[content_types].xml') hasContentTypes = true;
-    if (entryName.endsWith('vbaproject.bin')) throw new ApiError(415, 'Tệp có macro không được phép nhập.');
-    if (entryCount > MASTER_IMPORT_MAX_ZIP_ENTRIES
-      || totalUncompressedBytes > MASTER_IMPORT_MAX_UNCOMPRESSED_BYTES) {
-      throw new ApiError(413, 'Dung lượng giải nén của tệp XLSX vượt quá giới hạn xử lý.');
-    }
-    offset = nameEnd + extraLength + commentLength;
-  }
-  if (entryCount === 0 || !hasContentTypes) throw new ApiError(415, 'Gói tệp không phải XLSX hợp lệ.');
-}
-
-export function validateWorkbookFile(file: MasterWorkbookFile): void {
-  if (!file || !Buffer.isBuffer(file.buffer)) throw new ApiError(400, 'Tệp XLSX là bắt buộc.');
-  if (file.size < 1 || file.buffer.length < 4) throw new ApiError(400, 'Tệp XLSX trống.');
-  if (file.size > MASTER_IMPORT_MAX_BYTES || file.buffer.length > MASTER_IMPORT_MAX_BYTES) {
-    throw new ApiError(413, 'Tệp XLSX không được vượt quá 15 MB.');
-  }
-  if (path.extname(file.originalname).toLowerCase() !== '.xlsx') {
-    throw new ApiError(415, 'Chỉ chấp nhận tệp .xlsx.');
-  }
-  if (file.mimetype !== MASTER_IMPORT_XLSX_MIME) {
-    throw new ApiError(415, 'Kiểu tệp không hợp lệ; chỉ chấp nhận XLSX.');
-  }
-  if (file.buffer[0] !== 0x50 || file.buffer[1] !== 0x4b) {
-    throw new ApiError(415, 'Chữ ký tệp không phải XLSX.');
-  }
-  inspectXlsxArchive(file.buffer);
-}
-
 // The Sep-2026 delivery is two separate workbooks (Data form.xlsx + User &
 // Role.xlsx). Rather than plumb a second file through the hardened
 // hash/private-storage/replay/apply-time-reparse machinery above, each file
@@ -880,8 +732,8 @@ export function validateWorkbookFile(file: MasterWorkbookFile): void {
 // or with the legacy single-file sheets, so row identity (sheetName:rowNumber)
 // stays unambiguous.
 // Implementation lives in master-data-import-sep2026.service.ts (LOC budget);
-// re-exported here so route imports don't need to know about the split.
-export { mergeWorkbookFiles } from './master-data-import-sep2026.service';
+// routes import it directly from there — re-exporting it here closed a
+// runtime import cycle (sep2026 imports this module's workbook helpers).
 
 function batchRowToDto(
   batch: typeof s.masterImportBatches.$inferSelect,
@@ -1105,10 +957,6 @@ export async function getMasterImportBatch(
   requireAdmin(actor);
   if (!Number.isInteger(batchId) || batchId < 1) throw new ApiError(400, 'ID lô nhập không hợp lệ.');
   return loadBatchDto(batchId);
-}
-
-export function increment(counts: Record<string, number>, key: string): void {
-  counts[key] = (counts[key] ?? 0) + 1;
 }
 
 async function applyParsedRows(

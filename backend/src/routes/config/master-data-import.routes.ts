@@ -14,10 +14,13 @@ import {
   analyzeMasterWorkbook,
   applyMasterImport,
   getMasterImportBatch,
-  MASTER_IMPORT_MAX_BYTES,
-  mergeWorkbookFiles,
   rejectMasterImport,
 } from '../../services/master-data-import.service';
+// Direct imports: the implementation lives in the sep-2026 module / the
+// workbook leaf; importing via master-data-import.service would close a
+// runtime import cycle.
+import { MASTER_IMPORT_MAX_BYTES } from '../../services/master-import-workbook.service';
+import { mergeWorkbookFiles } from '../../services/master-data-import-sep2026.service';
 
 const router = Router()
 const upload = multer({
