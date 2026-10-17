@@ -15,10 +15,13 @@ export interface ShipmentCreateLclRouteSectionProps {
   update: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
   routeOptions: { value: string; label: string }[];
   operationalSites: OperationalSite[];
+  /** FB-105 §2: the Kho (CFS/Cảng) picker now lives in this card. */
+  warehouseSites: OperationalSite[];
   selectedOperationalSite: OperationalSite | null;
   selectOperationalSite: (value: string) => void;
   routeCustomText?: (text: string) => void;
   factoryCustomText?: (text: string) => void;
+  warehouseCustomText?: (text: string) => void;
   routeAddButtonRef: RefObject<HTMLButtonElement | null>;
   setRouteDialogOpen: (open: boolean) => void;
   openCreateSiteDialog: (siteType: 'FACTORY' | 'WAREHOUSE') => void;
@@ -33,10 +36,12 @@ export function ShipmentCreateLclRouteSection({
   update,
   routeOptions,
   operationalSites,
+  warehouseSites,
   selectedOperationalSite,
   selectOperationalSite,
   routeCustomText,
   factoryCustomText,
+  warehouseCustomText,
   routeAddButtonRef,
   setRouteDialogOpen,
   openCreateSiteDialog,
@@ -82,10 +87,18 @@ export function ShipmentCreateLclRouteSection({
             </button>
           )}
         </div>
-        <div className="csc-site-picker">
+        <div className="csc-site-picker" data-field-id="shipment-operational-site">
           <SearchableField
             id="shipment-operational-site"
-            label="Nhà máy"
+            // FB-105 (spec §2): the Nhà máy is the delivery point for hàng Nhập
+            // and the pickup point for hàng Xuất and is REQUIRED for hàng lẻ
+            // (waived by Lệnh chạy ngoài, like every catalog prerequisite).
+            label={form.tradeDirection === 'EXPORT'
+              ? 'Nhà máy (Điểm lấy hàng)'
+              : form.tradeDirection === 'IMPORT'
+                ? 'Nhà máy (Điểm trả hàng)'
+                : 'Nhà máy'}
+            required={!form.isAdHoc}
             value={form.operationalSiteId}
             onChange={selectOperationalSite}
             options={operationalSites.map((site) => ({
@@ -100,12 +113,12 @@ export function ShipmentCreateLclRouteSection({
                 ? 'Chọn khách hàng trước'
                 : form.isAdHoc
                 ? 'Chọn hoặc gõ tên nhà máy'
-                : 'Gõ chọn'
+                : 'Chọn hoặc nhập nhà máy'
             }
             disabled={(!form.customerId && !form.isAdHoc) || sitesLoading || saving}
             error={issueByField.get('shipment-operational-site')}
-            allowsCustomValue={form.isAdHoc}
-            {...(form.isAdHoc && factoryCustomText ? { onCustomValue: factoryCustomText } : {})}
+            allowsCustomValue
+            {...(factoryCustomText ? { onCustomValue: factoryCustomText } : {})}
             hint={
               form.customerId && !sitesLoading && operationalSites.length === 0 ? (
                 <>
@@ -165,6 +178,87 @@ export function ShipmentCreateLclRouteSection({
             />
           </div>
         )}
+        {/* FB-105 (spec §2): the Kho (CFS/Cảng) picker shares this card with
+            Tuyến đường / Nhà máy so every địa điểm lives in one place; "Thông
+            tin hàng" keeps only the cargo fields. */}
+        <div data-field-id="shipment-pickup-warehouse" style={{ display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'stretch' }}>
+          <SearchableField
+            id="shipment-pickup-warehouse"
+            label={form.tradeDirection === 'EXPORT'
+              ? 'Kho trả hàng (CFS/Cảng)'
+              : form.tradeDirection === 'IMPORT'
+                ? 'Kho lấy hàng (CFS/Cảng)'
+                : 'Kho lấy hàng'}
+            required={!form.isAdHoc}
+            value={form.pickupWarehouseSiteId}
+            onChange={(value) => update('pickupWarehouseSiteId', value)}
+            options={warehouseSites.map((site) => ({
+              value: String(site.id),
+              label: site.shortName || site.name,
+              searchText: `${site.code} ${site.name} ${site.address ?? ''}`,
+            }))}
+            placeholder={
+              sitesLoading
+                ? 'Đang tải…'
+                : !form.customerId
+                  ? (form.isAdHoc ? 'Không áp dụng cho lệnh chạy ngoài' : 'Chọn khách hàng trước')
+                  : form.tradeDirection === 'EXPORT'
+                    ? 'Chọn hoặc nhập kho CFS hạ/giao hàng...'
+                    : 'Chọn hoặc nhập kho CFS lấy hàng...'
+            }
+            disabled={!form.customerId || sitesLoading || saving}
+            error={issueByField.get('shipment-pickup-warehouse')}
+            allowsCustomValue
+            {...(warehouseCustomText ? { onCustomValue: warehouseCustomText } : {})}
+            hint={
+              form.customerId && !sitesLoading && warehouseSites.length === 0 ? (
+                <>
+                  Chưa có kho cho khách hàng này.{' '}
+                  <button
+                    type="button"
+                    onClick={() => openCreateSiteDialog('WAREHOUSE')}
+                    disabled={saving}
+                    style={{
+                      border: 0,
+                      background: 'none',
+                      padding: 0,
+                      color: 'var(--accent-ink, #00361B)',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: 'var(--text-control-size)',
+                    }}
+                  >
+                    Thêm kho
+                  </button>
+                </>
+              ) : undefined
+            }
+            searchable
+          />
+          {!sitesLoading && form.customerId ? (
+            <button
+              type="button"
+              onClick={() => openCreateSiteDialog('WAREHOUSE')}
+              disabled={saving}
+              style={{
+                alignSelf: 'start',
+                minHeight: 'var(--control-touch-h)',
+                padding: '0 14px',
+                border: '1px dashed var(--border-2)',
+                borderRadius: 8,
+                background: 'transparent',
+                color: 'var(--accent-ink, #00361B)',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+              }}
+            >
+              <Plus size={15} aria-hidden="true" style={{ color: 'var(--accent, #2563eb)' }} />Thêm kho
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {selectedOperationalSite?.strictRules && (

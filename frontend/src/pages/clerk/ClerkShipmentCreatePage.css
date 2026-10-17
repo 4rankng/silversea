@@ -14,6 +14,11 @@
 .csc-topline__progress { color: var(--fg-3); font-size: var(--text-data-size); }
 .csc-topline__progress strong { color: var(--accent-ink); font-weight: 700; }
 .csc-topline__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
+/* FB-108 (card 171026115830): the action cluster repeated at the end of the
+   worksheet. Separated from the last card by a rule so it reads as the form's
+   footer, not as part of the note card above it. */
+.csc-form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-1); }
+.csc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* LCL split-lot extra delivery dates (Create Shipment doc Block 2B "[+]" repeater). */
 .csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 .csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }

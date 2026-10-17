@@ -224,7 +224,7 @@ export function USearchableField({
         isDisabled={disabled}
         isRequired={required}
         isInvalid={Boolean(error)}
-        hint={typeof (error ?? hint) === 'string' ? (error ?? hint) as string : undefined}
+        hint={error ?? hint}
         hideRequiredIndicator={!required}
         shortcut={shortcut}
         popoverClassName={popoverClassName}

@@ -69,7 +69,7 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
 
-    const required = ['shipment-route', 'shipment-pickup-warehouse', 'shipment-package-type', 'shipment-package-count', 'shipment-cargo-weight', 'shipment-expected-delivery'];
+    const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-type', 'shipment-package-count', 'shipment-cargo-weight', 'shipment-expected-delivery'];
     for (const fieldId of required) {
       await waitFor(() => {
         expect(document.querySelector(`[data-field-id="${fieldId}"]`)).toBeTruthy();
@@ -116,7 +116,7 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     expect(cellLabel('Ngày giờ đóng trả *')).toBeTruthy();
   });
 
-  it('LCL ad-hoc keeps the route mark off until a catalog route is required', async () => {
+  it('LCL ad-hoc waives the catalog marks (route and warehouse)', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
@@ -126,7 +126,11 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
       expect(document.querySelector('[data-field-id="shipment-route"]')).toBeTruthy();
     });
     expect(document.querySelector('[data-field-id="shipment-route"]')!.textContent).not.toContain('*');
-    // The warehouse stays enforced for ad-hoc lots (data safety, not catalog).
-    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse"]')!.textContent).toContain('*');
+    // The warehouse AND the factory are catalog prerequisites too (both belong
+    // to a customer / a customer's site list), so an ad-hoc lot carries no
+    // mark — matching the waived shipment-pickup-warehouse /
+    // shipment-operational-site issues in getShipmentCreateReadiness.
+    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse"]')!.textContent).not.toContain('*');
+    expect(document.querySelector('[data-field-id="shipment-operational-site"]')!.textContent).not.toContain('*');
   });
 });

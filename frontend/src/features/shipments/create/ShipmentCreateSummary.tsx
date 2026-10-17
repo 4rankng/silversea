@@ -2,7 +2,9 @@ import { AlertCircle } from 'lucide-react';
 import type { ShipmentCreateIssue } from './shipment-create-model';
 
 interface ShipmentCreateSummaryProps {
-  validationIssues: ShipmentCreateIssue[];
+  /** Live outstanding requirements from `getShipmentCreateReadiness` — named
+   *  before the first submit, not only after the validator runs. */
+  outstandingIssues: ShipmentCreateIssue[];
   submitError: string | null;
   onFocusIssue: (fieldId: string) => void;
 }
@@ -10,24 +12,26 @@ interface ShipmentCreateSummaryProps {
 /* The validation/summary block. The create actions no longer live here: the
  * owner mock 11/10 moved them onto the page topline (ShipmentCreateTopline)
  * and retired the fixed bottom bar this file used to own — so the file is
- * just the in-flow state surface now: the issue list, and a submit failure
- * (danger styling, announced once). */
+ * just the in-flow state surface now: the outstanding-issue list (card
+ * 171026113510 — it used to render submit-attempt issues only, so a form with
+ * the identity fields filled showed nothing while six fields still blocked),
+ * and a submit failure (danger styling, announced once). */
 export function ShipmentCreateSummary({
-  validationIssues,
+  outstandingIssues,
   submitError,
   onFocusIssue,
 }: ShipmentCreateSummaryProps) {
   return (
     <aside className="csc-summary" aria-label="Tình trạng lô hàng">
-      {validationIssues.length > 0 && (
+      {outstandingIssues.length > 0 && (
         <div className="csc-validation-summary" role="alert" tabIndex={-1}>
           <div className="csc-validation-summary__title">
             <AlertCircle size={18} aria-hidden="true" />
-            <strong>Cần bổ sung {validationIssues.length} thông tin</strong>
+            <strong>Cần bổ sung {outstandingIssues.length} thông tin</strong>
           </div>
           <p>Chọn từng mục để chuyển đến trường cần sửa.</p>
           <ol>
-            {validationIssues.map((item) => (
+            {outstandingIssues.map((item) => (
               <li key={`${item.fieldId}-${item.message}`}>
                 <button type="button" onClick={() => onFocusIssue(item.fieldId)}>{item.message}</button>
               </li>

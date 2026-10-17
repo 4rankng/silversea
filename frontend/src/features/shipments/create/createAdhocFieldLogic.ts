@@ -14,6 +14,9 @@ export interface AdhocFieldLogicDeps {
   routeOptions: OptionLike[];
   portOptions: OptionLike[];
   operationalSites: OperationalSite[];
+  /** FB-105: the hàng lẻ Kho (CFS/Cảng) options — a typed value matching one of
+   *  these selects the site, otherwise it becomes the free-text Kho name. */
+  warehouseSites: OperationalSite[];
   selectCustomer: (value: string) => void;
   selectOperationalSite: (value: string) => void;
   selectContainerFactory: (rowKey: string, value: string) => void;
@@ -26,7 +29,7 @@ export interface AdhocFieldLogicDeps {
 
 export function createAdhocFieldLogic(deps: AdhocFieldLogicDeps) {
   const {
-    customerOptions, routeOptions, portOptions, operationalSites,
+    customerOptions, routeOptions, portOptions, operationalSites, warehouseSites,
     selectCustomer, selectOperationalSite, selectContainerFactory,
     update, updateContainer, setForm, setContainers, clearFeedback,
   } = deps;
@@ -49,6 +52,17 @@ export function createAdhocFieldLogic(deps: AdhocFieldLogicDeps) {
     const match = operationalSites.find((site) => (site.shortName || site.name) === text);
     if (match) { selectOperationalSite(String(match.id)); return; }
     setForm((current) => ({ ...current, operationalSiteId: '', factoryName: text }));
+    clearFeedback();
+  }
+
+  /** FB-105 (spec §2): the hàng lẻ Kho (CFS/Cảng) picker accepts a catalog
+   *  pick OR text — as with the factory, an exact option-label match selects
+   *  the site id, anything else becomes the lot's free-text lift/drop name
+   *  with the id cleared (never written back into the master table). */
+  function warehouseCustomText(text: string) {
+    const match = warehouseSites.find((site) => (site.shortName || site.name) === text);
+    if (match) { update('pickupWarehouseSiteId', String(match.id)); return; }
+    setForm((current) => ({ ...current, pickupWarehouseSiteId: '', pickupWarehouseName: text }));
     clearFeedback();
   }
 
@@ -95,7 +109,7 @@ export function createAdhocFieldLogic(deps: AdhocFieldLogicDeps) {
   }
 
   return {
-    customerCustomText, routeCustomText, factoryCustomText, portCustomText,
+    customerCustomText, routeCustomText, factoryCustomText, warehouseCustomText, portCustomText,
     containerFactoryCustomText, containerRouteCustomText, routeIdForSite,
   };
 }

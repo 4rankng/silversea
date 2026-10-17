@@ -32,6 +32,7 @@ import {
 import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
+import { ShipmentCreateActions } from './ShipmentCreateActions';
 import { requiredCompletion } from './ShipmentCreateTopline.progress';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
@@ -141,12 +142,10 @@ export function ShipmentCreateWorkspace() {
     () => operationalSites.find((site) => String(site.id) === form.operationalSiteId) ?? null,
     [form.operationalSiteId, operationalSites],
   );
-  // TEMPORARY (2026-10-17 per user directive): picker "Kho lấy hàng" đang trống
-  // chờ data source mới. Dữ liệu thật sẽ là OperationalSite với siteType='WAREHOUSE'
-  // per customer (GET /api/shipments/operational-sites?customerId=<id>).
-  // Trả về [] → UX empty-state ("Chưa có kho cho khách hàng này" + "Thêm kho")
-  // vẫn hiển thị, KHÔNG crash.
-  const warehouseSites = useMemo<OperationalSite[]>(() => [], []);
+  // "Kho lấy hàng" reads the same customer-scoped operational sites as the
+  // factory picker, narrowed to siteType='WAREHOUSE' (the list itself comes
+  // from GET /api/shipments/operational-sites?customerId=<id>).
+  const warehouseSites = useMemo(() => sites.filter((site) => site.siteType === 'WAREHOUSE'), [sites]);
   const readiness = useMemo(
     () => getShipmentCreateReadiness(form, containers),
     [containers, form],
@@ -263,16 +262,17 @@ export function ShipmentCreateWorkspace() {
       ...resetCustomerSite(current, sites),
       customerId: value,
       pickupWarehouseSiteId: '',
+      pickupWarehouseName: '',
     }));
     setSites([]);
     clearFeedback();
   }
 
   const {
-    customerCustomText, routeCustomText, factoryCustomText, portCustomText,
+    customerCustomText, routeCustomText, factoryCustomText, warehouseCustomText, portCustomText,
     containerFactoryCustomText, containerRouteCustomText, routeIdForSite,
   } = createAdhocFieldLogic({
-    customerOptions, routeOptions, portOptions, operationalSites,
+    customerOptions, routeOptions, portOptions, operationalSites, warehouseSites,
     selectCustomer, selectOperationalSite, selectContainerFactory,
     update: (key, value) => update(key as Parameters<typeof update>[0], value as never),
     updateContainer: (rowKey, field, value) => updateContainer(rowKey, field as Parameters<typeof updateContainer>[1], value),
@@ -404,7 +404,7 @@ export function ShipmentCreateWorkspace() {
   function changeMode(next: CargoMode) {
     if (next === form.cargoMode) return;
     const hasModeData = form.cargoMode === 'LCL'
-      ? Boolean(form.packageType || form.packageCount || form.cargoWeightKg || form.cargoVolumeCbm || form.cargoTypeId || form.operationalSiteId || form.pickupWarehouseSiteId || form.extraDeliveryDates.some(Boolean)) || hasDateDraft(workspaceFormRef.current, true)
+      ? Boolean(form.packageType || form.packageCount || form.cargoWeightKg || form.cargoVolumeCbm || form.cargoTypeId || form.operationalSiteId || form.pickupWarehouseSiteId || form.pickupWarehouseName.trim() || form.factoryName.trim() || form.extraDeliveryDates.some(Boolean)) || hasDateDraft(workspaceFormRef.current, true)
       : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value)) || hasDateDraft(workspaceFormRef.current?.querySelector('.csc-container-editor'));
     if (hasModeData) {
       setPendingModeSwitch(next);
@@ -420,6 +420,11 @@ export function ShipmentCreateWorkspace() {
       cargoTypeId: next === 'FCL' ? '' : current.cargoTypeId,
       operationalSiteId: next === 'LCL' ? current.operationalSiteId : '',
       pickupWarehouseSiteId: next === 'FCL' ? '' : current.pickupWarehouseSiteId,
+      // FB-105: both operating points now accept typed text, so an LCL-only
+      // free-text name must not survive into an FCL payload (the root
+      // `factoryName` rides the payload for ad-hoc lots of either mode).
+      pickupWarehouseName: next === 'FCL' ? '' : current.pickupWarehouseName,
+      factoryName: next === 'FCL' ? '' : current.factoryName,
       cargoVolumeCbm: '',
       packageCount: '',
       packageType: '',
@@ -552,21 +557,13 @@ export function ShipmentCreateWorkspace() {
     }
   }
 
-  // The three `*`-marked identity fields the owner mock counts ("Bắt buộc").
-  const requiredDone = useMemo(() => [
-    Boolean(form.customerId) || (form.isAdHoc && Boolean(form.rawCustomerName.trim())),
-    Boolean(form.tradeDirection),
-    Boolean(form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef),
-  ].filter(Boolean).length, [
-    form.customerId, form.isAdHoc, form.rawCustomerName,
-    form.tradeDirection, form.blNumber, form.bookingRef,
-  ]);
-
-  // QA1-007: one denominator for the chip and the "Cần bổ sung" panel — the
-  // identity fields already done, plus everything the validator still blocks.
+  // Card 171026113510 (QA1-007 verify-fail lần 2): the chip and the panel both
+  // read the LIVE readiness above, not `validationIssues` — that state only
+  // fills after a submit attempt, which is why a form with the three identity
+  // fields filled claimed "3/3" while six mode-specific fields still blocked.
   const completion = useMemo(
-    () => requiredCompletion(requiredDone, validationIssues.length),
-    [requiredDone, validationIssues.length],
+    () => requiredCompletion(form, containers, readiness.issues),
+    [form, containers, readiness],
   );
 
   if (loading) return <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-3)' }}>Đang tải…</div>;
@@ -585,7 +582,7 @@ export function ShipmentCreateWorkspace() {
       />
       <form ref={workspaceFormRef} noValidate onSubmit={(event) => { event.preventDefault(); void save('CREATE'); }} className="csc-workspace">
         <ShipmentCreateSummary
-          validationIssues={validationIssues}
+          outstandingIssues={readiness.issues}
           submitError={submitError}
           onFocusIssue={focusIssue}
         />
@@ -615,10 +612,12 @@ export function ShipmentCreateWorkspace() {
               update={update}
               routeOptions={routeOptions}
               operationalSites={operationalSites}
+              warehouseSites={warehouseSites}
               selectedOperationalSite={selectedOperationalSite}
               selectOperationalSite={selectOperationalSite}
               routeCustomText={routeCustomText}
               factoryCustomText={factoryCustomText}
+              warehouseCustomText={warehouseCustomText}
               routeAddButtonRef={routeAddButtonRef}
               setRouteDialogOpen={setRouteDialogOpen}
               openCreateSiteDialog={openCreateSiteDialog}
@@ -712,11 +711,8 @@ export function ShipmentCreateWorkspace() {
               <ShipmentCreateLclCargoFields
                 form={form}
                 update={update}
-                warehouseSites={warehouseSites}
-                sitesLoading={sitesLoading}
                 saving={Boolean(saving)}
                 issueByField={issueByField}
-                openCreateSiteDialog={openCreateSiteDialog}
               />
             )}
           </ShipmentCreateSection>
@@ -826,6 +822,21 @@ export function ShipmentCreateWorkspace() {
           transportDate={previewTransportDate || undefined}
           isAdHoc={form.isAdHoc}
         />
+
+        {/* Card 171026115830 (FB-108): the same three actions repeat at the END
+            of the worksheet — a clerk who has just typed the last field must
+            not scroll back to the topline to save. This deliberately brings
+            back the bottom bar the 11/10 mock had retired (owner request,
+            17/10). */}
+        <div className="csc-form-actions">
+          <ShipmentCreateActions
+            variant="footer"
+            saving={saving}
+            onCancel={goBack}
+            onSaveDraft={() => void save('DRAFT')}
+            onCreate={() => void save('CREATE')}
+          />
+        </div>
       </form>
 
       <ShipmentCreateModals

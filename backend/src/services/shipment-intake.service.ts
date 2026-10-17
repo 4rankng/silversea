@@ -726,18 +726,31 @@ async function assertReferenceIsActive(
     if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng.');
   }
   if (shipment.cargoMode === CARGO_MODE.LCL) {
-    if (shipment.pickupWarehouseSiteId == null) throw new ApiError(409, 'Vui lòng chọn kho lấy hàng.');
-    const [warehouse] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
-      .where(and(
-        eq(s.operationalSites.id, shipment.pickupWarehouseSiteId),
-        ...(shipment.customerId != null
-          ? [eq(s.operationalSites.customerId, shipment.customerId)]
-          : []),
-        eq(s.operationalSites.siteType, 'WAREHOUSE'),
-        eq(s.operationalSites.isActive, true),
-        isNull(s.operationalSites.deletedAt),
-      )).limit(1);
-    if (!warehouse) throw new ApiError(409, 'Kho lấy hàng không còn hiệu lực hoặc không thuộc khách hàng.');
+    if (shipment.pickupWarehouseSiteId == null) {
+      // FB-105 (spec §2): the Kho (CFS/Cảng) point accepts a catalog site OR
+      // typed text — hàng Nhập lấy tại Kho (`pickup_location`), hàng Xuất hạ
+      // tại Kho (`delivery_location`). Lệnh chạy ngoài (no catalog customer)
+      // has no warehouse source at all: kho luôn thuộc một khách hàng, nên
+      // "+ Thêm kho" không phục vụ được.
+      const warehousePointName = shipment.tradeDirection === 'EXPORT'
+        ? shipment.deliveryLocation
+        : shipment.pickupLocation;
+      if (shipment.customerId != null && !warehousePointName?.trim()) {
+        throw new ApiError(409, 'Vui lòng chọn kho lấy hàng.');
+      }
+    } else {
+      const [warehouse] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
+        .where(and(
+          eq(s.operationalSites.id, shipment.pickupWarehouseSiteId),
+          ...(shipment.customerId != null
+            ? [eq(s.operationalSites.customerId, shipment.customerId)]
+            : []),
+          eq(s.operationalSites.siteType, 'WAREHOUSE'),
+          eq(s.operationalSites.isActive, true),
+          isNull(s.operationalSites.deletedAt),
+        )).limit(1);
+      if (!warehouse) throw new ApiError(409, 'Kho lấy hàng không còn hiệu lực hoặc không thuộc khách hàng.');
+    }
   }
 }
 

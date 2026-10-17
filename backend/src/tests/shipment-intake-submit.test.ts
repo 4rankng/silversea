@@ -910,6 +910,121 @@ describe('shipment intake submission', () => {
     assert.equal(handoffs.length, 0);
   });
 
+  test('an ad-hoc LCL lot without a pickup warehouse submits for dispatch', async () => {
+    const admin = await actor(Role.ADMIN);
+    // Lệnh chạy ngoài has no catalog customer, so it has no warehouse source:
+    // a warehouse always belongs to a customer, so a raw-customer lot leaves
+    // pickup_warehouse_site_id NULL and dispatch must not be blocked by that.
+    const [shipment] = await db.insert(s.shipments).values({
+      isAdHoc: true,
+      rawCustomerName: `Khách chạy ngoài ${suffix}`,
+      rawRouteName: `Tuyến riêng ${suffix}`,
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      blNumber: `BL-LCL-ADHOC-NOWH-${suffix}`,
+      pickupWarehouseSiteId: null,
+      packageType: 'Pallet',
+      packageCount: 5,
+      cargoWeightKg: '300',
+      expectedDeliveryDate: '2026-08-03',
+      shipmentCode: `INTAKE-LCL-ADHOC-NOWAREHOUSE-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    const key = `submit-lcl-adhoc-nowarehouse-${suffix}`;
+    idempotencyKeys.push(key);
+    const result = await submitShipmentForDispatch({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      idempotencyKey: key,
+      actor: admin,
+    });
+    assert.equal(result.result.shipment.status, 'READY_FOR_DISPATCH');
+    const handoffs = await db.select().from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    assert.equal(handoffs.length, 1);
+  });
+
+  test('a catalog-customer LCL lot without a pickup warehouse still cannot submit for dispatch', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      blNumber: `BL-LCL-NOWH-${suffix}`,
+      pickupWarehouseSiteId: null,
+      packageType: 'Pallet',
+      packageCount: 5,
+      cargoWeightKg: '300',
+      expectedDeliveryDate: '2026-08-03',
+      shipmentCode: `INTAKE-LCL-NOWAREHOUSE-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    const key = `submit-lcl-nowarehouse-${suffix}`;
+    idempotencyKeys.push(key);
+    // The warehouse requirement is unconditional for a catalog lot: only the
+    // ad-hoc path (null customer) is exempt, so a missing warehouse is 409.
+    await assert.rejects(
+      submitShipmentForDispatch({
+        shipmentId: shipment.id,
+        expectedVersion: shipment.version,
+        idempotencyKey: key,
+        actor: admin,
+      }),
+      (error: unknown) => error instanceof ApiError
+        && error.statusCode === 409
+        && error.message === 'Vui lòng chọn kho lấy hàng.',
+    );
+    const handoffs = await db.select().from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    assert.equal(handoffs.length, 0);
+  });
+
+  test('a catalog-customer LCL lot with a TYPED warehouse point submits for dispatch', async () => {
+    const admin = await actor(Role.ADMIN);
+    const ref = await references();
+    // FB-105 (spec §2): the Kho (CFS/Cảng) point accepts the catalog site OR
+    // typed text — hàng Nhập stores it as the lot's lift point
+    // (`pickup_location`), hàng Xuất as the drop point (`delivery_location`).
+    const [shipment] = await db.insert(s.shipments).values({
+      customerId: ref.customer.id,
+      routeId: ref.route.id,
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      blNumber: `BL-LCL-TYPED-${suffix}`,
+      pickupWarehouseSiteId: null,
+      pickupLocation: 'Kho CFS gõ tay',
+      packageType: 'Pallet',
+      packageCount: 5,
+      cargoWeightKg: '300',
+      expectedDeliveryDate: '2026-08-03',
+      shipmentCode: `INTAKE-LCL-TYPED-KHO-${suffix}`,
+      status: 'READY_FOR_DISPATCH',
+      closingAt: new Date('2026-08-05T08:00:00.000Z'),
+      createdBy: admin.userId,
+    }).returning();
+    shipmentIds.push(shipment.id);
+    const key = `submit-lcl-typed-kho-${suffix}`;
+    idempotencyKeys.push(key);
+    const result = await submitShipmentForDispatch({
+      shipmentId: shipment.id,
+      expectedVersion: shipment.version,
+      idempotencyKey: key,
+      actor: admin,
+    });
+    assert.equal(result.result.shipment.status, 'READY_FOR_DISPATCH');
+    const handoffs = await db.select().from(s.dispatchHandoffs)
+      .where(eq(s.dispatchHandoffs.shipmentId, shipment.id));
+    assert.equal(handoffs.length, 1);
+  });
+
   test('denies ACCOUNTANT but allows an unscoped CLERK to submit for dispatch', async () => {
     const accountant = await actor(Role.ACCOUNTANT);
     const clerk = await actor(Role.CUS);
