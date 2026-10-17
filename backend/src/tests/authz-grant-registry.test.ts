@@ -421,9 +421,11 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
   });
 
   describe('bypass wiring: casbinAuthz honors the registry end to end', () => {
-    // Cells chosen so casbin independently DENIES (role holds no matching
-    // policy row): a next() here can only come from the grant layer, so the
-    // middleware probes stay sharp on both sides of the refactor.
+    // Cells chosen so casbin independently DENIES (the role's policy rows, if
+    // any, do not cover the probed action — e.g. OPS holds shipments read
+    // since 141026230710 but the probed recovery-facts POST maps to write):
+    // a next() here can only come from the grant layer, so the middleware
+    // probes stay sharp on both sides of the refactor.
     const WIRING_CELLS: readonly {
       label: string;
       resource: string;

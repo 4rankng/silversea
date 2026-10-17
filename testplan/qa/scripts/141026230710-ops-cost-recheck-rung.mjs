@@ -43,7 +43,10 @@ step('login', { status: loginRes.status, gotToken: Boolean(token), user: session
 if (!token) throw new Error('no token for hoangnh');
 
 // ── 2. informational: the card's step-2 repro (/shipments 403) — FB-033
-// status quo, expected to STILL 403 by owner ruling; NOT a pass criterion. ──
+// status quo, expected to STILL 403 by owner ruling; NOT a pass criterion.
+// SUPERSEDED 2026-10-17 (ticket 141026230710): `p, OPS, shipments, read` now
+// opens this probe to 200 — the 403 expectation below records the 16/10
+// staging build only, keep it as historical evidence. ──
 const shipmentsRes = await fetch(`${API}/shipments`, { headers: { Authorization: `Bearer ${token}` } });
 step('shipments-probe', { status: shipmentsRes.status, expected: 403, note: 'FB-033 owner ruling: OPS has no /api/shipments policy row — by design' });
 

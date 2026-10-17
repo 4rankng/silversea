@@ -1,0 +1,11 @@
+=== cmd: cd frontend && pnpm exec vitest run src/styles/numeric-identity.styles.test.ts (rerun after make build produced dist/) ===
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-141026230710-ops-expense-access/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  11:07:08
+   Duration  663ms (transform 24ms, setup 123ms, import 10ms, tests 9ms, environment 447ms)
+
+exit=0

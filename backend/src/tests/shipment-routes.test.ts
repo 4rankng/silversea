@@ -8,7 +8,8 @@
  *
  * Coverage matrix:
  *   - RBAC: ADMIN/MANAGER/CLERK/ACCOUNTANT allowed/denied per the policy rows;
- *     CUSTOMER/DRIVER/FORWARDER denied at the mount (403).
+ *     CUSTOMER/DRIVER denied at the mount (403). OPS reads since
+ *     141026230710 (read-only grant — create stays 403).
  *   - List: pagination shape + customerId/status filters + invalid-status 400.
  *   - Create: 201 + generated shipmentCode; validation 400; RBAC 403.
  *   - Detail: 200 with containers/documents/declarations/statusHistory; 404.
@@ -981,8 +982,19 @@ describe('RBAC: /api/shipments mount', () => {
     const r = await testFetch('/', { token: driverToken });
     assert.equal(r.status, 403);
   });
-  test('FORWARDER is denied at the mount (403)', async () => {
+  // Ticket 141026230710 (chỉ thị 2026-10-17, spec T3): Ops xem được mọi lô —
+  // `p, OPS, shipments, read` mở list/detail; writes giữ nguyên (xem test sau).
+  test('OPS (FORWARDER) can list (200) since 141026230710', async () => {
     const r = await testFetch('/', { token: forwarderToken });
+    assert.equal(r.status, 200);
+    assert.ok(Array.isArray(r.data.items));
+  });
+  test('OPS (FORWARDER) is denied create (403) — read-only grant', async () => {
+    const r = await testFetch('/', {
+      method: 'POST',
+      token: forwarderToken,
+      body: { customerId },
+    });
     assert.equal(r.status, 403);
   });
   test('missing token → 401', async () => {

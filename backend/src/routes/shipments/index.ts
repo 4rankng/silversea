@@ -18,7 +18,11 @@
 //       ACCOUNTANT → shipments read|write for O2C review/close flows
 //       CUS      → shipments read|write          (existing Wave 0 rows)
 //       DISPATCHER → shipments read|write for the canonical intake workflow
-//       CUSTOMER / DRIVER / FORWARDER → denied at the mount
+//       OPS      → shipments read (ticket 141026230710, 2026-10-17 — the
+//                  /shipments view is the Ops lot surface for khai chi phí;
+//                  every general write stays closed to OPS except the scoped
+//                  recovery-facts grant in middleware/authz-grants.ts)
+//       CUSTOMER / DRIVER → denied at the mount
 //
 //   - Mutating handlers additionally use `requireRoles` for an explicit
 //     in-handler guard. This belt-and-suspenders pattern matches

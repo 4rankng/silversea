@@ -7,9 +7,9 @@ describe('shipment route role access', () => {
     expect(canReadShipmentRoutes(Role.DISPATCHER)).toBe(true);
   });
 
-  it('keeps portal-only roles outside office shipment routes', () => {
+  it('admits OPS read since 2026-10-17 (ticket 141026230710) while portal-only roles stay out', () => {
+    expect(canReadShipmentRoutes(Role.OPS)).toBe(true);
     expect(canReadShipmentRoutes(Role.DRIVER)).toBe(false);
-    expect(canReadShipmentRoutes(Role.OPS)).toBe(false);
     expect(canReadShipmentRoutes(Role.CUSTOMER)).toBe(false);
   });
 

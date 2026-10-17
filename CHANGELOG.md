@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-17 — fix(141026230710): Ops mở được /shipments + khai chi phí mọi lô
+
+Ticket 141026230710 (P1, chỉ thị 17/10, spec T3 — mọi Ops khai chi phí mọi lô,
+không chia theo cá nhân/xe). Hai chặn của luồng khai chi phí:
+
+- **Route `/shipments`**: thêm casbin rule `p, OPS, shipments, read`
+  (backend) + mở `canReadShipmentRoutes` cho `Role.OPS` (frontend) — hết
+  redirect + toast "Bạn không có quyền truy cập trang này." cho Ops. Quyền
+  write/delete của shipments giữ nguyên; CUSTOMER/DRIVER vẫn bị chặn.
+- **Dialog "Lô này không thuộc xe bạn phụ trách."**: đã bị gỡ từ batch
+  open-scope trước (grant per-person + endpoint `write-scope` không còn trong
+  nguồn); xác minh lại + pin bằng test
+  `backend/src/tests/ops-expense-access.test.ts` — Ops tạo được chi phí trên
+  lô không có user-link/gán xe/chi phí cũ, kể cả khi trip của lô gán lái xe
+  khác; `assertExpenseOwnerWriteScope` chỉ còn scope DRIVER
+  (trips.driverId ↔ drivers.userId).
+
+Regression: testplan/2026-10-17-card141026230710-ops-shipments-view-open.md.
+
 ## 2026-10-11 (tối) — /shipments/new: dày đặc hơn, hết lệch nhãn trường
 
 Owner báo trang tạo lô "design too shitty" kèm mock `Tạo lô hàng.html` và yêu cầu
