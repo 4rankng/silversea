@@ -263,6 +263,11 @@ export function ShipmentCreateWorkspace() {
       customerId: value,
       pickupWarehouseSiteId: '',
       pickupWarehouseName: '',
+      // FB-105: the typed Nhà máy name belongs to the previous customer's
+      // factory just like the site id — reset both, or the stale text
+      // satisfies the required check (and lands in delivery_location /
+      // pickup_location) for the NEW customer's lot.
+      factoryName: '',
     }));
     setSites([]);
     clearFeedback();
