@@ -3,8 +3,8 @@ import { FilterDropdown } from '../../components/FilterDropdown';
 import { Button as UUIButton } from '../../components/untitled-ui/base/buttons/button';
 import { DisabledActionTip } from '../../components/shared/DisabledActionTip';
 import {
-  DateRangeFields, DateRangePresetSelect, DateRangePresets, FilterBar, InlineLabelSelect,
-  type DateRangePreset, type DateRangeValue,
+  DateRangeFields, DateRangePresetSelect, DateRangePresets, FilterBar, InlineLabelSelect, SearchableSelect,
+  type DateRangePreset, type DateRangeValue, type SearchableSelectOption,
 } from '../../design-system';
 
 /**
@@ -18,10 +18,12 @@ import {
  * best to display all filters, not group inside bo loc"), so the strip never
  * grows a third row and a short value never takes a whole line.
  *
- * Card _202: Khách hàng LEFT this strip. It is the screen's primary axis, not
- * a criterion — it rides the page header, always visible and never folded
- * behind `Bộ lọc`. The page hands this strip its range + lock criteria and URL
- * writers only.
+ * Card _202 kept Khách hàng OFF this strip (the screen's "primary axis" on its
+ * own always-visible bar). Owner request 2026-10-17 REVERSES that ruling: the
+ * customer picker rides the strip again, as the FIRST control — same lane as
+ * the range, the lock criterion and `Xóa lọc`. It is a bar CHILD, and bar
+ * children never fold, so it stays visible at every width the strip holds
+ * while the lock criterion still folds behind `Bộ lọc` when width demands.
  *
  * This file is a COMPOSITION of the shared primitives, never a second
  * implementation of them: it declares no filter layout, no filter width and no
@@ -55,6 +57,12 @@ const SETTLEMENT_PRESETS: DateRangePreset[] = [
 ];
 
 export interface ShipmentDebitRibbonProps {
+  /** Khách hàng axis ('' = every customer) — owner 2026-10-17, back in the strip. */
+  customerValue: string;
+  /** The bootstrap customers mapped to combobox options by the page. */
+  customerOptions: SearchableSelectOption[];
+  /** Raw customer id string ('' clears the URL param). */
+  onCustomerChange: (value: string) => void;
   /** Delivery-date bounds, ISO 'YYYY-MM-DD' ('' = unset). */
   deliveryFrom: string;
   deliveryTo: string;
@@ -70,6 +78,9 @@ export interface ShipmentDebitRibbonProps {
 }
 
 export function ShipmentDebitRibbon({
+  customerValue,
+  customerOptions,
+  onCustomerChange,
   deliveryFrom,
   deliveryTo,
   lockStatus,
@@ -112,6 +123,21 @@ export function ShipmentDebitRibbon({
         </DisabledActionTip>
       )}
     >
+      {/* Owner 2026-10-17 (reverses card _202): the Khách hàng picker rides the
+          strip as its FIRST control — a bar child never folds, so the axis is
+          visible in the same lane as the range and `Xóa lọc` at every width.
+          The page keeps the URL semantics; only the control moved. */}
+      <SearchableSelect
+        id="shipment-debit-customer"
+        className="shipment-debit-ribbon__customer"
+        value={customerValue}
+        onChange={onCustomerChange}
+        options={customerOptions}
+        placeholder="Tất cả khách hàng"
+        searchPlaceholder="Tìm khách hàng…"
+        emptyMessage="Không tìm thấy khách hàng phù hợp."
+        clearable clearLabel="Xem tất cả khách hàng" size="sm"
+      />
       <DateRangeFields
         className="shipment-debit-ribbon__range"
         id="shipment-debit-date-range"

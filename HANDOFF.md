@@ -1,125 +1,76 @@
-# fix-171026182554 — bỏ nút Thêm/Xóa container ở màn Chi tiết lô hàng — DONE (chưa merge)
+# fix-shipments-debit-customer-in-filter-lane — Khách hàng dropdown vào filter lane — DONE (chưa merge)
 
 Controller: this session (Paseo agent), worktree
-`fix-171026182554-bo-nut-them-xoa-container-chi` (branch-off main @ e36c4a06).
+`fix-shipments-debit-customer-in-filter-lane` (branch-off main @ 9fd0553c).
 Updated: 2026-10-17 (tối).
 
-## Thay đổi (10 file, +53/−463)
+## Mục tiêu + trạng thái
 
-- Thao tác thêm/xóa container giờ CHỈ còn ở drawer Tổng quan (`/shipments`,
-  `CusContainerLedger` — không đụng). Bỏ: nút dòng ＋Thêm/Xóa +
-  `AddContainerRowForm` của `ShipmentContainerLedger` (`/shipments-detail`),
-  nút `Thêm container` + dialog của `ShipmentDetailPage` (`/shipments/:id`),
-  `addAction` của `ShipmentDetailContainers`, `addContainer`/`removeContainer`
-  của `use-cus-detail`, CSS `__row-actions` chết, và
-  `shipment-container-ledger-card-actions.styles.test.ts` (pin đúng cặp nút đã bỏ).
-- Card supersede FB-086/FB-112 trên 2 màn Chi tiết; endpoint server + RBAC +
-  form tạo lô + `ContainerInstancesCard` (chuyến) nguyên vẹn.
-- Rung 3 (CUS, backend :3002 + vite :7175 từ worktree, DB 5441): cả 2 màn
-  Chi tiết không còn nút (1440 + 390), 78 trigger "Chỉnh sửa ô…" còn nguyên,
-  drawer Tổng quan vẫn Thêm + Xóa (lô 110968, cont FBXF9069254/FBXG9069267),
-  DB unchanged. `qa/2026-10-17_card171026182554_*`.
-- Gates: lint 0 · be-tsc 0 · fe-tsc 0 · make build OK · FE vitest 5058/5059 —
-  fail duy nhất `dev-port-contract` là CỦA CARD KHÁC đã fail trên HEAD
-  (`testplan/qa/scripts/qa-20261017-qa1-007-chip-rung.mjs` hardcode 7176/3003,
-  commit f9b36180) — không sửa trong ticket này. Structure guard cũng vượt
-  ceiling sẵn ở HEAD trên nhiều file không liên quan.
+Owner yêu cầu 2026-10-17: dropdown "Tất cả khách hàng" trên `/shipments-debit`
+chuyển TỪ bar riêng (`shipment-debit-customer-bar`, trên filter strip) VÀO
+filter control lane — control ĐẦU TIÊN của `ShipmentDebitRibbon`'s FilterBar,
+trước `DateRangeFields`. **REVERSES card _202** (ghi trong commit message).
+DONE: layout/DOM move only, không đổi filter logic.
 
-## Mục cũ (worktree khác, đã merge trunk — lịch sử)
+## Thay đổi (5 file code + 1 testplan, +96/−85)
 
-# fix-171026121100 — FB-038/072 verify-fail 3: overlap guard 2 lỗ hổng còn sót — DONE (pending trunk merge)
+- `ShipmentDebitRibbon.tsx`: props mới `customerValue` / `customerOptions` /
+  `onCustomerChange`; `SearchableSelect` render là bar CHILD đầu tiên (bar
+  children never fold → luôn hiện); doc comment nêu reversal.
+- `ShipmentDebitPage.tsx`: xóa block customer-bar + hint "Đang xem…";
+  `selectedCustomerLabel` + import chết xóa sạch; handler chuyển NGUYÊN VẸN
+  (`setSelectedIds(new Set())` + `updateParam('customer', …)`).
+- `ShipmentDebitPage.css`: family `.shipment-debit-customer-bar*` xóa hết;
+  thay bằng `.shipment-debit-ribbon__customer { min-width:200px;
+  max-width:320px }` (sizing-only — band owns layout); phone full-width
+  override XÓA (band packing law: `ListFilterBar.css` `.list-filter-bar >
+  *:not(.ds-tabs) { min-width: 0 }` @≤640 — floor chỉ hiệu lực ≥641px, đã
+  đo confirmed).
+- Tests: pins đảo chiều _202 (picker TRONG ribbon, control đầu, precedes
+  range, DOM order ribbon→header); hint asserted gone; direct-mount test
+  thêm 3 props bắt buộc.
 
-Controller: this session (Paseo agent), worktree `fix-fb038-overlap-silent-glm`
-@ f1e36ecc → merged origin/main 66368f42 (merge commit 2514e663).
-Updated: 2026-10-17 (tối).
+## Quyết định đáng chú ý
 
-## QUAN TRỌNG — va chạm nhánh với agent khác (đã giải quyết)
-
-Trong lúc làm, trunk đã land fix MỘT PHẦN của chính card này từ agent
-`agy-fb038-overlap-claude` (merge `e6ea78ce`, WIP `4297fe78`): luật
-**date-only completed trip claim ngày hiển thị** (Gap B) qua shared
-`tripClaim*Sql` + `countDateOnlyTripClaims` + suite
-`dispatch-overlap-day-only-trips.test.ts`. Giải pháp theo authority order:
-- Gap B: NHẬN bản trunk làm law owner (revert phần mình, giữ nguyên file
-  `dispatch-resource-availability.service.ts` = trunk verbatim; conflict
-  trong `assertTripRigAvailable` resolve theo trunk).
-- Gap A (holder không container — kịch bản 1 của card, repro staging ff
-  198/199 cùng lô 298): trunk KHÔNG có — giữ nguyên fix của mình
-  (`scanPlanRowHolders` LEFT join + `ne('LCL_SHIPMENT')`, review M1-aware)
-  + toàn bộ test pins (T15–T18, container-less describe, LCL hard-tier pin,
-  date-only trip tests) — 68/68 xanh trên 7 suite liên quan gồm suite của
-  trunk.
-
-## Root cause (chứng minh bằng staging read-only + local repro)
-
-1. **FB038-03A** — dòng QA trên staging là ff 198/199 của CÙNG lô 298, FCL
-   **không container** (`shipment_container_id` NULL). `scanPlanRowHolders`
-   INNER JOIN `shipment_containers` → holder vô hình → lưu thầm lặng.
-2. **FB038-03B** — chuyến COMPLETED (trip 117 · BLCUSa24BB) **không planned
-   timestamps** (chỉ departureDate) — mọi scan tier-completed đòi
-   `isNotNull(planned_start_at)` → vô hình. (Trunk đã fix law này.)
-
-Lưu ý: 2 fix trước (111026105630, 121026185530) đã có trên trunk từ 07–14/10
-và có trong staging build; verify-fail 3 là do 2 shape dữ liệu trên, không
-phải deploy lag.
-
-## Changes (2 service files + 3 test files)
-
-- `backend/src/services/dispatch-planning-detail-plan.service.ts`:
-  `scanPlanRowHolders` INNER→LEFT join (holder không container claim LOT
-  window, marker fallbackSlot → tier WARN); 2 scan completed
-  (`assertTripRigAvailable`, `assertPlanRowRigAvailable`) claim ngày hiển thị
-  theo luật 12fcf20d — warn-once `RIG_OVERLAP_COMPLETED`, confirm flag proceed.
-- `backend/src/services/dispatch-resource-availability.service.ts`: tier
-  completed tách rig rows (truck/trailer — day-claim mới) khỏi driver leg
-  (giữ bar provable-window theo harmonization 11/10, KHÔNG mở lại).
-- Tests: container-less describe (5 test), trip edit + reassign fallback vs
-  completed date-only (2 test), kep-kethop T15/T16/T17. 38/38 3 file đó pass.
+- Hint "Đang xem…" BỎ (không vừa gọn trong control lane; trùng lặp giá trị
+  trigger). Owner chỉ yêu cầu move dropdown — brief cho phép bỏ.
+- `hasFilters`/`Xóa lọc` KHÔNG tính customer (hard rule: không đổi logic).
+  → review note cho owner sau này: user lọc chỉ theo customer sẽ thấy
+  `Xóa lọc` disabled dù lane đang giữ giá trị — cần owner ruling riêng nếu
+  muốn đổi (logic-change task riêng).
+- Provenance: house primitives (`FilterBar` + `SearchableSelect`), không
+  consult catalog — không component/layout mới.
 
 ## Files owned by this task
 
-- 2 services + 3 tests trên; `testplan/2026-10-17-card-fb038-overlap.md`;
-- `qa/2026-10-17_fb038_*` (api-repro, ui-*, backend-tests, root-lint);
-- `qa/drivers/2026-10-17-fb038-ui-drive.mjs` (+2 debug drivers);
-- CHANGELOG.md entry.
+- 5 file frontend trên + `testplan/2026-10-17-owner-customer-in-filter-lane.md`
+- `qa/2026-10-17_customer-in-filter-lane_*` (ignored) + 2 driver
+  `qa/drivers/2026-10-17-customer-in-filter-lane-*.mjs`
 
-## QA artifacts
+## QA artifacts + gates
 
-- `qa/2026-10-17_fb038_api-repro.log` — rung 2: pre-fix repro (chẩn đoán),
-  post-fix trên server :3092 code worktree với staging-exact shapes (3A/3B/3C),
-  restore fixtures + cleanup (đã quay lại trạng thái gốc).
-- `qa/2026-10-17_fb038_ui-*.png` + `_ui-driver.log` — rung 3: dieuvan,
-  /dispatch-detail 1440, dialog "…container khác của lô này… Vẫn lưu?" hiện,
-  'Xác nhận' lưu; DB proof ff 47995/47996 (đã dọn sau).
-- `qa/2026-10-17_fb038_backend-tsc.log` exit 0; `qa/2026-10-17_fb038_root-lint.log`
-  — red-at-base 20 problems (file 16/10, không thuộc diff), scoped eslint 5
-  file fix = exit 0.
-- `qa/2026-10-17_fb038_backend-tests.log` — full suite rerun sạch (run1
-  `_run1-poisoned.log` bị 2 process test mồ côi của lần chạy đầu giành DB —
-  đã kill, có ghi trong log).
+- fe `tsc -b` exit 0; `vitest run src/pages/ShipmentDebitPage*` 48/48 (2
+  lần chạy + final sau comment fix — đều exit 0).
+- Full fe suite: 5056 pass; 3 fail = 2 numeric-identity (cần dist — pass sau
+  `make build`, rerun 54/54 exit 0) + `dev-port-contract` PRE-EXISTING trên
+  HEAD (card khác, documented trong handoff trước).
+- Root lint exit 0 (5 warning pre-existing ở `backend/src/tests/
+  scratch-census-probe.ts`, ngoài diff). `make build` exit 0.
+- Rung 3 UI drive (CUS, vite :7275 từ worktree — :7175 thuộc worktree task
+  khác, không đụng; đã tắt sau QA): 1440 — picker 200×30 cùng dòng y=154 với
+  range 340×30 trong strip, FIRST control, legacy bar gone; CLICK chọn
+  "card11 cust…" → URL `?customer=6442`, API `debit-summary?customerId=6442`,
+  trigger hiển thị tên; 390 — picker trong strip, precedes range, doc
+  overflow 0. DB before/after: shipments 4606 / customers 4774 (read-only).
+- Independent review (code-reviewer): DONE, không blocking; 1 comment stale
+  đã sửa.
 
 ## Unrelated / preserved
 
-- Main checkout /Volumes/LexarSSD/projects/silversea có untracked testplan/qa
-  scripts của task khác — không đụng.
-- Dev stack (:3002/:7175) của main checkout giữ nguyên; server phụ :3092/:7176
-  của task này đã tắt sau QA.
-- Test 'card 20260928_169/197/377/E2E comprehensive' fail trong run1 — nghi do
-  concurrent DB; chờ run2 sạch để kết luận (nếu vẫn đỏ ở run2, kiểm tra lại
-  với git stash để xác định pre-existing).
-
-## Non-goals / ghi chú
-
-- Scan DRIVER tier-completed giữ nguyên harmonization (không warn trên
-  date-only completed) — quyết định review 11/10, card không yêu cầu đổi.
-- RBAC staging: role Điều vận không vào được /trips/:id/edit nên nhánh confirm
-  của form sửa chuyến (use-trip-form-submit) chưa UI-driven — admin phải verify
-  riêng (FB038-03C, đã ghi testplan).
-- Không deploy staging (cần chỉ thị owner).
+- Vite :7175 + backend :3002 của main/checkout khác giữ nguyên.
+- Pre-existing fails như trên không thuộc ticket này.
 
 ## Next step
 
-- ĐÃ LAND TRUNK: merge commit `9d109c0d` trên main (main checkout), sau khi
-  merge nhánh vào main @ b930be12; trunk tsc exit 0 sau land.
-- Còn lại cho owner: deploy staging (`make demo`) khi sẵn sàng + admin verify
-  FB038-03C (form sửa chuyên /trips/:id/edit — RBAC Điều vận không vào được).
+- Commit trên branch này (message có "reverses card _202 per owner
+  2026-10-17"), KHÔNG merge — report hash cho owner.

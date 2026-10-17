@@ -17,7 +17,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState, SearchableSelect } from '../design-system';
+import { EmptyState } from '../design-system';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
@@ -304,8 +304,6 @@ export function ShipmentDebitPage() {
     label: customer.fullName ? `${customer.name} - ${customer.fullName}` : customer.name,
     searchText: `${customer.name} ${customer.fullName ?? ''}`,
   }));
-  // The picker's own wording, so the hint never echoes an id back at the user.
-  const selectedCustomerLabel = customerOptions.find((option) => option.value === customerId)?.label ?? '';
 
   // Sweep (card 20261008_1): the export used to disable silently on two of
   // its three causes (only the no-customer case carried a wrapper `title`).
@@ -329,36 +327,20 @@ export function ShipmentDebitPage() {
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
-        {/* Card _202: the Khách hàng picker is the screen's primary axis — always
-            visible, never folded into `Bộ lọc`; the shared filter strip
-            (card 20260927_153) follows with the range and the lock criterion.
+        {/* Owner 2026-10-17 (reverses card _202): the Khách hàng picker rides
+            the shared filter strip below as its first control, not its own bar.
             The action row comes last, directly above the rows it acts on: both
             bulk actions work on the selection below, so the DOM order is the
             phone's reading order and desktop re-pins the title row on top via
             grid order (page CSS), never a second copy of the cluster. */}
-        <div className="shipment-debit-customer-bar">
-          <SearchableSelect
-            id="shipment-debit-customer"
-            className="shipment-debit-customer-bar__picker"
-            value={customerId}
-            onChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
-            options={customerOptions}
-            placeholder="Tất cả khách hàng"
-            searchPlaceholder="Tìm khách hàng…"
-            emptyMessage="Không tìm thấy khách hàng phù hợp."
-            clearable clearLabel="Xem tất cả khách hàng" size="sm"
-          />
-          <p className="shipment-debit-customer-bar__hint">
-            {customerId === ''
-              ? 'Đang xem tất cả khách hàng.'
-              : `Đang xem lô của ${selectedCustomerLabel}.`}
-          </p>
-        </div>
         {/* Card 20260927_153: the filter strip owns its own layout and every
             control width (FilterBar.css L1-L3), so the page hands it criteria
             values and URL writers only — no filter rule, no applied-count and
-            no reset markup lives here. The customer left the strip in _202. */}
+            no reset markup lives here. */}
         <ShipmentDebitRibbon
+          customerValue={customerId}
+          customerOptions={customerOptions}
+          onCustomerChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
           deliveryFrom={deliveryFrom}
           deliveryTo={deliveryTo}
           lockStatus={lockStatus}
