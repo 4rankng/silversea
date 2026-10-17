@@ -24,6 +24,7 @@ import * as s from '../db/schema';
 
 
 import { loadPlannedDriverNames } from './dispatch-planning-detail-plan-read.service';
+import { countDateOnlyTripClaims, tripClaimEndSql, tripClaimStartSql } from './dispatch-resource-availability.service';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
   dispatchDetailPriorityOrderSql, listDispatchDetailPlanRows, listDispatchDeliveryPointFacets, listDispatchPortFacets,
@@ -901,6 +902,9 @@ export async function assertTripRigAvailable(
       { code: 'RIG_OVERLAP_COMPLETED' });
   }
   if (!args.confirmOverlap) {
+    // Third verify-fail (FB-038/072): a COMPLETED holder without a staged
+    // start claims its departure day (shared claim window) — requiring
+    // plannedStartAt hid ~94% of completed trips from this warn.
     const completedTripConflicts = await tx.select({ id: s.trips.id })
       .from(s.trips)
       .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
@@ -909,9 +913,8 @@ export async function assertTripRigAvailable(
         eq(s.trips.status, TripStatus.COMPLETED),
         isNull(s.trips.deletedAt),
         ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
-        isNotNull(s.trips.plannedStartAt),
-        lt(s.trips.plannedStartAt, windowEnd),
-        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz`,
+        sql`${tripClaimStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+        sql`${tripClaimEndSql} > ${windowStart.toISOString()}::timestamptz`,
       ));
     if (completedTripConflicts.length > 0) {
       throw new ApiError(409,
@@ -1095,6 +1098,25 @@ if (planRowBlocked || tripConflicts.length > 0) {
     if (completedTripConflicts.length > 0) {
       throw new ApiError(409,
         `Đầu xe ${plate} có ${completedTripConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
+        undefined,
+        { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+    // Third verify-fail (FB-038/072): both trip scans above need a staged start
+    // on the holder; a same-day COMPLETED trip carrying only its departure day
+    // (most COMPLETED trips) was invisible. It claims its whole departure day — weak
+    // evidence, so the family's warn-once tier (never a hard block).
+    const dayClaims = await countDateOnlyTripClaims(tx, {
+      predicates: [inArray(
+        s.trips.truckId,
+        tx.select({ id: s.trucks.id }).from(s.trucks).where(eq(s.trucks.licensePlate, plate)),
+      )],
+      windowStart,
+      windowEnd,
+      excludeFulfillmentId: args.fulfillmentId,
+    });
+    if (dayClaims > 0) {
+      throw new ApiError(409,
+        `Đầu xe ${plate} đã có ${dayClaims} chuyến khác (chưa có giờ cụ thể) trong ngày phân công này. Vẫn lưu?`,
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }
