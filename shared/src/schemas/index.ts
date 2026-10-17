@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { expenseInputFields, expenseDateSchema, expenseVndSchema, signedExpenseVndSchema } from '../expense-accounting';
 import { normalizeContainerNumber, validateCheckDigit, validateContainerFormat } from '../calculations/iso6346';
+import { TIMESHEET_SALARY_MODES } from '../calculations/timesheetSalary';
 import {
   CustomerAccountType, FuelMode, LoadingType, Role, SupplierType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus,
@@ -1118,6 +1119,10 @@ export const driverSchema = z.object({
   bankName: z.string().trim().max(160).optional().nullable(),
   bankAccount: z.string().trim().max(80).optional().nullable(),
   salaryType: z.string().trim().max(50).optional().nullable(),
+  // FB-103 (ticket 171026215600) — the enum-backed salary mode the timesheet
+  // system consumes. Optional here: the catalog PUT is partial, and older
+  // clients still send payloads without it (column default PER_TRIP stands).
+  salaryMode: z.enum(TIMESHEET_SALARY_MODES).optional(),
 });
 
 export const managementFeeSchema = z.object({

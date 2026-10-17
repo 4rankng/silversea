@@ -1053,6 +1053,13 @@
    "when": 1792097200000,
    "tag": "20261016143000_pricing_tombstone_unique_idx",
    "breakpoints": true
+  },
+  {
+   "idx": 151,
+   "version": "7",
+   "when": 1792246777000,
+   "tag": "20261017220000_driver_salary_mode",
+   "breakpoints": true
   }
  ]
 }

@@ -114,6 +114,29 @@ async function openMonth(options: {
 }
 
 describe('timesheet grid — dispatcher writes symbols', () => {
+  // FB-103 (ticket 171026215600, verify-fail card 141026230800): chế độ lương
+  // phải chọn được ở mức LÁI XE và là mặc định khi mở bảng tháng mới. Kế toán
+  // bỏ qua salaryMode trong POST /months → bảng mới nhận chế độ của lái xe.
+  test('opening a month without a mode uses the driver\'s own salary mode', async () => {
+    const [driver] = await db.insert(s.drivers)
+      .values({ name: `${prefix}-mode-driver`, status: 'ACTIVE', salaryMode: 'FLAT_MONTHLY' })
+      .returning();
+    driverIds.push(driver.id);
+
+    const driversList = await request('/drivers?year=2026&month=12', 'GET', {});
+    assert.equal(driversList.status, 200, JSON.stringify(driversList.body));
+    const listed = (driversList.body.items as Array<{ id: number; defaultSalaryMode: string }>)
+      .find(row => row.id === driver.id);
+    assert.equal(listed?.defaultSalaryMode, 'FLAT_MONTHLY');
+
+    const created = await request('/months', 'POST', {
+      driverId: driver.id, year: 2026, month: 12, flatAmount: 10_000_000,
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.salaryMode, 'FLAT_MONTHLY');
+    monthIds.push(created.body.id);
+  });
+
   test('a K cell is one trip and a Q cell is two', async () => {
     const { monthId } = await openMonth();
     const saved = await request(`/months/${monthId}/days`, 'PUT', {

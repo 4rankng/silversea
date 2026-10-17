@@ -191,7 +191,13 @@ export default function TimesheetGridPage() {
           {canOpenBoard && activeDriverId !== null && (
             <Btn
               size="sm"
-              onClick={() => setBoardFormOpen(true)}
+              onClick={() => {
+                // FB-103 (ticket 171026215600) — mở dialog với chế độ mặc định
+                // của lái xe (đặt ở dialog "Sửa lương cứng" / sửa lái xe), kế
+                // toán vẫn đổi được từng tháng ngay trong dialog này.
+                setBoardMode(activeDriver?.defaultSalaryMode ?? 'PER_TRIP');
+                setBoardFormOpen(true);
+              }}
             >
               Mở bảng chấm công
             </Btn>
