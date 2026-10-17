@@ -1,8 +1,8 @@
 // FB-096 (card 141026230730) — "Thêm cược" rename + bill suggestion flow.
 // Rung 3: real click on Thêm cược → suggestion autofill → save → row persisted.
 import {
-  openAs, goto, shot, bodyText, assertEval, clickButtonByText, setInputValue,
-  api, finish, log, BASE,
+  openAs, goto, shot, assertEval, clickButtonByText,
+  api, finish,
 } from './w1-lib.mjs';
 
 const CARD = 'fb096';

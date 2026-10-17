@@ -9,18 +9,8 @@ import {
 const CARD = 'fb103';
 const results = {};
 const YEAR = 2099, MONTH = 12;
-const DRIVER_ID = 11, DRIVER_NAME = 'Bùi Quang Hường';
-const MONTH_ID = 2; // fixture month from fb102
+const DRIVER_ID = 11;
 
-// The page nests panels; the salary panel holds BOTH the mode control and a
-// number input. Find the deepest panel node containing the title text.
-async function salaryPanel(page) {
-  return page.evaluateHandle(() => {
-    const matches = [...document.querySelectorAll('div, section')]
-      .filter((el) => [...el.querySelectorAll('h2,h3,h4')].some((h) => h.textContent?.includes('Chế độ lương')));
-    return matches[matches.length - 1] ?? null;
-  });
-}
 async function setNumber(page, value) {
   for (let attempt = 0; attempt < 10; attempt++) {
     const done = await page.evaluate((v) => {
