@@ -141,7 +141,12 @@ export function ShipmentCreateWorkspace() {
     () => operationalSites.find((site) => String(site.id) === form.operationalSiteId) ?? null,
     [form.operationalSiteId, operationalSites],
   );
-  const warehouseSites = useMemo(() => sites.filter((site) => site.siteType === 'WAREHOUSE'), [sites]);
+  // TEMPORARY (2026-10-17 per user directive): picker "Kho lấy hàng" đang trống
+  // chờ data source mới. Dữ liệu thật sẽ là OperationalSite với siteType='WAREHOUSE'
+  // per customer (GET /api/shipments/operational-sites?customerId=<id>).
+  // Trả về [] → UX empty-state ("Chưa có kho cho khách hàng này" + "Thêm kho")
+  // vẫn hiển thị, KHÔNG crash.
+  const warehouseSites = useMemo<OperationalSite[]>(() => [], []);
   const readiness = useMemo(
     () => getShipmentCreateReadiness(form, containers),
     [containers, form],
