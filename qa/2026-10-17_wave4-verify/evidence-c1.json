@@ -1,0 +1,37 @@
+{
+  "baseline": {
+    "total": 76,
+    "counts": {
+      "UNASSIGNED": 33,
+      "ASSIGNED": 43
+    },
+    "page1Modes": {
+      "FCL": 42,
+      "LCL": 8
+    }
+  },
+  "lcl": {
+    "total": 26,
+    "counts": {
+      "UNASSIGNED": 13,
+      "ASSIGNED": 13
+    },
+    "page1Modes": {
+      "LCL": 26
+    }
+  },
+  "fcl": {
+    "total": 50,
+    "counts": {
+      "UNASSIGNED": 20,
+      "ASSIGNED": 30
+    },
+    "page1Modes": {
+      "FCL": 50
+    }
+  },
+  "scanned": {
+    "FCL": 50,
+    "LCL": 26
+  }
+}
