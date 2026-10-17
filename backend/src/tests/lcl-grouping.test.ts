@@ -728,8 +728,15 @@ describe('161026204709 (TC-A12) — merged-but-undispatched LCL lots materialize
     assert.equal(survivorSnaps[0]!.formulaText,
       `Ghép cước cùng Bill ${lot1.blNumber} — lô ghép giữ 0₫ cước thu (chưa phân bổ xe)`);
     assert.equal(survivorSnaps[1]!.totalAmount, lanePrice, 'the transfer row carries the promoted money');
+    // Merge-residual fix (2026-10-17): the FB-095 money-conservation lane
+    // (8e0b22c8) rewrote this transfer note to its shipped FB-095 wording
+    // ("… — 100% cước thu", matching the sibling leaver note "Tách nhóm —
+    // chuyển 100% cước cho Bill …") while this A12 literal kept the older
+    // pre-dispatch phrasing, leaving HEAD red. The note's *grain* contract
+    // (stored prose on a shipment-level snapshot, served verbatim by the
+    // reader) is unchanged — only the literal follows the shipped string.
     assert.equal(survivorSnaps[1]!.formulaText,
-      `Đón cước chính khi tách nhóm (từ Bill ${lot1.blNumber}) — chưa phân bổ xe`);
+      `Đón cước chính khi tách nhóm (từ Bill ${lot1.blNumber}) — 100% cước thu`);
     const view = await getShipmentFreightRateView(lot2.id);
     assert.equal(view.snapshotCount, 2);
     assert.equal(view.latest!.id, survivorSnaps[1]!.id, 'max(id) is the live row');
