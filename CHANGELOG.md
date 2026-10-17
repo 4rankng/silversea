@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-10-17 (chiều) — fix(141026230770) v2: /my-advances hết sinh "Đã ghi nhận" lậu + regression (a)(b)(c)
+
+Ticket 141026230770 (P2, hoapt/kế toán, staging 14/10) tái lập: (a) thiếu nút
+"PHÊ DUYỆT TẠM ỨNG", (b) thiếu tick "Xác nhận hoàn ứng", (c) báo cáo toàn số 0
++ không xử lý số âm. Mốc mã giải thích triệu chứng staging: `2a64156f` (sinh
+PENDING + cột có dấu) commit 15/10 08:15 — SAU buổi QA 14/10; nút duyệt + tick
+còn trễ hơn (16/10). Tái kiểm HEAD còn 1 lỗ thật:
+
+- **(a) `POST /api/forwarder/me/advance-requests`** (trang /my-advances "Ghi
+  nhận tạm ứng", route opsOnly) sinh thẳng "Đã ghi nhận" với
+  `approvedBy = requester` — không qua phê duyệt, không audit → đúng triệu
+  chứng ticket với mọi submit đi qua trang này. Sửa: sinh **PENDING** chờ kế
+  toán phê duyệt (CPB-03 "OPS submission is born PENDING" + comment của
+  `createAdvanceRequest`: chỉ đường tiền đi cùng giao dịch mới được ghi thẳng
+  RECORDED — đường này không có bút toán tiền). Copy trang đổi thành "Gửi yêu
+  cầu tạm ứng" cho đúng hành động; chủ yêu cầu hủy được PENDING chưa giao tiền
+  (licence CPB-03, trước chỉ có cho RECORDED).
+- **(a) regression:** R1 — cả 2 đường Ops submit (wallet + forwarder/me) sinh
+  PENDING/approvedBy null/chưa có bút toán (`ops-module-routes.test.ts`,
+  `q23-forwarder-create-replay.test.ts`; pin "status-removal" 2026-09-15 bị
+  KP-148 supersede viết lại theo luật mới); R2 — nút "Phê duyệt tạm ứng" trên
+  dòng PENDING (pin FB-100 hiện hữu); R3 — chủ yêu cầu hủy được PENDING chưa
+  giao tiền (`AdvanceDraftActions.test.tsx`).
+- **(c) regression:** R4 — yêu cầu đã ghi nhận không bị báo cáo về 0
+  (`reconciliation-refund-settle.test.ts`: ĐÃ ỨNG hiện số +
+  remainingSigned có dấu). Công thức báo cáo + "Đề nghị thu tiền ứng" giữ
+  nguyên theo ruling (pin hiện hữu).
+- **(b):** tick Option B đã có trên bề mặt tạo phiếu duy nhất
+  `/my-settlements/new` (`055105dc`) — không có delta mã; regression pin hiện
+  hữu (R5: `ForwarderSettlementCreatePage`, `advance-settlement-deadlock-order`,
+  `SettlementPrintPage`).
+- **Red-at-head (ngoài FB-100, sửa để gate xanh):** `ops-module-routes.test.ts`
+  — 3 fixture cùng loại + cùng lô khai `duplicateConfirmed: true` (sibling
+  sweep guard 141026230720 theo tiền lệ `66f724cc`; guard + 4 pin giữ nguyên)
+  + fixture date cô lập rác QA tương lai (2031–2033) dò dỉ trong dev DB.
+
+Dữ liệu legacy trên staging (7 yêu cầu "Đã ghi nhận" auto-apply) là dữ liệu,
+không đụng trong code — xem testplan card.
+
 ## 2026-10-17 — fix(141026230710): Ops mở được /shipments + khai chi phí mọi lô
 
 Ticket 141026230710 (P1, chỉ thị 17/10, spec T3 — mọi Ops khai chi phí mọi lô,
