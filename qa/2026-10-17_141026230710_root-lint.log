@@ -1,0 +1,27 @@
+=== cmd: pnpm lint (root) ===
+
+/Users/dev/.paseo/worktrees/1njkloyy/fix-141026230710-ops-expense-access/testplan/qa/2026-10-16_w1-deep-verify/fb009-copy-time-staging.mjs
+  18:3  error  'closeBrowser' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/.paseo/worktrees/1njkloyy/fix-141026230710-ops-expense-access/testplan/qa/2026-10-16_w1-verify/fb096-deposit-tracker.mjs
+  4:23  error  'bodyText' is defined but never used       @typescript-eslint/no-unused-vars
+  4:64  error  'setInputValue' is defined but never used  @typescript-eslint/no-unused-vars
+  5:16  error  'log' is defined but never used            @typescript-eslint/no-unused-vars
+  5:21  error  'BASE' is defined but never used           @typescript-eslint/no-unused-vars
+
+/Users/dev/.paseo/worktrees/1njkloyy/fix-141026230710-ops-expense-access/testplan/qa/2026-10-16_w1-verify/fb101-timesheet-visibility.mjs
+   5:48  error  'log' is defined but never used            @typescript-eslint/no-unused-vars
+  71:9   error  'text' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/.paseo/worktrees/1njkloyy/fix-141026230710-ops-expense-access/testplan/qa/2026-10-16_w1-verify/fb102-grid.mjs
+  13:7  error  'DRIVER2_ID' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/dev/.paseo/worktrees/1njkloyy/fix-141026230710-ops-expense-access/testplan/qa/2026-10-16_w1-verify/fb103-salary-modes.mjs
+  12:23  error  'DRIVER_NAME' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  13:7   error  'MONTH_ID' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  17:16  error  'salaryPanel' is defined but never used           @typescript-eslint/no-unused-vars
+
+✖ 19 problems (14 errors, 5 warnings)
+
+ ELIFECYCLE  Command failed with exit code 1.
+exit=1

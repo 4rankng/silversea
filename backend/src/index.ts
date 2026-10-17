@@ -227,9 +227,10 @@ app.use('/api/notifications', authMiddleware, casbinAuthz('notifications'), noti
 app.use('/api/trips', authMiddleware, tripRouteAuthz(), tripRoutes);
 // Shipments (Wave 0 — lô hàng): first-class shipment entity that every later
 // wave (CUS portal, debit-note, dispatch handoff) builds on. RBAC matrix:
-// ADMIN wildcard · MANAGER read+write+delete · ACCOUNTANT read · CLERK
-// read+write. CUSTOMER/DRIVER/FORWARDER are denied at this mount; the customer
-// portal ships its own row-scoped surface in Wave 2.
+// ADMIN wildcard · MANAGER read+write+delete · ACCOUNTANT read+write · CLERK
+// read+write · DISPATCHER read+write · OPS read (ticket 141026230710).
+// CUSTOMER/DRIVER are denied at this mount; the customer portal ships its
+// own row-scoped surface in Wave 2.
 app.use('/api/shipments', authMiddleware, casbinAuthz('shipments'), shipmentRoutes);
 // Freight pricing preview (Phương án tính cước §2-D): shipments-authorized —
 // the CUS create form (shipments read) consumes it without a financial grant.

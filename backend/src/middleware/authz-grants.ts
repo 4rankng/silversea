@@ -49,7 +49,7 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     pathPattern: /^\/\d+\/recovery-facts\/?$/,
     roles: [Role.OPS],
     effect: 'bypass',
-    reason: 'OPS records shipment recovery facts; OPS holds no shipments policy row, so the allowance is scoped to exactly this path.',
+    reason: 'OPS records shipment recovery facts; OPS holds only a shipments READ row (ticket 141026230710), so the write allowance stays scoped to exactly this path.',
     source: 'no ruling citation in pre-refactor code',
   },
   {

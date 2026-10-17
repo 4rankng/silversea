@@ -1,0 +1,25 @@
+=== cmd: cd backend && npx tsx --test --test-concurrency=1 src/tests/expense-source-remediation.test.ts (standalone) ===
+✔ FIX17-S01 every Ops may declare on any lot — the assignment grant is gone (74.932584ms)
+✔ FIX17-S02 OPS receipt rows are authoritative over stale native JSON (9.926917ms)
+✔ FIX17-S04 legacy edit and delete cannot mutate native billing mirrors (46.1925ms)
+✔ FIX17-S06 confirmed OPS replacement preserves original, reverses obligation, and links history (57.776ms)
+✖ QA-AUDIT-PHOI-11 CATALOG correction and forward correction preserve original driver provenance (82.084875ms)
+✖ QA-AUDIT-PHOI-11 NORM correction and forward correction preserve original driver provenance (83.618667ms)
+✖ QA-AUDIT-PHOI-11 LEGACY correction and forward correction preserve original driver provenance (77.2855ms)
+✔ FIX17-S06 CREATED toll correction preserves allowances and replaces actual once (79.254375ms)
+✔ FIX17-S06 COMPLETED toll correction preserves allowances and replaces actual once (118.9575ms)
+✔ FIX17-S07 released reconciliation retains history and permits correction and re-reconciliation (53.911625ms)
+✔ FIX17-S07 cash must be reversed before reconciliation release or confirmed correction (29.7075ms)
+✔ FIX17-S07 active legacy settlement blocks correction until its explicit reversal (66.582125ms)
+✔ FIX17-S08 (card 20260928_171) an amount edit records who / from / to / when (12.769667ms)
+✖ failing tests:
+✖ QA-AUDIT-PHOI-11 CATALOG correction and forward correction preserve original driver provenance (82.084875ms)
+    actual: [ 3528, 14166 ],
+    expected: [ 3528, 3529 ],
+✖ QA-AUDIT-PHOI-11 NORM correction and forward correction preserve original driver provenance (83.618667ms)
+    actual: [ 3531, 14168 ],
+    expected: [ 3531, 3532 ],
+✖ QA-AUDIT-PHOI-11 LEGACY correction and forward correction preserve original driver provenance (77.2855ms)
+    actual: [ 3534, 14170 ],
+    expected: [ 3534, 3535 ],
+exit=1

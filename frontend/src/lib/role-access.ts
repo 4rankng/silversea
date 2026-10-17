@@ -5,7 +5,10 @@ export function canReadShipmentRoutes(role: string | undefined): boolean {
     || role === Role.MANAGER
     || role === Role.ACCOUNTANT
     || role === Role.CUS // formerly CLERK
-    || role === Role.DISPATCHER;
+    || role === Role.DISPATCHER
+    // Ticket 141026230710 (2026-10-17, spec T3): mọi Ops khai chi phí mọi lô —
+    // /shipments mở view cho Ops (backend: `p, OPS, shipments, read`).
+    || role === Role.OPS;
 }
 
 /** Match the settlement API: managers read summaries; editors open and issue debit details. */

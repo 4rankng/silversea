@@ -130,6 +130,8 @@ describe('AppRoutes shipment operations reachability', () => {
     [Role.MANAGER, '/shipments-detail'],
     [Role.ACCOUNTANT, '/shipments-detail'],
     [Role.DISPATCHER, '/shipments-detail'],
+    // Ticket 141026230710 (2026-10-17): the view permission now covers OPS.
+    [Role.OPS, '/shipments-detail'],
   ])('admits %s to the container-flat view %s', async (role, path) => {
     authState.role = role;
     renderRoute(path);
@@ -139,7 +141,6 @@ describe('AppRoutes shipment operations reachability', () => {
 
   it.each([
     [Role.DRIVER, '/shipments-detail'],
-    [Role.OPS, '/shipments-detail'],
     [Role.CUSTOMER, '/shipments-detail'],
   ])('redirects %s away from the container-flat view %s', async (role, path) => {
     authState.role = role;

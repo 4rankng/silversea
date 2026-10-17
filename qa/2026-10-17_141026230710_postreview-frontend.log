@@ -1,0 +1,8 @@
+=== cmd: frontend tsc + vitest App.ops-route.test.tsx (post-review comment fixes) ===
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  11:31:42
+   Duration  2.40s (transform 492ms, setup 138ms, import 1.26s, tests 485ms, environment 449ms)
+
+exit=0
