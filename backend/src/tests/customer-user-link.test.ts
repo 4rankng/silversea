@@ -26,6 +26,7 @@ let managerUserId: number;
 let clerkUserId: number;
 let accountantUserId: number;
 let legacyClerkUserId: number;
+let legacyClerkUsername: string | undefined;
 let server: http.Server;
 let baseUrl: string;
 
@@ -384,6 +385,7 @@ describe('customer account linkage', () => {
       customerId,
     }).returning();
     legacyClerkUserId = legacyClerk.id;
+    legacyClerkUsername = legacyClerk.username ?? undefined;
     await db.insert(s.userCustomerLinks).values({ userId: legacyClerk.id, customerId });
 
     const clerkToken = jwt.sign({
@@ -482,7 +484,7 @@ describe('customer account linkage', () => {
 
   test('hides assignment metadata from accountant-scoped user listing', async () => {
     const scopedClerk = legacyClerkUserId
-      ? { id: legacyClerkUserId }
+      ? { id: legacyClerkUserId, username: legacyClerkUsername }
       : await createUser({
         username: `scoped-clerk-list-${suffix}`,
         password: 'admin123',
@@ -490,7 +492,11 @@ describe('customer account linkage', () => {
       });
     if (!legacyClerkUserId) clerkUserId = scopedClerk.id;
 
-    const users = await listUsers(Role.ACCOUNTANT);
+    // Search by the fixture's unique username instead of scanning the default
+    // page: the users list caps at 500 rows/page, so on a populated database
+    // a newly created user sits past page 1 and the find below would miss it
+    // for reasons unrelated to the assignment-metadata behavior under test.
+    const users = await listUsers(Role.ACCOUNTANT, { search: scopedClerk.username ?? undefined });
     const listed = users.items.find((user) => user.id === scopedClerk.id);
     assert.ok(listed, 'scoped clerk listed');
     assert.deepEqual(listed?.customerIds, []);
