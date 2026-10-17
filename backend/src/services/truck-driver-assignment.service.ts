@@ -210,10 +210,12 @@ export async function reassignTruckDriverInTx(tx: Tx, input: {
         ne(s.truckDriverAssignments.truckId, input.truckId),
       ))
       .for('update');
-    for (const other of otherTrucks) {
+    if (otherTrucks.length > 0) {
+      // Same value on every row (already locked by the query above) — one
+      // update instead of one per assignment.
       await tx.update(s.truckDriverAssignments)
         .set({ endsAt: new Date() })
-        .where(eq(s.truckDriverAssignments.id, other.id));
+        .where(inArray(s.truckDriverAssignments.id, otherTrucks.map((other) => other.id)));
     }
   }
 
