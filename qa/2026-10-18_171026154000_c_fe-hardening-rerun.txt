@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  00:38:11
+   Duration  4.57s (transform 1.83s, setup 172ms, import 3.14s, tests 503ms, environment 584ms)
+
+EXIT:0

@@ -158,15 +158,30 @@ export default function DispatchDetailPlanPage() {
             >
               Bỏ chọn
             </button>
+            {/* Card 171026154000 (C): the reason rides the aria-described +
+                aria-disabled pattern (DisabledActionTip's contract) with the
+                description as REAL text beside the action — the owner asked
+                for chữ, not another tooltip bubble. The handler guards the
+                same condition the text names; the button never goes natively
+                `disabled` (unfocusable = unreachable explanation). */}
             <button
               type="button"
               className="lcl-selection-bar__assign"
-              disabled={selectedLclRows.length < 2}
-              title={selectedLclRows.length < 2 ? 'Nhóm ghép cần ít nhất 2 lô' : 'Gán xe nhóm trả ĐV'}
-              onClick={() => setTruckGroupOpen(true)}
+              aria-disabled={selectedLclRows.length < 2 || undefined}
+              aria-describedby={selectedLclRows.length < 2 ? 'lcl-group-assign-reason' : undefined}
+              title="Gán xe nhóm trả ĐV"
+              onClick={() => {
+                if (selectedLclRows.length < 2) return;
+                setTruckGroupOpen(true);
+              }}
             >
               Gán xe nhóm
             </button>
+            {selectedLclRows.length < 2 && (
+              <span id="lcl-group-assign-reason" className="lcl-selection-bar__hint">
+                Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ.
+              </span>
+            )}
           </div>
         )}
         {detailPlan.total > detailPlan.pageSize && (

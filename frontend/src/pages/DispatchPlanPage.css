@@ -162,7 +162,17 @@
   cursor: pointer;
 }
 
-.lcl-selection-bar__assign:disabled {
+/* Card 171026154000 (C): aria-disabled, never the native `disabled` attribute
+   (the DisabledActionTip contract) — keep the dimmed non-actionable look. */
+.lcl-selection-bar__assign[aria-disabled='true'] {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* The reason the group-assign action is unavailable — real text beside the
+   button, muted so it never reads as an action (owner: static status text
+   must not look actionable). */
+.lcl-selection-bar__hint {
+  color: var(--app-text-muted, #475467);
+  font-size: 0.875rem;
 }

@@ -1,0 +1,5 @@
+
+> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter
+> eslint .
+
+EXIT:0
