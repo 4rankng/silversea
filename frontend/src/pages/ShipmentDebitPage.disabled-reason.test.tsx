@@ -159,6 +159,12 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
   it('Xóa lọc explains the empty-filters disable and clears when a filter is active', () => {
     const onClear = vi.fn();
     const base = {
+      // Owner 2026-10-17: the customer picker rides the strip but stays OUT of
+      // the strip's own filter logic — `Xóa lọc` still owns from/to/lock only
+      // (layout move, not a filter-semantics change).
+      customerValue: '',
+      customerOptions: [],
+      onCustomerChange: vi.fn(),
       onLockChange: vi.fn(),
       onDeliveryRangeChange: vi.fn(),
       onResetSecondary: vi.fn(),

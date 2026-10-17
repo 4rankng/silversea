@@ -1,12 +1,12 @@
 /* Chi phí - Quyết toán (card 20260918_17) — L1 collapsed lot list. UUI
-   controls own control density; this file owns the page header, the promoted
-   customer bar and the settlement table only. The two-tier command header
-   (card 20260926_51): one 36px title+actions row and the shared filter strip
-   (card 20260927_153 — ShipmentDebitRibbon), whose layout and control widths
-   belong to FilterBar.css / ListFilterBar.css. The DOM order is the phone
-   band's reading order (picker → strip → actions → list), so the bulk-action
-   row sits directly above the rows it acts on; desktop re-pins the title row
-   on top of the workspace grid below. */
+   controls own control density; this file owns the page header and the
+   settlement table only. The two-tier command header (card 20260926_51): one
+   36px title+actions row and the shared filter strip (card 20260927_153 —
+   ShipmentDebitRibbon), whose layout and control widths belong to
+   FilterBar.css / ListFilterBar.css. The DOM order is the phone band's
+   reading order (strip → actions → list), so the bulk-action row sits
+   directly above the rows it acts on; desktop re-pins the title row on top
+   of the workspace grid below. */
 
 .shipment-debit-page {
   display: grid;
@@ -48,31 +48,18 @@
    order back. */
 .shipment-debit-workspace > .shipment-debit-header { order: -1; }
 
-/* Card _202: Khách hàng is OUT of the filter strip and rides its own bar, so
-   it is always visible and never folded behind `Bộ lọc`. The customer-name
-   pool is unbounded, so the control is floored/capped to hold its value
-   instead of stretching to a full legal name. Sizing only — the picker is not
-   a bar control, so no bar rule applies to it. */
-.shipment-debit-customer-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  min-width: 0;
-}
-
-.shipment-debit-customer-bar__picker {
-  width: auto;
+/* Owner 2026-10-17 (reverses card _202): the Khách hàng picker rides the
+   shared strip as its first bar child. The customer-name pool is unbounded,
+   so the control is floored/capped to hold its value instead of stretching
+   to a full legal name. SIZING ONLY — this is the sanctioned page sizing of
+   a shared primitive; every layout/wrap/height rule stays with FilterBar.css
+   (a page rule that re-declares the bar's flex/grid is how the family
+   `width: 100%` came back twice on 2026-09-27). No phone override: on a
+   narrow bar the picker stays content-sized like every other bar control
+   and the strip's own measured wrap packs the lines. */
+.shipment-debit-ribbon__customer {
   min-width: 200px;
   max-width: 320px;
-}
-
-.shipment-debit-customer-bar__hint {
-  margin: 0;
-  min-width: 0;
-  color: var(--color-fg-secondary, var(--fg-3));
-  font-size: var(--text-caption-size, 12px);
-  line-height: 1.3;
 }
 
 /* The shared `ListFilterBar` strip owns its layout, its wrapping and every
@@ -110,9 +97,6 @@
   .shipment-debit-header__export > * { width: 100%; }
   .shipment-debit-header__export .disabled-action-tip { display: flex; }
   .shipment-debit-header__export button { width: 100%; }
-  .shipment-debit-customer-bar { align-items: stretch; }
-  .shipment-debit-customer-bar__picker { width: 100%; max-width: none; }
-  .shipment-debit-customer-bar__hint { flex-basis: 100%; }
 }
 
 /* Coarse-pointer heights come from the shared bar (FilterBar.css): the page
