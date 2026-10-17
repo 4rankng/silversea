@@ -5,6 +5,10 @@
 // Pins: the four-digit rule (shorter input is ambiguous and rejected), the
 // Bill-then-Booking display key, the ad-hoc customer fallback, and the
 // "already deposited N times" signal the form warns with.
+//
+// Card 171026212000 (FB-096 verify-fail): the tail is the last four DIGITS of
+// the printed number's digit run, not its last four characters — real
+// references end in suffixes like "-IMP"/"-FCL" and must still match.
 
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -80,6 +84,51 @@ before(async () => {
   }).returning();
   shipmentIds.push(other[0].id);
 
+  // Card 171026212000: printed tails that are NOT four digits. The digit run
+  // still ends in TAIL, so the "4 số cuối" habit must find them — a
+  // last-4-characters comparison returns nothing for these shapes.
+  const blSuffixLot = await db.insert(s.shipments).values({
+    customerId,
+    blNumber: `YMLU${TAIL}-IMP`,
+    shippingLineName: 'YML',
+    status: 'PENDING_DATE',
+  }).returning();
+  shipmentIds.push(blSuffixLot[0].id);
+
+  const bookingSuffixLot = await db.insert(s.shipments).values({
+    customerId,
+    bookingRef: `RARBOOK-1792${TAIL}-bzut`,
+    shippingLineName: 'RAR',
+    status: 'PENDING_DATE',
+  }).returning();
+  shipmentIds.push(bookingSuffixLot[0].id);
+
+  // The mirrored real shape `RARBOOK-…-9bzut2`: its suffix KEEPS digits, so
+  // the digit run continues past the visible block. The lookup tail is the
+  // last four digits of the whole printed number — here "…7742" + "92" ends
+  // in 7292, not 7742.
+  const hexTailLot = await db.insert(s.shipments).values({
+    customerId,
+    bookingRef: `RARBOOK-1792${TAIL}-9bzut2`,
+    shippingLineName: 'RAR',
+    status: 'PENDING_DATE',
+  }).returning();
+  shipmentIds.push(hexTailLot[0].id);
+
+  // A tombstoned lot with a matching tail must NEVER be offered. It matches
+  // via bookingRef on purpose: grouped or() keeps the deletedAt filter on
+  // both branches — the bare `sql\`A or B\`` inside and() rendered
+  // `(deleted_at is null and bl_match) or booking_match`, bypassing the
+  // tombstone filter on exactly this branch.
+  const tombstoneLot = await db.insert(s.shipments).values({
+    customerId,
+    bookingRef: `TOMB${TAIL}-X`,
+    shippingLineName: 'YML',
+    status: 'PENDING_DATE',
+  }).returning();
+  await db.update(s.shipments).set({ deletedAt: new Date() }).where(eq(s.shipments.id, tombstoneLot[0].id));
+  shipmentIds.push(tombstoneLot[0].id);
+
   const tracker = await db.insert(s.depositRefundTrackers).values({
     shipmentId: catalogLot[0].id,
     billNumber: `YMLU${TAIL}`,
@@ -121,7 +170,13 @@ describe('bill suggestions by last four digits', () => {
     const result = await suggest(TAIL);
     assert.equal(result.status, 200);
     const items = result.body.items as Array<Record<string, unknown>>;
-    assert.equal(items.length, 3, 'the YMLU, ONE and HLXU lots match; the 0000 lot does not');
+    // Containment, not exact counts: the suite runs against the shared dev
+    // database, whose live lots may legitimately share the tail.
+    for (const ref of [`YMLU${TAIL}`, `ONE${TAIL}`, `HLXU${TAIL}`, `YMLU${TAIL}-IMP`, `RARBOOK-1792${TAIL}-bzut`]) {
+      assert.ok(items.some(item => item.billNumber === ref || item.bookingRef === ref), `${ref} is listed`);
+    }
+    assert.ok(!items.some(item => item.billNumber === 'YMLU0000'), 'the differently-ending lot is not listed');
+    assert.ok(!items.some(item => item.bookingRef === `TOMB${TAIL}-X`), 'a soft-deleted lot is never offered');
 
     const bill = items.find(item => item.billNumber === `YMLU${TAIL}`);
     assert.ok(bill, 'the Bill-number lot is listed');
@@ -132,6 +187,39 @@ describe('bill suggestions by last four digits', () => {
     const booking = items.find(item => item.bookingRef === `ONE${TAIL}`);
     assert.ok(booking, 'a Booking-number lot matches too');
     assert.equal(booking.billDisplay, `ONE${TAIL}`, 'the display key falls back to the Booking number');
+  });
+
+  test('a reference whose printed tail is not digits still matches by its last four digits', async () => {
+    // Card 171026212000 (FB-096 verify-fail): the accountant reads "4 số cuối"
+    // off the printed number, so "-IMP"/"-bzut" suffixes cannot hide the lot.
+    const result = await suggest(TAIL);
+    assert.equal(result.status, 200);
+    const items = result.body.items as Array<Record<string, unknown>>;
+
+    const blSuffix = items.find(item => item.billNumber === `YMLU${TAIL}-IMP`);
+    assert.ok(blSuffix, 'the non-digit-suffix Bill lot is found');
+    assert.equal(blSuffix.billDisplay, `YMLU${TAIL}-IMP`, 'the display key keeps the full printed reference');
+    assert.equal(blSuffix.existingTrackerCount, 0);
+
+    const bookingSuffix = items.find(item => item.bookingRef === `RARBOOK-1792${TAIL}-bzut`);
+    assert.ok(bookingSuffix, 'the non-digit-suffix Booking lot is found');
+    assert.equal(bookingSuffix.billDisplay, `RARBOOK-1792${TAIL}-bzut`);
+  });
+
+  test('a suffix that keeps digits extends the digit run — the tail is the last four digits of the whole number', async () => {
+    // `RARBOOK-17927742-9bzut2` prints digits 17927742 then 92, so its digit
+    // run ends …4292 — NOT 7742: the lookup reads the number as one digit
+    // sequence, exactly like the accountant scanning the paper.
+    const byRealTail = await suggest('4292');
+    assert.equal(byRealTail.status, 200);
+    const hexTail = (byRealTail.body.items as Array<Record<string, unknown>>)
+      .find(item => item.bookingRef === `RARBOOK-1792${TAIL}-9bzut2`);
+    assert.ok(hexTail, 'found by the true last four digits of the whole number');
+    // And the inner block's own tail alone does not match this lot.
+    const byInnerTail = await suggest(TAIL);
+    const leaked = (byInnerTail.body.items as Array<Record<string, unknown>>)
+      .find(item => item.bookingRef === `RARBOOK-1792${TAIL}-9bzut2`);
+    assert.equal(leaked, undefined, 'the pre-suffix block tail is not the lot’s tail');
   });
 
   test('an ad-hoc lot reports its free-text customer name', async () => {

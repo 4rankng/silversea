@@ -53,3 +53,4 @@
 .bill-suggestions__item > span:first-child { font-family: var(--font-data); font-weight: 600; }
 .bill-suggestions__item > span:last-child:not(:first-child) { color: var(--warning-text); }
 .bill-suggestions__no-match { font-size: 0.8rem; color: var(--fg-3); }
+.bill-suggestions__error { font-size: 0.8rem; color: var(--err, #dc2626); }
