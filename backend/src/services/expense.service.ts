@@ -1058,33 +1058,39 @@ export async function settleExpensesForPayment(input: {
     throw new ApiError(409, `Tổng số tiền phân bổ ${totalNewAllocations.toLocaleString('vi-VN')}₫ vượt số tiền chưa phân bổ ${unallocatedPaymentAmount.toLocaleString('vi-VN')}₫.`);
   }
 
-  // Insert allocation records.
-  for (const [expenseId, amount] of mergedByExpense) {
-    await input.transaction.insert(s.expensePaymentAllocations).values({
+  // Insert allocation records — one multi-row upsert: the conflict target is
+  // (expenseId, paymentLedgerId) and mergedByExpense holds one entry per
+  // expenseId, so the batch cannot self-conflict and `excluded.amount` keeps
+  // the exact per-row upsert semantics.
+  await input.transaction.insert(s.expensePaymentAllocations).values(
+    [...mergedByExpense].map(([expenseId, amount]) => ({
       expenseId,
       paymentLedgerId: input.paymentLedgerId,
       amount: String(amount),
-    }).onConflictDoUpdate({
-      target: [s.expensePaymentAllocations.expenseId, s.expensePaymentAllocations.paymentLedgerId],
-      set: { amount: sql`excluded.amount` },
-    });
-  }
+    })),
+  ).onConflictDoUpdate({
+    target: [s.expensePaymentAllocations.expenseId, s.expensePaymentAllocations.paymentLedgerId],
+    set: { amount: sql`excluded.amount` },
+  });
 
-  // Recompute total allocated per expense and mark PAID if fully allocated.
+  // Recompute total allocated per expense and mark PAID if fully allocated —
+  // every input is already in memory, so the settlement decision is computed
+  // first and applied as a single update.
   const fullySettledIds: number[] = [];
   for (const id of expenseIds) {
     const expenseAmount = Number(byId.get(id)!.amount);
     const prior = priorAllocated.get(id) ?? 0;
     const newAlloc = mergedByExpense.get(id)!;
-    const totalAllocated = prior + newAlloc;
-    if (totalAllocated >= expenseAmount - 0.001) {
-      await input.transaction.update(s.expenses).set({
-        paymentStatus: 'PAID',
-        settledByPaymentId: input.paymentLedgerId,
-        updatedAt: new Date(),
-      }).where(eq(s.expenses.id, id));
+    if (prior + newAlloc >= expenseAmount - 0.001) {
       fullySettledIds.push(id);
     }
+  }
+  if (fullySettledIds.length > 0) {
+    await input.transaction.update(s.expenses).set({
+      paymentStatus: 'PAID',
+      settledByPaymentId: input.paymentLedgerId,
+      updatedAt: new Date(),
+    }).where(inArray(s.expenses.id, fullySettledIds));
   }
 
   return fullySettledIds;
@@ -1114,31 +1120,38 @@ export async function restoreExpensesForPaymentReversal(input: {
     .where(eq(s.expensePaymentAllocations.paymentLedgerId, input.paymentLedgerId));
 
   // Recompute: for each affected expense, check if remaining allocations
-  // still cover the full amount.
-  const restoredIds: number[] = [];
-  for (const expenseId of affectedIds) {
-    const [expense] = await input.transaction.select({ amount: s.expenses.amount })
+  // still cover the full amount — amounts and remaining sums are fetched as
+  // two set queries (post-delete), and the status flip is one update.
+  const [expenseRows, remainingRows] = await Promise.all([
+    input.transaction.select({ id: s.expenses.id, amount: s.expenses.amount })
       .from(s.expenses)
-      .where(eq(s.expenses.id, expenseId))
-      .limit(1);
-    if (!expense) continue;
-
-    const [remaining] = await input.transaction.select({
+      .where(inArray(s.expenses.id, affectedIds)),
+    input.transaction.select({
+      expenseId: s.expensePaymentAllocations.expenseId,
       total: sql<string>`coalesce(sum(${s.expensePaymentAllocations.amount}), '0')`,
     })
       .from(s.expensePaymentAllocations)
-      .where(eq(s.expensePaymentAllocations.expenseId, expenseId));
+      .where(inArray(s.expensePaymentAllocations.expenseId, affectedIds))
+      .groupBy(s.expensePaymentAllocations.expenseId),
+  ]);
+  const amountById = new Map(expenseRows.map((r) => [r.id, Number(r.amount)]));
+  const remainingByExpense = new Map(remainingRows.map((r) => [r.expenseId, Number(r.total)]));
 
-    const totalAllocated = Number(remaining?.total ?? '0');
-    const expenseAmount = Number(expense.amount);
-    if (totalAllocated < expenseAmount - 0.001) {
-      await input.transaction.update(s.expenses).set({
-        paymentStatus: 'UNPAID',
-        settledByPaymentId: null,
-        updatedAt: new Date(),
-      }).where(eq(s.expenses.id, expenseId));
+  const restoredIds: number[] = [];
+  for (const expenseId of affectedIds) {
+    const expenseAmount = amountById.get(expenseId);
+    if (expenseAmount === undefined) continue;
+
+    if ((remainingByExpense.get(expenseId) ?? 0) < expenseAmount - 0.001) {
       restoredIds.push(expenseId);
     }
+  }
+  if (restoredIds.length > 0) {
+    await input.transaction.update(s.expenses).set({
+      paymentStatus: 'UNPAID',
+      settledByPaymentId: null,
+      updatedAt: new Date(),
+    }).where(inArray(s.expenses.id, restoredIds));
   }
 
   return restoredIds;
