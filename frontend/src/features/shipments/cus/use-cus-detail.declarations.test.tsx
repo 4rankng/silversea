@@ -1,10 +1,12 @@
-// Card 261013200312 (dev-lead ruling) — red-first wire-contract lock for
-// PER-CONTAINER tờ khai writes from the CUS "Chi tiết lô hàng" documents
-// editor. The number rides the container-line command (same version-guarded,
-// idempotent endpoint the drawer uses), the copy is ONE server call for the
-// whole lot (never a per-row loop), and divergence after a copy is just
-// another per-cont edit. Pins: per-cont edit contract, copy propagation,
-// post-copy divergence, single-container lot unchanged, 409 self-heal.
+// Card 261013200312 (dev-lead ruling) + card 171026180010 — red-first
+// wire-contract lock for PER-CONTAINER tờ khai writes from the CUS "Chi tiết
+// lô hàng" documents editor. The number rides the container-line command
+// (same version-guarded, idempotent endpoint the drawer uses); a non-empty
+// update syncs onto every sibling of the lot INSIDE that same command (the
+// response's `declarationSync` reports the written ids), and the explicit
+// copy button stays ONE server call for the whole lot (never a per-row
+// loop). Pins: per-cont edit contract, sync outcome wiring, copy
+// propagation, single-container lot unchanged, 409 self-heal.
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -286,11 +288,12 @@ describe('useCusDetail saveDocuments — per-container tờ khai wire contract (
   });
 });
 
-describe('useCusDetail saveDocuments — auto-copy of the lot\'s FIRST declaration (tickets 141026201700 / FB-085 / 131026200630)', () => {
+describe('useCusDetail saveDocuments — the save IS the lot-wide sync (card 171026180010)', () => {
   afterEach(() => vi.clearAllMocks());
 
-  /** An all-empty 3-cont lot: saving cont 11's number is the lot's FIRST
-   *  declaration, so the save must fan it out to 12/13 in ONE copy call. */
+  /** An all-empty 3-cont lot: saving cont 11's number must reach 12/13 through
+   *  the container-line command itself — the server syncs the siblings in the
+   *  same transaction and reports them as `declarationSync`. */
   const emptyLot = () => detail({
     containers: [
       line({ id: 11, declarationNumber: null }),
@@ -299,35 +302,40 @@ describe('useCusDetail saveDocuments — auto-copy of the lot\'s FIRST declarati
     ],
   });
 
-  it('saving the lot\'s first declaration auto-copies it to every empty sibling in ONE server call on the post-save version', async () => {
+  it('saving a non-empty number is ONE call — the server syncs the siblings and the hook reports the written count', async () => {
     const api = await setup(flatRow({ declarationNumber: null }), emptyLot());
-    updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: 'TK-AUTO-1' }) });
+    updateCusShipmentContainerLine.mockResolvedValue({
+      line: line({ shipmentVersion: 3, declarationNumber: 'TK-SYNC-1' }),
+      declarationSync: { updatedContainerIds: [12, 13] },
+    });
     let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
     await act(async () => {
-      outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-AUTO-1' });
+      outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-SYNC-1' });
     });
     expect(updateShipment).not.toHaveBeenCalled();
     expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1);
-    expect(copyCusShipmentContainerDeclaration).toHaveBeenCalledTimes(1);
-    expect(copyCusShipmentContainerDeclaration).toHaveBeenCalledWith(5, 11, { expectedShipmentVersion: 3 }, expect.any(String));
-    expect(outcome).toEqual({ autoCopy: { kind: 'copied', written: 2 } });
+    // The FB-085 second call is gone by law — the save is the sync.
+    expect(copyCusShipmentContainerDeclaration).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ sync: { written: 2 } });
     await waitFor(() => expect(listCusShipmentContainers).toHaveBeenCalledTimes(2));
   });
 
-  it('a mixed save PATCHes the shipment, writes the number, then auto-copies on the version the line write returned', async () => {
+  it('a mixed save PATCHes the shipment, then writes the number ONCE — no copy call on any path', async () => {
     const api = await setup(flatRow({ declarationNumber: null, billOrBookNumber: 'EGLV123' }), emptyLot());
     const calls: string[] = [];
     updateShipment.mockImplementation(async () => { calls.push('PATCH'); return { version: 3 }; });
-    updateCusShipmentContainerLine.mockImplementation(async () => { calls.push('LINE'); return { line: line({ shipmentVersion: 4, declarationNumber: 'TK-AUTO-2' }) }; });
-    copyCusShipmentContainerDeclaration.mockImplementation(async () => { calls.push('COPY'); return { updatedContainerIds: [12, 13], shipmentVersion: 4 }; });
-    await act(async () => {
-      await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, blNumber: 'EGLV999', declarationNumber: 'TK-AUTO-2' });
+    updateCusShipmentContainerLine.mockImplementation(async () => {
+      calls.push('LINE');
+      return { line: line({ shipmentVersion: 4, declarationNumber: 'TK-SYNC-2' }), declarationSync: { updatedContainerIds: [12, 13] } };
     });
-    expect(calls).toEqual(['PATCH', 'LINE', 'COPY']);
-    expect(copyCusShipmentContainerDeclaration).toHaveBeenCalledWith(5, 11, { expectedShipmentVersion: 4 }, expect.any(String));
+    await act(async () => {
+      await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, blNumber: 'EGLV999', declarationNumber: 'TK-SYNC-2' });
+    });
+    expect(calls).toEqual(['PATCH', 'LINE']);
+    expect(copyCusShipmentContainerDeclaration).not.toHaveBeenCalled();
   });
 
-  it('NO auto-copy when another container already carries a number (divergence stays manual)', async () => {
+  it('a sibling that already carries a number changes nothing on the wire — the server owns the overwrite decision', async () => {
     const mixedLot = detail({
       containers: [
         line({ id: 11, declarationNumber: null }),
@@ -336,30 +344,31 @@ describe('useCusDetail saveDocuments — auto-copy of the lot\'s FIRST declarati
       ],
     });
     const api = await setup(flatRow({ declarationNumber: null }), mixedLot);
-    updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: 'TK-DIVERGE' }) });
+    updateCusShipmentContainerLine.mockResolvedValue({
+      line: line({ shipmentVersion: 3, declarationNumber: 'TK-DIVERGE' }),
+      declarationSync: { updatedContainerIds: [12, 13] },
+    });
     let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
     await act(async () => {
       outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-DIVERGE' });
+    });
+    expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1);
+    expect(copyCusShipmentContainerDeclaration).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ sync: { written: 2 } });
+  });
+
+  it('a clear stays local — no sync report even when the lot has siblings', async () => {
+    const api = await setup(flatRow({ declarationNumber: 'TK-OLD' }), emptyLot());
+    updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: null }) });
+    let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
+    await act(async () => {
+      outcome = await api.saveDocuments(flatRow({ declarationNumber: 'TK-OLD' }), { ...baseDraft, declarationNumber: null });
     });
     expect(copyCusShipmentContainerDeclaration).not.toHaveBeenCalled();
     expect(outcome).toBeUndefined();
   });
 
-  it('NO auto-copy when the number is cleared to empty', async () => {
-    const lot = detail({ containers: [line({ id: 11, declarationNumber: 'TK-OLD' })] });
-    const api = await setup(flatRow({ declarationNumber: 'TK-OLD' }), lot);
-    updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: null }) });
-    await act(async () => {
-      await api.saveDocuments(flatRow({ declarationNumber: 'TK-OLD' }), { ...baseDraft, declarationNumber: null });
-    });
-    expect(copyCusShipmentContainerDeclaration).not.toHaveBeenCalled();
-  });
-
-  it('NO auto-copy on a single-container lot — `every()` must not pass vacuously into a guaranteed 409', async () => {
-    // Review Major 1 (tickets 141026201700 wave): a 1-cont lot has no sibling
-    // to receive the copy; the server rejects zero-target copies with 409
-    // "Mọi container trong lô đã có số tờ khai.", which the user would see as
-    // a spurious "copy failed" warning after a successful save.
+  it('a single-container lot reports no sync and never touches the copy endpoint', async () => {
     const single = detail({ containers: [line({ id: 11, declarationNumber: null })] });
     const api = await setup(flatRow({ declarationNumber: null }), single);
     updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: 'TK-ONLY-1' }) });
@@ -372,28 +381,24 @@ describe('useCusDetail saveDocuments — auto-copy of the lot\'s FIRST declarati
     expect(outcome).toBeUndefined();
   });
 
-  it('an optimistic conflict on the auto-copy self-heals by refetching the workspace without losing the saved number', async () => {
+  it('an optimistic conflict on the save self-heals by refetching the workspace (the sync died with the save)', async () => {
     const api = await setup(flatRow({ declarationNumber: null }), emptyLot());
-    updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: 'TK-AUTO-3' }) });
-    copyCusShipmentContainerDeclaration.mockRejectedValue(new ApiError(409, undefined, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi đổi dòng container.'));
-    let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
+    updateCusShipmentContainerLine.mockRejectedValue(new ApiError(409, undefined, 'Lô hàng vừa thay đổi. Vui lòng tải lại trước khi cập nhật dòng container.'));
     await act(async () => {
-      outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-AUTO-3' });
+      await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-CLASH' });
     });
-    expect(outcome).toEqual({ autoCopy: { kind: 'conflict' } });
     await waitFor(() => expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledTimes(2));
     expect(listCusShipmentContainers).toHaveBeenCalledTimes(1);
   });
 
-  it('a non-409 auto-copy failure completes the save and reports the failure for the toast', async () => {
+  it('a response without declarationSync (every sibling already equal) reports nothing — no spurious toast', async () => {
     const api = await setup(flatRow({ declarationNumber: null }), emptyLot());
-    updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: 'TK-AUTO-4' }) });
-    copyCusShipmentContainerDeclaration.mockRejectedValue(new ApiError(500, undefined, 'Máy chủ đang bận.'));
+    updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: 'TK-ECHO' }) });
     let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
     await act(async () => {
-      outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-AUTO-4' });
+      outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-ECHO' });
     });
-    expect(outcome).toEqual({ autoCopy: { kind: 'failed', message: 'Máy chủ đang bận.' } });
+    expect(outcome).toBeUndefined();
     await waitFor(() => expect(listCusShipmentContainers).toHaveBeenCalledTimes(2));
   });
 });

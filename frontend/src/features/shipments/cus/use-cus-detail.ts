@@ -265,24 +265,12 @@ export function useCusDetail(params: CusDetailListParams) {
       || (draft.shippingLineName ?? '') !== (raw.shippingLineName ?? '');
     const numberChanged = (draft.declarationNumber ?? '') !== (activeEdit.line.declarationNumber ?? '').trim();
     if (!shipmentChanged && !numberChanged) return;
-    // Tickets 141026201700 / FB-085 / 131026200630: entering the lot's FIRST
-    // declaration auto-copies it to every still-empty sibling. "First" is a
-    // LOT state, not a row position: the saved number is non-empty, at least
-    // one OTHER container exists to receive it, and every one of those others
-    // is still empty. Without the "at least one" half a single-container lot
-    // passes `every()` vacuously and the copy would 409 ("Mọi container
-    // trong lô đã có số tờ khai.") on every first save — the same law the
-    // explicit button enforces via emptyDeclarationSiblingCount > 0. Any
-    // sibling number (or a clear) means no auto-copy — divergence stays a
-    // deliberate per-cont act, exactly like the button's never-overwrite law.
-    const enteredFirstDeclaration = numberChanged
-      && (draft.declarationNumber ?? '').trim() !== ''
-      && activeEdit.detail.containers.some((candidate) => (
-        candidate.id !== activeEdit.line.id && !(candidate.declarationNumber ?? '').trim()
-      ))
-      && activeEdit.detail.containers.every((candidate) => (
-        candidate.id === activeEdit.line.id || !(candidate.declarationNumber ?? '').trim()
-      ));
+    // Card 171026180010 (superseding the FB-085 first-number auto-copy): the
+    // container-line command itself syncs a non-empty tờ khai update onto
+    // every OTHER container of the lot in the same transaction and reports
+    // the written siblings as `declarationSync`. No second call from the FE —
+    // the save IS the sync, so it can never diverge from the persisted state.
+    let syncOutcome: ShipmentDocumentsSaveOutcome | undefined;
     const signature = JSON.stringify(['documents', row.shipmentId, activeEdit.line.id, activeEdit.detail.summary.version, draft]);
     const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
     if (numberChanged) editIdempotencyKeys.current[signature] = key;
@@ -303,42 +291,8 @@ export function useCusDetail(params: CusDetailListParams) {
           expectedShipmentVersion,
           declarationNumber: draft.declarationNumber,
         }, key);
-        if (enteredFirstDeclaration) {
-          // The number is already persisted — the auto-copy is a separate,
-          // best-effort fan-out that must never lose the save. Same ONE-call
-          // lot command the explicit button uses, on the version the line
-          // write just returned (the line command moves the lot version when
-          // it touches the row). Idempotency follows the same signature-keyed
-          // map so a retried save replays, not duplicates, the copy.
-          const copySignature = JSON.stringify(['declaration-autocopy', row.shipmentId, activeEdit.line.id, result.line.shipmentVersion]);
-          const copyKey = editIdempotencyKeys.current[copySignature] ?? crypto.randomUUID();
-          editIdempotencyKeys.current[copySignature] = copyKey;
-          try {
-            const copy = await copyCusShipmentContainerDeclaration(row.shipmentId, activeEdit.line.id, {
-              expectedShipmentVersion: result.line.shipmentVersion,
-            }, copyKey);
-            delete editIdempotencyKeys.current[copySignature];
-            // The fan-out happened; reload the rows so the copied numbers are
-            // visible and the editor closes on the fresh set, exactly like a
-            // plain save.
-            delete editIdempotencyKeys.current[signature];
-            await finishSave();
-            return { autoCopy: { kind: 'copied', written: copy.updatedContainerIds.length } };
-          } catch (copyError) {
-            delete editIdempotencyKeys.current[copySignature];
-            if (isOptimisticShipmentConflict(copyError)) {
-              delete editIdempotencyKeys.current[signature];
-              await recoverConflict(row, 'documents');
-              return { autoCopy: { kind: 'conflict' } };
-            }
-            // Non-conflict failure: the save itself succeeded, so finish it
-            // normally and report the copy failure — the explicit button
-            // remains the manual fallback.
-            const outcome: ShipmentDocumentsSaveOutcome = { autoCopy: { kind: 'failed', message: safeError(copyError, 'Không thể copy số tờ khai.') } };
-            delete editIdempotencyKeys.current[signature];
-            await finishSave();
-            return outcome;
-          }
+        if (result.declarationSync) {
+          syncOutcome = { sync: { written: result.declarationSync.updatedContainerIds.length } };
         }
       }
     } catch (error) {
@@ -349,6 +303,7 @@ export function useCusDetail(params: CusDetailListParams) {
     }
     delete editIdempotencyKeys.current[signature];
     await finishSave();
+    return syncOutcome;
   }, [activeEdit, finishSave, recoverConflict]);
 
   const saveContainer = useCallback(async (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => {

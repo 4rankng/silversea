@@ -155,20 +155,16 @@ export default function ShipmentContainersPage() {
     }
   }, [detail, toast]);
 
-  /** Tickets 141026201700 / FB-085 / 131026200630: entering the lot's FIRST
-   *  tờ khai auto-copies it to the still-empty siblings after the number
-   *  itself saved. The hook returns what happened; this page owns the toast,
-   *  matching the copy buttons above. A plain save (no auto-copy) stays
-   *  silent like every other editor save; save errors keep flowing to the
-   *  editor's inline error channel untouched. */
+  /** Card 171026180010: saving a NON-EMPTY tờ khai on one container syncs
+   *  the number onto every other container of the lot inside the same server
+   *  transaction; the hook reports what happened and this page owns the
+   *  toast, matching the copy buttons above. A plain save (no sibling
+   *  written) stays silent like every other editor save; save errors keep
+   *  flowing to the editor's inline error channel untouched. */
   const saveDocuments = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => {
     const outcome = await detail.saveDocuments(row, draft);
-    if (outcome?.autoCopy?.kind === 'copied') {
-      toast({ kind: 'success', message: `Đã lưu số tờ khai và tự động copy sang ${outcome.autoCopy.written} container chưa có số.` });
-    } else if (outcome?.autoCopy?.kind === 'conflict') {
-      toast({ kind: 'warning', message: 'Số tờ khai đã lưu. Lô hàng vừa thay đổi — đã tải lại, vui lòng kiểm tra từng cont và dùng nút copy nếu còn thiếu.' });
-    } else if (outcome?.autoCopy?.kind === 'failed') {
-      toast({ kind: 'warning', message: `Số tờ khai đã lưu nhưng chưa copy được sang các cont khác: ${outcome.autoCopy.message}` });
+    if (outcome?.sync && outcome.sync.written > 0) {
+      toast({ kind: 'success', message: `Đã lưu số tờ khai và đồng bộ sang ${outcome.sync.written} container khác của lô.` });
     }
   }, [detail, toast]);
 

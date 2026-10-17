@@ -67,13 +67,13 @@ export interface ShipmentDocumentsDraft {
 }
 
 /** Result of a documents save, reported to the hosting page so it can toast.
- *  `autoCopy` is present only when the save entered the lot's FIRST
- *  declaration (the saved container is the only one with a number) and the
- *  hook tried to fan it out to the still-empty siblings (tickets
- *  141026201700 / FB-085 / 131026200630). The number itself is ALWAYS saved
- *  before any auto-copy attempt — a copy failure never rolls the save back. */
+ *  `sync` is present only when the save carried a non-empty tờ khai update
+ *  and the container-line command wrote the number onto at least one OTHER
+ *  container of the lot in the same transaction (card 171026180010 — the
+ *  save IS the sync; there is no second fan-out call to fail after the
+ *  fact). Absent on a clear, a single-container lot, or an identical echo. */
 export type ShipmentDocumentsSaveOutcome = {
-  autoCopy?: { kind: 'copied'; written: number } | { kind: 'failed'; message: string } | { kind: 'conflict' };
+  sync?: { written: number };
 };
 
 export interface ShipmentContainerDraft {

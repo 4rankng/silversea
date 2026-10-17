@@ -1,7 +1,7 @@
 /**
- * FB-110 + FB-109 (cards 171026122110 / 171026122100) — per-container tờ khai
- * saves and the auto-copy chain, against the shared decomposition owner
- * `ensureShipmentFulfillmentsInTx`.
+ * FB-110 + FB-109 (cards 171026122110 / 171026122100) + T-10 (card
+ * 171026180010) — per-container tờ khai saves and the lot-wide sync, against
+ * the shared decomposition owner `ensureShipmentFulfillmentsInTx`.
  *
  * FB-110 diagnosis (testplan/2026-10-17-card-fb110-fb109-to-khai.md): a lot
  * born READY_FOR_DISPATCH keeps the create contract "FCL does not decompose at
@@ -14,7 +14,13 @@
  * foreign shapes (NULL-container row / dangling container / duplicates) and the
  * whole LCL law stay under the strict assert.
  *
- * Matrix: FB-110 R1..R4, FB-109 R1..R3, plus the LCL strict-law pin.
+ * T-10 (card 171026180010, superseding the FB-085 first-number-only auto-copy):
+ * a NON-EMPTY tờ khai update on one container syncs the number onto every
+ * OTHER container of the lot in the same transaction and reports the written
+ * siblings as `declarationSync`; a clear stays local.
+ *
+ * Matrix: FB-110 R1..R4, FB-109 R1..R3, the T-10 sync cases, plus the LCL
+ * strict-law pin.
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -223,7 +229,7 @@ describe('FB-110 — per-container tờ khai save across the decomposition owner
     assert.equal(bornRow.canceledAt, null);
   });
 
-  test('R2: healthy lot — save, edit and clear (empty string → null) one container without touching its sibling', async () => {
+  test('R2: healthy lot — a non-empty save syncs the lot (card 171026180010); a clear stays local', async () => {
     const lot = await seedFclLot('r2');
     const first = await seedContainerRow(lot.id);
     const second = await seedContainerRow(lot.id);
@@ -232,14 +238,17 @@ describe('FB-110 — per-container tờ khai save across the decomposition owner
 
     const firstNumber = declTag('r2a');
     const secondNumber = declTag('r2b');
-    await updateCusShipmentContainerLine({
+    const firstSave = await updateCusShipmentContainerLine({
       shipmentId: lot.id,
       containerId: first.id,
       input: { expectedShipmentVersion: 1, declarationNumber: firstNumber },
       actor,
     });
     assert.equal(await declOf(first.id), firstNumber);
-    assert.equal(await declOf(second.id), null, 'an untouched sibling keeps its empty tờ khai');
+    // Card 171026180010: the empty sibling received the number in the SAME
+    // transaction (previously it stayed null until a separate copy call).
+    assert.equal(await declOf(second.id), firstNumber, 'the sibling receives the number in the same save');
+    assert.deepEqual(firstSave.declarationSync, { updatedContainerIds: [second.id] });
 
     await updateCusShipmentContainerLine({
       shipmentId: lot.id,
@@ -248,15 +257,18 @@ describe('FB-110 — per-container tờ khai save across the decomposition owner
       actor,
     });
     assert.equal(await declOf(first.id), secondNumber, 'editing replaces the number');
+    assert.equal(await declOf(second.id), secondNumber, 'the edit syncs to the sibling');
 
-    await updateCusShipmentContainerLine({
+    // A clear is a LOCAL act — one backspace must never wipe the lot.
+    const clearSave = await updateCusShipmentContainerLine({
       shipmentId: lot.id,
       containerId: first.id,
       input: { expectedShipmentVersion: 3, declarationNumber: '' },
       actor,
     });
     assert.equal(await declOf(first.id), null, 'an empty string clears the tờ khai to null');
-    assert.equal(await declOf(second.id), null);
+    assert.equal(await declOf(second.id), secondNumber, 'the clear never propagates to the sibling');
+    assert.equal(clearSave.declarationSync, undefined, 'a clear reports no sync');
     assert.equal(await versionOf(lot.id), 4, 'each touched save advances the version once');
 
     const rows = await activeFulfillments(lot.id);
@@ -302,6 +314,10 @@ describe('FB-110 — per-container tờ khai save across the decomposition owner
     );
     assert.equal(await declOf(danglingContainer.id), null);
     assert.equal((await activeFulfillments(danglingLot.id)).length, 1, 'the dangling row survives untouched');
+
+    // Shape 3 (two active rows stacked on ONE container) is not seedable:
+    // shipment_fulfillments_active_container_uniq_idx backstops it at
+    // storage, same as the LCL second-row case below — no test needed.
   });
 
   test('R4: a number owned by another lot is rejected (SHIPMENT_REFERENCE_DUPLICATE); a same-lot repeat stays legal', async () => {
@@ -397,7 +413,7 @@ describe('FB-109 — copy tờ khai của một container sang các container c�
     assert.equal(await versionOf(lot.id), 2, 'the rejected copy leaves the version untouched');
   });
 
-  test('R3: the FE auto-copy chain on a healed lot — line-update then copy-declaration with the returned version', async () => {
+  test('R3: a healed lot saves straight into the lot-wide sync — ONE call, no copy chain (card 171026180010)', async () => {
     const lot = await seedFclLot('c3');
     const source = await seedContainerRow(lot.id);
 
@@ -415,35 +431,87 @@ describe('FB-109 — copy tờ khai của một container sang các container c�
     });
     assert.equal((await activeFulfillments(lot.id)).length, 2);
 
-    // Step 1 of the chain: save the source number (this is where FB-110's 409
-    // used to kill the whole affordance) — the save heals the lot and returns
-    // the fresh version the FE feeds straight into the copy call.
+    // The whole chain is now ONE command: the save heals the lot's
+    // decomposition AND syncs the number onto every sibling in the same
+    // transaction (this is where FB-110's 409 used to kill the affordance,
+    // and where the old law needed a second copy-declaration call).
     const number = declTag('c3');
-    const { line } = await updateCusShipmentContainerLine({
+    const outcome = await updateCusShipmentContainerLine({
       shipmentId: lot.id,
       containerId: source.id,
       input: { expectedShipmentVersion: 3, declarationNumber: number },
       actor,
     });
-    assert.equal(line.shipmentVersion, 4);
+    assert.equal(outcome.line.shipmentVersion, 4);
     assert.equal((await activeFulfillments(lot.id)).length, 3, 'the heal completed the per-container set');
+    assert.deepEqual(
+      [...(outcome.declarationSync?.updatedContainerIds ?? [])].sort((a, b) => a - b),
+      [firstAdded.line.id, secondAdded.line.id].sort((a, b) => a - b),
+      'the sync wrote exactly the two siblings',
+    );
 
-    // Step 2: the copy fans the saved number out with that exact version.
-    const outcome = await copyCusShipmentContainerDeclaration({
+    for (const container of [source, firstAdded.line, secondAdded.line]) {
+      assert.equal(await declOf(container.id), number, `container ${container.id} carries the synced number`);
+    }
+
+    // The explicit copy button keeps its own never-overwrite law: with
+    // nothing empty left it still refuses instead of re-fanning.
+    await expectApiError(
+      copyCusShipmentContainerDeclaration({
+        shipmentId: lot.id,
+        containerId: source.id,
+        input: { expectedShipmentVersion: 4 },
+        actor,
+      }),
+      409,
+      'Mọi container trong lô đã có số tờ khai.',
+    );
+  });
+});
+
+describe('T-10 / card 171026180010 — lot-wide sync law of the tờ khai save', () => {
+  test('SYNC-02: a non-empty update overwrites EVERY sibling, diverged numbers included, in one version bump', async () => {
+    const lot = await seedFclLot('s2');
+    const source = await seedContainerRow(lot.id, { declarationNumber: declTag('s2old') });
+    const divergedFirst = await seedContainerRow(lot.id, { declarationNumber: declTag('s2div1') });
+    const divergedSecond = await seedContainerRow(lot.id);
+    for (const container of [source, divergedFirst, divergedSecond]) {
+      await seedFulfillmentRow(lot.id, container.id);
+    }
+
+    const number = declTag('s2new');
+    const outcome = await updateCusShipmentContainerLine({
       shipmentId: lot.id,
       containerId: source.id,
-      input: { expectedShipmentVersion: line.shipmentVersion },
+      input: { expectedShipmentVersion: 1, declarationNumber: number },
       actor,
     });
     assert.deepEqual(
-      [...outcome.updatedContainerIds].sort((a, b) => a - b),
-      [firstAdded.line.id, secondAdded.line.id].sort((a, b) => a - b),
+      [...(outcome.declarationSync?.updatedContainerIds ?? [])].sort((a, b) => a - b),
+      [divergedFirst.id, divergedSecond.id].sort((a, b) => a - b),
+      'both siblings — diverged and empty alike — received the number',
     );
-    assert.equal(outcome.shipmentVersion, 5);
+    assert.equal(await declOf(source.id), number);
+    assert.equal(await declOf(divergedFirst.id), number, 'a diverged sibling is overwritten (the lot shares one declaration)');
+    assert.equal(await declOf(divergedSecond.id), number);
+    assert.equal(await versionOf(lot.id), 2, 'one transaction, one version bump');
+  });
 
-    for (const container of [source, firstAdded.line, secondAdded.line]) {
-      assert.equal(await declOf(container.id), number, `container ${container.id} carries the copied number`);
-    }
+  test('SYNC-04: a single-container lot saves without any sync report and without error', async () => {
+    const lot = await seedFclLot('s4');
+    const only = await seedContainerRow(lot.id);
+    await seedFulfillmentRow(lot.id, only.id);
+
+    const number = declTag('s4');
+    const outcome = await updateCusShipmentContainerLine({
+      shipmentId: lot.id,
+      containerId: only.id,
+      input: { expectedShipmentVersion: 1, declarationNumber: number },
+      actor,
+    });
+    assert.equal(outcome.declarationSync, undefined, 'no sibling exists — nothing to report');
+    assert.equal(await declOf(only.id), number);
+    assert.equal(await versionOf(lot.id), 2);
   });
 });
 
