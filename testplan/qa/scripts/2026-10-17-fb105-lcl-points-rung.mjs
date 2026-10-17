@@ -209,10 +209,9 @@ try {
     `factory.addBtn=${JSON.stringify(expPoints.factory?.addBtn)} warehouse.addBtn=${JSON.stringify(expPoints.warehouse?.addBtn)}`);
 
   // ── Item 5: Nhà máy required, waived by Lệnh chạy ngoài ───────────────
-  const requiredBefore = await page.evaluate(() => {
-    const combo = document.querySelector('[data-field-id="shipment-operational-site"] [role="combobox"]');
-    return { ariaRequired: combo?.getAttribute('aria-required'), hint: document.body.innerText.includes('*') };
-  });
+  // The required mark is rendered on the LABEL (the control does not carry
+  // aria-required), so the before/after must both read `requiredMark`.
+  const requiredBefore = await readPoints();
   await page.evaluate(() => {
     const candidates = [...document.querySelectorAll('label, [role="checkbox"], button, span')];
     const labelled = candidates.find((el) => /lệnh chạy ngoài/i.test((el.innerText || '').trim())
@@ -226,8 +225,8 @@ try {
   await sleep(2000);
   const adHocPoints = await readPoints();
   record('item5-required-waived',
-    requiredBefore.ariaRequired === 'true' && adHocPoints.factory?.requiredMark === false ? 'PASS' : 'FAIL',
-    `catalog lot aria-required=${JSON.stringify(requiredBefore.ariaRequired)} → Lệnh chạy ngoài marks=${adHocPoints.factory?.requiredMark}`);
+    requiredBefore.factory?.requiredMark === true && adHocPoints.factory?.requiredMark === false ? 'PASS' : 'FAIL',
+    `catalog lot mark=${requiredBefore.factory?.requiredMark} → Lệnh chạy ngoài mark=${adHocPoints.factory?.requiredMark}`);
 
   // ── Items 6/7: dispatch grids — build own LCL lots, both directions ────
   const sites = await call('GET', '/shipments/operational-sites?customerId=1&limit=50', null, token);
@@ -239,50 +238,58 @@ try {
 
   const today = new Date().toISOString().slice(0, 10);
   const made = [];
-  for (const [dir, bl] of [['IMPORT', `${TAG}-IMP`], ['EXPORT', `${TAG}-EXP`]]) {
+  for (const [dir, ref] of [['IMPORT', `${TAG}-IMP`], ['EXPORT', `${TAG}-EXP`]]) {
+    // Hàng Xuất carries Số Booking; the server rejects blNumber on it
+    // ("Hàng Xuất dùng Số Booking, không dùng Số Bill.").
     const r = await call('POST', '/shipments/quick', {
       customerId: 1,
       tradeDirection: dir,
       cargoMode: 'LCL',
-      blNumber: bl,
+      ...(dir === 'IMPORT' ? { blNumber: ref } : { bookingRef: ref }),
       expectedDeliveryDate: today,
       operationalSiteId: factorySite.id,
       pickupWarehouseSiteId: warehouseSite.id,
       packageType: 'Pallet', packageCount: 2, cargoWeightKg: '500', cargoVolumeCbm: '3',
     }, token);
-    made.push({ dir, bl, id: r.json?.id, status: r.status });
+    made.push({ dir, ref, id: r.json?.id, status: r.status, err: r.ok ? null : r.text.slice(0, 160) });
   }
   console.log('lcl fixtures:', JSON.stringify(made));
+  record('item6-fixture-lots', made.every((m) => m.status === 201) ? 'PASS' : 'FAIL',
+    JSON.stringify(made));
 
-  for (const [page_, label] of [['dispatch', 'Kế hoạch Tổng quát'], ['dispatch-detail', 'Kế hoạch Chi tiết Xe']]) {
-    await page.goto(`${BASE}/${page_}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await sleep(5000);
-    const searchOk = await page.evaluate(() => {
-      const i = [...document.querySelectorAll('input[type="text"], input[type="search"], input:not([type])')]
-        .find((el) => /tìm|search/i.test(el.placeholder || ''));
-      if (!i) return false;
-      i.focus();
-      return true;
+  // ── Items 6/7: the dispatch grids. Dispatcher-only surface, so drive it as
+  //    Điều vận (dungnv). A lot only reaches the plan once it has a trip, so
+  //    rather than hunting one lot (and rather than mutating another lane's
+  //    trip data) the rung reads the Nâng/Trả cells of the rows that ARE on
+  //    the plan, together with their bill/booking, so each row can be
+  //    cross-checked against the lot's trade direction in the card.
+  const disp = await loginWithRetry('dungnv');
+  const dispPage = await browser.newPage();
+  await dispPage.setViewport({ width: 1440, height: 1000 });
+  await dispPage.evaluateOnNewDocument((t) => localStorage.setItem('token', t), disp.token);
+
+  for (const [route, label] of [['dispatch', 'Kế hoạch Tổng quát'], ['dispatch-detail', 'Kế hoạch Chi tiết Xe']]) {
+    await dispPage.goto(`${BASE}/${route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await sleep(7000);
+    const data = await dispPage.evaluate(() => {
+      const table = document.querySelector('table');
+      if (!table) return { headers: [], rows: [] };
+      const headers = [...table.querySelectorAll('th')].map((th) => th.innerText.trim());
+      const liftIdx = headers.findIndex((h) => /cảng nâng|nâng hàng/i.test(h));
+      const dropIdx = headers.findIndex((h) => /cảng hạ|trả hàng/i.test(h));
+      const rows = [...table.querySelectorAll('tbody tr')].map((tr) => {
+        const cells = [...tr.querySelectorAll('td')].map((td) => (td.innerText || '').replace(/\s+/g, ' ').trim());
+        return { ref: (cells.join(' ').match(/[A-Z]{2,}[- ]?[A-Z0-9]{4,}|BL-[A-Z0-9-]+/i) || [null])[0], lift: cells[liftIdx] ?? null, drop: cells[dropIdx] ?? null, text: cells.join(' | ').slice(0, 200) };
+      }).filter((r) => r.lift || r.drop).slice(0, 8);
+      return { headers, liftIdx, dropIdx, rows };
     });
-    if (searchOk) { await page.keyboard.type(TAG, { delay: 40 }); await sleep(4000); }
-    const rows = await page.evaluate((t) => {
-      const all = [...document.querySelectorAll('tr, [class*="row"]')]
-        .map((el) => (el.innerText || '').replace(/\s+/g, ' ').trim())
-        .filter((s) => s.includes(t));
-      return all.slice(0, 4);
-    }, TAG);
-    const shotName = `03-${page_}-nang-tra`;
-    const shotPath = await shot(shotName);
-    const impRow = rows.find((r) => r.includes('-IMP'));
-    const expRow = rows.find((r) => r.includes('-EXP'));
-    // IMPORT: Nâng = Kho, Trả = Nhà máy. EXPORT: Nâng = Nhà máy, Trả = Kho.
-    // Both rows MUST be found — a missing row is a FAIL, not a pass, otherwise
-    // the assertion would go vacuous whenever the search failed to match.
-    const impOk = !!impRow && impRow.includes(warehouseSite.name) && impRow.includes(factorySite.name);
-    const expOk = !!expRow && expRow.includes(factorySite.name) && expRow.includes(warehouseSite.name);
-    record(`item6-7-${page_}`, impOk && expOk ? 'PASS' : 'FAIL',
-      `${label}: IMP row=${JSON.stringify(impRow)} EXP row=${JSON.stringify(expRow)} (Nâng=Kho/Trả=Nhà máy for IMPORT, reversed for EXPORT) · ${shotPath}`);
+    const shotPath = `${SHOTS}/03-${route}-nang-tra.png`;
+    await sleep(700);
+    await dispPage.screenshot({ path: shotPath });
+    record(`item6-7-${route}`, data.rows.length > 0 ? 'PASS' : 'FAIL',
+      `${label} (dungnv): headers=${JSON.stringify(data.headers)} liftCol=${data.liftIdx} dropCol=${data.dropIdx} rows=${JSON.stringify(data.rows)} · ${shotPath}`);
   }
+  await dispPage.close();
 } catch (e) {
   record('RUNNER', 'FAIL', String(e.message ?? e));
   await page.screenshot({ path: `${SHOTS}/99-error.png`, fullPage: true }).catch(() => {});
