@@ -192,9 +192,9 @@ qa/2026-10-17_fb114-persist_*, qa/drivers/2026-10-17-fb114-persist-ui-drive.mjs.
   display-name (migration) cho race window triệt để; 2 red-at-base unrelated
   (material-write-registry-exhaustive @ lcl/unmerge-group 8e0b22c8;
   dev-port-contract @ qa1-007 script f9b36180) cần chủ card xử lý.
-## Lane 3: FB-020 bãi hạ trống + map nhầm Địa chỉ giao hàng (portless import regression) — DONE, full BE gate pending
+## Lane 3: FB-020 bãi hạ trống + map nhầm Địa chỉ giao hàng (portless import regression) — DONE (rb2, gates: mục Retry-2026-10-18)
 
-# fix-171026205400 — FB-020 Bãi hạ trống + map nhầm Địa chỉ giao hàng (REGRESSION, rb1→rb2) — DONE (pending full BE suite)
+# fix-171026205400 — FB-020 Bãi hạ trống + map nhầm Địa chỉ giao hàng (REGRESSION, rb1→rb2) — DONE
 
 Controller: this session (Paseo agent), worktree
 `fix-171026205400-bai-ha-regression-rb2` (cherry-pick 20ac6dca từ rb1, base
@@ -251,7 +251,64 @@ không đổi (1f1133ae).
   vitest scoped 146/146; FE vitest FULL 5059/5060 — fail duy nhất
   `dev-port-contract` là offender PRE-EXISTING `qa-20261017-qa1-007-chip-rung.mjs`
   (commit f9b36180, card khác, fail trên HEAD trước ticket này; đã fail y hệt
-  ở task 171026182554). Full BE suite: xem qa/2026-10-17_fb020_gates.txt.
+  ở task 171026182554). Full BE suite: CHẠY LẠI trên rb2 2026-10-18 —
+  kết quả + triage trong mục "Retry-2026-10-18" bên dưới
+  (qa/2026-10-18_fb020_be-test-full.log, _be-triage.md).
+
+## Retry-2026-10-18 (rb2): hoàn tất gate còn lại + sửa lớp defect chặn suite
+
+Agent retry (sau khi 5b03cfa3 chết lúc 2h03m chờ đúng gate này). Cherry-pick
+WIP 20ac6dca (rb1) → 00fa92b4 trên rb2 (conflict HANDOFF resolve = ghép
+Lane 3). Việc đã làm:
+
+- **Lớp defect chặn full BE suite (75bb96e0)**: 8 test file sau `after()` chỉ
+  `client.end()`而不không `disconnectRedis()` — ioredis socket giữ event loop,
+  child không bao giờ thoát, node treo vô hạn ở file đầu tiên chạm phải
+  (debit-note-trip-claim-governance). Ba full-suite run mồ côi (agent đã chết:
+  cont-type-dropdown, salary-mode-dialog, rb1) treo >60' mỗi cái đúng chỗ này
+  — đó là nguyên nhân rb1 timeout, KHÔNG phải contention DB. Bằng chứng
+  (sample uv__io_poll idle, chỉ còn redis socket, redis CLIENT LIST idle
+  68-80'): qa/2026-10-18_fb020_be-triage.md. Sửa theo pattern có sẵn
+  (`await disconnectRedis(); await client.end();`), sweep 501 file bằng probe
+  capped → đúng 8 file; re-run xanh toàn bộ (5/5, 8/8, 11/11…).
+- **authz-grant-registry**: xanh tại base, đỏ trên nhánh — row bypass
+  FB-086 R21 (62eba536) quên bump count test theo convention của file
+  (19≠18). Fix count+comment → 9/9. KHÔNG phải do refactors.
+- **dev-port-contract**: offender mới là comment script FB-103
+  hardcode `localhost:7275/3092` (scanner quét cả comment). Sửa comment theo
+  dev-port contract → xanh. (Offender cũ qa1-007 đã được fix trong range.)
+- **Zombie suites**: dọn 3 process tree mồ côi (owner agents đã chết, treo
+  vô hạn, không giữ DB connection) trước khi chạy gate — gate chạy ĐÚNG 1
+  lần, serial, một mình đúng như brief.
+- **Gates 2026-10-18 (qa/2026-10-18_fb020_*)**:
+  - root lint 0 (be-test-full.log), be-tsc 0, fe-tsc 0, make build 0.
+  - FE vitest full **5070/5070 exit 0** (fe-test-full-2.log; lần 1 fail
+    numeric-identity ×2 do worktree chưa `make build` + dev-port-contract
+    offender FB-103 — cả 2 xử lý xong). Khác record rb1 (5059/5060) vì rb2
+    mang refactors + merge FB-103 và dist đã build.
+  - BE node:test: unit **300/300**; integration **3302: 3267 pass / 35 fail**.
+    35 fail = đúng 15 file RED-AT-BASE — chạy lại tại 9fd0553c (detached,
+    shared build lại từ source base) fail GIỐNG HỆT (cùng assertion, cùng
+    số), không thuộc diff FB020 (32168ada..HEAD chỉ chạm file FB020) lẫn
+    refactors của nhánh: 6 file dính duplicate-guard 030e8e42 (card
+    141026230720 — fixture tạo 2 row cùng expenseType không
+    `duplicateConfirmed`); 3 file pricing/surcharge lệch số (heso/surcharge
+    cùng 243148≠241948, quotation 1556148≠1548468 — nghi drift catalog/pricing
+    trên shared dev DB so với expected hardcode); recoverable-cost-sort
+    (pagination limit-100 bị 873 row thật mới hơn che lấp — test chỉ guard
+    filter, không guard pagination); expense-type-seed-policy /
+    expense-source-remediation (drift seed/id trên shared DB); card197
+    (validator chấp nhận số âm — xung đột ruling nonnegative 2026-10-01?);
+    photo-trip-scope; q23-field-operations-idempotency; comprehensive.
+    Chi tiết từng file + bucket: qa/2026-10-18_fb020_be-triage.md.
+    **Cần chủ card xử lý** (không thuộc FB020 — không đụng để tránh sửa
+    test của card khác). FB-020 test XANH trong full suite:
+    "✔ FB-020 (card 171026205400): a portless IMPORT job names its delivery
+    site as Cảng hạ…".
+  - Probe 4-way ban đầu có 5 file fail contention đã xanh khi solo
+    (q03-payment-receipts-route, ops-expense-status-census,
+    q20-official-reporting-periods, q15-salary-period-routes,
+    reset-seed-tool) — không phải regression.
 
 ## Fixture dọn?
 

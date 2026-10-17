@@ -4,9 +4,11 @@
 // khởi tạo từ chế độ của lái xe. Salary table render theo chế độ đã có test
 // riêng (TimesheetReconciliationPage/MonthlyReport) — ở đây chốt DB side-effect.
 //
-// Usage (từ repo root, chống lại stack của worktree này):
-//   BASE_URL=http://localhost:7275 API_URL=http://localhost:3092/api \
+// Usage (từ repo root; mặc định theo dev-port contract 7175/3002):
+//   BASE_URL=… API_URL=…/api \
 //   node testplan/qa/scripts/171026215600-fb103-salary-mode-dialog.mjs
+// Run ghi nhận của card này dùng alt-stack 7275/3092 (main checkout giữ
+// 7175/3002) — truyền qua BASE_URL/API_URL env, không hardcode localhost.
 // Artifacts -> qa/2026-10-17_fb103-salary-mode_*
 import puppeteer from 'puppeteer';
 import fs from 'node:fs';
