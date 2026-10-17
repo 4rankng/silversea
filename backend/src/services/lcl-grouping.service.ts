@@ -34,7 +34,7 @@ import { AuditEvent } from './audit-types';
 import { persistAuditInTransaction } from './audit.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
 import { upsertTripCarrierInfo, upsertTripFinancialState } from './trip-composite.service';
-import { resolveCarrierVehicleClassPrice, resolveCustomerVehicleClassPrice } from './pricing.service';
+import { resolveCustomerVehicleClassPrice } from './pricing.service';
 import { persistFreightRateSnapshot, type ResolvedFreightRate } from './freight-pricing-engine.service';
 
 export interface LclGroupActor {
@@ -105,10 +105,10 @@ export interface LclGroupDissolveResult {
   dissolved: true;
 }
 
-type ShipmentRow = typeof s.shipments.$inferSelect;
+export type ShipmentRow = typeof s.shipments.$inferSelect;
 
 /** Live-trip facts the money steps need, keyed by shipmentId. */
-interface LiveTripFacts {
+export interface LiveTripFacts {
   tripId: number;
   status: string;
   departureDate: string;
@@ -770,7 +770,7 @@ type AuditEventTypeValue = (typeof AuditEvent)[keyof typeof AuditEvent];
 type LclCostCarrierType = 'OWN' | 'EXTERNAL';
 
 /** The vehicle source one cost group was assigned to. */
-interface LclCostCarrier {
+export interface LclCostCarrier {
   carrierType: LclCostCarrierType;
   /** customers.id of the nhà xe (isCarrier); null for the internal fleet. */
   carrierId: number | null;
@@ -880,64 +880,11 @@ async function persistLclCostCarrier(
 }
 
 /**
- * 161026232319 — Lô 1's cước trả ĐV.
- *
- * The manual entry ("Điều vận nhập tay") wins; otherwise the carrier price
- * board is traced for the lane (tuyến × loại xe, nhà xe's own row first, the
- * generic row as fallback), dated at the lot's delivery day — else the trip's
- * departure day. A board miss leaves Lô 1's own value untouched: an absent
- * price is never an invented 0₫ (and never a wiped freight).
+ * 161026232319 / card 171026142500 — Lô 1's cước trả ĐV and the members'
+ * zeroing live in `lcl-cost-group-freight.service.ts` (the money seam shared
+ * by group assignment and trip issuance).
  */
-async function applyPrincipalCostFreight(
-  tx: Tx,
-  args: {
-    row: ShipmentRow;
-    trip: LiveTripFacts | null;
-    vehicleClassId: number;
-    carrier: LclCostCarrier;
-    manualFreightCost: number | undefined;
-  },
-): Promise<{ amount: string; source: 'MANUAL' | 'PRICE_BOARD' } | null> {
-  const { row, trip, vehicleClassId, carrier, manualFreightCost } = args;
-  if (trip == null) return null;
-  if (manualFreightCost != null) {
-    await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(manualFreightCost) });
-    return { amount: String(manualFreightCost), source: 'MANUAL' };
-  }
-  if (row.routeId == null) return null;
-  const date = row.expectedDeliveryDate ?? trip.departureDate;
-  if (date == null) return null;
-  const price = await resolveCarrierVehicleClassPrice({
-    routeId: row.routeId,
-    vehicleSizeClassId: vehicleClassId,
-    supplierId: carrier.supplierId,
-    date,
-  });
-  if (price == null) return null;
-  await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(price.price) });
-  return { amount: String(price.price), source: 'PRICE_BOARD' };
-}
-
-/**
- * 161026232329 — the internal-fleet container group pays ONE driver for the
- * whole run: members 2..N shed the driver's road money.
- *
- * The two stored columns every salary surface sums are
- * `trip_financial_state.driver_salary` ("lương chuyến" — Lương SX on the
- * payslip) and `trip_financial_state.total_road_allowance` ("tiền đường";
- * driver-earnings.service reads exactly these two, and pnl/driver boards read
- * them too). `road_allowance_override` joins them as the stored INPUT the
- * road allowance is recomputed from — an explicit 0 there keeps the member at
- * 0₫ through a later "lưu số liệu" instead of re-deriving the route config
- * amount.
- */
-async function zeroMemberDriverMoney(tx: Tx, tripId: number): Promise<void> {
-  await upsertTripFinancialState(tx, tripId, {
-    driverSalary: '0',
-    totalRoadAllowance: '0',
-    roadAllowanceOverride: '0',
-  });
-}
+import { applyPrincipalCostFreight, zeroMemberDriverMoney } from './lcl-cost-group-freight.service';
 
 /**
  * FB-092 — dispatch "Gán xe nhóm" (COST dimension).

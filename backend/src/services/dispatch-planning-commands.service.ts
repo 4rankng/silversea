@@ -24,6 +24,7 @@ import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { resolveDispatchFactorySnapshot } from './trip-factory-site.service';
+import { applyLclCostGroupFreightToNewTrip } from './lcl-cost-group-freight.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 import { syncShipmentExpenseSources } from './expense-accounting-write.service';
 import { canonicalLocationsFromContainerRow, containerLocationColumns } from './trip-shared';
@@ -674,6 +675,16 @@ export async function issueOrderCreateOrUpdate(
         factorySiteAddress: factorySnapshot.address,
       }).where(eq(s.trips.id, trip.id));
     }
+    // Card 171026142500: an LCL lot grouped on Kế hoạch Chi tiết BEFORE this
+    // issue got its cost group saved with no live trip to price — the group's
+    // cước trả ĐV law (Lô 1 = bảng giá nhà xe, members = 0₫) lands HERE, on
+    // the trip this order just created. Ungrouped lots no-op.
+    await applyLclCostGroupFreightToNewTrip(tx, {
+      shipment,
+      fulfillment,
+      tripId: trip.id,
+      departureDate: plannedStartAt.toISOString().slice(0, 10),
+    });
     const notificationPayload = buildNotificationPayload(trip);
     if (hasExplicitNotificationTarget(notificationPayload)) {
       await persistNotificationInTx(tx, notificationPayload);
