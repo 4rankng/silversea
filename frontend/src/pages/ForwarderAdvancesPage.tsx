@@ -94,7 +94,7 @@ export default function ForwarderAdvancesPage() {
 
   if (loading && !retrying) return (
     <div className="fadv-page">
-      <PageHeader title="Tạm ứng" description="Ghi nhận tạm ứng và theo dõi số dư" iconName="advances" />
+      <PageHeader title="Tạm ứng" description="Gửi yêu cầu tạm ứng và theo dõi số dư" iconName="advances" />
       <div className="fadv-loading">
         <Loader2 size={20} className="spin" style={{ display: 'inline-block' }} />
         <p style={{ marginTop: 8 }}>Đang tải danh sách tạm ứng…</p>
@@ -104,7 +104,7 @@ export default function ForwarderAdvancesPage() {
 
   if (error || retrying) return (
     <div className="fadv-page">
-      <PageHeader title="Tạm ứng" description="Ghi nhận tạm ứng và theo dõi số dư" iconName="advances" />
+      <PageHeader title="Tạm ứng" description="Gửi yêu cầu tạm ứng và theo dõi số dư" iconName="advances" />
       <div className="fadv-empty">
         <div className="fadv-empty__icon" style={{ width: 80, height: 80 }}>
           <AlertCircle size={48} />
@@ -123,12 +123,12 @@ export default function ForwarderAdvancesPage() {
     <div ref={rootRef} className="fadv-page">
       <PageHeader
         title="Tạm ứng"
-        description="Ghi nhận tạm ứng và theo dõi số dư"
+        description="Gửi yêu cầu tạm ứng và theo dõi số dư"
         iconName="advances"
         action={
           !showForm ? (
             <button className="btn btn--primary" onClick={() => setShowForm(true)}>
-              <Plus size={16} /> Ghi nhận tạm ứng
+              <Plus size={16} /> Gửi yêu cầu tạm ứng
             </button>
           ) : undefined
         }
@@ -188,9 +188,9 @@ export default function ForwarderAdvancesPage() {
               <span className="fadv-form-panel__eyebrow">Phiếu mới</span>
               <h2 className="fadv-form-panel__title">
                 <Wallet size={16} aria-hidden="true" />
-                Ghi nhận tạm ứng
+                Gửi yêu cầu tạm ứng
               </h2>
-              <p className="fadv-form-panel__hint">Điền số tiền và lý do để ghi nhận tạm ứng.</p>
+              <p className="fadv-form-panel__hint">Điền số tiền và lý do để gửi yêu cầu — kế toán phê duyệt trước khi giải ngân.</p>
             </div>
             <button
               className="btn btn--ghost btn--sm fadv-form-panel__close"
@@ -237,7 +237,7 @@ export default function ForwarderAdvancesPage() {
               </button>
               <button className="btn btn--primary btn--sm" type="submit" disabled={createAdvanceRequest.isPending}>
                 {createAdvanceRequest.isPending ? <Loader2 size={14} className="spin" /> : <Wallet size={14} />}
-                Ghi nhận tạm ứng
+                Gửi yêu cầu tạm ứng
               </button>
             </div>
           </form>
