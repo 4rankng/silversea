@@ -185,8 +185,10 @@ describe('Q23 forwarder create-route replay', () => {
       .where(eq(s.advanceRequests.id, requestId));
     assert.equal(stored.length, 1);
 
-    // Recording the request is direct and idempotent, but does not deliver cash.
-    assert.equal(first.body.status, 'RECORDED');
+    // Ops submit (KP-148/CPB-03) is born PENDING awaiting accounting approval
+    // and does not deliver cash.
+    assert.equal(first.body.status, 'PENDING');
+    assert.equal(first.body.approvedBy, null);
     const advanceLedger = await db.select({ id: s.ledger.id })
       .from(s.ledger)
       .where(and(
@@ -198,7 +200,7 @@ describe('Q23 forwarder create-route replay', () => {
     assert.equal(advanceLedger.length, 0);
   });
 
-  it('recorded advance is immutable through removed review and generic mutation endpoints', async () => {
+  it('submitted advance is immutable through removed review and generic mutation endpoints', async () => {
     const result = await requestJson('/api/forwarder/me/advance-requests', {
       idempotencyKey: `immutable-${suffix}`, body: { amount: 230000, reason: 'Recorded advance' },
     });
@@ -214,7 +216,7 @@ describe('Q23 forwarder create-route replay', () => {
       assert.equal(rejected.status, 404);
     }
     const [after] = await db.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, id));
-    assert.equal(after.status, 'RECORDED');
+    assert.equal(after.status, 'PENDING', 'submit sinh PENDING chờ phê duyệt — không tự ghi nhận');
     assert.deepEqual(after, before);
     const entries = await db.select().from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, id)));
     assert.equal(entries.length, 0, 'an immutable request does not invent a cash transfer');

@@ -472,13 +472,17 @@ describe('ops expenses + wallet (PRD §3.3, §5)', () => {
     assert.equal(withPhotoLater.hasPhoto, true, 'photo attached after creation shows in history');
   });
 
-  test('advance request creation applies immediately (status-removal: no approval handoff)', async () => {
+  test('advance request creation lands PENDING awaiting accounting approval (KP-148/CPB-03)', async () => {
+    // Luật 2026-09-15 "status-removal: no approval handoff" đã bị KP-148
+    // supersede: Ops TỰ GỬI yêu cầu sinh "Chờ phê duyệt", kế toán phê duyệt
+    // mới ghi ledger + treasury (card 141026230770 — nút PHÊ DUYỆT TẠM ỨNG).
     const created = await api('/wallet/advance-requests', {
       method: 'POST', token: opsToken,
       body: { amount: 500000, reason: `xin ứng ${suffix}` },
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.status, 'RECORDED', 'creation records the request without an approval handoff');
+    assert.equal(created.body.status, 'PENDING', 'Ops submit is born Chờ phê duyệt — never auto-approved');
+    assert.equal(created.body.approvedBy, null, 'chưa có người duyệt khi mới gửi');
     createdAdvanceIds.push(created.body.id);
   });
 
