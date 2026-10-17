@@ -369,10 +369,13 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
 
-    const addButton = screen.getByRole('button', { name: 'Thêm hãng tàu' });
+    // FB-114 honesty contract: the pencil action NAMES THE LOT ("Đặt tên
+    // hãng tàu cho lô này"), and the field hint states where the dropdown
+    // catalog comes from and that a typed name is per-lot only.
+    const addButton = screen.getByRole('button', { name: 'Đặt tên hãng tàu cho lô này' });
     fireEvent.click(addButton);
 
-    const dialog = await screen.findByRole('dialog', { name: 'Thêm hãng tàu' });
+    const dialog = await screen.findByRole('dialog', { name: 'Đặt tên hãng tàu cho lô này' });
     const nameAction = dialog.querySelector('.csc-shipping-line-dialog__name-action');
     expect(nameAction).toContainElement(within(dialog).getByLabelText('Tên hãng tàu'));
     expect(nameAction).toContainElement(within(dialog).getByRole('button', { name: 'Áp dụng' }));
@@ -382,8 +385,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.change(within(dialog).getByLabelText('Tên hãng tàu'), { target: { value: '  Ocean Network Express  ' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Áp dụng' }));
 
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm hãng tàu' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Đặt tên hãng tàu cho lô này' })).toBeNull());
     expect((screen.getByRole('combobox', { name: /^Hãng tàu/ }) as HTMLInputElement).value).toBe('Ocean Network Express');
+    expect(screen.getByText("Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập ở đây chỉ lưu cùng lô hàng này.")).toBeTruthy();
     expect(addButton).toHaveFocus();
   });
 
@@ -393,14 +397,14 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     const shippingLine = screen.getByRole('combobox', { name: /^Hãng tàu/ });
     fireEvent.change(shippingLine, { target: { value: 'MSC' } });
-    const addButton = screen.getByRole('button', { name: 'Thêm hãng tàu' });
+    const addButton = screen.getByRole('button', { name: 'Đặt tên hãng tàu cho lô này' });
     fireEvent.click(addButton);
 
-    const dialog = await screen.findByRole('dialog', { name: 'Thêm hãng tàu' });
+    const dialog = await screen.findByRole('dialog', { name: 'Đặt tên hãng tàu cho lô này' });
     fireEvent.change(within(dialog).getByLabelText('Tên hãng tàu'), { target: { value: 'ONE' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
 
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm hãng tàu' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Đặt tên hãng tàu cho lô này' })).toBeNull());
     expect((shippingLine as HTMLInputElement).value).toBe('MSC');
     expect(addButton).toHaveFocus();
   });

@@ -303,13 +303,13 @@ export function ShipmentCreateWorkspace() {
   }
 
   function applyShippingLine(name: string) {
+    // FB-114 honesty contract: this action NAMES THE LOT, it does not create
+    // a catalog entry. Backend shippingLines is a derived list
+    // (config.service.ts: DEFAULT_SHIPPING_LINES + SHIPPING_LINE suppliers;
+    // no table, no POST), so the old session-local setCatalogs append was a
+    // lie that evaporated on reload — the dropdown stays the server catalog
+    // and the typed name rides form.shippingLineName (free-text contract).
     update('shippingLineName', name);
-    setCatalogs((prev) => {
-      if (!prev) return prev;
-      const existing = prev.shippingLines ?? [];
-      if (existing.some((s) => s.name.toLowerCase() === name.toLowerCase())) return prev;
-      return { ...prev, shippingLines: [...existing, { name }] };
-    });
     closeShippingLineDialog();
   }
 
