@@ -257,6 +257,40 @@ describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)'
   const endField = () => screen.getByRole('group', { name: 'Giờ trả hàng' });
   const daySeg = () => screen.getByLabelText('Ngày — Giờ trả hàng') as HTMLInputElement;
   const hourSeg = () => screen.getByLabelText('Giờ — Giờ trả hàng') as HTMLInputElement;
+  const minuteSeg = () => screen.getByLabelText('Phút — Giờ trả hàng') as HTMLInputElement;
+
+  const saveResult = () => ({
+    fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+    operationalNotes: null,
+    dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+    estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+  });
+
+  it('FB-002 (181026000027): Enter in a hand-typed Giờ trả hàng segment saves the dialog', async () => {
+    // The footer "Lưu thay đổi" button sits OUTSIDE the form and every
+    // in-form button is type="button" — implicit submission can never fire.
+    // The form must answer Enter itself (requestSubmit), and the segmented
+    // field must let a complete draft's Enter bubble instead of swallowing it.
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    expect(hourSeg().value).toBe('15'); // 08:30Z prefilled in +07 wall-clock
+    fireEvent.change(minuteSeg(), { target: { value: '45' } }); // hand-typed edit → 15:45
+    fireEvent.keyDown(minuteSeg(), { key: 'Enter' });
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ plannedEndAt: '2026-10-05T08:45:00.000Z' });
+  });
+
+  it('FB-002: an incomplete Giờ trả hàng draft still swallows Enter — no save', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
+    mockFleetResources();
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    fireEvent.change(daySeg(), { target: { value: '0' } }); // incomplete date draft
+    fireEvent.keyDown(daySeg(), { key: 'Enter' });
+    expect(onAtomicSave).not.toHaveBeenCalled();
+  });
 
   it('prefills the Giờ trả hàng field in Vietnam wall-clock', async () => {
     mockFleetResources();

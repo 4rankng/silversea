@@ -879,7 +879,30 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           </>
         )}
       >
-        <form className="dispatch-assignment-dialog" noValidate aria-busy={saving} onSubmit={(event) => { event.preventDefault(); void save(); }}>
+        <form className="dispatch-assignment-dialog" noValidate aria-busy={saving} onSubmit={(event) => { event.preventDefault(); void save(); }}
+          onKeyDown={(event) => {
+            // FB-002 (cards 181026000027 + 171026215500): the "Lưu thay đổi"
+            // button lives in the modal FOOTER, outside this form, and every
+            // in-form button is type="button" — so the browser's implicit
+            // submission never fires and Enter went dead in the dialog's
+            // fields (the giờ trả hàng segments included). The form answers
+            // Enter itself, through the same save the footer button rides
+            // (requestSubmit keeps the noValidate contract explicit). The
+            // segmented datetime field lets a COMPLETE draft's Enter bubble
+            // here and still swallows incomplete ones itself — never steal
+            // a key the field already handled.
+            if (event.defaultPrevented) return;
+            if (event.key !== 'Enter' || event.nativeEvent.isComposing || saving || issuing || saveDisabledReason) return;
+            const target = event.target as HTMLElement;
+            if (target.closest('[data-date-picker], .time-picker__popup, [data-time-picker-overlay]')) return;
+            if (target.isContentEditable || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.closest('.searchable-select, [role="listbox"], [role="option"], .dispatch-assignment-dialog__issue')) return;
+            // Bare Enter in the note textarea inserts a newline; Ctrl/Cmd+Enter
+            // saves — same law as the CUS quick-edit modal.
+            if (target.tagName === 'TEXTAREA' && !event.ctrlKey && !event.metaKey) return;
+            if (event.shiftKey) return;
+            event.preventDefault();
+            event.currentTarget.requestSubmit();
+          }}>
           <div className="dispatch-assignment-dialog__fields">
             <label htmlFor={`dispatch-carrier-${row.fulfillmentId}`} className="dispatch-assignment-dialog__carrier">
               <span>Nhà xe</span>
