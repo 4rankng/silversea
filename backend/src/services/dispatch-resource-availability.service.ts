@@ -124,15 +124,45 @@ export async function assertResourceAvailability(tx: Tx, args: {
   // overlap with no warning at all — the exact "cảnh báo trùng giờ xe không
   // nổ" symptom, still failing at round 13.
   if (args.rigOverlapCompletedConfirmed !== true) {
+    // Card 171026121100 (FB-038/072 verify-fail 3): the completed tier
+    // required a staged plannedStartAt, so a COMPLETED trip that only carried
+    // its departure day (staging repro: 15H-061.14 · BLCUSa24BB, "Phân xe
+    // lại" onto it saved silently with no 409) was invisible. Each RIG
+    // resource (truck, trailer) now claims the same window the family's
+    // date-only law gives every other holder (12fcf20d: a date-only slot
+    // claims the whole displayed day; an unset end one 8-hour shift) — still
+    // warn-once with the family payload, never a hard block, confirmed retry
+    // proceeds. The resources stay DISJOINT matches (review H1): one shared
+    // tractor behind a DIFFERENT trailer is still an overlap, exactly like
+    // the active tier's or(...predicates). The DRIVER claim keeps the
+    // review-harmonized provable-window bar (2026-10-11): a legacy date-only
+    // completed row must not nag every later save with an unprovable driver
+    // occupancy.
+    const daySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
+    const startSql = sql`coalesce(${s.trips.plannedStartAt}, ${daySql})`;
+    const endSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${daySql} + interval '1 day')`;
+    const rigWindow = (predicate: ReturnType<typeof eq>) => and(
+      predicate,
+      sql`${startSql} is not null`,
+      sql`${startSql} < ${args.plannedEndAt.toISOString()}::timestamptz`,
+      sql`${endSql} > ${args.plannedStartAt.toISOString()}::timestamptz`,
+    );
     const completedConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
       .from(s.trips)
       .where(and(
-        or(...predicates)!,
         isNull(s.trips.deletedAt),
         eq(s.trips.status, TripStatus.COMPLETED),
-        isNotNull(s.trips.plannedStartAt),
-        lt(s.trips.plannedStartAt, args.plannedEndAt),
-        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.plannedStartAt.toISOString()}::timestamptz`,
+        or(
+          args.truckId != null ? rigWindow(eq(s.trips.truckId, args.truckId)) : undefined,
+          args.trailerId != null ? rigWindow(eq(s.trips.trailerId, args.trailerId)) : undefined,
+          args.driverId != null
+            ? and(
+              eq(s.trips.driverId, args.driverId),
+              isNotNull(s.trips.plannedStartAt),
+              lt(s.trips.plannedStartAt, args.plannedEndAt),
+              sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.plannedStartAt.toISOString()}::timestamptz`)
+            : undefined,
+        )!,
       ));
     if (completedConflicts.length > 0) {
       throw new ApiError(409,

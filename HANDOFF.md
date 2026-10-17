@@ -1,115 +1,83 @@
-# fix-141026230710 — Ops bị chặn khỏi luồng khai chi phí (P1) — DONE (pending final gates sign-off)
+# fix-171026121100 — FB-038/072 verify-fail 3: overlap guard 2 lỗ hổng còn sót — DONE (pending full-suite green)
 
-Controller: this session (Paseo agent), worktree branch
-`fix-141026230710-ops-expense-access` (base `773c73b1` off origin/main).
-Updated: 2026-10-17.
+Controller: this session (Paseo agent), worktree `fix-fb038-overlap-silent-glm`
+@ f1e36ecc (= origin/main khi bắt đầu). Updated: 2026-10-17.
 
 ## Goal & status
 
-Ticket 141026230710 (P1, chỉ thị 2026-10-17, spec T3 — mọi Ops khai chi phí
-mọi lô, không chia theo cá nhân/xe): gỡ 2 chặn của luồng khai chi phí.
+Card `171026121100-fb038-072-verifyfail3-overlap-silent.docx`: gán cùng biển
+số cho 2 dòng kế hoạch trùng ngày + "Phân xe lại" đụng chuyến COMPLETED cùng
+ngày đều LƯU THẦM LẶNG trên staging. Điều tra xong; 2 lỗ hổng guard THẬT trên
+trunk (dữ liệu staging dính đúng shape), đã fix + test + UI driven.
 
-- Chặn 1 `/shipments`: **ĐÃ GỠ** — thêm `p, OPS, shipments, read`
-  (backend/src/casbin/policy.csv) + `Role.OPS` vào `canReadShipmentRoutes`
-  (frontend/src/lib/role-access.ts).
-- Chặn 2 dialog "Lô này không thuộc xe bạn phụ trách.": **đã mở từ trước trong
-  base** (batch open-scope "plan step 5"/20261005, qua `2a64156f`); grant
-  per-person + endpoint `write-scope` không còn trong nguồn. Xác minh + pin
-  bằng test mới; không code change.
+## Root cause (chứng minh bằng staging read-only + local repro)
 
-## Scope & non-goals
+1. **FB038-03A** — dòng QA trên staging là ff 198/199 của CÙNG lô 298, FCL
+   **không container** (`shipment_container_id` NULL). `scanPlanRowHolders`
+   INNER JOIN `shipment_containers` → holder vô hình → lưu thầm lặng.
+2. **FB038-03B** — chuyến COMPLETED (trip 117 · BLCUSa24BB) **không planned
+   timestamps** (chỉ departureDate). Mọi scan tier-completed đòi
+   `isNotNull(planned_start_at)` → vô hình.
 
-- Sửa: policy rule + FE guard + comments (policy.csv, enforcer.ts,
-  routes/shipments/index.ts, authz-grants.ts reason) + pins đổi theo quyết
-  định mới (shipment-rbac, shipment-routes, role-access, App.shipment-operations-route).
-- KHÔNG sửa: nav sidebar OPS (không thêm entry /shipments — ngoài chỉ thị),
-  write/delete quyền shipments (vẫn đóng), FB-033 dialog-OPS-only + nhãn nút
-  (giữ), tickets khác.
+Lưu ý: 2 fix trước (111026105630, 121026185530) đã có trên trunk từ 07–14/10
+và có trong staging build; verify-fail 3 là do 2 shape dữ liệu trên, không
+phải deploy lag.
 
-## Decisions & sources
+## Changes (2 service files + 3 test files)
 
-- Chỉ thị người dùng 2026-10-17 (ticket) > FB-033 note trong recheck 16/10
-  ("/shipments 403 là status quo") — note đó bị supersede cho riêng chặn 1.
-- Quyết định mới ghi tại:
-  `testplan/2026-10-17-card141026230710-ops-shipments-view-open.md`.
-- Casbin rule cite: `p, OPS, shipments, read` (policy.csv, Wave 0 block).
-- Trip predicate cite: `assertExpenseOwnerWriteScope`
-  (backend/src/services/expense-owner-scope.service.ts) — chỉ scope DRIVER
-  qua `trips.driverId ↔ drivers.userId`; OPS exempt.
+- `backend/src/services/dispatch-planning-detail-plan.service.ts`:
+  `scanPlanRowHolders` INNER→LEFT join (holder không container claim LOT
+  window, marker fallbackSlot → tier WARN); 2 scan completed
+  (`assertTripRigAvailable`, `assertPlanRowRigAvailable`) claim ngày hiển thị
+  theo luật 12fcf20d — warn-once `RIG_OVERLAP_COMPLETED`, confirm flag proceed.
+- `backend/src/services/dispatch-resource-availability.service.ts`: tier
+  completed tách rig rows (truck/trailer — day-claim mới) khỏi driver leg
+  (giữ bar provable-window theo harmonization 11/10, KHÔNG mở lại).
+- Tests: container-less describe (5 test), trip edit + reassign fallback vs
+  completed date-only (2 test), kep-kethop T15/T16/T17. 38/38 3 file đó pass.
 
 ## Files owned by this task
 
-- backend/src/casbin/policy.csv, backend/src/casbin/enforcer.ts (comment)
-- backend/src/routes/shipments/index.ts (comment),
-  backend/src/middleware/authz-grants.ts (reason prose)
-- frontend/src/lib/role-access.ts
-- backend/src/tests/ops-expense-access.test.ts (NEW — 1 test qua cả 2 chặn)
-- pins: backend/src/tests/unit/shipment-rbac.test.ts,
-  backend/src/tests/shipment-routes.test.ts, frontend/src/lib/role-access.test.ts,
-  frontend/src/App.shipment-operations-route.test.tsx
-- testplan/2026-10-17-card141026230710-ops-shipments-view-open.md, CHANGELOG.md
-
-## Unrelated / concurrent changes preserved
-
-- Pre-existing failure NOT touched (out of scope — ticket khác):
-  `QA-AUDIT-PHOI-11 ×3` in `backend/src/tests/expense-source-remediation.test.ts`
-  — commit `ad2b8777` đổi `sourceId` của tiền-đường row sang
-  `expense_accounting_sources.id` nhưng test vẫn expect cost-table ids
-  (actual [3528, 14166] vs expected [3528, 3529]). Reproduce standalone
-  (không dính rows của test mới). Bằng chứng:
-  `qa/2026-10-17_141026230710_remediation-standalone.log`.
-- Handoff cũ (task QA1016, completed) archive tại
-  `plans/qa-full-guide-closed-loop-1016/handoff-archived-2026-10-17.md`.
+- 2 services + 3 tests trên; `testplan/2026-10-17-card-fb038-overlap.md`;
+- `qa/2026-10-17_fb038_*` (api-repro, ui-*, backend-tests, root-lint);
+- `qa/drivers/2026-10-17-fb038-ui-drive.mjs` (+2 debug drivers);
+- CHANGELOG.md entry.
 
 ## QA artifacts
 
-- `qa/2026-10-17_141026230710_backend-tsc.log` — exit 0
-- `qa/2026-10-17_141026230710_backend-tests.log` — 5 files; new test + pins
-  green; chỉ QA-AUDIT-PHOI-11 ×3 fail (pre-existing, cite ở trên)
-- `qa/2026-10-17_141026230710_remediation-standalone.log` — standalone repro
-- `qa/2026-10-17_141026230710_write-pins.log` — o01-trip-pairs +
-  shipment-quick-create (POST-denial pins) exit 0 vs policy mới
-- `qa/2026-10-17_141026230710_frontend-tsc.log` — exit 0
-- `qa/2026-10-17_141026230710_frontend-tests.log` — full FE suite
-  4975/4977; 2 fail chỉ vì `dist/` chưa build (chính message của test:
-  "dist/assets missing — run build first")
-- `qa/2026-10-17_141026230710_build.log` — `make build` exit 0 (repair)
-- `qa/2026-10-17_141026230710_frontend-tests-rerun.log` — rerun file fail:
-  6/6 pass sau build
-- `qa/2026-10-17_141026230710_root-lint.log` — red TẠI BASE cho
-  `testplan/qa/2026-10-16_w1-*` (12 unused-vars, commit `2e6acf92`, không
-  nằm trong diff này); scoped eslint trên các file của fix: exit 0
-- `qa/2026-10-17_141026230710_context-check.log` — manifest valid
+- `qa/2026-10-17_fb038_api-repro.log` — rung 2: pre-fix repro (chẩn đoán),
+  post-fix trên server :3092 code worktree với staging-exact shapes (3A/3B/3C),
+  restore fixtures + cleanup (đã quay lại trạng thái gốc).
+- `qa/2026-10-17_fb038_ui-*.png` + `_ui-driver.log` — rung 3: dieuvan,
+  /dispatch-detail 1440, dialog "…container khác của lô này… Vẫn lưu?" hiện,
+  'Xác nhận' lưu; DB proof ff 47995/47996 (đã dọn sau).
+- `qa/2026-10-17_fb038_backend-tsc.log` exit 0; `qa/2026-10-17_fb038_root-lint.log`
+  — red-at-base 20 problems (file 16/10, không thuộc diff), scoped eslint 5
+  file fix = exit 0.
+- `qa/2026-10-17_fb038_backend-tests.log` — full suite rerun sạch (run1
+  `_run1-poisoned.log` bị 2 process test mồ côi của lần chạy đầu giành DB —
+  đã kill, có ghi trong log).
+
+## Unrelated / preserved
+
+- Main checkout /Volumes/LexarSSD/projects/silversea có untracked testplan/qa
+  scripts của task khác — không đụng.
+- Dev stack (:3002/:7175) của main checkout giữ nguyên; server phụ :3092/:7176
+  của task này đã tắt sau QA.
+- Test 'card 20260928_169/197/377/E2E comprehensive' fail trong run1 — nghi do
+  concurrent DB; chờ run2 sạch để kết luận (nếu vẫn đỏ ở run2, kiểm tra lại
+  với git stash để xác định pre-existing).
+
+## Non-goals / ghi chú
+
+- Scan DRIVER tier-completed giữ nguyên harmonization (không warn trên
+  date-only completed) — quyết định review 11/10, card không yêu cầu đổi.
+- RBAC staging: role Điều vận không vào được /trips/:id/edit nên nhánh confirm
+  của form sửa chuyến (use-trip-form-submit) chưa UI-driven — admin phải verify
+  riêng (FB038-03C, đã ghi testplan).
+- Không deploy staging (cần chỉ thị owner).
 
 ## Next step
 
-## FB-100 (141026230770) tái xác minh + sửa fixture red-at-head — 17/10/2026 (worktree fix-141026230770-advance-refund-buttons @ 773c73b1)
-
-- Card 141026230770 (Tạm ứng & hoàn ứng: nút "Phê duyệt tạm ứng" / tick "Xác
-  nhận hoàn ứng" Option B / số âm + "Đề nghị thu tiền ứng") đã DEV_COMPLETED
-  từ wave W1 và nằm trên origin/main (`4ee08710`, `171fb358`, `055105dc`).
-  Worktree = origin/main → không có delta mã cho 3 mục (a)(b)(c); tái xác minh
-  bằng gates tại HEAD: BE/FE tsc 0, BE 20/20 (advance-approval,
-  advance-settlement-deadlock-order, transport-expense-direct-lifecycle,
-  card169-reconciliation-report, reconciliation-refund-settle), FE 43/43
-  (AdminAdvancesPage, ForwarderSettlementCreatePage, SettlementPrintPage,
-  OpsReconciliationReportPage). Artefact `qa/2026-10-17_fb100_*`.
-- Sửa red-at-head (va chạm 2 card đã land, không thuộc FB-100): fixture
-  `card169-reconciliation-report.test.ts` tạo 2 chi phí cùng loại + cùng lô →
-  guard card 141026230720 (`OPS_EXPENSE_DUPLICATE`) 409 lần lưu thứ hai.
-  Fixture thêm `duplicateConfirmed: true` đúng case split-payment guard cho
-  phép; guard + 4 pin của nó còn nguyên (`ops-expense-duplicate-warning.test.ts`
-  4/4). Chi tiết: `testplan/2026-10-16-card141026230770-tam-ung-hoan-ung.md`.
-
-## B.2 (141026230710) — Mở /shipments cho Ops + pin khai chi phí mọi lô — 17/10/2026 (worktree fix-141026230710-ops-expense-access @ df08bd7c)
-
-- Ticket 141026230710 (P1, spec T3: mọi Ops khai chi phí mọi lô, không chia
-  theo cá nhân/xe). Gỡ 2 chặn: Casbin rule `p, OPS, shipments, read` +
-  `canReadShipmentRoutes(Role.OPS)` guard. Trip predicate
-  `assertExpenseOwnerWriteScope` chỉ scope DRIVER qua `trips.driverId`.
-- Regression test: `backend/src/tests/ops-expense-access.test.ts` (casbin
-  thật + router thật trả 200/404, `createOpsExpense` trên lô fresh có trip
-  gán lái xe khác).
-- Policy-mirror pins: `shipment-rbac.test.ts`, `shipment-routes.test.ts`,
-  `role-access.test.ts`, `App.shipment-operations-route.test.tsx`.
-- Regression plan: `testplan/2026-10-17-card141026230710-ops-shipments-view-open.md`.
+- Full-suite run2 xanh (hoặc phân loại pre-existing) → review pass → commit
+  trunk theo §4 (gates xanh → review → commit).

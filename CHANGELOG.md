@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-10-17 (tối) — FB-038/072 verify-fail 3: gán xe trùng lịch còn 2 đường lưu thầm lặng
+
+Nguồn: docx `171026121100-fb038-072-verifyfail3-overlap-silent` (staging,
+dungnv/Điều vận). Điều tra staging read-only: cả 2 fix trước đã trên staging
+build; lỗi do 2 shape dữ liệu mà guard còn sót.
+
+- **Holder không container vô hình** — dòng Kế hoạch Chi tiết chưa decompose
+  (`shipment_fulfillments.shipment_container_id` NULL, slot theo "Ngày giao"
+  của lô; staging: ff 198/199 cùng lô 298): `scanPlanRowHolders` INNER JOIN
+  `shipment_containers` làm holder biến mất → gán cùng biển số cho từng dòng
+  cùng ngày lưu thầm lặng. Fix: LEFT JOIN — holder không container claim LOT
+  window như nhánh Lẻ (luật 061026174603), marker `fallbackSlot` giữ evidence
+  yếu ở tier WARN.
+- **Chuyến COMPLETED chỉ có ngày vô hình** — trip hoàn thành không planned
+  timestamps (staging: trip 117 · BLCUSa24BB, departureDate 01/10) bị mọi scan
+  tier-completed bỏ qua vì đòi `isNotNull(planned_start_at)` → "Phân xe lại"
+  lên biển đó cùng ngày lưu thầm lặng. Fix: 3 scan
+  (`assertResourceAvailability` rig rows, `assertTripRigAvailable`,
+  `assertPlanRowRigAvailable`) claim nguyên ngày hiển thị theo luật 12fcf20d
+  (coalesce plannedStartAt → departureDate tại Asia/Ho_Chi_Minh) — vẫn
+  warn-once `RIG_OVERLAP_COMPLETED` + confirm proceed, không hard-block mới.
+- **Giữ nguyên** harmonization 11/10 cho DRIVER tier-completed (date-only
+  completed row không chứng minh được tài xế bận — vẫn im lặng); test pin cũ
+  vẫn pass. Kẹp/Kết hợp exemption, tier hard active, same-lot warn: không đổi.
+- Regression: `dispatch-plan-row-rig-conflict.test.ts` (describe mới 5 test
+  container-less cùng lô/khác lô), `trip-overlap-warning.test.ts` (2 test edit
+  form + fallback reassign vs completed date-only),
+  `dispatch-resource-availability-kep-kethop.test.ts` (T15–T17). Testplan
+  `testplan/2026-10-17-card-fb038-overlap.md`; QA `qa/2026-10-17_fb038_*`
+  (API rung 2 + UI driven rung 3 qua 'Sửa ô điều phối' với dialog "Vẫn lưu?").
+
 ## 2026-10-17 (tối) — FB-105/106/107/108 + FB-006 + QA1-007 + FB-086 (verify-fail lần 2)
 
 Nguồn: docx "Điều chỉnh form tạo lô hàng lẻ" 17/10 + 7 card Kanban TODO

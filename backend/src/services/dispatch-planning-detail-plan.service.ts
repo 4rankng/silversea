@@ -709,7 +709,16 @@ async function resolvePlanRowWindow(
  *  (date-only "Ngày giao" holder claims the whole displayed day — weak
  *  evidence). A fulfilled row whose trip COMPLETED has released the rig
  *  (061026172804): it must reach the completed tier's warning, never the
- *  generic plan-row block. */
+ *  generic plan-row block.
+ *
+ *  Card 171026121100 (FB-038/072 verify-fail 3): the container join was an
+ *  INNER join, so a CONTAINER-LESS FCL row (the pre-decompose "fulfillment-
+ *  less branch" shape staging reproduced: two rows of one lot, no container,
+ *  date-only Ngày giao) was invisible as a holder — the same plate stacked
+ *  onto row after row with no warning. A holder without a container claims
+ *  the LOT window exactly like the LCL branch (061026174603 law: no container
+ *  by design ⇒ the lot slot is the claim); its null appointment keeps the
+ *  fallbackSlot marker, so the overlap stays weak evidence at the WARN tier. */
 async function scanPlanRowHolders(
   tx: Tx,
   plate: string,
@@ -727,10 +736,20 @@ async function scanPlanRowHolders(
     fallbackSlot: isNull(s.shipmentContainers.customerAppointmentAt),
   })
     .from(s.shipmentFulfillments)
-    .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+    // Review M1 (card 171026121100): the left join admits container-less
+    // rows, so the FCL branch must exclude LCL_SHIPMENT holders explicitly —
+    // before the left join the inner container join excluded them implicitly,
+    // and an LCL row here would always carry fallbackSlot=true (its joined
+    // container columns are null), downgrading the LCL branch's
+    // fully-evidenced cross-lot tier from hard block to warn. Container-less
+    // FCL holders stay covered; a container-less holder claims the LOT window
+    // and is weak evidence (warn tier) by design — the FB-038 ruling prefers
+    // a warn over either a silent save or a new guessed hard block.
+    .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
     .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
     .where(and(
       ne(s.shipmentFulfillments.id, excludeFulfillmentId),
+      ne(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
       isNull(s.shipmentFulfillments.canceledAt),
       eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
       sql`${holderStartSql} is not null`,
@@ -909,9 +928,16 @@ export async function assertTripRigAvailable(
         eq(s.trips.status, TripStatus.COMPLETED),
         isNull(s.trips.deletedAt),
         ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
-        isNotNull(s.trips.plannedStartAt),
-        lt(s.trips.plannedStartAt, windowEnd),
-        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz`,
+        // Card 171026121100 (FB-038/072 verify-fail 3): a completed trip that
+        // never carried staged timestamps still occupied its displayed day —
+        // the isNotNull(plannedStartAt) bar made it invisible, so a re-assign
+        // onto that plate saved silently while the grid showed the finished
+        // trip parked there that day. The completed tier now claims the same
+        // day window the active tier claims (12fcf20d law: a date-only slot
+        // claims the whole displayed day) — still warn-once, never a block.
+        sql`${tripStartSql} is not null`,
+        sql`${tripStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+        sql`${tripEndSql} > ${windowStart.toISOString()}::timestamptz`,
       ));
     if (completedTripConflicts.length > 0) {
       throw new ApiError(409,
@@ -930,12 +956,14 @@ export async function assertTripRigAvailable(
   // day, a missing end one 8-hour shift) measures the driver's day exactly
   // like the holder scan above. A rig conflict has already thrown above, so
   // this branch fires for the cross-tractor case the plate scans cannot see.
-  // Review harmonization: COMPLETED holders join at the same evidence bar
-  // the completed-plate scan sets — only with a provable window. A completed
-  // trip without a timestamp cannot prove the driver was occupied, exactly
-  // as it cannot prove the rig was (the family's "cannot prove overlap
-  // stays skipped" law); drivers run multiple provable trips a day, and a
-  // legacy date-only completed row must not nag every later save.
+  // Review harmonization: COMPLETED DRIVER holders still join only with a
+  // provable window — a completed trip without a timestamp cannot prove the
+  // driver was occupied (the family's "cannot prove overlap stays skipped"
+  // law); drivers run multiple provable trips a day, and a legacy date-only
+  // completed row must not nag every later save. The RIG scans above now
+  // claim the displayed day for completed trips instead (card 171026121100):
+  // the plate is a physical resource the grid shows parked on that day,
+  // while a driver's occupancy of a date-only finished row stays unproven.
   if (args.driverId != null && !args.confirmOverlap) {
     const driverConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
       .from(s.trips)
@@ -1080,7 +1108,17 @@ if (planRowBlocked || tripConflicts.length > 0) {
   // editor turns into a confirm dialog; the confirmed retry proceeds (chạy
   // gối đầu onto a finished trip is legal). Same overlap rule and 8-hour
   // default as the active-trip scan above.
+  //
+  // Card 171026121100 (FB-038/072 verify-fail 3): the isNotNull(plannedStartAt)
+  // bar made a date-only completed trip (staging: BLCUSa24BB, departure day
+  // displayed on the rig) invisible, so a plan save stacking another row onto
+  // that plate the same day passed silently. The completed tier now claims the
+  // displayed day exactly like the active tier (12fcf20d law) — warn once,
+  // never a block, confirmed retry proceeds.
   if (!args.confirmOverlap) {
+    const holderDaySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
+    const holderStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${holderDaySql})`;
+    const holderEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${holderDaySql} + interval '1 day')`;
     const completedTripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
       .from(s.trips)
       .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
@@ -1088,9 +1126,9 @@ if (planRowBlocked || tripConflicts.length > 0) {
         eq(s.trucks.licensePlate, plate),
         eq(s.trips.status, TripStatus.COMPLETED),
         isNull(s.trips.deletedAt),
-        isNotNull(s.trips.plannedStartAt),
-        lt(s.trips.plannedStartAt, windowEnd),
-        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz`,
+        sql`${holderStartSql} is not null`,
+        sql`${holderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+        sql`${holderEndSql} > ${windowStart.toISOString()}::timestamptz`,
       ));
     if (completedTripConflicts.length > 0) {
       throw new ApiError(409,
