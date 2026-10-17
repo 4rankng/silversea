@@ -577,6 +577,15 @@
   font-size: 13px;
 }
 
+/* One group fact row: label + principal note + its Hủy ghép control, each at
+   its own content width (FB-095). */
+.debit-lot-lcl-facts__group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
 .debit-lot-lcl-facts__groups em {
   color: var(--color-text-tertiary, #475467);
   font-style: normal;

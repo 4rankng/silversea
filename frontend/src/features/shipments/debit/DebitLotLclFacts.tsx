@@ -19,7 +19,8 @@ import { Button as UUIButton } from '../../../components/untitled-ui/base/button
 import { USearchableField } from '../create/uui-searchable-field';
 import { useToast } from '../../../components/shared/Toast';
 import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
-import { setLclLotRevClass, updateLclTruck } from '../../../api/dispatchPlanningClient';
+import { setLclLotRevClass, unmergeLclLot, updateLclTruck } from '../../../api/dispatchPlanningClient';
+import { ConfirmDialog } from '../../../components/UI';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 
 export interface DebitLotLclFactsProps {
@@ -35,6 +36,10 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   const [billing, setBilling] = useState(row.billingTruckNo ?? '');
   const [savingTruck, setSavingTruck] = useState(false);
   const [savingRevClass, setSavingRevClass] = useState(false);
+  // FB-095 — the user-facing trigger for the money-conservation law: which
+  // dimension is being confirmed (dialog open) and which one is in flight.
+  const [confirmUnmerge, setConfirmUnmerge] = useState<'COST' | 'REV' | null>(null);
+  const [unmerging, setUnmerging] = useState<'COST' | 'REV' | null>(null);
 
   // FB-090 catalog — the same source (and sort) as MergeRevGroupDialog's field.
   const vehicleClasses = useVehicleSizeClasses();
@@ -102,6 +107,29 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
       toast({ kind: 'error', message: err instanceof Error ? err.message : 'Lưu loại xe tính cước thu thất bại' });
     } finally {
       setSavingRevClass(false);
+    }
+  }
+
+  // FB-095 — one lot leaves its group; the server promotes Lô 2 with 100% of
+  // the money (or dissolves the group) inside one transaction.
+  async function doUnmerge() {
+    const dimension = confirmUnmerge;
+    if (dimension == null) return;
+    setUnmerging(dimension);
+    try {
+      const result = await unmergeLclLot({ shipmentId: row.shipmentId, dimension });
+      toast({
+        kind: 'success',
+        message: result.promoted
+          ? `Đã hủy ghép — Bill ${result.promoted.reference} nhận 100% ${dimension === 'REV' ? 'cước thu khách' : 'cước trả ĐV'}`
+          : 'Đã hủy ghép — nhóm giải tán',
+      });
+      setConfirmUnmerge(null);
+      onChanged();
+    } catch (err) {
+      toast({ kind: 'error', message: err instanceof Error ? err.message : 'Hủy ghép thất bại' });
+    } finally {
+      setUnmerging(null);
     }
   }
 
@@ -188,20 +216,45 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
           <small>NHÓM GHÉP</small>
           <span className="debit-lot-lcl-facts__groups">
             {row.costGroupId != null && (
-              <>
+              <span className="debit-lot-lcl-facts__group">
                 <span>Trả ĐV: Ghép ({row.costGroupOrder ?? '?'}/{row.costGroupMemberCount ?? '?'})</span>
                 {row.costGroupPrincipalRef && <em>Ghép cùng Bill {row.costGroupPrincipalRef}</em>}
-              </>
+                <UUIButton
+                  size="sm"
+                  color="secondary"
+                  onPress={() => setConfirmUnmerge('COST')}
+                  isDisabled={unmerging != null}
+                >
+                  {unmerging === 'COST' ? 'Đang hủy…' : 'Hủy ghép'}
+                </UUIButton>
+              </span>
             )}
             {row.revGroupId != null && (
-              <>
+              <span className="debit-lot-lcl-facts__group">
                 <span>Thu khách: Ghép ({row.revGroupOrder ?? '?'}/{row.revGroupMemberCount ?? '?'})</span>
                 {row.revGroupPrincipalRef && <em>Ghép cước cùng Bill {row.revGroupPrincipalRef}</em>}
-              </>
+                <UUIButton
+                  size="sm"
+                  color="secondary"
+                  onPress={() => setConfirmUnmerge('REV')}
+                  isDisabled={unmerging != null}
+                >
+                  {unmerging === 'REV' ? 'Đang hủy…' : 'Hủy ghép'}
+                </UUIButton>
+              </span>
             )}
           </span>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={confirmUnmerge != null}
+        message={confirmUnmerge === 'REV'
+          ? 'Hủy ghép cước thu khách cho lô này? Khoản cước 100% tự động chuyển sang lô kế tiếp trong nhóm (nhóm còn 1 lô thì giải tán).'
+          : 'Hủy ghép cước trả ĐV cho lô này? Khoản cước 100% tự động chuyển sang lô kế tiếp trong nhóm (nhóm còn 1 lô thì giải tán).'}
+        confirmLabel={unmerging != null ? 'Đang hủy…' : 'Hủy ghép'}
+        onConfirm={() => void doUnmerge()}
+        onCancel={() => { if (unmerging == null) setConfirmUnmerge(null); }}
+      />
     </div>
   );
 }

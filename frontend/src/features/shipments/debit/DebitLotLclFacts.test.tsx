@@ -2,14 +2,19 @@
 // the lot strip's own thu-class picker: the SAME design-system searchable
 // select the merge popup uses, reopening on the stored class, with the strip's
 // existing Lưu BKS saving/error pattern (toast + "Đang lưu…").
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { setClass, updateTruck } = vi.hoisted(() => ({ setClass: vi.fn(), updateTruck: vi.fn() }));
+const { setClass, updateTruck, unmerge } = vi.hoisted(() => ({
+  setClass: vi.fn(),
+  updateTruck: vi.fn(),
+  unmerge: vi.fn(),
+}));
 
 vi.mock('../../../api/dispatchPlanningClient', () => ({
   setLclLotRevClass: setClass,
   updateLclTruck: updateTruck,
+  unmergeLclLot: unmerge,
 }));
 
 // FB-090 catalog — the same source MergeRevGroupDialog reads.
@@ -78,6 +83,7 @@ async function pickClass(combo: HTMLElement, typed: string, optionName: RegExp) 
 beforeEach(() => {
   setClass.mockReset();
   updateTruck.mockReset();
+  unmerge.mockReset();
 });
 
 describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng từng lô")', () => {
@@ -169,5 +175,100 @@ describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng 
     await waitFor(() => expect(updateTruck).toHaveBeenCalledWith({ shipmentId: 9001, billingTruckNo: '29C-111.11' }));
     expect(onChanged).toHaveBeenCalled();
     expect(setClass).not.toHaveBeenCalled();
+  });
+});
+
+describe('FB-095 — nút "Hủy ghép" trên khối NHÓM GHÉP', () => {
+  const confirmButton = () => screen.getAllByRole('button', { name: 'Hủy ghép' }).at(-1)!;
+
+  it('chiều TRẢ ĐV: xác nhận → unmergeLclLot(COST), toast nêu Bill kế vị nhận 100% và tải lại lưới', async () => {
+    unmerge.mockResolvedValue({
+      dimension: 'COST',
+      groupId: 'g-cost',
+      leaver: { shipmentId: 9001, order: 1, reference: 'BL-1' },
+      promoted: { shipmentId: 9002, order: 1, reference: 'BL-2' },
+      transferredAmount: '2450000',
+      remaining: [{ shipmentId: 9002, order: 1, reference: 'BL-2' }],
+      dissolved: false,
+    });
+    const { onChanged } = renderStrip({
+      costGroupId: 'g-cost',
+      costGroupOrder: 1,
+      costGroupMemberCount: 2,
+      costGroupPrincipalRef: 'BL-9',
+    });
+
+    const trigger = screen.getByRole('button', { name: 'Hủy ghép' });
+    fireEvent.click(trigger);
+    // The strip's trigger and the dialog's confirm share the label, so the
+    // confirm is the last match once the dialog is open.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    fireEvent.click(confirmButton());
+
+    await waitFor(() => expect(unmerge).toHaveBeenCalledWith({ shipmentId: 9001, dimension: 'COST' }));
+    expect(await screen.findByText(/Bill BL-2 nhận 100% cước trả ĐV/)).toBeInTheDocument();
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it('chiều THU khách: xác nhận → unmergeLclLot(REV) và nêu đúng khoản cước thu', async () => {
+    unmerge.mockResolvedValue({
+      dimension: 'REV',
+      groupId: 'g-rev',
+      leaver: { shipmentId: 9001, order: 2, reference: 'BL-1' },
+      promoted: { shipmentId: 9002, order: 1, reference: 'BL-2' },
+      transferredAmount: '3150000',
+      remaining: [{ shipmentId: 9002, order: 1, reference: 'BL-2' }],
+      dissolved: false,
+    });
+    const { onChanged } = renderStrip({
+      revGroupId: 'g-rev',
+      revGroupOrder: 2,
+      revGroupMemberCount: 2,
+      revGroupPrincipalRef: 'BL-2',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy ghép' }));
+    fireEvent.click(confirmButton());
+
+    await waitFor(() => expect(unmerge).toHaveBeenCalledWith({ shipmentId: 9001, dimension: 'REV' }));
+    expect(await screen.findByText(/Bill BL-2 nhận 100% cước thu khách/)).toBeInTheDocument();
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it('nhóm còn 1 lô: không có Bill kế vị → toast "nhóm giải tán"', async () => {
+    unmerge.mockResolvedValue({
+      dimension: 'REV',
+      groupId: 'g-rev',
+      leaver: { shipmentId: 9001, order: 1, reference: 'BL-1' },
+      promoted: null,
+      transferredAmount: '0',
+      remaining: [],
+      dissolved: true,
+    });
+    renderStrip({ revGroupId: 'g-rev', revGroupOrder: 1, revGroupMemberCount: 1 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy ghép' }));
+    fireEvent.click(confirmButton());
+
+    expect(await screen.findByText(/Đã hủy ghép — nhóm giải tán/)).toBeInTheDocument();
+  });
+
+  it('server từ chối (nhóm đã chốt/khoá kế toán): hiện nguyên văn thông điệp, không tải lại lưới', async () => {
+    unmerge.mockRejectedValue(new Error('Nhóm ghép đã chốt kế toán — không thể tách lô'));
+    const { onChanged } = renderStrip({ costGroupId: 'g-cost', costGroupOrder: 1, costGroupMemberCount: 2 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy ghép' }));
+    fireEvent.click(confirmButton());
+
+    expect(await screen.findByText(/Nhóm ghép đã chốt kế toán — không thể tách lô/)).toBeInTheDocument();
+    expect(onChanged).not.toHaveBeenCalled();
+    // The trigger comes back from its busy state for a retry.
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Hủy ghép' })[0]).toHaveTextContent('Hủy ghép'));
+  });
+
+  it('lô KHÔNG thuộc nhóm nào thì không có nút Hủy ghép', () => {
+    renderStrip();
+    expect(screen.queryByRole('button', { name: 'Hủy ghép' })).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
