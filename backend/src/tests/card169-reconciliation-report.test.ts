@@ -120,6 +120,13 @@ async function mkCostEntry(staff: { id: number }, shipmentId: number, amount: nu
     feeName: `card169 phí ${cleanup.length}`,
     customerChargeAmount: 0,
     note: `card169 không thu khách ${cleanup.length}`,
+    // This fixture deliberately books several same-type costs on one lot
+    // (per-staff ownership / same-window second spend) — the legitimate
+    // split-payment case card 141026230720's duplicate guard names and its
+    // own suite (ops-expense-duplicate-warning.test.ts) pins via
+    // duplicateConfirmed. Confirm here so the guard's unconfirmed-409 path
+    // stays reserved for that suite.
+    duplicateConfirmed: true,
   });
   const entryId = (created as { id: number }).id;
   track(async () => { await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, entryId)); });
