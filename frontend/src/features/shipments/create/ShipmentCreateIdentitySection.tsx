@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Pencil, Plus, X } from 'lucide-react';
 import {
   USearchableField as SearchableField,
   USelectField as SelectField,
@@ -213,6 +213,11 @@ export function ShipmentCreateIdentitySection({
               placeholder="Gõ chọn hoặc nhập hãng tàu"
               disabled={saving}
               error={issueByField.get('shipment-shipping-line')}
+              // FB-114 honesty contract: the dropdown is the SERVER catalog
+              // (defaults + SHIPPING_LINE suppliers); a typed name rides this
+              // lot only. Without this hint the pencil action read as catalog
+              // creation and the name "vanished" on reload.
+              hint="Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập ở đây chỉ lưu cùng lô hàng này."
               searchable
             />
             <button
@@ -221,10 +226,10 @@ export function ShipmentCreateIdentitySection({
               onClick={onOpenShippingLineDialog}
               disabled={saving}
               className="csc-append-button"
-              aria-label="Thêm hãng tàu"
-              title="Thêm hãng tàu"
+              aria-label="Đặt tên hãng tàu cho lô này"
+              title="Đặt tên hãng tàu cho lô này"
             >
-              <Plus size={15} aria-hidden="true" />
+              <Pencil size={15} aria-hidden="true" />
             </button>
           </div>
         )}

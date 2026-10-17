@@ -480,27 +480,13 @@ function InlineEditor({
       )}
       {mode === 'documents' && (
         <div className="shipment-container-ledger__editor-grid">
-          <label><span>Nhập / Xuất</span><UuiSelectField
-            label="Nhập / Xuất"
-            hideLabel
-            value={tradeDirection}
-            onChange={(event) => {
-              const direction = event.target.value;
-              setTradeDirection(direction);
-              if (direction === 'IMPORT') setBookingRef('');
-              if (direction === 'EXPORT') setBlNumber('');
-            }}
-            disabled={saving || detail.summary.fieldAccess.tradeDirection.mode === 'READ_ONLY'}
-            options={[
-              { value: '', label: 'Chưa xác định' },
-              { value: 'IMPORT', label: 'Nhập' },
-              { value: 'EXPORT', label: 'Xuất' },
-            ]}
-          /></label>
+          {/* Card 171026122140 (FB-113): the operator asked for the four
+              document fields in the order Số Bill/Số Booking → Số tờ khai →
+              Nhập/Xuất → Hãng tàu, so the reference number now leads and the
+              direction select moved below the declaration. */}
           {tradeDirection === 'IMPORT' && <label><span>Số Bill</span><input value={blNumber} onChange={(event) => setBlNumber(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.blNumber.mode === 'READ_ONLY'} /></label>}
           {tradeDirection === 'EXPORT' && <label><span>Số Booking</span><input value={bookingRef} onChange={(event) => setBookingRef(event.target.value)} maxLength={100} disabled={saving || detail.summary.fieldAccess.bookingRef.mode === 'READ_ONLY'} /></label>}
           {!tradeDirection && <small>Chọn Nhập hoặc Xuất trước khi cập nhật số chứng từ.</small>}
-          <label><span>Hãng tàu</span><input value={shippingLineName} onChange={(event) => setShippingLineName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.shippingLineName.mode === 'READ_ONLY'} /></label>
           {/* Card 261013200312 (dev-lead ruling): số tờ khai nhập theo TỪNG
               CONT — entered and edited right here, no tab-out to another
               surface. Entering the lot's FIRST declaration auto-copies it
@@ -531,6 +517,27 @@ function InlineEditor({
             </div>
           )}
           <small>Số tờ khai lưu theo từng container của lô; số đầu tiên của lô được tự copy sang các cont còn trống, cont đã có số không bị ghi đè; sau đó mỗi cont sửa riêng được.</small>
+          {/* Card 171026122140 (FB-113): positions 3 and 4 of the requested
+              order. The direction select keeps its handler verbatim — it still
+              owns the Bill-vs-Booking switch and clears the other side. */}
+          <label><span>Nhập / Xuất</span><UuiSelectField
+            label="Nhập / Xuất"
+            hideLabel
+            value={tradeDirection}
+            onChange={(event) => {
+              const direction = event.target.value;
+              setTradeDirection(direction);
+              if (direction === 'IMPORT') setBookingRef('');
+              if (direction === 'EXPORT') setBlNumber('');
+            }}
+            disabled={saving || detail.summary.fieldAccess.tradeDirection.mode === 'READ_ONLY'}
+            options={[
+              { value: '', label: 'Chưa xác định' },
+              { value: 'IMPORT', label: 'Nhập' },
+              { value: 'EXPORT', label: 'Xuất' },
+            ]}
+          /></label>
+          <label><span>Hãng tàu</span><input value={shippingLineName} onChange={(event) => setShippingLineName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.shippingLineName.mode === 'READ_ONLY'} /></label>
         </div>
       )}
       {mode === 'container' && (

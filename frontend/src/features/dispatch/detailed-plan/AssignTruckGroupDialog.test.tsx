@@ -5,6 +5,7 @@
  * classes accept the SilverSea fleet OR a nhà xe), the persisted-source
  * redisplay, and the assign call's payload (161026232319 manual cước trả).
  */
+import { useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -290,5 +291,53 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
       .toBe('29H-111.11');
     expect((screen.getByRole('combobox', { name: /BKS báo khách/ }) as HTMLInputElement).value)
       .toBe('29H-999.99');
+  });
+
+  it('giữ lựa chọn Loại xe + Nhà xe qua một lần "Hủy" rồi mở lại (card _171026133000)', async () => {
+    // The popup unmounts on close, so every internal pick dies with it — the
+    // draft has to live one level up. This harness mirrors what
+    // DispatchDetailPlanPage does with groupDraft.
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      const [draft, setDraft] = useState({ vehicleClassId: '', carrierKey: '' });
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>mở nhóm</button>
+          {open && (
+            <AssignTruckGroupDialog
+              rows={[row(31, 'BL-1'), row(32, 'BL-2')]}
+              initialVehicleClassId={draft.vehicleClassId}
+              initialCarrierKey={draft.carrierKey}
+              onDraftChange={(next) => setDraft((cur) => (
+                cur.vehicleClassId === next.vehicleClassId && cur.carrierKey === next.carrierKey
+                  ? cur
+                  : next
+              ))}
+              onClose={() => setOpen(false)}
+              onAssigned={vi.fn()}
+            />
+          )}
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const classField = () => screen.getByRole('combobox', { name: /Loại xe tính cước trả ĐV/ }) as HTMLInputElement;
+    const carrierField = () => screen.getByRole('combobox', { name: /^Nhà xe/ }) as HTMLInputElement;
+
+    fireEvent.click(screen.getByRole('button', { name: 'mở nhóm' }));
+    await pickVehicleClass('Container 20 feet');
+    await pickCarrier('Nhà xe Hải Vân');
+    expect(classField().value).toContain('Container 20 feet');
+    expect(carrierField().value).toContain('Nhà xe Hải Vân');
+
+    // "Hủy" without assigning: the popup goes away entirely.
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByRole('combobox', { name: /Loại xe tính cước trả ĐV/ })).toBeNull();
+
+    // Reopen: both picks came back instead of resetting to the placeholders.
+    fireEvent.click(screen.getByRole('button', { name: 'mở nhóm' }));
+    expect(classField().value).toContain('Container 20 feet');
+    expect(carrierField().value).toContain('Nhà xe Hải Vân');
   });
 });

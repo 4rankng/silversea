@@ -729,13 +729,16 @@ async function assertReferenceIsActive(
     if (shipment.pickupWarehouseSiteId == null) {
       // FB-105 (spec §2): the Kho (CFS/Cảng) point accepts a catalog site OR
       // typed text — hàng Nhập lấy tại Kho (`pickup_location`), hàng Xuất hạ
-      // tại Kho (`delivery_location`). Lệnh chạy ngoài (no catalog customer)
-      // has no warehouse source at all: kho luôn thuộc một khách hàng, nên
-      // "+ Thêm kho" không phục vụ được.
+      // tại Kho (`delivery_location`). Lệnh chạy ngoài is waived by the ad-hoc
+      // flag — the same key the form's required checks use (spec §2: "trừ khi
+      // tích 'Lệnh chạy ngoài'") and the key `rawRouteName` uses right above.
+      // An ad-hoc lot MAY still carry a catalog customer, so keying the waiver
+      // on `customerId == null` alone passed the form and then 409'd here at
+      // dispatch submit. `customerId == null` stays waived for legacy rows.
       const warehousePointName = shipment.tradeDirection === 'EXPORT'
         ? shipment.deliveryLocation
         : shipment.pickupLocation;
-      if (shipment.customerId != null && !warehousePointName?.trim()) {
+      if (shipment.isAdHoc !== true && shipment.customerId != null && !warehousePointName?.trim()) {
         throw new ApiError(409, 'Vui lòng chọn kho lấy hàng.');
       }
     } else {

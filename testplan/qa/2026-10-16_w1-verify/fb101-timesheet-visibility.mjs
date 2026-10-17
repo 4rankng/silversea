@@ -2,7 +2,7 @@
 // read-only cho vai trò không ghi; Đối chiếu chấm công giữ nguyên. Rung 3
 // role matrix: hoapt (ACCOUNTANT), dungnv (DISPATCHER), admin, tiepvv (CUS).
 import {
-  openAs, goto, shot, assertEval, api, finish, log,
+  openAs, goto, shot, assertEval, api, finish,
 } from './w1-lib.mjs';
 
 const CARD = 'fb101';
@@ -68,7 +68,6 @@ await adm.close();
 const cus = await openAs('tiepvv');
 await goto(cus, '/timesheet', { wait: 3500 });
 results.cusDenied = await assertEval(cus, 'tiepvv /timesheet denied', () => {
-  const text = document.body.innerText;
   return {
     onGridPage: document.body.innerText.includes('Chấm công lái xe'),
     redirectPath: location.pathname,

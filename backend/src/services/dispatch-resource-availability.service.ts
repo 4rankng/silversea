@@ -1,8 +1,54 @@
-import { and, eq, inArray, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { Tx } from './dispatch-planning-utils.service';
+
+/**
+ * Law owner (FB-038/072, third verify-fail): the window a TRIP claims its rig
+ * for, shared by every rig-overlap guard. A trip carrying a staged start owns
+ * [start, end ?? start+8h); a trip WITHOUT one still claims its whole
+ * departure day (Asia/Ho_Chi_Minh) — the same day the dispatcher reads in the
+ * grid. Before this, every completed/active scan required `plannedStartAt`,
+ * and trips created through the trip form, imports or the legacy flow carry
+ * only `departureDate` (in the mirrored data ~94% of COMPLETED trips): a
+ * same-day same-tractor assignment against any of them saved with no warning.
+ * A day claim is weak evidence, so it can only ever WARN (never hard-block).
+ */
+export const tripDayStartSql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
+export const tripClaimStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${tripDayStartSql})`;
+export const tripClaimEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${tripDayStartSql} + interval '1 day')`;
+
+/**
+ * COMPLETED trips with NO staged start whose departure day overlaps the saving
+ * window, on the given rig predicates. Timestamped holders stay with each
+ * guard's own (stronger-evidence) scans. Live trips are deliberately NOT swept
+ * in: a live trip without a start "cannot prove overlap" at the issue/reassign
+ * gate (pinned by T9 in dispatch-resource-availability-kep-kethop), and an
+ * issued trip's plan row already holds the plate in the plan-row scan.
+ */
+export async function countDateOnlyTripClaims(tx: Tx, args: {
+  predicates: SQL[];
+  windowStart: Date;
+  windowEnd: Date;
+  excludeTripId?: number | null;
+  excludeFulfillmentId?: number | null;
+}): Promise<number> {
+  if (args.predicates.length === 0) return 0;
+  const rows = await tx.select({ id: s.trips.id }).from(s.trips).where(and(
+    or(...args.predicates)!,
+    isNull(s.trips.deletedAt),
+    isNull(s.trips.plannedStartAt),
+    eq(s.trips.status, TripStatus.COMPLETED),
+    args.excludeTripId != null ? ne(s.trips.id, args.excludeTripId) : undefined,
+    args.excludeFulfillmentId != null
+      ? or(isNull(s.trips.fulfillmentId), ne(s.trips.fulfillmentId, args.excludeFulfillmentId))
+      : undefined,
+    sql`${tripClaimStartSql} < ${args.windowEnd.toISOString()}::timestamptz`,
+    sql`${tripClaimEndSql} > ${args.windowStart.toISOString()}::timestamptz`,
+  ));
+  return rows.length;
+}
 
 /** A Kẹp release may overlap its one compatible partner, never a third load. */
 export async function assertResourceAvailability(tx: Tx, args: {
@@ -124,49 +170,40 @@ export async function assertResourceAvailability(tx: Tx, args: {
   // overlap with no warning at all — the exact "cảnh báo trùng giờ xe không
   // nổ" symptom, still failing at round 13.
   if (args.rigOverlapCompletedConfirmed !== true) {
-    // Card 171026121100 (FB-038/072 verify-fail 3): the completed tier
-    // required a staged plannedStartAt, so a COMPLETED trip that only carried
-    // its departure day (staging repro: 15H-061.14 · BLCUSa24BB, "Phân xe
-    // lại" onto it saved silently with no 409) was invisible. Each RIG
-    // resource (truck, trailer) now claims the same window the family's
-    // date-only law gives every other holder (12fcf20d: a date-only slot
-    // claims the whole displayed day; an unset end one 8-hour shift) — still
-    // warn-once with the family payload, never a hard block, confirmed retry
-    // proceeds. The resources stay DISJOINT matches (review H1): one shared
-    // tractor behind a DIFFERENT trailer is still an overlap, exactly like
-    // the active tier's or(...predicates). The DRIVER claim keeps the
-    // review-harmonized provable-window bar (2026-10-11): a legacy date-only
-    // completed row must not nag every later save with an unprovable driver
-    // occupancy.
-    const daySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
-    const startSql = sql`coalesce(${s.trips.plannedStartAt}, ${daySql})`;
-    const endSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${daySql} + interval '1 day')`;
-    const rigWindow = (predicate: ReturnType<typeof eq>) => and(
-      predicate,
-      sql`${startSql} is not null`,
-      sql`${startSql} < ${args.plannedEndAt.toISOString()}::timestamptz`,
-      sql`${endSql} > ${args.plannedStartAt.toISOString()}::timestamptz`,
-    );
     const completedConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
       .from(s.trips)
       .where(and(
+        or(...predicates)!,
         isNull(s.trips.deletedAt),
         eq(s.trips.status, TripStatus.COMPLETED),
-        or(
-          args.truckId != null ? rigWindow(eq(s.trips.truckId, args.truckId)) : undefined,
-          args.trailerId != null ? rigWindow(eq(s.trips.trailerId, args.trailerId)) : undefined,
-          args.driverId != null
-            ? and(
-              eq(s.trips.driverId, args.driverId),
-              isNotNull(s.trips.plannedStartAt),
-              lt(s.trips.plannedStartAt, args.plannedEndAt),
-              sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.plannedStartAt.toISOString()}::timestamptz`)
-            : undefined,
-        )!,
+        isNotNull(s.trips.plannedStartAt),
+        lt(s.trips.plannedStartAt, args.plannedEndAt),
+        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.plannedStartAt.toISOString()}::timestamptz`,
       ));
     if (completedConflicts.length > 0) {
       throw new ApiError(409,
         `Có ${completedConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
+        undefined,
+        { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+    // Third verify-fail (FB-038/072): every scan above needs a staged start on
+    // the holder, so a same-day COMPLETED trip carrying only its departure day
+    // (the shape of most COMPLETED trips) stayed invisible and the reassign saved with no
+    // warning. Such a holder claims its whole departure day — weak evidence, so
+    // it warns once and the confirmed retry proceeds (rig identity only: the
+    // driver's multi-trip day is deliberately not nagged here).
+    const dayClaims = await countDateOnlyTripClaims(tx, {
+      predicates: [
+        ...(args.truckId != null ? [eq(s.trips.truckId, args.truckId)] : []),
+        ...(args.trailerId != null ? [eq(s.trips.trailerId, args.trailerId)] : []),
+      ],
+      windowStart: args.plannedStartAt,
+      windowEnd: args.plannedEndAt,
+      excludeTripId: args.tripId,
+    });
+    if (dayClaims > 0) {
+      throw new ApiError(409,
+        `Xe đã có ${dayClaims} chuyến khác (chưa có giờ cụ thể) trong ngày phân công này. Vẫn lưu?`,
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }

@@ -849,6 +849,25 @@ describe('ShipmentDetailPage', () => {
       expect(await screen.findByText('Tạo lô hàng mới')).toBeTruthy();
     });
 
+    it('sits immediately before Xóa lô in the header action cluster', async () => {
+      // The card (171026115810) asks for the button NEXT TO 'Xóa lô' — a
+      // presence-only pin would still pass if the two drifted apart.
+      currentUser.role = Role.CUS;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      const createBtn = await screen.findByRole('button', { name: /Tạo lô mới/ });
+      const deleteBtn = await screen.findByRole('button', { name: /Xóa lô/ });
+      expect(createBtn.parentElement).toBe(deleteBtn.parentElement);
+      expect(createBtn.nextElementSibling).toBe(deleteBtn);
+    });
+
     it.each([Role.ADMIN, Role.CUS, Role.MANAGER, Role.DISPATCHER])(
       'offers the button to %s — the roles the /shipments/new route admits',
       async (role) => {

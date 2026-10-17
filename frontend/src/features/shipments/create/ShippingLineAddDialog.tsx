@@ -32,7 +32,7 @@ export function ShippingLineAddDialog({ isOpen, currentName, onClose, onApply }:
   return (
     <Modal
       isOpen={isOpen}
-      title="Thêm hãng tàu"
+      title="Đặt tên hãng tàu cho lô này"
       onClose={onClose}
       onConfirm={apply}
       maxWidth={480}

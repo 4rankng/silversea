@@ -220,14 +220,23 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-add-container\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--accent-2\);/);
   });
 
-  it('keeps the quick-create action on its field, as a trailing icon inside the control', () => {
-    // Owner ruling 11/10: the action is an icon-only + riding the field's
-    // TRAILING EDGE — inside the control, never a second control beside it and
-    // never a row of its own.
-    expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*position:\s*relative;[^}]*display:\s*flex;[^}]*align-items:\s*flex-start;/);
+  it('keeps the quick-create action trailing its field as a flex sibling with a real hit target', () => {
+    // Owner ruling 11/10 put an icon-only + INSIDE the control's right edge.
+    // FB-114 superseded that for this control: the absolute 26px overlay raced
+    // the input for clicks (z-index 1 over the input's reserved padding) and
+    // sat under the 32px touch floor. The action now trails the field as a
+    // flex SIBLING — never a row of its own, never an overlay on the input.
+    expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*flex-start;/);
+    expect(css).not.toMatch(/\.csc-field-with-append\s*\{[^}]*position:\s*relative;/);
     expect(css).toMatch(/\.csc-field-with-append > :first-child\s*\{[^}]*flex:\s*1 1 auto;[^}]*align-self:\s*start;/);
-    expect(css).toMatch(/\.csc-field-with-append > :first-child input\s*\{[^}]*padding-right:\s*28px;/);
-    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*position:\s*absolute;[^}]*top:\s*26px;[^}]*right:\s*5px;[^}]*width:\s*26px;[^}]*height:\s*26px;/);
+    // The input no longer reserves room for an overlay that is not there.
+    expect(css).not.toMatch(/\.csc-field-with-append > :first-child input\s*\{[^}]*padding-right:/);
+    // 36px square on the control row (label 18px + gap 8px margin-top);
+    // no absolute positioning left to lose a click race.
+    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*margin-top:\s*26px;/);
+    expect(css).not.toMatch(/\.csc-append-button\s*\{[^}]*position:\s*absolute;/);
+    // A press must register visually (FB-114: the click felt dead).
+    expect(css).toMatch(/\.csc-append-button:not\(:disabled\):active\s*\{[^}]*transform:\s*translateY\(1px\);/);
     // The old beside-the-field row (and its phone full-width override) is gone.
     expect(css).not.toMatch(/\.csc-append-button\s*\{[^}]*white-space:\s*nowrap/);
     expect(css).not.toMatch(/\.csc-field-with-append\s*\{\s*flex-wrap:\s*wrap;/);
