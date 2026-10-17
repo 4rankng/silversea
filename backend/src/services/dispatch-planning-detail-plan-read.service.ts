@@ -66,6 +66,9 @@ export interface ListDispatchDetailPlanRowsInput {
   trailerType?: string;
   /** Route of the LOT (FCL container→lot fallback), lot-first per ruling. */
   routeId?: number;
+  /** Card 171026154000: lot cargo mode (Loại hàng). Same column both branches
+   *  filter on; the displayed fulfillment cargo_mode is written 1:1 from it. */
+  cargoMode?: 'FCL' | 'LCL';
 }
 
 export function normalizeIdList(raw: readonly (number | string)[] | null | undefined, label: string): number[] | null {
@@ -237,6 +240,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       input.routeId ? sql`(case when ${s.shipmentFulfillments.cargoMode} = 'FCL'
         then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
         else ${s.shipments.routeId} end) = ${input.routeId}` : undefined,
+      // Card 171026154000: Loại hàng — the lot's own cargo mode. Riding the
+      // shared builder keeps rows, pageKeys and the chip counts consistent.
+      input.cargoMode ? eq(s.shipments.cargoMode, input.cargoMode) : undefined,
       shipmentQSearchPredicate(qPattern, { containerNumber: true }),
     );
 
@@ -267,6 +273,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       carrierClass: input.carrierClass ?? null,
       trailerType: input.trailerType ?? null,
       routeId: input.routeId ?? null,
+      cargoMode: input.cargoMode ?? null,
     };
     const rowFilters = and(filters, assignmentPredicate);
     const pageKeys = await listDetailPlanPageKeys(tx, rowFilters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);

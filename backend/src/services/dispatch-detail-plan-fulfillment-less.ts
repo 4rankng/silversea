@@ -59,6 +59,10 @@ export interface FulfillmentLessFilters {
   trailerType?: string | null;
   /** Route of the LOT — this branch DOES carry route parity. */
   routeId?: number | null;
+  /** Card 171026154000: lot cargo mode. The branch is container-keyed and
+   *  LCL lots own no containers (decomposition guard), so 'LCL' empties it
+   *  and 'FCL' keeps it whole — both through the plain lot predicate. */
+  cargoMode?: 'FCL' | 'LCL' | null;
 }
 
 const TRANSPORT_DATE_SQL = sql<string>`coalesce(
@@ -106,6 +110,9 @@ export function buildFulfillmentLessConditions(filters: FulfillmentLessFilters, 
     filters.routeId ? sql`exists (select 1 from ${s.routes} r where r.id = (case when ${s.shipments.cargoMode} = 'FCL'
       then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
       else ${s.shipments.routeId} end) and r.id = ${filters.routeId})` : undefined,
+    // Card 171026154000: same lot column the fulfillment branch filters on —
+    // the fulfillment's own cargo_mode is written 1:1 from it at decomposition.
+    filters.cargoMode ? eq(s.shipments.cargoMode, filters.cargoMode) : undefined,
     shipmentQSearchPredicate(buildPattern(filters.q), { containerNumber: true }),
   ].filter((c): c is SQL => c != null);
 }
