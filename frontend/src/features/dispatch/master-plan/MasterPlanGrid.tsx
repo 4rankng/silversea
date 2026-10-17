@@ -10,6 +10,7 @@ import {
 } from '../../shipments/cus/cusUtils';
 import { formatDateTimeShort, formatISODate, formatNumber, formatVolumeCbm, formatWeight } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
+import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import {
   isNoteLong,
   MasterPlanNoteModal,
@@ -155,13 +156,17 @@ type ContainerPortGroupKey = string;
  * the conts running on that day.
  *
  * An LCL lot owns no container (LCL + container is refused at intake), so it has
- * no container port pair to aggregate. Its two columns name the sites CUS fills
- * at intake instead: "Kho lấy" (`pickupWarehouseSiteId`, projected as
- * `pickupWarehouseSiteName`) under Cảng nâng and the delivery point — the lot's
- * operational site, the same column the detailed-plan "Điểm trả" facet filters
- * on, projected here as `factoryName` — under Cảng hạ. A site the lot has not
- * chosen yet reads "—", never "Chưa có cont" (FB-091: a container placeholder
- * on a lot that can never have a container names a false fact).
+ * no container port pair to aggregate. Its two columns name the lot's OWN
+ * lift/drop points instead, and those SWAP with the trade direction — FB-105 §3,
+ * the one rule every surface shares (`resolveLiftDropPoints`): Nhập khẩu reads
+ * "Kho lấy hàng (CFS/Cảng)" under Cảng nâng and "Nhà máy" under Cảng hạ; Xuất
+ * khẩu the reverse. The warehouse is `pickupWarehouseSiteId` (projected as
+ * `pickupWarehouseSiteName`), the factory is the lot's operational site (the
+ * same column the detailed-plan "Điểm trả" facet filters on, projected here as
+ * `factoryName`). A side whose catalog site was never picked falls back to the
+ * lot's stored free text (`pickupLocation` / `deliveryLocation`) and otherwise
+ * reads "—", never "Chưa có cont" (FB-091: a container placeholder on a lot that
+ * can never have a container names a false fact).
  *
  * A single-day filter does not blank these: an LCL lot's schedule IS its
  * `expectedDeliveryDate` (`resolveEffectiveFulfillmentDate`), so both sites
@@ -169,9 +174,19 @@ type ContainerPortGroupKey = string;
  */
 export function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?: string | null): ContainerPortGroupLine[] {
   if (item.cargoMode === 'LCL') {
+    // FB-105 §3 — the sides swap with the direction, so resolve them through the
+    // shared rule instead of assuming Nhập (lift = kho) for every lot.
+    const points = resolveLiftDropPoints({
+      cargoMode: 'LCL',
+      tradeDirection: item.tradeDirection,
+      warehouseName: item.pickupWarehouseSiteName,
+      factoryName: item.factoryName,
+      liftFallback: item.pickupLocation,
+      dropFallback: item.deliveryLocation,
+    });
     return [
-      { direction: 'lift', label: 'Nâng', portName: item.pickupWarehouseSiteName?.trim() || '—', containerSummary: null },
-      { direction: 'drop', label: 'Hạ', portName: item.factoryName?.trim() || '—', containerSummary: null },
+      { direction: 'lift', label: 'Nâng', portName: points.lift ?? '—', containerSummary: null },
+      { direction: 'drop', label: 'Hạ', portName: points.drop ?? '—', containerSummary: null },
     ];
   }
   const allGroups = item.containerPortGroups ?? [];

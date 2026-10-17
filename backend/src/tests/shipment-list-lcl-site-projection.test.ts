@@ -76,6 +76,11 @@ describe('shipment list — LCL site projection (FB-091)', () => {
         packageType: 'PALLET',
         cargoWeightKg: '1922.00',
         cargoVolumeCbm: '4.000',
+        // FB-105 §3: the dispatch boards resolve the lot's lift/drop sides by
+        // trade direction, then fall back to these stored free-text points when
+        // a catalog site was never picked — so the row must carry all three.
+        pickupLocation: 'Kho CFS gõ tay',
+        deliveryLocation: 'Nhà máy gõ tay',
       },
       {
         customerId: customer.id,
@@ -116,6 +121,12 @@ describe('shipment list — LCL site projection (FB-091)', () => {
       assert.equal(row.packageType, 'PALLET');
       assert.equal(row.cargoWeightKg, '1922.00');
       assert.equal(row.cargoVolumeCbm, '4.000');
+      // FB-105 §3 — the lift/drop sides are resolved on the client, so the row
+      // must carry the trade direction and both stored free-text points (the
+      // fallback halves). They come from the shipment columns, not a new join.
+      assert.equal(row.tradeDirection, 'IMPORT');
+      assert.equal(row.pickupLocation, 'Kho CFS gõ tay');
+      assert.equal(row.deliveryLocation, 'Nhà máy gõ tay');
 
       const unset = result.items.find((item) => item.id === withoutWarehouse.id);
       assert.ok(unset, 'the lot without a warehouse is listed too');

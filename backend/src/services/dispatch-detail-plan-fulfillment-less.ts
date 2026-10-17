@@ -180,6 +180,11 @@ export async function listFulfillmentLessReadyRows(
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,
       operationalSiteId: s.shipments.operationalSiteId,
+      // FB-105 §3 — the LCL Nâng/Trả free-text fallback must exist on BOTH row
+      // families (this branch has no fulfillment snapshot), or the shared row
+      // type union and the LCL Nâng/Trả mapping stop typechecking.
+      pickupLocation: s.shipments.pickupLocation,
+      deliveryLocation: s.shipments.deliveryLocation,
       containerNumber: s.shipmentContainers.containerNumber,
       containerCargoWeightKg: s.shipmentContainers.cargoWeightKg,
       containerTypeId: s.shipmentContainers.containerTypeId,

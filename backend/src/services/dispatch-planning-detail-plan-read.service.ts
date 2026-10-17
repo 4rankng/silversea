@@ -320,6 +320,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,
       operationalSiteId: s.shipments.operationalSiteId,
+      // FB-105 §3: the stored free-text lift/drop points back each LCL Nâng/Trả
+      // side whose catalog site was never picked (no new join — the lot's own
+      // columns ride the same pass).
+      pickupLocation: s.shipments.pickupLocation,
+      deliveryLocation: s.shipments.deliveryLocation,
       containerNumber: s.shipmentContainers.containerNumber,
       containerCargoWeightKg: s.shipmentContainers.cargoWeightKg,
       containerTypeId: s.shipmentContainers.containerTypeId,
@@ -456,6 +461,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       items: pageRows.map((row) => {
         const snapshot = (row.siteSnapshot ?? {}) as Record<string, unknown>;
         const deliverySite = redactDispatchSiteForAccountant(input.actor, toFrozenSiteSummary(snapshot.deliverySite));
+        // FB-105 §3: the LCL "Kho (CFS/Cảng)" half of the same fulfillment
+        // snapshot — read through the identical redaction so an ACCOUNTANT sees
+        // the name but never the address on either side.
+        const pickupWarehouseSite = redactDispatchSiteForAccountant(input.actor, toFrozenSiteSummary(snapshot.pickupWarehouse));
         const plated = platedByShipment.get(row.shipmentId);
         return {
           fulfillmentId: row.fulfillmentId,
@@ -516,6 +525,17 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
               vehicleClassCode: row.costVehicleClassCode ?? null,
               vehicleClassName: row.costVehicleClassName ?? null,
             } : null,
+          },
+          // FB-105 §3 — LCL Nâng/Trả inputs. An LCL lot owns no container, so
+          // its two columns come from the lot's own points (resolved by trade
+          // direction on the client, liftDropPoints.ts): the frozen "Kho
+          // (CFS/Cảng)" intake site — same snapshot half the CUS workspace reads
+          // — plus the stored free-text lift/drop. FCL rows keep their container
+          // port pair and ignore this.
+          liftDrop: {
+            warehouseName: pickupWarehouseSite.name,
+            liftFallback: row.pickupLocation,
+            dropFallback: row.deliveryLocation,
           },
           notes: {
             vehicleNote: input.actor.role === Role.ACCOUNTANT ? null : row.operationalNotes,

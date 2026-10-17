@@ -25,6 +25,7 @@ import { billBookingReference } from '../../../lib/business-reference';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { DispatchDriverNote } from './DispatchDriverNote';
 import { detailRowKey } from './DispatchPlanCellValues';
+import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
 import { Checkbox as UUICheckbox } from '../../../components/untitled-ui/base/checkbox/checkbox';
 
@@ -377,9 +378,45 @@ export function DetailedPlanGrid({
                       </div>
                     </div>
                   </td>
-                  {/* Container pickup/dropoff already mean Cảng nâng/Cảng hạ in
-                      entry, CUS and the master plan; do not reverse them for exports. */}
+                  {/* FB-105 §3: an LCL lot owns no container, so its Nâng/Trả
+                      columns are the lot's OWN lift/drop points, which SWAP with
+                      the trade direction (Nhập: kho → nhà máy; Xuất: nhà máy →
+                      kho) — the shared rule every surface reads
+                      (liftDropPoints.ts). FCL keeps its container port pair:
+                      those ports already MEAN Cảng nâng/Cảng hạ in entry, CUS
+                      and the master plan, so they are never reversed. */}
                   {(() => {
+                    if (row.cargoMode === 'LCL') {
+                      const points = resolveLiftDropPoints({
+                        cargoMode: 'LCL',
+                        tradeDirection: row.docs.tradeDirection,
+                        warehouseName: row.liftDrop?.warehouseName,
+                        factoryName: row.customerRoute.factoryName,
+                        liftFallback: row.liftDrop?.liftFallback,
+                        dropFallback: row.liftDrop?.dropFallback,
+                      });
+                      const sides = [
+                        { key: 'lift', label: 'Nâng hàng', short: 'Nâng', title: points.lift },
+                        { key: 'drop', label: 'Trả hàng', short: 'Trả', title: points.drop },
+                      ] as const;
+                      return (
+                        <>
+                          {sides.map((side) => (
+                            <td
+                              key={side.key}
+                              className="detailed-plan-grid__cell detailed-plan-grid__cell--ports"
+                              data-label={side.label}
+                              data-label-short={side.short}
+                              data-empty={side.title ? undefined : 'true'}
+                            >
+                              <div className="detailed-plan-grid__cell-body">
+                                <div className="detailed-plan-grid__line" title={side.title ?? undefined}>{side.title ?? '—'}</div>
+                              </div>
+                            </td>
+                          ))}
+                        </>
+                      );
+                    }
                     const liftPort = row.ports.pickupPortName;
                     const liftShort = row.ports.pickupPortShortName;
                     const dropPort = row.ports.dropoffPortName;

@@ -313,6 +313,17 @@ export interface DispatchDetailPlanRow {
    *  lines and its cost-group tag/truck identity. Absent on older fixtures
    *  and on FCL rows. */
   lcl?: LclRowFacts | null;
+  /** FB-105 §3 LCL lift/drop inputs — an LCL lot owns no container, so its
+   *  Nâng/Trả columns resolve from these instead of `ports` (which stay the FCL
+   *  container port pair): the frozen "Kho (CFS/Cảng)" intake site plus the
+   *  lot's stored free-text lift/drop points, which back a side whose catalog
+   *  site was never picked. Optional for older wire shapes; FCL rows do not
+   *  read it. */
+  liftDrop?: {
+    warehouseName: string | null;
+    liftFallback: string | null;
+    dropFallback: string | null;
+  } | null;
   notes: { vehicleNote: string | null; customerNote: string | null; opsRecoveryNotes?: string[] };
   dispatch: {
     /** Present once the dispatch order has created a live trip. */
