@@ -170,6 +170,35 @@ async function shotStrip(name) {
   return path;
 }
 
+/** Clip to the whole expanded lot (strip + fee workspace), not just the strip —
+ *  an ungrouped lot's strip is short and a tight clip cannot PROVE the
+ *  NHÓM GHÉP block is absent. */
+async function shotExpand(name) {
+  const box = await page.evaluate(() => {
+    const el = document.querySelector('tr.shipment-debit-expand');
+    if (!el) return null;
+    el.scrollIntoView({ block: 'start' });
+    const r = el.getBoundingClientRect();
+    return {
+      x: Math.max(0, r.x - 6), y: Math.max(0, r.y - 6),
+      width: Math.min(r.width + 12, 1440), height: Math.min(r.height + 12, 1400),
+    };
+  });
+  await sleep(700);
+  const path = `${SHOTS}/${name}.png`;
+  if (box) await page.screenshot({ path, clip: box });
+  else await page.screenshot({ path });
+  return path;
+}
+
+/** Toasts render as a page-level overlay ABOVE the strip, so a strip clip
+ *  would cut them out — the toast rungs need the whole viewport. */
+async function shotViewport(name) {
+  const path = `${SHOTS}/${name}.png`;
+  await page.screenshot({ path });
+  return path;
+}
+
 /** Click the "Hủy ghép" button of one dimension inside NHÓM GHÉP. */
 async function tapUnmerge(dimension) {
   return page.evaluate((dim) => {
@@ -228,7 +257,7 @@ try {
     await sleep(400);
   } catch { /* captured below */ }
   toastText = await page.evaluate(() => (document.body.innerText || '').match(/Đã hủy ghép[^\n]*/)?.[0] ?? null);
-  const toastShot = await shotStrip('03-ac2-success-toast');
+  const toastShot = await shotViewport('03-ac2-success-toast');
   const call2 = unmergeCalls.find((c) => c.url.includes('/lcl/unmerge') && !c.url.includes('unmerge-group'));
   record('AC2', armed && confirmed && call2?.status === 200 && toastText ? 'PASS' : 'FAIL',
     `armed=${armed} confirmed=${confirmed} dialog=${JSON.stringify(confirmText)} POST=${JSON.stringify(call2)} toast=${JSON.stringify(toastText)} · ${confirmShot} · ${toastShot}`);
@@ -253,7 +282,7 @@ try {
     nhomGhep: (document.body.innerText || '').includes('NHÓM GHÉP'),
     huyGhepButtons: [...document.querySelectorAll('button')].filter((b) => (b.innerText || '').trim().startsWith('Hủy ghép')).length,
   }));
-  const ungroupedShot = await shotStrip('04-ac4-ungrouped-no-group-block');
+  const ungroupedShot = await shotExpand('04-ac4-ungrouped-no-group-block');
   record('AC4', ac4.facts && !ac4.nhomGhep && ac4.huyGhepButtons === 0 ? 'PASS' : 'FAIL',
     `lot ${REFC} (never merged): facts strip present=${ac4.facts}, NHÓM GHÉP=${ac4.nhomGhep}, Hủy ghép buttons=${ac4.huyGhepButtons} · ${ungroupedShot}`);
 
@@ -279,7 +308,7 @@ try {
        ?? (document.body.innerText || '').match(/không thuộc nhóm ghép[^\n]*/)?.[0]
        ?? (document.body.innerText || '').match(/[^\n]*Lỗi[^\n]*/)?.[0] ?? null,
   );
-  const errShot = await shotStrip('05-ac3-server-error-toast');
+  const errShot = await shotViewport('05-ac3-server-error-toast');
   const errCall = [...unmergeCalls].reverse().find((c) => c.status >= 400);
   record('AC3', remerge.ok && dissolved.ok && staleConfirmed && errToast && errCall?.status >= 400 ? 'PASS' : 'FAIL',
     `remerge=${remerge.status} outOfBandUnmerge=${dissolved.status} staleArmed=${staleArmed} confirmed=${staleConfirmed} POST=${JSON.stringify(errCall)} toast=${JSON.stringify(errToast)} · ${errShot}`);

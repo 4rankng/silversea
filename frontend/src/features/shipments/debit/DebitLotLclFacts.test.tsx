@@ -2,7 +2,7 @@
 // the lot strip's own thu-class picker: the SAME design-system searchable
 // select the merge popup uses, reopening on the stored class, with the strip's
 // existing Lưu BKS saving/error pattern (toast + "Đang lưu…").
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { setClass, updateTruck, unmerge } = vi.hoisted(() => ({
