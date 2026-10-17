@@ -121,6 +121,24 @@ describe('direct settlement creation from actual funded advances', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 
+  it('FB-100 (c, card 141026230770) — "Tiền hoàn lại" nhận số âm khi chi phí vượt tạm ứng', async () => {
+    state.requests = [request(1, 'Ứng đã nhận', 1000000)];
+    render(page());
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ứng đã nhận/ }));
+    const refund = screen.getByPlaceholderText('0') as HTMLInputElement;
+    // Không còn ràng buộc min — trình duyệt từ chối submit khi input số âm bị
+    // đánh dấu :invalid, nên chính thuộc tính này là thứ chặn "ghi nhận số âm".
+    expect(refund).not.toHaveAttribute('min');
+    fireEvent.change(refund, { target: { value: '-250000' } });
+    expect(refund).toHaveValue(-250000);
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledExactlyOnceWith({
+      totalExpenseAmount: 0, refundAmount: -250000, note: undefined,
+      advanceRequestIds: [1], tripExpenseIds: undefined,
+    }));
+  });
+
   it('only offers fully funded recorded advances and records them in one command', async () => {
     state.requests = [
       request(1, 'Đã nhận đủ tiền', 1000000),
