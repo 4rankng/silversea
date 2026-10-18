@@ -383,6 +383,45 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
   });
 });
 
+describe('documents editor field order (FB-113, card 171026122140)', () => {
+  it('FB-113 renders the documents editor fields in the card-mandated order', () => {
+    // EXPORT row: the reference slot shows "Số Booking" (the card's wording);
+    // IMPORT rows show "Số Bill" in the same slot — the order below is the
+    // invariant either way.
+    const base = baseDetail();
+    const exportDetail = {
+      ...base,
+      summary: {
+        ...base.summary,
+        raw: { ...base.summary.raw, tradeDirection: 'EXPORT', blNumber: null, bookingRef: 'EGLV-BOOK-99' },
+      },
+    } as unknown as ShipmentCusWorkspaceDetail;
+    const { container } = renderLedger('documents', baseRow({ direction: 'EXPORT' }), exportDetail);
+
+    const grid = container.querySelector('.shipment-container-ledger__editor-grid');
+    expect(grid).not.toBeNull();
+    const labels = Array.from(grid!.querySelectorAll(':scope > label')).map(
+      (el) => el.querySelector('span')?.textContent ?? '',
+    );
+    expect(labels).toEqual(['Số Booking', 'Số tờ khai', 'Nhập / Xuất', 'Hãng tàu']);
+
+    // Each field must PRECEDE the next in the DOM (the card's compare-
+    // DocumentPosition step) — the chain, not just the text array.
+    const chain = ['Số Booking', 'Số tờ khai', 'Nhập / Xuất', 'Hãng tàu'].map((name) => {
+      const matches = Array.from(grid!.querySelectorAll(':scope > label'))
+        .filter((el) => el.querySelector('span')?.textContent === name);
+      expect(matches).toHaveLength(1);
+      return matches[0];
+    });
+    for (let i = 0; i < chain.length - 1; i += 1) {
+      expect(
+        chain[i].compareDocumentPosition(chain[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING,
+        `${chain[i].textContent} must precede ${chain[i + 1].textContent}`,
+      ).toBeTruthy();
+    }
+  });
+});
+
 describe('ShipmentContainerLedger missing-fields summary', () => {
   function renderLedgerWithRow(row: ShipmentCusContainerFlatRow) {
     const onStartEdit = vi.fn();
