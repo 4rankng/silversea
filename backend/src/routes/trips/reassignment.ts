@@ -114,11 +114,6 @@ router.patch('/:id/reassign', declareMaterialWrite('trips.reassign', { method: '
     plannedStartAt: trip.plannedStartAt.toISOString(),
     plannedEndAt: trip.plannedEndAt.toISOString(),
     endTimeConfirmed: true,
-    // FB-081 v2 (card 181026003045): the trip's frozen route snapshot — the
-    // governed write falls back to it when the lot's mutable container/
-    // shipment state names no route, instead of false-409ing "Container chưa
-    // có tuyến đường hợp lệ." on a Kẹp lot that visibly has a tuyến.
-    routeIdFallback: trip.routeId ?? null,
     carrierType: data.carrierType ?? 'OWN',
     truckId: data.truckId ?? null,
     driverId: data.driverId ?? null,
