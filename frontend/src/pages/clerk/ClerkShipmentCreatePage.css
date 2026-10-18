@@ -23,6 +23,11 @@
 .csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 .csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .csc-extra-dates__row > div:first-child { flex: 1 1 220px; min-width: 0; }
+/* Card D.4 (18/10): the hàng lẻ form has NO "Lịch & ghi chú" section — the
+   delivery-date block is section-less: the single dashed "Thêm ngày giao hàng"
+   control plus, once revealed, the date rows above it. */
+.csc-lcl-delivery { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.csc-lcl-delivery__issue { margin: 0; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
 /* Ghi chú pair: two recipient notes share ONE row at the same height instead
    of stacking two full-width boxes — the schedule section stays a dense
    worksheet rather than a wall of text areas. Phones keep the stack. */

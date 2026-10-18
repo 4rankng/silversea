@@ -36,7 +36,7 @@ import { ShipmentCreateTopline } from './ShipmentCreateTopline';
 import { ShipmentCreateActions } from './ShipmentCreateActions';
 import { requiredCompletion } from './ShipmentCreateTopline.progress';
 import { FreightPreviewCard } from './FreightPreviewCard';
-import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
+import { ShipmentCreateSection } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
 import { emptyAppointmentKeys, hasDateDraft } from './shipment-date-drafts';
 import { DEFAULT_SHIPPING_LINES, type Customer, type Port, type Route } from '@tingting/shared';
@@ -54,7 +54,6 @@ type ContainerRow = ShipmentContainerDraft;
 
 const EMPTY_FORM = EMPTY_SHIPMENT_CREATE_FORM;
 const newContainer = createEmptyContainer;
-const gridStyle = shipmentCreateGridStyle;
 
 export function ShipmentCreateWorkspace() {
   const navigate = useNavigate();
@@ -511,6 +510,32 @@ export function ShipmentCreateWorkspace() {
     toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` });
   }
 
+  // Card D (18/10, hàng lẻ D.4): the "Lịch & ghi chú" section is removed as a
+  // whole from the LCL form — the block collapses to exactly ONE control, the
+  // dashed "Thêm ngày giao hàng" button (the same minimal, user-initiated add
+  // affordance as "+ Thêm kho" / "+ Thêm nhà máy"). The first click reveals
+  // the required lot date (row 0 — id `shipment-expected-delivery` + the
+  // expectedDeliveryDate wire name unchanged); further clicks append
+  // extra-delivery rows whose values still ride driverNotes. The open flag
+  // never gates a typed value: data always renders.
+  const [lclDeliveryDatesOpen, setLclDeliveryDatesOpen] = useState(false);
+  const lclDeliveryDatesRevealed =
+    lclDeliveryDatesOpen || form.expectedDeliveryDate !== '' || form.extraDeliveryDates.length > 0;
+
+  function addLclDeliveryDateRow() {
+    if (!lclDeliveryDatesOpen && !form.expectedDeliveryDate) {
+      setLclDeliveryDatesOpen(true);
+      return;
+    }
+    update('extraDeliveryDates', [...form.extraDeliveryDates, '']);
+  }
+
+  function removeLclDeliveryDateRow() {
+    update('expectedDeliveryDate', '');
+    // Collapse back to the single control only when no extra rows remain.
+    setLclDeliveryDatesOpen(form.extraDeliveryDates.length > 0);
+  }
+
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '') || hasDateDraft(scope);
     if (hasEnteredData) {
@@ -741,49 +766,49 @@ export function ShipmentCreateWorkspace() {
             )}
           </ShipmentCreateSection>
 
-          <ShipmentCreateSection
-            id="schedule"
-            title="Lịch & ghi chú"
-            description={form.cargoMode === 'FCL' ? undefined : 'Ngày giao hàng để điều phối thực hiện đúng kế hoạch.'}
-          >
-            {form.cargoMode === 'LCL' && (
-              <div style={gridStyle}>
-                {/* FB-078 round 2 (verify-fail 091026225610; user verbatim:
-                    "chỉ cần 1 mục là thêm ngày giao hàng"): the LCL block is
-                    JUST the delivery-date item. The customs cutoff joins the
-                    FCL-vessel fields (hạ container / trả container) in never
-                    rendering here. */}
-                <div data-field-id="shipment-expected-delivery">
-                  {/* Helpdesk 2026-10-13 (ops Tiếp Vu): LCL copy is "Ngày giao
-                      hàng" — this field renders only on the LCL path, so the
-                      rename is unconditional; id + expectedDeliveryDate wire
-                      name are unchanged. */}
-                  <DateField
-                    id="shipment-expected-delivery"
-                    label="Ngày giao hàng"
-                    requiredMark
-                    value={form.expectedDeliveryDate}
-                    onChange={(event) => update('expectedDeliveryDate', event.target.value)}
-                    disabled={Boolean(saving)}
-                    error={issueByField.get('shipment-expected-delivery')}
-                  />
+          {form.cargoMode === 'LCL' ? (
+            /* Card D.4 (18/10): NO "Lịch & ghi chú" section on the hàng lẻ
+               form — the whole section collapses to exactly ONE control:
+               "Thêm ngày giao hàng". Clicking it reveals the delivery-date
+               rows (row 0 = the required lot date; further clicks append
+               extras). FCL keeps the full schedule section below. */
+            <div className="csc-lcl-delivery" data-field-id="shipment-expected-delivery">
+              {lclDeliveryDatesRevealed && (
+                <div className="csc-extra-dates">
+                  {/* Helpdesk 2026-10-13 (D.1): LCL copy is "Ngày giao hàng" —
+                      id + expectedDeliveryDate wire name unchanged. */}
+                  {(lclDeliveryDatesOpen || form.expectedDeliveryDate !== '') && (
+                    <div className="csc-extra-dates__row">
+                      <DateField
+                        id="shipment-expected-delivery"
+                        label="Ngày giao hàng"
+                        requiredMark
+                        value={form.expectedDeliveryDate}
+                        onChange={(event) => update('expectedDeliveryDate', event.target.value)}
+                        disabled={Boolean(saving)}
+                        error={issueByField.get('shipment-expected-delivery')}
+                      />
+                      <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label="Xóa ngày giao hàng" onClick={removeLclDeliveryDateRow} disabled={Boolean(saving)}><Trash2 size={16} /></button>
+                    </div>
+                  )}
+                  {form.extraDeliveryDates.map((date, index) => (
+                    <div key={index} className="csc-extra-dates__row">
+                      <DateField label={index === 0 ? 'Ngày giao bổ sung' : ''} value={date} onChange={(event) => update('extraDeliveryDates', form.extraDeliveryDates.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} disabled={Boolean(saving)} />
+                      <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa ngày giao bổ sung ${index + 1}`} onClick={() => update('extraDeliveryDates', form.extraDeliveryDates.filter((_, itemIndex) => itemIndex !== index))} disabled={Boolean(saving)}><Trash2 size={16} /></button>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            )}
-            {form.cargoMode === 'LCL' && (
-              <div className="csc-extra-dates">
-                {form.extraDeliveryDates.map((date, index) => (
-                  <div key={index} className="csc-extra-dates__row">
-                    <DateField label={index === 0 ? 'Ngày giao bổ sung' : ''} value={date} onChange={(event) => update('extraDeliveryDates', form.extraDeliveryDates.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} disabled={Boolean(saving)} />
-                    <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa ngày giao bổ sung ${index + 1}`} onClick={() => update('extraDeliveryDates', form.extraDeliveryDates.filter((_, itemIndex) => itemIndex !== index))} disabled={Boolean(saving)}><Trash2 size={16} /></button>
-                  </div>
-                ))}
-                <button type="button" className="csc-utility-button csc-utility-button--dashed" onClick={() => update('extraDeliveryDates', [...form.extraDeliveryDates, ''])} disabled={Boolean(saving)}><Plus size={15} aria-hidden="true" />Thêm ngày giao</button>
-              </div>
-            )}
-            {form.cargoMode === 'FCL' && (
-              <>
-                {emptyAppointmentCount >= 1 && (
+              )}
+              {!lclDeliveryDatesRevealed && issueByField.get('shipment-expected-delivery') && (
+                <p className="csc-lcl-delivery__issue" role="alert">{issueByField.get('shipment-expected-delivery')}</p>
+              )}
+              <button type="button" className="csc-utility-button csc-utility-button--dashed" onClick={addLclDeliveryDateRow} disabled={Boolean(saving)}>
+                <Plus size={15} aria-hidden="true" />Thêm ngày giao hàng
+              </button>
+            </div>
+          ) : (
+            <ShipmentCreateSection id="schedule" title="Lịch & ghi chú">
+            {emptyAppointmentCount >= 1 && (
                   <div className="csc-bulk-appointment" data-field-id="shipment-bulk-appointment">
                     <UDateTimeField
                       id="shipment-bulk-appointment"
@@ -834,9 +859,8 @@ export function ShipmentCreateWorkspace() {
                   <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={Boolean(saving)} />
                   <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={Boolean(saving)} />
                 </div>
-              </>
-            )}
-          </ShipmentCreateSection>
+            </ShipmentCreateSection>
+          )}
         </div>
 
         <FreightPreviewCard

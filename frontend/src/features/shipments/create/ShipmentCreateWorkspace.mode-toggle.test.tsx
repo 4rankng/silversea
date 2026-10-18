@@ -160,7 +160,9 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm ngày giao' }));
+    // Card D.4 (18/10): the LCL block opens as ONE control — the
+    // "Thêm ngày giao hàng" button; clicking reveals the date row.
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm ngày giao hàng' }));
     const date = document.querySelector<HTMLInputElement>('.csc-extra-dates__row [data-date-input]')!;
     fireEvent.change(date, { target: { value: '20/09' } });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
