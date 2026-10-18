@@ -293,6 +293,43 @@ describe('LCL grouping — FB-092 cost dimension', () => {
     assert.ok(events.includes('SHIPMENT_LCL_COST_GROUP_ASSIGNED'));
   });
 
+  test('SPEC 18/10/2026 §2.3 — per-lot BKS báo khách overrides the group default', async () => {
+    const customer = await mkCustomer('FB092 per-lot billing');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB092-B1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `FB092-B2-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('5T');
+
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-123.45',
+      billingTruckNo: '29C-111.11',
+      billingTruckNos: [{ shipmentId: lot2.id, billingTruckNo: '29C-999.99' }],
+    }, actor);
+
+    const rows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot2.id]));
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    assert.equal(byId.get(lot1.id)!.billingTruckNo, '29C-111.11');
+    assert.equal(byId.get(lot2.id)!.billingTruckNo, '29C-999.99');
+    // The actual plate stays the group's single physical truck.
+    assert.equal(byId.get(lot1.id)!.actualTruckNo, '29C-123.45');
+    assert.equal(byId.get(lot2.id)!.actualTruckNo, '29C-123.45');
+
+    // An override naming a lot outside the selection is refused before writes.
+    const outsider = await mkLclLot(customer.id, route.id, `FB092-B3-${suffix.slice(-6)}`);
+    const lot4 = await mkLclLot(customer.id, route.id, `FB092-B4-${suffix.slice(-6)}`);
+    await assert.rejects(
+      assignLclCostGroup({
+        shipmentIds: [lot4.id, outsider.id],
+        vehicleSizeClassId: truckClass.id,
+        actualTruckNo: '29C-123.45',
+        billingTruckNos: [{ shipmentId: lot2.id, billingTruckNo: '29C-888.88' }],
+      }, actor),
+      /BKS báo khách từng lô phải thuộc nhóm lô đang gán/,
+    );
+  });
+
   test('blocks an internal-fleet BKS on a truck-tonnage class, allows it on a container class (FB092-04)', async () => {
     const customer = await mkCustomer('FB092 sourcing');
     const route = await mkRoute();

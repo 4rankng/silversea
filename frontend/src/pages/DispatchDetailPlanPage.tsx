@@ -4,10 +4,11 @@ import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
 import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
-import { AssignTruckGroupDialog } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
+import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
-import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
+import { unmergeLclGroup, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
+import { useToast } from '../components/shared/Toast';
 import { billBookingReference } from '../lib/business-reference';
 import { formatVolumeCbm, formatWeight } from '../lib/format';
 import './DispatchPlanPage.css';
@@ -20,6 +21,7 @@ import './DispatchPlanPage.css';
  */
 export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
+  const { toast } = useToast();
   const [reassignTripId, setReassignTripId] = useState<number | null>(null);
   // Ghép chuyến (LoHangKepKetHop §3.1): the row whose trip anchors the pair;
   // null keeps the dialog closed. Candidates are the loaded unpaired OWN
@@ -39,6 +41,9 @@ export default function DispatchDetailPlanPage() {
   // new group; rows already in one are refused until un-merged (FB-095).
   const [selectedLclRows, setSelectedLclRows] = useState<DispatchDetailPlanRow[]>([]);
   const [truckGroupOpen, setTruckGroupOpen] = useState(false);
+  // SPEC 18/10/2026 §4 — Tách nhóm: the COST group id awaiting confirmation.
+  const [unmergeGroupId, setUnmergeGroupId] = useState<string | null>(null);
+  const [unmergingGroup, setUnmergingGroup] = useState(false);
   // Card _171026133000: the group popup unmounts on close, so its loại xe /
   // nhà xe picks are held here and survive a "Hủy" + reopen inside one
   // selection session. Cleared with the selection itself, below.
@@ -102,6 +107,24 @@ export default function DispatchDetailPlanPage() {
     }
   }
 
+  async function confirmUnmergeGroup() {
+    if (unmergeGroupId == null) return;
+    setUnmergingGroup(true);
+    try {
+      const result = await unmergeLclGroup({ groupId: unmergeGroupId, dimension: 'COST' });
+      toast({
+        kind: 'success',
+        message: `Đã tách nhóm ${result.memberCount} lô — mỗi lô trở về cước trả ĐV độc lập`,
+      });
+      setUnmergeGroupId(null);
+      void detailPlan.refresh();
+    } catch (err) {
+      toast({ kind: 'error', message: err instanceof Error ? err.message : 'Tách nhóm thất bại' });
+    } finally {
+      setUnmergingGroup(false);
+    }
+  }
+
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
       <section className="dispatch-plan-page__workspace">
@@ -140,6 +163,7 @@ export default function DispatchDetailPlanPage() {
           onAutoOpenConsumed={detailPlan.consumeAutoOpen}
           selectedLclShipmentIds={selectedIds}
           onToggleLclSelection={toggleLclSelection}
+          onUnmergeLclGroup={setUnmergeGroupId}
         />
         {selectedLclRows.length > 0 && (
           <div className="lcl-selection-bar" role="status">
@@ -210,7 +234,7 @@ export default function DispatchDetailPlanPage() {
 
       {truckGroupOpen && selectedLclRows.length > 0 && (
         <AssignTruckGroupDialog
-          rows={selectedLclRows}
+          rows={selectedLclRows.map(lclGroupRowFromDetail)}
           initialVehicleClassId={groupDraft.vehicleClassId}
           initialCarrierKey={groupDraft.carrierKey}
           onDraftChange={handleGroupDraftChange}
@@ -221,6 +245,14 @@ export default function DispatchDetailPlanPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={unmergeGroupId != null}
+        message="Tách nhóm ghép trả ĐV? Mỗi lô trở về cước trả ĐV độc lập — tiền cước 100% của Lô 1 vẫn giữ nguyên trên Lô 1, các lô còn lại chờ định giá lại khi ghép nhóm mới."
+        confirmLabel={unmergingGroup ? 'Đang tách…' : 'Tách nhóm'}
+        onConfirm={() => void confirmUnmergeGroup()}
+        onCancel={() => { if (!unmergingGroup) setUnmergeGroupId(null); }}
+      />
 
       <ConfirmDialog
         isOpen={completingRow != null}

@@ -333,7 +333,7 @@ const DISPATCHER_INTAKE_STATUSES: Record<string, true> = {
  * allocation values as the edit trigger, matching the full-cell editing
  * contract used by data grids.
  */
-export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes, notesIntakeOnly = false }: MasterPlanGridProps) {
+export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes, notesIntakeOnly = false, selectedLclShipmentIds, onToggleLclSelection }: MasterPlanGridProps) {
   const [activeNoteModal, setActiveNoteModal] = useState<ActiveNoteDetail | null>(null);
   const {
     editingNotesId, editingNotesValue, setEditingNotesValue, savingNotes,
@@ -348,6 +348,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
     <div className="master-plan-grid__wrapper">
       <table className="master-plan-grid ops-table">
         <colgroup>
+          <col className="master-plan-grid__col master-plan-grid__col--select" />
           <col className="master-plan-grid__col master-plan-grid__col--schedule" />
           <col className="master-plan-grid__col master-plan-grid__col--customer" />
           <col className="master-plan-grid__col master-plan-grid__col--route-shipping" />
@@ -359,6 +360,9 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
         </colgroup>
         <thead>
           <tr>
+            <th scope="col" className="master-plan-grid__select-head">
+              <span className="sr-only">Chọn lô</span>
+            </th>
             <th scope="col">Thời gian &amp; lịch trình</th>
             <th scope="col">Khách hàng &amp; nhà máy</th>
             <th scope="col">Tuyến đường &amp; hãng tàu</th>
@@ -393,6 +397,20 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             const notesLocked = notesIntakeOnly && !DISPATCHER_INTAKE_STATUSES[item.status];
             return (
               <tr key={item.id} className="master-plan-grid__row">
+                <td className="master-plan-grid__cell master-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
+                  {item.cargoMode === 'LCL' && onToggleLclSelection && (
+                    <div className="master-plan-grid__cell-body master-plan-grid__cell-body--center">
+                      <span title={item.costGroupId != null ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.' : undefined}>
+                        <UUICheckbox
+                          isSelected={selectedLclShipmentIds?.has(item.id) ?? false}
+                          isDisabled={item.costGroupId != null}
+                          onChange={(next: boolean) => onToggleLclSelection(item.id, next)}
+                          aria-label={`Chọn lô ${billBookingReference(item.blNumber, item.bookingRef)}`}
+                        />
+                      </span>
+                    </div>
+                  )}
+                </td>
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
                   {/* FB-043 (card 141026001010, re-report 2): every cell rides
                       the fixed-height body so a lot with stacked trips can no

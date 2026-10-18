@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, Plus } from 'lucide-react';
 import { Role } from '@tingting/shared';
@@ -18,6 +18,12 @@ import { MasterPlanGrid } from '../features/dispatch/master-plan/MasterPlanGrid'
 import { DispatchAllocationPopover } from '../features/dispatch/master-plan/DispatchAllocationPopover';
 import { DispatchContainerDetailDrawer } from '../features/dispatch/master-plan/DispatchContainerDetailDrawer';
 import { ZoneTruckPresencePanel } from '../features/dispatch/detailed-plan/ZoneTruckPresencePanel';
+import {
+  AssignTruckGroupDialog,
+  lclGroupRowFromMasterPlan,
+} from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
+import { billBookingReference } from '../lib/business-reference';
+import { formatVolumeCbm, formatWeight } from '../lib/format';
 import './DispatchPlanPage.css';
 
 /**
@@ -36,6 +42,35 @@ export default function MasterPlanPage() {
   const [exporting, setExporting] = useState(false);
   const allocationTriggerRef = useRef<HTMLButtonElement | null>(null);
   const containerDetailTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // SPEC 18/10/2026 §2.1–2.2 — the Kế hoạch Tổng quát LCL multi-select: click
+  // order decides Lô 1 (100% cước trả ĐV). Grouped lots are refused client-side
+  // (checkbox disabled) because the server refuses them with a 409.
+  const [selectedLcl, setSelectedLcl] = useState<ShipmentListItem[]>([]);
+  const [truckGroupOpen, setTruckGroupOpen] = useState(false);
+  const selectedLclIds = useMemo(
+    () => new Set(selectedLcl.map((item) => item.id)),
+    [selectedLcl],
+  );
+  const selectionTotals = useMemo(() => {
+    let weight = 0;
+    let volume = 0;
+    for (const item of selectedLcl) {
+      const kg = Number(item.cargoWeightKg);
+      if (Number.isFinite(kg)) weight += kg;
+      const cbm = Number(item.cargoVolumeCbm);
+      if (Number.isFinite(cbm)) volume += cbm;
+    }
+    return { weight, volume };
+  }, [selectedLcl]);
+
+  const toggleLclSelection = useCallback((shipmentId: number, next: boolean) => {
+    setSelectedLcl((current) => {
+      if (!next) return current.filter((item) => item.id !== shipmentId);
+      const item = masterPlan.items.find((candidate) => candidate.id === shipmentId);
+      return item ? [...current, item] : current;
+    });
+  }, [masterPlan.items]);
 
   const handleAllocate = (shipment: ShipmentListItem, trigger: HTMLButtonElement) => {
     allocationTriggerRef.current = trigger;
@@ -230,7 +265,47 @@ export default function MasterPlanPage() {
               // write to intake-stage lots; offer the note affordance there only.
               notesIntakeOnly={user?.role === Role.DISPATCHER}
               scheduleDate={scheduleDate}
+              selectedLclShipmentIds={selectedLclIds}
+              onToggleLclSelection={toggleLclSelection}
             />
+            {selectedLcl.length > 0 && (
+              <div className="lcl-selection-bar" role="status">
+                <span className="lcl-selection-bar__totals">
+                  Đang chọn {selectedLcl.length} lô: Tổng {formatWeight(String(selectionTotals.weight))}
+                  {' | '}
+                  {formatVolumeCbm(String(selectionTotals.volume))}
+                </span>
+                <span className="lcl-selection-bar__first">
+                  Lô 1 giữ 100% tiền trả nhà xe
+                  {selectedLcl[0] ? ` · ${billBookingReference(selectedLcl[0].blNumber, selectedLcl[0].bookingRef)}` : ''}
+                </span>
+                <button
+                  type="button"
+                  className="lcl-selection-bar__clear"
+                  onClick={() => setSelectedLcl([])}
+                >
+                  Bỏ chọn
+                </button>
+                <button
+                  type="button"
+                  className="lcl-selection-bar__assign"
+                  aria-disabled={selectedLcl.length < 2 || undefined}
+                  aria-describedby={selectedLcl.length < 2 ? 'master-lcl-group-assign-reason' : undefined}
+                  title="Gán xe nhóm trả ĐV"
+                  onClick={() => {
+                    if (selectedLcl.length < 2) return;
+                    setTruckGroupOpen(true);
+                  }}
+                >
+                  Gán xe nhóm
+                </button>
+                {selectedLcl.length < 2 && (
+                  <span id="master-lcl-group-assign-reason" className="lcl-selection-bar__hint">
+                    Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ.
+                  </span>
+                )}
+              </div>
+            )}
             {masterPlan.total > masterPlan.pageSize && (
               <Pagination
                 page={masterPlan.page}
@@ -256,6 +331,16 @@ export default function MasterPlanPage() {
         onClose={() => setContainerDetailShipment(null)}
         onSaved={() => masterPlan.refetch()}
       />
+      {truckGroupOpen && selectedLcl.length > 0 && (
+        <AssignTruckGroupDialog
+          rows={selectedLcl.map(lclGroupRowFromMasterPlan)}
+          onClose={() => setTruckGroupOpen(false)}
+          onAssigned={() => {
+            setSelectedLcl([]);
+            masterPlan.refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

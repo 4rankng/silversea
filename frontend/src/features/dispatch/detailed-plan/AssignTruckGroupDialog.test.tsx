@@ -45,7 +45,7 @@ vi.mock('../master-plan/useCarrierAllocationOptions', () => ({
   }),
 }));
 
-import { AssignTruckGroupDialog } from './AssignTruckGroupDialog';
+import { AssignTruckGroupDialog, lclGroupRowFromDetail } from './AssignTruckGroupDialog';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
 const row = (shipmentId: number, bill: string): DispatchDetailPlanRow => ({
@@ -74,7 +74,7 @@ const row = (shipmentId: number, bill: string): DispatchDetailPlanRow => ({
 
 function renderDialog(rows: DispatchDetailPlanRow[]) {
   return render(
-    <AssignTruckGroupDialog rows={rows} onClose={vi.fn()} onAssigned={vi.fn()} />,
+    <AssignTruckGroupDialog rows={rows.map(lclGroupRowFromDetail)} onClose={vi.fn()} onAssigned={vi.fn()} />,
   );
 }
 
@@ -130,7 +130,7 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
   it('lists the selected lots in operator order and stays closed without rows', () => {
     const { rerender } = renderDialog([]);
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
-    rerender(<AssignTruckGroupDialog rows={[row(31, 'BL-1'), row(32, 'BL-2')]} onClose={vi.fn()} onAssigned={vi.fn()} />);
+    rerender(<AssignTruckGroupDialog rows={[row(31, 'BL-1'), row(32, 'BL-2')].map(lclGroupRowFromDetail)} onClose={vi.fn()} onAssigned={vi.fn()} />);
     const items = screen.getAllByRole('listitem');
     expect(items[0]!.textContent).toContain('Lô 1 · BL-1');
     expect(items[1]!.textContent).toContain('Lô 2 · BL-2');
@@ -227,6 +227,28 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
     expect(assignMock.mock.calls[0]![0]).not.toHaveProperty('billingTruckNo');
   });
 
+  it('cho phép sửa BKS báo khách cho từng lô trong nhóm (SPEC 18/10/2026 §2.3)', async () => {
+    assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    await pickCarrier('Nhà xe Hải Vân');
+    setField(/BKS thực/, '29H-111.11');
+
+    // Group default stays the actual plate; only Lô 2 gets its own ảo plate.
+    fireEvent.change(screen.getByRole('combobox', { name: /Lô 2 — BL-2/ }), {
+      target: { value: '29H-999.99' },
+    });
+
+    submit();
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
+    expect(assignMock.mock.calls[0]![0]).toMatchObject({
+      shipmentIds: [31, 32],
+      billingTruckNos: [{ shipmentId: 32, billingTruckNo: '29H-999.99' }],
+    });
+    // The group field was untouched ⇒ no group-level default is sent.
+    expect(assignMock.mock.calls[0]![0]).not.toHaveProperty('billingTruckNo');
+  });
+
   it('gửi cước trả ĐV nhập tay khi có, bỏ trống thì để server tự tra (161026232319)', async () => {
     assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
     renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
@@ -305,7 +327,7 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
           <button type="button" onClick={() => setOpen(true)}>mở nhóm</button>
           {open && (
             <AssignTruckGroupDialog
-              rows={[row(31, 'BL-1'), row(32, 'BL-2')]}
+              rows={[row(31, 'BL-1'), row(32, 'BL-2')].map(lclGroupRowFromDetail)}
               initialVehicleClassId={draft.vehicleClassId}
               initialCarrierKey={draft.carrierKey}
               onDraftChange={(next) => setDraft((cur) => (

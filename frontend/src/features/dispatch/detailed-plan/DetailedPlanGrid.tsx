@@ -121,6 +121,9 @@ interface DetailedPlanGridProps {
    *  gán-xe-nhóm dialog). Pages that don't pass it see no checkboxes. */
   selectedLclShipmentIds?: ReadonlySet<number>;
   onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
+  /** SPEC 18/10/2026 §4 — dispatch-side "Tách nhóm" for a COST group. Shown
+   *  on the principal row only (one action per group). */
+  onUnmergeLclGroup?: (groupId: string) => void;
 }
 
 /**
@@ -154,6 +157,7 @@ export function DetailedPlanGrid({
   onOpenPair,
   selectedLclShipmentIds,
   onToggleLclSelection,
+  onUnmergeLclGroup,
   onEnsureFulfillment,
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
@@ -539,6 +543,20 @@ export function DetailedPlanGrid({
                           Lẻ · Ghép ({row.lcl.group.order ?? '?'}/{row.lcl.group.memberCount ?? '?'})
                         </span>
                       )}
+                      {/* SPEC 18/10/2026 §4 — one group action, anchored on Lô 1. */}
+                      {row.cargoMode === 'LCL'
+                        && row.lcl?.group
+                        && row.lcl.group.order === 1
+                        && onUnmergeLclGroup && (
+                          <button
+                            type="button"
+                            className="detailed-plan-grid__lcl-unmerge"
+                            title="Tách nhóm ghép — mỗi lô trở về cước trả ĐV độc lập"
+                            onClick={() => onUnmergeLclGroup(row.lcl!.group!.groupId)}
+                          >
+                            Tách nhóm
+                          </button>
+                        )}
                       <DispatchPairAction row={row} onOpenPair={onOpenPair} />
                     </div>
                   </td>

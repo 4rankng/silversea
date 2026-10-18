@@ -156,6 +156,43 @@ describe('FB-092 — LCL selection', () => {
   });
 });
 
+describe('SPEC 18/10/2026 §4 — Tách nhóm', () => {
+  it('offers one group action on Lô 1 and none on member rows', () => {
+    const onUnmerge = vi.fn();
+    const group = {
+      groupId: 'grp-1',
+      memberCount: 2,
+      actualTruckNo: '29C-123.45',
+      billingTruckNo: '29C-123.45',
+      vehicleClassCode: '5T',
+      vehicleClassName: 'Xe 5 tấn',
+    };
+    renderGrid([
+      baseRow({ shipmentId: 31, lcl: { packageCount: 5, packageType: 'PALLET', cargoVolumeCbm: '4.000', group: { ...group, order: 1 } } }),
+      baseRow({ shipmentId: 32, lcl: { packageCount: 4, packageType: 'PALLET', cargoVolumeCbm: '3.000', group: { ...group, order: 2 } } }),
+    ], { onUnmergeLclGroup: onUnmerge });
+
+    const actions = screen.getAllByRole('button', { name: 'Tách nhóm' });
+    expect(actions).toHaveLength(1);
+    fireEvent.click(actions[0]!);
+    expect(onUnmerge).toHaveBeenCalledWith('grp-1');
+  });
+
+  it('hides the action when the page does not wire it', () => {
+    renderGrid([baseRow({
+      lcl: {
+        packageCount: 5, packageType: 'PALLET', cargoVolumeCbm: '4.000',
+        group: {
+          groupId: 'grp-1', order: 1, memberCount: 2,
+          actualTruckNo: '29C-123.45', billingTruckNo: '29C-123.45',
+          vehicleClassCode: '5T', vehicleClassName: 'Xe 5 tấn',
+        },
+      },
+    })]);
+    expect(screen.queryByRole('button', { name: 'Tách nhóm' })).toBeNull();
+  });
+});
+
 describe('FB-092 — line helpers', () => {
   it('joins each half only when present', () => {
     expect(lclCargoLine(baseRow({ lcl: { packageCount: 7, packageType: null, cargoVolumeCbm: null, group: null } }))).toBe('7');

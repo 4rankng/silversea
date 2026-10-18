@@ -629,6 +629,14 @@ export interface ShipmentListItem extends Shipment {
   /** Per-container lift/drop pairs for the dispatch master-plan. Optional so
    *  a frontend can tolerate an older API during a rolling deployment. */
   containerPortGroups?: ShipmentContainerPortGroup[];
+  /** FB-092 LCL grouping wire facts (flat, one shape for every surface). The
+   *  list-summaries projection emits these; optional for older payloads. */
+  costGroupId?: string | null;
+  costGroupOrder?: number | null;
+  actualTruckNo?: string | null;
+  billingTruckNo?: string | null;
+  costVehicleClassCode?: string | null;
+  costVehicleClassName?: string | null;
 }
 
 export interface ShipmentContainerPortGroup {
