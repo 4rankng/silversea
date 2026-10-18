@@ -1333,6 +1333,23 @@ export async function updateLclGroupTruck(
         .for('update')
       : [row];
 
+    // Review 181026145000 (LCL-A181026145000-05) — the actual-plate edit
+    // rewrites EVERY live group member, so the unmerge path's settled-group
+    // law (assertGroupMutable) applies to the whole group: every member must
+    // be accounting-unlocked, not just the named lot. A billing-only edit
+    // touches the named lot alone — the early assert above is its whole
+    // boundary.
+    if (input.actualTruckNo != null) {
+      for (const target of groupTargets) {
+        if (target.id === row.id) continue;
+        try {
+          await assertShipmentAccountingUnlocked(tx, target.id);
+        } catch {
+          throw new ApiError(409, `Nhóm ghép đã chốt kế toán — Lô ${lotReference(target)} đang khóa sổ, không sửa BKS thực của nhóm được`);
+        }
+      }
+    }
+
     // Which rows actually change: the actual plate rides every group member,
     // the billing plate only the named lot — a billing-only edit must not
     // bump versions of siblings it did not touch.

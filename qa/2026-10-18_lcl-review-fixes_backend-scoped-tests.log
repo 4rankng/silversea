@@ -1,0 +1,128 @@
+▶ card 20260928_177 — own-vehicle ("Bỏ xe công ty") projection
+  ✔ ticking ON reduces the total by exactly the own-vehicle portion, OFF restores it (0.43475ms)
+  ✔ a customer with no own-vehicle shipment is unchanged by both states (0.368ms)
+  ✔ every line carries its own-vs-external identity, filtered or not (0.092959ms)
+✔ card 20260928_177 — own-vehicle ("Bỏ xe công ty") projection (1.282ms)
+▶ card 20260928_177 — projection reads the real ownership column
+  ✔ OWN comes from trip_carrier_info.carrier_type + the own-fleet truck; external from the carrier + cost (138.077916ms)
+✔ card 20260928_177 — projection reads the real ownership column (138.266084ms)
+▶ LCL grouping — FB-092 cost dimension
+  ✔ assigns order 1..N, auto-copies billing BKS, and zeroes members 2..N freight (FB092-03/05) (223.850208ms)
+  ✔ SPEC 18/10/2026 §2.3 — per-lot BKS báo khách overrides the group default (101.389792ms)
+  ✔ blocks an internal-fleet BKS on a truck-tonnage class, allows it on a container class (FB092-04) (76.700292ms)
+  ✔ rejects mixed-cargo groups, single-lot groups and re-grouping without un-merge (FB092-06) (58.779166ms)
+✔ LCL grouping — FB-092 cost dimension (461.515625ms)
+▶ LCL grouping — FB-093 rev dimension
+  ✔ prices the principal AUTO from the class lane, zeroes members with the Bill note (FB-093) (94.211375ms)
+  ✔ blocks merging lots of different customers with clear error naming the conflict and changes nothing (GAP 2, spec line 66) (23.862084ms)
+✔ LCL grouping — FB-093 rev dimension (118.238041ms)
+▶ LCL grouping — FB-093 debit-summary projection
+  ✔ rows carry cargoMode, both group facts, plates, class codes and the principal ref (545.238ms)
+✔ LCL grouping — FB-093 debit-summary projection (545.504208ms)
+▶ F-2 (card 161026113900) — money boards read the override channel (ruling b)
+  ✔ CUS board: principal reads the lane price, member 0₫ + reason note (F2-01) (103.408417ms)
+  ✔ accounting board: thu.cuocThu follows the group law, phuPs stays snapshot (F2-02) (74.830375ms)
+  ✔ un-merge keeps both boards on the override channel via the stamp (F2-03) (104.064292ms)
+  ✔ ungrouped, un-overridden lots keep the snapshot channel byte-for-byte (F2-04) (51.639125ms)
+  ✔ an override-stamped FCL lot stays on the snapshot channel (F2-05 BE) (68.065667ms)
+✔ F-2 (card 161026113900) — money boards read the override channel (ruling b) (402.29025ms)
+▶ 161026204709 (TC-A12) — merged-but-undispatched LCL lots materialize the merge money
+  ✔ CUS board: principal = lane price, member = 0₫ + group note (A12-01) (58.051916ms)
+  ✔ accounting board: thu.cuocThu follows the same law (A12-02) (49.173083ms)
+  ✔ un-merge transfers the merge snapshot money to the survivor (A12-03) (53.082667ms)
+  ✔ a trip-less member leaving keeps its cited zero as stale-priced (A12-04) (45.800708ms)
+  ✔ lane miss keeps the principal MANUAL/blank, member still 0₫ (A12-05) (42.960833ms)
+✔ 161026204709 (TC-A12) — merged-but-undispatched LCL lots materialize the merge money (249.391667ms)
+▶ LCL grouping — FB-094 debit note + board
+  ✔ the debit note prints billing_truck_no, never the actual plate (0.20375ms)
+  ✔ the debit note names the thu billing class as loại xe (FB094-01b) (0.090084ms)
+  ✔ the accounting debit board carries the LCL label, plates and principal ref (49.135167ms)
+  ✔ customer-facing export uses billing_truck_no when differing from actual_truck_no, and vendor view uses actual_truck_no (GAP 3, spec line 86) (39.761458ms)
+✔ LCL grouping — FB-094 debit note + board (89.332833ms)
+▶ LCL grouping — FB-095 un-merge safety
+  ✔ un-merging Lô 1 (COST) promotes Lô 2 with 100% of the freight (FB095-01) (65.702708ms)
+  ✔ un-merging Lô 1 (REV) transfers the bill money and dissolves a 2-lot group (FB095-02) (45.221291ms)
+  ✔ the lone survivor of a dissolved group keeps its vehicle class (QA C-1) (73.997333ms)
+  ✔ a member leaving a 2-lot group dissolves it — survivor ungrouped, keeps class, re-merge OK (QA C-2) (69.329167ms)
+  ✔ a middle member leaving a 3-lot group renumbers survivors contiguously — response = DB (QA C-2) (65.957208ms)
+  ✔ a settled group refuses un-merge — an active accounting lock freezes it (FB095-03) (47.3105ms)
+  ✔ a settled SIBLING freezes the group-wide BKS thực edit — every member asserted, not just the named lot (LCL-A181026145000-05) (40.653667ms)
+  ✔ a member leaving moves no money; renumbering + REV zero re-stamp apply (FB095-04) (73.395209ms)
+  ✔ refuses to orphan the freight: promotee without a live trip blocks Lô 1 exit (FB095-05) (27.248083ms)
+  ✔ deleting Lô 1 promotes the survivor inside the delete transaction (FB095-06) (46.503959ms)
+✔ LCL grouping — FB-095 un-merge safety (555.712708ms)
+▶ GAP 1 — money safety on unshipping / deleting a group (spec line 92)
+  ✔ un-merging the whole group strictly conserves the total group freight (both REV and COST) (137.970584ms)
+  ✔ deleting the primary lot atomically promotes the next lot and transfers 100% freight (spec line 92) (59.179167ms)
+  ✔ deleting the last-but-one lot dissolves group cleanly and primary retains 100% freight (66.722792ms)
+✔ GAP 1 — money safety on unshipping / deleting a group (spec line 92) (264.025125ms)
+▶ C5 (card 1016212936) — the customer debt report reads the same override channel
+  ✔ C5-01: the debt line cước thu equals the CUS board figure for the merged pair (100%/0₫ + note) (77.235542ms)
+  ✔ C5-02: an ungrouped, un-overridden LCL lot keeps the snapshot grain byte-for-byte (20.683042ms)
+  ✔ C5-03: an override-stamped FCL lot keeps the snapshot channel (LCL-only scope) (18.570208ms)
+  ✔ C5-04: after an FB-095 un-merge the stamped survivor keeps 100%, the leaver reads 0₫ + the transfer note (93.931ms)
+✔ C5 (card 1016212936) — the customer debt report reads the same override channel (210.622458ms)
+▶ 161026232319 — Lô 1 cước trả ĐV tra từ bảng giá cước trả nhà xe
+  ✔ tra giá riêng của nhà xe (tuyến × loại xe × nhà xe) cho Lô 1, lô 2..N = 0₫ (68.935542ms)
+  ✔ không chọn nhà xe ⇒ Lô 1 lấy giá chung của tuyến × loại xe (43.498375ms)
+  ✔ bảng giá không có dòng nào ⇒ giữ nguyên giá trị cũ của Lô 1, không bịa 0₫ (37.992333ms)
+  ✔ Điều vận nhập tay thắng giá tra bảng (33.037458ms)
+✔ 161026232319 — Lô 1 cước trả ĐV tra từ bảng giá cước trả nhà xe (183.655084ms)
+▶ 161026232309 — nguồn xe của nhóm (nhà xe / đội xe nội bộ)
+  ✔ lưu nhà xe + xe của nhà xe lên các lô và hiện lại khi mở lại (83.097625ms)
+  ✔ xe tải (EXTERNAL_ONLY) từ chối xe nội bộ và từ chối khai Đội xe nội bộ (16.710958ms)
+  ✔ cont 20' cho phép chọn Đội xe nội bộ SilverSea (OWN) (47.331083ms)
+✔ 161026232309 — nguồn xe của nhóm (nhà xe / đội xe nội bộ) (147.296708ms)
+▶ 161026232329 — tiền đường/lương chuyến chỉ tính 1 lần vào Lô 1
+  ✔ nhóm cont xe nội bộ: Lô 1 giữ 100%, lô 2..N = 0₫ trên mặt lương tài xế (61.435208ms)
+  ✔ nhóm xe ngoài (xe tải) không đụng tiền đường của lái xe (51.167292ms)
+  ✔ tách Lô 1: tiền đường/lương chuyến theo lô kế vị + audit (47.72875ms)
+✔ 161026232329 — tiền đường/lương chuyến chỉ tính 1 lần vào Lô 1 (160.588125ms)
+▶ Card 181026145000 §2.3 — BKS báo khách sửa được từng lô trong nhóm
+  ✔ billing quick-edit trên MỘT lô ghép chỉ đổi lô đó; BKS thực không đụng (39.306834ms)
+  ✔ sửa BKS thực vẫn group-wide và không ghi đè divergence billing của từng lô (42.713958ms)
+✔ Card 181026145000 §2.3 — BKS báo khách sửa được từng lô trong nhóm (82.228916ms)
+▶ Card 181026145000 §2.4/§4 — wire trả position + size; xóa lô không đếm ma
+  ✔ list rows mang order + memberCount cả hai chiều nhóm cho tag "Lẻ · Ghép (i/N)" (136.44825ms)
+  ✔ soft-delete một thành viên: mọi board đếm N LIVE, ref trỏ principal live (spec §4) (356.011416ms)
+  ✔ review LCL-A181026145000-04: xóa Lô 1 (ghost order-1) — debt note cite Bill principal promote, không cite ghost (143.315125ms)
+  ✔ review LCL-A181026145000-06: ghost-order-1 deletion — debt note + debit refs cùng cite Bill principal promote (154.329208ms)
+✔ Card 181026145000 §2.4/§4 — wire trả position + size; xóa lô không đếm ma (790.403417ms)
+▶ card 20260924_2 — L1 shadow totals (fulfillment-less trips)
+  ✔ totals exclude fulfillment-less fees; excludedCount/excludedSum surface them (139.589041ms)
+  ✔ no shadow → excludedCount 0 / excludedSum "0" (the summary line hides) (23.264708ms)
+✔ card 20260924_2 — L1 shadow totals (fulfillment-less trips) (163.43425ms)
+▶ shipment debit summary (Chi phí - Quyết toán L1)
+  ✔ shows each saved declaration once in stable order without leaking other lots (30.657125ms)
+  ✔ rolls up freight, chi hộ, receivable and profit for one lot (28.812875ms)
+  ✔ entered thu khách rolls up to Lớp 1 without any issued debit note (spec L138) (29.033375ms)
+  ✔ a shared pair expense counts once — the other lot stays clean (20.117125ms)
+  ✔ L1 counts the latest freeze per freight anchor — superseded freezes count in no total (35.827917ms)
+  ✔ the delivery-date range filters on expected delivery date (17.835625ms)
+  ✔ the lock filter follows the real locks, and no customer means every customer (454.095708ms)
+  ✔ TỔNG PHẢI TRẢ: live for open lots, frozen for locked lots, null stays null (128.644ms)
+  ✔ TỔNG PHẢI THU KHÁCH freeze: entered moves L1, lock freezes it, forced edits stay frozen (L1 + issued note) (116.733458ms)
+  ✔ ops cost joins payables, only the negotiated customer charge joins the debit (28.786875ms)
+  ✔ doc worked example: 2.1 + 2.2 roll up to exactly 13.100.000 and 5.500.000 (42.86325ms)
+  ✔ PS thực tế counts exactly once inside the 2.1 rollup (34.057333ms)
+{"level":30,"time":1792310001967,"pid":40254,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+  ✔ sellAmount edits are refused on non-OTHER rows server-side (18.589375ms)
+✔ shipment debit summary (Chi phí - Quyết toán L1) (986.7165ms)
+{"level":30,"time":1792310002052,"pid":40254,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ GET /debit-summary resolves through the real router
+  ✔ the literal list path returns 200 with the rollup shape (980.188417ms)
+✔ GET /debit-summary resolves through the real router (980.296083ms)
+▶ debit services compile-safe for the dist build (no extensionless dynamic imports)
+  ✔ lock and rollup services use static local imports only (0.383292ms)
+✔ debit services compile-safe for the dist build (no extensionless dynamic imports) (0.4285ms)
+▶ POST /lock flows through the real audit middleware
+  ✔ lock succeeds with the audit chain mounted (116.020375ms)
+✔ POST /lock flows through the real audit middleware (116.201542ms)
+ℹ tests 76
+ℹ suites 21
+ℹ pass 76
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40032.570791

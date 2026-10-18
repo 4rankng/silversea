@@ -59,6 +59,57 @@ tính). Tag "Lẻ · Ghép (i/2)" đúng hậu cảnh §4 (xóa lô trong nhóm)
 
 Failure at base: các query count/principal-ref không filter `deleted_at`.
 
+## Review findings 2026-10-18 (independent review của merge 6e6a7c18 — branch `fix-lcl-group-backend-rb1`)
+
+## Case LCL-A181026145000-04 — HIGH: ghost order-1 principal vẫn được cite trong debt note
+
+Repro:
+1. Ghép REV nhóm 3 lô cùng khách, CHƯA trip (ràng buộc xóa đòi hỏi principal
+   không có trip). Merge xong mới phát trip cho lô thành viên — note "Ghép
+   cước cùng Bill X" của lô đó đi qua nhánh fallback `revPrincipalRefs`
+   (không có stamp `trip_financial_state`).
+2. `softDeleteShipment` Lô 1 (order 1, không trip). Spec §4: ghost giữ
+   `rev_group_id` + slot order 1; Lô 2 promote order 1; Lô 3 renumber order 2.
+3. Đọc `getCustomerDebtSummary` — note trên line của Lô 3 (order 2).
+
+Expected: `freightOverrideReason` = `Ghép cước cùng Bill <Bill Lô 2>` —
+principal LIVE được promote — KHÔNG bao giờ cite Bill của ghost Lô 1.
+
+Failure at base: `customer-debt-summary.service.ts` ~239 đọc order-1 thiếu
+`isNull(deletedAt)` — row ghost order-1 shadow principal live.
+
+## Case LCL-A181026145000-05 — MEDIUM: sửa BKS thực chỉ assert lô nêu tên
+
+Repro:
+1. Gán nhóm cost 2 lô; Kế toán chốt (accounting lock) Lô 2 — KHÔNG phải lô
+   nêu tên.
+2. `updateLclGroupTruck({shipmentId: Lô 1, actualTruckNo: '29C-919.19'})`.
+
+Expected: 409 "Nhóm ghép đã chốt kế toán" — BKS thực ghi MỌI thành viên nhóm
+nên settled member đóng băng cả nhóm (mirror luật `assertGroupMutable` của
+un-merge). Billing-only vẫn per-lot: `{shipmentId: Lô 1, billingTruckNo}`
+thành công dù Lô 2 locked.
+
+Failure at base: `updateLclGroupTruck` chỉ assert lô nêu tên (~1326) — edit
+ghi cả nhóm qua lô đã khóa.
+
+## Case LCL-A181026145000-06 — LOW: test gap ghost-order-1 deletion (debt note + debit refs)
+
+Repro: như case 04.
+
+Expected: debt note VÀ debit refs (`revGroupPrincipalRef` +
+`freightOverrideReason` trên `getShipmentDebitSummary`) cùng cite Bill principal
+promote, không cite ghost.
+
+Failure at base: không test nào cover scenario xóa principal → ghost order-1
+cùng slot với principal promote.
+
+## Gates (review fixes)
+
+- Scoped: `lcl-grouping.test.ts`, `customer-debt-summary.test.ts`,
+  `shipment-debit-summary.test.ts` (`npx tsx --test`).
+- `cd backend && npx tsc --noEmit` = 0; `pnpm lint` = 0.
+
 ## Gates
 
 - Scoped: `lcl-grouping.test.ts`, `lcl-single-lot-rev-class.test.ts`,
