@@ -2735,6 +2735,26 @@
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold, 600);
 }
+
+/* Card 191026100000 (A.6): live ISO 6346 hint inside the add row's container
+   cell — warning text plus the one-tap "Đổi thành <số gợi ý>" correction.
+   Mirrors the trip card's ci-field-warning contract in drawer-local classes
+   (the trip CSS is not loaded on the CUS workboard). */
+.cus-container-ledger__add-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--warning-text);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold, 600);
+  line-height: 1.4;
+}
+
+.cus-container-ledger__add-hint svg {
+  flex: 0 0 auto;
+}
 /* Phone (2026-09-27): the bar wraps into packed lines, so the page releases
    nothing to full width — the from/to group keeps its two fields side by side
    at their own 168px, and a short-value control stays short. Card
