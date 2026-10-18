@@ -158,8 +158,13 @@ for (const variant of ['CATALOG', 'NORM', 'LEGACY'] as const) test(`QA-AUDIT-PHO
     assert.equal(saved.costGroup, metadata.costGroup); assert.equal(saved.invoiceNumber, metadata.invoiceNumber);
     assert.equal(saved.invoiceDate, metadata.invoiceDate); assert.equal(saved.recoveryNote, metadata.recoveryNote);
     const detail = await getPhoiPhieuTienDuong(work.id, tx);
-    assert.deepEqual(detail.rows.map(row => row.sourceId).sort((a, b) => a - b), [legacy.id, active.sourceId].sort((a, b) => a - b));
-    const visible = detail.rows.find(row => row.sourceId === active.sourceId)!;
+    // Card 20261005_373 (lần 2, the "Từ chối" 404 fix): linked rows key
+    // `sourceId` on expense_accounting_sources.id — the id every mutation
+    // route uses (pinned by phoi-phieu-control.test.ts) — so the active
+    // replacement is read by its source-table id. Only a genuinely unlinked
+    // legacy cost falls back to its driver-cost id.
+    assert.deepEqual(detail.rows.map(row => row.sourceId).sort((a, b) => a - b), [legacy.id, active.id].sort((a, b) => a - b));
+    const visible = detail.rows.find(row => row.sourceId === active.id)!;
     assert.equal(visible.driverEnteredAmount, original.driverEnteredAmount == null ? null : Number(original.driverEnteredAmount));
     assert.equal(visible.amount, amount); assert.equal(visible.confirmed, true); assert.equal(visible.version, active.version);
     assert.equal(detail.rows.find(row => row.sourceId === legacy.id)!.confirmed, false);

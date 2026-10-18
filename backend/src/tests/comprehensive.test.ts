@@ -389,6 +389,13 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
       cargoTypeId,
       containerTypeId,
       departureDate: '2026-06-10',
+      // FB-038 family warn-once contract (ticket 111026105630 /
+      // createTripSchema.confirmOverlap): a grown dev DB can hold an
+      // overlapping holder trip for the picked driver, and the documented
+      // confirmed retry rides the warn tier instead of surfacing 409
+      // RIG_OVERLAP_COMPLETED. The warn itself stays pinned by the
+      // dispatch-plan-conflict-scan suites.
+      confirmOverlap: true,
       notes: 'Comprehensive E2E test trip'
     })
   });
@@ -421,6 +428,11 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
       // Card 20260922_79 (Q11 closure): the reason is mandatory on
       // reassignment; it rides audit_logs beside actor + timestamp.
       reason: 'Điều phối đổi xe do xe bảo dưỡng định kỳ',
+      // FB-038 family warn-once contract: the FE reassign dialog's existing
+      // confirm flag (trip-lifecycle-ops.service.ts) — the automated user
+      // confirms the overlap warn instead of leaving the save to grown-DB
+      // state. Same key family as the create's confirmOverlap.
+      rigOverlapCompletedConfirmed: true,
     })
   });
   if (reassignRes.status !== 200) console.error('REASSIGN FAIL:', reassignRes, 'altTruck:', altTruck.id, 'altDriver:', altDriver.id, 'busyTrucks:', [...curBusyTrucks], 'busyDrivers:', [...curBusyDrivers]);
@@ -442,6 +454,10 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
       hasReturnCargo: false,
       driverSalary: 450000,
       revenue: 4000000,
+      // FB-038 family warn-once contract (updateTripFiguresSchema.confirmOverlap):
+      // the figure save rides the warn tier when the grown DB holds an
+      // overlapping holder — see the create call above.
+      confirmOverlap: true,
     })
   });
   assert.strictEqual(preDepartureRes.status, 200);
@@ -502,6 +518,9 @@ test('E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch
       hasReturnCargo: false,
       driverSalary: 500000,
       revenue: 4500000,
+      // FB-038 family warn-once contract (updateTripFiguresSchema.confirmOverlap):
+      // same documented confirm as pre-departure — see the create call above.
+      confirmOverlap: true,
     })
   });
   assert.strictEqual(actualsRes.status, 200);

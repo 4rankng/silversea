@@ -374,3 +374,78 @@ thêm; resume 11 PASS, `DONE failures=0` — tổng FB095-01..14 + FB094-01..08 
   7-file của agent trước trên cây cũ).
 - Next: owner review + merge vào trunk; đóng card 181026145610 / 181026145620
   khi merge.
+
+# HANDOFF — 2026-10-18 — rb1: BE reds cluster B — PHOI-11 provenance + E2E warn-contract (QA-AUDIT-PHOI-11 ×3)
+
+## Goal & status — DONE (5 target reds xanh, 0 red mới)
+
+Re-attempt của agent chết `ecc8c049` (worktree/branch mất sạch — làm lại từ
+main `20d4cb27`). Cluster B = red-at-base còn lại sau cluster A (`a50a98e6`):
+(1) QA-AUDIT-PHOI-11 ×3 trong `expense-source-remediation.test.ts`, (2) E2E
+suite `comprehensive.test.ts` ×2. Base: integration 3352/3335/**17 fail**
+(unit 305/305). Sau fix: integration 3352/3344/**8 fail** — cả 8 là red
+cluster khác (subset chặt của 17 base, 0 red mới); cluster B + toàn bộ CUS
+suite xanh.
+
+## Root cause (3, đều test-side — không đổi product code)
+
+1. **TC-REDSB1 — PHOI-11 ×3 (fixture id-drift, card 20261005_373 lần 2)**:
+   `getPhoiPhieuTienDuong` key `sourceId` trên `expense_accounting_sources.id`
+   từ card 20261005_373 (fix "Từ chối" 404, pin bởi
+   `phoi-phieu-control.test.ts:254`); fixture vẫn expect driver-cost id
+   (`actual [5715,22853]` vs `expected [5715,5716]`). Provenance service đúng
+   nguyên vẹn (driverEnteredAmount 0/null/10000110000, expenseTypeCode,
+   feeNormCode, costType… đều giữ) — chỉ identity assert lệch. Fix: key linked
+   head theo `active.id`, legacy unlinked giữ fallback native id.
+2. **TC-REDSB2 — E2E ×2 (warn-contract fixture drift, FB-038 family / ticket
+   111026105630 / card 171026121100)**: POST /api/trips trả warn tier
+   `409 RIG_OVERLAP_COMPLETED` ("…Vẫn lưu?") vì DB dev có holder trip trùng
+   khung với driver fixture; contract đã ship `confirmOverlap` (create/figures)
+   + `rigOverlapCompletedConfirmed` (reassign) = leg retry đã confirm. E2E chỉ
+   gửi lần đầu. Financial operations đỏ là cascade (`tripId` undefined → query
+   UNDEFINED_VALUE). Fix: 4 call guard-running của lifecycle mang documented
+   confirm key; warn vẫn được pin bởi suite riêng (`dispatch-overlap-*`,
+   `trip-overlap-warning`…).
+3. **TC-REDSB3 — advance-draft-recovery (lộ ra ở gate run 1)**: `state()` đọc
+   `auditLogs` KHÔNG `orderBy` rồi assert `audit.at(-1)` = "audit cuối" — thứ
+   tự heap, không phải thứ tự insert; churn audit_logs của các suite trước đã
+   đảo thứ tự (`'Đã ghi sổ tạm ứng cũ'` ≠ `'Đã hủy tạm ứng chưa giao tiền'`).
+   Xanh khi chạy lẻ 8/8. Fix: `orderBy(asc(id))` — nội dung assert giữ nguyên.
+4. Kèm: `cus-lcl-undated-parity-d6.test.ts` bỏ import `eq` thừa (red lint gốc,
+   stray từ card 181026185900 D.6 — cùng loại dọn gate với `a50a98e6`).
+
+## Gates (qa/2026-10-18_be-reds-clusterB_* — counts verbatim)
+
+- BE `pnpm exec tsc --noEmit` **0 errors** (exit 0); FE `pnpm exec tsc -b` +
+  `pnpm exec tsc --noEmit` **0 errors** (exit 0); root `pnpm lint` **0 errors**
+  (exit 0); `pnpm context:check` valid (v1, 8 profiles, 25 paths).
+- Targeted red-before: 20 tests / 15 pass / **5 fail** (`_targeted-red-base.log`);
+  green-after: 20/20 (`_targeted-green.log`).
+- Full suite (`pnpm test`, `_full-suite-final.log`): unit `305/305/0`;
+  integration `3352 tests / 3344 pass / 8 fail` (exit 1 — 8 red cluster khác:
+  quotation-entity ×4 [surcharge/chiphispec], dispatch-fulfillment FB-018,
+  photo-trip-scope ×2, q23). Base run 17 fail; q11 ×2 + tool-executables +
+  q15-salary lật xanh state-sensitive giữa các run — không claim nguyên nhân.
+- Summary artifact: `qa/2026-10-18_be-reds-clusterB_gates-summary.md`;
+  regression case: `testplan/2026-10-18-be-reds-clusterB-phoi11-e2e.md`
+  (TC-REDSB1/2/3).
+
+## Coverage table (§9 — test-side only, không đổi UI)
+
+| Claim / bug | Rung | Evidence | Not covered |
+|---|---|---|---|
+| TC-REDSB1 PHOI-11 provenance đọc active-only | 1 CODE-READ + unit/integration (không UI) | targeted-green.log 20/20; full-suite-final | UI Tiền đường không drive (ngoài scope cluster) |
+| TC-REDSB2 E2E lifecycle warn-contract | 1 + integration (in-process HTTP) | full-suite-final comprehensive 7/7 | UI overlap dialog không click |
+| TC-REDSB3 audit-order determinism | 1 + integration | advance-draft-recovery 8/8 (lẻ + full) | — |
+
+Không có claim "works end-to-end" — đây là fix test-fixture, không đổi behavior
+product.
+
+## Files owned / next step
+
+- `backend/src/tests/{expense-source-remediation,comprehensive,advance-draft-recovery,cus-lcl-undated-parity-d6}.test.ts`
+  + `testplan/2026-10-18-be-reds-clusterB-phoi11-e2e.md` + qa artifacts
+  (force-tracked) — 1 commit trên branch `fix-be-reds-phoi-e2e-rb1`.
+- 8 red còn lại thuộc cluster khác (surcharge-rb3 / chiphispec-gaps / dispatch /
+  photo-authz / q23) — không đụng; theo dõi khi các wave đó land.
+- Next: owner review + merge vào trunk.

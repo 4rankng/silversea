@@ -1,0 +1,29 @@
+{"level":30,"time":1792338261476,"pid":28002,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+✔ E2E — Auth flow (Login, Me, User List, Create, Delete) (313.464542ms)
+✔ E2E — Duplicate username yields 409 (not 500) with field message (149.129083ms)
+✔ E2E — Catalog endpoints CRUD reads & listings (30.998ms)
+✔ E2E — Customer duplicate guard blocks create and update conflicts (25.403416ms)
+✔ E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch, Actuals, Lock, Cancel Guard) (211.233709ms)
+✔ E2E — Financial operations (P&L, profit sharing, ledger, statements, receipts) (338.951709ms)
+✔ E2E — Driver portal isolation & earnings summary (21.958208ms)
+✔ FIX17-S01 every Ops may declare on any lot — the assignment grant is gone (76.802333ms)
+✔ FIX17-S02 OPS receipt rows are authoritative over stale native JSON (29.297375ms)
+✔ FIX17-S04 legacy edit and delete cannot mutate native billing mirrors (54.184166ms)
+✔ FIX17-S06 confirmed OPS replacement preserves original, reverses obligation, and links history (63.540083ms)
+✔ QA-AUDIT-PHOI-11 CATALOG correction and forward correction preserve original driver provenance (163.156416ms)
+✔ QA-AUDIT-PHOI-11 NORM correction and forward correction preserve original driver provenance (176.052958ms)
+✔ QA-AUDIT-PHOI-11 LEGACY correction and forward correction preserve original driver provenance (160.594291ms)
+✔ FIX17-S06 CREATED toll correction preserves allowances and replaces actual once (100.06725ms)
+✔ FIX17-S06 COMPLETED toll correction preserves allowances and replaces actual once (126.774875ms)
+✔ FIX17-S07 released reconciliation retains history and permits correction and re-reconciliation (63.751834ms)
+✔ FIX17-S07 cash must be reversed before reconciliation release or confirmed correction (35.682958ms)
+✔ FIX17-S07 active legacy settlement blocks correction until its explicit reversal (73.121584ms)
+✔ FIX17-S08 (card 20260928_171) an amount edit records who / from / to / when (13.15075ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4742.666375
