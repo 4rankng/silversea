@@ -172,7 +172,7 @@ async function mkLot(opts: LotOptions) {
 }
 
 interface GateOptions {
-  tripId: number;
+  tripId: number | null;
   code: string;
   classification: string;
   start: Date;
@@ -180,6 +180,7 @@ interface GateOptions {
   cargoWeightKg?: string;
   vehicleCapacityKg?: string;
   confirmOverlap?: boolean;
+  shipmentId?: number | null;
 }
 
 function gateArgs(o: GateOptions) {
@@ -193,6 +194,7 @@ function gateArgs(o: GateOptions) {
     cargoWeightKg: o.cargoWeightKg ?? '10000',
     vehicleCapacityKg: o.vehicleCapacityKg ?? '36000',
     rigOverlapCompletedConfirmed: o.confirmOverlap === true,
+    ...(o.shipmentId != null ? { shipmentId: o.shipmentId } : {}),
     kepContext: {
       issuingContainerIsTwentyFoot: o.code.startsWith('20'),
       classification: o.classification,
@@ -239,7 +241,7 @@ async function expectWarnOnce(label: string, o: GateOptions) {
         assert.equal((err as ApiError).statusCode, 409, `${label}: expected 409`);
         const payload = (err as ApiError).payload as { code?: string } | undefined;
         assert.equal(payload?.code, 'RIG_OVERLAP_COMPLETED',
-          `${label}: expected payload.code RIG_OVERLAP_COMPLETED, got ${JSON.stringify(payload)}`);
+          `${label}: expected payload.code RIG_OVERLAP_COMPLETED, got ${JSON.stringify(payload)} message=${(err as ApiError).message}`);
         return true;
       },
       `${label}: expected a warn-once 409`,
@@ -523,5 +525,40 @@ describe('dispatch resource availability — Kẹp / Kết hợp same-rig matrix
       tripId: incomingB.trip.id, code: '20DC', classification: 'SINGLE',
       start: windows(28).incomingStart, end: windows(28).incomingEnd,
     });
+  });
+
+  // Card 181026145600 (FB-012 regression) — issuing container 2 of the same
+  // lot while container 1's trip already holds the rig. The plan row warns
+  // ("container khác của lô này … Vẫn lưu?") but the trip gate hard-blocked
+  // the confirmed retry. Same-lot holders must warn once, then pass.
+  test('T19 same-lot sibling container warns once, confirmed retry passes', async () => {
+    const partner = await mkLot({ tag: 't19-partner', dayIndex: 31, classification: 'SINGLE', code: '20DC' });
+    const [siblingContainer] = await db.insert(s.shipmentContainers).values({
+      shipmentId: partner.shipment.id,
+      containerTypeId: type20Id,
+      containerNumber: `KMSU${String(800000 + ids.containers.length).slice(-6)}`,
+    }).returning();
+    ids.containers.push(siblingContainer.id);
+    const [siblingFulfillment] = await db.insert(s.shipmentFulfillments).values({
+      shipmentId: partner.shipment.id,
+      fulfillmentType: 'FCL_CONTAINER',
+      cargoMode: 'FCL',
+      shipmentContainerId: siblingContainer.id,
+      sourceShipmentVersion: partner.shipment.version,
+      dispatchClassification: 'SINGLE',
+    }).returning();
+    ids.fulfillments.push(siblingFulfillment.id);
+
+    const issue = {
+      // The sibling has no trip yet — "phát lệnh" creates it after this gate.
+      tripId: null,
+      shipmentId: partner.shipment.id,
+      code: '20DC',
+      classification: 'SINGLE',
+      start: windows(31).incomingStart,
+      end: windows(31).incomingEnd,
+    } as const;
+    await expectWarnOnce('T19 unconfirmed', issue);
+    await expectNoConflict('T19 confirmed', { ...issue, confirmOverlap: true });
   });
 });

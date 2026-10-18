@@ -144,6 +144,7 @@ async function issue(
   shipmentId: number,
   fleet: Awaited<ReturnType<typeof mkFleet>>,
   windowIndex = 0,
+  confirmOverlap = false,
 ) {
   // Hour offsets keep same-day cases overlapping (08:00+07 start) and the
   // disjoint control 10 hours apart — the service duration from 120 km is
@@ -156,6 +157,7 @@ async function issue(
     plannedStartAt: `2026-10-06T${String(startHour).padStart(2, '0')}:00:00+07:00`,
     plannedEndAt: `2026-10-06T${String(startHour + 10).padStart(2, '0')}:00:00+07:00`,
     endTimeConfirmed: true,
+    rigOverlapCompletedConfirmed: confirmOverlap,
     carrierType: 'OWN',
     truckId: fleet.truck.id,
     driverId: fleet.driver.id,
@@ -182,6 +184,26 @@ async function expectIssue409(
       return true;
     },
     `expected issue to reject with "${message}"`,
+  );
+}
+
+/** Card 181026145600 — same-lot sibling: warn once with the family payload. */
+async function expectIssueWarnOnce(
+  fulfillment: { id: number; version: number },
+  shipmentId: number,
+  fleet: Awaited<ReturnType<typeof mkFleet>>,
+  message: string,
+) {
+  await assert.rejects(
+    () => issue(fulfillment, shipmentId, fleet),
+    (err: unknown) => {
+      assert.ok(err instanceof ApiError, `expected ApiError, got ${String(err)}`);
+      assert.equal(err.statusCode, 409, `expected 409, got ${err.statusCode}: ${err.message}`);
+      assert.equal(err.message, message);
+      assert.equal(err.payload?.code, 'RIG_OVERLAP_COMPLETED');
+      return true;
+    },
+    `expected issue to warn once with "${message}"`,
   );
 }
 
@@ -265,14 +287,14 @@ describe('dispatch issue trailer-compat — length floor (card 091026164500)', (
     );
   });
 
-  test('T4 undeclared same-rig same-day second load still 409s (occupancy law intact)', async () => {
+  test('T4 undeclared same-rig same-day second load warns once, confirmed retry issues (card 181026145600)', async () => {
     const lot = await mkLot({ classification: 'SINGLE', code: '20DC', containers: 2 });
     const fleet = await mkFleet('40FT');
     await issue(lot.fulfillments[0], lot.shipment.id, fleet);
-    await expectIssue409(
-      lot.fulfillments[1], lot.shipment.id, fleet,
-      'Xe đầu kéo đã bị trùng lịch kế hoạch.',
-    );
+    const warning = 'Xe đầu kéo đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?';
+    await expectIssueWarnOnce(lot.fulfillments[1], lot.shipment.id, fleet, warning);
+    const confirmed = await issue(lot.fulfillments[1], lot.shipment.id, fleet, 0, true);
+    assert.ok(confirmed.trip.id > 0, 'the confirmed retry issues the second container');
   });
 
   test('T5 declared 40FT requirements still block on a 20FT rig (DOUBLE clamp, LCL_PICKUP shell)', async () => {
@@ -294,9 +316,9 @@ describe('dispatch issue trailer-compat — length floor (card 091026164500)', (
     const first = await issue(lot.fulfillments[0], lot.shipment.id, fleet);
     // FB-038 shape: the running trip was issued without an end time.
     await db.update(s.trips).set({ plannedEndAt: null }).where(eq(s.trips.id, first.trip.id));
-    await expectIssue409(
-      lot.fulfillments[1], lot.shipment.id, fleet,
-      'Xe đầu kéo đã bị trùng lịch kế hoạch.',
-    );
+    const warning = 'Xe đầu kéo đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?';
+    await expectIssueWarnOnce(lot.fulfillments[1], lot.shipment.id, fleet, warning);
+    const confirmed = await issue(lot.fulfillments[1], lot.shipment.id, fleet, 0, true);
+    assert.ok(confirmed.trip.id > 0, 'the confirmed retry issues onto the open-ended rig');
   });
 });

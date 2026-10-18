@@ -72,6 +72,14 @@ export async function assertResourceAvailability(tx: Tx, args: {
     classification: string;
     departureDate: string | null;
   } | null;
+  /**
+   * SPEC 18/10/2026 / card 181026145600 — the lot being issued. The plan-row
+   * guard has always warned (confirmable) when the only overlapping holder is
+   * another container of the SAME lot; this trip-side gate then hard-blocked
+   * the confirmed retry with "trùng lịch kế hoạch". Carrying the shipment id
+   * lets the same warning law apply here without weakening cross-lot blocks.
+   */
+  shipmentId?: number | null;
 }) {
   const predicates = [];
   if (args.truckId != null) predicates.push(eq(s.trips.truckId, args.truckId));
@@ -91,6 +99,7 @@ export async function assertResourceAvailability(tx: Tx, args: {
     trailerId: s.trips.trailerId,
     driverId: s.trips.driverId,
     plannedStartAt: s.trips.plannedStartAt,
+    shipmentId: s.shipmentFulfillments.shipmentId,
     classification: s.shipmentFulfillments.dispatchClassification,
     activePairId: s.trips.activeTripPairId,
     pairStatus: s.tripPairs.status,
@@ -198,6 +207,18 @@ export async function assertResourceAvailability(tx: Tx, args: {
       }
     }
   }
+  // Card 181026145600 (FB-012 regression) — the sibling-container case. The
+  // plan-row guard warns "đã được gán cho container khác của lô này … Vẫn
+  // lưu?" and accepts the confirmed retry; this gate then hard-blocked that
+  // retry. Split same-lot holders out: cross-lot holders keep the hard block,
+  // a same-lot holder warns once (RIG_OVERLAP_COMPLETED) and the confirmed
+  // retry proceeds. Without a shipment context nothing is carved out.
+  const sameLotBlocking = args.shipmentId == null
+    ? []
+    : blocking.filter((row) => row.shipmentId === args.shipmentId);
+  if (sameLotBlocking.length > 0) {
+    blocking = blocking.filter((row) => row.shipmentId !== args.shipmentId);
+  }
   if (blocking.some((row) => args.truckId != null && row.truckId === args.truckId)) {
     throw new ApiError(409, 'Xe đầu kéo đã bị trùng lịch kế hoạch.');
   }
@@ -206,6 +227,14 @@ export async function assertResourceAvailability(tx: Tx, args: {
   }
   if (blocking.some((row) => args.driverId != null && row.driverId === args.driverId)) {
     throw new ApiError(409, 'Tài xế đã bị trùng lịch kế hoạch.');
+  }
+  if (sameLotBlocking.length > 0 && args.rigOverlapCompletedConfirmed !== true) {
+    throw new ApiError(
+      409,
+      'Xe đầu kéo đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?',
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' },
+    );
   }
 
   // Card 061026172804 (FB-038 / REQ-04): a COMPLETED trip of the same rig no

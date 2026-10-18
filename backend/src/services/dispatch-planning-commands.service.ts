@@ -598,6 +598,7 @@ export async function issueOrderCreateOrUpdate(
       classification: fulfillment.dispatchClassification,
       departureDate: localDateInBusinessZone(plannedStartAt),
     },
+    shipmentId: shipment.id,
   });
 
   let trip = liveTrip;
