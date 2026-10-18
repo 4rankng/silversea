@@ -1,0 +1,29 @@
+$ npx tsx --test --test-concurrency=1 src/tests/cus-lot-flat-row.test.ts src/tests/cus-workboard-lcl-parity-365.test.ts src/tests/dispatch-plan-lcl-classification.test.ts
+▶ Card 161026232339 — the LCL lot flat row carries its billing facts
+  ✔ AC1: the chosen cước classes resolve to their vehicle_size_classes codes (130.997833ms)
+  ✔ AC2/AC5: BKS thực + BKS báo khách ride the lot row, absent values as null (99.737167ms)
+  ✔ AC3: the quick edit lands through updateLclGroupTruck and the next read returns it (94.304375ms)
+  ✔ AC4: FCL container rows keep their shape — same four keys, all null (75.398541ms)
+✔ Card 161026232339 — the LCL lot flat row carries its billing facts (443.3685ms)
+▶ Card 365 — LCL lot parity between Tổng quan and Chi tiết workboards
+  ✔ AC1/AC2: the same LCL lot shows on BOTH lists under equal filters, as a recognizable lot row (234.459375ms)
+  ✔ AC1: date filters agree — the lot appears on both lists on its EDD and leaves both off-day (272.797833ms)
+  ✔ AC3: FCL rows are unchanged — one row per container; container-less FCL stays off the workboard (218.851667ms)
+  ✔ legacy LCL lot WITH a container keeps exactly its container row — no extra lot row (85.14275ms)
+  ✔ informationStatus=MISSING keeps excluding LCL lot rows (the triage is FCL-container scoped) (51.789166ms)
+✔ Card 365 — LCL lot parity between Tổng quan and Chi tiết workboards (910.015709ms)
+▶ LCL classification contract (card 20261006_392)
+  ✔ setup: an LCL_SHIPMENT fulfillment (0.259958ms)
+  ✔ B1 LCL_PICKUP on an LCL row is refused with a 409 business message (9.470209ms)
+  ✔ B2 the row keeps its legal LCL classification after the refusal (0.579625ms)
+  ✔ B3 the legal LCL classification still saves (8.744583ms)
+✔ LCL classification contract (card 20261006_392) (35.977667ms)
+ℹ tests 13
+ℹ suites 3
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 33172.659666
+EXIT=0
