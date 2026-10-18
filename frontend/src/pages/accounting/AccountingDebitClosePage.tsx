@@ -9,8 +9,8 @@ import {
   createSettlementRound,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
 } from '../../api/accountingDebitClient';
-import { formatCurrency } from '../../lib/format';
 import { createDebitNoteBatch, exportDebitNoteFile } from '../../api/shipmentDebit';
+import { formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
@@ -43,7 +43,8 @@ export default function AccountingDebitClosePage() {
   const [truckFilter, setTruckFilter] = useState<string[]>([]);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [settlementOpen, setSettlementOpen] = useState(false);
-  const [exportingDebitNote, setExportingDebitNote] = useState(false);
+  // FB-094 (card 181026145620) — Xuất Debit Note over the selected rows.
+  const [exportingNote, setExportingNote] = useState(false);
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
@@ -190,42 +191,41 @@ export default function AccountingDebitClosePage() {
     sendMutation.mutate({ shipmentIds: selectedRows.map((row) => row.shipmentId) });
   }
 
-  function resetFacets() {
-    setCustomerFilter([]);
-    setTruckFilter([]);
-    selection.clear();
-  }
-
-  // Card 181026145620 (FB-094) — the accounting close screen had no way to
-  // download the Debit Note after a round was settled. Reuses the CUS export
-  // seam: ONE batched issue call for the selected lots (union document) plus
-  // the per-lot export mount. The idempotency key derives from the sorted
-  // selection, so a retry replays the same document instead of duplicating it.
-  async function exportSelectedDebitNotes() {
-    if (selectedRows.length === 0 || exportingDebitNote) return;
+  // FB-094 — Xuất Debit Note (theo dòng đang chọn): ONE issue call carries the
+  // whole selection (`POST /api/shipments/debit-notes`, stable Idempotency-Key
+  // so a re-click replays the same document) and the issued union document
+  // downloads through the per-lot export mount — the exact
+  // `ShipmentDebitPage.exportSelectedLockedLots` house flow. Server refusals
+  // surface verbatim in the message banner; no file is downloaded on error.
+  async function exportDebitNote() {
     const ids = selectedRows.map((row) => row.shipmentId);
-    setExportingDebitNote(true);
+    if (ids.length === 0 || exportingNote) return;
+    setExportingNote(true);
     try {
-      const selectionKey = `debit-note-${[...ids].sort((a, b) => a - b).join('-')}`;
+      const selectionKey = `debit-note-${[...ids].sort((x, y) => x - y).join('-')}`;
       const { id: documentId } = await createDebitNoteBatch(ids, selectionKey);
       const blob = await exportDebitNoteFile(ids[0], documentId);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `giay-bao-no-${selectedRows[0].billOrBooking || 'chua-xac-dinh'}.xlsx`;
+      anchor.download = `giay-bao-no-${selectedRows[0]?.billOrBooking || 'chua-xac-dinh'}.xlsx`;
       anchor.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      setMessage({ kind: 'ok', text: `Đã xuất Debit Note cho ${ids.length} lô.` });
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setMessage({ kind: 'ok', text: `Đã xuất Debit Note (${ids.length} lô).` });
     } catch (error) {
       setMessage({
         kind: 'err',
-        text: error instanceof Error && error.message
-          ? error.message
-          : 'Không xuất được Debit Note. Vui lòng thử lại.',
+        text: error instanceof Error && error.message ? error.message : 'Không xuất được Debit Note. Vui lòng thử lại.',
       });
     } finally {
-      setExportingDebitNote(false);
+      setExportingNote(false);
     }
+  }
+
+  function resetFacets() {
+    setCustomerFilter([]);
+    setTruckFilter([]);
+    selection.clear();
   }
 
   // Card 20261002_285 AC3: the badge counts CRITERIA, not selected values — it
@@ -266,21 +266,23 @@ export default function AccountingDebitClosePage() {
             </button>
             <button
               type="button"
-              className="btn btn--secondary"
-              disabled={selectedCount === 0 || exportingDebitNote}
-              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để xuất Debit Note' : undefined}
-              onClick={() => void exportSelectedDebitNotes()}
-            >
-              {exportingDebitNote ? 'Đang xuất…' : `Xuất Debit Note (${selectedCount})`}
-            </button>
-            <button
-              type="button"
               className="btn btn--primary"
               disabled={selectedCount === 0 || settlementMutation.isPending}
               title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để mở popup chốt đợt' : undefined}
               onClick={() => setSettlementOpen(true)}
             >
               {`Chọn Debit (${selectedCount} dòng)`}
+            </button>
+            {/* FB-094 — the missing last step of the chốt flow: issue + download
+                the Debit Note for the selected rows (theo dòng). */}
+            <button
+              type="button"
+              className="btn btn--secondary"
+              disabled={selectedCount === 0 || exportingNote}
+              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để xuất Debit Note' : undefined}
+              onClick={() => void exportDebitNote()}
+            >
+              {exportingNote ? 'Đang xuất…' : 'Xuất Debit Note'}
             </button>
           </>
         )}
