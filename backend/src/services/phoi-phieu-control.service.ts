@@ -6,12 +6,13 @@
  *  treasury movement against the chosen STK — the quỹ ledger adjusts through
  *  the existing engine (card 9 owns the nguồn-quỹ dimension on top). */
 import { createHash } from 'node:crypto';
-import { aliasedTable, and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, ne, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { aliasedTable, and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, ne, not, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import { operationalName } from '../db/master-data-name';
 import { billBookingTitle } from '../lib/business-keys';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import { qaFixtureDriverMarkerCondition, qaFixtureExternalCarrierMarkerCondition, qaFixturePartyMarkerCondition, qaFixtureShipmentMarkerCondition, qaFixtureSiteMarkerCondition, qaFixtureTruckMarkerCondition, qaFixtureTripMarkerCondition } from './qa-fixture-markers';
 import { assertDriverCostOnOwnCarrier } from './trip-carrier-scope';
 import type { AuthUser } from '../middleware/auth';
 import type { Executor, Tx } from './trip-shared';
@@ -129,6 +130,29 @@ export async function listPhoiPhieuRows(query: {
   if (query.dateFrom) tripConditions.push(gte(transportDate, query.dateFrom));
   if (query.dateTo) tripConditions.push(lte(transportDate, query.dateTo));
   if (query.status) tripConditions.push(eq(s.trips.status, query.status as TripStatus));
+  // FB-061 (card 141026012010): the QA-fixture data class must never reach a
+  // production-facing board. The purge registry removes those rows, but a QA
+  // lane that writes between deploys would re-surface them, which is exactly
+  // how this card kept re-verifying as FAIL. The marker signatures live in
+  // ONE owner (services/qa-fixture-markers.ts) shared with the purge, so the
+  // read filter and the purge cannot drift. NULL-safe by construction: each
+  // comparison reads coalesce(col, ''), so an absent optional column never
+  // turns the negation into NULL and silently drops a real row.
+  // Scope: the board only. The monthly money report (getPhoiPhieuReport) is
+  // an audit surface and deliberately keeps reporting its rows.
+  tripConditions.push(not(or(
+    qaFixtureShipmentMarkerCondition(),
+    qaFixtureTripMarkerCondition(),
+    qaFixtureExternalCarrierMarkerCondition(),
+    qaFixtureTruckMarkerCondition(),
+    qaFixtureDriverMarkerCondition(),
+    qaFixturePartyMarkerCondition(s.customers.name),
+    qaFixturePartyMarkerCondition(carrierCustomer.name),
+    qaFixturePartyMarkerCondition(carrierSupplier.name),
+    qaFixturePartyMarkerCondition(supplierCarrierCustomer.name),
+    qaFixtureSiteMarkerCondition(containerFactory),
+    qaFixtureSiteMarkerCondition(shipmentFactory),
+  )!));
   if (query.confirmation) tripConditions.push(or(
     exists(db.select({ id: s.expenseAccountingSources.id })
       .from(s.expenseAccountingSources)

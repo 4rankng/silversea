@@ -4,14 +4,17 @@
  * QA runs create fixture rows directly on staging and nothing purged them, so
  * QA-pattern strings surfaced on business pages. This registry is the single
  * source of truth for what counts as a QA fixture: the purge script executes
- * it, the census/dry-run reports it, and future QA recipes EXTEND it instead
- * of inventing new fixture patterns.
+ * it, the census/dry-run reports it, the production-facing board read filters
+ * on the SAME signatures (`services/qa-fixture-markers.ts`), and future QA
+ * recipes EXTEND it instead of inventing new fixture patterns.
  *
  * Ordering is children -> parents so lineage rows (expenses on QA shipments)
  * go before the parents they hang off. Every predicate is identifier-gated:
  * the QA-prefix class verified by enumeration (no real rows match; prod is
  * clean and refused outright by the executor).
  */
+
+import { qaDriverMarkerSql, qaExternalCarrierMarkerSql, qaFactoryNameMarkerSql, qaPartyMarkerSql, qaShipmentMarkerSql, qaSiteMarkerSql, qaTripMarkerSql, qaTruckMarkerSql } from '../services/qa-fixture-markers';
 
 export interface QaFixtureSurface {
   table: string;
@@ -25,16 +28,18 @@ export interface QaFixtureSurface {
   scrubColumns?: string[];
 }
 
-export const QA_SHIPMENT_FIELDS_SQL = `bl_number ILIKE 'QA%' OR booking_ref ILIKE 'QA%' OR shipment_code ILIKE 'QA%' OR bl_number ILIKE 'CARD226-QA-%' OR bl_number ILIKE 'BILL-QAC1%' OR operational_notes ILIKE 'QA-BUG3%' OR operational_notes ILIKE 'card226 advisory-lock probe%'
-  /* FB-061 (card 141026012010): the Kiểm soát phơi phiếu board showed
-     "BL-QAKE-<timestamp>" and "E2E-*" bills. Neither matches a QA% prefix —
-     the QA lanes name their lots by probe family — so the shipments soft
-     delete never reached them and the board (which filters on
-     shipments.deleted_at) kept rendering them. */
-  OR bl_number ILIKE 'BL-QAKE%' OR booking_ref ILIKE 'BL-QAKE%' OR shipment_code ILIKE 'BL-QAKE%'
-  OR bl_number ILIKE 'E2E-%' OR booking_ref ILIKE 'E2E-%' OR shipment_code ILIKE 'E2E-%'`;
-export const QA_SHIPMENTS_SQL = `shipment_id IN (SELECT id FROM shipments WHERE ${QA_SHIPMENT_FIELDS_SQL})`;
-const QA_TRIPS_SQL = `trip_id IN (SELECT t.id FROM trips t JOIN shipments s ON s.id = t.shipment_id WHERE s.bl_number ILIKE 'QA%' OR s.booking_ref ILIKE 'QA%' OR s.shipment_code ILIKE 'QA%' OR s.bl_number ILIKE 'CARD226-QA-%' OR s.bl_number ILIKE 'BILL-QAC1%' OR s.operational_notes ILIKE 'QA-BUG3%')`;
+/**
+ * FB-061 (card 141026012010): the marker signatures are owned ONCE by
+ * `services/qa-fixture-markers.ts`, which `listPhoiPhieuRows` also reads. The
+ * literals below used to be written out separately on each side and DRIFTED:
+ * `QA_TRIPS_SQL` still carried the pre-FB-061 shipment list, so the trips
+ * hanging off a `BL-QAKE-*` / `E2E-*` lot were never purged while their
+ * shipment was — a fixture class that survived every wave and re-verified the
+ * card as FAIL. Every predicate here is now generated from that owner.
+ */
+export const QA_SHIPMENT_FIELDS_SQL = qaShipmentMarkerSql();
+export const QA_SHIPMENTS_SQL = `shipment_id IN (SELECT id FROM shipments WHERE ${qaShipmentMarkerSql()})`;
+export const QA_TRIPS_SQL = `trip_id IN (SELECT t.id FROM trips t JOIN shipments s ON s.id = t.shipment_id WHERE ${qaShipmentMarkerSql('s.')} OR ${qaTripMarkerSql('t.')})`;
 
 /**
  * FB-061 (card 141026012010) — the board's three vehicle columns
@@ -49,9 +54,9 @@ const QA_TRIPS_SQL = `trip_id IN (SELECT t.id FROM trips t JOIN shipments s ON s
  * `Test Driver …`. Each branch is anchored on a QA token or a probe token —
  * no branch matches a real fleet number or a real driver's name.
  */
-export const QA_EXTERNAL_CARRIER_SQL = `external_plate_number ILIKE 'QA%' OR external_driver_name ILIKE 'QA%' OR external_plate_number ILIKE '99T-99999' OR external_plate_number ILIKE '51K-PROBE%' OR external_driver_name ILIKE 'Test Driver%'`;
-export const QA_TRUCK_SQL = `license_plate ILIKE 'QA%' OR license_plate ILIKE '99T-99999' OR license_plate ILIKE '51K-PROBE%' OR license_plate ~ '-[0-9]{10,13}$'`;
-export const QA_DRIVER_SQL = `name ILIKE 'QA%' OR name ILIKE 'Test Driver%' OR name ~ '-[0-9]{10,13}$'`;
+export const QA_EXTERNAL_CARRIER_SQL = qaExternalCarrierMarkerSql();
+export const QA_TRUCK_SQL = qaTruckMarkerSql();
+export const QA_DRIVER_SQL = qaDriverMarkerSql();
 
 export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
@@ -274,14 +279,14 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     // Customer" (matches QA%) and the probe carrier family "STG VERIFY …"
     // (does not). The customers join on the board filters deleted_at, so a
     // soft delete removes the name from every projection that uses it.
-    predicate: `name ILIKE 'QA%' OR name ILIKE 'STG VERIFY%'`,
+    predicate: qaPartyMarkerSql(),
     action: 'soft-delete',
     guards: [],
   },
   {
     table: 'suppliers',
     label: 'QA suppliers',
-    predicate: `name ILIKE 'QA%' OR name ILIKE 'STG VERIFY%'`,
+    predicate: qaPartyMarkerSql(),
     action: 'soft-delete',
     guards: [],
   },
@@ -384,7 +389,7 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   {
     table: 'trips',
     label: 'QA text fields on trips (references, notes, factory names)',
-    predicate: `customer_reference ILIKE 'QA%' OR notes ILIKE 'QA%' OR factory_site_address ILIKE 'QA%' OR factory_site_name ILIKE 'QA%' OR factory_site_name ILIKE 'KHO-SEAM%'`,
+    predicate: `customer_reference ILIKE 'QA%' OR notes ILIKE 'QA%' OR ${qaTripMarkerSql()}`,
     action: 'scrub',
     guards: [],
     scrubColumns: ['customer_reference', 'notes', 'factory_site_address', 'factory_site_name'],
@@ -402,7 +407,7 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     predicate: `operational_notes ILIKE 'QA%' OR customer_notes ILIKE 'QA%' OR factory_name ILIKE 'QA%' OR bl_number ILIKE 'FB08%RUNG%' OR factory_name ILIKE 'FB-0% rung%'
       /* FB-061 (card 141026012010): "KHO-SEAM-1789702634486" — a probe site
          name stamped with an epoch, shown as the board's Nhà máy. */
-      OR factory_name ILIKE 'KHO-SEAM%'`,
+      OR ${qaFactoryNameMarkerSql()}`,
     action: 'scrub',
     guards: [],
     scrubColumns: ['operational_notes', 'customer_notes', 'factory_name'],
@@ -450,7 +455,7 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     // probe site whose NAME reads like a real factory while its CODE carries
     // the probe token survived; and the card's visible value was a
     // name-stamped `KHO-SEAM-<epoch>` on both columns.
-    predicate: `name ILIKE 'QA%' OR short_name ILIKE 'QA%' OR code ILIKE 'QA%' OR name ILIKE 'KHO-SEAM%' OR short_name ILIKE 'KHO-SEAM%'`,
+    predicate: qaSiteMarkerSql(),
     action: 'scrub',
     guards: [],
     scrubColumns: ['name', 'short_name'],

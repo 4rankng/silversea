@@ -1,3 +1,60 @@
+# HANDOFF — 2026-10-18 — FB-061 (141026012010): board read no longer lists seed/test data
+
+Worktree-isolated branch `fix-fb061-phoi-seed-rb1` (salvage re-land of the
+dead `fix-fb061-phoi-seed` run's change set; original off main `09420a7f`,
+re-landed on `692522c1` with no backend drift between the two bases).
+
+**Goal**: `/accounting/phoi-phieu` listed seed/test rows (factory
+`KHO-SEAM-1789702634486`, carrier `STG VERIFY NHA XE 09`, customer
+`QA0915 QA-138 Credit Customer`, bills `BL-QAKE-*` / `E2E-*`, plates
+`99T-99999` / `51K-PROBE*`, driver `Test Driver R15`).
+
+**Root cause**: earlier rounds only controlled the WRITE side (demo seeders
+gated in production; a purge registry run by `make qapurge`). The
+production-facing READ, `listPhoiPhieuRows`, had no filter, so a fixture row
+written between purges rendered at once — which is why the card kept verifying
+FAIL. The two sides had also drifted (`QA_TRIPS_SQL` still used the pre-FB-061
+shipment list, so `BL-QAKE`/`E2E` shipments were purged but their trips were
+not).
+
+**Code**:
+- `backend/src/services/qa-fixture-markers.ts` (NEW) — the single owner of the
+  marker signatures, consumed by BOTH the board read and the purge registry.
+- `backend/src/services/phoi-phieu-control.service.ts` — `listPhoiPhieuRows`
+  excludes any row carrying a marker (shipment / factory / vehicle / driver /
+  party / site). `getPhoiPhieuReport` deliberately unchanged (audit surface).
+- `backend/src/seed/qa-fixture-registry.ts` — every FB-061 predicate is now
+  GENERATED from that owner; `QA_TRIPS_SQL` gained the missing bill families.
+- `backend/src/tests/phoi-phieu-fixture-marker-filter.test.ts` (NEW, 5 cases),
+  `backend/src/tests/unit/qa-fixture-marker-sql.test.ts` (NEW, 5 pins).
+- `backend/src/tests/phoi-phieu-control.test.ts` — grouping fixtures renamed
+  off the `QA%` plate signature (`QA-A-…` → `C16A-…`, `QA172A-…` →
+  `C172A-…`); the tested properties are unchanged.
+
+**Marker pattern list** (owner: `services/qa-fixture-markers.ts`):
+- shipment refs: `QA%`, `BL-QAKE%`, `E2E-%`, `CARD226-QA%`, `BILL-QAC1%`
+  (bl_number / booking_ref / shipment_code)
+- shipment notes: `QA-BUG3%`, `card226 advisory-lock probe%`
+- factory / operational sites (name, short_name, code, trip snapshot,
+  `shipments.factory_name`): `QA%`, `KHO-SEAM%`
+- plates (`trucks.license_plate`, `trip_carrier_info.external_plate_number`):
+  `QA%`, `99T-99999`, `51K-PROBE%`
+- people (`drivers.name`, `external_driver_name`): `QA%`, `Test Driver%`
+- parties (`customers.name`, `suppliers.name`): `QA%`, `STG VERIFY%`
+- run-scoped epoch signature on every one of the above: `-[0-9]{10,13}$`
+
+**Seed files changed**: no demo seeder authors these rows (verified by grep —
+`src/seed.ts` + `src/seed/*` carry no QA/probe names). The repeat source was
+self-authored QA fixtures plus the purge drift, so layer 2 is the registry
+rewiring above rather than a seed edit. `backend/src/reset-seed.ts` is a full
+wipe + canonical seed and is untouched by design.
+
+**Deliberate non-markers**: a bare `NHA XE` — the live roster has real carriers
+such as `CÔNG TY TNHH VẬN TẢI NHA XE BIEN BAC`, and the phrase would hide live
+payable rows. The fixture family is `STG VERIFY%`.
+
+---
+
 # HANDOFF — 2026-10-18 — fix-lcl-group-backend-rb1: review fixes cho LCL group backend (card 181026145000)
 
 Controller: omp agent (REDO of dead agent ee4560e8), worktree
