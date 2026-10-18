@@ -137,6 +137,9 @@ export async function getAccountingDebitBoard(query: {
   const lclGroupIds = [...new Set(lots.flatMap((lot) => [lot.costGroupId, lot.revGroupId]).filter((id): id is string => id != null))];
   const lclPrincipalRefs = new Map<string, string>();
   if (lclGroupIds.length > 0) {
+    // LIVE principals only: a soft-deleted lot keeps its group id (§4
+    // renumbering never strips the leaver), so a ghost order-1 row must
+    // never shadow the promoted principal (card 181026145000).
     const principals = await executor.select({
       costGroupId: s.shipments.costGroupId,
       revGroupId: s.shipments.revGroupId,
@@ -144,6 +147,7 @@ export async function getAccountingDebitBoard(query: {
       bookingRef: s.shipments.bookingRef,
     }).from(s.shipments)
       .where(and(
+        isNull(s.shipments.deletedAt),
         eq(s.shipments.costGroupOrder, 1),
         inArray(s.shipments.costGroupId, lclGroupIds),
       ));
@@ -153,6 +157,7 @@ export async function getAccountingDebitBoard(query: {
       bookingRef: s.shipments.bookingRef,
     }).from(s.shipments)
       .where(and(
+        isNull(s.shipments.deletedAt),
         eq(s.shipments.revGroupOrder, 1),
         inArray(s.shipments.revGroupId, lclGroupIds),
       ));
