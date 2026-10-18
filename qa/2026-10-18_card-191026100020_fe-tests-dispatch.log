@@ -1,0 +1,11 @@
+$ npx vitest run <dispatch lcl suites>
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-hoan-thien-v2/frontend
+
+
+ Test Files  5 passed (5)
+      Tests  43 passed (43)
+   Start at  23:00:19
+   Duration  3.40s (transform 2.42s, setup 847ms, import 6.51s, tests 1.89s, environment 2.64s)
+
+EXIT=0

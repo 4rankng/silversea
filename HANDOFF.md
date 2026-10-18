@@ -1,3 +1,32 @@
+# HANDOFF — 2026-10-18 — card 191026100020: LCL hoàn thiện — xác minh 10 work items = ĐÃ CÓ trên main
+
+Worktree `fix-lcl-hoan-thien-v2` (= origin/main `20d4cb27`, 0 lệch).
+
+**Goal**: brief card 191026100020 liệt kê 10 work items (DM trọng tải/bảng
+giá, fix "Chưa có cont", CONTAINER 3 dòng, tag Ghép, ghép cước thu khách,
+PHÂN XE 2 dòng, kế toán chốt debit, edge hủy ghép/xóa Lô 1, debit note BKS
+ảo, form LCL D.1–D.6).
+
+**Status: DONE — KHÔNG có gap code.** Cả 10 items đã được hiện thực + test
+pin trên main bởi các wave trước (FB-090…FB-095, 181026143000, 181026145000
+(+rb1), 181026185900 A/B/D, card 365 (D.6), 191026100000). Biên bản
+per-item (code refs + test pin + qa logs):
+`testplan/2026-10-18-card-191026100020-lcl-hoan-thien-verification.md`.
+
+**Gates**: BE/FE tsc 0 error; 337 scoped tests pass 0 fail (BE 125, FE 212)
+— logs `qa/2026-10-18_card-191026100020_*.log` (force-tracked).
+
+**Không covered**: UI drive lại trên commit này (không sửa code → không có
+control thay đổi; claim rung-3 của các luồng thuộc card trước, artifacts
+`qa/2026-10-16_lcl-loop_ui-driver.log`, `b03af5a9`, `a6e4d924`).
+
+**Lưu ý cho agent sau**: branch `origin/fix/lcl-spec-gaps` (5 commit, chậm
+270) là stale — nội dung 3 fix của nó đã có trên main phong phú hơn; KHÔNG
+merge nếu không có chỉ định. Brief nhắc branch `fix-lcl-hoan-thien` không
+tồn tại trên origin.
+
+---
+
 # HANDOFF — 2026-10-18 — FB-061 (141026012010): board read no longer lists seed/test data
 
 Worktree-isolated branch `fix-fb061-phoi-seed-rb1` (salvage re-land of the
