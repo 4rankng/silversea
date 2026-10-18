@@ -1975,8 +1975,9 @@ describe('dispatch fulfillment workflow routes', () => {
     // with "Bổ sung sau" (no plate), attached the plate afterwards through
     // the reassign flow — the documented 20261004_359 route — and the grid's
     // "Hoàn thành" confirm never completed the trip. This test pins the full
-    // chain at HEAD: plateless issue → reassign attaches the plate → staff
-    // close must land the trip at COMPLETED (not 409/403/hang).
+    // chain at HEAD: warn-once plateless issue (card B.2) → confirmed issue
+    // with null plate → reassign attaches the plate → staff close must land
+    // the trip at COMPLETED (not 409/403/hang).
     const accepted = await createAcceptedFulfillment();
     const externalCarrier = await createCustomer(`External carrier fb018 ${suffix}-${createdCustomerIds.length}`);
     // FB-018's 500: the carrier carries a linked_supplier_id whose supplier
@@ -1997,22 +1998,36 @@ describe('dispatch fulfillment workflow routes', () => {
     }).where(eq(s.shipmentFulfillments.id, accepted.fulfillmentId));
 
     // Issue WITHOUT a carrier vehicle and WITHOUT a plate ("Bổ sung sau").
-    const dispatch = await apiFetch<{ trip: { id: number; version: number } }>(
+    // Card B 18/10 (B.2): the allowance never passes silently — the first
+    // attempt is refused once with PLATE_DEFERRED_CONFIRM and the confirmed
+    // retry (plateDeferredConfirmed: true) issues with a null plate.
+    const deferredAttemptBody = {
+      fulfillmentId: accepted.fulfillmentId,
+      expectedVersion: accepted.fulfillmentVersion,
+      plannedStartAt: '2026-08-07T08:00:00+07:00',
+      plannedEndAt: '2026-08-07T12:00:00+07:00',
+      endTimeConfirmed: true,
+      carrierType: 'EXTERNAL',
+      externalCarrierId: externalCarrier.id,
+    };
+    const deferredAttempt = await apiFetch<{ error?: string; code?: string }>(
+      `/${accepted.shipmentId}/dispatch`,
+      { method: 'POST', token: managerToken, body: deferredAttemptBody },
+    );
+    assert.equal(deferredAttempt.status, 409, JSON.stringify(deferredAttempt.data));
+    assert.equal(deferredAttempt.data.code, 'PLATE_DEFERRED_CONFIRM');
+    assert.match(String(deferredAttempt.data.error), /Vẫn phát lệnh\?/);
+    // The confirmed retry reuses the same expectedVersion — proof the warn-once
+    // attempt left the fulfillment (and no trip) untouched.
+    const dispatch = await apiFetch<{ trip: { id: number; version: number; externalPlateNumber: string | null } }>(
       `/${accepted.shipmentId}/dispatch`,
       {
         method: 'POST', token: managerToken,
-        body: {
-          fulfillmentId: accepted.fulfillmentId,
-          expectedVersion: accepted.fulfillmentVersion,
-          plannedStartAt: '2026-08-07T08:00:00+07:00',
-          plannedEndAt: '2026-08-07T12:00:00+07:00',
-          endTimeConfirmed: true,
-          carrierType: 'EXTERNAL',
-          externalCarrierId: externalCarrier.id,
-        },
+        body: { ...deferredAttemptBody, plateDeferredConfirmed: true },
       },
     );
     assert.equal(dispatch.status, 201, JSON.stringify(dispatch.data));
+    assert.equal(dispatch.data.trip.externalPlateNumber, null, 'deferred issue ships with no plate');
     createdTripIds.push(dispatch.data.trip.id);
     const tripId = dispatch.data.trip.id;
 

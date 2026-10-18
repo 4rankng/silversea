@@ -11,6 +11,7 @@ import { insertTripComposite } from '../services/trip-composite.service';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import salaryRoutes from '../routes/salary';
 import { confirmSalary } from '../services/attendance.service';
+import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
 import {
   createSalaryPeriodExclusion,
   getSalaryPeriodReadiness,
@@ -31,6 +32,14 @@ const closePeriods = new Set<string>();
 let failpointCounter = 0;
 let server: http.Server;
 let baseUrl = '';
+// Readiness walks every active driver in scope. Company scope sweeps the whole
+// shared dev DB (thousands of accumulated drivers), so the close test spent
+// its time excluding unrelated rows and any concurrent writer could flip a
+// driver between the snapshot and the close — a 409 the file cannot control.
+// Scoping the walk to this file's own payroll unit keeps the governed
+// close/reopen contract under test while the driver population stays hers.
+let originalAppSettings: Awaited<ReturnType<typeof getAppSettings>> | null = null;
+let payrollUnitId: number | null = null;
 
 async function mkUser(role: Role, tag: string) {
   const [user] = await db.insert(s.users).values({
@@ -52,6 +61,12 @@ async function mkDriver(tag: string) {
     baseSalary: '12000000',
   }).returning();
   createdDriverIds.push(driver.id);
+  if (payrollUnitId != null) {
+    await db.insert(s.userBusinessUnitLinks).values({
+      userId: user.id,
+      businessUnitId: payrollUnitId,
+    });
+  }
   return driver;
 }
 
@@ -201,6 +216,23 @@ before(async () => {
   server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/salary`;
+
+  originalAppSettings = await getAppSettings();
+  const [unit] = await db.insert(s.businessUnits).values({
+    code: `Q15R-${suffix}`.slice(0, 50),
+    name: `Đơn vị tính lương Q15 route ${suffix}`,
+    status: 'ACTIVE',
+  }).returning();
+  payrollUnitId = unit.id;
+  // The settings save validates that the payroll unit has at least one active
+  // driver, so the anchor exists before the unit goes live. Its pending
+  // readiness is handled by the close test's own exclusion loop — the unit
+  // never contains a foreign driver.
+  await mkDriver('anchor');
+  await saveAppSettings({
+    ...originalAppSettings,
+    salaryPayrollBusinessUnitId: unit.id,
+  });
 });
 
 after(async () => {
@@ -208,6 +240,22 @@ after(async () => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
+  // Restore the shared payroll-unit setting before any other teardown so a
+  // later delete failure can never leave the whole dev DB scoped to this
+  // file's unit.
+  if (originalAppSettings) {
+    try {
+      await saveAppSettings(originalAppSettings);
+    } catch (restoreError) {
+      console.warn('[q15-salary-period-routes.test] settings restore skipped:',
+        (restoreError as Error).message);
+    }
+  }
+  if (payrollUnitId != null) {
+    await db.delete(s.userBusinessUnitLinks).where(eq(s.userBusinessUnitLinks.businessUnitId, payrollUnitId));
+    await db.delete(s.businessUnits).where(eq(s.businessUnits.id, payrollUnitId));
+    payrollUnitId = null;
+  }
   if (createdUserIds.length > 0) {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
   }
@@ -308,7 +356,7 @@ describe('Q15 salary-period governed routes', () => {
       checker,
       closeRequestKey,
     );
-    assert.equal(requested.status, 201);
+    assert.equal(requested.status, 201, JSON.stringify(requested.body));
     assert.equal(requested.body.status, 'APPROVED');
     closePeriods.add(period);
 

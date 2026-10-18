@@ -74,8 +74,11 @@ async function mkSupplier(label: string) {
 }
 
 async function mkTruck(label: string) {
+  // The random tail of the suffix must survive the 20-char plate budget:
+  // slicing the head keeps only a timestamp prefix, and two suite runs inside
+  // the same few-hour window then collide on trucks_license_plate_unique.
   const [row] = await db.insert(s.trucks).values({
-    licensePlate: `Q20-${label}-${suffix}`.slice(0, 20),
+    licensePlate: `Q20-${suffix.slice(-6)}-${label}`.slice(0, 20),
     status: 'ACTIVE',
   }).returning();
   createdTruckIds.push(row.id);
@@ -295,12 +298,29 @@ describe('Q20 official reporting period attribution', () => {
 
     const previousMonthPnl = await getPnlReport(previousMonth, previousYear);
     const currentMonthPnl = await getPnlReport(currentMonth, currentYear);
-    const dashboardAfter = await getDashboardStats();
+    // The dashboard aggregate and the live truck count are two separate reads
+    // on a shared mutable table: a concurrent writer adding trucks between
+    // them must not fail the decoding pin. Re-sample until the live count is
+    // stable across two reads; a genuinely broken grouped-count decode then
+    // still fails against a proven-stable fleet.
+    const liveFleetTotal = async () => {
+      const [row] = await db.select({ total: count() }).from(s.trucks).where(isNull(s.trucks.deletedAt));
+      return row.total;
+    };
+    let stableFleetTotal = await liveFleetTotal();
+    assert.ok(stableFleetTotal > 0, 'the real reporting truck fixture makes fleet-count decoding observable');
+    let dashboardAfter = await getDashboardStats();
+    for (let sample = 0; sample < 4 && dashboardAfter.totalTrucks !== stableFleetTotal; sample += 1) {
+      const recount = await liveFleetTotal();
+      const fleetStable = recount === stableFleetTotal;
+      stableFleetTotal = recount;
+      if (fleetStable) break;
+      await invalidateReportCaches();
+      dashboardAfter = await getDashboardStats();
+    }
     assert.equal(dashboardAfter.executive, undefined, 'base dashboard consumers must not load executive-only aggregates');
-    const [liveFleet] = await db.select({ total: count() }).from(s.trucks).where(isNull(s.trucks.deletedAt));
-    assert.ok(liveFleet.total > 0, 'the real reporting truck fixture makes fleet-count decoding observable');
     assert.equal(typeof dashboardAfter.totalTrucks, 'number', 'PostgreSQL grouped counts must be decoded before addition');
-    assert.equal(dashboardAfter.totalTrucks, liveFleet.total, 'dashboard total must equal the independently decoded live truck count');
+    assert.equal(dashboardAfter.totalTrucks, stableFleetTotal, 'dashboard total must equal the independently decoded live truck count');
     assert.ok(Object.values(dashboardAfter.fleetStatus).every(value => typeof value === 'number'));
     assert.equal(dashboardAfter.totalTrucks, Object.values(dashboardAfter.fleetStatus).reduce((sum, value) => sum + Number(value), 0));
     assert.equal(typeof dashboardAfter.totalDrivers, 'number');
