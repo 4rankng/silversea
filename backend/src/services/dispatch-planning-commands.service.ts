@@ -76,6 +76,15 @@ export interface IssueFulfillmentDispatchOrderInput {
    * issuance keeps blocking every non-CREATED live trip.
    */
   allowUnacknowledgedDeparture?: boolean;
+  /**
+   * FB-081 (card 181026003045) — reassign-only. The corrected trip's frozen
+   * route snapshot: a Kẹp (DOUBLE) lot carries its tuyến only on the trip
+   * (trips.route_id NOT NULL) while the mutable lot-level shipment/container
+   * route_id stay NULL, so the route guard falls back to this id (still
+   * re-validated against live routes) instead of false-409ing. The issue
+   * path leaves it unset so first-time issuance keeps its exact contract.
+   */
+  routeIdFallback?: number | null;
   plannedStartAt: string;
   plannedEndAt: string;
   endTimeConfirmed: boolean;
@@ -313,10 +322,14 @@ export async function issueOrderCreateOrUpdate(
   const canonicalLocations = containerRoute
     ? canonicalLocationsFromContainerRow(containerRoute)
     : { origin: null, destination: null };
-  // FCL route falls back container -> shipment (mirroring detail plan and CUS workspace)
+  // FCL route falls back container -> shipment (mirroring detail plan and CUS
+  // workspace). FB-081 (card 181026003045): the governed reassign passes the
+  // corrected trip's route snapshot as routeIdFallback — a Kẹp lot's mutable
+  // lot-level route_id can be NULL while trips.route_id carries the tuyến —
+  // and the lookup below re-validates the fallback against deleted_at.
   const effectiveRouteId = fulfillment.cargoMode === CARGO_MODE.FCL
-    ? (containerRoute?.routeId ?? shipment.routeId ?? null)
-    : shipment.routeId;
+    ? (containerRoute?.routeId ?? shipment.routeId ?? input.routeIdFallback ?? null)
+    : (shipment.routeId ?? input.routeIdFallback ?? null);
   const [route] = effectiveRouteId == null
     ? []
     : await tx.select({ distanceKm: s.routes.distanceKm })
@@ -945,7 +958,26 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
  */
 
 export async function reassignIssuedDispatchWriteCommand(input: IssueFulfillmentDispatchOrderInput) {
-  return issueFulfillmentDispatchOrder({ ...input, allowUnacknowledgedDeparture: true });
+  // FB-081 (card 181026003045): the corrected trip is the reassign's route
+  // authority — a Kẹp (DOUBLE) lot keeps its tuyến ONLY on trips.route_id
+  // while the mutable lot-level shipment/container route_id stay NULL. The
+  // command resolves the snapshot itself so every caller gets the fallback
+  // (the guard re-validates it against live routes); first-issue never goes
+  // through this wrapper, so its contract is untouched.
+  const [trip] = await db.select({ routeId: s.trips.routeId })
+    .from(s.trips)
+    .where(and(
+      eq(s.trips.fulfillmentId, input.fulfillmentId),
+      eq(s.trips.shipmentId, input.shipmentId),
+      ne(s.trips.status, TripStatus.CANCELED),
+      isNull(s.trips.deletedAt),
+    ))
+    .limit(1);
+  return issueFulfillmentDispatchOrder({
+    ...input,
+    allowUnacknowledgedDeparture: true,
+    routeIdFallback: trip?.routeId ?? input.routeIdFallback ?? null,
+  });
 }
 
 // ─── Dispatch detail plan grid ("Kế hoạch Chi tiết Xe") ─────────────────────

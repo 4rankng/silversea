@@ -509,6 +509,84 @@ describe('FB-081 — governed write (reassignIssuedDispatchWriteCommand) moves t
   });
 });
 
+// ─── Route fallback — the QA shape: Kẹp lot whose route lives ONLY on the trip ──
+// Staging B2QA-KEP-01/02 (FB-081 reopen): the pair's tuyến lives on
+// trips.route_id (stamped at issue) while the lot's mutable
+// shipment.route_id / container route_id stay NULL — the governed reassign
+// must fall back to the trip's frozen snapshot instead of false-409ing
+// "Container chưa có tuyến đường hợp lệ." (179bb9ab landed the payload half
+// only and was reverted; this re-lands it completely inside the command).
+
+describe('FB-081 route fallback — governed reassign when the lot-level route is NULL', () => {
+  test('R6 driver change succeeds when lot-level route is NULL but the trip carries one', async () => {
+    const fx = await mkGovernedPairFixture(12);
+    // Strip the mutable lot-level route state to the exact staging shape.
+    await db.update(s.shipments).set({ routeId: null }).where(eq(s.shipments.id, fx.leg1.shipment.id));
+    await db.update(s.shipmentContainers).set({ routeId: null })
+      .where(eq(s.shipmentContainers.shipmentId, fx.leg1.shipment.id));
+    const [freshFf] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fx.leg1.fulfillment.id)).limit(1);
+    const [freshTrip] = await db.select({ version: s.trips.version, routeId: s.trips.routeId })
+      .from(s.trips).where(eq(s.trips.id, fx.leg1.outcome.trip.id)).limit(1);
+    assert.ok(freshTrip.routeId != null, 'precondition: the trip itself carries the tuyến');
+    await db.transaction((_tx) => reassignIssuedDispatchWriteCommand({
+      shipmentId: fx.leg1.shipment.id,
+      fulfillmentId: fx.leg1.fulfillment.id,
+      expectedVersion: freshFf.version,
+      expectedTripVersion: freshTrip.version,
+      plannedStartAt: `${fx.w.day}T08:00:00+07:00`,
+      plannedEndAt: `${fx.w.day}T18:00:00+07:00`,
+      endTimeConfirmed: true,
+      carrierType: 'OWN',
+      truckId: fx.rigA.truck.id,
+      driverId: fx.d2.id,
+      idempotencyKey: `kp81g-r6-${suffix}`,
+      actor: fx.actor,
+    }));
+    const leg1 = await tripRow(fx.leg1.outcome.trip.id);
+    assert.equal(leg1.driverId, fx.d2.id, 'R6: the reassign must save, not false-409');
+  });
+
+  test('R7 a trip route that no longer resolves still 409s (fallback must re-validate)', async () => {
+    const fx = await mkGovernedPairFixture(13);
+    const [deadRoute] = await db.insert(s.routes).values({
+      name: `KP81G dead ${suffix}-${ids.routes.length}`, deletedAt: new Date(),
+    }).returning();
+    ids.routes.push(deadRoute.id);
+    await db.update(s.shipments).set({ routeId: null }).where(eq(s.shipments.id, fx.leg1.shipment.id));
+    await db.update(s.shipmentContainers).set({ routeId: null })
+      .where(eq(s.shipmentContainers.shipmentId, fx.leg1.shipment.id));
+    await db.update(s.trips).set({ routeId: deadRoute.id }).where(eq(s.trips.id, fx.leg1.outcome.trip.id));
+    const [freshFf] = await db.select().from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.id, fx.leg1.fulfillment.id)).limit(1);
+    const [freshTrip] = await db.select({ version: s.trips.version }).from(s.trips)
+      .where(eq(s.trips.id, fx.leg1.outcome.trip.id)).limit(1);
+    await assert.rejects(
+      () => db.transaction((_tx) => reassignIssuedDispatchWriteCommand({
+        shipmentId: fx.leg1.shipment.id,
+        fulfillmentId: fx.leg1.fulfillment.id,
+        expectedVersion: freshFf.version,
+        expectedTripVersion: freshTrip.version,
+        plannedStartAt: `${fx.w.day}T08:00:00+07:00`,
+        plannedEndAt: `${fx.w.day}T18:00:00+07:00`,
+        endTimeConfirmed: true,
+        carrierType: 'OWN',
+        truckId: fx.rigA.truck.id,
+        driverId: fx.d2.id,
+        idempotencyKey: `kp81g-r7-${suffix}`,
+        actor: fx.actor,
+      })),
+      (error: unknown) => {
+        assert.ok(error instanceof ApiError);
+        assert.equal(error.statusCode, 409);
+        assert.match(error.message, /tuyến đường/);
+        return true;
+      },
+      'R7: a deleted trip route must keep blocking',
+    );
+  });
+});
+
 // ─── R4 — plan-save path: dispatched KEP row vs its dispatched partner ───────
 
 type PlanFixture = {
