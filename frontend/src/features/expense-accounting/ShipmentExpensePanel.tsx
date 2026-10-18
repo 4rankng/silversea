@@ -10,7 +10,7 @@ import { ExpenseEntryDrawer } from './ExpenseEntryDrawer';
 import { ExpenseRegisterRows } from './ExpenseRegisterRows';
 import './ExpenseAccounting.css';
 
-export function ShipmentExpensePanel({ shipmentId, shipmentCode = null, readOnly = false, chargeOnly = true }: { shipmentId: number; shipmentCode?: string | null; readOnly?: boolean; chargeOnly?: boolean }) {
+export function ShipmentExpensePanel({ shipmentId, shipmentCode = null, readOnly = false, chargeOnly = true, carrier }: { shipmentId: number; shipmentCode?: string | null; readOnly?: boolean; chargeOnly?: boolean; carrier?: { supplierId: number | null; name: string | null } }) {
   const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [entry, setEntry] = useState<ExpenseAccountingEntry | null>(null);
@@ -31,7 +31,7 @@ export function ShipmentExpensePanel({ shipmentId, shipmentCode = null, readOnly
       <Pagination page={page} totalPages={Math.ceil(query.data.total / filters.limit)} totalItems={query.data.total} pageSize={filters.limit} onChange={setPage} disabled={query.isFetching} />
     </>}
     {creating && !catalog.data && <p role="status">Đang tải danh mục khoản chi…</p>}
-    {creating && catalog.data && <ExpenseCreateDrawer work={{ tripId: null, shipmentId, shipmentCode, containerNumber: null }} entryScope={user?.role === Role.OPS ? 'OPS' : undefined} catalog={catalog.data} onClose={() => setCreating(false)} onSaved={() => void query.refetch()} />}
+    {creating && catalog.data && <ExpenseCreateDrawer work={{ tripId: null, shipmentId, shipmentCode, containerNumber: null }} entryScope={user?.role === Role.OPS ? 'OPS' : undefined} catalog={catalog.data} carrier={carrier} onClose={() => setCreating(false)} onSaved={() => void query.refetch()} />}
     {entry && <ExpenseEntryDrawer entry={readOnly ? { ...entry, locked: true } : entry} staff={[]} chargeOnly={chargeOnly} onClose={() => setEntry(null)} />}
   </section>;
 }

@@ -435,7 +435,14 @@ export default function ShipmentDetailPage() {
             the expense panel (with "+ Thêm khoản chi") mounts for OPS too, the
             finance-only ShipmentFinancePanel keeps its original role set. */}
         {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.OPS].includes(user?.role as Role) && (
-          <ShipmentExpensePanel shipmentId={shipment.id} shipmentCode={shipmentLabel} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS} />
+          <ShipmentExpensePanel shipmentId={shipment.id} shipmentCode={shipmentLabel} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS}
+            carrier={(() => {
+              // chiphispec QA 181026183500 — "Nhà cung cấp" defaults to the
+              // route's truck: the lot's first EXTERNAL carrier assignment
+              // (drawer matches by supplierId, falls back by name).
+              const external = data.carrierAssignments.find(a => a.carrierType === 'EXTERNAL' && (a.externalCarrierId != null || a.externalCarrierName));
+              return external ? { supplierId: external.externalCarrierId, name: external.externalCarrierName } : undefined;
+            })()} />
         )}
         {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS].includes(user?.role as Role) && (
           <ShipmentFinancePanel shipmentId={shipment.id} accountingLocked={Boolean(accountingLock)} />
