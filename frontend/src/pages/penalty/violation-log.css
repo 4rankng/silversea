@@ -302,11 +302,13 @@
   color: var(--ink);
 }
 
+/* The unit span carries its own leading space (card 181026145630: the house
+   money law is digits, space, unit in the RENDERED TEXT, not a CSS gap).
+   A margin here would double the optical gap. */
 .penalty-streak-num .unit {
   font-size: var(--fs-2xs);
   color: var(--ink-3);
   font-weight: 500;
-  margin-left: 3px;
 }
 
 .penalty-streak-bar {
@@ -384,11 +386,12 @@
   font-weight: 500;
 }
 
+/* Leading space lives in the markup (card 181026145630), same as
+   .penalty-streak-num .unit above. */
 .penalty-money .unit {
   font-size: var(--fs-2xs);
   color: var(--ink-3);
   font-weight: 500;
-  margin-left: 3px;
 }
 
 /* ─── Grade pill ─── */

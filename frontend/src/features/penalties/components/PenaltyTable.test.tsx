@@ -259,6 +259,49 @@ describe('PenaltyTable', () => {
     expect(onResetFilters).toHaveBeenCalledTimes(1);
   });
 
+  it('FB-049 / card 181026145630: no number is glued to its unit anywhere on /penalties', () => {
+    renderTable({ rows: [], total: 0, insights: insights() });
+
+    // Every value cell that pairs a number with a unit, on every surface the
+    // page renders (desktop table, both table foots, the empty-state stats).
+    const cells = [
+      ...document.querySelectorAll<HTMLElement>('.penalty-streak-num, .penalty-money, .penalty-foot-value, .penalty-empty-stat .val'),
+    ];
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) {
+      const text = (cell.textContent || '').replace(/\s+/g, ' ');
+      // A digit followed directly by a letter — "44ngày", "0đ" — is the exact
+      // regression QA reported; the house law is digits, space, unit.
+      expect(text, `glued number+unit in ${cell.className}: "${text}"`).not.toMatch(/\d\p{L}/u);
+    }
+
+    // Spot-check the strings QA pasted, so a fix cannot pass by trimming text.
+    expect(document.querySelector('.penalty-streak-num')?.textContent).toMatch(/^210 ngày$/);
+    expect(document.body.textContent).toContain('103 ngày');
+    expect(document.body.textContent).toContain('2 lái xe đạt mốc 90 ngày');
+    expect(document.querySelector('.penalty-empty-stat .val')?.textContent).toMatch(/^210 ngày$/);
+  });
+
+  it('FB-049: the phone scoreboard cards carry the same digit-space-unit text', () => {
+    renderTable({ insights: insights() });
+
+    fireEvent.click(screen.getByRole('button', { name: /Bảng xếp hạng lái xe/ }));
+
+    const streaks = [...document.querySelectorAll<HTMLElement>('.penalty-m-card .mm .val')];
+    expect(streaks.length).toBeGreaterThan(0);
+    for (const cell of streaks) {
+      expect((cell.textContent || '').replace(/\s+/g, ' ').trim(), cell.textContent || '').not.toMatch(/\d\p{L}/u);
+    }
+    const streakVals = [...document.querySelectorAll<HTMLElement>('.penalty-m-card .mm')]
+      .filter((mm) => mm.querySelector('.lab')?.textContent === 'Chuỗi an toàn')
+      .map((mm) => (mm.querySelector('.val')?.textContent || '').trim());
+    expect(streakVals).toHaveLength(3);
+    for (const v of streakVals) expect(v).toMatch(/^\d+ ngày$/);
+    const legend = document.querySelector('.mobile-only > .penalty-table-foot .legend')?.textContent || '';
+    expect(legend).toContain('103 ngày');
+    expect(legend).toMatch(/2 đạt 90 ngày/);
+  });
+
   it('shows the empty state with server YTD figures when the page has no rows', () => {
     renderTable({ rows: [], total: 0, insights: insights() });
 
