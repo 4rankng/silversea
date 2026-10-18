@@ -154,4 +154,16 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
+  // Card 181026143000 §1c: "+ Thêm kho" is the shared dashed utility button —
+  // no page-local inline palette (the old copy carried a blue #2563eb token
+  // fallback). One pattern, one class, like the "+ Thêm nhà máy" sibling.
+  it('renders "+ Thêm kho" through the shared dashed utility button', async () => {
+    await enterLclWithCatalogCustomer();
+
+    const themKho = screen.getByRole('button', { name: 'Thêm kho' });
+    expect(themKho.className).toContain('csc-utility-button--dashed');
+    const themNhaMay = screen.getByRole('button', { name: 'Thêm nhà máy' });
+    expect(themNhaMay.className).toBe(themKho.className);
+    expect(themKho.getAttribute('style')).toBe('align-self: start;');
+  });
 });

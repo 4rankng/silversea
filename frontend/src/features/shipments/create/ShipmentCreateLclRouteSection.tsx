@@ -240,22 +240,14 @@ export function ShipmentCreateLclRouteSection({
               type="button"
               onClick={() => openCreateSiteDialog('WAREHOUSE')}
               disabled={saving}
-              style={{
-                alignSelf: 'start',
-                minHeight: 'var(--control-touch-h)',
-                padding: '0 14px',
-                border: '1px dashed var(--border-2)',
-                borderRadius: 8,
-                background: 'transparent',
-                color: 'var(--accent-ink, #00361B)',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer',
-              }}
+              // Card 181026143000 §1c: the SAME shared dashed utility button
+              // as the sibling "+ Thêm nhà máy" — one pattern, one class. The
+              // old inline palette (incl. a blue #2563eb fallback) is gone;
+              // alignment is the only button-local concern.
+              className="csc-utility-button csc-utility-button--dashed"
+              style={{ alignSelf: 'start' }}
             >
-              <Plus size={15} aria-hidden="true" style={{ color: 'var(--accent, #2563eb)' }} />Thêm kho
+              <Plus size={15} aria-hidden="true" />Thêm kho
             </button>
           ) : null}
         </div>
