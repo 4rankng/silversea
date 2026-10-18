@@ -27,6 +27,9 @@ Yêu cầu chủ lô (nguyên văn card):
   cho phần sync.
 
 ## Luật mới theo card này (thay luật cũ card 261013200312 / FB-085)
+→ **THU HẸP bởi Amendment 2026-10-18 ở cuối file** (chỉ cont còn trống nhận
+auto-copy; cont đã có số không bị ghi đè) — đoạn dưới mô tả luật 171026180010
+nguyên bản, không còn hiệu lực toàn phần.
 
 - CŨ: auto-copy CHỈ khi nhập số ĐẦU TIÊN của lô và mọi cont khác còn trống;
   divergence cố ý giữ nguyên; FE tự gọi copy-declaration sau khi lưu.
@@ -50,6 +53,11 @@ Kỳ vọng: lưu thành công; DB giữ số sau reload; bộ fulfillment đư�
 Pin: FB-110 R1, R3.
 
 ## Case ID: TC-TOKHAI-SYNC-02 — cập nhật 1 cont → sync các cont còn lại
+→ **THU HẸP bởi Amendment 2026-10-18**: kỳ vọng dưới đây (ghi đè MỌI cont
+kể cả số cũ khác + toast "đồng bộ") KHÔNG còn hiệu lực — luật hiện hành chỉ
+auto-copy sang cont CÒN TRỐNG, không toast khi không có cont trống nào được
+ghi. Dẫn chứng hiện hành: `2026-10-18-card-fb109-to-khai-auto-copy.md`
+(FB-109-02), pin SYNC-02 + FB-109 R4.
 
 Tiền điều kiện: lô FCL ≥ 2 cont, các cont ĐÃ có số (trùng hoặc lệch nhau).
 
@@ -87,3 +95,20 @@ Pin: FB-110 R3, LCL guard.
 ## Kết quả chạy
 
 (xem `qa/2026-10-17_tokhai_*`)
+
+## Amendment 2026-10-18 — FB-109 (card 171026122100) thu hẹp luật sync
+
+Phúc trình FB-109 ngày 18-10 xác nhận lại design note gốc của popup:
+"số đầu tiên của lô được tự copy sang các cont còn trống, cont đã có số không
+bị ghi đè; reload trang vẫn còn số." Luật TC-TOKHAI-SYNC-02 ở trên ("MỌI cont
+khác của lô nhận đúng số mới, kể cả số cũ khác") được THU HẸP:
+
+- auto-copy CHỈ ghi các cont CÒN TRỐNG của lô, trong cùng transaction với lần
+  lưu;
+- cont ĐÃ CÓ số không bao giờ bị ghi đè (divergence là hợp lệ);
+- xóa số vẫn cục bộ (TC-TOKHAI-SYNC-03 giữ nguyên);
+- toast đổi thành "Đã lưu số tờ khai và tự copy sang N container chưa có số
+  của lô."
+
+Case mới + pin: `2026-10-18-card-fb109-to-khai-auto-copy.md` (FB-109-02);
+`shipment-declaration-container.test.ts` → SYNC-02 (đổi kỳ vọng), FB-109 R4.

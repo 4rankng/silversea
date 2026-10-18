@@ -68,9 +68,11 @@ export interface ShipmentDocumentsDraft {
 /** Result of a documents save, reported to the hosting page so it can toast.
  *  `sync` is present only when the save carried a non-empty tờ khai update
  *  and the container-line command wrote the number onto at least one OTHER
- *  container of the lot in the same transaction (card 171026180010 — the
- *  save IS the sync; there is no second fan-out call to fail after the
- *  fact). Absent on a clear, a single-container lot, or an identical echo. */
+ *  still-empty container of the lot in the same transaction (card
+ *  171026122100 FB-109 — the save IS the auto-copy; there is no second
+ *  fan-out call to fail after the fact, and a filled container is never
+ *  overwritten). Absent on a clear, a single-container lot, a lot with no
+ *  empty sibling, or an identical echo. */
 export type ShipmentDocumentsSaveOutcome = {
   sync?: { written: number };
 };
@@ -495,7 +497,7 @@ function InlineEditor({
               </button>
             </div>
           )}
-          <small>Số tờ khai lưu theo từng container của lô; một số tờ khai áp cho cả lô — nhập hoặc sửa số trên một container sẽ tự đồng bộ sang các container khác của lô; xóa số chỉ áp cho container đang sửa.</small>
+          <small>Số tờ khai lưu theo từng container của lô; nhập số trên một container sẽ tự copy sang các container còn trống của lô — container đã có số không bị ghi đè; xóa số chỉ áp cho container đang sửa.</small>
           {/* Card 171026122140 (FB-113): positions 3 and 4 of the requested
               order. The direction select keeps its handler verbatim — it still
               owns the Bill-vs-Booking switch and clears the other side. */}

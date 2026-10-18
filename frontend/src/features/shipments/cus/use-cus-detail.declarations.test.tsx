@@ -1,14 +1,18 @@
-// Card 261013200312 (dev-lead ruling) + card 171026180010 — red-first
-// wire-contract lock for PER-CONTAINER tờ khai writes from the CUS "Chi tiết
-// lô hàng" documents editor. The number rides the container-line command
-// (same version-guarded, idempotent endpoint the drawer uses); a non-empty
-// update syncs onto every sibling of the lot INSIDE that same command (the
-// response's `declarationSync` reports the written ids), and the explicit
-// copy button stays ONE server call for the whole lot (never a per-row
-// loop). Pins: per-cont edit contract, sync outcome wiring, copy
-// propagation, single-container lot unchanged, 409 self-heal.
+// Card 261013200312 (dev-lead ruling) + card 171026122100 (FB-109) —
+// red-first wire-contract lock for PER-CONTAINER tờ khai writes from the CUS
+// "Chi tiết lô hàng" documents editor. The number rides the container-line
+// command (same version-guarded, idempotent endpoint the drawer uses); a
+// non-empty save auto-copies onto the lot's still-EMPTY siblings INSIDE that
+// same command (the response's `declarationSync` reports the written ids; a
+// filled sibling is never overwritten), and the explicit copy button stays
+// ONE server call for the whole lot (never a per-row loop). Pins: per-cont
+// edit contract, auto-copy outcome wiring, copy propagation,
+// single-container lot unchanged, 409 self-heal.
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type {
+  ShipmentDocumentsSaveOutcome,
+} from '../detail/ShipmentContainerLedger';
 import type {
   ShipmentCusContainerFlatResponse,
   ShipmentCusContainerFlatRow,
@@ -288,12 +292,12 @@ describe('useCusDetail saveDocuments — per-container tờ khai wire contract (
   });
 });
 
-describe('useCusDetail saveDocuments — the save IS the lot-wide sync (card 171026180010)', () => {
+describe('useCusDetail saveDocuments — the save IS the auto-copy (card 171026122100 FB-109)', () => {
   afterEach(() => vi.clearAllMocks());
 
   /** An all-empty 3-cont lot: saving cont 11's number must reach 12/13 through
-   *  the container-line command itself — the server syncs the siblings in the
-   *  same transaction and reports them as `declarationSync`. */
+   *  the container-line command itself — the server copies onto the empty
+   *  siblings in the same transaction and reports them as `declarationSync`. */
   const emptyLot = () => detail({
     containers: [
       line({ id: 11, declarationNumber: null }),
@@ -302,13 +306,13 @@ describe('useCusDetail saveDocuments — the save IS the lot-wide sync (card 171
     ],
   });
 
-  it('saving a non-empty number is ONE call — the server syncs the siblings and the hook reports the written count', async () => {
+  it('saving a non-empty number is ONE call — the server copies onto the empty siblings and the hook reports the written count', async () => {
     const api = await setup(flatRow({ declarationNumber: null }), emptyLot());
     updateCusShipmentContainerLine.mockResolvedValue({
       line: line({ shipmentVersion: 3, declarationNumber: 'TK-SYNC-1' }),
       declarationSync: { updatedContainerIds: [12, 13] },
     });
-    let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
+    let outcome: ShipmentDocumentsSaveOutcome | void | undefined;
     await act(async () => {
       outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-SYNC-1' });
     });
@@ -335,7 +339,7 @@ describe('useCusDetail saveDocuments — the save IS the lot-wide sync (card 171
     expect(copyCusShipmentContainerDeclaration).not.toHaveBeenCalled();
   });
 
-  it('a sibling that already carries a number changes nothing on the wire — the server owns the overwrite decision', async () => {
+  it('a filled sibling changes nothing on the wire — one line call, and the server reports only the empty copy (FB-109 never-overwrite)', async () => {
     const mixedLot = detail({
       containers: [
         line({ id: 11, declarationNumber: null }),
@@ -346,21 +350,23 @@ describe('useCusDetail saveDocuments — the save IS the lot-wide sync (card 171
     const api = await setup(flatRow({ declarationNumber: null }), mixedLot);
     updateCusShipmentContainerLine.mockResolvedValue({
       line: line({ shipmentVersion: 3, declarationNumber: 'TK-DIVERGE' }),
-      declarationSync: { updatedContainerIds: [12, 13] },
+      // Real server shape under FB-109: only the still-empty 13 is written;
+      // the filled 12 keeps its number and never appears in the report.
+      declarationSync: { updatedContainerIds: [13] },
     });
-    let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
+    let outcome: ShipmentDocumentsSaveOutcome | void | undefined;
     await act(async () => {
       outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-DIVERGE' });
     });
     expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1);
     expect(copyCusShipmentContainerDeclaration).not.toHaveBeenCalled();
-    expect(outcome).toEqual({ sync: { written: 2 } });
+    expect(outcome).toEqual({ sync: { written: 1 } });
   });
 
   it('a clear stays local — no sync report even when the lot has siblings', async () => {
     const api = await setup(flatRow({ declarationNumber: 'TK-OLD' }), emptyLot());
     updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: null }) });
-    let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
+    let outcome: ShipmentDocumentsSaveOutcome | void | undefined;
     await act(async () => {
       outcome = await api.saveDocuments(flatRow({ declarationNumber: 'TK-OLD' }), { ...baseDraft, declarationNumber: null });
     });
@@ -372,7 +378,7 @@ describe('useCusDetail saveDocuments — the save IS the lot-wide sync (card 171
     const single = detail({ containers: [line({ id: 11, declarationNumber: null })] });
     const api = await setup(flatRow({ declarationNumber: null }), single);
     updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: 'TK-ONLY-1' }) });
-    let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
+    let outcome: ShipmentDocumentsSaveOutcome | void | undefined;
     await act(async () => {
       outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-ONLY-1' });
     });
@@ -391,10 +397,10 @@ describe('useCusDetail saveDocuments — the save IS the lot-wide sync (card 171
     expect(listCusShipmentContainers).toHaveBeenCalledTimes(1);
   });
 
-  it('a response without declarationSync (every sibling already equal) reports nothing — no spurious toast', async () => {
+  it('a response without declarationSync (no empty sibling was written) reports nothing — no spurious toast', async () => {
     const api = await setup(flatRow({ declarationNumber: null }), emptyLot());
     updateCusShipmentContainerLine.mockResolvedValue({ line: line({ shipmentVersion: 3, declarationNumber: 'TK-ECHO' }) });
-    let outcome: Awaited<ReturnType<typeof api.saveDocuments>> | undefined;
+    let outcome: ShipmentDocumentsSaveOutcome | void | undefined;
     await act(async () => {
       outcome = await api.saveDocuments(flatRow({ declarationNumber: null }), { ...baseDraft, declarationNumber: 'TK-ECHO' });
     });

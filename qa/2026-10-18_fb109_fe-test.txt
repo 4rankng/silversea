@@ -1,0 +1,11 @@
+$ pnpm vitest run src/features/shipments/detail/ShipmentContainerLedger.test.tsx src/features/shipments/cus/use-cus-detail.declarations.test.tsx
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-fb109-fb113-shipdocs/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  75 passed (75)
+   Start at  16:33:15
+   Duration  22.90s (transform 3.30s, setup 905ms, import 10.71s, tests 15.74s, environment 3.20s)
+
+EXIT:0

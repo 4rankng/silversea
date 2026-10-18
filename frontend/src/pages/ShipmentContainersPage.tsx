@@ -155,16 +155,17 @@ export default function ShipmentContainersPage() {
     }
   }, [detail, toast]);
 
-  /** Card 171026180010: saving a NON-EMPTY tờ khai on one container syncs
-   *  the number onto every other container of the lot inside the same server
-   *  transaction; the hook reports what happened and this page owns the
+  /** Card 171026122100 (FB-109) auto-copy law: saving a NON-EMPTY tờ khai on
+   *  one container copies the number onto the lot's still-EMPTY containers
+   *  inside the same server transaction (a filled container is never
+   *  overwritten); the hook reports what happened and this page owns the
    *  toast, matching the copy buttons above. A plain save (no sibling
    *  written) stays silent like every other editor save; save errors keep
    *  flowing to the editor's inline error channel untouched. */
   const saveDocuments = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => {
     const outcome = await detail.saveDocuments(row, draft);
     if (outcome?.sync && outcome.sync.written > 0) {
-      toast({ kind: 'success', message: `Đã lưu số tờ khai và đồng bộ sang ${outcome.sync.written} container khác của lô.` });
+      toast({ kind: 'success', message: `Đã lưu số tờ khai và tự copy sang ${outcome.sync.written} container chưa có số của lô.` });
     }
   }, [detail, toast]);
 
