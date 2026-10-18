@@ -5,7 +5,6 @@ import { X } from 'lucide-react';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { usePopoverPosition } from '../../hooks/usePopoverPosition';
 import { useClickOutside } from '../../hooks/useClickOutside';
-import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { registerOverlayToken, unregisterOverlayToken } from '../../hooks/useAnimatedOverlay';
 import { TimePanel } from './TimePanel';
 import './TimePickerSurface.css';
@@ -26,7 +25,13 @@ export function TimePickerSurface({ id, label, value, onPick, onApply, onDismiss
 }) {
   const mobile = useMediaQuery(TIME_PICKER_MOBILE_QUERY);
   const position = usePopoverPosition(panelRef, anchorRef, !mobile && !inline, 240, 264);
-  useFocusTrap(panelRef, !mobile && keyboard);
+  // FB-002 (181026000027) case 3 — the card 326 "the popup stole focus"
+  // ruling applied to the desktop keyboard-opened picker: NO focus
+  // containment here. A trap pulled focus into the panel (its first stop is
+  // the header "Đóng" button), so typed digits never reached the anchor
+  // input, `typedSinceOpen` stayed false and Enter only finished the picker.
+  // Focus stays on the input — the typing surface; the panel is pointer
+  // input, and its own blur handler exits when focus moves away.
   useClickOutside(panelRef, onExit, { enabled: !mobile && !inline, additionalRefs: [anchorRef, ...additionalRefs] });
 
   // Card 20260915_6 + _8: while the picker surface is open — sheet, popover,

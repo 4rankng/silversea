@@ -169,4 +169,21 @@ describe('TimeInput outer-field keyboard ownership', () => {
     expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(true);
     expect(parentKeyDown).toHaveBeenCalledTimes(1);
   });
+
+  it('FB-002 case 3: ArrowDown opens the picker without stealing typing focus from the input', () => {
+    const parentKeyDown = vi.fn();
+    render(<Harness onParentKeyDown={parentKeyDown} />);
+    const input = screen.getByLabelText('Giờ giao');
+    act(() => input.focus());
+    fireEvent.keyDown(input, { key: 'ArrowDown', code: 'ArrowDown' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // The popup must not pull focus into its panel (card 326 "the popup stole
+    // focus" law): real typed digits land on the FOCUSED element, so losing
+    // the input here made typed giờ + Enter a dead key (QA staging retest
+    // 2026-10-18 — fireEvent.change cannot reproduce this).
+    expect(input).toHaveFocus();
+    fireEvent.change(input, { target: { value: '14:23' } });
+    expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(true);
+    expect(parentKeyDown).toHaveBeenCalledTimes(1);
+  });
 });
