@@ -415,7 +415,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // ACCOUNTANT does not widen what the role can see.
     const opsRecoveryNotes = await loadDispatchExpenseNotes(shipmentIds, tx);
     // FB-092: the "Lẻ · Ghép (i/N)" tag needs the group's member count — one
-    // grouped count over the page's cost groups.
+    // grouped count over the page's cost groups. LIVE rows only: a
+    // soft-deleted member keeps its group id, so the §4 delete-promotion must
+    // shrink the tag's N (card 181026145000).
     const costGroupIds = [...new Set(
       pageRows.map((row) => row.costGroupId).filter((id): id is string => id != null),
     )];
@@ -423,7 +425,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       costGroupId: s.shipments.costGroupId,
       memberCount: sql<number>`count(*)`,
     }).from(s.shipments)
-      .where(inArray(s.shipments.costGroupId, costGroupIds))
+      .where(and(inArray(s.shipments.costGroupId, costGroupIds), isNull(s.shipments.deletedAt)))
       .groupBy(s.shipments.costGroupId)
       .then((rows) => rows.map((row) => [row.costGroupId!, Number(row.memberCount)] as const)));
     const carrierIds = pageRows

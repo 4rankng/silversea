@@ -15,7 +15,7 @@ import * as s from '../../db/schema';
 import { CARGO_MODE } from '../../db/schema';
 import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
+import { alias, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
 
 import type { DispatchSummary } from '@tingting/shared';
@@ -406,7 +406,9 @@ export function groupShipmentAppointmentGroups(
  * (order 1) Số Bill / Số Booking. The lot's document reference is the display
  * key (house law); internal ids never are. Only groups that appear among the
  * page's MEMBER rows (order > 1) are resolved — a principal never cites
- * itself.
+ * itself. LIVE rows only: a soft-deleted lot keeps its group id (the delete
+ * path renumbers the survivors but never strips the leaver), so a ghost
+ * principal must never be cited (card 181026145000, spec §4).
  */
 export async function loadShipmentListGroupPrincipalRefs(
   shipments: Array<typeof s.shipments.$inferSelect>,
@@ -435,7 +437,7 @@ export async function loadShipmentListGroupPrincipalRefs(
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
   }).from(s.shipments)
-    .where(or(...principalConditions));
+    .where(and(isNull(s.shipments.deletedAt), or(...principalConditions)));
 
   const refs = new Map<string, string>();
   for (const principal of principals) {
@@ -444,6 +446,37 @@ export async function loadShipmentListGroupPrincipalRefs(
     if (principal.revGroupId != null && ref != null) refs.set(`REV:${principal.revGroupId}`, ref);
   }
   return refs;
+}
+
+/**
+ * Card 181026145000 (spec §2.4) — the LIVE member count of every group on
+ * the page, both dimensions, so the master-plan wire returns the tag's full
+ * "Lẻ · Ghép (i/N)" facts: position (`costGroupOrder`/`revGroupOrder`) AND
+ * size (this count). Soft-deleted members are excluded — their rows keep the
+ * group id after the §4 promotion rewrote the survivors.
+ */
+export async function loadShipmentListGroupMemberCounts(
+  shipments: Array<typeof s.shipments.$inferSelect>,
+): Promise<Map<string, number>> {
+  const costGroupIds = [...new Set(
+    shipments.filter((sh) => sh.costGroupId != null).map((sh) => sh.costGroupId),
+  )] as string[];
+  const revGroupIds = [...new Set(
+    shipments.filter((sh) => sh.revGroupId != null).map((sh) => sh.revGroupId),
+  )] as string[];
+
+  const counts = new Map<string, number>();
+  const countDimension = async (groupIds: string[], column: AnyPgColumn, prefix: string) => {
+    if (groupIds.length === 0) return;
+    const rows = await db.select({ groupId: column, memberCount: sql<number>`count(*)` })
+      .from(s.shipments)
+      .where(and(inArray(column, groupIds), isNull(s.shipments.deletedAt)))
+      .groupBy(column);
+    for (const row of rows) counts.set(`${prefix}:${row.groupId}`, Number(row.memberCount));
+  };
+  await countDimension(costGroupIds, s.shipments.costGroupId, 'COST');
+  await countDimension(revGroupIds, s.shipments.revGroupId, 'REV');
+  return counts;
 }
 
 export async function loadShipmentListFactoryNames(
@@ -945,6 +978,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       : [],
   );
   const groupPrincipalRefs = await loadShipmentListGroupPrincipalRefs(items.map((row) => row.shipment));
+  // Card 181026145000 (spec §2.4): the tag's N — LIVE members per group, both
+  // dimensions, same keying as the principal refs above.
+  const groupMemberCounts = await loadShipmentListGroupMemberCounts(items.map((row) => row.shipment));
   // Card 20260928_162 criterion 3. This projection was written for
   // "cus/accounting" (dispatch-expense-notes.service.ts header, card
   // 20260921_5), yet the gate handed the map to ADMIN/DISPATCHER only — so both
@@ -986,6 +1022,15 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // row's group (null when ungrouped or when the row IS the principal).
     costGroupPrincipalRef: groupPrincipalRefs.get(`COST:${row.shipment.costGroupId}`) ?? null,
     revGroupPrincipalRef: groupPrincipalRefs.get(`REV:${row.shipment.revGroupId}`) ?? null,
+    // Card 181026145000 (spec §2.4): the "Lẻ · Ghép (i/N)" tag's N, both
+    // dimensions — LIVE members only (a soft-deleted member keeps its group
+    // id but must not count, spec §4).
+    costGroupMemberCount: row.shipment.costGroupId != null
+      ? groupMemberCounts.get(`COST:${row.shipment.costGroupId}`) ?? null
+      : null,
+    revGroupMemberCount: row.shipment.revGroupId != null
+      ? groupMemberCounts.get(`REV:${row.shipment.revGroupId}`) ?? null
+      : null,
     // Factory operating notes for the master-plan notes column.
     factoryNotes: row.factoryNotes,
     opsRecoveryNotes: opsRecoveryNotes.get(row.shipment.id) ?? [],

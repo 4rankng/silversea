@@ -81,13 +81,16 @@ export async function getShipmentDebitSummary(query: {
         .map((row) => [row.id, row.code] as const),
   );
   // Group member counts + each member's principal reference, both dimensions.
+  // LIVE rows only — a soft-deleted lot keeps its group id while the §4
+  // delete-promotion renumbers the survivors, so ghosts must neither count
+  // toward N nor be cited as the principal (card 181026145000).
   const costGroupIds = [...new Set(lots.map((lot) => lot.costGroupId).filter((id): id is string => id != null))];
   const revGroupIds = [...new Set(lots.map((lot) => lot.revGroupId).filter((id): id is string => id != null))];
   const countGroups = async (groupIds: string[], column: AnyPgColumn) => {
     if (groupIds.length === 0) return new Map<string, number>();
     const rows = await db.select({ groupId: column, memberCount: sql<number>`count(*)` })
       .from(s.shipments)
-      .where(inArray(column, groupIds))
+      .where(and(inArray(column, groupIds), isNull(s.shipments.deletedAt)))
       .groupBy(column);
     return new Map(rows.map((row) => [row.groupId as string, Number(row.memberCount)] as const));
   };
@@ -102,7 +105,7 @@ export async function getShipmentDebitSummary(query: {
       blNumber: s.shipments.blNumber,
       bookingRef: s.shipments.bookingRef,
     }).from(s.shipments)
-      .where(and(eq(orderColumn, 1), inArray(groupColumn, groupIds)));
+      .where(and(isNull(s.shipments.deletedAt), eq(orderColumn, 1), inArray(groupColumn, groupIds)));
     return new Map(principals
       .map((row) => [row.groupId!, row.blNumber ?? row.bookingRef ?? ''] as const)
       .filter(([, ref]) => ref !== ''));
