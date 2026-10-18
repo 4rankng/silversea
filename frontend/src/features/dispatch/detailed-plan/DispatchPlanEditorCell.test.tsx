@@ -10,6 +10,7 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
     listDispatchFleetResources: vi.fn(),
     createCarrierFleetVehicle: vi.fn(),
     createInternalTruck: vi.fn(),
+    updateLclTruck: vi.fn(),
   };
 });
 
@@ -18,7 +19,7 @@ vi.mock('../../../api/configClient', () => ({
   configClient: { getTrailers: (...args: Array<unknown>) => getTrailersMock(...args) },
 }));
 
-import { createCarrierFleetVehicle, createInternalTruck, listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
+import { createCarrierFleetVehicle, createInternalTruck, listDispatchFleetResources, updateLclTruck } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
 
@@ -44,6 +45,9 @@ vi.mock('./useDispatchTaskTags', () => ({
 }));
 
 const listResourcesMock = vi.mocked(listDispatchFleetResources);
+// Card 191026100010 (DV-B1-04) — the grouped-row save law: updateLclTruck
+// rides BEFORE the atomic save and its failure aborts it.
+const updateLclTruckMock = vi.mocked(updateLclTruck);
 // Default trailer catalog for every describe: an empty list keeps the
 // coupling-only default; the card-20261005_387 describe overrides per test.
 getTrailersMock.mockResolvedValue([]);
@@ -145,6 +149,7 @@ function renderCell(
     onOpenTripReassign?: (tripId: number) => void;
     onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
     onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
+    onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
   } = {},
 ) {
   const defaultAtomicSave = vi.fn().mockResolvedValue({
@@ -172,6 +177,7 @@ function renderCell(
       onCompleteExternalTrip={(handlers.onCompleteExternalTrip as never) ?? (vi.fn() as never)}
       onIssueOrder={(handlers.onIssueOrder as never) ?? (defaultIssueOrder as never)}
       onEnsureFulfillment={handlers.onEnsureFulfillment}
+      onChangeGroupTruck={handlers.onChangeGroupTruck}
     />,
   );
 }
@@ -1501,5 +1507,132 @@ describe('DispatchPlanEditorCell — expired tractor options (card 091026164540)
     fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
     expect(await screen.findByRole('option', { name: /15H-052\.82/ })).toBeTruthy();
     expect(screen.queryByRole('option', { name: /60C-567\.89 —/ })).toBeNull();
+  });
+});
+
+// Card 191026100010 (DV-B1-04) — popup điều phối trên dòng LCL đã ghép nhóm:
+// BKS là dữ liệu CHUNG của nhóm, nên (1) popup hiện dòng "BKS nhóm" + nút
+// "Đổi BKS nhóm" (page-owned dialog) và (2) save với biển số MỚI gọi kèm
+// updateLclTruck TRƯỚC plan save — lỗi updateLclTruck hủy luôn save; không
+// đổi biển số thì zero cuộc gọi nhóm.
+describe('DispatchPlanEditorCell — grouped LCL lot BKS law (card 191026100010)', () => {
+  const groupedRow = (over: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlanRow => row({
+    cargoMode: 'LCL',
+    fulfillmentType: 'LCL_SHIPMENT',
+    container: { containerNumber: null, containerTypeLabel: null, cargoWeightKg: null } as never,
+    classification: 'LCL' as never,
+    lcl: {
+      packageCount: 5,
+      packageType: 'PALLET',
+      cargoVolumeCbm: '4.000',
+      group: {
+        groupId: 'grp-9',
+        order: 1,
+        memberCount: 3,
+        actualTruckNo: '15H-052.82',
+        billingTruckNo: '29C-333.33',
+        vehicleClassCode: '5T',
+        vehicleClassName: 'Xe 5 tấn',
+      },
+    },
+    ...over,
+  });
+
+  const saveResult = () => ({
+    fulfillmentVersion: 4, shipmentVersion: 6, classification: 'LCL', isCombined: false,
+    operationalNotes: null,
+    dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '30C-999.99' },
+    estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+  });
+
+  beforeEach(() => {
+    updateLclTruckMock.mockReset();
+    updateLclTruckMock.mockResolvedValue({ updatedShipmentIds: [11, 12, 13] });
+    mockFleetResources();
+  });
+
+  it('shows the group line + Đổi BKS nhóm only on grouped LCL rows, raising the row (DV-B1-04)', async () => {
+    const onChangeGroupTruck = vi.fn();
+    renderCell(groupedRow(), { onChangeGroupTruck });
+    await openDialog();
+    expect(screen.getByText('BKS nhóm: 15H-052.82 · Ảo: 29C-333.33')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Đổi BKS nhóm' }));
+    expect(onChangeGroupTruck).toHaveBeenCalledTimes(1);
+    expect(onChangeGroupTruck.mock.calls[0]![0]).toMatchObject({ shipmentId: 11 });
+  });
+
+  it('keeps the group line off FCL rows and off grouped rows when the page is unwired', async () => {
+    const { rerender } = renderCell(row(), { onChangeGroupTruck: vi.fn() });
+    await openDialog();
+    expect(screen.queryByText(/BKS nhóm:/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đổi BKS nhóm' })).toBeNull();
+    rerender(<DispatchPlanEditorCell
+      row={groupedRow()}
+      onAtomicSave={vi.fn() as never}
+      onOpenTripReassign={vi.fn()}
+      onCompleteExternalTrip={vi.fn() as never}
+      onIssueOrder={vi.fn() as never}
+    />);
+    // Unwired grouped row: no line, no dead button.
+    expect(screen.queryByText(/BKS nhóm:/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đổi BKS nhóm' })).toBeNull();
+  });
+
+  it('a NEW plate on a grouped row calls updateLclTruck exactly once, BEFORE the plan save (DV-B1-04)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
+    renderCell(groupedRow(), { onAtomicSave });
+    await openDialog();
+    // Pick OTHER_TRUCK (30C-999.99) — the draft now differs from the group BKS.
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '30C-999' } });
+    fireEvent.click(await screen.findByRole('option', { name: /30C-999\.99/ }));
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(updateLclTruckMock).toHaveBeenCalledTimes(1);
+    expect(updateLclTruckMock.mock.calls[0]![0]).toEqual({ shipmentId: 11, actualTruckNo: '30C-999.99' });
+    // The group wire rides BEFORE the plan save — never the other way.
+    expect(updateLclTruckMock.mock.invocationCallOrder[0]!)
+      .toBeLessThan(onAtomicSave.mock.invocationCallOrder[0]!);
+  });
+
+  it('an UNCHANGED plate touches group data zero times (DV-B1-04)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
+    renderCell(groupedRow(), { onAtomicSave });
+    await openDialog();
+    // Save with the vehicle draft untouched (re-pick of the stored BKS /
+    // no vehicle edit at all) — the group wire must stay silent.
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(updateLclTruckMock).not.toHaveBeenCalled();
+  });
+
+  it('a failed updateLclTruck ABORTS the plan save and surfaces its message (DV-B1-04)', async () => {
+    updateLclTruckMock.mockRejectedValue(new Error('Nhóm ghép đã chốt kế toán — không thể đổi BKS.'));
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
+    renderCell(groupedRow(), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '30C-999' } });
+    fireEvent.click(await screen.findByRole('option', { name: /30C-999\.99/ }));
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Nhóm ghép đã chốt kế toán'));
+    // No partial desync: the plan save never ran.
+    expect(onAtomicSave).not.toHaveBeenCalled();
+  });
+
+  it('clearing the plate on a grouped row is refused — the operator must use Đổi BKS nhóm', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
+    renderCell(groupedRow(), { onAtomicSave });
+    await openDialog();
+    // "Bỏ gán biển số" (clearable select) → '' → clearVehicle on the wire.
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    fireEvent.click(screen.getByTestId('dispatch-vehicle-101-clear'));
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Đổi BKS nhóm'));
+    expect(updateLclTruckMock).not.toHaveBeenCalled();
+    expect(onAtomicSave).not.toHaveBeenCalled();
   });
 });

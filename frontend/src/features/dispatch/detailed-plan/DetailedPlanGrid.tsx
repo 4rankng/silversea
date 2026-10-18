@@ -134,6 +134,10 @@ interface DetailedPlanGridProps {
    *  choosing "Hủy ghép" raises the leaving lot so the page can confirm the
    *  SPEC §4 promotion guard before calling the server. */
   onUnmergeLclLot?: (request: LclUnmergeLotRequest) => void;
+  /** Card 191026100010 (DV-B1-03/04) — "Đổi BKS nhóm" sau khi đã Gán xe nhóm:
+   *  raised from the group menu AND from the plan editor's group line; the
+   *  page owns the dialog + the refetch (same wiring law as Hủy ghép). */
+  onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
 }
 
 /** FB-095 — the leaving lot's identity for the confirm guard copy. */
@@ -176,6 +180,7 @@ export function DetailedPlanGrid({
   onToggleLclSelection,
   onUnmergeLclGroup,
   onUnmergeLclLot,
+  onChangeGroupTruck,
   onEnsureFulfillment,
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
@@ -557,6 +562,7 @@ export function DetailedPlanGrid({
                       onAutoOpenConsumed={onAutoOpenConsumed}
                       onCompleteExternalTrip={onCompleteExternalTrip}
                       onIssueOrder={onIssueOrder}
+                      onChangeGroupTruck={onChangeGroupTruck}
                     />
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại" data-label-short="Loại">
@@ -678,6 +684,22 @@ export function DetailedPlanGrid({
         footer={(
           <>
             <button type="button" className="btn btn--secondary btn--sm" onClick={() => setGroupMenuRow(null)}>Đóng</button>
+            {/* Card 191026100010 (DV-B1-03) — đổi BKS sau Gán xe nhóm: menu
+                raise dòng lên page (page owns dialog + refetch), exactly the
+                onUnmergeLclLot wiring; unwired thì nút biến thành action
+                không có — không render nút chết. */}
+            {onChangeGroupTruck && groupMenuRow && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => {
+                  onChangeGroupTruck(groupMenuRow);
+                  setGroupMenuRow(null);
+                }}
+              >
+                Đổi BKS nhóm
+              </button>
+            )}
             <button
               type="button"
               className="btn btn--primary btn--sm"

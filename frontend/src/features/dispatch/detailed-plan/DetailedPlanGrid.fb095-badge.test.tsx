@@ -13,7 +13,7 @@
  *   SPEC §4 "Tách nhóm" button);
  * - FCL rows never get the badge.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
@@ -165,5 +165,34 @@ describe('FB-095 — the group badge opens Xem nhóm / Hủy ghép', () => {
     renderGrid([groupedRow(31, 'CL4C-01', 1, { cargoMode: 'FCL' })], { onUnmergeLclLot: vi.fn() });
     expect(screen.queryByText(/Lẻ · Ghép/)).toBeNull();
     expect(screen.queryByRole('button', { name: /Lẻ · Ghép/ })).toBeNull();
+  });
+});
+
+// Card 191026100010 (DV-B1-03) — "Đổi BKS nhóm" sau "Gán xe nhóm": menu nhóm
+// có action đổi BKS (page owns dialog + refetch); unwired thì không nút chết.
+describe('Card 191026100010 — group menu Đổi BKS nhóm (DV-B1-03)', () => {
+  it('raises onChangeGroupTruck with the anchored row and closes the menu', async () => {
+    const onChangeGroupTruck = vi.fn();
+    renderGrid([
+      groupedRow(31, 'CL4C-01', 1),
+      groupedRow(32, 'CL4C-02', 2),
+    ], { onUnmergeLclLot: vi.fn(), onChangeGroupTruck });
+
+    // Any member row's badge anchors the menu; the action raises THAT row.
+    fireEvent.click(screen.getByRole('button', { name: 'Lẻ · Ghép (2/2)' }));
+    const menu = screen.getByRole('dialog', { name: 'Nhóm ghép trả ĐV · Lẻ (2/2)' });
+    fireEvent.click(within(menu).getByRole('button', { name: 'Đổi BKS nhóm' }));
+
+    expect(onChangeGroupTruck).toHaveBeenCalledTimes(1);
+    expect(onChangeGroupTruck.mock.calls[0]![0]).toMatchObject({ shipmentId: 32 });
+    // The menu closes (exit animation) so the page-owned dialog owns the screen.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('omits the action when the page does not wire it', () => {
+    renderGrid([groupedRow(31, 'CL4C-01', 1)], { onUnmergeLclLot: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: 'Lẻ · Ghép (1/2)' }));
+    const menu = screen.getByRole('dialog', { name: 'Nhóm ghép trả ĐV · Lẻ (1/2)' });
+    expect(within(menu).queryByRole('button', { name: 'Đổi BKS nhóm' })).toBeNull();
   });
 });

@@ -147,8 +147,12 @@ describe('FB-092 — LCL selection', () => {
       onToggleLclSelection: onToggle,
     });
 
-    const checkbox = screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' }) as HTMLInputElement;
-    expect(checkbox.checked).toBe(true);
+    // Card 181026145000 (LCL select rework): the picker is a
+    // <button role="checkbox" aria-checked> (the old UUICheckbox rendered
+    // invisible), so the selection state reads through aria-checked —
+    // HTMLInputElement.checked no longer exists here.
+    const checkbox = screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' });
+    expect(checkbox.getAttribute('aria-checked')).toBe('true');
     // FCL rows never get one — exactly one selection checkbox exists.
     expect(screen.getAllByRole('checkbox', { name: /Chọn lô/ })).toHaveLength(1);
     fireEvent.click(checkbox);

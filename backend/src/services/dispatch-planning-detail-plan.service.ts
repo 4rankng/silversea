@@ -713,8 +713,39 @@ async function assertPlanRowRigAvailable(
   // (confirm proceeds) and can never pin the hard tier. Found as a trunk-red
   // on the dispatch-detail-plan suite after card 101026043000 landed: the OWN
   // happy path (same truck on all three containers) went 409 with no path on.
-  const crossLotConflicts = planConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
-  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
+  // Card 191026100010 (B.4) — FB-012 (181026145600) widened to cost-group
+  // siblings: "Gán xe nhóm" (FB-092) plans every member of ONE cost group
+  // onto the SAME tractor ON PURPOSE — the group write stamps that plate onto
+  // each member's row — so a cross-lot holder sharing the saving row's
+  // costGroupId is the deliberate one-truck arrangement, not a foreign claim
+  // on the rig. Split those out of the cross-lot hard tier EXACTLY like
+  // FB-012 split same-lot holders: they fall to the warn tier below (the
+  // same cross-lot copy + " Vẫn lưu?" — never silent, never a new block).
+  // Same-group equality only: both sides non-null and equal; a null group on
+  // either side carves nothing. Resolved ONLY when a cross-lot holder carries
+  // a group (no holder group ⇒ no sibling possible ⇒ the common save pays no
+  // extra lookup), and a sibling's own slot never feeds weakEvidence — only
+  // the NON-grouped cross-lot conflicts below may move the evidence tier
+  // (decision rule 4).
+  const crossLotHolders = [...planConflicts, ...lclPlanConflicts]
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId);
+  const savingCostGroupId = crossLotHolders.some((conflict) => conflict.costGroupId != null)
+    ? (await tx.select({ costGroupId: s.shipments.costGroupId })
+        .from(s.shipments)
+        .where(eq(s.shipments.id, args.shipmentId))
+        .limit(1))[0]?.costGroupId ?? null
+    : null;
+  const isCostGroupSibling = (conflict: { shipmentId: number; costGroupId: string | null }) =>
+    conflict.shipmentId !== args.shipmentId
+    && savingCostGroupId != null
+    && conflict.costGroupId != null
+    && conflict.costGroupId === savingCostGroupId;
+  const crossLotConflicts = planConflicts.filter((conflict) =>
+    conflict.shipmentId !== args.shipmentId && !isCostGroupSibling(conflict));
+  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) =>
+    conflict.shipmentId !== args.shipmentId && !isCostGroupSibling(conflict));
+  const costGroupSiblingClaim = planConflicts.some(isCostGroupSibling)
+    || lclPlanConflicts.some(isCostGroupSibling);
   const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
 const planRowBlocked = isKepPairing ? false : (crossLotConflicts.length > 0 || crossLotLclConflicts.length > 0);
 // Evidence strength (card 101026043000, FB-038 ruling "WARNING, not a hard
@@ -742,6 +773,18 @@ if (planRowBlocked || tripConflicts.length > 0) {
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }
+  } else if (!isKepPairing && costGroupSiblingClaim && !args.confirmOverlap) {
+    // Card 191026100010 (B.4) — the deliberate group arrangement: one
+    // "Gán xe nhóm" group = one truck, so the sibling LOT holding this plate
+    // is the dispatcher's own plan — exactly FB-012's (181026145600) class of
+    // claim: warn once with the cross-lot copy + the confirm invitation and
+    // proceed on the confirmed retry. Gated like the same-lot branch below so
+    // the Kẹp carve-out stays bit-for-bit (a Kẹp row never carries a cost
+    // group — grouping is LCL-only — but the gate documents the law anyway).
+    throw new ApiError(409,
+      `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' });
   } else if (!isKepPairing && sameLotPlanClaim && !args.confirmOverlap) {
     // The lot's own rotation: warn once, never silently, never a hard block.
     throw new ApiError(409,

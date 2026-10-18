@@ -5,6 +5,7 @@ import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPla
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
 import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
 import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
+import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclGroupTruckEditDialog';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
@@ -59,6 +60,10 @@ export default function DispatchDetailPlanPage() {
   // guard copy names the SPEC §4 promotion before the server moves the money.
   const [unmergeLot, setUnmergeLot] = useState<LclUnmergeLotRequest | null>(null);
   const [unmergingLot, setUnmergingLot] = useState(false);
+  // Card 191026100010 (DV-B1-03/04) — "Đổi BKS nhóm": page sở hữu dialog +
+  // refetch (cùng luật wiring của Hủy ghép / Gán xe nhóm); hai affordance
+  // (menu nhóm trên grid + dòng nhóm trong popup điều phối) cùng raise dòng.
+  const [groupTruckRow, setGroupTruckRow] = useState<DispatchDetailPlanRow | null>(null);
   // Card _171026133000: the group popup unmounts on close, so its loại xe /
   // nhà xe picks are held here and survive a "Hủy" + reopen inside one
   // selection session. Cleared with the selection itself, below.
@@ -202,6 +207,7 @@ export default function DispatchDetailPlanPage() {
           onToggleLclSelection={toggleLclSelection}
           onUnmergeLclGroup={setUnmergeGroupId}
           onUnmergeLclLot={setUnmergeLot}
+          onChangeGroupTruck={setGroupTruckRow}
         />
         {selectedLclRows.length > 0 && (
           <div className="lcl-selection-bar" role="status">
@@ -279,6 +285,19 @@ export default function DispatchDetailPlanPage() {
           onClose={() => setTruckGroupOpen(false)}
           onAssigned={() => {
             setSelectedLclRows([]);
+            void detailPlan.refresh();
+          }}
+        />
+      )}
+
+      {/* Card 191026100010 (DV-B1-03/04) — "Đổi BKS nhóm": updateLclTruck
+          (FB-093) lan BKS thực cả nhóm + BKS ảo lô nêu tên; refetch mang về
+          grid BKS mới trên mọi thành viên. */}
+      {groupTruckRow && (
+        <LclGroupTruckEditDialog
+          row={groupTruckRow}
+          onClose={() => setGroupTruckRow(null)}
+          onSaved={() => {
             void detailPlan.refresh();
           }}
         />
