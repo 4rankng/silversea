@@ -217,6 +217,10 @@ describe('card 20260921_5 — dispatch plan note path', () => {
     // Card 20260928_162 made the note mandatory on uncharged rows, so this row
     // now carries one. The assertion below is unchanged and still the point of
     // the test: being uncharged keeps the amount off the dispatch plan.
+    // Same lot, same OTHER type ⇒ the duplicate-entry guard (card
+    // 141026230720) bounces the unconfirmed save; this second row is a
+    // deliberate distinct line, so the resend confirms it — the same pattern
+    // every post-141026230720 suite uses for its second same-scope row.
     const silent = await api('POST', '/api/ops/expenses', {
       shipmentId,
       expenseTypeCode: 'OTHER',
@@ -225,6 +229,7 @@ describe('card 20260921_5 — dispatch plan note path', () => {
       costGroup: 'OPS_REGULAR',
       customerChargeAmount: 0,
       note: 'Chi nội bộ, không thu khách',
+      duplicateConfirmed: true,
     });
     assert.equal(silent.status, 201, JSON.stringify(silent.body).slice(0, 200));
 
