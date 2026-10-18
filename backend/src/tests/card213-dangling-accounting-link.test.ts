@@ -84,7 +84,12 @@ describe('card 20260930_213 - dangling accounting link', () => {
 
     const { orphanSourceId } = await mkDanglingDriverLink(shipment.id);
 
-    const page = await listExpenseAccountingEntries({ userId: staff.id, role: Role.OPS }, { page: 1, limit: 100 });
+    // The register is companywide for OPS (chiphispec §1) and the dev database
+    // carries thousands of real rows — including future-dated ones that sort
+    // ahead of today's fixture — so the read is scoped to the fixture's own
+    // lot. The debris lives on that same lot, so the dangling-link skip is
+    // still exactly what this read exercises.
+    const page = await listExpenseAccountingEntries({ userId: staff.id, role: Role.OPS }, { page: 1, limit: 100, shipmentId: shipment.id });
     assert.ok(
       page.items.some((row) => row.sourceKind === 'OPS' && row.sourceId === live.id),
       'the live Ops expense is still listed',

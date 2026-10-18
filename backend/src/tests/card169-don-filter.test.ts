@@ -71,6 +71,11 @@ async function mkConfirmedCost(staff: { id: number }, shipmentId: number, amount
     customerChargeAmount: 0,
     // A non-charged cost line must carry a reason (the card-162 guard).
     note: `card169 không thu khách ${cleanup.length}`,
+    // The đợt fixture stamps several same-type (OTHER) lines into one lot on
+    // purpose — exactly the repeat entry the card-141026230720 duplicate
+    // warning asks the operator to confirm — so the fixture confirms it. The
+    // warning gate itself stays pinned by its own suite.
+    duplicateConfirmed: true,
   });
   const id = (created as { id: number }).id;
   track(async () => { await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, id)); });

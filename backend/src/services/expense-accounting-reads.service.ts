@@ -148,12 +148,19 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
   // cascade-deleted — the broken row is absent, the rest of the page renders —
   // while asking for that one source still 404s from the caller's own not-
   // found path (`getExpenseAccountingEntry`). Card 20260930_213.
+  //
+  // The same tolerance covers the link's LOT going away: hydration answers
+  // "the source no longer has a live lot/customer" with 409, and that is the
+  // same debris class — the join above only filters what was already dead
+  // when the links query ran, so a lot deleted between that query and the
+  // per-link hydration (or any link landing outside it) must skip, not kill
+  // the whole register.
   const canonical = (await Promise.all(links.map(async ({ link }) => {
     try {
       return await hydrateExpenseAccountingSource(executor, link);
     } catch (error) {
-      if (error instanceof ApiError && error.statusCode === 404) {
-        logger.warn({ sourceKind: link.sourceKind, sourceId: link.sourceId, linkId: link.id },
+      if (error instanceof ApiError && (error.statusCode === 404 || error.statusCode === 409)) {
+        logger.warn({ sourceKind: link.sourceKind, sourceId: link.sourceId, linkId: link.id, statusCode: error.statusCode },
           'expense accounting register: dangling source link skipped');
         return null;
       }

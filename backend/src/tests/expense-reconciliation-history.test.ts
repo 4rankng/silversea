@@ -29,7 +29,12 @@ test('FIX-WS-ADVANCE-HISTORY: preserves each assigned advance after release and 
       const released = await getExpenseReconciliation(actor, batch.id, tx);
       assert.deepEqual(released.advances, expected);
       assert.equal(released.remainingDifference, 0);
-      await assert.rejects(getExpenseReconciliation({ ...actor, userId: ops.id + 1 }, batch.id, tx), /Không tìm thấy/);
+      // chiphispec §1 (commit 09ff9406) — the bảng hoàn ứng read stays
+      // role-gated but is no longer person-scoped for OPS: another Ops
+      // account reads the same batch, advances intact.
+      assert.deepEqual((await getExpenseReconciliation({ ...actor, userId: ops.id + 1 }, batch.id, tx)).advances, expected);
+      // The role gate itself stands: a non-finance, non-OPS role is refused.
+      await assert.rejects(getExpenseReconciliation({ ...actor, role: Role.DRIVER }, batch.id, tx), /Bạn không có quyền xem bảng hoàn ứng/);
       throw rollback;
     });
   } catch (error) { if (error !== rollback) throw error; }

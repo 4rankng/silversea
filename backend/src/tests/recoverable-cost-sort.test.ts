@@ -240,15 +240,28 @@ describe('listRecoverableCosts column sorting', () => {
     await seedClaim(claimedFreshId, await currentVersionOf(claimedFreshId), 'SENT', '2026-07-31');
     await seedClaim(claimedStaleId, 'expense:1999-01-01T00:00:00.000Z:APPROVED:1', 'SENT', '2026-07-30');
 
-    const base = { page: 1, limit: 100, customerId: undefined };
-    // The dev database carries real rows; every assertion scopes to the rows
-    // this test seeded (both marker customers).
-    const seeded = (items: Awaited<ReturnType<typeof listRecoverableCosts>>['items']) =>
-      items.filter(item => [customerZeta, customerAnpha].includes(item.customerId));
+    // The dev database carries real rows whose updated_at values surround the
+    // fixtures (1150+ rows dated after 2026-07), so a single limit-bounded
+    // page cannot be assumed to contain the seeded slice — the same reason
+    // expense-accounting-source.test.ts walks listAllExpenseEntries. Walk the
+    // WHOLE result in the query's own order and keep this test's rows; every
+    // assertion reads the same seeded slice the SQL produced, in SQL order.
+    const walkSeeded = async (sort?: Partial<Pick<Parameters<typeof listRecoverableCosts>[1], 'sortBy' | 'sortDir'>>) => {
+      const limit = 100;
+      const collected: Awaited<ReturnType<typeof listRecoverableCosts>>['items'] = [];
+      for (let page = 1; page <= 200; page += 1) {
+        const result = await listRecoverableCosts(adminActor, { page, limit, ...sort });
+        collected.push(...result.items.filter(item => [customerZeta, customerAnpha].includes(item.customerId)));
+        if (page * limit >= result.total) {
+          assert.equal(collected.length, 8, 'every walk must capture all eight seeded rows');
+          return collected;
+        }
+      }
+      assert.fail('the companywide recoverable list exceeded 200 pages');
+    };
 
     // Absent sort params reproduce the default newest-first order exactly.
-    const defaultOrder = await listRecoverableCosts(adminActor, { ...base });
-    assert.deepEqual(seeded(defaultOrder.items).map(item => item.updatedAt), [
+    assert.deepEqual((await walkSeeded()).map(item => item.updatedAt), [
       '2026-07-08T00:00:00.999Z', // stale claim (μs timestamp — JS Date truncates)
       '2026-07-07T00:00:00.123Z', // fresh claim
       '2026-07-06T00:00:00.000Z', // blocked
@@ -260,25 +273,25 @@ describe('listRecoverableCosts column sorting', () => {
     ]);
 
     // Variance sorts numerically (zeta rows only carry distinct variances).
-    const varianceAsc = await listRecoverableCosts(adminActor, { ...base, sortBy: 'variance', sortDir: 'asc' });
-    const zetaVariances = seeded(varianceAsc.items).filter(item => item.customerName.includes('Zeta')).map(item => item.sellAmount - item.buyAmount);
+    const varianceAsc = await walkSeeded({ sortBy: 'variance', sortDir: 'asc' });
+    const zetaVariances = varianceAsc.filter(item => item.customerName.includes('Zeta')).map(item => item.sellAmount - item.buyAmount);
     assert.deepEqual(zetaVariances, [90_000, 300_000, 700_000]);
-    const varianceDesc = await listRecoverableCosts(adminActor, { ...base, sortBy: 'variance', sortDir: 'desc' });
+    const varianceDesc = await walkSeeded({ sortBy: 'variance', sortDir: 'desc' });
     assert.deepEqual(
-      seeded(varianceDesc.items).filter(item => item.customerName.includes('Zeta')).map(item => item.sellAmount - item.buyAmount),
+      varianceDesc.filter(item => item.customerName.includes('Zeta')).map(item => item.sellAmount - item.buyAmount),
       [700_000, 300_000, 90_000],
     );
 
     // Evidence: none (0) < substitute (1) < invoice (2); claimed rows carry
     // invoices too, so filter to the unclaimed review set.
-    const evidenceAsc = await listRecoverableCosts(adminActor, { ...base, sortBy: 'evidence', sortDir: 'asc' });
-    const reviewSet = seeded(evidenceAsc.items).filter(item => item.claim == null && item.customerName.includes('Anpha'));
+    const evidenceAsc = await walkSeeded({ sortBy: 'evidence', sortDir: 'asc' });
+    const reviewSet = evidenceAsc.filter(item => item.claim == null && item.customerName.includes('Anpha'));
     assert.deepEqual(reviewSet.map(item => item.invoiceNumber), [null, null, 'INV-RC-1']);
 
     // Eligibility asc ranks by the frontend state order; the SQL rank must
     // agree with the JS evaluateRecoverableEligibility on every row.
-    const eligibilityAsc = await listRecoverableCosts(adminActor, { ...base, sortBy: 'eligibility', sortDir: 'asc' });
-    const states = seeded(eligibilityAsc.items).map(item => item.eligibility.state);
+    const eligibilityAsc = await walkSeeded({ sortBy: 'eligibility', sortDir: 'asc' });
+    const states = eligibilityAsc.map(item => item.eligibility.state);
     assert.deepEqual(states, [
       'ELIGIBLE',
       'BLOCKED',
@@ -291,11 +304,11 @@ describe('listRecoverableCosts column sorting', () => {
     ]);
     // Full SQL↔JS parity: the SQL rank ordering equals sorting the JS-evaluated
     // states by the same rank map (ties keep the id-asc tiebreaker).
-    const jsRanked = [...eligibilityAsc.items].sort((a, b) =>
+    const jsRanked = [...eligibilityAsc].sort((a, b) =>
       (ELIGIBILITY_RANK[a.eligibility.state] - ELIGIBILITY_RANK[b.eligibility.state])
       || (a.id - b.id));
     assert.deepEqual(
-      eligibilityAsc.items.map(item => item.id),
+      eligibilityAsc.map(item => item.id),
       jsRanked.map(item => item.id),
     );
 
@@ -303,8 +316,8 @@ describe('listRecoverableCosts column sorting', () => {
     // built by the JS helper) ranks ALREADY_CLAIMED while the stale string
     // ranks ADJUSTMENT_REQUIRED — proving the SQL expression matches the JS
     // builder for both a millisecond timestamp and a μs-heavy one.
-    assert.equal(eligibilityAsc.items.find(item => item.id === claimedFreshId)?.eligibility.state, 'ALREADY_CLAIMED');
-    assert.equal(eligibilityAsc.items.find(item => item.id === claimedStaleId)?.eligibility.state, 'ADJUSTMENT_REQUIRED');
+    assert.equal(eligibilityAsc.find(item => item.id === claimedFreshId)?.eligibility.state, 'ALREADY_CLAIMED');
+    assert.equal(eligibilityAsc.find(item => item.id === claimedStaleId)?.eligibility.state, 'ADJUSTMENT_REQUIRED');
 
     // JS evaluation agrees on those two rows as well (the SQL didn't decide
     // alone — evaluateRecoverableEligibility returns the same states).
@@ -312,17 +325,16 @@ describe('listRecoverableCosts column sorting', () => {
     assert.equal((await getRecoverableCost(adminActor, claimedStaleId)).eligibility.state, 'ADJUSTMENT_REQUIRED');
 
     // Customer name sorts with plain collation (Anpha < Zeta among seeded rows).
-    const nameAsc = await listRecoverableCosts(adminActor, { ...base, sortBy: 'customerName', sortDir: 'asc' });
-    const seededNames = seeded(nameAsc.items).map(item => item.customerName);
+    const seededNames = (await walkSeeded({ sortBy: 'customerName', sortDir: 'asc' })).map(item => item.customerName);
     assert.equal(seededNames[0].includes('Anpha'), true);
     assert.equal(seededNames[seededNames.length - 1].includes('Zeta'), true);
 
     // Shipment code: nulls sort last in BOTH directions — non-null codes fill
     // the head of the list and the null-coded anpha rows its tail.
-    const codeAsc = seeded((await listRecoverableCosts(adminActor, { ...base, sortBy: 'shipmentCode', sortDir: 'asc' })).items);
+    const codeAsc = await walkSeeded({ sortBy: 'shipmentCode', sortDir: 'asc' });
     assert.notEqual(codeAsc[0].shipmentCode, null);
     assert.equal(codeAsc[codeAsc.length - 1].shipmentCode, null);
-    const codeDesc = seeded((await listRecoverableCosts(adminActor, { ...base, sortBy: 'shipmentCode', sortDir: 'desc' })).items);
+    const codeDesc = await walkSeeded({ sortBy: 'shipmentCode', sortDir: 'desc' });
     assert.notEqual(codeDesc[0].shipmentCode, null);
     assert.equal(codeDesc[codeDesc.length - 1].shipmentCode, null);
   });
