@@ -18,7 +18,8 @@ import {
   truncateNote,
   type ActiveNoteDetail,
 } from './MasterPlanNoteModal';
-import { Checkbox as UUICheckbox } from '../../../components/untitled-ui/base/checkbox/checkbox';
+import { LclSelectCheckbox } from '../LclSelectCheckbox';
+import '../LclSelectCheckbox.css';
 import '../../../styles/operational-table-typography.css';
 import './MasterPlanGrid.css';
 
@@ -362,7 +363,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
         <thead>
           <tr>
             <th scope="col" className="master-plan-grid__select-head">
-              <span className="sr-only">Chọn lô</span>
+              <span className="master-plan-grid__select-head-label">Chọn</span>
+              <span className="sr-only"> lô</span>
             </th>
             <th scope="col">Thời gian &amp; lịch trình</th>
             <th scope="col">Khách hàng &amp; nhà máy</th>
@@ -401,14 +403,13 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 <td className="master-plan-grid__cell master-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
                   <div className="master-plan-grid__cell-body">
                     {isLclLotRow(item) && onToggleLclSelection && (
-                      <span title={item.costGroupId != null ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.' : undefined}>
-                        <UUICheckbox
-                          isSelected={selectedLclShipmentIds?.has(item.id) ?? false}
-                          isDisabled={item.costGroupId != null}
-                          onChange={(next: boolean) => onToggleLclSelection(item.id, next)}
-                          aria-label={`Chọn lô ${billBookingReference(item.blNumber, item.bookingRef)}`}
-                        />
-                      </span>
+                      <LclSelectCheckbox
+                        isSelected={selectedLclShipmentIds?.has(item.id) ?? false}
+                        isDisabled={item.costGroupId != null}
+                        onToggle={(next: boolean) => onToggleLclSelection(item.id, next)}
+                        ariaLabel={`Chọn lô ${billBookingReference(item.blNumber, item.bookingRef)}`}
+                        title={item.costGroupId != null ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.' : 'Chọn lô này để gán xe nhóm'}
+                      />
                     )}
                   </div>
                 </td>

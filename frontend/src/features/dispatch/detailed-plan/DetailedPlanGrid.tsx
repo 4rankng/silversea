@@ -27,7 +27,8 @@ import { DispatchDriverNote } from './DispatchDriverNote';
 import { detailRowKey } from './DispatchPlanCellValues';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
-import { Checkbox as UUICheckbox } from '../../../components/untitled-ui/base/checkbox/checkbox';
+import { LclSelectCheckbox } from '../LclSelectCheckbox';
+import '../LclSelectCheckbox.css';
 
 import '../../../styles/operational-table-typography.css';
 import './DetailedPlanGrid.css';
@@ -381,10 +382,11 @@ export function DetailedPlanGrid({
                         tuning (the R22/141026001010 regression class). */}
                     <div className="detailed-plan-grid__cell-body">
                       {onToggleLclSelection && row.cargoMode === 'LCL' && (
-                        <UUICheckbox
+                        <LclSelectCheckbox
                           isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
-                          onChange={(next: boolean) => onToggleLclSelection(row.shipmentId, next)}
-                          aria-label={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
+                          onToggle={(next: boolean) => onToggleLclSelection(row.shipmentId, next)}
+                          ariaLabel={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
+                          title="Chọn lô này để gán xe nhóm"
                         />
                       )}
                       <div className="ops-schedule">

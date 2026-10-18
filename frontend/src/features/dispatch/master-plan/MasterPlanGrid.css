@@ -119,7 +119,14 @@
    one nowrap line, so the note column (label needs under 7%) frees most of
    its old share — 9.5% keeps both the label and the "Thêm ghi chú" trigger
    (79px text, measured) on one line. */
-.master-plan-grid__col--select { width: 34px; }
+.master-plan-grid__col--select { width: 48px; }
+.master-plan-grid__select-head-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
 .master-plan-grid__cell--select .master-plan-grid__cell-body {
   display: flex;
   align-items: center;

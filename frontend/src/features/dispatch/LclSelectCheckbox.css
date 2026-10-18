@@ -1,0 +1,42 @@
+/* Visible LCL select checkbox (see LclSelectCheckbox.tsx for why the UUI
+ * checkbox could not be used in the dispatch grids). App tokens only. */
+.ops-lcl-check {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1.5px solid #94a3b8;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--fg-on-accent, #00381a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
+
+.ops-lcl-check:hover:not(:disabled) {
+  border-color: var(--color-accent, #4a9e7d);
+}
+
+.ops-lcl-check:focus-visible {
+  outline: 2px solid var(--color-accent, #4a9e7d);
+  outline-offset: 2px;
+}
+
+.ops-lcl-check--on {
+  background: var(--color-accent, #4a9e7d);
+  border-color: var(--color-accent, #4a9e7d);
+  color: #fff;
+}
+
+.ops-lcl-check:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ops-lcl-check svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
