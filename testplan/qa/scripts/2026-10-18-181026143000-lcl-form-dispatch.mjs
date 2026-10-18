@@ -2,7 +2,7 @@
 /**
  * 2026-10-18 — card 181026143000 (spec 2026.10.17): LCL create-form labels
  * (§1a/§1b/§1c/§1d) + dispatch Nâng/Trả sync (§2) — LOCAL DEV rung-3 drive
- * against THIS worktree's vite (:7176, worktree == main for src at drive time).
+ * against THIS worktree's vite (:7175, worktree == main for src at drive time).
  *
  * Rungs per AGENTS.md §9:
  *   §1a/1c/1d — DOM label/placeholder/button asserts + screenshots on
@@ -16,7 +16,7 @@
  *
  * Evidence (repo-root qa/): 181026143000_ui-*.png + 181026143000_driver.log
  * Run: node testplan/qa/scripts/2026-10-18-181026143000-lcl-form-dispatch.mjs
- * Env: BACKEND (default http://localhost:3002/api), FRONTEND (default :7176)
+ * Env: BACKEND (default http://localhost:3002/api), FRONTEND (default :7175)
  */
 import { appendFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -29,7 +29,7 @@ const QA = join(ROOT, 'qa');
 const DATE = '2026-10-18';
 const SCOPE = '181026143000';
 const BACKEND = process.env.BACKEND ?? 'http://localhost:3002/api';
-const FRONTEND = process.env.FRONTEND ?? 'http://localhost:7176';
+const FRONTEND = process.env.FRONTEND ?? 'http://localhost:7175';
 const STAMP = Date.now().toString().slice(-6);
 
 const log = [];

@@ -20,7 +20,7 @@ const expectOk = (cond, label, detail = '') => { log.push(`${cond ? 'PASS' : 'FA
 await withSession(token, async (page) => {
   for (const [width, height] of [[390, 844], [768, 1024], [1440, 900]]) {
     await page.setViewport({ width, height });
-    await page.goto('http://localhost:7176/shipments/new', { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto('http://localhost:7175/shipments/new', { waitUntil: 'networkidle2', timeout: 30000 });
     await page.waitForFunction(() => Array.from(document.querySelectorAll('input[type=radio]')).some((r) => /Hàng lẻ/.test(r.closest('label')?.textContent ?? '')), { timeout: 20000 });
     await page.click('[data-field-id="shipment-customer"] input');
     await sleep(400);

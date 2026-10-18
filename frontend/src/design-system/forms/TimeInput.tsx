@@ -86,6 +86,11 @@ export function TimeInput({ label, value, onChange, disabled = false, autoFocus,
       onKeyDown={(event) => {
         onKeyDown?.(event);
         if (event.defaultPrevented || event.nativeEvent.isComposing) return;
+        // FB-002 case 2 (181026000027): ANY printable keystroke is
+        // hand-typing — even when the browser later drops it (maxLength on a
+        // full field) or it never reaches onChange. The picker-open Enter must
+        // still count as the user's save key, not picker finishing.
+        if (open && event.key.length === 1) setTypedSinceOpen(true);
         // Type-over restart (the card 326/061026172803 segmented contract,
         // single-box form): a digit typed into a FULL field with a collapsed
         // caret must restart the entry — maxLength would otherwise swallow
@@ -94,7 +99,6 @@ export function TimeInput({ label, value, onChange, disabled = false, autoFocus,
         const collapsed = (event.currentTarget.selectionStart ?? 0) === (event.currentTarget.selectionEnd ?? 0);
         if (/^[0-9]$/.test(event.key) && collapsed && event.currentTarget.value.length >= event.currentTarget.maxLength) {
           event.preventDefault();
-          if (open) setTypedSinceOpen(true);
           onChange(event.key);
           return;
         }
@@ -104,14 +108,23 @@ export function TimeInput({ label, value, onChange, disabled = false, autoFocus,
           event.preventDefault(); event.stopPropagation(); close();
         } else if (event.key === 'Enter') {
           setTouched(true);
+          // FB-002 case 2 (181026000027): normalize a 4-digit HHmm draft
+          // ("1430") BEFORE the swallow decision — an unnormalized draft used
+          // to fail validation and the invalid-draft law swallowed the user's
+          // save key until a second Enter. The DOM value is the truth at key
+          // time; emit the canonical form so the host saves it as well.
+          const raw = event.currentTarget.value;
+          const normalized = /^\d{4}$/.test(raw) ? `${raw.slice(0, 2)}:${raw.slice(2)}` : raw;
+          if (normalized !== value) onChange(normalized);
+          const draftValidation = normalized && !isValidTime(normalized) ? 'Nhập giờ từ 00:00 đến 23:59 (HH:mm).' : '';
           // Match the date fields: finishing the open picker must not also
           // submit its surrounding schedule editor. Invalid drafts never
           // reach a parent's Enter shortcut, even when the picker is closed.
           // A hand-TYPED valid draft is the exception (FB-002): the click
           // that focused the field opened this picker, so swallowing Enter
           // here would swallow the user's save key — let it reach the host.
-          const handTypedWhileOpen = open && typedSinceOpen && !validation;
-          if ((open && !handTypedWhileOpen) || validation) { event.preventDefault(); event.stopPropagation(); }
+          const handTypedWhileOpen = open && typedSinceOpen && !draftValidation;
+          if ((open && !handTypedWhileOpen) || draftValidation) { event.preventDefault(); event.stopPropagation(); }
           setOpen(false);
           setTypedSinceOpen(false);
         } else if (event.key === 'Tab') setOpen(false);
