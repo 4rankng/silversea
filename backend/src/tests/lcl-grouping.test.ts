@@ -1273,6 +1273,41 @@ describe('LCL grouping — FB-095 un-merge safety', () => {
     }
   });
 
+  test('a settled SIBLING freezes the group-wide BKS thực edit — every member asserted, not just the named lot (LCL-A181026145000-05)', async () => {
+    const customer = await mkCustomer('review settled sibling');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `RVW-T1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `RVW-T2-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('5T');
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-313.13',
+    }, actor);
+    // Lô 2 (KHÔNG phải lô nêu tên) đã chốt kế toán.
+    await mkAccountingLock(lot2.id, (await db.select().from(s.shipments).where(eq(s.shipments.id, lot2.id)))[0]!.version, customer.id);
+
+    // BKS thực ghi MỌI thành viên nhóm → settled member đóng băng cả nhóm
+    // (mirror luật assertGroupMutable của un-merge).
+    await assert.rejects(
+      updateLclGroupTruck({ shipmentId: lot1.id, actualTruckNo: '29C-919.19' }, actor),
+      /đã chốt kế toán/,
+    );
+
+    // Không có gì đổi: cả hai lô vẫn giữ BKS cũ (không partial write).
+    const rows = await db.select().from(s.shipments).where(inArray(s.shipments.id, [lot1.id, lot2.id]));
+    for (const row of rows) {
+      assert.equal(row.actualTruckNo, '29C-313.13', `lô ${row.id} không bị ghi sau khi bị chặn`);
+    }
+
+    // Billing-only vẫn per-lot: lô unlocked sửa được dù sibling locked
+    // (early named-row assert là toàn bộ biên của nhánh này).
+    const billing = await updateLclGroupTruck({ shipmentId: lot1.id, billingTruckNo: '30C-414.14' }, actor);
+    assert.deepEqual(billing.updatedShipmentIds, [lot1.id], 'billing-only chạm đúng lô nêu tên');
+    const [after1] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot1.id));
+    assert.equal(after1.billingTruckNo, '30C-414.14');
+  });
+
   test('a member leaving moves no money; renumbering + REV zero re-stamp apply (FB095-04)', async () => {
     const customer = await mkCustomer('FB095 member');
     const route = await mkRoute();
@@ -2186,6 +2221,69 @@ describe('Card 181026145000 §2.4/§4 — wire trả position + size; xóa lô k
     const closeRow = debitClose.items.find((row) => row.shipmentId === lot2.id);
     assert.ok(closeRow, 'lô sống còn trên board kế toán');
     assert.equal(closeRow!.lcl!.ghépCùngRef, lot1.blNumber);
+  });
+
+  /** Review 181026145000 (case 04/06) — nhóm REV 3 lô KHÔNG trip lúc ghép
+   *  (principal chỉ xóa được khi chưa phát lệnh), merge xong mới sinh trip cho
+   *  lô thành viên: note "Ghép cước cùng Bill X" của lô đó đi qua nhánh fallback
+   *  revPrincipalRefs (không có stamp trip_financial_state) — đúng chỗ defect.
+   *  Xóa Lô 1: ghost giữ slot order 1 trong DB (spec §4), Lô 2 promote order 1,
+   *  Lô 3 renumber order 2. */
+  async function seedGhostPrincipalRevTrio(label: string) {
+    const customer = await mkCustomer(`review ghost ${label}`);
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `RVW-${label}1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `RVW-${label}2-${suffix.slice(-6)}`);
+    const lot3 = await mkLclLot(customer.id, route.id, `RVW-${label}3-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('3.5T');
+    const [pricing] = await db.insert(s.pricingTables).values({
+      customerId: customer.id,
+      routeId: route.id,
+      vehicleSizeClassId: truckClass.id,
+      rateKey: truckClass.code,
+      price: '2800000',
+    }).returning();
+    createdPricingTableIds.push(pricing.id);
+    await mergeLclRevGroup({ shipmentIds: [lot1.id, lot2.id, lot3.id], vehicleSizeClassId: truckClass.id }, actor);
+    const trip3 = await mkBoardTrip(lot3.id, customer.id, route.id);
+    await mkFreightSnapshot(lot3.id, trip3.id, '700000', '0');
+
+    const [fresh1] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot1.id));
+    await softDeleteShipment(lot1.id, { version: fresh1.version, deletedBy: actor.userId, actor });
+
+    const [ghost] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot1.id));
+    const [promoted] = await db.select().from(s.shipments).where(eq(s.shipments.id, lot2.id));
+    assert.equal(ghost.deletedAt != null, true, 'Lô 1 đã soft-delete');
+    assert.equal(ghost.revGroupOrder, 1, 'ghost giữ slot order 1 (bối cảnh của defect)');
+    assert.equal(promoted.revGroupOrder, 1, 'lô kế vị được promote lên order 1');
+    return { customer, lot1, lot2, lot3 };
+  }
+
+  test('review LCL-A181026145000-04: xóa Lô 1 (ghost order-1) — debt note cite Bill principal promote, không cite ghost', async () => {
+    const { customer, lot1, lot2, lot3 } = await seedGhostPrincipalRevTrio('a');
+
+    const debt = await getCustomerDebtSummary({ customerIds: [customer.id], excludeOwnFleet: false });
+    const line = debt.items.find((item) => item.customerId === customer.id)!.lines
+      .find((entry) => entry.shipmentId === lot3.id)!;
+    // Nhánh fallback revPrincipalRefs là nguồn duy nhất của tham chiếu — note
+    // phải cite principal LIVE (Lô 2 vừa promote), không bao giờ cite ghost.
+    assert.equal(line.freightOverrideReason, `Ghép cước cùng Bill ${lot2.blNumber}`);
+    assert.notEqual(line.freightOverrideReason, `Ghép cước cùng Bill ${lot1.blNumber}`, 'ghost order-1 không được trích dẫn');
+  });
+
+  test('review LCL-A181026145000-06: ghost-order-1 deletion — debt note + debit refs cùng cite Bill principal promote', async () => {
+    const { customer, lot1, lot2, lot3 } = await seedGhostPrincipalRevTrio('b');
+
+    const debt = await getCustomerDebtSummary({ customerIds: [customer.id], excludeOwnFleet: false });
+    const debtLine = debt.items.find((item) => item.customerId === customer.id)!.lines
+      .find((entry) => entry.shipmentId === lot3.id)!;
+    assert.equal(debtLine.freightOverrideReason, `Ghép cước cùng Bill ${lot2.blNumber}`);
+
+    const summary = await getShipmentDebitSummary({ customerId: customer.id, lockStatus: 'ALL' });
+    const row = summary.items.find((item) => item.shipmentId === lot3.id)!;
+    assert.equal(row.revGroupPrincipalRef, lot2.blNumber, 'debit ref trỏ Bill principal live (promote)');
+    assert.equal(row.freightOverrideReason, `Ghép cước cùng Bill ${lot2.blNumber}`, 'debit note ref cùng cite principal promote');
+    assert.notEqual(row.revGroupPrincipalRef, lot1.blNumber, 'ghost order-1 không được trích dẫn');
   });
 });
 

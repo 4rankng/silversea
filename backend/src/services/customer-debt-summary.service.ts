@@ -227,7 +227,9 @@ export async function getCustomerDebtSummary(
   // C5 — the rev-group principal's reference, for the member note
   // ("Ghép cước cùng Bill X"). Same lookup the money boards use: the member at
   // rev group order 1 is the principal, cited by its Bill number (booking ref
-  // as the fallback).
+  // as the fallback). LIVE order-1 rows only: a soft-deleted principal keeps
+  // its group id AND its order-1 slot (the delete renumbering never strips
+  // the leaver), so the ghost row must never shadow the promoted principal.
   const revGroupIds = [...new Set(lots.map((lot) => lot.revGroupId).filter((id): id is string => id != null))];
   const revPrincipalRefs = new Map<string, string>();
   if (revGroupIds.length > 0) {
@@ -236,7 +238,11 @@ export async function getCustomerDebtSummary(
       blNumber: s.shipments.blNumber,
       bookingRef: s.shipments.bookingRef,
     }).from(s.shipments)
-      .where(and(eq(s.shipments.revGroupOrder, 1), inArray(s.shipments.revGroupId, revGroupIds)));
+      .where(and(
+        isNull(s.shipments.deletedAt),
+        eq(s.shipments.revGroupOrder, 1),
+        inArray(s.shipments.revGroupId, revGroupIds),
+      ));
     for (const principal of principals) {
       const ref = principal.blNumber ?? principal.bookingRef ?? '';
       if (principal.groupId != null && ref !== '') revPrincipalRefs.set(principal.groupId, ref);
