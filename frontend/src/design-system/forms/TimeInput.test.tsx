@@ -14,7 +14,7 @@ function Harness({ onParentKeyDown = vi.fn(), onKeyDown }: {
 }
 
 describe('TimeInput outer-field keyboard ownership', () => {
-  it('consumes Enter while its picker is open instead of submitting the surrounding editor', () => {
+  it('lets a complete valid draft Enter bubble when the picker was opened by mouse (FB-002)', () => {
     const parentKeyDown = vi.fn();
     render(<Harness onParentKeyDown={parentKeyDown} />);
     const input = screen.getByLabelText('Giờ giao');
@@ -22,11 +22,24 @@ describe('TimeInput outer-field keyboard ownership', () => {
     fireEvent.click(input);
     fireEvent.change(input, { target: { value: '14:23' } });
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(false);
+    expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(true);
+    expect(parentKeyDown).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(input).toHaveValue('14:23');
     expect(input).toHaveFocus();
+  });
+
+  it('still consumes Enter when the picker was opened by keyboard (ArrowDown)', () => {
+    const parentKeyDown = vi.fn();
+    render(<Harness onParentKeyDown={parentKeyDown} />);
+    const input = screen.getByLabelText('Giờ giao');
+    act(() => input.focus());
+    fireEvent.keyDown(input, { key: 'ArrowDown', code: 'ArrowDown' });
+    fireEvent.change(input, { target: { value: '14:23' } });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(false);
     expect(parentKeyDown).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it.each(['14:', '25:99'])('reveals invalid time feedback on Enter and never forwards it: %s', (value) => {

@@ -75,10 +75,13 @@ export function TimeInput({ label, value, onChange, disabled = false, autoFocus,
           event.preventDefault(); event.stopPropagation(); close();
         } else if (event.key === 'Enter') {
           setTouched(true);
-          // Match the date fields: finishing the open picker must not also
-          // submit its surrounding schedule editor. Invalid drafts never
-          // reach a parent's Enter shortcut, even when the picker is closed.
-          if (open || validation) { event.preventDefault(); event.stopPropagation(); }
+          // FB-002 (181026000027): a hand-typed draft must let Enter bubble so
+          // the surrounding schedule form can save — the panel opens on every
+          // CLICK into the field, so `open` is true on the normal mouse path
+          // and swallowing there made Enter dead for mouse users. Keep owning
+          // Enter only when the picker was opened from the KEYBOARD
+          // (ArrowDown → the panel owns the caret) or the draft is invalid.
+          if (keyboardPicker || validation) { event.preventDefault(); event.stopPropagation(); }
           setOpen(false);
         } else if (event.key === 'Tab') setOpen(false);
       }}
