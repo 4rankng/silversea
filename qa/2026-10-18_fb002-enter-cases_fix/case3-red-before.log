@@ -1,0 +1,195 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-fb030-advance-regress-rb1/frontend
+
+ ❯ src/design-system/forms/TimeInput.test.tsx (13 tests | 1 failed) 547ms
+     × FB-002 case 3: ArrowDown opens the picker without stealing typing focus from the input 23ms
+ ❯ src/design-system/Modal.test.tsx (18 tests | 1 failed) 2263ms
+     × keeps focus on a content autoFocus field instead of yanking it to the first control 1037ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/design-system/Modal.test.tsx > Modal overlay suite — house chrome > keeps focus on a content autoFocus field instead of yanking it to the first control
+Error: expect(element).toHaveFocus()
+
+Expected element with focus:
+  <input
+  aria-label="Giờ"
+/>
+Received element with focus:
+  <button
+  aria-label="Đóng"
+  class="btn btn--ghost btn--icon btn--sm modal__close"
+>
+  <svg
+    aria-hidden="true"
+    class="lucide lucide-x"
+    fill="none"
+    height="16"
+    stroke="currentColor"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="2"
+    viewBox="0 0 24 24"
+    width="16"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M18 6 6 18"
+    />
+    <path
+      d="m6 6 12 12"
+    />
+  </svg>
+</button>
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m"overflow: hidden;"[39m
+  [36m>[39m
+    [36m<div />[39m
+    [36m<div[39m
+      [33maria-labelledby[39m=[32m"_r_4_"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"modal modal--operational-density"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"opacity: 1;"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__content"[39m
+        [33mstyle[39m=[32m"--modal-max-w: 480px; opacity: 1; will-change: opacity;"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"modal__head"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<h3[39m
+              [33mclass[39m=[32m"modal__title"[39m
+              [33mid[39m=[32m"_r_4_"[39m
+            [36m>[39m
+              [0mDialog[0m
+            [36m</h3>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+            [33mdata-tip[39m=[32m"Đóng"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Đóng"[39m
+              [33mclass[39m=[32m"btn btn--ghost btn--icon btn--sm modal__close"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-x"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"16"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"16"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M18 6 6 18"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m6 6 12 12"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"modal__body"[39m
+        [36m>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Giờ"[39m
+          [36m/>[39m
+          [36m<button[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mLưu[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ src/design-system/Modal.test.tsx:95:62
+     93|     // autoFocus'd field's focus to the header "Đóng", so the user's f…
+     94|     // keystrokes landed on a button (the schedule dialog's exact symp…
+     95|     await waitFor(() => expect(screen.getByLabelText('Giờ')).toHaveFoc…
+       |                                                              ^
+     96|     expect(screen.getByRole('button', { name: 'Đóng' })).not.toHaveFoc…
+     97|   });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/design-system/forms/TimeInput.test.tsx > TimeInput outer-field keyboard ownership > FB-002 case 3: ArrowDown opens the picker without stealing typing focus from the input
+Error: expect(element).toHaveFocus()
+
+Expected element with focus:
+  <input
+  aria-controls="_r_v2_-panel"
+  aria-expanded="true"
+  aria-haspopup="dialog"
+  aria-invalid="false"
+  aria-label="Giờ giao"
+  autocomplete="off"
+  class="m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]"
+  data-rac=""
+  inputmode="numeric"
+  maxlength="5"
+  placeholder="HH:mm"
+  type="text"
+  value="08:17"
+/>
+Received element with focus:
+  <button
+  aria-label="Đóng"
+  type="button"
+>
+  <svg
+    aria-hidden="true"
+    class="lucide lucide-x"
+    fill="none"
+    height="14"
+    stroke="currentColor"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="2"
+    viewBox="0 0 24 24"
+    width="14"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M18 6 6 18"
+    />
+    <path
+      d="m6 6 12 12"
+    />
+  </svg>
+</button>
+ ❯ src/design-system/forms/TimeInput.test.tsx:184:19
+    182|     // the input here made typed giờ + Enter a dead key (QA staging re…
+    183|     // 2026-10-18 — fireEvent.change cannot reproduce this).
+    184|     expect(input).toHaveFocus();
+       |                   ^
+    185|     fireEvent.change(input, { target: { value: '14:23' } });
+    186|     expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 29 passed (31)
+   Start at  16:09:13
+   Duration  4.14s (transform 556ms, setup 361ms, import 2.23s, tests 2.81s, environment 1.03s)
+
