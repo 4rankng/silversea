@@ -71,3 +71,22 @@ test('lot-level expense on an unknown shipment is a 404; Tiền đường never 
   await assert.rejects(createAccountingExpense(tx, ctx.actor, lotExpense(ctx, { costGroup: 'DRIVER_ROAD', customerChargeAmount: 50_000 })),
     /Tiền đường không thu khách/);
 }));
+// chiphispec §1 — MỌI Ops khai chi phí MỌI lô: an OPS actor (not finance)
+// creates a lot-level entry on an unassigned lot — no trip, no truck, no
+// truck-ops assignment — while trip-scoped creation stays finance-only.
+test('chiphispec §1: OPS creates a lot-level entry on an unassigned lot; the trip branch stays finance-only', async () => fixture(async (tx, ctx) => {
+  const opsActor = { userId: ctx.ops.id, role: Role.OPS };
+  const source = await createAccountingExpense(tx, opsActor, lotExpense(ctx, { feeName: `${ctx.key}-ops`, note: 'ops tự nhập' }));
+  assert.equal(source.sourceKind, 'OPS');
+  assert.equal(source.tripId, null);
+  assert.equal(source.shipmentId, ctx.shipment.id);
+  assert.equal(source.recordedById, ctx.ops.id);
+  const [entry] = await tx.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, source.sourceId));
+  assert.equal(entry.approvalStatus, 'RECORDED');
+  assert.equal(entry.paidById, null);
+  assert.equal(entry.payerKind, 'COMPANY');
+  await assert.rejects(
+    createAccountingExpense(tx, opsActor, lotExpense(ctx, { tripId: 419 })),
+    (error: Error & { statusCode?: number }) => error.statusCode === 403 && /lô hàng/.test(error.message),
+  );
+}));

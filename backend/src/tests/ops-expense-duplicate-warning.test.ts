@@ -150,10 +150,12 @@ describe('141026230720 — duplicate cost-entry warning on the write path', () =
 
     const dup = await post(opsB, expenseBody(shipmentId, contA, typeCode), `dupw-1b-${suffix}`);
     assert.equal(dup.status, 409, JSON.stringify(dup.body).slice(0, 300));
-    const body = dup.body as { code?: string; error?: string; duplicates?: Array<{ paidByName?: string; amount?: string; paidAt?: string; containerNumber?: string }> };
+    const body = dup.body as { code?: string; error?: string; duplicates?: Array<{ paidById?: number; paidByName?: string; amount?: string; paidAt?: string; containerNumber?: string }> };
     assert.equal(body.code, 'OPS_EXPENSE_DUPLICATE');
     assert.ok(body.error?.includes('Ops Nguyễn'), `message names the earlier claimant: ${body.error}`);
     assert.equal(body.duplicates?.length, 1);
+    // chiphispec §2 — the payload carries the previous entrant's name AND id.
+    assert.equal(body.duplicates?.[0]?.paidById, opsA);
     assert.equal(body.duplicates?.[0]?.paidByName, 'Ops Nguyễn');
     assert.equal(body.duplicates?.[0]?.containerNumber, 'DUPW1111111');
     assert.equal(body.duplicates?.[0]?.amount, '15000');
@@ -161,6 +163,28 @@ describe('141026230720 — duplicate cost-entry warning on the write path', () =
 
     const confirmed = await post(opsB, expenseBody(shipmentId, contA, typeCode, { duplicateConfirmed: true }), `dupw-1c-${suffix}`);
     assert.equal(confirmed.status, 201, JSON.stringify(confirmed.body).slice(0, 300));
+  });
+
+  test('an entrant with no full name is named by username in the 409 (chiphispec §2)', async () => {
+    const typeCode = await mkType(`DUPW_U_${suffix}`, 'Phí không tên (dupw)');
+    const shipmentId = await mkLot();
+    const contA = await mkContainer(shipmentId, 'DUPW6666666');
+    const username = `dupw-anon-${cleanup.length}-${suffix.slice(-6)}`;
+    const [anon] = await db.insert(s.users).values({
+      username, passwordHash: 't', fullName: null, role: Role.OPS, status: 'ACTIVE',
+    }).returning({ id: s.users.id });
+    track(() => db.delete(s.users).where(eq(s.users.id, anon.id)));
+    const named = await mkOpsUser('Ops Đỗ');
+
+    const first = await post(anon.id, expenseBody(shipmentId, contA, typeCode), `dupw-5a-${suffix}`);
+    assert.equal(first.status, 201, JSON.stringify(first.body).slice(0, 300));
+
+    const dup = await post(named, expenseBody(shipmentId, contA, typeCode), `dupw-5b-${suffix}`);
+    assert.equal(dup.status, 409, JSON.stringify(dup.body).slice(0, 300));
+    const body = dup.body as { error?: string; duplicates?: Array<{ paidById?: number; paidByName?: string | null }> };
+    assert.ok(body.error?.includes(username), `message names the username: ${body.error}`);
+    assert.equal(body.duplicates?.[0]?.paidById, anon.id);
+    assert.equal(body.duplicates?.[0]?.paidByName, username);
   });
 
   test('a different type on the same cont, or the same type on another cont, saves without the warning', async () => {

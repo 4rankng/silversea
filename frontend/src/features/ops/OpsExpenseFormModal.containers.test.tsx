@@ -218,7 +218,7 @@ describe('141026230720 — duplicate cost-entry confirm (type + scope)', { timeo
     code: 'OPS_EXPENSE_DUPLICATE',
     duplicates: [{
       id: 91, expenseTypeName: 'Phí soi chiếu', containerNumber: 'TGHU1234567',
-      paidByName: 'Ops Trần', amount: '450000', paidAt: '2026-10-14',
+      paidById: 77, paidByName: 'Ops Trần', amount: '450000', paidAt: '2026-10-14',
     }],
   }, 'Loại phí này đã có Ops Trần nhập trước — kiểm tra lại để tránh nhập trùng.');
 
@@ -235,10 +235,25 @@ describe('141026230720 — duplicate cost-entry confirm (type + scope)', { timeo
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
     expect(api.createExpense.mock.calls[0][0].duplicateConfirmed).toBeUndefined();
     const panel = await screen.findByRole('alert');
-    expect(panel.textContent).toContain('đã được Ops Trần nhập trước đó');
-    expect(panel.textContent).toContain('bạn vẫn tiếp tục nhập chứ?');
+    // chiphispec §2 — the confirm copy names the previous entrant (name or id).
+    expect(panel.textContent).toContain('ĐÃ ĐƯỢC Ops Trần NHẬP TRƯỚC ĐÓ, BẠN VẪN TIẾP TỤC NHẬP CHỨ?');
     expect(panel.textContent).toContain('450.000');
     expect(panel.textContent).toContain('cont TGHU1234567');
+  });
+
+  it('an entrant with no full name is named by id in the confirm panel', async () => {
+    api.createExpense.mockRejectedValueOnce(new ApiError(409, {
+      code: 'OPS_EXPENSE_DUPLICATE',
+      duplicates: [{
+        id: 92, expenseTypeName: 'Phí soi chiếu', containerNumber: null,
+        paidById: 12, paidByName: null, amount: '450000', paidAt: '2026-10-14',
+      }],
+    }, 'Loại phí này đã có OPS #12 nhập trước trên phí chung lô.'));
+    show();
+    await fillAndSave();
+    const panel = await screen.findByRole('alert');
+    expect(panel.textContent).toContain('ĐÃ ĐƯỢC OPS #12 NHẬP TRƯỚC ĐÓ, BẠN VẪN TIẾP TỤC NHẬP CHỨ?');
+    expect(panel.textContent).toContain('phí chung lô');
   });
 
   it('Tiếp tục lưu resends with duplicateConfirmed and closes on success', async () => {

@@ -31,13 +31,14 @@ export interface ShipmentCostEntryFormProps {
  * The ONE photo rule for a draft row, shared by the row's reminder/disable and
  * the form's submit gate (card 20260928_165 mechanism, widened twice):
  * a required-evidence code needs its paper whatever the picker says, and —
- * card 141026230700 — EVERY lot cost ("Chi phí lô hàng" bucket) carries a
- * biên lai photo: the paper replaced the typed invoice pair as the driver's
- * evidence, so no lot row exists without one.
+ * chiphispec §2 ("nếu có phát sinh chi phí lô hàng") — EVERY draft that spends
+ * money carries a biên lai photo: a DRIVER_SHIPMENT row with amount > 0 needs
+ * one, a 0/blank row (or a negative refund adjustment) is exempt, and a
+ * DRIVER_ROAD row is exempt unless it also carries a positive amount.
  */
-function receiptStillNeeded(selected: DriverExpenseOption): boolean {
-  return requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode) != null
-    || selected.group === 'DRIVER_SHIPMENT';
+function receiptStillNeeded(selected: DriverExpenseOption, amount: number | ''): boolean {
+  if (requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode) != null) return true;
+  return typeof amount === 'number' && amount > 0;
 }
 
 /** Saved-row caption: the paper the row carries. Legacy rows (`evidence_kind`
@@ -121,11 +122,11 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
   const requiresReceipt = requiredEvidence != null;
   const evidenceLabel = requiredEvidence == null ? '' : NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidence];
   const lotCost = selected.group === 'DRIVER_SHIPMENT';
-  const receiptMissing = receiptStillNeeded(selected) && !row.receiptStorageKey;
+  const receiptMissing = receiptStillNeeded(selected, row.amount) && !row.receiptStorageKey;
   const cameraLabel = uploading ? 'Đang tải…'
     : row.receiptStorageKey ? 'Thay ảnh chứng từ'
     : requiresReceipt ? `Chụp / chọn ${evidenceLabel} (bắt buộc)`
-    : lotCost ? 'Chụp / chọn biên lai (bắt buộc)'
+    : receiptStillNeeded(selected, row.amount) ? 'Chụp / chọn biên lai (bắt buộc)'
     : 'Chụp / chọn biên lai';
 
   return (
@@ -168,12 +169,12 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
       </label>
       {pendingFile && <div className="shipment-cost-entry__upload-retry" role="status"><span>{pendingFile.name} · Chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" disabled={disabled} onClick={() => onUpload(pendingFile)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={onDiscardPendingFile}>Bỏ ảnh chưa tải</button></div>}
       {row.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><PhotoImage src={receiptUrl} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
-      {/* Card 20260928_165 + card 141026230700 — the supporting paper cannot
+      {/* Card 20260928_165 + chiphispec §2 — the supporting paper cannot
           exist without the entry: the form blocks the submit (never silently)
-          until it is attached, and the server refuses the row without it. Every
-          lot cost needs its biên lai; a mandated-evidence road fee needs its
-          named paper. */}
-      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{lotCost ? 'Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.' : `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.`}</p>}
+          until it is attached, and the server refuses the row without it. A
+          mandated-evidence road fee names its paper; any other spending row
+          asks for the biên lai. */}
+      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{requiresReceipt ? `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.` : 'Chụp biên lai cho khoản có chi phí.'}</p>}
     </section>
   );
 }
@@ -205,7 +206,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
     finally { noteLock.current = false; setNoteSaving(false); }
   }
   // The submit gate reads the same per-row photo rule the rows display.
-  const blockedRow = state.drafts.some(row => receiptStillNeeded(driverExpenseOption(row.option, state.options)) && !row.receiptStorageKey);
+  const blockedRow = state.drafts.some(row => receiptStillNeeded(driverExpenseOption(row.option, state.options), row.amount) && !row.receiptStorageKey);
 
   return <section className="shipment-cost-entry" aria-label="Chi phí chuyến">
     <header className="shipment-cost-entry__head">

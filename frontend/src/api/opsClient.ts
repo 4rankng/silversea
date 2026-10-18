@@ -153,6 +153,8 @@ export interface OpsExpenseDuplicateHit {
   id: number;
   expenseTypeName: string | null;
   containerNumber: string | null;
+  /** Previous entrant (chiphispec §2): id + name (username fallback). */
+  paidById: number | null;
   paidByName: string | null;
   amount: string;
   paidAt: string;

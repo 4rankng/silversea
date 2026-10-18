@@ -431,8 +431,14 @@ export default function ShipmentDetailPage() {
         />
 
         {/* Documents */}
+        {/* chiphispec §1 — the cost-entry affordance must not hide from OPS:
+            the expense panel (with "+ Thêm khoản chi") mounts for OPS too, the
+            finance-only ShipmentFinancePanel keeps its original role set. */}
+        {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.OPS].includes(user?.role as Role) && (
+          <ShipmentExpensePanel shipmentId={shipment.id} shipmentCode={shipmentLabel} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS} />
+        )}
         {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS].includes(user?.role as Role) && (
-          <><ShipmentExpensePanel shipmentId={shipment.id} shipmentCode={shipmentLabel} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS} /><ShipmentFinancePanel shipmentId={shipment.id} accountingLocked={Boolean(accountingLock)} /></>
+          <ShipmentFinancePanel shipmentId={shipment.id} accountingLocked={Boolean(accountingLock)} />
         )}
 
         <section className="shipment-detail__card">

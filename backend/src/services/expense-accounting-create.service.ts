@@ -5,11 +5,19 @@ import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { assertShipmentAccountingUnlocked, assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
-import { assertActiveExpensePayer, ensureTripExpenseAccountingSource, upsertExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
+import { assertActiveExpensePayer, ensureTripExpenseAccountingSource, resolveTripShipmentId, upsertExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 import { requireExpenseFinance, syncExpenseBillingSource, type ExpenseActor } from './expense-accounting-write.service';
 
 export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input: ExpenseAccountingCreate): Promise<ExpenseAccountingSource> {
-  requireExpenseFinance(actor);
+  // chiphispec §1 — ANY Ops fills ALL lot costs: OPS is admitted to CREATE on
+  // the lot path only (tripId == null → ops_expense_entries). Trip-scoped
+  // creation and every other financial command keep requireExpenseFinance
+  // (the function itself is untouched so the RBAC pattern stays single).
+  if (actor.role === Role.OPS) {
+    if (input.tripId != null) throw new ApiError(403, 'Nhân viên Ops chỉ nhập được khoản chi theo lô hàng.');
+  } else {
+    requireExpenseFinance(actor);
+  }
   // Card 20261005 — a shipment-level expense needs NO trip: lô hàng chưa có
   // chuyến vận chuyển vẫn khai được chi phí. The lot branch writes the native
   // row + accounting source keyed by the lot only (tripId = null) and never
@@ -18,7 +26,10 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
   await lockTripFinancialAuthority(tx, [input.tripId]);
   await assertTripShipmentAccountingUnlocked(tx, input.tripId);
   const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, input.tripId)).for('update');
-  if (!trip?.shipmentId || trip.deletedAt || trip.status === 'CANCELED') throw new ApiError(409, 'Chọn chuyến đang hoạt động và thuộc lô hàng.');
+  const shipmentId = trip && !trip.deletedAt && trip.status !== 'CANCELED' ? await resolveTripShipmentId(tx, trip) : null;
+  // Wave-model trips link the lot through fulfillmentId only; resolve before
+  // refusing, else "thêm khoản chi" 409s on a fully-linked trip.
+  if (!shipmentId || trip!.deletedAt || trip!.status === 'CANCELED') throw new ApiError(409, 'Chọn chuyến đang hoạt động và thuộc lô hàng.');
   if (input.costGroup === 'DRIVER_ROAD' && input.customerChargeAmount !== 0) throw new ApiError(400, 'Tiền đường không thu khách.');
   const [payer] = input.payerKind === 'USER' && input.payerUserId ? await tx.select().from(s.users).where(eq(s.users.id, input.payerUserId)) : [];
   if (input.payerKind === 'USER') {
@@ -38,7 +49,7 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
         invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, note: input.note, recoveryNote: input.recoveryNote,
         recordedBy: actor.userId,
       }).returning();
-      return upsertExpenseAccountingSource(tx, { sourceKind: 'DRIVER', sourceId: entry.id, shipmentId: trip.shipmentId,
+      return upsertExpenseAccountingSource(tx, { sourceKind: 'DRIVER', sourceId: entry.id, shipmentId,
         tripId: trip.id, customerId: trip.customerId, expenseTypeCode: entry.costType, costGroup: entry.costGroup,
         feeName: input.feeName, amount: input.amount, customerChargeAmount: input.customerChargeAmount,
         expenseDate: input.expenseDate, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
@@ -54,13 +65,13 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
     if (!supplier || supplier.status !== 'ACTIVE') throw new ApiError(400, 'Chọn nhà cung cấp đang hoạt động.');
   }
   if (input.payerKind === 'USER' && payer?.role === Role.OPS) {
-    const [entry] = await tx.insert(s.opsExpenseEntries).values({ shipmentId: trip.shipmentId,
+    const [entry] = await tx.insert(s.opsExpenseEntries).values({ shipmentId,
       expenseTypeCode: input.expenseTypeCode, amount: String(input.amount), customerChargeAmount: String(input.customerChargeAmount),
       paidAt: input.expenseDate, paidById: payer.id, payerKind: 'USER', costGroup: input.costGroup,
       feeName: input.feeName, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
       recoveryNote: input.recoveryNote, approvalStatus: 'RECORDED', note: input.note }).returning();
     const source = await upsertExpenseAccountingSource(tx, { sourceKind: 'OPS', sourceId: entry.id,
-      shipmentId: trip.shipmentId, tripId: trip.id, customerId: trip.customerId,
+      shipmentId, tripId: trip.id, customerId: trip.customerId,
       expenseTypeCode: input.expenseTypeCode, costGroup: input.costGroup, feeName: input.feeName,
       amount: input.amount, customerChargeAmount: input.customerChargeAmount, expenseDate: input.expenseDate,
       invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, payerKind: 'USER', payerUserId: payer.id,

@@ -55,6 +55,12 @@ export function opsDuplicateHitsFromError(error: unknown): OpsExpenseDuplicateHi
   return null;
 }
 
+/** chiphispec §2 — who entered the earlier row: the display name, falling back
+ *  to the entrant's id ("OPS #12") when the payload carries no usable name. */
+export function opsDuplicateWho(hit: OpsExpenseDuplicateHit): string {
+  return hit.paidByName?.trim() || (hit.paidById != null ? `OPS #${hit.paidById}` : 'người khác');
+}
+
 /**
  * "Khai báo chi phí" (OpsVanHanh §3.3): context-first form — mã lô + số bill
  * tự điền readonly, số cont chọn từ vỏ của lô, loại phí nhóm theo
@@ -270,12 +276,12 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
           {duplicateHits && (
             <div className="ops-modal__warning ops-modal__duplicate" role="alert">
               <p>
-                {`Loại phí "${duplicateHits[0].expenseTypeName ?? typeCode}" đã được ${duplicateHits[0].paidByName ?? 'người khác'} nhập trước đó — bạn vẫn tiếp tục nhập chứ?`}
+                {`ĐÃ ĐƯỢC ${opsDuplicateWho(duplicateHits[0])} NHẬP TRƯỚC ĐÓ, BẠN VẪN TIẾP TỤC NHẬP CHỨ?`}
               </p>
               <ul>
                 {duplicateHits.map((hit) => (
                   <li key={hit.id}>
-                    {`${hit.paidByName ?? 'người khác'} · ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')}${hit.containerNumber ? ` · cont ${hit.containerNumber}` : ' · phí chung lô'}`}
+                    {`${opsDuplicateWho(hit)} · ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')}${hit.containerNumber ? ` · cont ${hit.containerNumber}` : ' · phí chung lô'}`}
                   </li>
                 ))}
               </ul>

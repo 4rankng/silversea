@@ -19,7 +19,9 @@ export function ShipmentExpensePanel({ shipmentId, shipmentCode = null, readOnly
   const query = useQuery({ queryKey: qk.expenseAccounting.entries(filters), queryFn: () => expenseAccountingClient.list(filters) });
   // Card 20261005 — kế toán khai chi phí ngay trên lô, không cần chuyến. Nút
   // chỉ hiện cho vai trò được ghi chi phí và khi lô chưa khoá tài chính.
-  const canCreate = !readOnly && (user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT);
+  // chiphispec §1 — ANY Ops fills ALL lot costs: OPS joins the create set, and
+  // the drawer scopes its payer list to fellow Ops (entryScope='OPS').
+  const canCreate = !readOnly && (user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || user?.role === Role.OPS);
   const catalog = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog, enabled: creating });
   return <section className="expense-accounting" aria-label="Chi phí và thực thu của lô hàng">
     <header className="expense-accounting-header"><div><h3>Chi phí / thực thu</h3><p>Số tính cho khách theo thỏa thuận, có thể thấp hơn thực chi hoặc bằng 0. Không phải số khách đã thanh toán.</p></div>
@@ -29,7 +31,7 @@ export function ShipmentExpensePanel({ shipmentId, shipmentCode = null, readOnly
       <Pagination page={page} totalPages={Math.ceil(query.data.total / filters.limit)} totalItems={query.data.total} pageSize={filters.limit} onChange={setPage} disabled={query.isFetching} />
     </>}
     {creating && !catalog.data && <p role="status">Đang tải danh mục khoản chi…</p>}
-    {creating && catalog.data && <ExpenseCreateDrawer work={{ tripId: null, shipmentId, shipmentCode, containerNumber: null }} catalog={catalog.data} onClose={() => setCreating(false)} onSaved={() => void query.refetch()} />}
+    {creating && catalog.data && <ExpenseCreateDrawer work={{ tripId: null, shipmentId, shipmentCode, containerNumber: null }} entryScope={user?.role === Role.OPS ? 'OPS' : undefined} catalog={catalog.data} onClose={() => setCreating(false)} onSaved={() => void query.refetch()} />}
     {entry && <ExpenseEntryDrawer entry={readOnly ? { ...entry, locked: true } : entry} staff={[]} chargeOnly={chargeOnly} onClose={() => setEntry(null)} />}
   </section>;
 }

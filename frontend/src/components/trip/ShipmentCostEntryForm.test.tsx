@@ -157,9 +157,13 @@ describe('driver expense workflow — TC-CP-LX', () => {
     setup(); await open();
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Chạy quá tải');
+    // chiphispec §2 — a road row that carries money needs its biên lai too.
+    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
+    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chụp biên lai cho khoản có chi phí.');
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costType: 'OTHER', costGroup: 'DRIVER_ROAD', feeName: 'Chạy quá tải', amount: 200000 });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costType: 'OTHER', costGroup: 'DRIVER_ROAD', feeName: 'Chạy quá tải', amount: 200000, receiptStorageKey: 'receipt.png' });
     expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceNumber).toBeUndefined();
   });
 
@@ -233,6 +237,20 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(api.createIncidentalCosts).not.toHaveBeenCalled();
   });
 
+  // chiphispec §2 — only SPENT money carries the biên lai: a 0/blank draft and
+  // a negative refund adjustment are exempt, so neither blocks the submit on a
+  // missing photo (the amount rule still rejects them server-side as before).
+  it('chiphispec §2: a negative lot row needs no photo and saves as an adjustment', async () => {
+    setup(); await open();
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '-30000' } });
+    expect(screen.queryByTestId('shipment-cost-receipt-required')).toBeNull();
+    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: -30000 });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0].receiptStorageKey).toBeUndefined();
+  });
+
   // Card 20261005 — "Người chi" (Tôi chi / Công ty chi) gỡ khỏi chi phí lái xe:
   // lái xe ghi khoản đã chi, kế toán quyết định bên thực chi. Form không còn
   // combobox Người chi, payload không mang payerKind, và dòng đã lưu không in
@@ -249,6 +267,8 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Lưu ca');
     expect(screen.queryByRole('combobox', { name: 'Người chi' })).toBeNull();
+    // chiphispec §2 — money on the row ⇒ biên lai required.
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costType: 'OTHER', feeNormCode: 'SHIFT', feeName: 'Lưu ca', amount: 200000 });
@@ -260,6 +280,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
     setup(); await open(); fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' })); await choose('Phụ cấp bãi kiểm thử mới');
     expect(screen.getByLabelText(/Thực chi/)).toHaveValue('73.000');
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '75000' } });
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledOnce());
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ feeNormCode: 'CUSTOM_HARBOR', amount: 75000, costGroup: 'DRIVER_ROAD' });
@@ -380,7 +401,10 @@ describe('driver expense workflow — TC-CP-LX', () => {
     await choose('Phí vệ sinh');
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
-    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
+    // chiphispec §2 — a lot row with money needs the biên lai; the copy is the
+    // spec's own line.
+    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
+    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chụp biên lai cho khoản có chi phí.');
     await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
