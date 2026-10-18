@@ -157,3 +157,51 @@ defect class would need its own card). Verification ran on worktree vite :7176
 because :7175 was taken mid-session by the main checkout's frontend (PID 99794
 — untouched); API shared at :3002. Branch `fix-181026021137-fb063-header-wrap`
 — commit local, DO NOT merge per brief.
+
+## Wave — red-at-base BE wave 1: heSo surcharge + card-197 negative costs (worktree fix-be-reds-wave1)
+
+Scope: 2 suites red at base `8fc1bcf5` — `heso-surcharge.test.ts` 5/5,
+`card197-negative-cost-totals.test.ts` 5/10. Test-only fixes; NO service code
+changed (brief's suspects `488b007f`/`8f3a42e8` exonerated by arithmetic).
+
+### Cluster A decision — NOT a formula change
+The engine prices fuel at the LATEST `fuel_price_periods` row ≤ transport date;
+that table is GLOBAL on the shared dev DB. The suite pinned fixed dates
+(period 2026-09-01 @ 29.940, transport 2026-09-15) and a stray row
+(`id=207`, 30000 @ 2026-09-09 — in no seed, no test source; QA/manual debris)
+outranked the fixture: Δ exactly +60đ/ℓ ⇒ 243148/267463/778074 = the reds.
+Fix = suite owns an unoccupied far-future window (fuel-period-envelope
+pattern), all worked-number assertions unchanged (card 20260922_59's pin
+241948/266143/774234/696811/1100864 intact).
+
+### Cluster B decision — three INTENDED contracts postdate the fixtures
+1. `shipmentId` required in `expenseAccountingCreateSchema` — card 20261005
+   (commit `2a64156f`) ⇒ `createBase` gains `shipmentId: 1`.
+2. Tiền-đường rows key `sourceId` on `expense_accounting_sources.id` — card
+   20261005_373 "lần 2" (same commit, the Từ-chối 404 fix) ⇒ listing
+   assertions key on the source id (`mkDriverCost` now returns it).
+3. Duplicate-entry guard 409 on same type+scope — card 141026230720 (commit
+   `030e8e42`), with its documented `duplicateConfirmed` override ⇒ the three
+   save-path calls carry the override (the fixture's `mkPriorExpense` IS the
+   guard's trigger by design).
+Service invariants intact and still pinned: negative cost ⇒ 0 receivable,
+negative override refused by name, totals exclude negative rows.
+
+### Gates (evidence: qa/2026-10-18_reds-wave1_*)
+- `cd backend && pnpm exec tsx --test src/tests/heso-surcharge.test.ts
+  src/tests/card197-negative-cost-totals.test.ts` → 15/15, exit 0 (run twice).
+- Sibling smoke `freight-pricing-engine + q61-fuel-period-guard +
+  surcharge-threshold-confirmation` → 11/11, exit 0.
+- `cd backend && npx tsc --noEmit` → 0. `pnpm lint` → 0.
+- testplan case: `testplan/2026-10-18-reds-wave1-heso-and-negative-cost.md`.
+
+### Skipped / follow-up (NOT in wave-1 scope)
+- `surcharge-rounding.test.ts` — SAME stray-period root cause (fixture pins
+  2026-09-01/2026-09-15; red shows the same shadow-price signature). Needs
+  the same hermetic-window fix in a later wave; NOT fixed here because the
+  brief scoped wave 1 to the two suites above.
+- Shared-DB hygiene: ~56 far-future leftover `fuel_price_periods` rows from
+  other suites + stray id=207 left in place — deleting shared rows can change
+  other suites' behavior; needs a dedicated hygiene pass with owner sign-off.
+- Remaining ~39 of the 44 base failures: unexamined, other waves.
+
