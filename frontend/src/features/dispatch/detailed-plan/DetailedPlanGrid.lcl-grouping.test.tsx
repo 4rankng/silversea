@@ -147,8 +147,10 @@ describe('FB-092 — LCL selection', () => {
       onToggleLclSelection: onToggle,
     });
 
-    const checkbox = screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' }) as HTMLInputElement;
-    expect(checkbox.checked).toBe(true);
+    const checkbox = screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' });
+    // LclSelectCheckbox (9e806f53) renders a button[role=checkbox] with
+    // aria-checked — the old HTMLInputElement `.checked` contract died with it.
+    expect(checkbox).toHaveAttribute('aria-checked', 'true');
     // FCL rows never get one — exactly one selection checkbox exists.
     expect(screen.getAllByRole('checkbox', { name: /Chọn lô/ })).toHaveLength(1);
     fireEvent.click(checkbox);
