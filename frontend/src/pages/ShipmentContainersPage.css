@@ -85,33 +85,42 @@
    bind to the true scrollport or live outside the table flow. */
 .shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-/* All nine columns pin an explicit share (sums to 100%) instead of mixing
+/* All twelve columns pin an explicit share (sums to 100%) instead of mixing
    in `width: auto`: table-layout: fixed only measures auto columns from the
    first row, so a later row's longer content (e.g. a full container number)
    silently wraps mid-token instead of claiming its fair share. Shares below
-   are sized to each column's real content, not split evenly — documents and
-   container each carry two stacked code lines, route needs room for long
-   place names (see note below), and status only ever holds a short one/two
-   -word badge so it gets the smallest share instead of matching its wide
-   siblings. FB-086 (2026-10-14, helpdesk "không tìm thấy chỗ thêm cont vào
-   lô cũ") restores the Thao tác column card 20260922_41 removed — the
-   pre-41 tuned ladder returns verbatim. */
+   are sized to each column's real content, not split evenly. FB-113 v2
+   (2026-10-18, QA "header thiếu trường Số tờ khai, thứ tự không đúng") splits
+   the single Chứng từ & hãng tàu column into four headed columns in the QA
+   order — Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu — sharing the
+   pinned `documents` visibility key. The three new headers were sized by
+   measured scrollWidth (qa/2026-10-18_fb109-fb113-v2 header-fit probe) so
+   every QA-named header fits on ONE line at ≥1366px (R17/FB-063: headers
+   never wrap mid-token); "Bill/Booking" is the QA spec's own label for the
+   reference column. Customer/container keep their pre-existing shares (their
+   long headers clipped at 1440 before this change too — measured parity).
+   FB-086 (2026-10-14) restored the Thao tác column card 20260922_41 removed. */
 .shipment-container-ledger__col--customer { width: 10%; }
-.shipment-container-ledger__col--documents { width: 13%; }
+.shipment-container-ledger__col--billbook { width: 9%; }
+.shipment-container-ledger__col--declaration { width: 9%; }
+.shipment-container-ledger__col--direction { width: 8%; }
+.shipment-container-ledger__col--shippingline { width: 5%; }
 .shipment-container-ledger__col--container { width: 11%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
    (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
    table-layout: fixed, the column shrinks below the longest unbreakable
-   token and the cell clips the trailing characters — keep this share
-   generous even though sample data rarely fills it. */
-.shipment-container-ledger__col--route { width: 16%; }
-.shipment-container-ledger__col--schedule { width: 11%; }
-.shipment-container-ledger__col--vehicle { width: 10%; }
-.shipment-container-ledger__col--notes { width: 11%; }
+   token and the cell clips the trailing characters — place names wrap.
+   FB-113 v2 re-ladder: the header reads "Nâng / hạ" (the full phrase could
+   not share the width the four document headers need; the cells' own
+   NÂNG/HẠ labels carry the semantics). */
+.shipment-container-ledger__col--route { width: 10%; }
+.shipment-container-ledger__col--schedule { width: 9%; }
+.shipment-container-ledger__col--vehicle { width: 8%; }
+.shipment-container-ledger__col--notes { width: 6%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
    from the customer cell so "needs attention" reads next to the status it
-   blocks) — wider than a bare label needs. */
-.shipment-container-ledger__col--status { width: 11%; }
+   blocks) — sized so the one-line sort header fits (R17/FB-063). */
+.shipment-container-ledger__col--status { width: 8%; }
 /* FB-086 restore (supersedes card 20260922_41, keeps cards 20260922_3 and
    20260922_21's tap-target law): the actions column had no col rule while
    the other columns summed to 100%, so table-layout: fixed collapsed it to
@@ -119,13 +128,15 @@
    landed. 7% keeps every button inside the tap target at 1440/1680. */
 .shipment-container-ledger__col--actions { width: 7%; }
 /* Between 1101px (where `table-layout: fixed` starts) and ~1365px the
-   actions column fell to 71–89px and the "＋ Thêm" label wrapped into a
-   three-line vertical stack (measured 47×57 at 1100px). In that band the
-   actions column takes 9% — the two points come from `notes`, the column
-   that is empty on most rows — so the shares still sum to 100% and both
-   buttons stay on one line. The base 7% is untouched for ≥1366px. */
+   actions column fell to 71–89px and its labels wrapped into a
+   three-line vertical stack. In that band the actions column takes 9% and
+   notes 8% — funded by customer/container/route, so the shares still sum to
+   100%. The base ladder above is untouched for ≥1366px. */
 @media (min-width: 1101px) and (max-width: 1365px) {
-  .shipment-container-ledger__col--notes { width: 9%; }
+  .shipment-container-ledger__col--customer { width: 9%; }
+  .shipment-container-ledger__col--container { width: 10%; }
+  .shipment-container-ledger__col--route { width: 8%; }
+  .shipment-container-ledger__col--notes { width: 8%; }
   .shipment-container-ledger__col--actions { width: 9%; }
 }
 /* 761-1100px is desktop layout on auto sizing (card mode starts at 760px), so
@@ -133,7 +144,10 @@
    keeps the rhythm and an explicit min-width — honoured under auto layout —
    guarantees the buttons their room. */
 @media (min-width: 761px) and (max-width: 1100px) {
-  .shipment-container-ledger__col--notes { width: 9%; }
+  .shipment-container-ledger__col--customer { width: 9%; }
+  .shipment-container-ledger__col--container { width: 10%; }
+  .shipment-container-ledger__col--route { width: 8%; }
+  .shipment-container-ledger__col--notes { width: 8%; }
   .shipment-container-ledger__col--actions { width: 9%; }
   .shipment-container-ledger tbody > tr > *:last-child { min-width: 88px; }
   .shipment-container-ledger thead th:last-child { min-width: 88px; }
@@ -205,8 +219,9 @@
 .shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code { font-size: var(--text-caption-size); white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 /* Direction is structural classification, not a status: neutral token chip
    (surface-3/ink-2) matching the frozen overview's treatment — accent fills
-   stay reserved for state signals. */
-.shipment-container-ledger__direction { display: inline-flex; width: fit-content; padding: 2px 7px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); letter-spacing: .04em; text-transform: uppercase; }
+   stay reserved for state signals. FB-113 v2: the chip moved into its own
+   9% column, so it may wrap ("CHƯA XÁC ĐỊNH") instead of overflowing. */
+.shipment-container-ledger__direction { display: inline-flex; width: fit-content; max-width: 100%; padding: 2px 7px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); letter-spacing: .04em; text-transform: uppercase; white-space: normal; }
 .shipment-container-ledger__direction--unknown { color: var(--ink-3); }
 .shipment-container-ledger__container-classification { color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-medium); }
 .shipment-container-ledger__combined { display: inline-flex; width: fit-content; padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-bold); }
@@ -275,6 +290,12 @@
   margin: 0;
   padding: 10px;
 }
+/* FB-109 v2: the Số tờ khai cell stacks its trigger and the always-visible
+   Sửa button — the trigger yields its full-cell height so the button reads
+   as a row action under the value, not an overlay on it. */
+.shipment-container-ledger__cell-editor--with-action { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor--with-action > .shipment-container-ledger__cell-trigger { height: auto; min-height: 0; }
+.shipment-container-ledger__declaration-edit { align-self: flex-start; }
 /* An open editor shares the cell with its trigger. The full-height click target
    above must yield or it inflates to the whole cell and pushes the editor past
    the bottom edge — off-screen wherever the editor sits in flow instead of
@@ -437,7 +458,7 @@
   .shipment-container-ledger tbody > tr > th,
   .shipment-container-ledger tbody > tr > td { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; height: auto; min-height: 76px; overflow-wrap: anywhere; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 0; }
-  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1; border-right: 0; }
+  .shipment-container-ledger tbody > tr > td.shipment-container-ledger__cell--status { grid-column: 1 / -1; border-right: 0; }
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
   .shipment-container-ledger tbody > tr > th::before,
   .shipment-container-ledger tbody > tr > td::before { min-width: 0; color: var(--ink-3); content: attr(data-label); font-size: var(--text-label-size); font-weight: var(--fw-bold); letter-spacing: .035em; line-height: 1.35; overflow-wrap: anywhere; text-transform: uppercase; white-space: normal; }
@@ -492,8 +513,10 @@
   .shipment-container-ledger tbody > tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shipment-container-ledger tbody > tr > :nth-child(3n) { border-right: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
-  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1; border-right: 0; }
-  .shipment-container-ledger__cell-editor[data-mode="documents"] > .shipment-container-ledger__cell-trigger::before { content: "CHỨNG TỪ"; }
+  .shipment-container-ledger tbody > tr > td.shipment-container-ledger__cell--status { grid-column: 1 / -1; border-right: 0; }
+  /* FB-113 v2: each documents cell carries its own short data-cell-label
+     (Số Bill/Booking · Số tờ khai · Nhập/Xuất · Hãng tàu), so the generic
+     attr(data-cell-label) label is already column-specific. */
 }
 
 @media (max-width: 760px) {
@@ -506,7 +529,7 @@
   .shipment-container-ledger tbody > tr > td { grid-column: auto; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow-wrap: anywhere; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1 !important; }
   .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
-  .shipment-container-ledger tbody > tr > :nth-child(8) { grid-column: 1 / -1 !important; border-right: 0; }
+  .shipment-container-ledger tbody > tr > td.shipment-container-ledger__cell--status { grid-column: 1 / -1 !important; border-right: 0; }
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
   .shipment-container-ledger__route { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .shipment-container-ledger__route i { transform: rotate(90deg); justify-self: start; }
@@ -535,7 +558,13 @@
     padding: 8px 10px;
     border-right: 0;
   }
-  .shipment-container-ledger tbody > tr > :is(:first-child, :nth-child(4), :nth-child(7), :nth-child(8)) {
+  /* FB-113 v2: full-width cells are chosen by identity (row header th) or
+     class/label, not nth-child — the documents split changed the child
+     indexes, and hidden columns shift them anyway. */
+  .shipment-container-ledger tbody > tr > th,
+  .shipment-container-ledger tbody > tr > td[data-label='Nâng / hạ'],
+  .shipment-container-ledger tbody > tr > td[data-label='Ghi chú'],
+  .shipment-container-ledger tbody > tr > td.shipment-container-ledger__cell--status {
     grid-column: 1 / -1;
   }
   .shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor > .shipment-container-ledger__cell-trigger {
@@ -555,7 +584,10 @@
   .shipment-container-ledger__cell-trigger > :not(.shipment-container-ledger__edit-purpose) { grid-column: 1; }
   .shipment-container-ledger__cell-editor[data-mode="identity"] > .shipment-container-ledger__cell-trigger::before,
   .shipment-container-ledger__cell-editor[data-mode="route"] > .shipment-container-ledger__cell-trigger::before { display: none; }
-  .shipment-container-ledger__cell-editor[data-mode="documents"] > .shipment-container-ledger__cell-trigger::before { content: "Chứng từ"; }
+  /* FB-113 v2: each documents cell carries its own short data-cell-label
+     (Số Bill/Booking · Số tờ khai · Nhập/Xuất · Hãng tàu), so the old
+     "CHỨNG TỪ" shortening override is retired — the generic
+     attr(data-cell-label) label is already column-specific. */
   .shipment-container-ledger__cell-editor[data-mode="container"] > .shipment-container-ledger__cell-trigger::before { content: "Container"; }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell {
     display: block;

@@ -599,7 +599,7 @@ export const LEDGER_COLUMNS: readonly LedgerColumn[] = [
   { key: 'customer', label: 'Khách hàng & lộ trình', pinned: true },
   { key: 'documents', label: 'Chứng từ & hãng tàu', pinned: true },
   { key: 'container', label: 'Thông số container', pinned: true },
-  { key: 'route', label: 'Địa điểm nâng / hạ' },
+  { key: 'route', label: 'Nâng / hạ' },
   { key: 'schedule', label: 'Lịch trình' },
   { key: 'vehicle', label: 'Phân xe' },
   { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
@@ -807,6 +807,24 @@ export function ShipmentContainerLedger({
     }
   }
 
+  /* FB-109 v2 (QA 18/10): the ledger's documents cells were click-to-edit
+   * only, which QA could not discover — "không có nút sửa inline". Every
+   * container row now carries an always-visible Sửa button in the Số tờ khai
+   * column that opens the SAME documents editor the cell click opens. It is
+   * rendered by `editableCell` as a sibling of the trigger (nested buttons
+   * are invalid HTML) and shares the row's canonical documents trigger id so
+   * the post-save focus restore lands back on this cell. */
+  const declarationEditAction = (row: ShipmentCusContainerFlatRow) => (
+    <button
+      type="button"
+      className="btn btn--secondary btn--sm shipment-container-ledger__declaration-edit"
+      aria-label={`Sửa tờ khai container ${row.containerNumber || `số ${row.ordinal}`}`}
+      title="Sửa chứng từ và hãng tàu của container này"
+      disabled={editLoadingRowId === row.id || activeEdit != null}
+      onClick={() => onStartEdit(row, 'documents', `shipment-detail-edit-documents-${row.id}`)}
+    >Sửa</button>
+  );
+
   const missingVehicleTodayCount = rows.filter((row) => row.transportDate === today && (!row.carrierName || !row.plateNumber)).length;
   // Card 20261009_3: at ≤640px every inline editor docks to the viewport as a
   // bottom sheet over a dimmed scrim. It must portal out of the page — the
@@ -848,34 +866,53 @@ export function ShipmentContainerLedger({
     mode: ShipmentDetailEditMode,
     enabled: boolean,
     children: ReactNode,
+    options: {
+      /** FB-113 v2: the documents group renders as four headed columns that
+       *  all open the ONE documents editor — only the anchor (Số tờ khai)
+       *  mounts it, so a single expansion can never render four copies. */
+      rendersEditor?: boolean;
+      /** Disambiguates the trigger id when one mode owns several cells
+       *  (duplicate DOM ids are invalid and break the focus restore). */
+      triggerKey?: string;
+      /** Mobile card label override — the physical column's own header. */
+      cellLabel?: string;
+      /** FB-109 v2: an always-visible row action rendered as a SIBLING of
+       *  the cell trigger (never nested inside the button). */
+      trailing?: ReactNode;
+    } = {},
   ) => {
+    const { rendersEditor = true, triggerKey, cellLabel, trailing } = options;
     // Lot-level rows (card 365 — container-less LCL lots) are display-only on
     // this workboard: there is no container line behind them to open an edit
     // session against, so every cell renders read-only regardless of the
     // field's authority (shipment-level edits happen on Tổng quan lô hàng).
     const canEdit = enabled && row.isLotLevel !== true;
-    const triggerId = `shipment-detail-edit-${mode}-${row.id}`;
+    const triggerId = `shipment-detail-edit-${mode}${triggerKey ? `-${triggerKey}` : ''}-${row.id}`;
     const editorId = `${triggerId}-editor`;
     const busy = editLoadingRowId === row.id;
     const expanded = activeEdit?.row.id === row.id && activeEdit.mode === mode;
     const className = `shipment-container-ledger__cell-trigger${canEdit ? '' : ' shipment-container-ledger__cell-trigger--read-only'}`;
     if (!canEdit) return <div className={className}>{children}</div>;
     return (
-      <div className={`shipment-container-ledger__cell-editor${expanded ? ' shipment-container-ledger__cell-editor--expanded' : ''}`} data-mode={mode}>
+      <div
+        className={`shipment-container-ledger__cell-editor${expanded ? ' shipment-container-ledger__cell-editor--expanded' : ''}${trailing ? ' shipment-container-ledger__cell-editor--with-action' : ''}`}
+        data-mode={mode}
+      >
         <AriaButton
           id={triggerId}
           className={`${className}${expanded ? ' shipment-container-ledger__cell-trigger--expanded' : ''}`}
           onPress={() => onStartEdit(row, mode, triggerId)}
           isDisabled={busy || activeEdit != null}
           aria-busy={busy || undefined}
-          aria-controls={expanded ? editorId : undefined}
+          aria-controls={expanded && rendersEditor ? editorId : undefined}
           aria-expanded={expanded}
-          data-cell-label={modeLabelForTrigger(mode)}
+          data-cell-label={cellLabel ?? modeLabelForTrigger(mode)}
         >
           <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {row.containerNumber || `container số ${row.ordinal}`}: </span>
           {children}
         </AriaButton>
-        {expanded && activeEdit && renderInlineEditor(activeEdit, editorId)}
+        {trailing}
+        {expanded && activeEdit && rendersEditor && renderInlineEditor(activeEdit, editorId)}
       </div>
     );
   };
@@ -896,7 +933,13 @@ export function ShipmentContainerLedger({
           <caption>Chi tiết container theo tám nhóm thông tin nghiệp vụ</caption>
           <colgroup>
             <col className="shipment-container-ledger__col--customer" />
-            <col className="shipment-container-ledger__col--documents" />
+            {/* FB-113 v2: the documents group renders as four headed columns —
+                Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu, the QA
+                order — sharing the pinned `documents` visibility key. */}
+            <col className="shipment-container-ledger__col--billbook" />
+            <col className="shipment-container-ledger__col--declaration" />
+            <col className="shipment-container-ledger__col--direction" />
+            <col className="shipment-container-ledger__col--shippingline" />
             <col className="shipment-container-ledger__col--container" />
             {!isHidden('route') && <col className="shipment-container-ledger__col--route" />}
             {!isHidden('schedule') && <col className="shipment-container-ledger__col--schedule" />}
@@ -907,9 +950,12 @@ export function ShipmentContainerLedger({
           </colgroup>
           <thead><tr>
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Chứng từ &amp; hãng tàu" sortKey="billOrBookNumber" sort={sort} onSortChange={onSortChange} />
+            <SortHeader label="Bill/Booking" sortKey="billOrBookNumber" sort={sort} onSortChange={onSortChange} />
+            <th scope="col">Số tờ khai</th>
+            <th scope="col">Nhập/Xuất</th>
+            <th scope="col">Hãng tàu</th>
             <SortHeader label="Thông số container" sortKey="containerNumber" sort={sort} onSortChange={onSortChange} />
-            {!isHidden('route') && <SortHeader label="Địa điểm nâng / hạ" sortKey="liftSite" sort={sort} onSortChange={onSortChange} />}
+            {!isHidden('route') && <SortHeader label="Nâng / hạ" sortKey="liftSite" sort={sort} onSortChange={onSortChange} />}
             {!isHidden('schedule') && <SortHeader label="Lịch trình" sortKey="transportDate" sort={sort} onSortChange={onSortChange} />}
             {!isHidden('vehicle') && <SortHeader label="Phân xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />}
             {!isHidden('notes') && <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />}
@@ -951,14 +997,37 @@ export function ShipmentContainerLedger({
                       <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
                     </div>)}
                   </th>
-                  <td data-label="Chứng từ & hãng tàu" className={cellClassName(documentsEditable, 'documents')}>
-                    {editableCell(row, 'documents', documentsEditable, <div className="shipment-container-ledger__cell-stack">
+                  {/* FB-113 v2: the documents group, one headed column per
+                      field in the QA order. All four open the ONE documents
+                      editor; only the Số tờ khai cell mounts it and carries
+                      the always-visible Sửa button (FB-109 v2). */}
+                  <td data-label="Bill/Booking" className={cellClassName(documentsEditable, 'documents')}>
+                    {editableCell(row, 'documents', documentsEditable,
                       <div className="shipment-container-ledger__multiline">
                         <strong className="shipment-container-ledger__code">{fallback(row.billOrBookNumber, 'Chưa có Bill/Booking')}</strong>
+                      </div>,
+                      { rendersEditor: false, triggerKey: 'bill', cellLabel: 'Bill/Booking' })}
+                  </td>
+                  <td data-label="Số tờ khai" className={cellClassName(documentsEditable, 'documents')}>
+                    {editableCell(row, 'documents', documentsEditable,
+                      <div className="shipment-container-ledger__multiline">
                         <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
-                      </div>
-                      <span className="shipment-container-ledger__classification"><b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b><span>· {fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span></span>
-                    </div>)}
+                      </div>,
+                      { cellLabel: 'Số tờ khai', trailing: declarationEditAction(row) })}
+                  </td>
+                  <td data-label="Nhập/Xuất" className={cellClassName(documentsEditable, 'documents')}>
+                    {editableCell(row, 'documents', documentsEditable,
+                      <div className="shipment-container-ledger__multiline">
+                        <b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b>
+                      </div>,
+                      { rendersEditor: false, triggerKey: 'direction', cellLabel: 'Nhập/Xuất' })}
+                  </td>
+                  <td data-label="Hãng tàu" className={cellClassName(documentsEditable, 'documents')}>
+                    {editableCell(row, 'documents', documentsEditable,
+                      <div className="shipment-container-ledger__multiline">
+                        <span>{fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span>
+                      </div>,
+                      { rendersEditor: false, triggerKey: 'shipping-line', cellLabel: 'Hãng tàu' })}
                   </td>
                   <td data-label="Thông số container" className={cellClassName(containerEditable, 'container')}>
                     {editableCell(row, 'container', containerEditable, <div className="shipment-container-ledger__multiline">
@@ -976,7 +1045,7 @@ export function ShipmentContainerLedger({
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
                     </div>)}
                   </td>
-{!isHidden('route') && (<td data-label="Địa điểm nâng / hạ" className={cellClassName(routeEditable, 'route')}>
+{!isHidden('route') && (<td data-label="Nâng / hạ" className={cellClassName(routeEditable, 'route')}>
                     {editableCell(row, 'route', routeEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>)}

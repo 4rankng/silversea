@@ -422,6 +422,106 @@ describe('documents editor field order (FB-113, card 171026122140)', () => {
   });
 });
 
+/* ─── FB-109/113 v2 (QA 18/10) ──────────────────────────────────────────────
+ * The QA surface is the ledger TABLE, not the documents popup: "header thiếu
+ * trường Số tờ khai, thứ tự không đúng" and "không có nút sửa inline". The
+ * single Chứng từ & hãng tàu column becomes four headed columns in the QA
+ * order (Số Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu), and every
+ * editable container row carries an always-visible Sửa button in the Số tờ
+ * khai column that opens the same documents editor the cell click opens. */
+describe('documents column split + Sửa button (FB-109/113 v2)', () => {
+  function renderIdleLedger(rows: ShipmentCusContainerFlatRow[]) {
+    const onStartEdit = vi.fn();
+    const view = render(
+      <ShipmentContainerLedger
+        rows={rows}
+        totalContainers={rows.length}
+        today="2026-09-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={null}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={onStartEdit}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={vi.fn(async () => {})}
+        onSaveSchedule={vi.fn(async () => {})}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+      />,
+      { wrapper: MemoryRouter },
+    );
+    return { view, onStartEdit };
+  }
+
+  it('FB-113 heads the table with the four document columns in the QA order', () => {
+    renderIdleLedger([baseRow()]);
+    const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
+    expect(headers).toEqual([
+      'Khách hàng & lộ trình',
+      'Bill/Booking',
+      'Số tờ khai',
+      'Nhập/Xuất',
+      'Hãng tàu',
+      'Thông số container',
+      'Nâng / hạ',
+      'Lịch trình',
+      'Phân xe',
+      'Ghi chú',
+      'Trạng thái',
+    ]);
+  });
+
+  it('FB-109 shows Sửa on a row WITH a tờ khai and opens the documents editor', () => {
+    const row = baseRow({ declarationNumber: 'TK-2026-001' });
+    const { onStartEdit } = renderIdleLedger([row]);
+    const cell = screen.getByText('TK-2026-001').closest('td');
+    expect(cell?.getAttribute('data-label')).toBe('Số tờ khai');
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa tờ khai container MSKU1234567' }));
+    expect(onStartEdit).toHaveBeenCalledTimes(1);
+    expect(onStartEdit).toHaveBeenCalledWith(row, 'documents', `shipment-detail-edit-documents-${row.id}`);
+  });
+
+  it('keeps each document value in its own column, placeholders included', () => {
+    renderIdleLedger([baseRow({ declarationNumber: null })]);
+    const tr = screen.getByText('MSKU1234567').closest('tr')!;
+    expect(tr.querySelector('td[data-label="Bill/Booking"]')?.textContent).toContain('EGLV149607019409');
+    expect(tr.querySelector('td[data-label="Số tờ khai"]')?.textContent).toContain('Chưa có tờ khai');
+    expect(tr.querySelector('td[data-label="Nhập/Xuất"]')?.textContent).toContain('Nhập');
+    expect(tr.querySelector('td[data-label="Hãng tàu"]')?.textContent).toContain('Evergreen');
+  });
+
+  it('mounts exactly ONE documents editor — anchored on the Số tờ khai cell', () => {
+    const { container } = renderLedger('documents', baseRow({ declarationNumber: 'TK-OWN-11' }));
+    const editors = container.querySelectorAll('.shipment-container-ledger__inline-editor');
+    expect(editors).toHaveLength(1);
+    expect(container.querySelector('td[data-label="Số tờ khai"] .shipment-container-ledger__inline-editor')).not.toBeNull();
+  });
+
+  it('hides Sửa when documents are read-only and on lot-level rows', () => {
+    const lockedRow = baseRow();
+    const locked = { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.' };
+    lockedRow.shipmentFieldAccess = {
+      ...(lockedRow.shipmentFieldAccess as Record<string, typeof locked>),
+      blNumber: locked,
+      bookingRef: locked,
+      tradeDirection: locked,
+      shippingLineName: locked,
+      declarationNumber: locked,
+    } as typeof lockedRow.shipmentFieldAccess;
+    const first = renderIdleLedger([lockedRow]);
+    expect(screen.queryByRole('button', { name: /Sửa tờ khai/ })).toBeNull();
+    first.view.unmount();
+
+    const lotRow = baseRow({ id: -7, isLotLevel: true, containerNumber: null, classification: 'LCL' });
+    renderIdleLedger([lotRow]);
+    expect(screen.queryByRole('button', { name: /Sửa tờ khai/ })).toBeNull();
+  });
+});
+
 describe('ShipmentContainerLedger missing-fields summary', () => {
   function renderLedgerWithRow(row: ShipmentCusContainerFlatRow) {
     const onStartEdit = vi.fn();

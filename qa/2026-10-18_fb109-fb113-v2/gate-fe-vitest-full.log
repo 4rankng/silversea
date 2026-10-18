@@ -1,0 +1,19 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-fb109-fb113-v2/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+
+ Test Files  662 passed (662)
+      Tests  5116 passed (5116)
+   Start at  18:39:20
+   Duration  194.27s (transform 41.47s, setup 115.69s, import 522.35s, tests 532.17s, environment 468.04s)
+

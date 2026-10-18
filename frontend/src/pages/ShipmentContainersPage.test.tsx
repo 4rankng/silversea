@@ -126,13 +126,18 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
     expect(await screen.findByText('CONT-001')).toBeTruthy();
     // Ghi chú is now BEFORE Trạng thái (customer feedback L2 — 24/08/2026,
-    // re-applied after a rebase)
+    // re-applied after a rebase). FB-113 v2: the documents group is four
+    // headed columns in the QA order (Số Bill/Booking → Số tờ khai →
+    // Nhập/Xuất → Hãng tàu).
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
     expect(headers).toEqual([
       'Khách hàng & lộ trình',
-      'Chứng từ & hãng tàu',
+      'Bill/Booking',
+      'Số tờ khai',
+      'Nhập/Xuất',
+      'Hãng tàu',
       'Thông số container',
-      'Địa điểm nâng / hạ',
+      'Nâng / hạ',
       'Lịch trình',
       'Phân xe',
       'Ghi chú',
@@ -162,14 +167,24 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     const unassignedContainerCell = unassignedRow?.querySelector('td[data-label="Thông số container"]');
     expect(unassignedContainerCell?.querySelector('.shipment-container-ledger__container-classification')?.textContent).toBe('Kẹp');
     expect(screen.getByText('TK-001')).toBeTruthy();
-    const documentsCell = screen.getByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-001/ });
-    expect(documentsCell.textContent).toContain('Nhập');
-    expect(documentsCell.textContent).toContain('MSC');
-    expect(documentsCell.querySelector('[data-icon]')).toBeNull();
-    const documentsTableCell = documentsCell.closest('td');
-    expect(documentsTableCell).toBeTruthy();
-    expect(documentsTableCell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(true);
-    expect(within(documentsTableCell!).getAllByRole('button')).toEqual([documentsCell]);
+    // FB-113 v2: four documents cells per row, all triggers onto the ONE
+    // documents editor; FB-109 v2: the Số tờ khai cell additionally carries
+    // the always-visible Sửa button.
+    const documentsTriggers = screen.getAllByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-001/ });
+    expect(documentsTriggers).toHaveLength(4);
+    expect(documentsTriggers.every((trigger) => trigger.querySelector('[data-icon]') === null)).toBe(true);
+    const billTableCell = documentsTriggers[0]!.closest('td');
+    expect(billTableCell?.getAttribute('data-label')).toBe('Bill/Booking');
+    expect(billTableCell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(true);
+    expect(billTableCell?.textContent).toContain('BILL-12345');
+    expect(within(billTableCell!).getAllByRole('button')).toEqual([documentsTriggers[0]]);
+    const declarationTableCell = documentsTriggers[1]!.closest('td');
+    expect(declarationTableCell?.getAttribute('data-label')).toBe('Số tờ khai');
+    expect(declarationTableCell?.textContent).toContain('TK-001');
+    expect(within(declarationTableCell!).getByRole('button', { name: 'Sửa tờ khai container CONT-001' })).toBeTruthy();
+    const cont001Row = screen.getByText('CONT-001').closest('tr');
+    expect(cont001Row?.querySelector('td[data-label="Nhập/Xuất"]')?.textContent).toContain('Nhập');
+    expect(cont001Row?.querySelector('td[data-label="Hãng tàu"]')?.textContent).toContain('MSC');
     expect(screen.getByText('Đóng kết hợp')).toBeTruthy();
     expect(screen.getByText('Lưu ca sáng')).toBeTruthy();
     // The date gap is consolidated into the schedule column: the attention
@@ -208,7 +223,10 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(missingDateStatusCell?.querySelector('.shipment-container-ledger__multiline')?.lastElementChild).toBe(rowWarning);
     expect(missingDateIdentityCell.contains(rowWarning)).toBe(false);
     expect(identityCell.querySelector('[data-icon]')).toBeNull();
-    expect(screen.queryByText('Sửa')).toBeNull();
+    // FB-109 v2: the Sửa affordance now exists — one visible button per
+    // editable container row, in the Số tờ khai column only; the value
+    // triggers themselves stay icon-free (asserted via [data-icon] above).
+    expect(screen.getAllByRole('button', { name: /Sửa tờ khai container/ })).toHaveLength(2);
     expect(screen.getByText((_, element) => element?.classList.contains('ds-pagination__summary') === true && element.textContent === 'Trang này có 2 / 2 container phù hợp')).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Danh sách container' })).toBeTruthy();
     expect(screen.queryByText('Sổ điều hành container')).toBeNull();
@@ -374,9 +392,15 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
     await screen.findByText('CONT-002');
     const documentCell = screen.getByText('BOOK-67890').closest('td');
-    expect(documentCell?.getAttribute('data-label')).toBe('Chứng từ & hãng tàu');
+    expect(documentCell?.getAttribute('data-label')).toBe('Bill/Booking');
     expect(documentCell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(false);
     expect(within(documentCell!).queryByRole('button', { name: /Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ })).toBeNull();
+    // FB-109 v2: a fully read-only group also loses the Sửa affordance, and
+    // the value cells keep their labelled placeholders.
+    const cont2Row = screen.getByText('CONT-002').closest('tr');
+    const cont2DeclarationCell = cont2Row?.querySelector<HTMLElement>('td[data-label="Số tờ khai"]');
+    expect(cont2DeclarationCell?.textContent).toContain('Chưa có tờ khai');
+    expect(within(cont2DeclarationCell!).queryByRole('button', { name: /Sửa tờ khai/ })).toBeNull();
   });
 
   it('presents today\'s unassigned vehicle as an amber operational state, not a destructive error', async () => {
@@ -434,7 +458,11 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     fireEvent.keyDown(spaceTrigger, { key: ' ', code: 'Space' });
     fireEvent.keyUp(spaceTrigger, { key: ' ', code: 'Space' });
     expect(await screen.findByLabelText('Nhà máy')).toBeTruthy();
-    expect(screen.queryByText('Sửa')).toBeNull();
+    // FB-109 v2: with an editor open the Sửa buttons disable but stay
+    // present — one per editable row, in the Số tờ khai column only.
+    const suaButtons = screen.getAllByRole('button', { name: /Sửa tờ khai container/ });
+    expect(suaButtons).toHaveLength(2);
+    expect(suaButtons.every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
   });
 
   it('marks every editable detail cell as a full-cell editor target', async () => {
@@ -453,10 +481,16 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     ];
 
     for (const name of editableControls) {
-      const trigger = screen.getByRole('button', { name });
-      const cell = trigger.closest<HTMLElement>('th, td');
-      expect(cell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(true);
-      expect(cell?.querySelector('.shipment-container-ledger__cell-editor')).toContain(trigger);
+      // FB-113 v2: the documents pattern matches FOUR headed cells (one
+      // editor); every other mode owns exactly one cell.
+      const expected = name.source.includes('chứng từ') ? 4 : 1;
+      const triggers = screen.getAllByRole('button', { name });
+      expect(triggers).toHaveLength(expected);
+      for (const trigger of triggers) {
+        const cell = trigger.closest<HTMLElement>('th, td');
+        expect(cell?.classList.contains('shipment-container-ledger__editable-cell')).toBe(true);
+        expect(cell?.querySelector('.shipment-container-ledger__cell-editor')).toContain(trigger);
+      }
     }
   });
 
@@ -480,7 +514,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     await screen.findByText('CONT-002');
     expect(screen.queryByRole('button', { name: /^Chỉnh sửa điểm nâng hạ CONT-002/ })).toBeNull();
     expect(screen.getByRole('button', { name: /^Chỉnh sửa ô thông số container CONT-002/ })).toBeEnabled();
-    expect(document.querySelector('[data-label="Địa điểm nâng / hạ"] .shipment-container-ledger__cell-trigger--read-only')).not.toBeNull();
+    expect(document.querySelector('[data-label="Nâng / hạ"] .shipment-container-ledger__cell-trigger--read-only')).not.toBeNull();
     expect(apiGet).toHaveBeenCalledTimes(1);
     expect(apiPost).not.toHaveBeenCalled();
     expect(apiPut).not.toHaveBeenCalled();
@@ -747,7 +781,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     fireEvent.keyDown(factoryName, { key: 'Enter', code: 'Enter' });
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/2', expect.objectContaining({ expectedVersion: 7, factoryName: 'Nhà máy mới' })));
 
-    fireEvent.click(await screen.findByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ }));
+    // FB-113 v2: four documents triggers share the one editor — open it from
+    // the first (Số Bill/Booking).
+    fireEvent.click((await screen.findAllByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ }))[0]!);
     const documentEditor = (await screen.findByLabelText('Số Booking')).closest<HTMLElement>('.shipment-container-ledger__inline-editor')!;
     fireEvent.click(within(documentEditor).getByRole('button', { name: /Nhập \/ Xuất/ }));
     // The UUI listbox portals to the body — query it outside the editor scope.
