@@ -398,8 +398,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             return (
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell master-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
-                  {item.cargoMode === 'LCL' && onToggleLclSelection && (
-                    <div className="master-plan-grid__cell-body master-plan-grid__cell-body--center">
+                  <div className="master-plan-grid__cell-body">
+                    {item.cargoMode === 'LCL' && onToggleLclSelection && (
                       <span title={item.costGroupId != null ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.' : undefined}>
                         <UUICheckbox
                           isSelected={selectedLclShipmentIds?.has(item.id) ?? false}
@@ -408,8 +408,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           aria-label={`Chọn lô ${billBookingReference(item.blNumber, item.bookingRef)}`}
                         />
                       </span>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </td>
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
                   {/* FB-043 (card 141026001010, re-report 2): every cell rides

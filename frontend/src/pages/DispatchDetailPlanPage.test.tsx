@@ -6,6 +6,13 @@ import type { TripDetail } from '@tingting/shared';
 import type * as UseDispatchDetailPlanModule from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 
+// The page owns the Tách nhóm confirmation toast; the dialog tree expects the
+// Toast context, so this suite pins the hook quiet (same seam as the sibling
+// lcl-assign-reason suite).
+vi.mock('../components/shared/Toast', () => ({
+  useToast: () => ({ toast: vi.fn(), dismiss: vi.fn() }),
+}));
+
 // The page's data owner is pinned; the grid still mounts the real
 // PairTripsDialog so the test exercises the wiring this audit found dead
 // (`onOpenPair` was never passed, so the "Ghép chuyến" button never rendered).

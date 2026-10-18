@@ -303,12 +303,13 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('15:00 23/08/2026')).toBeTruthy();
   });
 
-  it('renders all 8 dispatch columns for a READY_FOR_DISPATCH row', () => {
+  it('renders all 8 dispatch columns plus the LCL selection column for a READY_FOR_DISPATCH row', () => {
     const onAllocate = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
+      'Chọn lô',
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
       'Tuyến đường & hãng tàu',
@@ -659,6 +660,7 @@ describe('MasterPlanGrid', () => {
     render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} />);
 
     expect(screen.getAllByRole('cell').map((cell) => cell.getAttribute('data-label'))).toEqual([
+      'Chọn',
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
       'Tuyến đường & hãng tàu',

@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-10-18 — LCL spec 18/10: Gán xe nhóm trên /dispatch, BKS báo khách từng lô, Tách nhóm
+
+Nguồn: `181026145000-yeu-cau-tinh-nang-gan-xe-nhom-hang-le.docx` (Gán xe nhóm
+hàng lẻ — Điều vận & Ghép cước). Phần lõi (schema, bảng giá, nhảy tiền
+100%/0₫, debit note BKS ảo) đã có; wave này đóng các khoảng UI còn thiếu so
+với đặc tả 18/10.
+
+- **FE /dispatch — chọn nhiều lô lẻ + "Gán xe nhóm"** (spec §2.1–2.2):
+  `MasterPlanGrid` có cột checkbox đầu dòng cho lô LCL (lô đã ghép bị khóa,
+  kèm lý do; FCL không có checkbox). Thanh chọn sticky hiển thị
+  "Đang chọn N lô: Tổng X kg | Y CBM", dòng "Lô 1 giữ 100% tiền trả nhà xe"
+  kèm Số Bill/Booking của Lô 1, nút "Gán xe nhóm" mở đúng popup của Kế hoạch
+  Chi tiết Xe (nút <2 lô aria-disabled + lý do là chữ thật).
+- **FE popup — BKS báo khách từng lô** (spec §2.3 trường 3): ngoài ô BKS chung,
+  mỗi lô trong nhóm có ô combobox/gõ tay riêng; bỏ trống = dùng BKS chung.
+  `AssignTruckGroupDialog` nhận một row contract chuẩn hóa
+  (`lclGroupRowFromDetail` / `lclGroupRowFromMasterPlan`) nên cả hai bảng
+  Kế hoạch dùng chung một popup.
+- **BE — `billingTruckNos`** (`assignLclCostGroupSchema`): mảng
+  `{ shipmentId, billingTruckNo }` ghi đè BKS chung cho từng thành viên; entry
+  trỏ ra ngoài `shipmentIds` bị từ chối 400 trước mọi ghi.
+- **FE Kế hoạch Chi tiết Xe — Tách nhóm** (spec §4): nút "Tách nhóm" cạnh tag
+  `Lẻ · Ghép (1/N)` trên dòng Lô 1, xác nhận rồi gọi
+  `POST /api/shipments/lcl/unmerge-group` (COST), toast kết quả + refresh lưới.
+  Hủy ghép từng lô ở màn Chi phí – Quyết toán giữ nguyên.
+- Regression: `MasterPlanPage.lcl-grouping.test.tsx` (checkbox LCL/khóa nhóm,
+  tổng kg/CBM, mở popup), `MasterPlanGrid.test.tsx` (cột chọn),
+  `AssignTruckGroupDialog.test.tsx` (payload `billingTruckNos`),
+  `DetailedPlanGrid.lcl-grouping.test.tsx` (một nút Tách nhóm trên Lô 1),
+  `backend/src/tests/lcl-grouping.test.ts` (BKS từng lô + từ chối lô ngoài nhóm).
+
 ## 2026-10-17 (tối) — FB-114 verify-fail: hãng tàu mới lưu vào danh mục chung trên server
 
 Nguồn: ticket 171026185348 (verify-fail của 171026122150): fix trước chỉ đổi
