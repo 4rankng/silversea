@@ -178,3 +178,68 @@ lcl-display / DSP-PORT-02 / `dispatch-plan-lift-drop-lcl.test.ts`.
   --port 7176 --strictPort`, KHÔNG set VITE_API_BASE — proxy /api đã đúng).
 - Next: owner review + merge; card 181026143000 đóng như duplicate-verified +
   2 fix.
+
+# HANDOFF — 2026-10-18 — rb1 re-attempt: FB-095 badge hủy ghép + FB-094 Xuất Debit Note (cards 181026145610 / 181026145620)
+
+## Goal & status — DONE (salvage → gates → 2 commits pushed)
+
+Agent trước hoàn tất QA rung 3 cả 2 card nhưng chết trước khi commit; toàn bộ
+change set được salvage nguyên vẹn từ worktree `fix-fb095-fb094-controls` vào
+rb1 (9 file, cp -p), gate re-run xanh trên cây tổng, 2 commit landed + push
+ngay theo commit = push rule.
+
+- `0e325cc4` feat(dispatch): FB-095 — group badge menu (Xem nhóm / Hủy ghép) +
+  unmerge confirm flow.
+- `239556ec` feat(accounting): FB-094 — Xuất Debit Note trên chốt-debit.
+- Branch `fix-fb095-fb094-controls-rb1` → origin (`0e325cc4..239556ec`).
+
+## Cutover FB-094 (đụng độ song song — cần biết khi review)
+
+`028be26f` (13 commit trước) đã land MỘT bản FB-094 song song + test
+`AccountingDebitClosePage.debit-export.test.tsx` (cùng card 181026145620) —
+stream salvage phát triển trên base `09420a7f` chưa có commit đó. Giữ bản
+salvaged (control tên đúng testplan "Xuất Debit Note", đã rung-3) và xóa
+debit-export.test.tsx như superseded (wording pin `Xuất Debit Note (N)` /
+`Đã xuất Debit Note cho N lô.` mâu thuẫn testplan). Seam chung giữ nguyên:
+Idempotency-Key theo selection, đúng 1 lần createDebitNoteBatch +
+exportDebitNoteFile, blob + a[download] + revoke 10s, lỗi server hiện nguyên
+văn role="alert", không tải file khi lỗi.
+
+## Independent review (`ReviewFb095Fb094`) — REQUEST-FIXES, đã resolve
+
+1. BLOCKING: testplan trỏ FB095-UI-01 + gate scope vào `DetailedPlanGrid.lcl-grouping`
+   (không chứa case) → sửa trỏ `DetailedPlanGrid.fb095-badge`, gate scope列出
+   đủ 7 suite đã chạy.
+2. Danh sách thành viên Xem nhóm thiếu member ở trang khác → marker
+   "Còn N thành viên ở trang khác" (fix data-shape cần payload nhóm — ngoài scope).
+3. Cutover làm rơi pin đúng-1-issue-call → khôi phục `toHaveBeenCalledTimes(1)`.
+4. Error message rỗng mất fallback → khôi phục `&& error.message`.
+5. Header claim "FCL rows never get the badge" chưa có case → thêm case FCL +
+   stale group data.
+
+## Gates (qa/2026-10-18_fb095-fb094_*.log — lần 1 + RE-RUN sau review)
+
+- FE `pnpm exec tsc --noEmit` 0 errors (EXIT 0); `npx tsc -b` 0 errors (EXIT 0).
+- vitest new3 (`fb095-badge`/`lcl-unmerge`/`export`): 3 files / **10 tests**
+  (8 ở lần 1, +2 case review); siblings (`lcl-grouping`/`lcl-assign-reason`/
+  `AccountingDebitClosePage.test`/`lcl-columns`): 4 files / **39 tests**. All pass.
+- `pnpm lint` 0 · `make build` ok. Worktree mới phải `pnpm install
+  --frozen-lockfile` trước (PATH `tsc` là TS 6.0.3 lạ — không dùng).
+
+## Coverage table (§9 — evidence rung 3 tái sử dụng từ run đã chết, theo yêu cầu)
+
+| Claim / bug | Rung | Evidence | Not covered |
+|---|---|---|---|
+| FB095-UI-01..03 badge → menu → confirm → POST unmerge → toast + refresh | UI DRIVEN | qa/2026-10-18_fb095_ui-01..05.png, `_db-after.json`, driver logs (FB095-01..14, DB rows 104250/104251/104252 + audit 70467) | FB095-UI-04: dialog điều phối giữ nguyên — code-read only (ngoài phạm vi) |
+| FB094-UI-01..03 nút Xuất Debit Note + xlsx thật + lỗi nguyên văn | UI DRIVEN | qa/2026-10-18_fb094_ui-01..03.png, driver logs (FB094-01..08, DB document id 8375), xlsx `qa/downloads/giay-bao-no-BULK-IMP-0019.xlsx` (untracked) | error path chỉ qua unit test; widths 390/768/1440 không quét lại; role khác QA account |
+
+Driver: run-1 12 PASS rồi crash Postgres `errorMissingColumn` khi gom evidence
+thêm; resume 11 PASS, `DONE failures=0` — tổng FB095-01..14 + FB094-01..08 xanh.
+
+## Files owned / next step
+
+- Commits `0e325cc4` + `239556ec` (đã push). Evidence local chưa track:
+  `qa/downloads/*.xlsx`, `qa/2026-10-18_fb095-fb094_fe-vitest-scoped.log` (run
+  7-file của agent trước trên cây cũ).
+- Next: owner review + merge vào trunk; đóng card 181026145610 / 181026145620
+  khi merge.
