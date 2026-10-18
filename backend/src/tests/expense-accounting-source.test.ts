@@ -23,12 +23,21 @@ import { applyTripPairLifecycleEffects, createTripPair } from '../services/trip-
 after(async () => { await disconnectRedis(); await client.end(); });
 async function fixture(run: (tx: Tx, ctx: Awaited<ReturnType<typeof setup>>) => Promise<void>) {
   const rollback = Symbol('rollback expense source fixture');
-  try { await db.transaction(async tx => { await run(tx, await setup(tx)); throw rollback; }); }
+  // REPEATABLE READ — the companywide page-walks (listAllExpenseEntries)
+  // compare what they collected against one stable snapshot. Under READ
+  // COMMITTED every page re-reads latest-committed state, so rows other
+  // suites commit mid-walk shift `total` between the first page and the
+  // last and the walk can never agree with itself on a shared dev database.
+  try { await db.transaction(async tx => { await run(tx, await setup(tx)); throw rollback; }, { isolationLevel: 'repeatable read' }); }
   catch (error) { if (error !== rollback) throw error; }
 }
-// Presence in the companywide result is independent of which page owns a date.
+// Presence in the companywide result must not depend on which page owns a
+// date. The register read hydrates the whole link set once per call, so a
+// 100-limit walk across a 4600-row dev register would pay ~47 full hydration
+// sweeps just to re-slice the same rows; fetch the full set in one sweep and
+// assert the sweep really captured everything.
 async function listAllExpenseEntries(actor: Parameters<typeof listExpenseAccountingEntries>[0], tx: Tx) {
-  const first = await listExpenseAccountingEntries(actor, { page: 1, limit: 100 }, tx);
+  const first = await listExpenseAccountingEntries(actor, { page: 1, limit: 100_000 }, tx);
   const items = [...first.items];
   for (let page = 2; (page - 1) * first.limit < first.total; page += 1) {
     const next = await listExpenseAccountingEntries(actor, { page, limit: first.limit }, tx);
@@ -292,7 +301,12 @@ test('company-paid expense does not create reimbursement liability and direct de
   assert.equal((await tx.select().from(s.ledger).where(eq(s.ledger.receiptId, `EXPENSE_SOURCE:${source.id}`))).length, 0);
   const own = await getExpenseAccountingEntry({ userId: ctx.user.id, role: Role.OPS }, 'OPS', source.sourceId, tx);
   assert.equal(own.outstandingPayable, 0);
-  await assert.rejects(getExpenseAccountingEntry({ userId: ctx.accountant.id, role: Role.OPS }, 'OPS', source.sourceId, tx), /Không tìm thấy/);
+  // chiphispec §1 (commit 09ff9406) — OPS detail reads are role-gated, not
+  // person-scoped: any OPS-role actor resolves the lot-cost entry.
+  assert.equal((await getExpenseAccountingEntry({ userId: ctx.accountant.id, role: Role.OPS }, 'OPS', source.sourceId, tx)).sourceId, source.sourceId);
+  // Ownership still scopes the own-rows roles: a DRIVER actor that is neither
+  // the payer nor the recorder gets the not-in-your-scope 404.
+  await assert.rejects(getExpenseAccountingEntry({ userId: ctx.accountant.id, role: Role.DRIVER }, 'OPS', source.sourceId, tx), /Không tìm thấy/);
 }));
 test('reconciled toll replaces estimated cost without changing agreed allowance or accumulating on replay', async () => fixture(async (tx, ctx) => {
   const [driverUser] = await tx.insert(s.users).values({ username: crypto.randomUUID(), passwordHash: 'fixture', role: Role.DRIVER }).returning();

@@ -47,7 +47,10 @@ describe('forwarder expense type seed invoice policy', () => {
     // Codes outside both classes keep the historical shape: no invoice flag,
     // no substitute evidence — the seed changes nothing about them.
     // CUSTOMS is deliberately NOT in this group any more (see above).
-    for (const code of ['FUEL', 'ROAD_TOLL']) {
+    // FUEL left this group too (card 20261004_355): fuel claims ride refill
+    // reports and station receipts, so it now sits in the no-invoice class
+    // above and its substitute-evidence pin runs with that loop.
+    for (const code of ['ROAD_TOLL']) {
       const policy = expenseTypeSeedPolicy(code);
       assert.equal(policy.requiresInvoice, false, `${code} untouched`);
       assert.equal(policy.substituteEvidenceAllowed, false, `${code} untouched`);

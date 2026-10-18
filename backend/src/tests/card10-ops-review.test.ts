@@ -86,6 +86,12 @@ async function mkEntry(opsStaff: { id: number }, shipmentId: number, opts: { cos
     // fixture here — the uncharged Ops cost — is exactly that row, so it now
     // carries the reason; the invoiced rows keep charging and stay note-free.
     note: opts.customerChargeAmount ? undefined : 'card10 fixture: khoản không thu khách — lý do bắt buộc',
+    // The review surface fixtures deliberately enter several same-type rows on
+    // one lot (that is the review queue's everyday input), so they explicitly
+    // pass the card-141026230720 duplicate warning — "vẫn tiếp tục lưu nếu đây
+    // là lần chi hợp lệ". The warning gate itself is pinned by its own suite
+    // (ops-expense-duplicate-warning.test.ts) and stays untouched here.
+    duplicateConfirmed: true,
   });
   track(async () => {
     await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, (result as { id: number }).id));
@@ -108,7 +114,11 @@ describe('card 20260921_10 - ops cost review', () => {
     const regular = await mkEntry(staff, shipment.id, {
       costGroup: 'OPS_REGULAR', feeName: 'card10 làm hàng', customerChargeAmount: 0,
     });
-    const review = await listOpsCostReview({ userId: acc.id, role: Role.ACCOUNTANT }, {});
+    // The board is a paged, date-sorted projection of a register that also
+    // carries the dev database's real (and future-dated) rows, so the read is
+    // scoped to the fixture's own payer — the same staff filter the AC1-filters
+    // test exercises below — instead of assuming an empty board.
+    const review = await listOpsCostReview({ userId: acc.id, role: Role.ACCOUNTANT }, { payerId: staff.id });
     const invoicedRow = review.items.find((row) => row.sourceId === invoiced.id);
     const regularRow = review.items.find((row) => row.sourceId === regular.id);
     assert.ok(invoicedRow, 'invoiced entry listed');
