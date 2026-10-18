@@ -207,3 +207,33 @@ quality, full TimeInput host sweep verified; 3 info-only notes).
 `DispatchTimeFilterField` is a filter with no next field (unchanged by
 design). Staging re-verification by owner after deploy (production
 prohibition — staging not driven from here).
+
+## Card 6 — fb109-fb113 popup "Chỉnh sửa chứng từ và hãng tàu" (worktree fix, PUSHED)
+
+- **Surface/component**: CUS Chi tiết lô (`/shipments-detail`) popup editor
+  `ShipmentContainerLedger` `mode="documents"` ("Chỉnh sửa chứng từ và hãng
+  tàu"), hosted by `ShipmentContainersPage` via `useCusDetail.saveDocuments`.
+- **API flow**: Lưu → `PATCH /shipments/:id` (Bill/Booking/Nhập-Xuất/Hãng tàu)
+  + `POST /shipments/cus-workspace/:id/containers/:contId` (per-cont tờ khai —
+  BE `updateCusShipmentContainerLine` ghi số + auto-copy sang cont còn trống +
+  heal fulfillment trong 1 transaction, trả `declarationSync.updatedContainerIds`);
+  nút copy → `POST .../copy-declaration` (empty-only, never overwrite).
+- **Behavior**: FB-113 — thứ tự trường Số Bill/Booking → Số tờ khai →
+  Nhập/Xuất → Hãng tàu (test DOM-order pin, mutation-checked). FB-109 — số tờ
+  khai persist per-cont (reload-survives) + auto-copy CHỈ sang cont còn trống,
+  cont đã có số không bị ghi đè; clear cục bộ. Luật 171026180010 (ghi đè mọi
+  sibling) ĐƯỢC THU HẸP theo design note card FB-109 — xem Amendment
+  2026-10-18 trong `testplan/2026-10-17-tokhai-save-sync.md`; driver cũ
+  `qa-20261017-tokhai-save-sync-ui.mjs` gắn banner SUPERSEDED.
+- **Gates**: be-tsc 0, fe-tsc 0, lint 0, FE scoped 75/75 (ledger +
+  declarations), BE declaration suite 10/10 — `qa/2026-10-18_fb109_*`,
+  `qa/2026-10-18_fb113_*`. Independent review `Fb109Review`: core VERIFIED;
+  findings 1-3,5 landed (stale driver banner, testplan superseded markers, R2
+  retitle, evidence cites). Finding 4 còn mở (minor): blank-arm predicate
+  `btrim` không cắt tab/newline + chưa có fixture sibling whitespace-only —
+  không reachable qua app writes (trimOrNull), cần follow-up nếu có legacy
+  seed rows.
+- **Coverage**: UI rung 0 (không drive popup this session — orchestrator cắt
+  scope, QA verify trên staging); rung 2 qua BE integration tests trên dev DB
+  (:5441). Full FE suite có 2 fail pre-existing `numeric-identity.styles`
+  (cần `make build` ra dist/assets — build-prerequisite, không liên quan diff).

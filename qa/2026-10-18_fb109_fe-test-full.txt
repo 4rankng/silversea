@@ -1,0 +1,56 @@
+$ pnpm test
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-fb109-fb113-shipdocs/frontend
+> vitest run
+
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-fb109-fb113-shipdocs/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/styles/numeric-identity.styles.test.ts (6 tests | 2 failed) 15ms
+     × the production bundle holds the numeric law on the amount cells 2ms
+     × the production bundle holds the numeric law on the expense register cells 0ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the amount cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:31:13
+     29|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     30|     if (!existsSync(distAssets)) {
+     31|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     32|     }
+     33|     const sharedChunk = readdirSync(distAssets).find((f) => f.startsWi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the expense register cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:66:13
+     64|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     65|     if (!existsSync(distAssets)) {
+     66|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     67|     }
+     68|     // The Money component itself is the law's rendering: the built `.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 660 passed (661)
+      Tests  2 failed | 5101 passed (5103)
+   Start at  16:33:53
+   Duration  394.75s (transform 60.30s, setup 216.06s, import 1056.93s, tests 1203.11s, environment 929.65s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+EXIT:1

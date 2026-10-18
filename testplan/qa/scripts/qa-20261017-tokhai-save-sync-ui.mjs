@@ -1,3 +1,15 @@
+// ═══ SUPERSEDED 2026-10-18 ══════════════════════════════════════════════════
+// FROZEN EVIDENCE ARTIFACT — DO NOT USE FOR ACCEPTANCE.
+// This driver pins the 171026180010 overwrite-every-sibling law and the old
+// toast copy, both SUPERSEDED by FB-109 (card 171026122100, amendment in
+// testplan/2026-10-17-tokhai-save-sync.md): a non-empty save auto-copies ONLY
+// onto still-empty siblings ("cont đã có số không bị ghi đè"), and the
+// auto-copy toast fires only when an empty sibling was written. Its run-2026-
+// 10-17 outputs (qa/2026-10-17_tokhai_ui-*) remain the historical rung-3
+// record of THAT law. The rerunnable acceptance driver for the current law is
+// testplan/qa/scripts/2026-10-18-fb109-autocopy-local-rung.mjs (spec:
+// testplan/2026-10-18-card-fb109-to-khai-auto-copy.md).
+// ═══════════════════════════════════════════════════════════════════════════
 // Card 171026180010 (T-10) — tờ khai save + lot-wide sync — rung 3 driver.
 // Spec: testplan/2026-10-17-tokhai-save-sync.md
 // Drives /shipments-detail on the LOCAL worktree stack (be :3002, fe :7175):

@@ -265,11 +265,12 @@ export function useCusDetail(params: CusDetailListParams) {
       || (draft.shippingLineName ?? '') !== (raw.shippingLineName ?? '');
     const numberChanged = (draft.declarationNumber ?? '') !== (activeEdit.line.declarationNumber ?? '').trim();
     if (!shipmentChanged && !numberChanged) return;
-    // Card 171026180010 (superseding the FB-085 first-number auto-copy): the
-    // container-line command itself syncs a non-empty tờ khai update onto
-    // every OTHER container of the lot in the same transaction and reports
-    // the written siblings as `declarationSync`. No second call from the FE —
-    // the save IS the sync, so it can never diverge from the persisted state.
+    // Card 171026122100 (FB-109) auto-copy law (narrowing 171026180010): the
+    // container-line command itself copies a non-empty tờ khai update onto
+    // the lot's STILL-EMPTY containers in the same transaction and reports
+    // the written siblings as `declarationSync` (a filled sibling is never
+    // overwritten). No second call from the FE — the save IS the auto-copy,
+    // so it can never diverge from the persisted state.
     let syncOutcome: ShipmentDocumentsSaveOutcome | undefined;
     const signature = JSON.stringify(['documents', row.shipmentId, activeEdit.line.id, activeEdit.detail.summary.version, draft]);
     const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();

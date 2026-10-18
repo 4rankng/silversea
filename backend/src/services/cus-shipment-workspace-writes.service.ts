@@ -539,11 +539,13 @@ export async function updateCusShipmentContainerLine(args: {
     // finalize after dispatch), so it deliberately stays OUT of
     // requestedOperationalMutation above — same reasoning as the container
     // number identity exemption. Role gate mirrors the fieldAccess rule.
-    // Card 171026180010 law: a NON-EMPTY update syncs the same number onto
-    // every OTHER container of the lot inside this same transaction (one
-    // customs declaration covers the lot's containers) and reports the
-    // written siblings for the save's sync toast. A clear stays local — one
-    // backspace must never wipe the lot's document numbers wholesale.
+    // Card 171026122100 (FB-109) auto-copy law — narrowing the 171026180010
+    // sync to the card's design note: a NON-EMPTY save auto-copies the number
+    // onto the lot's STILL-EMPTY containers inside this same transaction and
+    // reports the written siblings for the save's toast. A container that
+    // already carries a number is NEVER overwritten ("cont đã có số không bị
+    // ghi đè") — divergence stays possible by design. A clear stays local —
+    // one backspace must never wipe the lot's document numbers wholesale.
     let declarationSyncedContainerIds: number[] | null = null;
     if (args.input.declarationNumber !== undefined) {
       requireContainerDeclarationWriter(args.actor);
@@ -560,16 +562,16 @@ export async function updateCusShipmentContainerLine(args: {
         if (nextDeclarationNumber != null) {
           // Same-lot repeats are legal (the copy affordance's whole point), so
           // the siblings need no cross-lot availability re-check — the number
-          // was just validated for THIS lot. IS DISTINCT FROM skips siblings
-          // already carrying the value: no fake writes in the report, no
-          // updated_at churn on an identical echo.
+          // was just validated for THIS lot. Only NULL/blank siblings receive
+          // the auto-copy (FB-109: a filled sibling is never overwritten), so
+          // the report never carries fake writes and an echo churns nothing.
           const syncedSiblings = await tx.update(s.shipmentContainers).set({
             declarationNumber: nextDeclarationNumber,
             updatedAt: now,
           }).where(and(
             eq(s.shipmentContainers.shipmentId, args.shipmentId),
             ne(s.shipmentContainers.id, container.id),
-            sql`(${s.shipmentContainers.declarationNumber} IS DISTINCT FROM ${nextDeclarationNumber})`,
+            sql`(${s.shipmentContainers.declarationNumber} IS NULL OR btrim(${s.shipmentContainers.declarationNumber}) = '')`,
           )).returning({ id: s.shipmentContainers.id });
           declarationSyncedContainerIds = syncedSiblings.map((row) => row.id);
         }
@@ -845,9 +847,9 @@ export async function updateCusShipmentContainerLine(args: {
     const detail = await buildWorkspaceDetail(await loadShipmentRow(args.shipmentId, args.actor, tx), args.actor, tx);
     const line = detail.containers.find((item) => item.id === args.containerId);
     if (!line) throw new ApiError(500, 'Không thể tải lại dòng container vừa cập nhật.');
-    // Card 171026180010: report the lot-wide sync only when at least one
-    // sibling actually received the number — a single-container lot or an
-    // identical echo keeps the plain { line } shape.
+    // Card 171026122100 (FB-109): report the auto-copy only when at least one
+    // still-empty sibling actually received the number — a single-container
+    // lot or a lot with no empty sibling keeps the plain { line } shape.
     if (declarationSyncedContainerIds != null && declarationSyncedContainerIds.length > 0) {
       return { line, declarationSync: { updatedContainerIds: declarationSyncedContainerIds } };
     }
