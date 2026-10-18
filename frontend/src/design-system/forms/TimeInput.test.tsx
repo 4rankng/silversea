@@ -186,4 +186,34 @@ describe('TimeInput outer-field keyboard ownership', () => {
     expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(true);
     expect(parentKeyDown).toHaveBeenCalledTimes(1);
   });
+
+  it('review nit 2026-10-18: a modifier chord is NOT hand-typing — Ctrl+A then Enter still only finishes the picker', () => {
+    const parentKeyDown = vi.fn();
+    render(<Harness onParentKeyDown={parentKeyDown} />);
+    const input = screen.getByLabelText('Giờ giao');
+    act(() => input.focus());
+    fireEvent.click(input);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // Ctrl+A types nothing (selection chord): Enter must keep the
+    // card 20260915_6/_8 picker-finishing swallow, not count as a save key.
+    fireEvent.keyDown(input, { key: 'a', code: 'KeyA', ctrlKey: true });
+    parentKeyDown.mockClear();
+    expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(false);
+    expect(parentKeyDown).not.toHaveBeenCalled();
+  });
+
+  it('review nit 2026-10-18: an erased draft stays a typed entry — type-then-erase + Enter saves the cleared value', () => {
+    const parentKeyDown = vi.fn();
+    render(<Harness onParentKeyDown={parentKeyDown} />);
+    const input = screen.getByLabelText('Giờ giao');
+    act(() => input.focus());
+    fireEvent.click(input);
+    fireEvent.change(input, { target: { value: '14' } });
+    fireEvent.change(input, { target: { value: '' } });
+    // '' is a cleared value hosts accept (DispatchTimeFilterField clears via
+    // '') — a hand-typed-then-erased draft must still reach the host save.
+    expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(true);
+    expect(input).toHaveValue('');
+    expect(parentKeyDown).toHaveBeenCalledTimes(1);
+  });
 });

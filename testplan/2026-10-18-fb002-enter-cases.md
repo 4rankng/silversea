@@ -111,3 +111,30 @@ worktree-resident `qa/` copies were destroyed when that worktree was wiped.
 |Dialog opens focused on the autoFocus'd field|UI DRIVEN|pre-fix `activeLabel:"Đóng"` repro log vs post-fix case logs (ArrowDown opens the picker → focus was on the input)|Other roles/widths|
 |Picker-finishing Enter still swallowed; invalid drafts still never submit|Automated unit|TimeInput.test.tsx (44/44 scoped suite incl. the pre-existing swallow laws)|—|
 |FB-030/075 hand-off intact|UI DRIVEN|advance-driver-{dev,prodbuild}.log 12/12|—|
+
+## Review verdict + follow-ups (2026-10-18)
+
+Independent review of the pushed branch: **APPROVE WITH NITS, 0 required
+fixes**. Findings landed as follow-up:
+
+- Modifier chords (Ctrl+A…) marked `typedSinceOpen` although they type
+  nothing (`event.key.length === 1` is true for `key:'a'` + ctrlKey) — now
+  guarded `!ctrlKey && !metaKey && !altKey` (precedent:
+  `DateTimeSegments.tsx` keydown law). Pinned by the Ctrl+A→Enter-swallowed
+  regression test (red-before `review-nits-red-before.log`).
+- Comment corrected: an ERASED draft ('') is still a typed entry — hosts
+  accept '' as a cleared value (`DispatchTimeFilterField` clears via ''), so
+  type-then-erase + Enter saves the clear (base-equivalent rule, now pinned
+  by a test). Behavior unchanged.
+- Disclosure (review nit): the Enter-time `onChange(normalized)` for an
+  unnormalized HOST draft is batched and invisible to a same-tick
+  `requestSubmit()` save chain reading stale state — the component-boundary
+  decision is hardened (CASE 2 tests + probes), but a host that feeds a raw
+  unnormalized `value` and saves synchronously in the same tick is outside
+  what a component can fix. No such host path was found (all TimeInput hosts
+  echo the normalized emit).
+- Owner confirmation (review nit): desktop keyboard `TimePickerSurface` no
+  longer contains focus (card 326 ruling) while `DatePickerSurface`/
+  `SplitDateTimeField` KEEP their keyboard trap — intended: the segmented
+  fields' Alt+ArrowDown is deliberate picker use with panel-resident entry
+  controls; the single-box time popup's typing surface is the input.

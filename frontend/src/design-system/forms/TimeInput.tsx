@@ -89,8 +89,10 @@ export function TimeInput({ label, value, onChange, disabled = false, autoFocus,
         // FB-002 case 2 (181026000027): ANY printable keystroke is
         // hand-typing — even when the browser later drops it (maxLength on a
         // full field) or it never reaches onChange. The picker-open Enter must
-        // still count as the user's save key, not picker finishing.
-        if (open && event.key.length === 1) setTypedSinceOpen(true);
+        // still count as the user's save key, not picker finishing. Modifier
+        // chords (Ctrl+A…, per the DateTimeSegments.tsx keydown law) type
+        // nothing and must NOT count (review nit 2026-10-18).
+        if (open && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) setTypedSinceOpen(true);
         // Type-over restart (the card 326/061026172803 segmented contract,
         // single-box form): a digit typed into a FULL field with a collapsed
         // caret must restart the entry — maxLength would otherwise swallow
@@ -120,9 +122,12 @@ export function TimeInput({ label, value, onChange, disabled = false, autoFocus,
           // Match the date fields: finishing the open picker must not also
           // submit its surrounding schedule editor. Invalid drafts never
           // reach a parent's Enter shortcut, even when the picker is closed.
-          // A hand-TYPED valid draft is the exception (FB-002): the click
-          // that focused the field opened this picker, so swallowing Enter
-          // here would swallow the user's save key — let it reach the host.
+          // A hand-TYPED draft is the exception (FB-002): the click that
+          // focused the field opened this picker, so swallowing Enter here
+          // would swallow the user's save key — let it reach the host. An
+          // ERASED draft counts too: '' is a cleared value hosts accept
+          // (DispatchTimeFilterField clears via ''), so type-then-erase +
+          // Enter still saves the clear (base-equivalent rule, now pinned).
           const handTypedWhileOpen = open && typedSinceOpen && !draftValidation;
           if ((open && !handTypedWhileOpen) || draftValidation) { event.preventDefault(); event.stopPropagation(); }
           setOpen(false);
