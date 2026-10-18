@@ -861,6 +861,39 @@ describe('LCL grouping — FB-094 debit note + board', () => {
     }, []), 'LCL');
   });
 
+  test('SPEC 18/10/2026 §6.2 — a trip-less LCL group still names its vehicle source on the board', async () => {
+    const customer = await mkCustomer('FB094 planned source');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `FB094-S1-${suffix.slice(-6)}`, { expectedDeliveryDate: '2026-10-21' });
+    const lot2 = await mkLclLot(customer.id, route.id, `FB094-S2-${suffix.slice(-6)}`, { expectedDeliveryDate: '2026-10-21' });
+    const contClass = await vehicleClassByCode('CONT20');
+    for (const lot of [lot1, lot2]) {
+      const [fulfillment] = await db.insert(s.shipmentFulfillments).values({
+        shipmentId: lot.id,
+        fulfillmentType: 'LCL_SHIPMENT',
+        cargoMode: 'LCL',
+        sourceShipmentVersion: lot.version,
+        dispatchClassification: 'LCL',
+      }).returning();
+      createdFulfillmentIds.push(fulfillment.id);
+    }
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: contClass.id,
+      actualTruckNo: '60C-12345',
+      carrierType: 'OWN',
+    }, actor);
+
+    const board = await getAccountingDebitBoard({ dateFrom: '2026-10-01', dateTo: '2026-10-31' });
+    const principal = board.items.find((row) => row.shipmentId === lot1.id);
+    assert.ok(principal);
+    assert.deepEqual(
+      principal.phanXe,
+      ['Đội xe nội bộ SilverSea'],
+      'no trip yet ⇒ the persisted fulfillment source still names the carrier',
+    );
+  });
+
   test('the accounting debit board carries the LCL label, plates and principal ref', async () => {
     const customer = await mkCustomer('FB094 board');
     const route = await mkRoute();

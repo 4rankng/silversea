@@ -378,6 +378,32 @@ export async function getAccountingDebitBoard(query: {
     if (row.externalEntityType === 'CUSTOMER' && row.externalEntityId != null) carrierNameIds.add(row.externalEntityId);
   }
 
+  // SPEC 18/10/2026 §6.2 — an LCL cost group persists its vehicle source on the
+  // lot's "phân bổ xe" fulfillment channel before any trip exists. Without this
+  // fallback the Phân xe carrier half rendered "—" for a grouped lot that had
+  // not been issued yet, even though the dispatcher had chosen SilverSea/a nhà
+  // xe. FCL keeps its trip-only projection (no behavior change).
+  const plannedCarrierRows = lotIds.length > 0 ? await executor.select({
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    carrierType: s.shipmentFulfillments.plannedCarrierType,
+    externalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+    plate: s.shipmentFulfillments.plannedVehiclePlateNumber,
+  }).from(s.shipmentFulfillments)
+    .where(and(
+      inArray(s.shipmentFulfillments.shipmentId, lotIds),
+      isNull(s.shipmentFulfillments.canceledAt),
+    )) : [];
+  const plannedCarrierByLot = new Map<number, { carrierType: string | null; externalId: number | null; plate: string | null }>();
+  for (const row of plannedCarrierRows) {
+    if (row.shipmentId == null || plannedCarrierByLot.has(row.shipmentId)) continue;
+    plannedCarrierByLot.set(row.shipmentId, {
+      carrierType: row.carrierType,
+      externalId: row.externalCarrierId,
+      plate: row.plate,
+    });
+    if (row.externalCarrierId != null) carrierNameIds.add(row.externalCarrierId);
+  }
+
   // Thông số container labels per lot (shipment_containers).
   const containerRows = await executor.select({
     shipmentId: s.shipmentContainers.shipmentId,
@@ -470,6 +496,24 @@ export async function getAccountingDebitBoard(query: {
       }
     }
     phanXeByLot.set(lotId, [...new Set(labels)]);
+  }
+  // SPEC 18/10/2026 §6.2 — trip-less LCL lots keep their assigned vehicle
+  // source visible (the trip projection above has no row to read).
+  for (const lot of lots) {
+    if (lot.cargoMode !== 'LCL' || phanXeByLot.has(lot.id)) continue;
+    const planned = plannedCarrierByLot.get(lot.id);
+    if (planned == null) continue;
+    const labels: string[] = [];
+    if (planned.carrierType === 'OWN') {
+      labels.push('Đội xe nội bộ SilverSea');
+    } else if (planned.externalId != null) {
+      const name = externalNames.get(planned.externalId);
+      if (name) labels.push(name);
+      else if (planned.plate) labels.push(planned.plate);
+    } else if (planned.plate) {
+      labels.push(planned.plate);
+    }
+    if (labels.length > 0) phanXeByLot.set(lot.id, [...new Set(labels)]);
   }
 
   // Card 20260928_162 criterion 3 (lead ruling (b)). This board carries a
