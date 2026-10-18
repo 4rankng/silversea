@@ -157,3 +157,53 @@ defect class would need its own card). Verification ran on worktree vite :7176
 because :7175 was taken mid-session by the main checkout's frontend (PID 99794
 — untouched); API shared at :3002. Branch `fix-181026021137-fb063-header-wrap`
 — commit local, DO NOT merge per brief.
+
+## Card 5 — 171026215500-fb030-075 advance regression (worktree fix, PUSHED)
+
+QA re-test on staging `8fc1bcf5`: "gõ '14' không tự nhảy sang tháng" in the
+"Chỉnh sửa Lịch trình" surface. Branch `fix-fb030-advance-regress` off
+`8fc1bcf5`, commit **c58f570e**, pushed to origin.
+
+**Investigation (the delta)**: live probes on the pinned quick-edit dialog
+PASS on `8fc1bcf5` in dev AND `vite build` output — including QA's exact
+fixture lot 130022 (prefilled 20/10/2026 + 15:45, the complete-draft parent
+echo path): day "14" → month focus everywhere (probes a1–a4, a6/a6b, b1/b2).
+The real regression is probe **c2**: the `/shipments-detail` container ledger
+inline schedule editor (`ScheduleEditorBody`) renders TimeInput WITHOUT the
+FB-030 `onComplete` hand-off — 53eb9f2a wired it only in `CusQuickEdit`
+(sibling sweep miss; unit tests green because no test covered the ledger
+host's giờ→ngày hand-off). Focus stuck in the giờ box → the follow-up day "14"
+typed into giờ → date segments never advance → QA's exact symptom.
+
+**Code change** (c58f570e):
+- `frontend/src/features/shipments/detail/ShipmentContainerScheduleEditor.tsx`:
+  `TimeInput onComplete` → focus the appointment date `[data-seg="dd"]` via
+  `groupRef` — exact `CusQuickEdit.tsx:86-87` pattern.
+- `.../ShipmentContainerScheduleEditor.test.tsx`: regression test
+  (red-before 1 failed / green-after 13/13).
+- `testplan/2026-10-18-fb030-075-advance-regression.md` + probe driver
+  `testplan/qa/scripts/2026-10-18-fb030-advance-live-probe.mjs` (read-only,
+  mutation monitor 0).
+
+**Gates (all exit 0)**: forms vitest 216/216 (26 files); host suites
+231/231; full FE suite **5095/5095** (660 files); `npx tsc -b`; root lint;
+`make build`. Logs `qa/2026-10-18_fb030-advance_fix/*.log`
+(`fe-hosts-vitest-red-before.log` = the failing-before run).
+
+**Rung 3**: probes 12/12 green post-fix on dev (`ui-driver-dev.log`) and
+production build (`ui-driver-prodbuild.log`), screenshots `ui-dev/` +
+`ui-prodbuild/`. Pre-fix FAIL evidence (c2 `pass:false` with full DOM state):
+`qa/2026-10-18_fb030-advance_repro/probe-run.log` (dev) +
+`qa/2026-10-18_fb030-advance_prodbuild/probe-run.log`. Disclosure: the
+repro-dir PNGs were overwritten by post-fix runs (driver OUT was hardcoded;
+now `QA_OUT` overridable) — text records are the surviving pre-fix evidence.
+
+**Independent review**: code-reviewer `ReviewFb030Fix` — APPROVE, no required
+fixes (ref/keyed-remount, disabled, IMPORT/EXPORT, pattern parity, test
+quality, full TimeInput host sweep verified; 3 info-only notes).
+
+**Coverage limits**: mobile sheet ≤640px and non-cus roles not driven; LCL
+"Ngày vận chuyển" has no natural time→date hand-off (out of scope);
+`DispatchTimeFilterField` is a filter with no next field (unchanged by
+design). Staging re-verification by owner after deploy (production
+prohibition — staging not driven from here).
