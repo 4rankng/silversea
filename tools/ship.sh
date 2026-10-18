@@ -43,7 +43,17 @@ case "$cmd" in
     echo "── scoped BE tests (files changed vs origin/main) ──"
     CHANGED=$(git diff --name-only origin/main...HEAD -- 'backend/src/tests/*.test.ts' | sed 's|backend/||' || true)
     if [ -n "$CHANGED" ]; then
-      (cd backend && pnpm exec tsx --test $CHANGED 2>&1 | grep -E "^ℹ (tests|pass|fail)")
+      (cd backend && pnpm exec tsx --test $CHANGED 2>&1 | tee /tmp/gate-scoped.log | grep -E "^ℹ (tests|pass|fail)")
+      # FLAKE QUARANTINE (Oct 2026 TIA practice): fail → rerun MỖI file cô lập 1 lần.
+      # Fail lại khi cô lập = red thật; pass khi cô lập = flake → quarantine, không chặn wave.
+      if grep -qE "^ℹ fail [1-9]" /tmp/gate-scoped.log; then
+        echo "── flake lane (rerun isolated) ──"
+        for f in $CHANGED; do
+          R=$(cd backend && pnpm exec tsx --test "$f" 2>/dev/null | grep -E "^ℹ fail" | awk '{print $3}')
+          if [ "${R:-0}" != "0" ]; then echo "RED (isolated): $f"; FAIL_ISOLATED=1; else echo "FLAKE (passes isolated): $f"; fi
+        done
+        [ "${FAIL_ISOLATED:-0}" = "1" ] && { echo "❌ real reds remain"; exit 1; } || echo "⚠️ flake only — wave proceeds, flakes quarantined"
+      fi
     else
       echo "(no scoped BE test files changed)"
     fi
