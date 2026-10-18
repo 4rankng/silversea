@@ -65,6 +65,9 @@ async function mkCostEntry(staff: { id: number }, shipmentId: number, amount: nu
     // must carry a reason. The guard landed with its rule; these fixtures
     // predate it and were left failing.
     note: `card11 không thu khách ${cleanup.length}`,
+    // Card 141026230720 duplicate guard: the fixture writes several 'OTHER'
+    // costs of the same type on one lot on purpose — confirm to proceed.
+    duplicateConfirmed: true,
   });
   track(async () => { await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, (created as { id: number }).id)); });
   track(async () => {

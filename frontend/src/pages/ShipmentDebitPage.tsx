@@ -112,7 +112,6 @@ function DebitLotRow({
             className="shipment-debit-row__detail-link"
             title="Xem chi tiết lô hàng"
             onClick={(e) => e.stopPropagation()}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '12px', color: 'var(--color-primary, #059669)', textDecoration: 'underline' }}
           >
             Chi tiết →
           </Link>

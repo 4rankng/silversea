@@ -107,9 +107,9 @@
 
 .shipment-debit-workspace {
   display: grid;
-  gap: 12px;
-  border-radius: 12px;
-  padding: 16px;
+  gap: 10px;
+  border-radius: 10px;
+  padding: 12px;
   background: var(--surface);
   min-width: 0;
 }
@@ -441,6 +441,25 @@
   font-size: 11px;
 }
 
+/* Card 20261018 — the lot link moves off inline styles onto the token law:
+   brand ink, underline, hit area from --control-h, focus ring from --brand
+   (the same treatment the shadow line's toggle gets above). */
+.shipment-debit-row__detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--control-h, 28px);
+  margin-top: 4px;
+  color: var(--brand);
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.shipment-debit-row__detail-link:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
 .shipment-debit-row__money {
   text-align: right;
   white-space: nowrap;
@@ -518,26 +537,29 @@
 }
 
 /* ─── FB-093: LCL lot facts strip (expanded lot detail) ───────────────────── */
+/* Card 20261018 — compaction pass: the strip rides house tokens only (the
+   previous ad-hoc hex fallbacks predate the token law), tighter padding so the
+   expanded row reads as part of the lot row, not a second panel. */
 .debit-lot-lcl-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 24px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-  border: 1px solid var(--color-border, #e4e7ec);
-  border-radius: 10px;
-  background: var(--surface, #fafafa);
+  gap: 8px 20px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
 .debit-lot-lcl-facts__block {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 200px;
+  gap: 3px;
+  min-width: 180px;
 }
 
 .debit-lot-lcl-facts__block small {
-  color: var(--color-text-tertiary, #475467);
+  color: var(--ink-3);
   font-size: 11px;
   letter-spacing: 0.04em;
 }
@@ -550,15 +572,15 @@
 }
 
 .debit-lot-lcl-facts__billing-warn {
-  color: #b54708;
+  color: var(--danger);
   font-size: 12px;
 }
 
 .debit-lot-lcl-facts__groups {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
+  gap: 3px;
+  font-size: var(--text-caption-size, 12px);
 }
 
 /* One group fact row: label + principal note + its Hủy ghép control, each at
@@ -571,14 +593,14 @@
 }
 
 .debit-lot-lcl-facts__groups em {
-  color: var(--color-text-tertiary, #475467);
+  color: var(--ink-3);
   font-style: normal;
 }
 
 .merge-rev-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .merge-rev-group__lots {
@@ -587,11 +609,11 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 13px;
+  font-size: var(--text-caption-size, 12px);
 }
 
 .merge-rev-group__error {
-  color: #d92d20;
-  font-size: 13px;
+  color: var(--danger);
+  font-size: var(--text-caption-size, 12px);
   margin: 0;
 }

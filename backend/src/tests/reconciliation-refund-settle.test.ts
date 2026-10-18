@@ -149,4 +149,44 @@ describe('card 20261005 — chốt hoàn ứng', () => {
     assert.equal(row.needsCollection, false, 'chưa cấp tiền thật thì không đòi thu — "request without money is not an advance" (card11)');
     assert.equal(row.note, 'Không còn chênh lệch');
   });
+
+  test('141026230770(b): tiêu vượt số được cấp — outstandingSigned âm thay vì ép 0, sổ quỹ vẫn 0', async () => {
+    const accountant = await mkUser('ACCOUNTANT');
+    const ops = await mkUser('OPS');
+    const account = await mkFundAccount();
+    const actor = { userId: accountant.id, role: Role.ACCOUNTANT };
+    // Đề nghị 500k nhưng chỉ giải ngân 300k thật; đợt đối soát đã tiêu trọn
+    // 500k danh nghĩa. Sổ quỹ kẹp về 0 (không còn tiền trong tay), còn số CÓ
+    // DẤU phải nói −200k: nhân viên đã tiêu vượt phần được cấp.
+    const reason = `refund-settle âm ${suffix}`;
+    await createAdvanceRequest(ops.id, { amount: 500000, reason });
+    const [request] = await db.select().from(s.advanceRequests)
+      .where(and(eq(s.advanceRequests.requesterId, ops.id), eq(s.advanceRequests.reason, reason)));
+    track(async () => { await db.delete(s.advanceRequests).where(eq(s.advanceRequests.id, request.id)); });
+    const [ledgerEntry] = await db.insert(s.ledger).values({
+      txnType: TxnType.OPS_ADVANCE, txnId: request.id, receiptId: `refund-settle-ledger-${suffix}`,
+      entityType: 'FORWARDER', entityId: ops.id, debit: '300000', credit: '0', balance: '0',
+    }).returning();
+    track(async () => { await db.delete(s.ledger).where(eq(s.ledger.id, ledgerEntry.id)); });
+    const [movement] = await db.insert(s.treasuryMovements).values({
+      treasuryAccountId: account.id, direction: 'OUT', amount: '300000',
+      valueDate: new Date().toISOString().slice(0, 10), status: 'POSTED', ledgerEntryId: ledgerEntry.id,
+      sourceVersion: 1, paymentContractVersion: 1, physicalReference: `refund-settle-âm-${suffix}`, createdBy: 1,
+    }).returning();
+    track(async () => { await db.delete(s.treasuryMovements).where(eq(s.treasuryMovements.id, movement.id)); });
+    const lot = await mkLot(ops, accountant, 0, 500000);
+    await db.insert(s.expenseReconciliationAdvances).values({
+      reconciliationId: lot.id, advanceRequestId: request.id, amount: '500000',
+    });
+    track(async () => {
+      await db.delete(s.expenseReconciliationAdvances).where(eq(s.expenseReconciliationAdvances.reconciliationId, lot.id));
+    });
+
+    const row = (await listMonthlyReconciliationReport(actor, {})).rows.find(item => item.staffId === ops.id);
+    assert.ok(row, 'có dòng báo cáo cho nhân viên');
+    assert.equal(row.remaining, 0, 'cột sổ quỹ giữ nguyên ≥ 0 (card 377)');
+    assert.equal(row.outstandingSigned, -200000, 'số dư CÓ DẤU không bị kẹp về 0');
+    assert.equal(row.needsCollection, true, 'tiêu vượt số được cấp vẫn là tiền phải thu lại');
+    assert.equal(row.direction, 'CTY_YEU_CAU_THU_TIEN_UNG');
+  });
 });

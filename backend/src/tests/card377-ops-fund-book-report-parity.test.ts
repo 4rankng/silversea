@@ -117,6 +117,11 @@ async function mkCostEntry(staff: { id: number }, shipmentId: number, amount: nu
     feeName: `card377 phí ${cleanup.length}`,
     customerChargeAmount: 0,
     note: `card377 không thu khách ${cleanup.length}`,
+    // Card 141026230720 — two staff legitimately report the same 'OTHER' cost
+    // type on one lot in this fixture; the duplicate guard's explicit
+    // proceed flag is the honest way past it (the resend carries
+    // duplicateConfirmed to proceed).
+    duplicateConfirmed: true,
   });
   const entryId = (created as { id: number }).id;
   track(async () => { await db.delete(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, entryId)); });
