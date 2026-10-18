@@ -21,10 +21,11 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { and, eq, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, TripStatus, type DispatchClassification } from '@tingting/shared';
+import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification } from '@tingting/shared';
 import * as s from '../db/schema';
 import { loadPlannedDriverNames } from './dispatch-planning-detail-plan-read.service';
 import { countDateOnlyTripClaims } from './dispatch-resource-availability.service';
+import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
   dispatchDetailPriorityOrderSql, listDispatchDetailPlanRows, listDispatchDeliveryPointFacets, listDispatchPortFacets,
@@ -681,7 +682,7 @@ async function assertPlanRowRigAvailable(
   // Card 363: only ACTIVE trips occupy the rig (a COMPLETED trip released it —
   // back-to-back 'chạy gối đầu' assignments were false-blocked), and an
   // open-ended trip is bounded by one 8-hour shift from its start.
-  const tripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+  const tripConflictsRaw = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
     .from(s.trips)
     .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
     .where(and(
@@ -692,6 +693,17 @@ async function assertPlanRowRigAvailable(
       lt(s.trips.plannedStartAt, windowEnd),
       sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz`,
     ));
+  // FB-081 v2 (card 181026003045): with both Kẹp legs dispatched, editing one
+  // leg's plan row hit the partner's dispatched trip in the scan above and
+  // 409'd — the partner's overlap is the pair's arrangement, not a claim on
+  // the rig from another job. Carve out exactly the row's own ACTIVE KEP pair
+  // partner (same business day; KET_HOP resolves null per owner ruling Q4).
+  // An unrelated LIVE trip stays a conflict — that case keeps its pinned test.
+  const kepPartner = await findActiveKepPairPartnerByFulfillment(tx, args.fulfillmentId);
+  const tripConflicts = kepPartner != null
+    && kepPartner.partnerClaimDay === localDateInBusinessZone(windowStart)
+    ? tripConflictsRaw.filter((conflict) => conflict.id !== kepPartner.partnerTripId)
+    : tripConflictsRaw;
   // Card 081026091100: for a Kẹp row only the dispatched-trip scan counts — the
 // two plan-row scans describe the pair's own deliberate overlap. Every other
 // classification keeps all three.

@@ -8,11 +8,12 @@
  * closed a 7-file runtime import cycle.
  */
 import { and, eq, inArray, isNotNull, isNull, ne, notInArray, or, sql } from 'drizzle-orm';
-import { TripStatus, type DispatchClassification } from '@tingting/shared';
+import { localDateInBusinessZone, TripStatus, type DispatchClassification } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { Tx } from '../db';
 import { ApiError } from '../errors';
 import { tripClaimEndSql, tripClaimStartSql } from './dispatch-resource-availability.service';
+import { findActiveKepPairPartner } from './trip-pair-rig-sync.service';
 
 /**
  * The window a plan row occupies its rig for. The slot follows the ONE law
@@ -265,6 +266,28 @@ export async function assertTripRigAvailable(
     ? []
     : await scanLclPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId ?? -1);
 
+  // FB-081 v2 (card 181026003045): the other leg of the saving trip's OWN
+  // ACTIVE Kẹp pair overlaps on this plate BY CONSTRUCTION (one mooc, one
+  // truck, one driver — the pairing gate's own invariant). This fallback
+  // guard had no carve-out at all, so a driver-only correction on one Kẹp
+  // leg 409'd hard against its partner and the pair could never move a
+  // driver; conversely a truck-only move to an empty plate never saw the
+  // partner and split the pair silently. The reassign write now propagates
+  // the rig to the partner leg in the same transaction
+  // (propagateKepPairRigToPartner), so the partner's overlap is the
+  // arrangement, not a conflict. Same-day claim only (the pair runs one
+  // business day); KET_HOP pairs resolve null here per owner ruling Q4.
+  let kepPartnerTripId: number | null = null;
+  if (args.tripId != null) {
+    const partner = await findActiveKepPairPartner(tx, args.tripId);
+    const savingDay = args.plannedStartAt != null
+      ? localDateInBusinessZone(args.plannedStartAt)
+      : args.departureDate;
+    if (partner != null && partner.partnerClaimDay != null && partner.partnerClaimDay === savingDay) {
+      kepPartnerTripId = partner.partnerTripId;
+    }
+  }
+
   // Active dispatched trips on the same tractor. Mirrors the family's scan,
   // widened for the trip form's reality: a trip without a planned timestamp
   // still claims its departure day (12fcf20d) — those holders land at the
@@ -272,7 +295,7 @@ export async function assertTripRigAvailable(
   const tripDaySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
   const tripStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${tripDaySql})`;
   const tripEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${tripDaySql} + interval '1 day')`;
-  const activeConflicts = await tx.select({
+  const activeConflictsRaw = await tx.select({
     id: s.trips.id,
     weak: sql`${s.trips.plannedStartAt} is null`,
   })
@@ -286,6 +309,12 @@ export async function assertTripRigAvailable(
       sql`${tripStartSql} < ${windowEnd.toISOString()}::timestamptz`,
       sql`${tripEndSql} > ${windowStart.toISOString()}::timestamptz`,
     ));
+  // The Kẹp partner carve-out above: the linked partner leg stops counting
+  // as an active conflict (and must not degrade the evidence tier through
+  // its own weak marker either — the pair's overlap is deliberate).
+  const activeConflicts = kepPartnerTripId == null
+    ? activeConflictsRaw
+    : activeConflictsRaw.filter((conflict) => conflict.id !== kepPartnerTripId);
 
   const crossLotConflicts = planConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
   const crossLotLclConflicts = lclPlanConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
@@ -365,6 +394,9 @@ export async function assertTripRigAvailable(
         eq(s.trips.driverId, args.driverId),
         isNull(s.trips.deletedAt),
         ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
+        // FB-081 v2: the Kẹp partner shares the driver BY CONSTRUCTION —
+        // warning about it is noise on every pair reassign.
+        ...(kepPartnerTripId != null ? [ne(s.trips.id, kepPartnerTripId)] : []),
         or(
           inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
           and(eq(s.trips.status, TripStatus.COMPLETED), isNotNull(s.trips.plannedStartAt)),
