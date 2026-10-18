@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { Role, round2dp, type ExpenseAccountingEntry, type ExpenseListQuery, type ExpenseWorkList, type ExpenseWorkRow } from '@tingting/shared';
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
@@ -22,11 +22,19 @@ export async function listExpenseAccountingWork(actor: ExpenseActor, query: Expe
       externalEntityId: s.tripsComposite.externalEntityId, externalEntityType: s.tripsComposite.externalEntityType,
       externalDriverName: s.tripsComposite.externalDriverName, notes: s.tripsComposite.instructionNotes }, shipment: s.shipments, customer: s.customers.name,
       route: s.routes.name, plate: s.trucks.licensePlate, driver: s.drivers.name }).from(s.tripsComposite)
-      .innerJoin(s.shipments, eq(s.shipments.id, s.tripsComposite.shipmentId))
+      // Card 191026100030 (class fix, read twin of `resolveTripShipmentId`):
+      // a wave-model (hàng-lẻ) trip carries its lot ONLY on `fulfillmentId`
+      // (`trips_composite.shipmentId` is the raw NULL column), so the direct
+      // link join dropped those trips from /accounting/expenses — the row's
+      // "Thêm khoản chi" drawer was unreachable for exactly the lots the
+      // chiphispec chi-lô-hàng flow needs. Direct link wins; the fulfillment's
+      // lot is the fallback; a genuinely lotless trip still drops (inner join).
+      .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.tripsComposite.fulfillmentId))
+      .innerJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.tripsComposite.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
       .innerJoin(s.customers, eq(s.customers.id, s.tripsComposite.customerId))
       .leftJoin(s.routes, eq(s.routes.id, s.tripsComposite.routeId)).leftJoin(s.trucks, eq(s.trucks.id, s.tripsComposite.truckId))
       .leftJoin(s.drivers, eq(s.drivers.id, s.tripsComposite.driverId))
-      .where(and(isNull(s.tripsComposite.deletedAt), query.shipmentId ? eq(s.tripsComposite.shipmentId, query.shipmentId) : undefined)),
+      .where(and(isNull(s.tripsComposite.deletedAt), query.shipmentId ? eq(sql<number | null>`coalesce(${s.tripsComposite.shipmentId}, ${s.shipmentFulfillments.shipmentId})`, query.shipmentId) : undefined)),
     loadExpenseAccountingEntries(actor, { shipmentId: query.shipmentId, page: 1, limit: 100 }, executor),
     executor.select().from(s.containerTypes), executor.select().from(s.ports),
     executor.select().from(s.truckAccountantAssignments).where(isNull(s.truckAccountantAssignments.endedAt)),

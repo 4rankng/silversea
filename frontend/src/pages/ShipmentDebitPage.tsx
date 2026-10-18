@@ -488,10 +488,14 @@ export function ShipmentDebitPage() {
               </tbody>
             </table>
             </div>}
-            {/* Scroll cue (card 20260924_9): the table's word-wrap min-width
-                floor makes the wrap scroll sideways on phones — say so plainly;
-                the hint stays hidden at desktop widths (page CSS). */}
-            <p className="shipment-debit-scroll-hint ledger-desktop">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+            {/* Scroll cue (card 20260924_9, re-hung card 191026100030): the
+                L1 table's 1108px floor scrolls sideways in 641–1107px windows
+                — say so plainly there (page CSS's own band). No `ledger-desktop`
+                on this element: that class hides it with `display: none
+                !important` at ≤640, which is exactly where the old reveal
+                lived — the cue could never show. At ≤640 the phone record
+                cards render instead, so no cue is needed. */}
+            <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
           </>
         )}
       </section>

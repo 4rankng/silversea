@@ -231,7 +231,14 @@ export async function listPhoiPhieuRows(query: {
     carrierSupplierId: sql<number | null>`case when ${s.tripCarrierInfo.externalEntityType} = 'SUPPLIER' then ${s.tripCarrierInfo.externalEntityId} else null end`,
   })
     .from(s.trips)
-    .innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+    // Card 191026100030 (class fix, read twin of `resolveTripShipmentId`):
+    // a wave-model trip carries its lot ONLY on `trips.fulfillmentId`
+    // (`trips.shipment_id` stays NULL until materialization), so joining the
+    // shipments row on the direct link alone dropped every hàng-lẻ trip from
+    // the phơi phiếu board. Direct link wins; the fulfillment's lot is the
+    // fallback; a genuinely lotless trip still drops (inner join on NULL).
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .innerJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
     .leftJoin(s.customers, and(eq(s.customers.id, s.shipments.customerId), isNull(s.customers.deletedAt)))
     .leftJoin(s.routes, eq(s.routes.id, s.trips.routeId))
     .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
@@ -532,11 +539,15 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
   const run = async (tx: Tx) => {
     const tripRows = await tx.select({
       tripId: s.trips.id,
-      shipmentId: s.trips.shipmentId,
+      // Card 191026100030 — wave-model trips link their lot only through the
+      // fulfillment; the direct-link join 404'd "Có chuyến không còn hợp lệ."
+      // on every hàng-lẻ row picked for a phiếu.
+      shipmentId: sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`,
       blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef,
     })
       .from(s.trips)
-      .innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+      .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+      .innerJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
       .where(and(inArray(s.trips.id, args.tripIds), isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')));
     if (tripRows.length !== args.tripIds.length) throw new ApiError(404, 'Có chuyến không còn hợp lệ.');
     const shipmentIds = tripRows.map((row) => row.shipmentId).filter((id): id is number => id != null);
@@ -689,12 +700,17 @@ export async function getPhoiPhieuChiHo(tripId: number, confirmation?: ChiHoConf
   const [trip] = await db.select({
     tripId: s.trips.id,
     tripCode: s.trips.tripCode,
-    shipmentId: s.trips.shipmentId,
+    // Card 191026100030 — wave-model trips link their lot only through the
+    // fulfillment; the direct-link read 404'd "Không tìm thấy chuyến." on
+    // every hàng-lẻ trip's chi-hộ dialog. Direct link wins, fulfillment
+    // fallback; a genuinely lotless trip still answers the same 404 below.
+    shipmentId: sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`,
     shipmentCode: s.shipments.shipmentCode,
   }).from(s.trips)
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
     // LEFT join so the "no shipment" 404 below stays exactly the one this
     // function has always thrown, instead of turning into "no trip row".
-    .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+    .leftJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
     .where(eq(s.trips.id, tripId)).limit(1);
   if (!trip || trip.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chuyến.');
   const [state] = await db.select({ taken: s.tripFinancialState.phoiTakenDate, status: s.tripFinancialState.phoiTakeStatus })
@@ -813,13 +829,11 @@ export async function updatePhoiPhieuMeta(tripId: number, input: {
       }).where(eq(s.tripFinancialState.id, existing.id));
       return { ok: true };
     }
-    const [trip] = await tx.select({ shipmentId: s.trips.shipmentId }).from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
     await tx.insert(s.tripFinancialState).values({
       tripId,
       ...(input.ngayLayPhoi ? { phoiTakenDate: input.ngayLayPhoi } : {}),
       ...(input.trangThaiLay ? { phoiTakeStatus: input.trangThaiLay } : {}),
     });
-    void trip;
     return { ok: true };
   };
   return outer ? run(outer) : db.transaction(run);
@@ -936,8 +950,14 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
     if (!source) throw new ApiError(404, 'Không tìm thấy khoản phí chi hộ.');
     await assertShipmentAccountingUnlocked(tx, source.shipmentId);
     if (source.shipmentId !== null) {
+      // Card 191026100030 — the trip↔lot match resolves through the
+      // fulfillment like every other read in this file; matching on
+      // trips.shipment_id alone rejected "Khoản phí không thuộc chuyến này."
+      // for hàng-lẻ rows whose trip links the lot only via fulfillmentId.
       const [linked] = await tx.select({ id: s.trips.id }).from(s.trips)
-        .where(and(eq(s.trips.id, tripId), eq(s.trips.shipmentId, source.shipmentId))).limit(1);
+        .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+        .where(and(eq(s.trips.id, tripId),
+          eq(sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`, source.shipmentId))).limit(1);
       if (!linked) throw new ApiError(404, 'Khoản phí không thuộc chuyến này.');
     }
     if (source.confirmedAt) throw new ApiError(409, 'Khoản đã đối chiếu — dùng điều chỉnh thay vì xóa.');
@@ -1173,7 +1193,11 @@ export async function getPhoiPhieuReport(query: {
       // its money keeps reporting under the 'Chưa xác định' bucket (the same
       // law the NULL-trip branch follows — money is never silently dropped).
       .leftJoin(s.customers, and(eq(s.customers.id, s.trips.customerId), isNull(s.customers.deletedAt)))
-      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+      // Card 191026100030 — same trip→lot fallback as the board reads: a
+      // wave-model trip's lot lives on the fulfillment, and the customer note
+      // (ghiChu) must resolve there too.
+      .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+      .leftJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
       .where(inArray(s.trips.id, tripIds));
     for (const row of parties) tripParty.set(row.tripId, { name: row.name, ghiChu: row.ghiChu });
   } else {

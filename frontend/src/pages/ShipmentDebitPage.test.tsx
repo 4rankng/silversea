@@ -497,16 +497,37 @@ describe('L1 mobile-390 presentation (card 20260924_9)', () => {
     expect(r).toMatch(/font-weight:\s*600/);
   });
 
-  it('cues the sideways scroll on phones only', async () => {
+  it('cues the sideways scroll exactly where the table renders but cannot fit', async () => {
     listSummary.mockResolvedValue({ items: [row()], total: 1 });
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
-    expect(screen.getByText('Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.')).toBeTruthy();
-    // Hidden at desktop widths; revealed inside the phone media block, which
-    // is the LAST block of the sheet (the pin spans from @media to the rule).
+    const cue = screen.getByText('Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.');
+    // card 191026100030: the cue must NOT ride `ledger-desktop` — that class
+    // hides it with `display: none !important` at ≤640, exactly where the OLD
+    // reveal lived, so the cue could never show (and ≤640 renders the phone
+    // record cards anyway — there is no table to cue there).
+    expect(cue.className).not.toMatch(/ledger-desktop/);
+    // Hidden by default; revealed in the 641–1107 band where the L1 table
+    // renders (window > 640) but cannot fit its 1108px floor.
     expect(rule(/\.shipment-debit-scroll-hint\s*\{([^}]*)\}/)).toMatch(/display:\s*none/);
-    const source = cssSource();
-    expect(source).toMatch(/@media \(max-width: 640px\), \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
+    expect(cssSource()).toMatch(/@media \(min-width: 641px\) and \(max-width: 1107px\)\s*\{[^}]*\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
+  });
+
+  it('card 191026100030: money cells wrap instead of spilling, inert rows claim no click, header actions hold the 40px ceiling', () => {
+    const money = rule(/\.shipment-debit-row__money\s*\{([^}]*)\}/);
+    // Fixed layout + nowrap let a ten-digit sum ride over the neighbour cell;
+    // the value now wraps inside its own right-aligned cell instead.
+    expect(money).not.toMatch(/white-space:\s*nowrap/);
+    expect(money).toMatch(/overflow-wrap:\s*break-word/);
+    expect(money).toMatch(/font-variant-numeric:\s*tabular-nums/);
+    // The row-click alias is interactive only when the row carries its
+    // tooltip ([title] — the canManage marker); a read-only locked row is
+    // inert and must not advertise a pointer.
+    expect(rule(/\.shipment-debit-row\[data-locked\]\[title\]\s*\{([^}]*)\}/)).toMatch(/cursor:\s*pointer/);
+    expect(rule(/\.shipment-debit-row\[data-locked\]\s*\{([^}]*)\}/)).not.toMatch(/cursor:/);
+    // UUI size="sm" carries max-md:min-h-11 (44px); the header actions are
+    // ordinary controls and hold the owner's ≤40px ceiling below 768px.
+    expect(cssSource()).toMatch(/@media \(max-width: 768px\)\s*\{[^}]*\.shipment-debit-header \.shipment-debit-merge-rev[^}]*min-height:\s*var\(--control-h\)/);
   });
 
   it('wraps headers by whole word — never clipped mid-word', () => {
