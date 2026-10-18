@@ -193,7 +193,10 @@ async function mkOpsCost(fixture: Fixture, amount: string, charge: string) {
   return { entry, source };
 }
 
-/** A confirmed driver cost row (D). */
+/** A confirmed driver cost row (D). Returns the cost AND its accounting
+ *  source: since card 20261005_373 (2a64156f) the tiền-đường grid keys every
+ *  mutation row on `expense_accounting_sources.id` (the "Từ chối" 404 fix),
+ *  so assertions about a row being listed must key on the source id. */
 async function mkDriverCost(fixture: Fixture, amount: string, costType: 'TOLL' | 'OTHER' = 'TOLL', confirmed = true) {
   const [cost] = await db.insert(s.driverIncidentalCosts).values({
     tripId: fixture.trip.id, driverId: fixture.driver.id, costType,
@@ -201,14 +204,15 @@ async function mkDriverCost(fixture: Fixture, amount: string, costType: 'TOLL' |
     amount, customerChargeAmount: '0', occurredAt: fixture.day,
   }).returning();
   await track(s.driverIncidentalCosts, s.driverIncidentalCosts.id, cost);
+  let source: typeof s.expenseAccountingSources.$inferSelect | null = null;
   if (confirmed) {
-    const [source] = await db.insert(s.expenseAccountingSources).values({
+    [source] = await db.insert(s.expenseAccountingSources).values({
       sourceKind: 'DRIVER', sourceId: cost.id, shipmentId: fixture.lot.id, tripId: fixture.trip.id,
       confirmedAt: new Date(), version: 1,
     }).returning();
     await track(s.expenseAccountingSources, s.expenseAccountingSources.id, source);
   }
-  return cost;
+  return { cost, source };
 }
 
 const opsEntry = (fixture: Fixture, amount: string, charge: string, requiresInvoice: boolean): SettlementExpenseInput => ({
@@ -230,6 +234,9 @@ describe('card 20260928_197 — a negative cost row leaves every total as if abs
 
     // 2)+(3) expense accounting create/update
     const createBase = {
+      // Card 20261005 (2a64156f): `shipmentId` became the required anchor —
+      // a lô-level expense no longer needs a trip, but it always needs the lô.
+      shipmentId: 1,
       tripId: 1, expenseTypeCode: 'OTHER', customerChargeAmount: 0,
       expenseDate: '2026-09-22', costGroup: 'OPS_INCIDENTAL' as const, feeName: 'fee',
       payerKind: 'COMPANY' as const,
@@ -427,9 +434,12 @@ describe('card 20260928_197 — a negative cost row leaves every total as if abs
       'the road-fee total (:575) must ignore the negative row');
     assert.equal(afterDetail.totals.confirmed, beforeDetail.totals.confirmed,
       'the confirmed road-fee total (:576) must ignore the negative row');
-    assert.ok(afterDetail.rows.some((row) => row.sourceId === negative.id),
+    // Card 20261005_373 (2a64156f): the grid's sourceId is the accounting
+    // SOURCE id, not the driver-cost id — key the listing assertions on it.
+    const negativeSourceId = negative.source!.id;
+    assert.ok(afterDetail.rows.some((row) => row.sourceId === negativeSourceId),
       'the negative cost row is still listed — dropped from the total, not from the screen');
-    assert.ok(afterDetail.rows.find((row) => row.sourceId === negative.id)!.amount < 0,
+    assert.ok(afterDetail.rows.find((row) => row.sourceId === negativeSourceId)!.amount < 0,
       'and it keeps its sign on screen');
   });
 
@@ -543,12 +553,16 @@ describe('card 20260928_197 — a negative cost row can be saved, and charges no
     const code = await mkActiveType('chg');
     await mkPriorExpense(fixture, code);
 
+    // Card 141026230720 (030e8e42): the fixture's prior same-type row is the
+    // duplicate-guard's exact trigger, so the resend carries the guard's own
+    // documented override — a legitimate correction confirmed by its note.
     const created = await createOpsExpense(fixture.payer.id, {
       shipmentId: fixture.lot.id,
       expenseTypeCode: code,
       amount: '-50000',
       paidAt: fixture.day,
       costGroup: 'INVOICED_LIFT',
+      duplicateConfirmed: true,
       note: 'C197: negative correction against a prior over-declaration',
     });
 
@@ -568,6 +582,7 @@ describe('card 20260928_197 — a negative cost row can be saved, and charges no
       amount: '50000',
       paidAt: fixture.day,
       costGroup: 'INVOICED_LIFT',
+      duplicateConfirmed: true, // card 141026230720 — prior row ⇒ confirmed resend
       note: 'C197: positive baseline',
     });
 
@@ -589,6 +604,7 @@ describe('card 20260928_197 — a negative cost row can be saved, and charges no
         paidAt: fixture.day,
         costGroup: 'OPS_REGULAR',
         customerChargeAmount: '-1',
+        duplicateConfirmed: true, // card 141026230720 — prior row ⇒ confirmed resend; the override refusal must be the ONLY rejection
         note: 'C197: negative override',
       }),
       /nhập âm|không được âm/i,
