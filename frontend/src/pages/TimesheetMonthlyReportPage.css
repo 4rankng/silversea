@@ -45,7 +45,9 @@
 
 /* FB-063 — header bảng gói trong một dòng. record-table.css cố ý giữ
  * `thead th { white-space: normal }` làm hợp đồng test cho các trang khác,
- * nên sửa chỉ nằm ở sheet scoped của trang này. */
-.ts-report thead th {
+ * và nó bị import hai lần (recipe @import) nên rule trùng xuất hiện SAU sheet
+ * này — `table.ts-report` (0,1,3) thắng cả hai lần import đó về độ ưu tiên,
+ * không phụ thuộc thứ tự stylesheet. */
+table.ts-report thead th {
   white-space: nowrap;
 }
