@@ -158,109 +158,52 @@ because :7175 was taken mid-session by the main checkout's frontend (PID 99794
 — untouched); API shared at :3002. Branch `fix-181026021137-fb063-header-wrap`
 — commit local, DO NOT merge per brief.
 
-## Wave — red-at-base BE wave 1: heSo surcharge + card-197 negative costs (worktree fix-be-reds-wave1)
+## Card 5 — 171026215500-fb030-075 advance regression (worktree fix, PUSHED)
 
-Scope: 2 suites red at base `8fc1bcf5` — `heso-surcharge.test.ts` 5/5,
-`card197-negative-cost-totals.test.ts` 5/10. Test-only fixes; NO service code
-changed (brief's suspects `488b007f`/`8f3a42e8` exonerated by arithmetic).
+QA re-test on staging `8fc1bcf5`: "gõ '14' không tự nhảy sang tháng" in the
+"Chỉnh sửa Lịch trình" surface. Branch `fix-fb030-advance-regress` off
+`8fc1bcf5`, commit **c58f570e**, pushed to origin.
 
-### Cluster A decision — NOT a formula change
-The engine prices fuel at the LATEST `fuel_price_periods` row ≤ transport date;
-that table is GLOBAL on the shared dev DB. The suite pinned fixed dates
-(period 2026-09-01 @ 29.940, transport 2026-09-15) and a stray row
-(`id=207`, 30000 @ 2026-09-09 — in no seed, no test source; QA/manual debris)
-outranked the fixture: Δ exactly +60đ/ℓ ⇒ 243148/267463/778074 = the reds.
-Fix = suite owns an unoccupied far-future window (fuel-period-envelope
-pattern), all worked-number assertions unchanged (card 20260922_59's pin
-241948/266143/774234/696811/1100864 intact).
+**Investigation (the delta)**: live probes on the pinned quick-edit dialog
+PASS on `8fc1bcf5` in dev AND `vite build` output — including QA's exact
+fixture lot 130022 (prefilled 20/10/2026 + 15:45, the complete-draft parent
+echo path): day "14" → month focus everywhere (probes a1–a4, a6/a6b, b1/b2).
+The real regression is probe **c2**: the `/shipments-detail` container ledger
+inline schedule editor (`ScheduleEditorBody`) renders TimeInput WITHOUT the
+FB-030 `onComplete` hand-off — 53eb9f2a wired it only in `CusQuickEdit`
+(sibling sweep miss; unit tests green because no test covered the ledger
+host's giờ→ngày hand-off). Focus stuck in the giờ box → the follow-up day "14"
+typed into giờ → date segments never advance → QA's exact symptom.
 
-### Cluster B decision — three INTENDED contracts postdate the fixtures
-1. `shipmentId` required in `expenseAccountingCreateSchema` — card 20261005
-   (commit `2a64156f`) ⇒ `createBase` gains `shipmentId: 1`.
-2. Tiền-đường rows key `sourceId` on `expense_accounting_sources.id` — card
-   20261005_373 "lần 2" (same commit, the Từ-chối 404 fix) ⇒ listing
-   assertions key on the source id (`mkDriverCost` now returns it).
-3. Duplicate-entry guard 409 on same type+scope — card 141026230720 (commit
-   `030e8e42`), with its documented `duplicateConfirmed` override ⇒ the three
-   save-path calls carry the override (the fixture's `mkPriorExpense` IS the
-   guard's trigger by design).
-Service invariants intact and still pinned: negative cost ⇒ 0 receivable,
-negative override refused by name, totals exclude negative rows.
+**Code change** (c58f570e):
+- `frontend/src/features/shipments/detail/ShipmentContainerScheduleEditor.tsx`:
+  `TimeInput onComplete` → focus the appointment date `[data-seg="dd"]` via
+  `groupRef` — exact `CusQuickEdit.tsx:86-87` pattern.
+- `.../ShipmentContainerScheduleEditor.test.tsx`: regression test
+  (red-before 1 failed / green-after 13/13).
+- `testplan/2026-10-18-fb030-075-advance-regression.md` + probe driver
+  `testplan/qa/scripts/2026-10-18-fb030-advance-live-probe.mjs` (read-only,
+  mutation monitor 0).
 
-### Gates (evidence: qa/2026-10-18_reds-wave1_*)
-- `cd backend && pnpm exec tsx --test src/tests/heso-surcharge.test.ts
-  src/tests/card197-negative-cost-totals.test.ts` → 15/15, exit 0 (run twice).
-- Sibling smoke `freight-pricing-engine + q61-fuel-period-guard +
-  surcharge-threshold-confirmation` → 11/11, exit 0.
-- `cd backend && npx tsc --noEmit` → 0. `pnpm lint` → 0.
-- testplan case: `testplan/2026-10-18-reds-wave1-heso-and-negative-cost.md`.
+**Gates (all exit 0)**: forms vitest 216/216 (26 files); host suites
+231/231; full FE suite **5095/5095** (660 files); `npx tsc -b`; root lint;
+`make build`. Logs `qa/2026-10-18_fb030-advance_fix/*.log`
+(`fe-hosts-vitest-red-before.log` = the failing-before run).
 
-### Skipped / follow-up (NOT in wave-1 scope)
-- `surcharge-rounding.test.ts` — SAME stray-period root cause (fixture pins
-  2026-09-01/2026-09-15; red shows the same shadow-price signature). Needs
-  the same hermetic-window fix in a later wave; NOT fixed here because the
-  brief scoped wave 1 to the two suites above.
-- Shared-DB hygiene: ~56 far-future leftover `fuel_price_periods` rows from
-  other suites + stray id=207 left in place — deleting shared rows can change
-  other suites' behavior; needs a dedicated hygiene pass with owner sign-off.
-- Remaining ~39 of the 44 base failures: unexamined, other waves.
+**Rung 3**: probes 12/12 green post-fix on dev (`ui-driver-dev.log`) and
+production build (`ui-driver-prodbuild.log`), screenshots `ui-dev/` +
+`ui-prodbuild/`. Pre-fix FAIL evidence (c2 `pass:false` with full DOM state):
+`qa/2026-10-18_fb030-advance_repro/probe-run.log` (dev) +
+`qa/2026-10-18_fb030-advance_prodbuild/probe-run.log`. Disclosure: the
+repro-dir PNGs were overwritten by post-fix runs (driver OUT was hardcoded;
+now `QA_OUT` overridable) — text records are the surviving pre-fix evidence.
 
-## Card 5 — 111026105610 "QA Audit Unit 0914" vẫn hiện ở /users (worktree fix)
+**Independent review**: code-reviewer `ReviewFb030Fix` — APPROVE, no required
+fixes (ref/keyed-remount, disabled, IMPORT/EXPORT, pattern parity, test
+quality, full TimeInput host sweep verified; 3 info-only notes).
 
-**Entity**: `business_units` row, name "QA Audit Unit 0914" — dữ liệu fixture QA,
-KHÔNG phải master data. Không có mặt trong seed/reset-seed (grep toàn repo chỉ ra
-nó ở comment/test/purge registry); nó do QA script tạo trên staging. Không có
-migration nào cần viết — không sửa schema.
-
-**Hành vi đã chọn**: purge `business_units` đổi `deactivate` → `hard-delete`
-(`backend/src/seed/qa-fixture-registry.ts`). Fixture QA bị xoá hẳn thay vì để
-lại row INACTIVE.
-
-**Vì sao KHÔNG lọc INACTIVE ở /users** (đây là câu hỏi QA đặt ra, trả lời tường
-minh):
-- `/users` khác `/hr/roster`. Mọi bề mặt GÁN của /users đã lọc ACTIVE sẵn và
-  không thể hiện unit INACTIVE: `loadUsersBusinessUnitIdsMap` join
-  `business_units.status='ACTIVE'` (user.service.ts:267-289),
-  `UserAddPanel`/`UserEditPanel` lọc ACTIVE ở client.
-- Chỗ duy nhất "/users hiện QA Audit Unit 0914" là catalog "Đơn vị phụ trách"
-  (`BusinessUnitsManager`) — một bề mặt quản trị VÒNG ĐỜI, cố ý liệt kê cả
-  INACTIVE kèm nút "Kích hoạt lại". Ẩn INACTIVE ở đây = xoá vĩnh viễn khả năng
-  hoàn tác một lần ngừng sử dụng nhầm, và làm hỏng test đang pin reactivate
-  (`UsersPage.business-units.test.tsx`). Đây là quy ước chung của repo, không
-  phải sơ suất: `routes/config/catalog-crud.routes.ts:118-122` — "the admin
-  surface must see inactive rows too (deactivate → still listed → reactivate),
-  while dispatch readers only ever see active zones".
-- Nói cách khác: /hr/roster đã đúng luật; /users đã đúng luật; **dữ liệu** mới
-  là sai. Sửa dữ liệu rẻ và giữ nguyên mọi năng lực sản phẩm; sửa hiển thị
-  sẽ đánh đổi năng lực lấy một dòng fixture.
-
-**An toàn của hard-delete**: entry `user_business_unit_links` đã hard-delete và
-chạy TRƯỚC (children → parents, có assert trong test); `user_business_unit_links`
-là bảng duy nhất tham chiếu `business_units` và không có ràng buộc FK
-(`db/schema/core.ts:53-76`).
-
-**Gates**: BE tsc 0; root lint 0; scoped `qa-fixture-purge` + `hr-roster-read`
-22/22; red-at-base đã chứng minh (revert action → test mới FAIL).
-Artifacts: `qa/2026-10-18_users-qa-unit-purge_{tests,tsc}.log`.
-Case: `testplan/2026-10-18-card-111026105610-users-qa-unit-purge.md`.
-
-**Cần chạy lại ở môi trường QA**: purge phải được chạy lại (`qapurge-dry` →
-`qapurge`) thì row mới bị xoá. Đây là thay đổi công cụ purge, không tự động
-xoá dữ liệu đã tồn tại.
-
-**Rung**: UI chưa drive trong phiên này — thay đổi nằm ở công cụ purge
-backend. Bằng chứng ở mức DB/API VERIFIED (rung 2): test chứng minh row biến
-mất khỏi `business_units` và khỏi `listBusinessUnits()` — đúng nguồn dữ liệu
-mà /users render. Chưa chụp màn hình /users sau purge.
-
-**Independent review** (`code-reviewer`, read-only): 8 findings, 0 blocking.
-Đã xử lý: F1 (claim "chỉ user_business_unit_links tham chiếu business_units"
-SAI — còn `shipments.responsible_unit_id`, `salary.payroll_business_unit_id`,
-snapshot `payroll_business_unit_id`; đã viết lại rationale + ghi rõ dangling-id
-và rằng mọi reader đều lọc ACTIVE nên hành xử y hệt row INACTIVE), F2 (cảnh báo
-KHÔNG thêm guard `shipments.responsible_unit_id` — guard lookup bỏ qua
-`deleted_at`, sẽ match shipment đã soft-delete và khiến mọi QA unit bị skip
-vĩnh viễn, purge exit 2, bug quay lại), F3 (comment "deactivate below" + label
-thiếu /users), F4 (sai attribution commit f983a1b3; entry registry đến từ
-eb7a8e95 / 2c3668f4), F8 (thêm assert idempotency chạy purge 2 lần).
-F5/F6/F7 là vấn đề báo cáo — đã nêu đúng rung và giới hạn gate bên dưới.
+**Coverage limits**: mobile sheet ≤640px and non-cus roles not driven; LCL
+"Ngày vận chuyển" has no natural time→date hand-off (out of scope);
+`DispatchTimeFilterField` is a filter with no next field (unchanged by
+design). Staging re-verification by owner after deploy (production
+prohibition — staging not driven from here).
