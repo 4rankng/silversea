@@ -2,7 +2,7 @@
 import puppeteer from 'puppeteer';
 
 const API = 'http://localhost:3002/api';
-const BASE = 'http://localhost:7179';
+const BASE = 'http://localhost:7175';
 const login = async () => {
   const res = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: 'cus', password: 'Abc123' }) });
   return (await res.json()).token;

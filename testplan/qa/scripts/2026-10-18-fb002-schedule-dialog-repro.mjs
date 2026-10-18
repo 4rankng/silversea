@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const API = 'http://localhost:3002/api';
-const BASE = process.env.QA_BASE || 'http://localhost:7179';
+const BASE = process.env.QA_BASE || 'http://localhost:7175';
 const OUT = path.resolve(import.meta.dirname, '../../../qa/2026-10-18_fb002-reinvestigate_repro');
 fs.mkdirSync(OUT, { recursive: true });
 
