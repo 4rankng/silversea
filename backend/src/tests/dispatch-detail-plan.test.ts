@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { and, eq, inArray , isNull } from 'drizzle-orm';
+import { and, eq, inArray , isNull, like, lt, or } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -22,6 +22,14 @@ import { auditLogMiddleware } from '../middleware/audit';
 import { globalErrorHandler } from '../middleware/errorHandler';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+/**
+ * Run-unique numeric fragment for fixture license plates. Plates stay
+ * punctuated (normalization paths keep working), but `trucks.license_plate`
+ * and the overlap guard are globally unique/scoped, so a run killed before
+ * `after()` could clean up must never collide with a fresh run's fixtures.
+ */
+const runPlateSeed = String(Date.now()).slice(-6);
 
 const createdUserIds: number[] = [];
 const createdCustomerIds: number[] = [];
@@ -350,6 +358,49 @@ before(async () => {
     }
   }
 
+  // Self-heal against runs killed before `after()` could clean up. This file's
+  // fixture trees carry the DTL/SUG/SGE shipment-code prefixes; a killed run's
+  // leftovers hold plates that hard-409 fresh plate assigns (overlap guard)
+  // and hold LH zone evidence that re-ranks fresh suggestion sets. Only rows
+  // older than 10 minutes are swept: a full pass of this file takes ~20s,
+  // so a concurrently running fresh process keeps its live fixtures with a
+  // wide headroom while a killed run's rows are swept on the very next run.
+  // Best effort: one failed delete must not skip the rest.
+  const staleCutoff = new Date(Date.now() - 10 * 60_000);
+  const staleLots = await db.select({ id: s.shipments.id }).from(s.shipments).where(and(
+    or(
+      like(s.shipments.shipmentCode, 'DTL-%'),
+      like(s.shipments.shipmentCode, 'SUG-%'),
+      like(s.shipments.shipmentCode, 'SGE-%'),
+    ),
+    lt(s.shipments.createdAt, staleCutoff),
+  ));
+  if (staleLots.length > 0) {
+    const staleIds = staleLots.map((lot) => lot.id);
+    const staleTripIds = (await db.select({ id: s.trips.id }).from(s.trips)
+      .where(inArray(s.trips.shipmentId, staleIds))).map((trip) => trip.id);
+    const sweepSteps: Array<Promise<unknown>> = [
+      db.delete(s.userShipmentPins).where(inArray(s.userShipmentPins.shipmentId, staleIds)),
+      db.delete(s.shipmentStatusHistory).where(inArray(s.shipmentStatusHistory.shipmentId, staleIds)),
+      db.delete(s.notifications).where(and(
+        eq(s.notifications.relatedEntityType, 'trips'),
+        inArray(s.notifications.relatedEntityId, staleTripIds.length > 0 ? staleTripIds : [-1]),
+      )),
+      db.delete(s.driverProgressEvents).where(inArray(s.driverProgressEvents.tripId, staleTripIds.length > 0 ? staleTripIds : [-1])),
+      db.delete(s.trips).where(inArray(s.trips.shipmentId, staleIds)),
+      db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, staleIds)),
+      db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, staleIds)),
+      db.delete(s.shipments).where(inArray(s.shipments.id, staleIds)),
+    ];
+    for (const step of sweepSteps) {
+      try {
+        await step;
+      } catch (error) {
+        console.warn(`[dispatch-detail-plan] stale-fixture sweep step failed (best effort): ${String(error)}`);
+      }
+    }
+  }
+
   const app = express();
   app.use(express.json());
   app.use('/api/shipments', authMiddleware, auditLogMiddleware, casbinAuthz('shipments'), shipmentRoutes);
@@ -379,47 +430,62 @@ after(async () => {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 
-  try {
-    if (createdTripIds.length > 0) {
-      await db.delete(s.trips).where(inArray(s.trips.id, createdTripIds));
+  // Best-effort teardown: a single failed delete (unexpected FK, concurrent
+  // sweep) must not skip the remaining steps — skipped steps are exactly how
+  // a killed run's leftovers wedge every later run.
+  const teardownSteps: Array<() => Promise<unknown>> = [
+    () => createdTripIds.length > 0
+      ? db.delete(s.trips).where(inArray(s.trips.id, createdTripIds))
+      : Promise.resolve(),
+    () => {
+      if (createdShipmentIds.length === 0) return Promise.resolve();
+      return (async () => {
+        await db.delete(s.notifications).where(and(
+          eq(s.notifications.type, 'TRIP_DISPATCHED'),
+          eq(s.notifications.relatedEntityType, 'trips'),
+          inArray(
+            s.notifications.relatedEntityId,
+            db.select({ id: s.trips.id }).from(s.trips).where(inArray(s.trips.shipmentId, createdShipmentIds)),
+          ),
+        ));
+        // Trips reference fulfillments (RESTRICT FK, migration 0073): take the
+        // fixture trips out before the fulfillments they fulfill.
+        await db.delete(s.trips).where(inArray(s.trips.fulfillmentId,
+          db.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments)
+            .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds))));
+        await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds));
+        await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, createdShipmentIds));
+        await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
+      })();
+    },
+    () => createdSiteIds.length > 0 ? db.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdSiteIds)) : Promise.resolve(),
+    () => createdAssignmentIds.length > 0 ? db.delete(s.truckDriverAssignments).where(inArray(s.truckDriverAssignments.id, createdAssignmentIds)) : Promise.resolve(),
+    () => createdDriverIds.length > 0 ? db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds)) : Promise.resolve(),
+    () => createdTruckIds.length > 0 ? db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds)) : Promise.resolve(),
+    () => createdTrailerIds.length > 0 ? db.delete(s.trailers).where(inArray(s.trailers.id, createdTrailerIds)) : Promise.resolve(),
+    () => createdContainerTypeIds.length > 0 ? db.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds)) : Promise.resolve(),
+    () => createdPortIds.length > 0 ? db.delete(s.ports).where(inArray(s.ports.id, createdPortIds)) : Promise.resolve(),
+    () => createdRouteIds.length > 0 ? db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds)) : Promise.resolve(),
+    () => createdCustomerIds.length > 0 ? db.delete(s.carrierFleetVehicles).where(inArray(s.carrierFleetVehicles.carrierId, createdCustomerIds)) : Promise.resolve(),
+    () => createdCustomerIds.length > 0 ? db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds)) : Promise.resolve(),
+    () => {
+      if (createdUserIds.length === 0) return Promise.resolve();
+      return (async () => {
+        await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
+        await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
+        await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
+        await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
+      })();
+    },
+  ];
+  for (const step of teardownSteps) {
+    try {
+      await step();
+    } catch (error) {
+      console.warn(`[dispatch-detail-plan] teardown step failed (best effort): ${String(error)}`);
     }
-    if (createdShipmentIds.length > 0) {
-      await db.delete(s.notifications).where(and(
-        eq(s.notifications.type, 'TRIP_DISPATCHED'),
-        eq(s.notifications.relatedEntityType, 'trips'),
-        inArray(
-          s.notifications.relatedEntityId,
-          db.select({ id: s.trips.id }).from(s.trips).where(inArray(s.trips.shipmentId, createdShipmentIds)),
-        ),
-      ));
-      // Trips reference fulfillments (RESTRICT FK, migration 0073): take the
-      // fixture trips out before the fulfillments they fulfill.
-      await db.delete(s.trips).where(inArray(s.trips.fulfillmentId,
-        db.select({ id: s.shipmentFulfillments.id }).from(s.shipmentFulfillments)
-          .where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds))));
-      await db.delete(s.shipmentFulfillments).where(inArray(s.shipmentFulfillments.shipmentId, createdShipmentIds));
-      await db.delete(s.shipmentContainers).where(inArray(s.shipmentContainers.shipmentId, createdShipmentIds));
-      await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
-    }
-    if (createdSiteIds.length > 0) await db.delete(s.operationalSites).where(inArray(s.operationalSites.id, createdSiteIds));
-    if (createdAssignmentIds.length > 0) await db.delete(s.truckDriverAssignments).where(inArray(s.truckDriverAssignments.id, createdAssignmentIds));
-    if (createdDriverIds.length > 0) await db.delete(s.drivers).where(inArray(s.drivers.id, createdDriverIds));
-    if (createdTruckIds.length > 0) await db.delete(s.trucks).where(inArray(s.trucks.id, createdTruckIds));
-    if (createdTrailerIds.length > 0) await db.delete(s.trailers).where(inArray(s.trailers.id, createdTrailerIds));
-    if (createdContainerTypeIds.length > 0) await db.delete(s.containerTypes).where(inArray(s.containerTypes.id, createdContainerTypeIds));
-    if (createdPortIds.length > 0) await db.delete(s.ports).where(inArray(s.ports.id, createdPortIds));
-    if (createdRouteIds.length > 0) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
-    if (createdCustomerIds.length > 0) await db.delete(s.carrierFleetVehicles).where(inArray(s.carrierFleetVehicles.carrierId, createdCustomerIds));
-    if (createdCustomerIds.length > 0) await db.delete(s.customers).where(inArray(s.customers.id, createdCustomerIds));
-    if (createdUserIds.length > 0) {
-      await db.delete(s.auditLogs).where(inArray(s.auditLogs.userId, createdUserIds));
-      await db.delete(s.notifications).where(inArray(s.notifications.userId, createdUserIds));
-      await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
-      await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
-    }
-  } finally {
-    await client.end();
   }
+  await client.end();
 });
 
 describe('dispatch detail plan rows', () => {
@@ -1138,10 +1204,14 @@ describe('dispatch detail plan plate assignment', () => {
 
   test('EXTERNAL catalog pick, free text, and empty bypass all succeed', async () => {
     const carrier = await createCustomer(`Detail carrier ${suffix}-${createdCustomerIds.length}`, true);
+    // Run-unique plates keep the punctuated/lowercase/double-space shapes the
+    // normalization assertions exercise, while never colliding with a killed
+    // run's leftover plate holders (overlap guard is per exact plate).
+    const vehiclePlate = `51H-${runPlateSeed}.88`;
     const [vehicle] = await db.insert(s.carrierFleetVehicles).values({
       carrierId: carrier.id,
-      licensePlate: '51H-888.88',
-      normalizedPlate: '51H88888',
+      licensePlate: vehiclePlate,
+      normalizedPlate: vehiclePlate.replace(/[^A-Za-z0-9]/g, ''),
       isActive: true,
       createdBy: adminUserId,
     }).returning();
@@ -1155,20 +1225,21 @@ describe('dispatch detail plan plate assignment', () => {
       body: { expectedVersion: fCatalog.version, externalCarrierVehicleId: vehicle.id },
     });
     assert.equal(catalog.status, 200, JSON.stringify(catalog.data));
-    assert.equal(catalog.data.assignedPlate, '51H-888.88');
+    assert.equal(catalog.data.assignedPlate, vehiclePlate);
     assert.equal(catalog.data.lotFullyPlated, true);
     assert.equal(catalog.data.driverNotified, false);
 
     // Free text
     const lotFree = await createAllocatedLot({ carrierType: 'EXTERNAL', externalCarrierId: carrier.id });
     const [fFree] = await db.select().from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, lotFree.fulfillmentIds[0]!));
+    const freeTextPlate = `30a  ${runPlateSeed}.99`;
     const freeText = await apiFetch<PlateResponse>(`/dispatch-detail-plan-rows/${fFree.id}/plate`, {
       method: 'PATCH',
       token: dispatcherToken,
-      body: { expectedVersion: fFree.version, plateNumber: '30a  999.99' },
+      body: { expectedVersion: fFree.version, plateNumber: freeTextPlate },
     });
     assert.equal(freeText.status, 200, JSON.stringify(freeText.data));
-    assert.equal(freeText.data.assignedPlate, '30A 999.99');
+    assert.equal(freeText.data.assignedPlate, `30A ${runPlateSeed}.99`);
 
     // Empty bypass
     const lotEmpty = await createAllocatedLot({ carrierType: 'EXTERNAL', externalCarrierId: carrier.id });
@@ -3344,8 +3415,8 @@ describe('planning remaining containers after partial dispatch', () => {
 
 describe('dispatch fleet carrier-link resolution (plate → carrier)', () => {
   test('truck fleet-page link resolves for punctuated and normalized plates; unlinked and locked stay null', async () => {
-    const carrier = await createCustomer('Fleet link carrier', true);
-    const plate = `15E-${String(100 + createdTruckIds.length)}.26`;
+    const carrier = await createCustomer(`Fleet link carrier ${suffix}`, true);
+    const plate = `15E-${runPlateSeed}${100 + createdTruckIds.length}.26`;
     const [truck] = await db.insert(s.trucks).values({
       licensePlate: plate,
       status: 'ACTIVE',
@@ -3358,7 +3429,7 @@ describe('dispatch fleet carrier-link resolution (plate → carrier)', () => {
       { token: dispatcherToken },
     );
     assert.equal(punctuated.data.carrierId, carrier.id);
-    assert.equal(punctuated.data.carrierName, 'Fleet link carrier');
+    assert.equal(punctuated.data.carrierName, carrier.name);
 
     // The normalized form (no separators) resolves the SAME link.
     const normalized = await apiFetch<{ carrierId: number | null }>(
@@ -3368,8 +3439,9 @@ describe('dispatch fleet carrier-link resolution (plate → carrier)', () => {
     assert.equal(normalized.data.carrierId, carrier.id);
 
     // Unknown plate → nulls; the dispatcher picks the carrier deliberately.
+    // Run-unique so a stale truck can never masquerade as "unknown".
     const unknown = await apiFetch<{ carrierId: number | null }>(
-      '/carrier-fleet-vehicles/resolve-carrier?plate=99B-000.99',
+      `/carrier-fleet-vehicles/resolve-carrier?plate=${encodeURIComponent(`99B-${runPlateSeed}.99`)}`,
       { token: dispatcherToken },
     );
     assert.equal(unknown.data.carrierId, null);
@@ -3385,8 +3457,8 @@ describe('dispatch fleet carrier-link resolution (plate → carrier)', () => {
   });
 
   test('TRUCK fleet search matches normalized plates and carries the carrier link', async () => {
-    const carrier = await createCustomer('Fleet search carrier', true);
-    const plate = `30D-${String(200 + createdTruckIds.length)}.77`;
+    const carrier = await createCustomer(`Fleet search carrier ${suffix}`, true);
+    const plate = `30D-${runPlateSeed}${200 + createdTruckIds.length}.77`;
     const [truck] = await db.insert(s.trucks).values({
       licensePlate: plate,
       status: 'ACTIVE',
@@ -3401,7 +3473,7 @@ describe('dispatch fleet carrier-link resolution (plate → carrier)', () => {
     const found = response.data.items.find((item) => item.id === truck.id);
     assert.ok(found, 'normalized q finds the punctuated truck');
     assert.equal(found!.carrierId, carrier.id);
-    assert.equal(found!.carrierName, 'Fleet search carrier');
+    assert.equal(found!.carrierName, carrier.name);
   });
 });
 
