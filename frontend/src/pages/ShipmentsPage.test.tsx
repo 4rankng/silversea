@@ -1043,6 +1043,53 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã cập nhật ghi chú lô hàng.')).toBeTruthy();
   });
 
+  it('FB-002 round 22: typed giờ + Enter saves the schedule quick-edit even with the picker open from the focusing click', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL', version: 3 }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' });
+    const time = within(dialog).getByLabelText('Giờ');
+    // The focusing CLICK opens the picker — the QA flow that kept a dead key:
+    // Enter's first press used to only close the picker (0 saves, no error).
+    fireEvent.click(time);
+    expect(document.querySelector('.time-picker__popup')).not.toBeNull();
+    fireEvent.change(within(dialog).getByLabelText('Ngày đóng/trả'), { target: { value: '20/08/2026' } });
+    fireEvent.change(time, { target: { value: '14:30' } });
+    fireEvent.keyDown(time, { key: 'Enter', code: 'Enter' });
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
+      expectedVersion: 3,
+      expectedDeliveryDate: '2026-08-20',
+      plannedReturnAt: '2026-08-20T14:30:00+07:00',
+    })));
+    expect(await screen.findByText('Đã cập nhật lịch đóng/trả.')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Lịch trình' })).toBeNull();
+  });
+
+  it('FB-030/075: completing a typed giờ in the schedule quick-edit advances focus to the Ngày day segment', async () => {
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL' }]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' });
+    const time = within(dialog).getByLabelText('Giờ');
+    fireEvent.change(time, { target: { value: '1430' } });
+    expect(time).toHaveValue('14:30');
+    // The single-box analog of the segmented fields' complete-segment
+    // advance: giờ done → focus lands on the Ngày đóng/trả day segment
+    // (prefilled with the row's current date — type-over ready on select).
+    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByLabelText('Ngày đóng/trả')));
+    expect((document.activeElement as HTMLInputElement).getAttribute('data-seg')).toBe('dd');
+  });
+
   it('edits the import Bill and declaration from the Chứng từ cell in one save', async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
