@@ -761,11 +761,30 @@ async function buildShipmentPageConditions(
     ? containerTransportDateSql()
     : s.shipments.expectedDeliveryDate;
   if (searchMode === 'container') {
+    const dateArms: SQL[] = [];
     if (query.transportDateFrom) {
-      conditions.push(sql`${transportDate} >= ${query.transportDateFrom}`);
+      dateArms.push(sql`${transportDate} >= ${query.transportDateFrom}`);
     }
     if (query.transportDateTo) {
-      conditions.push(sql`${transportDate} <= ${query.transportDateTo}`);
+      dateArms.push(sql`${transportDate} <= ${query.transportDateTo}`);
+    }
+    // Card 181026185900 (D.6): the day triage narrows CONTAINER rows to
+    // their appointment/EDD day. A container-less LCL lot has no container
+    // day — for an UNDATED lot coalesce(appointment, EDD) is NULL, so the
+    // old bare condition dropped the row and a lot visible on Tổng quan
+    // (whose default carries no date scope) could never be found here. An
+    // undated lot row therefore rides outside the date triage (there is no
+    // day it could match). A DATED lot keeps matching on its EDD — the
+    // card-365 off-day parity stays exact.
+    if (dateArms.length > 0) {
+      conditions.push(or(
+        and(
+          isNull(s.shipmentContainers.id),
+          eq(s.shipments.cargoMode, CARGO_MODE.LCL),
+          isNull(transportDate),
+        ),
+        and(...dateArms),
+      )!);
     }
   } else if (query.transportDateFrom || query.transportDateTo) {
     // Shipment-level: also consider container appointment dates so allocated
