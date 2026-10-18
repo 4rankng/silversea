@@ -93,6 +93,8 @@ export async function assertResourceAvailability(tx: Tx, args: {
     plannedStartAt: s.trips.plannedStartAt,
     classification: s.shipmentFulfillments.dispatchClassification,
     activePairId: s.trips.activeTripPairId,
+    pairStatus: s.tripPairs.status,
+    pairKind: s.tripPairs.pairKind,
     pairFirstTripId: s.tripPairs.firstTripId,
     pairSecondTripId: s.tripPairs.secondTripId,
   }).from(s.trips)
@@ -149,6 +151,51 @@ export async function assertResourceAvailability(tx: Tx, args: {
       // Kết hợp: sequential reuse — the two loads never sit on the mooc at
       // the same instant, so neither the 20' probe nor the weight sum applies.
       blocking = [];
+    }
+  }
+  // FB-081 v2 (card 181026003045, owner option 2-lite): the remaining leg of
+  // the reassigning trip's OWN ACTIVE Kẹp pair overlaps BY CONSTRUCTION — the
+  // pairing gate itself forces both legs onto one truck + one driver. The
+  // declared carve-out above only admitted the frozen state (absolute 3-way
+  // match, exactly one conflict), so every real transition — driver first,
+  // truck first, a mooc resolving differently — fell out of it and 409'd
+  // hard with no confirm code: a Kẹp pair could never move. The reassign
+  // write commands now apply the new rig to BOTH legs in one transaction
+  // (propagateKepPairRigToPartner), so the partner's overlap is the
+  // arrangement itself. Carve out exactly that one linked row; any OTHER
+  // overlapping load still blocks (never a third load), KET_HOP pairs get no
+  // carve-out (owner ruling Q4 — sequential windows), and the 2×20' weight
+  // gate still applies to the pair's combined load on the incoming rig.
+  if (args.tripId != null && blocking.length > 0) {
+    const incomingDay = localDateInBusinessZone(args.plannedStartAt);
+    const isOwnKepPartner = (row: typeof conflicts[number]) => row.activePairId != null
+      && row.pairStatus === 'ACTIVE'
+      && row.pairKind === 'KEP'
+      && (row.pairFirstTripId === args.tripId || row.pairSecondTripId === args.tripId)
+      && row.plannedStartAt != null
+      && localDateInBusinessZone(row.plannedStartAt) === incomingDay;
+    const partnerRows = blocking.filter(isOwnKepPartner);
+    if (partnerRows.length > 0) {
+      const carvedPartnerIds = new Set<number>();
+      for (const partner of partnerRows) {
+        // Same physical probe as the declared clamp above: a partner that no
+        // longer reads as one 20' shell is a data anomaly, not the pair's
+        // deliberate overlap — it stays a conflict rather than being trusted.
+        const containers = await tx.select({ code: s.containerTypes.code, weight: s.tripContainers.cargoWeightKg })
+          .from(s.tripContainers)
+          .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
+          .where(eq(s.tripContainers.tripId, partner.id));
+        if (!(containers.length === 1 && containers[0].code?.startsWith('20'))) continue;
+        const weights = [args.cargoWeightKg, containers[0].weight];
+        if (args.vehicleCapacityKg != null && weights.every((weight) => weight != null && Number.isFinite(Number(weight)))
+          && weights.reduce((sum, weight) => sum + Number(weight), 0) > Number(args.vehicleCapacityKg)) {
+          throw new ApiError(409, 'Tổng trọng lượng hai container kẹp vượt quá tải trọng xe.');
+        }
+        carvedPartnerIds.add(partner.id);
+      }
+      if (carvedPartnerIds.size > 0) {
+        blocking = blocking.filter((row) => !carvedPartnerIds.has(row.id));
+      }
     }
   }
   if (blocking.some((row) => args.truckId != null && row.truckId === args.truckId)) {

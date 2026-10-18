@@ -28,6 +28,7 @@ import { applyLclCostGroupFreightToNewTrip } from './lcl-cost-group-freight.serv
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 import { syncShipmentExpenseSources } from './expense-accounting-write.service';
 import { canonicalLocationsFromContainerRow, containerLocationColumns } from './trip-shared';
+import { propagateKepPairRigToPartner } from './trip-pair-rig-sync.service';
 
 
 import { and, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
@@ -116,6 +117,18 @@ export interface IssueOrderMutationResult {
    * to the new driver after commit (best-effort, never blocks the write).
    */
   attendanceResync?: {
+    tripId: number;
+    previousDriverId: number | null;
+    driverId: number | null;
+    departureDate: string | null;
+  };
+  /**
+   * FB-081 v2 (card 181026003045): set when the reassign propagated a new
+   * driver onto the partner leg of an ACTIVE Kẹp pair that had already
+   * departed — same attendance contract as `attendanceResync`, for the leg
+   * the operator did not directly edit.
+   */
+  pairAttendanceResync?: {
     tripId: number;
     previousDriverId: number | null;
     driverId: number | null;
@@ -576,6 +589,7 @@ export async function issueOrderCreateOrUpdate(
 
   let trip = liveTrip;
   let notificationPersisted = false;
+  let pairRigSync: Awaited<ReturnType<typeof propagateKepPairRigToPartner>> = null;
 
   if (!trip) {
     // Ad-hoc shipments carry no catalog customer; a trip row requires one
@@ -722,6 +736,25 @@ export async function issueOrderCreateOrUpdate(
       await upsertTripCarrierInfo(tx, trip.id, updatedTripCarrier);
       const composed = await getTripCompositeInTx(tx, trip.id);
       if (composed) trip = toLiveTripRow(composed);
+      // FB-081 v2 (card 181026003045, option 2-lite): a Kẹp pair moves as ONE
+      // rig — apply the issuing leg's resolved truck/trailer/driver onto the
+      // partner leg of the trip's ACTIVE KEP pair inside this same
+      // transaction. Throws (rolling the whole reassign back) when the change
+      // cannot keep the pair invariant: a switch to an external carrier, or a
+      // driver change onto a partner that already acknowledged. No pair / no
+      // drift → null, business as before.
+      pairRigSync = await propagateKepPairRigToPartner(tx, {
+        tripId: trip.id,
+        carrierType: input.carrierType,
+        truckId,
+        trailerId,
+        driverId,
+        actor: {
+          userId: input.actor.userId,
+          role: input.actor.role,
+          name: input.actor.fullName ?? input.actor.username,
+        },
+      });
     }
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
     const existingNotificationCount = await tx.select({ total: count() }).from(s.notifications).where(and(
@@ -788,6 +821,14 @@ export async function issueOrderCreateOrUpdate(
         departureDate: trip.departureDate ?? null,
       },
     } : {}),
+    ...(pairRigSync?.attendanceResyncNeeded === true ? {
+      pairAttendanceResync: {
+        tripId: pairRigSync.partnerTripId,
+        previousDriverId: pairRigSync.previous.driverId,
+        driverId: driverId ?? null,
+        departureDate: pairRigSync.partnerDepartureDate,
+      },
+    } : {}),
   };
 }
 
@@ -843,6 +884,22 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
       }
     } catch (error) {
       console.warn('[attendance] reassignment resync failed for trip', resync.tripId, error);
+    }
+  }
+
+  // FB-081 v2: the Kẹp partner leg the propagate step moved — same
+  // best-effort attendance contract as the issuing leg above.
+  if (!outcome.replayed && outcome.result.pairAttendanceResync) {
+    const resync = outcome.result.pairAttendanceResync;
+    try {
+      if (resync.previousDriverId != null) {
+        await removeTripWorkDays(resync.previousDriverId, resync.tripId);
+      }
+      if (resync.driverId != null && resync.departureDate != null) {
+        await syncTripWorkDays(resync.driverId, resync.tripId, resync.departureDate, null, input.actor.userId);
+      }
+    } catch (error) {
+      console.warn('[attendance] pair reassignment resync failed for trip', resync.tripId, error);
     }
   }
 
