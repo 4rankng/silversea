@@ -208,32 +208,69 @@ quality, full TimeInput host sweep verified; 3 info-only notes).
 design). Staging re-verification by owner after deploy (production
 prohibition — staging not driven from here).
 
-## Card 6 — fb109-fb113 popup "Chỉnh sửa chứng từ và hãng tàu" (worktree fix, PUSHED)
+## Card 6 — 171026215500 FB-002 enter-cases redo (branch
+`fix-fb030-advance-regress-rb1`, pushed, NOT merged)
 
-- **Surface/component**: CUS Chi tiết lô (`/shipments-detail`) popup editor
-  `ShipmentContainerLedger` `mode="documents"` ("Chỉnh sửa chứng từ và hãng
-  tàu"), hosted by `ShipmentContainersPage` via `useCusDetail.saveDocuments`.
-- **API flow**: Lưu → `PATCH /shipments/:id` (Bill/Booking/Nhập-Xuất/Hãng tàu)
-  + `POST /shipments/cus-workspace/:id/containers/:contId` (per-cont tờ khai —
-  BE `updateCusShipmentContainerLine` ghi số + auto-copy sang cont còn trống +
-  heal fulfillment trong 1 transaction, trả `declarationSync.updatedContainerIds`);
-  nút copy → `POST .../copy-declaration` (empty-only, never overwrite).
-- **Behavior**: FB-113 — thứ tự trường Số Bill/Booking → Số tờ khai →
-  Nhập/Xuất → Hãng tàu (test DOM-order pin, mutation-checked). FB-109 — số tờ
-  khai persist per-cont (reload-survives) + auto-copy CHỈ sang cont còn trống,
-  cont đã có số không bị ghi đè; clear cục bộ. Luật 171026180010 (ghi đè mọi
-  sibling) ĐƯỢC THU HẸP theo design note card FB-109 — xem Amendment
-  2026-10-18 trong `testplan/2026-10-17-tokhai-save-sync.md`; driver cũ
-  `qa-20261017-tokhai-save-sync-ui.mjs` gắn banner SUPERSEDED.
-- **Gates**: be-tsc 0, fe-tsc 0, lint 0, FE scoped 75/75 (ledger +
-  declarations), BE declaration suite 10/10 — `qa/2026-10-18_fb109_*`,
-  `qa/2026-10-18_fb113_*`. Independent review `Fb109Review`: core VERIFIED;
-  findings 1-3,5 landed (stale driver banner, testplan superseded markers, R2
-  retitle, evidence cites). Finding 4 còn mở (minor): blank-arm predicate
-  `btrim` không cắt tab/newline + chưa có fixture sibling whitespace-only —
-  không reachable qua app writes (trimOrNull), cần follow-up nếu có legacy
-  seed rows.
-- **Coverage**: UI rung 0 (không drive popup this session — orchestrator cắt
-  scope, QA verify trên staging); rung 2 qua BE integration tests trên dev DB
-  (:5441). Full FE suite có 2 fail pre-existing `numeric-identity.styles`
-  (cần `make build` ra dist/assets — build-prerequisite, không liên quan diff).
+REDO of dead agent `4e67ed15` (its worktree was wiped before commit — the
+case-2/3 work was reconstructed from its session transcript, re-verified
+from scratch in a fresh worktree, and this time landed as commits). Base
+`main @ 09420a7f` (the earlier FB-030 wave is already merged via `4efa6e2c`
+— not redone).
+
+**Scope** (QA staging retest `8fc1bcf5`, MIXED — all three cases on the
+"Chỉnh sửa Lịch trình" dialog TimeInput, one commit per case):
+
+- CASE 2 `8586e8cd`: typing "1430" (no colon) + Enter — Enter handler now
+  normalizes the DOM draft (auto-colon HHmm) BEFORE the swallow decision and
+  emits the canonical form to the host; any printable keystroke marks
+  `typedSinceOpen` even when maxLength drops it. First Enter saves.
+- CASE 3 `6e06f3d3`: ArrowDown-opened `TimePickerSurface` no longer contains
+  focus (card 326 ruling) — typing lands on the input, `typedSinceOpen` sets,
+  Enter saves. `useFocusTrap` also stops yanking focus when focus is already
+  inside its container (Modal content `autoFocus` interplay).
+- CASE 1 (kept-green, no behavior change): "14:30" + Enter still saves.
+- Follow-up `97741747` + review follow-up (this card's tail): probe evidence
+  force-tracked under `qa/2026-10-18_fb002-enter-cases_{fix,repro}/`
+  (survives worktree wipes), advance-probe relocate hardening (shared dev DB
+  churn reshuffles queue pages mid-run), and the review nits (modifier chords
+  must not count as typing — `!ctrlKey && !metaKey && !altKey`; erased-draft
+  Enter semantics pinned; comment corrected).
+
+**Gates (exit 0)**: full FE **5104/5104** (661 files); scoped
+TimeInput/Modal/TimePickerSurface 44/44; design-system+shipments 871/871;
+`npx tsc -b`; root lint; `make build`. Disclosures: vitest ran with
+`--testTimeout=20000` under shared-machine load-66 (sibling agents); the
+only failures observed were contention timeouts + one env-order failure
+(`numeric-identity.styles.test.ts` needs `dist/assets` first) — isolated
+reruns green (PortsConfigPage 3/3, ShipmentContainerLedger 60/60). One
+pre-existing parallel flake class noted: `ShipmentContainerLedger` AC1/AC4
+passes standalone/rerun.
+
+**Rung 3** (account `cus`, 1440×900, API :3002 + dev DB :5441; dev surface =
+worktree vite `:7179` because `:7175` serves the main checkout on this
+shared machine; prodbuild = `vite preview :4181` of this worktree's build):
+- Case probes **4/4** on BOTH surfaces (`case-driver-{dev,prodbuild}.log` +
+  `ui-*/` PNGs): CASE2 "1430"+first Enter saves, CASE3 ArrowDown→type+first
+  Enter saves, CASE1 kept, fixture lot 130022 restored (closingAt back to
+  2026-10-20T08:45Z; version churn disclosed).
+- FB-030/075 advance probes **12/12** on both surfaces (hand-off intact).
+- Pre-fix live repro: `qa/2026-10-18_fb002-enter-cases_repro/case-driver-dev-prefx.log`
+  (CASE3 FAIL — mutations=0 unchanged-path close + reopen; `activeLabel:"Đóng"`
+  = the modal close button stealing focus from the autoFocus'd input).
+- Red-before unit evidence: `case2-red-before.log` (2 failed),
+  `case3-red-before.log` (2 failed), `review-nits-red-before.log` (1 failed).
+
+**Independent review**: code-reviewer `ReviewFb002Cases` — APPROVE WITH NITS,
+**0 required fixes**; all six named law families verified HELD (20260915
+picker-finishing swallow, invalid-draft swallow, round-22 type-over, card
+326 focus, FB-030 hand-off, 13 useFocusTrap consumers). Nits landed above;
+remaining disclosure (not fixable at component boundary): an Enter-time
+`onChange(normalized)` for a genuinely unnormalized HOST draft is batched vs
+a same-tick `requestSubmit()` save chain — no such host path exists today.
+
+**What did NOT happen**: no deploy (production prohibition), no merge to
+main (controller/watchdog decision), staging re-test by owner after deploy.
+The original dead-session pre-fix repro logs (06:51 UTC vs `8fc1bcf5`) died
+with its worktree; the surviving text records live in the session
+transcript; my `_repro/case-driver-dev-prefx.log` is the re-captured live
+pre-fix evidence.

@@ -165,11 +165,22 @@ try {
   const emptyLot = { ...triggers[0], info: await lotInfo(triggers[0].id) };
   log('empty_lot', emptyLot.info);
 
+  const findTrigger = async (triggerId) => page.$(`button[id="${triggerId}"]:not([disabled])`);
   const openDialog = async (triggerId) => {
-    await page.waitForSelector(`#${triggerId}`, { timeout: 20000 });
+    // Shared-DB hardening (2026-10-18): concurrent fixture churn reshuffles
+    // the queue pages between the scan and the revisit, so a pinned page
+    // number goes stale mid-run (143351 drifted page 1 → 6 within seconds).
+    // Relocate the trigger with a bounded re-scan instead of trusting it.
+    let btn = await findTrigger(triggerId);
+    for (let p = 1; p <= 12 && !btn; p += 1) {
+      await page.goto(`${QA_BASE_URL}/shipments?page=${p}`, { waitUntil: 'networkidle2', timeout: 60000 });
+      await page.waitForSelector('table', { timeout: 20000 });
+      btn = await findTrigger(triggerId);
+      if (btn) log('relocated', { triggerId, page: p });
+    }
+    if (!btn) throw new Error(`trigger ${triggerId} not found on pages 1..12 after relocate scan`);
     await page.evaluate((id) => document.getElementById(id)?.scrollIntoView({ block: 'center' }), triggerId);
     await sleep(150);
-    const btn = await page.$(`#${triggerId}`);
     await btn.click({ timeout: 5000 }).catch(async () => btn.evaluate((el) => el.click()));
     await page.waitForFunction(
       (title) => Array.from(document.querySelectorAll('.modal__title')).some((el) => (el.textContent || '').trim() === title),
