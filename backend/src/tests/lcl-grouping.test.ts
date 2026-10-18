@@ -40,6 +40,7 @@ import {
   mergeLclRevGroup,
   unmergeLclLot,
   unmergeLclGroup,
+  updateLclGroupTruck,
 } from '../services/lcl-grouping.service';
 import { softDeleteShipment } from '../services/shipment-lifecycle.service';
 
@@ -1938,6 +1939,73 @@ describe('161026232329 — tiền đường/lương chuyến chỉ tính 1 lần
     const unmerged = (await groupAuditPayloads(lots[0]!.id))
       .find((payload) => payload.event === 'SHIPMENT_LCL_GROUP_UNMERGED')!;
     assert.deepEqual(unmerged.transferredDriverMoney, { driverSalary: '500000', totalRoadAllowance: '300000' });
+  });
+});
+
+// ─── Card 181026145000 — spec §2.3/§2.4 backend gaps ─────────────────────────
+
+describe('Card 181026145000 §2.3 — BKS báo khách sửa được từng lô trong nhóm', () => {
+  test('billing quick-edit trên MỘT lô ghép chỉ đổi lô đó; BKS thực không đụng', async () => {
+    const customer = await mkCustomer('145000 billing per lot');
+    const route = await mkRoute();
+    const lots = [];
+    for (let index = 1; index <= 3; index++) {
+      lots.push(await mkLclLot(customer.id, route.id, `145000-B${index}-${suffix.slice(-6)}`));
+    }
+    const truckClass = await vehicleClassByCode('5T');
+    await assignLclCostGroup({
+      shipmentIds: lots.map((lot) => lot.id),
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-145.00',
+    }, actor);
+
+    const result = await updateLclGroupTruck(
+      { shipmentId: lots[1]!.id, billingTruckNo: '30C-999.99' },
+      actor,
+    );
+    assert.deepEqual(result.updatedShipmentIds, [lots[1]!.id], 'chỉ lô được nêu tên bị ghi');
+
+    const rows = await db.select().from(s.shipments)
+      .where(inArray(s.shipments.id, lots.map((lot) => lot.id)));
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    for (const lot of lots) {
+      assert.equal(byId.get(lot.id)!.actualTruckNo, '29C-145.00', 'BKS thực là identity chung của nhóm — không đổi');
+    }
+    assert.equal(byId.get(lots[0]!.id)!.billingTruckNo, '29C-145.00', 'Lô 1 giữ billing mặc định (copy từ actual lúc gán nhóm)');
+    assert.equal(byId.get(lots[1]!.id)!.billingTruckNo, '30C-999.99', 'lô được sửa có billing riêng');
+    assert.equal(byId.get(lots[2]!.id)!.billingTruckNo, '29C-145.00', 'lô kia không bị kéo theo');
+  });
+
+  test('sửa BKS thực vẫn group-wide và không ghi đè divergence billing của từng lô', async () => {
+    const customer = await mkCustomer('145000 actual groupwide');
+    const route = await mkRoute();
+    const lot1 = await mkLclLot(customer.id, route.id, `145000-C1-${suffix.slice(-6)}`);
+    const lot2 = await mkLclLot(customer.id, route.id, `145000-C2-${suffix.slice(-6)}`);
+    const truckClass = await vehicleClassByCode('5T');
+    await assignLclCostGroup({
+      shipmentIds: [lot1.id, lot2.id],
+      vehicleSizeClassId: truckClass.id,
+      actualTruckNo: '29C-555.11',
+    }, actor);
+    // Lô 2 phân kỳ billing (sửa riêng), Lô 1 vẫn giữ bản copy mặc định.
+    await updateLclGroupTruck({ shipmentId: lot2.id, billingTruckNo: '30C-888.88' }, actor);
+
+    const result = await updateLclGroupTruck(
+      { shipmentId: lot1.id, actualTruckNo: '29C-666.22' },
+      actor,
+    );
+    assert.deepEqual([...result.updatedShipmentIds].sort((a, b) => a - b), [lot1.id, lot2.id].sort((a, b) => a - b));
+
+    const rows = await db.select().from(s.shipments)
+      .where(inArray(s.shipments.id, [lot1.id, lot2.id]));
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    // 1 xe thực chạy cả nhóm — mọi thành viên đổi actual.
+    assert.equal(byId.get(lot1.id)!.actualTruckNo, '29C-666.22');
+    assert.equal(byId.get(lot2.id)!.actualTruckNo, '29C-666.22');
+    // Billing là per-lot: divergence sống sót qua lần sửa actual, và không có
+    // re-copy ngầm (law §2.3 — copy chỉ là mặc định lúc gán nhóm).
+    assert.equal(byId.get(lot1.id)!.billingTruckNo, '29C-555.11', 'Lô 1 giữ billing cũ (không re-copy ngầm)');
+    assert.equal(byId.get(lot2.id)!.billingTruckNo, '30C-888.88', 'divergence của Lô 2 sống sót');
   });
 });
 

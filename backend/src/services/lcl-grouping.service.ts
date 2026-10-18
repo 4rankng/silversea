@@ -1290,10 +1290,16 @@ export async function setLclLotRevClass(
 }
 
 /**
- * FB-093 — quick-edit the BKS pair from the settlement screen. The truck is
- * the COST group's shared identity, so an edit rewrites every live member of
- * the lot's cost group (the lot alone when ungrouped). The rev dimension's
- * billing copy follows only when the caller names it.
+ * FB-093 — quick-edit the BKS pair from the settlement screen.
+ *
+ * The two plates have different scopes (spec §2.3, card 181026145000):
+ *   - BKS thực (actualTruckNo) is the COST group's shared identity — one
+ *     physical truck runs the whole group, so an edit rewrites every live
+ *     member (the lot alone when ungrouped);
+ *   - BKS báo khách (billingTruckNo) is per-lot — "cho phép điều vận sửa lại
+ *     cho từng lô trong nhóm" — so an edit touches ONLY the named lot. The
+ *     group's shared billing value is set once at assignment/merge time;
+ *     divergence afterwards is the operator's deliberate per-lot choice.
  */
 export async function updateLclGroupTruck(
   input: UpdateLclTruckInput,
@@ -1310,22 +1316,32 @@ export async function updateLclGroupTruck(
     await assertShipmentAccountingUnlocked(tx, row.id);
 
     // The cost group shares one physical truck; ungrouped edits touch the lot.
-    const targets = row.costGroupId != null
+    const groupTargets = input.actualTruckNo != null && row.costGroupId != null
       ? await tx.select().from(s.shipments)
         .where(and(eq(s.shipments.costGroupId, row.costGroupId), isNull(s.shipments.deletedAt)))
         .orderBy(asc(s.shipments.id))
         .for('update')
       : [row];
 
-    const patch: Partial<typeof s.shipments.$inferInsert> = {
-      updatedBy: actor.userId,
-      updatedAt: new Date(),
-    };
-    if (input.actualTruckNo != null) patch.actualTruckNo = input.actualTruckNo;
-    if (input.billingTruckNo != null) patch.billingTruckNo = input.billingTruckNo;
+    // Which rows actually change: the actual plate rides every group member,
+    // the billing plate only the named lot — a billing-only edit must not
+    // bump versions of siblings it did not touch.
+    const touched = new Map<number, ShipmentRow>();
+    if (input.actualTruckNo != null) {
+      for (const target of groupTargets) touched.set(target.id, target);
+    }
+    if (input.billingTruckNo != null) touched.set(row.id, row);
 
     const updatedIds: number[] = [];
-    for (const target of targets) {
+    for (const target of touched.values()) {
+      const patch: Partial<typeof s.shipments.$inferInsert> = {
+        updatedBy: actor.userId,
+        updatedAt: new Date(),
+      };
+      if (input.actualTruckNo != null) patch.actualTruckNo = input.actualTruckNo;
+      if (input.billingTruckNo != null && target.id === row.id) {
+        patch.billingTruckNo = input.billingTruckNo;
+      }
       await tx.update(s.shipments).set({ ...patch, version: target.version + 1 })
         .where(eq(s.shipments.id, target.id));
       updatedIds.push(target.id);
