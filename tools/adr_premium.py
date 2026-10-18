@@ -17,7 +17,8 @@ Pairs (default config) and price sources — all keyless:
 "moomoo-opend" shells out to the moomooapi skill script
 `~/.hermes/skills/moomooapi/scripts/quote/get_kline.py` and needs the local
 OpenD gateway (127.0.0.1:11111) running — no API key. Per-pair source is the
-`source` field of the pair config and is echoed in every output row. The
+`source` field of the pair config and is echoed in every JSON pair record and
+`runs` audit row. The
 `yahoo` provider (keyless Yahoo Finance chart API, closes only) is available
 per pair or via `--source` when OpenD is not running. `--fixtures DIR` swaps
 both price and FX providers for file-based fixture data (tests / offline).
@@ -33,11 +34,22 @@ Formulas (all at session-date granularity, legs aligned by exchange date):
 
 `hist` = premiums of the window `[latest - window_days, latest)` (current
 observation excluded), `min_history` observations required, `stdev == 0`
-yields zscore null (no standardisation possible). FX lookups fall back to the
-most recent prior ECB rate and flag `fx_stale`; with no prior rate at all the
-row degrades to status `fx_missing` (premium/zscore/signal null) and the job
-continues. Prices are raw closes (moomoo `--rehab none`, Yahoo `close`);
-corporate actions are absorbed manually in `ads_ratio` — research-grade proxy.
+yields zscore null (no standardisation possible). The gap proxy measures each
+leg's latest session against its close at the previous *common* session (legs
+are aligned by exchange date label; on calendar-divergence days — one market
+holiday — a leg's return spans its intervening sessions). FX lookups fall
+back to the most recent prior ECB rate and flag `fx_stale`; with no prior rate
+at all the row degrades to status `fx_missing` (premium/zscore/signal null)
+and the job continues. Prices are raw closes (moomoo `--rehab none`, Yahoo
+`close`); corporate actions are absorbed manually in `ads_ratio` —
+research-grade proxy.
+
+Pair status ladder: `ok` | `fx_missing` (no FX rate at or before the
+session) | `insufficient_history` (fewer than `min_history` history
+observations, or zero-variance history: no usable z) | `no_data` (sources
+answered but no bars in range, e.g. `--as-of` predates the listing) |
+`error` (fetch/parse failure). Only `error` pairs make the job exit 1;
+degraded pairs exit 0.
 
 Observations persist to SQLite (`research/adr_premium.db` by default,
 upserted per (pair, date)) plus one `runs` audit row per pair per run.
@@ -50,7 +62,7 @@ CLI:
 
 `--json` prints exactly one JSON document on stdout (progress goes to stderr).
 Exit status: 0 = every pair produced a row (possibly degraded), 1 = at least
-one pair failed to fetch.
+one pair has status `error`.
 """
 
 from __future__ import annotations
@@ -109,14 +121,23 @@ class FetchError(RuntimeError):
     """A price/FX source failed to deliver data."""
 
 
+class NoDataError(FetchError):
+    """The source answered but holds no bars in the requested range.
+
+    Distinct from a fetch failure: the query is valid, the series is just
+    outside the range (e.g. --as-of predates the listing). Pairs report
+    status `no_data` and the job still exits 0.
+    """
+
+
 # --------------------------------------------------------------------------
 # Pure math
 # --------------------------------------------------------------------------
 
 def premium_pct(hk_close: float, us_close: float, hkdusd: float, ads_ratio: float) -> float:
     """FX-adjusted HK-over-US premium in percent."""
-    if us_close <= 0 or hk_close <= 0 or hkdusd <= 0:
-        raise ValueError("closes and FX rate must be positive")
+    if us_close <= 0 or hk_close <= 0 or hkdusd <= 0 or ads_ratio <= 0:
+        raise ValueError("closes, FX rate and ads_ratio must be positive")
     return ((hk_close * ads_ratio * hkdusd) / us_close - 1.0) * 100.0
 
 
@@ -190,16 +211,20 @@ def _moomoo_kline_fetch(symbol: str, start: date, end: date, kline_script: Path)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise FetchError(f"moomoo kline {symbol}: {exc}") from exc
     payload = None
-    for line in proc.stdout.splitlines():
+    for line in reversed(proc.stdout.splitlines()):
         line = line.strip()
-        if line.startswith("{"):
-            payload = line
+        if not line.startswith("{"):
+            continue
+        try:
+            candidate = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(candidate, dict) and ("data" in candidate or "error" in candidate):
+            payload = candidate
+            break
     if payload is None:
         raise FetchError(f"moomoo kline {symbol}: no JSON in stdout (rc={proc.returncode})")
-    try:
-        doc = json.loads(payload)
-    except json.JSONDecodeError as exc:
-        raise FetchError(f"moomoo kline {symbol}: bad JSON: {exc}") from exc
+    doc = payload
     if "error" in doc:
         raise FetchError(f"moomoo kline {symbol}: {doc['error']}")
     bars = {}
@@ -210,7 +235,7 @@ def _moomoo_kline_fetch(symbol: str, start: date, end: date, kline_script: Path)
         except (KeyError, ValueError, TypeError):
             continue
     if not bars:
-        raise FetchError(f"moomoo kline {symbol}: empty series {start}..{end}")
+        raise NoDataError(f"moomoo kline {symbol}: no bars {start}..{end}")
     return bars
 
 
@@ -255,7 +280,7 @@ class YahooChartProvider:
             if start <= d <= end:
                 bars[d] = float(close)
         if not bars:
-            raise FetchError(f"yahoo {symbol}: empty series {start}..{end}")
+            raise NoDataError(f"yahoo {symbol}: no bars {start}..{end}")
         return bars
 
 
@@ -275,21 +300,25 @@ class FixtureStore:
         path = self.directory / f"{symbol}.json"
         if not path.exists():
             raise FetchError(f"fixture price file missing: {path}")
-        doc = json.loads(path.read_text())
+        doc = _read_json_doc(path, f"fixture {symbol}")
         bars = {}
         for row in doc.get("bars", []):
-            d = date.fromisoformat(row["date"])
+            try:
+                d = date.fromisoformat(row["date"])
+                close = float(row["close"])
+            except (KeyError, ValueError, TypeError):
+                continue
             if start <= d <= end:
-                bars[d] = float(row["close"])
+                bars[d] = close
         if not bars:
-            raise FetchError(f"fixture {symbol}: empty series {start}..{end}")
+            raise NoDataError(f"fixture {symbol}: no bars {start}..{end}")
         return bars
 
     def daily_rates(self, start: date, end: date) -> dict[date, float]:
         path = self.directory / "fx_hkdusd.json"
         if not path.exists():
             raise FetchError(f"fixture FX file missing: {path}")
-        doc = json.loads(path.read_text())
+        doc = _read_json_doc(path, "fixture FX")
         rates = {}
         for row in doc.get("rates", []):
             d = date.fromisoformat(row["date"])
@@ -310,10 +339,15 @@ class FrankfurterFxProvider:
     def daily_rates(self, start: date, end: date) -> dict[date, float]:
         url = f"https://api.frankfurter.app/{start.isoformat()}..{end.isoformat()}?from=HKD&to=USD"
         doc = _http_json(url)
+        if "rates" not in doc:
+            raise FetchError(f"frankfurter {start}..{end}: no 'rates' key in response")
         rates: dict[date, float] = {}
         for day, quote in (doc.get("rates") or {}).items():
             if "USD" in quote:
-                rates[date.fromisoformat(day)] = float(quote["USD"])
+                try:
+                    rates[date.fromisoformat(day)] = float(quote["USD"])
+                except (KeyError, ValueError, TypeError):
+                    continue
         return rates
 
 
@@ -324,6 +358,13 @@ def _http_json(url: str) -> dict:
             return json.loads(resp.read().decode("utf-8"))
     except Exception as exc:  # URLError / HTTPError / JSONDecodeError
         raise FetchError(f"GET {url}: {exc}") from exc
+
+
+def _read_json_doc(path: Path, label: str) -> dict:
+    try:
+        return json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise FetchError(f"{label}: cannot read {path}: {exc}") from exc
 
 
 # --------------------------------------------------------------------------
@@ -519,6 +560,9 @@ def persist(db_path: Path, observations: list[Observation], runs: list[tuple]) -
                 :zscore, :signal
             )
             ON CONFLICT(pair, date) DO UPDATE SET
+                us_symbol = excluded.us_symbol,
+                hk_symbol = excluded.hk_symbol,
+                ads_ratio = excluded.ads_ratio,
                 us_close = excluded.us_close,
                 hk_close = excluded.hk_close,
                 fx_hkdusd = excluded.fx_hkdusd,
@@ -565,6 +609,22 @@ def load_pairs(config_path: Optional[Path], names: Optional[list[str]]) -> list[
     return pairs
 
 
+def _fallback_summary(pair: Pair, price_source: str, fx_source: str,
+                      status: str, exc: Exception) -> dict:
+    """Summary row for a pair that produced no observations."""
+    return {
+        "pair": pair.name, "us_symbol": pair.us, "hk_symbol": pair.hk,
+        "ads_ratio": pair.ads_ratio,
+        "price_source": price_source, "fx_source": fx_source,
+        "as_of": None, "us_close": None, "hk_close": None,
+        "fx_hkdusd": None, "fx_date": None, "fx_stale": False,
+        "premium_pct": None, "overnight_gap_pct": None,
+        "zscore": None, "history_obs": 0,
+        "signal": "none", "triggered": False,
+        "status": status, "error": f"{type(exc).__name__}: {exc}",
+    }
+
+
 def run_job(
     pairs: list[Pair],
     *,
@@ -586,39 +646,42 @@ def run_job(
 
     for pair in pairs:
         provider = price_provider_for(pair)
+        source = getattr(provider, "id", "?")
         try:
             us_closes = provider.daily_closes(pair.us, start, as_of)
             hk_closes = provider.daily_closes(pair.hk, start, as_of)
             fx_rates = fx_provider.daily_rates(start, as_of)
-        except FetchError as exc:
-            summary = {
-                "pair": pair.name, "us_symbol": pair.us, "hk_symbol": pair.hk,
-                "ads_ratio": pair.ads_ratio,
-                "price_source": getattr(provider, "id", "?"), "fx_source": fx_source,
-                "as_of": None, "us_close": None, "hk_close": None,
-                "fx_hkdusd": None, "fx_date": None, "fx_stale": False,
-                "premium_pct": None, "overnight_gap_pct": None,
-                "zscore": None, "history_obs": 0,
-                "signal": "none", "triggered": False,
-                "status": "error", "error": str(exc),
-            }
+            obs, summary = compute_pair(
+                pair, us_closes, hk_closes, fx_rates,
+                as_of=as_of, window_days=window_days, min_history=min_history,
+                z_threshold=z_threshold,
+                price_source=source,
+                fx_source=fx_source,
+            )
+        except NoDataError as exc:
+            summary = _fallback_summary(pair, source, fx_source, "no_data", exc)
             summaries.append(summary)
-            runs.append((generated_at, pair.name, None, "error", getattr(provider, "id", "?"), str(exc)))
-            _log(f"{pair.name}: ERROR {exc}")
+            runs.append((generated_at, pair.name, None, "no_data", source, summary["error"]))
+            _log(f"{pair.name}: no_data {summary['error']}")
+            continue
+        except FetchError as exc:
+            summary = _fallback_summary(pair, source, fx_source, "error", exc)
+            summaries.append(summary)
+            runs.append((generated_at, pair.name, None, "error", source, summary["error"]))
+            _log(f"{pair.name}: ERROR {summary['error']}")
+            continue
+        except Exception as exc:  # corrupt rows/inputs must not kill the job
+            summary = _fallback_summary(pair, source, fx_source, "error", exc)
+            summaries.append(summary)
+            runs.append((generated_at, pair.name, None, "error", source, summary["error"]))
+            _log(f"{pair.name}: ERROR {summary['error']}")
             continue
 
-        obs, summary = compute_pair(
-            pair, us_closes, hk_closes, fx_rates,
-            as_of=as_of, window_days=window_days, min_history=min_history,
-            z_threshold=z_threshold,
-            price_source=getattr(provider, "id", "?"),
-            fx_source=fx_source,
-        )
         all_obs.extend(obs)
         summaries.append(summary)
         runs.append((
             generated_at, pair.name, summary["as_of"], summary["status"],
-            getattr(provider, "id", "?"),
+            source,
             f"premium={summary['premium_pct']} z={summary['zscore']} signal={summary['signal']}",
         ))
         _log(
@@ -655,6 +718,13 @@ def _fmt(value, nd: int = 4) -> str:
     return "-" if value is None else f"{value:.{nd}f}"
 
 
+def _parse_date(text: str) -> date:
+    try:
+        return date.fromisoformat(text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"not a YYYY-MM-DD date: {text!r}") from exc
+
+
 def print_human(result: dict) -> None:
     header = (
         f"ADR/HK premium {result['as_of']}  window={result['window_days']}d "
@@ -682,7 +752,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="force one price provider for all pairs")
     p.add_argument("--fixtures", type=Path, default=None,
                    help="fixture dir for prices + FX (offline runs and tests)")
-    p.add_argument("--as-of", type=str, default=None, help="reference date (default: today)")
+    p.add_argument("--as-of", type=_parse_date, default=None,
+                   help="reference date YYYY-MM-DD (default: today)")
     p.add_argument("--fetch-days", type=int, default=DEFAULT_FETCH_DAYS)
     p.add_argument("--window-days", type=int, default=DEFAULT_WINDOW_DAYS)
     p.add_argument("--z-threshold", type=float, default=DEFAULT_Z_THRESHOLD)
@@ -694,7 +765,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Optional[list[str]] = None) -> int:
     args = build_parser().parse_args(argv)
-    as_of = date.fromisoformat(args.as_of) if args.as_of else datetime.now(timezone.utc).date()
+    as_of = args.as_of if args.as_of else datetime.now(timezone.utc).date()
     names = [n for n in (args.pairs or "").split(",") if n.strip()] or None
     pairs = load_pairs(args.config, names)
 
