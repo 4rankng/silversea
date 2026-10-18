@@ -5,6 +5,9 @@ AP-02 overnight-gap proxy math        AP-07 insufficient history -> no signal
 AP-03 z-score signal both directions  AP-08 --json pure stdout + SQLite upsert
 AP-04 strict threshold boundary       AP-09 custom config pair list
 AP-05 FX missing date -> stale flag   AP-10 fetch error -> exit 1
+AP-11 as-of before data -> no_data    AP-12 upsert updates columns
+AP-13 as_of = latest session          AP-14 corrupt input no crash
+AP-15 non-positive ads_ratio rejected
 """
 import json
 import sqlite3
@@ -31,6 +34,11 @@ def test_ap01_premium_pct_rejects_nonpositive():
         ap.premium_pct(80.0, -1.0, 0.128, 8)
     with pytest.raises(ValueError):
         ap.premium_pct(80.0, 85.0, 0.0, 8)
+    # AP-15: non-positive ads_ratio (config typo) must not yield silent garbage
+    with pytest.raises(ValueError):
+        ap.premium_pct(80.0, 85.0, 0.128, 0)
+    with pytest.raises(ValueError):
+        ap.premium_pct(80.0, 85.0, 0.128, -8)
 
 
 def test_ap02_overnight_gap_pct():
@@ -122,6 +130,7 @@ def test_ap08_signal_json_stdout_purity_and_sqlite(make_fixtures, write_config, 
     assert len(rows) == 23
     assert rows[-1][0] == AS_OF.isoformat()
     assert rows[-1][1] == pytest.approx(3.0, abs=1e-9)
+    assert rows[-1][2] == pytest.approx(summary["zscore"])  # z persisted, not NULL
     assert rows[-1][3] == "hk_rich"
 
 
@@ -238,14 +247,85 @@ def test_ap08_sqlite_upsert_is_idempotent(make_fixtures, capsys, tmp_path):
     assert runs == 2  # one audit row per run
 
 
+def test_ap12_upsert_updates_columns_on_rerun(make_fixtures, write_config, tmp_path, capsys):
+    fixtures = make_fixtures("upd", SPIKE_PREMIUMS, us="UPU", hk="UP.HK")
+    db = tmp_path / "upd.db"
+    cfg1 = write_config("ratio1", [{"name": "UP", "us": "UPU", "hk": "UP.HK",
+                                    "ads_ratio": 1.0, "source": "fixture"}])
+    cfg2 = write_config("ratio2", [{"name": "UP", "us": "UPU", "hk": "UP.HK",
+                                    "ads_ratio": 2.0, "source": "fixture"}])
+    base = ["--json", "--db", str(db), "--pairs", "UP",
+            "--fixtures", str(fixtures), "--as-of", AS_OF.isoformat()]
+    _run(base + ["--config", str(cfg1)], capsys)
+    _run(base + ["--config", str(cfg2)], capsys)
+
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute(
+            "SELECT ads_ratio, premium_pct FROM observations WHERE pair='UP' AND date=?",
+            (AS_OF.isoformat(),),
+        ).fetchall()
+        count = conn.execute("SELECT COUNT(*) FROM observations WHERE pair='UP'").fetchone()[0]
+    assert count == 23                # upsert, no duplicates
+    assert len(rows) == 1
+    assert rows[0][0] == 2.0          # UPDATE half runs: stale ratio would stay 1.0
+    assert rows[0][1] == pytest.approx(106.0, abs=1e-9)  # premium recomputed for ratio 2
+
+
+def test_ap13_as_of_field_tracks_latest_session(make_fixtures, capsys, tmp_path):
+    fixtures = make_fixtures("wknd", SPIKE_PREMIUMS, us="UPU", hk="UP.HK")
+    rc, out = _run(["--json", "--db", str(tmp_path / "wknd.db"), "--pairs", "UP",
+                    "--config", str(_pair_config(tmp_path)), "--fixtures", str(fixtures),
+                    "--as-of", "2026-03-21"], capsys)  # Saturday: no session
+
+    assert rc == 0
+    (summary,) = json.loads(out)["pairs"]
+    assert summary["as_of"] == "2026-03-20"  # latest session, not the CLI echo
+
+
+def test_ap14_corrupt_input_does_not_crash_job(make_fixtures, write_config, tmp_path, capsys):
+    fixtures = make_fixtures("mixed", SPIKE_PREMIUMS, us="UPU", hk="UP.HK")
+    bad = make_fixtures("bad", SPIKE_PREMIUMS, us="BADU", hk="BAD.HK")
+    for name in ("BADU.json", "BAD.HK.json"):
+        (fixtures / name).write_bytes((bad / name).read_bytes())
+    doc = json.loads((fixtures / "BAD.HK.json").read_text())
+    doc["bars"][-1]["close"] = 0.0  # corrupt latest HK close -> premium_pct ValueError
+    (fixtures / "BAD.HK.json").write_text(json.dumps(doc))
+    config = write_config("mixed", [
+        {"name": "BAD", "us": "BADU", "hk": "BAD.HK", "ads_ratio": 1.0, "source": "fixture"},
+        {"name": "UP", "us": "UPU", "hk": "UP.HK", "ads_ratio": 1.0, "source": "fixture"},
+    ])
+
+    rc, out = _run(["--json", "--db", str(tmp_path / "mixed.db"), "--config", str(config),
+                    "--fixtures", str(fixtures), "--as-of", AS_OF.isoformat()], capsys)
+
+    assert rc == 1
+    by_name = {p["pair"]: p for p in json.loads(out)["pairs"]}  # one JSON doc despite failure
+    assert by_name["BAD"]["status"] == "error"
+    assert by_name["UP"]["status"] == "ok"
+    assert by_name["UP"]["signal"] == "hk_rich"
+
+
 def test_human_mode_table(make_fixtures, capsys, tmp_path):
     fixtures = make_fixtures("human", SPIKE_PREMIUMS, us="UPU", hk="UP.HK")
     rc, out = _run(["--db", str(tmp_path / "human.db"), "--pairs", "UP",
                     "--config", str(_pair_config(tmp_path)), "--fixtures", str(fixtures),
                     "--as-of", AS_OF.isoformat()], capsys)
     assert rc == 0
-    assert "UP" in out
+    assert any(line.lstrip().startswith("UP ") for line in out.splitlines())
     assert "signal=hk_rich" in out
+
+
+def test_ap11_as_of_before_listing_is_no_data(make_fixtures, capsys, tmp_path):
+    fixtures = make_fixtures("early", SPIKE_PREMIUMS, us="UPU", hk="UP.HK")
+    rc, out = _run(["--json", "--db", str(tmp_path / "early.db"), "--pairs", "UP",
+                    "--config", str(_pair_config(tmp_path)), "--fixtures", str(fixtures),
+                    "--as-of", "2020-01-01"], capsys)
+
+    assert rc == 0  # valid query before the series starts: no_data, not error
+    (summary,) = json.loads(out)["pairs"]
+    assert summary["status"] == "no_data"
+    assert summary["premium_pct"] is None
+    assert summary["signal"] == "none"
 
 
 def _pair_config(tmp_path):
