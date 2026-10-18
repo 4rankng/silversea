@@ -37,14 +37,40 @@
   .invoice-tracking-page { padding-bottom: 0; }
 }
 
-/* Column headers wrap at word boundaries only — "SỐ TIỀN / TRẢ", never
-   "SỐ TIỀ / N TRẢ". The board's long data tokens need the base's
-   break-anywhere, but a header is a short label that keeps its words whole
-   (the same rule the shipment ledger and the dispatch grids carry). */
+/* FB-063 (card 181026021137 "header cột wrap nhiều dòng"): a header label is
+   ONE line — the same nowrap the global `thead th` rule (components/Table.css)
+   and the dispatch boards' law (card 091026091550) mandate. nowrap is also
+   the only policy-clean column floor: auto table-layout then sizes each
+   column at its label width ("single-token values EXPAND — the column sizes
+   to the label", record-table Law §4), so no label can stack 2–3 lines while
+   data-driven columns eat the canvas ("NHÀ CUNG CẤP" measured 3 lines in a
+   61px column, 2026-10-18).
+
+   The gutters are the width trade that keeps the board no wider than before.
+   The atomic floors (nowrap money under the shared .num law, dates, the
+   action pair, the progress select) already over-budget the 1129px wrapper:
+   the pre-fix board measured 1190px (61px spill, "Thao tác" cut at the
+   window edge). One-line label floors at the base's 12px gutters would push
+   it to 1250px — WIDER, cutting the action pair off screen — so head takes
+   the 8px gutter (card 091026091550's measured trade) and body 6px inline
+   (same dense-board family as the CUS dashboard's 6px block): measured
+   1183px, strictly narrower than the pre-fix board at every table-mode
+   width. The action cell is excluded — `.record-table__action` stays
+   base-owned (flush `padding: 0` in the record-card band, its table-mode
+   gutter unchanged) since it is a control row, not a data cell. The body
+   override also applies inside the ≤1100px record-card band
+   (6px vs the base's 12px inline) — a density nuance only; card mode hides
+   the thead and is unaffected by the header law. Data cells keep the base's
+   break-anywhere; the law is scoped to this board. */
 .invoice-tracking-page .record-table thead th {
-  white-space: normal;
+  white-space: nowrap;
+  padding-inline: 8px;
   word-break: keep-all;
   overflow-wrap: normal;
+}
+
+.invoice-tracking-page .record-table tbody td:not(.record-table__action) {
+  padding-inline: 6px;
 }
 
 /* Amount cells belong to the shared numeric law (styles/record-table.css

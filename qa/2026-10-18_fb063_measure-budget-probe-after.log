@@ -1,0 +1,19 @@
+wrapper clientWidth: 1129 scrollWidth: 1183
+table width: 1183 (css width: 1183.11px , min-width: 0px )
+column budget (width | one-line label need incl. 24px pad):
+    40px | need   50px | "STT"
+    84px | need   62px | "Ngày"
+    73px | need   85px | "Lô hàng"
+    53px | need   64px | "Cont"
+    43px | need   53px | "MST"
+   113px | need  128px | "Nhà cung cấp"
+   126px | need   88px | "Hóa đơn"
+    96px | need  109px | "Số tiền trả"
+   112px | need   57px | "COM"
+    98px | need  112px | "Chênh lệch"
+    84px | need   90px | "Ngày gửi"
+    69px | need   81px | "Ghi chú"
+   108px | need   80px | "Tiến độ"
+    84px | need   93px | "Thao tác"
+SUM width=1183 · SUM one-line need=1152
+PROBE EXIT 0
