@@ -14,6 +14,8 @@ export interface ShipmentCreateModalsProps {
   detailSite: OperationalSite | null;
   onCloseDetailSite: () => void;
   createSiteDialog: { open: boolean; siteType: 'FACTORY' | 'WAREHOUSE' };
+  /** Card 181026143000 §1a: kho dialog title follows the lot's direction. */
+  tradeDirection: 'IMPORT' | 'EXPORT' | '';
   customerId: string;
   routes: CatalogData['routes'] | Route[];
   onCloseCreateSite: () => void;
@@ -48,6 +50,7 @@ export function ShipmentCreateModals({
   detailSite,
   onCloseDetailSite,
   createSiteDialog,
+  tradeDirection,
   customerId,
   routes,
   onCloseCreateSite,
@@ -84,6 +87,7 @@ export function ShipmentCreateModals({
         isOpen={createSiteDialog.open && Boolean(customerId)}
         customerId={Number(customerId)}
         defaultSiteType={createSiteDialog.siteType}
+        tradeDirection={tradeDirection}
         // Card 20261009_10 (owner ruling): BOTH intake quick-adds are quick.
         // They differ in their bodies — a warehouse asks for name/short/address,
         // a factory additionally for the route and a contact — but neither opens

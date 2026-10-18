@@ -859,6 +859,7 @@ export function ShipmentCreateWorkspace() {
         detailSite={detailSite}
         onCloseDetailSite={() => setDetailSite(null)}
         createSiteDialog={createSiteDialog}
+        tradeDirection={form.tradeDirection}
         customerId={form.customerId}
         routes={catalogs?.routes ?? []}
         onCloseCreateSite={() => setCreateSiteDialog((current) => ({ ...current, open: false }))}

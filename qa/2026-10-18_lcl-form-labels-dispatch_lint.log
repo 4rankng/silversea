@@ -1,0 +1,6 @@
+$ pnpm lint
+
+> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-form-labels-dispatch
+> eslint .
+
+EXIT:0

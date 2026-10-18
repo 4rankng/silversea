@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -131,5 +131,39 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     expect(labels).toEqual(['Huỷ (cuối trang)', 'Lưu nháp (cuối trang)', 'Tạo lô hàng (cuối trang)']);
     // The topline cluster still exists and keeps the plain names.
     expect(screen.getByRole('button', { name: 'Tạo lô hàng' })).toBeTruthy();
+  });
+
+  // Card 181026143000 (spec 2026.10.17 §1a/§1c): the kho quick-add dialog
+  // must name the SAME direction as the field it opens from — the spec's core
+  // complaint was a hard-coded "Kho lấy hàng" applied to both directions.
+  it('titles the kho quick-add dialog by hình thức xuất nhập khẩu', async () => {
+    await enterLclWithCatalogCustomer();
+
+    await chooseDirection('Xuất khẩu');
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm kho' }));
+    const exportDialog = await screen.findByRole('dialog', { name: 'Thêm kho trả hàng' });
+    expect(exportDialog).toBeTruthy();
+    fireEvent.click(within(exportDialog).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    await chooseDirection('Nhập khẩu');
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm kho' }));
+    const importDialog = await screen.findByRole('dialog', { name: 'Thêm kho lấy hàng' });
+    expect(importDialog).toBeTruthy();
+    fireEvent.click(within(importDialog).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  // Card 181026143000 §1c: "+ Thêm kho" is the shared dashed utility button —
+  // no page-local inline palette (the old copy carried a blue #2563eb token
+  // fallback). One pattern, one class, like the "+ Thêm nhà máy" sibling.
+  it('renders "+ Thêm kho" through the shared dashed utility button', async () => {
+    await enterLclWithCatalogCustomer();
+
+    const themKho = screen.getByRole('button', { name: 'Thêm kho' });
+    expect(themKho.className).toContain('csc-utility-button--dashed');
+    const themNhaMay = screen.getByRole('button', { name: 'Thêm nhà máy' });
+    expect(themNhaMay.className).toBe(themKho.className);
+    expect(themKho.getAttribute('style')).toBe('align-self: start;');
   });
 });
