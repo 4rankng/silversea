@@ -1,0 +1,11 @@
+login status=200
+rows=1 firstRow="LONG MINHChưa có nhà máyChưa có tuyến đườngFB109-706110TK-FB109-706110Chưa có hãng tàuNhập4x20DC3.00"
+drawer trigger=true
+drawer containers=4
+edit toggle clicked=false
+add row opened=true
+[console.error] Failed to load resource: the server responded with a status of 400 (Bad Request)
+case1 invalid MSCU4615853 → err=["Số container \"MSCU4615853\" không hợp lệ: Sai số kiểm tra — định dạng đúng nhưng mã kiểm tra không khớp"] rows=4
+[console.error] Failed to load resource: the server responded with a status of 400 (Bad Request)
+case2 valid MSCU4615859 → err=[] toasts=[] rows=0
+case2 headers=[]
