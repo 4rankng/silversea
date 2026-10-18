@@ -42,3 +42,10 @@
   background: var(--surface-2);
   color: var(--ink-2);
 }
+
+/* FB-063 — header bảng gói trong một dòng. record-table.css cố ý giữ
+ * `thead th { white-space: normal }` làm hợp đồng test cho các trang khác,
+ * nên sửa chỉ nằm ở sheet scoped của trang này. */
+.ts-report thead th {
+  white-space: nowrap;
+}

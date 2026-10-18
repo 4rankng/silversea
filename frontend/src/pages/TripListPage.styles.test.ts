@@ -81,3 +81,17 @@ describe('trips table compact-desktop contract (QA-2026-09-22-03)', () => {
     expect(compact.split('min-width: 0;').length - 1).toBe(1);
   });
 });
+
+// ── Header single-line contract (FB-063) ──────────────────────────────────
+// Header labels wrapped to a second line while every other table in the app
+// stays single-line. Only the header cells changed: body-cell wrap rules
+// (route, plate, notes…) keep `white-space: normal` deliberately.
+describe('trip-list header nowrap contract (FB-063)', () => {
+  const headerRule = tableCss.match(/\.trip-list-page \.table-head > div \{[\s\S]*?\}/)?.[0];
+
+  it('keeps header cells on one line (nowrap, no overflow-wrap)', () => {
+    expect(headerRule).toBeDefined();
+    expect(headerRule).toContain('white-space: nowrap');
+    expect(headerRule).not.toContain('overflow-wrap: anywhere');
+  });
+});
