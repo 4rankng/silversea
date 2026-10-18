@@ -313,6 +313,12 @@ describe('card 20260921_14 — tien duong detail dialog', () => {
 });
 
 describe('card 20260921_16 — same-truck rows group consecutively', () => {
+  // FB-061 (card 141026012010): these plate fixtures used to read `QA-A-…`,
+  // `QA-B-…`. `QA%` is a declared QA-fixture signature (the purge soft-deletes
+  // it, and the board now filters it — see services/qa-fixture-markers.ts), so
+  // the board's own fixtures must not wear a signature the board hides. Renamed
+  // to the run's `C16…` family; the property under test (adjacency by plate) is
+  // unchanged.
   test('grouped mode lands paired trips of one truck adjacent; date sort overrides', async () => {
     const mk = async (plate: string | null, day: string) => {
       const [customer] = await db.insert(s.customers).values({ name: `C16 customer ${suffix}-${cleanup.length}` }).returning({ id: s.customers.id });
@@ -349,8 +355,8 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
       return trip.id;
     };
 
-    const truckA = `QA-A-${suffix.slice(-8)}`;
-    const truckB = `QA-B-${suffix.slice(-8)}`;
+    const truckA = `C16A-${suffix.slice(-8)}`;
+    const truckB = `C16B-${suffix.slice(-8)}`;
     const a1 = await mk(truckA, '2026-09-20');
     const b1 = await mk(truckB, '2026-09-21');
     const a2 = await mk(truckA, '2026-09-22');
@@ -388,7 +394,9 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
       .values({ name: `C172 route ${suffix}` }).returning({ id: s.routes.id });
     track(s.routes, route.id);
     const truckIds: number[] = [];
-    for (const plate of [`QA172A-${suffix.slice(-6)}`, `QA172B-${suffix.slice(-6)}`]) {
+    // FB-061 (card 141026012010): `QA172A/B-…` read as the `QA%` fixture
+    // signature the board now hides; the C172 family is neutral for both.
+    for (const plate of [`C172A-${suffix.slice(-6)}`, `C172B-${suffix.slice(-6)}`]) {
       const [truck] = await db.insert(s.trucks)
         .values({ licensePlate: plate, status: 'ACTIVE' }).returning({ id: s.trucks.id });
       track(s.trucks, truck.id);
@@ -485,7 +493,7 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
       return trip.id;
     };
 
-    const truck = `QA-C-${suffix.slice(-8)}`;
+    const truck = `C16C-${suffix.slice(-8)}`;
     const shared = `CSQU${suffix.slice(-6).toUpperCase()}X`;
     const single = `CSQU${suffix.slice(-6).toUpperCase()}Y`;
     const sharedEarly = await mk(truck, '2026-09-20', shared);
@@ -551,9 +559,9 @@ describe('card 20260921_16 — same-truck rows group consecutively', () => {
       return trip.id;
     };
 
-    const plate = `QA-E-${suffix.slice(-8)}`;
+    const plate = `C16E-${suffix.slice(-8)}`;
     const rawVariant = `${plate.toLowerCase()}  `; // same displayed plate, raw variant
-    const other = `QA-F-${suffix.slice(-8)}`;
+    const other = `C16F-${suffix.slice(-8)}`;
     const early = await mk(rawVariant, '2026-09-01');
     const mid = await mk(other, '2026-09-15');
     const late = await mk(plate, '2026-09-27');
@@ -607,7 +615,7 @@ describe('card 20260921_17 — phai-thu / phai-tra reports', () => {
     const previousTra = await getPhoiPhieuReport({ kind: 'TRA' });
     const previousInternal = previousTra.rows.find((row) => row.party.startsWith('XE NHÀ'))?.tongPhaiThuTra ?? 0;
     const [truck] = await db.insert(s.trucks).values({
-      licensePlate: `QA-C17-${suffix.slice(-8)}`, status: 'ACTIVE',
+      licensePlate: `C16C17-${suffix.slice(-8)}`, status: 'ACTIVE',
     }).returning({ id: s.trucks.id });
     track(s.trucks, truck.id);
     await db.update(s.trips).set({ truckId: truck.id }).where(eq(s.trips.id, fixture.trip.id));
