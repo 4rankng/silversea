@@ -20,10 +20,17 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
       return style.display !== 'none' && style.visibility !== 'hidden';
     });
 
-    // Focus the first focusable element when trap activates
+    // Focus the first focusable element when trap activates — unless focus is
+    // already inside the container (e.g. a content autoFocus field): yanking
+    // it to the first element defeated the field's own focus and landed the
+    // user's first keystrokes on a stray button (FB-002 181026000027 case 3
+    // family — the schedule dialog opened focused on its "Đóng" instead of
+    // the autoFocus'd Giờ input).
     const focusable = getFocusable();
-    if (focusable.length) focusable[0].focus();
-    else focusContainer();
+    if (!container.contains(document.activeElement)) {
+      if (focusable.length) focusable[0].focus();
+      else focusContainer();
+    }
 
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Tab' || e.defaultPrevented) return;
