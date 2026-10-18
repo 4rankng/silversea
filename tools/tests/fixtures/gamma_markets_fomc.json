@@ -1,0 +1,34 @@
+[
+  {
+    "id": "501234",
+    "question": "Will the Fed cut rates at the December 2026 meeting?",
+    "slug": "fed-decision-in-december",
+    "outcomes": "[\"Yes\", \"No\"]",
+    "outcomePrices": "[\"0.47\", \"0.53\"]",
+    "bestBid": 0.46,
+    "bestAsk": 0.48,
+    "clobTokenIds": "[\"76011813351818321441017231349581596595581199727012584909541130613475158940889\", \"99319810148640037732078766338051838996746033624743011162050466967832448523852\"]",
+    "volume24hr": 1250000.5,
+    "endDate": "2026-12-10T19:00:00Z",
+    "active": true,
+    "closed": false,
+    "conditionId": "0x491b785c82d65c7ab9c65bb51df9e58e9b3fc53dbc8b4ee1aef49db0244b6560",
+    "negRisk": false
+  },
+  {
+    "id": "501235",
+    "question": "Will the Fed cut rates by 50+ bps at the December 2026 meeting?",
+    "slug": "fed-decision-in-december-50bp",
+    "outcomes": "[\"Yes\", \"No\"]",
+    "outcomePrices": "[\"0.05\", \"0.95\"]",
+    "bestBid": 0.04,
+    "bestAsk": 0.06,
+    "clobTokenIds": "[\"11111813351818321441017231349581596595581199727012584909541130613475158940889\", \"22229810148640037732078766338051838996746033624743011162050466967832448523852\"]",
+    "volume24hr": 89000.25,
+    "endDate": "2026-12-10T19:00:00Z",
+    "active": true,
+    "closed": false,
+    "conditionId": "0x591b785c82d65c7ab9c65bb51df9e58e9b3fc53dbc8b4ee1aef49db0244b6560",
+    "negRisk": false
+  }
+]

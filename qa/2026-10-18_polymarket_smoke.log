@@ -1,0 +1,525 @@
+CMD: python3 tools/polymarket.py   (live smoke, final code)
+polymarket snapshot 2026-10-18 — 164 markets, 328 outcomes, 5 targets
+  will-the-december-2025-fomc-decision-result-in-no-change-with-2-dissents  “Will the December 2025 FOMC decision result in no change with ≤2 dissents?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-december-2025-fomc-decision-result-in-no-change-with-2-dissents-916  “Will the December 2025 FOMC decision result in no change with >2 dissents?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-december-2025-fomc-decision-result-in-a-25bp-cut-with-2-dissents  “Will the December 2025 FOMC decision result in a 25bp cut with ≤2 dissents?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-december-2025-fomc-decision-result-in-a-25bp-cut-with-3-dissents  “Will the December 2025 FOMC decision result in a 25bp cut with >2 dissents?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-the-december-2025-fomc-decision-result-in-any-other-outcome  “Will the December 2025 FOMC decision result in any other outcome?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-january-2026-fomc-decision-result-in-no-change-with-2-dissents  “Will the January 2026 FOMC decision result in no change with <2 dissents?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-january-2026-fomc-decision-result-in-no-change-with-2-dissents-222  “Will the January 2026 FOMC decision result in no change with ≥2 dissents?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-the-january-2026-fomc-decision-result-in-a-25bp-cut-with-2-dissents  “Will the January 2026 FOMC decision result in a 25bp cut with <2 dissents?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-january-2026-fomc-decision-result-in-a-25bp-cut-with-2-dissents-593  “Will the January 2026 FOMC decision result in a 25bp cut with ≥2 dissents?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-january-2026-fomc-decision-result-in-any-other-outcome  “Will the January 2026 FOMC decision result in any other outcome?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-waller-dissent-the-next-fed-decision  “Will Christopher Waller dissent the next Fed Decision?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-stephen-miran-dissent-the-next-fed-decision  “Will Stephen Miran dissent the next Fed decision?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-the-fed-decrease-interest-rates-by-50-bps-after-the-october-2026-meeting-20260617190324029  “Will the Fed decrease interest rates by 50+ bps after the October 2026 meeting?”
+    Yes   0.002 (prev 0.002, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-the-fed-decrease-interest-rates-by-25-bps-after-the-october-2026-meeting-20260617190324030  “Will the Fed decrease interest rates by 25 bps after the October 2026 meeting?”
+    Yes   0.004 (prev 0.004, +0.0pp)
+    No    0.997 (prev 0.997, +0.0pp)
+  will-there-be-no-change-in-fed-interest-rates-after-the-october-2026-meeting-20260617190324031  “Will there be no change in Fed interest rates after the October 2026 meeting?”
+    Yes   0.865 (prev 0.865, +0.0pp)
+    No    0.135 (prev 0.135, +0.0pp)
+  will-the-fed-increase-interest-rates-by-25-bps-after-the-october-2026-meeting-20260617190324032  “Will the Fed increase interest rates by 25 bps after the October 2026 meeting?”
+    Yes   0.135 (prev 0.135, +0.0pp)
+    No    0.865 (prev 0.865, +0.0pp)
+  will-the-fed-increase-interest-rates-by-50-bps-after-the-october-2026-meeting-20260617190324033  “Will the Fed increase interest rates by 50+ bps after the October 2026 meeting?”
+    Yes   0.004 (prev 0.004, +0.0pp)
+    No    0.997 (prev 0.997, +0.0pp)
+  will-the-fed-decrease-interest-rates-by-50-bps-after-the-december-2026-meeting-20260729232808633  “Will the Fed decrease interest rates by 50+ bps after the December 2026 meeting?”
+    Yes   0.004 (prev 0.004, +0.0pp)
+    No    0.996 (prev 0.996, +0.0pp)
+  will-the-fed-decrease-interest-rates-by-25-bps-after-the-december-2026-meeting-20260729232808634  “Will the Fed decrease interest rates by 25 bps after the December 2026 meeting?”
+    Yes   0.006 (prev 0.006, +0.0pp)
+    No    0.994 (prev 0.994, +0.0pp)
+  will-there-be-no-change-in-fed-interest-rates-after-the-december-2026-meeting-20260729232808635  “Will there be no change in Fed interest rates after the December 2026 meeting?”
+    Yes   0.215 (prev 0.215, +0.0pp)
+    No    0.785 (prev 0.785, +0.0pp)
+  will-the-fed-increase-interest-rates-by-25-bps-after-the-december-2026-meeting-20260729232808636  “Will the Fed increase interest rates by 25 bps after the December 2026 meeting?”
+    Yes   0.755 (prev 0.755, +0.0pp)
+    No    0.245 (prev 0.245, +0.0pp)
+  will-the-fed-increase-interest-rates-by-50-bps-after-the-december-2026-meeting-20260729232808637  “Will the Fed increase interest rates by 50+ bps after the December 2026 meeting?”
+    Yes   0.029 (prev 0.029, +0.0pp)
+    No    0.972 (prev 0.972, +0.0pp)
+  will-the-fed-decrease-interest-rates-by-50-bps-after-the-january-2027-meeting-20260729233815503  “Will the Fed decrease interest rates by 50+ bps after the January 2027 meeting?”
+    Yes   0.006 (prev 0.006, +0.0pp)
+    No    0.994 (prev 0.994, +0.0pp)
+  will-the-fed-decrease-interest-rates-by-25-bps-after-the-january-2027-meeting-20260729233815504  “Will the Fed decrease interest rates by 25 bps after the January 2027 meeting?”
+    Yes   0.015 (prev 0.015, +0.0pp)
+    No    0.985 (prev 0.985, +0.0pp)
+  will-there-be-no-change-in-fed-interest-rates-after-the-january-2027-meeting-20260729233815505  “Will there be no change in Fed interest rates after the January 2027 meeting?”
+    Yes   0.625 (prev 0.625, +0.0pp)
+    No    0.375 (prev 0.375, +0.0pp)
+  will-the-fed-increase-interest-rates-by-25-bps-after-the-january-2027-meeting-20260729233815506  “Will the Fed increase interest rates by 25 bps after the January 2027 meeting?”
+    Yes   0.340 (prev 0.340, +0.0pp)
+    No    0.660 (prev 0.660, +0.0pp)
+  will-the-fed-increase-interest-rates-by-50-bps-after-the-january-2027-meeting-20260729233815507  “Will the Fed increase interest rates by 50+ bps after the January 2027 meeting?”
+    Yes   0.011 (prev 0.011, +0.0pp)
+    No    0.989 (prev 0.989, +0.0pp)
+  will-no-one-dissent-the-october-fed-decision-2026  “Will no one dissent the October Fed decision?”
+    Yes   0.295 (prev 0.325, -3.0pp)
+    No    0.705 (prev 0.675, +3.0pp)
+  will-one-person-dissent-the-october-fed-decision-2026  “Will one person dissent the October Fed decision?”
+    Yes   0.220 (prev 0.215, +0.5pp)
+    No    0.780 (prev 0.785, -0.5pp)
+  will-two-people-dissent-the-october-fed-decision-2026  “Will two people dissent the October Fed decision?”
+    Yes   0.245 (prev 0.245, +0.0pp)
+    No    0.755 (prev 0.755, +0.0pp)
+  will-three-people-dissent-the-october-fed-decision-2026  “Will three people dissent the October Fed decision?”
+    Yes   0.120 (prev 0.130, -1.0pp)
+    No    0.880 (prev 0.870, +1.0pp)
+  will-four-or-more-people-dissent-the-october-fed-decision-2026  “Will four or more people dissent the October Fed decision?”
+    Yes   0.046 (prev 0.054, -0.8pp)
+    No    0.954 (prev 0.946, +0.8pp)
+  will-no-one-dissent-the-january-fed-decision-20260730001232360  “Will no one dissent the January Fed decision?”
+    Yes   0.570 (prev 0.570, +0.0pp)
+    No    0.430 (prev 0.430, +0.0pp)
+  will-one-person-dissent-the-january-fed-decision-20260730001232361  “Will one person dissent the January Fed decision?”
+    Yes   0.235 (prev 0.245, -1.0pp)
+    No    0.765 (prev 0.755, +1.0pp)
+  will-two-people-dissent-the-january-fed-decision-20260730001232362  “Will two people dissent the January Fed decision?”
+    Yes   0.061 (prev 0.061, +0.0pp)
+    No    0.939 (prev 0.939, +0.0pp)
+  will-three-people-dissent-the-january-fed-decision-20260730001232363  “Will three people dissent the January Fed decision?”
+    Yes   0.105 (prev 0.105, +0.0pp)
+    No    0.895 (prev 0.895, +0.0pp)
+  will-four-or-more-people-dissent-the-january-fed-decision-20260730001232364  “Will four or more people dissent the January Fed decision?”
+    Yes   0.049 (prev 0.049, +0.0pp)
+    No    0.951 (prev 0.951, +0.0pp)
+  will-no-one-dissent-the-december-fed-decision-20260730000304474  “Will no one dissent the December Fed decision?”
+    Yes   0.465 (prev 0.465, +0.0pp)
+    No    0.535 (prev 0.535, +0.0pp)
+  will-one-person-dissent-the-december-fed-decision-20260730000304475  “Will one person dissent the December Fed decision?”
+    Yes   0.281 (prev 0.281, +0.0pp)
+    No    0.719 (prev 0.719, +0.0pp)
+  will-two-people-dissent-the-december-fed-decision-20260730000304476  “Will two people dissent the December Fed decision?”
+    Yes   0.102 (prev 0.103, -0.1pp)
+    No    0.898 (prev 0.897, +0.1pp)
+  will-three-people-dissent-the-december-fed-decision-20260730000304477  “Will three people dissent the December Fed decision?”
+    Yes   0.075 (prev 0.070, +0.5pp)
+    No    0.925 (prev 0.930, -0.5pp)
+  will-four-or-more-people-dissent-the-december-fed-decision-20260730000304478  “Will four or more people dissent the December Fed decision?”
+    Yes   0.020 (prev 0.020, +0.0pp)
+    No    0.980 (prev 0.980, +0.0pp)
+  hims-quarterly-earnings-gaap-eps-02-23-2026-0pt05  “Will Hims & Hers Health (HIMS) beat quarterly earnings?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  meta-quarterly-earnings-gaap-eps-10-21-2026-6pt31  “Will Meta (META) beat quarterly earnings?”
+    Yes   0.070 (prev 0.084, -1.4pp)
+    No    0.930 (prev 0.916, +1.4pp)
+  bbby-quarterly-earnings-nongaap-eps-02-23-2026-neg0pt22  “Will Bed Bath & Beyond (BBBY) beat quarterly earnings?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  cflt-quarterly-earnings-nongaap-eps-10-26-2026-0pt14  “Will Confluent (CFLT) beat quarterly earnings?”
+    Yes   0.069 (prev 0.069, +0.0pp)
+    No    0.931 (prev 0.931, +0.0pp)
+  ally-quarterly-earnings-nongaap-eps-10-20-2026-1pt38  “Will Ally (ALLY) beat quarterly earnings?”
+    Yes   0.375 (prev 0.375, +0.0pp)
+    No    0.625 (prev 0.625, +0.0pp)
+  pg-quarterly-earnings-nongaap-eps-10-22-2026-1pt94  “Will Procter & Gamble (PG) beat quarterly earnings?”
+    Yes   0.250 (prev 0.250, +0.0pp)
+    No    0.750 (prev 0.750, +0.0pp)
+  will-the-next-google-gemini-pro-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1480  “Will the next Google Gemini Pro model added to the Arena Leaderboard debut at a score of at least 1480?”
+    Yes   0.276 (prev 0.276, +0.0pp)
+    No    0.724 (prev 0.724, +0.0pp)
+  will-the-next-google-gemini-pro-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1490  “Will the next Google Gemini Pro model added to the Arena Leaderboard debut at a score of at least 1490?”
+    Yes   0.236 (prev 0.236, +0.0pp)
+    No    0.763 (prev 0.763, +0.0pp)
+  will-the-next-google-gemini-pro-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1500  “Will the next Google Gemini Pro model added to the Arena Leaderboard debut at a score of at least 1500?”
+    Yes   0.245 (prev 0.245, +0.0pp)
+    No    0.755 (prev 0.755, +0.0pp)
+  will-the-next-google-gemini-pro-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1510  “Will the next Google Gemini Pro model added to the Arena Leaderboard debut at a score of at least 1510?”
+    Yes   0.183 (prev 0.183, +0.0pp)
+    No    0.817 (prev 0.817, +0.0pp)
+  will-the-next-google-gemini-pro-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1495  “Will the next Google Gemini Pro model added to the Arena Leaderboard debut at a score of at least 1495?”
+    Yes   0.240 (prev 0.240, +0.0pp)
+    No    0.760 (prev 0.760, +0.0pp)
+  will-openais-astra-model-debut-on-the-arena-leaderboard-at-a-score-of-at-least-1480  “Will OpenAI’s Astra model debut on the Arena Leaderboard at a score of at least 1480?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-openais-astra-model-debut-on-the-arena-leaderboard-at-a-score-of-at-least-1490  “Will OpenAI’s Astra model debut on the Arena Leaderboard at a score of at least 1490?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-openais-astra-model-debut-on-the-arena-leaderboard-at-a-score-of-at-least-1500  “Will OpenAI’s Astra model debut on the Arena Leaderboard at a score of at least 1500?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-openais-astra-model-debut-on-the-arena-leaderboard-at-a-score-of-at-least-1510  “Will OpenAI’s Astra model debut on the Arena Leaderboard at a score of at least 1510?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-openais-astra-model-debut-on-the-arena-leaderboard-at-a-score-of-at-least-1520  “Will OpenAI’s Astra model debut on the Arena Leaderboard at a score of at least 1520?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-claude-mythos-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1520  “Will the next Claude Mythos model added to the Arena Leaderboard debut at a score of at least 1520?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-the-next-claude-mythos-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1530  “Will the next Claude Mythos model added to the Arena Leaderboard debut at a score of at least 1530?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-the-next-claude-mythos-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1540  “Will the next Claude Mythos model added to the Arena Leaderboard debut at a score of at least 1540?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-claude-mythos-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1550  “Will the next Claude Mythos model added to the Arena Leaderboard debut at a score of at least 1550?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-claude-opus-4pt8-model-added-to-the-arena-leaderboard-debut-at-a-score-below-1480  “Will the next Claude Opus 4.8 model added to the Arena Leaderboard debut at a score below 1480?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-the-next-claude-opus-4pt8-model-added-to-the-arena-leaderboard-debut-at-a-score-between-1480-and-1490  “Will the next Claude Opus 4.8 model added to the Arena Leaderboard debut at a score between 1480 and 1490?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-claude-opus-4pt8-model-added-to-the-arena-leaderboard-debut-at-a-score-between-1490-and-1500  “Will the next Claude Opus 4.8 model added to the Arena Leaderboard debut at a score between 1490 and 1500?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-claude-opus-4pt8-model-added-to-the-arena-leaderboard-debut-at-a-score-between-1500-and-1510  “Will the next Claude Opus 4.8 model added to the Arena Leaderboard debut at a score between 1500 and 1510?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-claude-opus-4pt8-model-added-to-the-arena-leaderboard-debut-at-a-score-between-1510-and-1520  “Will the next Claude Opus 4.8 model added to the Arena Leaderboard debut at a score between 1510 and 1520?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-claude-opus-4pt8-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1520  “Will the next Claude Opus 4.8 model added to the Arena Leaderboard debut at a score of at least 1520?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-google-gemini-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1460  “Will the next Google Gemini model added to the Arena Leaderboard debut at a score of at least 1460?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-the-next-google-gemini-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1470  “Will the next Google Gemini model added to the Arena Leaderboard debut at a score of at least 1470?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-the-next-google-gemini-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1480  “Will the next Google Gemini model added to the Arena Leaderboard debut at a score of at least 1480?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-the-next-google-gemini-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1490  “Will the next Google Gemini model added to the Arena Leaderboard debut at a score of at least 1490?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-google-gemini-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1500  “Will the next Google Gemini model added to the Arena Leaderboard debut at a score of at least 1500?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-google-gemini-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1510  “Will the next Google Gemini model added to the Arena Leaderboard debut at a score of at least 1510?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-next-google-gemini-model-added-to-the-arena-leaderboard-debut-at-a-score-of-at-least-1520  “Will the next Google Gemini model added to the Arena Leaderboard debut at a score of at least 1520?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-next-claude-mythos-debut-on-the-text-arena-leaderboard-at-1480  “Will next Claude Mythos debut on the Text Arena Leaderboard at 1480+?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-next-claude-mythos-debut-on-the-text-arena-leaderboard-at-1490  “Will next Claude Mythos debut on the Text Arena Leaderboard at 1490+?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  will-next-claude-mythos-debut-on-the-text-arena-leaderboard-at-1500  “Will next Claude Mythos debut on the Text Arena Leaderboard at 1500+?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-next-claude-mythos-debut-on-the-text-arena-leaderboard-at-1510  “Will next Claude Mythos debut on the Text Arena Leaderboard at 1510+?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-september-20-20260917  “US x Iran ceasefire continues through September 20?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-september-25-20260917  “US x Iran ceasefire continues through September 25?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-september-30-20260917  “US x Iran ceasefire continues through September 30?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-31-20260917  “US x Iran ceasefire continues through October 31?”
+    Yes   0.815 (prev 0.815, +0.0pp)
+    No    0.185 (prev 0.185, +0.0pp)
+  us-x-iran-ceasefire-continues-through-november-30-20260918  “US x Iran ceasefire continues through November 30?”
+    Yes   0.440 (prev 0.440, +0.0pp)
+    No    0.560 (prev 0.560, +0.0pp)
+  us-x-iran-ceasefire-continues-through-december-31-20260918  “US x Iran ceasefire continues through December 31?”
+    Yes   0.330 (prev 0.330, +0.0pp)
+    No    0.670 (prev 0.670, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-7  “US x Iran ceasefire continues through October 7?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-15  “US x Iran ceasefire continues through October 15?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-november-15  “US x Iran ceasefire continues through November 15?”
+    Yes   0.570 (prev 0.570, +0.0pp)
+    No    0.430 (prev 0.430, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-12  “US x Iran ceasefire continues through October 12?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-5  “US x Iran ceasefire continues through October 5?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-9  “US x Iran ceasefire continues through October 9?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-24  “US x Iran ceasefire continues through October 24?”
+    Yes   0.915 (prev 0.915, +0.0pp)
+    No    0.085 (prev 0.085, +0.0pp)
+  us-x-iran-ceasefire-continues-through-november-22  “US x Iran ceasefire continues through November 22?”
+    Yes   0.530 (prev 0.530, +0.0pp)
+    No    0.470 (prev 0.470, +0.0pp)
+  us-x-iran-ceasefire-continues-through-november-8  “US x Iran ceasefire continues through November 8?”
+    Yes   0.690 (prev 0.690, +0.0pp)
+    No    0.310 (prev 0.310, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-22  “US x Iran ceasefire continues through October 22?”
+    Yes   0.955 (prev 0.955, +0.0pp)
+    No    0.045 (prev 0.045, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-17  “US x Iran ceasefire continues through October 17?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-28  “US x Iran ceasefire continues through October 28?”
+    Yes   0.855 (prev 0.855, +0.0pp)
+    No    0.145 (prev 0.145, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-16  “US x Iran ceasefire continues through October 16?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  us-x-iran-ceasefire-continues-through-october-18  “US x Iran ceasefire continues through October 18?”
+    Yes   0.993 (prev 0.993, +0.1pp)
+    No    0.007 (prev 0.007, -0.1pp)
+  will-benjamin-netanyahu-be-the-next-prime-minister-of-israel  “Will Benjamin Netanyahu be the next Prime Minister of Israel?”
+    Yes   0.290 (prev 0.290, +0.0pp)
+    No    0.710 (prev 0.710, +0.0pp)
+  will-naftali-bennett-be-the-next-prime-minister-of-israel  “Will Naftali Bennett be the next Prime Minister of Israel?”
+    Yes   0.135 (prev 0.135, +0.0pp)
+    No    0.865 (prev 0.865, +0.0pp)
+  will-yair-lapid-be-the-next-prime-minister-of-israel  “Will Yair Lapid be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-gadi-eizenkot-be-the-next-prime-minister-of-israel  “Will Gadi Eizenkot be the next Prime Minister of Israel?”
+    Yes   0.523 (prev 0.523, +0.0pp)
+    No    0.476 (prev 0.476, +0.0pp)
+  will-benny-gantz-be-the-next-prime-minister-of-israel  “Will Benny Gantz be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-avigdor-lieberman-be-the-next-prime-minister-of-israel  “Will Avigdor Lieberman be the next Prime Minister of Israel?”
+    Yes   0.022 (prev 0.022, +0.0pp)
+    No    0.978 (prev 0.978, +0.0pp)
+  will-yossi-cohen-be-the-next-prime-minister-of-israel  “Will Yossi Cohen be the next Prime Minister of Israel?”
+    Yes   0.002 (prev 0.002, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-yair-golan-be-the-next-prime-minister-of-israel  “Will Yair Golan be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-itamar-ben-gvir-be-the-next-prime-minister-of-israel  “Will Itamar Ben Gvir be the next Prime Minister of Israel?”
+    Yes   0.002 (prev 0.002, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-gideon-saar-be-the-next-prime-minister-of-israel  “Will Gideon Sa’ar be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-yariv-levin-be-the-next-prime-minister-of-israel  “Will Yariv Levin be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-moshe-feiglin-be-the-next-prime-minister-of-israel  “Will Moshe Feiglin be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-ayelet-shaked-be-the-next-prime-minister-of-israel  “Will Ayelet Shaked be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-yoaz-hendel-be-the-next-prime-minister-of-israel  “Will Yoaz Hendel be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-israel-katz-be-the-next-prime-minister-of-israel  “Will Israel Katz be the next Prime Minister of Israel?”
+    Yes   0.002 (prev 0.002, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-nir-barkat-be-the-next-prime-minister-of-israel  “Will Nir Barkat be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-amir-ohana-be-the-next-prime-minister-of-israel  “Will Amir Ohana be the next Prime Minister of Israel?”
+    Yes   0.002 (prev 0.002, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-gilad-erdan-be-the-next-prime-minister-of-israel  “Will Gilad Erdan be the next Prime Minister of Israel?”
+    Yes   0.001 (prev 0.001, +0.0pp)
+    No    0.999 (prev 0.999, +0.0pp)
+  will-ofer-winter-be-the-next-prime-minister-of-israel  “Will Ofer Winter be the next Prime Minister of Israel?”
+    Yes   0.003 (prev 0.003, +0.0pp)
+    No    0.998 (prev 0.998, +0.0pp)
+  will-person-h-be-the-next-prime-minister-of-israel-996  “Will Person H be the next Prime Minister of Israel?”
+    Yes   — (prev —, —)
+    No    — (prev —, —)
+  will-person-i-be-the-next-prime-minister-of-israel-613  “Will Person I be the next Prime Minister of Israel?”
+    Yes   — (prev —, —)
+    No    — (prev —, —)
+  will-person-j-be-the-next-prime-minister-of-israel-417  “Will Person J be the next Prime Minister of Israel?”
+    Yes   — (prev —, —)
+    No    — (prev —, —)
+  will-person-k-be-the-next-prime-minister-of-israel-573  “Will Person K be the next Prime Minister of Israel?”
+    Yes   — (prev —, —)
+    No    — (prev —, —)
+  will-person-l-be-the-next-prime-minister-of-israel-488  “Will Person L be the next Prime Minister of Israel?”
+    Yes   — (prev —, —)
+    No    — (prev —, —)
+  will-person-m-be-the-next-prime-minister-of-israel-693  “Will Person M be the next Prime Minister of Israel?”
+    Yes   — (prev —, —)
+    No    — (prev —, —)
+  will-person-n-be-the-next-prime-minister-of-israel-849  “Will Person N be the next Prime Minister of Israel?”
+    Yes   — (prev —, —)
+    No    — (prev —, —)
+  will-person-o-be-the-next-prime-minister-of-israel-468  “Will Person O be the next Prime Minister of Israel?”
+    Yes   — (prev —, —)
+    No    — (prev —, —)
+  will-another-person-be-the-next-prime-minister-of-israel-946  “Will another person be the next Prime Minister of Israel?”
+    Yes   — (prev —, —)
+    No    — (prev —, —)
+  israel-x-iran-ceasefire-continues-through-july-18-20260716224448964  “Israel x Iran ceasefire continues through July 18?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-20-20260716224448965  “Israel x Iran ceasefire continues through July 20?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-22-20260716224448966  “Israel x Iran ceasefire continues through July 22?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-25-20260716224448967-454  “Israel x Iran ceasefire continues through July 25?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-31-20260716224448968-384-155-519-798-243  “Israel x Iran ceasefire continues through July 31?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-august-15-20260716224448969-246-815-987-693  “Israel x Iran ceasefire continues through August 15?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-august-31-20260716224448970-754-896-823  “Israel x Iran ceasefire continues through August 31?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-23  “Israel x Iran ceasefire continues through July 23?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-24  “Israel x Iran ceasefire continues through July 24?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-26  “Israel x Iran ceasefire continues through July 26?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-27  “Israel x Iran ceasefire continues through July 27?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-28  “Israel x Iran ceasefire continues through July 28?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-29  “Israel x Iran ceasefire continues through July 29?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-july-30  “Israel x Iran ceasefire continues through July 30?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-august-9-20260727170733638  “Israel x Iran ceasefire continues through August 9?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-august-2-20260727170555149  “Israel x Iran ceasefire continues through August 2?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-august-1  “Israel x Iran ceasefire continues through August 1?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-august-3  “Israel x Iran ceasefire continues through August 3?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-august-4  “Israel x Iran ceasefire continues through August 4?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-september-30  “Israel x Iran ceasefire continues through September 30?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-october-31  “Israel x Iran ceasefire continues through October 31?”
+    Yes   0.855 (prev 0.855, +0.0pp)
+    No    0.145 (prev 0.145, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-december-31-415  “Israel x Iran ceasefire continues through December 31?”
+    Yes   0.505 (prev 0.505, +0.0pp)
+    No    0.495 (prev 0.495, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-november-30  “Israel x Iran ceasefire continues through November 30?”
+    Yes   0.630 (prev 0.630, +0.0pp)
+    No    0.370 (prev 0.370, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-september-15  “Israel x Iran ceasefire continues through September 15?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-october-15  “Israel x Iran ceasefire continues through October 15?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-october-9  “Israel x Iran ceasefire continues through October 9?”
+    Yes   1.000 (prev 1.000, +0.0pp)
+    No    0.000 (prev 0.000, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-november-15  “Israel x Iran ceasefire continues through November 15?”
+    Yes   0.715 (prev 0.715, +0.0pp)
+    No    0.285 (prev 0.285, +0.0pp)
+  israel-x-iran-ceasefire-continues-through-october-21  “Israel x Iran ceasefire continues through October 21?”
+    Yes   0.972 (prev 0.972, -0.1pp)
+    No    0.029 (prev 0.028, +0.1pp)
+  israel-x-iran-ceasefire-continues-through-october-18  “Israel x Iran ceasefire continues through October 18?”
+    Yes   0.995 (prev 0.994, +0.1pp)
+    No    0.005 (prev 0.006, -0.1pp)
+  nato-x-russia-military-clash-in-2025  “NATO x Russia military clash in 2025?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  nato-x-russia-military-clash-by-october-31-2026  “NATO x Russia military clash by October 31, 2026?”
+    Yes   0.095 (prev 0.095, +0.0pp)
+    No    0.905 (prev 0.905, +0.0pp)
+  nato-x-russia-military-clash-by-august-31-2026  “NATO x Russia military clash by August 31, 2026?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  nato-x-russia-military-clash-by-march-31-2026  “NATO x Russia military clash by March 31, 2026?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  nato-x-russia-military-clash-by-december-31-2026-244-538-582  “NATO x Russia military clash by December 31, 2026?”
+    Yes   0.255 (prev 0.255, +0.0pp)
+    No    0.745 (prev 0.745, +0.0pp)
+  nato-x-russia-military-clash-by-june-30-2026  “NATO x Russia military clash by June 30, 2026?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  israel-x-hamas-ceasefire-by-july-15  “Israel x Hamas ceasefire by July 15?”
+    Yes   0.000 (prev 0.000, +0.0pp)
+    No    1.000 (prev 1.000, +0.0pp)
+  will-the-iranian-regime-fall-by-the-end-of-2026  “Will the Iranian regime fall before 2027?”
+    Yes   0.045 (prev 0.045, +0.0pp)
+    No    0.955 (prev 0.955, +0.0pp)
+delta alerts (≥5.0pp): 0
+fedwatch: not computable (no matching FedWatch source; pass --fedwatch)
+errors: 24
+  clob_midpoint 102507786484349649560945632228378221767286546744102676461832370606792135358412: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 16917975455366055186641131668369050769822230388895412932216064487276863942432: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 79150932067949207748717055462312132099843868289137136842712282842866726775328: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 1439892852045069659715308346634665617543109255399838453922869313748670493371: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 55733406631355392491914848668989007740724721320481700247514186025738637813946: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 59626620939054670165821339067037528379329093358777185888682128081289841288873: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 78896755357167882365408929497081743259570714659505280110861758883904552718000: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 17757656775540290782833222000406875704138441979752694610466106178368880204967: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 85966835104735150567601292793737466593714870547212230143372872622517935935549: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 12110744759809743238394739015180405758976297002592557825197720481430795220963: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 90970428620333038259414354379277733031767437211438009712061978739105296283583: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 100813364076715714743590735129734023349946960965936971624031352837370056125147: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 84666202423100452278285237652145175938034325926856820893819550943352657290491: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 69934984685818632330055007378838730688083830991683124530685504481290702407851: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 3471876235505977473936712463778033147150867543579525323872972001617633993845: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 67521002710584024231370373623202968044717699742899524046837316973196948256981: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 73240447396237981945975345149516207225389814840422552527395617881042537296290: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 8566325683630975781448353660471759796660739736541505477737502617594918490817: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 15370753055408498370878368441823994596982505769683516711960370123780428873220: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 41150993727138035858491863431877444655656317954699500871195609050568444657316: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 858174774793412806802926620109681733335589789054639791163039018929154659835: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 21496563942104955739827347223878182312532268336672574661545565158207244891028: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 51375664433467213604081343552538404276399347460863913289388675703658142980669: status 404 — {"error": "No orderbook exists for the requested token id"}
+  clob_midpoint 30597379955147676777353507548568576633127785611146874830776921022131111032278: status 404 — {"error": "No orderbook exists for the requested token id"}
+clob: midpoint enrichment truncated at 24 calls
+wrote research/_polymarket-snapshot-2026-10-18.md
+wrote research/polymarket.db
+EXIT: 0

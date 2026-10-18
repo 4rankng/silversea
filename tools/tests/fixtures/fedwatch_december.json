@@ -1,0 +1,21 @@
+{
+  "source": "CME FedWatch Tool",
+  "as_of": "2026-10-18",
+  "probabilities": {
+    "no-change": {
+      "prob": 0.53,
+      "meeting": "2026-12-10",
+      "outcome": "No",
+      "label": "Rates unchanged (400-425 bp)"
+    },
+    "25bp-cut": {
+      "prob": 0.42,
+      "meeting": "2026-12-10",
+      "outcome": "Yes",
+      "label": "25 bp cut"
+    }
+  },
+  "match": {
+    "fed-decision-in-december": "25bp-cut"
+  }
+}
