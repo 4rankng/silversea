@@ -34,7 +34,7 @@
  *
  * Run: node testplan/qa/scripts/2026-10-18-171026154000-c-assign-reason.mjs
  * Env: BACKEND (default http://localhost:3002/api), FRONTEND (default
- *      http://localhost:7186).
+ *      http://localhost:7175).
  */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -52,7 +52,7 @@ const DATE = '2026-10-18';
 const SCOPE = '171026154000_c';
 const LOG_PATH = join(QA_DIR, `${DATE}_${SCOPE}_driver.log`);
 const BACKEND = process.env.BACKEND ?? 'http://localhost:3002/api';
-const FRONTEND = process.env.FRONTEND ?? 'http://localhost:7186';
+const FRONTEND = process.env.FRONTEND ?? 'http://localhost:7175';
 const DATE_FROM = '2026-10-01';
 const DATE_TO = '2026-10-31';
 const USER = 'dieuvan';
