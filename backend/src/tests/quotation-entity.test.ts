@@ -9,11 +9,14 @@
  *   stores base at scale 4 (CuocPhiThietKeDB.docx §3.2.1, QA-passed) and pins
  *   846.819. NEWEB 1.25T: 1.300.000 + 314.533 = 1.614.533.
  *
- * Runs on an isolated DB (throwaway quotation_w66); canonical class codes are
- * safe there. Cleanup in after() removes every created row.
+ * Runs on the shared dev DB inside a suite-owned, unoccupied fuel-period
+ * window (the fuel-period-envelope pattern shared with heso-surcharge /
+ * surcharge-rounding): canonical class codes are safe there. Cleanup in
+ * after() removes every created row.
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 
 import { db } from '../db';
@@ -24,6 +27,21 @@ import {
 import { computeFreightRate } from '@tingting/shared';
 
 const suffix = `q66-${Date.now().toString(36)}`;
+
+// The grid engine prices fuel at the LATEST period ≤ the quotation's
+// effectiveDate, and fuel_price_periods is a global table on the shared dev
+// DB — any stray period another suite or a manual QA run leaves between the
+// suite's own period and its effective dates silently outranks it (a leftover
+// 30000 @ 2026-09-09 once moved every worked number by +60đ/ℓ and reddened
+// this whole file at base). So the suite owns an unoccupied far-future window
+// instead of fixed 2026-09 dates (the fuel-period-envelope pattern). Only the
+// calendar moves: the worked numbers — Δ 12.097,4074 = 29.940 − 17.842,5926 —
+// are exactly the card's, so the assertions below stay pinned.
+let FUEL_FROM = '';      // P — the suite's own fuel period
+let EFFECTIVE_DATE = ''; // P+10 — quotation + effective date of the A3-A6 tests
+let CRUD_DATE = '';      // P+15 — the heSo=2 frame, strictly in their future
+const WINDOW_DAYS = 15;  // any period in (P, P+15] would outrank P somewhere
+
 const ids = {
   customers: [] as number[],
   routes: [] as number[],
@@ -87,12 +105,40 @@ async function mkNorms(classIdByCode: Map<string, number>): Promise<void> {
 
 async function mkFuelPeriod(): Promise<void> {
   const [row] = await db.insert(s.fuelPricePeriods)
-    .values({ unitPrice: '29940.00', effectiveFrom: '2026-09-01' })
+    .values({ unitPrice: '29940.00', effectiveFrom: FUEL_FROM })
     .returning();
   ids.periods.push(row.id);
 }
 
-const EFFECTIVE_DATE = '2026-09-15';
+async function pickFuelWindow(): Promise<void> {
+  // Pick P so every date in [P, P+WINDOW_DAYS] is unoccupied — verified
+  // against the live table, never by deleting an existing row (effectiveFrom
+  // is globally unique; the far-future base keeps business periods and other
+  // suites' random windows out of reach).
+  const occupied = new Set((await db.select({ date: s.fuelPricePeriods.effectiveFrom })
+    .from(s.fuelPricePeriods)).map((row) => row.date));
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const day = new Date('8200-01-01T00:00:00.000Z');
+  day.setUTCDate(day.getUTCDate() + Number.parseInt(randomUUID().slice(0, 6), 16) % 100000);
+  for (;;) {
+    day.setUTCDate(day.getUTCDate() + 1);
+    let free = true;
+    for (let i = 0; i <= WINDOW_DAYS; i += 1) {
+      const probe = new Date(day);
+      probe.setUTCDate(probe.getUTCDate() + i);
+      if (occupied.has(iso(probe))) { free = false; break; }
+    }
+    if (free) break;
+  }
+  const plusDays = (offset: number) => {
+    const d = new Date(day);
+    d.setUTCDate(d.getUTCDate() + offset);
+    return iso(d);
+  };
+  FUEL_FROM = iso(day);
+  EFFECTIVE_DATE = plusDays(10);
+  CRUD_DATE = plusDays(15);
+}
 
 async function mkTerms(customerId: number, routeId: number, oneWayKm: number, sharePct: string): Promise<number> {
   const [row] = await db.insert(s.freightRateTerms)
@@ -124,6 +170,7 @@ async function mkPrice(customerId: number, routeId: number, rateKey: string, pri
 }
 
 before(async () => {
+  await pickFuelWindow();
   longMinhId = await mkCustomer(`CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH ${suffix}`);
   logcomId = await mkCustomer(`LOGCOM ${suffix}`);
   routeAskey = await mkRoute(`ASKEY ${suffix}`);
@@ -176,18 +223,18 @@ function cellOf(grid: Awaited<ReturnType<typeof getQuotation>>['cells'], routeId
 describe('quotation entity (card 20260922_66)', () => {
   test('CRUD roundtrip: frame + heSo cell persist and read back', async () => {
     // effectiveDate in the FUTURE of the other tests' transport dates: the
-    // engine (_59) reads the latest quotation ≤ transport date, so this
-    // heSo=2 frame must not dominate the heSo=1 assertions further down.
+    // engine reads the latest quotation ≤ transport date, so this heSo=2
+    // frame must not dominate the heSo=1 assertions further down.
     const { id } = await createQuotation({
       customerId: longMinhId,
       templateName: 'Mẫu báo giá 1',
-      effectiveDate: '2026-09-30',
+      effectiveDate: CRUD_DATE,
       cells: [{ routeId: routeAskey, vehicleSizeClassCode: 'CONT20.LIGHT', heSo: 2 }],
     });
     ids.quotations.push(id);
     const view = await getQuotation(id);
     assert.strictEqual(view.templateName, 'Mẫu báo giá 1');
-    assert.strictEqual(view.effectiveDate, '2026-09-30');
+    assert.strictEqual(view.effectiveDate, CRUD_DATE);
     const cell = cellOf(view.cells, routeAskey, 'CONT20.LIGHT');
     assert.strictEqual(cell.heSo, 2);
     assert.strictEqual(cell.giaCos, 3952000);
