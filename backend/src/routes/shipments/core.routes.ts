@@ -303,6 +303,17 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, 'Chỉ được chọn tối đa 50 nhà xe');
   }
 
+  // Card 171026154000: Loại hàng scope — strict values, empty string means
+  // "Tất cả" (no scope).
+  const cargoModeVal = typeof req.query.cargoMode === 'string' ? req.query.cargoMode.trim() : undefined;
+  let cargoMode: 'FCL' | 'LCL' | undefined;
+  if (cargoModeVal !== undefined && cargoModeVal.length > 0) {
+    if (cargoModeVal !== 'FCL' && cargoModeVal !== 'LCL') {
+      throw new ApiError(400, 'Loại hàng lọc không hợp lệ');
+    }
+    cargoMode = cargoModeVal;
+  }
+
   const result = await listShipmentsPaginated({
     page,
     limit,
@@ -318,6 +329,7 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     allocationStatus,
     portIds: portIds.length > 0 ? portIds : undefined,
     carrierKeys: uniqueCarrierKeys.length > 0 ? uniqueCarrierKeys : undefined,
+    cargoMode,
     includeDispatchSummary: req.query.includeDispatchSummary === 'true',
     actor: getUser(req),
   });

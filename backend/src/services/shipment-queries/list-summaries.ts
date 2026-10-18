@@ -25,7 +25,7 @@ import type { DispatchSummary } from '@tingting/shared';
 
 import { AllocationStatus, INTERNAL_FLEET_CARRIER_NAME, CUSTOMER_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME } from './shared';
 import { operationalName } from '../../db/master-data-name';
-import { buildShipmentSearchPredicate, buildDispatchPortFacetPredicate, buildDispatchCarrierFacetPredicate, loadShipmentDispatchAggregates, computeDispatchSummaryForSet } from './dispatch-aggregates';
+import { buildShipmentSearchPredicate, buildDispatchPortFacetPredicate, buildDispatchCarrierFacetPredicate, buildDispatchCargoScopePredicate, loadShipmentDispatchAggregates, computeDispatchSummaryForSet } from './dispatch-aggregates';
 import type { ShipmentContainerPortGroup } from './container-aggregates';
 import { loadShipmentListContainerPortGroups } from './container-aggregates';
 
@@ -690,6 +690,11 @@ export interface ListShipmentsOptions {
   /** Dispatch master-plan filter: OR-within carrier keys (OWN / EXTERNAL:<id> /
    *  UNASSIGNED), AND-ed with portIds and dates. */
   carrierKeys?: string[];
+  /** Dispatch master-plan Loại hàng scope (card 171026154000): filters on the
+   *  active-LCL-fulfillment predicate (see buildDispatchCargoScopePredicate),
+   *  the same fact the dispatch summary counts and the row projection
+   *  `hasActiveLclShipment` carries. */
+  cargoMode?: 'FCL' | 'LCL';
   /** When true, also return dispatchSummary computed over the complete filtered
    *  set in the same snapshot as rows+count. */
   includeDispatchSummary?: boolean;
@@ -792,6 +797,8 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   if (portFacet) conditions.push(portFacet);
   const carrierFacet = buildDispatchCarrierFacetPredicate(options.carrierKeys ?? []);
   if (carrierFacet) conditions.push(carrierFacet);
+  const cargoScope = buildDispatchCargoScopePredicate(options.cargoMode);
+  if (cargoScope) conditions.push(cargoScope);
 
   // allocationStatus is derived from container/fulfillment aggregates and
   // cannot live in the WHERE clause. When filtering on it, resolve the full
@@ -1038,6 +1045,11 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // lot still lack a đóng/trả appointment. Zero when all are scheduled.
     containersMissingAppointment: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containersMissingAppointment ?? 0,
     containerTotal: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerTotal ?? 0,
+    // Row-level face of the Sản lượng "Lẻ: N lô" count (same active-LCL-
+    // fulfillment predicate as computeDispatchSummaryForSet): the master-plan
+    // checkbox and the client-side Loại hàng filter read this so the row gate
+    // and the header count can never disagree on real payloads.
+    hasActiveLclShipment: dispatchAggregatesByShipmentId.get(row.shipment.id)?.hasActiveLclShipment ?? false,
     // All effective factories of the lot (container-site authority first,
     // shipment-site fallback) so the master plan lists every factory instead
     // of one label. Derived from the appointment-group factory resolution,

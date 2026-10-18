@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
+import { isLclLotRow } from './lclLot';
 import { canonicalShipmentStatus, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -399,7 +400,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
               <tr key={item.id} className="master-plan-grid__row">
                 <td className="master-plan-grid__cell master-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
                   <div className="master-plan-grid__cell-body">
-                    {item.cargoMode === 'LCL' && onToggleLclSelection && (
+                    {isLclLotRow(item) && onToggleLclSelection && (
                       <span title={item.costGroupId != null ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.' : undefined}>
                         <UUICheckbox
                           isSelected={selectedLclShipmentIds?.has(item.id) ?? false}

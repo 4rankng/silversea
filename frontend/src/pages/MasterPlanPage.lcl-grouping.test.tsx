@@ -32,7 +32,7 @@ vi.mock('../features/dispatch/master-plan/useDispatchMasterPlan', () => ({
   useDispatchMasterPlan: () => ({
     filters: {
       q: '', tradeDirection: '', allocationStatus: '',
-      deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [],
+      deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const,
     },
     updateFilters: vi.fn(),
     page: 1,
@@ -113,6 +113,31 @@ describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
   beforeEach(() => {
     toast.mockReset();
     plan.items = [];
+  });
+
+  it('gives a checkbox to a lot the Sản lượng count includes even when its payload lacks cargoMode (DOM-vs-visual regression lock)', () => {
+    plan.items = [
+      // The wire fact the chip counts: an active LCL fulfillment. The
+      // cargoMode field itself is MISSING from the payload — the exact shape
+      // that once rendered zero checkboxes on real data while every mocked
+      // fixture hand-set cargoMode:'LCL' and passed.
+      lclItem({ id: 3, blNumber: 'BL-FLAG-3', cargoMode: undefined, hasActiveLclShipment: true }),
+      // Legacy payload: no flag yet — the gate falls back to cargoMode.
+      lclItem({ id: 4, blNumber: 'BL-LEGACY-4', hasActiveLclShipment: undefined }),
+    ] as ShipmentListItem[];
+    mount();
+
+    expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-FLAG-3' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-LEGACY-4' })).toBeTruthy();
+  });
+
+  it('renders the empty select cell on cont rows — no checkbox, cell present', () => {
+    plan.items = [fclItem()];
+    mount();
+
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(document.querySelector('.master-plan-grid__cell--select')).toBeTruthy();
+    expect(document.querySelector('.master-plan-grid__select-head')).toBeTruthy();
   });
 
   it('offers checkboxes on LCL rows only and refuses grouped lots', () => {

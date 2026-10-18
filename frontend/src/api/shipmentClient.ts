@@ -637,6 +637,11 @@ export interface ShipmentListItem extends Shipment {
   billingTruckNo?: string | null;
   costVehicleClassCode?: string | null;
   costVehicleClassName?: string | null;
+  /** Active LCL_SHIPMENT fulfillment — the row-level face of the Sản lượng
+   *  "Lẻ: N lô" count. The master-plan checkbox and Loại hàng filter read
+   *  this (falling back to `cargoMode`) so their predicate matches the
+   *  header count on real payloads. */
+  hasActiveLclShipment?: boolean;
 }
 
 export interface ShipmentContainerPortGroup {
@@ -1020,6 +1025,10 @@ export async function listShipments(params?: {
   portIds?: number[];
   /** Dispatch master-plan: OWN / EXTERNAL:<id> / UNASSIGNED keys. */
   carrierKeys?: string[];
+  /** Dispatch master-plan Loại hàng scope (card 171026154000): server-side
+   *  active-LCL-fulfillment scope so the Hàng lẻ pick reaches across every
+   *  page — the same predicate the row `hasActiveLclShipment` projects. */
+  cargoMode?: 'FCL' | 'LCL';
   /** Include the full-filtered-set cargo summary in the response. */
   includeDispatchSummary?: boolean;
 }): Promise<ShipmentListResponse> {
@@ -1040,6 +1049,7 @@ export async function listShipments(params?: {
   if (params?.allocationStatus) query.set('allocationStatus', params.allocationStatus);
   params?.portIds?.forEach((id) => query.append('portIds', String(id)));
   params?.carrierKeys?.forEach((key) => query.append('carrierKeys', key));
+  if (params?.cargoMode) query.set('cargoMode', params.cargoMode);
   if (params?.includeDispatchSummary) query.set('includeDispatchSummary', 'true');
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentListResponse>(`/shipments${suffix}`);

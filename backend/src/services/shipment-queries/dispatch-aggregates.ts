@@ -24,6 +24,7 @@ export async function loadShipmentDispatchAggregates(
   shipmentIds: number[],
 ): Promise<Map<number, ShipmentContainerAggregates & {
   carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
+  hasActiveLclShipment: boolean;
 }>> {
   const ids = [...new Set(shipmentIds)];
   const empty = new Map();
@@ -42,6 +43,7 @@ export async function loadShipmentDispatchAggregates(
       .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id)),
     db.select({
       shipmentId: s.shipmentFulfillments.shipmentId,
+      fulfillmentType: s.shipmentFulfillments.fulfillmentType,
       plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
       plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
       containerTypeCode: s.containerTypes.code,
@@ -84,6 +86,7 @@ export async function loadShipmentDispatchAggregates(
 
   const result = new Map<number, ShipmentContainerAggregates & {
     carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
+    hasActiveLclShipment: boolean;
   }>();
   for (const id of ids) {
     const containers = containersByShipment.get(id) ?? [];
@@ -111,7 +114,14 @@ export async function loadShipmentDispatchAggregates(
       byCarrier.set(key, current);
     }
     const aggregates = computeContainerAggregates(containers, allocatedCount20, allocatedCount40);
-    result.set(id, { ...aggregates, carrierAllocationSummary: [...byCarrier.values()] });
+    // The row-level face of the Sản lượng chip's "Lẻ: N lô": an active
+    // LCL_SHIPMENT fulfillment — the exact set computeDispatchSummaryForSet
+    // counts (same predicate, same query family), and the carrier channel
+    // "Gán xe nhóm" writes through. Projected so the master-plan row gate can
+    // never disagree with the header count on real payloads.
+    const hasActiveLclShipment = (fulfillmentsByShipment.get(id) ?? [])
+      .some((fulfillment) => fulfillment.fulfillmentType === 'LCL_SHIPMENT');
+    result.set(id, { ...aggregates, carrierAllocationSummary: [...byCarrier.values()], hasActiveLclShipment });
   }
   return result;
 }
@@ -207,6 +217,27 @@ export function buildDispatchCarrierFacetPredicate(carrierKeys: string[]): SQL |
   }
   if (predicates.length === 0) return undefined;
   return sql`(${sql.join(predicates, sql` or `)})`;
+}
+
+/**
+ * Card 171026154000 — the master-plan Loại hàng scope, server side so the
+ * pick reaches across every page (the LCL lots sort pages deep behind FCL
+ * rows by created_at). The scope filters on the SAME active-LCL-fulfillment
+ * predicate the Sản lượng "Lẻ: N lô" count uses and the row checkbox reads
+ * back as `hasActiveLclShipment` — never on `shipments.cargo_mode` alone, so
+ * the pick, the chip and the checkboxes can never disagree. FCL is the exact
+ * complement: no active LCL fulfillment (legacy NULL-cargo_mode lots are
+ * cont lots by this ruling).
+ */
+export function buildDispatchCargoScopePredicate(cargoMode: 'FCL' | 'LCL' | undefined): SQL | undefined {
+  if (cargoMode !== 'LCL' && cargoMode !== 'FCL') return undefined;
+  const activeLcl = sql`exists (
+    select 1 from ${s.shipmentFulfillments} f
+    where f.shipment_id = ${s.shipments.id}
+      and f.fulfillment_type = 'LCL_SHIPMENT'
+      and f.canceled_at is null
+  )`;
+  return cargoMode === 'LCL' ? activeLcl : sql`not ${activeLcl}`;
 }
 
 /**
