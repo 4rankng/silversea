@@ -1334,11 +1334,12 @@ export async function updateLclGroupTruck(
       : [row];
 
     // Review 181026145000 (LCL-A181026145000-05) — the actual-plate edit
-    // rewrites EVERY live group member, so the unmerge path's settled-group
-    // law (assertGroupMutable) applies to the whole group: every member must
-    // be accounting-unlocked, not just the named lot. A billing-only edit
-    // touches the named lot alone — the early assert above is its whole
-    // boundary.
+    // rewrites EVERY live group member, so the settled-group law applies to
+    // the whole group: every member must be accounting-unlocked, not just the
+    // named lot (the accounting leg of the unmerge path's assertGroupMutable;
+    // its completed-trip freeze is deliberately not mirrored here). A
+    // billing-only edit touches the named lot alone — the early assert above
+    // is its whole boundary.
     if (input.actualTruckNo != null) {
       for (const target of groupTargets) {
         if (target.id === row.id) continue;
