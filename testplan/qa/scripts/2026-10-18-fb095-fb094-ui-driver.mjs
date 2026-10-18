@@ -7,7 +7,7 @@
  * FB-094: /accounting/chot-debit toolbar "Xuất Debit Note" → issue + xlsx
  * download + message banner, proven against the dev DB.
  *
- * Env: QA_BASE (default http://localhost:7176), QA_API (default
+ * Env: QA_BASE (default http://localhost:7175), QA_API (default
  * http://localhost:3002/api), QA_OUT (artifact prefix dir, default qa),
  * QA_RESUME=1 skips the already-proven FB-095 click path (run 1) and only
  * re-verifies DB state + the post-unmerge grid + the FB-094 section.
@@ -18,7 +18,7 @@ import { mkdirSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createRequire } from 'node:module';
 
-const BASE = process.env.QA_BASE ?? 'http://localhost:7176';
+const BASE = process.env.QA_BASE ?? 'http://localhost:7175';
 const API = process.env.QA_API ?? 'http://localhost:3002/api';
 const OUT = process.env.QA_OUT ?? 'qa';
 const RESUME = process.env.QA_RESUME === '1';

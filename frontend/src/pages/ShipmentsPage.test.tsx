@@ -1539,7 +1539,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // The loại-cont picker is the house UuiSelectField (native selects are
     // banned): its trigger carries the value text as its accessible name, and
     // the options live in a portalled listbox.
-    fireEvent.click(within(drawer).getByRole('button', { name: /Chưa chọn loại cont/ }));
+    // Card 191026100000 A.1: the drawer now SEEDS the add row's loại cont from
+    // the lot's existing rows (first non-null per column) — the trigger's
+    // accessible name is the seeded code (40HC here) instead of the old
+    // empty placeholder. Match either so the manual 20DC pick below stays
+    // the tested behavior.
+    fireEvent.click(within(drawer).getByRole('button', { name: /40HC|Chưa chọn loại cont/ }));
     fireEvent.click(await screen.findByRole('option', { name: '20DC' }));
     expect(within(drawer).getByRole('button', { name: /20DC/ })).toBeTruthy();
     fireEvent.change(within(drawer).getByLabelText('Trọng lượng (kg)'), { target: { value: '3000' } });

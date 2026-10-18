@@ -11,6 +11,7 @@ import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 // lcl-assign-reason suite).
 vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast: vi.fn(), dismiss: vi.fn() }),
+  useToastOptional: () => ({ toast: vi.fn(), dismiss: vi.fn() }),
 }));
 
 // The page's data owner is pinned; the grid still mounts the real
