@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -16,6 +16,7 @@ import { WIPE_PLAN, verifySeedOutcome } from '../reset-seed';
 import { disconnectRedis } from '../lib/redis';
 
 const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 after(async () => {
   await disconnectRedis();
@@ -63,41 +64,58 @@ describe('reset-seed tool', () => {
   });
 
   test('--dry-run prints the plan and deletes nothing (exit 0)', async () => {
-    const result = spawnSync('npx', ['tsx', 'src/reset-seed.ts', '--dry-run'], {
-      cwd: backendRoot,
-      encoding: 'utf8',
-      timeout: 90000,
-      env: {
-        ...process.env,
-        TZ: 'UTC',
-        DATABASE_URL: 'postgres://postgres:postgres@localhost:5441/silversea',
-        REDIS_URL: 'redis://localhost:6391',
-      },
-    });
-    assert.equal(result.status, 0, `dry run must succeed: ${result.stderr}`);
-    const out = `${result.stdout}`;
-    assert.ok(out.includes('Reset plan'), 'the wipe list prints before anything happens');
-    assert.ok(out.includes('--dry-run: nothing deleted'), 'the dry-run disclaimer prints');
-    // The per-step wipe log is '  wiped <table>' — distinct from the plan
-    // header ('tables wiped in order'), so anchor to line start + spacing.
-    assert.ok(!/^  wiped /m.test(out), 'no table is actually wiped in dry-run');
-    // The suite runs against the shared dev DB — the dry run must leave the
-    // count INVARIANT, whatever the current total is.
-    const [beforeRow] = await db.select({ n: sql`count(*)::int` }).from(s.users);
-    const result2 = spawnSync('npx', ['tsx', 'src/reset-seed.ts', '--dry-run'], {
-      cwd: backendRoot,
-      encoding: 'utf8',
-      timeout: 90000,
-      env: {
-        ...process.env,
-        TZ: 'UTC',
-        DATABASE_URL: 'postgres://postgres:postgres@localhost:5441/silversea',
-        REDIS_URL: 'redis://localhost:6391',
-      },
-    });
-    assert.equal(result2.status, 0, 'second dry run must succeed');
-    const [afterRow] = await db.select({ n: sql`count(*)::int` }).from(s.users);
-    assert.equal(Number(afterRow.n), Number(beforeRow.n), 'user count unchanged by the dry run');
+    // Contention-safe invariance: the shared dev DB is written by other
+    // suites concurrently, so a GLOBAL users count is not a stable invariant
+    // (a foreign suite's insert reddens the pin without any fault here).
+    // The suite owns a sentinel user instead: the wipe plan deletes ALL
+    // users, so a dry run that actually wiped anything would take the
+    // sentinel with it — same detection power, no foreign-write noise.
+    const [sentinel] = await db.insert(s.users).values({
+      username: `reset-seed-dryrun-${suffix}`,
+      passwordHash: 'x',
+      status: 'ACTIVE',
+    }).returning();
+    try {
+      const result = spawnSync('npx', ['tsx', 'src/reset-seed.ts', '--dry-run'], {
+        cwd: backendRoot,
+        encoding: 'utf8',
+        timeout: 90000,
+        env: {
+          ...process.env,
+          TZ: 'UTC',
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5441/silversea',
+          REDIS_URL: 'redis://localhost:6391',
+        },
+      });
+      assert.equal(result.status, 0, `dry run must succeed: ${result.stderr}`);
+      const out = `${result.stdout}`;
+      assert.ok(out.includes('Reset plan'), 'the wipe list prints before anything happens');
+      assert.ok(out.includes('--dry-run: nothing deleted'), 'the dry-run disclaimer prints');
+      // The per-step wipe log is '  wiped <table>' — distinct from the plan
+      // header ('tables wiped in order'), so anchor to line start + spacing.
+      assert.ok(!/^  wiped /m.test(out), 'no table is actually wiped in dry-run');
+      let [stillThere] = await db.select({ id: s.users.id }).from(s.users)
+        .where(eq(s.users.id, sentinel.id));
+      assert.ok(stillThere, 'the sentinel user survives the first dry run');
+      const result2 = spawnSync('npx', ['tsx', 'src/reset-seed.ts', '--dry-run'], {
+        cwd: backendRoot,
+        encoding: 'utf8',
+        timeout: 90000,
+        env: {
+          ...process.env,
+          TZ: 'UTC',
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5441/silversea',
+          REDIS_URL: 'redis://localhost:6391',
+        },
+      });
+      assert.equal(result2.status, 0, 'second dry run must succeed');
+      assert.ok(`${result2.stdout}`.includes('Reset plan'), 'second dry run prints the plan');
+      [stillThere] = await db.select({ id: s.users.id }).from(s.users)
+        .where(eq(s.users.id, sentinel.id));
+      assert.ok(stillThere, 'the sentinel user survives the second dry run');
+    } finally {
+      await db.delete(s.users).where(eq(s.users.id, sentinel.id));
+    }
   });
 });
 

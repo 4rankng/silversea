@@ -31,6 +31,16 @@ const closePeriods = new Set<string>();
 let failpointCounter = 0;
 let server: http.Server;
 let baseUrl = '';
+// Hermetic payroll-unit scope (the q10 pattern): the readiness driver query
+// scopes to the unit configured in app_settings, and the shared dev DB holds
+// that setting EMPTY with 2000+ active seed drivers — the readiness summary
+// (and the isolation-exclusion loop below) would sweep every one of them,
+// which is both the multi-minute runtime and the red at base. Pin the
+// setting to a fixture unit for this suite so readiness sees only the
+// suite's own drivers.
+let savedPayrollUnitSetting: string | null = null;
+let savedPayrollUnitSettingExisted = false;
+let fixtureUnitId = 0;
 
 async function mkUser(role: Role, tag: string) {
   const [user] = await db.insert(s.users).values({
@@ -52,6 +62,12 @@ async function mkDriver(tag: string) {
     baseSalary: '12000000',
   }).returning();
   createdDriverIds.push(driver.id);
+  // The readiness scope joins the driver's user to the payroll unit
+  // configured in app_settings — pin the fixture user to the fixture unit.
+  await db.insert(s.userBusinessUnitLinks).values({
+    userId: user.id,
+    businessUnitId: fixtureUnitId,
+  });
   return driver;
 }
 
@@ -182,6 +198,33 @@ async function withIdempotencyInsertFailure(endpoint: string, idempotencyKey: st
 }
 
 before(async () => {
+  // Hermetic payroll-unit scope: pin app_settings to a fixture unit so the
+  // readiness summary covers only this suite's drivers (see the comment on
+  // savedPayrollUnitSetting above).
+  const [prior] = await db.select()
+    .from(s.appSettings)
+    .where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'))
+    .limit(1);
+  savedPayrollUnitSetting = prior?.value ?? null;
+  savedPayrollUnitSettingExisted = prior != null;
+  const [unit] = await db.insert(s.businessUnits).values({
+    code: `Q15R-${suffix.slice(-6).toUpperCase()}`,
+    name: `Q15 route payroll unit ${suffix}`,
+    status: 'ACTIVE',
+  }).returning();
+  fixtureUnitId = unit.id;
+  if (prior) {
+    await db.update(s.appSettings).set({
+      value: String(unit.id),
+      updatedAt: new Date(),
+    }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+  } else {
+    await db.insert(s.appSettings).values({
+      key: 'salary.payroll_business_unit_id',
+      value: String(unit.id),
+    });
+  }
+
   const app = express();
   app.use(express.json());
   app.use('/api/salary', (req, _res, next) => {
@@ -208,6 +251,26 @@ after(async () => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
   });
+  try {
+    if (fixtureUnitId > 0) {
+      // Restore the setting (or remove the row this suite inserted), then
+      // clear the fixture links before the unit delete.
+      if (savedPayrollUnitSettingExisted && savedPayrollUnitSetting !== null) {
+        await db.update(s.appSettings).set({
+          value: savedPayrollUnitSetting,
+          updatedAt: new Date(),
+        }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      } else if (!savedPayrollUnitSettingExisted) {
+        await db.delete(s.appSettings)
+          .where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      }
+      await db.delete(s.userBusinessUnitLinks)
+        .where(eq(s.userBusinessUnitLinks.businessUnitId, fixtureUnitId));
+      await db.delete(s.businessUnits).where(eq(s.businessUnits.id, fixtureUnitId));
+    }
+  } catch (cleanupError) {
+    console.warn('[q15-routes] payroll-unit cleanup skipped:', (cleanupError as Error).message);
+  }
   if (createdUserIds.length > 0) {
     await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, createdUserIds));
   }
