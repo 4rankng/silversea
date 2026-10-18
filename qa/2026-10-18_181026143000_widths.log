@@ -1,0 +1,13 @@
+PASS — 390px "+ Thêm kho" visible via shared dashed class :: {"cls":"csc-utility-button csc-utility-button--dashed","visible":true,"w":104,"h":40,"right":120,"vw":390}
+PASS — 390px "+ Thêm kho" height ≤ 40px (control budget) :: 40px
+PASS — 390px dialog title Xuất khẩu :: Thêm kho trả hàng
+PASS — 390px dialog fits viewport :: {"title":"Thêm kho trả hàng","fits":true,"vw":390}
+PASS — 768px "+ Thêm kho" visible via shared dashed class :: {"cls":"csc-utility-button csc-utility-button--dashed","visible":true,"w":104,"h":30,"right":606,"vw":768}
+PASS — 768px "+ Thêm kho" height ≤ 40px (control budget) :: 30px
+PASS — 768px dialog title Xuất khẩu :: Thêm kho trả hàng
+PASS — 768px dialog fits viewport :: {"title":"Thêm kho trả hàng","fits":true,"vw":768}
+PASS — 1440px "+ Thêm kho" visible via shared dashed class :: {"cls":"csc-utility-button csc-utility-button--dashed","visible":true,"w":104,"h":30,"right":1137,"vw":1440}
+PASS — 1440px "+ Thêm kho" height ≤ 40px (control budget) :: 30px
+PASS — 1440px dialog title Xuất khẩu :: Thêm kho trả hàng
+PASS — 1440px dialog fits viewport :: {"title":"Thêm kho trả hàng","fits":true,"vw":1440}
+WIDTHS DRIVER EXIT: 0 (ALL PASS)

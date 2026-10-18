@@ -1,11 +1,11 @@
-$ cd frontend && npx vitest run <scoped: lcl form + dispatch files>
+$ cd frontend && npx vitest run <10 scoped files: lcl form + dispatch + detail>
 
  RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-form-labels-dispatch/frontend
 
 
  Test Files  10 passed (10)
-      Tests  243 passed (243)
-   Start at  14:58:06
-   Duration  14.63s (transform 5.39s, setup 1.69s, import 14.48s, tests 23.53s, environment 6.67s)
+      Tests  245 passed (245)
+   Start at  15:47:14
+   Duration  26.28s (transform 9.29s, setup 2.50s, import 22.99s, tests 41.58s, environment 11.08s)
 
 EXIT:0

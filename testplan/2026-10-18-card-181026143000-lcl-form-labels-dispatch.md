@@ -3,15 +3,22 @@
 Nguồn: user spec docx 2026.10.17 (`Dieu_chinh_form_tao_lo_hang_le.docx`, cache
 `doc_58c2e6857719`); brief worktree `fix-lcl-form-labels-dispatch`.
 
-## Kết luận verification (2026-10-18, base 64c6d8e1)
+## Kết luận verification + 2 code fix (2026-10-18, base 64c6d8e1 → branch)
 
-**Spec đã được thỏa mãn đầy đủ tại base của branch này** — không có gap nào
-cần sửa code. Spec này chính là user directive 2026-10-17 mà **FB-105** đã
-implement trước khi card này được cắt (commits `5a17e299` create form +
-`3628dae4` dispatch, cả hai đã có trong `8fc1bcf5`). Card 181026143000 là lần
-ingest lặp của cùng một tài liệu spec. Việc của card này: xác minh từng mục
-specAgainst source, chạy toàn bộ gate scoped, và pin các case regression dưới
-đây vào đúng test hiện hữu — không re-implement, không churn code.
+Phần lớn spec đã được **FB-105** implement tại base (commits `5a17e299` +
+`3628dae4`, trước khi card được cắt — card là lần ingest lặp). Phiên làm việc
+thứ hai (sau yêu cầu owner "phải có code changes") đã drive UI rung 3 toàn
+chuỗi và tìm ra **2 defect thật trong vùng spec**, sửa trên branch này:
+
+1. **§1a dialog title** — `OperationalSiteCreateDialog` hard-code
+   "Thêm kho lấy hàng" cho kho ở CẢ hai chiều (đúng lớp lỗi "fix cứng cho cả
+   Nhập + Xuất" mà spec phàn nàn). Fix: dialog đặt tên theo chiều của lô —
+   Xuất khẩu = "Thêm kho trả hàng" (commit `fix(forms)…§1a`).
+2. **§1c pattern/token** — nút "+ Thêm kho" dùng inline palette riêng kèm
+   fallback XANH `#2563eb` (vi phạm emerald house tokens + rule "one pattern,
+   one shared implementation"). Fix: chuyển về class dùng chung
+   `csc-utility-button csc-utility-button--dashed` như nút "+ Thêm nhà máy"
+   kề trên (commit `fix(forms)…§1c`).
 
 ## Case matrix — spec item → implementation → test → evidence
 
@@ -108,10 +115,56 @@ Expected & actual (PASS):
    không chọn danh mục; hành vi: tên gõ tay được lưu vào pickup/delivery
    location và hiện đúng cột theo chiều (create-model test pin mapping).
 
+### TC-LCL-181026143000-06 — Kho quick-add dialog đặt tên theo chiều (fix §1a, branch)
+
+Steps: form LCL, chọn Xuất khẩu → bấm "+ Thêm kho" → dialog mở.
+Expected & actual (PASS): title "Thêm kho trả hàng" (Xuất), "Thêm kho lấy
+hàng" (Nhập/neutral). Trước fix: "Thêm kho lấy hàng" cố định cả hai chiều.
+
+| Mục | File | Test |
+|---|---|---|
+| Title theo chiều | `frontend/src/components/shipment/OperationalSiteCreateDialog.tsx` (prop `tradeDirection`), `ShipmentCreateModals.tsx`, `ShipmentCreateWorkspace.tsx` | `ShipmentCreateWorkspace.lcl-points.test.tsx` «titles the kho quick-add dialog by hình thức xuất nhập khẩu»; UI driver rung 3 |
+
+### TC-LCL-181026143000-07 — "+ Thêm kho" dùng shared dashed button (fix §1c, branch)
+
+Steps: form LCL (customer bất kỳ) → quan sát nút "+ Thêm kho" dưới ô Kho.
+Expected & actual (PASS): class `csc-utility-button csc-utility-button--dashed`
+giống hệt "+ Thêm nhà máy"; không còn inline palette/fallback `#2563eb`;
+cao ≤ 40px ở 390/768/1440.
+
+| Mục | File | Test |
+|---|---|---|
+| Shared class + token | `frontend/src/features/shipments/create/ShipmentCreateLclRouteSection.tsx` | `ShipmentCreateWorkspace.lcl-points.test.tsx` «renders "+ Thêm kho" through the shared dashed utility button»; width sweep 390/768/1440 |
+
+## UI driver rung 3 (tất cả artifact dưới qa/2026-10-18_181026143000_*)
+
+Driver `testplan/qa/scripts/2026-10-18-181026143000-lcl-form-dispatch.mjs`
+(admin, worktree vite :7176 → API :3002, DB dev :5441, viewport 1440×900):
+
+- §1a: label/placeholder/asterisk đúng chuỗi spec ở NHẬP + XUẤT (ui-1..3.png,
+  DOM text assert trong driver log).
+- §1c: combobox mở danh mục (khách trống → "Không tìm thấy kết quả" + gõ tự
+  do OK); nút "+ Thêm kho"/"+ Thêm nhà máy" có mặt; dialog title
+  "Thêm kho TRẢ hàng" khi Xuất khẩu / "Thêm kho LẤY hàng" khi Nhập khẩu
+  (ui-5/5b.png — fix branch).
+- §1d: kho nằm cùng card "Điểm vận hành & tuyến" với Tuyến đường/Nhà máy;
+  card "Thông tin hàng" đúng 5 nhãn, không có Kho (DOM assert).
+- §1b: submit thiếu Nhà máy + Kho → bị chặn tại form, error field-level nêu
+  tên nhà máy + kho (ui-6.png).
+- §2: TẠO THẬT 2 lô LCL (IMPORT + EXPORT, Bill `QA-181026143000-I/E…`) qua
+  form; DB side-effect: detail API trả về pickup_location/delivery_location
+  đúng chiều (IMPORT: lift=kho, drop=nhà máy; EXPORT: đảo). Kế hoạch Tổng quát
+  (`/dispatch`) cột Cảng nâng/Cảng hạ + Kế hoạch Chi tiết Xe
+  (`/dispatch-detail`, tìm nhanh theo Bill) cột Nâng hàng/Trả hàng đúng chiều
+  (ui-7..9.png).
+- Width sweep `…-widths.mjs`: 390/768/1440 — dashed class render, ≤40px,
+  dialog title đúng + vừa viewport (ui-width-*.png, widths.log).
+- `qa/2026-10-18_181026143000_driver.log` — log đầy đủ, EXIT 0 (ALL PASS).
+
 ## Gate evidence (2026-10-18, worktree fix-lcl-form-labels-dispatch)
 
 - `qa/2026-10-18_lcl-form-labels-dispatch_fe-vitest-scoped.log` — 10 file,
-  **243/243 pass**, EXIT 0 (form + labels + validation + dispatch + detail).
+  **245/245 pass** (243 có sẵn + 2 test mới của 2 fix), EXIT 0.
 - `qa/2026-10-18_lcl-form-labels-dispatch_be-scoped.log` — 3 suite BE shape,
   **4/4 pass**, EXIT 0 (dev DB :5441).
 - `qa/2026-10-18_lcl-form-labels-dispatch_fe-tsc.log` — EXIT 0.
@@ -121,10 +174,11 @@ Expected & actual (PASS):
 
 ## Phạm vi không cover
 
-- Full FE/BE suite không chạy (card verification có bộ scoped bao trọn mọi
-  file test chạm spec; không thay đổi code sản phẩm).
-- UI driver (rung 3) không chạy trong phiên này: mọi claim dừng ở mức
-  TEST-VERIFIED (vitest against real components) + CODE-READ; hành vi UI
-  thật của các màn đã được FB-105 và các card trước drive. Nếu chủ card cần
-  rung 3 cho card này, cần một lượt click `/shipments/new` + `/dispatch` +
-  `/dispatch-detail` thủ công.
+- Full FE/BE suite không chạy trong worktree (bộ scoped đã phủ mọi file test
+  chạm vùng spec; các gate typecheck/lint/build chạy toàn repo và exit 0).
+- Driver chạy với tài khoản ADMIN duy nhất; các role khác (MANAGER/clerk/CUS)
+  không drive trong phiên này — RBAC của các route không đổi.
+- Chỉ worktree vite :7176 (local dev); staging/prod không đụng per §2 non-negotiables.
+- 2 lô QA mỗi lần chạy driver là side-effect có chủ đích trên dev DB (Bill
+  `QA-181026143000-*`, đặt ngày giao 20/10/2026) — dùng để chứng minh cột
+  điều vận; không cleanup vì DB dev dùng chung.
