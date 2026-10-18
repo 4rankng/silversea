@@ -791,8 +791,14 @@ if (planRowBlocked || tripConflicts.length > 0) {
     // proceed on the confirmed retry. Gated like the same-lot branch below so
     // the Kẹp carve-out stays bit-for-bit (a Kẹp row never carries a cost
     // group — grouping is LCL-only — but the gate documents the law anyway).
+    // Merge union: the copy must NAME the group when the siblings are the
+    // lot's own Ghép-trả-ĐV group (card B 18/10) — same predicate, so the
+    // group-aware copy is the one this branch ever emits.
     throw new ApiError(409,
-      `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+      groupSiblings.length > 0
+        ? `Đầu xe ${plate} đang chạy cùng nhóm ghép trả ĐV với `
+          + describeRigHolders(groupSiblings) + ' trong khung giờ trùng lặp. Vẫn lưu?'
+        : `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' });
   } else if (!isKepPairing && sameLotPlanClaim && !args.confirmOverlap) {

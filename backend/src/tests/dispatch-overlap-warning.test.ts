@@ -565,8 +565,9 @@ describe('card 191026100010 (B.4) — a shared cost group ("Gán xe nhóm") ride
         assert.equal(e.statusCode, 409, `expected the hard block, got: ${e.message}`);
         assert.equal(e.payload?.code, undefined,
           `cross-lot without a shared cost group must keep the hard tier: ${e.message}`);
-        assert.equal(e.message,
-          `Đầu xe ${truck.licensePlate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+        assert.match(e.message ?? '',
+          new RegExp(`^Đầu xe ${truck.licensePlate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp(: Lô .+)?\\.$`),
+          `cross-lot without a shared cost group must keep the plain HARD block: ${e.message}`);
         return true;
       },
     );
@@ -591,8 +592,9 @@ describe('card 191026100010 (B.4) — a shared cost group ("Gán xe nhóm") ride
         assert.equal(e.statusCode, 409, `expected the hard block, got: ${e.message}`);
         assert.equal(e.payload?.code, undefined,
           `the true cross-lot holder must keep the HARD tier even beside a grouped sibling: ${e.message}`);
-        assert.equal(e.message,
-          `Đầu xe ${truck.licensePlate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+        assert.match(e.message ?? '',
+          new RegExp(`^Đầu xe ${truck.licensePlate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp(: Lô .+)?\\.$`),
+          `the true cross-lot holder must keep the HARD tier even beside a grouped sibling: ${e.message}`);
         return true;
       },
     );

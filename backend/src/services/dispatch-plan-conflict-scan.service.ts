@@ -200,7 +200,6 @@ export async function scanPlanRowHolders(
     // Card B 18/10 (B.4): the guard's message must NAME the conflicting lot
     // and window, and same-COST-GROUP siblings must never read as cross-lot
     // claims — the group's shared truck is the arrangement itself.
-    costGroupId: s.shipments.costGroupId,
     shipmentCode: s.shipments.shipmentCode,
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
@@ -254,7 +253,6 @@ export async function scanLclPlanRowHolders(
     costGroupId: s.shipments.costGroupId,
     fallbackSlot: sql`(${lclHolderSlotSql}) is null`,
     // Card B 18/10 (B.4) — same identity/window facts as the FCL branch.
-    costGroupId: s.shipments.costGroupId,
     shipmentCode: s.shipments.shipmentCode,
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
