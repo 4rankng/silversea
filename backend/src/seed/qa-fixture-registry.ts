@@ -306,22 +306,24 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
   },
   {
     table: 'user_business_unit_links',
-    label: 'QA-user links into QA-named business units (Bộ phận column + filter dropdown in /hr/roster)',
+    label: 'QA-user links into QA-named business units (Bộ phận in /hr/roster and /users)',
     // FB-061 rework (card 111026105610, QA FAIL 2026-10-17): deactivating the
-    // QA units was NOT enough. listHrRoster() returns businessUnitIds verbatim
-    // from this table and HrRosterPage renders the linked unit name regardless
-    // of unit status; the "Lọc theo bộ phận" dropdown lists exactly the units
-    // linked to roster rows. So /hr/roster kept showing "QA Audit Unit 0914"
-    // after the staging purge. The links are leaves — nothing references them
-    // — so an unguarded hard-delete is safe and must run BEFORE the
-    // business_units deactivate below (children -> parents).
+    // QA units was NOT enough. listHrRoster() returned businessUnitIds
+    // verbatim from this table and HrRosterPage rendered the linked unit name
+    // regardless of unit status; the "Lọc theo bộ phận" dropdown lists exactly
+    // the units linked to roster rows. So /hr/roster kept showing "QA Audit
+    // Unit 0914" after the staging purge. The links are leaves — nothing
+    // references them — so an unguarded hard-delete is safe and must run
+    // BEFORE the business_units delete below (children -> parents; the
+    // executor iterates QA_FIXTURE_REGISTRY in array order, purge-qa-fixtures
+    // .ts purgeAll, and that order is asserted in qa-fixture-purge.test.ts).
     predicate: `business_unit_id IN (SELECT id FROM business_units WHERE name ILIKE 'QA%' OR code ILIKE 'QA%')`,
     action: 'hard-delete',
     guards: [],
   },
   {
     table: 'business_units',
-    label: 'QA-named business units (Bộ phận in /hr/roster)',
+    label: 'QA-named business units (Bộ phận in /hr/roster, "Đơn vị phụ trách" catalog in /users)',
     // FB-061 round 14: QA units surfaced in the roster's Bộ phận column
     // ("QA Audit Unit 0914"). business_units was absent from this registry
     // entirely, so no QA unit was ever a purge candidate.
@@ -333,11 +335,43 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     predicate: `name ILIKE 'QA%' OR code ILIKE 'QA%'`,
     // NOT 'scrub': business_units_name_uniq_idx is UNIQUE on name and name is
     // NOT NULL, so collapsing the rows to one placeholder would violate the
-    // index. Deactivating in place keeps the ids valid for any not-yet-purged
-    // user_business_unit_links row (QA applied the same treatment to ids 2
-    // and 3). The roster surface itself is fixed by the link purge ABOVE —
-    // deactivate alone was proven insufficient there (QA FAIL 2026-10-17).
-    action: 'deactivate',
+    // index.
+    //
+    // 'hard-delete', NOT 'deactivate' (card 111026105610, QA FAIL 2026-10-18):
+    // deactivate left the fixture row alive-but-INACTIVE, and /users still
+    // rendered it — the "Đơn vị phụ trách" catalog on that page is an admin
+    // lifecycle surface that lists INACTIVE rows on purpose (so an admin can
+    // reactivate a unit they deactivated by mistake), which is why /hr/roster
+    // hiding INACTIVE units did not clear the QA report. A QA fixture row is
+    // not history any admin needs to manage, so the whole row goes instead.
+    //
+    // Safe because NO column anywhere declares a FOREIGN KEY to
+    // business_units (zero `REFERENCES business_units` in schema + all
+    // migration snapshots; user_business_unit_links has no .references()),
+    // so the DELETE cannot be blocked. The link purge ABOVE has already run
+    // (children -> parents) and removed the link rows this purge would leave
+    // visible on a management surface.
+    //
+    // Dangling-id caveat, stated so a future edit does not assume otherwise:
+    // three other places store a business-unit id as a plain integer —
+    // shipments.responsible_unit_id (db/schema/shipments.ts:32),
+    // app_settings `salary.payroll_business_unit_id`
+    // (services/app-settings.service.ts:17) and the salary-close snapshot
+    // payroll_business_unit_id (db/schema/financial.ts:670). This purge does
+    // not NULL them, and does not need to: every reader of those ids already
+    // filters business_units.status = 'ACTIVE', so a dangling id behaves
+    // exactly as the INACTIVE row did. It only matters for a QA-named unit,
+    // whose shipments/settings rows are themselves QA fixtures.
+    //
+    // Do NOT add a `shipments.responsible_unit_id` guard: the guard lookup
+    // (purge-qa-fixtures.ts isGuarded) does a bare `WHERE col = id` with no
+    // deleted_at filter, so it would match soft-deleted QA shipments and skip
+    // every QA unit forever — censusVisible stays > 0, the purge exits 2, and
+    // the reported bug comes back permanently.
+    //
+    // Do NOT restore 'deactivate' here: it is the exact state that kept
+    // "QA Audit Unit 0914" visible on /users.
+    action: 'hard-delete',
     guards: [],
   },
   {

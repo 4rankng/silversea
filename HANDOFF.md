@@ -157,3 +157,63 @@ defect class would need its own card). Verification ran on worktree vite :7176
 because :7175 was taken mid-session by the main checkout's frontend (PID 99794
 — untouched); API shared at :3002. Branch `fix-181026021137-fb063-header-wrap`
 — commit local, DO NOT merge per brief.
+
+## Card 5 — 111026105610 "QA Audit Unit 0914" vẫn hiện ở /users (worktree fix)
+
+**Entity**: `business_units` row, name "QA Audit Unit 0914" — dữ liệu fixture QA,
+KHÔNG phải master data. Không có mặt trong seed/reset-seed (grep toàn repo chỉ ra
+nó ở comment/test/purge registry); nó do QA script tạo trên staging. Không có
+migration nào cần viết — không sửa schema.
+
+**Hành vi đã chọn**: purge `business_units` đổi `deactivate` → `hard-delete`
+(`backend/src/seed/qa-fixture-registry.ts`). Fixture QA bị xoá hẳn thay vì để
+lại row INACTIVE.
+
+**Vì sao KHÔNG lọc INACTIVE ở /users** (đây là câu hỏi QA đặt ra, trả lời tường
+minh):
+- `/users` khác `/hr/roster`. Mọi bề mặt GÁN của /users đã lọc ACTIVE sẵn và
+  không thể hiện unit INACTIVE: `loadUsersBusinessUnitIdsMap` join
+  `business_units.status='ACTIVE'` (user.service.ts:267-289),
+  `UserAddPanel`/`UserEditPanel` lọc ACTIVE ở client.
+- Chỗ duy nhất "/users hiện QA Audit Unit 0914" là catalog "Đơn vị phụ trách"
+  (`BusinessUnitsManager`) — một bề mặt quản trị VÒNG ĐỜI, cố ý liệt kê cả
+  INACTIVE kèm nút "Kích hoạt lại". Ẩn INACTIVE ở đây = xoá vĩnh viễn khả năng
+  hoàn tác một lần ngừng sử dụng nhầm, và làm hỏng test đang pin reactivate
+  (`UsersPage.business-units.test.tsx`). Đây là quy ước chung của repo, không
+  phải sơ suất: `routes/config/catalog-crud.routes.ts:118-122` — "the admin
+  surface must see inactive rows too (deactivate → still listed → reactivate),
+  while dispatch readers only ever see active zones".
+- Nói cách khác: /hr/roster đã đúng luật; /users đã đúng luật; **dữ liệu** mới
+  là sai. Sửa dữ liệu rẻ và giữ nguyên mọi năng lực sản phẩm; sửa hiển thị
+  sẽ đánh đổi năng lực lấy một dòng fixture.
+
+**An toàn của hard-delete**: entry `user_business_unit_links` đã hard-delete và
+chạy TRƯỚC (children → parents, có assert trong test); `user_business_unit_links`
+là bảng duy nhất tham chiếu `business_units` và không có ràng buộc FK
+(`db/schema/core.ts:53-76`).
+
+**Gates**: BE tsc 0; root lint 0; scoped `qa-fixture-purge` + `hr-roster-read`
+22/22; red-at-base đã chứng minh (revert action → test mới FAIL).
+Artifacts: `qa/2026-10-18_users-qa-unit-purge_{tests,tsc}.log`.
+Case: `testplan/2026-10-18-card-111026105610-users-qa-unit-purge.md`.
+
+**Cần chạy lại ở môi trường QA**: purge phải được chạy lại (`qapurge-dry` →
+`qapurge`) thì row mới bị xoá. Đây là thay đổi công cụ purge, không tự động
+xoá dữ liệu đã tồn tại.
+
+**Rung**: UI chưa drive trong phiên này — thay đổi nằm ở công cụ purge
+backend. Bằng chứng ở mức DB/API VERIFIED (rung 2): test chứng minh row biến
+mất khỏi `business_units` và khỏi `listBusinessUnits()` — đúng nguồn dữ liệu
+mà /users render. Chưa chụp màn hình /users sau purge.
+
+**Independent review** (`code-reviewer`, read-only): 8 findings, 0 blocking.
+Đã xử lý: F1 (claim "chỉ user_business_unit_links tham chiếu business_units"
+SAI — còn `shipments.responsible_unit_id`, `salary.payroll_business_unit_id`,
+snapshot `payroll_business_unit_id`; đã viết lại rationale + ghi rõ dangling-id
+và rằng mọi reader đều lọc ACTIVE nên hành xử y hệt row INACTIVE), F2 (cảnh báo
+KHÔNG thêm guard `shipments.responsible_unit_id` — guard lookup bỏ qua
+`deleted_at`, sẽ match shipment đã soft-delete và khiến mọi QA unit bị skip
+vĩnh viễn, purge exit 2, bug quay lại), F3 (comment "deactivate below" + label
+thiếu /users), F4 (sai attribution commit f983a1b3; entry registry đến từ
+eb7a8e95 / 2c3668f4), F8 (thêm assert idempotency chạy purge 2 lần).
+F5/F6/F7 là vấn đề báo cáo — đã nêu đúng rung và giới hạn gate bên dưới.
