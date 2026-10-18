@@ -123,3 +123,37 @@ gated green on rb2 at 3fd77532 (3 commits ahead of main). Pre-merge evidence:
   bai-ha-regression-rb1) killed before serial gate run; gate ran alone once.
 See HANDOFF.md in pre-merge worktree (rb2 worktree gone post-cleanup) and
 qa/2026-10-18_fb020_*.{log,md} for full evidence.
+
+## Card 4 — 181026021137-fb063 header-cot-wrap (worktree fix, NOT merged)
+
+FB-063 "header cột wrap nhiều dòng" (docx GDrive unreadable; surface identified
+by measurement). Surface: `/accounting/invoice-tracking` ("Theo dõi hóa đơn" —
+accounting bảng kê), `.record-table` inside `.invoice-tracking-page`:
+"NHÀ CUNG CẤP" wrapped 3 lines in a 61px column + 5 headers 2 lines at 1440px
+(quantified in testplan/2026-10-18-card-181026021137-fb063-header-cot-wrap.md).
+NOT /dispatch-detail (already one-line law) and NOT /shipments (≤2 lines —
+within the 1–2 line acceptance).
+
+**Code change** (header-scoped, one page):
+- `AccountingInvoiceTrackingPage.css`: thead th `white-space: nowrap` +
+  `padding-inline: 8px` (label = one line, auto-layout floors columns at
+  label width, Law §4); NEW `tbody td { padding-inline: 6px }` width trade —
+  one-line labels at base gutters measured 1250px and cut the action pair
+  off-screen (rejected), 6px body gutter lands 1180px vs pre-fix 1190px
+  (narrower; "Thao tác" more visible than before).
+- Styles test pin for both load-bearing halves; TSX comment-only.
+
+**Gates**: fe-tsc exit 0; scoped vitest 43/43 (5 files incl. styles + production
+numeric-identity pins); root lint 0; `make build` 0. UI driver (read-only
+measure, admin): invoice-tracking 0 wrapped headers at 1440/1024/768, board
+1180 < 1190; sibling surfaces unchanged (shipments ≤2, dispatch 0, phoi-phieu
+deliberate 2). Before/after screenshots + budget logs under
+qa/2026-10-18_fb063_*.
+
+**Coverage limits**: PayableDetailPage "Bảng kê thanh toán" ledger not measured
+(`/api/suppliers/1` returns "Lỗi máy chủ" — pre-existing, rung 0); sibling
+record-table surfaces beyond the brief's named candidates not swept (same
+defect class would need its own card). Verification ran on worktree vite :7176
+because :7175 was taken mid-session by the main checkout's frontend (PID 99794
+— untouched); API shared at :3002. Branch `fix-181026021137-fb063-header-wrap`
+— commit local, DO NOT merge per brief.
