@@ -1,0 +1,5 @@
+# runtime research databases (adr_premium.db et al.) stay local
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
