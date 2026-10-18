@@ -24,6 +24,51 @@ control thay đổi; claim rung-3 của các luồng thuộc card trước, arti
 270) là stale — nội dung 3 fix của nó đã có trên main phong phú hơn; KHÔNG
 merge nếu không có chỉ định. Brief nhắc branch `fix-lcl-hoan-thien` không
 tồn tại trên origin.
+# HANDOFF — 2026-10-18 — card 191026100030: chiphispec verify gaps (fix-chiphispec-gaps-rb2)
+
+**Goal**: verify + fix the remaining chiphispec (`Fix lại các chi phí của từng
+phân hệ.docx`) gaps on top of 09ff9406 (§1-2) / cddf3315 (§3) — QA-guide
+scenarios B.1–B.6 (`docs/qa-guides/2026-10-16_huong-dan-kiem-thu-hang-le-chi-phi.docx`).
+REDO of the dead `fix-chiphispec-gaps-rb1` run (passed all gates, died before
+commit+push); change-set reconstructed from its reviewed final state.
+
+**Verified, no change**: §2 dup-warning format (name-first, `OPS #<id>`
+fallback — `opsDuplicateWho`); §3a hoàn cược 4-số-cuối (digit-run lookup +
+CUS autofill, card 171026212000 already landed); §3b thêm khoản chi gọn
+(FB-097: 2 nhóm, NCC=nhà xe default, HĐ tùy chọn, thu=trả, nhập liên tục).
+
+**Fixed** (regression cases CP-GAP-01..05 in
+`testplan/2026-10-18-card191026100030-chiphispec-gaps.md`):
+1. Driver cost photo gate re-scoped to mirror `insertDriverIncidentalCostTx`
+   exactly — every DRIVER_SHIPMENT row (incl. negative) requires the biên lai
+   (message = BE's own line), ordinary Tiền đường rows no longer blocked.
+   `DriverExpenseCorrection` drops Số/Ngày hóa đơn + stops sending
+   invoiceNumber/invoiceDate (omit ≠ null — a hidden-field null used to WIPE
+   legacy stored numbers on any edit).
+2. Lotless-trip (hàng-lẻ wave-model) defect class on the READ side: 6 sites
+   (works list, phoi board, chi-hô, voucher, void, THU ghiChu join) + the
+   `assertTripShipmentAccountingUnlocked` FAIL-OPEN now resolve the trip's lot
+   via `coalesce(trips.shipment_id, shipment_fulfillments.shipment_id)`.
+   `backend/src/tests/lotless-trip-read-fallback.test.ts` (7 cases).
+3. Chốt-debit polish: ≤40px header buttons <768, dead selector gone,
+   scroll-cue re-hung to the 641–1107 band (its `ledger-desktop` class made it
+   unshowable), inert rows lose the pointer cursor, money cells wrap instead of
+   spilling, DebitSettlementRoundDialog hex fallbacks → `--ink-3`/`--err`.
+
+**Gates**: BE/FE tsc 0; `pnpm lint` 0 (1 pre-existing unused-import error
+fixed forward); scoped combined `tsx --test` (lotless-trip-read-fallback +
+phoi-phieu-control) 49/49 + sibling suites green (record incl. both
+environment notes: `qa/2026-10-18_chiphispec-gaps_gates.md`). Independent
+code-reviewer pass (on the lost run): PASS w/ minor findings, all resolved in
+this change-set.
+
+**Limits**: UI claims are rung 1 (code-read + DOM tests) — no live browser
+drive this lane; the unfiltered `/accounting/expenses` read 409s the whole
+screen when any stale source row exists (`hydrateExpenseAccountingSource`) —
+seen only under parallel-test teardown residue, not reproduced in normal use;
+`card197-negative-cost-totals`' companywide TỔNG CỘNG equality races sibling
+fixture writes when the 10-file batch runs in parallel (serialized green) —
+pre-existing test fragility, worth a scoping card.
 
 ---
 
