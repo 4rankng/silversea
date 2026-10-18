@@ -219,6 +219,8 @@ export async function assignLclCostGroup(input: {
   vehicleSizeClassId: number;
   actualTruckNo: string;
   billingTruckNo?: string;
+  /** SPEC 18/10/2026 §2.3 — per-lot BKS báo khách; wins over the group value. */
+  billingTruckNos?: Array<{ shipmentId: number; billingTruckNo: string }>;
   /** 161026232309 — the group's nhà xe (customers.isCarrier). */
   carrierId?: number;
   /** 161026232309 — OWN = Đội xe nội bộ SilverSea (container classes). */

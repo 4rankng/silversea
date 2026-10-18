@@ -913,6 +913,16 @@ export async function assignLclCostGroup(
     const vehicleClass = await loadVehicleClass(tx, input.vehicleSizeClassId);
     const actualTruckNo = input.actualTruckNo.trim();
     const billingTruckNo = (input.billingTruckNo?.trim() || actualTruckNo);
+    // SPEC 18/10/2026 §2.3 — per-lot "BKS báo khách". The group value is the
+    // default; an override must name a lot in this very group.
+    const billingByShipment = new Map(
+      (input.billingTruckNos ?? []).map((entry) => [entry.shipmentId, entry.billingTruckNo.trim()]),
+    );
+    for (const shipmentId of billingByShipment.keys()) {
+      if (!input.shipmentIds.includes(shipmentId)) {
+        throw new ApiError(400, 'BKS báo khách từng lô phải thuộc nhóm lô đang gán');
+      }
+    }
 
     const [internalTruck] = await tx.select({ id: s.trucks.id })
       .from(s.trucks)
@@ -939,7 +949,7 @@ export async function assignLclCostGroup(
         costGroupId: groupId,
         costGroupOrder: index + 1,
         actualTruckNo,
-        billingTruckNo,
+        billingTruckNo: billingByShipment.get(row.id) ?? billingTruckNo,
         costVehicleClassId: vehicleClass.id,
         version: row.version + 1,
         updatedBy: actor.userId,

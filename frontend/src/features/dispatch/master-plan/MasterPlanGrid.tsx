@@ -17,6 +17,7 @@ import {
   truncateNote,
   type ActiveNoteDetail,
 } from './MasterPlanNoteModal';
+import { Checkbox as UUICheckbox } from '../../../components/untitled-ui/base/checkbox/checkbox';
 import '../../../styles/operational-table-typography.css';
 import './MasterPlanGrid.css';
 
@@ -33,6 +34,11 @@ interface MasterPlanGridProps {
    *  lots only (`assertDispatcherCanMutateShipmentIntake`), so for that role the
    *  note affordance is offered where the save can succeed and nowhere else. */
   notesIntakeOnly?: boolean;
+  /** SPEC 18/10/2026 §2.1 — LCL multi-select feeding the "Gán xe nhóm" bar.
+   *  When present, LCL rows get the leading checkbox column; FCL rows keep an
+   *  empty cell. Grouped lots are refused until un-merged. */
+  selectedLclShipmentIds?: ReadonlySet<number>;
+  onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
 }
 
 /** Schedule blocks: one per container appointment — the ICT line leads in the
