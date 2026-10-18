@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { EmptyState } from '../../../design-system';
+import { EmptyState, TextField } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
+import { useToastOptional } from '../../../components/shared/Toast';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
 import type { DispatchDetailPlanAssignmentCounts, DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
+import { updateLclTruck } from '../../../api/dispatchPlanningClient';
 import { Modal } from '../../../components/UI';
 import {
   DispatchPlanEditorCell,
@@ -134,6 +136,10 @@ interface DetailedPlanGridProps {
    *  choosing "Hủy ghép" raises the leaving lot so the page can confirm the
    *  SPEC §4 promotion guard before calling the server. */
   onUnmergeLclLot?: (request: LclUnmergeLotRequest) => void;
+  /** Card B 18/10 (B.1) — called after the badge menu's "Đổi nhà xe/BKS"
+   *  saved through updateLclTruck, so the page refetches the rows (the
+   *  group's BKS pair + every member's planned plate may have moved). */
+  onLclTruckUpdated?: () => void;
 }
 
 /** FB-095 — the leaving lot's identity for the confirm guard copy. */
@@ -176,6 +182,7 @@ export function DetailedPlanGrid({
   onToggleLclSelection,
   onUnmergeLclGroup,
   onUnmergeLclLot,
+  onLclTruckUpdated,
   onEnsureFulfillment,
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
@@ -185,6 +192,14 @@ export function DetailedPlanGrid({
   const [expandedNote, setExpandedNote] = useState<{ title: string; text: string; driver?: boolean } | null>(null);
   // FB-095 — the grouped row whose badge menu (Xem nhóm / Hủy ghép) is open.
   const [groupMenuRow, setGroupMenuRow] = useState<DispatchDetailPlanRow | null>(null);
+  // Card B 18/10 (B.1) — the badge menu's "Đổi nhà xe/BKS" edit state: the
+  // BKS pair pre-filled from the group, saved through the FB-093 endpoint
+  // (`updateLclTruck` — actual rewrites every group member, billing the named
+  // lot only), with the page refetching via `onLclTruckUpdated`.
+  const [groupTruckDraft, setGroupTruckDraft] = useState<{ actual: string; billing: string } | null>(null);
+  const [savingGroupTruck, setSavingGroupTruck] = useState(false);
+  const [groupTruckError, setGroupTruckError] = useState<string | null>(null);
+  const toastCtx = useToastOptional();
   // `items` is ONE server page of the plan, so Xem nhóm can only see the
   // on-page members of the group — the menu says how many live elsewhere.
   const groupMenuMembers = groupMenuRow?.lcl?.group
@@ -668,57 +683,157 @@ export function DetailedPlanGrid({
       </Modal>
 
       {/* FB-095 — the badge menu: Xem nhóm (members + truck identity) and the
-          group's one action. The page owns the SPEC §4 confirm guard, the
-          server call and the refresh — the grid only raises the leaving lot. */}
+          group's actions. Card B 18/10 (B.1) adds "Đổi nhà xe/BKS": the
+          group's BKS pair edits in place (pre-filled), saving through the
+          FB-093 `updateLclTruck` endpoint — the one write that keeps the whole
+          cost group (and the lots' planned plates) coherent. The page owns the
+          SPEC §4 confirm guard for Hủy ghép — the grid only raises the leaving
+          lot. */}
       <Modal
         isOpen={groupMenuRow != null}
         title={`Nhóm ghép trả ĐV · Lẻ (${groupMenuRow?.lcl?.group?.order ?? '?'}/${groupMenuRow?.lcl?.group?.memberCount ?? '?'})`}
-        onClose={() => setGroupMenuRow(null)}
+        onClose={() => { setGroupMenuRow(null); setGroupTruckDraft(null); setGroupTruckError(null); }}
         maxWidth={420}
         footer={(
           <>
-            <button type="button" className="btn btn--secondary btn--sm" onClick={() => setGroupMenuRow(null)}>Đóng</button>
-            <button
-              type="button"
-              className="btn btn--primary btn--sm"
-              onClick={() => {
-                const group = groupMenuRow?.lcl?.group;
-                if (!groupMenuRow || !group || !onUnmergeLclLot) return;
-                onUnmergeLclLot({
-                  shipmentId: groupMenuRow.shipmentId,
-                  order: group.order,
-                  memberCount: group.memberCount,
-                });
-                setGroupMenuRow(null);
-              }}
-            >
-              Hủy ghép
-            </button>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setGroupMenuRow(null); setGroupTruckDraft(null); setGroupTruckError(null); }}>Đóng</button>
+            {groupTruckDraft == null && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => {
+                  const group = groupMenuRow?.lcl?.group;
+                  if (!groupMenuRow || !group) return;
+                  setGroupTruckDraft({
+                    actual: group.actualTruckNo ?? '',
+                    billing: group.billingTruckNo ?? '',
+                  });
+                  setGroupTruckError(null);
+                }}
+              >
+                Đổi nhà xe/BKS
+              </button>
+            )}
+            {groupTruckDraft != null && (
+              <DisabledActionTip
+                id="lcl-group-truck-save"
+                reason={savingGroupTruck ? 'Đang lưu xe nhóm…' : null}
+              >
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  aria-disabled={savingGroupTruck || undefined}
+                  onClick={() => {
+                    if (!groupMenuRow || savingGroupTruck) return;
+                    const group = groupMenuRow.lcl?.group;
+                    if (!group) return;
+                    const actual = groupTruckDraft.actual.trim();
+                    const billing = groupTruckDraft.billing.trim();
+                    if ((!actual || actual === (group.actualTruckNo ?? '')) && (!billing || billing === (group.billingTruckNo ?? ''))) {
+                      setGroupTruckError('Chưa có gì thay đổi — sửa BKS thực hoặc BKS báo khách trước khi lưu.');
+                      return;
+                    }
+                    setSavingGroupTruck(true);
+                    setGroupTruckError(null);
+                    void updateLclTruck({
+                      shipmentId: groupMenuRow.shipmentId,
+                      ...(actual !== (group.actualTruckNo ?? '') && actual !== '' ? { actualTruckNo: actual } : {}),
+                      ...(billing !== (group.billingTruckNo ?? '') && billing !== '' ? { billingTruckNo: billing } : {}),
+                    })
+                      .then((result) => {
+                        toastCtx?.toast({
+                          kind: 'success',
+                          message: `Đã đổi xe nhóm — ${result.updatedShipmentIds.length} lô cập nhật BKS.`,
+                        });
+                        setGroupMenuRow(null);
+                        setGroupTruckDraft(null);
+                        onLclTruckUpdated?.();
+                      })
+                      .catch((err: unknown) => {
+                        setGroupTruckError(err instanceof Error ? err.message : 'Đổi xe nhóm thất bại');
+                      })
+                      .finally(() => setSavingGroupTruck(false));
+                  }}
+                >
+                  {savingGroupTruck ? 'Đang lưu…' : 'Lưu xe nhóm'}
+                </button>
+              </DisabledActionTip>
+            )}
+            {groupTruckDraft == null && (
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={() => {
+                  const group = groupMenuRow?.lcl?.group;
+                  if (!groupMenuRow || !group || !onUnmergeLclLot) return;
+                  onUnmergeLclLot({
+                    shipmentId: groupMenuRow.shipmentId,
+                    order: group.order,
+                    memberCount: group.memberCount,
+                  });
+                  setGroupMenuRow(null);
+                }}
+              >
+                Hủy ghép
+              </button>
+            )}
           </>
         )}
       >
         {groupMenuRow?.lcl?.group && (
           <div className="detailed-plan-grid__lcl-group-menu">
-            <p className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-              {lclGroupTagTitle(groupMenuRow.lcl.group)}
-            </p>
-            {groupMenuRow.lcl.group.vehicleClassName && (
-              <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">
-                {`Loại xe: ${groupMenuRow.lcl.group.vehicleClassName}`}
-              </p>
+            {groupTruckDraft == null && (
+              <>
+                <p className="detailed-plan-grid__line detailed-plan-grid__line--strong">
+                  {lclGroupTagTitle(groupMenuRow.lcl.group)}
+                </p>
+                {groupMenuRow.lcl.group.vehicleClassName && (
+                  <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                    {`Loại xe: ${groupMenuRow.lcl.group.vehicleClassName}`}
+                  </p>
+                )}
+              </>
             )}
-            <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">Thành viên nhóm:</p>
-            <ul className="detailed-plan-grid__lcl-group-menu-list">
-              {groupMenuMembers.map((member) => (
-                <li key={member.shipmentId} className="detailed-plan-grid__line">
-                  {`Lô ${member.lcl?.group?.order ?? '?'} · ${billBookingReference(member.docs.billNumber)}`}
-                </li>
-              ))}
-            </ul>
-            {groupMenuMissing > 0 && (
-              <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">
-                {`Còn ${groupMenuMissing} thành viên ở trang khác`}
-              </p>
+            {groupTruckDraft != null && (
+              <div>
+                {/* Card B 18/10 (B.1): the scope law the dispatcher must see
+                    before saving — actual = the WHOLE group's truck, billing =
+                    THIS lot's "xe báo khách" only. */}
+                <TextField
+                  id="lcl-group-truck-actual"
+                  label="BKS thực (cả nhóm ghép)"
+                  autoComplete="off"
+                  value={groupTruckDraft.actual}
+                  onChange={(event) => setGroupTruckDraft((current) => (current == null ? current : { ...current, actual: event.target.value }))}
+                />
+                <TextField
+                  id="lcl-group-truck-billing"
+                  label="BKS báo khách (riêng lô này)"
+                  autoComplete="off"
+                  value={groupTruckDraft.billing}
+                  onChange={(event) => setGroupTruckDraft((current) => (current == null ? current : { ...current, billing: event.target.value }))}
+                />
+              </div>
+            )}
+            {groupTruckError && (
+              <p className="detailed-plan-grid__line detailed-plan-grid__line--warning" role="alert">{groupTruckError}</p>
+            )}
+            {groupTruckDraft == null && (
+              <>
+                <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">Thành viên nhóm:</p>
+                <ul className="detailed-plan-grid__lcl-group-menu-list">
+                  {groupMenuMembers.map((member) => (
+                    <li key={member.shipmentId} className="detailed-plan-grid__line">
+                      {`Lô ${member.lcl?.group?.order ?? '?'} · ${billBookingReference(member.docs.billNumber)}`}
+                    </li>
+                  ))}
+                </ul>
+                {groupMenuMissing > 0 && (
+                  <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                    {`Còn ${groupMenuMissing} thành viên ở trang khác`}
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}

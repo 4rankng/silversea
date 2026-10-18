@@ -108,6 +108,14 @@ export interface IssueFulfillmentDispatchOrderInput {
    * covers the family.
    */
   rigOverlapCompletedConfirmed?: boolean;
+  /**
+   * Card B 18/10 (B.2) — warn-once plate gate for EXTERNAL issues: issuing a
+   * vendor truck whose plate is not known yet is legal (card 20261004_359)
+   * but must never pass silently — the first attempt is refused once with
+   * PLATE_DEFERRED_CONFIRM and the operator's confirmed retry carries this
+   * flag. Internal-fleet issues never see this gate (the truck IS the plate).
+   */
+  plateDeferredConfirmed?: boolean;
   idempotencyKey: string;
   actor: DispatchActor;
 }
@@ -520,16 +528,30 @@ export async function issueOrderCreateOrUpdate(
     }
     externalPlateNumber = carrierVehicle?.licensePlate
       ?? trimBounded(input.externalPlateNumber, 'Biển số xe ngoài', 20);
-    // Driver identity is optional since 2026-09-08: external carriers don't
-    // use the driver app, so the name/phone are informational only — the trip
-    // is completed by dispatch/CUS on the driver's behalf (trips complete-external).
-    externalDriverName = trimBounded(input.externalDriverName, 'Tên tài xế ngoài', 100);
-    externalDriverPhone = trimBounded(input.externalDriverPhone, 'Số điện thoại tài xế ngoài', 20);
     // Card 20261004_359: a plate is NO LONGER required to issue an external
     // dispatch — dispatch may issue before the plate is known ("Bổ sung sau",
     // the plan-save path already shipped this contract) and the plate rides in
     // later through the reassign flow. Completion (trip-external-close)
     // carries the new mandatory-plate gate instead.
+    // Card B 18/10 (B.2) — customer re-report: the allowance must never pass
+    // SILENTLY. A plate-less vendor issue warns once; the operator confirms
+    // and the confirmed retry proceeds. The trip then runs with a NULL
+    // external plate — recorded downstream (trips, POD print, the completion
+    // gate at trip-external-close which refuses the close until the plate is
+    // added via Phân xe lại). Internal fleet keeps the exact truck contract
+    // above; this gate never sees it.
+    if (externalPlateNumber == null && externalCarrierVehicleId == null && input.plateDeferredConfirmed !== true) {
+      throw new ApiError(409,
+        'Phát lệnh chưa có biển số xe nhà xe ngoài — chuyến sẽ ghi nhận "chưa có biển" '
+        + 'cho đến khi bổ sung qua Phân xe lại (và không thể hoàn thành trước khi có biển). Vẫn phát lệnh?',
+        undefined,
+        { code: 'PLATE_DEFERRED_CONFIRM' });
+    }
+    externalDriverName = trimBounded(input.externalDriverName, 'Tên tài xế ngoài', 100);
+    externalDriverPhone = trimBounded(input.externalDriverPhone, 'Số điện thoại tài xế ngoài', 20);
+    // Driver identity is optional since 2026-09-08: external carriers don't
+    // use the driver app, so the name/phone are informational only — the trip
+    // is completed by dispatch/CUS on the driver's behalf (trips complete-external).
   }
 
   const lockIds = [truckId, trailerId, driverId].filter((id): id is number => id != null);

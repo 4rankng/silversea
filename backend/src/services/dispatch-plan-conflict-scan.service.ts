@@ -53,6 +53,67 @@ function expectedDeliveryDayStart(day: string | null): Date | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T00:00:00+07:00`) : null;
 }
 
+/** The identity facts both holder scans now carry (card B 18/10, B.4). */
+export interface RigHolderFacts {
+  shipmentId: number;
+  costGroupId: string | null;
+  shipmentCode: string | null;
+  blNumber: string | null;
+  bookingRef: string | null;
+  slotAt: Date | null;
+}
+
+const viInstant = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/** "Lô BLCUSa29BD" / "Lô SHP-2610-01349" / "Lô #61959" — the reference the
+ *  dispatcher reads in the grid, best available first. */
+export function rigHolderLabel(holder: Pick<RigHolderFacts, 'shipmentId' | 'shipmentCode' | 'blNumber' | 'bookingRef'>): string {
+  const ref = holder.shipmentCode?.trim() || holder.blNumber?.trim() || holder.bookingRef?.trim();
+  return ref ? `Lô ${ref}` : `Lô #${holder.shipmentId}`;
+}
+
+/** The scan's slot coalesce mixes timestamptz columns with the day-claim
+ *  expression; the driver may hand back a Date or a naive wall-time string.
+ *  Naive strings are already Asia/Ho_Chi_Minh wall time (the SQL shifted
+ *  them) — anchor them there, never in the server's zone. */
+function asSlotDate(value: Date | string | null): Date | null {
+  if (value == null) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const text = String(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(text)) return null;
+  const anchored = text.includes('+') || text.endsWith('Z')
+    ? text.replace(' ', 'T')
+    : `${text.replace(' ', 'T')}+07:00`;
+  const parsed = new Date(anchored);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** The conflicting lots + their claimed slot, in the guard's message — the
+ *  customer asked the refusal to name WHAT is holding the rig and WHEN
+ *  ("đã gáp cho lô tác vụ khác trong khung giờ trùng"). */
+export function describeRigHolders(holders: RigHolderFacts[]): string {
+  return holders
+    .map((holder) => {
+      const slot = asSlotDate(holder.slotAt);
+      return `${rigHolderLabel(holder)}${slot ? ` (từ ${viInstant.format(slot)})` : ''}`;
+    })
+    .join(', ');
+}
+
+/** The saving row's own cost group, for the Ghép-trả-ĐV sibling carve-out. */
+export async function shipmentCostGroupId(tx: Tx, shipmentId: number | null | undefined): Promise<string | null> {
+  if (shipmentId == null) return null;
+  const [row] = await tx.select({ costGroupId: s.shipments.costGroupId })
+    .from(s.shipments).where(eq(s.shipments.id, shipmentId)).limit(1);
+  return row?.costGroupId ?? null;
+}
+
 export async function resolvePlanRowWindow(
   tx: Tx,
   fulfillment: { shipmentId: number; shipmentContainerId: number | null },
@@ -129,6 +190,14 @@ export async function scanPlanRowHolders(
     id: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
     fallbackSlot: isNull(s.shipmentContainers.customerAppointmentAt),
+    // Card B 18/10 (B.4): the guard's message must NAME the conflicting lot
+    // and window, and same-COST-GROUP siblings must never read as cross-lot
+    // claims — the group's shared truck is the arrangement itself.
+    costGroupId: s.shipments.costGroupId,
+    shipmentCode: s.shipments.shipmentCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+    slotAt: sql<Date>`${holderStartSql}`,
   })
     .from(s.shipmentFulfillments)
     // Review M1 (card 171026121100): the left join admits container-less
@@ -173,6 +242,12 @@ export async function scanLclPlanRowHolders(
     id: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
     fallbackSlot: sql`(${lclHolderSlotSql}) is null`,
+    // Card B 18/10 (B.4) — same identity/window facts as the FCL branch.
+    costGroupId: s.shipments.costGroupId,
+    shipmentCode: s.shipments.shipmentCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+    slotAt: sql<Date>`${lclHolderStartSql}`,
   })
     .from(s.shipmentFulfillments)
     .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
@@ -259,6 +334,12 @@ export async function assertTripRigAvailable(
   }
   const isKepPairing = classification === 'DOUBLE';
 
+  // Card B 18/10 (B.4) — the Ghép-trả-ĐV carve-out key: the saving trip's lot
+  // cost group, when the caller carries a shipment context.
+  const ownCostGroupId = await shipmentCostGroupId(tx, args.shipmentId);
+  const isSameGroup = (conflict: RigHolderFacts, ownGroupId: string | null): boolean =>
+    ownGroupId != null && conflict.costGroupId != null && conflict.costGroupId === ownGroupId;
+
   const planConflicts = isKepPairing
     ? []
     : await scanPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId ?? -1);
@@ -316,9 +397,16 @@ export async function assertTripRigAvailable(
     ? activeConflictsRaw
     : activeConflictsRaw.filter((conflict) => conflict.id !== kepPartnerTripId);
 
-  const crossLotConflicts = planConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
-  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
+  const crossLotConflicts = planConflicts
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict, ownCostGroupId));
+  const crossLotLclConflicts = lclPlanConflicts
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict, ownCostGroupId));
   const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
+  // Card B 18/10 (B.4): the saving trip's own Ghép-trả-ĐV group siblings —
+  // the group's shared truck is the arrangement, so they ride the warn tier
+  // with the lot's-own-rotation case, never the hard cross-lot tier.
+  const groupSiblings = [...planConflicts, ...lclPlanConflicts]
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId && isSameGroup(conflict, ownCostGroupId));
   const planRowBlocked = crossLotConflicts.length > 0 || crossLotLclConflicts.length > 0;
   const weakEvidence = !strong
     || degenerateEnd
@@ -328,17 +416,24 @@ export async function assertTripRigAvailable(
 
   if (planRowBlocked || activeConflicts.length > 0) {
     if (!weakEvidence) {
-      throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+      // Card B 18/10 (B.4): the refusal names the conflicting lot(s) + window.
+      throw new ApiError(409,
+        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
+        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '.');
     }
     if (!args.confirmOverlap) {
       throw new ApiError(409,
-        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
+        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '. Vẫn lưu?',
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }
   } else if (sameLotPlanClaim && !args.confirmOverlap) {
     throw new ApiError(409,
-      `Đầu xe ${plate} đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?`,
+      groupSiblings.length > 0
+        ? `Đầu xe ${plate} đang chạy cùng nhóm ghép trả ĐV với `
+          + describeRigHolders(groupSiblings) + ' trong khung giờ trùng lặp. Vẫn lưu?'
+        : `Đầu xe ${plate} đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?`,
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' });
   }

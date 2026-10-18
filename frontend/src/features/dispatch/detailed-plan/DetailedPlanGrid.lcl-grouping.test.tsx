@@ -204,3 +204,5 @@ describe('FB-092 — line helpers', () => {
     expect(lclMeasureLine(baseRow({ lcl: null }))).toBe('1.922 kg');
   });
 });
+
+

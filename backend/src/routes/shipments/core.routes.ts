@@ -94,6 +94,10 @@ const fulfillmentDispatchSchema = z.object({
   // a caller of the shared guard and must carry the confirm flag like the
   // plan-save and reassign endpoints, or its warn has no path on (review B2).
   rigOverlapCompletedConfirmed: z.boolean().optional(),
+  // Card B 18/10 (B.2) — the plate-less EXTERNAL issue warn-once retry: the
+  // first attempt is refused with PLATE_DEFERRED_CONFIRM; the operator's
+  // confirmed retry carries this flag.
+  plateDeferredConfirmed: z.boolean().optional(),
 });
 
 const completeShipmentDirectSchema = z.object({
@@ -843,6 +847,7 @@ coreRoutes.post(
       externalDriverName: parsed.data.externalDriverName ?? null,
       externalDriverPhone: parsed.data.externalDriverPhone ?? null,
       rigOverlapCompletedConfirmed: parsed.data.rigOverlapCompletedConfirmed === true,
+      plateDeferredConfirmed: parsed.data.plateDeferredConfirmed === true,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     });

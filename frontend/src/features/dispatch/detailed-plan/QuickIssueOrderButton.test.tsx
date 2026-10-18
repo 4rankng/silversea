@@ -89,6 +89,42 @@ describe('VID-DSP-02 direct release', () => {
     expect(issue.mock.calls[1][1]).toMatchObject({ rigOverlapCompletedConfirmed: true });
   });
 
+  it('a plate-less external issue warns once, and the confirmed retry carries the flag (card B 18/10, B.2)', async () => {
+    const deferred = Object.assign(
+      new Error('Phát lệnh chưa có biển số xe nhà xe ngoài — chuyến sẽ ghi nhận "chưa có biển" '
+        + 'cho đến khi bổ sung qua Phân xe lại (và không thể hoàn thành trước khi có biển). Vẫn phát lệnh?'),
+      { status: 409, raw: { code: 'PLATE_DEFERRED_CONFIRM' } },
+    );
+    const plateless = row('EXTERNAL');
+    plateless.dispatch = { ...plateless.dispatch, assignedPlate: null };
+    const issue = vi.fn()
+      .mockRejectedValueOnce(deferred)
+      .mockResolvedValue({});
+    render(<QuickIssueOrderButton row={plateless} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
+
+    const confirm = await screen.findByRole('button', { name: 'Xác nhận' });
+    fireEvent.click(confirm);
+    await waitFor(() => expect(issue).toHaveBeenCalledTimes(2));
+    expect(issue.mock.calls[1][1]).toMatchObject({ plateDeferredConfirmed: true });
+  });
+
+  it('declining the plate-less warning keeps the row unissued', async () => {
+    const deferred = Object.assign(
+      new Error('Phát lệnh chưa có biển số xe nhà xe ngoài. Vẫn phát lệnh?'),
+      { status: 409, raw: { code: 'PLATE_DEFERRED_CONFIRM' } },
+    );
+    const plateless = row('EXTERNAL');
+    plateless.dispatch = { ...plateless.dispatch, assignedPlate: null };
+    const issue = vi.fn().mockRejectedValue(deferred);
+    render(<QuickIssueOrderButton row={plateless} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Phát lệnh chưa có biển số xe'));
+    expect(issue).toHaveBeenCalledTimes(1);
+  });
+
   it('uses Vietnam time for a legacy date/hour row independently of the browser timezone', async () => {
     const issue = vi.fn().mockResolvedValue({});
     const legacy = row('EXTERNAL');

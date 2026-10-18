@@ -5,10 +5,13 @@
  */
 import { CUSTOMER_OPERATIONAL_NAME, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, assertDispatchActor, parseIsoWithZone, toIsoOrNull } from './dispatch-planning-utils.service';
 import {
+  describeRigHolders,
   resolvePlanRowWindow,
   scanLclPlanRowHolders,
   scanPlanRowHolders,
+  shipmentCostGroupId,
   type PlanRowWindow,
+  type RigHolderFacts,
 } from './dispatch-plan-conflict-scan.service';
 import { loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
 import { ApiError } from '../errors';
@@ -713,9 +716,21 @@ async function assertPlanRowRigAvailable(
   // (confirm proceeds) and can never pin the hard tier. Found as a trunk-red
   // on the dispatch-detail-plan suite after card 101026043000 landed: the OWN
   // happy path (same truck on all three containers) went 409 with no path on.
-  const crossLotConflicts = planConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
-  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
-  const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
+  // Card B 18/10 (B.4): a Ghép-trả-ĐV cost group's siblings are the SAME
+  // deliberate arrangement one level up — different lots, one shared truck in
+  // one shared window BY DESIGN (the group assignment wrote it). They must
+  // never count as cross-lot claims; they ride the warn tier with the
+  // lot's-own-rotation case, with a message naming the group.
+  const ownCostGroupId = await shipmentCostGroupId(tx, args.shipmentId);
+  const isSameGroup = (conflict: RigHolderFacts): boolean =>
+    ownCostGroupId != null && conflict.costGroupId != null && conflict.costGroupId === ownCostGroupId;
+  const groupSiblings = [...planConflicts, ...lclPlanConflicts]
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId && isSameGroup(conflict));
+  const crossLotConflicts = planConflicts
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict));
+  const crossLotLclConflicts = lclPlanConflicts
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict));
+const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
 const planRowBlocked = isKepPairing ? false : (crossLotConflicts.length > 0 || crossLotLclConflicts.length > 0);
 // Evidence strength (card 101026043000, FB-038 ruling "WARNING, not a hard
 // block"): a PROVABLE overlap keeps its pinned tier — an active trip or plan
@@ -724,7 +739,9 @@ const planRowBlocked = isKepPairing ? false : (crossLotConflicts.length > 0 || c
 // degenerate staged end must WARN once and let the confirmed save proceed —
 // never a silent save, never a guessed hard block (card 363's own "cannot
 // prove overlap" law). The warn rides the family's warn-once contract
-// (RIG_OVERLAP_COMPLETED + rigOverlapCompletedConfirmed) verbatim.
+// (RIG_OVERLAP_COMPLETED + rigOverlapCompletedConfirmed) verbatim. Group
+// siblings are carved out above, so their evidence never degrades a true
+// cross-lot tier either.
 const weakEvidence = !args.window.strong
   || degenerateEnd
   || crossLotConflicts.some((conflict) => conflict.fallbackSlot)
@@ -734,18 +751,28 @@ const weakEvidence = !args.window.strong
   || crossLotLclConflicts.some((conflict) => conflict.fallbackSlot);
 if (planRowBlocked || tripConflicts.length > 0) {
     if (!weakEvidence) {
-      throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+      // Card B 18/10 (B.4): name the conflicting lot(s) + window, so the
+      // refusal answers the customer's "what is this?" on sight.
+      throw new ApiError(409,
+        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
+        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '.');
     }
     if (!args.confirmOverlap) {
       throw new ApiError(409,
-        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
+        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '. Vẫn lưu?',
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }
   } else if (!isKepPairing && sameLotPlanClaim && !args.confirmOverlap) {
     // The lot's own rotation: warn once, never silently, never a hard block.
+    // A Ghép-trả-ĐV group's siblings share the truck by design — the message
+    // says so instead of reading as a foreign claim (card B 18/10, B.4).
     throw new ApiError(409,
-      `Đầu xe ${plate} đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?`,
+      groupSiblings.length > 0
+        ? `Đầu xe ${plate} đang chạy cùng nhóm ghép trả ĐV với `
+          + describeRigHolders(groupSiblings) + ' trong khung giờ trùng lặp. Vẫn lưu?'
+        : `Đầu xe ${plate} đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?`,
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' });
   }

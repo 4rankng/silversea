@@ -296,6 +296,16 @@
   font-weight: 400;
 }
 
+/* Card B 18/10 (customer: "số container in đậm, cảng không in đậm") — the
+   container-count lines under a port are the dispatchers' scan target, the
+   same law the detail plan pinned in card 20261005_361. Each location block
+   renders the port name first and the container summaries after it, so the
+   adjacent sibling targets exactly the summary lines; the port line keeps
+   its regular weight. */
+.master-plan-grid__location-value + .master-plan-grid__location-value {
+  font-weight: var(--ops-table-primary-weight);
+}
+
 .master-plan-grid__line--muted {
   color: var(--fg-3);
   font-size: var(--ops-table-meta-size);

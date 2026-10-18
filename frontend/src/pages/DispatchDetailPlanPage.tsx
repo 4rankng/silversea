@@ -202,6 +202,7 @@ export default function DispatchDetailPlanPage() {
           onToggleLclSelection={toggleLclSelection}
           onUnmergeLclGroup={setUnmergeGroupId}
           onUnmergeLclLot={setUnmergeLot}
+          onLclTruckUpdated={() => { void detailPlan.refresh(); }}
         />
         {selectedLclRows.length > 0 && (
           <div className="lcl-selection-bar" role="status">

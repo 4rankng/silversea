@@ -726,6 +726,10 @@ export interface DispatchShipmentRequest {
   /** Warn-once overlap contract (card 061026172804 family): the dispatcher
    *  confirmed the completed-trip overlap warning and this is the retry. */
   rigOverlapCompletedConfirmed?: boolean;
+  /** Card B 18/10 (B.2) — the plate-less EXTERNAL issue warn-once retry: the
+   *  first attempt is refused with PLATE_DEFERRED_CONFIRM; the operator's
+   *  confirmed retry carries this flag. */
+  plateDeferredConfirmed?: boolean;
 }
 
 /** Response from `POST /api/shipments/:id/dispatch` — the trip it created (or

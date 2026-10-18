@@ -170,6 +170,9 @@ async function issueLot(shipmentId: number, fulfillmentId: number, externalCarri
     endTimeConfirmed: true,
     carrierType: 'EXTERNAL',
     externalCarrierId,
+    // Card B 18/10 (B.2): the plate-less vendor issue now warns once; this
+    // suite pins the MONEY law, so the fixtures ride the confirmed retry.
+    plateDeferredConfirmed: true,
     idempotencyKey,
     actor: dispatchActor,
   });

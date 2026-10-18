@@ -19,7 +19,7 @@ import { Role } from '@tingting/shared';
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
-import { issueOrderCreateOrUpdate } from '../services/dispatch-planning-commands.service';
+import { issueOrderCreateOrUpdate, type IssueFulfillmentDispatchOrderInput } from '../services/dispatch-planning-commands.service';
 import { completeExternalCarrierTrip } from '../services/trip-external-close.service';
 import { getTripFactorySiteView } from '../services/trip-factory-site.service';
 import type { AuthUser } from '../middleware/auth';
@@ -393,17 +393,34 @@ describe('issue external carrier without a plate — "Bổ sung sau" (card 20261
     createdRouteIds.push(route.id);
     const fixture = await mkDispatchableShipment({ customerId: carrier.id, routeId: route.id });
 
-    const outcome = await db.transaction((tx) => issueOrderCreateOrUpdate(tx, {
+    const issueInput: IssueFulfillmentDispatchOrderInput = {
       shipmentId: fixture.shipment.id,
       fulfillmentId: fixture.fulfillment.id,
       expectedVersion: fixture.fulfillment.version,
       plannedStartAt: '2026-08-01T08:00:00+07:00',
       plannedEndAt: '2026-08-01T18:00:00+07:00',
       endTimeConfirmed: true,
-      carrierType: 'EXTERNAL',
+      carrierType: 'EXTERNAL' as const,
       externalCarrierId: carrier.id,
       idempotencyKey: `t8c359-deferred-${suffix}-${fixture.fulfillment.id}`,
       actor: { ...admin, role: Role.ADMIN },
+    };
+    // Card B 18/10 (B.2): the plate-less allowance is no longer silent — the
+    // first attempt is refused once with the PLATE_DEFERRED_CONFIRM payload.
+    await assert.rejects(
+      () => db.transaction((tx) => issueOrderCreateOrUpdate(tx, issueInput)),
+      (err: Error & { statusCode?: number; payload?: { code?: string } }) => {
+        assert.equal(err.statusCode, 409);
+        assert.equal(err.payload?.code, 'PLATE_DEFERRED_CONFIRM');
+        assert.match(err.message, /Vẫn phát lệnh\?/);
+        return true;
+      },
+      'a plate-less vendor issue must warn once before the confirmed retry',
+    );
+    const outcome = await db.transaction((tx) => issueOrderCreateOrUpdate(tx, {
+      ...issueInput,
+      idempotencyKey: `${issueInput.idempotencyKey}-confirmed`,
+      plateDeferredConfirmed: true,
     }));
     createdTripIds.push(outcome.trip.id);
 
@@ -467,6 +484,9 @@ describe('deferred-plate external trips gate completion, not issue (card 2026100
       endTimeConfirmed: true,
       carrierType: 'EXTERNAL',
       externalCarrierId: carrier.id,
+      // Card B 18/10 (B.2): this suite pins the COMPLETION gate — the issue
+      // rides the confirmed plate-less retry.
+      plateDeferredConfirmed: true,
       idempotencyKey: `t8c359-gate-issue-${suffix}-${fixture.fulfillment.id}`,
       actor: { ...admin, role: Role.ADMIN },
     }));
