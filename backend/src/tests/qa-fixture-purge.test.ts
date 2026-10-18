@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { QA_FIXTURE_REGISTRY, registryTables } from '../seed/qa-fixture-registry.js';
 import { censusSurface, censusVisible, purgeSurface } from '../seed/purge-qa-fixtures.js';
-import { listHrRoster } from '../services/user.service.js';
+import { listHrRoster, listBusinessUnits } from '../services/user.service.js';
 
 /** `db.execute` returns the row array in some driver modes and `{ rows }` in
  *  others; every case in this suite reads both shapes. One validated boundary
@@ -113,7 +113,7 @@ describe('QA fixture purge', () => {
   // original fix never covered — business_units had no registry surface at all,
   // and the FB-080 rung fixtures do not carry a QA prefix so they escaped the
   // shipments scrub predicate.
-  it('deactivates QA business units and spares the real one (FB-061 round 14)', async () => {
+  it('hard-deletes QA business units and spares the real one (card 111026105610)', async () => {
     const suffix = Date.now() % 1000000;
     const qaUnit = `QA Audit Unit ${suffix}`;
     const realUnit = `Đơn vị thật ${suffix}`;
@@ -122,7 +122,7 @@ describe('QA fixture purge', () => {
 
     const surface = QA_FIXTURE_REGISTRY.find((s) => s.table === 'business_units');
     strict.ok(surface, 'business_units must be a registered QA fixture surface');
-    strict.equal(surface!.action, 'deactivate');
+    strict.equal(surface!.action, 'hard-delete', 'a deactivated QA unit still renders on /users — the fixture row must be removed outright');
     strict.ok(await censusSurface(surface!) >= 1);
 
     await purgeSurface(surface!, false);
@@ -130,12 +130,36 @@ describe('QA fixture purge', () => {
     const after = await db.execute(sql.raw(`SELECT name, status FROM business_units WHERE name IN ('${qaUnit}', '${realUnit}')`));
     const rows = (Array.isArray(after) ? after : (after as { rows: Array<{ name: string; status: string }> }).rows);
     const byName = new Map(rows.map((r) => [r.name, r.status]));
-    // The QA unit is deactivated in place — its id stays valid for the
-    // user_business_unit_links rows that still point at it.
-    strict.equal(byName.get(qaUnit), 'INACTIVE');
-    strict.equal(byName.get(realUnit), 'ACTIVE');
+    // The QA fixture row is gone entirely. Leaving it INACTIVE was proven
+    // insufficient (QA FAIL 2026-10-18): /users lists INACTIVE units in its
+    // "Đơn vị phụ trách" lifecycle catalog, so the fixture stayed visible.
+    strict.equal(byName.get(qaUnit), undefined, 'the QA unit row must be gone, not merely INACTIVE');
+    strict.equal(byName.get(realUnit), 'ACTIVE', 'a real unit must never be purged');
 
-    await db.execute(sql.raw(`DELETE FROM business_units WHERE name IN ('${qaUnit}', '${realUnit}')`));
+    // Pin the surface the QA report is about, not just the table: /users builds
+    // its "Đơn vị phụ trách" catalog straight from listBusinessUnits(), so that
+    // is where "QA Audit Unit 0914" was still rendering after the deactivate.
+    const catalog = await listBusinessUnits();
+    strict.ok(
+      !catalog.some((u) => u.name === qaUnit),
+      'the /users business-unit catalog must not carry the purged QA fixture',
+    );
+    strict.ok(
+      catalog.some((u) => u.name === realUnit),
+      'a real unit must still reach the /users catalog',
+    );
+
+    // Idempotent: a second pass has nothing left to match and must not touch
+    // the real unit. Guards against a later edit adding a selfGuard or a
+    // predicate that only half-applies on re-run.
+    const second = await purgeSurface(surface!, false);
+    strict.equal(second.deleted, 0, 'a second purge pass must delete nothing');
+    strict.ok(
+      (await listBusinessUnits()).some((u) => u.name === realUnit),
+      'the real unit must survive a repeated purge',
+    );
+
+    await db.execute(sql.raw(`DELETE FROM business_units WHERE name = '${realUnit}'`));
   });
 
   it('scrubs the FB-080 rung fixture family while sparing a real factory name (FB-061 round 14)', async () => {
