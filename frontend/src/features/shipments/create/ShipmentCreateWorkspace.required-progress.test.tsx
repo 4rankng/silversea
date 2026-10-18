@@ -35,8 +35,9 @@ function chipText(): string {
 // Card 171026113510 (QA1-007 verify-fail lần 2): the real complaint was that,
 // after the three identity fields, the chip read "Bắt buộc: 3/3" and no
 // "Cần bổ sung" panel appeared anywhere — the panel was fed by the issue list
-// that only a submit attempt fills. Both must now describe the whole form
-// before the operator ever clicks "Tạo lô hàng".
+// that only a submit attempt fills. The chip now describes the whole form
+// live; the PANEL itself is submit-gated (17/10 de-noise): it must not
+// confront a freshly opened form and surfaces only after "Tạo lô hàng".
 describe('shipment create required progress (chip + missing-info panel)', { timeout: 20000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
@@ -50,7 +51,7 @@ describe('shipment create required progress (chip + missing-info panel)', { time
     });
   });
 
-  it('keeps the whole-form denominator and names the six remaining items before any submit', async () => {
+  it('keeps the whole-form denominator, hides the panel until create is clicked, then names the six remaining items', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
@@ -70,6 +71,11 @@ describe('shipment create required progress (chip + missing-info panel)', { time
 
     // The repro state: three identity fields filled, six still enforced.
     await waitFor(() => expect(chipText()).toBe('Bắt buộc: 3/9'));
+    // The panel is submit-gated: six outstanding items do NOT summon it —
+    // only a "Tạo lô hàng" click does.
+    expect(screen.queryByText(/Cần bổ sung/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     expect(await screen.findByText('Cần bổ sung 6 thông tin')).toBeTruthy();
     const panel = document.querySelector('.csc-validation-summary')!.textContent ?? '';
     expect(panel).toContain('Container 1: chọn loại container.');

@@ -68,6 +68,12 @@ export function ShipmentCreateWorkspace() {
   const [sitesLoading, setSitesLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<ShipmentCreateIssue[]>([]);
+  // Summary de-noise (17/10): the "Cần bổ sung" panel is submit-gated — it may
+  // not confront a freshly opened form. Any action-button save click ("Tạo lô
+  // hàng" on topline/footer, the form submit, or a failed "Lưu nháp", which
+  // owns the DRAFT copy) flips this on; it never flips back, so the panel
+  // keeps updating live until the list empties.
+  const [saveAttempted, setSaveAttempted] = useState(false);
   const { toast } = useToast();
   const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
   const [createSiteDialog, setCreateSiteDialog] = useState<{ open: boolean; siteType: 'FACTORY' | 'WAREHOUSE' }>({ open: false, siteType: 'FACTORY' });
@@ -545,6 +551,7 @@ export function ShipmentCreateWorkspace() {
   }
 
   async function save(intent: SaveIntent) {
+    setSaveAttempted(true);
     // FB-048 (card 141026003600): the native pre-gate used to run FIRST and
     // return, so a partially-typed date/Time field (which sets customValidity
     // on its segments) starved every OTHER required field of its issue — the
@@ -593,11 +600,12 @@ export function ShipmentCreateWorkspace() {
       />
       <form ref={workspaceFormRef} noValidate onSubmit={(event) => { event.preventDefault(); void save('CREATE'); }} className="csc-workspace">
         <ShipmentCreateSummary
-          // QA1-007 wants the panel to exist BEFORE the first save (live
-          // readiness). After a failed save the panel must still speak the SAME
-          // wording as the field paint below — `validationIssues` is that list,
-          // and it is the only one carrying the DRAFT copy ("Chọn khách hàng để
-          // tạo lô hàng."). Prefer it while it is non-empty.
+          // Submit-gated (17/10 de-noise): pristine/dirty-before-create shows
+          // no panel. After the first "Tạo lô hàng" click the panel speaks the
+          // SAME wording as the field paint below — `validationIssues` is that
+          // list, and it is the only one carrying the DRAFT copy ("Chọn khách
+          // hàng để tạo lô hàng."). Prefer it while it is non-empty.
+          showIssues={saveAttempted}
           outstandingIssues={validationIssues.length > 0 ? validationIssues : readiness.issues}
           submitError={submitError}
           onFocusIssue={focusIssue}

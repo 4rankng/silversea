@@ -272,7 +272,15 @@
 .csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
 .csc-pricing__explain { padding-top: 8px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__explain p { margin: 3px 0; }
 .csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
-.csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-soft); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: var(--control-max-h); border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
+/* Summary de-noise (17/10): the panel is a compact, quiet warning card — same
+ * warning palette as the shared Banner (`--warning-soft` fill, `--warning-text`
+ * copy), tight spacing, and a bounded, internally scrolling list at every
+ * width. The old full pink danger wall is gone. */
+.csc-validation-summary { padding: 10px 12px; border-color: color-mix(in srgb, var(--warning) 28%, transparent); border-radius: 10px; background: var(--warning-soft); }
+.csc-validation-summary__title { display: flex; gap: 6px; align-items: center; color: var(--warning-text); }.csc-validation-summary__title svg { flex: none; }
+.csc-validation-summary p { margin: 2px 0 0; font-size: var(--text-caption-size); color: var(--warning-text); }
+.csc-validation-summary ol { display: grid; gap: 1px; margin: 4px 0 0; padding-left: 18px; max-height: min(30vh, 220px); padding-right: 6px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.csc-validation-summary button { border: 0; padding: 2px 0; background: none; color: var(--warning-text); font: inherit; font-size: var(--text-caption-size); line-height: 1.45; text-align: left; text-decoration: underline; cursor: pointer; }
 .csc-submit-error { color: var(--danger); background: var(--danger-soft); font-size: var(--text-data-size); line-height: 1.5; }
 @media (min-width: 1101px) and (min-height: 721px) {
   .csc-section__heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
