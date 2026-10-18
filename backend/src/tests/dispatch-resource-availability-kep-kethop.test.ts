@@ -227,6 +227,30 @@ async function expectConflict(label: string, o: GateOptions) {
 }
 
 /**
+ * Card 181026145600 — the cross-lot tier: a hard "trùng lịch" refusal, NOT the
+ * warn-once payload. A third lot's overlap has no confirm path on this gate,
+ * whatever the confirm flag says.
+ */
+async function expectHardConflict(label: string, o: GateOptions) {
+  await db.transaction(async (tx) => {
+    await assert.rejects(
+      () => assertResourceAvailability(tx, gateArgs(o)),
+      (err: unknown) => {
+        assert.ok(err instanceof ApiError, `${label}: expected ApiError, got ${String(err)}`);
+        assert.equal((err as ApiError).statusCode, 409, `${label}: expected 409, got ${String((err as ApiError).statusCode)}`);
+        assert.equal((err as ApiError).message, 'Xe đầu kéo đã bị trùng lịch kế hoạch.',
+          `${label}: expected the hard truck-conflict message, got "${(err as ApiError).message}"`);
+        const payload = (err as ApiError).payload as { code?: string } | undefined;
+        assert.equal(payload?.code, undefined,
+          `${label}: a hard block must not carry the warn-once code, got ${JSON.stringify(payload)}`);
+        return true;
+      },
+      `${label}: expected a hard 409`,
+    );
+  });
+}
+
+/**
  * Card 061026172804 warn-once contract: the refusal carries
  * `payload.code === 'RIG_OVERLAP_COMPLETED'` so the editor can offer a confirm
  * and retry with the flag. A bare 409 is a dead-end hard block and cannot
@@ -560,5 +584,26 @@ describe('dispatch resource availability — Kẹp / Kết hợp same-rig matrix
     } as const;
     await expectWarnOnce('T19 unconfirmed', issue);
     await expectNoConflict('T19 confirmed', { ...issue, confirmOverlap: true });
+  });
+
+  // Card 181026145600 — the other half of the same-lot law: the shipmentId
+  // carve-out admits ONLY the issuing lot's own sibling. A DIFFERENT lot's
+  // trip on the same rig in the same window stays a hard 409 with the
+  // shipment context present, and the confirm flag must never downgrade it —
+  // a third load has no "Vẫn lưu?" path on this gate.
+  test('T20 cross-lot same-rig overlap with shipment context stays a hard 409', async () => {
+    const holder = await mkLot({ tag: 't20-holder', dayIndex: 32, classification: 'SINGLE', code: '20DC' });
+    const incoming = await mkLot({ tag: 't20-incoming', dayIndex: 32, classification: 'SINGLE', code: '20DC' });
+    const issue = {
+      tripId: null,
+      shipmentId: incoming.shipment.id,
+      code: '20DC',
+      classification: 'SINGLE',
+      start: windows(32).incomingStart,
+      end: windows(32).incomingEnd,
+    } as const;
+    await expectHardConflict('T20 unconfirmed', issue);
+    await expectHardConflict('T20 confirmed', { ...issue, confirmOverlap: true });
+    assert.ok(holder.trip.id > 0);
   });
 });

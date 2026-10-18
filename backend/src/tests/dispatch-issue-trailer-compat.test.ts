@@ -12,11 +12,14 @@
  *   T1 SINGLE 20DC on 40FT rig               → issues          [BUG ROW]
  *   T2 DOUBLE 20DC pair on one 40FT rig      → both issue (Kẹp end-to-end)
  *   T3 40HC on 20FT rig                      → 409 trailer-compat
- *   T4 undeclared same-rig same-day 2nd load → 409 trùng lịch (occupancy law)
+ *   T4 undeclared same-rig same-day 2nd load → warn-once RIG_OVERLAP_COMPLETED,
+ *      confirmed retry issues (card 181026145600: a same-lot sibling warns,
+ *      never hard-blocks)
  *   T5 DOUBLE / LCL_PICKUP 20-code on 20FT   → 409 trailer-compat (floor)
- *   T6 open-ended partner (no plannedEndAt)  → 409 trùng lịch (card
- *      081026230530: an open-ended ACTIVE trip occupies the rig for one
- *      8-hour shift from its start — the fix here must not weaken it)
+ *   T6 open-ended partner (no plannedEndAt)  → warn-once, confirmed retry
+ *      issues (card 081026230530: an open-ended ACTIVE trip occupies the rig
+ *      for one 8-hour shift from its start; card 181026145600: the sibling
+ *      overlap still warns once instead of hard-blocking)
  */
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
