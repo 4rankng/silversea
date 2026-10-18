@@ -1,0 +1,169 @@
+{"level":30,"time":1792337797042,"pid":14521,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+✔ E2E — Auth flow (Login, Me, User List, Create, Delete) (339.043958ms)
+✔ E2E — Duplicate username yields 409 (not 500) with field message (145.877541ms)
+✔ E2E — Catalog endpoints CRUD reads & listings (21.284833ms)
+✔ E2E — Customer duplicate guard blocks create and update conflicts (21.644625ms)
+CREATE TRIP FAIL: {
+  status: 409,
+  data: {
+    error: 'Tài xế đã có 1 chuyến khác trùng khung giờ phân công này. Vẫn lưu?',
+    code: 'RIG_OVERLAP_COMPLETED'
+  }
+} {
+  truckId: 11818,
+  driverId: 3833,
+  customerId: 93352,
+  routeId: 3981,
+  cargoTypeId: 1390
+}
+✖ E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch, Actuals, Lock, Cancel Guard) (12.350625ms)
+✖ E2E — Financial operations (P&L, profit sharing, ledger, statements, receipts) (253.3015ms)
+✔ E2E — Driver portal isolation & earnings summary (18.687125ms)
+✔ FIX17-S01 every Ops may declare on any lot — the assignment grant is gone (70.701125ms)
+✔ FIX17-S02 OPS receipt rows are authoritative over stale native JSON (10.256083ms)
+✔ FIX17-S04 legacy edit and delete cannot mutate native billing mirrors (45.517458ms)
+✔ FIX17-S06 confirmed OPS replacement preserves original, reverses obligation, and links history (49.672583ms)
+✖ QA-AUDIT-PHOI-11 CATALOG correction and forward correction preserve original driver provenance (79.5875ms)
+✖ QA-AUDIT-PHOI-11 NORM correction and forward correction preserve original driver provenance (89.240583ms)
+✖ QA-AUDIT-PHOI-11 LEGACY correction and forward correction preserve original driver provenance (73.133291ms)
+✔ FIX17-S06 CREATED toll correction preserves allowances and replaces actual once (78.780167ms)
+✔ FIX17-S06 COMPLETED toll correction preserves allowances and replaces actual once (110.657542ms)
+✔ FIX17-S07 released reconciliation retains history and permits correction and re-reconciliation (52.589292ms)
+✔ FIX17-S07 cash must be reversed before reconciliation release or confirmed correction (29.827083ms)
+✔ FIX17-S07 active legacy settlement blocks correction until its explicit reversal (71.053542ms)
+✔ FIX17-S08 (card 20260928_171) an amount edit records who / from / to / when (12.995625ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 15
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3640.108
+
+✖ failing tests:
+
+test at src/tests/comprehensive.test.ts:1:11090
+✖ E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch, Actuals, Lock, Cancel Guard) (12.350625ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  409 !== 201
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/comprehensive.test.ts:396:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 409,
+    expected: 201,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/tests/comprehensive.test.ts:1:17189
+✖ E2E — Financial operations (P&L, profit sharing, ledger, statements, receipts) (253.3015ms)
+  Error: Failed query: select "version" from "trips" where "trips"."id" = $1 limit $2
+  params: ,1
+      at PostgresJsPreparedQuery.queryWithCache (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+      at async TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/comprehensive.test.ts:606:28)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    query: 'select "version" from "trips" where "trips"."id" = $1 limit $2',
+    params: [ undefined, 1 ],
+    cause: Error: UNDEFINED_VALUE: Undefined values are not allowed
+        at handleValue (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/types.js:83:20)
+        at file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:230:38
+        at Array.forEach (<anonymous>)
+        at build (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:230:25)
+        at Object.execute (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:172:7)
+        at go (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:345:14)
+        at Query.handler (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:334:14)
+        at Query.handle (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/query.js:140:65)
+        at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+      code: 'UNDEFINED_VALUE'
+    }
+  }
+
+test at src/tests/expense-source-remediation.test.ts:1:7735
+✖ QA-AUDIT-PHOI-11 CATALOG correction and forward correction preserve original driver provenance (79.5875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      6007,
+  +   24220
+  -   6008
+    ]
+  
+      at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/expense-source-remediation.test.ts:161:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/expense-source-remediation.test.ts:23:44)
+      at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+      at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+      at async fixture (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/expense-source-remediation.test.ts:23:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 6007, 24220 ],
+    expected: [ 6007, 6008 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/tests/expense-source-remediation.test.ts:1:7735
+✖ QA-AUDIT-PHOI-11 NORM correction and forward correction preserve original driver provenance (89.240583ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      6010,
+  +   24222
+  -   6011
+    ]
+  
+      at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/expense-source-remediation.test.ts:161:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/expense-source-remediation.test.ts:23:44)
+      at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+      at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+      at async fixture (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/expense-source-remediation.test.ts:23:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 6010, 24222 ],
+    expected: [ 6010, 6011 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/tests/expense-source-remediation.test.ts:1:7735
+✖ QA-AUDIT-PHOI-11 LEGACY correction and forward correction preserve original driver provenance (73.133291ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      6013,
+  +   24224
+  -   6014
+    ]
+  
+      at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/expense-source-remediation.test.ts:161:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/expense-source-remediation.test.ts:23:44)
+      at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+      at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+      at async fixture (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-phoi-e2e-rb1/backend/src/tests/expense-source-remediation.test.ts:23:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 6013, 24224 ],
+    expected: [ 6013, 6014 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

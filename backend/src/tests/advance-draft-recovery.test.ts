@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { Role, TxnType } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -58,7 +58,11 @@ async function state(id: number) {
   return {
     row: (await db.select().from(s.advanceRequests).where(eq(s.advanceRequests.id, id)))[0],
     entries: await db.select().from(s.ledger).where(and(eq(s.ledger.txnType, TxnType.OPS_ADVANCE), eq(s.ledger.txnId, id))),
-    audit: await db.select().from(s.auditLogs).where(and(eq(s.auditLogs.entityType, 'advance-request-draft'), eq(s.auditLogs.entityId, id))),
+    // Insertion order (serial id) — the suite asserts "the LAST audit" via
+    // at(-1), and an unordered heap read on the grown shared dev DB is not
+    // insertion order once earlier suites churn audit rows (observed red at
+    // the 2026-10-18 cluster-B full-suite gate, green in isolation).
+    audit: await db.select().from(s.auditLogs).where(and(eq(s.auditLogs.entityType, 'advance-request-draft'), eq(s.auditLogs.entityId, id))).orderBy(asc(s.auditLogs.id)),
   };
 }
 
