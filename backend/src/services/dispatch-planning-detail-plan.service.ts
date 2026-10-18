@@ -716,21 +716,40 @@ async function assertPlanRowRigAvailable(
   // (confirm proceeds) and can never pin the hard tier. Found as a trunk-red
   // on the dispatch-detail-plan suite after card 101026043000 landed: the OWN
   // happy path (same truck on all three containers) went 409 with no path on.
-  // Card B 18/10 (B.4): a Ghép-trả-ĐV cost group's siblings are the SAME
-  // deliberate arrangement one level up — different lots, one shared truck in
-  // one shared window BY DESIGN (the group assignment wrote it). They must
-  // never count as cross-lot claims; they ride the warn tier with the
-  // lot's-own-rotation case, with a message naming the group.
+  // Card B 18/10 (B.4) + card 191026100010 (B.4), merge union: a Ghép-trả-ĐV
+  // cost group's siblings are the SAME deliberate arrangement — different
+  // lots, one shared truck in one shared window BY DESIGN (the group
+  // assignment wrote it). They must never count as cross-lot claims; they
+  // ride the warn tier with the lot's-own-rotation case, with a message
+  // naming the group. Both carve routes are kept: the lot's own cost group
+  // (ownCostGroupId) and the cross-lot holder's group (savingCostGroupId,
+  // resolved only when a holder carries a group — the common save pays no
+  // extra lookup).
   const ownCostGroupId = await shipmentCostGroupId(tx, args.shipmentId);
   const isSameGroup = (conflict: RigHolderFacts): boolean =>
     ownCostGroupId != null && conflict.costGroupId != null && conflict.costGroupId === ownCostGroupId;
   const groupSiblings = [...planConflicts, ...lclPlanConflicts]
     .filter((conflict) => conflict.shipmentId !== args.shipmentId && isSameGroup(conflict));
-  const crossLotConflicts = planConflicts
-    .filter((conflict) => conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict));
-  const crossLotLclConflicts = lclPlanConflicts
-    .filter((conflict) => conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict));
-const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
+  const crossLotHolders = [...planConflicts, ...lclPlanConflicts]
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId);
+  const savingCostGroupId = crossLotHolders.some((conflict) => conflict.costGroupId != null)
+    ? (await tx.select({ costGroupId: s.shipments.costGroupId })
+        .from(s.shipments)
+        .where(eq(s.shipments.id, args.shipmentId))
+        .limit(1))[0]?.costGroupId ?? null
+    : null;
+  const isCostGroupSibling = (conflict: { shipmentId: number; costGroupId: string | null }) =>
+    conflict.shipmentId !== args.shipmentId
+    && savingCostGroupId != null
+    && conflict.costGroupId != null
+    && conflict.costGroupId === savingCostGroupId;
+  const costGroupSiblingClaim = planConflicts.some(isCostGroupSibling)
+    || lclPlanConflicts.some(isCostGroupSibling);
+  const crossLotConflicts = planConflicts.filter((conflict) =>
+    conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict) && !isCostGroupSibling(conflict));
+  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) =>
+    conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict) && !isCostGroupSibling(conflict));
+  const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
 const planRowBlocked = isKepPairing ? false : (crossLotConflicts.length > 0 || crossLotLclConflicts.length > 0);
 // Evidence strength (card 101026043000, FB-038 ruling "WARNING, not a hard
 // block"): a PROVABLE overlap keeps its pinned tier — an active trip or plan
@@ -764,6 +783,18 @@ if (planRowBlocked || tripConflicts.length > 0) {
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }
+  } else if (!isKepPairing && costGroupSiblingClaim && !args.confirmOverlap) {
+    // Card 191026100010 (B.4) — the deliberate group arrangement: one
+    // "Gán xe nhóm" group = one truck, so the sibling LOT holding this plate
+    // is the dispatcher's own plan — exactly FB-012's (181026145600) class of
+    // claim: warn once with the cross-lot copy + the confirm invitation and
+    // proceed on the confirmed retry. Gated like the same-lot branch below so
+    // the Kẹp carve-out stays bit-for-bit (a Kẹp row never carries a cost
+    // group — grouping is LCL-only — but the gate documents the law anyway).
+    throw new ApiError(409,
+      `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' });
   } else if (!isKepPairing && sameLotPlanClaim && !args.confirmOverlap) {
     // The lot's own rotation: warn once, never silently, never a hard block.
     // A Ghép-trả-ĐV group's siblings share the truck by design — the message

@@ -28,6 +28,8 @@ import * as s from '../db/schema';
 import { disconnectRedis } from '../lib/redis';
 import type { DispatchActor } from '../services/dispatch-planning-utils.service';
 import { updateDispatchDetailPlan } from '../services/dispatch-planning-detail-plan.service';
+import { assertTripRigAvailable } from '../services/dispatch-plan-conflict-scan.service';
+import { assignLclCostGroup } from '../services/lcl-grouping.service';
 
 async function insertTrip(values: typeof s.trips.$inferInsert) {
   const [row] = await db.insert(s.trips).values(values).returning();
@@ -383,6 +385,248 @@ describe('card 101026043000 — the overlap warning fires on weak slot evidence 
         return true;
       },
     );
+  });
+});
+
+// ─── Card 191026100010 (B.4) — cost-group siblings of "Gán xe nhóm" ─────────
+//
+// FB-092 "Gán xe nhóm" puts N LCL lots in ONE cost group on ONE tractor ON
+// PURPOSE: assignLclCostGroup stamps the group's plate onto every member's
+// plan row, so lot 2's editor save sees lot 1 as a cross-lot holder with a
+// STRONG LCL slot (closingAt ⇒ fallbackSlot=false) and used to refuse HARD:
+// "Đầu xe X đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp."
+// — while one group = one truck is the very point of the feature. FB-012
+// (181026145600) already split SAME-lot holders out of the hard tier
+// (warn-once + confirm retry); this card extends that same RIG_OVERLAP class
+// to cross-lot holders sharing the SAVING row's costGroupId. Everything else
+// keeps its pinned tier: no shared group ⇒ hard, Kẹp carve-out untouched,
+// completed-trip tier untouched, weak-evidence warn unchanged.
+
+type LclLotFixture = {
+  shipmentId: number;
+  fulfillmentId: number;
+  shipmentVersion: number;
+  fulfillmentVersion: number;
+};
+
+/** One LCL lot + its whole-lot LCL_SHIPMENT plan row (card 061026174603
+ *  shape). `plate` stamps the row directly — the pre-grouping manual
+ *  assignment; grouped fixtures get the plate from assignLclCostGroup. */
+async function insertLclLot(
+  a: DispatchActor,
+  opts: {
+    customerId: number;
+    routeId: number;
+    closingAt: Date | null;
+    expectedDeliveryDate?: string;
+    plate?: string;
+  },
+): Promise<LclLotFixture> {
+  const [shipment] = await db.insert(s.shipments).values({
+    customerId: opts.customerId,
+    routeId: opts.routeId,
+    cargoMode: 'LCL',
+    tradeDirection: 'IMPORT',
+    shipmentCode: `B4-${suffix}-${shipmentIds.length}`,
+    status: 'READY_FOR_DISPATCH',
+    closingAt: opts.closingAt,
+    expectedDeliveryDate: opts.expectedDeliveryDate ?? null,
+    createdBy: a.userId,
+  }).returning();
+  shipmentIds.push(shipment.id);
+  const [ff] = await db.insert(s.shipmentFulfillments).values({
+    shipmentId: shipment.id,
+    fulfillmentType: 'LCL_SHIPMENT',
+    cargoMode: 'LCL',
+    dispatchClassification: 'LCL',
+    sourceShipmentVersion: shipment.version,
+    siteSnapshot: {},
+    createdBy: a.userId,
+  }).returning();
+  if (opts.plate != null) {
+    await db.update(s.shipmentFulfillments)
+      .set({ plannedCarrierType: 'OWN', plannedVehiclePlateNumber: opts.plate })
+      .where(eq(s.shipmentFulfillments.id, ff.id));
+  }
+  return {
+    shipmentId: shipment.id,
+    fulfillmentId: ff.id,
+    shipmentVersion: shipment.version,
+    fulfillmentVersion: ff.version,
+  };
+}
+
+/** The real grouping write (FB-092): costGroupId on every lot, the group
+ *  plate onto every member's plan row (persistLclCostCarrier), versions
+ *  bumped — callers must re-read what the editor will save with. */
+async function groupLclLots(a: DispatchActor, shipmentIdsToGroup: number[], plate: string) {
+  const [truckClass] = await db.select().from(s.vehicleSizeClasses)
+    .where(eq(s.vehicleSizeClasses.code, 'CONT20')).limit(1);
+  assert.ok(truckClass, 'seeded vehicle class CONT20 exists');
+  await assignLclCostGroup({
+    shipmentIds: shipmentIdsToGroup,
+    vehicleSizeClassId: truckClass.id,
+    actualTruckNo: plate,
+  }, { userId: a.userId, role: 'ADMIN', actorName: 'card 191026100010' });
+}
+
+/** Two LCL lots on ONE internal tractor — the deliberate "Gán xe nhóm"
+ *  arrangement. `grouped` runs the REAL assignLclCostGroup (costGroupId +
+ *  group plate on both members); without it the pair is a plain cross-lot
+ *  overlap — the negative pin: no shared group ⇒ the hard block survives. */
+async function makeLclTruckPair(
+  a: DispatchActor,
+  opts: { closingAt: Date; grouped: boolean },
+) {
+  const [customer] = await db.insert(s.customers)
+    .values({ name: `B4 KH ${suffix}-${customerIds.length}` }).returning();
+  customerIds.push(customer.id);
+  const [route] = await db.insert(s.routes)
+    .values({ name: `B4 Tuyen ${suffix}-${routeIds.length}` }).returning();
+  routeIds.push(route.id);
+  const plate = `B4${suffix.slice(-6)}${truckIds.length}`.toUpperCase();
+  const [truck] = await db.insert(s.trucks)
+    .values({ licensePlate: plate, status: 'ACTIVE' }).returning();
+  truckIds.push(truck.id);
+  const lotOpts = { customerId: customer.id, routeId: route.id, closingAt: opts.closingAt };
+  const lots = [
+    await insertLclLot(a, { ...lotOpts, ...(opts.grouped ? {} : { plate }) }),
+    await insertLclLot(a, { ...lotOpts, ...(opts.grouped ? {} : { plate }) }),
+  ];
+  if (opts.grouped) {
+    await groupLclLots(a, lots.map((lot) => lot.shipmentId), plate);
+    for (const lot of lots) {
+      const [freshShipment] = await db.select().from(s.shipments)
+        .where(eq(s.shipments.id, lot.shipmentId)).limit(1);
+      const [freshFf] = await db.select().from(s.shipmentFulfillments)
+        .where(eq(s.shipmentFulfillments.id, lot.fulfillmentId)).limit(1);
+      lot.shipmentVersion = freshShipment.version;
+      lot.fulfillmentVersion = freshFf.version;
+    }
+  }
+  return { truck, lots, customerId: customer.id, routeId: route.id };
+}
+
+function lclSaveInput(a: DispatchActor, truckId: number, lot: LclLotFixture) {
+  return {
+    fulfillmentId: lot.fulfillmentId,
+    expectedFulfillmentVersion: lot.fulfillmentVersion,
+    expectedShipmentVersion: lot.shipmentVersion,
+    carrierType: 'OWN' as const,
+    truckId,
+    plannedRevenue: null,
+    plannedCarrierCost: null,
+    idempotencyKey: `b4-${suffix}-${keySeq++}`,
+    actor: a,
+  };
+}
+
+describe('card 191026100010 (B.4) — a shared cost group ("Gán xe nhóm") rides the warn tier, never a new hard block', () => {
+  test('DV-B4-01: saving lot 2 of a one-truck cost group warns once (RIG_OVERLAP_COMPLETED + "Vẫn lưu?"), the confirmed retry saves, the same save does not ask again', async () => {
+    const a = await actor();
+    const { truck, lots } = await makeLclTruckPair(a, { closingAt: SLOT, grouped: true });
+    const target = lots[1]!;
+    const input = lclSaveInput(a, truck.id, target);
+
+    // RED-FIRST (pre-B.4): 409 with NO payload code and the plain hard
+    // message "Đầu xe <plate> đã được gán cho lô/tác vụ khác trong khung
+    // giờ trùng lặp." — the card's exact blocker.
+    await assert.rejects(
+      () => updateDispatchDetailPlan(input),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected a 409 refusal, got: ${e.message}`);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED',
+          `a cost-group sibling must WARN, not hard-block (card 191026100010 / FB-012 181026145600) — got: ${e.message}`);
+        assert.ok(String(e.message).endsWith('Vẫn lưu?'),
+          `warn copy must end with "Vẫn lưu?", got: ${e.message}`);
+        return true;
+      },
+    );
+
+    const saved = await updateDispatchDetailPlan({ ...input, rigOverlapCompletedConfirmed: true });
+    assert.ok(saved, 'the confirmed retry must proceed (warn-once is never a dead end)');
+
+    // Warn-once: re-saving the confirmed transaction replays the stored
+    // result — it must not ask a third time (testplan DV-B4-01).
+    const replayed = await updateDispatchDetailPlan(input);
+    assert.ok(replayed, 'the confirmed save must not ask again');
+  });
+
+  test('negative pin: the same cross-lot overlap with NO shared cost group keeps the plain HARD block', async () => {
+    const a = await actor();
+    const { truck, lots } = await makeLclTruckPair(a, { closingAt: SLOT, grouped: false });
+    const target = lots[1]!;
+
+    await assert.rejects(
+      () => updateDispatchDetailPlan(lclSaveInput(a, truck.id, target)),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected the hard block, got: ${e.message}`);
+        assert.equal(e.payload?.code, undefined,
+          `cross-lot without a shared cost group must keep the hard tier: ${e.message}`);
+        assert.equal(e.message,
+          `Đầu xe ${truck.licensePlate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+        return true;
+      },
+    );
+  });
+
+  test('mixed set (decision rule 4): a cost-group sibling — even date-only weak — must not downgrade the TRUE cross-lot holder\'s hard block', async () => {
+    const a = await actor();
+    const { truck, lots, customerId, routeId } = await makeLclTruckPair(a, { closingAt: SLOT, grouped: true });
+    const [holder, target] = lots;
+    // The grouped sibling degrades to date-only evidence (fallbackSlot=true):
+    // its slot must never leak into weakEvidence for the true holder below.
+    await db.update(s.shipments)
+      .set({ closingAt: null, expectedDeliveryDate: '2026-10-01' })
+      .where(eq(s.shipments.id, holder!.shipmentId));
+    // The TRUE cross-lot holder: same rig, strong slot, NO shared group.
+    await insertLclLot(a, { customerId, routeId, closingAt: SLOT, plate: truck.licensePlate });
+
+    await assert.rejects(
+      () => updateDispatchDetailPlan(lclSaveInput(a, truck.id, target!)),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected the hard block, got: ${e.message}`);
+        assert.equal(e.payload?.code, undefined,
+          `the true cross-lot holder must keep the HARD tier even beside a grouped sibling: ${e.message}`);
+        assert.equal(e.message,
+          `Đầu xe ${truck.licensePlate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+        return true;
+      },
+    );
+  });
+
+  test('trip form mirrors the split (decision rule 5): grouped sibling warns once, the confirmed save proceeds', async () => {
+    const a = await actor();
+    const { truck, lots } = await makeLclTruckPair(a, { closingAt: SLOT, grouped: true });
+    const target = lots[1]!;
+    const args = {
+      truckId: truck.id,
+      departureDate: '2026-10-01',
+      plannedStartAt: SLOT,
+      plannedEndAt: null as Date | null,
+      fulfillmentId: target.fulfillmentId,
+      shipmentId: target.shipmentId,
+    };
+
+    // RED-FIRST (pre-B.4): assertTripRigAvailable hard-blocks the same
+    // message with no confirm path.
+    await assert.rejects(
+      () => db.transaction((tx) => assertTripRigAvailable(tx, args)),
+      (error: unknown) => {
+        const e = error as { statusCode?: number; payload?: { code?: string }; message?: string };
+        assert.equal(e.statusCode, 409, `expected a 409 refusal, got: ${e.message}`);
+        assert.equal(e.payload?.code, 'RIG_OVERLAP_COMPLETED',
+          `trip form: a cost-group sibling must WARN, not hard-block (card 191026100010) — got: ${e.message}`);
+        assert.ok(String(e.message).endsWith('Vẫn lưu?'),
+          `warn copy must end with "Vẫn lưu?", got: ${e.message}`);
+        return true;
+      },
+    );
+
+    await db.transaction((tx) => assertTripRigAvailable(tx, { ...args, confirmOverlap: true }));
   });
 });
 

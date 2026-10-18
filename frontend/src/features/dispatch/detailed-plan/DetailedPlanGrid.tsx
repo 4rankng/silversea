@@ -140,6 +140,10 @@ interface DetailedPlanGridProps {
    *  saved through updateLclTruck, so the page refetches the rows (the
    *  group's BKS pair + every member's planned plate may have moved). */
   onLclTruckUpdated?: () => void;
+  /** Card 191026100010 (DV-B1-03/04) — "Đổi BKS nhóm" sau khi đã Gán xe nhóm:
+   *  raised from the group menu AND from the plan editor's group line; the
+   *  page owns the dialog + the refetch (same wiring law as Hủy ghép). */
+  onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
 }
 
 /** FB-095 — the leaving lot's identity for the confirm guard copy. */
@@ -183,6 +187,7 @@ export function DetailedPlanGrid({
   onUnmergeLclGroup,
   onUnmergeLclLot,
   onLclTruckUpdated,
+  onChangeGroupTruck,
   onEnsureFulfillment,
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
@@ -572,6 +577,7 @@ export function DetailedPlanGrid({
                       onAutoOpenConsumed={onAutoOpenConsumed}
                       onCompleteExternalTrip={onCompleteExternalTrip}
                       onIssueOrder={onIssueOrder}
+                      onChangeGroupTruck={onChangeGroupTruck}
                     />
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại" data-label-short="Loại">
@@ -698,21 +704,35 @@ export function DetailedPlanGrid({
           <>
             <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setGroupMenuRow(null); setGroupTruckDraft(null); setGroupTruckError(null); }}>Đóng</button>
             {groupTruckDraft == null && (
+              <>
               <button
                 type="button"
                 className="btn btn--secondary btn--sm"
                 onClick={() => {
-                  const group = groupMenuRow?.lcl?.group;
-                  if (!groupMenuRow || !group) return;
-                  setGroupTruckDraft({
-                    actual: group.actualTruckNo ?? '',
-                    billing: group.billingTruckNo ?? '',
-                  });
-                  setGroupTruckError(null);
-                }}
-              >
-                Đổi nhà xe/BKS
-              </button>
+                    const group = groupMenuRow?.lcl?.group;
+                    if (!groupMenuRow || !group) return;
+                    setGroupTruckDraft({
+                      actual: group.actualTruckNo ?? '',
+                      billing: group.billingTruckNo ?? '',
+                    });
+                    setGroupTruckError(null);
+                  }}
+                >
+                  Đổi nhà xe/BKS
+                </button>
+                {onChangeGroupTruck && groupMenuRow && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => {
+                      onChangeGroupTruck(groupMenuRow);
+                      setGroupMenuRow(null);
+                    }}
+                  >
+                    Đổi BKS nhóm
+                  </button>
+                )}
+              </>
             )}
             {groupTruckDraft != null && (
               <DisabledActionTip

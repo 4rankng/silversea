@@ -174,7 +174,12 @@ export async function resolvePlanRowWindow(
  *  onto row after row with no warning. A holder without a container claims
  *  the LOT window exactly like the LCL branch (061026174603 law: no container
  *  by design ⇒ the lot slot is the claim); its null appointment keeps the
- *  fallbackSlot marker, so the overlap stays weak evidence at the WARN tier. */
+ *  fallbackSlot marker, so the overlap stays weak evidence at the WARN tier.
+ *
+ *  Card 191026100010 (B.4): the holder's `shipments.costGroupId` rides the
+ *  row so the guards can split cost-group siblings ("Gán xe nhóm" — one
+ *  group = one truck by design) out of the cross-lot hard tier, exactly like
+ *  FB-012 (181026145600) split same-lot holders. */
 export async function scanPlanRowHolders(
   tx: Tx,
   plate: string,
@@ -189,6 +194,8 @@ export async function scanPlanRowHolders(
   return tx.select({
     id: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
+    // Card 191026100010 (B.4) — the cost-group sibling split's raw material.
+    costGroupId: s.shipments.costGroupId,
     fallbackSlot: isNull(s.shipmentContainers.customerAppointmentAt),
     // Card B 18/10 (B.4): the guard's message must NAME the conflicting lot
     // and window, and same-COST-GROUP siblings must never read as cross-lot
@@ -226,7 +233,9 @@ export async function scanPlanRowHolders(
 /** Plan-row holders on a plate, LCL branch (card 061026174603: Hàng lẻ rows
  *  are plan units with the LOT window). Same slot laws as the FCL branch;
  *  the fallbackSlot evidence marker keeps date-only holders at the warn tier
- *  (case 2026-10-11-R14-04 review B1). */
+ *  (case 2026-10-11-R14-04 review B1). `costGroupId` rides the row for the
+ *  card 191026100010 (B.4) cost-group sibling split — the branch where
+ *  "Gán xe nhóm" actually lives. */
 export async function scanLclPlanRowHolders(
   tx: Tx,
   plate: string,
@@ -241,6 +250,8 @@ export async function scanLclPlanRowHolders(
   return tx.select({
     id: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
+    // Card 191026100010 (B.4) — the cost-group sibling split's raw material.
+    costGroupId: s.shipments.costGroupId,
     fallbackSlot: sql`(${lclHolderSlotSql}) is null`,
     // Card B 18/10 (B.4) — same identity/window facts as the FCL branch.
     costGroupId: s.shipments.costGroupId,
@@ -327,10 +338,23 @@ export async function assertTripRigAvailable(
   const strong = args.plannedStartAt != null && !degenerateEnd;
 
   let classification: DispatchClassification | null = null;
+  // Card 191026100010 (B.4): the saving trip's cost group, resolved through
+  // its origin fulfillment → lot in the SAME read as the classification
+  // (args.fulfillmentId → shipmentFulfillments.shipmentId →
+  // shipments.costGroupId — read, never guessed). No fulfillment id ⇒ null
+  // ⇒ no cost-group carve-out below (decision rule 5's safe default: every
+  // holder keeps today's tier).
+  let savingCostGroupId: string | null = null;
   if (args.fulfillmentId != null) {
-    const [ff] = await tx.select({ classification: s.shipmentFulfillments.dispatchClassification })
-      .from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, args.fulfillmentId)).limit(1);
+    const [ff] = await tx.select({
+      classification: s.shipmentFulfillments.dispatchClassification,
+      costGroupId: s.shipments.costGroupId,
+    })
+      .from(s.shipmentFulfillments)
+      .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+      .where(eq(s.shipmentFulfillments.id, args.fulfillmentId)).limit(1);
     classification = ff?.classification ?? null;
+    savingCostGroupId = ff?.costGroupId ?? null;
   }
   const isKepPairing = classification === 'DOUBLE';
 
@@ -397,10 +421,33 @@ export async function assertTripRigAvailable(
     ? activeConflictsRaw
     : activeConflictsRaw.filter((conflict) => conflict.id !== kepPartnerTripId);
 
-  const crossLotConflicts = planConflicts
-    .filter((conflict) => conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict, ownCostGroupId));
-  const crossLotLclConflicts = lclPlanConflicts
-    .filter((conflict) => conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict, ownCostGroupId));
+  // Card 191026100010 (B.4) — FB-012 (181026145600) widened to cost-group
+  // siblings: "Gán xe nhóm" (FB-092) plans every member of ONE cost group
+  // onto the SAME tractor on purpose, so a cross-lot plan-row holder sharing
+  // a group id with the saving trip is the deliberate one-truck arrangement,
+  // not a foreign claim — split it out of the cross-lot hard tier exactly
+  // like the plan guard does. Two resolution routes, one rule (merge union):
+  // card B 18/10's lot-cost-group route (ownCostGroupId) AND card
+  // 191026100010's fulfillment route (savingCostGroupId) both carve;
+  // same-group equality only (both sides non-null and equal; no resolvable
+  // group ⇒ nothing carved), and a sibling's own slot never feeds
+  // weakEvidence (rule 4: only NON-grouped cross-lot conflicts may move the
+  // evidence tier).
+  const isCostGroupSibling = (conflict: { shipmentId: number | null; costGroupId: string | null }) =>
+    conflict.shipmentId !== args.shipmentId
+    && savingCostGroupId != null
+    && conflict.costGroupId != null
+    && conflict.costGroupId === savingCostGroupId;
+  const crossLotConflicts = planConflicts.filter((conflict) =>
+    conflict.shipmentId !== args.shipmentId
+    && !isSameGroup(conflict, ownCostGroupId)
+    && !isCostGroupSibling(conflict));
+  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) =>
+    conflict.shipmentId !== args.shipmentId
+    && !isSameGroup(conflict, ownCostGroupId)
+    && !isCostGroupSibling(conflict));
+  const costGroupSiblingClaim = planConflicts.some(isCostGroupSibling)
+    || lclPlanConflicts.some(isCostGroupSibling);
   const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
   // Card B 18/10 (B.4): the saving trip's own Ghép-trả-ĐV group siblings —
   // the group's shared truck is the arrangement, so they ride the warn tier
@@ -428,6 +475,17 @@ export async function assertTripRigAvailable(
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }
+  } else if (costGroupSiblingClaim && !args.confirmOverlap) {
+    // Card 191026100010 (B.4) — decision rule 5: the trip form mirrors the
+    // plan guard's split. The sibling lot holding this plate IS the group's
+    // own one-truck plan ("Gán xe nhóm"): warn once with the cross-lot copy
+    // + the confirm invitation, proceed on the confirmed retry — never
+    // silent, never the hard tier. Kẹp rows cannot reach this branch (their
+    // plan-row scans are emptied above by the pair's own carve-out).
+    throw new ApiError(409,
+      `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' });
   } else if (sameLotPlanClaim && !args.confirmOverlap) {
     throw new ApiError(409,
       groupSiblings.length > 0

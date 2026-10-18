@@ -73,136 +73,129 @@ pre-existing test fragility, worth a scoping card.
 ---
 
 # HANDOFF — 2026-10-18 — FB-061 (141026012010): board read no longer lists seed/test data
+# HANDOFF — 2026-10-18 — card 191026100010 (chứng từ điều vận B + Lái xe C)
 
-Worktree-isolated branch `fix-fb061-phoi-seed-rb1` (salvage re-land of the
-dead `fix-fb061-phoi-seed` run's change set; original off main `09420a7f`,
-re-landed on `692522c1` with no backend drift between the two bases).
-
-**Goal**: `/accounting/phoi-phieu` listed seed/test rows (factory
-`KHO-SEAM-1789702634486`, carrier `STG VERIFY NHA XE 09`, customer
-`QA0915 QA-138 Credit Customer`, bills `BL-QAKE-*` / `E2E-*`, plates
-`99T-99999` / `51K-PROBE*`, driver `Test Driver R15`).
-
-**Root cause**: earlier rounds only controlled the WRITE side (demo seeders
-gated in production; a purge registry run by `make qapurge`). The
-production-facing READ, `listPhoiPhieuRows`, had no filter, so a fixture row
-written between purges rendered at once — which is why the card kept verifying
-FAIL. The two sides had also drifted (`QA_TRIPS_SQL` still used the pre-FB-061
-shipment list, so `BL-QAKE`/`E2E` shipments were purged but their trips were
-not).
-
-**Code**:
-- `backend/src/services/qa-fixture-markers.ts` (NEW) — the single owner of the
-  marker signatures, consumed by BOTH the board read and the purge registry.
-- `backend/src/services/phoi-phieu-control.service.ts` — `listPhoiPhieuRows`
-  excludes any row carrying a marker (shipment / factory / vehicle / driver /
-  party / site). `getPhoiPhieuReport` deliberately unchanged (audit surface).
-- `backend/src/seed/qa-fixture-registry.ts` — every FB-061 predicate is now
-  GENERATED from that owner; `QA_TRIPS_SQL` gained the missing bill families.
-- `backend/src/tests/phoi-phieu-fixture-marker-filter.test.ts` (NEW, 5 cases),
-  `backend/src/tests/unit/qa-fixture-marker-sql.test.ts` (NEW, 5 pins).
-- `backend/src/tests/phoi-phieu-control.test.ts` — grouping fixtures renamed
-  off the `QA%` plate signature (`QA-A-…` → `C16A-…`, `QA172A-…` →
-  `C172A-…`); the tested properties are unchanged.
-
-**Marker pattern list** (owner: `services/qa-fixture-markers.ts`):
-- shipment refs: `QA%`, `BL-QAKE%`, `E2E-%`, `CARD226-QA%`, `BILL-QAC1%`
-  (bl_number / booking_ref / shipment_code)
-- shipment notes: `QA-BUG3%`, `card226 advisory-lock probe%`
-- factory / operational sites (name, short_name, code, trip snapshot,
-  `shipments.factory_name`): `QA%`, `KHO-SEAM%`
-- plates (`trucks.license_plate`, `trip_carrier_info.external_plate_number`):
-  `QA%`, `99T-99999`, `51K-PROBE%`
-- people (`drivers.name`, `external_driver_name`): `QA%`, `Test Driver%`
-- parties (`customers.name`, `suppliers.name`): `QA%`, `STG VERIFY%`
-- run-scoped epoch signature on every one of the above: `-[0-9]{10,13}$`
-
-**Seed files changed**: no demo seeder authors these rows (verified by grep —
-`src/seed.ts` + `src/seed/*` carry no QA/probe names). The repeat source was
-self-authored QA fixtures plus the purge drift, so layer 2 is the registry
-rewiring above rather than a seed edit. `backend/src/reset-seed.ts` is a full
-wipe + canonical seed and is untouched by design.
-
-**Deliberate non-markers**: a bare `NHA XE` — the live roster has real carriers
-such as `CÔNG TY TNHH VẬN TẢI NHA XE BIEN BAC`, and the phrase would hide live
-payable rows. The fixture family is `STG VERIFY%`.
-
----
-
-# HANDOFF — 2026-10-18 — fix-lcl-group-backend-rb1: review fixes cho LCL group backend (card 181026145000)
-
-Controller: omp agent (REDO of dead agent ee4560e8), worktree
-`/Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-group-backend-rb1`.
-Updated: 2026-10-18 ~16:00 +0800.
+Controller: omp agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-dieuvan-laixe`,
+branch `fix-dieuvan-laixe` (off `a9e4b75b` + style commit `c1f412f8`).
+Updated: 2026-10-19 ~01:35 +0800 (rb1 verification dispatch).
 
 ## Goal & status
 
-Independent review của merge `6e6a7c18` (branch `fix-lcl-group-backend`,
-commits 940d85ba/40dec192 — phần đó ĐÃ merge, không redo) flag 3 findings;
-fixes của session trước chết chưa commit (worktree bị wipe). Task này land
-đúng 3 fixes.
+Source `chungtu-dieuvan.docx` mục B (/dispatch + /dispatch-detail) và C (driver
+portal `/api/driver/me/*`), 7 items. **Status: DONE, rb1-verified.** The dead
+agent's original status claim ("committed and PUSHED") was FALSE — it died
+before committing (reflog: no fix commit ever existed). True chain:
 
-**Status: DONE trên branch `fix-lcl-group-backend-rb1` @ `006ba100`, PUSHED
-to origin.** Chờ independent review/merge — KHÔNG deploy (owner: NEVER deploy).
+1. Implementing agent died post-work, pre-commit.
+2. Orchestrator salvaged its uncommitted tree verbatim as `c58ff01c`
+   (pushed to `origin/fix-dieuvan-laixe`), gates UNVERIFIED at salvage time.
+   The salvage recovered 18 files but MISSED one: the
+   `ShipmentExpensePanel.test.tsx` unused-`waitFor` one-liner (HEAD alone is
+   lint-red on that file).
+3. rb1 verification (2026-10-19, this worktree) re-ran the scoped gates —
+   all green, results in the Evidence section below, logs
+   `qa/2026-10-19_card191026100010_rb1-*`. The residual one-liner landed as
+   `52c0214f` (pushed). KHÔNG deploy (owner rule).
 
-## Scope (3 findings → cases LCL-A181026145000-04/05/06)
+### rb1 verified gates (2026-10-19, exact commands + verbatim results)
 
-1. HIGH — `customer-debt-summary.service.ts` revPrincipalRefs đọc order-1 REV
-   principal thiếu `isNull(deletedAt)`: ghost principal (soft-delete giữ slot
-   order 1, spec §4) shadow principal promote trong note "Ghép cước cùng Bill
-   X". → guard mirror `loadPrincipalRefs` (shipment-debit-summary).
-2. MEDIUM — `lcl-grouping.service.ts` `updateLclGroupTruck`: sửa BKS thực ghi
-   MỌI thành viên nhóm nhưng chỉ assert lô nêu tên → assert mọi thành viên
-   (mirror luật `assertGroupMutable` của un-merge) khi `actualTruckNo != null`.
-   Billing-only giữ early named-row assert (per-lot law §2.3).
-3. LOW — test gap ghost-order-1 deletion: debt note + debit refs
-   (`revGroupPrincipalRef`/`freightOverrideReason`) cite Bill principal
-   promote, không cite ghost.
+- `cd backend && npx tsc --noEmit` → exit 0 (0 errors).
+- `cd backend && npx tsx --test src/tests/dispatch-overlap-warning.test.ts
+  src/tests/trip-overlap-warning.test.ts src/tests/dispatch-overlap-day-only-trips.test.ts
+  src/tests/dispatch-detail-plan-363.test.ts src/tests/dispatch-plan-row-rig-conflict.test.ts
+  src/tests/dispatch-plan-row-lcl-rig.test.ts src/tests/trip-factory-snapshot.test.ts`
+  → `tests 68 · pass 68 · fail 0`, exit 0 (the two changed BE services:
+  conflict-scan + detail-plan covered by all 7).
+- `cd frontend && pnpm exec tsc --noEmit` → exit 0; canonical
+  `cd frontend && npx tsc -b` → exit 0.
+- `cd frontend && pnpm exec vitest run` on the 8 touched specs
+  (DetailedPlanGrid.{container-port-weight,fb095-badge,lcl-grouping,base},
+  DispatchPlanEditorCell, LclGroupTruckEditDialog, DriverTaskInfoSections,
+  ShipmentExpensePanel) → `Test Files 8 passed (8) · Tests 215 passed (215)`,
+  exit 0.
+- Root `pnpm lint` → exit 0 WITH `52c0214f`; at salvage HEAD alone eslint on
+  ShipmentExpensePanel.test.tsx = 1 error (`'waitFor' is defined but never
+  used`) — `qa/2026-10-19_card191026100010_rb1-eslint-head-state.log`.
+- NOT re-run by rb1: full FE suite, full BE unit suite, `make build`, and the
+  live UI drives (dead agent's `qa/2026-10-18_card191026100010_*` artifacts
+  remain as its record, unverified by rb1).
 
-Non-goals: không redo backend đã merge; không đụng frontend dispatch UI waves
-(09420a7f/5d03793c); không deploy; không merge branch này.
+## What landed (per item)
 
-## Decisions / sources
+- **B.1 FIX** — after "Gán xe nhóm" there was no way to change BKS. Added
+  `LclGroupTruckEditDialog.tsx` (+css) on the EXISTING `updateLclTruck`
+  (FB-093, `POST /api/shipments/lcl/truck`) with two affordances: the
+  "Đổi BKS nhóm" row action in the Nhóm ghép trả ĐV menu, and the group
+  line + button inside the "Chỉnh sửa điều phối" popup; grouped-row plate
+  edits in the popup now run `updateLclTruck` BEFORE the atomic plan save
+  (clear/defer refused on grouped rows). "Đơn" rows already had Sửa /
+  Phân xe lại (verified, no change).
+- **B.2 VERIFY** — external issue-before-plate already landed (cards
+  20261004_359 `6c5836f3`, `68187f33`); re-verified via the "Bổ sung sau"
+  FE describe + `trip-factory-snapshot.test.ts` BE describes. Internal keeps
+  its mandatory plate.
+- **B.3 VERIFY** — the ĐẢO VỎ auto-seed already removed (card 20261005_362
+  `390dc945`); pin re-verified ("choosing Lấy Lẻ seeds NO tag").
+- **B.4 FIX** — the quoted hard 409 "Đầu xe X đã được gán cho lô/tác vụ khác
+  trong khung giờ trùng lặp." fired on the DELIBERATE "Gán xe nhóm"
+  arrangement (one group = one truck). Cost-group siblings (same non-null
+  `costGroupId`) now split out of the cross-lot HARD tier into the existing
+  warn-once tier (RIG_OVERLAP_COMPLETED + " Vẫn lưu?") in BOTH
+  `assertPlanRowRigAvailable` and `assertTripRigAvailable`; cross-lot
+  overlaps without a shared group keep the hard block (pinned), and a
+  sibling's weak slot never downgrades a true holder (mixed-set pin).
+- **B.5 VERIFY** — container-bold/port-normal already landed (card
+  20261005_361 `11f4ec4c`); pinned by the NEW
+  `DetailedPlanGrid.container-port-weight.test.tsx` contract test.
+- **C.1 FIX** — driver "Cảng hạ" resolves through the shared
+  `resolveLiftDropPoints` rule (LCL direction swap: Nhập → Hạ = Nhà máy /
+  bãi trả; Xuất → kho). FCL chain byte-identical (port → free text → FB-020
+  snapshot), EXPORT never borrows the factory, legacy returnDepot precedence
+  kept.
+- **C.2 VERIFY** — SĐT kho tel: link already landed (card 20261005_364
+  `26dee2d1`); driven live (anchor + href + click).
 
-- Ghost-order-1 invariant: soft-delete không strip leaver — ghost giữ
-  `rev_group_id` + `revGroupOrder = 1` cùng hàng với principal promote
-  (spec §4, `promoteLclGroupsOnShipmentDelete` + `rewriteSurvivors`).
-- Note "Ghép cước cùng Bill X" đi qua nhánh fallback `revPrincipalRefs` khi
-  lô thành viên không có stamp `trip_financial_state` (trip sinh sau merge) —
-  test seed đúng nhánh đó.
-- ADR `2026-10-01-audit-todo-policy-rulings.md` + AGENTS.md là contract.
+## Adjacent fixes required to turn the gates green (both one-liners)
 
-## Files owned
+- `frontend/src/features/expense-accounting/ShipmentExpensePanel.test.tsx` —
+  removed an unused `waitFor` import (root lint was red from card 09ff9406).
+- `testplan/qa/scripts/2026-10-18-fb095-fb094-ui-driver.mjs` — its QA_BASE
+  DEFAULT was `localhost:7176`, breaking the dev-port contract test; default
+  is now the documented 7175 (env override unchanged).
 
-- `backend/src/services/customer-debt-summary.service.ts` (guard + comment)
-- `backend/src/services/lcl-grouping.service.ts` (member assert loop)
-- `backend/src/tests/lcl-grouping.test.ts` (seed `seedGhostPrincipalRevTrio`
-  + tests 04/05/06)
-- `testplan/2026-10-18-card-181026145000-lcl-group-backend-spec-audit.md`
-  (cases 04–06)
-- `qa/2026-10-18_lcl-review-fixes_*.{log}` (force-tracked)
+## Evidence
 
-## Unrelated / concurrent (preserved, untouched)
+Regression plan + verdicts: `testplan/2026-10-18-card191026100010-dieuvan-laixe.md`.
+Dead agent's logged gate claims (its own record, NOT re-run by rb1; logs in
+`qa/2026-10-18_card191026100010_*`): FE 5152/5152, fe-tsc 0, be-tsc 0, BE
+overlap 13/13 (repro red→green: exact quoted hard 409 before, warn-once
+after), BE unit 305/305, lint 0, `make build` 0. Of these, rb1 independently
+re-verified on 2026-10-19: be-tsc 0, BE affected 68/68, fe-tsc 0 (both
+`--noEmit` and `-b`), FE scoped 215/215, root lint 0 (after `52c0214f`) —
+see the rb1 gates table above and `qa/2026-10-19_card191026100010_rb1-*`.
+UI rung-3 (driver `laixe`, token-injected): `qa/…_ui-c1-before.png` (main
+build: "Chưa có cảng hạ" beside the delivery row naming the yard) vs
+`…_ui-c1-after.png` (fixed: "Bãi JJ LOGISTICS"); `…_ui-c2-*.png` tel: link
+click; driver log + API/DB identity file alongside. QA fixture edits
+(trip 60516/67894 driver, shipment 104507 factory_name) were REVERTED after
+capture.
 
-- Sibling worktrees `fix-fb049-penalty-spacing`, `fix-fb095-fb094-controls`,
-  `fix-lcl-form-labels-dispatch` + main checkout — không đụng.
-- Session sự cố: worktree `fix-lcl-group-backend-rb1` bị wipe giữa research
-  phase (không có edit mất); recreate + `pnpm install` + `pnpm --dir shared
-  build` rồi tiếp tục. Failure-mode fix đã áp dụng: commit+push NGAY sau gates
-  (`006ba100`), không giữ fix uncommitted.
+## Deliberate non-changes / limits
 
-## QA (all exit 0)
-
-- Red-before 3/3 FAIL — `qa/2026-10-18_lcl-review-fixes_red-before.log`
-  (note cite ghost `RVW-a1` thay vì `RVW-a2`; case 05 missing rejection).
-- Green-after 3/3 PASS — `qa/2026-10-18_lcl-review-fixes_green-after.log`.
-- Scoped suites (`lcl-grouping` + `customer-debt-summary` +
-  `shipment-debit-summary`, `npx tsx --test --test-concurrency=1`): 76/76 —
-  `qa/2026-10-18_lcl-review-fixes_backend-scoped-tests.log`.
-- `cd backend && npx tsc --noEmit`: 0 — `..._backend-tsc.log`.
-- `pnpm lint`: 0 — `..._lint.log`.
-- Full BE/FE suites, build, UI: NOT RUN (scoped backend fix, no UI surface;
-  §9 rung 0 cho UI — không claim UI).
+- Master plan (/dispatch) got no new affordance: the card named "popup điều
+  phối + row actions" (both on /dispatch-detail); the master-plan allocation
+  popover remains editable pre-issue and issued lots still reassign via
+  /dispatch-detail "Phân xe lại".
+- Group NHÀ XE (carrier) change for a grouped lot is still the per-row popup /
+  Phân xe lại path; `assignLclCostGroup` regroup semantics untouched (money
+  law).
+- The issue-time gate (`dispatch-resource-availability`) was NOT weakened:
+  FB-012's same-lot carve-out there is unchanged; the quoted message never
+  came from that gate.
+- Driver-portal backend chain untouched (FB-020 `resolveDeliveryStage` keeps
+  owning FCL); no LCL-IMPORT trip with a real factory existed in the local
+  dev DB, so the C.1 UI drive used a locally seeded factory name on fixture
+  lot 104507 (reverted).
 
 ## Next step
 
@@ -449,3 +442,8 @@ product.
 - 8 red còn lại thuộc cluster khác (surcharge-rb3 / chiphispec-gaps / dispatch /
   photo-authz / q23) — không đụng; theo dõi khi các wave đó land.
 - Next: owner review + merge vào trunk.
+Independent review verdict (Card1910Review) was recorded in the dead agent's
+session and is not independently re-verifiable here; any findings resolve as
+forward fixes. rb1 (2026-10-19) verified the scoped gates green and landed the
+missed lint one-liner (`52c0214f`); branch `fix-dieuvan-laixe` pushed through
+that commit. Awaiting owner merge/deploy instruction — NEVER deploy.

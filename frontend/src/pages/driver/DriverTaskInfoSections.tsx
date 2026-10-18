@@ -9,6 +9,7 @@ import type { DriverTaskDetail } from '../../api/driverClient';
 import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
 import { TelLink, telHref } from '../../components/TelLink';
 import { driverDeliveryDestination, driverLocationLabels } from '../../features/driver/driver-display';
+import { resolveLiftDropPoints } from '../../features/shipments/liftDropPoints';
 
 /**
  * 2a618442 (structure-guard split): the THÔNG TIN LỆNH fact grid + the
@@ -118,8 +119,40 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   // still leads for IMPORT (driverLocationLabels), but a depot-less IMPORT
   // trip shows its real drop point here, never a dead "Chưa có nơi trả
   // rỗng" row beside "Địa chỉ giao hàng" naming the same yard.
-  const rawDropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? '—';
-  const locations = driverLocationLabels(trip.tradeDirection, rawDropPoint === '—' ? null : rawDropPoint, fulfillment?.returnDepotName);
+  //
+  // Card 191026100010 (C.1): the drop resolves through the ONE shared
+  // lift/drop rule (features/shipments/liftDropPoints.ts, FB-105 §3) rather
+  // than the raw delivery free text alone. An LCL lot owns no container, so
+  // its Hạ point is DIRECTION-OWNED — Nhập = Nhà máy (điểm trả), Xuất = kho
+  // trả hàng (CFS/Cảng) — and the wire's deliveryLocation is often empty for
+  // exactly that lot, which left the "Cảng hạ" row reading
+  // "Chưa có cảng hạ" while "Địa chỉ giao hàng" right below named the very
+  // yard the truck runs to. FCL is unchanged by construction: the helper's
+  // FCL branch returns the container/free-text chain (dropPortName →
+  // dropWarehouseName, already resolved BE-side by resolveDeliveryStage) and
+  // never takes the factory — the 2026-09-18 "factory never wears the Hạ
+  // label" ruling stands for container jobs.
+  const cargoMode = fulfillment?.modeLabel === 'LCL' || fulfillment?.modeLabel === 'FCL' ? fulfillment.modeLabel : null;
+  const rawDropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? null;
+  // The helper's direction contract is the two-value union; any other wire
+  // value (legacy/unknown) reads like the port-first default — null.
+  const liftDropDirection = trip.tradeDirection === 'IMPORT' || trip.tradeDirection === 'EXPORT'
+    ? trip.tradeDirection
+    : null;
+  const dropPoint = resolveLiftDropPoints({
+    cargoMode,
+    tradeDirection: liftDropDirection,
+    // The lot's single "Kho (CFS/Cảng)" point rides the LIFT half on Nhập
+    // and the DROP half on Xuất — the field changes meaning with the
+    // direction (liftDropPoints.ts header), so it is fed by whichever half
+    // the wire wrote for this direction.
+    warehouseName: cargoMode === 'LCL'
+      ? (liftDropDirection === 'EXPORT' ? fulfillment?.dropWarehouseName : fulfillment?.pickupWarehouseName)
+      : null,
+    factoryName: fulfillment?.factoryFullName ?? fulfillment?.factoryName ?? null,
+    dropFallback: rawDropPoint,
+  }).drop;
+  const locations = driverLocationLabels(trip.tradeDirection, dropPoint, fulfillment?.returnDepotName);
   const cangHa = locations.drop ?? (trip.tradeDirection === 'IMPORT' ? 'Chưa có cảng hạ' : '—');
 
   // Card 121026141020 (FB-082 retest): the delivery row names the DESTINATION
