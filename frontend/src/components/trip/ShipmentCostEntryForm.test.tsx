@@ -157,13 +157,16 @@ describe('driver expense workflow — TC-CP-LX', () => {
     setup(); await open();
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Chạy quá tải');
-    // chiphispec §2 — a road row that carries money needs its biên lai too.
-    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
-    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chụp biên lai cho khoản có chi phí.');
-    await uploadReceipt();
+    // CP700-03 — an ordinary Tiền đường row carries NO photo gate: the server
+    // keeps the optional-photo contract for the road bucket, so the form must
+    // not demand a biên lai here (the old amount-gated rule blocked exactly
+    // the rows the server accepts).
+    expect(screen.queryByTestId('shipment-cost-receipt-required')).toBeNull();
+    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costType: 'OTHER', costGroup: 'DRIVER_ROAD', feeName: 'Chạy quá tải', amount: 200000, receiptStorageKey: 'receipt.png' });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costType: 'OTHER', costGroup: 'DRIVER_ROAD', feeName: 'Chạy quá tải', amount: 200000 });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0].receiptStorageKey).toBeUndefined();
     expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceNumber).toBeUndefined();
   });
 
@@ -237,18 +240,20 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(api.createIncidentalCosts).not.toHaveBeenCalled();
   });
 
-  // chiphispec §2 — only SPENT money carries the biên lai: a 0/blank draft and
-  // a negative refund adjustment are exempt, so neither blocks the submit on a
-  // missing photo (the amount rule still rejects them server-side as before).
-  it('chiphispec §2: a negative lot row needs no photo and saves as an adjustment', async () => {
+  // CP700-03 — "MỌI dòng nhóm DRIVER_SHIPMENT phải có ảnh biên lai (FE chặn +
+  // BE từ chối)": the sign does not matter. A negative lot row is a refund
+  // adjustment AND a lot-bucket row; the server answers 'Chi phí lô hàng phải
+  // kèm ảnh biên lai trước khi lưu.' without the photo, so the form gates it
+  // up front instead of letting the whole batch roll back server-side.
+  it('CP700-03: a negative lot row still carries its biên lai — the server rejects it without', async () => {
     setup(); await open();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '-30000' } });
-    expect(screen.queryByTestId('shipment-cost-receipt-required')).toBeNull();
-    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeEnabled();
+    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
+    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
+    await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: -30000 });
-    expect(api.createIncidentalCosts.mock.calls[0][1][0].receiptStorageKey).toBeUndefined();
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: -30000, receiptStorageKey: 'receipt.png' });
   });
 
   // Card 20261005 — "Người chi" (Tôi chi / Công ty chi) gỡ khỏi chi phí lái xe:
@@ -401,10 +406,10 @@ describe('driver expense workflow — TC-CP-LX', () => {
     await choose('Phí vệ sinh');
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
-    // chiphispec §2 — a lot row with money needs the biên lai; the copy is the
-    // spec's own line.
+    // CP700-03 — every lot row needs the biên lai; the copy is the server's
+    // own line so the two gates can never disagree.
     expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
-    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chụp biên lai cho khoản có chi phí.');
+    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
     await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));

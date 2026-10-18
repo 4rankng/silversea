@@ -38,7 +38,11 @@ const exit: ExitFn = (overlay, content, onDone) => {
 const VAT_RATES: Array<0 | 5 | 8 | 10> = [0, 5, 8, 10];
 
 const fieldStyle: React.CSSProperties = { display: 'grid', gap: 4 };
-const labelStyle: React.CSSProperties = { fontSize: 'var(--text-caption-size)', color: 'var(--text-muted, #64748b)' };
+// House token pass (card 191026100030, same rule cddf3315 applied to the page):
+// `--text-muted` is not a defined variable anywhere in the app — its #64748b
+// fallback WAS the rendered color, a stray hex off the ink scale. The house
+// muted ink is `--ink-3`; `--err` is real (tokens.css) so its fallback dies too.
+const labelStyle: React.CSSProperties = { fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' };
 
 function monthOptions() {
   return Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` }));
@@ -174,13 +178,13 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
             <span>{carrierLabels.length > 0 ? carrierLabels.join(', ') : '—'}</span>
           </div>
           {customerNames.length !== 1 && (
-            <p role="note" style={{ color: 'var(--err, #dc2626)', margin: 0 }}>Các lô đã chọn phải thuộc cùng một khách hàng.</p>
+            <p role="note" style={{ color: 'var(--err)', margin: 0 }}>Các lô đã chọn phải thuộc cùng một khách hàng.</p>
           )}
           {direction === 'TRA' && carrierKeyCount !== 1 && (
-            <p role="note" style={{ color: 'var(--err, #dc2626)', margin: 0 }}>Chốt phải trả yêu cầu các lô cùng một nhà xe.</p>
+            <p role="note" style={{ color: 'var(--err)', margin: 0 }}>Chốt phải trả yêu cầu các lô cùng một nhà xe.</p>
           )}
           {errorLine && (
-            <p role="note" style={{ color: 'var(--err, #dc2626)', margin: 0 }}>{errorLine}</p>
+            <p role="note" style={{ color: 'var(--err)', margin: 0 }}>{errorLine}</p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
             <BufferedUuiDateInput label="Từ ngày" value={dateFrom} onChange={setDateFrom} />

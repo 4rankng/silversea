@@ -39,8 +39,17 @@
   flex: 0 0 auto;
 }
 
-.shipment-debit-header__export[title] {
-  cursor: help;
+/* Owner ceiling — "ordinary controls at most 40px on every screen": UUI
+   `size="sm"` carries `max-md:min-h-11` (44px) as its touch floor, which
+   breaks the page's own 40px control claim at <768px. The sanctioned page
+   sizing of a shared primitive (same precedent as the ribbon customer picker
+   below) pins these two header actions to the house `--control-h` there.
+   SIZING ONLY — no layout/face overrides. */
+@media (max-width: 768px) {
+  .shipment-debit-header .shipment-debit-merge-rev,
+  .shipment-debit-header .shipment-debit-export {
+    min-height: var(--control-h);
+  }
 }
 
 /* Desktop keeps the two-tier reading order — title row first — no matter
@@ -243,14 +252,28 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Scroll cue for the L1 table (card 20260924_9): silent on desktop, revealed
-   inside the phone media block at the end of this sheet. */
+/* Scroll cue for the L1 table (card 20260924_9, re-hung card 191026100030):
+   the cue fires exactly where the TABLE renders but cannot fit its 1108px
+   floor — 641–1107px window bands. Below 641 the page swaps to the phone
+   record cards (`phone && !print`), so there is no table to cue and the old
+   "reveal inside the phone media block" could never show: the element also
+   carried `ledger-desktop`, whose ≤640 `display: none !important` beat the
+   reveal. Hidden at desktop widths and in print (base + media below). */
 .shipment-debit-scroll-hint {
   display: none;
   margin: 0;
   padding: 0 2px;
   color: var(--ink-2);
   font-size: var(--text-caption-size);
+}
+
+/* Table rendered (window > 640) AND the 1108px floor cannot fit — the cue is
+   honest here regardless of pointer kind. At ≥1108 the wrap takes the table
+   (surplus to identity), so the cue stays silent. */
+@media (min-width: 641px) and (max-width: 1107px) {
+  .shipment-debit-scroll-hint {
+    display: block;
+  }
 }
 
 /* Fixed layout hands every unmeasured column to the identity column: the
@@ -460,9 +483,16 @@
   outline-offset: 2px;
 }
 
+/* Money never spills into its neighbour (fixed layout + nowrap used to let a
+   ten-digit sum ride over the next column): a sum that fits its measured
+   column stays one line; beyond it the value breaks onto more lines inside
+   its own right-aligned cell. The measured widths keep their calibrated
+   budget (columns triage comment above) — this is spill safety, not a
+   re-budget. */
 .shipment-debit-row__money {
   text-align: right;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
   font-variant-numeric: tabular-nums;
 }
 
@@ -500,7 +530,10 @@
    deliberate per-lot pick. The ruling's surviving half is kept verbatim: the
    whole row is still a selection ALIAS (the checkbox stops propagation so the
    two can never double-toggle) and the picked row still highlights; locked
-   rows keep their own tint + pointer cursor (below).
+   rows keep their own tint + pointer cursor (below). Card 191026100030 scopes
+   that pointer to INTERACTIVE rows ([title] — the `canManage` alias): a
+   read-only user's locked row is inert, and a pointer cursor there advertised
+   a click that does nothing.
    Card 161026232359 also aligned the highlight PALETTE to the app-wide
    convention: the lone `rgba(37, 99, 235, .08)` / `#2563eb` blue was the only
    ad-hoc selection hex in the app, and it put a SECOND accent inside a row
@@ -508,28 +541,26 @@
    LedgerRecordList.css (this screen's own phone list), CustomersPage.css,
    AccountingDebitClosePage.css and AccountingWorkspacePage.css already read
    `var(--surface)` + the inset ink bar. */
-.shipment-debit-row[data-locked] { cursor: pointer; }
+.shipment-debit-row[data-locked][title] { cursor: pointer; }
 .shipment-debit-row[data-selected] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }
 
 /* ============================================================================
- * Card 20260924_9 — phone media block (390 / 640 / coarse pointer).
+ * Card 20260924_9 — phone/coarse media block (390 / 640 / coarse pointer).
  *
  * The L1 table keeps its1108px floor so the identity cell never slivers
  * (the 900px rail inherited from components/Table.css shredded the
- * QA0915-138-EXC chip per character). The wrap then scrolls sideways — say
- * so plainly with the hidden-by-default `.shipment-debit-scroll-hint` and
- * give the leading expand control the shared40px touch floor. The base
- * leading column already reserves76px (card 161026232359: the row tick +
- * gap + the coarse control) with matching6px cell insets.
+ * QA0915-138-EXC chip per character). Give the leading expand control the
+ * shared40px touch floor. The base leading column already reserves76px
+ * (card 161026232359: the row tick + gap + the coarse control) with matching
+ * 6px cell insets. The sideways-scroll cue is NOT here anymore: at ≤640 the
+ * page renders the phone record cards (no table), and the cue's real band is
+ * the 641–1107 window where the table renders but cannot fit its floor —
+ * its own media block above (card 191026100030).
  *
  * Match the project's house media syntax (responsive.css + debit's own
  * coarse query): `(max-width: 640px), (hover: none) and (pointer: coarse)`.
  * ========================================================================== */
 @media (max-width: 640px), (hover: none) and (pointer: coarse) {
-  .shipment-debit-scroll-hint {
-    display: block;
-  }
-
   .shipment-debit-row__expand-button {
     width: var(--control-max-h);
     height: var(--control-max-h);
