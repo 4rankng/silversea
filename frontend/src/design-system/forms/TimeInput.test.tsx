@@ -134,4 +134,39 @@ describe('TimeInput outer-field keyboard ownership', () => {
     fireEvent.keyDown(input, { key: '9', code: 'Digit9' });
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it('FB-002 case 2: Enter normalizes a 4-digit "1430" draft and saves on the FIRST press', () => {
+    const parentKeyDown = vi.fn();
+    const Unnormalized = () => {
+      const [value, setValue] = useState('1430');
+      return <form onKeyDown={parentKeyDown}>
+        <TimeInput label="Giờ giao" value={value} onChange={setValue} />
+      </form>;
+    };
+    render(<Unnormalized />);
+    const input = screen.getByLabelText('Giờ giao');
+    expect(input).toHaveValue('1430');
+    // The unnormalized draft must be normalized BEFORE the swallow decision:
+    // it used to fail validation, so the invalid-draft law ate the save key
+    // and only a second Enter got through (QA staging retest 2026-10-18).
+    expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(true);
+    expect(input).toHaveValue('14:30');
+    expect(parentKeyDown).toHaveBeenCalledTimes(1);
+  });
+
+  it('FB-002 case 2: a printable keystroke marks a hand-typed draft even when the field drops it', () => {
+    const parentKeyDown = vi.fn();
+    render(<Harness onParentKeyDown={parentKeyDown} />);
+    const input = screen.getByLabelText('Giờ giao');
+    act(() => input.focus());
+    fireEvent.click(input);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // ':' into the full '08:17' field: maxLength drops the keystroke and no
+    // change event fires — but the user still TYPED, so Enter is their save
+    // key, not picker finishing.
+    fireEvent.keyDown(input, { key: ':', code: 'Semicolon' });
+    parentKeyDown.mockClear();
+    expect(fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })).toBe(true);
+    expect(parentKeyDown).toHaveBeenCalledTimes(1);
+  });
 });
