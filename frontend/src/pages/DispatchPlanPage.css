@@ -129,9 +129,12 @@
   margin-top: 12px;
   padding: 10px 14px;
   border-radius: var(--app-radius-md);
-  background: var(--app-surface-raised, #fff);
-  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.16);
-  border: 1px solid var(--app-border, #e4e7ec);
+  /* Customer 18/10: the white bar vanished into the white table — invert it
+     into a dark floating toolbar so selection state is unmistakable. */
+  background: var(--ink, #101513);
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .lcl-selection-bar__totals {
@@ -139,7 +142,7 @@
 }
 
 .lcl-selection-bar__first {
-  color: var(--app-text-muted, #475467);
+  color: rgba(255, 255, 255, 0.78);
   font-size: 0.875rem;
 }
 
@@ -147,7 +150,7 @@
   margin-inline-start: auto;
   border: none;
   background: none;
-  color: var(--app-text-muted, #475467);
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -156,7 +159,7 @@
   border: none;
   border-radius: var(--app-radius-sm, 8px);
   padding: 8px 14px;
-  background: var(--app-accent-emerald, #027a48);
+  background: var(--color-accent, #4A9E7D);
   color: #fff;
   font-weight: 600;
   cursor: pointer;
@@ -173,6 +176,6 @@
    button, muted so it never reads as an action (owner: static status text
    must not look actionable). */
 .lcl-selection-bar__hint {
-  color: var(--app-text-muted, #475467);
+  color: rgba(255, 255, 255, 0.65);
   font-size: 0.875rem;
 }
