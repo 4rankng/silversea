@@ -60,6 +60,11 @@ export function lclMeasureLine(row: DispatchDetailPlanRow): string | null {
   ].filter(Boolean).join(' · ') || null;
 }
 
+/** FB-092/FB-095 — the group tag's tooltip: dimension + truck identity. */
+function lclGroupTagTitle(group: { actualTruckNo: string | null; billingTruckNo: string | null }): string {
+  return `Ghép trả ĐV · BKS ${group.actualTruckNo ?? '—'}${group.billingTruckNo && group.billingTruckNo !== group.actualTruckNo ? ` · Báo khách ${group.billingTruckNo}` : ''}`;
+}
+
 interface DetailedPlanGridProps {
   filters: DetailedPlanFilterState;
   onFilterChange: (patch: Partial<DetailedPlanFilterState>) => void;
@@ -124,6 +129,17 @@ interface DetailedPlanGridProps {
   /** SPEC 18/10/2026 §4 — dispatch-side "Tách nhóm" for a COST group. Shown
    *  on the principal row only (one action per group). */
   onUnmergeLclGroup?: (groupId: string) => void;
+  /** FB-095 (card 181026145610) — the group badge opens Xem nhóm / Hủy ghép;
+   *  choosing "Hủy ghép" raises the leaving lot so the page can confirm the
+   *  SPEC §4 promotion guard before calling the server. */
+  onUnmergeLclLot?: (request: LclUnmergeLotRequest) => void;
+}
+
+/** FB-095 — the leaving lot's identity for the confirm guard copy. */
+export interface LclUnmergeLotRequest {
+  shipmentId: number;
+  order: number | null;
+  memberCount: number | null;
 }
 
 /**
@@ -158,6 +174,7 @@ export function DetailedPlanGrid({
   selectedLclShipmentIds,
   onToggleLclSelection,
   onUnmergeLclGroup,
+  onUnmergeLclLot,
   onEnsureFulfillment,
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
@@ -165,6 +182,16 @@ export function DetailedPlanGrid({
   // Long notes clamp to three lines; tapping reopens the full text in a
   // dialog so the column stays scannable without hiding content.
   const [expandedNote, setExpandedNote] = useState<{ title: string; text: string; driver?: boolean } | null>(null);
+  // FB-095 — the grouped row whose badge menu (Xem nhóm / Hủy ghép) is open.
+  const [groupMenuRow, setGroupMenuRow] = useState<DispatchDetailPlanRow | null>(null);
+  // `items` is ONE server page of the plan, so Xem nhóm can only see the
+  // on-page members of the group — the menu says how many live elsewhere.
+  const groupMenuMembers = groupMenuRow?.lcl?.group
+    ? items
+      .filter((member) => member.lcl?.group?.groupId === groupMenuRow.lcl?.group?.groupId)
+      .sort((a, b) => (a.lcl?.group?.order ?? 0) - (b.lcl?.group?.order ?? 0))
+    : [];
+  const groupMenuMissing = (groupMenuRow?.lcl?.group?.memberCount ?? 0) - groupMenuMembers.length;
   const { tags } = useDispatchTaskTags();
   const taskLabels = tags.map((tag) => tag.label);
 
@@ -535,14 +562,26 @@ export function DetailedPlanGrid({
                       <span className="detailed-plan-grid__classification">
                         {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
                       </span>
-                      {row.cargoMode === 'LCL' && row.lcl?.group && (
+                      {/* FB-095 — with the page wired, the badge is the group's
+                          action surface (Xem nhóm / Hủy ghép); unwired it stays
+                          a static tag exactly like the pre-FB-095 badge. */}
+                      {row.cargoMode === 'LCL' && row.lcl?.group && (onUnmergeLclLot ? (
+                        <button
+                          type="button"
+                          className="detailed-plan-grid__lcl-group-tag detailed-plan-grid__lcl-group-tag--action"
+                          title={lclGroupTagTitle(row.lcl.group)}
+                          onClick={() => setGroupMenuRow(row)}
+                        >
+                          {`Lẻ · Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
+                        </button>
+                      ) : (
                         <span
                           className="detailed-plan-grid__lcl-group-tag"
-                          title={`Ghép trả ĐV · BKS ${row.lcl.group.actualTruckNo ?? '—'}${row.lcl.group.billingTruckNo && row.lcl.group.billingTruckNo !== row.lcl.group.actualTruckNo ? ` · Báo khách ${row.lcl.group.billingTruckNo}` : ''}`}
+                          title={lclGroupTagTitle(row.lcl.group)}
                         >
-                          Lẻ · Ghép ({row.lcl.group.order ?? '?'}/{row.lcl.group.memberCount ?? '?'})
+                          {`Lẻ · Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
                         </span>
-                      )}
+                      ))}
                       {/* SPEC 18/10/2026 §4 — one group action, anchored on Lô 1. */}
                       {row.cargoMode === 'LCL'
                         && row.lcl?.group
@@ -624,6 +663,63 @@ export function DetailedPlanGrid({
         {expandedNote?.driver
           ? <DispatchDriverNote value={expandedNote.text} labels={taskLabels} />
           : <p className="detailed-plan-grid__note-full">{expandedNote?.text ?? ''}</p>}
+      </Modal>
+
+      {/* FB-095 — the badge menu: Xem nhóm (members + truck identity) and the
+          group's one action. The page owns the SPEC §4 confirm guard, the
+          server call and the refresh — the grid only raises the leaving lot. */}
+      <Modal
+        isOpen={groupMenuRow != null}
+        title={`Nhóm ghép trả ĐV · Lẻ (${groupMenuRow?.lcl?.group?.order ?? '?'}/${groupMenuRow?.lcl?.group?.memberCount ?? '?'})`}
+        onClose={() => setGroupMenuRow(null)}
+        maxWidth={420}
+        footer={(
+          <>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={() => setGroupMenuRow(null)}>Đóng</button>
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={() => {
+                const group = groupMenuRow?.lcl?.group;
+                if (!groupMenuRow || !group || !onUnmergeLclLot) return;
+                onUnmergeLclLot({
+                  shipmentId: groupMenuRow.shipmentId,
+                  order: group.order,
+                  memberCount: group.memberCount,
+                });
+                setGroupMenuRow(null);
+              }}
+            >
+              Hủy ghép
+            </button>
+          </>
+        )}
+      >
+        {groupMenuRow?.lcl?.group && (
+          <div className="detailed-plan-grid__lcl-group-menu">
+            <p className="detailed-plan-grid__line detailed-plan-grid__line--strong">
+              {lclGroupTagTitle(groupMenuRow.lcl.group)}
+            </p>
+            {groupMenuRow.lcl.group.vehicleClassName && (
+              <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                {`Loại xe: ${groupMenuRow.lcl.group.vehicleClassName}`}
+              </p>
+            )}
+            <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">Thành viên nhóm:</p>
+            <ul className="detailed-plan-grid__lcl-group-menu-list">
+              {groupMenuMembers.map((member) => (
+                <li key={member.shipmentId} className="detailed-plan-grid__line">
+                  {`Lô ${member.lcl?.group?.order ?? '?'} · ${billBookingReference(member.docs.billNumber)}`}
+                </li>
+              ))}
+            </ul>
+            {groupMenuMissing > 0 && (
+              <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                {`Còn ${groupMenuMissing} thành viên ở trang khác`}
+              </p>
+            )}
+          </div>
+        )}
       </Modal>
 
     </>
