@@ -1,3 +1,42 @@
+# HANDOFF — 2026-10-19 — CUS display x5 (cards 191026181942) — gate + evidence re-drive
+
+Controller: omp agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-cus-display-rb1`,
+branch `fix-cus-display-rb1` (off `main` = `cd1fc396`).
+
+**Status**: the five-card code ALREADY landed at HEAD via `79f0b10d` (merged
+`cd1fc396` = origin/main). This run verified each card against the brief
+(LCL lịch truth-wins predicate · empty-allocation "Chưa phân xe" muted chip ·
+`emptyDayCargoLabel` cargoMode wording · CBM suppress + zero-count signal mute ·
+NameCell short-name layer) and produced fresh verification artifacts only — no
+code delta. Rung-3 evidence re-driven against THIS tree (driver
+`testplan/qa/scripts/2026-10-19-cus-display-five-cards-rung3.mjs`, `QA_BASE`
+env override added in `68dd2bac` — a salvage-guard auto-commit of the dirty
+edit; dev contract ports :7175/:7176 were occupied by unrelated worktrees'
+servers, ephemeral vite :7178 used instead, then stopped; :3002 served
+identical backend code from the main checkout).
+
+**Findings**: (1) `ShipmentsPage.test.tsx` "opens one compact edit dialog…"
+is load-sensitive flake — 3 reds under 4-way agent CPU saturation (5s/15s
+timing), green on a light box and with instrumentation; bisect (pre-merge
+`CusShipmentRow`+`ShipmentContainerLedger`) exonerates the five-card merge.
+Suspected mechanism: the animated modal exit keeps `role="dialog"` mounted
+past the unnamed `findByRole('dialog')` window. Left for the closeout-
+workspace test-hygiene owner; not part of the display cards. (2) Card 7's
+"max-w + truncate (CSS ellipsis)" pattern is implemented as the law-conformant
+wrap + accessible tooltip — `table-no-truncation.styles.test.ts` (law §4)
+bans ellipsis on data cells; pinned in testplan case R5.
+
+**Gates** (`qa/2026-10-19_cus-display-five-cards_gates.log`): `tsgo -b` 0 ·
+`tsc -b` 0 · scoped vitest 270/270 · `pnpm lint` 0 · RUNG3 DRIVE PASS
+(`qa/2026-10-19_cus-display-five-cards_ui-driver.log` + 7 card screenshots).
+
+**Limits**: DB rows unchanged this run (read-only drive; identity file from the
+original run still accurate); route/carrier short names depend on master-data
+`shortName` (absent → full name renders, still tooltip-accessible); the
+Kế hoạch kehoach shot samples an unconfigured customer (full name + tooltip).
+
+---
+
 # HANDOFF — 2026-10-19 — FB-030/075 auto-advance (verified fixed) + FB-066 quick-add BKS
 
 Controller: omp agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-fb030-fb066`,
