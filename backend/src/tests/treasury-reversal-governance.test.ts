@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { after, test } from 'node:test';
+import { after, before, test } from 'node:test';
 import { eq, inArray } from 'drizzle-orm';
 
 import { TxnType } from '@tingting/shared';
@@ -9,12 +9,26 @@ import {
   getTreasuryPosition,
   requestTreasuryMovementReversal,
 } from '../services/treasury.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userIds: number[] = [];
 const ledgerIds: number[] = [];
 const movementIds: number[] = [];
 let accountId: number | null = null;
+// This file creates an ACTIVE treasury account with cutoverAt 2026-07-01 —
+// while it exists, every receive-without-account call 422s. Hold the
+// treasury-cutover-window cross-suite lock from before() until after() has
+// swept the account (the q03-receipts suite holds the same key).
+let releaseCutoverLock: CrossSuiteLockRelease | null = null;
+
+before(async () => {
+  releaseCutoverLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.treasuryCutoverWindow);
+});
 
 after(async () => {
   try {
@@ -31,6 +45,12 @@ after(async () => {
       await db.delete(s.users).where(inArray(s.users.id, userIds));
     }
   } finally {
+    // The account row is gone by now — end the critical section before the
+    // pool connection is destroyed by client.end().
+    if (releaseCutoverLock) {
+      await releaseCutoverLock();
+      releaseCutoverLock = null;
+    }
     await client.end();
   }
 });

@@ -14,6 +14,11 @@ import { initEnforcer } from '../casbin/enforcer';
 import { initAuditService } from '../services/audit.service';
 import { cacheInvalidate, disconnectRedis } from '../lib/redis';
 import { attachAcceptedTripCloseEvidence } from './helpers/o2c-close-fixture';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 
 // Import route handlers directly to avoid port conflicts
@@ -57,8 +62,14 @@ let allDrivers: typeof s.drivers.$inferSelect[];
 const loginUsername = `comprehensive-login-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const loginPassword = 'Comprehensive123!';
 let loginUserId: number;
+// The E2E receive call omits treasuryAccountId (pre-cutover contract), so it
+// 422s while any suite holds an ACTIVE cutover account — hold the treasury
+// cutover-window cross-suite lock for the whole file (q03-receipts and the
+// three cutover fixture suites share this key).
+let releaseCutoverLock: CrossSuiteLockRelease | null = null;
 
 before(async () => {
+  releaseCutoverLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.treasuryCutoverWindow);
   await initAuditService();
   await initEnforcer();
 
@@ -169,13 +180,25 @@ before(async () => {
 });
 
 after(async () => {
-  server.closeAllConnections();
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-  if (loginUserId) {
-    await db.delete(s.users).where(eq(s.users.id, loginUserId));
+  try {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    if (loginUserId) {
+      await db.delete(s.users).where(eq(s.users.id, loginUserId));
+    }
+  } finally {
+    // Release before the pool (and its reserved lock connection) is destroyed.
+    if (releaseCutoverLock) {
+      try {
+        await releaseCutoverLock();
+      } catch (releaseError) {
+        console.warn('[comprehensive] cutover lock release:', (releaseError as Error).message);
+      }
+      releaseCutoverLock = null;
+    }
+    await disconnectRedis();
+    await client.end();
   }
-  await disconnectRedis();
-  await client.end();
 });
 
 interface TestFetchOptions {

@@ -9,7 +9,7 @@ import { eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
-import { Role } from '@tingting/shared';
+import { Role, type AppSettings } from '@tingting/shared';
 import { config } from '../config';
 import { initEnforcer } from '../casbin/enforcer';
 import { authMiddleware } from '../middleware/auth';
@@ -29,11 +29,10 @@ import {
 import { currentVietnamMonthStart } from '../services/financial-reporting-policy.service';
 import { appSettingsRouter } from '../routes/app-settings';
 import {
-  acquireSuiteLock,
-  releaseSuiteLock,
-  SALARY_PAYROLL_UNIT_SCOPE_LOCK,
-  type SuiteLock,
-} from './helpers/suite-serial-lock';
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
@@ -43,17 +42,19 @@ const createdDriverIds: number[] = [];
 const createdTruckIds: number[] = [];
 let server: http.Server;
 let baseUrl: string;
-let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
+let originalSettings: AppSettings;
 let originalResendKeyValue: string | undefined;
 let adminToken: string;
 let managerToken: string;
 let accountantToken: string;
 // This suite writes the shared payroll-unit app_settings global through the
 // governed routes (proposed unit, rollback unit) and restores the original in
-// after(). Hold the cross-process suite lock so the salary suites
-// (q09/q10/q11/m73/q15-routes) never read our transient values, and theirs
-// never stomp ours.
-let payrollScopeLock: SuiteLock | undefined;
+// after(). Hold the SAME advisory key the salary suites (q09/q10/q11/m73/
+// q15-routes/final/m53/q01) hold — (906416,1) via cross-suite-lock — so they
+// never read our transient values and ours never stomps their pin: the
+// earlier suite-serial-lock key (906415,2) merged in from a parallel fix
+// branch excluded nobody, which is the split-brain behind the 404/409 reds.
+let releasePayrollLock: CrossSuiteLockRelease | null = null;
 
 async function mkUser(username: string, role: Role) {
   const [user] = await db.insert(s.users).values({
@@ -124,7 +125,7 @@ function currentVersionHeader(body: Record<string, unknown>): string | undefined
 }
 
 before(async () => {
-  payrollScopeLock = await acquireSuiteLock(SALARY_PAYROLL_UNIT_SCOPE_LOCK);
+  releasePayrollLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.payrollUnit);
   await initEnforcer();
   originalSettings = await getAppSettings();
   const [emailSetting] = await db.select({ value: s.appSettings.value })
@@ -199,7 +200,10 @@ after(async () => {
           });
         }
         invalidateEmailSettings();
-        await releaseSuiteLock(payrollScopeLock, SALARY_PAYROLL_UNIT_SCOPE_LOCK);
+        if (releasePayrollLock) {
+          await releasePayrollLock();
+          releasePayrollLock = null;
+        }
         await client.end();
       }
     }
