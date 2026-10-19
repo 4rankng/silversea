@@ -22,6 +22,11 @@ import { registerAuditEvent } from '../services/audit-registry';
 import { initAuditService } from '../services/audit.service';
 import { AuditEvent } from '../services/audit-types';
 import { initNotificationService } from '../services/notification.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
@@ -36,6 +41,13 @@ const createdAuditLogIds: number[] = [];
 let adminToken: string;
 let server: http.Server;
 let baseUrl: string;
+// This suite's receive bodies intentionally omit treasuryAccountId (the
+// pre-cutover contract under test). That call 422s the moment ANY other
+// suite holds an ACTIVE treasury account with a past cutoverAt, so hold the
+// cutover-window cross-suite lock for the whole file — the three cutover
+// fixture suites (treasury-reversal / q03-refund-governance /
+// treasury-route-idempotency) hold the same key while their account lives.
+let releaseCutoverLock: CrossSuiteLockRelease | null = null;
 
 async function mkUser(username: string, role: Role) {
   const [user] = await db.insert(s.users).values({
@@ -226,6 +238,7 @@ async function fetchTripOutstanding(customerId: number, tripId: number) {
 }
 
 before(async () => {
+  releaseCutoverLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.treasuryCutoverWindow);
   initNotificationService();
   initAuditService();
   registerAuditEvent('POST', '/api/payments/receive', AuditEvent.PAYMENT_RECEIVED);
@@ -284,6 +297,17 @@ after(async () => {
     await db.delete(s.users).where(sql`${s.users.username} = ${userPattern}`);
   } catch (err) {
     console.warn('[q03-route] cleanup:', (err as Error).message);
+  }
+  // Release before client.end()/process.exit: end() destroys the reserved
+  // connection the unlock must run on, and exit() would leak the session lock
+  // until the backend pool reaps it.
+  if (releaseCutoverLock) {
+    try {
+      await releaseCutoverLock();
+    } catch (releaseError) {
+      console.warn('[q03-route] cutover lock release:', (releaseError as Error).message);
+    }
+    releaseCutoverLock = null;
   }
   server.closeAllConnections();
   server.close();

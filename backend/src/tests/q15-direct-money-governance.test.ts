@@ -13,6 +13,11 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import paymentsRoutes from '../routes/financial/payments.routes';
 import penaltiesRoutes from '../routes/financial/penalties.routes';
 import { createPenalty } from '../services/financial.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const actorIds: number[] = [];
 const customerIds: number[] = [];
@@ -28,6 +33,11 @@ let actors: Array<{ id: number; role: Role }> = [];
 let server: http.Server;
 let baseUrl = '';
 let commandSequence = 0;
+// The receive call in this suite omits treasuryAccountId (pre-cutover
+// contract) — it 422s while any suite holds an ACTIVE cutover account. Hold
+// the treasury cutover-window cross-suite lock for the whole file (shared
+// with q03-receipts and the three cutover fixture suites).
+let releaseCutoverLock: CrossSuiteLockRelease | null = null;
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 async function api(
@@ -240,6 +250,7 @@ async function fetchPenaltyReversalCount(penaltyId: number, driverId: number) {
 }
 
 before(async () => {
+  releaseCutoverLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.treasuryCutoverWindow);
   const actorRows = await db.insert(s.users).values([
     { username: `q15-direct-maker-${suffix}`, passwordHash: 'x', role: Role.ACCOUNTANT, status: 'ACTIVE' },
     { username: `q15-direct-checker-${suffix}`, passwordHash: 'x', role: Role.MANAGER, status: 'ACTIVE' },
@@ -331,6 +342,16 @@ after(async () => {
     await db.delete(s.users).where(inArray(s.users.id, actorIds));
   }
 
+  // Release before the pool destroys the reserved lock connection; if an
+  // earlier delete threw, process exit frees the session lock regardless.
+  if (releaseCutoverLock) {
+    try {
+      await releaseCutoverLock();
+    } catch (releaseError) {
+      console.warn('[q15-direct-money] cutover lock release:', (releaseError as Error).message);
+    }
+    releaseCutoverLock = null;
+  }
   await disconnectRedis();
   await client.end();
 });

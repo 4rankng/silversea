@@ -1,4 +1,4 @@
-import { after, test } from 'node:test';
+import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray, or } from 'drizzle-orm';
 
@@ -13,6 +13,11 @@ import { autoApplyGovernanceAction } from '../services/adjustment-governance.ser
 import { applyDirectMoneyGovernanceAction } from '../services/governance-transition.service';
 import { applyGovernanceActionDirect } from '../services/governance-action-core.service';
 import { getTreasuryPosition } from '../services/treasury.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const userIds: number[] = [];
@@ -21,6 +26,15 @@ let customerId: number | null = null;
 let paymentReceiptId: number | null = null;
 let treasuryAccountId: number | null = null;
 let treasuryMovementId: number | null = null;
+// Cutover fixture window: this file inserts an ACTIVE treasury account with
+// cutoverAt 2026-07-01, which 422s every receive-without-account caller.
+// Hold the treasury-cutover-window cross-suite lock until after() sweeps the
+// account (the q03-receipts suite holds the same key).
+let releaseCutoverLock: CrossSuiteLockRelease | null = null;
+
+before(async () => {
+  releaseCutoverLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.treasuryCutoverWindow);
+});
 
 after(async () => {
   try {
@@ -51,6 +65,11 @@ after(async () => {
       await db.delete(s.users).where(inArray(s.users.id, userIds));
     }
   } finally {
+    // Account row swept above — end the critical section before client.end().
+    if (releaseCutoverLock) {
+      await releaseCutoverLock();
+      releaseCutoverLock = null;
+    }
     await client.end();
   }
 });

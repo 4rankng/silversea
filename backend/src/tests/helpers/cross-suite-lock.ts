@@ -28,20 +28,44 @@ export const CROSS_SUITE_LOCK_KEYS = {
   payrollUnit: [906_416, 1] as const,
   /** Writers/readers of the vat_config singleton and the 'config:vat' cache. */
   vatSingleton: [906_416, 2] as const,
+  /**
+   * Suites that hold an ACTIVE treasury account with a past `cutoverAt`
+   * (the `hasActiveCutoverAt` window) vs every receive-without-account
+   * caller of `POST /api/payments/receive` — a live cutover fixture makes
+   * that call 422 `Phải chọn tài khoản tiền mặt/ngân hàng sau thời điểm
+   * chuyển đổi kho quỹ`, which is exactly the standing q03 red under
+   * file-parallel runs.
+   */
+  treasuryCutoverWindow: [906_416, 3] as const,
 } as const;
+
+/**
+ * Bounded wait (the ported suite-serial-lock design): a leaked holder that is
+ * still alive fails the waiting suite loudly after 120s instead of hanging the
+ * run; a crashed holder frees the lock with its session. The timeout is reset
+ * on release so the pooled connection never carries it into other queries.
+ */
+const LOCK_TIMEOUT_MS = '120s';
 
 export async function acquireCrossSuiteLock(
   key: readonly [number, number],
 ): Promise<CrossSuiteLockRelease> {
   const [key1, key2] = key;
   const connection = await client.reserve();
-  await connection`SELECT pg_advisory_lock(${key1}, ${key2})`;
+  try {
+    await connection`SELECT set_config('lock_timeout', ${LOCK_TIMEOUT_MS}, false)`;
+    await connection`SELECT pg_advisory_lock(${key1}, ${key2})`;
+  } catch (error) {
+    connection.release();
+    throw error;
+  }
   let released = false;
   return async () => {
     if (released) return;
     released = true;
     try {
       await connection`SELECT pg_advisory_unlock(${key1}, ${key2})`;
+      await connection`SELECT set_config('lock_timeout', '0', false)`;
     } finally {
       connection.release();
     }

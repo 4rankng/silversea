@@ -16,6 +16,11 @@ import { authMiddleware } from '../middleware/auth';
 import { casbinAuthz } from '../middleware/casbin';
 import { globalErrorHandler } from '../middleware/errorHandler';
 import financialRoutes from '../routes/financial';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const idempotencyKeys: string[] = [];
@@ -27,6 +32,11 @@ let ledgerId = 0;
 let token = '';
 let server: http.Server;
 let baseUrl = '';
+// This file applies a real cutover (cutoverAt 2026-08-01) to its ACTIVE
+// account mid-test — from that instant every receive-without-account caller
+// 422s. Hold the treasury-cutover-window cross-suite lock for the whole file
+// until after() deletes the account (the q03-receipts suite holds the key).
+let releaseCutoverLock: CrossSuiteLockRelease | null = null;
 
 async function post(path: string, body: unknown, idempotencyKey?: string) {
   if (idempotencyKey) idempotencyKeys.push(idempotencyKey);
@@ -46,6 +56,7 @@ async function post(path: string, body: unknown, idempotencyKey?: string) {
 }
 
 before(async () => {
+  releaseCutoverLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.treasuryCutoverWindow);
   await initEnforcer();
   const [user] = await db.insert(s.users).values({
     username: `treasury-route-admin-${suffix}`,
@@ -102,17 +113,31 @@ before(async () => {
 });
 
 after(async () => {
-  server.closeAllConnections();
-  await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
-  if (movementId > 0) await db.delete(s.treasuryMovements).where(eq(s.treasuryMovements.id, movementId));
-  if (accountId > 0) await db.delete(s.treasuryAccounts).where(eq(s.treasuryAccounts.id, accountId));
-  if (ledgerId > 0) await db.delete(s.ledger).where(eq(s.ledger.id, ledgerId));
-  if (idempotencyKeys.length > 0) {
-    await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
+  try {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    if (movementId > 0) await db.delete(s.treasuryMovements).where(eq(s.treasuryMovements.id, movementId));
+    if (accountId > 0) await db.delete(s.treasuryAccounts).where(eq(s.treasuryAccounts.id, accountId));
+    if (ledgerId > 0) await db.delete(s.ledger).where(eq(s.ledger.id, ledgerId));
+    if (idempotencyKeys.length > 0) {
+      await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.idempotencyKey, [...new Set(idempotencyKeys)]));
+    }
+    if (userId > 0) await db.delete(s.users).where(eq(s.users.id, userId));
+  } finally {
+    // Account swept above (or the suite is failing either way) — end the
+    // critical section before the reserved connection goes away.
+    if (releaseCutoverLock) {
+      try {
+        await releaseCutoverLock();
+      } catch (releaseError) {
+        console.warn('[treasury-route-idempotency] cutover lock release:',
+          (releaseError as Error).message);
+      }
+      releaseCutoverLock = null;
+    }
+    await disconnectRedis();
+    await client.end();
   }
-  if (userId > 0) await db.delete(s.users).where(eq(s.users.id, userId));
-  await disconnectRedis();
-  await client.end();
 });
 
 test('treasury setup/cutover/reversal routes require keyed, versioned idempotent commands', async () => {

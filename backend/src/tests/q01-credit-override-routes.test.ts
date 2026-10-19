@@ -6,7 +6,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
-import { Role } from '@tingting/shared';
+import { Role, type AppSettings } from '@tingting/shared';
 import { db, client } from '../db';
 import * as s from '../db/schema';
 import { config } from '../config';
@@ -17,6 +17,11 @@ import { globalErrorHandler } from '../middleware/errorHandler';
 import financialRoutes from '../routes/financial';
 import { recordTripCreditException } from '../services/credit-limit.service';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const futureExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1_000).toISOString();
@@ -29,7 +34,10 @@ let failpointCounter = 0;
 
 let server: http.Server;
 let baseUrl: string;
-let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
+let originalSettings: AppSettings;
+// saveAppSettings writes the shared payroll-unit app_settings key — hold the
+// payroll cross-suite lock for the whole file (same class as m53, w4b card).
+let releasePayrollLock: CrossSuiteLockRelease | null = null;
 let managerToken: string;
 
 async function mkUser(role: Role) {
@@ -129,6 +137,7 @@ async function withIdempotencyInsertFailure(endpoint: string, idempotencyKey: st
 }
 
 before(async () => {
+  releasePayrollLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.payrollUnit);
   await initEnforcer();
   originalSettings = await getAppSettings();
   await saveAppSettings({
@@ -174,6 +183,12 @@ after(async () => {
       await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     }
   } finally {
+    // Release before client.end(): end() destroys the reserved connection
+    // the unlock must run on.
+    if (releasePayrollLock) {
+      await releasePayrollLock();
+      releasePayrollLock = null;
+    }
     await client.end();
   }
 });
