@@ -130,11 +130,16 @@ describe('advance settle deadlock-order contract (card 20260930_226)', () => {
     for (const r of fulfilled) {
       cleanup.settlementIds.push((r.value as { id: number }).id);
       // FB-100 (Option B, card 141026230770): the phiếu applies at creation
-      // with the filer's own confirmation tick — checked_by/checked_at stamp
-      // the creating forwarder as the confirming actor.
+      // with the filer's own confirmation tick — that tick is
+      // approved_by/approved_at (the submitter). Card 191026160000 (§3b):
+      // checked_by/checked_at now belong to kế toán's DUYỆT PHIẾU HOÀN ỨNG
+      // act only, so creation leaves them NULL (legacy Option B re-used the
+      // submitter's id there, which named no accountant).
       const settled = r.value as typeof s.advanceSettlements.$inferSelect;
-      assert.equal(settled.checkedBy, owner.id, 'checked_by = the creating forwarder (tự xác nhận)');
-      assert.ok(settled.checkedAt != null, 'checked_at stamped at creation');
+      assert.equal(settled.approvedBy, owner.id, 'approved_by = the creating forwarder (tự xác nhận)');
+      assert.ok(settled.approvedAt != null, 'approved_at stamped at creation');
+      assert.equal(settled.checkedBy, null, 'checked_by stays NULL until kế toán duyệt (§3b)');
+      assert.equal(settled.checkedAt, null, 'checked_at stays NULL until kế toán duyệt (§3b)');
     }
     for (const r of rejected) {
       // The loser must be a clean business rejection, never a crash.

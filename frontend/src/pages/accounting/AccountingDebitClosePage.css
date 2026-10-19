@@ -29,6 +29,16 @@
   color: var(--ink);
 }
 
+/* ── Header alignment (§2b) ──────────────────────────────────────────────────
+ * Two-tier head: the leaf labels live in the SECOND row, but a rowSpan=2
+ * header renders its text at the TOP of the doubled band, so Ngày/Thông tin
+ * lô… floated a full row above Phải thu's leaves — the ragged header QA read
+ * as "cột không thẳng hàng". Pin the spanning cells to the band's BOTTOM edge
+ * (UUI table pattern: every leaf label shares one baseline), and center the
+ * tier-1 group headers over their run. Leaf-vs-body drift is measured 0px. */
+.debit-board thead th[rowspan] { vertical-align: bottom; }
+.debit-board thead th[colspan] { text-align: center; }
+
 /* Supporting line: counts, period, "đã chọn N lô". One treatment, so the bar's
    status slot, the selection strip and the notice all read as one voice. */
 .debit-note {
@@ -109,11 +119,22 @@ p.debit-note { margin: 0 0 8px; }
 }
 
 /* ── Selection ─────────────────────────────────────────────────────────────
- * One neutral ink edge, never a brand tint (styles/selection-state-contract).
- * The sticky cells carry it too: their opaque background would otherwise paint
- * over the row's own edge. */
-.debit-board tbody tr[data-selected] td { background: var(--surface); }
-.debit-board tbody tr[data-selected] td.debit-col--date { box-shadow: inset 3px 0 0 var(--ink); }
+ * Card 191026160000 (§2c): QA read the old neutral-ink edge (plain surface +
+ * a 3px inset) as "no highlight at all" — the count strip said how many but
+ * no row said WHICH. The selected row now paints the house accent-soft band
+ * with the emerald edge, and its Ngày cell carries the ✓ tick (board.tsx).
+ * The sticky cells carry it too: their opaque background would otherwise
+ * paint over the row's own band. */
+.debit-board tbody tr[data-selected] td { background: var(--accent-soft, #E8F8EE); }
+.debit-board tbody tr[data-selected] td.debit-col--date { box-shadow: inset 3px 0 0 var(--accent, #4A9E7D); }
+.debit-row-tick {
+  display: inline-block;
+  width: 1.1em;
+  margin-right: 2px;
+  color: var(--accent, #4A9E7D);
+  font-weight: 700;
+  text-align: center;
+}
 .debit-board tbody tr.debit-row--pickable { cursor: pointer; }
 .debit-board tbody tr.debit-row--pickable:focus-visible {
   outline: 2px solid var(--accent);

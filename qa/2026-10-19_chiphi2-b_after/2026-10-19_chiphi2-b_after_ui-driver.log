@@ -1,0 +1,63 @@
+
+=== run 2026-10-19T11:08:42.613Z ===
+2026-10-19T11:08:42.744Z login ketoan OK
+2026-10-19T11:08:54.042Z §2a board: {"selectAllLabel":"Chọn tất cả 90 lô đủ điều kiện","rows":90,"dateInputs":"01→19"}
+2026-10-19T11:08:55.615Z §2a select-all (1573ms): {"selected":90,"line":"Đã chọn 90 lô"}
+2026-10-19T11:08:55.616Z §2c highlight: {"bg":"rgb(232, 248, 238)","tickText":"✓","unselectedTick":null}
+2026-10-19T11:08:55.660Z shot qa/2026-10-19_chiphi2-b_after_01-board-selectall-highlight.png.png
+2026-10-19T11:08:56.434Z §2d narrowing to customer: CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH
+2026-10-19T11:08:59.571Z §2d narrowed rows: 50
+2026-10-19T11:09:00.849Z §2d open dialog via: Chọn Debit (50 dòng)
+2026-10-19T11:09:01.855Z §2d dialog: {"header":"Chọn Debit — chốt đợt đối soát (50/50 lô)","dateTicks":["Bỏ chọn tất cả ngày","01/10/2026 (28 lô)","02/10/2026 (4 lô)","17/10/2026 (6 lô)","18/10/2026 (12 lô)"]}
+2026-10-19T11:09:02.042Z shot qa/2026-10-19_chiphi2-b_after_02-dialog-date-ticks.png.png
+2026-10-19T11:09:02.665Z §2d untick "01/10/2026 (28 lô)" → Chọn Debit — chốt đợt đối soát (22/50 lô)
+2026-10-19T11:09:02.728Z shot qa/2026-10-19_chiphi2-b_after_03-dialog-after-untick.png.png
+2026-10-19T11:09:03.696Z §2e direction=thu-ticked vat=0%-ticked
+2026-10-19T11:09:03.898Z shot qa/2026-10-19_chiphi2-b_after_04-dialog-ready-to-chot.png.png
+2026-10-19T11:09:06.499Z §2e chốt: chot-clicked → API 400
+2026-10-19T11:09:06.500Z §2e after chốt: {"stillSelected":50,"exportEnabled":true,"banner":"Đã chọn 50 lô | Lô SHP-2609-02641 chưa xác định được số tiền phải thu — chưa thể chốt. | · kỳ 2026-10-01 – 2026-10-19"}
+2026-10-19T11:09:06.629Z shot qa/2026-10-19_chiphi2-b_after_05-after-chot-selection-kept.png.png
+2026-10-19T11:09:08.185Z §2e export API: 400 banner="Idempotency-Key không được vượt quá 100 ký tự."
+2026-10-19T11:09:08.309Z shot qa/2026-10-19_chiphi2-b_after_06-export-refusal-surfaced.png.png
+2026-10-19T11:09:08.350Z §3b target settlement: {"id":2044,"checkedBy":null,"version":1}
+2026-10-19T11:09:12.336Z §3b tab state: {"hasCode":true,"hasButton":true,"btnDisabled":false}
+2026-10-19T11:09:12.433Z shot qa/2026-10-19_chiphi2-b_after_07-settlement-duyet-button.png.png
+2026-10-19T11:09:14.971Z §3b duyệt API 200 → {"ktLine":true,"buttonGone":true}
+2026-10-19T11:09:15.056Z shot qa/2026-10-19_chiphi2-b_after_08-settlement-after-duyet.png.png
+2026-10-19T11:09:15.083Z §3b DB state: checkedBy=3 checkedAt=2026-10-19T11:09:12.452Z checkerName=Nguyễn Thị Mai version=2
+2026-10-19T11:09:19.151Z §3c tab state: {"hasColumn":false,"confirmedRow":false,"duyetButtons":70}
+2026-10-19T11:09:19.328Z shot qa/2026-10-19_chiphi2-b_after_09-ops-expenses-duyet-axis.png.png
+2026-10-19T11:09:20.890Z §3c confirm API 200 toast="Đã duyệt chi phí BK-1792390151847-vf30yr — khoản này giờ tính vào hoàn tạm ứng."
+2026-10-19T11:09:21.029Z shot qa/2026-10-19_chiphi2-b_after_10-ops-confirm-refusal.png.png
+
+=== run 2026-10-19T11:12:59.648Z ===
+2026-10-19T11:12:59.744Z login ketoan OK
+2026-10-19T11:13:06.664Z §2a board: {"selectAllLabel":"Chọn tất cả 91 lô đủ điều kiện","rows":91,"dateInputs":"01→19"}
+2026-10-19T11:13:08.233Z §2a select-all (1569ms): {"selected":91,"line":"Đã chọn 91 lô"}
+2026-10-19T11:13:08.233Z §2c highlight: {"bg":"rgb(232, 248, 238)","tickText":"✓","unselectedTick":null}
+2026-10-19T11:13:08.328Z shot qa/2026-10-19_chiphi2-b_after_01-board-selectall-highlight.png.png
+2026-10-19T11:13:09.092Z §2d narrowing to customer: B77AP2
+2026-10-19T11:13:11.266Z §2d narrowed rows: 5
+2026-10-19T11:13:12.487Z §2d open dialog via: Chọn Debit (5 dòng)
+2026-10-19T11:13:13.490Z §2d dialog: {"header":"Chọn Debit — chốt đợt đối soát (5/5 lô)","dateTicks":["Bỏ chọn tất cả ngày","16/10/2026 (5 lô)"]}
+2026-10-19T11:13:13.680Z shot qa/2026-10-19_chiphi2-b_after_02-dialog-date-ticks.png.png
+2026-10-19T11:13:14.299Z §2d untick "16/10/2026 (5 lô)" → Chọn Debit — chốt đợt đối soát (0/5 lô)
+2026-10-19T11:13:14.383Z shot qa/2026-10-19_chiphi2-b_after_03-dialog-after-untick.png.png
+2026-10-19T11:13:15.337Z §2e direction=thu-ticked vat=0%-ticked
+2026-10-19T11:13:15.711Z shot qa/2026-10-19_chiphi2-b_after_04-dialog-ready-to-chot.png.png
+2026-10-19T11:13:18.261Z §2e chốt: chot-clicked → API 201
+2026-10-19T11:13:18.262Z §2e after chốt: {"stillSelected":5,"exportEnabled":true,"banner":"Đã chọn 5 lô | Đã chốt đợt: Lần 1 · 2026/10 — 13.950.000 ₫ (đã gồm VAT). | · kỳ 2026-10-01 – 2026-10-19"}
+2026-10-19T11:13:18.374Z shot qa/2026-10-19_chiphi2-b_after_05-after-chot-selection-kept.png.png
+2026-10-19T11:13:19.890Z §2e export API: 409 banner="Xuất Debit Note chỉ áp dụng cho lô đã khóa chi phí."
+2026-10-19T11:13:20.189Z shot qa/2026-10-19_chiphi2-b_after_06-export-refusal-surfaced.png.png
+2026-10-19T11:13:20.233Z §3b target settlement: {"id":2044,"checkedBy":3,"version":2}
+2026-10-19T11:13:24.165Z §3b tab state: {"hasCode":true,"hasButton":false,"ktLine":true,"btnDisabled":null}
+2026-10-19T11:13:24.247Z shot qa/2026-10-19_chiphi2-b_after_07-settlement-duyet-button.png.png
+2026-10-19T11:13:46.752Z §3b duyệt API not-clicked(already-duyệt) → {"ktLine":true,"buttonGone":true}
+2026-10-19T11:13:46.789Z shot qa/2026-10-19_chiphi2-b_after_08-settlement-after-duyet.png.png
+2026-10-19T11:13:46.817Z §3b DB state: checkedBy=3 checkedAt=2026-10-19T11:09:12.452Z checkerName=Nguyễn Thị Mai version=2
+2026-10-19T11:13:50.782Z §3c tab state: {"hasColumn":false,"confirmedRow":true,"duyetButtons":69}
+2026-10-19T11:13:50.876Z shot qa/2026-10-19_chiphi2-b_after_09-ops-expenses-duyet-axis.png.png
+2026-10-19T11:13:52.453Z §3c confirm API 409 toast="Bổ sung số và ngày hóa đơn trước khi đối chiếu."
+2026-10-19T11:13:52.622Z shot qa/2026-10-19_chiphi2-b_after_10-ops-confirm-refusal.png.png
+2026-10-19T11:13:52.628Z AFTER DRIVE DONE

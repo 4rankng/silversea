@@ -59,6 +59,11 @@ export function DebitBoardTable({ rows, columns, context, selection, ariaLabel, 
                     key={column.key}
                     className={`${column.className}${column.className === 'debit-col--money' ? ' num' : ''}`}
                   >
+                    {/* §2c: the Ngày cell carries the row's selection tick —
+                        the count strip says HOW MANY, this says WHICH row. */}
+                    {column.key === 'ngay' && (
+                      <span className="debit-row-tick" aria-hidden="true">{isRowSelected ? '✓' : ''}</span>
+                    )}
                     {column.cell(row, context)}
                   </td>
                 ))}
