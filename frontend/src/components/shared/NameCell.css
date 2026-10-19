@@ -1,0 +1,17 @@
+/* The one shared name cell (card 191026181942). Law §4 no-truncation: a name
+   WRAPS — never clips — so the full value stays on screen; the tooltip
+   (title/aria-label on the component) is the reachability layer, not a clip's
+   excuse. `min-width: 0` lets the cell shrink inside flex/grid cell bodies
+   without forcing siblings wide. */
+.name-cell {
+  display: inline;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: inherit;
+}
+
+.name-cell:focus-visible {
+  outline: 2px solid var(--accent, currentColor);
+  outline-offset: 1px;
+}
