@@ -1138,21 +1138,37 @@ describe('GET /', () => {
 
     const unassignedCustomer = await mkCustomer();
     const wrongUnit = await mkBusinessUnit();
+    // Marker BLs make the no-scope probe hermetic: a q search for the
+    // suite-unique token matches exactly these two rows no matter how many
+    // shipments the concurrent full-suite files create or purge on the shared
+    // table (the former exact `total = baseline + 2` delta raced with them —
+    // 7448 !== 7450 with no scoping bug present).
+    const scopeMarker = `CUSSCOPE-${suffix}`;
     const inUnitShipment = await mkShipmentViaService({
       customerId,
       responsibleUnitId: clerkBusinessUnitId,
+      tradeDirection: 'IMPORT',
+      blNumber: `${scopeMarker}-A`,
     });
     const otherUnitShipment = await mkShipmentViaService({
       customerId: unassignedCustomer.id,
       responsibleUnitId: wrongUnit.id,
+      tradeDirection: 'IMPORT',
+      blNumber: `${scopeMarker}-B`,
     });
 
     const listAfter = await testFetch('/?page=1&limit=200', { token: clerkToken });
     assert.equal(listAfter.status, 200);
-    assert.equal(listAfter.data.total, baseline.data.total + 2);
     const visibleIds = new Set(listAfter.data.items.map((row: { id: number }) => row.id));
     assert.ok(visibleIds.has(inUnitShipment.id), 'shipment in the demo unit is visible');
     assert.ok(visibleIds.has(otherUnitShipment.id), 'shipment in any other unit is visible');
+
+    const scoped = await testFetch(`/?q=${encodeURIComponent(scopeMarker)}&page=1&limit=20`, { token: clerkToken });
+    assert.equal(scoped.status, 200);
+    assert.equal(scoped.data.total, 2, 'the clerk list is not scoped by customer or unit — both marker rows match');
+    const scopedIds = new Set(scoped.data.items.map((row: { id: number }) => row.id));
+    assert.ok(scopedIds.has(inUnitShipment.id), 'own-unit row matches the marker search');
+    assert.ok(scopedIds.has(otherUnitShipment.id), 'other-unit row for an unassigned customer matches the marker search');
 
     const otherUnitDetail = await testFetch(`/${otherUnitShipment.id}`, { token: clerkToken });
     assert.equal(otherUnitDetail.status, 200);
