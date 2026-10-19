@@ -16,6 +16,7 @@ import { exportMasterPlanWorksheet } from '../features/dispatch/master-plan/mast
 import { MasterPlanFilters } from '../features/dispatch/master-plan/MasterPlanFilters';
 import { MasterPlanGrid } from '../features/dispatch/master-plan/MasterPlanGrid';
 import { DispatchAllocationPopover } from '../features/dispatch/master-plan/DispatchAllocationPopover';
+import { isLclLotRow } from '../features/dispatch/master-plan/lclLot';
 import { DispatchContainerDetailDrawer } from '../features/dispatch/master-plan/DispatchContainerDetailDrawer';
 import { ZoneTruckPresencePanel } from '../features/dispatch/detailed-plan/ZoneTruckPresencePanel';
 import {
@@ -323,7 +324,19 @@ export default function MasterPlanPage() {
         <DispatchAllocationPopover
           shipment={allocating}
           onClose={() => setAllocating(null)}
-          onSaved={(updated) => masterPlan.replaceItem(updated)}
+          onSaved={(updated) => {
+            // Card 191026181942 — the LCL body saves the BKS pair through
+            // updateLclTruck, which bumps versions server-side without
+            // returning them. Replacing the row with a stale-version copy
+            // would 409 the next versioned write (e.g. the note editor), so
+            // an LCL save refetches the page; FCL keeps the cheap in-place
+            // replace the cont body was built on.
+            if (isLclLotRow(updated)) {
+              void masterPlan.refetch();
+              return;
+            }
+            masterPlan.replaceItem(updated);
+          }}
         />
       )}
       <DispatchContainerDetailDrawer

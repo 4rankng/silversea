@@ -24,7 +24,11 @@ export function DebitBoardTable({ rows, columns, context, selection, ariaLabel, 
           <tr>
             {columns.map((column, index) => {
               if (column.group == null) {
-                return <th key={column.key} scope="col" rowSpan={2} className={column.className}>{column.label}</th>;
+                return (
+                  <th key={column.key} scope="col" rowSpan={2} className={column.className}>
+                    {column.srOnlyHeader ? <span className="sr-only">{column.label}</span> : column.label}
+                  </th>
+                );
               }
               // One spanning header over the contiguous run of the group's
               // VISIBLE members: the run is measured, so a column hidden

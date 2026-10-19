@@ -90,3 +90,44 @@ describe('column visibility — the stored payload', () => {
     expect(readStoredHiddenColumns('not json')).toBeNull();
   });
 });
+
+// Card 191026181942 (KT4) — the essential-set default. A surface opts in with
+// `defaultVisible: 'essential'`; until the operator chooses, only the
+// essential set (pinned columns are essential by nature) shows.
+describe('column visibility — the essential-set default', () => {
+  const MATRIX: readonly LedgerColumn[] = [
+    { key: 'customer', label: 'Khách hàng', pinned: true },
+    { key: 'status', label: 'Trạng thái', pinned: true },
+    { key: 'receivableTotal', label: 'Tổng thu', essential: true },
+    { key: 'payableTotal', label: 'Tổng 1', essential: true },
+    { key: 'cuocThu', label: 'Cước thu', autoHideWhenEmpty: true },
+    { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
+  ];
+
+  it('opens on the essential set only — every other hideable column hides', () => {
+    expect(hiddenByDefault(MATRIX, () => true, 'essential')).toEqual(['cuocThu', 'notes']);
+  });
+
+  it('the data predicate is irrelevant to the essential default — a breakdown with data still hides', () => {
+    // The whole point of the card: "mở hết cột → không đọc được". Data or not,
+    // the breakdowns wait behind the picker.
+    expect(hiddenByDefault(MATRIX, () => false, 'essential')).toEqual(['cuocThu', 'notes']);
+  });
+
+  it('an explicit stored choice still replaces the essential default wholesale', () => {
+    expect(resolveHiddenColumns({ columns: MATRIX, choice: [], hasData: () => false, defaultVisible: 'essential' }))
+      .toEqual([]);
+  });
+
+  it('a surface that has not opted in keeps the auto-hide default byte-for-byte', () => {
+    expect(resolveHiddenColumns({ columns: MATRIX, choice: null, hasData: () => false }))
+      .toEqual(['cuocThu', 'notes']);
+    expect(resolveHiddenColumns({ columns: MATRIX, choice: null, hasData: () => true })).toEqual([]);
+  });
+
+  it('toggling from the essential default carries the other hidden breakdowns with it', () => {
+    // The first toggle writes the WHOLE effective set: unhiding Cước thu must
+    // not resurrect Ghi chú (which the essential default also hid).
+    expect(toggleHiddenColumn(MATRIX, ['cuocThu', 'notes'], 'cuocThu')).toEqual(['notes']);
+  });
+});
