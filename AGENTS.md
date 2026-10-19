@@ -42,6 +42,24 @@ instruction.
 - Nontrivial changes require an independent code-reviewer/verifier pass.
 - Report only the execution and evidence obtained; §9 governs UI claims.
 
+### Backend tests are unit-only (owner ruling, 2026-10-19)
+
+BACKEND tests live in `backend/src/tests/**` and must be **pure unit tests**:
+no `db`/`client` connection import, no Express app boot (`express()`,
+`http.createServer`, `.listen`), no HTTP to a local server, no Redis client.
+A test that needs a running app or database is an **integration test** and does
+not belong in the BE tree at all.
+
+- Unit tests assert pure logic: functions, policies, schemas, calculations,
+  static source/registry scans, filesystem-only invariants.
+- Integration/E2E verification (app + DB + HTTP) is written and owned by QA as
+  scripts under `qa/scripts/`, run against local/staging — never as
+  `backend/src/tests` files.
+- This is an owner decision and supersedes §2's "no deleted failing tests" for
+  the BE integration class: those files were removed deliberately, not skipped.
+- Do not reintroduce DB/app fixture bootstraps into `backend/src/tests`; extend
+  a `qa/scripts/` integration probe instead.
+
 ## 3. Workflow and context
 
 Understand → Plan → Implement → QA → Fix → Re-QA → Done. Continue until affected
