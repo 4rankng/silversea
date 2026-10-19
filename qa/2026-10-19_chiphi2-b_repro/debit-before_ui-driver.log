@@ -1,0 +1,22 @@
+
+=== run 2026-10-19T10:18:18.261Z ===
+2026-10-19T10:18:18.355Z login ketoan OK
+2026-10-19T10:18:27.303Z shot qa/2026-10-19_chiphi2-b_repro/debit-before_01-board-initial.png.png
+2026-10-19T10:18:27.305Z board text head:
+2026-10-19T10:18:27.312Z select-all button label: null
+2026-10-19T10:18:27.313Z export button: null
+2026-10-19T10:18:27.313Z REPRO DONE
+
+=== run 2026-10-19T10:19:45.964Z ===
+2026-10-19T10:19:46.050Z login ketoan OK
+2026-10-19T10:19:51.767Z shot qa/2026-10-19_chiphi2-b_repro/debit-before_01-board-initial.png.png
+2026-10-19T10:19:51.891Z board text head:
+2026-10-19T10:19:51.899Z select-all button label: "Chọn tất cả 8864 lô đủ điều kiện"
+
+=== run 2026-10-19T10:23:31.331Z ===
+2026-10-19T10:23:31.434Z login ketoan OK
+2026-10-19T10:23:32.844Z page loaded, waiting for first paint…
+2026-10-19T10:23:40.846Z URL: http://localhost:7178/accounting/chot-debit
+2026-10-19T10:23:40.857Z inputs: {"count":8,"sample":[{"id":"","name":"","type":"text","ph":"Tìm trang, cấu hình, thao tác…"},{"id":"","name":"","type":"text","ph":"Mã lô, bill/booking, khách hàng, container"},{"id":"debit-board-date-range","name":"","type":"text","ph":"DD"},{"id":"","name":"","type":"text","ph":"MM"},{"id":"","name":"","type":"text","ph":"YYYY"},{"id":"debit-board-date-range-to","name":"","type":"text","ph":"DD"},{"id":"","name":"","type":"text","ph":"MM"},{"id":"","name":"","type":"text","ph":"YYYY"}]}
+2026-10-19T10:23:40.989Z shot qa/2026-10-19_chiphi2-b_repro/debit-before_01-board-initial.png.png
+2026-10-19T10:23:40.991Z select-all button label: "Chọn tất cả 8864 lô đủ điều kiện"

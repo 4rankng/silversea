@@ -97,10 +97,12 @@ export async function createAdvanceSettlement(
       approvedAt: new Date(),
       // FB-100 F-W1-1 ruling (Option B, card 141026230770): the phiếu applies
       // at creation and the SUBMITTER'S OWN confirmation tick is the
-      // "xác nhận hoàn ứng" the card demands — the creating forwarder is the
-      // confirming actor, stamped here (checked_by = tự xác nhận).
-      checkedBy: forwarderId,
-      checkedAt: new Date(),
+      // "xác nhận hoàn ứng" — stamped as approved_by/approved_at above.
+      // Card 191026160000 (§3b): checked_by/checked_at now belong to the
+      // ACCOUNTANT's DUYỆT PHIẾU HOÀN ỨNG act only (checkAdvanceSettlement),
+      // so creation leaves them NULL instead of reusing the submitter's id.
+      checkedBy: null,
+      checkedAt: null,
       note: data.note ?? null,
     }).returning();
 
@@ -538,6 +540,62 @@ export async function updateAdvanceSettlement(
       targetRoles: [],
     });
   }
+  return detail;
+}
+
+/**
+ * Card 191026160000 (§3b) — DUYỆT PHIẾU HOÀN ỨNG: kế toán's explicit check on
+ * a recorded phiếu. This is the click the chiphispec round-2 asks for ("không
+ * có mục click -> tích chọn hoàn ứng"): the phiếu still applies at creation
+ * (TC-CHUNK4-009, unchanged), and this act stamps the ACCOUNTANT's
+ * verification — checked_by/checked_at — beside the submitter's own
+ * approved_by/approved_at. Legacy rows where FB-100 Option B stamped the
+ * SUBMITTER into checked_by are re-duyệt-able (that stamp named no accountant);
+ * a real accountant check is terminal until reversal.
+ */
+export async function checkAdvanceSettlement(
+  settlementId: number,
+  input: { expectedVersion?: number; actorId: number },
+  transaction?: Tx,
+) {
+  const execute = async (tx: Tx) => {
+    const [settlement] = await tx.select().from(s.advanceSettlements)
+      .where(eq(s.advanceSettlements.id, settlementId)).for('update');
+    if (!settlement) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng');
+    const version = input.expectedVersion ?? settlement.version;
+    assertExpectedVersion(settlement.version, version, 'Phiếu hoàn ứng');
+    if (settlement.status === 'DRAFT') {
+      throw new AdvanceError(409, 'Phiếu chưa hoàn tất — không duyệt được.');
+    }
+    if (settlement.status !== 'RECORDED') {
+      throw new AdvanceError(409, 'Phiếu đã hủy/hoàn tác — không duyệt được.');
+    }
+    if (settlement.checkedBy != null && settlement.checkedBy !== settlement.forwarderId) {
+      throw new AdvanceError(409, 'Phiếu đã được kế toán duyệt.');
+    }
+    await tx.update(s.advanceSettlements).set({
+      checkedBy: input.actorId,
+      checkedAt: new Date(),
+      updatedAt: new Date(),
+      version: sql`${s.advanceSettlements.version} + 1`,
+    }).where(and(
+      eq(s.advanceSettlements.id, settlementId),
+      eq(s.advanceSettlements.version, version),
+    ));
+  };
+  if (transaction) await execute(transaction);
+  else await db.transaction(execute);
+  const detail = await getAdvanceSettlement(settlementId, transaction);
+  if (!detail) throw new AdvanceError(404, 'Không tìm thấy phiếu hoàn ứng sau khi duyệt');
+  emitNotification({
+    type: NotificationType.SYSTEM_ANNOUNCEMENT,
+    title: 'Kế toán đã duyệt phiếu hoàn ứng',
+    message: `Phiếu ${detail.code} đã được kế toán duyệt.`,
+    relatedEntityType: 'advance_settlements',
+    relatedEntityId: settlementId,
+    targetUserId: detail.forwarderId,
+    targetRoles: [],
+  });
   return detail;
 }
 

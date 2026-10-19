@@ -4,13 +4,16 @@ import { Image as ImageIcon, Loader2, X } from 'lucide-react';
 import {
   useAdminOpsExpenses,
   useAdminOpsSettlements,
+  useAdminOpsSettlement,
+  useInvalidateOps,
 } from '../../hooks/useOpsQueries';
 import { opsClient } from '../../api/opsClient';
+import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsSettlementSheet } from './OpsSettlementsPanel';
-import { useAdminOpsSettlement } from '../../hooks/useOpsQueries';
 import { formatMoney } from '../../lib/format';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
 
@@ -20,11 +23,23 @@ import { formatDate } from '../../lib/format';
 /**
  * "Chi phí Ops" tab in the advance workspace (OpsVanHanh §5.4): accounting
  * reviews field cash expenses (photos first) and closes settlement batches.
+ *
+ * Card 191026160000 (§3c): every Ops chi phí now states its KẾ TOÁN DUYỆT
+ * state and the accountant can Duyệt it right here. An Ops expense only
+ * counts toward hoàn tạm ứng (the ĐNTT column of Báo cáo hoàn ứng) once kế
+ * toán confirms it — that confirm used to live only in Kiểm soát phơi phiếu,
+ * so "Ops lên chi phí" looked like it never reached accounting. The button
+ * posts the SAME batch confirm the phơi phiếu tick-all uses — no forked
+ * confirmation path.
  */
 export function OpsAccountantTab() {
   const { data, isLoading } = useAdminOpsExpenses();
   const { data: settlements } = useAdminOpsSettlements();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const canConfirm = user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'ACCOUNTANT';
+  const invalidateOps = useInvalidateOps();
+  const [confirmBusyId, setConfirmBusyId] = useState<number | null>(null);
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [sheetFor, setSheetFor] = useState<number | null>(null);
   const sheet = useAdminOpsSettlement(sheetFor);
@@ -33,6 +48,22 @@ export function OpsAccountantTab() {
   // The settlement detail is what the "Xem phiếu" modal renders; held as a
   // local so the pending/error branches below can share one narrowing.
   const detail = sheet.data;
+
+  // §3c — duyệt one Ops chi: the same expenseConfirmSchema payload the phơi
+  // phiếu board sends ({sourceKind:'OPS', sourceId, expectedVersion}).
+  const confirmExpense = async (row: typeof items[number]) => {
+    if (confirmBusyId !== null || row.version == null) return;
+    setConfirmBusyId(row.id);
+    try {
+      await expenseAccountingClient.confirm([{ sourceKind: 'OPS', sourceId: row.id, expectedVersion: row.version }]);
+      invalidateOps();
+      toast({ kind: 'success', message: `Đã duyệt chi phí ${opsBillReference(row.billRef)} — khoản này giờ tính vào hoàn tạm ứng.` });
+    } catch (cause) {
+      toastActionError(toast, 'duyệt chi phí Ops', cause, 'Không duyệt được chi phí.');
+    } finally {
+      setConfirmBusyId(null);
+    }
+  };
 
   return (
     <div className="ops-acc">
@@ -54,6 +85,10 @@ export function OpsAccountantTab() {
                 <th>Người chi</th>
                 <th>Chứng từ</th>
                 <th>Trạng thái</th>
+                {/* §3c — kế toán's duyệt axis: an Ops chi only reaches hoàn
+                    tạm ứng (ĐNTT) after this tick, so the state and the act
+                    live on the same screen kế toán already reads. */}
+                <th>Duyệt KT</th>
                 <th aria-label="Thao tác" />
               </tr>
             </thead>
@@ -77,11 +112,28 @@ export function OpsAccountantTab() {
                     </button>
                   </td>
                   <td>{row.approvalStatus === 'DRAFT' ? 'Cần bổ sung' : row.approvalStatus === 'VOIDED' || row.approvalStatus === 'REJECTED' ? 'Đã hủy / lịch sử' : row.opsSettlementId == null ? 'Chưa quyết toán' : 'Đã lập phiếu'}</td>
+                  <td>
+                    {row.version == null ? '—'
+                      : row.confirmedAt != null ? `Đã duyệt ${formatDate(row.confirmedAt)}`
+                        : canConfirm ? (
+                          <button
+                            type="button"
+                            className="btn btn--secondary btn--sm"
+                            // One confirm in flight ⇒ every Duyệt waits (the
+                            // busy check is global; leaving siblings enabled
+                            // made their clicks die silently — review F5).
+                            disabled={confirmBusyId !== null}
+                            onClick={() => void confirmExpense(row)}
+                          >
+                            {confirmBusyId === row.id ? 'Đang duyệt…' : 'Duyệt'}
+                          </button>
+                        ) : 'Chưa duyệt'}
+                  </td>
                   <td>{row.opsSettlementId != null && <button type="button" className="btn btn--secondary" onClick={() => setSheetFor(row.opsSettlementId)}>Xem phiếu</button>}</td>
                 </tr>
               ))}
               {!isLoading && items.length === 0 && (
-                <tr><td colSpan={9} className="ops-wallet__empty">Không có khoản chi nào.</td></tr>
+                <tr><td colSpan={10} className="ops-wallet__empty">Không có khoản chi nào.</td></tr>
               )}
             </tbody>
           </table>

@@ -358,7 +358,11 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     fireEvent.click(button);
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
     // One POST, both locked ids, the stable per-selection key — the open lot never travels.
-    expect(createBatch).toHaveBeenCalledWith([101, 102], 'debit-note-101-102');
+    // Card 191026160000 §2e: the key is now derived INSIDE the client (the
+    // raw join blew the 100-char transport limit on real selections), so the
+    // page passes the ids alone; the replay contract is pinned in
+    // src/api/shipmentDebit.key.test.ts.
+    expect(createBatch).toHaveBeenCalledWith([101, 102]);
     await waitFor(() => expect(exportFile).toHaveBeenCalledWith(101, 777));
   });
 
@@ -372,7 +376,9 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(2));
     expect(createBatch.mock.calls[0][1]).toBe(createBatch.mock.calls[1][1]);
-    expect(createBatch.mock.calls[1][1]).toBe('debit-note-101');
+    // Same-selection replay is guaranteed by the client's internal
+    // selection-hash key (shipmentDebit.key.test.ts pins it).
+    expect(createBatch.mock.calls[1][0]).toEqual(createBatch.mock.calls[0][0]);
   });
 
   it('names the overlapping lots when the issue call rejects with a uniqueness 409', async () => {

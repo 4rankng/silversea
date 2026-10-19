@@ -4,11 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../components/shared/Toast';
 import { OpsAccountantTab } from './OpsAccountantTab';
 
-const { apiGet, apiPost } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn() }));
+const { apiGet, apiPost, authUser } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), authUser: vi.fn() }));
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../lib/api')>(),
   api: { get: apiGet, post: apiPost, patch: vi.fn(), delete: vi.fn(), upload: vi.fn() },
 }));
+// Card 191026160000 (§3c): the tab role-gates the KT-duyệt action; the
+// legacy no-reviewer pins below run as a non-finance reader.
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: authUser() }) }));
 
 function renderTab() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -34,6 +37,7 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
   beforeEach(() => {
     apiGet.mockReset();
     apiPost.mockReset();
+    authUser.mockReset().mockReturnValue(null);
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/admin/expenses')) {
         return Promise.resolve({ items: [expense()] });
@@ -146,5 +150,72 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
     expect(screen.getByRole('button', { name: 'Nợ chứng từ' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /duyệt/i })).toBeNull();
     expect(apiPost).not.toHaveBeenCalled();
+  });
+});
+
+// Card 191026160000 (§3c) — "Ops lên chi phí → mục hoàn tạm ứng không hiện
+// bên kế toán": an Ops chi chỉ reaches the ĐNTT (hoàn tạm ứng) axis after kế
+// toán confirms it; that confirm used to live only in Kiểm soát phơi phiếu.
+// The tab now states the duyệt state and offers the SAME batch confirm
+// (/expense-accounting/confirm) phơi phiếu uses. Cases CP2-A3.
+describe('OpsAccountantTab — KT-duyệt axis (card 191026160000 §3c)', () => {
+  it('CP2-A3: an unconfirmed chi shows "Chưa duyệt" for a reader and the Duyệt button for kế toán', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ version: 1, confirmedAt: null })] });
+      if (url.startsWith('/ops/admin/settlements')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    await screen.findByText('BL-9');
+    expect(screen.getByRole('columnheader', { name: 'Duyệt KT' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Duyệt$/ }));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/expense-accounting/confirm',
+      { entries: [{ sourceKind: 'OPS', sourceId: 5, expectedVersion: 1 }] },
+    ));
+  });
+
+  it('CP2-A3: a non-finance role sees the state, never the button', async () => {
+    authUser.mockReturnValue({ userId: 8, role: 'CUS' });
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ version: 1, confirmedAt: null })] });
+      if (url.startsWith('/ops/admin/settlements')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    await screen.findByText('BL-9');
+    expect(screen.getByText('Chưa duyệt')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Duyệt$/ })).toBeNull();
+  });
+
+  it('CP2-A3: a confirmed chi states who-when ("Đã duyệt …"), no button', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) {
+        return Promise.resolve({ items: [expense({ version: 1, confirmedAt: '2026-10-19T02:00:00.000Z' })] });
+      }
+      if (url.startsWith('/ops/admin/settlements')) {
+        return Promise.resolve({ items: [] });
+      }
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    expect(await screen.findByText('Đã duyệt 19/10/2026')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Duyệt$/ })).toBeNull();
+  });
+
+  it('CP2-A3: a refusal (thiếu hóa đơn) surfaces through the toast, not silence', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockRejectedValue(new Error('Bổ sung số và ngày hóa đơn trước khi đối chiếu.'));
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ version: 1, confirmedAt: null })] });
+      if (url.startsWith('/ops/admin/settlements')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    await screen.findByText('BL-9');
+    fireEvent.click(screen.getByRole('button', { name: /^Duyệt$/ }));
+    expect(await screen.findByText(/Bổ sung số và ngày hóa đơn trước khi đối chiếu/)).toBeInTheDocument();
   });
 });
