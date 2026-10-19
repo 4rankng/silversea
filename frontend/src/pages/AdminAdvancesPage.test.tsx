@@ -234,13 +234,13 @@ describe('PHÊ DUYỆT TẠM ỨNG (FB-100 — card 141026230770)', () => {
     approveAdvanceRequest.mockReset().mockResolvedValue({ id: 9, status: 'RECORDED', version: 2 });
   });
 
-  it('dòng PENDING có nút Phê duyệt tạm ứng; bấm gọi approve theo version của dòng', async () => {
+  it('dòng PENDING có nút PHÊ DUYỆT TẠM ỨNG (spec token, card 181026183600); bấm gọi approve theo version của dòng', async () => {
     listAllAdvanceRequests.mockReset().mockResolvedValue({
       ...envelope,
       items: [makeRequest(9, AdvanceRequestStatus.PENDING, 'Cường Phạm')],
     });
     renderPage();
-    const buttons = await screen.findAllByRole('button', { name: 'Phê duyệt tạm ứng' });
+    const buttons = await screen.findAllByRole('button', { name: 'PHÊ DUYỆT TẠM ỨNG' });
     expect(buttons.length).toBeGreaterThan(0);
     fireEvent.click(buttons[0]);
     await waitFor(() => expect(approveAdvanceRequest).toHaveBeenCalledWith(9, 1));
@@ -249,6 +249,23 @@ describe('PHÊ DUYỆT TẠM ỨNG (FB-100 — card 141026230770)', () => {
   it('dòng đã ghi nhận/không phải PENDING không có nút phê duyệt', async () => {
     renderPage();
     await screen.findAllByText('An Nguyễn');
-    expect(screen.queryAllByRole('button', { name: 'Phê duyệt tạm ứng' })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: 'PHÊ DUYỆT TẠM ỨNG' })).toHaveLength(0);
+  });
+
+  it('pill "Chờ duyệt" hiển thị count PENDING full-set và lọc status=PENDING (card 181026183600)', async () => {
+    listAllAdvanceRequests.mockReset().mockResolvedValue({
+      ...envelope,
+      statusCounts: { ...envelope.statusCounts, [AdvanceRequestStatus.PENDING]: 3 },
+      statusAmounts: { ...envelope.statusAmounts, [AdvanceRequestStatus.PENDING]: 9_000_000 },
+    });
+    renderPage();
+    await screen.findAllByText('An Nguyễn');
+
+    // Count rides the full-set envelope, not the loaded page.
+    const pill = screen.getByRole('button', { name: 'Chờ duyệt3' });
+    fireEvent.click(pill);
+    await waitFor(() =>
+      expect(lastCallParams()).toMatchObject({ status: 'PENDING', page: 1 }),
+    );
   });
 });
