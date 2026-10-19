@@ -160,7 +160,7 @@ export function PhoiPhieuReportSection() {
   ], []);
   return (
     <div style={{ margin: '16px 0' }}>
-      <h2 style={{ fontSize: 'var(--text-body-size)' }}>BÁO CÁO THU / TRẢ PHƠI</h2>
+      <h2 style={{ fontSize: 'var(--text-body-size)' }}>Báo cáo thu / trả phơi</h2>
       <div className="ppc-report-controls">
         <DateRangeFields
           id="phoi-phieu-report-range"

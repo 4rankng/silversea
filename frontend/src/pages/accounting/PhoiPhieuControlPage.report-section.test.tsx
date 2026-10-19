@@ -39,13 +39,13 @@ beforeEach(() => {
   listPhoiPhieuStk.mockResolvedValue({ items: [{ id: 5, code: 'ACB', name: 'TK công ty' }] });
 });
 
-// Card 191026160000 — "Báo cáo tháng" becomes the BÁO CÁO THU / TRẢ PHƠI
+// Card 191026160000 — "Báo cáo tháng" becomes the Báo cáo thu / trả phơi
 // section: its own date range, a PHẢI THU / PHẢI TRẢ tab pair (one table at a
 // time), and a party row that drills into the unpaid lots.
-describe('BÁO CÁO THU / TRẢ PHƠI section', () => {
+describe('Báo cáo thu / trả phơi section', () => {
   it('renders the section title, its own range, and the THU tab first', async () => {
     renderSection();
-    expect(screen.getByRole('heading', { name: 'BÁO CÁO THU / TRẢ PHƠI' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Báo cáo thu / trả phơi' })).toBeInTheDocument();
     expect(await screen.findByRole('columnheader', { name: 'Tổng' })).toBeInTheDocument();
     // Default window = the running month (the surface it replaced was monthly).
     const today = new Date().toISOString().slice(0, 10);
