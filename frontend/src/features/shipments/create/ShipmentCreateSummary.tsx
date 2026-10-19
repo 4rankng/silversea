@@ -14,22 +14,19 @@ interface ShipmentCreateSummaryProps {
   onFocusIssue: (fieldId: string) => void;
 }
 
-/* The validation/summary block. The create actions no longer live here: the
- * owner mock 11/10 moved them onto the page topline (ShipmentCreateTopline)
- * and retired the fixed bottom bar this file used to own — so the file is
- * just the in-flow state surface now: the outstanding-issue list (card
- * 171026113510) and a submit failure (danger styling, announced once).
- *
- * FB UX de-noise (17/10): the issue list is submit-gated via `showIssues` —
- * the live readiness still drives the topline chip, but the panel itself may
- * only surface once a create attempt happened; a submit failure (submitError)
- * is independent of that gate and keeps its own rendering. */
+/* Card 181026180300: Restyle "Cần bổ sung N thông tin" panel into a compact,
+ * neutral card (Untitled UI alert/callout style, --surface tokens, no pink/wall).
+ * Submit-gated: hidden on initial page load until operator clicks "Tạo lô hàng". */
 export function ShipmentCreateSummary({
   outstandingIssues,
   showIssues,
   submitError,
   onFocusIssue,
 }: ShipmentCreateSummaryProps) {
+  if (!submitError && (!showIssues || outstandingIssues.length === 0)) {
+    return null;
+  }
+
   return (
     <aside className="csc-summary" aria-label="Tình trạng lô hàng">
       {showIssues && outstandingIssues.length > 0 && (
