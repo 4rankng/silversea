@@ -139,7 +139,13 @@ async function main() {
       return `disabled:${save?.getAttribute('disabled')}`;
     });
     note('ops-form-save', savedOps);
-    await sleep(3000);
+    const posts = [];
+    opsPage.on('response', async (res) => {
+      if (res.url().includes('/ops/expenses') && res.request().method() === 'POST') {
+        posts.push(`${res.status()}`);
+      }
+    });
+    await sleep(4000);
     // A duplicate bounce is a QUESTION panel, not a failure: continue through it.
     const dup = await opsPage.evaluate(() => document.body.textContent.includes('NHẬP TRƯỚC ĐÓ'));
     if (dup) {
@@ -151,7 +157,8 @@ async function main() {
     const toastText = await opsPage.evaluate(() => document.body.textContent.includes('Đã ghi nhận') ? 'toast-ok' : 'no-toast');
     const modalGone = await opsPage.evaluate(() => !document.querySelector('.ops-modal'));
     const alertText = await opsPage.evaluate(() => Array.from(document.querySelectorAll('[role="alert"]')).map(a => a.textContent?.slice(0, 80)).join(' | '));
-    note('ops-form-after', `toast=${toastText} modalGone=${modalGone} alerts=${alertText}`);
+    const toastBox = await opsPage.evaluate(() => document.querySelector('.toast-container')?.textContent?.slice(0, 120) || '');
+    note('ops-form-after', `posts=${posts.join(',')} toast=${toastText} modalGone=${modalGone} alerts=${alertText} toastBox=${toastBox}`);
     await shot(opsPage, 'ops-form-saved');
     await opsPage.close();
 
@@ -160,8 +167,12 @@ async function main() {
     await page.goto(`${BASE}/accounting/phoi-phieu`, { waitUntil: 'domcontentloaded' });
     // Polling works where waitForSelector's DOM resolution starves on this
     // heavy page (300-row board under the dev bundle).
-    await page.waitForFunction(() => Boolean(document.querySelector('.ppc-board')), { timeout: 300000, polling: 1000 });
-    await sleep(3000);
+    for (let waited = 0; waited < 480000; waited += 5000) {
+      const found = await page.evaluate(() => Boolean(document.querySelector('.ppc-board'))).catch(() => false);
+      if (found) break;
+      await sleep(5000);
+    }
+    await sleep(4000);
     await shot(page, 'board');
     // Open the first Tiền đường detail (Xem chi tiết in the money column).
     await page.evaluate(() => {
