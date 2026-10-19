@@ -10,6 +10,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({ getPhoiPhieuReport, getPhoiPhieuPa
 
 import { PhoiPhieuReportSection } from './PhoiPhieuControlPage.reports';
 import type { PhoiPhieuPartyLot, PhoiPhieuReportRow } from '../../api/phoiPhieuClient';
+import { businessDateISO } from '../../lib/format';
 
 const row: PhoiPhieuReportRow = { party: 'KH Alpha', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0 };
 const grand: PhoiPhieuReportRow = { party: 'TỔNG CỘNG', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0 };
@@ -48,7 +49,10 @@ describe('Báo cáo thu / trả phơi section', () => {
     expect(screen.getByRole('heading', { name: 'Báo cáo thu / trả phơi' })).toBeInTheDocument();
     expect(await screen.findByRole('columnheader', { name: 'Tổng' })).toBeInTheDocument();
     // Default window = the running month (the surface it replaced was monthly).
-    const today = new Date().toISOString().slice(0, 10);
+    // Derive the expected bounds exactly like the component does — the Vietnam
+    // business date — not a UTC `toISOString()` day, which lags it by a day
+    // between 00:00 and 07:00 Vietnam time and made this test red every morning.
+    const today = businessDateISO();
     const monthStart = `${today.slice(0, 7)}-01`;
     expect(getPhoiPhieuReport).toHaveBeenCalledWith('THU', expect.objectContaining({ dateFrom: monthStart, dateTo: today, scope: undefined }));
     // One direction per surface: the THU table is up, the TRA header is not.
