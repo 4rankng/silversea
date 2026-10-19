@@ -9,7 +9,8 @@
  *   AC1 norm entry never charges: client-sent invoice number dropped, charge
  *       0, costType/costGroup from the norm, feeName = norm label; registry
  *       row carries the norm classification via the owner row.
- *   AC3 driver override: amount differing from the norm accepted as-is.
+ *   AC3 (superseded by card 182300, chiphispec §1): a norm row stores the
+ *       SYSTEM amount; a divergent driver amount is ignored, never stored.
  *   Guard: unknown norm code 400; catalog ref + norm ref together 400.
  *   AC2 data source: listActiveDriverFeeNorms returns the norms for the FE.
  */
@@ -105,7 +106,13 @@ describe('card 20260921_7 - driver fee norms', () => {
     assert.ok(source, 'registry row exists for shipment-linked trip');
   });
 
-  test('driver may override the amount away from the norm (AC3)', async () => {
+  // Card 182300 (chiphispec §1; testplan/2026-10-18-card182300 TD-RO-02)
+  // SUPERSEDES the original AC3 "amount overridable": a norm row's money is
+  // the SYSTEM figure. The divergent driver amount rides in the payload and
+  // is IGNORED (replay-safe, no 400) — both the payable and the driver-entered
+  // provenance column carry the norm value; the entry still never charges the
+  // customer (AC1).
+  test('norm row stores the SYSTEM amount; a divergent driver amount is ignored (AC3 superseded by card 182300)', async () => {
     const { user, driver, trip } = await mkDriverTrip();
     const { cost } = await recordIncidentalCost(trip.id, driver.id, {
       costType: DriverIncidentalCostType.OTHER, feeNormCode: 'LIFT_DROP_ALLOWANCE',
@@ -115,8 +122,9 @@ describe('card 20260921_7 - driver fee norms', () => {
       await db.delete(s.expenseAccountingSources).where(and(eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.sourceId, cost.id)));
       await db.delete(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
     });
-    assert.equal(String(cost.amount), '120000');
+    assert.equal(String(cost.amount), '50000');
     const [entryRow] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
+    assert.equal(entryRow.driverEnteredAmount, '50000', 'the provenance column carries the system figure too');
     assert.equal(entryRow.customerChargeAmount, '0');
   });
 });
