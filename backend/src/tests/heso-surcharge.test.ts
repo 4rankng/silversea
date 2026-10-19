@@ -11,7 +11,7 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -72,10 +72,30 @@ async function mkBase(classIdByCode: Map<string, number>): Promise<void> {
     '8T': '0.2000', '10T': '0.2400', 'CONT20': '0.32', 'CONT40': '0.35',
   };
   for (const [code, litersPerKm] of Object.entries(NORMS)) {
-    const [n] = await db.insert(s.fuelConsumptionNorms)
-      .values({ vehicleSizeClassId: classIdByCode.get(code)!, litersPerKm, effectiveDate: '2026-01-01' })
-      .returning();
-    ids.norms.push(n.id);
+    const classId = classIdByCode.get(code)!;
+    // (vehicle_size_class_id, effective_date) is a SHARED slot: vehicle size
+    // classes are reused by code across suites (onConflictDoNothing above),
+    // and q58-price-class-selection writes the same (class, 2026-01-01) norms
+    // concurrently on the shared dev DB — its winner row is deleted only by
+    // its own after(). A blind insert here 23505s against that race
+    // (full-suite red 2026-10-19, card 261019172304). Adopt-or-create, and
+    // only ever delete a row THIS run created.
+    const inserted = await db.insert(s.fuelConsumptionNorms)
+      .values({ vehicleSizeClassId: classId, litersPerKm, effectiveDate: '2026-01-01' })
+      .onConflictDoNothing({ target: [s.fuelConsumptionNorms.vehicleSizeClassId, s.fuelConsumptionNorms.effectiveDate] })
+      .returning({ id: s.fuelConsumptionNorms.id });
+    if (inserted.length > 0) {
+      ids.norms.push(inserted[0].id);
+      continue;
+    }
+    const [winner] = await db.select({ id: s.fuelConsumptionNorms.id })
+      .from(s.fuelConsumptionNorms)
+      .where(and(
+        eq(s.fuelConsumptionNorms.vehicleSizeClassId, classId),
+        eq(s.fuelConsumptionNorms.effectiveDate, '2026-01-01'),
+      ))
+      .limit(1);
+    assert.ok(winner, `norm row for class ${classId} disappeared between conflict and re-read`);
   }
   for (const [customerId, routeId, km, share] of [
     [longMinhId, routeAskey, 100, '4.00'],
