@@ -170,22 +170,22 @@ describe('shipment create model', () => {
     expect(createEmptyContainer().cargoVolumeCbm).toBe('');
   });
 
-  it('copies a preceding container while requiring a new container number AND a fresh type choice', () => {
+  it('copies a preceding container in full, leaving only Số container empty', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'row-2' });
     const copied = createContainerFromPrevious({
       ...container,
       customerAppointmentAt: '2026-08-20T09:30',
     });
 
-    // Card 071026100800 (fix-all-issues ruling 2026-10-07): schedule data
-    // (route, ports, factory, window) rides the previous row, but the type is
-    // per-container data — a fresh row shows no "40DC" ghost, and mixed-type
-    // lots (1x20DC + 1x40DC) never fight a copied selection.
+    // FB-111 + 181026200100 (A.1): "Thêm container" inherits the previous
+    // row — Loại cont (40DC stays, superseding card 071026100800's
+    // blank-type ruling on this form), route, factory, ports, weight and the
+    // schedule window all ride. Only the Số container is per-container and
+    // stays empty for entry.
     expect(copied).toMatchObject({
       ...container,
       key: 'row-2',
       containerNumber: '',
-      containerTypeId: '',
       customerAppointmentAt: '2026-08-20T09:30',
     });
   });

@@ -153,10 +153,12 @@ describe('shipment create responsive layout', () => {
 
   it('gives customer identity the widest column and reflows cleanly by viewport', () => {
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
-    // Owner mock 11/10 column map: 6 / 3 / 3 across one 12-column track.
+    // Card 181026200200 (A.3) column map: the document fields read
+    // Số Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu, so band 1 is
+    // 6 / 6 (customer + booking) and band 3 is 6 / 6 (direction + carrier).
     expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
-    expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 3;/);
-    expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 3;/);
+    expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 6;/);
+    expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 6;/);
     // Below the 12-column canvas the customer field stops sharing a half row
     // (owner report 11/10: three identity fields ride ONE row on a laptop —
     // the collapse starts at 820px, not at the tablet width).

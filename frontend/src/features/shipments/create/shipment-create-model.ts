@@ -164,11 +164,13 @@ export function createEmptyContainer(): ShipmentContainerDraft {
 }
 
 /**
- * Start a new FCL row from the preceding row's operational data. The physical
- * identifiers are per-container and must be entered again: the number, and the
- * type (card 071026100800 — a copied "40DC" read as stray text in the fresh
- * row, and mixed-type lots fight the copied selection). Schedule data (route,
- * ports, factory, window) legitimately rides the previous row.
+ * Start a new FCL row from the preceding row's data (FB-111 + 181026200100
+ * A.1): the operator's intent when pressing "Thêm container" is a row that
+ * inherits the previous row — Loại cont (a "40DC" copy is the FEATURE here,
+ * per FB-111 superseding card 071026100800's blank-type ruling on this form —
+ * mixed-type lots just re-pick the cell), route, factory, ports, weight and
+ * the schedule window. The one per-container identifier that must never be
+ * invented is the Số container, which stays empty for entry.
  */
 export function createContainerFromPrevious(
   previous?: ShipmentContainerDraft,
@@ -179,7 +181,6 @@ export function createContainerFromPrevious(
     ...previous,
     key: crypto.randomUUID(),
     containerNumber: '',
-    containerTypeId: '',
   };
 }
 

@@ -1035,15 +1035,70 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.getByRole('button', { name: 'Thêm container' })).toBeDisabled();
   });
 
-  // Card D.4 (18/10): the "Lịch & ghi chú" section is REMOVED as a whole from
-  // the hàng lẻ form — the block collapses to exactly ONE control, the dashed
-  // "Thêm ngày giao hàng" button (the same minimal, user-initiated add
-  // affordance as "+ Thêm kho"/"+ Thêm nhà máy"). The delivery-date field
-  // only exists after the user clicks it. The customs cutoff joins the
+  // FB-111 + 181026200100 (A.1): "Thêm container" inherits the previous
+  // row — Loại cont (the 40DC-style code STAYS, superseding card
+  // 071026100800), route, factory, ports, weight and the schedule window.
+  // Only the Số container is per-container and stays empty for entry.
+  it('copies the previous row into every added container, leaving only Số container empty', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+
+    // Fill row 1 completely while it is the only row (the choose helper
+    // resolves one combobox per label). The customer rides first — the site
+    // catalog (Nhà máy 41) loads per customer.
+    await choose('Khách hàng', '7');
+    await choose('Loại container', '31');
+    await choose('Tuyến đường', '11');
+    await choose('Cảng nâng', '21');
+    await choose('Cảng hạ', '22');
+    const table = screen.getByRole('table', { name: 'Danh sách container' });
+    const firstRow = within(table).getAllByRole('row')[1];
+    const factory = within(firstRow).getByRole('combobox', { name: 'Nhà máy' });
+    fireEvent.focus(factory);
+    fireEvent.keyDown(factory, { key: 'ArrowDown' });
+    const factoryOption = await waitFor(() => {
+      const match = document.querySelector<HTMLElement>('[role="option"][id$="-option-41"]');
+      if (!match) throw new Error('Không tìm thấy nhà máy 41');
+      return match;
+    });
+    fireEvent.click(factoryOption);
+    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000.5' } });
+    fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
+    fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '20/08/2026' } });
+    fireEvent.blur(screen.getByLabelText('Ngày — Ngày giờ đóng trả'));
+
+    const addCount = screen.getByRole('spinbutton', { name: 'Số container cần thêm' });
+    fireEvent.change(addCount, { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+
+    expect(screen.getAllByLabelText('Số container')).toHaveLength(4);
+    // The ONLY blank inherited field: every Số container, row 1 included.
+    expect(screen.getAllByLabelText('Số container').map((field) => (field as HTMLInputElement).value)).toEqual(['', '', '', '']);
+    // Rows 2/3/4 mirror row 1: type code, route, factory, ports, weight…
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(4);
+    const displayValue = (row: HTMLElement, text: string) => within(row).getByText(text, { selector: '.csc-container-cell__display' });
+    for (const row of rows) {
+      expect(displayValue(row, '40HC')).toBeTruthy();
+      expect(displayValue(row, 'Cát Lái — Sóng Thần')).toBeTruthy();
+      expect(displayValue(row, 'Nhà máy Long Minh')).toBeTruthy();
+      expect(displayValue(row, 'Cảng Cát Lái')).toBeTruthy();
+      expect(displayValue(row, 'Cảng ICD Sóng Thần')).toBeTruthy();
+      expect(displayValue(row, '12.000,5')).toBeTruthy();
+    }
+    // …and the schedule window rides too.
+    expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('09'));
+    expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('20'));
+  });
+
+  // Card D.4 (18/10) completed by 181026200700: the "Lịch & ghi chú" section
+  // is REMOVED as a whole from the hàng lẻ form and the leftover
+  // "Thêm ngày giao" button is retired — the block is exactly ONE
+  // always-visible "Ngày giao hàng" field. The customs cutoff joins the
   // FCL-vessel fields (hạn hạ container / trả container) in never rendering
   // for hàng lẻ, and both note fields render for FCL only — their state
   // survives mode switches (pinned in the workspace toggle suite).
-  it('replaces the LCL Lịch & ghi chú section with the single Thêm ngày giao hàng control', async () => {
+  it('replaces the LCL Lịch & ghi chú section with one always-visible Ngày giao hàng field', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
@@ -1052,22 +1107,18 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
 
-    // The section chrome is gone for hàng lẻ — one control instead.
+    // The section chrome AND the add button are gone for hàng lẻ — one field.
     expect(screen.queryByRole('heading', { name: 'Lịch & ghi chú' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Thêm ngày giao hàng' })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Ngày giao hàng/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Thêm ngày giao hàng' })).toBeNull();
+    expect(screen.getAllByLabelText(/Ngày giao hàng/).length).toBeGreaterThan(0);
+    expect(document.getElementById('shipment-expected-delivery')).toBeTruthy();
+    // No extra-delivery repeater: exactly one field, no "Ngày giao bổ sung".
+    expect(screen.queryByLabelText('Ngày giao bổ sung')).toBeNull();
     expect(screen.queryByLabelText(/Hạn hoàn tất hải quan/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Hạn hạ container tại cảng/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Thời điểm trả container/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Ghi chú cho khách hàng')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Ghi chú cho lái xe')).not.toBeInTheDocument();
-
-    // First click reveals the required lot date; a second appends an extra.
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm ngày giao hàng' }));
-    expect(screen.getAllByLabelText(/Ngày giao hàng/).length).toBeGreaterThan(0);
-    expect(document.getElementById('shipment-expected-delivery')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm ngày giao hàng' }));
-    expect(screen.getByLabelText('Ngày giao bổ sung')).toBeInTheDocument();
   });
 
   it('suggests common packaging formats while keeping Quy cách đóng gói free-text on the LCL form', async () => {
@@ -1135,10 +1186,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.queryByLabelText('Ngày giao hàng')).toBeNull();
 
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
-    // Card D.4: no "Lịch & ghi chú" heading on the hàng lẻ form — the date
-    // hides behind the single "Thêm ngày giao hàng" control until asked for.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Thêm ngày giao hàng' })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm ngày giao hàng' }));
+    // Card D.4 + 181026200700: no "Lịch & ghi chú" heading on the hàng lẻ
+    // form — the date is ONE always-visible field, no add control.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Thêm ngày giao hàng' })).toBeNull());
+    await waitFor(() => expect(document.getElementById('shipment-expected-delivery')).toBeTruthy());
 
     // QA1-007: the label now carries the visual required mark, so the match
     // is a prefix regex resolved to the segmented dd input; the accessible
@@ -1176,10 +1227,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.change(screen.getByLabelText(/Trọng lượng \(kg\)/), { target: { value: '1200' } });
     // Thể tích (CBM) stays blank on purpose. "Tạo lô hàng" runs the full
     // CREATE intake validation (prod round-16), so the delivery date must be
-    // set — revealed via the D.4 single control first, then the segmented
+    // set — 181026200700: the field is always visible, and the segmented
     // field accepts DD/MM/YYYY in one change. (QA1-007: the dd segment owns
     // the label association; resolve it by field id.)
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm ngày giao hàng' }));
     fireEvent.change(document.getElementById('shipment-expected-delivery')!, { target: { value: '20/09/2026' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
