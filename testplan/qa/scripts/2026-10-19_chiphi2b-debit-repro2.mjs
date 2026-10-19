@@ -1,6 +1,6 @@
 // Card 191026160000 (2a/2b/2c/2e repro, bounded) — set the period to the
 // current month first, then: select-all, row-click highlight, Xuất Debit Note.
-import { login, launch, makeLogger, tokenPage, sleep } from './2026-10-19_chiphi2b-lib.mjs';
+import { login, launch, makeLogger, tokenPage, sleep, BASE } from './2026-10-19_chiphi2b-lib.mjs';
 
 const log = makeLogger('2026-10-19_chiphi2-b_repro/debit-before2');
 
@@ -13,7 +13,7 @@ const token = await login('ketoan');
 log('login ketoan OK');
 const browser = await launch();
 try {
-  const page = await tokenPage(browser, token, 'http://localhost:7178/accounting/chot-debit');
+  const page = await tokenPage(browser, token, `${BASE}/accounting/chot-debit`);
   await sleep(9000); // initial full-board paint (8864 rows, shared dev DB)
   // Narrow to current month: DD / MM / YYYY segmented inputs.
   await typeInto(page, '#debit-board-date-range', '01');

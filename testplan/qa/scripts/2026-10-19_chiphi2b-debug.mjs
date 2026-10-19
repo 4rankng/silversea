@@ -1,5 +1,5 @@
 // quick debug — where does the page land?
-import { login, launch, makeLogger, sleep } from './2026-10-19_chiphi2b-lib.mjs';
+import { login, launch, makeLogger, sleep, BASE } from './2026-10-19_chiphi2b-lib.mjs';
 const log = makeLogger('2026-10-19_chiphi2-b_repro/debug');
 const token = await login('ketoan');
 const browser = await launch();
@@ -8,7 +8,7 @@ try {
   page.on('console', (m) => { if (m.type() === 'error') log(`console.error: ${m.text().slice(0, 300)}`); });
   page.on('pageerror', (e) => log(`pageerror: ${e.message.slice(0, 300)}`));
   await page.evaluateOnNewDocument((t) => localStorage.setItem('token', t), token);
-  await page.goto('http://localhost:7178/accounting/debit-close', { waitUntil: 'networkidle2', timeout: 45000 });
+  await page.goto(`${BASE}/accounting/debit-close`, { waitUntil: 'networkidle2', timeout: 45000 });
   await sleep(3000);
   log(`URL now: ${page.url()}`);
   const info = await page.evaluate(() => ({

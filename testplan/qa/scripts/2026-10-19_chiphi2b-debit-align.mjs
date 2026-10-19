@@ -1,13 +1,13 @@
 // Card 191026160000 (2b measure) — with the current-month default now in
 // place, load /accounting/chot-debit and measure header-vs-body column
 // alignment (x positions + widths) of the first board table.
-import { login, launch, makeLogger, tokenPage, sleep } from './2026-10-19_chiphi2b-lib.mjs';
+import { login, launch, makeLogger, tokenPage, sleep, BASE } from './2026-10-19_chiphi2b-lib.mjs';
 
 const log = makeLogger('2026-10-19_chiphi2-b_repro/debit-align');
 const token = await login('ketoan');
 const browser = await launch();
 try {
-  const page = await tokenPage(browser, token, 'http://localhost:7178/accounting/chot-debit');
+  const page = await tokenPage(browser, token, `${BASE}/accounting/chot-debit`);
   await sleep(6000);
   await log.shot(page, '01-october-default.png');
   const report = await page.evaluate(() => {

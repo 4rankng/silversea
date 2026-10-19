@@ -1,11 +1,15 @@
 // Local drive helpers — card 191026160000 chiphi2-b. House pattern from
-// testplan/qa/scripts/w5w4-lib.mjs, pointed at the ephemeral local stack
-// (frontend :7178 → backend :3003 → dev DB :5441) serving THIS worktree.
+// testplan/qa/scripts/w5w4-lib.mjs, pointed at the dev-port contract stack
+// (frontend :7175 → backend :3002 → dev DB :5441). QA_BASE / QA_API override
+// the contract ports for one-off evidence runs when the contract port is
+// occupied by an UNRELATED session's dev server — the drive must serve the
+// delivered tree, never a sibling worktree's frontend. Defaults stay the
+// contract.
 import puppeteer from 'puppeteer-core';
 import { mkdirSync, appendFileSync } from 'node:fs';
 
-export const BASE = process.env.QA_BASE ?? 'http://localhost:7178';
-export const API = process.env.QA_API ?? 'http://localhost:3003/api';
+export const BASE = process.env.QA_BASE ?? 'http://localhost:7175';
+export const API = process.env.QA_API ?? 'http://localhost:3002/api';
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 export async function login(identifier, password = 'Abc123') {
