@@ -154,6 +154,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   PHOI_PHIEU_TRUCK_ASSIGN: 'expense-accounting.phoi-phieu.truck-assign',
   ADVANCE_DRAFT_RECORD: 'advance-requests.draft.record',
   ADVANCE_DRAFT_VOID: 'advance-requests.draft.void',
+  ADVANCE_SETTLEMENT_CHECK: 'advance-settlements.check',
   ADVANCE_SETTLEMENT_REVERSE: 'advance-settlements.reverse',
   ADVANCE_SETTLEMENT_UPDATE: 'advance-settlements.update',
   ADVANCE_SETTLEMENT_EXPENSE_ADJUST: 'advance-settlements.expenses.adjust',

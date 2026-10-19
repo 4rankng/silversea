@@ -119,9 +119,24 @@ router.post('/advance-settlements/:id/check', declareMaterialWrite('advance-sett
   const parsed = settlementCheckSchema.safeParse(req.body ?? {});
   if (!parsed.success) throwValidation(parsed.error);
   const actor = getUser(req);
-  const result = await checkAdvanceSettlement(id, { expectedVersion: parsed.data.expectedVersion, actorId: actor.userId });
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  // Card 191019215621 — this route declared itself a material write but its
+  // body never crossed a durable command boundary, unlike its two siblings in
+  // this same file (/reversal, /update). The stamp IS a material write: it
+  // writes checked_by/checked_at, bumps version under a conditional, and fires
+  // a notification — so it belongs on the same envelope as its siblings, not
+  // on the REVIEWED_SERVICE_DURABLE_BOUNDARIES exemption list.
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_CHECK,
+    idempotencyKey,
+    payload: { actorId: actor.userId, id, ...parsed.data },
+    createdBy: actor.userId,
+    entityType: 'advance_settlement',
+    create: (tx) => checkAdvanceSettlement(id, { expectedVersion: parsed.data.expectedVersion, actorId: actor.userId }, tx),
+    getEntityId: () => id,
+  });
   res.locals.auditEntityKey = `phiếu hoàn ứng ${result.code} — duyệt`;
-  res.json(result);
+  res.json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 router.post('/advance-settlements/:id/reversal', declareMaterialWrite('advance-settlements.reverse', { method: 'POST', path: '/api/advance-settlements/:id/reversal' }),  requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
