@@ -362,4 +362,26 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
     expect(classField().value).toContain('Container 20 feet');
     expect(carrierField().value).toContain('Nhà xe Hải Vân');
   });
+
+  // FB-066 — the "BKS thực" picker carries the "+ Thêm nhanh" quick-add
+  // affordance once a vehicle source is chosen (own fleet or a nhà xe), so a
+  // dispatcher registers a brand-new plate without leaving the Gán xe nhóm
+  // flow (r25 guide step 3, lclspec). It stays hidden with no source picked.
+  it('FB-066: "BKS thực" shows + Thêm nhanh once a nhà xe (external) is chosen', async () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+
+    // No vehicle source yet ⇒ no quick-add affordance.
+    expect(screen.queryByRole('button', { name: /Thêm nhanh/ })).toBeNull();
+
+    await pickCarrier('Nhà xe Hải Vân');
+    expect(screen.getByRole('button', { name: /Thêm nhanh/ })).toBeTruthy();
+  });
+
+  it('FB-066: own-fleet source also offers the quick-add (internal tractor path)', async () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Container 20 feet');
+    await pickCarrier('Đội xe nội bộ SilverSea');
+    expect(screen.getByRole('button', { name: /Thêm nhanh/ })).toBeTruthy();
+  });
 });

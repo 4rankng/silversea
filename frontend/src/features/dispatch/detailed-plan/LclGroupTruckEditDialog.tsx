@@ -19,6 +19,8 @@ import { Modal } from '../../../components/UI';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { useToast } from '../../../components/shared/Toast';
 import { USearchableField } from '../../shipments/create/uui-searchable-field';
+import { QuickAddButton } from '../../../components/shared/QuickAddButton';
+import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
 import {
   listDispatchFleetResources,
   updateLclTruck,
@@ -30,6 +32,10 @@ import {
   FREE_TEXT_PREFIX,
 } from './DispatchPlanCellValues';
 import './LclGroupTruckEditDialog.css';
+
+// Same own-fleet label the dispatch editor's quick-add shows (card
+// 101026043010) so the dialog context reads identically across surfaces.
+const OWN_CARRIER_LABEL = 'SilverSea — xe nội bộ';
 
 export interface LclGroupTruckEditDialogProps {
   /** Dòng LCL đã ghép nhóm — seed cặp BKS từ row.lcl.group; null = đóng. */
@@ -62,6 +68,11 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
   // nhà xe đang gắn cho lô, free text cho biển chưa có trong danh mục. Lỗi
   // tải danh sách nuốt im lặng — free text vẫn là đường gõ trực tiếp.
   const [plateOptions, setPlateOptions] = useState<Array<{ value: string; label: string }>>([]);
+  // FB-066 — quick-add a plate from the "BKS thực" picker. The nonce re-runs
+  // the fleet fetch so a just-registered plate joins the option list (the
+  // typed value is set directly, so it shows even before the refetch).
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [fleetNonce, setFleetNonce] = useState(0);
 
   useEffect(() => {
     if (!row) return undefined;
@@ -83,7 +94,20 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
       setPlateOptions([...new Set(plates)].map((plate) => ({ value: plate, label: plate })));
     }).catch(() => { if (!cancelled) setPlateOptions([]); });
     return () => { cancelled = true; };
-  }, [row]);
+  }, [row, fleetNonce]);
+
+  // FB-066 — the chosen source decides where the quick-add registers: own
+  // fleet lands a TRUCK (carrierId null), external lands a Xe ngoài vehicle.
+  const quickAddCarrierId = row?.dispatch.carrierType === 'EXTERNAL' ? row?.dispatch.externalCarrierId ?? null : null;
+  const quickAddCarrierName = row?.dispatch.carrierType === 'OWN'
+    ? OWN_CARRIER_LABEL
+    : row?.dispatch.carrierName ?? '';
+
+  const handleVehicleCreated = (_vehicleId: number, licensePlate: string) => {
+    setActualTruckNo(licensePlate);
+    setFleetNonce((nonce) => nonce + 1);
+    setQuickAddOpen(false);
+  };
 
   // Auto-copy: BKS ảo bám BKS thực cho tới khi operator sửa tay (spec
   // "auto-copy từ thực tế"). BKS ảo đã lưu khi seed thì luôn là "sửa tay" —
@@ -162,18 +186,31 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
     >
       {error && <p className="lcl-group-truck-dialog__error" role="alert">{error}</p>}
       <div className="lcl-group-truck-dialog">
-        <USearchableField
-          label="BKS thực (xe chạy chuyến)"
-          value={actualTruckNo}
-          onChange={setActualTruckNo}
-          onCustomValue={setActualTruckNo}
-          options={plateOptions}
-          placeholder="Chọn BKS của nhà xe hoặc gõ mới"
-          searchable
-          allowsCustomValue
-          required
-          disabled={saving}
-        />
+        {/* FB-066 — the "BKS thực" picker gets the quick-add affordance the
+            dispatch editor and trip form already own: a dispatcher meeting a
+            brand-new plate registers it under this lot's nhà xe without
+            leaving the Đổi BKS nhóm flow (chungtu-dieuvan B.1, lclspec). */}
+        <div className="lcl-group-truck-dialog__vehicle">
+          <div className="lcl-group-truck-dialog__vehicle-head">
+            <span className="lcl-group-truck-dialog__label">BKS thực (xe chạy chuyến) <span aria-hidden="true">*</span></span>
+            {(row.dispatch.carrierType === 'OWN' || quickAddCarrierId != null) && (
+              <QuickAddButton onClick={() => setQuickAddOpen(true)} disabled={saving} />
+            )}
+          </div>
+          <USearchableField
+            label="BKS thực (xe chạy chuyến)"
+            hideLabel
+            value={actualTruckNo}
+            onChange={setActualTruckNo}
+            onCustomValue={setActualTruckNo}
+            options={plateOptions}
+            placeholder="Chọn BKS của nhà xe hoặc gõ mới"
+            searchable
+            allowsCustomValue
+            required
+            disabled={saving}
+          />
+        </div>
         <USearchableField
           label="BKS báo khách (ảo)"
           value={billingTruckNo}
@@ -187,6 +224,15 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
           hint="Debit Note (FB-094) sẽ in BKS này, tuyệt đối không in BKS thực."
         />
       </div>
+      {/* FB-066 — register a brand-new plate under this lot's source; the
+          created plate is preselected and folds into the option list. */}
+      <QuickAddVehicleDialog
+        isOpen={quickAddOpen}
+        carrierId={quickAddCarrierId}
+        carrierName={quickAddCarrierName}
+        onClose={() => setQuickAddOpen(false)}
+        onCreated={handleVehicleCreated}
+      />
     </Modal>
   );
 }

@@ -178,4 +178,13 @@ describe('Card 191026100010 — LclGroupTruckEditDialog (DV-B1-03)', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Nhóm ghép đã chốt kế toán'));
     expect(onSaved).not.toHaveBeenCalled();
   });
+
+  // FB-066 — the "BKS thực" picker carries the "+ Thêm nhanh" quick-add
+  // affordance (the lot already has a nhà xe), so a dispatcher registers a
+  // brand-new plate without leaving the Đổi BKS nhóm flow (chungtu-dieuvan
+  // B.1, lclspec) — the same affordance the Gán xe nhóm dialog owns.
+  it('FB-066: "BKS thực" shows the + Thêm nhanh quick-add for the lot nha xe', () => {
+    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
+    expect(screen.getByRole('button', { name: /Thêm nhanh/ })).toBeTruthy();
+  });
 });

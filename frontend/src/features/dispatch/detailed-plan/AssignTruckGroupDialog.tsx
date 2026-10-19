@@ -40,8 +40,14 @@ import {
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { lclVehicleSourcingRule, LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS } from '@tingting/shared';
 import { billBookingReference } from '../../../lib/business-reference';
+import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
+import { QuickAddButton } from '../../../components/shared/QuickAddButton';
+import './AssignTruckGroupDialog.css';
 
 const OWN_CARRIER_KEY = carrierOptionKey('OWN', null);
+// Same own-fleet label the dispatch editor's quick-add shows (card
+// 101026043010) so the dialog context reads identically across surfaces.
+const OWN_CARRIER_LABEL = 'SilverSea — xe nội bộ';
 
 /**
  * The group dialog's own row contract. Both Kế hoạch screens feed it — the
@@ -140,6 +146,11 @@ export function AssignTruckGroupDialog({
   const billingTouchedRef = useRef(false);
   const [manualFreightCost, setManualFreightCost] = useState<number | ''>('');
   const [carrierVehicles, setCarrierVehicles] = useState<DispatchCarrierVehicle[]>([]);
+  // FB-066 — quick-add a plate from the "BKS thực" picker. The nonce re-runs
+  // the carrier-fleet fetch so a just-registered plate joins the option list
+  // (the typed value is set directly, so it shows even before the refetch).
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [fleetNonce, setFleetNonce] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -204,7 +215,11 @@ export function AssignTruckGroupDialog({
       .then((response) => { if (!cancelled) setCarrierVehicles(response.items as DispatchCarrierVehicle[]); })
       .catch(() => { if (!cancelled) setCarrierVehicles([]); });
     return () => { cancelled = true; };
-  }, [externalCarrierId]);
+  }, [externalCarrierId, fleetNonce]);
+
+  // FB-066 — the own-fleet quick-add lands a TRUCK, so refetch the catalog
+  // list that feeds `internalPlates` after a create (same nonce contract).
+  const { refetch: refetchTrucks } = trucksAndDrivers;
 
   const internalPlates = useMemo(
     () => new Set((trucksAndDrivers.data?.trucks ?? []).map((truck) => truck.licensePlate?.trim()).filter(Boolean) as string[]),
@@ -230,6 +245,21 @@ export function AssignTruckGroupDialog({
       : carrierVehicles.map((vehicle) => vehicle.licensePlate?.trim()).filter(Boolean) as string[];
     return [...new Set(plates)].map((plate) => ({ value: plate, label: plate, searchText: plate }));
   }, [ownFleet, internalPlates, carrierVehicles]);
+
+  // FB-066 — the quick-add dialog's context line names the chosen source
+  // (own fleet label, else the picked nhà xe), mirroring the dispatch editor.
+  const quickAddCarrierName = ownFleet
+    ? OWN_CARRIER_LABEL
+    : carrierCatalog.options.find((option) => option.key === carrierKey)?.label ?? '';
+
+  // FB-066 — preselect the just-registered plate and fold it into the options
+  // (external list re-fetches via the nonce; own fleet refetches the catalog).
+  const handleVehicleCreated = (_vehicleId: number, licensePlate: string) => {
+    setActualTruckNo(licensePlate);
+    setFleetNonce((nonce) => nonce + 1);
+    if (ownFleet) void refetchTrucks();
+    setQuickAddOpen(false);
+  };
 
   async function submit() {
     setError(null);
@@ -360,17 +390,30 @@ export function AssignTruckGroupDialog({
           searchable
           required
         />
-        <USearchableField
-          label="BKS thực (xe chạy chuyến)"
-          value={actualTruckNo}
-          onChange={(next) => setActualTruckNo(next)}
-          options={plateOptions}
-          placeholder={ownFleet ? 'Chọn BKS xe nội bộ hoặc gõ mới' : 'Chọn BKS của nhà xe hoặc gõ mới'}
-          allowsCustomValue
-          searchable
-          onCustomValue={setActualTruckNo}
-          required
-        />
+        {/* FB-066 — the "BKS thực" picker gets the quick-add affordance the
+            dispatch editor and trip form already own: a dispatcher meeting a
+            brand-new plate registers it under the chosen nhà xe without
+            leaving the Gán xe nhóm flow (r25 guide step 3, lclspec). */}
+        <div className="assign-truck-group__vehicle">
+          <div className="assign-truck-group__vehicle-head">
+            <span className="assign-truck-group__label">BKS thực (xe chạy chuyến) <span aria-hidden="true">*</span></span>
+            {(ownFleet || externalCarrierId != null) && (
+              <QuickAddButton onClick={() => setQuickAddOpen(true)} disabled={saving} />
+            )}
+          </div>
+          <USearchableField
+            label="BKS thực (xe chạy chuyến)"
+            hideLabel
+            value={actualTruckNo}
+            onChange={(next) => setActualTruckNo(next)}
+            options={plateOptions}
+            placeholder={ownFleet ? 'Chọn BKS xe nội bộ hoặc gõ mới' : 'Chọn BKS của nhà xe hoặc gõ mới'}
+            allowsCustomValue
+            searchable
+            onCustomValue={setActualTruckNo}
+            required
+          />
+        </div>
         <USearchableField
           label="BKS báo khách (ảo)"
           value={billingTruckNo}
@@ -415,6 +458,15 @@ export function AssignTruckGroupDialog({
           helpText="Bỏ trống: hệ thống tự tra bảng giá cước trả nhà xe (tuyến × loại xe × nhà xe). Nhập tay: số tiền này thắng giá tra được."
         />
       </div>
+      {/* FB-066 — register a brand-new plate under the chosen source; the
+          created plate is preselected and folds into the option list. */}
+      <QuickAddVehicleDialog
+        isOpen={quickAddOpen}
+        carrierId={ownFleet ? null : externalCarrierId}
+        carrierName={quickAddCarrierName}
+        onClose={() => setQuickAddOpen(false)}
+        onCreated={handleVehicleCreated}
+      />
     </Modal>
   );
 }
