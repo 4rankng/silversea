@@ -24,6 +24,11 @@ import { cacheInvalidate, disconnectRedis } from '../lib/redis';
 import configRoutes from '../routes/config';
 import { generateDraft } from '../services/billing-document.service';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -43,6 +48,12 @@ const idempotencyKeys: string[] = [];
 let actors: Array<{ id: number; role: string }> = [];
 let server: http.Server;
 let baseUrl = '';
+// The vat_config row and the 'config:vat' cache are PROCESS-GLOBAL singletons:
+// every case in this file (and vat-config-cache-shape) deletes, saves and
+// replays against them. Two checkouts running these suites at the same
+// instant delete each other's row between the PUT and the read — the exact
+// order-dependent red this lock removes (see helpers/cross-suite-lock.ts).
+let releaseVatLock: CrossSuiteLockRelease | null = null;
 
 async function api(
   method: 'GET' | 'PUT',
@@ -181,6 +192,7 @@ async function draftFor(customerId: number) {
 }
 
 before(async () => {
+  releaseVatLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.vatSingleton);
   actors = await db.insert(s.users).values([
     { username: `vat511-admin-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE' },
     { username: `vat511-driver-${suffix}`, passwordHash: 'x', role: Role.DRIVER, status: 'ACTIVE' },
@@ -213,6 +225,9 @@ before(async () => {
 });
 
 after(async () => {
+  // Release the cross-suite lock even when teardown throws (see after() note
+  // in q10-salary-exclusion-routes).
+  try {
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
@@ -241,6 +256,14 @@ after(async () => {
   await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, actorIds));
   await db.delete(s.users).where(inArray(s.users.id, actorIds));
   await disconnectRedis();
+  } finally {
+    // Release BEFORE client.end() — end() destroys the reserved connection
+    // the unlock must run on; releasing after it hangs the child process.
+    if (releaseVatLock) {
+      try { await releaseVatLock(); } catch { /* session lock dies with the connection */ }
+      releaseVatLock = null;
+    }
+  }
   await client.end();
 });
 

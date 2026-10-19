@@ -22,6 +22,11 @@ import {
 } from '../services/salary-period-adjustment.service';
 import { getDriverPayslipPeriods } from '../services/driver.service';
 import { syncAttendanceAfterStatusChange } from '../services/trip-attendance-sync.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const periodYear = 6200 + (Number(suffix.split('-')[0]) % 500);
@@ -35,6 +40,7 @@ const GOVERNED_DAY = `${GOVERNED_PERIOD}-08`;
 const SOURCE_DAY = `${SOURCE_PERIOD}-12`;
 let fixturePayrollUnitId = 0;
 let savedPayrollUnitValue: string | null = null;
+let releasePayrollLock: CrossSuiteLockRelease | null = null;
 const SOURCE_DAY_2 = `${SOURCE_PERIOD}-14`;
 const [, sourceMonth] = SOURCE_PERIOD.split('-').map(Number);
 
@@ -47,6 +53,10 @@ const closePeriods = new Set<string>([GOVERNED_PERIOD, SOURCE_PERIOD, UNISSUED_P
 const adjustmentIds: number[] = [];
 
 before(async () => {
+  // Cross-run serialization around the shared payroll-unit setting (see
+  // helpers/cross-suite-lock.ts); held through after() so the pin, every
+  // readiness sweep and the teardown restore are atomic vs parallel runs.
+  releasePayrollLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.payrollUnit);
   await db.delete(s.salaryPeriodCloses).where(inArray(s.salaryPeriodCloses.period, [...closePeriods]));
   await db.delete(s.periodLocks).where(and(
     eq(s.periodLocks.domain, 'SALARY'),
@@ -80,10 +90,16 @@ async function ensureFixturePayrollUnit() {
     status: 'ACTIVE',
   }).returning();
   fixturePayrollUnitId = unit.id;
-  await db.update(s.appSettings).set({
+  // Upsert (the m73 pattern): a bare UPDATE is a silent no-op when the
+  // settings row is absent, and the suite would silently run at COMPANY
+  // scope — order-dependent reds follow.
+  await db.insert(s.appSettings).values({
+    key: 'salary.payroll_business_unit_id',
     value: String(unit.id),
-    updatedAt: new Date(),
-  }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+  }).onConflictDoUpdate({
+    target: s.appSettings.key,
+    set: { value: String(unit.id), updatedAt: new Date() },
+  });
 }
 
 async function mkDriver(tag: string) {
@@ -159,11 +175,18 @@ async function postDriverSalary(tripId: number, driverId: number, amount: number
 
 after(async () => {
   try {
-    if (fixturePayrollUnitId > 0 && savedPayrollUnitValue !== null) {
-      await db.update(s.appSettings).set({
-        value: savedPayrollUnitValue,
-        updatedAt: new Date(),
-      }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+    if (fixturePayrollUnitId > 0) {
+      if (savedPayrollUnitValue !== null) {
+        await db.update(s.appSettings).set({
+          value: savedPayrollUnitValue,
+          updatedAt: new Date(),
+        }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      } else {
+        // No row existed before the pin — restore that absence instead of
+        // leaving a pin to a unit this teardown is about to delete.
+        await db.delete(s.appSettings)
+          .where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      }
       await db.delete(s.userBusinessUnitLinks)
         .where(eq(s.userBusinessUnitLinks.businessUnitId, fixturePayrollUnitId));
       await db.delete(s.businessUnits).where(eq(s.businessUnits.id, fixturePayrollUnitId));
@@ -205,6 +228,10 @@ after(async () => {
     }
   } catch (err) {
     console.warn('[q11-salary-post-close] cleanup partial:', (err as Error).message);
+  }
+  if (releasePayrollLock) {
+    try { await releasePayrollLock(); } catch { /* session lock dies with the connection */ }
+    releasePayrollLock = null;
   }
   await client.end();
 });

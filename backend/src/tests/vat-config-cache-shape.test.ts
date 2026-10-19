@@ -20,10 +20,18 @@ import * as s from '../db/schema';
 import { cacheInvalidate, disconnectRedis } from '../lib/redis';
 import configRoutes from '../routes/config';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 let server: http.Server;
 let baseUrl: string;
 let actorId: number;
+// Same singleton contract as vat-config-singleton: serialize runs against the
+// shared vat_config row + 'config:vat' cache (see helpers/cross-suite-lock.ts).
+let releaseVatLock: CrossSuiteLockRelease | null = null;
 const suffix = Date.now().toString(36);
 
 async function call(path: string, init?: RequestInit) {
@@ -32,6 +40,7 @@ async function call(path: string, init?: RequestInit) {
 }
 
 before(async () => {
+  releaseVatLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.vatSingleton);
   const [actor] = await db.insert(s.users).values({
     username: `vatshape-admin-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE',
   }).returning({ id: s.users.id });
@@ -61,12 +70,21 @@ before(async () => {
 });
 
 after(async () => {
+  // Release the cross-suite lock even when teardown throws (see after() note
+  // in q10-salary-exclusion-routes).
+  try {
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => server.close((e) => e ? reject(e) : resolve()));
   await db.delete(s.vatConfig);
   await cacheInvalidate('config:vat');
   await db.delete(s.users).where(eq(s.users.id, actorId));
   await disconnectRedis();
+  } finally {
+    if (releaseVatLock) {
+      try { await releaseVatLock(); } catch { /* session lock dies with the connection */ }
+      releaseVatLock = null;
+    }
+  }
 });
 
 describe('vat-config cache shape (card 081026104400-511)', () => {

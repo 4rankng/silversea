@@ -11,6 +11,11 @@ import {
   closeSalaryPeriod,
   getSalaryPeriodReadiness,
 } from '../services/salary-period-close.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const year = 4200 + (Date.now() % 500);
@@ -24,10 +29,27 @@ const tripIds: number[] = [];
 const ledgerIds: number[] = [];
 let businessUnitId: number | null = null;
 let originalSettings: AppSettings | null = null;
+// Cross-run serialization: this suite rewrites the shared
+// salary.payroll_business_unit_id setting, and parallel checkouts run these
+// suites against the same dev DB. The lock keeps a concurrent run from
+// flipping the pin mid-test (a foreign-unit readiness sweep is the standing
+// cause of order-dependent reds in the salary cluster).
+let releasePayrollLock: CrossSuiteLockRelease | null = null;
 
 after(async () => {
   try {
-    if (originalSettings) await saveAppSettings(originalSettings);
+    if (originalSettings) {
+      try {
+        await saveAppSettings(originalSettings);
+      } catch (restoreError) {
+        // Restoring the pre-test setting MUST succeed before the fixture unit
+        // row is deleted, or the shared setting is left dangling at a unit id
+        // that no longer exists (the exact poison this teardown guards
+        // against). Keep the unit row alive instead and say so.
+        console.warn('[q09] payroll setting restore failed; keeping the fixture unit:', (restoreError as Error).message);
+        businessUnitId = null;
+      }
+    }
     await db.delete(s.salaryPeriodCloses).where(eq(s.salaryPeriodCloses.period, period));
     await db.delete(s.periodLocks).where(and(
       eq(s.periodLocks.domain, 'SALARY'),
@@ -57,6 +79,10 @@ after(async () => {
       await db.delete(s.users).where(inArray(s.users.id, userIds));
     }
   } finally {
+    if (releasePayrollLock) {
+      try { await releasePayrollLock(); } catch { /* session lock dies with the connection */ }
+      releasePayrollLock = null;
+    }
     await client.end();
   }
 });
@@ -134,6 +160,7 @@ async function createCompletedSalaryTrip(
 }
 
 test('Q09 configured payroll unit scopes readiness and close totals to linked drivers', async () => {
+  releasePayrollLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.payrollUnit);
   originalSettings = await getAppSettings();
   const [unit] = await db.insert(s.businessUnits).values({
     code: `Q09-${suffix}`.slice(0, 50),

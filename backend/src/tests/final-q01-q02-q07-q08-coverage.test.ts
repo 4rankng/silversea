@@ -20,6 +20,11 @@ import financialRoutes from '../routes/financial';
 import { appSettingsRouter } from '../routes/app-settings';
 import { disconnectRedis } from '../lib/redis';
 import { getAppSettings } from '../services/app-settings.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const futureExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1_000).toISOString();
@@ -42,6 +47,7 @@ let baseUrl = '';
 let originalSettings: Awaited<ReturnType<typeof getAppSettings>>;
 const policyKeys = ['credit.warning_threshold_default', 'credit.tier_one_amount_cap', 'salary.payroll_business_unit_id'];
 let originalPolicyRows: Array<typeof s.appSettings.$inferSelect> = [];
+let releasePayrollLock: CrossSuiteLockRelease | null = null;
 // The test seeds its own ACTIVE business unit (criterion 5, 20260917_10): the
 // environment's stored salary.payroll_business_unit_id may be an orphan the
 // validator rejects, so every settings write here substitutes this id. The
@@ -195,6 +201,10 @@ async function mkLedgerRow(customerId: number, debit: number) {
 }
 
 before(async () => {
+  // Cross-run serialization around the shared payroll-unit policy rows (see
+  // helpers/cross-suite-lock.ts): this suite rewrites them and restores exact
+  // rows in after(); a parallel run flipping them mid-test breaks both runs.
+  releasePayrollLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.payrollUnit);
   await initEnforcer();
   originalSettings = await getAppSettings();
   originalPolicyRows = await db.select().from(s.appSettings).where(inArray(s.appSettings.key, policyKeys)).orderBy(s.appSettings.key);
@@ -322,6 +332,10 @@ after(async () => {
     // The postgres client is SHARED across the whole in-process tsx run —
     // ending it here kills the database for every file that runs after this
     // one (20260917_17). The process teardown reclaims the sockets.
+    if (releasePayrollLock) {
+      try { await releasePayrollLock(); } catch { /* session lock dies with the connection */ }
+      releasePayrollLock = null;
+    }
   }
   if (restoreFailure) throw restoreFailure;
 });

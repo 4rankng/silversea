@@ -16,6 +16,11 @@ import {
   getSalaryPeriodReadiness,
 } from '../services/salary-period-close.service';
 import { syncAttendanceAfterStatusChange } from '../services/trip-attendance-sync.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const periodYear = 6300 + (Number(suffix.split('-')[0]) % 500);
@@ -28,6 +33,7 @@ const createdLedgerIds: number[] = [];
 const createdAdjustmentIds: number[] = [];
 const createdExclusionIds: number[] = [];
 const closePeriods = new Set<string>();
+let releasePayrollLock: CrossSuiteLockRelease | null = null;
 let failpointCounter = 0;
 let server: http.Server;
 let baseUrl = '';
@@ -198,6 +204,12 @@ async function withIdempotencyInsertFailure(endpoint: string, idempotencyKey: st
 }
 
 before(async () => {
+  // Cross-run serialization around the shared payroll-unit setting (see
+  // helpers/cross-suite-lock.ts): without it a parallel checkout can re-pin
+  // the unit mid-test and this suite's readiness suddenly sweeps a foreign
+  // unit's drivers (or 2000+ seed drivers) — the close/replay asserts then
+  // fail for reasons no code change can fix.
+  releasePayrollLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.payrollUnit);
   // Hermetic payroll-unit scope: pin app_settings to a fixture unit so the
   // readiness summary covers only this suite's drivers (see the comment on
   // savedPayrollUnitSetting above).
@@ -247,6 +259,9 @@ before(async () => {
 });
 
 after(async () => {
+  // Release the cross-suite lock even when teardown throws (see after() note
+  // in q10-salary-exclusion-routes).
+  try {
   server.closeAllConnections();
   await new Promise<void>((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
@@ -304,6 +319,14 @@ after(async () => {
   }
   if (createdUserIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
+  }
+  } finally {
+    // Release BEFORE client.end() — end() destroys the reserved connection
+    // the unlock must run on; releasing after it hangs the child process.
+    if (releasePayrollLock) {
+      try { await releasePayrollLock(); } catch { /* session lock dies with the connection */ }
+      releasePayrollLock = null;
+    }
   }
   await client.end();
 });
