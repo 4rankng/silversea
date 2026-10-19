@@ -1321,6 +1321,11 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
   it('AC5 renders one muted "Chưa phân xe" for an unallocated lot — no BKS composite (card 191026181942)', () => {
     renderLot(lotRow({ carrierName: null, plateNumber: null, actualTruckNo: null, billingTruckNo: null }));
     expect(screen.getByText('Chưa phân xe')).toBeTruthy();
+    // The pending state is the muted missing-field label — one line in the
+    // Phân xe cell, never the BKS skeleton or a badge.
+    expect(document.querySelector('[data-label="Phân xe"] .shipment-container-ledger__missing')?.textContent).toBe('Chưa phân xe');
+    expect(document.querySelector('[data-label="Phân xe"] strong')).toBeNull();
+    expect(document.querySelector('[data-label="Phân xe"] .shipment-container-ledger__plate')).toBeNull();
     expect(screen.queryByText(/BKS Thực/)).toBeNull();
     expect(screen.queryByText(/BKS Báo khách/)).toBeNull();
     expect(document.body.textContent).not.toContain('undefined');
