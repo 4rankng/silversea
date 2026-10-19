@@ -20,11 +20,20 @@ import * as s from '../db/schema';
 import { cacheInvalidate, disconnectRedis } from '../lib/redis';
 import configRoutes from '../routes/config';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import {
+  acquireSuiteLock,
+  releaseSuiteLock,
+  VAT_CONFIG_SINGLETON_LOCK,
+  type SuiteLock,
+} from './helpers/suite-serial-lock';
 
 let server: http.Server;
 let baseUrl: string;
 let actorId: number;
 const suffix = Date.now().toString(36);
+// vat_config is one singleton row shared with vat-config-singleton.test.ts —
+// hold the cross-process suite lock for the whole file (see its comment).
+let vatConfigLock: SuiteLock | undefined;
 
 async function call(path: string, init?: RequestInit) {
   const res = await fetch(`${baseUrl}${path}`, init);
@@ -32,6 +41,7 @@ async function call(path: string, init?: RequestInit) {
 }
 
 before(async () => {
+  vatConfigLock = await acquireSuiteLock(VAT_CONFIG_SINGLETON_LOCK);
   const [actor] = await db.insert(s.users).values({
     username: `vatshape-admin-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE',
   }).returning({ id: s.users.id });
@@ -65,6 +75,7 @@ after(async () => {
   await new Promise<void>((resolve, reject) => server.close((e) => e ? reject(e) : resolve()));
   await db.delete(s.vatConfig);
   await cacheInvalidate('config:vat');
+  await releaseSuiteLock(vatConfigLock, VAT_CONFIG_SINGLETON_LOCK);
   await db.delete(s.users).where(eq(s.users.id, actorId));
   await disconnectRedis();
 });

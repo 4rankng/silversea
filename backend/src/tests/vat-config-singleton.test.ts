@@ -24,6 +24,12 @@ import { cacheInvalidate, disconnectRedis } from '../lib/redis';
 import configRoutes from '../routes/config';
 import { generateDraft } from '../services/billing-document.service';
 import { globalErrorHandler } from '../middleware/errorHandler';
+import {
+  acquireSuiteLock,
+  releaseSuiteLock,
+  VAT_CONFIG_SINGLETON_LOCK,
+  type SuiteLock,
+} from './helpers/suite-serial-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -43,6 +49,12 @@ const idempotencyKeys: string[] = [];
 let actors: Array<{ id: number; role: string }> = [];
 let server: http.Server;
 let baseUrl = '';
+// vat_config is one singleton row shared with vat-config-cache-shape.test.ts,
+// and both suites flip it through empty/configured states that the 428
+// optimistic-lock contract reacts to. Serialize the two files across
+// processes (see helpers/suite-serial-lock.ts) so the concurrent full-suite
+// run cannot interleave their saves with each other's deletes.
+let vatConfigLock: SuiteLock | undefined;
 
 async function api(
   method: 'GET' | 'PUT',
@@ -181,6 +193,7 @@ async function draftFor(customerId: number) {
 }
 
 before(async () => {
+  vatConfigLock = await acquireSuiteLock(VAT_CONFIG_SINGLETON_LOCK);
   actors = await db.insert(s.users).values([
     { username: `vat511-admin-${suffix}`, passwordHash: 'x', role: Role.ADMIN, status: 'ACTIVE' },
     { username: `vat511-driver-${suffix}`, passwordHash: 'x', role: Role.DRIVER, status: 'ACTIVE' },
@@ -240,6 +253,7 @@ after(async () => {
   await db.delete(s.notifications).where(inArray(s.notifications.userId, actorIds));
   await db.delete(s.idempotencyKeys).where(inArray(s.idempotencyKeys.createdBy, actorIds));
   await db.delete(s.users).where(inArray(s.users.id, actorIds));
+  await releaseSuiteLock(vatConfigLock, VAT_CONFIG_SINGLETON_LOCK);
   await disconnectRedis();
   await client.end();
 });

@@ -16,6 +16,12 @@ import {
   getSalaryPeriodReadiness,
 } from '../services/salary-period-close.service';
 import { syncAttendanceAfterStatusChange } from '../services/trip-attendance-sync.service';
+import {
+  acquireSuiteLock,
+  releaseSuiteLock,
+  SALARY_PAYROLL_UNIT_SCOPE_LOCK,
+  type SuiteLock,
+} from './helpers/suite-serial-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const periodYear = 6300 + (Number(suffix.split('-')[0]) % 500);
@@ -41,6 +47,10 @@ let baseUrl = '';
 let savedPayrollUnitSetting: string | null = null;
 let savedPayrollUnitSettingExisted = false;
 let fixtureUnitId = 0;
+// Cross-process suite lock over the shared payroll-unit app_settings global
+// (see helpers/suite-serial-lock.ts) — q09/m73/q10/q11/app-settings-routes
+// pin and restore the same row while the full suite runs files concurrently.
+let payrollScopeLock: SuiteLock | undefined;
 
 async function mkUser(role: Role, tag: string) {
   const [user] = await db.insert(s.users).values({
@@ -198,6 +208,7 @@ async function withIdempotencyInsertFailure(endpoint: string, idempotencyKey: st
 }
 
 before(async () => {
+  payrollScopeLock = await acquireSuiteLock(SALARY_PAYROLL_UNIT_SCOPE_LOCK);
   // Hermetic payroll-unit scope: pin app_settings to a fixture unit so the
   // readiness summary covers only this suite's drivers (see the comment on
   // savedPayrollUnitSetting above).
@@ -305,6 +316,7 @@ after(async () => {
   if (createdUserIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
+  await releaseSuiteLock(payrollScopeLock, SALARY_PAYROLL_UNIT_SCOPE_LOCK);
   await client.end();
 });
 

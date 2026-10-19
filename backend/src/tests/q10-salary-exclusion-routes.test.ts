@@ -17,6 +17,12 @@ import {
   setAuditPersistHandlerForTest,
 } from '../services/audit.service';
 import { syncAttendanceAfterStatusChange } from '../services/trip-attendance-sync.service';
+import {
+  acquireSuiteLock,
+  releaseSuiteLock,
+  SALARY_PAYROLL_UNIT_SCOPE_LOCK,
+  type SuiteLock,
+} from './helpers/suite-serial-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const periodYear = 7100 + (Number(suffix.split('-')[0]) % 500);
@@ -36,6 +42,11 @@ let server: http.Server;
 let baseUrl = '';
 let savedPayrollUnitSetting: string | null = null;
 let fixtureUnitId = 0;
+// The payroll-unit app_settings row is one global shared with the other
+// salary suites (q09/m73/q11/q15-routes/app-settings-routes). Hold the
+// cross-process suite lock for the whole file so concurrent full-suite runs
+// cannot interleave our pin with theirs.
+let payrollScopeLock: SuiteLock | undefined;
 
 async function mkUser(role: Role, tag: string) {
   const [user] = await db.insert(s.users).values({
@@ -144,6 +155,7 @@ async function postExclusion(
 }
 
 before(async () => {
+  payrollScopeLock = await acquireSuiteLock(SALARY_PAYROLL_UNIT_SCOPE_LOCK);
   setAuditEnrichmentHandlerForTest(async () => undefined);
   // Hermetic payroll-unit scope: the readiness driver query scopes to the
   // unit configured in app_settings, which the shared dev DB may hold as any
@@ -232,6 +244,7 @@ after(async () => {
   if (createdUserIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
   }
+  await releaseSuiteLock(payrollScopeLock, SALARY_PAYROLL_UNIT_SCOPE_LOCK);
   await client.end();
 });
 

@@ -1,4 +1,4 @@
-import { after, test } from 'node:test';
+import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray } from 'drizzle-orm';
 
@@ -7,6 +7,12 @@ import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { TxnType, type AppSettings } from '@tingting/shared';
 import { getAppSettings, saveAppSettings } from '../services/app-settings.service';
+import {
+  acquireSuiteLock,
+  releaseSuiteLock,
+  SALARY_PAYROLL_UNIT_SCOPE_LOCK,
+  type SuiteLock,
+} from './helpers/suite-serial-lock';
 import {
   closeSalaryPeriod,
   getSalaryPeriodReadiness,
@@ -24,6 +30,15 @@ const tripIds: number[] = [];
 const ledgerIds: number[] = [];
 let businessUnitId: number | null = null;
 let originalSettings: AppSettings | null = null;
+// This suite saves/restores the shared payroll-unit global (including a
+// mid-test null flip) — hold the cross-process suite lock so concurrent
+// salary suites (q10/q11/m73/q15-routes/app-settings-routes) never read our
+// transient scope values.
+let payrollScopeLock: SuiteLock | undefined;
+
+before(async () => {
+  payrollScopeLock = await acquireSuiteLock(SALARY_PAYROLL_UNIT_SCOPE_LOCK);
+});
 
 after(async () => {
   try {
@@ -57,6 +72,7 @@ after(async () => {
       await db.delete(s.users).where(inArray(s.users.id, userIds));
     }
   } finally {
+    await releaseSuiteLock(payrollScopeLock, SALARY_PAYROLL_UNIT_SCOPE_LOCK);
     await client.end();
   }
 });

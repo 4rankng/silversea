@@ -171,12 +171,21 @@ describe('báo giá xlsx import/export round-trip (card 20260922_57)', () => {
   });
 
   test('unmatched factory aborts the sheet — no partial write', async () => {
+    const [customer] = await db.select({ id: s.customers.id })
+      .from(s.customers).where(eq(s.customers.name, `Q57 khách ${suffix}`)).limit(1);
+    assert.ok(customer, 'suite customer exists');
     const buffer = await buildWorkbook(`Q57 khách ${suffix}`, 'Nhà máy không tồn tại XYZ', 3978000, 4284000);
-    const before = await db.select({ id: s.quotations.id }).from(s.quotations);
+    // Scope the no-write probe to this suite's customer: the shared
+    // quotations table also serves the concurrent full-suite files, so a
+    // global row count races with their fixtures. The abort contract is
+    // exactly "no quotation frame appears for this customer".
+    const before = await db.select({ id: s.quotations.id })
+      .from(s.quotations).where(eq(s.quotations.customerId, customer.id));
     const results = await commitQuotationImport(Buffer.from(buffer), 1);
     assert.equal(results[0].quotationId, null);
     assert.ok(results[0].errors.some((message) => message.includes('Không tìm thấy tuyến đường')));
-    const after = await db.select({ id: s.quotations.id }).from(s.quotations);
+    const after = await db.select({ id: s.quotations.id })
+      .from(s.quotations).where(eq(s.quotations.customerId, customer.id));
     assert.equal(after.length, before.length, 'nothing written');
   });
 

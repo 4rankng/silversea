@@ -8,6 +8,12 @@ import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { confirmSalary } from '../services/attendance.service';
 import {
+  acquireSuiteLock,
+  releaseSuiteLock,
+  SALARY_PAYROLL_UNIT_SCOPE_LOCK,
+  type SuiteLock,
+} from './helpers/suite-serial-lock';
+import {
   closeSalaryPeriod,
   createSalaryPeriodExclusion,
   requestSalaryPeriodReopen,
@@ -35,6 +41,7 @@ const GOVERNED_DAY = `${GOVERNED_PERIOD}-08`;
 const SOURCE_DAY = `${SOURCE_PERIOD}-12`;
 let fixturePayrollUnitId = 0;
 let savedPayrollUnitValue: string | null = null;
+let payrollScopeLock: SuiteLock | undefined;
 const SOURCE_DAY_2 = `${SOURCE_PERIOD}-14`;
 const [, sourceMonth] = SOURCE_PERIOD.split('-').map(Number);
 
@@ -47,6 +54,10 @@ const closePeriods = new Set<string>([GOVERNED_PERIOD, SOURCE_PERIOD, UNISSUED_P
 const adjustmentIds: number[] = [];
 
 before(async () => {
+  // The payroll-unit app_settings global is pinned lazily by this suite's
+  // fixtures and by q09/m73/q10/q15-routes/app-settings-routes — serialize
+  // the writers across processes for the whole file.
+  payrollScopeLock = await acquireSuiteLock(SALARY_PAYROLL_UNIT_SCOPE_LOCK);
   await db.delete(s.salaryPeriodCloses).where(inArray(s.salaryPeriodCloses.period, [...closePeriods]));
   await db.delete(s.periodLocks).where(and(
     eq(s.periodLocks.domain, 'SALARY'),
@@ -206,6 +217,7 @@ after(async () => {
   } catch (err) {
     console.warn('[q11-salary-post-close] cleanup partial:', (err as Error).message);
   }
+  await releaseSuiteLock(payrollScopeLock, SALARY_PAYROLL_UNIT_SCOPE_LOCK);
   await client.end();
 });
 

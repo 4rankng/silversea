@@ -1,4 +1,4 @@
-import { after, test } from 'node:test';
+import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray } from 'drizzle-orm';
 
@@ -6,6 +6,12 @@ import { client, db } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { TripStatus, TxnType } from '@tingting/shared';
+import {
+  acquireSuiteLock,
+  releaseSuiteLock,
+  SALARY_PAYROLL_UNIT_SCOPE_LOCK,
+  type SuiteLock,
+} from './helpers/suite-serial-lock';
 import {
   closeSalaryPeriod,
   completeSalaryPeriodExclusionFollowup,
@@ -49,6 +55,14 @@ const createdAdjustmentIds: number[] = [];
 const createdClosePeriods = new Set<string>();
 let fixturePayrollUnitId = 0;
 let savedPayrollUnitValue: string | null = null;
+// Cross-process suite lock over the shared payroll-unit app_settings global
+// (see helpers/suite-serial-lock.ts) — this suite pins it lazily and other
+// salary suites pin/restore it concurrently in the full-suite run.
+let payrollScopeLock: SuiteLock | undefined;
+
+before(async () => {
+  payrollScopeLock = await acquireSuiteLock(SALARY_PAYROLL_UNIT_SCOPE_LOCK);
+});
 let testCatalogs: {
   customer: { id: number };
   route: { id: number };
@@ -234,6 +248,7 @@ after(async () => {
   } catch (err) {
     console.warn('[m73] cleanup partial:', (err as Error).message);
   }
+  await releaseSuiteLock(payrollScopeLock, SALARY_PAYROLL_UNIT_SCOPE_LOCK);
   await client.end();
 });
 
