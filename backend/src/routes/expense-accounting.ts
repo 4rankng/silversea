@@ -1,5 +1,5 @@
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
-import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow, getPhoiPhieuTienDuong, getPhoiPhieuReport, setPhoiPhieuDeposit, getPhoiPhieuDeposit } from '../services/phoi-phieu-control.service';
+import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow, getPhoiPhieuTienDuong, getPhoiPhieuReport, getPhoiPhieuPartyLots, setPhoiPhieuDeposit, getPhoiPhieuDeposit } from '../services/phoi-phieu-control.service';
 import multer from 'multer';
 import { attachAccountingExpensePhoto } from '../services/expense-accounting-photo.service';
 import { ApiError } from '../errors';
@@ -63,6 +63,29 @@ router.get('/phoi-phieu/report', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler
   const scope = query.scope ?? (user.role === Role.ACCOUNTANT ? 'SELF' : 'ALL');
   res.json(await getPhoiPhieuReport({
     kind: query.kind,
+    dateFrom: query.dateFrom,
+    dateTo: query.dateTo,
+    ...(scope === 'SELF' ? { accountantId: user.userId }
+      : scope === 'UNASSIGNED' ? { accountantId: null } : {}),
+  }));
+}));
+
+// Card 191026160000 — drill-down of ONE summary row: the party's not-yet-paid
+// lots in the same window, with the per-fee breakdown the batch phiếu issues
+// against. Registered ahead of the `:tripId` routes — `report` is a literal.
+router.get('/phoi-phieu/report/party-lots', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
+  const user = getUser(req);
+  const query = parse(z.object({
+    kind: z.enum(['THU', 'TRA']),
+    party: z.string().trim().min(1).max(160),
+    dateFrom: z.string().date().optional(),
+    dateTo: z.string().date().optional(),
+    scope: z.enum(['SELF', 'ALL', 'UNASSIGNED']).optional(),
+  }).strict(), req.query);
+  const scope = query.scope ?? (user.role === Role.ACCOUNTANT ? 'SELF' : 'ALL');
+  res.json(await getPhoiPhieuPartyLots({
+    kind: query.kind,
+    party: query.party,
     dateFrom: query.dateFrom,
     dateTo: query.dateTo,
     ...(scope === 'SELF' ? { accountantId: user.userId }

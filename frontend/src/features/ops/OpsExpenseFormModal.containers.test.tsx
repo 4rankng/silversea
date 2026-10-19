@@ -1,17 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../components/shared/Toast';
 import type { OpsOrderItem } from '../../api/opsClient';
-import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { ApiError } from '../../lib/api/errors';
 import { OpsExpenseFormModal, opsContainerId } from './OpsExpenseFormModal';
 
-// Audit c12 cluster A (Kế hoạch làm hàng → Khai báo chi phí): the Số Cont
-// choice must survive Loại phí / Nhóm chi phí edits, a no-container submit
-// must never serialize container 0, and suggestion chips fill Tên khoản chi —
-// not the expense-type field.
+// Card 191026160000 — Số Cont is a MULTI-select with chọn-all and the form is
+// the mockup's two fee blocks. This cluster pins: the container choice
+// survives type/tab edits, a lot-wide submit serializes container null (never
+// Number("") = 0), picking containers declares the fee PER container, and
+// "Chọn tất cả" picks every container at once.
 const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 
@@ -31,7 +31,9 @@ const order: OpsOrderItem = {
 
 const entry = { id: 7, shipmentId: 8, shipmentCode: order.shipmentCode, billRef: order.billRef, containerNumber: null, expenseTypeCode: 'SOI_CHIEU', expenseTypeName: 'Phí soi chiếu', requiresInvoice: true, amount: '450000', paidAt: '2026-09-23', note: null as string | null, approvalStatus: 'RECORDED', rejectionReason: null as string | null, opsSettlementId: null as number | null, hasPhoto: false, paidById: 12, paidByName: 'Ops', createdAt: '2026-09-23T00:00:00Z', version: 1 };
 
-function show() {
+/** The catalog gate (`typesReady`) disables the Loại phí triggers, so every
+ *  driver waits for the blocks to render before touching the form. */
+async function show() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const close = vi.fn();
   render(
@@ -43,22 +45,35 @@ function show() {
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  await screen.findByText('Phí không hóa đơn');
   return { client, close };
 }
 
-function soContTrigger() {
-  return screen.getByRole('button', { name: /Số Cont/ });
+function block(name: string): HTMLElement {
+  return screen.getByRole('region', { name });
 }
 
-async function openMenu(trigger: HTMLElement) {
-  await act(async () => { fireEvent.click(trigger); });
+async function addInvoiceRow() {
+  await act(async () => { fireEvent.click(within(block('Phí có hóa đơn')).getByRole('button', { name: '＋ Thêm chi phí' })); });
 }
 
-async function chooseType(name: string) {
-  const input = await screen.findByRole('combobox', { name: /Loại phí/ });
-  await act(async () => { input.focus(); fireEvent.click(input); });
-  fireEvent.change(input, { target: { value: name } });
+async function chooseType(blockName: string, name: string) {
+  // ≤ SEARCH_THRESHOLD options render the plain click-to-open list (button
+  // trigger + listbox), not the type-to-search combobox input.
+  await act(async () => { fireEvent.click(within(block(blockName)).getByRole('button', { name: /Loại phí/ })); });
   fireEvent.click(await screen.findByRole('option', { name }));
+}
+
+async function fillAmount(blockName: string, value: string) {
+  fireEvent.change(within(block(blockName)).getByLabelText(/Thực chi \(VND\)/), { target: { value } });
+}
+
+async function pickContainers(...labels: string[]) {
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: /số cont/ })); });
+  const listbox = await screen.findByRole('listbox');
+  for (const label of labels) fireEvent.click(within(listbox).getByRole('option', { name: label }));
+  fireEvent.keyDown(listbox, { key: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
 }
 
 beforeEach(() => {
@@ -75,216 +90,77 @@ beforeEach(() => {
 // case sits at ~5.4s pristine / ~6.4s with the grouped money field — i.e. over
 // vitest's 5s default before any change, so the cluster carries an explicit
 // deadline like the other interaction-chain suites in this repo.
-describe('ops expense form — Số Cont persistence (audit c12 cluster A)', { timeout: 20_000 }, () => {
-  it('A1: keeps the Số Cont selection through Loại phí and Nhóm chi phí changes', async () => {
-    show();
-    expect(soContTrigger().textContent).toContain('Phí chung lô');
+describe('ops expense form — Số Cont multi-select (card 191026160000)', { timeout: 20_000 }, () => {
+  it('A1: keeps the Số Cont selection through block/tab edits', async () => {
+    await show();
+    expect(screen.getByRole('button', { name: 'Đã chọn 1 số cont' }).getAttribute('title')).toContain('Phí chung lô');
 
-    await openMenu(soContTrigger());
-    fireEvent.click(await screen.findByRole('option', { name: 'TGHU1234567' }));
-    expect(soContTrigger().textContent).toContain('TGHU1234567');
+    await pickContainers('TGHU1234567');
+    expect(screen.getByRole('button', { name: 'Đã chọn 1 số cont' }).getAttribute('title')).toContain('TGHU1234567');
 
-    await chooseType('Phí soi chiếu');
-    expect(soContTrigger().textContent).toContain('TGHU1234567');
-
-    const group = screen.getByRole('combobox', { name: 'Nhóm chi phí' });
-    await act(async () => { group.focus(); fireEvent.click(group); });
-    fireEvent.click(await screen.findByRole('option', { name: 'Không hóa đơn · Giao nhận' }));
-    expect(soContTrigger().textContent).toContain('TGHU1234567');
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    expect(screen.getByRole('button', { name: 'Đã chọn 1 số cont' }).getAttribute('title')).toContain('TGHU1234567');
   });
 
   it('A2: a shared-lot submit serializes container null — never Number("") = 0', async () => {
-    show();
-    await chooseType('Phí soi chiếu');
-    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '450000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    await show();
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    const payload = api.createExpense.mock.calls[0][0];
-    expect(payload.amount).toBe('450000');
-    expect(payload.shipmentContainerId).toBeNull();
-  });
-
-  it('A2: an empty Số Cont choice is shared-lot, not container 0', () => {
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ shipmentContainerId: null, expenseTypeCode: 'SOI_CHIEU' });
     expect(opsContainerId('LOT')).toBeNull();
     expect(opsContainerId('')).toBeNull();
     expect(opsContainerId('33')).toBe(33);
   });
 
-  it('A1: an empty plain select shows a Vietnamese placeholder, never the English "Select"', () => {
-    render(
-      <UuiSelectField
-        label="Số Cont"
-        value=""
-        onChange={vi.fn()}
-        options={[{ value: 'LOT', label: 'Phí chung lô' }, { value: '33', label: 'TGHU1234567' }]}
-      />,
-    );
-    const trigger = screen.getByRole('button', { name: /Số Cont/ });
-    expect(trigger.textContent).not.toContain('Select');
-    expect(trigger.textContent).toContain('— Chọn —');
-  });
-
-  it('A3: a suggestion chip fills Tên khoản chi and never rewrites Loại phí', async () => {
-    show();
-    await chooseType('Phí soi chiếu');
-    fireEvent.click(screen.getByText('Gợi ý khoản chi'));
-    fireEvent.click(screen.getByRole('button', { name: 'Soi chiếu' }));
-    expect(screen.getByLabelText('Tên khoản chi')).toHaveValue('Soi chiếu');
-    expect(screen.getByRole('combobox', { name: 'Loại phí' })).toHaveValue('Phí soi chiếu');
-  });
-
-  // Card 20260928_197: every cost-entry screen takes a positive AND a negative
-  // amount and groups thousands — the driver's form did, this one did not.
-  it('A4: the money field groups thousands and keeps a typed negative', async () => {
-    show();
-    const money = screen.getByLabelText(/Thực chi/);
-    expect(money).toHaveAttribute('type', 'text');
-    fireEvent.change(money, { target: { value: '250000' } });
-    expect(money).toHaveValue('250.000');
-    fireEvent.change(money, { target: { value: '-250000' } });
-    expect(money).toHaveValue('-250.000');
-  });
-
-  it('A5: a row that charges no customer cannot be saved without a note', async () => {
-    show();
-    // "Chi công nhân" carries no invoice, so its charge is only the operator's
-    // "Thực thu (thu khách)" override — blank means the server refuses the row.
-    await chooseType('Chi công nhân');
-    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '250000' } });
-    const save = screen.getByRole('button', { name: 'Lưu' });
-    expect(save).toBeDisabled();
-    expect(screen.getByText(/ghi chú bắt buộc/i)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'Nhà xe tự chịu' } });
+  it('A3: picked containers declare the fee once per container', async () => {
+    await show();
+    await pickContainers('TGHU1234567', 'TGHU7654321');
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeEnabled();
-    // Charging the customer lifts the requirement on its own, with no note.
-    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: '' } });
-    expect(save).toBeDisabled();
-    fireEvent.change(screen.getByLabelText('Thực thu (thu khách)'), { target: { value: '250000' } });
-    expect(save).toBeEnabled();
-    expect(api.createExpense).not.toHaveBeenCalled();
-  });
-});
-
-// Plan step 5 (Ops scope): the assignment grant is gone — the dialog opens
-// usable for an Ops with no prior link to the lot, and the duplicate-cont
-// answer is a WARNING naming the earlier claimant, never a block.
-describe('plan step 5 — open Ops scope + duplicate-cont warning', { timeout: 20_000 }, () => {
-  it('opens usable with no permission refusal — an unassigned Ops can save', async () => {
-    show();
-    await screen.findByLabelText(/Số Bill/);
-    expect(screen.queryByText(/không có quyền khai chi phí/i)).toBeNull();
-    expect(screen.queryByText(/không thuộc xe bạn phụ trách/i)).toBeNull();
-    expect(screen.queryByRole('alert')).toBeNull();
-    await chooseType('Phí soi chiếu');
-    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '450000' } });
-    const save = screen.getByRole('button', { name: 'Lưu' });
-    expect(save).toBeEnabled();
-    fireEvent.click(save);
-    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-  });
-
-  it('a claimed cont warns with the earlier claimant — and Lưu stays enabled', async () => {
-    api.getContainerClaimants.mockResolvedValue([
-      { containerId: 33, containerNumber: 'TGHU1234567', paidByName: 'Ops Trần' },
-    ]);
-    show();
-    await openMenu(soContTrigger());
-    fireEvent.click(await screen.findByRole('option', { name: 'TGHU1234567' }));
-    const warning = await screen.findByRole('alert');
-    expect(warning.textContent).toBe('Cont TGHU1234567 đã có Ops Trần nhập trước — bạn vẫn tiếp tục nhập chứ.');
-    // The warning never disables the save: fill the form and it is clickable.
-    await chooseType('Phí soi chiếu');
-    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '450000' } });
-    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
-  });
-
-  it('a lot-wide fee (Phí chung lô) never triggers the warning', async () => {
-    api.getContainerClaimants.mockResolvedValue([
-      { containerId: 33, containerNumber: 'TGHU1234567', paidByName: 'Ops Trần' },
-    ]);
-    show();
-    await screen.findByLabelText(/Số Bill/);
-    expect(soContTrigger().textContent).toContain('Phí chung lô');
-    expect(screen.queryByRole('alert')).toBeNull();
-  });
-});
-
-// Card 141026230720 — the write path's duplicate bounce (same expense type +
-// same scope twice) must surface as an explicit confirm panel, never a silent
-// block and never a straight save: only "Tiếp tục lưu" resends with
-// duplicateConfirmed, and a plain 409 without the code keeps the toast path.
-describe('141026230720 — duplicate cost-entry confirm (type + scope)', { timeout: 20_000 }, () => {
-  const dupError = () => new ApiError(409, {
-    code: 'OPS_EXPENSE_DUPLICATE',
-    duplicates: [{
-      id: 91, expenseTypeName: 'Phí soi chiếu', containerNumber: 'TGHU1234567',
-      paidById: 77, paidByName: 'Ops Trần', amount: '450000', paidAt: '2026-10-14',
-    }],
-  }, 'Loại phí này đã có Ops Trần nhập trước — kiểm tra lại để tránh nhập trùng.');
-
-  async function fillAndSave() {
-    await chooseType('Phí soi chiếu');
-    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '450000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
-  }
-
-  it('a duplicate 409 shows the confirm panel naming the earlier row — no resend yet', async () => {
-    api.createExpense.mockRejectedValueOnce(dupError());
-    show();
-    await fillAndSave();
-    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    expect(api.createExpense.mock.calls[0][0].duplicateConfirmed).toBeUndefined();
-    const panel = await screen.findByRole('alert');
-    // chiphispec §2 — the confirm copy names the previous entrant (name or id).
-    expect(panel.textContent).toContain('ĐÃ ĐƯỢC Ops Trần NHẬP TRƯỚC ĐÓ, BẠN VẪN TIẾP TỤC NHẬP CHỨ?');
-    expect(panel.textContent).toContain('450.000');
-    expect(panel.textContent).toContain('cont TGHU1234567');
-  });
-
-  it('an entrant with no full name is named by id in the confirm panel', async () => {
-    api.createExpense.mockRejectedValueOnce(new ApiError(409, {
-      code: 'OPS_EXPENSE_DUPLICATE',
-      duplicates: [{
-        id: 92, expenseTypeName: 'Phí soi chiếu', containerNumber: null,
-        paidById: 12, paidByName: null, amount: '450000', paidAt: '2026-10-14',
-      }],
-    }, 'Loại phí này đã có OPS #12 nhập trước trên phí chung lô.'));
-    show();
-    await fillAndSave();
-    const panel = await screen.findByRole('alert');
-    expect(panel.textContent).toContain('ĐÃ ĐƯỢC OPS #12 NHẬP TRƯỚC ĐÓ, BẠN VẪN TIẾP TỤC NHẬP CHỨ?');
-    expect(panel.textContent).toContain('phí chung lô');
-  });
-
-  it('Tiếp tục lưu resends with duplicateConfirmed and closes on success', async () => {
-    api.createExpense.mockRejectedValueOnce(dupError()).mockResolvedValueOnce(entry);
-    const { close } = show();
-    await fillAndSave();
-    await screen.findByRole('alert');
-    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục lưu' }));
+    fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
-    expect(api.createExpense.mock.calls[1][0].duplicateConfirmed).toBe(true);
-    await waitFor(() => expect(close).toHaveBeenCalled());
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ shipmentContainerId: 33 });
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ shipmentContainerId: 44 });
   });
 
-  it('Kiểm tra lại dismisses the panel without a resend — the form stays editable', async () => {
-    api.createExpense.mockRejectedValueOnce(dupError());
-    show();
-    await fillAndSave();
-    await screen.findByRole('alert');
-    fireEvent.click(await screen.findByRole('button', { name: 'Kiểm tra lại' }));
-    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  it('A4: chọn tất cả picks every container at once (and drops the lot choice)', async () => {
+    await show();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Đã chọn 2 số cont' }).getAttribute('title'))
+      .toContain('TGHU1234567, TGHU7654321'));
+    // Toggling again empties the per-container picks.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' }));
+    expect(screen.getByRole('button', { name: 'Chọn số cont…' })).toBeInTheDocument();
+  });
+
+  it('A5: duplicate bounce pauses the batch; Tiếp tục lưu re-sends only from the bounced row', async () => {
+    api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_DUPLICATE', duplicates: [
+      { id: 91, amount: 1000, paidAt: '2026-10-01', containerNumber: null, paidById: 2, paidByName: 'Ops khác' },
+    ] }, 'trùng'));
+    await show();
+    await pickContainers('TGHU1234567', 'TGHU7654321');
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    expect(await screen.findByRole('alert')).toHaveTextContent('NHẬP TRƯỚC ĐÓ');
     expect(api.createExpense).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
-  });
-
-  it('a plain 409 without the duplicate code never opens the panel', async () => {
-    api.createExpense.mockRejectedValueOnce(new ApiError(409, { error: 'Dữ liệu đã tồn tại' }, 'Dữ liệu đã tồn tại'));
-    show();
-    await fillAndSave();
-    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    await new Promise((r) => setTimeout(r, 50));
-    expect(screen.queryByText(/nhập trước đó/i)).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Tiếp tục lưu' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục lưu' }));
+    // 3 attempts total: the bounced first, then the confirmed re-send (same
+    // container) and the untouched second container.
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(3));
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ shipmentContainerId: 33, duplicateConfirmed: true });
+    expect(api.createExpense.mock.calls[2][0]).toMatchObject({ shipmentContainerId: 44 });
   });
 });

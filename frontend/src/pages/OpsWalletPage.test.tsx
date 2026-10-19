@@ -125,9 +125,12 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     expect(screen.getAllByText('Chưa giao tiền')).toHaveLength(2);
   });
 
-  it('flags entries without photos as Nợ chứng từ', async () => {
+  // Card 191026160000 — no photo is a neutral state (Ops in hóa đơn giấy cho
+  // kế toán đối soát), never the old "Nợ chứng từ" debt badge.
+  it('flags entries without photos as neutral "Không có ảnh"', async () => {
     renderPage();
-    expect(await screen.findByText('Nợ chứng từ')).toBeInTheDocument();
+    expect(await screen.findByText('Không có ảnh')).toBeInTheDocument();
+    expect(screen.queryByText('Nợ chứng từ')).toBeNull();
   });
 
   it('submits an advance request with amount + reason', async () => {

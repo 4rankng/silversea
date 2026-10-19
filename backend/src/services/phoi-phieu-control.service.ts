@@ -1130,14 +1130,20 @@ function bucketByCategory(category: string | null | undefined): 'nang' | 'ha' | 
   return 'khac';
 }
 
-export async function getPhoiPhieuReport(query: {
+export interface PhoiPhieuReportQuery {
   kind: 'THU' | 'TRA'; dateFrom?: string; dateTo?: string;
   /** Card 20260921_8 — per-accountant scope. A staff id filters to trips
    *  whose truck's ACTIVE assignment names them; explicit null = unassigned
    *  only; includeUnassigned adds the unassigned bucket beside an id.
    *  Absent = no filtering (existing callers byte-compatible). */
   accountantId?: number | null; includeUnassigned?: boolean;
-}): Promise<{ rows: PhoiPhieuReportRow[]; grand: PhoiPhieuReportRow }> {
+}
+
+/** Card 191026160000 — the trip window (period + accountant scope) both report
+ *  surfaces read: the per-party summary and the per-party drill-down. One
+ *  implementation, so a drill-down can never show a lot the summary left out
+ *  (or the reverse). */
+async function reportTripIds(query: PhoiPhieuReportQuery): Promise<number[]> {
   const tripConditions: (SQL | undefined)[] = [isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')];
   if (query.dateFrom) tripConditions.push(gte(s.trips.departureDate, query.dateFrom));
   if (query.dateTo) tripConditions.push(lte(s.trips.departureDate, query.dateTo));
@@ -1163,14 +1169,24 @@ export async function getPhoiPhieuReport(query: {
         : inArray(s.trips.truckId, myTruckIds.length ? myTruckIds : [0]));
     }
   }
-
-  const tripIds = (await db.select({ id: s.trips.id })
+  return (await db.select({ id: s.trips.id })
     .from(s.trips).where(and(...tripConditions))).map((row) => row.id);
-  const sources = await db.select({
+}
+
+/** The recorded OPS sources of the report window. In-trip rows scope by the
+ *  trip window; NULL-trip rows (correct-route linked-replacement leaves
+ *  trip_id null) scope by the expense's own business date so a correction can
+ *  never drop money from the report. Shared with the drill-down for the same
+ *  one-implementation reason as `reportTripIds`. */
+async function reportSources(tripIds: number[], dateFrom?: string, dateTo?: string) {
+  return db.select({
     id: s.expenseAccountingSources.id,
     tripId: s.expenseAccountingSources.tripId,
+    shipmentId: s.expenseAccountingSources.shipmentId,
     confirmedAt: s.expenseAccountingSources.confirmedAt,
+    version: s.expenseAccountingSources.version,
     allocatedAdvanceAmount: s.expenseAccountingSources.allocatedAdvanceAmount,
+    nativeId: s.opsExpenseEntries.id,
     feeName: s.opsExpenseEntries.feeName,
     amount: s.opsExpenseEntries.amount,
     customerChargeAmount: s.opsExpenseEntries.customerChargeAmount,
@@ -1180,22 +1196,27 @@ export async function getPhoiPhieuReport(query: {
     .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
     .where(and(
-      // In-trip rows scope by the trip window; NULL-trip rows (correct-route
-      // linked-replacement leaves trip_id null) scope by the expense's own
-      // business date so a correction can never drop money from the report.
       or(
         inArray(s.expenseAccountingSources.tripId, tripIds),
         and(
           isNull(s.expenseAccountingSources.tripId),
-          query.dateFrom ? gte(s.opsExpenseEntries.paidAt, query.dateFrom) : undefined,
-          query.dateTo ? lte(s.opsExpenseEntries.paidAt, query.dateTo) : undefined,
+          dateFrom ? gte(s.opsExpenseEntries.paidAt, dateFrom) : undefined,
+          dateTo ? lte(s.opsExpenseEntries.paidAt, dateTo) : undefined,
         ),
       ),
       eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED')));
+}
 
-  // Party attribution.
-  const tripParty = new Map<number, { name: string | null; ghiChu: string | null }>();
-  if (query.kind === 'THU') {
+type ReportPartyInfo = { name: string | null; ghiChu: string | null };
+
+/** Party attribution for the report surfaces (card FB-061 soft-delete law and
+ *  card 191026100030 fulfillment fallback included). Extracted from
+ *  `getPhoiPhieuReport` so the drill-down resolves the SAME party label the
+ *  summary row prints — the drill-down is reached by clicking that label. */
+async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]): Promise<Map<number, ReportPartyInfo>> {
+  const tripParty = new Map<number, ReportPartyInfo>();
+  if (tripIds.length === 0) return tripParty;
+  if (kind === 'THU') {
     const parties = await db.select({
       tripId: s.trips.id, name: s.customers.name, ghiChu: s.shipments.customerNotes,
     })
@@ -1234,6 +1255,14 @@ export async function getPhoiPhieuReport(query: {
       }
     }
   }
+  return tripParty;
+}
+
+export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{ rows: PhoiPhieuReportRow[]; grand: PhoiPhieuReportRow }> {
+  const tripIds = await reportTripIds(query);
+  const sources = await reportSources(tripIds, query.dateFrom, query.dateTo);
+  // Party attribution.
+  const tripParty = await resolveReportTripParties(query.kind, tripIds);
 
   // Card 20260927_147 sweep — the same one-read-per-source pattern the voucher
   // path already dropped: this loop only needs each source's recorded cash
@@ -1300,6 +1329,103 @@ export async function getPhoiPhieuReport(query: {
     soLuong: acc.soLuong + row.soLuong, phaiThu: acc.phaiThu + row.phaiThu, phaiTra: acc.phaiTra + row.phaiTra,
   }), { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0 });
   return { rows, grand };
+}
+
+/** Card 191026160000 — one lot row of the report drill-down ("bảng các lô
+ *  chưa thanh toán" of the clicked party). The amounts are the SAME split the
+ *  summary prints (nâng / hạ / PS khác via the category bucket), and `entries`
+ *  carries each source's open remainder so the batch phiếu the drawer issues
+ *  previews exactly what the voucher engine will consume. */
+export interface PhoiPhieuPartyLot {
+  tripId: number;
+  shipmentId: number;
+  billOrBooking: string | null;
+  containerNumber: string | null;
+  departureDate: string | null;
+  tienNang: number;
+  tienHa: number;
+  psKhac: number;
+  /** The direction's total: Phải thu (THU) or Phải trả (TRA) of the lot. */
+  total: number;
+  daThuTra: number;
+  /** `total - daThuTra` — only lots with a positive remainder are returned. */
+  conLai: number;
+  entries: Array<{ sourceId: number; expectedVersion: number; amount: number; bucket: 'nang' | 'ha' | 'khac' }>;
+}
+
+export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { party: string }): Promise<{ items: PhoiPhieuPartyLot[] }> {
+  const tripIds = await reportTripIds(query);
+  const sources = await reportSources(tripIds, query.dateFrom, query.dateTo);
+  const tripParty = await resolveReportTripParties(query.kind, tripIds);
+  const wanted = query.party.trim();
+  // Card 20260927_147 sweep — one cash read for the whole selection, never one
+  // per source.
+  const cashBySourceId = await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
+  const lots = new Map<number, PhoiPhieuPartyLot>();
+  for (const source of sources) {
+    const partyInfo = source.tripId != null ? tripParty.get(source.tripId) : undefined;
+    // The drill-down opens from a summary row, so the party label must match
+    // it exactly — the same resolve, the same 'Chưa xác định' fallback.
+    if ((partyInfo?.name ?? 'Chưa xác định') !== wanted) continue;
+    if (source.tripId == null) continue;
+    const cash = cashBySourceId.get(source.id) ?? { IN: 0, OUT: 0 };
+    const amount = sumExcludingNegative([source], (row) => row.amount ?? 0);
+    const bucket = bucketByCategory(source.category);
+    const chargeSide = Number(source.customerChargeAmount ?? 0);
+    const costSide = Number(source.amount) - Number(source.allocatedAdvanceAmount ?? 0);
+    const remaining = Math.max(query.kind === 'THU' ? chargeSide - cash.IN : costSide - cash.OUT, 0);
+    let lot = lots.get(source.tripId);
+    if (!lot) {
+      lot = {
+        tripId: source.tripId, shipmentId: source.shipmentId, billOrBooking: null, containerNumber: null,
+        departureDate: null, tienNang: 0, tienHa: 0, psKhac: 0, total: 0, daThuTra: 0, conLai: 0, entries: [],
+      };
+      lots.set(source.tripId, lot);
+    }
+    if (bucket === 'nang') lot.tienNang += amount;
+    else if (bucket === 'ha') lot.tienHa += amount;
+    else lot.psKhac += amount;
+    lot.daThuTra += query.kind === 'THU' ? cash.IN : cash.OUT;
+    if (remaining > 0) {
+      lot.entries.push({ sourceId: source.nativeId, expectedVersion: source.version, amount: remaining, bucket });
+    }
+  }
+  // Identity columns in one batched read; the lot's money comes only from the
+  // sources above, so these lookups never change an amount.
+  const lotIds = [...lots.keys()];
+  if (lotIds.length > 0) {
+    const identities = await db.select({
+      tripId: s.trips.id,
+      departureDate: s.trips.departureDate,
+      shipmentId: sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`,
+      blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef,
+      containerNumber: s.shipmentContainers.containerNumber,
+    })
+      .from(s.trips)
+      .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+      .innerJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
+      .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+      .where(inArray(s.trips.id, lotIds));
+    for (const identity of identities) {
+      const lot = lots.get(identity.tripId);
+      if (!lot) continue;
+      lot.billOrBooking = billOrBookingOf(
+        // The shipment's own trade direction picks Bill vs Booking — read it
+        // through the same row so no second query is needed.
+        null, identity.blNumber, identity.bookingRef);
+      lot.containerNumber = identity.containerNumber ?? null;
+      lot.departureDate = identity.departureDate ?? null;
+      lot.shipmentId = identity.shipmentId ?? lot.shipmentId;
+    }
+  }
+  const items = [...lots.values()]
+    .map((lot) => ({ ...lot, total: lot.tienNang + lot.tienHa + lot.psKhac }))
+    .map((lot) => ({ ...lot, conLai: round2dp(lot.total - lot.daThuTra) }))
+    // "Các lô CHƯA thanh toán": a settled lot (remainder ≤ 0, overpaid
+    // included) is not the drawer's subject — the summary already shows it at 0.
+    .filter((lot) => lot.entries.length > 0)
+    .sort((a, b) => (a.departureDate ?? '').localeCompare(b.departureDate ?? '') || a.tripId - b.tripId);
+  return { items };
 }
 
 /** Card 20260921_8 — the assignment board data: ACTIVE truck assignments with

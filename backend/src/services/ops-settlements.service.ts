@@ -193,18 +193,13 @@ export async function getOpsSettlementDetail(
   };
 }
 
-/** A settlement records reconciliation, never an unperformed payment. */
+/** A settlement records reconciliation, never an unperformed payment.
+ *  Card 191026160000 — the receipt photo is OPTIONAL evidence: Ops hands the
+ *  accountant paper invoices for reconciliation, so a missing photo must not
+ *  block (or brand) a settlement. The old photo gate is gone; the engine's own
+ *  reconciliation rules still apply downstream. */
 async function assertOpsSettlementEvidence(tx: Tx, expenseIds: number[]) {
   if (expenseIds.length === 0) throw new ApiError(400, 'Phiếu không có khoản chi.');
-  const rows = await tx.select({ id: s.opsExpenseEntries.id, requiresInvoice: s.forwarderExpenseTypes.requiresInvoice })
-    .from(s.opsExpenseEntries)
-    .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
-    .where(inArray(s.opsExpenseEntries.id, expenseIds));
-  const photos = await tx.select({ id: s.opsExpensePhotos.opsExpenseId }).from(s.opsExpensePhotos)
-    .where(inArray(s.opsExpensePhotos.opsExpenseId, expenseIds));
-  const documented = new Set(photos.map((photo) => photo.id));
-  const missing = rows.filter((row) => row.requiresInvoice && !documented.has(row.id));
-  if (missing.length) throw new ApiError(400, `Bổ sung chứng từ cho ${missing.length} khoản chi trước khi quyết toán.`);
 }
 
 export async function finalizeOpsSettlement(userId: number, settlementId: number, transaction?: Tx) {

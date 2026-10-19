@@ -139,11 +139,14 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
     expect(apiPost).not.toHaveBeenCalled();
   });
 
-  it('shows missing receipt as outstanding evidence without approving it implicitly', async () => {
+  // Card 191026160000 — a missing receipt photo is neutral "không có ảnh"
+  // (paper invoices reach the accountant), never a debt badge.
+  it('shows missing receipt as neutral absence without approving it implicitly', async () => {
     apiGet.mockImplementation((url: string) => Promise.resolve({ items: url.startsWith('/ops/admin/expenses') ? [expense({ hasPhoto: false })] : [] }));
     renderTab();
     await screen.findByText('BL-9');
-    expect(screen.getByRole('button', { name: 'Nợ chứng từ' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Không có ảnh' })).toBeInTheDocument();
+    expect(screen.queryByText('Nợ chứng từ')).toBeNull();
     expect(screen.queryByRole('button', { name: /duyệt/i })).toBeNull();
     expect(apiPost).not.toHaveBeenCalled();
   });

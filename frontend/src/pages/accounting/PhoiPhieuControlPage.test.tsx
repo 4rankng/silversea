@@ -7,9 +7,18 @@ vi.mock('../../api/phoiPhieuClient', () => ({
   listPhoiPhieuStk: vi.fn(),
   listPhoiPhieuTruckAssignments: vi.fn(),
   getPhoiPhieuReport: vi.fn(),
+  getPhoiPhieuPartyLots: vi.fn(),
 }));
 
 import PhoiPhieuControlPage from './PhoiPhieuControlPage';
+
+/** The report section owns a SECOND date range, so the strip contract looks
+ *  inside the one FilterBar region instead of the whole page. */
+async function withinFilterBar(screen: typeof import('@testing-library/react').screen) {
+  const bar = await screen.findByLabelText('Tìm kiếm');
+  const strip = bar.closest('.filter-bar') ?? bar.parentElement!;
+  expect(strip).toHaveTextContent('Từ ngày');
+}
 import * as client from '../../api/phoiPhieuClient';
 
 function renderPage() {
@@ -31,9 +40,11 @@ function renderPage() {
 describe('PhoiPhieuControlPage date filter control contract', () => {
   it('renders the shared segmented date field, never a native date input', async () => {
     const { container } = renderPage();
-    await screen.findByText('Từ ngày');
+    await withinFilterBar(screen);
+    // Card 191026160000 — the strip's from/to pair AND the report section's
+    // own range picker: four segmented fields on the page, no native date input.
     expect(container.querySelector('input[type="date"]')).toBeNull();
-    expect(container.querySelectorAll('[data-date-input]').length).toBe(2);
+    expect(container.querySelectorAll('[data-date-input]').length).toBe(4);
   });
 
   // Card 20260927_152: the filter region is the ONE shared strip. The search
@@ -42,7 +53,7 @@ describe('PhoiPhieuControlPage date filter control contract', () => {
   // two rows (jsdom measures no width, so `inline` is the mode under test).
   it('renders the shared strip with the search slot and the Lập phiếu action', async () => {
     const { container } = renderPage();
-    await screen.findByText('Từ ngày');
+    await withinFilterBar(screen);
     const bar = container.querySelector('.list-filter-bar') as HTMLElement;
     expect(bar).toBeTruthy();
     expect(container.querySelector('.date-range-fields')).toBeTruthy();
@@ -52,7 +63,7 @@ describe('PhoiPhieuControlPage date filter control contract', () => {
 
   it('keeps the four secondary criteria and their Vietnamese labels reachable', async () => {
     const { container } = renderPage();
-    await screen.findByText('Từ ngày');
+    await withinFilterBar(screen);
     const bar = container.querySelector('.list-filter-bar') as HTMLElement;
     for (const label of ['Trạng thái', 'Sắp xếp', 'Loại phiếu', 'Số tài khoản quỹ (STK)']) {
       expect(within(bar).getByText(label)).toBeTruthy();

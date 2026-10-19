@@ -194,7 +194,9 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
             <div className="ops-form-photos__head">
               <span>
                 Ảnh biên lai ({serverPhotoCount})
-                {missingReceipt && <span className="ops-doc-state is-debt" style={{ marginLeft: 8 }}>Nợ chứng từ</span>}
+                {/* Card 191026160000 — photo optional: a missing receipt is a
+                    neutral state, never a debt badge. */}
+                {missingReceipt && <span className="ops-doc-state" style={{ marginLeft: 8 }}>Không có ảnh</span>}
               </span>
               <button
                 type="button"
