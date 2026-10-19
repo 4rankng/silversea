@@ -567,6 +567,42 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     expect(schedule.querySelector('.ops-schedule__datetime')).toBeNull();
   });
 
+  // Card 191026181942 (TRUTH WINS): a lot-level LCL row carries its schedule
+  // in transportDate — customerAppointmentAt is always null there — so the
+  // lot's real ngày vận chuyển must render, never the "Chưa có lịch hẹn"
+  // placeholder.
+  it('SCHEDULE-LAYOUT-03 renders the lot schedule of a containerless LCL row (truth wins over the placeholder)', () => {
+    const { view } = renderLedgerWithRow(baseRow({
+      id: -7,
+      isLotLevel: true,
+      containerNumber: null,
+      classification: 'LCL',
+      customerAppointmentAt: null,
+      transportDate: '2026-09-10',
+    }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    expect(schedule).toHaveTextContent('10/09/2026');
+    expect(schedule).toHaveTextContent('Ngày vận chuyển');
+    expect(schedule).not.toHaveTextContent('Chưa có lịch hẹn');
+    expect(schedule.querySelector('.ops-schedule__datetime')).toBeTruthy();
+  });
+
+  it('SCHEDULE-LAYOUT-04 keeps the placeholder for an LCL row with no schedule at all, naming the lot-level path', () => {
+    const { view } = renderLedgerWithRow(baseRow({
+      id: -7,
+      isLotLevel: true,
+      containerNumber: null,
+      classification: 'LCL',
+      customerAppointmentAt: null,
+      transportDate: null,
+    }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    expect(schedule).toHaveTextContent('Thiếu ngày vận chuyển');
+    expect(schedule).toHaveTextContent('Chưa có lịch hẹn');
+    expect(schedule).toHaveTextContent('Chốt trên Tổng quan lô hàng');
+    expect(schedule).not.toHaveTextContent('Cập nhật theo từng container');
+  });
+
   it('collapses the missing list to a count control; key blockers stay visible outside it', () => {
     const row = baseRow({
       transportDate: null,
@@ -1282,11 +1318,17 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     expect(screen.getByRole('button', { name: /Sửa BKS báo khách cho lô/ })).toBeTruthy();
   });
 
-  it('AC5 renders — for absent plates instead of undefined', () => {
+  it('AC5 renders one muted "Chưa phân xe" for an unallocated lot — no BKS composite (card 191026181942)', () => {
     renderLot(lotRow({ carrierName: null, plateNumber: null, actualTruckNo: null, billingTruckNo: null }));
-    expect(screen.getByText('Chưa phân nhà xe - BKS Thực: —')).toBeTruthy();
-    expect(screen.getByText('BKS Báo khách (Ảo): — sửa')).toBeTruthy();
+    expect(screen.getByText('Chưa phân xe')).toBeTruthy();
+    expect(screen.queryByText(/BKS Thực/)).toBeNull();
+    expect(screen.queryByText(/BKS Báo khách/)).toBeNull();
     expect(document.body.textContent).not.toContain('undefined');
+  });
+
+  it('AC5 an allocated lot whose name slot is empty keeps the composite with "—" for the N/A name', () => {
+    renderLot(lotRow({ carrierName: null, plateNumber: null, actualTruckNo: '15C-111.11', billingTruckNo: null }));
+    expect(screen.getByText('— - BKS Thực: 15C-111.11')).toBeTruthy();
   });
 
   it('AC3 picks a suggested plate and saves through updateLclTruck, then survives the refetch', async () => {

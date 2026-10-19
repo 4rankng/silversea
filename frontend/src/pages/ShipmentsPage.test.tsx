@@ -2737,14 +2737,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-multiline-cell strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
   });
 
-  it('clamps identity factory/route lines at two lines with ellipsis and full text in titles', () => {
+  it('clamps identity factory/route lines at two lines with the full name accessible (card 191026181942)', () => {
     // Clamped at 2 lines so free wrap cannot stretch rows raggedly taller
-    // than neighbors; the span's title carries the full value (CusShipmentRow).
+    // than neighbors; the sanctioned §4 fallback keeps the full value
+    // reachable — now through the shared NameCell (title + aria-label +
+    // focusable reveal), not a bare title attribute.
     expect(css).toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*-webkit-line-clamp:\s*2;/);
     expect(css).toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*overflow:\s*hidden;/);
     const row = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
-    expect(row).toMatch(/title=\{\[\.\.\.item\.effectiveFactoryNames, item\.factoryName\]\.find\(Boolean\) \|\| 'Chưa có nhà máy'\}/);
-    expect(row).toMatch(/title=\{item\.routeName \|\| item\.deliveryLocation \|\| 'Chưa có tuyến đường'\}/);
+    expect(row).toMatch(/<NameCell name=\{item\.factoryName\} \/>/);
+    expect(row).toMatch(/<NameCell name=\{item\.routeName \|\| item\.deliveryLocation\} \/>/);
   });
 
   it('CUS-OVERVIEW-01 rides the label on the value line and wraps complete identifiers without inherited fixed columns', () => {

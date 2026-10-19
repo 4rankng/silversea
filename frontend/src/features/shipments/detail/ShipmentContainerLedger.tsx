@@ -28,6 +28,7 @@ import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
+import { NameCell } from '../../../components/shared/NameCell';
 import { formatISODate, stripDecimalTrailingZeros } from '../../../lib/format';
 import '../../../styles/table-sort.css';
 import type { LedgerColumn } from '../../../lib/column-visibility';
@@ -969,6 +970,17 @@ export function ShipmentContainerLedger({
               const missingVehicleToday = row.transportDate === today && (!row.carrierName || !row.plateNumber);
               const appointmentInput = formatVietnamDateTimeInput(row.customerAppointmentAt);
               const scheduleTime = formatScheduleTime(row);
+              // Card 191026181942 (TRUTH WINS): a lot-level LCL row carries its
+              // schedule in transportDate (expectedDeliveryDate) — the backend
+              // always nulls customerAppointmentAt there (buildLotFlatRow), so
+              // the appointment-only predicate printed "Chưa có lịch hẹn" over
+              // a real ngày vận chuyển. Derive the schedule by OBJECT
+              // EXISTENCE first; the placeholder wins only when neither the
+              // container appointment nor the lot schedule exists.
+              const lotScheduleDate = row.isLotLevel ? row.transportDate : null;
+              const hasAppointment = Boolean(appointmentInput);
+              const hasLotSchedule = Boolean(lotScheduleDate);
+              const hasSchedule = hasAppointment || hasLotSchedule;
               const identityEditable = row.fieldAccess.operationalSiteId?.mode === 'DIRECT';
               const documentsEditable = ['blNumber', 'bookingRef', 'tradeDirection', 'shippingLineName', 'declarationNumber'].some((field) => row.shipmentFieldAccess[field as 'blNumber'].mode !== 'READ_ONLY');
               const containerEditable = row.fieldAccess.containerNumber.mode !== 'READ_ONLY' || row.fieldAccess.containerTypeId.mode !== 'READ_ONLY' || row.fieldAccess.cargoWeightKg.mode !== 'READ_ONLY' || row.fieldAccess.cargoVolumeCbm.mode !== 'READ_ONLY';
@@ -982,6 +994,12 @@ export function ShipmentContainerLedger({
               const lotBillingPlate = billingPlateFor(row);
               const lotBillingDiffers = lotBillingPlate !== '' && normalizePlate(lotBillingPlate) !== normalizePlate(lotActualPlate);
               const lotBillingEditing = billingEditorForRowId === row.id;
+              // Card 191026181942 (empty allocation = pending label): with
+              // NOTHING allocated — no carrier, no plate, not even a hand-typed
+              // BKS thực — the cell prints ONE muted "Chưa phân xe" label. The
+              // composite read "Chưa phân nhà xe - BKS Thực: —" beside
+              // "BKS Báo khách (Ảo): — sửa": three N/A facts dressed as data.
+              const hasLotAllocation = Boolean(row.carrierName?.trim() || row.plateNumber?.trim() || row.actualTruckNo?.trim());
               const cellClassName = (editable: boolean, mode: ShipmentDetailEditMode, extraClassName?: string) => [
                 extraClassName,
                 editable && 'shipment-container-ledger__editable-cell',
@@ -992,9 +1010,11 @@ export function ShipmentContainerLedger({
                   <th scope="row" data-label="Khách hàng & lộ trình" className={cellClassName(identityEditable, 'identity')}>
                     <StatusStrip color={DISPATCH_STRIP_COLORS[row.dispatchStatus]} />
                     {editableCell(row, 'identity', identityEditable, <div className="shipment-container-ledger__multiline">
-                      <strong>{fallback(row.customerName, 'Chưa có khách hàng')}</strong>
-                      <span>{fallback(row.factoryName, 'Chưa có nhà máy')}</span>
-                      <em>{fallback(row.routeName, 'Chưa có tuyến đường')}</em>
+                      {/* Card 191026181942: names ride the shared NameCell —
+                          wrap-never-clip plus the accessible full-name layer. */}
+                      {row.customerName ? <NameCell as="strong" name={row.customerName} /> : fallback(null, 'Chưa có khách hàng')}
+                      {row.factoryName ? <NameCell name={row.factoryName} /> : fallback(null, 'Chưa có nhà máy')}
+                      {row.routeName ? <NameCell as="em" name={row.routeName} /> : fallback(null, 'Chưa có tuyến đường')}
                     </div>)}
                   </th>
                   {/* FB-113 v2: the documents group, one headed column per
@@ -1052,7 +1072,15 @@ export function ShipmentContainerLedger({
 {!isHidden('schedule') && (<td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>
                     {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule ops-schedule">
                       {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
-                      <strong className={appointmentInput ? 'ops-schedule__datetime' : undefined}>{appointmentInput ? [scheduleTime, formatISODate(appointmentInput.slice(0, 10), { empty: 'Chưa có ngày' })].filter(Boolean).join(' ') : 'Chưa có lịch hẹn'}</strong><span>{appointmentInput ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng') : 'Cập nhật theo từng container'}</span></div>)}
+                      <strong className={hasSchedule ? 'ops-schedule__datetime' : undefined}>{hasAppointment
+                        ? [scheduleTime, formatISODate(appointmentInput.slice(0, 10), { empty: 'Chưa có ngày' })].filter(Boolean).join(' ')
+                        : hasLotSchedule
+                          ? formatISODate(lotScheduleDate, { empty: '—' })
+                          : 'Chưa có lịch hẹn'}</strong><span>{hasAppointment
+                        ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng')
+                        : hasLotSchedule
+                          ? 'Ngày vận chuyển'
+                          : row.isLotLevel ? 'Chốt trên Tổng quan lô hàng' : 'Cập nhật theo từng container'}</span></div>)}
                   </td>)}
 {!isHidden('vehicle') && (<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
@@ -1062,11 +1090,16 @@ export function ShipmentContainerLedger({
                           (__vehicle-pending) keeps the attention cue without the
                           duplicate label. */}
                       {row.isLotLevel ? (
+                        !hasLotAllocation ? (
+                          <span className="shipment-container-ledger__missing">Chưa phân xe</span>
+                        ) : (
                         <>
                           {/* Card 161026232339 §II.3.1 — two lines for Hàng lẻ:
                               BKS thực (display) then BKS báo khách (Ảo), which
-                              is click-to-edit. */}
-                          <strong>{`${row.carrierName?.trim() || 'Chưa phân nhà xe'} - BKS Thực: ${lotActualPlate}`}</strong>
+                              is click-to-edit. Card 191026181942: the name slot
+                              of the composite is "—" (en dash) when N/A — the
+                              unallocated case never reaches this branch. */}
+                          <strong>{`${row.carrierName?.trim() || '—'} - BKS Thực: ${lotActualPlate}`}</strong>
                           {lotBillingEditing
                             ? billingPlateEditor(row)
                             : lotBillingDiffers
@@ -1080,6 +1113,7 @@ export function ShipmentContainerLedger({
                             >{lotBillingPlate ? `BKS Báo khách (Ảo): ${lotBillingPlate} — sửa` : 'BKS Báo khách (Ảo): — sửa'}</button>
                           )}
                         </>
+                        )
                       ) : lotBillingDiffers ? (
                         <>
                           {/* Card 171026000407 §II.3.1: "hoặc khi có gán Xe ảo
@@ -1088,14 +1122,16 @@ export function ShipmentContainerLedger({
                               lines as the lot-level branch, the Ảo line
                               click-to-edit. Equal or absent keeps the
                               single-plate cell below byte-for-byte. */}
-                          <strong>{`${row.carrierName?.trim() || 'Chưa phân nhà xe'} - BKS Thực: ${lotActualPlate}`}</strong>
+                          <strong>{`${row.carrierName?.trim() || '—'} - BKS Thực: ${lotActualPlate}`}</strong>
                           {lotBillingEditing
                             ? billingPlateEditor(row)
                             : billingPlateTrigger(row, lotBillingPlate)}
                         </>
                       ) : (
                         <>
-                          <strong>{row.carrierName || <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}</strong>
+                          {row.carrierName
+                            ? <NameCell as="strong" name={row.carrierName} />
+                            : <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}
                           {row.plateNumber
                             ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
                             : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">{row.carrierType === 'EXTERNAL' ? 'CUS sẽ bổ sung' : 'Chưa gán biển số'}</BadgeWithDot>}
