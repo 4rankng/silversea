@@ -570,8 +570,18 @@ export async function checkAdvanceSettlement(
     if (settlement.status !== 'RECORDED') {
       throw new AdvanceError(409, 'Phiếu đã hủy/hoàn tác — không duyệt được.');
     }
+    // Terminal states (review F3): a REAL accountant check (checked_by names
+    // anyone but the submitter) never re-opens; and the same actor re-clicking
+    // their own duyệt is a double-submit, not a new act. The only re-openable
+    // state is the legacy Option-B stamp (checked_by = the submitter's own
+    // id, which named no accountant) — and even that only once per actor, so
+    // a duyệt by an accountant who IS the phiếu's forwarder cannot loop
+    // version bumps + notifications forever.
     if (settlement.checkedBy != null && settlement.checkedBy !== settlement.forwarderId) {
       throw new AdvanceError(409, 'Phiếu đã được kế toán duyệt.');
+    }
+    if (settlement.checkedBy === input.actorId && settlement.checkedAt != null) {
+      throw new AdvanceError(409, 'Bạn đã duyệt phiếu này rồi.');
     }
     await tx.update(s.advanceSettlements).set({
       checkedBy: input.actorId,

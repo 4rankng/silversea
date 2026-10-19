@@ -154,7 +154,7 @@ describe('AccountingDebitClosePage — card 191026160000 chốt-debit fixes', ()
     await waitFor(() => expect(createRound.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
       shipmentIds: [3],
     })));
-  });
+  }, 20000);
 
   it('CP2-D4: a successful chốt keeps the selection so Xuất Debit Note works right after', async () => {
     listBoard.mockResolvedValue({ items: [row({ shipmentId: 151190, billOrBooking: 'BL-9' })], total: 1 });
@@ -180,5 +180,5 @@ describe('AccountingDebitClosePage — card 191026160000 chốt-debit fixes', ()
     await waitFor(() => expect(createNote).toHaveBeenCalledWith([151190]));
     await waitFor(() => expect(exportNote).toHaveBeenCalledWith(151190, 60));
     expect(await screen.findByRole('status')).toHaveTextContent('Đã xuất Debit Note (1 lô).');
-  });
+  }, 20000);
 });

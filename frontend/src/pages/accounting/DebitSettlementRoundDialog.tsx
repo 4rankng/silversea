@@ -130,33 +130,31 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
     [rows, tickedDates],
   );
   const allDatesTicked = dateKeys.length > 0 && tickedDates.size === dateKeys.length;
+  // The đợt's window follows the ticked span: a cross-month selection narrowed
+  // by ticks must not file the lots under the stale month (review F4 —
+  // periodKey drives the backend's duplicate-lần check). Runs in the HANDLER,
+  // never inside a setState updater — an updater must stay pure; calling the
+  // period setters from inside one re-rendered the dialog in a loop (the
+  // CP2-D3/D4 timeouts).
+  const syncPeriodToTicks = (span: ReadonlySet<string>) => {
+    const sorted = [...span].sort();
+    if (sorted.length === 0) return;
+    setDateFrom(sorted[0]!);
+    setDateTo(sorted[sorted.length - 1]!);
+    setYear(Number(sorted[0]!.slice(0, 4)));
+    setMonth(Number(sorted[0]!.slice(5, 7)) || new Date().getMonth() + 1);
+  };
   const toggleDate = (date: string) => {
-    setTickedDates((current) => {
-      const next = new Set(current);
-      if (next.has(date)) next.delete(date);
-      else next.add(date);
-      // The đợt's window follows the ticked span: a cross-month selection
-      // narrowed by ticks must not file the lots under the stale month
-      // (review F4 — periodKey drives the backend's duplicate-lần check).
-      const span = [...next].sort();
-      if (span.length > 0) {
-        setDateFrom(span[0]!);
-        setDateTo(span[span.length - 1]!);
-        setYear(Number(span[0]!.slice(0, 4)));
-        setMonth(Number(span[0]!.slice(5, 7)) || new Date().getMonth() + 1);
-      }
-      return next;
-    });
+    const next = new Set(tickedDates);
+    if (next.has(date)) next.delete(date);
+    else next.add(date);
+    setTickedDates(next);
+    syncPeriodToTicks(next);
   };
   const toggleAllDates = () => {
     const next = allDatesTicked ? new Set<string>() : new Set(dateKeys);
     setTickedDates(next);
-    if (dateKeys.length > 0 && next.size > 0) {
-      setDateFrom(dateKeys[0]!);
-      setDateTo(dateKeys[dateKeys.length - 1]!);
-      setYear(Number(dateKeys[0]!.slice(0, 4)));
-      setMonth(Number(dateKeys[0]!.slice(5, 7)) || new Date().getMonth() + 1);
-    }
+    if (next.size > 0) syncPeriodToTicks(next);
   };
 
   const customerNames = useMemo(
