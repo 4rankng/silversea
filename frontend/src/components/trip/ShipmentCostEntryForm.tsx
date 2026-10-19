@@ -133,6 +133,12 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
   const requiresReceipt = requiredEvidence != null;
   const evidenceLabel = requiredEvidence == null ? '' : NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidence];
   const lotCost = selected.group === 'DRIVER_SHIPMENT';
+  // Card 182300 — chiphispec §1: a fee-norm row IS a system-recorded Tiền đường
+  // row (the server forces its costType from the norm) — lái xe chỉ XEM: the
+  // "Thực chi" field is locked showing the system norm value, and kế toán
+  // adjusts it at phơi phiếu. Non-norm options (Vé cầu đường, Tiền đường khác …)
+  // are the driver's own spends and keep the editable actual-amount contract.
+  const systemRecorded = selected.feeNormCode != null;
   const receiptMissing = receiptStillNeeded(selected) && !row.receiptStorageKey;
   const cameraLabel = uploading ? 'Đang tải…'
     : row.receiptStorageKey ? 'Thay ảnh chứng từ'
@@ -154,8 +160,10 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
         {catalogClassified
           ? <p className="shipment-cost-entry__empty" data-testid="shipment-cost-catalog-fee">{`Tên khoản chi: ${selected.label} (theo danh mục phí).`}</p>
           : <TextField controlSize="sm" label="Tên khoản chi" value={row.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => onPatch({ feeName: event.target.value })} />}
-        <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={row.amount} onChange={(amount) => onPatch({ amount })} min={-999_999_999_999_999} step={1} max={999_999_999_999_999} required disabled={disabled}
-          helpText={selected.amount ? `Gợi ý ${formatCurrency(selected.amount)}; sửa theo khoản thực tế. Chưa lưu thì chưa phát sinh tiền.` : undefined} />
+        <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={row.amount} onChange={(amount) => onPatch({ amount })} min={-999_999_999_999_999} step={1} max={999_999_999_999_999} required disabled={disabled || systemRecorded}
+          helpText={systemRecorded && selected.amount
+            ? `Hệ thống tự ghi nhận theo định mức ${formatCurrency(selected.amount)} — kế toán điều chỉnh tại màn hình phơi phiếu.`
+            : selected.amount ? `Gợi ý ${formatCurrency(selected.amount)}; sửa theo khoản thực tế. Chưa lưu thì chưa phát sinh tiền.` : undefined} />
         {/* Card 20260928_181, tiêu chí 5: a negative amount is a real entry (a
             refund), and every total in the system EXCLUDES negative lines
             (sumExcludingNegative). That is invisible from the field itself, so

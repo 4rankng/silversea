@@ -1,5 +1,5 @@
 import { and, eq, isNull, inArray, notInArray, or } from 'drizzle-orm';
-import { Role, TxnType, type ExpenseSourceRef, type ExpenseAccountingUpdate, type ExpenseSourceKind } from '@tingting/shared';
+import { DriverIncidentalCostType, Role, TxnType, type ExpenseSourceRef, type ExpenseAccountingUpdate, type ExpenseSourceKind } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
 import type { Executor, Tx } from './trip-shared';
@@ -76,6 +76,21 @@ export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
     if (Object.keys(input).some(key => !permitted.has(key))) throw new ApiError(403, 'CUS chỉ được xác định khoản thu khách và ghi chú.');
   } else if ([Role.OPS, Role.DRIVER].includes(actor.role)) {
     if (input.customerChargeAmount !== undefined || input.payerKind !== undefined || input.payerUserId !== undefined) throw new ApiError(403, 'Không được tự thay đổi khoản thu khách hoặc người thực chi.');
+    // Card 182300 — chiphispec §1: system-recorded road money ("Tiền đường"
+    // ROAD_ALLOWANCE / "Phí nâng-hạ theo vùng" LIFT_DROP_ZONE) is written by
+    // the system and adjusted by kế toán only. The driver UI hides "Sửa khoản
+    // chi" on these rows; the API must not trust that UI — ANY non-finance
+    // update (amount, name, date, note or evidence) of such a DRIVER row is
+    // refused outright. The NATIVE costType is the authority (the accounting
+    // source's expenseTypeCode metadata can lag for norm rows), and finance
+    // keeps editing through the requireExpenseFinance branch / phơi phiếu.
+    if (kind === 'DRIVER') {
+      const [native] = await tx.select({ costType: s.driverIncidentalCosts.costType })
+        .from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, id)).limit(1);
+      if (native?.costType === DriverIncidentalCostType.ROAD_ALLOWANCE || native?.costType === DriverIncidentalCostType.LIFT_DROP_ZONE) {
+        throw new ApiError(403, 'Khoản này do hệ thống tự ghi nhận — kế toán điều chỉnh tại màn hình phơi phiếu.');
+      }
+    }
   } else requireExpenseFinance(actor);
   const payerId = input.payerUserId === undefined ? before.payerUserId : input.payerUserId;
   const payerKind = input.payerKind ?? before.payerKind;

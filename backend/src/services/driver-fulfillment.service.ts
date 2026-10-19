@@ -382,10 +382,14 @@ export async function insertDriverIncidentalCostTx(
     throw new ApiError(400, `${catalogType?.name ?? input.expenseTypeCode} phải kèm ${NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidenceType]}.`);
   }
   // Card 20260921_7: a fee norm (định mức) pins the entry to the road bucket —
-  // the norm's costType/costGroup apply, the entry never charges the customer
-  // (AC1), and the amount stays the driver-reported actual (the norm amount is
-  // the FE pre-fill default, overridable per AC3). Mutually exclusive with the
-  // lot-cost catalog ref by contract.
+  // the norm's costType/costGroup apply and the entry never charges the customer
+  // (AC1). Mutually exclusive with the lot-cost catalog ref by contract.
+  // Card 182300 (chiphispec §1) SUPERSEDES AC3's "amount overridable": a norm
+  // row IS a Tiền đường row (costType forced to the norm's ROAD_ALLOWANCE /
+  // LIFT_DROP_ZONE below), and spec §1 says the system records that money —
+  // the driver's "Thực chi" field is readonly showing the norm value, so a
+  // divergent amount riding in the payload is IGNORED, never stored (see the
+  // insert below). Ordinary non-norm rows keep the driver-reported actual.
   const [feeNorm] = input.feeNormCode
     ? await tx.select().from(s.driverFeeNorms)
         .where(and(
@@ -424,14 +428,20 @@ export async function insertDriverIncidentalCostTx(
   if (input.evidenceKind === 'RECEIPT' && !input.receiptStorageKey) {
     throw new ApiError(400, 'Chọn Phiếu thu thì phải chụp biên lai trước khi lưu.');
   }
+  // Card 182300 — chiphispec §1: a fee-norm row's money is the SYSTEM figure.
+  // Both the payable and the driver-entered provenance column carry the norm
+  // amount; a stale offline queue or hand-made API call sending a different
+  // amount is ignored (ignore-field defense-in-depth under the readonly form
+  // field). Non-norm rows keep the driver-reported actual untouched.
+  const amount = normClass ? String(feeNorm!.amount) : String(input.amount);
   const [row] = await tx.insert(s.driverIncidentalCosts).values({
     tripId,
     driverId,
     costType: normClass ? (feeNorm!.costType as DriverIncidentalCostType) : input.costType,
     expenseTypeCode: normClass ? null : (input.expenseTypeCode ?? null),
     feeNormCode: input.feeNormCode ?? null,
-    amount: String(input.amount),
-    driverEnteredAmount: String(input.amount),
+    amount,
+    driverEnteredAmount: amount,
     occurredAt: input.occurredAt,
     note: input.note ?? null,
     receiptStorageKey: input.receiptStorageKey ?? null,

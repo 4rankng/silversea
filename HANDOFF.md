@@ -1,3 +1,46 @@
+# HANDOFF — 2026-10-19 — card 182300: lái xe chỉ XEM "Tiền đường" (chiphispec §1)
+
+Controller: omp agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-driver-tienduong`,
+branch `fix-driver-tienduong` (off `64f81514` = origin/main). Updated: 2026-10-19.
+
+## Goal & status — DONE (code + gates + UI rung 3; committed + pushed, see Git)
+
+Spec §1: "tiền đường hệ thống tự ghi; kế toán được chỉnh; lái xe chỉ xem".
+Two lanes of one defect class (driver-written Tiền đường money) fixed:
+
+1. **Create** — fee-norm rows (Trả đêm…, `costType` forced ROAD_ALLOWANCE by the
+   norm) used to store the driver's "Thực chi": `insertDriverIncidentalCostTx`
+   now IGNORES a divergent amount and stores the SYSTEM norm figure in both
+   `amount` and `driverEnteredAmount` (card 20260921_7 AC3 "overridable" is
+   SUPERSEDED by this card). Non-norm road rows keep the driver actual.
+2. **Edit** — `updateAccountingExpense` non-finance branch (DRIVER/OPS) now 403s
+   ANY update of a native ROAD_ALLOWANCE/LIFT_DROP_ZONE DRIVER row (message
+   "Khoản này do hệ thống tự ghi nhận — kế toán điều chỉnh tại màn hình phơi
+   phiếu."). Keyed on NATIVE costType (source metadata can lag). Finance
+   (`requireExpenseFinance`) + phơi phiếu `correctAccountingExpense` untouched.
+3. **FE** — norm-row "Thực chi (VND)" is `disabled`, showing the system value
+   with copy "Hệ thống tự ghi nhận theo định mức …"; sibling options (Vé cầu
+   đường, Tiền đường khác …) stay editable.
+
+Cases TD-RO-01..04: `testplan/2026-10-18-card182300-driver-tien-duong-readonly.md`.
+
+## Gates (`qa/2026-10-18_card182300_gates.log`, force-tracked)
+
+BE tsc 0 · FE tsgo -b 0 · FE vitest scoped 38/38 · BE m84 10/10 (incl. the new
+TD-RO-02/03/04 test) · root lint 0 · sibling accounting suites (source +
+remediation + phoi-phieu-control) 74/74. UI rung 3 via
+`testplan/qa/scripts/2026-10-18-card182300-tienduong-readonly-ui.mjs` exit 0 —
+local stack serving THIS worktree (frontend 7178 → backend 3003 → dev DB;
+7176 was occupied by another lane); shots `qa/…_ui-01/02/03*.png` + driver log;
+fee-norms API identity NIGHT_RETURN amount=100000 == locked display 100.000.
+
+## Not covered / limits
+
+- Offline driver mobile queue (separate app) — the server-side ignore-field
+  governs it; no client update shipped here.
+- Staging drive not performed (local-only default); both ephemeral services
+  (7178/3003) STOPPED after capture.
+
 # HANDOFF — 2026-10-18 — card 191026100020: LCL hoàn thiện — xác minh 10 work items = ĐÃ CÓ trên main
 
 Worktree `fix-lcl-hoan-thien-v2` (= origin/main `20d4cb27`, 0 lệch).
