@@ -6,8 +6,12 @@
 import puppeteer from 'puppeteer-core';
 import { mkdirSync, appendFileSync } from 'node:fs';
 
-const BASE = 'http://localhost:7175';
-const API = 'http://localhost:3002/api';
+// QA_BASE / QA_API override the dev contract ports (7175/3002) for one-off
+// evidence runs when the contract port is occupied by an UNRELATED session's
+// dev server — the drive must serve the delivered tree, never a sibling
+// worktree's frontend. Defaults stay the contract.
+const BASE = process.env.QA_BASE ?? 'http://localhost:7175';
+const API = process.env.QA_API ?? 'http://localhost:3002/api';
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PREFIX = '2026-10-19_cus-display-five-cards';
 
