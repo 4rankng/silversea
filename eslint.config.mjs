@@ -121,6 +121,10 @@ export default defineConfig([
       '**/frontend/mobile-ux-sweep.mjs',
       '**/frontend/dispatch-toolbar-shot.mjs',
       '**/frontend/qa/tmp-*.mjs',
+      // Session scratch under gitignored tmp-* dirs inside backend/ (same
+      // doctrine as frontend/qa/tmp-*: .gitignore "tmp-*" = throwaway probes
+      // that must not gate lint). No documented command references them.
+      '**/backend/tmp-*/**',
       // Archived harness scripts, preserved verbatim as history (qa/README
       // "scripts/_legacy/ — archived scripts"). These are .sql and .py only:
       // the one .mjs that lived here was a 34-line truncated fragment that has

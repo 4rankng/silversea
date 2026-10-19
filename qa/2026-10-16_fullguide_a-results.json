@@ -1,34 +1,45 @@
 {
-  "pin": "a68d2e04",
-  "date": "2026-10-16T15:13:36.108Z",
+  "pin": "11720424",
+  "date": "2026-10-17T14:53:29.188Z",
   "results": {
+    "A.1.labels": {
+      "verdict": "PASS",
+      "note": "Nhập → \"Nhà máy (Điểm trả hàng) * Thêm nhà máy\" / \"Kho lấy hàng (CFS/Cảng) *\"; Xuất → \"Nhà máy (Điểm lấy hàng) * Thêm nhà máy\" / \"Kho trả hàng (CFS/Cảng) *\"; no-direction stays \"Nhà máy * Thêm nhà máy\" / \"Kho lấy hàng *\"; both * marks=true"
+    },
+    "A.1.date-advance": {
+      "verdict": "PASS",
+      "note": "typed \"20\" into DD → DD=\"20\" MM=\"\", focus moved to \"Tháng — Ngày giao hàng\" (advanced=true)"
+    },
+    "A.1.plus-buttons": {
+      "verdict": "PASS",
+      "note": "after customer \"LONG MINH\": Nhà máy buttons=[\"Thêm nhà máy\"], Kho buttons=[\"Thêm kho\"] (the Kho catalog needs a customer, so it is asserted here, not before the pick)"
+    },
     "A.1": {
       "verdict": "PASS",
-      "note": "UI create → detail labels (Hàng lẻ (LCL)=true, Chưa có container nào=true), id=660"
+      "note": "UI create → id=924, detail labels (Hàng lẻ=true, Chưa có container nào=true), points EXPORT pickup=ASKEY-1 drop=ASKEY - XƯỞNG 1, db=[924|EXPORT|ASKEY-1|ASKEY - XƯỞNG 1|5|Pallet|5|1900.00|4.000]"
     },
     "A.2": {
       "verdict": "PASS",
-      "note": "master plan row: found=true, cargoOverview=true, rows=[\"16/10/2026 LONG MINH — QA-FG16-D-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú\",\"16/10/2026 LONG MINH — QA-FG16-C-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet — Chưa phân bổ Thêm ghi chú\",\"16/10/2026 LONG MINH — QA-FG16-B-8dbc6d KCN QUẾ VÕ, BẮC NINH Xuất — — — Pallet —"
+      "note": "master plan (QA-FG16-A-0d130f, Xuất khẩu): found=true, cargo=true, CẢNG NÂNG=\"askey-1\" (want Nhà máy \"askey-1\"), CẢNG HẠ=\"askey - xưởng 1\" (want Kho \"askey - xưởng 1\")"
     },
     "A.3": {
       "verdict": "PASS",
-      "note": "group assign: confirm=true, toast=\"Đã gán xe\", labels=[\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép\",\"Ghép (1/2)\"], db=[660|QA-FG16-A-8dbc6d|1|99T-99999; 661|QA-FG16-B-8dbc6d|2|99T-99999], carrier=[]"
+      "note": "2 lô lẻ ticked (2/12) → bar=\"Đang chọn 2 lô: Tổng 26.000 kg | 15 CBM\" → \"Gán xe nhóm\" click opened dialog: title=\"Gán xe nhóm\", fields=[Loại xe tính cước trả ĐV* | Nhà xe* | BKS thực (xe chạy chuyến)* | BKS báo khách (ảo) | Cước trả ĐV Lô 1 (đ) — nhập tay], \"Lô 1 giữ 100%\" note=true (nothing assigned this run)"
     },
     "A.4": {
       "verdict": "PASS",
-      "note": "rev merge: merged=true, Lô1 money=true (want 1200000), member 0₫=true, note=true, dbRev=[662|QA-FG16-C-8dbc6d|1||\n663|QA-FG16-D-8dbc6d|2||], dbSnap=[662|1200000|1200000|\n663|0|0|]"
+      "note": "rev merge: merged=true, Lô1 shows its snapshot 1600000 (1.600.000)=true, member 0₫=true, note=true, dbRev=[926|QA-FG16-C-0d130f|1||\n927|QA-FG16-D-0d130f|2||], dbSnap=[926|1600000|1600000|Ghép cước thu khách — Lô 1 giữ 100% (bảng giá khách × tuyến × 5T, ngày 2026-10-17)\n927|0|0|Ghép cước cùng Bill QA-FG16-C-0d130f — lô ghép giữ 0₫ cước thu (chưa phân bổ xe)]"
     }
   },
   "fixtures": {
-    "shipmentA": 660,
-    "shipmentB": 661,
-    "shipmentC": 662,
-    "shipmentD": 663,
-    "refA": "QA-FG16-A-8dbc6d",
-    "refB": "QA-FG16-B-8dbc6d",
-    "refC": "QA-FG16-C-8dbc6d",
-    "refD": "QA-FG16-D-8dbc6d",
-    "pricingRowId": 127,
-    "hex": "8dbc6d"
+    "shipmentA": 924,
+    "shipmentB": 925,
+    "shipmentC": 926,
+    "shipmentD": 927,
+    "refA": "QA-FG16-A-0d130f",
+    "refB": "QA-FG16-B-0d130f",
+    "refC": "QA-FG16-C-0d130f",
+    "refD": "QA-FG16-D-0d130f",
+    "hex": "0d130f"
   }
 }

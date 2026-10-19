@@ -93,22 +93,27 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
 
   it('loads every customer when none is picked — the screen never opens empty', async () => {
     const { container } = renderPage();
-    // Card _202: the customer is the page's primary axis, not a gate. With
-    // none picked the list is EVERY customer's, and the picker's own wording
-    // says so — the "Chưa chọn khách hàng" face is gone.
+    // Owner 2026-10-17 (reverses card _202): the customer is the page's axis,
+    // not a gate. With none picked the list is EVERY customer's, and the
+    // picker's own wording says so — the "Chưa chọn khách hàng" face is gone.
     await waitFor(() => expect(listSummary).toHaveBeenCalledWith(expect.objectContaining({ customerId: null })));
     expect(screen.queryByText('Chưa chọn khách hàng')).toBeNull();
-    expect(container.querySelector('.shipment-debit-customer-bar')).not.toBeNull();
-    expect(screen.getByText(/Đang xem tất cả khách hàng/)).toBeTruthy();
+    // The picker rides the shared strip now (owner 2026-10-17); its own bar
+    // and the "Đang xem…" caption hint are gone — the trigger's value IS the
+    // wording, so nothing echoes it a second time.
+    expect(container.querySelector('.shipment-debit-customer-bar')).toBeNull();
+    expect(screen.queryByText(/Đang xem/)).toBeNull();
+    const ribbon = container.querySelector('.shipment-debit-workspace .filter-bar.list-filter-bar') as HTMLElement;
+    expect(within(ribbon).getByRole('button', { name: 'Tất cả khách hàng' })).toBeTruthy();
     // The export action is still a per-customer action, so it stays disabled —
     // aria-disabled with the reason reachable (sweep card 20261008_1).
     expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).toHaveAttribute('aria-disabled', 'true');
     // Picking a customer narrows the scope to that numeric id — the picker is
-    // the shared searchable combobox, promoted out of `Bộ lọc`.
-    fireEvent.click(screen.getByRole('button', { name: 'Tất cả khách hàng' }));
+    // the shared searchable combobox, first control of the strip.
+    fireEvent.click(within(ribbon).getByRole('button', { name: 'Tất cả khách hàng' }));
     fireEvent.click(await screen.findByRole('option', { name: 'KH A' }));
     await waitFor(() => expect(listSummary).toHaveBeenCalledWith(expect.objectContaining({ customerId: 1 })));
-    expect(screen.getByText(/Đang xem lô của KH A/)).toBeTruthy();
+    expect(within(ribbon).getByRole('button', { name: 'KH A' })).toBeTruthy();
   });
 
   it('renders every customer the summary returns when no customer is picked', async () => {
@@ -167,23 +172,31 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     expect(screen.queryByText('Từ ngày giao')).toBeNull();
     expect(screen.queryByText('Đến ngày giao')).toBeNull();
     expect(screen.queryByText('Trạng thái khóa lô')).toBeNull();
-    // Card _202: Khách hàng LEFT the strip — it is the screen's primary axis
-    // and rides its own always-visible bar above it. The strip keeps the
-    // delivery range, the Khóa lô criterion and Xóa lọc.
+    // Owner 2026-10-17 (reverses card _202): Khách hàng is BACK in the strip —
+    // the FIRST control of the lane, a bar child (bar children never fold),
+    // ahead of the delivery range, the Khóa lô criterion and Xóa lọc. The
+    // picker's own bar above the strip is gone.
+    within(ribbon).getByRole('button', { name: 'Tất cả khách hàng' });
     within(ribbon).getByRole('group', { name: 'Khoảng ngày giao' });
     within(ribbon).getByRole('button', { name: 'Khóa lô: Tất cả' });
     within(ribbon).getByRole('button', { name: 'Xóa lọc' });
-    expect(within(ribbon).queryByRole('button', { name: /Khách hàng/ })).toBeNull();
-    const customerBar = container.querySelector('.shipment-debit-customer-bar') as HTMLElement;
-    expect(customerBar).not.toBeNull();
-    expect(within(customerBar).getByRole('button', { name: 'Tất cả khách hàng' })).toBeTruthy();
+    expect(container.querySelector('.shipment-debit-customer-bar')).toBeNull();
+    // The picker is the strip's FIRST bar child: the customer axis leads the
+    // lane, and a revert that re-pins the picker after the range (or back onto
+    // its own bar) cannot pass while the defect is back.
+    const picker = container.querySelector('.shipment-debit-ribbon__customer') as HTMLElement;
+    expect(picker).not.toBeNull();
+    expect(picker.closest('.filter-bar')).toBe(ribbon);
+    const rangeGroup = ribbon.querySelector('.shipment-debit-ribbon__range') as HTMLElement;
+    expect(rangeGroup).not.toBeNull();
+    expect(picker.compareDocumentPosition(rangeGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // The reorder IS the fix: in the DOM the action row renders AFTER the
-    // customer bar and the strip (the phone band's reading order — the
-    // actions sit directly above the rows they act on); desktop only re-pins
-    // the title row visually via grid order. Pin the DOM order so a revert of
-    // the block order cannot pass while the defect is back.
+    // strip (the phone band's reading order — the actions sit directly above
+    // the rows they act on); desktop only re-pins the title row visually via
+    // grid order. Pin the DOM order so a revert of the block order cannot
+    // pass while the defect is back.
     const headerNode = container.querySelector('[data-component="shipment-debit-header"]') as HTMLElement;
-    expect(customerBar.compareDocumentPosition(headerNode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ribbon.compareDocumentPosition(headerNode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Row 1: Xuất Debit Note rides the title baseline, disabled without a
     // customer, with the DisabledActionTip bubble naming the prerequisite
     // (sweep card 20261008_1 — the reason is reachable on hover AND focus).
@@ -218,10 +231,10 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
 
   it('pins the phone action band: sr-only title, two-cell 40px row above the list', () => {
     // ≤640px the topbar owns the screen name, the header row is the bulk
-    // actions' own line, and the DOM order (picker → strip → actions → list)
-    // puts them directly above the rows they act on. CSS-source pins per the
-    // house convention — jsdom has no layout engine; the browser wave measures
-    // the computed result at 390.
+    // actions' own line, and the DOM order (strip with the customer picker
+    // first → actions → list) puts them directly above the rows they act on.
+    // CSS-source pins per the house convention — jsdom has no layout engine;
+    // the browser wave measures the computed result at 390.
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
     const phoneBand = css.match(/@media \(max-width: 640px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
     expect(phoneBand).toMatch(/\.shipment-debit-header__title \{[\s\S]*?position: absolute;/);
@@ -345,7 +358,11 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     fireEvent.click(button);
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
     // One POST, both locked ids, the stable per-selection key — the open lot never travels.
-    expect(createBatch).toHaveBeenCalledWith([101, 102], 'debit-note-101-102');
+    // Card 191026160000 §2e: the key is now derived INSIDE the client (the
+    // raw join blew the 100-char transport limit on real selections), so the
+    // page passes the ids alone; the replay contract is pinned in
+    // src/api/shipmentDebit.key.test.ts.
+    expect(createBatch).toHaveBeenCalledWith([101, 102]);
     await waitFor(() => expect(exportFile).toHaveBeenCalledWith(101, 777));
   });
 
@@ -359,7 +376,9 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(2));
     expect(createBatch.mock.calls[0][1]).toBe(createBatch.mock.calls[1][1]);
-    expect(createBatch.mock.calls[1][1]).toBe('debit-note-101');
+    // Same-selection replay is guaranteed by the client's internal
+    // selection-hash key (shipmentDebit.key.test.ts pins it).
+    expect(createBatch.mock.calls[1][0]).toEqual(createBatch.mock.calls[0][0]);
   });
 
   it('names the overlapping lots when the issue call rejects with a uniqueness 409', async () => {
@@ -484,16 +503,37 @@ describe('L1 mobile-390 presentation (card 20260924_9)', () => {
     expect(r).toMatch(/font-weight:\s*600/);
   });
 
-  it('cues the sideways scroll on phones only', async () => {
+  it('cues the sideways scroll exactly where the table renders but cannot fit', async () => {
     listSummary.mockResolvedValue({ items: [row()], total: 1 });
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
-    expect(screen.getByText('Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.')).toBeTruthy();
-    // Hidden at desktop widths; revealed inside the phone media block, which
-    // is the LAST block of the sheet (the pin spans from @media to the rule).
+    const cue = screen.getByText('Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.');
+    // card 191026100030: the cue must NOT ride `ledger-desktop` — that class
+    // hides it with `display: none !important` at ≤640, exactly where the OLD
+    // reveal lived, so the cue could never show (and ≤640 renders the phone
+    // record cards anyway — there is no table to cue there).
+    expect(cue.className).not.toMatch(/ledger-desktop/);
+    // Hidden by default; revealed in the 641–1107 band where the L1 table
+    // renders (window > 640) but cannot fit its 1108px floor.
     expect(rule(/\.shipment-debit-scroll-hint\s*\{([^}]*)\}/)).toMatch(/display:\s*none/);
-    const source = cssSource();
-    expect(source).toMatch(/@media \(max-width: 640px\), \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
+    expect(cssSource()).toMatch(/@media \(min-width: 641px\) and \(max-width: 1107px\)\s*\{[^}]*\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
+  });
+
+  it('card 191026100030: money cells wrap instead of spilling, inert rows claim no click, header actions hold the 40px ceiling', () => {
+    const money = rule(/\.shipment-debit-row__money\s*\{([^}]*)\}/);
+    // Fixed layout + nowrap let a ten-digit sum ride over the neighbour cell;
+    // the value now wraps inside its own right-aligned cell instead.
+    expect(money).not.toMatch(/white-space:\s*nowrap/);
+    expect(money).toMatch(/overflow-wrap:\s*break-word/);
+    expect(money).toMatch(/font-variant-numeric:\s*tabular-nums/);
+    // The row-click alias is interactive only when the row carries its
+    // tooltip ([title] — the canManage marker); a read-only locked row is
+    // inert and must not advertise a pointer.
+    expect(rule(/\.shipment-debit-row\[data-locked\]\[title\]\s*\{([^}]*)\}/)).toMatch(/cursor:\s*pointer/);
+    expect(rule(/\.shipment-debit-row\[data-locked\]\s*\{([^}]*)\}/)).not.toMatch(/cursor:/);
+    // UUI size="sm" carries max-md:min-h-11 (44px); the header actions are
+    // ordinary controls and hold the owner's ≤40px ceiling below 768px.
+    expect(cssSource()).toMatch(/@media \(max-width: 768px\)\s*\{[^}]*\.shipment-debit-header \.shipment-debit-merge-rev[^}]*min-height:\s*var\(--control-h\)/);
   });
 
   it('wraps headers by whole word — never clipped mid-word', () => {

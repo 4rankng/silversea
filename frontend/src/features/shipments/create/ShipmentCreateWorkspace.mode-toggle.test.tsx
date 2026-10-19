@@ -160,8 +160,9 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm ngày giao' }));
-    const date = document.querySelector<HTMLInputElement>('.csc-extra-dates__row [data-date-input]')!;
+    // 181026200700 (D.4): the single "Ngày giao hàng" field is always
+    // visible — no add control stands in front of it.
+    const date = document.getElementById('shipment-expected-delivery') as HTMLInputElement;
     fireEvent.change(date, { target: { value: '20/09' } });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();

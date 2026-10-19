@@ -50,6 +50,9 @@ export interface TimesheetDriverRow {
   monthId: number | null;
   salaryMode: TimesheetSalaryMode | null;
   monthStatus: 'OPEN' | 'RECONCILED' | null;
+  /** FB-103 (ticket 171026215600) — chế độ mặc định của lái xe (drivers.salary_mode):
+   *  khởi tạo modal "Mở bảng chấm công" khi tháng chưa mở. */
+  defaultSalaryMode: TimesheetSalaryMode;
 }
 
 export interface TimesheetRollupRow {

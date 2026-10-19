@@ -117,6 +117,23 @@ export interface ExpenseAccountingSourceInput {
   recordedById: number | null; note?: string | null; recoveryNote?: string | null; linkedTripExpenseId?: number | null; photoStorageKeys?: string[];
 }
 
+/**
+ * Resolve the lot a trip executes. Wave-model trips carry the lot link ONLY on
+ * `trips.fulfillmentId` (`trips.shipmentId` stays NULL — trip-create inserts
+ * the row unlinked and links via a guarded update; CUS/fulfillment trips may
+ * never be updated). Reading `trips.shipmentId` alone therefore misclassifies
+ * a fully-linked trip as lotless and stranded its driver costs behind
+ * "Không tìm thấy chi phí thuộc lô." — the accountant could not confirm, edit
+ * or add to them. Direct link wins; the fulfillment's lot is the fallback.
+ */
+export async function resolveTripShipmentId(executor: Executor, trip: { shipmentId: number | null; fulfillmentId: number | null }): Promise<number | null> {
+  if (trip.shipmentId != null) return trip.shipmentId;
+  if (trip.fulfillmentId == null) return null;
+  const [fulfillment] = await executor.select({ shipmentId: s.shipmentFulfillments.shipmentId })
+    .from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, trip.fulfillmentId)).limit(1);
+  return fulfillment?.shipmentId ?? null;
+}
+
 export async function lockExpenseSource(executor: Executor, kind: ExpenseSourceKind, id: number) {
   await lockApplicationOwnedUniqueness(executor, 'expense-accounting-source', [kind, id]);
   const [row] = await executor.select().from(s.expenseAccountingSources)
@@ -177,11 +194,12 @@ export async function ensureTripExpenseAccountingSource(executor: Executor, expe
   if (alreadyLinked) return hydrateExpenseAccountingSource(executor, alreadyLinked);
   const [source] = await executor.select({ expense: s.tripExpenses, trip: s.trips }).from(s.tripExpenses)
     .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId)).where(eq(s.tripExpenses.id, expenseId));
-  if (!source?.trip.shipmentId) throw new ApiError(409, 'Chi phí phải liên kết lô hàng hợp lệ.');
+  const shipmentId = source ? await resolveTripShipmentId(executor, source.trip) : null;
+  if (!source || shipmentId == null) throw new ApiError(409, 'Chi phí phải liên kết lô hàng hợp lệ.');
   const e = source.expense;
   if (!['RECORDED', 'APPROVED'].includes(e.approvalStatus)) throw new ApiError(409, 'Chi phí nguồn chưa ghi nhận hoặc đã hủy.');
   const linked = await upsertExpenseAccountingSource(executor, {
-    sourceKind: 'TRIP', sourceId: e.id, shipmentId: source.trip.shipmentId, tripId: source.trip.id, truckId: source.trip.truckId,
+    sourceKind: 'TRIP', sourceId: e.id, shipmentId, tripId: source.trip.id, truckId: source.trip.truckId,
     customerId: source.trip.customerId, expenseTypeCode: e.expenseType, costGroup: e.costGroup, feeName: e.feeName ?? e.expenseType,
     amount: Number(e.buyAmount), customerChargeAmount: Number(e.sellAmount), expenseDate: e.expenseDate ?? String(source.trip.departureDate).slice(0, 10),
     invoiceNumber: e.invoiceNumber, invoiceDate: e.invoiceDate, payerKind: e.settlementMethod === 'OPS_ADVANCE' ? 'USER' : 'SUPPLIER',
@@ -213,10 +231,13 @@ export async function ensureLegacyExpenseSource(executor: Executor, kind: Expens
   if (kind === 'DRIVER') {
     const [data] = await executor.select({ expense: s.driverIncidentalCosts, trip: s.trips }).from(s.driverIncidentalCosts)
       .innerJoin(s.trips, eq(s.trips.id, s.driverIncidentalCosts.tripId)).where(eq(s.driverIncidentalCosts.id, id));
-    if (!data?.trip.shipmentId) throw new ApiError(404, 'Không tìm thấy chi phí thuộc lô.');
+    const shipmentId = data ? await resolveTripShipmentId(executor, data.trip) : null;
+    // NULL after both lookups is a genuinely lotless trip: no direct link and
+    // no fulfillment — lot accounting has nothing to attach to.
+    if (!data || shipmentId == null) throw new ApiError(404, 'Không tìm thấy chi phí thuộc lô.');
     const [driver] = await executor.select({ userId: s.drivers.userId }).from(s.drivers).where(eq(s.drivers.id, data.expense.driverId));
     const e = data.expense;
-    const linked = await upsertExpenseAccountingSource(executor, { sourceKind: kind, sourceId: id, shipmentId: data.trip.shipmentId,
+    const linked = await upsertExpenseAccountingSource(executor, { sourceKind: kind, sourceId: id, shipmentId,
       tripId: e.tripId, truckId: data.trip.truckId, customerId: data.trip.customerId, expenseTypeCode: e.costType,
       costGroup: e.costGroup, feeName: e.feeName ?? e.costType, amount: Number(e.amount),
       customerChargeAmount: e.customerChargeAmount == null ? null : Number(e.customerChargeAmount), expenseDate: e.occurredAt,

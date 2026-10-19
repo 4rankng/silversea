@@ -25,7 +25,7 @@ const shot = (page, name) => page.screenshot({ path: `qa/2026-10-17_${SCOPE}_${n
 
 await healthGate(logger);
 
-const cus = await login('tiepvv');
+const cus = await login('thanhdc');
 const acct = await login('hoapt');
 const admin = await login('admin');
 step('logins', { cus: !!cus.token, acct: !!acct.token, admin: !!admin.token });
@@ -40,7 +40,7 @@ const customerList = customers.json?.items ?? customers.json ?? [];
 const customer = customerList.find((c) => !c.deletedAt && c.name && c.name.length <= 40) ?? customerList.find((c) => !c.deletedAt);
 const routes = await api(cus.token, 'GET', '/routes?limit=50');
 const routeList = routes.json?.items ?? routes.json ?? [];
-const route = routeList.find((r) => !r.deletedAt) ?? routeList[0];
+const route = routeList.find((r) => r.id === 11) ?? routeList.find((r) => !r.deletedAt) ?? routeList[0];
 const classes = await api(admin.token, 'GET', '/vehicle-size-classes?limit=50');
 const classList = classes.json?.items ?? classes.json ?? [];
 const cls = classList.find((c) => /(^|\s)xe 5 tấn$/i.test((c.name ?? '').trim())) ?? classList.find((c) => !c.deletedAt);
@@ -96,7 +96,7 @@ async function pickSearchable(page, labelRe, fragment) {
     const options = [...document.querySelectorAll('[role="option"]')].filter(o => o.offsetParent !== null);
     if (!options.length) return null;
     const want = ${JSON.stringify(String(fragment ?? ''))}.trim();
-    const anchored = new RegExp('(^|\\\\s|[^0-9.])' + want.replace(/[.*+?^\\${}()|[\\]\\\\]/g, '\\\\$&') + '\\\\s*$', 'i');
+    const anchored = new RegExp('(^|\\\\s|[^0-9.])' + want.replace(/[.*+?^\\$\\{\\}()|[\\]\\\\]/g, '\\\\$&') + '\\\\s*$', 'i');
     return options.find(o => anchored.test((o.textContent || '').trim()))
       ?? (want ? options.find(o => ((o.textContent || '').trim().toLowerCase()).includes(want.toLowerCase())) : null)
       ?? options[0];
@@ -105,24 +105,23 @@ async function pickSearchable(page, labelRe, fragment) {
   return picked;
 }
 const searchBoard = async (page, q) => {
-  const sel = `() => [...document.querySelectorAll('input[type="text"], input[type="search"], input:not([type])')].find(i => /tìm|search|lọc/i.test(i.placeholder || ''))`;
+  const sel = `() => document.querySelector('input[aria-label="Tìm lô hàng"], input[placeholder*="Mã lô"], input[placeholder*="Bill, Book"]') ?? [...document.querySelectorAll('input[type="text"], input[type="search"], input:not([type])')].find(i => /tìm|search|lọc/i.test(i.placeholder || ''))`;
   await setInput(page, sel, q);
-  await sleep(1800);
+  await sleep(2500);
 };
 
 // Card-face probe: for the card containing `ref`, strip every <details>
 // subtree (the 'Chi tiết' collapse) and assert the money lane is still there.
 async function cardFace(page, ref) {
   return page.evaluate((ref) => {
-    const cards = [...document.querySelectorAll('[class*="record"], [class*="card"], li, article, section, tr')];
-    const card = cards.find((el) => (el.innerText || '').includes(ref)
-      && !cards.some((o) => o !== el && o.contains(el) && (o.innerText || '').includes(ref)));
+    const cards = [...document.querySelectorAll('article.ledger-record, .ledger-record, tr.shipment-debit-row')];
+    const card = cards.find((el) => (el.innerText || '').includes(ref));
     if (!card) return { found: false };
     const face = card.cloneNode(true);
     face.querySelectorAll('details').forEach((d) => d.remove());
     const text = (face.innerText || '').replace(/\s+/g, ' ').trim();
     const full = (card.innerText || '').replace(/\s+/g, ' ').trim();
-    return { found: true, face: text.slice(0, 600), faceLen: text.length, fullLen: full.length };
+    return { found: true, face: text.slice(0, 800), faceLen: text.length, fullLen: full.length };
   }, ref);
 }
 
@@ -130,9 +129,8 @@ async function cardFace(page, ref) {
 {
   const { browser, page } = await boot({ token: cus.token, width: 1440, height: 1000 });
   try {
-    await page.goto(`${BASE}/shipments-debit`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto(`${BASE}/shipments-debit?customer=${customer.id}&from=${today}&to=${today}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await sleep(4500);
-    await searchBoard(page, `QA-204709-${hex}`);
     await waitText(page, refA, 20000);
     await sleep(1500);
     const selected = await page.evaluate((a, b) => {
@@ -170,12 +168,18 @@ async function cardFace(page, ref) {
 }
 
 // ══ 3. PHONE CUS board — card-face lane ═════════════════════════════════════
-async function phoneBoard({ token, path, label }) {
+async function phoneBoard({ token, path, searchNeedle, label }) {
   const { browser, page } = await boot({ token, width: 390, height: 844 });
   try {
     await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await sleep(5000);
-    await searchBoard(page, `QA-204709-${hex}`);
+    if (searchNeedle) {
+      const searchInput = await page.$('input[aria-label="Tìm lô hàng"], input[placeholder*="Mã lô"]');
+      if (searchInput) {
+        await searchInput.type(searchNeedle, { delay: 30 });
+        await sleep(2000);
+      }
+    }
     await waitText(page, refA, 20000);
     await sleep(2000);
     await shot(page, `phone-${label}`);
@@ -186,10 +190,10 @@ async function phoneBoard({ token, path, label }) {
   } finally { await browser.close(); }
 }
 {
-  const { faceA, faceB } = await phoneBoard({ token: cus.token, path: '/shipments-debit', label: 'cus' });
+  const { faceA, faceB } = await phoneBoard({ token: cus.token, path: `/shipments-debit?customer=${customer.id}&from=${today}&to=${today}`, label: 'cus' });
   const laneRe = /Cước vận tải \(Auto\)/;
   const moneyRe = /1\.200\.000/;
-  const zeroRe = /(^|\s)0(\s|₫|$)/;
+  const zeroRe = /(?:^|\D)0(?:\s*₫|\s|$|Ghép)/i;
   const noteRe = /Ghép cước cùng Bill/i;
   const aOk = faceA.found && laneRe.test(faceA.face) && moneyRe.test(faceA.face);
   const bOk = faceB.found && laneRe.test(faceB.face) && zeroRe.test(faceB.face) && noteRe.test(faceB.face);
@@ -199,10 +203,10 @@ async function phoneBoard({ token, path, label }) {
 
 // ══ 4. PHONE Kế toán board — card-face lane ═════════════════════════════════
 {
-  const { faceA, faceB } = await phoneBoard({ token: acct.token, path: '/accounting/chot-debit', label: 'ketoan' });
+  const { faceA, faceB } = await phoneBoard({ token: acct.token, path: '/accounting/chot-debit', searchNeedle: hex, label: 'ketoan' });
   const laneRe = /Cước thu \(tự động\)/;
   const moneyRe = /1\.200\.000/;
-  const zeroRe = /(^|\s)0(\s|₫|$)/;
+  const zeroRe = /(?:^|\D)0(?:\s*₫|\s|$|Ghép)/i;
   const noteRe = /Ghép cùng Bill/i;
   const aOk = faceA.found && laneRe.test(faceA.face) && moneyRe.test(faceA.face);
   const bOk = faceB.found && laneRe.test(faceB.face) && zeroRe.test(faceB.face) && noteRe.test(faceB.face);
@@ -214,21 +218,37 @@ async function phoneBoard({ token, path, label }) {
 {
   const { browser, page } = await boot({ token: cus.token, width: 1440, height: 1000 });
   try {
-    await page.goto(`${BASE}/shipments-debit`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto(`${BASE}/shipments-debit?customer=${customer.id}&from=${today}&to=${today}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await sleep(4500);
-    await searchBoard(page, `QA-204709-${hex}`);
     await waitText(page, refB, 20000);
     await sleep(1500);
     // Expand the member row's detail (desktop inline expansion carries Hủy ghép).
+    await page.evaluate((ref) => {
+      const rows = [...document.querySelectorAll('tr, [class*="row"]')];
+      const row = rows.find((r) => (r.innerText || '').includes(ref));
+      row?.scrollIntoView({ block: 'center' });
+    }, refB);
+    await sleep(1000);
     const expanded = await tap(page, `() => [...document.querySelectorAll('button')].find(b => /mở chi tiết lô/i.test(b.getAttribute('aria-label') || '') && (b.getAttribute('aria-label') || '').includes(${JSON.stringify(refB)}) && !b.disabled)
       ?? [...document.querySelectorAll('button')].find(b => /^mở chi tiết lô$/i.test(b.textContent.trim()) && (b.closest('tr, [class*="row"]')?.innerText || '').includes(${JSON.stringify(refB)}))`);
-    await sleep(2000);
+    await sleep(2500);
     await shot(page, 'unmerge-expanded');
-    const unmerged = await tap(page, `() => [...document.querySelectorAll('button')].find(b => /hủy ghép/i.test(b.textContent.trim()) && !b.disabled)`);
-    await sleep(1500);
+    const unmerged = await tap(page, `() => {
+      const btn = [...document.querySelectorAll('button')].find(b => /hủy ghép/i.test(b.textContent.trim()) && !b.disabled);
+      if (btn) btn.scrollIntoView({ block: 'center' });
+      return btn;
+    }`);
+    await sleep(2000);
     await shot(page, 'unmerge-confirm');
     // Confirm dialog if one appears (Xác nhận / Đồng ý / Hủy ghép).
-    const confirmed = await tap(page, `() => { const dlgs = [...document.querySelectorAll('[role=dialog], [class*="modal"]')].filter(m => m.offsetParent !== null); const dlg = dlgs[dlgs.length - 1]; return dlg ? [...dlg.querySelectorAll('button')].find(b => /xác nhận|đồng ý|hủy ghép/i.test(b.textContent.trim()) && !b.disabled) : null; }`);
+    const confirmed = await page.evaluate(() => {
+      const box = document.querySelector('.confirm-box');
+      if (box) {
+        const btn = box.querySelector('.confirm-actions button.btn--primary, .confirm-actions button:last-child');
+        if (btn) { btn.click(); return true; }
+      }
+      return false;
+    });
     await sleep(3500);
     const after = await bodyText(page);
     const toast = after.match(/(Đã tách|Đã hủy ghép|tách khỏi nhóm)[^\n]*/)?.[0] ?? null;
@@ -256,7 +276,8 @@ for (const id of [lotA, lotB]) {
   }
 }
 if (pricingRowId) {
-  const del = await api(admin.token, 'DELETE', `/pricing-tables/${pricingRowId}`);
+  const fresh = await api(admin.token, 'GET', `/pricing-tables/${pricingRowId}`);
+  const del = await api(admin.token, 'DELETE', `/pricing-tables/${pricingRowId}`, null, { 'If-Unmodified-Since': fresh.json?.updatedAt });
   step('cleanup-pricing', { id: pricingRowId, status: del.status });
 }
 {

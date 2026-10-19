@@ -8,10 +8,10 @@ import type {
 } from '@tingting/shared';
 import {
   ShipmentContainerLedger,
-  type ShipmentDetailEditMode,
   type ShipmentDocumentsDraft,
   type ShipmentScheduleDraft,
 } from './ShipmentContainerLedger';
+import type { ShipmentDetailEditMode } from './edit-mode';
 
 // Minimal row/line/detail fixtures — the ledger only reads a per-mode subset,
 // mirroring the thin-cast fixture precedent in ShipmentContainerScheduleEditor.test.tsx.
@@ -383,6 +383,145 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
   });
 });
 
+describe('documents editor field order (FB-113, card 171026122140)', () => {
+  it('FB-113 renders the documents editor fields in the card-mandated order', () => {
+    // EXPORT row: the reference slot shows "Số Booking" (the card's wording);
+    // IMPORT rows show "Số Bill" in the same slot — the order below is the
+    // invariant either way.
+    const base = baseDetail();
+    const exportDetail = {
+      ...base,
+      summary: {
+        ...base.summary,
+        raw: { ...base.summary.raw, tradeDirection: 'EXPORT', blNumber: null, bookingRef: 'EGLV-BOOK-99' },
+      },
+    } as unknown as ShipmentCusWorkspaceDetail;
+    const { container } = renderLedger('documents', baseRow({ direction: 'EXPORT' }), exportDetail);
+
+    const grid = container.querySelector('.shipment-container-ledger__editor-grid');
+    expect(grid).not.toBeNull();
+    const labels = Array.from(grid!.querySelectorAll(':scope > label')).map(
+      (el) => el.querySelector('span')?.textContent ?? '',
+    );
+    expect(labels).toEqual(['Số Booking', 'Số tờ khai', 'Nhập / Xuất', 'Hãng tàu']);
+
+    // Each field must PRECEDE the next in the DOM (the card's compare-
+    // DocumentPosition step) — the chain, not just the text array.
+    const chain = ['Số Booking', 'Số tờ khai', 'Nhập / Xuất', 'Hãng tàu'].map((name) => {
+      const matches = Array.from(grid!.querySelectorAll(':scope > label'))
+        .filter((el) => el.querySelector('span')?.textContent === name);
+      expect(matches).toHaveLength(1);
+      return matches[0];
+    });
+    for (let i = 0; i < chain.length - 1; i += 1) {
+      expect(
+        chain[i].compareDocumentPosition(chain[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING,
+        `${chain[i].textContent} must precede ${chain[i + 1].textContent}`,
+      ).toBeTruthy();
+    }
+  });
+});
+
+/* ─── FB-109/113 v2 (QA 18/10) ──────────────────────────────────────────────
+ * The QA surface is the ledger TABLE, not the documents popup: "header thiếu
+ * trường Số tờ khai, thứ tự không đúng" and "không có nút sửa inline". The
+ * single Chứng từ & hãng tàu column becomes four headed columns in the QA
+ * order (Số Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu), and every
+ * editable container row carries an always-visible Sửa button in the Số tờ
+ * khai column that opens the same documents editor the cell click opens. */
+describe('documents column split + Sửa button (FB-109/113 v2)', () => {
+  function renderIdleLedger(rows: ShipmentCusContainerFlatRow[]) {
+    const onStartEdit = vi.fn();
+    const view = render(
+      <ShipmentContainerLedger
+        rows={rows}
+        totalContainers={rows.length}
+        today="2026-09-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={null}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={onStartEdit}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={vi.fn(async () => {})}
+        onSaveSchedule={vi.fn(async () => {})}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+      />,
+      { wrapper: MemoryRouter },
+    );
+    return { view, onStartEdit };
+  }
+
+  it('FB-113 heads the table with the four document columns in the QA order', () => {
+    renderIdleLedger([baseRow()]);
+    const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
+    expect(headers).toEqual([
+      'Khách hàng & lộ trình',
+      'Bill/Booking',
+      'Số tờ khai',
+      'Nhập/Xuất',
+      'Hãng tàu',
+      'Thông số container',
+      'Nâng / hạ',
+      'Lịch trình',
+      'Phân xe',
+      'Ghi chú',
+      'Trạng thái',
+    ]);
+  });
+
+  it('FB-109 shows Sửa on a row WITH a tờ khai and opens the documents editor', () => {
+    const row = baseRow({ declarationNumber: 'TK-2026-001' });
+    const { onStartEdit } = renderIdleLedger([row]);
+    const cell = screen.getByText('TK-2026-001').closest('td');
+    expect(cell?.getAttribute('data-label')).toBe('Số tờ khai');
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa tờ khai container MSKU1234567' }));
+    expect(onStartEdit).toHaveBeenCalledTimes(1);
+    expect(onStartEdit).toHaveBeenCalledWith(row, 'documents', `shipment-detail-edit-documents-${row.id}`);
+  });
+
+  it('keeps each document value in its own column, placeholders included', () => {
+    renderIdleLedger([baseRow({ declarationNumber: null })]);
+    const tr = screen.getByText('MSKU1234567').closest('tr')!;
+    expect(tr.querySelector('td[data-label="Bill/Booking"]')?.textContent).toContain('EGLV149607019409');
+    expect(tr.querySelector('td[data-label="Số tờ khai"]')?.textContent).toContain('Chưa có tờ khai');
+    expect(tr.querySelector('td[data-label="Nhập/Xuất"]')?.textContent).toContain('Nhập');
+    expect(tr.querySelector('td[data-label="Hãng tàu"]')?.textContent).toContain('Evergreen');
+  });
+
+  it('mounts exactly ONE documents editor — anchored on the Số tờ khai cell', () => {
+    const { container } = renderLedger('documents', baseRow({ declarationNumber: 'TK-OWN-11' }));
+    const editors = container.querySelectorAll('.shipment-container-ledger__inline-editor');
+    expect(editors).toHaveLength(1);
+    expect(container.querySelector('td[data-label="Số tờ khai"] .shipment-container-ledger__inline-editor')).not.toBeNull();
+  });
+
+  it('hides Sửa when documents are read-only and on lot-level rows', () => {
+    const lockedRow = baseRow();
+    const locked = { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.' };
+    lockedRow.shipmentFieldAccess = {
+      ...(lockedRow.shipmentFieldAccess as Record<string, typeof locked>),
+      blNumber: locked,
+      bookingRef: locked,
+      tradeDirection: locked,
+      shippingLineName: locked,
+      declarationNumber: locked,
+    } as typeof lockedRow.shipmentFieldAccess;
+    const first = renderIdleLedger([lockedRow]);
+    expect(screen.queryByRole('button', { name: /Sửa tờ khai/ })).toBeNull();
+    first.view.unmount();
+
+    const lotRow = baseRow({ id: -7, isLotLevel: true, containerNumber: null, classification: 'LCL' });
+    renderIdleLedger([lotRow]);
+    expect(screen.queryByRole('button', { name: /Sửa tờ khai/ })).toBeNull();
+  });
+});
+
 describe('ShipmentContainerLedger missing-fields summary', () => {
   function renderLedgerWithRow(row: ShipmentCusContainerFlatRow) {
     const onStartEdit = vi.fn();
@@ -426,6 +565,42 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     expect(schedule).toHaveTextContent('Chưa có lịch hẹn');
     expect(schedule).toHaveTextContent('Cập nhật theo từng container');
     expect(schedule.querySelector('.ops-schedule__datetime')).toBeNull();
+  });
+
+  // Card 191026181942 (TRUTH WINS): a lot-level LCL row carries its schedule
+  // in transportDate — customerAppointmentAt is always null there — so the
+  // lot's real ngày vận chuyển must render, never the "Chưa có lịch hẹn"
+  // placeholder.
+  it('SCHEDULE-LAYOUT-03 renders the lot schedule of a containerless LCL row (truth wins over the placeholder)', () => {
+    const { view } = renderLedgerWithRow(baseRow({
+      id: -7,
+      isLotLevel: true,
+      containerNumber: null,
+      classification: 'LCL',
+      customerAppointmentAt: null,
+      transportDate: '2026-09-10',
+    }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    expect(schedule).toHaveTextContent('10/09/2026');
+    expect(schedule).toHaveTextContent('Ngày vận chuyển');
+    expect(schedule).not.toHaveTextContent('Chưa có lịch hẹn');
+    expect(schedule.querySelector('.ops-schedule__datetime')).toBeTruthy();
+  });
+
+  it('SCHEDULE-LAYOUT-04 keeps the placeholder for an LCL row with no schedule at all, naming the lot-level path', () => {
+    const { view } = renderLedgerWithRow(baseRow({
+      id: -7,
+      isLotLevel: true,
+      containerNumber: null,
+      classification: 'LCL',
+      customerAppointmentAt: null,
+      transportDate: null,
+    }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    expect(schedule).toHaveTextContent('Thiếu ngày vận chuyển');
+    expect(schedule).toHaveTextContent('Chưa có lịch hẹn');
+    expect(schedule).toHaveTextContent('Chốt trên Tổng quan lô hàng');
+    expect(schedule).not.toHaveTextContent('Cập nhật theo từng container');
   });
 
   it('collapses the missing list to a count control; key blockers stay visible outside it', () => {
@@ -720,8 +895,6 @@ describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
         onSaveIdentity={vi.fn(async () => {})}
         onSaveDocuments={vi.fn(async () => {})}
         onSaveContainer={vi.fn(async () => {})}
-        onAddContainer={vi.fn(async () => {})}
-        onRemoveContainer={vi.fn(async () => {})}
       />,
       { wrapper: MemoryRouter },
     );
@@ -736,7 +909,10 @@ describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
     expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
   });
 
-  it('a regular container row keeps its add/remove actions (the lot gate is scoped to isLotLevel)', () => {
+  // Card 171026182554 (supersedes FB-086's workboard row actions): container
+  // add/remove lives ONLY in the Tổng quan drawer now — the workboard's rows
+  // must not offer either button, on any row kind.
+  it('a regular container row offers no add/remove container actions (card 171026182554)', () => {
     render(
       <ShipmentContainerLedger
         rows={[baseRow()]}
@@ -756,16 +932,14 @@ describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
         onSaveIdentity={vi.fn(async () => {})}
         onSaveDocuments={vi.fn(async () => {})}
         onSaveContainer={vi.fn(async () => {})}
-        onAddContainer={vi.fn(async () => {})}
-        onRemoveContainer={vi.fn(async () => {})}
       />,
       { wrapper: MemoryRouter },
     );
-    expect(screen.getByRole('button', { name: /Thêm container cùng lô/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Xóa container/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Thêm container cùng lô/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
+    expect(screen.queryByTestId('add-container-form')).toBeNull();
   });
 });
-
 /* Card 20261009_3 — the "Chỉnh sửa khách hàng và lộ trình" editor docks as a
  * bottom sheet on phones (≤640px). The sheet MUST portal out of the ledger:
  * the page's `container-type: inline-size` makes `.shipments-detail-page` the
@@ -833,8 +1007,6 @@ describe('bulk appointment copy affordance (card 111026111200)', () => {
         onSaveIdentity={vi.fn(async () => {})}
         onSaveDocuments={vi.fn(async () => {})}
         onSaveContainer={vi.fn(async () => {})}
-        onAddContainer={vi.fn(async () => {})}
-        onRemoveContainer={vi.fn(async () => {})}
         onCopyAppointment={onCopyAppointment}
       />,
       { wrapper: MemoryRouter },
@@ -1146,11 +1318,22 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     expect(screen.getByRole('button', { name: /Sửa BKS báo khách cho lô/ })).toBeTruthy();
   });
 
-  it('AC5 renders — for absent plates instead of undefined', () => {
+  it('AC5 renders one muted "Chưa phân xe" for an unallocated lot — no BKS composite (card 191026181942)', () => {
     renderLot(lotRow({ carrierName: null, plateNumber: null, actualTruckNo: null, billingTruckNo: null }));
-    expect(screen.getByText('Chưa phân nhà xe - BKS Thực: —')).toBeTruthy();
-    expect(screen.getByText('BKS Báo khách (Ảo): — sửa')).toBeTruthy();
+    expect(screen.getByText('Chưa phân xe')).toBeTruthy();
+    // The pending state is the muted missing-field label — one line in the
+    // Phân xe cell, never the BKS skeleton or a badge.
+    expect(document.querySelector('[data-label="Phân xe"] .shipment-container-ledger__missing')?.textContent).toBe('Chưa phân xe');
+    expect(document.querySelector('[data-label="Phân xe"] strong')).toBeNull();
+    expect(document.querySelector('[data-label="Phân xe"] .shipment-container-ledger__plate')).toBeNull();
+    expect(screen.queryByText(/BKS Thực/)).toBeNull();
+    expect(screen.queryByText(/BKS Báo khách/)).toBeNull();
     expect(document.body.textContent).not.toContain('undefined');
+  });
+
+  it('AC5 an allocated lot whose name slot is empty keeps the composite with "—" for the N/A name', () => {
+    renderLot(lotRow({ carrierName: null, plateNumber: null, actualTruckNo: '15C-111.11', billingTruckNo: null }));
+    expect(screen.getByText('— - BKS Thực: 15C-111.11')).toBeTruthy();
   });
 
   it('AC3 picks a suggested plate and saves through updateLclTruck, then survives the refetch', async () => {

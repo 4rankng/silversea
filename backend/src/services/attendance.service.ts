@@ -1,13 +1,13 @@
 import { db, type Executor, type Tx } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, gte, lte, isNull, ne, inArray } from 'drizzle-orm';
-import { resolveSalaryPeriodDateRange } from './salary-period.service';
+import { eq, and, isNull, ne, inArray } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { computeLiveSalary } from './salary-calculation.service';
 import { restoreSalarySnapshot, attendanceFingerprint } from './salary-confirmed-snapshot';
-import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import { lockApplicationOwnedUniqueness, lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { billBookingTitle } from '../lib/business-keys';
+import { getWorkDays, type ConfirmationMap } from './attendance-summary.service';
 
 
 /** Convert a Date to a YYYY-MM-DD string in the Asia/Ho_Chi_Minh business timezone. */
@@ -41,26 +41,9 @@ function parseIsoDate(date: string): Date {
   return parsed;
 }
 
-/** How many Sundays are in a given month/year */
-function countSundays(year: number, month: number): number {
-  const daysInMonth = new Date(year, month, 0).getDate();
-  let count = 0;
-  for (let d = 1; d <= daysInMonth; d++) {
-    if (new Date(year, month - 1, d).getDay() === 0) count++;
-  }
-  return count;
-}
-
-/** Standard work days in a month = total days - sundays */
-export function computeStandardWorkDays(year: number, month: number): number {
-  const daysInMonth = new Date(year, month, 0).getDate();
-  return daysInMonth - countSundays(year, month);
-}
-
 /**
- * Get work days for a driver in a given date range.
+ * Business reference + route for TRIP_DAY enrichment; retain the legacy alias.
  */
-/** Business reference + route for TRIP_DAY enrichment; retain the legacy alias. */
 export async function getTripLabelsForWorkDays(tripIds: number[]): Promise<
   Array<{ id: number; tripCode: string | null; routeName: string | null }>
 > {
@@ -75,21 +58,6 @@ export async function getTripLabelsForWorkDays(tripIds: number[]): Promise<
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .where(inArray(s.trips.id, tripIds));
   return rows.map(row => ({ id: row.id, tripCode: billBookingTitle(row.blNumber, row.bookingRef), routeName: row.routeName }));
-}
-
-export async function getWorkDays(
-  driverId: number,
-  startDate: string,
-  endDate: string,
-  executor: Executor = db,
-) {
-  return executor.select().from(s.driverWorkDays)
-    .where(and(
-      eq(s.driverWorkDays.driverId, driverId),
-      gte(s.driverWorkDays.date, startDate),
-      lte(s.driverWorkDays.date, endDate),
-    ))
-    .orderBy(s.driverWorkDays.date);
 }
 
 /**
@@ -154,11 +122,22 @@ export async function batchUpsertWorkDays(
 ) {
   const execute = async (tx: Tx) => {
     const results = [];
+    // One canonical-order advisory-lock acquisition and one pre-read of the
+    // affected rows instead of a lock+select per item. `existingByDate` is
+    // updated as this loop writes, so duplicate dates in `items` still see
+    // the loop's own earlier writes (sequential visibility preserved).
+    await lockApplicationOwnedUniquenessSet(
+      tx,
+      items.map((item) => ({ scope: 'driver-work-day', parts: [driverId, item.date] })),
+    );
+    const dates = [...new Set(items.map((item) => item.date))];
+    const existingRows = dates.length > 0
+      ? await tx.select().from(s.driverWorkDays)
+        .where(and(eq(s.driverWorkDays.driverId, driverId), inArray(s.driverWorkDays.date, dates)))
+      : [];
+    const existingByDate = new Map(existingRows.map((row) => [row.date, row]));
     for (const item of items) {
-      await lockDriverWorkDay(tx, driverId, item.date);
-      const [existing] = await tx.select().from(s.driverWorkDays)
-        .where(and(eq(s.driverWorkDays.driverId, driverId), eq(s.driverWorkDays.date, item.date)))
-        .limit(1);
+      const existing = existingByDate.get(item.date);
       if (item.status === null) {
         // Delete/clear the work day
         if (existing) {
@@ -168,6 +147,7 @@ export async function batchUpsertWorkDays(
             continue;
           }
           await tx.delete(s.driverWorkDays).where(eq(s.driverWorkDays.id, existing.id));
+          existingByDate.delete(item.date);
         }
         results.push({ date: item.date, action: 'deleted' });
       } else {
@@ -204,6 +184,7 @@ export async function batchUpsertWorkDays(
           : await tx.insert(s.driverWorkDays)
             .values({ driverId, date: item.date, status: item.status, note: item.note ?? null, createdBy, tripId: null })
             .returning();
+        existingByDate.set(item.date, result);
         results.push({ date: item.date, action: 'upserted', result });
       }
     }
@@ -238,15 +219,25 @@ export async function syncTripWorkDays(
   }
 
   const execute = async (executor: Executor) => {
-    for (const date of dates) {
-      await lockDriverWorkDay(executor, driverId, date);
-      const [existing] = await executor.select({ id: s.driverWorkDays.id, existingTripId: s.driverWorkDays.tripId })
+    // One canonical-order advisory-lock acquisition + one pre-read for the
+    // whole date range instead of a lock+select per day. Contribution rules
+    // are unchanged and per-day writes stay as they were.
+    await lockApplicationOwnedUniquenessSet(
+      executor,
+      dates.map((date) => ({ scope: 'driver-work-day', parts: [driverId, date] })),
+    );
+    const existingRows = dates.length > 0
+      ? await executor.select({ id: s.driverWorkDays.id, date: s.driverWorkDays.date, existingTripId: s.driverWorkDays.tripId })
         .from(s.driverWorkDays)
         .where(and(
           eq(s.driverWorkDays.driverId, driverId),
-          eq(s.driverWorkDays.date, date),
+          inArray(s.driverWorkDays.date, dates),
         ))
-        .limit(1);
+      : [];
+    const existingByDate = new Map(existingRows.map((row) => [row.date, row]));
+
+    for (const date of dates) {
+      const existing = existingByDate.get(date);
 
       if (existing) {
         // Contribution-aware: preserve existing trip attribution if another
@@ -346,78 +337,6 @@ export async function removeTripWorkDays(
   await execute(executor);
 }
 
-/**
- * Compute attendance summary for a driver in a month/year.
- */
-export async function computeAttendanceSummary(
-  driverId: number,
-  year: number,
-  month: number,
-  executor: Executor = db,
-) {
-  // Resolve the salary period date range
-  const period = await resolveSalaryPeriodDateRange(month, year);
-  const { start, end } = period;
-
-  const workDays = await getWorkDays(driverId, start, end, executor);
-  const workDayMap = new Map(workDays.map(w => [w.date, w.status]));
-
-  const startParts = start.split('-').map(Number);
-  const endParts = end.split('-').map(Number);
-  const cur = new Date(Date.UTC(startParts[0], startParts[1] - 1, startParts[2]));
-  const stop = new Date(Date.UTC(endParts[0], endParts[1] - 1, endParts[2]));
-
-  const dates: string[] = [];
-  while (cur <= stop) {
-    dates.push(cur.toISOString().split('T')[0]);
-    cur.setUTCDate(cur.getUTCDate() + 1);
-  }
-
-  let tripDays = 0;
-  let standbyDays = 0;
-  let personalLeaveDays = 0;
-  let weeklyOffDays = 0;
-
-  for (const dateStr of dates) {
-    const status = workDayMap.get(dateStr);
-    if (status) {
-      if (status === 'TRIP_DAY') tripDays++;
-      else if (status === 'STANDBY') standbyDays++;
-      else if (status === 'PERSONAL_LEAVE') personalLeaveDays++;
-      else if (status === 'WEEKLY_OFF') weeklyOffDays++;
-    } else {
-      // Default: Sunday is WEEKLY_OFF, non-Sunday is STANDBY
-      const [y, m, d] = dateStr.split('-').map(Number);
-      const isSunday = new Date(y, m - 1, d).getDay() === 0;
-      if (isSunday) {
-        weeklyOffDays++;
-      } else {
-        standbyDays++;
-      }
-    }
-  }
-
-  // Standard work days: calendar days - sundays in the calendar month
-  const standardWorkDays = computeStandardWorkDays(year, month);
-
-  return {
-    driverId,
-    year,
-    month,
-    periodStart: start,
-    periodEnd: end,
-    standardWorkDays,
-    tripDays,
-    standbyDays,
-    personalLeaveDays,
-    weeklyOffDays,
-    paidDays: tripDays + standbyDays,
-    workDays, // raw day records
-  };
-}
-
-export type ConfirmationMap = Map<number, { status: string | null; confirmedBy: number | null; confirmedAt: Date | null; salarySnapshot?: Record<string, unknown> | null }>;
-
 export interface SalaryConfirmationRecord {
   id: number;
   driverId: number;
@@ -502,6 +421,9 @@ export async function computeAllDriverSalaries(year: number, month: number) {
     name: s.drivers.name,
     baseSalary: s.drivers.baseSalary,
     status: s.drivers.status,
+    // FB-103 (ticket 171026215600) — hiển thị "Hình thức lương" trên card
+    // tổng kết lương và khởi tạo dialog "Sửa lương cứng".
+    salaryMode: s.drivers.salaryMode,
   }).from(s.drivers)
     .where(isNull(s.drivers.deletedAt))
     .orderBy(s.drivers.name);

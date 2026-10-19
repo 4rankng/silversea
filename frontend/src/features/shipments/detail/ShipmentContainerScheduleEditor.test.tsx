@@ -176,4 +176,21 @@ describe('ScheduleEditorBody', () => {
     expect(screen.getByLabelText('Giờ trả hàng')).toBeDisabled();
   });
 
+  // FB-030/075 (171026215500) sibling regression: the CUS schedule dialog got
+  // the TimeInput onComplete hand-off (ShipmentsPage FB-030/075 test), this
+  // ledger host did not — focus stayed in the giờ box after a typed time, so
+  // the follow-up day "14" landed there and the date segments never advanced.
+  it('FB-030/075: completing a typed giờ hands focus to the appointment date day segment', async () => {
+    const props = baseProps();
+    render(<ScheduleEditorBody {...props} />);
+    const timeField = screen.getByLabelText('Giờ trả hàng');
+    fireEvent.change(timeField, { target: { value: '1430' } });
+    expect(props.onScheduleTimeChange).toHaveBeenCalledWith('14:30');
+    // The single-box analog of the segmented fields' complete-segment
+    // advance: giờ done → focus lands on the Ngày trả hàng day segment
+    // (prefilled with the row's appointment — type-over ready on select).
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Ngày trả hàng')));
+    expect((document.activeElement as HTMLInputElement).getAttribute('data-seg')).toBe('dd');
+  });
+
 });

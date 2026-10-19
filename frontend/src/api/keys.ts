@@ -430,6 +430,9 @@ export const qk = {
     /** Monthly receivable/payable report, per kind + range + scope. */
     report: (kind: 'THU' | 'TRA', dateFrom: string, dateTo: string, scope?: 'SELF' | 'ALL' | 'UNASSIGNED') =>
       ['phoi-phieu-report', kind, dateFrom, dateTo, scope] as const,
+    /** Card 191026160000 — one summary row's drill-down: the party's unpaid lots. */
+    partyLots: (kind: 'THU' | 'TRA', party: string, dateFrom: string, dateTo: string, scope?: 'SELF' | 'ALL' | 'UNASSIGNED') =>
+      ['phoi-phieu-party-lots', kind, party, dateFrom, dateTo, scope] as const,
     /** Chi-ho fee detail dialog, per trip. */
     chiHo: (tripId: number, confirmation?: 'CONFIRMED' | 'UNCONFIRMED') => confirmation ? ['phoi-phieu-chi-ho', tripId, confirmation] as const : ['phoi-phieu-chi-ho', tripId] as const,
   },

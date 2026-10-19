@@ -1,0 +1,39 @@
+▶ Q10 salary exclusion route validation
+  ✔ rejects unknown handling mode and invalid supplementary targets at the HTTP boundary (88.528084ms)
+[ERROR] POST /api/salary-periods/7559-07/exclusions: Error: simulated salary exclusion audit failure
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/tests/q10-salary-exclusion-routes.test.ts:367:13)
+    at persistMaterialWriteSuccessAuditInTransaction (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/audit.service.ts:288:13)
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:471:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/routes/config/salary-periods-config.routes.ts:286:19)
+Audit log write failed: Error: simulated salary exclusion audit failure
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/tests/q10-salary-exclusion-routes.test.ts:367:13)
+    at persistAudit (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/audit.service.ts:677:10)
+    at persist (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/middleware/audit.ts:233:15)
+    at ServerResponse.res.end (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/middleware/audit.ts:258:10)
+    at ServerResponse.send (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js:221:10)
+    at ServerResponse.json (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js:252:15)
+    at ServerResponse.res.json (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/middleware/audit.ts:85:12)
+    at globalErrorHandler (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/middleware/errorHandler.ts:70:19)
+    at Layer.handleError (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:116:17)
+    at trimPrefix (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:340:13)
+    at /Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9
+    at processParams (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)
+    at next (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)
+    at /Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:688:15
+    at next (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:276:14)
+    at next (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:132:14)
+  ✔ commits effect, replay key, and material audit atomically and rolls all back on audit failure (56.366083ms)
+✔ Q10 salary exclusion route validation (397.896167ms)
+ℹ tests 2
+ℹ suites 1
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1693.869375
+A2=0

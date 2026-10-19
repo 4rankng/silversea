@@ -236,6 +236,15 @@ dispatchPlanningRoutes.get(
       if (value !== 'OWN' && value !== 'EXTERNAL') throw new ApiError(400, 'carrierClass không hợp lệ.');
       return value as 'OWN' | 'EXTERNAL';
     })();
+    // Card 171026154000: Loại hàng — the operator's LCL/FCL scope so hàng lẻ
+    // no longer hides behind FCL pagination on page 1.
+    const cargoMode = (() => {
+      const raw = req.query.cargoMode;
+      if (raw == null || raw === '') return undefined;
+      const value = String(raw).trim().toUpperCase();
+      if (value !== 'FCL' && value !== 'LCL') throw new ApiError(400, 'cargoMode không hợp lệ.');
+      return value as 'FCL' | 'LCL';
+    })();
     const trailerType = (() => {
       const raw = req.query.trailerType;
       if (raw == null || raw === '') return undefined;
@@ -275,6 +284,7 @@ dispatchPlanningRoutes.get(
       carrierClass,
       trailerType,
       routeId,
+      cargoMode,
     }));
   }),
 );

@@ -1045,6 +1045,45 @@
   border: 1px solid var(--app-accent-emerald-border, #abebc6);
 }
 
+/* FB-095 (card 181026145610) — when the page wires the group action the badge
+   becomes the trigger for the Xem nhóm / Hủy ghép menu, so it carries button
+   affordance; the unwired tag stays static text. */
+.detailed-plan-grid__lcl-group-tag--action {
+  font-family: inherit;
+  cursor: pointer;
+}
+.detailed-plan-grid__lcl-group-tag--action:hover {
+  border-color: var(--app-accent-emerald-ink);
+}
+
+/* FB-095 — the badge menu body: group facts + the member list (Xem nhóm). */
+.detailed-plan-grid__lcl-group-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.detailed-plan-grid__lcl-group-menu-list {
+  margin: 0;
+  padding-left: 1.1em;
+  list-style: disc;
+}
+
+/* SPEC 18/10/2026 §4 — Tách nhóm sits beside the group tag on Lô 1. */
+.detailed-plan-grid__lcl-unmerge {
+  border: 1px solid var(--app-border, #e4e7ec);
+  background: var(--app-surface-raised, #fff);
+  color: var(--app-text-muted, #475467);
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.detailed-plan-grid__lcl-unmerge:hover {
+  color: var(--app-text, #1d2939);
+  border-color: var(--app-border-strong, #d0d5dd);
+}
+
 /* FB-092 — LCL selection checkbox column alignment inside the schedule cell. */
 .detailed-plan-grid__cell--schedule .react-aria-Checkbox {
   margin-bottom: 4px;

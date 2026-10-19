@@ -1,25 +1,186 @@
 # Changelog
 
-## 2026-10-17 (chiều) — fix(fb-107): Chi tiết lô "Nơi giao"/"Nơi nhận" → nhãn Nâng/Hạ + portal hết 2 dòng trống
+## 2026-10-17 (chiều) — fix(fb-107): portal Chi tiết lô 2 dòng Nâng/Hạ hết '—'
 
-Card 171026115820 (P2, Phạm Trung Kiên): trên Chi tiết lô hàng, "Nơi giao" và
-"Nơi nhận" để trống, chưa rõ nghĩa nghiệp vụ → thay bằng **Nâng** (điểm
-lấy/nâng hàng) và **Hạ** (điểm hạ/trả hàng).
+Card 171026115820 (P2) — phần portal còn lại của FB-107: `/portal/shipments/:id`
+vẫn bind 2 cột dormant `pickup_location`/`delivery_location` → 2 dòng trống với
+lô FCL và lô tạo trước FB-105 (trang nội bộ đã đổi nhãn Nâng/Hạ ở đợt 17/10).
 
-- **Trang nội bộ** `ShipmentDetailPage`: đổi nhãn 'Nơi nhận' → **'Nâng'**,
-  'Nơi giao' → **'Hạ'**. Giá trị đã là 2 điểm thật qua luật dùng chung
-  `resolveLiftDropPoints` (batch fb086/fb106/fb107) — không đổi binding; nhãn
-  khớp từ card đề xuất và khớp Kế hoạch Tổng quát ('Nâng'/'Hạ').
-- **Portal** `/portal/shipments/:id` (eyebrow cũng là "Chi tiết lô hàng", cùng
-  lớp lỗi): 2 dòng vẫn bind 2 cột dormant `pickup_location`/`delivery_location`
-  → thay bằng cùng luật `resolveLiftDropPoints`; BE `toCustomerShipmentDetail`
-  chiếu tiếp các fact `getShipmentDetail` đã có sẵn (tên kho CFS, nhà máy hiệu
-  lực, tên cảng nâng/hạ từng container) — hiển thị, không schema/migration.
-- **Pin:** `ShipmentDetailPage.test.tsx` (nhãn mới + nhãn cũ biến mất + 4 ca
-  giá trị), `PortalShipmentDetailPage.lift-drop.test.tsx` (mới — nhãn + 3 ca
-  binding qua luật), `shipment-detail-lift-drop-projection.test.ts` (portal
-  projection mang đủ fact cho 2 dòng).
-- Testplan: `testplan/2026-10-17-card-fb107-nang-ha.md`.
+- **BE** `toCustomerShipmentDetail` chiếu tiếp fact đã có của
+  `getShipmentDetail` (cargoMode, tradeDirection, tên kho CFS, nhà máy hiệu lực,
+  tên cảng nâng/hạ từng container) — hiển thị, không migration.
+- **FE portal** dùng chung luật `resolveLiftDropPoints` như trang nội bộ
+  (`PortalShipmentDetailPage.tsx`).
+- **Pin:** `PortalShipmentDetailPage.lift-drop.test.tsx` (mới — nhãn + 3 ca
+  binding). Test BE projection `shipment-detail-lift-drop-projection.test.ts`
+  **không reintroduce** — owner ruling unit-only (`da4d2f0b`).
+- Testplan: `testplan/2026-10-17-card-fb107-nang-ha.md`; staging rung
+  `qa/2026-10-17_card171026115820_fb107_staging-driver.log` (4/4 PASS).
+
+## 2026-10-18 — LCL spec 18/10: Gán xe nhóm trên /dispatch, BKS báo khách từng lô, Tách nhóm
+
+Nguồn: `181026145000-yeu-cau-tinh-nang-gan-xe-nhom-hang-le.docx` (Gán xe nhóm
+hàng lẻ — Điều vận & Ghép cước). Phần lõi (schema, bảng giá, nhảy tiền
+100%/0₫, debit note BKS ảo) đã có; wave này đóng các khoảng UI còn thiếu so
+với đặc tả 18/10.
+
+- **FE /dispatch — chọn nhiều lô lẻ + "Gán xe nhóm"** (spec §2.1–2.2):
+  `MasterPlanGrid` có cột checkbox đầu dòng cho lô LCL (lô đã ghép bị khóa,
+  kèm lý do; FCL không có checkbox). Thanh chọn sticky hiển thị
+  "Đang chọn N lô: Tổng X kg | Y CBM", dòng "Lô 1 giữ 100% tiền trả nhà xe"
+  kèm Số Bill/Booking của Lô 1, nút "Gán xe nhóm" mở đúng popup của Kế hoạch
+  Chi tiết Xe (nút <2 lô aria-disabled + lý do là chữ thật).
+- **FE popup — BKS báo khách từng lô** (spec §2.3 trường 3): ngoài ô BKS chung,
+  mỗi lô trong nhóm có ô combobox/gõ tay riêng; bỏ trống = dùng BKS chung.
+  `AssignTruckGroupDialog` nhận một row contract chuẩn hóa
+  (`lclGroupRowFromDetail` / `lclGroupRowFromMasterPlan`) nên cả hai bảng
+  Kế hoạch dùng chung một popup.
+- **BE — `billingTruckNos`** (`assignLclCostGroupSchema`): mảng
+  `{ shipmentId, billingTruckNo }` ghi đè BKS chung cho từng thành viên; entry
+  trỏ ra ngoài `shipmentIds` bị từ chối 400 trước mọi ghi.
+- **FE Kế hoạch Chi tiết Xe — Tách nhóm** (spec §4): nút "Tách nhóm" cạnh tag
+  `Lẻ · Ghép (1/N)` trên dòng Lô 1, xác nhận rồi gọi
+  `POST /api/shipments/lcl/unmerge-group` (COST), toast kết quả + refresh lưới.
+  Hủy ghép từng lô ở màn Chi phí – Quyết toán giữ nguyên.
+- Regression: `MasterPlanPage.lcl-grouping.test.tsx` (checkbox LCL/khóa nhóm,
+  tổng kg/CBM, mở popup), `MasterPlanGrid.test.tsx` (cột chọn),
+  `AssignTruckGroupDialog.test.tsx` (payload `billingTruckNos`),
+  `DetailedPlanGrid.lcl-grouping.test.tsx` (một nút Tách nhóm trên Lô 1),
+  `backend/src/tests/lcl-grouping.test.ts` (BKS từng lô + từ chối lô ngoài nhóm).
+
+## 2026-10-17 (tối) — FB-114 verify-fail: hãng tàu mới lưu vào danh mục chung trên server
+
+Nguồn: ticket 171026185348 (verify-fail của 171026122150): fix trước chỉ đổi
+label + lưu local form — hãng tàu vẫn mất khỏi dropdown sau reload với mọi
+người dùng. Yêu cầu thật: tạo record server-side (danh mục chung).
+
+- **BE** — `POST /api/shipments/shipping-lines` (mount `shipments` → casbin
+  `shipments:write`, `requireRoles(SHIPMENT_INTAKE_MUTATION_ROLES)` như
+  operational-sites): validate trim/non-empty/≤255, dedupe theo TÊN HIỂN THỊ
+  (`shortName || name`, trim + case-insensitive — cùng identity với
+  derivation `config.service.ts`, nay trim at read), tạo supplier
+  `types ['SHIPPING_LINE']`, bust cache `catalogs:bootstrap`. 201 khi tạo;
+  200 idempotent khi tên đã là default (echo casing canonical) hoặc đã là hãng
+  tàu ACTIVE (không tạo bản sao — verify bằng đếm row theo display name);
+  409 khi tên đang thuộc nhà cung cấp khác loại/INACTIVE; 400 validate.
+  Race window đóng bằng `lockApplicationOwnedUniqueness` trên display name
+  (advisory lock theo pattern application-owned-uniqueness) — select-then-insert
+  serialize theo tên. Audit `ENTITY_CREATED` + entityId/Key của supplier mới,
+  declareNonMaterialWrite. Role list single-source: `SHIPMENT_INTAKE_MUTATION_ROLES`
+  chuyển lên `@tingting/shared` (pattern `FINANCIAL_ROLES`), routes + service
+  cùng import — hết drift.
+- **FE** — `applyShippingLine` gọi API TRƯỚC, sau đó mới ghi
+  `form.shippingLineName` + merge catalog local (`mergeShippingLine`,
+  dedupe case-insensitive) + đóng dialog. Persist fail → dialog giữ nguyên +
+  hiện lỗi server (không fake success). Hint dưới ô Hãng tàu cập nhật đúng
+  scope: "Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập tay
+  lưu cùng lô hàng này; dùng nút bút chì để thêm vào danh mục chung." (copy cũ
+  "chỉ lưu cùng lô hàng này" thành sai; copy trung gian bị overclaim với
+  nhập tay — review S2). UX giữ nguyên: Pencil, tiêu đề dialog "Đặt tên hãng
+  tàu cho lô này", dialog body giữ nguyên theo yêu cầu ticket, field vẫn
+  free-text cho lô.
+- Regression: `backend/src/tests/shipping-line-intake-catalog.test.ts` (7
+  test qua mount thật: create → 201 + bootstrap liệt kê + row typed
+  SHIPPING_LINE; duplicate/case/default → 200 không nhân bản; empty/>255 →
+  400; va chạm NCC khác loại → 409; role matrix 403/401);
+  `frontend/src/features/shipments/create/ShipmentCreateWorkspace.shipping-line-persist.test.tsx`
+  (persist trước close, dropdown mirror, fail → dialog mở + lỗi). Testplan
+  `testplan/2026-10-17-card-fb114-hang-tau-plus.md` case
+  `2026-10-17-card-fb114-shipping-line-server-persist`; QA
+  `qa/2026-10-17_fb114-persist_*`.
+- Migration: KHÔNG tạo — dedupe application-level đủ cho form 1 người bấm;
+  unique index trên display name cần clean data trước (để lại nếu owner muốn
+  siết race window).
+
+## 2026-10-17 (tối) — FB-038/072 verify-fail 3: gán xe trùng lịch còn 2 đường lưu thầm lặng
+
+Nguồn: docx `171026121100-fb038-072-verifyfail3-overlap-silent` (staging,
+dungnv/Điều vận). Điều tra staging read-only: cả 2 fix trước đã trên staging
+build; lỗi do 2 shape dữ liệu mà guard còn sót.
+
+- **Holder không container vô hình** — dòng Kế hoạch Chi tiết chưa decompose
+  (`shipment_fulfillments.shipment_container_id` NULL, slot theo "Ngày giao"
+  của lô; staging: ff 198/199 cùng lô 298): `scanPlanRowHolders` INNER JOIN
+  `shipment_containers` làm holder biến mất → gán cùng biển số cho từng dòng
+  cùng ngày lưu thầm lặng. Fix: LEFT JOIN — holder không container claim LOT
+  window như nhánh Lẻ (luật 061026174603), marker `fallbackSlot` giữ evidence
+  yếu ở tier WARN.
+- **Chuyến COMPLETED chỉ có ngày vô hình** — trip hoàn thành không planned
+  timestamps (staging: trip 117 · BLCUSa24BB, departureDate 01/10) bị mọi scan
+  tier-completed bỏ qua vì đòi `isNotNull(planned_start_at)` → "Phân xe lại"
+  lên biển đó cùng ngày lưu thầm lặng. Fix: 3 scan
+  (`assertResourceAvailability` rig rows, `assertTripRigAvailable`,
+  `assertPlanRowRigAvailable`) claim nguyên ngày hiển thị theo luật 12fcf20d
+  (coalesce plannedStartAt → departureDate tại Asia/Ho_Chi_Minh) — vẫn
+  warn-once `RIG_OVERLAP_COMPLETED` + confirm proceed, không hard-block mới.
+- **Giữ nguyên** harmonization 11/10 cho DRIVER tier-completed (date-only
+  completed row không chứng minh được tài xế bận — vẫn im lặng); test pin cũ
+  vẫn pass. Kẹp/Kết hợp exemption, tier hard active, same-lot warn: không đổi.
+- Regression: `dispatch-plan-row-rig-conflict.test.ts` (describe mới 5 test
+  container-less cùng lô/khác lô), `trip-overlap-warning.test.ts` (2 test edit
+  form + fallback reassign vs completed date-only),
+  `dispatch-resource-availability-kep-kethop.test.ts` (T15–T17). Testplan
+  `testplan/2026-10-17-card-fb038-overlap.md`; QA `qa/2026-10-17_fb038_*`
+  (API rung 2 + UI driven rung 3 qua 'Sửa ô điều phối' với dialog "Vẫn lưu?").
+
+## 2026-10-17 (tối) — FB-105/106/107/108 + FB-006 + QA1-007 + FB-086 (verify-fail lần 2)
+
+Nguồn: docx "Điều chỉnh form tạo lô hàng lẻ" 17/10 + 7 card Kanban TODO
+(171026113500 · 171026113510 · 171026113520 · 171026115800 · 171026115810 ·
+171026115820 · 171026115830).
+
+- **FB-105 (171026115800, P1)** — hàng lẻ: ô "Kho lấy/trả hàng" nhận lại nguồn
+  thật (`operational_sites` WAREHOUSE theo khách đang chọn; `df08bd7c` từng ghim
+  về `[]`), label + placeholder đổi theo hình thức XNK (Nhập: "Nhà máy (Điểm
+  trả hàng) \*" / "Kho lấy hàng (CFS/Cảng) \*"; Xuất: "Nhà máy (Điểm lấy hàng)
+  \*" / "Kho trả hàng (CFS/Cảng) \*"), Nhà máy thành bắt buộc (trừ "Lệnh chạy
+  ngoài"), CẢ HAI ô chọn danh mục hoặc gõ text tự do, ô Kho chuyển vào card
+  "Điểm vận hành & tuyến". Payload ghi điểm nâng/hạ đúng chiều vào
+  `pickup_location`/`delivery_location` (2 cột sẵn có — **không migration**,
+  `make db-drift-check` vẫn no-op); BE chấp nhận điểm Kho dạng text
+  (`shipment-intake.service`: id hợp lệ HOẶC text, lệnh chạy ngoài vẫn được để
+  trống). Điều vận: Kế hoạch Tổng quát + Kế hoạch Chi tiết Xe dùng chung
+  `resolveLiftDropPoints` → lô lẻ Nhập Nâng=kho/Trả=nhà máy, Xuất đảo lại;
+  FCL giữ cặp cảng container (không đảo).
+- **FB-106 (171026115810, P2)** — nút "Tạo lô mới" cạnh "Xóa lô" trên chi tiết
+  lô, cùng bộ vai trò với route guard `shipmentCreatorOnly`. Điều hướng
+  create→chi tiết đã có từ FB-080 (kiểm chứng trên 3 lô lẻ tạo từ form).
+- **FB-107 (171026115820, P2)** — "Nơi nhận"/"Nơi giao" thôi đọc 2 cột
+  `pickup_location`/`delivery_location` (luôn trống với lô tạo từ form) và in
+  Nâng/Hạ thật; BE bổ sung tên kho (short-name authority) vào payload chi tiết.
+- **FB-108 (171026115830, P3)** — cụm "Huỷ / Lưu nháp / Tạo lô hàng" lặp ở cuối
+  trang nhờ component dùng chung `ShipmentCreateActions`; biến thể footer tự
+  định danh ("(cuối trang)") để 2 cụm không trùng accessible name. Phục hồi
+  thanh thao tác cuối trang mà mock 11/10 đã bỏ (chỉ thị 17/10).
+- **FB-006 (171026113500, verify-fail 2)** — cell "Nhà máy" của dòng container
+  thu gọn thật ngay sau khi chọn: bỏ phụ thuộc `:focus-within` (editor rời
+  DOM + a11y tree bằng `visibility`, không đổi bề rộng/chiều cao hàng) và
+  `activateCell` không còn tự kích hoạt lại cell do click xuyên portal, nên
+  menu vừa đóng không mở lại. Lệnh chạy ngoài giữ editor text tự do.
+- **QA1-007 (171026113510, verify-fail 2)** — chip "Bắt buộc: N/M" + panel "Cần
+  bổ sung" đọc readiness SỐNG (trước đây chỉ đọc danh sách issue sinh ra lúc
+  Lưu → form đủ 3 trường nhận diện báo "3/3"); mẫu số theo hình dạng form (FCL
+  catalog 9, LCL catalog 10, ad-hoc 7/5). Panel ưu tiên danh sách của lần Lưu
+  vừa rồi khi có, để câu chữ khớp đúng trường đang sơn lỗi (DRAFT: "Chọn khách
+  hàng để tạo lô hàng.").
+- **FB-086 (171026113520, verify-fail 2)** — mục Containers trên chi tiết lô có
+  nút "Thêm container" (dialog số cont/loại/trọng lượng/giờ hẹn → endpoint
+  composition sẵn có, tự tải lại chi tiết, cổng hiển thị khớp cổng endpoint);
+  container tạo qua form nằm đủ trong payload chi tiết (lô 109609: DB + API +
+  màn hình đều 1 container, thêm được container thứ 2).
+- **Fix kèm lượt này:** (a) bỏ PUT replay thừa ngay sau khi tạo lô — với lô
+  lệnh chạy ngoài PUT đó bị 400 "Khách hàng: Giá trị phải lớn hơn 0" nên tạo lô
+  xong mà màn hình vẫn báo lỗi, retry lặp lại lỗi; (b) `USearchableField` không
+  còn nuốt `hint` dạng ReactNode → empty-state "Chưa có kho/nhà máy" + link
+  thêm mới hiện đúng.
+
+Gates: `fe-tsc` 0 · `be-tsc` 0 · FE **653 file / 5034 test xanh** · BE unit
+290/290 + nhóm integration liên quan (intake, dispatch detail plan, detail
+projection, list projection) 152/152 xanh (suite BE đầy đủ vượt hạn 40' của
+phiên chạy, không tính là gate). E2E trình duyệt thật trên dev stack:
+109014/109015 (lô lẻ Nhập/Xuất), 109034/109035 (Nâng/Trả 2 màn điều vận +
+Nơi nhận/giao), 109609 (FCL containers + thêm container + Tạo lô mới);
+chip 0/9→3/9→10/10; cell nhà máy thu gọn ở trạng thái 2×RAF sau cú chọn.
 
 ## 2026-10-17 (chiều) — fix(141026230770) v2: /my-advances hết sinh "Đã ghi nhận" lậu + regression (a)(b)(c)
 

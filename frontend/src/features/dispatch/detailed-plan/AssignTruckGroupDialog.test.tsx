@@ -5,6 +5,7 @@
  * classes accept the SilverSea fleet OR a nhà xe), the persisted-source
  * redisplay, and the assign call's payload (161026232319 manual cước trả).
  */
+import { useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -44,7 +45,7 @@ vi.mock('../master-plan/useCarrierAllocationOptions', () => ({
   }),
 }));
 
-import { AssignTruckGroupDialog } from './AssignTruckGroupDialog';
+import { AssignTruckGroupDialog, lclGroupRowFromDetail } from './AssignTruckGroupDialog';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
 const row = (shipmentId: number, bill: string): DispatchDetailPlanRow => ({
@@ -73,7 +74,7 @@ const row = (shipmentId: number, bill: string): DispatchDetailPlanRow => ({
 
 function renderDialog(rows: DispatchDetailPlanRow[]) {
   return render(
-    <AssignTruckGroupDialog rows={rows} onClose={vi.fn()} onAssigned={vi.fn()} />,
+    <AssignTruckGroupDialog rows={rows.map(lclGroupRowFromDetail)} onClose={vi.fn()} onAssigned={vi.fn()} />,
   );
 }
 
@@ -129,7 +130,7 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
   it('lists the selected lots in operator order and stays closed without rows', () => {
     const { rerender } = renderDialog([]);
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
-    rerender(<AssignTruckGroupDialog rows={[row(31, 'BL-1'), row(32, 'BL-2')]} onClose={vi.fn()} onAssigned={vi.fn()} />);
+    rerender(<AssignTruckGroupDialog rows={[row(31, 'BL-1'), row(32, 'BL-2')].map(lclGroupRowFromDetail)} onClose={vi.fn()} onAssigned={vi.fn()} />);
     const items = screen.getAllByRole('listitem');
     expect(items[0]!.textContent).toContain('Lô 1 · BL-1');
     expect(items[1]!.textContent).toContain('Lô 2 · BL-2');
@@ -226,6 +227,28 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
     expect(assignMock.mock.calls[0]![0]).not.toHaveProperty('billingTruckNo');
   });
 
+  it('cho phép sửa BKS báo khách cho từng lô trong nhóm (SPEC 18/10/2026 §2.3)', async () => {
+    assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    await pickCarrier('Nhà xe Hải Vân');
+    setField(/BKS thực/, '29H-111.11');
+
+    // Group default stays the actual plate; only Lô 2 gets its own ảo plate.
+    fireEvent.change(screen.getByRole('combobox', { name: /Lô 2 — BL-2/ }), {
+      target: { value: '29H-999.99' },
+    });
+
+    submit();
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
+    expect(assignMock.mock.calls[0]![0]).toMatchObject({
+      shipmentIds: [31, 32],
+      billingTruckNos: [{ shipmentId: 32, billingTruckNo: '29H-999.99' }],
+    });
+    // The group field was untouched ⇒ no group-level default is sent.
+    expect(assignMock.mock.calls[0]![0]).not.toHaveProperty('billingTruckNo');
+  });
+
   it('gửi cước trả ĐV nhập tay khi có, bỏ trống thì để server tự tra (161026232319)', async () => {
     assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
     renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
@@ -290,5 +313,75 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
       .toBe('29H-111.11');
     expect((screen.getByRole('combobox', { name: /BKS báo khách/ }) as HTMLInputElement).value)
       .toBe('29H-999.99');
+  });
+
+  it('giữ lựa chọn Loại xe + Nhà xe qua một lần "Hủy" rồi mở lại (card _171026133000)', async () => {
+    // The popup unmounts on close, so every internal pick dies with it — the
+    // draft has to live one level up. This harness mirrors what
+    // DispatchDetailPlanPage does with groupDraft.
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      const [draft, setDraft] = useState({ vehicleClassId: '', carrierKey: '' });
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>mở nhóm</button>
+          {open && (
+            <AssignTruckGroupDialog
+              rows={[row(31, 'BL-1'), row(32, 'BL-2')].map(lclGroupRowFromDetail)}
+              initialVehicleClassId={draft.vehicleClassId}
+              initialCarrierKey={draft.carrierKey}
+              onDraftChange={(next) => setDraft((cur) => (
+                cur.vehicleClassId === next.vehicleClassId && cur.carrierKey === next.carrierKey
+                  ? cur
+                  : next
+              ))}
+              onClose={() => setOpen(false)}
+              onAssigned={vi.fn()}
+            />
+          )}
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const classField = () => screen.getByRole('combobox', { name: /Loại xe tính cước trả ĐV/ }) as HTMLInputElement;
+    const carrierField = () => screen.getByRole('combobox', { name: /^Nhà xe/ }) as HTMLInputElement;
+
+    fireEvent.click(screen.getByRole('button', { name: 'mở nhóm' }));
+    await pickVehicleClass('Container 20 feet');
+    await pickCarrier('Nhà xe Hải Vân');
+    expect(classField().value).toContain('Container 20 feet');
+    expect(carrierField().value).toContain('Nhà xe Hải Vân');
+
+    // "Hủy" without assigning: the popup goes away entirely.
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    expect(screen.queryByRole('combobox', { name: /Loại xe tính cước trả ĐV/ })).toBeNull();
+
+    // Reopen: both picks came back instead of resetting to the placeholders.
+    fireEvent.click(screen.getByRole('button', { name: 'mở nhóm' }));
+    expect(classField().value).toContain('Container 20 feet');
+    expect(carrierField().value).toContain('Nhà xe Hải Vân');
+  });
+
+  // FB-066 — the "BKS thực" picker carries the "+ Thêm nhanh" quick-add
+  // affordance once a vehicle source is chosen (own fleet or a nhà xe), so a
+  // dispatcher registers a brand-new plate without leaving the Gán xe nhóm
+  // flow (r25 guide step 3, lclspec). It stays hidden with no source picked.
+  it('FB-066: "BKS thực" shows + Thêm nhanh once a nhà xe (external) is chosen', async () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+
+    // No vehicle source yet ⇒ no quick-add affordance.
+    expect(screen.queryByRole('button', { name: /Thêm nhanh/ })).toBeNull();
+
+    await pickCarrier('Nhà xe Hải Vân');
+    expect(screen.getByRole('button', { name: /Thêm nhanh/ })).toBeTruthy();
+  });
+
+  it('FB-066: own-fleet source also offers the quick-add (internal tractor path)', async () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Container 20 feet');
+    await pickCarrier('Đội xe nội bộ SilverSea');
+    expect(screen.getByRole('button', { name: /Thêm nhanh/ })).toBeTruthy();
   });
 });

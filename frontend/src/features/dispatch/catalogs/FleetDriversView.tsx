@@ -17,6 +17,7 @@ import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../../lib/table-sort';
 import { formatISODate, businessDateISO } from '../../../lib/format';
+import { salaryModeLabel } from '../../timesheet/salary-modes';
 import { DriverFormModal } from '../../fleet/DriverFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
 import { matchesCatalogSearch } from './catalog-search';
@@ -81,7 +82,8 @@ export function FleetDriversView() {
       phone: (d) => d.phone,
       bankName: (d) => d.bankName,
       bankAccount: (d) => d.bankAccount,
-      salaryType: (d) => d.salaryType,
+      // FB-103 — cột "Hình thức lương" xếp theo nhãn enum của salaryMode.
+      salaryMode: (d) => salaryModeLabel(d.salaryMode),
     }, (a, b) => a.id - b.id),
     [filtered, sort],
   );
@@ -99,7 +101,7 @@ export function FleetDriversView() {
       if (d.phone?.trim()) present.phone = true;
       if (d.bankName?.trim()) present.bankName = true;
       if (d.bankAccount?.trim()) present.bankAccount = true;
-      if (d.salaryType?.trim()) present.salaryType = true;
+      if (d.salaryMode) present.salaryMode = true;
     }
     return present;
   }, [rows]);
@@ -154,7 +156,7 @@ export function FleetDriversView() {
                 {colPresence.phone && <SortHeader label="Số điện thoại" sortKey="phone" sort={sort} onSortChange={applySort} />}
                 {colPresence.bankName && <SortHeader label="Ngân hàng nhận tiền" sortKey="bankName" sort={sort} onSortChange={applySort} />}
                 {colPresence.bankAccount && <SortHeader label="Số TK nhận tiền" sortKey="bankAccount" sort={sort} onSortChange={applySort} />}
-                {colPresence.salaryType && <SortHeader label="Hình thức lương" sortKey="salaryType" sort={sort} onSortChange={applySort} />}
+                {colPresence.salaryMode && <SortHeader label="Hình thức lương" sortKey="salaryMode" sort={sort} onSortChange={applySort} />}
               </tr>
             </thead>
             <tbody>
@@ -194,7 +196,7 @@ export function FleetDriversView() {
                   {colPresence.phone && <td data-label="Số điện thoại" data-empty={!d.phone?.trim() || undefined}><span className="data-token">{d.phone || '—'}</span></td>}
                   {colPresence.bankName && <td data-label="Ngân hàng nhận tiền" data-empty={!d.bankName?.trim() || undefined} title={d.bankName || undefined}>{d.bankName || '—'}</td>}
                   {colPresence.bankAccount && <td data-label="Số TK nhận tiền" data-empty={!d.bankAccount?.trim() || undefined}>{d.bankAccount || '—'}</td>}
-                  {colPresence.salaryType && <td data-label="Hình thức lương" data-empty={!d.salaryType?.trim() || undefined}>{d.salaryType || '—'}</td>}
+                  {colPresence.salaryMode && <td data-label="Hình thức lương">{salaryModeLabel(d.salaryMode)}</td>}
                 </tr>
               ))}
             </tbody>

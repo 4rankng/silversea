@@ -110,6 +110,24 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(tsx).toContain('className="invoice-tracking-actions record-table__action"');
     expect(rules).toMatch(/\.invoice-tracking-actions\s*\{[^}]*white-space:\s*nowrap/);
   });
+
+  it('keeps every header label on ONE line — FB-063 (card 181026021137)', () => {
+    // The defect: "NHÀ CUNG CẤP" measured 3 lines in a 61px column and five
+    // more labels stacked 2 lines each while data-driven columns ate the
+    // canvas (qa/2026-10-18_fb063_measure-before_ui-driver.log). nowrap is
+    // also the only policy-clean column floor — auto layout sizes each column
+    // at its label width (Law §4 "the column sizes to the label") — but the
+    // one-line floors at the base's 12px gutters push the board to 1250px
+    // (pre-fix: 1190px), cutting the "Thao tác" action pair off the window
+    // edge. The 8px head + 6px body gutters are the measured width trade
+    // (qa/2026-10-18_fb063_measure-budget-probe-after.log: 1183px — narrower
+    // than pre-fix at every table-mode width). Both halves are load-bearing:
+    // drop either and the board widens past the action column again.
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table thead th\s*\{[^}]*white-space:\s*nowrap;/);
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table thead th\s*\{[^}]*padding-inline:\s*8px;/);
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table tbody td:not\(\.record-table__action\)\s*\{[^}]*padding-inline:\s*6px;/);
+    expect(rules).not.toMatch(/\.invoice-tracking-page \.record-table thead th\s*\{[^}]*white-space:\s*normal;/);
+  });
 });
 
 describe('invoice-tracking command strip (card 20260929_ivt — shared primitives)', () => {

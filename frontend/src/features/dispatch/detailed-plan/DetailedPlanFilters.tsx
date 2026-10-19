@@ -15,12 +15,7 @@ import type { DispatchDetailPlanAssignmentCounts } from '../../../api/dispatchPl
 import { DispatchTimeFilterField } from './DispatchTimeFilterField';
 import { useVehicleRouteOptions, VehicleDriverSelect, FleetFilterFields } from './DetailedPlanVehicleFilters';
 
-export interface FacetItem {
-  id: number;
-  name: string;
-}
-
-export type FacetLoader = (q?: string) => Promise<FacetItem[]>;
+import type { FacetLoader } from '../facet-types';
 
 interface DetailedPlanFiltersProps {
   filters: DetailedPlanFilterState;
@@ -69,6 +64,15 @@ const DATA_STATUS_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'ALL_DATA_STATUS', label: 'Tất cả' },
   { id: 'COMPLETE', label: 'Đầy đủ' },
   { id: 'MISSING', label: 'Thiếu dữ liệu' },
+];
+
+/** Card 171026154000: Loại hàng — the operator's LCL scope. Labels follow the
+ *  grid's own cargo vocabulary (Cont vs Hàng lẻ) with the API value spelled
+ *  out so the wire param is readable in the shared bar's state. */
+const CARGO_MODE_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: 'ALL_CARGO_MODES', label: 'Tất cả' },
+  { id: 'FCL', label: 'Cont (FCL)' },
+  { id: 'LCL', label: 'Hàng lẻ (LCL)' },
 ];
 import { FacetMultiSelect } from './DetailedPlanFacetMultiSelect';
 
@@ -159,6 +163,7 @@ export function DetailedPlanFilters({
     filters.direction !== '',
     filters.assignmentStatus !== '',
     filters.dataStatus !== '',
+    filters.cargoMode !== '',
     filters.truckPlate !== '',
     filters.driverId != null,
     filters.carrierClass !== '',
@@ -349,6 +354,16 @@ export function DetailedPlanFilters({
                   selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
                   onSelectionChange={(key) => onChange({ assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'] })}
                   ariaLabel="Trạng thái điều xe"
+                />
+                {/* Card 171026154000: hàng lẻ used to hide on pages 2-3 behind
+                    FCL pagination — the Loại hàng scope puts it one pick away. */}
+                <InlineLabelSelect
+                  id="detailed-plan-cargo-mode"
+                  label="Loại hàng"
+                  items={CARGO_MODE_OPTIONS}
+                  selectedKey={filters.cargoMode || 'ALL_CARGO_MODES'}
+                  onSelectionChange={(key) => onChange({ cargoMode: key === 'ALL_CARGO_MODES' ? '' : key as DetailedPlanFilterState['cargoMode'] })}
+                  ariaLabel="Loại hàng"
                 />
                 <InlineLabelSelect
                   id="detailed-plan-data-status"

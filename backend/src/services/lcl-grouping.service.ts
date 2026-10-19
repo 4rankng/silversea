@@ -34,7 +34,7 @@ import { AuditEvent } from './audit-types';
 import { persistAuditInTransaction } from './audit.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
 import { upsertTripCarrierInfo, upsertTripFinancialState } from './trip-composite.service';
-import { resolveCarrierVehicleClassPrice, resolveCustomerVehicleClassPrice } from './pricing.service';
+import { resolveCustomerVehicleClassPrice } from './pricing.service';
 import { persistFreightRateSnapshot, type ResolvedFreightRate } from './freight-pricing-engine.service';
 
 export interface LclGroupActor {
@@ -105,10 +105,10 @@ export interface LclGroupDissolveResult {
   dissolved: true;
 }
 
-type ShipmentRow = typeof s.shipments.$inferSelect;
+export type ShipmentRow = typeof s.shipments.$inferSelect;
 
 /** Live-trip facts the money steps need, keyed by shipmentId. */
-interface LiveTripFacts {
+export interface LiveTripFacts {
   tripId: number;
   status: string;
   departureDate: string;
@@ -770,7 +770,7 @@ type AuditEventTypeValue = (typeof AuditEvent)[keyof typeof AuditEvent];
 type LclCostCarrierType = 'OWN' | 'EXTERNAL';
 
 /** The vehicle source one cost group was assigned to. */
-interface LclCostCarrier {
+export interface LclCostCarrier {
   carrierType: LclCostCarrierType;
   /** customers.id of the nhà xe (isCarrier); null for the internal fleet. */
   carrierId: number | null;
@@ -880,64 +880,11 @@ async function persistLclCostCarrier(
 }
 
 /**
- * 161026232319 — Lô 1's cước trả ĐV.
- *
- * The manual entry ("Điều vận nhập tay") wins; otherwise the carrier price
- * board is traced for the lane (tuyến × loại xe, nhà xe's own row first, the
- * generic row as fallback), dated at the lot's delivery day — else the trip's
- * departure day. A board miss leaves Lô 1's own value untouched: an absent
- * price is never an invented 0₫ (and never a wiped freight).
+ * 161026232319 / card 171026142500 — Lô 1's cước trả ĐV and the members'
+ * zeroing live in `lcl-cost-group-freight.service.ts` (the money seam shared
+ * by group assignment and trip issuance).
  */
-async function applyPrincipalCostFreight(
-  tx: Tx,
-  args: {
-    row: ShipmentRow;
-    trip: LiveTripFacts | null;
-    vehicleClassId: number;
-    carrier: LclCostCarrier;
-    manualFreightCost: number | undefined;
-  },
-): Promise<{ amount: string; source: 'MANUAL' | 'PRICE_BOARD' } | null> {
-  const { row, trip, vehicleClassId, carrier, manualFreightCost } = args;
-  if (trip == null) return null;
-  if (manualFreightCost != null) {
-    await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(manualFreightCost) });
-    return { amount: String(manualFreightCost), source: 'MANUAL' };
-  }
-  if (row.routeId == null) return null;
-  const date = row.expectedDeliveryDate ?? trip.departureDate;
-  if (date == null) return null;
-  const price = await resolveCarrierVehicleClassPrice({
-    routeId: row.routeId,
-    vehicleSizeClassId: vehicleClassId,
-    supplierId: carrier.supplierId,
-    date,
-  });
-  if (price == null) return null;
-  await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(price.price) });
-  return { amount: String(price.price), source: 'PRICE_BOARD' };
-}
-
-/**
- * 161026232329 — the internal-fleet container group pays ONE driver for the
- * whole run: members 2..N shed the driver's road money.
- *
- * The two stored columns every salary surface sums are
- * `trip_financial_state.driver_salary` ("lương chuyến" — Lương SX on the
- * payslip) and `trip_financial_state.total_road_allowance` ("tiền đường";
- * driver-earnings.service reads exactly these two, and pnl/driver boards read
- * them too). `road_allowance_override` joins them as the stored INPUT the
- * road allowance is recomputed from — an explicit 0 there keeps the member at
- * 0₫ through a later "lưu số liệu" instead of re-deriving the route config
- * amount.
- */
-async function zeroMemberDriverMoney(tx: Tx, tripId: number): Promise<void> {
-  await upsertTripFinancialState(tx, tripId, {
-    driverSalary: '0',
-    totalRoadAllowance: '0',
-    roadAllowanceOverride: '0',
-  });
-}
+import { applyPrincipalCostFreight, zeroMemberDriverMoney } from './lcl-cost-group-freight.service';
 
 /**
  * FB-092 — dispatch "Gán xe nhóm" (COST dimension).
@@ -966,6 +913,16 @@ export async function assignLclCostGroup(
     const vehicleClass = await loadVehicleClass(tx, input.vehicleSizeClassId);
     const actualTruckNo = input.actualTruckNo.trim();
     const billingTruckNo = (input.billingTruckNo?.trim() || actualTruckNo);
+    // SPEC 18/10/2026 §2.3 — per-lot "BKS báo khách". The group value is the
+    // default; an override must name a lot in this very group.
+    const billingByShipment = new Map(
+      (input.billingTruckNos ?? []).map((entry) => [entry.shipmentId, entry.billingTruckNo.trim()]),
+    );
+    for (const shipmentId of billingByShipment.keys()) {
+      if (!input.shipmentIds.includes(shipmentId)) {
+        throw new ApiError(400, 'BKS báo khách từng lô phải thuộc nhóm lô đang gán');
+      }
+    }
 
     const [internalTruck] = await tx.select({ id: s.trucks.id })
       .from(s.trucks)
@@ -992,7 +949,7 @@ export async function assignLclCostGroup(
         costGroupId: groupId,
         costGroupOrder: index + 1,
         actualTruckNo,
-        billingTruckNo,
+        billingTruckNo: billingByShipment.get(row.id) ?? billingTruckNo,
         costVehicleClassId: vehicleClass.id,
         version: row.version + 1,
         updatedBy: actor.userId,
@@ -1343,10 +1300,16 @@ export async function setLclLotRevClass(
 }
 
 /**
- * FB-093 — quick-edit the BKS pair from the settlement screen. The truck is
- * the COST group's shared identity, so an edit rewrites every live member of
- * the lot's cost group (the lot alone when ungrouped). The rev dimension's
- * billing copy follows only when the caller names it.
+ * FB-093 — quick-edit the BKS pair from the settlement screen.
+ *
+ * The two plates have different scopes (spec §2.3, card 181026145000):
+ *   - BKS thực (actualTruckNo) is the COST group's shared identity — one
+ *     physical truck runs the whole group, so an edit rewrites every live
+ *     member (the lot alone when ungrouped);
+ *   - BKS báo khách (billingTruckNo) is per-lot — "cho phép điều vận sửa lại
+ *     cho từng lô trong nhóm" — so an edit touches ONLY the named lot. The
+ *     group's shared billing value is set once at assignment/merge time;
+ *     divergence afterwards is the operator's deliberate per-lot choice.
  */
 export async function updateLclGroupTruck(
   input: UpdateLclTruckInput,
@@ -1363,22 +1326,50 @@ export async function updateLclGroupTruck(
     await assertShipmentAccountingUnlocked(tx, row.id);
 
     // The cost group shares one physical truck; ungrouped edits touch the lot.
-    const targets = row.costGroupId != null
+    const groupTargets = input.actualTruckNo != null && row.costGroupId != null
       ? await tx.select().from(s.shipments)
         .where(and(eq(s.shipments.costGroupId, row.costGroupId), isNull(s.shipments.deletedAt)))
         .orderBy(asc(s.shipments.id))
         .for('update')
       : [row];
 
-    const patch: Partial<typeof s.shipments.$inferInsert> = {
-      updatedBy: actor.userId,
-      updatedAt: new Date(),
-    };
-    if (input.actualTruckNo != null) patch.actualTruckNo = input.actualTruckNo;
-    if (input.billingTruckNo != null) patch.billingTruckNo = input.billingTruckNo;
+    // Review 181026145000 (LCL-A181026145000-05) — the actual-plate edit
+    // rewrites EVERY live group member, so the settled-group law applies to
+    // the whole group: every member must be accounting-unlocked, not just the
+    // named lot (the accounting leg of the unmerge path's assertGroupMutable;
+    // its completed-trip freeze is deliberately not mirrored here). A
+    // billing-only edit touches the named lot alone — the early assert above
+    // is its whole boundary.
+    if (input.actualTruckNo != null) {
+      for (const target of groupTargets) {
+        if (target.id === row.id) continue;
+        try {
+          await assertShipmentAccountingUnlocked(tx, target.id);
+        } catch {
+          throw new ApiError(409, `Nhóm ghép đã chốt kế toán — Lô ${lotReference(target)} đang khóa sổ, không sửa BKS thực của nhóm được`);
+        }
+      }
+    }
+
+    // Which rows actually change: the actual plate rides every group member,
+    // the billing plate only the named lot — a billing-only edit must not
+    // bump versions of siblings it did not touch.
+    const touched = new Map<number, ShipmentRow>();
+    if (input.actualTruckNo != null) {
+      for (const target of groupTargets) touched.set(target.id, target);
+    }
+    if (input.billingTruckNo != null) touched.set(row.id, row);
 
     const updatedIds: number[] = [];
-    for (const target of targets) {
+    for (const target of touched.values()) {
+      const patch: Partial<typeof s.shipments.$inferInsert> = {
+        updatedBy: actor.userId,
+        updatedAt: new Date(),
+      };
+      if (input.actualTruckNo != null) patch.actualTruckNo = input.actualTruckNo;
+      if (input.billingTruckNo != null && target.id === row.id) {
+        patch.billingTruckNo = input.billingTruckNo;
+      }
       await tx.update(s.shipments).set({ ...patch, version: target.version + 1 })
         .where(eq(s.shipments.id, target.id));
       updatedIds.push(target.id);

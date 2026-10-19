@@ -22,6 +22,7 @@ import {
   appointmentGroupFactorySegment,
   derivePrimaryShipmentSignal,
   directionLabel,
+  emptyDayCargoLabel,
   formatAppointmentGroupLine,
   formatQuantity,
   noteLines,
@@ -33,6 +34,7 @@ import {
   type ShipmentQuickEditDraft,
 } from './cusUtils';
 import { formatDateTimeShort } from '../../../lib/format';
+import { NameCell } from '../../../components/shared/NameCell';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 
 /**
@@ -136,11 +138,21 @@ export function CusShipmentRow({
       <th scope="row" data-label="Khách hàng & nhà máy" className="cus-dashboard-cell--editable cus-dashboard-cell--identity">
         <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
         <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" data-cell-short="Khách hàng" disabled={(item.cargoMode !== 'FCL' && item.fieldAccess.factoryName.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.cargoMode === 'FCL' ? 'Xem và chỉnh nhà máy theo từng container' : item.fieldAccess.factoryName.reason} onClick={() => onStartQuickEdit(item, 'identity')} aria-haspopup={item.cargoMode === 'FCL' ? undefined : 'dialog'} aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
-          <strong className={`cus-customer-name${item.customerName ? '' : ' cus-empty'}`}>{item.customerName || '—'}{item.raw.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}</strong>
-          <span title={[...item.effectiveFactoryNames, item.factoryName].find(Boolean) || 'Chưa có nhà máy'} className={item.effectiveFactoryNames.length > 0 || item.factoryName ? undefined : 'cus-empty'}>{item.effectiveFactoryNames.length > 0
-            ? item.effectiveFactoryNames.join(' + ')
-            : item.factoryName || 'Chưa có nhà máy'}</span>
-          <span title={item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'} className={item.routeName || item.deliveryLocation ? undefined : 'cus-empty'}>{item.routeName || item.deliveryLocation || 'Chưa có tuyến đường'}</span>
+          {/* Card 191026181942: names ride the shared NameCell — the wire
+              already carries the operational (short) name; the cell keeps it
+              unclipped with the accessible full-name layer. */}
+          {item.customerName
+            ? <NameCell as="strong" name={item.customerName} className="cus-customer-name" />
+            : <strong className="cus-customer-name cus-empty">—</strong>}
+          {item.raw.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
+          {item.effectiveFactoryNames.length > 0 || item.factoryName
+            ? (item.effectiveFactoryNames.length > 0
+              ? <span title={item.effectiveFactoryNames.join(' + ')}>{item.effectiveFactoryNames.join(' + ')}</span>
+              : <NameCell name={item.factoryName} />)
+            : <span title="Chưa có nhà máy" className="cus-empty">Chưa có nhà máy</span>}
+          {item.routeName || item.deliveryLocation
+            ? <NameCell name={item.routeName || item.deliveryLocation} />
+            : <span title="Chưa có tuyến đường" className="cus-empty">Chưa có tuyến đường</span>}
         </span></button>
       </th>
       {!isHidden('documents') && (<td data-label="Chứng từ" className="cus-dashboard-cell--editable">
@@ -175,7 +187,9 @@ export function CusShipmentRow({
               ));
             }
             if (hasDateFilter && !summary) {
-              return <span className="cus-cargo-summary__containers cus-empty">Không có cont chạy ngày đã chọn</span>;
+              // Card 191026181942 (wording hàng lẻ): the empty state names the
+              // lot's own cargo object — an LCL lot has no cont to miss.
+              return <span className="cus-cargo-summary__containers cus-empty">{emptyDayCargoLabel(item.cargoMode)}</span>;
             }
             const quantity = worksheetQuantity(item);
             // Density + the text-only-cell law: when the card knows NOTHING about
@@ -189,8 +203,14 @@ export function CusShipmentRow({
           {!cargoMetricsMissing && (
             <span className="cus-cargo-summary__metrics">
               <span className="cus-cargo-summary__weight">
+                {/* Card 191026181942: suppress non-applicable — an LCL lot
+                    without a volume prints no CBM segment at all; the "— CBM"
+                    placeholder sat beside real weight as if the volume were
+                    measured and zero. */}
                 {item.cargoMode === 'LCL'
-                  ? `${formatQuantity(item.weightKg)} kg · ${item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : '— CBM'}`
+                  ? (item.volumeCbm
+                    ? `${formatQuantity(item.weightKg)} kg · ${formatQuantity(item.volumeCbm)} CBM`
+                    : `${formatQuantity(item.weightKg)} kg`)
                   : `${formatQuantity(item.weightKg)} kg`}
               </span>
             </span>

@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { SearchableMultiSelect } from '../../../design-system';
-import type { FacetItem, FacetLoader } from './DetailedPlanFilters';
+import type { FacetItem, FacetLoader } from '../facet-types';
 
 /**
  * Multi-select facet block (spec §2: Điểm Nâng / Hạ / Trả), backed by the

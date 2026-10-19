@@ -69,7 +69,7 @@ describe('MasterPlanGrid — customs cutoff and schedule hour pin Asia/Ho_Chi_Mi
   it('no longer renders date preset quick actions — the date inputs cover them (filter-bar law §5)', () => {
     render(<MasterPlanFilters filters={{
       q: '', tradeDirection: '', allocationStatus: '',
-      deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [],
+      deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const,
     }} onChange={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Hôm nay' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Hôm sau' })).toBeNull();

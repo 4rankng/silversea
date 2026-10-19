@@ -417,7 +417,12 @@ function CreateForm({ onSaved }: {
             </button>
           </li>
         ))}
-        {billLookup.length === 4 && (suggestionQuery.data ?? []).length === 0 && (
+        {billLookup.length === 4 && suggestionQuery.isError && (
+          <li className="bill-suggestions__error" role="alert">
+            Không tra cứu được lô hàng ({suggestionQuery.error instanceof Error ? suggestionQuery.error.message : 'lỗi không rõ'}). Nhập tay bên dưới.
+          </li>
+        )}
+        {billLookup.length === 4 && !suggestionQuery.isError && !suggestionQuery.isPending && (suggestionQuery.data ?? []).length === 0 && (
           <li className="bill-suggestions__no-match">Không có lô hàng nào kết thúc bằng {billLookup}. Nhập tay bên dưới.</li>
         )}
       </ul>

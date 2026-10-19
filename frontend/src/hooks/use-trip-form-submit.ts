@@ -653,7 +653,8 @@ const handleSubmit = useCallback(
     }
   },
   // 's' object omitted: individual s.* fields listed below are the correct
-  // granularity for this submit handler.
+  // granularity for this submit handler. The rule demands the unstable root
+  // `s`; the enumerated fields are the intended granularity.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [
     isEditMode, existingTrip, requiredFieldsFilled, s.containerRows,

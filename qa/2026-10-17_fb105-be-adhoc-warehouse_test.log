@@ -1,0 +1,22 @@
+# FB-105 [171026115800] — BE regression: backend/src/tests/shipment-intake-adhoc-warehouse.test.ts
+# Command: cd backend && npx tsx --test --test-concurrency=1 src/tests/shipment-intake-adhoc-warehouse.test.ts
+# Date: 2026-10-17 (final tree, re-run after cherry-pick ead4a68f)
+▶ FB-105 warehouse point required check — ad-hoc waiver
+  ✔ ad-hoc + catalog customer + no warehouse point submits without the 409 (623.660541ms)
+  ✔ non-ad-hoc + catalog customer + no warehouse point is still 409 (65.42425ms)
+  ✔ non-ad-hoc + catalog customer: EXPORT typed Kho text satisfies via deliveryLocation (49.054167ms)
+  ✔ non-ad-hoc + catalog customer: EXPORT reads deliveryLocation, not pickupLocation (161.720333ms)
+  ✔ ad-hoc + no catalog customer (legacy walk-in) stays waived (76.638292ms)
+  ✔ non-ad-hoc + no catalog customer keeps the pre-existing legacy waiver (268.086625ms)
+✔ FB-105 warehouse point required check — ad-hoc waiver (1245.670333ms)
+ℹ tests 6
+ℹ suites 1
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4386.380834
+EXIT:0
+
+# Re-run on final tree (after cherry-pick ead4a68f): tests 6, pass 6, fail 0, EXIT:0

@@ -440,18 +440,6 @@ async function attachCustomerIdsToUsers<T extends { id: number; customerId: numb
   ));
 }
 
-/** Verify a user's current password. Throws on failure. */
-export async function verifyPassword(userId: number, password: string): Promise<void> {
-  const [user] = await db.select({ passwordHash: users.passwordHash })
-    .from(users).where(eq(users.id, userId)).limit(1);
-  if (!user) throw new ApiError(404, 'Không tìm thấy người dùng');
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  // 400, not 401: a wrong current password is a field-validation failure —
-  // the session token is still valid, and a 401 here makes the FE's global
-  // session-expiry handler log the user out mid-dialog.
-  if (!valid) throw new ApiError(400, 'Mật khẩu hiện tại không đúng');
-}
-
 /**
  * Authenticate a user by identifier (username, email, or phone) and password.
  * Returns the full user row (without passwordHash) on success, or throws ApiError(401) on failure.
@@ -595,7 +583,11 @@ export async function listUsers(requesterRole?: string, params: ListUsersParams 
  * page. The page's menu audience is office staff (ADMIN/MANAGER/ACCOUNTANT),
  * but /auth/users is an admin surface — this read returns exactly the roster
  * columns (no salary, login or assignment metadata), and the 2026-10-09
- * owner ruling (personnel = drivers only) is enforced server-side as well. */
+ * owner ruling (personnel = drivers only) is enforced server-side as well.
+ * Business units render ACTIVE-only (ticket 171026123000, owner ruling
+ * 2026-10-17): "Ngừng sử dụng" must actually hide a unit from the Bộ phận
+ * column and the "Lọc theo bộ phận" dropdown, while the /users management
+ * surfaces keep listing INACTIVE units unchanged. */
 export async function listHrRoster() {
   const rows = await db.select({
     id: users.id,
@@ -609,21 +601,11 @@ export async function listHrRoster() {
     .where(and(isNull(users.deletedAt), eq(users.role, Role.DRIVER)))
     .orderBy(asc(users.id));
 
-  const links = rows.length
-    ? await db.select({
-      userId: userBusinessUnitLinks.userId,
-      businessUnitId: userBusinessUnitLinks.businessUnitId,
-    }).from(userBusinessUnitLinks)
-      .where(inArray(userBusinessUnitLinks.userId, rows.map((r) => r.id)))
-    : [];
-  const unitsByUser = new Map<number, number[]>();
-  for (const link of links) {
-    const list = unitsByUser.get(link.userId) ?? [];
-    list.push(link.businessUnitId);
-    unitsByUser.set(link.userId, list);
-  }
+  // ACTIVE-filtered link load (join business_units.status) — the roster never
+  // exposes a link to a deactivated unit.
+  const unitsByUser = await loadUsersBusinessUnitIdsMap(db, rows.map((r) => r.id));
 
-  const units = await listBusinessUnits();
+  const units = (await listBusinessUnits()).filter((unit) => unit.status === 'ACTIVE');
   return {
     items: rows.map((r) => ({ ...r, businessUnitIds: unitsByUser.get(r.id) ?? [] })),
     total: rows.length,
@@ -1055,14 +1037,6 @@ export async function getUserProfile(userId: number) {
   return userWithLinks;
 }
 
-/** Update current user's profile (username, fullName, email, phone). Syncs name/phone to linked driver. */
-export async function updateProfile(
-  userId: number,
-  data: { username?: string; fullName?: string; email?: string; phone?: string },
-) {
-  return db.transaction((tx) => updateProfileWithTx(userId, data, tx));
-}
-
 export async function updateProfileWithTx(
   userId: number,
   data: { username?: string; fullName?: string; email?: string; phone?: string },
@@ -1108,12 +1082,7 @@ export async function updateProfileWithTx(
   return updated;
 }
 
-/** Change password for current user. */
-export async function changePassword(userId: number, currentPassword: string, newPassword: string) {
-  const passwordHash = await bcrypt.hash(newPassword, 10);
-  return db.transaction((tx) => changePasswordWithTx(userId, currentPassword, passwordHash, tx));
-}
-
+/** Change password for current user (transactional variant). */
 export async function changePasswordWithTx(
   userId: number,
   currentPassword: string,
@@ -1124,7 +1093,9 @@ export async function changePasswordWithTx(
     .from(users).where(eq(users.id, userId)).limit(1).for('update');
   if (!user) throw new ApiError(404, 'Không tìm thấy người dùng');
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-  // Same class as verifyPassword above: field validation, session stays.
+  // 400, not 401: a wrong current password is a field-validation failure —
+  // the session token is still valid, and a 401 here makes the FE's global
+  // session-expiry handler log the user out mid-dialog.
   if (!valid) throw new ApiError(400, 'Mật khẩu hiện tại không đúng');
   await tx.update(users).set({ passwordHash: nextPasswordHash, updatedAt: sql`now()` })
     .where(eq(users.id, userId));

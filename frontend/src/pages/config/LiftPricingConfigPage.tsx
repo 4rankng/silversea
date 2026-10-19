@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
-import { UuiSelectField } from '../../design-system';
+import { NumberField, UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
-import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { Alert } from '../../components/shared/Alert';
 import { useContainerTypes, usePorts } from '../../hooks/useCatalogQueries';
@@ -155,7 +154,15 @@ function LiftPricingForm({
         />
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Đơn giá (₫)"><input className="input" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="1200000" /></Field>
+        {/* §1 money format: grouped display ("1.200.000"), typed free of
+            separators; the save payload keeps its string shape. */}
+        <NumberField
+          label="Đơn giá (₫)"
+          grouped
+          value={unitPrice === '' ? '' : Number(unitPrice)}
+          onChange={(n) => setUnitPrice(n === '' ? '' : String(n))}
+          placeholder="1.200.000"
+        />
       </div>
       <FormActions saving={saving} isedit={!!item} oncancel={oncancel} ondelete={onDelete} deleting={deleting} onsave={() => {
         if (!portId || !containerTypeId || !unitPrice.trim()) return;

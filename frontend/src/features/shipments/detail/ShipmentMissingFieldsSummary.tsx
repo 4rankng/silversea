@@ -5,7 +5,7 @@ import type {
   ShipmentCusMissingField,
   ShipmentCusMissingFieldCode,
 } from '@tingting/shared';
-import { modeLabelForTrigger, type ShipmentDetailEditMode } from './ShipmentContainerLedger';
+import { modeLabelForTrigger, type ShipmentDetailEditMode } from './edit-mode';
 
 /** Destination editors a missing field can jump to. */
 type MissingFieldDestinationMode = 'documents' | 'container' | 'route' | 'schedule' | 'vehicle';

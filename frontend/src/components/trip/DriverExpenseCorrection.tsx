@@ -4,7 +4,6 @@ import { expenseAccountingUpdateSchema, type ExpenseAccountingEntry } from '@tin
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { DateField, NumberField, TextField } from '../../design-system';
-import { driverLotCostInvoiceClass } from '../../features/driver/driver-expense-options';
 
 /** Drivers correct their own unconfirmed source through the audited versioned command. */
 export function DriverExpenseCorrection({ expenseId, onSaved }: { expenseId: number; onSaved: () => Promise<void> }) {
@@ -30,8 +29,11 @@ export function DriverExpenseCorrectionForm({ entry, onSaved, onClose, onReload 
   const [amount, setAmount] = useState<number | ''>(entry.amount);
   const [name, setName] = useState(entry.feeName);
   const [date, setDate] = useState(entry.expenseDate);
-  const [invoice, setInvoice] = useState(entry.invoiceNumber ?? '');
-  const [invoiceDate, setInvoiceDate] = useState(entry.invoiceDate ?? '');
+  // Card 141026230700 — Số/Ngày hóa đơn rời MỌI màn hình lái xe, kể khâu sửa
+  // dòng đã lưu: số HĐ sống trên tờ giấy trong ảnh biên lai, kế toán đọc và
+  // sửa nó tại phơi phiếu. Payload điều chỉnh KHÔNG gửi hai khóa này — gửi
+  // `null` từ ô bị ẩn là xóa số HĐ legacy (offline queue) đang lưu; bỏ hẳn
+  // khỏi payload thì giá trị cũ giữ nguyên.
   const [note, setNote] = useState(entry.note ?? '');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function DriverExpenseCorrectionForm({ entry, onSaved, onClose, onReload 
     event.preventDefault();
     if (blocked || lock.current) return;
     const parsed = expenseAccountingUpdateSchema.safeParse({ expectedVersion: entry.version, amount, feeName: name, expenseDate: date,
-      invoiceNumber: invoice.trim() || null, invoiceDate: invoiceDate || null, note: note.trim() || null, reason });
+      note: note.trim() || null, reason });
     if (!parsed.success) { setError('Kiểm tra số tiền nguyên dương, tên khoản chi, ngày hợp lệ và lý do điều chỉnh.'); return; }
     lock.current = true; setBusy(true); setError(null);
     try {
@@ -58,7 +60,6 @@ export function DriverExpenseCorrectionForm({ entry, onSaved, onClose, onReload 
         <TextField controlSize="sm" label="Tên khoản chi" value={name} required maxLength={200} disabled={busy} onChange={event => setName(event.target.value)} />
         <NumberField controlSize="sm" label="Thực chi (VND)" value={amount} min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required disabled={busy} onChange={setAmount} />
         <DateField controlSize="sm" label="Ngày chi" value={date} required disabled={busy} onChange={setDate} />
-        {entry.costGroup !== 'DRIVER_ROAD' && driverLotCostInvoiceClass(entry.expenseTypeCode) !== 'NO_INVOICE' && <><TextField controlSize="sm" label="Số hóa đơn" value={invoice} maxLength={100} disabled={busy} onChange={event => setInvoice(event.target.value)} /><DateField controlSize="sm" label="Ngày hóa đơn" value={invoiceDate} disabled={busy} onChange={setInvoiceDate} /></>}
       </div>
       <TextField controlSize="sm" label="Ghi chú khoản chi" value={note} maxLength={2000} disabled={busy} onChange={event => setNote(event.target.value)} />
       <TextField controlSize="sm" label="Lý do điều chỉnh" value={reason} required maxLength={1000} disabled={busy} onChange={event => setReason(event.target.value)} />

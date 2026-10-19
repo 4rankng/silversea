@@ -29,15 +29,27 @@ export interface ShipmentCostEntryFormProps {
 
 /**
  * The ONE photo rule for a draft row, shared by the row's reminder/disable and
- * the form's submit gate (card 20260928_165 mechanism, widened twice):
- * a required-evidence code needs its paper whatever the picker says, and —
- * card 141026230700 — EVERY lot cost ("Chi phí lô hàng" bucket) carries a
- * biên lai photo: the paper replaced the typed invoice pair as the driver's
- * evidence, so no lot row exists without one.
+ * the form's submit gate — a mirror of the server's single rule set
+ * (`insertDriverIncidentalCostTx`), never a wider or narrower local reading:
+ * a required-evidence code needs its paper whatever the picker says, and every
+ * lot-bucket row (DRIVER_SHIPMENT) carries its biên lai photo whatever the
+ * sign — the server rejects a lot row without one ("Chi phí lô hàng phải kèm
+ * ảnh biên lai trước khi lưu."), positive or negative alike (CP700-03: "MỌI
+ * dòng nhóm DRIVER_SHIPMENT phải có ảnh biên lai — FE chặn + BE từ chối").
+ * An ordinary road-bucket row (tolls, fee norms) keeps the optional-photo
+ * contract — CP700-03 exempts it, and the old amount-gated rule here used to
+ * block exactly those rows the server accepts.
+ *
+ * Two contract-bounded parity edges (kept, documented): fee-norm options are
+ * pinned to the ROAD bucket here while the server reads the norm's own
+ * `costGroup` (card 20260921_7: "định mức pins its own costGroup"); and the
+ * server's `evidenceKind === 'RECEIPT'` photo clause has no FE mirror because
+ * this form sends `evidenceKind` for lot rows only (EvidenceKindTicks is
+ * lot-only) — a road row never claims a receipt kind from the driver surface.
  */
 function receiptStillNeeded(selected: DriverExpenseOption): boolean {
-  return requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode) != null
-    || selected.group === 'DRIVER_SHIPMENT';
+  if (requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode) != null) return true;
+  return selected.group === 'DRIVER_SHIPMENT';
 }
 
 /** Saved-row caption: the paper the row carries. Legacy rows (`evidence_kind`
@@ -121,6 +133,12 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
   const requiresReceipt = requiredEvidence != null;
   const evidenceLabel = requiredEvidence == null ? '' : NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidence];
   const lotCost = selected.group === 'DRIVER_SHIPMENT';
+  // Card 182300 — chiphispec §1: a fee-norm row IS a system-recorded Tiền đường
+  // row (the server forces its costType from the norm) — lái xe chỉ XEM: the
+  // "Thực chi" field is locked showing the system norm value, and kế toán
+  // adjusts it at phơi phiếu. Non-norm options (Vé cầu đường, Tiền đường khác …)
+  // are the driver's own spends and keep the editable actual-amount contract.
+  const systemRecorded = selected.feeNormCode != null;
   const receiptMissing = receiptStillNeeded(selected) && !row.receiptStorageKey;
   const cameraLabel = uploading ? 'Đang tải…'
     : row.receiptStorageKey ? 'Thay ảnh chứng từ'
@@ -142,8 +160,10 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
         {catalogClassified
           ? <p className="shipment-cost-entry__empty" data-testid="shipment-cost-catalog-fee">{`Tên khoản chi: ${selected.label} (theo danh mục phí).`}</p>
           : <TextField controlSize="sm" label="Tên khoản chi" value={row.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => onPatch({ feeName: event.target.value })} />}
-        <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={row.amount} onChange={(amount) => onPatch({ amount })} min={-999_999_999_999_999} step={1} max={999_999_999_999_999} required disabled={disabled}
-          helpText={selected.amount ? `Gợi ý ${formatCurrency(selected.amount)}; sửa theo khoản thực tế. Chưa lưu thì chưa phát sinh tiền.` : undefined} />
+        <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={row.amount} onChange={(amount) => onPatch({ amount })} min={-999_999_999_999_999} step={1} max={999_999_999_999_999} required disabled={disabled || systemRecorded}
+          helpText={systemRecorded && selected.amount
+            ? `Hệ thống tự ghi nhận theo định mức ${formatCurrency(selected.amount)} — kế toán điều chỉnh tại màn hình phơi phiếu.`
+            : selected.amount ? `Gợi ý ${formatCurrency(selected.amount)}; sửa theo khoản thực tế. Chưa lưu thì chưa phát sinh tiền.` : undefined} />
         {/* Card 20260928_181, tiêu chí 5: a negative amount is a real entry (a
             refund), and every total in the system EXCLUDES negative lines
             (sumExcludingNegative). That is invisible from the field itself, so
@@ -168,12 +188,13 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
       </label>
       {pendingFile && <div className="shipment-cost-entry__upload-retry" role="status"><span>{pendingFile.name} · Chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" disabled={disabled} onClick={() => onUpload(pendingFile)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={onDiscardPendingFile}>Bỏ ảnh chưa tải</button></div>}
       {row.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><PhotoImage src={receiptUrl} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
-      {/* Card 20260928_165 + card 141026230700 — the supporting paper cannot
-          exist without the entry: the form blocks the submit (never silently)
-          until it is attached, and the server refuses the row without it. Every
-          lot cost needs its biên lai; a mandated-evidence road fee needs its
-          named paper. */}
-      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{lotCost ? 'Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.' : `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.`}</p>}
+      {/* Card 20260928_165 + chiphispec §2 / CP700-03 — the supporting paper
+          cannot exist without the entry: the form blocks the submit (never
+          silently) until it is attached, and the server refuses the row without
+          it. One rule, one message per bucket — the lot row answers with the
+          server's own line ('Chi phí lô hàng phải kèm ảnh biên lai trước khi
+          lưu.'); a mandated-evidence code names its paper. */}
+      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{requiresReceipt ? `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.` : 'Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.'}</p>}
     </section>
   );
 }

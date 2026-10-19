@@ -7,10 +7,10 @@ import { Role } from '@tingting/shared';
 import {
   computeSalary,
   batchUpsertWorkDays,
-  getWorkDays,
   getTripLabelsForWorkDays,
   computeAllDriverSalaries,
 } from '../services/attendance.service';
+import { getWorkDays } from '../services/attendance-summary.service';
 import {
   applySalaryPeriodCloseAction,
   applySalaryPeriodReopenAction,

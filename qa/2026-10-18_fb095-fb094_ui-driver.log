@@ -1,0 +1,40 @@
+== FB-095 (card 181026145610) — Hủy ghép trên badge nhóm ==
+PASS FB095-01 /dispatch-detail mở, có ô Tìm nhanh
+PASS FB095-02 badge "Lẻ · Ghép (1/3)" hiện trên hàng Lô 1
+SHOT 2026-10-18_fb095_ui-01-badge.png
+PASS FB095-03 click badge mở menu nhóm
+PASS FB095-04 menu "Nhóm ghép trả ĐV · Lẻ (1/3)" mở (Xem nhóm)
+PASS FB095-05 menu liệt kê thành viên + BKS
+SHOT 2026-10-18_fb095_ui-02-badge-menu.png
+PASS FB095-06 chọn "Hủy ghép" mở guard confirm
+PASS FB095-07 confirm nêu thăng cấp Lô 2 (SPEC §4)
+SHOT 2026-10-18_fb095_ui-03-confirm.png
+PASS FB095-08 xác nhận "Hủy ghép"
+PASS FB095-09 toast kết quả thành công
+SHOT 2026-10-18_fb095_ui-04-toast.png
+PASS FB095-10 DB: lô rời (104250) hết cost_group_id — {"id":104250,"cost_group_id":null,"order":null}
+PASS FB095-11 DB: Lô 2 (104251) thăng cấp order 1 — {"id":104251,"cost_group_id":"1ba6d138-c500-45c2-8a25-b98dc3e2578d","order":1}
+PASS FB095-12 DB: lô thứ 3 (104252) renumber order 2 — {"id":104252,"cost_group_id":"1ba6d138-c500-45c2-8a25-b98dc3e2578d","order":2}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+PostgresError: column a.event does not exist
+    at ErrorResponse (/Users/dev/.paseo/worktrees/1njkloyy/fix-fb095-fb094-controls/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/cjs/src/connection.js:815:30)
+    at handle (/Users/dev/.paseo/worktrees/1njkloyy/fix-fb095-fb094-controls/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/cjs/src/connection.js:489:6)
+    at Socket.data (/Users/dev/.paseo/worktrees/1njkloyy/fix-fb095-fb094-controls/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/cjs/src/connection.js:324:9)
+    at Socket.emit (node:events:508:20)
+    at addChunk (node:internal/streams/readable:564:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:515:3)
+    at Readable.push (node:internal/streams/readable:395:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: '42703',
+  position: '49',
+  file: 'parse_relation.c',
+  line: '3722',
+  routine: 'errorMissingColumn'
+}
+
+Node.js v25.8.1

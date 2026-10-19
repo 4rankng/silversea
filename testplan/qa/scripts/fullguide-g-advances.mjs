@@ -1,12 +1,14 @@
 // Full-guide Driver G — B.6 (Tạm ứng & hoàn ứng, role hoapt + ops hoangnh):
 //   (a) "Phê duyệt tạm ứng" button on the Yêu cầu tạm ứng tab (PENDING rows).
-//   (b) "Xác nhận hoàn ứng" confirmation tick on the Phiếu hoàn ứng — per the
-//       FB-100 F-W1-1 ruling the live submit surface must carry the mandatory
-//       tick; current build is expected FAIL (tick shipped DRAFT-only, dead).
+//   (b) "Xác nhận hoàn ứng" confirmation tick on the Phiếu hoàn ứng — the live
+//       submit surface carries the mandatory tick and gates the submit until it
+//       is set; retested 2026-10-17 (the FB-100 "tick shipped DRAFT-only" note is
+//       no longer true on HEAD).
 //   (c) "Báo cáo hoàn ứng" formula ĐNTT − ĐÃ ỨNG with NEGATIVE remaining +
 //       "Đề nghị thu tiền ứng" warning (operator advanced more than costs).
 // Fixtures: one QA advance request (200.000₫) by hoangnh; cleanup nets the
-// balance back via a full-refund settlement (rows stay QA-registered).
+// balance back via a full-refund settlement. Rows stay QA-registered — the
+// advance tables have no delete route, so `make qapurge` owns that class.
 import {
   BASE, PIN, sleep, uuid, makeLogger, healthGate, login, api, psql, boot, tap, setInput, waitText, bodyText,
 } from './fullguide-lib.mjs';

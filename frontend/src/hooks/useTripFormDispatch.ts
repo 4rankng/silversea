@@ -136,6 +136,8 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
     const combine = moneyOrZero(s.revenueCombine);
     s.setRevenue(String(emptyReturn + combine));
     // 's' object omitted: individual s.* fields listed are the correct granularity.
+    // The rule demands the unstable root `s`; the enumerated fields are the
+    // intended granularity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.revenueEmptyReturn, s.revenueCombine]);
 
@@ -270,6 +272,8 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
       s.setRevenueCombine("0");
     }
     // 's' omitted: individual s.* fields listed are the correct granularity.
+    // The rule demands the unstable root `s`; the enumerated fields are the
+    // intended granularity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pricingQuery.data, s.containerCount, isEditMode]);
 
@@ -345,6 +349,8 @@ export function useTripFormDispatch(params: UseTripFormDispatchParams): UseTripF
 
     s.setDriverSalary(String(computeTripDriverSalary(driverBaseSalary, days)));
     // 's' omitted: individual s.* fields listed are the correct granularity.
+    // The rule demands the unstable root `s`; the enumerated fields are the
+    // intended granularity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.driverId, s.departureDate, s.completedAt, driverBaseSalary, isEditMode]);
 

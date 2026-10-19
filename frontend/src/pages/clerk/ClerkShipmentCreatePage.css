@@ -19,10 +19,9 @@
    footer, not as part of the note card above it. */
 .csc-form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-1); }
 .csc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-/* LCL split-lot extra delivery dates (Create Shipment doc Block 2B "[+]" repeater). */
-.csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
-.csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
-.csc-extra-dates__row > div:first-child { flex: 1 1 220px; min-width: 0; }
+/* Card D.4 (18/10) + 181026200700: the hàng lẻ form has NO "Lịch & ghi chú"
+   section and NO add button — one always-visible "Ngày giao hàng" field. */
+.csc-lcl-delivery { display: grid; gap: 8px; justify-items: start; min-width: 0; }
 /* Ghi chú pair: two recipient notes share ONE row at the same height instead
    of stacking two full-width boxes — the schedule section stays a dense
    worksheet rather than a wall of text areas. Phones keep the stack. */
@@ -57,11 +56,12 @@
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
-/* Owner mock 11/10 column map: Khách hàng 6 · Hình thức xuất nhập khẩu 3 ·
-   Số Bill/Booking 3, then Hãng tàu 6 · Tuỳ chọn chips 6. */
+/* Card 181026200200 (A.3) column map: Khách hàng 6 · Số Bill/Booking 6, then
+   (below the tờ khai strip) Hình thức xuất nhập khẩu 6 · Hãng tàu 6, with the
+   Tuỳ chọn chips full width. */
 .csc-identity-grid__customer { grid-column: span 6; }
-.csc-identity-grid__trade-direction { grid-column: span 3; }
-.csc-identity-grid__booking { grid-column: span 3; }
+.csc-identity-grid__trade-direction { grid-column: span 6; }
+.csc-identity-grid__booking { grid-column: span 6; }
 .csc-identity-grid__shipping-line { grid-column: span 6; }
 /* The flag band carries its own `Tuỳ chọn` label, so its chips row lands on
    the same baseline as the carrier field's input by construction — the old
@@ -73,20 +73,25 @@
 .csc-identity-grid__flags-label { color: var(--fg-1); font-size: var(--text-label-size); font-weight: 600; line-height: 18px; }
 .csc-identity-grid__flags-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .csc-identity-grid__flags .csc-flag-checkbox { flex: 0 0 auto; }
-/* Field + quick-create on ONE row. The action rides the FIELD'S TRAILING EDGE
-   as an icon-only + (owner ruling 11/10: "plus icon at the end of the search
-   bar", "just plus is enough, no need text"), so it reads as part of the
-   control instead of a second control beside it — and it can never wrap below
-   the field or drift with the row height. */
-.csc-field-with-append { position: relative; display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+/* Field + quick-create on ONE row. The action trails the field as an
+   icon-only affordance (owner ruling 11/10: "plus icon at the end of the
+   search bar", "just plus is enough, no need text"). FB-114 moved it OUT of
+   the control's box: the old absolute overlay (26px, z-index 1, sitting on
+   the input's reserved right edge) lost the click race with the input and
+   sat under the 32px touch floor. As a flex SIBLING it owns its own box —
+   no overlap with the input or the combobox's own clear affordance — and
+   still never wraps below the field or drifts with the row height. */
+.csc-field-with-append { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
 .csc-field-with-append > :first-child { flex: 1 1 auto; min-width: 0; align-self: start; }
-/* Leave room for the trailing + inside the control's right edge. */
-.csc-field-with-append > :first-child input { padding-right: 28px; }
-/* 26px = the house label line (18px) + the field grid's gap (8px): the icon
-   lands on the CONTROL row whatever the cell's height, hint or error state. */
-.csc-append-button { position: absolute; top: 26px; right: 5px; z-index: 1; display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer; }
+/* 36px hit target (FB-114): at/above the 32px touch floor, inside the ≤40px
+   ordinary-control ceiling; inline-grid place-items keeps the 15px icon
+   optically centered. 26px margin-top = the house label line (18px) + the
+   field grid's gap (8px), so the icon lands on the CONTROL row whatever the
+   cell's height, hint or error state. */
+.csc-append-button { flex: 0 0 auto; display: inline-grid; place-items: center; width: 36px; height: 36px; margin-top: 26px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--accent); cursor: pointer; }
 .csc-append-button svg { pointer-events: none; }
 .csc-append-button:not(:disabled):hover { background: var(--surface-3); }
+.csc-append-button:not(:disabled):active { background: var(--surface-3); transform: translateY(1px); }
 .csc-append-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .csc-append-button:disabled { cursor: not-allowed; opacity: .55; }
 .csc-shipping-line-dialog { display: grid; gap: 12px; }
@@ -261,13 +266,80 @@
   border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
   background: var(--surface-2);
 }
-.csc-summary { display: grid; gap: 12px; min-width: 0; }
+.csc-summary { display: grid; gap: 12px; min-width: 0; width: 100%; max-width: 520px; justify-self: start; }
 .csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
 .csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p, .csc-summary__muted, .csc-summary__error { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }.csc-summary__muted { color: var(--fg-3); }.csc-summary__error { color: var(--danger); }.csc-summary__warning { color: var(--warn); }
 .csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
 .csc-pricing__explain { padding-top: 8px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__explain p { margin: 3px 0; }
 .csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
-.csc-validation-summary { border-color: color-mix(in srgb, var(--danger) 32%, var(--border-1)); background: var(--danger-soft); }.csc-validation-summary__title { display: flex; gap: 8px; align-items: center; color: var(--danger); }.csc-validation-summary p { margin: 7px 0; font-size: var(--text-caption-size); }.csc-validation-summary ol { display: grid; gap: 3px; margin: 0; padding-left: 20px; }.csc-validation-summary button { min-height: var(--control-max-h); border: 0; padding: 8px 0; background: none; color: var(--danger); font: inherit; font-size: var(--text-caption-size); text-align: left; text-decoration: underline; cursor: pointer; }
+/* Card 181026180300: Restyle "Cần bổ sung N thông tin" panel into a compact,
+ * neutral card (Untitled UI alert/callout style, --surface tokens, no pink/wall).
+ * Positioned under the form header, max-width bounded, neutral borders and typography. */
+.csc-validation-summary {
+  width: 100%;
+  max-width: 520px;
+  justify-self: start;
+  padding: 12px 14px;
+  border: 1px solid var(--border-1);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.csc-validation-summary__title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--fg-1);
+}
+.csc-validation-summary__title svg {
+  flex: none;
+  color: var(--fg-2);
+}
+.csc-validation-summary__title strong {
+  font-size: var(--text-data-size);
+  font-weight: 600;
+  color: var(--fg-1);
+}
+.csc-validation-summary p {
+  margin: 3px 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--fg-3);
+  line-height: 1.4;
+}
+.csc-validation-summary ol {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding-left: 18px;
+  max-height: min(30vh, 220px);
+  padding-right: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  color: var(--fg-3);
+  font-size: var(--text-caption-size);
+}
+.csc-validation-summary button {
+  border: 0;
+  padding: 2px 0;
+  background: none;
+  color: var(--fg-1);
+  font: inherit;
+  font-size: var(--text-caption-size);
+  line-height: 1.45;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.csc-validation-summary button:hover {
+  color: var(--brand);
+}
+.csc-validation-summary button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
 .csc-submit-error { color: var(--danger); background: var(--danger-soft); font-size: var(--text-data-size); line-height: 1.5; }
 @media (min-width: 1101px) and (min-height: 721px) {
   .csc-section__heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }

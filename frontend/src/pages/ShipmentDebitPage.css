@@ -1,12 +1,12 @@
 /* Chi phí - Quyết toán (card 20260918_17) — L1 collapsed lot list. UUI
-   controls own control density; this file owns the page header, the promoted
-   customer bar and the settlement table only. The two-tier command header
-   (card 20260926_51): one 36px title+actions row and the shared filter strip
-   (card 20260927_153 — ShipmentDebitRibbon), whose layout and control widths
-   belong to FilterBar.css / ListFilterBar.css. The DOM order is the phone
-   band's reading order (picker → strip → actions → list), so the bulk-action
-   row sits directly above the rows it acts on; desktop re-pins the title row
-   on top of the workspace grid below. */
+   controls own control density; this file owns the page header and the
+   settlement table only. The two-tier command header (card 20260926_51): one
+   36px title+actions row and the shared filter strip (card 20260927_153 —
+   ShipmentDebitRibbon), whose layout and control widths belong to
+   FilterBar.css / ListFilterBar.css. The DOM order is the phone band's
+   reading order (strip → actions → list), so the bulk-action row sits
+   directly above the rows it acts on; desktop re-pins the title row on top
+   of the workspace grid below. */
 
 .shipment-debit-page {
   display: grid;
@@ -39,8 +39,17 @@
   flex: 0 0 auto;
 }
 
-.shipment-debit-header__export[title] {
-  cursor: help;
+/* Owner ceiling — "ordinary controls at most 40px on every screen": UUI
+   `size="sm"` carries `max-md:min-h-11` (44px) as its touch floor, which
+   breaks the page's own 40px control claim at <768px. The sanctioned page
+   sizing of a shared primitive (same precedent as the ribbon customer picker
+   below) pins these two header actions to the house `--control-h` there.
+   SIZING ONLY — no layout/face overrides. */
+@media (max-width: 768px) {
+  .shipment-debit-header .shipment-debit-merge-rev,
+  .shipment-debit-header .shipment-debit-export {
+    min-height: var(--control-h);
+  }
 }
 
 /* Desktop keeps the two-tier reading order — title row first — no matter
@@ -48,31 +57,18 @@
    order back. */
 .shipment-debit-workspace > .shipment-debit-header { order: -1; }
 
-/* Card _202: Khách hàng is OUT of the filter strip and rides its own bar, so
-   it is always visible and never folded behind `Bộ lọc`. The customer-name
-   pool is unbounded, so the control is floored/capped to hold its value
-   instead of stretching to a full legal name. Sizing only — the picker is not
-   a bar control, so no bar rule applies to it. */
-.shipment-debit-customer-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-  min-width: 0;
-}
-
-.shipment-debit-customer-bar__picker {
-  width: auto;
+/* Owner 2026-10-17 (reverses card _202): the Khách hàng picker rides the
+   shared strip as its first bar child. The customer-name pool is unbounded,
+   so the control is floored/capped to hold its value instead of stretching
+   to a full legal name. SIZING ONLY — this is the sanctioned page sizing of
+   a shared primitive; every layout/wrap/height rule stays with FilterBar.css
+   (a page rule that re-declares the bar's flex/grid is how the family
+   `width: 100%` came back twice on 2026-09-27). No phone override: on a
+   narrow bar the picker stays content-sized like every other bar control
+   and the strip's own measured wrap packs the lines. */
+.shipment-debit-ribbon__customer {
   min-width: 200px;
   max-width: 320px;
-}
-
-.shipment-debit-customer-bar__hint {
-  margin: 0;
-  min-width: 0;
-  color: var(--color-fg-secondary, var(--fg-3));
-  font-size: var(--text-caption-size, 12px);
-  line-height: 1.3;
 }
 
 /* The shared `ListFilterBar` strip owns its layout, its wrapping and every
@@ -110,9 +106,6 @@
   .shipment-debit-header__export > * { width: 100%; }
   .shipment-debit-header__export .disabled-action-tip { display: flex; }
   .shipment-debit-header__export button { width: 100%; }
-  .shipment-debit-customer-bar { align-items: stretch; }
-  .shipment-debit-customer-bar__picker { width: 100%; max-width: none; }
-  .shipment-debit-customer-bar__hint { flex-basis: 100%; }
 }
 
 /* Coarse-pointer heights come from the shared bar (FilterBar.css): the page
@@ -123,9 +116,9 @@
 
 .shipment-debit-workspace {
   display: grid;
-  gap: 12px;
-  border-radius: 12px;
-  padding: 16px;
+  gap: 10px;
+  border-radius: 10px;
+  padding: 12px;
   background: var(--surface);
   min-width: 0;
 }
@@ -259,14 +252,28 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Scroll cue for the L1 table (card 20260924_9): silent on desktop, revealed
-   inside the phone media block at the end of this sheet. */
+/* Scroll cue for the L1 table (card 20260924_9, re-hung card 191026100030):
+   the cue fires exactly where the TABLE renders but cannot fit its 1108px
+   floor — 641–1107px window bands. Below 641 the page swaps to the phone
+   record cards (`phone && !print`), so there is no table to cue and the old
+   "reveal inside the phone media block" could never show: the element also
+   carried `ledger-desktop`, whose ≤640 `display: none !important` beat the
+   reveal. Hidden at desktop widths and in print (base + media below). */
 .shipment-debit-scroll-hint {
   display: none;
   margin: 0;
   padding: 0 2px;
   color: var(--ink-2);
   font-size: var(--text-caption-size);
+}
+
+/* Table rendered (window > 640) AND the 1108px floor cannot fit — the cue is
+   honest here regardless of pointer kind. At ≥1108 the wrap takes the table
+   (surplus to identity), so the cue stays silent. */
+@media (min-width: 641px) and (max-width: 1107px) {
+  .shipment-debit-scroll-hint {
+    display: block;
+  }
 }
 
 /* Fixed layout hands every unmeasured column to the identity column: the
@@ -457,9 +464,35 @@
   font-size: 11px;
 }
 
+/* Card 20261018 — the lot link moves off inline styles onto the token law:
+   brand ink, underline, hit area from --control-h, focus ring from --brand
+   (the same treatment the shadow line's toggle gets above). */
+.shipment-debit-row__detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--control-h, 28px);
+  margin-top: 4px;
+  color: var(--brand);
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+.shipment-debit-row__detail-link:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Money never spills into its neighbour (fixed layout + nowrap used to let a
+   ten-digit sum ride over the next column): a sum that fits its measured
+   column stays one line; beyond it the value breaks onto more lines inside
+   its own right-aligned cell. The measured widths keep their calibrated
+   budget (columns triage comment above) — this is spill safety, not a
+   re-budget. */
 .shipment-debit-row__money {
   text-align: right;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
   font-variant-numeric: tabular-nums;
 }
 
@@ -497,7 +530,10 @@
    deliberate per-lot pick. The ruling's surviving half is kept verbatim: the
    whole row is still a selection ALIAS (the checkbox stops propagation so the
    two can never double-toggle) and the picked row still highlights; locked
-   rows keep their own tint + pointer cursor (below).
+   rows keep their own tint + pointer cursor (below). Card 191026100030 scopes
+   that pointer to INTERACTIVE rows ([title] — the `canManage` alias): a
+   read-only user's locked row is inert, and a pointer cursor there advertised
+   a click that does nothing.
    Card 161026232359 also aligned the highlight PALETTE to the app-wide
    convention: the lone `rgba(37, 99, 235, .08)` / `#2563eb` blue was the only
    ad-hoc selection hex in the app, and it put a SECOND accent inside a row
@@ -505,28 +541,26 @@
    LedgerRecordList.css (this screen's own phone list), CustomersPage.css,
    AccountingDebitClosePage.css and AccountingWorkspacePage.css already read
    `var(--surface)` + the inset ink bar. */
-.shipment-debit-row[data-locked] { cursor: pointer; }
+.shipment-debit-row[data-locked][title] { cursor: pointer; }
 .shipment-debit-row[data-selected] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ink); }
 
 /* ============================================================================
- * Card 20260924_9 — phone media block (390 / 640 / coarse pointer).
+ * Card 20260924_9 — phone/coarse media block (390 / 640 / coarse pointer).
  *
  * The L1 table keeps its1108px floor so the identity cell never slivers
  * (the 900px rail inherited from components/Table.css shredded the
- * QA0915-138-EXC chip per character). The wrap then scrolls sideways — say
- * so plainly with the hidden-by-default `.shipment-debit-scroll-hint` and
- * give the leading expand control the shared40px touch floor. The base
- * leading column already reserves76px (card 161026232359: the row tick +
- * gap + the coarse control) with matching6px cell insets.
+ * QA0915-138-EXC chip per character). Give the leading expand control the
+ * shared40px touch floor. The base leading column already reserves76px
+ * (card 161026232359: the row tick + gap + the coarse control) with matching
+ * 6px cell insets. The sideways-scroll cue is NOT here anymore: at ≤640 the
+ * page renders the phone record cards (no table), and the cue's real band is
+ * the 641–1107 window where the table renders but cannot fit its floor —
+ * its own media block above (card 191026100030).
  *
  * Match the project's house media syntax (responsive.css + debit's own
  * coarse query): `(max-width: 640px), (hover: none) and (pointer: coarse)`.
  * ========================================================================== */
 @media (max-width: 640px), (hover: none) and (pointer: coarse) {
-  .shipment-debit-scroll-hint {
-    display: block;
-  }
-
   .shipment-debit-row__expand-button {
     width: var(--control-max-h);
     height: var(--control-max-h);
@@ -534,26 +568,29 @@
 }
 
 /* ─── FB-093: LCL lot facts strip (expanded lot detail) ───────────────────── */
+/* Card 20261018 — compaction pass: the strip rides house tokens only (the
+   previous ad-hoc hex fallbacks predate the token law), tighter padding so the
+   expanded row reads as part of the lot row, not a second panel. */
 .debit-lot-lcl-facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 24px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-  border: 1px solid var(--color-border, #e4e7ec);
-  border-radius: 10px;
-  background: var(--surface, #fafafa);
+  gap: 8px 20px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
 .debit-lot-lcl-facts__block {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 200px;
+  gap: 3px;
+  min-width: 180px;
 }
 
 .debit-lot-lcl-facts__block small {
-  color: var(--color-text-tertiary, #475467);
+  color: var(--ink-3);
   font-size: 11px;
   letter-spacing: 0.04em;
 }
@@ -566,15 +603,15 @@
 }
 
 .debit-lot-lcl-facts__billing-warn {
-  color: #b54708;
+  color: var(--danger);
   font-size: 12px;
 }
 
 .debit-lot-lcl-facts__groups {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
+  gap: 3px;
+  font-size: var(--text-caption-size, 12px);
 }
 
 /* One group fact row: label + principal note + its Hủy ghép control, each at
@@ -587,14 +624,14 @@
 }
 
 .debit-lot-lcl-facts__groups em {
-  color: var(--color-text-tertiary, #475467);
+  color: var(--ink-3);
   font-style: normal;
 }
 
 .merge-rev-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .merge-rev-group__lots {
@@ -603,11 +640,11 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 13px;
+  font-size: var(--text-caption-size, 12px);
 }
 
 .merge-rev-group__error {
-  color: #d92d20;
-  font-size: 13px;
+  color: var(--danger);
+  font-size: var(--text-caption-size, 12px);
   margin: 0;
 }

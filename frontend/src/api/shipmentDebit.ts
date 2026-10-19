@@ -163,13 +163,28 @@ export async function listShipmentCostAdjustments(shipmentId: number): Promise<S
 
 // ── Xuất Debit Note: batched issue + download ──────────────────────────────
 
+/** Stable 32-bit FNV-1a over the sorted id run — the transport Idempotency-Key
+ *  must stay ≤100 chars, and the raw `1-2-…-8864` join blew that limit on any
+ *  real multi-lot selection (card 191026160000 §2e: the 400
+ *  "Idempotency-Key không được vượt quá 100 ký tự." was the whole "không xuất
+ *  được"). Same selection ⇒ same hash ⇒ replays the same document. */
+function selectionKeyOf(shipmentIds: number[]): string {
+  const run = [...shipmentIds].sort((x, y) => x - y).join(',');
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < run.length; i++) {
+    hash ^= run.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `debit-note-${shipmentIds.length}-${hash.toString(16)}`;
+}
+
 /** One POST carries every selected locked lot id; per-lot line grouping is
- *  preserved inside the union document. The caller derives a stable key from
- *  the selection, so re-clicking the same selection replays the same
+ *  preserved inside the union document. The idempotency key is derived here
+ *  from the selection, so re-clicking the same selection replays the same
  *  document instead of issuing a duplicate. */
-export async function createDebitNoteBatch(shipmentIds: number[], idempotencyKey: string): Promise<{ id: number }> {
+export async function createDebitNoteBatch(shipmentIds: number[]): Promise<{ id: number }> {
   return api.post<{ id: number }>('/shipments/debit-notes', { shipmentIds }, {
-    headers: { 'Idempotency-Key': idempotencyKey },
+    headers: { 'Idempotency-Key': selectionKeyOf(shipmentIds) },
   });
 }
 

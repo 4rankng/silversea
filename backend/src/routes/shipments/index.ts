@@ -91,6 +91,9 @@ registerAuditEvent('POST', '/api/shipments/lcl/truck', AuditEvent.SHIPMENT_UPDAT
 // Master-data CRUD: creating a factory/warehouse from the intake form is an
 // entity-level change, not a shipment-lifecycle event, so it uses ENTITY_*.
 registerAuditEvent('POST', '/api/shipments/operational-sites', AuditEvent.ENTITY_CREATED);
+// FB-114 verify-fail (171026185348): minting a shipping-line catalog entry
+// from the intake dialog is an entity-level master-data change.
+registerAuditEvent('POST', '/api/shipments/shipping-lines', AuditEvent.ENTITY_CREATED);
 
 const router = Router();
 

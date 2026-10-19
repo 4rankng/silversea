@@ -153,10 +153,12 @@ describe('shipment create responsive layout', () => {
 
   it('gives customer identity the widest column and reflows cleanly by viewport', () => {
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
-    // Owner mock 11/10 column map: 6 / 3 / 3 across one 12-column track.
+    // Card 181026200200 (A.3) column map: the document fields read
+    // Số Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu, so band 1 is
+    // 6 / 6 (customer + booking) and band 3 is 6 / 6 (direction + carrier).
     expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
-    expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 3;/);
-    expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 3;/);
+    expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 6;/);
+    expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 6;/);
     // Below the 12-column canvas the customer field stops sharing a half row
     // (owner report 11/10: three identity fields ride ONE row on a laptop —
     // the collapse starts at 820px, not at the tablet width).
@@ -220,14 +222,23 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-add-container\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--accent-2\);/);
   });
 
-  it('keeps the quick-create action on its field, as a trailing icon inside the control', () => {
-    // Owner ruling 11/10: the action is an icon-only + riding the field's
-    // TRAILING EDGE — inside the control, never a second control beside it and
-    // never a row of its own.
-    expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*position:\s*relative;[^}]*display:\s*flex;[^}]*align-items:\s*flex-start;/);
+  it('keeps the quick-create action trailing its field as a flex sibling with a real hit target', () => {
+    // Owner ruling 11/10 put an icon-only + INSIDE the control's right edge.
+    // FB-114 superseded that for this control: the absolute 26px overlay raced
+    // the input for clicks (z-index 1 over the input's reserved padding) and
+    // sat under the 32px touch floor. The action now trails the field as a
+    // flex SIBLING — never a row of its own, never an overlay on the input.
+    expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*flex-start;/);
+    expect(css).not.toMatch(/\.csc-field-with-append\s*\{[^}]*position:\s*relative;/);
     expect(css).toMatch(/\.csc-field-with-append > :first-child\s*\{[^}]*flex:\s*1 1 auto;[^}]*align-self:\s*start;/);
-    expect(css).toMatch(/\.csc-field-with-append > :first-child input\s*\{[^}]*padding-right:\s*28px;/);
-    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*position:\s*absolute;[^}]*top:\s*26px;[^}]*right:\s*5px;[^}]*width:\s*26px;[^}]*height:\s*26px;/);
+    // The input no longer reserves room for an overlay that is not there.
+    expect(css).not.toMatch(/\.csc-field-with-append > :first-child input\s*\{[^}]*padding-right:/);
+    // 36px square on the control row (label 18px + gap 8px margin-top);
+    // no absolute positioning left to lose a click race.
+    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*margin-top:\s*26px;/);
+    expect(css).not.toMatch(/\.csc-append-button\s*\{[^}]*position:\s*absolute;/);
+    // A press must register visually (FB-114: the click felt dead).
+    expect(css).toMatch(/\.csc-append-button:not\(:disabled\):active\s*\{[^}]*transform:\s*translateY\(1px\);/);
     // The old beside-the-field row (and its phone full-width override) is gone.
     expect(css).not.toMatch(/\.csc-append-button\s*\{[^}]*white-space:\s*nowrap/);
     expect(css).not.toMatch(/\.csc-field-with-append\s*\{\s*flex-wrap:\s*wrap;/);
@@ -280,6 +291,13 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(
       /@media\s*\(min-width:\s*1101px\)\s*and\s*\(min-height:\s*721px\)[\s\S]*?\.csc-validation-summary ol\s*\{[^}]*max-height:\s*min\(24vh,\s*168px\);[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/,
     );
+  });
+
+  it('styles validation summary as a compact neutral card with surface tokens and no pink wall (card 181026180300)', () => {
+    expect(css).toMatch(/\.csc-validation-summary\s*\{[^}]*max-width:\s*520px;[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.csc-validation-summary\s*\{[^}]*border:\s*1px solid var\(--border-1\);/);
+    expect(css).not.toMatch(/\.csc-validation-summary\s*\{[^}]*background:\s*var\(--warning-soft\);/);
+    expect(css).not.toMatch(/\.csc-validation-summary\s*\{[^}]*background:\s*var\(--danger-soft\);/);
   });
 
   it('uses the full workspace width and keeps actions in the form flow', () => {

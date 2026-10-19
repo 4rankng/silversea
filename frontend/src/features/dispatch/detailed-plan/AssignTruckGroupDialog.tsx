@@ -37,29 +37,108 @@ import {
   type DispatchCarrierVehicle,
   type DispatchDetailPlanRow,
 } from '../../../api/dispatchPlanningClient';
+import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { lclVehicleSourcingRule, LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS } from '@tingting/shared';
 import { billBookingReference } from '../../../lib/business-reference';
+import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
+import { QuickAddButton } from '../../../components/shared/QuickAddButton';
+import './AssignTruckGroupDialog.css';
 
 const OWN_CARRIER_KEY = carrierOptionKey('OWN', null);
+// Same own-fleet label the dispatch editor's quick-add shows (card
+// 101026043010) so the dialog context reads identically across surfaces.
+const OWN_CARRIER_LABEL = 'SilverSea — xe nội bộ';
+
+/**
+ * The group dialog's own row contract. Both Kế hoạch screens feed it — the
+ * master plan (shipment rows) and the detailed plan (fulfillment rows) —
+ * through the adapters below, so the dialog never reads surface-specific
+ * shapes.
+ */
+export interface LclGroupDialogRow {
+  shipmentId: number;
+  /** Số Bill / Số Booking display key. */
+  reference: string;
+  customerName: string | null;
+  /** Stored cost-group identity (null when the lot is ungrouped). */
+  group: {
+    groupId: string;
+    vehicleClassCode: string | null;
+    actualTruckNo: string | null;
+    billingTruckNo: string | null;
+  } | null;
+  carrierType: 'OWN' | 'EXTERNAL' | null;
+  externalCarrierId: number | null;
+}
+
+/** Kế hoạch Chi tiết Xe row → dialog row. */
+export function lclGroupRowFromDetail(row: DispatchDetailPlanRow): LclGroupDialogRow {
+  return {
+    shipmentId: row.shipmentId,
+    reference: billBookingReference(row.docs.billNumber),
+    customerName: row.customerRoute.customerName,
+    group: row.lcl?.group ?? null,
+    carrierType: row.dispatch.carrierType,
+    externalCarrierId: row.dispatch.externalCarrierId,
+  };
+}
+
+/** Kế hoạch Tổng quát shipment row → dialog row. */
+export function lclGroupRowFromMasterPlan(item: ShipmentListItem): LclGroupDialogRow {
+  return {
+    shipmentId: item.id,
+    reference: billBookingReference(item.blNumber, item.bookingRef),
+    customerName: item.customerName,
+    group: item.costGroupId
+      ? {
+        groupId: item.costGroupId,
+        vehicleClassCode: item.costVehicleClassCode ?? null,
+        actualTruckNo: item.actualTruckNo ?? null,
+        billingTruckNo: item.billingTruckNo ?? null,
+      }
+      : null,
+    carrierType: null,
+    externalCarrierId: null,
+  };
+}
 
 export interface AssignTruckGroupDialogProps {
   /** Selected LCL rows in the operator's click order (index 0 = Lô 1). */
-  rows: DispatchDetailPlanRow[];
+  rows: LclGroupDialogRow[];
   onClose: () => void;
   /** Called after a successful assignment (the page refreshes the grid). */
   onAssigned: () => void;
+  /**
+   * Card _171026133000: this popup unmounts on close, so the loại xe / nhà xe
+   * picks are held by the page and handed back here through these two seeds —
+   * a "Hủy" without assigning no longer costs the operator both picks.
+   */
+  initialVehicleClassId?: string;
+  initialCarrierKey?: string;
+  /** Reports the two picks upward so the page can carry them across a reopen. */
+  onDraftChange?: (draft: { vehicleClassId: string; carrierKey: string }) => void;
 }
 
-export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruckGroupDialogProps) {
+export function AssignTruckGroupDialog({
+  rows,
+  onClose,
+  onAssigned,
+  initialVehicleClassId,
+  initialCarrierKey,
+  onDraftChange,
+}: AssignTruckGroupDialogProps) {
   const { toast } = useToast();
   const vehicleClasses = useVehicleSizeClasses();
   const trucksAndDrivers = useTrucksAndDrivers({ enabled: rows.length > 0 });
   const carrierCatalog = useCarrierAllocationOptions();
 
-  const [vehicleClassId, setVehicleClassId] = useState('');
-  const [carrierKey, setCarrierKey] = useState('');
+  const [vehicleClassId, setVehicleClassId] = useState(initialVehicleClassId ?? '');
+  const [carrierKey, setCarrierKey] = useState(initialCarrierKey ?? '');
   const [actualTruckNo, setActualTruckNo] = useState('');
   const [billingTruckNo, setBillingTruckNo] = useState('');
+  // SPEC 18/10/2026 §2.3 — per-lot "BKS báo khách" overrides. An absent entry
+  // means the lot rides the group default (`billingTruckNo`).
+  const [lotBilling, setLotBilling] = useState<Record<number, string>>({});
   // A ref, not state: the flag only gates the auto-copy effect, and the seed
   // effect must be able to raise it BEFORE that sibling effect runs in the
   // same commit (a state flag would still read false there and clobber the
@@ -67,8 +146,22 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
   const billingTouchedRef = useRef(false);
   const [manualFreightCost, setManualFreightCost] = useState<number | ''>('');
   const [carrierVehicles, setCarrierVehicles] = useState<DispatchCarrierVehicle[]>([]);
+  // FB-066 — quick-add a plate from the "BKS thực" picker. The nonce re-runs
+  // the carrier-fleet fetch so a just-registered plate joins the option list
+  // (the typed value is set directly, so it shows even before the refetch).
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [fleetNonce, setFleetNonce] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Report the two picks so the page can seed them back on the next open. The
+  // callback rides in a ref: an inline prop would otherwise re-fire this effect
+  // every render and spin the page's draft state.
+  const draftChangeRef = useRef(onDraftChange);
+  draftChangeRef.current = onDraftChange;
+  useEffect(() => {
+    draftChangeRef.current?.({ vehicleClassId, carrierKey });
+  }, [vehicleClassId, carrierKey]);
 
   const selectedClass = vehicleClasses.data?.find((vc) => String(vc.id) === vehicleClassId);
   const sourcingRule = selectedClass ? lclVehicleSourcingRule(selectedClass.isContainer) : null;
@@ -86,7 +179,7 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
   const seededForRef = useRef<string | null>(null);
   useEffect(() => {
     const anchor = rows[0];
-    const group = rows.find((row) => row.lcl?.group != null)?.lcl?.group ?? null;
+    const group = rows.find((row) => row.group != null)?.group ?? null;
     if (anchor == null || group == null) return;
     if (seededForRef.current === group.groupId) return;
     seededForRef.current = group.groupId;
@@ -97,9 +190,9 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
       setBillingTruckNo(group.billingTruckNo);
     }
     if (group.actualTruckNo) setActualTruckNo(group.actualTruckNo);
-    if (anchor.dispatch.carrierType === 'OWN') setCarrierKey(OWN_CARRIER_KEY);
-    else if (anchor.dispatch.externalCarrierId != null) {
-      setCarrierKey(carrierOptionKey('EXTERNAL', anchor.dispatch.externalCarrierId));
+    if (anchor.carrierType === 'OWN') setCarrierKey(OWN_CARRIER_KEY);
+    else if (anchor.externalCarrierId != null) {
+      setCarrierKey(carrierOptionKey('EXTERNAL', anchor.externalCarrierId));
     }
   }, [rows, vehicleClasses.data]);
 
@@ -122,7 +215,11 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
       .then((response) => { if (!cancelled) setCarrierVehicles(response.items as DispatchCarrierVehicle[]); })
       .catch(() => { if (!cancelled) setCarrierVehicles([]); });
     return () => { cancelled = true; };
-  }, [externalCarrierId]);
+  }, [externalCarrierId, fleetNonce]);
+
+  // FB-066 — the own-fleet quick-add lands a TRUCK, so refetch the catalog
+  // list that feeds `internalPlates` after a create (same nonce contract).
+  const { refetch: refetchTrucks } = trucksAndDrivers;
 
   const internalPlates = useMemo(
     () => new Set((trucksAndDrivers.data?.trucks ?? []).map((truck) => truck.licensePlate?.trim()).filter(Boolean) as string[]),
@@ -148,6 +245,21 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
       : carrierVehicles.map((vehicle) => vehicle.licensePlate?.trim()).filter(Boolean) as string[];
     return [...new Set(plates)].map((plate) => ({ value: plate, label: plate, searchText: plate }));
   }, [ownFleet, internalPlates, carrierVehicles]);
+
+  // FB-066 — the quick-add dialog's context line names the chosen source
+  // (own fleet label, else the picked nhà xe), mirroring the dispatch editor.
+  const quickAddCarrierName = ownFleet
+    ? OWN_CARRIER_LABEL
+    : carrierCatalog.options.find((option) => option.key === carrierKey)?.label ?? '';
+
+  // FB-066 — preselect the just-registered plate and fold it into the options
+  // (external list re-fetches via the nonce; own fleet refetches the catalog).
+  const handleVehicleCreated = (_vehicleId: number, licensePlate: string) => {
+    setActualTruckNo(licensePlate);
+    setFleetNonce((nonce) => nonce + 1);
+    if (ownFleet) void refetchTrucks();
+    setQuickAddOpen(false);
+  };
 
   async function submit() {
     setError(null);
@@ -178,17 +290,25 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
     }
     setSaving(true);
     try {
+      const groupBilling = billingTruckNo.trim();
+      const perLotBilling = rows
+        .map((row) => ({
+          shipmentId: row.shipmentId,
+          billingTruckNo: (lotBilling[row.shipmentId] ?? groupBilling).trim(),
+        }))
+        .filter((entry) => entry.billingTruckNo !== '' && entry.billingTruckNo !== groupBilling);
       const result = await assignLclCostGroup({
         shipmentIds: rows.map((row) => row.shipmentId),
         vehicleSizeClassId: selectedClass.id,
         actualTruckNo: actual,
-        ...(billingTruckNo.trim() && billingTruckNo.trim() !== actual ? { billingTruckNo: billingTruckNo.trim() } : {}),
+        ...(groupBilling && groupBilling !== actual ? { billingTruckNo: groupBilling } : {}),
+        ...(perLotBilling.length > 0 ? { billingTruckNos: perLotBilling } : {}),
         ...(ownFleet ? { carrierType: 'OWN' as const } : { carrierType: 'EXTERNAL' as const, carrierId: externalCarrierId! }),
         ...(manualFreightCost === '' ? {} : { freightCost: manualFreightCost }),
       });
       toast({
         kind: 'success',
-        message: `Đã gán nhóm xe cho ${result.memberCount} lô — Lô 1 (${rows[0] ? billBookingReference(rows[0].docs.billNumber) : ''}) giữ 100% cước trả ĐV, các lô còn lại 0₫`,
+        message: `Đã gán nhóm xe cho ${result.memberCount} lô — Lô 1 (${rows[0]?.reference ?? ''}) giữ 100% cước trả ĐV, các lô còn lại 0₫`,
       });
       onAssigned();
       onClose();
@@ -225,8 +345,8 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
           {rows.map((row, index) => (
             <li key={row.shipmentId}>
               {index === 0 ? 'Lô 1 · ' : `Lô ${index + 1} · `}
-              {billBookingReference(row.docs.billNumber)}
-              {row.customerRoute.customerName ? ` — ${row.customerRoute.customerName}` : ''}
+              {row.reference}
+              {row.customerName ? ` — ${row.customerName}` : ''}
             </li>
           ))}
         </ol>
@@ -270,17 +390,30 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
           searchable
           required
         />
-        <USearchableField
-          label="BKS thực (xe chạy chuyến)"
-          value={actualTruckNo}
-          onChange={(next) => setActualTruckNo(next)}
-          options={plateOptions}
-          placeholder={ownFleet ? 'Chọn BKS xe nội bộ hoặc gõ mới' : 'Chọn BKS của nhà xe hoặc gõ mới'}
-          allowsCustomValue
-          searchable
-          onCustomValue={setActualTruckNo}
-          required
-        />
+        {/* FB-066 — the "BKS thực" picker gets the quick-add affordance the
+            dispatch editor and trip form already own: a dispatcher meeting a
+            brand-new plate registers it under the chosen nhà xe without
+            leaving the Gán xe nhóm flow (r25 guide step 3, lclspec). */}
+        <div className="assign-truck-group__vehicle">
+          <div className="assign-truck-group__vehicle-head">
+            <span className="assign-truck-group__label">BKS thực (xe chạy chuyến) <span aria-hidden="true">*</span></span>
+            {(ownFleet || externalCarrierId != null) && (
+              <QuickAddButton onClick={() => setQuickAddOpen(true)} disabled={saving} />
+            )}
+          </div>
+          <USearchableField
+            label="BKS thực (xe chạy chuyến)"
+            hideLabel
+            value={actualTruckNo}
+            onChange={(next) => setActualTruckNo(next)}
+            options={plateOptions}
+            placeholder={ownFleet ? 'Chọn BKS xe nội bộ hoặc gõ mới' : 'Chọn BKS của nhà xe hoặc gõ mới'}
+            allowsCustomValue
+            searchable
+            onCustomValue={setActualTruckNo}
+            required
+          />
+        </div>
         <USearchableField
           label="BKS báo khách (ảo)"
           value={billingTruckNo}
@@ -292,6 +425,29 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
           onCustomValue={(text) => { billingTouchedRef.current = true; setBillingTruckNo(text); }}
           hint="Debit Note (FB-094) sẽ in BKS này, tuyệt đối không in BKS thực."
         />
+        {/* SPEC 18/10/2026 §2.3 — "sửa lại cho từng lô trong nhóm": the group
+            field above is the default; these fields override it per member. */}
+        {rows.length > 1 && (
+          <div style={{ display: 'grid', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border, #e4e7ec)' }}>
+            <strong style={{ fontSize: 'var(--text-label-size)' }}>BKS báo khách từng lô</strong>
+            <p className="assign-truck-group__hint">
+              Bỏ trống = dùng BKS báo khách chung của nhóm.
+            </p>
+            {rows.map((row, index) => (
+              <USearchableField
+                key={row.shipmentId}
+                label={`Lô ${index + 1} — ${row.reference}`}
+                value={lotBilling[row.shipmentId] || billingTruckNo}
+                onChange={(next) => setLotBilling((current) => ({ ...current, [row.shipmentId]: next }))}
+                options={plateOptions}
+                placeholder={billingTruckNo || 'Mặc định copy BKS thực'}
+                allowsCustomValue
+                searchable
+                onCustomValue={(text) => setLotBilling((current) => ({ ...current, [row.shipmentId]: text }))}
+              />
+            ))}
+          </div>
+        )}
         <NumberField
           label="Cước trả ĐV Lô 1 (đ) — nhập tay"
           value={manualFreightCost}
@@ -302,6 +458,15 @@ export function AssignTruckGroupDialog({ rows, onClose, onAssigned }: AssignTruc
           helpText="Bỏ trống: hệ thống tự tra bảng giá cước trả nhà xe (tuyến × loại xe × nhà xe). Nhập tay: số tiền này thắng giá tra được."
         />
       </div>
+      {/* FB-066 — register a brand-new plate under the chosen source; the
+          created plate is preselected and folds into the option list. */}
+      <QuickAddVehicleDialog
+        isOpen={quickAddOpen}
+        carrierId={ownFleet ? null : externalCarrierId}
+        carrierName={quickAddCarrierName}
+        onClose={() => setQuickAddOpen(false)}
+        onCreated={handleVehicleCreated}
+      />
     </Modal>
   );
 }

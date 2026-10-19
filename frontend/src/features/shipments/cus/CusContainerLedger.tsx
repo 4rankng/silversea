@@ -4,7 +4,8 @@ import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
-import { localDateTimeToIso } from '../../../lib/shipment-operations';
+import { localDateTimeToIso, formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
+import { stripDecimalTrailingZeros } from '../../../lib/format';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import {
   addCusShipmentContainerRow,
@@ -165,6 +166,34 @@ export function ContainerLedger({
     setAddOpen(false);
     setAddError(null);
   }, []);
+
+  // Card 191026100000 (chungtu-dieuvan A.1): opening the add form copies the
+  // lot's existing row values down into the draft — per-column FIRST non-null,
+  // the same rule the add API's lot-default inherit applies (FB-086 round 19)
+  // — so a new container reads like the rows above it. Số container stays the
+  // operator's own entry (the one thing a new row must bring), and weight
+  // rides here because the wire deliberately treats it as a per-container
+  // fact (the server never invents it). The appointment is converted to the
+  // naive local "YYYY-MM-DDTHH:mm" the datetime field edits; submitAddContainer
+  // converts it back to ISO on the way out.
+  const addFieldsSeed = useCallback((): AddContainerFields => {
+    const firstNonNull = <T,>(pick: (line: ShipmentCusWorkspaceContainerLine) => T | null | undefined): T | null => {
+      for (const line of detail.containers) {
+        const value = pick(line);
+        if (value != null && value !== '') return value;
+      }
+      return null;
+    };
+    const typeId = firstNonNull((line) => line.raw.containerTypeId);
+    const weight = firstNonNull((line) => line.raw.cargoWeightKg);
+    const appointmentAt = firstNonNull((line) => line.customerAppointmentAt);
+    return {
+      containerNumber: '',
+      containerTypeId: typeId == null ? '' : String(typeId),
+      cargoWeightKg: weight == null ? '' : stripDecimalTrailingZeros(weight),
+      customerAppointmentAt: appointmentAt ? formatVietnamDateTimeInput(appointmentAt) : '',
+    };
+  }, [detail.containers]);
 
   async function submitAddContainer() {
     const containerNumber = addFields.containerNumber.trim().toUpperCase();
@@ -583,7 +612,7 @@ export function ContainerLedger({
           <button
             type="button"
             className="btn btn--secondary btn--sm"
-            onClick={() => setAddOpen(true)}
+            onClick={() => { setAddFields(addFieldsSeed()); setAddOpen(true); }}
           >
             Thêm container
           </button>

@@ -5,7 +5,7 @@ import { ReceiptText } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow, type ChiHoConfirmation } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
-import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
+import { PhoiPhieuReportSection } from './PhoiPhieuControlPage.reports';
 import { formatNumber, formatCurrency, formatDate } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
 import { PageHeader } from '../../components/UI';
@@ -65,7 +65,6 @@ interface Filters {
 export default function PhoiPhieuControlPage() {
   const phone = useMediaQuery('(max-width: 640px)');
   const [filters, setFilters] = useState<Filters>({ dateFrom: '', dateTo: '', status: '', search: '', sortBy: 'grouped', confirmation: '' });
-  const [reportScope, setReportScope] = useState<'' | 'SELF' | 'ALL' | 'UNASSIGNED'>('');
   const [direction, setDirection] = useState<'IN' | 'OUT'>('OUT');
   const [treasuryAccountId, setTreasuryAccountId] = useState('');
   const [issuing, setIssuing] = useState(false);
@@ -372,27 +371,7 @@ export default function PhoiPhieuControlPage() {
           onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })}
         />
       )}
-      <div style={{ margin: '16px 0' }}>
-        <h2 style={{ fontSize: 'var(--text-body-size)' }}>Báo cáo tháng</h2>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '8px 0' }}>
-          <label style={{ fontSize: 'var(--text-caption-size)' }}>Phạm vi: </label>
-          <UuiSelectField
-            label="Phạm vi báo cáo"
-            hideLabel
-            value={reportScope}
-            onChange={(event) => setReportScope(event.target.value as typeof reportScope)}
-            options={[
-              { value: '', label: 'Mặc định (của tôi với kế toán)' },
-              { value: 'SELF', label: 'Của tôi' },
-              { value: 'ALL', label: 'Tất cả' },
-              { value: 'UNASSIGNED', label: 'Chưa gán' },
-            ]}
-            width="content"
-          />
-        </div>
-        <PhoiPhieuReportTable kind="THU" dateFrom={filters.dateFrom} dateTo={filters.dateTo} scope={reportScope || undefined} />
-        <PhoiPhieuReportTable kind="TRA" dateFrom={filters.dateFrom} dateTo={filters.dateTo} scope={reportScope || undefined} />
-      </div>
+      <PhoiPhieuReportSection />
       <PhoiPhieuTruckAssignments />
       {chiHoTripId != null && (
         <PhoiPhieuChiHoDialog

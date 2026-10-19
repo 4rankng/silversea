@@ -33,6 +33,7 @@ const filters: MasterPlanFilters = {
   deliveryDateTo: '',
   portIds: [3],
   carrierKeys: [],
+  cargoMode: '' as const,
 };
 
 const row = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({

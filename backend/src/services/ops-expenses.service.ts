@@ -208,7 +208,10 @@ export async function createOpsExpense(
       const scopeLabel = input.shipmentContainerId != null
         ? `cont ${duplicates[0].containerNumber ?? input.shipmentContainerId}`
         : 'phí chung lô';
-      const who = duplicates[0].paidByName ?? 'người khác';
+      // chiphispec §2 — the warning names the previous entrant by name, or by
+      // id when the account carries no full name.
+      const first = duplicates[0];
+      const who = first.paidByName ?? (first.paidById != null ? `OPS #${first.paidById}` : 'người khác');
       throw new ApiError(
         409,
         `Loại phí này đã có ${who} nhập trước trên ${scopeLabel} — kiểm tra lại để tránh nhập trùng; vẫn tiếp tục lưu nếu đây là lần chi hợp lệ.`,
@@ -546,6 +549,9 @@ export interface OpsExpenseDuplicateHit {
   id: number;
   expenseTypeName: string | null;
   containerNumber: string | null;
+  /** Previous entrant's identity (chiphispec §2): the user id, plus the name
+   *  with a username fallback so the warning can always name a who. */
+  paidById: number | null;
   paidByName: string | null;
   amount: string;
   paidAt: string;
@@ -569,7 +575,11 @@ export async function findLiveDuplicateOpsExpenses(
       id: s.opsExpenseEntries.id,
       expenseTypeName: s.forwarderExpenseTypes.name,
       containerNumber: s.shipmentContainers.containerNumber,
+      paidById: s.opsExpenseEntries.paidById,
       paidByName: s.users.fullName,
+      // fullName is nullable — an entrant without one is still NAMED (username
+      // fallback) so the 409 payload always carries a who (chiphispec §2).
+      paidByUsername: s.users.username,
       amount: s.opsExpenseEntries.amount,
       paidAt: s.opsExpenseEntries.paidAt,
     })
@@ -586,7 +596,15 @@ export async function findLiveDuplicateOpsExpenses(
       ne(s.opsExpenseEntries.approvalStatus, 'VOIDED'),
     ))
     .orderBy(s.opsExpenseEntries.id);
-  return rows.map((row) => ({ ...row, containerNumber: row.containerNumber ?? null }));
+  return rows.map((row) => ({
+    id: row.id,
+    expenseTypeName: row.expenseTypeName,
+    containerNumber: row.containerNumber ?? null,
+    paidById: row.paidById ?? null,
+    paidByName: row.paidByName?.trim() || row.paidByUsername || null,
+    amount: row.amount,
+    paidAt: row.paidAt,
+  }));
 }
 
 /** Who already declared a cost against each container of a lot — the data

@@ -32,6 +32,7 @@ export {
   listAdvanceSettlementsPaginated,
   getAdvanceSettlement,
   updateAdvanceSettlement,
+  checkAdvanceSettlement,
 } from './advance-settlement.service';
 export type {
   AdvanceSettlementRow,

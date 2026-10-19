@@ -1,18 +1,16 @@
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Role, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentDetail as ShipmentDetailData } from '../api/shipmentClient';
 
-const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, createDeclarationMock, deleteDeclarationMock, addContainerMock, getContainerTypesMock, currentUser } = vi.hoisted(() => ({
+const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, createDeclarationMock, deleteDeclarationMock, currentUser } = vi.hoisted(() => ({
   getShipmentDetailMock: vi.fn(),
   listShipmentEventsMock: vi.fn(),
   deleteCusShipmentMock: vi.fn(),
   createDeclarationMock: vi.fn(),
   deleteDeclarationMock: vi.fn(),
-  addContainerMock: vi.fn(),
-  getContainerTypesMock: vi.fn(),
   currentUser: {
     userId: 11,
     role: 'ADMIN',
@@ -25,13 +23,6 @@ vi.mock('../api/shipmentClient', () => ({
   deleteCusShipment: deleteCusShipmentMock,
   createShipmentDeclaration: createDeclarationMock,
   deleteShipmentDeclaration: deleteDeclarationMock,
-  addCusShipmentContainerRow: addContainerMock,
-}));
-
-// The container-add dialog loads the type catalog when it opens; the other
-// queries this page runs are already stubbed at their own client modules.
-vi.mock('../api/configClient', () => ({
-  configClient: { getContainerTypes: getContainerTypesMock },
 }));
 
 vi.mock('../api/customerServiceFinanceClient', () => ({
@@ -786,28 +777,17 @@ describe('ShipmentDetailPage', () => {
       expect(screen.getByText('TGHU7654321')).toBeTruthy();
     });
 
-    it('offers Thêm container on a container-less FCL lot and saves through the shipped add endpoint', async () => {
+    it('offers no Thêm container affordance even on an unlocked FCL lot (card 171026182554)', async () => {
       currentUser.role = Role.ADMIN;
-      addContainerMock.mockResolvedValue({ line: { id: 601 } });
-      getContainerTypesMock.mockResolvedValue([{ id: 4, code: '40DC', name: "40'DC" }]);
-      // The exact state the report started from: a lot with no container row.
+      // The exact state FB-086 once fixed by adding a button here: a lot with
+      // no container row, role ADMIN, no accounting lock. Card 171026182554
+      // supersedes that: composition lives ONLY in the /shipments drawer, so
+      // the detail screen must withhold the button everywhere.
       getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null, containers: [] });
       renderLot();
       expect(await screen.findByText('Containers (0)')).toBeTruthy();
-
-      fireEvent.click(screen.getByRole('button', { name: /Thêm container/ }));
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.change(within(dialog).getByLabelText('Số container'), { target: { value: 'msku5555501' } });
-      fireEvent.click(within(dialog).getByRole('button', { name: /Thêm container/ }));
-
-      // Lower-cased input is normalized, and the lot's own version rides the
-      // optimistic lock — the same contract the drawer/workboard call.
-      await waitFor(() => expect(addContainerMock).toHaveBeenCalledWith(1, {
-        expectedShipmentVersion: 7,
-        containerNumber: 'MSKU5555501',
-      }));
-      // The page re-reads the lot, so count and rows show the write.
-      await waitFor(() => expect(getShipmentDetailMock).toHaveBeenCalledTimes(2));
+      expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('withholds Thêm container on an LCL lot (an LCL lot owns no container)', async () => {
@@ -847,6 +827,25 @@ describe('ShipmentDetailPage', () => {
       );
       fireEvent.click(await screen.findByRole('button', { name: /Tạo lô mới/ }));
       expect(await screen.findByText('Tạo lô hàng mới')).toBeTruthy();
+    });
+
+    it('sits immediately before Xóa lô in the header action cluster', async () => {
+      // The card (171026115810) asks for the button NEXT TO 'Xóa lô' — a
+      // presence-only pin would still pass if the two drifted apart.
+      currentUser.role = Role.CUS;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      const createBtn = await screen.findByRole('button', { name: /Tạo lô mới/ });
+      const deleteBtn = await screen.findByRole('button', { name: /Xóa lô/ });
+      expect(createBtn.parentElement).toBe(deleteBtn.parentElement);
+      expect(createBtn.nextElementSibling).toBe(deleteBtn);
     });
 
     it.each([Role.ADMIN, Role.CUS, Role.MANAGER, Role.DISPATCHER])(

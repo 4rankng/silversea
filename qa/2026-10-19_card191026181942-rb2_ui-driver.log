@@ -1,0 +1,23 @@
+{"at":"2026-10-19T13:23:07.646Z","step":"DV3-lcl-dialog","open":true,"hasClassFact":true,"classValue":["Container 20 feet · CONT20","SilverSea"],"hasCont20Column":false,"hasCont40Column":false,"hasDemandTable":false,"hasAddCarrier":false,"bksActual":"60C-QA942","saveLabel":true}
+{"at":"2026-10-19T13:23:07.656Z","step":"RESULT","id":"DV3-lcl-fieldset","pass":true,"detail":"facts=Container 20 feet · CONT20 | SilverSea contFields=false"}
+{"at":"2026-10-19T13:23:07.656Z","step":"RESULT","id":"DV3-lcl-bks-seeded","pass":true,"detail":"bks=60C-QA942"}
+{"at":"2026-10-19T13:23:10.091Z","step":"DV3-lcl-save","dialogClosed":true,"toast":["Đã lưu BKS lô lẻ FB107-9A7A2E-IMP — BKS thực 60C-QA942"]}
+{"at":"2026-10-19T13:23:10.091Z","step":"RESULT","id":"DV3-lcl-save-closed","pass":true,"detail":"[\"Đã lưu BKS lô lẻ FB107-9A7A2E-IMP — BKS thực 60C-QA942\"]"}
+{"at":"2026-10-19T13:23:17.427Z","step":"DV3-fcl-dialog","open":true,"hasCont20":true,"hasCont40":true,"hasDemandTable":true,"hasAddCarrier":true,"hasLclFields":false}
+{"at":"2026-10-19T13:23:17.428Z","step":"RESULT","id":"DV3-fcl-fieldset","pass":true,"detail":"{\"open\":true,\"hasCont20\":true,\"hasCont40\":true,\"hasDemandTable\":true,\"hasAddCarrier\":true,\"hasLclFields\":false}"}
+{"at":"2026-10-19T13:23:19.135Z","step":"KT4-default-board","boardFound":true,"headers":["Chi phí","Ngày","Thông tin lô hàng","Phải thu","Phải trả","Đối soát","Tổng thu","Tổng 1"],"rowCount":91,"dotCount":91,"firstDotAria":"Thiếu chi phí","firstDotTitle":"Thiếu chi phí","dottedRowText":"01/10/2026BLQA20-90D382CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINHThiếu tổng thuThiếu tổng 1Chưa gửi","dottedRowHasMutedMissing":true,"storedChoice":null}
+{"at":"2026-10-19T13:23:19.135Z","step":"RESULT","id":"KT4-essential-default","pass":true,"detail":"headers=Chi phí | Ngày | Thông tin lô hàng | Phải thu | Phải trả | Đối soát | Tổng thu | Tổng 1"}
+{"at":"2026-10-19T13:23:19.135Z","step":"RESULT","id":"KT8-dot-renders","pass":true,"detail":"dots=91/91 row=01/10/2026BLQA20-90D382CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINHThiếu tổng thuThiếu tổng 1Chưa gửi"}
+{"at":"2026-10-19T13:23:19.135Z","step":"RESULT","id":"KT8-money-cell-muted","pass":true,"detail":"dotted row keeps its muted \"Thiếu …\" label"}
+{"at":"2026-10-19T13:23:19.135Z","step":"RESULT","id":"KT4-no-stored-choice-yet","pass":true,"detail":"storage=null"}
+{"at":"2026-10-19T13:23:20.110Z","step":"KT4-picker-interaction","pickerOpened":true,"toggled":{"ok":true}}
+{"at":"2026-10-19T13:23:21.014Z","step":"KT4-after-toggle","headers":["Chi phí","Ngày","Thông tin lô hàng","Phải thu","Phải trả","Đối soát","Cước thu (tự động)","Tổng thu","Tổng 1"],"storedChoice":"[\"container\",\"cuocTraDv\",\"ghiChu\",\"lachHuyen\",\"lachHuyenDv\",\"loiNhuan\",\"phanXe\",\"phatSinhCus\",\"phatSinhDv\",\"phiRu\",\"phuPs\"]"}
+{"at":"2026-10-19T13:23:21.014Z","step":"RESULT","id":"KT4-toggle-adds-column","pass":true,"detail":"headers=Chi phí | Ngày | Thông tin lô hàng | Phải thu | Phải trả | Đối soát | Cước thu (tự động) | Tổng thu | Tổng 1"}
+{"at":"2026-10-19T13:23:21.014Z","step":"RESULT","id":"KT4-choice-persisted","pass":true,"detail":"storage=[\"container\",\"cuocTraDv\",\"ghiChu\",\"lachHuyen\",\"lachHuyenDv\",\"loiNhuan\",\"phanXe\",\"phatSinhCus\",\"phatSinhDv\",\"phiRu\",\"phuPs\"]"}
+{"at":"2026-10-19T13:23:22.617Z","step":"KT4-after-reload","headers":["Chi phí","Ngày","Thông tin lô hàng","Phải thu","Phải trả","Đối soát","Cước thu (tự động)","Tổng thu","Tổng 1"],"storedChoice":"[\"container\",\"cuocTraDv\",\"ghiChu\",\"lachHuyen\",\"lachHuyenDv\",\"loiNhuan\",\"phanXe\",\"phatSinhCus\",\"phatSinhDv\",\"phiRu\",\"phuPs\"]"}
+{"at":"2026-10-19T13:23:22.617Z","step":"RESULT","id":"KT4-reload-keeps-choice","pass":true,"detail":"storage=[\"container\",\"cuocTraDv\",\"ghiChu\",\"lachHuyen\",\"lachHuyenDv\",\"loiNhuan\",\"phanXe\",\"phatSinhCus\",\"phatSinhDv\",\"phiRu\",\"phuPs\"]"}
+{"at":"2026-10-19T13:23:22.904Z","step":"done","exitCode":0}
+
+== rung rerun (hardened A2: Xoá-clear + pre-save guard, rb2) ==
+cmd: QA_BASE=http://localhost:7185 QA_OUT=qa/2026-10-19_card191026181942-rb2 node testplan/qa/scripts/2026-10-19-card191026181942-rung.mjs
+DRIVER_EXIT=0 (11/11 RESULT pass; see RESULT lines above)

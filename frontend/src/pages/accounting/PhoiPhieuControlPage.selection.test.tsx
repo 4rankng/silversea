@@ -7,6 +7,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({
   listPhoiPhieuStk: vi.fn(),
   listPhoiPhieuTruckAssignments: vi.fn(),
   getPhoiPhieuReport: vi.fn(),
+  getPhoiPhieuPartyLots: vi.fn(),
   assignPhoiPhieuTruckAccountant: vi.fn(),
   createPhoiPhieuVoucher: vi.fn(),
 }));

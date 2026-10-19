@@ -3,7 +3,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { requireExpenseFinance } from './expense-accounting-write.service';
-import { getOutstandingAdvanceBalances } from './advance-shared.service';
+import { getOutstandingAdvanceBalances, getSignedOutstandingAdvanceBalances } from './advance-shared.service';
 import { ApiError } from '../errors';
 import { expenseDateSchema } from '@tingting/shared';
 
@@ -19,6 +19,10 @@ export interface OpsReconciliationReportRow {
   /** Chênh lệch CÓ DẤU theo đúng chữ của spec — "ĐNTT − ĐÃ ỨNG" (card 377:
    *  800.000 − 200.000 = 600.000). Số âm = tiền ứng vượt chi phí thực tế. */
   remainingSigned: number;
+  /** Số dư tạm ứng CÓ DẤU (card 141026230770): min(đã cấp, đã giải ngân) − đã
+   *  tiêu − đã trả, không kẹp về 0. Âm = nhân viên nắm/đã tiêu vượt số được
+   *  cấp; số dư sổ quỹ (`remaining`) vẫn giữ nguyên ≥ 0 cho số khớp card 377. */
+  outstandingSigned: number;
   /** Âm và nhân viên còn nắm tiền ĐÃ CẤP để thu về. */
   needsCollection: boolean;
   direction: OpsReconciliationDirection;
@@ -29,7 +33,7 @@ export interface OpsReconciliationReport {
   /** Card 20260928_169 — set when the caller scoped the report to one đợt. */
   reconciliation?: { id: number; code: string; from: string; to: string };
   rows: OpsReconciliationReportRow[];
-  totals: { dntt: number; advanced: number; remaining: number };
+  totals: { dntt: number; advanced: number; remaining: number; remainingSigned: number };
 }
 
 /** Card 20260921_11 — the monthly reconciliation summary (báo cáo tổng hợp
@@ -169,11 +173,18 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   // floor at 0 keeps it non-negative; > 0 means the staff still holds granted,
   // unconsumed advance money. Scoped to a đợt the book number is still the
   // staff's own — the lot fixes the staff, never the number.
-  const outstandingByStaff = new Map(
-    (await getOutstandingAdvanceBalances(batchStaffId ?? undefined)).items
-      .map((item) => [String(item.forwarderId), item.outstanding] as const),
-  );
-  for (const key of outstandingByStaff.keys()) staffKeys.add(key);
+  // Card 141026230770 — the report ALSO carries the signed view
+  // (outstandingSigned): same aggregation without the ≥ 0 clamp, so a staff
+  // who consumed/returned more than was granted shows the deficit instead of
+  // a misleading 0. `remaining` stays the floored book number (Sổ quỹ parity).
+  const [outstandingByStaff, signedOutstandingByStaff] = await Promise.all([
+    getOutstandingAdvanceBalances(batchStaffId ?? undefined),
+    getSignedOutstandingAdvanceBalances(batchStaffId ?? undefined),
+  ]);
+  const outstandingMap = new Map(outstandingByStaff.items.map((item) => [String(item.forwarderId), item.outstanding] as const));
+  const outstandingSignedMap = new Map(signedOutstandingByStaff.items.map((item) => [String(item.forwarderId), item.outstanding] as const));
+  for (const key of outstandingMap.keys()) staffKeys.add(key);
+  for (const key of outstandingSignedMap.keys()) staffKeys.add(key);
   const staffIdNumbers = [...staffKeys].map((key) => Number(key)).filter((id) => Number.isInteger(id) && id > 0);
   const staffRows = staffIdNumbers.length
     ? await db.select({ id: s.users.id, fullName: s.users.fullName, username: s.users.username })
@@ -185,22 +196,26 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     const staffId = Number(key);
     const dntt = costByStaff.get(staffId) ?? 0;
     const advanced = heldByStaff.get(key) ?? 0;
-    const remaining = outstandingByStaff.get(key) ?? 0;
-    if (dntt === 0 && advanced === 0 && remaining === 0) continue;
+    const remaining = outstandingMap.get(key) ?? 0;
+    const outstandingSigned = outstandingSignedMap.get(key) ?? 0;
+    if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0) continue;
     // Số âm: chênh lệch có dấu theo đúng chữ spec "ĐNTT − ĐÃ ỨNG", giữ nguyên
     // `remaining` là số sổ quỹ (lệnh PM 2026-09-29) nên tổng và ví không đổi.
     const remainingSigned = dntt - advanced;
     // "Đề nghị thu tiền ứng" chỉ dựng khi nhân viên thật sự còn tiền ĐÃ CẤP để
     // thu (remaining > 0): một yêu cầu chưa giải ngân không phải tiền — đúng
-    // luật "request without money is not an advance" mà card11 đã chốt.
-    const needsCollection = remainingSigned < 0 && remaining > 0;
+    // luật "request without money is not an advance" mà card11 đã chốt. Âm do
+    // tiêu/trả VƯỢT số được cấp (outstandingSigned < 0) cũng là tiền phải thu
+    // — company thu lại phần vượt dù sổ quỹ đã về 0.
+    const needsCollection = outstandingSigned < 0
+      || (remainingSigned < 0 && remaining > 0);
     const direction: OpsReconciliationDirection = needsCollection ? 'CTY_YEU_CAU_THU_TIEN_UNG' : remaining > 0 ? 'CTY_YEU_CAU_HOAN_TRA' : 'KHONG_CON_GI';
     const note = direction === 'CTY_YEU_CAU_THU_TIEN_UNG' ? 'Đề nghị thu tiền ứng'
       : direction === 'CTY_YEU_CAU_HOAN_TRA' ? 'Công ty yêu cầu nhân viên hoàn trả tạm ứng' : 'Không còn chênh lệch';
     rows.push({
       staffId,
       staffName: nameByStaff.get(staffId) ?? `NV #${staffId}`,
-      dntt, advanced, remaining, remainingSigned, needsCollection, direction, note,
+      dntt, advanced, remaining, remainingSigned, outstandingSigned, needsCollection, direction, note,
     });
   }
   // Card 20260928_169 — the employee axis: unscoped, a single staff filter
@@ -216,6 +231,7 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
       dntt: visibleRows.reduce((sum, row) => sum + row.dntt, 0),
       advanced: visibleRows.reduce((sum, row) => sum + row.advanced, 0),
       remaining: visibleRows.reduce((sum, row) => sum + row.remaining, 0),
+      remainingSigned: visibleRows.reduce((sum, row) => sum + row.remainingSigned, 0),
     },
   };
 }

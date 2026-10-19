@@ -1,0 +1,5 @@
+
+> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-chungtu-cus
+> eslint .
+
+lint exit=0

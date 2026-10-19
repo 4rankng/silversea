@@ -1,0 +1,152 @@
+▶ card 20260928_168 - sổ quỹ theo kỳ + hội tụ với báo cáo hoàn ứng
+  ✔ AC3: the period window carries the opening; TÀI KHOẢN OPS closing IS the 169 remaining, before and after the THU (336.500708ms)
+  ✔ a reversed period (from > to) is refused (0.115458ms)
+✔ card 20260928_168 - sổ quỹ theo kỳ + hội tụ với báo cáo hoàn ứng (337.002625ms)
+{"level":30,"time":1792374953445,"pid":61266,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ final audit proof coverage for Q01/Q02/Q07/Q08
+  ✔ Q01 persists global default and customer override into live credit override snapshots (129.67075ms)
+  ✔ Q02 denies customer, driver, forwarder, and clerk across credit override HTTP routes (55.207875ms)
+  ✔ Q07 supplier primary type edits do not reclassify existing trip expenses (22.1245ms)
+  ✔ Q07 supplier API rejects unknown categories and a primary outside selected types (4.796459ms)
+  ✔ Q08 customer and supplier CRUD converge on one canonical partner for the same normalized tax code (65.0855ms)
+✔ final audit proof coverage for Q01/Q02/Q07/Q08 (332.292542ms)
+✔ M7.3 payroll close enforces readiness, approved exclusions, completion-period totals, actual-date attendance, and payout-gated reopen (184.8265ms)
+✔ Q10 adjustment-mode exclusions stay completable after the approved adjustment exists (24.508292ms)
+{"level":30,"time":1792374985494,"pid":61790,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ POST /api/payments/receive
+  ✔ submits one governed request, replays the same keyed body, and applies money immediately (723.0195ms)
+  ✔ same header with a different payload returns 409 (36.046208ms)
+  ✔ same receipt body without an idempotency header is rejected by the mandatory-header contract (11.595292ms)
+  ✔ concurrent first submit with the same header creates one governed action and one replay (28.369042ms)
+  ✔ different request keys racing on the same receipt leave one active governed request (28.05475ms)
+  ✔ different receipts racing on the same customer apply independently and settle the outstanding (41.238375ms)
+✔ POST /api/payments/receive (964.781583ms)
+✔ Q09 configured payroll unit scopes readiness and close totals to linked drivers (134.30825ms)
+▶ Q10 salary exclusion route validation
+  ✔ rejects unknown handling mode and invalid supplementary targets at the HTTP boundary (79.339334ms)
+[ERROR] POST /api/salary-periods/7232-07/exclusions: Error: simulated salary exclusion audit failure
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/tests/q10-salary-exclusion-routes.test.ts:367:13)
+    at persistMaterialWriteSuccessAuditInTransaction (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/audit.service.ts:288:13)
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:471:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/routes/config/salary-periods-config.routes.ts:286:19)
+Audit log write failed: Error: simulated salary exclusion audit failure
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/tests/q10-salary-exclusion-routes.test.ts:367:13)
+    at persistAudit (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/audit.service.ts:677:10)
+    at persist (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/middleware/audit.ts:233:15)
+    at ServerResponse.res.end (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/middleware/audit.ts:258:10)
+    at ServerResponse.send (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js:221:10)
+    at ServerResponse.json (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js:252:15)
+    at ServerResponse.res.json (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/middleware/audit.ts:85:12)
+    at globalErrorHandler (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/middleware/errorHandler.ts:70:19)
+    at Layer.handleError (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:116:17)
+    at trimPrefix (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:340:13)
+    at /Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9
+    at processParams (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)
+    at next (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)
+    at /Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:688:15
+    at next (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:276:14)
+    at next (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:132:14)
+  ✔ commits effect, replay key, and material audit atomically and rolls all back on audit failure (42.726333ms)
+✔ Q10 salary exclusion route validation (156.284708ms)
+✔ Q15 salary period close and reopen require three distinct actors before the period state changes (129.08075ms)
+✔ Q11 post-close issue/adjustment flow and Q20 readiness regression stay green (74.812917ms)
+▶ Q15 salary-period governed routes
+  ✔ replays close and reopen governance decisions exactly once at the HTTP boundary (124.650792ms)
+  ✔ replays salary-period adjustment request/check/approve and rejects stale source versions (29.081ms)
+[ERROR] POST /api/salary/periods/6771-03/adjustments: Error: Failed query: insert into "idempotency_keys" ("id", "endpoint", "idempotency_key", "entity_type", "entity_id", "payload_hash", "response_status_code", "response_snapshot", "created_by", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, default)
+params: salary-periods.adjustments.request,q23-adjustment-fail-6771-03,salary_period_adjustment,651,e3cc878d628b769a654b1dfbaf8f45e64f32fcf583a8f6c9e1b2aa2020017f76,200,{"adjustmentId":651,"sourcePeriod":"6771-03","targetPeriod":"6771-04","driverId":33518,"amount":275000,"reason":"Q23 adjustment rollback 1792374989951-7v424a","approvedBy":109086,"approvedAt":"2026-10-19T01:56:30.160Z"},109086
+    at PostgresJsPreparedQuery.queryWithCache (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:461:7)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/routes/salary.ts:333:32)
+[ERROR] cause: PostgresError: q15 simulated idempotency insert failure
+    at ErrorResponse (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:815:30)
+    at handle (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:489:6)
+    at Socket.data (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:324:9)
+    at Socket.emit (node:events:508:20)
+    at addChunk (node:internal/streams/readable:564:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:515:3)
+    at Readable.push (node:internal/streams/readable:395:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: 'P0001',
+  where: 'PL/pgSQL function q15_fail_idempotency_insert_1792374989951_7v424a_1() line 3 at RAISE',
+  file: 'pl_exec.c',
+  line: '3897',
+  routine: 'exec_stmt_raise'
+}
+  ✔ salary-period adjustment request rolls back when idempotency persistence fails after the business callback (16.65325ms)
+  ✔ applies salary issue and official posting immediately with exact replay (phê duyệt removed) (29.171125ms)
+  ✔ salary confirmation applies immediately at the request (phê duyệt removed) (20.319208ms)
+[ERROR] POST /api/salary/periods/6751-11/issue: Error: Failed query: insert into "idempotency_keys" ("id", "endpoint", "idempotency_key", "entity_type", "entity_id", "payload_hash", "response_status_code", "response_snapshot", "created_by", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, default)
+params: salary-periods.issue,q23-salary-fail-6751-11,salary_period,-9,6157a62a024a40cc9e5a680738ab6493110d0776eeff13b68ed86e4002143e7b,201,{"id":-9,"version":2,"createdAt":"2026-10-19T01:56:30.221Z","updatedAt":"2026-10-19T01:56:30.221Z","status":"APPROVED","subjectId":null,"subjectKey":"6751-11","reason":"Đề nghị phát hành phiếu lương kỳ 6751-11","originalVersion":1,"originalPeriodLockId":null,"beforeSnapshot":{"period":"6751-11","payslipIssuedAt":null,"officialPostedAt":null},"afterSnapshot":{"operation":"ISSUE_PAYSLIPS","period":"6751-11","note":null},"deltaSnapshot":null,"checkerId":null,"checkerRole":null,"checkedAt":null,"approverId":109094,"approverRole":"MANAGER","approvedAt":"2026-10-19T01:56:30.221Z","appliedAt":"2026-10-19T01:56:30.221Z","ledgerEntryId":null,"applicationResult":{"operation":"ISSUE_PAYSLIPS","period":"6751-11","closeId":1582,"resultingVersion":2},"returnedBy":null,"returnedRole":null,"returnedAt":null,"returnReason":null,"rejectedBy":null,"rejectedRole":null,"rejectedAt":null,"rejectionReason":null,"canceledBy":null,"canceledRole":null,"canceledAt":null,"cancelReason":null,"subjectType":"SALARY_PERIOD","actionKind":"SALARY_PERIOD_CLOSE","makerId":109094,"makerRole":"MANAGER"},109094
+    at PostgresJsPreparedQuery.queryWithCache (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:461:7)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/routes/salary.ts:237:44)
+[ERROR] cause: PostgresError: q15 simulated idempotency insert failure
+    at ErrorResponse (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:815:30)
+    at handle (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:489:6)
+    at Socket.data (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:324:9)
+    at Socket.emit (node:events:508:20)
+    at addChunk (node:internal/streams/readable:564:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:515:3)
+    at Readable.push (node:internal/streams/readable:395:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: 'P0001',
+  where: 'PL/pgSQL function q15_fail_idempotency_insert_1792374989951_7v424a_2() line 3 at RAISE',
+  file: 'pl_exec.c',
+  line: '3897',
+  routine: 'exec_stmt_raise'
+}
+  ✔ salary issue rolls back when idempotency persistence fails after the business callback (8.937291ms)
+✔ Q15 salary-period governed routes (270.990709ms)
+▶ báo giá xlsx import/export round-trip (card 20260922_57)
+  ✔ preview maps labels and matches catalog + route (74.807041ms)
+  ✔ commit creates a NEW quotation with derived km + converted base prices (99.817833ms)
+  ✔ re-upload creates a second frame — never overwrites (ruling 6) (68.699458ms)
+  ✔ export round-trips the layout and figures (10.99875ms)
+  ✔ unmatched factory aborts the sheet — no partial write (39.259ms)
+  ✔ commit keeps digit-leading dotted codes whole — no pre-split before normForBase (D2) (62.519625ms)
+✔ báo giá xlsx import/export round-trip (card 20260922_57) (356.669417ms)
+▶ vat-config cache shape (card 081026104400-511)
+  ✔ a warm cache hit serializes like the cold path — never 500 (12.497375ms)
+  ✔ a save evicts the cache — the next read shows the new rate (27.27625ms)
+✔ vat-config cache shape (card 081026104400-511) (76.244125ms)
+▶ vat-config singleton route
+  ✔ returns null while unconfigured (UI offers the 8% default) (10.615584ms)
+  ✔ survives a warm cache read (the timestamps come back as strings, not Dates) (32.558459ms)
+  ✔ rejects a missing Idempotency-Key on PUT (1.099542ms)
+  ✔ rejects a rate outside the policy whitelist (0.9415ms)
+  ✔ saves the configured rate, persists it, and replays the same key (14.837334ms)
+  ✔ blocks a concurrent overwrite with a stale optimistic-lock token (6.237292ms)
+  ✔ role outside the config governance policy is forbidden (3.906959ms)
+✔ vat-config singleton route (116.567ms)
+▶ vat-config fallback in billing drafts
+  ✔ uses the configured rate for a fee with no rate of its own (32.851041ms)
+  ✔ unconfigured singleton falls back to the shared 8% default (14.92425ms)
+  ✔ an explicit forwarder-expense-type rate wins over the configured rate (13.267292ms)
+  ✔ an explicit trip rate wins over the configured rate (12.319916ms)
+✔ vat-config fallback in billing drafts (73.582625ms)
+ℹ tests 45
+ℹ suites 9
+ℹ pass 45
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 72624.965417
+EXIT=0

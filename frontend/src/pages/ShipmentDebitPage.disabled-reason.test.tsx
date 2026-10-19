@@ -153,12 +153,21 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     expect(button).not.toHaveAttribute('aria-describedby');
     fireEvent.click(button);
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
-    expect(createBatch).toHaveBeenCalledWith([101], 'debit-note-101');
+    // Card 191026160000 §2e moved the idempotency-key derivation INSIDE the
+    // client (selectionKeyOf, pinned by src/api/shipmentDebit.key.test.ts), so
+    // the page issues exactly the selected locked ids — and no second arg.
+    expect(createBatch).toHaveBeenCalledWith([101]);
   });
 
   it('Xóa lọc explains the empty-filters disable and clears when a filter is active', () => {
     const onClear = vi.fn();
     const base = {
+      // Owner 2026-10-17: the customer picker rides the strip but stays OUT of
+      // the strip's own filter logic — `Xóa lọc` still owns from/to/lock only
+      // (layout move, not a filter-semantics change).
+      customerValue: '',
+      customerOptions: [],
+      onCustomerChange: vi.fn(),
       onLockChange: vi.fn(),
       onDeliveryRangeChange: vi.fn(),
       onResetSecondary: vi.fn(),

@@ -1,6 +1,10 @@
 import type { KeyboardEvent } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { UuiSelectField } from '../../../design-system';
 import { BufferedUuiDateTimeInput } from '../../../design-system/forms/BufferedUuiDateTimeInput';
+// Card 191026100000 (chungtu-dieuvan A.6): the shared ISO 6346 pre-check —
+// the same warning + one-tap correction the trip container card shows.
+import { checkContainerNumber } from '../../../components/trip/container-instance-helpers';
 
 /** The four fields the container-add API accepts; one add-row draft. */
 export interface AddContainerFields {
@@ -59,6 +63,13 @@ export function CusContainerAddRow({
     onSubmit();
   };
 
+  // Card 191026100000 (chungtu-dieuvan A.6): the strict ISO 6346 gate stays
+  // the server's call, but a failing number is almost always one mistyped
+  // digit — surface the live warning and the closest valid number BEFORE the
+  // submit, so "thêm cont → vẫn lỗi" ends at a one-tap fix instead of a
+  // dead-end 400. Informational only: Enter/Thêm still ride the server.
+  const numberHint = checkContainerNumber(fields.containerNumber);
+
   return (
     <tr className="cus-container-ledger__add-row" onKeyDown={submitOnEnter}>
       <th scope="row" data-label="Container" className="cus-container-cell cus-container-cell--identity">
@@ -70,6 +81,21 @@ export function CusContainerAddRow({
           autoFocus
           maxLength={50}
         />
+        {numberHint.warning && (
+          <div className="cus-container-ledger__add-hint" role="note">
+            <AlertTriangle size={14} aria-hidden="true" />
+            <span>{numberHint.warning}</span>
+            {numberHint.suggestion && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => onChange({ containerNumber: numberHint.suggestion! })}
+              >
+                Đổi thành {numberHint.suggestion}
+              </button>
+            )}
+          </div>
+        )}
       </th>
       <td data-label="Loại cont" className="cus-container-cell">
         <UuiSelectField

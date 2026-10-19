@@ -23,6 +23,7 @@ const EMPTY_FILTERS = {
   deliveryDateTo: '',
   portIds: [],
   carrierKeys: [],
+  cargoMode: '' as const,
 };
 
 const NFD_PORT_LABEL = 'Ca\u0309ng Hải Phòng';

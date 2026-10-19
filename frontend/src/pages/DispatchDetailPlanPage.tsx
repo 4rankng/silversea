@@ -1,13 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
 import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
-import { AssignTruckGroupDialog } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
+import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
+import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclGroupTruckEditDialog';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
-import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
+import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
+import type { LclUnmergeLotRequest } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
+import { useToast } from '../components/shared/Toast';
 import { billBookingReference } from '../lib/business-reference';
 import { formatVolumeCbm, formatWeight } from '../lib/format';
 import './DispatchPlanPage.css';
@@ -18,8 +21,19 @@ import './DispatchPlanPage.css';
  * /dispatch (Kế hoạch Tổng quát). The dispatcher filters/sorts by run hour and
  * drop-off point to bundle trips, then assigns license plates per container.
  */
+/** FB-095 — the SPEC §4 safety guard copy: a principal leaving hands Lô-1
+ *  rights and 100% of the money to the next member; a non-principal leaving
+ *  keeps the money where it is. */
+function unmergeLotConfirmMessage(request: LclUnmergeLotRequest): string {
+  const dissolve = request.memberCount === 2 ? ' Nhóm giải tán vì chỉ còn một lô.' : '';
+  return request.order === 1
+    ? `Hủy ghép nhóm ${request.memberCount ?? '?'} lô? Lô 2 sẽ thành Lô chính và nhận 100% tiền cước trả ĐV.${dissolve}`
+    : `Hủy ghép lô này khỏi nhóm ${request.memberCount ?? '?'} lô? Lô 1 giữ nguyên 100% tiền cước trả ĐV; lô này trở về cước trả ĐV riêng.${dissolve}`;
+}
+
 export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
+  const { toast } = useToast();
   const [reassignTripId, setReassignTripId] = useState<number | null>(null);
   // Ghép chuyến (LoHangKepKetHop §3.1): the row whose trip anchors the pair;
   // null keeps the dialog closed. Candidates are the loaded unpaired OWN
@@ -39,6 +53,41 @@ export default function DispatchDetailPlanPage() {
   // new group; rows already in one are refused until un-merged (FB-095).
   const [selectedLclRows, setSelectedLclRows] = useState<DispatchDetailPlanRow[]>([]);
   const [truckGroupOpen, setTruckGroupOpen] = useState(false);
+  // SPEC 18/10/2026 §4 — Tách nhóm: the COST group id awaiting confirmation.
+  const [unmergeGroupId, setUnmergeGroupId] = useState<string | null>(null);
+  const [unmergingGroup, setUnmergingGroup] = useState(false);
+  // FB-095 (card 181026145610) — Hủy ghép for ONE lot leaving its group; the
+  // guard copy names the SPEC §4 promotion before the server moves the money.
+  const [unmergeLot, setUnmergeLot] = useState<LclUnmergeLotRequest | null>(null);
+  const [unmergingLot, setUnmergingLot] = useState(false);
+  // Card 191026100010 (DV-B1-03/04) — "Đổi BKS nhóm": page sở hữu dialog +
+  // refetch (cùng luật wiring của Hủy ghép / Gán xe nhóm); hai affordance
+  // (menu nhóm trên grid + dòng nhóm trong popup điều phối) cùng raise dòng.
+  const [groupTruckRow, setGroupTruckRow] = useState<DispatchDetailPlanRow | null>(null);
+  // Card _171026133000: the group popup unmounts on close, so its loại xe /
+  // nhà xe picks are held here and survive a "Hủy" + reopen inside one
+  // selection session. Cleared with the selection itself, below.
+  const [groupDraft, setGroupDraft] = useState<{ vehicleClassId: string; carrierKey: string }>({
+    vehicleClassId: '',
+    carrierKey: '',
+  });
+
+  useEffect(() => {
+    if (selectedLclRows.length > 0) return;
+    setGroupDraft((current) => (
+      current.vehicleClassId || current.carrierKey
+        ? { vehicleClassId: '', carrierKey: '' }
+        : current
+    ));
+  }, [selectedLclRows.length]);
+
+  function handleGroupDraftChange(draft: { vehicleClassId: string; carrierKey: string }) {
+    setGroupDraft((current) => (
+      current.vehicleClassId === draft.vehicleClassId && current.carrierKey === draft.carrierKey
+        ? current
+        : draft
+    ));
+  }
   const selectedIds = useMemo(
     () => new Set(selectedLclRows.map((row) => row.shipmentId)),
     [selectedLclRows],
@@ -75,6 +124,46 @@ export default function DispatchDetailPlanPage() {
       setCompletingRow(null);
     } finally {
       setCompleting(false);
+    }
+  }
+
+  async function confirmUnmergeGroup() {
+    if (unmergeGroupId == null) return;
+    setUnmergingGroup(true);
+    try {
+      const result = await unmergeLclGroup({ groupId: unmergeGroupId, dimension: 'COST' });
+      toast({
+        kind: 'success',
+        message: `Đã tách nhóm ${result.memberCount} lô — mỗi lô trở về cước trả ĐV độc lập`,
+      });
+      setUnmergeGroupId(null);
+      void detailPlan.refresh();
+    } catch (err) {
+      toast({ kind: 'error', message: err instanceof Error ? err.message : 'Tách nhóm thất bại' });
+    } finally {
+      setUnmergingGroup(false);
+    }
+  }
+
+  async function confirmUnmergeLot() {
+    if (!unmergeLot) return;
+    setUnmergingLot(true);
+    try {
+      const result = await unmergeLclLot({ shipmentId: unmergeLot.shipmentId, dimension: 'COST' });
+      toast({
+        kind: 'success',
+        message: result.promoted
+          ? `Đã hủy ghép — Bill ${result.promoted.reference} nhận 100% cước trả ĐV${result.dissolved ? ' — nhóm giải tán' : ''}`
+          : result.dissolved
+            ? 'Đã hủy ghép — nhóm giải tán'
+            : `Đã hủy ghép — lô rời nhóm, còn ${result.remaining.length} lô trong nhóm`,
+      });
+      setUnmergeLot(null);
+      void detailPlan.refresh();
+    } catch (err) {
+      toast({ kind: 'error', message: err instanceof Error ? err.message : 'Hủy ghép thất bại' });
+    } finally {
+      setUnmergingLot(false);
     }
   }
 
@@ -116,6 +205,10 @@ export default function DispatchDetailPlanPage() {
           onAutoOpenConsumed={detailPlan.consumeAutoOpen}
           selectedLclShipmentIds={selectedIds}
           onToggleLclSelection={toggleLclSelection}
+          onUnmergeLclGroup={setUnmergeGroupId}
+          onUnmergeLclLot={setUnmergeLot}
+          onLclTruckUpdated={() => { void detailPlan.refresh(); }}
+          onChangeGroupTruck={setGroupTruckRow}
         />
         {selectedLclRows.length > 0 && (
           <div className="lcl-selection-bar" role="status">
@@ -134,15 +227,30 @@ export default function DispatchDetailPlanPage() {
             >
               Bỏ chọn
             </button>
+            {/* Card 171026154000 (C): the reason rides the aria-described +
+                aria-disabled pattern (DisabledActionTip's contract) with the
+                description as REAL text beside the action — the owner asked
+                for chữ, not another tooltip bubble. The handler guards the
+                same condition the text names; the button never goes natively
+                `disabled` (unfocusable = unreachable explanation). */}
             <button
               type="button"
               className="lcl-selection-bar__assign"
-              disabled={selectedLclRows.length < 2}
-              title={selectedLclRows.length < 2 ? 'Nhóm ghép cần ít nhất 2 lô' : 'Gán xe nhóm trả ĐV'}
-              onClick={() => setTruckGroupOpen(true)}
+              aria-disabled={selectedLclRows.length < 2 || undefined}
+              aria-describedby={selectedLclRows.length < 2 ? 'lcl-group-assign-reason' : undefined}
+              title="Gán xe nhóm trả ĐV"
+              onClick={() => {
+                if (selectedLclRows.length < 2) return;
+                setTruckGroupOpen(true);
+              }}
             >
               Gán xe nhóm
             </button>
+            {selectedLclRows.length < 2 && (
+              <span id="lcl-group-assign-reason" className="lcl-selection-bar__hint">
+                Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ.
+              </span>
+            )}
           </div>
         )}
         {detailPlan.total > detailPlan.pageSize && (
@@ -171,7 +279,10 @@ export default function DispatchDetailPlanPage() {
 
       {truckGroupOpen && selectedLclRows.length > 0 && (
         <AssignTruckGroupDialog
-          rows={selectedLclRows}
+          rows={selectedLclRows.map(lclGroupRowFromDetail)}
+          initialVehicleClassId={groupDraft.vehicleClassId}
+          initialCarrierKey={groupDraft.carrierKey}
+          onDraftChange={handleGroupDraftChange}
           onClose={() => setTruckGroupOpen(false)}
           onAssigned={() => {
             setSelectedLclRows([]);
@@ -179,6 +290,37 @@ export default function DispatchDetailPlanPage() {
           }}
         />
       )}
+
+      {/* Card 191026100010 (DV-B1-03/04) — "Đổi BKS nhóm": updateLclTruck
+          (FB-093) lan BKS thực cả nhóm + BKS ảo lô nêu tên; refetch mang về
+          grid BKS mới trên mọi thành viên. */}
+      {groupTruckRow && (
+        <LclGroupTruckEditDialog
+          row={groupTruckRow}
+          onClose={() => setGroupTruckRow(null)}
+          onSaved={() => {
+            void detailPlan.refresh();
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={unmergeGroupId != null}
+        message="Tách nhóm ghép trả ĐV? Mỗi lô trở về cước trả ĐV độc lập — tiền cước 100% của Lô 1 vẫn giữ nguyên trên Lô 1, các lô còn lại chờ định giá lại khi ghép nhóm mới."
+        confirmLabel={unmergingGroup ? 'Đang tách…' : 'Tách nhóm'}
+        onConfirm={() => void confirmUnmergeGroup()}
+        onCancel={() => { if (!unmergingGroup) setUnmergeGroupId(null); }}
+      />
+
+      {/* FB-095 — one lot leaves its group; the guard names the promotion
+          before the server transfers the money (SPEC §4). */}
+      <ConfirmDialog
+        isOpen={unmergeLot != null}
+        message={unmergeLot ? unmergeLotConfirmMessage(unmergeLot) : ''}
+        confirmLabel={unmergingLot ? 'Đang hủy…' : 'Hủy ghép'}
+        onConfirm={() => void confirmUnmergeLot()}
+        onCancel={() => { if (!unmergingLot) setUnmergeLot(null); }}
+      />
 
       <ConfirmDialog
         isOpen={completingRow != null}

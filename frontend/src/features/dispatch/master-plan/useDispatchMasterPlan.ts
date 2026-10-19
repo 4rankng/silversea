@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ShipmentStatus } from '@tingting/shared';
+import { isLclLotRow } from './lclLot';
 import {
   listShipments,
   type ShipmentAllocationFilter,
@@ -24,6 +25,12 @@ export interface MasterPlanFilters {
   deliveryDateTo: string;
   portIds: number[];
   carrierKeys: string[];
+  /** Card 171026154000: Loại hàng scope ('' = Tất cả). Server-side active-LCL-
+   *  fulfillment filter (`buildDispatchCargoScopePredicate`) so the Hàng lẻ
+   *  pick reaches across every page; the hook additionally narrows the loaded
+   *  rows through `isLclLotRow` — the same predicate the CHỌN LÔ checkbox
+   *  renders — so the pick, the chip and the checkboxes agree by construction. */
+  cargoMode: 'FCL' | 'LCL' | '';
 }
 
 export const EMPTY_MASTER_PLAN_FILTERS: MasterPlanFilters = {
@@ -34,6 +41,7 @@ export const EMPTY_MASTER_PLAN_FILTERS: MasterPlanFilters = {
   deliveryDateTo: '',
   portIds: [],
   carrierKeys: [],
+  cargoMode: '',
 };
 
 /** Shared list query for the master-plan board: the operational status range
@@ -66,6 +74,7 @@ export function masterPlanListParams(
     ...(filters.deliveryDateTo ? { deliveryDateTo: filters.deliveryDateTo } : {}),
     ...(filters.portIds.length > 0 ? { portIds: filters.portIds } : {}),
     ...(filters.carrierKeys.length > 0 ? { carrierKeys: filters.carrierKeys } : {}),
+    ...(filters.cargoMode ? { cargoMode: filters.cargoMode } : {}),
     ...(includeDispatchSummary ? { includeDispatchSummary: true } : {}),
   };
 }
@@ -130,6 +139,7 @@ export function useDispatchMasterPlan() {
     const viewSignature = JSON.stringify([
       page, debouncedQ, filters.tradeDirection, filters.allocationStatus,
       filters.deliveryDateFrom, filters.deliveryDateTo, filters.portIds, filters.carrierKeys,
+      filters.cargoMode,
     ]);
     // Keep inline note drafts and open note dialogs mounted on periodic
     // refresh. Only an explicit change of the viewed rows needs a skeleton.
@@ -148,6 +158,7 @@ export function useDispatchMasterPlan() {
       deliveryDateTo: filters.deliveryDateTo,
       portIds: filters.portIds,
       carrierKeys: filters.carrierKeys,
+      cargoMode: filters.cargoMode,
     }, page, PAGE_SIZE, true))
       .then((response) => {
         if (requestIdRef.current !== requestId) return;
@@ -161,7 +172,7 @@ export function useDispatchMasterPlan() {
         setError('Không thể tải danh sách lô hàng. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [page, debouncedQ, filters.tradeDirection, filters.allocationStatus, filters.deliveryDateFrom, filters.deliveryDateTo, filters.portIds, filters.carrierKeys, refreshKey]);
+  }, [page, debouncedQ, filters.tradeDirection, filters.allocationStatus, filters.deliveryDateFrom, filters.deliveryDateTo, filters.portIds, filters.carrierKeys, filters.cargoMode, refreshKey]);
 
   const updateFilters = useCallback((patch: Partial<MasterPlanFilters>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -190,12 +201,26 @@ export function useDispatchMasterPlan() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Card 171026154000 (master-plan Loại hàng): the pick is ALSO sent to the
+  // API (masterPlanListParams → buildDispatchCargoScopePredicate) so Hàng lẻ
+  // reaches across every page. This local pass re-narrows the loaded rows
+  // through `isLclLotRow` — the exact predicate the CHỌN LÔ checkbox renders
+  // and the Sản lượng "Lẻ: N lô" count projects per row — so a pick can never
+  // strand a checkbox row or hide one the header counted, even on a payload
+  // fetched between the filter write and the server's scope switch.
+  const visibleItems = useMemo(
+    () => (filters.cargoMode === ''
+      ? items
+      : items.filter((item) => isLclLotRow(item) === (filters.cargoMode === 'LCL'))),
+    [items, filters.cargoMode],
+  );
+
   return {
     filters,
     updateFilters,
     page,
     setPage,
-    items,
+    items: visibleItems,
     total,
     totalPages,
     loading,

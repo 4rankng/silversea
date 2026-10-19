@@ -1,0 +1,52 @@
+/* Card 191026100010 (B.1) — "Đổi BKS nhóm" dialog + dòng nhóm compact trong
+   popup Chỉnh sửa điều phối. */
+.lcl-group-truck-dialog {
+  display: grid;
+  gap: 12px;
+}
+
+.lcl-group-truck-dialog__error {
+  margin: 0 0 10px;
+  color: var(--danger, #b3261e);
+  font-size: var(--text-label-size);
+}
+
+.lcl-group-truck-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color-secondary, var(--line));
+  border-radius: 8px;
+  background: var(--surface-2, transparent);
+}
+
+.lcl-group-truck-line__text {
+  min-width: 0;
+  color: var(--fg-2);
+  font-size: var(--text-label-size);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* FB-066 — the "BKS thực" field head row carries the quick-add affordance
+   (same accent borderless pattern as the dispatch editor's vehicle head). */
+.lcl-group-truck-dialog__vehicle {
+  display: grid;
+  gap: 4px;
+}
+
+.lcl-group-truck-dialog__vehicle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lcl-group-truck-dialog__label {
+  font-size: var(--text-label-size);
+  font-weight: 500;
+  color: var(--fg-2);
+}

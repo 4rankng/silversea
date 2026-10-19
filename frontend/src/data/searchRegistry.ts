@@ -179,6 +179,12 @@ export function getSearchItems(role: string, capabilities: readonly string[] = [
       return CUS_ITEMS;
     case 'FORWARDER':
       return FORWARDER_ITEMS;
+    // FB-033 (111026164510): OPS drives the same /my-orders surface as FORWARDER
+    // (and owns the 'Khai chi phí' expense dialog), so it mirrors the forwarder
+    // palette. Without this case OPS fell through to `default` and the palette
+    // came up empty for the whole role.
+    case 'OPS':
+      return FORWARDER_ITEMS;
     default:
       return [];
   }

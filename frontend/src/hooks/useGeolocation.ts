@@ -155,8 +155,7 @@ export function useGeolocation(options: UseGeolocationOptions = {}): UseGeolocat
     startWatch();
     return () => { stopWatch(); };
     // epoch is the retry knob — include it so retry() restarts cleanly.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, epoch]);
+  }, [enabled, epoch, startWatch, stopWatch, rejectAwaiters]);
 
   // Freshness-expiry: flip isSubmitReady the instant the retained sample's
   // 15s trust window lapses (and re-arm the watch so a new fix is acquired).

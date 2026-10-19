@@ -1,0 +1,19 @@
+/* FB-066 — the "BKS thực" field head row carries the quick-add affordance
+   (same accent borderless pattern as the dispatch editor's vehicle head). */
+.assign-truck-group__vehicle {
+  display: grid;
+  gap: 4px;
+}
+
+.assign-truck-group__vehicle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.assign-truck-group__label {
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-medium, 500);
+  color: var(--ink-2);
+}

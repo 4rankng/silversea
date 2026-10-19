@@ -332,8 +332,11 @@ export default function AccountingInvoiceTrackingPage() {
           neutral gated hover, and the container-query record cards below
           1100px of container width. The page declares no table skin, no column
           floor, no breakpoint and no scroll wrapper — the base's own
-          `overflow-wrap: anywhere` on every cell is what keeps 14 columns
-          inside the desktop canvas instead of forcing a horizontal scroll. */}
+          `overflow-wrap: anywhere` on data cells keeps 14 columns inside the
+          desktop canvas instead of forcing a horizontal scroll, while the
+          header's one-line law (FB-063, card 181026021137 — nowrap + 8px
+          gutter in this page's thead rule) floors each column at its label
+          width so no header label wraps into multiple lines. */}
       {query.isPending && <SkeletonTable rows={8} cols={7} />}
 
       {!query.isPending && query.isError && (

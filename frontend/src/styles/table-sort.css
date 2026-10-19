@@ -18,13 +18,13 @@
   text-transform: inherit;
   color: inherit;
   cursor: pointer;
-  /* Header cells break words freely (record-table's overflow-wrap: anywhere
-     is right for the label text), but the sort button must never split a
-     single word mid-token ("CONTANE R"). Multi-word labels still wrap at
-     spaces; an oversized single word overflows visibly instead of chopping. */
+  /* FB-063 (card 181026021137, R17 standard): column headers are ALWAYS one
+     line — the sort button must not wrap at spaces either ("TỔNG ĐI / ĐƯỜNG"
+     regression on /trips, "HÌNH THỨC LƯƠNG" 3-line on /timesheet). An
+     oversized single word overflows visibly instead of chopping mid-token. */
   overflow-wrap: normal;
   word-break: normal;
-  white-space: normal;
+  white-space: nowrap;
   /* Card 20260922_26: the button measured 14.8px tall (text line only) — below
      the WCAG 2.2 Target Size (Minimum) 24x24. min-height lifts the hit area to
      24px while the matching negative block margin keeps the th's layout height

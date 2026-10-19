@@ -126,9 +126,8 @@
   min-height: 32px;
 }
 
-.ops-doc-state.is-debt {
-  color: var(--err);
-}
+/* Card 191026160000 — the debt variant is gone: photo evidence is optional
+   (paper invoices reach the accountant), so no red "Nợ chứng từ" state. */
 
 .ops-reject-reason {
   color: var(--fg-3);

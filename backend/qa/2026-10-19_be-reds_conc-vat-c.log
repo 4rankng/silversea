@@ -1,0 +1,24 @@
+▶ vat-config singleton route
+  ✔ returns null while unconfigured (UI offers the 8% default) (27.259167ms)
+  ✔ survives a warm cache read (the timestamps come back as strings, not Dates) (45.454958ms)
+  ✔ rejects a missing Idempotency-Key on PUT (4.05ms)
+  ✔ rejects a rate outside the policy whitelist (17.752125ms)
+  ✔ saves the configured rate, persists it, and replays the same key (65.42ms)
+  ✔ blocks a concurrent overwrite with a stale optimistic-lock token (15.628375ms)
+  ✔ role outside the config governance policy is forbidden (15.839042ms)
+✔ vat-config singleton route (277.863333ms)
+▶ vat-config fallback in billing drafts
+  ✔ uses the configured rate for a fee with no rate of its own (73.097083ms)
+  ✔ unconfigured singleton falls back to the shared 8% default (27.800959ms)
+  ✔ an explicit forwarder-expense-type rate wins over the configured rate (39.8375ms)
+  ✔ an explicit trip rate wins over the configured rate (35.203125ms)
+✔ vat-config fallback in billing drafts (176.325709ms)
+ℹ tests 11
+ℹ suites 2
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3968.111167
+C_EXIT=0

@@ -24,8 +24,18 @@ export const assignLclCostGroupSchema = z.object({
   vehicleSizeClassId: z.number().int().positive(),
   /** BKS thực (what runs the lane). Truck-tonnage classes must stay vendor. */
   actualTruckNo: truckNo,
-  /** BKS báo khách ("xe ảo"). Omitted ⇒ server copies actualTruckNo. */
+  /** BKS báo khách ("xe ảo") dùng chung cả nhóm. Omitted ⇒ server copies
+   *  actualTruckNo. Per-lot overrides ride `billingTruckNos`. */
   billingTruckNo: truckNo.optional(),
+  /**
+   * SPEC 18/10/2026 §2.3 — "cho phép điều vận sửa lại [BKS báo khách] cho
+   * từng lô trong nhóm": the group default above, overridden per member here.
+   * Entries must name lots inside `shipmentIds` and win over `billingTruckNo`.
+   */
+  billingTruckNos: z.array(z.object({
+    shipmentId: z.number().int().positive(),
+    billingTruckNo: truckNo,
+  })).max(200).optional(),
   /**
    * 161026232309 — the nhà xe (Xe ngoài) the group's truck belongs to:
    * a customers.id flagged isCarrier (the row every "Chọn nhà xe" dropdown

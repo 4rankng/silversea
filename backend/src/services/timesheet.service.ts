@@ -158,6 +158,9 @@ export async function listTimesheetDrivers(year: number, month: number) {
     // Biển kiểm soát của xe đang gán cho lái xe.
     plateNumber: s.trucks.licensePlate,
     vehicleClass: s.trucks.vehicleClass,
+    // FB-103 (ticket 171026215600) — chế độ mặc định ở mức lái xe: khởi tạo
+    // modal "Mở bảng chấm công" khi tháng chưa có (monthId/salaryMode null).
+    defaultSalaryMode: s.drivers.salaryMode,
   }).from(s.drivers)
     .leftJoin(s.trucks, and(eq(s.trucks.id, s.drivers.assignedTruckId), isNull(s.trucks.deletedAt)))
     .where(isNull(s.drivers.deletedAt))
@@ -275,13 +278,19 @@ export async function createTimesheetMonth(actor: TimesheetActor, input: {
   dailyBase?: number | null; flatAmount?: number | null;
 }) {
   assertPeriod(input.year, input.month);
-  const salaryMode = input.salaryMode ?? 'PER_TRIP';
+  const [driver] = await db.select({ id: s.drivers.id, salaryMode: s.drivers.salaryMode }).from(s.drivers)
+    .where(and(eq(s.drivers.id, input.driverId), isNull(s.drivers.deletedAt))).limit(1);
+  if (!driver) throw new ApiError(404, 'Không tìm thấy lái xe.');
+  // FB-103 (ticket 171026215600) — khi Kế toán không chọn, bảng mới lấy chế
+  // độ của chính lái xe (đặt qua dialog "Sửa lương cứng" / dialog sửa lái
+  // xe), không còn ép PER_TRIP cho lái xe lương tháng. Cột varchar + check
+  // constraint; thu hẹp kiểu tường minh thay vì tin giá trị DB thô.
+  const driverMode: TimesheetSalaryMode =
+    driver.salaryMode === 'FLAT_MONTHLY' ? 'FLAT_MONTHLY' : 'PER_TRIP';
+  const salaryMode = input.salaryMode ?? driverMode;
   if (!TIMESHEET_SALARY_MODES.includes(salaryMode)) {
     throw new ApiError(400, 'Chế độ lương không hợp lệ.');
   }
-  const [driver] = await db.select({ id: s.drivers.id }).from(s.drivers)
-    .where(and(eq(s.drivers.id, input.driverId), isNull(s.drivers.deletedAt))).limit(1);
-  if (!driver) throw new ApiError(404, 'Không tìm thấy lái xe.');
 
   return db.transaction(async (tx) => {
     const [existing] = await tx.select().from(s.driverTimesheetMonths)

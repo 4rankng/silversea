@@ -9,19 +9,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
-  ShipmentCusContainerAddInput,
   ShipmentCusContainerFlatResponse,
   ShipmentCusContainerFlatRow,
   ShipmentCusContainerSortKey,
   ShipmentCusWorkspaceContainerLine,
 } from '@tingting/shared';
 import {
-  addCusShipmentContainerRow,
   copyCusShipmentContainerAppointment,
   copyCusShipmentContainerDeclaration,
   getCusShipmentWorkspaceDetail,
   listCusShipmentContainers,
-  removeCusShipmentContainerRow,
   updateCusShipmentContainerLine,
   updateShipment,
 } from '../../../api/shipmentClient';
@@ -39,8 +36,8 @@ import {
   type ShipmentRouteDraft,
   type ShipmentScheduleDraft,
   type ShipmentVehicleDraft,
-  type ShipmentDetailEditMode,
 } from '../detail/ShipmentContainerLedger';
+import type { ShipmentDetailEditMode } from '../detail/edit-mode';
 import { canEditMode, isOptimisticShipmentConflict, type DispatchStatusFilter } from './cusDetailModel';
 import { safeError } from './cusUtils';
 
@@ -268,24 +265,13 @@ export function useCusDetail(params: CusDetailListParams) {
       || (draft.shippingLineName ?? '') !== (raw.shippingLineName ?? '');
     const numberChanged = (draft.declarationNumber ?? '') !== (activeEdit.line.declarationNumber ?? '').trim();
     if (!shipmentChanged && !numberChanged) return;
-    // Tickets 141026201700 / FB-085 / 131026200630: entering the lot's FIRST
-    // declaration auto-copies it to every still-empty sibling. "First" is a
-    // LOT state, not a row position: the saved number is non-empty, at least
-    // one OTHER container exists to receive it, and every one of those others
-    // is still empty. Without the "at least one" half a single-container lot
-    // passes `every()` vacuously and the copy would 409 ("Mọi container
-    // trong lô đã có số tờ khai.") on every first save — the same law the
-    // explicit button enforces via emptyDeclarationSiblingCount > 0. Any
-    // sibling number (or a clear) means no auto-copy — divergence stays a
-    // deliberate per-cont act, exactly like the button's never-overwrite law.
-    const enteredFirstDeclaration = numberChanged
-      && (draft.declarationNumber ?? '').trim() !== ''
-      && activeEdit.detail.containers.some((candidate) => (
-        candidate.id !== activeEdit.line.id && !(candidate.declarationNumber ?? '').trim()
-      ))
-      && activeEdit.detail.containers.every((candidate) => (
-        candidate.id === activeEdit.line.id || !(candidate.declarationNumber ?? '').trim()
-      ));
+    // Card 171026122100 (FB-109) auto-copy law (narrowing 171026180010): the
+    // container-line command itself copies a non-empty tờ khai update onto
+    // the lot's STILL-EMPTY containers in the same transaction and reports
+    // the written siblings as `declarationSync` (a filled sibling is never
+    // overwritten). No second call from the FE — the save IS the auto-copy,
+    // so it can never diverge from the persisted state.
+    let syncOutcome: ShipmentDocumentsSaveOutcome | undefined;
     const signature = JSON.stringify(['documents', row.shipmentId, activeEdit.line.id, activeEdit.detail.summary.version, draft]);
     const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
     if (numberChanged) editIdempotencyKeys.current[signature] = key;
@@ -306,42 +292,8 @@ export function useCusDetail(params: CusDetailListParams) {
           expectedShipmentVersion,
           declarationNumber: draft.declarationNumber,
         }, key);
-        if (enteredFirstDeclaration) {
-          // The number is already persisted — the auto-copy is a separate,
-          // best-effort fan-out that must never lose the save. Same ONE-call
-          // lot command the explicit button uses, on the version the line
-          // write just returned (the line command moves the lot version when
-          // it touches the row). Idempotency follows the same signature-keyed
-          // map so a retried save replays, not duplicates, the copy.
-          const copySignature = JSON.stringify(['declaration-autocopy', row.shipmentId, activeEdit.line.id, result.line.shipmentVersion]);
-          const copyKey = editIdempotencyKeys.current[copySignature] ?? crypto.randomUUID();
-          editIdempotencyKeys.current[copySignature] = copyKey;
-          try {
-            const copy = await copyCusShipmentContainerDeclaration(row.shipmentId, activeEdit.line.id, {
-              expectedShipmentVersion: result.line.shipmentVersion,
-            }, copyKey);
-            delete editIdempotencyKeys.current[copySignature];
-            // The fan-out happened; reload the rows so the copied numbers are
-            // visible and the editor closes on the fresh set, exactly like a
-            // plain save.
-            delete editIdempotencyKeys.current[signature];
-            await finishSave();
-            return { autoCopy: { kind: 'copied', written: copy.updatedContainerIds.length } };
-          } catch (copyError) {
-            delete editIdempotencyKeys.current[copySignature];
-            if (isOptimisticShipmentConflict(copyError)) {
-              delete editIdempotencyKeys.current[signature];
-              await recoverConflict(row, 'documents');
-              return { autoCopy: { kind: 'conflict' } };
-            }
-            // Non-conflict failure: the save itself succeeded, so finish it
-            // normally and report the copy failure — the explicit button
-            // remains the manual fallback.
-            const outcome: ShipmentDocumentsSaveOutcome = { autoCopy: { kind: 'failed', message: safeError(copyError, 'Không thể copy số tờ khai.') } };
-            delete editIdempotencyKeys.current[signature];
-            await finishSave();
-            return outcome;
-          }
+        if (result.declarationSync) {
+          syncOutcome = { sync: { written: result.declarationSync.updatedContainerIds.length } };
         }
       }
     } catch (error) {
@@ -352,6 +304,7 @@ export function useCusDetail(params: CusDetailListParams) {
     }
     delete editIdempotencyKeys.current[signature];
     await finishSave();
+    return syncOutcome;
   }, [activeEdit, finishSave, recoverConflict]);
 
   const saveContainer = useCallback(async (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentContainerDraft) => {
@@ -377,31 +330,9 @@ export function useCusDetail(params: CusDetailListParams) {
     await finishSave();
   }, [activeEdit, finishSave, recoverConflict]);
 
-  // Card 20260921_2 — add/remove a container row. The per-row trip guard and
-  // the optimistic-version contract live server-side; a rejection surfaces
-  // its Vietnamese message through the hook's edit error channel.
-  const addContainer = useCallback(async (shipmentId: number, payload: ShipmentCusContainerAddInput, rowId?: number) => {
-    try {
-      await addCusShipmentContainerRow(shipmentId, payload);
-    } catch (error) {
-      if (rowId != null) setEditError({ rowId, message: safeError(error, 'Không thể thêm container. Vui lòng thử lại.') });
-      throw error;
-    }
-    await finishSave();
-  }, [finishSave]);
-
-  const removeContainer = useCallback(async (row: ShipmentCusContainerFlatRow) => {
-    setEditError(null);
-    try {
-      await removeCusShipmentContainerRow(row.shipmentId, row.id, {
-        expectedShipmentVersion: row.shipmentVersion,
-      });
-    } catch (error) {
-      setEditError({ rowId: row.id, message: safeError(error, 'Không thể xóa container. Vui lòng thử lại.') });
-      throw error;
-    }
-    await finishSave();
-  }, [finishSave]);
+  // Card 20260921_2 shipped add/remove container here; card 171026182554
+  // moved the lot's container composition to the Tổng quan drawer alone, so
+  // the workboard hook no longer carries those writes.
 
   const saveVehicle = useCallback(async (line: ShipmentCusWorkspaceContainerLine, draft: ShipmentVehicleDraft) => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
@@ -545,6 +476,6 @@ export function useCusDetail(params: CusDetailListParams) {
     activeEdit, editLoadingRowId, editError, editNotice,
     startEdit, cancelEdit, saveIdentity, saveDocuments, saveContainer,
     saveRoute, saveVehicle, saveSchedule, saveNotes,
-    addContainer, removeContainer, copyAppointment, copyDeclaration,
+    copyAppointment, copyDeclaration,
   };
 }

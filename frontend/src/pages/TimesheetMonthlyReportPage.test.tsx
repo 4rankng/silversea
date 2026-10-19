@@ -54,8 +54,8 @@ const monthB: TimesheetMonth = {
 };
 
 const drivers: TimesheetDriverRow[] = [
-  { id: 1, name: 'Tài xế A', status: 'ACTIVE', plateNumber: '29H-12345', vehicleClass: 'Đầu kéo', monthId: 1, salaryMode: 'PER_TRIP', monthStatus: 'OPEN' },
-  { id: 2, name: 'Tài xế B', status: 'ACTIVE', plateNumber: '30K-67890', vehicleClass: 'Xe tải', monthId: 2, salaryMode: 'FLAT_MONTHLY', monthStatus: 'OPEN' },
+  { id: 1, name: 'Tài xế A', status: 'ACTIVE', plateNumber: '29H-12345', vehicleClass: 'Đầu kéo', monthId: 1, salaryMode: 'PER_TRIP', monthStatus: 'OPEN', defaultSalaryMode: 'PER_TRIP' },
+  { id: 2, name: 'Tài xế B', status: 'ACTIVE', plateNumber: '30K-67890', vehicleClass: 'Xe tải', monthId: 2, salaryMode: 'FLAT_MONTHLY', monthStatus: 'OPEN', defaultSalaryMode: 'FLAT_MONTHLY' },
 ];
 
 function page() {

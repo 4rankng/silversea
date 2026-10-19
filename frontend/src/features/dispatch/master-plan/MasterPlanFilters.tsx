@@ -7,6 +7,7 @@ import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient'
 import type { MasterPlanFilters as FilterState } from './useDispatchMasterPlan';
 import './MasterPlanGrid.css';
 import { useCoarsePointer } from '../useCoarsePointer';
+import type { FacetItem, FacetLoader } from '../facet-types';
 
 interface MasterPlanFiltersProps {
   filters: FilterState;
@@ -15,12 +16,6 @@ interface MasterPlanFiltersProps {
   action?: ReactNode;
 }
 
-export interface FacetItem {
-  id: number;
-  name: string;
-}
-
-type FacetLoader = (q?: string) => Promise<FacetItem[]>;
 
 interface CarrierFacetItem extends FacetItem {
   isActive?: boolean;
@@ -41,6 +36,17 @@ const ALLOCATION_OPTIONS: { id: ShipmentAllocationFilter | 'ALL_ALLOCATIONS'; la
   { id: 'NOT_ALLOCATED', label: 'Chờ phân xe' },
   { id: 'PENDING_CARRIER', label: 'Chờ phân nhà xe' },
   { id: 'FULLY_ALLOCATED', label: 'Đã phân xong' },
+];
+
+/** Card 171026154000 (same labels as DetailedPlanFilters): Loại hàng — the
+ *  operator's LCL scope. Labels follow the grid's own cargo vocabulary
+ *  (Cont vs Hàng lẻ) with the API value spelled out. Client-side only on
+ *  this surface: it narrows the loaded rows through `isLclLotRow`, the same
+ *  predicate the CHỌN LÔ checkbox and the "Lẻ: N lô" chip count ride. */
+const CARGO_MODE_OPTIONS: Array<{ id: FilterState['cargoMode'] | 'ALL_CARGO_MODES'; label: string }> = [
+  { id: 'ALL_CARGO_MODES', label: 'Tất cả' },
+  { id: 'FCL', label: 'Cont (FCL)' },
+  { id: 'LCL', label: 'Hàng lẻ (LCL)' },
 ];
 
 /**
@@ -228,6 +234,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   const primaryCount = [
     filters.tradeDirection !== '',
     filters.allocationStatus !== '',
+    filters.cargoMode !== '',
   ].filter(Boolean).length;
   const secondaryCount = primaryCount + [
     filters.portIds.length > 0,
@@ -239,7 +246,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
 
   const clearSecondaryFilters = (scope: FilterBarResetScope) => {
     onChange({
-      ...(scope === 'all' ? { tradeDirection: '', allocationStatus: '' } : {}),
+      ...(scope === 'all' ? { tradeDirection: '', allocationStatus: '', cargoMode: '' } : {}),
       portIds: [],
       carrierKeys: [],
       ...(rangeFieldsOnCoarsePointer
@@ -308,6 +315,20 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                 allocationStatus: key === 'ALL_ALLOCATIONS' ? '' : key as FilterState['allocationStatus'],
               })}
               items={ALLOCATION_OPTIONS}
+            />
+            {/* Card 171026154000: hàng lẻ used to hide pages deep behind FCL
+                rows — the Loại hàng scope puts the checkbox rows one pick
+                away. Client-side: narrows the loaded page through the same
+                `isLclLotRow` predicate the checkbox renders. */}
+            <InlineLabelSelect
+              id="master-plan-cargo-mode"
+              label="Loại hàng"
+              ariaLabel="Loại hàng"
+              selectedKey={filters.cargoMode || 'ALL_CARGO_MODES'}
+              onSelectionChange={(key) => onChange({
+                cargoMode: key === 'ALL_CARGO_MODES' ? '' : key as FilterState['cargoMode'],
+              })}
+              items={CARGO_MODE_OPTIONS}
             />
           </>
         ),

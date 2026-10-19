@@ -1,0 +1,12 @@
+# FB-105 [171026115800] — gate: frontend full vitest sweep
+# Command: cd frontend && pnpm exec vitest run
+# Date: 2026-10-17 (final tree, after cherry-pick ead4a68f)
+ EXIT:0
+ Test Files  654 passed (654)
+      Tests  5040 passed (5040)
+   Start at  15:57:00
+   Duration  181.38s (transform 40.87s, setup 118.42s, import 459.57s, tests 441.56s, environment 503.36s)
+
+# Note: an earlier concurrent run reported 43 failed / 4997 passed — all 5s
+# test timeouts from CPU contention with parallel gate runs; the clean rerun
+# (WIP tree and final tree) is 5040/5040.

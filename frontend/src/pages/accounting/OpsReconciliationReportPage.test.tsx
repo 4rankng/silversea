@@ -27,29 +27,29 @@ const TODAY = '2026-09-29';
 // > 0 the staff still holds unspent advance, 0 nothing left to settle.
 const rowPositive: OpsReconciliationReportRow = {
   staffId: 5, staffName: 'NV A', dntt: 250000, advanced: 100000, remaining: 150000,
-  remainingSigned: 150000, needsCollection: false,
+  remainingSigned: 150000, outstandingSigned: 150000, needsCollection: false,
   direction: 'CTY_YEU_CAU_HOAN_TRA', note: 'Công ty yêu cầu nhân viên hoàn trả tạm ứng',
 };
 const rowSettled: OpsReconciliationReportRow = {
   staffId: 6, staffName: 'NV B', dntt: 120000, advanced: 120000, remaining: 0,
-  remainingSigned: 0, needsCollection: false,
+  remainingSigned: 0, outstandingSigned: 0, needsCollection: false,
   direction: 'KHONG_CON_GI', note: 'Không còn chênh lệch',
 };
 // Số âm: ĐNTT − ĐÃ ỨNG = 300.000 − 500.000 — tiền ứng vượt chi phí và nhân
 // viên vẫn còn nắm tiền đã cấp, nên đề nghị thu tiền ứng.
 const rowCollection: OpsReconciliationReportRow = {
   staffId: 9, staffName: 'NV C', dntt: 300000, advanced: 500000, remaining: 500000,
-  remainingSigned: -200000, needsCollection: true,
+  remainingSigned: -200000, outstandingSigned: 500000, needsCollection: true,
   direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
 };
 const unscopedReport = {
   from: TODAY, to: TODAY, rows: [rowPositive, rowSettled],
-  totals: { dntt: 370000, advanced: 220000, remaining: 150000 },
+  totals: { dntt: 370000, advanced: 220000, remaining: 150000, remainingSigned: 150000 },
 };
 function scopedReport(row: OpsReconciliationReportRow, code: string) {
   return {
     from: TODAY, to: TODAY, reconciliation: { id: 7, code, from: '2026-09-28', to: TODAY },
-    rows: [row], totals: { dntt: row.dntt, advanced: row.advanced, remaining: row.remaining },
+    rows: [row], totals: { dntt: row.dntt, advanced: row.advanced, remaining: row.remaining, remainingSigned: row.remainingSigned },
   };
 }
 function mkLot(row: OpsReconciliationReportRow, remainingDifference: number): ExpenseReconciliation {
@@ -142,15 +142,15 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
   it('a row with a negative difference shows the signed amount and the collection warning', async () => {
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowCollection],
-      totals: { dntt: 300000, advanced: 500000, remaining: 500000 },
+      totals: { dntt: 300000, advanced: 500000, remaining: 500000, remainingSigned: -200000 },
     });
     page();
     await screen.findByText('NV C', { selector: 'td' });
     const row = screen.getByText('NV C', { selector: 'td' }).closest('tr')!;
-    // Số âm hiện đúng dấu trong cột có dấu.
-    expect(row.querySelector('td[data-label="Còn phải hoàn ứng (có dấu)"]')?.textContent).toBe('-200.000 ₫');
-    expect(row.querySelector('td[data-label="Còn phải hoàn ứng"] .money')?.textContent).toBe('+500.000 ₫');
-    expect(screen.getByText('Đề nghị thu tiền ứng')).toBeTruthy();
+    // Card 141026230770 — "Còn phải hoàn ứng" CHÍNH LÀ cột có dấu: âm hiện
+    // −200.000 ₫ (không ép về 0 và không cột trùng nào khác).
+    expect(row.querySelector('td[data-label="Còn phải hoàn ứng"] .money')?.textContent).toBe('−200.000 ₫');
+    expect(screen.getByText('ÂM — đề nghị thu lại tiền ứng')).toBeTruthy();
   });
 
   it('a đợt the company owes offers ONLY the phiếu chi action (AC3)', async () => {

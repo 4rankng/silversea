@@ -66,6 +66,9 @@ export interface ListDispatchDetailPlanRowsInput {
   trailerType?: string;
   /** Route of the LOT (FCL container→lot fallback), lot-first per ruling. */
   routeId?: number;
+  /** Card 171026154000: lot cargo mode (Loại hàng). Same column both branches
+   *  filter on; the displayed fulfillment cargo_mode is written 1:1 from it. */
+  cargoMode?: 'FCL' | 'LCL';
 }
 
 export function normalizeIdList(raw: readonly (number | string)[] | null | undefined, label: string): number[] | null {
@@ -237,6 +240,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       input.routeId ? sql`(case when ${s.shipmentFulfillments.cargoMode} = 'FCL'
         then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
         else ${s.shipments.routeId} end) = ${input.routeId}` : undefined,
+      // Card 171026154000: Loại hàng — the lot's own cargo mode. Riding the
+      // shared builder keeps rows, pageKeys and the chip counts consistent.
+      input.cargoMode ? eq(s.shipments.cargoMode, input.cargoMode) : undefined,
       shipmentQSearchPredicate(qPattern, { containerNumber: true }),
     );
 
@@ -267,6 +273,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       carrierClass: input.carrierClass ?? null,
       trailerType: input.trailerType ?? null,
       routeId: input.routeId ?? null,
+      cargoMode: input.cargoMode ?? null,
     };
     const rowFilters = and(filters, assignmentPredicate);
     const pageKeys = await listDetailPlanPageKeys(tx, rowFilters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
@@ -408,7 +415,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // ACCOUNTANT does not widen what the role can see.
     const opsRecoveryNotes = await loadDispatchExpenseNotes(shipmentIds, tx);
     // FB-092: the "Lẻ · Ghép (i/N)" tag needs the group's member count — one
-    // grouped count over the page's cost groups.
+    // grouped count over the page's cost groups. LIVE rows only: a
+    // soft-deleted member keeps its group id, so the §4 delete-promotion must
+    // shrink the tag's N (card 181026145000).
     const costGroupIds = [...new Set(
       pageRows.map((row) => row.costGroupId).filter((id): id is string => id != null),
     )];
@@ -416,7 +425,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       costGroupId: s.shipments.costGroupId,
       memberCount: sql<number>`count(*)`,
     }).from(s.shipments)
-      .where(inArray(s.shipments.costGroupId, costGroupIds))
+      .where(and(inArray(s.shipments.costGroupId, costGroupIds), isNull(s.shipments.deletedAt)))
       .groupBy(s.shipments.costGroupId)
       .then((rows) => rows.map((row) => [row.costGroupId!, Number(row.memberCount)] as const)));
     const carrierIds = pageRows

@@ -30,6 +30,14 @@ export interface HiddenColumnsApi {
   isHidden: (key: string) => boolean;
   /** A stored choice exists — the picker's "Mặc định" has something to restore. */
   customized: boolean;
+  /**
+   * The stored choice itself (null = never chose). Card 191026181942: a
+   * surface whose views want DIFFERENT defaults (the debit board's essential
+   * set vs the phone records' auto set) resolves the secondary view with
+   * `resolveHiddenColumns({ choice })` so one stored choice still governs
+   * both once the operator has made it.
+   */
+  choice: readonly string[] | null;
   toggle: (key: string) => void;
   reset: () => void;
 }
@@ -56,16 +64,23 @@ export function useHiddenColumns({
   storageKey,
   columns,
   hasData,
+  defaultVisible = 'auto',
 }: {
   storageKey: string;
   columns: readonly LedgerColumn[];
   /** Whether the column carries data in the RENDERED rows (drives the default). */
   hasData: (column: LedgerColumn) => boolean;
+  /**
+   * Card 191026181942: `'essential'` opens the surface on its essential set
+   * only (see `hiddenByDefault`). Omitted, every surface keeps the auto-hide
+   * default — the CUS ledgers must not change behavior.
+   */
+  defaultVisible?: 'auto' | 'essential';
 }): HiddenColumnsApi {
   // `null` = the operator never chose, so the auto default applies. Lazy init
   // reads storage once per mount; the key is stable for a surface's lifetime.
   const [choice, setChoice] = useState<string[] | null>(() => readChoice(storageKey));
-  const hidden = resolveHiddenColumns({ columns, choice, hasData });
+  const hidden = resolveHiddenColumns({ columns, choice, hasData, defaultVisible });
 
   const toggle = useCallback((key: string) => {
     // The EFFECTIVE set becomes the explicit choice, which is what keeps an
@@ -84,6 +99,7 @@ export function useHiddenColumns({
     hidden,
     isHidden: (key) => hidden.includes(key),
     customized: choice !== null,
+    choice,
     toggle,
     reset,
   };

@@ -3,7 +3,9 @@
 // "Thêm dòng theo dõi hoàn cược": 4-digit Bill lookup → suggestion → Số Bill/
 // Khách hàng/Hãng tàu autofill → Số tiền cược, Ngày cược, Ngày dự kiến hoàn,
 // Trạng thái → "Lưu dòng" (enabled only when required fields filled).
-// Fixture cleaned after (governed delete of the QA row).
+// Fixture: one QA deposit row. NOTE it cannot be deleted over the API — the
+// deposit tracker has no delete route, so the row is left QA-tagged for the
+// sanctioned registry purge (`make qapurge`, deposit_refund_trackers class).
 import {
   BASE, PIN, sleep, uuid, makeLogger, healthGate, login, api, psql, boot, tap, waitText, bodyText,
 } from './fullguide-lib.mjs';
@@ -109,17 +111,19 @@ try {
   rowId = qaRow?.id ?? null;
   step('h-side-effect', { rowId, row: qaRow ? { id: qaRow.id, bill: qaRow.billNumber ?? qaRow.bill, amount: qaRow.amount } : null });
   record('B.3', saved && (visible || qaRow) ? 'PASS' : 'FAIL',
-    `Thêm cược: dialog opened=${Boolean(dlgText)}, lookup 4 số cuối (${last4}) suggestion=${Boolean(suggestion)}, autofill fields=${autofilled?.filled}, save=${saved}, persisted row id=${rowId}`);
+    `Thêm cược: dialog opened=${Boolean(dlgText)}, Tra cứu Bill 4 số cuối (${last4}) suggestions=${JSON.stringify(suggestionTexts ?? []).slice(0, 120)} (rendered=${Boolean(suggestion)}), save=${saved}, persisted row id=${rowId}`);
 } catch (e) {
   step('driver-h-error', { error: String(e.message ?? e) });
   await page.screenshot({ path: 'qa/2026-10-16_fullguide_h_error.png', fullPage: true }).catch(() => {});
   record('B.3', 'FAIL', String(e.message ?? e));
 } finally { await browser.close(); }
 
-// cleanup — governed delete of the QA deposit row
+// cleanup — the deposit tracker has NO delete route (`accounting-deposit.ts`
+// mounts create / dates / refund only), so the QA row cannot be removed over the
+// API. Report it as registry-covered residue instead of claiming a cleanup that
+// did not happen: `make qapurge` owns the `deposit_refund_trackers` class.
 if (rowId != null) {
-  const d = await api(acct.token, 'DELETE', `/accounting/deposits/${rowId}`, { reason: 'QA cleanup fullguide B.3' });
-  step('h-cleanup', { rowId, status: d.status, body: d.text?.slice(0, 80) });
+  step('h-residue', { rowId, cleanup: 'no API delete route — sanctioned purge `make qapurge` (deposit_refund_trackers)' });
 }
 writeFileSync('qa/2026-10-16_fullguide_h-results.json', JSON.stringify({ pin: PIN, date: new Date().toISOString(), results }, null, 2));
 step('SUMMARY', results);

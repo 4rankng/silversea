@@ -208,7 +208,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
     issueInFlight.current = true;
     setIssuing(true);
     setIssueError(null);
-    const attempt = (extra: { rigOverlapCompletedConfirmed?: boolean } = {}) => onIssueOrder(row, {
+    const attempt = (extra: { rigOverlapCompletedConfirmed?: boolean; plateDeferredConfirmed?: boolean } = {}) => onIssueOrder(row, {
       plannedStartAt: startAt.toISOString(),
       plannedEndAt: endAt.toISOString(),
       endTimeConfirmed: true,
@@ -264,6 +264,25 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
         if (proceed) {
           try {
             await attempt({ rigOverlapCompletedConfirmed: true });
+            onIssued();
+          } catch (retryError) {
+            const retry = retryError as { message?: string };
+            setIssueError(retry.message
+              || 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.');
+          }
+        } else {
+          setIssueError(err.message ?? 'Đã huỷ phát lệnh.');
+        }
+      } else if (err.status === 409 && err.raw?.code === 'PLATE_DEFERRED_CONFIRM') {
+        // Card B 18/10 (B.2): issuing an EXTERNAL order whose plate is not
+        // known yet warns once — the operator confirms and the confirmed
+        // retry rides `plateDeferredConfirmed`. Declining keeps the row
+        // unissued (add the plate first via Phân xe lại / Sửa điều phối).
+        const proceed = await confirm(err.message
+          ?? 'Phát lệnh chưa có biển số xe nhà xe ngoài. Vẫn phát lệnh?');
+        if (proceed) {
+          try {
+            await attempt({ plateDeferredConfirmed: true });
             onIssued();
           } catch (retryError) {
             const retry = retryError as { message?: string };

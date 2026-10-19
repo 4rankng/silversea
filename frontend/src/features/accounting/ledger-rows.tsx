@@ -40,7 +40,10 @@ export function LedgerRow({ row }: { row: LedgerEntry }) {
       <td className={`dd-num ${balance > 0 ? 'dd-num--bal' : balance < 0 ? 'dd-num--credit' : ''}`}>
         {formatCurrency(balance)}
       </td>
-      <td className="dd-td-note">{row.note || ''}</td>
+      {/* Card 191026202000: an empty note cell reads as "không có dòng nào ở
+          đây"; the house missing marker is the en dash (its sibling
+          LinkedSupplierPayableRow already used it). */}
+      <td className="dd-td-note">{row.note || '–'}</td>
     </tr>
   );
 }
@@ -92,7 +95,7 @@ export function ExpenseLedgerRow({ row }: { row: LedgerEntry }) {
       <td className={`dd-num ${balance > 0 ? 'dd-num--bal' : balance < 0 ? 'dd-num--credit' : ''}`}>
         {balance < 0 ? '-' : ''}{formatCurrency(Math.abs(balance))}
       </td>
-      <td className="dd-td-note">{row.note || ''}</td>
+      <td className="dd-td-note">{row.note || '–'}</td>
     </tr>
   );
 }

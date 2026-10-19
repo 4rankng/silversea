@@ -1,10 +1,10 @@
-# fullguide h-deposit driver — 2026-10-16T15:30:43.250Z pin=a68d2e04
-2026-10-16T15:30:43.291Z health {"status":"ok","timestamp":"2026-10-16T15:30:43.326Z","buildHash":"a68d2e04"}
-2026-10-16T15:30:44.360Z h-bill {"billRef":"YMJAE492321975","last4":"1975"}
-2026-10-16T15:30:54.388Z h-dialog-open {"ready":true,"opened":true,"dlgText":"Tra cứu Bill (4 số cuối) Gõ 4 số cuối số Bill/Booking để chọn nhanh lô hàng. Số Bill Khách hàng Hãng tàu Số tiền cược (₫) Ngày cược / / Ngày nộp CV (tùy chọn) / / Ngày dự kiến hoàn cược / / Bỏ trống ngày dự kiến để hệ thống tự điền ngày nộp CV + 14 ngày. Trạng thái Chưa hoàn cược Chưa hoàn cược Đã hoàn cược Ghi chú Lưu dòng"}
-2026-10-16T15:30:58.745Z h-lookup {"last4":"1975","suggestionTexts":["YMJAE492321975YMLCÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"],"suggestion":true,"autofilled":{"Tra cứu Bill (4 số cuối)":"","Số Bill":"YMJAE492321975","Khách hàng":"CÔNG TY TNHH MỘT THÀNH VIÊN LO","Hãng tàu":"YML","Ghi chú":""}}
-2026-10-16T15:31:02.867Z h-save {"moneySet":true,"billSet":true,"noteSet":true,"saved":true,"visible":true}
-2026-10-16T15:31:02.930Z h-side-effect {"rowId":8,"row":{"id":8,"bill":"QA-YMJAE492321975"}}
-2026-10-16T15:31:02.930Z VERDICT {"id":"B.3","verdict":"PASS","note":"Thêm cược: dialog opened=true, lookup 4 số cuối (1975) suggestion=true, autofill fields=undefined, save=true, persisted row id=8"}
-2026-10-16T15:31:03.109Z h-cleanup {"rowId":8,"status":404,"body":"{\"error\":\"Không tìm thấy API\"}"}
-2026-10-16T15:31:03.110Z SUMMARY {"B.3":{"verdict":"PASS","note":"Thêm cược: dialog opened=true, lookup 4 số cuối (1975) suggestion=true, autofill fields=undefined, save=true, persisted row id=8"}}
+# fullguide h-deposit driver — 2026-10-17T14:52:52.995Z pin=11720424
+2026-10-17T14:52:53.048Z health {"status":"ok","timestamp":"2026-10-17T14:52:53.066Z","buildHash":"11720424"}
+2026-10-17T14:52:55.123Z h-bill {"billRef":"YMJAE492321975","last4":"1975"}
+2026-10-17T14:53:05.351Z h-dialog-open {"ready":true,"opened":true,"dlgText":"Tra cứu Bill (4 số cuối) Gõ 4 số cuối số Bill/Booking để chọn nhanh lô hàng. Số Bill Khách hàng Hãng tàu Số tiền cược (₫) Ngày cược / / Ngày nộp CV (tùy chọn) / / Ngày dự kiến hoàn cược / / Bỏ trống ngày dự kiến để hệ thống tự điền ngày nộp CV + 14 ngày. Trạng thái Chưa hoàn cược Chưa hoàn cược Đã hoàn cược Ghi chú Lưu dòng"}
+2026-10-17T14:53:09.530Z h-lookup {"last4":"1975","suggestionTexts":["YMJAE492321975YMLCÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"],"suggestion":true,"autofilled":{"Tra cứu Bill (4 số cuối)":"","Số Bill":"YMJAE492321975","Khách hàng":"CÔNG TY TNHH MỘT THÀNH VIÊN LO","Hãng tàu":"YML","Ghi chú":""}}
+2026-10-17T14:53:13.459Z h-save {"moneySet":true,"billSet":true,"noteSet":true,"saved":true,"visible":true}
+2026-10-17T14:53:13.503Z h-side-effect {"rowId":10,"row":{"id":10,"bill":"QA-YMJAE492321975"}}
+2026-10-17T14:53:13.503Z VERDICT {"id":"B.3","verdict":"PASS","note":"Thêm cược: dialog opened=true, Tra cứu Bill 4 số cuối (1975) suggestions=[\"YMJAE492321975YMLCÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH\"] (rendered=true), save=true, persisted row id=10"}
+2026-10-17T14:53:13.649Z h-residue {"rowId":10,"cleanup":"no API delete route — sanctioned purge `make qapurge` (deposit_refund_trackers)"}
+2026-10-17T14:53:13.650Z SUMMARY {"B.3":{"verdict":"PASS","note":"Thêm cược: dialog opened=true, Tra cứu Bill 4 số cuối (1975) suggestions=[\"YMJAE492321975YMLCÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH\"] (rendered=true), save=true, persisted row id=10"}}

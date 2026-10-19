@@ -1,6 +1,7 @@
 import { api } from '../lib/api';
 import { toQuery } from '../lib/http/query';
 import { SALARY, CONFIG } from '@tingting/shared';
+import type { TimesheetSalaryMode } from '@tingting/shared';
 
 export interface WorkDayRecord {
   id: number;
@@ -60,6 +61,9 @@ export interface DriverSalarySummary {
   baseSalary: string | null;
   status: string;
   salary: AttendanceSalary | null;
+  /** FB-103 (ticket 171026215600) — chế độ lương PER_TRIP/FLAT_MONTHLY của
+   *  lái xe: hiển thị trên card tổng kết + khởi tạo dialog "Sửa lương cứng". */
+  salaryMode: TimesheetSalaryMode;
 }
 
 export interface WorkDayUpdate {

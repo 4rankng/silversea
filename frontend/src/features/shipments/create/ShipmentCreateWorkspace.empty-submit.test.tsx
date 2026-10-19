@@ -42,6 +42,17 @@ describe('shipment create empty submit feedback', () => {
     expect(document.querySelector('form.csc-workspace')).toHaveAttribute('novalidate');
   });
 
+  it('keeps the missing-info panel hidden on a pristine open (submit-gated, 17/10 de-noise)', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+    // The live readiness knows the form is empty, but the panel must not
+    // throw itself at the operator before any create attempt.
+    await waitFor(() => expect(document.querySelector('.csc-topline__progress')?.textContent).toContain('Bắt buộc: 0/'));
+    expect(screen.queryByText(/Cần bổ sung/)).toBeNull();
+    expect(document.querySelector('.csc-validation-summary')).toBeNull();
+  });
+
   it('empty submit shows the validation summary and moves focus to the first missing field', async () => {
     renderWorkspace();
     const createButton = await screen.findByRole('button', { name: 'Tạo lô hàng' });

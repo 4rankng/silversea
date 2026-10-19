@@ -17,7 +17,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState, SearchableSelect } from '../design-system';
+import { EmptyState } from '../design-system';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
@@ -112,7 +112,6 @@ function DebitLotRow({
             className="shipment-debit-row__detail-link"
             title="Xem chi tiết lô hàng"
             onClick={(e) => e.stopPropagation()}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '12px', color: 'var(--color-primary, #059669)', textDecoration: 'underline' }}
           >
             Chi tiết →
           </Link>
@@ -188,9 +187,9 @@ export function ShipmentDebitPage() {
 
   // Xuất Debit Note: ONE issue call carries every selected locked lot id and
   // the backend builds the union document (per-lot line grouping preserved
-  // inside). The idempotency key derives from the sorted selection, so
-  // re-clicking the same selection replays the same document instead of
-  // issuing a duplicate.
+  // inside). The idempotency key is derived inside the client from the sorted
+  // selection, so re-clicking the same selection replays the same document
+  // instead of issuing a duplicate.
   async function exportSelectedLockedLots() {
     const ids = items
       .filter((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED')
@@ -200,8 +199,7 @@ export function ShipmentDebitPage() {
     if (!canManage || !customerId || ids.length === 0 || issuing) return;
     setIssuing(true);
     try {
-      const selectionKey = `debit-note-${[...ids].sort((x, y) => x - y).join('-')}`;
-      const { id: documentId } = await createDebitNoteBatch(ids, selectionKey);
+      const { id: documentId } = await createDebitNoteBatch(ids);
       const blob = await exportDebitNoteFile(ids[0], documentId);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
@@ -304,8 +302,6 @@ export function ShipmentDebitPage() {
     label: customer.fullName ? `${customer.name} - ${customer.fullName}` : customer.name,
     searchText: `${customer.name} ${customer.fullName ?? ''}`,
   }));
-  // The picker's own wording, so the hint never echoes an id back at the user.
-  const selectedCustomerLabel = customerOptions.find((option) => option.value === customerId)?.label ?? '';
 
   // Sweep (card 20261008_1): the export used to disable silently on two of
   // its three causes (only the no-customer case carried a wrapper `title`).
@@ -329,36 +325,20 @@ export function ShipmentDebitPage() {
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
-        {/* Card _202: the Khách hàng picker is the screen's primary axis — always
-            visible, never folded into `Bộ lọc`; the shared filter strip
-            (card 20260927_153) follows with the range and the lock criterion.
+        {/* Owner 2026-10-17 (reverses card _202): the Khách hàng picker rides
+            the shared filter strip below as its first control, not its own bar.
             The action row comes last, directly above the rows it acts on: both
             bulk actions work on the selection below, so the DOM order is the
             phone's reading order and desktop re-pins the title row on top via
             grid order (page CSS), never a second copy of the cluster. */}
-        <div className="shipment-debit-customer-bar">
-          <SearchableSelect
-            id="shipment-debit-customer"
-            className="shipment-debit-customer-bar__picker"
-            value={customerId}
-            onChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
-            options={customerOptions}
-            placeholder="Tất cả khách hàng"
-            searchPlaceholder="Tìm khách hàng…"
-            emptyMessage="Không tìm thấy khách hàng phù hợp."
-            clearable clearLabel="Xem tất cả khách hàng" size="sm"
-          />
-          <p className="shipment-debit-customer-bar__hint">
-            {customerId === ''
-              ? 'Đang xem tất cả khách hàng.'
-              : `Đang xem lô của ${selectedCustomerLabel}.`}
-          </p>
-        </div>
         {/* Card 20260927_153: the filter strip owns its own layout and every
             control width (FilterBar.css L1-L3), so the page hands it criteria
             values and URL writers only — no filter rule, no applied-count and
-            no reset markup lives here. The customer left the strip in _202. */}
+            no reset markup lives here. */}
         <ShipmentDebitRibbon
+          customerValue={customerId}
+          customerOptions={customerOptions}
+          onCustomerChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
           deliveryFrom={deliveryFrom}
           deliveryTo={deliveryTo}
           lockStatus={lockStatus}
@@ -507,10 +487,14 @@ export function ShipmentDebitPage() {
               </tbody>
             </table>
             </div>}
-            {/* Scroll cue (card 20260924_9): the table's word-wrap min-width
-                floor makes the wrap scroll sideways on phones — say so plainly;
-                the hint stays hidden at desktop widths (page CSS). */}
-            <p className="shipment-debit-scroll-hint ledger-desktop">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+            {/* Scroll cue (card 20260924_9, re-hung card 191026100030): the
+                L1 table's 1108px floor scrolls sideways in 641–1107px windows
+                — say so plainly there (page CSS's own band). No `ledger-desktop`
+                on this element: that class hides it with `display: none
+                !important` at ≤640, which is exactly where the old reveal
+                lived — the cue could never show. At ≤640 the phone record
+                cards render instead, so no cue is needed. */}
+            <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
           </>
         )}
       </section>

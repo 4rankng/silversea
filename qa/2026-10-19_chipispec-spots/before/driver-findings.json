@@ -1,0 +1,49 @@
+{
+  "pills": [
+    "Tất cả609",
+    "Đã ghi nhận602",
+    "Chưa ghi sổ0",
+    "Đã hủy0",
+    "Người yêu cầu",
+    "Số tiền",
+    "Ngày tạo",
+    "Trạng thái",
+    "Lý do",
+    "Phê duyệt tạm ứng",
+    "Phê duyệt tạm ứng",
+    "",
+    "1",
+    "2",
+    "13",
+    "Đi",
+    ""
+  ],
+  "hasPendingPill": false,
+  "pendingRow": {
+    "text": "Nguyễn Văn Giao2.500.000 ₫19/10/2026Chờ phê duyệtQA 183600 — tạm ứng tiền đường chuyến 19/10Phê duyệt tạm ứngbởi Nguyễn Văn Giao",
+    "buttons": [
+      "Phê duyệt tạm ứng"
+    ]
+  },
+  "buttonTexts": [
+    "Phê duyệt tạm ứng"
+  ],
+  "hasSpecLabel": false,
+  "ncc": {
+    "triggerText": "",
+    "allComboTexts": [
+      "Tổng Quan",
+      "Phơi phiếu",
+      "Theo dõi hóa đơn",
+      "Theo dõi hoàn cược",
+      "Kiểm soát phơi phiếu",
+      "Kế toán chốt debit",
+      "Chi phí phát sinh",
+      "Tạm ứng & hoàn ứng",
+      "Báo cáo hoàn ứng",
+      "Công nợ vận tải",
+      "Quỹ",
+      "Nhân sự"
+    ]
+  }
+}

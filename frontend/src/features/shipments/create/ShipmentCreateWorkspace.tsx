@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, Copy, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, Copy, Plus } from 'lucide-react';
 import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
@@ -12,11 +12,12 @@ import { useToast } from '../../../components/shared/Toast';
 import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
+  createShippingLine,
   listOperationalSites,
   type OperationalSite,
 } from '../../../api/shipmentClient';
 import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-duplicate-guard';
-import { mergeCustomer, mergePort, mergeRoute } from './catalogMerger';
+import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine } from './catalogMerger';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
   createContainerFromPrevious,
@@ -35,7 +36,7 @@ import { ShipmentCreateTopline } from './ShipmentCreateTopline';
 import { ShipmentCreateActions } from './ShipmentCreateActions';
 import { requiredCompletion } from './ShipmentCreateTopline.progress';
 import { FreightPreviewCard } from './FreightPreviewCard';
-import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
+import { ShipmentCreateSection } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
 import { emptyAppointmentKeys, hasDateDraft } from './shipment-date-drafts';
 import { DEFAULT_SHIPPING_LINES, type Customer, type Port, type Route } from '@tingting/shared';
@@ -53,7 +54,6 @@ type ContainerRow = ShipmentContainerDraft;
 
 const EMPTY_FORM = EMPTY_SHIPMENT_CREATE_FORM;
 const newContainer = createEmptyContainer;
-const gridStyle = shipmentCreateGridStyle;
 
 export function ShipmentCreateWorkspace() {
   const navigate = useNavigate();
@@ -67,6 +67,12 @@ export function ShipmentCreateWorkspace() {
   const [sitesLoading, setSitesLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<ShipmentCreateIssue[]>([]);
+  // Summary de-noise (17/10): the "Cần bổ sung" panel is submit-gated — it may
+  // not confront a freshly opened form. Any action-button save click ("Tạo lô
+  // hàng" on topline/footer, the form submit, or a failed "Lưu nháp", which
+  // owns the DRAFT copy) flips this on; it never flips back, so the panel
+  // keeps updating live until the list empties.
+  const [saveAttempted, setSaveAttempted] = useState(false);
   const { toast } = useToast();
   const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
   const [createSiteDialog, setCreateSiteDialog] = useState<{ open: boolean; siteType: 'FACTORY' | 'WAREHOUSE' }>({ open: false, siteType: 'FACTORY' });
@@ -263,6 +269,11 @@ export function ShipmentCreateWorkspace() {
       customerId: value,
       pickupWarehouseSiteId: '',
       pickupWarehouseName: '',
+      // FB-105: the typed Nhà máy name belongs to the previous customer's
+      // factory just like the site id — reset both, or the stale text
+      // satisfies the required check (and lands in delivery_location /
+      // pickup_location) for the NEW customer's lot.
+      factoryName: '',
     }));
     setSites([]);
     clearFeedback();
@@ -302,14 +313,19 @@ export function ShipmentCreateWorkspace() {
     queueMicrotask(() => shippingLineAddButtonRef.current?.focus());
   }
 
-  function applyShippingLine(name: string) {
+  async function applyShippingLine(name: string) {
+    // FB-114 verify-fail (ticket 171026185348): the name is BOTH this lot's
+    // shipping line AND a shared catalog entry. Persist to the server FIRST
+    // (the bootstrap `shippingLines` derives from SHIPPING_LINE suppliers —
+    // config.service.ts), then write the lot field and mirror the catalog
+    // locally. A failed persist rejects into the dialog, which stays open
+    // with the error — no more session-local merge that evaporated on reload
+    // and no fake success. The lot field keeps the USER's typed casing
+    // (free-text contract); the catalog mirror merges the server's canonical
+    // display name (result.name).
+    const result = await createShippingLine(name);
     update('shippingLineName', name);
-    setCatalogs((prev) => {
-      if (!prev) return prev;
-      const existing = prev.shippingLines ?? [];
-      if (existing.some((s) => s.name.toLowerCase() === name.toLowerCase())) return prev;
-      return { ...prev, shippingLines: [...existing, { name }] };
-    });
+    mergeShippingLine(catalogs, result.name, setCatalogs);
     closeShippingLineDialog();
   }
 
@@ -494,6 +510,12 @@ export function ShipmentCreateWorkspace() {
     toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` });
   }
 
+  // Card D.4 (18/10, hàng lẻ D.4) completed by 181026200700: the "Lịch & ghi
+  // chú" section stays gone from the LCL form AND the leftover "Thêm ngày
+  // giao" button is retired — the block is exactly ONE always-visible
+  // "Ngày giao hàng" field (id `shipment-expected-delivery`, wire name
+  // `expectedDeliveryDate` unchanged). FCL keeps the full schedule section.
+
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '') || hasDateDraft(scope);
     if (hasEnteredData) {
@@ -534,6 +556,7 @@ export function ShipmentCreateWorkspace() {
   }
 
   async function save(intent: SaveIntent) {
+    setSaveAttempted(true);
     // FB-048 (card 141026003600): the native pre-gate used to run FIRST and
     // return, so a partially-typed date/Time field (which sets customValidity
     // on its segments) starved every OTHER required field of its issue — the
@@ -582,11 +605,12 @@ export function ShipmentCreateWorkspace() {
       />
       <form ref={workspaceFormRef} noValidate onSubmit={(event) => { event.preventDefault(); void save('CREATE'); }} className="csc-workspace">
         <ShipmentCreateSummary
-          // QA1-007 wants the panel to exist BEFORE the first save (live
-          // readiness). After a failed save the panel must still speak the SAME
-          // wording as the field paint below — `validationIssues` is that list,
-          // and it is the only one carrying the DRAFT copy ("Chọn khách hàng để
-          // tạo lô hàng."). Prefer it while it is non-empty.
+          // Submit-gated (17/10 de-noise): pristine/dirty-before-create shows
+          // no panel. After the first "Tạo lô hàng" click the panel speaks the
+          // SAME wording as the field paint below — `validationIssues` is that
+          // list, and it is the only one carrying the DRAFT copy ("Chọn khách
+          // hàng để tạo lô hàng."). Prefer it while it is non-empty.
+          showIssues={saveAttempted}
           outstandingIssues={validationIssues.length > 0 ? validationIssues : readiness.issues}
           submitError={submitError}
           onFocusIssue={focusIssue}
@@ -722,49 +746,27 @@ export function ShipmentCreateWorkspace() {
             )}
           </ShipmentCreateSection>
 
-          <ShipmentCreateSection
-            id="schedule"
-            title="Lịch & ghi chú"
-            description={form.cargoMode === 'FCL' ? undefined : 'Ngày giao hàng để điều phối thực hiện đúng kế hoạch.'}
-          >
-            {form.cargoMode === 'LCL' && (
-              <div style={gridStyle}>
-                {/* FB-078 round 2 (verify-fail 091026225610; user verbatim:
-                    "chỉ cần 1 mục là thêm ngày giao hàng"): the LCL block is
-                    JUST the delivery-date item. The customs cutoff joins the
-                    FCL-vessel fields (hạ container / trả container) in never
-                    rendering here. */}
-                <div data-field-id="shipment-expected-delivery">
-                  {/* Helpdesk 2026-10-13 (ops Tiếp Vu): LCL copy is "Ngày giao
-                      hàng" — this field renders only on the LCL path, so the
-                      rename is unconditional; id + expectedDeliveryDate wire
-                      name are unchanged. */}
-                  <DateField
-                    id="shipment-expected-delivery"
-                    label="Ngày giao hàng"
-                    requiredMark
-                    value={form.expectedDeliveryDate}
-                    onChange={(event) => update('expectedDeliveryDate', event.target.value)}
-                    disabled={Boolean(saving)}
-                    error={issueByField.get('shipment-expected-delivery')}
-                  />
-                </div>
-              </div>
-            )}
-            {form.cargoMode === 'LCL' && (
-              <div className="csc-extra-dates">
-                {form.extraDeliveryDates.map((date, index) => (
-                  <div key={index} className="csc-extra-dates__row">
-                    <DateField label={index === 0 ? 'Ngày giao bổ sung' : ''} value={date} onChange={(event) => update('extraDeliveryDates', form.extraDeliveryDates.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} disabled={Boolean(saving)} />
-                    <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa ngày giao bổ sung ${index + 1}`} onClick={() => update('extraDeliveryDates', form.extraDeliveryDates.filter((_, itemIndex) => itemIndex !== index))} disabled={Boolean(saving)}><Trash2 size={16} /></button>
-                  </div>
-                ))}
-                <button type="button" className="csc-utility-button csc-utility-button--dashed" onClick={() => update('extraDeliveryDates', [...form.extraDeliveryDates, ''])} disabled={Boolean(saving)}><Plus size={15} aria-hidden="true" />Thêm ngày giao</button>
-              </div>
-            )}
-            {form.cargoMode === 'FCL' && (
-              <>
-                {emptyAppointmentCount >= 1 && (
+          {form.cargoMode === 'LCL' ? (
+            /* Card D.4 (18/10) + 181026200700: NO "Lịch & ghi chú" section on
+               the hàng lẻ form and NO add button — exactly ONE required
+               "Ngày giao hàng" field, always visible. FCL keeps the full
+               schedule section below. */
+            <div className="csc-lcl-delivery" data-field-id="shipment-expected-delivery">
+              {/* Helpdesk 2026-10-13 (D.1): LCL copy is "Ngày giao hàng" —
+                  id + expectedDeliveryDate wire name unchanged. */}
+              <DateField
+                id="shipment-expected-delivery"
+                label="Ngày giao hàng"
+                requiredMark
+                value={form.expectedDeliveryDate}
+                onChange={(event) => update('expectedDeliveryDate', event.target.value)}
+                disabled={Boolean(saving)}
+                error={issueByField.get('shipment-expected-delivery')}
+              />
+            </div>
+          ) : (
+            <ShipmentCreateSection id="schedule" title="Lịch & ghi chú">
+            {emptyAppointmentCount >= 1 && (
                   <div className="csc-bulk-appointment" data-field-id="shipment-bulk-appointment">
                     <UDateTimeField
                       id="shipment-bulk-appointment"
@@ -815,9 +817,8 @@ export function ShipmentCreateWorkspace() {
                   <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={Boolean(saving)} />
                   <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={Boolean(saving)} />
                 </div>
-              </>
-            )}
-          </ShipmentCreateSection>
+            </ShipmentCreateSection>
+          )}
         </div>
 
         <FreightPreviewCard
@@ -848,6 +849,7 @@ export function ShipmentCreateWorkspace() {
         detailSite={detailSite}
         onCloseDetailSite={() => setDetailSite(null)}
         createSiteDialog={createSiteDialog}
+        tradeDirection={form.tradeDirection}
         customerId={form.customerId}
         routes={catalogs?.routes ?? []}
         onCloseCreateSite={() => setCreateSiteDialog((current) => ({ ...current, open: false }))}

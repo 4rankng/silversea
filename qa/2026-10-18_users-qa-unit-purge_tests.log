@@ -1,0 +1,34 @@
+$ cd backend && npx tsx --test --test-concurrency=1 \
+    src/tests/qa-fixture-purge.test.ts src/tests/hr-roster-read.test.ts
+
+--- RED-AT-BASE (registry action temporarily reverted to 'deactivate') ---
+  ✖ hard-deletes QA business units and spares the real one (card 111026105610)
+ℹ tests 12
+ℹ pass 11
+ℹ fail 1
+  => the new test fails on the pre-fix behaviour; it is a real regression pin.
+
+--- GREEN AT FIX ---
+  ✔ hard-deletes QA business units and spares the real one (card 111026105610)
+  ✔ unlinks QA users from QA business units so /hr/roster stops rendering them (FB-061 rework)
+  ✔ serves ACTIVE units only and never links roster rows to INACTIVE units
+ℹ tests 22
+ℹ pass 22
+ℹ fail 0
+
+$ cd <root> && pnpm lint
+LINT-EXIT=0
+
+--- OPERATOR-FACING TOOL (real CLI, dry-run against local dev DB) ---
+$ cd backend && QA_PURGE_ENV=local pnpm exec tsx src/seed/purge-qa-fixtures.ts --dry-run
+QA-PURGE-START DRY-RUN env=local
+SURFACE user_business_unit_links [hard-delete] matched=0 deleted=0 skipped=0 remaining=0
+SURFACE business_units [hard-delete] matched=0 deleted=0 skipped=0 remaining=0
+
+NOTE: EXECUTE was deliberately NOT run against the shared local dev DB — a
+dry-run census shows 10 other surfaces still holding QA fixtures
+(expense_accounting_sources 14, ops_expense_entries 16, shipments 30,
+customers 77, suppliers 62, ...) belonging to other lanes. Running the full
+purgeAll would have destroyed concurrent work. The destructive path is proven
+by the scoped integration test, which seeds its own uniquely-suffixed rows
+and cleans them up.

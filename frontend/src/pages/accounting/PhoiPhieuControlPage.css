@@ -194,3 +194,78 @@
     min-height: var(--control-touch-h);
   }
 }
+
+/* ── Card 191026160000 — BÁO CÁO THU / TRẢ PHƠI ───────────────────────────
+   One section: its own date range + scope + a PHẢI THU / PHẢI TRẢ tab pair,
+   and a party row that drills down into the not-yet-paid lots. */
+.ppc-report-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+.ppc-report-tabs {
+  display: inline-flex;
+  border: 1px solid var(--border, #d5d9e0);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ppc-report-tab {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2, #344054);
+  font-size: var(--text-caption-size);
+  cursor: pointer;
+}
+.ppc-report-tab.is-active {
+  background: var(--brand, #1570ef);
+  color: #fff;
+}
+.ppc-report__party-link {
+  /* The party name is a drill-down control; the ghost button keeps the table
+     row's reading flow (no underline wall, no clipped long names). */
+  white-space: normal;
+  text-align: left;
+  padding: 2px 6px;
+}
+
+/* Drill-down drawer (Untitled UI table + batch phiếu action bar). */
+.ppc-lots-drawer .drawer__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ppc-lots-ordinal {
+  color: var(--ink-3, #667085);
+}
+.ppc-lots-hint {
+  margin: 8px 0 0;
+  color: var(--ink-3, #667085);
+  font-size: var(--text-caption-size);
+}
+.ppc-lots-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.ppc-lots-bar__count {
+  margin: 0 auto 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2, #344054);
+}
+
+@media (pointer: coarse), (max-width: 767px) {
+  .ppc-report-tab {
+    min-height: var(--control-touch-h, 44px);
+  }
+  .ppc-lots-bar {
+    align-items: stretch;
+  }
+  .ppc-lots-bar .btn {
+    min-height: var(--control-touch-h, 44px);
+  }
+}

@@ -234,8 +234,17 @@ export async function assertShipmentAccountingUnlocked(executor: Executor, shipm
 }
 
 export async function assertTripShipmentAccountingUnlocked(executor: Executor, tripId: number) {
-  const [trip] = await executor.select({ shipmentId: s.trips.shipmentId })
+  // Card 191026100030 — the lot a trip executes resolves through the
+  // fulfillment like every other trip→lot read (`resolveTripShipmentId`):
+  // reading `trips.shipment_id` alone let a wave-model (hàng-lẻ) trip — lot
+  // linked only via `fulfillmentId` — SKIP the active-lock check entirely
+  // (fail-open on the accounting lock). Direct link wins; the fulfillment's
+  // lot is the fallback.
+  const [trip] = await executor.select({
+    shipmentId: sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`,
+  })
     .from(s.trips)
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
     .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
     .limit(1);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');

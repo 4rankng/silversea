@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
-import { UuiSelectField } from '../../design-system';
+import { NumberField, UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -49,7 +49,16 @@ function AncillaryRevenueForm({ saving, item, onsave, oncancel, onDelete, deleti
         />
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Số tiền (₫)"><input className="input" value={amount} onChange={e => setAmount(e.target.value)} placeholder="500000" /></Field>
+        {/* §1 money format: grouped display ("500.000" / "-500.000" for hoàn
+            tiền), typed free; the save payload stays Number(amount). */}
+        <NumberField
+          label="Số tiền (₫)"
+          grouped
+          signed
+          value={amount === '' ? '' : Number(amount)}
+          onChange={(n) => setAmount(n === '' ? '' : String(n))}
+          placeholder="500.000"
+        />
       </div>
       <div style={{ flex: 2, minWidth: 150 }}>
         <Field label="Ghi chú (bắt buộc khi hoàn tiền)"><input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="Lý do…" /></Field>

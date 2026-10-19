@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 
 import { Btn, Modal, PageHeader } from '../components/UI';
 import { NumberField, SummaryRail } from '../design-system';
+import { formatMoney } from '../lib/format';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { useMonthRoute } from '../design-system/hooks/useMonthRoute';
 import { useAuth } from '../hooks/useAuth';
@@ -191,7 +192,13 @@ export default function TimesheetGridPage() {
           {canOpenBoard && activeDriverId !== null && (
             <Btn
               size="sm"
-              onClick={() => setBoardFormOpen(true)}
+              onClick={() => {
+                // FB-103 (ticket 171026215600) — mở dialog với chế độ mặc định
+                // của lái xe (đặt ở dialog "Sửa lương cứng" / sửa lái xe), kế
+                // toán vẫn đổi được từng tháng ngay trong dialog này.
+                setBoardMode(activeDriver?.defaultSalaryMode ?? 'PER_TRIP');
+                setBoardFormOpen(true);
+              }}
             >
               Mở bảng chấm công
             </Btn>
@@ -209,8 +216,10 @@ export default function TimesheetGridPage() {
 
           <p className="ts-hint">
             {`Hình thức lương: ${SALARY_MODE_LABELS[timesheet.salaryMode]}`}
-            {timesheet.salaryMode === 'PER_TRIP' && timesheet.dailyBase !== null ? ` · Lương ngày ${timesheet.dailyBase} ₫` : ''}
-            {timesheet.salaryMode === 'FLAT_MONTHLY' && timesheet.flatAmount !== null ? ` · Lương tháng ${timesheet.flatAmount} ₫` : ''}
+            {/* Card 191026160000 (§1): money always prints grouped —
+                "18.500.000 ₫", never the raw integer. */}
+            {timesheet.salaryMode === 'PER_TRIP' && timesheet.dailyBase !== null ? ` · Lương ngày ${formatMoney(timesheet.dailyBase)} ₫` : ''}
+            {timesheet.salaryMode === 'FLAT_MONTHLY' && timesheet.flatAmount !== null ? ` · Lương tháng ${formatMoney(timesheet.flatAmount)} ₫` : ''}
           </p>
 
           <div className="record-table-wrap">

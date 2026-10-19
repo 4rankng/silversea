@@ -3,7 +3,7 @@
 // (base × (1+share)); liters = km × norm × 2 (norm keyed on the BASE class);
 // Phụ phí comes from the live engine call per route (approval gate included).
 import ExcelJS from 'exceljs';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { quotationBaseClassCode } from '@tingting/shared';
@@ -131,18 +131,65 @@ export async function buildQuotationExport(quotationId: number, version?: number
 
 
   const routeIds = [...new Set(cells.map((cell) => cell.routeId))];
+
+  // Whole-sheet set reads: route names, terms (latest per route), norms
+  // (latest per base class) and pricing rows (latest per route+rateKey).
+  // Replaces one query per route/cell while keeping the identical
+  // latest-effective-per-key selection semantics.
+  const routeRows = routeIds.length > 0 ? await db.select({ id: s.routes.id, name: s.routes.name })
+    .from(s.routes).where(inArray(s.routes.id, routeIds)) : [];
+  const routeNameById = new Map(routeRows.map((row) => [row.id, row.name]));
+
+  const termsRows = routeIds.length > 0 ? await db.select({ routeId: s.freightRateTerms.routeId, sharePct: s.freightRateTerms.sharePct, km: s.freightRateTerms.billingKmOneWay })
+    .from(s.freightRateTerms)
+    .where(and(
+      eq(s.freightRateTerms.customerId, frame.customerId),
+      inArray(s.freightRateTerms.routeId, routeIds),
+      isNull(s.freightRateTerms.deletedAt),
+    ))
+    .orderBy(desc(s.freightRateTerms.effectiveDate)) : [];
+  const termsByRoute = new Map<number, { sharePct: string; km: number | null }>();
+  for (const row of termsRows) {
+    if (!termsByRoute.has(row.routeId)) termsByRoute.set(row.routeId, row);
+  }
+
+  const allCodes = [...new Set(cells.map((cell) => cell.classCode).filter((code): code is string => code != null))];
+  const allBases = [...new Set(allCodes.map((code) => quotationBaseClassCode(code)))];
+  const normRows = allBases.length > 0 ? await db.select({ code: s.vehicleSizeClasses.code, litersPerKm: s.fuelConsumptionNorms.litersPerKm })
+    .from(s.fuelConsumptionNorms)
+    .innerJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.fuelConsumptionNorms.vehicleSizeClassId))
+    .where(and(
+      inArray(s.vehicleSizeClasses.code, allBases),
+      isNull(s.fuelConsumptionNorms.deletedAt),
+    ))
+    .orderBy(desc(s.fuelConsumptionNorms.effectiveDate)) : [];
+  const normByCode = new Map<string, number>();
+  for (const row of normRows) {
+    if (!normByCode.has(row.code)) normByCode.set(row.code, Number(row.litersPerKm));
+  }
+
+  const pricingKeys = [...new Set([...allCodes, ...allBases])];
+  const pricingRows = pricingKeys.length > 0 && routeIds.length > 0 ? await db.select({ routeId: s.pricingTables.routeId, rateKey: s.pricingTables.rateKey, price: s.pricingTables.price })
+    .from(s.pricingTables)
+    .where(and(
+      eq(s.pricingTables.customerId, frame.customerId),
+      inArray(s.pricingTables.routeId, routeIds),
+      inArray(s.pricingTables.rateKey, pricingKeys),
+      isNull(s.pricingTables.deletedAt),
+    ))
+    .orderBy(desc(s.pricingTables.effectiveDate)) : [];
+  const priceByRouteKey = new Map<string, number>();
+  const priceKey = (routeId: number, rateKey: string) => `${routeId}:${rateKey}`;
+  for (const row of pricingRows) {
+    if (row.rateKey == null) continue; // never matched the old eq(rateKey, <code>) reads
+    const key = priceKey(row.routeId, row.rateKey);
+    if (!priceByRouteKey.has(key)) priceByRouteKey.set(key, Number(row.price));
+  }
+
   let cursor = 4;
   for (const routeId of routeIds) {
-    const [route] = await db.select({ name: s.routes.name })
-      .from(s.routes).where(eq(s.routes.id, routeId)).limit(1);
-    const [terms] = await db.select({ sharePct: s.freightRateTerms.sharePct, km: s.freightRateTerms.billingKmOneWay })
-      .from(s.freightRateTerms)
-      .where(and(
-        eq(s.freightRateTerms.customerId, frame.customerId),
-        eq(s.freightRateTerms.routeId, routeId),
-        isNull(s.freightRateTerms.deletedAt),
-      ))
-      .orderBy(desc(s.freightRateTerms.effectiveDate)).limit(1);
+    const routeName = routeNameById.get(routeId);
+    const terms = termsByRoute.get(routeId);
     const share = terms ? Number(terms.sharePct) : 2;
     const routeCells = cells.filter((cell) => cell.routeId === routeId);
 
@@ -152,49 +199,25 @@ export async function buildQuotationExport(quotationId: number, version?: number
     for (const cell of routeCells) {
       const base = quotationBaseClassCode(cell.classCode);
       if (normByBase.has(base)) continue;
-      const [normRow] = await db.select({ litersPerKm: s.fuelConsumptionNorms.litersPerKm })
-        .from(s.fuelConsumptionNorms)
-        .innerJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.fuelConsumptionNorms.vehicleSizeClassId))
-        .where(and(
-          eq(s.vehicleSizeClasses.code, base),
-          isNull(s.fuelConsumptionNorms.deletedAt),
-        ))
-        .orderBy(desc(s.fuelConsumptionNorms.effectiveDate)).limit(1);
-      normByBase.set(base, normRow ? Number(normRow.litersPerKm) : 0);
+      normByBase.set(base, normByCode.get(base) ?? 0);
     }
     const priceByCode = new Map<string, number | null>();
     for (const cell of routeCells) {
-      const [row] = await db.select({ price: s.pricingTables.price })
-        .from(s.pricingTables)
-        .where(and(
-          eq(s.pricingTables.customerId, frame.customerId),
-          eq(s.pricingTables.routeId, routeId),
-          eq(s.pricingTables.rateKey, cell.classCode),
-          isNull(s.pricingTables.deletedAt),
-        ))
-        .orderBy(desc(s.pricingTables.effectiveDate)).limit(1);
-      if (row) {
-        priceByCode.set(cell.classCode, Number(row.price));
+      const exact = priceByRouteKey.get(priceKey(routeId, cell.classCode));
+      if (exact !== undefined) {
+        priceByCode.set(cell.classCode, exact);
         continue;
       }
       const base = quotationBaseClassCode(cell.classCode);
-      const [baseRow] = base !== cell.classCode ? await db.select({ price: s.pricingTables.price })
-        .from(s.pricingTables)
-        .where(and(
-          eq(s.pricingTables.customerId, frame.customerId),
-          eq(s.pricingTables.routeId, routeId),
-          eq(s.pricingTables.rateKey, base),
-          isNull(s.pricingTables.deletedAt),
-        ))
-        .orderBy(desc(s.pricingTables.effectiveDate)).limit(1) : [];
-      priceByCode.set(cell.classCode, baseRow ? Number(baseRow.price) : null);
+      const fallback = base !== cell.classCode ? priceByRouteKey.get(priceKey(routeId, base)) : undefined;
+      priceByCode.set(cell.classCode, fallback ?? null);
     }
     const km = terms?.km ? Number(terms.km) : 0;
     const engine = routeCells.length > 0 ? await latestFuel(frame.customerId, routeId, routeCells[0].classCode) : null;
     const surcharge = engine ? engine.surcharge : 0;
 
     sheet.getCell(`A${cursor}`).value = 'Nhà máy';
-    sheet.getCell(`B${cursor}`).value = route?.name ?? `#${routeId}`;
+    sheet.getCell(`B${cursor}`).value = routeName ?? `#${routeId}`;
     cursor += 1;
     sheet.getCell(`A${cursor}`).value = 'Nội dung';
     routeCells.forEach((cell, index) => {

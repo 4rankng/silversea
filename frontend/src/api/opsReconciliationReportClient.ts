@@ -18,6 +18,9 @@ export interface OpsReconciliationReportRow {
   remaining: number;
   /** Chênh lệch CÓ DẤU theo chữ spec "ĐNTT − ĐÃ ỨNG": âm = tiền ứng vượt chi phí. */
   remainingSigned: number;
+  /** Số dư tạm ứng CÓ DẤU (card 141026230770): min(đã cấp, đã giải ngân) − đã
+   *  tiêu − đã trả, không kẹp về 0. Âm = nhân viên đã tiêu/trả vượt số được cấp. */
+  outstandingSigned: number;
   /** Âm và nhân viên còn nắm tiền đã cấp — đề nghị thu tiền ứng. */
   needsCollection: boolean;
   direction: OpsReconciliationDirection;
@@ -30,7 +33,7 @@ export interface OpsReconciliationReport {
   /** Set when the caller scoped the report to one đợt (reconciliation lot). */
   reconciliation?: { id: number; code: string; from: string; to: string };
   rows: OpsReconciliationReportRow[];
-  totals: { dntt: number; advanced: number; remaining: number };
+  totals: { dntt: number; advanced: number; remaining: number; remainingSigned: number };
 }
 
 export interface OpsReconciliationReportQuery {

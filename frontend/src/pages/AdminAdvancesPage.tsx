@@ -78,8 +78,13 @@ function GridSortHeader({
 
 // Direct-effect vocabulary (QA-113): saves apply immediately, so the old
 // legacy unresolved records stay DRAFT and do not contribute to posted balances.
+// Card 181026183600 — "Chờ duyệt" (PENDING) joins the pills: tabCounts already
+// computed the PENDING count but no pill rendered it, so Ops-submitted requests
+// (KP-148) were buried inside "Tất cả" and the accountant had no way to pull up
+// exactly the rows carrying PHÊ DUYỆT TẠM ỨNG.
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
+  { key: AdvanceRequestStatus.PENDING, label: 'Chờ duyệt' },
   { key: AdvanceRequestStatus.RECORDED, label: 'Đã ghi nhận' },
   { key: AdvanceRequestStatus.DRAFT, label: 'Chưa ghi sổ' },
   { key: AdvanceRequestStatus.VOIDED, label: 'Đã hủy' },
@@ -192,7 +197,11 @@ function AdvanceGridRow({
           <>
             {req.status === AdvanceRequestStatus.PENDING && onApprove && (
               <button type="button" className="btn btn--primary btn--sm" disabled={approveBusy} onClick={() => onApprove(req)}>
-                {approveBusy ? 'Đang phê duyệt…' : 'Phê duyệt tạm ứng'}
+                {/* Card 181026183600 — the spec token is the uppercase
+                    "PHÊ DUYỆT TẠM ỨNG"; cddf3315 relabeled only the expense
+                    workspace surface, this one kept title case and QA could
+                    not find the button by its spec name. */}
+                {approveBusy ? 'Đang phê duyệt…' : 'PHÊ DUYỆT TẠM ỨNG'}
               </button>
             )}
             <div className="adv-approver">
@@ -265,7 +274,8 @@ function AdvanceMobileCard({
       ) : req.status === AdvanceRequestStatus.PENDING && onApprove ? (
         <div className="adv-readonly-state adv-readonly-state--mobile">
           <button type="button" className="btn btn--primary btn--sm" disabled={approveBusy} onClick={() => onApprove(req)}>
-            {approveBusy ? 'Đang phê duyệt…' : 'Phê duyệt tạm ứng'}
+            {/* Card 181026183600 — same uppercase spec token as the desktop row. */}
+            {approveBusy ? 'Đang phê duyệt…' : 'PHÊ DUYỆT TẠM ỨNG'}
           </button>
         </div>
       ) : req.approverName ? (

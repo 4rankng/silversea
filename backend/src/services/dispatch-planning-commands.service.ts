@@ -24,9 +24,11 @@ import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { resolveDispatchFactorySnapshot } from './trip-factory-site.service';
+import { applyLclCostGroupFreightToNewTrip } from './lcl-cost-group-freight.service';
 import { completeExternalCarrierTrip } from './trip-external-close.service';
 import { syncShipmentExpenseSources } from './expense-accounting-write.service';
 import { canonicalLocationsFromContainerRow, containerLocationColumns } from './trip-shared';
+import { propagateKepPairRigToPartner } from './trip-pair-rig-sync.service';
 
 
 import { and, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
@@ -74,6 +76,15 @@ export interface IssueFulfillmentDispatchOrderInput {
    * issuance keeps blocking every non-CREATED live trip.
    */
   allowUnacknowledgedDeparture?: boolean;
+  /**
+   * FB-081 (card 181026003045) — reassign-only. The corrected trip's frozen
+   * route snapshot: a Kẹp (DOUBLE) lot carries its tuyến only on the trip
+   * (trips.route_id NOT NULL) while the mutable lot-level shipment/container
+   * route_id stay NULL, so the route guard falls back to this id (still
+   * re-validated against live routes) instead of false-409ing. The issue
+   * path leaves it unset so first-time issuance keeps its exact contract.
+   */
+  routeIdFallback?: number | null;
   plannedStartAt: string;
   plannedEndAt: string;
   endTimeConfirmed: boolean;
@@ -97,6 +108,14 @@ export interface IssueFulfillmentDispatchOrderInput {
    * covers the family.
    */
   rigOverlapCompletedConfirmed?: boolean;
+  /**
+   * Card B 18/10 (B.2) — warn-once plate gate for EXTERNAL issues: issuing a
+   * vendor truck whose plate is not known yet is legal (card 20261004_359)
+   * but must never pass silently — the first attempt is refused once with
+   * PLATE_DEFERRED_CONFIRM and the operator's confirmed retry carries this
+   * flag. Internal-fleet issues never see this gate (the truck IS the plate).
+   */
+  plateDeferredConfirmed?: boolean;
   idempotencyKey: string;
   actor: DispatchActor;
 }
@@ -115,6 +134,18 @@ export interface IssueOrderMutationResult {
    * to the new driver after commit (best-effort, never blocks the write).
    */
   attendanceResync?: {
+    tripId: number;
+    previousDriverId: number | null;
+    driverId: number | null;
+    departureDate: string | null;
+  };
+  /**
+   * FB-081 v2 (card 181026003045): set when the reassign propagated a new
+   * driver onto the partner leg of an ACTIVE Kẹp pair that had already
+   * departed — same attendance contract as `attendanceResync`, for the leg
+   * the operator did not directly edit.
+   */
+  pairAttendanceResync?: {
     tripId: number;
     previousDriverId: number | null;
     driverId: number | null;
@@ -299,10 +330,14 @@ export async function issueOrderCreateOrUpdate(
   const canonicalLocations = containerRoute
     ? canonicalLocationsFromContainerRow(containerRoute)
     : { origin: null, destination: null };
-  // FCL route falls back container -> shipment (mirroring detail plan and CUS workspace)
+  // FCL route falls back container -> shipment (mirroring detail plan and CUS
+  // workspace). FB-081 (card 181026003045): the governed reassign passes the
+  // corrected trip's route snapshot as routeIdFallback — a Kẹp lot's mutable
+  // lot-level route_id can be NULL while trips.route_id carries the tuyến —
+  // and the lookup below re-validates the fallback against deleted_at.
   const effectiveRouteId = fulfillment.cargoMode === CARGO_MODE.FCL
-    ? (containerRoute?.routeId ?? shipment.routeId ?? null)
-    : shipment.routeId;
+    ? (containerRoute?.routeId ?? shipment.routeId ?? input.routeIdFallback ?? null)
+    : (shipment.routeId ?? input.routeIdFallback ?? null);
   const [route] = effectiveRouteId == null
     ? []
     : await tx.select({ distanceKm: s.routes.distanceKm })
@@ -493,16 +528,30 @@ export async function issueOrderCreateOrUpdate(
     }
     externalPlateNumber = carrierVehicle?.licensePlate
       ?? trimBounded(input.externalPlateNumber, 'Biển số xe ngoài', 20);
-    // Driver identity is optional since 2026-09-08: external carriers don't
-    // use the driver app, so the name/phone are informational only — the trip
-    // is completed by dispatch/CUS on the driver's behalf (trips complete-external).
-    externalDriverName = trimBounded(input.externalDriverName, 'Tên tài xế ngoài', 100);
-    externalDriverPhone = trimBounded(input.externalDriverPhone, 'Số điện thoại tài xế ngoài', 20);
     // Card 20261004_359: a plate is NO LONGER required to issue an external
     // dispatch — dispatch may issue before the plate is known ("Bổ sung sau",
     // the plan-save path already shipped this contract) and the plate rides in
     // later through the reassign flow. Completion (trip-external-close)
     // carries the new mandatory-plate gate instead.
+    // Card B 18/10 (B.2) — customer re-report: the allowance must never pass
+    // SILENTLY. A plate-less vendor issue warns once; the operator confirms
+    // and the confirmed retry proceeds. The trip then runs with a NULL
+    // external plate — recorded downstream (trips, POD print, the completion
+    // gate at trip-external-close which refuses the close until the plate is
+    // added via Phân xe lại). Internal fleet keeps the exact truck contract
+    // above; this gate never sees it.
+    if (externalPlateNumber == null && externalCarrierVehicleId == null && input.plateDeferredConfirmed !== true) {
+      throw new ApiError(409,
+        'Phát lệnh chưa có biển số xe nhà xe ngoài — chuyến sẽ ghi nhận "chưa có biển" '
+        + 'cho đến khi bổ sung qua Phân xe lại (và không thể hoàn thành trước khi có biển). Vẫn phát lệnh?',
+        undefined,
+        { code: 'PLATE_DEFERRED_CONFIRM' });
+    }
+    externalDriverName = trimBounded(input.externalDriverName, 'Tên tài xế ngoài', 100);
+    externalDriverPhone = trimBounded(input.externalDriverPhone, 'Số điện thoại tài xế ngoài', 20);
+    // Driver identity is optional since 2026-09-08: external carriers don't
+    // use the driver app, so the name/phone are informational only — the trip
+    // is completed by dispatch/CUS on the driver's behalf (trips complete-external).
   }
 
   const lockIds = [truckId, trailerId, driverId].filter((id): id is number => id != null);
@@ -571,10 +620,12 @@ export async function issueOrderCreateOrUpdate(
       classification: fulfillment.dispatchClassification,
       departureDate: localDateInBusinessZone(plannedStartAt),
     },
+    shipmentId: shipment.id,
   });
 
   let trip = liveTrip;
   let notificationPersisted = false;
+  let pairRigSync: Awaited<ReturnType<typeof propagateKepPairRigToPartner>> = null;
 
   if (!trip) {
     // Ad-hoc shipments carry no catalog customer; a trip row requires one
@@ -674,6 +725,16 @@ export async function issueOrderCreateOrUpdate(
         factorySiteAddress: factorySnapshot.address,
       }).where(eq(s.trips.id, trip.id));
     }
+    // Card 171026142500: an LCL lot grouped on Kế hoạch Chi tiết BEFORE this
+    // issue got its cost group saved with no live trip to price — the group's
+    // cước trả ĐV law (Lô 1 = bảng giá nhà xe, members = 0₫) lands HERE, on
+    // the trip this order just created. Ungrouped lots no-op.
+    await applyLclCostGroupFreightToNewTrip(tx, {
+      shipment,
+      fulfillment,
+      tripId: trip.id,
+      departureDate: plannedStartAt.toISOString().slice(0, 10),
+    });
     const notificationPayload = buildNotificationPayload(trip);
     if (hasExplicitNotificationTarget(notificationPayload)) {
       await persistNotificationInTx(tx, notificationPayload);
@@ -711,6 +772,25 @@ export async function issueOrderCreateOrUpdate(
       await upsertTripCarrierInfo(tx, trip.id, updatedTripCarrier);
       const composed = await getTripCompositeInTx(tx, trip.id);
       if (composed) trip = toLiveTripRow(composed);
+      // FB-081 v2 (card 181026003045, option 2-lite): a Kẹp pair moves as ONE
+      // rig — apply the issuing leg's resolved truck/trailer/driver onto the
+      // partner leg of the trip's ACTIVE KEP pair inside this same
+      // transaction. Throws (rolling the whole reassign back) when the change
+      // cannot keep the pair invariant: a switch to an external carrier, or a
+      // driver change onto a partner that already acknowledged. No pair / no
+      // drift → null, business as before.
+      pairRigSync = await propagateKepPairRigToPartner(tx, {
+        tripId: trip.id,
+        carrierType: input.carrierType,
+        truckId,
+        trailerId,
+        driverId,
+        actor: {
+          userId: input.actor.userId,
+          role: input.actor.role,
+          name: input.actor.fullName ?? input.actor.username,
+        },
+      });
     }
     await replaceTripContainersForFulfillment(tx, trip.id, shipment, fulfillment, input.actor.userId);
     const existingNotificationCount = await tx.select({ total: count() }).from(s.notifications).where(and(
@@ -777,6 +857,14 @@ export async function issueOrderCreateOrUpdate(
         departureDate: trip.departureDate ?? null,
       },
     } : {}),
+    ...(pairRigSync?.attendanceResyncNeeded === true ? {
+      pairAttendanceResync: {
+        tripId: pairRigSync.partnerTripId,
+        previousDriverId: pairRigSync.previous.driverId,
+        driverId: driverId ?? null,
+        departureDate: pairRigSync.partnerDepartureDate,
+      },
+    } : {}),
   };
 }
 
@@ -835,6 +923,22 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
     }
   }
 
+  // FB-081 v2: the Kẹp partner leg the propagate step moved — same
+  // best-effort attendance contract as the issuing leg above.
+  if (!outcome.replayed && outcome.result.pairAttendanceResync) {
+    const resync = outcome.result.pairAttendanceResync;
+    try {
+      if (resync.previousDriverId != null) {
+        await removeTripWorkDays(resync.previousDriverId, resync.tripId);
+      }
+      if (resync.driverId != null && resync.departureDate != null) {
+        await syncTripWorkDays(resync.driverId, resync.tripId, resync.departureDate, null, input.actor.userId);
+      }
+    } catch (error) {
+      console.warn('[attendance] pair reassignment resync failed for trip', resync.tripId, error);
+    }
+  }
+
   if (!outcome.replayed && outcome.result.notificationPersisted && hasExplicitInAppTarget) {
     await sendNotificationPush(notificationPayload).catch((error) => {
       console.error('Dispatch push delivery failed after order commit:', error);
@@ -877,7 +981,26 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
  */
 
 export async function reassignIssuedDispatchWriteCommand(input: IssueFulfillmentDispatchOrderInput) {
-  return issueFulfillmentDispatchOrder({ ...input, allowUnacknowledgedDeparture: true });
+  // FB-081 (card 181026003045): the corrected trip is the reassign's route
+  // authority — a Kẹp (DOUBLE) lot keeps its tuyến ONLY on trips.route_id
+  // while the mutable lot-level shipment/container route_id stay NULL. The
+  // command resolves the snapshot itself so every caller gets the fallback
+  // (the guard re-validates it against live routes); first-issue never goes
+  // through this wrapper, so its contract is untouched.
+  const [trip] = await db.select({ routeId: s.trips.routeId })
+    .from(s.trips)
+    .where(and(
+      eq(s.trips.fulfillmentId, input.fulfillmentId),
+      eq(s.trips.shipmentId, input.shipmentId),
+      ne(s.trips.status, TripStatus.CANCELED),
+      isNull(s.trips.deletedAt),
+    ))
+    .limit(1);
+  return issueFulfillmentDispatchOrder({
+    ...input,
+    allowUnacknowledgedDeparture: true,
+    routeIdFallback: trip?.routeId ?? input.routeIdFallback ?? null,
+  });
 }
 
 // ─── Dispatch detail plan grid ("Kế hoạch Chi tiết Xe") ─────────────────────

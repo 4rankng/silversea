@@ -128,3 +128,68 @@
 .expense-accounting-draft-row { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
 .expense-accounting-draft-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .expense-accounting-draft-head h4 { margin: 0; font-size: var(--text-label-size); color: var(--fg-2); }
+
+/* ── Card 191026160000 — group tabs + the type's own sub-table ─────────── */
+.expense-accounting-group-tabs {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  width: fit-content;
+}
+.expense-group-tab {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2, #344054);
+  font: inherit;
+  font-size: var(--text-caption-size);
+  cursor: pointer;
+}
+.expense-group-tab.is-active {
+  background: var(--brand, #1570ef);
+  color: #fff;
+}
+.expense-existing {
+  margin: 14px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft, #e4e7ec);
+}
+.expense-existing h4 {
+  margin: 0 0 8px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2, #344054);
+}
+.expense-existing-table td,
+.expense-existing-table th {
+  white-space: nowrap;
+}
+.expense-existing-col--tick {
+  width: 36px;
+  text-align: center;
+}
+.expense-existing-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft, #e4e7ec);
+  border-radius: 10px;
+  background: var(--surface-muted, #f9fafb);
+}
+.expense-existing-bar p {
+  margin: 0 auto 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2, #344054);
+}
+
+@media (pointer: coarse), (max-width: 767px) {
+  .expense-group-tab {
+    min-height: var(--control-touch-h, 44px);
+  }
+}

@@ -69,6 +69,8 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
 
+    // 181026200700 (D.4): the delivery date is ONE always-visible field —
+    // the marks contract reads it without any reveal step.
     const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-type', 'shipment-package-count', 'shipment-cargo-weight', 'shipment-expected-delivery'];
     for (const fieldId of required) {
       await waitFor(() => {
@@ -87,8 +89,9 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
 
     // Helpdesk 2026-10-13 (ops Tiếp Vu): LCL copy for the delivery date is
-    // "Ngày giao hàng". The field renders only on the LCL path, so the label
-    // is pinned here alongside the marks contract.
+    // "Ngày giao hàng". The field renders only on the LCL path (181026200700:
+    // one always-visible field), so the label is pinned here alongside the
+    // marks contract.
     const field = await waitFor(() => {
       const node = document.querySelector('[data-field-id="shipment-expected-delivery"]');
       expect(node).toBeTruthy();
