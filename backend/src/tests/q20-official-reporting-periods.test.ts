@@ -1,11 +1,12 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { count, inArray, isNull } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 
 import { client, db } from '../db';
 import * as s from '../db/schema';
 import { insertTripComposite } from '../services/trip-composite.service';
 import { cacheInvalidate, cacheInvalidatePattern, disconnectRedis } from '../lib/redis';
+import { salaryPeriodDateRange, tripCompletionBusinessDateSql } from '../services/reporting-shared';
 import { getDashboardStats } from '../services/dashboard-stats.service';
 import { getFuelApReconciliation } from '../services/fuel-ap-recon.service';
 import { getPnlReport, getFuelVarianceReport } from '../services/pnl.service';
@@ -32,7 +33,6 @@ type TripRow = {
   version: number;
 };
 
-let dashboardBefore: Awaited<ReturnType<typeof getDashboardStats>>;
 let boundaryStart = '';
 let boundaryEnd = '';
 let previousPeriodStart = '';
@@ -44,6 +44,99 @@ let previousYear = 0;
 let currentQuarter = 0;
 let previousQuarter = 0;
 let previousQuarterYear = 0;
+/** The dashboard's official window ([start, exclusive end)) for the current
+ * salary period — the exact bounds dashboard-stats.service compares the
+ * Vietnam business completion date against. */
+let officialWindow: { start: string; end: string } = { start: '', end: '' };
+
+type DashboardSnapshot = Awaited<ReturnType<typeof getDashboardStats>>;
+type IndependentCounts = { official: number; inTransit: number; fleet: number };
+
+/**
+ * Independent counts of the dashboard's own read model (card 261019145030
+ * hermeticity): official = not deleted, COMPLETED, business completion date
+ * inside the current salary period (the dashboard's `officialTripPeriod` +
+ * `filter (status = 'COMPLETED')`); inTransit = not deleted, IN_TRANSIT;
+ * fleet = not deleted. Pinned straight from SQL so the assertions can check
+ * the dashboard numbers against the same definition at read time instead of
+ * differencing two global snapshots taken seconds apart — snapshots that
+ * concurrent suites legitimately move when their trip/truck fixtures churn
+ * on the shared dev DB (settle-reread precedent REDS-CONC-04).
+ */
+async function independentDashboardCounts(): Promise<IndependentCounts> {
+  const completionDate = tripCompletionBusinessDateSql();
+  const [[official], [inTransit], [fleet]] = await Promise.all([
+    db.select({ n: count() }).from(s.trips).where(and(
+      isNull(s.trips.deletedAt),
+      isNotNull(s.trips.completedAt),
+      gte(completionDate, officialWindow.start),
+      sql`${completionDate} < ${officialWindow.end}`,
+      eq(s.trips.status, 'COMPLETED'),
+    )),
+    db.select({ n: count() }).from(s.trips).where(and(
+      isNull(s.trips.deletedAt),
+      eq(s.trips.status, 'IN_TRANSIT'),
+    )),
+    db.select({ n: count() }).from(s.trucks).where(isNull(s.trucks.deletedAt)),
+  ]);
+  return { official: Number(official.n), inTransit: Number(inTransit.n), fleet: Number(fleet.n) };
+}
+
+type DashboardMetric = 'tripCount' | 'inTransitTrips' | 'totalTrucks';
+const INDEPENDENT_KEY: Record<DashboardMetric, keyof IndependentCounts> = {
+  tripCount: 'official',
+  inTransitTrips: 'inTransit',
+  totalTrucks: 'fleet',
+};
+
+/**
+ * Churn-tolerant dashboard read with read-time consistency brackets: the
+ * independent count is taken immediately before and after the dashboard
+ * read, and each dashboard number must fall inside its bracket. Concurrent
+ * suites mostly ADD fixtures mid-lifecycle (bracket absorbs the growth);
+ * a teardown landing inside a window breaks a bound and the whole read is
+ * retried after a cache bust (settle-reread, REDS-CONC-04 precedent) — a
+ * real divergence (wrong window, undecoded grouped counts, double count)
+ * lands outside every bracket and fails every attempt, surfacing the last
+ * numbers to the caller's assertions.
+ */
+async function readConsistentDashboard(): Promise<{
+  dashboard: DashboardSnapshot;
+  before: IndependentCounts;
+  after: IndependentCounts;
+}> {
+  let last: { dashboard: DashboardSnapshot; before: IndependentCounts; after: IndependentCounts } | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const before = await independentDashboardCounts();
+    await cacheInvalidate('reports:dashboard');
+    const dashboard = await getDashboardStats();
+    const after = await independentDashboardCounts();
+    last = { dashboard, before, after };
+    const consistent = (Object.keys(INDEPENDENT_KEY) as DashboardMetric[]).every((metric) => {
+      const independent = INDEPENDENT_KEY[metric];
+      return dashboard[metric] >= before[independent] && dashboard[metric] <= after[independent];
+    });
+    if (consistent) return last;
+  }
+  return last!;
+}
+
+/** Does one of this suite's own trips satisfy the dashboard's official
+ * completion-date window right now? 1 = attributed to the official period,
+ * 0 = excluded — the deterministic, suite-scoped form of "completion date
+ * drives period attribution". */
+async function countTripInOfficialWindow(tripId: number): Promise<number> {
+  const completionDate = tripCompletionBusinessDateSql();
+  const [row] = await db.select({ n: count() }).from(s.trips).where(and(
+    eq(s.trips.id, tripId),
+    isNull(s.trips.deletedAt),
+    isNotNull(s.trips.completedAt),
+    gte(completionDate, officialWindow.start),
+    sql`${completionDate} < ${officialWindow.end}`,
+    eq(s.trips.status, 'COMPLETED'),
+  ));
+  return Number(row.n);
+}
 
 function addDays(dateStr: string, delta: number): string {
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -228,9 +321,11 @@ before(async () => {
   boundaryEnd = currentPeriod.end;
   previousPeriodStart = previousPeriod.start;
   previousPeriodEnd = previousPeriod.end;
+  // Exclusive-end form of the same period — the exact comparison bounds the
+  // dashboard uses for its official trip window.
+  officialWindow = await salaryPeriodDateRange(currentMonth, currentYear);
 
   await invalidateReportCaches();
-  dashboardBefore = await getDashboardStats();
 });
 
 describe('Q20 official reporting period attribution', () => {
@@ -295,21 +390,26 @@ describe('Q20 official reporting period attribution', () => {
 
     const previousMonthPnl = await getPnlReport(previousMonth, previousYear);
     const currentMonthPnl = await getPnlReport(currentMonth, currentYear);
-    // The dashboard aggregates GLOBAL company state on a shared dev DB that
-    // other suites write concurrently. A live truck count taken at a single
-    // instant can drift from the dashboard read by foreign inserts, so the
-    // live reference is bracketed around the dashboard call: on a quiet DB
-    // the three figures coincide and the parity pin is strict; under
-    // concurrent writers only the dashboard's own consistency is exact.
-    const [liveFleetBefore] = await db.select({ total: count() }).from(s.trucks).where(isNull(s.trucks.deletedAt));
-    const dashboardAfter = await getDashboardStats();
-    const [liveFleetAfter] = await db.select({ total: count() }).from(s.trucks).where(isNull(s.trucks.deletedAt));
+    // Dashboard pins (card 261019145030 hermeticity): the dashboard
+    // aggregates GLOBAL company state on a shared dev DB that other suites
+    // write concurrently, so instead of differencing two global snapshots
+    // taken seconds apart (racy — a foreign teardown between them moves the
+    // deltas), the read is (a) deterministic per-trip attribution: this
+    // suite's completed trip satisfies the dashboard's official
+    // completion-date window and its in-progress trip does not, and (b)
+    // read-time consistency brackets: each dashboard number falls inside
+    // [independent count before, independent count after] the read, with a
+    // bounded settle-reread for teardown bursts (a real divergence — wrong
+    // window, undecoded grouped counts — lands outside every bracket).
+    // Together they prove the old +1 deltas' intent: the completed trip is
+    // inside the official count, the in-progress trip stays operational-only.
+    const { dashboard: dashboardAfter, before: indepBefore, after: indepAfter } = await readConsistentDashboard();
     assert.equal(dashboardAfter.executive, undefined, 'base dashboard consumers must not load executive-only aggregates');
-    assert.ok(liveFleetBefore.total > 0, 'the real reporting truck fixture makes fleet-count decoding observable');
+    assert.ok(indepAfter.fleet > 0, 'the real reporting truck fixture makes fleet-count decoding observable');
     assert.equal(typeof dashboardAfter.totalTrucks, 'number', 'PostgreSQL grouped counts must be decoded before addition');
     assert.ok(
-      dashboardAfter.totalTrucks >= liveFleetBefore.total && dashboardAfter.totalTrucks <= liveFleetAfter.total,
-      `dashboard total ${dashboardAfter.totalTrucks} must match the independently decoded live truck count bracket ${liveFleetBefore.total}..${liveFleetAfter.total}`,
+      dashboardAfter.totalTrucks >= indepBefore.fleet && dashboardAfter.totalTrucks <= indepAfter.fleet,
+      `dashboard total ${dashboardAfter.totalTrucks} must match the independently decoded live truck count bracket ${indepBefore.fleet}..${indepAfter.fleet}`,
     );
     assert.ok(Object.values(dashboardAfter.fleetStatus).every(value => typeof value === 'number'));
     assert.equal(dashboardAfter.totalTrucks, Object.values(dashboardAfter.fleetStatus).reduce((sum, value) => sum + Number(value), 0));
@@ -336,18 +436,26 @@ describe('Q20 official reporting period attribution', () => {
       'in-progress trips must not appear in official P&L trip detail',
     );
 
-    // Shared-DB note: dashboardBefore/After are global snapshots, so foreign
-    // suites' trips can add to the delta. The pin under test is that THIS
-    // suite's completed trip enters official totals and its in-progress trip
-    // does not — my completed trip must raise the official count (the P&L
-    // membership pins above prove it is mine and correctly attributed), and
-    // my in-progress trip must raise the operational in-transit count. On a
-    // quiet DB each delta is exactly +1.
-    assert.ok(dashboardAfter.tripCount >= dashboardBefore.tripCount + 1, 'dashboard official trip count must include the completed cross-period trip');
     // O2C: lockedTrips is vestigial (LOCKED dropped) and always returns 0.
-    // The meaningful terminal-count assertion is tripCount above (counts COMPLETED).
+    // The meaningful terminal-count pin is the official-window membership and
+    // count consistency below (counts COMPLETED, completion-date-attributed).
     assert.equal(dashboardAfter.lockedTrips, 0, 'dashboard lockedTrips is vestigial under the single-terminal-state model');
-    assert.ok(dashboardAfter.inTransitTrips >= dashboardBefore.inTransitTrips + 1, 'in-transit trips remain operationally visible but stay outside official trip totals');
+    assert.equal(
+      await countTripInOfficialWindow(crossPeriodTrip.id), 1,
+      'the completed cross-period trip satisfies the dashboard official window — completion date drives attribution',
+    );
+    assert.equal(
+      await countTripInOfficialWindow(inProgressTrip.id), 0,
+      'the in-progress trip stays outside the dashboard official window while remaining operationally visible',
+    );
+    assert.ok(
+      dashboardAfter.tripCount >= indepBefore.official && dashboardAfter.tripCount <= indepAfter.official,
+      `dashboard official trip count ${dashboardAfter.tripCount} must sit inside the independent official-window count bracket ${indepBefore.official}..${indepAfter.official} (includes the completed trip)`,
+    );
+    assert.ok(
+      dashboardAfter.inTransitTrips >= indepBefore.inTransit && dashboardAfter.inTransitTrips <= indepAfter.inTransit,
+      `dashboard in-transit count ${dashboardAfter.inTransitTrips} must sit inside the independent in-transit count bracket ${indepBefore.inTransit}..${indepAfter.inTransit} — operationally visible, outside official totals`,
+    );
 
     assert.equal(
       previousQuarterPreview.perTruck.some((row) => row.truckId === truck.id),

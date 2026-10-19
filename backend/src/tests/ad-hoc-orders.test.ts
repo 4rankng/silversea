@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, count } from 'drizzle-orm';
 
 import { db, client } from '../db';
 import * as s from '../db/schema';
@@ -17,15 +17,55 @@ import shipmentRoutes from '../routes/shipments';
 
 /**
  * Lệnh chạy ngoài (ad-hoc orders) — MasterDataNhaMay §4/§2.1:
- * hybrid storage (ID XOR raw text), master-data guardrail (counts unchanged),
+ * hybrid storage (ID XOR raw text), master-data guardrail (no catalog leak),
  * mixed catalog/free-text rows, dispatch boundary, display coalescing.
  */
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdUserIds: number[] = [];
 const createdShipmentIds: number[] = [];
+const createdRouteIds: number[] = [];
 let server: http.Server;
 let baseUrl: string;
 let cusToken: string;
+let ownRoute: { id: number };
+
+/**
+ * Guardrail (AC5): free text never leaks into the master catalogs. The pin is
+ * scoped to the exact raw names this suite submits — whole-company count
+ * snapshots are inherently racy on the shared dev DB, where parallel suites
+ * legitimately create and tear down their own catalog fixtures between any
+ * two snapshots (card 261019145030; scoping precedent REDS-CONC-03 in
+ * testplan/2026-10-19-be-reds-final-cross-run-interference.md).
+ */
+const SUBMITTED_RAW_NAMES = [
+  // Exact submitted values, plus the untrimmed variant of the first create —
+  // the create trims before storing, so a catalog leak would carry the
+  // trimmed form; the padded form only exists if a pathological path wrote
+  // the raw input through.
+  'Khách vãng lai BG',
+  '  Khách vãng lai BG  ',
+  'Cầu Nhật Tân — KCN Quang Minh',
+  'Khách một cuốc',
+  'Khách hiện danh',
+  'Khách sửa lại',
+  'Khách không cước',
+] as const;
+
+async function assertMasterCatalogsClean() {
+  const [customers] = await db.select({ n: count() }).from(s.customers)
+    .where(inArray(s.customers.name, [...SUBMITTED_RAW_NAMES]));
+  const [sites] = await db.select({ n: count() }).from(s.operationalSites)
+    .where(inArray(s.operationalSites.name, [...SUBMITTED_RAW_NAMES]));
+  const [routes] = await db.select({ n: count() }).from(s.routes)
+    .where(inArray(s.routes.name, [...SUBMITTED_RAW_NAMES]));
+  const [ports] = await db.select({ n: count() }).from(s.ports)
+    .where(inArray(s.ports.name, [...SUBMITTED_RAW_NAMES]));
+  assert.deepEqual(
+    { customers: customers.n, sites: sites.n, routes: routes.n, ports: ports.n },
+    { customers: 0, sites: 0, routes: 0, ports: 0 },
+    'free text must never leak into the master catalogs (AC5)',
+  );
+}
 
 function sign(user: { id: number; username: string | null; role: Role | string }) {
   return jwt.sign(
@@ -52,17 +92,6 @@ async function api(
   return { status: response.status, body };
 }
 
-async function masterCounts() {
-  const [row] = await db.execute(sql`select
-    (select count(*) from customers) as customers,
-    (select count(*) from operational_sites) as sites,
-    (select count(*) from routes) as routes,
-    (select count(*) from ports) as ports`);
-  return row as { customers: string; sites: string; routes: string; ports: string };
-}
-
-let countsBefore: Awaited<ReturnType<typeof masterCounts>>;
-
 before(async () => {
   const app = express();
   app.use(express.json());
@@ -85,7 +114,15 @@ before(async () => {
   createdUserIds.push(cus.id);
   cusToken = sign(cus);
 
-  countsBefore = await masterCounts();
+  // Own catalog fixture for the mixed-row case: never pick an arbitrary row
+  // off the shared catalog (`.limit(1)` can return another suite's fixture,
+  // which its teardown may delete between the pick and the create — card
+  // 261019145030 P2).
+  const [route] = await db.insert(s.routes).values({
+    name: `AdHoc route ${suffix}`,
+  }).returning({ id: s.routes.id });
+  createdRouteIds.push(route.id);
+  ownRoute = route;
 });
 
 after(async () => {
@@ -99,6 +136,7 @@ after(async () => {
         await db.delete(s.shipmentStatusHistory).where(inArray(s.shipmentStatusHistory.shipmentId, createdShipmentIds));
         await db.delete(s.shipments).where(inArray(s.shipments.id, createdShipmentIds));
       }
+      if (createdRouteIds.length) await db.delete(s.routes).where(inArray(s.routes.id, createdRouteIds));
       if (createdUserIds.length) await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
     } finally {
       await client.end();
@@ -107,7 +145,7 @@ after(async () => {
 });
 
 describe('lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4)', () => {
-  test('full free-text create stores raw names with null ids; master counts unchanged', async () => {
+  test('full free-text create stores raw names with null ids; master catalogs stay clean', async () => {
     const created = await api('', {
       method: 'POST',
       token: cusToken,
@@ -131,8 +169,7 @@ describe('lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4)', () => 
     assert.equal(created.body.isAdHoc, true);
 
     // Guardrail (AC5): free text never leaks into the master catalogs.
-    const countsAfter = await masterCounts();
-    assert.deepEqual(countsAfter, countsBefore);
+    await assertMasterCatalogsClean();
   });
 
   test('non-ad-hoc create still requires a catalog customer', async () => {
@@ -156,14 +193,13 @@ describe('lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4)', () => 
   });
 
   test('mixed row: free-text customer + catalog route id', async () => {
-    const [route] = await db.select({ id: s.routes.id }).from(s.routes).limit(1);
     const created = await api('', {
       method: 'POST',
       token: cusToken,
       body: {
         isAdHoc: true,
         rawCustomerName: 'Khách một cuốc',
-        routeId: route?.id,
+        routeId: ownRoute.id,
         tradeDirection: 'EXPORT',
         bookingRef: `ADMIX-${suffix}`,
       },
@@ -171,13 +207,13 @@ describe('lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4)', () => 
     assert.equal(created.status, 201, JSON.stringify(created.body));
     createdShipmentIds.push(created.body.id);
     // Catalog id wins and its raw mirror stays empty (XOR, §2.1 rule 1).
-    assert.equal(created.body.routeId, route?.id ?? null);
+    assert.equal(created.body.routeId, ownRoute.id);
     assert.equal(created.body.rawRouteName, null);
     assert.equal(created.body.customerId, null);
     assert.equal(created.body.rawCustomerName, 'Khách một cuốc');
 
-    const countsAfter = await masterCounts();
-    assert.deepEqual(countsAfter, countsBefore);
+    // Guardrail (AC5): free text never leaks into the master catalogs.
+    await assertMasterCatalogsClean();
   });
 
   test('detail view coalesces the customer name — never an empty cell', async () => {

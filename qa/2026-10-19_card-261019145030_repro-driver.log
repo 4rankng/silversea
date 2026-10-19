@@ -1,0 +1,63 @@
+Card 261019145030 — deterministic interference reproduction (driver log)
+=========================================================================
+Environment: local dev stack (Postgres :5441, Redis :6391), worktree
+fix-261019145030-fullsuite-pollution-rb1 @ be127c59, node v25.8.1, tsx 4.22.3.
+
+Method: throwaway interferer scripts (kept in the session temp dir, NOT
+committed) churn the shared dev DB exactly the way concurrently-running
+suite files do — insert own fixtures, pause, delete them, loop:
+
+  interferer-adhoc.mjs : 40 routes + 3 customers per ~130ms cycle (insert,
+                         30ms pause, delete) — the catalog churn class.
+  interferer-q20.mjs   : 1 truck + 2 COMPLETED-in-period trips (completed_at
+                         = now()) + 2 IN_TRANSIT trips per ~200ms cycle,
+                         deleted each cycle — the trip/truck teardown class.
+                         Three instances ran concurrently for the stress.
+
+Commands (exit statuses in the transcripts):
+  (tsx interferer-adhoc.mjs 30000 &) && tsx --test src/tests/ad-hoc-orders.test.ts
+  for j in 1 2 3: (tsx interferer-q20.mjs 120000 &)
+  for i in 1..8:  tsx --test src/tests/q20-official-reporting-periods.test.ts
+
+PRE-FIX results (red, deterministic):
+  ad-hoc-orders: "full free-text create..." RED — masterCounts deepEqual
+    actual customers '8998' vs expected '9001' (foreign fixture churn between
+    the before() snapshot and the test recount).
+    Transcript: qa/2026-10-19_card-261019145030_repro-adhoc-prefix.log
+  q20 round 6: RED "dashboard official trip count must include the completed
+    cross-period trip" (line 346 delta pin).
+    Transcript: qa/2026-10-19_card-261019145030_repro-q20-r6.log
+  q20 round 8: RED "in-transit trips remain operationally visible but stay
+    outside official trip totals" (line 350 delta pin).
+    Transcript: qa/2026-10-19_card-261019145030_repro-q20-r8.log
+  (2 reds / 8 q20 rounds under 3-way interference)
+
+POST-FIX v1 (equality-form consistency) results:
+  Sparse 3-way churn: q20 8/8 green; ad-hoc 5/5 green.
+  BUT full-suite gate 3 run 1: q20 RED "dashboard total 1128 must match the
+  independently decoded live truck count 1131" — absolute equality cannot
+  survive real full-suite churn where concurrent suites HOLD truck/trip
+  fixtures alive for seconds (sustained growth inside the read window).
+  Log: (superseded, replaced by the v2 run below.)
+
+POST-FIX v2 (bracket + settle-reread, final) results:
+  ad-hoc-orders: 5/5 rounds 7 pass / 0 fail under catalog churn.
+  q20: 8/8 rounds 2 pass / 0 fail under the SAME sparse 3-way stress that
+    red 2/8 pre-fix, AND 8/8 rounds 2 pass / 0 fail under a sustained
+    create-hold-delete stress (3 interferers, 2 trucks + 4 COMPLETED +
+    4 IN_TRANSIT trips per ~0.3-1.5s cycle, held mid-lifecycle — the
+    pattern that red the equality form in the full suite).
+  Full-suite gate 3 (v2): see
+  qa/2026-10-19_card-261019145030_fullsuite-postfix.log (command + EXIT
+  embedded in the file header/footer).
+
+BASELINE CONTROL (reviewer-verified): a PRE-FIX full-suite run on the same
+command/machine/tree (qa/2026-10-19_card-261019145030_fullsuite-prefix-
+baseline.log) shows the IDENTICAL 6 unrelated fails (3672/3666/6) as the
+post-fix run — accounting transport register service x3, trip photo OPS
+shipment scope x2, Q23 field operations replay boundary x1. Both target
+tests passed in both full-suite runs by timing luck; the deterministic
+stress above is the protection evidence (2/8 red pre-fix -> 0/16 post-fix).
+
+Interferer debris was swept after every batch (verified 0 leftover
+INT-/INTERF-/HLD-/HOLD- rows in trucks/routes/customers/trips).
