@@ -4,7 +4,11 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import type { ExpenseAccountingCreate } from '@tingting/shared';
 const createBatch = vi.hoisted(() => vi.fn());
-vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: { createBatch } }));
+const confirmEntries = vi.hoisted(() => vi.fn());
+const tienDuong = vi.hoisted(() => vi.fn());
+const chiHo = vi.hoisted(() => vi.fn());
+vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: { createBatch, confirm: confirmEntries } }));
+vi.mock('../../api/phoiPhieuClient', () => ({ getPhoiPhieuTienDuong: tienDuong, getPhoiPhieuChiHo: chiHo }));
 vi.mock('../../components/UI', () => ({ Drawer: ({ children, footer }: { children: ReactNode; footer: ReactNode }) => <section>{children}{footer}</section> }));
 import { ExpenseCreateDrawer } from './ExpenseCreateDrawer';
 const work = { tripId: 10, shipmentId: 42, shipmentCode: 'BL7', containerNumber: 'CONT7' };
@@ -25,7 +29,14 @@ async function fillRow(row: number, amount: string, charge = '0') {
   fireEvent.change(screen.getAllByLabelText(/Thực chi/)[row], { target: { value: amount } });
   fireEvent.change(screen.getAllByLabelText(/Thực thu/)[row], { target: { value: charge } });
 }
-beforeEach(() => { createBatch.mockReset().mockResolvedValue({ items: [] }); });
+beforeEach(() => {
+  createBatch.mockReset().mockResolvedValue({ items: [] });
+  confirmEntries.mockReset().mockResolvedValue([]);
+  // Card 191026160000 — the type tabs each list the trip's existing entries;
+  // default fixtures answer empty, the sub-table test overrides.
+  tienDuong.mockReset().mockResolvedValue({ tripId: 10, tripCode: null, rows: [], totals: { total: 0, confirmed: 0 } });
+  chiHo.mockReset().mockResolvedValue({ tripId: 10, tripCode: null, shipmentId: 42, ngayLayPhoi: null, trangThaiLay: null, rows: [], totals: { thu: 0, tra: 0 } });
+});
 it('khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp', async () => {
   const onClose = vi.fn(); const onSaved = vi.fn();
   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} onClose={onClose} onSaved={onSaved} />);
@@ -75,13 +86,55 @@ it('cặp số/ngày hóa đơn hiển thị sẵn, tùy chọn; không còn ô 
   await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(2));
   expect(sentItems(1)[0]).toMatchObject({ invoiceNumber: null, invoiceDate: null });
 });
-it('nhóm chi phí chỉ còn Chi phí lô hàng và Tiền đường', async () => {
+// Card 191026160000 — the group pick is the mockup's TWO side-by-side tabs;
+// every other group is gone from manual entry.
+it('nhóm chi phí chỉ còn Chi phí lô hàng và Tiền đường, dạng 2 tab cạnh nhau', () => {
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
-  fireEvent.click(screen.getByRole('button', { name: /Nhóm chi phí/ }));
-  expect(await screen.findByRole('option', { name: 'Chi phí lô hàng' })).toBeInTheDocument();
-  expect(screen.getByRole('option', { name: 'Tiền đường' })).toBeInTheDocument();
+  const tabs = screen.getByRole('tablist', { name: 'Loại chi phí' });
+  expect(tabs).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'Tiền đường' })).toBeInTheDocument();
+  expect(screen.getByRole('tab', { name: 'Chi phí lô hàng' })).toBeInTheDocument();
   expect(screen.queryByRole('option', { name: 'Giao nhận Ops' })).not.toBeInTheDocument();
   expect(screen.queryByRole('option', { name: 'Phát sinh Ops' })).not.toBeInTheDocument();
+});
+
+it('bảng con theo loại phí: chọn tab liệt kê các khoản LOẠI ĐÓ, tích từng dòng rồi Lưu duyệt hàng loạt', async () => {
+  chiHo.mockResolvedValue({
+    tripId: 10, tripCode: null, shipmentId: 42, ngayLayPhoi: null, trangThaiLay: null,
+    totals: { thu: 0, tra: 0 },
+    rows: [
+      { entryId: 71, sourceId: 7, version: 2, sourceKind: 'OPS', feeName: 'Cân xe', shipmentCode: 'BL7', invoiceNumber: 'HD-1', amountTra: 500000, amountThu: 0, payerName: null, payerUserId: null, confirmed: false },
+      { entryId: 72, sourceId: 8, version: 1, sourceKind: 'OPS', feeName: 'Soi chiếu', shipmentCode: 'BL7', invoiceNumber: null, amountTra: 300000, amountThu: null, payerName: null, payerUserId: null, confirmed: true },
+      { entryId: 73, sourceId: 9, version: 1, sourceKind: 'TRIP', feeName: 'Chi phí chuyến', shipmentCode: 'BL7', invoiceNumber: null, amountTra: 1000, amountThu: null, payerName: null, payerUserId: null, confirmed: false },
+    ],
+  });
+  renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} onSaved={vi.fn()} />);
+  // The lô-hàng tab is the default: its sub-table lists ONLY the OPS rows of
+  // that type under the form; the TRIP row is not a tickable chi-hộ line.
+  expect(await screen.findByText('Cân xe')).toBeInTheDocument();
+  expect(screen.queryByText('Chi phí chuyến')).not.toBeInTheDocument();
+  const tick = screen.getByRole('checkbox', { name: 'Chọn dòng 1' });
+  expect(tick).toBeEnabled();
+  expect(screen.getByRole('checkbox', { name: 'Chọn dòng 2' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn tất cả dòng chưa duyệt' }));
+  fireEvent.click(screen.getByRole('button', { name: /Lưu duyệt \(1\)/ }));
+  await waitFor(() => expect(confirmEntries).toHaveBeenCalledTimes(1));
+  expect(confirmEntries.mock.calls[0][0]).toEqual([{ sourceKind: 'OPS', sourceId: 71, expectedVersion: 2 }]);
+});
+
+it('tab Tiền đường liệt kê khoản lái xe nhập và duyệt theo DRIVER', async () => {
+  tienDuong.mockResolvedValue({
+    tripId: 10, tripCode: null, totals: { total: 80000, confirmed: 0 },
+    rows: [
+      { sourceId: 61, version: 4, costType: 'TOLL', feeName: null, driverEnteredAmount: 80000, amount: 80000, confirmed: false, driverName: 'Tài xế A', payerName: null, occurredAt: '2026-10-19' },
+    ],
+  });
+  renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} initialGroup="DRIVER_ROAD" onClose={vi.fn()} />);
+  expect(await screen.findByText('Phí cầu đường')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn tất cả dòng chưa duyệt' }));
+  fireEvent.click(screen.getByRole('button', { name: /Lưu duyệt \(1\)/ }));
+  await waitFor(() => expect(confirmEntries).toHaveBeenCalledTimes(1));
+  expect(confirmEntries.mock.calls[0][0]).toEqual([{ sourceKind: 'DRIVER', sourceId: 61, expectedVersion: 4 }]);
 });
 it('tiền đường giữ nguyên luật thu = 0 và gửi đúng phân loại; key được giữ khi lưu lỗi rồi thử lại', async () => {
   createBatch.mockRejectedValueOnce(new Error('Mất phản hồi')).mockResolvedValueOnce({ items: [] });
@@ -178,8 +231,9 @@ it('lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực c
   expect(screen.getByLabelText(/Tên khoản chi/)).toHaveValue('');
   expect(screen.getByLabelText(/Số hóa đơn/)).toHaveValue('');
   expect((screen.getAllByLabelText(/Thực chi/)[0] as HTMLInputElement).value).toBe('');
-  // nhóm chi phí / bên thực chi / ngày giữ nguyên
-  expect(screen.getByRole('button', { name: /Nhóm chi phí/ })).toHaveTextContent('Chi phí lô hàng');
+  // nhóm chi phí / bên thực chi / ngày giữ nguyên — the group now lives on
+  // the tab pair (card 191026160000).
+  expect(screen.getByRole('tab', { name: 'Chi phí lô hàng' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByRole('button', { name: /Bên thực chi/ })).toHaveTextContent('Nhân viên chi');
   expect((screen.getByLabelText(/Ngày chi/) as HTMLInputElement).value).toBe(dateBefore);
 });

@@ -312,6 +312,9 @@ export const opsClient = {
     invoiceNumber?: string | null;
     invoiceDate?: string | null;
     recoveryNote?: string | null;
+    /** Card 20260921_5 — the Thực-thu side of the no-invoice pair; the server
+     *  route schema has always accepted it (invoice rows ignore the override). */
+    customerChargeAmount?: string | number | null;
     /** Card 141026230720 — set only after the operator explicitly confirmed
      *  the duplicate warning (legit split payments etc.). The unconfirmed
      *  save bounces with 409 OPS_EXPENSE_DUPLICATE and the modal shows the

@@ -242,6 +242,35 @@ export async function getPhoiPhieuReport(kind: 'THU' | 'TRA', params: {
   return api.get(`/expense-accounting/phoi-phieu/report?${query.toString()}`);
 }
 
+/** Card 191026160000 — one summary row's drill-down: the party's not-yet-paid
+ *  lots in the same window, carrying the per-fee family split (nâng / hạ /
+ *  PS khác) and each source's open remainder. */
+export interface PhoiPhieuPartyLot {
+  tripId: number;
+  shipmentId: number;
+  billOrBooking: string | null;
+  containerNumber: string | null;
+  departureDate: string | null;
+  tienNang: number;
+  tienHa: number;
+  psKhac: number;
+  total: number;
+  daThuTra: number;
+  conLai: number;
+  entries: Array<{ sourceId: number; expectedVersion: number; amount: number; bucket: 'nang' | 'ha' | 'khac' }>;
+}
+
+export async function getPhoiPhieuPartyLots(kind: 'THU' | 'TRA', party: string, params: {
+  dateFrom?: string; dateTo?: string;
+  scope?: 'SELF' | 'ALL' | 'UNASSIGNED';
+}): Promise<{ items: PhoiPhieuPartyLot[] }> {
+  const query = new URLSearchParams({ kind, party });
+  if (params.dateFrom) query.set('dateFrom', params.dateFrom);
+  if (params.dateTo) query.set('dateTo', params.dateTo);
+  if (params.scope) query.set('scope', params.scope);
+  return api.get(`/expense-accounting/phoi-phieu/report/party-lots?${query.toString()}`);
+}
+
 // Card 20260921_8 — vehicle → kế toán assignment board data + reassignment.
 export interface PhoiPhieuTruckAssignment {
   truckId: number;

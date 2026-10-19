@@ -104,11 +104,12 @@ export function OpsAccountantTab() {
                   <td>
                     <button
                       type="button"
-                      className={`ops-doc-state${row.hasPhoto ? '' : ' is-debt'}`}
+                      className="ops-doc-state"
                       onClick={() => setPhotosFor(row.id)}
+                      title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai — không bắt buộc'}
                     >
                       <ImageIcon size={13} />
-                      {row.hasPhoto ? 'Ảnh' : 'Nợ chứng từ'}
+                      {row.hasPhoto ? 'Ảnh' : 'Không có ảnh'}
                     </button>
                   </td>
                   <td>{row.approvalStatus === 'DRAFT' ? 'Cần bổ sung' : row.approvalStatus === 'VOIDED' || row.approvalStatus === 'REJECTED' ? 'Đã hủy / lịch sử' : row.opsSettlementId == null ? 'Chưa quyết toán' : 'Đã lập phiếu'}</td>
