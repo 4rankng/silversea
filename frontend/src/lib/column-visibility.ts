@@ -34,6 +34,14 @@ export interface LedgerColumn {
    * GHI CHÚ rule. A column that carries data is never hidden by this rule.
    */
   autoHideWhenEmpty?: boolean;
+  /**
+   * Card 191026181942 (chốt debit) — this column belongs to the surface's
+   * ESSENTIAL set: on a surface whose default is `defaultVisible:
+   * 'essential'`, only essential columns (pinned ones are always essential)
+   * show before the operator ever chooses. A surface keeps the auto-hide
+   * default until it opts in, so CUS ledgers are unaffected.
+   */
+  essential?: boolean;
 }
 
 /** The columns a picker offers, in table order. */
@@ -62,15 +70,29 @@ export function sanitizeHiddenColumns(
 }
 
 /**
- * The default set for a surface whose operator has never chosen: the columns
- * that declare `autoHideWhenEmpty` and currently carry NO data. `hasData`
- * answers for the RENDERED rows; an unknown column reads as carrying data, so a
- * column can only disappear once the loaded rows are known to be empty.
+ * The default set for a surface whose operator has never chosen.
+ *
+ * `auto` (every surface until it opts in): the columns that declare
+ * `autoHideWhenEmpty` and currently carry NO data. `hasData` answers for the
+ * RENDERED rows; an unknown column reads as carrying data, so a column can
+ * only disappear once the loaded rows are known to be empty.
+ *
+ * `essential` (card 191026181942, chốt debit): the board opens on its
+ * essential set only — a money matrix with every breakdown visible is
+ * unreadable and QA had to hide columns by hand. Pinned columns are always
+ * essential (they cannot hide at all); `essential: true` marks the rest of
+ * the set. An explicit picker choice still wins wholesale.
  */
 export function hiddenByDefault(
   columns: readonly LedgerColumn[],
   hasData: (column: LedgerColumn) => boolean,
+  defaultVisible: 'auto' | 'essential' = 'auto',
 ): string[] {
+  if (defaultVisible === 'essential') {
+    return hideableColumns(columns)
+      .filter((column) => !column.essential)
+      .map((column) => column.key);
+  }
   return hideableColumns(columns)
     .filter((column) => column.autoHideWhenEmpty && !hasData(column))
     .map((column) => column.key);
@@ -79,7 +101,7 @@ export function hiddenByDefault(
 /**
  * The hidden set the table must actually render.
  *
- * `choice === null` means "the operator never chose" → the auto default applies.
+ * `choice === null` means "the operator never chose" → the default applies.
  * Any stored choice replaces that default wholesale — so hiding one column never
  * resurrects another column the default had hidden, and a column the operator
  * chose to hide STAYS hidden when it later gains data (the override wins).
@@ -88,12 +110,14 @@ export function resolveHiddenColumns({
   columns,
   choice,
   hasData,
+  defaultVisible = 'auto',
 }: {
   columns: readonly LedgerColumn[];
   choice: readonly string[] | null;
   hasData: (column: LedgerColumn) => boolean;
+  defaultVisible?: 'auto' | 'essential';
 }): string[] {
-  if (choice === null) return hiddenByDefault(columns, hasData);
+  if (choice === null) return hiddenByDefault(columns, hasData, defaultVisible);
   return sanitizeHiddenColumns(columns, choice);
 }
 

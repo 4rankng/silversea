@@ -108,6 +108,17 @@ export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): strin
   return `${formatNumber(waiting)} cont chờ phân xe`;
 }
 
+/**
+ * Empty day-filter copy for the cargo cell (card 191026181942 — wording hàng
+ * lẻ): the sentence must name the lot's own cargo object. A container lot
+ * misses cont; an LCL lot has no cont at all — its missing object is hàng lẻ.
+ */
+export function emptyDayCargoLabel(cargoMode: ShipmentCusWorkspaceListItem['cargoMode']): string {
+  return cargoMode === 'LCL'
+    ? 'Không có hàng lẻ chạy ngày đã chọn'
+    : 'Không có cont chạy ngày đã chọn';
+}
+
 export function noteLines(note: string | null | undefined): string[] {
   return (note ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 2);
 }
@@ -300,9 +311,18 @@ export function deriveShipmentSignals(item: ShipmentCusWorkspaceListItem): Shipm
     signals.push({ key: 'schedule-overdue', label: 'Lịch đã quá hạn', tone: 'danger', icon: CalendarClock });
   }
   if (item.operational.vehicleReadiness === 'WAITING_CARRIER') {
-    signals.push({ key: 'carrier', label: `Thiếu nhà xe ${item.operational.missingCarrierContainers} cont`, tone: 'warning', icon: Truck });
+    // Card 191026181942 (mute applicable-but-missing): the missing counts walk
+    // CONTAINER rows only, so a containerless LCL lot reads 0 while its
+    // lot-level allocation is still open — "Thiếu nhà xe 0 cont" was a red
+    // false alarm. A zero count means the lot-level case: one muted pending
+    // label instead of a counted warning.
+    signals.push(item.operational.missingCarrierContainers === 0
+      ? { key: 'carrier', label: 'Chưa phân xe', tone: 'info', icon: Truck }
+      : { key: 'carrier', label: `Thiếu nhà xe ${item.operational.missingCarrierContainers} cont`, tone: 'warning', icon: Truck });
   } else if (item.operational.vehicleReadiness === 'WAITING_PLATE') {
-    signals.push({ key: 'plate', label: `Thiếu BKS ${item.operational.missingPlateContainers} cont`, tone: 'warning', icon: Truck });
+    signals.push(item.operational.missingPlateContainers === 0
+      ? { key: 'plate', label: 'Chưa phân xe', tone: 'info', icon: Truck }
+      : { key: 'plate', label: `Thiếu BKS ${item.operational.missingPlateContainers} cont`, tone: 'warning', icon: Truck });
   }
   if (item.finance.isLoss) {
     signals.push({ key: 'loss', label: 'Lỗ', tone: 'danger', icon: AlertTriangle });

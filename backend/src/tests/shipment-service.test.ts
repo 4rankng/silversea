@@ -905,6 +905,44 @@ describe('listShipmentsPaginated (dispatch master-plan enrichment)', () => {
     ]);
   });
 
+  test('an LCL lot\'s planned nhà xe rides the carrier summary with zero containers (card 191026181942)', async () => {
+    // The cont bucket used to drop a container-less LCL fulfillment's planned
+    // carrier from carrierAllocationSummary entirely, so the master-plan
+    // allocation cell read "Chưa phân bổ" for a lot whose "Gán xe nhóm" write
+    // HAD planned a nhà xe. The carrier is a fact; the counts stay 0/0 and
+    // the cont allocation status law is untouched (no containers ⇒
+    // NOT_ALLOCATED — hàng lẻ never "fully allocates" containers).
+    const customer = await mkCustomer();
+    const carrier = await mkCarrierCustomer();
+    const lcl = await createShipment({
+      customerId: customer.id,
+      cargoMode: 'LCL',
+      packageCount: 5,
+      packageType: 'Pallet',
+      expectedDeliveryDate: '2026-08-15',
+    });
+    createdShipmentIds.push(lcl.id);
+    await db.insert(s.shipmentFulfillments).values({
+      shipmentId: lcl.id,
+      fulfillmentType: 'LCL_SHIPMENT',
+      cargoMode: 'LCL',
+      dispatchClassification: 'LCL',
+      sourceShipmentVersion: lcl.version,
+      siteSnapshot: {},
+      plannedCarrierType: 'EXTERNAL',
+      plannedExternalCarrierId: carrier.id,
+    });
+
+    const result = await listShipmentsPaginated({ customerId: customer.id, page: 1, limit: 20 });
+    const row = result.items.find((item) => item.id === lcl.id)!;
+    assert.ok(row);
+    assert.deepEqual(row.carrierAllocationSummary, [
+      { carrierType: 'EXTERNAL', externalCarrierId: carrier.id, carrierLabel: carrier.name, count20: 0, count40: 0 },
+    ]);
+    assert.equal(row.allocationStatus, 'NOT_ALLOCATED');
+    assert.equal(row.hasActiveLclShipment, true);
+  });
+
   test('deliveryDateFrom/deliveryDateTo bound expectedDeliveryDate inclusively', async () => {
     const customer = await mkCustomer();
     const early = await createShipment({

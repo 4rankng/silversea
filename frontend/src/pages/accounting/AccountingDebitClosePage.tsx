@@ -10,12 +10,13 @@ import {
   DEBIT_SETTLEMENT_ROUNDS_KEY,
 } from '../../api/accountingDebitClient';
 import { createDebitNoteBatch, exportDebitNoteFile } from '../../api/shipmentDebit';
-import { formatCurrency } from '../../lib/format';
+import { businessDateISO, formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, EmptyState, FilterBar, SearchableMultiSelect, SummaryRail } from '../../design-system';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
+import { resolveHiddenColumns } from '../../lib/column-visibility';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
@@ -36,8 +37,18 @@ import './AccountingDebitClosePage.css';
 
 interface BoardFilters { dateFrom: string; dateTo: string }
 
+// Card 191026160000 (§2a): the board opens on the CURRENT MONTH, never the
+// whole ledger. Unbounded, the shared dev DB serves 8864 rows — "Chọn tất cả
+// 8864 lô đủ điều kiện" then froze the tab outright (the QA repro). A month is
+// the natural close window (the same period default the sổ quỹ and the báo
+// cáo hoàn ứng open on), and the date fields remain free for any other range.
+function defaultBoardFilters(): BoardFilters {
+  const today = businessDateISO();
+  return { dateFrom: `${today.slice(0, 7)}-01`, dateTo: today };
+}
+
 export default function AccountingDebitClosePage() {
-  const [filters, setFilters] = useState<BoardFilters>({ dateFrom: '', dateTo: '' });
+  const [filters, setFilters] = useState<BoardFilters>(defaultBoardFilters);
   const [search, setSearch] = useState('');
   const [customerFilter, setCustomerFilter] = useState<string[]>([]);
   const [truckFilter, setTruckFilter] = useState<string[]>([]);
@@ -60,12 +71,18 @@ export default function AccountingDebitClosePage() {
   // The picker offers every column except the ones a row cannot lose: its
   // identity (Ngày, lô) and the only column carrying its action (Đối soát). A
   // column that is still "Thiếu …" on every rendered row carries NO value, so
-  // it hides itself until it does (column-visibility law) — that is what keeps
-  // the board readable while the rates are still being entered, and the moment
-  // a rate lands the column is there.
+  // it hides itself until it does (column-visibility law).
+  //
+  // Card 191026181942 (KT4): the board now OPENS on its essential set — dot
+  // chi phí, Ngày, lô, Tổng thu, Tổng 1, Đối soát (≤6 columns). With every
+  // breakdown visible the money matrix was unreadable and QA had to hide
+  // columns by hand on every visit; the breakdowns stay one toggle away in the
+  // picker, and a stored choice (per workstation, same key as before) still
+  // wins wholesale.
   const columns = useHiddenColumns({
     storageKey: 'accounting-debit-hidden-cols',
     columns: BOARD_COLUMNS,
+    defaultVisible: 'essential',
     hasData: (column) => {
       const definition = BOARD_COLUMNS.find((candidate) => candidate.key === column.key);
       if (definition?.raw == null) return true;
@@ -73,6 +90,22 @@ export default function AccountingDebitClosePage() {
     },
   });
   const shown = BOARD_COLUMNS.filter((column) => !columns.isHidden(column.key));
+  // Card 191026181942 (KT4): the ESSENTIAL default is the DESKTOP board's —
+  // its money matrix is the surface that could not be read with every
+  // breakdown open. The phone records stack vertically, so they keep the
+  // auto default (a column with data shows) and never lose the BD-02 lane
+  // price on the card face. The operator's explicit picker choice still
+  // governs BOTH views (one stored key) — only the never-chose default
+  // differs per view.
+  const shownForRecords = BOARD_COLUMNS.filter((column) => !resolveHiddenColumns({
+    columns: BOARD_COLUMNS,
+    choice: columns.choice,
+    hasData: (column) => {
+      const definition = BOARD_COLUMNS.find((candidate) => candidate.key === column.key);
+      if (definition?.raw == null) return true;
+      return rows.some((row) => definition.raw!(row) != null);
+    },
+  }).includes(column.key));
 
   const customerValues = useMemo(
     () => [...new Set(rows.map((row) => row.customerName).filter((v): v is string => v != null))].sort(),
@@ -138,6 +171,16 @@ export default function AccountingDebitClosePage() {
     void queryClient.invalidateQueries({ queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY });
   };
 
+  // Card 191026160000 (§2e): after a settlement round the SAME lots are the
+  // ones "Xuất Debit Note" needs — clearing the selection there killed the
+  // export exactly when the close flow reached it (the QA repro: chốt xong,
+  // nút Xuất hết hàng). Only the queries refresh; the rows keep their
+  // pickable state, so the selection stays coherent.
+  const refreshKeepingSelection = () => {
+    void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
+    void queryClient.invalidateQueries({ queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY });
+  };
+
   const sendMutation = useMutation({
     mutationFn: sendRateAdjustmentRequests,
     onSuccess: (result) => {
@@ -167,7 +210,7 @@ export default function AccountingDebitClosePage() {
       const total = Number(round.amount) + Math.round(Number(round.amount) * round.vatRate) / 100;
       setMessage({ kind: 'ok', text: `Đã chốt đợt: Lần ${round.roundNo} · ${round.periodKey.replaceAll('-', '/')} — ${formatCurrency(total)} (đã gồm VAT).` });
       setSettlementOpen(false);
-      refresh();
+      refreshKeepingSelection();
     },
     onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
   });
@@ -180,7 +223,12 @@ export default function AccountingDebitClosePage() {
 
   function toggleAll() {
     if (allSelected) selection.clear();
-    else selection.selectAll(selectableIds);
+    else if (selectableIds.length > 2000) {
+      // §2a: an operator who clears the date range gets the whole ledger
+      // back (8864 rows on the shared DB) — selecting all of it re-creates
+      // the freeze this card fixes. Refuse with the action that fixes it.
+      setMessage({ kind: 'err', text: `Kỳ đang có ${selectableIds.length} lô — thu hẹp khoảng ngày trước khi chọn tất cả.` });
+    } else selection.selectAll(selectableIds);
   }
 
   function sendRequest() {
@@ -192,18 +240,22 @@ export default function AccountingDebitClosePage() {
   }
 
   // FB-094 — Xuất Debit Note (theo dòng đang chọn): ONE issue call carries the
-  // whole selection (`POST /api/shipments/debit-notes`, stable Idempotency-Key
-  // so a re-click replays the same document) and the issued union document
-  // downloads through the per-lot export mount — the exact
-  // `ShipmentDebitPage.exportSelectedLockedLots` house flow. Server refusals
-  // surface verbatim in the message banner; no file is downloaded on error.
+  // whole selection (`POST /api/shipments/debit-notes`; the client derives the
+  // stable Idempotency-Key from the selection, so a re-click replays the same
+  // document) and the issued union document downloads through the per-lot
+  // export mount — the exact `ShipmentDebitPage.exportSelectedLockedLots`
+  // house flow. Server refusals surface verbatim in the message banner; no
+  // file is downloaded on error.
+  // The server caps one union document at 200 lots (core.routes.ts zod
+  // `.max(200)`), so the button itself states the cap instead of surfacing
+  // zod's English refusal after the click (review F2).
+  const exportCapExceeded = selectedCount > 200;
   async function exportDebitNote() {
     const ids = selectedRows.map((row) => row.shipmentId);
     if (ids.length === 0 || exportingNote) return;
     setExportingNote(true);
     try {
-      const selectionKey = `debit-note-${[...ids].sort((x, y) => x - y).join('-')}`;
-      const { id: documentId } = await createDebitNoteBatch(ids, selectionKey);
+      const { id: documentId } = await createDebitNoteBatch(ids);
       const blob = await exportDebitNoteFile(ids[0], documentId);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
@@ -278,8 +330,10 @@ export default function AccountingDebitClosePage() {
             <button
               type="button"
               className="btn btn--secondary"
-              disabled={selectedCount === 0 || exportingNote}
-              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để xuất Debit Note' : undefined}
+              disabled={selectedCount === 0 || exportingNote || exportCapExceeded}
+              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để xuất Debit Note'
+                : exportCapExceeded ? 'Mỗi Debit Note gộp tối đa 200 lô — thu hẹp lựa chọn (theo ngày hoặc khách hàng) rồi xuất từng đợt.'
+                  : undefined}
               onClick={() => void exportDebitNote()}
             >
               {exportingNote ? 'Đang xuất…' : 'Xuất Debit Note'}
@@ -408,7 +462,7 @@ export default function AccountingDebitClosePage() {
           {pendingRows.length > 0 && (
             <>
               <h2 className="debit-board__title">Chờ xác nhận</h2>
-              <AccountingDebitRecords rows={pendingRows} columns={shown} context={cellContext} selection={selection} />
+              <AccountingDebitRecords rows={pendingRows} columns={shownForRecords} context={cellContext} selection={selection} />
               <DebitBoardTable
                 rows={pendingRows}
                 columns={shown}
@@ -425,7 +479,7 @@ export default function AccountingDebitClosePage() {
                 {BOARD_CAPTION}
                 {period !== '' && <span className="debit-note"> · kỳ {period}</span>}
               </h2>
-              <AccountingDebitRecords rows={settledRows} columns={shown} context={cellContext} selection={selection} />
+              <AccountingDebitRecords rows={settledRows} columns={shownForRecords} context={cellContext} selection={selection} />
               <DebitBoardTable
                 rows={settledRows}
                 columns={shown}

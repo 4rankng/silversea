@@ -169,10 +169,11 @@ describe('settlement read-only exports', () => {
   });
 
   it('FB-100 (Option B) — phiếu đã ghi nhận hiển thị người xác nhận hoàn ứng; không còn tick/ghi nhận chết trên trang phiếu', async () => {
-    // F-W1-1: the DRAFT-only tick block never rendered in the live flow (no
-    // writer births DRAFT). Option B moved the mandatory tick to the LIVE
-    // submit (ForwarderSettlementCreatePage) and stamps checked_by at create;
-    // this print page now shows the confirmation fact instead.
+    // F-W1-1 → card 191026160000 §3b: checked_by now belongs to kế toán's
+    // DUYỆT PHIẾU HOÀN ỨNG. The legacy Option-B shape (checked_by = the
+    // phiếu's own forwarder, here 7) names no accountant, so the print page
+    // shows NO confirmation line for it — and a real KT duyệt shows the
+    // "Đã duyệt (KT)" fact.
     state.status = 'RECORDED';
     state.checkedBy = 7;
     state.checkedAt = '2026-10-16T09:30:00.000Z';
@@ -182,8 +183,15 @@ describe('settlement read-only exports', () => {
       status: 'RECORDED', createdAt: '2026-09-17T00:00:00.000Z',
     }];
     page();
-    const fact = await screen.findByText(/Xác nhận hoàn ứng:/);
-    expect(fact).toHaveTextContent('OPS Test');
+    await screen.findByText('OPS Test');
+    // Legacy self-stamp ⇒ không có dòng duyệt KT (review F6).
+    expect(screen.queryByText(/Đã duyệt \(KT\):/)).not.toBeInTheDocument();
+    // A real accountant check (checked_by ≠ forwarder) shows the fact.
+    state.checkedBy = 99;
+    state.checkerName = 'KT Mai';
+    page();
+    const fact = await screen.findByText(/Đã duyệt \(KT\):/);
+    expect(fact).toHaveTextContent('KT Mai');
     expect(screen.queryByLabelText('Xác nhận hoàn ứng')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Ghi nhận phiếu$/ })).not.toBeInTheDocument();
     // The record path moved to creation — nothing left to call from here.
@@ -195,6 +203,6 @@ describe('settlement read-only exports', () => {
     state.checkedBy = null;
     page();
     await screen.findByText('OPS Test');
-    expect(screen.queryByText(/Xác nhận hoàn ứng:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Đã duyệt \(KT\):/)).not.toBeInTheDocument();
   });
 });

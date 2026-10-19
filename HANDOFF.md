@@ -1,3 +1,42 @@
+# HANDOFF — 2026-10-19 — CUS display x5 (cards 191026181942) — gate + evidence re-drive
+
+Controller: omp agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-cus-display-rb1`,
+branch `fix-cus-display-rb1` (off `main` = `cd1fc396`).
+
+**Status**: the five-card code ALREADY landed at HEAD via `79f0b10d` (merged
+`cd1fc396` = origin/main). This run verified each card against the brief
+(LCL lịch truth-wins predicate · empty-allocation "Chưa phân xe" muted chip ·
+`emptyDayCargoLabel` cargoMode wording · CBM suppress + zero-count signal mute ·
+NameCell short-name layer) and produced fresh verification artifacts only — no
+code delta. Rung-3 evidence re-driven against THIS tree (driver
+`testplan/qa/scripts/2026-10-19-cus-display-five-cards-rung3.mjs`, `QA_BASE`
+env override added in `68dd2bac` — a salvage-guard auto-commit of the dirty
+edit; dev contract ports :7175/:7176 were occupied by unrelated worktrees'
+servers, ephemeral vite :7178 used instead, then stopped; :3002 served
+identical backend code from the main checkout).
+
+**Findings**: (1) `ShipmentsPage.test.tsx` "opens one compact edit dialog…"
+is load-sensitive flake — 3 reds under 4-way agent CPU saturation (5s/15s
+timing), green on a light box and with instrumentation; bisect (pre-merge
+`CusShipmentRow`+`ShipmentContainerLedger`) exonerates the five-card merge.
+Suspected mechanism: the animated modal exit keeps `role="dialog"` mounted
+past the unnamed `findByRole('dialog')` window. Left for the closeout-
+workspace test-hygiene owner; not part of the display cards. (2) Card 7's
+"max-w + truncate (CSS ellipsis)" pattern is implemented as the law-conformant
+wrap + accessible tooltip — `table-no-truncation.styles.test.ts` (law §4)
+bans ellipsis on data cells; pinned in testplan case R5.
+
+**Gates** (`qa/2026-10-19_cus-display-five-cards_gates.log`): `tsgo -b` 0 ·
+`tsc -b` 0 · scoped vitest 270/270 · `pnpm lint` 0 · RUNG3 DRIVE PASS
+(`qa/2026-10-19_cus-display-five-cards_ui-driver.log` + 7 card screenshots).
+
+**Limits**: DB rows unchanged this run (read-only drive; identity file from the
+original run still accurate); route/carrier short names depend on master-data
+`shortName` (absent → full name renders, still tooltip-accessible); the
+Kế hoạch kehoach shot samples an unconfigured customer (full name + tooltip).
+
+---
+
 # HANDOFF — 2026-10-19 — FB-030/075 auto-advance (verified fixed) + FB-066 quick-add BKS
 
 Controller: omp agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-fb030-fb066`,
@@ -539,3 +578,50 @@ session and is not independently re-verifiable here; any findings resolve as
 forward fixes. rb1 (2026-10-19) verified the scoped gates green and landed the
 missed lint one-liner (`52c0214f`); branch `fix-dieuvan-laixe` pushed through
 that commit. Awaiting owner merge/deploy instruction — NEVER deploy.
+
+---
+
+# HANDOFF — 2026-10-19 — card 191026160000: money format + chốt-debit fixes + duyệt tạm/hoàn ứng (chiphi2-b)
+
+Controller worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-chiphi2-b`, branch
+`fix-chiphi2-b` (off main `eed0b2f3`). Updated 2026-10-19. See
+`testplan/2026-10-19-card-191026160000-chiphi2-b.md` for the full case table,
+review resolution and dev-DB residue list.
+
+**§1 Money format** — Timesheet lương lines + 4 config money inputs
+(LiftPricing, WeightTiers, CapTable, AncillaryRevenue) moved to
+`formatMoney` / `NumberField grouped(signed)`; API payload shapes unchanged.
+`formatMoney` already existed (`frontend/src/lib/format.ts`) — the sweep only
+covered the missing surfaces.
+
+**§2 Chốt-debit** — board defaults to the CURRENT MONTH (8864-row unbounded
+load froze select-all — the QA repro; captured pre-fix), select-all guard
+>2000; selected row paints accent-soft + ✓ tick in Ngày; two-tier header
+rowSpan cells bottom-aligned; "Chọn Debit" dialog groups the selection BY NGÀY
+with per-date ticks (untick excludes lots from count/sum/shipmentIds; đợt
+period follows ticked dates); settlement success KEEPS the selection; export
+key root cause FIXED (raw id-join key >100 chars → 400; now FNV-1a selection
+hash inside `createDebitNoteBatch`, used by both /accounting/chot-debit and
+/shipments-debit) + 200-lot union cap surfaced on the button.
+
+**§3 Duyệt tạm/hoàn ứng** — (3a) PHÊ DUYỆT TẠM ỨNG verified working at HEAD
+(rung 3; QA staging build predates 3b252b4b — no code change); (3b) NEW
+`POST /api/advance-settlements/:id/check` (ADMIN/ACCOUNTANT) stamps
+checked_by/checked_at + version bump; creation no longer stamps
+checkedBy=submitter (Option B's tick stays approved_by; deadlock-order pin
+updated); "DUYỆT PHIẾU HOÀN ỨNG" row action on /advances tab Phiếu hoàn ứng;
+(3c) Ops chi → hoàn tạm ứng: trace proved ĐNTT counts only KT-CONFIRMED ops
+expenses; "Chi phí Ops" tab now shows the duyệt state + per-row Duyệt wired
+to the SAME `/expense-accounting/confirm` phơi phiếu uses.
+
+Gates: lint 0 · be tsc 0 · fe tsc -b 0 · fe vitest 215/215 · be scoped 41/41
+(advance-settlement-check NEW) · make build OK. UI rung 3 before/after:
+`qa/2026-10-19_chiphi2-b_repro/` + `qa/2026-10-19_chiphi2-b_after/` (10 shots +
+dom-facts.json + exported xlsx). Drivers:
+`testplan/qa/scripts/2026-10-19_chiphi2b-*.mjs`; settlement seed/cleanup:
+`backend/scripts/seed-chiphi2b-settlement.ts`.
+
+Not covered: staging drive (local-only); mobile ≤640px debit board not driven;
+invoice-required confirm flow beyond the surfaced refusal; known edges F3/F6/F9
+in the testplan.
+

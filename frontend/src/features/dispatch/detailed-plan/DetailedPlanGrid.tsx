@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { EmptyState, TextField } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
+import { NameCell } from '../../../components/shared/NameCell';
 import { useToastOptional } from '../../../components/shared/Toast';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
@@ -420,8 +421,10 @@ export function DetailedPlanGrid({
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình" data-label-short="Khách">
                     <div className="detailed-plan-grid__cell-body">
-                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong" title={row.customerRoute.customerName ?? undefined}>
-                        {row.customerRoute.customerName}
+                      <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
+                        {row.customerRoute.customerName
+                          ? <NameCell name={row.customerRoute.customerName} />
+                          : '—'}
                       </div>
                       <div className="detailed-plan-grid__line" data-empty={!row.customerRoute.factoryName ? 'true' : undefined} title={row.customerRoute.factoryName ?? undefined}>
                         {row.customerRoute.factoryName ?? '—'}
@@ -499,7 +502,7 @@ export function DetailedPlanGrid({
                     <div className="detailed-plan-grid__cell-body">
                       <div className="detailed-plan-grid__route-direction">
                         {row.customerRoute.routeName ? (
-                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong" title={row.customerRoute.routeName}>{row.customerRoute.routeName}</div>
+                          <div className="detailed-plan-grid__line detailed-plan-grid__line--strong"><NameCell name={row.customerRoute.routeName} /></div>
                         ) : row.customerRoute.deliveryPoint ? (
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" title={row.customerRoute.deliveryPoint}>{row.customerRoute.deliveryPoint}</div>
                         ) : (

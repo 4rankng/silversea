@@ -465,6 +465,14 @@
   font-weight: var(--fw-semibold);
 }
 
+/* §3b — DUYỆT PHIẾU HOÀN ỨNG refusal text (same voice as the advances tab's
+ * approve error line). */
+.as-page .as-check-error {
+  margin: 8px 0 0;
+  color: var(--danger, var(--err, #b42318));
+  font-size: var(--fs-2xs);
+}
+
 /* ── Loading / empty states ───────────────────────────────────────────── */
 .as-page .as-loading {
   text-align: center;

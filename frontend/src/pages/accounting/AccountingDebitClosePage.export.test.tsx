@@ -111,9 +111,10 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
 
-    // ONE issue call carries the whole selection; the key is stable per
-    // selection so a re-click replays instead of duplicating the document.
-    await waitFor(() => expect(createDebitNoteBatch).toHaveBeenCalledWith([1, 2], 'debit-note-1-2'));
+    // ONE issue call carries the whole selection; the key is derived inside
+    // the client (stable per selection) so a re-click replays instead of
+    // duplicating the document.
+    await waitFor(() => expect(createDebitNoteBatch).toHaveBeenCalledWith([1, 2]));
     expect(createDebitNoteBatch).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(exportDebitNoteFile).toHaveBeenCalledWith(1, 30));
 

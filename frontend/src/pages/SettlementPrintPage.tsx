@@ -492,14 +492,17 @@ export default function SettlementPrintPage() {
         )}
 
         {/* ── FB-100 (card 141026230770, F-W1-1 ruling Option B): the
-            confirmation is the filer's own tick at creation, stamped
-            checked_by/checked_at — displayed here instead of the dead
-            DRAFT-only record block that no writer could ever reach. ── */}
-        {s.checkedBy != null && (
+            confirmation is the filer's own tick at creation. Card
+            191026160000 (§3b): checked_by now belongs to kế toán's DUYỆT
+            PHIẾU HOÀN ỨNG; the ONLY creation-time stamp still carrying the
+            submitter's id is the legacy Option-B shape (checked_by === the
+            phiếu's forwarder), which named no accountant — that line reads
+            as the filer's own tick, never as a KT duyệt (review F6). ── */}
+        {s.checkedBy != null && s.checkedBy !== s.forwarderId && (
           <div className="settlement-detail__confirm no-print" data-field-id="settlement-confirm-fact">
             <CheckCircle2 size={14} />
             <span>
-              Xác nhận hoàn ứng: <strong>{s.checkerName ?? `#${s.checkedBy}`}</strong>
+              Đã duyệt (KT): <strong>{s.checkerName ?? `#${s.checkedBy}`}</strong>
               {s.checkedAt ? ` · ${new Date(s.checkedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}` : ''}
             </span>
           </div>

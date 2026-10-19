@@ -5,6 +5,7 @@ import { canonicalShipmentStatus, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
+import { NameCell } from '../../../components/shared/NameCell';
 import {
   displayNote,
   formatAppointmentGroupLine,
@@ -445,7 +446,9 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 </td>
                 <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy" data-label-short="Khách">
                   <div className="master-plan-grid__cell-body">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!item.customerName ? 'true' : undefined}>{item.customerName ?? '—'}</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!item.customerName ? 'true' : undefined}>{item.customerName
+                    ? <NameCell name={item.customerName} />
+                    : '—'}</div>
                   <div className="master-plan-grid__line" data-empty={!(item.factoryNames?.length || item.factoryName) ? 'true' : undefined}>{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!(item.blNumber || item.bookingRef || item.isAdHoc) ? 'true' : undefined}>
                     {item.blNumber || item.bookingRef || '—'}
@@ -457,7 +460,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   <div className="master-plan-grid__cell-body">
                   <div className="master-plan-grid__route-shipping">
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-route" data-empty={!item.routeName ? 'true' : undefined}>
-                      {item.routeName ?? '—'}
+                      {item.routeName ? <NameCell name={item.routeName} /> : '—'}
                     </div>
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction" data-empty={!item.tradeDirection ? 'true' : undefined}>
                       {item.tradeDirection === 'IMPORT' ? (

@@ -21,6 +21,7 @@ import {
   getOutstandingAdvanceBalances,
   adjustSettlementExpense,
   updateAdvanceSettlement,
+  checkAdvanceSettlement,
   requestAdvanceSettlementReversal,
 } from '../../services/advance.service';
 import { ADVANCE_REQUEST_SORT_KEYS } from '../../services/advance-request.service';
@@ -104,6 +105,24 @@ router.get('/advance-settlements', asyncHandler(async (req: Request, res: Respon
 // check/approve/reject endpoints are GONE — settlements apply at creation
 // (forwarder route records directly in one transaction). Any client
 // still calling these gets 404.
+
+// Card 191026160000 (§3b) — DUYỆT PHIẾU HOÀN ỨNG: kế toán's check stamp on a
+// RECORDED phiếu. Not a state gate (creation still applies the phiếu, the
+// TC-CHUNK4-009 ruling stands) — this records the accountant's verification
+// act (checked_by/checked_at) the chiphispec round-2 asks for.
+const settlementCheckSchema = z.object({
+  expectedVersion: z.number().int().positive().optional(),
+}).strict();
+
+router.post('/advance-settlements/:id/check', declareMaterialWrite('advance-settlements.check', { method: 'POST', path: '/api/advance-settlements/:id/check' }), requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string, 10);
+  const parsed = settlementCheckSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  const result = await checkAdvanceSettlement(id, { expectedVersion: parsed.data.expectedVersion, actorId: actor.userId });
+  res.locals.auditEntityKey = `phiếu hoàn ứng ${result.code} — duyệt`;
+  res.json(result);
+}));
 
 router.post('/advance-settlements/:id/reversal', declareMaterialWrite('advance-settlements.reverse', { method: 'POST', path: '/api/advance-settlements/:id/reversal' }),  requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);

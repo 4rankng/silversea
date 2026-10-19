@@ -222,6 +222,9 @@ export const forwarderClient = {
     refundAmount: number;
     note?: string | null;
   }) => api.put<AdvanceSettlementWithRefs>(`${FINANCIAL.ADVANCE_SETTLEMENTS}/${id}`, data),
+  // Card 191026160000 (§3b) — DUYỆT PHIẾU HOÀN ỨNG: kế toán's check stamp.
+  checkAdvanceSettlement: async (id: number, expectedVersion: number) =>
+    api.post<AdvanceSettlementWithRefs>(`${FINANCIAL.ADVANCE_SETTLEMENTS}/${id}/check`, { expectedVersion }),
   updateSettlementExpense: async (settlementId: number, expenseId: number, data: {
     expectedVersion: number;
     buyAmount: number;

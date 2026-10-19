@@ -16,6 +16,14 @@ import {
   listAccountingTransportRows,
 } from '../services/accounting-transport-register.service';
 
+// Per-run unique suffix — every fixture value embeds it, so the register
+// probes below (search = ownSearch) match exactly this run's rows. A run
+// killed before its after() leaves ATR trips behind (observed: 155522-24
+// from the 2026-10-19 07:05 orphan), but their codes carry a DIFFERENT
+// suffix and can never match this run's search again.
+const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const ownSearch = `ATR-TRIP-${suffix}`;
+
 const customerIds: number[] = [];
 const shipmentIds: number[] = [];
 const shipmentContainerIds: number[] = [];
@@ -169,7 +177,6 @@ async function createLockedTrip(input: {
 }
 
 before(async () => {
-  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const [actor] = await db.insert(s.users).values({
     username: `atr-${suffix}`.slice(0, 50),
     passwordHash: 'not-used',
@@ -199,7 +206,7 @@ before(async () => {
   carrierId = customers[1].id;
 
   const readyTrip = await createLockedTrip({
-    suffix: `${Date.now()}20`,
+    suffix: `${suffix}20`,
     customerId: customers[0].id,
     completedAt: new Date('2042-01-20T08:00:00.000Z'),
     carrierType: 'EXTERNAL',
@@ -207,7 +214,7 @@ before(async () => {
   });
   readyTripId = readyTrip.id;
   const missingSnapshotTrip = await createLockedTrip({
-    suffix: `${Date.now()}19`,
+    suffix: `${suffix}19`,
     customerId: customers[0].id,
     completedAt: new Date('2042-01-19T08:00:00.000Z'),
     carrierType: 'OWN',
@@ -215,7 +222,7 @@ before(async () => {
   });
   missingSnapshotTripId = missingSnapshotTrip.id;
   const blockedTrip = await createLockedTrip({
-    suffix: `${Date.now()}18`,
+    suffix: `${suffix}18`,
     customerId: customers[0].id,
     completedAt: new Date('2042-01-18T08:00:00.000Z'),
     carrierType: 'OWN',
@@ -276,6 +283,7 @@ describe('accounting transport register service', () => {
     const result = await listAccountingTransportRows({
       from: '2042-01-01',
       to: '2042-01-31',
+      search: ownSearch,
       page: 1,
       limit: 25,
     });
@@ -304,6 +312,7 @@ describe('accounting transport register service', () => {
     const result = await listAccountingTransportRows({
       from: '2042-01-01',
       to: '2042-01-31',
+      search: ownSearch,
       page: 1,
       limit: 25,
     });
@@ -325,6 +334,7 @@ describe('accounting transport register service', () => {
     const facet = await listAccountingTransportRows({
       from: '2042-01-01',
       to: '2042-01-31',
+      search: ownSearch,
       readiness: 'MISSING_ACCEPTED_POD',
       page: 1,
       limit: 100,
@@ -335,6 +345,7 @@ describe('accounting transport register service', () => {
     const ready = await listAccountingTransportRows({
       from: '2042-01-01',
       to: '2042-01-31',
+      search: ownSearch,
       readiness: 'READY',
       page: 1,
       limit: 100,
@@ -345,12 +356,12 @@ describe('accounting transport register service', () => {
   test('supports readiness, carrier, ownership, and search filters without changing money', async () => {
     const ready = await listAccountingTransportRows({
       from: '2042-01-01', to: '2042-01-31', readiness: 'READY',
-      carrierId, ownership: 'EXTERNAL', search: 'ATR-TRIP', page: 1, limit: 100,
+      carrierId, ownership: 'EXTERNAL', search: ownSearch, page: 1, limit: 100,
     });
     assert.deepEqual(ready.items.map((item) => item.tripId), [readyTripId]);
     const missing = await listAccountingTransportRows({
       from: '2042-01-01', to: '2042-01-31', readiness: 'MISSING_PROFITABILITY_SNAPSHOT',
-      page: 1, limit: 100,
+      search: ownSearch, page: 1, limit: 100,
     });
     assert.deepEqual(missing.items.map((item) => item.tripId), [missingSnapshotTripId]);
     assert.equal(missing.items[0].revenue, null);
@@ -392,7 +403,7 @@ describe('accounting transport register service', () => {
   });
 
   test('explicit sorts order rows server-side with NULLs last; absent params keep the default order', async () => {
-    const base = { from: '2042-01-01', to: '2042-01-31', page: 1, limit: 25 } as const;
+    const base = { from: '2042-01-01', to: '2042-01-31', search: ownSearch, page: 1, limit: 25 } as const;
 
     // Default order stays completionDate desc (no sort params) — the ready trip
     // completed Jan 20, the missing-snapshot trip Jan 19, the POD-blocked trip Jan 18.

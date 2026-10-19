@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, FileText } from 'lucide-react';
 import { usePageAnimations } from '../hooks/animations';
 import { formatNumber, formatDate } from '../lib/format';
@@ -15,6 +16,9 @@ import {
   useAdminSettlements,
   useAdminAdvanceBalances,
 } from '../hooks/useForwarderQueries';
+import { useAuth } from '../hooks/useAuth';
+import { forwarderClient } from '../api/forwarderClient';
+import { qk } from '../api/keys';
 import { advanceSettlementStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
 import {
@@ -83,6 +87,26 @@ function settlementStatusLabel(status: AdvanceSettlementStatus): string {
   return ADVANCE_SETTLEMENT_STATUS_LABELS[status];
 }
 
+/** Card 191026160000 (§3b) — the phiếu's kế toán-check state. `checkedBy`
+ * names the accountant after DUYỆT PHIẾU HOÀN ỨNG; legacy FB-100 rows carry
+ * the SUBMITTER's id there (checkedBy === forwarderId), which named no
+ * accountant, so those stay duyệt-able. A duyệt by an accountant who IS the
+ * phiếu's forwarder keeps that same signature — the row re-opens at most for
+ * a DIFFERENT accountant (review F3), and never for the actor who already
+ * duyệt-ed it. */
+function ktCheckedByAccountant(s: Settlement): boolean {
+  return s.checkedBy != null && s.checkedBy !== s.forwarderId;
+}
+
+function canCheckSettlement(s: Settlement, currentUserId?: number): boolean {
+  if (s.status !== AdvanceSettlementStatus.RECORDED) return false;
+  if (ktCheckedByAccountant(s)) return false;
+  // Same-actor double-submit: the server 409s "Bạn đã duyệt phiếu này rồi" —
+  // the button should not offer the click in the first place.
+  if (currentUserId != null && s.checkedBy === currentUserId && s.checkedAt != null) return false;
+  return true;
+}
+
 /* ── Compact KPI card — mirrors AdminAdvancesPage .adv-kpi proportions ── */
 
 interface AsKPIProps {
@@ -135,12 +159,20 @@ function AsKPI({ label, value, meta, variant, active = false, hasItems = false, 
 export function SettlementGridRow({
   s,
   focusId,
+  onCheck,
+  checkBusy,
+  currentUserId,
 }: {
   s: Settlement;
   focusId?: string;
+  /** §3b — DUYỆT PHIẾU HOÀN ỨNG cho kế toán trên dòng RECORDED chưa duyệt. */
+  onCheck?: (s: Settlement) => void;
+  checkBusy?: boolean;
+  currentUserId?: number;
 }) {
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
   const rows = plans.length > 0 ? plans : [null];
+  const ktChecked = ktCheckedByAccountant(s);
 
   return (
     <>
@@ -215,9 +247,23 @@ export function SettlementGridRow({
             <Link className="as-row-action as-row-action--quiet" to={`/settlements/${s.id}`}>
               Xem phiếu
             </Link>
-            {(s.approverName || s.checkerName) && (
+            {/* §3b — nút/flow DUYỆT PHIẾU HOÀN ỨNG (chiphispec round 2):
+                kế toán tick xác nhận hoàn ứng ngay trên dòng. */}
+            {onCheck && canCheckSettlement(s, currentUserId) && (
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                disabled={checkBusy}
+                onClick={() => onCheck(s)}
+              >
+                {checkBusy ? 'Đang duyệt…' : 'DUYỆT PHIẾU HOÀN ỨNG'}
+              </button>
+            )}
+            {(s.approverName || ktChecked) && (
               <div className="as-approver">
-                {s.approverName ? <>Ghi nhận bởi <strong>{s.approverName}</strong></> : <>KT <strong>{s.checkerName}</strong></>}
+                {ktChecked
+                  ? <>Đã duyệt (KT): <strong>{s.checkerName}</strong></>
+                  : <>Ghi nhận bởi <strong>{s.approverName}</strong></>}
               </div>
             )}
           </div>
@@ -232,12 +278,20 @@ export function SettlementGridRow({
 export function SettlementMobileCard({
   s,
   focusId,
+  onCheck,
+  checkBusy,
+  currentUserId,
 }: {
   s: Settlement;
   focusId?: string;
+  /** §3b — DUYỆT PHIẾU HOÀN ỨNG cho kế toán (mobile card). */
+  onCheck?: (s: Settlement) => void;
+  checkBusy?: boolean;
+  currentUserId?: number;
 }) {
   const scope = summarizeSettlementExpenses(s.linkedExpenses);
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
+  const ktChecked = ktCheckedByAccountant(s);
 
   return (
     <article className="as-mcard" id={focusId}>
@@ -323,11 +377,22 @@ export function SettlementMobileCard({
       )}
 
       {/* Actions — direct-effect: view the voucher; reviewer names are
-          historical audit records, not pending handoffs. */}
-      {(s.approverName || s.checkerName) ? (
+          historical audit records, not pending handoffs. §3b: kế toán's
+          DUYỆT PHIẾU HOÀN ỨNG rides the same card on phones. */}
+      {onCheck && canCheckSettlement(s, currentUserId) && (
+        <button
+          type="button"
+          className="btn btn--primary btn--sm"
+          disabled={checkBusy}
+          onClick={() => onCheck(s)}
+        >
+          {checkBusy ? 'Đang duyệt…' : 'DUYỆT PHIẾU HOÀN ỨNG'}
+        </button>
+      )}
+      {(s.approverName || ktChecked) ? (
         <div className="as-mcard__reviewer">
-          <span>{s.approverName ? 'Ghi nhận bởi' : 'KT kiểm tra'}</span>
-          <strong>{s.approverName ?? s.checkerName}</strong>
+          <span>{ktChecked ? 'Đã duyệt (KT)' : 'Ghi nhận bởi'}</span>
+          <strong>{ktChecked ? s.checkerName : s.approverName}</strong>
         </div>
       ) : null}
     </article>
@@ -339,6 +404,29 @@ export function SettlementMobileCard({
 export default function AdminAdvanceSettlementsPage({ embedded = false }: { embedded?: boolean }) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [page, setPage] = useState(1);
+
+  // §3b — DUYỆT PHIẾU HOÀN ỨNG: kế toán's check stamp. One click, one POST;
+  // a refusal (already checked / stale version) surfaces as text.
+  const { user } = useAuth();
+  const canReview = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
+  const cache = useQueryClient();
+  const [checkBusyId, setCheckBusyId] = useState<number | null>(null);
+  const [checkError, setCheckError] = useState('');
+  const checkSettlement = async (s: Settlement) => {
+    if (checkBusyId !== null) return;
+    setCheckBusyId(s.id);
+    setCheckError('');
+    try {
+      await forwarderClient.checkAdvanceSettlement(s.id, s.version);
+      // Scoped to the settlements prefix (review F10): an unfiltered
+      // invalidateQueries() would drop the whole app's cache for one stamp.
+      await cache.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
+    } catch (cause) {
+      setCheckError(cause instanceof Error ? cause.message : 'Không duyệt được phiếu hoàn ứng. Thử lại.');
+    } finally {
+      setCheckBusyId(null);
+    }
+  };
 
   // Server-side filtering + pagination. KPI/tab counts come from the full-set
   // aggregates in the response envelope — never a client-side slice of all rows.
@@ -467,11 +555,16 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                       key={s.id}
                       s={s}
                       focusId={`as-${s.id}`}
+                      onCheck={canReview ? checkSettlement : undefined}
+                      checkBusy={checkBusyId === s.id}
+                      currentUserId={user?.userId}
                     />
                   ))}
                 </div>
               </div>
             </div>
+
+            {checkError && <p role="alert" className="as-check-error">{checkError}</p>}
 
             {/* Mobile: stacked cards */}
             <div className="as-cards">
@@ -480,6 +573,9 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                   key={s.id}
                   s={s}
                   focusId={`as-${s.id}`}
+                  onCheck={canReview ? checkSettlement : undefined}
+                  checkBusy={checkBusyId === s.id}
+                  currentUserId={user?.userId}
                 />
               ))}
             </div>

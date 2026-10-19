@@ -324,11 +324,16 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
     // T2.1: customer → factories → bill number, with customer and bill bold.
-    expect(screen.getByText('Công ty ABC')).toHaveClass('master-plan-grid__line--strong');
+    // Card 191026181942: the customer name rides the shared NameCell inside
+    // the strong line, so the line class lives on the wrapping line div.
+    expect(screen.getByText('Công ty ABC').closest('.master-plan-grid__line')).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('Công ty ABC')).toHaveClass('name-cell');
     // Bill number is now the 3rd line in Customer & Factory column (bold).
     expect(screen.getByText('BL-2026-001')).toHaveClass('master-plan-grid__line--strong');
-    // Route name moved to Route & Shipping column (bold).
-    expect(screen.getByText('LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
+    // Route name moved to Route & Shipping column (bold). The name rides the
+    // shared NameCell inside the strong line (card 191026181942).
+    expect(screen.getByText('LH — Biên Hòa').closest('.master-plan-grid__line')).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('LH — Biên Hòa')).toHaveClass('name-cell');
     expect(screen.queryByText('Lộ trình: LH — Biên Hòa')).toBeNull();
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('Nhập')).toBeTruthy();

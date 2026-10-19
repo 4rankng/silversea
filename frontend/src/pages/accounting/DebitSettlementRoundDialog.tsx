@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';import { createPortal } from 'react-dom';
 import { animate, spring, utils } from 'animejs';
 import { useAnimatedOverlay, type EntranceFn, type ExitFn } from '../../hooks/useAnimatedOverlay';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatDate } from '../../lib/format';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import {
@@ -84,11 +83,32 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
 
   // A freshly opened popup re-derives every field from the current selection —
   // never keeps the previous act's values.
+  //
+  // Card 191026160000 (§2d): the selection is grouped BY NGÀY and every date
+  // carries its own tick (plus chọn/bỏ tất cả ngày). Only the ticked dates'
+  // lots reach the round — kế toán closes theo ngày, not per whatever the
+  // board selection happened to hold. All dates start ticked, so the previous
+  // behavior (whole selection) remains the default. Seeded ONCE per open (the
+  // ref guard): a board refetch while the dialog is open must not re-tick
+  // dates the operator just excluded.
+  const [tickedDates, setTickedDates] = useState<Set<string>>(new Set());
+  const openedFor = useRef(false);
+  const dateKeys = useMemo(
+    () => [...new Set(rows.map((r) => r.ngay).filter((v): v is string => v != null))].sort(),
+    [rows],
+  );
   useEffect(() => {
-    if (!isOpen) return;
-    const dates = rows.map((r) => r.ngay).filter((v): v is string => v != null).sort();
-    const fallbackFrom = defaultDateFrom || dates[0] || '';
-    const fallbackTo = defaultDateTo || dates[dates.length - 1] || '';
+    if (!isOpen) { openedFor.current = false; return; }
+    if (openedFor.current) return;
+    openedFor.current = true;
+    setTickedDates(new Set(dateKeys));
+    // The đợt's window seeds from the SELECTION's own span (min/max ticked
+    // date at open); the page's month window is only the fallback. Card
+    // 191026160000: the board now opens month-scoped, so letting the page
+    // window win would date a cross-month selection wrongly.
+    const dates = dateKeys;
+    const fallbackFrom = dates[0] || defaultDateFrom || '';
+    const fallbackTo = dates[dates.length - 1] || defaultDateTo || '';
     setDateFrom(fallbackFrom);
     setDateTo(fallbackTo);
     const parsedFrom = fallbackFrom ? Number(fallbackFrom.slice(0, 4)) : NaN;
@@ -100,32 +120,67 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
     setVatRate(null);
     setGhiChu('');
     setRoundNo(1);
-  }, [isOpen, rows, defaultDateFrom, defaultDateTo]);
+    // dateKeys is derived from rows; see the ref guard above for why a change
+    // while open does not re-seed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  const scopedRows = useMemo(
+    () => rows.filter((row) => row.ngay != null && tickedDates.has(row.ngay)),
+    [rows, tickedDates],
+  );
+  const allDatesTicked = dateKeys.length > 0 && tickedDates.size === dateKeys.length;
+  // The đợt's window follows the ticked span: a cross-month selection narrowed
+  // by ticks must not file the lots under the stale month (review F4 —
+  // periodKey drives the backend's duplicate-lần check). Runs in the HANDLER,
+  // never inside a setState updater — an updater must stay pure; calling the
+  // period setters from inside one re-rendered the dialog in a loop (the
+  // CP2-D3/D4 timeouts).
+  const syncPeriodToTicks = (span: ReadonlySet<string>) => {
+    const sorted = [...span].sort();
+    if (sorted.length === 0) return;
+    setDateFrom(sorted[0]!);
+    setDateTo(sorted[sorted.length - 1]!);
+    setYear(Number(sorted[0]!.slice(0, 4)));
+    setMonth(Number(sorted[0]!.slice(5, 7)) || new Date().getMonth() + 1);
+  };
+  const toggleDate = (date: string) => {
+    const next = new Set(tickedDates);
+    if (next.has(date)) next.delete(date);
+    else next.add(date);
+    setTickedDates(next);
+    syncPeriodToTicks(next);
+  };
+  const toggleAllDates = () => {
+    const next = allDatesTicked ? new Set<string>() : new Set(dateKeys);
+    setTickedDates(next);
+    if (next.size > 0) syncPeriodToTicks(next);
+  };
 
   const customerNames = useMemo(
-    () => [...new Set(rows.map((r) => r.customerName).filter((v): v is string => v != null))],
-    [rows],
+    () => [...new Set(scopedRows.map((r) => r.customerName).filter((v): v is string => v != null))],
+    [scopedRows],
   );
   const carrierLabels = useMemo(
-    () => [...new Set(rows.flatMap((r) => r.phanXe))].sort(),
-    [rows],
+    () => [...new Set(scopedRows.flatMap((r) => r.phanXe))].sort(),
+    [scopedRows],
   );
   const carrierKeyCount = useMemo(
-    () => new Set(rows.flatMap((r) => r.carrierKeys)).size,
-    [rows],
+    () => new Set(scopedRows.flatMap((r) => r.carrierKeys)).size,
+    [scopedRows],
   );
   const { baseAmount, amountKnown } = useMemo(() => {
     let sum = 0;
-    let known = rows.length > 0;
-    for (const row of rows) {
+    let known = scopedRows.length > 0;
+    for (const row of scopedRows) {
       const cell = direction === 'TRA' ? row.tra.tong1 : row.thu.tongThu;
       if (cell == null) { known = false; continue; }
       sum += Number(cell);
     }
     return { baseAmount: sum, amountKnown: known };
-  }, [rows, direction]);
+  }, [scopedRows, direction]);
 
-  const pairValid = customerNames.length === 1 && (direction !== 'TRA' || carrierKeyCount === 1);
+  const pairValid = scopedRows.length > 0 && customerNames.length === 1 && (direction !== 'TRA' || carrierKeyCount === 1);
   const canSubmit = pairValid && direction != null && vatRate != null
     && dateFrom !== '' && dateTo !== '' && dateFrom <= dateTo;
   const vatAmount = vatRate == null ? 0 : Math.round(baseAmount * vatRate) / 100;
@@ -146,7 +201,8 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
   const submit = () => {
     if (!canSubmit || direction == null || vatRate == null) return;
     onSubmit({
-      shipmentIds: rows.map((r) => r.shipmentId),
+      // §2d: only the ticked dates' lots form the đợt.
+      shipmentIds: scopedRows.map((r) => r.shipmentId),
       dateFrom, dateTo,
       roundNo,
       month, year,
@@ -167,8 +223,40 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
         style={{ width: 520, maxWidth: 'calc(100vw - 24px)', maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto' }}
         onClick={(event) => event.stopPropagation()}
       >
-        <p style={{ fontWeight: 600, margin: '0 0 10px' }}>Chọn Debit — chốt đợt đối soát ({rows.length} lô)</p>
+        <p style={{ fontWeight: 600, margin: '0 0 10px' }}>Chọn Debit — chốt đợt đối soát ({scopedRows.length}/{rows.length} lô)</p>
         <div style={{ display: 'grid', gap: 12 }}>
+          {/* §2d: mỗi ngày một ô tick — chọn/bỏ từng ngày vận chuyển hoặc cả
+              nhóm, trước khi Chốt đợt. Chỉ các ngày được tick mới vào đợt. */}
+          {dateKeys.length > 0 && (
+            <fieldset style={{ border: '1px solid var(--border-1)', borderRadius: 8, margin: 0, padding: '8px 10px', display: 'grid', gap: 4 }}>
+              <legend style={labelStyle}>Chọn ngày ({tickedDates.size}/{dateKeys.length} ngày · {scopedRows.length} lô)</legend>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 600 }}>
+                <input
+                  type="checkbox"
+                  checked={allDatesTicked}
+                  onChange={toggleAllDates}
+                  aria-label={allDatesTicked ? 'Bỏ chọn tất cả ngày' : 'Chọn tất cả ngày'}
+                />
+                <span>{allDatesTicked ? 'Bỏ chọn tất cả ngày' : 'Chọn tất cả ngày'}</span>
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }}>
+                {dateKeys.map((date) => {
+                  const lotsOfDay = rows.filter((row) => row.ngay === date).length;
+                  return (
+                    <label key={date} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={tickedDates.has(date)}
+                        onChange={() => toggleDate(date)}
+                        aria-label={`Chọn ngày ${date} (${lotsOfDay} lô)`}
+                      />
+                      <span>{formatDate(date)} <small style={{ color: 'var(--ink-3)' }}>({lotsOfDay} lô)</small></span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
           <div style={{ display: 'grid', gap: 2 }}>
             <span style={labelStyle}>Khách hàng</span>
             <span>{customerNames.length === 1 ? customerNames[0] : '— nhiều khách hàng trong lựa chọn —'}</span>

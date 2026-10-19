@@ -23,6 +23,7 @@ import {
   resolveFuelPeriodAuthority,
 } from '../services/period-lock.service';
 import { closeSalaryPeriod, reopenSalaryPeriod } from '../services/salary-period-close.service';
+import type { SalaryPeriodCloseResult } from '../services/salary-period-close-shared.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const createdCustomerIds: number[] = [];
@@ -435,13 +436,32 @@ describe('Q21 period authority', () => {
 
   test('salary close mirrors into the shared period-lock authority', async () => {
     const admin = await mkUser('ADMIN', 'salary');
-    await confirmAllDriversForPeriod(2099, 11, admin.id);
-    const result = await closeSalaryPeriod({
-      period: '2099-11',
-      actorId: admin.id,
-      actorRole: 'ADMIN',
-      note: `Q21 salary ${suffix}`,
-    });
+    // The readiness gate covers EVERY active driver in the shared dev DB, and
+    // full-suite parallelism churns that roster: a driver fixture created by
+    // another suite between this sweep and closeSalaryPeriod's readiness read
+    // inside the transaction blocks the close with 409 (observed on run A of
+    // card 261019172304; pass isolated). Re-confirm the current roster and
+    // retry, bounded — REDS-CONC-04 precedent (q20 settle-retry). The mirrored
+    // period-lock assertions below are unchanged.
+    const closeWithRosterRetry = async (): Promise<SalaryPeriodCloseResult> => {
+      for (let attempt = 1; ; attempt += 1) {
+        await confirmAllDriversForPeriod(2099, 11, admin.id);
+        try {
+          return await closeSalaryPeriod({
+            period: '2099-11',
+            actorId: admin.id,
+            actorRole: 'ADMIN',
+            note: `Q21 salary ${suffix}`,
+          });
+        } catch (error) {
+          const err = error as Error & { statusCode?: number };
+          const readinessBlocked = err.statusCode === 409
+            && /chưa thể chốt|còn lái xe chờ xử lý|Chưa có lái xe/i.test(err.message);
+          if (attempt >= 5 || !readinessBlocked) throw error;
+        }
+      }
+    };
+    const result = await closeWithRosterRetry();
     const sharedLock = await db.select()
       .from(s.periodLocks)
       .where(and(

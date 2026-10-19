@@ -187,9 +187,9 @@ export function ShipmentDebitPage() {
 
   // Xuất Debit Note: ONE issue call carries every selected locked lot id and
   // the backend builds the union document (per-lot line grouping preserved
-  // inside). The idempotency key derives from the sorted selection, so
-  // re-clicking the same selection replays the same document instead of
-  // issuing a duplicate.
+  // inside). The idempotency key is derived inside the client from the sorted
+  // selection, so re-clicking the same selection replays the same document
+  // instead of issuing a duplicate.
   async function exportSelectedLockedLots() {
     const ids = items
       .filter((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED')
@@ -199,8 +199,7 @@ export function ShipmentDebitPage() {
     if (!canManage || !customerId || ids.length === 0 || issuing) return;
     setIssuing(true);
     try {
-      const selectionKey = `debit-note-${[...ids].sort((x, y) => x - y).join('-')}`;
-      const { id: documentId } = await createDebitNoteBatch(ids, selectionKey);
+      const { id: documentId } = await createDebitNoteBatch(ids);
       const blob = await exportDebitNoteFile(ids[0], documentId);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');

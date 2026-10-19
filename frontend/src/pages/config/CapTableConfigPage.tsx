@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
+import { NumberField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -20,7 +21,16 @@ function CapTableForm({ saving, item, onsave, oncancel }: {
         <Field label="Tên cổ đông"><input className="input" required pattern={'.*\\S.*'} value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="Nhập tên cổ đông…" /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 130 }}>
-        <Field label="Số vốn góp (₫)"><input className="input" type="number" step="1000000" required value={contributionAmount} onChange={e => setContributionAmount(e.target.value)} placeholder="0" /></Field>
+        {/* §1 money format: grouped display ("1.000.000"), typed free; the
+            save payload stays Number(contributionAmount). */}
+        <NumberField
+          label="Số vốn góp (₫)"
+          grouped
+          required
+          value={contributionAmount === '' ? '' : Number(contributionAmount)}
+          onChange={(n) => setContributionAmount(n === '' ? '' : String(n))}
+          placeholder="1.000.000"
+        />
       </div>
       <div style={{ flex: 1.5, minWidth: 150 }}>
         <Field label="Ngày hiệu lực"><DateInput required className="input" value={effectiveDate} onChange={setEffectiveDate} /></Field>
