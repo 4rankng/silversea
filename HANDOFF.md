@@ -29,7 +29,7 @@ Cases TD-RO-01..04: `testplan/2026-10-18-card182300-driver-tien-duong-readonly.m
 BE tsc 0 · FE tsgo -b 0 · FE vitest scoped 38/38 · BE m84 10/10 (incl. the new
 TD-RO-02/03/04 test) · root lint 0 · sibling accounting suites (source +
 remediation + phoi-phieu-control) 74/74. UI rung 3 via
-`testplan/qa/scripts/2026-10-18-card182300-tienduong-readonly-ui.mjs` exit 0 —
+`testplan/qa/scripts/_2026-10-18-card182300-tienduong-readonly-ui.mjs` exit 0 —
 local stack serving THIS worktree (frontend 7178 → backend 3003 → dev DB;
 7176 was occupied by another lane); shots `qa/…_ui-01/02/03*.png` + driver log;
 fee-norms API identity NIGHT_RETURN amount=100000 == locked display 100.000.
