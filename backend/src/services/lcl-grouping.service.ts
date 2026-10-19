@@ -636,9 +636,8 @@ export async function promoteLclGroupsOnShipmentDelete(
     await assertGroupMutable(tx, ordered, tripFacts);
 
     if (order === 1) {
-      const { promoted, transferredAmount } = await promotePrincipalOnRemoval(
-    if (order === 1) {
-      const { promoted, transferredAmount, transferredDriverMoney } = await promotePrincipalOnRemoval(        tx,
+      const { promoted, transferredAmount, transferredDriverMoney } = await promotePrincipalOnRemoval(
+        tx,
         dimension,
         groupId,
         leaver,
@@ -654,7 +653,8 @@ export async function promoteLclGroupsOnShipmentDelete(
         leaver: { shipmentId: leaver.id, order: order ?? 1, reference: lotReference(leaver) },
         promoted: promoted == null ? null : { shipmentId: promoted.shipmentId, reference: promoted.reference },
         transferredAmount,
-        transferredDriverMoney,        remaining: dissolved ? [] : survivors.map((row, index) => ({ shipmentId: row.id, order: index + 1, reference: lotReference(row) })),
+        transferredDriverMoney,
+        remaining: dissolved ? [] : survivors.map((row, index) => ({ shipmentId: row.id, order: index + 1, reference: lotReference(row) })),
         dissolved,
       });
     } else {
@@ -668,7 +668,8 @@ export async function promoteLclGroupsOnShipmentDelete(
         leaver: { shipmentId: leaver.id, order: order ?? 0, reference: lotReference(leaver) },
         promoted: null,
         transferredAmount: null,
-        transferredDriverMoney: null,        remaining: dissolved ? [] : survivors.map((row, index) => ({ shipmentId: row.id, order: index + 1, reference: lotReference(row) })),
+        transferredDriverMoney: null,
+        remaining: dissolved ? [] : survivors.map((row, index) => ({ shipmentId: row.id, order: index + 1, reference: lotReference(row) })),
         dissolved,
       });
     }
