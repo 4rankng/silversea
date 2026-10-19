@@ -1,3 +1,52 @@
+# HANDOFF — 2026-10-19 — FB-030/075 auto-advance (verified fixed) + FB-066 quick-add BKS
+
+Controller: omp agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-fb030-fb066`,
+branch `fix-fb030-fb066` (off `38a2d814`). Updated 2026-10-19. **DONE — committed
+`22c9c80b` + PUSHED to origin.**
+
+**FB-030/075** (gõ ngày/giờ không tự nhảy segment — brief "regression lần 3"):
+verified **FIXED at HEAD, NO code change**. Live rung-3 puppeteer drive of the
+exact QA-named surface (quick-edit "Chỉnh sửa Lịch trình" dialog, account `cus`)
+proved day "14" → month segment (`activeSeg: mm2`) and Giờ "1430" → day
+hand-off (`activeSeg: dd`); screenshots
+`qa/2026-10-19_fb030-fb066_repro/fb030-dialog-after-{day14,gio1430}.png`. The
+R23 FAIL (batch B5 Kế toán) was staging build **`597e4c84`**, which git-ancestry
+CONFIRMS predates BOTH prior fixes (`4efa6e2c` ledger onComplete, `692522c1`
+TimeInput HHmm normalise). No R25 QA report exists — `/tmp/req/r25.md` is the
+LCL Gán xe nhóm guide, not a verdict. Did NOT fabricate a redundant fix.
+
+**FB-066** (thiếu nút thêm nhanh BKS): the LCL "Gán xe nhóm"
+(`AssignTruckGroupDialog`, r25 guide step 3 + lclspec) and "Đổi BKS nhóm"
+(`LclGroupTruckEditDialog`, chungtu-dieuvan B.1) BKS thực pickers had free-text
+`gõ mới` but NO quick-add registration button. Added shared
+`components/shared/QuickAddButton` (+css — ONE implementation, no third CSS
+copy) and wired the existing `QuickAddVehicleDialog` (internal truck POST
+/trucks, external xe-ngoài POST /carrier-fleet-vehicles) to both dialogs; the
+created plate is preselected and folds into the option list (`fleetNonce`
+re-runs the fleet fetch; own-fleet refetches the catalog).
+
+Regression pins: `AssignTruckGroupDialog.test.tsx` (external + own-fleet),
+`LclGroupTruckEditDialog.test.tsx` (existing-nhà-xe). Regression plan:
+`testplan/2026-10-19-fb030-075-fb066-advance-quickadd.md`. Drivers:
+`testplan/qa/scripts/2026-10-19-fb030-fb066-repro.mjs` (FB-030),
+`…-fb066-quickadd-rung.mjs` (FB-066).
+
+**Gates** (`qa/2026-10-19_fb030-075_fb066_gates.log`, force-tracked): `tsgo -b`
+0 · `tsc -b` 0 · `pnpm lint` 0 · scoped vitest 8 files/149 tests (TimeInput,
+DateTimeSegments+hosts, ShipmentContainerScheduleEditor, both LCL dialogs,
+DispatchPlanEditorCell, DispatchDetailPlanPage.lcl-assign-reason). UI rung 3
+screenshots force-tracked under `qa/2026-10-19_fb030-fb066_repro/` +
+`qa/2026-10-19_fb066_quickadd/`. Ephemeral stack (backend :3003, frontend
+:7178 → dev DB :5441) STOPPED after capture; the other worktree's :3002/:7175
+were untouched.
+
+**Limits**: FB-066 plate-create POST not exercised end-to-end in the drive
+(button presence + dialog-open proven); FB-030 mobile ≤640px and non-cus roles
+not driven; FB-030/075 needs owner re-verification on the NEXT staging build
+that contains `4efa6e2c` + `692522c1` (production prohibition).
+
+---
+
 # HANDOFF — 2026-10-19 — card 182300: lái xe chỉ XEM "Tiền đường" (chiphispec §1)
 
 Controller: omp agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-driver-tienduong`,
@@ -29,7 +78,7 @@ Cases TD-RO-01..04: `testplan/2026-10-18-card182300-driver-tien-duong-readonly.m
 BE tsc 0 · FE tsgo -b 0 · FE vitest scoped 38/38 · BE m84 10/10 (incl. the new
 TD-RO-02/03/04 test) · root lint 0 · sibling accounting suites (source +
 remediation + phoi-phieu-control) 74/74. UI rung 3 via
-`testplan/qa/scripts/_2026-10-18-card182300-tienduong-readonly-ui.mjs` exit 0 —
+`testplan/qa/scripts/2026-10-18-card182300-tienduong-readonly-ui.mjs` exit 0 —
 local stack serving THIS worktree (frontend 7178 → backend 3003 → dev DB;
 7176 was occupied by another lane); shots `qa/…_ui-01/02/03*.png` + driver log;
 fee-norms API identity NIGHT_RETURN amount=100000 == locked display 100.000.
