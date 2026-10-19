@@ -50,7 +50,17 @@ async function clickButtonByText(page, text, { exact = false } = {}) {
 }
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-const shot = (page, name) => page.screenshot({ path: path.join(QA_DIR, `${STAMP}_${name}.png`) });
+const shot = async (page, name) => {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await page.screenshot({ path: path.join(QA_DIR, `${STAMP}_${name}.png`) });
+      return;
+    } catch (e) {
+      if (attempt === 2) log(`shot failed: ${name} ${e.message.slice(0, 60)}`);
+      await sleep(1500);
+    }
+  }
+};
 
 const driverLog = [];
 
@@ -63,7 +73,7 @@ async function main() {
   fs.mkdirSync(QA_DIR, { recursive: true });
   const browser = await puppeteer.launch({
     executablePath: CHROME, headless: 'new', protocolTimeout: 240000,
-    args: ['--window-size=1480,940', '--disable-features=Translate'],
+    args: ['--window-size=1480,940', '--disable-features=Translate', '--disable-gpu', '--hide-scrollbars'],
   });
   try {
     // ── 1. OPS form — Kế hoạch làm hàng ──────────────────────────────────
