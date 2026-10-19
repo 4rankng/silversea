@@ -104,7 +104,6 @@ export interface LclGroupDissolveResult {
   dissolved: true;
 }
 
-type ShipmentRow = typeof s.shipments.$inferSelect;
 export type ShipmentRow = typeof s.shipments.$inferSelect;
 /** Live-trip facts the money steps need, keyed by shipmentId. */
 export interface LiveTripFacts {
