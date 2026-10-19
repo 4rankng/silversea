@@ -90,13 +90,21 @@ function settlementStatusLabel(status: AdvanceSettlementStatus): string {
 /** Card 191026160000 (§3b) — the phiếu's kế toán-check state. `checkedBy`
  * names the accountant after DUYỆT PHIẾU HOÀN ỨNG; legacy FB-100 rows carry
  * the SUBMITTER's id there (checkedBy === forwarderId), which named no
- * accountant, so those stay duyệt-able. */
+ * accountant, so those stay duyệt-able. A duyệt by an accountant who IS the
+ * phiếu's forwarder keeps that same signature — the row re-opens at most for
+ * a DIFFERENT accountant (review F3), and never for the actor who already
+ * duyệt-ed it. */
 function ktCheckedByAccountant(s: Settlement): boolean {
   return s.checkedBy != null && s.checkedBy !== s.forwarderId;
 }
 
-function canCheckSettlement(s: Settlement): boolean {
-  return s.status === AdvanceSettlementStatus.RECORDED && !ktCheckedByAccountant(s);
+function canCheckSettlement(s: Settlement, currentUserId?: number): boolean {
+  if (s.status !== AdvanceSettlementStatus.RECORDED) return false;
+  if (ktCheckedByAccountant(s)) return false;
+  // Same-actor double-submit: the server 409s "Bạn đã duyệt phiếu này rồi" —
+  // the button should not offer the click in the first place.
+  if (currentUserId != null && s.checkedBy === currentUserId && s.checkedAt != null) return false;
+  return true;
 }
 
 /* ── Compact KPI card — mirrors AdminAdvancesPage .adv-kpi proportions ── */
@@ -153,12 +161,14 @@ export function SettlementGridRow({
   focusId,
   onCheck,
   checkBusy,
+  currentUserId,
 }: {
   s: Settlement;
   focusId?: string;
   /** §3b — DUYỆT PHIẾU HOÀN ỨNG cho kế toán trên dòng RECORDED chưa duyệt. */
   onCheck?: (s: Settlement) => void;
   checkBusy?: boolean;
+  currentUserId?: number;
 }) {
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
   const rows = plans.length > 0 ? plans : [null];
@@ -239,7 +249,7 @@ export function SettlementGridRow({
             </Link>
             {/* §3b — nút/flow DUYỆT PHIẾU HOÀN ỨNG (chiphispec round 2):
                 kế toán tick xác nhận hoàn ứng ngay trên dòng. */}
-            {onCheck && canCheckSettlement(s) && (
+            {onCheck && canCheckSettlement(s, currentUserId) && (
               <button
                 type="button"
                 className="btn btn--primary btn--sm"
@@ -270,12 +280,14 @@ export function SettlementMobileCard({
   focusId,
   onCheck,
   checkBusy,
+  currentUserId,
 }: {
   s: Settlement;
   focusId?: string;
   /** §3b — DUYỆT PHIẾU HOÀN ỨNG cho kế toán (mobile card). */
   onCheck?: (s: Settlement) => void;
   checkBusy?: boolean;
+  currentUserId?: number;
 }) {
   const scope = summarizeSettlementExpenses(s.linkedExpenses);
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
@@ -367,7 +379,7 @@ export function SettlementMobileCard({
       {/* Actions — direct-effect: view the voucher; reviewer names are
           historical audit records, not pending handoffs. §3b: kế toán's
           DUYỆT PHIẾU HOÀN ỨNG rides the same card on phones. */}
-      {onCheck && canCheckSettlement(s) && (
+      {onCheck && canCheckSettlement(s, currentUserId) && (
         <button
           type="button"
           className="btn btn--primary btn--sm"
@@ -545,6 +557,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                       focusId={`as-${s.id}`}
                       onCheck={canReview ? checkSettlement : undefined}
                       checkBusy={checkBusyId === s.id}
+                      currentUserId={user?.userId}
                     />
                   ))}
                 </div>
@@ -562,6 +575,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                   focusId={`as-${s.id}`}
                   onCheck={canReview ? checkSettlement : undefined}
                   checkBusy={checkBusyId === s.id}
+                  currentUserId={user?.userId}
                 />
               ))}
             </div>
