@@ -62,7 +62,7 @@ function note(step, detail) {
 async function main() {
   fs.mkdirSync(QA_DIR, { recursive: true });
   const browser = await puppeteer.launch({
-    executablePath: CHROME, headless: 'new',
+    executablePath: CHROME, headless: 'new', protocolTimeout: 240000,
     args: ['--window-size=1480,940', '--disable-features=Translate'],
   });
   try {
@@ -122,15 +122,16 @@ async function main() {
       option?.click();
     });
     await sleep(500);
-    await opsPage.evaluate(() => {
+    const amountHandle = await opsPage.evaluateHandle(() => {
       const section = Array.from(document.querySelectorAll('section')).find(s => s.getAttribute('aria-label') === 'Phí có hóa đơn');
-      const input = Array.from(section.querySelectorAll('input')).find(i => (i.getAttribute('aria-label') || '').startsWith('Thực chi') || i.closest('label')?.textContent?.includes('Thực chi'));
-      if (input) {
-        input.focus();
-        document.execCommand('insertText', false, '190000');
-      }
+      const label = Array.from(section.querySelectorAll('label')).find(l => (l.textContent || '').includes('Thực chi'));
+      return label ? (label.htmlFor ? document.getElementById(label.htmlFor) : label.querySelector('input')) : null;
     });
-    await sleep(400);
+    const amountInput = amountHandle.asElement();
+    if (!amountInput) throw new Error('no amount input in invoice block');
+    await amountInput.click({ clickCount: 3 });
+    await opsPage.keyboard.type('190000');
+    await sleep(500);
     await shot(opsPage, 'ops-form-filled');
     const savedOps = await opsPage.evaluate(() => {
       const save = Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === 'Lưu');
@@ -148,8 +149,8 @@ async function main() {
     // ── 2. phoi-phieu: Tiền đường detail → Thêm dòng drawer ─────────────
     const page = await newPage(browser, TOK('ketoan'));
     await page.goto(`${BASE}/accounting/phoi-phieu`, { waitUntil: 'domcontentloaded' });
-    await sleep(2500);
-    await page.waitForSelector('.ppc-board', { timeout: 30000 });
+    await page.waitForSelector('.ppc-board', { timeout: 90000 });
+    await sleep(3000);
     await shot(page, 'board');
     // Open the first Tiền đường detail (Xem chi tiết in the money column).
     await page.evaluate(() => {
