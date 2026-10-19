@@ -19,15 +19,9 @@
    footer, not as part of the note card above it. */
 .csc-form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-1); }
 .csc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-/* LCL split-lot extra delivery dates (Create Shipment doc Block 2B "[+]" repeater). */
-.csc-extra-dates { display: grid; gap: 8px; justify-items: start; min-width: 0; }
-.csc-extra-dates__row { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
-.csc-extra-dates__row > div:first-child { flex: 1 1 220px; min-width: 0; }
-/* Card D.4 (18/10): the hàng lẻ form has NO "Lịch & ghi chú" section — the
-   delivery-date block is section-less: the single dashed "Thêm ngày giao hàng"
-   control plus, once revealed, the date rows above it. */
+/* Card D.4 (18/10) + 181026200700: the hàng lẻ form has NO "Lịch & ghi chú"
+   section and NO add button — one always-visible "Ngày giao hàng" field. */
 .csc-lcl-delivery { display: grid; gap: 8px; justify-items: start; min-width: 0; }
-.csc-lcl-delivery__issue { margin: 0; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
 /* Ghi chú pair: two recipient notes share ONE row at the same height instead
    of stacking two full-width boxes — the schedule section stays a dense
    worksheet rather than a wall of text areas. Phones keep the stack. */
@@ -62,11 +56,12 @@
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
-/* Owner mock 11/10 column map: Khách hàng 6 · Hình thức xuất nhập khẩu 3 ·
-   Số Bill/Booking 3, then Hãng tàu 6 · Tuỳ chọn chips 6. */
+/* Card 181026200200 (A.3) column map: Khách hàng 6 · Số Bill/Booking 6, then
+   (below the tờ khai strip) Hình thức xuất nhập khẩu 6 · Hãng tàu 6, with the
+   Tuỳ chọn chips full width. */
 .csc-identity-grid__customer { grid-column: span 6; }
-.csc-identity-grid__trade-direction { grid-column: span 3; }
-.csc-identity-grid__booking { grid-column: span 3; }
+.csc-identity-grid__trade-direction { grid-column: span 6; }
+.csc-identity-grid__booking { grid-column: span 6; }
 .csc-identity-grid__shipping-line { grid-column: span 6; }
 /* The flag band carries its own `Tuỳ chọn` label, so its chips row lands on
    the same baseline as the carrier field's input by construction — the old

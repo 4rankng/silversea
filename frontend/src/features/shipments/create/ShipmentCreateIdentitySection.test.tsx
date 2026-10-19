@@ -58,3 +58,24 @@ describe('QA1-001 — Bill/Booking placeholder before a trade direction is picke
     expect(screen.getByLabelText(/Số Bill\/Booking/).getAttribute('placeholder')).toBe(placeholder);
   });
 });
+
+describe('Card 181026200200 (A.3) — Nhận diện lô field order', () => {
+  it('reads Số Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu in DOM order', () => {
+    renderSection({ tradeDirection: 'EXPORT' } as Partial<ShipmentCreateFormState>);
+    // The four document fields in exactly the operator's order (FB-113 set
+    // the same order on the ledger popup; this is the create form).
+    const chain = [
+      '[data-field-id="shipment-booking-ref"]',
+      '[data-field-id="shipment-declarations"]',
+      '[data-field-id="shipment-trade-direction"]',
+      '[data-field-id="shipment-shipping-line"]',
+    ].map((selector) => document.querySelector(selector));
+    for (const node of chain) expect(node, `missing ${node}`).toBeTruthy();
+    for (let i = 0; i < chain.length - 1; i += 1) {
+      expect(
+        chain[i]!.compareDocumentPosition(chain[i + 1]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+        `field ${i + 1} must precede field ${i + 2}`,
+      ).toBeTruthy();
+    }
+  });
+});

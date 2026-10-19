@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, Copy, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, Copy, Plus } from 'lucide-react';
 import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
@@ -510,31 +510,11 @@ export function ShipmentCreateWorkspace() {
     toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` });
   }
 
-  // Card D (18/10, hàng lẻ D.4): the "Lịch & ghi chú" section is removed as a
-  // whole from the LCL form — the block collapses to exactly ONE control, the
-  // dashed "Thêm ngày giao hàng" button (the same minimal, user-initiated add
-  // affordance as "+ Thêm kho" / "+ Thêm nhà máy"). The first click reveals
-  // the required lot date (row 0 — id `shipment-expected-delivery` + the
-  // expectedDeliveryDate wire name unchanged); further clicks append
-  // extra-delivery rows whose values still ride driverNotes. The open flag
-  // never gates a typed value: data always renders.
-  const [lclDeliveryDatesOpen, setLclDeliveryDatesOpen] = useState(false);
-  const lclDeliveryDatesRevealed =
-    lclDeliveryDatesOpen || form.expectedDeliveryDate !== '' || form.extraDeliveryDates.length > 0;
-
-  function addLclDeliveryDateRow() {
-    if (!lclDeliveryDatesOpen && !form.expectedDeliveryDate) {
-      setLclDeliveryDatesOpen(true);
-      return;
-    }
-    update('extraDeliveryDates', [...form.extraDeliveryDates, '']);
-  }
-
-  function removeLclDeliveryDateRow() {
-    update('expectedDeliveryDate', '');
-    // Collapse back to the single control only when no extra rows remain.
-    setLclDeliveryDatesOpen(form.extraDeliveryDates.length > 0);
-  }
+  // Card D.4 (18/10, hàng lẻ D.4) completed by 181026200700: the "Lịch & ghi
+  // chú" section stays gone from the LCL form AND the leftover "Thêm ngày
+  // giao" button is retired — the block is exactly ONE always-visible
+  // "Ngày giao hàng" field (id `shipment-expected-delivery`, wire name
+  // `expectedDeliveryDate` unchanged). FCL keeps the full schedule section.
 
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '') || hasDateDraft(scope);
@@ -767,44 +747,22 @@ export function ShipmentCreateWorkspace() {
           </ShipmentCreateSection>
 
           {form.cargoMode === 'LCL' ? (
-            /* Card D.4 (18/10): NO "Lịch & ghi chú" section on the hàng lẻ
-               form — the whole section collapses to exactly ONE control:
-               "Thêm ngày giao hàng". Clicking it reveals the delivery-date
-               rows (row 0 = the required lot date; further clicks append
-               extras). FCL keeps the full schedule section below. */
+            /* Card D.4 (18/10) + 181026200700: NO "Lịch & ghi chú" section on
+               the hàng lẻ form and NO add button — exactly ONE required
+               "Ngày giao hàng" field, always visible. FCL keeps the full
+               schedule section below. */
             <div className="csc-lcl-delivery" data-field-id="shipment-expected-delivery">
-              {lclDeliveryDatesRevealed && (
-                <div className="csc-extra-dates">
-                  {/* Helpdesk 2026-10-13 (D.1): LCL copy is "Ngày giao hàng" —
-                      id + expectedDeliveryDate wire name unchanged. */}
-                  {(lclDeliveryDatesOpen || form.expectedDeliveryDate !== '') && (
-                    <div className="csc-extra-dates__row">
-                      <DateField
-                        id="shipment-expected-delivery"
-                        label="Ngày giao hàng"
-                        requiredMark
-                        value={form.expectedDeliveryDate}
-                        onChange={(event) => update('expectedDeliveryDate', event.target.value)}
-                        disabled={Boolean(saving)}
-                        error={issueByField.get('shipment-expected-delivery')}
-                      />
-                      <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label="Xóa ngày giao hàng" onClick={removeLclDeliveryDateRow} disabled={Boolean(saving)}><Trash2 size={16} /></button>
-                    </div>
-                  )}
-                  {form.extraDeliveryDates.map((date, index) => (
-                    <div key={index} className="csc-extra-dates__row">
-                      <DateField label={index === 0 ? 'Ngày giao bổ sung' : ''} value={date} onChange={(event) => update('extraDeliveryDates', form.extraDeliveryDates.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} disabled={Boolean(saving)} />
-                      <button type="button" className="csc-icon-button csc-icon-button--danger" aria-label={`Xóa ngày giao bổ sung ${index + 1}`} onClick={() => update('extraDeliveryDates', form.extraDeliveryDates.filter((_, itemIndex) => itemIndex !== index))} disabled={Boolean(saving)}><Trash2 size={16} /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {!lclDeliveryDatesRevealed && issueByField.get('shipment-expected-delivery') && (
-                <p className="csc-lcl-delivery__issue" role="alert">{issueByField.get('shipment-expected-delivery')}</p>
-              )}
-              <button type="button" className="csc-utility-button csc-utility-button--dashed" onClick={addLclDeliveryDateRow} disabled={Boolean(saving)}>
-                <Plus size={15} aria-hidden="true" />Thêm ngày giao hàng
-              </button>
+              {/* Helpdesk 2026-10-13 (D.1): LCL copy is "Ngày giao hàng" —
+                  id + expectedDeliveryDate wire name unchanged. */}
+              <DateField
+                id="shipment-expected-delivery"
+                label="Ngày giao hàng"
+                requiredMark
+                value={form.expectedDeliveryDate}
+                onChange={(event) => update('expectedDeliveryDate', event.target.value)}
+                disabled={Boolean(saving)}
+                error={issueByField.get('shipment-expected-delivery')}
+              />
             </div>
           ) : (
             <ShipmentCreateSection id="schedule" title="Lịch & ghi chú">
