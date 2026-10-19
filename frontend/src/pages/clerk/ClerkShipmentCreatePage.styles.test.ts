@@ -291,6 +291,13 @@ describe('shipment create responsive layout', () => {
     );
   });
 
+  it('styles validation summary as a compact neutral card with surface tokens and no pink wall (card 181026180300)', () => {
+    expect(css).toMatch(/\.csc-validation-summary\s*\{[^}]*max-width:\s*520px;[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.csc-validation-summary\s*\{[^}]*border:\s*1px solid var\(--border-1\);/);
+    expect(css).not.toMatch(/\.csc-validation-summary\s*\{[^}]*background:\s*var\(--warning-soft\);/);
+    expect(css).not.toMatch(/\.csc-validation-summary\s*\{[^}]*background:\s*var\(--danger-soft\);/);
+  });
+
   it('uses the full workspace width and keeps actions in the form flow', () => {
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*display:\s*grid;[^}]*gap:\s*10px;[^}]*min-width:\s*0;/);
     expect(css).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(280px, 320px)');
