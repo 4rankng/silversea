@@ -329,8 +329,7 @@ export async function enrichLinesForDebitNoteRender(
     revVehicleClassName: revVehicleClass.name,
     revVehicleClassCode: revVehicleClass.code,
     costVehicleClassName: costVehicleClass.name,
-    costVehicleClassCode: costVehicleClass.code,
-    billNumber: s.shipments.blNumber,
+    costVehicleClassCode: costVehicleClass.code,    billNumber: s.shipments.blNumber,
     shipmentId: s.tripsComposite.shipmentId,
   }).from(s.tripsComposite)
     .leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))

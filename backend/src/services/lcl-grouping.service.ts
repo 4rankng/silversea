@@ -95,7 +95,6 @@ export interface LclSingleLotRevClassResult {
   /** The override reason / snapshot formula note; null on a lane miss. */
   reason: string | null;
 }
-
 /** Full group un-merge / dissolve result. */
 export interface LclGroupDissolveResult {
   dimension: LclGroupDimension;
@@ -106,7 +105,6 @@ export interface LclGroupDissolveResult {
 }
 
 export type ShipmentRow = typeof s.shipments.$inferSelect;
-
 /** Live-trip facts the money steps need, keyed by shipmentId. */
 export interface LiveTripFacts {
   tripId: number;
@@ -635,6 +633,7 @@ export async function promoteLclGroupsOnShipmentDelete(
     if (survivors.length === 0) continue;
     const tripFacts = await loadLiveTripFactsByShipment(tx, ordered.map((row) => row.id));
     await assertGroupMutable(tx, ordered, tripFacts);
+
     if (order === 1) {
       const { promoted, transferredAmount, transferredDriverMoney } = await promotePrincipalOnRemoval(
         tx,

@@ -268,7 +268,6 @@ export async function setLclLotRevClass(input: { shipmentId: number; vehicleSize
     reason: string | null;
   }>('/shipments/lcl/rev-class', input);
 }
-
 /** FB-095 — un-merge one lot from a group dimension. */
 export async function unmergeLclLot(input: { shipmentId: number; dimension: 'COST' | 'REV' }) {
   return api.post<{
