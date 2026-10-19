@@ -185,6 +185,28 @@ async function mkLot(actor: ExpenseActor, staff: { id: number }, entryIds: numbe
 }
 
 describe('card 20260928_168 - sổ quỹ theo kỳ + hội tụ với báo cáo hoàn ứng', () => {
+  // The convergence identity compares two company-wide aggregates read in two
+  // service calls. They are one definition by construction (ruling câu 1),
+  // so over a quiescent database they MUST be equal — but the shared dev DB
+  // also serves parallel checkout runs whose advance writes can commit
+  // BETWEEN the two reads, making an honest pair look divergent for a few
+  // milliseconds. Read the pair fresh, back to back, and allow a bounded
+  // settle-and-reread: a real divergence (or a sustained write storm) still
+  // fails the assert; a mid-pair commit does not.
+  async function readConvergencePair(finance: ExpenseActor) {
+    for (let attempt = 1; ; attempt += 1) {
+      const book = await listFundBook('COMPANY', { from: TODAY, to: TODAY });
+      const report = await listMonthlyReconciliationReport(finance, { from: TODAY, to: TODAY });
+      if (book.opsAdvance.totalOutstanding === report.totals.remaining) {
+        return { book, report };
+      }
+      if (attempt >= 3) {
+        return { book, report };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+
   test('AC3: the period window carries the opening; TÀI KHOẢN OPS closing IS the 169 remaining, before and after the THU', async () => {
     const actorRow = await mkActor();
     const finance: ExpenseActor = { userId: actorRow.id, role: Role.ACCOUNTANT };
@@ -233,7 +255,8 @@ describe('card 20260928_168 - sổ quỹ theo kỳ + hội tụ với báo cáo 
     const opsItem = book.opsAdvance.items.find((item) => item.staffId === staff.id);
     assert.ok(opsItem, 'the TÀI KHOẢN OPS section carries the staff row');
     assert.equal(opsItem.outstanding, 500000);
-    assert.equal(book.opsAdvance.totalOutstanding, report.totals.remaining,
+    const convergedBefore = await readConvergencePair(finance);
+    assert.equal(convergedBefore.book.opsAdvance.totalOutstanding, convergedBefore.report.totals.remaining,
       'TÀI KHOẢN OPS closing === the 169 report remaining on the SAME period');
     assert.equal(opsItem.outstanding, reportRow.remaining,
       'per staff: the book number and the report number are one definition');
@@ -264,7 +287,8 @@ describe('card 20260928_168 - sổ quỹ theo kỳ + hội tụ với báo cáo 
     const opsItemAfter = bookAfter.opsAdvance.items.find((item) => item.staffId === staff.id);
     assert.ok(opsItemAfter);
     assert.equal(opsItemAfter.outstanding, 400000, 'the TÀI KHOẢN OPS closing drops with the phiếu THU');
-    assert.equal(bookAfter.opsAdvance.totalOutstanding, reportAfter.totals.remaining,
+    const convergedAfter = await readConvergencePair(finance);
+    assert.equal(convergedAfter.book.opsAdvance.totalOutstanding, convergedAfter.report.totals.remaining,
       'after the phiếu posts, the sổ quỹ and the report still read one number');
 
     // The collection account's own period row: the THU landed inside the window.

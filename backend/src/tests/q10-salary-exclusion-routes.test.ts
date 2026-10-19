@@ -17,6 +17,11 @@ import {
   setAuditPersistHandlerForTest,
 } from '../services/audit.service';
 import { syncAttendanceAfterStatusChange } from '../services/trip-attendance-sync.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const periodYear = 7100 + (Number(suffix.split('-')[0]) % 500);
@@ -36,6 +41,9 @@ let server: http.Server;
 let baseUrl = '';
 let savedPayrollUnitSetting: string | null = null;
 let fixtureUnitId = 0;
+// Cross-run serialization around the shared payroll-unit setting (see
+// helpers/cross-suite-lock.ts): held from before() through after().
+let releasePayrollLock: CrossSuiteLockRelease | null = null;
 
 async function mkUser(role: Role, tag: string) {
   const [user] = await db.insert(s.users).values({
@@ -144,6 +152,7 @@ async function postExclusion(
 }
 
 before(async () => {
+  releasePayrollLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.payrollUnit);
   setAuditEnrichmentHandlerForTest(async () => undefined);
   // Hermetic payroll-unit scope: the readiness driver query scopes to the
   // unit configured in app_settings, which the shared dev DB may hold as any
@@ -159,10 +168,16 @@ before(async () => {
     status: 'ACTIVE',
   }).returning();
   fixtureUnitId = unit.id;
-  await db.update(s.appSettings).set({
+  // Upsert (the m73 pattern): on a database with no payroll-unit row yet a
+  // bare UPDATE is a silent no-op and the whole suite runs unpinned at
+  // COMPANY scope — the standing cause of order-dependent reds.
+  await db.insert(s.appSettings).values({
+    key: 'salary.payroll_business_unit_id',
     value: String(unit.id),
-    updatedAt: new Date(),
-  }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+  }).onConflictDoUpdate({
+    target: s.appSettings.key,
+    set: { value: String(unit.id), updatedAt: new Date() },
+  });
 
   const app = express();
   app.use(express.json());
@@ -185,12 +200,24 @@ before(async () => {
 });
 
 after(async () => {
+  // Release the cross-suite lock even when teardown throws: a rejected
+  // server.close (or a failed delete) must not wedge every other checkout's
+  // payroll suites behind a lock this process then holds forever.
   try {
-    if (fixtureUnitId > 0 && savedPayrollUnitSetting !== null) {
-      await db.update(s.appSettings).set({
-        value: savedPayrollUnitSetting,
-        updatedAt: new Date(),
-      }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+  try {
+    if (fixtureUnitId > 0) {
+      if (savedPayrollUnitSetting !== null) {
+        await db.update(s.appSettings).set({
+          value: savedPayrollUnitSetting,
+          updatedAt: new Date(),
+        }).where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      } else {
+        // The row did not exist before this suite pinned it — restore that
+        // absence instead of leaving the pin behind (a leftover pin dangles
+        // the moment the fixture unit is swept).
+        await db.delete(s.appSettings)
+          .where(eq(s.appSettings.key, 'salary.payroll_business_unit_id'));
+      }
       // Links reference the unit — clear them before the unit delete.
       await db.delete(s.userBusinessUnitLinks)
         .where(eq(s.userBusinessUnitLinks.businessUnitId, fixtureUnitId));
@@ -231,6 +258,14 @@ after(async () => {
   }
   if (createdUserIds.length > 0) {
     await db.delete(s.users).where(inArray(s.users.id, createdUserIds));
+  }
+  } finally {
+    // Release BEFORE client.end() — end() destroys the reserved connection
+    // the unlock must run on; releasing after it hangs the child process.
+    if (releasePayrollLock) {
+      try { await releasePayrollLock(); } catch { /* session lock dies with the connection */ }
+      releasePayrollLock = null;
+    }
   }
   await client.end();
 });

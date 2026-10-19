@@ -1,4 +1,4 @@
-import { after, test } from 'node:test';
+import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { and, eq, inArray } from 'drizzle-orm';
 
@@ -19,6 +19,11 @@ import {
   confirmSalary,
 } from '../services/attendance.service';
 import { getWorkDays } from '../services/attendance-summary.service';
+import {
+  acquireCrossSuiteLock,
+  CROSS_SUITE_LOCK_KEYS,
+  type CrossSuiteLockRelease,
+} from './helpers/cross-suite-lock';
 import {
   requestSalaryPeriodAdjustment,
 } from '../services/salary-period-adjustment.service';
@@ -49,6 +54,14 @@ const createdAdjustmentIds: number[] = [];
 const createdClosePeriods = new Set<string>();
 let fixturePayrollUnitId = 0;
 let savedPayrollUnitValue: string | null = null;
+// Cross-run serialization around the shared payroll-unit setting (see
+// helpers/cross-suite-lock.ts): this suite pins it lazily from inside its
+// tests, so take the lock once up front and hold it through after().
+let releasePayrollLock: CrossSuiteLockRelease | null = null;
+
+before(async () => {
+  releasePayrollLock = await acquireCrossSuiteLock(CROSS_SUITE_LOCK_KEYS.payrollUnit);
+});
 let testCatalogs: {
   customer: { id: number };
   route: { id: number };
@@ -233,6 +246,10 @@ after(async () => {
     }
   } catch (err) {
     console.warn('[m73] cleanup partial:', (err as Error).message);
+  }
+  if (releasePayrollLock) {
+    try { await releasePayrollLock(); } catch { /* session lock dies with the connection */ }
+    releasePayrollLock = null;
   }
   await client.end();
 });

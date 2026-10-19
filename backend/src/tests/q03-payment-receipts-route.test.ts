@@ -144,10 +144,13 @@ async function fetchNotificationCount(relatedEntityId: number) {
 }
 
 async function waitForNotificationCount(relatedEntityId: number, expectedAtLeast: number) {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+  // Generous deadline: the audit/notification rows land asynchronously after
+  // res.end(), and parallel checkout runs share this dev database — under
+  // that load a 1s budget flakes (the standing q03 red), 10s never does.
+  for (let attempt = 0; attempt < 100; attempt += 1) {
     const count = await fetchNotificationCount(relatedEntityId);
     if (count >= expectedAtLeast) return count;
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
   return fetchNotificationCount(relatedEntityId);
 }
@@ -198,10 +201,13 @@ async function fetchAuditEntries(receiptId: string) {
 }
 
 async function waitForAuditEntries(receiptId: string, expectedAtLeast: number) {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
+  // Same load budget as waitForNotificationCount: the middleware persists
+  // audit rows after the response ends, and concurrent suite runs on the
+  // shared dev database can delay that past a tight loop's deadline.
+  for (let attempt = 0; attempt < 100; attempt += 1) {
     const rows = await fetchAuditEntries(receiptId);
     if (rows.length >= expectedAtLeast) return rows;
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
   return fetchAuditEntries(receiptId);
 }
