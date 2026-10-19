@@ -149,9 +149,15 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     renderPage();
     expect(await screen.findByText('Phải thu')).toBeInTheDocument();
     expect(screen.getByText('Phải trả')).toBeInTheDocument();
+    // Card 191026181942: the board opens on its essential set — Tổng thu and
+    // Tổng 1 (the two rollups) carry the worked money; the Lợi nhuận
+    // breakdown joins through the picker like every other breakdown.
     expect(await screen.findByText('1.790.000 ₫')).toBeInTheDocument();
     expect(screen.getByText('480.000 ₫')).toBeInTheDocument();
-    expect(screen.getByText('1.160.000 ₫')).toBeInTheDocument();
+    expect(screen.queryByText('1.160.000 ₫')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Lợi nhuận' }));
+    expect(await screen.findByText('1.160.000 ₫')).toBeInTheDocument();
     // The board's axis is a business date, never the wire's ISO string.
     expect(screen.getByText('25/09/2026')).toBeInTheDocument();
   });
@@ -163,24 +169,44 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     })]);
     renderPage();
     expect(await screen.findByText('Thiếu tổng thu')).toBeInTheDocument();
-    expect(screen.getByText('Thiếu lợi nhuận')).toBeInTheDocument();
+    // Lợi nhuận is a breakdown column now — enable it through the picker,
+    // then the §1 law reads exactly as before: the missing cell NAMES its
+    // field, never the generic placeholder.
+    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Lợi nhuận' }));
+    expect(await screen.findByText('Thiếu lợi nhuận')).toBeInTheDocument();
     // …and never the generic placeholder.
     expect(screen.queryByText('Chưa xác định')).not.toBeInTheDocument();
   });
 
-  it('a breakdown column with no value anywhere stays out of the board, and returns with data', async () => {
-    // Column-visibility law: absence is not data. With every cước-thu cell
-    // missing, the column is not offered a track; the totals keep theirs.
+  it('a breakdown column stays off the board until the operator asks for it, and the choice persists (card 191026181942)', async () => {
+    // The essential-set law supersedes the auto-hide default ON THE BOARD: a
+    // breakdown is one toggle away, not a wall of "Thiếu …" the QA had to
+    // hide by hand. The totals keep their tracks; the phone records (auto
+    // default) still show a breakdown that carries data.
     boardWith([row({ thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null } })]);
     const { unmount } = renderPage();
     await screen.findByText('BL-1');
     expect(screen.queryByText('Cước thu (tự động)')).not.toBeInTheDocument();
     expect(screen.getByText('Tổng thu')).toBeInTheDocument();
     unmount();
-    // One row carrying a rate is enough for the column to exist again.
+
+    // Even WITH data, the breakdown stays off the default board…
     boardWith([row({ thu: { ...RATES, cuocThu: null } }), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2' })]);
+    const { unmount: unmountSecond } = renderPage();
+    await screen.findByText('BL-1');
+    expect(screen.queryByText('Cước thu (tự động)')).not.toBeInTheDocument();
+    // …one picker toggle brings it back (columnheader: the open picker's own
+    // checkbox carries the same label, so the table header is the precise
+    // target)…
+    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Cước thu (tự động)' }));
+    expect(await screen.findByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
+    unmountSecond();
+
+    // …and the choice is the per-workstation memory: a fresh mount keeps it.
     renderPage();
-    expect(await screen.findByText('Cước thu (tự động)')).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
   });
 
   it('offers the column picker on the shared strip', async () => {

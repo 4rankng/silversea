@@ -22,7 +22,10 @@ export function AccountingDebitRecords({ rows, columns, context, selection }: {
     key: row.shipmentId,
     title: billBookingReference(row.billOrBooking),
     subtitle: row.customerName ?? undefined,
-    facts: columns.filter(column => column.key !== 'lo').map(column => ({
+    // 'lo' collapses into title/subtitle; 'chiPhi' (card 191026181942 KT8) is
+    // the desktop board's pre-attentive dot track — on the phone card the
+    // muted "Thiếu …" fact labels already carry the same fact per field.
+    facts: columns.filter(column => column.key !== 'lo' && column.key !== 'chiPhi').map(column => ({
       key: column.key,
       label: column.label,
       value: column.cell(row, context),

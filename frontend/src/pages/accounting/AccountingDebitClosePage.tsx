@@ -16,6 +16,7 @@ import { PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, EmptyState, FilterBar, SearchableMultiSelect, SummaryRail } from '../../design-system';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
+import { resolveHiddenColumns } from '../../lib/column-visibility';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
@@ -60,12 +61,18 @@ export default function AccountingDebitClosePage() {
   // The picker offers every column except the ones a row cannot lose: its
   // identity (Ngày, lô) and the only column carrying its action (Đối soát). A
   // column that is still "Thiếu …" on every rendered row carries NO value, so
-  // it hides itself until it does (column-visibility law) — that is what keeps
-  // the board readable while the rates are still being entered, and the moment
-  // a rate lands the column is there.
+  // it hides itself until it does (column-visibility law).
+  //
+  // Card 191026181942 (KT4): the board now OPENS on its essential set — dot
+  // chi phí, Ngày, lô, Tổng thu, Tổng 1, Đối soát (≤6 columns). With every
+  // breakdown visible the money matrix was unreadable and QA had to hide
+  // columns by hand on every visit; the breakdowns stay one toggle away in the
+  // picker, and a stored choice (per workstation, same key as before) still
+  // wins wholesale.
   const columns = useHiddenColumns({
     storageKey: 'accounting-debit-hidden-cols',
     columns: BOARD_COLUMNS,
+    defaultVisible: 'essential',
     hasData: (column) => {
       const definition = BOARD_COLUMNS.find((candidate) => candidate.key === column.key);
       if (definition?.raw == null) return true;
@@ -73,6 +80,22 @@ export default function AccountingDebitClosePage() {
     },
   });
   const shown = BOARD_COLUMNS.filter((column) => !columns.isHidden(column.key));
+  // Card 191026181942 (KT4): the ESSENTIAL default is the DESKTOP board's —
+  // its money matrix is the surface that could not be read with every
+  // breakdown open. The phone records stack vertically, so they keep the
+  // auto default (a column with data shows) and never lose the BD-02 lane
+  // price on the card face. The operator's explicit picker choice still
+  // governs BOTH views (one stored key) — only the never-chose default
+  // differs per view.
+  const shownForRecords = BOARD_COLUMNS.filter((column) => !resolveHiddenColumns({
+    columns: BOARD_COLUMNS,
+    choice: columns.choice,
+    hasData: (column) => {
+      const definition = BOARD_COLUMNS.find((candidate) => candidate.key === column.key);
+      if (definition?.raw == null) return true;
+      return rows.some((row) => definition.raw!(row) != null);
+    },
+  }).includes(column.key));
 
   const customerValues = useMemo(
     () => [...new Set(rows.map((row) => row.customerName).filter((v): v is string => v != null))].sort(),
@@ -408,7 +431,7 @@ export default function AccountingDebitClosePage() {
           {pendingRows.length > 0 && (
             <>
               <h2 className="debit-board__title">Chờ xác nhận</h2>
-              <AccountingDebitRecords rows={pendingRows} columns={shown} context={cellContext} selection={selection} />
+              <AccountingDebitRecords rows={pendingRows} columns={shownForRecords} context={cellContext} selection={selection} />
               <DebitBoardTable
                 rows={pendingRows}
                 columns={shown}
@@ -425,7 +448,7 @@ export default function AccountingDebitClosePage() {
                 {BOARD_CAPTION}
                 {period !== '' && <span className="debit-note"> · kỳ {period}</span>}
               </h2>
-              <AccountingDebitRecords rows={settledRows} columns={shown} context={cellContext} selection={selection} />
+              <AccountingDebitRecords rows={settledRows} columns={shownForRecords} context={cellContext} selection={selection} />
               <DebitBoardTable
                 rows={settledRows}
                 columns={shown}

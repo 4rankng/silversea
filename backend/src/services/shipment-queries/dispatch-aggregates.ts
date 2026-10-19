@@ -97,7 +97,15 @@ export async function loadShipmentDispatchAggregates(
     for (const fulfillment of fulfillmentsByShipment.get(id) ?? []) {
       if (!fulfillment.plannedCarrierType) continue;
       const bucket = inferContainerBucket(`${fulfillment.containerTypeCode ?? ''} ${fulfillment.containerTypeName ?? ''}`.trim());
-      if (!bucket) continue;
+      // Card 191026181942: an LCL fulfillment owns no container, so the cont
+      // bucket used to drop its planned carrier from the summary entirely —
+      // the master-plan allocation cell then read "Chưa phân bổ" for a lot
+      // whose "Gán xe nhóm" write HAD planned a nhà xe. The carrier is still
+      // a fact of the row: LCL entries ride the summary with zero containers
+      // (the cell chip renders the carrier label alone). Non-LCL
+      // fulfillments without a container type keep the old skip — a
+      // container-less FCL fulfillment carries no bucketed demand to state.
+      if (bucket == null && fulfillment.fulfillmentType !== 'LCL_SHIPMENT') continue;
       const carrierType = fulfillment.plannedCarrierType as 'OWN' | 'EXTERNAL';
       const key = carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${fulfillment.plannedExternalCarrierId}`;
       const current = byCarrier.get(key) ?? {
