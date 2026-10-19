@@ -142,13 +142,18 @@ describe('driver expense workflow — TC-CP-LX', () => {
     await waitFor(() => expect(api.listIncidentalCosts).toHaveBeenCalledTimes(2));
   });
 
-  it('offers editable suggestions and cancellation creates no expense', async () => {
+  // Card 182300 — chiphispec §1: a fee-norm row IS system-recorded Tiền đường.
+  // The "Thực chi" field is LOCKED at the norm's system value (no "Gợi ý …; sửa
+  // theo khoản thực tế" affordance), and cancelling still writes nothing.
+  it('card 182300: a fee-norm row locks "Thực chi" to the system value — the driver only views it', async () => {
     setup(); await open();
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Trả đêm');
-    expect((screen.getByLabelText(/Thực chi/) as HTMLInputElement).value).toBe('100.000');
-    expect(screen.getByText(/Gợi ý 100.000/)).toBeTruthy();
-    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '120000' } });
+    const field = screen.getByLabelText(/Thực chi/) as HTMLInputElement;
+    expect(field.value).toBe('100.000');
+    expect(field).toBeDisabled();
+    expect(screen.getByText(/Hệ thống tự ghi nhận theo định mức 100\.000/)).toBeTruthy();
+    expect(screen.queryByText(/Gợi ý/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
     expect(api.createIncidentalCosts).not.toHaveBeenCalled();
   });
@@ -180,7 +185,9 @@ describe('driver expense workflow — TC-CP-LX', () => {
   it('card 197: a negative amount is accepted and sent as typed (the signed cost rule)', async () => {
     setup(); await open();
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
-    await choose('Chạy quá tải');
+    // Card 182300 — norms are locked system money; the signed driver-actual
+    // rule (card 197) is exercised on an editable non-norm road option.
+    await choose('Tiền đường khác');
     const field = screen.getByLabelText(/Thực chi/) as HTMLInputElement;
 
     // Card 20260929_209: drive the keys one at a time, the way a keypress does,
@@ -213,7 +220,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
   it('card 181: typing a negative explains that the line is excluded from every total', async () => {
     setup(); await open();
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
-    await choose('Chạy quá tải');
+    await choose('Tiền đường khác'); // card 182300 — norms are locked; this rule is about editable driver actuals
     const field = screen.getByLabelText(/Thực chi/);
 
     // Absent while the amount is a normal cost — otherwise the line is noise
@@ -233,7 +240,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
   it('card 197: 0 stays rejected — an empty row is not a signed one', async () => {
     setup(); await open();
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
-    await choose('Chạy quá tải');
+    await choose('Tiền đường khác'); // card 182300 — norms are locked; this rule is about editable driver actuals
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
@@ -280,15 +287,18 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).not.toHaveProperty('payerKind');
   });
 
-  it('uses a configured custom fee and amount while preserving its authoritative code', async () => {
+  // Card 182300 — a configured norm keeps its SYSTEM amount on the payload: the
+  // locked field cannot be overridden, and the server force (ignore-field)
+  // mirrors it, so the amount the accountant sees at phơi phiếu is the norm's.
+  it('card 182300: a configured custom norm submits its SYSTEM amount — the locked field cannot be overridden', async () => {
     api.getFeeNorms.mockResolvedValue({ items: [{ code: 'CUSTOM_HARBOR', label: 'Phụ cấp bãi kiểm thử mới', amount: '73000' }] });
     setup(); await open(); fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' })); await choose('Phụ cấp bãi kiểm thử mới');
-    expect(screen.getByLabelText(/Thực chi/)).toHaveValue('73.000');
-    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '75000' } });
-    await uploadReceipt();
+    const field = screen.getByLabelText(/Thực chi/) as HTMLInputElement;
+    expect(field).toHaveValue('73.000');
+    expect(field).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledOnce());
-    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ feeNormCode: 'CUSTOM_HARBOR', amount: 75000, costGroup: 'DRIVER_ROAD' });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ feeNormCode: 'CUSTOM_HARBOR', amount: 73000, costGroup: 'DRIVER_ROAD' });
   });
 
   it('keeps manual entry available and exposes retry when norms fail to load', async () => {

@@ -15,6 +15,10 @@
  *     cleared/null on the accounting source.
  *   - Card 20261005: system-recorded rows (ROAD_ALLOWANCE, LIFT_DROP_ZONE
  *     without a fee norm) are refused; the LIFT_DROP_ALLOWANCE norm still lands.
+ *   - Card 182300 (chiphispec §1): a fee-norm row stores the SYSTEM norm amount
+ *     (a divergent driver amount is ignored); a DRIVER/OPS update of a
+ *     ROAD_ALLOWANCE/LIFT_DROP_ZONE row through the accounting-update command
+ *     is 403, while the driver's own rows and every finance edit stay open.
  *   - list returns costs newest-first.
  */
 import { after, describe, test } from 'node:test';
@@ -28,6 +32,7 @@ import { ApiError } from '../errors';
 import { DriverIncidentalCostType, Role } from '@tingting/shared';
 import { ensureLegacyExpenseSource } from '../services/expense-accounting-source.service';
 import { getExpenseAccountingEntry } from '../services/expense-accounting-reads.service';
+import { updateAccountingExpense } from '../services/expense-accounting-write.service';
 
 const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -242,6 +247,66 @@ describe('M8.4 slice 3 — driver incidental costs', () => {
       { costType: DriverIncidentalCostType.OTHER, feeNormCode: 'LIFT_DROP_ALLOWANCE', amount: 50000, occurredAt: TODAY }, user.id, `guard-norm-${suffix}-${trip.id}`);
     createdCostIds.push(cost.id);
     assert.equal(cost.costType, DriverIncidentalCostType.LIFT_DROP_ZONE);
+    // Card 182300 — the norm row's money is the SYSTEM figure (chiphispec §1);
+    // the LIFT_DROP_ALLOWANCE norm amount is 50.000, stored as sent here and
+    // forced below when a divergent amount rides in.
+    assert.equal(cost.amount, '50000');
+    const [nativeNorm] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, cost.id));
+    assert.equal(nativeNorm.driverEnteredAmount, '50000');
+  });
+
+  test('card 182300 TD-RO-02/03/04 — norm amount is the SYSTEM figure; system rows refuse non-finance updates, finance keeps editing', async () => {
+    const { user, driver } = await mkUserAndDriver();
+    const cat = await mkCatalogs();
+    const trip = await mkTrip(driver.id, cat.customer.id, cat.route.id, cat.cargoType.id);
+    // TD-RO-02 — NIGHT_RETURN's system amount is 100.000; a divergent driver
+    // amount (150.000) is IGNORED, not stored: the payable and the
+    // driver-entered provenance both carry the norm figure, and the row's
+    // costType is the norm's ROAD_ALLOWANCE (the very Tiền đường type the
+    // create-guard refuses when sent by hand without a norm).
+    const { cost: normRow } = await recordIncidentalCost(trip.id, driver.id,
+      { costType: DriverIncidentalCostType.OTHER, feeNormCode: 'NIGHT_RETURN', amount: 150000, occurredAt: TODAY }, user.id, `tdro-norm-${suffix}`);
+    createdCostIds.push(normRow.id);
+    assert.equal(normRow.costType, DriverIncidentalCostType.ROAD_ALLOWANCE);
+    assert.equal(normRow.amount, '100000');
+    const [nativeNorm] = await db.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, normRow.id));
+    assert.equal(nativeNorm.driverEnteredAmount, '100000', 'the provenance column carries the system figure too');
+    // An ordinary non-norm road row on the same trip keeps the driver-reported
+    // actual — the signed/actual contract is untouched outside norms.
+    const { cost: ownRow } = await recordIncidentalCost(trip.id, driver.id,
+      { costType: DriverIncidentalCostType.OTHER, costGroup: 'DRIVER_ROAD', amount: 45000, occurredAt: TODAY }, user.id, `tdro-own-${suffix}`);
+    createdCostIds.push(ownRow.id);
+    assert.equal(ownRow.amount, '45000');
+
+    const [accountant] = await db.insert(s.users).values({
+      username: `m84ic-kt-${suffix}`, passwordHash: 'x', role: 'ACCOUNTANT',
+    }).returning();
+    createdUserIds.push(accountant.id);
+
+    // The update command (DriverExpenseCorrection's endpoint) needs a hydrated
+    // DRIVER accounting source; the whole scenario commits nothing — the
+    // legacy sources and native amount writes roll back with the fixture.
+    const rollback = new Error('rollback card 182300 fixture');
+    await assert.rejects(db.transaction(async tx => {
+      const [shipment] = await tx.insert(s.shipments).values({ shipmentCode: `TDRO-${suffix}`, customerId: cat.customer.id, createdBy: user.id }).returning();
+      await tx.update(s.trips).set({ shipmentId: shipment.id }).where(eq(s.trips.id, trip.id));
+      // TD-RO-03 — the DRIVER actor (the recorded owner, so scope allows)
+      // answers 403 on the SYSTEM row: lái xe chỉ xem, mọi trường đều bị từ
+      // chối (amount/name/date/note/evidence đều đi qua nhánh này).
+      const denied = await assertStatus(() => updateAccountingExpense(tx, { userId: user.id, role: Role.DRIVER }, 'DRIVER', normRow.id,
+        { expectedVersion: 1, amount: 999000, reason: 'Lái xe tự sửa tiền đường' }), 403);
+      assert.equal(denied.message, 'Khoản này do hệ thống tự ghi nhận — kế toán điều chỉnh tại màn hình phơi phiếu.');
+      // TD-RO-04a — the SAME driver corrects their own non-system row.
+      const corrected = await updateAccountingExpense(tx, { userId: user.id, role: Role.DRIVER }, 'DRIVER', ownRow.id,
+        { expectedVersion: 1, amount: 55000, reason: 'Sai số thực chi' });
+      assert.equal(corrected.amount, '55000');
+      // TD-RO-04b — kế toán keeps editing the system row (chiphispec §1: được
+      // chỉnh) — the guard is scoped to the non-finance branch only.
+      const financeEdit = await updateAccountingExpense(tx, { userId: accountant.id, role: Role.ACCOUNTANT }, 'DRIVER', normRow.id,
+        { expectedVersion: 1, amount: 120000, reason: 'Kế toán điều chỉnh tiền đường' });
+      assert.equal(financeEdit.amount, '120000');
+      throw rollback;
+    }), error => error === rollback);
   });
 
   test('list returns costs newest-first', async () => {
