@@ -105,17 +105,39 @@ try {
 
     // — A2: rewrite the BKS pair through the dialog (updateLclTruck path).
     //   BKS ảo untouched ⇒ auto-copy ⇒ stays off the wire; SQL proof below.
+    //   Clear through the FIELD's own affordances (rb2 hardening): the old
+    //   `el.value = ''` direct-DOM hack races React's controlled restore —
+    //   under load the seeded value came back between the clear and the
+    //   first keystroke, the typed text APPENDED to it, and the doubled
+    //   string rode onCustomValue into state and the DB (the doubled seed
+    //   this run then read back was that residue). The Xoá button is the
+    //   product's own clear (fires onChange('') + onCustomValue('')); the
+    //   select-all fallback replaces atomically with the first keystroke.
     const typed = await dvPage.evaluate(() => {
       const input = document.querySelector('.dispatch-allocation-popover [role="combobox"]');
       if (!input) return false;
+      const clear = input.closest('.csc-searchable-field')?.querySelector('button[aria-label="Xoá"]');
+      if (clear) { clear.click(); return true; }
       input.focus();
       return true;
     });
     if (typed) {
-      await dvPage.type('.dispatch-allocation-popover [role="combobox"]', '', { delay: 0 });
-      await dvPage.$eval('.dispatch-allocation-popover [role="combobox"]', (el) => { el.value = ''; });
-      await dvPage.type('.dispatch-allocation-popover [role="combobox"]', '60C-QA942');
+      const sel = '.dispatch-allocation-popover [role="combobox"]';
+      const emptied = await dvPage.evaluate(() => document.querySelector('.dispatch-allocation-popover [role="combobox"]')?.value === '');
+      if (!emptied) {
+        // No Xoá affordance (or it missed): select-all + type-over replaces
+        // the seeded text atomically — per-keystroke events can never append.
+        await dvPage.focus(sel);
+        await dvPage.keyboard.down(process.platform === 'darwin' ? 'Meta' : 'Control');
+        await dvPage.keyboard.press('a');
+        await dvPage.keyboard.up(process.platform === 'darwin' ? 'Meta' : 'Control');
+      }
+      await dvPage.type(sel, '60C-QA942');
       await sleep(300);
+      const typedValue = await dvPage.evaluate(() => document.querySelector('.dispatch-allocation-popover [role="combobox"]')?.value ?? '');
+      if (typedValue.trim() !== '60C-QA942') {
+        record('DV3-lcl-save-closed', false, `typed field reads "${typedValue}" — refusing to save a corrupted value`);
+      } else {
       await dvPage.evaluate(() => {
         const save = [...document.querySelectorAll('.dispatch-allocation-popover button')].find((b) => b.textContent?.includes('Lưu phân bổ'));
         save?.click();
@@ -127,6 +149,7 @@ try {
       }));
       step('DV3-lcl-save', afterSave);
       record('DV3-lcl-save-closed', afterSave.dialogClosed, JSON.stringify(afterSave.toast));
+      }
     }
   }
 
