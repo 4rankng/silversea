@@ -418,7 +418,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
   return (
     <OpsModalBackdrop onClose={() => { if (!savingRef.current && !busy) onClose(); }} ariaLabel="Khai báo chi phí">
-      <form className="ops-modal" onSubmit={handleSubmit}>
+      <form className="ops-modal" onSubmit={handleSubmit} noValidate>
         <header className="ops-modal__head">
           <h2>Khai báo chi phí</h2>
           <button type="button" aria-label="Đóng" disabled={busy} onClick={onClose}><X size={18} /></button>

@@ -70,7 +70,7 @@ async function main() {
     const opsPage = await newPage(browser, TOK('giaonhan'));
     await opsPage.goto(`${BASE}/ops/orders`, { waitUntil: 'domcontentloaded' });
     await opsPage.waitForFunction(() => Array.from(document.querySelectorAll('button'))
-      .some(b => (b.textContent || '').includes('Khai chi phí')), { timeout: 30000 });
+      .some(b => (b.textContent || '').includes('Khai chi phí')), { timeout: 180000 });
     await sleep(800);
     await clickButtonByText(opsPage, 'Khai chi phí');
     await opsPage.waitForSelector('.ops-modal', { timeout: 15000 });
@@ -139,17 +139,28 @@ async function main() {
       return `disabled:${save?.getAttribute('disabled')}`;
     });
     note('ops-form-save', savedOps);
-    await sleep(2500);
+    await sleep(3000);
+    // A duplicate bounce is a QUESTION panel, not a failure: continue through it.
+    const dup = await opsPage.evaluate(() => document.body.textContent.includes('NHẬP TRƯỚC ĐÓ'));
+    if (dup) {
+      note('ops-form-dup', 'duplicate panel shown → Tiếp tục lưu');
+      await shot(opsPage, 'ops-form-duplicate-panel');
+      await clickButtonByText(opsPage, 'Tiếp tục lưu');
+      await sleep(3000);
+    }
     const toastText = await opsPage.evaluate(() => document.body.textContent.includes('Đã ghi nhận') ? 'toast-ok' : 'no-toast');
     const modalGone = await opsPage.evaluate(() => !document.querySelector('.ops-modal'));
-    note('ops-form-after', `toast=${toastText} modalGone=${modalGone}`);
+    const alertText = await opsPage.evaluate(() => Array.from(document.querySelectorAll('[role="alert"]')).map(a => a.textContent?.slice(0, 80)).join(' | '));
+    note('ops-form-after', `toast=${toastText} modalGone=${modalGone} alerts=${alertText}`);
     await shot(opsPage, 'ops-form-saved');
     await opsPage.close();
 
     // ── 2. phoi-phieu: Tiền đường detail → Thêm dòng drawer ─────────────
     const page = await newPage(browser, TOK('ketoan'));
     await page.goto(`${BASE}/accounting/phoi-phieu`, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('.ppc-board', { timeout: 90000 });
+    // Polling works where waitForSelector's DOM resolution starves on this
+    // heavy page (300-row board under the dev bundle).
+    await page.waitForFunction(() => Boolean(document.querySelector('.ppc-board')), { timeout: 300000, polling: 1000 });
     await sleep(3000);
     await shot(page, 'board');
     // Open the first Tiền đường detail (Xem chi tiết in the money column).
