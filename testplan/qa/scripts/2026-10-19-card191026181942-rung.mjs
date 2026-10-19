@@ -1,5 +1,5 @@
 // Card 191026181942 (×3) — rung-3 UI drive on the ephemeral stack
-// (frontend :7176 → backend :3004 → dev DB :5441).
+// (frontend :7175 → backend :3002 → dev DB :5441).
 //
 //   DV3 — /dispatch: an LCL lot's "Phân bổ nhà xe" opens the lclspec field-set
 //         (loại xe / nhà xe facts + BKS pair, NO container fields); the BKS
@@ -11,14 +11,14 @@
 //   KT8 — the leading red-dot track marks rows with missing cost data
 //         ("Thiếu chi phí"); money cells stay muted.
 //
-// Usage: QA_BASE=http://localhost:7176 API=http://localhost:3004/api \
+// Usage: QA_BASE=http://localhost:7175 API=http://localhost:3002/api \
 //        node testplan/qa/scripts/2026-10-19-card191026181942-rung.mjs
 import puppeteer from 'puppeteer';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const API = process.env.API || 'http://localhost:3004/api';
-const BASE = process.env.QA_BASE || 'http://localhost:7176';
+const API = process.env.API || 'http://localhost:3002/api';
+const BASE = process.env.QA_BASE || 'http://localhost:7175';
 const OUT = process.env.QA_OUT
   ? path.resolve(process.env.QA_OUT)
   : path.resolve(import.meta.dirname, '../../../qa/2026-10-19_card191026181942');
