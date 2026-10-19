@@ -155,20 +155,17 @@ export default function ShipmentContainersPage() {
     }
   }, [detail, toast]);
 
-  /** Tickets 141026201700 / FB-085 / 131026200630: entering the lot's FIRST
-   *  tờ khai auto-copies it to the still-empty siblings after the number
-   *  itself saved. The hook returns what happened; this page owns the toast,
-   *  matching the copy buttons above. A plain save (no auto-copy) stays
-   *  silent like every other editor save; save errors keep flowing to the
-   *  editor's inline error channel untouched. */
+  /** Card 171026122100 (FB-109) auto-copy law: saving a NON-EMPTY tờ khai on
+   *  one container copies the number onto the lot's still-EMPTY containers
+   *  inside the same server transaction (a filled container is never
+   *  overwritten); the hook reports what happened and this page owns the
+   *  toast, matching the copy buttons above. A plain save (no sibling
+   *  written) stays silent like every other editor save; save errors keep
+   *  flowing to the editor's inline error channel untouched. */
   const saveDocuments = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => {
     const outcome = await detail.saveDocuments(row, draft);
-    if (outcome?.autoCopy?.kind === 'copied') {
-      toast({ kind: 'success', message: `Đã lưu số tờ khai và tự động copy sang ${outcome.autoCopy.written} container chưa có số.` });
-    } else if (outcome?.autoCopy?.kind === 'conflict') {
-      toast({ kind: 'warning', message: 'Số tờ khai đã lưu. Lô hàng vừa thay đổi — đã tải lại, vui lòng kiểm tra từng cont và dùng nút copy nếu còn thiếu.' });
-    } else if (outcome?.autoCopy?.kind === 'failed') {
-      toast({ kind: 'warning', message: `Số tờ khai đã lưu nhưng chưa copy được sang các cont khác: ${outcome.autoCopy.message}` });
+    if (outcome?.sync && outcome.sync.written > 0) {
+      toast({ kind: 'success', message: `Đã lưu số tờ khai và tự copy sang ${outcome.sync.written} container chưa có số của lô.` });
     }
   }, [detail, toast]);
 
@@ -383,7 +380,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} onCopyDeclaration={copyDeclaration} onAddContainer={detail.addContainer} onRemoveContainer={detail.removeContainer} />
+          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} onCopyDeclaration={copyDeclaration} />
         </>}
       </section>
     </div>

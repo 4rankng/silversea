@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-fb030-advance-regress-rb1/frontend
+
+
+ Test Files  91 passed (91)
+      Tests  873 passed (873)
+   Start at  17:21:01
+   Duration  30.42s (transform 8.00s, setup 15.87s, import 81.88s, tests 92.97s, environment 63.40s)
+

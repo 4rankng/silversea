@@ -15,7 +15,7 @@
 // Run from repo root: node testplan/qa/2026-10-16_w1-deep-verify/fb009-copy-time-staging.mjs
 import assert from 'node:assert/strict';
 import {
-  closeBrowser, finish, goto, log, openAs, shot,
+  finish, goto, log, openAs, shot,
 } from './w1-lib.mjs';
 
 const CARD = 'fb009';

@@ -7,7 +7,7 @@
         "/Users/dev/.local/bin/code-review-graph",
         "serve",
         "--repo",
-        "/Volumes/LexarSSD/projects/silversea-prod"
+        "/Volumes/LexarSSD/projects/silversea"
       ]
     },
     "repowise": {
@@ -15,7 +15,7 @@
       "command": [
         "repowise",
         "mcp",
-        "/Volumes/LexarSSD/projects/silversea-prod",
+        "/Volumes/LexarSSD/projects/silversea",
         "--transport",
         "stdio"
       ],

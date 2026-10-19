@@ -23,6 +23,21 @@
 .csc-container-cell:has([role='combobox'][aria-expanded='true']) .csc-container-cell__display { opacity: 0; }
 .csc-container-cell:not(.csc-container-cell--picker):focus-within .csc-container-cell__editor > *,
 .csc-container-cell:has([role='combobox'][aria-expanded='true']) .csc-container-cell__editor > * { opacity: 1; }
+/* Card 171026113500 (FB-006 round 17): the "Nhà máy" cell must be the picked
+   name + the detail magnifier and nothing else once a factory is chosen. The
+   rules above only fade the editor, and they fade it on a descendant's
+   aria-expanded — so the full combobox and its "Xoá" button stayed in the
+   document, in the accessibility tree and in any DOM-level check for as long
+   as focus stayed inside the cell (exactly the reported state), and any load
+   that reopened the picker menu put them back on screen over the pick.
+   A `--picked` cell therefore takes its editor OUT of the visible DOM
+   (`visibility` keeps the box, so the column width and the row height never
+   move — law book §4 no-truncation doctrine) until the operator activates the
+   cell again (`--editing`, set by the cell's own click handler) or a picker
+   menu opens inside it. Opt-in via `collapsePickedEditor`: the container-type
+   cell keeps the reveal contract it shares with the Số container cell. */
+.csc-container-cell--picked:not(.csc-container-cell--editing) .csc-container-cell__editor { visibility: hidden; }
+.csc-container-cell:has([role='combobox'][aria-expanded='true']) .csc-container-cell__editor { visibility: visible; }
 .csc-container-cell:not(:focus-within):hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-2); }
 .csc-container-cell--error:not(:focus-within) { box-shadow: inset 0 0 0 1px var(--danger); }
 .csc-container-cell__error { display: block; padding: 0 10px 6px; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.35; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 4.05em; overflow: hidden; }

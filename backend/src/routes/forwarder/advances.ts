@@ -63,7 +63,11 @@ router.post('/advance-requests', declareMaterialWrite('forwarder.advance-request
     createdBy: forwarder.id,
     entityType: 'advance_request',
     responseStatusCode: 201,
-    create: (tx) => createAdvanceRequest(forwarder.id, parsed.data, tx),
+    // FB-100/CPB-03 (card 141026230770): đây là đường Ops TỰ GỬI yêu cầu (trang
+    // /my-advances) — sinh PENDING chờ kế toán phê duyệt, không tự
+    // approvedBy = requester. Chỉ đường "tiền đi cùng giao dịch" (ghi chi tạm
+    // ứng có thật, seed, phục hồi nháp) mới ghi thẳng RECORDED.
+    create: (tx) => createAdvanceRequest(forwarder.id, parsed.data, tx, { pending: true }),
   });
   res.status(outcome.statusCode).json({ ...outcome.result, replayed: outcome.replayed });
 }));

@@ -119,6 +119,24 @@
    one nowrap line, so the note column (label needs under 7%) frees most of
    its old share — 9.5% keeps both the label and the "Thêm ghi chú" trigger
    (79px text, measured) on one line. */
+.master-plan-grid__col--select { width: 48px; }
+.master-plan-grid__select-head-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.master-plan-grid__cell--select .master-plan-grid__cell-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.master-plan-grid__select-head {
+  padding-inline: 4px;
+}
+/* SPEC 18/10/2026 §2.1 — leading checkbox column: the LCL selection reuses the
+   schedule column's 15.5% minus the fixed 34px gutter. */
 .master-plan-grid__col--schedule { width: 15.5%; }
 .master-plan-grid__col--customer { width: 15.75%; }
 .master-plan-grid__cell[data-label="Khách hàng & nhà máy"] > .master-plan-grid__line--strong:first-child {
@@ -276,6 +294,16 @@
 .master-plan-grid__location-value {
   color: var(--fg-1);
   font-weight: 400;
+}
+
+/* Card B 18/10 (customer: "số container in đậm, cảng không in đậm") — the
+   container-count lines under a port are the dispatchers' scan target, the
+   same law the detail plan pinned in card 20261005_361. Each location block
+   renders the port name first and the container summaries after it, so the
+   adjacent sibling targets exactly the summary lines; the port line keeps
+   its regular weight. */
+.master-plan-grid__location-value + .master-plan-grid__location-value {
+  font-weight: var(--ops-table-primary-weight);
 }
 
 .master-plan-grid__line--muted {

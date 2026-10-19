@@ -2,32 +2,42 @@ import { AlertCircle } from 'lucide-react';
 import type { ShipmentCreateIssue } from './shipment-create-model';
 
 interface ShipmentCreateSummaryProps {
-  validationIssues: ShipmentCreateIssue[];
+  /** Live outstanding requirements from `getShipmentCreateReadiness` — named
+   *  before the first submit, not only after the validator runs. */
+  outstandingIssues: ShipmentCreateIssue[];
+  /** Submit-attempt gate: the panel must not confront a freshly opened form —
+   *  it appears only after the operator clicks an action save ("Tạo lô hàng"
+   *  or a failed "Lưu nháp") with issues remaining, then stays live (updating
+   *  as fields resolve) until the list is empty. */
+  showIssues: boolean;
   submitError: string | null;
   onFocusIssue: (fieldId: string) => void;
 }
 
-/* The validation/summary block. The create actions no longer live here: the
- * owner mock 11/10 moved them onto the page topline (ShipmentCreateTopline)
- * and retired the fixed bottom bar this file used to own — so the file is
- * just the in-flow state surface now: the issue list, and a submit failure
- * (danger styling, announced once). */
+/* Card 181026180300: Restyle "Cần bổ sung N thông tin" panel into a compact,
+ * neutral card (Untitled UI alert/callout style, --surface tokens, no pink/wall).
+ * Submit-gated: hidden on initial page load until operator clicks "Tạo lô hàng". */
 export function ShipmentCreateSummary({
-  validationIssues,
+  outstandingIssues,
+  showIssues,
   submitError,
   onFocusIssue,
 }: ShipmentCreateSummaryProps) {
+  if (!submitError && (!showIssues || outstandingIssues.length === 0)) {
+    return null;
+  }
+
   return (
     <aside className="csc-summary" aria-label="Tình trạng lô hàng">
-      {validationIssues.length > 0 && (
+      {showIssues && outstandingIssues.length > 0 && (
         <div className="csc-validation-summary" role="alert" tabIndex={-1}>
           <div className="csc-validation-summary__title">
-            <AlertCircle size={18} aria-hidden="true" />
-            <strong>Cần bổ sung {validationIssues.length} thông tin</strong>
+            <AlertCircle size={15} aria-hidden="true" />
+            <strong>Cần bổ sung {outstandingIssues.length} thông tin</strong>
           </div>
           <p>Chọn từng mục để chuyển đến trường cần sửa.</p>
           <ol>
-            {validationIssues.map((item) => (
+            {outstandingIssues.map((item) => (
               <li key={`${item.fieldId}-${item.message}`}>
                 <button type="button" onClick={() => onFocusIssue(item.fieldId)}>{item.message}</button>
               </li>

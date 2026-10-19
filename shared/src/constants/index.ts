@@ -382,6 +382,15 @@ export enum Role {
 /** Roles that can record financial operations and access financial reports. */
 export const FINANCIAL_ROLES: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT] as const;
 
+/**
+ * Roles that may mutate the `/shipments/new` intake surface (durable
+ * quick-create → root update → declarations → containers) and its master-data
+ * helpers (operational sites, shipping lines). `/shipments/new` is shared by
+ * CUS and Điều vận — one authority list for route guards AND service checks
+ * so the two cannot drift apart again.
+ */
+export const SHIPMENT_INTAKE_MUTATION_ROLES: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER] as const;
+
 /** Check whether a role belongs to the financial operations group. */
 export function isFinancialRole(role: Role | string | undefined): boolean {
   return !!role && (FINANCIAL_ROLES as readonly string[]).includes(role);

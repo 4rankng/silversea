@@ -226,6 +226,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       recoveryFactsByShipment: new Map<number, RecoveryFactRow[]>(),
       factoryNameBySiteId: new Map<number, { shortName: string; fullName: string }>(),
       portsById: new Map<number, { id: number; code: string | null; name: string }>(),
+      vehicleClassCodeById: new Map<number, string>(),
     };
   }
 
@@ -263,7 +264,13 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       .leftJoin(s.routes, eq(s.routes.id, s.shipmentContainers.routeId))
       .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
       .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id)),
-    executor.select({ operationalSiteId: s.shipments.operationalSiteId })
+    // Card 161026232339: the two LCL billing-class links ride along so the
+    // page's class codes resolve in ONE batched lookup below (never per row).
+    executor.select({
+      operationalSiteId: s.shipments.operationalSiteId,
+      costVehicleClassId: s.shipments.costVehicleClassId,
+      revVehicleClassId: s.shipments.revVehicleClassId,
+    })
       .from(s.shipments)
       .where(inArray(s.shipments.id, shipmentIds)),
     executor.select({
@@ -564,6 +571,26 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     }
   }
 
+  // Card 161026232339: vehicle_size_classes.code for every class a shipment on
+  // this page bills into (Thu khách + Trả ĐV). One lookup per page — the lot
+  // rows print "Thu: Xe 3.5T | Trả: Xe 10T" off this map.
+  const vehicleClassCodeById = new Map<number, string>();
+  {
+    const classIds = new Set<number>();
+    for (const shipment of shipmentSiteRows) {
+      if (shipment.costVehicleClassId != null) classIds.add(shipment.costVehicleClassId);
+      if (shipment.revVehicleClassId != null) classIds.add(shipment.revVehicleClassId);
+    }
+    if (classIds.size > 0) {
+      const classRows = await executor.select({
+        id: s.vehicleSizeClasses.id,
+        code: s.vehicleSizeClasses.code,
+      }).from(s.vehicleSizeClasses)
+        .where(inArray(s.vehicleSizeClasses.id, [...classIds]));
+      for (const classRow of classRows) vehicleClassCodeById.set(classRow.id, classRow.code);
+    }
+  }
+
   return {
     containersByShipment,
     declarationByShipment,
@@ -578,6 +605,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     recoveryFactsByShipment,
     factoryNameBySiteId,
     portsById,
+    vehicleClassCodeById,
   };
 }
 
@@ -733,11 +761,30 @@ async function buildShipmentPageConditions(
     ? containerTransportDateSql()
     : s.shipments.expectedDeliveryDate;
   if (searchMode === 'container') {
+    const dateArms: SQL[] = [];
     if (query.transportDateFrom) {
-      conditions.push(sql`${transportDate} >= ${query.transportDateFrom}`);
+      dateArms.push(sql`${transportDate} >= ${query.transportDateFrom}`);
     }
     if (query.transportDateTo) {
-      conditions.push(sql`${transportDate} <= ${query.transportDateTo}`);
+      dateArms.push(sql`${transportDate} <= ${query.transportDateTo}`);
+    }
+    // Card 181026185900 (D.6): the day triage narrows CONTAINER rows to
+    // their appointment/EDD day. A container-less LCL lot has no container
+    // day — for an UNDATED lot coalesce(appointment, EDD) is NULL, so the
+    // old bare condition dropped the row and a lot visible on Tổng quan
+    // (whose default carries no date scope) could never be found here. An
+    // undated lot row therefore rides outside the date triage (there is no
+    // day it could match). A DATED lot keeps matching on its EDD — the
+    // card-365 off-day parity stays exact.
+    if (dateArms.length > 0) {
+      conditions.push(or(
+        and(
+          isNull(s.shipmentContainers.id),
+          eq(s.shipments.cargoMode, CARGO_MODE.LCL),
+          isNull(transportDate),
+        ),
+        and(...dateArms),
+      )!);
     }
   } else if (query.transportDateFrom || query.transportDateTo) {
     // Shipment-level: also consider container appointment dates so allocated
@@ -1001,6 +1048,17 @@ function buildLotFlatRow(
     carrierName: identity.carrierName,
     carrierType: identity.carrierType,
     plateNumber: identity.plateNumber,
+    // Card 161026232339 — the FB-092/093 group truck + the two billing classes
+    // the settlement strip already prints. The Điều vận assignment's planned
+    // plate stays `plateNumber`; these two are the LOT's own billing identity.
+    actualTruckNo: trimOrNull(row.shipment.actualTruckNo),
+    billingTruckNo: trimOrNull(row.shipment.billingTruckNo),
+    revVehicleClassCode: row.shipment.revVehicleClassId != null
+      ? support.vehicleClassCodeById.get(row.shipment.revVehicleClassId) ?? null
+      : null,
+    costVehicleClassCode: row.shipment.costVehicleClassId != null
+      ? support.vehicleClassCodeById.get(row.shipment.costVehicleClassId) ?? null
+      : null,
     liftSite: liftSite?.name ?? null,
     dropoffSite: dropoffSite?.name ?? null,
     // Mirrors the container rows' LCL branch: the lot's schedule IS its
@@ -1173,6 +1231,17 @@ export async function listCusShipmentContainers(
       carrierName: line.carrierName,
       carrierType: line.carrierType,
       plateNumber: line.plateNumber,
+      // Card 161026232339: same four fields the lot rows carry, so the flat
+      // schema stays one shape. FCL containers never bill into an LCL group —
+      // these read null and the ledger keeps rendering FCL rows unchanged.
+      actualTruckNo: trimOrNull(row.shipment.actualTruckNo),
+      billingTruckNo: trimOrNull(row.shipment.billingTruckNo),
+      revVehicleClassCode: row.shipment.revVehicleClassId != null
+        ? support.vehicleClassCodeById.get(row.shipment.revVehicleClassId) ?? null
+        : null,
+      costVehicleClassCode: row.shipment.costVehicleClassId != null
+        ? support.vehicleClassCodeById.get(row.shipment.costVehicleClassId) ?? null
+        : null,
       liftSite: line.liftSite,
       dropoffSite: line.dropoffSite,
       transportDate: row.shipment.cargoMode === CARGO_MODE.FCL

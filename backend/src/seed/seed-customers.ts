@@ -38,6 +38,10 @@ const LONG_MINH_DEBIT_TEMPLATE_COLUMNS: DebitNoteTemplateColumn[] = [
   { id: 'loai_phi', label: 'LOẠI PHÍ', variable: 'recoverableFeeType', headerGroup: 'PHÍ CHI HỘ', width: 18, align: 'left', format: 'text', total: false },
   { id: 'so_chung_tu', label: 'SỐ HĐ', variable: 'recoverableDocumentCode', headerGroup: 'PHÍ CHI HỘ', width: 14, align: 'center', format: 'text', total: false },
   { id: 'so_tien', label: 'SỐ TIỀN', variable: 'recoverableAmount', headerGroup: 'PHÍ CHI HỘ', width: 12, align: 'right', format: 'currency', total: true },
+  // Spec §II.4 (card 161026232439): the merged member lot's 0₫ freight row must
+  // carry the merge note ("Ghép xe cùng Bill [Số Bill Lô 1]"). Appended last so
+  // every existing column keeps its position on the printed sheet.
+  { id: 'ghi_chu', label: 'GHI CHÚ', variable: 'note', headerGroup: null, width: 22, align: 'left', format: 'text', total: false },
 ];
 
 /** Normalize a tax code for the partners.unique_normalized_tax_code index. */

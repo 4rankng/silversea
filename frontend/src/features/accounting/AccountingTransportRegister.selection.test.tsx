@@ -190,6 +190,28 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     expect(draftHref()).toBe('/debt/5/billing/new?selectedTripIds=11&from=2026-08-04&to=2026-08-04');
   });
 
+  // Card 191026202000: "các phần chi phí ... mục nào chưa điền thì hiện Thiếu
+  // hoặc dấu (-)". A trip with no profitability snapshot posts null revenue /
+  // cost / profit; the register used to coerce those to 0, so a chuyến chưa
+  // chốt chi phí read as a REAL 0 ₫ — indistinguishable from a genuine zero,
+  // on the one column an accountant scans for missing money.
+  it('marks an unposted cost as missing, never as a real 0 ₫', () => {
+    const { container } = renderRegister([
+      row({ tripId: 41, tripCode: 'C-041', revenue: null, directCost: null, profit: null }),
+      row({ tripId: 42, tripCode: 'C-042', revenue: '0', directCost: '0', profit: '0' }),
+    ]);
+    const [missing, genuineZero] = bodyRows(container);
+
+    // All three money columns of the missing row read the dash, none a number.
+    expect(within(missing).getAllByText('— ₫')).toHaveLength(3);
+    expect(within(missing).queryByText('0 ₫')).toBeNull();
+
+    // The genuine zero keeps its number — "missing" must not swallow real data.
+    const zeroCost = within(genuineZero).getAllByText('0 ₫');
+    expect(zeroCost.length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.accounting-register__table td.num')).toHaveLength(6);
+  });
+
   // A draft is raised against ONE customer, so picking a trip of another
   // customer replaces the selection instead of filing it under the wrong
   // customer's debt note.

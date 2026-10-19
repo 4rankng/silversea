@@ -1,18 +1,22 @@
 {
-  "pin": "e3286338",
-  "date": "2026-10-16T13:37:37.764Z",
+  "pin": "11720424",
+  "date": "2026-10-17T14:54:41.946Z",
   "results": {
     "A.6.add-by-class": {
       "verdict": "PASS",
-      "note": "add price WITH Loại xe \"Xe 2.5 tấn\": saved=true, row visible=true, no axis error=true"
+      "note": "add price WITH Loại xe \"Xe 5 tấn\" hiệu lực 2026-10-18: saved=true, axis error=false, duplicate error=false, page shows 777=true, persisted row id=324 class=4 (want 4) rateKey=5T"
     },
     "A.6.readd-after-delete": {
       "verdict": "PASS",
-      "note": "delete → re-add same trio: reAddOk=true, duplicate-error=false"
+      "note": "delete → re-add the same trio (khách × tuyến × Xe 5 tấn × 2026-10-18): duplicate-error=false, live row id=325 class=4 (want 4) rateKey=5T"
     },
     "A.6": {
       "verdict": "PASS",
       "note": "classes API tons=true cont=true, picker=true, add-by-class=true, re-add=true"
+    },
+    "A.6.carrier-price": {
+      "verdict": "PASS",
+      "note": "add Bảng giá tiền trả nhà xe (tuyến × Xe 5 tấn, Giá chung, hiệu lực 2026-10-18) → 201 {\"id\":10,\"routeId\":6,\"vehicleSizeClassId\":4,\"supplierId\":null,\"price\":\"999000\",\"effectiveDate\":\"2026-10-18\",\"note\":\"QA fullguide C carrier l; read-back id=10 price=999000"
     }
   }
 }

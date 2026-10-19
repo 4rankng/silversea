@@ -24,8 +24,36 @@ export const assignLclCostGroupSchema = z.object({
   vehicleSizeClassId: z.number().int().positive(),
   /** BKS thực (what runs the lane). Truck-tonnage classes must stay vendor. */
   actualTruckNo: truckNo,
-  /** BKS báo khách ("xe ảo"). Omitted ⇒ server copies actualTruckNo. */
+  /** BKS báo khách ("xe ảo") dùng chung cả nhóm. Omitted ⇒ server copies
+   *  actualTruckNo. Per-lot overrides ride `billingTruckNos`. */
   billingTruckNo: truckNo.optional(),
+  /**
+   * SPEC 18/10/2026 §2.3 — "cho phép điều vận sửa lại [BKS báo khách] cho
+   * từng lô trong nhóm": the group default above, overridden per member here.
+   * Entries must name lots inside `shipmentIds` and win over `billingTruckNo`.
+   */
+  billingTruckNos: z.array(z.object({
+    shipmentId: z.number().int().positive(),
+    billingTruckNo: truckNo,
+  })).max(200).optional(),
+  /**
+   * 161026232309 — the nhà xe (Xe ngoài) the group's truck belongs to:
+   * a customers.id flagged isCarrier (the row every "Chọn nhà xe" dropdown
+   * reads). Persisted on the group's lots so the choice survives a reopen.
+   */
+  carrierId: z.number().int().positive().optional(),
+  /**
+   * 161026232309 — OWN = Đội xe nội bộ SilverSea (container classes only, the
+   * spec's "Cont 20'/40' → Xe nội bộ HOẶC Nhà thầu"). Derived server-side
+   * when omitted: carrierId ⇒ EXTERNAL, internal-fleet plate ⇒ OWN.
+   */
+  carrierType: z.enum(['OWN', 'EXTERNAL']).optional(),
+  /**
+   * 161026232319 — Điều vận nhập tay cước trả ĐV của Lô 1 (VND). Omitted ⇒ the
+   * server auto-traces the carrier price board (tuyến × loại xe × nhà xe).
+   * A manual value always wins over the traced one.
+   */
+  freightCost: z.number().int().min(0).optional(),
 });
 export type AssignLclCostGroupInput = z.infer<typeof assignLclCostGroupSchema>;
 
@@ -39,6 +67,24 @@ export const mergeLclRevGroupSchema = z.object({
   billingTruckNo: truckNo.optional(),
 });
 export type MergeLclRevGroupInput = z.infer<typeof mergeLclRevGroupSchema>;
+
+/**
+ * 161026232349 (DEV SPEC Hàng lẻ §II.3.2 — "Trường hợp 1 · Thu riêng từng lô")
+ * — CUS picks the thu vehicle class for ONE ungrouped lot. The spec's law:
+ * "CUS không cần ghép ... chọn Loại xe tính cước thu khách ... Cột CƯỚC VẬN
+ * TẢI (AUTO) của từng lô sẽ nhảy 100% đơn giá của loại xe đã chọn cho lô đó."
+ *
+ * This is the single-lot sibling of `mergeLclRevGroupSchema`: same class
+ * catalog, same customer × route × class price lane, but NO group is created
+ * (`revGroupId` stays null) — a lot already inside a rev group is refused
+ * (tách nhóm trước).
+ */
+export const setLclLotRevClassSchema = z.object({
+  shipmentId: z.number().int().positive(),
+  /** Loại xe tính cước thu khách — vehicle_size_classes.id (FB-090 catalog). */
+  vehicleSizeClassId: z.number().int().positive(),
+});
+export type SetLclLotRevClassInput = z.infer<typeof setLclLotRevClassSchema>;
 
 /** FB-092/093 — the money dimensions a lot group can live in. */
 export const LCL_GROUP_DIMENSIONS = ['COST', 'REV'] as const;

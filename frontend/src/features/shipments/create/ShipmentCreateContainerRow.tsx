@@ -185,6 +185,12 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-factory`}
         error={issueByField.get(`container-${row.key}-factory`)}
         picker
+        // Card 171026113500 (FB-006 round 17): a chosen factory must leave the
+        // cell as the name + the detail magnifier — the full combobox and its
+        // "Xoá" button must not sit in the DOM beside them. Lệnh chạy ngoài
+        // keeps its free-text behaviour (the operator types into the field, so
+        // the editor stays put).
+        collapsePickedEditor={!isAdHoc}
         mobileFieldChrome
         actions={factory ? (
           <button

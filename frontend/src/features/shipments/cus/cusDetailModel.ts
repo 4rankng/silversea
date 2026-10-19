@@ -11,7 +11,7 @@ import type {
 } from '@tingting/shared';
 import { CUS_SEARCH_PATTERN } from '@tingting/shared';
 import { ApiError } from '../../../lib/api';
-import type { ShipmentDetailEditMode } from '../../shipments/detail/ShipmentContainerLedger';
+import type { ShipmentDetailEditMode } from '../../shipments/detail/edit-mode';
 import { DISPATCH_STATUS } from '../../shipments/detail/ShipmentContainerLedger';
 
 export { CUS_SEARCH_PATTERN };

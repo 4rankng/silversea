@@ -166,6 +166,13 @@ export function USearchableField({
         onClear={() => {
           onChange('');
           setInputValue('');
+          // Clear is an empty-text commit on the custom-value channel too.
+          // The raw free-text names (factoryName / pickupWarehouseName /
+          // raw port names …) are written ONLY through onCustomValue, so a
+          // 'Xoá' without this call left the discarded text alive: it
+          // silently satisfied the required checks and rode into
+          // pickup_location/delivery_location (FB-105 card 171026115800).
+          onCustomValue?.('');
         }}
         onSelectionChange={(key) => {
           if (createOption && String(key) === '__create__') {
@@ -224,7 +231,7 @@ export function USearchableField({
         isDisabled={disabled}
         isRequired={required}
         isInvalid={Boolean(error)}
-        hint={typeof (error ?? hint) === 'string' ? (error ?? hint) as string : undefined}
+        hint={error ?? hint}
         hideRequiredIndicator={!required}
         shortcut={shortcut}
         popoverClassName={popoverClassName}

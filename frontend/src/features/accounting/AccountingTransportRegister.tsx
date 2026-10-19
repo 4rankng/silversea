@@ -375,9 +375,15 @@ function TransportTableRow({
           </small>
         )}
       </td>
-      <td data-label="Doanh thu" className="num">{formatCurrency(Number(row.revenue ?? 0))}</td>
-      <td data-label="Chi phí" className="num">{formatCurrency(Number(row.directCost ?? 0))}</td>
-      <td data-label="Lợi nhuận" className="num">{formatCurrency(Number(row.profit ?? 0))}</td>
+      {/* Card 191026202000: a chuyến with no profitability snapshot posts no
+          revenue/cost/profit (the wire types them nullable). `Number(x ?? 0)`
+          turned that "chưa chốt" into a REAL 0 ₫ — a number no accountant can
+          tell from a genuine zero, and the cost cell is exactly what they scan
+          for. formatCurrency already owns the missing contract ('— ₫'); hand it
+          the raw value so a null stays a missing fact. */}
+      <td data-label="Doanh thu" className="num">{formatCurrency(row.revenue)}</td>
+      <td data-label="Chi phí" className="num">{formatCurrency(row.directCost)}</td>
+      <td data-label="Lợi nhuận" className="num">{formatCurrency(row.profit)}</td>
       <td data-label="Trạng thái">
         <span
           className={`accounting-status accounting-status--${

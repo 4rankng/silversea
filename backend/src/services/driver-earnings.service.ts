@@ -2,7 +2,8 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, ne, and, or, isNull, gte, lte, sql } from 'drizzle-orm';
 import { round2dp, TxnType } from '@tingting/shared';
-import { computeSalary, type ConfirmationMap } from './attendance.service';
+import { computeSalary } from './attendance.service';
+import type { ConfirmationMap } from './attendance-summary.service';
 import { getSalaryPeriodAdjustmentTotals } from './salary-period-adjustment.service';
 import { LedgerService } from './ledger.service';
 

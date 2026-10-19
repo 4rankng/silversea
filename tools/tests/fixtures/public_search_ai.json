@@ -1,0 +1,70 @@
+{
+  "events": [
+    {
+      "id": "9001",
+      "title": "Which AI model tops the LMArena leaderboard at end of 2026?",
+      "slug": "ai-leaderboard-2026",
+      "active": true,
+      "closed": false,
+      "endDate": "2026-12-31T23:59:00Z",
+      "markets": [
+        {
+          "id": "601001",
+          "question": "Will GPT-6 top the LMArena leaderboard at end of 2026?",
+          "slug": "ai-leaderboard-2026-gpt6",
+          "outcomes": "[\"Yes\", \"No\"]",
+          "outcomePrices": "[\"0.31\", \"0.69\"]",
+          "bestBid": 0.3,
+          "bestAsk": 0.32,
+          "clobTokenIds": "[\"33331813351818321441017231349581596595581199727012584909541130613475158940889\", \"44449810148640037732078766338051838996746033624743011162050466967832448523852\"]",
+          "volume24hr": 45000.0,
+          "endDate": "2026-12-31T23:59:00Z",
+          "active": true,
+          "closed": false,
+          "conditionId": "0x691b785c82d65c7ab9c65bb51df9e58e9b3fc53dbc8b4ee1aef49db0244b6560"
+        },
+        {
+          "id": "601002",
+          "question": "Will Gemini top the LMArena leaderboard at end of 2026?",
+          "slug": "ai-leaderboard-2026-gemini",
+          "outcomes": "[\"Yes\", \"No\"]",
+          "outcomePrices": "[\"0.22\", \"0.78\"]",
+          "bestBid": 0.21,
+          "bestAsk": 0.23,
+          "clobTokenIds": "[\"55551813351818321441017231349581596595581199727012584909541130613475158940889\", \"66669810148640037732078766338051838996746033624743011162050466967832448523852\"]",
+          "volume24hr": 31000.0,
+          "endDate": "2026-12-31T23:59:00Z",
+          "active": true,
+          "closed": false,
+          "conditionId": "0x791b785c82d65c7ab9c65bb51df9e58e9b3fc53dbc8b4ee1aef49db0244b6560"
+        }
+      ]
+    },
+    {
+      "id": "9002",
+      "title": "Will an open-weight model top the leaderboard?",
+      "slug": "ai-leaderboard-open-weight",
+      "active": true,
+      "closed": false,
+      "endDate": "2026-12-31T23:59:00Z",
+      "markets": [
+        {
+          "id": "601003",
+          "question": "Will an open-weight model top the LMArena leaderboard at end of 2026?",
+          "slug": "ai-leaderboard-2026-open-weight",
+          "outcomes": "[\"Yes\", \"No\"]",
+          "outcomePrices": "[\"0.12\", \"0.88\"]",
+          "bestBid": 0.11,
+          "bestAsk": 0.13,
+          "clobTokenIds": "[\"77771813351818321441017231349581596595581199727012584909541130613475158940889\", \"88889810148640037732078766338051838996746033624743011162050466967832448523852\"]",
+          "volume24hr": 12000.0,
+          "endDate": "2026-12-31T23:59:00Z",
+          "active": true,
+          "closed": false,
+          "conditionId": "0x891b785c82d65c7ab9c65bb51df9e58e9b3fc53dbc8b4ee1aef49db0244b6560"
+        }
+      ]
+    }
+  ],
+  "pagination": { "hasMore": false, "totalResults": 2 }
+}

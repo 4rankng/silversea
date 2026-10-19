@@ -9,9 +9,9 @@ import {
   computeSalary,
   confirmSalary,
   getSalaryConfirmationRecord,
-  getWorkDays,
   unconfirmSalary,
 } from './attendance.service';
+import { getWorkDays } from './attendance-summary.service';
 import { assertCanMakeGovernanceAction } from './governance-policy';
 import {
   buildGovernanceAction,

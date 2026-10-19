@@ -3,6 +3,7 @@ import { and, count, eq, isNull, or, sql } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import { db } from '../db/index.js';
 import * as s from '../db/schema/index.js';
+import { salaryModeFromSalaryType } from '../lib/driver-salary-mode.js';
 import {
   prodStaff, prodDrivers, prodCustomers, prodSites, prodRoutes,
   prodTractors, prodTrailers, prodPorts, prodCarriers,
@@ -141,6 +142,10 @@ export async function seedProdDrivers(passwordHash: string): Promise<void> {
       bankName: d.bankName,
       bankAccount: d.bankAccount,
       salaryType: d.salaryType,
+      // FB-103 (ticket 171026215600) — sheet nói gì thì enum theo đó: make
+      // setup chạy migrate TRƯỚC seed nên backfill không thấy dòng nào;
+      // không dẫn xuất ở đây thì lái xe LƯƠNG CỨNG bị nhầm PER_TRIP.
+      salaryMode: salaryModeFromSalaryType(d.salaryType),
       status: 'ACTIVE',
     } as const;
     if (matched) {

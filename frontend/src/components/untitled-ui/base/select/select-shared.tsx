@@ -27,8 +27,9 @@ export type SelectItemType = {
 };
 
 export interface CommonProps {
-    /** Helper text displayed below the input. */
-    hint?: string;
+    /** Helper text displayed below the input. A node is allowed so callers can
+     *  embed actions (e.g. an inline "Thêm kho" button) in the hint. */
+    hint?: ReactNode;
     /** Field label displayed above the input. */
     label?: string;
     /** Tooltip text for the help icon next to the label. */

@@ -12,7 +12,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
-const FE = '/Volumes/LexarSSD/projects/silversea-prod/frontend';
+const FE = '/Volumes/LexarSSD/projects/silversea/frontend';
 
 export default {
   plugins: [react(), tailwindcss()],

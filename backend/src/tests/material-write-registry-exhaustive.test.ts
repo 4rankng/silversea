@@ -285,6 +285,111 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-governance.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.CONTAINER_EDIT_REQUEST_DECISION',
   }],
+  // LCL grouping family (FB-092/093/095 + 161026232349), reviewed 2026-10-17 in
+  // card 171026010018 by reading these six mounts against
+  // lcl-grouping.service.ts. Each route is one `db.transaction` durable write;
+  // its audit record is the `audit_logs` row that same transaction writes via
+  // the service's own `auditGroupChange`, identified by the event (and, for the
+  // shared SHIPMENT_UPDATED, the action) noted on each entry. The family
+  // carries no request-level idempotency envelope, so the reviewed boundary is
+  // the exported command itself: `marker` names it and the note names its audit
+  // record — the two names a reviewer confirms.
+  ['shipments/lcl-grouping.routes.ts|POST|/lcl/cost-group', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
+    marker: 'export async function assignLclCostGroup(',
+    // audit_logs: entityType shipment, event SHIPMENT_LCL_COST_GROUP_ASSIGNED.
+  }],
+  ['shipments/lcl-grouping.routes.ts|POST|/lcl/rev-group', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
+    marker: 'export async function mergeLclRevGroup(',
+    // audit_logs: entityType shipment, event SHIPMENT_LCL_REV_GROUP_MERGED.
+  }],
+  ['shipments/lcl-grouping.routes.ts|POST|/lcl/rev-class', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
+    marker: 'export async function setLclLotRevClass(',
+    // audit_logs: entityType shipment, event SHIPMENT_UPDATED + dimension 'REV',
+    // action 'rev-class-single-lot' (the shared event's own discriminator).
+  }],
+  ['shipments/lcl-grouping.routes.ts|POST|/lcl/unmerge', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
+    marker: 'export async function unmergeLclLot(',
+    // audit_logs: entityType shipment, event SHIPMENT_LCL_GROUP_UNMERGED +
+    // cause 'UNMERGE' (the delete hook shares the event with cause 'DELETE').
+  }],
+  ['shipments/lcl-grouping.routes.ts|POST|/lcl/unmerge-group', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
+    marker: 'export async function unmergeLclGroup(',
+    // audit_logs: entityType shipment, event SHIPMENT_LCL_GROUP_UNMERGED +
+    // cause 'UNMERGE_GROUP' (the lot unmerge above writes the same event with
+    // cause 'UNMERGE'; only the cause separates the two commands).
+  }],
+  ['shipments/lcl-grouping.routes.ts|POST|/lcl/truck', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
+    marker: 'export async function updateLclGroupTruck(',
+    // audit_logs: entityType shipment, event SHIPMENT_UPDATED + dimension 'COST',
+    // action 'truck-quick-edit' (the shared event's own discriminator).
+  }],
+  // Also reviewed 2026-10-17 in card 171026010018 — the three families this
+  // assertion's fail-fast order hid behind the LCL red (fix the family the
+  // failure names and the next uncovered route surfaces; all 8 below were red
+  // at HEAD). Each has the LCL shape: a mount-site `declareMaterialWrite` over a
+  // plain service command that runs one `db.transaction` and writes its
+  // `audit_logs` record inside that transaction, with no request-level
+  // idempotency envelope. `marker` names the command, the note names the audit
+  // record it writes (table + event/action), each verified in the service file.
+  ['expense-accounting.ts|PUT|/phoi-phieu/:tripId/deposit', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/phoi-phieu-control.service.ts'),
+    marker: 'export async function setPhoiPhieuDeposit(',
+    // audit_logs: entityType trip, message 'PHOI_PHEU_DEPOSIT_SET';
+    // trips.version optimistic lock refuses a stale replay.
+  }],
+  ['timesheet.ts|POST|/months', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/timesheet.service.ts'),
+    marker: 'export async function createTimesheetMonth(',
+    // audit_logs: entityType TIMESHEET_MONTH, payload.action 'create',
+    // message 'Mở bảng chấm công tháng …'.
+  }],
+  ['timesheet.ts|PATCH|/months/:id/mode', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/timesheet.service.ts'),
+    marker: 'export async function updateTimesheetMode(',
+    // audit_logs: entityType TIMESHEET_MONTH, payload.action 'mode',
+    // message 'Đổi chế độ lương chấm công'.
+  }],
+  ['timesheet.ts|PUT|/months/:id/days', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/timesheet.service.ts'),
+    marker: 'export async function saveTimesheetDays(',
+    // audit_logs: entityType TIMESHEET_MONTH, payload.action 'grid',
+    // message 'Cập nhật lưới chấm công N ô'.
+  }],
+  ['timesheet.ts|PUT|/months/:id/days/:dayId/adjustment', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/timesheet.service.ts'),
+    marker: 'export async function adjustTimesheetDay(',
+    // audit_logs: entityType TIMESHEET_DAY, payload.action 'adjust',
+    // message 'Chỉnh lệch chuyến ngày …'.
+  }],
+  ['timesheet.ts|POST|/months/:id/reconcile', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/timesheet.service.ts'),
+    marker: 'export async function reconcileTimesheetMonth(',
+    // audit_logs: entityType TIMESHEET_MONTH, payload.action 'reconcile',
+    // message 'Đối chiếu xong bảng chấm công'.
+  }],
+  ['timesheet.ts|POST|/months/:id/reopen', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/timesheet.service.ts'),
+    marker: 'export async function reopenTimesheetMonth(',
+    // audit_logs: entityType TIMESHEET_MONTH, payload.action 'reopen',
+    // message 'Mở lại bảng chấm công để đối chiếu'.
+  }],
+  ['financial/advances.routes.ts|POST|/advance-requests/:id/approve', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/advance-funding.service.ts'),
+    marker: 'export async function approveAdvanceRequest(',
+    // audit_logs: entityType advance_request, message 'ADVANCE_REQUEST_APPROVED'
+    // (advisory lock + PENDING/version guard: a replay 409s, never pays twice).
+  }],
+  ['financial/advances.routes.ts|POST|/advance-requests/:id/reject', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/advance-funding.service.ts'),
+    marker: 'export async function rejectAdvanceRequest(',
+    // audit_logs: entityType advance_request, message 'ADVANCE_REQUEST_REJECTED'.
+  }],
 ]);
 
 function walkTsFiles(root: string): string[] {

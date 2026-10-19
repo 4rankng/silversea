@@ -139,8 +139,14 @@ export function useShipmentCreateWorkflow({
         }
         attempt.shipmentId = shipment.id;
         attempt.version = shipment.version;
-        const { declarationNumber: initialDeclarationNumber, ...persistedRoot } = recoveryPayload;
-        attempt.rootSignature = signature(persistedRoot);
+        const { declarationNumber: initialDeclarationNumber } = recoveryPayload;
+        // The create call already persisted this exact root payload (containers
+        // ride it too), so the root is in sync — replaying it as an UPDATE is
+        // redundant. Stripping only declarationNumber left `containers` in the
+        // compared payload, so the signatures never matched and EVERY save
+        // issued a redundant PUT; for ad-hoc lots that PUT 400s (updateShipment
+        // requires a positive customerId, the create allows null).
+        attempt.rootSignature = rootSignature;
         if (shipment.initialDeclarationId != null) {
           attempt.declarationId = shipment.initialDeclarationId;
           attempt.declarationSignature = initialDeclarationNumber?.trim() ?? '';

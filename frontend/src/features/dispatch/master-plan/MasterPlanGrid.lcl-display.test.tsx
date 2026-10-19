@@ -7,7 +7,7 @@
 // LCL only: every FCL expectation in MasterPlanGrid.test.tsx must stay green
 // untouched, and the XLSX export must read the same helper as the grid.
 
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
@@ -73,6 +73,44 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
     render(<MasterPlanGrid items={[lclItem({ pickupWarehouseSiteName: '   ' })]} onAllocate={vi.fn()} />);
     expect(within(cell('Cảng nâng')).getByText('—')).toBeTruthy();
     expect(within(cell('Cảng hạ')).getByText('Kho Trả Hàng Q.7')).toBeTruthy();
+  });
+
+  // FB-105 §3 — the two sides SWAP with the trade direction. Hàng Xuất lấy
+  // hàng tại nhà máy và giao tại kho CFS/Cảng, so a hard-coded "kho then nhà
+  // máy" printed the two points on the wrong trucks.
+  it('swaps the two sides for a Xuất khẩu lot (Nâng = nhà máy, Trả = kho)', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ tradeDirection: 'EXPORT', pickupWarehouseSiteName: 'Kho trả hàng Q.7', factoryName: 'Nhà máy Long Hậu' })]}
+      onAllocate={vi.fn()}
+    />);
+    expect(within(cell('Cảng nâng')).getByText('Nhà máy Long Hậu')).toBeTruthy();
+    expect(within(cell('Cảng hạ')).getByText('Kho trả hàng Q.7')).toBeTruthy();
+    // The Nhập lot of the same two sites reads them the other way round.
+    cleanup();
+    render(<MasterPlanGrid
+      items={[lclItem({ tradeDirection: 'IMPORT', pickupWarehouseSiteName: 'Kho trả hàng Q.7', factoryName: 'Nhà máy Long Hậu' })]}
+      onAllocate={vi.fn()}
+    />);
+    expect(within(cell('Cảng nâng')).getByText('Kho trả hàng Q.7')).toBeTruthy();
+    expect(within(cell('Cảng hạ')).getByText('Nhà máy Long Hậu')).toBeTruthy();
+  });
+
+  it('falls back to the stored lift/drop text when no catalog site was picked', () => {
+    // The intake form writes the typed điểm nâng / điểm hạ into the lot's own
+    // columns when CUS chose no site from the catalog (FB-105 §2), so the board
+    // still names the points instead of printing '—'.
+    render(<MasterPlanGrid
+      items={[lclItem({
+        pickupWarehouseSiteName: null,
+        factoryName: null,
+        pickupLocation: 'Kho CFS gõ tay',
+        deliveryLocation: 'Nhà máy gõ tay',
+      })]}
+      onAllocate={vi.fn()}
+    />);
+    expect(within(cell('Cảng nâng')).getByText('Kho CFS gõ tay')).toBeTruthy();
+    expect(within(cell('Cảng hạ')).getByText('Nhà máy gõ tay')).toBeTruthy();
+    expect(screen.queryByText('Chưa có cont')).toBeNull();
   });
 
   it('prints the cargo composition and measures instead of "Chưa có cont"', () => {
@@ -152,5 +190,11 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
     expect(cells[3]).toBe('Kho Lấy Hàng Đồng Nai');
     expect(cells[4]).toBe('Kho Trả Hàng Q.7');
     expect(cells[5]).toBe('5 PALLET\n1.922 kg · 4 CBM');
+  });
+
+  it('exports a Xuất khẩu lot with the sides swapped too', () => {
+    const cells = mapMasterPlanExportRow(lclItem({ tradeDirection: 'EXPORT' }));
+    expect(cells[3]).toBe('Kho Trả Hàng Q.7');
+    expect(cells[4]).toBe('Kho Lấy Hàng Đồng Nai');
   });
 });

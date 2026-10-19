@@ -1,0 +1,1690 @@
+
+> @tingting/backend@0.1.0 pretest /Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend
+> pnpm --dir ../shared build
+
+
+> @tingting/shared@0.1.0 build /Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/shared
+> tsc && node fix-esm-imports.js
+
+Fixed 0 bare imports in /Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/shared/dist
+
+> @tingting/backend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend
+> pnpm test:unit && pnpm test:integration
+
+
+> @tingting/backend@0.1.0 test:unit /Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend
+> npx tsx --test 'src/tests/unit/*.test.ts'
+
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+▶ advisory-lock family constants (card 20260930_226)
+  ✔ every family number is pairwise distinct (12.698292ms)
+  ✔ the ledger entity families (1-6) never leak into the 6xxx groups (3.1595ms)
+✔ advisory-lock family constants (card 20260930_226) (17.980916ms)
+▶ advisory-lock key identity
+  ✔ different families with the same id are different locks (3.988167ms)
+  ✔ container scope and trip scope cannot collide (sign-separated id space) (0.280291ms)
+  ✔ text key bytes are exactly what the inline SQL used to build (0.246208ms)
+  ✔ ledger entity types map to their frozen families (0.684042ms)
+✔ advisory-lock key identity (5.965416ms)
+▶ advisory-lock SQL encodings (single owner of the lock SQL)
+  ✔ acquireAdvisoryLock emits the historical arities, one statement per key (3.977333ms)
+✔ advisory-lock SQL encodings (single owner of the lock SQL) (4.691542ms)
+▶ canonical lock order (deadlock contract, as data)
+  ✔ formalizes the advance settle habit: advance → expense → scope, ids ascending (0.643959ms)
+  ✔ sorts ledger entities globally by (family, id) like LedgerService did (0.340916ms)
+  ✔ deduplicates and is input-order independent (0.2255ms)
+  ✔ numeric ids sort numerically, not lexically (0.16425ms)
+  ✔ mixed-sign scope ids sort numerically (negated trip ids before container ids) (0.539167ms)
+✔ canonical lock order (deadlock contract, as data) (2.167083ms)
+▶ computeFifoAging — bands are contractual due-status, not age
+  ✔ young-but-overdue lands in the past-due band; old-but-in-term stays "Trong hạn" (0.65275ms)
+  ✔ the 90-day cut keys the over90 band by days past due, not age (0.153833ms)
+✔ computeFifoAging — bands are contractual due-status, not age (1.27225ms)
+▶ summarizeAgingTotals — the KPI "Quá hạn" counts contractual overdue rows
+  ✔ a young-but-overdue customer is counted (0.291916ms)
+  ✔ an old-but-in-term customer is never counted, whatever its debt age (0.139542ms)
+✔ summarizeAgingTotals — the KPI "Quá hạn" counts contractual overdue rows (0.615875ms)
+✔ routes do not import the db client outside the frozen baseline (281.67275ms)
+✔ baseline lists no longer-existing violations (dead entries must be removed) (17.617625ms)
+✔ services do not import from routes (334.259958ms)
+✔ source files respect the LOC budget outside the baseline (300.453292ms)
+▶ driverPayoutSchema — input contract
+  ✔ accepts a valid CASH payout (2.850167ms)
+  ✔ accepts a BANK payout with receiptId, string amount coerced to number (0.69175ms)
+  ✔ rejects non-positive amount (0.643334ms)
+  ✔ rejects amount over the 1 tỷ VND upper bound (typo guard) (0.222375ms)
+  ✔ rejects invalid method (not CASH/BANK) (0.284416ms)
+  ✔ rejects missing payoutDate (4.553375ms)
+  ✔ note and receiptId are optional and trimmed (1.705ms)
+✔ driverPayoutSchema — input contract (12.253291ms)
+▶ recordDriverPayout — overpay guard (DB-stubbed)
+  ✔ payout ≤ payable + 1 is allowed; payout > payable + 1 throws ApiError(422) naming the driver + balance (58.046834ms)
+✔ recordDriverPayout — overpay guard (DB-stubbed) (58.293084ms)
+✔ truckSchema keeps every TruckFormModal field (1.471083ms)
+✔ routeSchema keeps every RouteFormModal field (6.821916ms)
+✔ driverSchema keeps every DriverFormModal field (0.487875ms)
+✔ route intake restriction keeps descriptive fields, strips cost params (0.287625ms)
+✔ valid development defaults retain the local DB and Redis targets (257.639625ms)
+✔ valid explicit test configuration retains its selected targets and mode (222.273375ms)
+✔ invalid pool configuration stops before exporting fallback targets (122.338916ms)
+✔ invalid port configuration stops before exporting fallback targets (224.26825ms)
+✔ invalid database configuration stops before exporting fallback targets (303.434084ms)
+✔ invalid environment configuration stops before exporting fallback targets (250.145ms)
+✔ production still rejects missing required configuration (440.409542ms)
+✔ encryptSecret accepts a documented 32-byte hex master key (3.492875ms)
+✔ container-line update accepts a trimmed per-cont declaration number (1.928959ms)
+✔ container-line update treats null as a clear and absence as untouched (0.165291ms)
+✔ container-line update rejects an over-length number with the field label (0.231875ms)
+✔ the declaration copy command carries only the optimistic version (3.277458ms)
+✔ the copy result reports exactly the written container ids and the new version (0.390042ms)
+✔ the workspace container line carries the per-cont number for sibling counting (0.297291ms)
+▶ cusRecordSearchCondition — field coverage (QA2-005)
+  ✔ shipment mode searches Bill, Booking, mã lô, container, tờ khai, customer name, and raw ad-hoc name (12.625292ms)
+  ✔ container mode searches the container number as a direct column (0.414209ms)
+  ✔ every arm is case-insensitive ilike — never a bare like (0.717209ms)
+✔ cusRecordSearchCondition — field coverage (QA2-005) (14.467708ms)
+▶ cusRecordSearchCondition — pattern semantics
+  ✔ wraps the trimmed term as a substring pattern, preserving case (2.262084ms)
+  ✔ escapes LIKE wildcards even though the shared schema already forbids them (4.620292ms)
+  ✔ empty or whitespace-only search produces no condition (passthrough) (0.139416ms)
+✔ cusRecordSearchCondition — pattern semantics (7.246875ms)
+▶ restrictCustomerCreateForIntake
+  ✔ CUS: strips all 9 financial/material keys (0.813917ms)
+  ✔ CUS: preserves identity fields (name, taxCode, phone, etc.) (0.142959ms)
+  ✔ DISPATCHER: strips all 9 financial/material keys (0.122125ms)
+  ✔ DISPATCHER: preserves identity fields (name, taxCode, phone, etc.) (0.1055ms)
+  ✔ ADMIN: passes all fields through unchanged (0.387375ms)
+  ✔ MANAGER: passes all fields through unchanged (0.080291ms)
+  ✔ ACCOUNTANT: passes all fields through unchanged (0.085417ms)
+✔ restrictCustomerCreateForIntake (5.940083ms)
+▶ restrictCustomerUpdateForIntake
+  ✔ CUS: strips financial keys from partial update (8.097625ms)
+  ✔ CUS: preserves isCarrier on update for carrier intake (0.483042ms)
+  ✔ DISPATCHER: strips financial keys from partial update (6.484875ms)
+  ✔ DISPATCHER: preserves isCarrier on update for carrier intake (0.137959ms)
+  ✔ ADMIN: passes all update fields through (0.118375ms)
+  ✔ MANAGER: passes all update fields through (0.060167ms)
+✔ restrictCustomerUpdateForIntake (15.797208ms)
+▶ intakeCreatedBy
+  ✔ CUS stamps the acting user id (1.451375ms)
+  ✔ DISPATCHER stamps the acting user id (0.109917ms)
+  ✔ ADMIN does not stamp (null) (0.063ms)
+  ✔ MANAGER does not stamp (null) (1.18825ms)
+✔ intakeCreatedBy (3.035875ms)
+✔ debitNoteColumnSchema — accepts width:0 (hidden column) (2.040917ms)
+✔ debitNoteColumnSchema — defaults width to 14 when omitted (81.21325ms)
+✔ debitNoteColumnSchema — rejects negative width (3.793208ms)
+✔ debitNoteColumnSchema — rejects width > 80 (0.33775ms)
+✔ defaultDebitNoteColumns — exported as vertical debt-note columns (0.897ms)
+✔ defaultDebitNoteColumns — every column validates against debitNoteColumnSchema (2.829583ms)
+✔ defaultPaymentStatementColumns — exported as horizontal VIETSUN-style columns (0.421333ms)
+✔ defaultPaymentStatementColumns — every column validates against debitNoteColumnSchema (4.493708ms)
+✔ import: the drop label is the port, never the snapshot factory (0.603958ms)
+✔ unknown direction renders port-safely under the same rule (no factory fallback) (0.064666ms)
+✔ export: the drop is the port and there is no empty-return row (0.060791ms)
+✔ snapshot deliverySite name extraction trusts only an object with a non-blank string name (0.060875ms)
+▶ NO-APP-15: direct action permissions without approval stages
+  ✔ allows accounting cash operations while denying nonfinancial staff (1.450625ms)
+  ✔ retains management-only close, reopen, treasury and price configuration actions (0.409667ms)
+  ✔ retains the accountant-only shipment cost confirmation boundary (0.184041ms)
+  ✔ fails closed for an unknown role or command (0.302ms)
+  ✔ does not expose the retired trip, credit or debt approval commands (0.269875ms)
+  ✔ still requires actual evidence for direct financial adjustments (4.030459ms)
+✔ NO-APP-15: direct action permissions without approval stages (8.134541ms)
+▶ DISPATCHER resource-catalog RBAC (read-only config)
+  ✔ DISPATCHER can read config catalogs (trucks/drivers/suppliers) (111.350834ms)
+  ✔ DISPATCHER cannot write config catalogs (44.366666ms)
+  ✔ DISPATCHER cannot delete config catalogs (36.849708ms)
+  ✔ DISPATCHER still cannot read financial (payables on suppliers) (0.656417ms)
+✔ DISPATCHER resource-catalog RBAC (read-only config) (213.723875ms)
+▶ Neighboring roles unchanged by the DISPATCHER grant
+  ✔ MANAGER keeps full config CRUD (regression guard) (0.28125ms)
+  ✔ CUS stays denied config (clerks are not resource managers) (13.948542ms)
+  ✔ DRIVER stays denied config (0.832709ms)
+✔ Neighboring roles unchanged by the DISPATCHER grant (15.170042ms)
+✔ factory invoice profile: lift beats drop beats cleaning; null when unconfigured (1.787833ms)
+✔ DRV-R03 retains partial invoice identity without mixing fee parties and ignores whitespace-only profiles (0.268667ms)
+✔ drizzle config contains no hardcoded fallback database port (4.195417ms)
+✔ drizzle config fails loudly when DATABASE_URL is missing for DB-touching commands (0.265334ms)
+✔ expense registry stores provenance, not independently writable financial facts (19.404291ms)
+✔ toll actuals replace estimate; agreed road/shift is not charged again (1.353375ms)
+✔ missing toll receipts retain estimate and recoverable pass-through is separate (0.08275ms)
+▶ classifyAgingRisk
+  ✔ over90 balance or >100M outstanding is high risk (1.615375ms)
+  ✔ d30/d60 balance is medium; current-only is low (0.110875ms)
+  ✔ non-positive outstanding is low (0.054417ms)
+✔ classifyAgingRisk (2.807584ms)
+▶ filterAgingByBucket
+  ✔ all returns every row (0.111417ms)
+  ✔ current keeps only rows with that bucket and outstanding (0.074792ms)
+  ✔ d30 keeps only rows with that bucket and outstanding (0.0655ms)
+  ✔ d60 keeps only rows with that bucket and outstanding (0.038583ms)
+  ✔ over90 keeps only rows with that bucket and outstanding (0.040167ms)
+  ✔ zero-outstanding rows are excluded from every named bucket (0.054792ms)
+✔ filterAgingByBucket (0.602375ms)
+▶ summarizeAgingTotals
+  ✔ aggregates sums and per-bucket customer counts over the full set (0.131959ms)
+✔ summarizeAgingTotals (0.178167ms)
+▶ paginatePayablesSummary
+  ✔ paginates, keeps full-set headline numbers, and aggregates totals (2.103125ms)
+  ✔ search narrows items and totals but not headline numbers (0.101083ms)
+✔ paginatePayablesSummary (2.26125ms)
+✔ redirected logger emits JSON and exits without a pretty-transport worker (686.347959ms)
+▶ M2.5 — ancillary revenue schema shape
+  ✔ positive amount → valid (7.517417ms)
+  ✔ negative amount → accepted by schema (CRUD hook enforces note) (0.360792ms)
+  ✔ zero amount → valid (0.208584ms)
+  ✔ all 4 type values accepted (0.407542ms)
+  ✔ missing customerId → invalid (3.141666ms)
+✔ M2.5 — ancillary revenue schema shape (14.109292ms)
+✔ a declared write route registers a rule matched by method and path — no install needed (2.62775ms)
+✔ canonicalAliases ride the registered rule (87.37775ms)
+✔ an undeclared write route fails the install walk, named by method and router path (26.3825ms)
+✔ declareNonMaterialWrite excuses the route without registering a rule (3.203958ms)
+✔ a legacy-flagged router passes the walk — its rows still live in the hand-written registry (3.724792ms)
+✔ a declared route on an app also passes the walk, and install is idempotent per app (0.24275ms)
+✔ nested routers are walked through their stacks (0.189167ms)
+✔ marker constructors refuse values that would silently break the registry (0.090375ms)
+▶ O2C AR snapshot — canonical cost hash
+  ✔ identical payload → identical hash (stable) (0.328916ms)
+  ✔ a cost edit (buyAmount change) produces a different hash (0.083125ms)
+  ✔ revenue drift produces a different hash (0.047541ms)
+  ✔ expense row order does not affect the hash (sorted by id) (0.204291ms)
+  ✔ adding an expense produces a different hash (0.214542ms)
+✔ O2C AR snapshot — canonical cost hash (1.348917ms)
+▶ O2C clean-baseline safety
+  ✔ preserves the consolidated baseline before ordered additive migrations (72.161833ms)
+  ✔ renames only active Lạch Huyện terminal labels without moving port rows (2.181084ms)
+  ✔ classifies only legacy NULL shipments that already own containers (1.165333ms)
+  ✔ retains O2C identity fences as unique indexes (3.339958ms)
+  ✔ stores lifecycle values as flexible text without CHECK or foreign-key ownership (0.98825ms)
+✔ O2C clean-baseline safety (83.743583ms)
+{"level":30,"time":1792247068442,"pid":45170,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ O2C trip close HTTP authorization
+  ✔ allows CUS only to create the close request (9.674292ms)
+  ✔ keeps non-maker roles outside the close-maker boundary (0.114375ms)
+✔ O2C trip close HTTP authorization (87.446083ms)
+✔ OPS export distinguishes recorded, draft and historical states without an approval workflow (518.58725ms)
+▶ groupOpsExpensesForSettlement (OpsVanHanh §5.4)
+  ✔ groups entries of multiple payers under one mã lô (micro-ledger) (0.405083ms)
+  ✔ splits the two invoice baskets per lot and totals each bucket (0.094917ms)
+  ✔ groups different lots separately, sorted by mã lô (25.791791ms)
+  ✔ returns zero totals for an empty pool (0.198166ms)
+✔ groupOpsExpensesForSettlement (OpsVanHanh §5.4) (27.033542ms)
+▶ computeOpsWalletSummary (OpsVanHanh §5.2)
+  ✔ subtracts approved and pending expenses from approved advances (0.331208ms)
+  ✔ reports rejected expenses but never lets them touch the balance (0.058584ms)
+  ✔ returns zeros for an empty wallet (0.040875ms)
+  ✔ allows a negative balance when more was spent than advanced (0.036625ms)
+  ✔ sums numeric-string amounts exactly (no float drift) (0.0385ms)
+✔ computeOpsWalletSummary (OpsVanHanh §5.2) (0.871708ms)
+▶ ops wallet returns reconciliation
+  ✔ subtracts the approved full return — the card fixture lands at −23,456 (9.117292ms)
+  ✔ partial returns deduct only what was returned (0.187458ms)
+  ✔ no settlements deduct nothing (legacy shape: field absent) (0.152291ms)
+  ✔ sums multiple approved refunds once each — no double application (135.214584ms)
+✔ ops wallet returns reconciliation (155.201625ms)
+✔ adds only actual OPS reimbursements and removes actual returned advances (0.216333ms)
+▶ route ID boundaries
+  ✔ accepts complete positive integers (0.313125ms)
+  ✔ rejects partial, fractional, signed, exponent and unsafe IDs without truncating (16.329834ms)
+  ✔ preserves absent optional fields and rejects malformed present fields (0.166916ms)
+✔ route ID boundaries (17.172458ms)
+✔ getPgErrorCode reads direct and Drizzle-wrapped codes, null otherwise (0.523458ms)
+✔ isPgUniqueViolation detects 23505 in both morphologies (0.09375ms)
+✔ isPgUniqueViolation narrows by constraint name via constraint or detail (0.135667ms)
+▶ tombstone releases the pricing-catalog uniqueness slot
+  ✔ pricing_tables — all three selector indexes exclude deleted rows (3.03825ms)
+  ✔ road_allowances — route × trailer-type index excludes deleted rows (0.6035ms)
+  ✔ lift_pricing — selector × date index excludes deleted rows (0.400583ms)
+  ✔ carrier_route_pricing — the two reference indexes keep the law (0.809875ms)
+  ✔ port_zone_surcharges — reference index keeps the law (0.508208ms)
+✔ tombstone releases the pricing-catalog uniqueness slot (8.661875ms)
+▶ report-cache registry
+  ✔ tripWrite group covers every trip/ledger-derived report cache (1.595792ms)
+  ✔ tripStart group preserves the historical start-side-effect set exactly (4 keys, no pnl) (0.163667ms)
+  ✔ every registry key is a reports: key; pnl is group-external and opt-out-able (0.164625ms)
+  ✔ setters and invalidators share one spelling (builders pin the exact cache shapes) (0.154291ms)
+  ✔ drift gate: no hand-spelled reports: keys outside the registry (comments stripped) (839.137292ms)
+✔ report-cache registry (842.717125ms)
+▶ updateTripFiguresSchema — revenue/splits mutual exclusion
+  ✔ rejects when revenue is sent together with both splits (7.223833ms)
+  ✔ accepts revenue-only payload (no splits) (0.347292ms)
+  ✔ accepts splits-only payload (revenue omitted) (0.153042ms)
+  ✔ accepts a single explicit-zero split with revenue omitted (0.093583ms)
+  ✔ rejects when revenue is sent with only ONE split (0.164334ms)
+✔ updateTripFiguresSchema — revenue/splits mutual exclusion (14.035334ms)
+▶ scheduler stale-RUNNING sweeper
+  ✔ sweeps RUNNING rows older than the threshold to FAILED with the sweep error (39.317125ms)
+  ✔ leaves fresh RUNNING rows and terminal rows untouched (3.267084ms)
+✔ scheduler stale-RUNNING sweeper (136.064334ms)
+▶ per-job max-tick policy
+  ✔ withMaxTick passes the handler result through when no limit is set (0.656667ms)
+  ✔ withMaxTick rejects when the handler exceeds maxTickMs (36.629958ms)
+  ✔ withMaxTick resolves when the handler finishes inside the window (42.609583ms)
+✔ per-job max-tick policy (80.120417ms)
+{"level":40,"time":1792247071508,"pid":45249,"hostname":"mini","attempt":1,"err":"boom","msg":"scheduler: job failed — retrying"}
+▶ scheduler registry
+  ✔ registerJob stores a job and getJob retrieves it (21.848292ms)
+  ✔ re-registering the same name replaces the prior definition (7.074625ms)
+  ✔ registerJob rejects empty name (5.609875ms)
+  ✔ registerJob rejects names with invalid characters (0.318042ms)
+  ✔ listJobs returns a snapshot of all registered jobs (14.81425ms)
+  ✔ listJobs snapshot is decoupled from the registry (2.901875ms)
+✔ scheduler registry (152.615917ms)
+▶ advisoryLockKey
+  ✔ is deterministic for the same name (0.258583ms)
+  ✔ is positive and fits int4 (Postgres advisory-lock constraint) (0.152208ms)
+  ✔ collides rarely — distinct names produce distinct keys for a sample (0.103666ms)
+  ✔ same name across calls is stable (0.128333ms)
+✔ advisoryLockKey (0.892334ms)
+▶ executeWithRetries
+  ✔ succeeds on first attempt — writes ATTEMPT(1) then SUCCESS(1) (0.6135ms)
+{"level":40,"time":1792247071528,"pid":45249,"hostname":"mini","attempt":2,"err":"boom","msg":"scheduler: job failed — retrying"}
+  ✔ succeeds on retry — stamps the SUCCESS row with the actual attempt (B2 regression) (43.30175ms)
+{"level":40,"time":1792247071552,"pid":45249,"hostname":"mini","attempt":1,"err":"always fails","msg":"scheduler: job failed — retrying"}
+{"level":40,"time":1792247071566,"pid":45249,"hostname":"mini","attempt":2,"err":"always fails","msg":"scheduler: job failed — retrying"}
+{"level":40,"time":1792247071569,"pid":45249,"hostname":"mini","status":"ATTEMPT","attempt":1,"err":"db unavailable","msg":"scheduler: run-log write failed — outcome preserved"}
+  ✔ exhausts retries — writes FAILED with the final attempt count and error (B2 regression) (16.551292ms)
+  ✔ retries=0 (maxAttempts=1) — single attempt, no retry sleep (1.205333ms)
+  ✔ writer throw does not mask the handler outcome (0.428458ms)
+✔ executeWithRetries (62.43075ms)
+{"level":40,"time":1792247071570,"pid":45249,"hostname":"mini","status":"SUCCESS","attempt":1,"err":"db unavailable","msg":"scheduler: run-log write failed — outcome preserved"}
+▶ demo seed production gate (FB-061)
+  ✔ blocks the demo seed in production without the explicit flag (0.473708ms)
+  ✔ blocks when the flag is present but not an exact truthy spelling (0.062917ms)
+  ✔ allows production only with SEED_DEMO_DATA=true (deliberate opt-in) (0.056291ms)
+  ✔ allows production only with SEED_DEMO_DATA=1 (deliberate opt-in) (0.032875ms)
+  ✔ allows production only with SEED_DEMO_DATA=yes (deliberate opt-in) (0.030166ms)
+  ✔ allows the demo seed outside production (NODE_ENV=development) (0.037083ms)
+  ✔ allows the demo seed outside production (NODE_ENV=test) (0.0295ms)
+  ✔ allows the demo seed outside production (NODE_ENV=unset) (0.039708ms)
+  ✔ seed() itself refuses before any write in production (0.9435ms)
+  ✔ every self-executing demo seeder refuses production before its first write (30.20875ms)
+  ✔ gates the demo freight-pricing seeder, which is demo data by its own contract (0.302791ms)
+  ✔ leaves the deploy-time catalog cut ungated so deploys keep working (0.140542ms)
+✔ demo seed production gate (FB-061) (32.951334ms)
+✔ keeps the approved Lạch Huyện terminal codes independent of display labels (0.341625ms)
+✔ groups lift and drop locations by the container pair instead of shipment fields (0.689291ms)
+✔ keeps port groups split by localDate so the cảng cells can be day-filtered (0.092375ms)
+✔ groups appointments only after their effective factory has been resolved (83.015792ms)
+✔ does not merge a site ID with the same legacy factory text (0.163417ms)
+▶ assertLclIntakeCargoReady (LCL CBM optional, helpdesk 2026-10-13)
+  ✔ accepts a complete LCL row regardless of CBM — blank, omitted, or zero-decimal (0.340792ms)
+  ✔ still enforces the delivery date with the renamed-field message (0.159541ms)
+  ✔ still enforces quy cách, số lượng and trọng lượng with the CBM-free message (0.107083ms)
+✔ assertLclIntakeCargoReady (LCL CBM optional, helpdesk 2026-10-13) (1.080208ms)
+▶ Wave 0 CUSTOMER role RBAC (portal-only)
+  ✔ CUSTOMER can read customer_portal (34.159708ms)
+  ✔ CUSTOMER can write dedicated customer_portal actions (0.585834ms)
+  ✔ CUSTOMER cannot delete through customer_portal (0.716583ms)
+  ✔ CUSTOMER is denied shipments read (0.620875ms)
+  ✔ CUSTOMER is denied shipments write (47.99925ms)
+  ✔ CUSTOMER is denied trips (operator scope) (6.489625ms)
+  ✔ CUSTOMER is denied financial (4.961416ms)
+✔ Wave 0 CUSTOMER role RBAC (portal-only) (96.445375ms)
+▶ Wave 0 CUS role RBAC (document clerk, M10)
+  ✔ CUS can read shipments (25.465584ms)
+  ✔ CUS can write shipments (1.329333ms)
+  ✔ CUS can read customer_portal (63.471916ms)
+  ✔ CUS is denied shipments delete (4.440792ms)
+  ✔ CUS is denied trips (operator scope) (3.676958ms)
+  ✔ CUS is denied financial (43.907167ms)
+  ✔ CUS is denied users (3.72475ms)
+✔ Wave 0 CUS role RBAC (document clerk, M10) (148.646833ms)
+▶ Wave 0: existing roles unchanged (regression guard)
+  ✔ ADMIN still wildcard-allowed (0.597375ms)
+  ✔ DRIVER still denied shipments (no new privilege leak) (3.290958ms)
+✔ Wave 0: existing roles unchanged (regression guard) (4.003083ms)
+▶ OPS shipments access (ticket 141026230710)
+  ✔ OPS can read shipments (8.200333ms)
+  ✔ OPS is denied shipments write and delete (7.956292ms)
+✔ OPS shipments access (ticket 141026230710) (16.245459ms)
+▶ Wave 0 MANAGER/ACCOUNTANT shipments RBAC (route mount surface)
+  ✔ MANAGER can read shipments (0.943916ms)
+  ✔ MANAGER can write shipments (0.806542ms)
+  ✔ MANAGER can delete shipments (1.173334ms)
+  ✔ ACCOUNTANT can read shipments (0.8425ms)
+  ✔ ACCOUNTANT can write shipments for direct O2C close and related review flows (0.529541ms)
+  ✔ ACCOUNTANT is denied shipments delete (21.245292ms)
+✔ Wave 0 MANAGER/ACCOUNTANT shipments RBAC (route mount surface) (25.671791ms)
+▶ status vocabulary parity (backend _enums vs shared constants)
+  ✔ TripStatus: backend enumValues === shared enum values (same order) (0.701375ms)
+  ✔ ShipmentStatus: backend enumValues === shared enum values (same order) (0.111291ms)
+  ✔ ShipmentFulfillmentType: backend enumValues === shared enum values (same order) (0.045208ms)
+  ✔ FulfillmentCancellationDisposition: backend enumValues === shared enum values (same order) (0.451917ms)
+  ✔ TripPodStatus: backend enumValues === shared enum values (same order) (0.059333ms)
+  ✔ TripPodFileType: backend enumValues === shared enum values (same order) (0.038584ms)
+  ✔ DriverProgressEventType: backend enumValues === shared enum values (same order) (0.035667ms)
+  ✔ DriverIncidentalCostType: backend enumValues === shared enum values (same order) (0.040584ms)
+  ✔ ShipmentDocumentType: backend enumValues === shared enum values (same order) (0.046917ms)
+  ✔ OperationalSiteType: backend enumValues === shared enum values (same order) (0.079875ms)
+  ✔ MasterImportStatus: backend enumValues === shared enum values (same order) (0.035875ms)
+  ✔ MasterImportRowClassification: backend enumValues === shared enum values (same order) (0.03825ms)
+✔ status vocabulary parity (backend _enums vs shared constants) (6.773709ms)
+▶ tireSchema — custom position labels
+  ✔ accepts and trims a typed tire position (1.364125ms)
+✔ tireSchema — custom position labels (2.132292ms)
+▶ transferTireSchema — move a mounted tire to another vehicle
+  ✔ accepts a truck target with a position (12.204584ms)
+  ✔ accepts a trailer target with no position (6.629333ms)
+  ✔ rejects when no vehicle target is chosen (0.448875ms)
+  ✔ coerces numeric ids sent as form strings (0.170333ms)
+✔ transferTireSchema — move a mounted tire to another vehicle (20.234417ms)
+▶ resolveReassignExternalVehicleId (round 19 change-carrier)
+  ✔ keeps the issued vehicle when the payload changes neither carrier nor plate (0.909459ms)
+  ✔ drops the issued vehicle when the payload switches carrier (TC-R19-REASSIGN-01) (0.157833ms)
+  ✔ drops the issued vehicle when a different plate is typed for the same carrier (0.212041ms)
+  ✔ an explicit picker-provided vehicle id always wins (0.145792ms)
+  ✔ a vehicle-less issued trip stays vehicle-less unless the picker names one (0.092625ms)
+✔ resolveReassignExternalVehicleId (round 19 change-carrier) (2.455792ms)
+▶ Trip Status Machine — Transition Rules
+  ✔ all from→to combinations are covered (0.554417ms)
+  ✔ no duplicate rules (0.059375ms)
+  ✔ ALLOWED: CREATED → IN_TRANSIT (Dispatch new trip) (0.032375ms)
+  ✔ ALLOWED: COMPLETED → IN_TRANSIT (Re-dispatch completed trip (direct reopen blocked — uses governed TRIP_REOPEN)) (0.025875ms)
+  ✔ ALLOWED: IN_TRANSIT → IN_TRANSIT (Idempotent: same status short-circuit) (0.033834ms)
+  ✔ BLOCKED: CANCELED → IN_TRANSIT (Cannot dispatch a canceled trip) (0.048125ms)
+  ✔ ALLOWED: IN_TRANSIT → COMPLETED (Complete a running trip through the governed close path; evidence gates are enforced) (0.022375ms)
+  ✔ BLOCKED: COMPLETED → COMPLETED (Direct re-complete is blocked; use governed reopen approval (COMPLETED → IN_TRANSIT)) (0.027291ms)
+  ✔ BLOCKED: CREATED → COMPLETED (Cannot complete a trip that was never dispatched) (0.03025ms)
+  ✔ BLOCKED: CANCELED → COMPLETED (Cannot complete a canceled trip) (0.056125ms)
+  ✔ ALLOWED: CREATED → CREATED (Idempotent: same status short-circuit) (0.030875ms)
+  ✔ BLOCKED: IN_TRANSIT → CREATED (Cannot revert a dispatched trip to CREATED) (0.023291ms)
+  ✔ BLOCKED: COMPLETED → CREATED (Cannot revert a completed trip to CREATED) (0.021375ms)
+  ✔ BLOCKED: CANCELED → CREATED (Cannot revert a canceled trip to CREATED) (0.024583ms)
+  ✔ ALLOWED: CREATED → CANCELED (Cancel a new trip) (0.016833ms)
+  ✔ ALLOWED: IN_TRANSIT → CANCELED (Cancel a running trip) (0.023375ms)
+  ✔ ALLOWED: COMPLETED → CANCELED (Cancel a completed trip (governed — requestCompletedTripCancellation)) (0.015959ms)
+  ✔ ALLOWED: CANCELED → CANCELED (Idempotent: same status short-circuit) (0.018667ms)
+✔ Trip Status Machine — Transition Rules (1.553708ms)
+▶ Trip Status Machine — Role Permission Rules
+  ✔ IN_TRANSIT dispatch requires ADMIN or MANAGER (0.063375ms)
+  ✔ COMPLETE requires ADMIN or MANAGER through governed approval (0.038583ms)
+  ✔ direct re-complete (COMPLETED→COMPLETED) is blocked (0.029ms)
+  ✔ CANCEL requires ADMIN or MANAGER (0.032875ms)
+  ✔ DRIVER role cannot dispatch, complete, or cancel (0.0385ms)
+  ✔ ACCOUNTANT role cannot dispatch, complete, or cancel (0.0335ms)
+✔ Trip Status Machine — Role Permission Rules (0.301542ms)
+▶ Trip Status Machine — Lifecycle Happy Path
+  ✔ standard lifecycle: CREATED → IN_TRANSIT → COMPLETED (0.141083ms)
+  ✔ reopen lifecycle requires the separate governance workflow (0.442291ms)
+  ✔ re-dispatch lifecycle: COMPLETED → IN_TRANSIT (0.057375ms)
+✔ Trip Status Machine — Lifecycle Happy Path (0.690791ms)
+✔ the rejection message carries no internal field path (1.230916ms)
+✔ details keep every issue path so clients can still locate the rows (0.436792ms)
+ℹ tests 290
+ℹ suites 50
+ℹ pass 290
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40128.831375
+
+> @tingting/backend@0.1.0 test:integration /Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend
+> npx tsx --test --test-concurrency=1 'src/tests/*.test.ts'
+
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+✔ rate request, confirm, and withdraw have durable result replay (457.373958ms)
+✔ competing keys create one pending request and report existing requests accurately (188.862375ms)
+✔ metadata, source void, assignment, and voucher share their command transaction (419.973084ms)
+✔ outer transaction failure rolls back all optional transaction service effects (136.453709ms)
+✔ replays the deployed endpoint, actor payload and plain result format for all seven commands (367.637083ms)
+▶ accounting debit-close board (card 20260921_21 CORE)
+  ✔ worked numbers: full column ladder per lot — RU excluded from Tổng 1 (P1) (232.172292ms)
+  ✔ null propagation: a bare lot reads Chưa xác định everywhere (101.661958ms)
+  ✔ partial-known: freight alone → tongThu known, RU absent → lợi nhuận null (68.985208ms)
+  ✔ RU pick: latest effectiveDate ≤ lot delivery date wins (98.766375ms)
+  ✔ adjustment lifecycle: create → guard 409 → withdraw clears; re-create → confirm clears (45.160417ms)
+  ✔ a withdrawn re-request unmasks the earlier CONFIRMED state on the board (125.761917ms)
+  ✔ P2: a cost-locked lot rejects new requests and the export guard stays clear (47.518459ms)
+  ✔ tick-all: confirming several pending requests in one call (77.974459ms)
+  ✔ date range filter: lots outside the window stay off the board (72.601416ms)
+  ✔ card 20260928_162: the uncharged reason reaches kế toán on this board (280.806042ms)
+✔ accounting debit-close board (card 20260921_21 CORE) (1153.189625ms)
+▶ accounting debit board rows — customer + carrier keys (card 20260923_12)
+  ✔ rows carry customerId + derived carrierKeys (own, subcontracted, external plate) (138.254667ms)
+✔ accounting debit board rows — customer + carrier keys (card 20260923_12) (138.418166ms)
+▶ accounting transport register service
+  ✔ returns completed trips in deterministic completion/id order with posting provenance (25.041459ms)
+  ✔ KP-151: any POD submission (even legacy REJECTED) counts — trip lists READY (9.818333ms)
+  ✔ the MISSING_ACCEPTED_POD facet is now empty (any submission counts) (75.556208ms)
+  ✔ supports readiness, carrier, ownership, and search filters without changing money (44.89475ms)
+  ✔ fingerprint is independent of pagination but changes with financial filters (0.374708ms)
+  ✔ route admits only ADMIN, MANAGER, and ACCOUNTANT and validates query strictly (126.916041ms)
+  ✔ explicit sorts order rows server-side with NULLs last; absent params keep the default order (109.697709ms)
+✔ accounting transport register service (722.649875ms)
+▶ lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4)
+  ✔ full free-text create stores raw names with null ids; master counts unchanged (286.688666ms)
+  ✔ non-ad-hoc create still requires a catalog customer (21.517792ms)
+  ✔ ad-hoc create without any customer text is rejected (14.139208ms)
+  ✔ mixed row: free-text customer + catalog route id (298.575167ms)
+  ✔ detail view coalesces the customer name — never an empty cell (336.313167ms)
+  ✔ reopen-for-edit keeps the ad-hoc flag (AC10) (202.607125ms)
+  ✔ pricing projection reports the ad-hoc bypass instead of blocking (48.720042ms)
+✔ lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4) (1951.748375ms)
+▶ adjustment apply roundtrip
+  ✔ createAdjustment posts the ledger entry the adjustments readback returns (152.665875ms)
+✔ adjustment apply roundtrip (240.590416ms)
+▶ KP-148 tạm ứng — bước kế toán phê duyệt
+  ✔ Ops tạo yêu cầu ở trạng thái chờ: ví Ops và báo cáo hoàn ứng không đổi (452.963625ms)
+  ✔ kế toán phê duyệt: bút toán + treasury OUT cùng lệnh, duyệt lần hai 409 (151.981916ms)
+  ✔ từ chối: PENDING → VOIDED kèm lý do; không duyệt lại được (26.345375ms)
+✔ KP-148 tạm ứng — bước kế toán phê duyệt (631.965375ms)
+{"level":30,"time":1792247167969,"pid":53338,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+✔ authorized legacy draft recording saves a request without money with actor-bound replay and immutable terminal state (1359.021917ms)
+✔ legacy draft void preserves original facts without posting and cannot reopen (142.148125ms)
+✔ draft recovery denies foreign owners, forbidden roles, stale tokens, stale versions and invalid inputs (220.796625ms)
+✔ draft recovery refuses pre-existing financial postings and active settlement claims (165.25975ms)
+[ERROR] POST /api/forwarder/me/advance-requests/3537/record: Error: Injected durable audit failure
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/tests/advance-draft-recovery.test.ts:133:53)
+    at persistMaterialWriteSuccessAuditInTransaction (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/services/audit.service.ts:288:13)
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/services/idempotency.service.ts:471:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/routes/financial/advance-drafts.routes.ts:31:21)
+Audit log write failed: Error: Injected durable audit failure
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/tests/advance-draft-recovery.test.ts:133:53)
+    at persistAudit (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/services/audit.service.ts:677:10)
+    at persist (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/middleware/audit.ts:233:15)
+    at ServerResponse.res.end (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/middleware/audit.ts:258:10)
+    at ServerResponse.send (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js:221:10)
+    at ServerResponse.json (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js:252:15)
+    at ServerResponse.res.json (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/middleware/audit.ts:85:12)
+    at globalErrorHandler (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/middleware/errorHandler.ts:70:19)
+    at Layer.handleError (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:116:17)
+    at trimPrefix (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:340:13)
+✔ audit failure rolls back draft status ledger and domain audit then the same key can retry (166.947375ms)
+✔ recorded advance generic update delete and retired review routes remain unavailable (162.920291ms)
+✔ competing direct record and void serialize one terminal outcome without duplicate effects (110.006291ms)
+✔ garbage settlement ids reject with 400 instead of a NaN-query 500 (20260916_9 family) (104.616042ms)
+▶ advance settle deadlock-order contract (card 20260930_226)
+  ✔ the composed lock set orders canonically regardless of input order (1.271583ms)
+  ✔ two overlapping settlements with reversed resource orders never deadlock (1264.48225ms)
+✔ advance settle deadlock-order contract (card 20260930_226) (1266.212ms)
+▶ computeDueGroups — due-group cards
+  ✔ presence-based counts: a row with in-term AND overdue portions counts in BOTH groups (0.645875ms)
+  ✔ inTerm.amount + overdue.amount ≈ totalOutstanding within 0.02 (0.138375ms)
+  ✔ amounts pass through round2dp (0.282625ms)
+  ✔ counts are presence-based: zero portions and zero-outstanding rows do not count (0.065208ms)
+✔ computeDueGroups — due-group cards (260.688375ms)
+▶ filterAgingByBucket — 'overdue' pill
+  ✔ 'overdue' selects exactly rows with any overdue portion and outstanding (0.081416ms)
+  ✔ 'all' is untouched and the four pre-existing buckets keep their exact selection (0.075333ms)
+✔ filterAgingByBucket — 'overdue' pill (0.467375ms)
+▶ paginatePayablesSummary bucket scoping (GET /reports/payables-summary)
+  ✔ bucket narrows items/totals while headline + dueGroups stay full-set (0.239833ms)
+  ✔ search narrows the bucketed set and totals follow (existing semantics) (0.092208ms)
+✔ paginatePayablesSummary bucket scoping (GET /reports/payables-summary) (0.427584ms)
+▶ getReceivablesSummary dueGroups (snapshot rows)
+  ✔ identity holds and counts match the /debt drill-down lists exactly (1148.443167ms)
+  ✔ a customer with both in-term and overdue portions counts in BOTH groups (776.704667ms)
+✔ getReceivablesSummary dueGroups (snapshot rows) (1925.51875ms)
+▶ getPayablesSummary dueGroups (merged full item set)
+  ✔ identity holds, counts match drill-down lists, and suppliers count in BOTH groups (23.48ms)
+✔ getPayablesSummary dueGroups (merged full item set) (23.682416ms)
+▶ GET /reports/payables-summary?bucket= (route param)
+  ✔ bucket preserves full-set headline + dueGroups while items/totals scope down (80.991625ms)
+✔ GET /reports/payables-summary?bucket= (route param) (81.103333ms)
+▶ paginateAgingRows
+  ✔ returns bounded pagination metadata and slices customer rows (7.05675ms)
+  ✔ clamps invalid and excessive limits to a safe range (0.494667ms)
+✔ paginateAgingRows (20.416208ms)
+▶ sortCustomerAgingRows
+  ✔ keeps the historical outstanding-desc default when sort params are absent (1.295208ms)
+  ✔ sorts totalOutstanding numerically asc and desc (not by formatted string) (0.216834ms)
+  ✔ sorts customerName with Vietnamese collation in both directions (51.032875ms)
+  ✔ sorts netBalance and maxOverdueDays asc/desc including negative values (0.100625ms)
+  ✔ breaks ties on customerId ascending regardless of direction (0.0835ms)
+✔ sortCustomerAgingRows (61.22375ms)
+▶ payables summary sorting
+  ✔ keeps the merge order (outstanding desc) when sort params are absent (17.257416ms)
+  ✔ sorts supplierName asc and desc through the pagination envelope (0.877ms)
+  ✔ sorts totalOutstanding and the aging buckets numerically in both directions (0.169291ms)
+  ✔ applies the sort to the searched set and slices the sorted page window (0.288583ms)
+  ✔ breaks ties vendor-before-carrier, then supplier id ascending (0.117958ms)
+✔ payables summary sorting (18.905084ms)
+▶ aging sort query schemas
+  ✔ accepts every advertised sort key plus both directions (0.2505ms)
+  ✔ accepts absent sort params and rejects unknown keys or directions (0.25125ms)
+  ✔ advertises exactly the sortable data columns of both screens (0.307084ms)
+✔ aging sort query schemas (0.952333ms)
+▶ application-owned config route constraints
+  ✔ concurrent normalized container codes yield one row and one semantic conflict (230.531958ms)
+  ✔ a soft-deleted port cannot receive a new lift-pricing relationship (215.017375ms)
+✔ application-owned config route constraints (667.378625ms)
+▶ application-owned uniqueness runtime paths
+  ✔ refreshes an existing push subscription instead of duplicating it (215.978125ms)
+  ✔ reuses the same legal partner row for the same normalized tax code (104.815875ms)
+  ✔ updates a geotag in place for repeated submissions on the same entity (38.5475ms)
+  ✔ keeps one durable effect job for an exact replay and rejects conflicting payload reuse (230.479458ms)
+  ✔ serializes attendance and salary confirmation updates onto single rows (978.652291ms)
+✔ application-owned uniqueness runtime paths (1569.876708ms)
+{"level":30,"time":1792247240795,"pid":54778,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ app-settings route authorization
+  ✔ manager can read app settings but cannot write them (190.447375ms)
+  ✔ accountant can read app settings but cannot write them (52.169084ms)
+  ✔ admin can still read and write app settings (42.300709ms)
+  ✔ material financial settings and direct toggles all apply immediately (2026-09-05 d3599b0b) (664.567291ms)
+  ✔ failed approval rollback path no longer applies (2026-09-05 d3599b0b removed queue) (720.878125ms)
+  ✔ email credential settings remain admin-only behind the broader config mount (29.865125ms)
+  ✔ admin email-settings read and write responses expose only masked credential state (63.400042ms)
+  ✔ manager and accountant can read financial reporting routes but cannot change them (KP-149: direct ADMIN-only writes) (230.483333ms)
+  ✔ policy write applies immediately and appears in the future-policy history (827.682ms)
+  ✔ truck financial profile direct write exposes the configured profile (330.665625ms)
+✔ app-settings route authorization (5178.983541ms)
+▶ application-owned forwarder expense relationships
+  ✔ rejects missing or invalid parent references before insert (143.555459ms)
+  ✔ supplier retirement racing expense creation cannot create an orphan (128.424ms)
+✔ application-owned forwarder expense relationships (407.200666ms)
+▶ application-owned trip workflow guards
+  ✔ concurrent trip creation allocates distinct monthly codes without upsert authority (367.731ms)
+  ✔ concurrent fulfillment decomposition returns one canonical active row (85.107875ms)
+  ✔ concurrent handoff creation produces one active row and one domain conflict (32.396417ms)
+✔ application-owned trip workflow guards (485.956833ms)
+▶ application-owned user and business-unit identity
+  ✔ allows creating accounts when other users also have unset email/phone (688.523375ms)
+  ✔ treats blank email/phone as unset and does not conflict on them (565.839583ms)
+  ✔ returns a semantic conflict before the database uniqueness fence on concurrent usernames (462.866875ms)
+  ✔ rejects email reuse during update using canonical application comparison (747.39ms)
+  ✔ ignores identities belonging only to soft-deleted users (693.179333ms)
+  ✔ serializes concurrent canonical business-unit creation (49.487917ms)
+✔ application-owned user and business-unit identity (3210.650333ms)
+✔ ATT01 attendance labels use persisted Bill/Booking without changing trip or financial identity (210.258417ms)
+▶ audit enrichment scheduling
+  ✔ skips detached enrichment when the audit entry already has an entity key (1.072125ms)
+  ✔ skips detached enrichment for unsupported entity types without an entity key (0.081667ms)
+  ✔ keeps detached enrichment only for supported entities that can gain a key later (0.079458ms)
+✔ audit enrichment scheduling (1.756959ms)
+{"level":30,"time":1792247267873,"pid":55394,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ audit-log route accountant scope
+  ✔ ACCOUNTANT without explicit assignments sees only safe non-customer finance rows (1429.722083ms)
+  ✔ ACCOUNTANT redacts non-customer operational rows and hides unrelated business-unit details (1115.637125ms)
+  ✔ ACCOUNTANT category filters cannot widen into auth/config rows (1842.625666ms)
+  ✔ ADMIN and MANAGER keep the existing broad read surface (188.51325ms)
+  ✔ queryAuditLogs fails closed for non-office viewers (0.639291ms)
+  ✔ explicit sorts order rows server-side; absent params keep newest-first default (481.663333ms)
+  ✔ ACCOUNTANT resolves every supported customer-scope branch and keeps pagination/count parity (6155.238542ms)
+✔ audit-log route accountant scope (12149.603167ms)
+▶ audit request-body sanitization
+  ✔ keeps extracted entity IDs inside the PostgreSQL integer range (11.031292ms)
+  ✔ removes Resend credentials without dropping safe mutation context (0.635042ms)
+  ✔ recursively removes password and credential variants while preserving safe flags (20.762459ms)
+✔ audit request-body sanitization (36.17025ms)
+[Auth] session validation unavailable: DrizzleQueryError: Failed query: select "role", "customer_id" from "users" where ("users"."id" = $1 and "users"."status" = $2 and "users"."deleted_at" is null) limit $3
+params: 1,ACTIVE,1
+    at PostgresJsPreparedQuery.queryWithCache (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at async authenticateToken (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/middleware/auth.ts:106:23)
+    at async authMiddleware (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/middleware/auth.ts:137:19) {
+  query: 'select "role", "customer_id" from "users" where ("users"."id" = $1 and "users"."status" = $2 and "users"."deleted_at" is null) limit $3',
+  params: [ 1, 'ACTIVE', 1 ],
+  cause: Error: connect ECONNREFUSED 127.0.0.1:53776
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -61,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 53776
+  }
+}
+✔ SISPROD-AUTH-001 api: unavailable database denies access with 503 (2298.568417ms)
+[Redis] connection error: connect ECONNREFUSED 127.0.0.1:53777
+[Redis] connection error: connect ECONNREFUSED 127.0.0.1:53777
+[Auth] session validation unavailable: Error: Connection is closed.
+    at close (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/ioredis@5.11.0/node_modules/ioredis/built/redis/event_handler.js:214:25)
+    at Socket.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/ioredis@5.11.0/node_modules/ioredis/built/redis/event_handler.js:190:20)
+    at Object.onceWrapper (node:events:623:12)
+    at Socket.emit (node:events:508:20)
+    at TCP.<anonymous> (node:net:350:12)
+✔ SISPROD-AUTH-002 api: unavailable Redis denies access without claiming revocation (143.859292ms)
+✔ SISPROD-AUTH-003 api: missing token remains 401 during outage (2.47725ms)
+✔ SISPROD-AUTH-003 api: malformed token remains 401 during outage (67.559583ms)
+✔ SISPROD-AUTH-003 api: expired token remains 401 during outage (3.383959ms)
+✔ SISPROD-AUTH-003 api: not-yet-valid token remains 401 during outage (15.066458ms)
+[Auth] session validation unavailable: DrizzleQueryError: Failed query: select "role", "customer_id" from "users" where ("users"."id" = $1 and "users"."status" = $2 and "users"."deleted_at" is null) limit $3
+params: 1,ACTIVE,1
+    at PostgresJsPreparedQuery.queryWithCache (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/postgres-js/session.ts:58:17)
+    at async authenticateToken (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/middleware/auth.ts:106:23)
+    at async assetAuthMiddleware (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/middleware/auth.ts:154:19) {
+  query: 'select "role", "customer_id" from "users" where ("users"."id" = $1 and "users"."status" = $2 and "users"."deleted_at" is null) limit $3',
+  params: [ 1, 'ACTIVE', 1 ],
+  cause: Error: connect ECONNREFUSED 127.0.0.1:53776
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+    errno: -61,
+    code: 'ECONNREFUSED',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 53776
+  }
+}
+✔ SISPROD-AUTH-001 asset: unavailable database denies access with 503 (10.859917ms)
+[Redis] connection error: connect ECONNREFUSED 127.0.0.1:53777
+[Redis] connection error: connect ECONNREFUSED 127.0.0.1:53777
+[Auth] session validation unavailable: Error: Connection is closed.
+    at close (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/ioredis@5.11.0/node_modules/ioredis/built/redis/event_handler.js:214:25)
+    at Socket.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/node_modules/.pnpm/ioredis@5.11.0/node_modules/ioredis/built/redis/event_handler.js:190:20)
+    at Object.onceWrapper (node:events:623:12)
+    at Socket.emit (node:events:508:20)
+    at TCP.<anonymous> (node:net:350:12)
+✔ SISPROD-AUTH-002 asset: unavailable Redis denies access without claiming revocation (114.210583ms)
+✔ SISPROD-AUTH-003 asset: missing token remains 401 during outage (2.26625ms)
+✔ SISPROD-AUTH-003 asset: malformed token remains 401 during outage (2.566459ms)
+✔ SISPROD-AUTH-003 asset: expired token remains 401 during outage (8.73975ms)
+✔ SISPROD-AUTH-003 asset: not-yet-valid token remains 401 during outage (2.127417ms)
+[Redis] connection error: connect ECONNREFUSED 127.0.0.1:53850
+[Redis] connection error: connect ECONNREFUSED 127.0.0.1:53850
+✔ SISPROD-AUTH-005 Redis recovery replaces an ended connection and retains revocation (227.068042ms)
+{"level":30,"time":1792247288188,"pid":55734,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ auth session revocation
+  ✔ logout blacklists the current token immediately (521.553ms)
+  ✔ password-change replay retries revocation until the old token is blacklisted (1423.119792ms)
+  ✔ wrong current password returns 400 and the session stays valid (1047.747291ms)
+✔ auth session revocation (2998.269167ms)
+{"level":30,"time":1792247291989,"pid":55818,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ Route-scoped grant registry equivalence (card 20260930_228)
+  ▶ registry integrity
+    ✖ carries the ported bypass rows (ten + the 253 mirror + the 220 fee read + the 1580 wallet bridge) and two exclusive rows (7.243625ms)
+    ✔ keeps every row fully documented and its pattern re-test-safe (0.17725ms)
+  ✖ registry integrity (8.199667ms)
+  ▶ bypass matrix: registry decision === pre-refactor oracle
+    ✔ agrees for every role × method × path × resource cell (14.465583ms)
+    ✔ leaves requests without a user to the 401/normal path (oracle says no grant) (0.103708ms)
+  ✔ bypass matrix: registry decision === pre-refactor oracle (16.203583ms)
+  ▶ bypass wiring: casbinAuthz honors the registry end to end
+    ✔ matches the oracle decision through the real middleware (28.449167ms)
+  ✔ bypass wiring: casbinAuthz honors the registry end to end (28.5235ms)
+  ▶ trip matrix: exclusive rows === pre-refactor allowlists
+    ✔ classifies every role × method × path cell identically (pure layer) (0.481083ms)
+    ✔ matches the oracle decision through the real tripRouteAuthz middleware (2067.901ms)
+    ✔ hard-denies ADMIN on the governed close even though policy is wildcard (5.076125ms)
+  ✔ trip matrix: exclusive rows === pre-refactor allowlists (2082.174208ms)
+✖ Route-scoped grant registry equivalence (card 20260930_228) (2204.085625ms)
+▶ CUS delete-request bridge (cards 351/352)
+  ✔ bridges DELETE /cus-workspace/:id for CUS only (0.101958ms)
+✔ CUS delete-request bridge (cards 351/352) (0.145416ms)
+{"level":30,"time":1792247299173,"pid":55866,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ mount-order regression (card 20261001_253)
+  ✔ admits CUS to its own issued debit-note reads through the real mount chain (160.013459ms)
+  ✔ keeps every non-granted financial cell closed (no widening) (13.598834ms)
+  ✔ keeps the config family config-gated and its grants intact (58.854333ms)
+✔ mount-order regression (card 20261001_253) (239.362959ms)
+▶ createTrip — Wave 1 auto-revenue wiring
+  ✔ populates pricingSource when pricing table exists (260.960083ms)
+  ✔ populates pricingSource=MANUAL when no pricing table exists (111.627292ms)
+  ✔ computes revenue = unitPrice × containerCount for multiple containers (131.117291ms)
+  ✔ fuel norm snapshot uses resolved values (from fuel_config or fuel_norms) (100.989875ms)
+  ✔ M2.3: pricingFormula shows full breakdown with VAT when vatRate > 0 (103.239458ms)
+  ✔ M2.3: pricingFormula omits VAT when vatRate is 0 (84.520333ms)
+✔ createTrip — Wave 1 auto-revenue wiring (793.649334ms)
+▶ applyCommittedLegacyFuelFreeze
+  ✔ COMPLETED legacy trip: stored totalFuelCost preserved exactly (tolerance 0) (0.51225ms)
+  ✔ §8 acceptance: live price moves to 28000 ⇒ re-save still preserves stored cost (0.071875ms)
+  ✔ IN_TRANSIT and COMPLETED legacy trips are also frozen (0.061833ms)
+  ✔ CREATED trips are NEVER frozen (they take the live fallback) (0.355625ms)
+  ✔ CANCELED trips are never frozen (0.051416ms)
+  ✔ committed trip WITH a real fuel snapshot is never frozen (0.049167ms)
+  ✔ partial snapshot (loaded norm set) is NOT treated as legacy (0.043417ms)
+  ✔ zero-litres legacy trip: guard does not NaN, cost still pinned (0.071917ms)
+  ✔ does not mutate the input computed object (0.066791ms)
+✔ applyCommittedLegacyFuelFreeze (1.935583ms)
+{"level":30,"time":1792247339428,"pid":56740,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ billing-documents garbage-id guard (§2.1 parseId)
+  ✔ GET with a non-numeric document id is a 400, not a 500 (131.152334ms)
+✔ billing-documents garbage-id guard (§2.1 parseId) (168.4325ms)
+▶ confirmed debit-note persistence lock
+  ✔ canonical update rejects a confirmed debit note (82.6765ms)
+  ✔ canonical delete rejects a confirmed debit note without reversing it (36.272209ms)
+  ✔ canonical delete preserves every customer debit note that has left DRAFT and never reverses its ledger (161.0585ms)
+  ✔ canonical delete preserves an issued vendor debit note (7.476167ms)
+  ✔ confirmation racing an update always leaves a confirmed, subsequently immutable document (56.439666ms)
+  ✔ confirmation racing delete cannot produce a confirmed deleted document (17.111708ms)
+✔ confirmed debit-note persistence lock (361.915834ms)
+▶ debit-note export cells render business keys, never ids
+  ✔ tripCode column never falls back to String(sourceId) (1.451542ms)
+  ✔ tripCode column prefers the lot/trip business keys when present (4.598417ms)
+  ✔ chung_tu column keeps source document numbers only (0.172ms)
+  ✔ documentCode column passes business numbers through unchanged (0.139708ms)
+✔ debit-note export cells render business keys, never ids (15.535166ms)
+▶ billing issue readiness gate (QuyTrinhO2C 7.2)
+  ✔ blocks issue with the goods reason when the document has no lines (184.805042ms)
+  ✔ blocks issue with a per-line price reason when a line has no amount (52.28575ms)
+  ✔ blocks issue with the original-document reason when a source trip has no paper receipt (64.196375ms)
+  ✔ collects the closed period as its own reason alongside other missing conditions (48.298625ms)
+  ✔ issues an eligible document unchanged (50.941125ms)
+✔ billing issue readiness gate (QuyTrinhO2C 7.2) (449.701375ms)
+✔ effectiveAmount — base used when no override (3.744375ms)
+✔ effectiveAmount — override wins over base (0.276542ms)
+✔ effectiveAmount — excluded always 0 (even with override) (6.351583ms)
+✔ effectiveAmount — null override falls back to base (0.293416ms)
+✔ docTotal — sums non-excluded effective amounts, honors overrides + exclusions (0.218334ms)
+✔ documentLedgerAdjustment — trip and recoverable rows contribute only their already-posted source delta (1.448667ms)
+✔ documentLedgerAdjustment — ad-hoc rows add fully and excluded legacy sources reverse their posted amount (0.506791ms)
+✔ splitContainers — null/empty → null (0.112834ms)
+✔ splitContainers — comma-joined text → trimmed array (0.435667ms)
+✔ joinContainers ← splitContainers roundtrip (0.117625ms)
+✔ calculateVatSnapshot — rounds VND half-up and reconciles net + tax = gross (0.631208ms)
+✔ calculateVatSnapshot — keeps zero-rated distinct and rejects unsupported rates (0.263125ms)
+✔ calculateVatSnapshot — splits VAT-inclusive freight without increasing AR (0.078042ms)
+[ioredis] Unhandled error event: AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+▶ boot redis check
+  ✔ dead port resolves not-ok, fast, with the URL and error named (31.690917ms)
+  ✔ live redis resolves ok with the redacted URL echoed (40.055459ms)
+  ✔ credentials never survive into the loggable URL (0.166125ms)
+  ✔ a live redis clears the hung-connect guard rather than leaving it pending (12.112375ms)
+[ioredis] Unhandled error event: AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+  ✔ an unreachable redis also clears the guard instead of leaving it armed (11.270042ms)
+✔ boot redis check (96.073666ms)
+▶ card 20260922_1 — cut seed rides fill-only
+  ✔ norms: second run inserts nothing; hand-tuned amount survives reruns (71.640959ms)
+  ✔ expense types: rerun fills nothing; admin-edited fields survive (19.797959ms)
+  ✔ ruled labels: Lưu bãi disambiguated per family, idempotent (QA ruling 2026-09-22) (11.804833ms)
+  ✔ after one fill, every default catalog code and the full norms ladder exists (13.85575ms)
+  ✔ expense categories: seedExpenseCategories fills missing categories including Phí nhiên liệu / dầu, rerun inserts nothing (31.628334ms)
+✔ card 20260922_1 — cut seed rides fill-only (167.871333ms)
+▶ card 20260921_10 - ops cost review
+  ✖ review lists OPS rows with columns, progress, confirm refs (AC1) (208.544417ms)
+  ✖ tick-all via the existing batch confirm stamps date + who; progress flips (AC2) (133.597209ms)
+{"level":40,"time":1792247391862,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":609,"linkId":2830,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247391877,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":608,"linkId":2829,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392074,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":142,"linkId":791,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392079,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":144,"linkId":793,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392079,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":147,"linkId":796,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392081,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":148,"linkId":797,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392081,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":575,"linkId":2697,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392081,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":145,"linkId":794,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392082,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":574,"linkId":2696,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392082,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":146,"linkId":795,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392082,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":143,"linkId":792,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392084,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":576,"linkId":2698,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392084,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":533,"linkId":2513,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392087,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":531,"linkId":2511,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392090,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":530,"linkId":2510,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392090,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":532,"linkId":2512,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392121,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":434,"linkId":2154,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392123,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":433,"linkId":2153,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392125,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":436,"linkId":2156,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392127,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":438,"linkId":2158,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392129,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":435,"linkId":2155,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392133,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":437,"linkId":2157,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392136,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":457,"linkId":2216,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392138,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":456,"linkId":2215,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392142,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":455,"linkId":2214,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392275,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":627,"linkId":2885,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392638,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":453,"linkId":2212,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247392638,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":454,"linkId":2213,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247394124,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":2696,"linkId":11161,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404206,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":608,"linkId":2829,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404211,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":609,"linkId":2830,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404259,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":574,"linkId":2696,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404267,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":142,"linkId":791,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404268,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":575,"linkId":2697,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404269,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":143,"linkId":792,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404269,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":145,"linkId":794,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404269,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":147,"linkId":796,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404269,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":148,"linkId":797,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404272,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":144,"linkId":793,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404272,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":576,"linkId":2698,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404273,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":146,"linkId":795,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404274,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":531,"linkId":2511,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404274,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":530,"linkId":2510,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404276,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":532,"linkId":2512,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404276,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":533,"linkId":2513,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404393,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":433,"linkId":2153,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404394,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":435,"linkId":2155,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404394,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":434,"linkId":2154,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404398,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":438,"linkId":2158,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404398,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":436,"linkId":2156,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404402,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":437,"linkId":2157,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404404,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":456,"linkId":2215,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404407,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":455,"linkId":2214,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404408,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":457,"linkId":2216,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404452,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":627,"linkId":2885,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404807,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":453,"linkId":2212,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247404807,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":454,"linkId":2213,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247405817,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":2696,"linkId":11161,"msg":"expense accounting register: dangling source link skipped"}
+  ✖ progress and staff filters honor the query (AC1 filters) (23357.170209ms)
+{"level":40,"time":1792247417633,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":608,"linkId":2829,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417634,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":609,"linkId":2830,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417750,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":575,"linkId":2697,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417755,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":574,"linkId":2696,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417756,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":145,"linkId":794,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417757,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":143,"linkId":792,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417759,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":146,"linkId":795,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417759,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":148,"linkId":797,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417759,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":576,"linkId":2698,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417760,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":142,"linkId":791,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417761,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":144,"linkId":793,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417762,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":533,"linkId":2513,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417762,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":147,"linkId":796,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417762,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":531,"linkId":2511,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417764,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":532,"linkId":2512,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417765,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":530,"linkId":2510,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417793,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":433,"linkId":2153,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417920,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":435,"linkId":2155,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417920,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":436,"linkId":2156,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417925,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":434,"linkId":2154,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417938,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":437,"linkId":2157,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417942,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":438,"linkId":2158,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417968,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":455,"linkId":2214,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417973,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":457,"linkId":2216,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247417973,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":456,"linkId":2215,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247418005,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":627,"linkId":2885,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247418394,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":454,"linkId":2213,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247418394,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":453,"linkId":2212,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247419502,"pid":58007,"hostname":"mini","sourceKind":"DRIVER","sourceId":2696,"linkId":11161,"msg":"expense accounting register: dangling source link skipped"}
+  ✔ fund-book spine reads cleanly after confirm (AC3 composable) (14532.358625ms)
+✖ card 20260921_10 - ops cost review (38232.811709ms)
+▶ card 20260921_11 - bao cao tong hop hoan ung
+  ✖ columns, formula to the dong, labeled signs (AC1-AC3) (223.251333ms)
+  ✔ date filter and confirmation gate (AC1) (153.731584ms)
+  ✔ consumed advances reduce held (existing reconciliation links) (35.264666ms)
+✖ card 20260921_11 - bao cao tong hop hoan ung (413.136458ms)
+▶ card 161026100400 — born-ready LCL decomposes at create
+  ✔ a LCL lot created WITH a delivery date is visible on the detail plan immediately (83.202875ms)
+  ✔ control: a LCL lot created WITHOUT dates stays pending and off the board (unchanged) (39.408542ms)
+✔ card 161026100400 — born-ready LCL decomposes at create (170.6915ms)
+▶ card 20260928_164 — chi phí lái xe không hóa đơn
+  ✔ AC1: 7 mã PM liệt kê đều ACTIVE, không hóa đơn, không trùng nhãn (33.546708ms)
+  ✔ AC2/AC3 WAREHOUSE_LABOR (Chi công nhân tại kho): số HĐ gõ vào bị bỏ, phải thu = 0, chi phí xe tăng sau xác nhận (188.140708ms)
+  ✔ AC2/AC3 CONTAINER_WELD (Hàn cont): số HĐ gõ vào bị bỏ, phải thu = 0, chi phí xe tăng sau xác nhận (108.491333ms)
+  ✔ AC2/AC3 TIRE_WEIGH (Cân lốp): số HĐ gõ vào bị bỏ, phải thu = 0, chi phí xe tăng sau xác nhận (69.5185ms)
+  ✔ AC2/AC3 CONTAINER_SWAP (Đảo vỏ): số HĐ gõ vào bị bỏ, phải thu = 0, chi phí xe tăng sau xác nhận (68.410625ms)
+  ✔ AC2/AC3 TWO_POINT_DROP (Đóng/trả 2 điểm): số HĐ gõ vào bị bỏ, phải thu = 0, chi phí xe tăng sau xác nhận (55.938959ms)
+  ✔ AC2/AC3 CARGO_RESTACK (Đảo hàng): số HĐ gõ vào bị bỏ, phải thu = 0, chi phí xe tăng sau xác nhận (53.948333ms)
+  ✔ AC2/AC3 FORKLIFT_DANGKHOA (Phí xe nâng hạ đăng khoa): số HĐ gõ vào bị bỏ, phải thu = 0, chi phí xe tăng sau xác nhận (65.39675ms)
+✔ card 20260928_164 — chi phí lái xe không hóa đơn (644.140458ms)
+▶ card 20260928_165 — ROAD_REPAIR lifecycle
+  ✔ gate: the server refuses a road-repair entry without its hand-written receipt (101.720167ms)
+  ✔ marker: with the receipt uploaded the entry keeps it, lands DRIVER_ROAD, charges the customer 0 (106.749542ms)
+  ✔ read: after accountant confirm the receipt survives into the phơi-phiếu-facing read, receivable stays 0 (236.792958ms)
+✔ card 20260928_165 — ROAD_REPAIR lifecycle (445.845834ms)
+▶ card 20260928_165 — road-repair receipt tie
+  ✔ the fee exists in the catalog AND in the driver class table (0.344291ms)
+  ✔ exactly one seed policy class — never the silent middle (0.079625ms)
+  ✔ its supporting document is the hand-written receipt, mapped once (0.048333ms)
+✔ card 20260928_165 — road-repair receipt tie (0.84625ms)
+▶ card 20260928_166 AC2 — tripTruckHasActiveAccountant
+  ✔ true only while a live assignment row exists (53.941958ms)
+  ✔ a trip with no truck is not treated as assigned (8.014583ms)
+✔ card 20260928_166 AC2 — tripTruckHasActiveAccountant (62.371292ms)
+▶ card 20260928_166 - bulk truck assignment (AC1)
+  ✔ one call assigns many trucks; each keeps exactly one ACTIVE row and the board lists them (73.483625ms)
+  ✔ re-sending the same batch is a no-op: no new rows, no version burn (23.063958ms)
+  ✔ a repeated truck id is processed once (no double version burn) (7.834ms)
+  ✔ all-or-nothing: one bad truck aborts the whole batch and writes nothing (10.324125ms)
+  ✔ a re-split keeps the previous assignment as history (AC3 stays intact) (11.826375ms)
+✔ card 20260928_166 - bulk truck assignment (AC1) (127.102167ms)
+▶ card 20260928_168 - sổ quỹ theo kỳ + hội tụ với báo cáo hoàn ứng
+  ✔ AC3: the period window carries the opening; TÀI KHOẢN OPS closing IS the 169 remaining, before and after the THU (629.372458ms)
+  ✔ a reversed period (from > to) is refused (0.386416ms)
+✔ card 20260928_168 - sổ quỹ theo kỳ + hội tụ với báo cáo hoàn ứng (630.409042ms)
+▶ card 20260928_169 — bộ lọc "đợt làm đề nghị"
+  ✖ a đợt narrows the report to its own staff and window (357.673583ms)
+  ✔ a đợt is charged only the advances IT allocated; remaining is the sổ quỹ number (232.889833ms)
+  ✔ an unknown đợt is 404 and a voided one is refused (28.388584ms)
+✖ card 20260928_169 — bộ lọc "đợt làm đề nghị" (619.987167ms)
+▶ card 20260928_169 - bao cao tong hop hoan ung theo dot
+  ✔ dot filter owns exactly its costs and allocated advances (AC1) (701.513292ms)
+  ✔ criterion 5 — remaining IS the sổ quỹ number, exact, before and after the phiếu CHI (AC2/AC4/AC5) (393.13375ms)
+  ✔ THU side — the phiếu thu settles the đợt exactly once; wrong-direction CHI refuses (AC2/AC3) (286.11325ms)
+✔ card 20260928_169 - bao cao tong hop hoan ung theo dot (1381.3125ms)
+✔ a small selection stays human-readable in the fund book (0.813834ms)
+✔ a large selection stays inside the 160-char treasury authority (0.21625ms)
+✔ the same selection always yields the same reference (0.090875ms)
+✔ order of the incoming ids does not change the reference (0.067375ms)
+✔ two DIFFERENT large selections never collide (0.073584ms)
+✔ a large selection is still distinguishable from its own prefix (0.061041ms)
+✔ an empty selection still produces a usable reference (0.037083ms)
+▶ card 20260928_172 — the board carries the container rating AND the cargo weight, apart
+  ✔ a rated type reports its payload, and it is not the cargo weight (236.593208ms)
+  ✔ a type with no rating reports null, never a guessed number (92.532667ms)
+✔ card 20260928_172 — the board carries the container rating AND the cargo weight, apart (329.977459ms)
+▶ card 20260928_173 AC2 — the subjects that transacted most come first
+  ✔ frequency outranks money, and an equal count is broken by the subject name (454.833ms)
+✔ card 20260928_173 AC2 — the subjects that transacted most come first (456.10275ms)
+▶ card 20260928_173 AC3 — a subject moving on both sides shows ONE row
+  ✔ both legs and the count ride the single subject row (147.940083ms)
+  ✔ the TRA table reads the payable leg as Đã trả and keeps the other leg visible (83.56125ms)
+✔ card 20260928_173 AC3 — a subject moving on both sides shows ONE row (232.1855ms)
+✔ card 20260928_181 — an adjustment driving a linked expense NEGATIVE keeps the stored settlement total at sum-excluding-negative (556.888917ms)
+▶ card 20260928_181 — a negative expense row behaves as if absent
+  ✔ advance-settlement :85/:398/:615 — a negative buy row leaves the stored totalExpenseAmount identical (1114.709166ms)
+  ✔ no-invoice disbursement :232 — a negative row leaves sumBuyAmount, overThresholdCount and overThresholdSum identical (82.795125ms)
+  ✔ shipment-debit-detail :413/:422/:423 — a negative row leaves chiHoTotal, thuKhachTotal and feeTotal identical (160.540792ms)
+  ✔ debit-summary :117/:188/:261 — a negative row leaves Tổng chi hộ, the shadow total and the pass-through recharge identical (110.935458ms)
+  ✔ fuel-ap-recon :179 — a negative fuel row leaves the supplier invoiced total identical (65.15775ms)
+  ✔ settlement-export :176/:262 — a negative LinkedExpense leaves Tổng chi phí identical in HTML and XLSX (213.919625ms)
+  ✔ ops-wallet :60-62/:217 — a negative OPS_ADVANCE row leaves the wallet balance and fund-book closing identical (255.315541ms)
+  ✔ expense-accounting reconciliation :52 — a negative source leaves the batch amount identical and consumes no advance (193.719333ms)
+  ✔ expense-accounting reads :81/:340 — a negative row leaves the list total and the OUT report total identical (0.592667ms)
+  ✔ expense-accounting work :76/:102 — a negative expense leaves the trip payable identical (249.760292ms)
+  ✔ tripExpenseSchema — accepts a signed amount and keeps the money bounds (5.520291ms)
+✔ card 20260928_181 — a negative expense row behaves as if absent (2454.787833ms)
+▶ card 20260921_19 - deposit refund tracker
+  ✔ dd/mm/yy accepted, CV+14 default, manual override sticks (104.335834ms)
+  ✔ list: CHUA first oldest-due, filters, filtered tổng, warnings (45.421708ms)
+  ✔ markRefunded posts ONE COMPANY IN movement; re-tick rejected; fund-book sees it (157.755709ms)
+  ✔ recordDepositFromIntake: auto-row, optional amount, idempotent per shipment (36.307042ms)
+✔ card 20260921_19 - deposit refund tracker (344.659917ms)
+▶ card 20260923_14 — VN-calendar CV-overdue predicate
+  ✔ quiet through VN day 7, flags on VN day 8 — the old UTC-rolling window flags day 7 (0.120333ms)
+  ✔ the +07 day shift decides at the VN midnight boundary (staging containers run UTC) (0.057125ms)
+  ✔ CV date set or refunded rows never flag (0.05125ms)
+  ✔ list warnings count by the current filter, VN-calendar based (endpoint rung) (21.363291ms)
+✔ card 20260923_14 — VN-calendar CV-overdue predicate (21.873584ms)
+▶ card 20260928_197 — a negative cost row leaves every total as if absent
+  ✖ the three validators accept a negative amount and still reject 0 / junk (12.668375ms)
+  ✔ ops-expenses :626/627/632/633/639 — a negative entry leaves every settlement total identical (100.825667ms)
+  ✔ ops-settlements :58/:209 — freezing and finalising a batch ignore a negative entry (98.412958ms)
+  ✔ expense-trip-cost :16/:19 — a negative driver cost leaves toll and extra identical (0.262708ms)
+  ✖ phoi-phieu :166/:575/:576 — a negative driver cost leaves every road-fee total identical (148.105875ms)
+  ✔ phoi-phieu :212/:453 — a negative Ops cost leaves chi-hộ and Tổng trả identical (195.552ms)
+  ✔ phoi-phieu :711-713/:731 — a negative Ops cost leaves every report column identical (158.746125ms)
+✖ card 20260928_197 — a negative cost row leaves every total as if absent (715.47275ms)
+▶ card 20260928_197 — a negative cost row can be saved, and charges nothing
+  ✖ an INVOICED_ ops row with a negative amount saves, with a 0 receivable (37.301208ms)
+  ✖ a POSITIVE INVOICED_ row still charges the full amount (the invariant is untouched) (42.953083ms)
+  ✖ an explicit negative customerChargeAmount override is refused, naming the field (33.475083ms)
+✖ card 20260928_197 — a negative cost row can be saved, and charges nothing (114.319709ms)
+▶ card 20260928_199 — driver payslip period earnings are batched
+  ✔ AC2 — batched result is deep-equal to the pre-card per-period loop (100.692625ms)
+[card199] oracle queries=28 batch queries=20 periods=3
+[card199] oracle byTable=[["driver_work_days",3],["drivers",2],["ledger",6],["penalties",2],["salary_confirmations",5],["salary_period_adjustments",3],["salary_periods",4],["trips_composite",3]]
+[card199] batch  byTable=[["driver_work_days",3],["drivers",2],["ledger",2],["penalties",2],["salary_confirmations",3],["salary_period_adjustments",3],["salary_periods",4],["trips_composite",1]]
+  ✔ AC1 — query count: one per key group, measured (71.9905ms)
+[card199] payslip queries=22 oracle-for-same-periods=28
+  ✔ AC1/AC2 — getDriverPayslipPeriods uses the batched path and returns the same rows (57.323083ms)
+  ✔ AC4 — the unparsable / out-of-range period guard still skips (19.8115ms)
+  ✔ AC4 — empty and missing data behave as before (60.620417ms)
+✔ card 20260928_199 — driver payslip period earnings are batched (578.471667ms)
+▶ card 20260929_203 — a container write never erases the expected delivery date
+  ✔ adding a container with no appointment leaves the stored date alone (41.651334ms)
+  ✔ the projection still UPDATES the date when a container does have an appointment (24.701834ms)
+✔ card 20260929_203 — a container write never erases the expected delivery date (168.503208ms)
+{"level":40,"time":1792247760747,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":609,"linkId":2830,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760748,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":608,"linkId":2829,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760849,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":574,"linkId":2696,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760851,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":575,"linkId":2697,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760857,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":147,"linkId":796,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760858,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":142,"linkId":791,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760858,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":146,"linkId":795,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760859,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":145,"linkId":794,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760861,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":143,"linkId":792,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760861,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":144,"linkId":793,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760872,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":532,"linkId":2512,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760872,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":531,"linkId":2511,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760872,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":576,"linkId":2698,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760872,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":148,"linkId":797,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760873,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":533,"linkId":2513,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760873,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":530,"linkId":2510,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760924,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":434,"linkId":2154,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760924,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":437,"linkId":2157,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760932,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":433,"linkId":2153,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760934,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":436,"linkId":2156,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760934,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":435,"linkId":2155,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760936,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":438,"linkId":2158,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760942,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":455,"linkId":2214,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760958,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":457,"linkId":2216,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247760963,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":456,"linkId":2215,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247761002,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":627,"linkId":2885,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247761225,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":453,"linkId":2212,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247761230,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":454,"linkId":2213,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247761878,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":900753315,"linkId":15652,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247762203,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":2696,"linkId":11161,"msg":"expense accounting register: dangling source link skipped"}
+▶ card 20260930_213 - dangling accounting link
+  ✔ a register read survives a link whose source row is gone, and keeps live rows (10191.158084ms)
+{"level":40,"time":1792247768385,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":608,"linkId":2829,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768389,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":609,"linkId":2830,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768448,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":144,"linkId":793,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768448,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":146,"linkId":795,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768449,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":574,"linkId":2696,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768454,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":142,"linkId":791,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768454,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":143,"linkId":792,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768455,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":533,"linkId":2513,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768456,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":148,"linkId":797,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768456,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":145,"linkId":794,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768456,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":575,"linkId":2697,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768456,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":147,"linkId":796,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768459,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":531,"linkId":2511,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768460,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":532,"linkId":2512,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768460,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":576,"linkId":2698,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768466,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":530,"linkId":2510,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768514,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":437,"linkId":2157,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768517,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":435,"linkId":2155,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768517,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":433,"linkId":2153,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768523,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":434,"linkId":2154,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768529,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":438,"linkId":2158,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768529,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":436,"linkId":2156,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768532,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":455,"linkId":2214,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768532,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":456,"linkId":2215,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768537,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":457,"linkId":2216,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768585,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":627,"linkId":2885,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768800,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":453,"linkId":2212,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247768815,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":454,"linkId":2213,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247769370,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":900753315,"linkId":15652,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247769396,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":900763337,"linkId":15653,"msg":"expense accounting register: dangling source link skipped"}
+{"level":40,"time":1792247769482,"pid":76842,"hostname":"mini","sourceKind":"DRIVER","sourceId":2696,"linkId":11161,"msg":"expense accounting register: dangling source link skipped"}
+  ✔ the Ops wallet expense list survives the same debris (7179.381208ms)
+✔ card 20260930_213 - dangling accounting link (17386.237708ms)
+▶ card 20260922_6 — cược-container intake wiring
+  ✔ ticked + amount → tracker row (CHUA_HOAN_CUOC, amount, identity) (201.615667ms)
+  ✔ unticked → no tracker row (43.55375ms)
+  ✔ ticked without amount → row with amount 0 (KT fills by hand) (65.684667ms)
+✔ card 20260922_6 — cược-container intake wiring (368.9505ms)
+▶ card 353 — canonical_origin/destination at issue + pairing
+  ✔ repro: pair of issued trips with NULL canonical columns (staging trips 131-134 shape) pairs from container ports instead of 422 MISSING_LOCATION (1308.656459ms)
+  ✔ issue order writes canonical_origin/destination from the container Cảng nâng/Cảng hạ (draftFor no longer blocks) (1160.520917ms)
+  ✔ reader coalesce: getTripById returns container ports for already-issued trips with NULL canonical columns (275.36525ms)
+✔ card 353 — canonical_origin/destination at issue + pairing (2834.814292ms)
+▶ card 377 — so quy TAI KHOAN OPS matches bao cao tong hop hoan ung
+  ✖ the book and the report read one number at the same instant — per staff and totals (two staff, partial lot) (492.0805ms)
+  ✔ phiếu THU hoàn ứng subtracts the return on BOTH surfaces at once — the silent-drift guard (698.67825ms)
+✖ card 377 — so quy TAI KHOAN OPS matches bao cao tong hop hoan ung (1192.423ms)
+▶ card 20260921_6 - driver lot-cost classification
+  ✔ catalog ships pre-seeded with the card classes (AC4) (90.414625ms)
+  ✔ no two ACTIVE driver-family rows carry the same display name (card 20260928_164) (3.674042ms)
+  ✔ invoiced type: charges customer, replay honors catalog ref (AC1/AC2) (235.386625ms)
+  ✔ card 141026230700: an invoiced type saves WITHOUT a typed number once the biên lai photo exists (147.705625ms)
+  ✔ card 141026230700: a lot-bucket row without the biên lai photo is rejected (42.785833ms)
+  ✔ no-invoice type never charges, whatever the driver typed (AC3) (141.718625ms)
+  ✔ enum-only entry without catalog ref keeps the legacy heuristic (263.98125ms)
+  ✔ pre-confirm: no receivable projection; after accountant confirm it carries charge + invoice (AC2/AC5) (421.554ms)
+✔ card 20260921_6 - driver lot-cost classification (1350.351042ms)
+▶ card 20260928_163 — nâng / hạ / phí khác có HĐ ride ONE table (AC4)
+  ✔ nâng (LIFTING): thu khách = số tiền, phải có biên lai, chỉ vào phải thu sau khi KT xác nhận (421.12225ms)
+  ✔ hạ (LOWERING): thu khách = số tiền, phải có biên lai, chỉ vào phải thu sau khi KT xác nhận (307.618834ms)
+  ✔ phí khác có HĐ (FEE_CLEANING): thu khách = số tiền, phải có biên lai, chỉ vào phải thu sau khi KT xác nhận (179.640875ms)
+✔ card 20260928_163 — nâng / hạ / phí khác có HĐ ride ONE table (AC4) (908.788584ms)
+▶ card 20260921_7 - driver fee norms
+  ✔ norms ship seeded: 8 rows, customer amounts, road bucket (AC2 data) (94.243125ms)
+  ✔ norm entry pins the road bucket and drops customer charge (AC1) (130.845583ms)
+  ✔ driver may override the amount away from the norm (AC3) (110.37575ms)
+✔ card 20260921_7 - driver fee norms (349.656625ms)
+▶ card 20260921_7 - guards
+  ✔ unknown norm code rejected (400) (36.368542ms)
+  ✔ norm ref and catalog ref are mutually exclusive (400) (29.711208ms)
+  ✔ accounting suggestions use active configured labels and numeric amounts (14.216042ms)
+  ✔ list fn returns the ACTIVE norms for the FE auto-fill (AC2) (1.746875ms)
+✔ card 20260921_7 - guards (82.327292ms)
+▶ card 20260921_8 - vehicle assignment + board scope
+  ✔ assignment lifecycle: assign, reassign, unassign; single active per truck (AC1/AC3) (315.215417ms)
+  ✔ board scope: mine / unassigned-only / mine+unassigned / absent = all (AC2) (1584.928834ms)
+  ✔ assignments bucket: active assignments + distinct unassigned trucks (AC3) (112.860334ms)
+✔ card 20260921_8 - vehicle assignment + board scope (2032.083417ms)
+▶ card 20260921_9 - per-source fund book
+  ✔ COMPANY and TM books stay separate; balance = opening + POSTED IN - OUT (AC2) (104.937292ms)
+  ✔ unassigned active accounts counted, never mixed into a book (AC1 read enforcement) (42.671833ms)
+  ✔ non-POSTED movements never enter a book (16.224542ms)
+  ✔ invalid source rejected with 400 (0.16275ms)
+  ✔ a from/to period carries the opening and windows the flows (card 168 câu 2) (62.230916ms)
+  ✔ a reversed period (from > to) is refused with 400 (1.230958ms)
+  ✔ xe-nhà customer code fills once and idempotently (AC3) (8.594375ms)
+✔ card 20260921_9 - per-source fund book (236.816834ms)
+▶ card 20260921_9 phase 2 — legacy fund history merges into the ACB stream
+  ✔ classification flip imports history without touching a single movement byte (146.597792ms)
+  ✔ merge is idempotent and classifies DRAFT legacy accounts without activating them (34.241209ms)
+✔ card 20260921_9 phase 2 — legacy fund history merges into the ACB stream (181.642167ms)
+▶ carrier payment ledger isolation
+  ✔ rejects a normal customer as a carrier payment counterparty (43.988166ms)
+  ✔ keeps carrier AP out of customer AR and uses the entered payment date (77.442041ms)
+✔ carrier payment ledger isolation (122.009375ms)
+{"level":30,"time":1792247989426,"pid":86304,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+✔ customers POST: oversized tax code returns field validation and writes nothing (142.819208ms)
+✔ customers PUT: oversized tax code returns field validation and writes nothing (17.9875ms)
+✔ suppliers POST: oversized tax code returns field validation and writes nothing (11.626333ms)
+✔ suppliers PUT: oversized tax code returns field validation and writes nothing (10.536167ms)
+▶ US-007 chi hộ reconciliation: ledger AR == debit-note total
+  ✔ CLEAN window: Σ(TRIP_REVENUE + SERVICE_FEE debits) == debit-note totalInclVat (452.339083ms)
+  ✔ CROSS-BOUNDARY: trip departureDate outside window → debit-note excludes it, ledger does not (211.2785ms)
+✔ US-007 chi hộ reconciliation: ledger AR == debit-note total (664.050958ms)
+▶ US-007 statement XLSX labels SERVICE_FEE as "Phí chi hộ"
+  ✔ XLSX type column for a SERVICE_FEE ledger row reads "Phí chi hộ" (not "Khác") (241.047666ms)
+✔ US-007 statement XLSX labels SERVICE_FEE as "Phí chi hộ" (241.14225ms)
+▶ US-007 COMPLETED-editability model (O2C: costs stay editable after completion)
+  ✔ createTripExpense no longer rejects on trip status COMPLETED — only CANCELED is blocked (44.094959ms)
+  ✔ updateTripExpense no longer rejects on trip status COMPLETED — only CANCELED is blocked (48.371084ms)
+✔ US-007 COMPLETED-editability model (O2C: costs stay editable after completion) (92.615333ms)
+▶ US-007 aging: SERVICE_FEE AR surfaces in customer aging
+  ✔ customer aging search matches Vietnamese names without requiring tones (127.149666ms)
+  ✔ customer with only a SERVICE_FEE debit appears in aging list with balance=fee and days≈0 (93.305209ms)
+✔ US-007 aging: SERVICE_FEE AR surfaces in customer aging (220.664583ms)
+▶ US-005b debit-note eligibility: only COMPLETED trips with accepted e-POD appear
+  ✔ a COMPLETED trip without an accepted e-POD is excluded from the debt notice (109.829875ms)
+  ✔ a CANCELED trip is excluded (no lines, total 0) (129.97375ms)
+  ✔ mixed-eligibility: one with accepted e-POD + one without, same customer → only the accepted-e-POD trip appears (179.109667ms)
+✔ US-005b debit-note eligibility: only COMPLETED trips with accepted e-POD appear (419.072167ms)
+▶ US-005b carrier payment statement bills COMPLETED external-carrier trips
+  ✔ PAYMENT_STATEMENT for a carrier surfaces freight for their COMPLETED trip (81.922042ms)
+✔ US-005b carrier payment statement bills COMPLETED external-carrier trips (81.995958ms)
+▶ US-005b edited-COMPLETED reconciliation: eligible debt-note totals stay in sync after a figure edit
+  ✔ after editing revenue on a completed trip, the later draft matches customer running balance (166.917416ms)
+✔ US-005b edited-COMPLETED reconciliation: eligible debt-note totals stay in sync after a figure edit (166.997417ms)
+▶ company-info route-mount RBAC
+  ✔ ADMIN, MANAGER, and ACCOUNTANT can submit company information (11.9585ms)
+  ✔ portal roles cannot submit company information (2.55225ms)
+✔ company-info route-mount RBAC (14.894208ms)
+✔ company logo storage keys are valid protected photo keys (0.488375ms)
+✔ company logo storage keys reject traversal and non-logo paths (0.147584ms)
+{"level":30,"time":1792247995616,"pid":89097,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+✔ E2E — Auth flow (Login, Me, User List, Create, Delete) (370.059875ms)
+✔ E2E — Duplicate username yields 409 (not 500) with field message (168.708042ms)
+✔ E2E — Catalog endpoints CRUD reads & listings (47.52975ms)
+✔ E2E — Customer duplicate guard blocks create and update conflicts (28.700167ms)
+CREATE TRIP FAIL: {
+  status: 409,
+  data: {
+    error: 'Tài xế đã có 1 chuyến khác trùng khung giờ phân công này. Vẫn lưu?',
+    code: 'RIG_OVERLAP_COMPLETED'
+  }
+} {
+  truckId: 11818,
+  driverId: 3833,
+  customerId: 55665,
+  routeId: 3981,
+  cargoTypeId: 1390
+}
+✖ E2E — Trip dispatch lifecycle (Create, Reassign, Pre-departure, Dispatch, Actuals, Lock, Cancel Guard) (15.914625ms)
+✖ E2E — Financial operations (P&L, profit sharing, ledger, statements, receipts) (344.31225ms)
+✔ E2E — Driver portal isolation & earnings summary (30.834375ms)
+▶ sameConfigValue
+  ✔ array comparison is order-insensitive set equality (0.316667ms)
+  ✔ array boundary never fuses: ["ab","c"] differs from ["a","bc"] (0.051584ms)
+  ✔ numeric strings equal their numeric payload (0.040125ms)
+  ✔ payload-omitted keys (undefined incoming) never count as a change (0.034958ms)
+  ✔ array join separator is a real delimiter — never empty, never a control byte (0.280334ms)
+✔ sameConfigValue (1.110209ms)
+▶ hasMaterialValueChange
+  ✔ order-only reshuffles are not material; boundary-fused arrays are (0.077958ms)
+✔ hasMaterialValueChange (0.116375ms)
+▶ direct-apply governance for material config updates
+  ✔ applies a driver salary change directly and keeps a same-salary edit direct too (67.516458ms)
+  ✔ applies a penalty create and amount change directly (25.20825ms)
+  ✔ applies forwarder policy creates and changes directly (54.075125ms)
+  ✔ applies expense-category creates and policy changes directly (18.847833ms)
+✔ direct-apply governance for material config updates (187.251ms)
+▶ container price classes catalog
+  ✔ the four weight-split classes exist with verbatim customer labels (21.11425ms)
+  ✔ pre-existing CONT20/CONT40 rows are unchanged (regression) (1.033125ms)
+  ✔ resolver agrees with the catalog labels (shared ↔ DB coherence) (0.098375ms)
+✔ container price classes catalog (22.604958ms)
+▶ quick-add container inherits the lot (FB-086, round 19)
+  ✔ an omitted column falls back to the first non-null sibling value (105.126167ms)
+  ✔ an explicit add input still overrides the lot default (42.221292ms)
+  ✔ an explicit null clears instead of inheriting (wire contract) (33.82225ms)
+  ✔ sibling disagreement resolves to the first non-null row by id; weights never inherit (35.157917ms)
+✔ quick-add container inherits the lot (FB-086, round 19) (256.971416ms)
+▶ quick-add container validation (cards _75/_76)
+  ✔ legacy row fails, new number passes the shared ISO 6346 validator (0.641208ms)
+  ✔ AC2 quick-add with a VALID new number succeeds despite the legacy row (66.01ms)
+  ✔ AC2 the error names the INPUT, not a legacy row (invalid format) (1.012333ms)
+  ✔ duplicate of an existing row still rejected (10.672166ms)
+✔ quick-add container validation (cards _75/_76) (112.581291ms)
+{"level":30,"time":1792248002281,"pid":89438,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+{"level":30,"time":1792248002325,"pid":89438,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ FB-086 (round 21) — CUS reads the container-type catalog
+  ✔ CUS gets the container-type list instead of 403 (905.747125ms)
+{"level":30,"time":1792248002341,"pid":89438,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+  ✔ the grant is scoped — other config catalogs stay denied to CUS (16.123208ms)
+{"level":30,"time":1792248002356,"pid":89438,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+  ✔ the grant is GET-only — a write on the same path is still denied (14.912875ms)
+  ✔ a near-miss path under the same prefix is not swept in (5.931209ms)
+✔ FB-086 (round 21) — CUS reads the container-type catalog (946.91775ms)
+▶ Cross-customer isolation — scopedByCustomer
+  ✔ CUSTOMER A scoped to customer 1 sees only customer 1 shipments (67.324375ms)
+  ✔ impersonation guard: caller-supplied customerId is overridden (18.23ms)
+  ✔ ADMIN sees all customers (passthrough) (13.420667ms)
+  ✔ unmapped CUSTOMER (deny-all sentinel) sees zero rows (7.54975ms)
+✔ Cross-customer isolation — scopedByCustomer (107.00075ms)
+▶ Cross-customer isolation — canAccessCustomer
+  ✔ CUSTOMER can access their own customer id (0.160041ms)
+  ✔ CUSTOMER cannot access another customer id (0.0525ms)
+  ✔ ADMIN can access any customer id (0.068584ms)
+  ✔ MANAGER can access any customer id (0.06675ms)
+  ✔ CUSTOMER with null customerId cannot access anything (0.046375ms)
+✔ Cross-customer isolation — canAccessCustomer (0.525875ms)
+▶ Cross-customer isolation — isCustomerScoped
+  ✔ CUSTOMER role is scoped (0.065042ms)
+  ✔ ADMIN role is not scoped (0.0395ms)
+  ✔ DENY_ALL_CUSTOMER_ID is negative (0.03325ms)
+✔ Cross-customer isolation — isCustomerScoped (0.186542ms)
+{"level":30,"time":1792248004409,"pid":89647,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ card 20260921_2 — CUS add/remove container rows after intake
+  ✔ free container removes; tripped container 409s per-row; neighbors untouched (98.86175ms)
+  ✔ version conflict on remove still 409s with the reload message (17.246416ms)
+✔ card 20260921_2 — CUS add/remove container rows after intake (118.847166ms)
+▶ card 20260921_2 — add row
+  ✔ add appends a container, bumps the version, decomposes a fulfillment (122.298833ms)
+  ✔ add with appointment carries it and validates duplicates and format (128.963959ms)
+✔ card 20260921_2 — add row (251.550125ms)
+{"level":30,"time":1792248063180,"pid":90466,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ bulk appointment copy — copy giờ hẹn xuống các cont chưa có lịch
+  ✔ fills every empty line of the lot in ONE call, never the source, and moves the version once (1201.368041ms)
+  ✔ never overwrites a line that already has an appointment (791.81875ms)
+  ✔ another lot sharing the workboard is never touched (757.840792ms)
+  ✔ a source row without an appointment is rejected with a named reason (216.173791ms)
+  ✔ a lot where every line is already scheduled reports there is nothing to copy (150.779875ms)
+  ✔ a stale version 409s instead of copying onto a lot that moved on (180.138ms)
+  ✔ an idempotency replay returns the first result and writes nothing twice (433.619875ms)
+✔ bulk appointment copy — copy giờ hẹn xuống các cont chưa có lịch (4239.732041ms)
+▶ card 20260916_4 — plate updates on carrier-less containers
+  ✔ plate update without a carrier type is rejected, never silently dropped (116.261459ms)
+✔ card 20260916_4 — plate updates on carrier-less containers (412.222583ms)
+▶ Card 161026232339 — the LCL lot flat row carries its billing facts
+  ✔ AC1: the chosen cước classes resolve to their vehicle_size_classes codes (353.4565ms)
+  ✔ AC2/AC5: BKS thực + BKS báo khách ride the lot row, absent values as null (226.732667ms)
+  ✔ AC3: the quick edit lands through updateLclGroupTruck and the next read returns it (213.716333ms)
+  ✔ AC4: FCL container rows keep their shape — same four keys, all null (237.791584ms)
+✔ Card 161026232339 — the LCL lot flat row carries its billing facts (1163.193792ms)
+▶ CUS workspace ad-hoc list filter (20260917_12, §6.12)
+  ✔ isAdHoc=true returns only the lệnh chạy ngoài rows (129.418875ms)
+  ✔ absent filter returns both lots (no implicit ad-hoc narrowing) (348.273625ms)
+✔ CUS workspace ad-hoc list filter (20260917_12, §6.12) (604.621709ms)
+▶ CUS shipment workspace projection — OQ1 split notes
+  ✔ projects customerNotes and operationalNotes as separate fields (384.043084ms)
+  ✔ preserves typed line breaks in note fields through update + readback (card 20260914_35) (321.798708ms)
+  ✔ LCL lots read SCHEDULED from closingAt/plannedReturnAt alone (card 20260914_35 rework) (546.787792ms)
+  ✔ LCL lots with no schedule fields at all stay WAITING_DATE (empty-case preserved) (301.448709ms)
+  ✔ trims and nulls empty notes (322.171375ms)
+✔ CUS shipment workspace projection — OQ1 split notes (1876.815875ms)
+▶ CUS shipment workspace projection — Chứng từ direction display
+  ✔ EXPORT shows the booking number; IMPORT shows the bill number (1351.84975ms)
+  ✔ flat container rows mirror the same direction-aware number (320.999625ms)
+✔ CUS shipment workspace projection — Chứng từ direction display (1673.150417ms)
+▶ Shipment document references — whitespace normalization
+  ✔ create collapses empty-string refs to null instead of hitting the direction CHECK (27.86425ms)
+  ✔ update trims surrounding whitespace and stores the clean value (27.573084ms)
+✔ Shipment document references — whitespace normalization (55.765416ms)
+▶ CUS shipment workspace projection — OQ2 aggregated cargo
+  ✔ sums per-container weight and volume across containers (515.638542ms)
+  ✔ falls back to shipment-level cargo when there are no containers (356.353459ms)
+  ✔ falls back to shipment-level cargo when all per-container values are null (326.248334ms)
+  ✔ returns null cargo when neither containers nor shipment-level figures exist (282.652292ms)
+✔ CUS shipment workspace projection — OQ2 aggregated cargo (1481.203ms)
+▶ CUS shipment workspace projection — OQ3 vehicle-assigned numerator
+  ✔ operational summary always surfaces assignedContainers as a non-negative integer (251.751708ms)
+✔ CUS shipment workspace projection — OQ3 vehicle-assigned numerator (251.851208ms)
+▶ CUS shipment workspace projection — own-fleet plate sync
+  ✔ projects the dispatch allocation plate before an OWN trip exists (389.689917ms)
+✔ CUS shipment workspace projection — own-fleet plate sync (389.858709ms)
+▶ CUS shipment workspace projection — container classification
+  ✔ projects the fulfillment-owned classification and preserves canonical unplanned fallbacks (165.062ms)
+  ✔ CUS call: FCL shipment created with isCombined=true defaults classification to COMBINED, isCombined=false to SINGLE (142.812417ms)
+  ✔ CUS call: updating shipment isCombined synchronizes unassigned FCL fulfillments to COMBINED or SINGLE (461.885417ms)
+✔ CUS shipment workspace projection — container classification (770.014792ms)
+▶ CUS shipment workspace projection — inline edit authority
+  ✔ keeps schedule and notes inline-editable after dispatch while the shipment is unlocked (269.195958ms)
+  ✔ workboard schedule and notes quick-edit opens to admin and dispatcher on unlocked lots (648.080083ms)
+  ✔ accounting lock closes the schedule quick-edit while notes stay open for every opened role (1161.336125ms)
+  ✔ notes quick-edit survives the accounting lock for CUS, ADMIN and DISPATCHER (2795.142625ms)
+  ✔ non-notes writes and unopened roles stay closed under the accounting lock (367.848333ms)
+  ✔ CUS supplements a placeholder container number directly with no approval request (179.640208ms)
+  ✔ completed lot rejects the workspace container edit with the terminal-lot guard (14.515583ms)
+✔ CUS shipment workspace projection — inline edit authority (5436.712417ms)
+✔ workspace detail returns safe route selectors for the route authority (50.272041ms)
+▶ CUS container-flat projection
+  ✔ flattens every container of every shipment with shipment context and operational fields (231.93125ms)
+  ✔ past-run-date container fields stay DIRECT for CUS (approval flow removed 2026-09-10) (169.182208ms)
+  ✔ SISPROD-CUS-ACCESS CUS and DISPATCHER keep linked-trip identity and PORTS writable; routeId stays read-only (card 358 decision a) (826.65075ms)
+  ✔ port backfill writes on a tripped container succeed while routeId still 409s (141.59525ms)
+  ✔ searches a container suffix and returns only the matching container row (128.864291ms)
+  ✔ paginates container rows rather than shipment rows without overlap (230.234ms)
+  ✔ sorts container rows by the requested column key server-side (208.006125ms)
+  ✔ carrier-name sort keys on the displayed short name, not the legal name (128.410083ms)
+  ✔ sorts by dispatch status rank through the fulfillment projection (126.398875ms)
+  ✔ container query schema whitelists sort keys and directions (1.222125ms)
+  ✔ customer filters span all customers — no actor scoping (199.456084ms)
+  ✔ shows unit-less shipments — no clerk unit scope (320.609458ms)
+  ✔ does not advertise schedule editing to a read-only role (117.373541ms)
+  ✔ sorts the overview by workspace column keys server-side (328.487083ms)
+  ✔ overview query schema whitelists its own sort keys, disjoint from the container enum (0.204458ms)
+  ✔ allows a CUS write to a shipment in another business unit (76.563792ms)
+  ✔ allows a CUS delete-request against a shipment in another business unit (18.110292ms)
+✔ CUS container-flat projection (3254.289916ms)
+▶ Overview operational priority ordering
+  ✔ unscheduled lots sort first, newest first; scheduled follow by delivery date (211.595542ms)
+  ✔ same-date ties rank Cont 20 before Cont 40 before Lẻ/unknown (184.541459ms)
+  ✔ keeps operational priority stable across overview pages (219.853416ms)
+  ✔ container workboard mirrors the overview priority queue per container row (205.893167ms)
+  ✔ appointment groups preserve every distinct close/return datetime and factory (SILVER L1) (324.960458ms)
+  ✔ VID-CUS-01: inherited catalog factory agrees between overview and container detail (406.74825ms)
+  ✔ VID-CUS-10: filling a container number preserves port names when its fulfillment is created (433.930875ms)
+  ✖ VID-CUS-11: full and suffix searches include padded historical references literally (882.670959ms)
+  ✔ legacy noon-UTC appointments group under their stored calendar date (273.818375ms)
+  ✔ CUS container boundary rejects malformed identifiers and another shipment row without partial writes (67.627333ms)
+  ✔ post-handoff container edits apply directly — approval workflow is parked (customer undecided 2026-09-08) (94.998666ms)
+  ✔ TC_UNAS_01 & TC_UNAS_02: ADMIN and MANAGER can update customerAppointmentAt on unassigned container even when shipment is DISPATCHED (149.946416ms)
+  ✔ TC_UNAS_03: when container has an assigned trip (tripId != null), updating schedule is blocked with clear message citing tripCode (21.321083ms)
+  ✔ pre-handoff container edits still save directly (307.956042ms)
+  ✔ CUS can plan and clear an internal-fleet plate alongside the OWN carrier (296.688125ms)
+  ✔ vehicle-only writes succeed on an appointment-bearing READY lot (136.462375ms)
+  ✔ route save repairs a legacy unclassified shipment that already has a container (236.25475ms)
+  ✔ explicit LCL shipment with a stray container is rejected, not repaired to FCL (62.997541ms)
+  ✔ no-op lift/drop port save does not bump shipment version (434.596084ms)
+  ✔ actual lift/drop port change still bumps the shipment version (267.724041ms)
+  ✔ allows a post-handoff port edit when the submitted route is unchanged (218.212542ms)
+✖ Overview operational priority ordering (5440.500542ms)
+▶ Container workboard "Chưa cập nhật" completeness
+  ✔ projects informationStatus and the exact applicable missing fields on a real FCL row (246.297791ms)
+  ✔ a fully-filled FCL row projects COMPLETE with empty missingFields (334.004375ms)
+  ✔ a per-container tờ khai alone clears DECLARATION; none anywhere stays MISSING — SQL queue and JS projection agree (347.6315ms)
+  ✔ container ports clear LIFT_SITE/DROPOFF_SITE even when the snapshot halves are empty (347.04425ms)
+  ✔ projects the container shipping-line fallback used by completeness filtering (400.859042ms)
+  ✔ informationStatus=MISSING returns only incomplete FCL rows with count parity (273.907958ms)
+  ✔ dispatchStatus splits rows by active carrier presence with count parity (171.233833ms)
+  ✔ dispatchStatus record statuses filter by the badge derivation (248.743875ms)
+  ✔ dispatchStatus reads Đã tạo chuyến only while the appointment date is missing (196.845208ms)
+  ✔ dispatchStatus reads Đã phân xe once a vehicle is on the line (520.904041ms)
+  ✔ FCL carrier readiness follows the container appointment, not the shipment date (157.07975ms)
+  ✔ BKS stays inapplicable for an own-fleet carrier (197.180916ms)
+✔ Container workboard "Chưa cập nhật" completeness (3444.002208ms)
+▶ LCL delivery date — create persistence and workspace projection
+  ✔ an LCL lot created with a primary delivery date keeps and shows it without container rows (638.838833ms)
+✔ LCL delivery date — create persistence and workspace projection (638.96375ms)
+▶ Container appointment removal — drawer clear persistence
+  ✔ clearing an appointment on a partially dated PENDING_DATE lot persists as unscheduled (154.739208ms)
+  ✔ clearing the only dated appointment on a READY_FOR_DISPATCH lot is rejected with an explanation (19.910041ms)
+  ✔ line-update wire contract accepts the null clear and the offset-bearing set (0.655459ms)
+✔ Container appointment removal — drawer clear persistence (175.461833ms)
+▶ Linked-trip guard is value-aware (container number is identity, not an operational edit)
+  ✔ a number-only add on an assigned nonterminal container saves without the linked-trip guard (201.9085ms)
+  ✔ a rejected CUS container-line correction writes nothing (partial-write rollback) (25.281667ms)
+  ✔ the CUS dialog full-form echo (number + unchanged type/weight/volume) saves on a tripped row (55.736083ms)
+  ✔ a real container-type change on a tripped row still follows the linked-trip workflow (14.663ms)
+  ✔ SISPROD-CUS-ACCESS linked-trip CUS route change still rejects; PORT changes backfill (card 358 decision a) (154.810125ms)
+  ✔ a same-value appointment echo does not trip the guard on a tripped row (61.623292ms)
+  ✔ terminal lots still refuse the number add with the terminal-lot message (12.307708ms)
+  ✔ a multi-container lot updates only the intended row; in-lot duplicate numbers still reject (108.752416ms)
+  ✔ an unnumbered unassigned container keeps saving numbers directly (80.652709ms)
+✔ Linked-trip guard is value-aware (container number is identity, not an operational edit) (716.3575ms)
+▶ container line vehicle plate clear (20260916_6)
+  ✔ clearVehicle removes the planned plate and vehicle while keeping the external carrier (67.635458ms)
+  ✔ an EXTERNAL carrier with NO plate saves — "Bổ sung sau" (card 071026205330 / REQ-07 #359) (72.366834ms)
+  ✔ clearVehicle cannot ride along with a vehicle selection or an inline new carrier (0.289291ms)
+✔ container line vehicle plate clear (20260916_6) (141.816ms)
+▶ FCL workspace factory source editing
+  ✔ replaces the effective factory only on the selected container, including snapshot and readback (321.470417ms)
+  ✔ rejects foreign, inactive, deleted and warehouse choices atomically; selector lists scoped active factories (87.181042ms)
+  ✔ combined factory and port edits retain the factory snapshot; null restores the inherited factory (164.259417ms)
+  ✔ preserves an unchanged historical factory and blocks changes once a real trip exists (127.395084ms)
+  ✔ preserves accounting locks and role boundaries for factory edits (51.026792ms)
+✔ FCL workspace factory source editing (751.648542ms)
+▶ Schedule editor save 2+ — clearing the schedule undoes a lot the editor itself drove ready (091026091510)
+  ✔ an LCL lot the editor drove to READY_FOR_DISPATCH clears back to Chưa chốt ngày when no live trip exists (47.759791ms)
+  ✔ a ready lot with a live dispatch trip still refuses to drop its last date (true protection kept) (40.263458ms)
+✔ Schedule editor save 2+ — clearing the schedule undoes a lot the editor itself drove ready (091026091510) (92.435ms)
+▶ Card 365 — LCL lot parity between Tổng quan and Chi tiết workboards
+  ✔ AC1/AC2: the same LCL lot shows on BOTH lists under equal filters, as a recognizable lot row (524.143625ms)
+  ✔ AC1: date filters agree — the lot appears on both lists on its EDD and leaves both off-day (420.570792ms)
+  ✔ AC3: FCL rows are unchanged — one row per container; container-less FCL stays off the workboard (306.2905ms)
+  ✔ legacy LCL lot WITH a container keeps exactly its container row — no extra lot row (142.631791ms)
+  ✔ informationStatus=MISSING keeps excluding LCL lot rows (the triage is FCL-container scoped) (82.661375ms)
+✔ Card 365 — LCL lot parity between Tổng quan and Chi tiết workboards (1608.5665ms)
+▶ GET /config/customers — khách hàng and nhà xe are separate lists
+  ✔ the default list is the customer population only (143.91725ms)
+  ✔ total counts the same population the items do (33.108708ms)
+  ✔ ?isCarrier=true returns the nhà xe population (13.402541ms)
+  ✔ ?isCarrier=false is the same population as the default (66.64575ms)
+  ✔ an unparseable filter value is rejected instead of silently widening the list (5.629ms)
+  ✔ a filter outside the whitelist is rejected (3.841708ms)
+✔ GET /config/customers — khách hàng and nhà xe are separate lists (333.656917ms)
+▶ GET /config/customers identifier search
+  ✔ T1 matches the full tax code (81.315708ms)
+  ✔ T2 matches the last 4 chars of the tax code (24.7045ms)
+  ✔ T3 matches the last 5 digits of the phone (24.297958ms)
+  ✔ T4 matches the full phone (23.220042ms)
+  ✔ T5 still matches the short name (control) (22.014125ms)
+  ✔ T6 still matches a name fragment (control) (28.132417ms)
+  ✔ T7 does not match a random unknown token (20.313209ms)
+  ✔ T8 matches the name without diacritics (unaccent contract) (24.798084ms)
+✔ GET /config/customers identifier search (291.96225ms)
+✔ accepts commission at the ex-VAT revenue boundary (1.930708ms)
+✔ rejects commission above ex-VAT revenue (1.874708ms)
+▶ card 20260928_177 — own-vehicle ("Bỏ xe công ty") projection
+  ✔ ticking ON reduces the total by exactly the own-vehicle portion, OFF restores it (1.440625ms)
+  ✔ a customer with no own-vehicle shipment is unchanged by both states (1.8925ms)
+  ✔ every line carries its own-vs-external identity, filtered or not (0.300208ms)
+✔ card 20260928_177 — own-vehicle ("Bỏ xe công ty") projection (4.978292ms)
+▶ card 20260928_177 — projection reads the real ownership column
+  ✔ OWN comes from trip_carrier_info.carrier_type + the own-fleet truck; external from the carrier + cost (216.1445ms)
+✔ card 20260928_177 — projection reads the real ownership column (216.346958ms)
+▶ customer delivery response authority
+  ✔ confirmation is immutable and replays only the same idempotency key and payload (219.637667ms)
+  ✔ dispute is recorded with evidence but cannot cross customer or stale event version (122.490417ms)
+  ✔ superseded delivery events reject a response even when their own version still matches (41.323916ms)
+✔ customer delivery response authority (650.823875ms)
+{"level":30,"time":1792248166457,"pid":94112,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ customer intake create (shipment-create screen)
+  ✔ CUS creates a selectable row with credit fields dropped and no scope side effects (340.989542ms)
+  ✔ a CUS with zero assignments creates customers without any scope gate (351.430583ms)
+  ✔ intake updates stay identity-only and never kill the clerk session (238.897125ms)
+  ✔ ADMIN creates keep applying material config directly (103.910667ms)
+✔ customer intake create (shipment-create screen) (1876.612833ms)
+{"level":30,"time":1792248173417,"pid":94990,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ CUSTOMER portal HTTP security contract
+  ✔ list is paginated summary-only data (128.433ms)
+  ✔ foreign debit-note detail, action, and export all return 404 (59.958542ms)
+  ✔ customer-scope endpoint exposes linked customer choices (99.2865ms)
+  ✔ selected customerId scopes list and statement routes to that customer only (581.252583ms)
+  ✔ detail and mutation routes are bound to the explicitly selected customer (169.04775ms)
+  ✔ shipment POD downloads respect the selected customer scope (304.018833ms)
+  ✔ own debit-note detail omits internal creator/template/source fields (18.530667ms)
+  ✔ non-pending note cannot be confirmed (31.617209ms)
+  ✔ PDF export returns real authenticated PDF bytes (63.252042ms)
+  ✔ statement PDF export is scoped and returns real PDF bytes (75.384333ms)
+  ✔ statement exposes outstanding debit-note obligations even when the customer ledger is empty (36.799167ms)
+  ✔ statement reports an account configuration error when the customer link is missing (19.046ms)
+  ✔ statement export is blocked when the customer link is missing (30.771666ms)
+  ✔ confirm rejects missing idempotency headers before mutating the note (35.001333ms)
+  ✔ dispute rejects missing idempotency headers before mutating the note (72.188375ms)
+  ✔ idempotent confirm replays the original portal snapshot after status changes (129.217459ms)
+  ✔ concurrent confirm and dispute have one versioned winner and preserve dispute evidence (180.868625ms)
+✔ CUSTOMER portal HTTP security contract (3206.079625ms)
+▶ customer receivable historical authority
+  ✔ applies the Vietnam end-exclusive cutoff to authoritative ledger sources (41.007625ms)
+  ✔ returns deterministic historical evidence metadata (726.320875ms)
+✔ customer receivable historical authority (841.048208ms)
+{"level":30,"time":1792248182421,"pid":95223,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ customer account linkage
+  ✔ creates a CUSTOMER user linked to an existing customer (291.747208ms)
+  ✔ rejects multiple links for a default customer account (237.259792ms)
+  ✔ allows explicit corporate or agency multi-entity accounts only under admin authority (573.862417ms)
+  ✔ rejects a customer link on a non-CUSTOMER role (193.897208ms)
+  ✔ rejects an ACTIVE customer without at least one linked customer (149.499708ms)
+  ✔ allows an INACTIVE customer to be created without customer links (167.442041ms)
+  ✔ creates an ACTIVE clerk without any assignment scope (250.974042ms)
+  ✔ rejects customer/unit/shipment links on a CUS account (204.360125ms)
+  ✔ allows admin-managed optional customer scope for ACCOUNTANT (690.902666ms)
+  ✔ allows ADMIN to manage DRIVER payroll-unit links without auto-creating a driver master (530.950375ms)
+  ✔ rejects non-admin DRIVER payroll-unit assignment mutations (477.00925ms)
+  ✔ rejects non-admin ACCOUNTANT customer-scope assignment (564.531834ms)
+  ✔ rejects an explicit SINGLE_ENTITY update with multiple customer links (403.743125ms)
+  ✔ rejects a token immediately after its customer scope changes (198.652833ms)
+  ✔ revokes a token when a linked customer is soft-deleted (416.582666ms)
+  ✔ clearing scope from a clerk account succeeds — links are no longer meaningful (252.537042ms)
+  ✔ accepts current customer scope for CLERK and ACCOUNTANT tokens (236.563375ms)
+  ✔ tokens issued by the login route pass the first authenticated request for scoped roles (936.963959ms)
+  ✔ rejects stale CLERK scope through API and asset query-token authentication (37.36675ms)
+  ✔ rejects a scoped ACCOUNTANT token immediately after its customer scope changes (43.142958ms)
+  ✖ hides assignment metadata from accountant-scoped user listing (52.977334ms)
+  ✔ rejects clearing links from an ACTIVE customer account (60.026834ms)
+  ✔ soft-deleting a scoped user removes persisted customer-link rows (1217.188792ms)
+  ✔ concurrent delete and scope change cannot leave stale customer-link rows (475.124083ms)
+  ✔ concurrent role and customer-link changes cannot leave an invalid combination (199.779416ms)
+  ✔ rejects a link to a missing customer (26.928666ms)
+✖ customer account linkage (8965.8685ms)
+▶ customer workflow migration safety
+  ✔ enforces the current shipment milestone uniqueness fence only for trip-derived rows (84.202125ms)
+  ✔ keeps the O2C baseline fence and orders additive readiness migrations (15.434208ms)
+✔ customer workflow migration safety (100.093834ms)
+{"level":30,"time":1792248197180,"pid":95645,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ customers screen drawer history endpoints
+  ✔ logistics-history returns only that customer shipments newest-first with total (138.046667ms)
+  ✔ logistics-history honors limit and keeps total (16.213583ms)
+  ✔ history endpoints 404 on unknown and tombstoned customers (105.50975ms)
+  ✔ drawer endpoints deny non-screen roles (176.283916ms)
+  ✔ payment-history returns entries with numeric totals and outstanding (115.074875ms)
+  ✔ CRUD fall-through intact: GET /api/customers/:id still serves the catalog row (16.628791ms)
+✔ customers screen drawer history endpoints (837.529167ms)
+▶ customers screen bulk notify
+  ✔ requires Idempotency-Key on a declared material write (41.089ms)
+  ✔ notifies ACTIVE linked customer users only, with counts (51.144667ms)
+  ✔ replay with same key does not duplicate notifications (34.223459ms)
+  ✔ denies non-screen roles and rejects invalid payloads (118.410083ms)
+✔ customers screen bulk notify (245.374042ms)
+▶ customers screen bulk status (lock/unlock)
+  ✔ requires Idempotency-Key (11.392334ms)
+  ✔ locks and re-activates live customers, skipping tombstones (51.401041ms)
+  ✔ re-activates a locked customer (24.040375ms)
+✔ customers screen bulk status (lock/unlock) (87.130791ms)
+▶ customers screen bulk status: replay + RBAC
+  ✔ replay with same key returns stored response without re-applying (39.125208ms)
+  ✔ denies non-screen roles and rejects invalid payloads (61.727416ms)
+  ✔ restore other customer to ACTIVE for downstream suites (20.779834ms)
+✔ customers screen bulk status: replay + RBAC (121.882459ms)
+▶ customers screen bulk ops audit trail
+  ✔ material writes persist audit rows for the actor (2.428292ms)
+✔ customers screen bulk ops audit trail (2.535ms)
+▶ census: dangling master refs on live shipments
+  ✔ the census LEFT JOIN reports a lot whose cargo_type_id is missing (151.938458ms)
+✔ census: dangling master refs on live shipments (152.841709ms)
+▶ createTrip on a lot with a missing cargo type
+  ✔ refuses with an error naming the lot and the fix, and writes no trip (40.264709ms)
+  ✔ a real trip cargo type must not produce the misleading mismatch error (35.308833ms)
+  ✔ a genuine cargo mismatch (both types real) still rejects with the mismatch error (84.331541ms)
+✔ createTrip on a lot with a missing cargo type (160.176083ms)
+▶ recurrence guards: dangling refs cannot be written
+  ✔ createShipment refuses a dangling cargo_type_id (existing master-refs guard) (17.650541ms)
+  ✔ createShipment refuses a dangling customer_id (existing master-refs guard) (8.014ms)
+  ✔ createTrip cannot seed a phantom cargo type into a lot that has none (18.895167ms)
+  ✔ createTrip without a shipment refuses a dangling cargo_type_id at the write path (5.66875ms)
+  ✔ createTrip refuses a dangling customer_id up front (4.012958ms)
+✔ recurrence guards: dangling refs cannot be written (54.638083ms)
+▶ O2C flow-congestion dashboard alerts
+  ✔ Stall A counts the dispatched-no-order shipment (truck assigned, exchange pending, > 24h) (42.000917ms)
+  ✔ Stall B counts both order-done-no-truck shipments and flags the past-due one as overdue (38.750333ms)
+  ✔ threshold boundary: the 1h-old dispatched-no-order shipment is NOT counted in stall A (5.726459ms)
+✔ O2C flow-congestion dashboard alerts (218.227209ms)
+▶ debit-detail wire carries business keys, never ids
+  ✔ an EXPORT lot renders Số Booking + tờ khai and parses against the wire schema (103.187834ms)
+  ✔ an IMPORT lot renders Số Bill (46.921125ms)
+  ✔ a lot without numbers gets nulls — never a fabricated identifier (48.674958ms)
+✔ debit-detail wire carries business keys, never ids (199.68625ms)
+{"level":30,"time":1792248210400,"pid":96851,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ 20260919 Bảng 2.2 — invoice numbers on chi hộ items
+  ✔ HD numbers ride the chi hộ items wire; invoice-less rows stay null (131.104083ms)
+✔ 20260919 Bảng 2.2 — invoice numbers on chi hộ items (220.197542ms)
+▶ 20260918 debit-detail GET (red-first)
+  ✔ 404 unknown shipment with the dedicated message (13.38575ms)
+  ✔ contract shape: freightRows, chiHoRows with otherFees+opsDocsStatus, payables, thuKhachTotal (94.155583ms)
+  ✔ fresh lot with no data → nulls, never silent zeros (63.167167ms)
+  ✔ REWORK B: containers with no trips/expenses render N null-money rows (lot 157 case) (68.078708ms)
+✔ 20260918 debit-detail GET (red-first) (239.112125ms)
+▶ 20260918 debit-edits PUT (red-first)
+  ✔ missing Idempotency-Key → 400 with the global message (47.936166ms)
+  ✔ edits the editable fields: buy/note on any row, thu khách (sell) only on Phí khác (81.592875ms)
+  ✔ add and remove a Phí khác (OTHER) row (55.889625ms)
+  ✔ Q10 guard: removeExpenseIds without a non-blank removalReason → 400, nothing written (54.251916ms)
+  ✔ idempotency replay applies once — no duplicate rows (30.13475ms)
+  ✔ REWORK: freight-side PS thực tế saves per container and returns on the row (48.562917ms)
+  ✔ unknown payload keys are rejected (read-only stays read-only) (17.731667ms)
+  ✔ 409 with the dedicated message when the lot is debit-locked (61.421792ms)
+✔ 20260918 debit-edits PUT (red-first) (397.974042ms)
+▶ 20260919 card _7 acceptance — producer output parses against the shared contract
+  ✔ schema.parse on the real producer output — legacy and place-named keys absent (141.764833ms)
+✔ 20260919 card _7 acceptance — producer output parses against the shared contract (141.869083ms)
+▶ 20260919 card _16 — thu khách recharge parity: detail == summary L1
+  ✔ non-OTHER rows recharge at derived cost — detail total equals the summary L1 figure (189.718209ms)
+  ✔ OTHER-row typed sell is untouched by the derivation (77.947958ms)
+✔ 20260919 card _16 — thu khách recharge parity: detail == summary L1 (267.847792ms)
+▶ 20260919 card _20 — trip scope parity: dead trips leave both document layers
+  ✔ canceled-trip expense is absent from detail rows AND summary L1; its row 404s on edit (140.757375ms)
+✔ 20260919 card _20 — trip scope parity: dead trips leave both document layers (140.891875ms)
+▶ 20260919 freight scope parity: canceled legs leave L1 like they leave Lớp 2
+  ✔ canceled-trip freight is out of L1; active legs and shipment-issue (null-trip) freezes still count (148.681209ms)
+✔ 20260919 freight scope parity: canceled legs leave L1 like they leave Lớp 2 (148.853834ms)
+▶ 20260924_3 — fulfillment-unattached trips render their own L2 section
+  ✔ unattached trip fees render visible but never chốt-able; linked totals unchanged (32.056ms)
+✔ 20260924_3 — fulfillment-unattached trips render their own L2 section (32.238ms)
+✔ canonical copies reject direct edits/deletes atomically while manual and TRIP self-links remain editable (854.095542ms)
+{"level":30,"time":1792248253136,"pid":97688,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+[debit-note] range falls back to the processing day — the selection carries no expected delivery dates
+▶ 20260918_19 AC #4 — CUS reads + exports the issued Debit Note (finance mount)
+  ✔ CUS GET /finance/billing-documents/:id returns the issued note (was 403 at the casbin mount) (331.808333ms)
+[debit-note] range falls back to the processing day — the selection carries no expected delivery dates
+  ✔ CUS GET /finance/billing-documents/:id/export?format=html returns the printable HTML (was 403 at the casbin mount) (278.147667ms)
+[debit-note] range falls back to the processing day — the selection carries no expected delivery dates
+  ✔ CUS GET /finance/billing-documents (list) stays 403 — no CUS in the list ROLES (164.624791ms)
+[debit-note] range falls back to the processing day — the selection carries no expected delivery dates
+  ✔ DISPATCHER GET detail + export stays 403 (158.272375ms)
+✔ 20260918_19 AC #4 — CUS reads + exports the issued Debit Note (finance mount) (1026.886291ms)
+▶ Debit-note PDF — getDebitNoteData (legacy)
+  ✔ fetches document + non-excluded lines (125.450292ms)
+  ✔ excluded lines are NOT included (31.862667ms)
+  ✔ throws 404 on missing document (7.494292ms)
+✔ Debit-note PDF — getDebitNoteData (legacy) (167.644125ms)
+▶ Debit-note PDF — binary export
+  ✔ returns a real PDF containing Vietnamese-font output (161.646375ms)
+✔ Debit-note PDF — binary export (163.501125ms)
+▶ Debit-note PDF — exportDebitNoteHtml (legacy 2-arg)
+  ✔ generates valid HTML with the document data (2.878333ms)
+  ✔ escapes HTML in descriptions (0.27475ms)
+  ✔ empty lines produces a valid table with just the total row (0.674084ms)
+✔ Debit-note PDF — exportDebitNoteHtml (legacy 2-arg) (4.146ms)
+▶ M5.8 — safeAccentColor
+  ✔ accepts #rrggbb and lowercases (1.078833ms)
+  ✔ expands #rgb to #rrggbb (0.098625ms)
+  ✔ rejects malformed input and falls back to default (0.193083ms)
+  ✔ blocks CSS injection attempts (0.117792ms)
+✔ M5.8 — safeAccentColor (1.808458ms)
+▶ M5.8 — exportDebitNoteHtml with template snapshot (3-arg)
+  ✔ renders the snapshot title (not the legacy default) (0.453375ms)
+  ✔ renders Party A (customer) name (0.288041ms)
+  ✔ renders Party B (issuer) fields from snapshot (0.12775ms)
+  ✔ renders the dynamic column headers (0.231666ms)
+  ✔ renders dynamic cell values via renderColumnValue (0.156791ms)
+  ✔ renders the totals row when a column has total:true (1.4765ms)
+  ✔ renders the signature blocks from snapshot (0.548708ms)
+  ✔ renders the terms text (0.115375ms)
+  ✔ applies the safe accent color (0.034833ms)
+  ✔ escapes HTML in user-supplied fields (8.099208ms)
+✔ M5.8 — exportDebitNoteHtml with template snapshot (3-arg) (12.18075ms)
+▶ M5.8 — exportDebitNoteHtml backward compat
+  ✔ 2-arg call (no snapshot) still renders the legacy layout (0.344375ms)
+  ✔ null snapshot also falls through to legacy (0.651709ms)
+✔ M5.8 — exportDebitNoteHtml backward compat (1.472667ms)
+▶ M5.8 — getDebitNoteForRender (DB integration)
+  ✔ returns hydrated doc + resolved snapshot + customer tax code (85.293167ms)
+  ✔ templateIdOverride re-renders with a different template when provided (25.420834ms)
+  ✔ throws 404 on missing document (14.730666ms)
+✔ M5.8 — getDebitNoteForRender (DB integration) (125.798125ms)
+▶ Card 171026004331 — export?format=pdf|html carries renderData (BKS / Loại xe)
+  ✔ AC1 — customer Debit Note HTML prints the billing BKS + the THU class (114.166375ms)
+  ✔ AC2 — format=pdf returns the same printable page with both values (35.753ms)
+  ✔ AC1b — a stored line WITHOUT renderData is repaired AR-first, exactly like the Excel path (61.812959ms)
+  ✔ AC3 — a carrier statement prints the ACTUAL plate + the TRẢ class (27.870625ms)
+  ✔ AC3b — the payable perspective rule holds on the endpoint repair path too (no stored renderData) (54.962375ms)
+  ✔ AC3c — a customer statement that is not a carrier stays AR (billing BKS + THU class) (63.3705ms)
+  ✔ AC4 — no renderData and nothing resolvable renders as today: empty cells, no invented plate (76.094916ms)
+  ✔ AC5 — money cells, totals, row/column layout are unchanged (43.430458ms)
+  ✔ AC5b — enrichment cannot move money: amounts survive it unchanged (35.672416ms)
+✔ Card 171026004331 — export?format=pdf|html carries renderData (BKS / Loại xe) (517.728208ms)
+✔ stores the incl-VAT fuel surcharge in the canonical freight total without duplicating AR (949.651417ms)
+✔ NO-APP-18B includes directly RECORDED expenses outside the trip completion period (938.412583ms)
+✔ overlapping save conflicts when the first document claims the trip only through expenses, and CANCELED releases it (1513.86325ms)
+✔ concurrent overlapping saves leave one winner and one 409 conflict (391.8335ms)
+✔ expense-only stale preview rejects when the latest e-POD is no longer accepted at save time (246.183625ms)

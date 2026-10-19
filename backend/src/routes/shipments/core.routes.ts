@@ -4,14 +4,16 @@
 // `/:id` root read/update/delete, status transitions, dispatch order issue,
 // direct completion, fulfillment cancellation disposition, submit-for-dispatch,
 // carrier allocations, recovery facts, and the intake support endpoints
-// (operational sites, pricing preview).
+// (operational sites, shipping lines, pricing preview).
 
 import { Router } from 'express';
-import { Role, ShipmentStatus } from '@tingting/shared';
+import { Role, SHIPMENT_INTAKE_MUTATION_ROLES, ShipmentStatus } from '@tingting/shared';
 import { z } from 'zod';
 import {
   cancelShipmentFulfillmentSchema,
   createShipmentSchema,
+  CREATE_SHIPMENT_KEYS,
+  QUICK_CREATE_SHIPMENT_KEYS,
   updateShipmentSchema,
   transitionShipmentStatusSchema,
   quickCreateShipmentSchema,
@@ -41,7 +43,7 @@ import {
   listShipmentReferenceConflicts,
   normalizeDocumentReference,
 } from '../../services/shipment-lifecycle-shared.service';
-import { assignShipmentCarriers, createOperationalSiteForIntake, deleteOperationalSiteForAdmin, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
+import { assignShipmentCarriers, createOperationalSiteForIntake, createShippingLineForIntake, deleteOperationalSiteForAdmin, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
@@ -63,7 +65,7 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
 import {
-  SHIPMENT_INTAKE_MUTATION_ROLES,
+  assertKnownShipmentKeys,
   parseId,
   requireShipmentIdempotencyKey,
   runShipmentWrite,
@@ -92,6 +94,10 @@ const fulfillmentDispatchSchema = z.object({
   // a caller of the shared guard and must carry the confirm flag like the
   // plan-save and reassign endpoints, or its warn has no path on (review B2).
   rigOverlapCompletedConfirmed: z.boolean().optional(),
+  // Card B 18/10 (B.2) — the plate-less EXTERNAL issue warn-once retry: the
+  // first attempt is refused with PLATE_DEFERRED_CONFIRM; the operator's
+  // confirmed retry carries this flag.
+  plateDeferredConfirmed: z.boolean().optional(),
 });
 
 const completeShipmentDirectSchema = z.object({
@@ -301,6 +307,17 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, 'Chỉ được chọn tối đa 50 nhà xe');
   }
 
+  // Card 171026154000: Loại hàng scope — strict values, empty string means
+  // "Tất cả" (no scope).
+  const cargoModeVal = typeof req.query.cargoMode === 'string' ? req.query.cargoMode.trim() : undefined;
+  let cargoMode: 'FCL' | 'LCL' | undefined;
+  if (cargoModeVal !== undefined && cargoModeVal.length > 0) {
+    if (cargoModeVal !== 'FCL' && cargoModeVal !== 'LCL') {
+      throw new ApiError(400, 'Loại hàng lọc không hợp lệ');
+    }
+    cargoMode = cargoModeVal;
+  }
+
   const result = await listShipmentsPaginated({
     page,
     limit,
@@ -316,6 +333,7 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     allocationStatus,
     portIds: portIds.length > 0 ? portIds : undefined,
     carrierKeys: uniqueCarrierKeys.length > 0 ? uniqueCarrierKeys : undefined,
+    cargoMode,
     includeDispatchSummary: req.query.includeDispatchSummary === 'true',
     actor: getUser(req),
   });
@@ -492,6 +510,36 @@ coreRoutes.delete(
   }),
 );
 
+// FB-114 verify-fail (ticket 171026185348): the shipping-line dialog on the
+// intake form must persist into the SHARED catalog on the server, not only
+// the lot's form field. The bootstrap `shippingLines` list derives from
+// DEFAULT_SHIPPING_LINES + SHIPPING_LINE suppliers (config.service.ts), so
+// the create mints that supplier row and busts the bootstrap cache. The name
+// still rides form.shippingLineName for the lot (unchanged free-text
+// contract). Name-keyed idempotent: 201 on create, 200 when the catalog
+// already holds the display name, 409 when a non-shipping-line supplier
+// already holds it.
+const shippingLineCreateSchema = z.object({
+  name: z.string().trim().min(1, 'Vui lòng nhập tên hãng tàu.').max(255, 'Tên hãng tàu tối đa 255 ký tự.'),
+});
+
+coreRoutes.post(
+  '/shipping-lines', declareNonMaterialWrite('Reference-data create (shipping-line supplier catalog entry). Name-keyed idempotent create — a replay returns the existing row instead of duplicating, so no durable command boundary is needed. No financial or shipment-lifecycle mutation.'),
+  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = shippingLineCreateSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const result = await createShippingLineForIntake(parsed.data, getUser(req));
+    if (result.id != null) {
+      // Entity-level master-data change: name the minted supplier row in the
+      // audit entry (the supplier audit label resolves from entityId).
+      res.locals.auditEntityId = result.id;
+      res.locals.auditEntityKey = result.name;
+    }
+    res.status(result.created ? 201 : 200).json(result);
+  }),
+);
+
 coreRoutes.post(
   '/pricing-preview', declareNonMaterialWrite('Read-only shipment pricing calculation preview.'),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
@@ -516,19 +564,13 @@ coreRoutes.post(
   '/', declareMaterialWrite('shipments.create', { method: 'POST', path: '/api/shipments/' }), 
   requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
   asyncHandler(async (req: Request, res: Response) => {
-    // Same contract guard as POST /quick: `containers` is not part of the
-    // create schema, zod strips unknown keys, and a silently-dropped array
-    // means the caller believes containers landed while the lot has none
-    // (and cannot derive a freight-rate key). Point at the reconcile
-    // endpoint, which fires the FCL intake lock. Empty arrays carry no
-    // data and stay accepted.
-    const containersPayload = (req.body as Record<string, unknown> | null | undefined)?.containers;
-    if (Array.isArray(containersPayload) && containersPayload.length > 0) {
-      throw new ApiError(
-        400,
-        'Tạo lô hàng không nhận kèm danh sách container — tạo lô rồi dùng PUT /api/shipments/{id}/containers để khai báo container.',
-      );
-    }
+    // `containers` is not part of the create schema and zod strips unknown
+    // keys, so a silently-dropped array means the caller believes containers
+    // landed while the lot has none (and cannot derive a freight-rate key).
+    // The guard rejects every unknown key — `containers` keeps its own message
+    // pointing at the reconcile endpoint, which fires the FCL intake lock.
+    // Empty arrays carry no data and stay accepted.
+    assertKnownShipmentKeys(req.body, CREATE_SHIPMENT_KEYS, 'tạo lô hàng');
     const parsed = createShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
@@ -579,6 +621,7 @@ coreRoutes.post(
     // containers failure rolls the root back — no 0-cont orphan lots. The
     // schema validates each row with the same contract the reconcile
     // endpoint enforces.
+    assertKnownShipmentKeys(req.body, QUICK_CREATE_SHIPMENT_KEYS, 'tạo lệnh giao nhận nhanh');
     const parsed = quickCreateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     // Header wins; fall back to body channel for the offline-queue lib.
@@ -804,6 +847,7 @@ coreRoutes.post(
       externalDriverName: parsed.data.externalDriverName ?? null,
       externalDriverPhone: parsed.data.externalDriverPhone ?? null,
       rigOverlapCompletedConfirmed: parsed.data.rigOverlapCompletedConfirmed === true,
+      plateDeferredConfirmed: parsed.data.plateDeferredConfirmed === true,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },
     });

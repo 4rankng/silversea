@@ -3,10 +3,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Save, X } from 'lucide-react';
 import { Modal } from '../../components/UI';
 import { Input } from '../../components/untitled-ui/base/input/input';
+import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { api } from '../../lib/api';
 import { CONFIG } from '@tingting/shared';
+import type { TimesheetSalaryMode } from '@tingting/shared';
 import { qk } from '../../api/keys';
+import { SALARY_MODE_OPTIONS } from '../timesheet/salary-modes';
 
 /** The drivers catalog PUT is optimistic-locked (428 without the token), so
  *  the version comes from a freshly loaded driver row — the salary summary
@@ -41,6 +44,9 @@ export function BaseSalaryEditModal({
 }) {
   const [amount, setAmount] = useState(String(currentBaseSalary));
   const [effectiveDate, setEffectiveDate] = useState('');
+  // FB-103 (ticket 171026215600) — chế độ lương PER_TRIP/FLAT_MONTHLY chọn
+  // ngay trong dialog này (QA R21 không tìm thấy chỗ chọn ở bất kỳ đâu).
+  const [salaryMode, setSalaryMode] = useState<TimesheetSalaryMode>('PER_TRIP');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [versionToken, setVersionToken] = useState<string | null>(null);
@@ -63,14 +69,21 @@ export function BaseSalaryEditModal({
 
   // Mint the optimistic-lock token from the live driver row whenever the
   // modal opens — a token captured earlier may be stale after other writes.
+  // The same GET seeds the salary-mode select (FB-103): the current value
+  // comes from the row, so the dialog never guesses a mode the driver
+  // does not have.
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
     setVersionToken(null);
     setTokenError(false);
     api
-      .get<{ updatedAt: string }>(CONFIG.DRIVER(driverId))
-      .then((row) => { if (!cancelled) setVersionToken(row.updatedAt); })
+      .get<{ updatedAt: string; salaryMode?: string }>(CONFIG.DRIVER(driverId))
+      .then((row) => {
+        if (cancelled) return;
+        setVersionToken(row.updatedAt);
+        if (row.salaryMode === 'PER_TRIP' || row.salaryMode === 'FLAT_MONTHLY') setSalaryMode(row.salaryMode);
+      })
       .catch(() => { if (!cancelled) setTokenError(true); });
     return () => { cancelled = true; };
   }, [isOpen, driverId]);
@@ -91,8 +104,8 @@ export function BaseSalaryEditModal({
       // CONFIG.DRIVER — the shared path constant; drivers mount at the bare
       // /api/drivers (config router), never under /config/. The catalog PUT
       // is optimistic-locked: expectedUpdatedAt → If-Unmodified-Since (428
-      // without it).
-      await api.put(CONFIG.DRIVER(driverId), { baseSalary: parsed, salaryEffectiveDate: effectiveDate || null }, { expectedUpdatedAt: versionToken });
+      // without it). salaryMode rides the same row save (FB-103).
+      await api.put(CONFIG.DRIVER(driverId), { baseSalary: parsed, salaryEffectiveDate: effectiveDate || null, salaryMode }, { expectedUpdatedAt: versionToken });
       // Invalidate the salary query so the summary recomputes on next render,
       // and the drivers catalog cache so other surfaces see the new amount.
       await queryClient.invalidateQueries({ queryKey: qk.salary.driverSalaryAll });
@@ -153,6 +166,15 @@ export function BaseSalaryEditModal({
           placeholder="Ví dụ: 8000000"
           inputClassName="tabular-nums"
         />
+        {/* FB-103 (ticket 171026215600) — chỗ chọn chế độ lương mà QA R21
+            không tìm thấy: ngay trong dialog "Sửa lương cứng". Lưu cùng lần
+            ghi lương cứng; là mặc định khi mở bảng chấm công tháng mới. */}
+        <UuiSelectField
+          label="Hình thức lương"
+          value={salaryMode}
+          onChange={event => setSalaryMode(event.target.value as TimesheetSalaryMode)}
+          options={SALARY_MODE_OPTIONS}
+        />
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 'var(--text-body-size)' }}>
           Ngày hiệu lực
           <DateInput
@@ -175,7 +197,8 @@ export function BaseSalaryEditModal({
         )}
         <p style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)', margin: 0 }}>
           Thay đổi lương cấu hình hiện tại và các kỳ chưa chốt khi tính lại. Kỳ đã khóa hoặc đã xác nhận
-          giữ nguyên giá trị đã tính. Kiểm tra đúng lái xe trước khi lưu.
+          giữ nguyên giá trị đã tính. Hình thức lương là mặc định khi mở bảng chấm công tháng mới; bảng
+          đã mở đổi chế độ riêng ở Đối chiếu chấm công. Kiểm tra đúng lái xe trước khi lưu.
         </p>
       </div>
     </Modal>

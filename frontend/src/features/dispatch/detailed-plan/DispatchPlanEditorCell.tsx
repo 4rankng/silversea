@@ -4,6 +4,7 @@ import { Plus, Save } from 'lucide-react';
 import type { DispatchClassification } from '@tingting/shared';
 import {
   listDispatchFleetResources,
+  updateLclTruck,
   type DispatchCarrierVehicle,
   type DispatchDetailPlanRow,
   type DispatchExternalCarrier,
@@ -31,6 +32,7 @@ import {
   vehicleValueForRow,
 } from './DispatchPlanCellValues';
 import { DispatchTaskTagEditor } from './DispatchTaskTagEditor';
+import { draftGroupPlate, LclGroupTruckLine } from './LclGroupTruckEditDialog';
 import { DispatchClassificationField } from './DispatchClassificationField';
 import { IssueOrderFields } from './IssueOrderFields';
 import { useIssueOrder } from './useIssueOrder';
@@ -100,6 +102,10 @@ interface DispatchPlanEditorCellProps {
     row: DispatchDetailPlanRow,
     body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
   ) => Promise<IssueOrderResult>;
+  /** Card 191026100010 (DV-B1-04) — "Đổi BKS nhóm" từ popup điều phối: dòng
+   *  LCL đã ghép nhóm render một dòng nhóm + nút raise page (page owns
+   *  dialog + refetch). Unwired = không dòng, không nút chết. */
+  onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
   disabled?: boolean;
 }
 
@@ -218,7 +224,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * hợp flag is CUS-owned and has no control here — the checkbox was removed as
  * redundant with the Kết hợp classification.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, disabled = false }: DispatchPlanEditorCellProps) {
+export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, disabled = false }: DispatchPlanEditorCellProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const restoreFocusRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -658,6 +664,24 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       setError('Biển số đã chọn không hợp lệ.');
       return;
     }
+    // Card 191026100010 (DV-B1-04) — ô Xe/biển số của dòng LCL đã ghép nhóm
+    // không được đẩy plan-save chỉ-hàng: BKS là dữ liệu CHUNG của nhóm (Debit
+    // in BKS ảo theo nhóm, grid hiện một BKS cho cả nhóm). Clear ('' →
+    // clearVehicle) bị từ chối tại đây — bỏ BKS riêng lẻ sẽ làm vỡ nhóm im
+    // lặng; đổi/bỏ BKS đi qua "Đổi BKS nhóm". Draft đổi sang biển MỚI thì
+    // updateLclTruck (lan cả nhóm) chạy TRƯỚC plan save; lỗi nó hủy luôn
+    // save, không bao giờ để một lô trên BKS mới và các lô còn trên BKS cũ.
+    const lclGroup = row.cargoMode === 'LCL' ? row.lcl?.group ?? null : null;
+    if (lclGroup && vehicleChanged && body.clearVehicle) {
+      setError('Lô này thuộc nhóm ghép — BKS là của cả nhóm. Dùng "Đổi BKS nhóm" để đổi hoặc bỏ BKS cả nhóm.');
+      return;
+    }
+    const groupNewPlate = lclGroup && vehicleChanged
+      ? draftGroupPlate(draft.vehicleValue, selectableVehicleOptions)
+      : null;
+    // Cùng biển (re-pick xe đã gán) thì không đả động dữ liệu nhóm.
+    const groupPlateChanged = groupNewPlate != null && lclGroup != null
+      && plateCompareKey(groupNewPlate) !== plateCompareKey(lclGroup.actualTruckNo ?? '');
     // Giờ trả hàng: omit = untouched, null = clear, zone-aware ISO = set —
     // mirroring the backend's atomic-save contract exactly. The completeness
     // ref distinguishes an intentional clear (all segments emptied) from a
@@ -695,6 +719,17 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       await onAtomicSave(row, { ...saveBody, ...extra });
     };
     try {
+      // Card 191026100010 (DV-B1-04) — nhóm đổi BKS TRƯỚC khi plan save cam
+      // kết; lỗi của updateLclTruck (vd 409 "Nhóm ghép đã chốt kế toán")
+      // hủy luôn save và hiện đúng message đó trong dialog — không partial.
+      if (groupPlateChanged && groupNewPlate != null) {
+        try {
+          await updateLclTruck({ shipmentId: row.shipmentId, actualTruckNo: groupNewPlate });
+        } catch (truckError) {
+          setError(truckError instanceof Error ? truckError.message : 'Không thể đổi BKS nhóm. Thử lại.');
+          return;
+        }
+      }
       await attemptSave({});
       restoreFocusRef.current = true;
       setOpen(false);
@@ -879,7 +914,35 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           </>
         )}
       >
-        <form className="dispatch-assignment-dialog" noValidate aria-busy={saving} onSubmit={(event) => { event.preventDefault(); void save(); }}>
+        <form className="dispatch-assignment-dialog" noValidate aria-busy={saving} onSubmit={(event) => { event.preventDefault(); void save(); }}
+          onKeyDown={(event) => {
+            // FB-002 (cards 181026000027 + 171026215500): the "Lưu thay đổi"
+            // button lives in the modal FOOTER, outside this form, and every
+            // in-form button is type="button" — so the browser's implicit
+            // submission never fires and Enter went dead in the dialog's
+            // fields (the giờ trả hàng segments included). The form answers
+            // Enter itself, through the same save the footer button rides
+            // (requestSubmit keeps the noValidate contract explicit). The
+            // segmented datetime field lets a COMPLETE draft's Enter bubble
+            // here and still swallows incomplete ones itself — never steal
+            // a key the field already handled.
+            if (event.defaultPrevented) return;
+            if (event.key !== 'Enter' || event.nativeEvent.isComposing || saving || issuing || saveDisabledReason) return;
+            const target = event.target as HTMLElement;
+            if (target.closest('[data-date-picker], .time-picker__popup, [data-time-picker-overlay]')) return;
+            if (target.isContentEditable || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.closest('.searchable-select, [role="listbox"], [role="option"], .dispatch-assignment-dialog__issue')) return;
+            // Bare Enter in the note textarea inserts a newline; Ctrl/Cmd+Enter
+            // saves — same law as the CUS quick-edit modal.
+            if (target.tagName === 'TEXTAREA' && !event.ctrlKey && !event.metaKey) return;
+            if (event.shiftKey) return;
+            event.preventDefault();
+            event.currentTarget.requestSubmit();
+          }}>
+          {/* Card 191026100010 (DV-B1-04) — dòng LCL đã ghép nhóm: dòng BKS
+              nhóm + nút raise page-owned "Đổi BKS nhóm" dialog. Direct form
+              child (không nằm trong __fields grid — grid đã chốt areas).
+              Unwired = không render (cùng luật badge FB-095). */}
+          <LclGroupTruckLine row={row} disabled={saving || issuing} onChange={onChangeGroupTruck} />
           <div className="dispatch-assignment-dialog__fields">
             <label htmlFor={`dispatch-carrier-${row.fulfillmentId}`} className="dispatch-assignment-dialog__carrier">
               <span>Nhà xe</span>

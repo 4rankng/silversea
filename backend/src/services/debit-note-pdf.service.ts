@@ -31,6 +31,7 @@ import {
 import type {
   BillingDocument,
   BillingDocumentLine,
+  BillingLineRenderData,
   DebitNoteTemplateSnapshot,
   DebitNoteTemplateColumn,
 } from '@tingting/shared';
@@ -58,6 +59,16 @@ export interface DebitNotePdfData {
     taxAmount?: string;
     grossAmount?: string;
     routeName: string | null;
+    /**
+     * Card 171026004331: the two plate/class bindings the default template's
+     * `bien_so` (truckPlate) and `loai_xe` (vehicleType) cells read. The caller
+     * resolves them with `enrichLinesForDebitNoteRender` — the same FB-094 lot
+     * claim / AR-vs-AP perspective rule the XLSX path uses — so the customer
+     * note prints the billing BKS + THU class and the carrier statement the
+     * actual plate + TRẢ class. Absent/null ⇒ both cells stay empty, exactly
+     * as before that fix.
+     */
+    renderData?: Pick<BillingLineRenderData, 'truckPlate' | 'vehicleType'> | null;
   }>;
   status: string | null;
 }
@@ -213,11 +224,13 @@ export function exportDebitNoteHtml(
   const accent = safeAccentColor(snapshot.accentColor);
   const visibleColumns = (snapshot.columns ?? []).filter(c => c.width > 0);
 
-  // Build the rich line payload from the legacy data shape. The legacy
-  // shape lacks renderData, so variable bindings that depend on it
-  // (truckPlate, containerCounts, freightAmount, etc.) fall through to
-  // null — the caller should prefer getDebitNoteForRender() for full
-  // fidelity. This branch is exercised by the existing Wave-2 test.
+  // Build the rich line payload from the legacy data shape. Every binding the
+  // legacy shape pins (baseAmount/amountOverride precedence, unit, container
+  // columns, ordering) is kept exactly as projected, so a document renders
+  // cell-for-cell as it did before; only `renderData` — the FB-094 plate +
+  // billing class the template's bien_so / loai_xe cells read — is carried
+  // through. The caller resolves it with `enrichLinesForDebitNoteRender`
+  // (getDebitNoteForRender → route); without it both cells stay empty.
   const richLines: BillingDocumentLine[] = data.lines.map(l => ({
     sourceType: 'ADHOC',
     sourceId: null,
@@ -227,7 +240,7 @@ export function exportDebitNoteHtml(
     description: l.description,
     routeName: l.routeName,
     containerNumbers: null,
-    renderData: null,
+    renderData: l.renderData ?? null,
     baseAmount: Number(l.baseAmount),
     amountOverride: null,
     excluded: false,

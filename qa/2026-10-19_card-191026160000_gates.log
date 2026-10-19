@@ -1,0 +1,54 @@
+== Gates card 191026160000 (chiphi2-b) — 2026-10-19T11:25:14Z ==
+== worktree fix-chiphi2-b @ eed0b2f3 ==
+
+$ pnpm lint
+
+> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-chiphi2-b
+> eslint .
+
+exit=0
+
+$ cd backend && npx tsc --noEmit
+exit=0
+
+$ cd frontend && npx tsc -b
+exit=0
+
+$ cd backend && npx tsx --test --test-concurrency=1 <advance/settlement/debit suites>
+  ✔ số âm báo cáo: remainingSigned âm + còn tiền đã cấp → đề nghị thu tiền ứng (59.351958ms)
+  ✔ 141026230770(c): yêu cầu đã ghi nhận không bị báo cáo về 0 — ĐÃ ỨNG hiện số, chênh lệch có dấu (30.205042ms)
+  ✔ 141026230770(b): tiêu vượt số được cấp — outstandingSigned âm thay vì ép 0, sổ quỹ vẫn 0 (32.706709ms)
+✔ card 20261005 — chốt hoàn ứng (189.34075ms)
+ℹ tests 41
+ℹ suites 7
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 137478.633166
+
+$ make build
+dist/assets/index-BIpuWTaY.js                            771.12 kB │ gzip: 221.21 kB
+dist/assets/exceljs.min-CcmEv2LI.js                      940.20 kB │ gzip: 271.34 kB
+✓ built in 6.05s
+exit=0
+== Gates card 191026160000 (chiphi2-b) FINAL — 2026-10-19T11:49:27Z ==
+== worktree fix-chiphi2-b @ eed0b2f3 ==
+
+$ pnpm lint → exit 0 (eslint clean)
+$ cd backend && npx tsc --noEmit → exit 0
+$ cd frontend && npx tsc -b → exit 0
+$ cd frontend && npx vitest run <23 touched suites> → 215/215 pass (qa/2026-10-19_card-191026160000_vitest-fe.log)
+$ cd backend && npx tsx --test --test-concurrency=1 <7 advance/settlement/debit suites> → 41/41 pass
+$ make build → exit 0 (see below re-run)
+dist/assets/exceljs.min-CcmEv2LI.js                      940.20 kB │ gzip: 271.34 kB
+✓ built in 6.33s
+build exit=0
+== Fixup round 2 (review F3/F6 + CP2-D3/D4 timeout root fix) — 2026-10-19T12:46:41Z ==
+$ pnpm lint → 0
+$ be tsc --noEmit → 0
+$ fe tsc -b → 0 (16.5s)
+$ fe vitest touched suites → 230/230 (incl. AccountingDebitClosePage.chiphi2 4/4 ×4 stability runs)
+$ be advance-settlement-check → 1/1 (same-actor guard pinned); advance-settlement-deadlock-order → 2/2
+$ make build → 0

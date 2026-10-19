@@ -1,0 +1,98 @@
+▶ C5 (card 1016212936) — the customer debt report reads the same override channel
+  ✖ C5-01: the debt line cước thu equals the CUS board figure for the merged pair (100%/0₫ + note) (126.784208ms)
+  ✖ C5-02: an ungrouped, un-overridden LCL lot keeps the snapshot grain byte-for-byte (14.7895ms)
+  ✖ C5-03: an override-stamped FCL lot keeps the snapshot channel (LCL-only scope) (10.639542ms)
+  ✖ C5-04: after an FB-095 un-merge the stamped survivor keeps 100%, the leaver reads 0₫ + the transfer note (52.941834ms)
+✖ C5 (card 1016212936) — the customer debt report reads the same override channel (205.680875ms)
+ℹ tests 4
+ℹ suites 1
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31042.238709
+
+✖ failing tests:
+
+test at src/tests/lcl-grouping.test.ts:1:42908
+✖ C5-01: the debt line cước thu equals the CUS board figure for the merged pair (100%/0₫ + note) (126.784208ms)
+  AssertionError [ERR_ASSERTION]: debt Lô 1 = CUS Quyết toán Lô 1
+  + actual - expected
+  
+  + 1200000
+  - 3150000
+  
+      at TestContext.<anonymous> (/Volumes/LexarSSD/projects/silversea/backend/src/tests/lcl-grouping.test.ts:1101:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1200000,
+    expected: 3150000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/tests/lcl-grouping.test.ts:1:44522
+✖ C5-02: an ungrouped, un-overridden LCL lot keeps the snapshot grain byte-for-byte (14.7895ms)
+  AssertionError [ERR_ASSERTION]: no note outside the group law
+  + actual - expected
+  
+  + undefined
+  - null
+  
+      at TestContext.<anonymous> (/Volumes/LexarSSD/projects/silversea/backend/src/tests/lcl-grouping.test.ts:1129:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/tests/lcl-grouping.test.ts:1:45308
+✖ C5-03: an override-stamped FCL lot keeps the snapshot channel (LCL-only scope) (10.639542ms)
+  AssertionError [ERR_ASSERTION]: no note outside the LCL domain
+  + actual - expected
+  
+  + undefined
+  - null
+  
+      at TestContext.<anonymous> (/Volumes/LexarSSD/projects/silversea/backend/src/tests/lcl-grouping.test.ts:1148:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/tests/lcl-grouping.test.ts:1:46214
+✖ C5-04: after an FB-095 un-merge the stamped survivor keeps 100%, the leaver reads 0₫ + the transfer note (52.941834ms)
+  AssertionError [ERR_ASSERTION]: the promoted survivor keeps 100% of the bill money
+  + actual - expected
+  
+  + 900000
+  - 3150000
+  
+      at TestContext.<anonymous> (/Volumes/LexarSSD/projects/silversea/backend/src/tests/lcl-grouping.test.ts:1161:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 900000,
+    expected: 3150000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

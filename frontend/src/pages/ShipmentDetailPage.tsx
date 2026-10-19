@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, FileText, FileCheck2, Container, History, Loader2, Trash2, X,
+  ArrowLeft, FileText, FileCheck2, Container, History, Loader2, Trash2, X, Plus,
 } from 'lucide-react';
 import { ApiError } from '../lib/api';
 import { PageHeader, Modal } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState } from '../design-system';
+import { resolveLiftDropPoints } from '../features/shipments/liftDropPoints';
 import { qk } from '../api/keys';
 import { expenseAccountingClient } from '../api/expenseAccountingClient';
 import { ExpenseCreateDrawer } from '../features/expense-accounting/ExpenseCreateDrawer';
@@ -209,6 +210,12 @@ export default function ShipmentDetailPage() {
     }
   }, [data, declDeleteTarget, declSaving, fetchDetail]);
 
+  // Card 171026182554 (supersedes FB-086's composition point here): adding or
+  // removing a lot's containers now lives ONLY in the Tổng quan drawer
+  // (/shipments). The detail screen stays read + business-edit; a second
+  // composition surface raced the drawer's optimistic version and dead-ended
+  // its dialog on 409s.
+
   if (loading) {
     return (
       <div className="shipment-detail shipment-detail--loading">
@@ -242,6 +249,29 @@ export default function ShipmentDetailPage() {
   const canDeclareCost = !accountingLock
     && (user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT);
   const carrierAllocationSummary = allocationSummaryFromDetail(data);
+  // FB-106 (card 171026115810) — "Tạo lô mới" đi thẳng tới /shipments/new.
+  // Cùng bộ vai trò với ShipmentsPage.canCreateShipment và route guard
+  // `shipmentCreatorOnly` (App.tsx): vai trò mà route tạo lô từ chối thì
+  // không được thấy nút này.
+  const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS
+    || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER;
+  // FB-107 (card 171026115820) — Nơi nhận / Nơi giao là hai điểm Nâng/Hạ thật
+  // của lô, theo đúng một luật dùng chung (`resolveLiftDropPoints`): FCL lấy
+  // tên cảng của container (không đảo theo chiều), LCL đổi vai theo Nhập/Xuất
+  // (Nhập: Nâng = Kho, Hạ = Nhà máy; Xuất: ngược lại). Hai cột
+  // pickup_location/delivery_location được form tạo lô ghi đúng chiều cho hàng
+  // lẻ (FB-105) và là dự phòng khi nửa điểm chưa từng chọn danh mục — các lô
+  // tạo trước FB-105/seed có thể để trống cả hai.
+  const liftDropPoints = resolveLiftDropPoints({
+    cargoMode: shipment.cargoMode,
+    tradeDirection: shipment.tradeDirection,
+    warehouseName: shipment.pickupWarehouseSiteName,
+    factoryName: shipment.effectiveFactoryName ?? shipment.factoryName,
+    containerLiftNames: containers.map((container) => container.pickupPortName),
+    containerDropNames: containers.map((container) => container.dropoffPortName),
+    liftFallback: shipment.pickupLocation,
+    dropFallback: shipment.deliveryLocation,
+  });
   const lockReason = accountingLock
     ? `Khóa lô do CUS${accountingLock.activatedByName ? ` (${accountingLock.activatedByName})` : ''}${accountingLock.activatedAt ? ` lúc ${formatDateTime(accountingLock.activatedAt)}` : ''}. ${accountingLock.reason}`
     : null;
@@ -258,7 +288,7 @@ export default function ShipmentDetailPage() {
         description={`Trạng thái: ${SHIPMENT_STATUS_LABELS[shipment.status]}`}
         onBack={() => navigate('/shipments')}
         action={
-          (canDeclareCost || canDeleteLot) ? (
+          (canDeclareCost || canCreateShipment || canDeleteLot) ? (
             <>
               {canDeclareCost && (
                 <button
@@ -267,6 +297,15 @@ export default function ShipmentDetailPage() {
                   onClick={() => setCostDrawerOpen(true)}
                 >
                   Khai chi phí
+                </button>
+              )}
+              {canCreateShipment && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => navigate('/shipments/new')}
+                >
+                  <Plus size={14} aria-hidden="true" /> Tạo lô mới
                 </button>
               )}
               {canDeleteLot && (
@@ -295,8 +334,8 @@ export default function ShipmentDetailPage() {
             <div><dt>Khách hàng</dt><dd>{customerLabel}</dd></div>
             <div><dt>Mã đặt chỗ</dt><dd>{shipment.bookingRef ?? '—'}</dd></div>
             <div><dt>Số B/L</dt><dd>{shipment.blNumber ?? '—'}</dd></div>
-            <div><dt>Nơi nhận</dt><dd>{shipment.pickupLocation ?? '—'}</dd></div>
-            <div><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
+            <div><dt>Nâng</dt><dd>{liftDropPoints.lift ?? '—'}</dd></div>
+            <div><dt>Hạ</dt><dd>{liftDropPoints.drop ?? '—'}</dd></div>
             <div><dt>Liên hệ</dt><dd>{shipment.contactName ?? '—'}{shipment.contactPhone ? ` · ${shipment.contactPhone}` : ''}</dd></div>
             <div><dt>Ngày tạo</dt><dd>{formatDateTime(shipment.createdAt)}</dd></div>
             <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>
@@ -386,11 +425,27 @@ export default function ShipmentDetailPage() {
           </section>
         )}
 
-        <ShipmentDetailContainers containers={containers} assignments={data.carrierAssignments} />
+        <ShipmentDetailContainers
+          containers={containers}
+          assignments={data.carrierAssignments}
+        />
 
         {/* Documents */}
+        {/* chiphispec §1 — the cost-entry affordance must not hide from OPS:
+            the expense panel (with "+ Thêm khoản chi") mounts for OPS too, the
+            finance-only ShipmentFinancePanel keeps its original role set. */}
+        {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.OPS].includes(user?.role as Role) && (
+          <ShipmentExpensePanel shipmentId={shipment.id} shipmentCode={shipmentLabel} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS}
+            carrier={(() => {
+              // chiphispec QA 181026183500 — "Nhà cung cấp" defaults to the
+              // route's truck: the lot's first EXTERNAL carrier assignment
+              // (drawer matches by supplierId, falls back by name).
+              const external = data.carrierAssignments.find(a => a.carrierType === 'EXTERNAL' && (a.externalCarrierId != null || a.externalCarrierName));
+              return external ? { supplierId: external.externalCarrierId, name: external.externalCarrierName } : undefined;
+            })()} />
+        )}
         {[Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS].includes(user?.role as Role) && (
-          <><ShipmentExpensePanel shipmentId={shipment.id} shipmentCode={shipmentLabel} readOnly={Boolean(accountingLock)} chargeOnly={user?.role === Role.CUS} /><ShipmentFinancePanel shipmentId={shipment.id} accountingLocked={Boolean(accountingLock)} /></>
+          <ShipmentFinancePanel shipmentId={shipment.id} accountingLocked={Boolean(accountingLock)} />
         )}
 
         <section className="shipment-detail__card">

@@ -17,29 +17,16 @@
 // — the scopedByCustomer helper (Wave 0) is used when a CUSTOMER-role user
 // requests milestones through the portal.
 
-import { db, type Executor } from '../db';
+import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { and, desc, eq, inArray } from 'drizzle-orm';
-import { ApiError } from '../errors';
+import { and, desc, eq } from 'drizzle-orm';
 import { TripStatus } from '@tingting/shared';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
 
 type MilestoneType = typeof s.shipmentMilestones.$inferSelect['type'];
-
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-export interface AddMilestoneInput {
-  shipmentId: number;
-  type: MilestoneType;
-  note?: string | null;
-  tripId?: number | null;
-  changedBy?: number | null;
-  /** When the milestone occurred (operator may backdate). Defaults to now. */
-  occurredAt?: Date | null;
-}
 
 // ─── Derivation from trip status ────────────────────────────────────────────
 
@@ -124,31 +111,6 @@ export async function deriveMilestoneFromTripStatus(
   await runInTx(transaction, execute);
 }
 
-// ─── Manual milestone entry ─────────────────────────────────────────────────
-
-/**
- * Add a manual milestone (CUS staff entry). Append-only — no update or delete.
- */
-export async function addManualMilestone(input: AddMilestoneInput, executor: Executor = db) {
-  // Verify the shipment exists.
-  const [shipment] = await executor.select({ id: s.shipments.id })
-    .from(s.shipments)
-    .where(and(eq(s.shipments.id, input.shipmentId)))
-    .limit(1);
-  if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
-
-  const [milestone] = await executor.insert(s.shipmentMilestones).values({
-    shipmentId: input.shipmentId,
-    type: input.type,
-    note: input.note ?? null,
-    tripId: input.tripId ?? null,
-    changedBy: input.changedBy ?? null,
-    occurredAt: input.occurredAt ?? new Date(),
-  }).returning();
-
-  return milestone;
-}
-
 // ─── List milestones ────────────────────────────────────────────────────────
 
 /**
@@ -160,17 +122,5 @@ export async function listMilestones(shipmentId: number) {
   return await db.select()
     .from(s.shipmentMilestones)
     .where(eq(s.shipmentMilestones.shipmentId, shipmentId))
-    .orderBy(desc(s.shipmentMilestones.occurredAt));
-}
-
-/**
- * List milestones for multiple shipments (used by the customer portal to show
- * a customer's shipment timeline across all their shipments).
- */
-export async function listMilestonesForShipments(shipmentIds: number[]) {
-  if (shipmentIds.length === 0) return [];
-  return await db.select()
-    .from(s.shipmentMilestones)
-    .where(inArray(s.shipmentMilestones.shipmentId, shipmentIds))
     .orderBy(desc(s.shipmentMilestones.occurredAt));
 }

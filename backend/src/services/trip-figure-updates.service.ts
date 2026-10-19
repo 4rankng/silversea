@@ -12,7 +12,7 @@ import type { TripLegInput } from '@tingting/shared';
 import { resolveTripDriverSalary, computeTripTotals } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { assertCompletionNotBeforeDeparture } from './trip-status-machine.service';
-import { assertTripRigAvailable } from './dispatch-planning-detail-plan.service';
+import { assertTripRigAvailable } from './dispatch-plan-conflict-scan.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { propagateTripFinancialSourceChange } from './source-change.service';
 import { createFinancialPosting, getActiveFinancialPosting } from './financial-posting.service';

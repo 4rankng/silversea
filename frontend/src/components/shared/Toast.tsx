@@ -34,6 +34,13 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
+/** Null-safe variant for shared surfaces (e.g. DetailedPlanGrid) mounted in
+ *  hosts without the provider — callers degrade to no-toast instead of
+ *  crashing the surface. */
+export function useToastOptional(): ToastContextValue | null {
+  return useContext(ToastContext);
+}
+
 const ICONS: Record<ToastKind, React.ComponentType<{ size?: number; className?: string }>> = {
   success: CheckCircle,
   error: XCircle,

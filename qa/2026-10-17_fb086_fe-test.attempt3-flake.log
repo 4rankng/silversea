@@ -1,0 +1,309 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/frontend
+> vitest run
+
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/frontend
+
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx (11 tests | 2 failed) 27507ms
+   × khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp 7409ms
+   × lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng 8834ms
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx (60 tests | 1 failed) 27562ms
+     × UI-CD-12 selects the actual container factory and submits its site id 5921ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx (20 tests | 1 failed) 41516ms
+     × mode switch keeps identity fields and wipes only mode-scoped cargo data 11273ms
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx (69 tests | 2 failed) 43938ms
+     × keeps 'MSCU1234567' in the editor trigger/title and Cancel preserves the exact row 7955ms
+     × keeps 'BL-2026-010' in the editor trigger/title and Cancel preserves the exact row 5186ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/ShipmentsPage.test.tsx (136 tests | 1 failed) 73683ms
+     × row actions: text "Chi tiết" without an icon; no trash on the row 5334ms
+Not implemented: navigation to another Document
+ ❯ src/components/work-inbox/RoleWorkInbox.test.tsx (22 tests | 1 failed) 3370ms
+     × preserves restored queue and page through first asynchronous customer scope hydration (UI43) 1597ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > row actions: text "Chi tiết" without an icon; no trash on the row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:321:3
+    319|   // link — no chevron icon, and the lot-delete affordance leaves the …
+    320|   // entirely (it moves into the drawer header).
+    321|   it('row actions: text "Chi tiết" without an icon; no trash on the ro…
+       |   ^
+    322|     renderPage();
+    323|     await screen.findByRole('table');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  src/components/work-inbox/RoleWorkInbox.test.tsx > RoleWorkInbox > preserves restored queue and page through first asynchronous customer scope hydration (UI43)
+AssertionError: expected "vi.fn()" to be called 2 times, but got 3 times
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<main[39m
+        [33mclass[39m=[32m"role-work-inbox role-work-inbox--customer"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"role-work-inbox__header"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"page-header page-header--actions-only page-header--has-action"[39m
+          [36m>[39m
+            [36m<h1[39m
+              [33mclass[39m=[32m"page-header__title-visible"[39m
+            [36m>[39m
+              [0mTheo dõi lô hàng[0m
+            [36m</h1>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"page-actions"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"role-work-inbox__refresh"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-refresh-cw"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"15"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"15"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M21 3v5h-5"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M8 16H3v5"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [0m Làm mới[0m
+              [36m</button>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mMô tả[0m
+          [36m</p>[39m
+        [36m</header>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Trạng thái công việc"[39m
+          [33mclass[39m=[32m"ds-tabs ds-tabs--boxed d-tabs-boxed role-work-inbox__tabs"[39m
+          [33mdata-control-group[39m=[32m"compact"[39m
+          [33mrole[39m=[32m"tablist"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-controls[39m=[32m"role-inbox-panel-customer"[39m
+            [33maria-label[39m=[32m"Cần xác nhận 0"[39m
+            [33maria-selected[39m=[32m"false"[39m
+            [33mclass[39m=[32m"ds-tabs__btn d-tab"[39m
+            [33mid[39m=[32m"ds-tab-_r_0_-0"[39m
+            [33mrole[39m=[32m"tab"[39m
+            [33mtabindex[39m=[32m"-1"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"ds-tabs__label"[39m
+            [36m>[39m
+              [0mCần xác nhận[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"ds-tabs__count ds-tabs__count--warning"[39m
+            [36m>[39m
+              [0m0[0m
+            [36m</span>[39m
+          [36m</button>[39m
+          [36m<button[39m
+            [33maria-controls[39m=[32m"role-inbox-panel-customer"[39m
+            [33maria-label[39m=[32m"Đang xử lý 0"[39m
+            [33maria-selected[39m=[32m"true"[39m
+            [33mclass[39m=[32m"ds-tabs__btn d-tab ds-tabs__btn--active"[39m
+            [33mid[39m=[32m"ds-tab-_r_0_-1"[39m
+            [33mrole[39m=[32m"tab"[39m
+            [33mtabindex[39m=[32m"0"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"ds-tabs__label"[39m
+            [36m>[39m
+              [0mĐang xử lý[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"ds-tabs__count ds-tabs__count--info  ds-tabs__count--active"[39m
+            [36m>[39m
+              [0m0[0m
+            [36m</span>[39m
+          [36m</button>[39m
+          [36m<button[39m
+            [33maria-controls[39m=[32m"role-inbox-panel-customer"[39m
+            [33maria-label[39m=[32m"Hoàn tất 0"[39m
+            [33maria-selected[39m=[32m"false"[39m
+            [33mclass[39m=[32m"ds-tabs__btn d-tab"[39m
+            [33mid[39m=[32m"ds-tab-_r_0_-2"[39m
+            [33mrole[39m=[32m"tab"[39m
+            [33mtabindex[39m=[32m"-1"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"ds-tabs__label"[39m
+            [36m>[39m
+              [0mHoàn tất[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"ds-tabs__count ds-tabs__count--accent"[39m
+            [36m>[39m
+              [0m0[0m
+            [36m</span>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<section[39m
+          [33maria-label[39m=[32m"Đang xử lý"[39m
+          [33mid[39m=[32m"role-inbox-panel-customer"[39m
+          [33mrole[39m=[32m"tabpanel"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"role-work-inbox__state"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-circle-check"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"24"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"24"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"12"[39m
+                [33mcy[39m=[32m"12"[39m
+                [33mr[39m=[32m"10"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m9 12 2 2 4-4"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0m Không có việc trong nhóm này.[0m
+          [36m</div>[39m
+        [36m</section>[39m
+      [36m</main>[39m
+      [36m<output[39m
+        [33mdata-testid[39m=[32m"inbox-location"[39m
+      [36m>[39m
+        [0m/portal/shipments[0m
+        [0m?tab=1[0m
+      [36m</output>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ src/components/work-inbox/RoleWorkInbox.test.tsx:118:40
+    116|     view.rerender(<RoleWorkInbox role="customer" title="Theo dõi lô hà…
+    117|     view.rerender(<RoleWorkInbox role="customer" title="Theo dõi lô hà…
+    118|     await waitFor(() => expect(apiGet).toHaveBeenCalledTimes(2));
+       |                                        ^
+    119|     expect(apiGet.mock.calls.every(([path]) => String(path).includes('…
+    120|     expect(screen.getByTestId('inbox-location').textContent).toBe(rout…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:29:1
+     27| }
+     28| beforeEach(() => { createBatch.mockReset().mockResolvedValue({ items: …
+     29| it('khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload ma…
+       | ^
+     30|   const onClose = vi.fn(); const onSaved = vi.fn();
+     31|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:47:1
+     45|   expect(screen.getByRole('status')).toHaveTextContent('Đã lưu khoản c…
+     46| });
+     47| it('lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì…
+       | ^
+     48|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+     49|   fireEvent.click(screen.getByRole('button', { name: '+ Thêm dòng' }));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > UI52-B editor business identity > keeps 'MSCU1234567' in the editor trigger/title and Cancel preserves the exact row
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > UI52-B editor business identity > keeps 'BL-2026-010' in the editor trigger/title and Cancel preserves the exact row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx:191:4
+    189|     { container: null, bill: null, expected: 'Chưa có số Bill/Booking'…
+    190|     { container: ' ', bill: ' ', expected: 'Chưa có số Bill/Booking' },
+    191|   ])('keeps $expected in the editor trigger/title and Cancel preserves…
+       |    ^
+    192|     mockFleetResources();
+    193|     const original = row();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  src/features/shipments/detail/ShipmentContainerLedger.test.tsx > ShipmentContainerLedger inline editor dismissal > UI-CD-12 selects the actual container factory and submits its site id
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx:210:3
+    208|
+    209| describe('ShipmentContainerLedger inline editor dismissal', () => {
+    210|   it('UI-CD-12 selects the actual container factory and submits its si…
+       |   ^
+    211|     const { onSaveIdentity, onCancelEdit } = renderLedger('identity');
+    212|     const factory = screen.getByRole('combobox', { name: /^Nhà máy/ });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx > shipment create cargo-mode toggle data scope > mode switch keeps identity fields and wipes only mode-scoped cargo data
+Error: Test timed out in 10000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx:42:3
+     40|   });
+     41|
+     42|   it('mode switch keeps identity fields and wipes only mode-scoped car…
+       |   ^
+     43|     renderWorkspace();
+     44|     await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+
+ Test Files  6 failed | 650 passed (656)
+      Tests  8 failed | 5052 passed (5060)
+   Start at  22:40:25
+   Duration  417.92s (transform 115.57s, setup 247.31s, import 1191.39s, tests 1172.90s, environment 994.47s)
+
+ ELIFECYCLE  Test failed. See above for more details.

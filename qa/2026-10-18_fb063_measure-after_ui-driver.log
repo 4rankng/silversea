@@ -1,0 +1,42 @@
+FB-063 header-wrap measurement (after) · LOGIN OK (admin)
+
+== shipments-tong-quan (/shipments) @ 1440px == headers: 6, wrapped>=2 lines: 2
+  2 lines · 163px · ws=normal/ow=anywhere · [cus-dashboard-table ops-table] "Phân loại & hãng tàu"
+  2 lines · 151px · ws=normal/ow=anywhere · [cus-dashboard-table ops-table] "Tổng quan hàng hóa"
+
+== shipments-tong-quan (/shipments) @ 1024px == headers: 6, wrapped>=2 lines: 3
+  2 lines · 194px · ws=normal/ow=anywhere · [cus-dashboard-table ops-table] "Khách hàng & nhà máy"
+  2 lines · 133px · ws=normal/ow=anywhere · [cus-dashboard-table ops-table] "Phân loại & hãng tàu"
+  2 lines · 123px · ws=normal/ow=anywhere · [cus-dashboard-table ops-table] "Tổng quan hàng hóa"
+
+== shipments-tong-quan (/shipments) @ 768px == headers: 6, wrapped>=2 lines: 0
+
+== dispatch-master-plan (/dispatch) @ 1440px == headers: 8, wrapped>=2 lines: 0
+
+== dispatch-master-plan (/dispatch) @ 1024px == headers: 8, wrapped>=2 lines: 0
+
+== dispatch-master-plan (/dispatch) @ 768px == headers: 8, wrapped>=2 lines: 0
+
+== dispatch-detail-plan (/dispatch-detail) @ 1440px == headers: 9, wrapped>=2 lines: 0
+
+== dispatch-detail-plan (/dispatch-detail) @ 1024px == headers: 9, wrapped>=2 lines: 0
+
+== dispatch-detail-plan (/dispatch-detail) @ 768px == headers: 9, wrapped>=2 lines: 0
+
+== accounting-phoi-phieu (/accounting/phoi-phieu) @ 1440px == headers: 37, wrapped>=2 lines: 1
+  2 lines · 188px · ws=normal/ow=normal · [tt-table ops-table ppc-board] "Khách hàng / Nhà máy / Tuyến"
+
+== accounting-phoi-phieu (/accounting/phoi-phieu) @ 1024px == headers: 37, wrapped>=2 lines: 1
+  2 lines · 188px · ws=normal/ow=normal · [tt-table ops-table ppc-board] "Khách hàng / Nhà máy / Tuyến"
+
+== accounting-phoi-phieu (/accounting/phoi-phieu) @ 768px == headers: 37, wrapped>=2 lines: 1
+  2 lines · 188px · ws=normal/ow=normal · [tt-table ops-table ppc-board] "Khách hàng / Nhà máy / Tuyến"
+
+== accounting-invoice-tracking (/accounting/invoice-tracking) @ 1440px == headers: 14, wrapped>=2 lines: 0
+
+== accounting-invoice-tracking (/accounting/invoice-tracking) @ 1024px == headers: 14, wrapped>=2 lines: 0
+
+== accounting-invoice-tracking (/accounting/invoice-tracking) @ 768px == headers: 14, wrapped>=2 lines: 0
+
+WORST header line count across all surfaces: 2
+DRIVER EXIT 0

@@ -63,7 +63,7 @@ export async function getShipmentDebitSummary(query: {
   .leftJoin(s.operationalSites, eq(s.operationalSites.id, s.shipments.operationalSiteId))
     .where(and(...conditions))
     .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
-  if (lots.length === 0) return { items: [], total: 0, excludedCount: 0, excludedSum: '0' };
+  if (lots.length === 0) return { items: [], total: 0, excludedCount: 0, excludedSum: '0', excludedTrips: [] };
   const lotIds = lots.map((lot) => lot.id);
 
   // FB-092/093 — vehicle class codes for both pricing dimensions (thu ≠ trả
@@ -81,13 +81,16 @@ export async function getShipmentDebitSummary(query: {
         .map((row) => [row.id, row.code] as const),
   );
   // Group member counts + each member's principal reference, both dimensions.
+  // LIVE rows only — a soft-deleted lot keeps its group id while the §4
+  // delete-promotion renumbers the survivors, so ghosts must neither count
+  // toward N nor be cited as the principal (card 181026145000).
   const costGroupIds = [...new Set(lots.map((lot) => lot.costGroupId).filter((id): id is string => id != null))];
   const revGroupIds = [...new Set(lots.map((lot) => lot.revGroupId).filter((id): id is string => id != null))];
   const countGroups = async (groupIds: string[], column: AnyPgColumn) => {
     if (groupIds.length === 0) return new Map<string, number>();
     const rows = await db.select({ groupId: column, memberCount: sql<number>`count(*)` })
       .from(s.shipments)
-      .where(inArray(column, groupIds))
+      .where(and(inArray(column, groupIds), isNull(s.shipments.deletedAt)))
       .groupBy(column);
     return new Map(rows.map((row) => [row.groupId as string, Number(row.memberCount)] as const));
   };
@@ -102,7 +105,7 @@ export async function getShipmentDebitSummary(query: {
       blNumber: s.shipments.blNumber,
       bookingRef: s.shipments.bookingRef,
     }).from(s.shipments)
-      .where(and(eq(orderColumn, 1), inArray(groupColumn, groupIds)));
+      .where(and(isNull(s.shipments.deletedAt), eq(orderColumn, 1), inArray(groupColumn, groupIds)));
     return new Map(principals
       .map((row) => [row.groupId!, row.blNumber ?? row.bookingRef ?? ''] as const)
       .filter(([, ref]) => ref !== ''));
@@ -373,6 +376,28 @@ export async function getShipmentDebitSummary(query: {
       isNull(s.trips.fulfillmentId),
     ));
 
+  // Case 2026-10-17 — the line must answer WHICH trips it excludes. Same
+  // predicates as the aggregate above and the same >0 buy-sum filter, one row
+  // per trip, so Σ feeSum === excludedSum and length === excludedCount. The
+  // aggregate query stays the single source of the two pinned scalars.
+  const shadowTripRows = await db.select({
+    tripId: s.trips.id,
+    tripCode: s.trips.tripCode,
+    shipmentId: s.trips.shipmentId,
+    departureDate: s.trips.departureDate,
+    feeSum: sql<string>`coalesce(sum(${s.tripExpenses.buyAmount}) filter (where ${s.tripExpenses.buyAmount} > 0), 0)::text`,
+  }).from(s.tripExpenses)
+    .innerJoin(s.trips, and(
+      eq(s.trips.id, s.tripExpenses.tripId),
+      liveDebitTripExpense(),
+      inArray(s.trips.shipmentId, lotIds),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+      isNull(s.trips.fulfillmentId),
+    ))
+    .groupBy(s.trips.id)
+    .orderBy(s.trips.id);
+
   /** Frozen L1 figures for locked lots: missing snapshot keys (locks frozen
    *  before this landing) read null — Chưa xác định, never a fabricated 0. */
 
@@ -476,5 +501,31 @@ export async function getShipmentDebitSummary(query: {
   const visible = query.lockStatus === 'ALL'
     ? items
     : items.filter((item) => item.lockStatus === query.lockStatus);
-  return { items: visible, total: visible.length, excludedCount: shadow?.trips ?? 0, excludedSum: String(shadow?.total ?? '0') };
+  // Identity list rides the un-filtered `items` (every lot in lotIds — the
+  // shadow aggregate's own scope), so a lockStatus filter never drops a lot's
+  // label out from under a trip the line still counts.
+  const lotByIdentity = new Map(items.map((item) => [item.shipmentId, item]));
+  const excludedTrips = shadowTripRows.flatMap((trip) => {
+    // trips.shipment_id is a nullable column, but the inArray(lotIds) scope
+    // above can never match NULL — a shadow row always names its lot. The
+    // guard satisfies the column type without widening the payload contract.
+    if (trip.shipmentId == null) return [];
+    const lot = lotByIdentity.get(trip.shipmentId);
+    return [{
+      tripId: trip.tripId,
+      tripCode: trip.tripCode,
+      shipmentId: trip.shipmentId,
+      lotLabel: lot ? (lot.billOrBookNumber || lot.customsNumber || '—') : '—',
+      customerName: lot?.customerName ?? null,
+      departureDate: trip.departureDate,
+      feeSum: trip.feeSum,
+    }];
+  });
+  return {
+    items: visible,
+    total: visible.length,
+    excludedCount: shadow?.trips ?? 0,
+    excludedSum: String(shadow?.total ?? '0'),
+    excludedTrips,
+  };
 }

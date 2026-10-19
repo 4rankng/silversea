@@ -247,9 +247,21 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
         setDraft(splitValue(restored)); setTouched(false); onChange(restored);
         event.target.blur();
       } else if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
+        // FB-002 (cards 181026000027 + 171026215500 family): Enter on a
+        // hand-typed segment must SAVE through the HOST's own save path.
+        // Hosts that pass onCommit keep the intercept-and-commit contract
+        // (CUS appointment popover). Hosts without one no longer get a
+        // swallowed key: the Enter flows on to whatever the host mounted
+        // around the field — the CUS add-row's own Enter handler, a host
+        // form that answers Enter itself via requestSubmit (dispatch
+        // assignment dialog). NOTE: a form with NO submit button and
+        // several text inputs runs NO implicit submission in browsers, so
+        // such hosts must answer Enter themselves. An incomplete/invalid
+        // draft still swallows — it must never submit a stale timestamp.
+        setTouched(true);
+        if (!active && !validation && !onCommit) return;
         event.preventDefault(); event.stopPropagation();
         setOpen(null);
-        setTouched(true);
         if (!validation) { onCommit?.(parsed ?? ''); event.target.blur(); }
       }
     }}>

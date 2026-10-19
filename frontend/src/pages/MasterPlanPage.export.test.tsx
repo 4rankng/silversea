@@ -57,7 +57,7 @@ vi.mock('../features/dispatch/master-plan/useDispatchMasterPlan', async (importO
   useDispatchMasterPlan: () => ({
     filters: {
       q: '', tradeDirection: '', allocationStatus: '',
-      deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [],
+      deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const,
     },
     updateFilters: vi.fn(),
     page: 1,

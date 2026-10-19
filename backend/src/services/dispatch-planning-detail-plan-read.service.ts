@@ -66,6 +66,9 @@ export interface ListDispatchDetailPlanRowsInput {
   trailerType?: string;
   /** Route of the LOT (FCL container→lot fallback), lot-first per ruling. */
   routeId?: number;
+  /** Card 171026154000: lot cargo mode (Loại hàng). Same column both branches
+   *  filter on; the displayed fulfillment cargo_mode is written 1:1 from it. */
+  cargoMode?: 'FCL' | 'LCL';
 }
 
 export function normalizeIdList(raw: readonly (number | string)[] | null | undefined, label: string): number[] | null {
@@ -237,6 +240,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       input.routeId ? sql`(case when ${s.shipmentFulfillments.cargoMode} = 'FCL'
         then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
         else ${s.shipments.routeId} end) = ${input.routeId}` : undefined,
+      // Card 171026154000: Loại hàng — the lot's own cargo mode. Riding the
+      // shared builder keeps rows, pageKeys and the chip counts consistent.
+      input.cargoMode ? eq(s.shipments.cargoMode, input.cargoMode) : undefined,
       shipmentQSearchPredicate(qPattern, { containerNumber: true }),
     );
 
@@ -267,6 +273,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       carrierClass: input.carrierClass ?? null,
       trailerType: input.trailerType ?? null,
       routeId: input.routeId ?? null,
+      cargoMode: input.cargoMode ?? null,
     };
     const rowFilters = and(filters, assignmentPredicate);
     const pageKeys = await listDetailPlanPageKeys(tx, rowFilters, unionFilters, accountantCustomerIds, limit, (page - 1) * limit);
@@ -320,6 +327,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,
       operationalSiteId: s.shipments.operationalSiteId,
+      // FB-105 §3: the stored free-text lift/drop points back each LCL Nâng/Trả
+      // side whose catalog site was never picked (no new join — the lot's own
+      // columns ride the same pass).
+      pickupLocation: s.shipments.pickupLocation,
+      deliveryLocation: s.shipments.deliveryLocation,
       containerNumber: s.shipmentContainers.containerNumber,
       containerCargoWeightKg: s.shipmentContainers.cargoWeightKg,
       containerTypeId: s.shipmentContainers.containerTypeId,
@@ -403,7 +415,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // ACCOUNTANT does not widen what the role can see.
     const opsRecoveryNotes = await loadDispatchExpenseNotes(shipmentIds, tx);
     // FB-092: the "Lẻ · Ghép (i/N)" tag needs the group's member count — one
-    // grouped count over the page's cost groups.
+    // grouped count over the page's cost groups. LIVE rows only: a
+    // soft-deleted member keeps its group id, so the §4 delete-promotion must
+    // shrink the tag's N (card 181026145000).
     const costGroupIds = [...new Set(
       pageRows.map((row) => row.costGroupId).filter((id): id is string => id != null),
     )];
@@ -411,7 +425,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       costGroupId: s.shipments.costGroupId,
       memberCount: sql<number>`count(*)`,
     }).from(s.shipments)
-      .where(inArray(s.shipments.costGroupId, costGroupIds))
+      .where(and(inArray(s.shipments.costGroupId, costGroupIds), isNull(s.shipments.deletedAt)))
       .groupBy(s.shipments.costGroupId)
       .then((rows) => rows.map((row) => [row.costGroupId!, Number(row.memberCount)] as const)));
     const carrierIds = pageRows
@@ -456,6 +470,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       items: pageRows.map((row) => {
         const snapshot = (row.siteSnapshot ?? {}) as Record<string, unknown>;
         const deliverySite = redactDispatchSiteForAccountant(input.actor, toFrozenSiteSummary(snapshot.deliverySite));
+        // FB-105 §3: the LCL "Kho (CFS/Cảng)" half of the same fulfillment
+        // snapshot — read through the identical redaction so an ACCOUNTANT sees
+        // the name but never the address on either side.
+        const pickupWarehouseSite = redactDispatchSiteForAccountant(input.actor, toFrozenSiteSummary(snapshot.pickupWarehouse));
         const plated = platedByShipment.get(row.shipmentId);
         return {
           fulfillmentId: row.fulfillmentId,
@@ -516,6 +534,17 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
               vehicleClassCode: row.costVehicleClassCode ?? null,
               vehicleClassName: row.costVehicleClassName ?? null,
             } : null,
+          },
+          // FB-105 §3 — LCL Nâng/Trả inputs. An LCL lot owns no container, so
+          // its two columns come from the lot's own points (resolved by trade
+          // direction on the client, liftDropPoints.ts): the frozen "Kho
+          // (CFS/Cảng)" intake site — same snapshot half the CUS workspace reads
+          // — plus the stored free-text lift/drop. FCL rows keep their container
+          // port pair and ignore this.
+          liftDrop: {
+            warehouseName: pickupWarehouseSite.name,
+            liftFallback: row.pickupLocation,
+            dropFallback: row.deliveryLocation,
           },
           notes: {
             vehicleNote: input.actor.role === Role.ACCOUNTANT ? null : row.operationalNotes,

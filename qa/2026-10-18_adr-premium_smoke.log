@@ -1,0 +1,28 @@
+# cmd: python3 tools/adr_premium.py --json  (live: moomoo OpenD k-line + Frankfurter FX)
+# cwd: /Users/dev/.paseo/worktrees/1njkloyy/adr-premium-rb1
+# date: 2026-10-18T13:47:55Z
+# env: moomoo OpenD 127.0.0.1:11111 (local gateway, keyless); FX api.frankfurter.app (ECB, keyless)
+# exit: 0
+## stderr (progress):
+[adr_premium] BABA: status=ok as_of=2026-10-16 premium=1.646382549720471 gap=4.0733300902756175 z=1.2732746468485592 signal=none
+[adr_premium] PONY: status=ok as_of=2026-10-16 premium=3.1766004056795305 gap=6.219774486787665 z=1.2650165069220267 signal=none
+[adr_premium] WRD: status=ok as_of=2026-10-16 premium=5.30888235294118 gap=7.403863845446201 z=1.1093479553264118 signal=none
+## stdout JSON parsed OK (pure stdout verified by json.load):
+BABA  9988.HK  src=moomoo-opend status=ok           as_of=2026-10-16 us=109.11 hk=108.8 fx=0.12742 stale=False premium=1.6464 gap=4.0733 z=1.273 hist=21 signal=none
+PONY  2026.HK  src=moomoo-opend status=ok           as_of=2026-10-16 us=4.93 hk=39.92 fx=0.12742 stale=False premium=3.1766 gap=6.2198 z=1.265 hist=21 signal=none
+WRD   0800.HK  src=moomoo-opend status=ok           as_of=2026-10-16 us=4.08 hk=11.24 fx=0.12742 stale=False premium=5.3089 gap=7.4039 z=1.109 hist=21 signal=none
+## SQLite research/adr_premium.db rows:
+('BABA', '2026-10-16', 109.11, 108.8, 0.12742, 0, 1.6464, 1.273, 'none')
+('PONY', '2026-10-16', 4.93, 39.92, 0.12742, 0, 3.1766, 1.265, 'none')
+('WRD', '2026-10-16', 4.08, 11.24, 0.12742, 0, 5.3089, 1.109, 'none')
+total observations: 66
+('2026-10-18T13:47:55+00:00', 'BABA', '2026-10-16', 'ok', 'moomoo-opend')
+('2026-10-18T13:47:55+00:00', 'PONY', '2026-10-16', 'ok', 'moomoo-opend')
+('2026-10-18T13:47:55+00:00', 'WRD', '2026-10-16', 'ok', 'moomoo-opend')
+
+# cmd: python3 tools/adr_premium.py --json --source yahoo --db /tmp/yahoo_smoke.db  (Yahoo chart provider path)
+# date: 2026-10-18T13:48:52Z
+# exit: 0
+BABA  9988.HK  src=yahoo        status=ok           as_of=2026-10-16 us=109.11000061035156 hk=108.80000305175781 premium=1.6464 z=1.273 signal=none
+PONY  2026.HK  src=yahoo        status=ok           as_of=2026-10-16 us=4.929999828338623 hk=39.91999816894531 premium=3.1766 z=1.265 signal=none
+WRD   0800.HK  src=yahoo        status=ok           as_of=2026-10-16 us=4.079999923706055 hk=11.239999771118164 premium=5.3089 z=1.109 signal=none

@@ -109,13 +109,15 @@ export default function TripListPage() {
   const handleSortChange = useCallback((key: string) => {
     setSort((current) => nextTableSort(current, key));
   }, []);
+  // Stable setter identities from useTableQueryState — destructured so the
+  // sync effects below can list them without dragging the per-render `table`
+  // object into the dependency array.
+  const { setSearch: setTableSearch, setFilters: setTableFilters } = table;
   useEffect(() => {
-    table.setSearch(debouncedSearch);
-  // table omitted from deps: setSearch is a stable useCallback ref inside useTableQueryState
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
+    setTableSearch(debouncedSearch);
+  }, [debouncedSearch, setTableSearch]);
   useEffect(() => {
-    table.setFilters({
+    setTableFilters({
       status: statusFilter || undefined,
       truckId: truckFilter || undefined,
       customerId: customerFilter || undefined,
@@ -124,9 +126,7 @@ export default function TripListPage() {
       sortBy: sort?.by,
       sortDir: sort?.dir,
     });
-  // table omitted from deps: setFilters is a stable useCallback ref inside useTableQueryState
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, truckFilter, customerFilter, listDateFrom, listDateTo, sort]);
+  }, [statusFilter, truckFilter, customerFilter, listDateFrom, listDateTo, sort, setTableFilters]);
 
   // ── Summary query ──
   const { data: summary } = useQuery({

@@ -24,6 +24,9 @@ interface OperationalSiteCreateDialogProps {
   isCustomersLoading?: boolean;
   /** Default site type preselected when the dialog opens. */
   defaultSiteType?: 'FACTORY' | 'WAREHOUSE';
+  /** Card 181026143000 (spec §1a): names the kho dialog "lấy hàng" (Nhập)
+   *  vs "trả hàng" (Xuất) to match the field it opens from. Omit = Nhập. */
+  tradeDirection?: 'IMPORT' | 'EXPORT' | '' | null;
   /** FB-077 (card 091026180600): CUS-intake quick-add — the warehouse modal
    *  shrinks to Tên / Tên ngắn / Địa chỉ; the code derives from the folded
    *  name, a blank short-name falls back to the name, and the full
@@ -85,6 +88,7 @@ export function OperationalSiteCreateDialog({
   onRetryCustomers,
   isCustomersLoading,
   defaultSiteType = 'FACTORY',
+  tradeDirection = null,
   quickAdd = false,
   routes,
   routesError,
@@ -437,7 +441,14 @@ export function OperationalSiteCreateDialog({
     <>
     <Modal
       isOpen={isOpen && routeDialogState === 'closed'}
-      title={defaultSiteType === 'WAREHOUSE' ? 'Thêm kho lấy hàng' : 'Thêm nhà máy'}
+      title={defaultSiteType === 'WAREHOUSE'
+        // Card 181026143000 (spec 2026.10.17 §1a): the kho means "lấy hàng"
+        // for Nhập khẩu and "trả hàng" for Xuất khẩu — the quick-add dialog
+        // opened from that field must name the same direction, never a fixed
+        // "lấy hàng" for both (the exact hard-coded-label defect the spec
+        // reports). Callers without a direction keep the Nhập default.
+        ? (tradeDirection === 'EXPORT' ? 'Thêm kho trả hàng' : 'Thêm kho lấy hàng')
+        : 'Thêm nhà máy'}
       subtitle={quickAdd ? undefined : 'Điểm vận hành'}
       polished
       onClose={close}

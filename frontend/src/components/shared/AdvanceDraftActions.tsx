@@ -23,6 +23,11 @@ export function AdvanceDraftActions({ request }: { request: AdvanceDraft }) {
   // absent fundedAmount means unknown (shared type docs), and assuming
   // "unfunded" from unknown would offer a void the server must refuse.
   if (request.status === 'RECORDED' && request.fundedAmount === 0) return <DraftActions request={request} voidOnly />;
+  // FB-100/CPB-03 (card 141026230770): PENDING lọt cùng nhánh với RECORDED —
+  // yêu cầu Ops gửi (KP-148) chờ phê duyệt, chưa có tiền. Chủ yêu cầu tự hủy
+  // được trước khi duyệt (backend `resolveAdvanceDraft` ownerVoid). Cùng quy
+  // tắc chứng minh funding ở trên: chỉ mời khi listing cho thấy fundedAmount 0.
+  if (request.status === 'PENDING' && request.fundedAmount === 0) return <DraftActions request={request} voidOnly />;
   return null;
 }
 

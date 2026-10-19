@@ -1,0 +1,2 @@
+=== cmd: cd backend && npx tsx --test --test-concurrency=1 src/tests/o01-trip-pairs.routes.test.ts src/tests/shipment-quick-create.test.ts (write-denial pins vs new policy) ===
+exit=0

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { api } from '../../lib/api';
+import { resolveLiftDropPoints } from '../../features/shipments/liftDropPoints';
 import { Modal } from '../../components/UI';
 import { customerServiceFinanceClient, type CustomerVisibleEvent } from '../../api/customerServiceFinanceClient';
 import {
@@ -28,6 +29,13 @@ interface PortalShipmentDetail {
     blNumber: string | null;
     pickupLocation: string | null;
     deliveryLocation: string | null;
+    // FB-107: lift/drop resolution facts for the Nâng / Hạ rows (display
+    // names only — the shared client rule swaps the LCL sides by direction).
+    cargoMode: 'FCL' | 'LCL' | null;
+    tradeDirection: 'IMPORT' | 'EXPORT' | null;
+    pickupWarehouseSiteName: string | null;
+    effectiveFactoryName: string | null;
+    factoryName: string | null;
   };
   containers: Array<{
     id: number;
@@ -35,6 +43,9 @@ interface PortalShipmentDetail {
     sealNumber: string | null;
     cargoWeightKg: string | number | null;
     customerAppointmentAt: string | null;
+    /** FCL Cảng nâng / Cảng hạ display names (FB-107). */
+    pickupPortName: string | null;
+    dropoffPortName: string | null;
   }>;
   documents: Array<{
     id: number;
@@ -142,6 +153,21 @@ export default function PortalShipmentDetailPage() {
   );
 
   const { shipment, documents, declarations, statusHistory } = data;
+  // FB-107 (card 171026115820) — Nâng = điểm lấy/nâng hàng, Hạ = điểm
+  // hạ/trả hàng thật của lô, cùng một luật `resolveLiftDropPoints` với trang
+  // chi tiết nội bộ: FCL = tên cảng nâng/hạ của container (không đảo theo
+  // chiều), LCL đổi vai theo Nhập/Xuất. 2 cột pickup_location/delivery_location
+  // chỉ còn là dự phòng text tự do cho bên chưa từng chọn điểm danh mục.
+  const liftDropPoints = resolveLiftDropPoints({
+    cargoMode: shipment.cargoMode,
+    tradeDirection: shipment.tradeDirection,
+    warehouseName: shipment.pickupWarehouseSiteName,
+    factoryName: shipment.effectiveFactoryName ?? shipment.factoryName,
+    containerLiftNames: data.containers.map((container) => container.pickupPortName),
+    containerDropNames: data.containers.map((container) => container.dropoffPortName),
+    liftFallback: shipment.pickupLocation,
+    dropFallback: shipment.deliveryLocation,
+  });
   const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
   const bookingNumber = shipment.bookingRef?.trim() || null;
   const billNumber = shipment.blNumber?.trim() || null;
@@ -178,8 +204,8 @@ export default function PortalShipmentDetailPage() {
           <dl className="portal-detail-grid">
             <div><dt>Mã đặt chỗ</dt><dd>{bookingNumber ?? '—'}</dd></div>
             <div><dt>Số B/L</dt><dd>{billNumber ?? '—'}</dd></div>
-            <div className="portal-detail-grid__wide"><dt>Nơi nhận</dt><dd>{shipment.pickupLocation ?? '—'}</dd></div>
-            <div className="portal-detail-grid__wide"><dt>Nơi giao</dt><dd>{shipment.deliveryLocation ?? '—'}</dd></div>
+            <div className="portal-detail-grid__wide"><dt>Nâng</dt><dd>{liftDropPoints.lift ?? '—'}</dd></div>
+            <div className="portal-detail-grid__wide"><dt>Hạ</dt><dd>{liftDropPoints.drop ?? '—'}</dd></div>
           </dl>
         </section>
 

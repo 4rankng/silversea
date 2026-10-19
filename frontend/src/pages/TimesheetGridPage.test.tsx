@@ -41,7 +41,7 @@ const day = (workDate: string, overrides: Partial<TimesheetDayCell> = {}): Times
 
 const driver: TimesheetDriverRow = {
   id: 1, name: 'Tài xế A', status: 'ACTIVE', plateNumber: '29H-12345', vehicleClass: 'Đầu kéo',
-  monthId: 5, salaryMode: 'PER_TRIP', monthStatus: 'OPEN',
+  monthId: 5, salaryMode: 'PER_TRIP', monthStatus: 'OPEN', defaultSalaryMode: 'PER_TRIP',
 };
 
 const month: TimesheetMonth = {
@@ -117,6 +117,25 @@ describe('mở bảng chấm công (FB-102/FB-103 — card 141026230790/230800)'
     fireEvent.click(within(dialog).getByRole('button', { name: /^Mở bảng$/ }));
     await waitFor(() => expect(createMonth).toHaveBeenCalledWith({
       driverId: 1, year: 2026, month: 10, salaryMode: 'FLAT_MONTHLY', flatAmount: 10000000,
+    }));
+  });
+
+  // FB-103 (ticket 171026215600) — modal mở với chế độ mặc định CỦA LÁI XE
+  // (đặt trong dialog "Sửa lương cứng" / dialog sửa lái xe), không ép PER_TRIP.
+  it('mở bảng với sẵn chế độ của lái xe khi lái xe đặt Lương theo tháng', async () => {
+    currentUser.role = Role.ACCOUNTANT;
+    listDrivers.mockReset().mockResolvedValue([{ ...driver, defaultSalaryMode: 'FLAT_MONTHLY' as const }]);
+    listMonths.mockReset().mockResolvedValue([]);
+    page();
+    fireEvent.click(await screen.findByRole('button', { name: /Mở bảng chấm công/ }));
+    const dialog = await screen.findByRole('dialog');
+    // Select hiển thị sẵn chế độ của lái xe — không cần chọn lại.
+    const modeTrigger = within(dialog).getByRole('button', { name: /Hình thức lương/ });
+    expect(modeTrigger.textContent).toContain('Lương theo tháng (trốn vé)');
+    fireEvent.change(within(dialog).getByLabelText('Lương tháng cố định (VND)'), { target: { value: '9000000' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Mở bảng$/ }));
+    await waitFor(() => expect(createMonth).toHaveBeenCalledWith({
+      driverId: 1, year: 2026, month: 10, salaryMode: 'FLAT_MONTHLY', flatAmount: 9000000,
     }));
   });
 

@@ -6,9 +6,8 @@
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo",
     "types": ["vite/client", "node", "@testing-library/jest-dom"],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
+      "@/*": ["./src/*"],
       "@tingting/shared": ["../shared/src"]
     }
   },

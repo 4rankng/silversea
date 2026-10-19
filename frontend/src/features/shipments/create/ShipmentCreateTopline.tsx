@@ -1,5 +1,4 @@
-import { Check, Save, X } from 'lucide-react';
-import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { ShipmentCreateActions } from './ShipmentCreateActions';
 import type { SaveIntent } from './shipment-create-model';
 
 interface ShipmentCreateToplineProps {
@@ -16,10 +15,10 @@ interface ShipmentCreateToplineProps {
  * of the worksheet. The fixed bottom action bar the same mock superseded is
  * retired, so phones scroll back here to act.
  *
- * The two save actions are DIFFERENT intents (owner-confirmed):
- * `Lưu nháp` = partial create (customer only, SaveIntent 'DRAFT'),
- * `Tạo lô hàng` = full intake validation (SaveIntent 'CREATE'). Neither
- * submits for dispatch. */
+ * The three actions are the shared cluster (ShipmentCreateActions) that FB-108
+ * mounts a second time at the foot of the worksheet; this topline keeps its own
+ * `.csc-topline__actions` layout class so the head stays a single flex row, and
+ * the topline variant keeps the plain accessible name. */
 export function ShipmentCreateTopline({
   saving,
   requiredDone,
@@ -34,39 +33,14 @@ export function ShipmentCreateTopline({
       <span className="csc-topline__progress">
         Bắt buộc: <strong>{requiredDone}/{requiredTotal}</strong>
       </span>
-      <div className="csc-topline__actions" role="group" aria-label="Thao tác tạo lô hàng">
-        <UUIButton
-          type="button"
-          size="md"
-          color="tertiary"
-          iconLeading={X}
-          onClick={onCancel}
-          isDisabled={Boolean(saving)}
-        >
-          Huỷ
-        </UUIButton>
-        <UUIButton
-          type="button"
-          size="md"
-          color="secondary"
-          iconLeading={Save}
-          onClick={onSaveDraft}
-          isDisabled={Boolean(saving)}
-        >
-          {saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu nháp'}
-        </UUIButton>
-        <UUIButton
-          type="button"
-          size="md"
-          color="primary"
-          className="min-h-11"
-          iconLeading={Check}
-          onClick={onCreate}
-          isDisabled={Boolean(saving)}
-        >
-          {saving === 'CREATE' ? 'Đang tạo…' : 'Tạo lô hàng'}
-        </UUIButton>
-      </div>
+      <ShipmentCreateActions
+        className="csc-topline__actions"
+        variant="topline"
+        saving={saving}
+        onCancel={onCancel}
+        onSaveDraft={onSaveDraft}
+        onCreate={onCreate}
+      />
     </div>
   );
 }

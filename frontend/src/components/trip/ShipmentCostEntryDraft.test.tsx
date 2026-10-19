@@ -41,8 +41,8 @@ describe('driver cost draft table — evidence kind + all-or-nothing batch', () 
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '500000' } });
 
-    // The reminder is the existing requiresReceipt mechanism — one rule, one
-    // testid — carrying the card-141026230700 wording for every lot cost.
+    // The reminder is the requiresReceipt mechanism — one rule, one testid —
+    // carrying the server's CP700-03 wording for every lot-bucket row.
     expect(screen.getByRole('button', { name: 'Lưu tất cả (1 dòng)' })).toBeDisabled();
     expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
 

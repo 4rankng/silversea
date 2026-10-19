@@ -593,10 +593,6 @@ async function getLatestCustomerLedgerVersionTx(executor: Executor, customerId: 
   return row?.id ?? 0;
 }
 
-export async function loadPaymentReceiptResult(paymentReceiptId: number, tx?: Tx): Promise<PaymentReceiptResult> {
-  return runInTx(tx, (innerTx) => loadPaymentReceiptResultTx(innerTx, paymentReceiptId));
-}
-
 async function createOrReplayPaymentReceiptTx(
   executor: Executor,
   input: NormalizedPaymentReceiptInput,

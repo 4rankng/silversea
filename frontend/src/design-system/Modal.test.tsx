@@ -86,6 +86,16 @@ describe('Modal overlay suite — house chrome', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Đóng' }));
   });
 
+  it('keeps focus on a content autoFocus field instead of yanking it to the first control', async () => {
+    render(<Harness><input aria-label="Giờ" autoFocus /><button type="button">Lưu</button></Harness>);
+    await screen.findByRole('dialog', { name: 'Dialog' });
+    // FB-002 (181026000027) case 3 family: the trap used to steal the
+    // autoFocus'd field's focus to the header "Đóng", so the user's first
+    // keystrokes landed on a button (the schedule dialog's exact symptom).
+    await waitFor(() => expect(screen.getByLabelText('Giờ')).toHaveFocus());
+    expect(screen.getByRole('button', { name: 'Đóng' })).not.toHaveFocus();
+  });
+
   it('dismisses on a direct scrim hit but not on a dialog click', async () => {
     render(<Harness />);
     const overlay = (await screen.findByRole('dialog', { name: 'Dialog' }));

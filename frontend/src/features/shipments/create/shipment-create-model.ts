@@ -31,6 +31,12 @@ export interface ShipmentCreateFormState {
   depositAmount: string;
   operationalSiteId: string;
   pickupWarehouseSiteId: string;
+  /** Kho (CFS/Cảng) free text for hàng lẻ (FB-105 spec §2: the picker accepts a
+   *  catalog pick OR typed text). Meaning follows `tradeDirection`: Nhập khẩu =
+   *  "Kho lấy hàng", Xuất khẩu = "Kho trả hàng". The payload maps it onto the
+   *  lot's direction-correct lift/drop name (pickup_location /
+   *  delivery_location); the catalog pick still rides `pickupWarehouseSiteId`. */
+  pickupWarehouseName: string;
   customsCutoffAt: string;
   closingAt: string;
   plannedReturnAt: string;
@@ -117,6 +123,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   depositAmount: '',
   operationalSiteId: '',
   pickupWarehouseSiteId: '',
+  pickupWarehouseName: '',
   customsCutoffAt: '',
   closingAt: '',
   plannedReturnAt: '',
@@ -157,11 +164,13 @@ export function createEmptyContainer(): ShipmentContainerDraft {
 }
 
 /**
- * Start a new FCL row from the preceding row's operational data. The physical
- * identifiers are per-container and must be entered again: the number, and the
- * type (card 071026100800 — a copied "40DC" read as stray text in the fresh
- * row, and mixed-type lots fight the copied selection). Schedule data (route,
- * ports, factory, window) legitimately rides the previous row.
+ * Start a new FCL row from the preceding row's data (FB-111 + 181026200100
+ * A.1): the operator's intent when pressing "Thêm container" is a row that
+ * inherits the previous row — Loại cont (a "40DC" copy is the FEATURE here,
+ * per FB-111 superseding card 071026100800's blank-type ruling on this form —
+ * mixed-type lots just re-pick the cell), route, factory, ports, weight and
+ * the schedule window. The one per-container identifier that must never be
+ * invented is the Số container, which stays empty for entry.
  */
 export function createContainerFromPrevious(
   previous?: ShipmentContainerDraft,
@@ -172,7 +181,6 @@ export function createContainerFromPrevious(
     ...previous,
     key: crypto.randomUUID(),
     containerNumber: '',
-    containerTypeId: '',
   };
 }
 
@@ -225,7 +233,16 @@ export function getShipmentCreateReadiness(
       if (!row.customerAppointmentAt) issues.push(issue(`${prefix}-customer-appointment`, `${label}: chọn ngày giờ đóng/trả.`, 'schedule'));
     });
   } else {
-    if (!form.pickupWarehouseSiteId) issues.push(issue('shipment-pickup-warehouse', 'Chọn kho lấy hàng.', 'route'));
+    // FB-105 (spec §2): a hàng lẻ lot needs BOTH operating points — the Nhà máy
+    // and the Kho (CFS/Cảng) — and each accepts a catalog pick OR typed text
+    // (the "+ Thêm kho" button is the catalog route). Ad-hoc lots waive the
+    // catalog prerequisites as before.
+    if (!adHoc && !form.operationalSiteId && !form.factoryName.trim()) {
+      issues.push(issue('shipment-operational-site', 'Chọn nhà máy.', 'route'));
+    }
+    if (!adHoc && !form.pickupWarehouseSiteId && !form.pickupWarehouseName.trim()) {
+      issues.push(issue('shipment-pickup-warehouse', 'Chọn kho lấy hàng.', 'route'));
+    }
     if (!form.packageType) issues.push(issue('shipment-package-type', 'Nhập quy cách đóng gói.', 'cargo'));
     if (!form.packageCount || Number(form.packageCount) < 1) issues.push(issue('shipment-package-count', 'Nhập số lượng kiện lớn hơn 0.', 'cargo'));
     if (!form.cargoWeightKg || Number(form.cargoWeightKg) <= 0) issues.push(issue('shipment-cargo-weight', 'Nhập trọng lượng lớn hơn 0.', 'cargo'));
@@ -299,6 +316,19 @@ export function buildShipmentRootPayload(
   containers: ShipmentContainerDraft[],
   sites: OperationalSiteName[],
 ) {
+  // FB-105 (spec §2/§3): hàng lẻ names BOTH operating points, and the Kho
+  // (CFS/Cảng) field means "Kho lấy hàng" for hàng Nhập and "Kho trả hàng" for
+  // hàng Xuất. Resolve the display names once (catalog short name first, else
+  // the typed free text) and store them on the direction-correct lift/drop
+  // columns so điều vận prints Nâng/Trả instead of "—".
+  const siteLabel = (siteId: string, fallback: string) => {
+    const site = siteId ? sites.find((item) => String(item.id) === siteId) : undefined;
+    return (site ? site.shortName || site.name : '') || fallback.trim();
+  };
+  const isLcl = form.cargoMode === 'LCL';
+  const exportLot = form.tradeDirection === 'EXPORT';
+  const warehouseName = siteLabel(form.pickupWarehouseSiteId, form.pickupWarehouseName);
+  const factoryName = siteLabel(form.operationalSiteId, form.factoryName);
   return {
     // Hybrid intake (Lệnh chạy ngoài): catalog id when selected, else null +
     // the raw free text. XOR is normalized again server-side.
@@ -321,10 +351,17 @@ export function buildShipmentRootPayload(
     pickupWarehouseSiteId: form.cargoMode === 'LCL' && form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
     factoryName: (() => {
       if (form.isAdHoc) return form.factoryName.trim() || null;
-      if (form.cargoMode !== 'LCL') return null;
-      const site = sites.find((item) => String(item.id) === form.operationalSiteId);
-      return site?.shortName || site?.name || null;
+      if (!isLcl) return null;
+      return factoryName || null;
     })(),
+    // FB-105 §3 — the lot's two operating points, direction-correct: Nhập khẩu
+    // lấy tại Kho (CFS) giao tại Nhà máy; Xuất khẩu lấy tại Nhà máy giao tại
+    // Kho (CFS). FCL keeps these columns untouched (its points live on the
+    // containers' ports — never overwrite them from the root payload).
+    ...(isLcl ? {
+      pickupLocation: (exportLot ? factoryName : warehouseName) || null,
+      deliveryLocation: (exportLot ? warehouseName : factoryName) || null,
+    } : {}),
     shippingLineName: form.cargoMode === 'FCL' ? form.shippingLineName || null : null,
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
     closingAt: localDateTimeToIso(form.closingAt),

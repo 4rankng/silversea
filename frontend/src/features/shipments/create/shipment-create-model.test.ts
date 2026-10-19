@@ -170,22 +170,22 @@ describe('shipment create model', () => {
     expect(createEmptyContainer().cargoVolumeCbm).toBe('');
   });
 
-  it('copies a preceding container while requiring a new container number AND a fresh type choice', () => {
+  it('copies a preceding container in full, leaving only Số container empty', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'row-2' });
     const copied = createContainerFromPrevious({
       ...container,
       customerAppointmentAt: '2026-08-20T09:30',
     });
 
-    // Card 071026100800 (fix-all-issues ruling 2026-10-07): schedule data
-    // (route, ports, factory, window) rides the previous row, but the type is
-    // per-container data — a fresh row shows no "40DC" ghost, and mixed-type
-    // lots (1x20DC + 1x40DC) never fight a copied selection.
+    // FB-111 + 181026200100 (A.1): "Thêm container" inherits the previous
+    // row — Loại cont (40DC stays, superseding card 071026100800's
+    // blank-type ruling on this form), route, factory, ports, weight and the
+    // schedule window all ride. Only the Số container is per-container and
+    // stays empty for entry.
     expect(copied).toMatchObject({
       ...container,
       key: 'row-2',
       containerNumber: '',
-      containerTypeId: '',
       customerAppointmentAt: '2026-08-20T09:30',
     });
   });
@@ -199,6 +199,7 @@ describe('shipment create model', () => {
       blNumber: 'BL-LCL',
       tradeDirection: 'IMPORT' as const,
       cargoTypeId: '32',
+      operationalSiteId: '41',
       pickupWarehouseSiteId: '42',
       packageType: 'Pallet',
       packageCount: '8',
@@ -211,6 +212,140 @@ describe('shipment create model', () => {
     expect(readiness.dispatchReady).toBe(true);
     expect(readiness.issues).toEqual([]);
     expect(buildShipmentContainerPayload(form, [container])).toEqual([]);
+  });
+
+  // Lệnh chạy ngoài has no catalog customer, and a warehouse always belongs to
+  // a customer — so the pickup-warehouse requirement (catalog prerequisite) is
+  // waived for ad-hoc LCL lots, mirroring route/factory.
+  it('waives the pickup warehouse for an ad-hoc LCL lot', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      isAdHoc: true,
+      rawCustomerName: 'Khách chạy ngoài',
+      rawRouteName: 'Tuyến riêng',
+      cargoMode: 'LCL' as const,
+      blNumber: 'BL-LCL-ADHOC-NOWH',
+      tradeDirection: 'IMPORT' as const,
+      pickupWarehouseSiteId: '',
+      packageType: 'Pallet',
+      packageCount: '5',
+      cargoWeightKg: '300',
+      expectedDeliveryDate: '2026-08-03',
+    };
+    const readiness = getShipmentCreateReadiness(form, []);
+    expect(readiness.issues.map((item) => item.fieldId)).not.toContain('shipment-pickup-warehouse');
+    expect(readiness.dispatchReady).toBe(true);
+  });
+
+  it('still requires the pickup warehouse for a catalog-customer LCL lot', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      cargoMode: 'LCL' as const,
+      blNumber: 'BL-LCL-NOWH',
+      tradeDirection: 'IMPORT' as const,
+      operationalSiteId: '41',
+      pickupWarehouseSiteId: '',
+      packageType: 'Pallet',
+      packageCount: '5',
+      cargoWeightKg: '300',
+      expectedDeliveryDate: '2026-08-03',
+    };
+    const readiness = getShipmentCreateReadiness(form, []);
+    expect(readiness.dispatchReady).toBe(false);
+    expect(readiness.issues).toContainEqual(expect.objectContaining({
+      fieldId: 'shipment-pickup-warehouse',
+      message: 'Chọn kho lấy hàng.',
+    }));
+  });
+
+  // FB-105 (spec §2): both hàng lẻ operating points accept typed text, not just
+  // a catalog pick; the Nhà máy is required for a catalog lot too.
+  it('accepts a typed Kho (CFS) name and a typed Nhà máy name for an LCL lot', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      cargoMode: 'LCL' as const,
+      blNumber: 'BL-LCL-TYPED',
+      tradeDirection: 'IMPORT' as const,
+      operationalSiteId: '',
+      factoryName: 'Nhà máy gõ tay',
+      pickupWarehouseSiteId: '',
+      pickupWarehouseName: 'Kho CFS gõ tay',
+      packageType: 'Pallet',
+      packageCount: '5',
+      cargoWeightKg: '300',
+      expectedDeliveryDate: '2026-08-03',
+    };
+    const readiness = getShipmentCreateReadiness(form, []);
+    expect(readiness.issues).toEqual([]);
+    expect(readiness.dispatchReady).toBe(true);
+  });
+
+  it('requires the Nhà máy for a catalog-customer LCL lot (waived for ad-hoc)', () => {
+    const base = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      cargoMode: 'LCL' as const,
+      blNumber: 'BL-LCL-NOFACTORY',
+      tradeDirection: 'IMPORT' as const,
+      pickupWarehouseName: 'Kho CFS',
+      packageType: 'Pallet',
+      packageCount: '5',
+      cargoWeightKg: '300',
+      expectedDeliveryDate: '2026-08-03',
+    };
+    const catalogIssues = getShipmentCreateReadiness({ ...base, customerId: '7', routeId: '11' }, []);
+    expect(catalogIssues.issues).toContainEqual(expect.objectContaining({
+      fieldId: 'shipment-operational-site',
+      message: 'Chọn nhà máy.',
+    }));
+
+    const adHocIssues = getShipmentCreateReadiness({
+      ...base,
+      isAdHoc: true,
+      rawCustomerName: 'Khách chạy ngoài',
+      rawRouteName: 'Tuyến riêng',
+      pickupWarehouseName: '',
+    }, []);
+    expect(adHocIssues.issues.map((item) => item.fieldId)).not.toContain('shipment-operational-site');
+    expect(adHocIssues.issues.map((item) => item.fieldId)).not.toContain('shipment-pickup-warehouse');
+    expect(adHocIssues.dispatchReady).toBe(true);
+  });
+
+  // FB-105 §3 — the two operating points must land on the direction-correct
+  // columns: another screen (điều vận Nâng/Trả, chi tiết lô) reads them.
+  it.each([
+    ['IMPORT', 'Kho lấy hàng (CFS)', 'Nhà máy A', 'Kho lấy hàng (CFS)', 'Nhà máy A'],
+    ['EXPORT', 'Kho trả hàng (CFS)', 'Nhà máy A', 'Nhà máy A', 'Kho trả hàng (CFS)'],
+  ] as const)('maps the %s LCL points onto pickup/delivery_location', (tradeDirection, warehouse, factory, lift, drop) => {
+    const payload = buildShipmentRootPayload({
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      cargoMode: 'LCL',
+      blNumber: 'BL-LCL-POINTS',
+      tradeDirection,
+      pickupWarehouseName: warehouse,
+      factoryName: factory,
+    }, [], []);
+    expect(payload.pickupLocation).toBe(lift);
+    expect(payload.deliveryLocation).toBe(drop);
+  });
+
+  it('never writes the LCL point names from an FCL payload', () => {
+    const payload = buildShipmentRootPayload({
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      cargoMode: 'FCL',
+      blNumber: 'BL-FCL-POINTS',
+      tradeDirection: 'IMPORT',
+      pickupWarehouseName: 'Kho CFS',
+      factoryName: 'Nhà máy A',
+    }, [], []);
+    expect('pickupLocation' in payload).toBe(false);
+    expect('deliveryLocation' in payload).toBe(false);
   });
 
   // Helpdesk 2026-10-13 (ops Tiếp Vu): "hàng lẻ: phần thể tích (cbm) k bắt
@@ -227,6 +362,7 @@ describe('shipment create model', () => {
       blNumber: 'BL-LCL-NO-CBM',
       tradeDirection: 'IMPORT' as const,
       cargoTypeId: '32',
+      operationalSiteId: '41',
       pickupWarehouseSiteId: '42',
       packageType: 'Pallet',
       packageCount: '8',

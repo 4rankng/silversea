@@ -49,7 +49,7 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     pathPattern: /^\/\d+\/recovery-facts\/?$/,
     roles: [Role.OPS],
     effect: 'bypass',
-    reason: 'OPS records shipment recovery facts; OPS holds no shipments policy row, so the allowance is scoped to exactly this path.',
+    reason: 'OPS records shipment recovery facts; OPS holds only a shipments READ row (ticket 141026230710), so the write allowance stays scoped to exactly this path.',
     source: 'no ruling citation in pre-refactor code',
   },
   {
@@ -209,6 +209,27 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     reason:
       'CUS merges same-customer lots into one bill (FB-093 "Ghép cước thu khách") and must pick the billing vehicle class from the catalog. CUS has no config-tree grant, so bridge route-scoped to the vehicle-size-class list read only; every other config catalog and verb stays Casbin-governed for CUS.',
     source: 'QA finding B-1 (FB-093, staging 2026-10-16)',
+  },
+  {
+    // FB-086 R21 (171026175000, 17/10 17:50): the add-container dialog QA drove
+    // on /shipments/:id filled its "Loại container" dropdown from
+    // GET /api/container-types, but CUS holds no config policy row, so the
+    // catalog answered 403, the lazy query failed silently, and the dropdown
+    // offered only its "Chưa chọn loại cont" placeholder — no container could
+    // be added. The dialog itself was later removed from the detail page by
+    // owner decision (card 171026182554), but the starvation root stays: the
+    // container-type catalog is hardware vocabulary for the role that
+    // operates container flows, so its list read is bridged the same way as
+    // the vehicle-size-class and quotation-fee reads above — scoped to this
+    // ONE GET list path, never a `p, CUS, config, read` policy row.
+    resource: 'config',
+    methods: ['GET'],
+    pathPattern: /^\/container-types\/?$/,
+    roles: [Role.CUS],
+    effect: 'bypass',
+    reason:
+      'CUS-operated container flows pick the container type from the catalog (FB-086: the add-container dialog starved to its placeholder when this read 403). CUS has no config-tree grant, so bridge route-scoped to the container-type list read only; every other config catalog and verb stays Casbin-governed for CUS.',
+    source: 'FB-086 verify-fail round 21 (171026175000, 2026-10-17)',
   },
   {
     resource: 'financial',

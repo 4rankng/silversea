@@ -79,6 +79,21 @@ export const shipmentDebitSummaryItemSchema = z.object({
   costGroupPrincipalRef: z.string().nullable(),
 });
 
+// Case 2026-10-17 — the L1 shadow line must NAME what it excludes: one entry
+// per fulfillment-NULL trip in the same filtered lot scope as the list.
+// `lotLabel` mirrors the row's own identity chain (Số Bill / Số Booking →
+// Số tờ khai → '—'); `feeSum` is that trip's positive buy-sum, so the entries
+// sum to `excludedSum`.
+export const excludedTripSchema = z.object({
+  tripId: z.number().int().positive(),
+  tripCode: z.string().nullable(),
+  shipmentId: z.number().int().positive(),
+  lotLabel: z.string(),
+  customerName: z.string().nullable(),
+  departureDate: z.string().nullable(),
+  feeSum: moneyString,
+});
+
 export const shipmentDebitSummaryResponseSchema = z.object({
   items: z.array(shipmentDebitSummaryItemSchema),
   total: z.number().int().nonnegative(),
@@ -88,6 +103,8 @@ export const shipmentDebitSummaryResponseSchema = z.object({
   // excluded money surfaces as this one explicit line (N trips + X ₫).
   excludedCount: z.number().int().nonnegative(),
   excludedSum: moneyString,
+  // …and the line can expand to the trips themselves (case 2026-10-17).
+  excludedTrips: z.array(excludedTripSchema),
 });
 
 export type ShipmentDebitSummaryQuery = z.infer<typeof shipmentDebitSummaryQuerySchema>;

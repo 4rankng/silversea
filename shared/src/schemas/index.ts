@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { expenseInputFields, expenseDateSchema, expenseVndSchema, signedExpenseVndSchema } from '../expense-accounting';
 import { normalizeContainerNumber, validateCheckDigit, validateContainerFormat } from '../calculations/iso6346';
+import { TIMESHEET_SALARY_MODES } from '../calculations/timesheetSalary';
 import {
   CustomerAccountType, FuelMode, LoadingType, Role, SupplierType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus,
@@ -587,6 +588,13 @@ export const defaultDebitNoteColumns: Array<z.infer<typeof debitNoteColumnSchema
   { id: 'so_luong', label: 'Số lượng', variable: 'containerCount', headerGroup: null, width: 9, align: 'center', format: 'number', total: false },
   { id: 'don_gia', label: 'Đơn giá', variable: 'amount', headerGroup: null, width: 15, align: 'right', format: 'currency', total: false },
   { id: 'thanh_tien', label: 'Thành tiền', variable: 'amount', headerGroup: null, width: 16, align: 'right', format: 'currency', total: true },
+  // Spec §II.4 (card 171026004331): every exported Debit Note carries the loại
+  // xe tính cước THU and the BKS báo khách ("xe ảo" = billing_truck_no). Both
+  // bind to renderData, so the printed value is the frozen/derived lot fact —
+  // never the actual plate. Appended last so every existing column keeps its
+  // printed position (the same rule the LONG MINH template used for GHI CHÚ).
+  { id: 'loai_xe', label: 'Loại xe', variable: 'vehicleType', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
+  { id: 'bien_so', label: 'Biển số xe', variable: 'truckPlate', headerGroup: null, width: 12, align: 'center', format: 'text', total: false },
 ];
 
 export const defaultPaymentStatementColumns: Array<z.infer<typeof debitNoteColumnSchema>> = [
@@ -1111,6 +1119,10 @@ export const driverSchema = z.object({
   bankName: z.string().trim().max(160).optional().nullable(),
   bankAccount: z.string().trim().max(80).optional().nullable(),
   salaryType: z.string().trim().max(50).optional().nullable(),
+  // FB-103 (ticket 171026215600) — the enum-backed salary mode the timesheet
+  // system consumes. Optional here: the catalog PUT is partial, and older
+  // clients still send payloads without it (column default PER_TRIP stands).
+  salaryMode: z.enum(TIMESHEET_SALARY_MODES).optional(),
 });
 
 export const managementFeeSchema = z.object({
@@ -1753,6 +1765,14 @@ export const createShipmentSchema = createShipmentBaseSchema.superRefine((data, 
   validateShipmentAdHocIdentity(data, ctx);
 });
 
+/**
+ * Keys `POST /api/shipments` accepts. The route rejects anything outside this
+ * list instead of letting zod strip it silently: a caller sending the create
+ * form's own field ids (`quantity`, `weightKg`, `volumeCbm`) must be told, not
+ * handed a 201 whose lot carries no cargo facts.
+ */
+export const CREATE_SHIPMENT_KEYS: readonly string[] = Object.freeze(Object.keys(createShipmentBaseSchema.shape));
+
 // Quick create — M10.1 clerk mobile entry point. Minimum data set is just
 // `customerId` (the only NOT NULL column); every other field is optional
 // and typically filled later from the M10.2 doc-entry page. Optional
@@ -1797,17 +1817,22 @@ export const shipmentContainerItemSchema = z.object({
 
 // Create-workspace combined contract: root + containers in ONE idempotent
 // call - a containers failure rolls back the whole create.
-export const quickCreateShipmentSchema = createShipmentBaseSchema.extend({
+const quickCreateShipmentBaseSchema = createShipmentBaseSchema.extend({
   declarationNumber: z.string().trim().max(50).optional().nullable(),
   _requestId: z.string().min(1).max(100).optional(),
   // Create-workspace combined save: containers ride the idempotent create
   // call so a containers failure rolls back the root with it (no 0-cont
   // orphan lots).
   containers: z.array(shipmentContainerItemSchema).optional(),
-}).superRefine((data, ctx) => {
+});
+
+export const quickCreateShipmentSchema = quickCreateShipmentBaseSchema.superRefine((data, ctx) => {
   validateShipmentDocumentReferences(data, ctx);
   validateShipmentAdHocIdentity(data, ctx);
 });
+
+/** Keys `POST /api/shipments/quick` accepts (base + the quick-only channels). */
+export const QUICK_CREATE_SHIPMENT_KEYS: readonly string[] = Object.freeze(Object.keys(quickCreateShipmentBaseSchema.shape));
 
 // Update shipment. `expectedVersion` is the canonical optimistic-lock field;
 // legacy callers may still send `version` and are normalized onto

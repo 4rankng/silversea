@@ -27,11 +27,32 @@ export interface CellContext {
   isBusy: boolean;
 }
 
+/**
+ * Card 191026181942 (KT8) — the money fields behind the "Thiếu …" cells. A row
+ * with ANY of these null still lacks cost data; the leading status column's
+ * red dot says so in one glance. `loiNhuan` is derived from these, and GHI CHÚ
+ * is prose, so neither belongs to the predicate.
+ */
+const THU_COST_FIELDS = ['cuocThu', 'lachHuyen', 'phuPs', 'phatSinhCus', 'tongThu'] as const;
+const TRA_COST_FIELDS = ['cuocTraDv', 'lachHuyenDv', 'phatSinhDv', 'phiRu', 'tong1'] as const;
+
+/** True when the row still has ≥1 missing money field ("Thiếu chi phí"). */
+export function hasMissingCost(row: AccountingDebitBoardRow): boolean {
+  return THU_COST_FIELDS.some((field) => row.thu[field] == null)
+    || TRA_COST_FIELDS.some((field) => row.tra[field] == null);
+}
+
 export interface DebitColumn extends LedgerColumn {
   /** The column's own minimum width (see the stylesheet). */
   className: string;
   /** Tier-1 header this column belongs to, for the grouped head. */
   group?: GroupKey;
+  /**
+   * Card 191026181942 (KT8): the header text renders screen-reader-only —
+   * for the slim leading cost-state track, whose 34px cannot hold a label
+   * without wrapping the head band. The picker still shows the real label.
+   */
+  srOnlyHeader?: boolean;
   /**
    * The wire value behind the cell. A column that declares `autoHideWhenEmpty`
    * is hidden while NO rendered row carries a value — absence is not data, so a
@@ -55,6 +76,24 @@ function money(value: string | null, missingLabel: string): ReactNode {
 }
 
 export const BOARD_COLUMNS: readonly DebitColumn[] = [
+  {
+    // Card 191026181942 (KT8) — the slim LEADING status column: one red dot
+    // when the row still lacks cost data, so "dễ kiểm tra" is a pre-attentive
+    // scan down the first track instead of reading every money cell. The
+    // money cells keep their muted "Thiếu …" labels (§1 names the field);
+    // the row is NEVER flooded red — that would fight the selection state.
+    key: 'chiPhi', label: 'Chi phí', className: 'debit-col--cost-state', pinned: true, srOnlyHeader: true,
+    cell: (row) => hasMissingCost(row)
+      ? (
+        <span
+          className="debit-cost-dot"
+          role="img"
+          aria-label="Thiếu chi phí"
+          title="Thiếu chi phí"
+        />
+      )
+      : <span aria-hidden="true">—</span>,
+  },
   {
     key: 'ngay', label: 'Ngày', className: 'debit-col--date', pinned: true,
     cell: (row) => (row.ngay == null ? '—' : formatDate(row.ngay)),
@@ -83,19 +122,31 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'phanXe', label: 'Phân xe', className: 'debit-col--truck',
-    // FB-094: the group's two plates — actual + billing; the orange badge
-    // fires only when the "xe ảo" differs from what really ran the lane.
+    // Card 161026232419 (§II.4) + FB-094: an LCL row states BOTH facts so kế
+    // toán can check them side by side — line 1 is the lot's real carrier
+    // identity next to the plate that actually ran the lane, line 2 is the
+    // orange "xe ảo" badge that fires only when the billing plate differs.
+    // The carrier half reuses `row.phanXe`, the SAME active-trip labels the
+    // FCL cell renders below (subcontracted ⇒ nhà xe name, own fleet ⇒ own
+    // plate) — the service batches that lookup once for the whole board, so
+    // this cell MUST NOT resolve a carrier of its own.
     cell: (row) => {
       if (row.lcl) {
+        const carrier = row.phanXe.filter((label) => label.trim() !== '').join(', ') || null;
+        const actual = row.lcl.actualTruckNo?.trim() || null;
+        const billing = row.lcl.billingTruckNo?.trim() || null;
+        const xeoAo = billing != null && billing !== actual ? billing : null;
+        // Absence is not data: an LCL row carrying neither identity renders
+        // the ONE em-dash, never an empty string or a bare "Thực: undefined".
+        if (carrier == null && actual == null && xeoAo == null) return <span>—</span>;
         return (
           <div className="record-cell-stack">
-            {row.lcl.actualTruckNo && <span>{row.lcl.actualTruckNo}</span>}
-            {row.lcl.billingTruckNo && row.lcl.billingTruckNo !== row.lcl.actualTruckNo && (
+            <span>{carrier ?? '—'} · Thực: {actual ?? '—'}</span>
+            {xeoAo != null && (
               <span className="debit-billing-badge" title="Debit Note in BKS báo khách, không in BKS thực">
-                Báo khách (Ảo): {row.lcl.billingTruckNo}
+                Báo khách (Ảo): {xeoAo}
               </span>
             )}
-            {!row.lcl.actualTruckNo && !row.lcl.billingTruckNo && <span>—</span>}
           </div>
         );
       }
@@ -123,7 +174,9 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     cell: (row) => money(row.thu.phatSinhCus, 'Thiếu phát sinh (cus)'),
   },
   {
-    key: 'tongThu', label: 'Tổng thu', className: 'debit-col--money', group: 'thu',
+    // Card 191026181942 (KT4) — essential: the PHẢI THU rollup is one of the
+    // six columns the board opens on.
+    key: 'tongThu', label: 'Tổng thu', className: 'debit-col--money', group: 'thu', essential: true,
     cell: (row) => money(row.thu.tongThu, 'Thiếu tổng thu'),
   },
   {
@@ -142,7 +195,9 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     cell: (row) => money(row.tra.phatSinhDv, 'Thiếu phát sinh ĐV'),
   },
   {
-    key: 'tong1', label: 'Tổng 1', className: 'debit-col--money', group: 'tra',
+    // Card 191026181942 (KT4) — essential: the PHẢI TRẢ rollup (Tổng 1) is one
+    // of the six columns the board opens on.
+    key: 'tong1', label: 'Tổng 1', className: 'debit-col--money', group: 'tra', essential: true,
     cell: (row) => money(row.tra.tong1, 'Thiếu tổng 1'),
   },
   {

@@ -86,8 +86,18 @@ describe('Wave 0: existing roles unchanged (regression guard)', () => {
   test('DRIVER still denied shipments (no new privilege leak)', async () => {
     assert.equal(await (await enforcer()).enforce('DRIVER', 'shipments', 'read'), false);
   });
-  test('OPS still denied shipments', async () => {
-    assert.equal(await (await enforcer()).enforce('OPS', 'shipments', 'read'), false);
+});
+
+// Ticket 141026230710 (chỉ thị 2026-10-17, spec T3): mọi Ops khai chi phí mọi
+// lô — `p, OPS, shipments, read` mở /shipments cho Ops. Supersedes the old
+// 'OPS still denied shipments' pin; every shipments write stays closed.
+describe('OPS shipments access (ticket 141026230710)', () => {
+  test('OPS can read shipments', async () => {
+    assert.equal(await (await enforcer()).enforce('OPS', 'shipments', 'read'), true);
+  });
+  test('OPS is denied shipments write and delete', async () => {
+    assert.equal(await (await enforcer()).enforce('OPS', 'shipments', 'write'), false);
+    assert.equal(await (await enforcer()).enforce('OPS', 'shipments', 'delete'), false);
   });
 });
 

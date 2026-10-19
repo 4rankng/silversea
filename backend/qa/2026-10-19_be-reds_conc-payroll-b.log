@@ -1,0 +1,71 @@
+✔ M7.3 payroll close enforces readiness, approved exclusions, completion-period totals, actual-date attendance, and payout-gated reopen (317.311083ms)
+✔ Q10 adjustment-mode exclusions stay completable after the approved adjustment exists (47.161208ms)
+▶ Q15 salary-period governed routes
+  ✔ replays close and reopen governance decisions exactly once at the HTTP boundary (133.423625ms)
+  ✔ replays salary-period adjustment request/check/approve and rejects stale source versions (29.966667ms)
+[ERROR] POST /api/salary/periods/6432-03/adjustments: Error: Failed query: insert into "idempotency_keys" ("id", "endpoint", "idempotency_key", "entity_type", "entity_id", "payload_hash", "response_status_code", "response_snapshot", "created_by", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, default)
+params: salary-periods.adjustments.request,q23-adjustment-fail-6432-03,salary_period_adjustment,621,71e3f6bdc6a011d8232bd8e98814356e48a65bf5f9b16814b372e7e04d99b64e,200,{"adjustmentId":621,"sourcePeriod":"6432-03","targetPeriod":"6432-04","driverId":32606,"amount":275000,"reason":"Q23 adjustment rollback 1792373107112-w6m4u1","approvedBy":105903,"approvedAt":"2026-10-19T01:25:07.356Z"},105903
+    at PostgresJsPreparedQuery.queryWithCache (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:461:7)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/routes/salary.ts:333:32)
+[ERROR] cause: PostgresError: q15 simulated idempotency insert failure
+    at ErrorResponse (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:815:30)
+    at handle (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:489:6)
+    at Socket.data (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:324:9)
+    at Socket.emit (node:events:508:20)
+    at addChunk (node:internal/streams/readable:564:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:515:3)
+    at Readable.push (node:internal/streams/readable:395:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: 'P0001',
+  where: 'PL/pgSQL function q15_fail_idempotency_insert_1792373107112_w6m4u1_1() line 3 at RAISE',
+  file: 'pl_exec.c',
+  line: '3897',
+  routine: 'exec_stmt_raise'
+}
+  ✔ salary-period adjustment request rolls back when idempotency persistence fails after the business callback (18.573542ms)
+  ✔ applies salary issue and official posting immediately with exact replay (phê duyệt removed) (34.767125ms)
+  ✔ salary confirmation applies immediately at the request (phê duyệt removed) (23.644458ms)
+[ERROR] POST /api/salary/periods/6412-11/issue: Error: Failed query: insert into "idempotency_keys" ("id", "endpoint", "idempotency_key", "entity_type", "entity_id", "payload_hash", "response_status_code", "response_snapshot", "created_by", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, default)
+params: salary-periods.issue,q23-salary-fail-6412-11,salary_period,-9,c8b5d0ecf198573b523876687e1a8dafe827ca6ad9e99e5a55e738d18811b3ea,201,{"id":-9,"version":2,"createdAt":"2026-10-19T01:25:07.427Z","updatedAt":"2026-10-19T01:25:07.427Z","status":"APPROVED","subjectId":null,"subjectKey":"6412-11","reason":"Đề nghị phát hành phiếu lương kỳ 6412-11","originalVersion":1,"originalPeriodLockId":null,"beforeSnapshot":{"period":"6412-11","payslipIssuedAt":null,"officialPostedAt":null},"afterSnapshot":{"operation":"ISSUE_PAYSLIPS","period":"6412-11","note":null},"deltaSnapshot":null,"checkerId":null,"checkerRole":null,"checkedAt":null,"approverId":105911,"approverRole":"MANAGER","approvedAt":"2026-10-19T01:25:07.427Z","appliedAt":"2026-10-19T01:25:07.427Z","ledgerEntryId":null,"applicationResult":{"operation":"ISSUE_PAYSLIPS","period":"6412-11","closeId":1493,"resultingVersion":2},"returnedBy":null,"returnedRole":null,"returnedAt":null,"returnReason":null,"rejectedBy":null,"rejectedRole":null,"rejectedAt":null,"rejectionReason":null,"canceledBy":null,"canceledRole":null,"canceledAt":null,"cancelReason":null,"subjectType":"SALARY_PERIOD","actionKind":"SALARY_PERIOD_CLOSE","makerId":105911,"makerRole":"MANAGER"},105911
+    at PostgresJsPreparedQuery.queryWithCache (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:461:7)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/backend/src/routes/salary.ts:237:44)
+[ERROR] cause: PostgresError: q15 simulated idempotency insert failure
+    at ErrorResponse (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:815:30)
+    at handle (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:489:6)
+    at Socket.data (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-final/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:324:9)
+    at Socket.emit (node:events:508:20)
+    at addChunk (node:internal/streams/readable:564:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:515:3)
+    at Readable.push (node:internal/streams/readable:395:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: 'P0001',
+  where: 'PL/pgSQL function q15_fail_idempotency_insert_1792373107112_w6m4u1_2() line 3 at RAISE',
+  file: 'pl_exec.c',
+  line: '3897',
+  routine: 'exec_stmt_raise'
+}
+  ✔ salary issue rolls back when idempotency persistence fails after the business callback (9.486792ms)
+✔ Q15 salary-period governed routes (316.851333ms)
+ℹ tests 8
+ℹ suites 1
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1880.8355
+B_EXIT=0

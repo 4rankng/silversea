@@ -17,6 +17,7 @@ import {
   forwarderExpenseTypeSchema,
   expenseCategorySchema,
   supplierSchema,
+  pricingTableSchema,
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
   NO_INVOICE_POLICY_DEFAULTS,
   fuelConfigSchema,
@@ -55,6 +56,7 @@ import {
 } from '../../services/application-owned-uniqueness.service';
 
 export type SupplierPayload = output<typeof supplierSchema>;
+export type PricingTablePayload = output<typeof pricingTableSchema>;
 export type DriverPayload = Partial<output<typeof driverSchema>>;
 export type PenaltyReasonPayload = Partial<output<typeof penaltyReasonSchema>>;
 export type ForwarderExpenseTypePayload = output<typeof forwarderExpenseTypeSchema>;
@@ -318,6 +320,9 @@ export function hasMaterialCustomerUpdate(
 export const MATERIAL_DRIVER_FIELDS = new Set<keyof DriverPayload>([
   'baseSalary',
   'socialInsurance',
+  // FB-103 (ticket 171026215600) — hình thức lương là cấu hình lương của lái
+  // xe (mặc định chấm công tháng mới), cùng bậc với lương cứng.
+  'salaryMode',
 ]);
 
 export function hasMaterialDriverConfigChange(data: DriverPayload): boolean {

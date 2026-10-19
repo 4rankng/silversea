@@ -21,6 +21,7 @@ import {
   getOutstandingAdvanceBalances,
   adjustSettlementExpense,
   updateAdvanceSettlement,
+  checkAdvanceSettlement,
   requestAdvanceSettlementReversal,
 } from '../../services/advance.service';
 import { ADVANCE_REQUEST_SORT_KEYS } from '../../services/advance-request.service';
@@ -104,6 +105,39 @@ router.get('/advance-settlements', asyncHandler(async (req: Request, res: Respon
 // check/approve/reject endpoints are GONE — settlements apply at creation
 // (forwarder route records directly in one transaction). Any client
 // still calling these gets 404.
+
+// Card 191026160000 (§3b) — DUYỆT PHIẾU HOÀN ỨNG: kế toán's check stamp on a
+// RECORDED phiếu. Not a state gate (creation still applies the phiếu, the
+// TC-CHUNK4-009 ruling stands) — this records the accountant's verification
+// act (checked_by/checked_at) the chiphispec round-2 asks for.
+const settlementCheckSchema = z.object({
+  expectedVersion: z.number().int().positive().optional(),
+}).strict();
+
+router.post('/advance-settlements/:id/check', declareMaterialWrite('advance-settlements.check', { method: 'POST', path: '/api/advance-settlements/:id/check' }), requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id as string, 10);
+  const parsed = settlementCheckSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  // Card 191019215621 — this route declared itself a material write but its
+  // body never crossed a durable command boundary, unlike its two siblings in
+  // this same file (/reversal, /update). The stamp IS a material write: it
+  // writes checked_by/checked_at, bumps version under a conditional, and fires
+  // a notification — so it belongs on the same envelope as its siblings, not
+  // on the REVIEWED_SERVICE_DURABLE_BOUNDARIES exemption list.
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_CHECK,
+    idempotencyKey,
+    payload: { actorId: actor.userId, id, ...parsed.data },
+    createdBy: actor.userId,
+    entityType: 'advance_settlement',
+    create: (tx) => checkAdvanceSettlement(id, { expectedVersion: parsed.data.expectedVersion, actorId: actor.userId }, tx),
+    getEntityId: () => id,
+  });
+  res.locals.auditEntityKey = `phiếu hoàn ứng ${result.code} — duyệt`;
+  res.json(idempotencyKey ? { ...result, replayed } : result);
+}));
 
 router.post('/advance-settlements/:id/reversal', declareMaterialWrite('advance-settlements.reverse', { method: 'POST', path: '/api/advance-settlements/:id/reversal' }),  requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id as string);

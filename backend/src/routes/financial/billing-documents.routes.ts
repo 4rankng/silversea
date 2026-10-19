@@ -21,6 +21,10 @@ import {
   requestBillingDocumentIssue,
 } from '../../services/billing-document-governance.service';
 import { getDebitNoteForRender, exportDebitNoteHtml } from '../../services/debit-note-pdf.service';
+import {
+  enrichLinesForDebitNoteRender,
+  resolveBillingExportPerspective,
+} from '../../services/billing-export-shared.service';
 import { attachmentDisposition } from '../../services/statement.service';
 import { invalidateReportCaches } from '../../lib/report-cache';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
@@ -234,8 +238,16 @@ router.get('/finance/billing-documents/:id/export', requireRoles(Role.ADMIN, Rol
     // Wave 3 M5.8 — browser-printable HTML that mirrors the screen.
     const { doc, snapshot } = await getDebitNoteForRender(id, { templateIdOverride });
     const dateStr = new Date().toLocaleDateString('vi-VN');
-    // Build the legacy DebitNotePdfData shape from the hydrated doc, then
-    // delegate to the template-aware renderer.
+    // Card 171026004331 / spec §II.4: the template's `bien_so` (truckPlate) and
+    // `loai_xe` (vehicleType) cells must print the same fact the XLSX path
+    // prints — this projection used to drop renderData, so both cells came out
+    // empty. Reuse the export enrichment (FB-094 lot claim + trip facts, with
+    // the document's own AR/AP perspective) and carry ONLY those two bindings:
+    // every other column keeps the legacy projection byte-for-byte, and money
+    // (amountOverride ?? baseAmount) is untouched. Enriched once, here — the
+    // renderer never re-enriches, so a line cannot be stamped twice.
+    const perspective = await resolveBillingExportPerspective(doc);
+    const renderLines = (await enrichLinesForDebitNoteRender(doc.lines, perspective)).filter(l => !l.excluded);
     const data = {
       documentId: doc.id,
       entityName: doc.entityName ?? 'Khách hàng chưa xác định',
@@ -249,8 +261,7 @@ router.get('/finance/billing-documents/:id/export', requireRoles(Role.ADMIN, Rol
       totalGross: String(doc.totalGross ?? doc.totalInclVat),
       vatTreatmentVersion: doc.vatTreatmentVersion ?? 'VAT-V1',
       status: null,
-      lines: doc.lines
-        .filter(l => !l.excluded)
+      lines: renderLines
         .map(l => ({
           lineType: l.lineType,
           typeLabel: l.typeLabel,
@@ -260,6 +271,9 @@ router.get('/finance/billing-documents/:id/export', requireRoles(Role.ADMIN, Rol
           taxAmount: String(l.taxAmount ?? 0),
           grossAmount: String(l.grossAmount ?? l.baseAmount),
           routeName: l.routeName ?? null,
+          renderData: l.renderData
+            ? { truckPlate: l.renderData.truckPlate ?? null, vehicleType: l.renderData.vehicleType ?? null }
+            : null,
         })),
     };
     const html = exportDebitNoteHtml(data, snapshot, dateStr);

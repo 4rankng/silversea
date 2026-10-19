@@ -18,7 +18,11 @@
 //       ACCOUNTANT → shipments read|write for O2C review/close flows
 //       CUS      → shipments read|write          (existing Wave 0 rows)
 //       DISPATCHER → shipments read|write for the canonical intake workflow
-//       CUSTOMER / DRIVER / FORWARDER → denied at the mount
+//       OPS      → shipments read (ticket 141026230710, 2026-10-17 — the
+//                  /shipments view is the Ops lot surface for khai chi phí;
+//                  every general write stays closed to OPS except the scoped
+//                  recovery-facts grant in middleware/authz-grants.ts)
+//       CUSTOMER / DRIVER → denied at the mount
 //
 //   - Mutating handlers additionally use `requireRoles` for an explicit
 //     in-handler guard. This belt-and-suspenders pattern matches
@@ -87,6 +91,9 @@ registerAuditEvent('POST', '/api/shipments/lcl/truck', AuditEvent.SHIPMENT_UPDAT
 // Master-data CRUD: creating a factory/warehouse from the intake form is an
 // entity-level change, not a shipment-lifecycle event, so it uses ENTITY_*.
 registerAuditEvent('POST', '/api/shipments/operational-sites', AuditEvent.ENTITY_CREATED);
+// FB-114 verify-fail (171026185348): minting a shipping-line catalog entry
+// from the intake dialog is an entity-level master-data change.
+registerAuditEvent('POST', '/api/shipments/shipping-lines', AuditEvent.ENTITY_CREATED);
 
 const router = Router();
 

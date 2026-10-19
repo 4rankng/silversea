@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
@@ -778,6 +778,136 @@ describe('071026100800 — xóa container làm tươi hàng tổng quan', () => 
       </ToastProvider>,
     );
     expect(screen.queryByRole('button', { name: 'Thêm container' })).toBeNull();
+  });
+});
+
+// Card 191026100000 (chungtu-dieuvan A.1): opening the add form copies the
+// lot's existing row values down — per-column FIRST non-null, mirroring the
+// add API's lot-default inherit — except Số container, which stays the
+// operator's own entry. Weight rides here even though the wire treats it as
+// a per-container fact, because the customer's copy-down law is "mọi trường
+// khác TRỪ số cont".
+describe('add-row seed copies the lot row values (A.1, card 191026100000)', () => {
+  const twoRowDetail = {
+    ...detail,
+    summary: { ...detail.summary, cargoMode: 'FCL' },
+    selectors: { ...detail.selectors, containerTypes: [{ id: 5, code: '40HC', name: "40'HC", label: "40HC - 40'HC" }] },
+    containers: [
+      detail.containers[0], // typeId 5, weight '12500', appointment null below
+      {
+        ...detail.containers[0],
+        id: 11,
+        ordinal: 2,
+        containerNumber: 'MSKU7654321',
+        containerTypeId: null,
+        customerAppointmentAt: '2026-09-01T03:00:00.000Z', // 10:00 VN, 01/09
+        raw: { ...detail.containers[0].raw, containerTypeId: null, cargoWeightKg: '500.00' },
+      },
+    ],
+  } as unknown as ShipmentCusWorkspaceDetail;
+
+  it('prefills loại cont, trọng lượng and giờ hẹn from the lot rows; leaves Số container empty', () => {
+    // Per-column first non-null: type + weight come from row 1 (row 2's are
+    // null), the appointment comes from row 2 (row 1 has none).
+    const withRow1Undated = {
+      ...twoRowDetail,
+      containers: [
+        { ...twoRowDetail.containers[0], customerAppointmentAt: null },
+        twoRowDetail.containers[1],
+      ],
+    } as unknown as ShipmentCusWorkspaceDetail;
+    renderLedger({ detail: withRow1Undated });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    const numberInput = screen.getByLabelText('Số container') as HTMLInputElement;
+    expect(numberInput.value).toBe('');
+    const weightInput = screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement;
+    expect(weightInput.value).toBe('12500');
+    // The seeded appointment is row 2's (the only dated row), in Vietnam wall
+    // clock: 10:00 on 01/09.
+    const { time, date } = appointmentInputs();
+    expect(time.value).toBe('10');
+    expect(date.value).toBe('01');
+  });
+
+  it('strips the decimal tail from a seeded weight ("500.00" → "500")', () => {
+    const lightLot = {
+      ...twoRowDetail,
+      containers: [
+        { ...twoRowDetail.containers[0], raw: { ...twoRowDetail.containers[0].raw, cargoWeightKg: '500.00' } },
+        twoRowDetail.containers[1],
+      ],
+    } as unknown as ShipmentCusWorkspaceDetail;
+    renderLedger({ detail: lightLot });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('500');
+  });
+});
+
+// Card 191026100000 (chungtu-dieuvan A.7): the customer contract for the
+// Trọng lượng column — integer kilograms never carry a ",00" tail. Intl's
+// maximumFractionDigits already behaves this way; pin the drawer cell on the
+// customer's exact value so a minimumFractionDigits/toFixed regression fails
+// here instead of in a Zalo screenshot.
+describe('drawer weight column drops the decimal tail (A.7, card 191026100000)', () => {
+  it('renders cargoWeightKg "500.00" as 500, keeping a real decimal digit', () => {
+    const halfTonneLot = {
+      ...detail,
+      containers: [{ ...detail.containers[0], raw: { ...detail.containers[0].raw, cargoWeightKg: '500.00' } }],
+    } as unknown as ShipmentCusWorkspaceDetail;
+    render(
+      <ToastProvider>
+        <ContainerLedger detail={halfTonneLot} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="a7-weight" />
+      </ToastProvider>,
+    );
+    const weightCell = document.querySelector('tbody [data-label="Trọng lượng (kg)"]') as HTMLElement;
+    expect(weightCell.textContent).toBe('500');
+
+    const realDecimal = {
+      ...detail,
+      containers: [{ ...detail.containers[0], raw: { ...detail.containers[0].raw, cargoWeightKg: '500.50' } }],
+    } as unknown as ShipmentCusWorkspaceDetail;
+    render(
+      <ToastProvider>
+        <ContainerLedger detail={realDecimal} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="a7-weight-decimal" />
+      </ToastProvider>,
+    );
+    expect((document.querySelectorAll('tbody [data-label="Trọng lượng (kg)"]')[1] as HTMLElement).textContent).toBe('500,5');
+  });
+});
+
+// FB-086 (round 21, card 171026175000): the add-container type dropdown must
+// load its options. The dialog QA drove starved to its "Chưa chọn loại cont"
+// placeholder because it read the config-catalog endpoint CUS cannot access;
+// this surface reads the workspace selectors instead — pin that every catalog
+// entry reaches the open dropdown, so a rewiring to a role-starved source (or
+// an empty selectors payload) fails here instead of at QA.
+describe('add-row loại-cont dropdown loads its options (FB-086, round 21)', () => {
+  it('fills the add-row loại-cont dropdown from the workspace selectors', async () => {
+    renderLedger({
+      detail: {
+        ...detail,
+        summary: { ...detail.summary, cargoMode: 'FCL' },
+        selectors: {
+          ...detail.selectors,
+          containerTypes: [
+            { id: 1, code: '20DC', name: "20'DC", label: "20DC - 20'DC" },
+            { id: 4, code: '40DC', name: "40'DC", label: "40DC - 40'DC" },
+            { id: 5, code: '40HC', name: "40'HC", label: "40HC - 40'HC" },
+          ],
+        },
+      } as unknown as ShipmentCusWorkspaceDetail,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    // Card 191026100000 (A.1): the add row now seeds the lot's existing loại
+    // cont (the fixture line carries type 5), so the trigger opens showing the
+    // selection instead of the placeholder — the options assertion below is
+    // the point of this test and is unchanged.
+    fireEvent.click(await screen.findByRole('button', { name: /40HC/ }));
+    const listbox = await screen.findByRole('listbox');
+    const optionTexts = within(listbox).getAllByRole('option').map((option) => option.textContent);
+    expect(optionTexts.length).toBeGreaterThanOrEqual(1);
+    expect(optionTexts).toEqual(expect.arrayContaining(['20DC', '40DC', '40HC']));
   });
 });
 

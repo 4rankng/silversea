@@ -1,0 +1,14 @@
+{"level":30,"time":1792254617370,"pid":48853,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ 171026154000 — cargoMode filters both branches of the detail plan
+  ✔ LCL scope returns only LCL rows on page 1; FCL keeps the điều phối branch; counts follow (508.930834ms)
+  ✔ an invalid cargoMode is a 400, not a silent no-filter (4.445666ms)
+✔ 171026154000 — cargoMode filters both branches of the detail plan (868.883875ms)
+ℹ tests 2
+ℹ suites 1
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2731.979208
+EXIT:0

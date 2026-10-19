@@ -1,0 +1,7 @@
+=== cmd: pnpm context:check ===
+
+> tingting@ context:check /Users/dev/.paseo/worktrees/1njkloyy/fix-141026230710-ops-expense-access
+> node scripts/context-for.mjs --check
+
+Context manifest valid: v1, 8 profiles, 25 context paths.
+exit=0

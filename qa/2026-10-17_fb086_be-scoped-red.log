@@ -1,0 +1,37 @@
+{"level":30,"time":1792247397007,"pid":58316,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+{"level":30,"time":1792247397159,"pid":58316,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ FB-086 (round 21) — CUS reads the container-type catalog
+  ✖ CUS gets the container-type list instead of 403 (4247.700208ms)
+{"level":30,"time":1792247397284,"pid":58316,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+  ✔ the grant is scoped — other config catalogs stay denied to CUS (127.532333ms)
+{"level":30,"time":1792247397322,"pid":58316,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+  ✔ the grant is GET-only — a write on the same path is still denied (26.179917ms)
+  ✔ a near-miss path under the same prefix is not swept in (21.559875ms)
+✖ FB-086 (round 21) — CUS reads the container-type catalog (4424.431833ms)
+ℹ tests 4
+ℹ suites 1
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6582.643375
+
+✖ failing tests:
+
+test at src/tests/container-types-cus-read.test.ts:1:1936
+✖ CUS gets the container-type list instead of 403 (4247.700208ms)
+  AssertionError [ERR_ASSERTION]: CUS must not be denied the container-type list
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-171026175000-cont-type-dropdown/backend/src/tests/container-types-cus-read.test.ts:79:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 403,
+    expected: 403,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

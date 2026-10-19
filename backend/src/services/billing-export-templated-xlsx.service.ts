@@ -11,6 +11,7 @@ import { DEFAULT_PAYMENT_STATEMENT_COLUMNS, effectiveAmount, normalizeTemplateCo
 import {
   renderColumnValue,
   enrichLinesForDebitNoteRender,
+  resolveBillingExportPerspective,
   formatVietnameseDate,
   formatMonthYear,
   amountToVietnameseWords,
@@ -154,7 +155,11 @@ export async function renderTemplatedXlsx(
   const totalColumns = cols
     .map((col, idx) => ({ col, idx: idx + 1 }))
     .filter(({ col }) => col.total);
-  const lines = await enrichLinesForDebitNoteRender(doc.lines);
+  // Card 171026004332: this renderer serves both directions of the lane — the
+  // customer statement (AR) and the carrier/vendor payable statement (AP) — so
+  // the legacy-line repair must be told which side it is printing for.
+  const perspective = await resolveBillingExportPerspective(doc);
+  const lines = await enrichLinesForDebitNoteRender(doc.lines, perspective);
   const dataLines = aggregateDebitNoteExportLines(lines);
   const officialIdentity = await resolveBillingDocumentIdentity(doc, snap);
   const issuer = officialIdentity?.issuer ?? null;

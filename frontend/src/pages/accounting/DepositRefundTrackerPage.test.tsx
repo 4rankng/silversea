@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as SharedModule from '../../components/shared';
-const api = vi.hoisted(() => ({ listDepositTrackers: vi.fn(), createDepositTracker: vi.fn(), updateDepositTrackerDates: vi.fn(), markDepositRefunded: vi.fn() }));
+const api = vi.hoisted(() => ({ listDepositTrackers: vi.fn(), createDepositTracker: vi.fn(), updateDepositTrackerDates: vi.fn(), markDepositRefunded: vi.fn(), searchBillSuggestions: vi.fn() }));
 vi.mock('../../api/depositRefundClient', () => api);
 // Card 20260923_14 put useToast on this page; the render harness supplies no
 // ToastProvider, so mock it exactly as alerts.test.tsx does (test-only fix).
@@ -179,5 +179,52 @@ describe('deposit tracker workflows', () => {
     page(); expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được dữ liệu');
     expect(screen.queryByText('Không có dòng theo dõi nào trong bộ lọc.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' })); await screen.findByText('QA-BILL');
+  });
+
+  // Card 171026212000 (FB-096 verify-fail): the "Tra cứu Bill (4 số cuối)"
+  // typeahead must surface real lots — including references whose printed tail
+  // is not four digits — and never render a failed lookup as "no lot found".
+  describe('bill suggestion typeahead', () => {
+    const suggestion = {
+      shipmentId: 55, billNumber: 'FB020-R21-RB1', bookingRef: null,
+      billDisplay: 'FB020-R21-RB1', carrierName: 'YML', customerName: 'CÔNG TY LONG MINH',
+      existingTrackerCount: 1,
+    };
+    async function openCreateForm() {
+      page(); await screen.findByText('QA-BILL');
+      fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' }));
+      return within(await screen.findByRole('dialog', { name: 'Thêm cược' }));
+    }
+
+    it('queries on the fourth digit, lists matches and autofills on pick', async () => {
+      api.searchBillSuggestions.mockResolvedValue([suggestion]);
+      const form = await openCreateForm();
+      const lookup = form.getByLabelText('Tra cứu Bill (4 số cuối)');
+      fireEvent.change(lookup, { target: { value: '2' } });
+      expect(api.searchBillSuggestions).not.toHaveBeenCalled();
+      fireEvent.change(lookup, { target: { value: '0211' } });
+      await waitFor(() => expect(api.searchBillSuggestions).toHaveBeenCalledExactlyOnceWith('0211'));
+      expect(await form.findByText('Đã cược 1 lần')).toBeInTheDocument(); // warn signal rides the suggestion row
+      fireEvent.click(await form.findByText('FB020-R21-RB1'));
+      expect(form.getByLabelText('Số Bill')).toHaveValue('FB020-R21-RB1');
+      expect(form.getByLabelText('Khách hàng')).toHaveValue('CÔNG TY LONG MINH');
+      expect(form.getByLabelText('Hãng tàu')).toHaveValue('YML');
+    });
+
+    it('shows the no-match hint only after a successful empty lookup', async () => {
+      api.searchBillSuggestions.mockResolvedValue([]);
+      const form = await openCreateForm();
+      fireEvent.change(form.getByLabelText('Tra cứu Bill (4 số cuối)'), { target: { value: '0211' } });
+      expect(await form.findByText('Không có lô hàng nào kết thúc bằng 0211. Nhập tay bên dưới.')).toBeInTheDocument();
+      expect(form.queryByText(/Không tra cứu được/)).not.toBeInTheDocument();
+    });
+
+    it('reports a failed lookup as an error instead of claiming no lot exists', async () => {
+      api.searchBillSuggestions.mockRejectedValueOnce(new Error('Phiên đăng nhập hết hạn'));
+      const form = await openCreateForm();
+      fireEvent.change(form.getByLabelText('Tra cứu Bill (4 số cuối)'), { target: { value: '0211' } });
+      expect(await form.findByRole('alert')).toHaveTextContent('Không tra cứu được lô hàng (Phiên đăng nhập hết hạn)');
+      expect(form.queryByText(/Không có lô hàng nào kết thúc bằng/)).not.toBeInTheDocument();
+    });
   });
 });

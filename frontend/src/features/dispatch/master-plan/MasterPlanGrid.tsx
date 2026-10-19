@@ -1,21 +1,26 @@
 import { useState } from 'react';
 import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
+import { isLclLotRow } from './lclLot';
 import { canonicalShipmentStatus, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
+import { NameCell } from '../../../components/shared/NameCell';
 import {
   displayNote,
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
 import { formatDateTimeShort, formatISODate, formatNumber, formatVolumeCbm, formatWeight } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
+import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import {
   isNoteLong,
   MasterPlanNoteModal,
   truncateNote,
   type ActiveNoteDetail,
 } from './MasterPlanNoteModal';
+import { LclSelectCheckbox } from '../LclSelectCheckbox';
+import '../LclSelectCheckbox.css';
 import '../../../styles/operational-table-typography.css';
 import './MasterPlanGrid.css';
 
@@ -32,6 +37,11 @@ interface MasterPlanGridProps {
    *  lots only (`assertDispatcherCanMutateShipmentIntake`), so for that role the
    *  note affordance is offered where the save can succeed and nowhere else. */
   notesIntakeOnly?: boolean;
+  /** SPEC 18/10/2026 §2.1 — LCL multi-select feeding the "Gán xe nhóm" bar.
+   *  When present, LCL rows get the leading checkbox column; FCL rows keep an
+   *  empty cell. Grouped lots are refused until un-merged. */
+  selectedLclShipmentIds?: ReadonlySet<number>;
+  onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
 }
 
 /** Schedule blocks: one per container appointment — the ICT line leads in the
@@ -155,13 +165,17 @@ type ContainerPortGroupKey = string;
  * the conts running on that day.
  *
  * An LCL lot owns no container (LCL + container is refused at intake), so it has
- * no container port pair to aggregate. Its two columns name the sites CUS fills
- * at intake instead: "Kho lấy" (`pickupWarehouseSiteId`, projected as
- * `pickupWarehouseSiteName`) under Cảng nâng and the delivery point — the lot's
- * operational site, the same column the detailed-plan "Điểm trả" facet filters
- * on, projected here as `factoryName` — under Cảng hạ. A site the lot has not
- * chosen yet reads "—", never "Chưa có cont" (FB-091: a container placeholder
- * on a lot that can never have a container names a false fact).
+ * no container port pair to aggregate. Its two columns name the lot's OWN
+ * lift/drop points instead, and those SWAP with the trade direction — FB-105 §3,
+ * the one rule every surface shares (`resolveLiftDropPoints`): Nhập khẩu reads
+ * "Kho lấy hàng (CFS/Cảng)" under Cảng nâng and "Nhà máy" under Cảng hạ; Xuất
+ * khẩu the reverse. The warehouse is `pickupWarehouseSiteId` (projected as
+ * `pickupWarehouseSiteName`), the factory is the lot's operational site (the
+ * same column the detailed-plan "Điểm trả" facet filters on, projected here as
+ * `factoryName`). A side whose catalog site was never picked falls back to the
+ * lot's stored free text (`pickupLocation` / `deliveryLocation`) and otherwise
+ * reads "—", never "Chưa có cont" (FB-091: a container placeholder on a lot that
+ * can never have a container names a false fact).
  *
  * A single-day filter does not blank these: an LCL lot's schedule IS its
  * `expectedDeliveryDate` (`resolveEffectiveFulfillmentDate`), so both sites
@@ -169,9 +183,19 @@ type ContainerPortGroupKey = string;
  */
 export function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?: string | null): ContainerPortGroupLine[] {
   if (item.cargoMode === 'LCL') {
+    // FB-105 §3 — the sides swap with the direction, so resolve them through the
+    // shared rule instead of assuming Nhập (lift = kho) for every lot.
+    const points = resolveLiftDropPoints({
+      cargoMode: 'LCL',
+      tradeDirection: item.tradeDirection,
+      warehouseName: item.pickupWarehouseSiteName,
+      factoryName: item.factoryName,
+      liftFallback: item.pickupLocation,
+      dropFallback: item.deliveryLocation,
+    });
     return [
-      { direction: 'lift', label: 'Nâng', portName: item.pickupWarehouseSiteName?.trim() || '—', containerSummary: null },
-      { direction: 'drop', label: 'Hạ', portName: item.factoryName?.trim() || '—', containerSummary: null },
+      { direction: 'lift', label: 'Nâng', portName: points.lift ?? '—', containerSummary: null },
+      { direction: 'drop', label: 'Hạ', portName: points.drop ?? '—', containerSummary: null },
     ];
   }
   const allGroups = item.containerPortGroups ?? [];
@@ -312,7 +336,7 @@ const DISPATCHER_INTAKE_STATUSES: Record<string, true> = {
  * allocation values as the edit trigger, matching the full-cell editing
  * contract used by data grids.
  */
-export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes, notesIntakeOnly = false }: MasterPlanGridProps) {
+export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes, notesIntakeOnly = false, selectedLclShipmentIds, onToggleLclSelection }: MasterPlanGridProps) {
   const [activeNoteModal, setActiveNoteModal] = useState<ActiveNoteDetail | null>(null);
   const {
     editingNotesId, editingNotesValue, setEditingNotesValue, savingNotes,
@@ -327,6 +351,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
     <div className="master-plan-grid__wrapper">
       <table className="master-plan-grid ops-table">
         <colgroup>
+          <col className="master-plan-grid__col master-plan-grid__col--select" />
           <col className="master-plan-grid__col master-plan-grid__col--schedule" />
           <col className="master-plan-grid__col master-plan-grid__col--customer" />
           <col className="master-plan-grid__col master-plan-grid__col--route-shipping" />
@@ -338,6 +363,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
         </colgroup>
         <thead>
           <tr>
+            <th scope="col" className="master-plan-grid__select-head">
+              <span className="master-plan-grid__select-head-label">Chọn</span>
+              <span className="sr-only"> lô</span>
+            </th>
             <th scope="col">Thời gian &amp; lịch trình</th>
             <th scope="col">Khách hàng &amp; nhà máy</th>
             <th scope="col">Tuyến đường &amp; hãng tàu</th>
@@ -372,6 +401,19 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             const notesLocked = notesIntakeOnly && !DISPATCHER_INTAKE_STATUSES[item.status];
             return (
               <tr key={item.id} className="master-plan-grid__row">
+                <td className="master-plan-grid__cell master-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
+                  <div className="master-plan-grid__cell-body">
+                    {isLclLotRow(item) && onToggleLclSelection && (
+                      <LclSelectCheckbox
+                        isSelected={selectedLclShipmentIds?.has(item.id) ?? false}
+                        isDisabled={item.costGroupId != null}
+                        onToggle={(next: boolean) => onToggleLclSelection(item.id, next)}
+                        ariaLabel={`Chọn lô ${billBookingReference(item.blNumber, item.bookingRef)}`}
+                        title={item.costGroupId != null ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.' : 'Chọn lô này để gán xe nhóm'}
+                      />
+                    )}
+                  </div>
+                </td>
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
                   {/* FB-043 (card 141026001010, re-report 2): every cell rides
                       the fixed-height body so a lot with stacked trips can no
@@ -404,7 +446,9 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 </td>
                 <td className="master-plan-grid__cell" data-label="Khách hàng & nhà máy" data-label-short="Khách">
                   <div className="master-plan-grid__cell-body">
-                  <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!item.customerName ? 'true' : undefined}>{item.customerName ?? '—'}</div>
+                  <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!item.customerName ? 'true' : undefined}>{item.customerName
+                    ? <NameCell name={item.customerName} />
+                    : '—'}</div>
                   <div className="master-plan-grid__line" data-empty={!(item.factoryNames?.length || item.factoryName) ? 'true' : undefined}>{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
                   <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!(item.blNumber || item.bookingRef || item.isAdHoc) ? 'true' : undefined}>
                     {item.blNumber || item.bookingRef || '—'}
@@ -416,7 +460,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   <div className="master-plan-grid__cell-body">
                   <div className="master-plan-grid__route-shipping">
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-route" data-empty={!item.routeName ? 'true' : undefined}>
-                      {item.routeName ?? '—'}
+                      {item.routeName ? <NameCell name={item.routeName} /> : '—'}
                     </div>
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction" data-empty={!item.tradeDirection ? 'true' : undefined}>
                       {item.tradeDirection === 'IMPORT' ? (

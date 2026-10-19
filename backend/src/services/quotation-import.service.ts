@@ -431,30 +431,40 @@ export async function commitQuotationImport(
             updatedAt: new Date(),
           },
         });
-        for (const prepared of preparedRows) {
-          await tx.insert(s.quotationCells).values({
+        if (preparedRows.length > 0) {
+          // One multi-row insert for the whole route's cells instead of one
+          // statement per vehicle-class row.
+          await tx.insert(s.quotationCells).values(preparedRows.map((prepared) => ({
             quotationId: frame.id, routeId, vehicleSizeClassId: prepared.classId,
             heSo: String(prepared.row.heSo ?? 1),
-          });
+          })));
+        }
+        // One read per route instead of one per vehicle-class row. Keys are
+        // folded last-wins so duplicate class rows end in the same state the
+        // old select-then-upsert loop produced.
+        const priceByKey = new Map<string, string>();
+        for (const prepared of preparedRows) {
           const share = route.sharePct ?? 2;
-          const basePrice = Math.round(prepared.row.giaCos! / (1 + share / 100));
-          const [existingPricing] = await tx.select({ id: s.pricingTables.id })
-            .from(s.pricingTables)
-            .where(and(
-              eq(s.pricingTables.customerId, enriched.customerId),
-              eq(s.pricingTables.routeId, routeId),
-              eq(s.pricingTables.rateKey, prepared.row.classCode),
-              eq(s.pricingTables.effectiveDate, today),
-              isNull(s.pricingTables.deletedAt),
-            ))
-            .limit(1);
-          if (existingPricing) {
-            await tx.update(s.pricingTables).set({ price: String(basePrice), updatedAt: new Date() })
-              .where(eq(s.pricingTables.id, existingPricing.id));
+          priceByKey.set(prepared.row.classCode, String(Math.round(prepared.row.giaCos! / (1 + share / 100))));
+        }
+        const existingPricings = await tx.select({ id: s.pricingTables.id, rateKey: s.pricingTables.rateKey })
+          .from(s.pricingTables)
+          .where(and(
+            eq(s.pricingTables.customerId, enriched.customerId),
+            eq(s.pricingTables.routeId, routeId),
+            eq(s.pricingTables.effectiveDate, today),
+            isNull(s.pricingTables.deletedAt),
+          ));
+        const pricingIdByKey = new Map(existingPricings.map((p) => [p.rateKey, p.id]));
+        for (const [rateKey, price] of priceByKey) {
+          const existingPricingId = pricingIdByKey.get(rateKey);
+          if (existingPricingId !== undefined) {
+            await tx.update(s.pricingTables).set({ price, updatedAt: new Date() })
+              .where(eq(s.pricingTables.id, existingPricingId));
           } else {
             await tx.insert(s.pricingTables).values({
-              customerId: enriched.customerId, routeId, rateKey: prepared.row.classCode,
-              price: String(basePrice), effectiveDate: today,
+              customerId: enriched.customerId, routeId, rateKey,
+              price, effectiveDate: today,
             });
           }
         }

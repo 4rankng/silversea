@@ -12,7 +12,9 @@ import { removeTripWorkDays, syncTripWorkDays } from './attendance.service';
 import {
   getTripCompositeInTx, splitTripPatch, tripCompositeSelect, upsertTripCarrierInfo,
 } from './trip-composite.service';
-import { assertTripRigAvailable } from './dispatch-planning-detail-plan.service';
+import { getAuditRequestContext } from './audit.service';
+import { assertTripRigAvailable } from './dispatch-plan-conflict-scan.service';
+import { propagateKepPairRigToPartner } from './trip-pair-rig-sync.service';
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
 
@@ -244,6 +246,27 @@ export async function reassignTrip(
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
     }
     await upsertTripCarrierInfo(tx, tripId, reassignCarrier);
+    // FB-081 v2 (card 181026003045, option 2-lite): a Kẹp pair moves as ONE
+    // rig — this fallback reassign must propagate the new truck/trailer/driver
+    // onto the partner leg of the trip's ACTIVE Kẹp pair inside this same
+    // transaction (throws roll the whole reassign back), killing both halves
+    // of the reported defect: the hard 409 against the partner's overlap and
+    // the silent pair-split when only the truck changed.
+    if (trip.activeTripPairId != null) {
+      const auditUser = getAuditRequestContext()?.req.user;
+      await propagateKepPairRigToPartner(tx, {
+        tripId,
+        carrierType,
+        truckId: carrierType === 'OWN' ? (data.truckId ?? trip.truckId) : null,
+        trailerId,
+        driverId: carrierType === 'OWN' ? (data.driverId ?? trip.driverId) : null,
+        actor: auditUser != null ? {
+          userId: auditUser.userId,
+          role: auditUser.role,
+          name: auditUser.fullName ?? auditUser.username,
+        } : null,
+      });
+    }
     const updated = await getTripCompositeInTx(tx, tripId);
     if (!updated) throw new Error(`trip ${tripId} composed row missing after reassign`);
 

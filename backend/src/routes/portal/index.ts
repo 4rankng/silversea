@@ -29,6 +29,7 @@ import {
   downloadShipmentPodFile,
   getShipmentDetail,
   listShipmentsPaginated,
+  type ShipmentDetail,
 } from '../../services/shipment.service';
 import { exportCustomerStatementPdf, exportDebitNotePdf } from '../../services/pdf-export.service';
 import { parsePagination } from '../utils/pagination';
@@ -78,7 +79,16 @@ function toCustomerDebitNote(doc: Awaited<ReturnType<typeof getDocument>>) {
   };
 }
 
-function toCustomerShipmentDetail(detail: Awaited<ReturnType<typeof getShipmentDetail>>) {
+/**
+ * FB-107 (card 171026115820) — the portal "Chi tiết lô hàng" names the lot's
+ * two REAL operating points under Nâng / Hạ, like the internal detail page.
+ * The customer screen used to project only the dormant
+ * `pickup_location`/`delivery_location` columns (empty on every form-created
+ * lot), so both rows read '—'. These are display facts, not a new model: the
+ * same names `getShipmentDetail` already resolved, plus the free text the
+ * shared client rule (`resolveLiftDropPoints`) falls back to.
+ */
+export function toCustomerShipmentDetail(detail: ShipmentDetail) {
   const { shipment } = detail;
   return {
     shipment: {
@@ -88,6 +98,12 @@ function toCustomerShipmentDetail(detail: Awaited<ReturnType<typeof getShipmentD
       blNumber: shipment.blNumber,
       pickupLocation: shipment.pickupLocation,
       deliveryLocation: shipment.deliveryLocation,
+      // Lift/drop resolution facts (FB-107).
+      cargoMode: shipment.cargoMode,
+      tradeDirection: shipment.tradeDirection,
+      pickupWarehouseSiteName: shipment.pickupWarehouseSiteName,
+      effectiveFactoryName: shipment.effectiveFactoryName,
+      factoryName: shipment.factoryName,
     },
     containers: detail.containers.map((container) => ({
       id: container.id,
@@ -95,6 +111,9 @@ function toCustomerShipmentDetail(detail: Awaited<ReturnType<typeof getShipmentD
       sealNumber: container.sealNumber,
       cargoWeightKg: container.cargoWeightKg,
       customerAppointmentAt: container.customerAppointmentAt,
+      // FCL Cảng nâng / Cảng hạ display names (FB-107).
+      pickupPortName: container.pickupPortName,
+      dropoffPortName: container.dropoffPortName,
     })),
     documents: detail.documents.map((document) => ({
       id: document.id,

@@ -17,7 +17,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState, SearchableSelect } from '../design-system';
+import { EmptyState } from '../design-system';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
@@ -72,15 +72,30 @@ function DebitLotRow({
       title={canManage ? 'Chọn lô (ghép cước thu khách / xuất Debit Note)' : undefined}
     >
       <td className="shipment-debit-row__lead">
-        {canManage ? <button
-          type="button"
-          className="shipment-debit-row__expand-button"
-          aria-expanded={expanded}
-          aria-label={`${expanded ? 'Đóng' : 'Mở'} chi tiết lô ${lotLabel}`}
-          onClick={(event) => { event.stopPropagation(); onToggle(); }}
-        >
-          {expanded ? '−' : '+'}
-        </button> : <span aria-label="Chỉ xem tổng hợp">—</span>}
+        {canManage ? <span className="shipment-debit-row__lead-controls">
+          {/* Card 161026232359 — the leading tick the CUS asked for: the first
+              thing in the row, beside [+]. `stopPropagation` keeps the row's
+              own click (kept as a selection ALIAS) from toggling it a second
+              time; the tick is the row's own state, so it survives expand and
+              collapse and never rests on the row highlight alone. */}
+          <input
+            type="checkbox"
+            className="shipment-debit-row__select"
+            checked={selected}
+            aria-label={`Chọn lô ${lotLabel}`}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => onSelect(row.shipmentId, event.target.checked)}
+          />
+          <button
+            type="button"
+            className="shipment-debit-row__expand-button"
+            aria-expanded={expanded}
+            aria-label={`${expanded ? 'Đóng' : 'Mở'} chi tiết lô ${lotLabel}`}
+            onClick={(event) => { event.stopPropagation(); onToggle(); }}
+          >
+            {expanded ? '−' : '+'}
+          </button>
+        </span> : <span aria-label="Chỉ xem tổng hợp">—</span>}
       </td>
       <td className="shipment-debit-row__identity">
         <span className="shipment-debit-row__code">{lotLabel}</span>
@@ -97,9 +112,8 @@ function DebitLotRow({
             className="shipment-debit-row__detail-link"
             title="Xem chi tiết lô hàng"
             onClick={(e) => e.stopPropagation()}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '4px', fontSize: '12px', color: 'var(--color-primary, #059669)', textDecoration: 'underline' }}
           >
-            Chi tiết lô hàng →
+            Chi tiết →
           </Link>
         )}
       </td>
@@ -166,13 +180,16 @@ export function ShipmentDebitPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [issuing, setIssuing] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+  // Case 2026-10-17 — the shadow line's trip list (open state is the user's;
+  // a filter change keeps it where it was, the rows just re-render).
+  const [shadowOpen, setShadowOpen] = useState(false);
   const { toast } = useToast();
 
   // Xuất Debit Note: ONE issue call carries every selected locked lot id and
   // the backend builds the union document (per-lot line grouping preserved
-  // inside). The idempotency key derives from the sorted selection, so
-  // re-clicking the same selection replays the same document instead of
-  // issuing a duplicate.
+  // inside). The idempotency key is derived inside the client from the sorted
+  // selection, so re-clicking the same selection replays the same document
+  // instead of issuing a duplicate.
   async function exportSelectedLockedLots() {
     const ids = items
       .filter((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED')
@@ -182,8 +199,7 @@ export function ShipmentDebitPage() {
     if (!canManage || !customerId || ids.length === 0 || issuing) return;
     setIssuing(true);
     try {
-      const selectionKey = `debit-note-${[...ids].sort((x, y) => x - y).join('-')}`;
-      const { id: documentId } = await createDebitNoteBatch(ids, selectionKey);
+      const { id: documentId } = await createDebitNoteBatch(ids);
       const blob = await exportDebitNoteFile(ids[0], documentId);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
@@ -249,6 +265,9 @@ export function ShipmentDebitPage() {
 
   const customers = bootstrap.data?.customers ?? [];
   const items = summary.data?.items ?? [];
+  // Case 2026-10-17 — the identities behind the red line; absent on a skewed
+  // backend, which renders the plain line with no dead toggle.
+  const shadowTrips = summary.data?.excludedTrips ?? [];
   const anyLockedSelected = items.some((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED');
   // FB-093 — the merge works on the SELECTION (row click; OPEN lots included —
   // merging is a pre-lock action). Only ungrouped LCL lots may join a new
@@ -259,8 +278,10 @@ export function ShipmentDebitPage() {
     ? 'Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.'
     : null;
   const mergeDisabled = mergeDisabledReason != null;
-  // FB-093: BKS quick-edit suggestions — the bootstrap fleet's plates plus
-  // every plate already on the page's lots (group trucks a dispatcher typed).
+  // FB-093 + card 161026232409: BKS suggestions for the PHÂN XE quick edit and
+  // the merge dialog's "BKS báo khách (ảo)" field — the bootstrap fleet's plates
+  // (the same fleet the Điều vận "Gán xe nhóm" dialog sources) plus every plate
+  // already on the page's lots (group trucks a dispatcher typed).
   const plateOptions = (() => {
     const plates = new Set<string>();
     for (const truck of (bootstrap.data?.trucks ?? [])) {
@@ -281,8 +302,6 @@ export function ShipmentDebitPage() {
     label: customer.fullName ? `${customer.name} - ${customer.fullName}` : customer.name,
     searchText: `${customer.name} ${customer.fullName ?? ''}`,
   }));
-  // The picker's own wording, so the hint never echoes an id back at the user.
-  const selectedCustomerLabel = customerOptions.find((option) => option.value === customerId)?.label ?? '';
 
   // Sweep (card 20261008_1): the export used to disable silently on two of
   // its three causes (only the no-customer case carried a wrapper `title`).
@@ -306,36 +325,20 @@ export function ShipmentDebitPage() {
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
-        {/* Card _202: the Khách hàng picker is the screen's primary axis — always
-            visible, never folded into `Bộ lọc`; the shared filter strip
-            (card 20260927_153) follows with the range and the lock criterion.
+        {/* Owner 2026-10-17 (reverses card _202): the Khách hàng picker rides
+            the shared filter strip below as its first control, not its own bar.
             The action row comes last, directly above the rows it acts on: both
             bulk actions work on the selection below, so the DOM order is the
             phone's reading order and desktop re-pins the title row on top via
             grid order (page CSS), never a second copy of the cluster. */}
-        <div className="shipment-debit-customer-bar">
-          <SearchableSelect
-            id="shipment-debit-customer"
-            className="shipment-debit-customer-bar__picker"
-            value={customerId}
-            onChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
-            options={customerOptions}
-            placeholder="Tất cả khách hàng"
-            searchPlaceholder="Tìm khách hàng…"
-            emptyMessage="Không tìm thấy khách hàng phù hợp."
-            clearable clearLabel="Xem tất cả khách hàng" size="sm"
-          />
-          <p className="shipment-debit-customer-bar__hint">
-            {customerId === ''
-              ? 'Đang xem tất cả khách hàng.'
-              : `Đang xem lô của ${selectedCustomerLabel}.`}
-          </p>
-        </div>
         {/* Card 20260927_153: the filter strip owns its own layout and every
             control width (FilterBar.css L1-L3), so the page hands it criteria
             values and URL writers only — no filter rule, no applied-count and
-            no reset markup lives here. The customer left the strip in _202. */}
+            no reset markup lives here. */}
         <ShipmentDebitRibbon
+          customerValue={customerId}
+          customerOptions={customerOptions}
+          onCustomerChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
           deliveryFrom={deliveryFrom}
           deliveryTo={deliveryTo}
           lockStatus={lockStatus}
@@ -398,11 +401,49 @@ export function ShipmentDebitPage() {
                 instead of a silent gap. Hidden at zero; red needs-attention ink
                 now lives in the class rule. It sits BESIDE the scroll box
                 (card 20260924_9): inside the overflow-x wrap the line rode the
-                table's sideways scroll and its tail clipped at the right edge. */}
+                table's sideways scroll and its tail clipped at the right edge.
+                Case 2026-10-17: the line also NAMES what it excludes — a house
+                link-action after the static red text expands the trip
+                identities (Mã chuyến · lô · khách hàng · ngày chạy · phí).
+                No canManage gate: every role that can see the line can open it. */}
             {(summary.data?.excludedCount ?? 0) > 0 && (
-              <p className="shipment-debit-shadow-line" role="status">
-                {summary.data?.excludedCount} chuyến chưa gán đầu việc vận chuyển — {`${formatMoney(Number(summary.data?.excludedSum ?? '0'))} ₫`} chưa vào chốt
-              </p>
+              <div className="shipment-debit-shadow">
+                <p className="shipment-debit-shadow-line" role="status">
+                  <span className="shipment-debit-shadow-line__text">
+                    {summary.data?.excludedCount} chuyến chưa gán đầu việc vận chuyển — {`${formatMoney(Number(summary.data?.excludedSum ?? '0'))} ₫`} chưa vào chốt
+                  </span>
+                  {shadowTrips.length > 0 && (
+                    <button
+                      type="button"
+                      className="shipment-debit-shadow-line__toggle"
+                      aria-expanded={shadowOpen}
+                      onClick={() => setShadowOpen((open) => !open)}
+                    >
+                      {shadowOpen ? 'Ẩn danh sách' : `Xem danh sách (${shadowTrips.length})`}
+                    </button>
+                  )}
+                </p>
+                {/* Rendered only while open: no dangling aria-controls id, no
+                    hidden DOM to keep in sync — aria-expanded carries state. */}
+                {shadowOpen && (
+                  <ul id="shipment-debit-shadow-trips" className="shipment-debit-shadow-trips">
+                    {shadowTrips.map((trip) => (
+                      <li key={trip.tripId} className="shipment-debit-shadow-trips__item">
+                        <span className="shipment-debit-shadow-trips__code">{trip.tripCode ?? 'Chưa có mã chuyến'}</span>
+                        <span className="shipment-debit-shadow-trips__lot">
+                          <small>Lô</small> {trip.lotLabel}{trip.customerName ? ` · ${trip.customerName}` : ''}
+                        </span>
+                        <span className="shipment-debit-shadow-trips__date">
+                          <small>Ngày chạy</small> {trip.departureDate ?? '—'}
+                        </span>
+                        <span className="shipment-debit-shadow-trips__sum">
+                          <small>Phí ngoài chốt</small> {formatMoney(Number(trip.feeSum))} ₫
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
             {phone && !print ? <ShipmentDebitRecords key={JSON.stringify([customerId, deliveryFrom, deliveryTo, lockStatus])}
               rows={items} canManage={canManage} selectedIds={selectedIds} expandedId={expandedId}
@@ -446,10 +487,14 @@ export function ShipmentDebitPage() {
               </tbody>
             </table>
             </div>}
-            {/* Scroll cue (card 20260924_9): the table's word-wrap min-width
-                floor makes the wrap scroll sideways on phones — say so plainly;
-                the hint stays hidden at desktop widths (page CSS). */}
-            <p className="shipment-debit-scroll-hint ledger-desktop">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+            {/* Scroll cue (card 20260924_9, re-hung card 191026100030): the
+                L1 table's 1108px floor scrolls sideways in 641–1107px windows
+                — say so plainly there (page CSS's own band). No `ledger-desktop`
+                on this element: that class hides it with `display: none
+                !important` at ≤640, which is exactly where the old reveal
+                lived — the cue could never show. At ≤640 the phone record
+                cards render instead, so no cue is needed. */}
+            <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
           </>
         )}
       </section>
@@ -457,6 +502,7 @@ export function ShipmentDebitPage() {
       {mergeOpen && (
         <MergeRevGroupDialog
           rows={mergeableRows}
+          plateOptions={plateOptions}
           onClose={() => setMergeOpen(false)}
           onMerged={() => {
             setSelectedIds(new Set());

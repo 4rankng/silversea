@@ -5,7 +5,7 @@
 // appointment state (ngày + giờ) stays owned by the parent InlineEditor,
 // which passes values and setters down.
 import { Clock, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
 import { BufferedUuiDateInput } from '../../../design-system';
 import { TimeInput } from '../../../design-system/forms/TimeInput';
@@ -55,6 +55,13 @@ export function ScheduleEditorBody({
   cargoMode, transportDate = '', canEditTransport = false, onTransportDateChange,
 }: ScheduleEditorBodyProps) {
   const [dateResetKey, setDateResetKey] = useState(0);
+  // FB-030/075 (171026215500): the schedule editor's Giờ is the single-box
+  // TimeInput, so the "segment kế" after a completed giờ is the appointment
+  // date's day segment — the same hand-off CusQuickEdit runs for the CUS
+  // schedule dialog. Sibling sweep miss: without it focus stayed in the giờ
+  // box, so the follow-up day "14" landed there instead of advancing the date
+  // segments day → month ("gõ '14' không tự nhảy sang tháng").
+  const scheduleDateFieldRef = useRef<HTMLDivElement>(null);
   return (
     <>
       <div className="shipment-container-ledger__schedule-header">
@@ -94,8 +101,8 @@ export function ScheduleEditorBody({
         })}
       </div>
       <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--schedule">
-        <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><TimeInput label={row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'} value={scheduleTime} onChange={onScheduleTimeChange} disabled={saving || !canEdit} /></label>
-        <BufferedUuiDateInput key={dateResetKey} label={row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'} size="sm" value={appointmentDate} onChange={onAppointmentDateChange} disabled={saving || !canEdit} />
+        <label><span>{row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'}</span><TimeInput label={row.direction === 'IMPORT' ? 'Giờ trả hàng' : 'Giờ đóng hàng'} value={scheduleTime} onChange={onScheduleTimeChange} onComplete={() => { scheduleDateFieldRef.current?.querySelector<HTMLInputElement>('[data-seg="dd"]')?.focus(); }} disabled={saving || !canEdit} /></label>
+        <BufferedUuiDateInput key={dateResetKey} groupRef={scheduleDateFieldRef} label={row.direction === 'IMPORT' ? 'Ngày trả hàng' : 'Ngày đóng hàng'} size="sm" value={appointmentDate} onChange={onAppointmentDateChange} disabled={saving || !canEdit} />
       </div>
       {cargoMode != null && cargoMode !== 'FCL' && (
         <>

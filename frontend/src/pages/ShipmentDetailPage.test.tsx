@@ -80,6 +80,8 @@ const detail: ShipmentDetailData = {
     accountingLock: null,
     customerName: 'Công ty Silver Sea',
     effectiveFactoryName: 'Nhà máy Hải Phòng',
+    pickupWarehouseSiteName: null,
+    pickupWarehouseSiteType: null,
     routeName: 'Hải Phòng – NEWEB',
   },
   containers: [],
@@ -727,6 +729,278 @@ describe('ShipmentDetailPage', () => {
       );
       await screen.findByText(/Khóa lô do CUS/);
       expect(screen.queryByRole('button', { name: /Khai chi phí/ })).toBeNull();
+    });
+  });
+
+  // ── FB-086 (card 171026113520): container composition on the detail screen ─
+  // The helpdesk report was "Containers (0)" with no way to add one. The lot's
+  // container rows are already written by the create path, so the detail
+  // surface owes the user two things: the REAL count and the composition
+  // point.
+  describe('Containers + Thêm container (FB-086)', () => {
+    const container = (
+      overrides: Partial<ShipmentDetailData['containers'][number]>,
+    ): ShipmentDetailData['containers'][number] => ({
+      id: 501,
+      shipmentId: 1,
+      containerTypeId: 4,
+      containerTypeCode: '40DC',
+      containerTypeName: "40'DC",
+      containerNumber: 'MSKU1234567',
+      sealNumber: null,
+      cargoWeightKg: null,
+      notes: null,
+      ...overrides,
+    });
+
+    function renderLot() {
+      return render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+    }
+
+    it('lists the lot’s containers with the real count', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        containers: [container({ id: 501 }), container({ id: 502, containerNumber: 'TGHU7654321' })],
+      });
+      renderLot();
+      expect(await screen.findByText('Containers (2)')).toBeTruthy();
+      expect(screen.getByText('MSKU1234567')).toBeTruthy();
+      expect(screen.getByText('TGHU7654321')).toBeTruthy();
+    });
+
+    it('offers no Thêm container affordance even on an unlocked FCL lot (card 171026182554)', async () => {
+      currentUser.role = Role.ADMIN;
+      // The exact state FB-086 once fixed by adding a button here: a lot with
+      // no container row, role ADMIN, no accounting lock. Card 171026182554
+      // supersedes that: composition lives ONLY in the /shipments drawer, so
+      // the detail screen must withhold the button everywhere.
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null, containers: [] });
+      renderLot();
+      expect(await screen.findByText('Containers (0)')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('withholds Thêm container on an LCL lot (an LCL lot owns no container)', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        shipment: { ...detail.shipment, cargoMode: 'LCL' },
+        containers: [],
+      });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+    });
+
+    it('hides Thêm container while the accounting lock is active', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, containers: [] });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+    });
+  });
+
+  // ── FB-106 (card 171026115810): 'Tạo lô mới' beside the lot actions ────────
+  describe('Tạo lô mới affordance (FB-106)', () => {
+    it('navigates to the create workspace', async () => {
+      currentUser.role = Role.ADMIN;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+              <Route path="/shipments/new" element={<div>Tạo lô hàng mới</div>} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: /Tạo lô mới/ }));
+      expect(await screen.findByText('Tạo lô hàng mới')).toBeTruthy();
+    });
+
+    it('sits immediately before Xóa lô in the header action cluster', async () => {
+      // The card (171026115810) asks for the button NEXT TO 'Xóa lô' — a
+      // presence-only pin would still pass if the two drifted apart.
+      currentUser.role = Role.CUS;
+      render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      const createBtn = await screen.findByRole('button', { name: /Tạo lô mới/ });
+      const deleteBtn = await screen.findByRole('button', { name: /Xóa lô/ });
+      expect(createBtn.parentElement).toBe(deleteBtn.parentElement);
+      expect(createBtn.nextElementSibling).toBe(deleteBtn);
+    });
+
+    it.each([Role.ADMIN, Role.CUS, Role.MANAGER, Role.DISPATCHER])(
+      'offers the button to %s — the roles the /shipments/new route admits',
+      async (role) => {
+        currentUser.role = role;
+        render(
+          <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+            <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+              <Routes>
+                <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+              </Routes>
+            </MemoryRouter></ToastProvider>
+          </QueryClientProvider>,
+        );
+        expect(await screen.findByRole('button', { name: /Tạo lô mới/ })).toBeTruthy();
+      },
+    );
+
+    it.each([Role.ACCOUNTANT, Role.DRIVER, Role.OPS, Role.CUSTOMER])(
+      'hides the button from %s — a role the create route refuses',
+      async (role) => {
+        currentUser.role = role;
+        render(
+          <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+            <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+              <Routes>
+                <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+              </Routes>
+            </MemoryRouter></ToastProvider>
+          </QueryClientProvider>,
+        );
+        await screen.findByText('Khách hàng');
+        expect(screen.queryByRole('button', { name: /Tạo lô mới/ })).toBeNull();
+      },
+    );
+  });
+
+  // ── FB-107 (card 171026115820): the rows are Nâng / Hạ, the real points ──
+  // Both rows used to render the dormant pickup_location/delivery_location
+  // columns under the vague 'Nơi nhận'/'Nơi giao' labels, which every
+  // form-created lot leaves empty — so both read '—'. The card asked for the
+  // operation's own words: 'Nâng' (điểm lấy/nâng hàng) and 'Hạ' (điểm hạ/trả
+  // hàng). The values come from the one shared rule (`resolveLiftDropPoints`).
+  describe('Nâng / Hạ (FB-107)', () => {
+    function fieldValue(label: string): string | null {
+      const dt = screen.getByText(label);
+      return dt.nextElementSibling?.textContent ?? null;
+    }
+
+    function renderLot() {
+      return render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+    }
+
+    it("labels the two rows Nâng / Hạ — the card dropped 'Nơi nhận'/'Nơi giao'", async () => {
+      currentUser.role = Role.ADMIN;
+      renderLot();
+      await screen.findByText('Khách hàng');
+      // The card's whole ask: the operation's own words replace the vague pair.
+      expect(screen.getByText('Nâng').tagName).toBe('DT');
+      expect(screen.getByText('Hạ').tagName).toBe('DT');
+      expect(screen.queryByText('Nơi nhận')).toBeNull();
+      expect(screen.queryByText('Nơi giao')).toBeNull();
+    });
+
+    it('FCL: names the container ports, never direction-swapped, joining several points', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        // The dormant free-text columns stay empty, as a form-created lot has them.
+        shipment: { ...detail.shipment, pickupLocation: null, deliveryLocation: null },
+        containers: [
+          { id: 501, shipmentId: 1, containerTypeId: 4, containerNumber: 'MSKU1234567', sealNumber: null, cargoWeightKg: null, notes: null, pickupPortName: 'Cảng nâng A', dropoffPortName: 'Cảng hạ B' },
+          { id: 502, shipmentId: 1, containerTypeId: 4, containerNumber: 'TGHU7654321', sealNumber: null, cargoWeightKg: null, notes: null, pickupPortName: 'Cảng nâng A', dropoffPortName: 'Cảng hạ C' },
+        ],
+      });
+      renderLot();
+      await screen.findByText('Containers (2)');
+      expect(fieldValue('Nâng')).toBe('Cảng nâng A');
+      expect(fieldValue('Hạ')).toBe('Cảng hạ B · Cảng hạ C');
+    });
+
+    it('LCL Nhập: Nâng = Kho lấy hàng (CFS), Hạ = Nhà máy', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        shipment: {
+          ...detail.shipment,
+          cargoMode: 'LCL',
+          tradeDirection: 'IMPORT',
+          pickupLocation: null,
+          deliveryLocation: null,
+          pickupWarehouseSiteName: 'Kho ICD Hà Nội',
+          pickupWarehouseSiteType: 'WAREHOUSE',
+          effectiveFactoryName: 'Nhà máy Long Minh',
+        },
+        containers: [],
+      });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(fieldValue('Nâng')).toBe('Kho ICD Hà Nội');
+      expect(fieldValue('Hạ')).toBe('Nhà máy Long Minh');
+    });
+
+    it('LCL Xuất: the two sides swap — Nâng = Nhà máy, Hạ = Kho trả hàng', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        shipment: {
+          ...detail.shipment,
+          cargoMode: 'LCL',
+          tradeDirection: 'EXPORT',
+          pickupLocation: null,
+          deliveryLocation: null,
+          pickupWarehouseSiteName: 'Kho ICD Hà Nội',
+          pickupWarehouseSiteType: 'WAREHOUSE',
+          effectiveFactoryName: 'Nhà máy Long Minh',
+        },
+        containers: [],
+      });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(fieldValue('Nâng')).toBe('Nhà máy Long Minh');
+      expect(fieldValue('Hạ')).toBe('Kho ICD Hà Nội');
+    });
+
+    it('falls back to the stored free text when a side was never picked', async () => {
+      currentUser.role = Role.ADMIN;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        shipment: {
+          ...detail.shipment,
+          cargoMode: 'LCL',
+          tradeDirection: 'IMPORT',
+          pickupLocation: null,
+          deliveryLocation: null,
+          pickupWarehouseSiteName: null,
+          pickupWarehouseSiteType: null,
+          effectiveFactoryName: null,
+          factoryName: 'Nhà máy không catalog',
+        },
+        containers: [],
+      });
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(fieldValue('Nâng')).toBe('—');
+      expect(fieldValue('Hạ')).toBe('Nhà máy không catalog');
     });
   });
 });

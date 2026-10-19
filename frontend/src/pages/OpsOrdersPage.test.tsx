@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -289,16 +289,12 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(await screen.findByRole('dialog', { name: 'Khai báo chi phí' })).toBeInTheDocument();
     // IMPORT → Số Bill readonly autofilled.
     expect(screen.getByLabelText('Số Bill')).toHaveValue('BL-001');
-    // The Số Cont select renders a UUI button that holds the label text
-    // "Số Cont" (or starts with the same), so the form contains more than
-    // one button matching that name (the form's own buttons and the
-    // combobox). Pick the trigger by name + the "Phí chung lô" caption
-    // (the lô-level option that the trigger shows by default).
+    // Card 191026160000 — Số Cont is a multi-select with chọn-all: the
+    // default pick is the lô-level option, the trigger reports the count and
+    // the popover lists the lot option plus every container.
     const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });
-    const allButtons = Array.from(dialog.querySelectorAll('button'));
-    const containerTrigger = allButtons.find((button) => button.textContent?.includes('Phí chung lô'));
-    expect(containerTrigger, 'UuiSelectField trigger for "Số Cont" should be present').toBeDefined();
-    fireEvent.click(containerTrigger!);
+    const containerTrigger = await within(dialog).findByRole('button', { name: 'Đã chọn 1 số cont' });
+    fireEvent.click(containerTrigger);
     const listbox = await screen.findByRole('listbox');
     const labels = Array.from(listbox.querySelectorAll('[role="option"]')).map((node) => node.textContent ?? '');
     expect(labels).toContain('Phí chung lô');
@@ -315,7 +311,12 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     renderPage();
     await screen.findByText('BL-001');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
-    fireEvent.click(await screen.findByRole('combobox', { name: /Loại phí/ }));
+    // Card 191026160000 — per-block catalogs are short, so the house select
+    // renders the plain click-to-open list (button trigger, no combobox
+    // input). The trigger stays disabled while the catalog loads — wait for it.
+    const typeTrigger = await screen.findByRole('button', { name: /Loại phí/ });
+    await waitFor(() => expect(typeTrigger).toBeEnabled());
+    fireEvent.click(typeTrigger);
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
     const amount = screen.getByLabelText(/Thực chi \(VND\)/);
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
@@ -364,7 +365,9 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     renderPage();
     await screen.findByText('BL-001');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
-    fireEvent.click(await screen.findByRole('combobox', { name: /Loại phí/ }));
+    const typeTrigger2 = await screen.findByRole('button', { name: /Loại phí/ });
+    await waitFor(() => expect(typeTrigger2).toBeEnabled());
+    fireEvent.click(typeTrigger2);
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
     fireEvent.change(screen.getByLabelText(/Thực chi \(VND\)/), { target: { value: '123000' } });
     // Cân xe is a no-invoice line, so opsCustomerCharge (the client mirror of

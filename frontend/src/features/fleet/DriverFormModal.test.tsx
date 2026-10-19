@@ -61,7 +61,11 @@ describe('DriverFormModal', () => {
     expect(screen.getByLabelText('Số điện thoại')).toBeTruthy();
     expect(screen.getByLabelText('Ngân hàng nhận tiền')).toBeTruthy();
     expect(screen.getByLabelText('Số TK nhận tiền')).toBeTruthy();
-    expect(screen.getByLabelText('Hình thức lương')).toBeTruthy();
+    // FB-103 (ticket 171026215600) — "Hình thức lương" là select enum
+    // (PER_TRIP/FLAT_MONTHLY), không còn ô text tự do.
+    const modeTrigger = screen.getByRole('button', { name: /Hình thức lương/ });
+    expect(modeTrigger.textContent).toContain('Lương theo chuyến (không trốn vé)');
+    expect(screen.queryByPlaceholderText('Ví dụ: LUONG CUNG')).toBeNull();
     expect((screen.getByRole('button', { name: /Thêm lái xe/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

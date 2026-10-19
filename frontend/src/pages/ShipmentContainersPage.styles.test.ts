@@ -116,13 +116,15 @@ describe('shipment detail workboard styling', () => {
 
   it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
-    // The multiline status cell (badge + missing-fields warning) keeps 11%;
-    // notes keeps 11%. FB-086 (2026-10-14) restores the Thao tác column card
+    // The multiline status cell keeps a narrow share; notes keeps its own
+    // narrow share. FB-086 (2026-10-14) restores the Thao tác column card
     // 20260922_41 removed ("không tìm thấy chỗ thêm cont vào lô cũ") — its 7%
-    // share is back (cards 20260922_3/_21 tap-target law), so the nine shares
-    // must still sum to 100%.
-    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*11%;/);
-    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*11%;/);
+    // share is back (cards 20260922_3/_21 tap-target law). FB-113 v2
+    // (2026-10-18) splits the documents group into four headed columns, so
+    // the twelve shares must still sum to 100% (pinned in the FB-086 test
+    // below); the narrow-column law holds: notes 6%, status 8%.
+    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*6%;/);
+    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*8%;/);
     expect(css).toMatch(/\.shipment-container-ledger__col--actions\s*\{[^}]*width:\s*7%;/);
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*var\(--text-caption-size\);[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
@@ -163,19 +165,28 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?th\.shipment-container-ledger__editable-cell,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?th\.shipment-container-ledger__editable-cell::before,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell::before\s*\{[^}]*display:\s*none;/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?\.shipment-container-ledger__cell-trigger > :not\(\.shipment-container-ledger__edit-purpose\)\s*\{[^}]*grid-column:\s*2;/);
-    expect(ledgerSource).toContain('data-cell-label={modeLabelForTrigger(mode)}');
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?tbody > tr > :nth-child\(8\)\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    // FB-113 v2: documents cells pass a per-column label override; the
+    // shared mode label stays the fallback, so every trigger keeps a
+    // data-cell-label for the card-mode label rail.
+    expect(ledgerSource).toContain('data-cell-label={cellLabel ?? modeLabelForTrigger(mode)}');
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?tbody > tr > td\.shipment-container-ledger__cell--status\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).not.toContain('tbody > tr > :nth-child(4),');
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*780px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*780px\)[\s\S]*?tbody > tr > :nth-child\(even\)\s*\{[^}]*border-right:\s*0;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*780px\)[\s\S]*?\[data-mode="documents"\][\s\S]*?\.shipment-container-ledger__cell-trigger::before\s*\{[^}]*content:\s*"CHỨNG TỪ";/);
+    // FB-113 v2: the "CHỨNG TỪ" shortening override is retired — each
+    // documents trigger carries its own short data-cell-label, so the
+    // card-mode rail reads the column the user tapped.
+    expect(css).not.toMatch(/\[data-mode="documents"\][^}]*::before\s*\{[^}]*content:/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?tbody > tr > td\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__route\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     const phone = css.slice(css.indexOf('@media (max-width: 520px)'));
     expect(phone).toMatch(/\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(phone).toMatch(/tbody > tr > td\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*min-height:\s*44px;/);
-    expect(phone).toMatch(/tbody > tr > :is\(:first-child, :nth-child\(4\), :nth-child\(7\), :nth-child\(8\)\)\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    // FB-113 v2: the phone-tier full-width cells are pinned by identity
+    // (row header th) and class/label — not child indexes, which the
+    // documents split (and any hidden column) shifts.
+    expect(phone).toMatch(/tbody > tr > th,\s*\n\s*\.shipment-container-ledger tbody > tr > td\[data-label='Nâng \/ hạ'\],\s*\n\s*\.shipment-container-ledger tbody > tr > td\[data-label='Ghi chú'\],\s*\n\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__cell--status\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(phone).toMatch(/\.shipment-container-ledger__cell-trigger::before\s*\{[^}]*position:\s*static;[^}]*grid-column:\s*1;[^}]*width:\s*auto;/);
     expect(phone).toMatch(/\.shipment-container-ledger__cell-trigger > :not\(\.shipment-container-ledger__edit-purpose\)\s*\{[^}]*grid-column:\s*1;/);
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1 !important;/);
@@ -281,7 +292,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-pending\s*\{[^}]*var\(--danger\)/);
   });
 
-  it('FB-086: the nine columns share exactly 100% (Thao tác column restored)', () => {
+  it('FB-086: the twelve columns share exactly 100% (Thao tác column restored, FB-113 v2 documents split)', () => {
     const width = (cls: string) => {
       const m = css.match(new RegExp(`\\.shipment-container-ledger__col--${cls}\\s*\\{[^}]*?width:\\s*([\\d.]+)%`));
       expect(m, `missing width for col--${cls}`).toBeTruthy();
@@ -292,7 +303,10 @@ describe('shipment detail workboard styling', () => {
     // workboard. Cards 20260922_3/_21's tap-target law returns with them —
     // the actions column owns a real share (7% base, 9% in the two narrow
     // desktop bands re-pointed from notes) so "＋ Thêm" never wraps.
-    const base = ['customer', 'documents', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
+    // FB-113 v2 (2026-10-18, QA "header thiếu trường Số tờ khai"): the
+    // documents group is four headed columns — billbook/declaration/
+    // direction/shippingline — sharing the pinned `documents` key.
+    const base = ['customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
     expect(base.reduce((a, b) => a + b, 0)).toBe(100);
     expect(css).toMatch(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);
     expect(css).toMatch(/@media \(min-width: 761px\) and \(max-width: 1100px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);

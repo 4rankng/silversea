@@ -22,6 +22,8 @@ import {
   validateDayGroups,
 } from './allocationDayHelpers';
 import { DispatchAllocationDaySection } from './DispatchAllocationDaySection';
+import { DispatchAllocationLclDialog } from './DispatchAllocationLclDialog';
+import { isLclLotRow } from './lclLot';
 import { useCarrierAllocationOptions } from './useCarrierAllocationOptions';
 import './DispatchAllocationPopover.css';
 
@@ -33,6 +35,28 @@ interface DispatchAllocationPopoverProps {
 }
 
 /**
+ * "Phân bổ nhà xe" — ONE dialog shell, field-set THEO cargoMode (card
+ * 191026181942): the shell owns the trigger contract (same title, same
+ * close/save voice, same page wiring) and selects the body.
+ *   • FCL (hàng cont) — the container allocation body below: per-carrier
+ *     20'/40' counts split by đóng/trả day, MAX-mode validation.
+ *   • LCL (hàng lẻ) — `DispatchAllocationLclDialog`: the lclspec facts (loại
+ *     xe / nhà xe) plus the BKS pair a dispatcher may rewrite from a single
+ *     lot. The cont body used to open for LCL lots too, demanding container
+ *     counts a hàng lẻ can never carry — sai nghiệp vụ.
+ * A hidden field-set never leaks values into the other: each body owns its
+ * whole state and mounts fresh per shipment (the page unmounts the shell
+ * between opens), so switching mode re-seeds from the lot, not from the
+ * previous body's draft.
+ */
+export function DispatchAllocationPopover(props: DispatchAllocationPopoverProps) {
+  if (isLclLotRow(props.shipment)) {
+    return <DispatchAllocationLclDialog {...props} />;
+  }
+  return <DispatchAllocationContBody {...props} />;
+}
+
+/**
  * "Phân bổ phương tiện" popover (docx §4, TC-DV-DISPATCH-043):
  * Separates carrier allocation by packing/return date for multi-date lots,
  * with MAX-mode validation and partial saves supported. Rides the one
@@ -40,7 +64,7 @@ interface DispatchAllocationPopoverProps {
  * dismissal, Escape, focus and scroll lock are module-owned; this component
  * owns only the allocation surface.
  */
-export function DispatchAllocationPopover({ shipment, onClose, onSaved }: DispatchAllocationPopoverProps) {
+function DispatchAllocationContBody({ shipment, onClose, onSaved }: DispatchAllocationPopoverProps) {
   const { options, loading: optionsLoading, error: optionsError, empty: optionsEmpty, reload: reloadOptions } = useCarrierAllocationOptions();
   const [days, setDays] = useState<AllocationDayGroup[]>(() => buildInitialDayGroups(shipment));
   const [saving, setSaving] = useState(false);

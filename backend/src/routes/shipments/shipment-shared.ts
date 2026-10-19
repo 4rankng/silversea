@@ -5,7 +5,6 @@
 // intake mutation role list shared by the core and documents leaves.
 
 import type { Request, Response } from 'express';
-import { Role } from '@tingting/shared';
 import { getUser } from '../../middleware/auth';
 import { ApiError } from '../../errors';
 import { runIdempotent } from '../../services/idempotency.service';
@@ -15,13 +14,9 @@ import type { Tx } from '../../services/trip-shared';
 
 // `/shipments/new` is shared by CUS and Điều vận. Keep every mutation used by
 // its durable quick-create -> optional root update -> declaration -> containers
-// sequence on one authority list so route guards cannot drift apart again.
-export const SHIPMENT_INTAKE_MUTATION_ROLES = [
-  Role.ADMIN,
-  Role.MANAGER,
-  Role.CUS,
-  Role.DISPATCHER,
-] as const;
+// sequence on one authority list so route guards cannot drift apart again:
+// `SHIPMENT_INTAKE_MUTATION_ROLES` lives in `@tingting/shared` and is imported
+// directly by the route leaves AND the intake service checks.
 
 export interface ShipmentWriteEnvelope<T> {
   body: T;
@@ -76,4 +71,34 @@ export function requireShipmentIdempotencyKey(req: Request, message: string): st
   const key = getRequestIdempotencyKey(req);
   if (!key) throw new ApiError(400, message);
   return key;
+}
+
+/**
+ * Field-specific advice for the create channels — the mistake is common enough
+ * (the create form's own field ids are not the API's field names) that the
+ * generic "unsupported field" list is not enough.
+ */
+const UNKNOWN_SHIPMENT_KEY_HINTS: Record<string, string> = {
+  containers: 'Tạo lô hàng không nhận kèm danh sách container — tạo lô rồi dùng PUT /api/shipments/{id}/containers để khai báo container.',
+};
+
+/**
+ * Reject body keys the create schema would silently strip (zod's default), so a
+ * caller never believes a field landed while the row stays empty. An unknown
+ * key holding an EMPTY array carries no data and stays accepted — the
+ * create-workspace sends `containers: []` on the container-less path.
+ *
+ * `allowed` is the endpoint's accepted key list (`CREATE_SHIPMENT_KEYS` /
+ * `QUICK_CREATE_SHIPMENT_KEYS`), so the contract cannot drift from the schema.
+ */
+export function assertKnownShipmentKeys(body: unknown, allowed: readonly string[], scope: string): void {
+  if (body == null || typeof body !== 'object' || Array.isArray(body)) return;
+  const unknown = Object.keys(body as Record<string, unknown>).filter((key) => {
+    if (allowed.includes(key)) return false;
+    const value = (body as Record<string, unknown>)[key];
+    return !(Array.isArray(value) && value.length === 0);
+  });
+  if (unknown.length === 0) return;
+  const hint = unknown.map((key) => UNKNOWN_SHIPMENT_KEY_HINTS[key]).find(Boolean);
+  throw new ApiError(400, hint ?? `Trường không được hỗ trợ khi ${scope}: ${unknown.join(', ')}.`);
 }

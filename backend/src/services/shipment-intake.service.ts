@@ -1,9 +1,12 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, localDateInBusinessZone, OperationalSiteType, Role } from '@tingting/shared';
+import { canonicalShipmentStatus, DEFAULT_SHIPPING_LINES, localDateInBusinessZone, OperationalSiteType, Role, SHIPMENT_INTAKE_MUTATION_ROLES } from '@tingting/shared';
 import type { OperationalSiteInput, OperationalSiteUpdateInput } from '@tingting/shared';
 
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
+import { cacheInvalidate } from '../lib/redis';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
+import { normalizeSupplierTypeSelection } from './supplier-types.service';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
 import { ApiError } from '../errors';
@@ -511,6 +514,101 @@ export async function createOperationalSiteForIntake(
   });
 }
 
+export interface ShippingLineCreateResult {
+  /** Supplier row id; null when the name is one of the built-in defaults. */
+  id: number | null;
+  name: string;
+  created: boolean;
+}
+
+/**
+ * Create a shared-catalog shipping line from the intake dialog (FB-114
+ * verify-fail, ticket 171026185348). The name is BOTH the lot's shipping
+ * line (form.shippingLineName, unchanged) and a catalog entry: the bootstrap
+ * `shippingLines` list derives from DEFAULT_SHIPPING_LINES + ACTIVE suppliers
+ * typed SHIPPING_LINE (config.service.ts), so this mints that supplier row
+ * and busts the bootstrap cache — replacing the session-local merge that
+ * evaporated on reload for every user.
+ *
+ * Idempotent on the CATALOG DISPLAY NAME (`shortName || name`, trimmed at
+ * both this compare and the config.service.ts read):
+ *   - DEFAULT_SHIPPING_LINES hit → created:false, no row (id null);
+ *   - ACTIVE SHIPPING_LINE-typed supplier hit → created:false with its id;
+ *   - any other live supplier holding that display name (different type, or
+ *     inactive) → 409. Never duplicate a directory name: the Suppliers page
+ *     and the expense payables dropdown list every type.
+ *
+ * The select-then-insert runs under an application-owned uniqueness lock on
+ * the normalized display name, so concurrent same-name creates (double-click,
+ * two users, two tabs) serialize instead of interleaving into twin rows.
+ *
+ * Body validation (trim, non-empty, ≤255) is the route schema's job; this
+ * trims defensively so the stored display name is the clean input.
+ */
+export async function createShippingLineForIntake(
+  input: { name: string },
+  actor: AuthUser,
+): Promise<ShippingLineCreateResult> {
+  if (!SHIPMENT_INTAKE_MUTATION_ROLES.includes(actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền thêm hãng tàu.');
+  }
+  const name = input.name.trim();
+  const normalized = name.toLowerCase();
+  const matchedDefault = DEFAULT_SHIPPING_LINES.find((line) => line.toLowerCase() === normalized);
+  if (matchedDefault) {
+    // Echo the canonical catalog casing so the caller's mirror cannot add a
+    // case-duplicate of a built-in name.
+    return { id: null, name: matchedDefault, created: false };
+  }
+  const result = await db.transaction(async (tx): Promise<ShippingLineCreateResult> => {
+    await lockApplicationOwnedUniqueness(tx, 'catalog.shipping-line.display-name', [normalized]);
+    // Dedupe against the DISPLAY name the dropdown renders (shortName ||
+    // name — config.service.ts derivation, which trims at read), not the raw
+    // column pair. Lowercase + btrim here mirrors the derivation's trim.
+    const displayName = sql<string>`lower(coalesce(nullif(btrim(${s.suppliers.shortName}), ''), btrim(${s.suppliers.name})))`;
+    const matches = await tx.select({
+      id: s.suppliers.id,
+      name: s.suppliers.name,
+      shortName: s.suppliers.shortName,
+      status: s.suppliers.status,
+      types: s.suppliers.types,
+      primaryType: s.suppliers.primaryType,
+    })
+      .from(s.suppliers)
+      .where(and(isNull(s.suppliers.deletedAt), eq(displayName, normalized)));
+    // Legacy duplicate display names must resolve deterministically: prefer
+    // the row that already satisfies the catalog membership, so a replay
+    // lands on the idempotent path instead of a random conflict.
+    const shippingLineHit = matches.find((row) => row.status === 'ACTIVE'
+      && ((row.types ?? []).includes('SHIPPING_LINE') || row.primaryType === 'SHIPPING_LINE'));
+    if (shippingLineHit) {
+      return {
+        id: shippingLineHit.id,
+        name: shippingLineHit.shortName.trim() || shippingLineHit.name,
+        created: false,
+      };
+    }
+    if (matches.length > 0) {
+      throw new ApiError(409, 'Tên hãng tàu đã trùng nhà cung cấp trong danh mục. Vui lòng chọn tên khác.');
+    }
+    const selection = normalizeSupplierTypeSelection({ types: ['SHIPPING_LINE'], primaryType: 'SHIPPING_LINE' });
+    const [row] = await tx.insert(s.suppliers).values({
+      name,
+      shortName: name,
+      status: 'ACTIVE',
+      types: selection.types,
+      primaryType: selection.primaryType,
+      isFuelSupplier: selection.isFuelSupplier,
+    }).returning({ id: s.suppliers.id });
+    if (!row) throw new Error('Không thể lưu hãng tàu.');
+    return { id: row.id, name, created: true };
+  });
+  if (result.created) {
+    await cacheInvalidate('catalogs:bootstrap');
+  }
+  return result;
+}
+
 /** Narrow the enum so the intake form only offers the two site types it understands. */
 export function isValidIntakeSiteType(value: string): value is OperationalSiteType {
   return value === OperationalSiteType.FACTORY || value === OperationalSiteType.WAREHOUSE;
@@ -726,18 +824,34 @@ async function assertReferenceIsActive(
     if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng.');
   }
   if (shipment.cargoMode === CARGO_MODE.LCL) {
-    if (shipment.pickupWarehouseSiteId == null) throw new ApiError(409, 'Vui lòng chọn kho lấy hàng.');
-    const [warehouse] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
-      .where(and(
-        eq(s.operationalSites.id, shipment.pickupWarehouseSiteId),
-        ...(shipment.customerId != null
-          ? [eq(s.operationalSites.customerId, shipment.customerId)]
-          : []),
-        eq(s.operationalSites.siteType, 'WAREHOUSE'),
-        eq(s.operationalSites.isActive, true),
-        isNull(s.operationalSites.deletedAt),
-      )).limit(1);
-    if (!warehouse) throw new ApiError(409, 'Kho lấy hàng không còn hiệu lực hoặc không thuộc khách hàng.');
+    if (shipment.pickupWarehouseSiteId == null) {
+      // FB-105 (spec §2): the Kho (CFS/Cảng) point accepts a catalog site OR
+      // typed text — hàng Nhập lấy tại Kho (`pickup_location`), hàng Xuất hạ
+      // tại Kho (`delivery_location`). Lệnh chạy ngoài is waived by the ad-hoc
+      // flag — the same key the form's required checks use (spec §2: "trừ khi
+      // tích 'Lệnh chạy ngoài'") and the key `rawRouteName` uses right above.
+      // An ad-hoc lot MAY still carry a catalog customer, so keying the waiver
+      // on `customerId == null` alone passed the form and then 409'd here at
+      // dispatch submit. `customerId == null` stays waived for legacy rows.
+      const warehousePointName = shipment.tradeDirection === 'EXPORT'
+        ? shipment.deliveryLocation
+        : shipment.pickupLocation;
+      if (shipment.isAdHoc !== true && shipment.customerId != null && !warehousePointName?.trim()) {
+        throw new ApiError(409, 'Vui lòng chọn kho lấy hàng.');
+      }
+    } else {
+      const [warehouse] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
+        .where(and(
+          eq(s.operationalSites.id, shipment.pickupWarehouseSiteId),
+          ...(shipment.customerId != null
+            ? [eq(s.operationalSites.customerId, shipment.customerId)]
+            : []),
+          eq(s.operationalSites.siteType, 'WAREHOUSE'),
+          eq(s.operationalSites.isActive, true),
+          isNull(s.operationalSites.deletedAt),
+        )).limit(1);
+      if (!warehouse) throw new ApiError(409, 'Kho lấy hàng không còn hiệu lực hoặc không thuộc khách hàng.');
+    }
   }
 }
 

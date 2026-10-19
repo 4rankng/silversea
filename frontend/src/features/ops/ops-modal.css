@@ -264,3 +264,74 @@
   min-width: 0;
   padding: 0;
 }
+
+/* ── Card 191026160000 — two fee blocks + Số Cont multi-select ─────────── */
+.ops-cont-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+.ops-cont-picker__label {
+  font-size: var(--text-caption-size);
+  color: var(--ink-2, #344054);
+  font-weight: 600;
+}
+.ops-cont-picker__all {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: var(--text-caption-size);
+  cursor: pointer;
+}
+.ops-cont-picker .ds-multiselect,
+.ops-cont-picker [data-slot='searchable-multiselect'] {
+  flex: 1 1 220px;
+  min-width: 200px;
+  max-width: 360px;
+}
+.ops-fee-block {
+  margin: 14px 0 0;
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--border-soft, #e4e7ec);
+}
+.ops-fee-block h3 {
+  margin: 0 0 8px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2, #344054);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.ops-fee-row {
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid var(--border-soft, #e4e7ec);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+}
+.ops-fee-row__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+.ops-fee-row__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2, #344054);
+}
+.ops-fee-row__field input {
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 8px;
+  font: inherit;
+}
+.ops-fee-row .ops-form-note {
+  margin: 8px 0 0;
+}
+.ops-fee-row__remove {
+  margin-top: 8px;
+}

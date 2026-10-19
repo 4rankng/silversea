@@ -150,3 +150,5 @@ DB lean-down vs `docs/prd/` + `testplan/` audit; every change prod-preflight-ver
 - **Trips split — SHIPPED 2026-09-06** (stages B/C/D same day): `trips` 99→47 ops columns; financial block → `trip_financial_state` (44 cols), carrier block → `trip_carrier_info` (8 cols), both 1:1 by tripId; `trips_composite` view preserves the full-row read shape (migrations 0054–0056; 268/268 byte-identical value probe across the cutover). Deploy = single shot per plans/260906-1032-db-lean-down/prod-deploy-plan.md.
 - Multi-seal migration completion → then drop `trip_containers.seal_number` mirror.
 - QuyTrinhO2C Confluence page needs the same state-machine update (this repo doc updated 2026-09-06).
+
+- [ ] 2026-10-19 (cron DOI): lost-pixel pageShots chụp 1 màn hình chung cho 3 route (/dispatch, /dispatch-detail, /shipments) — current+baseline đều byte-identical; gate "3 diffs" thực chất = 1 diff x3. Cần tách page/context mỗi story (login riêng hoặc goto sau authed) + thêm script pnpm visual:base (config comment nhắc nhưng không tồn tại). Phát hiện khi refresh baseline cho build 1e0e1d39 (commit 1698153a).

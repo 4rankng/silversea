@@ -39,7 +39,10 @@ export function ShipmentDebitRecords({ rows, canManage, selectedIds, expandedId,
         { key: 'customs', label: 'Số tờ khai', value: row.customsNumber ?? 'Chưa có' },
         { key: 'factory', label: 'Nhà máy', value: row.factoryName ?? '—' },
         { key: 'address', label: 'Địa chỉ nhà máy', value: row.factoryAddress ?? '—' },
-        { key: 'freight', label: 'Cước vận tải (Auto)', value: freightFact(row) },
+        // 161026204709: primary — the F-2 100%/0₫ lane and its reason note
+        // must render on the card face, never inside the 'Chi tiết' collapse
+        // (same marking as ShipmentDebitTables Bảng 2.1's Cước thu column).
+        { key: 'freight', label: 'Cước vận tải (Auto)', value: freightFact(row), primary: true },
         { key: 'chiho', label: 'Tổng chi hộ', value: money(row.chiHoTotal) },
         ...(canManage ? [{ key: 'open', label: 'Quyết toán lô', primary: true, layout: expanded ? 'full-width' as const : undefined, value: <>
           <button type="button" className="btn btn--secondary btn--sm" aria-expanded={expanded}

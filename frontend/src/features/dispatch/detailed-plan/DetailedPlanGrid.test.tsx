@@ -130,6 +130,50 @@ describe('DetailedPlanGrid', () => {
     expect(container.querySelector('[data-label="Trả hàng"]')?.textContent).toBe('Cảng B');
   });
 
+  // FB-105 §3 — an LCL lot owns no container, so the two columns are its OWN
+  // lift/drop points and SWAP with the trade direction (Nhập: kho → nhà máy;
+  // Xuất: nhà máy → kho). FCL rows keep their container ports untouched —
+  // DSP-PORT-01 above pins that.
+  const lclRow = (tradeDirection: 'IMPORT' | 'EXPORT', overrides: Partial<DispatchDetailPlanRow> = {}) => row({
+    cargoMode: 'LCL' as const,
+    fulfillmentType: 'LCL_SHIPMENT' as const,
+    customerRoute: { customerName: 'Công ty Lẻ', factoryName: 'Nhà máy Long Hậu', deliveryPoint: null, routeName: null },
+    docs: { billNumber: 'BL-LCL-105', tradeDirection, declarationNumbers: [] },
+    liftDrop: { warehouseName: 'Kho CFS Cát Lái', liftFallback: null, dropFallback: null },
+    ...overrides,
+  });
+
+  it('DSP-PORT-02 names the LCL points as kho → nhà máy for a Nhập khẩu lot', () => {
+    const { container } = renderGrid([lclRow('IMPORT')]);
+    expect(container.querySelector('[data-label="Nâng hàng"]')?.textContent).toBe('Kho CFS Cát Lái');
+    expect(container.querySelector('[data-label="Trả hàng"]')?.textContent).toBe('Nhà máy Long Hậu');
+  });
+
+  it('DSP-PORT-02 reverses the LCL sides for a Xuất khẩu lot', () => {
+    const { container } = renderGrid([lclRow('EXPORT')]);
+    expect(container.querySelector('[data-label="Nâng hàng"]')?.textContent).toBe('Nhà máy Long Hậu');
+    expect(container.querySelector('[data-label="Trả hàng"]')?.textContent).toBe('Kho CFS Cát Lái');
+  });
+
+  it('DSP-PORT-02 falls back to the stored lift/drop text when no site was picked', () => {
+    const { container } = renderGrid([lclRow('IMPORT', {
+      customerRoute: { customerName: 'Công ty Lẻ', factoryName: null, deliveryPoint: null, routeName: null },
+      liftDrop: { warehouseName: null, liftFallback: 'Kho CFS gõ tay', dropFallback: 'Nhà máy gõ tay' },
+    })]);
+    expect(container.querySelector('[data-label="Nâng hàng"]')?.textContent).toBe('Kho CFS gõ tay');
+    expect(container.querySelector('[data-label="Trả hàng"]')?.textContent).toBe('Nhà máy gõ tay');
+  });
+
+  it('DSP-PORT-02 prints "—" for an LCL side with nothing known, never a container placeholder', () => {
+    const { container } = renderGrid([lclRow('IMPORT', {
+      customerRoute: { customerName: 'Công ty Lẻ', factoryName: null, deliveryPoint: null, routeName: null },
+      liftDrop: { warehouseName: null, liftFallback: null, dropFallback: null },
+    })]);
+    expect(container.querySelector('[data-label="Nâng hàng"]')?.textContent).toBe('—');
+    expect(container.querySelector('[data-label="Trả hàng"]')?.textContent).toBe('—');
+    expect(container.textContent).not.toContain('Chưa có cont');
+  });
+
   it('renders the 9 operational columns with multi-line typography', () => {
     const { container } = renderGrid([row()]);
 

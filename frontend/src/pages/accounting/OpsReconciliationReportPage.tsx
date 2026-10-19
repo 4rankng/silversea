@@ -1,11 +1,13 @@
 // Card 20260928_169 — BÁO CÁO TỔNG HỢP HOÀN ỨNG. Per staff (monthly view) and
 // per đợt (an expense_reconciliations lot, which owns its costs and allocates
 // the received advances — PRD OpsVanHanh §9.2). Columns: ĐNTT (confirmed costs
-// of the period/đợt) and ĐÃ ỨNG (held advances; scoped to a đợt, what the lot
-// allocated); "Còn phải hoàn ứng" is the SỔ QUỸ closing number —
-// min(đã ứng, đã cấp) − đã tiêu, the granted-but-unconsumed advance — per the
-// 2026-09-29 PM ruling (card 168 board "RULING PM" câu 1), so this report and
-// the fund book's OPS row are one definition and cannot diverge.
+// of the period/đợt), ĐÃ ỨNG (held advances; scoped to a đợt, what the lot
+// allocated) and "Còn phải hoàn ứng" = ĐNTT − ĐÃ ỨNG SIGNED (card
+// 141026230770: it CAN be negative when Ops over-advanced → warning 'ÂM — đề
+// nghị thu lại tiền ứng'). The backend additionally carries `remaining`, the
+// SỔ QUỸ closing number — min(đã ứng, đã cấp) − đã tiêu per the 2026-09-29 PM
+// ruling (card 168 board "RULING PM" câu 1) — kept in parity with the fund
+// book by construction (card 377) and surfaced through Sổ quỹ.
 // The row action "Lập phiếu" follows the ĐỢT's own difference (the
 // reconciliation engine's number): > 0 the company pays (phiếu CHI through the
 // existing voucher engine), < 0 the staff pays back (phiếu THU through the
@@ -94,7 +96,7 @@ export default function OpsReconciliationReportPage() {
   const lots = useQuery({ queryKey: qk.expenseAccounting.reconciliations, queryFn: expenseAccountingClient.reconciliations });
 
   const rows = report.data?.rows ?? [];
-  const totals = report.data?.totals ?? { dntt: 0, advanced: 0, remaining: 0 };
+  const totals = report.data?.totals ?? { dntt: 0, advanced: 0, remaining: 0, remainingSigned: 0 };
   const scopedLot = lotId ? lots.data?.items.find((lot) => lot.id === Number(lotId)) : undefined;
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: opsReconciliationReportKeys.all });
@@ -168,7 +170,9 @@ export default function OpsReconciliationReportPage() {
         items={[
           { label: 'Tổng số tiền ĐNTT', value: `${formatMoney(totals.dntt)} ₫` },
           { label: 'Tổng số tiền đã ứng', value: `${formatMoney(totals.advanced)} ₫` },
-          { label: 'Tổng còn phải hoàn ứng', value: remainingText(totals.remaining) },
+          // Card 141026230770 — the rail total is the SIGNED spec formula
+          // (ĐNTT − ĐÃ ỨNG): âm hiện rõ dấu thay vì ép về 0.
+          { label: 'Tổng còn phải hoàn ứng', value: remainingText(totals.remainingSigned) },
         ]}
       />
 
@@ -193,7 +197,6 @@ export default function OpsReconciliationReportPage() {
                 <th className="num">Số tiền ĐNTT</th>
                 <th className="num">Số tiền đã ứng</th>
                 <th className="num">Còn phải hoàn ứng</th>
-                <th className="num">Còn phải hoàn ứng (có dấu)</th>
                 <th>Ghi chú</th>
                 <th aria-label="Thao tác" />
               </tr>
@@ -246,14 +249,18 @@ function ReportRow({ row, index, actionLot, onVoucher }: {
       <td data-label="Nhân viên ĐNTT">{row.staffName}</td>
       <td data-label="Số tiền ĐNTT" className="num"><Money value={row.dntt} /></td>
       <td data-label="Số tiền đã ứng" className="num"><Money value={row.advanced} /></td>
-      <td data-label="Còn phải hoàn ứng" className="num"><Money value={Math.abs(row.remaining)} sign={row.remaining > 0 ? '+' : row.remaining < 0 ? '−' : undefined} /></td>
-      {/* Chênh lệch CÓ DẤU theo chữ spec "ĐNTT − ĐÃ ỨNG" — số âm giữ nguyên
-          dấu (formatMoney) để thấy ngay tiền ứng vượt chi phí thực tế. */}
-      <td data-label="Còn phải hoàn ứng (có dấu)" className="num">{formatMoney(row.remainingSigned)} ₫</td>
+      {/* Card 141026230770 — "Còn phải hoàn ứng" shows the SIGNED difference
+          (ĐNTT − ĐÃ ỨNG, spec verbatim): it CAN be negative when Ops
+          over-advanced, and the sign is always labeled beside the amount. */}
+      <td data-label="Còn phải hoàn ứng" className="num" style={row.remainingSigned < 0 ? { color: 'var(--danger)' } : undefined}>
+        <Money value={Math.abs(row.remainingSigned)} sign={row.remainingSigned > 0 ? '+' : row.remainingSigned < 0 ? '−' : undefined} />
+      </td>
       <td data-label="Ghi chú">
         {row.needsCollection
-          ? <StatusText variant="danger">Đề nghị thu tiền ứng</StatusText>
-          : <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>}
+          ? <StatusText variant="danger">ÂM — đề nghị thu lại tiền ứng</StatusText>
+          : (row.remainingSigned < 0 || row.outstandingSigned < 0)
+            ? <StatusText variant="warning">{row.note}</StatusText>
+            : <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>}
       </td>
       <td data-label="" className="record-table__action">
         {actionLot && (

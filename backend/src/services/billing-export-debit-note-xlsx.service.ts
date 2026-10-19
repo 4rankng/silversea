@@ -78,6 +78,22 @@ const LONG_MINH_CONTINUATION_VARIABLES = new Set<DebitNoteTemplateColumn['variab
   'fuelSurchargeAmount',
 ]);
 
+/** Variables the fixed vertical geometry prints in a slot of its own. Any other
+ *  template column is rendered after the geometry (card 171026004331).
+ *  `tripCode` is on the list because a pre-`documentCode` template bound its
+ *  "chung_tu" column to `tripCode`, and renderColumnValue maps that id to the
+ *  same document number the geometry writes — printing it twice would be a
+ *  regression for those saved templates. */
+const FIXED_DEBIT_NOTE_COLUMN_VARIABLES: Partial<Record<DebitNoteTemplateColumn['variable'], true>> = {
+  departureDate: true,
+  documentCode: true,
+  tripCode: true,
+  description: true,
+  unit: true,
+  containerCount: true,
+  amount: true,
+};
+
 type LongMinhDebitGroup = {
   representativeLine: BillingDocumentLine;
   tripLine: BillingDocumentLine | null;
@@ -413,6 +429,16 @@ export async function renderDebitNoteXlsx(
   const lines = await enrichLinesForDebitNoteRender(doc.lines);
   const dataLines = lines.filter((line) => !line.excluded);
   const lineGroups = groupDebitNoteLines(dataLines);
+  // Card 171026004331: the vertical geometry below owns one slot per variable it
+  // prints (date / chứng từ / diễn giải / ĐVT / số lượng / đơn giá / thành tiền).
+  // Every other column the template defines — the default template's LOẠI XE and
+  // BKS, or any column a customer added — is printed in its own column AFTER the
+  // money geometry, so no existing column moves and a snapshot saved before this
+  // card (which defines only the seven owned columns) renders exactly as before.
+  const extraColumns = normalizeTemplateColumns(snap.columns, 'DEBIT_NOTE')
+    .filter((col) => col.width > 0 && FIXED_DEBIT_NOTE_COLUMN_VARIABLES[col.variable] !== true);
+  const fixedLastColumn = 8;
+  const lastColumn = fixedLastColumn + extraColumns.length;
   const totalAmount = dataLines.reduce((sum, line) => sum + effectiveAmount(line), 0);
   const moneyFmt = '#,##0';
   const baseFont = { name: 'Tahoma', size: 10, color: { argb: 'FF000000' } };
@@ -477,9 +503,12 @@ export async function renderDebitNoteXlsx(
   columnWidths.forEach((width, index) => {
     ws.getColumn(index + 1).width = width;
   });
+  extraColumns.forEach((column, index) => {
+    ws.getColumn(fixedLastColumn + index + 1).width = Math.max(4, Math.min(36, column.width));
+  });
   for (let r = 1; r <= sheetRows; r++) {
     if (r === 15) ws.getRow(r).height = 28;
-    for (let c = 1; c <= 8; c++) {
+    for (let c = 1; c <= lastColumn; c++) {
       ws.getCell(r, c).font = baseFont;
     }
   }
@@ -575,9 +604,19 @@ export async function renderDebitNoteXlsx(
     cell.border = tableBorder;
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
   });
+  // Card 171026004331: the template's own columns the geometry does not own get
+  // their header here (the default template's Loại xe + Biển số xe).
+  extraColumns.forEach((column, index) => {
+    const cell = ws.getCell(tableHeaderRow, fixedLastColumn + index + 1);
+    cell.value = column.label;
+    cell.font = boldFont;
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = tableBorder;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+  });
 
   for (let r = dataStartRow; r < totalRow; r++) {
-    for (let c = 2; c <= 8; c++) {
+    for (let c = 2; c <= lastColumn; c++) {
       const cell = ws.getCell(r, c);
       cell.border = tableBorder;
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
@@ -617,6 +656,18 @@ export async function renderDebitNoteXlsx(
       ws.getCell(r, 8).alignment = { horizontal: 'right', vertical: 'middle', wrapText: true };
       ws.getCell(r, 7).numFmt = moneyFmt;
       ws.getCell(r, 8).numFmt = moneyFmt;
+      // Card 171026004331: the template's remaining columns (LOẠI XE = loại xe
+      // tính cước THU, BKS = billing_truck_no) print on every charge row, the
+      // same way the HTML/PDF template renderer prints them.
+      extraColumns.forEach((column, index) => {
+        const cell = ws.getCell(r, fixedLastColumn + index + 1);
+        const value = renderColumnValue(line, column, dataRows.length);
+        cell.value = value ?? null;
+        cell.alignment = { horizontal: column.align, vertical: 'middle', wrapText: true };
+        if (column.format === 'currency' && typeof value === 'number') cell.numFmt = moneyFmt;
+        else if (column.format === 'number' && typeof value === 'number') cell.numFmt = '#,##0';
+        else if (value instanceof Date) cell.numFmt = 'd/m/yy';
+      });
     }
   }
 
@@ -631,7 +682,7 @@ export async function renderDebitNoteXlsx(
   ws.getCell(totalRow, 8).numFmt = moneyFmt;
   ws.getCell(totalRow, 8).font = boldFont;
   ws.getCell(totalRow, 8).alignment = { horizontal: 'right', vertical: 'middle' };
-  for (let c = 2; c <= 8; c++) {
+  for (let c = 2; c <= lastColumn; c++) {
     ws.getCell(totalRow, c).border = tableBorder;
   }
 

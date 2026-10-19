@@ -7,6 +7,7 @@ import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { ApiError } from '../errors';
 import { localDateInBusinessZone } from '@tingting/shared';
 import type { DispatchSummary, TripPairKind } from '@tingting/shared';
@@ -29,6 +30,25 @@ import { listPendingShipmentChangeRequests } from './shipment-shared.service';
 import { sql } from 'drizzle-orm';
 
 const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
+
+// FB-107: the LCL "Kho lấy hàng" point names the site stored in
+// `shipments.pickup_warehouse_site_id`, resolved through the same short-name
+// authority every other master-data label uses (the list summaries project the
+// identical expression under `pickupWarehouseSiteName`). Its own alias because
+// the row already joins operational_sites for the delivery point.
+const detailPickupWarehouseSite = alias(s.operationalSites, 'shipment_detail_pickup_warehouse_site');
+const PICKUP_WAREHOUSE_OPERATIONAL_NAME = operationalName(
+  detailPickupWarehouseSite.shortName,
+  detailPickupWarehouseSite.name,
+);
+
+/** One container row as `listShipmentContainers` returns it: the stored
+ *  columns plus the joined container-type labels. Named once so every helper
+ *  in this assembler shares one shape instead of restating the query's type. */
+type ShipmentContainerRow = typeof s.shipmentContainers.$inferSelect & {
+  containerTypeName: string | null;
+  containerTypeCode: string | null;
+};
 
 function normalizeShipmentStatusHistoryRow<
   T extends { fromStatus: string | null; toStatus: string },
@@ -139,17 +159,29 @@ export interface ShipmentDetail {
     // Mirrors cus-workspace `effectiveFactoryNames` priority so the detail
     // header (ShipmentDetailPage) agrees with the dashboard list view.
     effectiveFactoryName: string | null;
+    // FB-107: LCL lift/drop points. The "Kho lấy hàng" site CUS picked at
+    // intake (short-name authority, same shape as effectiveFactoryName) plus
+    // its site type, so the detail page can name both of the lot's operating
+    // points instead of the dormant pickup_location/delivery_location columns.
+    pickupWarehouseSiteName: string | null;
+    pickupWarehouseSiteType: (typeof s.operationalSites.$inferSelect)['siteType'] | null;
     // Route display label with the SAME authority the overview rows show
     // (list joins coalesce(container.routeId, shipment.routeId), then the
     // ad-hoc rawRouteName) — without it a container-less LCL lot displays its
     // route on the overview and nowhere on the detail page (FB-074).
     routeName: string | null;
   };
-  containers: Array<Awaited<ReturnType<typeof listShipmentContainers>>[number] & {
+  containers: Array<ShipmentContainerRow & {
     /** Plate issued onto this container's fulfillment at dispatch. */
     plannedVehiclePlate: string | null;
     /** Kind of the ACTIVE trip pair (Kẹp/Kết hợp) on this container's live trip; null when unpaired. */
     pairKind: TripPairKind | null;
+    /** FB-107: Cảng nâng / Cảng hạ display names (short-name authority, the
+     *  ad-hoc raw text standing in for a missing catalog row) — the detail
+     *  page's Nơi nhận / Nơi giao for an FCL lot. Null when the column is
+     *  empty, so the caller can fall back to the stored free text. */
+    pickupPortName: string | null;
+    dropoffPortName: string | null;
   }>;
   documents: Awaited<ReturnType<typeof listShipmentDocuments>>;
   declarations: Awaited<ReturnType<typeof listShipmentDeclarations>>;
@@ -163,15 +195,46 @@ export interface ShipmentDetail {
 }
 
 /**
+ * Attach the Cảng nâng / Cảng hạ display names for each container row
+ * (FB-107). The detail page shows the lot's two operating points under
+ * Nơi nhận / Nơi giao; for an FCL lot those ARE the container ports, and the
+ * column only stores ids — one lookup for the whole lot (no N+1). Short-name
+ * authority, exactly like the master plan's port groups; an ad-hoc lot types
+ * the port instead of picking one, so the raw text stands in.
+ */
+async function decorateContainersWithPortNames<T extends ShipmentContainerRow>(
+  containers: T[],
+): Promise<Array<T & { pickupPortName: string | null; dropoffPortName: string | null }>> {
+  const portIds = [...new Set(containers
+    .flatMap((row) => [row.pickupPortId, row.dropoffPortId])
+    .filter((id): id is number => id != null))];
+  const namesById = portIds.length === 0 ? new Map<number, string>() : new Map(
+    (await db.select({ id: s.ports.id, name: operationalName(s.ports.shortName, s.ports.name) })
+      .from(s.ports)
+      .where(inArray(s.ports.id, portIds)))
+      .map((port) => [port.id, port.name]),
+  );
+  return containers.map((container) => ({
+    ...container,
+    // A catalog id that resolves wins; otherwise the ad-hoc typed name stands
+    // (and an empty side stays null so the caller can fall back further).
+    pickupPortName: (container.pickupPortId != null ? namesById.get(container.pickupPortId) ?? null : null)
+      ?? (container.rawPickupPortName?.trim() || null),
+    dropoffPortName: (container.dropoffPortId != null ? namesById.get(container.dropoffPortId) ?? null : null)
+      ?? (container.rawDropoffPortName?.trim() || null),
+  }));
+}
+
+/**
  * Attach the plate issued at dispatch onto each container row. The plate lives
  * on the fulfillment (planned_vehicle_plate_number mirrors the truck/external
  * vehicle at issuance); FCL fulfillments map 1:1 to containers via
  * shipment_container_id. Canceled fulfillments never contribute a plate.
  */
-async function decorateContainersWithIssuedVehicle(
+async function decorateContainersWithIssuedVehicle<T extends ShipmentContainerRow>(
   shipmentId: number,
-  containers: Awaited<ReturnType<typeof listShipmentContainers>>,
-): Promise<Array<Awaited<ReturnType<typeof listShipmentContainers>>[number] & { plannedVehiclePlate: string | null }>> {
+  containers: T[],
+): Promise<Array<T & { plannedVehiclePlate: string | null }>> {
   if (containers.length === 0) return [];
   const fulfillments = await db.select({
     shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
@@ -201,10 +264,10 @@ async function decorateContainersWithIssuedVehicle(
  * The tag derives from the pair linkage, so breaking the pair removes it;
  * canceled fulfillments never contribute (their trips leave the pair on cancel).
  */
-async function decorateContainersWithPairKind(
+async function decorateContainersWithPairKind<T extends ShipmentContainerRow & { plannedVehiclePlate: string | null }>(
   shipmentId: number,
-  containers: Array<Awaited<ReturnType<typeof listShipmentContainers>>[number] & { plannedVehiclePlate: string | null }>,
-): Promise<ShipmentDetail['containers']> {
+  containers: T[],
+): Promise<Array<T & { pairKind: TripPairKind | null }>> {
   if (containers.length === 0) return [];
   const rows = await db.select({
     shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
@@ -266,10 +329,14 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
   const [joined] = await db.select({
     customerName: CUSTOMER_OPERATIONAL_NAME,
     cargoTypeName: s.cargoTypes.name,
+    // FB-107: LCL lift/drop points — see PICKUP_WAREHOUSE_OPERATIONAL_NAME.
+    pickupWarehouseSiteName: PICKUP_WAREHOUSE_OPERATIONAL_NAME,
+    pickupWarehouseSiteType: detailPickupWarehouseSite.siteType,
   })
     .from(s.shipments)
     .leftJoin(s.customers, and(eq(s.customers.id, s.shipments.customerId), isNull(s.customers.deletedAt)))
     .leftJoin(s.cargoTypes, eq(s.cargoTypes.id, s.shipments.cargoTypeId))
+    .leftJoin(detailPickupWarehouseSite, eq(s.shipments.pickupWarehouseSiteId, detailPickupWarehouseSite.id))
     .where(eq(s.shipments.id, id));
   const shipmentWithCustomer = {
     ...shipment,
@@ -278,6 +345,11 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     // isAdHoc / rawCustomerName / rawRouteName ride the row spread above.
     customerName: joined?.customerName ?? shipment.rawCustomerName ?? null,
     cargoTypeName: joined?.cargoTypeName ?? null,
+    // A lot with no warehouse site picked (ad-hoc, or an LCL lot saved before
+    // the picker existed) keeps both null — the page then falls back to the
+    // stored free text and finally '—'.
+    pickupWarehouseSiteName: joined?.pickupWarehouseSiteName ?? null,
+    pickupWarehouseSiteType: joined?.pickupWarehouseSiteType ?? null,
   };
   const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, freightRate] = await Promise.all([
     listShipmentContainers(id),
@@ -290,9 +362,11 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     getShipmentAccountingLock(id),
     getShipmentFreightRateView(id),
   ]);
-  const decoratedContainers = await decorateContainersWithPairKind(
-    id,
-    await decorateContainersWithIssuedVehicle(id, containers),
+  const decoratedContainers = await decorateContainersWithPortNames(
+    await decorateContainersWithPairKind(
+      id,
+      await decorateContainersWithIssuedVehicle(id, containers),
+    ),
   );
   return {
     shipment: {

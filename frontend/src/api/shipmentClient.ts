@@ -215,6 +215,11 @@ export interface ShipmentContainer {
   customerAppointmentAt?: string | null;
   pickupPortId?: number | null;
   dropoffPortId?: number | null;
+  /** FB-107: Cảng nâng / Cảng hạ display names resolved server-side for the
+   *  detail payload (short-name authority; the ad-hoc typed name stands in
+   *  when no catalog port is picked). Absent on other endpoints' rows. */
+  pickupPortName?: string | null;
+  dropoffPortName?: string | null;
   plannedCarrierType?: 'OWN' | 'EXTERNAL' | null;
   plannedExternalCarrierId?: number | null;
   plannedCarrierName?: string | null;
@@ -258,6 +263,11 @@ export interface ShipmentDetail {
      *  cus-workspace `effectiveFactoryNames` priority so the detail header
      *  agrees with the dashboard list (regression bug 2026-09-07). */
     effectiveFactoryName: string | null;
+    /** FB-107: LCL "Kho lấy hàng" site display name + its site type, resolved
+     *  from `shipments.pickup_warehouse_site_id` (short-name authority). Null
+     *  when the lot never picked one. */
+    pickupWarehouseSiteName: string | null;
+    pickupWarehouseSiteType: 'FACTORY' | 'WAREHOUSE' | null;
     /** Route display label with the overview's authority (container route →
      *  lot route → ad-hoc rawRouteName) so both views name the same route
      *  (card 101026163040 / FB-074). */
@@ -619,6 +629,19 @@ export interface ShipmentListItem extends Shipment {
   /** Per-container lift/drop pairs for the dispatch master-plan. Optional so
    *  a frontend can tolerate an older API during a rolling deployment. */
   containerPortGroups?: ShipmentContainerPortGroup[];
+  /** FB-092 LCL grouping wire facts (flat, one shape for every surface). The
+   *  list-summaries projection emits these; optional for older payloads. */
+  costGroupId?: string | null;
+  costGroupOrder?: number | null;
+  actualTruckNo?: string | null;
+  billingTruckNo?: string | null;
+  costVehicleClassCode?: string | null;
+  costVehicleClassName?: string | null;
+  /** Active LCL_SHIPMENT fulfillment — the row-level face of the Sản lượng
+   *  "Lẻ: N lô" count. The master-plan checkbox and Loại hàng filter read
+   *  this (falling back to `cargoMode`) so their predicate matches the
+   *  header count on real payloads. */
+  hasActiveLclShipment?: boolean;
 }
 
 export interface ShipmentContainerPortGroup {
@@ -703,6 +726,10 @@ export interface DispatchShipmentRequest {
   /** Warn-once overlap contract (card 061026172804 family): the dispatcher
    *  confirmed the completed-trip overlap warning and this is the retry. */
   rigOverlapCompletedConfirmed?: boolean;
+  /** Card B 18/10 (B.2) — the plate-less EXTERNAL issue warn-once retry: the
+   *  first attempt is refused with PLATE_DEFERRED_CONFIRM; the operator's
+   *  confirmed retry carries this flag. */
+  plateDeferredConfirmed?: boolean;
 }
 
 /** Response from `POST /api/shipments/:id/dispatch` — the trip it created (or
@@ -803,6 +830,25 @@ export interface CreateOperationalSiteBody {
  */
 export async function createOperationalSite(body: CreateOperationalSiteBody): Promise<OperationalSite> {
   return api.post<OperationalSite>('/shipments/operational-sites', body);
+}
+
+/** Result of `POST /api/shipments/shipping-lines` (FB-114, ticket 171026185348). */
+export interface ShippingLineCreateResult {
+  /** Supplier row id; null when the name is one of the built-in defaults. */
+  id: number | null;
+  /** Catalog display name (canonical casing) to merge into the dropdown. */
+  name: string;
+  created: boolean;
+}
+
+/**
+ * Persist a new shipping line into the SHARED catalog (supplier typed
+ * SHIPPING_LINE — the source the bootstrap `shippingLines` list derives
+ * from). Idempotent on the display name: `created: false` means the catalog
+ * already listed it; a name held by a non-shipping-line supplier is a 409.
+ */
+export async function createShippingLine(name: string): Promise<ShippingLineCreateResult> {
+  return api.post<ShippingLineCreateResult>('/shipments/shipping-lines', { name });
 }
 
 /** Master-data row for the ADMIN/MANAGER "Nhà máy" config surface. */
@@ -983,6 +1029,10 @@ export async function listShipments(params?: {
   portIds?: number[];
   /** Dispatch master-plan: OWN / EXTERNAL:<id> / UNASSIGNED keys. */
   carrierKeys?: string[];
+  /** Dispatch master-plan Loại hàng scope (card 171026154000): server-side
+   *  active-LCL-fulfillment scope so the Hàng lẻ pick reaches across every
+   *  page — the same predicate the row `hasActiveLclShipment` projects. */
+  cargoMode?: 'FCL' | 'LCL';
   /** Include the full-filtered-set cargo summary in the response. */
   includeDispatchSummary?: boolean;
 }): Promise<ShipmentListResponse> {
@@ -1003,6 +1053,7 @@ export async function listShipments(params?: {
   if (params?.allocationStatus) query.set('allocationStatus', params.allocationStatus);
   params?.portIds?.forEach((id) => query.append('portIds', String(id)));
   params?.carrierKeys?.forEach((key) => query.append('carrierKeys', key));
+  if (params?.cargoMode) query.set('cargoMode', params.cargoMode);
   if (params?.includeDispatchSummary) query.set('includeDispatchSummary', 'true');
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return api.get<ShipmentListResponse>(`/shipments${suffix}`);

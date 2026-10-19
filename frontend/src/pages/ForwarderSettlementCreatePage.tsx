@@ -429,7 +429,10 @@ export default function ForwarderSettlementCreatePage() {
               value={refundAmount}
               onChange={e => setRefundAmount(e.target.value)}
               placeholder="0"
-              min={0}
+              // FB-100 (card 141026230770) — refundAmount CÓ DẤU (signedNumeric
+              // của shared schema): chi phí vượt tạm ứng ⇒ tiền hoàn lại ÂM và
+              // phiếu vẫn cân bằng. min=0 cũ chặn ghi nhận số âm ngay trên form
+              // (constraint validation của trình duyệt) — bỏ theo đúng ruling.
             />
           </div>
 

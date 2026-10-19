@@ -303,12 +303,13 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('15:00 23/08/2026')).toBeTruthy();
   });
 
-  it('renders all 8 dispatch columns for a READY_FOR_DISPATCH row', () => {
+  it('renders all 8 dispatch columns plus the LCL selection column for a READY_FOR_DISPATCH row', () => {
     const onAllocate = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
+      'Chọn lô',
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
       'Tuyến đường & hãng tàu',
@@ -323,11 +324,16 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
     expect(screen.getByText('Công ty ABC')).toBeTruthy();
     // T2.1: customer → factories → bill number, with customer and bill bold.
-    expect(screen.getByText('Công ty ABC')).toHaveClass('master-plan-grid__line--strong');
+    // Card 191026181942: the customer name rides the shared NameCell inside
+    // the strong line, so the line class lives on the wrapping line div.
+    expect(screen.getByText('Công ty ABC').closest('.master-plan-grid__line')).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('Công ty ABC')).toHaveClass('name-cell');
     // Bill number is now the 3rd line in Customer & Factory column (bold).
     expect(screen.getByText('BL-2026-001')).toHaveClass('master-plan-grid__line--strong');
-    // Route name moved to Route & Shipping column (bold).
-    expect(screen.getByText('LH — Biên Hòa')).toHaveClass('master-plan-grid__line--strong');
+    // Route name moved to Route & Shipping column (bold). The name rides the
+    // shared NameCell inside the strong line (card 191026181942).
+    expect(screen.getByText('LH — Biên Hòa').closest('.master-plan-grid__line')).toHaveClass('master-plan-grid__line--strong');
+    expect(screen.getByText('LH — Biên Hòa')).toHaveClass('name-cell');
     expect(screen.queryByText('Lộ trình: LH — Biên Hòa')).toBeNull();
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('Nhập')).toBeTruthy();
@@ -659,6 +665,7 @@ describe('MasterPlanGrid', () => {
     render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} />);
 
     expect(screen.getAllByRole('cell').map((cell) => cell.getAttribute('data-label'))).toEqual([
+      'Chọn',
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
       'Tuyến đường & hãng tàu',
@@ -758,7 +765,7 @@ describe('MasterPlanGrid', () => {
 describe('MasterPlanFilters', () => {
   it('propagates every filter control change', () => {
     const onChange = vi.fn();
-    render(<MasterPlanFilters filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }} onChange={onChange} />);
+    render(<MasterPlanFilters filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const }} onChange={onChange} />);
 
     fireEvent.change(screen.getByLabelText('Tìm kiếm lô hàng'), { target: { value: 'BL-9' } });
     expect(onChange).toHaveBeenLastCalledWith({ q: 'BL-9' });
@@ -778,12 +785,23 @@ describe('MasterPlanFilters', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Phân xe: Tất cả trạng thái' }));
     fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
+
+    // Card 171026154000: Loại hàng joins the basic criteria with the exact
+    // DetailedPlanFilters labels. The fixture's filters prop is static, so
+    // the trigger keeps its initial label across picks — one pick per run.
+    fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Tất cả' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Hàng lẻ (LCL)' }));
+    expect(onChange).toHaveBeenLastCalledWith({ cargoMode: 'LCL' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Tất cả' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Cont (FCL)' }));
+    expect(onChange).toHaveBeenLastCalledWith({ cargoMode: 'FCL' });
   });
 
   it('keeps the complete delivery-date pair as one control group in the bar', () => {
     const { container } = render(
       <MasterPlanFilters
-        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }}
+        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const }}
         onChange={vi.fn()}
       />,
     );
@@ -803,7 +821,7 @@ describe('MasterPlanFilters', () => {
   it('leaves the strip to the shared bar instead of nesting it in a page-local surface', () => {
     const { container } = render(
       <MasterPlanFilters
-        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [] }}
+        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const }}
         onChange={vi.fn()}
       />,
     );

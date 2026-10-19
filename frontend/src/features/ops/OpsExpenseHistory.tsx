@@ -75,8 +75,9 @@ const isAdjustingEntry = (row: OpsExpenseRow) =>
   (row.approvalStatus === 'RECORDED' || row.approvalStatus === 'APPROVED') && Number(row.amount) < 0;
 
 /**
- * Lịch sử chi phí của Ops (OpsVanHanh §5.3): nhãn đỏ "Nợ chứng từ" khi chưa
- * có ảnh, lọc theo trạng thái, gửi lại khoản bị từ chối, xem/xóa ảnh.
+ * Lịch sử chi phí của Ops (OpsVanHanh §5.3): trạng thái ảnh trung tính ("Ảnh"
+ * / "Không có ảnh" — ảnh không bắt buộc, card 191026160000), lọc theo trạng
+ * thái, gửi lại khoản bị từ chối, xem/xóa ảnh.
  */
 export function OpsExpenseHistory() {
   const [status, setStatus] = useState<OpsExpenseStatus | undefined>(undefined);
@@ -175,12 +176,12 @@ export function OpsExpenseHistory() {
                 <td data-label="Chứng từ">
                   <button
                     type="button"
-                    className={`ops-doc-state${row.hasPhoto ? '' : ' is-debt'}`}
+                    className="ops-doc-state"
                     onClick={() => row.sourceKind === 'TRIP' ? setLegacyFor(row) : (isEditableExpense(row) || (row.confirmedAt && row.opsSettlementId == null)) ? setEditing(row) : setPhotosFor(row.id)}
-                    title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai'}
+                    title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai — không bắt buộc'}
                   >
                     <ImageIcon size={13} />
-                    {row.hasPhoto ? 'Ảnh' : 'Nợ chứng từ'}
+                    {row.hasPhoto ? 'Ảnh' : 'Không có ảnh'}
                   </button>
                 </td>
                 <td data-label="Trạng thái">

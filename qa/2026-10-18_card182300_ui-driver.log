@@ -1,0 +1,13 @@
+card 182300 UI drive 2026-10-19T02:05:01.165Z — worktree frontend :7178 → backend :3003
+HEALTH status=ok
+FEE-NORM NIGHT_RETURN amount=100000 label="Trả đêm" → locked field must display 100.000
+TRIPS total=13 non-canceled=13
+TRIP driving /my-trips/85065
+TD-RO-01 norm-locked {"value":"100.000","disabled":true,"systemCopy":true,"suggestionCopy":false} (expect value=100.000 disabled=true systemCopy=true suggestionCopy=false)
+SHOT qa/2026-10-18_card182300_ui-01-norm-readonly-390.png
+TD-RO-01 sibling-editable {"value":"","disabled":false,"systemCopy":false,"suggestionCopy":false} (expect disabled=false value="" — typed actuals stay writable)
+SHOT qa/2026-10-18_card182300_ui-02-other-road-editable-390.png
+TD-RO-01 desktop-1440 tablist-form {"value":"100.000","disabled":true,"systemCopy":true,"suggestionCopy":false}
+SHOT qa/2026-10-18_card182300_ui-03-norm-readonly-1440.png
+ALL PASS — TD-RO-01 UI evidence complete (norm field readonly = system value; sibling editable)
+DONE

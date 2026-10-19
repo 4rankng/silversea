@@ -1,0 +1,4 @@
+
+> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-181026021137-fb063-header-wrap
+> eslint .
+

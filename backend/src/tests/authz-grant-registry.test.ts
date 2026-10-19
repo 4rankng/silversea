@@ -359,8 +359,11 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
       // deletes their own khai-chi-hô rows; casbin grants OPS trips read only).
       // QA B-1 (FB-093, staging 2026-10-16): one more bypass — CUS reads the
       // vehicle-size-class list for the revenue-merge dialog dropdown.
-      assert.equal(ROUTE_GRANT_RULES.length, 18);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 16);
+      // FB-086 R21 (171026175000, 2026-10-17): one more bypass — CUS reads
+      // the container-type catalog list (the add-container dropdown starved
+      // to its placeholder on a silent 403).
+      assert.equal(ROUTE_GRANT_RULES.length, 19);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 17);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 
@@ -421,9 +424,11 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
   });
 
   describe('bypass wiring: casbinAuthz honors the registry end to end', () => {
-    // Cells chosen so casbin independently DENIES (role holds no matching
-    // policy row): a next() here can only come from the grant layer, so the
-    // middleware probes stay sharp on both sides of the refactor.
+    // Cells chosen so casbin independently DENIES (the role's policy rows, if
+    // any, do not cover the probed action — e.g. OPS holds shipments read
+    // since 141026230710 but the probed recovery-facts POST maps to write):
+    // a next() here can only come from the grant layer, so the middleware
+    // probes stay sharp on both sides of the refactor.
     const WIRING_CELLS: readonly {
       label: string;
       resource: string;

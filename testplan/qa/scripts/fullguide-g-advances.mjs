@@ -1,12 +1,14 @@
 // Full-guide Driver G — B.6 (Tạm ứng & hoàn ứng, role hoapt + ops hoangnh):
 //   (a) "Phê duyệt tạm ứng" button on the Yêu cầu tạm ứng tab (PENDING rows).
-//   (b) "Xác nhận hoàn ứng" confirmation tick on the Phiếu hoàn ứng — per the
-//       FB-100 F-W1-1 ruling the live submit surface must carry the mandatory
-//       tick; current build is expected FAIL (tick shipped DRAFT-only, dead).
+//   (b) "Xác nhận hoàn ứng" confirmation tick on the Phiếu hoàn ứng — the live
+//       submit surface carries the mandatory tick and gates the submit until it
+//       is set; retested 2026-10-17 (the FB-100 "tick shipped DRAFT-only" note is
+//       no longer true on HEAD).
 //   (c) "Báo cáo hoàn ứng" formula ĐNTT − ĐÃ ỨNG with NEGATIVE remaining +
 //       "Đề nghị thu tiền ứng" warning (operator advanced more than costs).
 // Fixtures: one QA advance request (200.000₫) by hoangnh; cleanup nets the
-// balance back via a full-refund settlement (rows stay QA-registered).
+// balance back via a full-refund settlement. Rows stay QA-registered — the
+// advance tables have no delete route, so `make qapurge` owns that class.
 import {
   BASE, PIN, sleep, uuid, makeLogger, healthGate, login, api, psql, boot, tap, setInput, waitText, bodyText,
 } from './fullguide-lib.mjs';
@@ -114,11 +116,10 @@ if (created.status !== 201 || !advanceId) throw new Error('advance request not c
   } finally { await browser.close(); }
 }
 
-// ══ (b) confirmation tick on Phiếu hoàn ứng — expected FAIL (F-W1-1) ════════
+// ══ (b) confirmation tick on the live Phiếu hoàn ứng submit (Option B) ═════
 {
   const { browser, page } = await boot({ token: ops.token });
   try {
-    // live submit surface (Ops files the phiếu)
     await page.goto(`${BASE}/my-settlements/new`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await sleep(4500);
     const createForm = await page.evaluate(() => {
@@ -126,14 +127,77 @@ if (created.status !== 201 || !advanceId) throw new Error('advance request not c
       return {
         pageLoaded: text.length > 200,
         hasTick: /xác nhận hoàn ứng/i.test(text),
-        submitBtn: [...document.querySelectorAll('button')].find(b => /ghi nhận phiếu/i.test(b.textContent || ''))?.textContent?.trim() ?? null,
-        snippet: text.slice(-600),
+        hasSubmit: [...document.querySelectorAll('button')].some(b => /ghi nhận phiếu thanh toán/i.test(b.textContent || '')),
       };
     });
-    await page.screenshot({ path: 'qa/2026-10-16_fullguide_b6_live-submit.png', fullPage: true });
-    step('g-b-live-submit', createForm);
-    record('B.6b', createForm.hasTick ? 'PASS' : 'FAIL',
-      `live submit (/my-settlements/new): tick "Xác nhận hoàn ứng" present=${createForm.hasTick}, submit="${createForm.submitBtn}" — F-W1-1: tick shipped DRAFT-only (dead block), unreachable in live flow`);
+    const advanceChecked = await page.evaluate((reason) => {
+      const labels = [...document.querySelectorAll('label')].filter(l => (l.textContent || '').includes(reason));
+      const box = labels[0]?.querySelector('input[type="checkbox"]') ?? labels[0]?.closest('label')?.querySelector('input[type="checkbox"]');
+      if (!box) return false;
+      box.click();
+      return true;
+    }, REASON);
+    await sleep(1200);
+    const gated = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('button')].find(b => /ghi nhận phiếu thanh toán/i.test(b.textContent || ''));
+      return btn ? btn.disabled : null;
+    });
+    const ticked = await page.evaluate(() => {
+      const labels = [...document.querySelectorAll('label')].filter(l => /xác nhận hoàn ứng/i.test(l.textContent || ''));
+      const box = labels[0]?.querySelector('input[type="checkbox"]') ?? labels[0]?.closest('label')?.querySelector('input[type="checkbox"]');
+      if (!box) return false;
+      box.click();
+      return true;
+    });
+    await sleep(700);
+    const unlocked = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('button')].find(b => /ghi nhận phiếu thanh toán/i.test(b.textContent || ''));
+      return btn ? !btn.disabled : null;
+    });
+    const refundSet = await page.evaluate(() => {
+      // the ONLY number input on the page is "Tiền hoàn lại"
+      const el = [...document.querySelectorAll('input[type="number"]')][0];
+      if (!el) return false;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(el, '200000');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    });
+    await page.screenshot({ path: 'qa/2026-10-16_fullguide_b6_live-submit-ticked.png', fullPage: true });
+    const submitted = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('button')].find(b => /ghi nhận phiếu thanh toán/i.test(b.textContent || '') && !b.disabled);
+      if (!btn) return false;
+      btn.click();
+      return true;
+    });
+    await sleep(4000);
+    const afterText = await bodyText(page);
+    const success = /phiếu đã tạo thành công/i.test(afterText);
+    await page.screenshot({ path: 'qa/2026-10-16_fullguide_b6_after-submit.png', fullPage: true });
+    step('g-b-live-submit', { ...createForm, advanceChecked, gated, ticked, unlocked, refundSet, submitted, success });
+
+    let confirmFact = null;
+    const detailMatch = page.url().match(/settlements\/(\d+)/);
+    const phiieuId = detailMatch ? Number(detailMatch[1]) : null;
+    await sleep(1500);
+    // the success panel's "Xem chi tiết" may be a button — resolve the id via API
+    const mine = await api(ops.token, 'GET', '/forwarder/me/advance-settlements?limit=5');
+    const latest = (mine.json?.items ?? [])[0];
+    const detailId = latest?.id ?? phiieuId;
+    if (detailId) {
+      await page.goto(`${BASE}/my-settlements/${detailId}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      await sleep(3500);
+    }
+    confirmFact = await page.evaluate(() => {
+      const text = (document.body.innerText || '');
+      const m = text.match(/Xác nhận hoàn ứng:\s*[^\n]{0,80}/);
+      return m ? m[0] : null;
+    });
+    await page.screenshot({ path: 'qa/2026-10-16_fullguide_b6_phiieu-confirm-fact.png', fullPage: true });
+    step('g-b-confirm-fact', { url: page.url(), confirmFact });
+    record('B.6b', createForm.hasTick && gated === true && unlocked === true && submitted && confirmFact ? 'PASS' : 'FAIL',
+      `live submit tick: present=${createForm.hasTick}, gated=${gated}, unlockedAfterTick=${unlocked}, submitted=${submitted}, phiếu confirm fact="${confirmFact}"`);
   } catch (e) {
     step('g-b-error', { error: String(e.message ?? e) });
     await page.screenshot({ path: 'qa/2026-10-16_fullguide_g_b_error.png', fullPage: true }).catch(() => {});

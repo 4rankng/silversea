@@ -73,9 +73,11 @@ describe('AppRoutes legacy FORWARDER compatibility', () => {
 //                 both, so it is sent to its own home.
 //   3. Backend  — backend/src/casbin/policy.csv grants OPS no fleet/expenses
 //                 resource at all (operations_portal, trips, dispatch, maps,
-//                 photos, notifications, geotag, recoverable_costs only), and
-//                 OpsVanHanh §2/§66 scopes Ops expense entry to its own
-//                 assigned lots.
+//                 photos, notifications, geotag, recoverable_costs, and
+//                 shipments READ since 141026230710), and the Ops expense
+//                 entry is the Ops-only 'Khai chi phí' dialog (FB-033) whose
+//                 per-lot assignment scope was removed — spec T3: mọi Ops
+//                 khai chi phí mọi lô.
 //
 // These tests pin that contract so the next QA sweep does not re-file it as a
 // bug, and so a future grant to OPS has to change a test on purpose.

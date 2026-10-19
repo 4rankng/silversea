@@ -28,6 +28,8 @@ export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
   carrierClass: 'OWN' | 'EXTERNAL' | '';
   trailerType: '20FT' | '40FT' | '';
   routeId: number | null;
+  /** '' = Tất cả; card 171026154000 — LCL/FCL lot scope (Loại hàng). */
+  cargoMode: 'FCL' | 'LCL' | '';
 }
 
 export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
@@ -50,6 +52,7 @@ export const EMPTY_DETAILED_PLAN_FILTERS: DetailedPlanFilterState = {
   carrierClass: '',
   trailerType: '',
   routeId: null,
+  cargoMode: '',
 };
 
 export function createDefaultDetailedPlanFilters(): DetailedPlanFilterState {
@@ -83,6 +86,7 @@ export function detailPlanQuery(filters: DetailedPlanFilterState, q: string) {
     ...(filters.carrierClass ? { carrierClass: filters.carrierClass } : {}),
     ...(filters.trailerType ? { trailerType: filters.trailerType } : {}),
     ...(filters.routeId ? { routeId: filters.routeId } : {}),
+    ...(filters.cargoMode ? { cargoMode: filters.cargoMode } : {}),
   };
 }
 
@@ -111,5 +115,6 @@ export function detailPlanViewSignature(page: number, q: string, filters: Detail
     filters.carrierClass,
     filters.trailerType,
     filters.routeId,
+    filters.cargoMode,
   ]);
 }

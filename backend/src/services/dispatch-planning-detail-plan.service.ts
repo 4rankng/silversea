@@ -4,6 +4,15 @@
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
 import { CUSTOMER_OPERATIONAL_NAME, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, assertDispatchActor, parseIsoWithZone, toIsoOrNull } from './dispatch-planning-utils.service';
+import {
+  describeRigHolders,
+  resolvePlanRowWindow,
+  scanLclPlanRowHolders,
+  scanPlanRowHolders,
+  shipmentCostGroupId,
+  type PlanRowWindow,
+  type RigHolderFacts,
+} from './dispatch-plan-conflict-scan.service';
 import { loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
 import { ApiError } from '../errors';
 
@@ -14,16 +23,12 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
-
-
-import { and, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, TripStatus, type DispatchClassification } from '@tingting/shared';
-
+import { and, eq, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
+import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification } from '@tingting/shared';
 import * as s from '../db/schema';
-
-
-
 import { loadPlannedDriverNames } from './dispatch-planning-detail-plan-read.service';
+import { countDateOnlyTripClaims } from './dispatch-resource-availability.service';
+import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
   dispatchDetailPriorityOrderSql, listDispatchDetailPlanRows, listDispatchDeliveryPointFacets, listDispatchPortFacets,
@@ -620,344 +625,6 @@ export async function updateFulfillmentEstimates(
  * (issueOrderCreateOrUpdate) owns the driver notification.
  */
 
-/**
- * The window a plan row occupies its rig for. The slot follows the ONE law
- * every surface displays (`runAt`/`runHour`, `dispatchDetailRunMinutesSql`):
- * `coalesce(customerAppointmentAt, closingAt, plannedReturnAt)` — an FCL row
- * whose displayed slot rides the lot fallback is still a slot, never a
- * "no window" (card 101026043000: resolving FCL from the appointment alone
- * skipped the guard entirely and the double-booking saved silently). An LCL
- * lot has no container by design, so its window is the lot-level
- * closing/return date. `strong` marks the row's PRIMARY slot source: an
- * explicit container appointment (or the LCL lot date) proves the overlap;
- * a fallback slot is display evidence only — enough to WARN, never to guess
- * a hard block from (FB-038 ruling). Null means "no window to prove overlap
- * with", which callers treat as skip, never as a refusal.
- *
- * Case 2026-10-11-R14-04 (round 14, FB-038/072): the grid's date column
- * renders `coalesce(date(customerAppointmentAt), shipments.expectedDeliveryDate)`
- * (`dispatchDetailTransportDateSql`) — a lot-date-only row still DISPLAYS a
- * "Ngày giao" slot, and two such rows took the same truck at the same
- * displayed day with no warning at all. The displayed day is the
- * dispatcher's claim on the rig, so the window law gains that last fallback:
- * a date-only slot claims the whole displayed day (weak evidence → the WARN
- * tier, never a hard block).
- */
-interface PlanRowWindow {
-  start: Date;
-  /** The row's own default end: one 8-hour shift for a timestamped slot
-   *  (card 363), the whole displayed day for a date-only slot. */
-  end: Date;
-  strong: boolean;
-}
-
-function expectedDeliveryDayStart(day: string | null): Date | null {
-  if (!day) return null;
-  // 'YYYY-MM-DD' date column → midnight Asia/Ho_Chi_Minh, the same instant the
-  // display SQL (`date::timestamp at time zone 'Asia/Ho_Chi_Minh'`) claims.
-  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(`${day}T00:00:00+07:00`) : null;
-}
-
-async function resolvePlanRowWindow(
-  tx: Tx,
-  fulfillment: { shipmentId: number; shipmentContainerId: number | null },
-): Promise<PlanRowWindow | null> {
-  if (fulfillment.shipmentContainerId != null) {
-    const [row] = await tx.select({
-      appointment: s.shipmentContainers.customerAppointmentAt,
-      closingAt: s.shipments.closingAt,
-      plannedReturnAt: s.shipments.plannedReturnAt,
-      expectedDeliveryDate: s.shipments.expectedDeliveryDate,
-    })
-      .from(s.shipmentContainers)
-      .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
-      .where(eq(s.shipmentContainers.id, fulfillment.shipmentContainerId))
-      .limit(1);
-    const start = row?.appointment ?? row?.closingAt ?? row?.plannedReturnAt ?? null;
-    if (start != null) {
-      return { start, end: new Date(start.getTime() + 8 * 3600_000), strong: row?.appointment != null };
-    }
-    const dayStart = expectedDeliveryDayStart(row?.expectedDeliveryDate ?? null);
-    return dayStart == null
-      ? null
-      : { start: dayStart, end: new Date(dayStart.getTime() + 24 * 3600_000), strong: false };
-  }
-  const [lot] = await tx.select({
-    closingAt: s.shipments.closingAt,
-    plannedReturnAt: s.shipments.plannedReturnAt,
-    expectedDeliveryDate: s.shipments.expectedDeliveryDate,
-  })
-    .from(s.shipments)
-    .where(eq(s.shipments.id, fulfillment.shipmentId))
-    .limit(1);
-  const start = lot?.closingAt ?? lot?.plannedReturnAt ?? null;
-  // The lot date IS the LCL row's primary slot (card 061026174603) — full
-  // evidence for an LCL row, unlike an FCL fallback.
-  if (start != null) {
-    return { start, end: new Date(start.getTime() + 8 * 3600_000), strong: true };
-  }
-  const dayStart = expectedDeliveryDayStart(lot?.expectedDeliveryDate ?? null);
-  return dayStart == null
-    ? null
-    : { start: dayStart, end: new Date(dayStart.getTime() + 24 * 3600_000), strong: false };
-}
-
-/** Plan-row holders on a plate, FCL branch (container-linked rows).
- *  Law owner for the holder slot coalesce, shared by both rig guards:
- *  card 101026043000 (the grid's own slot coalesce, never appointment-only),
- *  card 363 (unsaved end ⇒ one 8-hour shift), case 2026-10-11-R14-04
- *  (date-only "Ngày giao" holder claims the whole displayed day — weak
- *  evidence). A fulfilled row whose trip COMPLETED has released the rig
- *  (061026172804): it must reach the completed tier's warning, never the
- *  generic plan-row block. */
-async function scanPlanRowHolders(
-  tx: Tx,
-  plate: string,
-  windowStart: Date,
-  windowEnd: Date,
-  excludeFulfillmentId: number,
-) {
-  const holderSlotSql = sql`coalesce(${s.shipmentContainers.customerAppointmentAt}, ${s.shipments.closingAt}, ${s.shipments.plannedReturnAt})`;
-  const holderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
-  const holderStartSql = sql`coalesce(${holderSlotSql}, ${holderDaySql})`;
-  const holderEndSql = sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, case when ${holderSlotSql} is null then ${holderDaySql} + interval '1 day' else ${holderSlotSql} + interval '8 hours' end)`;
-  return tx.select({
-    id: s.shipmentFulfillments.id,
-    shipmentId: s.shipmentFulfillments.shipmentId,
-    fallbackSlot: isNull(s.shipmentContainers.customerAppointmentAt),
-  })
-    .from(s.shipmentFulfillments)
-    .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
-    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
-    .where(and(
-      ne(s.shipmentFulfillments.id, excludeFulfillmentId),
-      isNull(s.shipmentFulfillments.canceledAt),
-      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
-      sql`${holderStartSql} is not null`,
-      sql`${holderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-      sql`${holderEndSql} > ${windowStart.toISOString()}::timestamptz`,
-      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
-    ));
-}
-
-/** Plan-row holders on a plate, LCL branch (card 061026174603: Hàng lẻ rows
- *  are plan units with the LOT window). Same slot laws as the FCL branch;
- *  the fallbackSlot evidence marker keeps date-only holders at the warn tier
- *  (case 2026-10-11-R14-04 review B1). */
-async function scanLclPlanRowHolders(
-  tx: Tx,
-  plate: string,
-  windowStart: Date,
-  windowEnd: Date,
-  excludeFulfillmentId: number,
-) {
-  const lclHolderSlotSql = sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt})`;
-  const lclHolderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
-  const lclHolderStartSql = sql`coalesce(${lclHolderSlotSql}, ${lclHolderDaySql})`;
-  const lclHolderEndSql = sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, case when ${lclHolderSlotSql} is null then ${lclHolderDaySql} + interval '1 day' else ${lclHolderSlotSql} + interval '8 hours' end)`;
-  return tx.select({
-    id: s.shipmentFulfillments.id,
-    shipmentId: s.shipmentFulfillments.shipmentId,
-    fallbackSlot: sql`(${lclHolderSlotSql}) is null`,
-  })
-    .from(s.shipmentFulfillments)
-    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
-    .where(and(
-      ne(s.shipmentFulfillments.id, excludeFulfillmentId),
-      isNull(s.shipmentFulfillments.canceledAt),
-      eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
-      eq(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
-      sql`${lclHolderStartSql} is not null`,
-      sql`${lclHolderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-      sql`${lclHolderEndSql} > ${windowStart.toISOString()}::timestamptz`,
-      sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
-    ));
-}
-
-/**
- * Ticket 111026105630 (FB-038 / FB-072 reopen): the trip edit form and the
- * direct trip create claim the rig exactly like the dispatch surfaces —
- * before this guard, PUT /trips/:id/pre-departure|actuals and POST /trips
- * landed truckId with no rig check and a same-window tractor double-booking
- * saved silently (round-14 staging repro: /trips/153 ← 15H-117.55 already on
- * /trips/160 the same day, toast 'Đã lưu thay đổi.').
- *
- * Same FB-038 family law as assertPlanRowRigAvailable, mirrored onto the
- * trip's own window: a plannedStartAt timestamp claims 8h or its staged end
- * (card 363) with FULL evidence; a date-only departure claims the displayed
- * day (12fcf20d law — weak evidence, warn tier). Holders: cross-lot plan rows
- * (hard when provable), the trip's own lot's rows (deliberate rotation —
- * warn), active trips (hard when both windows are provable), completed trips
- * (released the rig, card 363 — warn once). Never a silent save, never a
- * guessed hard block.
- */
-export async function assertTripRigAvailable(
-  tx: Tx,
-  args: {
-    /** The trip being saved (edit path): excluded from its own holder scans. */
-    tripId?: number;
-    truckId: number;
-    /**
-     * Round-17 sweep (overlap warning missing): the same DRIVER double-booked
-     * across two DIFFERENT tractors saved silently on this path — the guard
-     * scanned the tractor's plate only. Carried at the family's warn tier.
-     */
-    driverId?: number | null;
-    departureDate: string;
-    /** The saving trip's staged window; when plannedStartAt is absent the
-     *  departure day claims the whole day (weak evidence). */
-    plannedStartAt?: Date | null;
-    plannedEndAt?: Date | null;
-    /** The trip's origin fulfillment (edit path): its plan row holds the
-     *  plate by design and is excluded; its classification carries the Kẹp
-     *  carve-out (081026091100 — a DOUBLE pair shares the rig on purpose). */
-    fulfillmentId?: number | null;
-    /** Same-lot plan rows are the lot's own rotation (6051d39a) — warn, never
-     *  the hard tier. */
-    shipmentId?: number | null;
-    confirmOverlap?: boolean;
-  },
-): Promise<void> {
-  const [truck] = await tx.select({ licensePlate: s.trucks.licensePlate })
-    .from(s.trucks).where(eq(s.trucks.id, args.truckId)).limit(1);
-  const plate = (truck?.licensePlate ?? '').trim();
-  if (!plate) return;
-
-  // The saving trip's window: strong evidence only when a real timestamp
-  // anchors it. plannedEndAt at/before the start is unprovable (the family's
-  // degenerate-end law) — fall back to the window default, never a zero span.
-  const windowStart = args.plannedStartAt
-    ?? expectedDeliveryDayStart(args.departureDate);
-  if (windowStart == null) return;
-  const degenerateEnd = args.plannedEndAt != null && args.plannedEndAt.getTime() <= windowStart.getTime();
-  const windowEnd = args.plannedEndAt != null && !degenerateEnd
-    ? args.plannedEndAt
-    : (args.plannedStartAt
-        ? new Date(windowStart.getTime() + 8 * 3600_000)
-        : new Date(windowStart.getTime() + 24 * 3600_000));
-  const strong = args.plannedStartAt != null && !degenerateEnd;
-
-  let classification: DispatchClassification | null = null;
-  if (args.fulfillmentId != null) {
-    const [ff] = await tx.select({ classification: s.shipmentFulfillments.dispatchClassification })
-      .from(s.shipmentFulfillments).where(eq(s.shipmentFulfillments.id, args.fulfillmentId)).limit(1);
-    classification = ff?.classification ?? null;
-  }
-  const isKepPairing = classification === 'DOUBLE';
-
-  const planConflicts = isKepPairing
-    ? []
-    : await scanPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId ?? -1);
-  const lclPlanConflicts = isKepPairing
-    ? []
-    : await scanLclPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId ?? -1);
-
-  // Active dispatched trips on the same tractor. Mirrors the family's scan,
-  // widened for the trip form's reality: a trip without a planned timestamp
-  // still claims its departure day (12fcf20d) — those holders land at the
-  // warn tier via the weak marker.
-  const tripDaySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
-  const tripStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${tripDaySql})`;
-  const tripEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${tripDaySql} + interval '1 day')`;
-  const activeConflicts = await tx.select({
-    id: s.trips.id,
-    weak: sql`${s.trips.plannedStartAt} is null`,
-  })
-    .from(s.trips)
-    .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-    .where(and(
-      eq(s.trucks.licensePlate, plate),
-      notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
-      isNull(s.trips.deletedAt),
-      ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
-      sql`${tripStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-      sql`${tripEndSql} > ${windowStart.toISOString()}::timestamptz`,
-    ));
-
-  const crossLotConflicts = planConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
-  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
-  const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
-  const planRowBlocked = crossLotConflicts.length > 0 || crossLotLclConflicts.length > 0;
-  const weakEvidence = !strong
-    || degenerateEnd
-    || crossLotConflicts.some((conflict) => conflict.fallbackSlot)
-    || crossLotLclConflicts.some((conflict) => conflict.fallbackSlot)
-    || activeConflicts.some((conflict) => conflict.weak);
-
-  if (planRowBlocked || activeConflicts.length > 0) {
-    if (!weakEvidence) {
-      throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
-    }
-    if (!args.confirmOverlap) {
-      throw new ApiError(409,
-        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
-        undefined,
-        { code: 'RIG_OVERLAP_COMPLETED' });
-    }
-  } else if (sameLotPlanClaim && !args.confirmOverlap) {
-    throw new ApiError(409,
-      `Đầu xe ${plate} đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?`,
-      undefined,
-      { code: 'RIG_OVERLAP_COMPLETED' });
-  }
-  if (!args.confirmOverlap) {
-    const completedTripConflicts = await tx.select({ id: s.trips.id })
-      .from(s.trips)
-      .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-      .where(and(
-        eq(s.trucks.licensePlate, plate),
-        eq(s.trips.status, TripStatus.COMPLETED),
-        isNull(s.trips.deletedAt),
-        ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
-        isNotNull(s.trips.plannedStartAt),
-        lt(s.trips.plannedStartAt, windowEnd),
-        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz`,
-      ));
-    if (completedTripConflicts.length > 0) {
-      throw new ApiError(409,
-        `Đầu xe ${plate} có ${completedTripConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
-        undefined,
-        { code: 'RIG_OVERLAP_COMPLETED' });
-    }
-  }
-  // Round-17 sweep (overlap warning missing, P3): this guard scanned the
-  // tractor's PLATE only, so the SAME driver double-booked across two
-  // different tractors saved silently on the direct create/edit path (repro:
-  // truck A + driver X at 08:45, then truck B + driver X the same window →
-  // 201, no warning). FB-038 ruling: WARN, never a new hard block — the
-  // same warn-once contract (RIG_OVERLAP_COMPLETED + confirmOverlap) carries
-  // it, and the same window coalesce (an unset start claims the departure
-  // day, a missing end one 8-hour shift) measures the driver's day exactly
-  // like the holder scan above. A rig conflict has already thrown above, so
-  // this branch fires for the cross-tractor case the plate scans cannot see.
-  // Review harmonization: COMPLETED holders join at the same evidence bar
-  // the completed-plate scan sets — only with a provable window. A completed
-  // trip without a timestamp cannot prove the driver was occupied, exactly
-  // as it cannot prove the rig was (the family's "cannot prove overlap
-  // stays skipped" law); drivers run multiple provable trips a day, and a
-  // legacy date-only completed row must not nag every later save.
-  if (args.driverId != null && !args.confirmOverlap) {
-    const driverConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
-      .from(s.trips)
-      .where(and(
-        eq(s.trips.driverId, args.driverId),
-        isNull(s.trips.deletedAt),
-        ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
-        or(
-          inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
-          and(eq(s.trips.status, TripStatus.COMPLETED), isNotNull(s.trips.plannedStartAt)),
-        )!,
-        sql`${tripStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-        sql`${tripEndSql} > ${windowStart.toISOString()}::timestamptz`,
-      ));
-    if (driverConflicts.length > 0) {
-      throw new ApiError(409,
-        `Tài xế đã có ${driverConflicts.length} chuyến khác trùng khung giờ phân công này. Vẫn lưu?`,
-        undefined,
-        { code: 'RIG_OVERLAP_COMPLETED' });
-    }
-  }
-}
 
 async function assertPlanRowRigAvailable(
   tx: Tx,
@@ -1018,7 +685,7 @@ async function assertPlanRowRigAvailable(
   // Card 363: only ACTIVE trips occupy the rig (a COMPLETED trip released it —
   // back-to-back 'chạy gối đầu' assignments were false-blocked), and an
   // open-ended trip is bounded by one 8-hour shift from its start.
-  const tripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+  const tripConflictsRaw = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
     .from(s.trips)
     .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
     .where(and(
@@ -1029,6 +696,17 @@ async function assertPlanRowRigAvailable(
       lt(s.trips.plannedStartAt, windowEnd),
       sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz`,
     ));
+  // FB-081 v2 (card 181026003045): with both Kẹp legs dispatched, editing one
+  // leg's plan row hit the partner's dispatched trip in the scan above and
+  // 409'd — the partner's overlap is the pair's arrangement, not a claim on
+  // the rig from another job. Carve out exactly the row's own ACTIVE KEP pair
+  // partner (same business day; KET_HOP resolves null per owner ruling Q4).
+  // An unrelated LIVE trip stays a conflict — that case keeps its pinned test.
+  const kepPartner = await findActiveKepPairPartnerByFulfillment(tx, args.fulfillmentId);
+  const tripConflicts = kepPartner != null
+    && kepPartner.partnerClaimDay === localDateInBusinessZone(windowStart)
+    ? tripConflictsRaw.filter((conflict) => conflict.id !== kepPartner.partnerTripId)
+    : tripConflictsRaw;
   // Card 081026091100: for a Kẹp row only the dispatched-trip scan counts — the
 // two plan-row scans describe the pair's own deliberate overlap. Every other
 // classification keeps all three.
@@ -1038,8 +716,39 @@ async function assertPlanRowRigAvailable(
   // (confirm proceeds) and can never pin the hard tier. Found as a trunk-red
   // on the dispatch-detail-plan suite after card 101026043000 landed: the OWN
   // happy path (same truck on all three containers) went 409 with no path on.
-  const crossLotConflicts = planConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
-  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) => conflict.shipmentId !== args.shipmentId);
+  // Card B 18/10 (B.4) + card 191026100010 (B.4), merge union: a Ghép-trả-ĐV
+  // cost group's siblings are the SAME deliberate arrangement — different
+  // lots, one shared truck in one shared window BY DESIGN (the group
+  // assignment wrote it). They must never count as cross-lot claims; they
+  // ride the warn tier with the lot's-own-rotation case, with a message
+  // naming the group. Both carve routes are kept: the lot's own cost group
+  // (ownCostGroupId) and the cross-lot holder's group (savingCostGroupId,
+  // resolved only when a holder carries a group — the common save pays no
+  // extra lookup).
+  const ownCostGroupId = await shipmentCostGroupId(tx, args.shipmentId);
+  const isSameGroup = (conflict: RigHolderFacts): boolean =>
+    ownCostGroupId != null && conflict.costGroupId != null && conflict.costGroupId === ownCostGroupId;
+  const groupSiblings = [...planConflicts, ...lclPlanConflicts]
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId && isSameGroup(conflict));
+  const crossLotHolders = [...planConflicts, ...lclPlanConflicts]
+    .filter((conflict) => conflict.shipmentId !== args.shipmentId);
+  const savingCostGroupId = crossLotHolders.some((conflict) => conflict.costGroupId != null)
+    ? (await tx.select({ costGroupId: s.shipments.costGroupId })
+        .from(s.shipments)
+        .where(eq(s.shipments.id, args.shipmentId))
+        .limit(1))[0]?.costGroupId ?? null
+    : null;
+  const isCostGroupSibling = (conflict: { shipmentId: number; costGroupId: string | null }) =>
+    conflict.shipmentId !== args.shipmentId
+    && savingCostGroupId != null
+    && conflict.costGroupId != null
+    && conflict.costGroupId === savingCostGroupId;
+  const costGroupSiblingClaim = planConflicts.some(isCostGroupSibling)
+    || lclPlanConflicts.some(isCostGroupSibling);
+  const crossLotConflicts = planConflicts.filter((conflict) =>
+    conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict) && !isCostGroupSibling(conflict));
+  const crossLotLclConflicts = lclPlanConflicts.filter((conflict) =>
+    conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict) && !isCostGroupSibling(conflict));
   const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
 const planRowBlocked = isKepPairing ? false : (crossLotConflicts.length > 0 || crossLotLclConflicts.length > 0);
 // Evidence strength (card 101026043000, FB-038 ruling "WARNING, not a hard
@@ -1049,7 +758,9 @@ const planRowBlocked = isKepPairing ? false : (crossLotConflicts.length > 0 || c
 // degenerate staged end must WARN once and let the confirmed save proceed —
 // never a silent save, never a guessed hard block (card 363's own "cannot
 // prove overlap" law). The warn rides the family's warn-once contract
-// (RIG_OVERLAP_COMPLETED + rigOverlapCompletedConfirmed) verbatim.
+// (RIG_OVERLAP_COMPLETED + rigOverlapCompletedConfirmed) verbatim. Group
+// siblings are carved out above, so their evidence never degrades a true
+// cross-lot tier either.
 const weakEvidence = !args.window.strong
   || degenerateEnd
   || crossLotConflicts.some((conflict) => conflict.fallbackSlot)
@@ -1059,18 +770,46 @@ const weakEvidence = !args.window.strong
   || crossLotLclConflicts.some((conflict) => conflict.fallbackSlot);
 if (planRowBlocked || tripConflicts.length > 0) {
     if (!weakEvidence) {
-      throw new ApiError(409, `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp.`);
+      // Card B 18/10 (B.4): name the conflicting lot(s) + window, so the
+      // refusal answers the customer's "what is this?" on sight.
+      throw new ApiError(409,
+        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
+        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '.');
     }
     if (!args.confirmOverlap) {
       throw new ApiError(409,
-        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
+        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '. Vẫn lưu?',
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }
+  } else if (!isKepPairing && costGroupSiblingClaim && !args.confirmOverlap) {
+    // Card 191026100010 (B.4) — the deliberate group arrangement: one
+    // "Gán xe nhóm" group = one truck, so the sibling LOT holding this plate
+    // is the dispatcher's own plan — exactly FB-012's (181026145600) class of
+    // claim: warn once with the cross-lot copy + the confirm invitation and
+    // proceed on the confirmed retry. Gated like the same-lot branch below so
+    // the Kẹp carve-out stays bit-for-bit (a Kẹp row never carries a cost
+    // group — grouping is LCL-only — but the gate documents the law anyway).
+    // Merge union: the copy must NAME the group when the siblings are the
+    // lot's own Ghép-trả-ĐV group (card B 18/10) — same predicate, so the
+    // group-aware copy is the one this branch ever emits.
+    throw new ApiError(409,
+      groupSiblings.length > 0
+        ? `Đầu xe ${plate} đang chạy cùng nhóm ghép trả ĐV với `
+          + describeRigHolders(groupSiblings) + ' trong khung giờ trùng lặp. Vẫn lưu?'
+        : `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' });
   } else if (!isKepPairing && sameLotPlanClaim && !args.confirmOverlap) {
     // The lot's own rotation: warn once, never silently, never a hard block.
+    // A Ghép-trả-ĐV group's siblings share the truck by design — the message
+    // says so instead of reading as a foreign claim (card B 18/10, B.4).
     throw new ApiError(409,
-      `Đầu xe ${plate} đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?`,
+      groupSiblings.length > 0
+        ? `Đầu xe ${plate} đang chạy cùng nhóm ghép trả ĐV với `
+          + describeRigHolders(groupSiblings) + ' trong khung giờ trùng lặp. Vẫn lưu?'
+        : `Đầu xe ${plate} đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?`,
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' });
   }
@@ -1080,7 +819,17 @@ if (planRowBlocked || tripConflicts.length > 0) {
   // editor turns into a confirm dialog; the confirmed retry proceeds (chạy
   // gối đầu onto a finished trip is legal). Same overlap rule and 8-hour
   // default as the active-trip scan above.
+  //
+  // Card 171026121100 (FB-038/072 verify-fail 3): the isNotNull(plannedStartAt)
+  // bar made a date-only completed trip (staging: BLCUSa24BB, departure day
+  // displayed on the rig) invisible, so a plan save stacking another row onto
+  // that plate the same day passed silently. The completed tier now claims the
+  // displayed day exactly like the active tier (12fcf20d law) — warn once,
+  // never a block, confirmed retry proceeds.
   if (!args.confirmOverlap) {
+    const holderDaySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
+    const holderStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${holderDaySql})`;
+    const holderEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${holderDaySql} + interval '1 day')`;
     const completedTripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
       .from(s.trips)
       .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
@@ -1088,13 +837,32 @@ if (planRowBlocked || tripConflicts.length > 0) {
         eq(s.trucks.licensePlate, plate),
         eq(s.trips.status, TripStatus.COMPLETED),
         isNull(s.trips.deletedAt),
-        isNotNull(s.trips.plannedStartAt),
-        lt(s.trips.plannedStartAt, windowEnd),
-        sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz`,
+        sql`${holderStartSql} is not null`,
+        sql`${holderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+        sql`${holderEndSql} > ${windowStart.toISOString()}::timestamptz`,
       ));
     if (completedTripConflicts.length > 0) {
       throw new ApiError(409,
         `Đầu xe ${plate} có ${completedTripConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
+        undefined,
+        { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+    // Third verify-fail (FB-038/072): both trip scans above need a staged start
+    // on the holder; a same-day COMPLETED trip carrying only its departure day
+    // (most COMPLETED trips) was invisible. It claims its whole departure day — weak
+    // evidence, so the family's warn-once tier (never a hard block).
+    const dayClaims = await countDateOnlyTripClaims(tx, {
+      predicates: [inArray(
+        s.trips.truckId,
+        tx.select({ id: s.trucks.id }).from(s.trucks).where(eq(s.trucks.licensePlate, plate)),
+      )],
+      windowStart,
+      windowEnd,
+      excludeFulfillmentId: args.fulfillmentId,
+    });
+    if (dayClaims > 0) {
+      throw new ApiError(409,
+        `Đầu xe ${plate} đã có ${dayClaims} chuyến khác (chưa có giờ cụ thể) trong ngày phân công này. Vẫn lưu?`,
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }

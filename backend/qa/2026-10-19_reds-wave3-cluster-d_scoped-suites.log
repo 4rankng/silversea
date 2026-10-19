@@ -1,0 +1,143 @@
+{"level":30,"time":1792340509605,"pid":22390,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ GET /api/penalties (paginated)
+  ✔ returns the paginated envelope with a real total and stable date-desc order (41.98075ms)
+  ✔ later pages continue the ordering and the last page is partial (35.917916ms)
+  ✔ filters by driverId (6.307125ms)
+  ✔ search matches driver name and reason text (12.957583ms)
+  ✔ date range is inclusive on both ends (14.744583ms)
+  ✔ filters by status while chip counts stay full-set (9.033042ms)
+  ✔ rejects invalid queries with 400 (22.601ms)
+  ✔ sorts by amount server-side in both directions (88.422084ms)
+  ✔ sorts by driver name, clustering each driver's rows (15.050125ms)
+✔ GET /api/penalties (paginated) (406.3105ms)
+▶ GET /api/penalties/insights
+  ✔ golden parity: server KPIs equal the transplanted client-side computation (127.803458ms)
+  ✔ defaults to the current period without params (21.903125ms)
+  ✔ rejects invalid queries with 400 (18.145417ms)
+✔ GET /api/penalties/insights (168.238875ms)
+▶ Q10 salary exclusion route validation
+  ✔ rejects unknown handling mode and invalid supplementary targets at the HTTP boundary (106.379584ms)
+[ERROR] POST /api/salary-periods/7364-07/exclusions: Error: simulated salary exclusion audit failure
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/tests/q10-salary-exclusion-routes.test.ts:332:13)
+    at persistMaterialWriteSuccessAuditInTransaction (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/services/audit.service.ts:288:13)
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/services/idempotency.service.ts:471:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/routes/config/salary-periods-config.routes.ts:286:19)
+Audit log write failed: Error: simulated salary exclusion audit failure
+    at <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/tests/q10-salary-exclusion-routes.test.ts:332:13)
+    at persistAudit (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/services/audit.service.ts:677:10)
+    at persist (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/middleware/audit.ts:233:15)
+    at ServerResponse.res.end (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/middleware/audit.ts:258:10)
+    at ServerResponse.send (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js:221:10)
+    at ServerResponse.json (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js:252:15)
+    at ServerResponse.res.json (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/middleware/audit.ts:85:12)
+    at globalErrorHandler (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/middleware/errorHandler.ts:70:19)
+    at Layer.handleError (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/layer.js:116:17)
+    at trimPrefix (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:340:13)
+    at /Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:297:9
+    at processParams (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:582:12)
+    at next (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:291:5)
+    at /Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:688:15
+    at next (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/router@2.2.0/node_modules/router/index.js:276:14)
+    at next (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/router@2.2.0/node_modules/router/lib/route.js:132:14)
+  ✔ commits effect, replay key, and material audit atomically and rolls all back on audit failure (64.519417ms)
+✔ Q10 salary exclusion route validation (209.368625ms)
+▶ Q15 salary-period governed routes
+  ✔ replays close and reopen governance decisions exactly once at the HTTP boundary (230.148667ms)
+  ✔ replays salary-period adjustment request/check/approve and rejects stale source versions (111.678875ms)
+[ERROR] POST /api/salary/periods/6408-03/adjustments: Error: Failed query: insert into "idempotency_keys" ("id", "endpoint", "idempotency_key", "entity_type", "entity_id", "payload_hash", "response_status_code", "response_snapshot", "created_by", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, default)
+params: salary-periods.adjustments.request,q23-adjustment-fail-6408-03,salary_period_adjustment,493,be7471eb4eb936a1dd88f7744c657503cbe1c23cccaf700e055caf0ddd87e10d,200,{"adjustmentId":493,"sourcePeriod":"6408-03","targetPeriod":"6408-04","driverId":28443,"amount":275000,"reason":"Q23 adjustment rollback 1792340509588-epgm68","approvedBy":92828,"approvedAt":"2026-10-18T16:21:50.012Z"},92828
+    at PostgresJsPreparedQuery.queryWithCache (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/services/idempotency.service.ts:461:7)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/routes/salary.ts:333:32)
+[ERROR] cause: PostgresError: q15 simulated idempotency insert failure
+    at ErrorResponse (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:815:30)
+    at handle (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:489:6)
+    at Socket.data (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:324:9)
+    at Socket.emit (node:events:508:20)
+    at addChunk (node:internal/streams/readable:564:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:515:3)
+    at Readable.push (node:internal/streams/readable:395:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: 'P0001',
+  where: 'PL/pgSQL function q15_fail_idempotency_insert_1792340509588_epgm68_1() line 3 at RAISE',
+  file: 'pl_exec.c',
+  line: '3897',
+  routine: 'exec_stmt_raise'
+}
+  ✔ salary-period adjustment request rolls back when idempotency persistence fails after the business callback (70.016208ms)
+  ✔ applies salary issue and official posting immediately with exact replay (phê duyệt removed) (87.554166ms)
+  ✔ salary confirmation applies immediately at the request (phê duyệt removed) (52.392125ms)
+[ERROR] POST /api/salary/periods/6388-11/issue: Error: Failed query: insert into "idempotency_keys" ("id", "endpoint", "idempotency_key", "entity_type", "entity_id", "payload_hash", "response_status_code", "response_snapshot", "created_by", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, default)
+params: salary-periods.issue,q23-salary-fail-6388-11,salary_period,-9,a41d86fb5fbe90370b0ecf1952c5ff1b2a64a1225de785d7df5c9cc7f30dd04f,201,{"id":-9,"version":2,"createdAt":"2026-10-18T16:21:50.200Z","updatedAt":"2026-10-18T16:21:50.200Z","status":"APPROVED","subjectId":null,"subjectKey":"6388-11","reason":"Đề nghị phát hành phiếu lương kỳ 6388-11","originalVersion":1,"originalPeriodLockId":null,"beforeSnapshot":{"period":"6388-11","payslipIssuedAt":null,"officialPostedAt":null},"afterSnapshot":{"operation":"ISSUE_PAYSLIPS","period":"6388-11","note":null},"deltaSnapshot":null,"checkerId":null,"checkerRole":null,"checkedAt":null,"approverId":92843,"approverRole":"MANAGER","approvedAt":"2026-10-18T16:21:50.200Z","appliedAt":"2026-10-18T16:21:50.200Z","ledgerEntryId":null,"applicationResult":{"operation":"ISSUE_PAYSLIPS","period":"6388-11","closeId":1160,"resultingVersion":2},"returnedBy":null,"returnedRole":null,"returnedAt":null,"returnReason":null,"rejectedBy":null,"rejectedRole":null,"rejectedAt":null,"rejectionReason":null,"canceledBy":null,"canceledRole":null,"canceledAt":null,"cancelReason":null,"subjectType":"SALARY_PERIOD","actionKind":"SALARY_PERIOD_CLOSE","makerId":92843,"makerRole":"MANAGER"},92843
+    at PostgresJsPreparedQuery.queryWithCache (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/drizzle-orm@0.45.2_@opentelemetry+api@1.9.1_@types+pg@8.15.6_gel@2.2.0_postgres@3.4.9/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/services/idempotency.service.ts:461:7)
+    at async scope (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:260:18)
+    at async sql.begin (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/index.js:243:14)
+    at async runIdempotent (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/services/idempotency.service.ts:421:12)
+    at async <anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/backend/src/routes/salary.ts:237:44)
+[ERROR] cause: PostgresError: q15 simulated idempotency insert failure
+    at ErrorResponse (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:815:30)
+    at handle (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:489:6)
+    at Socket.data (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-d-accounting/node_modules/.pnpm/postgres@3.4.9/node_modules/postgres/src/connection.js:324:9)
+    at Socket.emit (node:events:508:20)
+    at addChunk (node:internal/streams/readable:564:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:515:3)
+    at Readable.push (node:internal/streams/readable:395:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+  severity_local: 'ERROR',
+  severity: 'ERROR',
+  code: 'P0001',
+  where: 'PL/pgSQL function q15_fail_idempotency_insert_1792340509588_epgm68_2() line 3 at RAISE',
+  file: 'pl_exec.c',
+  line: '3897',
+  routine: 'exec_stmt_raise'
+}
+  ✔ salary issue rolls back when idempotency persistence fails after the business callback (26.509833ms)
+✔ Q15 salary-period governed routes (616.265291ms)
+▶ Q20 official reporting period attribution
+  ✔ completion date drives P&L, dashboard, fuel variance, and quarterly distribution while in-progress trips stay excluded (383.844709ms)
+  ✔ fuel reconciliation keeps trip fuel on the completion period and expense-side fuel on the actual invoice event date (59.040041ms)
+✔ Q20 official reporting period attribution (951.309416ms)
+▶ quotation entity (card 20260922_66)
+  ✔ CRUD roundtrip: frame + heSo cell persist and read back (201.946542ms)
+  ✔ update replaces cells; delete soft-deletes (then 404) (98.084666ms)
+  ✔ grid: 2 route sections × 10 columns in file order (A2) + liters pins (A3) (257.070459ms)
+  ✔ LOGCOM/NEWEB liters + price-to-the-đồng pins (A4) (58.354833ms)
+  ✔ ASKEY section priced to the đồng at heSo=1 (A4+A5) (197.689709ms)
+  ✔ heavy cells: surcharge present, Giá cos missing, totals exclude (A6) (94.681042ms)
+  ✔ heSo=1 regression across every priced cell vs engine (A5) (113.099958ms)
+✔ quotation entity (card 20260922_66) (1161.423833ms)
+▶ reset-seed tool
+  ✔ wipe plan is unique and fully labeled (1.033666ms)
+  ✔ canonical post-seed counts pass the completeness gate (0.104375ms)
+  ✔ missing or short base data fails the gate with named errors (0.141458ms)
+  ✔ a failing seed phase exits non-zero (dead DB end to end) (1503.962708ms)
+  ✔ --dry-run prints the plan and deletes nothing (exit 0) (2100.497834ms)
+✔ reset-seed tool (3607.521166ms)
+▶ reset wipe list covers the FK graph
+  ✔ every RESTRICT child of a wiped parent is wiped BEFORE that parent (0.073791ms)
+✔ reset wipe list covers the FK graph (0.114416ms)
+▶ tool executables are import-inert
+  ✔ importing reset-seed and seed writes nothing to the database (2423.588291ms)
+  ✔ direct CLI invocation still executes (guard does not over-block) (983.255833ms)
+✔ tool executables are import-inert (3407.30625ms)
+ℹ tests 37
+ℹ suites 9
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 36164.126417
+EXIT=0

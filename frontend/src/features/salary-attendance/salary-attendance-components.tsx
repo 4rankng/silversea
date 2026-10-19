@@ -10,9 +10,11 @@ import type {
 } from '../../api/salaryClient';
 import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
+import type { TimesheetSalaryMode } from '@tingting/shared';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { UuiSelectField } from '../../design-system';
 import { DOW_LABELS, STATUS_CONFIG } from './salary-attendance-constants';
+import { salaryModeLabel } from '../timesheet/salary-modes';
 import '../../pages/SalaryAttendancePage.css';
 
 
@@ -74,7 +76,7 @@ export function CalCell({ dateStr, day: _day, isSunday, dayLabel, workDay, isUpd
 }
 
 // ── Salary Summary Card ───────────────────────────────────────────────────────
-export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { salary: AttendanceSalary; onEditBaseSalary?: () => void; driverName?: string }) {
+export function SalarySummaryCard({ salary, onEditBaseSalary, driverName, salaryMode }: { salary: AttendanceSalary; onEditBaseSalary?: () => void; driverName?: string; salaryMode?: TimesheetSalaryMode | null }) {
   return (
     <div className="salary-summary-dark">
       <div className="salary-summary-dark__topline">
@@ -111,6 +113,17 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName }: { sa
             >
               <Edit size={10} />
             </button>}
+          </span>
+        </div>
+
+        {/* FB-103 (ticket 171026215600) — hình thức lương hiện trên card để
+            kế toán thấy chỗ đổi (nút bút chì mở dialog có select chế độ). */}
+        <div className="salary-summary-dark__row">
+          <span className="salary-summary-dark__row-lbl">
+            <DollarSign size={12} /> Hình thức lương
+          </span>
+          <span className="salary-summary-dark__row-val">
+            {salaryModeLabel(salaryMode)}
           </span>
         </div>
 

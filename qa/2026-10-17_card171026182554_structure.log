@@ -1,0 +1,22 @@
+node:fs:1554
+  const result = binding.readdir(
+                         ^
+
+Error: ENOENT: no such file or directory, scandir '/Users/dev/.paseo/worktrees/1njkloyy/fix-171026182554-bo-nut-them-xoa-container-chi/src/pages'
+    at readdirSync (node:fs:1554:26)
+    at listSourceFiles (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-171026182554-bo-nut-them-xoa-container-chi/frontend/scripts/check-structure.mjs:478:23)
+    at file:///Users/dev/.paseo/worktrees/1njkloyy/fix-171026182554-bo-nut-them-xoa-container-chi/frontend/scripts/check-structure.mjs:489:46
+    at Array.flatMap (<anonymous>)
+    at runGuard (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-171026182554-bo-nut-them-xoa-container-chi/frontend/scripts/check-structure.mjs:489:28)
+    at main (file:///Users/dev/.paseo/worktrees/1njkloyy/fix-171026182554-bo-nut-them-xoa-container-chi/frontend/scripts/check-structure.mjs:563:26)
+    at file:///Users/dev/.paseo/worktrees/1njkloyy/fix-171026182554-bo-nut-them-xoa-container-chi/frontend/scripts/check-structure.mjs:571:87
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at async node:internal/modules/esm/loader:639:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/dev/.paseo/worktrees/1njkloyy/fix-171026182554-bo-nut-them-xoa-container-chi/src/pages'
+}
+
+Node.js v25.8.1

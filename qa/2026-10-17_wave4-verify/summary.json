@@ -1,0 +1,122 @@
+{
+  "report": "plans/reports/qa-261017-2140-wave4-staging-verify.md",
+  "date": "2026-10-17",
+  "timezone": "+0800",
+  "target": {
+    "host": "https://vantai.tingting.vip",
+    "role": "staging (Makefile DEMO_SERVER / 'demo' deploy target)",
+    "buildHash": "11720424",
+    "buildHashEqualsMainHead": true,
+    "prod": "silversea.tingting.vip — untouched",
+    "missionPinCorrection": {
+      "pinned": "demo.tingting.vip build f3a2ec5d",
+      "literalGatePassed": true,
+      "reason": "demo.tingting.vip FE bundle lacks cargoMode (0 hits), health shape never existed in repo, startedAt predates all four fix merges, zero repo references; both vhosts share staging server 167.172.76.214",
+      "evidence": "qa/2026-10-17_wave4-verify/driver.log (phase health)"
+    }
+  },
+  "overallVerdict": "PASS 4/4 (one scoped partial: date-only completed-trip claim at rung 1 + deployed suite)",
+  "cases": [
+    {
+      "id": "W4-1",
+      "card": "171026154000",
+      "claim": "cargoMode filter on dispatch-detail-plan-rows + Loại hàng quick-filter select",
+      "verdict": "PASS",
+      "rung": "2 DB/API VERIFIED + 3 UI DRIVEN (select)",
+      "assertions": "13/13 API + 6/6 UI",
+      "evidence": [
+        "qa/2026-10-17_wave4-verify/driver.log (phase c1)",
+        "qa/2026-10-17_wave4-verify/evidence-c1.json",
+        "qa/2026-10-17_wave4-verify/ui-driver.log (C1)",
+        "qa/2026-10-17_wave4-verify/2026-10-17_wave4-verify_ui-c1-loaihang-before.png",
+        "qa/2026-10-17_wave4-verify/2026-10-17_wave4-verify_ui-c1-loaihang-lcl.png"
+      ]
+    },
+    {
+      "id": "W4-2a",
+      "card": "171026121100 FB038-03A",
+      "claim": "container-less same-lot double-plate warns once (LEFT-join holder claim), never silent",
+      "verdict": "PASS",
+      "rung": "2 DB/API VERIFIED (exact staging repro rows ff 198/199 of lot 298)",
+      "assertions": "5/5 incl. exact warn text 'container khác của lô này … Vẫn lưu?' + confirm-retry save + restore",
+      "evidence": [
+        "qa/2026-10-17_wave4-verify/driver.log (phase c2, C2-1..C2-3 + restores)"
+      ]
+    },
+    {
+      "id": "W4-2b",
+      "card": "171026121100 FB038-03B (named entity trip 117 · BLCUSa24BB)",
+      "claim": "claiming a COMPLETED holder's rig-day warns (RIG_OVERLAP_COMPLETED), never silent; 'Phân xe lại' repro included",
+      "verdict": "PASS",
+      "rung": "2 DB/API VERIFIED",
+      "assertions": "plan-row claim + PATCH /trips/:id/reassign: 409 RIG_OVERLAP_COMPLETED both, confirm retry saves both",
+      "evidence": [
+        "qa/2026-10-17_wave4-verify/driver.log (phase c2 C2-B1; phase b2reassign 4/4)"
+      ],
+      "note": "first warn tier on trip 117's day is the cross-lot/holder sentence (trip 117's own plan claim fires first), not the completed-tier sentence — same warn-once contract"
+    },
+    {
+      "id": "W4-2c",
+      "card": "171026121100 Gap-B date-only claim",
+      "claim": "date-only COMPLETED trip claims its display day",
+      "verdict": "PARTIAL",
+      "rung": "1 CODE-READ ONLY + land-time deployed suite",
+      "blocker": "governed APIs cannot stage a date-only COMPLETED trip on staging (close-maker photo+e-POD gates 422; complete-external needs fulfillment-linked (hence timed) trips 403; no endpoint nulls planned times)",
+      "evidence": [
+        "qa/2026-10-17_wave4-verify/driver.log (phases c2 B2, b2retry, b2final — attempt record)"
+      ]
+    },
+    {
+      "id": "W4-3",
+      "card": "171026142500",
+      "claim": "Cước trả ĐV: group-cost money lands on the trips 'phát lệnh' creates (gán xe nhóm trước vẫn lên giá)",
+      "verdict": "PASS",
+      "rung": "2 DB/API VERIFIED",
+      "assertions": "14/14 — trip_carrier_info.external_freight_cost 4500000/0/0 (vendor price wins generic) + debit board tra.cuocTraDv 4500000/0/0 (no 'Thiếu cước trả ĐV')",
+      "evidence": [
+        "qa/2026-10-17_wave4-verify/driver.log (phase c3)",
+        "qa/2026-10-17_wave4-verify/evidence-c3.json"
+      ]
+    },
+    {
+      "id": "W4-4",
+      "card": "171026182554",
+      "claim": "add/remove-container buttons gone from both detail screens; Tổng quan drawer keeps them; tờ khai lưu đồng bộ",
+      "verdict": "PASS",
+      "rung": "3 UI DRIVEN",
+      "assertions": "ui-driver EXIT 0 (18/18) — buttons absent @1440+390, Containers (2) heading, drawer keeps Thêm/Xóa, declaration save syncs to sibling container (API side effect proven)",
+      "evidence": [
+        "qa/2026-10-17_wave4-verify/ui-driver.log",
+        "qa/2026-10-17_wave4-verify/2026-10-17_wave4-verify_ui-shipments-detail-1440.png",
+        "qa/2026-10-17_wave4-verify/2026-10-17_wave4-verify_ui-shipments-detail-390.png",
+        "qa/2026-10-17_wave4-verify/2026-10-17_wave4-verify_ui-shipment-detail-890-1440.png",
+        "qa/2026-10-17_wave4-verify/2026-10-17_wave4-verify_ui-overview-drawer-1440.png",
+        "qa/2026-10-17_wave4-verify/2026-10-17_wave4-verify_ui-c4-declaration-saved.png",
+        "qa/2026-10-17_wave4-verify/evidence-c4-declaration.json"
+      ]
+    }
+  ],
+  "fixtures": {
+    "tag": "QA-W4-*",
+    "writes": "governed API only, every write with Idempotency-Key",
+    "chain": "supplier+carrier customer → pricing lane (2 rows) → 3 LCL lots (born-ready fulfillments) → cost-group assign → 3 dispatch-order trips → debit board; c2: staged LCL claim lots + trip lifecycle probes; c4: FCL lot 890 + 2 ISO-6346 containers + declaration write",
+    "endState": "customers/suppliers/route/pricing/lots product-deleted (soft), c4 containers hard-deleted by registry, QA trips canceled via product path + registry-scrubbed (never hard-deleted — financial-history law), ff 198/199 restored to before-state (plate null, carrier OWN; version churn 11→20)"
+  },
+  "teardown": {
+    "productDeletes": "all green (driver.log phase teardown)",
+    "qapurgeDry": "exit 2 = pre-existing guarded skips (sanctioned non-fail)",
+    "qapurge": "exit 2, deleted=80, remaining=38 pre-existing guarded skips; 0 QA-W4 rows remain (post-purge census)",
+    "logs": [
+      "qa/2026-10-17_wave4-verify/qapurge-dry.log",
+      "qa/2026-10-17_wave4-verify/qapurge.log"
+    ]
+  },
+  "residuals": [
+    "W4-2c date-only completed-trip shape not stageable via governed APIs (rung 1 + deployed suite only)",
+    "trip 117 has planned timestamps 10:30–13:52 on 2026-10-04 today (shape drift vs the original FB-038-03B write-up)",
+    "warn tier on trip 117's day surfaces the cross-lot sentence first (trip 117's own plan claim) — same warn-once contract",
+    "qapurge exit 2 guarded skips are earlier-wave rows (treasury/business-unit deactivations, scrub remainders, 2 pre-existing guarded containers)",
+    "canceled QA trip rows remain scrubbed (sanctioned end state)",
+    "mission pin demo.tingting.vip/f3a2ec5d targets a stale vhost lacking the wave4 code — owner should retire it or fix the pin source"
+  ]
+}

@@ -137,6 +137,9 @@ export async function getAccountingDebitBoard(query: {
   const lclGroupIds = [...new Set(lots.flatMap((lot) => [lot.costGroupId, lot.revGroupId]).filter((id): id is string => id != null))];
   const lclPrincipalRefs = new Map<string, string>();
   if (lclGroupIds.length > 0) {
+    // LIVE principals only: a soft-deleted lot keeps its group id (§4
+    // renumbering never strips the leaver), so a ghost order-1 row must
+    // never shadow the promoted principal (card 181026145000).
     const principals = await executor.select({
       costGroupId: s.shipments.costGroupId,
       revGroupId: s.shipments.revGroupId,
@@ -144,6 +147,7 @@ export async function getAccountingDebitBoard(query: {
       bookingRef: s.shipments.bookingRef,
     }).from(s.shipments)
       .where(and(
+        isNull(s.shipments.deletedAt),
         eq(s.shipments.costGroupOrder, 1),
         inArray(s.shipments.costGroupId, lclGroupIds),
       ));
@@ -153,6 +157,7 @@ export async function getAccountingDebitBoard(query: {
       bookingRef: s.shipments.bookingRef,
     }).from(s.shipments)
       .where(and(
+        isNull(s.shipments.deletedAt),
         eq(s.shipments.revGroupOrder, 1),
         inArray(s.shipments.revGroupId, lclGroupIds),
       ));
@@ -373,6 +378,32 @@ export async function getAccountingDebitBoard(query: {
     if (row.externalEntityType === 'CUSTOMER' && row.externalEntityId != null) carrierNameIds.add(row.externalEntityId);
   }
 
+  // SPEC 18/10/2026 §6.2 — an LCL cost group persists its vehicle source on the
+  // lot's "phân bổ xe" fulfillment channel before any trip exists. Without this
+  // fallback the Phân xe carrier half rendered "—" for a grouped lot that had
+  // not been issued yet, even though the dispatcher had chosen SilverSea/a nhà
+  // xe. FCL keeps its trip-only projection (no behavior change).
+  const plannedCarrierRows = lotIds.length > 0 ? await executor.select({
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    carrierType: s.shipmentFulfillments.plannedCarrierType,
+    externalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+    plate: s.shipmentFulfillments.plannedVehiclePlateNumber,
+  }).from(s.shipmentFulfillments)
+    .where(and(
+      inArray(s.shipmentFulfillments.shipmentId, lotIds),
+      isNull(s.shipmentFulfillments.canceledAt),
+    )) : [];
+  const plannedCarrierByLot = new Map<number, { carrierType: string | null; externalId: number | null; plate: string | null }>();
+  for (const row of plannedCarrierRows) {
+    if (row.shipmentId == null || plannedCarrierByLot.has(row.shipmentId)) continue;
+    plannedCarrierByLot.set(row.shipmentId, {
+      carrierType: row.carrierType,
+      externalId: row.externalCarrierId,
+      plate: row.plate,
+    });
+    if (row.externalCarrierId != null) carrierNameIds.add(row.externalCarrierId);
+  }
+
   // Thông số container labels per lot (shipment_containers).
   const containerRows = await executor.select({
     shipmentId: s.shipmentContainers.shipmentId,
@@ -466,6 +497,24 @@ export async function getAccountingDebitBoard(query: {
     }
     phanXeByLot.set(lotId, [...new Set(labels)]);
   }
+  // SPEC 18/10/2026 §6.2 — trip-less LCL lots keep their assigned vehicle
+  // source visible (the trip projection above has no row to read).
+  for (const lot of lots) {
+    if (lot.cargoMode !== 'LCL' || phanXeByLot.has(lot.id)) continue;
+    const planned = plannedCarrierByLot.get(lot.id);
+    if (planned == null) continue;
+    const labels: string[] = [];
+    if (planned.carrierType === 'OWN') {
+      labels.push('Đội xe nội bộ SilverSea');
+    } else if (planned.externalId != null) {
+      const name = externalNames.get(planned.externalId);
+      if (name) labels.push(name);
+      else if (planned.plate) labels.push(planned.plate);
+    } else if (planned.plate) {
+      labels.push(planned.plate);
+    }
+    if (labels.length > 0) phanXeByLot.set(lot.id, [...new Set(labels)]);
+  }
 
   // Card 20260928_162 criterion 3 (lead ruling (b)). This board carries a
   // "Ghi chú" column that was hardcoded null, so the reason an uncharged Ops
@@ -530,6 +579,10 @@ export async function getAccountingDebitBoard(query: {
       ngay: lot.ngay,
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       containers: containersByLot.get(lot.id) ?? [],
+      // Card 161026232419: the LCL PHÂN XE cell renders its line 1 name from
+      // THESE labels — derived in memory from the ONE batched trip query
+      // above, never a per-row read — so every LCL lot ships the same nhà xe
+      // identity the FCL cell shows.
       phanXe: phanXeByLot.get(lot.id) ?? [],
       lcl: lot.cargoMode === 'LCL' ? {
         label: [
@@ -569,15 +622,6 @@ export async function getAccountingDebitBoard(query: {
 // existing editing surfaces. Roles enforced at the route level (office set).
 
 /** P2: a lot with an ACTIVE cost lock is frozen — no new requests. */
-async function findActiveCostLock(tx: Tx, shipmentId: number) {
-  const [lock] = await tx.select({ id: s.shipmentCostLocks.id })
-    .from(s.shipmentCostLocks)
-    .where(and(
-      eq(s.shipmentCostLocks.shipmentId, shipmentId),
-      isNull(s.shipmentCostLocks.unlockedAt),
-    ));
-  return lock ?? null;
-}
 
 export async function createRateAdjustmentRequests(input: {
   shipmentIds: number[];
@@ -590,19 +634,36 @@ export async function createRateAdjustmentRequests(input: {
     const requested: number[] = [];
     const alreadyPending: number[] = [];
     const locked: number[] = [];
+    if (shipmentIds.length === 0) return { requested, alreadyPending, locked };
+
+    // Three set reads instead of three reads per shipment; per-item outcomes
+    // are resolved in memory in the same sorted order as before.
+    const existingShipments = await tx.select({ id: s.shipments.id }).from(s.shipments)
+      .where(and(inArray(s.shipments.id, shipmentIds), isNull(s.shipments.deletedAt)));
+    const existingIds = new Set(existingShipments.map((r) => r.id));
+    const missingId = shipmentIds.find((id) => !existingIds.has(id));
+    if (missingId !== undefined) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
+
+    const activeLockRows = await tx.select({ shipmentId: s.shipmentCostLocks.shipmentId })
+      .from(s.shipmentCostLocks)
+      .where(and(inArray(s.shipmentCostLocks.shipmentId, shipmentIds), isNull(s.shipmentCostLocks.unlockedAt)));
+    const lockedIds = new Set(activeLockRows.map((r) => r.shipmentId));
+
+    const pendingRows = await tx.select({ shipmentId: s.shipmentRateAdjustmentRequests.shipmentId })
+      .from(s.shipmentRateAdjustmentRequests)
+      .where(and(inArray(s.shipmentRateAdjustmentRequests.shipmentId, shipmentIds),
+        eq(s.shipmentRateAdjustmentRequests.status, 'PENDING'), isNull(s.shipmentRateAdjustmentRequests.withdrawnAt)));
+    const pendingIds = new Set(pendingRows.map((r) => r.shipmentId));
+
+    const insertValues: Array<{ shipmentId: number; ghiChu: string | null; requestedBy: number }> = [];
     for (const shipmentId of shipmentIds) {
-      const [shipment] = await tx.select({ id: s.shipments.id }).from(s.shipments)
-        .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt))).limit(1);
-      if (!shipment) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
-      if (await findActiveCostLock(tx, shipmentId)) { locked.push(shipmentId); continue; }
-      const [live] = await tx.select({ id: s.shipmentRateAdjustmentRequests.id })
-        .from(s.shipmentRateAdjustmentRequests)
-        .where(and(eq(s.shipmentRateAdjustmentRequests.shipmentId, shipmentId),
-          eq(s.shipmentRateAdjustmentRequests.status, 'PENDING'), isNull(s.shipmentRateAdjustmentRequests.withdrawnAt)))
-        .limit(1);
-      if (live) { alreadyPending.push(shipmentId); continue; }
-      await tx.insert(s.shipmentRateAdjustmentRequests).values({ shipmentId, ghiChu: input.ghiChu ?? null, requestedBy: input.userId });
+      if (lockedIds.has(shipmentId)) { locked.push(shipmentId); continue; }
+      if (pendingIds.has(shipmentId)) { alreadyPending.push(shipmentId); continue; }
+      insertValues.push({ shipmentId, ghiChu: input.ghiChu ?? null, requestedBy: input.userId });
       requested.push(shipmentId);
+    }
+    if (insertValues.length > 0) {
+      await tx.insert(s.shipmentRateAdjustmentRequests).values(insertValues);
     }
     return { requested, alreadyPending, locked };
   };

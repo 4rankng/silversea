@@ -40,7 +40,7 @@ describe('BaseSalaryEditModal', () => {
     apiPut.mockClear();
     apiGet.mockClear();
     apiPut.mockResolvedValue({});
-    apiGet.mockResolvedValue({ id: 39, updatedAt: DRIVER_UPDATED_AT, baseSalary: '8000000' });
+    apiGet.mockResolvedValue({ id: 39, updatedAt: DRIVER_UPDATED_AT, baseSalary: '8000000', salaryMode: 'PER_TRIP' });
   });
 
   it('opens with the driver pre-selected and the current amount seeded', () => {
@@ -48,6 +48,28 @@ describe('BaseSalaryEditModal', () => {
     expect(screen.getByText(/Trần Văn Lái/)).toBeTruthy();
     const input = screen.getByDisplayValue('8000000');
     expect(input).toBeTruthy();
+  });
+
+  // FB-103 (ticket 171026215600) — QA R21 không tìm thấy chỗ chọn chế độ lương:
+  // select "Hình thức lương" sống ngay trong dialog này, seeded từ driver row.
+  it('FB-103 — renders the salary-mode select seeded from the driver row', async () => {
+    apiGet.mockResolvedValue({ id: 39, updatedAt: DRIVER_UPDATED_AT, baseSalary: '8000000', salaryMode: 'FLAT_MONTHLY' });
+    await renderReady();
+    const modeTrigger = screen.getByRole('button', { name: /Hình thức lương/ });
+    expect(modeTrigger.textContent).toContain('Lương theo tháng (trốn vé)');
+  });
+
+  it('FB-103 — saves the chosen salary mode with the same row write', async () => {
+    apiGet.mockResolvedValue({ id: 39, updatedAt: DRIVER_UPDATED_AT, baseSalary: '8000000', salaryMode: 'PER_TRIP' });
+    const onClose = vi.fn();
+    await renderReady({ onClose });
+    fireEvent.click(screen.getByRole('button', { name: /Hình thức lương/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lương theo tháng (trốn vé)' }));
+    fireEvent.click(screen.getByRole('button', { name: /Lưu/ }));
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
+    expect(apiPut).toHaveBeenCalledWith('/drivers/39', expect.objectContaining({ salaryMode: 'FLAT_MONTHLY' }), { expectedUpdatedAt: DRIVER_UPDATED_AT });
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
   it('renders an effective-date input defaulting to first of next month', () => {
@@ -93,7 +115,7 @@ describe('BaseSalaryEditModal', () => {
     const expectedDate = new Date();
     // Local-field ISO build — toISOString on local midnight slips a day in +07.
     const firstOfNext = `${expectedDate.getFullYear()}-${String(expectedDate.getMonth() + 2).padStart(2, '0')}-01`;
-    expect(apiPut).toHaveBeenCalledWith('/drivers/39', { baseSalary: 9_500_000, salaryEffectiveDate: firstOfNext }, { expectedUpdatedAt: DRIVER_UPDATED_AT });
+    expect(apiPut).toHaveBeenCalledWith('/drivers/39', { baseSalary: 9_500_000, salaryEffectiveDate: firstOfNext, salaryMode: 'PER_TRIP' }, { expectedUpdatedAt: DRIVER_UPDATED_AT });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
@@ -114,7 +136,7 @@ describe('BaseSalaryEditModal', () => {
     // Retry with the refreshed token goes through.
     fireEvent.click(screen.getByRole('button', { name: /Lưu/ }));
     await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(2));
-    expect(apiPut).toHaveBeenLastCalledWith('/drivers/39', { baseSalary: 9_500_000, salaryEffectiveDate: expect.any(String) }, { expectedUpdatedAt: '2026-09-14T11:30:00.000Z' });
+    expect(apiPut).toHaveBeenLastCalledWith('/drivers/39', { baseSalary: 9_500_000, salaryEffectiveDate: expect.any(String), salaryMode: 'PER_TRIP' }, { expectedUpdatedAt: '2026-09-14T11:30:00.000Z' });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 

@@ -15,7 +15,7 @@ import * as s from '../../db/schema';
 import { CARGO_MODE } from '../../db/schema';
 import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
+import { alias, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
 
 import type { DispatchSummary } from '@tingting/shared';
@@ -25,7 +25,7 @@ import type { DispatchSummary } from '@tingting/shared';
 
 import { AllocationStatus, INTERNAL_FLEET_CARRIER_NAME, CUSTOMER_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME } from './shared';
 import { operationalName } from '../../db/master-data-name';
-import { buildShipmentSearchPredicate, buildDispatchPortFacetPredicate, buildDispatchCarrierFacetPredicate, loadShipmentDispatchAggregates, computeDispatchSummaryForSet } from './dispatch-aggregates';
+import { buildShipmentSearchPredicate, buildDispatchPortFacetPredicate, buildDispatchCarrierFacetPredicate, buildDispatchCargoScopePredicate, loadShipmentDispatchAggregates, computeDispatchSummaryForSet } from './dispatch-aggregates';
 import type { ShipmentContainerPortGroup } from './container-aggregates';
 import { loadShipmentListContainerPortGroups } from './container-aggregates';
 
@@ -406,7 +406,9 @@ export function groupShipmentAppointmentGroups(
  * (order 1) Số Bill / Số Booking. The lot's document reference is the display
  * key (house law); internal ids never are. Only groups that appear among the
  * page's MEMBER rows (order > 1) are resolved — a principal never cites
- * itself.
+ * itself. LIVE rows only: a soft-deleted lot keeps its group id (the delete
+ * path renumbers the survivors but never strips the leaver), so a ghost
+ * principal must never be cited (card 181026145000, spec §4).
  */
 export async function loadShipmentListGroupPrincipalRefs(
   shipments: Array<typeof s.shipments.$inferSelect>,
@@ -435,7 +437,7 @@ export async function loadShipmentListGroupPrincipalRefs(
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
   }).from(s.shipments)
-    .where(or(...principalConditions));
+    .where(and(isNull(s.shipments.deletedAt), or(...principalConditions)));
 
   const refs = new Map<string, string>();
   for (const principal of principals) {
@@ -444,6 +446,37 @@ export async function loadShipmentListGroupPrincipalRefs(
     if (principal.revGroupId != null && ref != null) refs.set(`REV:${principal.revGroupId}`, ref);
   }
   return refs;
+}
+
+/**
+ * Card 181026145000 (spec §2.4) — the LIVE member count of every group on
+ * the page, both dimensions, so the master-plan wire returns the tag's full
+ * "Lẻ · Ghép (i/N)" facts: position (`costGroupOrder`/`revGroupOrder`) AND
+ * size (this count). Soft-deleted members are excluded — their rows keep the
+ * group id after the §4 promotion rewrote the survivors.
+ */
+export async function loadShipmentListGroupMemberCounts(
+  shipments: Array<typeof s.shipments.$inferSelect>,
+): Promise<Map<string, number>> {
+  const costGroupIds = [...new Set(
+    shipments.filter((sh) => sh.costGroupId != null).map((sh) => sh.costGroupId),
+  )] as string[];
+  const revGroupIds = [...new Set(
+    shipments.filter((sh) => sh.revGroupId != null).map((sh) => sh.revGroupId),
+  )] as string[];
+
+  const counts = new Map<string, number>();
+  const countDimension = async (groupIds: string[], column: AnyPgColumn, prefix: string) => {
+    if (groupIds.length === 0) return;
+    const rows = await db.select({ groupId: column, memberCount: sql<number>`count(*)` })
+      .from(s.shipments)
+      .where(and(inArray(column, groupIds), isNull(s.shipments.deletedAt)))
+      .groupBy(column);
+    for (const row of rows) counts.set(`${prefix}:${row.groupId}`, Number(row.memberCount));
+  };
+  await countDimension(costGroupIds, s.shipments.costGroupId, 'COST');
+  await countDimension(revGroupIds, s.shipments.revGroupId, 'REV');
+  return counts;
 }
 
 export async function loadShipmentListFactoryNames(
@@ -657,6 +690,11 @@ export interface ListShipmentsOptions {
   /** Dispatch master-plan filter: OR-within carrier keys (OWN / EXTERNAL:<id> /
    *  UNASSIGNED), AND-ed with portIds and dates. */
   carrierKeys?: string[];
+  /** Dispatch master-plan Loại hàng scope (card 171026154000): filters on the
+   *  active-LCL-fulfillment predicate (see buildDispatchCargoScopePredicate),
+   *  the same fact the dispatch summary counts and the row projection
+   *  `hasActiveLclShipment` carries. */
+  cargoMode?: 'FCL' | 'LCL';
   /** When true, also return dispatchSummary computed over the complete filtered
    *  set in the same snapshot as rows+count. */
   includeDispatchSummary?: boolean;
@@ -759,6 +797,8 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   if (portFacet) conditions.push(portFacet);
   const carrierFacet = buildDispatchCarrierFacetPredicate(options.carrierKeys ?? []);
   if (carrierFacet) conditions.push(carrierFacet);
+  const cargoScope = buildDispatchCargoScopePredicate(options.cargoMode);
+  if (cargoScope) conditions.push(cargoScope);
 
   // allocationStatus is derived from container/fulfillment aggregates and
   // cannot live in the WHERE clause. When filtering on it, resolve the full
@@ -945,6 +985,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       : [],
   );
   const groupPrincipalRefs = await loadShipmentListGroupPrincipalRefs(items.map((row) => row.shipment));
+  // Card 181026145000 (spec §2.4): the tag's N — LIVE members per group, both
+  // dimensions, same keying as the principal refs above.
+  const groupMemberCounts = await loadShipmentListGroupMemberCounts(items.map((row) => row.shipment));
   // Card 20260928_162 criterion 3. This projection was written for
   // "cus/accounting" (dispatch-expense-notes.service.ts header, card
   // 20260921_5), yet the gate handed the map to ADMIN/DISPATCHER only — so both
@@ -986,6 +1029,15 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // row's group (null when ungrouped or when the row IS the principal).
     costGroupPrincipalRef: groupPrincipalRefs.get(`COST:${row.shipment.costGroupId}`) ?? null,
     revGroupPrincipalRef: groupPrincipalRefs.get(`REV:${row.shipment.revGroupId}`) ?? null,
+    // Card 181026145000 (spec §2.4): the "Lẻ · Ghép (i/N)" tag's N, both
+    // dimensions — LIVE members only (a soft-deleted member keeps its group
+    // id but must not count, spec §4).
+    costGroupMemberCount: row.shipment.costGroupId != null
+      ? groupMemberCounts.get(`COST:${row.shipment.costGroupId}`) ?? null
+      : null,
+    revGroupMemberCount: row.shipment.revGroupId != null
+      ? groupMemberCounts.get(`REV:${row.shipment.revGroupId}`) ?? null
+      : null,
     // Factory operating notes for the master-plan notes column.
     factoryNotes: row.factoryNotes,
     opsRecoveryNotes: opsRecoveryNotes.get(row.shipment.id) ?? [],
@@ -993,6 +1045,11 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     // lot still lack a đóng/trả appointment. Zero when all are scheduled.
     containersMissingAppointment: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containersMissingAppointment ?? 0,
     containerTotal: dispatchAggregatesByShipmentId.get(row.shipment.id)?.containerTotal ?? 0,
+    // Row-level face of the Sản lượng "Lẻ: N lô" count (same active-LCL-
+    // fulfillment predicate as computeDispatchSummaryForSet): the master-plan
+    // checkbox and the client-side Loại hàng filter read this so the row gate
+    // and the header count can never disagree on real payloads.
+    hasActiveLclShipment: dispatchAggregatesByShipmentId.get(row.shipment.id)?.hasActiveLclShipment ?? false,
     // All effective factories of the lot (container-site authority first,
     // shipment-site fallback) so the master plan lists every factory instead
     // of one label. Derived from the appointment-group factory resolution,

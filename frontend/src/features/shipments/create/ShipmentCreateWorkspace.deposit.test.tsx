@@ -16,6 +16,7 @@ vi.mock('../../../api/shipmentClient', () => ({
   updateShipmentDeclaration: vi.fn(),
   saveShipmentContainers: vi.fn(),
   submitShipmentForDispatch: vi.fn(),
+  createShippingLine: vi.fn(),
 }));
 vi.mock('./FreightPreviewCard', () => ({ FreightPreviewCard: () => null }));
 

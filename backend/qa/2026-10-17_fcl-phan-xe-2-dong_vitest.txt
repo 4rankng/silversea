@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Volumes/LexarSSD/projects/silversea/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  60 passed (60)
+   Start at  01:23:36
+   Duration  3.67s (transform 509ms, setup 179ms, import 1.49s, tests 1.34s, environment 587ms)
+
+VITEST_EXIT=0

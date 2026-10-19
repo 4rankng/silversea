@@ -1,0 +1,43 @@
+{"level":30,"time":1792169271268,"pid":8897,"hostname":"mini","msg":"[casbin] Enforcer initialized — 139 policies loaded"}
+▶ card 20260921_2 — CUS add/remove container rows after intake
+  ✔ free container removes; tripped container 409s per-row; neighbors untouched (87.994209ms)
+  ✔ version conflict on remove still 409s with the reload message (14.907125ms)
+✔ card 20260921_2 — CUS add/remove container rows after intake (105.420291ms)
+▶ card 20260921_2 — add row
+  ✔ add appends a container, bumps the version, decomposes a fulfillment (54.033708ms)
+  ✔ add with appointment carries it and validates duplicates and format (41.570167ms)
+✔ card 20260921_2 — add row (95.733417ms)
+{"level":30,"time":1792169302285,"pid":9957,"hostname":"mini","msg":"[casbin] Enforcer initialized — 139 policies loaded"}
+▶ bulk appointment copy — copy giờ hẹn xuống các cont chưa có lịch
+  ✔ fills every empty line of the lot in ONE call, never the source, and moves the version once (76.775ms)
+  ✔ never overwrites a line that already has an appointment (26.96475ms)
+  ✔ another lot sharing the workboard is never touched (19.879ms)
+  ✔ a source row without an appointment is rejected with a named reason (8.086334ms)
+  ✔ a lot where every line is already scheduled reports there is nothing to copy (8.334083ms)
+  ✔ a stale version 409s instead of copying onto a lot that moved on (8.756042ms)
+  ✔ an idempotency replay returns the first result and writes nothing twice (16.361791ms)
+✔ bulk appointment copy — copy giờ hẹn xuống các cont chưa có lịch (186.614708ms)
+▶ card 20260916_4 — plate updates on carrier-less containers
+  ✔ plate update without a carrier type is rejected, never silently dropped (44.784166ms)
+✔ card 20260916_4 — plate updates on carrier-less containers (83.486333ms)
+▶ Card 161026232339 — the LCL lot flat row carries its billing facts
+  ✔ AC1: the chosen cước classes resolve to their vehicle_size_classes codes (59.251542ms)
+  ✔ AC2/AC5: BKS thực + BKS báo khách ride the lot row, absent values as null (32.077125ms)
+  ✔ AC3: the quick edit lands through updateLclGroupTruck and the next read returns it (42.342292ms)
+  ✔ AC4: FCL container rows keep their shape — same four keys, all null (30.015083ms)
+✔ Card 161026232339 — the LCL lot flat row carries its billing facts (198.608542ms)
+▶ Card 365 — LCL lot parity between Tổng quan and Chi tiết workboards
+  ✔ AC1/AC2: the same LCL lot shows on BOTH lists under equal filters, as a recognizable lot row (170.98125ms)
+  ✔ AC1: date filters agree — the lot appears on both lists on its EDD and leaves both off-day (211.810042ms)
+  ✔ AC3: FCL rows are unchanged — one row per container; container-less FCL stays off the workboard (128.171375ms)
+  ✔ legacy LCL lot WITH a container keeps exactly its container row — no extra lot row (36.154292ms)
+  ✔ informationStatus=MISSING keeps excluding LCL lot rows (the triage is FCL-container scoped) (33.289417ms)
+✔ Card 365 — LCL lot parity between Tổng quan and Chi tiết workboards (629.38525ms)
+ℹ tests 21
+ℹ suites 6
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 64864.820125

@@ -11,7 +11,7 @@ import type {
   DebitNoteTemplateColumn,
   DebitNoteTemplateSnapshot,
 } from '@tingting/shared';
-import { FrozenDebitNoteTemplateSnapshot } from './billing-document.service';
+import type { FrozenDebitNoteTemplateSnapshot } from './billing-document-identity.service';
 
 /**
  * Debit-note / payment-statement template CRUD and resolution.

@@ -1,0 +1,11 @@
+=== final gate: cd frontend && pnpm exec vitest run <5 scoped files> --fileParallelism=false (default-parallel run flaked under machine load: 3 timeouts; sequential rerun green) ===
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-dieuvan-ketoan-ui-rb2/frontend
+
+
+ Test Files  5 passed (5)
+      Tests  60 passed (60)
+   Start at  20:57:51
+   Duration  85.88s (transform 15.52s, setup 9.14s, import 48.14s, tests 12.15s, environment 13.96s)
+
+EXIT=0

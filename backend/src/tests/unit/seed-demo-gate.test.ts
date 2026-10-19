@@ -84,7 +84,11 @@ describe('demo seed production gate (FB-061)', () => {
           walk(full);
           continue;
         }
-        if (!entry.name.endsWith('.ts') || !/seed/i.test(full)) continue;
+        // The `seed` test runs on the RELATIVE path, never the absolute one:
+        // an absolute path carries the checkout directory name, so a worktree
+        // or clone called e.g. `fix-phoi-seed` matched EVERY .ts file and
+        // reported real scripts as ungated demo seeders.
+        if (!entry.name.endsWith('.ts') || !/seed/i.test(relative(root, full))) continue;
         if (NON_DEMO_SEEDERS[entry.name]) continue;
         const source = readFileSync(full, 'utf8');
         const selfExecutes =

@@ -374,10 +374,18 @@ export async function autoOffsetRecordedExpense(tx: Tx, expenseId: number): Prom
 // a phiếu CHI bù (OUT) pays owed costs and never touches this number. The
 // same voucher class the wallet and the OPS fund book already book as
 // "Nộp lại tiền mặt".
-export async function getOutstandingAdvanceBalances(forwarderUserId?: number): Promise<{
+export interface OutstandingAdvanceBalances {
   totalOutstanding: number;
   items: Array<{ forwarderId: number; name: string | null; outstanding: number }>;
-}> {
+}
+
+/** The SIGNED per-staff advance balance: per request
+ *  min(granted, funded) − consumed, per staff minus returned — negative kept
+ *  (a staff who spent/returned more than was granted IS in deficit; the
+ *  hoàn ứng report must say so, card 141026230770). The wallet, catalog and
+ *  Sổ quỹ keep the floored {@link getOutstandingAdvanceBalances} view so
+ *  their "money actually held" semantics stay ≥ 0 (card 377 parity). */
+export async function getSignedOutstandingAdvanceBalances(forwarderUserId?: number): Promise<OutstandingAdvanceBalances> {
   const rows = await db.select({ request: s.advanceRequests, name: s.users.fullName }).from(s.advanceRequests)
     .innerJoin(s.users, eq(s.users.id, s.advanceRequests.requesterId))
     .where(and(eq(s.advanceRequests.status, 'RECORDED'), forwarderUserId ? eq(s.advanceRequests.requesterId, forwarderUserId) : undefined));
@@ -399,13 +407,21 @@ export async function getOutstandingAdvanceBalances(forwarderUserId?: number): P
   for (const row of returned) returnedByStaff.set(row.staffId, (returnedByStaff.get(row.staffId) ?? 0) + Number(row.amount));
   const grouped = new Map<number, { forwarderId: number; name: string | null; outstanding: number }>();
   for (const { request, name } of rows) {
-    const amount = Math.max(0, Math.min(Number(request.amount), funded.get(request.id) ?? 0) - (consumed.get(request.id) ?? 0));
+    const amount = Math.min(Number(request.amount), funded.get(request.id) ?? 0) - (consumed.get(request.id) ?? 0);
     if (!amount) continue;
     const row = grouped.get(request.requesterId) ?? { forwarderId: request.requesterId, name, outstanding: 0 };
     row.outstanding = round2dp(row.outstanding + amount); grouped.set(request.requesterId, row);
   }
   const items = [...grouped.values()]
-    .map(row => ({ ...row, outstanding: round2dp(Math.max(0, row.outstanding - (returnedByStaff.get(row.forwarderId) ?? 0))) }))
+    .map(row => ({ ...row, outstanding: round2dp(row.outstanding - (returnedByStaff.get(row.forwarderId) ?? 0)) }))
+    .filter(row => row.outstanding !== 0);
+  return { items, totalOutstanding: round2dp(items.reduce((total, row) => total + row.outstanding, 0)) };
+}
+
+export async function getOutstandingAdvanceBalances(forwarderUserId?: number): Promise<OutstandingAdvanceBalances> {
+  const signed = await getSignedOutstandingAdvanceBalances(forwarderUserId);
+  const items = signed.items
+    .map(row => ({ ...row, outstanding: Math.max(0, row.outstanding) }))
     .filter(row => row.outstanding > 0);
   return { items, totalOutstanding: round2dp(items.reduce((total, row) => total + row.outstanding, 0)) };
 }

@@ -3,7 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
 import { hydrateExpenseCashVoucher } from './expense-cash-voucher-source.service';
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 import { Role, EXPENSE_COST_GROUP_LABELS, OPS_EXPENSE_SUGGESTIONS, expenseDateSchema, round2dp, sumExcludingNegative,
   type ExpenseAccountingEntry, type ExpenseAccountingList, type ExpenseListQuery, type ExpenseSourceKind,
   type ExpenseReconciliation, type ExpenseVoucher, type TruckAccountantAssignment } from '@tingting/shared';
@@ -55,7 +55,11 @@ export function filterExpenseEntries(rows: readonly ExpenseAccountingEntry[], ac
   if (query.from && query.to && query.from > query.to) throw new ApiError(400, 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.');
   const search = query.search?.trim().toLocaleLowerCase('vi');
   return rows.filter(row => row.status === 'RECORDED'
-    && (isFinance(actor) || actor.role === Role.CUS || (row.payerUserId === actor.userId || row.recordedById === actor.userId))
+    // chiphispec §1 — OPS reads every entry the source loader hydrated for it
+    // (OPS-source rows across all lots + the trip rows it forwarded money for);
+    // DRIVER keeps its own-rows scope and CUS keeps the current policy.
+    && (isFinance(actor) || actor.role === Role.CUS || actor.role === Role.OPS
+      || row.payerUserId === actor.userId || row.recordedById === actor.userId)
     && (!query.sourceKind || row.sourceKind === query.sourceKind)
     && (!query.from || row.expenseDate >= query.from) && (!query.to || row.expenseDate <= query.to)
     && (query.shipmentId == null || row.shipmentId === query.shipmentId)
@@ -99,7 +103,14 @@ function legacySource(input: Partial<Source> & Pick<Source, 'sourceKind' | 'sour
 }
 
 async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQuery, includeVoided = false, ref?: { sourceKind: ExpenseSourceKind; sourceId: number }): Promise<Source[]> {
-  const own = actor.role === Role.OPS || actor.role === Role.DRIVER;
+  // chiphispec §1 — MỌI Ops được xem chi phí lô MỌI lô: the OPS bucket below
+  // drops its paid-by-me filter (only OPS and finance reach that query, and
+  // finance was never scoped), DRIVER keeps its own-rows scope on the driver
+  // and trip buckets, and an OPS still sees only the trip rows it personally
+  // forwarded money for (ownForwarderTrips — a lot-cost grant, not a ledger
+  // exposure of other people's trips).
+  const own = actor.role === Role.DRIVER;
+  const ownForwarderTrips = actor.role === Role.OPS;
   // CUS is internal staff: current shipment scope includes every nondeleted
   // lot, regardless of creator, customer or assignment. Preserve that policy.
   const visibleShipmentIds = actor.role === Role.CUS
@@ -108,6 +119,15 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
   if (visibleShipmentIds && query.shipmentId != null && !visibleShipmentIds.includes(query.shipmentId)) throw new ApiError(404, 'Không tìm thấy lô hàng');
   const shipmentScope = (column: typeof s.expenseAccountingSources.shipmentId | typeof s.opsExpenseEntries.shipmentId | typeof s.trips.shipmentId) =>
     visibleShipmentIds ? inArray(column, visibleShipmentIds) : undefined;
+  // Card 20261018 (read-path twin of resolveTripShipmentId) — a wave-model
+  // trip carries shipmentId NULL until materialization, with the lot reachable
+  // only through shipment_fulfillments. The DRIVER/TRIP fallback queries used
+  // to INNER-JOIN shipments on trips.shipmentId alone, so pre-materialization
+  // costs on such trips dropped out of every list (the driver's own "Sửa
+  // khoản chi" read 404'd). Resolve direct link → fulfillment lot, or strand
+  // nothing.
+  const tripShipmentExpr = sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`;
+  const tripShipmentScope = visibleShipmentIds ? inArray(tripShipmentExpr, visibleShipmentIds) : undefined;
   const dateRange = (column: typeof s.opsExpenseEntries.paidAt | typeof s.driverIncidentalCosts.occurredAt) =>
     [query.from ? gte(column, query.from) : undefined, query.to ? lte(column, query.to) : undefined];
   const links = await executor.select({ link: s.expenseAccountingSources }).from(s.expenseAccountingSources)
@@ -128,12 +148,19 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
   // cascade-deleted — the broken row is absent, the rest of the page renders —
   // while asking for that one source still 404s from the caller's own not-
   // found path (`getExpenseAccountingEntry`). Card 20260930_213.
+  //
+  // The same tolerance covers the link's LOT going away: hydration answers
+  // "the source no longer has a live lot/customer" with 409, and that is the
+  // same debris class — the join above only filters what was already dead
+  // when the links query ran, so a lot deleted between that query and the
+  // per-link hydration (or any link landing outside it) must skip, not kill
+  // the whole register.
   const canonical = (await Promise.all(links.map(async ({ link }) => {
     try {
       return await hydrateExpenseAccountingSource(executor, link);
     } catch (error) {
-      if (error instanceof ApiError && error.statusCode === 404) {
-        logger.warn({ sourceKind: link.sourceKind, sourceId: link.sourceId, linkId: link.id },
+      if (error instanceof ApiError && (error.statusCode === 404 || error.statusCode === 409)) {
+        logger.warn({ sourceKind: link.sourceKind, sourceId: link.sourceId, linkId: link.id, statusCode: error.statusCode },
           'expense accounting register: dangling source link skipped');
         return null;
       }
@@ -147,28 +174,36 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
         isNull(s.shipments.deletedAt), isNotNull(s.shipments.customerId), ref ? eq(s.opsExpenseEntries.id, ref.sourceId) : undefined,
         shipmentScope(s.opsExpenseEntries.shipmentId),
         inArray(s.opsExpenseEntries.approvalStatus, ['RECORDED', 'APPROVED']), ...dateRange(s.opsExpenseEntries.paidAt),
-        own ? eq(s.opsExpenseEntries.paidById, actor.userId) : undefined,
+        // chiphispec §1 — no paid-by-me filter: any Ops reads the lot costs of
+        // every lot, exactly like finance and CUS already do on this bucket.
         query.shipmentId ? eq(s.opsExpenseEntries.shipmentId, query.shipmentId) : undefined)),
-    actor.role === Role.OPS || (ref && ref.sourceKind !== 'DRIVER') ? [] : executor.select({ expense: s.driverIncidentalCosts, trip: s.trips, userId: s.drivers.userId }).from(s.driverIncidentalCosts)
-      .innerJoin(s.trips, eq(s.trips.id, s.driverIncidentalCosts.tripId)).innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
-      .innerJoin(s.drivers, eq(s.drivers.id, s.driverIncidentalCosts.driverId)).where(and(
-        isNull(s.shipments.deletedAt), isNotNull(s.shipments.customerId), ref ? eq(s.driverIncidentalCosts.id, ref.sourceId) : undefined,
-        shipmentScope(s.trips.shipmentId),
+    actor.role === Role.OPS || (ref && ref.sourceKind !== 'DRIVER') ? [] : executor.select({
+      expense: s.driverIncidentalCosts, trip: s.trips, userId: s.drivers.userId, resolvedShipmentId: tripShipmentExpr,
+    }).from(s.driverIncidentalCosts)
+      .innerJoin(s.trips, eq(s.trips.id, s.driverIncidentalCosts.tripId)).innerJoin(s.drivers, eq(s.drivers.id, s.driverIncidentalCosts.driverId))
+      .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+      .leftJoin(s.shipments, eq(s.shipments.id, tripShipmentExpr)).where(and(
+        isNotNull(s.shipments.id), isNull(s.shipments.deletedAt), isNotNull(s.shipments.customerId), ref ? eq(s.driverIncidentalCosts.id, ref.sourceId) : undefined,
+        tripShipmentScope,
         ...dateRange(s.driverIncidentalCosts.occurredAt), own ? eq(s.drivers.userId, actor.userId) : undefined,
-        query.shipmentId ? eq(s.trips.shipmentId, query.shipmentId) : undefined)),
-    actor.role === Role.DRIVER || (ref && ref.sourceKind !== 'TRIP') ? [] : executor.select({ expense: s.tripExpenses, trip: s.trips }).from(s.tripExpenses)
-      .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId)).innerJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+        query.shipmentId ? eq(tripShipmentExpr, query.shipmentId) : undefined)),
+    actor.role === Role.DRIVER || (ref && ref.sourceKind !== 'TRIP') ? [] : executor.select({
+      expense: s.tripExpenses, trip: s.trips, resolvedShipmentId: tripShipmentExpr,
+    }).from(s.tripExpenses)
+      .innerJoin(s.trips, eq(s.trips.id, s.tripExpenses.tripId))
+      .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+      .leftJoin(s.shipments, eq(s.shipments.id, tripShipmentExpr))
       .where(and(inArray(s.tripExpenses.approvalStatus, ['RECORDED', 'APPROVED']),
-        isNull(s.shipments.deletedAt), isNotNull(s.shipments.customerId), ref ? eq(s.tripExpenses.id, ref.sourceId) : undefined,
-        shipmentScope(s.trips.shipmentId),
-        own ? eq(s.tripExpenses.forwarderId, actor.userId) : undefined, query.shipmentId ? eq(s.trips.shipmentId, query.shipmentId) : undefined)),
+        isNotNull(s.shipments.id), isNull(s.shipments.deletedAt), isNotNull(s.shipments.customerId), ref ? eq(s.tripExpenses.id, ref.sourceId) : undefined,
+        tripShipmentScope,
+        ownForwarderTrips ? eq(s.tripExpenses.forwarderId, actor.userId) : undefined, query.shipmentId ? eq(tripShipmentExpr, query.shipmentId) : undefined)),
   ]);
   const fallbacks: Source[] = [
     ...ops.flatMap(({ expense: e, customerId }) => customerId == null ? [] : [legacySource({ sourceKind: 'OPS', sourceId: e.id, shipmentId: e.shipmentId,
       shipmentContainerId: e.shipmentContainerId, customerId, expenseTypeCode: e.expenseTypeCode, amount: e.amount, expenseDate: e.paidAt,
       feeName: e.feeName ?? '', payerKind: 'USER', payerUserId: e.paidById, payableEntityType: 'FORWARDER', payableEntityId: e.paidById, note: e.note })]),
-    ...driver.flatMap(({ expense: e, trip: t, userId }) => t.shipmentId == null ? [] : [legacySource({ sourceKind: 'DRIVER', sourceId: e.id,
-      shipmentId: t.shipmentId, tripId: t.id, truckId: t.truckId, customerId: t.customerId, expenseTypeCode: e.costType, amount: e.amount,
+    ...driver.flatMap(({ expense: e, trip: t, userId, resolvedShipmentId }) => resolvedShipmentId == null ? [] : [legacySource({ sourceKind: 'DRIVER', sourceId: e.id,
+      shipmentId: resolvedShipmentId, tripId: t.id, truckId: t.truckId, customerId: t.customerId, expenseTypeCode: e.costType, amount: e.amount,
       expenseDate: e.occurredAt, costGroup: e.costGroup, feeName: e.feeName ?? '',
       customerChargeAmount: e.customerChargeAmount, invoiceNumber: e.invoiceNumber, invoiceDate: e.invoiceDate,
       // Card 20261005 — không còn mặc định "người chi = lái xe" (đồng bộ với
@@ -177,8 +212,8 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
       payableEntityType: e.payerKind && e.payerKind !== 'COMPANY' ? 'DRIVER' : null, payableEntityId: e.payerKind && e.payerKind !== 'COMPANY' ? e.driverId : null,
       recordedById: e.recordedBy, note: e.note, recoveryNote: e.recoveryNote,
       photoStorageKeys: e.photoStorageKeys.length ? e.photoStorageKeys : e.receiptStorageKey ? [e.receiptStorageKey] : [] })]),
-    ...trip.flatMap(({ expense: e, trip: t }) => t.shipmentId == null ? [] : [legacySource({ sourceKind: 'TRIP', sourceId: e.id, version: e.version,
-      shipmentId: t.shipmentId, tripId: t.id, truckId: t.truckId, customerId: t.customerId, expenseTypeCode: e.expenseType, amount: e.buyAmount,
+    ...trip.flatMap(({ expense: e, trip: t, resolvedShipmentId }) => resolvedShipmentId == null ? [] : [legacySource({ sourceKind: 'TRIP', sourceId: e.id, version: e.version,
+      shipmentId: resolvedShipmentId, tripId: t.id, truckId: t.truckId, customerId: t.customerId, expenseTypeCode: e.expenseType, amount: e.buyAmount,
       customerChargeAmount: e.sellAmount, expenseDate: e.expenseDate ?? t.departureDate, feeName: e.feeName ?? '', invoiceNumber: e.invoiceNumber, invoiceDate: e.invoiceDate,
       payerKind: e.settlementMethod === 'OPS_ADVANCE' && e.forwarderId != null ? 'USER' : null,
       payerUserId: e.forwarderId, payableEntityType: e.settlementMethod === 'OPS_ADVANCE' && e.forwarderId != null ? 'FORWARDER' : null,
@@ -195,7 +230,8 @@ async function loadSources(executor: Executor, actor: Actor, query: ExpenseListQ
 export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseListQuery, executor: Executor, asOfDate = vietnamToday(), includeVoided = false, ref?: { sourceKind: ExpenseSourceKind; sourceId: number }): Promise<Array<ExpenseAccountingEntry & { billRef: string | null }>> {
   requireRead(actor); expenseDateSchema.parse(asOfDate);
   const sources = (await loadSources(executor, actor, query, includeVoided, ref)).filter(row => isFinance(actor) || actor.role === Role.CUS
-    || row.payerUserId === actor.userId || row.recordedById === actor.userId);
+    // chiphispec §1 — OPS sees every hydrated entry (see loadSources).
+    || actor.role === Role.OPS || row.payerUserId === actor.userId || row.recordedById === actor.userId);
   if (!sources.length) return [];
   const ids = (values: Array<number | null>) => [...new Set(values.filter((value): value is number => value != null))];
   const shipmentIds = ids(sources.map(row => row.shipmentId));
@@ -347,7 +383,10 @@ export async function listExpenseVouchers(actor: Actor, executor: Executor = db)
 
 export async function getExpenseReconciliation(actor: Actor, id: number, executor: Executor = db): Promise<ExpenseReconciliation> {
   if (!isFinance(actor) && actor.role !== Role.OPS) throw new ApiError(403, 'Bạn không có quyền xem bảng hoàn ứng.');
-  const [row] = await executor.select().from(s.expenseReconciliations).where(and(eq(s.expenseReconciliations.id, id), actor.role === Role.OPS ? eq(s.expenseReconciliations.opsUserId, actor.userId) : undefined));
+  // chiphispec §1 — any Ops fills any lot, so the bảng hoàn ứng is no longer
+  // person-scoped for OPS reads; the role 403 and every finance-only action
+  // stand unchanged.
+  const [row] = await executor.select().from(s.expenseReconciliations).where(eq(s.expenseReconciliations.id, id));
   if (!row) throw new ApiError(404, 'Không tìm thấy bảng hoàn ứng.');
   let entries = await executor.select().from(s.expenseAccountingSources).where(eq(s.expenseAccountingSources.reconciliationId, id));
   if (row.voidedAt) {
@@ -381,8 +420,9 @@ export async function getExpenseReconciliation(actor: Actor, id: number, executo
 }
 export async function listExpenseReconciliations(actor: Actor, executor: Executor = db) {
   if (!isFinance(actor) && actor.role !== Role.OPS) throw new ApiError(403, 'Bạn không có quyền xem bảng hoàn ứng.');
+  // chiphispec §1 — reads span every lot for OPS; see getExpenseReconciliation.
   const rows = await executor.select({ id: s.expenseReconciliations.id }).from(s.expenseReconciliations)
-    .where(actor.role === Role.OPS ? eq(s.expenseReconciliations.opsUserId, actor.userId) : undefined).orderBy(desc(s.expenseReconciliations.id));
+    .orderBy(desc(s.expenseReconciliations.id));
   return Promise.all(rows.map(row => getExpenseReconciliation(actor, row.id, executor)));
 }
 
@@ -444,7 +484,19 @@ export async function getExpenseAccountingCatalog(actor: Actor, executor: Execut
   const norms = await executor.select({ code: s.driverFeeNorms.code, label: s.driverFeeNorms.label, amount: s.driverFeeNorms.amount }).from(s.driverFeeNorms)
     .where(eq(s.driverFeeNorms.status, 'ACTIVE')).orderBy(asc(s.driverFeeNorms.code));
   const base = { costGroups: Object.entries(EXPENSE_COST_GROUP_LABELS).map(([code, label]) => ({ code, label })), driverCostSuggestions: norms.map(norm => ({ ...norm, amount: Number(norm.amount) })), opsFeeSuggestions: OPS_EXPENSE_SUGGESTIONS };
-  if (!isFinance(actor)) return { ...base, treasuryAccounts: [], accountants: [], opsUsers: [], truckAssignments: [], advances: [], pendingAdvances: [], carriers: [] };
+  if (!isFinance(actor)) {
+    // chiphispec §1 — an Ops entering lot costs still needs the two payer
+    // catalogs (fellow Ops for "Nhân viên chi", suppliers for "Nhà cung cấp").
+    // Treasury, accountant/staff lists, truck assignments and the advance
+    // queues stay finance-only.
+    if (actor.role !== Role.OPS) return { ...base, treasuryAccounts: [], accountants: [], opsUsers: [], truckAssignments: [], advances: [], pendingAdvances: [], carriers: [] };
+    const opsPeople = await executor.select({ id: s.users.id, name: s.users.fullName, username: s.users.username, role: s.users.role }).from(s.users)
+      .where(and(eq(s.users.role, Role.OPS), eq(s.users.status, 'ACTIVE'), isNull(s.users.deletedAt)));
+    return { ...base, treasuryAccounts: [], accountants: [], staff: [],
+      opsUsers: opsPeople.map(person => ({ id: person.id, name: person.name?.trim() || person.username })),
+      suppliers: await executor.select({ id: s.suppliers.id, name: s.suppliers.name }).from(s.suppliers).where(eq(s.suppliers.status, 'ACTIVE')),
+      truckAssignments: [], advances: [], pendingAdvances: [], carriers: [] };
+  }
   const [treasuryAccounts, people, truckAssignments, advances, awaitingApproval, carriers] = await Promise.all([
     executor.select().from(s.treasuryAccounts).where(eq(s.treasuryAccounts.status, 'ACTIVE')).orderBy(asc(s.treasuryAccounts.name)),
     executor.select({ id: s.users.id, name: s.users.fullName, username: s.users.username, role: s.users.role }).from(s.users)

@@ -1,0 +1,2 @@
+=== cmd: cd frontend && npx tsc -b ===
+exit=0

@@ -37,7 +37,9 @@ export function ShipmentDetailContainers({ containers, assignments }: {
     facts: containerFacts(container, byContainer.get(container.id)),
   }));
   return <section className="shipment-detail__card">
-    <h3 className="shipment-detail__section-title"><Container size={16} /> Containers ({containers.length})</h3>
+    <div className="shipment-detail__section-head">
+      <h3 className="shipment-detail__section-title"><Container size={16} /> Containers ({containers.length})</h3>
+    </div>
     {containers.length === 0 ? <EmptyState variant="compact" context="shipments" title="Chưa có container nào." /> : <>
       <LedgerRecordList rows={rows} />
       <div className="ds-table-scroll ledger-desktop"><table className="shipment-detail__table">

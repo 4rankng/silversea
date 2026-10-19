@@ -257,17 +257,17 @@ export function PenaltyTable({
               <div className="penalty-empty-stats">
                 <div className="penalty-empty-stat">
                   <div className="lbl">Chuỗi an toàn</div>
-                  <div className="val pos">{longestStreak}<span className="u">ngày</span></div>
+                  <div className="val pos">{longestStreak}<span className="u"> ngày</span></div>
                 </div>
                 <div className="penalty-empty-divider" />
                 <div className="penalty-empty-stat">
                   <div className="lbl">Vi phạm YTD</div>
-                  <div className="val">{insights?.ytd.count ?? 0}<span className="u">vụ</span></div>
+                  <div className="val">{insights?.ytd.count ?? 0}<span className="u"> vụ</span></div>
                 </div>
                 <div className="penalty-empty-divider" />
                 <div className="penalty-empty-stat">
                   <div className="lbl">Tiết kiệm phạt</div>
-                  <div className="val pos">~{formatNumber(ytdTotal)}<span className="u">đ</span></div>
+                  <div className="val pos">~{formatNumber(ytdTotal)}<span className="u"> đ</span></div>
                 </div>
               </div>
               <div className="penalty-empty-actions">
@@ -447,7 +447,7 @@ export function PenaltyTable({
                       <td data-label="Chuỗi an toàn">
                         <span className="penalty-streak">
                           <span className="penalty-streak-num">
-                            {d.streakDays}<span className="unit">ngày</span>
+                            {d.streakDays}<span className="unit"> ngày</span>
                           </span>
                           <span className="penalty-streak-bar">
                             <span
@@ -465,7 +465,7 @@ export function PenaltyTable({
                       </td>
                       <td data-label="Phạt YTD" className="num">
                         <span className={`penalty-money ${moneyClass}`}>
-                          {d.fineYtd > 0 ? formatNumber(d.fineYtd) : `0`}<span className="unit">đ</span>
+                          {d.fineYtd > 0 ? formatNumber(d.fineYtd) : `0`}<span className="unit"> đ</span>
                         </span>
                       </td>
                       <td data-label="Mức" className="penalty-scoreboard-col-center">

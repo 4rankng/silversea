@@ -4,10 +4,10 @@
  * override reason as the spec §3.2 "chú thích nhỏ bên dưới"; a lot whose
  * freight came from the snapshot channel carries no note.
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { getBootstrap, listSummary } = vi.hoisted(() => ({
   getBootstrap: vi.fn(), listSummary: vi.fn(),
@@ -142,5 +142,70 @@ describe('F-2 — Cước vận tải (Auto) đọc kênh ghi đè (ruling b)', 
     await screen.findAllByText('BL-S');
     expect(screen.getByText('1.234.000')).toBeTruthy();
     expect(document.querySelector('.shipment-debit-row__freight-note')).toBeNull();
+  });
+});
+
+// BD-01/BD-03 (card 161026204709): the phone row renderer is a separate
+// surface — LedgerRecordList folds every non-primary fact into a closed
+// 'Chi tiết' disclosure — so the lane law must hold there too.
+const originalMedia = window.matchMedia;
+/** jsdom has no viewport media engine; this is the browser API polyfill. */
+function viewport(width: number) {
+  window.matchMedia = (query: string): MediaQueryList => ({
+    matches: width <= Number(query.match(/max-width:\s*(\d+)/)?.[1] ?? 0),
+    media: query, onchange: null, addListener() {}, removeListener() {},
+    addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
+  });
+}
+afterEach(() => { window.matchMedia = originalMedia; });
+
+describe('BD-01 (161026204709) — phone card face keeps the merged 100%/0₫ lane visible', () => {
+  it('renders principal lane price + member 0₫ and reason outside the Chi tiết disclosure', async () => {
+    viewport(390);
+    listSummary.mockResolvedValue({
+      items: [
+        lclRow({
+          shipmentId: 201, billOrBookNumber: 'BL-P', code: 'SHP-26-0201',
+          freightAuto: 3150000, receivableTotal: 3150000,
+          revGroupId: 'rev-1', revGroupOrder: 1, revGroupMemberCount: 2,
+        }),
+        lclRow({
+          shipmentId: 202, billOrBookNumber: 'BL-M', code: 'SHP-26-0202',
+          freightAuto: 0, receivableTotal: 0,
+          revGroupId: 'rev-1', revGroupOrder: 2, revGroupMemberCount: 2,
+          revGroupPrincipalRef: 'BL-P',
+          freightOverrideReason: 'Ghép cước cùng Bill BL-P',
+        }),
+        lclRow({ shipmentId: 203, billOrBookNumber: 'BL-S', code: 'SHP-26-0203', freightAuto: 1234000 }),
+      ],
+      total: 3,
+    });
+    renderPage();
+
+    // Lô 1 = 100% lane price on the card face, no note.
+    const principal = await screen.findByRole('article', { name: 'BL-P' });
+    const principalLane = within(principal).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-record__fact')!;
+    expect(principalLane.closest('details')).toBeNull();
+    expect(principalLane.textContent).toContain('3.150.000');
+
+    // Member = 0₫ + the note under it — both outside the disclosure.
+    const member = await screen.findByRole('article', { name: 'BL-M' });
+    const memberLane = within(member).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-record__fact')!;
+    expect(memberLane.closest('details')).toBeNull();
+    expect(memberLane.textContent).toContain('0');
+    const note = within(memberLane).getByText('Ghép cước cùng Bill BL-P');
+    expect(note.tagName).toBe('SMALL');
+
+    // The disclosure still holds the sibling facts — never the lane.
+    const details = within(member).getByText('Chi tiết').closest('details')!;
+    expect(within(details).queryByText('Cước vận tải (Auto)')).toBeNull();
+    expect(within(details).queryByText('Ghép cước cùng Bill BL-P')).toBeNull();
+
+    // BD-03 control: a snapshot-channel row shows the money, no note.
+    const snap = await screen.findByRole('article', { name: 'BL-S' });
+    const snapLane = within(snap).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-record__fact')!;
+    expect(snapLane.closest('details')).toBeNull();
+    expect(snapLane.textContent).toContain('1.234.000');
+    expect(within(snap).queryByText(/Ghép cước/)).toBeNull();
   });
 });

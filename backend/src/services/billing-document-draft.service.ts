@@ -137,6 +137,9 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
   const containersByTrip = await loadContainersByTrip(tripIds);
   const legsByTrip = await loadLegRenderDataByTrip(tripIds);
   const feesByTrip = await loadApprovedFeesByTrip(tripIds);
+  const { membershipByLot, principalRefByGroup } = await loadRevGroupMergeContext(
+    trips.map((trip) => trip.shipmentId).filter((id): id is number => id != null),
+  );
   // Card 081026104400-511: the configured company rate is the fallback for fee
   // rows with no rate of their own (expense type matching no forwarder-expense-type
   // → LEFT JOIN null). Explicit trip/fee rates still win — they are passed through.
@@ -158,12 +161,18 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     const containerInfo = containersByTrip.get(trip.id) ?? [];
     const containers = containerNumbers(containerInfo);
     const unit = containerUnit(containerInfo);
+    // Spec §II.4: the member lot's 0₫ freight row carries the merge note naming
+    // Lô 1's Bill. Lô 1 (order 1) and every other row kind keep their own note.
+    const revGroup = trip.shipmentId != null ? membershipByLot.get(trip.shipmentId) : undefined;
+    const mergeNote = revGroup && (revGroup.revGroupOrder ?? 1) > 1
+      ? `${REV_GROUP_MERGE_NOTE} ${principalRefByGroup.get(revGroup.revGroupId) ?? ''}`.trim()
+      : null;
     const renderData = buildTripRenderData({
       tripId: trip.id,
       trip,
       containers: containerInfo,
       legs: legsByTrip.get(trip.id),
-      note: trip.notes ?? null,
+      note: mergeNote ?? trip.notes ?? null,
     });
     renderData.deliveryDate = trip.expectedDeliveryDate ?? trip.completionDate ?? null;
     renderData.factoryName = trip.factoryName ?? null;
@@ -362,7 +371,19 @@ async function buildCarrierPaymentLines(carrierId: number, from: string, to: str
   const trips = await db.select({
     id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, departureDate: s.tripsComposite.departureDate,
     externalFreightCost: s.tripsComposite.externalFreightCost, routeName: s.routes.name,
+    notes: s.tripsComposite.notes,
+    truckPlate: s.trucks.licensePlate,
+    externalPlateNumber: s.tripsComposite.externalPlateNumber,
+    // Spec §II.4 (AP side): the contractor statement shows the truck that
+    // actually ran (BKS thực tế) and the loại xe tính cước TRẢ nhà xe — the
+    // mirror of the customer note's BKS báo khách + thu class.
+    actualTruckNo: s.shipments.actualTruckNo,
+    costVehicleClassName: s.vehicleSizeClasses.name,
+    costVehicleClassCode: s.vehicleSizeClasses.code,
   }).from(s.tripsComposite).leftJoin(s.routes, eq(s.tripsComposite.routeId, s.routes.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.tripsComposite.shipmentId))
+    .leftJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.shipments.costVehicleClassId))
     .where(and(
       eq(s.tripsComposite.externalEntityId, carrierId),
       inArray(s.tripsComposite.status, [...BILLABLE_TRIP_STATUSES]),
@@ -372,20 +393,38 @@ async function buildCarrierPaymentLines(carrierId: number, from: string, to: str
       lte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
     )).orderBy(s.tripsComposite.completedAt);
 
-  const containersByTrip = await loadContainersByTrip(trips.map((t) => t.id));
+  const carrierTripIds = trips.map((t) => t.id);
+  const containersByTrip = await loadContainersByTrip(carrierTripIds);
+  const legsByTrip = await loadLegRenderDataByTrip(carrierTripIds);
 
   const lines: BillingDraftLine[] = [];
   let sortOrder = 0;
   for (const trip of trips) {
     const amt = Number(trip.externalFreightCost ?? 0);
     if (amt <= 0) continue;
+    const containers = containersByTrip.get(trip.id) ?? [];
+    const renderData = buildTripRenderData({
+      tripId: trip.id,
+      trip,
+      containers,
+      legs: legsByTrip.get(trip.id),
+      note: trip.notes ?? null,
+    });
+    // buildTripRenderData is AR-first (billing BKS wins). The payable statement
+    // must invert that preference: the truck that actually ran, then the booked
+    // truck's own plate — the virtual billing BKS is for the customer, never for
+    // the contractor paying for the lane (card 171026004332: the same rule the
+    // render-time repair applies to a statement saved before this fix).
+    renderData.truckPlate = trip.actualTruckNo?.trim() || trip.truckPlate || trip.externalPlateNumber || null;
+    renderData.vehicleType = trip.costVehicleClassName ?? trip.costVehicleClassCode ?? null;
     lines.push({
       sourceType: 'TRIP', sourceId: trip.id, lineType: 'FREIGHT',
       description: `Cước thuê ngoài${trip.routeName ? ` — ${trip.routeName}` : ''}`,
       typeLabel: 'Doanh thu',
       unit: 'lần',
       routeName: trip.routeName ?? null,
-      containerNumbers: containerNumbers(containersByTrip.get(trip.id) ?? []),
+      containerNumbers: containerNumbers(containers),
+      renderData,
       baseAmount: amt, amountOverride: null, excluded: false, sortOrder: sortOrder++,
     });
   }
@@ -607,6 +646,52 @@ export async function loadLegRenderDataByTrip(
     }
   }
   return map;
+}
+
+/** Card 161026232439 (spec §II.4): a merged member lot's freight row is 0₫ and
+ *  must cite the merge in the spec wording "Ghép xe cùng Bill [Số Bill Lô 1]".
+ *  Membership and the Lô 1 reference are read from the live rev group (the same
+ *  facts the CUS grid shows); the Lô 1 reference mirrors lcl-grouping's
+ *  lotReference: Bill → booking → mã lô. */
+const REV_GROUP_MERGE_NOTE = 'Ghép xe cùng Bill';
+
+type RevGroupMembership = { revGroupId: string; revGroupOrder: number | null };
+
+async function loadRevGroupMergeContext(lotIds: readonly number[]): Promise<{
+  membershipByLot: Map<number, RevGroupMembership>;
+  principalRefByGroup: Map<string, string>;
+}> {
+  const membershipByLot = new Map<number, RevGroupMembership>();
+  const principalRefByGroup = new Map<string, string>();
+  if (lotIds.length === 0) return { membershipByLot, principalRefByGroup };
+  const lots = await db.select({
+    id: s.shipments.id,
+    revGroupId: s.shipments.revGroupId,
+    revGroupOrder: s.shipments.revGroupOrder,
+  }).from(s.shipments).where(inArray(s.shipments.id, [...lotIds]));
+  for (const lot of lots) {
+    if (lot.revGroupId == null) continue;
+    membershipByLot.set(lot.id, { revGroupId: lot.revGroupId, revGroupOrder: lot.revGroupOrder });
+  }
+  const groupIds = [...new Set([...membershipByLot.values()].map((row) => row.revGroupId))];
+  if (groupIds.length === 0) return { membershipByLot, principalRefByGroup };
+  const principals = await db.select({
+    id: s.shipments.id,
+    revGroupId: s.shipments.revGroupId,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+    shipmentCode: s.shipments.shipmentCode,
+  }).from(s.shipments)
+    .where(and(
+      inArray(s.shipments.revGroupId, groupIds),
+      eq(s.shipments.revGroupOrder, 1),
+      isNull(s.shipments.deletedAt),
+    ));
+  for (const row of principals) {
+    if (row.revGroupId == null || principalRefByGroup.has(row.revGroupId)) continue;
+    principalRefByGroup.set(row.revGroupId, row.blNumber ?? row.bookingRef ?? row.shipmentCode ?? `Lô #${row.id}`);
+  }
+  return { membershipByLot, principalRefByGroup };
 }
 
 async function loadPrimaryDeclarationByShipment(

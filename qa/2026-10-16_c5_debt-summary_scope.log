@@ -1,0 +1,64 @@
+▶ card 20260928_177 — own-vehicle ("Bỏ xe công ty") projection
+  ✔ ticking ON reduces the total by exactly the own-vehicle portion, OFF restores it (0.36875ms)
+  ✔ a customer with no own-vehicle shipment is unchanged by both states (0.545167ms)
+  ✔ every line carries its own-vs-external identity, filtered or not (0.110208ms)
+✔ card 20260928_177 — own-vehicle ("Bỏ xe công ty") projection (1.421166ms)
+▶ card 20260928_177 — projection reads the real ownership column
+  ✔ OWN comes from trip_carrier_info.carrier_type + the own-fleet truck; external from the carrier + cost (78.246583ms)
+✔ card 20260928_177 — projection reads the real ownership column (78.332417ms)
+▶ LCL grouping — FB-092 cost dimension
+  ✔ assigns order 1..N, auto-copies billing BKS, and zeroes members 2..N freight (FB092-03/05) (85.511042ms)
+  ✔ blocks an internal-fleet BKS on a truck-tonnage class, allows it on a container class (FB092-04) (19.355625ms)
+  ✔ rejects mixed-cargo groups, single-lot groups and re-grouping without un-merge (FB092-06) (16.321416ms)
+✔ LCL grouping — FB-092 cost dimension (121.653709ms)
+▶ LCL grouping — FB-093 rev dimension
+  ✔ prices the principal AUTO from the class lane, zeroes members with the Bill note (FB-093) (29.545375ms)
+  ✔ blocks merging lots of different customers (FB-093) (6.717667ms)
+✔ LCL grouping — FB-093 rev dimension (36.421584ms)
+▶ LCL grouping — FB-093 debit-summary projection
+  ✔ rows carry cargoMode, both group facts, plates, class codes and the principal ref (221.001959ms)
+✔ LCL grouping — FB-093 debit-summary projection (221.122041ms)
+▶ F-2 (card 161026113900) — money boards read the override channel (ruling b)
+  ✔ CUS board: principal reads the lane price, member 0₫ + reason note (F2-01) (32.8275ms)
+  ✔ accounting board: thu.cuocThu follows the group law, phuPs stays snapshot (F2-02) (31.560333ms)
+  ✔ un-merge keeps both boards on the override channel via the stamp (F2-03) (50.33175ms)
+  ✔ ungrouped, un-overridden lots keep the snapshot channel byte-for-byte (F2-04) (22.125708ms)
+  ✔ an override-stamped FCL lot stays on the snapshot channel (F2-05 BE) (21.12875ms)
+✔ F-2 (card 161026113900) — money boards read the override channel (ruling b) (158.212541ms)
+▶ 161026204709 (TC-A12) — merged-but-undispatched LCL lots materialize the merge money
+  ✔ CUS board: principal = lane price, member = 0₫ + group note (A12-01) (21.553666ms)
+  ✔ accounting board: thu.cuocThu follows the same law (A12-02) (41.520375ms)
+  ✔ un-merge transfers the merge snapshot money to the survivor (A12-03) (42.335083ms)
+  ✔ a trip-less member leaving keeps its cited zero as stale-priced (A12-04) (33.6785ms)
+  ✔ lane miss keeps the principal MANUAL/blank, member still 0₫ (A12-05) (17.623917ms)
+✔ 161026204709 (TC-A12) — merged-but-undispatched LCL lots materialize the merge money (157.004916ms)
+▶ LCL grouping — FB-094 debit note + board
+  ✔ the debit note prints billing_truck_no, never the actual plate (0.182291ms)
+  ✔ the debit note names the thu billing class as loại xe (FB094-01b) (0.077541ms)
+  ✔ the accounting debit board carries the LCL label, plates and principal ref (35.261125ms)
+✔ LCL grouping — FB-094 debit note + board (35.621042ms)
+▶ LCL grouping — FB-095 un-merge safety
+  ✔ un-merging Lô 1 (COST) promotes Lô 2 with 100% of the freight (FB095-01) (36.094833ms)
+  ✔ un-merging Lô 1 (REV) transfers the bill money and dissolves a 2-lot group (FB095-02) (23.6845ms)
+  ✔ the lone survivor of a dissolved group keeps its vehicle class (QA C-1) (31.269416ms)
+  ✔ a member leaving a 2-lot group dissolves it — survivor ungrouped, keeps class, re-merge OK (QA C-2) (24.304667ms)
+  ✔ a middle member leaving a 3-lot group renumbers survivors contiguously — response = DB (QA C-2) (19.938416ms)
+  ✔ a settled group refuses un-merge — an active accounting lock freezes it (FB095-03) (16.964875ms)
+  ✔ a member leaving moves no money; renumbering + REV zero re-stamp apply (FB095-04) (43.904209ms)
+  ✔ refuses to orphan the freight: promotee without a live trip blocks Lô 1 exit (FB095-05) (14.8315ms)
+  ✔ deleting Lô 1 promotes the survivor inside the delete transaction (FB095-06) (21.343959ms)
+✔ LCL grouping — FB-095 un-merge safety (232.674ms)
+▶ C5 (card 1016212936) — the customer debt report reads the same override channel
+  ✔ C5-01: the debt line cước thu equals the CUS board figure for the merged pair (100%/0₫ + note) (24.4255ms)
+  ✔ C5-02: an ungrouped, un-overridden LCL lot keeps the snapshot grain byte-for-byte (7.520375ms)
+  ✔ C5-03: an override-stamped FCL lot keeps the snapshot channel (LCL-only scope) (6.758ms)
+  ✔ C5-04: after an FB-095 un-merge the stamped survivor keeps 100%, the leaver reads 0₫ + the transfer note (23.450625ms)
+✔ C5 (card 1016212936) — the customer debt report reads the same override channel (62.312583ms)
+ℹ tests 36
+ℹ suites 10
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32349.181917

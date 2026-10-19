@@ -101,6 +101,38 @@ describe('useDispatchMasterPlan zone truck presence', () => {
     expect(result.current.page).toBe(2);
   });
 
+  it('sends the Loại hàng pick server-side, narrows the loaded rows through the checkbox predicate, and restarts at page 1 (card 171026154000)', async () => {
+    const flagLcl = { id: 31, blNumber: 'BL-FLAG-31', cargoMode: 'FCL', hasActiveLclShipment: true } as ShipmentListItem;
+    const modeLcl = { id: 32, blNumber: 'BL-MODE-32', cargoMode: 'LCL', hasActiveLclShipment: undefined } as ShipmentListItem;
+    const cont = { id: 33, blNumber: 'BL-CONT-33', cargoMode: 'FCL', hasActiveLclShipment: false } as ShipmentListItem;
+    // Current-shape payload: the boolean flag is authoritative even when it
+    // contradicts cargoMode — the chip counts the fulfillment, not the label.
+    const deniedLcl = { id: 34, blNumber: 'BL-DENIED-34', cargoMode: 'LCL', hasActiveLclShipment: false } as ShipmentListItem;
+    listShipmentsMock.mockResolvedValue({ items: [flagLcl, modeLcl, cont, deniedLcl], total: 4, page: 1, limit: 20 });
+    const { result } = renderHook(() => useDispatchMasterPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.items.map((item) => item.id)).toEqual([31, 32, 33, 34]);
+
+    // The pick rides the wire so the scope reaches across every page.
+    act(() => result.current.updateFilters({ cargoMode: 'LCL' }));
+    expect(listShipmentsMock).toHaveBeenLastCalledWith(expect.objectContaining({ cargoMode: 'LCL', page: 1 }));
+    // Locally the view keeps exactly the rows that render a CHỌN LÔ checkbox:
+    // the flag fact wins; without a flag the cargoMode fallback applies.
+    expect(result.current.items.map((item) => item.id)).toEqual([31, 32]);
+
+    // The complement is exhaustive: a cont pick keeps everything that is not
+    // a checkbox row — including a lot labeled LCL that the chip does not
+    // count (no active fulfillment → no carrier channel to write).
+    act(() => result.current.updateFilters({ cargoMode: 'FCL' }));
+    expect(listShipmentsMock).toHaveBeenLastCalledWith(expect.objectContaining({ cargoMode: 'FCL' }));
+    expect(result.current.items.map((item) => item.id)).toEqual([33, 34]);
+
+    // '' (Tất cả) never reaches the wire and restores the full loaded page.
+    act(() => result.current.updateFilters({ cargoMode: '' }));
+    expect(listShipmentsMock).toHaveBeenLastCalledWith(expect.not.objectContaining({ cargoMode: expect.anything() }));
+    expect(result.current.items.map((item) => item.id)).toEqual([31, 32, 33, 34]);
+  });
+
   it('keeps the master grid mounted during refresh and shows loading for changed filters (DSP-FU-001)', async () => {
     const { result } = renderHook(() => useDispatchMasterPlan());
     await waitFor(() => expect(result.current.loading).toBe(false));

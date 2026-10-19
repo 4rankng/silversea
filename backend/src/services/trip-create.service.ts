@@ -18,7 +18,7 @@ import type { Tx } from './trip-shared';
 import { assertCreditLimit, consumeShipmentCreditOverride, recordTripCreditException, type DirectCreditException } from './credit-limit.service';
 import { buildCopiedTripValues, buildCopiedTripLegValues } from './trip-mutations-shared.service';
 import { getTripCompositeInTx, insertTripComposite } from './trip-composite.service';
-import { assertTripRigAvailable } from './dispatch-planning-detail-plan.service';
+import { assertTripRigAvailable } from './dispatch-plan-conflict-scan.service';
 
 /**
  * M2.3: Build the full visible pricing formula: freight + VAT.

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
+import { NumberField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -33,7 +34,15 @@ function TierForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
         <Field label="Đến (kg)"><input className="input" value={maxKg} onChange={e => setMaxKg(e.target.value)} placeholder="20000" /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Giá/kg (₫)"><input className="input" value={pricePerKg} onChange={e => setPricePerKg(e.target.value)} placeholder="4500" /></Field>
+        {/* §1 money format: grouped display ("4.500"), typed free; the save
+            payload keeps its string shape. */}
+        <NumberField
+          label="Giá/kg (₫)"
+          grouped
+          value={pricePerKg === '' ? '' : Number(pricePerKg)}
+          onChange={(n) => setPricePerKg(n === '' ? '' : String(n))}
+          placeholder="4.500"
+        />
       </div>
       <FormActions saving={saving} isedit={!!item} oncancel={oncancel} ondelete={onDelete} deleting={deleting} onsave={() => {
         if (!maxKg.trim() || !pricePerKg.trim()) return;

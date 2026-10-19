@@ -95,8 +95,13 @@ p, CUS, customer_portal, read
 // ADMIN is wildcard (line 1). MANAGER gets full CRUD; ACCOUNTANT gets read
 // (accountants view shipments for debit-note work but do not mutate them);
 // CUS rows above were added in the earlier Wave 0 roles slice.
-// CUSTOMER/DRIVER/OPS are deliberately absent — they have no shipments
-// access (the customer portal ships its own row-scoped surface in Wave 2).
+// CUSTOMER/DRIVER are deliberately absent — they have no shipments access;
+// the customer portal ships its own row-scoped surface in Wave 2. OPS got
+// READ on 2026-10-17 per ticket 141026230710 and spec T3 — mọi Ops khai chi
+// phí mọi lô và /shipments là màn xem lô của Ops. Every shipments write
+// stays office-only. Casbin parses every line of this file — a comment line
+// with unbalanced parentheses dies with "Unmatched brackets"; keep parens
+// balanced or absent on each line.
 p, MANAGER, shipments, read
 p, MANAGER, shipments, write
 p, MANAGER, shipments, delete
@@ -104,6 +109,7 @@ p, ACCOUNTANT, shipments, read
 p, ACCOUNTANT, shipments, write
 p, DISPATCHER, shipments, read
 p, DISPATCHER, shipments, write
+p, OPS, shipments, read
 // Dispatch workflow uses separate resources so broad shipment access cannot
 // accidentally authorize dispatch, driver execution, or e-POD review.
 p, MANAGER, shipment_fulfillments, read

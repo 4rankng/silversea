@@ -92,6 +92,7 @@ const driver = (overrides: Partial<Driver> = {}): Driver => ({
   bankName: null,
   bankAccount: null,
   salaryType: null,
+  salaryMode: 'PER_TRIP',
   status: DriverStatus.ACTIVE,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',

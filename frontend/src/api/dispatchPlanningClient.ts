@@ -219,6 +219,14 @@ export async function assignLclCostGroup(input: {
   vehicleSizeClassId: number;
   actualTruckNo: string;
   billingTruckNo?: string;
+  /** SPEC 18/10/2026 §2.3 — per-lot BKS báo khách; wins over the group value. */
+  billingTruckNos?: Array<{ shipmentId: number; billingTruckNo: string }>;
+  /** 161026232309 — the group's nhà xe (customers.isCarrier). */
+  carrierId?: number;
+  /** 161026232309 — OWN = Đội xe nội bộ SilverSea (container classes). */
+  carrierType?: 'OWN' | 'EXTERNAL';
+  /** 161026232319 — Điều vận nhập tay cước trả ĐV của Lô 1 (VND). */
+  freightCost?: number;
 }) {
   return api.post<{ groupId: string; memberCount: number; members: Array<{ shipmentId: number; order: number; reference: string }> }>(
     SHIPMENTS.LCL_COST_GROUP,
@@ -243,6 +251,23 @@ export async function updateLclTruck(input: { shipmentId: number; actualTruckNo?
   return api.post<{ updatedShipmentIds: number[] }>(SHIPMENTS.LCL_TRUCK, input);
 }
 
+/**
+ * 161026232349 (§II.3.2 "Thu riêng từng lô") — CUS picks the thu vehicle class
+ * for ONE ungrouped LCL lot. The lot's CƯỚC VẬN TẢI (AUTO) jumps to 100% of
+ * that class' customer × route price lane; `freightAuto` comes back null
+ * (never 0) when the lane has no price row — the class still saves.
+ */
+export async function setLclLotRevClass(input: { shipmentId: number; vehicleSizeClassId: number }) {
+  return api.post<{
+    shipmentId: number;
+    reference: string;
+    vehicleSizeClassId: number;
+    vehicleClassCode: string;
+    freightAuto: string | null;
+    channel: 'TRIP' | 'SNAPSHOT' | 'NONE';
+    reason: string | null;
+  }>('/shipments/lcl/rev-class', input);
+}
 /** FB-095 — un-merge one lot from a group dimension. */
 export async function unmergeLclLot(input: { shipmentId: number; dimension: 'COST' | 'REV' }) {
   return api.post<{
@@ -289,6 +314,17 @@ export interface DispatchDetailPlanRow {
    *  lines and its cost-group tag/truck identity. Absent on older fixtures
    *  and on FCL rows. */
   lcl?: LclRowFacts | null;
+  /** FB-105 §3 LCL lift/drop inputs — an LCL lot owns no container, so its
+   *  Nâng/Trả columns resolve from these instead of `ports` (which stay the FCL
+   *  container port pair): the frozen "Kho (CFS/Cảng)" intake site plus the
+   *  lot's stored free-text lift/drop points, which back a side whose catalog
+   *  site was never picked. Optional for older wire shapes; FCL rows do not
+   *  read it. */
+  liftDrop?: {
+    warehouseName: string | null;
+    liftFallback: string | null;
+    dropFallback: string | null;
+  } | null;
   notes: { vehicleNote: string | null; customerNote: string | null; opsRecoveryNotes?: string[] };
   dispatch: {
     /** Present once the dispatch order has created a live trip. */
@@ -333,6 +369,8 @@ export interface DispatchDetailPlanFilters {
   /** Zone code from the DB taxonomy (GET /dispatch-zones). */
   zone?: string;
   customerId?: number | null; dataStatus?: 'COMPLETE' | 'MISSING' | ''; // card _50 ribbon
+  /** Card 171026154000: lot cargo mode (Loại hàng) — LCL/FCL scope. */
+  cargoMode?: 'FCL' | 'LCL' | '';
 }
 
 /** Chip counts of the detail plan grid (card 20261008_3) — full-set over the

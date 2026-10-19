@@ -29,6 +29,7 @@ export {
   TRADE_DIRECTION_LABELS,
   TRUCK_CAP_ROLE_LABELS,
   FINANCIAL_ROLES, isFinancialRole,
+  SHIPMENT_INTAKE_MUTATION_ROLES,
   TIRES,
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
   LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS, lclVehicleSourcingRule,
@@ -94,6 +95,7 @@ export type { ShipmentInvoiceRecordInput, ContainerDepositInput } from './schema
 export {
   assignLclCostGroupSchema,
   mergeLclRevGroupSchema,
+  setLclLotRevClassSchema,
   unmergeLclLotSchema,
   unmergeLclGroupSchema,
   updateLclTruckSchema,
@@ -102,6 +104,7 @@ export {
 export type {
   AssignLclCostGroupInput,
   MergeLclRevGroupInput,
+  SetLclLotRevClassInput,
   UnmergeLclLotInput,
   UnmergeLclGroupInput,
   UpdateLclTruckInput,
@@ -157,6 +160,7 @@ export {
   createAdvanceRequestSchema, createAdvanceSettlementSchema, advanceMutationVersionSchema, updateAdvanceSettlementSchema,
   upsertTripInstructionsSchema,
   createShipmentSchema, quickCreateShipmentSchema, updateShipmentSchema, transitionShipmentStatusSchema,
+  CREATE_SHIPMENT_KEYS, QUICK_CREATE_SHIPMENT_KEYS,
   attachShipmentDocumentSchema, shipmentContainerBatchSchema, dispatchShipmentSchema,
   operationalSiteSchema, operationalSiteUpdateSchema, decomposeShipmentFulfillmentsSchema,
   submitShipmentForDispatchSchema, assignShipmentCarriersSchema, shipmentCarrierAllocationSchema,
