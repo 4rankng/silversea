@@ -1,16 +1,17 @@
-// Card 191026160000 — rung-3 AFTER drive over the local stack (:7178/:3003).
+// Card 191026160000 — rung-3 AFTER drive over the dev-port contract stack
+// (:7175/:3002; QA_BASE/QA_API override).
 // Covers: §2a bounded board + working select-all; §2c selected-row accent +
 // tick; §2d per-date ticks in the Chọn Debit dialog (untick shrinks the đợt);
 // §2e export refusal surfaces verbatim (mixed-customer selection) and the
 // selection survives a real chốt đợt; §3b DUYỆT PHIẾU HOÀN ỨNG (settlement
 // PT-2610-0001 seeded via the real service path); §3c Chi phí Ops duyệt axis.
-import { login, launch, makeLogger, tokenPage, sleep } from './2026-10-19_chiphi2b-lib.mjs';
+import { login, launch, makeLogger, tokenPage, sleep, BASE, API } from './2026-10-19_chiphi2b-lib.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
 const log = makeLogger('2026-10-19_chiphi2-b_after');
 
 const api = async (token, path, init = {}) => {
-  const res = await fetch(`http://localhost:3003/api${path}`, {
+  const res = await fetch(`${API}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
   });
@@ -24,7 +25,7 @@ const browser = await launch();
 const domFacts = {};
 try {
   // ════ §2a/§2c — bounded board + select-all + highlight ════
-  const page = await tokenPage(browser, kt, 'http://localhost:7178/accounting/chot-debit');
+  const page = await tokenPage(browser, kt, `${BASE}/accounting/chot-debit`);
   await sleep(5000);
   const board = await page.evaluate(() => ({
     selectAllLabel: [...document.querySelectorAll('button')].map((b) => b.textContent.trim()).find((t) => t.includes('Chọn tất cả')) ?? null,
@@ -186,7 +187,7 @@ try {
   const target = (before.body?.items ?? []).find((x) => x.code === 'PT-2610-0001');
   log(`§3b target settlement: ${JSON.stringify({ id: target?.id, checkedBy: target?.checkedBy, version: target?.version })}`);
 
-  const page2 = await tokenPage(browser, kt, 'http://localhost:7178/advances?view=settlements');
+  const page2 = await tokenPage(browser, kt, `${BASE}/advances?view=settlements`);
   await sleep(3000);
   const duyệtState = await page2.evaluate(() => {
     const text = document.body.innerText;
@@ -219,7 +220,7 @@ try {
   await page2.close();
 
   // ════ §3c — Chi phí Ops duyệt axis ════
-  const page3 = await tokenPage(browser, kt, 'http://localhost:7178/advances?view=ops-expenses');
+  const page3 = await tokenPage(browser, kt, `${BASE}/advances?view=ops-expenses`);
   await sleep(3000);
   const opsState = await page3.evaluate(() => {
     const text = document.body.innerText;

@@ -1,14 +1,14 @@
 // Card 191026160000 (3a verify) — /advances tab "Yêu cầu tạm ứng" as ketoan:
 // the PENDING row created by Ops (id 7575) must show PHÊ DUYỆT TẠM ỨNG; click it
 // and verify the row becomes Đã ghi nhận (approve = giải ngân, KP-148).
-import { login, launch, makeLogger, tokenPage, sleep } from './2026-10-19_chiphi2b-lib.mjs';
+import { login, launch, makeLogger, tokenPage, sleep, BASE } from './2026-10-19_chiphi2b-lib.mjs';
 
 const log = makeLogger('2026-10-19_chiphi2-b_repro/advances-before');
 const token = await login('ketoan');
 log('login ketoan OK');
 const browser = await launch();
 try {
-  const page = await tokenPage(browser, token, 'http://localhost:7178/advances?view=requests');
+  const page = await tokenPage(browser, token, `${BASE}/advances?view=requests`);
   await sleep(2500);
   await log.shot(page, '01-advances-requests.png');
   const state = await page.evaluate(() => {

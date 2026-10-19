@@ -1,7 +1,7 @@
 // Card 191026160000 (2a/2b/2c/2e repro) — /accounting/chot-debit as ketoan.
 // Step 1: load page with a NARROW date range set before the board renders, so
 // the drive is deterministic and fast on the shared dev DB.
-import { login, launch, makeLogger, tokenPage, clickButtonByText, sleep } from './2026-10-19_chiphi2b-lib.mjs';
+import { login, launch, makeLogger, tokenPage, clickButtonByText, sleep, BASE } from './2026-10-19_chiphi2b-lib.mjs';
 
 const log = makeLogger('2026-10-19_chiphi2-b_repro/debit-before');
 
@@ -9,7 +9,7 @@ const token = await login('ketoan');
 log('login ketoan OK');
 const browser = await launch();
 try {
-  const page = await tokenPage(browser, token, 'http://localhost:7178/accounting/chot-debit');
+  const page = await tokenPage(browser, token, `${BASE}/accounting/chot-debit`);
   log('page loaded, waiting for first paint…');
   await sleep(8000); // 8864-row initial board paint on the shared dev DB
   log(`URL: ${page.url()}`);
