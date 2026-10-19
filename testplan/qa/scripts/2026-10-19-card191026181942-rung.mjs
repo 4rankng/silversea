@@ -26,6 +26,21 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const step = (s, o = {}) => console.log(JSON.stringify({ at: new Date().toISOString(), step: s, ...o }));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Mount waits instead of fixed sleeps alone (rb1 re-run 2026-10-19): the
+// chốt-debit board renders ~8.8k rows × two surfaces in dev mode, and a cold
+// vite module graph + loaded machine stretched the old 3.5 s settle past the
+// mount — every KT4/KT8 probe then read an unmounted page. Same assertions,
+// explicit readiness: poll a DOM predicate until true or timeout (false lets
+// the existing record() branches report the miss instead of throwing).
+async function waitFor(page, predicate, timeoutMs = 60000, everyMs = 500) {
+  const t0 = Date.now();
+  for (;;) {
+    const ok = await page.evaluate(predicate).catch(() => false);
+    if (ok) return true;
+    if (Date.now() - t0 > timeoutMs) return false;
+    await sleep(everyMs);
+  }
+}
 let exitCode = 0;
 const record = (id, pass, detail) => { if (!pass) exitCode = 1; step('RESULT', { id, pass, detail }); };
 
@@ -53,14 +68,17 @@ try {
   //   is populated. Narrow the grid through the search box (the page's q is
   //   component state, not a URL param).
   await dvPage.goto(`${BASE}/dispatch`, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+  await waitFor(dvPage, () => Boolean(document.querySelector('[aria-label="Tìm kiếm lô hàng"]')), 60000);
   await sleep(3000);
   await dvPage.type('[aria-label="Tìm kiếm lô hàng"]', 'FB107-9A7A2E-IMP');
   await sleep(1500);
+  await waitFor(dvPage, () => Boolean(document.querySelector('button[aria-label="Chỉnh sửa phân bổ nhà xe"]')), 30000);
   const trigger = await dvPage.evaluateHandle(() => document.querySelector('button[aria-label="Chỉnh sửa phân bổ nhà xe"]'));
   if (!trigger || !(await trigger.asElement())) {
     record('DV3-open-lcl', false, 'allocation trigger not found on the LCL row');
   } else {
     await trigger.asElement().click();
+    await waitFor(dvPage, () => Boolean(document.querySelector('.dispatch-allocation-popover')), 20000);
     await sleep(1200);
     const lclDialog = await dvPage.evaluate(() => {
       const dialog = document.querySelector('.dispatch-allocation-popover');
@@ -114,12 +132,15 @@ try {
 
   // — A3: the FCL lot keeps the cont field-set.
   await dvPage.goto(`${BASE}/dispatch`, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+  await waitFor(dvPage, () => Boolean(document.querySelector('[aria-label="Tìm kiếm lô hàng"]')), 60000);
   await sleep(3000);
   await dvPage.type('[aria-label="Tìm kiếm lô hàng"]', 'T8BOOK-1792402300379-a4ma0m-7');
   await sleep(1500);
+  await waitFor(dvPage, () => Boolean(document.querySelector('button[aria-label="Chỉnh sửa phân bổ nhà xe"]')), 30000);
   const fclTrigger = await dvPage.evaluateHandle(() => document.querySelector('button[aria-label="Chỉnh sửa phân bổ nhà xe"]'));
   if (fclTrigger && (await fclTrigger.asElement())) {
     await fclTrigger.asElement().click();
+    await waitFor(dvPage, () => Boolean(document.querySelector('.dispatch-allocation-popover')), 20000);
     await sleep(1200);
     const fclDialog = await dvPage.evaluate(() => {
       const dialog = document.querySelector('.dispatch-allocation-popover');
@@ -148,7 +169,10 @@ try {
   await ktPage.evaluateOnNewDocument((t) => localStorage.setItem('token', t), ktToken);
 
   await ktPage.goto(`${BASE}/accounting/chot-debit?from=2026-03-09&to=2026-03-13`, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
-  await sleep(3500);
+  // Board mount first (heavy dev render), then a short settle — never probe an
+  // unmounted page again.
+  await waitFor(ktPage, () => Boolean(document.querySelector('.debit-board')), 180000);
+  await sleep(800);
   const defaultBoard = await ktPage.evaluate(() => {
     const board = [...document.querySelectorAll('.debit-board')].pop();
     const headers = [...(board?.querySelectorAll('thead th') ?? [])]
@@ -189,6 +213,7 @@ try {
     return true;
   });
   await sleep(700);
+  if (pickerOpened) await waitFor(ktPage, () => Boolean(document.querySelector('[role="dialog"][aria-label="Cột hiển thị"]')), 20000);
   const toggled = await ktPage.evaluate(() => {
     const dialog = document.querySelector('[role="dialog"][aria-label="Cột hiển thị"]');
     if (!dialog) return { ok: false, reason: 'picker dialog not open' };
@@ -216,7 +241,8 @@ try {
 
   // Reload: the stored choice must survive (per-workstation memory).
   await ktPage.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
-  await sleep(3500);
+  await waitFor(ktPage, () => Boolean(document.querySelector('.debit-board')), 180000);
+  await sleep(800);
   const afterReload = await ktPage.evaluate(() => {
     const board = [...document.querySelectorAll('.debit-board')].pop();
     return {
