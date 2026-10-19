@@ -93,18 +93,28 @@ describe('DUYỆT PHIẾU HOÀN ỨNG (card 191026160000 §3b)', () => {
     );
 
     // A stale version refuses through the shared optimistic-lock guard.
-    const [second] = await db.insert(s.users).values({ username: `chk-kt2-${suffix}`, passwordHash: 'test', role: Role.ACCOUNTANT, status: 'ACTIVE' }).returning();
+    const [second] = await db.insert(s.users).values({ username: `chk-kt2-${suffix}`, passwordHash: 'test', role: Role.ACCOUNTANT, status: 'ACTIVE', fullName: `KT Hai ${suffix}` }).returning();
     cleanup.userIds.push(second.id);
     await assert.rejects(
       () => checkAdvanceSettlement(created.id, { expectedVersion: created.version, actorId: second.id }),
       (error: unknown) => error instanceof AdvanceError && error.status === 409,
     );
 
-    // Legacy Option-B row (checked_by = submitter) is re-duyệt-able: the old
-    // stamp named no accountant, so the act stays available.
-    const [legacy] = await db.select().from(s.advanceSettlements).where(eq(s.advanceSettlements.id, created.id));
-    assert.equal(legacy.checkedBy, kt.id);
+    // Review F3 — same-actor double-submit is refused even in the legacy
+    // signature (checked_by = the forwarder's own id): a duyệt by an
+    // accountant who IS the phiếu's forwarder leaves checked_by ===
+    // forwarder_id, which guard 1 cannot distinguish from the legacy stamp —
+    // guard 2 refuses the SAME actor's repeated clicks so the row cannot loop
+    // version bumps + notifications forever.
     await db.update(s.advanceSettlements).set({ checkedBy: ops.id, checkedAt: new Date() }).where(eq(s.advanceSettlements.id, created.id));
+    await assert.rejects(
+      () => checkAdvanceSettlement(created.id, { actorId: ops.id }),
+      (error: unknown) => error instanceof AdvanceError && error.status === 409
+        && /Bạn đã duyệt phiếu này rồi/.test(error.message),
+    );
+
+    // A DIFFERENT accountant may still take the legacy/pathological stamp
+    // over — exactly once (their duyệt is then terminal by guard 1).
     const rechecked = await checkAdvanceSettlement(created.id, { actorId: second.id });
     assert.equal(rechecked.checkedBy, second.id, 'a submitter-stamped legacy row re-opens for kế toán duyệt');
   });

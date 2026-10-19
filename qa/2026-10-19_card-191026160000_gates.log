@@ -45,3 +45,10 @@ $ make build → exit 0 (see below re-run)
 dist/assets/exceljs.min-CcmEv2LI.js                      940.20 kB │ gzip: 271.34 kB
 ✓ built in 6.33s
 build exit=0
+== Fixup round 2 (review F3/F6 + CP2-D3/D4 timeout root fix) — 2026-10-19T12:46:41Z ==
+$ pnpm lint → 0
+$ be tsc --noEmit → 0
+$ fe tsc -b → 0 (16.5s)
+$ fe vitest touched suites → 230/230 (incl. AccountingDebitClosePage.chiphi2 4/4 ×4 stability runs)
+$ be advance-settlement-check → 1/1 (same-actor guard pinned); advance-settlement-deadlock-order → 2/2
+$ make build → 0
