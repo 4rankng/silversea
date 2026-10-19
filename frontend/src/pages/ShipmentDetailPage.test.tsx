@@ -884,11 +884,13 @@ describe('ShipmentDetailPage', () => {
     );
   });
 
-  // ── FB-107 (card 171026115820): Nơi nhận / Nơi giao show the real points ──
+  // ── FB-107 (card 171026115820): the rows are Nâng / Hạ, the real points ──
   // Both rows used to render the dormant pickup_location/delivery_location
-  // columns, which every form-created lot leaves empty — so both read '—'.
-  // The values now come from the one shared rule (`resolveLiftDropPoints`).
-  describe('Nơi nhận / Nơi giao (FB-107)', () => {
+  // columns under the vague 'Nơi nhận'/'Nơi giao' labels, which every
+  // form-created lot leaves empty — so both read '—'. The card asked for the
+  // operation's own words: 'Nâng' (điểm lấy/nâng hàng) and 'Hạ' (điểm hạ/trả
+  // hàng). The values come from the one shared rule (`resolveLiftDropPoints`).
+  describe('Nâng / Hạ (FB-107)', () => {
     function fieldValue(label: string): string | null {
       const dt = screen.getByText(label);
       return dt.nextElementSibling?.textContent ?? null;
@@ -906,6 +908,17 @@ describe('ShipmentDetailPage', () => {
       );
     }
 
+    it("labels the two rows Nâng / Hạ — the card dropped 'Nơi nhận'/'Nơi giao'", async () => {
+      currentUser.role = Role.ADMIN;
+      renderLot();
+      await screen.findByText('Khách hàng');
+      // The card's whole ask: the operation's own words replace the vague pair.
+      expect(screen.getByText('Nâng').tagName).toBe('DT');
+      expect(screen.getByText('Hạ').tagName).toBe('DT');
+      expect(screen.queryByText('Nơi nhận')).toBeNull();
+      expect(screen.queryByText('Nơi giao')).toBeNull();
+    });
+
     it('FCL: names the container ports, never direction-swapped, joining several points', async () => {
       currentUser.role = Role.ADMIN;
       getShipmentDetailMock.mockResolvedValue({
@@ -919,8 +932,8 @@ describe('ShipmentDetailPage', () => {
       });
       renderLot();
       await screen.findByText('Containers (2)');
-      expect(fieldValue('Nơi nhận')).toBe('Cảng nâng A');
-      expect(fieldValue('Nơi giao')).toBe('Cảng hạ B · Cảng hạ C');
+      expect(fieldValue('Nâng')).toBe('Cảng nâng A');
+      expect(fieldValue('Hạ')).toBe('Cảng hạ B · Cảng hạ C');
     });
 
     it('LCL Nhập: Nâng = Kho lấy hàng (CFS), Hạ = Nhà máy', async () => {
@@ -941,8 +954,8 @@ describe('ShipmentDetailPage', () => {
       });
       renderLot();
       await screen.findByText('Containers (0)');
-      expect(fieldValue('Nơi nhận')).toBe('Kho ICD Hà Nội');
-      expect(fieldValue('Nơi giao')).toBe('Nhà máy Long Minh');
+      expect(fieldValue('Nâng')).toBe('Kho ICD Hà Nội');
+      expect(fieldValue('Hạ')).toBe('Nhà máy Long Minh');
     });
 
     it('LCL Xuất: the two sides swap — Nâng = Nhà máy, Hạ = Kho trả hàng', async () => {
@@ -963,8 +976,8 @@ describe('ShipmentDetailPage', () => {
       });
       renderLot();
       await screen.findByText('Containers (0)');
-      expect(fieldValue('Nơi nhận')).toBe('Nhà máy Long Minh');
-      expect(fieldValue('Nơi giao')).toBe('Kho ICD Hà Nội');
+      expect(fieldValue('Nâng')).toBe('Nhà máy Long Minh');
+      expect(fieldValue('Hạ')).toBe('Kho ICD Hà Nội');
     });
 
     it('falls back to the stored free text when a side was never picked', async () => {
@@ -986,8 +999,8 @@ describe('ShipmentDetailPage', () => {
       });
       renderLot();
       await screen.findByText('Containers (0)');
-      expect(fieldValue('Nơi nhận')).toBe('—');
-      expect(fieldValue('Nơi giao')).toBe('Nhà máy không catalog');
+      expect(fieldValue('Nâng')).toBe('—');
+      expect(fieldValue('Hạ')).toBe('Nhà máy không catalog');
     });
   });
 });

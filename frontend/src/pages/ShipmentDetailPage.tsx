@@ -334,8 +334,8 @@ export default function ShipmentDetailPage() {
             <div><dt>Khách hàng</dt><dd>{customerLabel}</dd></div>
             <div><dt>Mã đặt chỗ</dt><dd>{shipment.bookingRef ?? '—'}</dd></div>
             <div><dt>Số B/L</dt><dd>{shipment.blNumber ?? '—'}</dd></div>
-            <div><dt>Nơi nhận</dt><dd>{liftDropPoints.lift ?? '—'}</dd></div>
-            <div><dt>Nơi giao</dt><dd>{liftDropPoints.drop ?? '—'}</dd></div>
+            <div><dt>Nâng</dt><dd>{liftDropPoints.lift ?? '—'}</dd></div>
+            <div><dt>Hạ</dt><dd>{liftDropPoints.drop ?? '—'}</dd></div>
             <div><dt>Liên hệ</dt><dd>{shipment.contactName ?? '—'}{shipment.contactPhone ? ` · ${shipment.contactPhone}` : ''}</dd></div>
             <div><dt>Ngày tạo</dt><dd>{formatDateTime(shipment.createdAt)}</dd></div>
             <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>

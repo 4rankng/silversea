@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-17 (chiều) — fix(fb-107): portal Chi tiết lô 2 dòng Nâng/Hạ hết '—'
+
+Card 171026115820 (P2) — phần portal còn lại của FB-107: `/portal/shipments/:id`
+vẫn bind 2 cột dormant `pickup_location`/`delivery_location` → 2 dòng trống với
+lô FCL và lô tạo trước FB-105 (trang nội bộ đã đổi nhãn Nâng/Hạ ở đợt 17/10).
+
+- **BE** `toCustomerShipmentDetail` chiếu tiếp fact đã có của
+  `getShipmentDetail` (cargoMode, tradeDirection, tên kho CFS, nhà máy hiệu lực,
+  tên cảng nâng/hạ từng container) — hiển thị, không migration.
+- **FE portal** dùng chung luật `resolveLiftDropPoints` như trang nội bộ
+  (`PortalShipmentDetailPage.tsx`).
+- **Pin:** `PortalShipmentDetailPage.lift-drop.test.tsx` (mới — nhãn + 3 ca
+  binding). Test BE projection `shipment-detail-lift-drop-projection.test.ts`
+  **không reintroduce** — owner ruling unit-only (`da4d2f0b`).
+- Testplan: `testplan/2026-10-17-card-fb107-nang-ha.md`; staging rung
+  `qa/2026-10-17_card171026115820_fb107_staging-driver.log` (4/4 PASS).
+
 ## 2026-10-18 — LCL spec 18/10: Gán xe nhóm trên /dispatch, BKS báo khách từng lô, Tách nhóm
 
 Nguồn: `181026145000-yeu-cau-tinh-nang-gan-xe-nhom-hang-le.docx` (Gán xe nhóm
