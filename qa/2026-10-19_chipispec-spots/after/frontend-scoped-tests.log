@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-chipispec-spots/frontend
+
+
+ Test Files  16 passed (16)
+      Tests  78 passed (78)
+   Start at  10:38:55
+   Duration  3.72s (transform 3.36s, setup 3.55s, import 9.26s, tests 3.22s, environment 8.43s)
+
+FE TESTS EXIT: 0

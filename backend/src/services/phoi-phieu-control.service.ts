@@ -228,7 +228,18 @@ export async function listPhoiPhieuRows(query: {
     plateNumber: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${s.tripCarrierInfo.externalPlateNumber} else ${s.trucks.licensePlate} end`,
     driverName: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then nullif(btrim(${s.tripCarrierInfo.externalDriverName}), '') else ${s.drivers.name} end`,
     carrierName: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'OWN' then N'Xe nhà' else ${externalCarrierName} end`,
-    carrierSupplierId: sql<number | null>`case when ${s.tripCarrierInfo.externalEntityType} = 'SUPPLIER' then ${s.tripCarrierInfo.externalEntityId} else null end`,
+    // Card 181026183500 — resolve the carrier's NCC id for BOTH external
+    // shapes: the direct supplier reference (`'SUPPLIER'`) and the one every
+    // current writer emits (`'CUSTOMER'` — external carrier recorded as a
+    // carrier customer, whose `customers.linked_supplier_id` is the carrier
+    // supplier). Leaving the CUSTOMER shape null made the expense drawer's
+    // "Bên thực chi"=Nhà cung cấp default dead on this surface (id match
+    // never hit; name fallback misses when the customer and supplier names
+    // differ). The carrierCustomer join is soft-delete filtered, so a
+    // tombstoned carrier still resolves to null → manual pick.
+    carrierSupplierId: sql<number | null>`case when ${s.tripCarrierInfo.externalEntityType} = 'SUPPLIER' then ${s.tripCarrierInfo.externalEntityId}
+      when ${s.tripCarrierInfo.externalEntityType} = 'CUSTOMER' then ${carrierCustomer.linkedSupplierId}
+      else null end`,
   })
     .from(s.trips)
     // Card 191026100030 (class fix, read twin of `resolveTripShipmentId`):
