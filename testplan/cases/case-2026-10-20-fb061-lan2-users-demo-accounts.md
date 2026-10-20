@@ -69,3 +69,23 @@ không lane đứng nào gãy.
 - Staging: deploy (`make demo` — purge chạy trong deploy) → `make qapurge-dry`
   (idempotence: matched=0) → API probe lại (0 flagged, 72 users) → UI drive
   `/users` rung 3 (screenshot + DOM + driver log) theo §9 AGENTS.md.
+
+## Results (2026-10-20, fix `0b870f61`, staging build `0b870f61`)
+
+- **Gates**: BE tsc 0 · BE unit 311/311 (6 pin mới USERS-1…6) · root lint 0.
+- **Deploy** (`qa/2026-10-20-fb061-lan2-users/deploy-demo.log`): purge trong
+  deploy — users QA-lane `matched=11 deleted=2 remaining=0` (e2e + HAHA),
+  users demo-seed `matched=3 deleted=3 remaining=0` (trio).
+- **Idempotence** (`qapurge-rerun-idempotence.log`): chạy lại `make qapurge`
+  → users `deleted=0 remaining=0` cả hai surface.
+- **API re-probe** (`users-probe-after.log`): 72 users, **0 flagged**; KPI
+  counts 72/11/43/0.
+- **UI DRIVEN rung 3** (`201026112400_after_ui-driver.log`, script
+  `testplan/qa/scripts/2026-10-20-fb061-lan2-users-ui-drive.mjs`): admin,
+  `/users` @1440 + @390 — duyệt đủ 8 trang phân trang, 72/72 dòng render,
+  0 signature mẫu trong DOM/rows, roster thật đủ (missing=0), 0 console
+  error. Screenshots: `201026112400_after_ui-01-desktop1440-users-page.png`,
+  `201026112400_after_ui-02-mobile390-users-page.png` (+ DOM/rows dumps).
+- Before-evidence: `users-probe-before-stdout.md` (stdout probe 11:06Z —
+  census JSON gốc bị re-run ghi đè; nội dung verbatim + DB-side proof từ
+  deploy purge log).
