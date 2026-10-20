@@ -571,6 +571,27 @@
   outline-offset: 2px;
 }
 
+/* Card 211026005623 — "Xóa lô" is destructive: the danger token instead of
+   the emerald action pill, so a destructive tap is never a green surprise. */
+.detailed-plan-grid__note-action--delete {
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--danger);
+}
+
+.detailed-plan-grid__note-action--delete:hover {
+  background: var(--danger-soft);
+}
+
+.detailed-plan-grid__note-action--delete:active {
+  background: var(--danger-soft);
+}
+
+.detailed-plan-grid__note-action--delete:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--danger) 55%, transparent);
+  outline-offset: 2px;
+}
+
 @media (max-width: 767px) {
   .detailed-plan-grid__note-action {
     display: inline-flex;

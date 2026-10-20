@@ -1,0 +1,2 @@
+cmd: cd frontend && npx tsgo -b
+exit status: 0

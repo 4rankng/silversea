@@ -21,6 +21,9 @@ import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 
 const plan = vi.hoisted(() => ({ refresh: vi.fn(), items: [] as DispatchDetailPlanRow[] }));
 
+// Card 211026005623 — the page now reads the role law (Xóa lô gate).
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: 'ADMIN' } }) }));
+
 vi.mock('../features/dispatch/detailed-plan/useDispatchDetailPlan', async (importOriginal) => {
   const actual = await importOriginal<typeof UseDispatchDetailPlanModule>();
   return {

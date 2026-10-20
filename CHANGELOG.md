@@ -1,6 +1,35 @@
 # Changelog
 
-## 2026-10-20 — fix(ui): FB-045 lan 2 — dialog "Chi tiết container" hết clip cột GIỜ HẸN ở mọi viewport + lối vào (card 201026140000)
+## 2026-10-21 — fix(dieuvan): FB-095 — nút "Xóa lô" cho lô chính trên /dispatch-detail (card 211026005623)
+
+Verdict **(a) nút thiếu thật**: surface Điều vận (`/dispatch-detail` →
+DetailedPlanGrid, nơi có badge "Lẻ · Ghép (i/N)" + "Tách nhóm") không có
+affordance xóa lô cho bất kỳ role nào — nút xóa chỉ sống ở drawer `/shipments`
+và header `/shipments/:id` (cùng `canDeleteLot = CUS || ADMIN`). Không tồn
+tại gate "phải giải tán nhóm trước" (giả thuyết verdict (b) bị phủ định —
+FB095-06: xóa Lô chính khi nhóm còn member là hợp lệ, promote-on-delete).
+
+- **FE** `DetailedPlanGrid`: row action "Xóa lô" (cụm Ghi chú, style danger)
+  raised qua prop `onDeleteLot`; `DispatchDetailPlanPage`: flow xóa existing
+  (shared `ShipmentActionModal` confirm + lý do bắt buộc → `deleteCusShipment`
+  → `DELETE /api/shipments/cus-workspace/:id`) + notice FB-095 trên confirm
+  (xóa Lô chính ⇒ chuyển 100% cước trả ĐV cho lô kế tiếp; nhóm 2 lô giải
+  tán; xóa thành viên ⇒ Lô 1 giữ cước, survivors renumber).
+- **Role law KHÔNG nới** (`requestShipmentDelete` vẫn "Chỉ CUS hoặc Quản trị
+  viên" — cards 351/352 + 20261007_396/204710): DISPATCHER/MANAGER bấm nút →
+  banner nguyên văn luật service, không dialog, không API (card 20260923_1 —
+  affordance trả lời bằng lý do). Guards nhóm LCL giữ nguyên server-side
+  (`promoteLclGroupsOnShipmentDelete`/`assertGroupMutable` — BE không đổi).
+
+Evidence: `qa/2026-10-21-fb095/` (UI DRIVEN rung 3 local — 26/26 PASS exit 0:
+ui-01-before/ui-02-confirm/ui-03-after/ui-04-grid-after/ui-05-dieuvan-role-law/
+ui-06-w390-768-1440 PNG + db-after.json + driver log), driver
+`testplan/qa/scripts/fb095-dieuvan-delete-lot-20261021.mjs`, testplan
+`2026-10-21-fb095-dieuvan-delete-lot.md` (FB095-UI-05..07). DB proof: host
+soft-deleted, survivor `cost_group_id` null (dissolve), audit
+SHIPMENT_DELETED + SHIPMENT_LCL_GROUP_UNMERGED (cause DELETE, dissolved).
+
+## 2026-10-20 — fix(ui): FB-045 lan 2 — dialog "Chi tiết container" hết clip cột GIỜ HẸN ở mọi viewport + lối vào (card 202610140000)
 
 Fix lần 1 (bb394516) chỉ floored header cột giờ hẹn của drawer `/dispatch`;
 QA R27 vẫn FAIL vì 2 clip channel còn sống:

@@ -3,13 +3,14 @@
 // its frozen structure-guard ceiling — behavior is verbatim from that file.
 
 import { Loader2 } from 'lucide-react';
-import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import { Modal } from '../UI';
 
 /** Contract of the lot-action controller this dialog consumes; the
- *  useCusActions return satisfies it structurally. */
+ *  useCusActions return satisfies it structurally. `actionItem` is identity
+ *  only (open/closed) — the dialog reads no lot fields, so callers outside
+ *  the CUS workspace (dispatch delete, card 211026005623) pass a minimal ref. */
 export interface ShipmentActionController {
-  actionItem: ShipmentCusWorkspaceListItem | null;
+  actionItem: { id: number } | null;
   actionMode: 'confirm' | 'lock' | 'reopen' | 'delete' | null;
   reason: string;
   setReason: (reason: string) => void;
@@ -18,7 +19,7 @@ export interface ShipmentActionController {
   submitAction: () => void | Promise<void>;
 }
 
-export function ShipmentActionModal({ actions }: { actions: ShipmentActionController }) {
+export function ShipmentActionModal({ actions, notice }: { actions: ShipmentActionController; notice?: string | null }) {
   return (
     <Modal
       isOpen={Boolean(actions.actionItem && actions.actionMode)}
@@ -44,6 +45,7 @@ export function ShipmentActionModal({ actions }: { actions: ShipmentActionContro
       ) : (
         <p>Ghi rõ lý do điều chỉnh.</p>
       )}
+      {notice && <p>{notice}</p>}
       <label className="cus-action-reason">
         <span>{actions.actionMode === 'confirm' ? 'Lý do xác nhận' : actions.actionMode === 'lock' ? 'Lý do khóa' : actions.actionMode === 'delete' ? 'Lý do xóa' : 'Lý do điều chỉnh'}</span>
         <textarea value={actions.reason} onChange={(event) => actions.setReason(event.target.value)} rows={4} maxLength={500} required autoFocus />
