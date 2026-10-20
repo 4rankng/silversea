@@ -9,12 +9,18 @@
  * one. The container-params cell cites the thu/tra vehicle classes +
  * "Ghép cùng Bill X".
  */
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import { BOARD_COLUMNS } from './AccountingDebitClosePage.columns';
 
-const noContext = { confirm: () => {}, withdraw: () => {}, isBusy: false };
+const noContext = {
+  confirm: () => {},
+  withdraw: () => {},
+  isBusy: false,
+  editBillingPlate: () => {},
+  editingBillingShipmentId: null,
+};
 
 const row = (over: Partial<AccountingDebitBoardRow> = {}): AccountingDebitBoardRow => ({
   shipmentId: 1,
@@ -166,5 +172,40 @@ describe('card 191026202000 — board names ride the shared NameCell', () => {
     }));
     expect(lclCarrier.querySelector('.name-cell')?.getAttribute('title')).toBe('Nhà xe Gaya');
     expect(lclCarrier.textContent).toContain('Nhà xe Gaya · Thực: 29C-1');
+  });
+});
+
+// FB-093 (card 191026100833) — QA found the "Báo khách (Ảo)" badge read-only:
+// kế toán could see the plate the customer is told but not correct it from the
+// chốt-debit board. The badge is the editor's trigger (the CUS ledger's
+// `billingPlateTrigger` law), so it is a real <button> that reports WHICH lot
+// it opens and announces its expanded state while the panel is up.
+describe('FB-093 — the "Báo khách (Ảo)" badge opens the BKS editor', () => {
+  it('renders a labelled button that hands the page its own shipmentId', () => {
+    const opened: number[] = [];
+    const target = row({
+      shipmentId: 77,
+      phanXe: ['Nhà xe Gaya'],
+      lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '30C-2' }),
+    });
+    const column = BOARD_COLUMNS.find((entry) => entry.key === 'phanXe')!;
+    const { container } = render(<>{column.cell(target, { ...noContext, editBillingPlate: (id) => opened.push(id) })}</>);
+    const badge = container.querySelector('.debit-billing-badge') as HTMLButtonElement;
+    expect(badge.tagName).toBe('BUTTON');
+    expect(badge.getAttribute('aria-label')).toBe('Sửa BKS báo khách: 30C-2');
+    fireEvent.click(badge);
+    expect(opened).toEqual([77]);
+  });
+
+  it('marks the badge expanded only for the lot being edited', () => {
+    const badgeFor = (editingId: number | null) => {
+      const target = row({ shipmentId: 77, phanXe: [], lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '30C-2' }) });
+      const { container } = render(
+        <>{BOARD_COLUMNS.find((entry) => entry.key === 'phanXe')!.cell(target, { ...noContext, editingBillingShipmentId: editingId })}</>,
+      );
+      return container.querySelector('.debit-billing-badge')?.getAttribute('aria-expanded');
+    };
+    expect(badgeFor(77)).toBe('true');
+    expect(badgeFor(5)).toBe('false');
   });
 });

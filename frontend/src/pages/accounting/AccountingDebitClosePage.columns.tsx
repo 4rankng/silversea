@@ -26,6 +26,15 @@ export interface CellContext {
   confirm: (requestIds: number[]) => void;
   withdraw: (requestIds: number[]) => void;
   isBusy: boolean;
+  /** FB-093 (card 191026100833) — the "Báo khách (Ảo)" badge was a plain
+   *  <span>, so kế toán could READ the plate the customer is told but never
+   *  correct it here. The same quick edit the CUS ledger runs
+   *  (`ShipmentContainerLedger.billingPlateTrigger`); the page owns the
+   *  editor state and passes the opener down. */
+  editBillingPlate: (shipmentId: number) => void;
+  /** The lot whose BKS-báo-khách editor is open, or null — so the cell can
+   *  render the badge as the pressed trigger while the panel is up. */
+  editingBillingShipmentId: number | null;
 }
 
 /**
@@ -134,7 +143,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // FCL cell renders below (subcontracted ⇒ nhà xe name, own fleet ⇒ own
     // plate) — the service batches that lookup once for the whole board, so
     // this cell MUST NOT resolve a carrier of its own.
-    cell: (row) => {
+    cell: (row, { editBillingPlate, editingBillingShipmentId }) => {
       // Card 191026202000: each nhà xe label rides the shared NameCell (short
       // name from the wire, full name in the tooltip) instead of a joined
       // full-legal-name string.
@@ -156,10 +165,20 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
         return (
           <div className="record-cell-stack">
             <span>{carrier ?? '—'} · Thực: {actual ?? '—'}</span>
+            {/* FB-093 (card 191026100833): the badge IS the editor trigger —
+                the CUS ledger's `billingPlateTrigger` law, same button, same
+                title. Not `disabled`: the plate stays readable as text. */}
             {xeoAo != null && (
-              <span className="debit-billing-badge" title="Debit Note in BKS báo khách, không in BKS thực">
+              <button
+                type="button"
+                className="debit-billing-badge"
+                title="Sửa BKS báo khách"
+                aria-label={`Sửa BKS báo khách: ${xeoAo}`}
+                aria-expanded={editingBillingShipmentId === row.shipmentId}
+                onClick={() => editBillingPlate(row.shipmentId)}
+              >
                 Báo khách (Ảo): {xeoAo}
-              </span>
+              </button>
             )}
           </div>
         );

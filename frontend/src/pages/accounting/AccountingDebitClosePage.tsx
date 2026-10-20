@@ -10,7 +10,10 @@ import {
   DEBIT_SETTLEMENT_ROUNDS_KEY,
 } from '../../api/accountingDebitClient';
 import { createDebitNoteBatch, exportDebitNoteFile, lockShipmentCost } from '../../api/shipmentDebit';
+import { updateLclTruck } from '../../api/dispatchPlanningClient';
+import { tripClient } from '../../api/tripClient';
 import { businessDateISO, formatCurrency } from '../../lib/format';
+import { billBookingReference } from '../../lib/business-reference';
 import { qk } from '../../api/keys';
 import { Btn, Modal, PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
@@ -20,6 +23,10 @@ import { resolveHiddenColumns } from '../../lib/column-visibility';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
+import { BillingPlateEditor } from './AccountingDebitClosePage.billing-plate';
+import { MergeRevGroupDialog } from '../../features/shipments/debit/MergeRevGroupDialog';
+import { DisabledActionTip } from '../../components/shared/DisabledActionTip';
+import { Button as UUIButton } from '../../components/untitled-ui/base/buttons/button';
 import { BOARD_CAPTION, BOARD_COLUMNS, type CellContext } from './AccountingDebitClosePage.columns';
 import { DebitBoardTable } from './AccountingDebitClosePage.board';
 import { DebitRoundBoard } from './AccountingDebitClosePage.rounds';
@@ -60,6 +67,17 @@ export default function AccountingDebitClosePage() {
   // lots for the export — the chốt-debit flow's rows are reconciled but not
   // cost-locked, and locking is an explicit accountant act (card 20260918_19).
   const [lockConfirmOpen, setLockConfirmOpen] = useState(false);
+  // FB-093 (card 191026100833-b) — the BKS báo khách (xe ảo) quick edit. The
+  // same law the CUS ledger runs (`ShipmentContainerLedger` billingPlate*
+  // state), kept here because the badge lives in this page's column model.
+  const [billingEditorShipmentId, setBillingEditorShipmentId] = useState<number | null>(null);
+  const [billingDraft, setBillingDraft] = useState('');
+  const [billingSaving, setBillingSaving] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  // FB-093 (card 191026100833-a) — the "Ghép cước thu khách" dialog over the
+  // board selection. Same dialog the Chi phí - Quyết toán page runs
+  // (`MergeRevGroupDialog`); no second implementation.
+  const [mergeOpen, setMergeOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
@@ -69,6 +87,13 @@ export default function AccountingDebitClosePage() {
   const roundsQuery = useQuery({
     queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY,
     queryFn: listSettlementRounds,
+  });
+  // FB-093 — the fleet plate catalog behind the BKS báo khách quick edit and
+  // the merge dialog's "BKS báo khách (ảo) chung nhóm" field. Same bootstrap
+  // blob ShipmentDebitPage sources (card 161026232409).
+  const bootstrapQuery = useQuery({
+    queryKey: qk.shipmentDebit.bootstrap,
+    queryFn: () => tripClient.getBootstrap(),
   });
   const rows = useMemo(() => boardQuery.data?.items ?? [], [boardQuery.data]);
 
@@ -223,7 +248,80 @@ export default function AccountingDebitClosePage() {
     confirm: (requestIds) => confirmMutation.mutate(requestIds),
     withdraw: (requestIds) => withdrawMutation.mutate(requestIds),
     isBusy: confirmMutation.isPending || withdrawMutation.isPending,
+    editBillingPlate: (shipmentId) => {
+      const row = rows.find((candidate) => candidate.shipmentId === shipmentId);
+      setBillingEditorShipmentId(shipmentId);
+      setBillingDraft(row?.lcl?.billingTruckNo ?? '');
+      setBillingError(null);
+    },
+    editingBillingShipmentId: billingEditorShipmentId,
   };
+
+  // FB-093 — BKS báo khách quick edit (card 191026100833-b). One POST
+  // (`/shipments/lcl/truck`) then the SAME board refetch the Debit Note export
+  // runs, so the badge cell renders the server's value — no optimistic
+  // overlay, because the board row is the only read model here.
+  async function saveBillingPlate() {
+    if (billingEditorShipmentId == null || billingSaving) return;
+    const next = billingDraft.trim();
+    // The wire forbids an empty plate — clearing the ảo plate is a settlement
+    // act, never a row edit (the same rule the ledger's editor enforces).
+    if (next === '') return;
+    setBillingSaving(true);
+    setBillingError(null);
+    try {
+      await updateLclTruck({ shipmentId: billingEditorShipmentId, billingTruckNo: next });
+      setBillingEditorShipmentId(null);
+      void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
+    } catch (error) {
+      // Server refusals (e.g. a cost-locked lot) surface verbatim and the
+      // panel STAYS open — the accountant keeps the edit they typed.
+      setBillingError(error instanceof Error && error.message
+        ? error.message
+        : 'Cập nhật BKS báo khách thất bại');
+    } finally {
+      setBillingSaving(false);
+    }
+  }
+
+  // FB-093 — plate suggestions for the BKS editor: every plate the board rows
+  // already carry plus the bootstrap fleet, the same set ShipmentDebitPage
+  // feeds its merge dialog and phân-xe quick edit (card 161026232409).
+  const billingPlateOptions = useMemo(() => {
+    const plates = new Set<string>();
+    for (const truck of (bootstrapQuery.data?.trucks ?? [])) {
+      if (truck.licensePlate?.trim()) plates.add(truck.licensePlate.trim());
+    }
+    for (const row of rows) {
+      for (const plate of [row.lcl?.actualTruckNo, row.lcl?.billingTruckNo]) {
+        if (plate?.trim()) plates.add(plate.trim());
+      }
+    }
+    return [...plates].map((plate) => ({ value: plate, label: plate, searchText: plate }));
+  }, [bootstrapQuery.data, rows]);
+
+  // FB-093 (card 191026100833-a) — the merge acts on the SELECTION. Only
+  // UNGROUPED lô lẻ may join a new group: `lcl != null` ⇔ cargoMode LCL (the
+  // board's own projection, accounting-debit-close.service.ts) and a
+  // `ghépCùngRef` means the lot already sits in one. The same-customer gate
+  // runs inside the dialog and again on the server — no client-side pre-filter.
+  const mergeableRows = useMemo(
+    () => selectedRows
+      .filter((row) => row.lcl != null && row.lcl.ghépCùngRef == null)
+      .map((row) => ({
+        shipmentId: row.shipmentId,
+        customerId: row.customerId,
+        customerName: row.customerName ?? '',
+        code: row.code ?? '',
+        billOrBookNumber: row.billOrBooking ?? '',
+        cargoMode: 'LCL' as const,
+        revGroupId: null,
+      })),
+    [selectedRows],
+  );
+  const mergeDisabledReason = mergeableRows.length < 2
+    ? 'Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.'
+    : null;
 
   function toggleAll() {
     if (allSelected) selection.clear();
@@ -348,6 +446,19 @@ export default function AccountingDebitClosePage() {
             >
               {confirmMutation.isPending ? 'Đang xác nhận…' : `Xác nhận đối soát (${pendingIds.length})`}
             </button>
+            {/* FB-093 (card 191026100833-a) — "Ghép cước thu khách" over the
+                board selection. aria-disabled (never `disabled`) so the reason
+                stays reachable — the DisabledActionTip law. */}
+            <DisabledActionTip id="accounting-debit-merge-rev" reason={mergeDisabledReason}>
+              <UUIButton
+                size="sm"
+                color="secondary"
+                aria-disabled={mergeDisabledReason != null || undefined}
+                onPress={() => { if (mergeDisabledReason != null) return; setMergeOpen(true); }}
+              >
+                Ghép cước thu khách
+              </UUIButton>
+            </DisabledActionTip>
             <button
               type="button"
               className="btn btn--primary"
@@ -410,6 +521,22 @@ export default function AccountingDebitClosePage() {
           />
         </FilterDropdown>
       </FilterBar>
+
+      {/* FB-093 (card 191026100833-b) — the badge that opened the editor lives
+          inside the horizontally scrolling matrix, so the editor itself sits
+          here: the panel can never be clipped by the table's scroll box. */}
+      {billingEditorShipmentId != null && (
+        <BillingPlateEditor
+          lotLabel={billBookingReference(rows.find((row) => row.shipmentId === billingEditorShipmentId)?.billOrBooking)}
+          draft={billingDraft}
+          onDraftChange={setBillingDraft}
+          saving={billingSaving}
+          error={billingError}
+          plateOptions={billingPlateOptions}
+          onSave={() => void saveBillingPlate()}
+          onCancel={() => { setBillingEditorShipmentId(null); setBillingError(null); }}
+        />
+      )}
 
       {/* Card 20261005 — the selection strip sits DIRECTLY under the filter bar
           and stays pinned while the money matrix scrolls beneath it: the
@@ -525,6 +652,18 @@ export default function AccountingDebitClosePage() {
           )}
         </>
       ))}
+
+      {mergeOpen && (
+        <MergeRevGroupDialog
+          rows={mergeableRows}
+          plateOptions={billingPlateOptions}
+          onClose={() => setMergeOpen(false)}
+          onMerged={() => {
+            selection.clear();
+            void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
+          }}
+        />
+      )}
 
       <DebitSettlementRoundDialog
         isOpen={settlementOpen}

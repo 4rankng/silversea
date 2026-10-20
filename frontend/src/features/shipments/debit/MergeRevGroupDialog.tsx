@@ -16,10 +16,23 @@ import { USearchableField } from '../create/uui-searchable-field';
 import { useToast } from '../../../components/shared/Toast';
 import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { mergeLclRevGroup } from '../../../api/dispatchPlanningClient';
-import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
+
+/** The only lot facts this dialog reads: identity, the customer the merge
+ *  groups by, and the three labels the lot list renders. Structural — the
+ *  Chi phí - Quyết toán row (`ShipmentDebitLotRow`) and the chốt-debit board
+ *  row both satisfy it, so neither surface has to fabricate the other's
+ *  fields to open the same dialog. */
+export interface MergeRevGroupLot {
+  shipmentId: number;
+  customerId: number | null;
+  customerName: string;
+  code: string;
+  billOrBookNumber: string;
+  customsNumber?: string | null;
+}
 
 export interface MergeRevGroupDialogProps {
-  rows: ShipmentDebitLotRow[];
+  rows: MergeRevGroupLot[];
   /** BKS báo khách (xe ảo) catalog — the plate list the caller sources (the
    *  same fleet the Điều vận "Gán xe nhóm" dialog offers). The dialog stays
    *  presentational: it lists what it is handed and never fetches a catalog. */

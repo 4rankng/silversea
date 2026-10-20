@@ -221,7 +221,10 @@ p.debit-note { margin: 0 0 8px; }
 .debit-rounds { margin-top: 20px; }
 
 /* FB-094 — the "xe ảo" badge: billing BKS that differs from the actual plate
-   (orange = the customer is told a different truck than the one that ran). */
+   (orange = the customer is told a different truck than the one that ran).
+   FB-093 (card 191026100833): it is a <button> now — the quick-edit trigger,
+   so it must read and behave as one (pointer + a visible keyboard ring)
+   without changing a single colour or metric the badge already had. */
 .debit-billing-badge {
   display: inline-block;
   padding: 1px 8px;
@@ -231,4 +234,44 @@ p.debit-note { margin: 0 0 8px; }
   color: #b54708;
   background: #fef0c7;
   border: 1px solid #f5c26b;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
 }
+
+.debit-billing-badge:hover { background: #fde68a; }
+
+.debit-billing-badge:focus-visible {
+  outline: 2px #b54708;
+  outline-offset: 1px;
+}
+
+/* FB-093 — the badge opens a panel directly under the filter bar (the badge
+   lives INSIDE the scrolling matrix, so an in-cell popover would be clipped by
+   the scroll box). Layout mirrors the CUS ledger's inline editor; the
+   EditActions class is shared, so its row rule is restated here — the ledger's
+   own stylesheet is not on this page. */
+.debit-billing-editor {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface, var(--bg, #fff));
+}
+
+.debit-billing-editor__grid { max-width: 320px; }
+
+.debit-billing-editor__footer {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-2, var(--border));
+}
+
+.debit-billing-editor .shipment-container-ledger__edit-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+
+.debit-billing-editor__error { color: var(--danger, #b42318); font-size: 12px; }
