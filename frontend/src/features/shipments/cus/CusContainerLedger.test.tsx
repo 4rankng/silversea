@@ -948,6 +948,120 @@ describe('add-row seed copies the lot row values (A.1, card 201026124500)', () =
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
     expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('500');
   });
+
+  it('copies Tuyến "KCN QUẾ VÕ, BẮC NINH" on LONG MINH MSCU7654329 shape when Nâng/Hạ/Giờ hẹn are empty', async () => {
+    addCusShipmentContainerRow.mockResolvedValue({ line: null });
+    renderLedger({
+      detail: a1Detail([
+        a1Row({
+          containerNumber: 'MSCU7654329',
+          containerTypeId: 1,
+          containerTypeLabel: '20DC',
+          routeId: 6,
+          routeName: 'KCN QUẾ VÕ, BẮC NINH',
+          carrierType: 'OWN',
+          carrierName: 'SilverSea',
+          liftSiteId: null,
+          liftSite: null,
+          dropoffSiteId: null,
+          dropoffSite: null,
+          customerAppointmentAt: null,
+          raw: { ...detail.containers[0].raw, containerNumber: 'MSCU7654329', containerTypeId: 1, routeId: 6, cargoWeightKg: null },
+        }),
+      ]),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    const cellText = (label: string) => addRowEl().querySelector(`[data-label="${label}"]`)?.textContent;
+    expect(cellText('Tuyến')).toBe('KCN QUẾ VÕ, BẮC NINH');
+    expect(cellText('Nhà xe')).toBe('SilverSea');
+    expect(cellText('Nâng')).toBe('—');
+    expect(cellText('Hạ')).toBe('—');
+    expect(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
+    fireEvent.click(within(addRowEl()).getByRole('button', { name: /^Thêm$/ }));
+
+    await waitFor(() => expect(addCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        containerNumber: 'CSQU3054383',
+        containerTypeId: null,
+        routeId: 6,
+        carrierType: 'OWN',
+        externalCarrierId: null,
+      }),
+      'test-key',
+    ));
+  });
+
+  it('copies Tuyến across data-dependent branches: selector lookup, ad-hoc routeName, and lot summary fallback', async () => {
+    addCusShipmentContainerRow.mockResolvedValue({ line: null });
+    const routes = [{ id: 6, code: 'QV', name: 'KCN QUẾ VÕ, BẮC NINH', label: 'KCN QUẾ VÕ, BẮC NINH' }];
+
+    // Branch 1: container has routeId but routeName is null -> resolves from selectors.routes
+    const { unmount: unmount1 } = renderLedger({
+      detail: {
+        ...a1Detail([
+          a1Row({
+            routeId: 6,
+            routeName: null,
+            raw: { ...detail.containers[0].raw, routeId: 6, cargoWeightKg: null },
+          }),
+        ]),
+        selectors: { ...detail.selectors, ports, routes },
+      } as unknown as ShipmentCusWorkspaceDetail,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect(addRowEl().querySelector('[data-label="Tuyến"]')?.textContent).toBe('KCN QUẾ VÕ, BẮC NINH');
+    unmount1();
+
+    // Branch 2: ad-hoc container route (routeId is null, routeName is populated)
+    const { unmount: unmount2 } = renderLedger({
+      detail: a1Detail([
+        a1Row({
+          routeId: null,
+          routeName: 'KCN QUẾ VÕ, BẮC NINH',
+          raw: { ...detail.containers[0].raw, routeId: null, cargoWeightKg: null },
+        }),
+      ]),
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect(addRowEl().querySelector('[data-label="Tuyến"]')?.textContent).toBe('KCN QUẾ VÕ, BẮC NINH');
+    unmount2();
+
+    // Branch 3: container rows have routeId=null & routeName=null, lot summary carries routeId=6
+    renderLedger({
+      detail: {
+        ...a1Detail([
+          a1Row({
+            routeId: null,
+            routeName: null,
+            raw: { ...detail.containers[0].raw, routeId: null, cargoWeightKg: null },
+          }),
+        ]),
+        summary: {
+          ...detail.summary,
+          cargoMode: 'FCL',
+          routeName: 'KCN QUẾ VÕ, BẮC NINH',
+          raw: { ...detail.summary.raw, routeId: 6 },
+        },
+        selectors: { ...detail.selectors, ports, routes },
+      } as unknown as ShipmentCusWorkspaceDetail,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect(addRowEl().querySelector('[data-label="Tuyến"]')?.textContent).toBe('KCN QUẾ VÕ, BẮC NINH');
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
+    fireEvent.click(within(addRowEl()).getByRole('button', { name: /^Thêm$/ }));
+    await waitFor(() => expect(addCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        containerNumber: 'CSQU3054383',
+        routeId: 6,
+      }),
+      'test-key',
+    ));
+  });
 });
 
 // Card 191026100000 (chungtu-dieuvan A.7): the customer contract for the

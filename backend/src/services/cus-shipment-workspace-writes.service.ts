@@ -1082,10 +1082,10 @@ export async function addCusShipmentContainer(args: {
       containerTypeId: inheritable(args.input.containerTypeId, () => inheritLotDefault((row) => row.containerTypeId)),
       cargoWeightKg: args.input.cargoWeightKg ?? null,
       cargoVolumeCbm: args.input.cargoVolumeCbm ?? null,
-      routeId: inheritable(args.input.routeId, () => inheritLotDefault((row) => row.routeId)),
+      routeId: inheritable(args.input.routeId, () => inheritLotDefault((row) => row.routeId) ?? shipment.routeId),
       pickupPortId: inheritable(args.input.liftSiteId, () => inheritLotDefault((row) => row.pickupPortId)),
       dropoffPortId: inheritable(args.input.dropoffSiteId, () => inheritLotDefault((row) => row.dropoffPortId)),
-      operationalSiteId: inheritable(args.input.operationalSiteId, () => inheritLotDefault((row) => row.operationalSiteId)),
+      operationalSiteId: inheritable(args.input.operationalSiteId, () => inheritLotDefault((row) => row.operationalSiteId) ?? shipment.operationalSiteId),
       // Card 181026185900 (A.1+A.6): the add API carries no document fields,
       // so these always inherit — an added row reads like the lot's existing
       // rows on the Chi tiết workboard instead of arriving half-blank.
@@ -1094,7 +1094,7 @@ export async function addCusShipmentContainer(args: {
       rawPickupPortName: inheritLotDefault((row) => row.rawPickupPortName),
       rawDropoffPortName: inheritLotDefault((row) => row.rawDropoffPortName),
       rawFactoryName: inheritLotDefault((row) => row.rawFactoryName),
-      rawRouteName: inheritLotDefault((row) => row.rawRouteName),
+      rawRouteName: inheritLotDefault((row) => row.rawRouteName) ?? shipment.rawRouteName,
       customerAppointmentAt: args.input.customerAppointmentAt != null
         ? new Date(args.input.customerAppointmentAt)
         : args.input.customerAppointmentAt === undefined
@@ -1112,7 +1112,6 @@ export async function addCusShipmentContainer(args: {
 
     await projectShipmentScheduleAndVersion(tx, args.shipmentId, args.actor.userId);
     await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
-    void shipment;
 
     const detail = await buildWorkspaceDetail(await loadShipmentRow(args.shipmentId, args.actor, tx), args.actor, tx);
     const line = detail.containers.find((item) => item.id === inserted!.id);
@@ -1133,7 +1132,11 @@ export async function removeCusShipmentContainer(args: {
   const execute = async (tx: Tx) => {
     const shipment = await lockShipmentForContainerSetWrite(tx, args.shipmentId, args.input.expectedShipmentVersion);
 
-    const [container] = await tx.select({ id: s.shipmentContainers.id, containerNumber: s.shipmentContainers.containerNumber })
+    const [container] = await tx.select({
+      id: s.shipmentContainers.id,
+      containerNumber: s.shipmentContainers.containerNumber,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+    })
       .from(s.shipmentContainers)
       .where(and(
         eq(s.shipmentContainers.id, args.containerId),
@@ -1152,7 +1155,7 @@ export async function removeCusShipmentContainer(args: {
       }
       // BE second-eyes F1: a READY lot must not lose its last dated row —
       // the line-edit path guards the same invariant with this message.
-      if (canonicalShipmentStatus(shipment.status) === 'READY_FOR_DISPATCH') {
+      if (canonicalShipmentStatus(shipment.status) === 'READY_FOR_DISPATCH' && container.customerAppointmentAt != null) {
         const remainingRows = await tx.select({ appointment: s.shipmentContainers.customerAppointmentAt })
           .from(s.shipmentContainers)
           .where(and(

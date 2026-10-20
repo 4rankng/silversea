@@ -102,3 +102,40 @@ test('A1-7: the fulfillment birth stamps the copied plan (source wiring pin)', (
   assert.ok(!body.includes('plannedExternalCarrierVehicleId:'), 'Biển số/xe là per-truck entry — the copy must never stamp a vehicle');
   assert.ok(!body.includes('plannedVehiclePlateNumber:'), 'Biển số/xe là per-truck entry — the copy must never stamp a plate');
 });
+
+test('A1-8: Tuyến data-dependent branches inherit lot-level routeId/rawRouteName and project container rawRouteName', () => {
+  const writesSource = readFileSync(
+    new URL('../../services/cus-shipment-workspace-writes.service.ts', import.meta.url),
+    'utf8',
+  );
+  assert.ok(
+    writesSource.includes('routeId: inheritable(args.input.routeId, () => inheritLotDefault((row) => row.routeId) ?? shipment.routeId)'),
+    'addCusShipmentContainer must fall back to shipment.routeId when sibling container routeId is null',
+  );
+  assert.ok(
+    writesSource.includes('rawRouteName: inheritLotDefault((row) => row.rawRouteName) ?? shipment.rawRouteName'),
+    'addCusShipmentContainer must fall back to shipment.rawRouteName when sibling container rawRouteName is null',
+  );
+
+  const readsSource = readFileSync(
+    new URL('../../services/cus-shipment-workspace-reads.service.ts', import.meta.url),
+    'utf8',
+  );
+  assert.ok(
+    readsSource.includes('coalesce(${ROUTE_OPERATIONAL_NAME}, ${s.shipmentContainers.rawRouteName})'),
+    'loadSupportRows must coalesce ROUTE_OPERATIONAL_NAME with shipmentContainers.rawRouteName',
+  );
+
+  const buildersSource = readFileSync(
+    new URL('../../services/cus-workspace-builders.service.ts', import.meta.url),
+    'utf8',
+  );
+  assert.ok(
+    buildersSource.includes('row.shipment.cargoMode === CARGO_MODE.FCL ? (container.routeId ?? row.shipment.routeId) : row.shipment.routeId'),
+    'buildContainerLine must fall back to row.shipment.routeId on FCL lots when container.routeId is null',
+  );
+  assert.ok(
+    buildersSource.includes('row.shipment.cargoMode === CARGO_MODE.FCL ? (container.routeName ?? row.routeName) : row.routeName'),
+    'buildContainerLine must fall back to row.routeName on FCL lots when container.routeName is null',
+  );
+});

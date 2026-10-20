@@ -218,13 +218,45 @@ export function ContainerLedger({
       }
     }
     // The route pair rides ATOMICALLY like the carrier and the ports: the
-    // first line carrying both an id and a name wins, so the form can never
-    // show one row's name over another row's id.
+    // first line carrying a route wins (resolving its display name from the
+    // line, the routes selector catalog, or an ad-hoc free-text routeName);
+    // when no container row carries a route of its own, fall back to the
+    // lot-level summary route so FCL lots whose route lives on shipments.route_id
+    // / raw_route_name (data-dependent LONG MINH branch) still copy Tuyến.
+    const routesById = new Map(
+      detail.selectors.routes.map((option) => [String(option.id), option.label || option.name]),
+    );
     let route: { routeId: string; routeName: string | null } = { routeId: '', routeName: null };
     for (const line of detail.containers) {
-      if (line.routeId != null && line.routeName != null && line.routeName !== '') {
-        route = { routeId: String(line.routeId), routeName: line.routeName };
+      const effectiveRouteId = line.routeId ?? line.raw?.routeId ?? null;
+      const lineRouteName = line.routeName?.trim() || null;
+      if (effectiveRouteId != null) {
+        const resolvedName = lineRouteName || routesById.get(String(effectiveRouteId)) || null;
+        if (resolvedName) {
+          route = { routeId: String(effectiveRouteId), routeName: resolvedName };
+          break;
+        }
+      } else if (lineRouteName) {
+        route = { routeId: '', routeName: lineRouteName };
         break;
+      }
+    }
+    if (!route.routeId && !route.routeName) {
+      const summaryRouteId = detail.summary.raw?.routeId ?? null;
+      const summaryRouteName = detail.summary.routeName?.trim() || null;
+      if (summaryRouteId != null) {
+        const resolvedName = routesById.get(String(summaryRouteId)) || summaryRouteName;
+        if (resolvedName) {
+          route = { routeId: String(summaryRouteId), routeName: resolvedName };
+        }
+      } else if (summaryRouteName) {
+        const matchedRoute = detail.selectors.routes.find(
+          (option) => option.label === summaryRouteName || option.name === summaryRouteName,
+        );
+        route = {
+          routeId: matchedRoute ? String(matchedRoute.id) : '',
+          routeName: summaryRouteName,
+        };
       }
     }
     const weight = firstNonNull((line) => line.raw.cargoWeightKg);
@@ -242,7 +274,7 @@ export function ContainerLedger({
       cargoWeightKg: weight == null ? '' : stripDecimalTrailingZeros(weight),
       customerAppointmentAt: appointmentAt ? formatVietnamDateTimeInput(appointmentAt) : '',
     };
-  }, [detail.containers, detail.selectors.ports]);
+  }, [detail.containers, detail.selectors.ports, detail.selectors.routes, detail.summary.raw?.routeId, detail.summary.routeName]);
 
   async function submitAddContainer() {
     const containerNumber = addFields.containerNumber.trim().toUpperCase();
