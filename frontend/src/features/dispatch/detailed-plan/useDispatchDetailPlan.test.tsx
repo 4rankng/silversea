@@ -1,5 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
 import type { DispatchDetailPlanAssignmentCounts, DispatchDetailPlanPage, DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDispatchDetailPlan } from './useDispatchDetailPlan';
 
@@ -47,6 +49,16 @@ import {
   completeDispatchExternalTrip,
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
+
+// FB-014: the hook now reads the deep link through react-router's
+// useSearchParams — every hook mount in this file rides a MemoryRouter.
+function renderPlanHook() {
+  return renderHook(() => useDispatchDetailPlan(), {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <MemoryRouter initialEntries={['/dispatch-detail']}>{children}</MemoryRouter>
+    ),
+  });
+}
 
 /** Fixture page in the API's response shape (card 20261008_3: the grid
  *  response also carries the chips' union counts). */
@@ -120,7 +132,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   });
 
   it('loads unfiltered by date by default (/dispatch parity)', async () => {
-    renderHook(() => useDispatchDetailPlan());
+    renderPlanHook();
 
     await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
     expect(listDispatchDetailPlanRowsMock).toHaveBeenCalledWith(expect.objectContaining({
@@ -133,7 +145,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   });
 
   it('forwards the selected run-time range as HH:MM query values', async () => {
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.updateFilters({ hourFrom: '07:30', hourTo: '09:45' }));
@@ -145,7 +157,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   });
 
   it('drops a row from the UNASSIGNED view once a plate is assigned to it', async () => {
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.items).toHaveLength(2);
@@ -167,7 +179,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   });
 
   it('keeps the row in place when no assignment-status filter is active', async () => {
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -182,7 +194,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   });
 
   it('drops a row from the ASSIGNED view when its plate is cleared', async () => {
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
@@ -204,7 +216,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([row({
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-123.45' },
     })]));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => result.current.updateFilters({ assignmentStatus: 'ASSIGNED' }));
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -222,7 +234,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   });
 
   it('persists fee estimates and updates only the edited fulfillment row', async () => {
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
     updateDispatchDetailEstimatesMock.mockResolvedValue({
       fulfillmentId: 101,
@@ -256,7 +268,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
       .mockResolvedValueOnce(page([row({ fulfillmentId: 51 })], 51))
       .mockResolvedValueOnce(page([row({ fulfillmentId: 101 })], 51));
 
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.page).toBe(1);
@@ -280,7 +292,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   });
 
   it('forwards the zone filter to the rows query and the presence fetch', async () => {
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.updateFilters({ zone: 'HAI_PHONG' }));
@@ -305,7 +317,7 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
       }],
     });
 
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     // No zone filter set → presence follows the first active zone.
@@ -350,7 +362,7 @@ describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
       notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },
       replayed: false,
     });
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -383,7 +395,7 @@ describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
 
   it('keeps the row unchanged on a 409 so a refused issue never reads as issued', async () => {
     dispatchShipmentMock.mockRejectedValue(Object.assign(new Error('conflict'), { status: 409 }));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -419,7 +431,7 @@ describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
     { status: 409, message: 'Xe đầu kéo chưa có rơ-moóc khả dụng.' },
   ])('surfaces the backend refusal "$message" instead of a generic reload banner', async ({ status, message }) => {
     dispatchShipmentMock.mockRejectedValue(Object.assign(new Error(message), { status }));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -444,7 +456,7 @@ describe('useDispatchDetailPlan issueOrder (phát lệnh)', () => {
 
   it('falls back to the reload banner only when a 409 carries no usable message', async () => {
     dispatchShipmentMock.mockRejectedValue(Object.assign(new Error(''), { status: 409 }));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -480,7 +492,7 @@ describe('useDispatchDetailPlan assign refusals keep the backend reason (card 06
     { reason: 'CUS chưa gán nhà xe cho tác vụ này.' },
   ])('assignPlate surfaces "$reason" rather than a generic reload banner', async ({ reason }) => {
     assignDispatchDetailPlateMock.mockRejectedValue(Object.assign(new Error(reason), { status: 409 }));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -498,7 +510,7 @@ describe('useDispatchDetailPlan assign refusals keep the backend reason (card 06
     { reason: 'Nhà xe không còn hiệu lực.' },
   ])('assignCarrier surfaces "$reason" rather than a generic reload banner', async ({ reason }) => {
     assignDispatchDetailCarrierMock.mockRejectedValue(Object.assign(new Error(reason), { status: 409 }));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -520,7 +532,7 @@ describe('useDispatchDetailPlan assign refusals keep the backend reason (card 06
     const dispatched = row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 55 } });
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([dispatched], 1));
     completeDispatchExternalTripMock.mockRejectedValue(Object.assign(new Error(reason), { status }));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
     await act(async () => {
       await expect(result.current.completeExternalTrip(result.current.items[0])).rejects.toBeTruthy();
@@ -554,7 +566,7 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
     const previousPage = { ...page([previous], 51), page: 2 };
     const updatedPage = { ...page([updated], 52), page: 2 };
     listDispatchDetailPlanRowsMock.mockResolvedValue(previousPage);
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => result.current.setPage(2));
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -601,7 +613,7 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
   ])('removes the atomically saved row when it no longer matches $filter and refreshes counts (DSP-FU-003)', async ({ filter, before, after }) => {
     const plannedRow = row({ dispatch: { ...row().dispatch, assignedPlate: before } });
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([plannedRow], 1));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
     act(() => result.current.updateFilters({ assignmentStatus: filter }));
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -627,7 +639,7 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
 
   it('keeps the updated plate and driver visible without an assignment filter (DSP-FU-003)', async () => {
     const plannedRow = row();
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
     updateDispatchDetailPlanMock.mockResolvedValue({
       fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
@@ -658,7 +670,7 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
     updateDispatchDetailPlanMock.mockRejectedValue(
       Object.assign(new Error('Lô hàng đã kết thúc, không thể lưu kế hoạch.'), { status: 409 }),
     );
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -676,7 +688,7 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
 
   it('falls back to the reload banner when a 409 carries no message', async () => {
     updateDispatchDetailPlanMock.mockRejectedValue(Object.assign(new Error(''), { status: 409 }));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -694,7 +706,7 @@ describe('useDispatchDetailPlan plan-save error mapping', () => {
 
   it('keeps the generic save-failure banner for non-409 failures', async () => {
     updateDispatchDetailPlanMock.mockRejectedValue(Object.assign(new Error('boom'), { status: 500 }));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -735,7 +747,7 @@ describe('useDispatchDetailPlan background refresh vs loading skeleton', () => {
   });
 
   it('keeps loading false during a background refresh so the table stays mounted', async () => {
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const pending = deferredResponse();
@@ -753,7 +765,7 @@ describe('useDispatchDetailPlan background refresh vs loading skeleton', () => {
   });
 
   it('still flips loading true on a real view change (filter edit)', async () => {
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const pending = deferredResponse();
@@ -770,7 +782,7 @@ describe('useDispatchDetailPlan background refresh vs loading skeleton', () => {
   it('surfaces a visible error when a branch row carries no container id', async () => {
     // 2026-09-12 closing-row repro: the branch serializer dropped
     // shipmentContainerId and the editor click no-op'd invisibly.
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const branchRow = {
@@ -811,7 +823,7 @@ describe('useDispatchDetailPlan run-time sorting (QA-001)', () => {
     const early = row({ fulfillmentId: 202, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:30:00.000Z', runHour: 20 } });
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([late, noTime, early]));
 
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.toggleSort('runHour'));
@@ -828,7 +840,7 @@ describe('useDispatchDetailPlan run-time sorting (QA-001)', () => {
     const noTime = row({ fulfillmentId: 203, time: { deliveryDate: '2026-09-11', runHour: null } });
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([early, late, noTime]));
 
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.toggleSort('runHour'));
@@ -844,7 +856,7 @@ describe('useDispatchDetailPlan run-time sorting (QA-001)', () => {
     const early = row({ fulfillmentId: 202, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:30:00.000Z', runHour: 20 } });
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([late, early]));
 
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.toggleSort('runHour'));
@@ -860,7 +872,7 @@ describe('useDispatchDetailPlan run-time sorting (QA-001)', () => {
     const b = row({ fulfillmentId: 202, customerRoute: { customerName: 'Công ty ABC', factoryName: null, deliveryPoint: 'Kho An Phú' }, time: { deliveryDate: '2026-09-11', runAt: '2026-09-11T13:30:00.000Z', runHour: 20 } });
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([a, b]));
 
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     // Take the time column to descending, then pick the other column: the new
@@ -879,7 +891,7 @@ describe('useDispatchDetailPlan run-time sorting (QA-001)', () => {
 describe('card 20260922_32 — topbar month scope actually filters', () => {
   it('initial mount seeds the inclusive month range into the query', async () => {
     monthState.month = 9; monthState.year = 2026;
-    renderHook(() => useDispatchDetailPlan());
+    renderPlanHook();
     await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
     const call = listDispatchDetailPlanRowsMock.mock.calls.at(-1)![0]!;
     expect(call.dateFrom).toBe('2026-09-01');
@@ -889,7 +901,7 @@ describe('card 20260922_32 — topbar month scope actually filters', () => {
 
   it('switching the topbar month rewrites the range and re-queries', async () => {
     monthState.month = 9; monthState.year = 2026;
-    const { rerender } = renderHook(() => useDispatchDetailPlan());
+    const { rerender } = renderPlanHook();
     await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
     const callsBefore = listDispatchDetailPlanRowsMock.mock.calls.length;
     monthState.month = 8;
@@ -902,7 +914,7 @@ describe('card 20260922_32 — topbar month scope actually filters', () => {
 
   it('the screen presets overwrite the month range (last writer wins)', async () => {
     monthState.month = 9; monthState.year = 2026;
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
     act(() => result.current.updateFilters({ date: '2026-09-22', dateFrom: '', dateTo: '' }));
     await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
@@ -916,7 +928,7 @@ describe('card 20260922_32 — topbar month scope actually filters', () => {
 describe('card 20261008_3 — chip counts ride the grid response', () => {
   it('surfaces the fetched page union counts as assignmentStatusCounts (the chips read these)', async () => {
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1, { UNASSIGNED: 4, ASSIGNED: 2 }));
-    const { result } = renderHook(() => useDispatchDetailPlan());
+    const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
     // Full-set over the union of both branches (fulfillment + điều phối),
     // computed server-side per chip — equals what clicking each chip returns.
@@ -934,7 +946,7 @@ describe('card 20261008_7 — period change re-numerals the chips consistently',
       query?.dateFrom === '2026-09-01' ? 6 : 4,
       query?.dateFrom === '2026-09-01' ? { UNASSIGNED: 4, ASSIGNED: 2 } : { UNASSIGNED: 1, ASSIGNED: 3 },
     ));
-    const { result, rerender } = renderHook(() => useDispatchDetailPlan());
+    const { result, rerender } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 4, ASSIGNED: 2 });
     // Chips partition the fetched total — the consistency invariant the
@@ -955,5 +967,72 @@ describe('card 20261008_7 — period change re-numerals the chips consistently',
     expect(result.current.assignmentStatusCounts.UNASSIGNED + result.current.assignmentStatusCounts.ASSIGNED)
       .toBe(result.current.total);
     listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()]));
+  });
+});
+
+/**
+ * FB-014 (card 201026112500): a lot clicked on Kế hoạch Tổng quát lands on
+ * this board through /dispatch-detail?q=<Số Bill/Booking>&date=<day>. The
+ * deep link seeds the initial filter state ONCE — afterwards the filter bar
+ * owns the state.
+ */
+describe('useDispatchDetailPlan FB-014 deep link seeding', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // The last plate/filter case above leaves the shared monthState on
+    // August — restore the default topbar month these expectations quote.
+    monthState.month = 9;
+    monthState.year = 2026;
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()]));
+    getDispatchZonesMock.mockResolvedValue({ items: [] });
+    listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
+  });
+
+  function renderAtUrl(search: string) {
+    return renderHook(() => useDispatchDetailPlan(), {
+      wrapper: ({ children }) => (
+        <MemoryRouter initialEntries={[`/dispatch-detail${search}`]}>{children}</MemoryRouter>
+      ),
+    });
+  }
+
+  it('seeds q + single-day scope from the deep link and drops the month bounds', async () => {
+    renderAtUrl('?q=BL-2026-001&date=2026-08-20');
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
+    const call = listDispatchDetailPlanRowsMock.mock.calls[0][0]!;
+    expect(call.q).toBe('BL-2026-001');
+    expect(call.date).toBe('2026-08-20');
+    // The topbar-month range would exclude the lot on another month — the
+    // deep link replaces it with its own day scope.
+    expect(call).not.toHaveProperty('dateFrom');
+    expect(call).not.toHaveProperty('dateTo');
+  });
+
+  it('seeds q alone when the deep link carries no date (board month scope applies)', async () => {
+    renderAtUrl('?q=BOOK-9');
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
+    const call = listDispatchDetailPlanRowsMock.mock.calls[0][0]!;
+    expect(call.q).toBe('BOOK-9');
+    expect(call).not.toHaveProperty('date');
+    expect(call.dateFrom).toBe('2026-09-01');
+    expect(call.dateTo).toBe('2026-09-30');
+  });
+
+  it('an unparseable date param is ignored (no crash, default scope)', async () => {
+    renderAtUrl('?q=BL-2026-001&date=yesterday');
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
+    const call = listDispatchDetailPlanRowsMock.mock.calls[0][0]!;
+    expect(call.q).toBe('BL-2026-001');
+    expect(call).not.toHaveProperty('date');
+    expect(call.dateFrom).toBe('2026-09-01');
+  });
+
+  it('no params = the pre-FB-014 default (month bounds, no q)', async () => {
+    renderAtUrl('');
+    await waitFor(() => expect(listDispatchDetailPlanRowsMock).toHaveBeenCalled());
+    const call = listDispatchDetailPlanRowsMock.mock.calls[0][0]!;
+    expect(call).not.toHaveProperty('q');
+    expect(call.dateFrom).toBe('2026-09-01');
+    expect(call.dateTo).toBe('2026-09-30');
   });
 });

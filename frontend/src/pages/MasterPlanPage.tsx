@@ -115,6 +115,27 @@ export default function MasterPlanPage() {
     ? masterPlan.filters.deliveryDateFrom
     : null;
 
+  // FB-014: clicking a lot must reach the Kế hoạch Chi tiết board (dispatch
+  // detail) where the dispatcher can assign plates/carriers per container —
+  // the quick-view drawer stays on the row's separate 'Chi tiết' trigger.
+  // The board is scoped through its own quick search `q` (matches Số Bill /
+  // Số Booking / shipment code — never an internal id) plus the lot's day so
+  // the deep link lands on the same day the dispatcher was looking at; no day
+  // → the board's own scope applies.
+  const handleOpenDispatchDetail = useCallback((shipment: ShipmentListItem) => {
+    // The 'Chưa có số Bill/Booking' placeholder is display copy, never a
+    // search key; fall back to the shipment code (the board's q matches it).
+    const reference = shipment.blNumber?.trim() || shipment.bookingRef?.trim() || shipment.shipmentCode || '';
+    const day = scheduleDate
+      ?? shipment.appointmentGroups?.[0]?.localDate
+      ?? shipment.expectedDeliveryDate
+      ?? '';
+    const params = new URLSearchParams();
+    if (reference) params.set('q', reference);
+    if (day) params.set('date', day);
+    navigate(`/dispatch-detail?${params.toString()}`);
+  }, [navigate, scheduleDate]);
+
   // Card 081026093510 (lead ruling 2026-10-08): the export enable condition
   // is DATA-DRIVEN — export is possible whenever the dispatcher's current
   // filtered view holds >= 1 row; at 0 rows the button disables WITH the
@@ -261,6 +282,7 @@ export default function MasterPlanPage() {
               items={masterPlan.items}
               onAllocate={handleAllocate}
               onViewContainers={handleViewContainers}
+              onOpenDispatchDetail={handleOpenDispatchDetail}
               onUpdateNotes={handleUpdateNotes}
               // `assertDispatcherCanMutateShipmentIntake` scopes a dispatcher's
               // write to intake-stage lots; offer the note affordance there only.

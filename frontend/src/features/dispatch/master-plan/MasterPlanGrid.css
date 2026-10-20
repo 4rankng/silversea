@@ -208,6 +208,16 @@
   transition: none !important;
 }
 
+/* FB-014: the row itself opens the lot on Kế hoạch Chi tiết — the pointer
+   affordance rides the same hover-tinted surface. Controls inside keep their
+   own cursors (the guard in MasterPlanGrid skips them). */
+.master-plan-grid__row--detail-link {
+  cursor: pointer;
+}
+.master-plan-grid__row--detail-link :is(button, input, select, textarea, label) {
+  cursor: auto;
+}
+
 
 
 .master-plan-grid__cell {

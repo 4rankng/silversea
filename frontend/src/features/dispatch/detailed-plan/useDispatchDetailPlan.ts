@@ -1,6 +1,7 @@
 import { createDefaultDetailedPlanFilters, detailPlanQuery, detailPlanViewSignature, type DetailedPlanFilterState, type DetailPlanSortKey, type DetailPlanSortDirection } from './detailPlanFilters';
 import { compareDetailPlanRows, nextDetailPlanSortState } from './detailedPlanSort';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAutoRefresh } from '../../../hooks/useAutoRefresh';
 import { ensureFulfillmentFor } from './ensureFulfillment';
 import type { DispatchClassification } from '@tingting/shared';
@@ -37,16 +38,29 @@ export type { DetailedPlanFilterState, DetailPlanSortKey, DetailPlanSortDirectio
 export function useDispatchDetailPlan() {
   const { month, year } = useMonth();
   const monthStamp = `${year}-${String(month).padStart(2, '0')}`;
+  // FB-014 deep link: /dispatch-detail?q=<Số Bill/Booking>&date=<YYYY-MM-DD>
+  // — a lot clicked on Kế hoạch Tổng quát lands here already scoped. Read
+  // ONCE on mount; afterwards the filter bar owns the state (typing in the
+  // search does not rewrite the URL).
+  const [searchParams] = useSearchParams();
+  const initialQ = searchParams.get('q') ?? '';
+  const initialDateRaw = searchParams.get('date') ?? '';
+  const initialDate = /^\d{4}-\d{2}-\d{2}$/.test(initialDateRaw) ? initialDateRaw : '';
   const [filters, setFilters] = useState<DetailedPlanFilterState>(() => {
     // Card 20260922_32: the board starts scoped to the topbar month — the
     // selector must mean something from the first paint (AC1), and the
     // range is visible in the filter bar's scope chip (AC2).
     const base = createDefaultDetailedPlanFilters();
-    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    if (initialDate) {
+      // Deep-linked single-day scope replaces the month bounds so the
+      // clicked lot is visible regardless of which month the topbar is on.
+      return { ...base, q: initialQ, date: initialDate, dateFrom: '', dateTo: '' };
+    }
     return {
       ...base,
+      q: initialQ,
       dateFrom: `${monthStamp}-01`,
-      dateTo: `${monthStamp}-${String(lastDay).padStart(2, '0')}`,
+      dateTo: `${monthStamp}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, '0')}`,
     };
   });
 
