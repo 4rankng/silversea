@@ -1,0 +1,46 @@
+{
+  "verdict": "NAMES_LOOK_SHORT_OR_ABSENT",
+  "rowCount": 9607,
+  "sample": [
+    {
+      "code": null,
+      "customerName": "UI Khách hàng B77AP2",
+      "phanXe": [
+        "B77"
+      ],
+      "customerId": 47065
+    },
+    {
+      "code": null,
+      "customerName": "UI Khách hàng B77AP2",
+      "phanXe": [
+        "B77"
+      ],
+      "customerId": 47065
+    },
+    {
+      "code": null,
+      "customerName": "UI Khách hàng B77AP2",
+      "phanXe": [
+        "B77"
+      ],
+      "customerId": 47065
+    },
+    {
+      "code": null,
+      "customerName": "UI Khách hàng B77AP2",
+      "phanXe": [
+        "B77"
+      ],
+      "customerId": 47065
+    },
+    {
+      "code": null,
+      "customerName": "UI Khách hàng B77AP2",
+      "phanXe": [
+        "B77"
+      ],
+      "customerId": 47065
+    }
+  ]
+}

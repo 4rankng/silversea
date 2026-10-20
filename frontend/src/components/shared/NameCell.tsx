@@ -25,8 +25,8 @@ import './NameCell.css';
 export function NameCell({ name, as: Tag = 'span', className }: {
   /** The display name — already the operational (short) name from the wire. */
   name: string | null | undefined;
-  /** Element to render; `em`/`strong` keep a cell's existing semantics. */
-  as?: 'span' | 'strong' | 'em';
+  /** Element to render; `em`/`strong`/`small` keep a cell's existing semantics. */
+  as?: 'span' | 'strong' | 'em' | 'small';
   className?: string;
 }) {
   const full = name?.trim() ?? '';

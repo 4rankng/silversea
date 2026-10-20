@@ -28,6 +28,7 @@ import { sumExcludingNegative } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
+import { operationalName } from '../db/master-data-name';
 import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 import type { Tx } from './trip-shared';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
@@ -96,7 +97,9 @@ export async function getAccountingDebitBoard(query: {
     id: s.shipments.id,
     code: s.shipments.shipmentCode,
     customerId: s.shipments.customerId,
-    customerName: s.customers.name,
+    // Card 191026202000: the board names ride the master-data short name —
+    // same coalesce law every other grid projection reads (fallback full name).
+    customerName: operationalName(s.customers.shortName, s.customers.name),
     routeId: s.shipments.routeId,
     ngay: s.shipments.expectedDeliveryDate,
     blNumber: s.shipments.blNumber,
@@ -478,7 +481,8 @@ export async function getAccountingDebitBoard(query: {
   // fallback when the carrier has no name row).
   const externalNameRows = carrierNameIds.size > 0 ? await executor.select({
     id: s.customers.id,
-    name: s.customers.name,
+    // Card 191026202000: Phân xe carrier labels ride the short name too.
+    name: operationalName(s.customers.shortName, s.customers.name),
   }).from(s.customers)
     .where(inArray(s.customers.id, [...carrierNameIds])) : [];
   const externalNames = new Map(externalNameRows.map((r) => [r.id, r.name]));

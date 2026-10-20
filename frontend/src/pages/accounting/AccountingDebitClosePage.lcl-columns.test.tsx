@@ -137,3 +137,33 @@ describe('FB-094 — board LCL cells', () => {
     expect(textOf('phanXe', row()).textContent).toBe('—');
   });
 });
+
+// Card 191026202000 — the board's names ride the shared NameCell: the wire
+// carries the operational (short) name, the cell keeps the full name reachable
+// through the tooltip law, and every grid treats a name the same way.
+describe('card 191026202000 — board names ride the shared NameCell', () => {
+  it('customer name renders through NameCell (title keeps the full name reachable)', () => {
+    const view = textOf('lo', row({ customerName: 'CÔNG TY TNHH MTV LONG MINH' }));
+    const name = view.querySelector('.name-cell');
+    expect(name).toBeTruthy();
+    expect(name?.textContent).toBe('CÔNG TY TNHH MTV LONG MINH');
+    expect(name?.getAttribute('title')).toBe('CÔNG TY TNHH MTV LONG MINH');
+    expect(name?.getAttribute('aria-label')).toBe('CÔNG TY TNHH MTV LONG MINH');
+  });
+
+  it('Phân xe labels render per-label through NameCell, not a joined bare string', () => {
+    const fcl = textOf('phanXe', row({ phanXe: ['Nhà xe Gaya', 'Duyên Hải'] }));
+    const names = fcl.querySelectorAll('.name-cell');
+    expect(names).toHaveLength(2);
+    expect(names[0].getAttribute('title')).toBe('Nhà xe Gaya');
+    expect(names[1].getAttribute('title')).toBe('Duyên Hải');
+    expect(fcl.textContent).toBe('Nhà xe Gaya, Duyên Hải');
+
+    const lclCarrier = textOf('phanXe', row({
+      phanXe: ['Nhà xe Gaya'],
+      lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '29C-1' }),
+    }));
+    expect(lclCarrier.querySelector('.name-cell')?.getAttribute('title')).toBe('Nhà xe Gaya');
+    expect(lclCarrier.textContent).toContain('Nhà xe Gaya · Thực: 29C-1');
+  });
+});

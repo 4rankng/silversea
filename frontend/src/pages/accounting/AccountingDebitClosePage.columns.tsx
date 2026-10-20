@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { formatCurrency, formatDate } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
 import { StatusPill } from '../../components/UI';
+import { NameCell } from '../../components/shared/NameCell';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
@@ -100,10 +101,13 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'lo', label: 'Thông tin lô hàng', className: 'debit-col--lot', pinned: true,
+    // Card 191026202000: the customer name rides the shared NameCell like
+    // every other grid — the wire already carries the operational short name,
+    // the cell keeps the full name reachable through the tooltip law.
     cell: (row) => (
       <div className="record-cell-stack">
         <span>{billBookingReference(row.billOrBooking)}</span>
-        {row.customerName != null && <small>{row.customerName}</small>}
+        <NameCell as="small" name={row.customerName} />
       </div>
     ),
   },
@@ -131,8 +135,18 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // plate) — the service batches that lookup once for the whole board, so
     // this cell MUST NOT resolve a carrier of its own.
     cell: (row) => {
+      // Card 191026202000: each nhà xe label rides the shared NameCell (short
+      // name from the wire, full name in the tooltip) instead of a joined
+      // full-legal-name string.
+      const phanXeNames = (labels: string[]) => labels.map((label, index) => (
+        <Fragment key={`${label}-${index}`}>
+          {index > 0 && ', '}
+          <NameCell name={label} />
+        </Fragment>
+      ));
       if (row.lcl) {
-        const carrier = row.phanXe.filter((label) => label.trim() !== '').join(', ') || null;
+        const carrierLabels = row.phanXe.filter((label) => label.trim() !== '');
+        const carrier = carrierLabels.length > 0 ? phanXeNames(carrierLabels) : null;
         const actual = row.lcl.actualTruckNo?.trim() || null;
         const billing = row.lcl.billingTruckNo?.trim() || null;
         const xeoAo = billing != null && billing !== actual ? billing : null;
@@ -150,7 +164,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
           </div>
         );
       }
-      return row.phanXe.length > 0 ? row.phanXe.join(', ') : '—';
+      return row.phanXe.length > 0 ? phanXeNames(row.phanXe) : '—';
     },
   },
   {
