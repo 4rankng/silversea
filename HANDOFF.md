@@ -1,3 +1,19 @@
+# FB-002 lần 3 — Enter ô giờ /shipments/new phím chết + QA sweep mọi surface giờ (card 211026034109) — 2026-10-21
+
+Controller: agent, worktree fix-fb002-enter-gio (`/Users/dev/.paseo/worktrees/1njkloyy/fix-fb002-enter-gio`), branch fix-fb002-enter-gio-lan3 (off main 9d60f507).
+
+**Status**: DONE — reproduce toàn diện → fix form Enter law → gates xanh → UI DRIVEN local AFTER. Card .docx EDEADLK cả 3 lần (02:50Z/19:52Z/20:33Z) — scope theo title + brief.
+
+- **REPRO (staging 9d60f507, tiepvv)**: KHÔNG surface CUS nào wipe ô giờ — dialog Tổng quan R1-R4, /shipments/:id Sửa lô S1, popover D3, add-row D1/D2, mobile M1/M2 đều PASS (đủ PUT/POST + restore). **Lỗi thật: /shipments/new N2 — datetime hoàn chỉnh + Enter = PHÍM CHẾT IM LẶNG** (`apiHits=0`, không summary) vì 2 nút submit nằm ngoài `<form>`, mọi button trong form `type="button"` → implicit submission không chạy. QA gõ giờ → Enter không phản ứng → rời trang → mất trắng toàn bộ input đã nhập — khớp card. Lesson 63a3dfc4 lặp lại.
+- **Fix**: `ShipmentCreateWorkspace.tsx` form Enter law giống hệt 2 host đã land (CUS quick-edit `2e1a762b`, dispatch assignment dialog): guard defaultPrevented/composing/saving/picker/select/button/listbox/textarea/Shift → `requestSubmit()` → `save('CREATE')` paint issue + focus, KHÔNG wipe field nào. Field giữ luật riêng (draft hoàn chỉnh mới bubble; incomplete/picker-open field tự swallow).
+- **Gates** (log trong `qa/2026-10-21-fb002-lan3/`): `cd frontend && npx tsgo -b && pnpm exec tsc --noEmit` exit 0 · scoped mới `ShipmentCreateWorkspace.enter-save.test.tsx` 3/3 (red-green: stash → 2 fail dead key, fix → pass) · full FE `pnpm test` **5351/5352** sau `make build` (fail duy nhất `dev-port-contract` blame script **FB-033** `2026-10-21-fb033-*` từ main 19a9cc5b — pre-existing A/B-verified, card riêng cho owner FB-033) · `make build` 0 · `pnpm lint` 0 · BE không đụng.
+- **UI DRIVEN AFTER** (local :7176→:3002 — `make dev` conflict container `ss-prod-db` của checkout chính, KHÔNG đụng; backend reuse vì 0 thay đổi BE): A1 Enter sau datetime hoàn chỉnh → summary "Cần bổ sung 5 thông tin" + mọi input giữ nguyên; A2 form đủ → Enter ở ô giờ → `POST /shipments/quick` → **lot 311952**, container TEMU1234565 `customerAppointmentAt 2026-11-22T09:30Z` = 16:30+07 đúng giờ gõ.
+- **Not covered**: staging re-drive SAU deploy (owner NEVER per law); role khác CUS ở /shipments/new (MANAGER/ADMIN cùng form — law form-level, không role-branch); mobile 390 ở /shipments/new AFTER (N-probe desktop; mobile BEFORE M1/M2 staging đã xanh); dispatch /dispatch-detail filter giờ + assignment dialog đã đọc wiring (Enter law có sẵn) nhưng chưa drive.
+
+---
+
+
+
 # FB-086 reconciliation — "Sửa lô" ở Chi tiết lô; container GIỮ read-only (TICKET-09 wins) — 2026-10-21
 
 Controller: agent, worktree fix-fb086 (off main be1c65fe), branch fix-fb086.
