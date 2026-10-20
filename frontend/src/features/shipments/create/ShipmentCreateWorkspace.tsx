@@ -603,7 +603,42 @@ export function ShipmentCreateWorkspace() {
         onSaveDraft={() => void save('DRAFT')}
         onCreate={() => void save('CREATE')}
       />
-      <form ref={workspaceFormRef} noValidate onSubmit={(event) => { event.preventDefault(); void save('CREATE'); }} className="csc-workspace">
+      <form
+        ref={workspaceFormRef}
+        noValidate
+        onSubmit={(event) => { event.preventDefault(); void save('CREATE'); }}
+        onKeyDown={(event) => {
+          // FB-002 (cards 181026000027 + 171026215500 family, lần 3 — card
+          // 211026034109): this workspace is the last major time-field host
+          // without an Enter law. Both submits (Tạo lô hàng / Lưu nháp) live
+          // in the topline OUTSIDE the form and every in-form button is
+          // type="button", so the browser's implicit submission never fires —
+          // Enter after typing a COMPLETE "Ngày giờ đóng trả" was a silent
+          // dead key (không lưu), and the operator's whole typed intake died
+          // with the page when they moved on (mất trắng input). The form
+          // answers Enter itself through the same submit the topline rides
+          // (requestSubmit keeps the app-owned validation paint; no field is
+          // ever wiped). The segmented datetime fields keep their own law: a
+          // COMPLETE draft's Enter bubbles here, incomplete/open-picker ones
+          // are swallowed by the field — never steal a key the field already
+          // handled. Same guard set as the CUS quick-edit modal and the
+          // dispatch assignment dialog.
+          if (event.defaultPrevented) return;
+          if (event.key !== 'Enter' || event.nativeEvent.isComposing || saving) return;
+          const target = event.target as HTMLElement;
+          // Open date/time pickers own their Enter (commit the draft / close
+          // the panel) — never steal it.
+          if (target.closest('[data-date-picker], .time-picker__popup, [data-time-picker-overlay]')) return;
+          if (target.isContentEditable || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.closest('.searchable-select, [role="listbox"], [role="option"], .csc-container-type-picker')) return;
+          // Multiline notes: bare Enter inserts a newline; Ctrl/Cmd+Enter
+          // saves — same law as the quick-edit modal.
+          if (target.tagName === 'TEXTAREA' && !event.ctrlKey && !event.metaKey) return;
+          if (event.shiftKey) return;
+          event.preventDefault();
+          workspaceFormRef.current?.requestSubmit();
+        }}
+        className="csc-workspace"
+      >
         <ShipmentCreateSummary
           // Submit-gated (17/10 de-noise): pristine/dirty-before-create shows
           // no panel. After the first "Tạo lô hàng" click the panel speaks the

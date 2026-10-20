@@ -1,0 +1,5 @@
+== FB-002 lan 3 AFTER — DB side-effect proof (local dev :3002, lot created via Enter in ô giờ) ==
+GET /api/shipments/cus-workspace/311952 (CUS view) at 2026-10-20T20:33:12Z:
+summary.bookingRef = QA-FB002-LAN3-LOCAL
+summary.version = 1
+container: TEMU1234565 customerAppointmentAt = 2026-11-22T09:30:00.000Z

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "N1 giờ-only \"16:30\" + Enter×2 on /shipments/new → NO create POST, typed giờ KEPT (no wipe), visible guidance",
+    "pass": true,
+    "detail": "apiHits=0 contTimeSegs=[\"time:hh=16\",\"time:mm=30\",\"date:dd=\",\"date:mm2=\",\"date:yyyy=\",\"time:hh=\",\"time:mm=\",\"date:dd=\",\"date:mm2=\",\"date:yyyy=\"] issues=[\"Nhập đủ giờ và ngày hợp lệ.\"] active=date:dd url=/shipments/new"
+  },
+  {
+    "id": "N2 full \"16:30 22/11/2026\" + Enter on /shipments/new → không tự tạo lô (dead key ok) HOẶC create chạy — trạng thái được ghi, KHÔNG mất trắng input",
+    "pass": true,
+    "detail": "apiHits=0 url=/shipments/new contNumber=TEMU1234565 booking=QA-FB002-LAN3 contTimeSegs=[\"time:hh=16\",\"time:mm=30\",\"date:dd=22\",\"date:mm2=11\",\"date:yyyy=2026\"] issues=[]"
+  }
+]

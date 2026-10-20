@@ -1,0 +1,22 @@
+[
+  {
+    "id": "D3 popover: type-over giờ \"16:30\" + Enter → saved (POST fired, value = 16:30 local, no wipe)",
+    "pass": true,
+    "detail": "mutations=1 after=2026-10-25T09:30:00.000Z saveError=null timeSegs=[] notice=Đã lưu dữ liệu container. Kế toán cần đối soát dữ liệu mới nhất trước khi khóa lô."
+  },
+  {
+    "id": "D1 add-row giờ-only \"16:30\" + Enter → NOT submitted (incomplete draft must not POST), inputs KEPT",
+    "pass": false,
+    "detail": "mutations=1 addContainer=TSTU9999860 addTimeSegs=[\"hh=16\",\"mm=30\"] fieldError=Số container \"TSTU9999860\" không hợp lệ: Sai số kiểm tra — định dạng đúng nhưng mã kiểm tra không khớp notice=null"
+  },
+  {
+    "id": "D2 add-row full \"16:30 22/11/2026\" + Enter → POST container-add fired with giờ hẹn",
+    "pass": false,
+    "detail": "mutations=[\"POST /shipments/cus-workspace/965/containers\"] resp=status() {\n        return this.#status;\n    } body={\"error\":\"Số container \\\"TSTU9999860\\\" không hợp lệ: Sai số kiểm tra — định dạng đúng nhưng mã kiểm tra không khớp\"} fieldError=Số container \"TSTU9999860\" không hợp lệ: Sai số kiểm tra — định dạng đúng nhưng mã kiểm tra không khớp"
+  },
+  {
+    "id": "D2 cleanup: staging container TSTU9999860 removed",
+    "pass": true,
+    "detail": "add never landed (nothing to clean)"
+  }
+]
