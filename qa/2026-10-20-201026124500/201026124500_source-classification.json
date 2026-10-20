@@ -1,0 +1,1925 @@
+{
+  "counts": {
+    "COLUMN": 87,
+    "FALLBACK": 0,
+    "MIXED": 0
+  },
+  "lots": [
+    {
+      "id": 236,
+      "identity": "EGLV790671170881",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 398,
+          "number": "MSCU1708813",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 234,
+      "identity": "EGLV790670211827",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 183,
+          "number": "MSCU2118278",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 232,
+      "identity": null,
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 181,
+          "number": "MSCU3604130",
+          "tuyen": "EMPTY",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 231,
+      "identity": null,
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 180,
+          "number": "MSCU9846700",
+          "tuyen": "EMPTY",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 222,
+      "identity": null,
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 177,
+          "number": "MSCU7654329",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 216,
+      "identity": null,
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 171,
+          "number": "MSCU7654329",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 215,
+      "identity": null,
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 169,
+          "number": "MSCU7654329",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 214,
+      "identity": null,
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 168,
+          "number": "MSCU7654329",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 177,
+      "identity": "DNKM13338",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 148,
+          "number": "TRHU4510296",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 13,
+          "liftSiteId": 2,
+          "dropoffSiteId": 10
+        }
+      ]
+    },
+    {
+      "id": 176,
+      "identity": "DNKM13337",
+      "status": "IN_TRANSIT",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 147,
+          "number": "MAGU2468720",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": 2,
+          "dropoffSiteId": 10
+        }
+      ]
+    },
+    {
+      "id": 174,
+      "identity": "DNKM13335",
+      "status": "IN_TRANSIT",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 144,
+          "number": "MSBU1245654",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 13,
+          "liftSiteId": 2,
+          "dropoffSiteId": 10
+        }
+      ]
+    },
+    {
+      "id": 170,
+      "identity": "105254550147",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 143,
+          "number": "OOLU8312661",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 12,
+          "liftSiteId": 50,
+          "dropoffSiteId": 2
+        }
+      ]
+    },
+    {
+      "id": 169,
+      "identity": "137465192255",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 141,
+          "number": "FCIU9034568",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 14,
+          "liftSiteId": 50,
+          "dropoffSiteId": 2
+        },
+        {
+          "id": 142,
+          "number": "GPLU6781236",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 14,
+          "liftSiteId": 50,
+          "dropoffSiteId": 2
+        }
+      ]
+    },
+    {
+      "id": 168,
+      "identity": "105254549088",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 140,
+          "number": "BEAU4281650",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 12,
+          "liftSiteId": 50,
+          "dropoffSiteId": 2
+        }
+      ]
+    },
+    {
+      "id": 167,
+      "identity": "105254549001",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 138,
+          "number": "TCLU5830190",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 12,
+          "liftSiteId": 50,
+          "dropoffSiteId": 2
+        },
+        {
+          "id": 139,
+          "number": "MEDU7120398",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 12,
+          "liftSiteId": 50,
+          "dropoffSiteId": 2
+        }
+      ]
+    },
+    {
+      "id": 166,
+      "identity": "137465191698",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 137,
+          "number": "HLXU6109346",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 14,
+          "liftSiteId": 50,
+          "dropoffSiteId": 2
+        }
+      ]
+    },
+    {
+      "id": 165,
+      "identity": "137465191612",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 135,
+          "number": "CMAU3145620",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 14,
+          "liftSiteId": 50,
+          "dropoffSiteId": 2
+        },
+        {
+          "id": 136,
+          "number": "EGHU2047632",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 14,
+          "liftSiteId": 50,
+          "dropoffSiteId": 2
+        }
+      ]
+    },
+    {
+      "id": 931,
+      "identity": "BK-QA-181026-FCL",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 482,
+          "number": "MSKU1234565",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 11,
+          "liftSiteId": 1,
+          "dropoffSiteId": 50
+        },
+        {
+          "id": 483,
+          "number": "MSKU7654328",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 11,
+          "liftSiteId": 1,
+          "dropoffSiteId": 50
+        }
+      ]
+    },
+    {
+      "id": 834,
+      "identity": "R21-FB038",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 465,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 19,
+          "liftSiteId": 2,
+          "dropoffSiteId": 25
+        }
+      ]
+    },
+    {
+      "id": 932,
+      "identity": "B2QA-FB012-KEP",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 484,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 19,
+          "liftSiteId": 50,
+          "dropoffSiteId": 25
+        },
+        {
+          "id": 485,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 19,
+          "liftSiteId": 50,
+          "dropoffSiteId": 25
+        }
+      ]
+    },
+    {
+      "id": 893,
+      "identity": "BK-R22-TEST1",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 479,
+          "number": "TGHU1234567",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 11,
+          "liftSiteId": 50,
+          "dropoffSiteId": 50
+        },
+        {
+          "id": 480,
+          "number": "TCLU7654320",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 11,
+          "liftSiteId": 50,
+          "dropoffSiteId": 50
+        }
+      ]
+    },
+    {
+      "id": 833,
+      "identity": "R21-KEP2X20",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 463,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 19,
+          "liftSiteId": 50,
+          "dropoffSiteId": 25
+        },
+        {
+          "id": 464,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 19,
+          "liftSiteId": 50,
+          "dropoffSiteId": 25
+        }
+      ]
+    },
+    {
+      "id": 744,
+      "identity": "CL2-B2-003",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 453,
+          "number": "CLXU1234588",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 10,
+          "liftSiteId": 50,
+          "dropoffSiteId": 50
+        }
+      ]
+    },
+    {
+      "id": 738,
+      "identity": "CL2-B2-002",
+      "status": "IN_TRANSIT",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 452,
+          "number": "CLXU1234572",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 10,
+          "liftSiteId": 50,
+          "dropoffSiteId": 50
+        }
+      ]
+    },
+    {
+      "id": 718,
+      "identity": "CL2-B2-001",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 451,
+          "number": "CLXU1234567",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 10,
+          "liftSiteId": 50,
+          "dropoffSiteId": 50
+        }
+      ]
+    },
+    {
+      "id": 175,
+      "identity": "DNKM13336",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 145,
+          "number": "MSDU1245780",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 12,
+          "liftSiteId": 2,
+          "dropoffSiteId": 10
+        },
+        {
+          "id": 146,
+          "number": "TGBU3190086",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 12,
+          "liftSiteId": 2,
+          "dropoffSiteId": 10
+        }
+      ]
+    },
+    {
+      "id": 759,
+      "identity": "CL2-B2-004",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 454,
+          "number": "CLXU1234593",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 10,
+          "liftSiteId": 50,
+          "dropoffSiteId": 50
+        }
+      ]
+    },
+    {
+      "id": 478,
+      "identity": "R15B3-FCL-02",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 351,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        },
+        {
+          "id": 352,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 477,
+      "identity": "R15B3-FCL-01",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 349,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        },
+        {
+          "id": 350,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 145,
+      "identity": "CUTD-ADHOC-BL-1",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 100,
+          "number": null,
+          "tuyen": "EMPTY",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 235,
+      "identity": "PROBE-EDD-1",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 184,
+          "number": "MSCU7777771",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 17,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 293,
+      "identity": "BLCUSa49BD",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 219,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": 25,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 332,
+      "identity": "TEST-DEL-001",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 260,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 11,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 326,
+      "identity": "E2EROLE001",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 256,
+          "number": "EEUU1000010",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 233,
+      "identity": null,
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 182,
+          "number": "MSCU8923335",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 237,
+      "identity": "EGLV790671198411",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 186,
+          "number": "MSCU1984112",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 238,
+      "identity": "EGLV790671333291",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 187,
+          "number": "MSCU3332915",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 264,
+      "identity": "BLQA20-28E40E",
+      "status": "IN_TRANSIT",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 204,
+          "number": "MSCU6639870",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 6,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 291,
+      "identity": "BLCUSa1DBC",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 218,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 289,
+      "identity": "BLCUSa80B3",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 217,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 287,
+      "identity": "BLCUSa5DB0",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 216,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 70,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 285,
+      "identity": "BLCUSaF7B0",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 215,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 283,
+      "identity": "BLCUSa19B2",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 214,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 281,
+      "identity": "BLCUSaCEBD",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 213,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 279,
+      "identity": "BLCUSa89B7",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 212,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 277,
+      "identity": "BLCUSa26B1",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 211,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 275,
+      "identity": "BLCUSaD5BA",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 210,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 273,
+      "identity": "BLCUSa26BC",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 209,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 271,
+      "identity": "BLCUSa0CBE",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 208,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 269,
+      "identity": "BLCUSaA8B3",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 207,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 267,
+      "identity": "BLCUSa43B6",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 206,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 265,
+      "identity": "BLCUSa24BB",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 205,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 260,
+      "identity": "BLCUS6159",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 203,
+          "number": "MSKU1234565",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": 1,
+          "dropoffSiteId": 70
+        }
+      ]
+    },
+    {
+      "id": 257,
+      "identity": "BK-C197D89327827",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 201,
+          "number": "MSCU1234566",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 11,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 256,
+      "identity": "EGLV203685064382",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 200,
+          "number": "MSCU1234566",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 11,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 255,
+      "identity": "EGLV203683622828",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 199,
+          "number": "MSCU1234566",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 11,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 254,
+      "identity": "EGLV203683579350",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 198,
+          "number": "MSCU1234566",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 11,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 253,
+      "identity": "EGLV203683552169",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 197,
+          "number": "MSCU1234566",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 11,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 249,
+      "identity": "EGLV790676233174",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 196,
+          "number": "MSCU2331745",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 248,
+      "identity": "EGLV790676144110",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 195,
+          "number": "MSCU1441100",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 247,
+      "identity": "EGLV790674829265",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 194,
+          "number": "MSCU8292651",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 246,
+      "identity": "EGLV790674793142",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 193,
+          "number": "MSCU7931423",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 245,
+      "identity": "EGLV790674578745",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 192,
+          "number": "MSCU5787451",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 244,
+      "identity": "EGLV790674380596",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 191,
+          "number": "MSCU3805962",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 243,
+      "identity": "EGLV790674346444",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 190,
+          "number": "MSCU3464444",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 240,
+      "identity": "EGLV790673201865",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 189,
+          "number": "MSCU2018659",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 239,
+      "identity": "EGLV790671361147",
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 188,
+          "number": "MSCU3611479",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 218,
+      "identity": null,
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 173,
+          "number": "MSCU7654329",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 217,
+      "identity": null,
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 172,
+          "number": "MSCU7654329",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 220,
+      "identity": "SEAB-2609-778807",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 175,
+          "number": "MSCU7654329",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 208,
+      "identity": null,
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 164,
+          "number": "MSCU7654329",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 144,
+      "identity": null,
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 98,
+          "number": null,
+          "tuyen": "EMPTY",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        },
+        {
+          "id": 99,
+          "number": null,
+          "tuyen": "EMPTY",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "identity": "SEAB-2609-778899",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 38,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        },
+        {
+          "id": 39,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "identity": null,
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 36,
+          "number": null,
+          "tuyen": "EMPTY",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": null,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "identity": null,
+      "status": "PENDING_DATE",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 33,
+          "number": null,
+          "tuyen": "EMPTY",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        },
+        {
+          "id": 34,
+          "number": null,
+          "tuyen": "EMPTY",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "identity": "EGLV260904500013",
+      "status": "IN_TRANSIT",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 22,
+          "number": "TSTU4182600",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": 3,
+          "dropoffSiteId": 24
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "identity": "EGLV260904500010",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 18,
+          "number": "MNBU0000278",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        },
+        {
+          "id": 19,
+          "number": "MNBU0000283",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "identity": "EGLV260904500011",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 20,
+          "number": "MSKU1234565",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 9,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 221,
+      "identity": "SEAB-2609-778812",
+      "status": "IN_TRANSIT",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 176,
+          "number": "MSCU7654329",
+          "tuyen": "COLUMN",
+          "nang": "EMPTY",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": null,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "identity": "EBKG18452303",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 17,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 10,
+          "liftSiteId": 48,
+          "dropoffSiteId": 11
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "identity": "BLEHPH260900002",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 16,
+          "number": "EGHU3963060",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "EMPTY",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 9,
+          "liftSiteId": 6,
+          "dropoffSiteId": null
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "identity": "EHPH26080202",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 15,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": 9,
+          "liftSiteId": 13,
+          "dropoffSiteId": 47
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "identity": "EGLV149607019409",
+      "status": "COMPLETED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 9,
+          "number": "EMCU6163403",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": 6,
+          "dropoffSiteId": 46
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "identity": "2337300010",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 14,
+          "number": null,
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": 14,
+          "dropoffSiteId": 12
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "identity": "JJCTCHPDY260305",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 11,
+          "number": "TWCU8170772",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": 3,
+          "dropoffSiteId": 24
+        },
+        {
+          "id": 12,
+          "number": "UETU5787415",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 6,
+          "liftSiteId": 3,
+          "dropoffSiteId": 24
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "identity": "YMJAE492321975",
+      "status": "DISPATCHED",
+      "activeLock": false,
+      "containers": 1,
+      "lines": [
+        {
+          "id": 10,
+          "number": "YMLU0000112",
+          "tuyen": "COLUMN",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "ALLOCATION",
+          "rawRouteId": 10,
+          "liftSiteId": 17,
+          "dropoffSiteId": 27
+        }
+      ]
+    },
+    {
+      "id": 179,
+      "identity": "DNKM13340",
+      "status": "READY_FOR_DISPATCH",
+      "activeLock": false,
+      "containers": 2,
+      "lines": [
+        {
+          "id": 149,
+          "number": "BBHU2001012",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": 2,
+          "dropoffSiteId": 10
+        },
+        {
+          "id": 150,
+          "number": "BBHU2001028",
+          "tuyen": "EMPTY",
+          "nang": "COLUMN",
+          "ha": "COLUMN",
+          "nhaXe": "EMPTY",
+          "rawRouteId": null,
+          "liftSiteId": 2,
+          "dropoffSiteId": 10
+        }
+      ]
+    }
+  ]
+}

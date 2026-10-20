@@ -35,6 +35,7 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 import { createFulfillmentForAddedContainer, ensureShipmentFulfillmentsInTx, operationalSiteSnapshot } from './shipment-fulfillment.service';
+import { resolveAddedContainerCarrierPlan, type ResolvedCarrierPlan } from './added-container-carrier-plan';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -1040,6 +1041,41 @@ export async function addCusShipmentContainer(args: {
       provided !== undefined ? provided : fallback()
     );
 
+    // Card 201026124500 (181026185900 A.1): the added row copies Nhà xe like
+    // it copies Tuyến/Nâng/Hạ — first non-null sibling FULFILLMENT's planned
+    // carrier (the plan lives on the fulfillment, not the container: this is
+    // the exact gap whose every added row arrived "Nhà xe trống"). The wire's
+    // provided pair wins under the same contract as the columns above;
+    // Biển số/xe never ride the copy.
+    const providedCarrier = args.input.carrierType !== undefined
+      ? { carrierType: args.input.carrierType, externalCarrierId: args.input.externalCarrierId ?? null }
+      : undefined;
+    // The lot's default only needs reading when the wire provided nothing —
+    // a provided pair always wins, so the sibling query is skipped entirely.
+    const siblingFulfillmentPlans = providedCarrier === undefined
+      ? await tx.select({
+        plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+        plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+      }).from(s.shipmentFulfillments)
+        .where(and(
+          eq(s.shipmentFulfillments.shipmentId, args.shipmentId),
+          isNull(s.shipmentFulfillments.canceledAt),
+        ))
+        .orderBy(asc(s.shipmentFulfillments.id))
+      : [];
+    const carrierPlan: ResolvedCarrierPlan | null = resolveAddedContainerCarrierPlan(
+      providedCarrier,
+      siblingFulfillmentPlans,
+    );
+    // Only the OPERATOR's pick is validated (the wire's pairing rules plus
+    // this existence check); the inherited plan stamps as-is exactly like the
+    // container-column inherit — an archived sibling carrier must not dead-end
+    // every add on the lot with a 409 the add row offers no way out of (the
+    // sibling rows keep the same plan untouched).
+    if (providedCarrier !== undefined && carrierPlan?.plannedCarrierType === 'EXTERNAL') {
+      await loadExternalCarrier(carrierPlan.plannedExternalCarrierId, tx);
+    }
+
     const [inserted] = await tx.insert(s.shipmentContainers).values({
       shipmentId: args.shipmentId,
       containerNumber: requestedNumber,
@@ -1072,7 +1108,7 @@ export async function addCusShipmentContainer(args: {
     // without waiting for a re-decompose trigger. Narrow helper: ensure()
     // requires the active set to already equal the container list and cannot
     // extend a partial set.
-    await createFulfillmentForAddedContainer(tx, args.shipmentId, inserted!.id, args.actor.userId);
+    await createFulfillmentForAddedContainer(tx, args.shipmentId, inserted!.id, args.actor.userId, carrierPlan);
 
     await projectShipmentScheduleAndVersion(tx, args.shipmentId, args.actor.userId);
     await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
