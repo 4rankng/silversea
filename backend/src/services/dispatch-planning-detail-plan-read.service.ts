@@ -9,12 +9,13 @@ import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAM
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES } from './dispatch-planning-commands.service';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
+import { dispatchDetailAssignedSql, dispatchDetailLiveTripJoinSql, dispatchDetailUnassignedSql } from './dispatch-detail-plan-assignment-sql';
 import { listDetailPlanPageKeys, pageKeyPredicate } from './dispatch-detail-plan-page';
 import { requireDispatchZone } from './dispatch-detail-plan-zones.service';
 import { getActiveAssignmentsByTruckIds } from './truck-driver-assignment.service';
 import { db } from '../db';
 import { ApiError } from '../errors';
-import { and, asc, eq, ilike, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { Role, TripStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
@@ -152,6 +153,13 @@ export function dispatchDetailPriorityOrderSql() {
 }
 
 
+/* FB-014 (card 201026112500): the "đã gán xe" definition is owned by
+ * `dispatch-detail-plan-assignment-sql.ts` — the trips left-join below, the
+ * quick-tab predicate and both chip-count halves all consume it, so the tab,
+ * its rows and its counts cannot drift. */
+const DISPATCH_DETAIL_ASSIGNED_SQL = dispatchDetailAssignedSql();
+const DISPATCH_DETAIL_UNASSIGNED_SQL = dispatchDetailUnassignedSql();
+
 export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRowsInput) {
   assertDispatchReadActor(input.actor);
   const accountantCustomerIds = requireAccountantDispatchScope(input.actor);
@@ -171,13 +179,15 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
   if (input.zone != null) await requireDispatchZone(input.zone);
 
   // Card 20261008_3 — 'gán xe' on the fulfillment branch = a planned plate on
-  // the row (OWN plate / carrier-vehicle plate / typed plate). Kept OUT of the
-  // shared filter below so one grouped scan can count both chips' halves of
-  // the union; pageKeys/rows still apply it through `rowFilters`.
+  // the row (OWN plate / carrier-vehicle plate / typed plate) or a live trip
+  // (FB-014: an external dispatch pending its plate string is assigned work,
+  // not "chưa gán"). Kept OUT of the shared filter below so one grouped scan
+  // can count both chips' halves of the union; pageKeys/rows still apply it
+  // through `rowFilters`.
   const assignmentPredicate = input.assignmentStatus === 'UNASSIGNED'
-    ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`
+    ? DISPATCH_DETAIL_UNASSIGNED_SQL
     : input.assignmentStatus === 'ASSIGNED'
-      ? sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`
+      ? DISPATCH_DETAIL_ASSIGNED_SQL
       : undefined;
 
   return db.transaction(async (tx) => {
@@ -362,9 +372,12 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       .leftJoin(s.routes, eq(s.routes.id, sql<number>`case when ${s.shipments.cargoMode} = 'FCL'
         then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
         else ${s.shipments.routeId} end`))
+      // FB-014: the trip hydrate shares the live-trip definition — a legacy
+      // 'CANCELLED' (double-L) trip must not ride the row as a phát-lệnh
+      // dispatch any more than it may count as an assignment.
       .leftJoin(s.trips, and(
         eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
-        ne(s.trips.status, TripStatus.CANCELED),
+        dispatchDetailLiveTripJoinSql(),
         isNull(s.trips.deletedAt),
       ))
       // Ghép chuyến tag (PRD LoHangKepKetHop §3.2): the pair kind is derived
@@ -379,10 +392,12 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       .where(and(rowFilters, pageKeyPredicate(s.shipmentFulfillments.id, fulfillmentIds)))
       .orderBy(...dispatchDetailPriorityOrderSql()),
       // Card 20261008_3 — chip counts, same scan as the old total: one grouped
-      // aggregate splits the fulfillment branch into both chips' halves.
+      // aggregate splits the fulfillment branch into both chips' halves. The
+      // halves reuse the shared assigned/unassigned fragments (FB-014), so the
+      // counts answer for exactly the rows each tab lists.
       tx.select({
-        unassigned: sql<number>`count(*) filter (where ${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`,
-        assigned: sql<number>`count(*) filter (where ${s.shipmentFulfillments.plannedVehiclePlateNumber} is not null and ${s.shipmentFulfillments.plannedVehiclePlateNumber} <> '')`,
+        unassigned: sql<number>`count(*) filter (where ${DISPATCH_DETAIL_UNASSIGNED_SQL})`,
+        assigned: sql<number>`count(*) filter (where ${DISPATCH_DETAIL_ASSIGNED_SQL})`,
       })
         .from(s.shipmentFulfillments)
         .innerJoin(s.shipments, eq(s.shipmentFulfillments.shipmentId, s.shipments.id))

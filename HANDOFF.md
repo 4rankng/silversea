@@ -1,45 +1,50 @@
-# HANDOFF — 2026-10-20 — regressions 1020b: FB-063 header wrap + FB-066 quick-add verify + party summary short-name
+# HANDOFF — 2026-10-20 — fb061-fb014 residuals: FB-061 stale alarm + FB-014 quick-tab assignment law
 
-Controller: omp agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-regressions-1020b`,
-branch `fix-regressions-1020b` (off `main` = `00bc24ed`). Updated 2026-10-20.
+Controller: agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-fb061-fb014`,
+branch `fix-fb061-fb014` (off `main` = `70b5c0a7`). Updated 2026-10-20.
 
 **Status**: DONE — committed + pushed to origin.
 
-- **FB-063 (201026101500)** FIXED: `.csc-container-table thead th` carried
-  `white-space: normal` (b6e49f27) with 104/96px cột hẹp hơn nhãn đo được
-  (122/141px) → "Loại container"/"Trọng lượng (kg)" wrap 2 dòng mọi width.
-  Fix: nowrap law + type 124px + weight 144px + min-width 1038→1108px; styles
-  test pin law 1 dòng. Rung-3 before/after 3 widths (qa/2026-10-20-regressions/).
-- **FB-066 (201026101600)** NOT REPRODUCED at HEAD: 8bfa2ac7 (staging build QA
-  khai) là ancestor của HEAD; 3/3 surfaces (Gán xe nhóm = R23 surface,
-  dispatch-detail editor, /trips/new as admin) rung-3 PASS với nút hiện + dialog
-  mở. Nút theo thiết kế chỉ hiện khi nhà xe đã chọn. Không fabricate fix
-  (precedent 63a3dfc4). Evidence: qa/2026-10-20-regressions-fb066-master/ + logs.
-- **Party summary (201026095604b)** FIXED theo đúng join-analysis: BE
-  `getPhoiPhieuReport` row +partyShortName/partyId/partyKind (grouping + số
-  tiền giữ nguyên byte); FE ID-first join (aging customerId / payables
-  supplier.id scoped theo kind) + name fallback + canonical entity merge;
-  display shortName ?? name, tooltip tên đầy đủ. Unit 14/14 (5 case mới);
-  rung-3 before/after bằng fixture SQL isolate 2026-08-20 (đã dọn sạch).
+- **FB-061 (201026112400, R24 B6)** NOT REPRODUCED on staging **70b5c0a7**:
+  Kiểm soát phơi phiếu wire 58 rows + DOM scan = 0 hits của bộ chữ ký card
+  (KHO-SEAM/STG VERIFY/BL-QAKE/E2E-/51K-PROBE/Test Driver/99T-99999/QA0915);
+  invoice-tracking 0 rows. Fix `285e20e8` đã nằm trong 8bfa2ac7 (build QA
+  khai) nên không phải stale-build — là stale/earlier-DATA alarm; không
+  fabricate fix (precedent 63a3dfc4). Evidence: qa/2026-10-20-fb061-fb014/.
+- **FB-014 (201026112500, R24 B2)** REPRODUCED + FIXED: tab "Chưa gán xe" trên
+  /dispatch-detail list dòng ĐÃ điều (trip 143 CREATED, BIỂN XANH, lệnh đã
+  phát, plate đang chờ "CUS sẽ bổ sung") vì split chỉ đọc planned plate
+  string; cộng(class) lỗi legacy `trips.status` = 'CANCELLED' (double-L,
+  trips/11) lọt qua join `<> 'CANCELED'` và hydrate thành phát-lệnh. Fix: owner
+  mới `dispatch-detail-plan-assignment-sql.ts` — ASSIGNED = plate set OR live
+  trip; UNASSIGNED = complement; live trip = `not in ('CANCELED','CANCELLED')`
+  + chưa xóa mềm. Ba điểm tiêu thụ dùng chung: tab predicate, 2 nửa chip
+  count (partition invariant giữ nguyên), trips left-join.
 
-**Gates**: BE tsc 0 · FE tsgo -b 0 · lint 0 · BE 326/326 · FE scoped 221/221 ·
-FE full 5265/5265 (dist-pin tests cần `make build` — đã build, 6/6) · build OK.
-`qa/2026-10-20-regressions/gates.log`.
+**Gates**: BE tsc 0 · BE unit 326/326 (pin mới
+`dispatch-detail-assignment-sql.test.ts` 4/4) · FE tsgo -b 0 · FE scoped
+vitest detailed-plan 384/384 (36 files) · root lint 0.
+`qa/2026-10-20-fb061-fb014/gates.log`.
 
-**Stack note**: dev stack chạy bằng paseo terminals `ss-backend` (tsx watch
-:3002) + `ss-frontend` (vite :7175) từ worktree này; DB/Redis dùng containers
-ss-prod-db :5441 / ss-prod-redis :6391 đã có từ trước. backend/.env copy từ
-main checkout. Dừng khi cần bằng kill terminal tương ứng — KHÔNG đụng container.
+**Local rung-3 proof** (dev DB :5441, build dev, dieuvan): DB census 985
+fulfillments đúng shape lỗi; sau fix UNASSIGNED 1265 / ASSIGNED 203 =
+total 1468 (partition đúng), tab Chưa gán xe 0 dòng assigned-looking, Dòng
+pending-plate (fulfillment 65076, plate '' + trip 81965 DISPATCHED) nằm đúng
+tab Đã gán xe. Screenshots + DOM + driver log trong qa/2026-10-20-fb061-fb014/.
 
-**Files owned by task**: backend/src/services/phoi-phieu-control.service.ts,
-frontend/src/api/phoiPhieuClient.ts,
-frontend/src/features/accounting/PartyMonthlyProductionSummary.{tsx,test.tsx},
-frontend/src/pages/clerk/ClerkShipmentCreatePage.{css,styles.test.ts},
-PhoiPhieuControlPage.* fixtures, testplan/2026-10-20-regressions-*.md +
-qa/scripts 2026-10-20-regressions-*.mjs, qa/2026-10-20-regressions*/ (force-
-tracked).
+**Stack note**: backend tsx watch :3002 + vite :7175 chạy background từ
+worktree này (log /tmp/ss-backend-fb061.log, /tmp/ss-frontend-fb061.log); DB
+dùng container ss-prod-db :5441 / ss-prod-redis :6391 có sẵn. KHÔNG đụng
+container. Terminals `ss-backend`/`ss-frontend` cũ (worktree
+fix-regressions-1020b) đã chết, chưa dọn.
 
-**Not covered**: staging re-drive (cards QA báo trên staging build 8bfa2ac7 —
-cần re-verify trên staging mới nhất khi deploy); aging/payables bảng chính vẫn
-hiển thị tên đầy đủ (ngoài scope card — party summary giờ join theo ID nên
-không phụ thuộc display name nữa); mobile 390 sweep cho party summary.
+**Files owned by task**: backend/src/services/dispatch-planning-detail-plan-read.service.ts,
+backend/src/services/dispatch-detail-plan-assignment-sql.ts (mới),
+backend/src/tests/unit/dispatch-detail-assignment-sql.test.ts (mới),
+testplan/2026-10-20-fb061-fb014-residuals.md, testplan/qa/scripts/2026-10-20-fb061-fb014-*.mjs,
+qa/2026-10-20-fb061-fb014/ (force-tracked).
+
+**Not covered**: staging re-drive của fix (cần deploy staging ≥ commit này —
+R24 re-check phải chạy trên build mới); /dispatch (master plan) đọc theo path
+khác, không thuộc surface card; FB-061 không tái lập được snapshot data 11:24
+của QA — verdict dựa build + data hiện tại sạch.
