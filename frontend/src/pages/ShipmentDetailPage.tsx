@@ -243,6 +243,12 @@ export default function ShipmentDetailPage() {
 
   const { shipment, containers, documents, declarations, statusHistory } = data;
   const shipmentLabel = billBookingReference(shipment.blNumber, shipment.bookingRef);
+  // FB-113 (card 171026122140): the header's Số tờ khai line reads the same
+  // declaration numbers the Tờ khai hải quan section renders — trimmed,
+  // comma-joined when a lot carries several.
+  const declarationNumbers = declarations
+    .map((d) => d.declarationNumber?.trim() ?? '')
+    .filter(Boolean);
   const customerLabel = shipment.customerName?.trim() || 'Chưa có tên khách hàng';
   const accountingLock = data.accountingLock ?? null;
   // FB-098 — cùng vai trò với nút "+ Thêm khoản chi" trong panel chi phí.
@@ -332,19 +338,29 @@ export default function ShipmentDetailPage() {
           </div>
           <dl className="shipment-detail__fields">
             <div><dt>Khách hàng</dt><dd>{customerLabel}</dd></div>
-            <div><dt>Mã đặt chỗ</dt><dd>{shipment.bookingRef ?? '—'}</dd></div>
-            <div><dt>Số B/L</dt><dd>{shipment.blNumber ?? '—'}</dd></div>
+            {/* FB-113 (card 171026122140, R24/R25 "standing"): this page shares
+                the nav title "Chi tiết lô hàng" with the /shipments-detail
+                ledger and is the surface QA's "header thiếu Số tờ khai, thứ tự
+                sai" points at — the popup (v1) and ledger (v2) fixes never
+                reached it. The header now presents the documents group in the
+                card's order: Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu.
+                Bill and Booking are direction-exclusive (the quick-edit model
+                clears the other), so one reference line rides the shared
+                billBookingReference; tờ khai numbers are the same `declarations`
+                the Tờ khai hải quan section below already shows. */}
+            <div><dt>Số Bill / Số Booking</dt><dd>{shipmentLabel}</dd></div>
+            <div><dt>Số tờ khai</dt><dd>{declarationNumbers.length > 0 ? declarationNumbers.join(', ') : '—'}</dd></div>
+            <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>
+            <div><dt>Hãng tàu</dt><dd>{shipment.shippingLineName ?? '—'}</dd></div>
             <div><dt>Nâng</dt><dd>{liftDropPoints.lift ?? '—'}</dd></div>
             <div><dt>Hạ</dt><dd>{liftDropPoints.drop ?? '—'}</dd></div>
             <div><dt>Liên hệ</dt><dd>{shipment.contactName ?? '—'}{shipment.contactPhone ? ` · ${shipment.contactPhone}` : ''}</dd></div>
             <div><dt>Ngày tạo</dt><dd>{formatDateTime(shipment.createdAt)}</dd></div>
-            <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>
             <div><dt>Loại lô</dt><dd>{shipment.cargoMode === 'FCL' ? 'Container (FCL)' : shipment.cargoMode === 'LCL' ? 'Hàng lẻ (LCL)' : '—'}</dd></div>
             <div><dt>Nhà máy / công trường</dt><dd>{shipment.effectiveFactoryName ?? shipment.factoryName ?? '—'}</dd></div>
             {/* Card 101026163040 (FB-074): the overview names the lot's route;
                 the detail must carry the same fact or the two views disagree. */}
             <div><dt>Tuyến đường</dt><dd>{shipment.routeName ?? '—'}</dd></div>
-            <div><dt>Hãng tàu</dt><dd>{shipment.shippingLineName ?? '—'}</dd></div>
             <div><dt>Cut-off hải quan</dt><dd>{formatDateTime(shipment.customsCutoffAt)}</dd></div>
             <div><dt>Giờ đóng hàng</dt><dd>{formatDateTime(shipment.closingAt)}</dd></div>
             <div><dt>Thời gian trả</dt><dd>{formatDateTime(shipment.plannedReturnAt)}</dd></div>
