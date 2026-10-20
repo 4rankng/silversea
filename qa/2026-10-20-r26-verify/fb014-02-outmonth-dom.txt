@@ -1,0 +1,115 @@
+URL: /dispatch-detail?q=JJCTCHPDY260305&date=2026-09-07
+q=JJCTCHPDY260305 date=2026-09-07
+heading=Kế hoạch Chi tiết Xe
+dateInputs=["07","09","2026","07","09","2026"] topbarMonth=Tháng 10/2026
+boardRows=2
+wire=https://vantai.tingting.vip/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&q=JJCTCHPDY260305&date=2026-09-07
+
+Bỏ qua đến nội dung chính
+Đã chuyển đến Kế hoạch Chi tiết Xe
+TransTing
+Quản lý vận tải và logistics
+Điều độ Phương tiện
+Kế hoạch Tổng quát
+Kế hoạch Chi tiết Xe
+Chấm công lái xe
+Quản Lý
+Danh mục Xe nội bộ
+Danh mục Tài xế
+Xe ngoài
+Nhà thầu
+Khai báo
+Khách hàng & Đối tác
+Tuyến đường
+Nhà máy / Kho
+Nhân viên Điều vận Demo
+Điều vận
+Đang xem
+Kế hoạch Chi tiết Xe
+Tháng 10/2026
+·
+01/10 – 31/10
+Từ ngày
+Từ
+/
+/
+→
+Đến ngày
+Đến
+/
+/
+Xuất / Nhập: Tất cả
+Bộ lọc
+Hôm nay
+Hôm sau
+Tất cả
+Tất cả
+Chưa gán xe
+0
+Đã gán xe
+2
+Gán xe
+Xóa lọc
+THỜI GIAN & LỊCH TRÌNH ↕	KHÁCH HÀNG & LỘ TRÌNH ↕	NÂNG HÀNG	TRẢ HÀNG ↕	TUYẾN ĐƯỜNG	CONTAINER	ĐIỀU PHỐI	PHÂN LOẠI	GHI CHÚ
+
+08:00 07/09/2026
+trả hàng
+	
+LONG MINH
+ASKEY-2
+Bill: JJCTCHPDY260305
+	
+Nam ĐV
+	
+Bãi JJ LOGISTICS
+	
+KCN QUẾ VÕ, BẮC NINH
+Nhập
+Kết hợp
+	
+TWCU8170772
+40'HC
+5.242 kg
+	
+VÂN LAN
+15C-123456
+Đã phát lệnh cho tài xế
+Phân xe lại
+	
+Kết hợp
+	
+Xe: Di động; Lấy vỏ ICD đi đóng; Đặt đầu; Trả về; verify-1788924545343
+Hoàn thành
+
+
+08:00 07/09/2026
+trả hàng
+	
+LONG MINH
+ASKEY-2
+Bill: JJCTCHPDY260305
+	
+Nam ĐV
+	
+Bãi JJ LOGISTICS
+	
+KCN QUẾ VÕ, BẮC NINH
+Nhập
+Kết hợp
+	
+UETU5787415
+40'HC
+5.242 kg
+	
+ĐĂNG QUÂN
+98C-048.26
+Đã hoàn thành
+Sửa
+Chuyến đã hoàn thành — kế hoạch điều phối đã chốt.
+	
+Đơn
+	
+Xe: Di động; Lấy vỏ ICD đi đóng; Đặt đầu; Trả về; verify-1788924545343
+FB-014 AFTER row click · lot OUTSIDE the topbar month (Sep 2026) · q=JJCTCHPDY260305 · date=2026-09-07
+URL: https://vantai.tingting.vip/dispatch-detail?q=JJCTCHPDY260305&date=2026-09-07
+build d39ee741 · QA R26 · 2026-10-20T09:50:47.481Z
