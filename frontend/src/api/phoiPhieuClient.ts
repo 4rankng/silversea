@@ -216,6 +216,14 @@ export async function confirmPhoiPhieuTienDuong(tripId: number, sourceId: number
 
 export interface PhoiPhieuReportRow {
   party: string;
+  /** Card 201026095604b — operational display label (shortName ?? name).
+   *  `party` stays the grouping/drill-down key; display layers read this
+   *  field instead of deriving a short form from the string. */
+  partyShortName: string | null;
+  /** Ledger-side entity identity the aging/payables reconciliation joins by
+   *  (ID-first; name is only the fallback). Null for unknown/internal rows. */
+  partyId: number | null;
+  partyKind: 'customer' | 'carrier' | 'vendor' | null;
   tienNang: number;
   tienHa: number;
   psKhac: number;

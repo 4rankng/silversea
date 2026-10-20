@@ -8,7 +8,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({ getPhoiPhieuReport }));
 import type { PhoiPhieuReportRow } from '../../api/phoiPhieuClient';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 
-const row = { party: 'KH Alpha', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0 };
+const row = { party: 'KH Alpha', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null };
 
 async function table(kind: 'THU' | 'TRA') {
   getPhoiPhieuReport.mockResolvedValue({ rows: [row], grand: undefined });
@@ -103,7 +103,7 @@ describe('báo cáo tháng gộp một dòng khi phát sinh cả thu và trả (
 describe('báo cáo thu/trả ẩn dòng còn 0 (card 374)', () => {
   const settled = { ...row, party: 'KH Trả hết', tongPhaiThuTra: 3000, daThuTra: 3000, conLai: 0 };
   const overpaid = { ...row, party: 'KH Trả trước', tongPhaiThuTra: 3000, daThuTra: 3500, conLai: -500 };
-  const grandAll = { party: 'TỔNG CỘNG', tienNang: 3000, tienHa: 6000, psKhac: 0, tongPhaiThuTra: 9000, daThuTra: 5500, conLai: 3500, ghiChu: null, soLuong: 3, phaiThu: 5500, phaiTra: 0 };
+  const grandAll = { party: 'TỔNG CỘNG', tienNang: 3000, tienHa: 6000, psKhac: 0, tongPhaiThuTra: 9000, daThuTra: 5500, conLai: 3500, ghiChu: null, soLuong: 3, phaiThu: 5500, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null };
 
   async function renderReport(rows: PhoiPhieuReportRow[], grand: PhoiPhieuReportRow | undefined) {
     getPhoiPhieuReport.mockReset().mockResolvedValue({ rows, grand });

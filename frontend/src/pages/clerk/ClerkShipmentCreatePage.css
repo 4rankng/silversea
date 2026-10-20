@@ -148,18 +148,25 @@
       bottom padding reserves that lane (overlay-scrollbar platforms just show
       a small inset). */
 .csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; padding-bottom: 14px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
-.csc-container-table { width: 100%; min-width: 1038px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-table { width: 100%; min-width: 1108px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
 .csc-container-col__index { width: 40px; }
 .csc-container-col__number { width: 128px; }
-.csc-container-col__type { width: 104px; }
+.csc-container-col__type { width: 124px; }
 .csc-container-col__route { width: 180px; }
 .csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
-.csc-container-col__weight { width: 96px; }
+.csc-container-col__weight { width: 144px; }
 .csc-container-col__actions { width: 44px; }
 .csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .csc-container-table th:last-child, .csc-container-table td:last-child { border-right: 0; }
 .csc-container-table tbody tr:last-child > * { border-bottom: 0; }
-.csc-container-table thead th { padding: 6px; background: var(--surface-2); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 700; line-height: 1.35; text-align: left; white-space: normal; }
+/* FB-063 (card 181026021137, R17 standard; regression 201026101500): a column
+   header is ALWAYS one line. `white-space: normal` (b6e49f27) wrapped
+   "Loại container" and "Trọng lượng (kg)" onto two lines at every desktop
+   width because their fixed columns (104/96px) were narrower than the labels
+   (122/141px). The col widths above now clear the measured single-line labels
+   and the table min-width grew by the same delta, so nowrap can never force a
+   mid-token shear. */
+.csc-container-table thead th { padding: 6px; background: var(--surface-2); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 700; line-height: 1.35; text-align: left; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 .csc-container-table thead th:first-child, .csc-container-table thead th:last-child { text-align: center; }
 .csc-container-table tbody th, .csc-container-table tbody td { padding: 6px; background: var(--surface); vertical-align: top; }
 .csc-container-table tbody th { color: var(--fg-3); font-size: var(--text-caption-size); text-align: center; }

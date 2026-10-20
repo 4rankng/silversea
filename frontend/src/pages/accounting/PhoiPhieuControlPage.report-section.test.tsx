@@ -12,8 +12,8 @@ import { PhoiPhieuReportSection } from './PhoiPhieuControlPage.reports';
 import type { PhoiPhieuPartyLot, PhoiPhieuReportRow } from '../../api/phoiPhieuClient';
 import { businessDateISO } from '../../lib/format';
 
-const row: PhoiPhieuReportRow = { party: 'KH Alpha', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0 };
-const grand: PhoiPhieuReportRow = { party: 'TỔNG CỘNG', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0 };
+const row: PhoiPhieuReportRow = { party: 'KH Alpha', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null };
+const grand: PhoiPhieuReportRow = { party: 'TỔNG CỘNG', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null };
 
 const lot = (over: Partial<PhoiPhieuPartyLot>): PhoiPhieuPartyLot => ({
   tripId: 1, shipmentId: 11, billOrBooking: 'YMLU1', containerNumber: 'CONT-1', departureDate: '2026-10-05',

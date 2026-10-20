@@ -19,10 +19,14 @@ import './PartyMonthlyProductionSummary.css';
  *   own TỔNG CỘNG `grand` row) — the same numbers the phoi-phieu report table
  *   prints, so the month-close totals match the detailed source by construction.
  * - "Còn nợ" is the party's existing outstanding on THIS page's ledger
- *   (`getCustomerAging` on /debt, `getPayablesSummary` on /payables) joined by
- *   display name, so the column reconciles with the page's `Tổng nợ` by
- *   construction. A party the ledger endpoint does not surface (its balance is
- *   ≤ 0) renders the computed 0 — the nothing-left-to-settle case.
+ *   (`getCustomerAging` on /debt, `getPayablesSummary` on /payables). Since
+ *   card 201026095604b the join is ID-FIRST (aging `customerId`; payables
+ *   `supplier.id` scoped by its `kind` branch) with the display name as the
+ *   fallback tier, so the column reconciles with the page's `Tổng nợ` by
+ *   construction AND survives the operational short-name display: a shortened
+ *   label or two same-named parties can no longer mis-join. A party the
+ *   ledger endpoint does not surface (its balance is ≤ 0) renders the
+ *   computed 0 — the nothing-left-to-settle case.
  *
  * Named gaps, rendered as '—' (see the card DEV NOTE):
  * - No endpoint returns per-party period VAT (thuế) or invoice (HĐ / số CT /
@@ -63,6 +67,16 @@ export function calendarMonthBounds(now = new Date()): { from: string; to: strin
 
 interface SummaryRow {
   party: string;
+  /** Card 201026095604b — the operational display label (shortName ?? name).
+   *  The legacy `party` string stays the fallback key and the tooltip text
+   *  whenever it differs from the display label. */
+  displayName: string;
+  /** Canonical entity key (`customer:${id}` / `vendor:${id}`) when either
+   *  side resolved an ID; null rows fall back to name-keyed identity. */
+  entityKey: string | null;
+  /** Every ledger lookup key the row may reconcile under, in priority order
+   *  for its variant (see resolveConNo) — ID keys first, name keys last. */
+  ledgerKeys: { customer: string[]; carrier: string[]; vendor: string[]; names: string[] };
   slThu: number;
   cuocThu: number;
   slTra: number;
@@ -75,47 +89,132 @@ interface SummaryRow {
   conNo: number;
 }
 
+/** Card 201026095604b — the ledger-side identity of one report row, keyed by
+ *  ID first (aging `customerId`; payables `supplier.id` inside its `kind`
+ *  branch) with the legacy name as the fallback tier. Two report rows that
+ *  carry the same display string but different ids can never collide, and a
+ *  short display label can never break the aging/payables reconciliation. */
+export interface LedgerOutstanding {
+  byId: Map<string, number>;
+  byName: Map<string, number>;
+}
+
 /** Party name → existing outstanding, from the ledger endpoint this page uses. */
-async function fetchLedgerOutstandingMap(variant: PartyMonthlySummaryVariant): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
+async function fetchLedgerOutstanding(variant: PartyMonthlySummaryVariant): Promise<LedgerOutstanding> {
+  const byId = new Map<string, number>();
+  const byName = new Map<string, number>();
+  const keepMax = (key: string, value: number, into: Map<string, number>) => {
+    const prev = into.get(key);
+    if (prev === undefined || value > prev) into.set(key, value);
+  };
   if (variant === 'receivable') {
     // Aging endpoint caps at limit 500 (maxLimit) — one call covers the full set.
     const res = await financialClient.getCustomerAging({ page: 1, limit: 500 });
     for (const c of res.customers) {
-      if (!map.has(c.customerName)) map.set(c.customerName, c.totalOutstanding);
+      if (c.customerId != null) keepMax(`customer:${c.customerId}`, c.totalOutstanding, byId);
+      if (!byName.has(c.customerName)) byName.set(c.customerName, c.totalOutstanding);
     }
   } else {
     const res = await financialClient.getPayablesSummary({ page: 1, limit: 500 });
     for (const item of res.items) {
-      if (!map.has(item.supplier.name)) map.set(item.supplier.name, item.totalOutstanding);
+      // The payables list's own id spaces: carrier rows resolve supplier.id
+      // from customers, vendor rows from suppliers — the kind tag keeps the
+      // two numeric spaces from colliding.
+      const kindKey = item.kind === 'carrier' ? 'carrier' : 'vendor';
+      keepMax(`${kindKey}:${item.supplier.id}`, item.totalOutstanding, byId);
+      if (!byName.has(item.supplier.name)) byName.set(item.supplier.name, item.totalOutstanding);
     }
   }
-  return map;
+  return { byId, byName };
+}
+
+/** Canonical merge key: customer-space ids (aging customers AND the payables
+ *  carrier branch read customers.id) share `customer:`, supplier rows are
+ *  `vendor:`. Rows without an ID keep their legacy string identity. */
+const entityKeyOf = (row: PhoiPhieuReportRow): string | null => {
+  if (row.partyId == null) return null;
+  if (row.partyKind === 'customer' || row.partyKind === 'carrier') return `customer:${row.partyId}`;
+  if (row.partyKind === 'vendor') return `vendor:${row.partyId}`;
+  return null;
+};
+
+/** Variant-first, ID-first outstanding resolution with name fallback. */
+function resolveConNo(row: SummaryRow, ledger: LedgerOutstanding | undefined, variant: PartyMonthlySummaryVariant): number {
+  if (!ledger) return 0;
+  const idTiers = variant === 'receivable'
+    ? [row.ledgerKeys.customer, row.ledgerKeys.carrier, row.ledgerKeys.vendor]
+    : [row.ledgerKeys.carrier, row.ledgerKeys.vendor, row.ledgerKeys.customer];
+  for (const tier of idTiers) {
+    for (const key of tier) {
+      const hit = ledger.byId.get(key);
+      if (hit !== undefined) return hit;
+    }
+  }
+  for (const name of row.ledgerKeys.names) {
+    const hit = ledger.byName.get(name);
+    if (hit !== undefined) return hit;
+  }
+  return 0;
 }
 
 function mergeSummaryRows(
   thuRows: PhoiPhieuReportRow[],
   traRows: PhoiPhieuReportRow[],
-  ledger: Map<string, number> | undefined,
+  ledger: LedgerOutstanding | undefined,
   variant: PartyMonthlySummaryVariant,
 ): SummaryRow[] {
-  const thuByParty = new Map(thuRows.map((row) => [row.party, row]));
-  const traByParty = new Map(traRows.map((row) => [row.party, row]));
+  // Card 201026095604b — merge by CANONICAL ENTITY when either side carries
+  // an id (a dual-role party's THU and TRA legs become one row even though
+  // their legacy name strings differ); name-keyed only for id-less rows.
+  const sideKey = (row: PhoiPhieuReportRow) => entityKeyOf(row) ?? `name:${row.party}`;
+  const into = (map: Map<string, PhoiPhieuReportRow[]>, row: PhoiPhieuReportRow) => {
+    const list = map.get(sideKey(row)) ?? [];
+    list.push(row);
+    map.set(sideKey(row), list);
+  };
+  const thuByParty = new Map<string, PhoiPhieuReportRow[]>();
+  for (const row of thuRows) into(thuByParty, row);
+  const traByParty = new Map<string, PhoiPhieuReportRow[]>();
+  for (const row of traRows) into(traByParty, row);
   const parties = new Set<string>([...thuByParty.keys(), ...traByParty.keys()]);
-  const merged: SummaryRow[] = [...parties].map((party) => {
-    const thu = thuByParty.get(party);
-    const tra = traByParty.get(party);
-    return {
-      party,
-      slThu: thu?.soLuong ?? 0,
-      cuocThu: round2dp(thu?.tongPhaiThuTra ?? 0),
-      slTra: tra?.soLuong ?? 0,
-      cuocTra: round2dp(tra?.tongPhaiThuTra ?? 0),
-      daThanhToan: round2dp((variant === 'receivable' ? thu?.daThuTra : tra?.daThuTra) ?? 0),
-      tonCuoiThu: round2dp(thu?.conLai ?? 0),
-      tonCuoiTra: round2dp(tra?.conLai ?? 0),
-      conNo: round2dp(ledger?.get(party) ?? 0),
+  const merged: SummaryRow[] = [...parties].map((key) => {
+    const thu = thuByParty.get(key) ?? [];
+    const tra = traByParty.get(key) ?? [];
+    // Same-side id-less rows with different names stay distinct (their keys
+    // differ); an id-carrying side absorbs the money of id-less rows that
+    // share its legacy label (superset of the old name-merge).
+    const pick = <T,>(fn: (row: PhoiPhieuReportRow) => T | undefined): T | undefined => {
+      for (const row of [...thu, ...tra]) { const v = fn(row); if (v !== undefined) return v; }
+      return undefined;
     };
+    const sum = (rows: PhoiPhieuReportRow[], fn: (row: PhoiPhieuReportRow) => number) =>
+      round2dp(rows.reduce((acc, row) => acc + fn(row), 0));
+    const displayName = pick((row) => row.partyShortName?.trim() || undefined) ?? thu[0]?.party ?? tra[0]?.party ?? key.slice('name:'.length);
+    const fullName = pick((row) => row.party?.trim() || undefined) ?? displayName;
+    const idKeys = (kind: 'customer' | 'carrier' | 'vendor') =>
+      [...thu, ...tra].filter((row) => row.partyKind === kind && row.partyId != null).map((row) => `${kind}:${row.partyId}`);
+    const names = [...new Set([...thu, ...tra].flatMap((row) => [row.party, row.partyShortName].filter((n): n is string => !!n?.trim())))];
+    const row: SummaryRow = {
+      party: fullName,
+      displayName,
+      entityKey: key.startsWith('name:') ? null : key,
+      ledgerKeys: {
+        customer: idKeys('customer'),
+        carrier: idKeys('carrier'),
+        vendor: idKeys('vendor'),
+        names,
+      },
+      slThu: sum(thu, (row) => row.soLuong),
+      cuocThu: sum(thu, (row) => row.tongPhaiThuTra),
+      slTra: sum(tra, (row) => row.soLuong),
+      cuocTra: sum(tra, (row) => row.tongPhaiThuTra),
+      daThanhToan: round2dp((variant === 'receivable' ? sum(thu, (row) => row.daThuTra) : sum(tra, (row) => row.daThuTra))),
+      tonCuoiThu: sum(thu, (row) => row.conLai),
+      tonCuoiTra: sum(tra, (row) => row.conLai),
+      conNo: 0,
+    };
+    row.conNo = round2dp(resolveConNo(row, ledger, variant));
+    return row;
   });
   // The period report's own order — busiest subjects first — on the variant's
   // primary side, name as the stable tiebreaker.
@@ -157,9 +256,11 @@ export function PartyMonthlyProductionSummary({
   });
   // Reconciliation source: the SAME ledger endpoint/field the page's table
   // prints as Tổng nợ, so "còn nợ khớp số liệu công nợ hiện có" is structural.
+  // Card 201026095604b: the join is ID-first (kind-scoped), name only the
+  // fallback tier — a short display label cannot break it.
   const ledger = useQuery({
     queryKey: ledgerOutstandingKey(variant),
-    queryFn: () => fetchLedgerOutstandingMap(variant),
+    queryFn: () => fetchLedgerOutstanding(variant),
     enabled: allowed,
   });
   // Card 051026231555 — the period VAT line. The VAT dimension of the monthly
@@ -285,9 +386,19 @@ export function PartyMonthlyProductionSummary({
               </thead>
               <tbody>
                 {rows.map((row, index) => (
-                  <tr key={row.party}>
+                  <tr key={row.entityKey ?? row.party}>
                     <td className="num pm-summary__stt">{index + 1}</td>
-                    <td data-label="Chủ xe" className="pm-summary__party">{row.party}</td>
+                    {/* Card 201026095604b — the operational short name rides
+                        the wire's own partyShortName field (never a string
+                        derivation); the legacy full label stays one tooltip
+                        away whenever it differs. */}
+                    <td
+                      data-label="Chủ xe"
+                      className="pm-summary__party"
+                      title={row.party !== row.displayName ? row.party : undefined}
+                    >
+                      {row.displayName}
+                    </td>
                     <td data-label="Phải thu SL" className="num">{row.slThu}</td>
                     <td data-label="Phải thu cước" className="num typo-mono">{formatCurrency(row.cuocThu)}</td>
                     <td data-label="Phải thu thuế" className="num pm-summary__gap">{DASH}</td>
@@ -306,7 +417,7 @@ export function PartyMonthlyProductionSummary({
                         className="btn btn--secondary btn--sm"
                         disabled
                         title="Chưa lập được từ bảng tổng hợp: cần tra cứu danh sách chuyến theo chủ xe trong kỳ (dịch vụ chưa có). Hãy lập phiếu từ bảng kiểm soát phôi phiếu."
-                        aria-label={`Lập phiếu cho ${row.party} (chưa khả dụng)`}
+                        aria-label={`Lập phiếu cho ${row.displayName} (chưa khả dụng)`}
                       >
                         Lập Phiếu
                       </button>

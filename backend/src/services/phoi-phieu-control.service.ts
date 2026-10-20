@@ -1098,6 +1098,17 @@ export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor =
 
 export interface PhoiPhieuReportRow {
   party: string;
+  /** Card 201026095604b — operational display label (shortName ?? name).
+   *  `party` above stays the grouping/drill-down key (full THU name, legacy
+   *  operational TRA label); display layers read this field instead of
+   *  deriving a short form from the string. */
+  partyShortName: string | null;
+  /** Ledger-side entity identity — the ID the aging/payables reconciliation
+   *  joins by (never a name). Null for the unknown/internal buckets. */
+  partyId: number | null;
+  /** Which ledger id space the `partyId` lives in: aging customer, payables
+   *  carrier (customers.id), or payables vendor (suppliers.id). */
+  partyKind: 'customer' | 'carrier' | 'vendor' | null;
   tienNang: number;
   tienHa: number;
   psKhac: number;
@@ -1207,7 +1218,24 @@ async function reportSources(tripIds: number[], dateFrom?: string, dateTo?: stri
       eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED')));
 }
 
-type ReportPartyInfo = { name: string | null; ghiChu: string | null };
+/** Party identity for the report surfaces. `party` (the grouping label)
+ *  stays the legacy full/operational name the money has always grouped under;
+ *  `partyShortName` is the operational display label (shortName ?? name) and
+ *  `partyId`+`partyKind` are the ENTITY identity the monthly summary joins
+ *  its ledger reconciliation by (card 201026095604b — never derive-by-string:
+ *  two "LONG MINH" strings can be different rows, and a shortened display
+ *  label no longer matches the aging/payables full-name keys).
+ *  `partyKind` follows the ledger's own id spaces: `customer` (aging
+ *  customerId), `carrier` (payables carrier branch = customers.id),
+ *  `vendor` (payables vendor branch = suppliers.id). */
+type ReportPartyKind = 'customer' | 'carrier' | 'vendor';
+type ReportPartyInfo = {
+  name: string | null;
+  ghiChu: string | null;
+  shortName: string | null;
+  partyId: number | null;
+  partyKind: ReportPartyKind | null;
+};
 
 /** Party attribution for the report surfaces (card FB-061 soft-delete law and
  *  card 191026100030 fulfillment fallback included). Extracted from
@@ -1218,7 +1246,13 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
   if (tripIds.length === 0) return tripParty;
   if (kind === 'THU') {
     const parties = await db.select({
-      tripId: s.trips.id, name: s.customers.name, ghiChu: s.shipments.customerNotes,
+      tripId: s.trips.id,
+      id: s.customers.id,
+      name: s.customers.name,
+      // Card 201026095604b — the operational display label rides its own
+      // field; `party` above stays the full name the grouping/Drill-down key.
+      shortName: sql<string | null>`${operationalName(s.customers.shortName, s.customers.name)}`,
+      ghiChu: s.shipments.customerNotes,
     })
       .from(s.trips)
       // FB-061: the THU party must never print a soft-deleted customer's name;
@@ -1231,12 +1265,25 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
       .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
       .leftJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
       .where(inArray(s.trips.id, tripIds));
-    for (const row of parties) tripParty.set(row.tripId, { name: row.name, ghiChu: row.ghiChu });
+    for (const row of parties) {
+      if (!tripParty.has(row.tripId)) {
+        tripParty.set(row.tripId, {
+          name: row.name, ghiChu: row.ghiChu,
+          shortName: row.shortName && row.shortName.trim() ? row.shortName : row.name,
+          partyId: row.id ?? null, partyKind: row.id != null ? 'customer' : null,
+        });
+      }
+    }
   } else {
     const parties = await db.select({
       tripId: s.trips.id,
       name: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${externalCarrierName}
         when nullif(${s.trucks.licensePlate}, '') is not null then ${INTERNAL_CARRIER_CODE} else null end`,
+      // Card 201026095604b — the ledger-side identity: CUSTOMER-shape carriers
+      // live in the payables CARRIER branch (customers.id), SUPPLIER-shape in
+      // the VENDOR branch (suppliers.id). Null for the internal fleet bucket.
+      carrierId: carrierCustomer.id,
+      supplierId: carrierSupplier.id,
     })
       .from(s.trips)
       .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
@@ -1248,9 +1295,15 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
       .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId)).where(inArray(s.trips.id, tripIds));
     for (const row of parties) {
       if (!tripParty.has(row.tripId)) {
+        // externalCarrierName already projects the operational label
+        // (shortName ?? name) — the TRA side has printed short names since
+        // its birth; shortName mirrors it so the FE has ONE display field.
+        const partyId = row.carrierId ?? row.supplierId ?? null;
         tripParty.set(row.tripId, {
-          name: row.name,
-          ghiChu: null,
+          name: row.name, ghiChu: null,
+          shortName: row.name,
+          partyId,
+          partyKind: partyId == null ? null : row.carrierId != null ? 'carrier' : 'vendor',
         });
       }
     }
@@ -1268,7 +1321,7 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
   // path already dropped: this loop only needs each source's recorded cash
   // totals, so read the whole selection once instead of once per source.
   const cashBySourceId = await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
-  const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null; soLuong: number; phaiThu: number; phaiTra: number; movements: Set<string> }>();
+  const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null; soLuong: number; phaiThu: number; phaiTra: number; movements: Set<string>; partyInfo: ReportPartyInfo | null }>();
   for (const source of sources) {
     // A NULL trip (the correct-route linked-replacement nulls the source's
     // trip_id) must not silently drop the money from the report — it keeps
@@ -1278,6 +1331,11 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
     const bucket = groups.get(party) ?? {
       tienNang: 0, tienHa: 0, psKhac: 0, da: 0, ghiChu: partyInfo?.ghiChu ?? null,
       soLuong: 0, phaiThu: 0, phaiTra: 0, movements: new Set<string>(),
+      // Card 201026095604b — first-non-null identity wins for the bucket: one
+      // grouping label maps to one entity (the grouping itself is name-keyed,
+      // so a second different id under the same name is the soft-deleted/
+      // fallback case the name-join already could not disambiguate either).
+      partyInfo: partyInfo?.name != null ? partyInfo : null,
     };
     const bucketKey = bucketByCategory(source.category);
     // Card 20260928_197 — the signed cost side drops negative rows; `da` (the
@@ -1310,7 +1368,9 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
     const conLai = tong - bucket.da;
     // Honest-and-additive: daThuTra reports the over-paid actual (may exceed
     // tong, conLai goes negative) so the FE over-pay annotation can fire.
-    return { party, tienNang: bucket.tienNang, tienHa: bucket.tienHa, psKhac: bucket.psKhac,
+    return { party, partyShortName: bucket.partyInfo?.shortName ?? null,
+      partyId: bucket.partyInfo?.partyId ?? null, partyKind: bucket.partyInfo?.partyKind ?? null,
+      tienNang: bucket.tienNang, tienHa: bucket.tienHa, psKhac: bucket.psKhac,
       tongPhaiThuTra: tong, daThuTra: bucket.da, conLai, ghiChu: bucket.ghiChu,
       soLuong: bucket.movements.size, phaiThu: bucket.phaiThu, phaiTra: bucket.phaiTra };
   })
@@ -1323,11 +1383,12 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
     // cannot reorder either — and the grouping above already merged them.
     .sort((a, b) => b.soLuong - a.soLuong || a.party.localeCompare(b.party, 'vi'));
   const grand = rows.reduce((acc, row) => ({
-    party: 'TỔNG CỘNG', tienNang: acc.tienNang + row.tienNang, tienHa: acc.tienHa + row.tienHa,
+    party: 'TỔNG CỘNG', partyShortName: null, partyId: null, partyKind: null,
+    tienNang: acc.tienNang + row.tienNang, tienHa: acc.tienHa + row.tienHa,
     psKhac: acc.psKhac + row.psKhac, tongPhaiThuTra: acc.tongPhaiThuTra + row.tongPhaiThuTra,
     daThuTra: acc.daThuTra + row.daThuTra, conLai: acc.conLai + row.conLai, ghiChu: null,
     soLuong: acc.soLuong + row.soLuong, phaiThu: acc.phaiThu + row.phaiThu, phaiTra: acc.phaiTra + row.phaiTra,
-  }), { party: 'TỔNG CỘNG', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0 });
+  }), { party: 'TỔNG CỘNG', partyShortName: null as string | null, partyId: null as number | null, partyKind: null as PhoiPhieuReportRow['partyKind'], tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0 });
   return { rows, grand };
 }
 
