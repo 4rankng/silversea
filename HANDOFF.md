@@ -1,3 +1,21 @@
+# FB-061 lần 3 — /users sạch nốt "Đơn vị CUS Demo" khỏi catalog Đơn vị phụ trách (card 201026112400) — 2026-10-20
+
+Controller: agent, worktree fix-fb061-lan3 (off main d6d04ce6). Fix commit `3ac4b779`, deployed staging `3ac4b779`, pushed branch.
+
+**Status**: DONE — residual là business unit demo-seed, purge-guard staging-only, UI DRIVEN sạch.
+
+- Trước: staging `d6d04ce6` — 72 user rows sạch (thành quả lan 2 giữ vững) NHƯNG `/users` vẫn render thẻ **"Đơn vị CUS Demo — Mã CUS-DEMO · Đang sử dụng"** trong section "Đơn vị phụ trách" (BusinessUnitsManager, admin-only). Lỗ hổng lan 2: registry comment mis-classify CUS-DEMO là "single real unit", và UI drive lan 2 chỉ assert `table tbody tr` nên catalog không bị quét.
+- Root cause: `seedClerkScope()` (demo seed, `backend/src/seed.ts`) tạo unit; staging mirror prod giữ nguyên. Reference census (SSH psql): đúng 1 link (user 78 `cus` — đã soft-delete lan 2), 15 shipment cùng tạo ngày seed 2026-09-19, 0 salary close. `business_units` không có `deleted_at`, `listBusinessUnits()` trả mọi row (lifecycle surface) → chỉ hard-delete clears /users.
+- Fix: `QA_FIXTURE_REGISTRY` +2 surface **staging-only** hard-delete (links children-first rồi unit), predicate exact-match từng byte với seed literal (`code = 'CUS-DEMO' OR name = 'Đơn vị CUS Demo'`) — không wildcard, không đụng unit admin tạo sau; local dev giữ CUS-DEMO (`envs` gate); prod bị executor từ chối. Mọi `make stgdb` sau này restore unit → purge 4/5 tự dọn lại (self-healing).
+- Deploy `make demo` (build `3ac4b779`): purge `user_business_unit_links matched=1 deleted=1` + `business_units matched=1 deleted=1`, remaining=0 trên cả hai. `qapurge-dry` rerun matched=0 (idempotent). DB proof `units_cus_demo=0`, `units_total=0`.
+- UI DRIVEN (probe `PHASE=after --gate` exit 0): wire `businessUnits: []`, DOM @1440+@390 0 signature (before: 2 hit), 72/72 rows, 0 console error, KPI 72/11/43/0 nguyên vẹn.
+- Gates: BE tsc 0 · BE unit 322/322 (+6 pin BUDEMO-1..6, gồm seed-drift pin đọc `seed.ts`) · root lint 0 · independent reviewer 0 blocker (4 tightenings applied).
+- Evidence: `qa/2026-10-20-fb061-lan3-users/` (deploy-demo.log, qapurge-dry-idempotence.log, before/after PNG+DOM+rows+driver logs); case `testplan/cases/case-2026-10-20-fb061-lan3-users-demo-business-unit.md` (coverage table §9).
+
+**Not covered**: prod vẫn còn CUS-DEMO + trio demo (cần owner instruction riêng); 15 seed shipments mất tên đơn vị hiển thị (dangling id — demo rows); role non-admin không thấy catalog (admin-only, không đổi); re-drive thật sau `make stgdb` kế tiếp chưa có (purge đã wire sẵn trong pipeline).
+
+---
+
 # QA R27 fix — staging session instability (tự rớt phiên + tự chuyển user) — 2026-10-20
 
 Controller: agent, worktree fix-session-instability (off main 106a25e3).
