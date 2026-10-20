@@ -15,6 +15,7 @@ import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { vatForAmount } from '@tingting/shared';
 import * as s from '../db/schema';
 import { db } from '../db';
+import { operationalName } from '../db/master-data-name';
 import { ApiError } from '../errors';
 import { getAccountingDebitBoard, assertNoPendingRateAdjustment } from './accounting-debit-close.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
@@ -232,7 +233,12 @@ export async function listDebitSettlementRounds(): Promise<{ items: DebitSettlem
   for (const round of rounds) {
     if (round.carrierKey.startsWith('CUST:')) nameIds.add(Number(round.carrierKey.slice(5)));
   }
-  const nameRows = nameIds.size > 0 ? await db.select({ id: s.customers.id, name: s.customers.name })
+  const nameRows = nameIds.size > 0 ? await db.select({
+    id: s.customers.id,
+    // Card 201026095604a: the rounds table names ride the master-data short
+    // name — same projection law as the chốt-debit board it sits under.
+    name: operationalName(s.customers.shortName, s.customers.name),
+  })
     .from(s.customers).where(inArray(s.customers.id, [...nameIds])) : [];
   const names = new Map(nameRows.map((r) => [r.id, r.name]));
   const countRows = await db.select({

@@ -1,4 +1,5 @@
 import { formatCurrency, formatDate } from '../../lib/format';
+import { NameCell } from '../../components/shared/NameCell';
 import { EmptyState } from '../../design-system';
 import type { DebitSettlementRoundRow } from '../../api/accountingDebitClient';
 
@@ -44,8 +45,9 @@ export function DebitRoundBoard({ rounds }: { rounds: readonly DebitSettlementRo
               {rounds.map((round) => (
                 <tr key={round.id}>
                   <td>{`Lần ${round.roundNo} · ${round.periodKey.replaceAll('-', '/')}`}</td>
-                  <td>{round.customerName ?? '—'}</td>
-                  <td>{round.carrierLabel ?? '—'}</td>
+                  {/* Card 201026095604a: same short-name law as the board above. */}
+                  <td><NameCell name={round.customerName} /></td>
+                  <td><NameCell name={round.carrierLabel} /></td>
                   <td>{round.direction === 'THU' ? 'Phải thu' : 'Phải trả'}</td>
                   <td>{formatDate(round.dateFrom)}</td>
                   <td>{formatDate(round.dateTo)}</td>
