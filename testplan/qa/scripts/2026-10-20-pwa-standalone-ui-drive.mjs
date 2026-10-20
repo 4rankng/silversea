@@ -8,7 +8,7 @@ import { mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const BASE = process.env.QA_BASE || 'http://localhost:7199';
+const BASE = process.env.QA_BASE || 'http://localhost:7175';
 // Evidence lands in the repo-root qa/ dir regardless of where this runs from.
 const DIR = `${process.cwd()}/qa/2026-10-20-pwa-standalone`;
 
