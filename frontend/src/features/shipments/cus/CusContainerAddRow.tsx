@@ -6,10 +6,26 @@ import { BufferedUuiDateTimeInput } from '../../../design-system/forms/BufferedU
 // the same warning + one-tap correction the trip container card shows.
 import { checkContainerNumber } from '../../../components/trip/container-instance-helpers';
 
-/** The four fields the container-add API accepts; one add-row draft. */
+/**
+ * The add-row draft: the container-add wire fields plus the A.1 copy set.
+ * Card 201026124500 (181026185900 A.1): "Thêm container" copies EVERY field of
+ * the lot's existing rows TRỪ Số container và Loại cont — Tuyến, Nhà xe, Nâng,
+ * Hạ, Trọng lượng and Giờ hẹn ride the seed (and the submit), so the new row
+ * reads like the rows above it end to end. `*Name` fields are the display
+ * mirrors of their id twins (the seeded cells render them).
+ */
 export interface AddContainerFields {
   containerNumber: string;
   containerTypeId: string;
+  routeId: string;
+  routeName: string | null;
+  liftSiteId: string;
+  liftSiteName: string | null;
+  dropoffSiteId: string;
+  dropoffSiteName: string | null;
+  carrierType: 'OWN' | 'EXTERNAL' | '';
+  externalCarrierId: string;
+  carrierName: string | null;
   cargoWeightKg: string;
   customerAppointmentAt: string;
 }
@@ -17,6 +33,15 @@ export interface AddContainerFields {
 export const EMPTY_ADD_FIELDS: AddContainerFields = {
   containerNumber: '',
   containerTypeId: '',
+  routeId: '',
+  routeName: null,
+  liftSiteId: '',
+  liftSiteName: null,
+  dropoffSiteId: '',
+  dropoffSiteName: null,
+  carrierType: '',
+  externalCarrierId: '',
+  carrierName: null,
   cargoWeightKg: '',
   customerAppointmentAt: '',
 };
@@ -111,14 +136,26 @@ export function CusContainerAddRow({
           ]}
         />
       </td>
-      {/* Columns the add API does not fill keep an empty cell: the row covers
-          every grid track so nothing upstream shifts (Chief 23/09). */}
+      {/* Card 201026124500 (A.1): the copy-down columns SHOW their seeded
+          values in the add row — Tuyến/Nhà xe/Nâng/Hạ read like the rows
+          above before the operator ever submits. Điều vận (computed dispatch
+          status) and Biển số (per-truck entry, ngoài danh sách A.1) keep an
+          empty cell; the row still covers every grid track so nothing
+          upstream shifts (Chief 23/09). */}
+      <td data-label="Tuyến" className="cus-container-cell">
+        <strong>{fields.routeName || '—'}</strong>
+      </td>
       <td className="cus-container-ledger__add-blank" />
+      <td data-label="Nhà xe" className="cus-container-cell cus-container-cell--carrier">
+        <strong>{fields.carrierName || '—'}</strong>
+      </td>
       <td className="cus-container-ledger__add-blank" />
-      <td className="cus-container-ledger__add-blank" />
-      <td className="cus-container-ledger__add-blank" />
-      <td className="cus-container-ledger__add-blank" />
-      <td className="cus-container-ledger__add-blank" />
+      <td data-label="Nâng" className="cus-container-cell">
+        <strong>{fields.liftSiteName || '—'}</strong>
+      </td>
+      <td data-label="Hạ" className="cus-container-cell">
+        <strong>{fields.dropoffSiteName || '—'}</strong>
+      </td>
       <td data-label="Trọng lượng (kg)" className="cus-container-cell">
         <input
           aria-label="Trọng lượng (kg)"
