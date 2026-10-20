@@ -22,6 +22,7 @@ import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
 import { DebitLotLclFacts } from '../features/shipments/debit/DebitLotLclFacts';
+import { UnmergeRevGroupAction } from '../features/shipments/debit/UnmergeRevGroupAction';
 import { DisabledActionTip } from '../components/shared/DisabledActionTip';
 import './ShipmentDebitPage.css';
 
@@ -125,6 +126,21 @@ function DebitLotRow({
               members read "Ghép cước cùng Bill X" under their 0₫. */}
           {row.freightOverrideReason && (
             <small className="shipment-debit-row__freight-note">{row.freightOverrideReason}</small>
+          )}
+          {/* Card 211026024348 — the merged group's undo sits WHERE the merge
+              state shows (the "Ghép cước cùng Bill X" note under the money):
+              QA found no path back from a merged rev group. Same shared
+              action (and same unmerge endpoint) as /accounting/chot-debit. */}
+          {canManage && row.revGroupId != null && (
+            <UnmergeRevGroupAction
+              id={`shipment-debit-tach-nhom-${row.shipmentId}`}
+              groupId={row.revGroupId}
+              lotRef={lotLabel}
+              disabledReason={row.lockStatus === 'LOCKED'
+                ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
+                : null}
+              onUnmerged={onSaved}
+            />
           )}
         </div>
       </td>

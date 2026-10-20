@@ -20,6 +20,7 @@ const noContext = {
   isBusy: false,
   editBillingPlate: () => {},
   editingBillingShipmentId: null,
+  onRevGroupUnmerged: () => {},
 };
 
 const row = (over: Partial<AccountingDebitBoardRow> = {}): AccountingDebitBoardRow => ({

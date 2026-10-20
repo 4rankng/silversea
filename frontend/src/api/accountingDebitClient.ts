@@ -35,6 +35,10 @@ export interface AccountingDebitBoardRow {
     actualTruckNo: string | null;
     billingTruckNo: string | null;
     ghépCùngRef: string | null;
+    /** Card 211026024348 — the REV group id behind the row's "Tách nhóm"
+     *  action (null = not in a rev group). Optional so a rolling deployment
+     *  can lag the board wire without breaking the cell. */
+    revGroupId?: string | null;
   } | null;
   thu: AccountingDebitBoardThu;
   tra: AccountingDebitBoardTra;

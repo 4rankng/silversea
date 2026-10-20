@@ -1,3 +1,74 @@
+# FB-093 follow-up — nút "Tách nhóm" cho Ghép cước thu khách (card 211026024348) — 2026-10-21
+
+Controller: agent, worktree fix-fb093-tach-nhom (off main f056944f), branch fix-fb093-tach-nhom.
+
+**Status**: DONE — fix + scoped/full gates + UI DRIVEN (staging before · local after). Card 211026024348 (QA: "FB-093 ghép cước thu khách thiếu nút tách nhóm"). Card .docx vẫn bị GDrive BadZipFile/EDEADLK — scope theo tiêu đề + brief; đã thử lại trước commit, không đọc được.
+
+- **BUG**: sau Ghép cước thu khách (Lô 1 = 100% CƯỚC VẬN TẢI AUTO, Lô 2..N = 0₫
+  + "Ghép xe cùng Bill [Lô 1]") trên Chi phí - Quyết toán (và mọi surface) KHÔNG
+  có đường nào tách nhóm lại. Staging f056944f tái hiện: dòng merge hiện note
+  nhưng 0 nút tách (`qa/…/staging-repro-ui-driver.log` 2/2 PASS, read-only).
+- **FIX (UI)**: `UnmergeRevGroupAction` dùng chung — `<button type="button">`
+  "Tách nhóm", aria-label "Tách nhóm ghép cước thu khách — lô [Số Bill]",
+  `DisabledActionTip` gate (aria-disabled + aria-describedby lý do "Nhóm ghép đã
+  chốt kế toán — không thể tách nhóm.", KHÔNG `disabled` attr — pattern FB-093b,
+  handler guard), confirm bằng `ConfirmDialog` chung. Render trên MỌI dòng thuộc
+  rev group: Chi phí - Quyết toán (ô CƯỚC VẬN TẢI (AUTO), cạnh note ghép) +
+  `/accounting/chot-debit` (ô Thông số container, cạnh "(Ghép cùng Bill X)" —
+  wire thêm `lcl.revGroupId`, query đã có sẵn). Wire đúng endpoint sẵn có
+  `POST /api/shipments/lcl/unmerge-group` (`unmergeLclGroup` REV) — KHÔNG có
+  path unmerge thứ hai. Role law đã verify: ADMIN/MANAGER/DISPATCHER/CUS/
+  ACCOUNTANT ⊇ merge counterpart (CUS + kế toán đều tách được).
+- **FIX (BE — trong path unmerge sẵn có)**: `unmergeLclGroup` chiều REV trả
+  tiền về trạng thái trước ghép + dọn note ghép (`restoreRevPreMergeMoney`):
+  trip live ⇒ `revenue ← revenueOriginal` + clear stamp "Ghép cước cùng Bill…"
+  (lô rời read channel override — luật F-2 — cột CƯỚC đọc lại grain snapshot
+  của chính lô = đúng mặt trước ghép); không trip ⇒ re-materialize snapshot
+  trước ghép VERBATIM (tiền + trace ids + formulaText) thay snapshot 0₫ merge;
+  không có gì trước ghép ⇒ 0₫ re-cite "Tách khỏi nhóm ghép — chờ định giá lại"
+  (D02). Note/stamp ngoài family ghi chú nhóm (operator M2.1) GIỮ NGUYÊN. Merge
+  giờ ghi `revenueOriginal` cho cả Lô 1 (trước đây chỉ thành viên). COST +
+  FB-095 promote-on-unmerge (`unmergeLclLot`) không đổi — dispatch "Tách nhóm"
+  copy vẫn đúng.
+- **Gates (verbatim)**:
+  - `cd backend && npx tsc --noEmit` → exit 0.
+  - `cd backend && pnpm test` → 326/326 pass (rerun sau fix restore).
+  - `cd frontend && npx tsgo -b` (repo không có tsgo → fallback `npx tsc -b`) → exit 0.
+  - `cd frontend && pnpm exec tsc --noEmit` → covered bởi `tsc -b` (project refs) → 0 errors.
+  - Scoped vitest MỚI: `ShipmentDebitPage.tach-nhom` (4) + `AccountingDebitClosePage.tach-nhom` (3) → 7/7; kèm các suite liên quan 42/42.
+  - Full FE suite: **5356/5356 pass** (baseline 5349 + 7 mới; lần đầu 2 fail
+    `numeric-identity.styles` do worktree chưa có `dist/` — build lại `make build`
+    rồi rerun xanh 6/6 + full green rerun).
+  - `pnpm lint` → 0 errors. `make build` → exit 0.
+- **Evidence**: `qa/2026-10-21-fb093-tach-nhom/` — staging repro (0 nút tách) ·
+  local 5 PNG + 3 DOM + 2 driver logs + db-1/db-2/db-3 (trước ghép 3.050.000/
+  1.800.000 → merge 4.500.000/0₫+note → tách về lại 3.050.000/1.800.000, stamp
+  clear) + audit `SHIPMENT_LCL_GROUP_UNMERGED` cause `UNMERGE_GROUP` members=2
+  (rows 143955/143961). Driver `testplan/qa/scripts/2026-10-21-fb093-tach-nhom-ui-drive.mjs`
+  (env-only ports — dev-port-contract). Regression `testplan/2026-10-21-fb093-tach-nhom.md` (FB093T-01..03).
+- **Verification coverage (§9)**:
+
+| Claim / bug | Rung | Evidence | Not covered |
+|---|---|---|---|
+| Card: không có đường tách nhóm (trước fix) | UI DRIVEN | `staging-ui-00-repro.png` + `staging-repro-ui-driver.log` 2/2 (staging f056944f, tiepvv) | chưa drive account CUS khác; chỉ 1 trang lọc |
+| (a) 2 lô cùng KH ghép → Lô 1 100% AUTO, Lô 2 0₫ + note | UI DRIVEN | `local-ui-01/02/03*.png` + `local-dom-03-merged.txt` + `db-2-after-merge.txt` + `local-merge-ui-driver.log` 10/10 | viewport 390/768; role ACCOUNTANT |
+| (b) click Tách nhóm → confirm → tách | UI DRIVEN | `local-ui-04-tach-confirm.png` + `local-dom-04` + `local-tach-ui-driver.log` 5/5 | dialog bằng bàn phím; role khác |
+| (c) tiền về lại từng lô đúng pre-merge, note ghép dọn | UI DRIVEN | `local-ui-05-after-tach.png` (3.050.000/1.800.000, note gone) + `db-3-after-tach.txt` (revenue về 3.000.000/1.800.000, stamp NULL) | nhóm merge trước card này (Lô 1 không có revenueOriginal — đã ghi nhận); snapshot channel trip-less (unit/logic, chưa UI-drive) |
+| audit SHIPMENT_LCL_GROUP_UNMERGED | DB/API VERIFIED | `db-3-after-tach.txt` rows 143955/143961 (cause UNMERGE_GROUP, members=2) | — |
+| aria + DisabledActionTip (nút thật, aria-disabled + reason, guard) | UI DRIVEN + unit | driver DOM dumps + `ShipmentDebitPage.tach-nhom`/`AccountingDebitClosePage.tach-nhom` 7/7 | screen reader thật; chỉ CUS |
+| promote-on-unmerge (FB-095) giữ nguyên | unit (rung 1 cho UI strip) | `DebitLotLclFacts.test.tsx` + `ShipmentDebitPage.tach-nhom` promote case | chưa UI-drive lại Hủy ghép Lô 1 |
+| /accounting/chot-debit cùng action | unit (rung 1) | `AccountingDebitClosePage.tach-nhom` 3/3 | chưa UI-drive accounting surface |
+
+- **Not covered**: mobile 390/768; role ACCOUNTANT/MANAGER trên surface; UI-drive
+  `/accounting/chot-debit`; snapshot channel trip-less (code + edge documented,
+  chưa có fixture UI); nhóm merge TRƯỚC card này restore Lô 1 giữ nguyên tiền
+  hiện tại (không còn dữ liệu trước ghép). Independent review: subagent
+  code-reviewer treo/hủy — tự review diff (checklist gates/HANDOFF/evidence);
+  phát hiện + sửa 1 defect: trip-less restore copy thiếu trace ids (reader sẽ
+  in sai hint) — đã fix, be-tsc xanh, be-test rerun.
+
+---
+
 # FB-086 reconciliation — "Sửa lô" ở Chi tiết lô; container GIỮ read-only (TICKET-09 wins) — 2026-10-21
 
 Controller: agent, worktree fix-fb086 (off main be1c65fe), branch fix-fb086.

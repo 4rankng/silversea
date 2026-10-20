@@ -61,6 +61,10 @@ export interface AccountingDebitBoardRow {
     actualTruckNo: string | null;
     billingTruckNo: string | null;
     ghépCùngRef: string | null;
+    /** Card 211026024348 — the REV group id (null = not in a rev group): the
+     *  row's "Tách nhóm" action needs it to call the existing
+     *  `POST /shipments/lcl/unmerge-group` — never a second unmerge path. */
+    revGroupId: string | null;
   } | null;
   thu: {
     cuocThu: string | null;
@@ -619,6 +623,7 @@ export async function getAccountingDebitBoard(query: {
         ].filter(Boolean).join(' · '),
         actualTruckNo: lot.actualTruckNo,
         billingTruckNo: lot.billingTruckNo,
+        revGroupId: lot.revGroupId,
         ghépCùngRef: (lot.revGroupId != null && (lot.revGroupOrder ?? 1) > 1
           ? lclPrincipalRefs.get(lot.revGroupId) ?? null
           : lot.costGroupId != null && (lot.costGroupOrder ?? 1) > 1
