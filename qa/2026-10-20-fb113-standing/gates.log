@@ -1,0 +1,23 @@
+FB-113 standing gates — 2026-10-20 — worktree fix-fb113-investigate (bf3a0ff9 + fix)
+
+$ cd frontend && npx tsgo -b
+(exit 0, no output)
+
+$ cd frontend && npx vitest run src/pages/ShipmentDetailPage.test.tsx src/App.shipments-edit-route.test.tsx
+ Test Files  2 passed (2)
+      Tests  44 passed (44)
+   Start at  16:06:13
+   Duration  2.44s
+
+$ cd frontend && npx eslint src/pages/ShipmentDetailPage.tsx src/pages/ShipmentDetailPage.test.tsx
+(exit 0, no output)
+
+$ pnpm lint
+> tingting@ lint
+> eslint .
+(exit 0, no errors)
+
+Browser drives:
+$ node testplan/qa/scripts/2026-10-20-fb113-standing-verdict.mjs            # staging bf3a0ff9, ledger phase-1 → 11/11 PASS (exit 0)
+$ node testplan/qa/scripts/2026-10-20-fb113-standing-detail-page.mjs        # staging bf3a0ff9, detail page BEFORE → 1 pass / 4 FAIL (exit 1 — the confirmed defect)
+$ QA_BASE=http://localhost:7178 QA_BUILD=dev QA_TAG=after node testplan/qa/scripts/2026-10-20-fb113-standing-detail-page.mjs   # local bf3a0ff9+fix AFTER → 5/5 PASS (exit 0)

@@ -1,0 +1,61 @@
+{
+  "build": "bf3a0ff9",
+  "results": [
+    {
+      "id": "staging build is bf3a0ff9",
+      "pass": true,
+      "detail": "buildHash=bf3a0ff9"
+    },
+    {
+      "id": "staging has lots to probe",
+      "pass": true,
+      "detail": "87 lots, picked populated-declaration,empty-declaration,lcl-lot-level-row"
+    },
+    {
+      "id": "[populated-declaration DNKM13337] FB113 header order (4 cột, Số tờ khai có mặt)",
+      "pass": true,
+      "detail": "declHeaders=1 headers=[\"Khách hàng & lộ trình\",\"Bill/Booking\",\"Số tờ khai\",\"Nhập/Xuất\",\"Hãng tàu\",\"Thông số container\",\"Nâng / hạ\",\"Lịch trình\",\"Phân xe\",\"Trạng thái\"]"
+    },
+    {
+      "id": "[populated-declaration DNKM13337] documents cells in DOM order",
+      "pass": true,
+      "detail": "[\"Bill/Booking\",\"Số tờ khai\",\"Nhập/Xuất\",\"Hãng tàu\"]"
+    },
+    {
+      "id": "[populated-declaration DNKM13337] UI↔API declaration identity (\"DNKM13337\" / MAGU2468720)",
+      "pass": true,
+      "detail": "ui=\"102250318903\" api=\"102250318903\""
+    },
+    {
+      "id": "[empty-declaration EGLV790671170881] FB113 header order (4 cột, Số tờ khai có mặt)",
+      "pass": true,
+      "detail": "declHeaders=1 headers=[\"Khách hàng & lộ trình\",\"Bill/Booking\",\"Số tờ khai\",\"Nhập/Xuất\",\"Hãng tàu\",\"Thông số container\",\"Nâng / hạ\",\"Lịch trình\",\"Phân xe\",\"Trạng thái\"]"
+    },
+    {
+      "id": "[empty-declaration EGLV790671170881] documents cells in DOM order",
+      "pass": true,
+      "detail": "[\"Bill/Booking\",\"Số tờ khai\",\"Nhập/Xuất\",\"Hãng tàu\"]"
+    },
+    {
+      "id": "[empty-declaration EGLV790671170881] UI↔API declaration identity (\"EGLV790671170881\" / MSCU1708813)",
+      "pass": true,
+      "detail": "ui=null api=null"
+    },
+    {
+      "id": "[lcl-lot-level-row] FB113 header order (4 cột, Số tờ khai có mặt)",
+      "pass": true,
+      "detail": "declHeaders=1 headers=[\"Khách hàng & lộ trình\",\"Bill/Booking\",\"Số tờ khai\",\"Nhập/Xuất\",\"Hãng tàu\",\"Thông số container\",\"Nâng / hạ\",\"Lịch trình\",\"Phân xe\",\"Trạng thái\"]"
+    },
+    {
+      "id": "[lcl-lot-level-row] documents cells in DOM order",
+      "pass": true,
+      "detail": "[\"Bill/Booking\",\"Số tờ khai\",\"Nhập/Xuất\",\"Hãng tàu\"]"
+    },
+    {
+      "id": "card mode keeps documents labels",
+      "pass": true,
+      "detail": "[\"Khách hàng & lộ trình\",\"Bill/Booking\",\"Số tờ khai\",\"Nhập/Xuất\",\"Hãng tàu\",\"Thông số container\",\"Nâng / hạ\",\"Lịch trình\",\"Phân xe\",\"Trạng thái\"]"
+    }
+  ],
+  "exitCode": 0
+}

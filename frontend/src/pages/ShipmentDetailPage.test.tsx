@@ -186,6 +186,73 @@ describe('ShipmentDetailPage', () => {
     expect(routeCell?.textContent).toBe('Hải Phòng – NEWEB');
   });
 
+  // FB-113 (card 171026122140) — R24/R25 "standing": /shipments/:id shares the
+  // nav title "Chi tiết lô hàng" with the /shipments-detail ledger and is the
+  // surface QA's "header thiếu Số tờ khai, thứ tự sai" points at (the popup
+  // v1 and ledger v2 fixes never reached it). The header card presents the
+  // documents group in the card's order — Bill/Booking → Số tờ khai →
+  // Xuất/Nhập → Hãng tàu — with the lot's tờ khai numbers carried in the
+  // header itself, not only in the section below.
+  it('presents the documents group in the FB-113 order with Số tờ khai in the header', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      declarations: [
+        { id: 9, shipmentId: 1, declarationNumber: 'TK-2026-001', issuedAt: '2026-08-10T00:00:00.000Z', scope: 'SINGLE', note: null, createdBy: 11, createdAt: '2026-08-10T00:00:00.000Z', updatedAt: '2026-08-10T00:00:00.000Z' },
+        { id: 10, shipmentId: 1, declarationNumber: 'TK-2026-002', issuedAt: '2026-08-10T00:00:00.000Z', scope: 'SINGLE', note: null, createdBy: 11, createdAt: '2026-08-10T00:00:00.000Z', updatedAt: '2026-08-10T00:00:00.000Z' },
+      ],
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter></ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText('Số Bill / Số Booking');
+    const dts = Array.from(document.querySelectorAll('.shipment-detail__fields dt')).map((dt) => dt.textContent?.trim());
+    const idx = (name: string) => {
+      const at = dts.indexOf(name);
+      expect(at).toBeGreaterThanOrEqual(0);
+      return at;
+    };
+    // The documents group sits right after Khách hàng and reads in the
+    // FB-113 order — adjacent, no unrelated field interleaved.
+    expect(dts.slice(idx('Khách hàng') + 1, idx('Hãng tàu') + 1)).toEqual([
+      'Số Bill / Số Booking',
+      'Số tờ khai',
+      'Xuất / Nhập',
+      'Hãng tàu',
+    ]);
+    // Số Bill / Số Booking is ONE direction-exclusive reference line (BL wins).
+    expect(screen.getByText('Số Bill / Số Booking').nextElementSibling?.textContent).toBe('BL-001');
+    // Số tờ khai joins every declaration number, right in the header.
+    expect(screen.getByText('Số tờ khai').nextElementSibling?.textContent).toBe('TK-2026-001, TK-2026-002');
+  });
+
+  it('keeps the FB-113 header reference readable when the lot has neither Bill nor Booking yet', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      shipment: { ...detail.shipment, blNumber: null, bookingRef: null },
+      declarations: [],
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter></ToastProvider>
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText('Số Bill / Số Booking');
+    expect(screen.getByText('Số Bill / Số Booking').nextElementSibling?.textContent).toBe('Chưa có số Bill/Booking');
+    expect(screen.getByText('Số tờ khai').nextElementSibling?.textContent).toBe('—');
+  });
+
   it('shows CUS lock metadata without exposing the removed dossier action', async () => {
     render(
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -590,7 +657,7 @@ describe('ShipmentDetailPage', () => {
           </MemoryRouter></ToastProvider>
         </QueryClientProvider>,
       );
-      await screen.findByText('TK-0055');
+      await screen.findAllByText('TK-0055');
       expect(screen.queryByRole('button', { name: '+ Thêm tờ khai' })).toBeNull();
       expect(screen.queryByRole('button', { name: 'Xóa tờ khai TK-0055' })).toBeNull();
 
@@ -604,7 +671,7 @@ describe('ShipmentDetailPage', () => {
           </MemoryRouter></ToastProvider>
         </QueryClientProvider>,
       );
-      await screen.findByText('TK-0055');
+      await screen.findAllByText('TK-0055');
       expect(screen.queryByRole('button', { name: '+ Thêm tờ khai' })).toBeNull();
       expect(screen.queryByRole('button', { name: 'Xóa tờ khai TK-0055' })).toBeNull();
     });
@@ -621,7 +688,7 @@ describe('ShipmentDetailPage', () => {
           </MemoryRouter></ToastProvider>
         </QueryClientProvider>,
       );
-      expect(await screen.findByText('TK-0055')).toBeTruthy();
+      expect(await screen.findAllByText('TK-0055')).toBeTruthy();
       expect(screen.getByRole('button', { name: '+ Thêm tờ khai' })).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Xóa tờ khai TK-0055' })).toBeDisabled();
     });
