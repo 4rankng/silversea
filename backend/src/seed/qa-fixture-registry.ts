@@ -22,6 +22,11 @@ export interface QaFixtureSurface {
   predicate: string;
   action: 'soft-delete' | 'hard-delete' | 'hard-delete-guarded' | 'deactivate' | 'deactivate-plus-soft-delete' | 'scrub';
   guards: Array<{ table: string; column: string }>;
+  /** Optional purge environments this surface runs in. Omitted = everywhere.
+   *  FB-061 lan 2 (card 201026112400): the demo-seed portal accounts are
+   *  staging-only fixtures — local dev-seed logs in with them, so the same
+   *  registry must not purge them under QA_PURGE_ENV=local. */
+  envs?: Array<'local' | 'staging'>;
   /** Optional predicate on the row itself; true rows are skipped as guarded. */
   selfGuard?: string;
   /** For 'scrub': columns NULLed on matching rows (QA-authored text fields). */
@@ -300,7 +305,15 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     // them into a 500-row cap. `-[0-9]{13}-` is the run-scoped signature and
     // cannot match the real roster, whose names are name-based (thanhdc,
     // dungnv, giamdoc) and never carry a 13-digit epoch stamp.
-    predicate: `username ILIKE 'qa%' OR full_name ILIKE 'QA%' OR username ~ '-[0-9]{13}-' OR username ILIKE '%-inv-%'`,
+    //
+    // FB-061 lan 2 (card 201026112400): two lane families escaped the epoch
+    // signature and stayed ACTIVE on staging /users. `e2e-dispatcher-37341`
+    // carries the lane prefix but a SHORT numeric suffix (no 13-digit
+    // midfix); `HAHA-email-probe2` was a manual duplicate-email probe with no
+    // QA token at all. Both branches are prefix-gated on harness tokens the
+    // name-based real roster never uses (enumeration: staging census
+    // 2026-10-20, 77 users, exactly these two matched outside the roster).
+    predicate: `username ILIKE 'qa%' OR full_name ILIKE 'QA%' OR username ~ '-[0-9]{13}-' OR username ILIKE '%-inv-%' OR username ILIKE 'e2e-%' OR username ILIKE 'HAHA-email-probe%'`,
     action: 'soft-delete',
     // Never purge a user another row still points at: a live shipment link or
     // an assigned truck means the row is load-bearing, not leftover.
@@ -308,6 +321,29 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
       { table: 'user_shipment_links', column: 'user_id' },
       { table: 'truck_accountant_assignments', column: 'accountant_id' },
     ],
+  },
+  {
+    table: 'users',
+    label: 'Demo-seed portal accounts still carrying Demo names (staging only)',
+    // FB-061 lan 2 (card 201026112400): staging /users still listed the
+    // demo-seed portal accounts `cus` / `dieuvan` / `customer` with their
+    // seed full names ("Nhân viên CUS Demo" …). Staging mirrors prod, where
+    // every OTHER demo account was repurposed with a real person's name
+    // (admin→"Quản trị viên", giamdoc→"Lê Văn Tỉnh", ketoan, laixe, giaonhan,
+    // khachhang, samsung-cs, canon-cs) — those are real logins and MUST stay.
+    // The Demo-name conjunct is the guard: the branch fires only on the exact
+    // demo-seed username whose full name still carries the seed "Demo"
+    // marker, so a repurposed or renamed account can never match.
+    // STAGING-ONLY (`envs`): the local dev-seed database logs in with these
+    // three accounts (testplan/testaccounts.txt mode (a)); a local purge must
+    // keep them.
+    predicate: `(username IN ('cus', 'dieuvan', 'customer') AND full_name ILIKE '%Demo%')`,
+    action: 'soft-delete',
+    guards: [
+      { table: 'user_shipment_links', column: 'user_id' },
+      { table: 'truck_accountant_assignments', column: 'accountant_id' },
+    ],
+    envs: ['staging'],
   },
   {
     table: 'user_business_unit_links',
