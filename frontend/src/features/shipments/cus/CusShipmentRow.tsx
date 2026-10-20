@@ -112,7 +112,12 @@ export function CusShipmentRow({
   const scheduleContent = <>
     {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
     {groupsToShow.map((group) => (
-      <span key={`${group.at}-${group.factoryName ?? ''}`}>{formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}</span>
+      <span
+        key={`${group.at}-${group.factoryName ?? ''}`}
+        title={`${formatAppointmentGroupLine(group.at, group.localDate)}${appointmentGroupFactorySegment(group.factoryName)} · ${group.containerSummary}`}
+      >
+        {formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}
+      </span>
     ))}
     {/* Card 20260915_35 (lead ruling: fork a): the "Chỉnh sửa Lịch trình" dialog
         writes the SHIPMENT-level closingAt/plannedReturnAt, but for FCL lots the
@@ -123,12 +128,21 @@ export function CusShipmentRow({
     {groupsToShow.length === 0 && lotScheduleValue && (
       <span key="lot-schedule-fallback" className="cus-schedule-lot-fallback">{formatDateTimeShort(lotScheduleValue)}</span>
     )}
-    <span>{vehicleReadinessLabel(item)}</span>
-    <DispatchIssueStatusSummaryChip
-      plated={item.operational.plateAssignedContainers}
-      issued={item.operational.orderIssuedContainers}
-      total={item.operational.totalContainers}
-    />
+    {/* FB-043 (regression #33): dispatch readiness and issue status share one
+        status row (.cus-schedule-status-row) so they never stack as two
+        separate lines that stretch the row height. When all containers are plated
+        and none issued, both signals say "Đã điều xe" — deduplicate to one. */}
+    <span className="cus-schedule-status-row">
+      {(!(item.operational.plateAssignedContainers > 0 && item.operational.orderIssuedContainers === 0)
+        || vehicleReadinessLabel(item) !== 'Đã điều xe') && (
+        <span>{vehicleReadinessLabel(item)}</span>
+      )}
+      <DispatchIssueStatusSummaryChip
+        plated={item.operational.plateAssignedContainers}
+        issued={item.operational.orderIssuedContainers}
+        total={item.operational.totalContainers}
+      />
+    </span>
   </>;
   return (
     <tr
