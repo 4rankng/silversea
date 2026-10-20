@@ -9,8 +9,12 @@ import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclG
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
+import { deleteCusShipment } from '../api/shipmentClient';
+import { ShipmentActionModal, type ShipmentActionController } from '../components/shipments/ShipmentActionModal';
 import type { LclUnmergeLotRequest } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { useToast } from '../components/shared/Toast';
+import { useAuth } from '../hooks/useAuth';
+import { Role } from '@tingting/shared';
 import { billBookingReference } from '../lib/business-reference';
 import { formatVolumeCbm, formatWeight } from '../lib/format';
 import './DispatchPlanPage.css';
@@ -31,9 +35,35 @@ function unmergeLotConfirmMessage(request: LclUnmergeLotRequest): string {
     : `Hủy ghép lô này khỏi nhóm ${request.memberCount ?? '?'} lô? Lô 1 giữ nguyên 100% tiền cước trả ĐV; lô này trở về cước trả ĐV riêng.${dissolve}`;
 }
 
+/** Card 211026005623 (FB-095) — the delete confirm names the same promote law
+ *  before the server moves the money: xóa Lô chính ⇒ quyền Lô chính + 100%
+ *  cước trả ĐV sang lô kế tiếp (FB095-06 promote-on-delete); xóa thành viên
+ *  ⇒ Lô 1 giữ cước, survivors renumber/dissolve (`promoteLclGroupsOnShipmentDelete`). */
+function deleteLotLawNotice(row: DispatchDetailPlanRow): string | null {
+  const group = row.cargoMode === 'LCL' ? row.lcl?.group : null;
+  if (!group) return null;
+  const dissolve = group.memberCount === 2 ? ' Nhóm giải tán vì chỉ còn một lô.' : '';
+  return group.order === 1
+    ? `Lô này là Lô chính của nhóm ${group.memberCount ?? '?'} lô ghép trả ĐV — xóa lô sẽ chuyển 100% cước trả ĐV cho lô kế tiếp.${dissolve}`
+    : `Lô này là thành viên nhóm ${group.memberCount ?? '?'} lô ghép trả ĐV — Lô 1 giữ nguyên 100% cước; các thành viên còn lại được đánh số lại.${dissolve}`;
+}
+
 export default function DispatchDetailPlanPage() {
   const detailPlan = useDispatchDetailPlan();
   const { toast } = useToast();
+  // Card 211026005623 (FB-095) — the Điều vận surface's "Xóa lô": same delete
+  // flow as the /shipments drawer + lot detail (confirm + lý do →
+  // deleteCusShipment). Role law stays CUS/ADMIN (`requestShipmentDelete`
+  // 403s everyone else — cards 351/352 + 20261007_396), so DISPATCHER /
+  // MANAGER get no delete execution here either; the guard is not loosened.
+  // Per card 20260923_1 the affordance stays reachable and answers with the
+  // guard's own reason instead of vanishing (same law as the drawer's Xóa lô).
+  const { user } = useAuth();
+  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
+  const [deleteRow, setDeleteRow] = useState<DispatchDetailPlanRow | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [lotDeleteBlock, setLotDeleteBlock] = useState<string | null>(null);
   const [reassignTripId, setReassignTripId] = useState<number | null>(null);
   // Ghép chuyến (LoHangKepKetHop §3.1): the row whose trip anchors the pair;
   // null keeps the dialog closed. Candidates are the loaded unpaired OWN
@@ -167,9 +197,60 @@ export default function DispatchDetailPlanPage() {
     }
   }
 
+  // Card 211026005623 — the row action routes: authorized roles open the
+  // delete confirm; everyone else gets the guard's own law text inline
+  // (verbatim the `requestShipmentDelete` refusal) — the button never
+  // vanishes, it answers (card 20260923_1).
+  function requestDeleteLot(row: DispatchDetailPlanRow) {
+    if (!canDeleteLot) {
+      setLotDeleteBlock('Chỉ CUS hoặc Quản trị viên mới được yêu cầu xóa lô hàng.');
+      return;
+    }
+    setLotDeleteBlock(null);
+    setDeleteRow(row);
+  }
+
+  // Card 211026005623 — delete flow: version-gated soft-delete (the same
+  // DELETE /api/shipments/cus-workspace/:id the CUS surfaces call). The
+  // FB-095 group guards (settled-group 409, promote-on-delete) run
+  // server-side; a refusal surfaces its verbatim reason and keeps the dialog
+  // open (card 20260923_1 law — answer with a reason, never vanish).
+  async function submitDeleteLot() {
+    if (!deleteRow || !deleteReason.trim()) return;
+    setDeleteSubmitting(true);
+    try {
+      await deleteCusShipment(deleteRow.shipmentId, deleteRow.shipmentVersion, deleteReason.trim());
+      toast({ kind: 'success', message: `Đã xóa lô ${billBookingReference(deleteRow.docs.billNumber)}` });
+      setDeleteRow(null);
+      setDeleteReason('');
+      void detailPlan.refresh();
+    } catch (err) {
+      toast({ kind: 'error', message: err instanceof Error ? err.message : 'Xóa lô thất bại' });
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  }
+
+  const deleteActions: ShipmentActionController = {
+    actionItem: deleteRow ? { id: deleteRow.shipmentId } : null,
+    actionMode: 'delete',
+    reason: deleteReason,
+    setReason: setDeleteReason,
+    submitting: deleteSubmitting,
+    closeAction: () => {
+      if (deleteSubmitting) return;
+      setDeleteRow(null);
+      setDeleteReason('');
+    },
+    submitAction: submitDeleteLot,
+  };
+
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
       <section className="dispatch-plan-page__workspace">
+        {lotDeleteBlock && (
+          <div className="dispatch-plan-page__error" role="alert">{lotDeleteBlock}</div>
+        )}
         <DetailedPlanGrid
           filters={detailPlan.filters}
           onFilterChange={detailPlan.updateFilters}
@@ -209,6 +290,7 @@ export default function DispatchDetailPlanPage() {
           onUnmergeLclLot={setUnmergeLot}
           onLclTruckUpdated={() => { void detailPlan.refresh(); }}
           onChangeGroupTruck={setGroupTruckRow}
+          onDeleteLot={requestDeleteLot}
         />
         {selectedLclRows.length > 0 && (
           <div className="lcl-selection-bar" role="status">
@@ -320,6 +402,14 @@ export default function DispatchDetailPlanPage() {
         confirmLabel={unmergingLot ? 'Đang hủy…' : 'Hủy ghép'}
         onConfirm={() => void confirmUnmergeLot()}
         onCancel={() => { if (!unmergingLot) setUnmergeLot(null); }}
+      />
+
+      {/* Card 211026005623 — the lot-delete confirm (shared CUS/Điều vận
+          dialog): required lý do + the FB-095 promote-law notice when the row
+          belongs to a COST group. */}
+      <ShipmentActionModal
+        actions={deleteActions}
+        notice={deleteRow ? deleteLotLawNotice(deleteRow) : null}
       />
 
       <ConfirmDialog

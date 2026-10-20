@@ -60,6 +60,8 @@ vi.mock('../features/dispatch/detailed-plan/useDispatchTaskTags', () => ({
   useDispatchTaskTags: () => ({ tags: [], isLoading: false, error: null }),
   useCreateDispatchTaskTag: () => ({ createTag: vi.fn(), isCreating: false }),
 }));
+// Card 211026005623 — the page now reads the role law (Xóa lô gate).
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: 'ADMIN' } }) }));
 
 // Only the un-merge call is faked — the real module keeps every other export.
 vi.mock('../api/dispatchPlanningClient', async (importOriginal) => ({

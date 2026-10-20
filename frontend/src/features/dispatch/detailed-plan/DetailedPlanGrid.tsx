@@ -145,6 +145,14 @@ interface DetailedPlanGridProps {
    *  raised from the group menu AND from the plan editor's group line; the
    *  page owns the dialog + the refetch (same wiring law as Hủy ghép). */
   onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
+  /** Card 211026005623 (FB-095) — "Xóa lô" row action raised to the page's
+   *  delete flow. The page routes it: delete-authorized roles (CUS/ADMIN law
+   *  — cards 351/352 + 20261007_396) open the confirm + lý do dialog →
+   *  DELETE /api/shipments/cus-workspace/:id (FB-095 promote-on-delete guards
+   *  server-side); other roles get the guard's own law text inline (card
+   *  20260923_1 — the affordance answers, never vanishes). Unwired pages see
+   *  no button (parity with Tách nhóm). */
+  onDeleteLot?: (row: DispatchDetailPlanRow) => void;
 }
 
 /** FB-095 — the leaving lot's identity for the confirm guard copy. */
@@ -189,6 +197,7 @@ export function DetailedPlanGrid({
   onUnmergeLclLot,
   onLclTruckUpdated,
   onChangeGroupTruck,
+  onDeleteLot,
   onEnsureFulfillment,
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
@@ -668,6 +677,21 @@ export function DetailedPlanGrid({
                             title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
                           >
                             Hoàn thành
+                          </button>
+                        )}
+                        {/* Card 211026005623 (FB-095) — the Điều vận surface's
+                            lot-delete affordance: the page owns the confirm +
+                            reason + role law; the FB-095 group guards run
+                            server-side (promote-on-delete). */}
+                        {onDeleteLot && (
+                          <button
+                            type="button"
+                            className="detailed-plan-grid__note-action detailed-plan-grid__note-action--delete"
+                            onClick={() => onDeleteLot(row)}
+                            aria-label={`Xóa lô · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
+                            title="Xóa lô hàng — nhóm ghép tự chuyển quyền Lô chính theo FB-095"
+                          >
+                            Xóa lô
                           </button>
                         )}
                       </div>

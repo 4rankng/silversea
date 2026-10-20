@@ -14,6 +14,9 @@ vi.mock('../components/shared/Toast', () => ({
   useToastOptional: () => ({ toast: vi.fn(), dismiss: vi.fn() }),
 }));
 
+// Card 211026005623 — the page now reads the role law (Xóa lô gate).
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: 'ADMIN' } }) }));
+
 // The page's data owner is pinned; the grid still mounts the real
 // PairTripsDialog so the test exercises the wiring this audit found dead
 // (`onOpenPair` was never passed, so the "Ghép chuyến" button never rendered).

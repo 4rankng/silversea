@@ -224,3 +224,55 @@ Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb019-laixe
 - **Gates**: `cd frontend && npx tsgo -b` exit 0 · `pnpm lint` exit 0 · `npx vitest run src/pages/DriverTripDetailPage.test.tsx` 55/55 (3 test mới ở describe busy-trip recovery). Regression: `testplan/2026-10-21-card211026005621-fb019-driver-banner-internal-code.md`.
 - **Not covered**: variant blocker không có mã (BE fallback 'một chuyến khác') chỉ soi code — regex vẫn khớp, không leak; BE gates không chạy (không đụng BE); role/viewport khác driver mobile 390 (không đổi CSS); staging re-drive sau deploy.
 - Stack note: port 3302/7176 đã giải phóng; :3002 (SSD main) + :7175 (fix-fb045-lan2) là của task khác — KHÔNG đụng.
+---
+
+# FB-095 Điều vận thiếu nút xóa lô ("lô chính") — 2026-10-21 (card 211026005623)
+
+Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb095-xoa-lo-chinh, branch fix-fb095-xoa-lo-chinh.
+
+**Status**: DONE — verdict (a) + fix committed (FE-only, BE không đổi).
+
+- **Verdict (a) nút thiếu thật.** Surface Điều vận `/dispatch-detail`
+  (DetailedPlanGrid — badge "Lẻ · Ghép (i/N)" + "Tách nhóm" trên Lô 1) không
+  có affordance xóa lô cho role nào; nút xóa chỉ có ở drawer `/shipments` +
+  header `/shipments/:id` (cùng `canDeleteLot = CUS || ADMIN`, flow
+  `deleteCusShipment` → `DELETE /api/shipments/cus-workspace/:id`). Không có
+  gate "giải tán nhóm trước" (FB095-06: xóa Lô chính còn member là hợp lệ —
+  `promoteLclGroupsOnShipmentDelete` auto-promote/dissolve). Card docx GDrive-
+  wedged (147KB dataless placeholder) — làm theo brief.
+- **Fix**: row action "Xóa lô" (cụm Ghi chú, style danger) trên mọi hàng lô
+  → shared `ShipmentActionModal` (confirm + lý do bắt buộc) + notice FB-095
+  (host ⇒ chuyển 100% cước cho lô kế tiếp + giải tán nhóm 2; member ⇒ Lô 1
+  giữ cước, survivors renumber). **Role law KHÔNG nới**
+  (`requestShipmentDelete` "Chỉ CUS hoặc Quản trị viên" — cards 351/352 +
+  20261007_396/204710): DISPATCHER/MANAGER bấm → banner nguyên văn luật
+  service, không dialog/API (card 20260923_1). `ShipmentActionModal` contract
+  nới `actionItem` về `{ id }` (dialog không đọc field — drawer giữ nguyên).
+- **Gates**: `npx tsgo -b` exit 0; root `pnpm lint` exit 0; vitest scoped
+  (DispatchDetailPlanPage ×4 + ShipmentsPage + ShipmentDetailPage +
+  features/dispatch/detailed-plan/) **42 files 599/599, exit 0**; UI driver
+  **26/26 PASS exit 0**. FE full suite 5344/5348 — 4 đỏ đều pre-existing/
+  flaky đã chứng minh baseline (git stash): `numeric-identity.styles` ×2 +
+  `dev-port-contract` ×1 (offender `testplan/qa/scripts/2026-10-20-pwa-
+  standalone-ui-drive.mjs` hardcode 7199, commit babb6204 — lane khác, không
+  đụng) + `DispatchAllocationLclDialog.quick-add` ×1 flaky (5/5 isolated,
+  lane 22b8b65a). BE untouched — `lcl-grouping`/FB095-01..06/C2-01..03 giữ
+  nguyên.
+- **Evidence**: `qa/2026-10-21-fb095/` (ui-01-before/ui-02-confirm/ui-03-
+  after/ui-04-grid-after/ui-05-dieuvan-role-law/ui-06-w390-768-1440 PNG +
+  db-after.json + fixtures.json + driver/gate logs). DB: host 311938 soft-
+  deleted, survivor 311939 `cost_group_id` null (dissolve), audit
+  SHIPMENT_DELETED + SHIPMENT_LCL_GROUP_UNMERGED cause=DELETE dissolved=true.
+  Driver `testplan/qa/scripts/fb095-dieuvan-delete-lot-20261021.mjs`; testplan
+  `2026-10-21-fb095-dieuvan-delete-lot.md` (FB095-UI-05..07 +
+  `DispatchDetailPlanPage.delete-lot.test.tsx` 5 tests).
+
+**Not covered**: `/dispatch` master plan không thêm nút (ngoài card — cần
+ruling riêng); MANAGER drive (cùng gate branch, pin unit); server-409 live
+path (fixture chưa phát lệnh — nhánh 409 pin unit FB095-UI-06b); nhánh chuyển
+tiền promote (fixture không chuyến live); staging re-drive sau deploy.
+
+Stack note: vite :7181 chạy từ worktree này (ad-hoc, QA_BASE override) — dọn
+sau khi xong; :7175 (fix-fb045-lan2) + backend :3002 (SSD main) của task khác
+— KHÔNG đụng (chỉ gọi API). DB ss-prod-db :5441: fixture QA-095D-* tạo + dọn
+qua API có chủ đích (cleanup xóa survivor bằng cùng governed delete).
