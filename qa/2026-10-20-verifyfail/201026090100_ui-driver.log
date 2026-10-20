@@ -1,0 +1,131 @@
+[
+  {
+    "at": "2026-10-20T02:09:44.953Z",
+    "step": "build_gate",
+    "buildHash": "57d253ff",
+    "expected": "57d253ff",
+    "ok": true
+  },
+  {
+    "at": "2026-10-20T02:09:45.177Z",
+    "step": "login",
+    "user": "cus",
+    "role": "CUS"
+  },
+  {
+    "at": "2026-10-20T02:09:45.894Z",
+    "step": "lot_pin",
+    "id": 174,
+    "version": 5,
+    "containers": 1,
+    "cargoMode": "FCL",
+    "transportDate": null,
+    "identity": "DNKM13335",
+    "ref": {
+      "routeName": "ASKEY",
+      "carrierName": "SilverSea",
+      "liftSite": "Cảng Đình Vũ",
+      "dropoffSite": "TC - HICT",
+      "weight": "20500.00",
+      "appointmentAt": null
+    }
+  },
+  {
+    "at": "2026-10-20T02:09:50.034Z",
+    "step": "open_drawer",
+    "ok": true,
+    "identity": "DNKM13335",
+    "label": "Mở chi tiết lô hàng DNKM13335, trạng thái Đang chạy"
+  },
+  {
+    "at": "2026-10-20T02:09:51.763Z",
+    "step": "addform_seed",
+    "seed": {
+      "number": "",
+      "weight": "20500",
+      "appointment": ""
+    },
+    "note": "draft seed = per-column first non-null from existing rows (weight/appointment/type); route/carrier/lift/drop inherit server-side"
+  },
+  {
+    "at": "2026-10-20T02:09:55.392Z",
+    "step": "new_row_read",
+    "found": true,
+    "toast": "Đã lưu dữ liệu container. Kế toán cần đối soát dữ liệu mới nhất trước khi khóa lô.|Đã thêm container CSQU3054383.",
+    "cells": [
+      "40HCLoại container CSQU305438340HC",
+      "ASKEYTuyến đường của container CSQU3054383ASKEY",
+      "Chờ phân xe",
+      "Chọn nhà xeNhà xe của container CSQU3054383Chọn nhà xeThêm nhà xe",
+      "Nhập biển sốBiển số xe của container CSQU305438315C-913.0115H-061.1415H-154.9817H-080.8019H-0484829C-111.4451K-999.99E2E-A0CBEE2E-A19B2E2E-A1DBCE2E-A24BBE2E-A26B1E2E-A26BCE2E-A43B6E2E-A49BDE2E-A5DB0E2E-A80B3E2E-A89B7E2E-AA8B3E2E-ACEBDE2E-AD5BAE2E-AF7B0",
+      "Cảng Đình VũCảng nâng của container CSQU3054383Cảng Đình Vũ",
+      "TC - HICTCảng hạ của container CSQU3054383TC - HICT",
+      "20.500",
+      "Chọn ngày giờ",
+      ""
+    ],
+    "cellCount": 10,
+    "text": "2CSQU305438340HCLoại container CSQU305438340HCASKEYTuyến đường của container CSQU3054383ASKEYChờ phân xeChọn nhà xeNhà xe của container CSQU3054383Chọn nhà xeThêm nhà xeNhập biển sốBiển số xe của container CSQU305438315C-913.0115H-061.1415H-154.9817H-080.8019H-0484829C-111.4451K-999.99E2E-A0CBEE2E-A19B2E2E-A1DBCE2E-A24BBE2E-A26B1E2E-A26BCE2E-A43B6E2E-A49BDE2E-A5DB0E2E-A80B3E2E-A89B7E2E-AA8B3E2E-AC"
+  },
+  {
+    "at": "2026-10-20T02:09:55.657Z",
+    "step": "db_after",
+    "found": true,
+    "inherited": {
+      "routeName": "ASKEY",
+      "carrierName": null,
+      "liftSite": "Cảng Đình Vũ",
+      "dropoffSite": "TC - HICT",
+      "rawRouteId": 13,
+      "rawCarrierId": null,
+      "rawLiftSiteId": null,
+      "rawDropSiteId": null,
+      "cargoWeightKg": "20500.00",
+      "customerAppointmentAt": null
+    }
+  },
+  {
+    "at": "2026-10-20T02:09:55.892Z",
+    "step": "cleanup",
+    "done": true,
+    "removeStatus": 200,
+    "gone": true,
+    "containersNow": 1
+  },
+  {
+    "at": "2026-10-20T02:09:55.990Z",
+    "step": "check",
+    "name": "drawer + container ledger opened",
+    "ok": true
+  },
+  {
+    "at": "2026-10-20T02:09:55.990Z",
+    "step": "check",
+    "name": "add form seeded from existing rows (weight/appointment)",
+    "ok": true
+  },
+  {
+    "at": "2026-10-20T02:09:55.990Z",
+    "step": "check",
+    "name": "new row CSQU3054383 rendered in ledger",
+    "ok": true
+  },
+  {
+    "at": "2026-10-20T02:09:55.990Z",
+    "step": "check",
+    "name": "backend inherit: Tuyến/Nhà xe/Nâng/Hạ copied (fd5fbdd9 live)",
+    "ok": true
+  },
+  {
+    "at": "2026-10-20T02:09:55.990Z",
+    "step": "check",
+    "name": "probe row removed (staging restored)",
+    "ok": true
+  },
+  {
+    "at": "2026-10-20T02:09:55.990Z",
+    "step": "check",
+    "name": "no console/page errors",
+    "ok": true
+  }
+]
