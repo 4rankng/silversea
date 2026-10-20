@@ -922,6 +922,60 @@
 }
 .cus-create-shipment { white-space: nowrap; }
 
+.cus-schedule-status-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+/* ── FB-043 (card 201026164000, regression #33): uniform row heights on /shipments ──
+   1. The schedule cell lines hold one nowrap line with ellipsis so dates and dispatch
+      statuses cannot wrap and inflate the row height.
+   2. Dispatch status and issue chip share one status line (.cus-schedule-status-row).
+   3. The status cell's action buttons stay beside the status slot instead of wrapping
+      below it when an attention signal is present. */
+@media (min-width: 1000px) {
+  .cus-dashboard-table td[data-label='Lịch trình & điều xe'] .cus-inline-trigger > * {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .cus-schedule-status-row {
+    flex-wrap: nowrap;
+    max-width: 100%;
+  }
+
+  .cus-schedule-status-row > * {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cus-dashboard-table .cus-row-actions {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+
+  .cus-dashboard-table .cus-row-actions__status {
+    min-width: 0;
+  }
+
+  .cus-dashboard-table .cus-row-actions__signal {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .cus-dashboard-table .cus-row-actions__buttons {
+    flex-shrink: 0;
+  }
+}
+
 /* Records share one reading order below the table breakpoint. Labels sit
    above values instead of consuming a second grid inside each narrow cell. */
 @media (max-width: 999px) {

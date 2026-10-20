@@ -1,0 +1,132 @@
+{
+  "rowInfo": [
+    {
+      "index": 0,
+      "height": 108.8,
+      "identityText": "CENSUS CUSTOMER 1792420150662-WF9V8M | Chưa có nhà máy | Census route 1792420150662-wf9v8m",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 1,
+      "height": 76.6,
+      "identityText": "INVTRK INV-LYGUF5 COMNEG | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 2,
+      "height": 76.6,
+      "identityText": "INVTRK INV-LYGUF5 COM | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 3,
+      "height": 76.6,
+      "identityText": "INVTRK INV-LYGUF5 UNTYPED | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 4,
+      "height": 76.6,
+      "identityText": "INVTRK INV-LYGUF5 BARE | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 5,
+      "height": 76.6,
+      "identityText": "INVTRK INV-LYGUF5 MULTI | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 6,
+      "height": 76.6,
+      "identityText": "INVTRK INV-LYGUF5 TYPE | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 7,
+      "height": 76.6,
+      "identityText": "INVTRK INV-LYGUF5 C | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 8,
+      "height": 76.6,
+      "identityText": "INVTRK INV-LYGUF5 B | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 9,
+      "height": 76.6,
+      "identityText": "INVTRK INV-LYGUF5 A | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 10,
+      "height": 93.4,
+      "identityText": "CF KHÁCH 1792419424041-2YKV81 | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 11,
+      "height": 93.4,
+      "identityText": "ZS CUSTOMER 1792419166914-ZS-B5ADLB 7 | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 12,
+      "height": 93.4,
+      "identityText": "ZS CUSTOMER 1792419166914-ZS-B5ADLB 6 | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 13,
+      "height": 93.4,
+      "identityText": "ZS CUSTOMER 1792419166914-ZS-B5ADLB 5 | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 14,
+      "height": 93.4,
+      "identityText": "ZS CUSTOMER 1792419166914-ZS-B5ADLB 4 | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 15,
+      "height": 93.4,
+      "identityText": "ZS CUSTOMER 1792419166914-ZS-B5ADLB 3 | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 16,
+      "height": 93.4,
+      "identityText": "ZS CUSTOMER 1792419166914-ZS-B5ADLB 2 | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 17,
+      "height": 93.4,
+      "identityText": "ZS CUSTOMER 1792419166914-ZS-B5ADLB 1 | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 18,
+      "height": 93.4,
+      "identityText": "ZS CUSTOMER 1792419166914-ZS-B5ADLB 0 | Chưa có nhà máy | Chưa có tuyến đường",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    },
+    {
+      "index": 19,
+      "height": 108.8,
+      "identityText": "DD CUSTOMER 1792419063439-B4PPOU-17 | Chưa có nhà máy | DD route 1792419063439-b4ppou-17",
+      "scheduleText": "Chưa chốt ngày | Toàn bộ chờ phân xe"
+    }
+  ],
+  "minH": 76.6,
+  "maxH": 108.8,
+  "unevenRows": {
+    "index1": 0,
+    "h1": 108.8,
+    "index2": 1,
+    "h2": 76.6
+  }
+}
