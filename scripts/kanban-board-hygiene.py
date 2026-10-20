@@ -30,10 +30,16 @@ COLUMNS = ("TODO", "IN_PROGRESS", "DEV_COMPLETED", "QA_TESTED")
 
 # A status line is "Trạng thái:" followed by one of these. The FIRST group that
 # matches wins, so the more specific states must come first.
+#
+# The separator is `[\s_]`, not `\s`: the board's own cards write the state
+# with a SPACE ("DEV COMPLETED — chờ QA"), while the FOLDER names use an
+# underscore (DEV_COMPLETED). A matcher that only knew the space form read
+# every underscore-written card as "no status line" — a card could sit in a
+# column and still never agree with it.
 STATE = [
-    (re.compile(r"^QA\s*PASSED\b", re.I), "QA_PASSED"),
-    (re.compile(r"^DEV\s*COMPLETED\b", re.I), "DEV_COMPLETED"),
-    (re.compile(r"^ĐANG\s*(?:XỬ\s*LÝ|LÀM)\b", re.I), "IN_PROGRESS"),
+    (re.compile(r"^QA[\s_]*PASSED\b", re.I), "QA_PASSED"),
+    (re.compile(r"^DEV[\s_]*COMPLETED\b", re.I), "DEV_COMPLETED"),
+    (re.compile(r"^ĐANG[\s_]*(?:XỬ[\s_]*LÝ|LÀM)\b", re.I), "IN_PROGRESS"),
     (re.compile(r"^MỞ\b", re.I), "TODO"),
 ]
 LINE = re.compile(r"^trạng\s*thái\s*[:：]\s*(.*)$", re.I)

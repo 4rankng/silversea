@@ -101,11 +101,49 @@ MOVES = [
         'TC-201026101600), qa/2026-10-20-regressions-fb066-master/. Ba surface: Gán xe nhóm '
         '(/dispatch), dispatch detail editor (/dispatch-detail), /trips/new.',
     ),
+    # FB-093 — hai thẻ QA 19/10 (build 64f81514) đã có code trên main và đã deploy.
+    (
+        '191026100833-fb093-bks-ao-khong-click-sua.docx',
+        'QA_TESTED',
+        'DEV_COMPLETED',
+        'DEV_COMPLETED — FIXED (3651d0d0, deploy a1be51b1): badge "Báo khách (Ảo)" nay là '
+        '<button> mở panel editor sửa BKS báo khách ngay trên /accounting/chot-debit; lưu qua '
+        'updateLclTruck, lỗi server hiện nguyên văn trong role="alert" và panel KHÔNG đóng.',
+        'Cơ chế: badge theo đúng luật billingPlateTrigger của ledger CUS; panel (USearchableField '
+        '+ EditActions) đặt ngay dưới FilterBar vì badge nằm trong bảng cuộn ngang nên popover '
+        'trong ô sẽ bị cắt. Đã kiểm UI thật: staging build a1be51b1, lô CL5B-L01 — click badge → '
+        'editor seed 51G-999.99, sửa rồi Lưu → badge đổi theo giá trị server, không reload trang; '
+        'plate 21 ký tự → 400 "Giá trị không hợp lệ" hiện trong role="alert", panel giữ nguyên '
+        'giá trị đã gõ. Pin: AccountingDebitClosePage.fb093.test.tsx + AccountingDebitClosePage.'
+        'lcl-columns.test.tsx.',
+    ),
+    (
+        '191026100833-fb093-thieu-nut-ghep-cuoc-thu-khach.docx',
+        'QA_TESTED',
+        'DEV_COMPLETED',
+        'DEV_COMPLETED — FIXED (3651d0d0, deploy a1be51b1): nút "Ghép cước thu khách" trên '
+        '/accounting/chot-debit, dùng lại đúng MergeRevGroupDialog của Chi phí - Quyết toán; '
+        'chỉ bật khi chọn ≥2 lô lẻ CHƯA ghép cước (aria-disabled + DisabledActionTip).',
+        'Hai surface còn lại trong thẻ KHÔNG làm, và đây là lý do: /accounting/phoi-phieu là bảng '
+        'theo CHUYẾN (PhoiPhieuRow.tripId) và wire của nó không có cargoMode/revGroupId, nên thêm '
+        'merge ở đó đòi sửa projection BE và chọn theo chuyến chứ không theo lô; popup "Chọn Debit" '
+        'cũng vậy. Nghiệp vụ ghép cước thu thuộc bảng quyết toán theo LÔ, và bảng quyết toán '
+        'chính là bảng này. Đã kiểm UI thật: chọn 2 lô lẻ LONG MINH chưa ghép → nút bật, dialog mở '
+        'đúng 2 lô (Lô 1 giữ 100% cước vận tải) → "Đã ghép cước thu khách cho 2 lô", Lô 2 hiện '
+        '"Ghép cùng Bill <bill Lô 1>" 0₫; tick 1 lô đã ghép → nút aria-disabled, click không mở '
+        'dialog. Pin: AccountingDebitClosePage.fb093.test.tsx.',
+    ),
 ]
 
 
 def set_status(document, status: str) -> bool:
-    """Rewrite the card's 'Trạng thái:' line as a single run."""
+    """Rewrite the card's 'Trạng thái:' line as a single run.
+
+    A card that never had one (the QA templates carry no status line — 162 of
+    them on the board) gets one APPENDED rather than being left behind: the
+    line is what the hygiene gate compares against the folder, so a card
+    without it can never agree with where it sits.
+    """
     for paragraph in document.paragraphs:
         if paragraph.text.strip().startswith('Trạng thái:'):
             for run in paragraph.runs[1:]:
@@ -116,7 +154,8 @@ def set_status(document, status: str) -> bool:
             else:
                 paragraph.add_run(line)
             return True
-    return False
+    document.add_paragraph(f'Trạng thái: {status}')
+    return True
 
 
 def apply_move(name: str, src_col: str, dest_col: str, status: str, block, dry_run: bool) -> str:
