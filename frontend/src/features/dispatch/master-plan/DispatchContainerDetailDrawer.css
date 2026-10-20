@@ -97,6 +97,13 @@
   line-height: 1.3;
   text-align: left;
   text-transform: uppercase;
+  /* FB-045 (card 201026140000; FB-063/R17 law, card 181026021137): a column
+     header is ALWAYS one line. The global table rule already nowrap's th, but
+     the law is pinned here so a future global change can't reintroduce the
+     mid-token shear the fixed auto-slice width caused at ≤1024px. */
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .dispatch-container-detail__table tbody th,
@@ -125,6 +132,17 @@
   color: var(--ink-3);
   font-size: var(--text-caption-size);
   text-align: center;
+}
+
+/* FB-045 (card 201026140000): "GIỜ HẸN ĐÓNG/TRẢ" is the widest header of the
+   table (uppercase + 0.04em tracking ≈ 128px) while the fixed layout's equal
+   auto slice fell to 118px at ≤1024px scroll width and sheared the label
+   mid-token. A dedicated 150px floor keeps header AND the "HH:mm DD/MM/YYYY"
+   value on one line; the other columns' labels all clear their ≥101px share
+   of the 900px table minimum, and narrower viewports keep the horizontal
+   scroll the __table-scroll band already owns. */
+.dispatch-container-detail__appointment-column {
+  width: 150px;
 }
 
 .dispatch-container-detail__inline-ordinal { display: none; }

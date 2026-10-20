@@ -13,7 +13,7 @@ vi.mock('../../../api/shipmentClient', () => ({
 
 import { configClient } from '../../../api/configClient';
 import { listZonePortFacets } from '../../../api/shipmentClient';
-import { MasterPlanFilters } from './MasterPlanFilters';
+import { MasterPlanFilters, masterPlanSearchError } from './MasterPlanFilters';
 
 const EMPTY_FILTERS = {
   q: '',
@@ -307,5 +307,44 @@ describe('master-plan delivery range is a real criterion on coarse pointers (car
 
     // portIds only — the date rides the bar and is not counted.
     expect(screen.getByRole('button', { name: 'Bộ lọc, 1 đang áp dụng' })).toBeTruthy();
+  });
+});
+
+describe('master-plan search cảnh báo for symbol-only queries (FB-011, card 201026135800)', () => {
+  it('flags queries without a single letter or digit, accepts every searchable key shape', () => {
+    // `{` is the reported case; the CLASS is "no \p{L} or \p{N} at all".
+    expect(masterPlanSearchError('{')).toMatch(/ký tự đặc biệt/);
+    expect(masterPlanSearchError('   {  }  ')).toMatch(/ký tự đặc biệt/);
+    expect(masterPlanSearchError('///')).toMatch(/ký tự đặc biệt/);
+    // Real keys the placeholder promises: B/L, Booking, khách hàng (with
+    // diacritics), container, tờ khai — separators allowed, never flagged.
+    expect(masterPlanSearchError('BL-2026-001')).toBeNull();
+    expect(masterPlanSearchError('MSCU1234565')).toBeNull();
+    expect(masterPlanSearchError('{LONG MINH}')).toBeNull();
+    expect(masterPlanSearchError('Hải Phòng')).toBeNull();
+    // Empty stays quiet — an untouched box is not an error.
+    expect(masterPlanSearchError('')).toBeNull();
+    expect(masterPlanSearchError('   ')).toBeNull();
+  });
+
+  it('renders the cảnh báo through the FilterBar alert slot instead of a silent empty board', () => {
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(
+      <MasterPlanFilters filters={{ ...EMPTY_FILTERS, q: '{' }} onChange={vi.fn()} />,
+    );
+
+    const search = screen.getByLabelText('Tìm kiếm lô hàng');
+    expect(search.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByRole('alert').textContent).toMatch(/ký tự đặc biệt/);
+  });
+
+  it('stays silent the moment the query gains a letter or digit', () => {
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(
+      <MasterPlanFilters filters={{ ...EMPTY_FILTERS, q: '{B' }} onChange={vi.fn()} />,
+    );
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByLabelText('Tìm kiếm lô hàng').getAttribute('aria-invalid')).toBeNull();
   });
 });

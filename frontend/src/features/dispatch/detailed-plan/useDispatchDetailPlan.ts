@@ -212,7 +212,7 @@ export function useDispatchDetailPlan() {
         setItems((prev) => prev.filter((item) => item.fulfillmentId !== row.fulfillmentId));
       } else {
         setItems((prev) => prev.map((item) => item.fulfillmentId === row.fulfillmentId
-          ? { ...item, version: result.version, dispatch: { ...item.dispatch, assignedPlate: result.assignedPlate, externalCarrierVehicleId: body.externalCarrierVehicleId ?? (body.clear ? null : item.dispatch.externalCarrierVehicleId) } }
+          ? { ...item, version: result.version, dispatch: { ...item.dispatch, assignedPlate: result.assignedPlate, externalCarrierVehicleId: body.externalCarrierVehicleId ?? (body.clear ? null : item.dispatch.externalCarrierVehicleId), assignedDriverName: result.assignedDriverName ?? null, assignedDriverPhone: result.assignedDriverPhone ?? null } }
           : item));
       }
       // A lot flip surfaces for every row of that shipment.

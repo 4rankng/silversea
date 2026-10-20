@@ -1,48 +1,52 @@
-# HANDOFF — 2026-10-20 — tokhai A.1 rb2: Thêm container auto-copy Tuyến/Nhà xe/Nâng/Hạ (201026124500)
+# HANDOFF — 2026-10-20 — R25 regressions: FB-011 "{" cảnh báo + FB-036 SĐT lái xe + FB-045 dialog clip (cards 201026135800/135900/140000)
 
-Controller: agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-tokhai-a1-rb2`,
-branch `fix-tokhai-a1-rb2` (off `main` = `16f0e51a`). Updated 2026-10-20.
+Controller: agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/fix-r25-regressions`,
+branch `fix-r25-regressions` (off `main` = `16f0e51a`). Updated 2026-10-20.
 
-**Status**: DONE — fix + tests + rung-3 evidence; commit+push to `fix-tokhai-a1-rb2`
-(ship.sh merges later — NOT merged to main here).
+**Status**: DONE — committed + pushed to origin.
 
-- **201026124500 (verify-fail lan-2, card 181026185900 A.1)**: round-2 QA saw
-  Tuyến/Nâng/Hạ (có thể Nhà xe) trống trên dòng mới của "Thêm container" (CUS
-  drawer). Root cause — NOT a 57d253ff..16f0e51a regression (no commit in the
-  range touches the add path; proven by diff) but two standing gaps:
-  (1) `addFieldsSeed` là field whitelist {containerTypeId, cargoWeightKg,
-  customerAppointmentAt} — Tuyến/Nhà xe/Nâng/Hạ không bao giờ vào draft, add
-  row hiển thị trống (checkpoint QA screenshot); (2) **Nhà xe không có copy
-  path nào** — carrier plan sống trên `shipment_fulfillments.planned*`,
-  `createFulfillmentForAddedContainer` đẻ fulfillment không plan → dòng mới
-  luôn "Nhà xe trống" (round-1 verify PASS là false positive ở field này:
-  harness `inheritOk` không kiểm tra carrier).
-- **Fix (data-flow)**: seed mở rộng đủ bộ A.1 (route/lift/drop/carrier + weight
-  + giờ hẹn; lift/drop id guard theo `selectors.ports` — chặn snapshot-id khác
-  catalog rơi vào `pickupPortId`); add row render ô seeded Tuyến/Nhà xe/Nâng/
-  Hạ; submit gửi explicit mọi field (`containerTypeId` pick-or-null — loại cont
-  KHÔNG copy theo law restated, 191026100000 superseded); wire thêm
-  `carrierType`/`externalCarrierId` (nullable-optional, paired); BE
-  `resolveAddedContainerCarrierPlan` (pure, unit-pinned 6/6) lấy plan từ wire
-  hoặc sibling fulfillment đầu tiên, validate qua `loadExternalCarrier`, stamp
-  vào fulfillment mới. Biển số/xe KHÔNG copy (ngoài danh sách A.1).
+- **Investigation verdict**: cả 3 triệu chứng reproduced trên staging
+  `ab0a9138` (pin controller-approved = 16f0e51a + A.1, không chạm surface
+  này). Local A/B cùng DB (`_2026-10-20-r25-compare-builds.mjs`,
+  `qa/2026-10-20-r25-regressions/compare-builds-driver.log`) cho thấy
+  8bfa2ac7 và 16f0e51a hành xử GIỐNG HỆT trên cả 3 surface — KHÔNG commit
+  nào trong range đổi behavior; R24 PASS là width/data-dependent. Fix theo
+  expected behavior của card + pin test.
+- **FB-011 (201026135800) FIXED**: `{` trên /dispatch từng silent-empty →
+  giờ `masterPlanSearchError()` (pure) flag query không chữ/số qua slot
+  `search.error` của FilterBar (role="alert", aria-invalid). Unit 3 pin.
+- **FB-036 (201026135900) FIXED**: cell Điều phối /dispatch-detail hiện
+  `biển số · tên · SĐT`. BE: `dispatch.assignedDriverPhone` trên read rows
+  (trip branch: drivers.phone/external_driver_phone qua tripsComposite;
+  planned branch: batch truck-driver assignment) + write echo (plate patch +
+  atomic plan save). FE: phone token trong `dispatch-assignment-cell`;
+  plate-patch merge giữ name+phone sau lưu. Wire 5/50 rows đủ 2 branch; DB
+  roster khớp phone từng tên. Unit 2 pin.
+- **FB-045 (201026140000) FIXED**: cột Giờ hẹn đóng/trả của drawer "Chi tiết
+  container" có floor 150px (`__appointment-column`) + thead nowrap pin
+  tường minh (luật FB-063/R17 1 dòng). Driver đo 1440/1280/1024: 9/9 header
+  1 dòng 0 shear, value 1 dòng. Styles test 3 pin.
 
-**Gates**: scoped vitest `CusContainerLedger.test.tsx` 38/38 · FE `tsgo -b`
-EXIT 0 · BE `tsc --noEmit` EXIT 0 · BE `pnpm test` green (unit 303/303 + integration
-326/326) · root lint 0 · `make build` ok · full FE suite 5271: 5269 pass, 2
-production-bundle CSS contracts fail chỉ vì worktree chưa build `dist` — 6/6
-green standalone sau `make build`. `qa/2026-10-20-201026124500/gates.log`.
+**Gates**: BE tsc 0 · BE unit 326/326 · FE tsgo -b 0 · FE full vitest
+688 files / 5276 tests (1 fail đầu tiên do script A/B hardcode port
+7176/3003 — rename `_`-prefix theo convention archived-script, re-run
+green) · lint 0 · `make build` OK.
+`qa/2026-10-20-r25-regressions/gates.log`.
 
-**UI rung-3**: BEFORE staging 16f0e51a (lot 174, ref MSBU1245654 đầy đủ):
-Tuyến/Nâng/Hạ/Trọng lượng copy nhưng **Nhà xe BLANK** + form-seed cells trống
-(`qa/2026-10-20-201026124500/201026124500_ui-*`). AFTER local dev (:7176→:3002,
-lot 310177 ref đủ 6 field): seeded form hiện Tuyến/Nhà xe/Nâng/Hạ trước
-submit; probe number-only → `a1_verdict` all COPIED (kể cả Giờ hẹn), Loại cont
-"Chọn loại cont" (không copy), cleanup sạch — `A1_ALL_COPY_PASS`
-(`qa/2026-10-20-201026124500/local-after/`).
+**Stack note**: backend tsx watch :3002 + vite :7175 chạy background từ
+worktree này (log /tmp/ss-backend-r25.log, /tmp/ss-frontend-r25.log); DB
+dùng container ss-prod-db :5441 / ss-prod-redis :6391 có sẵn, KHÔNG đụng
+container. Stack A/B R24 (/tmp/r24base, :3003/:7176) đã xóa tiến trình —
+export dir /tmp/r24base có thể xóa.
 
-**Open**: staging re-verify của QA trên build chứa fix này (QA round-3) —
-đặc biệt confirm checkpoint họ nhìn là dòng form thêm (giờ đã seeded) hay dòng
-sau lưu. Loại cont KHÔNG copy theo ticket 201026124500 (restated 181026185900
-A.1); nếu card docx khi hydrate nói khác (FB-111 copy loại cont) thì chỉ cần
-đổi lại seed + payload type — test đã pin hành vi hiện tại.
+**Files owned by task**: backend/src/services/{dispatch-planning-detail-plan-read.service.ts,dispatch-planning-detail-plan.service.ts,truck-driver-assignment.service.ts},
+frontend/src/api/dispatchPlanningClient.ts,
+frontend/src/features/dispatch/detailed-plan/{DispatchPlanEditorCell.tsx,.css,.test.tsx,useDispatchDetailPlan.ts,useDispatchDetailPlan.test.tsx},
+frontend/src/features/dispatch/master-plan/{MasterPlanFilters.tsx,MasterPlanFilters.test.tsx,DispatchContainerDetailDrawer.tsx,.css,DispatchContainerDetailDrawer.styles.test.ts},
+testplan/2026-10-20-r25-regressions.md, testplan/qa/scripts/2026-10-20-r25-*.mjs (+ _compare archived),
+qa/2026-10-20-r25-regressions/ (force-tracked).
+
+**Not covered**: staging re-drive của 3 fix (cần deploy staging ≥ commit
+này — R26 re-check phải chạy trên build mới); viewport 761–1023 của drawer
+(container card mode ≤760 là mode khác, không thuộc card); EXTERNAL-trip
+phone trên local page 1 (branch chứng minh qua wire shape + unit type).

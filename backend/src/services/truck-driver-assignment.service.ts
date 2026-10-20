@@ -29,6 +29,9 @@ export interface ActiveTruckDriver {
   truckId: number;
   driverId: number;
   driverName: string;
+  /** FB-036 (card 201026135900): rides the dispatch Điều phối block beside
+   *  the driver name — null when the roster row has no phone. */
+  driverPhone: string | null;
   driverUserId: number | null;
 }
 
@@ -44,6 +47,7 @@ export async function getActiveAssignment(client: DbClient, truckId: number): Pr
     truckId: s.truckDriverAssignments.truckId,
     driverId: s.truckDriverAssignments.driverId,
     driverName: s.drivers.name,
+    driverPhone: s.drivers.phone,
     driverUserId: s.drivers.userId,
   }).from(s.truckDriverAssignments)
     .innerJoin(s.drivers, eq(s.drivers.id, s.truckDriverAssignments.driverId))
@@ -66,13 +70,14 @@ export async function getActiveAssignment(client: DbClient, truckId: number): Pr
 export async function getActiveAssignmentsByTruckIds(
   client: DbClient,
   truckIds: number[],
-): Promise<Map<number, { driverId: number; driverName: string }>> {
+): Promise<Map<number, { driverId: number; driverName: string; driverPhone: string | null }>> {
   const unique = [...new Set(truckIds)];
   if (unique.length === 0) return new Map();
   const rows = await client.select({
     truckId: s.truckDriverAssignments.truckId,
     driverId: s.truckDriverAssignments.driverId,
     driverName: s.drivers.name,
+    driverPhone: s.drivers.phone,
   }).from(s.truckDriverAssignments)
     .innerJoin(s.drivers, eq(s.drivers.id, s.truckDriverAssignments.driverId))
     .where(and(
@@ -80,7 +85,7 @@ export async function getActiveAssignmentsByTruckIds(
       activePrimary(),
       isNull(s.drivers.deletedAt),
     ));
-  return new Map(rows.map((row) => [row.truckId, { driverId: row.driverId, driverName: row.driverName }]));
+  return new Map(rows.map((row) => [row.truckId, { driverId: row.driverId, driverName: row.driverName, driverPhone: row.driverPhone }]));
 }
 
 /**

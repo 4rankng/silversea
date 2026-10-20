@@ -3,7 +3,7 @@
  * display helpers every detail-plan surface renders with.
  * Structure-only split of dispatch-planning-detail-plan.service.ts (same LOC
  * budget law): READ side lives here, mutations stay in the write module. The
- * dependency is one-way (write imports loadPlannedDriverNames), never cyclic.
+ * dependency is one-way (write imports loadPlannedDrivers), never cyclic.
  */
 import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, DISPATCH_BUSINESS_TIME_ZONE, INTERNAL_FLEET_CARRIER_NAME, Tx, assertDispatchReadActor, buildPattern, dispatchDetailDataStatusSql, dispatchDetailTransportDateSql, loadDeclarationNumbers, normalizeDate, normalizeLimit, redactDispatchSiteForAccountant, requireAccountantDispatchScope, toFrozenSiteSummary, shipmentQSearchPredicate } from './dispatch-planning-utils.service';
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES } from './dispatch-planning-commands.service';
@@ -19,9 +19,11 @@ import { and, asc, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzl
 import { Role, TripStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
-/** Resolve planned OWN vehicle names in a batch; issued trips use their own
- * driver record below, never the truck's potentially newer roster. */
-export async function loadPlannedDriverNames(tx: Tx, plates: string[]): Promise<Map<string, string>> {
+/** Resolve planned OWN vehicle drivers in a batch; issued trips use their own
+ * driver record below, never the truck's potentially newer roster. Carries
+ * name + phone (FB-036, card 201026135900): the Điều phối block shows the
+ * driver's SĐT beside the name for planned rows too. */
+export async function loadPlannedDrivers(tx: Tx, plates: string[]): Promise<Map<string, { driverName: string; driverPhone: string | null }>> {
   const uniquePlates = [...new Set(plates)];
   if (uniquePlates.length === 0) return new Map();
   const trucks = await tx.select({ id: s.trucks.id, plate: s.trucks.licensePlate })
@@ -30,7 +32,7 @@ export async function loadPlannedDriverNames(tx: Tx, plates: string[]): Promise<
   const assignments = await getActiveAssignmentsByTruckIds(tx, trucks.map((truck) => truck.id));
   return new Map(trucks.flatMap((truck) => {
     const assignment = assignments.get(truck.id);
-    return assignment ? [[truck.plate, assignment.driverName] as const] : [];
+    return assignment ? [[truck.plate, { driverName: assignment.driverName, driverPhone: assignment.driverPhone }] as const] : [];
   }));
 }
 
@@ -451,7 +453,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     const plannedOwnPlates = pageRows.flatMap((row) => row.tripId == null
       && row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
       ? [row.plannedVehiclePlateNumber] : []);
-    const [declarations, carriers, ports, platedCounts, tripDrivers, plannedDriverNames] = await Promise.all([
+    const [declarations, carriers, ports, platedCounts, tripDrivers, plannedDrivers] = await Promise.all([
       loadDeclarationNumbers(tx, shipmentIds),
       carrierIds.length === 0 ? [] : tx.select({ id: s.customers.id, name: CUSTOMER_OPERATIONAL_NAME }).from(s.customers).where(inArray(s.customers.id, [...new Set(carrierIds)])),
       portIds.length === 0 ? [] : tx.select({ id: s.ports.id, name: PORT_OPERATIONAL_NAME }).from(s.ports).where(inArray(s.ports.id, [...new Set(portIds)])),
@@ -469,14 +471,21 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         tripId: s.tripsComposite.id,
         carrierType: s.tripsComposite.carrierType,
         driverName: s.drivers.name,
+        driverPhone: s.drivers.phone,
         externalDriverName: s.tripsComposite.externalDriverName,
+        externalDriverPhone: s.tripsComposite.externalDriverPhone,
       }).from(s.tripsComposite)
         .leftJoin(s.drivers, eq(s.drivers.id, s.tripsComposite.driverId))
         .where(inArray(s.tripsComposite.id, tripIds)),
-      loadPlannedDriverNames(tx, plannedOwnPlates),
+      loadPlannedDrivers(tx, plannedOwnPlates),
     ]);
     const tripDriverNames = new Map(tripDrivers.map((trip) => [trip.tripId,
       trip.carrierType === 'EXTERNAL' ? trip.externalDriverName : trip.driverName]));
+    // FB-036 (card 201026135900): the SĐT rides the same branch the name
+    // does — the trip's own driver record once issued, the external driver
+    // contact for contractor trips.
+    const tripDriverPhones = new Map(tripDrivers.map((trip) => [trip.tripId,
+      trip.carrierType === 'EXTERNAL' ? trip.externalDriverPhone : trip.driverPhone]));
     const carriersById = new Map(carriers.map((row) => [row.id, row]));
     const portsById = new Map(ports.map((row) => [row.id, row]));
     const platedByShipment = new Map(platedCounts.map((row) => [row.shipmentId, { total: Number(row.total), plated: Number(row.plated) }]));
@@ -582,7 +591,15 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             assignedDriverName: row.tripId != null
               ? tripDriverNames.get(row.tripId) ?? null
               : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
-                ? plannedDriverNames.get(row.plannedVehiclePlateNumber) ?? null
+                ? plannedDrivers.get(row.plannedVehiclePlateNumber)?.driverName ?? null
+                : null,
+            // FB-036: same branch as the name — the trip's driver (or external
+            // contact) once issued, else the roster driver bound to the
+            // planned plate.
+            assignedDriverPhone: row.tripId != null
+              ? tripDriverPhones.get(row.tripId) ?? null
+              : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
+                ? plannedDrivers.get(row.plannedVehiclePlateNumber)?.driverPhone ?? null
                 : null,
             pairKind: row.pairStatus === 'ACTIVE' && (row.pairKind === 'KEP' || row.pairKind === 'KET_HOP')
               ? row.pairKind

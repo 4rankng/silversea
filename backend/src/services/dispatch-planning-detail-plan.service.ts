@@ -26,7 +26,7 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 import { and, eq, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification } from '@tingting/shared';
 import * as s from '../db/schema';
-import { loadPlannedDriverNames } from './dispatch-planning-detail-plan-read.service';
+import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
 import { countDateOnlyTripClaims } from './dispatch-resource-availability.service';
 import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
 export {
@@ -101,6 +101,9 @@ export interface DispatchDetailPlanMutationResult {
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
     assignedDriverName: string | null;
+    /** FB-036 (card 201026135900): the driver's SĐT rides the same block so
+     *  the grid cell keeps rendering it after an atomic save. */
+    assignedDriverPhone: string | null;
     /** True once the trip's driver acknowledged (ORDER_RECEIVED) — locks
      *  reassignment; always false for fulfillment-less rows. */
     driverAccepted: boolean;
@@ -159,6 +162,8 @@ export interface PlateMutationResult {
   assignedPlate: string | null;
   assignedDriverId: number | null;
   assignedDriverName: string | null;
+  /** FB-036 (card 201026135900): rides with the name on the dispatch block. */
+  assignedDriverPhone: string | null;
   driverHint: string | null;
 }
 
@@ -325,6 +330,9 @@ export interface DispatchVehicleResolution {
   assignedTruckId: number | null;
   assignedDriverId: number | null;
   assignedDriverName: string | null;
+  /** FB-036 (card 201026135900): the roster driver's SĐT, resolved with the
+   *  name so the dispatch block can render both. */
+  assignedDriverPhone: string | null;
   driverHint: string | null;
 }
 
@@ -349,6 +357,7 @@ export async function resolveDispatchVehicleAssignment(tx: Tx, args: {
   let assignedTruckId: number | null = null;
   let assignedDriverId: number | null = null;
   let assignedDriverName: string | null = null;
+  let assignedDriverPhone: string | null = null;
   let driverHint: string | null = null;
 
   if (args.clear) {
@@ -375,6 +384,7 @@ export async function resolveDispatchVehicleAssignment(tx: Tx, args: {
     if (assignment) {
       assignedDriverId = assignment.driverId;
       assignedDriverName = assignment.driverName;
+      assignedDriverPhone = assignment.driverPhone;
       if (assignment.driverUserId == null) driverHint = 'Lái xe chưa có tài khoản đăng nhập.';
     } else {
       driverHint = 'Chưa có lái xe gắn với xe.';
@@ -458,6 +468,7 @@ export async function resolveDispatchVehicleAssignment(tx: Tx, args: {
     assignedTruckId,
     assignedDriverId,
     assignedDriverName,
+    assignedDriverPhone,
     driverHint,
   };
 }
@@ -548,6 +559,7 @@ export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmen
     assignedPlate: vehicle.plannedVehiclePlateNumber,
     assignedDriverId: vehicle.assignedDriverId,
     assignedDriverName: vehicle.assignedDriverName,
+    assignedDriverPhone: vehicle.assignedDriverPhone,
     driverHint: vehicle.driverHint,
   };
 }
@@ -1107,12 +1119,20 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
 
   const lotFullyPlated = await recomputeLotFullyPlated(tx, shipment.id);
 
+  // FB-036 (card 201026135900): the phone rides the same resolution as the
+  // name so the grid cell keeps rendering SĐT after an atomic plan save.
+  const plannedDriver = vehicle == null
+    && input.carrierType === 'OWN'
+    && updatedFulfillment.plannedVehiclePlateNumber
+    ? (await loadPlannedDrivers(tx, [updatedFulfillment.plannedVehiclePlateNumber]))
+      .get(updatedFulfillment.plannedVehiclePlateNumber) ?? null
+    : null;
   const assignedDriverName = vehicle != null
     ? vehicle.assignedDriverName
-    : input.carrierType === 'OWN' && updatedFulfillment.plannedVehiclePlateNumber
-      ? (await loadPlannedDriverNames(tx, [updatedFulfillment.plannedVehiclePlateNumber]))
-        .get(updatedFulfillment.plannedVehiclePlateNumber) ?? null
-      : null;
+    : plannedDriver?.driverName ?? null;
+  const assignedDriverPhone = vehicle != null
+    ? vehicle.assignedDriverPhone
+    : plannedDriver?.driverPhone ?? null;
 
   // Planning saves never notify the driver — dispatch-order issuance
   // (issueOrderCreateOrUpdate) owns the driver notification, so the driver
@@ -1136,6 +1156,7 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       externalCarrierVehicleId: vehicle?.plannedExternalCarrierVehicleId ?? updatedFulfillment.plannedExternalCarrierVehicleId,
       assignedPlate: updatedFulfillment.plannedVehiclePlateNumber,
       assignedDriverName,
+      assignedDriverPhone,
       // Plan saves only reach rows without a live trip (the per-row live-trip
       // guard keeps issued rows un-editable), so no acceptance can exist.
       driverAccepted: false,
