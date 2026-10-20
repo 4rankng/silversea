@@ -37,6 +37,11 @@ import { lockApplicationOwnedUniquenessSet } from './application-owned-uniquenes
 import { assertExpenseSourceMutable, hydrateExpenseAccountingSource } from './expense-accounting-source.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
+import {
+  AUTO_OFFSET_RELEASE_REASON_DELETE,
+  AUTO_OFFSET_RELEASE_REASON_UPDATE,
+  releaseAutoOffsetAndFindActiveManualLink,
+} from './advance-shared.service';
 
 /**
  * Either the singleton db client or an in-flight transaction client. Both
@@ -507,14 +512,11 @@ export async function updateTripExpense(
   if (existing.approvalStatus === 'VOIDED' || existing.approvalStatus === 'REJECTED') throw new ApiError(409, 'Chi phí đã hủy không thể sửa.');
   await assertTripShipmentAccountingUnlocked(executor, existing.tripId);
   if (existing.forwarderId != null) {
-    const [activeLink] = await executor.select({ id: s.settlementExpenses.id })
-      .from(s.settlementExpenses)
-      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
-      .where(and(
-        eq(s.settlementExpenses.tripExpenseId, id),
-        notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
-      )).limit(1);
-    if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, chỉ được điều chỉnh trên phiếu hoàn ứng');
+    // FB-033 (card 211026014819): the auto-offset settlement the CREATE hook
+    // booked is released, never a lock — only a MANUAL phiếu hoàn ứng keeps
+    // the immutability.
+    const { manualLink } = await releaseAutoOffsetAndFindActiveManualLink(executor, id, AUTO_OFFSET_RELEASE_REASON_UPDATE);
+    if (manualLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, chỉ được điều chỉnh trên phiếu hoàn ứng');
   }
   const scopeKeyOf = (containerId: number | null | undefined, tripId: number) =>
     containerId != null ? lockKeys.containerScope(containerId) : lockKeys.tripScope(tripId);
@@ -628,14 +630,10 @@ export async function updateForwarderTripExpense(
     if (!expense) throw new ApiError(404, 'Không tìm thấy chi phí');
     if (expense.ownerId !== forwarderId) throw new ApiError(403, 'Không có quyền sửa chi phí này');
     await assertForwarderMutableTripScope(expense.tripId, forwarderId, executor);
-    const [activeLink] = await executor.select({ id: s.settlementExpenses.id })
-      .from(s.settlementExpenses)
-      .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
-      .where(and(
-        eq(s.settlementExpenses.tripExpenseId, expenseId),
-        notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
-      )).limit(1);
-    if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể sửa');
+    // FB-033: release the create-hook auto offset; only a MANUAL settlement
+    // keeps the lock.
+    const { manualLink } = await releaseAutoOffsetAndFindActiveManualLink(executor, expenseId, AUTO_OFFSET_RELEASE_REASON_UPDATE);
+    if (manualLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể sửa');
     return updateTripExpense(executor, expenseId, patch);
   });
 }
@@ -673,14 +671,10 @@ export async function updateForwarderTripExpenseInTx(
     expectedUpdatedAt,
     'Chi phí đã thay đổi. Vui lòng tải lại trước khi cập nhật.',
   );
-  const [activeLink] = await executor.select({ id: s.settlementExpenses.id })
-    .from(s.settlementExpenses)
-    .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
-    .where(and(
-      eq(s.settlementExpenses.tripExpenseId, expenseId),
-      notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
-    )).limit(1);
-  if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể sửa');
+  // FB-033: release the create-hook auto offset; only a MANUAL settlement
+  // keeps the lock.
+  const { manualLink } = await releaseAutoOffsetAndFindActiveManualLink(executor, expenseId, AUTO_OFFSET_RELEASE_REASON_UPDATE);
+  if (manualLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể sửa');
   return updateTripExpense(executor, expenseId, patch);
 }
 
@@ -758,14 +752,11 @@ export async function deleteTripExpenseInTx(
   if (trip?.status === 'COMPLETED' || trip?.status === 'CANCELED') {
     throw new ApiError(409, 'Không thể xóa chi phí của chuyến đã chốt hoặc đã hủy');
   }
-  const [activeLink] = await executor.select({ id: s.settlementExpenses.id })
-    .from(s.settlementExpenses)
-    .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
-    .where(and(
-      eq(s.settlementExpenses.tripExpenseId, expenseId),
-      notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
-    )).limit(1);
-  if (activeLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể xóa');
+  // FB-033 (card 211026014819): the auto-offset settlement the CREATE hook
+  // booked is released so the just-created expense stays deletable; only a
+  // MANUAL phiếu hoàn ứng keeps the 'đã gửi kế toán' lock.
+  const { manualLink } = await releaseAutoOffsetAndFindActiveManualLink(executor, expenseId, AUTO_OFFSET_RELEASE_REASON_DELETE);
+  if (manualLink) throw new ApiError(409, 'Chi phí đã gửi kế toán, không thể xóa');
   await executor.update(s.tripExpenses).set({
     approvalStatus: 'VOIDED',
     deletionReason: reason.trim(),
@@ -826,12 +817,21 @@ export async function deleteTripExpenseGuarded(
       .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
     if (!trip) return { error: 'Không tìm thấy chuyến xe', status: 404 };
     if (trip.status === 'COMPLETED') return { error: 'Không thể xóa chi phí trên chuyến đã hoàn thành', status: 400 };
-    // Keep historical settlement snapshots referentially intact, including
-    // rejected submissions. Corrections can be edited and resubmitted instead.
-    const [link] = await executor.select({ id: s.settlementExpenses.id })
-      .from(s.settlementExpenses)
-      .where(eq(s.settlementExpenses.tripExpenseId, expenseId)).limit(1);
-    if (link) return { error: 'Không thể xóa chi phí đã được thanh toán', status: 400 };
+    // FB-033 (card 211026014819): release the create-hook auto offset, then
+    // keep the 'đã được thanh toán' refusal for a LIVE manual settlement only —
+    // a REVERSED auto settlement is history, not payment.
+    const { manualLink, releasedSettlementIds } = await releaseAutoOffsetAndFindActiveManualLink(executor, expenseId, AUTO_OFFSET_RELEASE_REASON_DELETE);
+    if (manualLink) return { error: 'Không thể xóa chi phí đã được thanh toán', status: 400 };
+    // This route HARD-deletes the expense and settlement_expenses has no FK on
+    // trip_expense_id: drop the expense's own released auto-shadow links so the
+    // delete leaves no dangling reference. Manual settlement history (its
+    // snapshots and allocations) is never touched here.
+    if (releasedSettlementIds.length) {
+      await executor.delete(s.settlementExpenses).where(and(
+        eq(s.settlementExpenses.tripExpenseId, expenseId),
+        inArray(s.settlementExpenses.settlementId, releasedSettlementIds),
+      ));
+    }
     await executor.delete(s.tripExpenses).where(eq(s.tripExpenses.id, expenseId));
     await resetExpenseScope(executor, expense.tripId, expense.tripContainerId);
     return { ok: true as const };

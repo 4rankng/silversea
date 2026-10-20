@@ -437,6 +437,11 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
       JOIN advance_settlements aset ON aset.id = se.settlement_id
       WHERE se.trip_expense_id = ${s.tripExpenses.id}
         AND aset.status NOT IN ('VOIDED', 'REVERSED')
+        -- FB-033 (card 211026014819): the O2C create-hook auto offset
+        -- (auto_offset_expense_id set) is a bookkeeping shadow the author's own
+        -- edit/delete releases — it is NOT a kế-toán submission, so it must not
+        -- disable the row's Sửa/Xóa or light the "Đã lập phiếu" badge.
+        AND aset.auto_offset_expense_id IS NULL
       ORDER BY se.id DESC
       LIMIT 1
     )`,

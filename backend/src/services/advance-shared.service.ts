@@ -193,6 +193,120 @@ export function clampPageLimit(page: number | undefined, limit: number | undefin
   };
 }
 
+// ─── FB-033 (card 211026014819): an auto-offset settlement never locks its own expense ───
+//
+// `autoOffsetRecordedExpense` fires INSIDE the forwarder's own create/edit
+// transaction (`createTripExpense`/`updateTripExpense` →
+// propagateRecordedExpense), so an Ops with a funded tạm ứng gets a live
+// `advance_settlements` row in the same breath that records the expense. Every
+// active-link guard then read that row as "Chi phí đã gửi kế toán" and the
+// just-created expense was locked from edit/delete seconds after saving — the
+// reported defect. The auto settlement is a bookkeeping shadow of the expense
+// (the schema marks it `auto_offset_expense_id`; manual phiếu hoàn ứng leave it
+// NULL), so the author's own mutations release it instead of being refused.
+// Manual settlements keep the existing immutability untouched.
+
+export interface AutoOffsetSettlementRow {
+  status: string;
+  totalExpenseAmount: string;
+  refundAmount: string;
+  autoOffsetExpenseId: number | null;
+}
+
+/** Pure eligibility: only the creation-hook settlement (autoOffsetExpenseId
+ *  set) while it is still live. Manual settlements are never releasable here. */
+export function isReleasableAutoOffsetSettlement(row: AutoOffsetSettlementRow): boolean {
+  return row.autoOffsetExpenseId != null && row.status === 'RECORDED';
+}
+
+/** Same total the governed reversal (applyApprovedSettlementReversal) credits
+ *  back: totalExpenseAmount + refundAmount, so the FORWARDER balance converges
+ *  identically whichever path releases the settlement. */
+export function autoOffsetReversalAmount(row: Pick<AutoOffsetSettlementRow, 'totalExpenseAmount' | 'refundAmount'>): number {
+  return round2dp(Number(row.totalExpenseAmount) + Number(row.refundAmount));
+}
+
+/**
+ * Release every live auto-offset settlement of one trip expense: reverse the
+ * OPS_SETTLEMENT debit with the same ADJUSTMENT shape the governed reversal
+ * posts, then flip the settlement to REVERSED — which drops it out of advance
+ * consumption (getAdvanceConsumedAmounts), every active-link guard and the
+ * FE's activeSettlementId gate, while keeping the history rows. The caller's
+ * mutation then re-runs propagateRecordedExpense, which re-offsets against the
+ * residual with the new amount (or leaves it for explicit reconciliation when
+ * the residual cannot cover it — never overdraws). Returns the released
+ * settlement ids so hard-delete paths can clean the shadow link rows.
+ */
+export async function releaseAutoOffsetSettlements(tx: DbLike, expenseId: number, reason: string): Promise<number[]> {
+  const trimmed = reason.trim();
+  if (!trimmed) throw new AdvanceError(400, 'Lý do gở bút toán tự đối trừ là bắt buộc.');
+  const settlements = await tx.select({
+    id: s.advanceSettlements.id,
+    code: s.advanceSettlements.code,
+    forwarderId: s.advanceSettlements.forwarderId,
+    status: s.advanceSettlements.status,
+    totalExpenseAmount: s.advanceSettlements.totalExpenseAmount,
+    refundAmount: s.advanceSettlements.refundAmount,
+    autoOffsetExpenseId: s.advanceSettlements.autoOffsetExpenseId,
+  })
+    .from(s.advanceSettlements)
+    .where(and(eq(s.advanceSettlements.autoOffsetExpenseId, expenseId), eq(s.advanceSettlements.status, 'RECORDED')))
+    .for('update');
+  const releasable = settlements.filter(isReleasableAutoOffsetSettlement);
+  for (const settlement of releasable) {
+    await LedgerService.postEntry(tx, {
+      txnType: TxnType.ADJUSTMENT,
+      txnId: settlement.id,
+      entityType: 'FORWARDER',
+      entityId: settlement.forwarderId,
+      debit: 0,
+      credit: autoOffsetReversalAmount(settlement),
+      note: `Gở tự đối trừ tạm ứng ${settlement.code}: ${trimmed}`,
+    });
+    await tx.update(s.advanceSettlements).set({
+      status: 'REVERSED' as const,
+      // The auto_offset_expense_id marker doubles as the partial UNIQUE index
+      // slot for the live settlement — a released (REVERSED) row must free it,
+      // or the mutation's re-offset insert dies on
+      // 'auto_offset_expense_id đã tồn tại'. The reversed row keeps its code,
+      // amounts and ledger history; only the live-slot marker clears.
+      autoOffsetExpenseId: null,
+      updatedAt: new Date(),
+      version: sql`${s.advanceSettlements.version} + 1`,
+    }).where(and(eq(s.advanceSettlements.id, settlement.id), eq(s.advanceSettlements.status, 'RECORDED')));
+  }
+  return releasable.map((settlement) => settlement.id);
+}
+
+/**
+ * Guard helper for the author mutation paths: release the expense's own
+ * auto-offset settlements, then report whether a MANUAL (governed) settlement
+ * still actively links the expense — only that one keeps the
+ * 'Chi phí đã gửi kế toán' immutability.
+ */
+export async function releaseAutoOffsetAndFindActiveManualLink(
+  tx: DbLike,
+  expenseId: number,
+  reason: string,
+): Promise<{ manualLink: { settlementId: number } | null; releasedSettlementIds: number[] }> {
+  const releasedSettlementIds = await releaseAutoOffsetSettlements(tx, expenseId, reason);
+  const [link] = await tx.select({ settlementId: s.settlementExpenses.settlementId })
+    .from(s.settlementExpenses)
+    .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
+    .where(and(
+      eq(s.settlementExpenses.tripExpenseId, expenseId),
+      notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']),
+    ))
+    .limit(1);
+  return { manualLink: link ?? null, releasedSettlementIds };
+}
+
+/** The fixed audit reason for author-side releases — the ledger note must say
+ *  WHY the auto offset went away without a governed reversal behind it. */
+export const AUTO_OFFSET_RELEASE_REASON_UPDATE = 'Tác giả sửa khoản chi hộ — gở bút toán tự đối trừ lập kèm lúc tạo';
+export const AUTO_OFFSET_RELEASE_REASON_DELETE = 'Tác giả xóa khoản chi hộ — gở bút toán tự đối trừ lập kèm lúc tạo';
+
+
 /**
  * Compatibility for recorded trip expenses explicitly paid from OPS_ADVANCE.
  * Reconcile only funded, unconsumed advances against the existing expense;
