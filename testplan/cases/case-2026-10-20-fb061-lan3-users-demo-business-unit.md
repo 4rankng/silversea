@@ -83,9 +83,45 @@ chạy build mới → unit bị dọn lại tự động. Không ai phải nh�
    after kèm DOM/rows dump + driver log.
 4. DB proof: `SELECT count(*) FROM business_units WHERE code='CUS-DEMO'` = 0.
 
-## Results
+## Results (2026-10-20, fix `3ac4b779`, staging build `3ac4b779`)
 
-(điền sau deploy — evidence tại qa/2026-10-20-fb061-lan3-users/)
+- **Gates**: BE tsc 0 · BE unit 322/322 (6 pin BUDEMO-1..6) · root lint 0 ·
+  independent code-reviewer DONE_WITH_CONCERNS → 0 blocker, 4 tightenings
+  applied (exact-pin BUDEMO-3, bounded BUDEMO-6 slice, stale registry test
+  pointer, probe PHASE/--gate).
+- **Deploy** (`qa/2026-10-20-fb061-lan3-users/deploy-demo.log`): purge trong
+  deploy — `user_business_unit_links [hard-delete] matched=1 deleted=1
+  remaining=0` + `business_units [hard-delete] matched=1 deleted=1 remaining=0`
+  (đúng 1 link + 1 unit demo); các surface QA% khác matched=0;
+  `QA-PURGE-SUMMARY deleted=62 remaining=34` — 34 là guarded survivors
+  pre-existing (ops_expense_entries skip 11, treasury_accounts 5,
+  operational_sites 11, ports 2, shipment_containers 2, dispatch_zones 1…),
+  non-gating theo thiết kế deploy, không thuộc card này.
+- **Idempotence** (`qapurge-dry-idempotence.log`): chạy lại dry-run → cả 2
+  surface mới `matched=0 deleted=0 remaining=0`.
+- **DB proof** (SSH psql): `units_cus_demo=0`, `links_to_demo_unit=0`,
+  `units_total=0` (unit duy nhất trên staging chính là unit demo đã xóa).
+- **UI DRIVEN rung 3** (probe `PHASE=after --gate`, exit 0): admin `/users`
+  @1440 + @390 — wire `businessUnits: []`, 8 trang × 72 dòng render, DOM body
+  scan 0 hit cả hai viewport (trước fix: 2 hit `demo-business-unit` +
+  `demo-unit-code`), 0 console error. KPI 72/11/43/0 nguyên vẹn.
+  Screenshots: `201026112400_after_ui-01-desktop1440-users-page.png` (thẻ
+  "Đơn vị CUS Demo" biến mất khỏi "Đơn vị phụ trách", chỉ còn form tạo),
+  `…-02-mobile390…` (+ DOM/rows dumps, `users-probe-after-driver.log`).
+
+### Verification coverage (§9)
+
+| Claim / bug | Rung | Evidence | Not covered |
+|---|---|---|---|
+| /users còn "Đơn vị CUS Demo" (before) | UI DRIVEN | `qa/2026-10-20-fb061-lan3-users/201026112400_before_ui-01/02-*.png`, DOM dumps, `users-probe-before-driver.log`, wire `businessUnits:[id 6 CUS-DEMO]` | role non-admin (catalog admin-only), viewport khác 1440/390 |
+| Fix xóa unit + link đúng 1:1 | DB/API VERIFIED | deploy-demo.log SURFACE matched=1 deleted=1 ×2; psql `units_cus_demo=0 links=0 units_total=0` | — |
+| /users sạch sau fix | UI DRIVEN | `201026112400_after_ui-01/02-*.png`, DOM dumps 0 hit, `users-probe-after-driver.log` exit 0 @build `3ac4b779` | role non-admin (catalog admin-only, không đổi); staging re-drive sau `make stgdb` kế tiếp (purge tự chạy trong pipeline — chưa có lần chạy thật để chụp) |
+| Purge idempotent | DB/API VERIFIED | `qapurge-dry-idempotence.log` matched=0 | — |
+
+**Not covered chung**: prod vẫn còn CUS-DEMO + trio demo users (purge từ chối
+prod — cần owner instruction riêng); 15 seed shipments mất tên đơn vị hiển thị
+(dangling id, mọi reader lọc ACTIVE — demo rows, không phải lô thật); local dev
+giữ nguyên CUS-DEMO (dev-seed cần, surface staging-only).
 
 ## Trade-off / Not covered
 
