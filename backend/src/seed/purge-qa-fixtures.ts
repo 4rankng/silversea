@@ -147,10 +147,33 @@ export async function purgeSurface(surface: QaFixtureSurface, dryRun: boolean): 
   return { matched, deleted, skipped };
 }
 
+/** Purge environments the executor accepts (mirrors assertEnvAllowed). */
+export type QaPurgeEnv = 'local' | 'staging';
+
+/** Pure: does this surface run in the given purge env?
+ *  A surface without `envs` runs everywhere (historical behavior); a surface
+ *  scoped by `envs` is skipped elsewhere WITHOUT counting toward `remaining`,
+ *  so a scoped skip can never trip the exit-2 incompleteness gate. */
+export function surfaceAppliesToEnv(surface: QaFixtureSurface, env: QaPurgeEnv): boolean {
+  return !surface.envs || surface.envs.includes(env);
+}
+
+/** The env the current process was granted; undefined when unset/invalid
+ *  (assertEnvAllowed is the hard gate — this is only the surface filter). */
+export function currentPurgeEnv(): QaPurgeEnv | undefined {
+  const env = process.env.QA_PURGE_ENV;
+  return env === 'local' || env === 'staging' ? env : undefined;
+}
+
 /** Purge the whole registry: census -> guarded purge -> re-census. */
 export async function purgeAll(dryRun: boolean): Promise<Array<{ table: string; label: string; action: string; matched: number; deleted: number; skipped: number; remaining: number }>> {
   const report: Array<{ table: string; label: string; action: string; matched: number; deleted: number; skipped: number; remaining: number }> = [];
+  const env = currentPurgeEnv();
   for (const surface of QA_FIXTURE_REGISTRY) {
+    if (env && !surfaceAppliesToEnv(surface, env)) {
+      console.log(`SURFACE ${surface.table} [${surface.action}] skipped: env '${env}' outside scope [${(surface.envs ?? []).join(', ') || 'all'}] — ${surface.label}`);
+      continue;
+    }
     const result = await purgeSurface(surface, dryRun);
     const remaining = await censusVisible(surface);
     report.push({ table: surface.table, label: surface.label, action: surface.action, ...result, remaining });
