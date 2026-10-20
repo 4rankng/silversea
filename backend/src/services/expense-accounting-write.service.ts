@@ -16,6 +16,7 @@ import { refreshExpenseTripCosts } from './expense-trip-cost.service';
 import { LedgerService } from './ledger.service';
 import { linkExpenseToRealTrip } from './expense-source-trip-link.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
+import { releaseAutoOffsetAndFindActiveManualLink } from './advance-shared.service';
 
 export type ExpenseActor = Pick<AuthUser, 'userId' | 'role'>;
 export function requireExpenseFinance(actor: ExpenseActor) {
@@ -242,10 +243,12 @@ export async function confirmAccountingExpenses(tx: Tx, actor: ExpenseActor, ent
     // work on xe ngoài trips.
     if (before.sourceKind === 'DRIVER') await assertDriverCostOnOwnCarrier(tx, before.tripId, 'đối chiếu');
     if (before.sourceKind === 'TRIP' && before.payableEntityType === 'FORWARDER') {
-      const [legacySettlement] = await tx.select({ id: s.settlementExpenses.id }).from(s.settlementExpenses)
-        .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.settlementExpenses.settlementId))
-        .where(and(eq(s.settlementExpenses.tripExpenseId, before.sourceId), notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))).limit(1);
-      if (legacySettlement) throw new ApiError(409, 'Khoản chi đã ghi nhận trong phiếu hoàn ứng hiện hành; không đối chiếu lại.');
+      // FB-033 (card 211026014819): the create-hook auto-offset settlement is
+      // released here too — đối chiếu must not dead-end on a settlement the
+      // Ops's own save booked milliseconds earlier. A MANUAL phiếu hoàn ứng
+      // keeps the refusal.
+      const { manualLink } = await releaseAutoOffsetAndFindActiveManualLink(tx, before.sourceId, 'Kế toán đối chiếu khoản chi hộ — gở bút toán tự đối trừ lập kèm lúc tạo');
+      if (manualLink) throw new ApiError(409, 'Khoản chi đã ghi nhận trong phiếu hoàn ứng hiện hành; không đối chiếu lại.');
     }
     // Card 20261005 — nguồn DRIVER bỏ điều kiện "người chi": chi phí lái xe không
     // còn khái niệm Người chi (form lái xe gỡ, drawer kế toán ẩn với nguồn
