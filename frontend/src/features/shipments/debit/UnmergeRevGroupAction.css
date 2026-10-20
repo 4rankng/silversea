@@ -1,0 +1,22 @@
+/* Card 211026024348 — the settlement boards' "Tách nhóm" pill. Same house
+   face as the dispatch board's detailed-plan-grid__lcl-unmerge: compact text
+   control, emerald-adjacent neutral chrome, ≤40px like every ordinary
+   control. */
+.tach-nhom-action {
+  border: 1px solid var(--app-border, #e4e7ec);
+  background: var(--app-surface-raised, #fff);
+  color: var(--app-text-muted, #475467);
+  border-radius: 6px;
+  padding: 1px 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.tach-nhom-action:hover {
+  color: var(--app-text, #1d2939);
+  border-color: var(--app-border-strong, #d0d5dd);
+}
+.tach-nhom-action[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.65;
+}

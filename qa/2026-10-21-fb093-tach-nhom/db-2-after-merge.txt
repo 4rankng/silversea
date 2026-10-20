@@ -1,0 +1,7 @@
+== db-2 AFTER MERGE 2026-10-20T19:57:31Z
+   id   |    bl_number    |             rev_group_id             | rev_group_order | trip_id | revenue | revenue_original |       revenue_override_reason       
+--------+-----------------+--------------------------------------+-----------------+---------+---------+------------------+-------------------------------------
+ 104252 | UI-LCL-B77AP2-3 | 047d46be-7399-4735-afa1-0f8ea59a1266 |               1 |   60441 | 4500000 |          3000000 | 
+ 104254 | UI-LCL-B77AP2-5 | 047d46be-7399-4735-afa1-0f8ea59a1266 |               2 |   60443 |       0 |          1800000 | Ghép cước cùng Bill UI-LCL-B77AP2-3
+(2 rows)
+

@@ -3,6 +3,7 @@ import { formatCurrency, formatDate } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
 import { StatusPill } from '../../components/UI';
 import { NameCell } from '../../components/shared/NameCell';
+import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
@@ -35,6 +36,9 @@ export interface CellContext {
   /** The lot whose BKS-báo-khách editor is open, or null — so the cell can
    *  render the badge as the pressed trigger while the panel is up. */
   editingBillingShipmentId: number | null;
+  /** Card 211026024348 — the shared "Tách nhóm" action finished: the board
+   *  refetch the caller owns (the group state and money just changed). */
+  onRevGroupUnmerged: () => void;
 }
 
 /**
@@ -124,12 +128,26 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     key: 'container', label: 'Thông số container', className: 'debit-col--container',
     // FB-094: an LCL row states its own label — "Lẻ · Thu: 5T / Trả: 10T"
     // plus the "Ghép cùng Bill X" note when the lot is a group member.
-    cell: (row) => row.lcl ? (
+    // Card 211026024348: a lot inside a merged rev group also carries the
+    // shared "Tách nhóm" action here — the same component (and the same
+    // existing unmerge endpoint) the CUS settlement board runs.
+    cell: (row, context) => row.lcl ? (
       <div className="record-cell-stack">
         <span>
           {row.lcl.label}
           {row.lcl.ghépCùngRef ? ` (Ghép cùng Bill ${row.lcl.ghépCùngRef})` : ''}
         </span>
+        {row.lcl.revGroupId != null && (
+          <UnmergeRevGroupAction
+            id={`accounting-debit-tach-nhom-${row.shipmentId}`}
+            groupId={row.lcl.revGroupId}
+            lotRef={billBookingReference(row.billOrBooking) || '—'}
+            disabledReason={row.costLockedAt != null
+              ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
+              : null}
+            onUnmerged={context.onRevGroupUnmerged}
+          />
+        )}
       </div>
     ) : (row.containers.length > 0 ? row.containers.join(' · ') : '—'),
   },

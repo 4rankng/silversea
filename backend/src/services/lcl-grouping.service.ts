@@ -118,6 +118,10 @@ export interface LiveTripFacts {
    *  the two stored columns every salary surface sums. */
   driverSalary: string | null;
   totalRoadAllowance: string | null;
+  /** The revenue-override stamp text ("Ghép cước cùng Bill X", FB-095
+   *  re-stamps, operator M2.1 reasons) — the whole-group restore must tell a
+   *  group note from an operator's own before touching the money. */
+  revenueOverrideReason: string | null;
 }
 
 async function loadLiveTripFactsByShipment(
@@ -138,6 +142,7 @@ async function loadLiveTripFactsByShipment(
     externalFreightCost: s.tripCarrierInfo.externalFreightCost,
     revenue: s.tripFinancialState.revenue,
     revenueOriginal: s.tripFinancialState.revenueOriginal,
+    revenueOverrideReason: s.tripFinancialState.revenueOverrideReason,
     driverSalary: s.tripFinancialState.driverSalary,
     totalRoadAllowance: s.tripFinancialState.totalRoadAllowance,
   }).from(s.trips)
@@ -165,6 +170,7 @@ async function loadLiveTripFactsByShipment(
         externalFreightCost: row.externalFreightCost,
         revenue: row.revenue,
         revenueOriginal: row.revenueOriginal,
+        revenueOverrideReason: row.revenueOverrideReason,
         driverSalary: row.driverSalary,
         totalRoadAllowance: row.totalRoadAllowance,
       });
@@ -443,9 +449,19 @@ async function promotePrincipalOnRemoval(
 
 /**
  * Un-merge / dissolve an entire LCL group in one atomic transaction.
- * All members are ungrouped; the primary member keeps 100% of the money
- * (and vehicle class), while other members stay at 0₫ awaiting re-pricing,
- * so the total group freight is strictly conserved.
+ * All members are ungrouped.
+ *
+ * COST (trả ĐV): the primary member keeps 100% of the money (and vehicle
+ * class) while other members stay at 0₫ awaiting re-pricing — the total
+ * group freight is strictly conserved (SPEC §4 "Tách nhóm" copy).
+ *
+ * REV (thu khách — card 211026024348 "Tách nhóm" for Ghép cước thu khách):
+ * each lot's cước thu returns to its pre-merge state and the merge note is
+ * shed: `restoreRevPreMergeMoney` moves the live-trip revenue back to the
+ * `revenueOriginal` the merge recorded and clears the merge's override
+ * stamps, so the lot drops out of the revenue-override read channel and its
+ * CƯỚC column reads its own freight-snapshot grain again (F-2 ruling (b) —
+ * byte-for-byte the pre-merge face).
  */
 export async function unmergeLclGroup(
   input: UnmergeLclGroupInput,
@@ -467,22 +483,8 @@ export async function unmergeLclGroup(
         updatedAt: new Date(),
       }).where(eq(s.shipments.id, member.id));
 
-      const { order } = dimensionGroupOf(member, input.dimension);
-      if (order !== 1 && input.dimension === 'REV') {
-        const trip = tripFacts.get(member.id);
-        if (trip && trip.revenue === '0') {
-          await upsertTripFinancialState(tx, trip.tripId, {
-            revenueOverriddenBy: actor.userId,
-            revenueOverriddenAt: new Date(),
-            revenueOverrideReason: 'Tách khỏi nhóm ghép — chờ định giá lại',
-          });
-        }
-        if (!trip) {
-          const snapshotAmount = await latestShipmentLevelSnapshotAmount(tx, member.id);
-          if (snapshotAmount === 0) {
-            await insertRevMergeSnapshot(tx, member.id, 0, 'Tách khỏi nhóm ghép — chờ định giá lại');
-          }
-        }
+      if (input.dimension === 'REV') {
+        await restoreRevPreMergeMoney(tx, member, tripFacts.get(member.id) ?? null);
       }
     }
 
@@ -741,6 +743,114 @@ async function latestShipmentLevelSnapshotAmount(tx: Tx, shipmentId: number): Pr
     .orderBy(s.freightRateSnapshots.id);
   const latest = rows.at(-1);
   return latest ? Number(latest.totalAmount) : null;
+}
+
+// ─── Card 211026024348 — "Tách nhóm" money restore (REV dissolve) ───────────
+
+/** Every prose note THIS service writes onto a lot's money. Anything else on a
+ *  stamp/snapshot is an operator's own edit and must survive a tách nhóm. */
+const REV_GROUP_NOTE_PREFIXES = ['Ghép cước', 'Tách khỏi nhóm ghép', 'Tách nhóm — chuyển', 'Đón cước chính'] as const;
+
+function isRevGroupNote(note: string | null): boolean {
+  return note != null && REV_GROUP_NOTE_PREFIXES.some((prefix) => note.startsWith(prefix));
+}
+
+/**
+ * Whole-group "Tách nhóm" (REV): "tiền cước về lại từng lô đúng trạng thái
+ * trước ghép, ghi chú ghép được dọn".
+ *
+ *  - live trip: revenue returns to `revenueOriginal` (the pre-merge value the
+ *    merge recorded — the member branch always did; the principal records it
+ *    since card 211026024348) and the group's override stamps are cleared.
+ *    Un-stamped + un-grouped, the lot drops out of the revenue-override read
+ *    channel (revenue-override-read.service qualification) and its CƯỚC
+ *    column falls back to its own freight-snapshot grain — byte-for-byte the
+ *    pre-merge face.
+ *  - no live trip: the merge froze the money as a shipment-level snapshot
+ *    ("Ghép cước cùng Bill X" 0₫). The pre-merge snapshot — the row before
+ *    the group-notes tail — is re-materialized with its own amount and its
+ *    own formula note. No such row (the lot read "Chưa xác định") ⇒ the zero
+ *    is re-cited as awaiting re-pricing (D02: a computed zero is a value and
+ *    must carry its reason; a snapshot cannot hold null).
+ *
+ * An operator's own override (a stamp / snapshot outside the group-note
+ * family) owns the lot's money and is left untouched.
+ */
+async function restoreRevPreMergeMoney(
+  tx: Tx,
+  member: ShipmentRow,
+  trip: LiveTripFacts | null,
+): Promise<void> {
+  if (trip != null) {
+    const reason = trip.revenueOverrideReason;
+    if (reason != null && !isRevGroupNote(reason)) return;
+    await upsertTripFinancialState(tx, trip.tripId, {
+      ...(trip.revenueOriginal != null ? { revenue: trip.revenueOriginal } : {}),
+      revenueOverriddenBy: null,
+      revenueOverriddenAt: null,
+      revenueOverrideReason: null,
+    });
+    return;
+  }
+
+  const rows = await tx.select({
+    freightAmount: s.freightRateSnapshots.freightAmount,
+    surchargeAmount: s.freightRateSnapshots.surchargeAmount,
+    totalAmount: s.freightRateSnapshots.totalAmount,
+    rateTermsId: s.freightRateSnapshots.rateTermsId,
+    pricingTableId: s.freightRateSnapshots.pricingTableId,
+    fuelNormId: s.freightRateSnapshots.fuelNormId,
+    fuelPricePeriodId: s.freightRateSnapshots.fuelPricePeriodId,
+    billedKm: s.freightRateSnapshots.billedKm,
+    liters: s.freightRateSnapshots.liters,
+    fuelDelta: s.freightRateSnapshots.fuelDelta,
+    sharePct: s.freightRateSnapshots.sharePct,
+    heSo: s.freightRateSnapshots.heSo,
+    surchargeRaw: s.freightRateSnapshots.surchargeRaw,
+    formulaText: s.freightRateSnapshots.formulaText,
+  }).from(s.freightRateSnapshots)
+    .where(and(
+      eq(s.freightRateSnapshots.shipmentId, member.id),
+      isNull(s.freightRateSnapshots.tripId),
+    ))
+    .orderBy(asc(s.freightRateSnapshots.id));
+  let cursor = rows.length - 1;
+  while (cursor >= 0 && isRevGroupNote(rows[cursor]!.formulaText)) cursor -= 1;
+  // Tail is already the lot's own money — history stays as it is.
+  if (cursor === rows.length - 1) return;
+  const pre = cursor >= 0 ? rows[cursor]! : null;
+  if (pre == null) {
+    // No pre-merge row at all: the lot read "Chưa xác định"; a snapshot
+    // cannot hold null, so the zero is re-cited as awaiting re-pricing
+    // (D02: a computed zero is a value and must carry its reason).
+    await insertRevMergeSnapshot(tx, member.id, 0, 'Tách khỏi nhóm ghép — chờ định giá lại');
+    return;
+  }
+  // Re-materialize the pre-merge snapshot VERBATIM — money AND trace ids AND
+  // its frozen prose — so the reader rebuilds byte-for-byte the pre-merge
+  // face (a zero-trace copy would print the wrong "thiếu điều khoản cước" hint).
+  await persistFreightRateSnapshot({
+    freight: Number(pre.freightAmount),
+    surcharge: Number(pre.surchargeAmount),
+    total: Number(pre.totalAmount),
+    fuelDelta: Number(pre.fuelDelta),
+    fuelPricePeriodId: pre.fuelPricePeriodId,
+    rateTermsId: pre.rateTermsId,
+    pricingTableId: pre.pricingTableId,
+    fuelNormId: pre.fuelNormId,
+    billedKm: Number(pre.billedKm),
+    liters: Number(pre.liters),
+    sharePct: Number(pre.sharePct),
+    source: 'AUTO',
+    formula: 'Tách nhóm — trở về cước thu trước ghép',
+    ...(pre.heSo != null ? { heSo: Number(pre.heSo) } : {}),
+    ...(pre.surchargeRaw != null ? { surchargeRaw: Number(pre.surchargeRaw) } : {}),
+    ...(pre.formulaText != null ? { formulaText: pre.formulaText } : {}),
+  }, {
+    shipmentId: member.id,
+    tripId: null,
+    executor: tx,
+  });
 }
 
 function auditGroupChange(
@@ -1114,6 +1224,11 @@ export async function mergeLclRevGroup(
         // Lô 1 = 100% CƯỚC VẬN TẢI (AUTO): resolve the customer × route ×
         // class lane at the lot's delivery date. No lane ⇒ keep the current
         // revenue (MANUAL semantics; the pricing lookup never throws).
+        // Card 211026024348 — the principal records its pre-merge revenue in
+        // `revenueOriginal` too (the member branch always did), so the
+        // whole-group "Tách nhóm" can put every lot back the way the merge
+        // found it. Still NO override markers here: group membership is the
+        // read channel's only signal for the principal (F-2 ruling (b)).
         if (row.routeId != null && row.expectedDeliveryDate != null) {
           const price = await resolveCustomerVehicleClassPrice({
             customerId,
@@ -1122,7 +1237,11 @@ export async function mergeLclRevGroup(
             date: row.expectedDeliveryDate,
           });
           if (price != null) {
-            await upsertTripFinancialState(tx, trip.tripId, { revenue: String(price.price) });
+            const previous = trip.revenueOriginal ?? trip.revenue ?? '0';
+            await upsertTripFinancialState(tx, trip.tripId, {
+              revenue: String(price.price),
+              revenueOriginal: previous,
+            });
           }
         }
       } else {

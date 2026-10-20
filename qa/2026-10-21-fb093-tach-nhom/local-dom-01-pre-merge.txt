@@ -1,0 +1,4 @@
+2026-10-20T19:57:16.390Z
+A row: +UI-LCL-B77AP2-3UI KHÁCH HÀNG B77AP2Số Bill: UI-LCL-B77AP2-3Số tờ khai: Chưa cóChi tiết →3.050.00003.050.000Chưa xác địnhChưa xác địnhĐang mở
+B row: +UI-LCL-B77AP2-5UI KHÁCH HÀNG B77AP2Số Bill: UI-LCL-B77AP2-5Số tờ khai: Chưa cóChi tiết →1.800.00001.800.000Chưa xác địnhChưa xác địnhĐang mở
+Tách nhóm buttons: []

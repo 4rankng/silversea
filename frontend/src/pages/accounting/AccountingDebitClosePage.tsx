@@ -248,6 +248,11 @@ export default function AccountingDebitClosePage() {
     confirm: (requestIds) => confirmMutation.mutate(requestIds),
     withdraw: (requestIds) => withdrawMutation.mutate(requestIds),
     isBusy: confirmMutation.isPending || withdrawMutation.isPending,
+    // Card 211026024348 — the shared "Tách nhóm" action landed: the board's
+    // group state + money columns just changed, refetch them.
+    onRevGroupUnmerged: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
+    },
     editBillingPlate: (shipmentId) => {
       const row = rows.find((candidate) => candidate.shipmentId === shipmentId);
       setBillingEditorShipmentId(shipmentId);
