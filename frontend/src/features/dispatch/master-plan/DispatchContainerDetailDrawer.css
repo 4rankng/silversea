@@ -70,7 +70,11 @@
 
 .dispatch-container-detail__table {
   width: 100%;
-  min-width: 900px;
+  /* FB-045 lan 2 (card 201026140000): 44 (ordinal) + 150 + 150 (port columns)
+     + 150 (appointment) + 5 auto columns ≥ 92px each — the floor that keeps
+     every header label one line INSIDE its cell. Below it the __table-scroll
+     band scrolls horizontally instead of squeezing columns. */
+  min-width: 960px;
   border-collapse: collapse;
   table-layout: fixed;
   background: var(--surface);
@@ -138,10 +142,24 @@
    table (uppercase + 0.04em tracking ≈ 128px) while the fixed layout's equal
    auto slice fell to 118px at ≤1024px scroll width and sheared the label
    mid-token. A dedicated 150px floor keeps header AND the "HH:mm DD/MM/YYYY"
-   value on one line; the other columns' labels all clear their ≥101px share
-   of the 900px table minimum, and narrower viewports keep the horizontal
-   scroll the __table-scroll band already owns. */
+   value on one line; lan 2 raised the table minimum to 960px so the other
+   columns still clear their labels beside it. */
 .dispatch-container-detail__appointment-column {
+  width: 150px;
+}
+
+/* FB-045 lan 2 (card 201026140000): the appointment VALUE is one line —
+   "HH:mm DD/MM/YYYY" never wraps or shears at any viewport. */
+.dispatch-container-detail__table tbody .dispatch-container-detail__appointment-column {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/* FB-045 lan 2 (card 201026140000): the port columns own their selects'
+   132px + cell padding so the control can never overflow and paint over the
+   GIỜ HẸN value (the surviving clip channel of the lan-1 fix). */
+.dispatch-container-detail__port-column {
   width: 150px;
 }
 
@@ -177,10 +195,11 @@
 }
 
 /* Port backfill editors (card: bổ sung cảng sau điều xe) — the select keeps
-   its own design-system chrome; only the cell fit is owned here. */
+   its own design-system chrome; only the cell fit is owned here. 132px fits
+   the 150px port column (FB-045 lan 2) and still shows "Chọn cảng nâng". */
 .dispatch-container-detail__port-select {
   display: block;
-  min-width: 140px;
+  min-width: 132px;
 }
 
 .dispatch-container-detail__save-error {

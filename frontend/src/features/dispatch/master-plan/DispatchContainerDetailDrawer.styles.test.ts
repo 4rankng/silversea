@@ -10,8 +10,9 @@
 //     value both one line);
 //   - the thead pins nowrap/normal-wrap/normal-break explicitly, not via the
 //     global table rule;
-//   - the remaining columns still clear their labels inside the 900px table
-//     minimum (44px ordinal + 150px appointment + 7 × ≥101px auto).
+//   - lan 2 (the port selects painted over the value at every viewport): the
+//     two port columns own 150px each and the table minimum is 960px
+//     (44px ordinal + 3 × 150px fixed + 5 × ≥92px auto).
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -44,9 +45,27 @@ describe('DispatchContainerDetailDrawer appointment-column contract (FB-045, car
   it('keeps the table minimum wide enough that no other label loses its line', () => {
     const table = rule('.dispatch-container-detail__table');
     expect(table).toMatch(/table-layout:\s*fixed/);
-    expect(table).toMatch(/min-width:\s*900px/);
-    // 900 − 44 (ordinal) − 150 (appointment) leaves ≥101px per remaining
-    // column; every other header label ("Container" ≈ 75px worst case)
-    // clears that floor, so nowrap can never shear them either.
+    expect(table).toMatch(/min-width:\s*960px/);
+    // 960 − 44 (ordinal) − 150 (appointment) − 2 × 150 (port columns) leaves
+    // ≥92px per remaining column; every other header label ("Container" ≈ 75px
+    // worst case) clears that floor, so nowrap can never shear them either.
+  });
+
+  it('lets no neighbor control paint over the appointment column (FB-045 lan 2)', () => {
+    // The lan-1 clip that survived: the Nâng/Hạ port selects (min-width 140px)
+    // overflowed their auto slices and covered the "HH:mm DD/MM/YYYY" value.
+    // The port columns now own the selects' width and the value is pinned to
+    // one line.
+    const port = rule('.dispatch-container-detail__port-column');
+    expect(port).toMatch(/width:\s*150px/);
+    const select = rule('.dispatch-container-detail__port-select');
+    expect(select).toMatch(/min-width:\s*132px/);
+    const value = rule('.dispatch-container-detail__table tbody .dispatch-container-detail__appointment-column');
+    expect(value).toMatch(/white-space:\s*nowrap/);
+    // Both port columns carry the floor class on header AND body cell.
+    expect(tsx).toMatch(/<th scope="col" className="dispatch-container-detail__port-column">Nâng<\/th>/);
+    expect(tsx).toMatch(/<th scope="col" className="dispatch-container-detail__port-column">Hạ<\/th>/);
+    expect(tsx).toMatch(/<td data-label="Nâng" className="dispatch-container-detail__port-column">/);
+    expect(tsx).toMatch(/<td data-label="Hạ" className="dispatch-container-detail__port-column">/);
   });
 });

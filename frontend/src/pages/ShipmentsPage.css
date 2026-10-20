@@ -1555,30 +1555,36 @@
 
 .cus-container-table {
   width: 100%;
+  /* FB-045 lan 2 (card 201026140000): the sum of the px column floors below —
+   * narrower drawers scroll horizontally in the __table-scroll band. */
+  min-width: 1110px;
   border-collapse: collapse;
   table-layout: fixed;
   background: var(--surface);
 }
 
-/* Percentage columns sum to 100% so the fixed-layout table always fits its
- * container — no horizontal scroll at any drawer width.
- *
- * Card 20260923_9: Trọng lượng (8%) and Thao tác (9%) join the ledger so the
- * add-container row can align to every column it owns; the rest give up the
- * 17% they cost (route −7, carrier −7, dispatch −2, plate −2, appointment +1)
- * — the drawer caps at 1180px, so an 11th column is only affordable by
- * letting the wrapping columns wrap, which §4's no-truncation doctrine
- * already allows. */
-.cus-container-col__identity { width: 12%; }
-.cus-container-col__type { width: 7%; }
-.cus-container-col__route { width: 12%; }
-.cus-container-col__dispatch { width: 7%; }
-.cus-container-col__carrier { width: 8%; }
-.cus-container-col__plate { width: 7%; }
-.cus-container-col__site { width: 10%; }
-.cus-container-col__weight { width: 8%; }
-.cus-container-col__appointment { width: 15%; }
-.cus-container-col__actions { width: 4%; }
+/* FB-045 lan 2 (card 201026140000) SUPERSEDES the 2026-09-08 "percentage
+ * columns (sum 100%) so the ledger always fits its container — no horizontal
+ * scroll" doctrine (ShipmentsPage.density.test.ts contract updated with it):
+ * columns own px floors sized to their content instead. The GIỜ HẸN floor
+ * (164px) holds the add-row segmented datetime input's max-content and the
+ * one-line value; the Thao tác floor (116px) holds Thêm + Hủy on one line —
+ * before this, the 15%/4% slices squeezed the segmented input and the button
+ * pair spilled LEFT on top of the date segments ("clip cột GIờ hẹn").
+ * Drawer widths below the 1110px floor scroll horizontally ("scroll-x hợp
+ * lý", not chật cứng); card mode (@container ≤760px) resets min-width and
+ * never sees the column grid. Wrapping columns still wrap (route, site names)
+ * per the no-truncation doctrine. */
+.cus-container-col__identity { width: 120px; }
+.cus-container-col__type { width: 85px; }
+.cus-container-col__route { width: 95px; }
+.cus-container-col__dispatch { width: 78px; }
+.cus-container-col__carrier { width: 82px; }
+.cus-container-col__plate { width: 85px; }
+.cus-container-col__site { width: 95px; }
+.cus-container-col__weight { width: 95px; }
+.cus-container-col__appointment { width: 164px; }
+.cus-container-col__actions { width: 116px; }
 
 .cus-container-table th.cus-container-cell--actions,
 .cus-container-table td.cus-container-cell--actions {
@@ -2256,10 +2262,14 @@
 }
 
 .cus-appointment-trigger__text {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  /* FB-045 lan 2 (card 201026140000): the datetime value is ONE line
+     ("HH:mm DD/MM/YYYY"); the 164px column floor gives it room, the
+     ellipsis guard only catches pathological data. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
   font-weight: 500;
 }
 
@@ -2779,6 +2789,10 @@
 
 .cus-container-ledger__add-actions {
   display: flex;
+  /* FB-045 lan 2: wrap instead of spill — during `adding` the submit label
+     swaps to "Đang thêm…" (wider than "Thêm"); a wrapping pair stacks inside
+     the 116px Thao tác floor and can never paint over the GIỜ HẸN cell. */
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
 }
