@@ -1,0 +1,120 @@
+=== A: FB-096 deposit full save ===
+A form before save: {"bill":"QA-R24-112200-473936","amount":"2.500.000"}
+A after save: {"rowAppeared":true,"rowText":"220/10/26CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINHHãng tàu E2EQA-R24-112200-4739362.500.000 ₫——Chưa hoàn cượcQA R24 card 201026112200 — FB-096 repro fixture (purge: QA%)Ngày CV / số tiềnĐã hoàn cược","dialogOpen":false,"alerts":["Chưa hoàn cược số tiền: 2.600.000 ₫ — Vui lòng kiểm tra lại!"]}
+A persisted: {"found":true,"id":12,"amount":"2500000","customer":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"}
+=== B: FB-094 export on locked lot 670 ===
+B board rows 670/674: {"r670":{"bill":"GAP-TEST-01","customer":"LONG MINH","thu":"5000000"},"r674":{"bill":"GAP-TEST-03"}}
+B selected: {"clicked":true,"selected":["✓20/10/2026GAP-TEST-01LONG MINH5.000.000 ₫Thiếu tổng 1Chưa gửi"],"exportDisabled":false}
+B after export: {"messages":["Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới."]}
+B network: [{"m":"POST","url":"/api/shipments/debit-notes","status":409,"body":"{\"error\":\"Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.\",\"details\":\"idempotency_key=consolidated:1:172e1676eda470ede17e9d491554bcbe97ba4691\"}"}]
+
+=== NETWORK ===
+[
+ {
+  "m": "GET",
+  "url": "/api/health",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/auth/me",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/notifications/unread-count",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/notifications",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/salary-periods/resolve",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/penalties",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/trips",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/accounting/deposits",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/accounting/deposits/bill-suggestions",
+  "status": 200
+ },
+ {
+  "m": "POST",
+  "url": "/api/accounting/deposits",
+  "status": 201,
+  "body": "{\"id\":12,\"shipmentId\":null,\"billNumber\":\"QA-R24-112200-473936\",\"customerName\":\"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH\",\"carrierName\":\"Hãng tàu E2E\",\"depositAmount\":\"2500000\",\"depositDate\":null,\"cvSubmittedDate\":null,\"expectedRefundDate\":null,\"status\":\"CHUA_HOAN_CUOC\",\"refundPostedMovementId\":null,\"re"
+ },
+ {
+  "m": "GET",
+  "url": "/api/accounting/deposits",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/health",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/auth/me",
+  "status": 304
+ },
+ {
+  "m": "GET",
+  "url": "/api/notifications",
+  "status": 304
+ },
+ {
+  "m": "GET",
+  "url": "/api/notifications/unread-count",
+  "status": 304
+ },
+ {
+  "m": "GET",
+  "url": "/api/salary-periods/resolve",
+  "status": 304
+ },
+ {
+  "m": "GET",
+  "url": "/api/penalties",
+  "status": 304
+ },
+ {
+  "m": "GET",
+  "url": "/api/trips",
+  "status": 304
+ },
+ {
+  "m": "GET",
+  "url": "/api/accounting/debit-board/settlement-rounds",
+  "status": 200
+ },
+ {
+  "m": "GET",
+  "url": "/api/accounting/debit-board",
+  "status": 200
+ },
+ {
+  "m": "POST",
+  "url": "/api/shipments/debit-notes",
+  "status": 409,
+  "body": "{\"error\":\"Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.\",\"details\":\"idempotency_key=consolidated:1:172e1676eda470ede17e9d491554bcbe97ba4691\"}"
+ }
+]

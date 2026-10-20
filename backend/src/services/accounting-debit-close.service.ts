@@ -84,6 +84,10 @@ export interface AccountingDebitBoardRow {
     requestedAt: string | null;
     confirmedAt: null | string;
   };
+  /** FB-094 (card 201026112300) — ACTIVE cost-lock time (ISO) or null: the
+   *  consolidated debit-note export only accepts locked lots, so the board
+   *  row carries its export eligibility. */
+  costLockedAt: string | null;
 }
 
 export async function getAccountingDebitBoard(query: {
@@ -476,6 +480,20 @@ export async function getAccountingDebitBoard(query: {
     ));
   const adjByLot = new Map(adjRows.map((row) => [row.shipmentId, row]));
 
+  // FB-094 (card 201026112300): the consolidated debit-note export only
+  // accepts lots with an ACTIVE cost lock, so the board carries each lot's
+  // lock timestamp — the row's export eligibility the close flow needs
+  // (historic unlocked locks stay null: only unlockedAt IS NULL counts).
+  const activeLockRows = await executor.select({
+    shipmentId: s.shipmentCostLocks.shipmentId,
+    lockedAt: s.shipmentCostLocks.lockedAt,
+  }).from(s.shipmentCostLocks)
+    .where(and(
+      inArray(s.shipmentCostLocks.shipmentId, lotIds),
+      isNull(s.shipmentCostLocks.unlockedAt),
+    ));
+  const activeLockByLot = new Map(activeLockRows.map((row) => [row.shipmentId, row.lockedAt] as const));
+
   // Resolve external-carrier names in ONE customers query, then assemble
   // Phân xe labels per lot: OWN plate and/or carrier name (+ external plate
   // fallback when the carrier has no name row).
@@ -583,6 +601,9 @@ export async function getAccountingDebitBoard(query: {
       ngay: lot.ngay,
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       containers: containersByLot.get(lot.id) ?? [],
+      // FB-094 (card 201026112300): ACTIVE lock time — the row's eligibility
+      // for the consolidated debit-note export.
+      costLockedAt: activeLockByLot.get(lot.id)?.toISOString() ?? null,
       // Card 161026232419: the LCL PHÂN XE cell renders its line 1 name from
       // THESE labels — derived in memory from the ONE batched trip query
       // above, never a per-row read — so every LCL lot ships the same nhà xe

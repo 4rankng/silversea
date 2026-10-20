@@ -1,0 +1,117 @@
+login ok — user: hoapt role: ACCOUNTANT
+=== A: /accounting/deposit-tracker (FB-096, card 201026112200) ===
+A1: {"url":"/accounting/deposit-tracker","hasAddBtn":true,"existingRows":2}
+A2 modal: {"open":true,"title":"Thêm cược"}
+A3 suggestions q=2840: {"count":1,"first":"BLQA20-28E40EHãng tàu E2ECÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"}
+A4 autofill: {"bill":"BLQA20-28E40E","customer":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH","carrier":"Hãng tàu E2E"}
+A5 form: {"bill":"QA-R24-112200-045856","amount":null,"note":"QA R24 card 201026112200 — FB-096 repro fixture (purge: QA%)"}
+A6 after save: {"rowAppeared":false,"rowText":null,"dialogOpen":true}
+A7 persisted: {"found":false}
+=== B: /accounting/chot-debit (FB-094, card 201026112300) ===
+B0 locked lots (API debit-summary): 6 [{"id":144,"customer":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"},{"id":184,"customer":"QAC1 KH CLOSE 0919"},{"id":145,"customer":null}]
+B1 board: {"exportBtn":"Xuất Debit Note","disabled":true,"pickableRows":91,"firstRowText":"01/10/2026BLCUS6159LONG MINH2.000.000 ₫100.000 ₫Đã đối soát"}
+B2 after row click: {"exportDisabled":false,"selectedAttr":"true","tick":"✓"}
+B2 selected row: ✓01/10/2026BLCUS6159LONG MINH2.000.000 ₫100.000 ₫Đã đối soát
+B3 result: {"messages":["Xuất Debit Note chỉ áp dụng cho lô đã khóa chi phí."]}
+B3 network: [{"method":"POST","url":"/api/shipments/debit-notes","status":409,"body":"{\"error\":\"Xuất Debit Note chỉ áp dụng cho lô đã khóa chi phí.\"}"}]
+B4 settlement dialog: {"open":true,"title":null,"buttons":["Hủy","Chốt đợt"],"hasExportMention":false}
+
+=== NETWORK ===
+[
+ {
+  "method": "GET",
+  "url": "/api/health",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/auth/me",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/notifications/unread-count",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/notifications?page=1&limit=20",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/salary-periods/resolve?month=10&year=2026",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/penalties",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/trips?status=CREATED&limit=1",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/accounting/deposits",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/accounting/deposits/bill-suggestions?q=2840",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/health",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/auth/me",
+  "status": 304
+ },
+ {
+  "method": "GET",
+  "url": "/api/salary-periods/resolve?month=10&year=2026",
+  "status": 304
+ },
+ {
+  "method": "GET",
+  "url": "/api/notifications/unread-count",
+  "status": 304
+ },
+ {
+  "method": "GET",
+  "url": "/api/notifications?page=1&limit=20",
+  "status": 304
+ },
+ {
+  "method": "GET",
+  "url": "/api/penalties",
+  "status": 304
+ },
+ {
+  "method": "GET",
+  "url": "/api/trips?status=CREATED&limit=1",
+  "status": 304
+ },
+ {
+  "method": "GET",
+  "url": "/api/accounting/debit-board/settlement-rounds",
+  "status": 200
+ },
+ {
+  "method": "GET",
+  "url": "/api/accounting/debit-board?dateFrom=2026-10-01&dateTo=2026-10-20",
+  "status": 200
+ },
+ {
+  "method": "POST",
+  "url": "/api/shipments/debit-notes",
+  "status": 409,
+  "body": "{\"error\":\"Xuất Debit Note chỉ áp dụng cho lô đã khóa chi phí.\"}"
+ }
+]

@@ -52,6 +52,7 @@ const row = (over: Partial<AccountingDebitBoardRow> = {}): AccountingDebitBoardR
   loiNhuan: '1160000',
   ghiChu: null,
   adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
+  costLockedAt: '2026-09-24T00:00:00.000Z',
   ...over,
 });
 

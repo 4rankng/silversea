@@ -1,0 +1,49 @@
+{
+  "a1": {
+    "url": "/accounting/deposit-tracker",
+    "hasAddBtn": true,
+    "existingRows": 2
+  },
+  "a2": {
+    "open": true,
+    "title": "Thêm cược"
+  },
+  "a3": {
+    "count": 1,
+    "first": "BLQA20-28E40EHãng tàu E2ECÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"
+  },
+  "a4": {
+    "bill": "BLQA20-28E40E",
+    "customer": "CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH",
+    "carrier": "Hãng tàu E2E"
+  },
+  "a5": {
+    "bill": "QA-R24-112200-045856",
+    "amount": null,
+    "note": "QA R24 card 201026112200 — FB-096 repro fixture (purge: QA%)"
+  },
+  "a6": {
+    "rowAppeared": false,
+    "rowText": null,
+    "dialogOpen": true
+  },
+  "persisted": null,
+  "lockedLots": 6,
+  "b1": {
+    "exportBtn": "Xuất Debit Note",
+    "disabled": true,
+    "pickableRows": 91,
+    "firstRowText": "01/10/2026BLCUS6159LONG MINH2.000.000 ₫100.000 ₫Đã đối soát"
+  },
+  "b2": {
+    "exportDisabled": false,
+    "selectedAttr": "true",
+    "tick": "✓"
+  },
+  "b2row": "✓01/10/2026BLCUS6159LONG MINH2.000.000 ₫100.000 ₫Đã đối soát",
+  "b3": {
+    "messages": [
+      "Xuất Debit Note chỉ áp dụng cho lô đã khóa chi phí."
+    ]
+  }
+}
