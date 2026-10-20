@@ -28,6 +28,11 @@ interface MasterPlanGridProps {
   items: ShipmentListItem[];
   onAllocate: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
   onViewContainers?: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
+  /** FB-014: called when the dispatcher clicks a lot row (outside its
+   *  controls) — the lot must open on /dispatch-detail (Kế hoạch Chi tiết)
+   *  for full dispatch work, with the quick-view 'Chi tiết' trigger kept as
+   *  the separate container peek. */
+  onOpenDispatchDetail?: (shipment: ShipmentListItem) => void;
   /** Active single-day view (YYYY-MM-DD) — when set, each row's schedule
    *  lines show only that day's đóng/trả appointments. */
   scheduleDate?: string | null;
@@ -49,6 +54,29 @@ interface MasterPlanGridProps {
  *  it. No per-container appointments → ONE canonical lot-level datetime line
  *  (card 20260921_23: no more dateless "15H" fragments). */
 export type ScheduleBlock = { head: string | null; sub: string | null };
+
+/** FB-014: a click anywhere on the row opens dispatch detail EXCEPT on the
+ *  row's own controls — every interactive element (buttons, quick-view
+ *  trigger, notes editor, LCL checkbox, the allocation action cell) keeps its
+ *  own behavior. */
+const ROW_CLICK_CONTROL_SELECTOR = [
+  'button',
+  'a',
+  'input',
+  'select',
+  'textarea',
+  'label',
+  '[role="button"]',
+  '[role="listbox"]',
+  '[role="option"]',
+  '.master-plan-grid__cell--action',
+  '.master-plan-grid__cell--select',
+  '.searchable-select',
+].join(', ');
+
+function rowClickHitsControl(target: HTMLElement) {
+  return target.closest(ROW_CLICK_CONTROL_SELECTOR) != null;
+}
 
 export function scheduleBlocks(item: ShipmentListItem, scheduleDate?: string | null): ScheduleBlock[] {
   if (!item.appointmentGroups?.length) {
@@ -336,7 +364,7 @@ const DISPATCHER_INTAKE_STATUSES: Record<string, true> = {
  * allocation values as the edit trigger, matching the full-cell editing
  * contract used by data grids.
  */
-export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, scheduleDate, onUpdateNotes, notesIntakeOnly = false, selectedLclShipmentIds, onToggleLclSelection }: MasterPlanGridProps) {
+export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, onOpenDispatchDetail, scheduleDate, onUpdateNotes, notesIntakeOnly = false, selectedLclShipmentIds, onToggleLclSelection }: MasterPlanGridProps) {
   const [activeNoteModal, setActiveNoteModal] = useState<ActiveNoteDetail | null>(null);
   const {
     editingNotesId, editingNotesValue, setEditingNotesValue, savingNotes,
@@ -399,8 +427,28 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             // Same stage rule for the note trigger: outside the intake window a
             // dispatcher's save is a 403, so the affordance is not offered there.
             const notesLocked = notesIntakeOnly && !DISPATCHER_INTAKE_STATUSES[item.status];
+            // FB-014: the whole row is the lot's open trigger when the parent
+            // wires dispatch-detail navigation. Keyboard rides the row itself
+            // (Enter/Space, UserTable convention) — every control inside keeps
+            // its own key handling because the handler requires the row to be
+            // the event target.
+            const openableDetail = onOpenDispatchDetail != null;
             return (
-              <tr key={item.id} className="master-plan-grid__row">
+              <tr
+                key={item.id}
+                className={`master-plan-grid__row${openableDetail ? ' master-plan-grid__row--detail-link' : ''}`}
+                tabIndex={openableDetail ? 0 : undefined}
+                onClick={openableDetail ? (event) => {
+                  if (rowClickHitsControl(event.target as HTMLElement)) return;
+                  onOpenDispatchDetail(item);
+                } : undefined}
+                onKeyDown={openableDetail ? (event) => {
+                  if (event.target !== event.currentTarget) return;
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  onOpenDispatchDetail(item);
+                } : undefined}
+              >
                 <td className="master-plan-grid__cell master-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
                   <div className="master-plan-grid__cell-body">
                     {isLclLotRow(item) && onToggleLclSelection && (

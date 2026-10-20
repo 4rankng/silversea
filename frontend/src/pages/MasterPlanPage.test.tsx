@@ -134,3 +134,61 @@ describe('MasterPlanPage note editing (dispatcher gate)', () => {
     }));
   });
 });
+
+/**
+ * FB-014 (card 201026112500, QA R26 standing repro): clicking a lot row on
+ * Kế hoạch Tổng quát must navigate to Kế hoạch Chi tiết (/dispatch-detail)
+ * scoped to that lot — the quick-view drawer stays on the separate 'Chi tiết'
+ * trigger. The scope rides the board's own quick search `q` (Số Bill / Số
+ * Booking / shipment code — never an internal id) and the lot's day.
+ */
+describe('MasterPlanPage lot click opens dispatch detail (FB-014)', () => {
+  beforeEach(() => {
+    plan.items = [];
+    plan.role = 'DISPATCHER';
+  });
+
+  it('row click navigates to /dispatch-detail scoped by q + day', async () => {
+    const { Routes, Route, useLocation } = await import('react-router-dom');
+    let landed = '';
+    function DetailProbe() {
+      const location = useLocation();
+      landed = location.pathname + location.search;
+      return null;
+    }
+    plan.items = [row({ appointmentGroups: [{ at: '2026-08-20T02:30:00.000Z', localDate: '2026-08-20', containerSummary: '2 x 40HC + 1 x 20DC', factoryName: 'Nhà máy XYZ', factoryShortName: 'Nhà máy XYZ', factoryFullName: 'Nhà máy XYZ' }] })];
+    render(
+      <MemoryRouter initialEntries={['/dispatch']}>
+        <Routes>
+          <Route path="/dispatch" element={<MasterPlanPage />} />
+          <Route path="/dispatch-detail" element={<DetailProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText('Công ty ABC'));
+    expect(landed).toBe('/dispatch-detail?q=BL-2026-001&date=2026-08-20');
+  });
+
+  it('no Bill/Booking falls back to the shipment code, never the placeholder label', async () => {
+    const { Routes, Route, useLocation } = await import('react-router-dom');
+    let landed = '';
+    function DetailProbe() {
+      const location = useLocation();
+      landed = location.pathname + location.search;
+      return null;
+    }
+    plan.items = [row({ blNumber: null, bookingRef: null })];
+    render(
+      <MemoryRouter initialEntries={['/dispatch']}>
+        <Routes>
+          <Route path="/dispatch" element={<MasterPlanPage />} />
+          <Route path="/dispatch-detail" element={<DetailProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByText('Công ty ABC'));
+    expect(landed).toBe('/dispatch-detail?q=SS-000100&date=2026-08-20');
+  });
+});
