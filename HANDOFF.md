@@ -1,3 +1,16 @@
+# LCL form Nhà máy/Kho — audit spec 2026.10.17: 0 gap code, evidence-only (card 211026011500) — 2026-10-21
+
+Controller: agent, worktree fix-lcl-form-labels (off main be1c65fe), branch fix-lcl-form-labels.
+
+**Status**: DONE — audit cả 3 mục spec vs code hiện tại: ĐÃ ĐÚNG hết, 0 gap code (đúng nguyên tắc không rebuild). Diff = testplan audit doc + 1 rung driver mới + qa evidence. Push lên `fix-lcl-form-labels`.
+
+- **Audit** (`testplan/2026-10-21-card-211026011500-lcl-form-audit.md`): §1 4 label + 2 placeholder + dấu * rule (`ShipmentCreateLclRouteSection.tsx:96-100,187-208` + QA1-007 `required={!isAdHoc}`) · §2 validation `'Chọn nhà máy.'`/`'Chọn kho lấy hàng.'` + waive ad-hoc (`shipment-create-model.ts:240-245`), combobox gõ tự do (`createAdhocFieldLogic.ts:51-67`), '+ Thêm kho'/'Thêm nhà máy' shared dashed (`LclRouteSection:160-167,238-252`), layout 1 card (`:54-58,60,90,184`) · §3 luật chung 2 chiều (`liftDropPoints.ts:60-74`) đọc bởi Kế hoạch Tổng quát (`MasterPlanGrid.tsx:212-224`) + Chi tiết (`DetailedPlanGrid.tsx:446-455`) + export cùng helper (`masterPlanExport.ts:83`); write-side `model.ts:358-362` + persist `shipment-create.service.ts:162`.
+- **Gates**: `npx tsgo -b` exit 0 · scoped vitest 6 file **126/126** (`qa/2026-10-21-lcl-form/audit-baseline-vitest.log`). 0 code change → không gate nào đỏ.
+- **UI DRIVEN**: driver cũ `2026-10-17-fb105-lcl-points-rung.mjs` 9/9 PASS (labels/placeholder/combobox/waive + bảng Điều vận: lô 311932 IMP Nâng=ASKEY/Hạ=LM Võ Cường ↔ 311933 EXP đảo đúng) + driver mới `2026-10-21-card211026011500-lcl-points-empty-submit-rung.mjs` 3/3 PASS (submit trống paint cả 2 lỗi ở CẢ 2 chiều; gõ tự do tắt lỗi, không ghi data). Artifacts `qa/2026-10-21-lcl-form/` (6 PNG + 3 log + DB proof 311932/311933).
+- **Not covered**: Chi tiết Xe chưa có lô LCL fixture lên plan (cần trip — DSP-PORT-02 pin unit cả 2 chiều); viewport 390/768 + role CLERK/ADMIN (0 code change); staging deploy (owner NEVER).
+
+---
+
 # PWA standalone — ẩn footer/decorative khi installed (user report 20/10) — 2026-10-20
 
 Controller: agent, worktree fix-pwa-standalone (off main a079aaf5), branch fix-pwa-standalone.

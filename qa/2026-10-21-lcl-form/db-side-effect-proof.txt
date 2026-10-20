@@ -1,0 +1,6 @@
+   id   |  dir   | cargo_mode | pickup_location | delivery_location | factory_id | kho_id 
+--------+--------+------------+-----------------+-------------------+------------+--------
+ 311932 | IMPORT | LCL        |                 |                   |          1 |      6
+ 311933 | EXPORT | LCL        |                 |                   |          1 |      6
+(2 rows)
+
