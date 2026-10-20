@@ -47,11 +47,11 @@ describe('shipment container editor density', () => {
     expect(ledgerRowSource).toContain("import { ShipmentContainerCell } from '../create/ShipmentContainerCell';");
     expect(ledgerSource).toContain('<th scope="col">Container</th>');
     expect(ledgerSource).toContain('<th scope="col">Giờ hẹn đóng/trả</th>');
-    // 2026-09-08: percentage columns (sum 100%) replaced the 1186px min-width
-    // so the fixed-layout ledger fits its container without horizontal scroll.
-    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*width:\s*100%;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
-    expect(css).not.toMatch(/\.cus-container-table\s*\{[^}]*min-width:\s*\d{3,}px/);
-    expect(css).toMatch(/\.cus-container-col__site\s*\{\s*width:\s*10%;/);
+    // FB-045 lan 2 (card 201026140000) supersedes the 2026-09-08 percentage
+    // doctrine: px column floors + a table min-width; narrower drawers scroll
+    // horizontally in the __table-scroll band instead of squeezing columns.
+    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1110px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-container-col__site\s*\{\s*width:\s*95px;/);
     expect(css).toMatch(/\.cus-container-table tbody \.csc-container-cell\s*\{\s*padding:\s*0;/);
     expect(css).toMatch(
       /\.cus-container-cell :is\(\.searchable-select__value, \.searchable-select__placeholder\)\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/,
@@ -74,11 +74,12 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/\.shipments-page \.ds-pagination__controls\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
   });
 
-  // Card 20260923_9: the add-container row rides the ledger's colgroup, so
-  // every track it covers needs one percentage width and the set must still
-  // sum to 100% — a track without a width (or an 11th one over budget) is what
-  // pushes the drawer into horizontal scroll and breaks the alignment promise.
-  it('keeps every ledger column on one percentage grid that sums to 100%', () => {
+  // FB-045 lan 2 (card 201026140000) SUPERSEDES card 20260923_9's percentage
+  // grid: the add-container row still rides the ledger's colgroup, but the
+  // tracks own px floors now (content-sized) and the set must sum to the
+  // table min-width — a track below its content is what squeezed the add
+  // row's segmented giờ hẹn input and let Thêm/Hủy spill over it.
+  it('keeps every ledger column on one px floor grid that sums to the table min-width', () => {
     const colgroup = ledgerSource.slice(ledgerSource.indexOf('<colgroup>'), ledgerSource.indexOf('</colgroup>'));
     const classes = [...colgroup.matchAll(/<col className="(cus-container-col__\w+)"/g)].map((match) => match[1]);
     expect(classes).toEqual([
@@ -96,15 +97,28 @@ describe('shipment container editor density', () => {
     ]);
 
     const widths = classes.map((className) => {
-      const rule = new RegExp(`\\.${className} \\{ width: (\\d+)%; \\}`).exec(css);
-      expect(rule, `${className} carries a percentage width`).toBeTruthy();
+      const rule = new RegExp(`\\.${className} \\{ width: (\\d+)px; \\}`).exec(css);
+      expect(rule, `${className} carries a px floor`).toBeTruthy();
       return Number(rule![1]);
     });
-    expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
+    const minWidth = Number(/\.cus-container-table \{[^}]*min-width: (\d+)px;/.exec(css)![1]);
+    expect(widths.reduce((total, width) => total + width, 0)).toBe(minWidth);
 
-    // Percentage-only tracks: a px floor on a column would overflow the
-    // drawer's capped 1180px width.
-    expect(css).not.toMatch(/\.cus-container-col__\w+ \{[^}]*min-width:\s*\d+px/);
+    // FB-045 laws on this ledger: the giờ hẹn column floors the one-line
+    // header AND the add-row segmented datetime input's max-content; the
+    // actions column floors Thêm + Hủy on one line so the pair can never
+    // paint over the giờ hẹn cell again.
+    const appointment = Number(/\.cus-container-col__appointment \{ width: (\d+)px; \}/.exec(css)![1]);
+    expect(appointment).toBeGreaterThanOrEqual(150);
+    const actions = Number(/\.cus-container-col__actions \{ width: (\d+)px; \}/.exec(css)![1]);
+    expect(actions).toBeGreaterThanOrEqual(100);
+    // The one-line value law for "HH:mm DD/MM/YYYY".
+    expect(css).toMatch(/\.cus-appointment-trigger__text\s*\{[^}]*white-space:\s*nowrap;/);
+    expect(css).toMatch(/\.cus-appointment-trigger__text\s*\{[^}]*text-overflow:\s*ellipsis;/);
+    // The add-actions pair WRAPS inside its floor (FB-045 lan 2): during
+    // `adding` the submit label swaps to the wider "Đang thêm…" — a wrapping
+    // pair can never spill onto the giờ hẹn cell in any label state.
+    expect(css).toMatch(/\.cus-container-ledger__add-actions\s*\{[^}]*flex-wrap:\s*wrap;/);
   });
 
   // Card 20260923_9 residual (QA rung, staging 390): inside the card the add

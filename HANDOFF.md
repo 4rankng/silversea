@@ -1,3 +1,20 @@
+# FB-045 lan 2 — dialog "Chi tiết container" clip cột GIỜ HẸN — 2026-10-20
+
+Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb045-lan2, branch fix-fb045-lan2 (off main 106a25e3).
+
+**Status**: DONE — fix + UI DRIVEN evidence local 4 viewports × 2 dialog; staging tái hiện channel trước fix. Card 201026140000 (QA R27 FAIL lần 2). Testplan: `testplan/2026-10-20-fb045-lan2-gio-hen-clip.md`.
+
+- **Root cause lần 2** (fix bb394516 không đủ — chỉ floored header cột giờ):
+  1. `/dispatch` drawer: port `<select>` Nâng/Hạ (min-width 140px) tràn auto slice 114–127px, ĐÈ value "08:00 24/09/2037" → "0 24/09/2037" ở cả 4 viewport. Channel data-gated (chỉ render khi fieldAccess port DIRECT).
+  2. `/shipments` drawer (`CusContainerLedger`): add-row segmented giờ hẹn input bị cột 15% bóp; Thêm/Hủy từ cột Thao tác 4% (~46px) tràn TRÁI đè "DD/MM/YYYY" (staging 106a25e3 tái hiện: `stg-before-driver.log` FAIL 1280/1440/1920).
+- **Fix bền**: px floors theo content + table min-width + scroll-x band sẵn có. DispatchDrawer: cột port 150px + select 132px + min-width 960 + value nowrap pin. CusContainerLedger: GIỜ HẸN 164px, Thao tác 116px, min-width 1110px (doctrine "percentage sum 100% no scroll" bị brief lan 2 supersede — `ShipmentsPage.density.test.ts` contract đổi theo); trigger value nowrap+ellipsis.
+- **Gates**: `npx tsgo -b` 0 · scoped vitest 55/55 + 221/221 + 540/540 · full FE **5306/5306 green rerun** (`gates-fe-vitest-full-rerun.log`; 1 parallel run trước đó flake `DebtListPage.filters` debounce + 2 fail `dist/assets` race — đều pass isolation/build, log kèm) · `pnpm lint` 0 · `make build` 0. Logs `qa/2026-10-20-fb045-lan2/gates-*.log`.
+- **Evidence**: `qa/2026-10-20-fb045-lan2/` — before (clip: `before-dispatch-drawer-w1024.png` "0 24/09/2037", `probe4-shipments-drawer-w1280.png` Thêm đè input) → after 8 PNG 2 drawer × 4 viewport sạch + logs. Driver `testplan/qa/scripts/2026-10-20-fb045-lan2-probe.mjs` (env QA_BASE/QA_TAG/QA_ENTRY/QA_USER_A/QA_USER_B).
+- **Not covered / nợ**: staging re-drive sau deploy ≥ fix; staging lot port DIRECT (4 lot đầu grid port READ_ONLY); sibling header shear `/shipments-detail` + `/dispatch-detail` w1024 (ngoài card — cần card riêng); viewport <1024 (card mode khác); add-row transient `adding` ("Đang thêm…") không submit live (không ghi data) — channel đóng bằng `flex-wrap: wrap` structural pin.
+- **Independent review**: code-reviewer REQUEST CHANGES → 6/6 finding resolved trước commit (M1 add-actions wrap + pin, M2 probe spill selector SearchableSelect + fail-loud empty measurement, M3 full-suite green rerun sau build, L4/L5 doc updates, L6 noted).
+
+---
+
 # FB-061 lần 3 — /users sạch nốt "Đơn vị CUS Demo" khỏi catalog Đơn vị phụ trách (card 201026112400) — 2026-10-20
 
 Controller: agent, worktree fix-fb061-lan3 (off main d6d04ce6). Fix commit `3ac4b779`, deployed staging `3ac4b779`, pushed branch.

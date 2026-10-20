@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-10-20 — fix(ui): FB-045 lan 2 — dialog "Chi tiết container" hết clip cột GIỜ HẸN ở mọi viewport + lối vào (card 201026140000)
+
+Fix lần 1 (bb394516) chỉ floored header cột giờ hẹn của drawer `/dispatch`;
+QA R27 vẫn FAIL vì 2 clip channel còn sống:
+
+- `/dispatch` drawer: port `<select>` Nâng/Hạ (min-width 140px) tràn khỏi auto
+  slice 114–127px, đè lên VALUE "HH:mm DD/MM/YYYY" ("0 24/09/2037") ở cả 4
+  viewport. Fix: cột Nâng/Hạ own `150px` + select `132px`, table min-width
+  960px, value pin nowrap — control hàng xóm không còn tràn.
+- `/shipments` drawer (`CusContainerLedger`): add-row segmented giờ hẹn input
+  bị cột 15% bóp + nút Thêm/Hủy từ cột Thao tác 4% (~46px) tràn đè lên
+  "DD/MM/YYYY". Fix: thay doctrine "percentage sum 100%, no scroll" (bị brief
+  lan 2 supersede — contract test cập nhật theo) bằng px floor theo content:
+  giờ hẹn `164px`, Thao tác `116px`, table min-width `1110px` + scroll-x band
+  sẵn có ("scroll-x hợp lý", không chật cứng); value trigger nowrap + ellipsis.
+
+Evidence: `qa/2026-10-20-fb045-lan2/` (before/after/stg-before logs + PNG 4
+viewport × 2 drawer), testplan `2026-10-20-fb045-lan2-gio-hen-clip.md`. Staging
+(build 106a25e3 pre-fix) tái hiện channel Thêm/Hủy tràn tại 1280/1440/1920;
+staging re-drive sau deploy ≥ fix còn nợ. Pins: DispatchContainerDetailDrawer
+.styles.test.ts + ShipmentsPage.density.test.ts (px-floor contract).
+
 ## 2026-10-17 (chiều) — fix(fb-107): portal Chi tiết lô 2 dòng Nâng/Hạ hết '—'
 
 Card 171026115820 (P2) — phần portal còn lại của FB-107: `/portal/shipments/:id`

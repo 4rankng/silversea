@@ -1,0 +1,20 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-fb045-lan2/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  691 passed (691)
+      Tests  5306 passed (5306)
+   Start at  21:15:51
+   Duration  193.12s (transform 43.62s, setup 114.16s, import 528.61s, tests 522.89s, environment 463.28s)
+
+vitest-rerun-exit=0

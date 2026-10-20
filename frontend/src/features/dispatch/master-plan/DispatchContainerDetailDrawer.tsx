@@ -48,8 +48,8 @@ function ContainerDetailTable({ detail, savingLineId, onPortChange }: {
             <th scope="col">Điều vận</th>
             <th scope="col">Nhà xe</th>
             <th scope="col">Biển số</th>
-            <th scope="col">Nâng</th>
-            <th scope="col">Hạ</th>
+            <th scope="col" className="dispatch-container-detail__port-column">Nâng</th>
+            <th scope="col" className="dispatch-container-detail__port-column">Hạ</th>
             <th scope="col" className="dispatch-container-detail__appointment-column">Giờ hẹn đóng/trả</th>
           </tr>
         </thead>
@@ -69,7 +69,7 @@ function ContainerDetailTable({ detail, savingLineId, onPortChange }: {
               </td>
               <td data-label="Nhà xe">{line.carrierName || '—'}</td>
               <td data-label="Biển số">{line.plateNumber || '—'}</td>
-              <td data-label="Nâng">
+              <td data-label="Nâng" className="dispatch-container-detail__port-column">
                 {portCellEditable(line, 'liftSiteId') ? (
                   <>
                     <label className="sr-only" htmlFor={`dispatch-detail-lift-${line.id}`}>Cảng nâng của container {line.containerNumber || line.ordinal}</label>
@@ -87,7 +87,7 @@ function ContainerDetailTable({ detail, savingLineId, onPortChange }: {
                   </>
                 ) : line.liftSite || '—'}
               </td>
-              <td data-label="Hạ">
+              <td data-label="Hạ" className="dispatch-container-detail__port-column">
                 {portCellEditable(line, 'dropoffSiteId') ? (
                   <>
                     <label className="sr-only" htmlFor={`dispatch-detail-drop-${line.id}`}>Cảng hạ của container {line.containerNumber || line.ordinal}</label>

@@ -101,7 +101,9 @@ describe('DispatchContainerDetailDrawer', () => {
 
   it('keeps the drawer layout responsive without carrying the CUS editor controls', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/DispatchContainerDetailDrawer.css'), 'utf8');
-    expect(css).toContain('min-width: 900px');
+    // FB-045 lan 2: 960px floor = 44 + 3×150 fixed columns + 5 auto ≥92px —
+    // wide enough for every one-line header beside the giờ hẹn column.
+    expect(css).toContain('min-width: 960px');
     expect(css).toMatch(/\.dispatch-container-detail__table tbody th,[\s\S]*?\.dispatch-container-detail__table tbody td\s*\{[\s\S]*?white-space:\s*normal;/);
     expect(css).toMatch(/@container \(max-width: 760px\)[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     expect(css).not.toContain('searchable-select');

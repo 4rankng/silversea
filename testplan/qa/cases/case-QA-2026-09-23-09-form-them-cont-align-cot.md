@@ -57,7 +57,7 @@ drawer width instead of by a duplicated width list.
 | 3 | Every row (data rows **and** the add row) carries one cell per column — 11 — so no column can silently shift. |
 | 4 | Columns without an input keep an EMPTY cell (`td.cus-container-ledger__add-blank`, empty text) — never merged, never stretched. |
 | 5 | The four input left edges match their column's left edge within **2px** at 1280 / 2560 / 390 (browser measurement; see the rung-3 snippet). |
-| 6 | Column widths stay on one percentage grid summing to 100% (no px floor), so nothing goes off-screen at the drawer's 1180px cap and the table never scrolls horizontally. |
+| 6 | ~~Column widths stay on one percentage grid summing to 100% (no px floor), so nothing goes off-screen at the drawer's 1180px cap and the table never scrolls horizontally.~~ **SUPERSEDED by FB-045 lan 2 (card 201026140000, 2026-10-20):** columns own px floors sized to content (Giờ hẹn 164px, Thao tác 116px — the 15%/4% slices squeezed the add row's segmented giờ hẹn input and let Thêm/Hủy paint over it) and the table carries a 1110px min-width; narrower drawers scroll horizontally in the `__table-scroll` band instead of squeezing columns ("scroll-x hợp lý", the brief's ruling). |
 | 7 | The ledger renders the line's own weight in the new TRỌNG LƯỢNG (KG) column (`—` when the line has none). |
 | 8 | The per-row Xóa keeps its contract: icon-only with `aria-label`, hover-reveal on fine pointers, always visible on coarse pointers/mobile, disabled with the trip tooltip on a live-trip row, 409 → toast. |
 | 9 | The add flow is unchanged: Enter in the add row submits (the house select keeps Enter for committing a typed option), Hủy closes, errors render inline below the table, success toasts + the new line renders in the open drawer. |
@@ -80,7 +80,8 @@ drawer width instead of by a duplicated width list.
   - `renders the line weight in the Trọng lượng column, em dash when missing` — RED pre-fix (no weight cell).
 - `frontend/src/pages/ShipmentsPage.density.test.ts`
   - `keeps every ledger column on one percentage grid that sums to 100%` — colgroup ↔ CSS width parity, no px
-    floor on a track.
+    floor on a track. **SUPERSEDED (FB-045 lan 2, card 201026140000):** now
+    `keeps every ledger column on one px floor grid that sums to the table min-width`.
   - `add-container form: the Loại cont select fills its column cell, never a sliver (QA-2026-09-23-02, card
     20260923_9)` (in `ShipmentsPage.test.tsx`) — the 150px floor retired with `width="content"`.
 - Evidence: `qa/2026-09-24_c9-grid_red-first.log`, `qa/2026-09-24_c9-grid_frontend-vitest.log`,
