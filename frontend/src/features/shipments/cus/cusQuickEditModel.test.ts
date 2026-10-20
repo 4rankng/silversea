@@ -8,6 +8,7 @@ import {
   isQuickEditUnchanged,
   quickEditAccessKeys,
   quickEditDeclarationChanged,
+  quickEditGroupGate,
   quickEditSaveIdentity,
 } from './cusQuickEditModel';
 import { scheduleTime, type ShipmentQuickEditDraft } from './cusUtils';
@@ -84,6 +85,61 @@ describe('quickEditAccessKeys', () => {
     expect(quickEditAccessKeys('classification')).toEqual(['tradeDirection', 'shippingLineName']);
     expect(quickEditAccessKeys('cargo')).toEqual(['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm']);
     expect(quickEditAccessKeys('notes')).toEqual(['customerNotes', 'operationalNotes']);
+  });
+});
+
+describe('quickEditGroupGate', () => {
+  const access = (mode: string) => ({ mode, reason: `reason:${mode}` });
+  const baseAccess = {
+    factoryName: access('EDITABLE'),
+    blNumber: access('EDITABLE'),
+    bookingRef: access('EDITABLE'),
+    declarationNumber: access('EDITABLE'),
+    tradeDirection: access('EDITABLE'),
+    shippingLineName: access('EDITABLE'),
+    packageCount: access('EDITABLE'),
+    packageType: access('EDITABLE'),
+    cargoWeightKg: access('EDITABLE'),
+    cargoVolumeCbm: access('EDITABLE'),
+    closingAt: access('EDITABLE'),
+    plannedReturnAt: access('EDITABLE'),
+    customerNotes: access('EDITABLE'),
+    operationalNotes: access('EDITABLE'),
+  };
+
+  it('blocks the FCL schedule group with the per-container law', () => {
+    const gate = quickEditGroupGate({ cargoMode: 'FCL', fieldAccess: baseAccess } as ShipmentCusWorkspaceListItem, 'schedule');
+    expect(gate.disabled).toBe(true);
+    expect(gate.reason).toBe('Lịch FCL được cập nhật theo từng container.');
+  });
+
+  it('allows the LCL schedule group when its access keys are writable', () => {
+    const gate = quickEditGroupGate({ cargoMode: 'LCL', fieldAccess: baseAccess } as ShipmentCusWorkspaceListItem, 'schedule');
+    expect(gate.disabled).toBe(false);
+    expect(gate.reason).toBeNull();
+  });
+
+  it('blocks a group whose every access key is READ_ONLY and names the reason', () => {
+    const lockedAccess = {
+      ...baseAccess,
+      blNumber: access('READ_ONLY'),
+      bookingRef: access('READ_ONLY'),
+      declarationNumber: access('READ_ONLY'),
+    };
+    const gate = quickEditGroupGate({ cargoMode: 'FCL', fieldAccess: lockedAccess } as ShipmentCusWorkspaceListItem, 'documents');
+    expect(gate.disabled).toBe(true);
+    expect(gate.reason).toBe('reason:READ_ONLY');
+  });
+
+  it('allows a group when at least one key stays writable', () => {
+    const partialAccess = {
+      ...baseAccess,
+      blNumber: access('READ_ONLY'),
+      bookingRef: access('READ_ONLY'),
+    };
+    const gate = quickEditGroupGate({ cargoMode: 'FCL', fieldAccess: partialAccess } as ShipmentCusWorkspaceListItem, 'documents');
+    expect(gate.disabled).toBe(false);
+    expect(gate.reason).toBeNull();
   });
 });
 

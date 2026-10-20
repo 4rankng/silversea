@@ -1,3 +1,44 @@
+# FB-086 reconciliation — "Sửa lô" ở Chi tiết lô; container GIỮ read-only (TICKET-09 wins) — 2026-10-21
+
+Controller: agent, worktree fix-fb086 (off main be1c65fe), branch fix-fb086.
+
+**Status**: DONE — reconciliation implemented + scoped/full gates + UI DRIVEN (staging before · local after). Card 201026234505 (QA R29, tiepvv).
+
+- **RECONCILIATION (QA cần biết)**: FB-086 (13/10) yêu cầu "SỬA LÔ ĐỂ THÊM
+  CONTAINER" ở `/shipments/:id`; TICKET-09 (card 171026182554, 17/10, khách Tiệp
+  Vũ) SUPERSEDE ở surface này: khách KHÔNG muốn thêm/xóa container tại Chi tiết
+  lô — composition chỉ ở drawer Tổng quan (`/shipments`). Verdict R29 của QA
+  ("thiếu nút thêm container + /shipments/965/edit về trang chi tiết") là
+  **invalid-at-surface**: bảng Containers read-only và alias edit-redirect là
+  TRẠNG THÁI ĐÚNG theo TICKET-09 (pin vitest "offers no Thêm container
+  affordance" giữ nguyên). QA tick lại FB-086 chỉ tính mục "Sửa lô".
+- **Valid remainder implemented**: nút **"Sửa lô"** ở header chi tiết lô
+  (ADMIN/MANAGER/CUS/DISPATCHER = `SHIPMENT_INTAKE_MUTATION_ROLES` — đúng bộ
+  vai trò `PUT /shipments/:id`; ẩn khi khóa kế toán). Click → fetch
+  `GET /cus-workspace/:id` → picker 6 nhóm thông tin (mỗi nhóm gate đúng
+  `fieldAccess` của workspace; Lịch trình FCL disabled "cập nhật theo từng
+  container") → mở **cùng một modal quick-edit** của Tổng quan (trình bày tách
+  thành `ShipmentQuickEditModal` dùng chung — ShipmentsPage DOM-identical, 138
+  test vẫn xanh). Lưu đi đúng `updateShipment` (+ tờ khai walk) + self-heal 409
+  như cũ. KHÔNG có UI container nào mới ở màn này; KHÔNG đổi backend/RBAC/route.
+- **Gates**: FE `npx tsgo -b` 0 · `pnpm lint` 0 · FE vitest full 5342/5343 ·
+  `make build` 0. 1 fail duy nhất: `dev-port-contract` do
+  `2026-10-20-pwa-standalone-ui-drive.mjs:7199` (worktree PWA đã merge) —
+  **pre-existing trên main sạch (A/B stash)**, KHÔNG của fix này; cần card riêng
+  cho owner PWA. Driver FB-086 tuân thủ port contract (env-only).
+- **Evidence**: `qa/2026-10-20-fb086/` — BEFORE staging (tiepvv, lô 965
+  BKR29FCL01: không Sửa lô, không Thêm container, Containers(2) read-only) ·
+  AFTER local (cus, lô 311567: Sửa lô → picker → Phân loại & hãng tàu → lưu;
+  DB version 2→3, `shipping_line_name=QA-FB086-…`) · driver
+  `testplan/qa/scripts/2026-10-20-fb086-sua-lo-ui-drive.mjs`. Screenshot
+  staging bị host chặn paint (background tab) — DOM snapshot 449 nodes + driver
+  log thay thế, noted trong README.
+- **Not covered**: drive mobile 390 (modal đã responsive ở Tổng quan; chưa click
+  ở chi tiết); nhóm LCL Lịch trình (pin vitest, chưa UI-drive); role
+  ACCOUNTANT ẩn nút (pin vitest); staging re-drive SAU deploy.
+
+---
+
 # PWA standalone — ẩn footer/decorative khi installed (user report 20/10) — 2026-10-20
 
 Controller: agent, worktree fix-pwa-standalone (off main a079aaf5), branch fix-pwa-standalone.

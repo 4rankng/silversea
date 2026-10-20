@@ -43,6 +43,25 @@ export function quickEditAccessKeys(field: QuickEditField): readonly (keyof Ship
             : ['customerNotes', 'operationalNotes'] as const;
 }
 
+/**
+ * Whether a Sửa-lô picker may open a group, with the honest reason when it
+ * may not. Mirrors `startQuickEdit`'s two guards (FCL schedule is per-
+ * container; a group whose every access key is READ_ONLY) so the picker
+ * disables exactly what the save path would refuse — same law, checked
+ * before the click instead of after.
+ */
+export function quickEditGroupGate(
+  item: Pick<ShipmentCusWorkspaceListItem, 'cargoMode' | 'fieldAccess'>,
+  field: QuickEditField,
+): { disabled: boolean; reason: string | null } {
+  if (field === 'schedule' && item.cargoMode === 'FCL') {
+    return { disabled: true, reason: 'Lịch FCL được cập nhật theo từng container.' };
+  }
+  const keys = quickEditAccessKeys(field);
+  const allReadOnly = keys.every((key) => item.fieldAccess[key].mode === 'READ_ONLY');
+  return { disabled: allReadOnly, reason: allReadOnly ? item.fieldAccess[keys[0]].reason : null };
+}
+
 /** Seed the documents draft's tờ khai rows (id-asc wire order). */
 export function seedDeclarationRows(item: ShipmentCusWorkspaceListItem): QuickEditDeclarationRow[] {
   return (item.raw.declarations ?? []).map((row) => ({

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ExternalLink, FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw, Save } from 'lucide-react';
+import { ExternalLink, FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw } from 'lucide-react';
 import {
   CUS_SEARCH_PATTERN, SHIPMENT_CUS_WORKSPACE_SORT_KEYS, SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS, ShipmentCusBucket, ShipmentDocumentCustody, Role,
@@ -19,10 +19,9 @@ import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
-import { useClickOutside } from '../hooks/useClickOutside';
 import { isOverlayOpen } from '../lib/overlayState';
 import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
-import { ShipmentQuickEditFields } from '../features/shipments/cus/CusQuickEdit';
+import { ShipmentQuickEditModal } from '../features/shipments/cus/ShipmentQuickEditModal';
 import { ShipmentDetailContent } from '../features/shipments/cus/CusDetailContent';
 import { CusDrawerFooter } from '../features/shipments/cus/CusDrawerFooter';
 import type { ContainerLedgerHandle } from '../features/shipments/cus/CusContainerLedger';
@@ -33,7 +32,7 @@ import { factoryDetailPath } from '../features/shipments/cus/cusQuickEditModel';
 import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
 import { useHiddenColumns } from '../hooks/useHiddenColumns';
-import { appointmentGroupFactorySegment, formatAppointmentGroupLine, noteLines, quickEditTitle, safeError, SHIPMENT_BUCKET_COLORS } from '../features/shipments/cus/cusUtils';
+import { appointmentGroupFactorySegment, formatAppointmentGroupLine, noteLines, safeError, SHIPMENT_BUCKET_COLORS } from '../features/shipments/cus/cusUtils';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
@@ -366,20 +365,9 @@ export default function ShipmentsPage() {
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;
-  const quickEditFormRef = useRef<HTMLFormElement>(null);
-  // Outside pointerdown / global Escape dismisses the Chứng từ quick bubble,
-  // matching the ledger inline editors (72725707); paused while saving so a
-  // save can't be cancelled mid-flight. The whole .modal__content (head,
-  // footer buttons, form) counts as inside — a press on "Lưu thay đổi" in the
-  // Modal footer sits outside the form ref and must not cancel the draft —
-  // and portaled select popovers keep owning their own interaction.
-  useClickOutside(quickEditFormRef, () => {
-    if (!savingQuickEdit) closeQuickEdit();
-  }, {
-    escapeKey: true,
-    enabled: quickEditDraft != null && quickEditItem != null,
-    ignoreSelector: '.modal__content, .searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, .time-picker__popup, .time-picker__overlay, .time-picker__sheet, .time-picker__inline, [data-time-picker-overlay], [data-date-picker]',
-  });
+  // Click-outside/Escape dismissal for the quick-edit modal lives inside
+  // ShipmentQuickEditModal now (shared with the lot detail page's Sửa-lô
+  // picker host).
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || selectedBuckets.length > 0 || adHoc || statusTab);
   // Card 20260927_152: the three criteria behind `Bộ lọc` — the count feeds the
   // trigger badge, `Đặt lại` clears exactly those three and nothing else.
@@ -641,68 +629,19 @@ export default function ShipmentsPage() {
         )}
       </section>
 
-      <Modal
-        isOpen={quickEditDraft != null && quickEditItem != null}
-        title={quickEditDraft ? quickEditTitle(quickEditDraft.field) : 'Chỉnh sửa lô hàng'}
-        onClose={closeQuickEdit}
-        maxWidth={480}
-        footer={<>
-          <UUIButton size="sm" color="secondary" className="cus-quick-edit-modal__action" onPress={closeQuickEdit} isDisabled={savingQuickEdit}>Hủy</UUIButton>
-          <UUIButton
-            size="sm"
-            color="primary"
-            className="cus-quick-edit-modal__action"
-            isLoading={savingQuickEdit}
-            showTextWhileLoading
-            onPress={() => quickEditFormRef.current?.requestSubmit()}
-            iconLeading={<Save size={16} aria-hidden="true" />}
-          >
-            Lưu thay đổi
-          </UUIButton>
-        </>}
-      >
-        {quickEditDraft && quickEditItem && (
-          <form ref={quickEditFormRef} className="cus-quick-edit-modal"
-            aria-busy={savingQuickEdit}
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!event.currentTarget.reportValidity()) return;
-              void saveQuickEdit(quickEditItem);
-            }}
-            onKeyDown={(event) => {
-              // FB-002 (round 17): the save button lives in the modal FOOTER,
-              // outside this form, so the browser's implicit submission never
-              // fires for the multi-field modes (documents with tờ khai rows,
-              // cargo, classification) — Enter went dead. The form answers
-              // Enter itself, through the same submit path the footer button
-              // rides (requestSubmit keeps constraint validation intact).
-              if (event.defaultPrevented) return;
-              if (event.key !== 'Enter' || event.nativeEvent.isComposing || savingQuickEdit) return;
-              const target = event.target as HTMLElement;
-              // The segmented date/time pickers own their Enter (commit the
-              // draft / close the panel) — never steal it.
-              if (target.closest('[data-date-picker], .time-picker__popup, [data-time-picker-overlay]')) return;
-              if (target.isContentEditable || target.tagName === 'SELECT' || target.tagName === 'BUTTON' || target.closest('.searchable-select, [role="listbox"], [role="option"]')) return;
-              // Multiline notes: bare Enter inserts a newline; the modified
-              // combo (Ctrl/Cmd+Enter) is what saves — same law as the
-              // Chi tiết lô hàng inline editor.
-              if (target.tagName === 'TEXTAREA' && !event.ctrlKey && !event.metaKey) return;
-              if (event.shiftKey) return;
-              event.preventDefault();
-              quickEditFormRef.current?.requestSubmit();
-            }}
-          >
-            <p className="cus-quick-edit-modal__context">{quickEditItem.billOrBookNumber || quickEditItem.declarationNumber || quickEditItem.customerName || 'Lô hàng'}</p>
-            <ShipmentQuickEditFields
-              draft={quickEditDraft}
-              item={quickEditItem}
-              saving={savingQuickEdit}
-              error={quickEditError}
-              onChange={setQuickEditDraft}
-            />
-          </form>
-        )}
-      </Modal>
+      {/* FB-086 R29 remainder: the modal moved verbatim into
+          ShipmentQuickEditModal so the lot detail page's Sửa-lô picker opens
+          the SAME editor — one shared lot-info surface, two hosts. */}
+      <ShipmentQuickEditModal
+        open={quickEditDraft != null && quickEditItem != null}
+        draft={quickEditDraft}
+        item={quickEditItem}
+        saving={savingQuickEdit}
+        error={quickEditError}
+        onDraftChange={setQuickEditDraft}
+        close={closeQuickEdit}
+        save={() => { if (quickEditItem) void saveQuickEdit(quickEditItem); }}
+      />
 
       <Drawer
         isOpen={drawerId != null}

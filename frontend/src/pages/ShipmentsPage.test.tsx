@@ -34,6 +34,9 @@ import ShipmentsPage from './ShipmentsPage';
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const addRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerAddRow.tsx'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+// FB-086 R29 remainder: the quick-edit modal presentation lives in the shared
+// component now (hosted by both the Tổng quan grid and the lot detail page).
+const quickEditModalSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/ShipmentQuickEditModal.tsx'), 'utf8');
 const responsiveCss = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
 const recordCss = css.slice(css.indexOf('@media (max-width: 999px)'), css.indexOf('@media (max-width: 620px)'));
 // Row markup + bucket colors moved into the feature leaves in the 2026-09-01
@@ -862,7 +865,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(recordCss).not.toMatch(/::after[^{}]*content:\s*' ·'/);
     expect(css).not.toMatch(/\[data-facts/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(source).toMatch(/<Modal[\s\S]*?maxWidth=\{480\}[\s\S]*?cus-quick-edit-modal/);
+    // FB-086 R29 remainder: the modal presentation moved verbatim into the
+    // shared ShipmentQuickEditModal (the lot detail page opens the same
+    // editor) — the source contract follows it there.
+    expect(quickEditModalSource).toMatch(/<Modal[\s\S]*?maxWidth=\{480\}[\s\S]*?cus-quick-edit-modal/);
   });
 
   it('CUS-OVERVIEW-03 shows the missing-date warning once and retains the lifecycle badge', async () => {
