@@ -205,8 +205,18 @@ describe('ContainerLedger confirm affordances', () => {
     expect(cellOf('input[aria-label="Giờ hẹn đóng/trả"]').cellIndex).toBe(9);
     expect(cellOf('.cus-container-ledger__add-actions').cellIndex).toBe(10);
 
-    // Columns the add API does not fill keep an EMPTY cell (never merged away).
-    for (const index of [2, 3, 4, 5, 6, 7]) {
+    // Card 201026124500 (A.1): the copy-down columns (Tuyến/Nhà xe/Nâng/Hạ)
+    // now carry their seeded cell; only Điều vận (computed) and Biển số
+    // (per-truck entry, ngoài danh sách A.1) keep an EMPTY cell — every track
+    // stays its own cell, never merged away. This fixture's rows carry no
+    // display names and an empty ports catalog, so the seeded cells read '—'
+    // here; the seeding suite pins the copied values themselves.
+    for (const index of [2, 4, 6, 7]) {
+      const cell = addRow!.children[index] as HTMLElement;
+      expect(cell.className).toContain('cus-container-cell');
+      expect(cell.textContent).toBe('—');
+    }
+    for (const index of [3, 5]) {
       const cell = addRow!.children[index] as HTMLElement;
       expect(cell.className).toContain('cus-container-ledger__add-blank');
       expect(cell.textContent).toBe('');
@@ -781,66 +791,276 @@ describe('071026100800 — xóa container làm tươi hàng tổng quan', () => 
   });
 });
 
-// Card 191026100000 (chungtu-dieuvan A.1): opening the add form copies the
-// lot's existing row values down — per-column FIRST non-null, mirroring the
-// add API's lot-default inherit — except Số container, which stays the
-// operator's own entry. Weight rides here even though the wire treats it as
-// a per-container fact, because the customer's copy-down law is "mọi trường
-// khác TRỪ số cont".
-describe('add-row seed copies the lot row values (A.1, card 191026100000)', () => {
-  const twoRowDetail = {
+// Card 201026124500 (181026185900 A.1): opening the add form copies EVERY
+// field of the lot's existing rows down — Tuyến, Nhà xe, Nâng, Hạ, Trọng
+// lượng, Giờ hẹn — per-column FIRST non-null, mirroring the add API's
+// lot-default inherit. Số container AND Loại cont stay the operator's own
+// entry (191026100000's loại-cont seed is superseded by this card's restated
+// law). Weight rides here even though the wire treats it as a per-container
+// fact, because the customer's copy-down law is "mọi trường khác TRỪ số cont
+// và loại cont"; the submit then carries the whole set explicitly.
+describe('add-row seed copies the lot row values (A.1, card 201026124500)', () => {
+  const ports = [
+    { id: 3, code: 'CDV', name: 'Cảng Đình Vũ', label: 'CDV — Cảng Đình Vũ' },
+    { id: 4, code: 'HICT', name: 'TC - HICT', label: 'HICT — TC - HICT' },
+    { id: 8, code: 'THT', name: 'Bãi Chân Thật - THT', label: 'THT — Bãi Chân Thật - THT' },
+  ];
+  const a1Row = (over: Record<string, unknown> = {}) => ({
+    ...detail.containers[0],
+    routeId: 7,
+    routeName: 'ASKEY',
+    carrierType: 'OWN',
+    externalCarrierId: null,
+    carrierName: 'SilverSea',
+    liftSiteId: 3,
+    liftSite: 'Cảng Đình Vũ',
+    dropoffSiteId: 4,
+    dropoffSite: 'TC - HICT',
+    customerAppointmentAt: '2026-09-01T03:00:00.000Z', // 10:00 VN, 01/09
+    raw: { ...detail.containers[0].raw, routeId: 7, cargoWeightKg: '12500' },
+    ...over,
+  });
+  const a1Detail = (containers: unknown[]) => ({
     ...detail,
     summary: { ...detail.summary, cargoMode: 'FCL' },
-    selectors: { ...detail.selectors, containerTypes: [{ id: 5, code: '40HC', name: "40'HC", label: "40HC - 40'HC" }] },
-    containers: [
-      detail.containers[0], // typeId 5, weight '12500', appointment null below
-      {
-        ...detail.containers[0],
-        id: 11,
-        ordinal: 2,
-        containerNumber: 'MSKU7654321',
-        containerTypeId: null,
-        customerAppointmentAt: '2026-09-01T03:00:00.000Z', // 10:00 VN, 01/09
-        raw: { ...detail.containers[0].raw, containerTypeId: null, cargoWeightKg: '500.00' },
-      },
-    ],
-  } as unknown as ShipmentCusWorkspaceDetail;
+    selectors: {
+      ...detail.selectors,
+      ports,
+      containerTypes: [{ id: 5, code: '40HC', name: "40'HC", label: "40HC - 40'HC" }],
+    },
+    containers,
+  }) as unknown as ShipmentCusWorkspaceDetail;
+  const addRowEl = () => document.querySelector('.cus-container-ledger__add-row') as HTMLElement;
 
-  it('prefills loại cont, trọng lượng and giờ hẹn from the lot rows; leaves Số container empty', () => {
-    // Per-column first non-null: type + weight come from row 1 (row 2's are
-    // null), the appointment comes from row 2 (row 1 has none).
-    const withRow1Undated = {
-      ...twoRowDetail,
-      containers: [
-        { ...twoRowDetail.containers[0], customerAppointmentAt: null },
-        twoRowDetail.containers[1],
-      ],
-    } as unknown as ShipmentCusWorkspaceDetail;
-    renderLedger({ detail: withRow1Undated });
+  it('seeds EVERY A.1 field (Tuyến/Nhà xe/Nâng/Hạ/Trọng lượng/Giờ hẹn); Số container AND Loại cont stay entry', () => {
+    renderLedger({ detail: a1Detail([a1Row()]) });
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
-    const numberInput = screen.getByLabelText('Số container') as HTMLInputElement;
-    expect(numberInput.value).toBe('');
-    const weightInput = screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement;
-    expect(weightInput.value).toBe('12500');
-    // The seeded appointment is row 2's (the only dated row), in Vietnam wall
-    // clock: 10:00 on 01/09.
+    // The two entry fields: the number is blank, the type trigger shows the
+    // placeholder — never a seeded code.
+    expect((screen.getByLabelText('Số container') as HTMLInputElement).value).toBe('');
+    expect(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ })).toBeTruthy();
+    // The A.1 copy set renders in the add row's own column cells.
+    expect(within(addRowEl()).getByText('ASKEY')).toBeTruthy();
+    expect(within(addRowEl()).getByText('SilverSea')).toBeTruthy();
+    expect(within(addRowEl()).getByText('Cảng Đình Vũ')).toBeTruthy();
+    expect(within(addRowEl()).getByText('TC - HICT')).toBeTruthy();
+    expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('12500');
+    const { time, date } = appointmentInputs();
+    expect(time.value).toBe('10');
+    expect(date.value).toBe('01');
+  });
+
+  it('carries the seeded copy set on the submit payload — type explicit null, number typed', async () => {
+    addCusShipmentContainerRow.mockResolvedValue({ line: null });
+    renderLedger({ detail: a1Detail([a1Row()]) });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
+    fireEvent.click(within(addRowEl()).getByRole('button', { name: /^Thêm$/ }));
+
+    await waitFor(() => expect(addCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      {
+        expectedShipmentVersion: 4,
+        containerNumber: 'CSQU3054383',
+        // Loại cont: operator entry — an unpicked type sends EXPLICIT null so
+        // the wire's lot-default inherit can never re-copy it (A.1).
+        containerTypeId: null,
+        routeId: 7,
+        liftSiteId: 3,
+        dropoffSiteId: 4,
+        carrierType: 'OWN',
+        externalCarrierId: null,
+        cargoWeightKg: '12500',
+        customerAppointmentAt: expect.stringContaining('2026-09-01T10:00'),
+      },
+      'test-key',
+    ));
+  });
+
+  it('never seeds a lift/drop id outside the ports catalog (legacy snapshot id)', async () => {
+    // Snapshot-fallback case: the projection's liftSiteId can be a snapshot
+    // site from a DIFFERENT catalog while the container's pickupPortId column
+    // is null — copying that id into pickupPortId would corrupt the
+    // reference, so the seed leaves the whole cell uncopied (same as the add
+    // API's column inherit, which also has nothing to inherit there).
+    addCusShipmentContainerRow.mockResolvedValue({ line: null });
+    renderLedger({
+      detail: a1Detail([a1Row({ liftSiteId: 999, liftSite: 'Cảng Đình Vũ', dropoffSiteId: 4 })]),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect(within(addRowEl()).queryByText('Cảng Đình Vũ')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
+    fireEvent.click(within(addRowEl()).getByRole('button', { name: /^Thêm$/ }));
+
+    await waitFor(() => expect(addCusShipmentContainerRow).toHaveBeenCalled());
+    const payload = addCusShipmentContainerRow.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(payload.liftSiteId).toBeUndefined();
+    expect(payload.dropoffSiteId).toBe(4);
+  });
+
+  it('takes each seeded field from the FIRST row that has it (per-column first non-null)', () => {
+    // Row 2 disagrees on EVERY seeded field (route 8/OTHER ROUTE, EXTERNAL
+    // carrier 9, lift 8, drop 3, weight 500) so a first→last pick regression
+    // fails here field by field. Only the appointment comes from row 2 (row 1
+    // is undated) — 10:00 on 01/09 Vietnam wall clock.
+    renderLedger({
+      detail: a1Detail([
+        a1Row({ customerAppointmentAt: null }),
+        a1Row({
+          id: 11,
+          ordinal: 2,
+          containerNumber: 'MSKU7654321',
+          routeId: 8,
+          routeName: 'OTHER ROUTE',
+          carrierType: 'EXTERNAL',
+          externalCarrierId: 9,
+          carrierName: 'Đức Anh',
+          liftSiteId: 8,
+          liftSite: 'Bãi Chân Thật - THT',
+          dropoffSiteId: 3,
+          dropoffSite: 'Cảng Đình Vũ',
+          raw: { ...detail.containers[0].raw, routeId: 8, cargoWeightKg: '500.00' },
+        }),
+      ]),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    const cellText = (label: string) => addRowEl().querySelector(`[data-label="${label}"]`)?.textContent;
+    expect(cellText('Tuyến')).toBe('ASKEY');
+    expect(cellText('Nhà xe')).toBe('SilverSea');
+    expect(cellText('Nâng')).toBe('Cảng Đình Vũ');
+    expect(cellText('Hạ')).toBe('TC - HICT');
+    expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('12500');
     const { time, date } = appointmentInputs();
     expect(time.value).toBe('10');
     expect(date.value).toBe('01');
   });
 
   it('strips the decimal tail from a seeded weight ("500.00" → "500")', () => {
-    const lightLot = {
-      ...twoRowDetail,
-      containers: [
-        { ...twoRowDetail.containers[0], raw: { ...twoRowDetail.containers[0].raw, cargoWeightKg: '500.00' } },
-        twoRowDetail.containers[1],
-      ],
-    } as unknown as ShipmentCusWorkspaceDetail;
-    renderLedger({ detail: lightLot });
+    renderLedger({
+      detail: a1Detail([
+        a1Row({ raw: { ...detail.containers[0].raw, routeId: 7, cargoWeightKg: '500.00' } }),
+      ]),
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
     expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('500');
+  });
+
+  it('copies Tuyến "KCN QUẾ VÕ, BẮC NINH" on LONG MINH MSCU7654329 shape when Nâng/Hạ/Giờ hẹn are empty', async () => {
+    addCusShipmentContainerRow.mockResolvedValue({ line: null });
+    renderLedger({
+      detail: a1Detail([
+        a1Row({
+          containerNumber: 'MSCU7654329',
+          containerTypeId: 1,
+          containerTypeLabel: '20DC',
+          routeId: 6,
+          routeName: 'KCN QUẾ VÕ, BẮC NINH',
+          carrierType: 'OWN',
+          carrierName: 'SilverSea',
+          liftSiteId: null,
+          liftSite: null,
+          dropoffSiteId: null,
+          dropoffSite: null,
+          customerAppointmentAt: null,
+          raw: { ...detail.containers[0].raw, containerNumber: 'MSCU7654329', containerTypeId: 1, routeId: 6, cargoWeightKg: null },
+        }),
+      ]),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    const cellText = (label: string) => addRowEl().querySelector(`[data-label="${label}"]`)?.textContent;
+    expect(cellText('Tuyến')).toBe('KCN QUẾ VÕ, BẮC NINH');
+    expect(cellText('Nhà xe')).toBe('SilverSea');
+    expect(cellText('Nâng')).toBe('—');
+    expect(cellText('Hạ')).toBe('—');
+    expect(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
+    fireEvent.click(within(addRowEl()).getByRole('button', { name: /^Thêm$/ }));
+
+    await waitFor(() => expect(addCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        containerNumber: 'CSQU3054383',
+        containerTypeId: null,
+        routeId: 6,
+        carrierType: 'OWN',
+        externalCarrierId: null,
+      }),
+      'test-key',
+    ));
+  });
+
+  it('copies Tuyến across data-dependent branches: selector lookup, ad-hoc routeName, and lot summary fallback', async () => {
+    addCusShipmentContainerRow.mockResolvedValue({ line: null });
+    const routes = [{ id: 6, code: 'QV', name: 'KCN QUẾ VÕ, BẮC NINH', label: 'KCN QUẾ VÕ, BẮC NINH' }];
+
+    // Branch 1: container has routeId but routeName is null -> resolves from selectors.routes
+    const { unmount: unmount1 } = renderLedger({
+      detail: {
+        ...a1Detail([
+          a1Row({
+            routeId: 6,
+            routeName: null,
+            raw: { ...detail.containers[0].raw, routeId: 6, cargoWeightKg: null },
+          }),
+        ]),
+        selectors: { ...detail.selectors, ports, routes },
+      } as unknown as ShipmentCusWorkspaceDetail,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect(addRowEl().querySelector('[data-label="Tuyến"]')?.textContent).toBe('KCN QUẾ VÕ, BẮC NINH');
+    unmount1();
+
+    // Branch 2: ad-hoc container route (routeId is null, routeName is populated)
+    const { unmount: unmount2 } = renderLedger({
+      detail: a1Detail([
+        a1Row({
+          routeId: null,
+          routeName: 'KCN QUẾ VÕ, BẮC NINH',
+          raw: { ...detail.containers[0].raw, routeId: null, cargoWeightKg: null },
+        }),
+      ]),
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect(addRowEl().querySelector('[data-label="Tuyến"]')?.textContent).toBe('KCN QUẾ VÕ, BẮC NINH');
+    unmount2();
+
+    // Branch 3: container rows have routeId=null & routeName=null, lot summary carries routeId=6
+    renderLedger({
+      detail: {
+        ...a1Detail([
+          a1Row({
+            routeId: null,
+            routeName: null,
+            raw: { ...detail.containers[0].raw, routeId: null, cargoWeightKg: null },
+          }),
+        ]),
+        summary: {
+          ...detail.summary,
+          cargoMode: 'FCL',
+          routeName: 'KCN QUẾ VÕ, BẮC NINH',
+          raw: { ...detail.summary.raw, routeId: 6 },
+        },
+        selectors: { ...detail.selectors, ports, routes },
+      } as unknown as ShipmentCusWorkspaceDetail,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    expect(addRowEl().querySelector('[data-label="Tuyến"]')?.textContent).toBe('KCN QUẾ VÕ, BẮC NINH');
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
+    fireEvent.click(within(addRowEl()).getByRole('button', { name: /^Thêm$/ }));
+    await waitFor(() => expect(addCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({
+        containerNumber: 'CSQU3054383',
+        routeId: 6,
+      }),
+      'test-key',
+    ));
   });
 });
 
@@ -899,11 +1119,10 @@ describe('add-row loại-cont dropdown loads its options (FB-086, round 21)', ()
       } as unknown as ShipmentCusWorkspaceDetail,
     });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
-    // Card 191026100000 (A.1): the add row now seeds the lot's existing loại
-    // cont (the fixture line carries type 5), so the trigger opens showing the
-    // selection instead of the placeholder — the options assertion below is
-    // the point of this test and is unchanged.
-    fireEvent.click(await screen.findByRole('button', { name: /40HC/ }));
+    // Card 201026124500 (A.1): Loại cont is operator entry again — the
+    // trigger opens on its placeholder (no seed), so the options assertion
+    // below is the point of this test and is unchanged.
+    fireEvent.click(await screen.findByRole('button', { name: /Chưa chọn loại cont/ }));
     const listbox = await screen.findByRole('listbox');
     const optionTexts = within(listbox).getAllByRole('option').map((option) => option.textContent);
     expect(optionTexts.length).toBeGreaterThanOrEqual(1);

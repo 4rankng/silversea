@@ -691,11 +691,33 @@ export const shipmentCusContainerAddSchema = z.object({
   operationalSiteId: z.coerce.number().int().positive().nullable().optional(),
   liftSiteId: z.coerce.number().int().positive().nullable().optional(),
   dropoffSiteId: z.coerce.number().int().positive().nullable().optional(),
+  // Card 201026124500 (181026185900 A.1): Nhà xe copies with the rest of the
+  // lot's row — the carrier plan rides the add wire under the same contract
+  // as the columns above (UNDEFINED = the lot's default from the sibling rows
+  // rides; EXPLICIT NULL = a deliberate carrier-less row). Biển số/xe KHÔNG
+  // copy (ngoài danh sách A.1): the planned plate/vehicle stay entry fields.
+  carrierType: z.enum(['OWN', 'EXTERNAL']).nullable().optional(),
+  externalCarrierId: z.coerce.number().int().positive().nullable().optional(),
   customerAppointmentAt: z.string()
     .datetime({ offset: true, message: 'Ngày giờ đóng/trả hàng không hợp lệ.' })
     .nullable()
     .optional(),
-}).strict();
+}).strict().superRefine((input, ctx) => {
+  if (input.carrierType === 'EXTERNAL' && input.externalCarrierId == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['externalCarrierId'],
+      message: 'Nhà xe ngoài cần mã nhà xe.',
+    });
+  }
+  if (input.carrierType !== 'EXTERNAL' && input.externalCarrierId != null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['externalCarrierId'],
+      message: 'Mã nhà xe ngoài chỉ dùng khi loại nhà xe là EXTERNAL.',
+    });
+  }
+});
 
 export const shipmentCusContainerAddResultSchema = z.object({
   line: shipmentCusWorkspaceContainerLineSchema,

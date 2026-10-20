@@ -384,12 +384,18 @@ async function loadContainerSiteSnapshots(
  * a set EXTENSION (ensure requires the active set to already equal the
  * container list, so it cannot extend a partial set). Caller holds the
  * shipment lock within its own transaction.
+ *
+ * Card 201026124500 (181026185900 A.1): `plannedCarrier` stamps the lot's
+ * copied Nhà xe (or the operator's pick) onto the new plan at birth — the
+ * planned plate/vehicle stay empty (Biển số/xe là per-truck entry, never
+ * copied).
  */
 export async function createFulfillmentForAddedContainer(
   tx: Tx,
   shipmentId: number,
   containerId: number,
   actorId: number,
+  plannedCarrier?: { plannedCarrierType: 'OWN' | 'EXTERNAL'; plannedExternalCarrierId: number | null } | null,
 ): Promise<FulfillmentRow> {
   const [shipment] = await tx.select().from(s.shipments)
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
@@ -412,6 +418,12 @@ export async function createFulfillmentForAddedContainer(
     sourceShipmentVersion: shipment.version,
     siteSnapshot: containerSnapshots.get(container.id) ?? await loadSiteSnapshot(tx, shipment),
     dispatchClassification: shipment.isCombined ? 'COMBINED' : 'SINGLE',
+    ...(plannedCarrier ? {
+      plannedCarrierType: plannedCarrier.plannedCarrierType,
+      plannedExternalCarrierId: plannedCarrier.plannedCarrierType === 'EXTERNAL'
+        ? plannedCarrier.plannedExternalCarrierId
+        : null,
+    } : {}),
     createdBy: actorId,
   }).returning();
   return row;

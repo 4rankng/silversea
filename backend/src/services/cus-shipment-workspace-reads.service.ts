@@ -254,7 +254,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       containerTypeCode: s.containerTypes.code,
       containerTypeName: s.containerTypes.name,
       routeId: s.shipmentContainers.routeId,
-      routeName: ROUTE_OPERATIONAL_NAME,
+      routeName: sql<string | null>`coalesce(${ROUTE_OPERATIONAL_NAME}, ${s.shipmentContainers.rawRouteName})`,
       shippingLineName: s.shipmentContainers.shippingLineName,
       operationalSiteId: s.shipmentContainers.operationalSiteId,
       pickupPortId: s.shipmentContainers.pickupPortId,

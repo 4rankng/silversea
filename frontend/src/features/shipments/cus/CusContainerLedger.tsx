@@ -167,15 +167,17 @@ export function ContainerLedger({
     setAddError(null);
   }, []);
 
-  // Card 191026100000 (chungtu-dieuvan A.1): opening the add form copies the
+  // Card 201026124500 (181026185900 A.1): opening the add form copies the
   // lot's existing row values down into the draft — per-column FIRST non-null,
   // the same rule the add API's lot-default inherit applies (FB-086 round 19)
-  // — so a new container reads like the rows above it. Số container stays the
-  // operator's own entry (the one thing a new row must bring), and weight
-  // rides here because the wire deliberately treats it as a per-container
-  // fact (the server never invents it). The appointment is converted to the
-  // naive local "YYYY-MM-DDTHH:mm" the datetime field edits; submitAddContainer
-  // converts it back to ISO on the way out.
+  // — for EVERY field TRỪ Số container và Loại cont: Tuyến, Nhà xe, Nâng, Hạ
+  // ride the seed beside weight and the appointment, so the add row reads
+  // like the rows above it before the operator submits. (191026100000's
+  // loại-cont seed is superseded by this card's restated law — the type is
+  // the operator's own entry again.) Weight rides here because the wire
+  // deliberately treats it as a per-container fact (the server never invents
+  // it). The appointment is converted to the naive local "YYYY-MM-DDTHH:mm"
+  // the datetime field edits; submitAddContainer converts it back to ISO.
   const addFieldsSeed = useCallback((): AddContainerFields => {
     const firstNonNull = <T,>(pick: (line: ShipmentCusWorkspaceContainerLine) => T | null | undefined): T | null => {
       for (const line of detail.containers) {
@@ -184,16 +186,95 @@ export function ContainerLedger({
       }
       return null;
     };
-    const typeId = firstNonNull((line) => line.raw.containerTypeId);
+    // Lift/drop ids must be ports-catalog backed to ride the wire: the
+    // projection's fallback id can be a legacy snapshot site (a DIFFERENT
+    // catalog), which must never land in pickupPortId/dropoffPortId. A cell
+    // outside selectors.ports is left uncopied — exactly what the add API's
+    // column inherit does with it.
+    const ports = new Set(detail.selectors.ports.map((option) => String(option.id)));
+    const firstPortCell = (pick: (line: ShipmentCusWorkspaceContainerLine) => { id: number | null; name: string | null }) => {
+      for (const line of detail.containers) {
+        const cell = pick(line);
+        if (cell.id != null && cell.name != null && cell.name !== '' && ports.has(String(cell.id))) {
+          return { id: String(cell.id), name: cell.name };
+        }
+      }
+      return { id: '', name: null };
+    };
+    const lift = firstPortCell((line) => ({ id: line.liftSiteId ?? null, name: line.liftSite ?? null }));
+    const drop = firstPortCell((line) => ({ id: line.dropoffSiteId ?? null, name: line.dropoffSite ?? null }));
+    // The carrier plan is ONE fact (type + carrier id): first row whose pair
+    // is coherent wins. Biển số/xe KHÔNG copy (ngoài danh sách A.1).
+    let carrier: Pick<AddContainerFields, 'carrierType' | 'externalCarrierId' | 'carrierName'> =
+      { carrierType: '', externalCarrierId: '', carrierName: null };
+    for (const line of detail.containers) {
+      if (line.carrierType === 'OWN') {
+        carrier = { carrierType: 'OWN', externalCarrierId: '', carrierName: line.carrierName ?? null };
+        break;
+      }
+      if (line.carrierType === 'EXTERNAL' && line.externalCarrierId != null) {
+        carrier = { carrierType: 'EXTERNAL', externalCarrierId: String(line.externalCarrierId), carrierName: line.carrierName ?? null };
+        break;
+      }
+    }
+    // The route pair rides ATOMICALLY like the carrier and the ports: the
+    // first line carrying a route wins (resolving its display name from the
+    // line, the routes selector catalog, or an ad-hoc free-text routeName);
+    // when no container row carries a route of its own, fall back to the
+    // lot-level summary route so FCL lots whose route lives on shipments.route_id
+    // / raw_route_name (data-dependent LONG MINH branch) still copy Tuyến.
+    const routesById = new Map(
+      detail.selectors.routes.map((option) => [String(option.id), option.label || option.name]),
+    );
+    let route: { routeId: string; routeName: string | null } = { routeId: '', routeName: null };
+    for (const line of detail.containers) {
+      const effectiveRouteId = line.routeId ?? line.raw?.routeId ?? null;
+      const lineRouteName = line.routeName?.trim() || null;
+      if (effectiveRouteId != null) {
+        const resolvedName = lineRouteName || routesById.get(String(effectiveRouteId)) || null;
+        if (resolvedName) {
+          route = { routeId: String(effectiveRouteId), routeName: resolvedName };
+          break;
+        }
+      } else if (lineRouteName) {
+        route = { routeId: '', routeName: lineRouteName };
+        break;
+      }
+    }
+    if (!route.routeId && !route.routeName) {
+      const summaryRouteId = detail.summary.raw?.routeId ?? null;
+      const summaryRouteName = detail.summary.routeName?.trim() || null;
+      if (summaryRouteId != null) {
+        const resolvedName = routesById.get(String(summaryRouteId)) || summaryRouteName;
+        if (resolvedName) {
+          route = { routeId: String(summaryRouteId), routeName: resolvedName };
+        }
+      } else if (summaryRouteName) {
+        const matchedRoute = detail.selectors.routes.find(
+          (option) => option.label === summaryRouteName || option.name === summaryRouteName,
+        );
+        route = {
+          routeId: matchedRoute ? String(matchedRoute.id) : '',
+          routeName: summaryRouteName,
+        };
+      }
+    }
     const weight = firstNonNull((line) => line.raw.cargoWeightKg);
     const appointmentAt = firstNonNull((line) => line.customerAppointmentAt);
     return {
       containerNumber: '',
-      containerTypeId: typeId == null ? '' : String(typeId),
+      containerTypeId: '',
+      routeId: route.routeId,
+      routeName: route.routeName,
+      liftSiteId: lift.id,
+      liftSiteName: lift.name,
+      dropoffSiteId: drop.id,
+      dropoffSiteName: drop.name,
+      ...carrier,
       cargoWeightKg: weight == null ? '' : stripDecimalTrailingZeros(weight),
       customerAppointmentAt: appointmentAt ? formatVietnamDateTimeInput(appointmentAt) : '',
     };
-  }, [detail.containers]);
+  }, [detail.containers, detail.selectors.ports, detail.selectors.routes, detail.summary.raw?.routeId, detail.summary.routeName]);
 
   async function submitAddContainer() {
     const containerNumber = addFields.containerNumber.trim().toUpperCase();
@@ -208,9 +289,24 @@ export function ContainerLedger({
       const result = await addCusShipmentContainerRow(detail.summary.id, {
         expectedShipmentVersion: detail.summary.version,
         containerNumber,
-        ...(addFields.containerTypeId ? { containerTypeId: Number(addFields.containerTypeId) } : {}),
-        ...(addFields.cargoWeightKg.trim() ? { cargoWeightKg: addFields.cargoWeightKg.trim() } : {}),
-        ...(addFields.customerAppointmentAt ? { customerAppointmentAt: localDateTimeToIso(addFields.customerAppointmentAt) } : {}),
+        // Card 201026124500 (A.1): every field is EXPLICIT on the wire — the
+        // seeded copy set rides (Tuyến/Nâng/Hạ/Nhà xe beside weight + giờ
+        // hẹn), Số container is the operator's number, and the type sends the
+        // pick or an explicit null so the wire's lot-default inherit can
+        // never re-copy Loại cont onto an unpicked row.
+        containerTypeId: addFields.containerTypeId ? Number(addFields.containerTypeId) : null,
+        ...(addFields.routeId ? { routeId: Number(addFields.routeId) } : {}),
+        ...(addFields.liftSiteId ? { liftSiteId: Number(addFields.liftSiteId) } : {}),
+        ...(addFields.dropoffSiteId ? { dropoffSiteId: Number(addFields.dropoffSiteId) } : {}),
+        ...(addFields.carrierType === 'OWN'
+          ? { carrierType: 'OWN' as const, externalCarrierId: null }
+          : addFields.carrierType === 'EXTERNAL' && addFields.externalCarrierId
+            ? { carrierType: 'EXTERNAL' as const, externalCarrierId: Number(addFields.externalCarrierId) }
+            : {}),
+        cargoWeightKg: addFields.cargoWeightKg.trim() || null,
+        customerAppointmentAt: addFields.customerAppointmentAt
+          ? localDateTimeToIso(addFields.customerAppointmentAt)
+          : null,
       }, getIdempotencyKey(signature));
       clearIdempotencyKey(signature);
       await onLineSaved(result.line);

@@ -626,8 +626,8 @@ function buildContainerLine(
     declarationNumber: container.declarationNumber,
     containerTypeId: container.containerTypeId,
     containerTypeLabel: container.containerTypeCode ?? container.containerTypeName,
-    routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId,
-    routeName: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeName : row.routeName,
+    routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? (container.routeId ?? row.shipment.routeId) : row.shipment.routeId,
+    routeName: row.shipment.cargoMode === CARGO_MODE.FCL ? (container.routeName ?? row.routeName) : row.routeName,
     dispatchStatus,
     tripId: assignment?.tripId ?? null,
     // Assignment rows carry the raw varchar; the contract narrows to the enum.
@@ -647,7 +647,7 @@ function buildContainerLine(
       containerTypeId: container.containerTypeId,
       cargoWeightKg: container.cargoWeightKg,
       cargoVolumeCbm: container.cargoVolumeCbm,
-      routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId,
+      routeId: row.shipment.cargoMode === CARGO_MODE.FCL ? (container.routeId ?? row.shipment.routeId) : row.shipment.routeId,
     },
     fieldAccess: containerFieldAccess(
       actor,
