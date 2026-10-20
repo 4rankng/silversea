@@ -1,0 +1,129 @@
+URL: https://vantai.tingting.vip/accounting/chot-debit
+editor: {
+  "open": true,
+  "panelLabel": "Sửa BKS báo khách — GAP-TEST-01",
+  "inputValue": "15C-99999",
+  "buttons": [
+    {
+      "ariaLabel": "Xoá",
+      "text": "",
+      "disabled": false
+    },
+    {
+      "ariaLabel": "Lưu BKS báo khách",
+      "text": "Lưu",
+      "disabled": false
+    },
+    {
+      "ariaLabel": "Hủy BKS báo khách",
+      "text": "Hủy",
+      "disabled": false
+    }
+  ],
+  "panelText": "BKS báo khách (Ảo)\n\n15C-99999\n\nBKS báo khách là biển số in cho khách (xe ảo).\nLưu\nHủy",
+  "badgeExpanded": "true"
+}
+
+Bỏ qua đến nội dung chính
+Đã chuyển đến Kế toán chốt debit
+TransTing
+Quản lý vận tải và logistics
+Tổng Quan
+Phơi phiếu
+Theo dõi hóa đơn
+Theo dõi hoàn cược
+Kiểm soát phơi phiếu
+Kế toán chốt debit
+Chi phí phát sinh
+Tạm ứng & hoàn ứng
+Báo cáo hoàn ứng
+Công nợ vận tải
+Quỹ
+Nhân sự
+Giá & cước
+Báo cáo
+Vận hành liên quan
+Hệ thống
+Nguyễn Thị Mai
+Kế toán
+Đang xem
+Kế toán chốt debit
+Tháng 10/2026
+·
+01/10 – 31/10
+37
+Kế toán chốt debit
+Từ ngày
+Từ
+/
+/
+→
+Đến ngày
+Đến
+/
+/
+Khách hàng
+Nhà xe (phân xe)
+Cột
+11
+Xác nhận đối soát (0)
+Ghép cước thu khách
+Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.
+Chọn Debit (0 dòng)
+Xuất Debit Note
+BKS báo khách (Ảo)
+
+15C-99999
+
+BKS báo khách là biển số in cho khách (xe ảo).
+Lưu
+Hủy
+Chọn tất cả 3 lô đủ điều kiện
+Đối soát
+Hoàn tác
+Lô trong kỳ
+3
+Chưa đối soát
+3
+Chờ xác nhận
+0
+Đã đối soát
+0
+Kế hoạch điều động tổng hợp · kỳ 2026-10-01 – 2026-10-20
+Kế hoạch điều động tổng hợp — thu/trả theo lô
+CHI PHÍ
+	NGÀY	THÔNG TIN LÔ HÀNG	PHÂN XE	PHẢI THU	PHẢI TRẢ	ĐỐI SOÁT
+TỔNG THU	TỔNG 1
+	20/10/2026	
+GAP-TEST-01
+LONG MINH
+	
+— · Thực: 15C-11111
+Báo khách (Ảo): 15C-99999
+	5.000.000 ₫	Thiếu tổng 1	
+Chưa gửi
+
+	20/10/2026	
+GAP-TEST-02
+LOG COM
+	—	Thiếu tổng thu	Thiếu tổng 1	
+Chưa gửi
+
+	20/10/2026	
+GAP-TEST-03
+LONG MINH
+	
+— · Thực: 15C-22222
+Báo khách (Ảo): 15C-88888
+	5.000.000 ₫	Thiếu tổng 1	
+Chưa gửi
+Tổng hợp công nợ khách hàng
+Tổng hợp công nợ khách hàng theo đợt chốt
+KỲ THEO DÕI	KHÁCH HÀNG	ĐỐI TƯỢNG	CHIỀU	TỪ NGÀY	ĐẾN NGÀY	SỐ TIỀN (CHƯA VAT)	VAT	TIỀN VAT	TỔNG TIỀN (GỒM VAT)	GHI CHÚ
+Lần 1 · 2026/10	LONG MINH	Nhiều nhà xe	Phải thu	20/10/2026	20/10/2026	5.000.000 ₫	8%	400.000 ₫	5.400.000 ₫	R22 retest debit note FB-094
+Lần 2 · 2026/10	LONG MINH	Nhiều nhà xe	Phải thu	22/10/2026	22/10/2026	5.000.000 ₫	8%	400.000 ₫	5.400.000 ₫	R23 FB-094 retest - debit lock flow test (hoapt)
+Lần 3 · 2026/10	LONG MINH	KIÊN LONG	Phải thu	20/10/2026	20/10/2026	1.000.000 ₫	8%	80.000 ₫	1.080.000 ₫	FB-094 retest — debit note export check (hoapt)
+Lần 1 · 2026/09	LONG MINH	Xe công ty	Phải thu	01/09/2026	30/09/2026	2.000.000 ₫	8%	160.000 ₫	2.160.000 ₫	QA wave2 re-rung lan 1 VAT 8
+FB-093 · badge "Báo khách (Ảo)" là <button> → panel "Sửa BKS báo khách" (seeded, CHƯA Lưu)
+URL: https://vantai.tingting.vip/accounting/chot-debit
+build d39ee741 · QA R26 · 2026-10-20T09:50:38.021Z
