@@ -9,10 +9,10 @@ import {
   createSettlementRound,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
 } from '../../api/accountingDebitClient';
-import { createDebitNoteBatch, exportDebitNoteFile } from '../../api/shipmentDebit';
+import { createDebitNoteBatch, exportDebitNoteFile, lockShipmentCost } from '../../api/shipmentDebit';
 import { businessDateISO, formatCurrency } from '../../lib/format';
 import { qk } from '../../api/keys';
-import { PageHeader } from '../../components/UI';
+import { Btn, Modal, PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, EmptyState, FilterBar, SearchableMultiSelect, SummaryRail } from '../../design-system';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
@@ -56,6 +56,10 @@ export default function AccountingDebitClosePage() {
   const [settlementOpen, setSettlementOpen] = useState(false);
   // FB-094 (card 181026145620) — Xuất Debit Note over the selected rows.
   const [exportingNote, setExportingNote] = useState(false);
+  // FB-094 (card 201026112300): the confirm step before locking unlocked
+  // lots for the export — the chốt-debit flow's rows are reconciled but not
+  // cost-locked, and locking is an explicit accountant act (card 20260918_19).
+  const [lockConfirmOpen, setLockConfirmOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
@@ -250,11 +254,37 @@ export default function AccountingDebitClosePage() {
   // `.max(200)`), so the button itself states the cap instead of surfacing
   // zod's English refusal after the click (review F2).
   const exportCapExceeded = selectedCount > 200;
+  // FB-094 (card 201026112300) — the QA-visible failure this closes: the lots
+  // the chốt-debit flow produces (đối soát → chốt đợt) are never cost-locked,
+  // so the export used to refuse with "chỉ áp dụng cho lô đã khóa chi phí"
+  // for exactly the rows the accountant selected. The board row now carries
+  // its ACTIVE lock time, and the button bridges the two accountant acts the
+  // flow always implied — with explicit consent: lots still unlocked are
+  // named in a confirm dialog, and only "Khóa & Xuất" locks them (the same
+  // `POST /shipments/:id/lock` the Quyết toán workspace runs, freezing the
+  // figures the board is showing) before the issue+download runs unchanged.
+  // The server stays the arbiter: a lock or issue refusal surfaces verbatim
+  // and nothing is issued.
+  const unlockedSelectedRows = useMemo(
+    () => selectedRows.filter((row) => row.costLockedAt == null),
+    [selectedRows],
+  );
+  function requestExportDebitNote() {
+    if (selectedCount === 0 || exportingNote) return;
+    if (unlockedSelectedRows.length > 0) setLockConfirmOpen(true);
+    else void exportDebitNote();
+  }
+  async function lockSelectedForExport() {
+    for (const row of unlockedSelectedRows) {
+      await lockShipmentCost(row.shipmentId, crypto.randomUUID());
+    }
+  }
   async function exportDebitNote() {
     const ids = selectedRows.map((row) => row.shipmentId);
     if (ids.length === 0 || exportingNote) return;
     setExportingNote(true);
     try {
+      if (unlockedSelectedRows.length > 0) await lockSelectedForExport();
       const { id: documentId } = await createDebitNoteBatch(ids);
       const blob = await exportDebitNoteFile(ids[0], documentId);
       const url = URL.createObjectURL(blob);
@@ -263,7 +293,9 @@ export default function AccountingDebitClosePage() {
       anchor.download = `giay-bao-no-${selectedRows[0]?.billOrBooking || 'chua-xac-dinh'}.xlsx`;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-      setMessage({ kind: 'ok', text: `Đã xuất Debit Note (${ids.length} lô).` });
+      setMessage({ kind: 'ok', text: `Đã xuất Debit Note (${ids.length} lô${unlockedSelectedRows.length > 0 ? `, đã khóa chi phí ${unlockedSelectedRows.length} lô` : ''}).` });
+      // The lock facts the board shows just changed for the locked rows.
+      void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
     } catch (error) {
       setMessage({
         kind: 'err',
@@ -334,7 +366,7 @@ export default function AccountingDebitClosePage() {
               title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để xuất Debit Note'
                 : exportCapExceeded ? 'Mỗi Debit Note gộp tối đa 200 lô — thu hẹp lựa chọn (theo ngày hoặc khách hàng) rồi xuất từng đợt.'
                   : undefined}
-              onClick={() => void exportDebitNote()}
+              onClick={requestExportDebitNote}
             >
               {exportingNote ? 'Đang xuất…' : 'Xuất Debit Note'}
             </button>
@@ -504,6 +536,40 @@ export default function AccountingDebitClosePage() {
         onClose={() => setSettlementOpen(false)}
         isPending={settlementMutation.isPending}
       />
+
+      {/* FB-094 (card 201026112300) — explicit consent before the export locks
+          the still-unlocked lots in the selection (card 20260918_19's lock is
+          the accountant's act; the figures frozen are the ones this board is
+          showing). Cancel locks nothing; a lock/issue refusal stops the flow
+          with the server's message verbatim. */}
+      <Modal
+        isOpen={lockConfirmOpen}
+        title="Khóa chi phí để xuất Debit Note"
+        onClose={() => setLockConfirmOpen(false)}
+      >
+        <p style={{ margin: '0 0 8px' }}>
+          {unlockedSelectedRows.length} lô trong lựa chọn chưa khóa chi phí.
+          Debit Note chỉ xuất được từ số liệu đã chốt: hệ thống sẽ khóa chi phí
+          {' '}{unlockedSelectedRows.length} lô này — đóng băng đúng số liệu bảng đang hiển thị — rồi xuất Debit Note cho toàn bộ {selectedCount} lô đã chọn.
+        </p>
+        <p className="debit-note" style={{ margin: '0 0 12px' }}>
+          {unlockedSelectedRows.map((row) => row.billOrBooking ?? row.code ?? `#${row.shipmentId}`).join(', ')}
+        </p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <Btn variant="secondary" size="sm" onClick={() => setLockConfirmOpen(false)}>Hủy</Btn>
+          <Btn
+            variant="primary"
+            size="sm"
+            disabled={exportingNote}
+            onClick={() => {
+              setLockConfirmOpen(false);
+              void exportDebitNote();
+            }}
+          >
+            {exportingNote ? 'Đang xuất…' : 'Khóa & Xuất'}
+          </Btn>
+        </div>
+      </Modal>
 
       <DebitRoundBoard rounds={roundItems} />
     </div>

@@ -1,0 +1,60 @@
+{
+ "after": {
+  "messages": [
+   "Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới."
+  ]
+ },
+ "net": [
+  {
+   "m": "GET",
+   "url": "/api/health",
+   "status": 200
+  },
+  {
+   "m": "GET",
+   "url": "/api/auth/me",
+   "status": 200
+  },
+  {
+   "m": "GET",
+   "url": "/api/notifications",
+   "status": 200
+  },
+  {
+   "m": "GET",
+   "url": "/api/notifications/unread-count",
+   "status": 200
+  },
+  {
+   "m": "GET",
+   "url": "/api/salary-periods/resolve",
+   "status": 200
+  },
+  {
+   "m": "GET",
+   "url": "/api/penalties",
+   "status": 200
+  },
+  {
+   "m": "GET",
+   "url": "/api/trips",
+   "status": 200
+  },
+  {
+   "m": "GET",
+   "url": "/api/accounting/debit-board/settlement-rounds",
+   "status": 200
+  },
+  {
+   "m": "GET",
+   "url": "/api/accounting/debit-board",
+   "status": 200
+  },
+  {
+   "m": "POST",
+   "url": "/api/shipments/debit-notes",
+   "status": 409,
+   "body": "{\"error\":\"Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.\",\"details\":\"idempotency_key=consolidated:1:8ef532f440c91b5dfa24570e53d6bded96c4064a\"}"
+  }
+ ]
+}

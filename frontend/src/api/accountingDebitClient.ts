@@ -46,6 +46,9 @@ export interface AccountingDebitBoardRow {
     requestedAt: string | null;
     confirmedAt: string | null;
   };
+  /** FB-094 (card 201026112300) — ACTIVE cost-lock time (ISO) or null: the
+   *  consolidated debit-note export only accepts locked lots. */
+  costLockedAt: string | null;
 }
 
 export async function listAccountingDebitBoard(params: {
