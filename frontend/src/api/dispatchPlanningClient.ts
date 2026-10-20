@@ -341,6 +341,10 @@ export interface DispatchDetailPlanRow {
     assignedPlate: string | null;
     /** Trip driver once issued, otherwise current OWN truck assignment. */
     assignedDriverName?: string | null;
+    /** FB-036 (card 201026135900): driver SĐT on the same branch as the name —
+     *  trip driver (or external contact) once issued, else roster driver of
+     *  the planned plate. */
+    assignedDriverPhone?: string | null;
     pairKind?: 'KEP' | 'KET_HOP' | null;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
@@ -455,6 +459,7 @@ export function assignDispatchDetailPlate(fulfillmentId: number, body: {
     assignedPlate: string | null;
     assignedDriverId: number | null;
     assignedDriverName: string | null;
+    assignedDriverPhone: string | null;
     driverHint: string | null;
   }>(`/shipments/dispatch-detail-plan-rows/${fulfillmentId}/plate`, body, {
     headers: { 'Idempotency-Key': crypto.randomUUID() },
@@ -532,6 +537,7 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
       externalCarrierVehicleId: number | null;
       assignedPlate: string | null;
       assignedDriverName?: string | null;
+      assignedDriverPhone?: string | null;
     };
     estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
     lotFullyPlated: boolean;

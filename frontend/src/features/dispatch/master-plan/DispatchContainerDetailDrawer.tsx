@@ -50,7 +50,7 @@ function ContainerDetailTable({ detail, savingLineId, onPortChange }: {
             <th scope="col">Biển số</th>
             <th scope="col">Nâng</th>
             <th scope="col">Hạ</th>
-            <th scope="col">Giờ hẹn đóng/trả</th>
+            <th scope="col" className="dispatch-container-detail__appointment-column">Giờ hẹn đóng/trả</th>
           </tr>
         </thead>
         <tbody>
@@ -105,7 +105,7 @@ function ContainerDetailTable({ detail, savingLineId, onPortChange }: {
                   </>
                 ) : line.dropoffSite || '—'}
               </td>
-              <td data-label="Giờ hẹn đóng/trả">{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</td>
+              <td data-label="Giờ hẹn đóng/trả" className="dispatch-container-detail__appointment-column">{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</td>
             </tr>
           ))}
         </tbody>

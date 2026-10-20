@@ -239,6 +239,35 @@ describe('QA-AUDIT-UI-92 complete assignment facts', () => {
     expect(onAtomicSave).not.toHaveBeenCalled();
     expect(original).toEqual(saved);
   });
+
+  it('renders the driver SĐT beside plate and name in the Điều phối block (FB-036, card 201026135900)', () => {
+    mockFleetResources();
+    const plated = row();
+    plated.dispatch = {
+      ...plated.dispatch,
+      assignedDriverName: 'Đinh Thanh Thịnh',
+      assignedDriverPhone: '0901234567',
+    };
+    const { container } = renderCell(plated);
+    const cell = container.querySelector('.dispatch-assignment-cell') as HTMLElement;
+    const phone = screen.getByText('0901234567');
+    expect(cell).toContainElement(phone);
+    // The SĐT rides the plate·driver line: plate, name and phone are siblings
+    // of the same vehicle group.
+    const group = phone.closest('.dispatch-assignment-cell__vehicle-group') as HTMLElement;
+    expect(group.querySelector('.dispatch-assignment-cell__plate')?.textContent).toBe('15H-052.82');
+    expect(group.querySelector('.dispatch-assignment-cell__driver')?.textContent).toBe('Đinh Thanh Thịnh');
+    expect(phone.getAttribute('title')).toBe('SĐT lái xe: 0901234567');
+  });
+
+  it('omits the SĐT token cleanly when the row carries no phone (FB-036)', () => {
+    mockFleetResources();
+    const noPhone = row();
+    noPhone.dispatch = { ...noPhone.dispatch, assignedDriverName: PAIRED_TRUCK.assignedDriverName };
+    const { container } = renderCell(noPhone);
+    expect(container.querySelector('.dispatch-assignment-cell__driver-phone')).toBeNull();
+    expect(screen.getByText(PAIRED_TRUCK.assignedDriverName as string)).toBeTruthy();
+  });
 });
 
 function issueButton(): HTMLButtonElement {

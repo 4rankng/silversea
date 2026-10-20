@@ -61,6 +61,8 @@ export interface AtomicPlanSaveResult {
     externalCarrierVehicleId: number | null;
     assignedPlate: string | null;
     assignedDriverName?: string | null;
+    /** FB-036 (card 201026135900): SĐT lái xe, hiện kèm tên/biển số. */
+    assignedDriverPhone?: string | null;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
   lotFullyPlated: boolean;
@@ -824,6 +826,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
           <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
             {row.dispatch.assignedDriverName || 'Chưa có tài xế'}
+          </span>
+        )}
+        {/* FB-036 (card 201026135900): SĐT lái xe rides the plate·driver line
+            of the Điều phối block — trip driver (or external contact) once
+            issued, else the roster driver bound to the planned plate. */}
+        {currentPlate && row.dispatch.assignedDriverPhone && (
+          <span className="dispatch-assignment-cell__driver-phone" title={`SĐT lái xe: ${row.dispatch.assignedDriverPhone}`}>
+            {row.dispatch.assignedDriverPhone}
           </span>
         )}
       </div>

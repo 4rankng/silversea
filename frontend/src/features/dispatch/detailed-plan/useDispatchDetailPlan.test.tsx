@@ -75,6 +75,7 @@ const assignmentResult = (assignedPlate: string | null) => ({
   assignedPlate,
   assignedDriverId: null,
   assignedDriverName: null,
+  assignedDriverPhone: null,
   driverHint: null,
 });
 

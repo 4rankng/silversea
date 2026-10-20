@@ -72,6 +72,18 @@
   margin-right: 4px;
 }
 
+/* FB-036 (card 201026135900): the driver's SĐT joins the plate·driver line —
+   same separator law as the name, data font for the digits. */
+.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__driver-phone {
+  display: inline;
+}
+
+.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__driver-phone::before {
+  content: '·';
+  color: var(--fg-3);
+  margin-right: 4px;
+}
+
 .dispatch-assignment-cell__actions {
   display: flex;
   flex-wrap: wrap;
@@ -116,6 +128,18 @@
 
 .dispatch-assignment-cell__driver {
   color: var(--fg-2);
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: 400;
+  line-height: var(--ops-table-meta-line-height, 1.4);
+}
+
+.dispatch-assignment-cell__driver-phone {
+  min-width: 0;
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  color: var(--fg-2);
+  font-family: var(--font-data, inherit);
   font-size: var(--ops-table-meta-size, 11px);
   font-weight: 400;
   line-height: var(--ops-table-meta-line-height, 1.4);

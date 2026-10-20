@@ -196,6 +196,19 @@ function portZoneFacetLabel(zoneLabel: string): string {
   return /^cảng/iu.test(zoneLabel.normalize('NFC')) ? zoneLabel : `Cảng ${zoneLabel}`;
 }
 
+/** FB-011 (card 201026135800): a search term with NO letter or digit can
+ *  never match anything this screen searches (B/L, Booking, khách hàng, số
+ *  container, tờ khai — all alphanumeric keys), so a brace-only query like
+ *  `{` must not die as a silent empty list. The FilterBar `search.error`
+ *  slot (role="alert", card 20261002_283) carries the cảnh báo; every field
+ *  the user CAN search stays accepted, dash/slash-included. */
+export function masterPlanSearchError(query: string): string | null {
+  const trimmed = query.trim();
+  if (trimmed.length === 0) return null;
+  return /[\p{L}\p{N}]/u.test(trimmed) ? null
+    : 'Từ khóa chỉ có ký tự đặc biệt — thêm chữ hoặc số để tìm theo B/L, Booking, khách hàng, số container hoặc tờ khai.';
+}
+
 /** Filter bar for the dispatch master-plan grid (docx §2). Port facets are
  *  zone-scoped: one block per active zone in the DB taxonomy (label included).
  *
@@ -288,6 +301,9 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
         onChange: (value) => onChange({ q: value }),
         placeholder: 'Tìm theo B/L, Booking, khách hàng…',
         ariaLabel: 'Tìm kiếm lô hàng',
+        // FB-011: symbol-only queries (e.g. `{`) warn instead of silently
+        // emptying the board.
+        error: masterPlanSearchError(filters.q),
       }}
       actions={action}
       fold={{
