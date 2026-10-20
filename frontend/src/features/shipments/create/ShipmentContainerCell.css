@@ -39,7 +39,9 @@
 .csc-container-cell--picked:not(.csc-container-cell--editing) .csc-container-cell__editor { visibility: hidden; }
 .csc-container-cell:has([role='combobox'][aria-expanded='true']) .csc-container-cell__editor { visibility: visible; }
 .csc-container-cell:not(:focus-within):hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-2); }
-.csc-container-cell--error:not(:focus-within) { box-shadow: inset 0 0 0 1px var(--danger); }
+.csc-container-cell__editor [data-uui-control]:not(.date-seg-wrapper) ~ span:not(.date-sep) { display: none; }
+.csc-container-cell--error .csc-container-cell__display,
+.csc-container-cell:has([aria-invalid='true'], [data-invalid='true']) .csc-container-cell__display { border: 1px solid var(--danger); border-radius: var(--r-sm); }
 .csc-container-cell__error { display: block; padding: 0 10px 6px; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.35; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 4.05em; overflow: hidden; }
 .csc-container-cell__subvalue { display: block; padding: 0 10px 6px; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.35; white-space: normal; word-break: break-word; }
 
@@ -94,8 +96,8 @@
      steps left so both affordances stay visible. */
   .csc-container-row .csc-container-cell--picker:has(.csc-container-cell__actions) .csc-container-cell__display { padding-right: 44px; }
   .csc-container-row .csc-container-cell:has(.csc-container-cell__actions) .csc-container-cell__chevron { margin-right: 28px; }
-  .csc-container-row .csc-container-cell--picker.csc-container-cell--error:not(:focus-within) .csc-container-cell__display { border-color: var(--danger); }
-  .csc-container-row .csc-container-cell--picker.csc-container-cell--error:not(:focus-within) { box-shadow: none; }
+  .csc-container-row .csc-container-cell--picker.csc-container-cell--error .csc-container-cell__display,
+  .csc-container-row .csc-container-cell--picker:has([aria-invalid='true'], [data-invalid='true']) .csc-container-cell__display { border-color: var(--danger); }
   /* One control height for every editor in the stacked record. Phone media
      bands already floor these; the token covers narrow desktop windows that
      land inside this container query without them. */

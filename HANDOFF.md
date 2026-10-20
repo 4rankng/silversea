@@ -85,6 +85,31 @@ Controller: agent, worktree fix-fb002-enter-gio (`/Users/dev/.paseo/worktrees/1n
 
 
 
+# FB-048 lần 4 — viền đỏ thiếu ở ô hàng container (card 211026034111) — 2026-10-21
+
+Controller: agent, worktree /tmp/agy-fb048 (off main 9d60f507), branch fix-fb048-red-border.
+
+**Status**: DONE — root cause fixed + scoped/full gates + independent review DONE + UI DRIVEN (staging before · local after @1440/768/390). Card 211026034111 (QA R29, tiepvv).
+
+- **Root cause (tại sao các fix FB-048 trước chỉ lên viền đỏ ở Khách hàng / Hình thức XNK / Ngày giờ đóng trả mà bỏ sót 5 ô hàng container)**:
+  1. `ShipmentContainerCell.css` dùng `.csc-container-cell--error:not(:focus-within) { box-shadow: inset 0 0 0 1px var(--danger); }`, bị `#root .app * { box-shadow: none; }` trong `frontend/src/styles/base.css` (specificity ID `(1,1,0)`) triệt tiêu hoàn toàn; bản thân `.csc-container-cell__display` (bề mặt hiển thị ở trạng thái nghỉ khi `.csc-container-cell__editor > *` đang `opacity: 0`) ở desktop (`> 620px`) không có `border`.
+  2. `:not(:focus-within)` làm mất viền đỏ khi `focusIssue` focus vào ô picker mà menu combobox chưa mở (`openOnType`), dù `.csc-container-cell__display` vẫn là lớp hiển thị (`opacity: 1`).
+  3. `HintText` (`[data-uui-control]:not(.date-seg-wrapper) ~ span:not(.date-sep)`) bên trong `.csc-container-cell__editor` (đang `opacity: 0`) trùng lặp với `.csc-container-cell__error` bên ngoài và đẩy `.csc-container-cell__value` / `.csc-container-cell__display` từ `40px` lên `72px` khi có lỗi.
+  4. Trong `ClerkShipmentCreatePage.css`, `.csc-control-boundary:has(:disabled)` đặt sau `.csc-control-boundary:has([aria-invalid='true'])` cùng specificity `(0,2,0)`, ghi đè `border-color: var(--danger)` trên các control đang disabled-until-prerequisite (`Nhà máy` khi chưa chọn `Khách hàng`).
+- **Fix**:
+  - `ShipmentContainerCell.tsx`: gắn `data-invalid={error ? 'true' : undefined}` lên `.csc-container-cell__display`.
+  - `ShipmentContainerCell.css`: thay dead `box-shadow` bằng `.csc-container-cell--error .csc-container-cell__display, .csc-container-cell:has([aria-invalid='true'], [data-invalid='true']) .csc-container-cell__display { border: 1px solid var(--danger); border-radius: var(--r-sm); }`; bỏ `:not(:focus-within)` ở rule `@container (max-width: 620px)`; ẩn duplicate inner hint span `.csc-container-cell__editor [data-uui-control]:not(.date-seg-wrapper) ~ span:not(.date-sep) { display: none; }` để giữ chiều cao ô đúng trần `40px` (`--control-touch-h`) mà vẫn bảo toàn dấu `:` / `/` (`.date-sep`) của `Ngày giờ đóng trả`.
+  - `ClerkShipmentCreatePage.css`: đặt `.csc-control-boundary:has([aria-invalid='true'])` sau `:has(:disabled)` để viền lỗi luôn thắng trạng thái disabled.
+- **Gates**:
+  - `cd frontend && npx tsgo -b && pnpm exec tsc --noEmit` → exit 0 (`qa/2026-10-21-fb048-lan4/gates-typecheck.log`).
+  - Scoped vitest (`ShipmentContainerCell.picker-reveal.styles.test.ts`, `ShipmentCreateWorkspace.invalid-required-paint.test.tsx`, `ClerkShipmentCreatePage.styles.test.ts`, `ordinary-control-ceiling.styles.test.ts`, `table-no-truncation.styles.test.ts`): **5 files, 119/119 pass** (`qa/2026-10-21-fb048-lan4/scoped-vitest.log`).
+  - Full FE vitest + build (`cd frontend && pnpm test` + `pnpm run build`): **5352 passed** (vs baseline 5349 pass; 1 pre-existing fail `dev-port-contract` do `2026-10-20-pwa-standalone-ui-drive.mjs:7199` trên `main`).
+  - `pnpm lint` → exit 0 (`qa/2026-10-21-fb048-lan4/gates-lint.log`).
+- **Evidence**: `qa/2026-10-21-fb048-lan4/` — BEFORE staging (`before-staging-1440-full.png`, `before-staging-1440-top.png`, `before-staging-1440-containers.png`, `before-staging-390-containers.png`, `card-annotated-image1.png`) · AFTER local (`after-local-1440-full.png`, `after-local-1440-top.png`, `after-local-1440-containers.png`, `after-local-768-containers.png`, `after-local-390-containers.png`, `after-local-ui-driver.json`, `ui-driver.log`: cả 5 ô picker × 2 dòng container × 3 viewport 1440/768/390 đều có `displayBorderTop: "1px solid rgb(160, 68, 78)"`, `valueHeight: 40`, kể cả khi focus với menu đóng).
+- **Not covered**: staging re-drive sau khi orchestrator merge + deploy; chế độ Hàng lẻ (LCL không dùng bảng container FCL — đã có pin riêng ở card 211026011500).
+
+---
+
 # FB-086 reconciliation — "Sửa lô" ở Chi tiết lô; container GIỮ read-only (TICKET-09 wins) — 2026-10-21
 
 Controller: agent, worktree fix-fb086 (off main be1c65fe), branch fix-fb086.

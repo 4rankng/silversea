@@ -51,15 +51,39 @@ function isPaintedRed(fieldId: string): boolean {
 }
 
 async function submitEmptyForm() {
-  fireEvent.click(await screen.findByRole('button', { name: 'Tạo lô hàng' }));
+  fireEvent.click((await screen.findAllByRole('button', { name: 'Tạo lô hàng' }))[0]);
   await screen.findByText(/Cần bổ sung/);
 }
 
 /** The first container row's Loại container cell — its `data-field-id` carries
  *  the generated row key, so match the suffix the validator uses. */
 function containerTypeIsPaintedRed(): boolean {
-  const cell = [...document.querySelectorAll('[data-field-id$="-type"]')][0];
-  return cell?.querySelector('[aria-invalid="true"], [data-invalid="true"]') != null;
+  return containerCellIsPaintedRed('-type', 0);
+}
+
+/**
+ * FB-048 lần 4 (card 211026034111): in `ShipmentContainerCell`, the inner
+ * combobox/input lives inside `.csc-container-cell__editor > *` which is
+ * `opacity: 0` at rest (and stays `opacity: 0` on `--picker` cells even when
+ * focused until the menu opens). The user-visible resting control box is
+ * `.csc-container-cell__display`. A container cell is only visibly painted red
+ * at rest if:
+ * 1. The `<td>` carries `.csc-container-cell--error`
+ * 2. Its inner control carries `aria-invalid="true"` / `data-invalid="true"`
+ * 3. For non-persistent cells, the resting `.csc-container-cell__display`
+ *    surface itself carries `data-invalid="true"` (styled with
+ *    `border: 1px solid var(--danger)` in `ShipmentContainerCell.css`).
+ */
+function containerCellIsPaintedRed(suffix: string, rowIndex = 0): boolean {
+  const cell = [...document.querySelectorAll<HTMLElement>(`[data-field-id$="${suffix}"]`)][rowIndex];
+  if (!cell || !cell.classList.contains('csc-container-cell--error')) return false;
+  const hasInvalidControl = cell.querySelector('.csc-container-cell__editor [aria-invalid="true"], .csc-container-cell__editor [data-invalid="true"]') != null;
+  if (!hasInvalidControl) return false;
+  if (cell.classList.contains('csc-container-cell--persistent')) {
+    return cell.querySelector('.date-seg-group--error') != null;
+  }
+  const display = cell.querySelector<HTMLElement>('.csc-container-cell__display');
+  return display?.getAttribute('data-invalid') === 'true';
 }
 
 describe('create-lot submit paints every invalid required field (FB-048, card 141026003600)', { timeout: 20000 }, () => {
@@ -81,6 +105,31 @@ describe('create-lot submit paints every invalid required field (FB-048, card 14
     expect(isPaintedRed('shipment-customer')).toBe(true);
     expect(isPaintedRed('shipment-trade-direction')).toBe(true);
     expect(containerTypeIsPaintedRed()).toBe(true);
+    for (const suffix of ['-type', '-factory', '-route', '-pickup-port', '-dropoff-port', '-customer-appointment']) {
+      expect(containerCellIsPaintedRed(suffix, 0), `row 1 ${suffix}`).toBe(true);
+    }
+  });
+
+  it('paints all 5 required container picker cells + appointment across every empty container row and Số Bill/Booking when direction is picked (FB-048 lần 4, card 211026034111)', async () => {
+    renderWorkspace();
+    const createButtons = await screen.findAllByRole('button', { name: 'Tạo lô hàng' });
+
+    // Add a second empty container row, and select Hình thức XNK so Số Bill/Booking becomes required.
+    fireEvent.click(document.querySelector<HTMLButtonElement>('.csc-add-container')!);
+    fireEvent.click(document.getElementById('shipment-trade-direction')!);
+    fireEvent.click(await screen.findByRole('option', { name: 'Nhập khẩu' }));
+
+    fireEvent.click(createButtons[0]);
+    await screen.findByText(/Cần bổ sung/);
+
+    expect(isPaintedRed('shipment-customer')).toBe(true);
+    expect(isPaintedRed('shipment-booking-ref')).toBe(true);
+
+    for (const rowIndex of [0, 1]) {
+      for (const suffix of ['-type', '-factory', '-route', '-pickup-port', '-dropoff-port', '-customer-appointment']) {
+        expect(containerCellIsPaintedRed(suffix, rowIndex), `row ${rowIndex + 1} ${suffix}`).toBe(true);
+      }
+    }
   });
 
   // The card's second step, and the regression: a half-typed appointment used

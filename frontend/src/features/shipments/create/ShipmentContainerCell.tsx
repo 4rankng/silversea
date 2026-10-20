@@ -195,6 +195,7 @@ export function ShipmentContainerCell({
         <span
           className={`csc-container-cell__display${value ? '' : ' csc-container-cell__display--empty'}`}
           aria-hidden="true"
+          data-invalid={error ? 'true' : undefined}
           title={(displayTitle ?? value) || undefined}
         >
           {value || placeholder}
