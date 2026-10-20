@@ -1,0 +1,26 @@
+{
+  "rowCount": 4,
+  "samples": [
+    {
+      "customerName": "LONG MINH",
+      "carrierLabel": "Nhiều nhà xe",
+      "key": "MIXED"
+    },
+    {
+      "customerName": "LONG MINH",
+      "carrierLabel": "Nhiều nhà xe",
+      "key": "MIXED"
+    },
+    {
+      "customerName": "LONG MINH",
+      "carrierLabel": "KIÊN LONG",
+      "key": "CUST:7"
+    },
+    {
+      "customerName": "LONG MINH",
+      "carrierLabel": "Xe công ty",
+      "key": "OWN"
+    }
+  ],
+  "anyFullLegal": false
+}
