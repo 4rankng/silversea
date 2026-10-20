@@ -32,39 +32,74 @@ KANBAN = Path(
 
 # (card file, source column, destination column, status line, extra body block)
 MOVES = [
+    # 20/10 QA R24 (build 8bfa2ac7) để lại các thẻ này; verdict + code đã có trên main.
     (
-        '20261003_317-trung-dau-xe-no-validation.docx',
-        'IN_PROGRESS',
+        '201026090100-verifyfail-tokhai-a1-autocopy-thieu.docx',
+        'QA_TESTED',
         'DEV_COMPLETED',
-        'DEV_COMPLETED — fix backend đã land (9d4ca785): assertPlanRowRigAvailable chặn '
-        'gán trùng đầu xe theo khung giờ trùng lặp (cả plan row khác lẫn chuyến đã điều '
-        'trên cùng một đầu xe) và trả 409 kèm thông báo rõ ràng. AC1 (4xx + thông báo) và '
-        'AC3 (không hồi quy khi khung giờ không trùng) đạt. AC2 (UI hiển thị cảnh báo) '
-        'CHƯA đạt — commit chỉ chạm backend, chưa có thay đổi frontend.',
-        'Ghi chú nghiệm thu (03/10/2026): AC2 còn mở. Cần một thay đổi frontend hiển thị '
-        'lỗi 409 ngay tại ô chọn đầu xe ở hộp thoại Chỉnh sửa điều phối, sau đó cắt staging '
-        'để QA chấm lại. Repro gốc: PATCH /shipments/dispatch-detail-plan-rows/169/plan và '
-        '/189/plan với cùng truckId=11 (xe 15H-209.51) — trước fix cả hai đều 200 OK.',
+        'DEV_COMPLETED — PASS, không cần code: verify lại trên build hiện hành đã thấy '
+        'auto-copy đủ Tuyến/Nâng/Hạ (fix fd5fbdd9 đã live); cảnh báo 20/10 là staging cũ. '
+        'Evidence: testplan/2026-10-20-verifyfail-reverify-current-build.md, '
+        'qa/2026-10-20-verifyfail/.',
+        'Verify lại có build gate cứng (/api/health.buildHash): staging chạy c7d305ce lúc '
+        'bắt đầu, có deploy mới 57d253ff giữa round; bằng chứng cuối lấy trên 57d253ff '
+        '(fd5fbdd9 là ancestor). Drive CUS lot 174 DNKM13335: thêm container chỉ nhập '
+        'CSQU3054383 → Tuyến ASKEY, Nâng Cảng Đình Vũ, Hạ TC - HICT. Nhà xe "Chờ phân xe" '
+        'đúng luật first-non-null vì hàng anh em không có nhà xe.',
     ),
     (
-        '20261003_316-internal-fleet-productivity-report.docx',
+        '201026090200-verifyfail-debit-van-ten-dai.docx',
+        'QA_TESTED',
         'DEV_COMPLETED',
-        'QA_PASSED',
-        'QA_PASSED — đã lên origin/prod (1eac0862, card 20261003_316). Toàn bộ QA gates đã '
-        'XANH theo thẻ; chuyển cột để QA staging chấm báo cáo hiệu quả năng suất xe nội bộ '
-        'theo ngày và tháng.',
-        None,
+        'DEV_COMPLETED — PASS, không cần code: verify lại trên build hiện hành (fix 65acec44 '
+        'đã live), bảng chốt debit chỉ hiện tên ngắn; cùng hồ sơ verifyfail 20/10.',
+        'Evidence: testplan/2026-10-20-verifyfail-reverify-current-build.md (Verdict 2), '
+        'qa/2026-10-20-verifyfail/201026090200_ui-0{1,2,3}-*.png + driver log '
+        '(RUNG3_DRIVE_PASS). Wire proof: /accounting/debit-board 191 dòng, không tên khách '
+        'nào bắt đầu bằng "CÔNG TY". Read-only, không sửa dữ liệu.',
     ),
     (
-        '20261003_318-dispatch-dialog-time-empty-vs-list.docx',
+        '201026092400-fb002-enter-khong-luu-lichtrinh.docx',
+        'QA_TESTED',
         'DEV_COMPLETED',
-        'QA_PASSED',
-        'QA_PASSED — đã lên origin/prod (f3a7778f). Cột THỜI GIAN & LỊCH TRÌNH nay ghi rõ '
-        'là ngày giao dự phòng thay vì trông như giờ trả hàng đã lưu, còn hộp thoại Chỉnh '
-        'sửa điều phối hiển thị đúng Giờ trả hàng. Kèm case '
-        'case-QA-2026-10-03-9-dialog-time-empty-vs-list.md.',
-        'Liên quan thẻ 305 (ô ngày trong hộp thoại tự nhảy về 01/01/2005): chưa xác nhận '
-        'cùng gốc, 305 giữ nguyên ở IN_PROGRESS.',
+        'DEV_COMPLETED — PASS, không cần code: Enter trong hộp thoại Lịch trình đã lưu '
+        '(fix 2e1a762b đã live); cảnh báo là build cũ. Lưu ý: surface FCL readonly theo '
+        'thiết kế.',
+        'Evidence: testplan/2026-10-20-verifyfail-reverify-current-build.md (Verdict 3), '
+        'qa/2026-10-20-verifyfail/201026092400_db-side-effect.txt. Nuance: hộp thoại sửa lịch '
+        'trình chỉ tồn tại trên dòng LCL — ô lịch trình của FCL readonly theo thiết kế, '
+        'không phải hồi quy.',
+    ),
+    (
+        '201026095604b-party-summary-ten-ngan-join.docx',
+        'QA_TESTED',
+        'DEV_COMPLETED',
+        'DEV_COMPLETED — FIXED (2072d933): BE thêm row partyId/partyShortName/partyKind, FE '
+        'join theo ID, fallback theo tên cho row không resolve được ID; cột Còn nợ giữ '
+        'nguyên tiền. Unit 14/14 + rung UI.',
+        'Evidence: testplan/2026-10-20-regressions-fb063-fb066-party-summary.md, '
+        'qa/2026-10-20-regressions/. Không derive-by-string (cắt "CÔNG TY" khỏi display) vì '
+        'sẽ trùng tên và hỏng đối soát.',
+    ),
+    (
+        '201026101500-fb063-header-wrap-regression.docx',
+        'QA_TESTED',
+        'DEV_COMPLETED',
+        'DEV_COMPLETED — FIXED (2072d933): bỏ white-space:normal, luật 1 dòng cho mọi nhãn '
+        'cột header + cột type 124px / weight 144px; 9/9 nhãn 1 dòng ở 1440/1366/1280.',
+        'Evidence: testplan/2026-10-20-regressions-fb063-fb066-party-summary.md, '
+        'qa/2026-10-20-regressions/fb063-{before,after}-header-*.png + fb063-label-widths.json.',
+    ),
+    (
+        '201026101600-fb066-quickadd-plate-regression.docx',
+        'QA_TESTED',
+        'DEV_COMPLETED',
+        'DEV_COMPLETED — KHÔNG TÁI LẬP (không code): 3/3 surface quick-add PASS ở HEAD; '
+        '8bfa2ac7 là ancestor, không commit nào trong 22c9c80b..HEAD chạm quick-add chain. '
+        'Nếu QA báo lại cần bằng chứng tái hiện mới.',
+        'Evidence: testplan/2026-10-20-regressions-fb063-fb066-party-summary.md (Verdict '
+        'TC-201026101600), qa/2026-10-20-regressions-fb066-master/. Ba surface: Gán xe nhóm '
+        '(/dispatch), dispatch detail editor (/dispatch-detail), /trips/new.',
     ),
 ]
 

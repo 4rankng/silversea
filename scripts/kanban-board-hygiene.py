@@ -26,7 +26,7 @@ import subprocess
 import sys
 
 POINTER = ".kanban-dir"
-COLUMNS = ("TODO", "IN_PROGRESS", "DEV_COMPLETED", "QA_PASSED")
+COLUMNS = ("TODO", "IN_PROGRESS", "DEV_COMPLETED", "QA_TESTED")
 
 # A status line is "Trạng thái:" followed by one of these. The FIRST group that
 # matches wins, so the more specific states must come first.
