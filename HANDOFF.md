@@ -1,3 +1,20 @@
+# PWA standalone — ẩn footer/decorative khi installed (user report 20/10) — 2026-10-20
+
+Controller: agent, worktree fix-pwa-standalone (off main a079aaf5), branch fix-pwa-standalone.
+
+**Status**: DONE (fix + scoped gates xanh + UI DRIVEN local Chrome). Còn nợ: drive trên iPhone WebKit thật sau deploy (user side).
+
+- **Report**: PWA cài lên iPhone (Add to Home Screen) mà login vẫn hiện footer "© 2026 Ting Ting Software Solution" — "web-app đã cài mà sao còn hiện footer kiểu website".
+- **Root cause**: ẩn chỉ dựa `@media (display-mode: standalone)` — iOS WebKit evaluate `false` dù launch từ Home Screen. iOS expose `navigator.standalone === true`, và flag có thể `undefined` vài chục ms đầu.
+- **Fix HYBRID** (research webchat): `lib/pwa-standalone.ts` — `isPwaStandalone()` = iOS flag OR media query; `watchPwaStandalone()` set class `pwa-standalone` lên `<html>` (useEffect `PwaStandaloneMarker` trong App.tsx, retry 50/250/1000ms + listener display-mode change). CSS `styles/utilities.css`: `.pwa-standalone .hide-in-pwa{display:none!important}` + giữ `@media all and (display-mode: standalone)` belt-and-braces. Footer © login + marketing hero copy (`.login-visual__content`) mang `hide-in-pwa` — browser thường giữ nguyên branding. Aside đổi `aria-labelledby`→`aria-label` (heading ẩn = dangling reference). `LoginPage.css` thêm `.pwa-standalone .login-auth-panel{padding-bottom:env(safe-area-inset-bottom)}` — footer là carrier cũ của home-indicator clearance. index.html/manifest đã đủ sẵn (viewport-fit=cover, theme-color, black-translucent, display:standalone) — không đổi.
+- **Audit in-app**: grep `©|legalEntity` toàn frontend — chỉ LoginPage có footer; Layout/Sidebar/Portal dùng BRAND cho logo (functional, giữ).
+- **Gates**: FE `npx tsc -b` 0 (repo KHÔNG có tsgo — npx 404; gate chuẩn §5) · scoped vitest 16 files/100 tests (mới: lib 6 + LoginPage.pwa 4 + styles contract 4) · `pnpm lint` 0/0 · UI DRIVEN Chrome 390×844: inject `navigator.standalone=true` pre-script → footer text + computed `display:none`, hero `none`, media query vẫn false (chứng minh nhánh JS) — `qa/2026-10-20-pwa-standalone/` (2 PNG + driver log, exit 0; script `testplan/qa/scripts/2026-10-20-pwa-standalone-ui-drive.mjs`, mutating request 0). Driver [C] emulate display-mode qua CDP không được hỗ trợ — nhánh matchMedia-only do unit test che.
+- **Pre-existing, không phải của fix**: "1 unhandled rejection" trong combined vitest run — A/B stash: tree sạch cũng đúng 1 error (`App.nav-sweep` lazy-chunk teardown race; file 7/7 pass cả hai tree).
+- **⚠️ USER ACTION SAU DEPLOY**: iOS snapshot MANIFEST LÚC INSTALL — PWA đã cài giữ behavior cũ. Phải XÓA icon Home Screen cũ → mở Safari → Add to Home Screen LẠI mới nhận behavior mới.
+- **Not covered**: iPhone WebKit thật (cùng code path, khác engine — cần device sau deploy); Android/desktop installed thật (nhánh media query chuẩn); case `testplan/cases/case-QA-2026-10-20-pwa-standalone-footer.md`.
+
+---
+
 # FB-045 lan 2 — dialog "Chi tiết container" clip cột GIỜ HẸN — 2026-10-20
 
 Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb045-lan2, branch fix-fb045-lan2 (off main 106a25e3).
