@@ -132,3 +132,48 @@ describe('container cell picked-editor collapse (card 171026113500)', () => {
     );
   });
 });
+
+/**
+ * Card 211026034111 (FB-048 lần 4) — the 5 container-row combobox cells
+ * (Loại container, Nhà máy, Tuyến đường, Cảng nâng, Cảng hạ) showed red error
+ * text below the cell on empty submit but NO red border around the control box:
+ * 1. `.csc-container-cell--error:not(:focus-within) { box-shadow: inset 0 0 0 1px var(--danger); }`
+ *    was wiped out by the global flat-surface reset `#root .app * { box-shadow: none; }`
+ *    in `base.css`, and `.csc-container-cell__display` (the visible surface at
+ *    rest while `.csc-container-cell__editor > *` is `opacity: 0`) had no
+ *    border on desktop (`> 620px`).
+ * 2. `:not(:focus-within)` dropped the error border when `focusIssue` focused a
+ *    picker cell whose combobox menu was still closed (`openOnType`), even
+ *    though `.csc-container-cell__display` remained the visible layer.
+ * 3. The hidden editor's `[slot='description']` duplicated `.csc-container-cell__error`
+ *    and inflated `.csc-container-cell__value` / `.csc-container-cell__display`
+ *    past the 40px control ceiling whenever `error` was set.
+ */
+describe('container cell invalid red border contract (FB-048 lần 4, card 211026034111)', () => {
+  it('paints a real 1px danger border on the visible display box when invalid, never a dead box-shadow', () => {
+    expect(cellCss).toMatch(
+      /\.csc-container-cell--error \.csc-container-cell__display,\s*\.csc-container-cell:has\(\[aria-invalid='true'\], \[data-invalid='true'\]\) \.csc-container-cell__display \{ border: 1px solid var\(--danger\); border-radius: var\(--r-sm\); \}/,
+    );
+    expect(cellCss).not.toMatch(/\.csc-container-cell--error[^{]*\{[^}]*box-shadow:/);
+  });
+
+  it('does not gate the invalid display border behind :not(:focus-within) at any width', () => {
+    expect(cellCss).not.toMatch(/\.csc-container-cell--error:not\(:focus-within\)/);
+    expect(cellCss).toMatch(
+      /\.csc-container-row \.csc-container-cell--picker\.csc-container-cell--error \.csc-container-cell__display,\s*\.csc-container-row \.csc-container-cell--picker:has\(\[aria-invalid='true'\], \[data-invalid='true'\]\) \.csc-container-cell__display \{ border-color: var\(--danger\); \}/,
+    );
+  });
+
+  it('hides the inner editor duplicate hint span without hiding datetime separators so error cells keep the 40px control height', () => {
+    expect(cellCss).toMatch(
+      /\.csc-container-cell__editor \[data-uui-control\]:not\(\.date-seg-wrapper\) ~ span:not\(\.date-sep\) \{ display: none; \}/,
+    );
+  });
+
+  it('orders .csc-control-boundary:has([aria-invalid=true]) after :has(:disabled) so disabled invalid fields keep their red border', () => {
+    const disabledIdx = pageCss.indexOf('.csc-control-boundary:has(:disabled)');
+    const invalidIdx = pageCss.indexOf(".csc-control-boundary:has([aria-invalid='true'])");
+    expect(disabledIdx).toBeGreaterThan(-1);
+    expect(invalidIdx).toBeGreaterThan(disabledIdx);
+  });
+});

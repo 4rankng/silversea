@@ -248,6 +248,14 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
+.csc-control-boundary:has(:disabled) > [role='presentation'],
+.csc-control-boundary:has(:disabled) [data-input-wrapper='true'],
+.csc-control-boundary:has(:disabled) [role='group'],
+.csc-control-boundary:has(:disabled) select,
+.csc-control-boundary:has(:disabled) textarea {
+  border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
+  background: var(--surface-2);
+}
 .csc-control-boundary:has([aria-invalid='true']) > [role='presentation'],
 .csc-control-boundary:has([aria-invalid='true']) [data-input-wrapper='true'],
 .csc-control-boundary:has([aria-invalid='true']) [role='group'],
@@ -264,14 +272,6 @@
 .csc-control-boundary:has([aria-invalid='true']):focus-within textarea {
   border-color: var(--danger);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
-}
-.csc-control-boundary:has(:disabled) > [role='presentation'],
-.csc-control-boundary:has(:disabled) [data-input-wrapper='true'],
-.csc-control-boundary:has(:disabled) [role='group'],
-.csc-control-boundary:has(:disabled) select,
-.csc-control-boundary:has(:disabled) textarea {
-  border-color: color-mix(in srgb, var(--fg-1) 12%, transparent);
-  background: var(--surface-2);
 }
 .csc-summary { display: grid; gap: 12px; min-width: 0; width: 100%; max-width: 520px; justify-self: start; }
 .csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
