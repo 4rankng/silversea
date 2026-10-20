@@ -1,0 +1,8 @@
+LOGIN OK as tiepvv → /shipments
+DETAIL heading=BKR29FCL01 url=https://vantai.tingting.vip/shipments/965
+HEADER buttons=["Tạo lô mới","Xóa lô"]
+ASSERT surface: Sửa lô=false · Thêm container present=false
+PASS BEFORE: header lacks Sửa lô and Thêm container (TICKET-09 read-only containers, correct state).
+ALIAS /edit lands on: https://vantai.tingting.vip/shipments/965/edit (heading=BKR29FCL01)
+SCREENSHOT before-staging-detail.png
+PAGE ERRORS: none

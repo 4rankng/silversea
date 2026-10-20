@@ -2,15 +2,19 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Role, ShipmentStatus } from '@tingting/shared';
+import { Role, ShipmentCusBucket, ShipmentDocumentCustody, ShipmentStatus } from '@tingting/shared';
+import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import type { ShipmentDetail as ShipmentDetailData } from '../api/shipmentClient';
 
-const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, createDeclarationMock, deleteDeclarationMock, currentUser } = vi.hoisted(() => ({
+const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, createDeclarationMock, deleteDeclarationMock, getCusShipmentWorkspaceDetailMock, updateShipmentMock, updateShipmentDeclarationMock, currentUser } = vi.hoisted(() => ({
   getShipmentDetailMock: vi.fn(),
   listShipmentEventsMock: vi.fn(),
   deleteCusShipmentMock: vi.fn(),
   createDeclarationMock: vi.fn(),
   deleteDeclarationMock: vi.fn(),
+  getCusShipmentWorkspaceDetailMock: vi.fn(),
+  updateShipmentMock: vi.fn(),
+  updateShipmentDeclarationMock: vi.fn(),
   currentUser: {
     userId: 11,
     role: 'ADMIN',
@@ -20,9 +24,12 @@ const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, cr
 
 vi.mock('../api/shipmentClient', () => ({
   getShipmentDetail: getShipmentDetailMock,
+  getCusShipmentWorkspaceDetail: getCusShipmentWorkspaceDetailMock,
   deleteCusShipment: deleteCusShipmentMock,
   createShipmentDeclaration: createDeclarationMock,
   deleteShipmentDeclaration: deleteDeclarationMock,
+  updateShipment: updateShipmentMock,
+  updateShipmentDeclaration: updateShipmentDeclarationMock,
 }));
 
 vi.mock('../api/customerServiceFinanceClient', () => ({
@@ -105,6 +112,10 @@ describe('ShipmentDetailPage', () => {
     getShipmentDetailMock.mockReset();
     getShipmentDetailMock.mockResolvedValue(detail);
     listShipmentEventsMock.mockResolvedValue({ items: [] });
+    getCusShipmentWorkspaceDetailMock.mockReset();
+    updateShipmentMock.mockReset();
+    updateShipmentMock.mockResolvedValue({ version: 8 });
+    updateShipmentDeclarationMock.mockReset();
   });
 
   it('uses padded Vietnam business datetimes in details and lock metadata', async () => {
@@ -875,6 +886,253 @@ describe('ShipmentDetailPage', () => {
       renderLot();
       await screen.findByText('Containers (0)');
       expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+    });
+  });
+
+  // ── Sửa lô (FB-086 R29 remainder, steer 21/10) ────────────────────────────
+  // Reconciliation: TICKET-09 (card 171026182554) superseded FB-086 at this
+  // surface for CONTAINERS — the read-only Containers section here IS the
+  // correct state (QA's R29 "no add container" observation is
+  // invalid-at-surface). The valid remainder is lot-INFORMATION editing:
+  // "Sửa lô" in the header opens a picker over the same six field groups the
+  // Tổng quan grid edits, then opens the SAME shared quick-edit modal
+  // (ShipmentQuickEditModal — one lot-info editor, two hosts). Roles =
+  // SHIPMENT_INTAKE_MUTATION_ROLES (testplan/roles/01-cus.md: CUS "read &
+  // write the shipment workspace: create, edit, …").
+  describe('Sửa lô affordance (FB-086 R29 remainder)', () => {
+    const directAccess = { mode: 'DIRECT' as const, reason: 'Có thể sửa.' };
+    const workspaceSummary: ShipmentCusWorkspaceListItem = {
+      id: 1,
+      version: 7,
+      status: ShipmentStatus.READY_FOR_DISPATCH,
+      cargoMode: 'FCL',
+      bucket: ShipmentCusBucket.PENDING_LOCK,
+      bucketLabel: 'Chờ khóa',
+      customerName: 'Công ty Silver Sea',
+      factoryName: null,
+      billOrBookNumber: 'BL-001',
+      declarationNumber: null,
+      declarationNumbers: [],
+      shippingLineName: 'Maersk',
+      routeName: null,
+      isCombined: false,
+      direction: 'IMPORT' as const,
+      containerSummary: '0x',
+      packageCount: null,
+      packageType: null,
+      weightKg: null,
+      volumeCbm: null,
+      transportDate: null,
+      customsCutoffAt: null,
+      closingAt: null,
+      plannedReturnAt: null,
+      deliveryLocation: null,
+      liftSiteNames: [],
+      dropoffSiteNames: [],
+      customerAppointmentAts: [],
+      effectiveFactoryNames: [],
+      appointmentGroups: [],
+      carrierAssignments: [],
+      customerNotes: null,
+      operationalNotes: 'Lô thử nghiệm',
+      raw: {
+        customerId: 101,
+        isAdHoc: false,
+        factoryName: null,
+        routeId: null,
+        deliveryLocation: null,
+        blNumber: 'BL-001',
+        bookingRef: null,
+        declarationNumber: null,
+        tradeDirection: 'IMPORT',
+        shippingLineName: 'Maersk',
+        packageCount: null,
+        packageType: null,
+        cargoWeightKg: null,
+        cargoVolumeCbm: null,
+        customsCutoffAt: null,
+        closingAt: null,
+        plannedReturnAt: null,
+        customerNotes: null,
+        operationalNotes: 'Lô thử nghiệm',
+        declarationId: null,
+        declarationIssuedAt: null,
+        declarationScope: null,
+        declarationNote: null,
+        declarations: [],
+      },
+      fieldAccess: {
+        customerId: directAccess,
+        factoryName: directAccess,
+        routeId: directAccess,
+        deliveryLocation: directAccess,
+        blNumber: directAccess,
+        bookingRef: directAccess,
+        declarationNumber: directAccess,
+        tradeDirection: directAccess,
+        shippingLineName: directAccess,
+        packageCount: directAccess,
+        packageType: directAccess,
+        cargoWeightKg: directAccess,
+        cargoVolumeCbm: directAccess,
+        customsCutoffAt: directAccess,
+        closingAt: directAccess,
+        plannedReturnAt: directAccess,
+        customerNotes: directAccess,
+        operationalNotes: directAccess,
+      },
+      operational: {
+        scheduleReadiness: 'WAITING_DATE',
+        vehicleReadiness: 'NO_CONTAINERS',
+        totalContainers: 0,
+        assignedContainers: 0,
+        externalContainers: 0,
+        plateAssignedContainers: 0,
+        orderIssuedContainers: 0,
+        missingCarrierContainers: 0,
+        missingPlateContainers: 0,
+        transportDateEditable: true,
+        deletable: true,
+      },
+      finance: {
+        customerInvoiceTotal: null,
+        customerNoInvoiceTotal: null,
+        totalCost: null,
+        isLoss: false,
+        hasPendingRecovery: false,
+        customerChargeTotalsAvailable: false,
+        totalCostAvailable: false,
+      },
+      debitNote: {
+        available: false,
+        billingDocumentId: null,
+        documentNumber: null,
+        issuedAt: null,
+        debitNoteStatus: null,
+        disabledReason: null,
+      },
+      documentCustody: {
+        status: ShipmentDocumentCustody.OPS_HOLDING,
+        label: 'Ops đang giữ',
+        available: true,
+        editable: true,
+      },
+      accountingConfirmation: {
+        status: 'UNAVAILABLE' as const,
+        confirmationId: null,
+        checksum: null,
+        billingDocumentId: null,
+        confirmedAt: null,
+        confirmedByName: null,
+      },
+      activeLock: null,
+      action: {
+        kind: 'LOCK' as const,
+        label: 'Khóa lô',
+        enabled: true,
+        disabledReason: null,
+      },
+    };
+    const workspaceDetail = {
+      summary: workspaceSummary,
+      containers: [],
+      selectors: {
+        routes: [],
+        containerTypes: [],
+        operationalSites: [],
+        externalCarriers: [],
+        carrierVehicles: [],
+        ports: [],
+      },
+      dataState: { hasExplicitDocumentCustody: false },
+    };
+
+    function renderLot() {
+      return render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+    }
+
+    it.each([Role.ADMIN, Role.CUS, Role.MANAGER, Role.DISPATCHER])(
+      'offers Sửa lô to %s — the roles PUT /shipments/:id authorizes',
+      async (role) => {
+        currentUser.role = role;
+        getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
+        renderLot();
+        expect(await screen.findByRole('button', { name: /Sửa lô/ })).toBeTruthy();
+      },
+    );
+
+    it('hides Sửa lô from ACCOUNTANT (the one reader role the update route refuses)', async () => {
+      currentUser.role = Role.ACCOUNTANT;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
+      renderLot();
+      await screen.findByText('Khách hàng');
+      expect(screen.queryByRole('button', { name: /Sửa lô/ })).toBeNull();
+    });
+
+    it('hides Sửa lô while the accounting lock is active — narrower than the server (notes stay editable on Tổng quan only)', async () => {
+      currentUser.role = Role.CUS;
+      renderLot();
+      await screen.findByText(/Khóa lô do CUS/);
+      expect(screen.queryByRole('button', { name: /Sửa lô/ })).toBeNull();
+    });
+
+    it('sits before Tạo lô mới, which still sits immediately before Xóa lô', async () => {
+      currentUser.role = Role.CUS;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
+      renderLot();
+      const editBtn = await screen.findByRole('button', { name: /Sửa lô/ });
+      const createBtn = screen.getByRole('button', { name: /Tạo lô mới/ });
+      const deleteBtn = screen.getByRole('button', { name: /Xóa lô/ });
+      expect(editBtn.parentElement).toBe(createBtn.parentElement);
+      expect(editBtn.nextElementSibling).toBe(createBtn);
+      expect(createBtn.nextElementSibling).toBe(deleteBtn);
+    });
+
+    it('opens the group picker from the workspace detail; FCL Lịch trình is per-container and stays disabled', async () => {
+      currentUser.role = Role.CUS;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
+      getCusShipmentWorkspaceDetailMock.mockResolvedValue(workspaceDetail);
+      renderLot();
+      fireEvent.click(await screen.findByRole('button', { name: /Sửa lô/ }));
+      expect(await screen.findByText('Sửa thông tin lô')).toBeTruthy();
+      expect(getCusShipmentWorkspaceDetailMock).toHaveBeenCalledWith(1);
+      for (const label of ['Khách hàng & nhà máy', 'Chứng từ', 'Phân loại & hãng tàu', 'Tổng quan hàng hóa', 'Lịch trình', 'Ghi chú']) {
+        expect(screen.getByRole('button', { name: label })).toBeTruthy();
+      }
+      const scheduleBtn = screen.getByRole('button', { name: 'Lịch trình' });
+      expect(scheduleBtn.hasAttribute('disabled')).toBe(true);
+      expect(scheduleBtn.getAttribute('title')).toBe('Lịch FCL được cập nhật theo từng container.');
+    });
+
+    it('picking Chứng từ opens the shared quick-edit modal and Lưu thay đổi PATCHes the lot with its version', async () => {
+      currentUser.role = Role.CUS;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
+      getCusShipmentWorkspaceDetailMock.mockResolvedValue(workspaceDetail);
+      renderLot();
+      fireEvent.click(await screen.findByRole('button', { name: /Sửa lô/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Chứng từ' }));
+      const billInput = await screen.findByLabelText('Số Bill');
+      expect((billInput as HTMLInputElement).value).toBe('BL-001');
+      fireEvent.change(billInput, { target: { value: 'BL-999' } });
+      fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+      await waitFor(() => {
+        expect(updateShipmentMock).toHaveBeenCalledTimes(1);
+      });
+      expect(updateShipmentMock).toHaveBeenCalledWith(1, { expectedVersion: 7, blNumber: 'BL-999', bookingRef: null });
+      // The page reloads its own detail AND the editor's summary seed after
+      // the save (the shared hook's loadList dependency, repointed here).
+      await waitFor(() => {
+        expect(getShipmentDetailMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+        expect(getCusShipmentWorkspaceDetailMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+      });
     });
   });
 

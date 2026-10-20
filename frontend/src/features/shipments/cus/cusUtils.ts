@@ -175,16 +175,20 @@ export interface ShipmentQuickEditDraft {
   cargoVolumeCbm: string;
 }
 
+/** FB-086 R29 remainder (steer 21/10): the Sửa-lô picker on the lot detail
+ *  lists these same groups, so the labels live here — one source for the
+ *  picker buttons and the modal title. */
+export const QUICK_EDIT_GROUP_LABELS: Record<ShipmentQuickEditDraft['field'], string> = {
+  identity: 'Khách hàng & nhà máy',
+  documents: 'Chứng từ',
+  classification: 'Phân loại & hãng tàu',
+  cargo: 'Tổng quan hàng hóa',
+  schedule: 'Lịch trình',
+  notes: 'Ghi chú',
+};
+
 export function quickEditTitle(field: ShipmentQuickEditDraft['field']): string {
-  const labels: Record<ShipmentQuickEditDraft['field'], string> = {
-    identity: 'Khách hàng & nhà máy',
-    documents: 'Chứng từ',
-    classification: 'Phân loại & hãng tàu',
-    cargo: 'Tổng quan hàng hóa',
-    schedule: 'Lịch trình',
-    notes: 'Ghi chú',
-  };
-  return `Chỉnh sửa ${labels[field]}`;
+  return `Chỉnh sửa ${QUICK_EDIT_GROUP_LABELS[field]}`;
 }
 
 /** Container dispatch chip vocabulary (customer decision 2026-09-08, revised

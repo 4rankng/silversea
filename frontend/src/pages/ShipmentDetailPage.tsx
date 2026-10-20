@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, FileText, FileCheck2, Container, History, Loader2, Trash2, X, Plus,
+  ArrowLeft, FileText, FileCheck2, Container, History, Loader2, Pencil, Trash2, X, Plus,
 } from 'lucide-react';
 import { ApiError } from '../lib/api';
 import { PageHeader, Modal } from '../components/UI';
@@ -16,12 +16,14 @@ import {
   SHIPMENT_STATUS_LABELS,
   SHIPMENT_DOCUMENT_TYPE_LABELS,
   type ShipmentStatus,
+  type ShipmentCusWorkspaceDetail,
   Role,
 } from '@tingting/shared';
 import { usePageAnimations } from '../hooks/animations';
 import { useAuth } from '../hooks/useAuth';
 import {
   getShipmentDetail as getShipmentDetailRequest,
+  getCusShipmentWorkspaceDetail,
   deleteCusShipment,
   createShipmentDeclaration,
   deleteShipmentDeclaration,
@@ -39,6 +41,11 @@ import { formatQuantity } from '../features/shipments/cus/cusUtils';
 import { allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
 import { ShipmentDetailContainers } from '../features/shipments/detail/ShipmentDetailContainers';
 import { billBookingReference } from '../lib/business-reference';
+import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
+import { ShipmentQuickEditModal } from '../features/shipments/cus/ShipmentQuickEditModal';
+import { QUICK_EDIT_GROUP_LABELS } from '../features/shipments/cus/cusUtils';
+import { quickEditGroupGate, type QuickEditField } from '../features/shipments/cus/cusQuickEditModel';
+import { useToast } from '../components/shared/Toast';
 import './WorkflowFinance.css';
 import './ShipmentDetailPage.css';
 
@@ -210,6 +217,87 @@ export default function ShipmentDetailPage() {
     }
   }, [data, declDeleteTarget, declSaving, fetchDetail]);
 
+  // ─── Sửa lô (FB-086 R29 remainder, steer 21/10) ─────────────────────────
+  //
+  // Reconciliation: TICKET-09 (card 171026182554) superseded FB-086 at this
+  // surface for CONTAINERS — /shipments/:id stays read-only on the container
+  // set (composition lives solely in the Tổng quan drawer). The valid
+  // remainder is lot-INFORMATION editing: the header "Sửa lô" button opens a
+  // picker over the same six field groups the Tổng quan grid edits, then the
+  // SAME shared quick-edit modal (one lot-info editor, two hosts). Roles =
+  // SHIPMENT_INTAKE_MUTATION_ROLES (ADMIN/MANAGER/CUS/DISPATCHER) — exactly
+  // what PUT /shipments/:id authorizes; per-field gating is the workspace
+  // payload's own fieldAccess, so the button never widens what the server
+  // accepts. Hidden while the accounting lock is active — a deliberate
+  // narrowing for THIS page: the server still honors notes-only edits under
+  // lock (ruling 2026-09-20), so the Tổng quan grid keeps Ghi chú editable on
+  // locked lots while this host does not surface that carve-out (known
+  // limitation — see testplan/cases case-QA-2026-10-21-fb086).
+  const { toast } = useToast();
+  const canEditLot = !data?.accountingLock && (
+    user?.role === Role.ADMIN || user?.role === Role.MANAGER
+    || user?.role === Role.CUS || user?.role === Role.DISPATCHER
+  );
+  const [lotEditPickerOpen, setLotEditPickerOpen] = useState(false);
+  const [lotEditDetail, setLotEditDetail] = useState<ShipmentCusWorkspaceDetail | null>(null);
+  const [lotEditLoading, setLotEditLoading] = useState(false);
+  const [lotEditError, setLotEditError] = useState<string | null>(null);
+  const lotEditRequestRef = useRef(0);
+
+  const loadLotEditDetail = useCallback(async () => {
+    const reqId = ++lotEditRequestRef.current;
+    setLotEditLoading(true);
+    setLotEditError(null);
+    try {
+      const detail = await getCusShipmentWorkspaceDetail(shipmentId);
+      if (lotEditRequestRef.current !== reqId) return;
+      setLotEditDetail(detail);
+    } catch (err) {
+      if (lotEditRequestRef.current !== reqId) return;
+      setLotEditError(err instanceof ApiError ? err.message : 'Không thể tải thông tin lô để sửa.');
+    } finally {
+      if (lotEditRequestRef.current === reqId) setLotEditLoading(false);
+    }
+  }, [shipmentId]);
+
+  const openLotEditPicker = useCallback(() => {
+    setLotEditPickerOpen(true);
+    void loadLotEditDetail();
+  }, [loadLotEditDetail]);
+
+  // Route param transitions (/shipments/1 → /shipments/2) reuse this element
+  // (no key on the route), so the previous lot's picker summary/gates must not
+  // survive the id change — the reopened picker refetches fresh.
+  useEffect(() => {
+    setLotEditPickerOpen(false);
+    setLotEditDetail(null);
+    setLotEditError(null);
+    lotEditRequestRef.current += 1; // invalidate any in-flight fetch for the old id
+  }, [shipmentId]);
+
+  const closeLotEditPicker = useCallback(() => {
+    setLotEditPickerOpen(false);
+  }, []);
+
+  // The shared editor's save/409 self-heal paths call these page hooks; on
+  // the detail page "reload the list" means refreshing the visible detail AND
+  // the editor's own summary seed, and feedback rides the house toasts.
+  const qe = useCusQuickEdit({
+    setError: useCallback((message: string | null) => { if (message) toast({ kind: 'error', message }); }, [toast]),
+    setNotice: useCallback((message: string | null) => { if (message) toast({ kind: 'success', message }); }, [toast]),
+    loadList: useCallback(async () => {
+      await Promise.all([fetchDetail(), loadLotEditDetail()]);
+    }, [fetchDetail, loadLotEditDetail]),
+    invalidateDetail: useCallback(() => { /* page holds no react-query workspace cache */ }, []),
+  });
+  const { quickEditDraft, setQuickEditDraft, savingQuickEdit, quickEditError, startQuickEdit, closeQuickEdit, saveQuickEdit } = qe;
+
+  const handlePickLotEditGroup = useCallback((field: QuickEditField) => {
+    if (!lotEditDetail) return;
+    setLotEditPickerOpen(false);
+    startQuickEdit(lotEditDetail.summary, field);
+  }, [lotEditDetail, startQuickEdit]);
+
   // Card 171026182554 (supersedes FB-086's composition point here): adding or
   // removing a lot's containers now lives ONLY in the Tổng quan drawer
   // (/shipments). The detail screen stays read + business-edit; a second
@@ -294,7 +382,7 @@ export default function ShipmentDetailPage() {
         description={`Trạng thái: ${SHIPMENT_STATUS_LABELS[shipment.status]}`}
         onBack={() => navigate('/shipments')}
         action={
-          (canDeclareCost || canCreateShipment || canDeleteLot) ? (
+          (canDeclareCost || canEditLot || canCreateShipment || canDeleteLot) ? (
             <>
               {canDeclareCost && (
                 <button
@@ -303,6 +391,15 @@ export default function ShipmentDetailPage() {
                   onClick={() => setCostDrawerOpen(true)}
                 >
                   Khai chi phí
+                </button>
+              )}
+              {canEditLot && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={openLotEditPicker}
+                >
+                  <Pencil size={14} aria-hidden="true" /> Sửa lô
                 </button>
               )}
               {canCreateShipment && (
@@ -726,6 +823,67 @@ export default function ShipmentDetailPage() {
           )}
         </Modal>
       )}
+      {/* Sửa lô — group picker (FB-086 R29 remainder). Fetches the same
+          workspace detail the Tổng quan edits from, then hands the picked
+          group to the shared quick-edit modal below. */}
+      {lotEditPickerOpen && (
+        <Modal
+          isOpen
+          title="Sửa thông tin lô"
+          onClose={closeLotEditPicker}
+          footer={(
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={closeLotEditPicker}
+            >
+              Đóng
+            </button>
+          )}
+        >
+          <p className="cus-quick-edit-modal__context">{shipmentLabel}</p>
+          {lotEditLoading && <p role="status" style={{ color: 'var(--fg-2)' }}>Đang tải thông tin lô…</p>}
+          {lotEditError && (
+            <div className="cus-inline-error" role="alert">
+              <span>{lotEditError}</span>
+              <button type="button" onClick={() => void loadLotEditDetail()}>Thử lại</button>
+            </div>
+          )}
+          {lotEditDetail && (
+            <div className="lot-edit-picker" style={{ display: 'grid', gap: 8 }}>
+              {(Object.keys(QUICK_EDIT_GROUP_LABELS) as QuickEditField[]).map((field) => {
+                const gate = quickEditGroupGate(lotEditDetail.summary, field);
+                return (
+                  <button
+                    key={field}
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    disabled={gate.disabled}
+                    title={gate.reason ?? undefined}
+                    onClick={() => handlePickLotEditGroup(field)}
+                  >
+                    {QUICK_EDIT_GROUP_LABELS[field]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* Same shared lot-info editor the Tổng quan grid opens (one editor,
+          two hosts). Containers are deliberately NOT part of it — TICKET-09
+          (card 171026182554) keeps container composition in the drawer. */}
+      <ShipmentQuickEditModal
+        open={quickEditDraft != null && lotEditDetail?.summary.id === quickEditDraft.shipmentId}
+        draft={quickEditDraft}
+        item={lotEditDetail?.summary ?? null}
+        saving={savingQuickEdit}
+        error={quickEditError}
+        onDraftChange={setQuickEditDraft}
+        close={closeQuickEdit}
+        save={() => { if (lotEditDetail) void saveQuickEdit(lotEditDetail.summary); }}
+      />
     </div>
   );
 }
