@@ -357,7 +357,9 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     // references them — so an unguarded hard-delete is safe and must run
     // BEFORE the business_units delete below (children -> parents; the
     // executor iterates QA_FIXTURE_REGISTRY in array order, purge-qa-fixtures
-    // .ts purgeAll, and that order is asserted in qa-fixture-purge.test.ts).
+    // .ts purgeAll, and that order is asserted in the registry-order pins of
+    // qa-fixture-users-surface.test.ts and
+    // qa-fixture-business-unit-demo-surface.test.ts).
     predicate: `business_unit_id IN (SELECT id FROM business_units WHERE name ILIKE 'QA%' OR code ILIKE 'QA%')`,
     action: 'hard-delete',
     guards: [],
@@ -370,9 +372,14 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     // entirely, so no QA unit was ever a purge candidate.
     // Staging enumeration 2026-10-12 (GET /api/auth/business-units, 6 rows):
     // 5 match this predicate (QA085-RENAMED-755742, QA-17 audit unit…,
-    // QA2-26SEP Unit 1, QA Audit Unit 0914, QA R6 085 unit EDITED) and the
-    // single real unit (CUS-DEMO / "Đơn vị CUS Demo") does not. The real
-    // roster is name-based and never carries a QA token.
+    // QA2-26SEP Unit 1, QA Audit Unit 0914, QA R6 085 unit EDITED). The sixth
+    // row, CUS-DEMO / "Đơn vị CUS Demo", was mis-classified here as "the
+    // single real unit" — FB-061 lan 3 (card 201026112400) proved it is
+    // DEMO-SEED data (backend/src/seed.ts seedClerkScope; every referencing
+    // row is seed-day 2026-09-19: the soft-deleted demo `cus` link + 15
+    // seed shipments; zero salary closes), and it rendered on staging /users
+    // ("Đơn vị phụ trách" catalog). It has its own staging-only surface
+    // BELOW — keep this QA% predicate QA-token-only.
     predicate: `name ILIKE 'QA%' OR code ILIKE 'QA%'`,
     // NOT 'scrub': business_units_name_uniq_idx is UNIQUE on name and name is
     // NOT NULL, so collapsing the rows to one placeholder would violate the
@@ -414,6 +421,52 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     // "QA Audit Unit 0914" visible on /users.
     action: 'hard-delete',
     guards: [],
+  },
+  {
+    table: 'user_business_unit_links',
+    label: 'Links into the demo-seed CUS business unit (staging only)',
+    // FB-061 lan 3 (card 201026112400): staging /users rendered the demo-seed
+    // unit "Đơn vị CUS Demo" (CUS-DEMO) in the admin-only "Đơn vị phụ trách"
+    // catalog. Lan 2's UI drive asserted the paginated user ROWS only, so the
+    // catalog residual passed while human QA kept seeing "Demo" on the page.
+    // Origin: backend/src/seed.ts seedClerkScope() — the demo seed creates the
+    // unit and links it to the demo `cus` clerk. Staging enumeration
+    // 2026-10-20: exactly ONE link row references the unit (user 78 `cus`,
+    // already soft-deleted by the lan-2 demo-trio surface), 15 seed-day
+    // (2026-09-19) shipments reference responsible_unit_id, zero
+    // salary_period_closes. Nothing real is attached.
+    //
+    // Children first: this link delete must run BEFORE the unit delete below
+    // (array order = executor order, asserted in
+    // qa-fixture-business-unit-demo-surface.test.ts).
+    predicate: `business_unit_id IN (SELECT id FROM business_units WHERE code = 'CUS-DEMO' OR name = 'Đơn vị CUS Demo')`,
+    action: 'hard-delete',
+    guards: [],
+    envs: ['staging'],
+  },
+  {
+    table: 'business_units',
+    label: 'Demo-seed CUS business unit (staging only)',
+    // FB-061 lan 3 (card 201026112400): the unit row itself. Exact-match
+    // identifiers copied from the seed literal — no wildcard, so the branch
+    // cannot touch any unit an admin creates later ('Đơn vị CUS Demo 2' and
+    // friends never match `=`). 'hard-delete', NOT 'deactivate' and NOT
+    // 'soft-delete': the catalog is an admin lifecycle surface that renders
+    // INACTIVE rows on purpose (card 111026105610) and the API projects every
+    // row of the table, so only removing the row clears /users. No FK
+    // references business_units anywhere (same enumeration as the QA-units
+    // surface above); the plain-integer responsible_unit_id references on the
+    // 15 seed-day demo shipments dangle harmlessly — every reader filters
+    // status = 'ACTIVE'.
+    //
+    // STAGING-ONLY (`envs`): the local dev-seed world legitimately uses
+    // CUS-DEMO (seed.ts creates it; local `cus` login links to it), and the
+    // executor refuses prod outright — the unit stays in prod until a
+    // separate owner instruction.
+    predicate: `code = 'CUS-DEMO' OR name = 'Đơn vị CUS Demo'`,
+    action: 'hard-delete',
+    guards: [],
+    envs: ['staging'],
   },
   {
     table: 'forwarder_expense_types',
