@@ -1373,25 +1373,52 @@ describe('DriverTripDetailPage', () => {
 
 
 describe('busy-trip recovery', () => {
-  it.each([true, false])('offers only an owned blocking-trip link (owned=%s)', async (owned) => {
+  // FB-019 (card 211026005621): the busy-trip 409 carries the internal TRP
+  // code. The reason must still reach BOTH surfaces (card 20260916_8), but the
+  // internal-ids law (CHIEF 26/09) forbids the code from rendering — the
+  // driver names trips by Số Bill/Booking, so the board's document number
+  // replaces it, or the banner states the gap instead of leaking the code.
+  it.each([true, false])('names the blocking trip by Số Bill, never the internal TRP code (owned=%s)', async (owned) => {
     useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
     useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
     const rejection = vi.spyOn(driverClient, 'recordProgress').mockRejectedValueOnce(new Error('Xe đang chạy chuyến TRP-TEST-1. Vui lòng hoàn thành chuyến đó trước.'));
-    const board = vi.spyOn(driverClient, 'getJourneyBoard').mockResolvedValueOnce({ items: owned ? [{ tripCode: 'TRP-TEST-1', tripId: 61, fulfillmentId: 99, bucket: 'RUNNING' }] as never : [], knownTagLabels: [] });
+    const board = vi.spyOn(driverClient, 'getJourneyBoard').mockResolvedValueOnce({ items: owned ? [{ tripCode: 'TRP-TEST-1', tripId: 61, fulfillmentId: 99, bucket: 'RUNNING', blNumber: 'BL-2026-001', bookingRef: null }] as never : [], knownTagLabels: [] });
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
     await waitFor(() => expect(board).toHaveBeenCalledOnce());
-    // Card 20260916_8: the backend's busy-trip message must reach the driver
-    // through BOTH surfaces — the transient toast (message text as thrown by
-    // the API layer) and the inline banner.
-    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error', message: expect.stringContaining('Xe đang chạy chuyến TRP-TEST-1') })));
-    expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('TRP-TEST-1');
-    if (owned) expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/61');
-    else {
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error', message: expect.stringContaining('hoàn thành chuyến đó trước') })));
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error', message: expect.not.stringContaining('TRP-TEST-1') }));
+    const banner = screen.getByTestId('blocking-trip-banner');
+    expect(banner.textContent).not.toContain('TRP-TEST-1');
+    if (owned) {
+      expect(banner.textContent).toContain('BL-2026-001');
+      expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/61');
+    } else {
+      expect(banner.textContent).toContain('chưa hoàn thành');
       expect(screen.queryByRole('link', { name: 'Mở chuyến đang chạy' })).toBeNull();
-      expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('Liên hệ điều vận');
+      expect(banner.textContent).toContain('Liên hệ điều vận');
     }
     rejection.mockRestore();
+    board.mockRestore();
+  });
+
+  it('clears the banner once the blocked order is accepted', async () => {
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
+    useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
+    const progress = vi.spyOn(driverClient, 'recordProgress')
+      .mockRejectedValueOnce(new Error('Xe đang chạy chuyến TRP-TEST-1. Vui lòng hoàn thành chuyến đó trước.'))
+      .mockResolvedValue({} as never);
+    const board = vi.spyOn(driverClient, 'getJourneyBoard').mockResolvedValue({ items: [{ tripCode: 'TRP-TEST-1', tripId: 61, fulfillmentId: 99, bucket: 'RUNNING', blNumber: 'BL-2026-001', bookingRef: null }] as never, knownTagLabels: [] });
+    renderPage();
+    const accept = await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ });
+    fireEvent.click(accept);
+    await waitFor(() => expect(screen.getByTestId('blocking-trip-banner').textContent).toContain('BL-2026-001'));
+    // The retry succeeds — the truck is no longer busy, so the banner (and its
+    // reason) must not linger into the running trip.
+    fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' })));
+    expect(screen.queryByTestId('blocking-trip-banner')).toBeNull();
+    progress.mockRestore();
     board.mockRestore();
   });
 });

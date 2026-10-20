@@ -61,7 +61,14 @@ function DriverTripDetailContent() {
   const [fuelScanning, setFuelScanning] = useState(false);
   const [chipsExpanded, setChipsExpanded] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  // KP-087: the parsed TRP code from the busy-trip 409 — banner PRESENCE
+  // signal and board lookup key only, NEVER rendered (FB-019, card
+  // 211026005621 / internal-ids law CHIEF 26/09).
   const [blockingTripCode, setBlockingTripCode] = useState<string | null>(null);
+  // FB-019: the display reference for the banner — Số Bill/Booking from the
+  // driver's own journey board; null means the board cannot vouch for the
+  // trip, so the banner states the gap honestly (no code, no invented ref).
+  const [blockingTripLabel, setBlockingTripLabel] = useState<string | null>(null);
   const [blockingTripId, setBlockingTripId] = useState<number | null>(null);
   // Card 20260926_30 item 16: saved cost-entry count reported by the cost
   // form so the top progress strip can show it without scrolling.
@@ -139,29 +146,50 @@ function DriverTripDetailContent() {
         fulfillmentId: validFulfillmentId,
       }, idempotencyKey);
       await refreshAll();
+      // A successful action means the truck is no longer blocked — the banner's
+      // premise is gone (milestone buttons don't clear it on click the way the
+      // accept button does).
+      setBlockingTripCode(null);
+      setBlockingTripLabel(null);
+      setBlockingTripId(null);
       toast({ kind: 'success', message: 'Đã ghi nhận mốc tiến độ.' });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Không thể gửi lệnh. Vui lòng thử lại.';
-      // KP-087: detect blocking-trip rejection and surface the trip code
+      // KP-087: detect the blocking-trip rejection. The code parsed here is a
+      // LOOKUP KEY ONLY — FB-019 (card 211026005621): the internal TRP code
+      // must never render (internal-ids law, CHIEF 26/09), so both surfaces
+      // name the blocking trip by its Số Bill/Booking or stay generic.
       const blockingMatch = msg.match(/Xe đang chạy chuyến\s+(.+?)\. Vui lòng/);
       setBlockingTripId(null);
       if (blockingMatch) {
         const code = blockingMatch[1];
         setBlockingTripCode(code);
+        setBlockingTripLabel(null);
+        let busyLabel: string | null = null;
         // Only the authenticated driver's board may supply a navigable ID.
         // A busy truck can belong to someone else's order; never guess a URL
         // from a trip code or expose an unrestricted trip lookup.
         try {
           const board = await driverClient.getJourneyBoard();
           const owned = board.items.find(item => item.tripCode === code && item.bucket !== 'HISTORY');
-          if (owned) setBlockingTripId(owned.tripId);
+          if (owned) {
+            busyLabel = owned.blNumber || owned.bookingRef || null;
+            setBlockingTripLabel(busyLabel);
+            setBlockingTripId(owned.tripId);
+          }
         } catch {
-          // Keep the specific reason and an honest dispatch handoff below.
+          // Generic copy stays; never fall back to the internal code.
         }
+        // Card 20260916_8 keeps the reason on BOTH surfaces (toast + banner);
+        // FB-019 strips the internal code from both.
+        toast({ kind: 'error', message: busyLabel
+          ? `Xe đang chạy chuyến ${busyLabel}. Vui lòng hoàn thành chuyến đó trước.`
+          : 'Xe đang có chuyến chưa hoàn thành. Vui lòng hoàn thành chuyến đó trước.' });
       } else {
         setBlockingTripCode(null);
+        setBlockingTripLabel(null);
+        toastActionError(toast, 'ghi nhận mốc tiến độ', error, 'Không thể gửi lệnh. Vui lòng thử lại.');
       }
-      toastActionError(toast, 'ghi nhận mốc tiến độ', error, 'Không thể gửi lệnh. Vui lòng thử lại.');
     } finally {
       setAccepting(false);
     }
@@ -616,7 +644,7 @@ function DriverTripDetailContent() {
               type="button"
               className="driver-task-accept-sticky__btn"
               disabled={!acceptClickable}
-              onClick={() => { setBlockingTripCode(null); void handleMilestone(DriverProgressEventType.ORDER_RECEIVED); }}
+              onClick={() => { setBlockingTripCode(null); setBlockingTripLabel(null); void handleMilestone(DriverProgressEventType.ORDER_RECEIVED); }}
             >
               {accepting ? <Loader2 size={18} className="spin" /> : <CheckCircle2 size={18} />}
               <span>{acceptButtonLabel}</span>
@@ -652,12 +680,18 @@ function DriverTripDetailContent() {
         </div>
       )}
 
-      {blockingTripCode && (
+      {blockingTripCode != null && (
         <div className="driver-task-section driver-task-section--banner" role="alert" data-testid="blocking-trip-banner">
           <div className="driver-task-bypass" style={{ background: 'var(--err-bg, #fef2f2)', color: 'var(--err, #dc2626)' }}>
             <ShieldAlert size={16} />
             <div>
-              <span>Xe đang chạy chuyến <strong>{blockingTripCode}</strong> — hoàn thành chuyến đó trước khi nhận lệnh mới.</span>
+              {/* FB-019 (card 211026005621): the blocking trip is named by Số
+                  Bill/Booking (CHIEF 26/09) — the internal TRP code never
+                  renders here; when the board cannot vouch for the trip the
+                  banner says the gap instead of leaking the code. */}
+              <span>{blockingTripLabel
+                ? <>Xe đang chạy chuyến <strong>{blockingTripLabel}</strong> — hoàn thành chuyến đó trước khi nhận lệnh mới.</>
+                : 'Xe đang có chuyến chưa hoàn thành — hoàn thành chuyến đó trước khi nhận lệnh mới.'}</span>
               <div>
                 {blockingTripId != null
                   ? <Link className="driver-task-link" to={`/my-trips/${blockingTripId}`}>Mở chuyến đang chạy</Link>
