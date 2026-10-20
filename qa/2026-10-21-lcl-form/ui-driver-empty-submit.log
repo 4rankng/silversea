@@ -1,0 +1,9 @@
+logged in as thanhdc (CUS)
+[PASS] nhap-empty-submit — factory={"present":true,"errorClass":true} warehouse={"present":true,"errorClass":true} · /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-form-labels/qa/2026-10-21-lcl-form/04-nhap-validation.png
+[PASS] xuat-empty-submit — factory={"present":true,"errorClass":true} warehouse={"present":true,"errorClass":true} · /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-form-labels/qa/2026-10-21-lcl-form/05-xuat-validation.png
+[PASS] typed-text-clears — typed=("Nhà máy gõ tay 211026011500", "Kho CFS gõ tay 211026011500") errors after submit: factory={"present":false,"errorClass":false} warehouse={"present":false,"errorClass":false} · /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-form-labels/qa/2026-10-21-lcl-form/06-free-text-clears.png
+
+=== ALL RUNGS PASS ===
+  PASS  nhap-empty-submit
+  PASS  xuat-empty-submit
+  PASS  typed-text-clears
