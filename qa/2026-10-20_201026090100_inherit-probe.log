@@ -1,0 +1,13 @@
+lot 161580 ref container routeName="Detail route 1792322777298-14n5l4-77" liftSite="DF pickup 1792322777298-14n5l4-143" dropoffSite="DF dropoff 1792322777298-14n5l4-144"
+{
+  "verdict": "INHERIT_PASS",
+  "newLine": {
+    "routeName": "Detail route 1792322777298-14n5l4-77",
+    "liftSite": "DF pickup 1792322777298-14n5l4-143",
+    "dropoffSite": "DF dropoff 1792322777298-14n5l4-144",
+    "rawRouteId": 60701,
+    "rawPickupPortId": null,
+    "rawDropoffPortId": null
+  }
+}
+cleanup remove -> 200
