@@ -43,6 +43,9 @@ import {
 
 type ReportRowFixture = {
   party: string;
+  partyShortName?: string | null;
+  partyId?: number | null;
+  partyKind?: 'customer' | 'carrier' | 'vendor' | null;
   soLuong: number;
   tongPhaiThuTra: number;
   daThuTra: number;
@@ -52,6 +55,9 @@ type ReportRowFixture = {
 function reportRow(party: string, over: Partial<ReportRowFixture> = {}): ReportRowFixture {
   return {
     party,
+    partyShortName: null,
+    partyId: null,
+    partyKind: null,
     soLuong: 0,
     tongPhaiThuTra: 0,
     daThuTra: 0,
@@ -78,17 +84,19 @@ const traEnvelope = {
 
 // The ledger values the host page itself renders as Tổng nợ — the còn-nợ
 // column must print exactly these numbers for the same party names.
+// customerIds sit in a range the base (id-less) report fixtures never hit, so
+// the base tests keep exercising the NAME fallback tier.
 const agingEnvelope = {
   customers: [
-    { customerName: 'Công ty A', totalOutstanding: 12_000_000 },
-    { customerName: 'Chủ xe B', totalOutstanding: 8_000_000 },
+    { customerId: 901, customerName: 'Công ty A', totalOutstanding: 12_000_000 },
+    { customerId: 902, customerName: 'Chủ xe B', totalOutstanding: 8_000_000 },
   ],
 };
 
 const payablesEnvelope = {
   items: [
-    { supplier: { name: 'NCC Xe' }, totalOutstanding: 30_000_000 },
-    { supplier: { name: 'Chủ xe B' }, totalOutstanding: 8_000_000 },
+    { supplier: { id: 903, name: 'NCC Xe' }, kind: 'vendor', totalOutstanding: 30_000_000 },
+    { supplier: { id: 904, name: 'Chủ xe B' }, kind: 'vendor', totalOutstanding: 8_000_000 },
   ],
 };
 
@@ -234,6 +242,91 @@ describe('PartyMonthlyProductionSummary', () => {
     const { container } = renderSummary();
     await waitFor(() => expect(getPhoiPhieuReport).not.toHaveBeenCalled());
     expect(container.querySelector('.pm-summary')).toBeNull();
+  });
+});
+
+/* ─── Card 201026095604b — short display names ride an ID-first ledger join ──
+ * The party column moves to the wire's own partyShortName (never a string
+ * derivation), while the Còn-nợ reconciliation joins by entity ID (aging
+ * customerId / payables supplier.id scoped by kind) with the legacy name only
+ * as the fallback tier — so a shortened label or a duplicate display string
+ * can no longer mis-join the aging/payables numbers. */
+describe('PartyMonthlyProductionSummary — short names + ID-first join (card 201026095604b)', () => {
+  const conNoCellOf = (row: HTMLElement | null) =>
+    row?.querySelector('td[data-label="Còn nợ"]')?.textContent ?? '';
+  const partyCell = (table: HTMLElement, label: string) =>
+    within(table).getByText(label).closest('tr');
+
+  it('shows the operational short name and keeps the full name one tooltip away', async () => {
+    getPhoiPhieuReport.mockImplementation((kind: string) => kind === 'THU'
+      ? { rows: [reportRow('CÔNG TY TNHH MTV LONG MINH', { partyShortName: 'LONG MINH', partyId: 12, partyKind: 'customer', soLuong: 2, tongPhaiThuTra: 41_000_000 })], grand: reportRow('TỔNG CỘNG', { soLuong: 2, tongPhaiThuTra: 41_000_000 }) }
+      : { rows: [], grand: reportRow('TỔNG CỘNG') });
+    getCustomerAging.mockResolvedValue({ customers: [{ customerId: 12, customerName: 'CÔNG TY TNHH MTV LONG MINH', totalOutstanding: 15_500_000 }] });
+    renderSummary('receivable');
+    const table = await screen.findByRole('table');
+    const cell = within(table).getByText('LONG MINH');
+    expect(cell.tagName).toBe('TD');
+    expect(cell.getAttribute('title')).toBe('CÔNG TY TNHH MTV LONG MINH');
+    expect(conNoCellOf(cell.closest('tr') as HTMLElement)).toBe('15.500.000 ₫');
+  });
+
+  it('joins by ID even when the aging display name disagrees, and a same-named different party cannot steal it', async () => {
+    getPhoiPhieuReport.mockImplementation((kind: string) => kind === 'THU'
+      ? { rows: [reportRow('CÔNG TY TNHH MTV LONG MINH', { partyShortName: 'LONG MINH', partyId: 12, partyKind: 'customer', soLuong: 1, tongPhaiThuTra: 10_000_000 })], grand: reportRow('TỔNG CỘNG', { soLuong: 1, tongPhaiThuTra: 10_000_000 }) }
+      : { rows: [], grand: reportRow('TỔNG CỘNG') });
+    // Aging shows a DIFFERENT display name for id 12 (renamed since the trips
+    // ran), plus a different customer that happens to carry the report's
+    // legacy full label — the name tier would pick the wrong one.
+    getCustomerAging.mockResolvedValue({ customers: [
+      { customerId: 12, customerName: 'LONG MINH (mới)', totalOutstanding: 15_500_000 },
+      { customerId: 40, customerName: 'CÔNG TY TNHH MTV LONG MINH', totalOutstanding: 1_000_000 },
+    ] });
+    renderSummary('receivable');
+    const table = await screen.findByRole('table');
+    expect(conNoCellOf(partyCell(table, 'LONG MINH') as HTMLElement)).toBe('15.500.000 ₫');
+  });
+
+  it('scopes the payable join by the payables kind branch (carrier ids ≠ vendor ids)', async () => {
+    getPhoiPhieuReport.mockImplementation((kind: string) => kind === 'TRA'
+      ? { rows: [reportRow('LONG MINH', { partyShortName: 'LONG MINH', partyId: 7, partyKind: 'carrier', soLuong: 3, tongPhaiThuTra: 24_500_000 })], grand: reportRow('TỔNG CỘNG', { soLuong: 3, tongPhaiThuTra: 24_500_000 }) }
+      : { rows: [], grand: reportRow('TỔNG CỘNG') });
+    // A vendor with the SAME numeric id and the SAME display name must lose to
+    // the kind-scoped carrier:7 row.
+    getPayablesSummary.mockResolvedValue({ items: [
+      { supplier: { id: 7, name: 'LONG MINH' }, kind: 'carrier', totalOutstanding: 9_000_000 },
+      { supplier: { id: 99, name: 'LONG MINH' }, kind: 'vendor', totalOutstanding: 2_000_000 },
+    ] });
+    renderSummary('payable');
+    const table = await screen.findByRole('table');
+    expect(conNoCellOf(partyCell(table, 'LONG MINH') as HTMLElement)).toBe('9.000.000 ₫');
+  });
+
+  it('merges a dual-role party into ONE row when both sides resolve the same customers.id', async () => {
+    getPhoiPhieuReport.mockImplementation((kind: string) => kind === 'THU'
+      ? { rows: [reportRow('CÔNG TY TNHH ABC', { partyShortName: 'ABC', partyId: 55, partyKind: 'customer', soLuong: 4, tongPhaiThuTra: 20_000_000, daThuTra: 5_000_000, conLai: 15_000_000 })], grand: reportRow('TỔNG CỘNG', { soLuong: 4, tongPhaiThuTra: 20_000_000 }) }
+      : { rows: [reportRow('ABC', { partyShortName: 'ABC', partyId: 55, partyKind: 'carrier', soLuong: 2, tongPhaiThuTra: 6_000_000, conLai: 6_000_000 })], grand: reportRow('TỔNG CỘNG', { soLuong: 2, tongPhaiThuTra: 6_000_000 }) });
+    getCustomerAging.mockResolvedValue({ customers: [{ customerId: 55, customerName: 'CÔNG TY TNHH ABC', totalOutstanding: 4_400_000 }] });
+    getPayablesSummary.mockResolvedValue({ items: [{ supplier: { id: 55, name: 'ABC' }, kind: 'carrier', totalOutstanding: 3_300_000 }] });
+    renderSummary('receivable');
+    const table = await screen.findByRole('table');
+    // ONE "ABC" row (the old name-join would have printed two: full + short).
+    const abcCells = within(table).getAllByText('ABC');
+    expect(abcCells.length).toBe(1);
+    const row = abcCells[0]!.closest('tr') as HTMLElement;
+    expect(row.querySelector('td[data-label="Phải thu SL"]')?.textContent).toBe('4');
+    expect(row.querySelector('td[data-label="Phải trả SL"]')?.textContent).toBe('2');
+    // Receivable variant reconciles through the customer id space.
+    expect(conNoCellOf(row)).toBe('4.400.000 ₫');
+  });
+
+  it('keeps the name fallback for id-less rows (unknown bucket, internal fleet)', async () => {
+    getPhoiPhieuReport.mockImplementation((kind: string) => kind === 'TRA'
+      ? { rows: [reportRow('XE NHÀ — SILVER SEA', { soLuong: 6, tongPhaiThuTra: 18_000_000 })], grand: reportRow('TỔNG CỘNG', { soLuong: 6, tongPhaiThuTra: 18_000_000 }) }
+      : { rows: [], grand: reportRow('TỔNG CỘNG') });
+    getPayablesSummary.mockResolvedValue({ items: [{ supplier: { id: 1, name: 'XE NHÀ — SILVER SEA' }, kind: 'vendor', totalOutstanding: 18_000_000 }] });
+    renderSummary('payable');
+    const table = await screen.findByRole('table');
+    expect(conNoCellOf(partyCell(table, 'XE NHÀ — SILVER SEA') as HTMLElement)).toBe('18.000.000 ₫');
   });
 });
 

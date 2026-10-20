@@ -1,0 +1,82 @@
+[
+ {
+  "label": "STT",
+  "textW": 25,
+  "padH": 12,
+  "borderR": 1,
+  "neededColW": 38,
+  "currentColW": 40
+ },
+ {
+  "label": "Số container",
+  "textW": 97,
+  "padH": 12,
+  "borderR": 1,
+  "neededColW": 110,
+  "currentColW": 128
+ },
+ {
+  "label": "Loại container",
+  "textW": 109,
+  "padH": 12,
+  "borderR": 1,
+  "neededColW": 122,
+  "currentColW": 104
+ },
+ {
+  "label": "Nhà máy",
+  "textW": 59,
+  "padH": 12,
+  "borderR": 1,
+  "neededColW": 72,
+  "currentColW": 118
+ },
+ {
+  "label": "Tuyến đường",
+  "textW": 95,
+  "padH": 12,
+  "borderR": 1,
+  "neededColW": 108,
+  "currentColW": 180
+ },
+ {
+  "label": "Cảng nâng",
+  "textW": 78,
+  "padH": 12,
+  "borderR": 1,
+  "neededColW": 91,
+  "currentColW": 118
+ },
+ {
+  "label": "Cảng hạ",
+  "textW": 59,
+  "padH": 12,
+  "borderR": 1,
+  "neededColW": 72,
+  "currentColW": 118
+ },
+ {
+  "label": "Trọng lượng (kg)",
+  "textW": 128,
+  "padH": 12,
+  "borderR": 1,
+  "neededColW": 141,
+  "currentColW": 96
+ },
+ {
+  "label": "Ngày giờ đóng trả",
+  "textW": 135,
+  "padH": 12,
+  "borderR": 1,
+  "neededColW": 148,
+  "currentColW": 200
+ },
+ {
+  "label": "Thao tác",
+  "textW": 66,
+  "padH": 12,
+  "borderR": 0,
+  "neededColW": 78,
+  "currentColW": 44
+ }
+]

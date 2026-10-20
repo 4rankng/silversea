@@ -69,10 +69,10 @@ describe('shipment create responsive layout', () => {
     // `overflow-y: auto` and the horizontal scrollbar's height makes the table
     // overflow vertically — the page painted TWO scrollbars over one table.
     expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*hidden;/);
-    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1038px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1108px;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*180px;/);
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
-    expect(css).toMatch(/\.csc-container-col__weight\s*\{[^}]*width:\s*96px;/);
+    expect(css).toMatch(/\.csc-container-col__weight\s*\{[^}]*width:\s*144px;/);
     expect(css).toMatch(/\.csc-container-col__actions\s*\{[^}]*width:\s*44px;/);
     expect(css).toMatch(/\.csc-container-col__pickup-port,\s*\.csc-container-col__dropoff-port,\s*\.csc-container-col__factory\s*\{[^}]*width:\s*auto;/);
     // The appointment column is deliberately NOT auto: the SplitDateTimeField
@@ -96,6 +96,14 @@ describe('shipment create responsive layout', () => {
   it('uses shared headers on desktop and deliberate record layouts below the wide canvas', () => {
     // Desktop keeps a styled shared header row; below the wide canvas the
     // header row and its colgroup step aside for the record layout.
+    // FB-063 (card 181026021137, regression 201026101500): every header label
+    // stays on ONE line — the sheet's own nowrap law, not a per-label carve.
+    // The measured single-line widths ("Loại container" 122px, "Trọng lượng
+    // (kg)" 141px incl. padding) sit under their column widths above.
+    expect(css).toMatch(/\.csc-container-table thead th\s*\{[^}]*white-space:\s*nowrap;[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*normal;/);
+    expect(css).not.toMatch(/\.csc-container-table thead th\s*\{[^}]*white-space:\s*normal;/);
+    expect(Number(/\.csc-container-col__type\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(122);
+    expect(Number(/\.csc-container-col__weight\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(141);
     expect(css).toMatch(/\.csc-container-table thead th\s*\{[^}]*background:\s*var\(--surface-2\);[^}]*font-weight:\s*700;/);
     expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-table thead,\s*\.csc-container-table colgroup\s*\{[^}]*display:\s*none;/);
     expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);

@@ -1,0 +1,5 @@
+{"at":"2026-10-20T03:18:02.223Z","step":"seeded","cThu":233473,"cTra":233474,"trip":193815,"day":"2026-08-20"}
+{"at":"2026-10-20T03:18:02.436Z","step":"wire","thu":{"party":"CÔNG TY TNHH MTV R20B-MVG456OJ","partyShortName":"R20B-MVG456OJ MINH","partyId":233473,"partyKind":"customer"},"tra":{"party":"R20B-MVG456OJ XANH","partyId":233474,"partyKind":"carrier"},"agingHasCustomer":null}
+{"at":"2026-10-20T03:18:12.263Z","step":"ui","tableFound":true,"thuShown":true,"thuTooltip":"CÔNG TY TNHH MTV R20B-MVG456OJ","thuConNo":"0 ₫","traShown":true,"traConNo":"0 ₫","legalNameLeak":false,"fullThuStillAbsentAsDisplay":true}
+{"at":"2026-10-20T03:18:12.503Z","step":"verdict","pass":true}
+{"at":"2026-10-20T03:18:13.034Z","step":"cleanup-done"}
