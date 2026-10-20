@@ -209,3 +209,18 @@ Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb113-inves
 **Not covered**: staging re-drive sau deploy (QA R26); role khác ngoài CUS trên detail header; viewport ≤760 của detail (không đổi CSS).
 
 Stack note: vite :7178 chạy từ worktree này (background) cho after-drive; :7175 (r25 worktree) + :7176 (SSD main) + backend :3002 (SSD main, tsx) là của task khác — KHÔNG đụng. Local DB ss-prod-db :5441 có sẵn, chỉ đọc.
+
+---
+
+# FB-019 fix — banner lái xe lộ mã nội bộ TRP → Số Bill/Booking — 2026-10-21 (card 211026005621)
+
+Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb019-laixe-banner, branch fix-fb019-laixe-banner, commit 2fffbc7b.
+
+**Status**: DONE — FE-only fix + UI DRIVEN (§9 rung 3) cả before/after tại đúng surface lỗi (màn chi tiết lệnh lái xe `/my-trips/:id`, banner `blocking-trip-banner` + toast).
+
+- **Root cause (đã chứng minh bằng repro thật)**: khi tài xế bấm "Nhận lệnh vận chuyển" mà xe đang có chuyến IN_TRANSIT chưa đủ evidence, BE trả 409 `Xe đang chạy chuyến TRP-…. Vui lòng hoàn thành chuyến đó trước.` (trip-status-machine.service.ts:241, message giữ nguyên vì surface điều vận đọc mã). `handleMilestone` (DriverTripDetailPage.tsx) parse mã rồi render thẳng vào banner role=alert và toast — vi phạm internal-ids law (CHIEF 26/09). Card docx GDrive-wedged (PackageNotFoundError) — chạy theo brief.
+- **Fix**: `blockingTripCode` chỉ còn là presence-signal + lookup key (không render); thêm `blockingTripLabel` = `blNumber || bookingRef` từ journey board của chính tài xế; board không chứng thực → câu chung "Xe đang có chuyến chưa hoàn thành…" + handoff "Liên hệ điều vận", không bịa reference. Toast vẫn mang lý do qua cả 2 surface (nguyên tắc card 20260916_8) nhưng sạch mã. Success path xóa banner (fix luôn stale-banner). Reviewer độc lập: APPROVE 0 defect.
+- **UI DRIVEN evidence** (`qa/2026-10-21-fb019/`, 9 PNG + ui-driver.log; script `testplan/qa/scripts/w6-fb019-driver-banner.mjs`): local stack worktree này (BE :3302 / FE :7176, tắt sau khi drive), DB ss-prod-db :5441 — seed tạm: trip 67894 TRP-202610-0435 → IN_TRANSIT (blocker), trip 85065 TRP-202610-0631 (Bill FB020-R21-RB1) làm accept target, tài khoản laixe. BEFORE: banner+toast lộ TRP-202610-0435 (409 thật). AFTER: hiển thị FB020-R21-RB1, link /my-trips/67894 giữ nguyên; variant blocker-không-thuộc-về: câu chung + Liên hệ điều vận. **DB đã revert về nguyên trạng** (67894: driver 2/truck 1/CREATED/version 2; 85065, 50 không đổi) — các fetch 409 chỉ để lại audit-log rows.
+- **Gates**: `cd frontend && npx tsgo -b` exit 0 · `pnpm lint` exit 0 · `npx vitest run src/pages/DriverTripDetailPage.test.tsx` 55/55 (3 test mới ở describe busy-trip recovery). Regression: `testplan/2026-10-21-card211026005621-fb019-driver-banner-internal-code.md`.
+- **Not covered**: variant blocker không có mã (BE fallback 'một chuyến khác') chỉ soi code — regex vẫn khớp, không leak; BE gates không chạy (không đụng BE); role/viewport khác driver mobile 390 (không đổi CSS); staging re-drive sau deploy.
+- Stack note: port 3302/7176 đã giải phóng; :3002 (SSD main) + :7175 (fix-fb045-lan2) là của task khác — KHÔNG đụng.
