@@ -565,3 +565,22 @@
   gap: 12px;
   margin-top: 12px;
 }
+
+/* FB-066 lần 3 (card 201026101600) — the "BKS thực" head row carries the
+   shared quick-add affordance (same pattern as the Gán xe nhóm / Đổi BKS
+   nhóm dialogs' vehicle heads). */
+.dispatch-allocation-lcl__field {
+  display: grid;
+  gap: 6px;
+}
+.dispatch-allocation-lcl__field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dispatch-allocation-lcl__label {
+  color: var(--fg-1);
+  font-size: var(--text-label-size, 13px);
+  font-weight: var(--fw-semibold, 600);
+}

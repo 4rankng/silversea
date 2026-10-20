@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal } from '../../../components/UI';
+import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { normalizePlate } from './DispatchPlanCellValues';
 import { createCarrierFleetVehicle, createInternalTruck } from '../../../api/dispatchPlanningClient';
 import './QuickAddVehicleDialog.css';
@@ -11,6 +12,15 @@ interface QuickAddVehicleDialogProps {
    *  Card 101026043010: one dialog serves both pickers, never a variant. */
   carrierId: number | null;
   carrierName: string;
+  /** FB-066 lần 3 (card 201026101600): pre-fill the plate — the picker's
+   *  "Thêm mới: <số>" dropdown option hands its typed number here so the
+   *  operator confirms instead of retyping it. */
+  initialPlate?: string;
+  /** FB-066 lần 3 — "hãng/nhà xe nếu cần": a surface whose lot has NO planned
+   *  nhà xe yet cannot resolve the registration target, so the dialog asks
+   *  (đội xe nội bộ + every active nhà xe). Omitted (or one choice) = no
+   *  question, the fixed `carrierId`/`carrierName` above stand. */
+  carrierChoices?: Array<{ carrierId: number | null; label: string }>;
   onClose: () => void;
   onCreated: (vehicleId: number, licensePlate: string) => void;
 }
@@ -19,18 +29,26 @@ interface QuickAddVehicleDialogProps {
  *  through the SAME API the matching sidebar registration uses: the external
  *  path posts to the Xe ngoài list (POST /api/shipments/carrier-fleet-vehicles),
  *  the internal path (card 101026043010) to the truck catalog (POST /api/trucks). */
-export function QuickAddVehicleDialog({ isOpen, carrierId, carrierName, onClose, onCreated }: QuickAddVehicleDialogProps) {
+export function QuickAddVehicleDialog({ isOpen, carrierId, carrierName, initialPlate = '', carrierChoices, onClose, onCreated }: QuickAddVehicleDialogProps) {
   const [plate, setPlate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // FB-066 lần 3 — the ask-carrier picker's selection (index into
+  // `carrierChoices`); seeded to the fixed carrier when it is one of them.
+  const [choiceIndex, setChoiceIndex] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
-      setPlate('');
+      setPlate(initialPlate);
       setError(null);
       setSaving(false);
+      const fixedIndex = carrierChoices?.findIndex((choice) => choice.carrierId === carrierId) ?? -1;
+      setChoiceIndex(fixedIndex >= 0 ? fixedIndex : 0);
     }
-  }, [isOpen]);
+  }, [isOpen, initialPlate, carrierChoices, carrierId]);
+
+  const askingCarrier = (carrierChoices?.length ?? 0) > 1;
+  const target = askingCarrier ? carrierChoices![choiceIndex]! : { carrierId, label: carrierName };
 
   function apply() {
     const normalized = normalizePlate(plate);
@@ -45,9 +63,9 @@ export function QuickAddVehicleDialog({ isOpen, carrierId, carrierName, onClose,
     setSaving(true);
     // Card 101026043010 — an internal quick-add registers an own-fleet
     // tractor (fleet-catalog create); the external path keeps the Xe ngoài API.
-    (carrierId == null
+    (target.carrierId == null
       ? createInternalTruck({ licensePlate: normalized })
-      : createCarrierFleetVehicle({ carrierId, licensePlate: normalized }))
+      : createCarrierFleetVehicle({ carrierId: target.carrierId, licensePlate: normalized }))
       .then((vehicle) => {
         onCreated(vehicle.id, vehicle.licensePlate);
       })
@@ -66,11 +84,25 @@ export function QuickAddVehicleDialog({ isOpen, carrierId, carrierName, onClose,
       maxWidth={440}
     >
       <div className="quick-add-vehicle">
-        <p className="quick-add-vehicle__context">
-          Nhà xe: <strong>{carrierName || '—'}</strong>
-        </p>
+        {/* Asking mode: the picker below IS the carrier display (one concept,
+            one place — design-guidelines §1); fixed mode names the context. */}
+        {!askingCarrier && (
+          <p className="quick-add-vehicle__context">
+            Nhà xe: <strong>{target.label || '—'}</strong>
+          </p>
+        )}
+        {askingCarrier && (
+          <UuiSelectField
+            label="Nhà xe"
+            value={String(choiceIndex)}
+            onChange={(event) => setChoiceIndex(Number(event.target.value))}
+            options={carrierChoices!.map((choice, index) => ({ value: String(index), label: choice.label }))}
+            disabled={saving}
+            size="sm"
+          />
+        )}
         <p className="quick-add-vehicle__hint">
-          {carrierId == null
+          {target.carrierId == null
             ? 'Xe được lưu vào danh sách xe nội bộ (giống đăng ký ở menu Danh mục).'
             : 'Xe được lưu vào danh sách Xe ngoài của nhà xe này (giống đăng ký ở menu Danh mục).'}
         </p>

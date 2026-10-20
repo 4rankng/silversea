@@ -16,7 +16,7 @@
 // hàng lẻ are GROUP facts (FB-090/161026232309): they are set by "Gán xe nhóm"
 // (≥2 lô, same screen) or per-lot in Kế hoạch Chi tiết — the dialog states
 // them as facts with that routing hint instead of offering dead editors.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   listDispatchFleetResources,
   updateLclTruck,
@@ -25,10 +25,13 @@ import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { CloseButton } from '../../../components/untitled-ui/base/buttons/close-button';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
+import { QuickAddButton } from '../../../components/shared/QuickAddButton';
 import { useToast } from '../../../components/shared/Toast';
 import { Modal } from '../../../design-system/Modal';
 import { billBookingReference } from '../../../lib/business-reference';
+import { QuickAddVehicleDialog } from '../detailed-plan/QuickAddVehicleDialog';
 import { USearchableField } from '../../shipments/create/uui-searchable-field';
+import { useCarrierAllocationOptions } from './useCarrierAllocationOptions';
 import './DispatchAllocationPopover.css';
 
 export interface DispatchAllocationLclDialogProps {
@@ -63,6 +66,15 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
   const [plateOptions, setPlateOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // FB-066 lần 3 (card 201026101600, QA R27) — quick-add a plate straight
+  // from the "BKS thực" picker, the affordance the Gán xe nhóm / Đổi BKS
+  // nhóm dialogs already own (22c9c80b). The nonce re-runs the fleet fetch
+  // so a just-registered plate joins the option list; the interim list keeps
+  // it selectable before the refetch lands (sibling law).
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [quickAddSeed, setQuickAddSeed] = useState('');
+  const [fleetNonce, setFleetNonce] = useState(0);
+  const [interimPlates, setInterimPlates] = useState<string[]>([]);
 
   // BKS is a SELECTOR over the fleet of the nhà xe already planned on the lot
   // (round-19 law); a lot without one keeps free text — "BKS gõ tay" is the
@@ -87,7 +99,46 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
       setPlateOptions([...new Set(plates)].map((plate) => ({ value: plate, label: plate })));
     }).catch(() => { if (!cancelled) setPlateOptions([]); });
     return () => { cancelled = true; };
-  }, [plannedCarrier?.carrierType, plannedCarrier?.externalCarrierId]);
+  }, [plannedCarrier?.carrierType, plannedCarrier?.externalCarrierId, fleetNonce]);
+
+  // The created plate rides the picker immediately (before the refetch lands
+  // it) — deduped against the fetched list, keyed by the plate itself.
+  const plateChoices = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: Array<{ value: string; label: string }> = [];
+    for (const plate of [...interimPlates, ...plateOptions.map((option) => option.value)]) {
+      if (!plate || seen.has(plate)) continue;
+      seen.add(plate);
+      merged.push({ value: plate, label: plate });
+    }
+    return merged;
+  }, [interimPlates, plateOptions]);
+
+  // FB-066 lần 3 — the quick-add registration target: the lot's planned nhà
+  // xe (OWN → the internal truck catalog, EXTERNAL → that nhà xe's Xe ngoài
+  // list). A lot WITHOUT one makes the dialog ask ("hãng/nhà xe nếu cần")
+  // over the house carrier set — never a silent wrong-target registration.
+  const { options: carrierCatalog } = useCarrierAllocationOptions();
+  const quickAddCarrierId = plannedCarrier?.carrierType === 'EXTERNAL' ? plannedCarrier.externalCarrierId ?? null : null;
+  const quickAddCarrierName = plannedCarrier?.carrierType === 'OWN'
+    ? 'SilverSea — xe nội bộ'
+    : plannedCarrier?.carrierLabel ?? '';
+  const quickAddCarrierChoices = useMemo(
+    () => (plannedCarrier
+      ? undefined
+      : carrierCatalog.map((option) => ({ carrierId: option.externalCarrierId ?? null, label: option.label }))),
+    [plannedCarrier, carrierCatalog],
+  );
+
+  const handleVehicleCreated = (_vehicleId: number, licensePlate: string) => {
+    // "chọn ngay vào ô" — the new plate lands in BKS thực (the untouched
+    // BKS ảo auto-copy effect follows it), the allocation dialog NEVER
+    // closes, and its draft state (nhà xe facts, typed fields) survives.
+    setActualTruckNo(licensePlate);
+    setInterimPlates((prev) => [...prev, licensePlate]);
+    setFleetNonce((nonce) => nonce + 1);
+    setQuickAddOpen(false);
+  };
 
   // Auto-copy: BKS báo khách follows BKS thực until the operator edits it by
   // hand (lclspec "auto-copy từ thực tế").
@@ -182,24 +233,49 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
         </section>
 
         <div className="dispatch-allocation-lcl__fields">
-          <USearchableField
-            label="BKS thực (xe chạy chuyến)"
-            value={actualTruckNo}
-            onChange={setActualTruckNo}
-            onCustomValue={setActualTruckNo}
-            options={plateOptions}
-            placeholder={plannedCarrier ? 'Chọn BKS của nhà xe hoặc gõ mới' : 'Gõ BKS xe chạy chuyến'}
-            searchable
-            allowsCustomValue
-            required
-            disabled={saving}
-          />
+          {/* FB-066 lần 3 (card 201026101600, QA R27) — the "BKS thực" picker
+              carries the "+ Thêm nhanh" quick-add the Gán xe nhóm / Đổi BKS
+              nhóm dialogs already own, PLUS the dropdown "Thêm mới: <số>"
+              option for an unregistered typed plate (both affordances, owner
+              scope). The label lives in the head row (a <label> may wrap
+              exactly one labelable control — card 101026163010). */}
+          <div className="dispatch-allocation-lcl__field">
+            <div className="dispatch-allocation-lcl__field-head">
+              <span className="dispatch-allocation-lcl__label">BKS thực (xe chạy chuyến) <span aria-hidden="true">*</span></span>
+              <QuickAddButton
+                onClick={() => { setQuickAddSeed(''); setQuickAddOpen(true); }}
+                disabled={saving}
+              >
+                Thêm nhanh
+              </QuickAddButton>
+            </div>
+            <USearchableField
+              label="BKS thực (xe chạy chuyến)"
+              hideLabel
+              value={actualTruckNo}
+              onChange={setActualTruckNo}
+              onCustomValue={setActualTruckNo}
+              options={plateChoices}
+              placeholder={plannedCarrier ? 'Chọn BKS của nhà xe hoặc gõ mới' : 'Gõ BKS xe chạy chuyến'}
+              searchable
+              allowsCustomValue
+              required
+              disabled={saving}
+              createOption={{
+                label: (typed) => (typed.trim() ? `Thêm mới: ${typed.trim()}` : 'Thêm mới'),
+                onSelect: (typed) => {
+                  setQuickAddSeed(typed.trim());
+                  setQuickAddOpen(true);
+                },
+              }}
+            />
+          </div>
           <USearchableField
             label="BKS báo khách (ảo)"
             value={billingTruckNo}
             onChange={(next) => { billingTouchedRef.current = true; setBillingTruckNo(next); }}
             onCustomValue={(text) => { billingTouchedRef.current = true; setBillingTruckNo(text); }}
-            options={plateOptions}
+            options={plateChoices}
             placeholder="Mặc định copy BKS thực"
             searchable
             allowsCustomValue
@@ -237,6 +313,18 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
           </DisabledActionTip>
         </div>
       </div>
+      {/* FB-066 lần 3 — the quick-add rides as a nested dialog so the
+          allocation draft (facts, typed BKS, open menus) never leaves; only
+          the quick-add surface closes on create. */}
+      <QuickAddVehicleDialog
+        isOpen={quickAddOpen}
+        carrierId={quickAddCarrierId}
+        carrierName={quickAddCarrierName}
+        initialPlate={quickAddSeed}
+        carrierChoices={quickAddCarrierChoices}
+        onClose={() => setQuickAddOpen(false)}
+        onCreated={handleVehicleCreated}
+      />
     </Modal>
   );
 }

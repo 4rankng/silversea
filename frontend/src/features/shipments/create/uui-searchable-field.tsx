@@ -124,7 +124,15 @@ export function USearchableField({
     // Custom (allowsCustomValue) values are not in the catalog, so `selected`
     // is undefined — keep the applied value in the input instead of blanking it.
     setInputValue(selectedLabel ?? (allowsCustomValue ? value ?? '' : ''));
-    setChosenKey(selected?.value ?? (allowsCustomValue ? value ?? null : null));
+    // FB-066 lần 3 (card 201026101600): chosenKey is the user's LAST REAL
+    // PICK only — the module invariant at the chosenKey declaration ("typing
+    // must never touch selectedKey"). The old `?? (allowsCustomValue ? value
+    // ?? null : null)` fallback fed a phantom key on EVERY keystroke of a custom-typed value,
+    // which matched react-aria's internal auto-select and made
+    // KeepSuggestionsOpen treat the mid-word menu close as a real pick —
+    // suggestions (and the "Thêm mới" create option) never came back while
+    // typing. A custom value shows through inputValue above; it is not a pick.
+    setChosenKey(selected?.value ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, selectedLabel]);
   // 20260922_4: bare Enter (menu open, no highlighted option) commits the
@@ -176,6 +184,13 @@ export function USearchableField({
         }}
         onSelectionChange={(key) => {
           if (createOption && String(key) === '__create__') {
+            // FB-066 lần 3 (card 201026101600): the create row is a REAL pick
+            // — mark it on both key channels (internal + controlled agree), or
+            // KeepSuggestionsOpen reads the mismatch as a mid-word auto-select
+            // and pops the suggestions back open over the create dialog this
+            // onSelect opens (with react-aria's ariaHideOutside still scoped to
+            // the popover, that dialog renders aria-hidden to AT and tests).
+            setChosenKey('__create__');
             createOption.onSelect(inputValue);
             return;
           }
