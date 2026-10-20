@@ -1,0 +1,25 @@
+# FB-066 lần 3 (card 201026101600) — gates, 2026-10-20
+# worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb066-lan3 (branch fix-fb066-lan3)
+
+$ make build
+build exit: 0
+… dist/assets/index-BiGGfWSB.js 778.74 kB │ gzip: 223.66 kB
+  dist/assets/exceljs.min-CcmEv2LI.js 940.20 kB │ gzip: 271.34 kB
+  ✓ built in 5.67s
+
+$ cd frontend && npx tsgo -b
+(no output) — exit 0
+
+$ pnpm lint   # root eslint .
+(no output) — exit 0
+
+$ cd frontend && npx vitest run      # FULL suite, sau make build (2 dist-pin tests cần dist)
+ Test Files  692 passed (692)
+      Tests  5310 passed (5310)
+   Duration  168.08s
+exit 0
+
+# Scoped tái xác nhận (trước full):
+#   master-plan/ + detailed-plan/ + shipments/create + ShipmentDebitPage.lcl-merge
+#   + tests/dev-port-contract → 395/395 (lần khác 435/435), 0 fail.
+# Test mới: DispatchAllocationLclDialog.quick-add.test.tsx 5/5.

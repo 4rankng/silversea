@@ -71,6 +71,21 @@ Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb061-lan2,
 **Not covered**: các surface purge khác vẫn còn guarded survivors (remaining=34, pre-existing, non-gating — không thuộc card này); prod DB vẫn còn trio demo (purge từ chối prod theo thiết kế — cần owner instruction riêng nếu muốn dọn); role non-admin trên /users (non-ADMIN đã bị BE che ADMIN accounts — không đổi).
 
 ---
+# FB-066 lần 3 — quick-add BKS trong dialog "Phân bổ nhà xe" (card 201026101600) — 2026-10-20
+
+Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb066-lan3, branch `fix-fb066-lan3` (off main 106a25e3).
+
+**Status**: DONE — QA R27 repro trước fix (UI DRIVEN) → fix → after evidence UI DRIVEN (rung 3) trên local dev (`:7180` worktree vite → backend `:3002`), role dieuvan.
+
+- **Surface (khớp chữ QA)**: dialog "Phân bổ nhà xe" (`DispatchAllocationPopover` shell, `/dispatch`). LCL field-set (`DispatchAllocationLclDialog`) có ô BKS thực/ảo — trước fix không nút quick-add, gõ BKS lạ dropdown chỉ "Không tìm thấy kết quả".
+- **Fix**: (1) nút "+ Thêm nhanh" (component chung `QuickAddButton`) cạnh ô BKS thực → dialog "Thêm nhanh biển số xe" mở CHỒNG, tạo qua API catalog thật (OWN → POST /trucks, nhà xe ngoài → Xe ngoài), biển mới CHỌN NGAY vào ô + auto-copy BKS ảo — dialog phân bổ giữ trọn draft; (2) dropdown option "Thêm mới: &lt;số gõ&gt;" mở dialog quick-add ĐẦY số đã gõ; (3) lô chưa có nhà xe → picker "Nhà xe" (`UuiSelectField`, "hãng/nhà xe nếu cần"); (4) 2 fix shared `uui-searchable-field.tsx` (chosenKey = last REAL pick only; option `__create__` = pick thật) — hết bug dropdown đóng giữa chừng khi gõ / mở lại đè dialog / dialog quick-add bị react-aria `ariaHideOutside` che với AT.
+- **FCL cont field-set**: NOT APPLICABLE — không có ô BKS/xe (contract cont = 20'/40' theo nhà xe theo ngày, card 191026181942 "FCL keeps the cont body untouched"); biển số lô cont gán ở Kế hoạch Chi tiết ("Xe / biển số") — surface đó đã có quick-add từ card 20261004_357. Trước/sau cùng ảnh (`before-fcl-dialog.png`/`after-fcl-dialog.png`). Nếu owner muốn affordance BKS trong dialog FCL → cần card mới chốt contract (ô nào, lưu đâu).
+- **Evidence**: `qa/2026-10-20-fb066-lan3-dialog/` (report.md + before/after PNG + driver logs + `db-side-effect-proof.json`: trucks id 186310 `29C-066.99`, id 186311 `29C-066.97`). Test mới `DispatchAllocationLclDialog.quick-add.test.tsx` 5/5. Testplan: `testplan/2026-10-20-fb066-lan3-quickadd-dialog.md`.
+- **Gates**: `make build` OK · FE `npx tsgo -b` 0 · root `pnpm lint` 0 · FE vitest full 5310/5310 (sau build cho 2 dist-pin) — `gates.log`.
+- **Not covered**: role khác dieuvan; đường lỗi tạo trùng biển (unit test có); picker "Nhà xe" đổi lựa chọn khi tạo (unit test có); viewport mobile của dialog.
+
+---
+
 # QA R26 d39ee741 — re-drive FB-014 + spot FB-113/FB-093 — 2026-10-20
 
 Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/qa-r26-d39ee741, branch qa-r26-d39ee741 (off main d39ee741).

@@ -342,6 +342,11 @@ describe('FB-093 — Ghép cước thu khách', () => {
     fireEvent.focusIn(bksCombo);
     fireEvent.click(bksCombo);
     fireEvent.change(bksCombo, { target: { value: '51C-000.01' } });
+    // The typed free value keeps the suggestion menu open (FB-066 lần 3's
+    // suggestion-persistence fix) — dismiss it like a user moving to the
+    // submit button does (react-aria scopes its modal popover over the
+    // dialog while the list is open). The free-typed value stays in the field.
+    fireEvent.keyDown(bksCombo, { key: 'Escape' });
 
     mergeRev.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Ghép cước thu khách' }));
