@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { Role } from '@tingting/shared';
 import { isTokenBlacklisted } from '../lib/redis';
+import logger from '../lib/logger';
 import { ApiError } from '../errors';
 import { db } from '../db';
 import { customers, users, userCustomerLinks } from '../db/schema';
@@ -91,7 +92,18 @@ declare global {
  * middlewares. Denies rejected credentials with 401, unavailable dependencies
  * with 503; resolves the verified payload when it succeeds. The two middlewares
  * differ ONLY in where they source the token (header vs ?token= query).
+ *
+ * Each 401 carries a stable `reason` in the server log (`revoked` / `expired` /
+ * `role-drift` / `scope-drift`) so a staging session-drop report (QA R27) can
+ * be classified from logs alone: a logout in another tab shows `revoked`, a
+ * short TTL shows `expired`, an admin editing the user mid-session shows
+ * `role-drift`/`scope-drift`. Response bodies are unchanged.
  */
+function logAuthRejection(res: Response, reason: string): void {
+  // `res.req` is Express's back-reference to the originating request.
+  logger.info(`[Auth] reject reason=${reason} path=${res.req?.path ?? '?'}`);
+}
+
 async function authenticateToken(token: string | undefined, res: Response): Promise<AuthUser | null> {
   if (!token) {
     res.status(401).json({ error: 'Token không hợp lệ' });
@@ -100,6 +112,7 @@ async function authenticateToken(token: string | undefined, res: Response): Prom
   try {
     const payload = jwt.verify(token, config.jwtSecret) as AuthUser & { jti?: string };
     if (payload.jti && await isTokenBlacklisted(payload.jti)) {
+      logAuthRejection(res, 'revoked');
       res.status(401).json({ error: 'Token đã bị thu hồi' });
       return null;
     }
@@ -115,13 +128,20 @@ async function authenticateToken(token: string | undefined, res: Response): Prom
       ? await loadCurrentCustomerIds(payload.userId, current.customerId)
       : [];
     const tokenIds = tokenCustomerIds(payload);
-    if (!current || current.role !== payload.role || !sameCustomerScope(currentCustomerIds, tokenIds, payload)) {
+    if (!current || current.role !== payload.role) {
+      logAuthRejection(res, current ? 'role-drift' : 'user-missing');
+      res.status(401).json({ error: 'Quyền tài khoản đã thay đổi, vui lòng đăng nhập lại' });
+      return null;
+    }
+    if (!sameCustomerScope(currentCustomerIds, tokenIds, payload)) {
+      logAuthRejection(res, 'scope-drift');
       res.status(401).json({ error: 'Quyền tài khoản đã thay đổi, vui lòng đăng nhập lại' });
       return null;
     }
     return payload;
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
+      logAuthRejection(res, error instanceof jwt.TokenExpiredError ? 'expired' : 'invalid');
       res.status(401).json({ error: 'Token hết hạn hoặc không hợp lệ' });
       return null;
     }

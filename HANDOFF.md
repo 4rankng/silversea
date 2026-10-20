@@ -1,3 +1,42 @@
+# QA R27 fix — staging session instability (tự rớt phiên + tự chuyển user) — 2026-10-20
+
+Controller: agent, worktree fix-session-instability (off main 106a25e3).
+
+**Status**: DONE — root-cause + fix + gates xanh + UI DRIVEN local + probe staging.
+
+- **Root cause** (điều tra full-stack): KHÔNG có TTL ngắn (JWT 7d stateless, không
+  refresh endpoint, không cookie), không proxy cache /api, không multi-instance.
+  Cả 2 triệu chứng QA R27 đều là lớp **shared-token multi-tab** trong 1 browser
+  profile (localStorage `token` duy nhất): (1) login role khác ở tab khác ghi đè
+  token → tab đang test **đổi user im lặng** (5 phút staleTime /me làm việc đổi
+  trễ "sau vài phút") → FAIL ma khi test sai role; (2) logout/đổi-mật khẩu ở bất
+  kỳ tab nào thu hồi token dùng chung → các tab khác 401 → "tự rớt"; admin sửa
+  user đang test (role/status/customer-links) cũng 401 theo thiết kế bảo mật.
+- **Fix** (giữ nguyên chuẩn 1 session/browser theo owner ruling — KHÔNG
+  sessionStorage per-tab / cookie per-role):
+  - FE: cross-tab identity swap/logout giờ **LOUD** — toast warning "Thẻ khác đã
+    đăng nhập — phiên này chuyển sang <tên> (<role>)…" và info "Phiên đăng nhập
+    đã kết thúc ở thẻ khác." (`lib/api/session.ts` bus, `useAuth.syncStoredSession`
+    notify, `SessionNoticeToaster` trong `App.tsx`).
+  - BE: `/api/health` thêm `authTokenTtlSeconds` (một curl trả lời "TTL ngắn
+    không?"); `authenticateToken` log `[Auth] reject reason=revoked|expired|
+    role-drift|scope-drift` để phân loại rớt phiên từ server log.
+- **QA multi-role TỪ NAY (quan trọng — chống FAIL ma)**: mỗi role = 1 cửa sổ
+  riêng (Chrome profile riêng hoặc incognito riêng). KHÔNG mở 2 role trong cùng
+  profile ở tab thường — token dùng chung ghi đè lẫn nhau là hành vi chuẩn của
+  thiết kế, KHÔNG phải bug. Thấy toast "Thẻ khác đã đăng nhập" = tab đang chạy
+  sai tài khoản → dừng test, kiểm tra role. Sau khi admin sửa user → user đó
+  phải đăng nhập lại (401 "Quyền tài khoản đã thay đổi" là chủ đích).
+- Evidence: `qa/2026-10-20-r27-session_stability-probe.log` (staging 8dfb6e4f,
+  2 phiên riêng 10 phút poll /me: 0 rớt, 0 đổi user — triệu chứng không tái hiện
+  khi mỗi phiên một token); `qa/2026-10-20-r27-session/` UI DRIVEN 5/5 checks
+  (toast swap + toast logout + /login + server 401 thu hồi + identity /me);
+  testplan/2026-10-20-r27-session-instability.md (TC-1..4).
+- Not covered: staging re-drive sau deploy (cần `make demo`); toast trên mobile
+  viewport; role ngoài ADMIN/ACCOUNTANT.
+
+---
+
 # QA R26 d39ee741 — re-drive FB-014 + spot FB-113/FB-093 — 2026-10-20
 
 Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/qa-r26-d39ee741, branch qa-r26-d39ee741 (off main d39ee741).

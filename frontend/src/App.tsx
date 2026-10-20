@@ -10,15 +10,48 @@ import CustomerPortalLayout from './pages/portal/CustomerPortalLayout';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
+import { onSessionIdentityChanged } from './lib/api/session';
 import { homeForRole, routes } from './lib/routes';
 import { canReadShipmentDebitRoutes, canReadShipmentRoutes } from './lib/role-access';
-import { getModernRole } from './lib/role-helpers';
+import { getDisplayRole, getModernRole } from './lib/role-helpers';
 import { canViewInvoiceTracking } from './lib/app-access';
 
 export function legacyAdvanceSettlementsTarget(search: string): string {
   const params = new URLSearchParams(search);
   params.set('view', 'settlements');
   return `${routes.advances}?${params.toString()}`;
+}
+
+/**
+ * QA R27 session-instability: the one shared auth token means another tab in
+ * the same browser profile can swap this tab's account (its login) or end it
+ * (its logout). The swap/drop is by-design behavior; what this component adds
+ * is the missing SIGNAL — a toast naming the account this tab now runs as, so
+ * a tester never keeps testing under the wrong role without knowing (the
+ * phantom-FAIL class from the R27 environment note).
+ */
+function SessionNoticeToaster() {
+  const { toast } = useToast();
+  useEffect(
+    () => onSessionIdentityChanged((event) => {
+      if (event.kind === 'cross-tab-login') {
+        const name = event.current.fullName?.trim() || `#${event.current.userId}`;
+        toast({
+          kind: 'warning',
+          message: `Thẻ khác đã đăng nhập — phiên này chuyển sang ${name} (${getDisplayRole(event.current.role)}). Kiểm tra lại vai trò trước khi tiếp tục.`,
+          duration: 10_000,
+        });
+      } else {
+        toast({
+          kind: 'info',
+          message: 'Phiên đăng nhập đã kết thúc ở thẻ khác.',
+          duration: 10_000,
+        });
+      }
+    }),
+    [toast],
+  );
+  return null;
 }
 
 function LegacyAdvanceSettlementsRedirect() {
@@ -553,6 +586,7 @@ export default function App() {
           <MonthProvider>
             <SearchProvider>
               <StaleBuildBanner />
+              <SessionNoticeToaster />
               <AppRoutes />
             </SearchProvider>
           </MonthProvider>
