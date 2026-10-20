@@ -4,7 +4,11 @@ import { api, ApiError } from '../lib/api';
 import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { clearTokenIfCurrent, getToken, isCurrentToken, onStoredTokenChange } from '../lib/token';
-import { onSessionExpired } from '../lib/api/session';
+import {
+  notifySessionIdentityChanged,
+  onSessionExpired,
+  type SessionIdentity,
+} from '../lib/api/session';
 import './useAuth.css';
 
 export interface AuthUser {
@@ -76,6 +80,11 @@ async function revokeToken(token: string): Promise<void> {
   }
 }
 
+/** Audit-safe display fields for a session identity event. */
+function identityOf(user: AuthUser): SessionIdentity {
+  return { userId: user.userId, fullName: user.fullName ?? null, role: user.role };
+}
+
 /** True when the JWT is malformed or its exp has passed. JWT segments are
  *  base64URL (—/_ alphabet, stripped padding) and the payload body is UTF-8,
  *  so the raw segment must be normalized before atob and decoded through
@@ -138,14 +147,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const syncStoredSession = useCallback((token: string | null) => {
     if (token === sessionTokenRef.current) return;
+    // Snapshot the identity this tab was showing BEFORE the shared token
+    // changed — the comparison after resync decides whether another tab
+    // swapped the account (QA R27: swaps must be loud, never silent).
+    const previousUser = queryClient.getQueryData<AuthUser | null>(qk.auth.me) ?? null;
     sessionTokenRef.current = token;
     api.resetSessionCaches();
     // Cancel every old actor query before removing its private cached data.
     void queryClient.cancelQueries();
     clearUserScopedQueries(queryClient);
     setSessionExpired(false);
-    if (token) void queryClient.resetQueries({ queryKey: qk.auth.me, exact: true });
-    else queryClient.setQueryData(qk.auth.me, null);
+    if (token) {
+      void queryClient.resetQueries({ queryKey: qk.auth.me, exact: true })
+        .then(() => {
+          const nextUser = queryClient.getQueryData<AuthUser | null>(qk.auth.me) ?? null;
+          if (previousUser && nextUser && nextUser.userId !== previousUser.userId) {
+            notifySessionIdentityChanged({
+              kind: 'cross-tab-login',
+              previous: identityOf(previousUser),
+              current: identityOf(nextUser),
+            });
+          }
+        })
+        .catch(() => {
+          // A failed /me resync surfaces through the query's own error state;
+          // the identity notice is strictly additive.
+        });
+    } else {
+      queryClient.setQueryData(qk.auth.me, null);
+      if (previousUser) {
+        notifySessionIdentityChanged({ kind: 'cross-tab-logout', previous: identityOf(previousUser) });
+      }
+    }
   }, [queryClient]);
 
   const login = useCallback(

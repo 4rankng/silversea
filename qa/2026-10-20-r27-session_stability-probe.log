@@ -1,0 +1,8 @@
+[2026-10-20 19:51:59] probe start BASE=https://vantai.tingting.vip/api users=admin/hoapt window=10m poll=60s
+[2026-10-20 19:51:59] health: {"status":"ok","timestamp":"2026-10-20T11:51:59.335Z","buildHash":"8dfb6e4f"}
+[2026-10-20 19:52:00] login ok: admin (324 chars token), hoapt (313 chars token)
+[2026-10-20 19:52:00] baseline admin: 200 61 ADMIN
+[2026-10-20 19:52:00] baseline hoapt: 200 9 ACCOUNTANT
+[2026-10-20 19:57:01] checkpoint poll#5 still stable
+[2026-10-20 20:02:03] checkpoint poll#10 still stable
+[2026-10-20 20:02:03] RESULT: PASS — 10 polls, both sessions stable (no 401, no identity flip) over 10m

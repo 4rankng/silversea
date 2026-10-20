@@ -6,6 +6,7 @@ import { client as dbClient } from './db';
 import { disconnectRedis } from './lib/redis';
 import { checkRedisAtBoot } from './lib/boot-redis';
 import logger from './lib/logger';
+import { durationStringToSeconds } from './lib/duration';
 import { initEnforcer } from './casbin/enforcer';
 import { authMiddleware, assetAuthMiddleware } from './middleware/auth';
 import { casbinAuthz, tripRouteAuthz } from './middleware/casbin';
@@ -189,7 +190,15 @@ app.use(auditLogMiddleware);
 // ── Public routes ──────────────────────────────────────────────────────────
 const BUILD_HASH = process.env.BUILD_HASH || 'dev';
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), buildHash: BUILD_HASH });
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    buildHash: BUILD_HASH,
+    // QA R27: one curl must answer "is the auth TTL short here?". Staging and
+    // prod both pin 7d via deploy/setup-*-server.sh; a drifted .env shows up
+    // immediately instead of needing SSH access to read the env file.
+    authTokenTtlSeconds: durationStringToSeconds(config.jwtExpiresIn),
+  });
 });
 
 // Auth routes: login is public, /me and /users use their own authMiddleware

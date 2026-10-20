@@ -1,17 +1,39 @@
-# FB-061 lần 2 — /users sạch dữ liệu mẫu trên staging (card 201026112400) — 2026-10-20
+# QA R27 fix — staging session instability (tự rớt phiên + tự chuyển user) — 2026-10-20
 
-Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb061-lan2, branch fix-fb061-lan2 (off main 106a25e3). Fix commit `0b870f61`, deployed staging `0b870f61`.
+Controller: agent, worktree fix-session-instability (off main 106a25e3).
 
-**Status**: DONE — giả thuyết DATA xác nhận, fix bằng purge-guard, staging UI DRIVEN sạch.
+**Status**: DONE — root-cause + fix + gates xanh + UI DRIVEN local + probe staging.
 
-- Trước: staging build `106a25e3`, `GET /api/auth/users` = 77 users, 5 thuộc lớp mẫu: demo-seed trio `cus`/`dieuvan`/`customer` (fullname còn "Demo"), `e2e-dispatcher-37341` (prefix e2e-, suffix ngắn lọt regex epoch-13), `HAHA-email-probe2` (probe tay). Fix trước d4d686d6 chỉ quét /accounting/phoi-phieu nên không thấy mặt /users.
-- Fix: `QA_FIXTURE_REGISTRY` users surface +2 branch (`e2e-%`, `HAHA-email-probe%`); surface users mới **staging-only** soft-delete trio demo dưới conjunct `(username IN (cus,dieuvan,customer) AND full_name ILIKE '%Demo%')` — bảo vệ account demo đã mang tên thật (admin, giamdoc, ketoan, laixe, giaonhan, khachhang, samsung-cs, canon-cs) và local dev-seed. Executor học `envs` scoping (skip không tính remaining, không gây exit 2).
-- Deploy `make demo` (build `0b870f61`): purge users `deleted=2` (e2e+HAHA) + `deleted=3` (trio), remaining=0. Re-run `make qapurge` idempotent (deleted=0). API re-probe: 72 users, 0 flagged. UI DRIVEN 1440+390: 8 trang ×10 = 72 dòng, 0 signature, KPI 72/11/43/0, 0 console error.
-- Gates: BE tsc 0 · BE unit 311/311 (+6 pin mới `qa-fixture-users-surface.test.ts`) · root lint 0.
-- Trade-off: login `cus` trên staging (2 script FB-113 cũ) hết hiệu lực — lane CUS staging theo contract testaccounts: `thanhdc` (NV018)+. FB-113 đã PASS R26, không lane đứng nào gãy.
-- Evidence: `qa/2026-10-20-fb061-lan2-users/` (deploy-demo.log, qapurge-rerun-idempotence.log, users-probe-before-stdout.md, users-census-after.json, 2 PNG + DOM + rows + driver log); case `testplan/cases/case-2026-10-20-fb061-lan2-users-demo-accounts.md`.
-
-**Not covered**: các surface purge khác vẫn còn guarded survivors (remaining=34, pre-existing, non-gating — không thuộc card này); prod DB vẫn còn trio demo (purge từ chối prod theo thiết kế — cần owner instruction riêng nếu muốn dọn); role non-admin trên /users (non-ADMIN đã bị BE che ADMIN accounts — không đổi).
+- **Root cause** (điều tra full-stack): KHÔNG có TTL ngắn (JWT 7d stateless, không
+  refresh endpoint, không cookie), không proxy cache /api, không multi-instance.
+  Cả 2 triệu chứng QA R27 đều là lớp **shared-token multi-tab** trong 1 browser
+  profile (localStorage `token` duy nhất): (1) login role khác ở tab khác ghi đè
+  token → tab đang test **đổi user im lặng** (5 phút staleTime /me làm việc đổi
+  trễ "sau vài phút") → FAIL ma khi test sai role; (2) logout/đổi-mật khẩu ở bất
+  kỳ tab nào thu hồi token dùng chung → các tab khác 401 → "tự rớt"; admin sửa
+  user đang test (role/status/customer-links) cũng 401 theo thiết kế bảo mật.
+- **Fix** (giữ nguyên chuẩn 1 session/browser theo owner ruling — KHÔNG
+  sessionStorage per-tab / cookie per-role):
+  - FE: cross-tab identity swap/logout giờ **LOUD** — toast warning "Thẻ khác đã
+    đăng nhập — phiên này chuyển sang <tên> (<role>)…" và info "Phiên đăng nhập
+    đã kết thúc ở thẻ khác." (`lib/api/session.ts` bus, `useAuth.syncStoredSession`
+    notify, `SessionNoticeToaster` trong `App.tsx`).
+  - BE: `/api/health` thêm `authTokenTtlSeconds` (một curl trả lời "TTL ngắn
+    không?"); `authenticateToken` log `[Auth] reject reason=revoked|expired|
+    role-drift|scope-drift` để phân loại rớt phiên từ server log.
+- **QA multi-role TỪ NAY (quan trọng — chống FAIL ma)**: mỗi role = 1 cửa sổ
+  riêng (Chrome profile riêng hoặc incognito riêng). KHÔNG mở 2 role trong cùng
+  profile ở tab thường — token dùng chung ghi đè lẫn nhau là hành vi chuẩn của
+  thiết kế, KHÔNG phải bug. Thấy toast "Thẻ khác đã đăng nhập" = tab đang chạy
+  sai tài khoản → dừng test, kiểm tra role. Sau khi admin sửa user → user đó
+  phải đăng nhập lại (401 "Quyền tài khoản đã thay đổi" là chủ đích).
+- Evidence: `qa/2026-10-20-r27-session_stability-probe.log` (staging 8dfb6e4f,
+  2 phiên riêng 10 phút poll /me: 0 rớt, 0 đổi user — triệu chứng không tái hiện
+  khi mỗi phiên một token); `qa/2026-10-20-r27-session/` UI DRIVEN 5/5 checks
+  (toast swap + toast logout + /login + server 401 thu hồi + identity /me);
+  testplan/2026-10-20-r27-session-instability.md (TC-1..4).
+- Not covered: staging re-drive sau deploy (cần `make demo`); toast trên mobile
+  viewport; role ngoài ADMIN/ACCOUNTANT.
 
 ---
 

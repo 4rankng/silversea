@@ -58,7 +58,7 @@ class ApiClient {
     this.retryableCommandKeys.clear();
   }
 
-  setToken(token: string) {
+  setToken(token: string | null) {
     this.resetSessionCaches();
     storeToken(token);
   }
