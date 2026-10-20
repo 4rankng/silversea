@@ -18,7 +18,7 @@ dist/
 graphify-out/
 .antigravitycli/
 # React / Node
-node_modules/
+node_modules
 build/
 .env
 .env.local
