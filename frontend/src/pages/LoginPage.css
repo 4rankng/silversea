@@ -198,6 +198,14 @@
   font-weight: 600;
 }
 
+/* Installed launch: the footer above is hidden (hide-in-pwa), and on phones
+   it was also the carrier of the home-indicator clearance — re-ground the
+   auth panel so the login help text keeps its iOS safe-area gap. On desktop
+   standalone env() resolves to 0, so this is a no-op there. */
+.pwa-standalone .login-auth-panel {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .login-visual {
   position: relative;
   min-width: 0;

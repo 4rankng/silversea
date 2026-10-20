@@ -170,12 +170,19 @@ export default function LoginPage() {
             </form>
           </div>
 
-          <footer className="login-footer">
+          {/* Installed launch (user report 20/10): web-only chrome — the
+              © footer and this marketing copy are hidden by the shared
+              `hide-in-pwa` rule (styles/utilities.css), driven by the hybrid
+              standalone detector on <html>. Browser visitors keep both. */}
+          <footer className="login-footer hide-in-pwa">
             <span>&copy; {new Date().getFullYear()} {BRAND.legalEntity}</span>
           </footer>
         </div>
 
-        <aside className="login-visual" aria-labelledby="login-visual-title">
+        {/* aria-label instead of aria-labelledby: when the marketing copy
+            below is hidden in an installed PWA the referenced heading leaves
+            the accessibility tree, which would dangle the reference. */}
+        <aside className="login-visual" aria-label="Mọi hoạt động. Một hệ thống.">
           <picture>
             <source
               media="(max-width: 900px)"
@@ -193,7 +200,7 @@ export default function LoginPage() {
           </picture>
           <div className="login-visual__veil" aria-hidden="true" />
 
-          <div className="login-visual__content">
+          <div className="login-visual__content hide-in-pwa">
             <p className="login-visual__eyebrow">
               <span className="login-status-dot" />
               Một nguồn dữ liệu

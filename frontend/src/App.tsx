@@ -11,6 +11,7 @@ import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
 import { onSessionIdentityChanged } from './lib/api/session';
+import { watchPwaStandalone } from './lib/pwa-standalone';
 import { homeForRole, routes } from './lib/routes';
 import { canReadShipmentDebitRoutes, canReadShipmentRoutes } from './lib/role-access';
 import { getDisplayRole, getModernRole } from './lib/role-helpers';
@@ -51,6 +52,19 @@ function SessionNoticeToaster() {
     }),
     [toast],
   );
+  return null;
+}
+
+/**
+ * Installed-PWA shell feel (user report 20/10): a home-screen launch must
+ * read as native, so web-only decorations — the login © footer and the
+ * marketing hero copy — are hidden via the `hide-in-pwa` utility. iOS WebKit
+ * cannot be trusted to evaluate the CSS display-mode query, so the
+ * `pwa-standalone` class on <html> comes from the hybrid JS detector
+ * (lib/pwa-standalone.ts) instead.
+ */
+function PwaStandaloneMarker() {
+  useEffect(() => watchPwaStandalone(), []);
   return null;
 }
 
@@ -586,6 +600,7 @@ export default function App() {
           <MonthProvider>
             <SearchProvider>
               <StaleBuildBanner />
+              <PwaStandaloneMarker />
               <SessionNoticeToaster />
               <AppRoutes />
             </SearchProvider>

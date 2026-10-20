@@ -303,3 +303,21 @@
   font-weight: var(--fw-semibold);
   white-space: nowrap;
 }
+
+/* ─── Installed-PWA web-chrome suppression (user report 20/10) ──────────────
+   A home-screen launch must feel native, so elements that only make sense on
+   the open web — the login © footer, the marketing hero copy — carry
+   `.hide-in-pwa` and disappear while the app runs installed. The class comes
+   from lib/pwa-standalone.ts because iOS WebKit evaluates the display-mode
+   media query `false` even when launched standalone; the media query below is
+   belt-and-braces for engines that honor it (desktop Chrome/Edge, Android).
+   Browser visitors keep the branding — this hides nothing on the open web. */
+.pwa-standalone .hide-in-pwa {
+  display: none !important;
+}
+
+@media all and (display-mode: standalone) {
+  .hide-in-pwa {
+    display: none !important;
+  }
+}
