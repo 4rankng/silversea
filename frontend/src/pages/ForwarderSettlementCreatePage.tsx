@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, Check, ArrowLeft, Info, Search, Wallet, Receipt, FileText, ChevronRight } from 'lucide-react';
 import { formatCurrency, formatDate } from '../lib/format';
 import { Money } from '../components/shared/Money';
-import { EmptyState } from '../design-system';
+import { EmptyState, NumberField } from '../design-system';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { groupExpensesByType } from '../lib/expense-breakdown';
@@ -423,11 +423,11 @@ export default function ForwarderSettlementCreatePage() {
         <div className="fset-details-card">
           <div className="fset-input-group">
             <label className="fset-input-label">Tiền hoàn lại</label>
-            <input
-              type="number"
-              className="fset-input"
-              value={refundAmount}
-              onChange={e => setRefundAmount(e.target.value)}
+            <NumberField
+              grouped
+              signed
+              value={refundAmount === '' ? '' : Number(refundAmount)}
+              onChange={(n) => setRefundAmount(n === '' ? '' : String(n))}
               placeholder="0"
               // FB-100 (card 141026230770) — refundAmount CÓ DẤU (signedNumeric
               // của shared schema): chi phí vượt tạm ứng ⇒ tiền hoàn lại ÂM và

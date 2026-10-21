@@ -37,7 +37,7 @@ describe('shipment finance entry', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu hồ sơ' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }));
     await screen.findByText('Mất kết nối');
-    expect(screen.getByLabelText(/Giá trị hóa đơn \(đ\)/)).toHaveValue(1000000);
+    expect(screen.getByLabelText(/Giá trị hóa đơn \(đ\)/)).toHaveValue('1.000.000'); // grouped display (spec 19/10)
     await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu hồ sơ' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }));
     await waitFor(() => expect(api.saveInvoice).toHaveBeenCalledTimes(2));
@@ -55,8 +55,8 @@ describe('shipment finance entry', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu hồ sơ' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Tiền hoàn không được vượt tiền cược');
-    expect(screen.getByLabelText(/Tiền cược \(đ\)/)).toHaveValue(2000000);
-    expect(screen.getByLabelText(/Đã nhận hoàn \(đ\)/)).toHaveValue(2500000);
+    expect(screen.getByLabelText(/Tiền cược \(đ\)/)).toHaveValue('2.000.000'); // grouped display (spec 19/10)
+    expect(screen.getByLabelText(/Đã nhận hoàn \(đ\)/)).toHaveValue('2.500.000'); // grouped display (spec 19/10)
     expect(api.saveDeposit).not.toHaveBeenCalled();
   });
 });

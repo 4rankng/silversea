@@ -15,6 +15,7 @@ import { PageHeader, StatusPill } from '../components/UI';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import './SettlementPrintPage.css';
+import { NumberField } from '../design-system';
 
 // ─── Expense type Vietnamese labels ───
 const EXPENSE_TYPE_LABELS: Record<string, string> = {
@@ -373,7 +374,7 @@ export default function SettlementPrintPage() {
               </div>
               <label>
                 Số tiền kế toán chốt
-                <input className="input" type="number" min="1" value={editedAmount} onChange={event => setEditedAmount(event.target.value)} />
+                <NumberField grouped value={editedAmount === '' ? '' : Number(editedAmount)} onChange={(n) => setEditedAmount(n === '' ? '' : String(n))} />
               </label>
               <label>
                 Lý do điều chỉnh *

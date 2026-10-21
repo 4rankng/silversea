@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-10-21 — fix(accounting): FIX CHI PHÍ lần 2 (spec 19/10) — verify 9 mục + money-format sweep
+
+Verify-first trên build `56a5d509` (spec `19.10 - FIX CHI PHÍ.docx` + 3 mục §c
+theo PRD `PhanHeKeToan.md` dòng 107/109/113 — QA brief 21/10). **8/9 mục đã
+đúng trên build hiện tại** (ảnh Ops tùy chọn; 2 tab "Tiền đường | Chi phí lô
+hàng"; BÁO CÁO THU/TRẢ PHƠI + phiếu thu/chi + drawer lô chưa thanh toán; chốt
+debit cột/✓/tick theo Ngày; Xuất Debit Note E2E — bug gốc idempotency-key >100
+ký tự đã land trước; PHÊ DUYỆT TẠM ỨNG = giải ngân với khớp số tuyệt đối
+fund-book ↔ báo cáo hoàn ứng 2/2 thời điểm; hoàn ứng ÂM có cảnh báo thu lại;
+phiếu Ops hiện ngay phía kế toán). **1 mục thiếu → fix**: "TOÀN BỘ trường số
+tiền định dạng 1,000,000".
+
+- **FE money-format sweep lan 2** (spec mục 2): 23 ô tiền trên ~20 màn trở
+  thành `NumberField grouped` (+`signed` nơi FB-100 cho số âm — Thực chi,
+  hoàn lại, điều chỉnh, fuel): ops tạm ứng (modal + panel), treasury số dư
+  đầu kỳ, expense create/entry/cash, driver correction + fuel, timesheet lương
+  (2 màn), shipment-finance (hóa đơn/phí NCC/cược/đã hoàn), debit-note freight
+  override + ngưỡng VNĐ/lít, forwarder expense mua/bán + hoàn lại, tire giá,
+  salary payout, app-settings (ngưỡng hạn mức, phụ phí kẹp/kết hợp), penalty
+  khấu trừ + mức mặc định, payable payment + hoa hồng, debt nhận tiền, trip
+  điều chỉnh, carrier/pricing/fuel config, billing-builder mirrors. Ô đơn giá
+  VND/lít `step 0.01` giữ nguyên (grouped bỏ decimal — ghi trong qa README).
+- **tabular-nums** (cùng mục): shared money primitives (`.money`, `.num`,
+  `.record-table .num`, `.ds-field--money input`) khai
+  `font-variant-numeric: tabular-nums`; `font-family-contract.test` nới đúng
+  4 file này. Đo fontTools: Be Vietnam Pro (bundle v1.002 + Google v12) digits
+  proportional, không `tnum` ⇒ declaration inert tới khi owner đổi typeface
+  (tiền lệ = 2 trang debit đã ship từ trước).
+- **Review độc lập R1** (code-reviewer, REQUEST_CHANGES → đã xử lý): 2 ô
+  per-liter decimal (giá dầu gốc, ngưỡng VNĐ/lít — `numeric(12,4)`) GIỮ RAW
+  theo đúng rule decimal; refund field bỏ className wrapper gây double chrome
+  (verify UI 1440); treasury số dư đầu kỳ +`signed` (schema signed); nits
+  (indent, placeholder ví dụ grouped, comment test).
+- **BÁO CÁO THU/TRẢ PHƠI**: heading thêm khoảng ngày "— Ngày … – …" theo
+  mockup (2.2).
+- **Test pins**: `money-format-sweep.chiphi2` CP2-M1..M6; report-section
+  heading; các behavioral pin cũ chuyển sang giá trị grouped ('300.000',
+  '950.000', '-250.000'…). dev-port contract: comment ví dụ trong
+  `2026-10-21-lcl01-lan2-repro.mjs` 3016→3002 (file lane khác, chỉ doc).
+- Evidence + coverage §9: `qa/2026-10-21-accounting-fix2/` (UI DRIVEN items
+  3/4/5/6/8, DB/API item 7/9, live-typing item 2 — "1234500 → 1.234.500").
+  Regression case: `testplan/2026-10-21-accounting-fix2-chiphi-lan2.md`.
+
 ## 2026-10-21 — fix(dieuvan): FB-095 — nút "Xóa lô" cho lô chính trên /dispatch-detail (card 211026005623)
 
 Verdict **(a) nút thiếu thật**: surface Điều vận (`/dispatch-detail` →

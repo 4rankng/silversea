@@ -142,7 +142,7 @@ describe('direct settlement creation from actual funded advances', () => {
     // đánh dấu :invalid, nên chính thuộc tính này là thứ chặn "ghi nhận số âm".
     expect(refund).not.toHaveAttribute('min');
     fireEvent.change(refund, { target: { value: '-250000' } });
-    expect(refund).toHaveValue(-250000);
+    expect(refund).toHaveValue('-250.000'); // grouped signed display (spec 19/10 FIX CHI PHÍ mục 2)
     expect(document.querySelector('.fset-summary__total .money')).toHaveTextContent('0 ₫');
     fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
     fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' }));

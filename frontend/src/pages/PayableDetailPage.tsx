@@ -20,7 +20,7 @@ import { qk } from '../api/keys';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { PeriodFilter, resolvePeriodRange, initialPeriodState, applyModeSwitch } from '../components/debt/PeriodFilter';
 import { PeriodSummaryCards } from '../components/debt/PeriodSummaryCards';
-import { FilterBar, Tabs } from '../design-system';
+import { FilterBar, NumberField, Tabs } from '../design-system';
 import { SortHeader } from '../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
 import { useMediaQuery } from '../hooks/useMediaQuery';
@@ -568,12 +568,11 @@ export default function PayableDetailPage() {
       >
         <div className="field">
           <label htmlFor="payment-amount">Số tiền (đ) *</label>
-          <input
+          <NumberField
             id="payment-amount"
-            type="number"
-            className="input"
-            value={paymentAmount}
-            onChange={e => setPaymentAmount(e.target.value)}
+            grouped
+            value={paymentAmount === '' ? '' : Number(paymentAmount)}
+            onChange={n => setPaymentAmount(n === '' ? '' : String(n))}
             placeholder="Nhập số tiền"
           />
         </div>

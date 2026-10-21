@@ -11,7 +11,7 @@ import { Modal, useConfirm, Btn, FormGroup, PageHeader } from '../../components/
 import { SEV_OPTIONS, sevLabel, sevPill, type Severity } from '../../features/penalties/penalty-reason-severity';
 import { PenaltyReasonActions } from '../../features/penalties/components/PenaltyReasonActions';
 import type { PenaltyReason } from '@tingting/shared';
-import { EmptyState, FilterBar } from '../../design-system';
+import { EmptyState, FilterBar, NumberField } from '../../design-system';
 import { Alert } from '../../components/shared/Alert';
 import { formatMoney } from '../../lib/format';
 
@@ -205,14 +205,11 @@ function PenaltyReasonForm({
         />
       </FormGroup>
       <FormGroup label="Mức phạt mặc định (VNĐ)">
-        <input
-          className="pr-form-input"
-          style={{ fontFamily: 'var(--font-data)' }}
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+        <NumberField
+          grouped
+          value={amount === '' ? '' : Number(amount)}
+          onChange={(n) => setAmount(n === '' ? '' : String(n))}
           placeholder="0"
-          min="0"
           aria-invalid={amountInvalid || undefined}
           aria-describedby={amountInvalid ? 'pr-amount-error' : undefined}
         />

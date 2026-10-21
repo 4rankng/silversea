@@ -58,7 +58,7 @@ export function TreasuryAccountDrawer({ account, onClose, onSaved }: { account?:
           <TextField controlSize="sm" label="Số tài khoản ngân hàng" maxLength={80} value={bankAccountNumber} disabled={busy} onChange={event => setBankAccountNumber(event.target.value)} />
         </div>}
         <div className="treasury-account-fields">
-          <NumberField controlSize="sm" label="Số dư đầu kỳ (VND)" required value={balance} step={1} disabled={busy} onChange={setBalance} />
+          <NumberField controlSize="sm" label="Số dư đầu kỳ (VND)" required value={balance} step={1} grouped signed disabled={busy} onChange={setBalance} />
           <DateField controlSize="sm" label="Ngày số dư đầu kỳ" required value={date} disabled={busy} onChange={setDate} />
         </div>
         <TextField controlSize="sm" label="Chứng từ số dư đầu kỳ" required maxLength={255} value={evidence} disabled={busy} onChange={event => setEvidence(event.target.value)} />

@@ -4,7 +4,7 @@ import { formatMoney, formatCurrency, formatDate } from '../lib/format';
 import { ADVANCE_REQUEST_STATUS_LABELS, AdvanceSettlementStatus, type AdvanceRequestStatus } from '@tingting/shared';
 import type { AdvanceSettlementWithRefs } from '@tingting/shared';
 import { PageHeader, FormGroup, FilterPill } from '../components/UI';
-import { FilterBar, Pagination } from '../design-system';
+import { FilterBar, NumberField, Pagination } from '../design-system';
 import { useForwarderAdvanceRequestsTable, useCreateAdvanceRequest, useForwarderAdvanceBalance, useForwarderSettlements } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations, useCounterAnimation } from '../hooks/animations';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
@@ -45,7 +45,9 @@ export default function ForwarderAdvancesPage() {
 
   const [showForm, setShowForm] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [form, setForm] = useState({ amount: '', reason: '' });
+  // Spec 19/10 FIX CHI PHÍ mục 2 — the amount is a grouped money field; the
+  // wire payload stays Number(amount).
+  const [form, setForm] = useState<{ amount: number | ''; reason: string }>({ amount: '', reason: '' });
   const mutationError = createAdvanceRequest.error
     ? (createAdvanceRequest.error instanceof Error ? createAdvanceRequest.error.message : 'Lỗi ghi nhận')
     : null;
@@ -75,9 +77,9 @@ export default function ForwarderAdvancesPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (createAdvanceRequest.isPending) return;
+    if (createAdvanceRequest.isPending || form.amount === '' || !Number.isFinite(form.amount)) return;
     createAdvanceRequest.mutate(
-      { amount: Number(form.amount), reason: form.reason },
+      { amount: form.amount, reason: form.reason },
       {
         onSuccess: () => {
           setShowForm(false);
@@ -208,13 +210,14 @@ export default function ForwarderAdvancesPage() {
           <form onSubmit={handleSubmit}>
             <div className="fadv-form-panel__fields">
               <FormGroup label="Số tiền (đ)">
-                <input
-                  type="number"
+                <NumberField
                   min={1}
-                  value={form.amount}
-                  onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                  placeholder="Ví dụ: 2.000.000"
+                  step={1}
+                  grouped
                   required
+                  value={form.amount}
+                  onChange={(amount) => setForm(f => ({ ...f, amount }))}
+                  placeholder="Ví dụ: 2.000.000"
                 />
               </FormGroup>
               <FormGroup label="Lý do">

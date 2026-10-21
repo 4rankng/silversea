@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { formatCurrency } from '../../lib/format';
-import { UuiSelectField } from '../../design-system';
+import { NumberField, UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -103,7 +103,7 @@ function PortZoneSurchargeForm({
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Giá mỗi lần nâng/hạ (đ)">
-          <input className="input" type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" />
+          <NumberField grouped value={amount === '' ? '' : Number(amount)} onChange={(n) => setAmount(n === '' ? '' : String(n))} placeholder="0" />
         </Field>
       </div>
       <FormActions

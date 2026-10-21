@@ -7,6 +7,7 @@ import { qk } from '../../api/keys';
 import { Panel } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
 import { formatCurrency } from '../../lib/format';
+import { NumberField } from '../../design-system';
 
 interface PairSalarySettings {
   kepSurcharge: number;
@@ -86,14 +87,11 @@ export function PairSalarySection() {
       <div className="cfg-section" style={{ display: 'grid', gap: 14 }}>
         <div className="field">
           <label htmlFor="pair-surcharge-kep">Phụ phí Kẹp (VND)</label>
-          <input
+          <NumberField
             id="pair-surcharge-kep"
-            className="input"
-            type="number"
-            min="0"
-            step="1000"
-            value={kepSurcharge}
-            onChange={(event) => setKepSurcharge(event.target.value)}
+            grouped
+            value={kepSurcharge === '' ? '' : Number(kepSurcharge)}
+            onChange={(n) => setKepSurcharge(n === '' ? '' : String(n))}
             disabled={disabled}
           />
           <p className="cfg-field-hint">
@@ -102,14 +100,11 @@ export function PairSalarySection() {
         </div>
         <div className="field">
           <label htmlFor="pair-surcharge-ket-hop">Phụ phí Kết hợp (VND)</label>
-          <input
+          <NumberField
             id="pair-surcharge-ket-hop"
-            className="input"
-            type="number"
-            min="0"
-            step="1000"
-            value={ketHopSurcharge}
-            onChange={(event) => setKetHopSurcharge(event.target.value)}
+            grouped
+            value={ketHopSurcharge === '' ? '' : Number(ketHopSurcharge)}
+            onChange={(n) => setKetHopSurcharge(n === '' ? '' : String(n))}
             disabled={disabled}
           />
           <p className="cfg-field-hint">

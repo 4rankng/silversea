@@ -1,7 +1,7 @@
 import { NO_INVOICE_EVIDENCE_TYPE_LABELS, OPS_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
 import { FormGroup } from '../../components/UI';
 import { DateInput } from '../../design-system/forms/DateInput';
-import { UuiSelectField } from '../../design-system';
+import { NumberField, UuiSelectField } from '../../design-system';
 import type { ForwarderExpenseFormController } from './use-forwarder-expense-form';
 import type { ForwarderExpenseTypeOption } from './forwarder-expense-model';
 import {
@@ -83,15 +83,15 @@ export function ForwarderExpenseForm({
         <FormGroup
           label="Giá mua vào (VNĐ) *"
         >
-          <input
-            className={`input${expenseErrors.buyAmount ? ' input--error' : ''}${isLiftExpense ? ' fwd-input--readonly' : ''}`}
-            type="number"
-            value={expenseForm.buyAmount}
-            onChange={e => setBuyAmount(e.target.value)}
+          <NumberField
+            aria-label="Giá mua vào (VNĐ)"
+            grouped
+            value={expenseForm.buyAmount === '' ? '' : Number(expenseForm.buyAmount)}
+            onChange={(n) => setBuyAmount(n === '' ? '' : String(n))}
             placeholder="0"
-            min="1"
             readOnly={isLiftExpense}
             aria-readonly={isLiftExpense}
+            aria-invalid={Boolean(expenseErrors.buyAmount) || undefined}
           />
           {expenseErrors.buyAmount && (
             <span className="fwd-field-error-inline">
@@ -118,13 +118,12 @@ export function ForwarderExpenseForm({
         <FormGroup
           label="Giá bán ra (VNĐ)"
         >
-          <input
-            className={`input${!OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup ? ' fwd-input--readonly' : ''}`}
-            type="number"
-            value={expenseForm.sellAmount}
-            onChange={e => patch({ sellAmount: e.target.value })}
+          <NumberField
+            aria-label="Giá bán ra (VNĐ)"
+            grouped
+            value={expenseForm.sellAmount === '' ? '' : Number(expenseForm.sellAmount)}
+            onChange={(n) => patch({ sellAmount: n === '' ? '' : String(n) })}
             placeholder="0"
-            min="0"
             readOnly={!OPS_EXPENSE_TYPE_DEFAULTS[expenseForm.expenseType]?.defaultMarkup}
           />
         </FormGroup>

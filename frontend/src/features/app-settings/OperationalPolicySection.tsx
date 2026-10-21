@@ -5,7 +5,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { Panel } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
 import { formatCurrency } from '../../lib/format';
-import { UuiSelectField } from '../../design-system';
+import { NumberField, UuiSelectField } from '../../design-system';
 import type { BusinessUnit } from '../users/utils';
 import type { useAppSettings, useSaveAppSettings } from '../../hooks/useAppSettings';
 
@@ -141,14 +141,11 @@ export function OperationalPolicySection({
         />
         <div className="field">
           <label htmlFor="credit-tier-one-amount-cap">Ngưỡng vượt hạn mức cấp 1 (VND)</label>
-          <input
+          <NumberField
             id="credit-tier-one-amount-cap"
-            className="input"
-            type="number"
-            min="0"
-            step="1"
-            value={creditTierOneCap}
-            onChange={(event) => setCreditTierOneCap(event.target.value)}
+            grouped
+            value={creditTierOneCap === '' ? '' : Number(creditTierOneCap)}
+            onChange={(n) => setCreditTierOneCap(n === '' ? '' : String(n))}
             disabled={appSettings.isLoading || appSettings.isError || saveAppSettings.isPending}
             aria-invalid={!creditTierCapValid || undefined}
             aria-describedby={!creditTierCapValid ? 'credit-tier-cap-error' : undefined}

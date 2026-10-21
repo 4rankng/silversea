@@ -1,3 +1,13 @@
 /* NumberField shares its base CSS with TextField.css (imported at the top of
- * NumberField.tsx). This file is reserved for any number-input-specific tweaks.
- * Currently empty by design — the shared rules cover the input chrome. */
+ * NumberField.tsx). This file is reserved for any number-input-specific tweaks. */
+
+/* Spec 19/10 FIX CHI PHÍ (mục 2) — every money input renders grouped digits
+ * ("1.000.000") in the data family with tabular figures. The bundled
+ * Be Vietnam Pro carries proportional figures only, so font-variant-numeric
+ * is inert until the typeface ships tnum (recorded in
+ * qa/2026-10-21-accounting-fix2); the declaration rides along regardless,
+ * the same ruling the two debit pages already carry. */
+.ds-field--money input {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}

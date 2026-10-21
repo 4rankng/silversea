@@ -220,6 +220,10 @@ describe('FreightRateTermsConfigPage — TC-CUOC-003/004 rate terms', () => {
     expect('billingKmMultiplier' in payload).toBe(false);
 
     const numInputs = document.body.querySelectorAll('input[type="number"]');
-    expect(numInputs.length).toBe(6); // sharePct, km, baseFuel, lag, pct, abs — no multiplier input
+    // Review F4: the VNĐ/lít threshold is a per-liter DECIMAL field — it
+    // stays a raw number input (sharePct, km, baseFuel, lag, pct, abs — no
+    // multiplier input exists either way).
+    expect(numInputs.length).toBe(6);
+    expect(document.body.querySelector('input[aria-label="Giá trị ngưỡng VNĐ trên lít"]')).not.toBeNull();
   });
 });

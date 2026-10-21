@@ -1,3 +1,41 @@
+# FIX CHI PHÍ lần 2 — 6 mục spec 19/10 + 3 mục §c (PRD) — 2026-10-21
+
+Controller: agent, worktree `1njkloyy/fix-accounting-fix2`, branch
+`fix-accounting-fix2` (off main `56a5d509`). Spec `19.10 - FIX CHI PHÍ.docx`;
+bố cục mockup đọc từ `docs/prd/PhanHeKeToan.md` (session không vision — ghi
+rõ trong qa README). Stack riêng FE `:7185` / BE `:3012` (lane khác giữ
+7175/3002); DB chung `ss-prod-db:5441`. Staging KHÔNG đụng.
+
+**Status**: verify-first 9 mục → 6 mục ĐÃ ĐÚNG (1,3,4*,5,6,7,8,9 — *item 4
+thêm "-- Ngày … – …" vào heading) → item 2 LÀ PHẦN FIX: sweep `grouped`
+(+`signed` nơi FB-100) 23 ô tiền trên ~20 file + `tabular-nums` trên shared
+money primitives (`.money`/`.num`/`.record-table .num`/`.ds-field--money
+input`) + nới `font-family-contract.test` (font Be Vietnam Pro chưa có tnum —
+đo bằng fontTools, ghi qa README; declaration inert tới khi đổi typeface).
+Evidence + coverage bảng §9: `qa/2026-10-21-accounting-fix2/` (drivers
+`qa/scripts/2026-10-21-accounting-fix2-*.mjs`). Item 6 Xuất debit: UI DRIVEN
+PASS (banner + downloadWillBegin + xlsx 9922B PK + `billing_documents#16191`)
+— bug "không xuất được" gốc (idempotency-key >100 ký tự) đã land từ trước.
+Item 7 khớp số tuyệt đối 2/2 thời điểm (127.000.000 / 126.850.000). §c ghi
+nhận: cơ chế duyệt là NÚT (không phải cột tick Ngày duyệt như PRD mô tả) —
+không đổi bề mặt owner-landed; số âm hiện có dấu đỏ + nhãn theo ruling
+141026230770.
+
+- **Gates**: lint 0 (r1+r2) · FE tsc 0 · FE suite (xem qa log cuối) · make
+  build ✓ (r1+r2) · BE không đụng (không BE gate). Regression pins:
+  `money-format-sweep.chiphi2` CP2-M1..M6, report-section heading,
+  font-contract. **Review độc lập R1** (code-reviewer): REQUEST_CHANGES →
+  fix hết — 2 ô per-liter decimal revert raw (giá dầu gốc, ngưỡng VNĐ/lít),
+  refund field bỏ className double-chrome (F2 verify UI
+  `02-f2-refund-field-1440.png`), treasury +signed, nits.
+- **Nợ/lưu ý**: (1) các ô đơn giá VND/lít step 0.01 (payables-fuel-invoices)
+  GIỮ NGUYÊN — grouped bỏ decimal, đổi sẽ sai số; (2) 2 input disabled
+  BillingDocumentBuilder đổi sang hiển thị formatCurrency; (3) QA note
+  `2026-10-21-lcl01-lan2-repro.mjs` đổi ví dụ cổng 3016→3002 cho qua dev-port
+  contract (file của lane khác, chỉ sửa comment).
+
+---
+
 # LCL-01 lan 2 — overview/detail không đồng bộ, shape container-row chưa có ngày (card 211026180528) — 2026-10-21
 
 Controller: this agent, worktree `1njkloyy/fix-lcl01-lan2`, branch `fix-lcl01-lan2`

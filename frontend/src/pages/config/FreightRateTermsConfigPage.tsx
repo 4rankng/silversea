@@ -67,7 +67,7 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
   const initialMode = thresholdModeOf(item);
   const [thresholdMode, setThresholdMode] = useState<ThresholdMode>(initialMode);
   const [thresholdPct, setThresholdPct] = useState(item?.surchargeThresholdPct ?? '');
-  const [thresholdAbs, setThresholdAbs] = useState(item?.surchargeThresholdAbs ?? '');
+  const [thresholdAbs, setThresholdAbs] = useState<number | ''>(item?.surchargeThresholdAbs != null && item.surchargeThresholdAbs !== '' ? Number(item.surchargeThresholdAbs) : '');
 
   const modePct = thresholdMode === 'pct';
   const modeAbs = thresholdMode === 'abs';
@@ -84,7 +84,7 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
     && Number(lagDays) >= 0
     && thresholdMode !== ''
     && (!modePct || Number(thresholdPct) > 0)
-    && (!modeAbs || Number(thresholdAbs) > 0);
+    && (!modeAbs || (thresholdAbs !== '' && thresholdAbs > 0));
 
   return (
     <InlineForm colSpan={8}>
@@ -241,7 +241,7 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
             <input type="radio" name={radioName} aria-label="Ngưỡng theo số tiền" checked={modeAbs} onChange={() => setThresholdMode('abs')} />
             VNĐ/lít
           </label>
-          <input className="input" type="number" aria-label="Giá trị ngưỡng VNĐ trên lít" placeholder="đ/lít" min="1" step="1" required={modeAbs} value={thresholdAbs} onChange={e => setThresholdAbs(e.target.value)} disabled={!modeAbs} />
+          <input className="input" type="number" aria-label="Giá trị ngưỡng VNĐ trên lít" placeholder="đ/lít" min="1" step="any" required={modeAbs} value={thresholdAbs} onChange={e => setThresholdAbs(e.target.value === '' ? '' : Number(e.target.value))} disabled={!modeAbs} />
           <label className="freight-terms-threshold__none">
             <input type="radio" name={radioName} aria-label="Không áp dụng ngưỡng" checked={thresholdMode === 'none'} onChange={() => setThresholdMode('none')} />
             Không áp dụng (đã chốt)
@@ -274,7 +274,7 @@ function FreightRateTermsForm({ saving, item, onsave, oncancel, onDelete, deleti
             // undefined as "keep current", so a row switched to "Không áp
             // dụng" must carry explicit nulls to clear the stored mode.
             surchargeThresholdPct: modePct ? Number(thresholdPct) : null,
-            surchargeThresholdAbs: modeAbs ? Number(thresholdAbs) : null,
+            surchargeThresholdAbs: modeAbs ? (thresholdAbs === '' ? null : thresholdAbs) : null,
           });
         }}
       />

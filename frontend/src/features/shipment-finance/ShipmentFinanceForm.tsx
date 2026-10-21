@@ -104,8 +104,8 @@ export function ShipmentFinanceForm({ editor, shipmentId, principalLocked = fals
         <div className="shipment-finance__pair">
           <TextField controlSize="sm" label="Số hóa đơn" required value={invoiceNumber} maxLength={100} onChange={event => setInvoiceNumber(event.target.value)} disabled={busy} />
           <DateField controlSize="sm" label="Ngày hóa đơn" value={invoiceDate} onChange={setInvoiceDate} required disabled={busy} />
-          <NumberField controlSize="sm" label="Giá trị hóa đơn (đ)" value={faceAmount} onChange={setFaceAmount} min={0} step={1} max={999_999_999_999_999} required disabled={busy} />
-          <NumberField controlSize="sm" label="Phí nhà cung cấp (đ)" value={supplierFee} onChange={setSupplierFee} min={0} step={1} max={999_999_999_999_999} required disabled={busy} />
+          <NumberField controlSize="sm" label="Giá trị hóa đơn (đ)" value={faceAmount} onChange={setFaceAmount} min={0} step={1} max={999_999_999_999_999} grouped required disabled={busy} />
+          <NumberField controlSize="sm" label="Phí nhà cung cấp (đ)" value={supplierFee} onChange={setSupplierFee} min={0} step={1} max={999_999_999_999_999} grouped required disabled={busy} />
         </div>
         <p className="shipment-finance__hint">Chỉ phí nhà cung cấp được ghi vào chi phí hóa đơn. Lưu hồ sơ không tạo phiếu chi.</p>
         {/* business key render; id never user-facing — the record carries no descriptor of the linked source expense */}
@@ -115,11 +115,11 @@ export function ShipmentFinanceForm({ editor, shipmentId, principalLocked = fals
         <div className="shipment-finance__pair">
           <TextField controlSize="sm" label="Số Bill" required value={bill} maxLength={100} onChange={event => setBill(event.target.value)} disabled={busy || principalLocked} />
           <TextField controlSize="sm" label="Hãng tàu" required value={shippingLine} maxLength={255} onChange={event => setShippingLine(event.target.value)} disabled={busy || principalLocked} />
-          <NumberField controlSize="sm" label="Tiền cược (đ)" value={amount} onChange={setAmount} min={1} step={1} max={999_999_999_999_999} required disabled={busy || principalLocked} />
+          <NumberField controlSize="sm" label="Tiền cược (đ)" value={amount} onChange={setAmount} min={1} step={1} max={999_999_999_999_999} grouped required disabled={busy || principalLocked} />
           <DateField controlSize="sm" label="Ngày cược" value={depositDate} onChange={setDepositDate} required disabled={busy || principalLocked} />
           <DateField controlSize="sm" label="Ngày nộp chứng từ" value={documentsDate} onChange={setDocumentsDate} disabled={busy} />
           <DateField controlSize="sm" label="Ngày nhận tiền hoàn" value={refundDate} onChange={setRefundDate} disabled={busy} />
-          <NumberField controlSize="sm" label="Đã nhận hoàn (đ)" value={recovered} onChange={setRecovered} min={0} step={1} max={999_999_999_999_999} required disabled={busy} />
+          <NumberField controlSize="sm" label="Đã nhận hoàn (đ)" value={recovered} onChange={setRecovered} min={0} step={1} max={999_999_999_999_999} grouped required disabled={busy} />
         </div>
         <p className="shipment-finance__hint">Để trống ngày chưa xảy ra. Hồ sơ theo dõi cược không thay thế phiếu thu tiền.</p>
         {((documentsDate && documentsDate < depositDate) || (refundDate && refundDate < (documentsDate || depositDate))) && <p role="status" className="shipment-finance__hint">Các mốc ngày đang khác thứ tự thông thường. Kiểm tra lại ngày thực tế trước khi lưu.</p>}

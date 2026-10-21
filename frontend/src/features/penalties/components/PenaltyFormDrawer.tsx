@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Save, Loader2, AlertCircle } from 'lucide-react';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
+import { NumberField } from '../../../design-system';
 import { Alert } from '../../../components/shared/Alert';
 import { formatCurrency } from '../../../lib/format';
 import type { Driver, PenaltyReason } from '@tingting/shared';
@@ -204,7 +205,7 @@ export function PenaltyFormDrawer({
           })()}
         </FormGroup>
         <FormGroup label="Số tiền khấu trừ (đ) *">
-          <input className="input" type="number" placeholder="0" value={formAmount} onChange={e => setFormAmount(e.target.value)} />
+          <NumberField grouped placeholder="0" value={formAmount === '' ? '' : Number(formAmount)} onChange={n => setFormAmount(n === '' ? '' : String(n))} />
         </FormGroup>
         <FormGroup label="Ngày vi phạm *">
           <DateInput className="input" value={formDate} onChange={setFormDate} />

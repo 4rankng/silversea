@@ -63,6 +63,7 @@ export function NumberField({
   allowEmpty = true,
   grouped = false,
   signed = false,
+  className,
   ...rest
 }: NumberFieldProps) {
   // Card 20260929_209: a lone "-" is a legitimate INTERMEDIATE state — the user
@@ -125,6 +126,10 @@ export function NumberField({
       // already filters to digits and one leading minus.
       inputMode={signed ? 'text' : grouped ? 'numeric' : 'decimal'}
       {...rest}
+      // Spec 19/10 FIX CHI PHÍ (mục 2): the grouped money input renders
+      // tabular digits + the data family. The class lands on the ds-field
+      // wrapper; NumberField.css owns the rule.
+      className={grouped ? ['ds-field--money', className].filter(Boolean).join(' ') : className}
     />
   );
 }

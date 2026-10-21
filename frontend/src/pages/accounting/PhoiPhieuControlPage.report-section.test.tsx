@@ -46,7 +46,8 @@ beforeEach(() => {
 describe('Báo cáo thu / trả phơi section', () => {
   it('renders the section title, its own range, and the THU tab first', async () => {
     renderSection();
-    expect(screen.getByRole('heading', { name: 'Báo cáo thu / trả phơi' })).toBeInTheDocument();
+    // Spec 19/10 (2.2): the heading carries the window — "… — Ngày … – …".
+    expect(screen.getByRole('heading', { name: /^Báo cáo thu \/ trả phơi — Ngày \d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2}$/ })).toBeInTheDocument();
     expect(await screen.findByRole('columnheader', { name: 'Tổng' })).toBeInTheDocument();
     // Default window = the running month (the surface it replaced was monthly).
     // Derive the expected bounds exactly like the component does — the Vietnam

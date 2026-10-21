@@ -36,6 +36,10 @@
 .typo-num,
 .num {
   font-family: var(--font-data);
+  /* Spec 19/10 FIX CHI PHÍ (mục 2) — shared numeric-law surfaces carry
+     tabular-nums (inert with the current proportional-figure font; see
+     Money.css note). */
+  font-variant-numeric: tabular-nums;
 }
 .text-muted { color: var(--ink-3); }
 .typo-code {

@@ -9,7 +9,7 @@ import { Money } from '../components/shared/Money';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
-import { UuiSelectField } from '../design-system';
+import { NumberField, UuiSelectField } from '../design-system';
 // Shared rose required marker (`.ds-field__required`) — the ds form stylesheet
 // is not part of the global bundle, so import it where the marker renders.
 import '../design-system/forms/TextField.css';
@@ -395,8 +395,8 @@ export default function TripDetailPage() {
         )}
         <div className="field">
           <label htmlFor="adjustAmount">Số tiền điều chỉnh (đ) *</label>
-          <input id="adjustAmount" name="adjustAmount" className="input" type="number" placeholder="Ví dụ: -500000 hoặc 300000"
-            value={ui.adjustAmount} onChange={e => page.setAdjustAmount(e.target.value)} />
+          <NumberField id="adjustAmount" name="adjustAmount" grouped signed placeholder="Ví dụ: -500.000 hoặc 300.000"
+            value={ui.adjustAmount === '' ? '' : Number(ui.adjustAmount)} onChange={(n) => page.setAdjustAmount(n === '' ? '' : String(n))} />
         </div>
         <div className="field">
           <label htmlFor="adjustNote">Lý do điều chỉnh *</label>

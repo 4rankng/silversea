@@ -165,7 +165,7 @@ describe('PenaltyReasonsConfigPage filter strip', () => {
 
   it('keeps the page free of hand-rolled bar markup', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/pages/config/PenaltyReasonsConfigPage.tsx'), 'utf8');
-    expect(source).toContain("import { EmptyState, FilterBar } from '../../design-system';");
+    expect(source).toContain("import { EmptyState, FilterBar, NumberField } from '../../design-system';");
     expect(source).toContain('<FilterBar');
     expect(source).not.toContain('className="filter-bar"');
     expect(source).not.toContain('filter-bar__search');

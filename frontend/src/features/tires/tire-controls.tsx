@@ -15,6 +15,7 @@ import "../../design-system/forms/TextField.css";
 import { cleanText, normalizedCatalogLabel, positionPayloadFromLabel, supplierIdFromText, textMatches } from "../../features/tires/tireUtils";
 import { floatingPickerMenuStyle } from "./tire-picker-placement";
 import "../../pages/TruckTiresPage.css";
+import { NumberField } from '../../design-system';
 
 export type PositionManagerOpener = (onSelect?: (value: string) => void) => void;
 
@@ -83,7 +84,7 @@ export function AddTireForm({
       </div>
       <div className="ttp-field">
         <label htmlFor="tire-cost">Giá (VND)</label>
-        <input id="tire-cost" name="cost" className="input" type="number" value={cost} onChange={(e) => setCost(e.target.value)} />
+        <NumberField id="tire-cost" grouped value={cost === '' ? '' : Number(cost)} onChange={(n) => setCost(n === '' ? '' : String(n))} />
       </div>
       <div className="ttp-field">
         <label htmlFor="tire-purchased-at">Ngày mua</label>

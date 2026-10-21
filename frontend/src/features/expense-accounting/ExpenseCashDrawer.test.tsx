@@ -20,7 +20,7 @@ it('funds the selected existing request and retries with the same command key af
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}><ExpenseCashDrawer catalog={catalog} onClose={onClose} /></QueryClientProvider>);
   fireEvent.click(screen.getByRole('button', { name: /Nhân viên OPS/ })); fireEvent.click(await screen.findByRole('option', { name: 'OPS Test' }));
   fireEvent.click(screen.getByRole('button', { name: /Yêu cầu ứng/ })); fireEvent.click(await screen.findByRole('option', { name: /Ứng phí cảng/ }));
-  expect(screen.getByLabelText(/Tiền tạm ứng/)).toBeDisabled(); expect(screen.getByLabelText(/Tiền tạm ứng/)).toHaveValue(1000000);
+  expect(screen.getByLabelText(/Tiền tạm ứng/)).toBeDisabled(); expect(screen.getByLabelText(/Tiền tạm ứng/)).toHaveValue('1.000.000'); // grouped display (spec 19/10)
   fireEvent.click(screen.getByRole('button', { name: /Nguồn quỹ/ })); fireEvent.click(await screen.findByRole('option', { name: 'Quỹ công ty' }));
   fireEvent.click(screen.getByRole('button', { name: /Tài khoản/ })); fireEvent.click(await screen.findByRole('option', { name: 'Quỹ test' }));
   fireEvent.change(screen.getByLabelText(/Mã tham chiếu/), { target: { value: 'BANK-12' } });

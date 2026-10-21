@@ -44,7 +44,7 @@ describe('driver own-cost correction', () => {
   });
   it('keeps the draft after a failure and permits a deliberate retry', async () => {
     api.update.mockRejectedValueOnce(new Error('Mất phản hồi')); form(); change(); submit();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Mất phản hồi'); expect(screen.getByLabelText(/Thực chi/)).toHaveValue(110000);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Mất phản hồi'); expect(screen.getByLabelText(/Thực chi/)).toHaveValue('110.000'); // grouped vi-VN display (spec 19/10)
     submit(); await waitFor(() => expect(saved).toHaveBeenCalledOnce()); expect(api.update.mock.calls[1]).toEqual(api.update.mock.calls[0]);
   });
   it.each([{ locked: true }, { confirmedAt: '2026-09-22T07:00:00Z' }, { reconciliationId: 5 }, { status: 'VOIDED' as const }])('blocks financial-state changes %o', state => {
@@ -54,7 +54,7 @@ describe('driver own-cost correction', () => {
     api.get.mockResolvedValueOnce(entry).mockResolvedValue({ ...entry, version: 4, amount: 105000 }); api.update.mockRejectedValueOnce(new Error('Khoản chi đã thay đổi. Tải lại.'));
     render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DriverExpenseCorrection expenseId={7} onSaved={saved} /></QueryClientProvider>);
     fireEvent.click(screen.getByRole('button', { name: 'Sửa khoản chi' })); await screen.findByLabelText(/Thực chi/); change(); submit(); await screen.findByText(/Khoản chi đã thay đổi/);
-    fireEvent.click(screen.getByRole('button', { name: 'Tải lại khoản chi' })); await waitFor(() => expect(screen.getByLabelText(/Thực chi/)).toHaveValue(105000)); change(); submit();
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại khoản chi' })); await waitFor(() => expect(screen.getByLabelText(/Thực chi/)).toHaveValue('105.000')); change(); submit();
     await waitFor(() => expect(api.update).toHaveBeenCalledTimes(2)); expect(api.update.mock.calls[1][1].expectedVersion).toBe(4);
   });
 });

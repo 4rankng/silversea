@@ -140,7 +140,7 @@ export default function FuelConfigPage() {
           </div>
           <div className="field" id="fuel-unit-price-field">
             <label htmlFor="fuel-unit-price">Đơn giá nhiên liệu hiện hành (đ/lít)</label>
-            <input id="fuel-unit-price" name="unitPrice" className="input" type="number" value={form.unitPrice} onChange={e => setForm(f => ({ ...f, unitPrice: e.target.value }))} placeholder="Ví dụ: 23000" />
+            <input id="fuel-unit-price" name="unitPrice" className="input" type="number" value={form.unitPrice} onChange={e => setForm(f => ({ ...f, unitPrice: e.target.value }))} placeholder="Ví dụ: 23.000" />
           </div>
         </div>
         <div className="cfg-form-grid">
