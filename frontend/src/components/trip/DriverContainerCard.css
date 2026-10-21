@@ -36,6 +36,16 @@
   gap: 8px;
 }
 
+.dcc-bento__item {
+  display: grid;
+  gap: 8px;
+}
+
+.dcc-bento__item + .dcc-bento__item {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
 .dcc-bento__hero {
   display: flex;
   align-items: center;
@@ -325,6 +335,12 @@
 
 .dcc-scancheck strong {
   letter-spacing: 0.04em;
+}
+
+.dcc-editing-target {
+  font-size: var(--text-data-size);
+  color: var(--ink);
+  padding: 4px 0;
 }
 
 .dcc-error {

@@ -463,3 +463,123 @@ describe('DriverContainerCard — 051026230636 bento cont/seal upload', () => {
     expect(await screen.findByAltText('Ảnh cont')).toBeTruthy();
   });
 });
+
+describe('DriverContainerCard — DRI-03 kẹp driver view (2 containers)', () => {
+  const kepContainers = [
+    {
+      id: 101,
+      updatedAt: '2026-10-21T08:00:00.000Z',
+      containerNumber: 'TCKU1234567',
+      sealNumber: 'SEAL001',
+      containerTypeId: 2,
+      containerTypeName: "20'DC",
+      containerTypeCode: '20DC',
+      cargoWeightKg: '15000',
+    },
+    {
+      id: 102,
+      updatedAt: '2026-10-21T08:05:00.000Z',
+      containerNumber: 'MSKU7654328',
+      sealNumber: 'SEAL002',
+      containerTypeId: 2,
+      containerTypeName: "20'DC",
+      containerTypeCode: '20DC',
+      cargoWeightKg: '12000',
+    },
+  ];
+
+  it('DRI03-R1: renders both containers in bento view with distinct labels and numbers', () => {
+    stubPhotoTransport();
+    renderCard({ containers: kepContainers });
+
+    expect(screen.getByText('Số cont 1')).toBeTruthy();
+    expect(screen.getByText('TCKU1234567')).toBeTruthy();
+    expect(screen.getByText('Seal 1')).toBeTruthy();
+    expect(screen.getByText('SEAL001')).toBeTruthy();
+
+    expect(screen.getByText('Số cont 2')).toBeTruthy();
+    expect(screen.getByText('MSKU7654328')).toBeTruthy();
+    expect(screen.getByText('Seal 2')).toBeTruthy();
+    expect(screen.getByText('SEAL002')).toBeTruthy();
+
+    expect(screen.getByRole('button', { name: 'Sửa số cont 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sửa số cont 2' })).toBeTruthy();
+  });
+
+  it('DRI03-R2: editing container 1 pre-fills cont 1 draft and patches cont 1 only', async () => {
+    stubPhotoTransport();
+    const patchMock = vi.mocked(api.patch);
+    patchMock.mockClear();
+    patchMock.mockResolvedValueOnce({ ok: true } as never);
+    const { onSaved } = renderCard({ containers: kepContainers });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa số cont 1' }));
+
+    const contInput = screen.getByLabelText(/Số container/);
+    expect((contInput as HTMLInputElement).value).toBe('TCKU1234567');
+    const sealInput = screen.getByLabelText(/Số seal/);
+    expect((sealInput as HTMLInputElement).value).toBe('SEAL001');
+
+    fireEvent.change(contInput, { target: { value: 'CSQU3054383' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => {
+      expect(patchMock).toHaveBeenCalledWith(
+        '/driver/me/trips/55/containers/101',
+        expect.objectContaining({ containerNumber: 'CSQU3054383' }),
+        expect.objectContaining({ expectedUpdatedAt: '2026-10-21T08:00:00.000Z' }),
+      );
+    });
+    expect(onSaved).toHaveBeenCalled();
+  });
+
+  it('DRI03-R3: editing container 2 pre-fills cont 2 draft and patches cont 2 only (never overwriting cont 1)', async () => {
+    stubPhotoTransport();
+    const patchMock = vi.mocked(api.patch);
+    patchMock.mockClear();
+    patchMock.mockResolvedValueOnce({ ok: true } as never);
+    const { onSaved } = renderCard({ containers: kepContainers });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa số cont 2' }));
+
+    const contInput = screen.getByLabelText(/Số container/);
+    expect((contInput as HTMLInputElement).value).toBe('MSKU7654328');
+    const sealInput = screen.getByLabelText(/Số seal/);
+    expect((sealInput as HTMLInputElement).value).toBe('SEAL002');
+
+    fireEvent.change(sealInput, { target: { value: 'SEAL-NEW-2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => {
+      expect(patchMock).toHaveBeenCalledWith(
+        '/driver/me/trips/55/containers/102',
+        expect.objectContaining({ sealNumber: 'SEAL-NEW-2' }),
+        expect.objectContaining({ expectedUpdatedAt: '2026-10-21T08:05:00.000Z' }),
+      );
+    });
+    expect(onSaved).toHaveBeenCalled();
+  });
+
+  it('DRI03-R4: OCR scan in IMPORT mode cross-checks against the specific container being edited', async () => {
+    stubPhotoTransport();
+    renderCard({ containers: kepContainers, tradeDirection: 'IMPORT' });
+
+    // Open edit for Container 2 (declared is MSKU7654328)
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa số cont 2' }));
+
+    // Scan a different container plate
+    uploadMock.mockResolvedValueOnce({
+      ok: true,
+      containerNumbers: ['CSQU3054383'],
+      photoUrl: '/api/photos/cont.jpg',
+    } as never);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm ảnh cont' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chụp ảnh' }));
+    fireEvent.click(screen.getByText('fake-scanner-capture'));
+
+    // Should warn mismatch against MSKU7654328 (cont 2), NOT cont 1
+    const mismatch = await screen.findByTestId('container-scan-mismatch');
+    expect(mismatch.textContent).toContain('MSKU7654328');
+  });
+});

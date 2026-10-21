@@ -76,6 +76,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
   const [sheetType, setSheetType] = useState<'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE' | null>(null);
   const fileInputs = useRef<Record<'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE', HTMLInputElement | null>>({ CONTAINER: null, SEAL: null, DELIVERY_NOTE: null });
   const [editing, setEditing] = useState(false);
+  const [editingContainerId, setEditingContainerId] = useState<number | null>(null);
   const [removingPhoto, setRemovingPhoto] = useState<'CONTAINER' | 'SEAL' | null>(null);
   // Biên bản giao hàng upload/delete — independent of the form lifecycle
   // (always reachable, saved row or not), same as before the unification.
@@ -95,16 +96,17 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
   const showForm = !readOnly && (!hasSaved || editing);
   const editingExisting = hasSaved && editing;
 
-  const enterEdit = () => {
+  const enterEdit = (c?: ExistingContainer) => {
     if (!hasSaved || readOnly) return;
-    const c = containers[0];
+    const target = c ?? containers[0];
+    setEditingContainerId(target.id);
     setDraft({
       // Saved rows can carry a null container number (seal-only / LCL saves) —
       // seeding the draft with null would crash the render-time ISO-6346
       // check (`.trim()` on null) the moment Sửa opens the form.
-      containerNumber: c.containerNumber ?? '',
-      sealNumber: c.sealNumber ?? '',
-      containerTypeId: c.containerTypeId ? String(c.containerTypeId) : '',
+      containerNumber: target.containerNumber ?? '',
+      sealNumber: target.sealNumber ?? '',
+      containerTypeId: target.containerTypeId ? String(target.containerTypeId) : '',
     });
     // Seed the photo strip with the currently-saved photos so the driver can see
     // what was on file before they decide to re-capture. Re-capture overwrites
@@ -118,8 +120,13 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
 
   const cancelEdit = () => {
     setEditing(false);
+    setEditingContainerId(null);
     setError(null);
   };
+
+  const targetContainer = editingContainerId != null
+    ? containers.find((c) => c.id === editingContainerId) ?? containers[0]
+    : containers[0];
 
   const onPick = async (rawFile: File | undefined, _type: 'CONTAINER' | 'SEAL', capturedAt?: Date) => {
     if (!rawFile) return;
@@ -158,7 +165,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
           // Spec A6 IMPORT (trả hàng): cross-check the scanned number against
           // the declared one and warn on mismatch — guards against picking the
           // wrong container. Advisory only; the driver still reviews + Lưu.
-          const declared = containers[0]?.containerNumber;
+          const declared = targetContainer?.containerNumber;
           if (tradeDirection === 'IMPORT' && declared) {
             crossCheckToasted = true;
             const scannedNorm = normalizeContainerNumber(cn);
@@ -325,7 +332,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
         sealNumber: draft.sealNumber.trim() || null,
         containerTypeId: draft.containerTypeId ? Number(draft.containerTypeId) : null,
       };
-      if (editingExisting) {
+      if (editingExisting && targetContainer) {
         // PATCH the existing row — preserves id, audit history, and updates
         // updatedAt. Photos are re-persisted by the OCR pipeline (saveTripPhoto)
         // so the latest photo becomes the canonical one on the next refetch.
@@ -333,12 +340,13 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
         // client-side remember-map is not seeded for this nested path, so a
         // first-save-after-load (the scan → Lưu happy path) failed with
         // "Cần tải lại phiên bản số cont mới nhất" until reload.
-        const id = containers[0].id;
+        const id = targetContainer.id;
         await api.patch(`/driver/me/trips/${tripId}/containers/${id}`, payload, {
-          expectedUpdatedAt: containers[0].updatedAt,
+          expectedUpdatedAt: targetContainer.updatedAt,
         });
         toast({ kind: 'success', message: 'Đã cập nhật số cont.' });
         setEditing(false);
+        setEditingContainerId(null);
       } else {
         // First-time save — creates the row. Numbers are never auto-committed
         // (locked design decision #1): the OCR result only pre-fills the form;
@@ -379,42 +387,55 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             never stretch them. */}
         {((hasSaved && !editing) || readOnly) && (
           <div className="dcc-bento">
-            <div className="dcc-bento__hero">
-              <div className="dcc-bento__hero-content">
-                <div className="dcc-bento__eyebrow">Số cont</div>
-                {/* Card _28 item 9: cont + seal codes are copyable (bento view). */}
-                <div className="dcc-bento__plate-row">
-                  <div className="dcc-bento__plate">{containers[0]?.containerNumber || 'Chưa có số cont'}</div>
-                  {containers[0]?.containerNumber && <CopyCodeButton value={containers[0].containerNumber} label="Số container" />}
-                </div>
-                {containers[0]?.containerTypeName && (
-                  <div className="dcc-bento__hero-meta">
-                    {containers[0].containerTypeName}
-                    {/* Card 20261004_356 — payload beside the type in the
-                        read-only bento; omitted when unweighted. */}
-                    {containers[0].cargoWeightKg ? <> · {formatNumber(containers[0].cargoWeightKg)} kg</> : null}
+            {containers.map((c, idx) => {
+              const contLabel = containers.length > 1 ? `Số cont ${idx + 1}` : 'Số cont';
+              const sealLabel = containers.length > 1 ? `Seal ${idx + 1}` : 'Seal';
+              const editAria = containers.length > 1 ? `Sửa số cont ${idx + 1}` : 'Sửa số cont';
+              const contCopyLabel = containers.length > 1 ? `Số container ${idx + 1}` : 'Số container';
+              const sealCopyLabel = containers.length > 1 ? `Số seal ${idx + 1}` : 'Số seal';
+              return (
+                <div key={c.id ?? idx} className="dcc-bento__item" data-testid={`driver-container-item-${idx}`}>
+                  <div className="dcc-bento__hero">
+                    <div className="dcc-bento__hero-content">
+                      <div className="dcc-bento__eyebrow">{contLabel}</div>
+                      {/* Card _28 item 9: cont + seal codes are copyable (bento view). */}
+                      <div className="dcc-bento__plate-row">
+                        <div className="dcc-bento__plate">{c.containerNumber || 'Chưa có số cont'}</div>
+                        {c.containerNumber && <CopyCodeButton value={c.containerNumber} label={contCopyLabel} />}
+                      </div>
+                      {c.containerTypeName && (
+                        <div className="dcc-bento__hero-meta">
+                          {c.containerTypeName}
+                          {/* Card 20261004_356 — payload beside the type in the
+                              read-only bento; omitted when unweighted. */}
+                          {c.cargoWeightKg ? <> · {formatNumber(c.cargoWeightKg)} kg</> : null}
+                        </div>
+                      )}
+                    </div>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        className="dcc-bento__edit-btn"
+                        onClick={() => enterEdit(c)}
+                        aria-label={editAria}
+                      >
+                        <Pencil size={13} /> Sửa
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-              {!readOnly && <button
-                type="button"
-                className="dcc-bento__edit-btn"
-                onClick={enterEdit}
-                aria-label="Sửa số cont"
-              >
-                <Pencil size={13} /> Sửa
-              </button>}
-            </div>
 
-            <div className="dcc-bento__seal">
-              <div className="dcc-bento__eyebrow">Seal</div>
-              <div className="dcc-bento__seal-value-row">
-                <div className="dcc-bento__seal-value">
-                  {containers[0]?.sealNumber || <span className="dcc-bento__dash">—</span>}
+                  <div className="dcc-bento__seal">
+                    <div className="dcc-bento__eyebrow">{sealLabel}</div>
+                    <div className="dcc-bento__seal-value-row">
+                      <div className="dcc-bento__seal-value">
+                        {c.sealNumber || <span className="dcc-bento__dash">—</span>}
+                      </div>
+                      {c.sealNumber && <CopyCodeButton value={c.sealNumber} label={sealCopyLabel} />}
+                    </div>
+                  </div>
                 </div>
-                {containers[0]?.sealNumber && <CopyCodeButton value={containers[0].sealNumber} label="Số seal" />}
-              </div>
-            </div>
+              );
+            })}
 
             <div className="dcc-bento__photos">
               <div className="dcc-bento__eyebrow">Hình ảnh</div>
@@ -500,6 +521,11 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             handleSave based on the editingExisting flag. */}
         {showForm && (
           <>
+            {editingExisting && containers.length > 1 && (
+              <div className="dcc-editing-target" data-testid="dcc-editing-target">
+                Đang sửa: <strong>{targetContainer.containerNumber || `Container ${containers.findIndex(c => c.id === targetContainer.id) + 1}`}</strong>
+              </div>
+            )}
             {error && (
               <div className="dcc-error" role="alert">
                 <AlertCircle size={15} /> {error}
