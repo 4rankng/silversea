@@ -34,9 +34,12 @@ export function ShipmentCreateLclCargoFields({
         <div data-field-id="shipment-package-type">
           {/* FB-079 (card 091026180800): suggestion combobox mirroring the
               Hãng tàu / nhà máy pickers — quick-pick the common formats, type
-              anything else; custom values commit like before. openOnType so
-              typing itself surfaces the suggestions (click still opens the
-              full list). */}
+              anything else; custom values commit like before. Card
+              211026130415 (verify-fail "ẨN sau default"): the `searchable`
+              focus-trigger variant — the dropdown opens with the curated
+              suggestions the moment the field is on ("dropdown mở có gợi ý sẵn
+              từ đầu"), never hidden behind the type-first/ArrowDown trick;
+              typing filters and free text commits through onCustomValue. */}
           <SearchableField
             id="shipment-package-type"
             label="Quy cách đóng gói"
@@ -44,9 +47,10 @@ export function ShipmentCreateLclCargoFields({
             value={form.packageType}
             onChange={(value) => update('packageType', value)}
             allowsCustomValue
-            openOnType
+            searchable
+            onCustomValue={(text) => update('packageType', text)}
             options={packageTypeOptions}
-            placeholder="Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)"
+            placeholder="Gợi ý quy cách (chọn hoặc gõ)"
             disabled={saving}
             error={issueByField.get('shipment-package-type')}
           />

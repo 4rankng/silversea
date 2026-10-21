@@ -3,7 +3,9 @@ import type { ShipmentCreateSectionId } from './shipment-create-model';
 
 interface ShipmentCreateSectionProps {
   id: ShipmentCreateSectionId;
-  title: string;
+  /** Heading band title. Omitted for headingless bands (the top-of-form mode
+   *  band names itself through its fieldset legend — cards 211026130215). */
+  title?: string;
   description?: string;
   children: ReactNode;
 }
@@ -12,12 +14,14 @@ interface ShipmentCreateSectionProps {
 export function ShipmentCreateSection({ id, title, description, children }: ShipmentCreateSectionProps) {
   return (
     <section id={`shipment-section-${id}`} tabIndex={-1} className="csc-section" style={sectionStyle}>
-      <div className="csc-section__heading">
-        {/* Trailing space: text-level flattens (textContent) carry no block
-            boundaries — without the seam the title and the next element's text
-            run on as one word-salad string ("Lịch & ghi chúGhi chú..."). */}
-        <div><h2>{title}{' '}</h2>{description && <p>{description}</p>}</div>
-      </div>
+      {title && (
+        <div className="csc-section__heading">
+          {/* Trailing space: text-level flattens (textContent) carry no block
+              boundaries — without the seam the title and the next element's text
+              run on as one word-salad string ("Lịch & ghi chúGhi chú..."). */}
+          <div><h2>{title}{' '}</h2>{description && <p>{description}</p>}</div>
+        </div>
+      )}
       {children}
     </section>
   );

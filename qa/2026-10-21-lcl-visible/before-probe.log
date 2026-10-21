@@ -1,0 +1,23 @@
+
+=== before run 2026-10-21T10:45:18.453Z base=http://localhost:7176 ===
+2026-10-21T10:45:18.578Z login cus: OK
+2026-10-21T10:45:31.106Z PASS form renders (not login)
+2026-10-21T10:45:31.108Z default tradeDirection select value: "__EMPTY_SELECT_VALUE__"
+2026-10-21T10:45:52.427Z shot before-01-default-form.png (form mặc định, full page)
+2026-10-21T10:45:52.430Z FAIL lcl-03 mode control (radio Hàng lẻ) sits at the TOP of the form — topOffset=495 inSection="Thông tin hàng"
+2026-10-21T10:45:52.432Z default form: #shipment-expected-delivery=false revealButtons=[]
+2026-10-21T10:45:55.519Z PASS lcl-03 "Hàng lẻ" option clickable
+2026-10-21T10:45:57.893Z PASS lcl-03 "Lịch & ghi chú" drops away immediately on Hàng lẻ
+2026-10-21T10:45:57.895Z PASS lcl-04 "Ngày giao hàng" visible immediately after mode switch (no reveal step) — {"field":true,"visible":true,"revealButtons":[]}
+2026-10-21T10:45:57.895Z PASS lcl-04 no "+" reveal button for Ngày giao hàng — []
+2026-10-21T10:46:04.911Z shot before-02-lcl-form.png (Hàng lẻ form)
+2026-10-21T10:46:04.913Z FAIL lcl-05 quy cách placeholder hint "Gợi ý quy cách (chọn hoặc gõ)" — placeholder="Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)"
+2026-10-21T10:46:05.938Z PASS lcl-05 dropdown opens with suggestions WITHOUT typing — ["Thùng gỗ","Pallet","Roll","Carton","Box","Crate","Khung","Bao","Can"]
+2026-10-21T10:46:06.119Z shot before-03-packaging-dropdown.png
+2026-10-21T10:46:06.148Z FAIL lcl-02 "Thêm kho" affordance visible BEFORE choosing a customer — []
+2026-10-21T10:46:45.665Z picked first customer option
+2026-10-21T10:46:47.204Z PASS lcl-02 "Thêm kho" present with customer — ["Thêm kho","Thêm kho"]
+2026-10-21T10:46:53.066Z PASS lcl-02 EXPORT → dialog title "Thêm kho trả hàng" — {"open":true,"title":"Thêm kho trả hàng","labels":["Tên đầy đủ","Tên ngắn","Địa chỉ"],"heavy":false}
+2026-10-21T10:46:53.066Z PASS lcl-02 quick-add body stays simple (Tên đầy đủ/Tên ngắn/Địa chỉ) — ["Tên đầy đủ","Tên ngắn","Địa chỉ"]
+2026-10-21T10:46:53.172Z shot before-05-them-kho-export.png
+2026-10-21T10:46:56.423Z PROBE before DONE — failures=3

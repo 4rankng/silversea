@@ -1133,10 +1133,11 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
 
     const packageType = screen.getByRole('combobox', { name: 'Quy cách đóng gói' });
-    // Typing opens the suggestion menu (openOnType) and filters the common
-    // formats; a quick pick commits the option. The explicit ArrowDown mirrors
-    // the house combobox test contract (see the Loại container test below) so
-    // the collection materializes deterministically under jsdom timing.
+    // Focus opens the suggestion menu (searchable variant, card 211026130415)
+    // and typing filters the common formats; a quick pick commits the option.
+    // The explicit ArrowDown mirrors the house combobox test contract (see the
+    // Loại container test below) so the collection materializes
+    // deterministically under jsdom timing.
     fireEvent.focus(packageType);
     fireEvent.change(packageType, { target: { value: 'Pal' } });
     fireEvent.keyDown(packageType, { key: 'ArrowDown' });

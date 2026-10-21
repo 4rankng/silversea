@@ -138,6 +138,13 @@
 .csc-mode input:checked + span { background: var(--ink); color: var(--surface); }
 .csc-mode input:focus-visible + span { outline: 2px solid var(--accent-2); outline-offset: -2px; }
 .csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: end; gap: 12px; min-width: 0; }
+/* Cards 211026130215/30315: the top-of-form mode band — the segmented Loại
+   hàng control and the LCL "Ngày giao hàng" (one always-visible field, no
+   reveal) share a row so both sit trước mắt the moment the form opens; they
+   wrap to a stack on narrow screens. */
+.csc-mode-band__row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 28px; min-width: 0; }
+.csc-mode-band__row .csc-cargo-choice-grid { flex: 0 0 auto; }
+.csc-mode-band__row .csc-lcl-delivery { flex: 1 1 220px; }
 .csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
 .csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 12px; }
 /* The box scrolls HORIZONTALLY only. Two traps, both hit on this page:

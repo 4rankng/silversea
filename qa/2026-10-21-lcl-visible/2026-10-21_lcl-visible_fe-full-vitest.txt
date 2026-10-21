@@ -1,0 +1,24 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-form-visible/frontend
+> vitest run
+
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-form-visible/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+
+ Test Files  703 passed (703)
+      Tests  5419 passed (5419)
+   Start at  20:39:39
+   Duration  288.87s (transform 51.98s, setup 150.99s, import 741.12s, tests 986.28s, environment 603.99s)
+
+EXIT=0
