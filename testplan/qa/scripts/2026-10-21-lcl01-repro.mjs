@@ -3,7 +3,7 @@
  * LCL-01 (card 211026132257) — repro + fix proof: "lô hàng lẻ hiện ở TỔNG
  * QUAN nhưng KHÔNG có ở CHI TIẾT". LOCAL DEV only.
  *
- *   BACKEND=http://localhost:3012/api node testplan/qa/scripts/2026-10-21-lcl01-repro.mjs
+ *   BACKEND=http://localhost:3002/api node testplan/qa/scripts/2026-10-21-lcl01-repro.mjs
  *
  * Models the two screens' ACTUAL default queries (the audit's "so sánh API
  * response 2 màn"):

@@ -468,7 +468,7 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
   // trip → fulfillment → shipment container.
   const tripContainers = await listTripContainers(tripId);
   let containers = tripContainers;
-  if (trip.fulfillmentId != null) {
+  if (trip.fulfillmentId != null && tripContainers.length === 1) {
     const [declared] = await db
       .select({ cargoWeightKg: s.shipmentContainers.cargoWeightKg })
       .from(s.shipmentFulfillments)
