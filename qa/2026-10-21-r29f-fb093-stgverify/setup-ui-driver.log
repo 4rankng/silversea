@@ -1,0 +1,148 @@
+{
+  "results": [
+    {
+      "id": "R29F setup A: UI /shipments/new tạo 2 lô hàng lẻ R29F (YUANFANG, Số Booking R29F-01/02, giao 20/10/2026) — POST /shipments/quick 201 cả 2 (hoặc tái dùng lô đã tạo)",
+      "pass": true,
+      "detail": "{\"lot1\":{\"bill\":\"R29F-01\",\"createdId\":972,\"quickStatus\":[],\"summary\":\"reused\"},\"lot2\":{\"bill\":\"R29F-02\",\"createdId\":973,\"quickStatus\":[],\"summary\":\"reused\"}}"
+    },
+    {
+      "id": "R29F setup B: UI /shipments-debit ghép cước thu khách 2 lô R29F OK — cùng revGroup, lô 2 = 0₫ + note \"Ghép cước cùng Bill R29F-01\", lock OPEN",
+      "pass": true,
+      "detail": "[{\"ship\":972,\"code\":\"SHP-2610-00572\",\"bill\":\"R29F-01\",\"freight\":null,\"note\":null,\"revGroup\":\"134a72e9-e119-4140-ae7b-791cfc008106\",\"revOrder\":1,\"members\":2,\"lock\":\"OPEN\",\"cargoMode\":\"LCL\",\"customer\":\"CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM\"},{\"ship\":973,\"code\":\"SHP-2610-00573\",\"bill\":\"R29F-02\",\"freight\":\"0\",\"note\":\"Ghép cước cùng Bill R29F-01\",\"revGroup\":\"134a72e9-e119-4140-ae7b-791cfc008106\",\"revOrder\":2,\"members\":2,\"lock\":\"OPEN\",\"cargoMode\":\"LCL\",\"customer\":\"CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM\"}]"
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-10-21T02:17:06.217Z",
+      "step": "health",
+      "status": "ok",
+      "build": "806acf89",
+      "expected": "806acf89"
+    },
+    {
+      "0": {
+        "ship": 972,
+        "code": "SHP-2610-00572",
+        "bill": "R29F-01",
+        "freight": null,
+        "note": null,
+        "revGroup": null,
+        "revOrder": null,
+        "members": null,
+        "lock": "OPEN",
+        "cargoMode": "LCL",
+        "customer": "CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM"
+      },
+      "1": {
+        "ship": 973,
+        "code": "SHP-2610-00573",
+        "bill": "R29F-02",
+        "freight": "0",
+        "note": null,
+        "revGroup": null,
+        "revOrder": null,
+        "members": null,
+        "lock": "OPEN",
+        "cargoMode": "LCL",
+        "customer": "CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM"
+      },
+      "at": "2026-10-21T02:17:06.963Z",
+      "step": "precheck_rows"
+    },
+    {
+      "at": "2026-10-21T02:17:06.963Z",
+      "step": "reusing existing ungrouped R29F lots — skip create"
+    },
+    {
+      "at": "2026-10-21T02:17:07.840Z",
+      "step": "RESULT",
+      "id": "R29F setup A: UI /shipments/new tạo 2 lô hàng lẻ R29F (YUANFANG, Số Booking R29F-01/02, giao 20/10/2026) — POST /shipments/quick 201 cả 2 (hoặc tái dùng lô đã tạo)",
+      "pass": true,
+      "detail": "{\"lot1\":{\"bill\":\"R29F-01\",\"createdId\":972,\"quickStatus\":[],\"summary\":\"reused\"},\"lot2\":{\"bill\":\"R29F-02\",\"createdId\":973,\"quickStatus\":[],\"summary\":\"reused\"}}"
+    },
+    {
+      "0": {
+        "ship": 972,
+        "code": "SHP-2610-00572",
+        "bill": "R29F-01",
+        "freight": null,
+        "note": null,
+        "revGroup": null,
+        "revOrder": null,
+        "members": null,
+        "lock": "OPEN",
+        "cargoMode": "LCL",
+        "customer": "CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM"
+      },
+      "1": {
+        "ship": 973,
+        "code": "SHP-2610-00573",
+        "bill": "R29F-02",
+        "freight": "0",
+        "note": null,
+        "revGroup": null,
+        "revOrder": null,
+        "members": null,
+        "lock": "OPEN",
+        "cargoMode": "LCL",
+        "customer": "CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM"
+      },
+      "at": "2026-10-21T02:17:08.011Z",
+      "step": "before_merge_rows"
+    },
+    {
+      "at": "2026-10-21T02:17:12.865Z",
+      "step": "selection",
+      "selected": 2,
+      "mergeBtn": false
+    },
+    {
+      "at": "2026-10-21T02:17:14.447Z",
+      "step": "merge_dialog",
+      "open": true,
+      "text": "2 lô lẻ · Lô 1 giữ 100% CƯỚC VẬN TẢI (Auto), các lô còn lại 0₫Ghép cước thu kháchLô 1 · R29F-01 — CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAMLô 2 · R29F-02 — CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG"
+    },
+    {
+      "at": "2026-10-21T02:17:16.705Z",
+      "step": "vehicle_class_picked",
+      "pickedClass": "Xe 5 tấn"
+    },
+    {
+      "0": {
+        "ship": 972,
+        "code": "SHP-2610-00572",
+        "bill": "R29F-01",
+        "freight": null,
+        "note": null,
+        "revGroup": "134a72e9-e119-4140-ae7b-791cfc008106",
+        "revOrder": 1,
+        "members": 2,
+        "lock": "OPEN",
+        "cargoMode": "LCL",
+        "customer": "CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM"
+      },
+      "1": {
+        "ship": 973,
+        "code": "SHP-2610-00573",
+        "bill": "R29F-02",
+        "freight": "0",
+        "note": "Ghép cước cùng Bill R29F-01",
+        "revGroup": "134a72e9-e119-4140-ae7b-791cfc008106",
+        "revOrder": 2,
+        "members": 2,
+        "lock": "OPEN",
+        "cargoMode": "LCL",
+        "customer": "CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM"
+      },
+      "at": "2026-10-21T02:17:18.122Z",
+      "step": "after_merge_rows"
+    },
+    {
+      "at": "2026-10-21T02:17:18.370Z",
+      "step": "RESULT",
+      "id": "R29F setup B: UI /shipments-debit ghép cước thu khách 2 lô R29F OK — cùng revGroup, lô 2 = 0₫ + note \"Ghép cước cùng Bill R29F-01\", lock OPEN",
+      "pass": true,
+      "detail": "[{\"ship\":972,\"code\":\"SHP-2610-00572\",\"bill\":\"R29F-01\",\"freight\":null,\"note\":null,\"revGroup\":\"134a72e9-e119-4140-ae7b-791cfc008106\",\"revOrder\":1,\"members\":2,\"lock\":\"OPEN\",\"cargoMode\":\"LCL\",\"customer\":\"CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM\"},{\"ship\":973,\"code\":\"SHP-2610-00573\",\"bill\":\"R29F-02\",\"freight\":\"0\",\"note\":\"Ghép cước cùng Bill R29F-01\",\"revGroup\":\"134a72e9-e119-4140-ae7b-791cfc008106\",\"revOrder\":2,\"members\":2,\"lock\":\"OPEN\",\"cargoMode\":\"LCL\",\"customer\":\"CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM\"}]"
+    }
+  ]
+}
