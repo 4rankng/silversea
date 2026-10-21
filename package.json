@@ -16,7 +16,8 @@
     "qa:aggregate": "node scripts/qa-aggregate.mjs",
     "qa:smoke": "node scripts/test-spa-smoke.mjs all",
     "seed:generate": "node tools/generate-seed-data.mjs",
-    "seed:extract": "node tools/extract-excel-data.mjs"
+    "seed:extract": "node tools/extract-excel-data.mjs",
+    "reg:local": "pnpm --dir frontend reg:local"
   },
   "pnpm": {
     "overrides": {
