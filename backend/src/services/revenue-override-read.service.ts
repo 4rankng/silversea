@@ -1,16 +1,16 @@
 // F-2 (card 161026113900) — owner ruling option (b): the money boards read
 // the override channel `trip_financial_state.revenue` for the CƯỚC THU
-// columns, so FB-093's 100%/0đ merge jump and FB-095's promote/transfer
-// aftermath reach the boards that settle the money.
+// columns. per boss 21/10 the REV merge is per-lot (mỗi lô tự tính đơn giá
+// Tuyến×KH × loại xe của chính nó — FB-093), so each lot's own AUTO cước
+// reaches the boards that settle the money, and FB-095's re-stamp aftermath
+// (per-lot, no money moved) is carried on the same channel.
 //
 // ONE read rule, shared by every board that displays the lot's cước thu:
 //   qualified lot ⇔ an LCL lot (groups are LCL-only by FB-092/093 law, so
 //   the scope keeps FCL lots on the snapshot channel byte-for-byte — the
 //   ruling's money-logic caveat) that either has revGroupId set (the merge
-//   re-prices the principal AUTO from the class lane WITHOUT override
-//   markers, so group membership is the only signal that catches it) OR any
-//   live trip carries a revenue-override stamp (FB-095 writes the
-//   transfer/zero re-stamps with markers and can leave the survivor
+//   stamps every lot from the class lane) OR any live trip carries a
+//   revenue-override stamp (FB-095 re-stamps and can leave the survivor
 //   UNGROUPED when a 2-lot group dissolves).
 //   Unqualified lots keep the historical freight-snapshot grain byte-for-byte.
 //

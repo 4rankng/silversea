@@ -210,13 +210,14 @@ describe('FB-095 — nút "Hủy ghép" trên khối NHÓM GHÉP', () => {
     expect(onChanged).toHaveBeenCalled();
   });
 
-  it('chiều THU khách: xác nhận → unmergeLclLot(REV) và nêu đúng khoản cước thu', async () => {
+  it('chiều THU khách (per-lot): xác nhận → unmergeLclLot(REV), không chuyển tiền, chỉ bỏ ghi chú nhóm', async () => {
     unmerge.mockResolvedValue({
       dimension: 'REV',
       groupId: 'g-rev',
       leaver: { shipmentId: 9001, order: 2, reference: 'BL-1' },
       promoted: { shipmentId: 9002, order: 1, reference: 'BL-2' },
-      transferredAmount: '3150000',
+      // per boss 21/10: REV is per-lot — the crown moves, money does not.
+      transferredAmount: null,
       remaining: [{ shipmentId: 9002, order: 1, reference: 'BL-2' }],
       dissolved: false,
     });
@@ -231,7 +232,8 @@ describe('FB-095 — nút "Hủy ghép" trên khối NHÓM GHÉP', () => {
     fireEvent.click(confirmButton());
 
     await waitFor(() => expect(unmerge).toHaveBeenCalledWith({ shipmentId: 9001, dimension: 'REV' }));
-    expect(await screen.findByText(/Bill BL-2 nhận 100% cước thu khách/)).toBeInTheDocument();
+    expect(await screen.findByText(/Bill BL-2 thành Lô chính; mỗi lô tự giữ đơn giá Tuyến×KH/)).toBeInTheDocument();
+    expect(screen.queryByText(/nhận 100% cước thu khách/)).toBeNull();
     expect(onChanged).toHaveBeenCalled();
   });
 

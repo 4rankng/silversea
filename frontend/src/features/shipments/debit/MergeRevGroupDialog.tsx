@@ -1,11 +1,10 @@
 // FB-093 — CUS "Ghép cước thu khách" dialog (Chi phí - Quyết toán).
 //
-// Merges the selected same-customer LCL lots into ONE bill (rev group): Lô 1
-// keeps 100% of CƯỚC VẬN TẢI (AUTO re-priced from the customer × route ×
-// class lane); members 2..N drop to 0₫ with the "Ghép cước cùng Bill X"
-// stamp. Same-customer validation runs client-side first (the server remains
-// the authority) so the operator sees the conflicting lots before losing the
-// selection.
+// Merges the selected same-customer LCL lots into ONE bill (rev group). per
+// boss 21/10 — mỗi lô tự tính đơn giá (bảng giá Tuyến×KH × loại xe) của CHÍNH
+// lô đó: độc lập, không gộp 100% vào Lô 1, không 0₫ thành viên. Same-customer
+// validation runs client-side first (the server remains the authority) so the
+// operator sees the conflicting lots before losing the selection.
 //
 // UI provenance: house Modal + Untitled UI PRO v8 (base `button`, base
 // `select`/`combobox` via USearchableField) — vendored at components/untitled-ui.
@@ -74,7 +73,7 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
       });
       toast({
         kind: 'success',
-        message: `Đã ghép cước thu khách cho ${result.memberCount} lô — Lô 1 (${result.members[0]?.reference ?? ''}) giữ 100% cước vận tải`,
+        message: `Đã ghép cước thu khách cho ${result.memberCount} lô — mỗi lô tự tính đơn giá Tuyến×KH × loại xe của chính lô đó (độc lập)`,
       });
       onMerged();
       onClose();
@@ -90,7 +89,7 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
       isOpen={rows.length > 0}
       onClose={onClose}
       title="Ghép cước thu khách"
-      subtitle={`${rows.length} lô lẻ · Lô 1 giữ 100% CƯỚC VẬN TẢI (Auto), các lô còn lại 0₫`}
+      subtitle={`${rows.length} lô lẻ · mỗi lô tự tính đơn giá Tuyến×KH (Auto), gộp chung 1 Bill`}
       footer={
         <>
           {error && <p className="merge-rev-group__error" role="alert">{error}</p>}
@@ -102,7 +101,7 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
       }
     >
       <div className="merge-rev-group">
-        <ol className="merge-rev-group__lots" title="Thứ tự chọn quyết định Lô 1 (giữ 100% cước thu)">
+        <ol className="merge-rev-group__lots" title="Thứ tự ghép bill — mỗi lô tự tính đơn giá Tuyến×KH">
           {rows.map((row, index) => (
             <li key={row.shipmentId}>
               {index === 0 ? 'Lô 1 · ' : `Lô ${index + 1} · `}

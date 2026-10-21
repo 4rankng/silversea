@@ -7,7 +7,8 @@ import { ShipmentDebitWorkspace } from './ShipmentDebitWorkspace';
 const money = (value: ShipmentDebitLotRow['payableTotal']) => value == null ? 'Chưa xác định' : formatMoney(value);
 
 /** F-2 (card 161026113900, spec §3.2): the money value plus its override
- *  reason beneath — members read "Ghép cước cùng Bill X" under their 0₫. */
+ *  reason beneath — a grouped lot reads its own per-lot cước (per boss 21/10)
+ *  with the "Ghép cước cùng Bill X" note. */
 function freightFact(row: ShipmentDebitLotRow): ReactNode {
   const value = money(row.freightAuto);
   if (!row.freightOverrideReason) return value;
@@ -39,9 +40,10 @@ export function ShipmentDebitRecords({ rows, canManage, selectedIds, expandedId,
         { key: 'customs', label: 'Số tờ khai', value: row.customsNumber ?? 'Chưa có' },
         { key: 'factory', label: 'Nhà máy', value: row.factoryName ?? '—' },
         { key: 'address', label: 'Địa chỉ nhà máy', value: row.factoryAddress ?? '—' },
-        // 161026204709: primary — the F-2 100%/0₫ lane and its reason note
-        // must render on the card face, never inside the 'Chi tiết' collapse
-        // (same marking as ShipmentDebitTables Bảng 2.1's Cước thu column).
+        // 161026204709: primary — the F-2 lane value (per-lot cước thu per
+        // boss 21/10) and its reason note must render on the card face, never
+        // inside the 'Chi tiết' collapse (same marking as ShipmentDebitTables
+        // Bảng 2.1's Cước thu column).
         { key: 'freight', label: 'Cước vận tải (Auto)', value: freightFact(row), primary: true },
         { key: 'chiho', label: 'Tổng chi hộ', value: money(row.chiHoTotal) },
         ...(canManage ? [{ key: 'open', label: 'Quyết toán lô', primary: true, layout: expanded ? 'full-width' as const : undefined, value: <>
