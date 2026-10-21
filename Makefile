@@ -150,7 +150,13 @@ devdb-sync:
 # schemas drop and the prod dump streams in through the laptop. Login
 # credentials on staging become prod's after this (the users table comes
 # over). Pair with `make demo` when the code also needs to advance.
-stgdb: ## Sync prod DB (silversea.tingting.vip) → staging DB (vantai) — REPLACES staging data
+
+# SAFETY (user rule 21/10 — staging data immutable): stgdb/stgqa REPLACE staging data.
+# Chỉ chạy khi có STG_CONFIRM=YES trong env (user ra lệnh trực tiếp).
+stg-guard:
+	@if [ "$$STG_CONFIRM" != "YES" ]; then echo "⛔ stgdb/stgqa thay thế dữ liệu staging. STG_CONFIRM=YES <lệnh> để xác nhận (user-only)." >&2; exit 1; fi
+
+stgdb: stg-guard ## Sync prod DB (silversea.tingting.vip) → staging DB (vantai) — REPLACES staging data
 	@set -eu; \
 	echo "1/5  Dumping prod DB ($(PROD_SERVER))..."; \
 	dump="/tmp/silversea-stgdb-$$(date -u +%Y%m%dT%H%M%SZ).dump"; \
@@ -192,7 +198,7 @@ qapurge-dry: ## Dry-run the QA-fixture purge on staging (no writes)
 # aborts BEFORE the sync if that image predates ENV-01, so an aborted run can
 # never leave staging holding prod-set passwords (run `make demo` to advance,
 # then retry). Same pairing rule as stgdb's purge step.
-stgqa: ## Full staging QA env: prod→staging sync + Abc123 reset + QA fixtures (ENV-01)
+stgqa: stg-guard ## Full staging QA env: prod→staging sync + Abc123 reset + QA fixtures (ENV-01)
 	@echo "=== ENV-01 stgqa 0/3: preflight — deployed image phải có script ENV-01 ==="
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps backend sh -c 'test -f dist/seed/reset-staging-passwords.js && test -f dist/seed/seed-qa-fixtures.js'" || { echo "❌ deployed staging image thiếu script ENV-01 — chạy 'make demo' trước rồi thử lại (để không bỏ staging với mật khẩu prod-set giữa chừng)." >&2; exit 1; }
 	@echo "=== ENV-01 stgqa 1/3: prod → staging sync (make stgdb, gồm QA-class purge) ==="
