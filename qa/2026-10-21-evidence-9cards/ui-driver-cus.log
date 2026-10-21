@@ -1,0 +1,159 @@
+
+=== run 2026-10-21T06:23:22.543Z (pin 536aad6c) ===
+2026-10-21T06:23:22.644Z login cus (CUS): OK
+2026-10-21T06:23:25.445Z PASS cus-11 detail page renders (not login) — url=http://localhost:7175/shipments/312306
+2026-10-21T06:23:25.446Z PASS cus-11 header order Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu — ["Khách hàng","Số Bill / Số Booking","Số tờ khai","Xuất / Nhập","Hãng tàu","Nâng"]
+2026-10-21T06:23:25.446Z PASS cus-11 Số Bill value = REGPKoy6zz1003B3679 — REGPKoy6zz1003B3679
+2026-10-21T06:23:25.446Z PASS cus-11 Số tờ khai empty before add (—) — —
+2026-10-21T06:23:25.446Z PASS cus-11 Xuất/Nhập = Nhập (IMPORT) — Nhập
+2026-10-21T06:23:25.446Z PASS cus-11 Hãng tàu = REGPK LINE — REGPK LINE
+2026-10-21T06:23:25.553Z shot ui-cus11-header-before.png (1440px header)
+
+=== run 2026-10-21T06:25:02.829Z (pin 536aad6c) ===
+2026-10-21T06:25:03.035Z login cus (CUS): OK
+2026-10-21T06:25:06.936Z PASS cus-11 detail page renders (not login) — url=http://localhost:7175/shipments/312306
+2026-10-21T06:25:06.937Z PASS cus-11 header order Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu — ["Khách hàng","Số Bill / Số Booking","Số tờ khai","Xuất / Nhập","Hãng tàu","Nâng"]
+2026-10-21T06:25:06.938Z PASS cus-11 Số Bill value = REGPKoy6zz1003B3679 — REGPKoy6zz1003B3679
+2026-10-21T06:25:06.938Z PASS cus-11 Số tờ khai empty before add (—) — —
+2026-10-21T06:25:06.938Z PASS cus-11 Xuất/Nhập = Nhập (IMPORT) — Nhập
+2026-10-21T06:25:06.938Z PASS cus-11 Hãng tàu = REGPK LINE — REGPK LINE
+2026-10-21T06:25:07.107Z shot ui-cus11-header-before.png (1440px header)
+
+=== run 2026-10-21T06:26:52.206Z (pin 536aad6c) ===
+2026-10-21T06:26:52.389Z login cus (CUS): OK
+2026-10-21T06:26:56.363Z PASS cus-11 detail page renders (not login) — url=http://localhost:7175/shipments/312306
+2026-10-21T06:26:56.367Z PASS cus-11 header order Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu — ["Khách hàng","Số Bill / Số Booking","Số tờ khai","Xuất / Nhập","Hãng tàu","Nâng"]
+2026-10-21T06:26:56.367Z PASS cus-11 Số Bill value = REGPKoy6zz1003B3679 — REGPKoy6zz1003B3679
+2026-10-21T06:26:56.367Z PASS cus-11 Số tờ khai empty before add (—) — —
+2026-10-21T06:26:56.367Z PASS cus-11 Xuất/Nhập = Nhập (IMPORT) — Nhập
+2026-10-21T06:26:56.367Z PASS cus-11 Hãng tàu = REGPK LINE — REGPK LINE
+2026-10-21T06:26:56.492Z shot ui-cus11-header-before.png (1440px header)
+2026-10-21T06:26:58.227Z PASS cus-11 header Số tờ khai shows TKQA9cards01 after add — ["LONG MINH","REGPKoy6zz1003B3679","TKQA9cards01","Nhập","REGPK LINE"]
+2026-10-21T06:26:58.630Z shot ui-cus11-header-after.png (header shows tờ khai)
+2026-10-21T06:27:15.880Z PASS lcl-03 NO "Lịch & ghi chú" section on LCL form — found=false
+2026-10-21T06:27:15.881Z PASS lcl-03 no Lịch/ghi chú textareas (ghi chú cho khách/lái xe absent)
+2026-10-21T06:27:15.881Z PASS lcl-05 label "Ngày giao hàng" present
+2026-10-21T06:27:15.982Z shot ui-lcl0305-form.png (LCL form, no Lịch & ghi chú)
+2026-10-21T06:27:23.039Z PASS lcl-04 "Quy cách đóng gói" combobox present with suggestion placeholder — placeholder=Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)
+2026-10-21T06:27:23.624Z PASS lcl-04 suggestion list opens with Pallet/Roll/Carton options — ["Thùng gỗ","Pallet","Roll","Carton","Box","Crate","Khung","Bao","Can"]
+2026-10-21T06:27:23.752Z shot ui-lcl04-packaging-suggestions.png
+2026-10-21T06:27:23.783Z FAIL lcl-02 "Thêm kho" button present on LCL route section
+2026-10-21T06:27:24.639Z SCRIPT A DONE — failures=1
+
+=== run 2026-10-21T06:28:19.417Z (pin 536aad6c) ===
+2026-10-21T06:28:19.656Z login cus (CUS): OK
+2026-10-21T06:28:23.701Z PASS cus-11 detail page renders (not login) — url=http://localhost:7175/shipments/312306
+2026-10-21T06:28:23.710Z PASS cus-11 header order Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu — ["Khách hàng","Số Bill / Số Booking","Số tờ khai","Xuất / Nhập","Hãng tàu","Nâng"]
+2026-10-21T06:28:23.710Z PASS cus-11 Số Bill value = REGPKoy6zz1003B3679 — REGPKoy6zz1003B3679
+2026-10-21T06:28:23.711Z FAIL cus-11 Số tờ khai empty before add (—) — TKQA9cards01
+2026-10-21T06:28:23.711Z PASS cus-11 Xuất/Nhập = Nhập (IMPORT) — Nhập
+2026-10-21T06:28:23.711Z PASS cus-11 Hãng tàu = REGPK LINE — REGPK LINE
+2026-10-21T06:28:23.822Z shot ui-cus11-header-before.png (1440px header)
+2026-10-21T06:28:25.131Z PASS cus-11 header Số tờ khai shows TKQA9cards01 after add — ["LONG MINH","REGPKoy6zz1003B3679","TKQA9cards01","Nhập","REGPK LINE"]
+2026-10-21T06:28:25.560Z shot ui-cus11-header-after.png (header shows tờ khai)
+2026-10-21T06:28:39.921Z PASS lcl-03 NO "Lịch & ghi chú" section on LCL form — found=false
+2026-10-21T06:28:39.924Z PASS lcl-03 no Lịch/ghi chú textareas (ghi chú cho khách/lái xe absent)
+2026-10-21T06:28:39.924Z PASS lcl-05 label "Ngày giao hàng" present
+2026-10-21T06:28:40.101Z shot ui-lcl0305-form.png (LCL form, no Lịch & ghi chú)
+2026-10-21T06:28:46.577Z PASS lcl-04 "Quy cách đóng gói" combobox present with suggestion placeholder — placeholder=Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)
+2026-10-21T06:28:47.133Z PASS lcl-04 suggestion list opens with Pallet/Roll/Carton options — ["Thùng gỗ","Pallet","Roll","Carton","Box","Crate","Khung","Bao","Can"]
+2026-10-21T06:28:47.305Z shot ui-lcl04-packaging-suggestions.png
+2026-10-21T06:28:47.333Z FAIL lcl-02 customer field present
+
+=== run 2026-10-21T06:30:11.024Z (pin 536aad6c) ===
+2026-10-21T06:30:11.177Z login cus (CUS): OK
+2026-10-21T06:30:15.785Z PASS cus-11 detail page renders (not login) — url=http://localhost:7175/shipments/312306
+2026-10-21T06:30:15.787Z PASS cus-11 header order Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu — ["Khách hàng","Số Bill / Số Booking","Số tờ khai","Xuất / Nhập","Hãng tàu","Nâng"]
+2026-10-21T06:30:15.787Z PASS cus-11 Số Bill value = REGPKoy6zz1003B3679 — REGPKoy6zz1003B3679
+2026-10-21T06:30:15.787Z FAIL cus-11 Số tờ khai empty before add (—) — TKQA9cards01
+2026-10-21T06:30:15.787Z PASS cus-11 Xuất/Nhập = Nhập (IMPORT) — Nhập
+2026-10-21T06:30:15.788Z PASS cus-11 Hãng tàu = REGPK LINE — REGPK LINE
+2026-10-21T06:30:15.965Z shot ui-cus11-header-before.png (1440px header)
+2026-10-21T06:30:17.163Z PASS cus-11 header Số tờ khai shows TKQA9cards01 after add — ["LONG MINH","REGPKoy6zz1003B3679","TKQA9cards01","Nhập","REGPK LINE"]
+2026-10-21T06:30:17.492Z shot ui-cus11-header-after.png (header shows tờ khai)
+2026-10-21T06:30:33.204Z PASS lcl-03 NO "Lịch & ghi chú" section on LCL form — found=false
+2026-10-21T06:30:33.205Z PASS lcl-03 no Lịch/ghi chú textareas (ghi chú cho khách/lái xe absent)
+2026-10-21T06:30:33.205Z PASS lcl-05 label "Ngày giao hàng" present
+2026-10-21T06:30:33.343Z shot ui-lcl0305-form.png (LCL form, no Lịch & ghi chú)
+2026-10-21T06:30:39.820Z PASS lcl-04 "Quy cách đóng gói" combobox present with suggestion placeholder — placeholder=Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)
+2026-10-21T06:30:40.412Z PASS lcl-04 suggestion list opens with Pallet/Roll/Carton options — ["Thùng gỗ","Pallet","Roll","Carton","Box","Crate","Khung","Bao","Can"]
+2026-10-21T06:30:40.725Z shot ui-lcl04-packaging-suggestions.png
+2026-10-21T06:30:40.746Z PASS lcl-02 customer field present
+
+=== run 2026-10-21T06:33:12.409Z (pin 536aad6c) ===
+2026-10-21T06:33:12.549Z login cus (CUS): OK
+2026-10-21T06:33:16.137Z PASS cus-11 detail page renders (not login) — url=http://localhost:7175/shipments/312306
+2026-10-21T06:33:16.138Z PASS cus-11 header order Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu — ["Khách hàng","Số Bill / Số Booking","Số tờ khai","Xuất / Nhập","Hãng tàu","Nâng"]
+2026-10-21T06:33:16.138Z PASS cus-11 Số Bill value = REGPKoy6zz1003B3679 — REGPKoy6zz1003B3679
+2026-10-21T06:33:16.138Z FAIL cus-11 Số tờ khai empty before add (—) — TKQA9cards01
+2026-10-21T06:33:16.139Z PASS cus-11 Xuất/Nhập = Nhập (IMPORT) — Nhập
+2026-10-21T06:33:16.139Z PASS cus-11 Hãng tàu = REGPK LINE — REGPK LINE
+2026-10-21T06:33:16.228Z shot ui-cus11-header-before.png (1440px header)
+2026-10-21T06:33:17.406Z PASS cus-11 header Số tờ khai shows TKQA9cards01 after add — ["LONG MINH","REGPKoy6zz1003B3679","TKQA9cards01","Nhập","REGPK LINE"]
+2026-10-21T06:33:17.739Z shot ui-cus11-header-after.png (header shows tờ khai)
+2026-10-21T06:33:26.280Z PASS lcl-03 NO "Lịch & ghi chú" section on LCL form — found=false
+2026-10-21T06:33:26.280Z PASS lcl-03 no Lịch/ghi chú textareas (ghi chú cho khách/lái xe absent)
+2026-10-21T06:33:26.280Z PASS lcl-05 label "Ngày giao hàng" present
+2026-10-21T06:33:26.455Z shot ui-lcl0305-form.png (LCL form, no Lịch & ghi chú)
+2026-10-21T06:33:29.647Z PASS lcl-04 "Quy cách đóng gói" combobox present with suggestion placeholder — placeholder=Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)
+2026-10-21T06:33:30.194Z PASS lcl-04 suggestion list opens with Pallet/Roll/Carton options — ["Thùng gỗ","Pallet","Roll","Carton","Box","Crate","Khung","Bao","Can"]
+2026-10-21T06:33:30.415Z shot ui-lcl04-packaging-suggestions.png
+2026-10-21T06:33:30.433Z PASS lcl-02 customer field present
+2026-10-21T06:33:44.142Z picked first customer option
+2026-10-21T06:33:45.353Z PASS lcl-02 "Thêm kho" button present on LCL route section
+2026-10-21T06:33:46.729Z PASS lcl-02 quick-add dialog title names direction "Thêm kho lấy hàng" — title=Thêm kho lấy hàng
+2026-10-21T06:33:46.730Z FAIL lcl-02 quick-add body is simple (name/address, not master-data form) — labels=["Tên đầy đủ","Tên ngắn","Địa chỉ"]
+2026-10-21T06:33:46.905Z shot ui-lcl02-quickadd.png
+2026-10-21T06:33:47.062Z SCRIPT A DONE — failures=2
+
+=== run 2026-10-21T06:34:09.387Z (pin 536aad6c) ===
+2026-10-21T06:34:09.514Z login cus (CUS): OK
+2026-10-21T06:34:12.363Z PASS cus-11 detail page renders (not login) — url=http://localhost:7175/shipments/312306
+2026-10-21T06:34:12.364Z PASS cus-11 header order Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu — ["Khách hàng","Số Bill / Số Booking","Số tờ khai","Xuất / Nhập","Hãng tàu","Nâng"]
+2026-10-21T06:34:12.364Z PASS cus-11 Số Bill value = REGPKoy6zz1003B3679 — REGPKoy6zz1003B3679
+2026-10-21T06:34:12.364Z FAIL cus-11 Số tờ khai empty before add (—) — TKQA9cards01
+2026-10-21T06:34:12.364Z PASS cus-11 Xuất/Nhập = Nhập (IMPORT) — Nhập
+2026-10-21T06:34:12.364Z PASS cus-11 Hãng tàu = REGPK LINE — REGPK LINE
+2026-10-21T06:34:12.488Z shot ui-cus11-header-before.png (1440px header)
+2026-10-21T06:34:13.325Z PASS cus-11 header Số tờ khai shows TKQA9cards01 after add — ["LONG MINH","REGPKoy6zz1003B3679","TKQA9cards01","Nhập","REGPK LINE"]
+2026-10-21T06:34:13.638Z shot ui-cus11-header-after.png (header shows tờ khai)
+2026-10-21T06:34:17.967Z PASS lcl-03 NO "Lịch & ghi chú" section on LCL form — found=false
+2026-10-21T06:34:17.968Z PASS lcl-03 no Lịch/ghi chú textareas (ghi chú cho khách/lái xe absent)
+2026-10-21T06:34:17.969Z PASS lcl-05 label "Ngày giao hàng" present
+2026-10-21T06:34:18.059Z shot ui-lcl0305-form.png (LCL form, no Lịch & ghi chú)
+2026-10-21T06:34:18.283Z PASS lcl-04 "Quy cách đóng gói" combobox present with suggestion placeholder — placeholder=Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)
+2026-10-21T06:34:18.928Z PASS lcl-04 suggestion list opens with Pallet/Roll/Carton options — ["Thùng gỗ","Pallet","Roll","Carton","Box","Crate","Khung","Bao","Can"]
+2026-10-21T06:34:19.044Z shot ui-lcl04-packaging-suggestions.png
+2026-10-21T06:34:19.054Z PASS lcl-02 customer field present
+2026-10-21T06:34:27.150Z picked first customer option
+2026-10-21T06:34:28.354Z PASS lcl-02 "Thêm kho" button present on LCL route section
+2026-10-21T06:34:29.311Z PASS lcl-02 quick-add dialog title names direction "Thêm kho lấy hàng" — title=Thêm kho lấy hàng
+2026-10-21T06:34:29.311Z PASS lcl-02 quick-add body is simple (name/short/address, not master-data form) — labels=["Tên đầy đủ","Tên ngắn","Địa chỉ"] heavy=[]
+2026-10-21T06:34:29.463Z shot ui-lcl02-quickadd.png
+2026-10-21T06:34:29.605Z SCRIPT A DONE — failures=1
+
+=== run 2026-10-21T06:34:44.668Z (pin 536aad6c) ===
+2026-10-21T06:34:44.755Z login cus (CUS): OK
+2026-10-21T06:34:47.386Z PASS cus-11 detail page renders (not login) — url=http://localhost:7175/shipments/312306
+2026-10-21T06:34:47.387Z PASS cus-11 header order Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu — ["Khách hàng","Số Bill / Số Booking","Số tờ khai","Xuất / Nhập","Hãng tàu","Nâng"]
+2026-10-21T06:34:47.387Z PASS cus-11 Số Bill value = REGPKoy6zz1003B3679 — REGPKoy6zz1003B3679
+2026-10-21T06:34:47.387Z PASS cus-11 Số tờ khai empty before add (—) — —
+2026-10-21T06:34:47.387Z PASS cus-11 Xuất/Nhập = Nhập (IMPORT) — Nhập
+2026-10-21T06:34:47.387Z PASS cus-11 Hãng tàu = REGPK LINE — REGPK LINE
+2026-10-21T06:34:47.418Z shot ui-cus11-header-before.png (1440px header)
+2026-10-21T06:34:48.224Z PASS cus-11 header Số tờ khai shows TKQA9cards01 after add — ["LONG MINH","REGPKoy6zz1003B3679","TKQA9cards01","Nhập","REGPK LINE"]
+2026-10-21T06:34:48.366Z shot ui-cus11-header-after.png (header shows tờ khai)
+2026-10-21T06:34:52.846Z PASS lcl-03 NO "Lịch & ghi chú" section on LCL form — found=false
+2026-10-21T06:34:52.846Z PASS lcl-03 no Lịch/ghi chú textareas (ghi chú cho khách/lái xe absent)
+2026-10-21T06:34:52.847Z PASS lcl-05 label "Ngày giao hàng" present
+2026-10-21T06:34:52.956Z shot ui-lcl0305-form.png (LCL form, no Lịch & ghi chú)
+2026-10-21T06:34:54.182Z PASS lcl-04 "Quy cách đóng gói" combobox present with suggestion placeholder — placeholder=Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)
+2026-10-21T06:34:54.713Z PASS lcl-04 suggestion list opens with Pallet/Roll/Carton options — ["Thùng gỗ","Pallet","Roll","Carton","Box","Crate","Khung","Bao","Can"]
+2026-10-21T06:34:54.938Z shot ui-lcl04-packaging-suggestions.png
+2026-10-21T06:34:54.950Z PASS lcl-02 customer field present
+2026-10-21T06:35:03.014Z picked first customer option
+2026-10-21T06:35:04.219Z PASS lcl-02 "Thêm kho" button present on LCL route section
+2026-10-21T06:35:05.093Z PASS lcl-02 quick-add dialog title names direction "Thêm kho lấy hàng" — title=Thêm kho lấy hàng
+2026-10-21T06:35:05.094Z PASS lcl-02 quick-add body is simple (name/short/address, not master-data form) — labels=["Tên đầy đủ","Tên ngắn","Địa chỉ"] heavy=[]
+2026-10-21T06:35:05.241Z shot ui-lcl02-quickadd.png
+2026-10-21T06:35:05.345Z SCRIPT A DONE — failures=0
