@@ -1,16 +1,17 @@
 // Card 211026024348 (FB-093 follow-up) — the settlement boards' "Tách nhóm"
 // affordance for a lot inside a merged rev group (Ghép cước thu khách). QA:
-// after the merge (Lô 1 = 100% CƯỚC VẬN TẢI AUTO, Lô 2..N = 0₫ + "Ghép xe
-// cùng Bill [Lô 1]") there was NO path to split the group again.
+// after the merge (per boss 21/10 — mỗi lô tự tính đơn giá Tuyến×KH × loại xe
+// của chính nó, độc lập) there was NO path to split the group again.
 //
 // ONE action for every surface that shows a merged group (CUS Chi phí -
 // Quyết toán + Kế toán /accounting/chot-debit): a real <button> named after
 // its lot, gated by DisabledActionTip (aria-disabled, NEVER the `disabled`
 // attribute — the FB-093b pattern), confirming on the SHARED ConfirmDialog
 // and calling the EXISTING `POST /shipments/lcl/unmerge-group`
-// (`unmergeLclGroup`) — never a second unmerge path. The server puts every
-// lot's cước thu back to its pre-merge state and sheds the merge note
-// (restoreRevPreMergeMoney); the audit ride is SHIPMENT_LCL_GROUP_UNMERGED.
+// (`unmergeLclGroup`) — never a second unmerge path. Because cước thu is
+// per-lot (per boss 21/10), tách nhóm moves NO money: each lot keeps its own
+// AUTO đơn giá and only sheds the merge note (`keepRevPerLotMoney`); the
+// audit ride is SHIPMENT_LCL_GROUP_UNMERGED.
 //
 // UI provenance: house primitive — the same native <button> + shared
 // ConfirmDialog + DisabledActionTip trio the dispatch board's "Tách nhóm"
@@ -47,7 +48,7 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
       await unmergeLclGroup({ groupId, dimension: 'REV' });
       toast({
         kind: 'success',
-        message: 'Đã tách nhóm — tiền cước của mỗi lô trở về đúng trạng thái trước ghép, ghi chú ghép đã được gỡ.',
+        message: 'Đã tách nhóm — mỗi lô giữ nguyên đơn giá Tuyến×KH của riêng nó, ghi chú "Ghép cước cùng Bill" đã được gỡ.',
       });
       setConfirmOpen(false);
       onUnmerged();
@@ -78,8 +79,8 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
       </DisabledActionTip>
       <ConfirmDialog
         isOpen={confirmOpen}
-        message={'Tách nhóm ghép cước thu khách? Tiền cước của mỗi lô trở về đúng trạng thái trước ghép,'
-          + ' ghi chú "Ghép cước cùng Bill" được gỡ.'}
+        message={'Tách nhóm ghép cước thu khách? Mỗi lô giữ nguyên đơn giá Tuyến×KH của riêng nó'
+          + ' (cước thu per-lot, không chuyển tiền giữa các lô), ghi chú "Ghép cước cùng Bill" được gỡ.'}
         confirmLabel={busy ? 'Đang tách…' : 'Tách nhóm'}
         onConfirm={() => void doUnmerge()}
         onCancel={() => { if (!busy) setConfirmOpen(false); }}

@@ -207,7 +207,7 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
 
     fireEvent.click(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
     const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('trở về đúng trạng thái trước ghép');
+    expect(dialog.textContent).toContain('giữ nguyên đơn giá Tuyến×KH của riêng nó');
 
     unmergeGroup.mockResolvedValue({
       dimension: 'REV',
@@ -228,10 +228,15 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     await waitFor(() => expect(listSummary.mock.calls.length).toBeGreaterThanOrEqual(2));
     expect(await screen.findByText(formatMoney(700000))).toBeTruthy();
     expect(screen.getByText(formatMoney(3150000))).toBeTruthy();
-    expect(screen.queryByText(/Ghép cước cùng Bill/)).toBeNull();
+    // The lot-row "Ghép cước cùng Bill" note is shed (the toast may still
+    // name it — the note leaving the BOARD row is the invariant). Scoped to
+    // the BL-2 row, not a global query that the toast would match.
+    const bl2Row = (await screen.findAllByText('BL-2'))[0]!.closest('.shipment-debit-row')!;
+    expect(bl2Row).not.toBeNull();
+    expect(bl2Row.textContent).not.toContain('Ghép cước cùng Bill');
   });
 
-  it('cover promote-on-unmerge (FB-095): Hủy ghép Lô 1 → toast nêu Bill kế vị nhận 100% cước thu khách', async () => {
+  it('cover promote-on-unmerge (FB-095, REV per-lot): Hủy ghép Lô 1 → Lô 2 thành Lô chính, KHÔNG chuyển tiền', async () => {
     listSummary.mockResolvedValue(summaryOf([lclRow({
       billOrBookNumber: 'BL-1',
       freightAuto: 3150000,
@@ -247,12 +252,13 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     fireEvent.click(await screen.findByRole('button', { name: 'Hủy ghép' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
 
+    // Per boss 21/10 REV is per-lot: the crown moves, money does not.
     unmergeLot.mockResolvedValue({
       dimension: 'REV',
       groupId: 'g-rev-1',
       leaver: { shipmentId: 101, order: 1, reference: 'BL-1' },
       promoted: { shipmentId: 102, order: 1, reference: 'BL-2' },
-      transferredAmount: '3150000',
+      transferredAmount: null,
       remaining: [],
       dissolved: true,
     });
@@ -260,6 +266,7 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     fireEvent.click(confirm);
 
     await waitFor(() => expect(unmergeLot).toHaveBeenCalledWith({ shipmentId: 101, dimension: 'REV' }));
-    expect(await screen.findByText(/Bill BL-2 nhận 100% cước thu khách/)).toBeTruthy();
+    expect(await screen.findByText(/Bill BL-2 thành Lô chính; mỗi lô tự giữ đơn giá Tuyến×KH/)).toBeTruthy();
+    expect(screen.queryByText(/nhận 100% cước thu khách/)).toBeNull();
   });
 });

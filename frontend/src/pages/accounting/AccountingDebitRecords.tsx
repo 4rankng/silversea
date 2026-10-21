@@ -4,9 +4,9 @@ import type { RowSelection } from '../../hooks/useTableRowSelection';
 import { billBookingReference } from '../../lib/business-reference';
 import type { CellContext, DebitColumn } from './AccountingDebitClosePage.columns';
 
-// 161026204709: `cuocThu` is primary — the F-2 100%/0₫ lane price must render
-// on the card face (the member's reason rides the `container` fact), never
-// inside the 'Chi tiết' collapse.
+// 161026204709: `cuocThu` is primary — the F-2 lane price (per-lot cước thu
+// per boss 21/10) must render on the card face (the lot's reason rides the
+// `container` fact), never inside the 'Chi tiết' collapse.
 const PRIMARY_FACTS: Record<string, true> = {
   ngay: true, container: true, cuocThu: true, tongThu: true, tong1: true, loiNhuan: true, doiSoat: true,
 };

@@ -161,8 +161,9 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     const containerInfo = containersByTrip.get(trip.id) ?? [];
     const containers = containerNumbers(containerInfo);
     const unit = containerUnit(containerInfo);
-    // Spec §II.4: the member lot's 0₫ freight row carries the merge note naming
-    // Lô 1's Bill. Lô 1 (order 1) and every other row kind keep their own note.
+    // per boss 21/10: a merged lot's freight row is its own per-lot cước and
+    // carries the merge note naming Lô 1's Bill. Lô 1 (order 1) and every
+    // other row kind keep their own note.
     const revGroup = trip.shipmentId != null ? membershipByLot.get(trip.shipmentId) : undefined;
     const mergeNote = revGroup && (revGroup.revGroupOrder ?? 1) > 1
       ? `${REV_GROUP_MERGE_NOTE} ${principalRefByGroup.get(revGroup.revGroupId) ?? ''}`.trim()
@@ -648,11 +649,11 @@ export async function loadLegRenderDataByTrip(
   return map;
 }
 
-/** Card 161026232439 (spec §II.4): a merged member lot's freight row is 0₫ and
- *  must cite the merge in the spec wording "Ghép xe cùng Bill [Số Bill Lô 1]".
- *  Membership and the Lô 1 reference are read from the live rev group (the same
- *  facts the CUS grid shows); the Lô 1 reference mirrors lcl-grouping's
- *  lotReference: Bill → booking → mã lô. */
+/** Card 161026232439 (spec §II.4 + per boss 21/10): a merged lot's freight row
+ *  is its own per-lot cước and must cite the merge in the spec wording
+ *  "Ghép xe cùng Bill [Số Bill Lô 1]". Membership and the Lô 1 reference are
+ *  read from the live rev group (the same facts the CUS grid shows); the Lô 1
+ *  reference mirrors lcl-grouping's lotReference: Bill → booking → mã lô. */
 const REV_GROUP_MERGE_NOTE = 'Ghép xe cùng Bill';
 
 type RevGroupMembership = { revGroupId: string; revGroupOrder: number | null };

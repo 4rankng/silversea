@@ -70,7 +70,9 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   );
 
   const revClassDirty = revClassId !== '' && revClassId !== currentRevClassId;
-  // A grouped lot's cước thu belongs to the group (merge 100%/0₫ law).
+  // A grouped lot's class is set by the merge (per boss 21/10 the cước thu is
+  // per-lot, but the class is still a group-level choice — change it after
+  // un-grouping).
   const revClassLocked = row.revGroupId != null;
 
   async function saveTruck() {
@@ -118,12 +120,15 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
     setUnmerging(dimension);
     try {
       const result = await unmergeLclLot({ shipmentId: row.shipmentId, dimension });
-      toast({
-        kind: 'success',
-        message: result.promoted
-          ? `Đã hủy ghép — Bill ${result.promoted.reference} nhận 100% ${dimension === 'REV' ? 'cước thu khách' : 'cước trả ĐV'}`
-          : 'Đã hủy ghép — nhóm giải tán',
-      });
+      // COST: the crown inherits 100% cước trả ĐV (money moves). REV (per
+      // boss 21/10): cước thu per-lot — tách nhóm KHÔNG chuyển tiền; mỗi lô
+      // tự giữ đơn giá Tuyến×KH của nó, chỉ bỏ ghi chú "Ghép cước".
+      const message = result.promoted
+        ? (dimension === 'REV'
+          ? `Đã hủy ghép — Bill ${result.promoted.reference} thành Lô chính; mỗi lô tự giữ đơn giá Tuyến×KH (không chuyển tiền).`
+          : `Đã hủy ghép — Bill ${result.promoted.reference} nhận 100% cước trả ĐV`)
+        : 'Đã hủy ghép — nhóm giải tán';
+      toast({ kind: 'success', message });
       setConfirmUnmerge(null);
       onChanged();
     } catch (err) {

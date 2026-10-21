@@ -25,9 +25,10 @@
 // C5 (card 1016212936) — CƯỚC THU follows the F-2/§3.2 group law for an LCL lot
 // that is REV-grouped or whose live trip carries an override stamp: the figure
 // comes from the ONE shared helper (`revenue-override-read.service`), exactly
-// like the CUS and Kế toán boards, so a merged group's 100%/0₫ reaches this
-// report too instead of the pre-merge snapshot. Everything else keeps the
-// snapshot grain byte-for-byte (FCL included — the ruling's LCL-only caveat).
+// like the CUS and Kế toán boards, so a per-lot merge cước (per boss 21/10 —
+// mỗi lô tự tính đơn giá Tuyến×KH của chính nó) reaches this report too
+// instead of the pre-merge snapshot. Everything else keeps the snapshot grain
+// byte-for-byte (FCL included — the ruling's LCL-only caveat).
 import { and, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -49,9 +50,10 @@ export interface CustomerFreightLine {
   carrierKey: string;
   /** Cước thu của chuyến (frozen freight amount). */
   freightRevenue: number;
-  /** C5 (card 1016212936) — the group-law note that explains a 0₫/100% cước thu
-   *  line: the merge note ("Ghép cước cùng Bill X") or the trip's own override
-   *  reason. Null whenever the line reads the historical snapshot channel. */
+  /** C5 (card 1016212936) — the group-law note that explains a grouped lot's
+   *  cước thu line (per boss 21/10 — per-lot value, not a 0₫ member): the
+   *  merge note ("Ghép cước cùng Bill X") or the trip's own override reason.
+   *  Null whenever the line reads the historical snapshot channel. */
   freightOverrideReason: string | null;
   /** Cước trả của chuyến (external carrier cost). */
   freightPayable: number;
@@ -252,8 +254,8 @@ export async function getCustomerDebtSummary(
   // same helper the CUS and Kế toán boards call. Its grain is the LOT; this
   // report's grain is the trip line, so the lot's effective figure is anchored
   // on the lot's first active trip below (the device this function already uses
-  // for a shipment-level freeze) and the lot's remaining legs read the group
-  // law's 0₫.
+  // for a shipment-level freeze) and the lot's remaining legs carry no freight
+  // line (per-lot cước appears once, on its first leg).
   const overrideByLot = await loadRevenueOverrideByLot(db, lotIds);
 
   // Cước trả + the own/external axis + the carrier identity, per active trip.

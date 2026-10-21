@@ -197,9 +197,9 @@ export async function getShipmentDebitSummary(query: {
     }
     // 161026204709: a merged lot with no live trip has no override-channel
     // total (nothing to read there) — fall back to the snapshot channel,
-    // where the merge itself materialized the lane price / the cited member
-    // zero as a shipment-level row. Still null when neither channel holds a
-    // number ("Chưa xác định" — never a fabricated 0).
+    // where the merge materialized each lot's own lane price (per boss 21/10
+    // — per-lot AUTO, no member zero) as a shipment-level row. Still null when
+    // neither channel holds a number ("Chưa xác định" — never a fabricated 0).
     const memberNote = (lot.revGroupOrder ?? 1) > 1
       ? `Ghép cước cùng Bill ${revPrincipalRefs.get(lot.revGroupId!) ?? ''}`.trim()
       : null;

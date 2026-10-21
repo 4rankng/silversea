@@ -20,7 +20,8 @@ export interface ShipmentDebitLotRow {
   documentsSummary: string | null;
   /** Auto freight for the whole lot. null = not computable yet, never 0-by-default.
    *  F-2 ruling (b): a REV-grouped or override-stamped lot reads the
-   *  trip_financial_state.revenue override channel (merged 100%/0₫ law). */
+   *  trip_financial_state.revenue override channel (per-lot cước thu per
+   *  boss 21/10). */
   freightAuto: number | null;
   /** F-2: the override reason stamp behind freightAuto ("Ghép cước cùng Bill
    *  X" / FB-095 re-stamps / operator reasons) — rendered as the spec §3.2
