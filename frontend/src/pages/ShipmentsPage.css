@@ -1995,12 +1995,14 @@
   }
 
   /* The per-row remove owns the Thao tác card field now (card 20260923_9):
-     a 44px touch target (design law §5) instead of an overlay slot, and left
-     visible by the coarse-pointer rule. */
+     the CUS-10 labeled danger button keeps the 40px touch floor
+     (`--control-max-h`) and sits at the card's end instead of an overlay
+     slot; the coarse-pointer rule below keeps it visible. */
   .cus-container-table .cus-container-row__remove {
     position: static;
-    width: var(--control-max-h);
-    height: var(--control-max-h);
+    width: auto;
+    height: auto;
+    min-height: var(--control-max-h);
     transform: none;
     justify-self: end;
   }
@@ -2717,28 +2719,13 @@
 }
 
 /* Per-row remove — lives in the row's own Thao tác cell (card 20260923_9).
-   Action icon is always visible and centered in the cell per user request. */
+   CUS-10 (ruling 21/10): the action is the labeled `btn btn--danger-outline
+   btn--sm` danger button (markup owns the colors) that opens the confirm
+   dialog — this class only carries the cell centering. */
 .cus-container-row__remove {
-  visibility: visible;
-  display: inline-flex;
-  width: 26px;
-  height: 26px;
-  align-items: center;
-  justify-content: center;
   margin: 0 auto;
-  padding: 0;
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink-3);
-  cursor: pointer;
 }
-.cus-container-row__remove:hover { border-color: color-mix(in srgb, var(--danger) 58%, var(--line-2)); background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--danger-text); }
-.cus-container-row__remove:focus-visible { visibility: visible; outline: 3px solid color-mix(in srgb, var(--danger) 18%, transparent); outline-offset: 1px; }
 .cus-container-row__remove:disabled { opacity: 0.35; cursor: not-allowed; }
-.cus-container-row__remove:disabled:hover { border-color: var(--line-2); background: var(--surface); color: var(--ink-3); }
-.cus-container-row:hover .cus-container-row__remove,
-.cus-container-row:focus-within .cus-container-row__remove { visibility: visible; }
 /* Touch viewports never hover. The copy affordance already reveals itself for
    coarse pointers; the DESTRUCTIVE action must not be the one the operator
    cannot find on mobile (card 20260923_1 acceptance). */

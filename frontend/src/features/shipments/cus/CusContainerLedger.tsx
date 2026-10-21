@@ -105,6 +105,8 @@ export function ContainerLedger({
   onExternalTripCompleted,
   onDetailStale,
   onAppointmentSavedAndExit,
+  canRemoveContainer,
+  onContainerRemoved,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   onLineSaved: (line: ShipmentCusWorkspaceContainerLine | null) => Promise<void>;
@@ -127,6 +129,16 @@ export function ContainerLedger({
    *  closes the detail surface so Enter returns the user to the list, matching
    *  the drawer footer's save-then-close behavior. */
   onAppointmentSavedAndExit?: () => void;
+  /** CUS-10 (ruling 21/10): gate the row Xóa container on the remove API's
+   *  own writer roles (requireWorkspaceWriter: ADMIN/MANAGER/CUS/DISPATCHER —
+   *  the host mirrors the backend; ACCOUNTANT/DRIVER never see the button).
+   *  Default true keeps the ledger's historical affordance for hosts that
+   *  pre-gate the surface themselves. */
+  canRemoveContainer?: boolean;
+  /** CUS-10: fires once after a confirmed remove settles successfully — the
+   *  host closes the drawer so the user lands on the refreshed list that no
+   *  longer carries the deleted cont. */
+  onContainerRemoved?: () => void;
 }) {
   const [drafts, setDrafts] = useState<Record<number, ContainerLineDraft>>(() => (
     Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)]))
@@ -161,6 +173,11 @@ export function ContainerLedger({
   const [addError, setAddError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
+  // CUS-10 (ruling 21/10): the row button opens this confirm instead of
+  // deleting — "Xóa container <số>?" must stand between a mis-click and a
+  // hard delete with no undo.
+  const [pendingRemoveLine, setPendingRemoveLine] = useState<ShipmentCusWorkspaceContainerLine | null>(null);
+  const removeGateOpen = canRemoveContainer !== false;
 
   const closeAddRow = useCallback(() => {
     setAddOpen(false);
@@ -346,7 +363,14 @@ export function ContainerLedger({
       // the line from the drawer.
       await onLineSaved(null);
       onExternalTripCompleted?.();
+      // CUS-10: the confirmed delete dismisses the dialog and closes the
+      // drawer — the host lands the user on the refreshed overview list.
+      setPendingRemoveLine(null);
+      onContainerRemoved?.();
     } catch (error) {
+      // The dialog stays open on a guard rejection (đã điều xe / last cont /
+      // stale version): the API reason surfaces as a toast and the operator
+      // can retry or walk away with Hủy.
       toastActionError(toast, 'xóa container', error, 'Không xóa được container.');
     } finally {
       setRemovingId(null);
@@ -672,7 +696,7 @@ export function ContainerLedger({
                   showCopyAppointment={Boolean(effectiveAppointment(line.id)) && emptyAppointmentCount >= 1}
                   onCopyAppointmentToEmpty={() => copyAppointmentToEmpty(line.id)}
                   onAppointmentCopied={(formatted) => toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` })}
-                  onRemove={() => void removeContainer(line)}
+                  onRemove={removeGateOpen ? () => setPendingRemoveLine(line) : undefined}
                   removing={removingId === line.id}
                 />
               ))}
@@ -724,6 +748,18 @@ export function ContainerLedger({
         confirmLabel={completing ? 'Đang hoàn thành…' : 'Hoàn thành chuyến'}
         onConfirm={() => { if (completingLine) void completeExternalTrip(completingLine); }}
         onCancel={() => { if (!completing) setCompletingLine(null); }}
+      />
+      {/* CUS-10 (ruling 21/10): the drawer deletes a container only through
+          this danger confirm naming the number — mirrors the create-form's
+          Xóa container dialog. A guard rejection keeps it open so the API
+          reason (toast) and Hủy both stay reachable. */}
+      <ConfirmDialog
+        isOpen={pendingRemoveLine != null}
+        message={`Xóa container ${(pendingRemoveLine?.containerNumber || pendingRemoveLine?.ordinal) ?? ''}?`}
+        confirmLabel={removingId != null ? 'Đang xóa…' : 'Xóa container'}
+        variant="danger"
+        onConfirm={() => { if (pendingRemoveLine) void removeContainer(pendingRemoveLine); }}
+        onCancel={() => { if (removingId == null) setPendingRemoveLine(null); }}
       />
       {/* Standalone action footer when no drawer handles actions */}
       {!actionsRef && isDirty && (

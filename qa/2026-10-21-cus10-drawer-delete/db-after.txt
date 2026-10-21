@@ -1,0 +1,11 @@
+-- AFTER (post-delete proof, lot 311985, driver delete of container 141260/QATU0001234, 2026-10-21 10:10:28)
+   id   | container_number 
+--------+------------------
+ 141259 | QATU0001233
+(1 row)
+
+   id   | version |    status    
+--------+---------+--------------
+ 311985 |       3 | PENDING_DATE
+(1 row)
+

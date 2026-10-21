@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/feat-cus10-drawer-delete/frontend
+
+
+ Test Files  9 passed (9)
+      Tests  388 passed (388)
+   Start at  10:11:08
+   Duration  13.59s (transform 4.08s, setup 1.34s, import 10.49s, tests 25.02s, environment 5.12s)
+
+vitest exit:0
