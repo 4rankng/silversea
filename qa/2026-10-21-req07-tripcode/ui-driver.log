@@ -1,0 +1,15 @@
+HEALTH status=ok api=http://localhost:3002/api
+LOGIN ok driver=quyet
+BOARD items=1 canonicalPresent=true
+PASS T01 canonical code line formatted — ["Mã chuyến TRP 2026-10 · 0631"]
+PASS T01 raw generator string absent from list
+PASS T01 no stray code line without the Mã chuyến label — ["Mã chuyến TRP 2026-10 · 0631"]
+PASS T01 bill/booking still the lead identity — FB020-R21-RB1
+PASS T02 first fact row is Mã chuyến — Mã chuyến
+PASS T02 formatted value — TRP 2026-10 · 0631
+PASS T02 schedule row follows — ["Mã chuyến","Ngày giờ kế hoạch","Tên nhà máy"]
+PASS T02 raw generator string absent from detail
+PASS T03 penalty page renders (empty-state for this driver)
+PASS console errors none — clean
+DATA: restored 192861→3834, 67894→2; 85065 untouched (drivers.id=3 = quyet)
+DONE failures=0

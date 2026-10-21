@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { driverDeliveryDestination, driverLocationLabels } from './driver-display';
+import { driverDeliveryDestination, driverLocationLabels, driverTripCodeLabel } from './driver-display';
 
 // Card 091026190530 (FB-082): since the 2026-09-18 delivery-stage ruling the
 // return-depot stage is dead BE-side (returnDepotName is always null) and the
@@ -59,5 +59,42 @@ describe('driverDeliveryDestination — the delivery row is destination-owned', 
     expect(driverDeliveryDestination({ name: 'Nhà máy Free Text', address: null })).toBe('Nhà máy Free Text');
     expect(driverDeliveryDestination({ name: null, address: 'KCN Đồng Văn III' })).toBe('KCN Đồng Văn III');
     expect(driverDeliveryDestination({ fullName: null, name: '   ', address: '' })).toBeNull();
+  });
+});
+
+// REQ-07 (client doc, dispatch-approved): the driver app reads the trip code
+// in ONE spaced shape — "TRP <year>-<month> · <seq>" — instead of the raw
+// generator string. The DB also carries legacy generator shapes (audit
+// 2026-10-21: "TRP-C12-53-…", "CN-…", "BULK-TR-…"), which must pass through
+// untouched: a real code is never hidden, and a missing one is null so the
+// caller hides the row instead of rendering a dash-shaped error.
+describe('driverTripCodeLabel — REQ-07 unified trip-code display', () => {
+  it('formats a canonical generator code into the spaced driver shape', () => {
+    expect(driverTripCodeLabel('TRP-202610-0007')).toBe('TRP 2026-10 · 0007');
+  });
+
+  it('trims surrounding whitespace before formatting', () => {
+    expect(driverTripCodeLabel('  TRP-202608-7037  ')).toBe('TRP 2026-08 · 7037');
+  });
+
+  it('normalizes a short legacy sequence to the 4-digit display width', () => {
+    expect(driverTripCodeLabel('TRP-202606-12')).toBe('TRP 2026-06 · 0012');
+  });
+
+  it('keeps every digit of a long sequence (never truncates the counter)', () => {
+    expect(driverTripCodeLabel('TRP-202608-12345')).toBe('TRP 2026-08 · 12345');
+  });
+
+  it('passes legacy generator shapes through untouched (audit rows: TRP-C12-…)', () => {
+    expect(driverTripCodeLabel('TRP-C12-53-1791212851260-gvr4vb')).toBe('TRP-C12-53-1791212851260-gvr4vb');
+    expect(driverTripCodeLabel('BULK-TR-0001')).toBe('BULK-TR-0001');
+    expect(driverTripCodeLabel('CN-MSCU1234561-1')).toBe('CN-MSCU1234561-1');
+  });
+
+  it('returns null for a missing code so callers hide the row', () => {
+    expect(driverTripCodeLabel(null)).toBeNull();
+    expect(driverTripCodeLabel(undefined)).toBeNull();
+    expect(driverTripCodeLabel('')).toBeNull();
+    expect(driverTripCodeLabel('   ')).toBeNull();
   });
 });

@@ -30,11 +30,12 @@ function makeTrip(overrides: {
   invoiceFactory?: DriverTaskDetail['invoiceFactory'];
   routeName?: string | null;
   tradeDirection?: string | null;
+  tripCode?: string | null;
 } = {}): DriverTaskDetail {
   return {
     id: 55,
     version: 3,
-    tripCode: 'TRIP-55',
+    tripCode: overrides.tripCode !== undefined ? overrides.tripCode : 'TRIP-55',
     status: TripStatus.IN_TRANSIT,
     departureDate: '2026-08-01',
     tradeDirection: overrides.tradeDirection ?? null,
@@ -105,6 +106,7 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
     expect(labels()).toEqual([
+      'Mã chuyến',
       'Ngày giờ kế hoạch',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
@@ -114,6 +116,24 @@ describe('DriverTaskInfoSections', () => {
       'Cảng nâng',
       'Cảng hạ',
     ]);
+  });
+
+  it('REQ-07 renders the trip code as the leading labeled fact, formatted — never the raw generator string', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ tripCode: 'TRP-202610-0007' })} />);
+
+    expect(valueOf('Mã chuyến')).toBe('TRP 2026-10 · 0007');
+    expect(screen.queryByText('TRP-202610-0007')).toBeNull();
+  });
+
+  it('REQ-07 passes a legacy-shaped code through and dashes when the trip carries no code', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({ tripCode: 'TRP-C12-53-1791212851260-gvr4vb' })} />);
+    expect(valueOf('Mã chuyến')).toBe('TRP-C12-53-1791212851260-gvr4vb');
+
+    render(<DriverTaskInfoSections trip={makeTrip({ tripCode: null })} />);
+    const values = Array.from(document.querySelectorAll('.driver-task-fact'))
+      .filter((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Mã chuyến')
+      .map((el) => el.querySelector('.driver-task-fact__value')?.textContent);
+    expect(values[values.length - 1]).toBe('—');
   });
 
   it('FB-082: IMPORT Địa chỉ giao hàng names the factory destination, not the discharge yard', () => {
@@ -472,6 +492,7 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS' } })} />);
 
     expect(labels()).toEqual([
+      'Mã chuyến',
       'Ngày giờ kế hoạch',
       'Tên nhà máy',
       'Địa chỉ nhà máy',

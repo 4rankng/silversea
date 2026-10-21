@@ -1,4 +1,81 @@
-# FB-093 follow-up — nút "Tách nhóm" cho Ghép cước thu khách (card 211026024348) — 2026-10-21
+# REQ-07 — Format mã chuyến trong Driver App (doc khách REQ-07) — 2026-10-21
+
+Controller: agent, worktree feat-req07-trip-code-format (off main c643ef1e), branch feat-req07-trip-code-format.
+
+**Status**: DONE — display-layer only + gates + UI DRIVEN (local, 390px). Ưu
+Thấp nhưng khách đã duyệt dispatch; làm gọn đúng brief, KHÔNG đụng backend/DB.
+
+- **AUDIT (1) — tripCode sinh ra**: `backend/src/services/trip-create.service.ts`
+  `generateTripCode()` (dòng 41-68): `TRP-${yearMonth}-${String(counter).padStart(4,'0')}`
+  qua `trip_code_counters` (yearMonth + counter, lock chống loop). Row thật
+  (DB dev 5441/silversea, read-only): 152 row shape chuẩn
+  `TRP-202606-0084`, `TRP-202608-7037`; legacy `TRP-C12-53-1791212851260-gvr4vb`,
+  `CN-…` (429), `BULK-TR-…` — formatter phải passthrough legacy, không vỡ.
+- **AUDIT (2) — driver screens trước fix**: danh sách `DriverTripsPage` và
+  chi tiết `DriverTripHeader` CHỈ hiển thị Bill/Booking (internal-ids law,
+  CHIEF 26/09; `tripCode` có trong wire nhưng không render); lưới
+  `DriverTaskInfoSections` không có hàng mã; `DriverTwoOrdersPage` type-only;
+  `DriverPenaltyPage:238` render chuỗi generator THÔ — leak duy nhất.
+- **FIX (display-only)**: `driverTripCodeLabel()` mới trong
+  `features/driver/driver-display.ts` — shape chuẩn
+  `TRP <yyyy>-<mm> · <seq>` (regex khớp đúng generator, seq giữ nguyên số,
+  pad 4 khi thiếu; legacy → passthrough trim; null/'' → null để caller ẩn
+  hàng, cùng contract `driverDeliveryDestination`). Render ở: (a) card danh
+  sách — dòng "Mã chuyến …" dưới Bill, ẩn khi null, Bill vẫn lead (REQ-07
+  điều chỉnh mệnh đề "TRP never renders" của card 20260927_1 — bill/booking
+  giữ nguyên display key, SHP-/QADRV- vẫn cấm); (b) chi tiết — hàng "Mã
+  chuyến" ĐẦU lưới Thông tin lệnh (icon untitled-ui `file-02`, search_icons
+  verified; TaskFact house primitive, không tự chế layout mới — Tailkit không
+  dùng vì không có layout mới); (c) `DriverPenaltyPage` — mã qua formatter,
+  hết leak thô. KHÔNG đổi backend/generation/DB; KHÔNG migrate.
+- **Gates (verbatim, log trong `qa/2026-10-21-req07-tripcode/`)**:
+  `cd frontend && npx tsgo -b` → exit 0 · scoped vitest 10 files 195/195
+  (driver-display 12, DriverTripsPage 42, DriverTripDetailPage 52,
+  shipmentCostEntry 8, DriverPenaltyPage 4, pages/driver/ 77) ·
+  `pnpm lint` → 0 · `make build` → exit 0 · driver script 10/10 PASS exit 0.
+  Full FE suite **5374/5376** — 2 fail ĐỀU pre-existing trên branch base,
+  A/B-verified bằng `git stash` rerun, không thuộc diff này:
+  (1) `dev-port-contract` — script FB-033/FB-093 hardcode port
+  3303/7177/7188 (FB-002 handoff đã ghi nhận, card riêng cho owner FB-033;
+  script REQ-07 của task này env-only, không nằm trong offender list);
+  (2) `DispatchAllocationLclDialog.quick-add.test.tsx:153` (FB-066) —
+  **flake** async race nút "Áp dụng": 7 run A/B (có diff: F/P/F · sạch:
+  P/F/P/F) fail ~50% cả HAI phía; card riêng cho owner.
+- **Pre-existing branch debt (không phải do diff, stash-verified 2×: reviewer
+  + author)**: `pnpm design:drift` đỏ ở base (baseline 2026-10-04 lag so với
+  main; mọi category tăng đều không liên quan file này — diff CSS chỉ dùng
+  token) và `pnpm size-check` spawn suite đã retire (e54504bf). Việc
+  rebaseline thuộc owner; KHÔNG `--update` lậu 60+ raw values lạ vào baseline.
+- **Evidence**: `qa/2026-10-21-req07-tripcode/` — 3 PNG 390px (list/detail/
+  penalties) + `ui-driver.log` 10/10 PASS + `dom-list-codes.txt`/
+  `dom-detail-facts.txt` + `db-0/1/2` (thử reassign nhầm keyspace
+  users→drivers: 192861 về 3834, 67894 về 2, đều khôi phục; card evidence
+  dùng trip 85065 `TRP-202610-0631` CỦA SẴN quyet (drivers.id 3), không mutate
+  gì trong run cuối). Driver `testplan/qa/scripts/2026-10-21-req07-tripcode-ui-drive.mjs`.
+  Regression `testplan/2026-10-21-req07-tripcode.md` (REQ07T-01..03).
+- **Independent review**: subagent code-reviewer DONE — 0 critical/high/medium;
+  2 low nit đã fix (hoist double formatter call trong penalty map; QA script
+  env-overridable trip + derive label). Reviewer xác nhận: regex an toàn,
+  contract test được củng cố (không weaken), CSS token-only, drift đỏ là
+  pre-existing (tự stash-verify), không leak secret.
+- **Verification coverage (§9)**:
+
+| Claim / bug | Rung | Evidence | Not covered |
+|---|---|---|---|
+| REQ07T-01 card danh sách format chuẩn, raw string biến mất, Bill vẫn lead | UI DRIVEN | `ui-01-list-390.png` + `ui-driver.log` T01 3/3 + `dom-list-codes.txt` | HISTORY bucket card; card legacy-shape thật (BULK trip không có fulfillment nên không lên board — passthrough pinned ở unit) |
+| REQ07T-02 chi tiết: hàng "Mã chuyến" đầu lưới, hàng giờ kế hoạch theo sau | UI DRIVEN | `ui-02-detail-390.png` + T02 4/4 + `dom-detail-facts.txt` | lô không mã ('—' → unit `DriverTaskInfoSections.test` REQ-07 case); role khác DRIVER |
+| REQ07T-03 penalty hết leak thô | Unit VERIFIED (không UI-drive được) | `DriverPenaltyPage.test.tsx` 4/4; UI chỉ chụp empty-state (`ui-03-penalties-390.png`) — local không có penalty row gắn trip | formatted meta row chưa từng UI-driven (cần staging có data thật) |
+| formatter legacy passthrough + null | Unit VERIFIED | `driver-display.test.ts` 6 case (TRP-C12, BULK-TR, CN-, dài, thiếu) | row legacy thật trên UI |
+| không đổi backend/DB | CODE-READ ONLY | diff không chứa backend/; `generateTripCode` nguyên vẹn | — |
+
+- **Not covered**: staging (bqhuong) chưa drive lại — fix local-only, chưa
+  deploy; viewport 768/1440 (driver app là mobile-first, màn hình chỉ có
+  390); Hai lệnh trong ngày (two-orders) không hiển thị mã (type-only, không
+  thuộc REQ-07 scope hiển thị).
+
+---
+
+
 
 Controller: agent, worktree fix-fb093-tach-nhom (off main f056944f), branch fix-fb093-tach-nhom.
 

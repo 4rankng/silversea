@@ -109,17 +109,40 @@ describe('DriverTripsPage', () => {
     renderPage();
     expect(screen.queryByTestId('cont-weight')).toBeNull();
   });
-  it('journey card leads with the bill/booking code and never shows the internal TRP code (CHIEF 26/09)', () => {
-    // The document number rides blNumber/bookingRef; shipmentCode is our
-    // internal SHP-/QADRV- key and must never surface on a driver screen.
+  it('journey card leads with the bill/booking code; the internal shipment code never shows (CHIEF 26/09, as reshaped by REQ-07)', () => {
+    // REQ-07 (client doc, dispatch-approved) supersedes the old "TRP never
+    // renders" clause: the trip code now rides the card as LABELED metadata
+    // in the one driver display shape. The bill/booking still leads as the
+    // display key, the internal SHP-/QADRV- shipment key still never
+    // surfaces, and the RAW generator string never renders.
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ tripCode: 'TRP-202609-0019', blNumber: 'BILL-2026-0777', shipmentCode: 'QADRV-SHP-9999' }),
     ]));
     renderPage();
     expect(screen.getByText('BILL-2026-0777')).toBeTruthy();
-    expect(screen.queryByText(/TRP-/)).toBeNull();
+    expect(screen.getByTestId('trip-code').textContent).toBe('Mã chuyến TRP 2026-09 · 0019');
+    expect(screen.queryByText('TRP-202609-0019')).toBeNull();
     expect(screen.queryByText('TRIP-55')).toBeNull();
     expect(screen.queryByText('QADRV-SHP-9999')).toBeNull();
+  });
+
+  it('REQ-07 renders the trip code as labeled, spaced card metadata', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ tripCode: 'TRP-202610-0007', blNumber: 'BILL-2026-0777' }),
+    ]));
+    renderPage();
+    expect(screen.getByTestId('trip-code').textContent).toBe('Mã chuyến TRP 2026-10 · 0007');
+  });
+
+  it('REQ-07 hides the code row when no code exists and passes legacy codes through', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, tripCode: null }),
+      card({ fulfillmentId: 2, tripCode: '  TRP-C12-53-1791212851260-gvr4vb  ' }),
+    ]));
+    renderPage();
+    const codes = screen.getAllByTestId('trip-code');
+    expect(codes).toHaveLength(1);
+    expect(codes[0].textContent).toBe('Mã chuyến TRP-C12-53-1791212851260-gvr4vb');
   });
 
   it('journey card never titles itself with the internal shipment code when no bill/booking was captured', () => {

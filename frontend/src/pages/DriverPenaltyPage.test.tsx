@@ -43,3 +43,26 @@ describe('penalty KPI labels keep the separator space before the salary period',
     expect(texts.some((t) => /phạmT\d|trừT\d/i.test(t ?? ''))).toBe(false);
   });
 });
+
+// REQ-07: the violation-row meta shows the trip code in the ONE driver
+// display shape — the raw generator string used to leak here verbatim.
+describe('penalty violation rows show the formatted trip code (REQ-07)', () => {
+  beforeEach(() => {
+    queries.useSalaryPeriod.mockReturnValue({ data: { start: '2026-09-01', end: '2026-09-30' }, isLoading: false, isError: false });
+  });
+  it('formats a canonical code and omits the row when the penalty has no trip', () => {
+    queries.useDriverPenalties.mockReturnValue({
+      data: [
+        { id: 1, driverId: 7, tripId: 55, tripCode: 'TRP-202610-0007', reasonId: null, customReason: 'Không đội mũ', amount: '100000', date: '2026-10-01' },
+        { id: 2, driverId: 7, tripId: null, tripCode: null, reasonId: null, customReason: 'Đi nhầm tuyến', amount: '50000', date: '2026-10-02' },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    render(<DriverPenaltyPage />);
+    const meta = [...document.querySelectorAll('.penalty-violation-row__meta')].map((el) => el.textContent);
+    expect(meta[0]).toContain('TRP 2026-10 · 0007');
+    expect(meta[0]).not.toContain('TRP-202610-0007');
+    expect(meta[1]).not.toContain('TRP');
+  });
+});
