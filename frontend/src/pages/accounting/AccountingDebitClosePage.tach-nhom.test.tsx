@@ -102,6 +102,23 @@ beforeEach(() => {
 });
 
 describe('card 211026024348 — "Tách nhóm" trên /accounting/chot-debit', () => {
+  it('máy trạm MỚI (chưa có choice trong localStorage): cột Thông số container tự hiện khi có dữ liệu lcl → nút "Tách nhóm" vẫn thấy (FB-093 re-verify)', async () => {
+    // Simulate a FRESH workstation: no stored column choice — the KT4
+    // essential default applies. The container column carries the required
+    // action, so it must show itself once lcl data exists (essentialWhenHasData).
+    localStorage.removeItem('accounting-debit-hidden-cols');
+    listBoard.mockResolvedValue({
+      items: [lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } })],
+      total: 1,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+
+    expect(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' })).toBeTruthy();
+    // the money-breakdown columns stay hidden on the essential default
+    expect(screen.queryByText('Cước thu (tự động)')).toBeNull();
+  });
+
   it('dòng nhóm ghép mang <button> thật "Tách nhóm" (aria nêu lô); dòng chưa ghép thì không', async () => {
     listBoard.mockResolvedValue({
       items: [

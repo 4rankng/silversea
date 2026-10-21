@@ -13,7 +13,7 @@ await page.goto(`${BASE}/shipments-debit`, { waitUntil: 'networkidle2', timeout:
 await page.waitForSelector('table', { timeout: 30000 });
 await sleep(3000);
 const dump = await page.evaluate(() => {
-  const td = Array.from(document.querySelectorAll('td')).find((el) => (el.textContent || '').includes('CL4C-01'));
+  const td = Array.from(document.querySelectorAll('td')).find((el) => (el.textContent || '').includes('SHP-2610-00433'));
   if (!td) return { found: false, sampleCodes: Array.from(document.querySelectorAll('td')).slice(0, 6).map((t) => (t.textContent || '').slice(0, 30)) };
   const tr = td.closest('tr');
   const clickable = tr?.querySelector('[data-selected]');
@@ -31,7 +31,7 @@ const dump = await page.evaluate(() => {
 console.log('ROW_DUMP', JSON.stringify(dump, null, 1));
 // try clicking the [data-selected] element
 await page.evaluate(() => {
-  const td = Array.from(document.querySelectorAll('td')).find((el) => (el.textContent || '').includes('CL4C-01'));
+  const td = Array.from(document.querySelectorAll('td')).find((el) => (el.textContent || '').includes('SHP-2610-00433'));
   const tr = td?.closest('tr');
   const clickable = tr?.querySelector('[data-selected]') || tr;
   clickable?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
