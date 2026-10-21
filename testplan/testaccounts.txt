@@ -4,7 +4,9 @@
 # RULE (2026-09-06): EVERY account on staging AND local dev uses password Abc123.
 # Staging is a prod mirror (`make stgdb`). After every sync, re-run the password
 # reset (bcrypt hash of Abc123 onto users.password_hash) so prod-set passwords
-# never leak into staging logins.
+# never leak into staging logins. Since ENV-01 (2026-10-21) `make stgqa` runs
+# the reset automatically as pipeline step 2/3 — manual reset is only needed
+# after a bare `make stgdb`.
 
 local:
   baseUrl: http://localhost:7175

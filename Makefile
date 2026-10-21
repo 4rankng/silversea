@@ -1,5 +1,6 @@
 .PHONY: dev stop down setup migrate generate build help \
         db-backup db-recreate db-drift-check devdb devdb-prod devdb-sync stgdb \
+        stgqa stgqa-seed qapurge qapurge-dry \
         demo deploy deploy-advance deploy-db-backup deploy-seed deploy-server-setup
 
 # ─── Ports ─────────────────────────────────────────────────────────────────────
@@ -176,6 +177,39 @@ qapurge: ## Purge QA-fixture rows on staging (identifier-gated, registry-driven;
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js"
 qapurge-dry: ## Dry-run the QA-fixture purge on staging (no writes)
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js --dry-run"
+
+# ─── ENV-01: one-command staging QA environment ───────────────────────────────
+# stgqa = stgdb (prod→staging mirror + QA-class purge) + Abc123 password reset
+# (testaccounts rule 2026-09-06 — previously a forgotten manual post-sync step)
+# + the QA fixture seed (demo BU QA-DEMO, 1 KH demo, 1 nhà xe demo, 4 lô mẫu
+# FCL/LCL/kẹp). Idempotent: every step converges — the dump/restore replaces
+# the DB wholesale, the reset writes one hash onto every users row, and the
+# seed upserts on natural keys (reviving soft-deleted fixture rows) — so two
+# runs end in the same state. Fixture rows carry QA marker signatures
+# (services/qa-fixture-markers), so prod-mirror views stay clean (FB-061) and
+# `make qapurge` removes them; re-run stgqa or the seed alone to restore.
+# NOTE: steps 2-3 run from the DEPLOYED image's dist/ — the preflight below
+# aborts BEFORE the sync if that image predates ENV-01, so an aborted run can
+# never leave staging holding prod-set passwords (run `make demo` to advance,
+# then retry). Same pairing rule as stgdb's purge step.
+stgqa: ## Full staging QA env: prod→staging sync + Abc123 reset + QA fixtures (ENV-01)
+	@echo "=== ENV-01 stgqa 0/3: preflight — deployed image phải có script ENV-01 ==="
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps backend sh -c 'test -f dist/seed/reset-staging-passwords.js && test -f dist/seed/seed-qa-fixtures.js'" || { echo "❌ deployed staging image thiếu script ENV-01 — chạy 'make demo' trước rồi thử lại (để không bỏ staging với mật khẩu prod-set giữa chừng)." >&2; exit 1; }
+	@echo "=== ENV-01 stgqa 1/3: prod → staging sync (make stgdb, gồm QA-class purge) ==="
+	@$(MAKE) --no-print-directory stgdb
+	@echo "=== ENV-01 stgqa 2/3: reset mật khẩu staging về quy tắc Abc123 ==="
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e STGQA_ENV=staging backend node dist/seed/reset-staging-passwords.js"
+	@echo "=== ENV-01 stgqa 3/3: seed fixture QA (demo BU + KH + nhà xe + lô FCL/LCL/kẹp) ==="
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e STGQA_ENV=staging backend node dist/seed/seed-qa-fixtures.js"
+	@echo ""
+	@echo "✅ Staging QA environment sẵn sàng: https://$(DEMO_SERVER)"
+	@echo "   · Đăng nhập mọi tài khoản theo quy tắc Abc123 (testplan/testaccounts.txt)"
+	@echo "   · Fixture QA mang dấu hiệu QA-class: view gương-prod tự ẩn (FB-061); 'make qapurge' / 'make demo' dọn — 'make stgqa-seed' để có lại"
+
+# Restore ONLY the QA fixtures (e.g. after `make demo` purged them) — no DB
+# sync, no password reset. Idempotent; same ENV-01 seed as stgqa step 3/3.
+stgqa-seed: ## Re-seed the QA fixtures on staging (ENV-01; sau khi make demo/qapurge dọn)
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e STGQA_ENV=staging backend node dist/seed/seed-qa-fixtures.js"
 
 setup: ## Recreate and seed the local database (destructive local setup)
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
