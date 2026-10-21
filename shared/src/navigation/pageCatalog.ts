@@ -370,6 +370,11 @@ export const PAGE_CATALOG = {
     path: '/config/fuel',
     section: 'config',
   },
+  configFuelConsumptionNorms: {
+    title: 'Định mức dầu tính cước',
+    path: '/config/fuel-consumption-norms',
+    section: 'config',
+  },
   configTripExpense: {
     title: 'Loại chi phí chuyến',
     path: '/config/trip-expense',

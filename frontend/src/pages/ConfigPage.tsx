@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { PageHeader } from '../components/UI';
 import { FilterBar } from '../design-system';
@@ -71,6 +71,19 @@ export default function ConfigPage() {
       { queryKey: qk.configCounts.carrierRoutePricing,  queryFn: () => api.get<ListResponse>('/carrier-route-pricing?limit=1'), staleTime: 60_000 },
     ],
   });
+  // Same inference cliff — one more singleton. GET /quotations returns a bare
+  // array (not the {items,total} envelope): map to the ListResponse shape the
+  // count label expects.
+  const quotations = useQuery({
+    queryKey: qk.configCounts.quotations,
+    queryFn: () => api.get<unknown[]>('/quotations').then((rows) => ({ items: rows, total: rows.length })),
+    staleTime: 60_000,
+  });
+  const fuelConsumptionNorms = useQuery({
+    queryKey: qk.configCounts.fuelConsumptionNorms,
+    queryFn: () => api.get<ListResponse>('/fuel-consumption-norms?limit=1'),
+    staleTime: 60_000,
+  });
 
   const [
     penaltyReasons,
@@ -138,6 +151,8 @@ export default function ConfigPage() {
     'pricing-tables':           { status: countLabel(pricingTables.data?.total, 'đơn giá') },
     'fuel-price-periods':       { status: countLabel(fuelPricePeriods.data?.total, 'kỳ giá') },
     'freight-rate-terms':       { status: countLabel(freightRateTerms.data?.total, 'điều khoản') },
+    'fuel-consumption-norms':   { status: countLabel(fuelConsumptionNorms.data?.total, 'loại xe') },
+    'quotations':               { status: countLabel(quotations.data?.total, 'khung') },
     'vehicle-size-classes':     { status: countLabel(vehicleSizeClasses.data?.total, 'loại xe') },
     'carrier-route-pricing':    { status: countLabel(carrierRoutePricing.data?.total, 'đơn giá') },
     'salary-periods':           { status: salaryStatus() },
@@ -153,6 +168,7 @@ export default function ConfigPage() {
     'customers': customers, 'routes': routes, 'trucks': trucks, 'tire-positions': tirePositions,
     'trailers': trailers, 'cargo-types': cargoTypes, 'pricing-tables': pricingTables,
     'fuel-price-periods': fuelPricePeriods, 'freight-rate-terms': freightRateTerms,
+    'fuel-consumption-norms': fuelConsumptionNorms, 'quotations': quotations,
     'vehicle-size-classes': vehicleSizeClasses, 'carrier-route-pricing': carrierRoutePricing,
     'salary-periods': salaryDefault, 'expense-categories': expenseCategories,
     'forwarder-expense-types': forwarderExpenseTypes, 'debit-note-templates': debitNoteTemplates,

@@ -1,3 +1,6 @@
+
+---
+
 # DRI-03 lan 2 (card 211026180628) — kẹp 2x20' verify theo lot QA 133/SHP-2610-00069 — 2026-10-21
 
 Controller: this agent, worktree fix-dri03-lan2 (off main 9aab78d2), branch fix-dri03-lan2.

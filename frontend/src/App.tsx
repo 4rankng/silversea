@@ -149,6 +149,7 @@ const PortZoneSurchargesConfigPage = lazy(() => import('./pages/config/PortZoneS
 const PenaltyReasonsConfigPage = lazy(() => import('./pages/config/PenaltyReasonsConfigPage'));
 const FuelConfigPage = lazy(() => import('./pages/config/FuelConfigPage'));
 const FuelNormsConfigPage = lazy(() => import('./pages/config/FuelNormsConfigPage'));
+const FuelConsumptionNormsConfigPage = lazy(() => import('./pages/config/FuelConsumptionNormsConfigPage'));
 const WeightPricingTiersConfigPage = lazy(() => import('./pages/config/WeightPricingTiersConfigPage'));
 const LiftPricingConfigPage = lazy(() => import('./pages/config/LiftPricingConfigPage'));
 const FuelPricePeriodsConfigPage = lazy(() => import('./pages/config/FuelPricePeriodsConfigPage'));
@@ -502,6 +503,7 @@ export function AppRoutes() {
           <Route path="/config/penalty-reasons" element={adminOnly(page(<PenaltyReasonsConfigPage />))} />
           <Route path="/config/fuel" element={adminOnly(page(<FuelConfigPage />))} />
           <Route path="/config/fuel-norms" element={adminOnly(page(<FuelNormsConfigPage />))} />
+          <Route path="/config/fuel-consumption-norms" element={adminOnly(page(<FuelConsumptionNormsConfigPage />))} />
           <Route path="/config/fuel-price-periods" element={fuelPriceConfigOnly(page(<FuelPricePeriodsConfigPage />))} />
           <Route path="/config/freight-rate-terms" element={officeStaffOnly(page(<FreightRateTermsConfigPage />))} />
           <Route path="/config/vehicle-size-classes" element={officeStaffOnly(page(<VehicleSizeClassesConfigPage />))} />

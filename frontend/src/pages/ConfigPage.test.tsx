@@ -4,7 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ConfigPage from './ConfigPage';
 
 const { state } = vi.hoisted(() => ({ state: { role: 'ADMIN', queries: [] as Array<{ data: unknown; isLoading: boolean; isError: boolean; isFetching: boolean; refetch: ReturnType<typeof vi.fn> }> } }));
-vi.mock('@tanstack/react-query', () => ({ useQueries: () => state.queries }));
+vi.mock('@tanstack/react-query', () => ({
+  useQueries: () => state.queries,
+  // Singleton count queries (quotations, fuel-consumption-norms) ride
+  // useQuery — same uniform { total: 3 } shape as the summary array.
+  useQuery: () => ({ data: { total: 3 }, isLoading: false, isError: false, isFetching: false, refetch: vi.fn().mockResolvedValue({}) }),
+}));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: state.role } }) }));
 vi.mock('../hooks/animations', () => ({ usePageAnimations: () => ({ rootRef: { current: null } }) }));
 
