@@ -768,14 +768,14 @@ async function buildShipmentPageConditions(
     if (query.transportDateTo) {
       dateArms.push(sql`${transportDate} <= ${query.transportDateTo}`);
     }
-    // Card 181026185900 (D.6), completed by card 211026132257 (lcl-01): the
-    // day triage narrows CONTAINER rows to their appointment/EDD day. A
-    // container-less LCL lot has NO container day and rides outside the
-    // triage entirely — dated or not — so a lot visible on Tổng quan (whose
-    // default carries no date scope) is never missing on Chi tiết under the
-    // board's default day lens. The 2026-10-18 partial exempted only UNDATED
-    // lots; a DATED lot's EDD still hid it here ("lô hàng lẻ hiện ở TỔNG QUAN
-    // nhưng KHÔNG có ở CHI TIẾT"). See containerDayTriageCondition.
+    // Card 181026185900 (D.6), completed by cards 211026132257 (lcl-01 lan 1)
+    // and 211026180528 (lan 2): the day triage narrows DATED rows to their
+    // appointment/EDD day. Rows with no triage day — container-less LCL lot
+    // rows (never day-gated) and container rows whose coalesce(appointment,
+    // EDD) is NULL (intake skeleton: containers, no appointment, no EDD) —
+    // ride outside it entirely, so a lot visible on Tổng quan (whose default
+    // carries no date scope) is never missing on Chi tiết under the board's
+    // default day lens. See containerDayTriageCondition.
     if (dateArms.length > 0) {
       conditions.push(containerDayTriageCondition(dateArms));
     }

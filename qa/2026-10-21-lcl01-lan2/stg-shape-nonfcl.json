@@ -1,0 +1,20 @@
+{"id":133,"cargoMode":null,"transportDate":null,"billOrBook":null,"status":"PENDING_DATE","bucket":"NEW","customerName":"Long Minh","inDetailDefault":false}
+{"id":133,"containerCount":2,"packageCount":null,"packageType":null,"cargoWeightKg":null,"cargoVolumeCbm":null,"edd":null,"isAdHoc":null,"direction":null,"createdAt":null}
+{"id":124,"cargoMode":"LCL","transportDate":"2026-10-17","billOrBook":"K547238574983","status":"READY_FOR_DISPATCH","bucket":"NEW","customerName":"LOG COM","inDetailDefault":true}
+{"id":124,"containerCount":0,"packageCount":null,"packageType":null,"cargoWeightKg":null,"cargoVolumeCbm":null,"edd":null,"isAdHoc":null,"direction":null,"createdAt":null}
+{"id":122,"cargoMode":"LCL","transportDate":"2026-10-17","billOrBook":"K04573847543","status":"READY_FOR_DISPATCH","bucket":"NEW","customerName":"Long Minh","inDetailDefault":true}
+{"id":122,"containerCount":0,"packageCount":null,"packageType":null,"cargoWeightKg":null,"cargoVolumeCbm":null,"edd":null,"isAdHoc":null,"direction":null,"createdAt":null}
+{"id":105,"cargoMode":"LCL","transportDate":"2026-10-14","billOrBook":"ZSNHPG269104","status":"DISPATCHED","bucket":"RUNNING","customerName":"LOG COM","inDetailDefault":true}
+{"id":105,"containerCount":0,"packageCount":null,"packageType":null,"cargoWeightKg":null,"cargoVolumeCbm":null,"edd":null,"isAdHoc":null,"direction":null,"createdAt":null}
+{"id":107,"cargoMode":"LCL","transportDate":"2026-10-13","billOrBook":"CBHKHPG16427","status":"READY_FOR_DISPATCH","bucket":"NEW","customerName":"LOG COM","inDetailDefault":true}
+{"id":107,"containerCount":0,"packageCount":null,"packageType":null,"cargoWeightKg":null,"cargoVolumeCbm":null,"edd":null,"isAdHoc":null,"direction":null,"createdAt":null}
+{"id":106,"cargoMode":"LCL","transportDate":"2026-10-09","billOrBook":"65T0109670","status":"READY_FOR_DISPATCH","bucket":"NEW","customerName":"LOG COM","inDetailDefault":true}
+{"id":106,"containerCount":0,"packageCount":null,"packageType":null,"cargoWeightKg":null,"cargoVolumeCbm":null,"edd":null,"isAdHoc":null,"direction":null,"createdAt":null}
+{"id":74,"cargoMode":"LCL","transportDate":"2026-10-01","billOrBook":"TPOEBKK202609017","status":"DISPATCHED","bucket":"RUNNING","customerName":"LOG COM","inDetailDefault":true}
+{"id":74,"containerCount":0,"packageCount":null,"packageType":null,"cargoWeightKg":null,"cargoVolumeCbm":null,"edd":null,"isAdHoc":null,"direction":null,"createdAt":null}
+DETAIL-DEFAULT row shipmentId=124 classification=LCL containerNumber=null transportDate=2026-10-17
+DETAIL-DEFAULT row shipmentId=122 classification=LCL containerNumber=null transportDate=2026-10-17
+DETAIL-DEFAULT row shipmentId=105 classification=LCL containerNumber=null transportDate=2026-10-14
+DETAIL-DEFAULT row shipmentId=107 classification=LCL containerNumber=null transportDate=2026-10-13
+DETAIL-DEFAULT row shipmentId=106 classification=LCL containerNumber=null transportDate=2026-10-09
+DETAIL-DEFAULT row shipmentId=74 classification=LCL containerNumber=null transportDate=2026-10-01

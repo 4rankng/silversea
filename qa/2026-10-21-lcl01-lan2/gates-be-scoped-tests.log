@@ -1,0 +1,57 @@
+▶ containerDayTriageCondition — LCL lot rows ride outside the day triage (lcl-01)
+  ✔ keeps the container-row date arms intact (0.796459ms)
+  ✔ exempts container-less LCL lot rows UNCONDITIONALLY — no date conjunct on the lot arm (0.235ms)
+  ✔ is an OR: a real container row matches by its day, a lot row by identity (0.147666ms)
+✔ containerDayTriageCondition — LCL lot rows ride outside the day triage (lcl-01) (1.571541ms)
+▶ containerDayTriageCondition — null-day rows ride outside the day triage (lcl-01 lan 2, card 211026180528)
+  ✔ exempts rows whose triage day is NULL — coalesce(appointment, EDD) is null arm (7.800875ms)
+  ✔ carries NO date conjunct on the null-day arm — undated rows survive any lens (0.392375ms)
+  ✔ is a three-arm OR: lot-LCL arm, null-day arm, then the date arms (0.257208ms)
+✔ containerDayTriageCondition — null-day rows ride outside the day triage (lcl-01 lan 2, card 211026180528) (8.627083ms)
+✔ container-line update accepts a trimmed per-cont declaration number (2.842416ms)
+✔ container-line update treats null as a clear and absence as untouched (0.153083ms)
+✔ container-line update rejects an over-length number with the field label (1.419459ms)
+✔ the declaration copy command carries only the optimistic version (6.456917ms)
+✔ the copy result reports exactly the written container ids and the new version (2.659083ms)
+✔ the workspace container line carries the per-cont number for sibling counting (0.647833ms)
+▶ cusRecordSearchCondition — field coverage (QA2-005)
+  ✔ shipment mode searches Bill, Booking, mã lô, container, tờ khai, customer name, and raw ad-hoc name (5.101625ms)
+  ✔ container mode searches the container number as a direct column (0.4305ms)
+  ✔ every arm is case-insensitive ilike — never a bare like (4.593875ms)
+✔ cusRecordSearchCondition — field coverage (QA2-005) (11.794291ms)
+▶ cusRecordSearchCondition — pattern semantics
+  ✔ wraps the trimmed term as a substring pattern, preserving case (1.953541ms)
+  ✔ escapes LIKE wildcards even though the shared schema already forbids them (0.221833ms)
+  ✔ empty or whitespace-only search produces no condition (passthrough) (0.059125ms)
+✔ cusRecordSearchCondition — pattern semantics (2.4095ms)
+▶ restrictCustomerCreateForIntake
+  ✔ CUS: strips all 9 financial/material keys (0.353417ms)
+  ✔ CUS: preserves identity fields (name, taxCode, phone, etc.) (0.053083ms)
+  ✔ DISPATCHER: strips all 9 financial/material keys (0.038375ms)
+  ✔ DISPATCHER: preserves identity fields (name, taxCode, phone, etc.) (0.240916ms)
+  ✔ ADMIN: passes all fields through unchanged (0.797833ms)
+  ✔ MANAGER: passes all fields through unchanged (0.065958ms)
+  ✔ ACCOUNTANT: passes all fields through unchanged (0.056125ms)
+✔ restrictCustomerCreateForIntake (2.257416ms)
+▶ restrictCustomerUpdateForIntake
+  ✔ CUS: strips financial keys from partial update (7.411667ms)
+  ✔ CUS: preserves isCarrier on update for carrier intake (0.224125ms)
+  ✔ DISPATCHER: strips financial keys from partial update (0.129666ms)
+  ✔ DISPATCHER: preserves isCarrier on update for carrier intake (0.067666ms)
+  ✔ ADMIN: passes all update fields through (0.091709ms)
+  ✔ MANAGER: passes all update fields through (0.054916ms)
+✔ restrictCustomerUpdateForIntake (12.346875ms)
+▶ intakeCreatedBy
+  ✔ CUS stamps the acting user id (0.12075ms)
+  ✔ DISPATCHER stamps the acting user id (7.661375ms)
+  ✔ ADMIN does not stamp (null) (0.074291ms)
+  ✔ MANAGER does not stamp (null) (0.035375ms)
+✔ intakeCreatedBy (8.000167ms)
+ℹ tests 35
+ℹ suites 7
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1938.916541

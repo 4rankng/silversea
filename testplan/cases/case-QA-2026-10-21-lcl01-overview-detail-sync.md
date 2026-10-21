@@ -1,8 +1,10 @@
 # Case QA-2026-10-21-lcl01-overview-detail-sync — lô LCL hiện Tổng quan nhưng mất ở Chi tiết
 
 Card 211026132257 (lcl-01, PARTIAL từ trước — "detail sync chưa rõ").
+**Lan 2 reopen: card 211026180528** (QA 18:05 trên build 9aab78d2) — xem
+[ Lan 2 — shape container-row chưa có ngày](#lan-2--card-211026180528-shape-container-row-chưa-có-ngày).
 
-## Trạng thái trước fix
+## Trạng thái trước fix (lan 1)
 
 Lô hàng LCL (lô lẻ, KHÔNG có container — chỉ kiện/bao bì/kg/CBM) hiển thị đủ
 trên `/shipments` ("Tổng quan lô hàng") nhưng KHÔNG có trên `/shipments-detail`
@@ -59,3 +61,39 @@ nào đó làm rớt lô lẻ ở màn Chi tiết.
   lẻ (0/929 lô NULL-mode có dữ liệu kiện hàng trong DB local).
 - Filter `dispatchStatus`/`informationStatus=MISSING` (detail-only) vẫn loại
   dòng lô lẻ — cố ý (triage dòng container; overview không có filter này).
+
+## Lan 2 — card 211026180528: shape container-row chưa có ngày
+
+QA verify lần 2 (18:05, build 9aab78d2 đã chứa fix lan 1) vẫn thấy lô ở
+Tổng quan mất ở Chi tiết. Staging READ-ONLY probe (diff toàn bộ page 2 màn,
+mọi account CUS + admin) tìm đúng 1 lô rớt: **id 133 / SHP-2610-00069** —
+lô QA Vũ Văn Tiệp tạo 17:09 (`POST /api/shipments` body tối giản
+`{customerId}`) + 2 cont 20' chưa hẹn ngày (DRI03K01/K02, 17:11) để test
+DRI-03.
+
+- **Shape mới**: `cargo_mode = NULL`, **CÓ container row** (đi qua rowSource
+  card 365), container không appointment × lô không EDD ⇒ triage day
+  `coalesce(appointment, EDD)` = NULL ⇒ mọi date arm đều drop — không có
+  ngày nào range có thể match. Lan 1 chỉ miễn container-**less** LCL.
+- **Root cause**: `containerDayTriageCondition` thiếu nhánh "row không có
+  ngày đi ngoài triage" cho dòng CÓ container. Cùng lớp lỗi với lan 1
+  ("no day it could match → rides outside"), một shape xa hơn.
+- **Fix**: thêm arm `isNull(containerTransportDateSql())` — mọi row có triage
+  day NULL đi ngoài day-triage bất kể cargo shape. Lô lẻ containerless giữ
+  arm riêng lan 1 (day của nó = EDD, không NULL khi có EDD). Dòng container
+  có ngày giữ triage đầy đủ. Ranh giới còn lại (cố ý, review độc lập xác
+  nhận): Tổng quan với filter ngày **tự chọn** vẫn ẩn lô undated (EDD null
+  không match range) trong khi Chi tiết mọi lens hiện nó — bất đối xứng
+  nầy nằm ở nhánh shipment-mode, ngoài scope card.
+
+| ID | Bước | Kỳ vọng |
+|---|---|---|
+| LCL01L2-R1 | Tạo lô skeleton (nullMode + 2 cont chưa hẹn ngày, EDD null) | lô hiện ở TỔNG QUAN |
+| LCL01L2-R2 | CHI TIẾT default lens (hôm nay) | lô skeleton HIỆN (trước fix: mất) |
+| LCL01L2-R3 | Shape lan 1 (containerless LCL dated/undated) | vẫn PASS — không regression |
+| LCL01L2-R4 | Unit render pin | 3 arm OR: lot-LCL arm, null-day arm, dateArms |
+
+Not covered lan 2: lô nullMode **không** container (vẫn bị rowSource loại —
+ranh giới card 365 giữ nguyên); UI drive 390px (evidence API theo brief);
+staging re-verify sau deploy (owner).
+
