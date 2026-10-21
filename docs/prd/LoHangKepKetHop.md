@@ -60,7 +60,7 @@ Sau khi lưu thành công, cả hai công việc cùng có phân công và quan 
 
 ### 3.2 Dùng chung xe, moóc và tài xế
 
-Cặp KẸP hợp lệ không được tự chặn công việc thứ hai vì xe đang phục vụ công việc thứ nhất trong chính cặp đó. Công việc khác ngoài cặp vẫn phải bị chặn nếu gây trùng lịch hoặc vượt năng lực.
+Cặp KẸP hợp lệ không được tự chặn công việc thứ hai vì xe đang phục vụ công việc thứ nhất trong chính cặp đó. Công việc khác ngoài cặp vẫn phải bị chặn nếu gây trùng lịch hoặc vượt năng lực; trùng khung giờ với công việc ngoài cặp thì cảnh báo và cho xác nhận lưu tiếp ("Vẫn lưu?"), không chặn cứng.
 
 Khi hai người cùng phân xe, hệ thống không được xác nhận thành công cho các phân công mâu thuẫn. Người không thể hoàn tất phải thấy xe/moóc/tài xế nào đã được sử dụng và có thể chọn lại phương án phù hợp.
 

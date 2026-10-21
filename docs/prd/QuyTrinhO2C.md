@@ -158,6 +158,11 @@ Trên máy tính, mỗi dòng thể hiện một container hoặc công việc: 
 
 Người có quyền bấm **Phát lệnh** khi phân bổ, lịch, xe, tài xế và moóc phù hợp. Nút ở dòng kế hoạch phát ngay theo thông tin đã lưu; không mở bước hẹn ngày/giờ phát lệnh hay hộp xác nhận lặp lại. Trong lúc đang gửi, nút thể hiện tiến độ và không nhận lần bấm thứ hai; lỗi nằm tại dòng để người dùng sửa hoặc thử lại. Xe/người phải đang hoạt động, đủ sức chở và không xung đột với công việc khác. Nếu chưa đủ, thông báo cụ thể công việc hoặc dữ liệu đang chặn và cách xử lý trong phạm vi người dùng được xem.
 
+Gán xe/đầu kéo trùng khung giờ với công việc **khác** (ngoài cặp ghép): hệ thống cảnh báo xung đột
+và cho **xác nhận lưu tiếp** ("Vẫn lưu?") — không chặn cứng gây dead-end; lưu đè sau xác nhận là
+chọn của người dùng và được ghi nhận. Thành viên thứ hai của cặp KẸP/KẾT HỢP không bị cảnh báo
+chỉ vì trùng đầu kéo **trong chính cặp đó**.
+
 Khi phát thành công, có đúng công việc cần thực hiện và đúng tài xế được thông báo. Bấm lại không tạo thêm chuyến hoặc thêm tiền. Việc nhập một biển số hay gửi thông báo không tự có nghĩa đã phát lệnh thành công.
 
 Lệnh giấy Ops chưa lấy được là thông tin riêng, không phải cấp phê duyệt để lái xe nhận lệnh. Thay đổi sau phát tuân thủ ranh giới trước/sau nhận ở mục 3.2.
@@ -361,6 +366,29 @@ Tick **"Bỏ xe công ty"** trả lời câu hỏi "nếu chỉ tính xe ngoài 
 
 Giới hạn có chủ ý: tick **không ẩn khách hàng nào khỏi danh sách** — nó chỉ đổi số liệu cước của từng khách (và tệp xuất), để người xem vẫn đối chiếu được với danh sách đầy đủ. Vì vậy không mô tả tick này như một bộ lọc ẩn dòng, và không thêm phép trừ ở trình duyệt cho khớp màn hình. (card 20260928_177)
 
+### 7.11 Nhóm hàng lẻ (LCL): gom/tách và luật tiền (bổ sung 21/10)
+
+Gom nhóm hàng lẻ để chạy chung một xe được thực hiện trên Kế hoạch Chi tiết Xe: chọn ≥ 2 lô lẻ
+cùng khách hàng/tuyến và **Gán xe nhóm** — chọn loại xe/trọng tải (hoặc cont 20'/40'), BKS thực
+và BKS báo khách (nhà xe ngoài). Dòng cảnh báo tải trọng (vừa tải / vượt tải theo tổng kg của
+các lô so với trọng tải lớp xe) **chỉ là cảnh báo, không chặn** lưu. Nhóm ghép hiển thị nhận
+diện riêng (thẻ "Lẻ · Ghép (1/N)"); BKS báo khách được sửa nhanh từ nhóm.
+
+Luật tiền của nhóm ghép (chốt 21/10, xem [CHANGELOG](CHANGELOG.md)):
+
+- **Thu:** mỗi lô **tự tính đơn giá riêng** theo bảng giá Tuyến × Khách hàng của loại xe áp cho
+  chính lô đó — gom nhóm không chia tỷ lệ kg/CBM và không dồn 100%/0₫ ở chiều thu; ghép cước thu
+  khách chỉ gộp chung một Bill để xuất.
+- **Trả:** cước trả nhà xe thuê ngoài là **một khoản duy nhất mỗi chuyến** — Lô 1 gánh 100%
+  cước trả theo bảng giá nhà xe, các lô ghép còn lại 0₫ kèm nhận diện ghép cùng Bill.
+- **Tách nhóm** (nút "Tách nhóm" tại màn Chi phí – Quyết toán và Kế toán chốt debit) **giữ nguyên
+  tiền thu của từng lô**, dọn sạch ghi chú ghép; ghép lại tính lại theo luật trên. Xóa Lô chính
+  của nhóm chuyển tự động 100% cước trả cho lô kế tiếp (bảo toàn tiền, không rơi về 0₫).
+- **Lãi chuyến = Σ thu − trả.**
+
+Độ phủ đặc tả chi tiết (danh mục loại xe, bảng giá, hiện thị từng màn) nằm ở
+`docs/lcl-spec-coverage-2026-10-17.md`; luật tiền tại đây là bản hiện hành sau ruling 21/10.
+
 ### Kế toán chốt debit — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (bổ sung 22/09)
 
 - Màn hình kế toán mới: bảng theo lô với đầy đủ cột thu/trả cước vận chuyển (cước thu tự động, Lạch
@@ -412,7 +440,7 @@ Giới hạn có chủ ý: tick **không ẩn khách hàng nào khỏi danh sác
 - Tab mở qua một đợt cập nhật hệ thống: ứng dụng báo có phiên bản mới và cho phép làm mới trang ở thời điểm người dùng chọn; không tự tải lại giữa chừng làm mất nội dung đang nhập.
 - Lỗi dịch vụ tạm thời không bị gọi là hết phiên đăng nhập nếu phiên vẫn hợp lệ. Người dùng có cách thử lại mà không mất nội dung đang làm.
 - Quyền luôn theo vai trò, tổ chức, phân công và đối tượng hiện hành; biết mã hay từng mở liên kết không tự cấp quyền. Khách hàng không xem dữ liệu khách hàng khác; lái xe/Ops không giữ quyền cũ sau khi phân công đổi.
-- Xóa/hủy dựa vào quyền, công việc đã phát sinh, dữ liệu liên quan và kỳ đã khóa. Người đủ điều kiện xác nhận rồi thực hiện trực tiếp; không bị đưa vào hàng đợi phê duyệt. Tình huống không được xóa phải giải thích và hướng tới cách xử lý hợp lệ.
+- Xóa/hủy dựa vào quyền, công việc đã phát sinh, dữ liệu liên quan và kỳ đã khóa. Người đủ điều kiện xác nhận rồi thực hiện trực tiếp; không bị đưa vào hàng đợi phê duyệt. Tình huống không được xóa phải giải thích và hướng tới cách xử lý hợp lệ. Đối với **xóa lô**: CUS, Quản trị viên và **Điều vận** được phép xóa (ruling 21/10 — nút "Xóa lô" trên Kế hoạch Chi tiết Xe của Điều vận giữ lại; xem [CHANGELOG](CHANGELOG.md)); Ops không có quyền xóa lô.
 
 ### 8.3 Làm việc hiệu quả trên điện thoại, máy tính bảng và máy tính
 
