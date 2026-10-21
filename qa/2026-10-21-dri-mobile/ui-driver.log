@@ -1,0 +1,37 @@
+
+=== run 2026-10-21T06:16:02.986Z serial=pxz1m1898 ===
+2026-10-21T06:16:03.102Z login admin: OK
+2026-10-21T06:16:03.154Z catalog: {"customerId":1,"containerTypeId20":1,"routeId":1,"pickupPortId":1}
+2026-10-21T06:16:03.256Z bãi hạ port: id=35663 name="Bãi Hạ DRI pxz1m1898"
+2026-10-21T06:16:03.266Z nhà máy: id=27162 name="NM DRI pxz1m1898" khoPhone=02253555555
+2026-10-21T06:16:03.460Z driver bqhuong: driverId=42966 userId=139156
+2026-10-21T06:16:03.630Z xe QA: id=186320 plate=QA-DRI-pxz1m1898 → driver 42966 · rơ-moóc id=20461
+2026-10-21T06:16:03.630Z khung giờ: A=2027-04-23T00:00:00+00:00 B=2027-04-24T00:00:00+00:00
+2026-10-21T06:16:04.129Z trip A (có bãi hạ): 194057 status=CREATED · trip B (portless): 194058 status=CREATED
+2026-10-21T06:16:04.305Z db-evidence.txt written (15 lines)
+2026-10-21T06:16:07.409Z PASS A: màn NHẬN LỆNH lái xe mở được (không bounce /login) — url=http://localhost:7177/my-trips/194057
+2026-10-21T06:16:07.411Z A rows: {"Mã chuyến":{"text":"TRP 2027-04 · 0009","telHref":null,"isTelLink":false},"Ngày giờ kế hoạch":{"text":"07:00 23/04/2027","telHref":null,"isTelLink":false},"Tên nhà máy":{"text":"NM DRI pxz1m1898","telHref":null,"isTelLink":false},"Địa chỉ nhà máy":{"text":"Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh","telHref":null,"isTelLink":false},"SĐT kho":{"text":"02253555555","telHref":"tel:02253555555","isTelLink":true},"SĐT liên hệ":{"text":"0909.000.001","telHref":"tel:0909000001","isTelLink":true},"Container / lô hàng":{"text":"DRIM1189813 · 20DC","telHref":null,"isTelLink":false},"Cảng nâng":{"text":"SITC - Lạch Huyện","telHref":null,"isTelLink":false},"Cảng hạ":{"text":"Bãi Hạ DRI pxz1m1898","telHref":null,"isTelLink":false},"Địa chỉ giao hàng":{"text":"NM DRI pxz1m1898, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh","telHref":null,"isTelLink":false},"Tên công ty":{"text":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH","telHref":null,"isTelLink":false},"MST":{"text":"2300540419","telHref":null,"isTelLink":false}}
+2026-10-21T06:16:07.411Z PASS dri-01: dòng "SĐT kho" là <a href="tel:…"> — {"text":"02253555555","telHref":"tel:02253555555","isTelLink":true}
+2026-10-21T06:16:07.412Z PASS dri-01: href SĐT kho = tel:02253555555 — href=tel:02253555555
+2026-10-21T06:16:07.412Z PASS dri-01: dòng "SĐT liên hệ" là <a href="tel:…"> — {"text":"0909.000.001","telHref":"tel:0909000001","isTelLink":true}
+2026-10-21T06:16:07.412Z PASS dri-01: href SĐT liên hệ chuẩn hóa dấu chấm = tel:0909000001 — href=tel:0909000001
+2026-10-21T06:16:07.412Z PASS dri-01: text hiển thị giữ nguyên dấu chấm — text=0909.000.001
+2026-10-21T06:16:07.412Z PASS dri-04: "Cảng hạ" = tên bãi hạ (container CÓ bãi hạ) — cangHa=Bãi Hạ DRI pxz1m1898
+2026-10-21T06:16:07.413Z PASS dri-04: "Địa chỉ giao hàng" = nhà máy + địa chỉ (điểm nhận) — diaChi=NM DRI pxz1m1898, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh
+2026-10-21T06:16:07.413Z PASS dri-04: Cảng hạ ≠ Địa chỉ giao hàng (không đổ lẫn) — cangHa=Bãi Hạ DRI pxz1m1898 | diaChi=NM DRI pxz1m1898, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh
+2026-10-21T06:16:07.742Z shot ui-1-tripA-nhan-lenh-390.png + ui-1b-tripA-full-390.png (390px — THÔNG TIN LỆNH: SĐT kho / SĐT liên hệ / Cảng hạ / Địa chỉ giao hàng)
+2026-10-21T06:16:08.314Z shot ui-1c-tripA-cang-ha-rows-390.png (390px — cận cảnh Cảng hạ + Địa chỉ giao hàng, trip có bãi hạ)
+2026-10-21T06:16:08.328Z PASS dri-01: có affordance "Gọi kho" trên màn nhận lệnh — {"found":true,"tag":"button","href":null}
+2026-10-21T06:16:08.843Z PASS dri-01: modal liệt kê 2 liên hệ nhà máy — [{"name":"Chị An","numberText":"02253555555","telHref":"tel:02253555555","numberIsLink":true,"goiHref":"tel:02253555555"},{"name":"Bảo vệ kho","numberText":"0909.000.001","telHref":"tel:0909000001","numberIsLink":true,"goiHref":"tel:0909000001"}]
+2026-10-21T06:16:08.843Z PASS dri-01: số liên hệ 1 là link tel:02253555555 — {"name":"Chị An","numberText":"02253555555","telHref":"tel:02253555555","numberIsLink":true,"goiHref":"tel:02253555555"}
+2026-10-21T06:16:08.843Z PASS dri-01: số liên hệ 2 giữ dấu chấm trên màn, href tel:0909000001 — {"name":"Bảo vệ kho","numberText":"0909.000.001","telHref":"tel:0909000001","numberIsLink":true,"goiHref":"tel:0909000001"}
+2026-10-21T06:16:08.843Z PASS dri-01: nút Gọi bên cạnh vẫn là tel: link — goiHrefs=tel:02253555555, tel:0909000001
+2026-10-21T06:16:08.976Z shot ui-2-call-modal-tel-links-390.png (390px — modal Chọn liên hệ để gọi)
+2026-10-21T06:16:10.903Z B rows: {"Mã chuyến":{"text":"TRP 2027-04 · 0010","telHref":null,"isTelLink":false},"Ngày giờ kế hoạch":{"text":"07:00 24/04/2027","telHref":null,"isTelLink":false},"Tên nhà máy":{"text":"NM DRI pxz1m1898","telHref":null,"isTelLink":false},"Địa chỉ nhà máy":{"text":"Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh","telHref":null,"isTelLink":false},"SĐT kho":{"text":"02253555555","telHref":"tel:02253555555","isTelLink":true},"SĐT liên hệ":{"text":"0909.000.001","telHref":"tel:0909000001","isTelLink":true},"Container / lô hàng":{"text":"DRIM1189829 · 20DC","telHref":null,"isTelLink":false},"Cảng nâng":{"text":"SITC - Lạch Huyện","telHref":null,"isTelLink":false},"Cảng hạ":{"text":"NM DRI pxz1m1898","telHref":null,"isTelLink":false},"Địa chỉ giao hàng":{"text":"NM DRI pxz1m1898, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh","telHref":null,"isTelLink":false},"Tên công ty":{"text":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH","telHref":null,"isTelLink":false},"MST":{"text":"2300540419","telHref":null,"isTelLink":false}}
+2026-10-21T06:16:10.904Z PASS dri-04(B): "Cảng hạ" = tên điểm trả (nhà máy) — không phải "Chưa có cảng hạ" — cangHa=NM DRI pxz1m1898
+2026-10-21T06:16:10.904Z PASS dri-04(B): "Địa chỉ giao hàng" = nhà máy đầy đủ + địa chỉ — diaChi=NM DRI pxz1m1898, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh
+2026-10-21T06:16:10.904Z PASS dri-04(B): hai điểm là cùng một nơi → hai hàng cùng tên (PRD §2.3) — cangHa=NM DRI pxz1m1898 | diaChi=NM DRI pxz1m1898, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh
+2026-10-21T06:16:11.211Z shot ui-3-tripB-portless-cang-ha-390.png + ui-3b-tripB-full-390.png (390px — trip B portless)
+2026-10-21T06:16:11.768Z shot ui-3c-tripB-cang-ha-rows-390.png (390px — cận cảnh Cảng hạ + Địa chỉ giao hàng)
+2026-10-21T06:16:11.954Z tripA=194057 tripB=194058 site=27162 baiHa=35663
+2026-10-21T06:16:11.954Z RESULT: ALL CHECKS PASS
