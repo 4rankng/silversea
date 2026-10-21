@@ -1,5 +1,5 @@
 import { Checkbox } from './untitled-ui/base/checkbox/checkbox';
-import { hideableColumns, type LedgerColumn } from '../lib/column-visibility';
+import { type LedgerColumn } from '../lib/column-visibility';
 
 /**
  * The picker's list and its reset, shared by both of the picker's homes (the bar
@@ -9,6 +9,14 @@ import { hideableColumns, type LedgerColumn } from '../lib/column-visibility';
  * Rows are the vendored Untitled UI checkbox (`base/checkbox/checkbox.tsx`,
  * listed in `installed.json`): a react-aria checkbox with an accessible label,
  * not a new primitive invented for this control.
+ *
+ * The list is every NON-PINNED column in table order (card 191026181942, KT4:
+ * the essential rollups read as "there, checked" and the breakdowns as "one
+ * toggle away"). A column no CHOICE may hide (`essential`,
+ * `essentialWhenHasData` — FB-093 lan 3) renders LOCKED: disabled, its checked
+ * state mirroring the board's truth, so the panel never offers an action the
+ * toggle refuses anyway (`toggleHiddenColumn` + `sanitizeHiddenColumns` keep
+ * guarding the stored payload). Pinned columns are not listed at all.
  */
 
 export interface ColumnPickerPanelProps {
@@ -20,22 +28,26 @@ export interface ColumnPickerPanelProps {
 }
 
 export function ColumnPickerPanel({ columns, hidden, customized, onToggle, onReset }: ColumnPickerPanelProps) {
-  const options = hideableColumns(columns);
+  const options = columns.filter((column) => !column.pinned);
   if (options.length === 0) return null;
 
   return (
     <div className="column-picker__body">
       <div className="column-picker__options" role="group" aria-label="Cột hiển thị">
-        {options.map((column) => (
-          <Checkbox
-            key={column.key}
-            size="sm"
-            className="column-picker__option"
-            label={<span className="column-picker__option-label">{column.label}</span>}
-            isSelected={!hidden.includes(column.key)}
-            onChange={() => onToggle(column.key)}
-          />
-        ))}
+        {options.map((column) => {
+          const locked = Boolean(column.essential || column.essentialWhenHasData);
+          return (
+            <Checkbox
+              key={column.key}
+              size="sm"
+              className="column-picker__option"
+              label={<span className="column-picker__option-label">{column.label}</span>}
+              isSelected={!hidden.includes(column.key)}
+              isDisabled={locked || undefined}
+              onChange={() => { if (!locked) onToggle(column.key); }}
+            />
+          );
+        })}
       </div>
       <button
         type="button"
