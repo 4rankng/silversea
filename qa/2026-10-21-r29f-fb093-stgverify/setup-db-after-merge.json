@@ -1,0 +1,28 @@
+[
+  {
+    "ship": 972,
+    "code": "SHP-2610-00572",
+    "bill": "R29F-01",
+    "freight": null,
+    "note": null,
+    "revGroup": "134a72e9-e119-4140-ae7b-791cfc008106",
+    "revOrder": 1,
+    "members": 2,
+    "lock": "OPEN",
+    "cargoMode": "LCL",
+    "customer": "CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM"
+  },
+  {
+    "ship": 973,
+    "code": "SHP-2610-00573",
+    "bill": "R29F-02",
+    "freight": "0",
+    "note": "Ghép cước cùng Bill R29F-01",
+    "revGroup": "134a72e9-e119-4140-ae7b-791cfc008106",
+    "revOrder": 2,
+    "members": 2,
+    "lock": "OPEN",
+    "cargoMode": "LCL",
+    "customer": "CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM"
+  }
+]

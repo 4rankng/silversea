@@ -1,0 +1,13 @@
+{
+  "modeLcl": true,
+  "customer": "YUANFANG",
+  "booking": "R29F-01",
+  "route": "Tuyến đường*QA-NM-895362",
+  "factory": "Nhà máy (Điểm lấy hàng)*Chưa xác địnhXem",
+  "warehouse": "Kho trả hàng (CFS/Cảng)*Kho R22Thêm kho",
+  "packageType": "Thùng carton",
+  "packageCount": "5",
+  "weight": "1500",
+  "volume": "3.5",
+  "delivery": "Ngày giao hàng *//"
+}

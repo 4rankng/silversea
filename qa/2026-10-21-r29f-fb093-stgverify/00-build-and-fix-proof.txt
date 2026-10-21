@@ -1,0 +1,21 @@
+# Staging build + deployed-fix proof (R29F FB-093)
+captured: 2026-10-21T02:10:32Z
+
+## /api/health at drive time
+{"status":"ok","timestamp":"2026-10-21T02:10:32.343Z","buildHash":"806acf89","authTokenTtlSeconds":604800}
+
+## build timeline (git fetch origin)
+task pin: ebd032fb (fix merge)
+resume pin: 85ea2cef (QA-script port-contract fixes only)
+actual at drive time: 806acf89 (merge feat-req07-trip-code-format — driver-display FE only)
+
+## deployed AccountingDebitClosePage chunk — FB-093 fix live?
+index: /assets/index-C1sJwYBb.js
+chunk: assets/AccountingDebitClosePage-DJu42oE9.js
+essentialWhenHasData matches: 1
+Thông số container label: 1
+accounting-debit-hidden-cols key: 1
+
+## conclusion
+FB-093 essentialWhenHasData fix IS live in the deployed chunk on this build.
+Verified surfaces below run against this build (drift documented, not silently accepted).

@@ -1,0 +1,353 @@
+{
+  "results": [
+    {
+      "id": "FB-093 SURFACE: ketoan profile SẠCH (không stored choice) /accounting/chot-debit — cột \"Thông số container\" TỰ HIỂN theo dữ liệu lcl + nút \"Tách nhóm\" cho từng dòng nhóm R29F (cả 2 bill, enabled); KT4 giữ nguyên (cột tiền breakdown vẫn ẩn)",
+      "pass": true,
+      "detail": "{\"storedChoice\":null,\"containerHeaderVisible\":true,\"rowsWithNote\":1,\"tachButtons\":[{\"aria\":\"Tách nhóm ghép cước thu khách — lô LCLQa24BB\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô LCLQa43B6\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô FB080-RUNG-1\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L03\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô BILL-RET1026-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô BILL-RET1026-02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5-BILL-04\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-02\",\"disabled\":false,\"ariaDisabled\":null}],\"moneyBreakdownVisible\":false}"
+    },
+    {
+      "id": "FB-093 REGRESSION D1: máy trạm cũ với stored choice `[]` (không ẩn gì) — board render đủ cột, \"Thông số container\" + ≥2 nút \"Tách nhóm\" R29F vẫn hiện",
+      "pass": true,
+      "detail": "{\"storedChoice\":\"[]\",\"containerHeaderVisible\":true,\"headers\":[\"Chi phí\",\"Ngày\",\"Thông tin lô hàng\",\"Thông số container\",\"Phân xe\",\"Phải thu\",\"Phải trả\",\"Lợi nhuận\",\"Ghi chú\",\"Đối soát\",\"Cước thu (tự động)\",\"Lạch Huyện (tự động)\",\"Phụ ps (tự động)\",\"Phát sinh (cus)\",\"Tổng thu\",\"Cước trả ĐV\",\"Lạch Huyện ĐV\",\"Phát sinh ĐV\",\"Tổng 1\",\"Phí RU (tự động)\",\"Kỳ theo dõi\",\"Khách hàng\",\"Đối tượng\",\"Chiều\",\"Từ ngày\",\"Đến ngày\",\"Số tiền (chưa VAT)\",\"VAT\",\"Tiền VAT\",\"Tổng tiền (gồm VAT)\",\"Ghi chú\"],\"buttons\":[{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-02\",\"disabled\":false,\"ariaDisabled\":null}]}"
+    },
+    {
+      "id": "FB-093 REGRESSION D2: máy trạm cũ với choice cũ ẩn \"Phân xe\" — phanXe bị ẩn ĐÚNG choice, \"Thông số container\" VẪN tự hiện + nút R29F còn (2 luật không va chạm)",
+      "pass": true,
+      "detail": "{\"storedChoice\":\"[\\\"phanXe\\\"]\",\"containerHeaderVisible\":true,\"headers\":[\"Chi phí\",\"Ngày\",\"Thông tin lô hàng\",\"Thông số container\",\"Phải thu\",\"Phải trả\",\"Lợi nhuận\",\"Ghi chú\",\"Đối soát\",\"Cước thu (tự động)\",\"Lạch Huyện (tự động)\",\"Phụ ps (tự động)\",\"Phát sinh (cus)\",\"Tổng thu\",\"Cước trả ĐV\",\"Lạch Huyện ĐV\",\"Phát sinh ĐV\",\"Tổng 1\",\"Phí RU (tự động)\",\"Kỳ theo dõi\",\"Khách hàng\",\"Đối tượng\",\"Chiều\",\"Từ ngày\",\"Đến ngày\",\"Số tiền (chưa VAT)\",\"VAT\",\"Tiền VAT\",\"Tổng tiền (gồm VAT)\",\"Ghi chú\"],\"buttons\":[{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-02\",\"disabled\":false,\"ariaDisabled\":null}]}"
+    },
+    {
+      "id": "FB-093 REGRESSION D3: choice tường minh ẩn \"Thông số container\" vẫn THẮNG (không bị essentialWhenHasData hồi sinh) — precedence đúng, 2 luật không va chạm",
+      "pass": true,
+      "detail": "{\"storedChoice\":\"[\\\"container\\\"]\",\"containerHeaderVisible\":false,\"headers\":[\"Chi phí\",\"Ngày\",\"Thông tin lô hàng\",\"Phân xe\",\"Phải thu\",\"Phải trả\",\"Lợi nhuận\",\"Ghi chú\",\"Đối soát\",\"Cước thu (tự động)\",\"Lạch Huyện (tự động)\",\"Phụ ps (tự động)\",\"Phát sinh (cus)\",\"Tổng thu\",\"Cước trả ĐV\",\"Lạch Huyện ĐV\",\"Phát sinh ĐV\",\"Tổng 1\",\"Phí RU (tự động)\",\"Kỳ theo dõi\",\"Khách hàng\",\"Đối tượng\",\"Chiều\",\"Từ ngày\",\"Đến ngày\",\"Số tiền (chưa VAT)\",\"VAT\",\"Tiền VAT\",\"Tổng tiền (gồm VAT)\",\"Ghi chú\"]}"
+    },
+    {
+      "id": "FB-093 FLOW: click \"Tách nhóm\" (dòng R29F-02) → confirm dialog → unmerge 200 — board hết nút/note R29F, DB: cả 2 lô revGroup=null + note=null, cước về trạng thái trước ghép (lô chính như trước; lô member 0₫ computed-zero D02 hoặc giá trị trước ghép), lock OPEN",
+      "pass": true,
+      "detail": "{\"confirm\":\"Tách nhóm ghép cước thu khách? Tiền cước của mỗi lô trở về đúng trạng thái trước ghép, ghi chú \\\"Ghép cước cùng Bill\\\" được gỡ.HủyTách nhóm\",\"afterUi\":{\"rowsWithNote\":0,\"r29fButtons\":0,\"allButtons\":9},\"after\":[{\"ship\":972,\"code\":\"SHP-2610-00572\",\"bill\":\"R29F-01\",\"freight\":null,\"note\":null,\"revGroup\":null,\"revOrder\":null,\"members\":null,\"revClass\":\"5T\",\"lock\":\"OPEN\"},{\"ship\":973,\"code\":\"SHP-2610-00573\",\"bill\":\"R29F-02\",\"freight\":\"0\",\"note\":null,\"revGroup\":null,\"revOrder\":null,\"members\":null,\"revClass\":\"5T\",\"lock\":\"OPEN\"}],\"preMerge\":[{\"ship\":972,\"code\":\"SHP-2610-00572\",\"bill\":\"R29F-01\",\"freight\":null,\"note\":null,\"revGroup\":null,\"revOrder\":null,\"members\":null,\"lock\":\"OPEN\",\"cargoMode\":\"LCL\",\"customer\":\"CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM\"},{\"ship\":973,\"code\":\"SHP-2610-00573\",\"bill\":\"R29F-02\",\"freight\":\"0\",\"note\":null,\"revGroup\":null,\"revOrder\":null,\"members\":null,\"lock\":\"OPEN\",\"cargoMode\":\"LCL\",\"customer\":\"CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM\"}],\"principalRestored\":true,\"memberRestored\":true}"
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-10-21T02:17:28.425Z",
+      "step": "health",
+      "status": "ok",
+      "build": "806acf89",
+      "expected": "806acf89"
+    },
+    {
+      "0": {
+        "ship": 972,
+        "code": "SHP-2610-00572",
+        "bill": "R29F-01",
+        "freight": null,
+        "note": null,
+        "revGroup": "134a72e9-e119-4140-ae7b-791cfc008106",
+        "revOrder": 1,
+        "members": 2,
+        "revClass": "5T",
+        "lock": "OPEN"
+      },
+      "1": {
+        "ship": 973,
+        "code": "SHP-2610-00573",
+        "bill": "R29F-02",
+        "freight": "0",
+        "note": "Ghép cước cùng Bill R29F-01",
+        "revGroup": "134a72e9-e119-4140-ae7b-791cfc008106",
+        "revOrder": 2,
+        "members": 2,
+        "revClass": "5T",
+        "lock": "OPEN"
+      },
+      "at": "2026-10-21T02:17:28.923Z",
+      "step": "precheck_rows"
+    },
+    {
+      "at": "2026-10-21T02:17:34.698Z",
+      "step": "board_01-fresh-ketoan",
+      "storedChoice": null,
+      "containerHeaderVisible": true,
+      "moneyBreakdownVisible": false,
+      "rowsWithNote": 1,
+      "tachButtons": [
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô LCLQa24BB",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô LCLQa43B6",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô FB080-RUNG-1",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L02",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L03",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô BILL-RET1026-01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô BILL-RET1026-02",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5-BILL-04",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô R29F-01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô R29F-02",
+          "disabled": false,
+          "ariaDisabled": null
+        }
+      ]
+    },
+    {
+      "at": "2026-10-21T02:17:35.139Z",
+      "step": "RESULT",
+      "id": "FB-093 SURFACE: ketoan profile SẠCH (không stored choice) /accounting/chot-debit — cột \"Thông số container\" TỰ HIỂN theo dữ liệu lcl + nút \"Tách nhóm\" cho từng dòng nhóm R29F (cả 2 bill, enabled); KT4 giữ nguyên (cột tiền breakdown vẫn ẩn)",
+      "pass": true,
+      "detail": "{\"storedChoice\":null,\"containerHeaderVisible\":true,\"rowsWithNote\":1,\"tachButtons\":[{\"aria\":\"Tách nhóm ghép cước thu khách — lô LCLQa24BB\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô LCLQa43B6\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô FB080-RUNG-1\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L03\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô BILL-RET1026-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô BILL-RET1026-02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5-BILL-04\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-02\",\"disabled\":false,\"ariaDisabled\":null}],\"moneyBreakdownVisible\":false}"
+    },
+    {
+      "at": "2026-10-21T02:17:39.888Z",
+      "step": "board_02-regression-stored-empty-choice",
+      "storedChoice": "[]",
+      "containerHeaderVisible": true,
+      "moneyBreakdownVisible": true,
+      "rowsWithNote": 1,
+      "tachButtons": [
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô LCLQa24BB",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô LCLQa43B6",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô FB080-RUNG-1",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L02",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L03",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô BILL-RET1026-01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô BILL-RET1026-02",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5-BILL-04",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô R29F-01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô R29F-02",
+          "disabled": false,
+          "ariaDisabled": null
+        }
+      ]
+    },
+    {
+      "at": "2026-10-21T02:17:40.351Z",
+      "step": "RESULT",
+      "id": "FB-093 REGRESSION D1: máy trạm cũ với stored choice `[]` (không ẩn gì) — board render đủ cột, \"Thông số container\" + ≥2 nút \"Tách nhóm\" R29F vẫn hiện",
+      "pass": true,
+      "detail": "{\"storedChoice\":\"[]\",\"containerHeaderVisible\":true,\"headers\":[\"Chi phí\",\"Ngày\",\"Thông tin lô hàng\",\"Thông số container\",\"Phân xe\",\"Phải thu\",\"Phải trả\",\"Lợi nhuận\",\"Ghi chú\",\"Đối soát\",\"Cước thu (tự động)\",\"Lạch Huyện (tự động)\",\"Phụ ps (tự động)\",\"Phát sinh (cus)\",\"Tổng thu\",\"Cước trả ĐV\",\"Lạch Huyện ĐV\",\"Phát sinh ĐV\",\"Tổng 1\",\"Phí RU (tự động)\",\"Kỳ theo dõi\",\"Khách hàng\",\"Đối tượng\",\"Chiều\",\"Từ ngày\",\"Đến ngày\",\"Số tiền (chưa VAT)\",\"VAT\",\"Tiền VAT\",\"Tổng tiền (gồm VAT)\",\"Ghi chú\"],\"buttons\":[{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-02\",\"disabled\":false,\"ariaDisabled\":null}]}"
+    },
+    {
+      "at": "2026-10-21T02:17:45.152Z",
+      "step": "board_03-regression-stored-old-choice",
+      "storedChoice": "[\"phanXe\"]",
+      "containerHeaderVisible": true,
+      "moneyBreakdownVisible": true,
+      "rowsWithNote": 1,
+      "tachButtons": [
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô LCLQa24BB",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô LCLQa43B6",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô FB080-RUNG-1",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L02",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L03",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô BILL-RET1026-01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô BILL-RET1026-02",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5-BILL-04",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô R29F-01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô R29F-02",
+          "disabled": false,
+          "ariaDisabled": null
+        }
+      ]
+    },
+    {
+      "at": "2026-10-21T02:17:45.572Z",
+      "step": "RESULT",
+      "id": "FB-093 REGRESSION D2: máy trạm cũ với choice cũ ẩn \"Phân xe\" — phanXe bị ẩn ĐÚNG choice, \"Thông số container\" VẪN tự hiện + nút R29F còn (2 luật không va chạm)",
+      "pass": true,
+      "detail": "{\"storedChoice\":\"[\\\"phanXe\\\"]\",\"containerHeaderVisible\":true,\"headers\":[\"Chi phí\",\"Ngày\",\"Thông tin lô hàng\",\"Thông số container\",\"Phải thu\",\"Phải trả\",\"Lợi nhuận\",\"Ghi chú\",\"Đối soát\",\"Cước thu (tự động)\",\"Lạch Huyện (tự động)\",\"Phụ ps (tự động)\",\"Phát sinh (cus)\",\"Tổng thu\",\"Cước trả ĐV\",\"Lạch Huyện ĐV\",\"Phát sinh ĐV\",\"Tổng 1\",\"Phí RU (tự động)\",\"Kỳ theo dõi\",\"Khách hàng\",\"Đối tượng\",\"Chiều\",\"Từ ngày\",\"Đến ngày\",\"Số tiền (chưa VAT)\",\"VAT\",\"Tiền VAT\",\"Tổng tiền (gồm VAT)\",\"Ghi chú\"],\"buttons\":[{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô R29F-02\",\"disabled\":false,\"ariaDisabled\":null}]}"
+    },
+    {
+      "at": "2026-10-21T02:17:50.224Z",
+      "step": "board_04-regression-choice-hides-container",
+      "storedChoice": "[\"container\"]",
+      "containerHeaderVisible": false,
+      "moneyBreakdownVisible": true,
+      "rowsWithNote": 0,
+      "tachButtons": []
+    },
+    {
+      "at": "2026-10-21T02:17:50.446Z",
+      "step": "RESULT",
+      "id": "FB-093 REGRESSION D3: choice tường minh ẩn \"Thông số container\" vẫn THẮNG (không bị essentialWhenHasData hồi sinh) — precedence đúng, 2 luật không va chạm",
+      "pass": true,
+      "detail": "{\"storedChoice\":\"[\\\"container\\\"]\",\"containerHeaderVisible\":false,\"headers\":[\"Chi phí\",\"Ngày\",\"Thông tin lô hàng\",\"Phân xe\",\"Phải thu\",\"Phải trả\",\"Lợi nhuận\",\"Ghi chú\",\"Đối soát\",\"Cước thu (tự động)\",\"Lạch Huyện (tự động)\",\"Phụ ps (tự động)\",\"Phát sinh (cus)\",\"Tổng thu\",\"Cước trả ĐV\",\"Lạch Huyện ĐV\",\"Phát sinh ĐV\",\"Tổng 1\",\"Phí RU (tự động)\",\"Kỳ theo dõi\",\"Khách hàng\",\"Đối tượng\",\"Chiều\",\"Từ ngày\",\"Đến ngày\",\"Số tiền (chưa VAT)\",\"VAT\",\"Tiền VAT\",\"Tổng tiền (gồm VAT)\",\"Ghi chú\"]}"
+    },
+    {
+      "at": "2026-10-21T02:17:51.558Z",
+      "step": "tach_confirm_dialog",
+      "open": true,
+      "text": "Tách nhóm ghép cước thu khách? Tiền cước của mỗi lô trở về đúng trạng thái trước ghép, ghi chú \"Ghép cước cùng Bill\" được gỡ.HủyTách nhóm"
+    },
+    {
+      "at": "2026-10-21T02:17:51.764Z",
+      "step": "lcl_api",
+      "url": "https://vantai.tingting.vip/api/shipments/lcl/unmerge-group",
+      "status": 200,
+      "body": "{\"dimension\":\"REV\",\"groupId\":\"134a72e9-e119-4140-ae7b-791cfc008106\",\"memberCount\":2,\"members\":[{\"shipmentId\":972,\"order\":1,\"reference\":\"R29F-01\"},{\"shipmentId\":973,\"order\":2,\"reference\":\"R29F-02\"}],\"dissolved\":true}"
+    },
+    {
+      "at": "2026-10-21T02:17:52.607Z",
+      "step": "after_tach_ui",
+      "rowsWithNote": 0,
+      "r29fButtons": 0,
+      "allButtons": 9
+    },
+    {
+      "0": {
+        "ship": 972,
+        "code": "SHP-2610-00572",
+        "bill": "R29F-01",
+        "freight": null,
+        "note": null,
+        "revGroup": null,
+        "revOrder": null,
+        "members": null,
+        "revClass": "5T",
+        "lock": "OPEN"
+      },
+      "1": {
+        "ship": 973,
+        "code": "SHP-2610-00573",
+        "bill": "R29F-02",
+        "freight": "0",
+        "note": null,
+        "revGroup": null,
+        "revOrder": null,
+        "members": null,
+        "revClass": "5T",
+        "lock": "OPEN"
+      },
+      "at": "2026-10-21T02:17:53.062Z",
+      "step": "after_tach_rows"
+    },
+    {
+      "at": "2026-10-21T02:17:53.063Z",
+      "step": "RESULT",
+      "id": "FB-093 FLOW: click \"Tách nhóm\" (dòng R29F-02) → confirm dialog → unmerge 200 — board hết nút/note R29F, DB: cả 2 lô revGroup=null + note=null, cước về trạng thái trước ghép (lô chính như trước; lô member 0₫ computed-zero D02 hoặc giá trị trước ghép), lock OPEN",
+      "pass": true,
+      "detail": "{\"confirm\":\"Tách nhóm ghép cước thu khách? Tiền cước của mỗi lô trở về đúng trạng thái trước ghép, ghi chú \\\"Ghép cước cùng Bill\\\" được gỡ.HủyTách nhóm\",\"afterUi\":{\"rowsWithNote\":0,\"r29fButtons\":0,\"allButtons\":9},\"after\":[{\"ship\":972,\"code\":\"SHP-2610-00572\",\"bill\":\"R29F-01\",\"freight\":null,\"note\":null,\"revGroup\":null,\"revOrder\":null,\"members\":null,\"revClass\":\"5T\",\"lock\":\"OPEN\"},{\"ship\":973,\"code\":\"SHP-2610-00573\",\"bill\":\"R29F-02\",\"freight\":\"0\",\"note\":null,\"revGroup\":null,\"revOrder\":null,\"members\":null,\"revClass\":\"5T\",\"lock\":\"OPEN\"}],\"preMerge\":[{\"ship\":972,\"code\":\"SHP-2610-00572\",\"bill\":\"R29F-01\",\"freight\":null,\"note\":null,\"revGroup\":null,\"revOrder\":null,\"members\":null,\"lock\":\"OPEN\",\"cargoMode\":\"LCL\",\"customer\":\"CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM\"},{\"ship\":973,\"code\":\"SHP-2610-00573\",\"bill\":\"R29F-02\",\"freight\":\"0\",\"note\":null,\"revGroup\":null,\"revOrder\":null,\"members\":null,\"lock\":\"OPEN\",\"cargoMode\":\"LCL\",\"customer\":\"CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAM\"}],\"principalRestored\":true,\"memberRestored\":true}"
+    }
+  ]
+}
