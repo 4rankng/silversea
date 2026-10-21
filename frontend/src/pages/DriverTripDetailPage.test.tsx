@@ -907,13 +907,17 @@ describe('DriverTripDetailPage', () => {
     const opener = await screen.findByRole('button', { name: 'Gọi kho' });
     fireEvent.click(opener);
     const dialog = await screen.findByRole('dialog', { name: 'Chọn liên hệ để gọi' });
-    const links = within(dialog).getAllByRole('link');
-    expect(links[0]).toHaveAttribute('href', 'tel:0907654321');
-    await waitFor(() => expect(within(dialog).getByText('Điều phối')).toBeVisible());
-    expect(links[0]).toHaveAttribute('aria-label', 'Gọi Điều phối 0907654321');
-    expect(links[1]).toHaveAttribute('href', 'tel:0901234567');
-    await waitFor(() => expect(within(dialog).getByText('Cổng kho')).toBeVisible());
-    expect(links[1]).toHaveAttribute('aria-label', 'Gọi Cổng kho 0901234567');
+    // REQ-14: each row now carries TWO tel: links — the displayed number
+    // itself plus the explicit Gọi button (unchanged aria-label contract).
+    const rows = within(dialog).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    // Default contact first.
+    await waitFor(() => expect(within(rows[0]).getByText('Điều phối')).toBeVisible());
+    expect(within(rows[0]).getByRole('link', { name: '0907654321' })).toHaveAttribute('href', 'tel:0907654321');
+    expect(within(rows[0]).getByRole('link', { name: 'Gọi Điều phối 0907654321' })).toHaveAttribute('href', 'tel:0907654321');
+    await waitFor(() => expect(within(rows[1]).getByText('Cổng kho')).toBeVisible());
+    expect(within(rows[1]).getByRole('link', { name: '0901234567' })).toHaveAttribute('href', 'tel:0901234567');
+    expect(within(rows[1]).getByRole('link', { name: 'Gọi Cổng kho 0901234567' })).toHaveAttribute('href', 'tel:0901234567');
   });
 
   it('card _27: identical kho and contact numbers render ONE phone row', async () => {

@@ -40,4 +40,27 @@ describe('OperationalSiteContactsList', () => {
       name: 'Gọi Kho chính 0989 130 345',
     })).toHaveAttribute('href', 'tel:0989130345');
   });
+
+  // REQ-14: on the callable (driver) surface the displayed number itself is a
+  // tap-to-call link — the stored text keeps its dots on screen while the
+  // href is normalized (spaces/dots stripped, +84 kept).
+  it('REQ-14: the displayed number is itself a tel: link with a normalized href', () => {
+    render(<OperationalSiteContactsList callable contacts={[
+      { name: 'Liên hệ nhà máy', phone: '+84.28.3822.1234', isDefault: false },
+    ]} />);
+
+    const row = screen.getAllByRole('listitem')[0];
+    const numberLink = within(row).getByRole('link', { name: '+84.28.3822.1234' });
+    expect(numberLink).toHaveAttribute('href', 'tel:+842838221234');
+    expect(numberLink).toHaveClass('site-contact-list__phone');
+  });
+
+  it('REQ-14: read-only (config) surface keeps the number plain text — no dead link', () => {
+    render(<OperationalSiteContactsList contacts={[
+      { name: 'Liên hệ nhà máy', phone: '02838221234', isDefault: false },
+    ]} />);
+
+    expect(screen.getByText('02838221234', { exact: true }).closest('a')).toBeNull();
+    expect(screen.queryByRole('link', { name: /Gọi / })).toBeNull();
+  });
 });
