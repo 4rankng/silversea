@@ -4,6 +4,16 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-21 — PRD all-markdown: bỏ file .docx khỏi repo, nguồn gốc giữ ở GDrive
+
+Chủ sản phẩm chốt docs/prd giữ **toàn bộ dữ liệu dạng Markdown** — không còn file .docx
+trong repo. `PhanHeKeToan.docx` được chuyển nội dung đầy đủ sang `PhanHeKeToan.md`
+(kèm 12 ảnh mockup mô tả bằng chữ tại các mục `### Mockup:` — dựng từ caption docx + OCR,
+session không có vision; chú thích trong ảnh dịch thành behavior, không phải UI text);
+9 file còn lại đã có sẵn bản .md twin. Mọi liên kết chéo `.docx` → `.md`. Bản .docx gốc
+(kèm ảnh nhúng) lưu ở Google Drive `SilverSea/Kanban` và attachments — không mất. Mã tham
+chiếu `§n.m` giữ nguyên trên file .md.
+
 ## 2026-10-21 — Đợt rulings 21/10: luật tiền gom hàng lẻ (LCL-07), xóa lô, tự-copy container (REQ-22/FB-086), chi phí vừa tạo (FB-033)
 
 - **Luật tiền gom nhiều lô hàng lẻ (LCL-07 / REQ-19, boss chốt 21/10 15:22):** cước **THU khách**
@@ -304,8 +314,8 @@ xác nhận giao hàng, đối chiếu và khóa kỳ giữ đúng ý nghĩa ngh
 
 ## 2026-09-16 — Chi phí Ops/lái xe, phơi phiếu và thu/trả
 
-Yêu cầu từ `các chi phí.docx` được ghi tại [Ops](OpsVanHanh.docx) §9,
-[Lái xe](ManHinhLaiXe.docx) §8 và [O2C](QuyTrinhO2C.docx) §7.4. Chi thực tế, số tính cho
+Yêu cầu từ `các chi phí.docx` được ghi tại [Ops](OpsVanHanh.md) §9,
+[Lái xe](ManHinhLaiXe.md) §8 và [O2C](QuyTrinhO2C.md) §7.4. Chi thực tế, số tính cho
 khách và tiền đã thu/trả là những thông tin tách biệt; đối chiếu không tạo thêm dòng
 tiền hoặc cấp duyệt. Các điểm nguồn chưa hoàn thiện được giữ tại nghiệp vụ liên quan,
 không tự suy ra giá hay ngưỡng cảnh báo.
