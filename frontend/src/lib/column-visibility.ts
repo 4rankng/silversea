@@ -64,10 +64,13 @@ export interface LedgerColumn {
  * FB-093 (lan 3): a choice written BEFORE a column joined the required set
  * kept it buried on old workstations — the QA build showed no "Tách nhóm"
  * because stale `localStorage` under the surface's key still named the action
- * column. One predicate guards every consumer: the picker never offers what a
- * choice cannot do, `toggleHiddenColumn` refuses the key, and
- * `sanitizeHiddenColumns` drops it from storage on every read (idempotent —
- * a filter at read time, no one-time migration).
+ * column. One predicate guards every consumer: `toggleHiddenColumn` refuses
+ * the key, `sanitizeHiddenColumns` drops it from storage on every read
+ * (idempotent — a filter at read time, no one-time migration), and the picker
+ * panel renders a required column LOCKED (disabled, truth-checked — see
+ * `ColumnPickerPanel`), so no offered action pretends a choice could hide it.
+ * KT4 (card 191026181942) still lists the column: the rollups read as
+ * "there, checked", the breakdowns as "one toggle away".
  */
 export function hideableColumns(columns: readonly LedgerColumn[]): LedgerColumn[] {
   return columns.filter((column) => !column.pinned && !column.essential && !column.essentialWhenHasData);

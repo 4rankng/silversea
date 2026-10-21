@@ -8,7 +8,7 @@
 // → confirm → POST …/remove 200 → drawer CLOSES → toast → re-open drawer:
 // the deleted cont is gone (danh sách mất cont).
 //
-// Run: QA_BASE=http://localhost:7185 QA_LOT=311985 QA_CONT=QATU0001234 \
+// Run: QA_BASE=http://localhost:7175 QA_LOT=311985 QA_CONT=QATU0001234 \
 //      QA_USER=cus node testplan/qa/scripts/2026-10-21-cus10-drawer-delete-ui-drive.mjs
 // Ports come from the environment (dev-port contract); no hardcoded ports.
 import { mkdirSync, appendFileSync } from 'node:fs';

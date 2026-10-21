@@ -11,11 +11,20 @@
 // Registration target: the lot's planned nhà xe (OWN → POST /trucks, EXTERNAL
 // → the Xe ngoài list); a carrier-less lot asks "Nhà xe" ("hãng/nhà xe nếu
 // cần", owner scope).
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, configure } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 
 import { DispatchAllocationPopover } from './DispatchAllocationPopover';
+
+// Full-suite red reported 21/10 on main d263149b ("lô CHƯA có nhà xe" asked no
+// "Nhà xe"), while the file was green standalone and in two later full runs —
+// the only unbounded variable left is the 1s RTL async budget under
+// full-suite CPU contention: the quick-add dialog's "Nhà xe" picker only
+// exists once the mocked bootstrap promise resolves and React flushes, and
+// the ComboBox portals ride the same budget. Same assertions, wider wait —
+// the pinned contract (card 201026101600) is untouched.
+configure({ asyncUtilTimeout: 4_000 });
 
 vi.mock('../../../api/tripClient', () => ({
   tripClient: {
@@ -147,6 +156,10 @@ describe('DispatchAllocationLclDialog — quick-add BKS trong dialog Phân bổ 
     expect(await screen.findByRole('option', { name: 'Đội xe nội bộ SilverSea' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'HÀ AN' })).toBeTruthy();
     fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' });
+    // The popover's close (and its aria-hide-outside removal) settles
+    // asynchronously — while it stands, react-aria hides the rest of the
+    // surface, so wait it out before touching the dialog again.
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhà xe' })).toBeNull());
 
     // Default = đội xe nội bộ → the truck-catalog create.
     fireEvent.change(screen.getByLabelText('Biển số xe'), { target: { value: '29C-066.01' } });
@@ -158,6 +171,9 @@ describe('DispatchAllocationLclDialog — quick-add BKS trong dialog Phân bổ 
     fireEvent.click(screen.getByRole('button', { name: /Thêm nhanh/ }));
     fireEvent.click(await screen.findByLabelText('Nhà xe'));
     fireEvent.click(await screen.findByRole('option', { name: 'HÀ AN' }));
+    // Same settle law: the pick must land (popover closed) before the next
+    // query, or the still-open popover keeps "Áp dụng" aria-hidden.
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhà xe' })).toBeNull());
     fireEvent.change(screen.getByLabelText('Biển số xe'), { target: { value: '29C-066.02' } });
     fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
     await waitFor(() => expect(createCarrierFleetVehicle).toHaveBeenCalledWith({

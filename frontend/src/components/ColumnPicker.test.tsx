@@ -38,6 +38,30 @@ describe('ColumnPicker — the one column-visibility control (card 20260928_193)
     expect(screen.getByRole('checkbox', { name: 'Ghi chú' })).not.toBeChecked();
   });
 
+  it('lists a required column LOCKED — KT4 reads it checked, no offered action can hide it (FB-093 lan 3 × card 191026181942)', () => {
+    const columns: readonly LedgerColumn[] = [
+      { key: 'customer', label: 'Khách hàng', pinned: true },
+      { key: 'tongThu', label: 'Tổng thu', essential: true },
+      { key: 'container', label: 'Thông số container', essentialWhenHasData: true },
+      { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
+    ];
+    const { onToggle } = renderPicker({ columns, hidden: ['container', 'notes'] });
+    fireEvent.click(screen.getByRole('button', { name: 'Cột hiển thị, đang ẩn 2 cột' }));
+    // The essential rollup is on the board and reads checked…
+    const rollup = screen.getByRole('checkbox', { name: 'Tổng thu' });
+    expect(rollup).toBeChecked();
+    expect((rollup.closest('label') as HTMLLabelElement).className).toContain('cursor-not-allowed');
+    // …the empty action column is hidden by the default and reads unchecked —
+    // the truth either way, because neither can be toggled.
+    expect(screen.getByRole('checkbox', { name: 'Thông số container' })).not.toBeChecked();
+    // Clicking a locked row fires no toggle; the ordinary column still does.
+    fireEvent.click(rollup);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Thông số container' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Ghi chú' }));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(onToggle).toHaveBeenCalledWith('notes');
+  });
+
   it.each(['inline', 'dialog'] as const)('reports toggle/reset unchanged in the %s placement', (mode) => {
     const { onToggle, onReset } = renderPicker({ customized: true }, mode);
     if (mode === 'inline') fireEvent.click(screen.getByRole('button', { name: 'Cột hiển thị, đang ẩn 1 cột' }));
