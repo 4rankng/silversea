@@ -385,3 +385,62 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
     expect(screen.getByRole('button', { name: /Thêm nhanh/ })).toBeTruthy();
   });
 });
+
+// ─── REQ-19 depth audit (2026-10-21) — tải trọng fit advisory ────────────────
+//
+// The consolidated group's Σkg vs the picked class, as the shared assessor
+// computes it (the same law the BE stamps on the assign result + audit).
+// Advisory only: the OVER line is loud but never blocks the submit.
+describe('REQ-19 — AssignTruckGroupDialog cargo-fit advisory', () => {
+  const rowWith = (shipmentId: number, bill: string, cargoWeightKg: string | null, cargoVolumeCbm: string | null) => {
+    const base = row(shipmentId, bill);
+    return {
+      ...base,
+      container: { ...base.container, cargoWeightKg },
+      lcl: { ...base.lcl!, cargoVolumeCbm },
+    } as DispatchDetailPlanRow;
+  };
+
+  it('xe tải: Σkg ≤ tải trọng → "vừa tải" với tổng kg/CBM của nhóm', async () => {
+    renderDialog([rowWith(31, 'BL-1', '1500', '3.2'), rowWith(32, 'BL-2', '1500', '4.8')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    const fit = screen.getByRole('status');
+    expect(fit.textContent).toContain('Tổng 2 lô');
+    expect(fit.textContent).toContain('3.000 kg');
+    expect(fit.textContent).toContain('8 CBM');
+    expect(fit.textContent).toContain('vừa tải (3.500 kg)');
+    expect(fit.className).not.toContain('assign-truck-group__fit--over');
+  });
+
+  it('xe tải: Σkg > tải trọng → dòng VƯỢT TẢI TRỌNG (danger), vẫn không chặn gán', async () => {
+    assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
+    renderDialog([rowWith(31, 'BL-1', '2000', '3.2'), rowWith(32, 'BL-2', '2000', '4.8')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    const fit = screen.getByRole('status');
+    expect(fit.textContent).toContain('VƯỢT TẢI TRỌNG Xe 3.5 tấn (3.500 kg)');
+    expect(fit.className).toContain('assign-truck-group__fit--over');
+
+    // Advisory, not a gate: a full valid form still submits.
+    await pickCarrier('Nhà xe Hải Vân');
+    setField(/BKS thực/, '29H-111.11');
+    submit();
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
+  });
+
+  it('loại cont 20/40: fit theo kg không phải đơn vị — nhắc đối chiếu CBM, không bịa dung tích', async () => {
+    renderDialog([rowWith(31, 'BL-1', '1500', '3.2'), rowWith(32, 'BL-2', '2000', '6.0')]);
+    await pickVehicleClass('Container 20 feet');
+    const fit = screen.getByRole('status');
+    expect(fit.textContent).toContain('loại cont CONT20 tính giá theo vỏ cont');
+    expect(fit.textContent).toContain('9,2 CBM');
+    expect(fit.textContent).not.toContain('VƯỢT');
+  });
+
+  it('chưa có kg của lô nào → nhắc nhập trọng lượng, không phán FITS/OVER', async () => {
+    renderDialog([rowWith(31, 'BL-1', null, '3.2'), rowWith(32, 'BL-2', null, '4.8')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    const fit = screen.getByRole('status');
+    expect(fit.textContent).toContain('Chưa có kg của lô nào');
+    expect(fit.textContent).toContain('3.5T');
+  });
+});

@@ -38,8 +38,9 @@ import {
   type DispatchDetailPlanRow,
 } from '../../../api/dispatchPlanningClient';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
-import { lclVehicleSourcingRule, LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS } from '@tingting/shared';
+import { lclVehicleSourcingRule, LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS, assessLclCargoFit } from '@tingting/shared';
 import { billBookingReference } from '../../../lib/business-reference';
+import { formatVolumeCbm, formatWeight } from '../../../lib/format';
 import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
 import { QuickAddButton } from '../../../components/shared/QuickAddButton';
 import './AssignTruckGroupDialog.css';
@@ -60,6 +61,11 @@ export interface LclGroupDialogRow {
   /** Số Bill / Số Booking display key. */
   reference: string;
   customerName: string | null;
+  /** REQ-19 (2026-10-21) — the lot's own cargo facts, for the tải-trọng fit
+   *  advisory next to the class picker (kg keys the fit; CBM rides along for
+   *  the container-class eyeball). */
+  cargoWeightKg: string | null;
+  cargoVolumeCbm: string | null;
   /** Stored cost-group identity (null when the lot is ungrouped). */
   group: {
     groupId: string;
@@ -77,6 +83,8 @@ export function lclGroupRowFromDetail(row: DispatchDetailPlanRow): LclGroupDialo
     shipmentId: row.shipmentId,
     reference: billBookingReference(row.docs.billNumber),
     customerName: row.customerRoute.customerName,
+    cargoWeightKg: row.container.cargoWeightKg ?? null,
+    cargoVolumeCbm: row.lcl?.cargoVolumeCbm ?? null,
     group: row.lcl?.group ?? null,
     carrierType: row.dispatch.carrierType,
     externalCarrierId: row.dispatch.externalCarrierId,
@@ -89,6 +97,8 @@ export function lclGroupRowFromMasterPlan(item: ShipmentListItem): LclGroupDialo
     shipmentId: item.id,
     reference: billBookingReference(item.blNumber, item.bookingRef),
     customerName: item.customerName,
+    cargoWeightKg: item.cargoWeightKg != null ? String(item.cargoWeightKg) : null,
+    cargoVolumeCbm: item.cargoVolumeCbm != null ? String(item.cargoVolumeCbm) : null,
     group: item.costGroupId
       ? {
         groupId: item.costGroupId,
@@ -165,6 +175,46 @@ export function AssignTruckGroupDialog({
 
   const selectedClass = vehicleClasses.data?.find((vc) => String(vc.id) === vehicleClassId);
   const sourcingRule = selectedClass ? lclVehicleSourcingRule(selectedClass.isContainer) : null;
+
+  // REQ-19 (2026-10-21) — tải trọng advisory: the consolidated group's Σ cargo
+  // against the class the dispatcher just picked. Pure display of the shared
+  // assessor (the same one the BE stamps on the assign result + audit); it
+  // never blocks and never reprices — the money law stays the spec's board
+  // price (Lô 1 = 100%, members 0₫).
+  const cargoFit = useMemo(() => {
+    if (!selectedClass) return null;
+    return assessLclCargoFit({
+      isContainer: selectedClass.isContainer,
+      vehicleClassCode: selectedClass.code,
+      cargoWeightKg: rows.map((row) => {
+        const kg = row.cargoWeightKg == null || row.cargoWeightKg === '' ? NaN : Number(row.cargoWeightKg);
+        return Number.isFinite(kg) ? kg : null;
+      }),
+    });
+  }, [selectedClass, rows]);
+  const totalCbm = useMemo(
+    () => rows.reduce((sum, row) => {
+      const cbm = row.cargoVolumeCbm == null || row.cargoVolumeCbm === '' ? NaN : Number(row.cargoVolumeCbm);
+      return Number.isFinite(cbm) ? sum + cbm : sum;
+    }, 0),
+    [rows],
+  );
+  const fitLine = (() => {
+    if (cargoFit == null || selectedClass == null) return null;
+    const totals = `Tổng ${rows.length} lô: ${cargoFit.totalWeightKg != null ? `${formatWeight(String(cargoFit.totalWeightKg))} · ` : ''}${totalCbm > 0 ? formatVolumeCbm(String(totalCbm)) : '— CBM'}`;
+    switch (cargoFit.status) {
+      case 'FITS':
+        return `${totals} — ${selectedClass.name}: vừa tải (${formatWeight(String(cargoFit.tonnageKg!))})`;
+      case 'OVER':
+        return `${totals} — VƯỢT TẢI TRỌNG ${selectedClass.name} (${formatWeight(String(cargoFit.tonnageKg!))})`;
+      case 'NO_WEIGHT':
+        return `Chưa có kg của lô nào để đối chiếu tải trọng ${selectedClass.code} — nhập trọng lượng từng lô trước khi quyết định loại xe.`;
+      case 'CONTAINER_CLASS':
+        return `${totals} — loại cont ${selectedClass.code} tính giá theo vỏ cont, đối chiếu tổng CBM với dung tích vỏ.`;
+      case 'UNKNOWN_CLASS':
+        return `${totals} — không đọc được tải trọng từ mã loại xe ${selectedClass.code}.`;
+    }
+  })();
 
   const externalCarrierId = useMemo(() => {
     if (!carrierKey.startsWith('EXTERNAL:')) return null;
@@ -368,6 +418,14 @@ export function AssignTruckGroupDialog({
             {sourcingRule === LclVehicleSourcing.EXTERNAL_ONLY
               ? `${LCL_VEHICLE_SOURCING_LABELS[LclVehicleSourcing.EXTERNAL_ONLY]} — BKS xe nội bộ bị từ chối, biển số chỉ lấy từ nhà xe.`
               : `${LCL_VEHICLE_SOURCING_LABELS[LclVehicleSourcing.INTERNAL_OR_EXTERNAL]} — chọn Đội xe nội bộ SilverSea hoặc Nhà xe.`}
+          </p>
+        )}
+        {fitLine && (
+          <p
+            className={`assign-truck-group__fit${cargoFit?.status === 'OVER' ? ' assign-truck-group__fit--over' : ''}`}
+            role="status"
+          >
+            {fitLine}
           </p>
         )}
         {carrierCatalog.empty && (
