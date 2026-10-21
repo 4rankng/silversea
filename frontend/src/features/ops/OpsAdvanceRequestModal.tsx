@@ -46,6 +46,7 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
         <div className="ops-modal__body">
           <div className="ops-form-grid">
             <NumberField controlSize="sm" label="Số tiền (VND)" value={amount} onChange={setAmount}
+              grouped
               min={1} max={999_999_999_999_999} step={1} required error={amountError} disabled={createAdvance.isPending} />
             <label>
               Ngày

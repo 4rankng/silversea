@@ -248,7 +248,7 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
       loadState: 'LOADED',
       date: expect.any(String),
     }));
-    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
+    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950.000'));
     expect(screen.getByText(/Áp tự động 950.000 VNĐ/)).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText('Số hóa đơn'), { target: { value: 'HD-LIFT-001' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
@@ -272,7 +272,7 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     fireEvent.change(method, { target: { value: 'OPS_ADVANCE' } });
     expect(method).toHaveValue('OPS_ADVANCE');
     fireEvent.change(screen.getByDisplayValue('— Chọn cảng —'), { target: { value: '7' } });
-    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
+    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950.000'));
     fireEvent.change(screen.getByPlaceholderText('Số hóa đơn'), { target: { value: 'HD-DIRECT-OPS' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
     await waitFor(() => expect(createExpenseMock).toHaveBeenCalledWith(
@@ -286,7 +286,7 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
     fireEvent.change(screen.getByDisplayValue('— Chọn cảng —'), { target: { value: '7' } });
-    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
+    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950.000'));
     fireEvent.change(screen.getByPlaceholderText('Số hóa đơn'), { target: { value: 'HD-001' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu chi phí' }));
     await waitFor(() => expect(createExpenseMock).toHaveBeenCalledTimes(1));
@@ -294,7 +294,7 @@ describe('ForwarderTripDetailPage photo upload geolocation recovery', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
     fireEvent.change(screen.getByDisplayValue('— Chọn cảng —'), { target: { value: '7' } });
 
-    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950000'));
+    await waitFor(() => expect((screen.getAllByPlaceholderText('0')[0] as HTMLInputElement).value).toBe('950.000'));
   });
 
   it.each([

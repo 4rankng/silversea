@@ -12,7 +12,7 @@ import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
 import type { TimesheetSalaryMode } from '@tingting/shared';
 import { DateInput } from '../../design-system/forms/DateInput';
-import { UuiSelectField } from '../../design-system';
+import { NumberField, UuiSelectField } from '../../design-system';
 import { DOW_LABELS, STATUS_CONFIG } from './salary-attendance-constants';
 import { salaryModeLabel } from '../timesheet/salary-modes';
 import '../../pages/SalaryAttendancePage.css';
@@ -515,16 +515,12 @@ export function DriverPayoutModal({
         />
         <div className="field">
           <label htmlFor="payout-amount">Số tiền <span className="req" aria-hidden="true">*</span></label>
-          <input
+          <NumberField
             id="payout-amount"
-            className="input"
-            type="number"
-            min="0"
-            max="1000000000"
-            step="1000"
+            grouped
             placeholder="Ví dụ: 5000000"
-            value={form.amount}
-            onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+            value={form.amount === '' ? '' : Number(form.amount)}
+            onChange={n => setForm(f => ({ ...f, amount: n === '' ? '' : String(n) }))}
           />
           {overLimit && (
             <div className="commission-form__error" role="note">Số tiền vượt quá giới hạn tối đa 1 tỷ VND.</div>

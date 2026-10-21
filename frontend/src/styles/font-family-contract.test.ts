@@ -14,6 +14,20 @@ const debitSettlementSource = join(sourceRoot, 'pages/ShipmentDebitPage.css');
 // is a money matrix, so its money columns carry `tabular-nums` for a shared
 // digit edge. Exempt from the no-tabular-nums scan like the two pages above.
 const debitCloseSource = join(sourceRoot, 'pages/accounting/AccountingDebitClosePage.css');
+// Spec 19/10 FIX CHI PHÍ mục 2 ("mọi ô số tiền … 1,000,000 … tabular-nums")
+// extends that same ruling to the SHARED money primitives: the <Money> value,
+// the .num/.typo-num cells, the record-table money columns and the grouped
+// NumberField input. These four own the declaration app-wide; the scan below
+// still bans every other surface from inventing a local copy. The bundled
+// Be Vietnam Pro ships proportional figures only — the declaration is inert
+// until the typeface carries tnum (font capability noted in
+// qa/2026-10-21-accounting-fix2, not a reason to skip the spec's CSS).
+const sharedMoneyTabularSources = [
+  join(sourceRoot, 'components/shared/Money.css'),
+  join(sourceRoot, 'styles/typography.css'),
+  join(sourceRoot, 'styles/record-table.css'),
+  join(sourceRoot, 'design-system/forms/NumberField.css'),
+];
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 
 function sourceFiles(directory: string): string[] {
@@ -49,14 +63,16 @@ describe('frontend font-family contract', () => {
     expect(declarations.length).toBeGreaterThan(0);
     expect(declarations.filter((value) => !/^var\(--font-(?:body|display|sans|data)(?:,\s*[^)]+)?\)$|^inherit$/.test(value))).toEqual([]);
     const applicationSource = [
-      ...sourceFiles(sourceRoot).filter((path) => path !== debitSettlementSource && path !== debitCloseSource),
+      ...sourceFiles(sourceRoot).filter((path) => path !== debitSettlementSource && path !== debitCloseSource && !sharedMoneyTabularSources.includes(path)),
       join(frontendRoot, 'index.html'),
     ].map((path) => readFileSync(path, 'utf8')).join('\n');
 
     expect(applicationSource).not.toMatch(/(?:--font-mono|--ff-mono|JetBrains Mono)/);
-    // The bundled Be Vietnam Pro files use proportional figures. Table values
-    // that need a shared edge use their existing end alignment instead of a
-    // no-op OpenType tabular-numeral declaration.
+    // The bundled Be Vietnam Pro files use proportional figures. Money
+    // surfaces still DECLARE tabular-nums (spec 19/10 FIX CHI PHÍ mục 2 —
+    // shared primitives only, exempted above); everywhere else the ban
+    // stands: a stray local declaration buys nothing today and forks the
+    // ruling the shared primitives own.
     expect(applicationSource).not.toMatch(/font-(?:variant-numeric\s*:\s*tabular-nums|feature-settings\s*:\s*["']tnum)/);
     expect(readFileSync(join(fontAssetRoot, 'fonts.css'), 'utf8')).not.toContain('JetBrains Mono');
     expect(fontAssetFiles(fontAssetRoot).filter((path) => /jetbrains/i.test(path))).toEqual([]);

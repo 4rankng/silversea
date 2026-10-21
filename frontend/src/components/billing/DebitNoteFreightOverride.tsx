@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatCurrency } from '../../lib/format';
+import { NumberField } from '../../design-system';
 
 
 /**
@@ -19,11 +20,11 @@ export function DebitNoteFreightOverride({
   saving?: boolean;
   onSave: (payload: { finalDebitFreight: number | null; overrideReason?: string }) => void;
 }) {
-  const [finalValue, setFinalValue] = useState(initialFinal != null ? String(initialFinal) : '');
+  const [finalValue, setFinalValue] = useState<number | ''>(initialFinal ?? '');
   const [reason, setReason] = useState(initialReason ?? '');
   const [touched, setTouched] = useState(false);
 
-  const parsed = finalValue.trim() === '' ? null : Number(finalValue);
+  const parsed = finalValue === '' ? null : finalValue;
   const overrides = parsed != null && parsed !== systemFreight;
   const invalid = overrides && !reason.trim();
 
@@ -42,18 +43,16 @@ export function DebitNoteFreightOverride({
         <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giá cước hệ thống</div>
         <div style={{ fontFamily: 'var(--font-data)', fontWeight: 600 }}>{formatCurrency(systemFreight)}</div>
       </div>
-      <div>
-        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Giá cước đàm phán</div>
-        <input
-          className="input"
-          type="number"
-          min="0"
-          aria-label="Giá cước đàm phán"
-          value={finalValue}
-          onChange={e => setFinalValue(e.target.value)}
-          style={{ width: 160 }}
-        />
-      </div>
+      <NumberField
+        label="Giá cước đàm phán"
+        value={finalValue}
+        onChange={setFinalValue}
+        min={0}
+        step={1}
+        grouped
+        disabled={saving}
+        placeholder="0"
+      />
       <div style={{ flex: 1, minWidth: 220 }}>
         <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Lý do (bắt buộc khi giá thay đổi)</div>
         <textarea

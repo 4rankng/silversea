@@ -32,7 +32,7 @@ import '../styles/operational-table-typography.css';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { EmptyState, FilterBar, Pagination, SearchableSelect, SummaryRail, Tabs, UuiSelectField } from '../design-system';
+import { EmptyState, FilterBar, NumberField, Pagination, SearchableSelect, SummaryRail, Tabs, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -164,16 +164,12 @@ export function CommissionModal({
         />
         <div className="field">
           <label htmlFor="commission-amount">Số tiền hoa hồng <span className="req" aria-hidden="true">*</span></label>
-          <input
+          <NumberField
             id="commission-amount"
-            className="input"
-            type="number"
-            min="0"
-            max="1000000000"
-            step="1000"
+            grouped
             placeholder="Ví dụ: 500000"
-            value={form.amount}
-            onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+            value={form.amount === '' ? '' : Number(form.amount)}
+            onChange={(n) => setForm(f => ({ ...f, amount: n === '' ? '' : String(n) }))}
           />
           {overLimit && (
             <div className="commission-form__error" role="note">Số tiền vượt quá giới hạn tối đa 1 tỷ VND.</div>

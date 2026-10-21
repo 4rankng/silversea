@@ -160,7 +160,11 @@ export function PhoiPhieuReportSection() {
   ], []);
   return (
     <div style={{ margin: '16px 0' }}>
-      <h2 style={{ fontSize: 'var(--text-body-size)' }}>Báo cáo thu / trả phơi</h2>
+      {/* Spec 19/10 (2.2): the block renamed from "Báo cáo tháng" carries its
+       *  window in the title — "BÁO CÁO THU / TRẢ PHƠI — Ngày … – …". */}
+      <h2 style={{ fontSize: 'var(--text-body-size)' }}>
+        Báo cáo thu / trả phơi{range.from || range.to ? ` — Ngày ${range.from || '…'} – ${range.to || '…'}` : ''}
+      </h2>
       <div className="ppc-report-controls">
         <DateRangeFields
           id="phoi-phieu-report-range"

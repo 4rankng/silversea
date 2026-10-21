@@ -139,8 +139,12 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Xin Tạm Ứng/ }));
 
     const amountInput = await screen.findByLabelText(/Số tiền \(VND\)/);
-    fireEvent.change(amountInput, { target: { value: '123.45' } });
-    expect(amountInput).toHaveValue(123.45);
+    // Grouped money field (spec 19/10 FIX CHI PHÍ mục 2): digits only, vi-VN
+    // separators on display. An EMPTY amount keeps the save blocked (the
+    // field's own floor + the reason requirement).
+    fireEvent.change(amountInput, { target: { value: '12345' } });
+    expect(amountInput).toHaveValue('12.345');
+    fireEvent.change(amountInput, { target: { value: '' } });
     expect(screen.getByRole('button', { name: /Lưu tạm ứng/ })).toBeDisabled();
     fireEvent.submit(amountInput.closest('form')!);
     expect(apiPost).not.toHaveBeenCalled();

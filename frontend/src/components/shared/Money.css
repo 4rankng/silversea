@@ -10,4 +10,9 @@
   white-space: nowrap;
   font-family: var(--font-data);
   line-height: 1.35;
+  /* Spec 19/10 FIX CHI PHÍ (mục 2): mọi số tiền dùng tabular-nums. The
+     bundled Be Vietnam Pro (v1.002) ships proportional figures only, so
+     this declaration is inert until the typeface carries tnum — recorded
+     in qa/2026-10-21-accounting-fix2. Same ruling as the two debit pages. */
+  font-variant-numeric: tabular-nums;
 }

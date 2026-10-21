@@ -8,7 +8,7 @@ import { AlertTriangle, Download, Phone, Building2, ArrowLeft, Plus, X, Loader2,
 import { useCustomerStatement, useSupplierStatement } from '../hooks/useQueries';
 import { api } from '../lib/api';
 import { Modal } from '../components/UI';
-import { FilterBar, Tabs } from '../design-system';
+import { FilterBar, NumberField, Tabs } from '../design-system';
 import type { TabItem } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { FilterDropdown } from '../components/FilterDropdown';
@@ -792,19 +792,18 @@ export default function DebtDetailPage() {
             <label htmlFor="pay-amount" style={{ display: 'block', fontSize: 'var(--text-label-size)', fontWeight: 600, color: 'var(--fg-2)', marginBottom: 6 }}>
               Số tiền nhận (đ) <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
-            <input
+            <NumberField
               id="pay-amount"
-              className="input"
-              type="number"
-              value={payAmount}
+              grouped
+              value={payAmount === '' ? '' : Number(payAmount)}
               // aria-invalid is the house invalid contract: base.css
               // (QA-AUDIT-UI57) paints the red boundary from this attribute.
               aria-invalid={payInvalidField === 'amount' || undefined}
               aria-describedby={['pay-amount-hint', payInvalidField === 'amount' ? 'pay-error' : undefined].filter(Boolean).join(' ') || undefined}
-              onChange={e => {
-                updatePaymentDraft({ amount: e.target.value });
+              onChange={(n) => {
+                updatePaymentDraft({ amount: n === '' ? '' : String(n) });
               }}
-              placeholder="Ví dụ: 5000000"
+              placeholder="Ví dụ: 5.000.000"
               autoFocus
             />
             <p id="pay-amount-hint" style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>

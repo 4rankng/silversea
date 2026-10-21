@@ -55,7 +55,7 @@ describe('expense charge correction', () => {
     fireEvent.change(screen.getByLabelText(/Lý do điều chỉnh/), { target: { value: 'Đổi giá' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
     await screen.findByText('Khoản chi đã thay đổi, hãy mở lại');
-    expect(screen.getByLabelText(/Thực thu — thu khách/)).toHaveValue(300000);
+    expect(screen.getByLabelText(/Thực thu — thu khách/)).toHaveValue('300.000');
     expect(close).not.toHaveBeenCalled();
   });
   it('labels the equal-amount checkbox with the unified chi-hộ wording (card 20260924_1, image10)', () => {

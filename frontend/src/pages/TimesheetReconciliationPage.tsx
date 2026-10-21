@@ -175,9 +175,9 @@ export default function TimesheetReconciliationPage() {
                 options={SALARY_MODE_OPTIONS}
               />
               {modeDraft === 'PER_TRIP' ? (
-                <NumberField controlSize="sm" label="Lương ngày (VND)" value={modeDailyBase} min={0} step={1} disabled={active.status === 'RECONCILED'} onChange={setModeDailyBase} />
+                <NumberField controlSize="sm" label="Lương ngày (VND)" value={modeDailyBase} min={0} step={1} grouped disabled={active.status === 'RECONCILED'} onChange={setModeDailyBase} />
               ) : (
-                <NumberField controlSize="sm" label="Lương tháng cố định (VND)" value={modeFlatAmount} min={0} step={1} disabled={active.status === 'RECONCILED'} onChange={setModeFlatAmount} />
+                <NumberField controlSize="sm" label="Lương tháng cố định (VND)" value={modeFlatAmount} min={0} step={1} grouped disabled={active.status === 'RECONCILED'} onChange={setModeFlatAmount} />
               )}
               <div>
                 <Btn onClick={() => modeMutation.mutate()} disabled={active.status === 'RECONCILED' || modeMutation.isPending}>

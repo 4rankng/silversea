@@ -586,9 +586,9 @@ export default function BillingDocumentBuilder({
                                     </td>
                                     <td>
                                       <input
-                                        type="number"
+                                        type="text"
                                         className="input mono billing-builder__amount"
-                                        value={amount}
+                                        value={formatCurrency(amount).replace(' ₫', '')}
                                         disabled
                                         readOnly
                                       />
@@ -677,9 +677,9 @@ export default function BillingDocumentBuilder({
                                       <label>
                                         <span>Số tiền</span>
                                         <input
-                                          type="number"
+                                          type="text"
                                           className="input mono billing-builder__amount"
-                                          value={amount}
+                                          value={formatCurrency(amount).replace(' ₫', '')}
                                           disabled
                                           readOnly
                                         />

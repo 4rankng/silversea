@@ -229,6 +229,8 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
             onChange={setAmount}
             min={-999_999_999_999_999}
             step={1}
+            grouped
+            signed
             disabled={submitting}
             placeholder="0"
           />

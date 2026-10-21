@@ -294,9 +294,9 @@ export default function TimesheetGridPage() {
             options={SALARY_MODE_OPTIONS}
           />
           {boardMode === 'PER_TRIP' ? (
-            <NumberField controlSize="sm" label="Lương ngày (VND)" value={boardDailyBase} min={0} step={1} onChange={setBoardDailyBase} />
+            <NumberField controlSize="sm" label="Lương ngày (VND)" value={boardDailyBase} min={0} step={1} grouped onChange={setBoardDailyBase} />
           ) : (
-            <NumberField controlSize="sm" label="Lương tháng cố định (VND)" value={boardFlatAmount} min={0} step={1} onChange={setBoardFlatAmount} />
+            <NumberField controlSize="sm" label="Lương tháng cố định (VND)" value={boardFlatAmount} min={0} step={1} grouped onChange={setBoardFlatAmount} />
           )}
           <p className="ts-hint">Để trống nếu chưa có mức — hệ thống cảnh báo tới khi kế toán nhập.</p>
         </div>

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { usePageAnimations } from '../../hooks/animations';
 import { formatCurrency } from '../../lib/format';
-import { UuiSelectField } from '../../design-system';
+import { NumberField, UuiSelectField } from '../../design-system';
 import { InlineForm } from '../../components/config/InlineForm';
 import { FormActions } from '../../components/config/FormActions';
 import { Field } from '../../components/config/Field';
@@ -184,7 +184,7 @@ function PricingForm({
         />
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
-        <Field label="Cước thu khách (đ)"><input className="input" type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="0" /></Field>
+        <Field label="Cước thu khách (đ)"><NumberField grouped value={price === '' ? '' : Number(price)} onChange={(n) => setPrice(n === '' ? '' : String(n))} placeholder="0" /></Field>
       </div>
       <div style={{ flex: 1, minWidth: 150 }}>
         <UuiSelectField

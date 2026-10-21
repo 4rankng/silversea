@@ -56,7 +56,9 @@ async function pickOption(triggerLabel: RegExp, optionName: RegExp | string) {
 }
 
 function priceInput(): HTMLInputElement {
-  const input = document.querySelector('[data-config-form] input[type="number"]') as HTMLInputElement | null;
+  // Spec 19/10 FIX CHI PHÍ mục 2 — the money input is a grouped NumberField
+  // (type="text"); find it as the config form's first input.
+  const input = document.querySelector('[data-config-form] input') as HTMLInputElement | null;
   if (!input) throw new Error('price input not found');
   return input;
 }
