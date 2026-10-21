@@ -109,18 +109,24 @@ Chủ sản phẩm chốt giữ các quy tắc này ngày2026-10-01; xem
 
 ## 4. Danh mục tài liệu
 
+> **All-markdown (owner directive 21/10/2026):** toàn bộ PRD trong repo giữ dạng **.md** —
+> 10 file `.docx` đã r khỏi repo sau khi mọi file có bản .md twin đầy đủ. **Nguồn gốc .docx
+> (kèm ảnh mockup nhúng) không mất**: lưu tại Google Drive — thư mục `SilverSea/Kanban` (docs
+> tổng hợp 21/10) và bản đính kèm gốc (`~/.hermes/profiles/dev/attachments`); ảnh mockup của
+> các file đã chuyển được mô tả đầy đủ bằng chữ tại các mục `### Mockup:` trong file .md tương ứng.
+
 | Tài liệu | Phạm vi | Không thuộc tài liệu này |
 |----------|---------|--------------------------|
-| [QuyTrinhO2C.docx](QuyTrinhO2C.docx) | Quy trình từ tiếp nhận lô đến điều vận, giao nhận, hoàn thành hồ sơ và thu tiền; trách nhiệm từng vai trò | Công thức cước chi tiết, thiết kế bảng giá |
-| [MasterDataNhaMay.docx](MasterDataNhaMay.docx) | Khách hàng, nhà máy, tuyến và địa điểm; lựa chọn dữ liệu theo quan hệ; lệnh chạy ngoài | Cách tính cước, phân xe, lương |
-| [LoHangKepKetHop.docx](LoHangKepKetHop.docx) | Kẹp hai container đồng thời và kết hợp hai công việc nối tiếp; nguồn lực, tiến độ, chi phí và doanh thu | Quy trình chung mỗi lô đơn lẻ |
-| [OpsVanHanh.docx](OpsVanHanh.docx) | Kế hoạch làm hàng, theo dõi phương tiện, tiền ứng, chi phí, chứng từ và quyết toán của nhân viên hiện trường | Lương lái xe, công nợ khách hàng |
-| [ManHinhLaiXe.docx](ManHinhLaiXe.docx) | Hành trình lái xe: nhận lệnh, đọc thông tin, thực hiện, bổ sung ảnh/chứng từ và hoàn thành | Điều vận, kế toán |
-| [CuocPhiPhuPhiDau.docx](CuocPhiPhuPhiDau.docx) | Công thức cước, tham số hợp đồng, bảng số tham chiếu và quy tắc làm tròn | Trải nghiệm cấu hình giá, luồng nhập kỳ giá |
-| [CuocPhiThietKeDB.docx](CuocPhiThietKeDB.docx) | Yêu cầu đối với dữ liệu cước, ngày hiệu lực, giải thích số tiền và bảo toàn lịch sử | Công thức tính cước |
-| [PhuongAnTinhCuocTuDong.docx](PhuongAnTinhCuocTuDong.docx) | Trải nghiệm cấu hình, tính cước theo ngày vận chuyển, xử lý thiếu giá và điều chỉnh giá trên bảng kê | Công thức gốc và bảng giá hợp đồng |
-| [BaoGia.docx](BaoGia.docx) | Phân hệ báo giá: khung giá theo khách hàng, lưới giá nhà máy × tuyến × hạng xe, phụ phí theo kỳ giá dầu, nhập/xuất Excel, lịch sử phiên bản | Cách tính cước áp cho lô khi phát lệnh (ở QuyTrinhO2C.docx §7) |
-| [PhanHeKeToan.docx](PhanHeKeToan.docx) | Giao diện và quy tắc phân hệ Kế toán: dashboard tiền/cược/quỹ/cảnh báo, phơi phiếu, công nợ vận tải, quỹ, chấm công/lương/nhân sự | Các phân hệ khác (Điều độ, Lái xe, CUS, Quản lý); quy trình O2C chung; công thức cước |
+| [QuyTrinhO2C.md](QuyTrinhO2C.md) | Quy trình từ tiếp nhận lô đến điều vận, giao nhận, hoàn thành hồ sơ và thu tiền; trách nhiệm từng vai trò | Công thức cước chi tiết, thiết kế bảng giá |
+| [MasterDataNhaMay.md](MasterDataNhaMay.md) | Khách hàng, nhà máy, tuyến và địa điểm; lựa chọn dữ liệu theo quan hệ; lệnh chạy ngoài | Cách tính cước, phân xe, lương |
+| [LoHangKepKetHop.md](LoHangKepKetHop.md) | Kẹp hai container đồng thời và kết hợp hai công việc nối tiếp; nguồn lực, tiến độ, chi phí và doanh thu | Quy trình chung mỗi lô đơn lẻ |
+| [OpsVanHanh.md](OpsVanHanh.md) | Kế hoạch làm hàng, theo dõi phương tiện, tiền ứng, chi phí, chứng từ và quyết toán của nhân viên hiện trường | Lương lái xe, công nợ khách hàng |
+| [ManHinhLaiXe.md](ManHinhLaiXe.md) | Hành trình lái xe: nhận lệnh, đọc thông tin, thực hiện, bổ sung ảnh/chứng từ và hoàn thành | Điều vận, kế toán |
+| [CuocPhiPhuPhiDau.md](CuocPhiPhuPhiDau.md) | Công thức cước, tham số hợp đồng, bảng số tham chiếu và quy tắc làm tròn | Trải nghiệm cấu hình giá, luồng nhập kỳ giá |
+| [CuocPhiThietKeDB.md](CuocPhiThietKeDB.md) | Yêu cầu đối với dữ liệu cước, ngày hiệu lực, giải thích số tiền và bảo toàn lịch sử | Công thức tính cước |
+| [PhuongAnTinhCuocTuDong.md](PhuongAnTinhCuocTuDong.md) | Trải nghiệm cấu hình, tính cước theo ngày vận chuyển, xử lý thiếu giá và điều chỉnh giá trên bảng kê | Công thức gốc và bảng giá hợp đồng |
+| [BaoGia.md](BaoGia.md) | Phân hệ báo giá: khung giá theo khách hàng, lưới giá nhà máy × tuyến × hạng xe, phụ phí theo kỳ giá dầu, nhập/xuất Excel, lịch sử phiên bản | Cách tính cước áp cho lô khi phát lệnh (ở QuyTrinhO2C.docx §7) |
+| [PhanHeKeToan.md](PhanHeKeToan.md) | Giao diện và quy tắc phân hệ Kế toán: dashboard tiền/cược/quỹ/cảnh báo, phơi phiếu, công nợ vận tải, quỹ, chấm công/lương/nhân sự | Các phân hệ khác (Điều độ, Lái xe, CUS, Quản lý); quy trình O2C chung; công thức cước |
 | [PhanHeKeToan.md](PhanHeKeToan.md) | Spec gốc khách hàng (nguyên văn) cho 2 đợt fix chi phí 19/10 + trạng thái land từng mục — bản truy vấn nguồn, không thay thế PhanHeKeToan.docx | Quy tắc đang áp dụng (nằm ở PhanHeKeToan.docx / QuyTrinhO2C.docx / CHANGELOG.md) |
 
 ## 5. Nguồn yêu cầu gốc
@@ -149,11 +155,12 @@ nhau, quy tắc đã chốt trong tài liệu tương ứng thắng — xem
   là một phần việc vận chuyển gắn với một container hoặc với hàng lẻ LCL. *Chuyến*
   (trip) là hành trình thực tế của một xe. *Kẹp* là hai container chạy đồng thời trên
   cùng xe; *kết hợp* là hai công việc nối tiếp dùng chung vỏ. *Lệnh chạy ngoài* là lô
-  không do SilverSea tạo ra — xem [MasterDataNhaMay.docx](MasterDataNhaMay.docx) §4.
+  không do SilverSea tạo ra — xem [MasterDataNhaMay.md](MasterDataNhaMay.md) §4.
 - **Một quy tắc chỉ có một nơi định nghĩa.** Tài liệu khác tham chiếu, không chép
   lại; khi cần sửa, sửa tại nơi định nghĩa.
 - **Số mục ổn định.** Mã tham chiếu dạng `Tài liệu.docx §n.m` được dùng trong mã nguồn;
-  không đánh số lại mục khi sửa nội dung.
+  không đánh số lại mục khi sửa nội dung. Từ 21/10/2026 file trong repo là bản `.md`
+  (xem §4) — mã tham chiếu `§n.m` giữ nguyên, đọc trên file `.md` tương ứng.
 - **Không ghi lịch sử trong tài liệu.** Quyết định đã chốt, việc đã bỏ và lý do nằm ở
   [CHANGELOG.md](CHANGELOG.md) hoặc hồ sơ công việc, không nằm trong yêu cầu sản phẩm.
 - **Điểm còn mở** được nêu ở mục cuối của từng tài liệu, kèm hành vi tạm thời khi chưa
@@ -223,7 +230,7 @@ Spec («…») trích nguyên văn "hành vi mong muốn" từ tonghop-35yc.json
 | DIS-08 | «Trên bảng danh sách kế hoạch điều xe, hiển thị IN ĐẬM số container để tăng khả năng nhận diện; tên Cảng chuyển sang kiểu chữ thường không in đậm.» | IN-FLIGHT `fix-dis08-lan2` — **đã merge `5b77082f` trên main**; deploy staging giữ đến wave close | `a5e0039b` → `3349fd52` → `c641f973` (law dùng chung `.ops-container-line`) | /dispatch + /dispatch-detail · dieuvan · 390/768/1440 · G mở THEN mọi dòng cont font 600, cảng 400 (kể cả cột "Tổng quan hàng hóa" + drawer) | verify-fail ×2 (R30 + QA 18:04 trên 9aab78d2 — wedge cột Hàng); lan 2 local driver 15/15 P; flappy ≥2 vòng — đề xuất thêm spec regpack |
 | DIS-09 | «Đối với nhà xe ngoài, cho phép điều vận phát lệnh trước khi có biển số xe; biển số xe và thông tin tài xế sẽ được bộ phận CUS hoặc điều phối cập nhật bổ sung sau.» | LAND + lane IN-FLIGHT `fix-dri01-dis09-visible` | `a5e0039b` | /dispatch-detail · dieuvan · G xe ngoài chưa BKS W Phát lệnh THEN confirm "Vẫn phát lệnh?" → phát OK, BKS trống, chip chờ biển | audit SHIPPED UI DRIVEN (evidence 9cards, trip 194088 plate NULL) |
 | DIS-10 | «Cung cấp chức năng cho phép điều vận thay đổi, chọn lại nhà xe hoặc biển số xe khác đối với các tác vụ đã phân bổ (đơn, ghép, lấy lẻ) khi có phát sinh thay đổi xe.» | LAND | `a5e0039b` (card B) | /dispatch-detail · dieuvan · mặc định nút GIẤU sau badge "Lẻ · Ghép (1/N)" cột Phân loại · G mở badge modal W "Đổi nhà xe/BKS" THEN sửa BKS thực/báo khách | PASS (doc + audit) |
-| LCL-01 | «Lô hàng lẻ đã tạo hiển thị bình thường ở màn hình Tổng quan nhưng khi bấm vào Chi tiết thì không tìm thấy thông tin lô hàng.» | IN-FLIGHT `fix-lcl01-lan2` | repro qa/2026-10-21-lcl01-dri03 | /shipments/:id · CUS · G lô LCL W mở Chi tiết THEN thấy đủ thông tin như Tổng quan | R30 FAIL → before-FAIL/after-PASS 21/10 |
+| LCL-01 | «Lô hàng lẻ đã tạo hiển thị bình thường ở màn hình Tổng quan nhưng khi bấm vào Chi tiết thì không tìm thấy thông tin lô hàng.» | LAND (lan 2) — `fix-lcl01-lan2` merged `39a57de9`/`ddf45946` (card 211026180528) | repro + AFTER pass qa/2026-10-21-lcl01-dri03 + qa/2026-10-21-lcl01-lan2 (lot 133 SHP-2610-00069) | /shipments/:id · CUS · G lô LCL W mở Chi tiết THEN thấy đủ thông tin như Tổng quan | R30 FAIL → before-FAIL/after-PASS 21/10 → lan 2 land (root-cause: query còn lọt shape container-row chưa có ngày) |
 | LCL-02 | «Thiết kế lại form thêm kho lấy hàng tương tự như trường bãi cảng (tối giản, nhập nhanh) để người dùng chủ động thao tác mà không bị phức tạp.» | LAND + lane IN-FLIGHT `fix-lcl-form-visible` | `032145a2` (FB-105 P 5040/5040) | /shipments/new · CUS · form mặc định **Nhập khẩu**, phải chọn KH · G radio Xuất khẩu W "+ Thêm kho" THEN dialog "Thêm kho trả hàng" (Nhập → lấy hàng), 3 trường gọn | audit SHIPPED UI DRIVEN; lane visibility (mặc định-hiện) |
 | LCL-03 | «Cắt giảm các trường thời gian phụ không cần thiết trong phần lịch & ghi chú hàng lẻ, chỉ giữ lại trường trọng tâm duy nhất là 'Ngày giao hàng'.» | LAND + lane IN-FLIGHT `fix-lcl-form-visible` | `0f7e1dfa` | /shipments/new · CUS · FCL mặc định còn "Lịch & ghi chú" · G radio Hàng lẻ THEN section biến mất, còn nút "+ Thêm ngày giao hàng" | audit SHIPPED UI DRIVEN; QA từng trượt vì không chuyển radio |
 | LCL-04 | «Trường quy cách đóng gói cần hỗ trợ gợi ý tự động (như trường nhà máy) và có sẵn danh mục các quy cách đóng gói phổ biến cố định.» | LAND + lane IN-FLIGHT `fix-lcl-form-visible` | `0f7e1dfa` | /shipments/new · CUS · LCL · G mở combobox THEN gợi-y (Bao/Kiện/Pallet…) + gõ tự do "Kiện gỗ" được chấp nhận | audit SHIPPED UI DRIVEN |
@@ -379,11 +386,11 @@ Legend: 🔒 = regression-pack locked (`testplan/2026-10-21-regpack-regression-p
 | R30-endgame | 9aab78d2 | PASS 6/6 staging: LCL-07 a-d + dis-03 + dis-05 |
 | QA 18:04 21/10 | 9aab78d2 | DIS-08 verify-fail lần 2 (wedge cột Hàng) → lan 2 `5b77082f` P local, deploy giữ đến wave close |
 
-Ghi chú: lúc chốt ma trận còn lane in-flight theo nguồn 21/10: `fix-cus11-dri04-visible`
-(CUS-11+DRI-04), `fix-dri01-dis09-visible` (DRI-01+DIS-09), `fix-dis08-lan2` (DIS-08 — đã
-merge `5b77082f`, deploy staging giữ đến wave close), `fix-lcl01-lan2` (LCL-01),
-`fix-lcl-form-visible` (LCL-02/03/04/05), `fix-dri03-lan2` (DRI-03 lan 2) — verdict các bề
-mặt đó có thể đổi khi wave đóng.
+Ghi chú: lúc chốt bản này còn lane in-flight theo nguồn 21/10 (main `18f8abd9`):
+`fix-cus11-dri04-visible` (CUS-11+DRI-04), `fix-dri01-dis09-visible` (DRI-01+DIS-09),
+`fix-dri03-lan2` (DRI-03 lan 2), `fix-lcl-form-visible` (LCL-02/03/04/05) — verdict các bề
+mặt đó có thể đổi khi wave đóng. Đã merge vào main: `fix-dis08-lan2` (`5b77082f`) và
+`fix-lcl01-lan2` (`39a57de9`); deploy staging được giữ đến wave close.
 
 ### 7.6 Chưa có test khóa
 

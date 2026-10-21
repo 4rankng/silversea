@@ -2,7 +2,7 @@
 
 **Dự án:** TTransport — Silver Sea
 
-Tài liệu mô tả nhu cầu và hành vi sản phẩm cần đáp ứng cho nhân viên hiện trường, gọi tắt là **Ops**, trong [Quy trình O2C](QuyTrinhO2C.docx).
+Tài liệu mô tả nhu cầu và hành vi sản phẩm cần đáp ứng cho nhân viên hiện trường, gọi tắt là **Ops**, trong [Quy trình O2C](QuyTrinhO2C.md).
 
 ## 1. Vấn đề cần giải quyết
 
@@ -275,8 +275,8 @@ Lô nào khách khai "có cược" (kèm số tiền dự kiến, có thể bỏ
 
 ## 10. Tài liệu liên quan
 
-- [Quy trình O2C](QuyTrinhO2C.docx).
-- [Màn hình lái xe](ManHinhLaiXe.docx).
+- [Quy trình O2C](QuyTrinhO2C.md).
+- [Màn hình lái xe](ManHinhLaiXe.md).
 
 ## 11. Kết nối và thử lại
 
@@ -293,7 +293,7 @@ Ghi chú thu hồi/chứng từ của OPS được hiển thị riêng trong c�
 ## Spec gốc — "19.10 - FIX CHI PHÍ.docx" (phần OPS, 19/10/2026)
 
 Nguyên văn phần liên quan Ops (phần Kế toán của cùng spec nằm ở
-[PhanHeKeToan.md](PhanHeKeToan.md), phần Lái xe ở [ManHinhLaiXe.docx](ManHinhLaiXe.docx) §8):
+[PhanHeKeToan.md](PhanHeKeToan.md), phần Lái xe ở [ManHinhLaiXe.md](ManHinhLaiXe.md) §8):
 
 > **Kế hoạch làm hàng -> Khai chi phí : cần điều chỉnh** — 1.1: *"Tại ô Chụp / Chọn ảnh: Có
 > thể chụp hoặc không, không ghi nhận thiếu chứng từ. Lý do: Ops khi khai báo chi phí, phải
@@ -350,13 +350,17 @@ mũi tên) minh họa vị trí yêu cầu. Text gốc đầy đủ + trạng th
 | D.3 | "Mục 'Thêm kho lấy hàng' cần tối giản giống trường bãi cảng — để user thêm chủ động, đơn giản." | LAND — `032145a2`; lane `fix-lcl-form-visible` in-flight |
 | D.4 | "Phần 'Lịch & ghi chú' thấy thừa — chỉ cần 1 mục 'Thêm ngày giao hàng' là đủ." | LAND — `0f7e1dfa`; lane `fix-lcl-form-visible` in-flight |
 | D.5 | "Chỗ 'Quy cách đóng gói' để trường gợi ý giống trường Nhà máy, sau đó thêm trường cố định." | LAND — `0f7e1dfa` (combobox gợi-y + free text); lane `fix-lcl-form-visible` in-flight |
-| D.6 | "Lỗi: Có lô hàng lẻ nhập rồi, ở phần Tổng quan thì thấy, nhưng sang phần Chi tiết thì lại không thấy lô đó." | Lane `fix-lcl01-lan2` IN-FLIGHT (repro before-FAIL/after-PASS qa/2026-10-21-lcl01-dri03) |
+| D.6 | "Lỗi: Có lô hàng lẻ nhập rồi, ở phần Tổng quan thì thấy, nhưng sang phần Chi tiết thì lại không thấy lô đó." | LAND — `fix-lcl01-lan2` merged `39a57de9`/`ddf45946` (card 211026180528; repro qa/2026-10-21-lcl01-dri03 + lan 2 AFTER pass lot 133) |
 | D.7 | "Ví dụ 5 lô gọi 1 xe: trả nhà xe → ghép 5 lô thành 1 để chọn loại tấn; thu khách → có thể ghép 5 thành 1 hoặc tách 2/3/4/5 cước. Khi tách: thông tin xe gửi khách dùng xe ảo, xe thực tế để lấy hàng — để xuất hóa đơn/debit đúng." | LAND — LCL-07 theo **ruling 21/10** (thu per-lot, trả 1 chuyến) `d375239b`/`9aab78d2` endgame P 6/6; xe ảo BKS báo khách landed (debit in BKS ảo) |
 
-### Mockup mô tả bằng chữ (3 ảnh; chú thích = behavior hint, không phải UI text)
+### Mockup: image1.jpg (A.3 — Tổng quan lô hàng, CUS workspace)
 
-| Ảnh | Vị trí | Layout mô tả |
-|---|---|---|
-| 1 (JPG) | A.3 | "Tổng quan lô hàng" (CUS workspace): search Bill/Book/Mã lô/Cont/Tờ khai/khách hàng + Từ-Đến + Xuất/Nhập + Loại hàng + Kế hoạch (Hôm nay/Hôm qua/7 ngày/Tháng này); chip thống kê "Tất cả 188 · Chưa chốt lịch 71 · Chờ điều xe 123 · Chờ đối soát 188"; bảng cột KHÁCH HÀNG & NHÀ MÁY · **CHỨNG TỪ (khoanh đỏ — thứ tự cần sắp)** · PHÂN LOẠI & HÀNG TÀU · TỔNG QUAN HÀNG HÓA · LỊCH TRÌNH & ĐIỀU XE · GHI CHÚ · TRẠNG THÁI; dòng lô LCL hiện "500 kg · 2 CBM", "Chưa có hãng tàu/tờ khai/tuyến", trạng thái "Chờ chốt lịch/Chờ phân xe" |
-| 2 (JPG) | B.0 | "/dispatch Kế hoạch Tổng quát": filter theo B/L/Booking/khách hàng + Từ-Đến + Xuất/Nhập + tất cả trạng thái; chip "Sản lượng: 99 cont (20': 54, 40': 45) · Lẻ: 2 lô"; **cột CHỌN (checkbox) đầu mỗi dòng (khoanh đỏ)**; cột THỜI GIAN & LỊCH TRÌNH · KHÁCH HÀNG & NHÀ MÁY · TUYẾN & HÃNG TÀU · CẢNG NÂNG · CẢNG HẠ · TỔNG QUAN HÀNG HÓA · PHÂN BỔ NHÀ XE · GHI CHÚ; dòng LCL hiện kho lấy (Kho Rừng FB-077 / NEWEB-1) + "1 Pallet · 100kg · Chưa phân bổ" |
-| 3 (JPG) | B.3 | "/dispatch-detail Kế hoạch Chi tiết Xe": filter Bill/Cont/Tờ khai + chip "Chưa gán xe 27 · Đã gán xe 49" + nút "+ Ghép"; bảng THỜI GIAN & LỊCH TRÌNH · KHÁCH HÀNG & LỘ TRÌNH · NÂNG HÀNG · TRẢ HÀNG · GHI CHÚ/TÁC VỤ; dòng có tag **"Lấy Lẻ" nhưng Tác vụ hiện "ĐẢO VỎ" (khoanh đỏ)**; dòng khác hiện TBH-061.14, "Đã hoàn thành", 20DC, 24.000 kg |
+Header app TransTing: search "Tìm trong, cấu hình, thao tác" + bộ chọn tháng "Tháng 10/2026 · 01/10 – 31/10"; sidebar Nghiệp vụ Chứng từ (Tổng quan lô hàng, Chi phí - Quyết toán, Theo dõi hóa đơn, Quản lý). Filter: ô search "Bill, Book, Mã lô, Cont, Tờ khai, khách hàng…" + Từ/Đến DD/MM/YYYY + Xuất/Nhập: Tất cả ▾ + Loại hàng: Tất cả ▾ + Kế hoạch (Hôm nay · Hôm qua · 7 ngày qua · Tháng này) + nút Cột ▾ + Tải XLSX. Chip thống kê: "Tất cả 188 · Chưa chốt lịch 71 · Chờ điều xe 123 · Chờ đối soát 188". Bảng nhiều nhóm cột: KHÁCH HÀNG & NHÀ MÁY · **CHỨNG TỪ (khoanh đỏ — vị trí cần sắp lại thứ tự)** · PHÂN LOẠI & HÀNG TÀU · TỔNG QUAN HÀNG HÓA · LỊCH TRÌNH & ĐIỀU XE · GHI CHÚ · TRẠNG THÁI; hành dòng: Thêm ghi chú · Chi tiết. Dòng mẫu: YUANFANG (CL4C-DRAFT-TMP — "Chưa có hãng tàu · Chưa có tờ khai · Thiếu nhà xe cont · Chưa có tuyến đường · Chưa chốt ngày" — tổng quan "chưa có nhà máy / 0 cont") và LONG MINH (500 kg · 2 CBM — "Chờ chốt lịch / Chờ phân xe / Thiếu nhà xe 0 cont"). *Behavior: cột CHỨNG TỪ nhóm các nhãn thiếu (chưa có hãng tàu/tờ khai) — đây là bề mặt A.3 yêu cầu sắp thứ tự booking → tờ khai → nhập/xuất → hãng tàu.*
+
+### Mockup: image2.jpg (B.0 — /dispatch Kế hoạch Tổng quát, cột CHỌN)
+
+Sidebar Điều độ (Kế hoạch Tổng quát / Kế hoạch Chi tiết Xe / Chấm công lái xe / Danh mục Xe nội bộ / Xe ngoài / Danh mục Tài xế). Filter "Tìm theo B/L, Booking, khách hàng" + Từ/Đến + Xuất/Nhập: Tất cả ▾ + tất cả trạng thái ▾ + nút Bộ lọc + Xuất file Excel. Chip "Sản lượng: 99 cont (20': 54 · 40': 45) · Lẻ: 2 lô". Bảng: **cột CHỌN (checkbox) đầu mỗi dòng (khoanh đỏ)** · THỜI GIAN & LỊCH TRÌNH · KHÁCH HÀNG & NHÀ MÁY · TUYẾN ĐƯỜNG & HÃNG TÀU · CẢNG NÂNG · CẢNG HẠ · TỔNG QUAN HÀNG HÓA · PHÂN BỔ NHÀ XE · GHI CHÚ. Dòng LCL mẫu 18/10/2026: YUANFANG — Thuận Thanh — "Kho Rừng FB-077" → "Nhà máy YUANFANG" — "1 Pallet · 100 kg" — "Chưa phân bổ" (+link Thêm ghi chú); dòng LOGCOM — KCN Đồng Văn Hà Nam — Kho NEWEB-1 — "1 Pallet · 100 kg" — "Chưa phân bổ" + ghi chú "NM: 3. Lưu ý cân chú…" + Xem thêm. *Behavior: checkbox dòng dùng chọn nhiều lô (LCL) để Gán xe nhóm; cảng nâng/hạ của lô lẻ hiện kho lấy/nhà máy thay vì "Chưa có cont".*
+
+### Mockup: image3.jpg (B.3 — /dispatch-detail Kế hoạch Chi tiết Xe, tag Lấy Lẻ + Tác vụ Đảo Vỏ)
+
+Sidebar Điều độ như image2. Filter "Bill, Cont, Tờ khai" + Từ 01/10/2026 – Đến 14/10/2026 + Xuất/Nhập: Tất cả ▾ + Bộ lọc + chip **"Chưa gán xe 27 · Đã gán xe 49"** + nút "+ Ghép" · Xuất file. Bảng: THỜI GIAN & LỊCH TRÌNH · KHÁCH HÀNG & LỘ TRÌNH · NÂNG HÀNG · TRẢ HÀNG · GHI CHÚ / TÁC VỤ. Dòng 1 (01/10/2026): LONG MINH — Tân Vũ SITCLH — "trả hàng ASKEY-1" — Nhập 20DC — TBH-061.14 — lái Bùi Quang Hường — Bill BLCUS4248BB — 24.000 kg — chip "Đã hoàn thành" + **tag "Lấy Lẻ" nhưng cột Tác vụ hiện "ĐẢO VỎ" (khoanh đỏ)**. Dòng 2 (14:45 06/10/2026): LONG MINH — KCN Quế Võ Bắc Ninh — MSKU1234565 — 20DC — "CUS sẽ bổ sung 436913ED" — Bill BLCUS43B6 — 22.000 kg — "Đã hoàn thành". *Behavior: đây là lỗi B.3 — chọn phân loại "Lấy Lẻ" bị hệ thống tự gắn tác vụ "Đảo vỏ"; phải tách 2 lựa chọn độc lập.*

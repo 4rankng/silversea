@@ -2,8 +2,8 @@
 
 Tài liệu mô tả trải nghiệm cấu hình giá và quy tắc tính cước tự động theo Ngày vận
 chuyển, cách xử lý khi thiếu giá và cách điều chỉnh giá trên bảng kê. Xem thêm:
-[mục lục PRD](README.md), [công thức cước](CuocPhiPhuPhiDau.docx),
-[dữ liệu cước](CuocPhiThietKeDB.docx).
+[mục lục PRD](README.md), [công thức cước](CuocPhiPhuPhiDau.md),
+[dữ liệu cước](CuocPhiThietKeDB.md).
 
 ## 1. Mục tiêu và phạm vi
 
@@ -45,7 +45,7 @@ Tổng cước K = J + H
 
 Các số tham chiếu trong tài liệu này không phải thông báo giá hiện hành; đầu vào chưa
 chốt được nêu ở §8. Quy tắc và công thức gốc giữ tại
-[Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.docx).
+[Quy tắc cước và phụ phí dầu](CuocPhiPhuPhiDau.md).
 
 ## 3. Bốn nhóm điều khoản áp giá
 
@@ -224,5 +224,5 @@ Các lựa chọn chưa trả lời không được thay bằng giả định. V
 hoặc lag 0 chỉ để giải thích cách cấu hình, không phải giá trị đã được khách
 chấp nhận. Không cần hỏi lại ba câu đã chốt hoặc mốc Ngày vận chuyển.
 
-Xem [đầu vào nghiệp vụ còn mở](CuocPhiThietKeDB.docx#8-đầu-vào-nghiệp-vụ-còn-mở) và
-[yêu cầu dữ liệu/lịch sử](CuocPhiThietKeDB.docx).
+Xem [đầu vào nghiệp vụ còn mở](CuocPhiThietKeDB.md#8-đầu-vào-nghiệp-vụ-còn-mở) và
+[yêu cầu dữ liệu/lịch sử](CuocPhiThietKeDB.md).
