@@ -1,0 +1,36 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/ragged-sheep/frontend
+
+ ❯ src/styles/numeric-identity.styles.test.ts (6 tests | 2 failed) 9ms
+     × the production bundle holds the numeric law on the amount cells 2ms
+     × the production bundle holds the numeric law on the expense register cells 0ms
+ ❯ src/tests/dev-port-contract.test.ts (11 tests | 1 failed) 443ms
+     × leaves no live QA script hardcoding a frontend port 26ms
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx (13 tests | 1 failed) 27936ms
+   × lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng 5911ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx (3 tests | 1 failed) 14454ms
+     × a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save: issues paint and the typed input is KEPT (no wipe, no silent dead key) 8825ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/components/work-inbox/RoleWorkInbox.test.tsx (22 tests | 1 failed) 4512ms
+     × preserves restored queue and page through first asynchronous customer scope hydration (UI43) 672ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+ ❯ src/components/control-density.styles.test.ts (8 tests | 1 failed) 6868ms
+     × keeps controlClassName selectors honest — the class sits on the trigger button itself 6329ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.deposit.test.tsx (5 tests | 1 failed) 6346ms
+     × ticking shows the expected-amount field; unticking hides it 6314ms
+ ❯ src/features/ops/ops-delete-affordance-labels.test.tsx (4 tests | 1 failed) 5365ms
+     × O4: the ops edit-modal photo delete button names the lot and the photo position, not photo.id 5311ms
+Not implemented: navigation to another Document
+ ❯ src/features/accounting/AccountingWorkInbox.test.tsx (4 tests | 1 failed) 4719ms
+     × loads lanes without sort params by default 1360ms
+ ❯ src/features/expense-accounting/ExpenseWorkLink.test.tsx (1 test | 1 failed) 5568ms
+   × links a confirmed pre-dispatch source to selected real work without changing money 5565ms
+ ❯ src/pages/SupplierListPage.export.test.tsx (2 tests | 1 failed) 7433ms
+     × shows the busy label while exporting and a success toast after 5461ms
+Not implemented: navigation to another Document
