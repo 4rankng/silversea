@@ -1,0 +1,34 @@
+{
+  "modeInfo": {
+    "found": true,
+    "legend": "Loại hàng *",
+    "topOffset": 495,
+    "sectionTitle": "Thông tin hàng",
+    "isFirstBlock": false,
+    "html": "<fieldset class=\"csc-mode\" aria-required=\"true\"><legend>Loại hàng <span aria-hidden=\"true\">*</span></legend><div><label><input type=\"radio\" value=\"FCL\" checked=\"\" name=\"cargo-mode\"><span class=\"csc-mode__option\">Hàng FCL</span></label><label><input type=\"radio\" value=\"LCL\" name=\"cargo-mode\"><span class=\"csc-mode__option\">Hàng lẻ</span></label></div></fieldset>"
+  },
+  "deliveryDefault": {
+    "field": false,
+    "revealButtons": []
+  },
+  "delivery": {
+    "field": true,
+    "visible": true,
+    "revealButtons": []
+  },
+  "pkg": {
+    "found": true,
+    "placeholder": "Chọn hoặc nhập quy cách (Pallet, Roll, Carton…)"
+  },
+  "preCustomer": [],
+  "exportDlg": {
+    "open": true,
+    "title": "Thêm kho trả hàng",
+    "labels": [
+      "Tên đầy đủ",
+      "Tên ngắn",
+      "Địa chỉ"
+    ],
+    "heavy": false
+  }
+}

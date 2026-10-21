@@ -17,6 +17,8 @@ export interface ShipmentCreateModalsProps {
   /** Card 181026143000 §1a: kho dialog title follows the lot's direction. */
   tradeDirection: 'IMPORT' | 'EXPORT' | '';
   customerId: string;
+  /** Card 211026130115: picker-mode options for a customerId-less quick-add. */
+  customers: Array<{ id: number; name: string }>;
   routes: CatalogData['routes'] | Route[];
   onCloseCreateSite: () => void;
   onSiteCreated: (site: OperationalSite) => void;
@@ -52,6 +54,7 @@ export function ShipmentCreateModals({
   createSiteDialog,
   tradeDirection,
   customerId,
+  customers,
   routes,
   onCloseCreateSite,
   onSiteCreated,
@@ -84,8 +87,13 @@ export function ShipmentCreateModals({
     <>
       <OperationalSiteDetailsDialog site={detailSite} isOpen={Boolean(detailSite)} onClose={onCloseDetailSite} />
       <OperationalSiteCreateDialog
-        isOpen={createSiteDialog.open && Boolean(customerId)}
-        customerId={Number(customerId)}
+        // Card 211026130115: the kho quick-add opens before a customer is
+        // chosen — a customerId-less open renders the dialog's own customer
+        // picker (passing `Number('')` = 0 would fake a chosen customer and
+        // skip it).
+        isOpen={createSiteDialog.open}
+        customerId={customerId ? Number(customerId) : undefined}
+        customers={customers}
         defaultSiteType={createSiteDialog.siteType}
         tradeDirection={tradeDirection}
         // Card 20261009_10 (owner ruling): BOTH intake quick-adds are quick.

@@ -180,6 +180,12 @@ export function ShipmentCreateWorkspace() {
   const mapOptions = <T extends { id: number; name: string }>(items: T[] | undefined) =>
     (items ?? []).map((item) => ({ value: String(item.id), label: item.name }));
   const customerOptions = useMemo(() => mapOptions(catalogs?.customers), [catalogs]);
+  /** Card 211026130115: the kho quick-add opens before a customer is chosen —
+   *  the dialog's customer picker renders from these options (picker mode). */
+  const dialogCustomers = useMemo(
+    () => (catalogs?.customers ?? []).map((item) => ({ id: item.id, name: item.name })),
+    [catalogs],
+  );
   const routeOptions = useMemo(() => mapOptions(catalogs?.routes), [catalogs]);
   const portOptions = useMemo(() => mapOptions(catalogs?.ports), [catalogs]);
   const shippingLineOptions = useMemo(() => {
@@ -373,10 +379,17 @@ export function ShipmentCreateWorkspace() {
   }
 
   function openCreateSiteDialog(siteType: 'FACTORY' | 'WAREHOUSE') {
-    if (!form.customerId) {
+    // Card 211026130115 (verify-fail "ẨN sau default"): the kho quick-add opens
+    // BEFORE a customer is chosen — OperationalSiteCreateDialog renders its own
+    // customer picker for a customerId-less caller (FB-077 defensive path), so
+    // nothing is hidden behind the "chọn khách hàng trước" trick. The FACTORY
+    // gate stays: its quick-add carries route + contact and the intake contract
+    // (ClerkShipmentCreatePage "factory creation action discoverable") keeps
+    // guiding to the customer first.
+    if (siteType === 'FACTORY' && !form.customerId) {
       toast({
         kind: 'warning',
-        message: 'Vui lòng chọn khách hàng trước khi thêm nhà máy hoặc kho mới.',
+        message: 'Vui lòng chọn khách hàng trước khi thêm nhà máy mới.',
         duration: 6000,
       });
       const wrap = document.querySelector('[data-field="shipment-customer"]');
@@ -664,6 +677,52 @@ export function ShipmentCreateWorkspace() {
           onFocusIssue={focusIssue}
         />
         <div className="csc-form">
+          {/* Cards 211026130215 + 211026130315 (verify-fail "ẨN sau default"):
+              the Loại hàng segmented control LEADS the form — QA mở form mặc
+              định thấy ngay lựa chọn Hàng lẻ, không cần biết trick — and the
+              LCL "Ngày giao hàng" (181026200700: ONE always-visible field, no
+              "+" reveal, no "Ngày giao bổ sung" repeater) mở sẵn right beside
+              it, so after one click everything is trước mắt. FCL keeps its full
+              schedule section below. */}
+          <ShipmentCreateSection id="mode">
+            <div className="csc-mode-band__row">
+              <div className="csc-cargo-choice-grid">
+                <fieldset className="csc-mode" aria-required="true">
+                  <legend>Loại hàng <span aria-hidden="true">*</span></legend>
+                  <div>
+                    {(['FCL', 'LCL'] as CargoMode[]).map((mode) => (
+                      <label key={mode}>
+                        <input
+                          type="radio"
+                          name="cargo-mode"
+                          value={mode}
+                          checked={form.cargoMode === mode}
+                          onChange={() => changeMode(mode)}
+                          disabled={Boolean(saving)}
+                        />
+                        <span className="csc-mode__option">{mode === 'FCL' ? 'Hàng FCL' : 'Hàng lẻ'}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+              {form.cargoMode === 'LCL' && (
+                <div className="csc-lcl-delivery" data-field-id="shipment-expected-delivery">
+                  {/* Helpdesk 2026-10-13 (D.1): LCL copy is "Ngày giao hàng" —
+                      id + expectedDeliveryDate wire name unchanged. */}
+                  <DateField
+                    id="shipment-expected-delivery"
+                    label="Ngày giao hàng"
+                    requiredMark
+                    value={form.expectedDeliveryDate}
+                    onChange={(event) => update('expectedDeliveryDate', event.target.value)}
+                    disabled={Boolean(saving)}
+                    error={issueByField.get('shipment-expected-delivery')}
+                  />
+                </div>
+              )}
+            </div>
+          </ShipmentCreateSection>
           <ShipmentCreateIdentitySection
             form={form}
             update={update}
@@ -706,27 +765,6 @@ export function ShipmentCreateWorkspace() {
           )}
 
           <ShipmentCreateSection id="cargo" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng FCL hoặc hàng lẻ.">
-            <div className="csc-cargo-choice-grid">
-              <fieldset className="csc-mode" aria-required="true">
-                <legend>Loại hàng <span aria-hidden="true">*</span></legend>
-                <div>
-                  {(['FCL', 'LCL'] as CargoMode[]).map((mode) => (
-                    <label key={mode}>
-                      <input
-                        type="radio"
-                        name="cargo-mode"
-                        value={mode}
-                        checked={form.cargoMode === mode}
-                        onChange={() => changeMode(mode)}
-                        disabled={Boolean(saving)}
-                      />
-                      <span className="csc-mode__option">{mode === 'FCL' ? 'Hàng FCL' : 'Hàng lẻ'}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </div>
-
             {form.cargoMode === 'FCL' ? (
               <>
                 <div className="csc-fcl-factory-action">
@@ -794,25 +832,11 @@ export function ShipmentCreateWorkspace() {
             )}
           </ShipmentCreateSection>
 
-          {form.cargoMode === 'LCL' ? (
-            /* Card D.4 (18/10) + 181026200700: NO "Lịch & ghi chú" section on
-               the hàng lẻ form and NO add button — exactly ONE required
-               "Ngày giao hàng" field, always visible. FCL keeps the full
-               schedule section below. */
-            <div className="csc-lcl-delivery" data-field-id="shipment-expected-delivery">
-              {/* Helpdesk 2026-10-13 (D.1): LCL copy is "Ngày giao hàng" —
-                  id + expectedDeliveryDate wire name unchanged. */}
-              <DateField
-                id="shipment-expected-delivery"
-                label="Ngày giao hàng"
-                requiredMark
-                value={form.expectedDeliveryDate}
-                onChange={(event) => update('expectedDeliveryDate', event.target.value)}
-                disabled={Boolean(saving)}
-                error={issueByField.get('shipment-expected-delivery')}
-              />
-            </div>
-          ) : (
+          {/* Card D.4 (18/10) + 181026200700: NO "Lịch & ghi chú" section on
+              the hàng lẻ form (its "Ngày giao hàng" opens sẵn in the top mode
+              band — cards 211026130215/30315). FCL keeps the full schedule
+              section. */}
+          {form.cargoMode === 'FCL' && (
             <ShipmentCreateSection id="schedule" title="Lịch & ghi chú">
             {emptyAppointmentCount >= 1 && (
                   <div className="csc-bulk-appointment" data-field-id="shipment-bulk-appointment">
@@ -916,6 +940,7 @@ export function ShipmentCreateWorkspace() {
         createSiteDialog={createSiteDialog}
         tradeDirection={form.tradeDirection}
         customerId={form.customerId}
+        customers={dialogCustomers}
         routes={catalogs?.routes ?? []}
         onCloseCreateSite={() => setCreateSiteDialog((current) => ({ ...current, open: false }))}
         onSiteCreated={handleSiteCreated}

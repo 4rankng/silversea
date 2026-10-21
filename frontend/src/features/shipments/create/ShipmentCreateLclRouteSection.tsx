@@ -235,21 +235,22 @@ export function ShipmentCreateLclRouteSection({
             }
             searchable
           />
-          {!sitesLoading && form.customerId ? (
-            <button
-              type="button"
-              onClick={() => openCreateSiteDialog('WAREHOUSE')}
-              disabled={saving}
-              // Card 181026143000 §1c: the SAME shared dashed utility button
-              // as the sibling "+ Thêm nhà máy" — one pattern, one class. The
-              // old inline palette (incl. a blue #2563eb fallback) is gone;
-              // alignment is the only button-local concern.
-              className="csc-utility-button csc-utility-button--dashed"
-              style={{ alignSelf: 'start' }}
-            >
-              <Plus size={15} aria-hidden="true" />Thêm kho
-            </button>
-          ) : null}
+          {/* Card 211026130115: always visible — the quick-add opens before a
+              customer is chosen (the dialog collects it), never hidden behind
+              the "chọn khách hàng trước" step. */}
+          <button
+            type="button"
+            onClick={() => openCreateSiteDialog('WAREHOUSE')}
+            disabled={saving}
+            // Card 181026143000 §1c: the SAME shared dashed utility button
+            // as the sibling "+ Thêm nhà máy" — one pattern, one class. The
+            // old inline palette (incl. a blue #2563eb fallback) is gone;
+            // alignment is the only button-local concern.
+            className="csc-utility-button csc-utility-button--dashed"
+            style={{ alignSelf: 'start' }}
+          >
+            <Plus size={15} aria-hidden="true" />Thêm kho
+          </button>
         </div>
       </div>
 

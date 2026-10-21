@@ -79,7 +79,10 @@ export interface ShipmentContainerDraft {
   rawFactoryName: string;
 }
 
-export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule';
+/** `mode` is the top-of-form Loại hàng band (cards 211026130215/30315): it
+ *  carries no validation issues (the mode is always chosen), so it never joins
+ *  `sectionDefinitions` — it exists for the section DOM id only. */
+export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule' | 'mode';
 
 export interface ShipmentCreateIssue {
   fieldId: string;

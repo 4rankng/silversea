@@ -1,3 +1,58 @@
+# LCL form visible-by-default — 4 card verify-fail (211026130115/30215/30315/30415) — 2026-10-21
+
+Lane: worktree fix-lcl-form-visible off main 9aab78d2 (paseo 1njkloyy).
+
+**Status**: DONE — 4 card "ẨN sau default" đóng bằng UI-visible-by-default trên
+form tạo lô `/shipments/new` (form mặc định Nhập/FCL). Commit: 4 card visible-
+by-default (kho title/LCL radio/reveal mở sẵn/quy cách hint).
+
+## Thay đổi (1 shared owner: features/shipments/create + 1 component)
+
+- **LCL-02 (211026130115)**: "+ Thêm kho" hiện trước khi chọn KH; dialog quick-add
+  mở ở picker-mode (tự render chọn KH — `customerId ? Number() : undefined`,
+  fix luôn cái bẫy `Number('') === 0`); title theo hướng (Nhập/mặc định "lấy
+  hàng", Xuất "trả hàng" — law 181026143000 §1a). FACTORY giữ gate chọn KH +
+  toast (contract riêng).
+- **LCL-03 (211026130215)**: segmented control "Loại hàng" lên ĐẦU form —
+  headingless band `ShipmentCreateSection id="mode"` (title optional mới) +
+  `.csc-mode-band__row`; Lịch & ghi chú rụng ngay khi chọn Hàng lẻ (như cũ).
+- **LCL-04 (211026130315)**: "Ngày giao hàng" mở sẵn ngay trong top band cạnh
+  segmented control — 1 field luôn visible (181026200700 law giữ nguyên: không
+  "+" reveal, không repeater, FCL vẫn không có field này).
+- **LCL-05 (211026130415)**: placeholder "Gợi ý quy cách (chọn hoặc gõ)"; combobox
+  chuyển sang variant `searchable` (focus-trigger, như factory picker) — dropdown
+  mở có gợi ý sẵn khi click, free-text vẫn commit qua `onCustomValue` (FB-079).
+
+## Bắt buộc đọc nếu đụng lại
+
+- **Scroll-dismissal race**: click NGAY sau scroll-into-view tức thì sẽ bị overlay
+  đóng menu trong ~60ms (mọi picker trong app đều vậy — customer/route combobox
+  cùng hành vi). User thật (scroll xong rồi click) luôn thấy gợi ý. Test/probe
+  phải pre-scroll + settle trước khi click; đừng "fix" bằng cách phá luật dismiss
+  của overlay.
+- **Vite dev + git stash**: stash/pop khi dev server đang chạy sẽ treo cache module
+  (server trả code cũ) — restart Vite sau khi stash xong, nếu không evidence sai
+  lệch hoàn toàn (đã gặp: probe "after" fail 3/4 vì server cũ).
+- **Máy này load-flake (FB-066 class)**: load average 68–77 khi các lane chạy
+  song song → vitest 5s-timeout fail ngẫu nhiên ở file bất kỳ. Phân biệt bằng
+  chạy lại idle/standalone + base-run (git stash). `qa/2026-10-21-lcl-visible/
+  2026-10-21_lcl-visible_fe-flake-atbase.txt` = 3 file nghi vấn pass 163/163 trên
+  BASE khi quiet.
+- `numeric-identity.styles.test.ts` đọc `dist/assets` — phải `pnpm --dir frontend
+  build` trước full-suite.
+- `dev-port-contract.test.ts` bắt script QA hardcode 7175/3002 — dùng `QA_BASE`
+  env khi chạy port khác.
+
+## Gates + evidence
+
+tsgo -b 0 · tsc -b 0 · lint 0 · build 0 · scoped vitest (create + ClerkShipmentCreatePage)
+**261/261 ×3** (mới: `ShipmentCreateWorkspace.lcl-visible.test.tsx` 4/4 pin 4 card) ·
+full FE + UI-probe before/after: `qa/2026-10-21-lcl-visible/` (README verdict +
+coverage table, 21/21 probe PASS, screenshots before/sau từng card trên form mặc
+định Nhập). Reviewer độc lập: APPROVE (nits đã sửa). Regression case:
+`testplan/2026-10-21-lcl-visible-default-4cards.md`; driver
+`testplan/qa/scripts/2026-10-21-lcl-visible-probe.mjs`.
+
 # FB-066 lan 3 / card 211026144400 — flaky quick-add "Nha xe" Escape settle (test-only) — 2026-10-21
 
 Lane: paseo bdcd1424 (glm-5.3-flash, worktree ragged-sheep off 454fab6b). Agent
