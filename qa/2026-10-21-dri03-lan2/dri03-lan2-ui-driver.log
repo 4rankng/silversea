@@ -1,0 +1,38 @@
+API BOARD legs: [{"t":194127,"pair":"KEP","pairId":2899,"sched":"2026-10-25T05:00:00.000Z","cont":null},{"t":194126,"pair":"KEP","pairId":2899,"sched":"2026-10-25T02:00:00.000Z","cont":null}]
+PASS DRIL2-A1 board exposes BOTH kẹp legs under one ACTIVE KEP pair — [2899,2899]
+PASS DRIL2-A1 legs carry SEPARATE planned times (09:00Z-window vs 12:00Z-window) — ["2026-10-25T05:00:00.000Z","2026-10-25T02:00:00.000Z"]
+PASS DRIL2-A1 real QA shape: container numbers NULL before driver entry
+DB trip_containers BEFORE: [{"id":28754,"trip_id":194126,"container_number":null,"seal_number":null},{"id":28756,"trip_id":194127,"container_number":null,"seal_number":null}]
+PASS DB mỗi trip 1 cont riêng (khác id) — {"a":28754,"b":28756}
+UI CARDS: [{"text":"DRI-pt0939559-AĐƠNGiờ chạy:09:57 05/05/2027Mã chuyến TRP 2027-05 · 0018 NM DRI pt0939559 Hải Phòng-NEWEBDRIM395591820'DC15.000 kgTRẢNâng SITC - Lạch HuyệnHạ Bãi Hạ DRI pt0939559Xem chi tiết & Nhận lệnh","tag":"ĐƠN","bill":"DRI-pt0939559-A","time":"Giờ chạy:09:57 05/05/2027","code":"Mã chuyến TRP 2027-05 · 0018"},{"text":"DRI-pxz1m1898-BĐƠNGiờ chạy:07:00 24/04/2027Mã chuyến TRP 2027-04 · 0010 NM DRI pxz1m1898 Hải Phòng-NEWEBDRIM118982920'DC15.000 kgTRẢNâng SITC - Lạch HuyệnHạ NM DRI pxz1m1898Xem chi tiết & Nhận lệnh","tag":"ĐƠN","bill":"DRI-pxz1m1898-B","time":"Giờ chạy:07:00 24/04/2027","code":"Mã chuyến TRP 2027-04 · 0010"},{"text":"DRI-pxz1m1898-AĐƠNGiờ chạy:07:00 23/04/2027Mã chuyến TRP 2027-04 · 0009 NM DRI pxz1m1898 Hải Phòng-NEWEBDRIM118981320'DC15.000 kgTRẢNâng SITC - Lạch HuyệnHạ Bãi Hạ DRI pxz1m1898Xem chi tiết & Nhận lệnh","tag":"ĐƠN","bill":"DRI-pxz1m1898-A","time":"Giờ chạy:07:00 23/04/2027","code":"Mã chuyến TRP 2027-04 · 0009"},{"text":"DRI-pw5d92395-BĐƠNGiờ chạy:07:00 20/04/2027Mã chuyến TRP 2027-04 · 0006 NM DRI pw5d92395 Hải Phòng-NEWEBDRIM923952520'DC15.000 kgTRẢNâng SITC - Lạch HuyệnHạ NM DRI pw5d92395Xem chi tiết & Nhận lệnh","tag":"ĐƠN","bill":"DRI-pw5d92395-B","time":"Giờ chạy:07:00 20/04/2027","code":"Mã chuyến TRP 2027-04 · 0006"},{"text":"DRI-pw5d92395-AĐƠNGiờ chạy:07:00 19/04/2027Mã chuyến TRP 2027-04 · 0005 NM DRI pw5d92395 Hải Phòng-NEWEBDRIM923951020'DC15.000 kgTRẢNâng SITC - Lạch HuyệnHạ Bãi Hạ DRI pw5d92395Xem chi tiết & Nhận lệnh","tag":"ĐƠN","bill":"DRI-pw5d92395-A","time":"Giờ chạy:07:00 19/04/2027","code":"Mã chuyến TRP 2027-04 · 0005"},{"text":"DRI-puz0f5858-BĐƠNGiờ chạy:07:00 24/02/2027Mã chuyến TRP 2027-02 · 0018 NM DRI puz0f5858 Hải Phòng-NEWEBDRIM058582520'DC15.000 kgTRẢNâng SITC - Lạch HuyệnHạ NM DRI puz0f5858Xem chi tiết & Nhận lệnh","tag":"ĐƠN","bill":"DRI-puz0f5858-B","time":"Giờ chạy:07:00 24/02/2027","code":"Mã chuyến TRP 2027-02 · 0018"},{"text":"DRI-puz0f5858-AĐƠNGiờ chạy:07:00 23/02/2027Mã chuyến TRP 2027-02 · 0017 NM DRI puz0f5858 Hải Phòng-NEWEBDRIM058581020'DC15.000 kgTRẢNâng SITC - Lạch HuyệnHạ Bãi Hạ DRI puz0f5858Xem chi tiết & Nhận lệnh","tag":"ĐƠN","bill":"DRI-puz0f5858-A","time":"Giờ chạy:07:00 23/02/2027","code":"Mã chuyến TRP 2027-02 · 0017"},{"text":"DRIL2-KEPKẸPGiờ chạy:12:00 25/10/2026Mã chuyến TRP 2026-10 · 1590 Hải Phòng-NEWEBChưa có số cont20'DC7.500 kgTRẢNâng SITC - Lạch HuyệnHạ TC - HICTXem chi tiết & Nhận lệnh","tag":"KẸP","bill":"DRIL2-KEP","time":"Giờ chạy:12:00 25/10/2026","code":"Mã chuyến TRP 2026-10 · 1590"},{"text":"DRIL2-KEPKẸPGiờ chạy:09:00 25/10/2026Mã chuyến TRP 2026-10 · 1589 Hải Phòng-NEWEBChưa có số cont20'DC8.000 kgTRẢNâng SITC - Lạch HuyệnHạ TC - HICTXem chi tiết & Nhận lệnh","tag":"KẸP","bill":"DRIL2-KEP","time":"Giờ chạy:09:00 25/10/2026","code":"Mã chuyến TRP 2026-10 · 1589"}]
+PASS DRIL2-R1 board: đúng 2 card KẸP của lô (nhóm kẹp) — found=2
+PASS DRIL2-R1 card leg A Giờ chạy 09:00 (giờ riêng cont 1) — ["Giờ chạy:12:00 25/10/2026","Giờ chạy:09:00 25/10/2026"]
+PASS DRIL2-R1 card leg B Giờ chạy 12:00 (giờ riêng cont 2) — ["Giờ chạy:12:00 25/10/2026","Giờ chạy:09:00 25/10/2026"]
+PASS DRIL2-R1 cả 2 card hiện "Chưa có số cont" (shape thật QA)
+CAPTURE dri03l2-01-board-kep-390.png
+DETAIL A FACTS: [{"label":"Mã chuyến","value":"TRP 2026-10 · 1589"},{"label":"Ngày giờ kế hoạch","value":"09:00 25/10/2026"},{"label":"Tên nhà máy","value":"—"},{"label":"Địa chỉ nhà máy","value":"—"},{"label":"SĐT kho","value":"—"},{"label":"Container / lô hàng","value":"20DC"},{"label":"Cảng nâng","value":"SITC - Lạch Huyện"},{"label":"Cảng hạ","value":"TC - HICT"},{"label":"Tên công ty","value":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"},{"label":"MST","value":"2300540419"}]
+PASS DRIL2-R2 leg A: Mã chuyến TRP 2026-10 · 1589 riêng — TRP 2026-10 · 1589
+PASS DRIL2-R2 leg A: Ngày giờ kế hoạch 09:00 (giờ cont 1) — 09:00 25/10/2026
+PASS DRIL2-R2 leg A: Cảng nâng đúng cont 1 — SITC - Lạch Huyện
+PASS DRIL2-R2 leg A: Cảng hạ đúng cont 1 — TC - HICT
+BENTO A BEFORE: [{"plate":"Chưa có số cont","type":"20'DC · 8.000 kg"}]
+PASS DRIL2-R2 leg A: ĐÚNG 1 cont (20DC · 8.000 kg), chưa có số — [{"plate":"Chưa có số cont","type":"20'DC · 8.000 kg"}]
+BENTO A AFTER SAVE: [{"plate":"MSKU7654328","seal":"SEAL-KEP-A1"}]
+PASS DRIL2-R3 cont A lưu số + seal (bento render) — [{"plate":"MSKU7654328","seal":"SEAL-KEP-A1"}]
+DETAIL B FACTS: [{"label":"Mã chuyến","value":"TRP 2026-10 · 1590"},{"label":"Ngày giờ kế hoạch","value":"12:00 25/10/2026"},{"label":"Tên nhà máy","value":"—"},{"label":"Địa chỉ nhà máy","value":"—"},{"label":"SĐT kho","value":"—"},{"label":"Container / lô hàng","value":"20DC"},{"label":"Cảng nâng","value":"SITC - Lạch Huyện"},{"label":"Cảng hạ","value":"TC - HICT"},{"label":"Tên công ty","value":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"},{"label":"MST","value":"2300540419"}]
+PASS DRIL2-R4 leg B: Mã chuyến riêng (1590 ≠ 1589) — TRP 2026-10 · 1590
+PASS DRIL2-R4 leg B: Ngày giờ kế hoạch 12:00 (giờ RIÊNG cont 2) — 12:00 25/10/2026
+PASS DRIL2-R4 leg B: nâng/hạ per cont (SITC/HICT) — SITC - Lạch Huyện / TC - HICT
+BENTO B BEFORE: [{"plate":"Chưa có số cont","type":"20'DC · 7.500 kg"}]
+PASS DRIL2-R4 leg B: ĐÚNG 1 cont KHÁC (7.500 kg), KHÔNG leak số cont A — [{"plate":"Chưa có số cont","type":"20'DC · 7.500 kg"}]
+PASS DRIL2-R4 cont B lưu số + seal riêng (bento render) — [{"plate":"CSQU3054383","seal":"SEAL-KEP-B2"}]
+DB trip_containers AFTER: [{"id":28754,"trip_id":194126,"container_number":"MSKU7654328","seal_number":"SEAL-KEP-A1"},{"id":28756,"trip_id":194127,"container_number":"CSQU3054383","seal_number":"SEAL-KEP-B2"}]
+PASS DRIL2-R4 DB: cont A (trip A) = số A, seal A — {"id":28754,"trip_id":194126,"container_number":"MSKU7654328","seal_number":"SEAL-KEP-A1"}
+PASS DRIL2-R4 DB: cont B (trip B) = số B, seal B — không trộn — {"id":28756,"trip_id":194127,"container_number":"CSQU3054383","seal_number":"SEAL-KEP-B2"}
+RECEIVE BUTTON leg A: "Nhận lệnh vận chuyển"
+STATUS AFTER RECEIVE: A=IN_TRANSIT B=CREATED
+PASS DRIL2-R5 nhận lệnh leg A: A → IN_TRANSIT, B VẪN CREATED (không trộn) — A=IN_TRANSIT B=CREATED
+PROGRESS EVENTS: A=[{"event_type":"ORDER_RECEIVED"}] B=[]
+PASS DRIL2-R5 ORDER_RECEIVED chỉ nằm trên trip A; trip B 0 event — {"evA":[{"event_type":"ORDER_RECEIVED"}],"evB":[]}
+PASS Console errors none
+DONE failures=0
