@@ -17,6 +17,7 @@ import {
 } from './DispatchPlanEditorCell';
 import { QuickIssueOrderButton } from './QuickIssueOrderButton';
 import { DispatchPairAction } from './DispatchPairAction';
+import { DispatchRowActionsMenu } from './DispatchRowActionsMenu';
 import { deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { formatAppointmentGroupLine } from '../../shipments/cus/cusUtils';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
@@ -214,6 +215,19 @@ export function DetailedPlanGrid({
   const [groupTruckDraft, setGroupTruckDraft] = useState<{ actual: string; billing: string } | null>(null);
   const [savingGroupTruck, setSavingGroupTruck] = useState(false);
   const [groupTruckError, setGroupTruckError] = useState<string | null>(null);
+  // DIS-09 (card 211026130015) — the row menu's "Đổi nhà xe/BKS" lands in the
+  // SAME edit state the badge menu's button drives: modal open + pre-filled
+  // pair, one click from the row without opening the badge first.
+  const openGroupTruckEdit = (row: DispatchDetailPlanRow) => {
+    const group = row.lcl?.group;
+    if (!group) return;
+    setGroupMenuRow(row);
+    setGroupTruckDraft({
+      actual: group.actualTruckNo ?? '',
+      billing: group.billingTruckNo ?? '',
+    });
+    setGroupTruckError(null);
+  };
   const toastCtx = useToastOptional();
   // `items` is ONE server page of the plan, so Xem nhóm can only see the
   // on-page members of the group — the menu says how many live elsewhere.
@@ -668,6 +682,15 @@ export function DetailedPlanGrid({
                       </div>
                       <div className="detailed-plan-grid__note-actions">
                         {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}
+                        {/* DIS-09 (card 211026130015) — the row menu (⋯) puts
+                            "Đổi nhà xe/BKS" one click from every assigned
+                            task row; grouped LCL opens the SAME pre-filled
+                            group-truck edit as the badge menu. */}
+                        <DispatchRowActionsMenu
+                          row={row}
+                          onChangeGroupTruckInline={openGroupTruckEdit}
+                          onOpenTripReassign={onOpenTripReassign}
+                        />
                         {canCompleteExternal && (
                           <button
                             type="button"

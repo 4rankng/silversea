@@ -6,6 +6,7 @@ import { api, fileCommandFingerprint } from '../lib/api';
 import { ExpenseEntryStatus } from '@tingting/shared';
 import { TRIP_STATUS_LABELS, type TripStatus } from '@tingting/shared';
 import { StatusPill, useConfirm } from '../components/UI';
+import { TelLink } from '../components/TelLink';
 import { EmptyState } from '../design-system';
 import { useReasonPrompt } from '../components/reason-prompt';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
@@ -421,7 +422,10 @@ export function ForwarderTripWorkspace({ tripId, embedded = false, onClose }: Fo
             {trip.instructions.contactPhone && (
               <div className="fwd-instructions__row">
                 <span className="fwd-instructions__label">SĐT</span>
-                <a href={`tel:${trip.instructions.contactPhone}`} className="fwd-instructions__link">{trip.instructions.contactPhone}</a>
+                {/* DRI-01 sweep (card 211026130743): the shared TelLink — the
+                    raw href rode the stored digits verbatim (dead on
+                    space/dot-formatted numbers). */}
+                <TelLink phone={trip.instructions.contactPhone} className="fwd-instructions__link" />
               </div>
             )}
             {trip.instructions.notes && (

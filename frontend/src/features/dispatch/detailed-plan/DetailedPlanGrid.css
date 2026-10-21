@@ -593,6 +593,72 @@
   outline-offset: 2px;
 }
 
+/* ── DIS-09 (card 211026130015) — row actions menu (⋯) ────────────────────
+   The assigned task's "Đổi nhà xe/BKS" (and an issued row's "Phân xe lại")
+   lives in this dropdown on the row itself, one click from the row instead of
+   behind the Phân loại badge. React-state dropdown on the global dismissal
+   layer (data-dropdown-root); the open list portals to body with FIXED
+   coordinates — table cells clip absolute dropdowns. */
+.dispatch-row-menu {
+  position: relative;
+  display: inline-flex;
+  margin-top: 6px;
+}
+
+.dispatch-row-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--fg-inverse);
+  background: var(--accent);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+
+.dispatch-row-menu__trigger:hover {
+  background: color-mix(in srgb, var(--accent) 88%, #000);
+}
+
+.dispatch-row-menu__trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-bg-success-solid, #17b26a) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.dispatch-row-menu__list {
+  z-index: var(--z-dropdown, 60);
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+}
+
+.dispatch-row-menu__list button {
+  width: 100%;
+  min-height: var(--control-compact-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  color: var(--ink-2);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dispatch-row-menu__list button:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 @media (max-width: 767px) {
   .detailed-plan-grid__note-action {
     display: inline-flex;

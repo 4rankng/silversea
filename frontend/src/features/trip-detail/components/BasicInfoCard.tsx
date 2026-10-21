@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Truck, User, Calendar, Package, Hash, CheckCircle } from 'lucide-react';
+import { Truck, User, Calendar, Package, Hash, CheckCircle, Phone } from 'lucide-react';
 import { formatDate } from '../../../lib/format';
 import type { TripDetail } from '@tingting/shared';
 import { api } from '../../../lib/api';
 import { qk } from '../../../api/keys';
+import { TelLink } from '../../../components/TelLink';
 import {
   isSyntheticLclContainer,
   type ContainersResponse,
@@ -24,6 +25,9 @@ interface BasicInfoRow {
   muted?: boolean;
   full?: boolean;
   link?: string;
+  /** DRI-01 (card 211026130743) — the row's value dials as the house TelLink
+   *  tap-to-call; `value` stays the visible digits. */
+  tel?: boolean;
 }
 
 export function BasicInfoCard({ trip }: BasicInfoCardProps) {
@@ -62,6 +66,16 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
     containerRow,
     { icon: <Calendar size={17} />, label: 'Ngày khởi hành', value: formatDate(trip.departureDate), mono: true, isDate: true },
     { icon: <CheckCircle size={17} />, label: 'Ngày hoàn thành', value: trip.completedAt ? formatDate(trip.completedAt) : '—', mono: true },
+    // DRI-01 (card 211026130743): the factory site's LIVE contact phone rides
+    // the basic facts as a tel: tap-to-call — the same number the driver
+    // screen dials as SĐT kho. Rendered only when the site has one on file
+    // (the admin detail never invents an empty row for phone-less sites).
+    ...(trip.factorySite?.contactPhone ? [{
+      icon: <Phone size={17} />,
+      label: 'SĐT kho/nhà máy',
+      value: trip.factorySite.contactPhone,
+      tel: true,
+    }] : []),
     { icon: <Hash size={17} />, label: 'Mã tham chiếu', value: trip.customerReference ?? 'Chưa có', muted: !trip.customerReference, full: true },
     // Card 071026141640: this row used to be pushed TWICE — once inline here and
     // again in a trailing block below — so a trip with a shipment rendered two
@@ -98,6 +112,8 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
                   >
                     {row.value}
                   </Link>
+                ) : row.tel ? (
+                  <TelLink phone={row.value} className="val val-tel" />
                 ) : (
                   <div className={`val ${row.mono ? 'mono' : ''} ${row.muted ? 'muted' : ''}`}>{row.value}</div>
                 )}

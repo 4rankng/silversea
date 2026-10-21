@@ -297,7 +297,10 @@ export default function FactoriesConfigPage() {
                   <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
                   <td data-label="Chi tiết" className="factory-record-details">
                     <div>{site.address || 'Chưa có địa chỉ'}</div>
-                    <OperationalSiteContactsList contacts={operationalSiteContacts(site)} />
+                    {/* DRI-01 (card 211026130743): the master-data list's SĐT
+                        kho dials — callable makes each number the shared
+                        TelLink beside its Gọi button. */}
+                    <OperationalSiteContactsList contacts={operationalSiteContacts(site)} callable />
                     {!operationalSiteContacts(site).length && site.contactName ? <div>{site.contactName} · Chưa có số điện thoại</div> : null}
                   </td>
                   <td data-label="Trạng thái">

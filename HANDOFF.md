@@ -120,6 +120,50 @@ của lane này.
 
 - Merge trunk + staging recut khi wave đóng (src change có runtime FE).
 - Regression case: `testplan/2026-10-21-dis08-lan2-cards.md` (DIS08-L2-01..05).
+# DRI-01 + DIS-09 — tel: trên /trips/:id + Đổi nhà xe/BKS row-menu — 2026-10-21
+
+Lane: paseo (glm-5.3-flash), worktree `fix-dri01-dis09-visible` off main `9aab78d2`.
+Cards: 211026130743 (DRI-01) + 211026130015 (DIS-09). Audit ruling: "code CÓ
+nhưng nằm màn khác màn QA vào = bug".
+
+**Status**: DONE — commit trên branch, đã push. Gates: lint 0 · BE tsc 0 · BE
+unit 348/348 · BE integration 335/335 · FE tsc 0 · FE vitest FULL 5429/5429 ·
+make build OK. UI DRIVEN rung-3 (driver `testplan/qa/scripts/2026-10-21-dri01-dis09-ui-drive.mjs`,
+18/18 PASS exit 0, evidence `qa/2026-10-21-dri01-dis09/`).
+
+## DRI-01 — SĐT kho/nhà máy tel: trên /trips/:id + mọi danh sách
+- BE `trip-factory-site.service.ts`: `TripFactorySiteView` + `contactName`/
+  `contactPhone` LUÔN đọc LIVE site (snapshot chỉ đóng băng name/address —
+  đúng nguồn driver channel gọi là SĐT kho). `/api/trips/:id` đã attach sẵn.
+- FE: dòng "SĐT kho/nhà máy" TelLink trong BasicInfoCard; SĐT "Liên hệ & hướng
+  dẫn" /trips/:id + /fw-trips/:id đổi sang TelLink chung (bỏ raw href chết với
+  số có space/dot); /config/factories `callable`; OperationalSiteDetailsDialog
+  + FactoryDetailPopover tel:.
+- UI drive: trip 194048 (admin, 390px) — SĐT KHO/NHÀ MÁY `tel:02253555555`;
+  seed instructions `0989 130 345` → hiển thị giữ space, href `tel:0989130345`.
+  /config/factories: 52 tel link + 26 nút Gọi.
+
+## DIS-09 — "Đổi nhà xe/BKS" vào ROW MENU (⋯) dòng đã gán
+- Component mới `DispatchRowActionsMenu.tsx`: menu ⋯ trên dòng đã gán
+  (carrierType != null, chưa COMPLETED): item "Đổi nhà xe/BKS" (lô ghép → mở
+  CÙNG modal badge, draft pre-filled) + "Phân xe lại" (chuyến đã phát, cùng
+  luật live-trip editor trigger). LIST PORTAL ra body `position: fixed` — cell
+  body là `overflow: hidden`, absolute bị cắt (bắt bằng styles test).
+- UI drive: /dispatch-detail?q=FB095UI-482D6671-A (dieuvan, 1440px), nhóm 2 lô
+  109225/109226 BKS `29X-QA482D`: menu mở ngay trên dòng → 1 click dialog
+  pre-filled → đổi `29X-QA-D9A` → toast + DB cả 2 lô → revert UI về nguyên
+  trạng (DB proof 2 chiều).
+
+## Gotchas cho session sau
+- `dev-port-contract.test.ts` soi MỌI script trong testplan/qa/scripts —
+  throwaway probe để ports lạ sẽ đỏ gate (đã rời bỏ tmp probe).
+- FE full suite có flake load (waitFor timeout) — file nào đỏ thì chạy lẻ để
+  phân biệt; đã chứng minh run 1 ≠ run 2 file đỏ khác nhau + stash-bisect
+  RoleWorkInbox pair-flake có sẵn trên base.
+- Local DB: nhóm 8038cabd (2 lô FB095UI-482D6671-A/B, delivery 17/10) là fixture
+  DIS-09 dùng được; các nhóm QA khác (29C-QA*) fulfillment đã cancel — không
+  lên board.
+- Trip 194048 có instructions mới seed (SĐT 0989 130 345) — fixture DRI-01.
 
 # FB-066 lan 3 / card 211026144400 — flaky quick-add "Nha xe" Escape settle (test-only) — 2026-10-21
 

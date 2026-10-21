@@ -1,6 +1,8 @@
 import { ExternalLink } from 'lucide-react';
 import type { OperationalSite } from '../../api/shipmentClient';
 import { Modal } from '../UI';
+import { TelLink } from '../TelLink';
+import './OperationalSiteDetailsDialog.css';
 
 interface OperationalSiteDetailsDialogProps {
   site: OperationalSite | null;
@@ -13,14 +15,18 @@ interface OperationalSiteDetailsDialogProps {
  * (stacked-left-aligned-modal, access-request-modal): label-over-value
  * cells on a tight grid, helpers at caption size. Inline-style idiom kept
  * to match the file's history. */
-function DetailRow({ label, value, span }: { label: string; value: string | null; span?: boolean }) {
+function DetailRow({ label, value, span, tel }: { label: string; value: string | null; span?: boolean; tel?: boolean }) {
   if (!value) return null;
   return (
     <div style={{ display: 'grid', gap: 1, ...(span ? { gridColumn: '1 / -1' } : {}) }}>
       <span style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
         {label}
       </span>
-      <span style={{ color: 'var(--fg-1)', fontSize: 'var(--text-data-size)', lineHeight: 1.45, overflowWrap: 'anywhere' }}>{value}</span>
+      {/* DRI-01 (card 211026130743): the site phone is the tap-to-call tel:
+          link through the shared house pattern, not dead text. */}
+      <span style={{ color: 'var(--fg-1)', fontSize: 'var(--text-data-size)', lineHeight: 1.45, overflowWrap: 'anywhere' }}>
+        {tel ? <TelLink phone={value} className="site-detail-phone--tel" /> : value}
+      </span>
     </div>
   );
 }
@@ -45,7 +51,7 @@ export function OperationalSiteDetailsDialog({ site, isOpen, onClose }: Operatio
           )}
           <DetailRow label="Địa chỉ" value={site.address} span />
           <DetailRow label="Người liên hệ" value={site.contactName} />
-          <DetailRow label="Số điện thoại" value={site.contactPhone} />
+          <DetailRow label="Số điện thoại" value={site.contactPhone} tel />
           <DetailRow label="Mã số thuế" value={site.liftFeeTaxCode} />
           <DetailRow label="Đơn vị xuất hóa đơn nâng hạ" value={site.liftFeeInvoiceName} span />
           <DetailRow label="Địa chỉ xuất hóa đơn" value={site.liftFeeInvoiceAddress} span />

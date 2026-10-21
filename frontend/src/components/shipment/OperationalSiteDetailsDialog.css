@@ -1,0 +1,12 @@
+/* DRI-01 (card 211026130743): the site details dialog's SĐT is the shared
+   house tel: tap-to-call — same face as .site-contact-list__phone--tel and
+   .driver-task-fact__tel (brand, weight 500, underline only on hover). */
+.site-detail-phone--tel {
+  color: var(--brand, #005A2D);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.site-detail-phone--tel:hover {
+  text-decoration: underline;
+}

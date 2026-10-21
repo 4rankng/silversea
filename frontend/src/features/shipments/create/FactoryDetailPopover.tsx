@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
+import { TelLink } from '../../../components/TelLink';
 import './FactoryDetailPopover.css';
 
 export interface FactoryInvoiceGroup {
@@ -61,7 +62,10 @@ export function FactoryDetailPopover({
       <p className="factory-detail-pop__address">{address}</p>
       {phone ? (
         <p className="factory-detail-pop__phone">
-          <span className="factory-detail-pop__line-label">Số điện thoại</span> {phone}
+          <span className="factory-detail-pop__line-label">Số điện thoại</span>{' '}
+          {/* DRI-01 (card 211026130743): the factory peek's phone dials —
+              shared house TelLink, not dead text. */}
+          <TelLink phone={phone} className="factory-detail-pop__phone-tel" />
         </p>
       ) : null}
       {invoiceGroups.map((group) => (
