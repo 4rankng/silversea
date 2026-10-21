@@ -59,3 +59,10 @@ nên không phát hiện được tương tác giữa 2 luật.
   không-trip sau tách (snapshot 378 ĐÃ giữ reason D02 "Tách khỏi nhóm ghép —
   chờ định giá lại"; kênh hiển thị chưa surface) — tách card riêng cho kênh
   đọc freight, không thuộc defect "thiếu nút" của card này.
+
+## R-next staging re-verify — PASS (2026-10-21 09:37 SGT)
+
+Staging deployed tại `ebd032fb` (make demo). Fresh login `hoapt` (ACCOUNTANT) + tab mới, KHÔNG có `accounting-debit-hidden-cols` (máy trạm mới):
+- Cột "Thông số container" HIỆN ✓ · nút "Tách nhóm" 9/9 visible ✓ · cột "Cước thu (tự động)" vẫn ẨN (KT4 essential default giữ nguyên) ✓ · 99 dòng dữ liệu.
+- Evidence: `11-staging-deployed-ebd032fb-hoapt.png` (+ `12-…-preexisting-session.png` chạy trước với session có sẵn, kết quả trùng).
+- Card GDrive `211026092400-fb093-verifyfail` → QA_TESTED.
