@@ -35,8 +35,9 @@ author: "Project Manager (pm)"
 - `make generate` — drizzle-kit generate, serialized via mkdir-lock (no flock on local macOS).
 - `make db-drift-check` — asserts `generate` is a no-op on a clean tree (probe-safe guard).
 - DB sync (REPLACE target data): `make devdb` (staging → local), `make devdb-prod` (prod → local), `make stgdb` (prod → staging mirror).
+- **`make stgqa` (ENV-01, 2026-10-21): full staging QA refresh in one command** — `make stgdb` sync (incl. QA-class purge) + Abc123 password reset + QA fixture seed (demo BU `QA-DEMO`, 1 KH demo, 1 nhà xe demo, 4 lô FCL/LCL/kẹp; QA-marker class so prod-mirror views stay clean per FB-061 and `make qapurge` can remove them). Idempotent; preflights the deployed image for the ENV-01 scripts so an aborted run cannot leave staging on prod-set passwords. `make stgqa-seed` re-seeds the fixtures after `make demo` purged them.
 
-**Account/password rule (testplan/testaccounts.txt, 2026-09-06):** EVERY account on staging AND local dev uses password `Abc123`. Staging is a prod mirror (`make stgdb`) — after every sync, re-run the password reset (bcrypt hash of `Abc123` onto `users.password_hash`) so prod-set passwords never leak into staging logins.
+**Account/password rule (testplan/testaccounts.txt, 2026-09-06):** EVERY account on staging AND local dev uses password `Abc123`. Staging is a prod mirror (`make stgdb`) — the password reset (bcrypt hash of `Abc123` onto `users.password_hash`) is automated inside `make stgqa` since ENV-01 (2026-10-21); after a bare `make stgdb` (no stgqa), still re-run it manually so prod-set passwords never leak into staging logins.
 
 **Pre-deploy served-bundle check (PM standard 2026-09-09):** a fix in the local build is not a fix in production. Before declaring a frontend commit done, verify the served bundle matches the local build — fetch the served CSS/JS on staging and confirm the expected rule/chunk hash is present (Vite `[name]-[hash]` content hash MUST flip when the fix changes output). Same hash after push = deploy hasn't run. Full procedure in [[design-system-contracts]].
 

@@ -47,6 +47,15 @@ identical so duplicating it gains nothing.
 `make dev` brings up Postgres (`:5441`), Redis (`:6391`), backend (`:3002`),
 frontend (`:7175`) and Adminer (`:8083`). First-run: `make setup`.
 
+**Staging QA refresh (ENV-01):** `make stgqa` is the one-command pipeline —
+prod→staging sync (`make stgdb`, gồm QA-class purge) → mật khẩu reset về quy
+tắc Abc123 → seed bộ fixture QA riêng (1 demo BU `QA-DEMO`, 1 KH demo, 1 nhà
+xe demo, 4 lô mẫu FCL/LCL/kẹp). Idempotent: chạy 2 lần cho cùng kết quả.
+Fixture mang dấu hiệu QA-class nên view gương-prod tự ẩn (FB-061) và
+`make qapurge` dọn được — `make stgqa-seed` khôi phục fixture sau khi
+`make demo`/`make qapurge` dọn. Preflight chặn nếu image staging cũ hơn
+ENV-01 (script chạy từ dist của image đang deploy).
+
 ## 3. Accounts and credentials
 
 This testplan is **role-only** — it never hardcodes a username. Every test
