@@ -220,6 +220,13 @@ export interface ShipmentContainer {
    *  when no catalog port is picked). Absent on other endpoints' rows. */
   pickupPortName?: string | null;
   dropoffPortName?: string | null;
+  /** Số tờ khai của riêng container này (card 261013200312, per-cont entry
+   *  per the dev-lead ruling — CUS operational truth, distinct from the
+   *  shipment_declarations entity). Present on GET /shipments/:id rows
+   *  (listShipmentContainers selects the full table); the detail header
+   *  falls back to it when the lot carries no lot-level declaration
+   *  (CUS-11 / card 211026125915). */
+  declarationNumber?: string | null;
   plannedCarrierType?: 'OWN' | 'EXTERNAL' | null;
   plannedExternalCarrierId?: number | null;
   plannedCarrierName?: string | null;

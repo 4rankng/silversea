@@ -115,6 +115,9 @@ describe('DriverTaskInfoSections', () => {
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
+      // DRI-04 (card 211026130843): the delivery row keeps its slot in every
+      // direction — a null-direction trip still names the factory destination.
+      'Địa chỉ giao hàng',
     ]);
   });
 
@@ -155,14 +158,17 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Địa chỉ giao hàng')).toBe('CÔNG TY TNHH NEWEB VIỆT NAM, Lô đất CN01, KCN Đồng Văn III, Phường Đồng Văn, Tỉnh Ninh Bình');
   });
 
-  it('FB-082: IMPORT hides the delivery row when the trip has no factory destination data', () => {
+  it('FB-082 + DRI-04: IMPORT with no factory destination data keeps the delivery row with the named Chưa có fallback', () => {
     render(<DriverTaskInfoSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { factoryFullName: undefined, factoryName: null, factoryAddress: null, dropPortName: 'Bãi JJ LOGISTICS' },
     })} />);
 
     expect(valueOf('Cảng hạ')).toBe('Bãi JJ LOGISTICS');
-    expect(labels()).not.toContain('Địa chỉ giao hàng');
+    // DRI-04 (card 211026130843): the row never silently disappears — a trip
+    // with no destination data keeps the slot with the named fallback.
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Chưa có địa chỉ giao');
+    expect(labels()).toContain('Địa chỉ giao hàng');
   });
 
   it('renders the factory block: canonical full name and site address (no abbrev row)', () => {
@@ -501,6 +507,7 @@ describe('DriverTaskInfoSections', () => {
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
+      'Địa chỉ giao hàng',
       'Trả cont rỗng',
     ]);
     expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
@@ -629,14 +636,17 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Cảng hạ')).toBe('Legacy Kho');
   });
 
-  it('shows "—" when both dropPortName and dropWarehouseName are null', () => {
+  it('DRI-04: both drop rows show named Chưa có fallbacks when the drop chain is empty', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
       dropPortName: null,
       dropWarehouseName: null,
       lclWarehouseName: null,
     } })} />);
 
-    expect(valueOf('Cảng hạ')).toBe('—');
+    // The bare "—" the non-IMPORT branch used to print read as a missing
+    // implementation (card 211026130843) — named fallbacks in every direction.
+    expect(valueOf('Cảng hạ')).toBe('Chưa có cảng hạ');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Công ty TNHH Askey Việt Nam, KCN Việt Nam – Singapore, Thuận An, Bình Dương');
   });
 
   // Card 191026100010 (C.1): the Hạ column resolves through the shared
@@ -687,8 +697,10 @@ describe('DriverTaskInfoSections', () => {
     })} />);
 
     // Xuất khẩu drops at the kho; with no kho recorded the row stays honest
-    // instead of naming the factory the truck lifts FROM.
-    expect(valueOf('Cảng hạ')).toBe('—');
+    // instead of naming the factory the truck lifts FROM — and DRI-04 keeps
+    // BOTH rows visible with named fallbacks instead of a dash + a hole.
+    expect(valueOf('Cảng hạ')).toBe('Chưa có cảng hạ');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Chưa có địa chỉ giao');
   });
 
   it('card 191026100010 (C.1): an LCL Nhập lot keeps a recorded drop when no delivery destination exists', () => {
@@ -707,8 +719,62 @@ describe('DriverTaskInfoSections', () => {
     })} />);
 
     expect(valueOf('Cảng hạ')).toBe('Bãi Trả Hàng Q7');
-    // No destination data → the delivery row hides; it never echoes the drop.
-    expect(labels()).not.toContain('Địa chỉ giao hàng');
+    // No destination data → named fallback, never a hidden row (DRI-04).
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Chưa có địa chỉ giao');
+    expect(labels()).toContain('Địa chỉ giao hàng');
+  });
+
+  // ── DRI-04 (card 211026130843) — visible-by-default drop pair ────────────
+  const factRow = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
+    .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label);
+
+  it('DRI-04: an EXPORT trip shows BOTH rows — Cảng hạ and the delivery row name the port, with the one-line law tooltip', () => {
+    // The 2026-09-18 ruling: export discharges at the port, so the delivery
+    // destination IS the discharge point. Hiding the row (FB-082 retest v1)
+    // made QA read the screen as broken; the row now renders the port and
+    // carries the tooltip that explains the duplication.
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'EXPORT',
+      fulfillment: { dropPortName: 'Cảng ICD Sóng Thần' },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Cảng ICD Sóng Thần');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Cảng ICD Sóng Thần');
+    const title = factRow('Địa chỉ giao hàng')?.getAttribute('title');
+    expect(title).toContain('xuất khẩu');
+    expect(title).toContain('Cảng hạ');
+    // The Hạ row carries no export tooltip — one explanatory line, on the
+    // row whose duplication it explains.
+    expect(factRow('Cảng hạ')?.getAttribute('title')).toBeNull();
+  });
+
+  it('DRI-04: an EXPORT trip missing every point still renders both rows with named fallbacks', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      tradeDirection: 'EXPORT',
+      fulfillment: {
+        dropPortName: null,
+        dropWarehouseName: null,
+        lclWarehouseName: null,
+        factoryFullName: undefined,
+        factoryName: null,
+        factoryAddress: null,
+      },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Chưa có cảng hạ');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Chưa có địa chỉ giao');
+    expect(labels()).toContain('Địa chỉ giao hàng');
+  });
+
+  it('DRI-04: a domestic (null-direction) trip names the factory destination in the delivery row', () => {
+    render(<DriverTaskInfoSections trip={makeTrip({
+      fulfillment: { dropPortName: 'Kho Trả Hàng Thủ Đức' },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Kho Trả Hàng Thủ Đức');
+    expect(valueOf('Địa chỉ giao hàng')).toBe('Công ty TNHH Askey Việt Nam, KCN Việt Nam – Singapore, Thuận An, Bình Dương');
+    // No export law to explain — no tooltip on either row.
+    expect(factRow('Địa chỉ giao hàng')?.getAttribute('title')).toBeNull();
   });
 });
 

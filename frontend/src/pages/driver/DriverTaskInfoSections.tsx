@@ -20,7 +20,9 @@ import { resolveLiftDropPoints } from '../../features/shipments/liftDropPoints';
  * DIFFERENT from the kho row; identical numbers never render twice)
  * → CẢNG NÂNG → CẢNG HẠ
  * (direction-aware: IMPORT swaps Cảng hạ to the empty-container return depot)
- * → Trả cont rỗng / Địa chỉ giao hàng (when applicable).
+ * → Địa chỉ giao hàng (always present — DRI-04 card 211026130843; named
+ * "Chưa có" fallback, and for EXPORT the port itself with a one-line law
+ * tooltip) → Trả cont rỗng (when applicable).
  *
  * Card 20260926_27 dedup decisions (documented on the card):
  * - ITEM 5: the "Nhà máy" abbrev row is gone — the factory name renders in
@@ -37,9 +39,9 @@ import { resolveLiftDropPoints } from '../../features/shipments/liftDropPoints';
  *   differ: identical numbers render ONE row; differing numbers render both
  *   rows with their own labels so the driver can call the right one.
  */
-function TaskFact({ icon, label, value, fullWidth, action }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean; action?: React.ReactNode }) {
+function TaskFact({ icon, label, value, fullWidth, action, title }: { icon: React.ReactNode; label: string; value: React.ReactNode; fullWidth?: boolean; action?: React.ReactNode; title?: string }) {
   return (
-    <div className={`driver-task-fact${fullWidth ? ' driver-task-fact--full' : ''}`}>
+    <div className={`driver-task-fact${fullWidth ? ' driver-task-fact--full' : ''}`} title={title}>
       <span className="driver-task-fact__icon">{icon}</span>
       <span className="driver-task-fact__label">{label}</span>
       <div className="driver-task-fact__value">{value}</div>
@@ -153,21 +155,31 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
     dropFallback: rawDropPoint,
   }).drop;
   const locations = driverLocationLabels(trip.tradeDirection, dropPoint, fulfillment?.returnDepotName);
-  const cangHa = locations.drop ?? (trip.tradeDirection === 'IMPORT' ? 'Chưa có cảng hạ' : '—');
+  // DRI-04 (card 211026130843): both drop-side rows are visible-by-default —
+  // the named "Chưa có cảng hạ" fallback applies in EVERY direction (the bare
+  // "—" the EXPORT branch used to print read as a missing implementation).
+  const cangHa = locations.drop ?? 'Chưa có cảng hạ';
 
   // Card 121026141020 (FB-082 retest): the delivery row names the DESTINATION
   // — the factory the goods are handed over to — never the discharge yard
   // echoing "Cảng hạ". IMPORT delivers to the factory; EXPORT's destination
-  // is the port itself, which "Cảng hạ" already names, so the row is IMPORT
-  // only and hides when no destination data exists.
-  const deliveryAddress = trip.tradeDirection === 'IMPORT'
-    ? driverDeliveryDestination({
+  // is the port itself (the 2026-09-18 "hạ tại cảng cho XK" ruling), so the
+  // row names the same drop point — DRI-04 (card 211026130843) keeps the row
+  // VISIBLE with a one-line law tooltip instead of hiding it, because the
+  // silent absence made QA read the screen as broken. A trip with no
+  // destination data keeps its slot with the named "Chưa có" fallback —
+  // never a silently dropped row.
+  const isExportTrip = trip.tradeDirection === 'EXPORT';
+  const deliveryAddress = isExportTrip
+    ? dropPoint
+    : driverDeliveryDestination({
       fullName: fulfillment?.factoryFullName,
       name: fulfillment?.factoryName,
       address: fulfillment?.factoryAddress,
-    })
-    : null;
-  const showDeliveryLocationRow = Boolean(deliveryAddress);
+    });
+  const deliveryRowTitle = isExportTrip
+    ? 'Lô xuất khẩu: hạ và giao hàng tại cảng — địa chỉ giao chính là điểm Cảng hạ.'
+    : undefined;
   const showReturnDepotRow = Boolean(locations.returnDepot);
 
   // Card 20260926_27 item 7: khoPhone and contactPhone are independent
@@ -240,14 +252,21 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           <TaskFact icon={<Package size={16} />} label="Container / lô hàng" value={containerLedgerValue(trip.containers)} />
           <TaskFact icon={<ArrowUpRight size={16} />} label="Cảng nâng" value={pickupPoint} />
           {/* KP-063: direction-aware Cảng hạ. For IMPORT this is the
-              empty-container return depot; for EXPORT the drop port. */}
+              empty-container return depot; for EXPORT the drop port. DRI-04:
+              both drop-side rows keep their slot in every direction — named
+              "Chưa có" fallbacks, never a bare dash or a missing row. */}
           <TaskFact icon={<ArrowDownRight size={16} />} label="Cảng hạ" value={cangHa} />
-          {/* For IMPORT: actual delivery location when it differs from
-              the return depot. For EXPORT: empty-container return depot
-              when it differs from the drop point. */}
-          {showDeliveryLocationRow ? (
-            <TaskFact icon={<Pin02 size={16} />} label="Địa chỉ giao hàng" value={deliveryAddress} />
-          ) : null}
+          {/* DRI-04: the delivery row is visible in EVERY direction — IMPORT
+              names the factory destination (FB-082 law), EXPORT names the
+              discharge port the goods are handed over at (tooltip explains
+              the duplication with Cảng hạ), and missing data keeps the slot
+              with the named fallback instead of a silent hole. */}
+          <TaskFact
+            icon={<Pin02 size={16} aria-hidden="true" />}
+            label="Địa chỉ giao hàng"
+            value={deliveryAddress ?? 'Chưa có địa chỉ giao'}
+            title={deliveryRowTitle}
+          />
           {showReturnDepotRow ? (
             <TaskFact icon={<RefreshCcw02 size={16} />} label="Trả cont rỗng" value={locations.returnDepot} />
           ) : null}

@@ -337,6 +337,17 @@ export default function ShipmentDetailPage() {
   const declarationNumbers = declarations
     .map((d) => d.declarationNumber?.trim() ?? '')
     .filter(Boolean);
+  // CUS-11 (card 211026125915): the header used to read ONLY the lot-level
+  // declaration rows, so a lot whose containers each carry their per-cont
+  // số tờ khai (card 261013200312) still read "—" — QA took the header for
+  // an unimplemented feature. Lot rows keep precedence; when the lot has
+  // none, the FIRST per-container number found in the lot stands in (the
+  // value names its source in the title so the provenance is not a guess).
+  // Only a lot with zero declarations anywhere reads "Chưa có" — with the
+  // same Thêm tờ khai flow the section below owns, linked beside the value.
+  const firstContainerDeclarationNumber = containers
+    .map((c) => c.declarationNumber?.trim() ?? '')
+    .find(Boolean) ?? null;
   const customerLabel = shipment.customerName?.trim() || 'Chưa có tên khách hàng';
   const accountingLock = data.accountingLock ?? null;
   // FB-098 — cùng vai trò với nút "+ Thêm khoản chi" trong panel chi phí.
@@ -444,9 +455,39 @@ export default function ShipmentDetailPage() {
                 Bill and Booking are direction-exclusive (the quick-edit model
                 clears the other), so one reference line rides the shared
                 billBookingReference; tờ khai numbers are the same `declarations`
-                the Tờ khai hải quan section below already shows. */}
+                the Tờ khai hải quan section below already shows.
+                CUS-11 (card 211026125915): the value never reads "—" — lot
+                rows, else the first per-container number, else "Chưa có" with
+                the add-flow link so the flow is visible where QA looks. */}
             <div><dt>Số Bill / Số Booking</dt><dd>{shipmentLabel}</dd></div>
-            <div><dt>Số tờ khai</dt><dd>{declarationNumbers.length > 0 ? declarationNumbers.join(', ') : '—'}</dd></div>
+            <div>
+              <dt>Số tờ khai</dt>
+              <dd
+                title={declarationNumbers.length === 0 && firstContainerDeclarationNumber
+                  ? 'Lô chưa có tờ khai cấp lô; giá trị là số tờ khai của container đầu tiên có tờ khai trong lô.'
+                  : undefined}
+              >
+                {declarationNumbers.length > 0 ? declarationNumbers.join(', ') : firstContainerDeclarationNumber ?? (
+                  <>
+                    Chưa có
+                    {canManageDeclarations && (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          className="shipment-detail__decl-link"
+                          onClick={openDeclAdd}
+                          disabled={Boolean(accountingLock) || declSaving}
+                          title={accountingLock ? 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.' : 'Thêm tờ khai cho lô này'}
+                        >
+                          Thêm tờ khai
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </dd>
+            </div>
             <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>
             <div><dt>Hãng tàu</dt><dd>{shipment.shippingLineName ?? '—'}</dd></div>
             <div><dt>Nâng</dt><dd>{liftDropPoints.lift ?? '—'}</dd></div>

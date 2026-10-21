@@ -552,6 +552,9 @@ describe('DriverTripDetailPage', () => {
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
+      // DRI-04 (card 211026130843): the delivery row keeps its slot in every
+      // direction — visible-by-default, named fallback when empty.
+      'Địa chỉ giao hàng',
     ]);
     // Card _27 item 5: the abbrev row is gone — the fixture's factory name
     // ('Nhà máy Bình Dương') renders as the header line-2 location instead.
