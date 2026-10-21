@@ -351,6 +351,8 @@ export function useDispatchDetailPlan() {
       classification?: DispatchClassification;
       isCombined?: boolean;
       operationalNotes?: string | null;
+      /** dis-03 (card 211026131857) — confirmed kẹp-candidate overlap retry. */
+      rigOverlapCompletedConfirmed?: boolean;
     },
   ) => {
     setAssignmentError(null);

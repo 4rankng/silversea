@@ -64,6 +64,34 @@ export function TimePanel({ value, onPick, onApply }: { value: string; onPick: (
   const minutes = Array.from({ length: 12 }, (_, n) => n * 5);
   if (draft.minute != null && !minutes.includes(draft.minute)) minutes.push(draft.minute);
   minutes.sort((a, b) => a - b);
+  // dis-05 (card 211026131957): a hand-typed exact time must survive the
+  // natural mouse flow — type "1745", then click Lưu / anywhere outside.
+  // The panel is dismissed by outside POINTERDOWN and a removed input never
+  // fires blur, and any listener the panel owns dies with it before the
+  // following mousedown/click — so the commit must ride the UNMOUNT itself.
+  // A window-capture pointerdown only RECORDS that an outside press started
+  // (ref writes never re-render, so the host modal's own outside-press path
+  // check runs on an untouched DOM); any keydown clears the marker so Escape
+  // keeps its revert contract. The cleanup then commits valid changed text
+  // through the surviving parent chain — the click that follows (Lưu) reads
+  // the committed draft and the save PATCH finally carries the new hour.
+  const outsidePressRef = useRef(false);
+  const latestRef = useRef({ text, value, onPick });
+  latestRef.current = { text, value, onPick };
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      outsidePressRef.current = !(event.target instanceof Node && root.current?.contains(event.target));
+    };
+    const onKeyDown = () => { outsidePressRef.current = false; };
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('keydown', onKeyDown, true);
+      const { text: lastText, value: lastValue, onPick: lastOnPick } = latestRef.current;
+      if (outsidePressRef.current && isTime(lastText) && lastText !== lastValue) lastOnPick(lastText);
+    };
+  }, []);
   return <div ref={root} className="dtp-time" role="group" aria-label="Chọn giờ (24h)"
     onKeyDown={(event) => { if (event.key === 'Enter') event.stopPropagation(); }}
     onKeyUp={(event) => { if (event.key === 'Enter') event.stopPropagation(); }}>

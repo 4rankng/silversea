@@ -84,6 +84,8 @@ interface DispatchPlanEditorCellProps {
       plannedEndAt?: string | null;
       classification: DispatchClassification;
       operationalNotes?: string | null;
+      /** dis-03 (card 211026131857) — confirmed kẹp-candidate overlap retry. */
+      rigOverlapCompletedConfirmed?: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
   /** Opens the governed trip reassignment flow after an order is issued. */
