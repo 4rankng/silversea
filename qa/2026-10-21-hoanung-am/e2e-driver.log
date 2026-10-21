@@ -1,0 +1,24 @@
+hoanung-am E2E 2026-10-21T06:36:25.159Z api=http://localhost:3002/api front=http://localhost:7175 tag=HUAM-261021063625
+HEALTH status=ok
+PASS accountant login — ketoan
+PASS ops login — hoanungqa
+ACTORS ops#139163 (hoanungqa) accountant#3 (ketoan) shipment=311836 trip=193772
+PASS advance request created (PENDING) — HTTP 201 {"id":8141,"version":1,"requesterId":139163,"requesterNameSnapshot":"QA Hoàn Ứng Âm","amount":"100000","reason":"QA R30 hoàn ứng âm HUAM-261021063625","status":"PENDING","approvedBy":null,"approvedAt"
+PASS advance approved = giải ngân (RECORDED + funding) — HTTP 200 status=RECORDED funding={"ledgerEntryId":77615,"treasuryMovementId":14340}
+PASS trip expense created 150.000 (OPS_ADVANCE) — HTTP 201 {"costGroup":null,"feeName":null,"recoveryNote":null,"id":28607,"tripId":193772,"version":1,"forwarderId":139163,"createdBy":139163,"expenseType":"WAREHOUSE_LABOR","buyAmount":"150000","sellAmount":"0","recoverablePrincipalAmount":null,"ser
+PASS auto-offset skipped (expense still unlinked — no overdraw) — HTTP 200 found=true
+PASS expense completion set (COMPLETED) — HTTP 200 {"id":7537,"tripId":193772,"tripContainerId":null,"status":"COMPLETED","completedBy":139163,"completedAt":"2026-10-21T06:36:25.418Z","createdAt":"2026-10-21T06:
+PASS unbalanced phiếu rejected (400 cân đối) — HTTP 400 {"error":"Phiếu chưa cân đối: tạm ứng 100000, chi phí 150000, hoàn lại 50000"}
+PASS phiếu hoàn ứng created refundAmount=−50.000 — HTTP 201 refund=-50000 code=PT-2610-0009
+PASS detail: RECORDED, chưa KT duyệt, số âm giữ nguyên — HTTP 200 status=RECORDED refund=-50000 checkedBy=null
+PASS UI hiển thị Hoàn lại −50.000 ₫ (admin summary strip) — "Hoàn lại-50.000 ₫"
+PASS admin row for the phiếu present — PT-2610-0009
+PASS DUYỆT PHIẾU HOÀN ỨNG button clicked
+PASS UI after duyệt shows Đã duyệt (KT)
+PASS no console errors — clean
+PASS DB/API: checkedBy = kế toán sau duyệt — HTTP 200 checkedBy=3 checkedAt=2026-10-21T06:36:28.055Z refund=-50000
+PASS double-duyệt guard (409) — HTTP 409 {"error":"Phiếu đã được kế toán duyệt."}
+DB proof written qa/2026-10-21-hoanung-am/db-proof.txt
+PASS DB row: refund_amount −50000 + checked_by = kế toán — refund=-50000 checked_by=3
+PASS ledger OPS_SETTLEMENT debit = 100.000 (chi 150k + hoàn −50k → hội tụ về tạm ứng) — 100000
+DONE failures=0 settlement=PT-2610-0009 (#2212) refund=-50000
