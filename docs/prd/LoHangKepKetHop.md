@@ -131,3 +131,127 @@ Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi v�
 8. Một hành trình dùng chung chỉ có một khoản phí tương ứng và một lần tính lương ghép. Phí độc lập của từng chặng vẫn được giữ; bỏ ghép hoặc thử lại không làm tăng tổng sai.
 9. Điều vận, CUS, lái xe và Ops đọc được cùng quan hệ ghép trên điện thoại, máy tính bảng và máy tính; rõ số–loại container, cảng, lịch, thứ tự và xe dùng chung.
 10. Người có quyền thao tác trực tiếp khi có Internet. Mất mạng không báo thành công giả, không tự gửi lại và không tạo bước chờ phê duyệt nội bộ.
+
+## Spec gốc — "lclspec1-2.docx" (DEV SPEC: HOÀN THIỆN LUỒNG HÀNG LẺ (LCL) – ĐIỀU VẬN, GOM/TÁCH CƯỚC & QUẢN LÝ XE ẢO, 2026.10.15)
+
+> **Overlay ruling 21/10 (boss 15:22 — xem [CHANGELOG](CHANGELOG.md)):** mọi điều khoản
+> "nhảy tiền 100%/0₫" trong spec gốc **chỉ còn đúng cho chiều TRẢ nhà xe**. Chiều **THU
+> khách** nay là **per-lot độc lập** (đơn giá bảng giá Tuyến×KH × loại xe của từng lô) —
+> không dồn 100%/0₫, không chia tỷ lệ. Tách nhóm money-neutral; lãi chuyến = Σ thu − trả.
+
+### I. Mục tiêu (text gốc)
+
+- Tính cước Hàng lẻ theo Loại trọng tải xe tải (1.25T, 2.5T, 3.5T, 5T, 8T, 10T…) HOẶC Cont
+  20'/40' (hàng lẻ lớn đóng xe container: thu khách giá nguyên cont, nội bộ ghép thêm lô lẻ).
+- Quy tắc Phương tiện: hàng lẻ xe tải = 100% xe ngoài (Nhà thầu/Vendor); hàng lẻ xe cont
+  20'/40' = xe nội bộ SilverSea HOẶC xe ngoài.
+- Gom chuyến Đầu vào (Trả nhà xe — Điều vận): ghép nhiều lô (VD 5 lô) thành 1 chuyến, chọn
+  1 loại tấn xe/loại cont trả tiền nhà xe.
+- Ghép/Tách cước Đầu ra (Thu khách — CUS): cùng 5 lô, CUS ghép cả 5 thành 1 cước thu khách;
+  hoặc tách thành 2, 3, 4, 5 cước riêng.
+- Quy tắc nhảy tiền khi ghép (Lô 1 = 100%, Lô 2..N = 0₫) — *[theo ruling 21/10: chỉ còn áp
+  dụng chiều Trả; chiều Thu per-lot]*.
+- Quản lý "Xe thực tế" & "Xe ảo" khi tách cước thu khách: trường BKS Báo khách
+  (billing_truck_no) — chọn từ danh mục hoặc gõ tự do — để gửi khách/in Debit Note, tách biệt
+  BKS thực tế trả tiền nhà xe.
+
+### II. Chi tiết (text gốc rút gọn theo đề mục; toàn văn trong file docx nguồn)
+
+1. **Danh mục Loại xe & Bảng giá:** mở rộng danh mục trọng tải (1.25T…15T) bên cạnh
+   cont 20'DC/40'DC/40'HC; bảng giá Tuyến × Khách hàng/Nhà thầu cấu hình đơn giá Cước thu
+   khách + Cước trả nhà xe theo các mức trọng tải.
+2. **Điều vận:**
+   - 2.1 Kế hoạch Tổng quát: cột Cảng nâng/hạ hiển thị Kho lấy/Điểm trả (nếu có, không thì
+     "—"); cột Tổng quan hàng hóa lấy đúng dữ liệu CUS: [Số lượng] [Bao bì] | [kg] · [CBM]
+     (VD "5 PALLET | 1.922 kg · 4 CBM") — không hiển thị "Chưa có cont".
+   - 2.2 Kế hoạch Chi tiết Xe: cột CONTAINER đủ 3 dòng (dòng 1 "Lô hàng lẻ" hoặc "Lẻ · Xe 5
+     Tấn"; dòng 2 SL+bao bì; dòng 3 kg · CBM); tích chọn nhiều lô hiện tổng nhanh "Đang chọn
+     N lô: Tổng X kg | Y CBM"; popup Gán xe 3 trường — Loại xe tính cước trả (cost_vehicle_type),
+     Nhà xe & BKS thực (actual_truck_no; xe tải = chỉ xe ngoài; cont = nội bộ hoặc ngoài),
+     BKS Báo khách/xe ảo (billing_truck_no; mặc định copy từ BKS thực, combobox + gõ tự do,
+     sửa được per-lô); logic nhảy tiền cước trả khi ghép (cost_group_id): Lô 1 = 100% đơn giá
+     trả (tra bảng giá hoặc nhập tay), Lô 2..N = 0₫; tag "Lẻ · Ghép (i/N)"; cont nội bộ
+     SilverSea: tiền đường/lương lái xe chỉ tính 1 lần vào Lô 1.
+3. **CUS:**
+   - 3.1 Chi tiết lô hàng: cột THÔNG SỐ CONTAINER hiển thị loại xe (VD "Lô hàng lẻ | Thu:
+     Xe 3.5T | Trả: Xe 10T"); cột PHÂN XE 2 dòng — "[Nhà xe] - BKS Thực: 15C-111.11" /
+     "BKS Báo khách (Ảo): 15C-999.99" (click sửa nhanh, combobox + gõ tự do).
+   - 3.2 Chi phí – Quyết toán: checkbox đầu dòng + nút [Ghép cước thu khách]; thu riêng từng
+     lô (chọn loại xe thu + BKS ảo riêng, cước AUTO nhảy 100% đơn giá lô đó) hoặc ghép
+     (validation cùng 1 khách hàng; popup chọn loại xe thu + BKS ảo chung). *[Nhảy tiền thu
+     100%/0₫ của spec gốc được thay bằng luật per-lot theo ruling 21/10; Total chi hộ của lô
+     phụ vẫn giữ nguyên và cộng vào Tổng phải thu.]* Ghi chú gốc yêu cầu "Ghép cước cùng Bill
+     [Số Bill Lô 1]" — giữ làm nhận diện nhóm.
+4. **Kế toán chốt debit & Debit Note:** cột THÔNG SỐ CONTAINER ("Lẻ · Thu: 5T / Trả: 10T"
+   hoặc "Ghép cùng Bill…"); cột PHÂN XE 2 dòng (Thực + badge cam "Báo khách (Ảo)"); PHẢI THU
+   theo nhóm rev của CUS, PHẢI TRẢ theo nhóm cost của Điều vận; Debit Note gửi khách BẮT
+   BUỘC in BKS Báo khách (billing_truck_no), tuyệt đối không in BKS thực; loại xe + tiền cước
+   theo cước thu; bảng kê nhà xe lọc theo BKS thực + loại xe trả.
+5. **Edge case:** Hủy ghép/Xóa Lô 1 → tự chuyển quyền Lô chính + 100% tiền cước sang Lô 2
+   (bảo toàn tiền, không rơi về 0₫).
+
+### Trạng thái land (21/10/2026)
+
+| Đề mục | Trạng thái | Bằng chứng |
+|---|---|---|
+| I Quy tắc tính cước + phương tiện | LAND | `docs/lcl-spec-coverage-2026-10-17.md` §1.1 DONE (vehicle_size_classes, LclVehicleSourcing) |
+| 1 Bảng giá Tuyến×KH theo trọng tải | LAND | §1.2 DONE (pricing.ts, CarrierPricingConfigPage) |
+| 2.1 Tổng quát: kho/điểm trả + tổng quan hàng hóa | LAND | §2.1 DONE (list-summaries, MasterPlanGrid) |
+| 2.2 Chi tiết: 3 dòng cont, tổng nhanh, popup 3 trường, tag Ghép, trả 100%/0₫ | LAND (trả giữ 100%/0₫) | §2.2 DONE + AssignTruckGroupDialog; endgame check (b) P |
+| 3.1 CUS chi tiết: loại xe + phân xe 2 dòng | LAND | §3.1 DONE (ShipmentContainerLedger) |
+| 3.2 Ghép/tách thu khách | LAND **theo luật mới** (thu per-lot; validation cùng KH giữ) | `d375239b` endgame (a)(c)(d) P; fb093-tach-nhom |
+| 4 Kế toán + Debit Note BKS ảo | LAND | §4 DONE (billing-document-draft, AccountingDebitClosePage) + FB-094 |
+| 5 Edge: hủy ghép/xóa Lô 1 promote | LAND | §Edge PARTIAL→DONE: backend `0e325cc4` + nút Hủy ghép/Tách nhóm; FB-095 `903ec1cc` (xóa lô) |
+| Cargo-fit advisory (thêm sau spec) | LAND (advisory, không chặn) | `ea200241` (assessLclCargoFit) |
+
+## Spec gốc — "lclspec2-2.docx" (Gán xe nhóm hàng lẻ (LCL) — Điều vận & Ghép cước, 18/10/2026)
+
+> Cùng overlay ruling 21/10 như trên: §2.4 (trả) giữ 100%/0₫; §3.4 (thu) thay bằng per-lot.
+
+### Text gốc (theo đề mục)
+
+1. **Tổng quan:** Điều vận gom nhiều lô LCL thành 1 chuyến xe thực tế để trả tiền nhà xe;
+   CUS ghép/tách cước thu khách. *"Quy tắc cốt lõi: khi ghép N lô, Lô 1 giữ 100% tiền cước,
+   các lô còn lại = 0đ."* *[→ ruling 21/10: quy tắc này giờ chỉ áp chiều trả.]*
+2. **Điều vận — Gán xe nhóm (trả nhà xe):** (2.1) bảng Kế hoạch Tổng quát có cột checkbox
+   đầu dòng; tích nhiều lô hiện "Đang chọn N lô: Tổng X kg | Y CBM" + dòng gợi ý "Lô 1 giữ
+   100% tiền trả nhà xe". (2.2) Nút "Gán xe nhóm"/[Ghép] hiển thị và bấm được sau khi chọn.
+   (2.3) Popup 3 trường bắt buộc: Loại xe tính tiền trả nhà xe (1,25T…15T hoặc 20'/40');
+   Nhà xe & BKS thực (xe tải = 100% xe ngoài, dropdown liệt kê biển nội bộ, biển ngoài gõ
+   tay; cont = nội bộ hoặc ngoài); BKS báo khách/xe ảo (mặc định copy từ BKS thực, sửa
+   per-lô). (2.4) Nhảy tiền trả khi ghép (cost_group_id): Lô 1 = 100% đơn giá trả; Lô 2..N =
+   0đ; tag "Lẻ · Ghép (i/N)"; cont nội bộ: tiền đường/lương tính 1 lần Lô 1. (2.5) Cột
+   CONTAINER 3 dòng như lclspec1 §2.2.
+3. **CUS — Ghép/tách cước thu khách:** (3.1) checkbox đầu dòng + nút [Ghép cước thu khách].
+   (3.2) Chỉ ghép cùng 1 khách hàng — khác KH thì từ chối rõ ràng. (3.3) Popup: loại xe thu
+   + BKS ảo chung. (3.4) Nhảy tiền thu (rev_group_id): Lô 1 = 100%, lô kia 0đ + ghi chú
+   "Ghép xe cùng Bill [số Bill Lô 1]"; Tổng chi hộ lô phụ giữ nguyên. *[→ per-lot theo
+   ruling 21/10; ghi chú nhóm giữ làm nhận diện.]*
+4. **Edge case:** Hủy ghép/Xóa Lô 1 → tự chuyển 100% tiền sang lô tiếp theo (thăng cấp Lô 2
+   thành Lô 1). Tách nhóm (unmerge): mỗi lô trở về cước độc lập.
+5. **Debit Note:** BKS bắt buộc từ BKS Báo khách (xe ảo), tuyệt đối không in BKS thực; loại
+   xe theo cước thu; Lô 1 hiện 100%, lô ghép 0đ.
+6. **Hiển thị bổ sung:** (6.1) CUS Chi tiết lô: THÔNG SỐ CONTAINER hiển thị loại xe; PHÂN
+   XE 2 dòng (BKS Thực / BKS Báo khách Ảo click sửa). (6.2) Kế toán chốt debit: THÔNG SỐ
+   CONTAINER "Lẻ · Thu: 5T / Trả: 10T"; PHÂN XE dòng 1 [Nhà xe thực] · Thực: [BKS], dòng 2
+   badge cam "Báo khách (Ảo)"; PHẢI THU theo nhóm CUS, PHẢI TRẢ theo nhóm Điều vận.
+7. **Form tạo lô hàng lẻ (bổ sung 17/10, Trung Kiên):** (7.1) Label động theo chiều — Nhập:
+   "Nhà máy (Điểm trả hàng) *" + "Kho lấy hàng (CFS/Cảng) *" (placeholder "Chọn hoặc nhập
+   kho CFS lấy hàng..."); Xuất: "Nhà máy (Điểm lấy hàng) *" + "Kho trả hàng (CFS/Cảng) *"
+   (placeholder "Chọn hoặc nhập kho CFS hạ/giao hàng..."). (7.2) Hàng lẻ: Nhà máy bắt buộc
+   (trừ "Lệnh chạy ngoài"); cả 2 ô là combobox chọn danh mục HOẶC gõ tự do + nút "+ Thêm
+   kho"/"+ Thêm nhà máy". (7.3) Ô Kho nằm chung card "Điểm vận hành & tuyến" (dưới dòng
+   Tuyến đường và Nhà máy). (7.4) Đồng bộ sang Điều vận — Nhập: Cảng nâng = Kho lấy (CFS),
+   Cảng hạ = Nhà máy; Xuất: Cảng nâng = Nhà máy, Cảng hạ = Kho trả (CFS); áp dụng cả Kế
+   hoạch Tổng quát và Chi tiết Xe.
+
+### Trạng thái land (21/10/2026)
+
+| Đề mục | Trạng thái | Bằng chứng |
+|---|---|---|
+| §2 Gán xe nhóm (checkbox cột CHỌN, tổng nhanh, popup 3 trường, trả 100%/0₫, tag Ghép, 3 dòng cont) | LAND | AssignTruckGroupDialog + DetailedPlanGrid (a5e0039b, 181026145000); evidence 9cards lcl-07; endgame (b) P |
+| §3 Ghép/tách thu khách (cùng KH, BKS ảo chung) | LAND theo luật mới (per-lot) | `d375239b`; fb093-tach-nhom; endgame (a)(c)(d) P |
+| §4 Edge: hủy ghép/xóa Lô 1 promote + unmerge độc lập | LAND | `0e325cc4` (Hủy ghép confirm); FB-095 `903ec1cc`; FB-095-C2 nhóm ma `161026054700` đóng |
+| §5 Debit Note BKS ảo | LAND | FB-094 `239556ec`/`150acee0` + billing-export-shared |
+| §6 Hiển thị CUS + Kế toán | LAND | ShipmentContainerLedger + AccountingDebitClosePage (coverage §3–§4) |
+| §7 Form LCL label động + combobox + layout + đồng bộ điều vận | LAND | `032145a2` + audit card 211026011500 (0-gap, driver 9/9 + 3/3) |

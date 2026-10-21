@@ -121,6 +121,7 @@ Chủ sản phẩm chốt giữ các quy tắc này ngày2026-10-01; xem
 | [PhuongAnTinhCuocTuDong.docx](PhuongAnTinhCuocTuDong.docx) | Trải nghiệm cấu hình, tính cước theo ngày vận chuyển, xử lý thiếu giá và điều chỉnh giá trên bảng kê | Công thức gốc và bảng giá hợp đồng |
 | [BaoGia.docx](BaoGia.docx) | Phân hệ báo giá: khung giá theo khách hàng, lưới giá nhà máy × tuyến × hạng xe, phụ phí theo kỳ giá dầu, nhập/xuất Excel, lịch sử phiên bản | Cách tính cước áp cho lô khi phát lệnh (ở QuyTrinhO2C.docx §7) |
 | [PhanHeKeToan.docx](PhanHeKeToan.docx) | Giao diện và quy tắc phân hệ Kế toán: dashboard tiền/cược/quỹ/cảnh báo, phơi phiếu, công nợ vận tải, quỹ, chấm công/lương/nhân sự | Các phân hệ khác (Điều độ, Lái xe, CUS, Quản lý); quy trình O2C chung; công thức cước |
+| [PhanHeKeToan.md](PhanHeKeToan.md) | Spec gốc khách hàng (nguyên văn) cho 2 đợt fix chi phí 19/10 + trạng thái land từng mục — bản truy vấn nguồn, không thay thế PhanHeKeToan.docx | Quy tắc đang áp dụng (nằm ở PhanHeKeToan.docx / QuyTrinhO2C.docx / CHANGELOG.md) |
 
 ## 5. Nguồn yêu cầu gốc
 
@@ -167,7 +168,11 @@ Tiêu chí cụ thể của từng quy trình nằm ngay trong tài liệu tươ
 Truy vấn nguồn cho 222 phiếu yêu cầu Kanban (`FINAL-REQUIREMENTS-211026.docx`, 219 phiếu
 đóng PASS + 3 phiếu nợ test đã xanh trên main 21/10 theo `qa/2026-10-21-be-canonical.md`
 668/668), bảng trạng thái 35 yêu cầu chính thức + REQ-01..23
-(`CUSTOMER-REQUIREMENTS-STATUS-FINAL-211026.docx`), audit đối kháng 9 card
+(`CUSTOMER-REQUIREMENTS-STATUS-FINAL-211026.docx`; spec text gốc 35 YC theo
+`tonghop-35yc.json` — nguyên văn "hành vi mong muốn"), 5 spec docx gốc khách 19-18/10
+(FIX CHI PHÍ / chiphispec / chungtu-dieuvan / lclspec1 / lclspec2 — text đầy đủ tại
+[PhanHeKeToan.md](PhanHeKeToan.md), [OpsVanHanh.md](OpsVanHanh.md) §Spec gốc,
+[LoHangKepKetHop.md](LoHangKepKetHop.md) §Spec gốc), audit đối kháng 9 card
 (`qa-audit-verdicts.md`), evidence `qa/2026-10-2*/` và lịch sử commit. Quy tắc nghiệp vụ
 đang áp dụng nằm ở tài liệu chuyên đề + [CHANGELOG](CHANGELOG.md); mục này chỉ tra cứu
 nguồn — verdict ghi theo vòng QA (R14–R30) và build tương ứng.
@@ -180,44 +185,58 @@ rộng ra trong ô) · GIVEN/WHEN/THEN rút gọn.
 
 | # | Mục | Lý do còn mở |
 |---|---|---|
-| 1 | CUS-01, CUS-02, CUS-03, CUS-05, CUS-06, CUS-09, DIS-04, DIS-10, DRI-02 | Doc tổng hợp 21/10 ghi "ĐÃ SHIP" nhưng nguồn nhập không chứa định nghĩa gốc/AC của các mã này — cần bảng chữ nghĩa 35 YC của khách để điền Spec + AC. |
-| 2 | Xóa lô của Điều vận | Ruling 21/10 07:54 chốt **cho phép**; hiện trạng commit `903ec1cc` vẫn chặn phía server ("Chỉ CUS hoặc Quản trị viên") — chờ land quyền. |
-| 3 | FB-061 residual | Soft-deleted entities vẫn in trên Kiểm soát phơi phiếu (phiếu 161026171000) — cần owner ruling chính sách demo-BU; ENV-01 (`make stgqa`) đã giải phần fixture QA. |
-| 4 | QA R30 verify còn treo | CUS-04 (REQ-09), CUS-07 (REQ-10), DIS-01 (REQ-02), REQ-05, DIS-06 luồng Lấy Lẻ, REP-01/02 chế độ tháng — chưa có verdict P sau vòng verify. |
-| 5 | FB-103 + nhóm chấm công (141026230780/0790/0800/0810) | Doc tổng hợp ghi PASS nhưng không tra được commit/test khóa trong nguồn nhập. |
-| 6 | Phiếu không evidence tra được | FB-051, FB-055, FB-057, FB-069, FB-074, FB-115, 181026180300, 181026183500, 161026095800, 161026121500, QA1-003, QA1-004, QA2-003/006/007/010, 141026230700, 181026182300 — chỉ có trạng thái "QA ĐÃ TEST PASS" của doc tổng hợp. |
+| 1 | Xóa lô của Điều vận | Ruling 21/10 07:54 chốt **cho phép**; hiện trạng commit `903ec1cc` vẫn chặn phía server ("Chỉ CUS hoặc Quản trị viên") — chờ land quyền. |
+| 2 | FB-061 residual | Soft-deleted entities vẫn in trên Kiểm soát phơi phiếu (phiếu 161026171000) — cần owner ruling chính sách demo-BU; ENV-01 (`make stgqa`) đã giải phần fixture QA. |
+| 3 | REQ-05 (autocomplete Hãng tàu) + các mục "verify 9aab78d2" ở §7.2 chưa có verdict P | Cần QA verify trên build 9aab78d2 (CUS-01/02/04/05/06, DIS-06/07, DRI-02, REP-01/02). |
+| 4 | FB-103 + nhóm chấm công (141026230780/0790/0800/0810) | Doc tổng hợp ghi PASS nhưng không tra được commit/test khóa trong nguồn nhập. |
+| 5 | Phiếu không evidence tra được | FB-051, FB-055, FB-057, FB-069, FB-074, FB-115, 181026180300, 181026183500, 161026095800, 161026121500, QA1-003, QA1-004, QA2-003/006/007/010, 141026230700, 181026182300 — chỉ có trạng thái "QA ĐÃ TEST PASS" của doc tổng hợp. |
 
-### 7.2 Yêu cầu chính thức 35 mục (CUS/DIS/LCL/DRI/REP)
+Spec text gốc 35 YC lấy từ `tonghop-35yc.json` (nguyên văn "hành vi mong muốn" của khách) —
+cột Spec trong §7.2 trích nguyên văn, không diễn giải.
 
-| ID | Nguồn | Spec 1 dòng | AC (URL · role · mặc định · G/W/T) | Ruling | Commit | Test khóa | QA verdict | Verify-fail / root-cause |
-|---|---|---|---|---|---|---|---|---|
-| CUS-04 | 35-YC + REQ-09 | TAB mở dropdown Loại cont | `/shipments/new` · CUS · form mở mặc định FCL có bảng cont · G dòng cont trống W focus/TAB ô "Loại container" THEN dropdown mở sẵn để chọn | — | — | — | R30 VERIFY (chưa P) | — |
-| CUS-07 | 35-YC + REQ-10 | Thu gọn Nhà máy + nút chi tiết | `/shipments` drawer · CUS · ô Nhà máy mặc định hiện tên ngắn · G mở drawer W xem ô nhà máy THEN tên ngắn + nút chi tiết mở đầy đủ | — | — | — | R30 VERIFY (chưa P) | — |
-| CUS-08 | phiếu 211026125242/5715/5815 · CHANGELOG 21/10 | Trọng lượng hiển thị theo TẤN | Mọi màn hiện trọng lượng (tổng quan CUS, drawer cont, chi tiết lô, điều phối, XLSX) · mọi vai · G cont 18.500 kg W mở màn THEN "18,5 tấn"; ô nhập vẫn kg | CHANGELOG 21/10 | formatWeight (shared formatter) | formatWeight unit | SHIP theo CHANGELOG 21/10 | Root-cause: "18.500" là kg + dấu chấm nghìn vi-VN bị đọc nhầm số thập phân (FB-069 tiền trào) |
-| CUS-10 | doc 14/09–20/10 vs TICKET-09 | Bổ sung nút Xóa cont @Chi tiết lô | **Không thêm lại** — Chi tiết lô chỉ đọc container | TICKET-09 > FB-086@detail (21/10) | 171026182554 | pin vitest "no Thêm container affordance" | ĐÓNG (won't-fix per ruling) | Xung đột nội bộ doc khách — giải trong CHANGELOG 21/10 |
-| CUS-11 | FB-113 (171026122140) | Thứ tự chứng từ + Số tờ khai header | `/shipments/:id` · CUS · G lô có tờ khai (mục Tờ khai hải quan) W mở header THEN Số Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu; thêm tờ khai header cập nhật ngay | — | ba9981c2 | ShipmentDetailPage.test + regpack fb113 | P — R26 staging d39ee741 2/2; audit 21/10 UI DRIVEN | ×3 trượt: 3 màn trùng tên "Chi tiết lô hàng"; header đọc entity `shipment_declarations` — lô chỉ có tờ khai per-cont hiện "—" |
-| DIS-01 | 35-YC + REQ-02 | Space ở ô ghi chú | `/dispatch-detail` · dieuvan · G con trỏ ô ghi chú W gõ "a b" THEN space giữ nguyên | — | — | — | R30 VERIFY (chưa P) | — |
-| DIS-02 | 35-YC + REQ-03 | Bỏ modal hẹn giờ, phát lệnh 1 chạm | `/dispatch-detail` · dieuvan · G dòng đủ xe/lịch W bấm Phát lệnh THEN phát ngay, không modal hẹn giờ | — | a5e0039b + 3349fd52 | useIssueOrder tests | R30 FAIL (6110af65) → fix 3349fd52 | Root-cause R30: unpaired-leg dead-ends chặn phát lệnh; 1-chạm icon chưa có commit riêng |
-| DIS-03 | FB-038/072 (101026043000, 121026185530, 171026121100) | Gán trùng khung giờ: cảnh báo + xác nhận | `/dispatch-detail` · dieuvan · G đầu xe đã có chuyến trùng giờ W gán lại THEN dialog "…Vẫn lưu?" → Xác nhận lưu 200 (không dead-end) | — | 9d109c0d/07b54048 + 3349fd52 | assertTripRigAvailable matrix | R30-endgame P (staging 9aab78d2) | ×3 verify-fail: holder-scan inner join giấu dòng không cont → cảnh báo mất; silent save; R30 dead-end 409 |
-| DIS-05 | REQ-13 (DIS-05b thêm giờ trả) | Sửa giờ popup sync ra bảng | `/dispatch-detail` · dieuvan · G TimePanel mở W gõ 1645 click ngoài THEN 16:45 commit, không reset | — | 3349fd52 | TimePanel tests | R30 FAIL → endgame P (9aab78d2) | Root-cause: mouse-flow ngoài panel không commit |
-| DIS-06 | REQ-12 | Phân loại "Lấy Lẻ" | `/dispatch-detail` · dieuvan · enum có Lấy Lẻ; luồng LCL lot còn bị loại | — | 007352d6 (cont-flow) | dispatch-plan-lcl-classification.test | ◐ MỘT PHẦN — luồng còn verify | Đúng nghiệp vụ lô lẻ chưa chốt |
-| DIS-07 | CHANGELOG 05/10 | Lấy Lẻ không tự gắn ĐẢO VỔ | `/dispatch-detail` · dieuvan · G chọn "Lấy Lẻ" W lưu THEN tag ĐẢO VỎ không tự gắn | CHANGELOG 05/10 | — | — | R30 VERIFY (chưa P) | — |
-| DIS-08 | 35-YC + card 211026180428 | Bold dòng cont / thường tên cảng — **mọi bảng** | `/dispatch` + `/dispatch-detail` · dieuvan · 390/768/1440 · G dòng có cảng + cont W mở THEN tên cảng font 400, **mọi dòng số lượng container 600** (kể cả cột "Tổng quan hàng hóa" và drawer) | — | a5e0039b → 3349fd52 (lan 1) → **c641f973/5b77082f (lan 2: law dùng chung `.ops-container-line`)** | 4 file styles/identity tests + local driver 15/15 (400→600) | R30 FAIL → lan 1 → **verify-fail lần 2** (QA 18:04, build 9aab78d2) → lan 2 P local; staging deploy giữ đến wave close | Root-cause lan 2: không có law dùng chung — mỗi surface tự pin, cột Hàng không pin gì silently 400 (defect class) — **flappy ≥2 vòng, đề xuất thêm spec regpack** |
-| DIS-09 | 181026185900 B | Đổi nhà xe/BKS nhóm ghép + phát lệnh chờ biển số | `/dispatch-detail` · dieuvan · mặc định: nút GIẤU sau badge `Lẻ · Ghép (1/N)` cột Phân loại, chỉ có khi lô ĐÃ gom nhóm · G mở badge modal W bấm "Đổi nhà xe/BKS" THEN sửa BKS thực/báo khách; xe ngoài chưa BKS → Phát lệnh → confirm "Vẫn phát lệnh?" → phát thành công, BKS trống | — | a5e0039b | DetailedPlanGrid/useIssueOrder tests | Audit 21/10 SHIPPED UI DRIVEN (local 536aad6c) | QA trượt: deep-modal + điều kiện dữ liệu (lô phải đã có cost group) |
-| LCL-01 | 211026132257 | Lô lẻ hiển thị Tổng quan/Chi tiết | `/shipments` + `/shipments/:id` · CUS · G có lô LCL W mở THEN lô lẻ hiển thị đúng, không lúc có lúc không | — | (card R30 endgame) | repro log qa/2026-10-21-lcl01-dri03 | R30 FAIL → P 21/10 (before-FAIL/after-PASS) | Truy vấn/phan loại lô lẻ |
-| LCL-02 | REQ-16 · FB-105 (171026115800, 181026143000) | Quick-add kho theo chiều XNK | `/shipments/new` · CUS · form mặc định **Nhập khẩu**, phải chọn KH trước · G radio Xuất khẩu W "+ Thêm kho" THEN dialog "Thêm kho **trả** hàng" (Nhập → **lấy** hàng), 3 trường gọn | — | 032145a2 | ShipmentCreateWorkspace.lcl-points.test | Audit SHIPPED UI DRIVEN; audit card 211026011500 0-gap | QA trượt: không chọn Xuất khẩu/KH thì không thấy đổi |
-| LCL-03 | 181026185900 D | LCL bỏ "Lịch & ghi chú" | `/shipments/new` · CUS · FCL mặc định còn section · G radio "Hàng lẻ" THEN section biến mất, còn nút đứt "+ Thêm ngày giao hàng" | — | 0f7e1dfa | ShipmentCreateWorkspace tests | Audit SHIPPED UI DRIVEN | QA trượt: không chuyển radio LCL |
-| LCL-04 | FB-083 (131026190400) | Nhãn "Ngày giao hàng" (reveal) | `/shipments/new` · CUS · LCL · G bấm "+ Thêm ngày giao hàng" THEN ô ngày hiện nhãn "Ngày giao hàng \*" | — | 0f7e1dfa | tests | Audit SHIPPED UI DRIVEN | QA trượt: reveal-on-click tưởng mất trường |
-| LCL-05 | 171026180003 | Quy cách đóng gói: gợi ý + tự do | `/shipments/new` · CUS · LCL · G mở combobox THEN gợi ý (Bao/Kiện/Pallet…) + gõ "Kiện gỗ" được chấp nhận | — | 0f7e1dfa | LCL_PACKAGE_TYPE_SUGGESTIONS | Audit SHIPPED UI DRIVEN | QA trượt: combobox lai text/dropdown |
-| LCL-06 | REQ-16/17 (171026180001/0002) | Form LCL tối giản (kho dropdown-add) | `/shipments/new` · CUS · nhãn kho theo chiều; thêm mới ngay tại dropdown | — | 032145a2 + card 211026011500 | driver 9/9 + empty-submit 3/3 | P (audit 0-gap, evidence-only) | — |
-| LCL-07 | REQ-19 (171026180007) | Cước gom nhiều lô — luật tiền 21/10 | `/dispatch-detail` → Gán xe nhóm (advisory tải trọng **không chặn**); `/shipments-debit` + `/accounting/chot-debit` · GIVEN 2 lô lẻ cùng KH gom WHEN xem board THEN **thu per-lot độc lập** (vd 2.500.000₫/lô), **trả 1 dòng/chuyến** (Lô 1 1.800.000₫, member 0₫); tách nhóm money-neutral; ghép lại giữ per-lot; Lãi = Σ thu − trả | **Boss 21/10 15:22** (thay 100%/0₫ chiều thu) | d375239b (merge 9aab78d2); advisory ea200241 | BE lcl-rev-perlot 8/8 + registry 8/8; r30-endgame driver | Audit SHIPPED (theo spec cũ) → **endgame P 6/6** staging 9aab78d2 | Xung đột kỳ vọng QA (đòi chia tỷ lệ kg/CBM) — đóng bằng ruling |
-| DRI-01 | REQ-14 (Phần 5 doc khách) | tel: chạm-gọi SĐT kho | `/my-trips/:id` · **DRIVER** (quyet) 390px · G lệnh có SĐT W mở THEN "SĐT kho"/"SĐT liên hệ" là `<a tel:>`; `0901.234.567`→`tel:0901234567`; nút Gọi mở sheet | — | f0986f4c | TelLink + req14-tel driver | Audit SHIPPED UI DRIVEN (qa/2026-10-21-req14-tel) | QA trượt: sai role/URL, desktop không tel handler, kho thiếu SĐT |
-| DRI-03 | 211026132357 | Kẹp 2-cont trên app lái xe | `/my-trips/:id` · DRIVER 390px · G chuyến kẹp 2×20DC W mở THEN 2 thẻ cont + nút "Sửa số cont N" riêng; sửa cont 2 không đụng cont 1 (PATCH per-cont) | — | 1a7fc73b | DriverContainerCard 28/28 + 120 dòng unit | R30 FAIL → P 21/10 | Root-cause: hard-code `containers[0]` |
-| DRI-04 | FB-020 (171026205400) | Cảng hạ trống IMPORT → tên điểm trả | `/my-trips/:id` · DRIVER 390px · G cont IMPORT không cảng hạ nhưng có điểm trả W mở THEN "Cảng hạ" = tên điểm trả + địa chỉ đầy đủ; không "Chưa có cảng hạ" (EXPORT giữ dòng này theo luật) | — | da73a743/3fd77532 | fb020-driver-cang-ha.spec (regpack) | Đạt R24; R27 B3; audit SHIPPED | QA trượt: thử EXPORT / thiếu cả hai điểm / xem màn Admin |
-| REP-01 | REQ-11 (1eac0862) | KPI xe nội bộ: ngày + từng xe tháng | `/reports` productivity · G dữ liệu chuyến nội bộ W mở THEN %kẹp/kết hợp/lấy lẻ + Excel export | — | 1eac0862 | (wave tests) | SHIP 21/10; chế độ tháng chưa verify | — |
-| REP-02 | 35-YC | Báo cáo chế độ tháng | Như REP-01, kỳ tháng | — | 1eac0862 | — | R30 VERIFY (chưa P) | — |
+### 7.2 Yêu cầu chính thức 35 mục (CUS/DIS/LCL/DRI/REP/ENV)
 
-Các mã CUS-01/02/03/05/06/09, DIS-04, DIS-10, DRI-02: xem §7.1 mục 1.
+Trạng thái 21/10 tối ưu: **LAND** = đã land trên main (9aab78d2 → 5b77082f) hoặc sắp merge ·
+**IN-FLIGHT** = agent đang chạy (tên branch) · **VERIFY** = cần xác minh lại trên build 9aab78d2.
+Spec («…») trích nguyên văn "hành vi mong muốn" từ tonghop-35yc.json.
+
+| ID | Spec gốc (khách, nguyên văn) | Trạng thái | Commit/evidence | AC mặc định · G/W/T | QA verdict / verify-fail |
+|---|---|---|---|---|---|
+| CUS-01 | «Khi nhập đủ 2 chữ số giờ (ví dụ '08'), con trỏ tự động nhảy sang ô phút ('00'). Cho phép nhập tay hoặc chọn từ lịch mà không bị kẹt.» | VERIFY 9aab78d2 | FB-030/075: `22c9c80b`, `c58f570e`, `5ef5ace7` | /shipments/new · CUS · G gõ '08' ô giờ THEN focus tự sang phút; không rơi phím số | ◐ "đạt có điều kiện nhập" (R21–R27) — ma trận input-order còn mở |
+| CUS-02 | «Khi vào sửa/bổ sung ngày giờ cho lô hàng chưa có lịch, nhấn phím Enter phải tự động lưu và thoát về danh sách chính thay vì lưu nhưng vẫn đứng ở bảng popup.» | VERIFY 9aab78d2 | FB-002 R27/28 PASS; lan 3 `c73c7bbc` (card 211026034109) | form giờ · CUS · G draft hoàn chỉnh W Enter THEN POST lưu + thoát về danh sách | ×N verify-fail; root-cause lan 3: 2 nút submit nằm ngoài `<form>` |
+| CUS-03 | «Thêm nút 'Copy thời gian' để 1 lần thao tác có thể gán ngày giao chung cho tất cả các cont của lô nhiều cont, tránh phải nhập thủ công từng cont.» | LAND | FB-009 (101026163010) | bảng cont · CUS · G lô nhiều cont W bấm copy THEN mọi cont nhận chung ngày giờ | PASS (doc tổng hợp); từng flappy ×2 (nút biến mất 111026111200, 131026233500) |
+| CUS-04 | «Sửa lỗi khi con trỏ ở ô 'Số cont' bấm phím TAB sang ô 'Loại cont', người dùng gõ phím phải kích hoạt danh sách gợi ý loại cont tự động thay vì bắt buộc phải click chuột.» | VERIFY 9aab78d2 | — | /shipments/new · CUS · G TAB sang ô Loại cont W gõ THEN dropdown gợi-y tự mở | R30 VERIFY chưa P |
+| CUS-05 | «Cho phép nhập nhiều tờ khai trên một lô. Khi thêm số tờ khai cho 1 cont, tự động cập nhật đồng bộ cho tất cả các cont trong lô. Hỗ trợ sửa/thêm trực tiếp tại màn hình chi tiết.» | VERIFY 9aab78d2 | FB-085/109 (họ 1310262006xx) | chi tiết lô · CUS · G thêm tờ khai 1 cont THEN đồng bộ cả lô + header /shipments/:id cập nhật | P R17; regression 141026012500 + A1 verify-fail ×2 đã đóng |
+| CUS-06 | «Khắc phục lỗi người dùng đã nhập số tờ khai hải quan nhưng hệ thống không ghi nhận/lưu vào cơ sở dữ liệu sau khi bấm hoàn tất.» | VERIFY 9aab78d2 | FB-110 (171026122110) | G nhập tờ khai W lưu + mở lại THEN số còn đúng | PASS (doc) |
+| CUS-07 | «Màn hình nhập liệu chỉ hiển thị gọn tên nhà máy. Thêm nút thu gọn/mở rộng ('Xem chi tiết') để xem địa chỉ đầy đủ và thông tin xuất hóa đơn khi cần thiết.» | LAND | (per tổng hợp 21/10) | /shipments/new · CUS · mặc định tên gọn · G bấm 'Xem chi tiết' THEN mở địa chỉ + xuất hóa đơn | chưa có verdict P riêng trên build mới |
+| CUS-08 | «Bỏ 2 chữ số 0 thập phân không có ý nghĩa sau dấu phẩy tại trường trọng lượng hàng (ví dụ: '25,000.00 kg' chuyển thành '25,000 kg').» | LAND — đi xa hơn: hiển thị theo TẤN | CHANGELOG 21/10 (phiếu 211026125242/5715/5815) | mọi màn hiển thị trọng lượng · G cont 18.500 kg THEN "18,5 tấn"; ô nhập vẫn kg | P theo CHANGELOG; root-cause FB-069: dấu chấm nghìn vi-VN bị đọc nhầm thập phân |
+| CUS-09 | «Sửa lỗi hệ thống khi chỉnh sửa số lượng cont của lô đã tạo. Khi bổ sung cont mới, tự động sao chép các trường thông tin chung xuống, chỉ để trống số cont và loại cont.» | LAND — ruling 21/10 ghi đè: Loại cont CŨNG tự copy | `ef90a995` + `7d1f5c1f` + `017adf63` (card 211026112600) | drawer Tổng quan · CUS · G thêm cont THEN copy trường chung (kể cả Loại cont, client-side seed); KHÔNG đặt nút ở Chi tiết | regpack fb111; R27 P; FB-086 verify-fail ×2 + lan 3 đóng |
+| CUS-10 | «Thêm nút 'Xóa cont' trực tiếp trong bảng chi tiết lô hàng CUS để xử lý nhanh trường hợp nhập thừa hoặc khách hủy bớt container.» | LAND — giải theo TICKET-09 | `171026182554` | thao tác thêm/xóa cont tại drawer **Tổng quan** ("Quản lý container"); xóa cont đang có chuyến bị chặn kèm lý do; KHÔNG nút ở màn Chi tiết | phần "nút @Chi tiết" ĐÓNG theo ruling TICKET-09 > FB-086@detail |
+| CUS-11 | «Sắp xếp lại thứ tự hiển thị trường chứng từ theo chuẩn: 1. Số Booking -> 2. Số Tờ khai -> 3. Nhập/Xuất -> 4. Hãng tàu.» | LAND + lane IN-FLIGHT `fix-cus11-dri04-visible` | `ba9981c2` | /shipments/:id · CUS · G lô có tờ khai W mở header THEN đúng thứ tự 4 trường; thêm tờ khai cập nhật ngay | P R26 staging d39ee741 + standing 20/10 + audit UI DRIVEN; ×3 verify-fail do 3 màn trùng tên |
+| DIS-01 | «Ô nhập văn bản ghi chú cho điều vận bị chặn phím Space. Yêu cầu sửa bộ gõ/input để người dùng soạn thảo nội dung bình thường có dấu cách.» | LAND | (Đã xử lý theo doc khách) | /dispatch-detail · dieuvan · G gõ 'a b' ô ghi chú THEN space giữ nguyên | PASS (doc) |
+| DIS-02 | «Khách hàng không có nhu cầu hẹn giờ phát lệnh. Bỏ popup chọn ngày giờ khi bấm phát lệnh, chuyển sang icon phát lệnh trực tiếp một chạm.» | LAND | `a5e0039b` + `3349fd52` | /dispatch-detail · dieuvan · G dòng đủ xe/lịch W bấm icon phát lệnh THEN phát ngay, không popup hẹn giờ | R30 FAIL (6110af65) → fix; endgame spot P 9aab78d2 |
+| DIS-03 | «Khi 1 xe đầu kéo chạy kế hoạch chở kẹp 2 container 20ft, phát lệnh cont thứ nhất thành công nhưng cont thứ hai bị chặn do báo trùng đầu kéo. Cần cho phép gán cùng 1 đầu kéo cho cả 2 cont kẹp.» | LAND | FB-012 `f6cbe97c` + `3349fd52` | /dispatch-detail · dieuvan · G cặp kẹp W phát lệnh cont 2 THEN không bị chặn "trùng đầu kéo" trong chính cặp (trùng khung giờ ngoài cặp → confirm "Vẫn lưu?") | R27 B2 write-test P; R30-endgame spot P (dialog confirm + lưu 200) |
+| DIS-04 | «Bổ sung bộ lọc trạng thái xe rõ ràng: 'Chờ phân xe', 'Đang phân xe', 'Đã phân xe' / 'Chưa gán biển' vs 'Đã gán biển', tách bạch các lô đã gán xe khỏi danh sách chờ.» | LAND | REQ-08 | /dispatch(-detail) · dieuvan · mặc định có tab · G mở THEN tab "Chưa gán xe N \| Đã gán xe M" tách bạch | P R27 (screenshot tab "Chưa gán xe 52 \| Đã gán xe 47") |
+| DIS-05 | «Cho phép nhập/sửa 'Giờ trả hàng' ngay lúc gán biển xe. Sửa lỗi khi điều vận sửa giờ điều xe (ví dụ thành 13:00) bấm lưu thì ngoài cột thời gian và lịch trình vẫn giữ giờ cũ.» | LAND | `3349fd52` (TimePanel mouse-flow commit) | /dispatch-detail · dieuvan · G TimePanel gõ 1645 W click ngoài panel THEN 16:45 commit, cột giờ + lịch trình sync | R30 FAIL → endgame P 9aab78d2 |
+| DIS-06 | «Thêm danh mục tác vụ 'Lấy Lẻ' vào danh sách phân loại điều vận. Định nghĩa rõ nghiệp vụ dùng vỏ cont rỗng đi đóng hàng lẻ chuyển kho rồi hạ rỗng/đóng hàng hạ cảng.» | VERIFY 9aab78d2 | `007352d6` (enum + cont-flow) | /dispatch-detail · dieuvan · G chọn Lấy Lẻ THEN nghiệp vụ vỏ rỗng đúng luồng (LCL lot còn bị loại khỏi luồng) | ◐ một phần — luồng Lấy Lẻ còn verify |
+| DIS-07 | «Khi điều vận chọn tác vụ 'Lấy Lẻ', hệ thống lại tự động chuyển thành 'Đảo vỏ'. Đồng thời sửa lỗi báo trùng/gập khung giờ với các tác vụ hợp lệ khác của xe.» | VERIFY 9aab78d2 | CHANGELOG 05/10 (bỏ auto-tag) + FB-038/072 `9d109c0d`/`07b54048` | G chọn Lấy Lẻ W lưu THEN không tự ĐẢO VỔ; không báo trùng giờ sai với tác vụ hợp lệ | auto-tag P (05/10); trùng giờ từng ×3 verify-fail → confirm dialog |
+| DIS-08 | «Trên bảng danh sách kế hoạch điều xe, hiển thị IN ĐẬM số container để tăng khả năng nhận diện; tên Cảng chuyển sang kiểu chữ thường không in đậm.» | IN-FLIGHT `fix-dis08-lan2` — **đã merge `5b77082f` trên main**; deploy staging giữ đến wave close | `a5e0039b` → `3349fd52` → `c641f973` (law dùng chung `.ops-container-line`) | /dispatch + /dispatch-detail · dieuvan · 390/768/1440 · G mở THEN mọi dòng cont font 600, cảng 400 (kể cả cột "Tổng quan hàng hóa" + drawer) | verify-fail ×2 (R30 + QA 18:04 trên 9aab78d2 — wedge cột Hàng); lan 2 local driver 15/15 P; flappy ≥2 vòng — đề xuất thêm spec regpack |
+| DIS-09 | «Đối với nhà xe ngoài, cho phép điều vận phát lệnh trước khi có biển số xe; biển số xe và thông tin tài xế sẽ được bộ phận CUS hoặc điều phối cập nhật bổ sung sau.» | LAND + lane IN-FLIGHT `fix-dri01-dis09-visible` | `a5e0039b` | /dispatch-detail · dieuvan · G xe ngoài chưa BKS W Phát lệnh THEN confirm "Vẫn phát lệnh?" → phát OK, BKS trống, chip chờ biển | audit SHIPPED UI DRIVEN (evidence 9cards, trip 194088 plate NULL) |
+| DIS-10 | «Cung cấp chức năng cho phép điều vận thay đổi, chọn lại nhà xe hoặc biển số xe khác đối với các tác vụ đã phân bổ (đơn, ghép, lấy lẻ) khi có phát sinh thay đổi xe.» | LAND | `a5e0039b` (card B) | /dispatch-detail · dieuvan · mặc định nút GIẤU sau badge "Lẻ · Ghép (1/N)" cột Phân loại · G mở badge modal W "Đổi nhà xe/BKS" THEN sửa BKS thực/báo khách | PASS (doc + audit) |
+| LCL-01 | «Lô hàng lẻ đã tạo hiển thị bình thường ở màn hình Tổng quan nhưng khi bấm vào Chi tiết thì không tìm thấy thông tin lô hàng.» | IN-FLIGHT `fix-lcl01-lan2` | repro qa/2026-10-21-lcl01-dri03 | /shipments/:id · CUS · G lô LCL W mở Chi tiết THEN thấy đủ thông tin như Tổng quan | R30 FAIL → before-FAIL/after-PASS 21/10 |
+| LCL-02 | «Thiết kế lại form thêm kho lấy hàng tương tự như trường bãi cảng (tối giản, nhập nhanh) để người dùng chủ động thao tác mà không bị phức tạp.» | LAND + lane IN-FLIGHT `fix-lcl-form-visible` | `032145a2` (FB-105 P 5040/5040) | /shipments/new · CUS · form mặc định **Nhập khẩu**, phải chọn KH · G radio Xuất khẩu W "+ Thêm kho" THEN dialog "Thêm kho trả hàng" (Nhập → lấy hàng), 3 trường gọn | audit SHIPPED UI DRIVEN; lane visibility (mặc định-hiện) |
+| LCL-03 | «Cắt giảm các trường thời gian phụ không cần thiết trong phần lịch & ghi chú hàng lẻ, chỉ giữ lại trường trọng tâm duy nhất là 'Ngày giao hàng'.» | LAND + lane IN-FLIGHT `fix-lcl-form-visible` | `0f7e1dfa` | /shipments/new · CUS · FCL mặc định còn "Lịch & ghi chú" · G radio Hàng lẻ THEN section biến mất, còn nút "+ Thêm ngày giao hàng" | audit SHIPPED UI DRIVEN; QA từng trượt vì không chuyển radio |
+| LCL-04 | «Trường quy cách đóng gói cần hỗ trợ gợi ý tự động (như trường nhà máy) và có sẵn danh mục các quy cách đóng gói phổ biến cố định.» | LAND + lane IN-FLIGHT `fix-lcl-form-visible` | `0f7e1dfa` | /shipments/new · CUS · LCL · G mở combobox THEN gợi-y (Bao/Kiện/Pallet…) + gõ tự do "Kiện gỗ" được chấp nhận | audit SHIPPED UI DRIVEN |
+| LCL-05 | «Thay đổi nhãn hiển thị tại form thông tin hàng lẻ từ 'Ngày giao dự kiến' thành 'Ngày giao hàng' theo đúng thuật ngữ nghiệp vụ thống nhất.» | LAND + lane IN-FLIGHT `fix-lcl-form-visible` | FB-083 `131026190400` + `0f7e1dfa` | form LCL · G mở THEN nhãn "Ngày giao hàng" (reveal sau nút "+ Thêm ngày giao hàng") | audit SHIPPED UI DRIVEN |
+| LCL-06 | «Chuyển trường Thể tích (CBM) từ bắt buộc (mandatory) thành không bắt buộc (optional), cho phép lưu lô hàng lẻ khi khách chưa cung cấp số khối.» | LAND | FB-084 (131026190410) | form LCL · G CBM trống W lưu THEN lô lưu OK | P R27 |
+| LCL-07 | «Tính cước dựa trên loại tải trọng xe (tấn) và loại cont 20/40. Cho phép gom nhiều lô lẻ đi chung 1 xe: Trả cước nhà xe theo 1 chuyến gom; Thu cước khách hàng theo 1 cước gộp hoặc tách thành nhiều cước» | LAND — theo **ruling 21/10**: thu per-lot độc lập, trả 1 dòng/chuyến, tách money-neutral, lãi = Σ thu − trả | `ea200241` (advisory) + `d375239b` (merge 9aab78d2) | /dispatch-detail → Gán xe nhóm (advisory tải trọng không chặn); /shipments-debit + /accounting/chot-debit · GIVEN 2 lô lẻ cùng KH gom WHEN xem board THEN thu per-lot (2.500.000₫/lô) + trả 1 dòng (Lô 1 1.800.000₫, member 0₫); tách giữ tiền từng lô | endgame **P 6/6** staging 9aab78d2; xung đột kỳ vọng QA (đòi chia tỷ lệ) đóng bằng ruling; luật chi tiết QuyTrinhO2C §7.11 |
+| DRI-01 | «Tại màn hình chi tiết nhận lệnh, số điện thoại kho/nhà máy phải là hyperlink hỗ trợ bấm vào để gọi ngay trên điện thoại (tel: link).» | LAND + lane IN-FLIGHT `fix-dri01-dis09-visible` | `f0986f4c` | /my-trips/:id · DRIVER (quyet) 390px · G lệnh có SĐT W mở THEN "SĐT kho"/"SĐT liên hệ" là `<a tel:>`; "0901.234.567"→tel:0901234567; nút Gọi mở sheet | audit SHIPPED UI DRIVEN (qa/2026-10-21-req14-tel); QA từng trượt do sai role/URL + desktop không tel handler |
+| DRI-02 | «Mở tính năng cho phép điều vận tự cập nhật, bổ sung SĐT nhà máy/kho. Xử lý trường hợp đối tác chỉ có địa chỉ mà không có SĐT để không gây hiểu nhầm lỗi app.» | VERIFY 9aab78d2 | — | master data nhà máy/kho · dieuvan · G thêm SĐT THEN lái xe thấy ngay; đối tác thiếu SĐT hiển thị "—" (không gây hiểu nhầm lỗi) | — |
+| DRI-03 | «Khắc phục lỗi ứng dụng tài xế hiển thị sai lộ trình và trình tự thao tác giao nhận đối với các chuyến container chạy kẹp (2 cont 20ft).» | LAND + lane IN-FLIGHT `fix-dri03-lan2` | `1a7fc73b` | /my-trips/:id · DRIVER 390px · G chuyến kẹp 2×20DC W mở THEN 2 thẻ cont riêng + nút "Sửa số cont N" riêng; sửa cont 2 không đụng cont 1 (PATCH per-cont) | R30 FAIL → P 21/10 (card 211026132357); root-cause: hard-code containers[0] |
+| DRI-04 | «Sửa lỗi trong màn hình nhận lệnh lái xe: bãi hạ không hiển thị ở Cảng hạ mà lại nhảy nhầm sang Địa chỉ giao hàng, còn Cảng hạ báo 'Chưa có nơi trả rỗng'.» | LAND (đạt R24) + lane IN-FLIGHT `fix-cus11-dri04-visible` | FB-020 `da73a743`/`3fd77532` | /my-trips/:id · DRIVER 390px · G cont IMPORT không cảng hạ nhưng có điểm trả W mở THEN "Cảng hạ" = tên điểm trả + "Địa chỉ giao hàng" đầy đủ; không "Chưa có cảng hạ" (EXPORT giữ theo luật) | đạt R24; R27 B3 8P; regpack fb020 |
+| REP-01 | «Xây dựng bảng tổng hợp đo lường hiệu suất toàn đội xe trong 1 ngày, phân tích theo cơ cấu tỷ lệ phần trăm (%): Kẹp ghép, Kết hợp, Lấy lẻ, Chuyển kho.» | VERIFY 9aab78d2 | `1eac0862` | /reports · G mở chế độ ngày THEN % cơ cấu kẹp/kết hợp/lấy lẻ/chuyển kho + Excel export | SHIP; chưa có verdict P đóng |
+| REP-02 | «Xây dựng báo cáo chi tiết theo từng xe nội bộ trong chu kỳ 1 tháng, phân tích tỷ lệ phần trăm (%) cơ cấu chuyến: Kẹp ghép, Kết hợp, Lấy lẻ, Chuyển kho để tính KPI.» | VERIFY 9aab78d2 | `1eac0862` | /reports · G mở chế độ tháng THEN báo cáo từng đầu xe % cơ cấu | R30 VERIFY chưa P |
+| ENV-01 | «Khách hàng phản ánh việc phải nhập liệu 2 lần giữa trang test QA (vantai.tingting.vip) và trang thật (silversea.tingting.vip) gây tốn thời gian. Cần có giải pháp clone dữ liệu hoặc tài khoản demo.» | LAND (pipeline) | feat-env01-stgqa | `make stgqa` (stgdb sync + purge + reset mật khẩu + seed fixture QA) / `make stgqa-seed` idempotent | probe 13/13 PASS local; chạy thật trên staging + UI drive chờ owner |
 
 ### 7.3 REQ-01..23 (bảng trạng thái doc khách 21/10)
 
@@ -226,11 +245,11 @@ Các mã CUS-01/02/03/05/06/09, DIS-04, DIS-10, DRI-02: xem §7.1 mục 1.
 | REQ-01 | FB-002 | ✓ R27/28 PASS (Enter lưu); lan 3 `/shipments/new` phím chết fix `c73c7bbc` (card 211026034109) | regpack fb002 |
 | REQ-02 | DIS-01 | ? CẦN VERIFY | — |
 | REQ-03 | DIS-02 | ◐ a5e0039b đổi luồng; 1-chạm icon chưa commit riêng | useIssueOrder |
-| REQ-04 | FB-012 / DRI-03 | ✓ R27 B2 write-test PASS (cont 2 có cảnh báo xác nhận, không chặn) | 181026145600 → f6cbe97c |
+| REQ-04 | DIS-03 / FB-012 | ✓ R27 B2 write-test PASS (cont 2 có cảnh báo xác nhận, không chặn) + endgame spot P | 181026145600 → f6cbe97c → 3349fd52 |
 | REQ-05 | FB-114 | ? CẦN VERIFY (autocomplete hãng tàu riêng) | nút "+ hãng tàu" persist `08325ed6` |
 | REQ-06 | — | ✓ chọn-all số cont + Ngày mặc định (khai chi phí + tạo lô) | QA verify màn CUS |
 | REQ-07 | — | ✅ SHIPPED + STG VERIFIED 21/10 (T-01/T-02 UI 390px staging 454fab6b; T-03 penalty unit-only — staging 0 penalties, cần owner fixture) | qa/2026-10-21-req07-tripcode-stgverify @ d9531452 |
-| REQ-08 | — | ✓ tab "Chưa gán xe 52 \| Đã gán xe 47" (screenshot R27) | — |
+| REQ-08 | DIS-04 | ✓ tab "Chưa gán xe 52 \| Đã gán xe 47" (screenshot R27) | — |
 | REQ-09 | CUS-04 | ? CẦN VERIFY (focus event) | — |
 | REQ-10 | CUS-07 | ? CẦN VERIFY | — |
 | REQ-11 | REP-01/02 | ✓ 1eac0862 — verify đủ 2 chế độ còn mở | — |
@@ -284,7 +303,7 @@ Legend: 🔒 = regression-pack locked (`testplan/2026-10-21-regpack-regression-p
 |---|---|---|---|---|---|
 | FB-012 | 181026145600 | Cont 2 cặp kẹp không báo nhầm "trùng đầu kéo" | f6cbe97c | P R27 B2 | Regression sau guard overlap |
 | FB-014 | 201026112500 + R26 | Click lô mở dispatch detail (date thắng month bounds) | 37838c06 | P R26 staging d39ee741 3/3 | — |
-| FB-038/072 | xem DIS-03 | Cảnh báo trùng lịch khi gán xe | 9d109c0d + 3349fd52 | P endgame | ×3 |
+| FB-038/072 | 101026043000 + 121026185530 + 171026121100 (xem DIS-07 phần trùng lịch) | Cảnh báo trùng lịch khi gán xe (confirm "Vẫn lưu?") | 9d109c0d + 3349fd52 | P endgame | ×3 verify-fail |
 | FB-043 | 141026001010 + 201026164000 | Hàng bảng đều chiều cao | 0245b9f5 | P sau regression #33 | Dòng lịch trình kéo cao hàng |
 | FB-045 🔒 | 201026140000 | Dialog giờ không clip cột GIỜ HẸN | bb394516 + 31bcbb2a (lan 2) | P lan 2 (4 viewport × 2 drawer) | Lan 1 floored header chưa đủ: select min-width tràn + cột % bóp |
 | FB-066 🔒 | 101026043010 + 121026141040 + 141026012020 + 191026102040 + 201026101600 | Quick-add biển số xe (editor + dialog Phân bổ nhà xe LCL) | 22c9c80b + 22b8b65a (lan 3) | P lan 3 + flake test đóng d19c82b5 | ×3 verify-fail nút thiếu; flake Escape đua focus async react-aria |
@@ -360,17 +379,19 @@ Legend: 🔒 = regression-pack locked (`testplan/2026-10-21-regpack-regression-p
 | R30-endgame | 9aab78d2 | PASS 6/6 staging: LCL-07 a-d + dis-03 + dis-05 |
 | QA 18:04 21/10 | 9aab78d2 | DIS-08 verify-fail lần 2 (wedge cột Hàng) → lan 2 `5b77082f` P local, deploy giữ đến wave close |
 
-Ghi chú: lúc chốt ma trận còn **6 lane lan-2 in-flight** (cus-11/dri-04 visible, dri-01/dis-09
-visible, lcl01-lan2, lcl-form-visible, dri03-lan2) — verdict các bề mặt đó có thể đổi khi wave
-đóng; deploy staging được giữ đến lúc đó.
+Ghi chú: lúc chốt ma trận còn lane in-flight theo nguồn 21/10: `fix-cus11-dri04-visible`
+(CUS-11+DRI-04), `fix-dri01-dis09-visible` (DRI-01+DIS-09), `fix-dis08-lan2` (DIS-08 — đã
+merge `5b77082f`, deploy staging giữ đến wave close), `fix-lcl01-lan2` (LCL-01),
+`fix-lcl-form-visible` (LCL-02/03/04/05), `fix-dri03-lan2` (DRI-03 lan 2) — verdict các bề
+mặt đó có thể đổi khi wave đóng.
 
 ### 7.6 Chưa có test khóa
 
-CUS-04, CUS-07, DIS-01 (REQ-02), REQ-05, DIS-06 luồng Lấy Lẻ, DIS-07, REP-01/02 chế độ
-tháng, FB-005, FB-009, FB-051, FB-055, FB-057, FB-069 (đóng bằng luật hiển thị CUS-08,
-formatWeight), FB-074, FB-106..FB-110, FB-112 (đóng theo TICKET-09), FB-115, nhóm phiếu
-16/10 CUS (161026232xx), 171026000406/0407, 171026154000, 161026100400, 191026181942 họ
-đã DEV XONG nhưng spec khóa = unit suite theo lane, nhóm chấm công (1410262307xx),
-bảng giá (161026095800/121500), 181026180300, 181026183500, QA1-003/004, QA2-003/006/007/010,
-FB-103, PWA trên iPhone thật, ENV-01 staging-run. Các bề mặt 🔒 đã có spec regression-pack
-(`frontend/e2e/regression/`, chạy `pnpm reg:local`).
+CUS-01, CUS-02, CUS-04, CUS-05, CUS-06, DIS-06 luồng Lấy Lẻ, DIS-07, DRI-02, REP-01/02
+(cả nhóm "verify 9aab78d2"), FB-005, FB-009, FB-051, FB-055, FB-057, FB-069 (đóng bằng luật
+hiển thị CUS-08, formatWeight), FB-074, FB-106..FB-110, FB-112 (đóng theo TICKET-09),
+FB-115, nhóm phiếu 16/10 CUS (161026232xx), 171026000406/0407, 171026154000, 161026100400,
+191026181942 họ đã DEV XONG nhưng spec khóa = unit suite theo lane, nhóm chấm công
+(1410262307xx), bảng giá (161026095800/121500), 181026180300, 181026183500, QA1-003/004,
+QA2-003/006/007/010, FB-103, PWA trên iPhone thật, ENV-01 staging-run. Các bề mặt 🔒 đã có
+spec regression-pack (`frontend/e2e/regression/`, chạy `pnpm reg:local`).
