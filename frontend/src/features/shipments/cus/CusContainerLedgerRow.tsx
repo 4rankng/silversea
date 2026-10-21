@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { Copy, Trash2 } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -43,9 +43,10 @@ export function ContainerLineRow({
   idPrefix: string;
   editing: boolean;
   /** Card 20260923_1: lot-level remove — the drawer manages container
-   *  composition; absent when no refetch path is wired. Card 20260923_9: the
-   *  action lives in the row's own Thao tác cell (hover-reveal on fine
-   *  pointers, always visible on touch). */
+   *  composition; absent when no refetch path is wired or the viewer lacks
+   *  the remove permission (CUS-10). CUS-10 (ruling 21/10): the action is a
+   *  labeled danger button that opens the confirm dialog — the bare icon it
+   *  replaces deleted immediately on a mis-click with no undo. */
   onRemove?: () => void;
   removing?: boolean;
   /** Staff close for external-carrier trips (external drivers don't use the
@@ -281,13 +282,13 @@ export function ContainerLineRow({
         {onRemove && (
           <button
             type="button"
-            className="cus-container-row__remove"
+            className="btn btn--danger-outline btn--sm cus-container-row__remove"
             onClick={onRemove}
             disabled={removing || activeTrip}
             title={activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
             aria-label={`Xóa container ${line.containerNumber || line.ordinal}`}
           >
-            <Trash2 size={13} aria-hidden="true" />
+            Xóa container
           </button>
         )}
       </td>

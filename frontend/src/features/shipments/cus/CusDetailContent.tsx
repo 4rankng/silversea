@@ -21,6 +21,8 @@ export function ShipmentDetailContent({
   onExternalTripCompleted,
   onDetailStale,
   onAppointmentSavedAndExit,
+  canRemoveContainer,
+  onContainerRemoved,
 }: {
   detail?: ShipmentCusWorkspaceDetail;
   loading: boolean;
@@ -43,6 +45,11 @@ export function ShipmentDetailContent({
    *  host closes the detail surface so Enter returns the user to the list,
    *  matching the drawer footer's save-then-close behavior. */
   onAppointmentSavedAndExit?: () => void;
+  /** CUS-10 (ruling 21/10): gates the drawer's row Xóa container on the
+   *  remove API's writer roles. */
+  canRemoveContainer?: boolean;
+  /** CUS-10: the host closes the drawer after a confirmed remove settles. */
+  onContainerRemoved?: () => void;
 }) {
   return (
     <div className="cus-detail-content">
@@ -64,6 +71,8 @@ export function ShipmentDetailContent({
           onAppointmentSavedAndExit={onAppointmentSavedAndExit}
           onExternalTripCompleted={onExternalTripCompleted}
           onDetailStale={onDetailStale}
+          canRemoveContainer={canRemoveContainer}
+          onContainerRemoved={onContainerRemoved}
         />
       ) : null}
     </div>

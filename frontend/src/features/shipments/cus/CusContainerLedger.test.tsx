@@ -636,6 +636,9 @@ describe('silent-409 surfacing on last-container delete (20260923_5)', () => {
       </ToastProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    // CUS-10: the row button only opens the danger confirm — the API fires
+    // after the dialog's own Xóa container.
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
     await screen.findByText('Lô hàng phải có ít nhất một container.');
   });
 
@@ -647,6 +650,7 @@ describe('silent-409 surfacing on last-container delete (20260923_5)', () => {
       </ToastProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
     await screen.findByText(/Đã xóa container/);
     expect(screen.queryByText('Lô hàng phải có ít nhất một container.')).toBeNull();
   });
@@ -724,6 +728,7 @@ describe('071026100800 — xóa container làm tươi hàng tổng quan', () => 
       </ToastProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
     await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
     // null = structural change (no line payload) → applySavedContainerLine
     // refreshes the list, exactly like the add path does with a line.
@@ -749,6 +754,7 @@ describe('071026100800 — xóa container làm tươi hàng tổng quan', () => 
       </ToastProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
     await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
     expect(onLineSaved).not.toHaveBeenCalled();
     expect(onExternalTripCompleted).not.toHaveBeenCalled();
@@ -788,6 +794,89 @@ describe('071026100800 — xóa container làm tươi hàng tổng quan', () => 
       </ToastProvider>,
     );
     expect(screen.queryByRole('button', { name: 'Thêm container' })).toBeNull();
+  });
+});
+
+// CUS-10 (ruling Frank 21/10): the drawer "Chi tiết container" owns the
+// Xóa container action behind a danger confirm naming the number. TICKET-09
+// stays intact: the Chi tiết-lô table keeps its own absence pins
+// (ShipmentContainerLedger.test.tsx / ShipmentContainersPage.test.tsx).
+describe('CUS-10 — drawer Xóa container confirm flow', () => {
+  const renderCus10 = (props: Record<string, unknown> = {}) => render(
+    <ToastProvider>
+      <ContainerLedger
+        detail={detail}
+        onLineSaved={vi.fn()}
+        getIdempotencyKey={() => 'k'}
+        clearIdempotencyKey={() => {}}
+        idPrefix="cus10"
+        {...props}
+      />
+    </ToastProvider>,
+  );
+
+  beforeEach(() => {
+    removeCusShipmentContainerRow.mockClear();
+  });
+
+  it('renders the labeled danger button by default and hides it without the remove permission', () => {
+    const { unmount } = renderCus10();
+    expect(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }).className)
+      .toContain('btn--danger-outline');
+    unmount();
+
+    renderCus10({ canRemoveContainer: false });
+    expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
+  });
+
+  it('deletes only through the confirm dialog — Hủy never calls the API', async () => {
+    removeCusShipmentContainerRow.mockResolvedValueOnce({ removedId: 10, shipmentVersion: 5 });
+    const onLineSaved = vi.fn();
+    const onContainerRemoved = vi.fn();
+    renderCus10({ onLineSaved, onContainerRemoved });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    // The dialog names the number and the API has NOT fired yet.
+    expect(await screen.findByText('Xóa container MSKU1234567?')).toBeTruthy();
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByText('Xóa container MSKU1234567?')).toBeNull());
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+
+    // Reopen and confirm — the existing remove API runs once and the host
+    // gets the structural-change null line plus the close-the-drawer signal.
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
+    await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
+    expect(removeCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      10,
+      { expectedShipmentVersion: 4 },
+      'k',
+    );
+    await waitFor(() => expect(onLineSaved).toHaveBeenCalledWith(null));
+    expect(onContainerRemoved).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the dialog open on a guard 409 and surfaces the API reason — no refresh, no close signal', async () => {
+    removeCusShipmentContainerRow.mockRejectedValueOnce(
+      new ApiError(409, { error: 'Container đã gắn chuyến xe (TRIP-9). Hủy hoặc thay thế lệnh điều xe trước khi xóa dòng.' }, 'Container đã gắn chuyến xe (TRIP-9). Hủy hoặc thay thế lệnh điều xe trước khi xóa dòng.'),
+    );
+    const onLineSaved = vi.fn();
+    const onContainerRemoved = vi.fn();
+    renderCus10({ onLineSaved, onContainerRemoved });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
+
+    // The API's guard reason is the visible error — never a silent failure.
+    expect(await screen.findByText(/Container đã gắn chuyến xe \(TRIP-9\)/)).toBeTruthy();
+    expect(onLineSaved).not.toHaveBeenCalled();
+    expect(onContainerRemoved).not.toHaveBeenCalled();
+    // The dialog stays open so the operator can retry or walk away with Hủy.
+    expect(screen.getByText('Xóa container MSKU1234567?')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xóa container' })).toBeTruthy();
   });
 });
 

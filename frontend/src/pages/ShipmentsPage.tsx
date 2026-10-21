@@ -114,6 +114,10 @@ export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER; // ADMIN/MANAGER/CUS/DISPATCHER — mirrors the shipmentCreatorOnly route guard (testplan/roles/01-cus.md)
+  // CUS-10 (ruling 21/10): the drawer's Xóa container rides the remove API's
+  // own requireWorkspaceWriter gate — same four writer roles, so the button
+  // never renders for a viewer the endpoint would 403.
+  const canRemoveContainers = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CUS || user?.role === Role.DISPATCHER;
   // Card 071026204710, then re-ruled by the lead on the same card: the lot
   // delete is now CUS **or** ADMIN (routes/shipments/cus-workspace.routes.ts:344
   // and services/shipment-governance.service.ts:36 both widened together). This
@@ -726,7 +730,7 @@ export default function ShipmentsPage() {
                 </div>
               </section>
 
-              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} actionsRef={containerLedgerRef} onExternalTripCompleted={() => void loadDetail(drawerItem.id, true)} onDetailStale={() => void loadDetail(drawerItem.id, true)} onAppointmentSavedAndExit={requestCloseMobileDetail} />
+              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} actionsRef={containerLedgerRef} onExternalTripCompleted={() => void loadDetail(drawerItem.id, true)} onDetailStale={() => void loadDetail(drawerItem.id, true)} onAppointmentSavedAndExit={requestCloseMobileDetail} canRemoveContainer={canRemoveContainers} onContainerRemoved={requestCloseMobileDetail} />
             </>
           )}
         </div>

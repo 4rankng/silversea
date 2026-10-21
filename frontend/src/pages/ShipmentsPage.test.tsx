@@ -1602,13 +1602,20 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
     fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' }));
+    // CUS-10 (ruling 21/10): the drawer delete rides the danger confirm —
+    // the row button only opens "Xóa container <số>?".
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
       '/shipments/cus-workspace/1/containers/13/remove',
       { expectedShipmentVersion: 3 },
       { headers: { 'Idempotency-Key': expect.any(String) } },
     ));
-    await waitFor(() => expect(within(drawer).queryByText('MSKU7654321')).toBeNull());
+    // CUS-10: after the confirmed remove the drawer closes and the user lands
+    // on the refreshed overview list (the row refresh rides onLineSaved(null)).
+    // 4000 > the drawer's ~240ms anime.js exit — the unmount lags isOpen by
+    // the animation; 1s default flaked here before the animation settled.
+    await waitFor(() => expect(document.querySelector('.cus-shipment-drawer')).toBeNull(), { timeout: 4000 });
   });
 
   it('surfaces the 409 guard on a trip-attached container removal (card 20260923_1)', async () => {
@@ -1625,6 +1632,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
     fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
     // The guard surfaces as a toast, never a raw alert.
