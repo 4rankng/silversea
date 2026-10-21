@@ -1,0 +1,22 @@
+▶ FB-033 auto-offset release eligibility
+  ✔ releases only a RECORDED auto-offset settlement (0.292375ms)
+  ✔ never releases a manual phiếu hoàn ứng (auto_offset_expense_id NULL) (0.050708ms)
+  ✔ reverses totalExpenseAmount + refundAmount — the governed-reversal total (0.067ms)
+  ✔ keeps the reversal amount on the round2dp money contract (0.04375ms)
+✔ FB-033 auto-offset release eligibility (0.857417ms)
+▶ hoàn ứng số âm (QA R30 follow-up) — signed refundAmount contract
+  ✔ create schema accepts a negative refundAmount (phiếu cân đối khi chi vượt tạm ứng) (0.6195ms)
+  ✔ create schema accepts the negative refund sent as a numeric string (1.18525ms)
+  ✔ update schema keeps the same signed rule (kế toán điều chỉnh số hoàn lại) (2.242541ms)
+  ✔ still rejects non-numeric refund payloads (0.785333ms)
+  ✔ reversal total for a signed phiếu converges back to the advance principal (150k chi + −50k hoàn = 100k cấp) (0.146959ms)
+✔ hoàn ứng số âm (QA R30 follow-up) — signed refundAmount contract (5.54775ms)
+ℹ tests 9
+ℹ suites 2
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1168.824375
+TESTS_EXIT=0
