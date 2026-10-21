@@ -18,12 +18,13 @@ import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { DispatchAllocationPopover } from './DispatchAllocationPopover';
 
 // Full-suite red reported 21/10 on main d263149b ("lô CHƯA có nhà xe" asked no
-// "Nhà xe"), while the file was green standalone and in two later full runs —
-// the only unbounded variable left is the 1s RTL async budget under
-// full-suite CPU contention: the quick-add dialog's "Nhà xe" picker only
-// exists once the mocked bootstrap promise resolves and React flushes, and
-// the ComboBox portals ride the same budget. Same assertions, wider wait —
-// the pinned contract (card 201026101600) is untouched.
+// "Nhà xe"): every async hop here — the mocked bootstrap promise, React
+// flushes, the react-aria portals — rides this budget under full-suite CPU
+// contention. Card 211026144400 later proved the RESIDUAL flake was not this
+// budget (a standing popover survived all 4s of retries): the Escape landed
+// on the trigger button because jsdom focus into the listbox races the test —
+// see the Escape site in the "lô CHƯA có nhà xe" test. Same assertions,
+// wider wait — the pinned contract (card 201026101600) is untouched.
 configure({ asyncUtilTimeout: 4_000 });
 
 vi.mock('../../../api/tripClient', () => ({
@@ -98,7 +99,7 @@ describe('DispatchAllocationLclDialog — quick-add BKS trong dialog Phân bổ 
     expect(screen.getByRole('button', { name: /Thêm nhanh/ })).toBeTruthy();
   });
 
-  it('bấm nút → dialog "Thêm nhanh biển số xe" mở chồng, tạo BKS Xe ngoài và chọn ngay vào ô, KHÔNG đóng dialog phân bổ', async () => {
+  it('bấm nút → dialog "Thêm nhanh biển số xe" mở chồng, tạo BKS Xe ngoài và chọn ngay vào ô, KHÔNG đóng dialog phân bổ', { timeout: 20_000 }, async () => {
     render(<DispatchAllocationPopover shipment={lclShipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Thêm nhanh/ }));
@@ -122,7 +123,7 @@ describe('DispatchAllocationLclDialog — quick-add BKS trong dialog Phân bổ 
     expect(screen.getByText('Phân bổ nhà xe')).toBeTruthy();
   });
 
-  it('gõ BKS lạ → option "Thêm mới: <số>" trong dropdown; chọn nó mở dialog quick-add ĐẦY SỐ ĐÃ GÕ và chọn kết quả vào ô', async () => {
+  it('gõ BKS lạ → option "Thêm mới: <số>" trong dropdown; chọn nó mở dialog quick-add ĐẦY SỐ ĐÃ GÕ và chọn kết quả vào ô', { timeout: 20_000 }, async () => {
     render(<DispatchAllocationPopover shipment={lclShipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     fireEvent.click(bksField(/BKS thực/));
@@ -143,7 +144,7 @@ describe('DispatchAllocationLclDialog — quick-add BKS trong dialog Phân bổ 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Thêm nhanh biển số xe' })).toBeNull());
   });
 
-  it('lô CHƯA có nhà xe: dialog hỏi "Nhà xe" (hãng/nhà xe nếu cần) — mặc định đội xe nội bộ, đổi sang nhà xe ngoài được', async () => {
+  it('lô CHƯA có nhà xe: dialog hỏi "Nhà xe" (hãng/nhà xe nếu cần) — mặc định đội xe nội bộ, đổi sang nhà xe ngoài được', { timeout: 20_000 }, async () => {
     render(<DispatchAllocationPopover
       shipment={lclShipment({ carrierAllocationSummary: [], actualTruckNo: null })}
       onClose={vi.fn()}
@@ -151,11 +152,20 @@ describe('DispatchAllocationLclDialog — quick-add BKS trong dialog Phân bổ 
     />);
 
     fireEvent.click(screen.getByRole('button', { name: /Thêm nhanh/ }));
-    // The picker offers the house carrier set — own fleet + every nhà xe ngoài.
     fireEvent.click(await screen.findByLabelText('Nhà xe'));
-    expect(await screen.findByRole('option', { name: 'Đội xe nội bộ SilverSea' })).toBeTruthy();
+    // The picker offers the house carrier set — own fleet + every nhà xe ngoài.
+    const ownFleetOption = await screen.findByRole('option', { name: 'Đội xe nội bộ SilverSea' });
     expect(screen.getByRole('option', { name: 'HÀ AN' })).toBeTruthy();
-    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' });
+    // Card 211026144400 — Escape must originate INSIDE the popover. The
+    // react-aria Escape handler sits on the portalled popover itself
+    // (useOverlay keyboardProps); DOM focus into the listbox is async in
+    // jsdom, so keying off `document.activeElement` here sometimes still hit
+    // the trigger button — whose keymap has no Escape — and the popover never
+    // closed (probe: trigger target → popover stands past the whole 4s
+    // budget; option target → closes synchronously). Firing at the awaited
+    // option takes the same bubble path (option → listbox → popover) as a
+    // real keyboard Escape with the menu open.
+    fireEvent.keyDown(ownFleetOption, { key: 'Escape' });
     // The popover's close (and its aria-hide-outside removal) settles
     // asynchronously — while it stands, react-aria hides the rest of the
     // surface, so wait it out before touching the dialog again.
@@ -182,7 +192,7 @@ describe('DispatchAllocationLclDialog — quick-add BKS trong dialog Phân bổ 
     }));
   });
 
-  it('draft của dialog phân bổ sống sót trọn vẹn qua vòng quick-add (BKS báo khách đã sửa tay không bị nuốt)', async () => {
+  it('draft của dialog phân bổ sống sót trọn vẹn qua vòng quick-add (BKS báo khách đã sửa tay không bị nuốt)', { timeout: 20_000 }, async () => {
     render(<DispatchAllocationPopover shipment={lclShipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     fireEvent.change(bksField(/BKS báo khách/), { target: { value: '30C-888.88' } });
