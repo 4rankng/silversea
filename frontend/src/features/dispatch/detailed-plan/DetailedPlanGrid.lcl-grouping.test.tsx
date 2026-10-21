@@ -106,7 +106,7 @@ describe('FB-092 — LCL CONTAINER cell', () => {
     const containerCell = cell('Container');
     expect(within(containerCell).getByText('Lẻ · Xe 5T')).toBeTruthy();
     expect(within(containerCell).getByText('5 PALLET')).toBeTruthy();
-    expect(within(containerCell).getByText('1.922 kg · 4 CBM')).toBeTruthy();
+    expect(within(containerCell).getByText('1,922 tấn · 4 CBM')).toBeTruthy();
     // The group tag names the lot's place in its group.
     expect(within(cell('Phân loại')).getByText('Lẻ · Ghép (1/3)')).toBeTruthy();
   });
@@ -201,9 +201,9 @@ describe('FB-092 — line helpers', () => {
     expect(lclCargoLine(baseRow({ lcl: { packageCount: null, packageType: 'KIỆN', cargoVolumeCbm: null, group: null } }))).toBe('KIỆN');
     expect(lclCargoLine(baseRow({ lcl: null }))).toBeNull();
     // CBM optional: the weight renders alone.
-    expect(lclMeasureLine(baseRow({ lcl: { packageCount: null, packageType: null, cargoVolumeCbm: null, group: null } }))).toBe('1.922 kg');
+    expect(lclMeasureLine(baseRow({ lcl: { packageCount: null, packageType: null, cargoVolumeCbm: null, group: null } }))).toBe('1,922 tấn');
     // Pre-FB-092 wire shape falls back to the shared weight column.
-    expect(lclMeasureLine(baseRow({ lcl: null }))).toBe('1.922 kg');
+    expect(lclMeasureLine(baseRow({ lcl: null }))).toBe('1,922 tấn');
   });
 });
 

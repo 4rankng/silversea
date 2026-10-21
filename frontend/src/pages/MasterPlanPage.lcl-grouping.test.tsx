@@ -169,7 +169,7 @@ describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
       (_, element) => element?.classList.contains('lcl-selection-bar__totals') ?? false,
     );
     expect(totals.textContent).toContain('Đang chọn 2 lô: Tổng');
-    expect(totals.textContent).toContain('kg');
+    expect(totals.textContent).toContain('tấn');
     expect(totals.textContent).toContain('CBM');
     expect(screen.getByText(/Lô 1 giữ 100% tiền trả nhà xe/)).toBeTruthy();
 

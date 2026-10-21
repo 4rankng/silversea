@@ -33,7 +33,7 @@ import {
   worksheetQuantity,
   type ShipmentQuickEditDraft,
 } from './cusUtils';
-import { formatDateTimeShort } from '../../../lib/format';
+import { formatDateTimeShort, formatWeight } from '../../../lib/format';
 import { NameCell } from '../../../components/shared/NameCell';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 
@@ -220,12 +220,12 @@ export function CusShipmentRow({
                 {/* Card 191026181942: suppress non-applicable — an LCL lot
                     without a volume prints no CBM segment at all; the "— CBM"
                     placeholder sat beside real weight as if the volume were
-                    measured and zero. */}
+                    measured and zero. Weight reads tấn (CUS-08). */}
                 {item.cargoMode === 'LCL'
                   ? (item.volumeCbm
-                    ? `${formatQuantity(item.weightKg)} kg · ${formatQuantity(item.volumeCbm)} CBM`
-                    : `${formatQuantity(item.weightKg)} kg`)
-                  : `${formatQuantity(item.weightKg)} kg`}
+                    ? `${formatWeight(item.weightKg)} · ${formatQuantity(item.volumeCbm)} CBM`
+                    : formatWeight(item.weightKg))
+                  : formatWeight(item.weightKg)}
               </span>
             </span>
           )}

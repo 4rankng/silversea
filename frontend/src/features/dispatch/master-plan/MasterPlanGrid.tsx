@@ -322,8 +322,8 @@ export type CargoCellLine = { text: string; muted: boolean; empty: boolean };
  *
  * LCL (FB-091) — a containerless lot has no container demand to print, so the
  * cell states the lot's own CUS cargo fields instead of "Chưa có cont":
- * `[số lượng] [loại bao bì]` over `[kg] · [CBM]`, e.g.
- * `5 PALLET` / `1.922 kg · 4 CBM`. CBM is optional for LCL (helpdesk
+ * `[số lượng] [loại bao bì]` over `[tấn] · [CBM]`, e.g.
+ * `5 PALLET` / `1,922 tấn · 4 CBM`. CBM is optional for LCL (helpdesk
  * 2026-10-13), so each measure joins the line only when the lot has one;
  * a lot that entered neither keeps "—" rather than a bare unit.
  *

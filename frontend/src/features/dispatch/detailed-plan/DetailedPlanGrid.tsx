@@ -49,7 +49,7 @@ export function lclCargoLine(row: DispatchDetailPlanRow): string | null {
   ].filter(Boolean).join(' ') || null;
 }
 
-/** FB-092 — the LCL CONTAINER cell's measure line: `{kg} · {CBM}`, each half
+/** FB-092 — the LCL CONTAINER cell's measure line: `{tấn} · {CBM}`, each half
  *  joining only when the lot has one (CBM is optional for LCL). Falls back to
  *  the weight-only line on pre-FB-092 wire shapes. */
 export function lclMeasureLine(row: DispatchDetailPlanRow): string | null {

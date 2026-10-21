@@ -184,7 +184,7 @@ describe('ContainerLedger confirm affordances', () => {
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
       'Container', 'Loại cont', 'Tuyến', 'Điều vận', 'Nhà xe', 'Biển số',
-      'Nâng', 'Hạ', 'Trọng lượng (kg)', 'Giờ hẹn đóng/trả', 'Thao tác',
+      'Nâng', 'Hạ', 'Trọng lượng', 'Giờ hẹn đóng/trả', 'Thao tác',
     ]);
 
     const addRow = table.querySelector<HTMLTableRowElement>('tfoot tr');
@@ -227,7 +227,7 @@ describe('ContainerLedger confirm affordances', () => {
     const dataRow = table.querySelector<HTMLTableRowElement>('tbody tr')!;
     expect(dataRow.children).toHaveLength(headers.length);
     const cellByLabel = (label: string) => dataRow.querySelector(`[data-label="${label}"]`) as HTMLTableCellElement;
-    expect(cellByLabel('Trọng lượng (kg)').cellIndex).toBe(8);
+    expect(cellByLabel('Trọng lượng').cellIndex).toBe(8);
     expect(cellByLabel('Giờ hẹn đóng/trả').cellIndex).toBe(9);
     expect(cellByLabel('Thao tác').cellIndex).toBe(10);
     expect(cellByLabel('Thao tác').querySelector('.cus-container-row__remove')).toBeTruthy();
@@ -239,8 +239,8 @@ describe('ContainerLedger confirm affordances', () => {
         <ContainerLedger detail={detail} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="weight" />
       </ToastProvider>,
     );
-    const weightCell = document.querySelector('tbody [data-label="Trọng lượng (kg)"]') as HTMLElement;
-    expect(weightCell.textContent).toBe('12.500');
+    const weightCell = document.querySelector('tbody [data-label="Trọng lượng"]') as HTMLElement;
+    expect(weightCell.textContent).toBe('12,5 tấn');
     unmount();
 
     const lineWithoutWeight = {
@@ -252,7 +252,7 @@ describe('ContainerLedger confirm affordances', () => {
         <ContainerLedger detail={lineWithoutWeight} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="weight-empty" />
       </ToastProvider>,
     );
-    expect((document.querySelector('tbody [data-label="Trọng lượng (kg)"]') as HTMLElement).textContent).toBe('—');
+    expect((document.querySelector('tbody [data-label="Trọng lượng"]') as HTMLElement).textContent).toBe('—');
   });
 
   it('saves appointment date and time and plate on save — sends modified fields', async () => {
@@ -1169,19 +1169,22 @@ describe('drawer weight column drops the decimal tail (A.7, card 191026100000)',
         <ContainerLedger detail={halfTonneLot} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="a7-weight" />
       </ToastProvider>,
     );
-    const weightCell = document.querySelector('tbody [data-label="Trọng lượng (kg)"]') as HTMLElement;
-    expect(weightCell.textContent).toBe('500');
+    const weightCell = document.querySelector('tbody [data-label="Trọng lượng"]') as HTMLElement;
+    // CUS-08: the read cell renders tấn through formatWeight — "500.00" kg
+    // drops its dead tail; a real tấn digit (505 kg) survives the 3-fraction
+    // cap (kg precision), so no honest digit is hidden.
+    expect(weightCell.textContent).toBe('0,5 tấn');
 
     const realDecimal = {
       ...detail,
-      containers: [{ ...detail.containers[0], raw: { ...detail.containers[0].raw, cargoWeightKg: '500.50' } }],
+      containers: [{ ...detail.containers[0], raw: { ...detail.containers[0].raw, cargoWeightKg: '505.00' } }],
     } as unknown as ShipmentCusWorkspaceDetail;
     render(
       <ToastProvider>
         <ContainerLedger detail={realDecimal} onLineSaved={async () => {}} getIdempotencyKey={() => 'k'} clearIdempotencyKey={() => {}} idPrefix="a7-weight-decimal" />
       </ToastProvider>,
     );
-    expect((document.querySelectorAll('tbody [data-label="Trọng lượng (kg)"]')[1] as HTMLElement).textContent).toBe('500,5');
+    expect((document.querySelectorAll('tbody [data-label="Trọng lượng"]')[1] as HTMLElement).textContent).toBe('0,505 tấn');
   });
 });
 

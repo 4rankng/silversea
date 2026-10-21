@@ -79,14 +79,14 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
     render(<MasterPlanGrid items={[lclItem()]} onAllocate={vi.fn()} />);
     const cargo = cell('Tổng quan hàng hóa');
     expect(within(cargo).getByText('5 PALLET')).toBeTruthy();
-    expect(within(cargo).getByText('1.922 kg · 4 CBM')).toBeTruthy();
+    expect(within(cargo).getByText('1,922 tấn · 4 CBM')).toBeTruthy();
     expect(screen.queryByText('Chưa có cont')).toBeNull();
   });
 
   it('drops the CBM measure — not the line — when the optional volume is blank', () => {
     render(<MasterPlanGrid items={[lclItem({ cargoVolumeCbm: null })]} onAllocate={vi.fn()} />);
     const cargo = cell('Tổng quan hàng hóa');
-    expect(within(cargo).getByText('1.922 kg')).toBeTruthy();
+    expect(within(cargo).getByText('1,922 tấn')).toBeTruthy();
     expect(cargo.textContent).not.toContain('CBM');
   });
 
@@ -134,7 +134,7 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
     expect(mapMasterPlanExportRow(lclItem())).toEqual(expect.arrayContaining([
       'Kho Lấy Hàng Đồng Nai',
       'Kho Trả Hàng Q.7',
-      '5 PALLET\n1.922 kg · 4 CBM',
+      '5 PALLET\n1,922 tấn · 4 CBM',
     ]));
   });
 });

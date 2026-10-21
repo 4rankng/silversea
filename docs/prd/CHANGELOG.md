@@ -4,6 +4,20 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-21 — Trọng lượng hiển thị theo TẤN, không còn số-nhóm-kg (CUS-08)
+
+Phản hồi QA 21/10 (ticket nhóm 211026125242 / 211026125715 / 211026125815):
+khách đọc trọng lượng container theo **tấn** và chấm các giá trị kiểu
+"5.000" / "18.500" là số 0 thập phân vô nghĩa —
+chúng thực chất là kg hiển thị với dấu chấm nhóm nghìn của vi-VN. Quyết định
+2026-10-05 ("Trọng lượng container hiển thị bỏ số 0 thập phân dư") chỉ bỏ phần
+thập phân lưu trữ nên chưa đủ. Toàn bộ vị trí HIỂN THỊ trọng lượng (tổng quan
+CUS, bảng cont trong drawer, chi tiết lô, điều phối, xuất XLSX) đọc tấn qua
+`formatWeight` (kg ÷ 1000, dấu phẩy thập phân, tối đa 3 số lẻ, bỏ số 0 dư):
+lưu `18500.00` kg → "18,5 tấn", `5000` kg → "5 tấn". Ô NHẬP trọng lượng vẫn
+đơn vị kg (chỉ hiển thị thay đổi, không đổi dữ liệu/API); thẻ lái xe giữ kg
+theo card 20261004_356.
+
 ## 2026-10-05 — Tên hiển thị nguồn quỹ theo đặc tả khách hàng 5.10: Quỹ TM → Quỹ tiền mặt
 
 Theo đặc tả giao diện 5.10 của khách hàng nhận ngày 05/10/2026, hai nguồn quỹ được

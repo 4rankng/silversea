@@ -146,8 +146,9 @@ describe('ShipmentDetailPage', () => {
   // Card 101026163030 (FB-069) + the format half of card 101026163040
   // (FB-074): the detail header echoed the raw numeric columns, so an LCL
   // lot's "500.00" / "2.000" leaked their storage decimals while the
-  // overview showed "500 kg" / "2 CBM". Weight rides the house measure axis
-  // (formatWeight) and volume the same formatQuantity the overview rows use.
+  // overview showed "0,5 tấn" / "2 CBM". Weight rides the house measure axis
+  // (formatWeight, tấn since CUS-08) and volume the same formatQuantity the
+  // overview rows use.
   it('formats weight and volume through the house measure axis, not the raw column', async () => {
     getShipmentDetailMock.mockResolvedValue({
       ...detail,
@@ -170,9 +171,11 @@ describe('ShipmentDetailPage', () => {
       </QueryClientProvider>,
     );
 
-    const weightCell = (await screen.findByText('Trọng lượng')).nextElementSibling;
-    expect(weightCell?.textContent).toBe('500 kg');
-    expect(screen.queryByText('500.00 kg')).toBeNull();
+    // Both the header fact and the containers card now label the fact
+    // "Trọng lượng" (the tấn unit rides the value), so scope to the first.
+    const weightCell = (await screen.findAllByText('Trọng lượng'))[0]!.nextElementSibling;
+    expect(weightCell?.textContent).toBe('0,5 tấn');
+    expect(screen.queryByText('500.00')).toBeNull();
 
     const volumeCell = screen.getByText('Thể tích').nextElementSibling;
     expect(volumeCell?.textContent).toBe('2 CBM');

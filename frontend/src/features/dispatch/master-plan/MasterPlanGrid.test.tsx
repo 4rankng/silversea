@@ -352,7 +352,7 @@ describe('MasterPlanGrid', () => {
     expect(cargoCell).toBeTruthy();
     expect(within(cargoCell!).getByText('2 x 40HC')).not.toHaveClass('master-plan-grid__line--strong');
     expect(within(cargoCell!).getByText('1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
-    expect(screen.getByText(/41\.000,75 kg/)).toBeTruthy();
+    expect(screen.getByText(/41,001 tấn/)).toBeTruthy();
     expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
     expect(screen.getByText('20/08/2026')).not.toHaveClass('master-plan-grid__line--strong');
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');

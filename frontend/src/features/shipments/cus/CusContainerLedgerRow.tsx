@@ -4,7 +4,7 @@ import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
-import { formatDateTime24 } from '../../../lib/format';
+import { formatDateTime24, formatWeight } from '../../../lib/format';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { SearchableSelect } from '../../../design-system';
 import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
@@ -13,7 +13,6 @@ import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 import {
   dispatchStatusLabel,
-  formatQuantity,
   type ContainerLineDraft,
 } from './cusUtils';
 
@@ -224,9 +223,11 @@ export function ContainerLineRow({
         </ShipmentContainerCell>
       ) : <td data-label="Hạ" className="cus-container-cell"><strong>{line.dropoffSite || '—'}</strong></td>}
       {/* Card 20260923_9: the line's own weight, and the remove action in its
-          own column — the drawer's add row sits under both. */}
-      <td data-label="Trọng lượng (kg)" className="cus-container-cell">
-        <strong>{formatQuantity(line.raw.cargoWeightKg)}</strong>
+          own column — the drawer's add row sits under both. The cell reads
+          tấn through the shared formatWeight (CUS-08); the add-row input
+          below keeps its kg entry unit, so its labels stay "(kg)". */}
+      <td data-label="Trọng lượng" className="cus-container-cell">
+        <strong>{formatWeight(line.raw.cargoWeightKg)}</strong>
       </td>
       {customerAppointmentEditable ? (
         <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell cus-appointment-cell">

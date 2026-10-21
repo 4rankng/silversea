@@ -490,6 +490,19 @@ export function ShipmentCreateWorkspace() {
     toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetKeys.size} container chưa có lịch` });
   }
 
+  // Ticket 211026125242 (CUS-03): one click stamps the SAME ngày giờ đóng trả
+  // on EVERY container of the lot — including rows that already hold a
+  // schedule or a partial draft. The copy-down button above deliberately
+  // fills only the still-empty rows; QA's flow is "set one row, overwrite
+  // the rest", which until now forced per-row edits.
+  function applyAppointmentToAll(fromKey: string) {
+    const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
+    if (!source) return;
+    const total = containers.length;
+    setContainers((current) => current.map((row) => ({ ...row, customerAppointmentAt: source })));
+    toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả cho tất cả ${total} container` });
+  }
+
   function applyBulkAppointment() {
     if (!bulkAppointment) return;
     const targetKeys = emptyAppointmentKeys(containers);
@@ -835,6 +848,23 @@ export function ShipmentCreateWorkspace() {
                       />
                     )}
                   </div>
+                )}
+                {/* Ticket 211026125242 (CUS-03): the copy-ALL button sits
+                    beside the copy-down one — one click gives EVERY container
+                    the same ngày giờ, overwriting set schedules, which the
+                    copy-down rule deliberately never touches. Needs a
+                    scheduled source row and a second container to matter. */}
+                {copySourceRow && containers.length >= 2 && (
+                  <button
+                    type="button"
+                    className="csc-utility-button csc-utility-button--dashed"
+                    data-field-id="shipment-copy-appointment-all"
+                    title={`Copy ngày giờ ${formatDateTime24(copySourceRow.customerAppointmentAt) || copySourceRow.customerAppointmentAt} cho TẤT CẢ ${containers.length} container — ghi đè cả lịch đã có`}
+                    onClick={() => applyAppointmentToAll(copySourceRow.key)}
+                    disabled={Boolean(saving)}
+                  >
+                    <Copy size={15} aria-hidden="true" />Copy giờ hẹn cho tất cả {containers.length} cont
+                  </button>
                 )}
                 {copySourceRow && emptyAppointmentCount >= 1 && (
                   <button

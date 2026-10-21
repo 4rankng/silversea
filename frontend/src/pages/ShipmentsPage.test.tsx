@@ -649,7 +649,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const secondType = within(masterRow()).getByText('1x20DC');
     expect(secondType.className).toContain('cus-cargo-summary__containers');
     expect(within(masterRow()).queryByText('1x40HC + 1x20DC')).toBeNull();
-    expect(within(masterRow()).getByText('25.000 kg · 52,5 CBM')).toBeTruthy();
+    expect(within(masterRow()).getByText('25 tấn · 52,5 CBM')).toBeTruthy();
   });
 
   it('renders note previews as compact supporting text rather than table headings', async () => {
@@ -2557,7 +2557,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toContain('cus-workspace-summary__export');
     expect(css).toMatch(/\.cus-multiline-cell--mono strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
     expect(rowSource).toContain('cus-cargo-summary__containers');
-    expect(rowSource).toContain('kg ·');
+    expect(rowSource).toContain('formatWeight');
     expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__containers\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__metrics\s*\{[^}]*white-space:\s*normal;/);
     expect(css).toMatch(/\.cus-quick-edit-modal__fields input:not\(\[data-uui-control\] > input\),[\s\S]*?\{[^}]*min-width:\s*0;/);

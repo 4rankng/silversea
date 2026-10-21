@@ -209,7 +209,7 @@ describe('DetailedPlanGrid', () => {
     // Column 4: container stack
     expect(screen.getByText('MSCU1234567')).toBeTruthy();
     expect(screen.getByText('40HC')).toBeTruthy();
-    expect(screen.getByText(/21\.500 kg/)).toBeTruthy();
+    expect(screen.getByText(/21,5 tấn/)).toBeTruthy();
     // Column 7 (last): notes after atomic dispatch and classification.
     expect(screen.getByText('Xe: Giao giờ hành chính')).toBeTruthy();
     expect(screen.getByText('Khách: Gặp anh Hùng')).toBeTruthy();
@@ -295,7 +295,7 @@ describe('DetailedPlanGrid', () => {
     // pre-FB-092 "Lô hàng lẻ" wording is gone.
     expect(screen.getByText('Lẻ')).toBeTruthy();
     expect(screen.queryByText('MSCU1234567')).toBeNull();
-    expect(screen.getByText(/3\.200 kg/)).toBeTruthy();
+    expect(screen.getByText(/3,2 tấn/)).toBeTruthy();
   });
 
   it('shows "Chưa có số" for a missing container number', () => {

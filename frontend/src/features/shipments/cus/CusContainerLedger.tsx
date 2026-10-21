@@ -672,7 +672,9 @@ export function ContainerLedger({
               <th scope="col">Biển số</th>
               <th scope="col">Nâng</th>
               <th scope="col">Hạ</th>
-              <th scope="col">Trọng lượng (kg)</th>
+              {/* The read cells render tấn (formatWeight); the add-row input
+                  at the foot of this column keeps its kg entry unit. */}
+              <th scope="col">Trọng lượng</th>
               <th scope="col">Giờ hẹn đóng/trả</th>
               <th scope="col" className="cus-container-cell--actions" aria-label="Thao tác">
                 <span className="sr-only">Thao tác</span>

@@ -406,9 +406,9 @@ describe('REQ-19 — AssignTruckGroupDialog cargo-fit advisory', () => {
     await pickVehicleClass('Xe 3.5 tấn');
     const fit = screen.getByRole('status');
     expect(fit.textContent).toContain('Tổng 2 lô');
-    expect(fit.textContent).toContain('3.000 kg');
+    expect(fit.textContent).toContain('3 tấn');
     expect(fit.textContent).toContain('8 CBM');
-    expect(fit.textContent).toContain('vừa tải (3.500 kg)');
+    expect(fit.textContent).toContain('vừa tải (3,5 tấn)');
     expect(fit.className).not.toContain('assign-truck-group__fit--over');
   });
 
@@ -417,7 +417,7 @@ describe('REQ-19 — AssignTruckGroupDialog cargo-fit advisory', () => {
     renderDialog([rowWith(31, 'BL-1', '2000', '3.2'), rowWith(32, 'BL-2', '2000', '4.8')]);
     await pickVehicleClass('Xe 3.5 tấn');
     const fit = screen.getByRole('status');
-    expect(fit.textContent).toContain('VƯỢT TẢI TRỌNG Xe 3.5 tấn (3.500 kg)');
+    expect(fit.textContent).toContain('VƯỢT TẢI TRỌNG Xe 3.5 tấn (3,5 tấn)');
     expect(fit.className).toContain('assign-truck-group__fit--over');
 
     // Advisory, not a gate: a full valid form still submits.

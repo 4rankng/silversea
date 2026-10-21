@@ -112,7 +112,7 @@ describe('mapMasterPlanExportRow', () => {
     expect(cells[2]).toBe('LH — Biên Hòa\nNhập\nMaersk');
     expect(cells[3]).toBe('Cảng Cát Lái\n2 x 40HC\n1 x 20DC');
     expect(cells[4]).toBe('Kho Bình Dương\n2 x 40HC\n1 x 20DC');
-    expect(cells[5]).toBe('2 x 40HC\n1 x 20DC\n41.000 kg');
+    expect(cells[5]).toBe('2 x 40HC\n1 x 20DC\n41 tấn');
     expect(cells[6]).toBe("SilverSea: 1x20' · 2x40'");
     expect(cells[7]).toBe('Ghi chú cũ\nOPS: Giao theo chứng từ\nNM: Đóng ca chiều');
   });
@@ -161,7 +161,7 @@ describe('mapMasterPlanExportRow', () => {
 
     expect(cells[0]).toContain('Nhà máy XYZ · 1 x 40HC');
     expect(cells[0]).not.toContain('1 x 20DC');
-    expect(cells[5]).toBe('1 x 40HC\n41.000 kg');
+    expect(cells[5]).toBe('1 x 40HC\n41 tấn');
   });
 });
 
