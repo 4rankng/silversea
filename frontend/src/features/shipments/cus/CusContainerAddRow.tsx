@@ -8,11 +8,13 @@ import { checkContainerNumber } from '../../../components/trip/container-instanc
 
 /**
  * The add-row draft: the container-add wire fields plus the A.1 copy set.
- * Card 201026124500 (181026185900 A.1): "Thêm container" copies EVERY field of
- * the lot's existing rows TRỪ Số container và Loại cont — Tuyến, Nhà xe, Nâng,
- * Hạ, Trọng lượng and Giờ hẹn ride the seed (and the submit), so the new row
- * reads like the rows above it end to end. `*Name` fields are the display
- * mirrors of their id twins (the seeded cells render them).
+ * Card 201026124500 (181026185900 A.1), amended by card 211026112600 (FB-086
+ * regression, 21/10): "Thêm container" copies EVERY field of the lot's
+ * existing rows TRỪ Số container — Loại cont (restored client-side by
+ * 211026112600), Tuyến, Nhà xe, Nâng, Hạ, Trọng lượng and Giờ hẹn ride the
+ * seed (and the submit), so the new row reads like the rows above it end to
+ * end. `*Name` fields are the display mirrors of their id twins (the seeded
+ * cells render them).
  */
 export interface AddContainerFields {
   containerNumber: string;

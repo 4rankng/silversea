@@ -880,15 +880,16 @@ describe('CUS-10 — drawer Xóa container confirm flow', () => {
   });
 });
 
-// Card 201026124500 (181026185900 A.1): opening the add form copies EVERY
-// field of the lot's existing rows down — Tuyến, Nhà xe, Nâng, Hạ, Trọng
-// lượng, Giờ hẹn — per-column FIRST non-null, mirroring the add API's
-// lot-default inherit. Số container AND Loại cont stay the operator's own
-// entry (191026100000's loại-cont seed is superseded by this card's restated
-// law). Weight rides here even though the wire treats it as a per-container
-// fact, because the customer's copy-down law is "mọi trường khác TRỪ số cont
-// và loại cont"; the submit then carries the whole set explicitly.
-describe('add-row seed copies the lot row values (A.1, card 201026124500)', () => {
+// Card 201026124500 (181026185900 A.1), amended by card 211026112600 (FB-086
+// regression, 21/10 — newest customer ruling wins): opening the add form
+// copies EVERY field of the lot's existing rows down — Loại cont, Tuyến,
+// Nhà xe, Nâng, Hạ, Trọng lượng, Giờ hẹn — per-column FIRST non-null,
+// mirroring the add API's lot-default inherit. Số container stays the
+// operator's own entry. The loại-cont copy is CLIENT-side only: the seed
+// pre-fills the pick (catalog-guarded like the ports pair) and the submit
+// sends it explicitly — a deliberately cleared type still rides explicit
+// null, so A.1's wire contract and the server inherit are untouched.
+describe('add-row seed copies the lot row values (A.1, card 201026124500 + 211026112600)', () => {
   const ports = [
     { id: 3, code: 'CDV', name: 'Cảng Đình Vũ', label: 'CDV — Cảng Đình Vũ' },
     { id: 4, code: 'HICT', name: 'TC - HICT', label: 'HICT — TC - HICT' },
@@ -921,14 +922,15 @@ describe('add-row seed copies the lot row values (A.1, card 201026124500)', () =
   }) as unknown as ShipmentCusWorkspaceDetail;
   const addRowEl = () => document.querySelector('.cus-container-ledger__add-row') as HTMLElement;
 
-  it('seeds EVERY A.1 field (Tuyến/Nhà xe/Nâng/Hạ/Trọng lượng/Giờ hẹn); Số container AND Loại cont stay entry', () => {
+  it('seeds EVERY A.1 field (Loại cont/Tuyến/Nhà xe/Nâng/Hạ/Trọng lượng/Giờ hẹn); Số container stays entry', () => {
     renderLedger({ detail: a1Detail([a1Row()]) });
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
-    // The two entry fields: the number is blank, the type trigger shows the
-    // placeholder — never a seeded code.
+    // The one entry field: the number is blank. Loại cont now rides the seed
+    // (211026112600 restored it client-side) — the trigger shows the ref
+    // row's catalog-backed code, never the placeholder.
     expect((screen.getByLabelText('Số container') as HTMLInputElement).value).toBe('');
-    expect(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ })).toBeTruthy();
+    expect(within(addRowEl()).getByRole('button', { name: /40HC/ })).toBeTruthy();
     // The A.1 copy set renders in the add row's own column cells.
     expect(within(addRowEl()).getByText('ASKEY')).toBeTruthy();
     expect(within(addRowEl()).getByText('SilverSea')).toBeTruthy();
@@ -940,7 +942,7 @@ describe('add-row seed copies the lot row values (A.1, card 201026124500)', () =
     expect(date.value).toBe('01');
   });
 
-  it('carries the seeded copy set on the submit payload — type explicit null, number typed', async () => {
+  it('carries the seeded copy set on the submit payload — seeded type rides, number typed', async () => {
     addCusShipmentContainerRow.mockResolvedValue({ line: null });
     renderLedger({ detail: a1Detail([a1Row()]) });
 
@@ -953,9 +955,10 @@ describe('add-row seed copies the lot row values (A.1, card 201026124500)', () =
       {
         expectedShipmentVersion: 4,
         containerNumber: 'CSQU3054383',
-        // Loại cont: operator entry — an unpicked type sends EXPLICIT null so
-        // the wire's lot-default inherit can never re-copy it (A.1).
-        containerTypeId: null,
+        // Card 211026112600: the seeded Loại cont (id 5, catalog-backed) rides
+        // the wire EXPLICITLY — the copy happens client-side, so the server's
+        // lot-default inherit is bypassed, never relied on.
+        containerTypeId: 5,
         routeId: 7,
         liftSiteId: 3,
         dropoffSiteId: 4,
@@ -964,6 +967,30 @@ describe('add-row seed copies the lot row values (A.1, card 201026124500)', () =
         cargoWeightKg: '12500',
         customerAppointmentAt: expect.stringContaining('2026-09-01T10:00'),
       },
+      'test-key',
+    ));
+  });
+
+  it('sends EXPLICIT null when the operator clears the seeded type (A.1 wire contract intact)', async () => {
+    // 211026112600 restores the copy CLIENT-side only: the seed pre-fills the
+    // pick, but a deliberately cleared type must still ride explicit null so
+    // the wire's lot-default inherit can never re-copy Loại cont onto a row
+    // the operator left unpicked (card 201026124500's contract, unchanged).
+    addCusShipmentContainerRow.mockResolvedValue({ line: null });
+    renderLedger({ detail: a1Detail([a1Row()]) });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    // The seeded trigger (40HC) opens the listbox; picking the placeholder
+    // option CLEARS the pick back to ''.
+    fireEvent.click(within(addRowEl()).getByRole('button', { name: /40HC/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Chưa chọn loại cont' }));
+    expect(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
+    fireEvent.click(within(addRowEl()).getByRole('button', { name: /^Thêm$/ }));
+
+    await waitFor(() => expect(addCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ containerNumber: 'CSQU3054383', containerTypeId: null }),
       'test-key',
     ));
   });
@@ -991,13 +1018,15 @@ describe('add-row seed copies the lot row values (A.1, card 201026124500)', () =
   });
 
   it('takes each seeded field from the FIRST row that has it (per-column first non-null)', () => {
-    // Row 2 disagrees on EVERY seeded field (route 8/OTHER ROUTE, EXTERNAL
-    // carrier 9, lift 8, drop 3, weight 500) so a first→last pick regression
-    // fails here field by field. Only the appointment comes from row 2 (row 1
-    // is undated) — 10:00 on 01/09 Vietnam wall clock.
+    // Row 2 disagrees on EVERY seeded field (type 5 inherited only via row 2,
+    // route 8/OTHER ROUTE, EXTERNAL carrier 9, lift 8, drop 3, weight 500) so
+    // a first→last pick regression fails here field by field. Row 1 carries
+    // no type of its own, so Loại cont also comes from row 2. Only the
+    // appointment comes from row 2 (row 1 is undated) — 10:00 on 01/09
+    // Vietnam wall clock.
     renderLedger({
       detail: a1Detail([
-        a1Row({ customerAppointmentAt: null }),
+        a1Row({ customerAppointmentAt: null, containerTypeId: null, containerTypeLabel: null }),
         a1Row({
           id: 11,
           ordinal: 2,
@@ -1023,6 +1052,8 @@ describe('add-row seed copies the lot row values (A.1, card 201026124500)', () =
     expect(cellText('Nâng')).toBe('Cảng Đình Vũ');
     expect(cellText('Hạ')).toBe('TC - HICT');
     expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('12500');
+    // Loại cont: row 1 has none, row 2 carries 5 → the seed shows 40HC.
+    expect(within(addRowEl()).getByRole('button', { name: /40HC/ })).toBeTruthy();
     const { time, date } = appointmentInputs();
     expect(time.value).toBe('10');
     expect(date.value).toBe('01');
@@ -1038,7 +1069,12 @@ describe('add-row seed copies the lot row values (A.1, card 201026124500)', () =
     expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('500');
   });
 
-  it('copies Tuyến "KCN QUẾ VÕ, BẮC NINH" on LONG MINH MSCU7654329 shape when Nâng/Hạ/Giờ hẹn are empty', async () => {
+  it('never seeds a loại-cont id outside the catalog (LONG MINH legacy id) — placeholder + explicit null', async () => {
+    // Catalog-guard pin (211026112600): the ref row carries containerTypeId 1
+    // but the workspace catalog only offers id 5 — an id with no dropdown
+    // option must not ride the seed (the trigger would show a pick the
+    // operator never saw), and the submit then sends explicit null, exactly
+    // like the add API's column inherit with an uncatalogued cell.
     addCusShipmentContainerRow.mockResolvedValue({ line: null });
     renderLedger({
       detail: a1Detail([
@@ -1208,10 +1244,12 @@ describe('add-row loại-cont dropdown loads its options (FB-086, round 21)', ()
       } as unknown as ShipmentCusWorkspaceDetail,
     });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
-    // Card 201026124500 (A.1): Loại cont is operator entry again — the
-    // trigger opens on its placeholder (no seed), so the options assertion
+    // Card 211026112600: the seed pre-fills Loại cont from the lot's first
+    // row (containerTypeId 5 → '40HC', catalog-backed here) — the trigger
+    // opens on the seeded code, not the placeholder. The options assertion
     // below is the point of this test and is unchanged.
-    fireEvent.click(await screen.findByRole('button', { name: /Chưa chọn loại cont/ }));
+    const addRow = document.querySelector('.cus-container-ledger__add-row') as HTMLElement;
+    fireEvent.click(within(addRow).getByRole('button', { name: /40HC/ }));
     const listbox = await screen.findByRole('listbox');
     const optionTexts = within(listbox).getAllByRole('option').map((option) => option.textContent);
     expect(optionTexts.length).toBeGreaterThanOrEqual(1);
