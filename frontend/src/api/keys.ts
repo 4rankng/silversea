@@ -597,6 +597,8 @@ export const qk = {
     debitNoteTemplates: ['cfg-count', 'debit-note-templates'],
     fuelPricePeriods: ['cfg-count', 'fuel-price-periods'],
     freightRateTerms: ['cfg-count', 'freight-rate-terms'],
+    fuelConsumptionNorms: ['cfg-count', 'fuel-consumption-norms'],
+    quotations: ['cfg-count', 'quotations'],
     vehicleSizeClasses: ['cfg-count', 'vehicle-size-classes'],
     carrierRoutePricing: ['cfg-count', 'carrier-route-pricing'],
   },

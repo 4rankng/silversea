@@ -12,6 +12,7 @@ import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { getQuotation } from './quotation.service';
 import { releaseQuotationVersion } from './quotation-version.service';
+import { resolveImportedFuelLag } from './freight-import-lag';
 
 const GRID_LABELS = ['Hệ số', 'Tổng lít dầu/chuyến', 'Giá cos', 'Phụ phí'];
 
@@ -410,14 +411,30 @@ export async function commitQuotationImport(
         // Terms are live-view parameters (referenced, not versioned): an
         // import UPSERTS them in place. billingKmOneWay lives here (derived
         // liters ÷ norm ÷ 2), NOT on the routes table.
+        // Fuel lag (R31 freight-04, card 211026221918): an Excel without a
+        // "Lag Day n" cell must carry the customer×route's current terms
+        // forward — NOT fabricate 0/confirmed, which superseded NEWEB's
+        // confirmed lag 1 (áp ngay) on every import after the seed row.
+        const [currentTerms] = await tx
+          .select({ fuelLagDays: s.freightRateTerms.fuelLagDays, fuelLagConfirmed: s.freightRateTerms.fuelLagConfirmed })
+          .from(s.freightRateTerms)
+          .where(and(
+            eq(s.freightRateTerms.customerId, enriched.customerId),
+            eq(s.freightRateTerms.routeId, routeId),
+            lte(s.freightRateTerms.effectiveDate, today),
+            isNull(s.freightRateTerms.deletedAt),
+          ))
+          .orderBy(desc(s.freightRateTerms.effectiveDate))
+          .limit(1);
+        const resolvedLag = resolveImportedFuelLag(enriched.fuelLagDays, currentTerms);
         await tx.insert(s.freightRateTerms).values({
           customerId: enriched.customerId, routeId,
           sharePct: String(route.sharePct ?? 2),
           billingKmOneWay: preparedRows[0]?.km ?? 1,
           billingKmMultiplier: '2',
           baseFuelPrice: String(enriched.baseFuelPrice ?? 0),
-          fuelLagDays: enriched.fuelLagDays ?? 0,
-          fuelLagConfirmed: true,
+          fuelLagDays: resolvedLag.fuelLagDays,
+          fuelLagConfirmed: resolvedLag.fuelLagConfirmed,
           surchargeThresholdMode: 'NONE',
           effectiveDate: today,
           note: `Q57 import ${enriched.sheet}`,
@@ -425,7 +442,8 @@ export async function commitQuotationImport(
           target: [s.freightRateTerms.customerId, s.freightRateTerms.routeId, s.freightRateTerms.effectiveDate],
           set: {
             baseFuelPrice: String(enriched.baseFuelPrice ?? 0),
-            fuelLagDays: enriched.fuelLagDays ?? 0,
+            fuelLagDays: resolvedLag.fuelLagDays,
+            fuelLagConfirmed: resolvedLag.fuelLagConfirmed,
             billingKmOneWay: preparedRows[0]?.km ?? 1,
             sharePct: String(route.sharePct ?? 2),
             updatedAt: new Date(),

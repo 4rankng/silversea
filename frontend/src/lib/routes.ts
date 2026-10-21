@@ -92,6 +92,7 @@ export const routes = {
   configRoadAllowances: PAGE_CATALOG.configRoadAllowances.path,
   configPenaltyReasons: PAGE_CATALOG.configPenaltyReasons.path,
   configFuel: PAGE_CATALOG.configFuel.path,
+  configFuelConsumptionNorms: PAGE_CATALOG.configFuelConsumptionNorms.path,
   // Freight pricing engine config (Phương án tính cước tự động) — plain
   // strings, not catalog entries: title falls through the /config catch-all.
   configFuelPricePeriods: '/config/fuel-price-periods',
@@ -273,6 +274,7 @@ const titleRules: TitleRule[] = [
   { test: p => p === routes.config, title: PAGE_CATALOG.config.title },
   { test: p => /^\/config\/trucks\/\d+\/owners$/.test(p), title: 'Sở hữu xe' },
   { test: p => p === '/config/fuel-norms', title: 'Định mức nhiên liệu' },
+  { test: p => p === '/config/fuel-consumption-norms', title: PAGE_CATALOG.configFuelConsumptionNorms.title },
   { test: p => p === '/config/weight-pricing-tiers', title: 'Bảng giá theo trọng lượng' },
   { test: p => p === '/config/lift-pricing', title: 'Bảng giá nâng/hạ container' },
   { test: p => p === '/config/ancillary-revenue', title: 'Doanh thu phi-vận-tải' },
