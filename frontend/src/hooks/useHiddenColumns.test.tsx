@@ -16,6 +16,23 @@ const setup = (hasNotes: boolean) => renderHook(() => useHiddenColumns({
   hasData: (column) => column.key !== 'notes' || hasNotes,
 }));
 
+// FB-093 (lan 3) — the chốt-debit shape: required columns (pinned, essential,
+// essentialWhenHasData) an old payload may still name, plus ordinary fillers.
+const REQUIRED: readonly LedgerColumn[] = [
+  { key: 'customer', label: 'Khách hàng', pinned: true },
+  { key: 'action', label: 'Hành động', essentialWhenHasData: true },
+  { key: 'money', label: 'Tổng tiền', essential: true },
+  { key: 'documents', label: 'Chứng từ' },
+  { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
+];
+
+const setupRequired = () => renderHook(() => useHiddenColumns({
+  storageKey: KEY,
+  columns: REQUIRED,
+  hasData: (column) => column.key === 'action',
+  defaultVisible: 'essential',
+}));
+
 describe('useHiddenColumns — the choice survives a reload (card 20260928_193)', () => {
   beforeEach(() => localStorage.clear());
 
@@ -77,5 +94,22 @@ describe('useHiddenColumns — the choice survives a reload (card 20260928_193)'
     const { result } = setup(false);
     expect(result.current.hidden).toEqual([]);
     expect(result.current.isHidden('customer')).toBe(false);
+  });
+
+  it('repairs a stale payload on load — old localStorage can no longer bury a required column (FB-093 lan 3)', () => {
+    // The QA-workstation shape: a choice written before the action column
+    // became essentialWhenHasData still names it. The load drops the required
+    // keys, keeps the operator's ordinary choices, and writes the sanitized
+    // list back to storage.
+    localStorage.setItem(KEY, JSON.stringify(['action', 'money', 'documents']));
+    const { result } = setupRequired();
+    expect(result.current.isHidden('action')).toBe(false);
+    expect(result.current.isHidden('money')).toBe(false);
+    expect(result.current.isHidden('documents')).toBe(true);
+    // the payload on disk is repaired, not merely interpreted
+    expect(JSON.parse(localStorage.getItem(KEY) ?? '[]')).toEqual(['documents']);
+    // and the repair is idempotent — a reload reads a clean payload
+    const { result: after } = setupRequired();
+    expect(after.current.hidden).toEqual(['documents']);
   });
 });

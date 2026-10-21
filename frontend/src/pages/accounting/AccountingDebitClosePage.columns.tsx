@@ -131,8 +131,11 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // hid the whole column on a fresh workstation — burying the action with it
     // (the FB-093 defect resurfaced as "no Tách nhóm phía Kế toán").
     // essentialWhenHasData + raw keep the KT4 matrix minimal on FCL-only
-    // boards while the column shows itself the moment lcl/group data exists;
-    // the operator's picker choice still wins.
+    // boards while the column shows itself the moment lcl/group data exists.
+    // FB-093 (lan 3): a STORED choice can no longer bury it either — the QA
+    // workstation's pre-essential `accounting-debit-hidden-cols` kept naming
+    // this key after the re-verify fix landed, so the read repairs the payload
+    // (sanitize + write-back) and the picker no longer offers the column.
     essentialWhenHasData: true,
     raw: (row) => row.lcl?.label ?? null,
     // FB-094: an LCL row states its own label — "Lẻ · Thu: 5T / Trả: 10T"

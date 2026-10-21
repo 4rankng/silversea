@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   hiddenByDefault,
   hideableColumns,
+  loadStoredHiddenColumns,
   readStoredHiddenColumns,
   resolveHiddenColumns,
   sanitizeHiddenColumns,
@@ -38,7 +39,7 @@ describe('column visibility — the default hides an EMPTY column only', () => {
     expect(hiddenByDefault(columns, emptyNotes)).toEqual([]);
   });
 
-  it('offers only the unpinned columns to a picker', () => {
+  it('offers only the hideable columns to a picker (unpinned, non-essential)', () => {
     expect(hideableColumns(COLUMNS).map((column) => column.key)).toEqual(['documents', 'notes']);
   });
 });
@@ -143,8 +144,63 @@ describe('column visibility — the essential-set default', () => {
     expect(hiddenByDefault(WITH_ACTION, (c) => c.key === 'container', 'essential')).toEqual(['cuocThu', 'notes']);
     // no data → hidden like every other non-essential column (KT4 stays minimal)
     expect(hiddenByDefault(WITH_ACTION, () => false, 'essential')).toEqual(['cuocThu', 'notes', 'container']);
-    // an explicit operator choice still wins over the flag
+    // FB-093 (lan 3): a STORED choice can no longer bury the action column
+    // either — the QA workstation's pre-essential localStorage is what kept
+    // it hidden after the re-verify fix landed.
     expect(resolveHiddenColumns({ columns: WITH_ACTION, choice: ['container'], hasData: () => true, defaultVisible: 'essential' }))
-      .toEqual(['container']);
+      .toEqual([]);
+  });
+});
+
+// FB-093 (lan 3) — a saved column pref can no longer hide a REQUIRED column.
+// The chốt-debit shape: pinned identity/action, essential money rollups, one
+// action-bearing essentialWhenHasData column, ordinary fillers.
+describe('column visibility — a stored choice cannot hide a required column (FB-093 lan 3)', () => {
+  const BOARD: readonly LedgerColumn[] = [
+    { key: 'chiPhi', label: 'Chi phí', pinned: true },
+    { key: 'ngay', label: 'Ngày', pinned: true },
+    { key: 'container', label: 'Thông số container', essentialWhenHasData: true },
+    { key: 'phanXe', label: 'Phân xe' },
+    { key: 'tongThu', label: 'Tổng thu', essential: true },
+    { key: 'tong1', label: 'Tổng 1', essential: true },
+    { key: 'ghiChu', label: 'Ghi chú', autoHideWhenEmpty: true },
+  ];
+
+  it('the picker is never offered a required column', () => {
+    expect(hideableColumns(BOARD).map((column) => column.key)).toEqual(['phanXe', 'ghiChu']);
+  });
+
+  it('sanitize drops required keys from a stored payload and keeps the ordinary ones', () => {
+    // The stale QA payload: the action column plus an ordinary choice.
+    expect(sanitizeHiddenColumns(BOARD, ['container', 'tongThu', 'phanXe'])).toEqual(['phanXe']);
+    // ordinary keys still follow the saved choice beside the dropped ones
+    expect(resolveHiddenColumns({ columns: BOARD, choice: ['container', 'phanXe'], hasData: () => true }))
+      .toEqual(['phanXe']);
+  });
+
+  it('toggle refuses a required key', () => {
+    expect(toggleHiddenColumn(BOARD, ['phanXe'], 'container')).toEqual(['phanXe']);
+    expect(toggleHiddenColumn(BOARD, ['phanXe'], 'tongThu')).toEqual(['phanXe']);
+  });
+
+  it('the essential default still hides an EMPTY action column (KT4 matrix intact)', () => {
+    // Choice-immunity governs CHOICES; the default governs emptiness.
+    expect(hiddenByDefault(BOARD, () => false, 'essential')).toEqual(['container', 'phanXe', 'ghiChu']);
+    // with data the action column shows itself again
+    expect(resolveHiddenColumns({ columns: BOARD, choice: null, hasData: (c) => c.key === 'container', defaultVisible: 'essential' }))
+      .toEqual(['phanXe', 'ghiChu']);
+  });
+
+  it('loadStoredHiddenColumns repairs a stale payload; the second read is a no-op', () => {
+    const first = loadStoredHiddenColumns(BOARD, serializeHiddenColumns(['container', 'phanXe']));
+    expect(first.choice).toEqual(['phanXe']);
+    expect(first.changed).toBe(true);
+    // idempotent: the sanitized payload reads back without another write
+    const second = loadStoredHiddenColumns(BOARD, serializeHiddenColumns(first.choice!));
+    expect(second.choice).toEqual(['phanXe']);
+    expect(second.changed).toBe(false);
+    // absent / corrupt payloads stay "no choice" and never trigger a write
+    expect(loadStoredHiddenColumns(BOARD, null)).toEqual({ choice: null, changed: false });
+    expect(loadStoredHiddenColumns(BOARD, '{not json')).toEqual({ choice: null, changed: false });
   });
 });

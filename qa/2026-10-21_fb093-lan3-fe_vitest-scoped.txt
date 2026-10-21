@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-fb093-pref-migrate/frontend
+
+
+ Test Files  5 passed (5)
+      Tests  49 passed (49)
+   Start at  10:50:05
+   Duration  2.27s (transform 1.10s, setup 742ms, import 2.83s, tests 838ms, environment 2.49s)
+
+vitest exit: 0

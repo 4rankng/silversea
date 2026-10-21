@@ -119,6 +119,31 @@ describe('card 211026024348 — "Tách nhóm" trên /accounting/chot-debit', () 
     expect(screen.queryByText('Cước thu (tự động)')).toBeNull();
   });
 
+  it('máy trạm CŨ (localStorage cũ chứa cột action): load tự sanitize → nút "Tách nhóm" vẫn thấy, cột thường vẫn theo saved (FB-093 lan 3)', async () => {
+    // The reported defect: the workstation's `accounting-debit-hidden-cols`
+    // was written BEFORE the container column became essentialWhenHasData, so
+    // build 6110af65 still buried the "Tách nhóm" button (the fresh-machine
+    // fix above never got a say — a stored choice won wholesale). The read now
+    // repairs the payload: required keys drop, ordinary choices still govern,
+    // and the sanitized list is written back to storage.
+    localStorage.setItem('accounting-debit-hidden-cols', JSON.stringify(['container', 'phanXe']));
+    listBoard.mockResolvedValue({
+      items: [lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } })],
+      total: 1,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+
+    // the action column is visible again — the button is reachable
+    expect(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' })).toBeTruthy();
+    // the ordinary saved choice is still honored — Phân xe stays hidden
+    const headers = screen.getAllByRole('columnheader').map((th) => th.textContent ?? '');
+    expect(headers).toContain('Thông số container');
+    expect(headers).not.toContain('Phân xe');
+    // and the stored payload is sanitized on disk, not just in memory
+    expect(JSON.parse(localStorage.getItem('accounting-debit-hidden-cols') ?? '[]')).toEqual(['phanXe']);
+  });
+
   it('dòng nhóm ghép mang <button> thật "Tách nhóm" (aria nêu lô); dòng chưa ghép thì không', async () => {
     listBoard.mockResolvedValue({
       items: [

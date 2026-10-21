@@ -10,14 +10,16 @@
  * QUERY state; a column choice is a per-workstation display preference, and a
  * URL param would leak it into shared links and be wiped by "Xóa bộ lọc".
  *
- * No write happens on mount: the stored payload is written only when the
- * operator actually changes something, so an untouched surface never grows a
- * key and "Mặc định" can mean "there is no stored choice".
+ * No write happens on mount EXCEPT the FB-093 (lan 3) repair: a stored payload
+ * whose keys are no longer all hideable (an older build named a column that is
+ * now pinned/essential/essentialWhenHasData) is sanitized and written back once
+ * — an untouched surface with a clean payload never grows a key, and "Mặc định"
+ * still means "there is no stored choice".
  */
 
 import { useCallback, useState } from 'react';
 import {
-  readStoredHiddenColumns,
+  loadStoredHiddenColumns,
   resolveHiddenColumns,
   serializeHiddenColumns,
   toggleHiddenColumn,
@@ -42,9 +44,15 @@ export interface HiddenColumnsApi {
   reset: () => void;
 }
 
-function readChoice(storageKey: string): string[] | null {
+function readChoice(storageKey: string, columns: readonly LedgerColumn[]): string[] | null {
   try {
-    return readStoredHiddenColumns(localStorage.getItem(storageKey));
+    // FB-093 (lan 3): a stored payload is REPAIRED on read — keys no choice
+    // may carry (pinned, essential, essentialWhenHasData) are dropped and the
+    // sanitized list is written back, so the stale workstation converges on
+    // first load and every later read is a clean no-op.
+    const { choice, changed } = loadStoredHiddenColumns(columns, localStorage.getItem(storageKey));
+    if (changed) writeChoice(storageKey, choice);
+    return choice;
   } catch {
     // Private mode / locked-down context: no stored choice, the default applies.
     return null;
@@ -79,7 +87,7 @@ export function useHiddenColumns({
 }): HiddenColumnsApi {
   // `null` = the operator never chose, so the auto default applies. Lazy init
   // reads storage once per mount; the key is stable for a surface's lifetime.
-  const [choice, setChoice] = useState<string[] | null>(() => readChoice(storageKey));
+  const [choice, setChoice] = useState<string[] | null>(() => readChoice(storageKey, columns));
   const hidden = resolveHiddenColumns({ columns, choice, hasData, defaultVisible });
 
   const toggle = useCallback((key: string) => {
