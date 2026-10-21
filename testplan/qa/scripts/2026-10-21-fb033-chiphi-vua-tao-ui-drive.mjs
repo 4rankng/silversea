@@ -6,8 +6,8 @@
 import puppeteer from 'puppeteer';
 import fs from 'node:fs';
 
-const BASE = process.env.BASE ?? 'http://localhost:7177';
-const API = process.env.API ?? 'http://localhost:3303/api';
+const BASE = process.env.BASE ?? 'http://localhost:7175';
+const API = process.env.API ?? 'http://localhost:3002/api';
 const OUT = 'qa/2026-10-21_fb033-chiphi-khoa';
 fs.mkdirSync(OUT, { recursive: true });
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));

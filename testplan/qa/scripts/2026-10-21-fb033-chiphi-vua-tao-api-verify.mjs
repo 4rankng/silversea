@@ -7,7 +7,7 @@
 // LOCAL ONLY: api 3303 (this lane's stack). Setup prerequisites (funded
 // advance for opsqa + lot link) are created here via governed APIs.
 //   node testplan/qa/scripts/2026-10-21-fb033-chiphi-vua-tao-api-verify.mjs
-const API = process.env.API ?? 'http://localhost:3303/api';
+const API = process.env.API ?? 'http://localhost:3002/api';
 const TRIP_ID = Number(process.env.TRIP_ID ?? 193772);
 const SHIPMENT_ID = Number(process.env.SHIPMENT_ID ?? 311836);
 const PRE_FIX_EXPENSE_ID = Number(process.env.PRE_FIX_EXPENSE_ID ?? 28601);

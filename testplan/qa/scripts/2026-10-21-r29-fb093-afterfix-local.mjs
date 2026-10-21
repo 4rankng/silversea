@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const API = process.env.QA_API || 'https://vantai.tingting.vip/api';
-const BASE = process.env.QA_BASE || 'http://localhost:7191';
+const BASE = process.env.QA_BASE || 'http://localhost:7175';
 const OUT = path.resolve('qa/2026-10-21-r29-verify/fb093');
 fs.mkdirSync(OUT, { recursive: true });
 const BILL2 = 'CL4C-02';

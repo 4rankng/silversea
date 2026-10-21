@@ -12,13 +12,13 @@
 //   all   — pre + merge + tach (one sitting)
 //
 // Usage:
-//   QA_BASE=http://localhost:7188 QA_PHASE=all \
+//   QA_BASE=http://localhost:7175 QA_PHASE=all \
 //     node testplan/qa/scripts/2026-10-21-fb093-tach-nhom-ui-drive.mjs
 import puppeteer from 'puppeteer';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const BASE = process.env.QA_BASE ?? 'http://localhost:7188';
+const BASE = process.env.QA_BASE ?? 'http://localhost:7175';
 const API = process.env.QA_API ?? `${BASE}/api`;
 const USER = process.env.QA_USER ?? 'thanhdc';
 const PASS = process.env.QA_PASS ?? 'Abc123';
