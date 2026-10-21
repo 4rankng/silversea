@@ -520,6 +520,10 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   classification?: DispatchClassification;
   isCombined?: boolean;
   operationalNotes?: string | null;
+  /** dis-03 (card 211026131857): the kẹp-candidate overlap warn was confirmed
+   *  in the dialog — the confirmed retry rides the flag, exactly like the
+   *  issue path's rigOverlapCompletedConfirmed. */
+  rigOverlapCompletedConfirmed?: boolean;
 }) {
   return api.patch<{
     fulfillmentId: number;

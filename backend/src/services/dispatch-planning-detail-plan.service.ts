@@ -697,9 +697,17 @@ async function assertPlanRowRigAvailable(
   // Card 363: only ACTIVE trips occupy the rig (a COMPLETED trip released it —
   // back-to-back 'chạy gối đầu' assignments were false-blocked), and an
   // open-ended trip is bounded by one 8-hour shift from its start.
-  const tripConflictsRaw = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+  // dis-03 (card 211026131857): the row also carries each trip's fulfillment
+  // classification — the unpaired-kẹp candidate carve below needs it.
+  const tripConflictsRaw = await tx.select({
+    id: s.trips.id,
+    code: s.trips.tripCode,
+    plannedStartAt: s.trips.plannedStartAt,
+    partnerClassification: s.shipmentFulfillments.dispatchClassification,
+  })
     .from(s.trips)
     .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
     .where(and(
       eq(s.trucks.licensePlate, plate),
       notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
@@ -715,10 +723,36 @@ async function assertPlanRowRigAvailable(
   // partner (same business day; KET_HOP resolves null per owner ruling Q4).
   // An unrelated LIVE trip stays a conflict — that case keeps its pinned test.
   const kepPartner = await findActiveKepPairPartnerByFulfillment(tx, args.fulfillmentId);
-  const tripConflicts = kepPartner != null
+  let tripConflicts = kepPartner != null
     && kepPartner.partnerClaimDay === localDateInBusinessZone(windowStart)
     ? tripConflictsRaw.filter((conflict) => conflict.id !== kepPartner.partnerTripId)
     : tripConflictsRaw;
+  // dis-03 (card 211026131857) — the UNPAIRED kẹp candidate. Trip pairs are
+  // created only after BOTH legs exist, so the second leg's plan save always
+  // meets the first leg's ACTIVE trip before any pair row links them; the
+  // paired carve above cannot fire and the save died on the hard tier with
+  // no confirm path ("kẹp 2 cont 20' báo trùng đầu kéo"). A same-plate
+  // overlapping ACTIVE trip whose own fulfillment is also declared Kẹp
+  // (DOUBLE) on the same business day IS the pair's arrangement, just not
+  // linked yet — carve it exactly like the paired partner. A single
+  // overlapping trip that is NOT declared Kẹp downgrades to the family's
+  // warn-once contract (the dispatcher confirms the deliberate share and
+  // can reclassify/pair afterwards); a third load (2+ remaining conflicts)
+  // keeps the hard tier — a Kẹp release may overlap one partner, never two.
+  let kepCandidateWarn = false;
+  if (isKepPairing && tripConflicts.length > 0) {
+    const savingDay = localDateInBusinessZone(windowStart);
+    const candidates = tripConflicts.filter((conflict) => conflict.partnerClassification === 'DOUBLE'
+      && conflict.plannedStartAt != null
+      && localDateInBusinessZone(conflict.plannedStartAt) === savingDay);
+    if (candidates.length > 0) {
+      tripConflicts = tripConflicts.filter((conflict) => !candidates.includes(conflict));
+    }
+    if (tripConflicts.length === 1 && candidates.length === 0) {
+      kepCandidateWarn = true;
+      tripConflicts = [];
+    }
+  }
   // Card 081026091100: for a Kẹp row only the dispatched-trip scan counts — the
 // two plan-row scans describe the pair's own deliberate overlap. Every other
 // classification keeps all three.
@@ -822,6 +856,16 @@ if (planRowBlocked || tripConflicts.length > 0) {
         ? `Đầu xe ${plate} đang chạy cùng nhóm ghép trả ĐV với `
           + describeRigHolders(groupSiblings) + ' trong khung giờ trùng lặp. Vẫn lưu?'
         : `Đầu xe ${plate} đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?`,
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' });
+  } else if (kepCandidateWarn && !args.confirmOverlap) {
+    // dis-03 (card 211026131857): the saving row is declared Kẹp and exactly
+    // one same-plate ACTIVE trip overlaps, but that trip's own fulfillment is
+    // not declared Kẹp. The share is the dispatcher's deliberate call, so it
+    // rides the family's warn-once contract instead of the dead-end hard
+    // tier — confirm proceeds, and the legs can be reclassified/paired after.
+    throw new ApiError(409,
+      `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' });
   }

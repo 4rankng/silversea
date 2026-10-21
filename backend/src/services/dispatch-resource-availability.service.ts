@@ -121,6 +121,9 @@ export async function assertResourceAvailability(tx: Tx, args: {
 
   let blocking = conflicts;
   const partner = conflicts.length === 1 ? conflicts[0] : undefined;
+  // dis-03 (card 211026131857): set by the mixed-declaration candidate block
+  // below — the confirmable warn tier for a deliberate kẹp share.
+  let kepCandidateWarn = false;
   // A declared clamp (Kẹp: two 20' boxes sharing one mooc simultaneously)
   // or declared sequence (Kết hợp: the rig runs its two orders back-to-back
   // inside one business day) may share its OWN rig — never a third load.
@@ -160,6 +163,35 @@ export async function assertResourceAvailability(tx: Tx, args: {
       // Kết hợp: sequential reuse — the two loads never sit on the mooc at
       // the same instant, so neither the 20' probe nor the weight sum applies.
       blocking = [];
+    }
+  }
+  // dis-03 (card 211026131857) — the mixed-declaration kẹp candidate: the
+  // issuing leg is declared Kẹp (20', one same-rig partner, same truck +
+  // trailer + driver + day) but the partner's own leg was issued without the
+  // Kẹp declaration. The share is the dispatcher's deliberate arrangement,
+  // not a foreign claim — it rides the FB-012 warn-once contract (confirmable)
+  // instead of dead-ending on the hard "trùng lịch kế hoạch" tier. The weight
+  // gate still applies: an overweight pair never rides, confirmed or not.
+  if (partner && kep != null && declaredMode === 'KEP' && kep.departureDate != null
+    && partner.classification !== 'DOUBLE'
+    && args.truckId != null && partner.truckId === args.truckId
+    && args.trailerId != null && partner.trailerId === args.trailerId
+    && args.driverId != null && partner.driverId === args.driverId
+    && partner.plannedStartAt != null
+    && localDateInBusinessZone(partner.plannedStartAt) === kep.departureDate
+  ) {
+    const containers = await tx.select({ code: s.containerTypes.code, weight: s.tripContainers.cargoWeightKg })
+      .from(s.tripContainers)
+      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
+      .where(eq(s.tripContainers.tripId, partner.id));
+    if (containers.length === 1 && containers[0].code?.startsWith('20')) {
+      const weights = [args.cargoWeightKg, containers[0].weight];
+      if (args.vehicleCapacityKg != null && weights.every((weight) => weight != null && Number.isFinite(Number(weight)))
+        && weights.reduce((sum, weight) => sum + Number(weight), 0) > Number(args.vehicleCapacityKg)) {
+        throw new ApiError(409, 'Tổng trọng lượng hai container kẹp vượt quá tải trọng xe.');
+      }
+      blocking = [];
+      kepCandidateWarn = true;
     }
   }
   // FB-081 v2 (card 181026003045, owner option 2-lite): the remaining leg of
@@ -232,6 +264,17 @@ export async function assertResourceAvailability(tx: Tx, args: {
     throw new ApiError(
       409,
       'Xe đầu kéo đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?',
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' },
+    );
+  }
+  // dis-03 (card 211026131857): the mixed-declaration kẹp candidate carved
+  // above — warn once with the family's confirm contract; the confirmed retry
+  // proceeds and the dispatcher can pair/reclassify the legs afterwards.
+  if (kepCandidateWarn && args.rigOverlapCompletedConfirmed !== true) {
+    throw new ApiError(
+      409,
+      'Xe đầu kéo đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?',
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' },
     );
