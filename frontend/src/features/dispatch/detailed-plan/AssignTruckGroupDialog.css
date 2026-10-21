@@ -17,3 +17,17 @@
   font-weight: var(--fw-medium, 500);
   color: var(--ink-2);
 }
+
+/* REQ-19 (2026-10-21) — tải trọng advisory under the class picker: muted
+   fact line; the OVER variant is the only loud one (a dispatcher about to
+   overload a truck must not miss it). Static advisory text, not a control. */
+.assign-truck-group__fit {
+  margin: 0;
+  font-size: var(--text-caption-size, 12px);
+  color: var(--ink-2);
+}
+
+.assign-truck-group__fit--over {
+  color: var(--danger);
+  font-weight: var(--fw-medium, 500);
+}

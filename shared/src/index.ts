@@ -33,6 +33,7 @@ export {
   TIRES,
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
   LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS, lclVehicleSourcingRule,
+  parseTonnageKg, assessLclCargoFit,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
   LCL_PICKUP_TRAILER_TYPE,
   LCL_PACKAGE_TYPE_SUGGESTIONS,
@@ -41,7 +42,7 @@ export {
   ExpenseTypeCategory,
 } from './constants';
 
-export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification, TradeDirection } from './constants';
+export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification, TradeDirection, LclCargoFitStatus, LclCargoFitAssessment, LclCargoFitInput } from './constants';
 export { workInboxItemBaseSchema, workInboxResponseSchema, workInboxPartySchema, workInboxNextActionSchema, workInboxStateSchema, customerDeliveryResponseSchema, operationsWorkInboxItemSchema, driverWorkInboxItemSchema, customerWorkInboxItemSchema, accountantWorkInboxItemSchema, managerWorkInboxItemSchema, adminHealthInboxItemSchema } from './schemas/work-inbox';
 export type {
   WorkInboxItemBase,

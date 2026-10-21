@@ -20,7 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { db, type Tx } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { lclVehicleSourcingRule, LclVehicleSourcing } from '@tingting/shared';
+import { lclVehicleSourcingRule, LclVehicleSourcing, assessLclCargoFit, type LclCargoFitAssessment } from '@tingting/shared';
 import type {
   AssignLclCostGroupInput,
   LclGroupDimension,
@@ -54,6 +54,14 @@ export interface LclGroupAssignResult {
   groupId: string;
   memberCount: number;
   members: LclGroupMemberResult[];
+  /**
+   * REQ-19 depth audit (2026-10-21) — the group's cargo-fit advisory:
+   * Σ known cargoWeightKg of the members vs the chosen class' tonnage.
+   * Advisory only; never blocks, never reprices (the spec's money law is
+   * the Lô-1-100%/0₫ board price). Present on COST assignments (the
+   * physical-truck dimension).
+   */
+  cargoFit?: LclCargoFitAssessment;
 }
 
 /** FB-095 — one lot's exit from a group dimension. */
@@ -1048,6 +1056,15 @@ export async function assignLclCostGroup(
     // Selection order becomes group order: index 0 = Lô 1 (principal).
     const byId = new Map(rows.map((row) => [row.id, row]));
     const ordered = input.shipmentIds.map((id) => byId.get(id)!);
+    // REQ-19 depth audit — the tải trọng half of "cước hàng lẻ dựa trên trọng
+    // tải tấn của xe": Σ the members' known cargoWeightKg against the chosen
+    // class' tonnage. Advisory fact for the response + audit trail only —
+    // the money law stays the spec's board price (Lô 1 = 100%, members 0₫).
+    const cargoFit = assessLclCargoFit({
+      isContainer: vehicleClass.isContainer,
+      vehicleClassCode: vehicleClass.code,
+      cargoWeightKg: ordered.map((row) => (row.cargoWeightKg != null ? Number(row.cargoWeightKg) : null)),
+    });
     const tripFacts = await loadLiveTripFactsByShipment(tx, ordered.map((row) => row.id));
     await assertMergeableMoney(tx, ordered, tripFacts);
 
@@ -1107,6 +1124,7 @@ export async function assignLclCostGroup(
       carrierId: carrier.carrierId,
       carrierVehicleId: carrier.carrierVehicleId,
       principalFreight,
+      cargoFit,
       driverMoneyZeroedForMembers: ownContainerGroup,
       members: ordered.map((row, index) => ({ shipmentId: row.id, order: index + 1 })),
     });
@@ -1114,6 +1132,7 @@ export async function assignLclCostGroup(
     return {
       groupId,
       memberCount: ordered.length,
+      cargoFit,
       members: ordered.map((row, index) => ({
         shipmentId: row.id,
         order: index + 1,
