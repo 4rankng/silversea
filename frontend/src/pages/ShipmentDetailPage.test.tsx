@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -246,6 +246,116 @@ describe('ShipmentDetailPage', () => {
     expect(screen.getByText('Số tờ khai').nextElementSibling?.textContent).toBe('TK-2026-001, TK-2026-002');
   });
 
+  // ── CUS-11 (card 211026125915) ────────────────────────────────────────────
+  // The header used to read ONLY the lot-level declaration rows, so a lot
+  // whose containers each carry their per-cont số tờ khai (card 261013200312
+  // — CUS enters it per container) still showed "—": QA read the header as an
+  // unimplemented feature. Lot rows keep precedence; the first per-container
+  // number stands in when the lot has none; only zero-declarations-anywhere
+  // reads "Chưa có", with the add-flow link beside it.
+  const containerRow = (id: number, containerNumber: string, declarationNumber: string | null) => ({
+    id,
+    shipmentId: 1,
+    containerTypeId: null,
+    containerNumber,
+    sealNumber: null,
+    cargoWeightKg: null,
+    notes: null,
+    declarationNumber,
+  });
+
+  const renderDetail = async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter></ToastProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findByText('Số Bill / Số Booking');
+  };
+
+  it('CUS-11: header shows the FIRST per-container tờ khai when the lot has no lot-level declaration', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      accountingLock: null,
+      declarations: [],
+      containers: [
+        containerRow(21, 'MSCU1111111', null),
+        containerRow(22, 'MSCU2222222', 'TK-CONT-222'),
+        containerRow(23, 'MSCU3333333', 'TK-CONT-333'),
+      ],
+    });
+    await renderDetail();
+
+    const dd = screen.getByText('Số tờ khai').nextElementSibling;
+    // First NON-EMPTY per-container number in the lot — not "—", not a join.
+    expect(dd?.textContent).toBe('TK-CONT-222');
+    // The value names its source so the provenance is not a guess.
+    expect(dd?.getAttribute('title')).toContain('container');
+  });
+
+  it('CUS-11: lot-level declarations keep precedence over per-container numbers', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      accountingLock: null,
+      declarations: [
+        { id: 9, shipmentId: 1, declarationNumber: 'TK-LOT-1', issuedAt: null, scope: 'SINGLE', note: null, createdBy: 11, createdAt: '2026-08-10T00:00:00.000Z', updatedAt: '2026-08-10T00:00:00.000Z' },
+      ],
+      containers: [containerRow(21, 'MSCU1111111', 'TK-CONT-1')],
+    });
+    await renderDetail();
+
+    expect(screen.getByText('Số tờ khai').nextElementSibling?.textContent).toBe('TK-LOT-1');
+  });
+
+  it('CUS-11: a zero-decl lot reads "Chưa có" with all 4 labels, and the header link opens the shared Thêm tờ khai modal', async () => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      accountingLock: null,
+      declarations: [],
+      containers: [containerRow(21, 'MSCU1111111', null)],
+    });
+    await renderDetail();
+
+    const dd = screen.getByText('Số tờ khai').nextElementSibling;
+    expect(dd?.textContent).toContain('Chưa có');
+    // The documents group stays complete and in the FB-113 order — an empty
+    // value never drops its label.
+    const dts = Array.from(document.querySelectorAll('.shipment-detail__fields dt')).map((dt) => dt.textContent?.trim());
+    const four = ['Số Bill / Số Booking', 'Số tờ khai', 'Xuất / Nhập', 'Hãng tàu'];
+    const at = four.map((f) => dts.indexOf(f)).sort((a, b) => a - b);
+    expect(at.every((v) => v >= 0)).toBe(true);
+    expect(at[3]! - at[0]!).toBe(3);
+
+    // The link opens the SAME modal the section's button owns.
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
+    expect(await screen.findByPlaceholderText('Nhập số tờ khai...')).toBeTruthy();
+    expect(createDeclarationMock).not.toHaveBeenCalled();
+  });
+
+  it('CUS-11: roles that cannot manage declarations see the honest "Chưa có" without the header link', async () => {
+    currentUser.role = Role.ACCOUNTANT;
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      accountingLock: null,
+      declarations: [],
+      containers: [],
+    });
+    await renderDetail();
+
+    const dd = screen.getByText('Số tờ khai').nextElementSibling;
+    expect(dd?.textContent).toContain('Chưa có');
+    // No header link for a role the declaration writes reject — the value
+    // states the gap without offering an affordance the API would 403.
+    expect(dd?.querySelector('.shipment-detail__decl-link')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Thêm tờ khai' })).toBeNull();
+    // Restore the shared mock's default for tests declared after this one.
+    currentUser.role = Role.ADMIN;
+  });
+
   it('keeps the FB-113 header reference readable when the lot has neither Bill nor Booking yet', async () => {
     getShipmentDetailMock.mockResolvedValue({
       ...detail,
@@ -264,7 +374,14 @@ describe('ShipmentDetailPage', () => {
 
     await screen.findByText('Số Bill / Số Booking');
     expect(screen.getByText('Số Bill / Số Booking').nextElementSibling?.textContent).toBe('Chưa có số Bill/Booking');
-    expect(screen.getByText('Số tờ khai').nextElementSibling?.textContent).toBe('—');
+    // CUS-11 (card 211026125915): zero-decl lot reads the named "Chưa có"
+    // (never the dead "—"), and the header carries the add-flow link — this
+    // fixture's lot is accounting-locked, so the link renders disabled with
+    // the lock reason, mirroring the section button.
+    expect(screen.getByText('Số tờ khai').nextElementSibling?.textContent).toContain('Chưa có');
+    const headerDeclLink = screen.getByRole('button', { name: 'Thêm tờ khai' });
+    expect(headerDeclLink).toBeDisabled();
+    expect(headerDeclLink.getAttribute('title')).toBe('Lô hàng đã khóa kế toán; không thể sửa tờ khai.');
   });
 
   it('shows CUS lock metadata without exposing the removed dossier action', async () => {
@@ -722,10 +839,14 @@ describe('ShipmentDetailPage', () => {
       );
       fireEvent.click(await screen.findByRole('button', { name: '+ Thêm tờ khai' }));
 
-      const confirmBtn = await screen.findByRole('button', { name: 'Thêm tờ khai' });
+      // CUS-11: the header also links into this flow on a zero-decl lot, so
+      // the modal's confirm button is scoped to the dialog, never ambiguous
+      // against the header link.
+      const dialog = await screen.findByRole('dialog');
+      const confirmBtn = within(dialog).getByRole('button', { name: 'Thêm tờ khai' });
       expect(confirmBtn).toBeDisabled();
 
-      const numberInput = screen.getByPlaceholderText('Nhập số tờ khai...');
+      const numberInput = within(dialog).getByPlaceholderText('Nhập số tờ khai...');
       expect(numberInput.className).toContain('input');
       fireEvent.change(numberInput, { target: { value: ' TK-0721 ' } });
       expect(confirmBtn).not.toBeDisabled();

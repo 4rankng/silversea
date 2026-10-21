@@ -249,6 +249,29 @@
   font-size: var(--text-caption-size);
 }
 
+/* CUS-11 (card 211026125915): the header's empty Số tờ khai value carries
+   the add-flow entry the section below already owns — an inline link-style
+   button beside "Chưa có", so QA/customer can see the flow exists from the
+   header instead of reading a dead "—". Disabled under the accounting lock,
+   mirroring the section button. */
+.shipment-detail__decl-link {
+  margin-left: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--text-caption-size);
+  color: var(--brand);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.shipment-detail__decl-link:disabled {
+  color: var(--fg-3);
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
 .shipment-detail__decl-note {
   color: var(--fg-2);
   font-size: var(--text-caption-size);
