@@ -4,6 +4,37 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-21 — Đợt rulings 21/10: luật tiền gom hàng lẻ (LCL-07), xóa lô, tự-copy container (REQ-22/FB-086), chi phí vừa tạo (FB-033)
+
+- **Luật tiền gom nhiều lô hàng lẻ (LCL-07 / REQ-19, boss chốt 21/10 15:22):** cước **THU khách**
+  tính **per-lot độc lập** = đơn giá bảng giá Tuyến × Khách hàng (loại xe của chính lô đó) × số
+  lượng — gom nhóm không chia tỷ lệ kg/CBM và **không dồn 100%/0₫ ở chiều thu** (thay quy tắc thu
+  100%/0₫ của DEV SPEC 15/10 — quy tắc 100%/0₫ cũ chỉ còn đúng ở chiều trả). Cước **TRẢ nhà xe
+  thuê ngoài** là **một khoản duy nhất mỗi chuyến** (Lô 1 gánh 100% cước trả, lô ghép còn lại
+  0₫ kèm nhận diện ghép). **Tách nhóm giữ nguyên tiền thu của từng lô** (money-neutral), ghi chú
+  ghép dọn sạch. **Lãi chuyến = Σ thu − trả.** Triển khai `d375239b` (merge `9aab78d2`), QA
+  R30-endgame xác nhận 6/6 trên staging 9aab78d2 (`qa/2026-10-21-r30-endgame/`). Chủ sản phẩm
+  đồng thời chốt **không làm**: phân bổ tỷ lệ, fit-line cho dialog Ghép cước thu khách
+  (MergeRevGroupDialog), bảng giá ngoài 5T/3.5T.
+- **Xóa lô (Frank 21/10 07:54):** CUS và **Điều vận được phép xóa lô**; Ops KHÔNG có quyền; nút
+  "Xóa lô" trên Kế hoạch Chi tiết Xe của Điều vận **GIỮ** (đóng spec-question FB-095). Hiện trạng
+  21/10 (commit `903ec1cc`): nút đã hiển thị cho Điều vận nhưng máy chủ vẫn giữ luật "Chỉ CUS
+  hoặc Quản trị viên" (cards 20261007_396/204710) — việc nới quyền xóa cho Điều vận theo ruling
+  còn chờ triển khai.
+- **Tự-copy khi thêm container (REQ-22, Frank 21/10 sáng + bổ sung 11:26 — card 211026112600):**
+  thêm container mới vào lô đã có **tự copy toàn bộ trường chung, KỂ CẢ Loại cont** (ghi đè chữ
+  "để trống" trong spec gốc; điều khoản "loại cont là người dùng nhập" của A.1 phiên bản 20/10
+  bị thay cho riêng trường này). Cách hoà luật: copy Loại cont phía client khi mở dòng mới
+  (per-column first non-null, chỉ nhận giá trị trong danh mục loại cont), người dùng xoá sạch
+  vẫn gửi explicit null; contract server A.1 không đổi. **TICKET-09/REQ-23 vẫn giữ:** không có
+  nút thêm/xóa container tại màn Chi tiết lô — thêm container chỉ ở drawer Tổng quan. Xung đột
+  CUS-10 ("bổ sung nút Xóa cont tại chi tiết lô") chốt theo TICKET-09: **không thêm lại**.
+  Triển khai `4a35d3cf` (merge `017adf63`), evidence `qa/2026-10-21-fb086-autocopy/`.
+- **Chi phí vừa tạo không bị khóa (FB-033, chốt 21/10):** khoản chi hộ **vừa tạo sửa/xóa được
+  cho tới khi có settlement thủ công** — bút toán tự đối trừ tạm ứng (auto-offset) không còn làm
+  guard hiểu nhầm "đã gửi kế toán"; phiếu hoàn ứng thủ công vẫn giữ bất biến sau khi lập.
+  Triển khai `19a9cc5b` (merge `9d60f507`), QA R29 PASS-already-fixed trên staging c643ef1e.
+
 ## 2026-10-21 — Trọng lượng hiển thị theo TẤN, không còn số-nhóm-kg (CUS-08)
 
 Phản hồi QA 21/10 (ticket nhóm 211026125242 / 211026125715 / 211026125815):

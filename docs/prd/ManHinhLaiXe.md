@@ -58,7 +58,7 @@ Giờ hẹn tại nhà máy, giờ tiếp nhận lệnh và thời điểm thự
 
 ### 2.3 Cảng theo chiều vận chuyển
 
-- Với hàng nhập, hàng **Cảng hạ/Hạ** mang điểm hạ thật của công việc: cảng/bãi hạ container theo dữ liệu điều vận; nơi trả vỏ rỗng chỉ còn với dữ liệu cũ còn ghi và khi có thì vẫn hiển thị tại hàng này. Không để dòng chết "Chưa có nơi trả rỗng" thay cho điểm hạ; điểm giao hàng/nhà máy không dùng thay cho điểm hạ, khi hai điểm là cùng một nơi thì hai hàng cùng tên.
+- Với hàng nhập, hàng **Cảng hạ/Hạ** mang điểm hạ thật của công việc: cảng/bãi hạ container theo dữ liệu điều vận; nơi trả vỏ rỗng chỉ còn với dữ liệu cũ còn ghi và khi có thì vẫn hiển thị tại hàng này. Không để dòng chết "Chưa có nơi trả rỗng" thay cho điểm hạ; điểm giao hàng/nhà máy không dùng thay cho điểm hạ, khi hai điểm là cùng một nơi thì hai hàng cùng tên. Riêng container nhập khẩu **không chọn cảng hạ nhưng đã có điểm trả hàng**: hàng "Cảng hạ" hiển thị **tên điểm trả/nhà máy** từ dữ liệu công việc (kèm địa chỉ giao hàng đầy đủ ở hàng riêng) — không hiển thị "Chưa có cảng hạ" khi đã có điểm trả; hàng xuất khẩu không có cảng hạ vẫn hiển thị "Chưa có cảng hạ" theo luật (hàng xuất hạ tại cảng biển/ICD).
 - Với hàng xuất, cảng nâng/hạ thể hiện đúng điểm lấy vỏ và điểm hạ hàng theo lệnh.
 - Nếu điểm giao hàng khác nơi trả vỏ, giữ cả hai dưới nhãn đúng nghĩa. Hai điểm có thể trùng tên nhưng khác vai trò; nhãn vẫn phải giúp lái xe hiểu đúng điểm cần đến.
 - Khi chưa xác định được điểm cần thiết, hiển thị rõ **Chưa có thông tin** và hướng bổ sung phù hợp quyền; không tạo địa điểm giả hoặc mượn địa điểm của công việc khác.
@@ -79,6 +79,7 @@ Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề tác vụ ưu ti
 
 | Nhóm | Yêu cầu |
 |------|---------|
+| Mã chuyến | Hàng "Mã chuyến" đứng đầu lưới thông tin lệnh, hiển thị dạng định dạng thân thiện (`TRP <yyyy>-<mm> · <seq>`); Bill/Booking vẫn là định danh chính; chuỗi mã thô (`TRP-…`, `SHP-…`) không hiển thị (REQ-07) |
 | Lịch và địa điểm làm hàng | Lịch đóng/trả, tên ngắn và tên đầy đủ nhà máy khi có, **Địa chỉ nhà máy**, rồi tên người liên hệ cùng **Số điện thoại liên hệ** ngay dưới địa chỉ |
 | Hàng hóa | Số container gắn với loại tương ứng, số chì và thao tác của chính công việc; số lượng tổng chỉ bổ sung, không thay cặp số–loại |
 | Lộ trình | Cảng nâng, cảng hạ và điểm giao/điểm trả vỏ riêng khi có khác biệt nghiệp vụ |
@@ -109,7 +110,7 @@ Nếu xe/tài xế/moóc còn bận ở công việc khác, giữ ràng buộc �
 ### 4.2 Thực hiện công việc
 
 - Tiến độ và ảnh cập nhật đúng công việc/container đang mở; không làm hoàn thành các phần việc khác trong cùng lô hàng.
-- KẸP vận chuyển đồng thời hai container, nhưng từng công việc vẫn giữ mốc và bằng chứng riêng.
+- KẸP vận chuyển đồng thời hai container, nhưng từng công việc vẫn giữ mốc và bằng chứng riêng. Trên app lái xe, chuyến kẹp hiển thị **từng container một thẻ riêng** (số cont, số chì, khối lượng) kèm nút sửa riêng; sửa/lưu container nào cập nhật đúng container đó, không ghi đè container còn lại của cặp.
 - KẾT HỢP thực hiện nối tiếp: hoàn thành trả hàng Lệnh 1 rồi mới được bắt đầu đóng hàng Lệnh 2. Màn hình phải nêu lý do khi phần việc sau chưa thể bắt đầu.
 - Khi công việc đã được người khác phân lại, hủy hoặc sửa, giải thích thay đổi và giữ nội dung đang nhập để người dùng đối chiếu. Chỉ cho tiếp tục thao tác phù hợp với phân công hiện hành; không âm thầm ghi đè thay đổi của người khác.
 

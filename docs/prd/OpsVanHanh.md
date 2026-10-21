@@ -214,6 +214,8 @@ Một khoản chi giữ riêng **Thực chi** (tiền Ops đã trả khi làm h�
 
 Khoản chi lưu ngay, không qua gửi duyệt. Ops ghi thực tế chi và chứng từ; CUS/kế toán có quyền xác định số thu khách và lý do công ty chịu hoặc thu khác thực chi. Khoản đã nằm trong đơn giá trọn gói vẫn là chi phí nhưng không tự thu thêm lần nữa. Không tự đặt mức tiền cho khoản chưa có bảng giá được xác định.
 
+Khoản chi hộ **vừa tạo sửa/xóa được cho tới khi có settlement thủ công** (ruling 21/10 — FB-033): bút toán tự đối trừ tạm ứng (nếu Ops có tạm ứng đã giải ngân) không làm khoản chi rơi vào trạng thái "đã gửi kế toán"; chỉ phiếu hoàn ứng **thủ công** của kế toán mới khóa sửa/xóa như bất biến "đã lập phiếu". Sửa số tiền sau khi tạo thì đối trừ tự động tính lại theo số mới.
+
 Mỗi **loại chi phí** trong danh mục có một **Nhóm quyết toán** do người có quyền đặt (Hải quan giám sát, Phát sinh, Khác, Nâng, Hạ, CSHT — sửa chữa hạ tầng, ...). Bảng quyết toán của lô nhóm tiền theo Nhóm quyết toán này; loại nào chưa được phân nhóm hiển thị trong nhóm **Chưa phân loại** trên bảng và **tổng các nhóm luôn khớp tổng chi phí của lô** — không để mất một đồng nào khỏi bảng. Đổi Nhóm quyết toán của một loại chỉ ảnh hưởng quyết toán sau đó; chứng từ đã phát hành giữ nguyên cấu trúc tại thời điểm phát hành. Phí cân hàng mặc định thuộc nhóm **Phát sinh**.
 
 Về chứng từ: **nâng, hạ, cân hàng, cơ sở hạ tầng, kiểm hóa, hải quan (phí làm tờ khai) và toàn bộ nhóm chi hộ có hóa đơn** (nâng vỏ / nâng hàng / lưu bãi, hạ vỏ / hạ hàng / lưu vỏ / lưu bãi và các phí chi hộ khác như gia hạn, vệ sinh, soi chiếu, bốc xếp, công nhân, lưu kho) **là nhóm "yêu cầu hóa đơn"** — đường phê duyệt/quyết toán đòi số hóa đơn thật, không chấp nhận bằng chứng thay thế cho nhóm này; chỉ Phí khác (không hóa đơn), dịch vụ kiểm hóa (kiểm dịch vụ), phụ phí vùng và phí sửa chữa dọc đường mới được cân nhắc bằng chứng thay thế khi phê duyệt. Hai nhóm **"Giao nhận Ops"** và **"Phát sinh Ops"** ở bảng trên là nhóm **không hóa đơn** — tên phí gõ trong hai nhóm này không làm khoản chi trở thành có hóa đơn, dù tên đó trùng với một loại phí có hóa đơn. Dòng chi phí đã gắn số hóa đơn bị khóa trên màn quyết toán (xem quy trình lô §7.9). Cờ này là cờ **đường phê duyệt** — không phải khóa sửa theo loại trên màn hình nhập chi phí.
@@ -287,3 +289,74 @@ OPS xem được các đợt hoàn ứng của mình, lọc theo kỳ hoặc n�
 Khi cần sửa một đợt đã đối chiếu, kế toán hoàn tác đợt với lý do sau khi đảo các phiếu tiền liên quan. Đợt cũ và nguồn gốc vẫn tra cứu được; không còn nút trả/thu tiền trên đợt đã hoàn tác. Nguồn đã trả lại có thể được điều chỉnh và đối chiếu lại theo quy tắc hiện hành, không tự tạo thêm tiền.
 
 Ghi chú thu hồi/chứng từ của OPS được hiển thị riêng trong cả kế hoạch tổng quát và chi tiết của điều vận, giữ xuống dòng và không trộn vào ghi chú cho lái xe. Khoản đã hủy không còn góp ghi chú vào kế hoạch hiện hành.
+
+## Spec gốc — "19.10 - FIX CHI PHÍ.docx" (phần OPS, 19/10/2026)
+
+Nguyên văn phần liên quan Ops (phần Kế toán của cùng spec nằm ở
+[PhanHeKeToan.md](PhanHeKeToan.md), phần Lái xe ở [ManHinhLaiXe.docx](ManHinhLaiXe.docx) §8):
+
+> **Kế hoạch làm hàng -> Khai chi phí : cần điều chỉnh** — 1.1: *"Tại ô Chụp / Chọn ảnh: Có
+> thể chụp hoặc không, không ghi nhận thiếu chứng từ. Lý do: Ops khi khai báo chi phí, phải
+> in hóa đơn chứng từ để trên bàn kế toán, đối soát nên có thể không chụp."*
+>
+> *"TOÀN BỘ TRƯỜNG PHẢI ĐIỀN SỐ TIỀN, MẶC ĐỊNH CHO EM ĐỊNH DẠNG: 1,000,000 (CÓ DẤU CHẤM HOẶC
+> PHẨY NGĂN CÁCH – TẤT CẢ DỮ LIỆU CỦA CÁC PHÂN HỆ)."*
+
+Trạng thái land: ảnh/chứng từ không bắt buộc khi Ops khai chi — LAND (phiếu
+141026230710/191026160000, quy tắc §3.3/§9.1 hiện hành); định dạng tiền tệ nhóm nghìn toàn
+phân hệ — LAND (convention VND nhà).
+
+## Spec gốc — "chungtu-dieuvan-2.docx" (Yêu cầu Phân hệ Chứng từ & Điều vận, Tiệp Vũ 18/10/2026)
+
+Nguồn: nhóm Zalo "Phần mềm QLVT Cty Silver Sea". Ảnh chụp staging kèm chú thích (khoanh đỏ,
+mũi tên) minh họa vị trí yêu cầu. Text gốc đầy đủ + trạng thái land từng mục:
+
+### A. Phân hệ Chứng từ (CUS)
+
+| Mục | Text gốc (nguyên văn) | Trạng thái land 21/10 |
+|---|---|---|
+| A.1 | "Phần bổ sung thêm/bớt container của lô hàng bên Tổng quan vẫn đang lỗi. Yêu cầu: sau khi thêm container mới, hệ thống tự động copy các trường khác xuống dòng dưới — trừ Số container và Loại container." | LAND — `ef90a995` + `017adf63`; **ruling 21/10 11:26 ghi đè phần "trừ Loại container": Loại cont CŨNG tự copy** (client-side seed) |
+| A.2 | "Bỏ nút thêm/xóa container ở bên phần Chi tiết lô hàng (chỉ giữ thao tác ở bên Tổng quan)." | LAND — TICKET-09 `171026182554`; pin vitest "no Thêm container affordance" |
+| A.3 | "Thứ tự mong muốn: Số booking → Số tờ khai → Nhập/Xuất → Hãng tàu." (ảnh: cột CHỨNG TỪ Tổng quan khoanh đỏ) | LAND — FB-113 `ba9981c2` (R26 P + standing); lane visibility `fix-cus11-dri04-visible` in-flight |
+| A.4 | "Lỗi: CUS nhập số tờ khai rồi, bấm lưu nhưng sau đó không thấy tờ khai đâu." | LAND — FB-110 (phiếu 171026122110, PASS doc); verify trên build 9aab78d2 |
+| A.5 | "Thêm phần Sửa số tờ khai ngay trong Chi tiết lô hàng (không phải tab ra tab vào). Khi lô có nhiều container: nhập số tờ khai cho 1 container thì các container còn lại tự động update theo." | LAND — FB-085/109 (họ 1310262006xx, P R17); verify trên build 9aab78d2 |
+| A.6 | "Lỗi: Khi nhập 1 lô hàng bị nhầm/thiếu container, vào sửa để thêm container thì phần đó vẫn bị lỗi." | LAND — FB-086 Sửa lô `7d1f5c1f` + autocopy `4a35d3cf`/`017adf63` |
+| A.7 | "Cột trọng lượng đang hiển thị 2 số 0 sau dấu phẩy — bỏ đi cho gọn." | LAND — CUS-08, đi xa hơn: hiển thị theo **tấn** (CHANGELOG 21/10) |
+
+### B. Phân hệ Điều vận
+
+| Mục | Text gốc (nguyên văn) | Trạng thái land 21/10 |
+|---|---|---|
+| B.0 | (ảnh: cột CHỌN checkbox đầu dòng Kế hoạch Tổng quát — dùng chọn lô gán xe nhóm) | LAND — cột checkbox `/dispatch` (lclspec2 §2.1; evidence 9cards lcl-07) |
+| B.1 | "Khi đã chọn nhà xe với biển số, muốn đổi sang nhà xe/biển số khác (đơn, ghép, lấy lẻ) thì không có mục để chọn lại. Cần bổ sung khả năng đổi lại." | LAND — DIS-10 `a5e0039b` (badge "Lẻ · Ghép (1/N)" → modal "Đổi nhà xe/BKS") |
+| B.2 | "Nhà xe ngoài: khi điều vận chưa có biển số xe vẫn cho phép phát lệnh (điều xe trước, CUS cập nhật biển số sau). Dev đánh giá ảnh hưởng." | LAND — DIS-09 `a5e0039b` (confirm "Vẫn phát lệnh?"); lane visibility `fix-dri01-dis09-visible` in-flight |
+| B.3 | "Lỗi: Khi điều xe, phần Phân loại chọn 'lấy lẻ' thì hệ thống tự chọn tác vụ 'đảo vỏ'." (ảnh: tag "Lấy Lẻ" nhưng cột Tác vụ hiện "ĐẢO VỎ") | Đã bỏ auto-tag (CHANGELOG 05/10) — **verify trên build 9aab78d2** (DIS-07) |
+| B.4 | "Lỗi: Điều xe hiện thông báo 'đã gáp cho lô tác vụ khác trong khung giờ trùng' — cần kiểm tra đây là lỗi gì." | LAND — cảnh báo trùng khung giờ có **confirm "Vẫn lưu?"** `9d109c0d` + `3349fd52` (R30-endgame P) |
+| B.5 | "Trên màn hình điều vận: số container in đậm cho dễ nhìn; phần cảng để không in đậm." | LAND — DIS-08: `a5e0039b` → `3349fd52` → lan 2 `c641f973`/`5b77082f` (law dùng chung `.ops-container-line`, driver 15/15 P local; staging deploy giữ đến wave close) |
+
+### C. Phân hệ Lái xe (app)
+
+| Mục | Text gốc (nguyên văn) | Trạng thái land 21/10 |
+|---|---|---|
+| C.1 | "Lỗi: Bấm vào chi tiết để nhận lệnh: phần 'Cảng hạ' không thấy bãi hạ, nhưng địa chỉ giao hàng lại nhảy ra bãi hạ." | LAND — FB-020/DRI-04 `da73a743`/`3fd77532` (đạt R24, regpack fb020); lane `fix-cus11-dri04-visible` in-flight |
+| C.2 | "Trong chi tiết nhận lệnh, số điện thoại kho cần bấm vào là gọi được luôn." | LAND — DRI-01/REQ-14 `f0986f4c` (audit UI DRIVEN); lane `fix-dri01-dis09-visible` in-flight |
+
+### D. Hàng lẻ (LCL)
+
+| Mục | Text gốc (nguyên văn) | Trạng thái land 21/10 |
+|---|---|---|
+| D.1 | "Chỗ 'Ngày giao dự kiến' thay luôn thành 'Ngày giao hàng'." | LAND — FB-083 `131026190400` + `0f7e1dfa`; lane `fix-lcl-form-visible` in-flight |
+| D.2 | "Phần thể tích (CBM) của hàng lẻ không bắt buộc phải nhập." | LAND — FB-084 R27 PASS |
+| D.3 | "Mục 'Thêm kho lấy hàng' cần tối giản giống trường bãi cảng — để user thêm chủ động, đơn giản." | LAND — `032145a2`; lane `fix-lcl-form-visible` in-flight |
+| D.4 | "Phần 'Lịch & ghi chú' thấy thừa — chỉ cần 1 mục 'Thêm ngày giao hàng' là đủ." | LAND — `0f7e1dfa`; lane `fix-lcl-form-visible` in-flight |
+| D.5 | "Chỗ 'Quy cách đóng gói' để trường gợi ý giống trường Nhà máy, sau đó thêm trường cố định." | LAND — `0f7e1dfa` (combobox gợi-y + free text); lane `fix-lcl-form-visible` in-flight |
+| D.6 | "Lỗi: Có lô hàng lẻ nhập rồi, ở phần Tổng quan thì thấy, nhưng sang phần Chi tiết thì lại không thấy lô đó." | Lane `fix-lcl01-lan2` IN-FLIGHT (repro before-FAIL/after-PASS qa/2026-10-21-lcl01-dri03) |
+| D.7 | "Ví dụ 5 lô gọi 1 xe: trả nhà xe → ghép 5 lô thành 1 để chọn loại tấn; thu khách → có thể ghép 5 thành 1 hoặc tách 2/3/4/5 cước. Khi tách: thông tin xe gửi khách dùng xe ảo, xe thực tế để lấy hàng — để xuất hóa đơn/debit đúng." | LAND — LCL-07 theo **ruling 21/10** (thu per-lot, trả 1 chuyến) `d375239b`/`9aab78d2` endgame P 6/6; xe ảo BKS báo khách landed (debit in BKS ảo) |
+
+### Mockup mô tả bằng chữ (3 ảnh; chú thích = behavior hint, không phải UI text)
+
+| Ảnh | Vị trí | Layout mô tả |
+|---|---|---|
+| 1 (JPG) | A.3 | "Tổng quan lô hàng" (CUS workspace): search Bill/Book/Mã lô/Cont/Tờ khai/khách hàng + Từ-Đến + Xuất/Nhập + Loại hàng + Kế hoạch (Hôm nay/Hôm qua/7 ngày/Tháng này); chip thống kê "Tất cả 188 · Chưa chốt lịch 71 · Chờ điều xe 123 · Chờ đối soát 188"; bảng cột KHÁCH HÀNG & NHÀ MÁY · **CHỨNG TỪ (khoanh đỏ — thứ tự cần sắp)** · PHÂN LOẠI & HÀNG TÀU · TỔNG QUAN HÀNG HÓA · LỊCH TRÌNH & ĐIỀU XE · GHI CHÚ · TRẠNG THÁI; dòng lô LCL hiện "500 kg · 2 CBM", "Chưa có hãng tàu/tờ khai/tuyến", trạng thái "Chờ chốt lịch/Chờ phân xe" |
+| 2 (JPG) | B.0 | "/dispatch Kế hoạch Tổng quát": filter theo B/L/Booking/khách hàng + Từ-Đến + Xuất/Nhập + tất cả trạng thái; chip "Sản lượng: 99 cont (20': 54, 40': 45) · Lẻ: 2 lô"; **cột CHỌN (checkbox) đầu mỗi dòng (khoanh đỏ)**; cột THỜI GIAN & LỊCH TRÌNH · KHÁCH HÀNG & NHÀ MÁY · TUYẾN & HÃNG TÀU · CẢNG NÂNG · CẢNG HẠ · TỔNG QUAN HÀNG HÓA · PHÂN BỔ NHÀ XE · GHI CHÚ; dòng LCL hiện kho lấy (Kho Rừng FB-077 / NEWEB-1) + "1 Pallet · 100kg · Chưa phân bổ" |
+| 3 (JPG) | B.3 | "/dispatch-detail Kế hoạch Chi tiết Xe": filter Bill/Cont/Tờ khai + chip "Chưa gán xe 27 · Đã gán xe 49" + nút "+ Ghép"; bảng THỜI GIAN & LỊCH TRÌNH · KHÁCH HÀNG & LỘ TRÌNH · NÂNG HÀNG · TRẢ HÀNG · GHI CHÚ/TÁC VỤ; dòng có tag **"Lấy Lẻ" nhưng Tác vụ hiện "ĐẢO VỎ" (khoanh đỏ)**; dòng khác hiện TBH-061.14, "Đã hoàn thành", 20DC, 24.000 kg |
