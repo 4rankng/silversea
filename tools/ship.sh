@@ -40,6 +40,11 @@ case "$cmd" in
     echo "── tsc (final gate) ──"
     (cd frontend && npx tsc -b && echo "tsc OK")
     (cd backend && npx tsc --noEmit && echo "be-tsc OK")
+    echo "── FULL FE suite (post-merge rule: scoped xanh không mở hết merge-break) ──"
+    (cd frontend && pnpm exec vitest run 2>&1 | tee /tmp/gate-fe-full.log | grep -E "Tests " | tail -1)
+    if grep -qE "Tests  [1-9][0-9]* failed" /tmp/gate-fe-full.log; then
+      echo "❌ FE full suite có fail — xem /tmp/gate-fe-full.log"; exit 1
+    fi
     echo "── scoped BE tests (files changed vs origin/main) ──"
     CHANGED=$(git diff --name-only origin/main...HEAD -- 'backend/src/tests/*.test.ts' | sed 's|backend/||' || true)
     if [ -n "$CHANGED" ]; then
@@ -62,6 +67,11 @@ case "$cmd" in
     TODO=$(ls "$K/TODO" 2>/dev/null | grep -c docx || true)
     if [ "$TODO" != "0" ]; then
       echo "⛔ GDrive TODO=$TODO (deploy gate: chỉ deploy khi board sạch)"; exit 1
+    fi
+    # QA BUILD-PIN (user goal 21/10 — zero QA rejection): QA round active → khóa deploy
+    QA_PIN="$HOME/.hermes/profiles/dev/state/qa-round-active"
+    if [ -f "$QA_PIN" ]; then
+      echo "⛔ QA ROUND ACTIVE (pin $(cat "$QA_PIN")) — deploy khóa tới khi round đóng. Gỡ: rm $QA_PIN (chỉ khi QA báo xong round)."; exit 1
     fi
     echo "── deploy staging ──"; make demo 2>&1 | tail -1
     echo "── deploy prod ──";    make deploy 2>&1 | tail -1
