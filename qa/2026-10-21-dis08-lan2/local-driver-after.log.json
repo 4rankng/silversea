@@ -1,0 +1,395 @@
+[
+  {
+    "at": "2026-10-21T10:43:51.029Z",
+    "step": "master-sample",
+    "width": 1440,
+    "phase": "after",
+    "rows": 20,
+    "cargoCont": [
+      {
+        "t": "2 x 20DC",
+        "w": 600
+      }
+    ],
+    "portSummary": [
+      {
+        "t": "2 x 20DC",
+        "w": 600
+      },
+      {
+        "t": "2 x 20DC",
+        "w": 600
+      }
+    ],
+    "portName": [
+      {
+        "t": "SITC LH",
+        "w": 400
+      },
+      {
+        "t": "HICT",
+        "w": 400
+      }
+    ],
+    "cargoMuted": [
+      {
+        "t": "15,5 tấn",
+        "w": 400
+      },
+      {
+        "t": "0,8 tấn",
+        "w": 400
+      }
+    ]
+  },
+  {
+    "at": "2026-10-21T10:43:51.032Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-01@1440",
+    "pass": true,
+    "detail": "[{\"t\":\"2 x 20DC\",\"w\":600}]"
+  },
+  {
+    "at": "2026-10-21T10:43:51.032Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-02a@1440",
+    "pass": true,
+    "detail": "[{\"t\":\"2 x 20DC\",\"w\":600},{\"t\":\"2 x 20DC\",\"w\":600}]"
+  },
+  {
+    "at": "2026-10-21T10:43:51.032Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-02b@1440",
+    "pass": true,
+    "detail": "[{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"HICT\",\"w\":400},{\"t\":\"—\",\"w\":400},{\"t\":\"—\",\"w\":400}]"
+  },
+  {
+    "at": "2026-10-21T10:43:59.227Z",
+    "step": "detail-sample",
+    "width": 1440,
+    "phase": "after",
+    "rows": 8,
+    "cont": [
+      {
+        "t": "MSKU1234565",
+        "w": 600
+      },
+      {
+        "t": "MSKU1234565",
+        "w": 600
+      },
+      {
+        "t": "MSCU6639870",
+        "w": 600
+      },
+      {
+        "t": "MSCU6639870",
+        "w": 600
+      }
+    ],
+    "ports": [
+      {
+        "t": "SITC LH",
+        "w": 400
+      },
+      {
+        "t": "SITC LH",
+        "w": 400
+      },
+      {
+        "t": "SITC LH",
+        "w": 400
+      }
+    ]
+  },
+  {
+    "at": "2026-10-21T10:43:59.227Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-03a@1440",
+    "pass": true,
+    "detail": "[{\"t\":\"MSKU1234565\",\"w\":600},{\"t\":\"MSKU1234565\",\"w\":600},{\"t\":\"MSCU6639870\",\"w\":600},{\"t\":\"MSCU6639870\",\"w\":600},{\"t\":\"MSCU6639870\",\"w\":600}]"
+  },
+  {
+    "at": "2026-10-21T10:43:59.228Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-03b@1440",
+    "pass": true,
+    "detail": "[{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"SITC LH\",\"w\":400}]"
+  },
+  {
+    "at": "2026-10-21T10:44:04.977Z",
+    "step": "master-sample",
+    "width": 768,
+    "phase": "after",
+    "rows": 20,
+    "cargoCont": [
+      {
+        "t": "2 x 20DC",
+        "w": 600
+      }
+    ],
+    "portSummary": [
+      {
+        "t": "2 x 20DC",
+        "w": 600
+      },
+      {
+        "t": "2 x 20DC",
+        "w": 600
+      }
+    ],
+    "portName": [
+      {
+        "t": "SITC LH",
+        "w": 400
+      },
+      {
+        "t": "HICT",
+        "w": 400
+      }
+    ],
+    "cargoMuted": [
+      {
+        "t": "15,5 tấn",
+        "w": 400
+      },
+      {
+        "t": "0,8 tấn",
+        "w": 400
+      }
+    ]
+  },
+  {
+    "at": "2026-10-21T10:44:04.977Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-01@768",
+    "pass": true,
+    "detail": "[{\"t\":\"2 x 20DC\",\"w\":600}]"
+  },
+  {
+    "at": "2026-10-21T10:44:04.977Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-02a@768",
+    "pass": true,
+    "detail": "[{\"t\":\"2 x 20DC\",\"w\":600},{\"t\":\"2 x 20DC\",\"w\":600}]"
+  },
+  {
+    "at": "2026-10-21T10:44:04.977Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-02b@768",
+    "pass": true,
+    "detail": "[{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"HICT\",\"w\":400},{\"t\":\"—\",\"w\":400},{\"t\":\"—\",\"w\":400}]"
+  },
+  {
+    "at": "2026-10-21T10:44:15.480Z",
+    "step": "detail-sample",
+    "width": 768,
+    "phase": "after",
+    "rows": 8,
+    "cont": [
+      {
+        "t": "MSKU1234565",
+        "w": 600
+      },
+      {
+        "t": "MSKU1234565",
+        "w": 600
+      },
+      {
+        "t": "MSCU6639870",
+        "w": 600
+      },
+      {
+        "t": "MSCU6639870",
+        "w": 600
+      }
+    ],
+    "ports": [
+      {
+        "t": "SITC LH",
+        "w": 400
+      },
+      {
+        "t": "SITC LH",
+        "w": 400
+      },
+      {
+        "t": "SITC LH",
+        "w": 400
+      }
+    ]
+  },
+  {
+    "at": "2026-10-21T10:44:15.480Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-03a@768",
+    "pass": true,
+    "detail": "[{\"t\":\"MSKU1234565\",\"w\":600},{\"t\":\"MSKU1234565\",\"w\":600},{\"t\":\"MSCU6639870\",\"w\":600},{\"t\":\"MSCU6639870\",\"w\":600},{\"t\":\"MSCU6639870\",\"w\":600}]"
+  },
+  {
+    "at": "2026-10-21T10:44:15.480Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-03b@768",
+    "pass": true,
+    "detail": "[{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"SITC LH\",\"w\":400}]"
+  },
+  {
+    "at": "2026-10-21T10:44:20.290Z",
+    "step": "master-sample",
+    "width": 390,
+    "phase": "after",
+    "rows": 20,
+    "cargoCont": [
+      {
+        "t": "2 x 20DC",
+        "w": 600
+      }
+    ],
+    "portSummary": [
+      {
+        "t": "2 x 20DC",
+        "w": 600
+      },
+      {
+        "t": "2 x 20DC",
+        "w": 600
+      }
+    ],
+    "portName": [
+      {
+        "t": "SITC LH",
+        "w": 400
+      },
+      {
+        "t": "HICT",
+        "w": 400
+      }
+    ],
+    "cargoMuted": [
+      {
+        "t": "15,5 tấn",
+        "w": 400
+      },
+      {
+        "t": "0,8 tấn",
+        "w": 400
+      }
+    ]
+  },
+  {
+    "at": "2026-10-21T10:44:20.290Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-01@390",
+    "pass": true,
+    "detail": "[{\"t\":\"2 x 20DC\",\"w\":600}]"
+  },
+  {
+    "at": "2026-10-21T10:44:20.290Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-02a@390",
+    "pass": true,
+    "detail": "[{\"t\":\"2 x 20DC\",\"w\":600},{\"t\":\"2 x 20DC\",\"w\":600}]"
+  },
+  {
+    "at": "2026-10-21T10:44:20.290Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-02b@390",
+    "pass": true,
+    "detail": "[{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"HICT\",\"w\":400},{\"t\":\"—\",\"w\":400},{\"t\":\"—\",\"w\":400}]"
+  },
+  {
+    "at": "2026-10-21T10:44:27.936Z",
+    "step": "detail-sample",
+    "width": 390,
+    "phase": "after",
+    "rows": 8,
+    "cont": [
+      {
+        "t": "MSKU1234565",
+        "w": 600
+      },
+      {
+        "t": "MSKU1234565",
+        "w": 600
+      },
+      {
+        "t": "MSCU6639870",
+        "w": 600
+      },
+      {
+        "t": "MSCU6639870",
+        "w": 600
+      }
+    ],
+    "ports": [
+      {
+        "t": "SITC LH",
+        "w": 400
+      },
+      {
+        "t": "SITC LH",
+        "w": 400
+      },
+      {
+        "t": "SITC LH",
+        "w": 400
+      }
+    ]
+  },
+  {
+    "at": "2026-10-21T10:44:27.936Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-03a@390",
+    "pass": true,
+    "detail": "[{\"t\":\"MSKU1234565\",\"w\":600},{\"t\":\"MSKU1234565\",\"w\":600},{\"t\":\"MSCU6639870\",\"w\":600},{\"t\":\"MSCU6639870\",\"w\":600},{\"t\":\"MSCU6639870\",\"w\":600}]"
+  },
+  {
+    "at": "2026-10-21T10:44:27.936Z",
+    "step": "RESULT",
+    "phase": "after",
+    "id": "DIS08-L2-03b@390",
+    "pass": true,
+    "detail": "[{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"SITC LH\",\"w\":400},{\"t\":\"SITC LH\",\"w\":400}]"
+  },
+  {
+    "at": "2026-10-21T10:44:28.216Z",
+    "step": "api-identity",
+    "phase": "after",
+    "rows": [
+      {
+        "cont": "HLXU1917125",
+        "status": "DISPATCHED"
+      },
+      {
+        "cont": "OOLU2970372",
+        "status": "DISPATCHED"
+      },
+      {
+        "cont": "TCLU7995100",
+        "status": "READY"
+      },
+      {
+        "cont": "MSDU8880540",
+        "status": "DISPATCHED"
+      },
+      {
+        "cont": "TCLU5564887",
+        "status": "READY"
+      }
+    ]
+  }
+]
