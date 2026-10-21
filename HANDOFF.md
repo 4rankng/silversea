@@ -726,3 +726,42 @@ Controller: agent, worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-fb033-chiph
 - **Not covered**: staging re-drive sau deploy (QA R-next); sửa dòng legacy TRIP qua ví OPS chỉ verify mức API; DRIVER surface (không có auto-offset — settlementMethod khác); review độc lập bị treo (>11 phút) — orchestrator chỉ thị commit không chờ.
 - **Fixture residual (dev DB)**: tạm ứng funded cho `opsqa` (8138/8139, RECORDED, reason "FB-033 repro/verify tạm ứng") — consumption đã nhả hết; các khoản chi hộ test đều VOIDED.
 - Stack note: BE :3303 / FE :7177 của lane này (đang chạy); :3002/:7175/:7176 là của task khác — KHÔNG đụng. DB local ss-prod-db :5441.
+
+
+---
+
+# QA R30-endgame 9aab78d2
+
+Controller: agent, worktree `/Users/dev/.paseo/worktrees/1njkloyy/qa-r30-endgame`, branch `qa-r30-endgame`.
+Target: Staging `https://vantai.tingting.vip` — PIN buildHash `9aab78d2`.
+
+**Status**: ALL PASS (6/6 checks: LCL-07 a/b/c/d + DIS-03 + DIS-05) — UI DRIVEN 100% trên real staging với real browser flows (Puppeteer), capture đầy đủ 10 screenshots + `driver.log`.
+
+### 1. LCL-07 Money Law (PRIMARY — commit d375239b, merge 9aab78d2)
+Boss ruling: Thu khách tính PER-LOT độc lập (đơn giá bảng giá Tuyến×KH × loại xe của chính lô đó); Trả cước = 1 dòng/chuyến (Lô 1 = 100% cước trả, lot thành viên = 0₫, KHÔNG phân bổ tỷ lệ). Tách nhóm money-neutral (không chuyển tiền giữa các lot).
+- **CHECK (a) Chiều THU — PASS**: Mỗi lô hiển thị giá thu riêng per-lot trên `/accounting/chot-debit` và `/shipments-debit`. Lô 74 (`TPOEBKK202609017`) thu `2.500.000 ₫`, Lô 105 (`ZSNHPG269104`) thu `2.500.000 ₫`. Gom nhóm không ghi đè thành 0₫ member hay dồn 100% vào Lô 1.
+- **CHECK (b) Chiều TRẢ — PASS**: Đúng 1 dòng cước trả cho cả chuyến xe `19C-888.99` (nhà xe VC ĐỨC THỊNH): Lô 1 = `1.800.000 ₫` (100% cước trả), Lô 105 member = `0 ₫`. Không nhân bản dòng trả theo số lot.
+- **CHECK (c) TÁCH NHÓM (unmerge) — PASS**: Bấm "Tách nhóm" trên Lô 74 tại `/shipments-debit` → mở ConfirmDialog xác nhận unmerge dimension REV → sau khi tách, tiền thu từng lô giữ nguyên per-lot `2.500.000 ₫`, không chuyển tiền giữa các lô, ghi chú "Ghép cước cùng Bill" được gỡ sạch.
+- **CHECK (d) GHÉP LẠI (re-merge REV group) — PASS**: Chọn lại 2 lô lẻ trên `/shipments-debit`, mở toolbar "Ghép cước thu khách" (dialog hiển thị đúng copy boss: `"2 lô lẻ · mỗi lô tự tính đơn giá Tuyến×KH (Auto), gộp chung 1 Bill"`), chọn loại xe `Cont 20 - Trọng tải < 20 tấn`, xác nhận → sau khi ghép, giá thu per-lot vẫn độc lập `2.500.000 ₫` mỗi lô, nút "Tách nhóm" và ghi chú ghép cước xuất hiện lại đúng vị trí.
+
+### 2. dis-03 spot (commit 3349fd52) — PASS
+- **Surface**: Điều vận `/dispatch-detail` (Kế hoạch chi tiết).
+- **Behavior**: Chọn container `AXEU2004033`, phân loại Kẹp 20', gán đầu xe `15H-021.39` (đã có chuyến 40 trong cùng ngày 2026-10-15) → server trả về 409 `RIG_OVERLAP_COMPLETED` với dialog cảnh báo: `"Đầu xe 15H-021.39 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?"` kèm 2 nút `[Hủy, Xác nhận]`. Bấm "Xác nhận" tiếp tục lưu thành công (HTTP 200). KHÔNG còn dead-end lỗi 409 chặn hoàn toàn.
+
+### 3. dis-05 spot (commit 3349fd52) — PASS
+- **Surface**: Điều vận `/dispatch-detail` (Kế hoạch chi tiết).
+- **Behavior**: Mở `DispatchPlanEditorCell` trên container `AXEU2004033`, click cụm giờ mở `TimePanel`, gõ giờ chính xác `1645` (16:45), click chuột OUTSIDE panel (click vào header dialog) → `TimePanel` đóng và giờ `16:45` được commit thành công vào form mà không bị mất, không bị reset về giờ cũ.
+
+### 4. QA Artifacts Saved (`qa/2026-10-21-r30-endgame/`)
+- `dis03-01-warn-confirm-dialog.png` — Dialog cảnh báo trùng đầu kéo kèm nút Xác nhận (không dead-end)
+- `dis03-02-after-confirm-saved.png` — Lưới kế hoạch sau khi bấm Xác nhận lưu thành công
+- `dis05-01-timepanel-open.png` — TimePanel mở với giá trị giờ nhập 16:45
+- `dis05-02-timepanel-outside-commit.png` — Form sau khi outside click: giờ 16:45 được giữ nguyên (commit)
+- `lcl07-01-debit-board-cost-1dong.png` — Màn chốt debit `/accounting/chot-debit`: Thu per-lot (2.500.000₫/lô) + Trả 1 dòng/chuyến (Lô 1: 1.800.000₫, Member: 0₫)
+- `lcl07-02-shipments-debit-merged.png` — Màn `/shipments-debit` trước khi tách nhóm (cả 2 lô hiển thị cước thu độc lập + nút Tách nhóm)
+- `lcl07-03-tach-confirm-dialog.png` — Dialog xác nhận Tách nhóm ghép cước thu khách
+- `lcl07-04-after-unmerge-money-neutral.png` — Màn `/shipments-debit` sau khi tách nhóm: cước thu 2.500.000₫/lô giữ nguyên, money-neutral
+- `lcl07-05-re-merge-dialog.png` — Dialog "Ghép cước thu khách" với subtitle boss ruling
+- `lcl07-06-re-merged-rev-perlot.png` — Màn `/shipments-debit` sau khi ghép lại: cước thu per-lot 2.500.000₫ độc lập
+- `driver.log` — Log chi tiết toàn bộ các bước, HTTP mutations, console logs và kết quả test JSON.
+- Automated driver script: `testplan/qa/scripts/2026-10-21-r30-endgame-drive.mjs`.
