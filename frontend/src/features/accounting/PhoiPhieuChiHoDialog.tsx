@@ -111,12 +111,13 @@ export function PhoiPhieuChiHoDialog({ tripId, shipmentId, billOrBooking, carrie
   });
 
   function setEdit(row: PhoiPhieuFeeRow, key: 'thu' | 'tra', value: number | '') {
-    const releaseLink = linked && key === 'tra' && typeof value === 'number' && value < 0;
-    if (releaseLink) { setLinked(false); setLinkNotice('Khoản chi âm không áp dụng Thu bằng trả. Số tiền thu được giữ nguyên.'); }
+    // Card 211026213838 — the money input strips a minus on entry, so a
+    // negative can no longer arrive here; the old "khoản chi âm" link-release
+    // branch is gone. The linked copy stays unconditional.
     setEdits((current) => {
       const target = { ...(current[row.entryId] ?? { thu: row.amountThu ?? '', tra: row.amountTra ?? '' }) };
       target[key] = value;
-      if (linked && !releaseLink) target[key === 'thu' ? 'tra' : 'thu'] = value;
+      if (linked) target[key === 'thu' ? 'tra' : 'thu'] = value;
       return { ...current, [row.entryId]: target };
     });
   }
@@ -253,7 +254,7 @@ export function PhoiPhieuChiHoDialog({ tripId, shipmentId, billOrBooking, carrie
                         {isTrip ? (
                           <span style={{ fontWeight: 600 }}>{`${formatMoney(row.amountTra)} ₫`}</span>
                         ) : (
-                          <NumberField aria-label={`Số tiền trả dòng ${index + 1}`} suffix="₫" grouped signed value={edits[row.entryId]?.tra ?? row.amountTra ?? ''} onChange={(n) => setEdit(row, 'tra', n)} />
+                          <NumberField aria-label={`Số tiền trả dòng ${index + 1}`} suffix="₫" grouped value={edits[row.entryId]?.tra ?? row.amountTra ?? ''} onChange={(n) => setEdit(row, 'tra', n)} />
                         )}
                       </td>
                       <td data-label="Người thanh toán" className="phoi-detail-col--identity">{row.payerName ?? '—'}</td>

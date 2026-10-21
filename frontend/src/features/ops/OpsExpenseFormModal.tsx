@@ -93,10 +93,12 @@ function blankFeeDraft(key: number): FeeDraft {
   };
 }
 
-/** Mirror of the backend money guard (signed VND integer, 0 rejected): a
- *  negative line is the PM's "tương đương xóa dòng" and every total drops it. */
+/** Card 211026213838 — POSITIVE integer VND only (PRD OpsVanHanh "Số tiền":
+ *  số nguyên dương; số âm không phải dữ liệu nhập của ô chi). Supersedes the
+ *  card-20260928_197 signed rule on this Ops form; 0 stays rejected — 0 is an
+ *  empty row, not an amount. */
 function amountValidOf(amount: number | ''): boolean {
-  return amount !== '' && Number.isSafeInteger(amount) && amount !== 0 && Math.abs(amount) <= 999_999_999_999_999;
+  return amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
 }
 
 /** The customer charge the SERVER will derive for this draft (card 20260928_162
@@ -125,8 +127,10 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | 
   if (isEmptyDraft(draft)) return null;
   const valid = amountValidOf(draft.amount);
   if (!draft.typeCode) return 'Chọn loại phí.';
-  if (!valid) return draft.amount === 0
-    ? 'Số tiền không được bằng 0 — nhập (+) chi phí hoặc (−) chi phí để bỏ dòng'
+  if (!valid) return draft.amount === ''
+    ? 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ'
+    : draft.amount === 0 ? 'Số tiền không được bằng 0'
+    : draft.amount < 0 ? 'Số tiền không được âm'
     : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
   const charge = chargeOf(block, draft, valid);
   if (Number.isNaN(charge) || charge < 0) return 'Thực thu (thu khách) phải là số không âm.';
@@ -561,11 +565,12 @@ const { typesData, typesReady, busy, patch: patchDraft, upload: uploadRowPhotos,
           onChange={(event) => patchDraft(block, draft.key, { typeCode: event.target.value })}
           options={typeOptionsOf(block)}
         />
-        <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={draft.amount}
+        <NumberField controlSize="sm" label="Thực chi (VND)" grouped value={draft.amount}
           onChange={(amount) => patchDraft(block, draft.key, { amount })}
-          min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required
+          min={0} max={999_999_999_999_999} step={1} required
           error={draft.amount === '' || amountValidOf(draft.amount) ? undefined
             : draft.amount === 0 ? 'Số tiền không được bằng 0'
+            : draft.amount < 0 ? 'Số tiền không được âm'
             : 'Nhập số tiền nguyên'} />
         {invoiced ? <>
           <label className="ops-fee-row__field">

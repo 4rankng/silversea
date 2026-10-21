@@ -43,13 +43,14 @@ type OpsExpenseWriteResult = typeof s.opsExpenseEntries.$inferSelect & {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Card 20260928_197 — a SIGNED integer VND amount, the same contract
- *  `signedExpenseVndSchema` gives the shared layer (card 20260928_181): a cost
- *  row may carry a negative number, and every total that reads this column
- *  drops such a row via `sumExcludingNegative` instead of netting it against
- *  the positive rows. The magnitude ceiling is unchanged and symmetric, and 0
- *  stays rejected — 0 is an empty row, not a signed one. This is the BigInt
- *  mirror of the shared schema, so the value never touches a float. */
+/** Card 211026213838 — the Ops wallet takes a POSITIVE integer VND amount
+ *  (PRD OpsVanHanh "Số tiền": "Số nguyên dương"; số âm chỉ hợp lệ ở chiều
+ *  hiển thị của báo cáo hoàn ứng, không phải ô nhập). This supersedes the
+ *  card-20260928_197 signed rule for the Ops create/update endpoints — the
+ *  only callers of this parser — so a negative is refused by name instead of
+ *  being read as a "xóa dòng" adjustment. 0 stays rejected: 0 is an empty row,
+ *  not an amount. This is the BigInt mirror of the shared unsigned schema, so
+ *  the value never touches a float. */
 export function parseOpsMoney(value: string | number, field = 'Số tiền'): bigint {
   const text = typeof value === 'string' ? value.trim() : String(value);
   const isNumericString = typeof value === 'string' && /^-?\d+$/.test(text);
@@ -61,8 +62,9 @@ export function parseOpsMoney(value: string | number, field = 'Số tiền'): bi
   // above 1e21 stringifies as `1e+21`, which BigInt cannot read, so the number
   // branch converts the value itself.
   const amount = BigInt(typeof value === 'number' ? value : text);
+  if (amount < 0n) throw new ApiError(400, `${field} không được âm.`);
   if (amount === 0n) throw new ApiError(400, `${field} không được bằng 0.`);
-  if (amount > 999_999_999_999_999n || amount < -999_999_999_999_999n) throw new ApiError(400, `${field} vượt quá giới hạn.`);
+  if (amount > 999_999_999_999_999n) throw new ApiError(400, `${field} vượt quá giới hạn.`);
   return amount;
 }
 
@@ -319,7 +321,10 @@ export async function updateOpsExpense(
     if (patch.expectedVersion !== source.version) throw new ApiError(409, 'Khoản chi đã thay đổi. Tải lại trước khi sửa.');
   }
   const next: Record<string, unknown> = { updatedAt: new Date(), approvalStatus: 'RECORDED' };
-  parseOpsMoney(patch.amount ?? entry.amount);
+  // Card 211026213838 — only the INCOMING amount is validated: re-parsing the
+  // stored value here would 400 every edit of a legacy negative row (card-197
+  // era data) even when the patch never touches `amount`. New amounts go
+  // through `parseOpsMoney` in the branch below.
   assertValidPaidAt(patch.paidAt ?? entry.paidAt);
   await assertActiveExpenseType(patch.expenseTypeCode ?? entry.expenseTypeCode);
 
