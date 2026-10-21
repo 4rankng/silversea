@@ -42,24 +42,29 @@ export function containerTransportDateSql() {
   )`;
 }
 
-/** Container workboard day triage (D.6, completed by card 211026132257):
- *  the day triage narrows CONTAINER rows to their appointment/EDD day — a
- *  container-less LCL lot has NO container day and rides outside it
- *  entirely, so a lot visible on Tổng quan (whose default carries no date
- *  scope) is never missing on Chi tiết, whatever day the workboard lens
- *  holds. The 2026-10-18 partial exempted only UNDATED lots (whose
- *  coalesce(...) is NULL and could never match any range); QA card
- *  211026132257 (lcl-01) re-opened the sync because a DATED lot's EDD still
- *  hid it under the board's default day lens ("lô hàng lẻ hiện ở TỔNG QUAN
- *  nhưng KHÔNG có ở CHI TIẾT"). The lot row's `transportDate` (its EDD) stays
- *  the sort/display schedule; it is simply not a filter gate for lot rows.
- *  Real container rows keep the full `dateArms` triage unchanged. */
+/** Container workboard day triage (D.6, completed by cards 211026132257 and
+ *  211026180528): the day triage narrows dated rows to their
+ *  appointment/EDD day; a row with NO triage day at all rides outside it.
+ *  Two shapes own that outside lane. (1) A container-less LCL lot (lan 1):
+ *  lot rows are never day-gated — dated or not, whatever day the workboard
+ *  lens holds, a lot visible on Tổng quan (whose default carries no date
+ *  scope) is never missing on Chi tiết. The lot row's `transportDate` (its
+ *  EDD) stays the sort/display schedule; it is simply not a filter gate.
+ *  (2) A row whose triage day `coalesce(appointment, EDD)` is NULL (lan 2 —
+ *  QA card 211026180528, staging lot SHP-2610-00069: intake skeleton with
+ *  containers but no appointment and no EDD): no date range could ever
+ *  match NULL, so the old dateArms-only branch dropped it while Tổng quan
+ *  listed it — the same "no day it could match" law, one shape further.
+ *  This also revives the board's nulls-first sort arm: unscheduled rows sit
+ *  at the top, mirroring the overview's operational priority queue. Dated
+ *  container rows keep the full `dateArms` triage unchanged. */
 export function containerDayTriageCondition(dateArms: SQL[]): SQL {
   return or(
     and(
       isNull(s.shipmentContainers.id),
       eq(s.shipments.cargoMode, CARGO_MODE.LCL),
     ),
+    isNull(containerTransportDateSql()),
     and(...dateArms),
   )!;
 }
