@@ -25,7 +25,9 @@ interface PairDraftPayload {
   canonicalOrigin: string;
   canonicalDestination: string;
   cargoWeightKg: number;
-  vehicleCapacityKg: number;
+  /** Card 211026152138 — null when the trip carries no snapshotted capacity:
+   *  the pair saves with a soft warning instead of being blocked. */
+  vehicleCapacityKg: number | null;
   expectedVersion: number;
 }
 
@@ -75,9 +77,13 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
     })), [candidates, baseTripId]);
 
   function draftFor(trip: TripDetail): PairDraftPayload | null {
+    // Card 211026152138 — vehicleCapacityKg is NOT required: a rig without a
+    // declared capacity pairs with a server-side soft warning instead of the
+    // old client-side dead end. Schedule, locations and cargo weight stay
+    // mandatory (the backend's authority checks still verify them).
     if (!trip.plannedStartAt || !trip.plannedEndAt
       || !trip.canonicalOrigin || !trip.canonicalDestination
-      || !trip.cargoWeightKg || !trip.vehicleCapacityKg) {
+      || !trip.cargoWeightKg) {
       return null;
     }
     return {
@@ -86,7 +92,7 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
       canonicalOrigin: trip.canonicalOrigin,
       canonicalDestination: trip.canonicalDestination,
       cargoWeightKg: Number(trip.cargoWeightKg),
-      vehicleCapacityKg: Number(trip.vehicleCapacityKg),
+      vehicleCapacityKg: trip.vehicleCapacityKg != null ? Number(trip.vehicleCapacityKg) : null,
       expectedVersion: trip.version,
     };
   }

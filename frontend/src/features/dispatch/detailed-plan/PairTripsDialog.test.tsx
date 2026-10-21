@@ -122,4 +122,42 @@ describe('PairTripsDialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/Không đủ điều kiện kẹp hàng/);
     expect(onPaired).not.toHaveBeenCalled();
   });
+
+  // Card 211026152138 — a rig with no declared capacity must not dead-end the
+  // pair client-side: the draft rides vehicleCapacityKg: null and the server
+  // attaches the soft advisory warning after the save.
+  it('submits a null-capacity trip with vehicleCapacityKg: null instead of blocking', async () => {
+    useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900, vehicleCapacityKg: null }), isLoading: false });
+    vi.mocked(tripClient.getTrip).mockResolvedValue(
+      tripDetail({ id: 901, version: 7, plannedStartAt: '2026-09-08T13:00:00.000Z', plannedEndAt: '2026-09-08T17:00:00.000Z', canonicalOrigin: 'Kho Bình Dương', canonicalDestination: 'Cảng Cát Lái', vehicleCapacityKg: null }),
+    );
+    vi.mocked(tripClient.createPair).mockResolvedValue({
+      id: 55, status: 'ACTIVE', pairKind: 'KEP',
+      warnings: ['Xe chưa khai tải trọng trong danh mục — hệ thống không đối chiếu được tổng trọng lượng cặp. Điều vận chịu trách nhiệm kiểm tra tải trước khi chạy.'],
+    } as never);
+
+    const onPaired = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <PairTripsDialog
+        row={row(900)}
+        candidates={[row(901)]}
+        onClose={onClose}
+        onPaired={onPaired}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+
+    await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
+    const payload = vi.mocked(tripClient.createPair).mock.calls[0][0];
+    expect(payload.firstTrip.vehicleCapacityKg).toBeNull();
+    expect(payload.secondTrip.vehicleCapacityKg).toBeNull();
+    expect(onPaired).toHaveBeenCalled();
+    // A warning keeps the dialog open with the advisory + the "Xong" ack.
+    expect(await screen.findByRole('status')).toHaveTextContent(/chưa khai tải trọng/);
+    expect(onClose).not.toHaveBeenCalled();
+  }, 20_000);
 });

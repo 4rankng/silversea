@@ -166,22 +166,25 @@ describe('phơi chi-hộ row identity', () => {
     expect(screen.getByLabelText('Số tiền thu dòng 2')).toHaveValue('80.000');
     expect(api.update).not.toHaveBeenCalled(); expect(api.correct).not.toHaveBeenCalled();
   });
-  it('PHOI07 releases positive equality for a negative payable and saves the preserved unsigned receivable', async () => {
+  it('PHOI07 releases positive equality for a positive payable and keeps the linked copy (card 211026213838 strips the minus)', async () => {
     page(); await screen.findByText('First fee');
     const equality = screen.getByRole('checkbox', { name: 'Nhập Thu và Trả bằng nhau' });
     fireEvent.click(equality);
     fireEvent.change(screen.getByLabelText('Số tiền trả dòng 1'), { target: { value: '70000' } });
     expect(screen.getByLabelText('Số tiền thu dòng 1')).toHaveValue('70.000');
+    // Card 211026213838 — the money input strips a minus on entry, so a typed
+    // "-1" lands as the positive 1: equality holds, the linked copy follows,
+    // and no negative ever reaches the save payload.
     fireEvent.change(screen.getByLabelText('Số tiền trả dòng 1'), { target: { value: '-1' } });
-    expect(equality).not.toBeChecked();
-    expect(screen.getByLabelText('Số tiền thu dòng 1')).toHaveValue('70.000');
-    expect(screen.getByText(/Khoản chi âm không áp dụng Thu bằng trả/)).toBeInTheDocument();
-    fireEvent.click(equality);
-    expect(equality).not.toBeChecked();
+    expect(equality).toBeChecked();
+    expect(screen.getByLabelText('Số tiền trả dòng 1')).toHaveValue('1');
+    expect(screen.getByLabelText('Số tiền thu dòng 1')).toHaveValue('1');
+    expect(screen.queryByText(/Khoản chi âm không áp dụng Thu bằng trả/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Số tiền trả dòng 1'), { target: { value: '70000' } });
     expect(screen.getByLabelText('Số tiền thu dòng 1')).toHaveValue('70.000');
     fireEvent.click(screen.getByRole('button', { name: /^Lưu$/ }));
     await waitFor(() => expect(api.update).toHaveBeenCalledOnce());
-    expect(api.update).toHaveBeenCalledWith(7, 23, expect.objectContaining({ expectedVersion: 3, amount: -1, customerChargeAmount: 70000 }));
+    expect(api.update).toHaveBeenCalledWith(7, 23, expect.objectContaining({ expectedVersion: 3, amount: 70000, customerChargeAmount: 70000 }));
     expect(api.correct).not.toHaveBeenCalled();
   });
   it('PHOI05 keeps confirmed and unconfirmed detail caches distinct on the same trip', async () => {
@@ -204,8 +207,10 @@ describe('phơi chi-hộ row identity', () => {
     const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
     expect(screen.getByLabelText('Số tiền trả dòng 2')).toHaveValue('-80.000');
     expect(totals()).toEqual(['140.000 ₫', '50.000 ₫']);
+    // Card 211026213838 — a typed minus is stripped on entry: "-1" lands as
+    // the positive 1 and joins the total instead of being excluded.
     fireEvent.change(screen.getByLabelText('Số tiền trả dòng 1'), { target: { value: '-1' } });
-    expect(totals()).toEqual(['140.000 ₫', '0 ₫']);
+    expect(totals()).toEqual(['140.000 ₫', '1 ₫']);
     fireEvent.change(screen.getByLabelText('Số tiền trả dòng 1'), { target: { value: '50000' } });
     expect(totals()).toEqual(['140.000 ₫', '50.000 ₫']);
     expect(api.update).not.toHaveBeenCalled(); expect(api.correct).not.toHaveBeenCalled();

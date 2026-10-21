@@ -3,6 +3,8 @@ export type TripPairingBlockCode =
   | 'MISSING_PLANNED_WINDOW'
   | 'INVALID_PLANNED_WINDOW'
   | 'MISSING_LOCATION'
+  /** Card 211026152138 — no longer emitted (an undeclared capacity warns, it
+   *  never blocks); kept so older wire consumers of blockingCodes stay valid. */
   | 'MISSING_CAPACITY'
   | 'MISSING_CARGO_WEIGHT'
   | 'OVERLOAD'
@@ -148,15 +150,23 @@ export function buildTripPairSnapshot(
   }
 
   const capacityKg = toFiniteNumber(vehicle.vehicleCapacityKg);
-  if (capacityKg == null || capacityKg <= 0) {
-    blockingCodes.push('MISSING_CAPACITY');
-  }
+  // Card 211026152138 — a rig with NO declared capacity can never PROVE an
+  // overload, so it no longer blocks the pair (the issue flow's
+  // `assertResourceAvailability` has always skipped its weight gate on a null
+  // capacity; the pairing gate now matches). A nonpositive stored value counts
+  // as undeclared — it is not a rating anyone declared. The caller
+  // (`createTripPair`) attaches the soft advisory warning instead. When a
+  // capacity IS declared, the overload block below stays — PRD
+  // LoHangKepKetHop §7.2 keeps rejecting a pair whose weight exceeds the
+  // declared capacity. The MISSING_CAPACITY union member stays for wire
+  // compat; nothing emits it any more.
+  const declaredCapacityKg = capacityKg != null && capacityKg > 0 ? capacityKg : null;
 
   const firstCargoKg = toFiniteNumber(orderedFirst.cargoWeightKg);
   const secondCargoKg = toFiniteNumber(orderedSecond.cargoWeightKg);
   if (firstCargoKg == null || secondCargoKg == null) {
     blockingCodes.push('MISSING_CARGO_WEIGHT');
-  } else if (capacityKg != null && (firstCargoKg > capacityKg || secondCargoKg > capacityKg)) {
+  } else if (declaredCapacityKg != null && (firstCargoKg > declaredCapacityKg || secondCargoKg > declaredCapacityKg)) {
     blockingCodes.push('OVERLOAD');
   }
 

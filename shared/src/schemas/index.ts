@@ -216,7 +216,12 @@ const tripPairDraftSchema = z.object({
   canonicalOrigin: z.string().trim().min(1, 'Điểm đi là bắt buộc').max(160),
   canonicalDestination: z.string().trim().min(1, 'Điểm đến là bắt buộc').max(160),
   cargoWeightKg: positiveNumeric,
-  vehicleCapacityKg: positiveNumeric,
+  // Card 211026152138 — a rig with NO declared capacity (master-data imports
+  // leave Loại Moóc blank) must not dead-end a ghép: the pairing gate warns
+  // instead of blocking, so the draft carries null when the trip has no
+  // snapshotted capacity. Present-or-null only — a non-positive number stays
+  // rejected via positiveNumeric.
+  vehicleCapacityKg: positiveNumeric.nullable(),
   expectedVersion: z.number().int().positive().optional(),
 }).superRefine((data, ctx) => {
   const start = new Date(data.plannedStartAt);

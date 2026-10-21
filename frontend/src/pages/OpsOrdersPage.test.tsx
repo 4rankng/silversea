@@ -307,7 +307,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(submit).toBeDisabled();
   });
-  it('shows the rejected negative amount and explains how to recover before saving', async () => {
+  it('strips a typed minus from the Ops money input and keeps the nonneg rules (card 211026213838)', async () => {
     renderPage();
     await screen.findByText('BL-001');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
@@ -320,22 +320,20 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
     const amount = screen.getByLabelText(/Thực chi \(VND\)/);
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
-    // Card 20260928_197 — a NEGATIVE amount is the PM's "(-) chi phí tương
-    // đương xóa dòng". It must be accepted here; the backend drops the row from
-    // every total via sumExcludingNegative rather than netting it out.
+    // Card 211026213838 — a NEGATIVE amount is no longer enterable: the grouped
+    // unsigned money field strips the minus on entry, so "-123000" lands as
+    // the positive 123000 and the save path never sees a signed row.
     fireEvent.change(amount, { target: { value: '-123000' } });
-    // Grouped money field (card 20260928_197): a text input holding the vi-VN
-    // rendering, so the accepted negative reads "-123.000", not -123000.
-    expect(amount).toHaveValue('-123.000');
+    expect(amount).toHaveValue('123.000');
     expect(amount).toHaveAttribute('aria-invalid', 'false');
-    expect(screen.queryByText(/Số tiền phải là số nguyên khác 0/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Số tiền không được âm/)).not.toBeInTheDocument();
     // Cân xe is a no-invoice line, so opsCustomerCharge — the client mirror of
     // the server's receivableForCost — charges nothing and the row carries its
     // own mandatory reason (card 20260928_162). Satisfy that orthogonal gate
     // once, so every submit-button assertion below is the AMOUNT's doing.
-    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'dòng chi âm, xem chứng từ gốc' } });
+    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'cân xe đầu lô, xem chứng từ gốc' } });
     expect(submit).toBeEnabled();
-    // 0 is an empty row, not a signed one.
+    // 0 is an empty row, not an amount.
     fireEvent.change(amount, { target: { value: '0' } });
     expect(amount).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText(/Số tiền không được bằng 0/)).toBeInTheDocument();

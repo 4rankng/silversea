@@ -18,8 +18,12 @@ describe('driver cost confirmation uses current source version', () => {
     const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
     expect(screen.getByLabelText('Thực chi dòng 2')).toHaveValue('-10.000');
     expect(totals()).toEqual(['75.000 ₫', '75.000 ₫']);
+    // Card 211026213838 — the money input strips a minus on entry: a typed
+    // "-1" lands as the positive 1 and joins the totals. Historical negative
+    // rows (dòng 2, dòng 3) keep rendering and stay excluded from the totals.
     fireEvent.change(screen.getByLabelText('Thực chi dòng 1'), { target: { value: '-1' } });
-    expect(totals()).toEqual(['0 ₫', '0 ₫']);
+    expect(screen.getByLabelText('Thực chi dòng 1')).toHaveValue('1');
+    expect(totals()).toEqual(['1 ₫', '1 ₫']);
     fireEvent.change(screen.getByLabelText('Thực chi dòng 1'), { target: { value: '75000' } });
     expect(totals()).toEqual(['75.000 ₫', '75.000 ₫']);
     expect(api.confirm).not.toHaveBeenCalled(); expect(saved).not.toHaveBeenCalled();

@@ -483,12 +483,17 @@ export async function createTripPair(
       throw new ApiError(422, 'Ghép kết hợp yêu cầu tái sử dụng đúng một vỏ container — hai lệnh đang mang số vỏ khác nhau.');
     }
 
+    // Card 211026152138 — a rig with NO declared capacity (master-data imports
+    // leave Loại Moóc blank, so the issue-time snapshot stays null) no longer
+    // dead-ends the pair: the snapshot runs without a capacity (its overload
+    // gate needs a declared value to prove anything) and the soft advisory
+    // below tells the dispatcher the check was skipped. Two DECLARED but
+    // differing capacities stay a data anomaly worth refusing — one mooc
+    // cannot carry two different ratings.
     const firstCapacity = toNumber(locked.first.vehicleCapacityKg);
     const secondCapacity = toNumber(locked.second.vehicleCapacityKg);
-    if (firstCapacity == null || secondCapacity == null) {
-      throw new ApiError(422, firstBlockingMessage('MISSING_CAPACITY'));
-    }
-    if (Math.abs(firstCapacity - secondCapacity) > 0.001) {
+    const capacityMissing = firstCapacity == null || secondCapacity == null;
+    if (!capacityMissing && Math.abs(firstCapacity - secondCapacity) > 0.001) {
       throw new ApiError(422, 'Tải trọng xe phải thống nhất giữa hai chuyến ghép');
     }
 
@@ -514,7 +519,7 @@ export async function createTripPair(
         loadedDistanceKm: locked.second.routeDistanceKm,
       },
       {
-        vehicleCapacityKg: firstCapacity,
+        vehicleCapacityKg: capacityMissing ? null : firstCapacity,
       },
       { kind },
     );
@@ -619,6 +624,11 @@ export async function createTripPair(
     const warnings: string[] = [];
     if (kind === 'KEP' && locked.first.routeId !== locked.second.routeId) {
       warnings.push('Hai lệnh khác tuyến đường — Điều vận tự xác nhận chạy kẹp cùng lúc.');
+    }
+    // Card 211026152138 — the missing-capacity soft rule: the pair saves, but
+    // the dispatcher must see that no weight check was possible.
+    if (capacityMissing) {
+      warnings.push('Xe chưa khai tải trọng trong danh mục — hệ thống không đối chiếu được tổng trọng lượng cặp. Điều vận chịu trách nhiệm kiểm tra tải trước khi chạy.');
     }
     return warnings.length > 0 ? { ...serializePairRecord(pair), warnings } : serializePairRecord(pair);
   };

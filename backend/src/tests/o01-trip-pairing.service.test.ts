@@ -154,6 +154,63 @@ describe('trip pairing service', () => {
     assert.ok(result.blockingCodes.includes('INVALID_PLANNED_WINDOW'));
   });
 
+  // ─── Card 211026152138 — missing capacity warns, it never blocks ──────────
+
+  test('accepts a KEP pair when the rig has no declared capacity (card 211026152138)', () => {
+    const result = buildTripPairSnapshot(
+      trip({ tripId: 11 }),
+      trip({
+        tripId: 22,
+        plannedStartAt: '2026-07-27T08:00:00.000Z',
+        plannedEndAt: '2026-07-27T11:00:00.000Z',
+        canonicalOrigin: 'Cảng Cát Lái',
+        canonicalDestination: 'Kho Bình Dương',
+      }),
+      { vehicleCapacityKg: null },
+      { kind: 'KEP' },
+    );
+
+    assert.equal(result.eligible, true);
+    assert.ok(!result.blockingCodes.includes('MISSING_CAPACITY'));
+    assert.equal(result.blockingCodes.length, 0);
+  });
+
+  test('a zero-capacity vehicle no longer blocks either (card 211026152138)', () => {
+    const result = buildTripPairSnapshot(
+      trip({ tripId: 11 }),
+      trip({
+        tripId: 22,
+        plannedStartAt: '2026-07-27T08:00:00.000Z',
+        plannedEndAt: '2026-07-27T11:00:00.000Z',
+        canonicalOrigin: 'Cảng Cát Lái',
+        canonicalDestination: 'Kho Bình Dương',
+      }),
+      { vehicleCapacityKg: 0 },
+      { kind: 'KEP' },
+    );
+
+    assert.equal(result.eligible, true);
+    assert.ok(!result.blockingCodes.includes('MISSING_CAPACITY'));
+  });
+
+  test('a DECLARED capacity still rejects a leg heavier than the rig (overload law intact)', () => {
+    const result = buildTripPairSnapshot(
+      trip({ tripId: 11, cargoWeightKg: 18000 }),
+      trip({
+        tripId: 22,
+        plannedStartAt: '2026-07-27T08:00:00.000Z',
+        plannedEndAt: '2026-07-27T11:00:00.000Z',
+        canonicalOrigin: 'Cảng Cát Lái',
+        canonicalDestination: 'Kho Bình Dương',
+      }),
+      { vehicleCapacityKg: 15000 },
+      { kind: 'KEP' },
+    );
+
+    assert.equal(result.eligible, false);
+    assert.ok(result.blockingCodes.includes('OVERLOAD'));
+  });
+
   test('KET_HOP (default) keeps the full sequential rule set', () => {
     const result = buildTripPairSnapshot(
       trip({

@@ -1330,7 +1330,9 @@ export interface TripPairDraftInput {
   canonicalOrigin: string;
   canonicalDestination: string;
   cargoWeightKg: number;
-  vehicleCapacityKg: number;
+  /** Card 211026152138 — null when the trip has no snapshotted capacity: the
+   *  pair saves with a soft advisory instead of the MISSING_CAPACITY block. */
+  vehicleCapacityKg: number | null;
   expectedVersion?: number;
 }
 

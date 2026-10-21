@@ -224,10 +224,13 @@ export function PhoiPhieuTienDuongDialog({ tripId, shipmentId, billOrBooking, ca
                     <td data-label="Lái xe" className="phoi-detail-col--identity">{row.driverName ?? '—'}</td>
                     <td data-label="Lái xe nhập ban đầu (đ)" className="phoi-detail-col--money"><Money value={row.driverEnteredAmount ?? row.amount} /></td>
                     <td data-label="Thực chi hiện tại (đ)" className="phoi-detail-col--money">
+                      {/* Card 211026213838 — unsigned money: a minus is stripped
+                          on entry, matching the chi-hộ row edit. Historical
+                          negative rows still render and stay excluded from the
+                          totals via the note below. */}
                       <NumberField
                         aria-label={`Thực chi dòng ${index + 1}`}
                         grouped
-                        signed
                         suffix="₫"
                         value={edits[row.sourceId] ?? row.amount}
                         disabled={saving}

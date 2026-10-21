@@ -76,12 +76,15 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
     return options;
   }, [groupedTypes]);
 
-  // Card 20260928_197 — mirrors the backend `signedExpenseVndSchema`: a signed
-  // integer inside the money ceiling, 0 rejected. A negative edit removes the
-  // line from every total (PM: "(-) chi phí tương đương xóa dòng").
-  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount !== 0 && Math.abs(amount) <= 999_999_999_999_999;
+  // Card 211026213838 — POSITIVE integer VND only (PRD OpsVanHanh "Số tiền":
+  // số nguyên dương). Supersedes the card-20260928_197 signed rule on this Ops
+  // edit surface — the backend `parseOpsMoney` rejects a negative with the
+  // same message, so an old "(-) chi phí tương đương xóa dòng" edit is no
+  // longer enterable here.
+  const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
   const amountError = amount === '' || amountValid ? undefined
-    : amount === 0 ? 'Số tiền không được bằng 0 — nhập (+) chi phí hoặc (−) chi phí để bỏ dòng'
+    : amount === 0 ? 'Số tiền không được bằng 0'
+    : amount < 0 ? 'Số tiền không được âm'
     : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
   const typesReady = typesQuery.isSuccess && Boolean(typesData?.items.length);
   const canSubmit = typesReady && !locked && Boolean(reason.trim()) && Boolean(typeCode) && amountValid && !updateExpense.isPending && !uploadingPhoto && pendingFiles.length === 0;
@@ -175,8 +178,8 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
               }}
               options={expenseTypeOptions}
             />
-            <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={amount} onChange={setAmount}
-              min={-999_999_999_999_999} max={999_999_999_999_999} step={1} required error={amountError} />
+            <NumberField controlSize="sm" label="Thực chi (VND)" grouped value={amount} onChange={setAmount}
+              min={0} max={999_999_999_999_999} step={1} required error={amountError} />
             <label>
               Ngày chi *
               <DateInput value={paidAt} onChange={setPaidAt} required />
