@@ -103,6 +103,7 @@ describe('RoleWorkInbox', () => {
     apiGet.mockResolvedValue(response([]));
     const route = '/portal/shipments?tab=1&page=2';
     window.history.replaceState(null, '', route);
+    const mountedAt = Date.now();
     const view = renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={null} scopeReady={false} />, route);
     expect(apiGet).not.toHaveBeenCalled();
     expect(screen.getByRole('tab', { name: /Đang xử lý/ }).getAttribute('aria-selected')).toBe('true');
@@ -119,7 +120,10 @@ describe('RoleWorkInbox', () => {
     // định thay vì đếm tuyệt đối (chạy full-suite dưới tải, effect hydration có
     // thể phát sinh 1 call phụ; storm/loop sẽ vượt ngưỡng ngay).
     await waitFor(() => expect(apiGet.mock.calls.length).toBeGreaterThanOrEqual(2));
-    await act(async () => { await new Promise((r) => setTimeout(r, 60)); });
+    // Bounded settle (card t_f21689bd): quan sát tới sau chân debounce search
+    // 350ms từ lúc mount — một fetch clobber page sẽ rơi vào cửa sổ này và các
+    // assertion dưới bắt được. Có biên, không tăng timeout vô hạn.
+    await waitFor(() => { expect(Date.now() - mountedAt).toBeGreaterThanOrEqual(700); });
     expect(apiGet.mock.calls.length).toBeLessThanOrEqual(3);
     expect(apiGet.mock.calls.every(([path]) => String(path).includes('view=WAITING&page=2'))).toBe(true);
     expect(screen.getByTestId('inbox-location').textContent).toBe(route);

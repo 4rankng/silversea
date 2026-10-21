@@ -143,13 +143,19 @@ export function RoleWorkInbox({ role, title, description, customerId, scopeReady
   // this is purely the missing entry point. Debounce + page reset, house idiom.
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  // Card t_f21689bd (UI43 class): only a search value that differs from the
+  // applied one schedules the debounced page reset. The mount-time tick used
+  // to fire setPage(1) unconditionally 350ms in, clobbering a URL-restored
+  // page while scope hydration was still settling.
+  const trimmedSearch = searchInput.trim();
   useEffect(() => {
+    if (trimmedSearch === search) return;
     const timer = setTimeout(() => {
-      setSearch(searchInput.trim());
+      setSearch(trimmedSearch);
       setPage(1);
     }, 350);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [trimmedSearch, search]);
   const [loading, setLoading] = useState(true);
   const [refreshError, setRefreshError] = useState(false);
   const [respondingItemId, setRespondingItemId] = useState<string | null>(null);
