@@ -126,6 +126,15 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'container', label: 'Thông số container', className: 'debit-col--container',
+    // FB-093 re-verify (card 211026024348): this column hosts the "Tách nhóm"
+    // action and the "Ghép cùng Bill X" group note. The KT4 essential default
+    // hid the whole column on a fresh workstation — burying the action with it
+    // (the FB-093 defect resurfaced as "no Tách nhóm phía Kế toán").
+    // essentialWhenHasData + raw keep the KT4 matrix minimal on FCL-only
+    // boards while the column shows itself the moment lcl/group data exists;
+    // the operator's picker choice still wins.
+    essentialWhenHasData: true,
+    raw: (row) => row.lcl?.label ?? null,
     // FB-094: an LCL row states its own label — "Lẻ · Thu: 5T / Trả: 10T"
     // plus the "Ghép cùng Bill X" note when the lot is a group member.
     // Card 211026024348: a lot inside a merged rev group also carries the

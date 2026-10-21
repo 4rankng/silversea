@@ -42,6 +42,16 @@ export interface LedgerColumn {
    * default until it opts in, so CUS ledgers are unaffected.
    */
   essential?: boolean;
+  /**
+   * Card 211026024348 (FB-093 re-verify) — under the `essential` default this
+   * column still SHOWS ITSELF once it carries data. It hosts a required group
+   * action/state (the "Tách nhóm" control next to "Ghép cùng Bill X"), not a
+   * redundant money breakdown: hiding it on a fresh workstation would hide the
+   * action with it. The column-visibility law ("absence is not data — a column
+   * shows the moment it carries something") decides via `hasData`; the
+   * operator's explicit picker choice always wins over the default.
+   */
+  essentialWhenHasData?: boolean;
 }
 
 /** The columns a picker offers, in table order. */
@@ -90,7 +100,12 @@ export function hiddenByDefault(
 ): string[] {
   if (defaultVisible === 'essential') {
     return hideableColumns(columns)
-      .filter((column) => !column.essential)
+      .filter((column) => !column.essential
+        // FB-093 re-verify (card 211026024348): a column that carries a
+        // required action shows itself once it has data — the essential
+        // default exists to keep the MONEY matrix readable, not to bury an
+        // action cell. An operator's stored choice still wins (resolveHiddenColumns).
+        && !(column.essentialWhenHasData && hasData(column)))
       .map((column) => column.key);
   }
   return hideableColumns(columns)

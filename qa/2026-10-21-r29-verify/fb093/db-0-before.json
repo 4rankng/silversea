@@ -1,0 +1,22 @@
+[
+  {
+    "ship": 809,
+    "code": "SHP-2610-00433",
+    "bill": "CL4C-01",
+    "freight": null,
+    "note": null,
+    "revGroup": null,
+    "members": null,
+    "lock": "OPEN"
+  },
+  {
+    "ship": 810,
+    "code": "SHP-2610-00434",
+    "bill": "CL4C-02",
+    "freight": "0",
+    "note": null,
+    "revGroup": null,
+    "members": null,
+    "lock": "OPEN"
+  }
+]

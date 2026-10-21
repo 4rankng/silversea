@@ -1,0 +1,5 @@
+
+> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-r29-verify
+> eslint .
+
+lint exit: 0

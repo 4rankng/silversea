@@ -1,0 +1,11 @@
+{
+  "banner": "Xe đang chạy chuyến R27E2E-001 — hoàn thành chuyến đó trước khi nhận lệnh mới.Mở chuyến đang chạy",
+  "toasts": [
+    "Xe đang chạy chuyến R27E2E-001 — hoàn thành chuyến đó trước khi nhận lệnh mới.Mở chuyến đang chạy",
+    "Xe đang chạy chuyến R27E2E-001. Vui lòng hoàn thành chuyến đó trước.",
+    "Xe đang chạy chuyến R27E2E-001. Vui lòng hoàn thành chuyến đó trước.",
+    "Xe đang chạy chuyến R27E2E-001. Vui lòng hoàn thành chuyến đó trước.",
+    "Xe đang chạy chuyến R27E2E-001. Vui lòng hoàn thành chuyến đó trước."
+  ],
+  "bannerLink": "Mở chuyến đang chạy"
+}

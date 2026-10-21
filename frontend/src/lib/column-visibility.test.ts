@@ -130,4 +130,21 @@ describe('column visibility — the essential-set default', () => {
     // not resurrect Ghi chú (which the essential default also hid).
     expect(toggleHiddenColumn(MATRIX, ['cuocThu', 'notes'], 'cuocThu')).toEqual(['notes']);
   });
+
+  it('essentialWhenHasData (FB-093 re-verify): an action-bearing column shows itself once it has data, stays hidden while empty', () => {
+    // Card 211026024348 — the chốt-debit "Thông số container" column hosts the
+    // "Tách nhóm" action; the KT4 essential default must not bury an action
+    // cell, but the column has nothing to say on an FCL-only board.
+    const WITH_ACTION: readonly LedgerColumn[] = [
+      ...MATRIX,
+      { key: 'container', label: 'Thông số container', essentialWhenHasData: true },
+    ];
+    // has data → the column joins the default-visible set
+    expect(hiddenByDefault(WITH_ACTION, (c) => c.key === 'container', 'essential')).toEqual(['cuocThu', 'notes']);
+    // no data → hidden like every other non-essential column (KT4 stays minimal)
+    expect(hiddenByDefault(WITH_ACTION, () => false, 'essential')).toEqual(['cuocThu', 'notes', 'container']);
+    // an explicit operator choice still wins over the flag
+    expect(resolveHiddenColumns({ columns: WITH_ACTION, choice: ['container'], hasData: () => true, defaultVisible: 'essential' }))
+      .toEqual(['container']);
+  });
 });

@@ -1,0 +1,38 @@
+{
+  "request": {
+    "id": 38,
+    "version": 1,
+    "requesterId": 3,
+    "requesterNameSnapshot": "Nguyễn Huy Hoàng",
+    "amount": "50000",
+    "reason": "R29 re-verify FB-033 2026-10-21T00:47",
+    "status": "PENDING",
+    "approvedBy": null,
+    "approvedAt": null,
+    "createdAt": "2026-10-21T00:47:18.973Z",
+    "updatedAt": "2026-10-21T00:47:18.973Z",
+    "requesterName": "Nguyễn Huy Hoàng",
+    "approverName": null,
+    "forwarderName": null,
+    "checkerName": null
+  },
+  "approve": {
+    "id": 38,
+    "status": "RECORDED",
+    "version": 2,
+    "approvedBy": 77,
+    "approvedAt": "2026-10-21T00:47:19.021Z",
+    "funding": {
+      "ledgerEntryId": 186,
+      "treasuryMovementId": 35
+    }
+  },
+  "wallet": {
+    "totalAdvance": "450000",
+    "approved": "1170000",
+    "pending": "0",
+    "rejected": "500000",
+    "returned": "0",
+    "balance": "-720000"
+  }
+}

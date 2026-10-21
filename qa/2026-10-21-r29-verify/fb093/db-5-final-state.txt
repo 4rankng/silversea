@@ -1,0 +1,14 @@
+809|||74c58bee-0051-4de5-ab12-e58be38e6d40
+810|||74c58bee-0051-4de5-ab12-e58be38e6d40
+19159|2026-10-21 01:05:35|Kế toán Nguyễn Thị Mai đã thực hiện hành động SHIPMENT_LCL_GROUP_UNMERGED trên shipment: CL4C-01
+19171|2026-10-21 01:07:34|Kế toán Nguyễn Thị Mai đã thực hiện hành động SHIPMENT_LCL_GROUP_UNMERGED trên shipment: CL4C-01
+19187|2026-10-21 01:15:34|Kế toán Nguyễn Thị Mai đã thực hiện hành động SHIPMENT_LCL_GROUP_UNMERGED trên shipment: CL4C-01
+19134|2026-10-21 00:54:59|Chứng từ Vũ Văn Tiệp đã ghép cước thu khách cho nhóm lô lẻ CL4C-01
+19135|2026-10-21 00:54:59|Chứng từ Vũ Văn Tiệp đã ghép cước thu khách cho nhóm lô lẻ
+19159|2026-10-21 01:05:35|Kế toán Nguyễn Thị Mai đã thực hiện hành động SHIPMENT_LCL_GROUP_UNMERGED trên shipment: CL4C-01
+19166|2026-10-21 01:06:49|Chứng từ Vũ Văn Tiệp đã ghép cước thu khách cho nhóm lô lẻ CL4C-01
+19167|2026-10-21 01:06:49|Chứng từ Vũ Văn Tiệp đã ghép cước thu khách cho nhóm lô lẻ
+19171|2026-10-21 01:07:34|Kế toán Nguyễn Thị Mai đã thực hiện hành động SHIPMENT_LCL_GROUP_UNMERGED trên shipment: CL4C-01
+19183|2026-10-21 01:14:55|Chứng từ Vũ Văn Tiệp đã ghép cước thu khách cho nhóm lô lẻ CL4C-01
+19184|2026-10-21 01:14:55|Chứng từ Vũ Văn Tiệp đã ghép cước thu khách cho nhóm lô lẻ
+19187|2026-10-21 01:15:34|Kế toán Nguyễn Thị Mai đã thực hiện hành động SHIPMENT_LCL_GROUP_UNMERGED trên shipment: CL4C-01
