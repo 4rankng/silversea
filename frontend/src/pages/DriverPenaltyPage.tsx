@@ -6,6 +6,7 @@ import { PageHeader } from '../components/UI';
 import { useSalaryPeriod, useDriverPenalties } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations } from '../hooks/animations';
 import { UuiSelectField } from '../design-system';
+import { driverTripCodeLabel } from '../features/driver/driver-display';
 import './DriverPenaltyPage.css';
 import { EmptyState } from '../design-system';
 
@@ -219,7 +220,11 @@ export default function DriverPenaltyPage() {
           />
         ) : (
           <div ref={listRef} className="penalty-violation-list">
-            {filteredPenalties.map(p => (
+            {filteredPenalties.map(p => {
+              // REQ-07: the code renders in the ONE driver display shape
+              // (driverTripCodeLabel), never the raw generator string.
+              const tripCodeLabel = driverTripCodeLabel(p.tripCode);
+              return (
               <div key={p.id} className="penalty-violation-row">
                 <div className="penalty-violation-row__icon">
                   <AlertTriangle size={16} />
@@ -235,7 +240,7 @@ export default function DriverPenaltyPage() {
                   </div>
                   <div className="penalty-violation-row__meta">
                     <span><Calendar size={12} /> {formatDate(p.date)}</span>
-                    {p.tripId && p.tripCode && <span><Truck size={12} /> {p.tripCode}</span>}
+                    {p.tripId && tripCodeLabel && <span><Truck size={12} /> {tripCodeLabel}</span>}
                   </div>
                   {p.customReason && p.reasonText && (
                     <div className="penalty-violation-row__note">
@@ -244,7 +249,8 @@ export default function DriverPenaltyPage() {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

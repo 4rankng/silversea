@@ -1,0 +1,16 @@
+[
+  "Mã chuyến",
+  "Ngày giờ kế hoạch",
+  "Tên nhà máy",
+  "Địa chỉ nhà máy",
+  "SĐT kho",
+  "SĐT liên hệ",
+  "Container / lô hàng",
+  "Cảng nâng",
+  "Cảng hạ",
+  "Địa chỉ giao hàng",
+  "Tên công ty",
+  "MST"
+]
+
+Mã chuyến value: TRP 2026-10 · 0631

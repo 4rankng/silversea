@@ -3,12 +3,12 @@ import { operationalSiteContacts } from '@tingting/shared';
 import { Modal, Btn } from '../../components/UI';
 import { OperationalSiteContactsList } from '../../components/shipment/OperationalSiteContactsList';
 import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package, Phone, PhoneCall } from 'lucide-react';
-import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
+import { ArrowDownRight, ArrowUpRight, Building02, File02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import type { DriverTaskDetail } from '../../api/driverClient';
 import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
 import { TelLink, telHref } from '../../components/TelLink';
-import { driverDeliveryDestination, driverLocationLabels } from '../../features/driver/driver-display';
+import { driverDeliveryDestination, driverLocationLabels, driverTripCodeLabel } from '../../features/driver/driver-display';
 import { resolveLiftDropPoints } from '../../features/shipments/liftDropPoints';
 
 /**
@@ -196,6 +196,14 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           onToggle={() => setInfoOpen((v) => !v)}
         />
         <div className="driver-task-grid" id="driver-task-info-grid" hidden={!infoOpen}>
+          {/* REQ-07 (client doc): the trip code leads the fact grid as labeled,
+              formatted text — the driver's reference when quoting the order to
+              dispatch. Bill/Booking still titles the header (internal-ids law,
+              card 20260927_1); this row shows the code itself in the ONE
+              driver shape (driverTripCodeLabel). '—' when legacy rows carry
+              no code. Icon: untitled-ui file-02 (search_icons), matches the
+              grid's @untitledui/icons siblings. */}
+          <TaskFact icon={<File02 size={16} aria-hidden="true" />} label="Mã chuyến" value={valueOrDash(driverTripCodeLabel(trip.tripCode))} />
           {/* Card 20260926_26 item 4: the bill/booking code (internal-ids law:
               the driver's display key) moved into the header title — one
               place, not two. */}
