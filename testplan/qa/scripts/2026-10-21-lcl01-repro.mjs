@@ -43,7 +43,7 @@ const token = await login('admin', { backend: BACKEND });
 // Every call MUST carry the backend option — `api()` silently falls back to
 // the default :3002 otherwise (the lesson of this repro's first runs: they
 // were answered by ANOTHER checkout's backend on :3002).
-const call = (method, path, body, opts = {}) => call(method, path, body, { ...opts, backend: BACKEND });
+const call = (method, path, body, opts = {}) => api(token, method, path, body, { ...opts, backend: BACKEND });
 const customers = await call('GET', '/customers?limit=1');
 const customerId = customers.data?.items?.[0]?.id ?? customers.data?.[0]?.id;
 if (!customerId) { log('ABORT: no customer visible to admin'); process.exit(2); }

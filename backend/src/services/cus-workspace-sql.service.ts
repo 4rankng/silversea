@@ -5,11 +5,10 @@
  * re-exports every symbol so consumer imports are unchanged. Acyclic rule:
  * readers (main) and mapping import FROM this leaf, never the reverse.
  */
-import { and, eq, isNull, or, sql, type Column, type SQL } from 'drizzle-orm';
+import { or, sql, type Column, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { type ShipmentCusContainerSortKey, type ShipmentCusWorkspaceSortKey } from '@tingting/shared';
 import * as s from '../db/schema';
-import { CARGO_MODE } from '../db/schema';
 import { operationalName } from '../db/master-data-name';
 
 export const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
@@ -40,28 +39,6 @@ export function containerTransportDateSql() {
     date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh'),
     ${s.shipments.expectedDeliveryDate}
   )`;
-}
-
-/** Container workboard day triage (D.6, completed by card 211026132257):
- *  the day triage narrows CONTAINER rows to their appointment/EDD day — a
- *  container-less LCL lot has NO container day and rides outside it
- *  entirely, so a lot visible on Tổng quan (whose default carries no date
- *  scope) is never missing on Chi tiết, whatever day the workboard lens
- *  holds. The 2026-10-18 partial exempted only UNDATED lots (whose
- *  coalesce(...) is NULL and could never match any range); QA card
- *  211026132257 (lcl-01) re-opened the sync because a DATED lot's EDD still
- *  hid it under the board's default day lens ("lô hàng lẻ hiện ở TỔNG QUAN
- *  nhưng KHÔNG có ở CHI TIẾT"). The lot row's `transportDate` (its EDD) stays
- *  the sort/display schedule; it is simply not a filter gate for lot rows.
- *  Real container rows keep the full `dateArms` triage unchanged. */
-export function containerDayTriageCondition(dateArms: SQL[]): SQL {
-  return or(
-    and(
-      isNull(s.shipmentContainers.id),
-      eq(s.shipments.cargoMode, CARGO_MODE.LCL),
-    ),
-    and(...dateArms),
-  )!;
 }
 
 /** CUS workboard record search (QA2-005, card 121026084713): one

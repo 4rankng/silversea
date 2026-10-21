@@ -23,7 +23,7 @@ import {
 } from './shipment-accounting-lock.service';
 
 
-import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDayTriageCondition, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
+import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
 import { billOrBookNumberFor, trimOrNull } from './cus-workspace-mapping.service';
 
 export * from './cus-workspace-sql.service';
@@ -768,16 +768,23 @@ async function buildShipmentPageConditions(
     if (query.transportDateTo) {
       dateArms.push(sql`${transportDate} <= ${query.transportDateTo}`);
     }
-    // Card 181026185900 (D.6), completed by card 211026132257 (lcl-01): the
-    // day triage narrows CONTAINER rows to their appointment/EDD day. A
-    // container-less LCL lot has NO container day and rides outside the
-    // triage entirely — dated or not — so a lot visible on Tổng quan (whose
-    // default carries no date scope) is never missing on Chi tiết under the
-    // board's default day lens. The 2026-10-18 partial exempted only UNDATED
-    // lots; a DATED lot's EDD still hid it here ("lô hàng lẻ hiện ở TỔNG QUAN
-    // nhưng KHÔNG có ở CHI TIẾT"). See containerDayTriageCondition.
+    // Card 181026185900 (D.6): the day triage narrows CONTAINER rows to
+    // their appointment/EDD day. A container-less LCL lot has no container
+    // day — for an UNDATED lot coalesce(appointment, EDD) is NULL, so the
+    // old bare condition dropped the row and a lot visible on Tổng quan
+    // (whose default carries no date scope) could never be found here. An
+    // undated lot row therefore rides outside the date triage (there is no
+    // day it could match). A DATED lot keeps matching on its EDD — the
+    // card-365 off-day parity stays exact.
     if (dateArms.length > 0) {
-      conditions.push(containerDayTriageCondition(dateArms));
+      conditions.push(or(
+        and(
+          isNull(s.shipmentContainers.id),
+          eq(s.shipments.cargoMode, CARGO_MODE.LCL),
+          isNull(transportDate),
+        ),
+        and(...dateArms),
+      )!);
     }
   } else if (query.transportDateFrom || query.transportDateTo) {
     // Shipment-level: also consider container appointment dates so allocated
@@ -845,9 +852,8 @@ async function buildShipmentPageConditions(
     conditions.push(sql`${s.shipments.status} not in (${ShipmentStatus.DISPATCHED}, ${ShipmentStatus.IN_TRANSIT}, ${ShipmentStatus.COMPLETED})`);
   }
   // Detail-only completeness triage: real FCL container rows whose applicable
-  // operational fields are not yet filled. LCL lot rows are excluded from
-  // THIS triage (they are not container lines to complete — card 365 keeps
-  // them on the board as lot-level rows).
+  // operational fields are not yet filled. LCL lots are explicitly excluded —
+  // they never appear on this container workboard.
   if (searchMode === 'container' && 'informationStatus' in query && query.informationStatus === 'MISSING') {
     conditions.push(eq(s.shipments.cargoMode, 'FCL'));
     conditions.push(containerIncompleteSql());
