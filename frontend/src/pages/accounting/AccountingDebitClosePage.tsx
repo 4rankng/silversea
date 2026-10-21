@@ -107,7 +107,10 @@ export default function AccountingDebitClosePage() {
   // breakdown visible the money matrix was unreadable and QA had to hide
   // columns by hand on every visit; the breakdowns stay one toggle away in the
   // picker, and a stored choice (per workstation, same key as before) still
-  // wins wholesale.
+  // wins wholesale — minus the required columns (pinned, essential,
+  // essentialWhenHasData), which no stored choice can hide: FB-093 (lan 3)
+  // repairs a pre-essential payload on load, so an old workstation's
+  // `accounting-debit-hidden-cols` can no longer bury the "Tách nhóm" column.
   const columns = useHiddenColumns({
     storageKey: 'accounting-debit-hidden-cols',
     columns: BOARD_COLUMNS,

@@ -48,21 +48,36 @@ export interface LedgerColumn {
    * action/state (the "Tách nhóm" control next to "Ghép cùng Bill X"), not a
    * redundant money breakdown: hiding it on a fresh workstation would hide the
    * action with it. The column-visibility law ("absence is not data — a column
-   * shows the moment it carries something") decides via `hasData`; the
-   * operator's explicit picker choice always wins over the default.
+   * shows the moment it carries something") decides via `hasData`; the default
+   * may still hide it while it is empty, but a STORED choice may not hide it
+   * at all (FB-093 lan 3 — see `hideableColumns`). If both flags were ever
+   * combined, `essential` wins (the column never hides — by default or choice).
    */
   essentialWhenHasData?: boolean;
 }
 
-/** The columns a picker offers, in table order. */
+/**
+ * The columns a stored CHOICE may hide: not the row's identity/only action
+ * (`pinned`), not the surface's required money set (`essential`), not a column
+ * hosting a required action (`essentialWhenHasData`).
+ *
+ * FB-093 (lan 3): a choice written BEFORE a column joined the required set
+ * kept it buried on old workstations — the QA build showed no "Tách nhóm"
+ * because stale `localStorage` under the surface's key still named the action
+ * column. One predicate guards every consumer: the picker never offers what a
+ * choice cannot do, `toggleHiddenColumn` refuses the key, and
+ * `sanitizeHiddenColumns` drops it from storage on every read (idempotent —
+ * a filter at read time, no one-time migration).
+ */
 export function hideableColumns(columns: readonly LedgerColumn[]): LedgerColumn[] {
-  return columns.filter((column) => !column.pinned);
+  return columns.filter((column) => !column.pinned && !column.essential && !column.essentialWhenHasData);
 }
 
 /**
- * Drops keys that are not a hideable column of THIS surface: a stored payload
- * from another surface, a removed column, or a pinned key an operator hand-edited
- * into storage can never hide anything.
+ * Drops keys that cannot be part of a valid choice for THIS surface: a stored
+ * payload from another surface, a removed column, or a key an operator (or an
+ * older build — FB-093 lan 3) wrote for a column that is pinned, essential,
+ * or essentialWhenHasData can never hide anything.
  */
 export function sanitizeHiddenColumns(
   columns: readonly LedgerColumn[],
@@ -82,6 +97,10 @@ export function sanitizeHiddenColumns(
 /**
  * The default set for a surface whose operator has never chosen.
  *
+ * Iterates the NON-PINNED columns directly — not `hideableColumns`: a choice
+ * may never hide a required column, but the DEFAULT still may (an empty
+ * essentialWhenHasData column waits off-board, FB-093 re-verify).
+ *
  * `auto` (every surface until it opts in): the columns that declare
  * `autoHideWhenEmpty` and currently carry NO data. `hasData` answers for the
  * RENDERED rows; an unknown column reads as carrying data, so a column can
@@ -91,7 +110,8 @@ export function sanitizeHiddenColumns(
  * essential set only — a money matrix with every breakdown visible is
  * unreadable and QA had to hide columns by hand. Pinned columns are always
  * essential (they cannot hide at all); `essential: true` marks the rest of
- * the set. An explicit picker choice still wins wholesale.
+ * the set. An explicit choice still replaces this default wholesale — minus
+ * the required columns, which no choice can hide (FB-093 lan 3).
  */
 export function hiddenByDefault(
   columns: readonly LedgerColumn[],
@@ -99,17 +119,17 @@ export function hiddenByDefault(
   defaultVisible: 'auto' | 'essential' = 'auto',
 ): string[] {
   if (defaultVisible === 'essential') {
-    return hideableColumns(columns)
-      .filter((column) => !column.essential
+    return columns
+      .filter((column) => !column.pinned && !column.essential
         // FB-093 re-verify (card 211026024348): a column that carries a
         // required action shows itself once it has data — the essential
         // default exists to keep the MONEY matrix readable, not to bury an
-        // action cell. An operator's stored choice still wins (resolveHiddenColumns).
+        // action cell.
         && !(column.essentialWhenHasData && hasData(column)))
       .map((column) => column.key);
   }
-  return hideableColumns(columns)
-    .filter((column) => column.autoHideWhenEmpty && !hasData(column))
+  return columns
+    .filter((column) => !column.pinned && column.autoHideWhenEmpty && !hasData(column))
     .map((column) => column.key);
 }
 
@@ -119,7 +139,9 @@ export function hiddenByDefault(
  * `choice === null` means "the operator never chose" → the default applies.
  * Any stored choice replaces that default wholesale — so hiding one column never
  * resurrects another column the default had hidden, and a column the operator
- * chose to hide STAYS hidden when it later gains data (the override wins).
+ * chose to hide STAYS hidden when it later gains data (the override wins) —
+ * except a required column: `sanitizeHiddenColumns` drops its key from every
+ * choice, old or new (FB-093 lan 3).
  */
 export function resolveHiddenColumns({
   columns,
@@ -171,4 +193,21 @@ export function readStoredHiddenColumns(raw: string | null | undefined): string[
 /** The stored payload for an explicit choice. Sorted so the same set writes one value. */
 export function serializeHiddenColumns(hidden: readonly string[]): string {
   return JSON.stringify([...hidden].sort());
+}
+
+/**
+ * FB-093 (lan 3) — the READ-side repair of a stored choice. Parses the payload,
+ * then drops every key no choice may carry (`sanitizeHiddenColumns`). The
+ * caller writes the result back when it differs, so a stale workstation
+ * converges on first load and every later read is a clean no-op. Absent or
+ * corrupt payloads stay "no choice" and never trigger a write.
+ */
+export function loadStoredHiddenColumns(
+  columns: readonly LedgerColumn[],
+  raw: string | null | undefined,
+): { choice: string[] | null; changed: boolean } {
+  const parsed = readStoredHiddenColumns(raw);
+  if (parsed === null) return { choice: null, changed: false };
+  const kept = sanitizeHiddenColumns(columns, parsed);
+  return { choice: kept, changed: kept.length !== parsed.length };
 }
