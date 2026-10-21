@@ -1,3 +1,98 @@
+# REQ-19/TICKET-07 — depth audit cước hàng lẻ gom nhiều lô (tải trọng + 20/40) + cargo-fit advisory — 2026-10-21
+
+Controller: agent, worktree feat-req19-cuoc-depth (off main c643ef1e).
+
+**Status**: DONE — audit 3 câu (code-cite dưới) + implement GAP thật (cargo-fit
+advisory shared/BE/FE) + unit/scoped gates xanh + E2E probe 11/11 PASS + commit/push.
+
+## Audit answers (code-cite)
+
+1. **1 xe 5T gom 3 lô — cước mỗi lô?** KHÔNG chia tỷ lệ kg/CBM. Luật =
+   principal/member theo DEV SPEC 2026-10-15 đã nghiệm thu:
+   - COST (trả ĐV): `lcl-grouping.service.ts:assignLclCostGroup` → Lô 1 =
+     `applyPrincipalCostFreight` (manual `freightCost` > bảng giá
+     `resolveCarrierVehicleClassPrice`: tuyến × loại xe × nhà xe, row nhà xe
+     riêng thắng generic), Lô 2..N `externalFreightCost='0'`; phát lệnh tách lô
+     chưa có trip → `applyLclCostGroupFreightToNewTrip` (dispatch-planning-
+     commands.service.ts:732).
+   - REV (thu KH): `mergeLclRevGroup` → Lô 1 = 100% AUTO
+     `resolveCustomerVehicleClassPrice` (KH × tuyến × loại xe, chỉ cùng 1 KH),
+     Lô 2..N revenue 0₫ + stamp "Ghép cước cùng Bill X"; boards đọc kênh F-2
+     (`revenue-override-read.service.ts`).
+   - Trọng tải tấn/cont 20/40 = **khóa bảng giá** (`vehicle_size_classes`),
+     không phải hệ số phân bổ. FB-095 promote-on-unmerge/delete bảo toàn tiền.
+2. **"Quy đổi cont 20/40" cho hàng lẻ?** Lô lẻ KHÔNG có cột cont-type
+   (`shipments`: cargoWeightKg/cargoVolumeCbm/packageCount/packageType) và
+   KHÔNG có quy đổi CBM→20' ở bất kỳ đâu. CONT20/CONT40 là loại xe tính cước
+   trong DM (bảng giá thu/trả); spec đã nghiệm thu không đòi quy đổi →
+   không implement quy đổi. **GAP thật**: không tín hiệu "hàng gom vừa tải
+   trọng lớp xe đã chọn?" (thanh chọn chỉ hiển thị tổng — DispatchDetailPlan
+   Page.tsx:296-304; dialog chọn lớp mù).
+3. **Thu/trả từng lô đúng phần khi gom?** ĐÚNG — mỗi chiều vật hóa trên kênh
+   đọc của từng lô (trip revenue + stamp / trip external_freight_cost);
+   debit note in đúng phần + "Ghép xe cùng Bill" (billing-document-draft
+   service.ts:652-656). E2E probe chứng minh: Σ thu nhóm = 1× giá KH 5T,
+   Σ trả = 1× giá nhà xe (cascade riêng>chung), Lô 2..N = 0₫ cả hai chiều.
+
+## Implement (GAP: tải trọng advisory — không đổi luật tiền)
+
+- `shared/src/constants/lcl-cargo-fit.ts` (NEW): `parseTonnageKg` ('5T'→5000;
+  cont/rác→null), `assessLclCargoFit` → FITS|OVER|NO_WEIGHT|CONTAINER_CLASS|
+  UNKNOWN_CLASS (Σ known kg vs tải trọng; không bịa dung tích cont; advisory
+  only). Export barrel shared/src/index.ts. Unit 7/7.
+- BE `assignLclCostGroup`: stamp `cargoFit` vào `LclGroupAssignResult` +
+  audit metadata (additive, non-breaking). Pin unit (source-scan)
+  `backend/src/tests/unit/lcl-cargo-fit-wiring.test.ts` 4/4.
+- FE `AssignTruckGroupDialog`: row contract + adapters thêm cargoWeightKg/
+  cargoVolumeCbm; fit line `role=status` dưới ô loại xe (FITS muted, OVER đỏ
+  `--danger`, cont nhắc đối chiếu CBM); CSS `assign-truck-group__fit[--over]`.
+  Test 4 case mới — dialog suite 16/16.
+
+## Evidence + gates (qa/2026-10-21-req19-cuoc/)
+
+- **E2E probe 11/11 PASS exit 0** (`probe.log`, `probe-verdicts.json`,
+  `bang-tinh-case.md`): CASE A = case gốc brief (5T + 3 lô 1.500/1.500/2.000 kg,
+  CBM 3,2/4,8/6,0, LONG MINH × route 1): Lô 1 trả 1.100.000 (nhà xe riêng thắng
+  generic 1.234.500), Lô 2/3 = 0₫; thu Lô 1 = 2.400.000 (bảng giá KH 5T),
+  members 0₫ + stamp; Σ = 1× mỗi chiều; audit cargoFit FITS|5000. CASE B: Σ
+  4.000 kg trên 3.5T → 201 + cargoFit OVER (advisory không chặn; board-miss Lô 1
+  giữ null, không bịa 0₫). Fixture QA-REQ19-* dọn sạch (5 lots/5 trips/1
+  carrier/1 supplier/1 pricing row).
+- Gates verbatim trong `gates/`: BE tsc 0 · BE full **330/330** (326 + 4 pin
+  mới) · FE tsc -b 0 · FE scoped dispatch surfaces 38 files **409/409** +
+  dialog 16/16 · lint 0 · make build 0 · shared tsc 0 + lcl-cargo-fit 7/7.
+- **Pre-existing (A/B stash, không của task này)**: shared `fifoAging.test.ts`
+  6 fail trên cây sạch.
+- Probe: backend worktree :3304 (env-only, đã tắt), DB ss-prod-db :5441 chỉ
+  đọc + fixture QA-tag; :3002/:7175+ của task khác không đụng.
+
+## Verification coverage (§9)
+
+| Claim / bug | Rung | Evidence | Not covered |
+|---|---|---|---|
+| Luật tiền gom (trả+thu) đúng spec trên case thật 5T/3 lô | DB/API VERIFIED + API DRIVEN (POST thật qua service thật) | probe.log REQ19-A1..A8, bang-tinh-case.md | không click UI dialog thật (luật BE); role khác dieuvan/ketoan |
+| cargoFit OVER advisory không chặn + không đổi luật tiền | DB/API VERIFIED | REQ19-B1..B2 | UI click submit khi OVER (pin vitest che) |
+| Dialog fit line (FITS/OVER/cont/thiếu kg) | CODE-READ + unit (rung 1 cho UI) | AssignTruckGroupDialog.test.tsx 4 mới | chưa UI-drive dialog thật 390/768/1440; MergeRevGroupDialog (CUS) không thêm fit — ngoài scope |
+| BE stamp cargoFit response+audit | DB/API VERIFIED | REQ19-A1-fit, REQ19-A8 | — |
+
+## Not covered / nợ
+
+- UI-drive dialog Gán xe nhóm thật (sau merge); fit line cho MergeRevGroupDialog
+  (chiều thu CUS — cần ruling riêng nếu muốn); fare boards ngoài 5T/3.5T;
+  staging re-drive sau deploy (owner NEVER per law).
+- Quy đổi CBM→20' và phân bổ tỷ lệ: KHÔNG làm (spec không đòi; đổi luật tiền
+  là owner decision — không mở lại không có chỉ thị mới).
+- Independent review (về sau commit theo chỉ đạo orchestrator): **APPROVE**,
+  0 critical/high — advisory không bao giờ thành gate, luật tiền byte-identical,
+  parse khớp ladder seed thật, numeric-string an toàn cấu trúc. Medium duy nhất:
+  `shared fifoAging.test.ts` đỏ — **pre-existing, A/B stash chứng minh trên cây
+  sạch** (diff không đụng calculations/; file import trực tiếp fifoAging.ts,
+  không qua barrel) → cần card riêng cho owner. Low-priority polish (không chặn):
+  thống nhất name/code trong copy NO_WEIGHT/UNKNOWN; live-region mount rỗng rồi
+  set text; pin regex wiring dễ gãy khi reformat; fallback CSS 12px vs token 11px.
+
+---
+
 # FB-093 follow-up — nút "Tách nhóm" cho Ghép cước thu khách (card 211026024348) — 2026-10-21
 
 Controller: agent, worktree fix-fb093-tach-nhom (off main f056944f), branch fix-fb093-tach-nhom.
