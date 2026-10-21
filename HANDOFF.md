@@ -1,3 +1,52 @@
+# DRI-03 lan 2 (card 211026180628) — kẹp 2x20' verify theo lot QA 133/SHP-2610-00069 — 2026-10-21
+
+Controller: this agent, worktree fix-dri03-lan2 (off main 9aab78d2), branch fix-dri03-lan2.
+
+**Status**: DONE — verify-first, **0 src change cần thiết**: fix lần 1 (1a7fc73b,
+đã ở main) GIỮ NGUYÊN trên shape lot QA thật. 20/20 UI DRIVEN PASS + gates xanh +
+evidence + commit/push. (Prepend theo quy ước stacked log; lịch sử các lane trước
+giữ nguyên bên dưới.)
+
+- **Shape thật (GET staging READ-ONLY, admin)**: lô 133/SHP-2610-00069, Long Minh,
+  revGroupId NULL, 2×20'DC (typeId 1), containerNumber/seal/weight/appointment NULL,
+  status PENDING_DATE, 0 trips — QA đang tự dispatch cho bqhuong. Snapshot:
+  `qa/2026-10-21-dri03-lan2/staging-lot-shape-SHP-2610-00069.json`.
+- **Local seed theo shape thật** (`testplan/qa/scripts/2026-10-21-dri03-lan2-fixture.mjs`,
+  idempotent): lot 312425/SHP-2610-19309 BL DRIL2-KEP (Long Minh, IMPORT, FCL, 2×20DC
+  NULL số, appt 09:00/12:00 +07 RIÊNG từng cont) → dieuvan assign truck 186320
+  (bqhuong 42966, trailer 40FT id 1) từng fulfillment (leg 2 qua warn-once
+  RIG_OVERLAP_COMPLETED + confirm — đúng fix dis-03) → phát lệnh từng leg → trips
+  194126 (TRP-202610-1589, 09:00) + 194127 (TRP-202610-1590, 12:00) → KEP pair 2899
+  ACTIVE (draft từ GET /trips/:id như PairTripsDialog; KHÔNG tự build ISO từ DB —
+  tz naive lệch múi giờ).
+- **UI DRIVEN 20/20** (`testplan/qa/scripts/2026-10-21-dri03-lan2-driver.mjs` →
+  `qa/2026-10-21-dri03-lan2/dri03-lan2-ui-driver.log`, 390×844, bqhuong):
+  R1 board 2 card KẾP giờ riêng 09:00/12:00 "Chưa có số cont" · R2/R4 detail mỗi leg
+  mã riêng + giờ riêng + Cảng nâng SITC - Lạch Huyện / Cảng hạ TC - HICT + bento đúng
+  1 cont (8.000/7.500 kg) · R3/R4 nhập số cont per leg — DB trip_containers 28754/
+  28756 đúng từng dòng, KHÔNG TRỘN · R5 Nhận lệnh leg A: A IN_TRANSIT, B vẫn CREATED,
+  ORDER_RECEIVED chỉ ở A. 0 console error.
+- **Gates** (`qa/2026-10-21-dri03-lan2/gates-*.log`): FE `npx tsgo -b` 0 · root
+  `pnpm lint` 0 · scoped vitest driver 5 files **185/185** · `make build` 0 ·
+  dev-port-contract PASS (run 1 bắt script lane hardcode 7185/3025 → sửa về contract
+  default 3002/7175 env-only — chỉnh duy nhất ngoài evidence). Full FE 3 lần dưới
+  máy tải 19–40 (đa lane): mỗi lần một tập fail timing KHÁC NHAU, file nào cũng
+  từng pass ở run khác / ở gate lane gốc; 0 src change nên không có cơ chế ảnh
+  hưởng — logs full1/2/3 kèm; full-run xanh cần máy yên (nợ controller, tiền lệ
+  FB-066). 0 src change → BE gates không đụng.
+- **Testplan case**: `testplan/cases/case-QA-2026-10-21-dri03-lan2-kep-real-shape.md`
+  (DRIL2-A1/R1..R5 + coverage §9). Case lane 1 giữ nguyên.
+- **Data để lại (dev DB 5441)**: lot 312425, trips 194126/194127 (A đã IN_TRANSIT sau
+  R5), KEP pair 2899, truck 186320. Không đụng dữ liệu lane khác trên DB chia sẻ.
+
+## Not covered
+
+- Staging re-drive sau deploy (owner NEVER per law) — QA tự E2E trên staging với lot 133.
+- EXPORT direction (lot QA là IMPORT); hoàn thành chuyến/e-POD từng leg (ngoài scope
+  card); OCR camera thật (unit pin lane 1); viewport 768/1440 (app lái xe mobile 390).
+
+---
+
 # FB-066 lan 3 / card 211026144400 — flaky quick-add "Nha xe" Escape settle (test-only) — 2026-10-21
 
 Lane: paseo bdcd1424 (glm-5.3-flash, worktree ragged-sheep off 454fab6b). Agent
