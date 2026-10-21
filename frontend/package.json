@@ -10,6 +10,8 @@
     "build:strict": "tsc -b && node scripts/check-size.mjs && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "reg:local": "tsgo --noEmit -p e2e && playwright test -c playwright.regression.config.ts",
+    "reg:local:report": "playwright show-report test-results/regression",
     "size-check": "node scripts/check-size.mjs",
     "design:lock": "node scripts/design-lock.mjs",
     "design:drift": "node scripts/check-design-drift.mjs",
