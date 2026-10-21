@@ -537,7 +537,7 @@ export function DetailedPlanGrid({
                       {row.cargoMode === 'FCL' ? (
                         <>
                           {row.container.containerNumber ? (
-                            <div className="detailed-plan-grid__line detailed-plan-grid__line--strong" title={`${row.container.containerNumber}${row.dispatch.pairKind ? ` ${row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}` : ''}`}>
+                            <div className="detailed-plan-grid__line detailed-plan-grid__line--strong ops-container-line" title={`${row.container.containerNumber}${row.dispatch.pairKind ? ` ${row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}` : ''}`}>
                               {row.container.containerNumber}
                               {row.dispatch.pairKind && (
                                 <span className="detailed-plan-grid__pair-tag">

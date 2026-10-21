@@ -87,15 +87,16 @@ function renderGrid(items: DispatchDetailPlanRow[]) {
 }
 
 describe('DetailedPlanGrid — B.5 container/port weight (card 191026100010, REQ-02 of 20261005_361)', () => {
-  it('renders the container number on the strong line and BOTH port columns without any strong line', () => {
+  it('renders the container number on the strong line carrying the shared identity class, and BOTH port columns without any strong line', () => {
     const { container } = renderGrid([row()]);
 
     const contCell = container.querySelector('[data-label="Container"]') as HTMLElement;
     const contLine = contCell.querySelector('.detailed-plan-grid__line') as HTMLElement;
     expect(contLine.classList.contains('detailed-plan-grid__line--strong')).toBe(true);
     expect(contLine.textContent).toContain('MSCU7654321');
-    // The container code keeps its one-line scan shape (nowrap in CSS).
-    expect(contLine.className).toContain('detailed-plan-grid__line--strong');
+    // DIS-08 (card 211026180428): the weight rides the SHARED ops class so
+    // every dispatch table bolds its container lines from one rule.
+    expect(contLine.classList.contains('ops-container-line')).toBe(true);
 
     for (const label of ['Nâng hàng', 'Trả hàng']) {
       const portCell = container.querySelector(`[data-label="${label}"]`) as HTMLElement;
@@ -105,16 +106,26 @@ describe('DetailedPlanGrid — B.5 container/port weight (card 191026100010, REQ
     }
   });
 
-  it('the CSS gives the container line the ops primary weight and never bolds a port cell line', () => {
+  it('the CSS keeps the container line one-line (nowrap) with the weight carried by the shared ops class', () => {
     const css = readFileSync(
       resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'),
+      'utf8',
+    );
+    const opsCss = readFileSync(
+      resolve(process.cwd(), 'src/styles/operational-table-typography.css'),
       'utf8',
     );
 
     const containerRule = css.match(/\.detailed-plan-grid__cell--container \.detailed-plan-grid__line--strong \{[^}]*\}/);
     expect(containerRule, 'the container strong rule must exist').toBeTruthy();
-    expect(containerRule![0]).toContain('font-weight: var(--ops-table-primary-weight');
     expect(containerRule![0]).toContain('white-space: nowrap');
+    // The page rule no longer pins a weight: the rendered `.ops-container-line`
+    // class owns the container weight law (the base `--strong` rule keeps its
+    // own weight declaration for the other strong lines of this grid).
+    expect(containerRule![0]).not.toContain('font-weight');
+    const opsRule = opsCss.match(/\.ops-container-line,\s*\.ops-table \.ops-container-line\s*\{([^}]*)\}/)?.[1];
+    expect(opsRule, 'the shared container identity rule must exist').toBeTruthy();
+    expect(opsRule).toContain('font-weight: var(--ops-table-primary-weight)');
 
     // No rule anywhere raises a port-cell line to a bold/primary weight: the
     // ports render the plain `.detailed-plan-grid__line` only.

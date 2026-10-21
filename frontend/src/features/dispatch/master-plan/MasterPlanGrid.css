@@ -301,19 +301,16 @@
   margin-top: 6px;
 }
 
+/* Card B 18/10 (customer: "số container in đậm, cảng không in đậm"), superseded
+   by the shared container identity law (DIS-08, card 211026180428): the
+   container-count lines under a port now carry the shared `.ops-container-line`
+   class (operational-table-typography.css) instead of the adjacent-sibling
+   selector, so the same fact is bold in EVERY column it renders in — including
+   the cargo cell that the sibling rule never reached. The port-name line keeps
+   its regular weight. */
 .master-plan-grid__location-value {
   color: var(--fg-1);
   font-weight: 400;
-}
-
-/* Card B 18/10 (customer: "số container in đậm, cảng không in đậm") — the
-   container-count lines under a port are the dispatchers' scan target, the
-   same law the detail plan pinned in card 20261005_361. Each location block
-   renders the port name first and the container summaries after it, so the
-   adjacent sibling targets exactly the summary lines; the port line keeps
-   its regular weight. */
-.master-plan-grid__location-value + .master-plan-grid__location-value {
-  font-weight: var(--ops-table-primary-weight);
 }
 
 .master-plan-grid__line--muted {

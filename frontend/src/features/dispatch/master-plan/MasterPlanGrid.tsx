@@ -314,7 +314,7 @@ export function dayContainerSummary(item: ShipmentListItem, scheduleDate?: strin
  *  flag is explicit rather than inferred from the text: two lines can carry the
  *  same placeholder, and a custom `FormatValueOptions.empty` label must not
  *  silently stop collapsing. */
-export type CargoCellLine = { text: string; muted: boolean; empty: boolean };
+export type CargoCellLine = { text: string; muted: boolean; empty: boolean; identity?: boolean };
 
 /**
  * Cargo-cell lines, in render order — the ONE source both the grid and the XLSX
@@ -345,9 +345,14 @@ export function cargoCellLines(item: ShipmentListItem, scheduleDate?: string | n
     ];
   }
   const weight = formatWeight(item.totalCargoWeightKg);
+  const containerSummarySource = dayContainerSummary(item, scheduleDate) ?? item.containerTypeSummary;
   return [
-    ...formatContainerSummaryLines(dayContainerSummary(item, scheduleDate) ?? item.containerTypeSummary)
-      .map((text): CargoCellLine => ({ text, muted: false, empty: false })),
+    ...formatContainerSummaryLines(containerSummarySource)
+      // Real container demand carries the shared identity weight (DIS-08,
+      // card 211026180428); the 'Chưa có cont' placeholder names a MISSING
+      // fact and stays regular. `!!` mirrors formatContainerSummaryLines'
+      // own emptiness check so a '' summary can never bold the placeholder.
+      .map((text): CargoCellLine => ({ text, muted: false, empty: false, identity: !!containerSummarySource })),
     { text: weight, muted: true, empty: item.totalCargoWeightKg == null },
   ];
 }
@@ -529,7 +534,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       <div key={`${index}-${line.portName}`} className="master-plan-grid__location-block">
                         <div className="master-plan-grid__line master-plan-grid__location-value">{line.portName}</div>
                         {line.containerSummary && formatContainerSummaryLines(line.containerSummary).map((summaryLine) => (
-                          <div key={summaryLine} className="master-plan-grid__line master-plan-grid__location-value">{summaryLine}</div>
+                          <div key={summaryLine} className="master-plan-grid__line master-plan-grid__location-value ops-container-line">{summaryLine}</div>
                         ))}
                       </div>
                     ))}
@@ -543,7 +548,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       <div key={`${index}-${line.portName}`} className="master-plan-grid__location-block">
                         <div className="master-plan-grid__line master-plan-grid__location-value">{line.portName}</div>
                         {line.containerSummary && formatContainerSummaryLines(line.containerSummary).map((summaryLine) => (
-                          <div key={summaryLine} className="master-plan-grid__line master-plan-grid__location-value">{summaryLine}</div>
+                          <div key={summaryLine} className="master-plan-grid__line master-plan-grid__location-value ops-container-line">{summaryLine}</div>
                         ))}
                       </div>
                     ))}
@@ -556,7 +561,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                       {cargoCellLines(item, scheduleDate).map((line, index) => (
                         <div
                           key={`${index}-${line.text}`}
-                          className={`master-plan-grid__line${line.muted ? ' master-plan-grid__line--muted' : ''}`}
+                          className={`master-plan-grid__line${line.muted ? ' master-plan-grid__line--muted' : ''}${line.identity ? ' ops-container-line' : ''}`}
                           data-empty={line.empty ? 'true' : undefined}
                         >
                           {line.text}

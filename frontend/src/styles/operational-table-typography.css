@@ -39,6 +39,29 @@
   color: var(--ink);
 }
 
+/*
+ * Container identity law (DIS-08, card 211026180428): a container line — the
+ * serial or the count summary — is the dispatcher's scan target in EVERY
+ * dispatch table, so it carries the primary weight. Port names are supporting
+ * facts and stay regular. One shared class for every surface (master-plan
+ * cargo cell + port columns, detailed-plan container cell); pages add it to
+ * their line element and keep their own size/wrap constraints. Supersedes the
+ * page-local pins (master-plan adjacent-sibling selector of card B 18/10 and
+ * the detailed-plan container-cell weight of card 20261005_361) so a surface
+ * that forgets the class can no longer silently fall back to 400.
+ *
+ * The compound `.ops-table` selector is load-bearing: the dispatch grids'
+ * own cell rules (e.g. `.master-plan-grid__location-value { font-weight: 400 }`)
+ * are same-specificity page rules that can load after this file, so the bare
+ * class alone would lose the cascade and drop the summary lines back to 400.
+ * Inside an ops-table grid the compound form must win; the bare form keeps
+ * the law alive for any future surface outside the ops-table scope.
+ */
+.ops-container-line,
+.ops-table .ops-container-line {
+  font-weight: var(--ops-table-primary-weight);
+}
+
 /* Semantic marker for grids that explicitly map the full role scale. With the
    tokens on :root the class no longer carries them; keep it as the adoption
    signal used by the dispatch grids and the CUS worksheet. */

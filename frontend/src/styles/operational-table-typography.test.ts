@@ -27,6 +27,19 @@ describe('operational table typography contract', () => {
     expect(typography).toMatch(/:where\(table tbody small\)\s*\{[^}]*font-size:\s*var\(--ops-table-meta-size\)/);
   });
 
+  it('carries the container identity weight law for every dispatch table (DIS-08)', () => {
+    // One shared class — rendered by the master grid (cargo cell + port
+    // columns) and the detailed grid (container cell) — owns the weight of a
+    // container line, so no surface can silently fall back to 400. The
+    // compound `.ops-table` form outranks same-specificity page cell rules
+    // (e.g. the port-name 400) regardless of stylesheet order.
+    const rule = typography.match(/\.ops-container-line,\s*\.ops-table \.ops-container-line\s*\{([^}]*)\}/)?.[1];
+    expect(rule).toBeTruthy();
+    expect(rule).toContain('font-weight: var(--ops-table-primary-weight)');
+    expect(read('src/features/dispatch/master-plan/MasterPlanGrid.tsx')).toContain('ops-container-line');
+    expect(read('src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx')).toContain('ops-container-line');
+  });
+
   it('maps each grid to the shared role tokens instead of local font literals', () => {
     const shipmentCss = read('src/pages/ShipmentsPage.css');
     const masterCss = read('src/features/dispatch/master-plan/MasterPlanGrid.css');

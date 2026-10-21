@@ -410,10 +410,11 @@
 /* Container codes never wrap. Weight: the 2026-09-16 no-bold ruling is
  * SUPERSEDED 2026-10-05 by card 20261005_361 (REQ-02, owner-acked) —
  * dispatchers scan container codes first, so they carry the primary weight
- * while the port columns dropped theirs. */
+ * while the port columns dropped theirs. The weight now rides the shared
+ * `.ops-container-line` class (DIS-08, card 211026180428) rendered on the
+ * line; this rule keeps only the surface-local size/nowrap constraints. */
 .detailed-plan-grid__cell--container .detailed-plan-grid__line--strong {
   font-size: var(--text-caption-size);
-  font-weight: var(--ops-table-primary-weight);
   white-space: nowrap;
 }
 
