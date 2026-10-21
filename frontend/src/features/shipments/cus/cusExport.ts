@@ -20,7 +20,7 @@ import {
   vehicleReadinessLabel,
   worksheetQuantity,
 } from './cusUtils';
-import { formatNumber } from '../../../lib/format';
+import { formatNumber, formatWeight } from '../../../lib/format';
 
 /** Board filters that scope the export; pagination + sort are export-owned. */
 export interface CusWorksheetFilters {
@@ -75,7 +75,7 @@ export function mapCusWorksheetRow(item: ShipmentCusWorkspaceListItem): string[]
     // number. Emitting one number per lot silently dropped the rest.
     [item.billOrBookNumber ?? '', declarationNumbersFor(item).join(', ')].filter(Boolean).join('\n'),
     [directionLabel(item.direction), item.shippingLineName ?? '', item.isCombined ? 'Đóng kết hợp' : ''].filter(Boolean).join('\n'),
-    [cargoModeLabel(item.cargoMode), item.containerSummary || worksheetQuantity(item), item.weightKg != null ? `${formatQuantity(item.weightKg)} kg` : '', item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
+    [cargoModeLabel(item.cargoMode), item.containerSummary || worksheetQuantity(item), formatWeight(item.weightKg) === '—' ? '' : formatWeight(item.weightKg), item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
     // A lot whose readiness is WAITING_DATE is officially "chưa chốt ngày"
     // even when one cont already has a date (partial appointments) — the
     // sheet must not contradict the board's warning.

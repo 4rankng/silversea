@@ -71,6 +71,43 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
   });
 
+  // Ticket 211026125242 (CUS-03): copy-ALL — one click gives EVERY container
+  // the same ngày giờ đóng trả, overwriting rows that already hold a schedule
+  // (which the copy-down rule above deliberately never touches).
+  it('copies the source appointment to ALL containers, overwriting set rows', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    addContainer();
+    addContainer();
+    fillAppointment(0, '20/09/2026', '09:00');
+    fillAppointment(1, '21/09/2026', '11:30');
+
+    const allButton = await screen.findByRole('button', { name: /Copy giờ hẹn cho tất cả 3 cont/ });
+    fireEvent.click(allButton);
+
+    await waitFor(() => {
+      const dates = [0, 1, 2].map((i) => appointmentValue(i).date);
+      expect(dates).toEqual(['20/09/2026', '20/09/2026', '20/09/2026']);
+    });
+    [0, 1, 2].forEach((i) => expect(appointmentValue(i).time).toBe('09:00'));
+    expect(await screen.findByText(/Đã copy ngày giờ đóng trả cho tất cả 3 container/)).toBeTruthy();
+  });
+
+  it('copy-ALL also replaces a partial draft row and hides with fewer than two containers', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    // Single row: nothing to spread — the button stays hidden.
+    fillAppointment(0, '20/09/2026', '09:00');
+    expect(screen.queryByRole('button', { name: /Copy giờ hẹn cho tất cả/ })).toBeNull();
+
+    addContainer();
+    fillAppointment(1, '20/09', '');
+    const allButton = await screen.findByRole('button', { name: /Copy giờ hẹn cho tất cả 2 cont/ });
+    fireEvent.click(allButton);
+    await waitFor(() => expect(appointmentValue(1).date).toBe('20/09/2026'));
+    expect(appointmentValue(1).time).toBe('09:00');
+  });
+
   it('offers hover-copy on the scheduled row while other rows still lack a schedule', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });

@@ -76,10 +76,32 @@ describe('formatVolumeCbm (FB-091)', () => {
     expect(formatVolumeCbm(undefined)).toBe('—');
     expect(formatVolumeCbm('')).toBe('—');
     // A bad column value is echoed exactly as the record states it, with no unit
-    // appended — the same contract formatWeight keeps ("NaN kg" is never shown).
+    // appended — the same contract formatWeight keeps ("NaN tấn" is never shown).
     expect(formatVolumeCbm('n/a')).toBe('n/a');
     // Whitespace is not "empty": Number('   ') is 0, exactly as formatWeight
-    // treats it ("0 kg"). Pinned so the two house measures cannot drift apart.
-    expect(formatVolumeCbm('   ')).toBe(formatWeight('   ').replace('kg', 'CBM'));
+    // treats it ("0 tấn"). Pinned so the two house measures cannot drift apart.
+    expect(formatVolumeCbm('   ')).toBe(formatWeight('   ').replace('tấn', 'CBM'));
+  });
+});
+
+describe('formatWeight in tấn (CUS-08, QA 21/10 — tickets 211026125242/211026125715/211026125815)', () => {
+  // The customer doc writes container weights as "5.000" / "18.500" and wants
+  // "5" / "18,5": storage is kg (numeric(10,2) — "21000.00"), display is tấn
+  // with the vi-VN decimal comma and no dead zeros after it.
+  it('converts stored kg to tấn and strips the dead decimals', () => {
+    expect(formatWeight('5000')).toBe('5 tấn');
+    expect(formatWeight('18500')).toBe('18,5 tấn');
+    expect(formatWeight('4000.00')).toBe('4 tấn');
+    expect(formatWeight('21000.00')).toBe('21 tấn');
+    expect(formatWeight(17500)).toBe('17,5 tấn');
+    expect(formatWeight('1922')).toBe('1,922 tấn');
+    expect(formatWeight('500')).toBe('0,5 tấn');
+    expect(formatWeight('0')).toBe('0 tấn');
+  });
+  it('keeps the empty and verbatim-echo contract of the other house measures', () => {
+    expect(formatWeight(null)).toBe('—');
+    expect(formatWeight(undefined)).toBe('—');
+    expect(formatWeight('')).toBe('—');
+    expect(formatWeight('n/a')).toBe('n/a');
   });
 });

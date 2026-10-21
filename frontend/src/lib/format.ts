@@ -213,7 +213,16 @@ export function formatPercent(n: number | null | undefined, options?: FormatValu
 }
 
 /**
- * Cargo weight with locale grouping and the "kg" unit, e.g. "24.000 kg".
+ * Cargo weight displayed in TẤN with the Vietnamese decimal comma, e.g.
+ * stored "24.000" kg renders "24 tấn" and "18.500" kg renders "18,5 tấn"
+ * (CUS-08, QA round 21/10 — tickets 211026125242/211026125715/211026125815):
+ * the customer reads container weights in tấn and flagged the vi-VN kg
+ * grouping dots ("5.000", "18.500") as dead decimals after the comma.
+ * Storage stays kg — a display-only ÷1000, the numeric(10,2) column and the
+ * API are untouched. 3 fraction digits give kg-INTEGER precision — a stored
+ * sub-kg tail (numeric(10,2) can hold 0,01 kg) rounds at the 4th tấn digit,
+ * the same accepted rounding cap as formatVolumeCbm's 3 digits. Trailing
+ * zeros drop like every other house measure.
  *
  * Accepts the string column value the grids read as well as a number: the
  * dispatch grids carry weight from the API as a decimal string, while report
@@ -221,14 +230,14 @@ export function formatPercent(n: number | null | undefined, options?: FormatValu
  * different signature, so a caller could not share one helper between them.
  *
  * A non-numeric non-empty value is echoed back verbatim rather than becoming
- * "NaN kg" — a bad cell should show what the record says.
+ * "NaN tấn" — a bad cell should show what the record says.
  */
 export function formatWeight(kg: string | number | null | undefined, options?: FormatValueOptions): string {
   const empty = options?.empty ?? '—';
   if (kg == null || kg === '') return empty;
   const value = Number(kg);
   if (!Number.isFinite(value)) return String(kg);
-  return `${value.toLocaleString('vi-VN')} kg`;
+  return `${viVnWithDecimals(3).format(value / 1000)} tấn`;
 }
 
 /**

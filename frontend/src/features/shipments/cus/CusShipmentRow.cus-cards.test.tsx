@@ -131,13 +131,13 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
   it('R4a suppresses the CBM segment when the lot carries no volume — no "— CBM"', () => {
     const { container } = renderRow(makeItem({ cargoMode: 'LCL', volumeCbm: null }));
     const metrics = container.querySelector('.cus-cargo-summary__weight')!;
-    expect(metrics.textContent).toBe('1.200 kg');
+    expect(metrics.textContent).toBe('1,2 tấn');
     expect(metrics.textContent).not.toContain('CBM');
   });
 
   it('R4a keeps the CBM segment when a volume exists', () => {
     const { container } = renderRow(makeItem({ cargoMode: 'LCL', volumeCbm: '3.5' }));
-    expect(container.querySelector('.cus-cargo-summary__weight')!.textContent).toBe('1.200 kg · 3,5 CBM');
+    expect(container.querySelector('.cus-cargo-summary__weight')!.textContent).toBe('1,2 tấn · 3,5 CBM');
   });
 
   it('R4b renders the muted "Chưa phân xe" signal for an unallocated containerless lot', () => {
