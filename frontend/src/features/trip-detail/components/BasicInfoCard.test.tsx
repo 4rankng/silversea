@@ -143,4 +143,57 @@ describe('BasicInfoCard container summary', () => {
     expect(screen.queryAllByRole('link', { name: /lô hàng/i })).toHaveLength(0);
     expect(screen.queryByText('Lô hàng')).toBeNull();
   });
+
+  // DRI-01 (card 211026130743): the factory site's live phone rides the basic
+  // facts as the shared tel: tap-to-call — the number QA dials on /trips/:id,
+  // the same one the driver screen calls SĐT kho. The URI strips space/dot
+  // separators (house telHref contract); the visible digits stay intact.
+  it('renders SĐT kho/nhà máy as a tel: link when the factory site has a phone', () => {
+    useQueryMock.mockReturnValue({ data: { items: [] }, isLoading: false });
+
+    render(
+      <MemoryRouter>
+        <BasicInfoCard
+          trip={{
+            ...baseTrip,
+            factorySite: {
+              name: 'NM DRI pt0939559',
+              address: 'Bình Dương',
+              source: 'LIVE',
+              contactName: 'Chị An',
+              contactPhone: '028.3822.1234',
+            },
+          } as unknown as TripDetail}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('SĐT kho/nhà máy')).toBeTruthy();
+    const tel = screen.getByRole('link', { name: '028.3822.1234' });
+    expect(tel.getAttribute('href')).toBe('tel:02838221234');
+    expect(tel).toHaveClass('val-tel');
+  });
+
+  it('renders no SĐT row when the factory site has no phone on file', () => {
+    useQueryMock.mockReturnValue({ data: { items: [] }, isLoading: false });
+
+    render(
+      <MemoryRouter>
+        <BasicInfoCard
+          trip={{
+            ...baseTrip,
+            factorySite: {
+              name: 'NM không SĐT',
+              address: null,
+              source: 'SNAPSHOT',
+              contactName: null,
+              contactPhone: null,
+            },
+          } as unknown as TripDetail}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByText('SĐT kho/nhà máy')).toBeNull();
+  });
 });

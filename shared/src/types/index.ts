@@ -1276,6 +1276,20 @@ export interface TripDetail extends Trip {
    *  milestone) — locks reassignment per the server guard. Optional for
    *  older payloads. */
   driverAccepted?: boolean;
+  /**
+   * F6 factory-site view (GET /api/trips/:id route attach). Name/address
+   * prefer the dispatch-frozen columns; `contactPhone` always reads the LIVE
+   * master-data site — the same number the driver channel dials as SĐT kho,
+   * so the admin trip detail renders the shared TelLink tap-to-call
+   * (REQ-14 sweep, card 211026130743). Null when no factory-like site exists.
+   */
+  factorySite?: {
+    name: string;
+    address: string | null;
+    source: 'SNAPSHOT' | 'LIVE';
+    contactName: string | null;
+    contactPhone: string | null;
+  } | null;
 }
 
 export interface ShipmentAccountingLockSummary {

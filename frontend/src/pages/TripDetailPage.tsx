@@ -9,6 +9,7 @@ import { Money } from '../components/shared/Money';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
+import { TelLink } from '../components/TelLink';
 import { UuiSelectField } from '../design-system';
 // Shared rose required marker (`.ds-field__required`) — the ds form stylesheet
 // is not part of the global bundle, so import it where the marker renders.
@@ -220,7 +221,11 @@ export default function TripDetailPage() {
                 {trip.instructions.contactPhone && (
                   <div className="tdp-instructions-row">
                     <span className="tdp-instructions-label">SĐT</span>
-                    <a className="tdp-instructions-value" href={`tel:${trip.instructions.contactPhone}`}>{trip.instructions.contactPhone}</a>
+                    {/* DRI-01 (card 211026130743): through the ONE shared
+                        TelLink — the raw href used to ride the stored digits
+                        verbatim, so a space/dot-formatted number shipped a
+                        dead URI. */}
+                    <TelLink phone={trip.instructions.contactPhone} className="tdp-instructions-value" />
                   </div>
                 )}
                 {trip.instructions.notes && (

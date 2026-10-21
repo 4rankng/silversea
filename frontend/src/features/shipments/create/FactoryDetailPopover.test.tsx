@@ -24,10 +24,11 @@ describe('FactoryDetailPopover contact phone', () => {
     onClose: () => {},
   };
 
-  it('shows the factory phone when one is on file', () => {
+  it('shows the factory phone when one is on file — as the tel: tap-to-call link (card 211026130743)', () => {
     render(<FactoryDetailPopover {...base} phone="02253555555" />);
-    expect(screen.getByText('02253555555')).toBeTruthy();
     expect(screen.getByText('Số điện thoại')).toBeTruthy();
+    const tel = screen.getByRole('link', { name: '02253555555' });
+    expect(tel.getAttribute('href')).toBe('tel:02253555555');
   });
 
   it('omits the phone line entirely when the factory has none', () => {

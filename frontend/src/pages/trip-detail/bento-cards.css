@@ -331,6 +331,19 @@
   font-family: var(--font-data);
 }
 
+/* DRI-01 (card 211026130743): the SĐT kho/nhà máy value is the tap-to-call
+   tel: link — same house face as .driver-task-fact__tel (brand, weight 500,
+   underline only on hover). */
+.info-meta .val.val-tel {
+  color: var(--brand);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.info-meta .val.val-tel:hover {
+  text-decoration: underline;
+}
+
 .info-meta .val.muted {
   color: var(--ink-4);
   font-weight: 500;
