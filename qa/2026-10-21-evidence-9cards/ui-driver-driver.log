@@ -1,0 +1,16 @@
+
+=== run 2026-10-21T07:17:34.410Z (pin 536aad6c) ===
+2026-10-21T07:17:34.636Z login quyet (DRIVER): OK
+2026-10-21T07:17:38.854Z PASS dri-01 driver task grid renders (not login) — url=http://localhost:7175/my-trips/85065
+2026-10-21T07:17:38.855Z PASS dri-01 SĐT kho row is a tel: anchor — {"text":"02253555555","href":"tel:02253555555","isAnchor":true}
+2026-10-21T07:17:38.855Z PASS dri-01 SĐT kho href normalized tel:02253555555 — href=tel:02253555555
+2026-10-21T07:17:38.855Z PASS dri-01 SĐT liên hệ row is a tel: anchor (≠ kho) — {"text":"0987654321","href":"tel:0987654321","isAnchor":true}
+2026-10-21T07:17:38.938Z shot ui-dri01-info-grid-tel.png (390px, THÔNG TIN LỆNH grid)
+2026-10-21T07:17:38.947Z PASS dri-01 call-bar "Gọi kho" control present + clicked — {"found":true,"tag":"button"}
+2026-10-21T07:17:39.559Z PASS dri-01 call sheet opens with tel: contact links — [{"text":"02253555555","href":"tel:02253555555"},{"text":"Gọi","href":"tel:02253555555"},{"text":"0901.234.567","href":"tel:0901234567"},{"text":"Gọi","href":"tel:0901234567"}]
+2026-10-21T07:17:39.743Z shot ui-dri01-call-sheet.png (call sheet modal)
+2026-10-21T07:17:42.769Z PASS dri-04 Cảng hạ row resolves to a real point (NOT "Chưa có cảng hạ") — {"cangHa":"NM REGPK ow8t61419","delivery":"NM REGPK ow8t61419, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh","hasDeliveryRow":true}
+2026-10-21T07:17:42.769Z PASS dri-04 Cảng hạ names the job delivery site (NM REGPK ow8t61419) — NM REGPK ow8t61419
+2026-10-21T07:17:42.770Z PASS dri-04 Địa chỉ giao hàng row present for IMPORT — NM REGPK ow8t61419, Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh
+2026-10-21T07:17:42.899Z shot ui-dri04-cangha.png (390px, Cảng hạ + delivery rows)
+2026-10-21T07:17:44.026Z SCRIPT C DONE — failures=0

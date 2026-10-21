@@ -1,0 +1,6 @@
+ shipment_code |   bl_number   | id  | planned_carrier_type | planned_external_carrier_id | planned_vehicle_plate_number | version 
+---------------+---------------+-----+----------------------+-----------------------------+------------------------------+---------
+               | BULK-IMP-0127 | 138 | OWN                  |                             |                              |       1
+               | BULK-IMP-0127 | 137 | EXTERNAL             |                      225441 |                              |       3
+(2 rows)
+
