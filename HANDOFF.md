@@ -1,3 +1,44 @@
+# FB-066 lan 3 / card 211026144400 — flaky quick-add "Nha xe" Escape settle (test-only) — 2026-10-21
+
+Lane: paseo bdcd1424 (glm-5.3-flash, worktree ragged-sheep off 454fab6b). Agent
+chet luc cho battery load → guard salvage 980b1c49; controller chay lai gates + merge.
+
+**Status**: DONE — flake dong bang TEST fix; KHONG phai bug production (browser
+that focus luon nam trong menu khi mo, Escape chuan react-aria dong binh thuong).
+
+## Root cause (probe runtime)
+
+Escape ban vao `document.activeElement` dua voi DOM focus async cua react-aria vao
+listbox: khi focus con o TRIGGER button (ngoai popover portalled), event khong
+bubble qua popover (handler nam tren popover — useOverlay keyboardProps) →
+popover KHONG BAO GIO dong het budget 4s. Khong phai van de budget 1s nhu card
+nau (budget that da la 4s tu lan truoc). Focus kip vao option → dong dong bo ~1ms.
+
+## Fix (0 assertion weaken)
+
+- Escape ban vao option DA await ben trong popover (duong bubble that: option →
+  listbox → popover).
+- `{ timeout: 20_000 }` cho 4 test async — vitest default 5s/test kep cac waitFor.
+- Regression case: `testplan/2026-10-21-card-211026144400-quickadd-escape-settle.md`.
+
+## Gates (verbatim)
+
+- Baseline pre-fix idle 2/5 FAIL (r2, r5) → flake ton tai tren may nay.
+- Post-fix: idle 5/5 + load 2-lane 5/5 (agent battery).
+- Controller salvage re-verify 16:27: scoped vitest 3 lan x 5/5 (15.8s/15.6s/32.4s,
+  run 3 duoi contention song song tsc+eslint) · FE tsc 0 · scoped eslint 0.
+- Full-suite duoi load BI KILL khi agent idle (log truncated, khong summary; cac
+  fail thay duoc la file khac — numeric-identity, AssignTruckGroupDialog, DIS
+  group = pham vi lane khac; quick-add khong co trong fail list) → can full-run
+  tren main de chung minh not.
+- Review doc lap: APPROVE (6/6 constraint, react-aria@3.53.1).
+
+## Evidence
+
+`qa/2026-10-21-card-211026144400-quickadd-flake/` (force-tracked): baseline FAIL
+r2/r5, fix-idle r1-r5, fix-load r1-r5, full-suite + 2 lane logs (TRUNCATED, ghi
+ro trong README), README verdict.
+
 # R29F — FB-093 re-verify trên staging-built FE (nút "Tách nhóm" Kế toán) — 2026-10-21
 
 Controller: agent, worktree feat-r29f-fb093-stgverify (off main ebd032fb), branch feat-r29f-fb093-stgverify.
