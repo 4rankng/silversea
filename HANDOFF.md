@@ -1,3 +1,32 @@
+# LCL-01 lan 2 — overview/detail không đồng bộ, shape container-row chưa có ngày (card 211026180528) — 2026-10-21
+
+Controller: this agent, worktree `1njkloyy/fix-lcl01-lan2`, branch `fix-lcl01-lan2`
+(off main `9aab78d2`). Commit `ddf45946`, pushed origin. Staging READ-ONLY suốt lane.
+
+**Status**: DONE — verify-first trên build 9aab78d2 → root cause → fix → gates →
+review độc lập (land as-is) → commit+push. Staging KHÔNG deploy (owner recut wave).
+
+- **QA lot (diff probe)**: staging probe toàn bộ page, 6 account (5 CUS + admin),
+  đúng 1 lô rớt: **133 / SHP-2610-00069** — QA Vũ Văn Tiệp tạo 17:09 (`POST
+  /shipments` body `{customerId}` → cargo_mode NULL) + 2 cont 20' chưa hẹn ngày
+  17:11 (fixture DRI-03; owner addendum xác nhận). Card wedge 18:05 = lô này.
+- **Root cause**: `containerDayTriageCondition` (lan 1) chỉ miễn container-less
+  LCL. Row CÓ container mà triage day `coalesce(appointment, EDD)` = NULL không
+  match range nào → bị mọi date arm drop khi Tổng quan (không date scope mặc định)
+  vẫn liệt kê.
+- **Fix**: arm thứ ba `isNull(containerTransportDateSql())` — row không có triage
+  day đi ngoài day-triage bất kể cargo shape; arm lan 1 + dateArms giữ nguyên.
+  Nulls-first sort arm của board sống lại (unscheduled lên đầu).
+- **Gates**: be-tsc 0 · scoped 35/35 · BE unit 347/347 · BE test 335/335 · lint 0 ·
+  pin 6/6 (3 cũ + 3 mới). BEFORE repro failures=2 → AFTER 8/8 (qa/2026-10-21-lcl01-lan2/).
+- **Nợ/lưu ý**: (1) commit message có lỗi gõ "зерка" (cosmetic, không amend theo
+  luật append-only); (2) bất đối xứng cố ý còn lại: Tổng quan với filter ngày TỰ
+  CHỌN vẫn ẩn lô undated — đã ghi case doc, ngoài scope; (3) staging re-verify sau
+  deploy thuộc owner; UI click-through 390px chưa drive (evidence cấp API theo
+  brief); (4) QA lot 133 để nguyên cho DRI-03 (KHÔNG dispatch).
+
+---
+
 # FB-066 lan 3 / card 211026144400 — flaky quick-add "Nha xe" Escape settle (test-only) — 2026-10-21
 
 Lane: paseo bdcd1424 (glm-5.3-flash, worktree ragged-sheep off 454fab6b). Agent
