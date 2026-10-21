@@ -2,7 +2,7 @@
 /**
  * LCL-01 lan 2 (card 211026180528) — repro + fix proof. LOCAL DEV only.
  *
- *   BACKEND=http://localhost:3016/api node testplan/qa/scripts/2026-10-21-lcl01-lan2-repro.mjs
+ *   BACKEND=http://localhost:3002/api node testplan/qa/scripts/2026-10-21-lcl01-lan2-repro.mjs
  *
  * Models the two screens' ACTUAL default queries:
  *   - Tổng quan  (/shipments,         ShipmentsPage)          → NO default date scope
