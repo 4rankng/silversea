@@ -128,11 +128,27 @@ export function USearchableField({
   const lastSyncedLabel = useRef(selectedLabel);
   useEffect(() => {
     if (lastSyncedValue.current === value && lastSyncedLabel.current === selectedLabel) return;
+    // TiepVu22Oct-3 (stale-state race, same family as 261022213755b): a LIVE
+    // typing session owns the visible text. The free-text passthrough clears
+    // the form id on every NON-matching keystroke (value: id → ''), and this
+    // effect used to answer that flip with setInputValue('') — overwriting
+    // the user's newest keystroke with the older state transition. Typing a
+    // full label over an existing pick ("Kho ST" → "GLC") ate the first
+    // character: the field showed "LC" while the user had typed "GLC". The
+    // exact-label branch below keeps its own law: when the passthrough
+    // RESOLVES a typed label to the catalog id mid-word, the resolved label
+    // equals the typed text, so skipping the write loses nothing.
+    const typedText = typedCustomTextRef.current;
+    const typingSessionLive = allowsCustomValue
+      && typedText != null
+      && typedText !== '';
     lastSyncedValue.current = value;
     lastSyncedLabel.current = selectedLabel;
-    // Custom (allowsCustomValue) values are not in the catalog, so `selected`
-    // is undefined — keep the applied value in the input instead of blanking it.
-    setInputValue(selectedLabel ?? (allowsCustomValue ? value ?? '' : ''));
+    if (!typingSessionLive) {
+      // Custom (allowsCustomValue) values are not in the catalog, so `selected`
+      // is undefined — keep the applied value in the input instead of blanking it.
+      setInputValue(selectedLabel ?? (allowsCustomValue ? value ?? '' : ''));
+    }
     // FB-066 lần 3 (card 201026101600): chosenKey is the user's LAST REAL
     // PICK only — the module invariant at the chosenKey declaration ("typing
     // must never touch selectedKey"). The old `?? (allowsCustomValue ? value
@@ -146,10 +162,7 @@ export function USearchableField({
     // mid-word, and adopting that id here would snap the dropdown shut the
     // moment the full label is typed. While the resolved label IS the live
     // typed text, the change came from typing, not from a pick.
-    const fromLiveTyping = allowsCustomValue
-      && typedCustomTextRef.current != null
-      && typedCustomTextRef.current !== ''
-      && selectedLabel === typedCustomTextRef.current;
+    const fromLiveTyping = typingSessionLive && selectedLabel === typedText;
     setChosenKey(fromLiveTyping ? null : selected?.value ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, selectedLabel]);
@@ -165,6 +178,12 @@ export function USearchableField({
     const matches = options.filter((option) => matchesComboboxSearch(`${option.label} ${option.searchText ?? ''}`.trim(), typedText));
     if (matches.length !== 1) return null;
     const match = matches[0];
+    // A bare-Enter commit IS a real pick (TiepVu22Oct-3 review): end the
+    // typing session so later external value changes adopt their key and
+    // label normally — same law as the menu pick and the __create__ pick.
+    // The ambiguous/no-match return above KEEPS the session: free text must
+    // stay owned by the typist.
+    typedCustomTextRef.current = null;
     setChosenKey(match.value);
     onChange(match.value);
     setInputValue(match.label);
