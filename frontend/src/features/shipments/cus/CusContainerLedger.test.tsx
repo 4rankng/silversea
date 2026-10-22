@@ -882,16 +882,16 @@ describe('CUS-10 — drawer Xóa container confirm flow', () => {
   });
 });
 
-// Card 201026124500 (181026185900 A.1), amended by card 211026112600 (FB-086
-// regression, 21/10 — newest customer ruling wins): opening the add form
-// copies EVERY field of the lot's existing rows down — Loại cont, Tuyến,
-// Nhà xe, Nâng, Hạ, Trọng lượng, Giờ hẹn — per-column FIRST non-null,
-// mirroring the add API's lot-default inherit. Số container stays the
-// operator's own entry. The loại-cont copy is CLIENT-side only: the seed
-// pre-fills the pick (catalog-guarded like the ports pair) and the submit
-// sends it explicitly — a deliberately cleared type still rides explicit
-// null, so A.1's wire contract and the server inherit are untouched.
-describe('add-row seed copies the lot row values (A.1, card 201026124500 + 211026112600)', () => {
+// Card 201026124500 (181026185900 A.1), REVERSED by card 221026173728
+// (owner ruling 22/10 — hủy ruling 21/10 card 211026112600): opening the add
+// form copies the lot's existing row values down — Tuyến, Nhà xe, Nâng, Hạ,
+// Trọng lượng, Giờ hẹn — per-column FIRST non-null, mirroring the add API's
+// lot-default inherit. TRỪ hai ô: Số container stays the operator's own
+// entry, and Loại cont stays EMPTY ("Chưa chọn loại cont") — the ruling
+// 22/10 restores the type to the operator's own pick; an unpicked type rides
+// EXPLICIT null on the wire so the server's lot-default inherit can never
+// re-copy it (undefined would inherit).
+describe('add-row seed copies the lot row values TRỪ Loại cont (A.1 reversed 22/10, card 221026173728)', () => {
   const ports = [
     { id: 3, code: 'CDV', name: 'Cảng Đình Vũ', label: 'CDV — Cảng Đình Vũ' },
     { id: 4, code: 'HICT', name: 'TC - HICT', label: 'HICT — TC - HICT' },
@@ -1073,11 +1073,13 @@ describe('add-row seed copies the lot row values (A.1, card 201026124500 + 21102
   });
 
   it('never seeds a loại-cont id outside the catalog (LONG MINH legacy id) — placeholder + explicit null', async () => {
-    // Catalog-guard pin (211026112600): the ref row carries containerTypeId 1
-    // but the workspace catalog only offers id 5 — an id with no dropdown
-    // option must not ride the seed (the trigger would show a pick the
-    // operator never saw), and the submit then sends explicit null, exactly
-    // like the add API's column inherit with an uncatalogued cell.
+    // REQ-22 REVERSED (card 221026173728, 22/10): NOTHING rides the loại-cont
+    // seed anymore — this row is the stronger pin: the ref row CARRIES a type
+    // (containerTypeId 1, outside the workspace catalog's id 5) and the add
+    // row still opens on the placeholder, while the row's other facts
+    // (Tuyến/Nhà xe) copy per-column as ruled. The submit sends explicit
+    // null, exactly like the add API's column inherit treats an uncatalogued
+    // cell — undefined would re-inherit the lot default.
     addCusShipmentContainerRow.mockResolvedValue({ line: null });
     renderLedger({
       detail: a1Detail([

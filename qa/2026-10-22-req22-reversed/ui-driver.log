@@ -1,0 +1,48 @@
+HEALTH status=ok front=http://localhost:7176 api=http://localhost:3002/api
+LOGIN ok cus
+DB PRE state: [{"id":141522,"container_number":"DSTK7890125","container_type_id":1,"route_id":1,"pickup_port_id":1,"dropoff_port_id":2,"weight":"9000.00","customer_appointment_at":"2026-10-27T05:00:00.000Z"}]
+artifact db-0-prestate.json
+PASS pre-state: exactly 1 ref container with the full copy set — {"id":141522,"container_number":"DSTK7890125","container_type_id":1,"route_id":1,"pickup_port_id":1,"dropoff_port_id":2,"weight":"9000.00","customer_appointment_at":"2026-10-27T05:00:00.000Z"}
+shot ui-1-chitiet-before.png (detail page, Quản lý container section)
+PASS host A: Thêm container button clicked
+artifact dom-2-chitiet-addform.json
+host A ref row: {"number":"1DSTK7890125","loaiCont":"20DC","tuyen":"Hải Phòng","nhaXe":"SilverSea","nang":"SITC - Lạch HuyệnCảng nâng của container DSTK7890125SITC - Lạch Huyện","ha":"TC - HICTCảng hạ của container DSTK7890125TC - HICT","weight":null,"apptHH":null,"apptDD":null}
+host A add row: {"number":"","loaiCont":"","tuyen":"Hải Phòng","nhaXe":"SilverSea","nang":"SITC - Lạch Huyện","ha":"TC - HICT","weight":"9000","apptHH":"12","apptDD":"27","typeInputValue":"","typeInputPlaceholder":"Chưa chọn loại cont","typeCellText":"","typeRoleProbe":[{"role":"combobox","text":"","aria":"Loại cont"}]}
+PASS host A: ref row carries the seeded facts (fixture sanity) — {"number":"1DSTK7890125","loaiCont":"20DC","tuyen":"Hải Phòng","nhaXe":"SilverSea","nang":"SITC - Lạch HuyệnCảng nâng của container DSTK7890125SITC - Lạch Huyện","ha":"TC - HICTCảng hạ của container DSTK7890125TC - HICT","weight":null,"apptHH":null,"apptDD":null}
+PASS host A: Số container opens EMPTY (entry field)
+PASS host A: Loại cont opens "Chưa chọn loại cont" (REVERSED 22/10 — NOT the ref 20DC) — {"value":"","placeholder":"Chưa chọn loại cont","probe":[{"role":"combobox","text":"","aria":"Loại cont"}]}
+PASS host A: Tuyến COPIES the row above — add=Hải Phòng ref=Hải Phòng
+PASS host A: Nhà xe COPIES the row above — add=SilverSea ref=SilverSea
+PASS host A: Nâng COPIES the row above — add=SITC - Lạch Huyện ref=SITC - Lạch HuyệnCảng nâng của container DSTK7890125SITC - Lạch Huyện
+PASS host A: Hạ COPIES the row above — add=TC - HICT ref=TC - HICTCảng hạ của container DSTK7890125TC - HICT
+PASS host A: Trọng lượng COPIES (9000) — 9000
+PASS host A: Giờ hẹn COPIES (12:00 · 27/10 VN) — hh=12 dd=27
+shot ui-3-chitiet-form-loaicont-trong.png (add form: type EMPTY, other fields seeded)
+PASS fixture number ISO-6346 valid — REVU2200008
+PASS host A: submit lands the new row (success toast "Đã thêm container") — REVU2200008
+shot ui-4-chitiet-after-add.png (ledger after add — new row type cell empty)
+artifact db-5-newrow.json
+DB new row: [{"id":141746,"container_number":"REVU2200008","container_type_id":null,"route_id":1,"pickup_port_id":1,"dropoff_port_id":2,"weight":"9000.00","customer_appointment_at":"2026-10-27T05:00:00.000Z"}]
+PASS DB: new row EXISTS — {"id":141746,"container_number":"REVU2200008","container_type_id":null,"route_id":1,"pickup_port_id":1,"dropoff_port_id":2,"weight":"9000.00","customer_appointment_at":"2026-10-27T05:00:00.000Z"}
+PASS DB: container_type_id IS NULL (server did NOT lot-default inherit — explicit null won) — null
+PASS DB: route_id copied (1) — 1
+PASS DB: pickup_port_id copied (1) — 1
+PASS DB: dropoff_port_id copied (2) — 2
+PASS DB: weight copied (9000.00) — 9000.00
+PASS DB: appointment copied (2026-10-27T05:00Z) — Tue Oct 27 2026 13:00:00 GMT+0800 (Singapore Standard Time)
+PASS host B: drawer opened from Tổng quan row — true
+artifact dom-6-drawer-addform.json
+host B add row: {"number":"","loaiCont":"","tuyen":"Hải Phòng","nhaXe":"SilverSea","nang":"SITC - Lạch Huyện","ha":"TC - HICT","weight":"9000","apptHH":"12","apptDD":"27","typeInputValue":"","typeInputPlaceholder":"Chưa chọn loại cont","typeCellText":"","typeRoleProbe":[{"role":"combobox","text":"","aria":"Loại cont"}]}
+PASS host B: Số container opens EMPTY
+PASS host B: Loại cont opens "Chưa chọn loại cont" (REVERSED 22/10) — {"value":"","placeholder":"Chưa chọn loại cont"}
+PASS host B: Tuyến COPIES the row above — add=Hải Phòng ref=Hải Phòng
+PASS host B: Nâng COPIES the row above — add=SITC - Lạch Huyện ref=SITC - Lạch HuyệnCảng nâng của container DSTK7890125SITC - Lạch Huyện
+PASS host B: Hạ COPIES the row above — add=TC - HICT ref=TC - HICTCảng hạ của container DSTK7890125TC - HICT
+PASS host B: Trọng lượng COPIES — 9000
+PASS host B: Giờ hẹn COPIES — hh=12 dd=27
+shot ui-7-drawer-form-loaicont-trong.png (drawer add form: type EMPTY, fields seeded)
+CLEANUP remove status=200
+DB POST-cleanup: [{"id":141522,"container_number":"DSTK7890125"}]
+artifact db-8-post-cleanup.json
+PASS cleanup: lot restored to the single ref container — [{"id":141522,"container_number":"DSTK7890125"}]
+DONE failures=0

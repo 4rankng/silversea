@@ -185,22 +185,20 @@ export function ContainerLedger({
     setAddError(null);
   }, []);
 
-  // Card 201026124500 (181026185900 A.1), amended by card 211026112600
-  // (FB-086 regression, 21/10 — newest customer ruling wins): opening the add
-  // form copies the lot's existing row values down into the draft —
-  // per-column FIRST non-null, the same rule the add API's lot-default
-  // inherit applies (FB-086 round 19) — for EVERY field TRỪ Số container:
-  // Loại cont, Tuyến, Nhà xe, Nâng, Hạ ride the seed beside weight and the
-  // appointment, so the add row reads like the rows above it before the
-  // operator submits. (191026100000 seeded loại cont; 201026124500 dropped
-  // it — "the type is the operator's own entry again"; 211026112600 restored
-  // it CLIENT-side only: the seed pre-fills the pick, and the wire still
-  // sends the operator's explicit choice — a deliberately cleared type rides
-  // explicit null, so A.1's wire contract and the server's lot-default
-  // inherit are untouched.) Weight rides here because the wire deliberately
-  // treats it as a per-container fact (the server never invents it). The
-  // appointment is converted to the naive local "YYYY-MM-DDTHH:mm" the
-  // datetime field edits; submitAddContainer converts it back to ISO.
+  // Card 201026124500 (181026185900 A.1), REVERSED by card 221026173728
+  // (owner ruling 22/10 — hủy ruling 21/10 card 211026112600, ticket
+  // 221026173728): opening the add form copies the lot's existing row values
+  // down into the draft — per-column FIRST non-null, the same rule the add
+  // API's lot-default inherit applies (FB-086 round 19) — for EVERY field
+  // TRỪ Số container VÀ Loại cont: Tuyến, Nhà xe, Nâng, Hạ ride the seed
+  // beside weight and the appointment, so the add row reads like the rows
+  // above it before the operator submits, while Loại cont stays "Chưa chọn"
+  // for the operator's own pick. (History: 191026100000 seeded loại cont;
+  // 201026124500 dropped it; 211026112600 restored it client-side;
+  // 221026173728 reverses that restore.) Weight rides here because the wire
+  // deliberately treats it as a per-container fact (the server never invents
+  // it). The appointment is converted to the naive local "YYYY-MM-DDTHH:mm"
+  // the datetime field edits; submitAddContainer converts it back to ISO.
   const addFieldsSeed = useCallback((): AddContainerFields => {
     const firstNonNull = <T,>(pick: (line: ShipmentCusWorkspaceContainerLine) => T | null | undefined): T | null => {
       for (const line of detail.containers) {
@@ -284,16 +282,14 @@ export function ContainerLedger({
     }
     const weight = firstNonNull((line) => line.raw.cargoWeightKg);
     const appointmentAt = firstNonNull((line) => line.customerAppointmentAt);
-    // Card 211026112600: Loại cont copies again — per-column first non-null,
-    // but ONLY ids the selectors.containerTypes catalog backs (same guard as
-    // the ports pair below): an id with no option in the add row's dropdown
-    // must not ride the seed — the trigger would show a pick the operator
-    // never saw. An uncatalogued cell stays uncopied, exactly like the add
-    // API's column inherit.
-    // Card 221026173728 (22/10): REQ-22 REVERSED — owner ruling hủy 21/10.
-    // "Thêm container" copies EVERY field TRỪ Số container VÀ Loại cont:
-    // loại cont luôn trống ("Chưa chọn") cho operator tự chọn. Tuyến, Nhà xe,
-    // Nâng, Hạ, Trọng lượng, Giờ hẹn vẫn ride seed.
+    // Card 221026173728 (22/10): REQ-22 REVERSED — owner ruling hủy 21/10
+    // (211026112600). "Thêm container" copies EVERY field TRỪ Số container
+    // VÀ Loại cont: loại cont luôn trống ("Chưa chọn") cho operator tự chọn,
+    // và type không được seed dưới mọi hình thức — kể cả khi id ngoài catalog
+    // selectors.containerTypes, vì nothing rides the seed anymore. The
+    // unpicked type rides EXPLICIT null on the wire (undefined would inherit)
+    // so the server's lot-default inherit can never re-copy it. Tuyến, Nhà
+    // xe, Nâng, Hạ, Trọng lượng, Giờ hẹn vẫn ride seed.
     return {
       containerNumber: '',
       containerTypeId: '',
@@ -307,7 +303,7 @@ export function ContainerLedger({
       cargoWeightKg: weight == null ? '' : stripDecimalTrailingZeros(weight),
       customerAppointmentAt: appointmentAt ? formatVietnamDateTimeInput(appointmentAt) : '',
     };
-  }, [detail.containers, detail.selectors.ports, detail.selectors.routes, detail.selectors.containerTypes, detail.summary.raw?.routeId, detail.summary.routeName]);
+  }, [detail.containers, detail.selectors.ports, detail.selectors.routes, detail.summary.raw?.routeId, detail.summary.routeName]);
 
   async function submitAddContainer() {
     const containerNumber = addFields.containerNumber.trim().toUpperCase();
@@ -322,14 +318,13 @@ export function ContainerLedger({
       const result = await addCusShipmentContainerRow(detail.summary.id, {
         expectedShipmentVersion: detail.summary.version,
         containerNumber,
-        // Card 201026124500 (A.1), amended by 211026112600: every field is
-        // EXPLICIT on the wire — the seeded copy set rides
-        // (Loại cont/Tuyến/Nâng/Hạ/Nhà xe beside weight + giờ hẹn), Số
-        // container is the operator's number, and the type sends the seeded
-        // pick or the operator's override; only a DELIBERATELY cleared type
-        // sends explicit null, so the wire's lot-default inherit can never
-        // re-copy Loại cont onto a row the operator left unpicked (A.1's
-        // contract holds — the copy now happens client-side, in the seed).
+        // Card 201026124500 (A.1), REVERSED by 221026173728 (22/10): every
+        // field is EXPLICIT on the wire — the seeded copy set rides
+        // (Tuyến/Nâng/Hạ/Nhà xe beside weight + giờ hẹn), Số container is
+        // the operator's number, and Loại cont — never seeded since 22/10 —
+        // sends the operator's pick or EXPLICIT null when left unpicked, so
+        // the wire's lot-default inherit can never re-copy it (undefined
+        // would inherit; explicit null inserts null).
         containerTypeId: addFields.containerTypeId ? Number(addFields.containerTypeId) : null,
         ...(addFields.routeId ? { routeId: Number(addFields.routeId) } : {}),
         ...(addFields.liftSiteId ? { liftSiteId: Number(addFields.liftSiteId) } : {}),
