@@ -290,13 +290,13 @@ export function ContainerLedger({
     // must not ride the seed — the trigger would show a pick the operator
     // never saw. An uncatalogued cell stays uncopied, exactly like the add
     // API's column inherit.
-    const containerTypeIds = new Set(detail.selectors.containerTypes.map((type) => String(type.id)));
-    const seededContainerTypeId = firstNonNull((line) => line.containerTypeId);
+    // Card 221026173728 (22/10): REQ-22 REVERSED — owner ruling hủy 21/10.
+    // "Thêm container" copies EVERY field TRỪ Số container VÀ Loại cont:
+    // loại cont luôn trống ("Chưa chọn") cho operator tự chọn. Tuyến, Nhà xe,
+    // Nâng, Hạ, Trọng lượng, Giờ hẹn vẫn ride seed.
     return {
       containerNumber: '',
-      containerTypeId: seededContainerTypeId != null && containerTypeIds.has(String(seededContainerTypeId))
-        ? String(seededContainerTypeId)
-        : '',
+      containerTypeId: '',
       routeId: route.routeId,
       routeName: route.routeName,
       liftSiteId: lift.id,

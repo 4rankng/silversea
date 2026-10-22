@@ -1545,11 +1545,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // The loại-cont picker is the house UuiSelectField (native selects are
     // banned): its trigger carries the value text as its accessible name, and
     // the options live in a portalled listbox.
-    // Card 211026112600: the trigger opens on the SEEDED type (first row's
-    // 40HC, client-side copy) — the manual 20DC pick below overrides the
-    // seed, which is the operator's right on every seeded field.
+    // Card 221026173728 (22/10 REQ-22 REVERSED): the trigger opens on the
+    // PLACEHOLDER (no seeded type) — the manual 20DC pick below is now the
+    // ONLY way the type lands, which is exactly the ruled behavior.
     const addRow = drawer.querySelector('.cus-container-ledger__add-row') as HTMLElement;
-    fireEvent.click(within(addRow).getByRole('button', { name: /40HC/ }));
+    fireEvent.click(within(addRow).getByRole('button', { name: /Chưa chọn loại cont/ }));
     fireEvent.click(await screen.findByRole('option', { name: '20DC' }));
     expect(within(drawer).getByRole('button', { name: /20DC/ })).toBeTruthy();
     fireEvent.change(within(drawer).getByLabelText('Trọng lượng (kg)'), { target: { value: '3000' } });
