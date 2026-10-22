@@ -16,6 +16,132 @@ import {
   type ContainerLineDraft,
 } from './cusUtils';
 
+/** Card 261022095235a (CUS-05): the per-container tờ khai cell — click the
+ *  value to edit it IN PLACE (no tab/section switch). Enter commits an
+ *  immediate per-row save (the server's FB-109 auto-copy law fills the lot's
+ *  still-empty siblings in the same transaction); Esc/outside dismisses and
+ *  reverts, matching the appointment popover's dismissal contract (_34). */
+function DeclarationCell({
+  line,
+  editable,
+  onCommit,
+  showCopy,
+  onCopy,
+  copying,
+}: {
+  line: ShipmentCusWorkspaceContainerLine;
+  editable: boolean;
+  /** Enter/✓: persist this row's number. Resolves false to keep the editor
+   *  open (commit failed — the error rides the host toast). */
+  onCommit: (value: string) => Promise<boolean>;
+  /** Explicit copy affordance (card 261013200312 "(hoặc nút copy)"): shown
+   *  only when the PERSISTED number is non-empty and the lot still has
+   *  empty siblings — a retyped-but-unsaved value is never copyable. */
+  showCopy: boolean;
+  onCopy: () => void;
+  copying: boolean;
+}) {
+  const persisted = (line.declarationNumber ?? '').trim();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(persisted);
+  const [busy, setBusy] = useState(false);
+  const identity = line.containerNumber || `container số ${line.ordinal}`;
+
+  const close = () => {
+    // _34-style dismissal: revert to the persisted value so a dismissed
+    // draft never leaks back on reopen. NEVER while a commit is in flight —
+    // Chrome/Safari move focus to <body> when the input is disabled and the
+    // resulting blur (relatedTarget=null) must not discard the in-flight
+    // draft (review 22/10 medium #2).
+    if (busy) return;
+    setOpen(false);
+    setDraft(persisted);
+  };
+
+  const commit = async () => {
+    const next = draft.trim();
+    if (next === persisted) { close(); return; }
+    setBusy(true);
+    let ok = false;
+    try {
+      ok = await onCommit(next);
+    } finally {
+      setBusy(false);
+    }
+    if (ok) close();
+  };
+
+  if (!editable) {
+    return (
+      <td data-label="Số tờ khai" className="cus-container-cell cus-container-cell--declaration">
+        <strong>{persisted || '—'}</strong>
+      </td>
+    );
+  }
+  return (
+    <td data-label="Số tờ khai" className="cus-container-cell cus-container-cell--declaration">
+      {open ? (
+        <span className="cus-declaration-editor" onBlur={(event) => {
+          // Outside blur dismisses (revert) unless the click landed on the
+          // commit/copy controls inside this cell.
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) close();
+        }}>
+          <label className="sr-only" htmlFor={`declaration-input-${line.id}`}>Số tờ khai của container {identity}</label>
+          <input
+            id={`declaration-input-${line.id}`}
+            value={draft}
+            maxLength={50}
+            // readOnly (not disabled) while busy: disabling a focused input
+            // moves focus to <body> in real browsers, firing the blur that
+            // used to close the editor mid-commit. readOnly keeps focus and
+            // still blocks edits.
+            readOnly={busy}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing) return;
+              if (event.key === 'Escape') { event.preventDefault(); close(); }
+              if (event.key === 'Enter') { event.preventDefault(); void commit(); }
+            }}
+            autoFocus
+          />
+          <button
+            type="button"
+            className="btn btn--primary btn--sm"
+            disabled={busy || draft.trim() === persisted}
+            onClick={() => void commit()}
+          >
+            {busy ? 'Đang lưu…' : 'Lưu'}
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          className={`cus-declaration-trigger${persisted ? '' : ' cus-declaration-trigger--empty'}`}
+          onClick={() => { setDraft(persisted); setOpen(true); }}
+          disabled={busy}
+          aria-label={`Số tờ khai của container ${identity}: ${persisted || 'Chưa có'}. Nhấn để sửa.`}
+          title="Nhấn để sửa số tờ khai của container này"
+        >
+          {persisted || 'Nhập tờ khai'}
+        </button>
+      )}
+      {showCopy && !open && (
+        <button
+          type="button"
+          className="cus-declaration-copy"
+          onClick={onCopy}
+          disabled={copying || busy}
+          title="Copy số tờ khai này sang các container còn trống của lô"
+          aria-label={`Copy số tờ khai ${persisted} sang các container chưa có số của lô`}
+        >
+          <Copy size={13} aria-hidden="true" />
+          Copy
+        </button>
+      )}
+    </td>
+  );
+}
+
 export function ContainerLineRow({
   detail,
   line,
@@ -31,6 +157,11 @@ export function ContainerLineRow({
   showCopyAppointment,
   onCopyAppointmentToEmpty,
   onAppointmentCopied,
+  declarationEditable,
+  onDeclarationCommit,
+  showCopyDeclaration,
+  onCopyDeclaration,
+  copyingDeclaration,
   onRemove,
   removing,
 }: {
@@ -64,6 +195,17 @@ export function ContainerLineRow({
   /** FB-009: the row's giờ hẹn itself lands in the OS clipboard; the
    *  mounting surface raises the "Đã copy" toast with this callback. */
   onAppointmentCopied?: (formatted: string) => void;
+  /** Card 261022095235a (CUS-05): per-container tờ khai inline edit. The
+   *  cell renders click-to-edit when `declarationEditable` and a commit
+   *  handler are both present; the commit is an immediate per-row save that
+   *  carries the server's auto-copy-to-empty-siblings law. */
+  declarationEditable?: boolean;
+  onDeclarationCommit?: (value: string) => Promise<boolean>;
+  /** Explicit copy affordance — only when the PERSISTED number is non-empty
+   *  and the lot still has an empty sibling (host computes the count). */
+  showCopyDeclaration?: boolean;
+  onCopyDeclaration?: () => void;
+  copyingDeclaration?: boolean;
 }) {
   const [, setSelectOpen] = useState(false);
 
@@ -134,6 +276,16 @@ export function ContainerLineRow({
           )}
         </div>
       </th>
+      {/* Card 261022095235a (CUS-05): tờ khai per-container, sửa ngay tại
+           chỗ hiển thị — documents stay one click away, no tab switch. */}
+      <DeclarationCell
+        line={line}
+        editable={Boolean(declarationEditable && onDeclarationCommit)}
+        onCommit={onDeclarationCommit ?? (async () => false)}
+        showCopy={Boolean(showCopyDeclaration && onCopyDeclaration)}
+        onCopy={onCopyDeclaration ?? (() => {})}
+        copying={Boolean(copyingDeclaration)}
+      />
       {containerTypeEditable ? (
         <ShipmentContainerCell
           label="Loại cont"

@@ -45,6 +45,19 @@
   padding: 16px;
 }
 
+/* Card 261022095235b: host for the shared container-management ledger — the
+ * ledger brings its own header/scroll chrome, so the card keeps its border
+ * and radius but drops the inner padding that would double-pad the grid. */
+.shipment-detail__card--flush {
+  padding: 8px;
+}
+
+@media (max-width: 768px) {
+  .shipment-detail__card--flush {
+    padding: 4px;
+  }
+}
+
 .shipment-detail__header {
   display: flex;
   flex-direction: column;

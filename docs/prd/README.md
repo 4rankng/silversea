@@ -404,3 +404,9 @@ FB-115, nhóm phiếu 16/10 CUS (161026232xx), 171026000406/0407, 171026154000, 
 (1410262307xx), bảng giá (161026095800/121500), 181026180300, 181026183500, QA1-003/004,
 QA2-003/006/007/010, FB-103, PWA trên iPhone thật, ENV-01 staging-run. Các bề mặt 🔒 đã có
 spec regression-pack (`frontend/e2e/regression/`, chạy `pnpm reg:local`).
+
+<!-- rows merged from fix-cus-tokhai-cont (union 22/10) -->
+| REQ-23 | TICKET-09 + FB-113 | ✓ bỏ nút @Chi tiết ("regression" R29 là ĐÚNG); thêm cont chỉ ở TỔNG QUAN | pin vitest |
+| FB-107 | 171026115820 | "Nơi giao/Nơi nhận" trống → thay bằng Nâng/Hạ | — | PASS (doc) | — |
+| FB-112 | 171026122130 | Bổ sung nút Thêm/Xóa cont @Chi tiết | MỞ LẠI 22/10 — card 261022095235b (Zalo 09:50) supersede TICKET-09 | `261022095235b` | Đóng theo TICKET-09 17/10 → khách yêu cầu bật lại; /shipments/:id host ledger chia sẻ của drawer (thêm/xóa hoạt động, QA 15/15 UI) |
+| FB-113 🔒 | 171026122140 | Thứ tự chứng từ | ba9981c2 | P (R26 + standing + audit) | 3 surface trùng tên |

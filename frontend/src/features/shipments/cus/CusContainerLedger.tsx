@@ -9,6 +9,7 @@ import { stripDecimalTrailingZeros } from '../../../lib/format';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import {
   addCusShipmentContainerRow,
+  copyCusShipmentContainerDeclaration,
   removeCusShipmentContainerRow,
   updateCusShipmentContainerLine,
 } from '../../../api/shipmentClient';
@@ -386,6 +387,11 @@ export function ContainerLedger({
       setPendingRemoveLine(null);
       onContainerRemoved?.();
     } catch (error) {
+      // Card 261022095235b: a stale-version 409 gets the SAME recovery the
+      // add path has (FB-086 round 19) — force the host to reload the detail
+      // so the retry carries the fresh expectedShipmentVersion, instead of
+      // dead-ending the host with an un-retryable toast.
+      if (isOptimisticShipmentConflict(error)) onDetailStale?.();
       // The dialog stays open on a guard rejection (đã điều xe / last cont /
       // stale version): the API reason surfaces as a toast and the operator
       // can retry or walk away with Hủy.
@@ -553,6 +559,104 @@ export function ContainerLedger({
     }
   }, [clearIdempotencyKey, detail, dirtyLineIds, drafts, getIdempotencyKey, onLineSaved, saving, toast]);
 
+  // ── Card 261022095235a (CUS-05): tờ khai per-container inline commit ─────
+  // Immediate per-row save (NOT a drafts+saveAll field): the server's FB-109
+  // auto-copy law fills the lot's still-empty siblings in the same
+  // transaction and reports them as declarationSync, so the toast states the
+  // real fan-out. Like commitAppointment (card 071026205310), the payload is
+  // a MERGED auto-save read from the synchronous drafts mirror — a popover
+  // commit must never strand the row's other unsaved drafts.
+  const [copyingDeclarationId, setCopyingDeclarationId] = useState<number | null>(null);
+  // Missing fieldAccess (legacy fixtures) reads as READ_ONLY — the cell must
+  // never offer an edit the save path would refuse.
+  const declarationAccess = detail.summary.fieldAccess?.declarationNumber;
+  const declarationEditable = editing && declarationAccess != null && declarationAccess.mode !== 'READ_ONLY';
+  const commitDeclaration = useCallback(async (lineId: number, value: string): Promise<boolean> => {
+    const line = detail.containers.find((c) => c.id === lineId);
+    // The cell's commit contract: false keeps the editor open; a reject would
+    // strand its busy flag (review 22/10 low #4).
+    if (!line) {
+      toast({ kind: 'error', message: 'Không tìm thấy container của lô hàng — đã tải lại danh sách.' });
+      return false;
+    }
+    if (declarationAccess == null || declarationAccess.mode === 'READ_ONLY') {
+      toast({ kind: 'error', message: declarationAccess?.reason || 'Số tờ khai đang chỉ đọc.' });
+      return false;
+    }
+    const expectedVersion = detail.summary.version ?? (line.shipmentVersion ?? 1);
+    const signature = idempotencySignature('container', detail.summary.id, line.id, expectedVersion);
+    setSaving(true);
+    let saved = false;
+    try {
+      const draft: ContainerLineDraft = draftsRef.current[line.id] ?? lineDraft(line);
+      const patch = {
+        ...buildContainerPatch(line, draft, detail, expectedVersion),
+        declarationNumber: value || null,
+      };
+      const idempotencyKey = getIdempotencyKey(signature);
+      const result = await updateCusShipmentContainerLine(detail.summary.id, line.id, patch, idempotencyKey);
+      clearIdempotencyKey(signature);
+      const synced = result?.declarationSync?.updatedContainerIds.length ?? 0;
+      toast({
+        kind: 'success',
+        message: synced > 0
+          ? `Đã lưu tờ khai — tự copy sang ${synced} cont còn trống của lô.`
+          : 'Đã lưu tờ khai.',
+      });
+      if (result?.line) {
+        await onLineSaved(result.line);
+      } else {
+        await onLineSaved(null);
+      }
+      // Review 22/10 (TOKHAI-R2, drawer host): a fan-out commit changed the
+      // SIBLING rows server-side, and the drawer's onLineSaved patches only
+      // THIS line into its cached detail — the siblings would keep reading
+      // "Nhập tờ khai" under a toast that says they were filled. The stale
+      // cache is exactly what onDetailStale exists for (FB-086 r19 channel):
+      // force the whole-detail reload on BOTH hosts.
+      if (synced > 0) onDetailStale?.();
+      saved = true;
+    } catch (error) {
+      clearIdempotencyKey(signature);
+      if (isOptimisticShipmentConflict(error)) onDetailStale?.();
+      toastActionError(toast, 'lưu tờ khai', error, 'Không thể lưu tờ khai.');
+    } finally {
+      setSaving(false);
+    }
+    return saved;
+  }, [clearIdempotencyKey, declarationAccess, detail, getIdempotencyKey, onDetailStale, onLineSaved, toast]);
+
+  /** Explicit copy (card 261013200312): one server call fans this row's
+   *  PERSISTED number onto every still-empty sibling; never overwrites. */
+  const copyDeclaration = useCallback(async (line: ShipmentCusWorkspaceContainerLine) => {
+    if (copyingDeclarationId != null) return;
+    setCopyingDeclarationId(line.id);
+    const signature = idempotencySignature(`declaration-copy:${detail.summary.id}:${line.id}`);
+    try {
+      const result = await copyCusShipmentContainerDeclaration(detail.summary.id, line.id, {
+        expectedShipmentVersion: detail.summary.version ?? (line.shipmentVersion ?? 1),
+      }, getIdempotencyKey(signature));
+      clearIdempotencyKey(signature);
+      toast({ kind: 'success', message: `Đã copy số tờ khai sang ${result.updatedContainerIds.length} cont còn trống.` });
+      // The copy rewrote SIBLING rows server-side — onLineSaved(null) refreshes
+      // the list, and onDetailStale forces the whole-detail reload so the
+      // drawer's cached sibling cells (and emptyDeclarationCount) update
+      // in-place (review 22/10, same channel the fan-out commit uses).
+      await onLineSaved(null);
+      onDetailStale?.();
+    } catch (error) {
+      clearIdempotencyKey(signature);
+      if (isOptimisticShipmentConflict(error)) onDetailStale?.();
+      toastActionError(toast, 'copy tờ khai', error, 'Không copy được tờ khai.');
+    } finally {
+      setCopyingDeclarationId(null);
+    }
+  }, [clearIdempotencyKey, copyingDeclarationId, detail.summary.id, detail.summary.version, getIdempotencyKey, onDetailStale, onLineSaved, toast]);
+
+  // Copy affordance targets: siblings of the same lot still without a
+  // number, and only rows that themselves carry a persisted number.
+  const emptyDeclarationCount = detail.containers.filter((c) => !(c.declarationNumber ?? '').trim()).length;
+
   const scheduleExit = useAppointmentSaveExit(isDirty, saving, onAppointmentSavedAndExit);
 
   /** _34: dismissal without commit — revert the line's appointment draft to
@@ -665,6 +769,7 @@ export function ContainerLedger({
             <caption className="sr-only">Danh sách container và điều vận</caption>
             <colgroup>
               <col className="cus-container-col__identity" />
+              <col className="cus-container-col__declaration" />
               <col className="cus-container-col__type" />
               <col className="cus-container-col__route" />
               <col className="cus-container-col__dispatch" />
@@ -683,6 +788,7 @@ export function ContainerLedger({
             </colgroup>
             <thead><tr>
               <th scope="col">Container</th>
+              <th scope="col">Số tờ khai</th>
               <th scope="col">Loại cont</th>
               <th scope="col">Tuyến</th>
               <th scope="col">Điều vận</th>
@@ -716,6 +822,11 @@ export function ContainerLedger({
                   showCopyAppointment={Boolean(effectiveAppointment(line.id)) && emptyAppointmentCount >= 1}
                   onCopyAppointmentToEmpty={() => copyAppointmentToEmpty(line.id)}
                   onAppointmentCopied={(formatted) => toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` })}
+                  declarationEditable={declarationEditable}
+                  onDeclarationCommit={declarationEditable ? (value) => commitDeclaration(line.id, value) : undefined}
+                  showCopyDeclaration={declarationEditable && Boolean((line.declarationNumber ?? '').trim()) && emptyDeclarationCount > 0}
+                  onCopyDeclaration={() => void copyDeclaration(line)}
+                  copyingDeclaration={copyingDeclarationId === line.id}
                   onRemove={removeGateOpen ? () => setPendingRemoveLine(line) : undefined}
                   removing={removingId === line.id}
                 />

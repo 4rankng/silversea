@@ -243,6 +243,23 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
     fireEvent.keyDown(notesArea, { key: 'Enter', ctrlKey: true });
     expect(onSaveNotes).toHaveBeenCalledTimes(1);
   });
+  it('container editor shows the live ISO 6346 warning and the one-tap correction (card 261022095235b)', () => {
+    // A mistyped "đổi số cont" (bad check digit) used to dead-end at the
+    // server's 400 — the editor now pre-checks with the same shared helper
+    // the drawer's add row uses and offers the closest valid number.
+    renderLedger('container');
+    const numberInput = screen.getByLabelText('Số container') as HTMLInputElement;
+    fireEvent.change(numberInput, { target: { value: 'MSKU1234560' } });
+    expect(screen.getByText(/Sai chữ số kiểm tra/i)).toBeTruthy();
+    const fix = screen.getByRole('button', { name: /^Đổi thành / }) as HTMLButtonElement;
+    expect(fix.textContent ?? '').toMatch(/^Đổi thành MSKU/);
+    fireEvent.click(fix);
+    expect(numberInput.value).toMatch(/^MSKU\d{7}$/);
+    // A valid number clears the hint entirely.
+    fireEvent.change(numberInput, { target: { value: 'MSKU1234565' } });
+    expect(screen.queryByText(/Sai chữ số kiểm tra/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Đổi thành / })).toBeNull();
+  });
   it('documents editor closes on outside pointerdown', () => {
     const { onCancelEdit } = renderLedger('documents');
     fireEvent.pointerDown(document.body);

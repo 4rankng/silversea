@@ -183,7 +183,7 @@ describe('ContainerLedger confirm affordances', () => {
     const table = screen.getByRole('table');
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
-      'Container', 'Loại cont', 'Tuyến', 'Điều vận', 'Nhà xe', 'Biển số',
+      'Container', 'Số tờ khai', 'Loại cont', 'Tuyến', 'Điều vận', 'Nhà xe', 'Biển số',
       'Nâng', 'Hạ', 'Trọng lượng', 'Giờ hẹn đóng/trả', 'Thao tác',
     ]);
 
@@ -200,23 +200,24 @@ describe('ContainerLedger confirm affordances', () => {
     // The add row covers every track, so no column upstream can shift.
     expect(addRow!.children).toHaveLength(headers.length);
     expect(cellOf('input[aria-label="Số container"]').cellIndex).toBe(0);
-    expect(cellOf('.cus-container-ledger__add-select').cellIndex).toBe(1);
-    expect(cellOf('input[aria-label="Trọng lượng (kg)"]').cellIndex).toBe(8);
-    expect(cellOf('input[aria-label="Giờ hẹn đóng/trả"]').cellIndex).toBe(9);
-    expect(cellOf('.cus-container-ledger__add-actions').cellIndex).toBe(10);
+    expect(cellOf('.cus-container-ledger__add-select').cellIndex).toBe(2);
+    expect(cellOf('input[aria-label="Trọng lượng (kg)"]').cellIndex).toBe(9);
+    expect(cellOf('input[aria-label="Giờ hẹn đóng/trả"]').cellIndex).toBe(10);
+    expect(cellOf('.cus-container-ledger__add-actions').cellIndex).toBe(11);
 
     // Card 201026124500 (A.1): the copy-down columns (Tuyến/Nhà xe/Nâng/Hạ)
-    // now carry their seeded cell; only Điều vận (computed) and Biển số
+    // now carry their seeded cell; the tờ khai track (1 — inherited from the
+    // lot server-side, never typed here), Điều vận (computed) and Biển số
     // (per-truck entry, ngoài danh sách A.1) keep an EMPTY cell — every track
     // stays its own cell, never merged away. This fixture's rows carry no
     // display names and an empty ports catalog, so the seeded cells read '—'
     // here; the seeding suite pins the copied values themselves.
-    for (const index of [2, 4, 6, 7]) {
+    for (const index of [3, 5, 7, 8]) {
       const cell = addRow!.children[index] as HTMLElement;
       expect(cell.className).toContain('cus-container-cell');
       expect(cell.textContent).toBe('—');
     }
-    for (const index of [3, 5]) {
+    for (const index of [1, 4, 6]) {
       const cell = addRow!.children[index] as HTMLElement;
       expect(cell.className).toContain('cus-container-ledger__add-blank');
       expect(cell.textContent).toBe('');
@@ -227,9 +228,10 @@ describe('ContainerLedger confirm affordances', () => {
     const dataRow = table.querySelector<HTMLTableRowElement>('tbody tr')!;
     expect(dataRow.children).toHaveLength(headers.length);
     const cellByLabel = (label: string) => dataRow.querySelector(`[data-label="${label}"]`) as HTMLTableCellElement;
-    expect(cellByLabel('Trọng lượng').cellIndex).toBe(8);
-    expect(cellByLabel('Giờ hẹn đóng/trả').cellIndex).toBe(9);
-    expect(cellByLabel('Thao tác').cellIndex).toBe(10);
+    expect(cellByLabel('Số tờ khai').cellIndex).toBe(1);
+    expect(cellByLabel('Trọng lượng').cellIndex).toBe(9);
+    expect(cellByLabel('Giờ hẹn đóng/trả').cellIndex).toBe(10);
+    expect(cellByLabel('Thao tác').cellIndex).toBe(11);
     expect(cellByLabel('Thao tác').querySelector('.cus-container-row__remove')).toBeTruthy();
   });
 

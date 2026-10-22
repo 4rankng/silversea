@@ -1,0 +1,14 @@
+PASS W390 detail tờ khai cell :: {"declVisible":true,"add":true,"bandScrolls":true,"pageOverflow":false}
+PASS W390 detail no page overflow (scroll stays in band) :: overflow=false band=true
+PASS W390 drawer tờ khai cell :: {"declVisible":true,"overflow":false}
+PASS W390 drawer no page overflow
+PASS W768 detail tờ khai cell :: {"declVisible":true,"add":true,"bandScrolls":true,"pageOverflow":false}
+PASS W768 detail no page overflow (scroll stays in band) :: overflow=false band=true
+PASS W768 drawer tờ khai cell :: {"declVisible":true,"overflow":false}
+PASS W768 drawer no page overflow
+PASS W1440 detail tờ khai cell :: {"declVisible":true,"add":true,"bandScrolls":true,"pageOverflow":false}
+PASS W1440 detail no page overflow (scroll stays in band) :: overflow=false band=true
+PASS W1440 drawer tờ khai cell :: {"declVisible":true,"overflow":false}
+PASS W1440 drawer no page overflow
+
+12/12 sweep checks passed

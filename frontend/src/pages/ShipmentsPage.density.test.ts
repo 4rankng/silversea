@@ -50,7 +50,7 @@ describe('shipment container editor density', () => {
     // FB-045 lan 2 (card 201026140000) supersedes the 2026-09-08 percentage
     // doctrine: px column floors + a table min-width; narrower drawers scroll
     // horizontally in the __table-scroll band instead of squeezing columns.
-    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1110px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1238px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-container-col__site\s*\{\s*width:\s*95px;/);
     expect(css).toMatch(/\.cus-container-table tbody \.csc-container-cell\s*\{\s*padding:\s*0;/);
     expect(css).toMatch(
@@ -84,6 +84,7 @@ describe('shipment container editor density', () => {
     const classes = [...colgroup.matchAll(/<col className="(cus-container-col__\w+)"/g)].map((match) => match[1]);
     expect(classes).toEqual([
       'cus-container-col__identity',
+      'cus-container-col__declaration',
       'cus-container-col__type',
       'cus-container-col__route',
       'cus-container-col__dispatch',
