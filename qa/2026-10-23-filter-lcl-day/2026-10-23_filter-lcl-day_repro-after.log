@@ -1,0 +1,30 @@
+# 2026-10-23 LCL day-filter repro — label=after backend=http://localhost:3008/api stamp=03005341
+# fixtures: LDAYD03005341 (LCL dated 2026-10-17), LDAYU03005341 (LCL undated)
+PASS  LCL-DATED-IN filter 17/10 on tongquan — 1 row(s)
+PASS  LCL-DATED-IN filter 17/10 on chitiet — 1 row(s)
+PASS  LCL-DATED-IN filter 17/10 on core — 1 row(s)
+PASS  LCL-DATED-OUT filter 23/10 -> 0 ket qua on tongquan — 0 row(s), total=0
+PASS  LCL-DATED-OUT filter 23/10 -> 0 ket qua on chitiet — 0 row(s), total=0
+PASS  LCL-DATED-OUT filter 23/10 -> 0 ket qua on core — 0 row(s), total=0
+PASS  LCL-UNDATED always visible on tongquan filter 23/10..23/10 — 1 row(s)
+PASS  LCL-UNDATED always visible on tongquan filter 17/10..17/10 — 1 row(s)
+PASS  LCL-UNDATED always visible on tongquan filter bare — 1 row(s)
+PASS  LCL-UNDATED always visible on chitiet filter 23/10..23/10 — 1 row(s)
+PASS  LCL-UNDATED always visible on chitiet filter 17/10..17/10 — 1 row(s)
+PASS  LCL-UNDATED always visible on chitiet filter bare — 1 row(s)
+PASS  LCL-UNDATED always visible on core filter 23/10..23/10 — 1 row(s)
+PASS  LCL-UNDATED always visible on core filter 17/10..17/10 — 1 row(s)
+PASS  LCL-UNDATED always visible on core filter bare — 1 row(s)
+PASS  SYNC Tong quan == Chi tiet filter 23/10..23/10 — Tong quan=[LDAYU03005341] Chi tiet=[LDAYU03005341]
+PASS  SYNC Tong quan == Chi tiet filter 17/10..17/10 — Tong quan=[LDAYD03005341,LDAYU03005341] Chi tiet=[LDAYD03005341,LDAYU03005341]
+PASS  SYNC Tong quan == Chi tiet filter bare — Tong quan=[LDAYD03005341,LDAYU03005341] Chi tiet=[LDAYD03005341,LDAYU03005341]
+PASS  REAL-LOT K547238574983 on tongquan filter 23/10..23/10 (expect absent) — 0 row(s)
+PASS  REAL-LOT K547238574983 on tongquan filter 17/10..17/10 (expect present) — 1 row(s)
+PASS  REAL-LOT K547238574983 on tongquan filter bare (expect present) — 1 row(s)
+PASS  REAL-LOT K547238574983 on chitiet filter 23/10..23/10 (expect absent) — 0 row(s)
+PASS  REAL-LOT K547238574983 on chitiet filter 17/10..17/10 (expect present) — 1 row(s)
+PASS  REAL-LOT K547238574983 on chitiet filter bare (expect present) — 1 row(s)
+PASS  REAL-LOT K547238574983 on core filter 23/10..23/10 (expect absent) — 0 row(s)
+PASS  REAL-LOT K547238574983 on core filter 17/10..17/10 (expect present) — 1 row(s)
+PASS  REAL-LOT K547238574983 on core filter bare (expect present) — 1 row(s)
+27/27 checks pass (after)

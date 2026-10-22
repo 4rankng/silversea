@@ -8,9 +8,11 @@
  * Containers whose `customerAppointmentAt` is null inherit a caller-supplied
  * fallback date (the shipment's expected delivery date) — the same fallback
  * the row filters and the "Lịch cont sớm nhất" label use, so scoped counts can
- * never contradict the rows they summarize. Without a fallback resolver they
- * are excluded when a range is active. When no range is active the full set
- * passes through unchanged.
+ * never contradict the rows they summarize. A container that resolves to no
+ * day at all (no appointment, no fallback) is kept when a range is active:
+ * "undated = luôn hiện" (card 231026000252) is the shared law and the row
+ * filters keep such rows under every lens. When no range is active the full
+ * set passes through unchanged.
  */
 
 import { localDateInBusinessZone } from '@tingting/shared';
@@ -89,8 +91,11 @@ export function businessZoneDayEndExclusiveInstant(value: string): Date | null {
  *                    leave the upper end open.
  * @param fallbackDateFor  Optional resolver returning a shipment-level
  *                    fallback date (YYYY-MM-DD) for containers whose
- *                    appointment is null; a null/undefined result still drops
- *                    the container.
+ *                    appointment is null. A null/undefined result keeps the
+ *                    container: undated rows ride outside the filter
+ *                    ("undated = luôn hiện", card 231026000252) exactly like
+ *                    `containerDayTriageCondition`'s null lane, so scoped
+ *                    counts never drop rows the workboard still shows.
  *
  * When both bounds are absent the original array is returned unchanged so
  * callers pay zero cost in the no-filter path.
@@ -107,7 +112,7 @@ export function filterContainersByDateRange<T extends { customerAppointmentAt: D
     const localDate = container.customerAppointmentAt != null
       ? localDateInBusinessZone(container.customerAppointmentAt)
       : (fallbackDateFor?.(container) ?? null);
-    if (localDate == null) return false;
+    if (localDate == null) return true;
     if (dateFrom && localDate < dateFrom) return false;
     if (dateTo && localDate > dateTo) return false;
     return true;
