@@ -11,6 +11,14 @@ tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc 
   "bỏ nút thêm/xóa container ở Chi tiết lô") **SUPERSEDED**; CUS-10 và REQ-23 đảo chiều theo.
   Thao tác thêm/xóa ở drawer Tổng quan giữ nguyên. Pin vitest "no Thêm container affordance"
   cần gỡ khi implement bật lại — trạng thái hiện tại: ruling chốt, chưa có commit bật lại nút.
+- **REQ-22 REVERSED — thêm cont copy TẤT CẢ TRỪ số cont + Loại cont** (ticket 221026173728,
+  22/10; **hủy ruling 21/10** card 211026112600): "Thêm container" quay về copy đúng A.1
+  nguyên văn — auto-copy mọi trường chung (Tuyến/Nhà xe/Nâng/Hạ/Trọng lượng/Giờ hẹn) TRỪ
+  **Số container** (ô nhập) và **Loại cont** (luôn trống "Chưa chọn" cho operator tự chọn —
+  hành vi copy-kể-cả-Loại-cont của 21/10 là DEFECT theo ticket). Wire: type không seed,
+  unpicked rides EXPLICIT `containerTypeId: null` để server lot-default inherit không thể
+  re-copy. Áp dụng cả hai host dùng chung một ledger: drawer Tổng quan + Chi tiết trượt ngang
+  (`ShipmentDetailContainerManagement`).
 - **LCL không có khái niệm nâng/hạ** (card 261022093846): cột Nâng/Hạ tại Chi tiết lô hiển
   thị **điểm đóng / điểm trả** đúng nghĩa lô lẻ, hết placeholder "Chưa cập nhật"
   (`ca57c8fc`; chi tiết tại [OpsVanHanh.md](OpsVanHanh.md) mục Cập nhật 22/10 và

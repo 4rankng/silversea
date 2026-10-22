@@ -1,0 +1,15 @@
+{
+  "ship": 312380,
+  "containers": [
+    {
+      "id": 141522,
+      "container_number": "DSTK7890125",
+      "container_type_id": 1,
+      "route_id": 1,
+      "pickup_port_id": 1,
+      "dropoff_port_id": 2,
+      "weight": "9000.00",
+      "customer_appointment_at": "2026-10-27T05:00:00.000Z"
+    }
+  ]
+}

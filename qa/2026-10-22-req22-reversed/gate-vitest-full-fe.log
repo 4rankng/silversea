@@ -1,0 +1,20 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-req22-rev3/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  710 passed (710)
+      Tests  5481 passed (5481)
+   Start at  20:17:14
+   Duration  169.83s (transform 39.89s, setup 100.92s, import 456.39s, tests 464.45s, environment 400.89s)
+
+vitest_full_exit=0
