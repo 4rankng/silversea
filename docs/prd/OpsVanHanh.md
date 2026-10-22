@@ -316,10 +316,10 @@ mũi tên) minh họa vị trí yêu cầu. Text gốc đầy đủ + trạng th
 | Mục | Text gốc (nguyên văn) | Trạng thái land 21/10 |
 |---|---|---|
 | A.1 | "Phần bổ sung thêm/bớt container của lô hàng bên Tổng quan vẫn đang lỗi. Yêu cầu: sau khi thêm container mới, hệ thống tự động copy các trường khác xuống dòng dưới — trừ Số container và Loại container." | LAND — `ef90a995` + `017adf63`; **ruling 21/10 11:26 ghi đè phần "trừ Loại container": Loại cont CŨNG tự copy** (client-side seed) |
-| A.2 | "Bỏ nút thêm/xóa container ở bên phần Chi tiết lô hàng (chỉ giữ thao tác ở bên Tổng quan)." | LAND — TICKET-09 `171026182554`; pin vitest "no Thêm container affordance" |
-| A.3 | "Thứ tự mong muốn: Số booking → Số tờ khai → Nhập/Xuất → Hãng tàu." (ảnh: cột CHỨNG TỪ Tổng quan khoanh đỏ) | LAND — FB-113 `ba9981c2` (R26 P + standing); lane visibility `fix-cus11-dri04-visible` in-flight |
+| A.2 | "Bỏ nút thêm/xóa container ở bên phần Chi tiết lô hàng (chỉ giữ thao tác ở bên Tổng quan)." | **SUPERSEDED 22/10** — TICKET-09 `171026182554` (17/10) hết hiệu lực: khách đảo chiều, yêu cầu **BẬT LẠI** nút Thêm/Xóa container tại Chi tiết lô (Zalo 22/10 09:50, QA xác nhận bỏ ruling by-design — FB-112 REVERSED). Trạng thái 17/10 đã từng: LAND theo TICKET-09 + pin vitest "no Thêm container affordance" (pin cần gỡ khi implement bật lại) |
+| A.3 | "Thứ tự mong muốn: Số booking → Số tờ khai → Nhập/Xuất → Hãng tàu." (ảnh: cột CHỨNG TỪ Tổng quan khoanh đỏ) | LAND — FB-113 `ba9981c2` (R26 P + standing); **ruling 22/10 (card 221026095429) chốt thứ tự BILL/BOOKING → SỐ TỜ KHAI → NHẬP/XUẤT → HÃNG TÀU** (ô đầu là BILL/BOOKING, không chỉ "Số booking") — land `ca57c8fc`; lane visibility `fix-cus11-dri04-visible` in-flight |
 | A.4 | "Lỗi: CUS nhập số tờ khai rồi, bấm lưu nhưng sau đó không thấy tờ khai đâu." | LAND — FB-110 (phiếu 171026122110, PASS doc); verify trên build 9aab78d2 |
-| A.5 | "Thêm phần Sửa số tờ khai ngay trong Chi tiết lô hàng (không phải tab ra tab vào). Khi lô có nhiều container: nhập số tờ khai cho 1 container thì các container còn lại tự động update theo." | LAND — FB-085/109 (họ 1310262006xx, P R17); verify trên build 9aab78d2 |
+| A.5 | "Thêm phần Sửa số tờ khai ngay trong Chi tiết lô hàng (không phải tab ra tab vào). Khi lô có nhiều container: nhập số tờ khai cho 1 container thì các container còn lại tự động update theo." | LAND — FB-085/109 (họ 1310262006xx, P R17); **ruling 22/10 (cards 221026095229/221026095329 — CUS-05 clarify): inline edit ngay tại Chi tiết lô + nhập 1 cont sync mọi cont cùng lô**; verify trên build 9aab78d2 |
 | A.6 | "Lỗi: Khi nhập 1 lô hàng bị nhầm/thiếu container, vào sửa để thêm container thì phần đó vẫn bị lỗi." | LAND — FB-086 Sửa lô `7d1f5c1f` + autocopy `4a35d3cf`/`017adf63` |
 | A.7 | "Cột trọng lượng đang hiển thị 2 số 0 sau dấu phẩy — bỏ đi cho gọn." | LAND — CUS-08, đi xa hơn: hiển thị theo **tấn** (CHANGELOG 21/10) |
 
@@ -352,6 +352,15 @@ mũi tên) minh họa vị trí yêu cầu. Text gốc đầy đủ + trạng th
 | D.5 | "Chỗ 'Quy cách đóng gói' để trường gợi ý giống trường Nhà máy, sau đó thêm trường cố định." | LAND — `0f7e1dfa` (combobox gợi-y + free text); lane `fix-lcl-form-visible` in-flight |
 | D.6 | "Lỗi: Có lô hàng lẻ nhập rồi, ở phần Tổng quan thì thấy, nhưng sang phần Chi tiết thì lại không thấy lô đó." | LAND — `fix-lcl01-lan2` merged `39a57de9`/`ddf45946` (card 211026180528; repro qa/2026-10-21-lcl01-dri03 + lan 2 AFTER pass lot 133) |
 | D.7 | "Ví dụ 5 lô gọi 1 xe: trả nhà xe → ghép 5 lô thành 1 để chọn loại tấn; thu khách → có thể ghép 5 thành 1 hoặc tách 2/3/4/5 cước. Khi tách: thông tin xe gửi khách dùng xe ảo, xe thực tế để lấy hàng — để xuất hóa đơn/debit đúng." | LAND — LCL-07 theo **ruling 21/10** (thu per-lot, trả 1 chuyến) `d375239b`/`9aab78d2` endgame P 6/6; xe ảo BKS báo khách landed (debit in BKS ảo) |
+
+## Cập nhật 22/10/2026 — rulings Chi tiết lô
+
+| Mục | Ruling 22/10 | Nguồn | Trạng thái |
+|---|---|---|---|
+| Nút Thêm/Xóa container @Chi tiết lô | **BẬT LẠI** — FB-112 REVERSED; TICKET-09 (mục A.2, 17/10 "bỏ nút") **SUPERSEDED**, QA xác nhận bỏ ruling by-design | Zalo 22/10 09:50 | Ruling chốt — chờ implement bật lại nút + gỡ pin vitest "no Thêm container affordance"; thao tác drawer Tổng quan giữ nguyên |
+| Nâng/Hạ với lô LCL | **LCL không có khái niệm nâng/hạ** — cột Nâng/Hạ tại Chi tiết lô hiển thị **điểm đóng / điểm trả** đúng nghĩa lô lẻ, hết placeholder "Chưa cập nhật" | card 261022093846 | LAND `ca57c8fc` |
+| Sửa/sync số tờ khai @Chi tiết lô | Inline edit ngay tại Chi tiết lô (không tab ra tab vào); nhập số tờ khai cho 1 cont → **mọi cont cùng lô tự sync** — làm rõ CUS-05 | cards 221026095229/221026095329 | LAND FB-085/109 (xem A.5) |
+| Thứ tự chứng từ | **BILL/BOOKING → SỐ TỜ KHAI → NHẬP/XUẤT → HÃNG TÀU** | card 221026095429 | LAND `ca57c8fc` (xem A.3) |
 
 ### Mockup: image1.jpg (A.3 — Tổng quan lô hàng, CUS workspace)
 
