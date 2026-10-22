@@ -234,7 +234,9 @@ Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi v�
 6. **Hiển thị bổ sung:** (6.1) CUS Chi tiết lô: THÔNG SỐ CONTAINER hiển thị loại xe; PHÂN
    XE 2 dòng (BKS Thực / BKS Báo khách Ảo click sửa). (6.2) Kế toán chốt debit: THÔNG SỐ
    CONTAINER "Lẻ · Thu: 5T / Trả: 10T"; PHÂN XE dòng 1 [Nhà xe thực] · Thực: [BKS], dòng 2
-   badge cam "Báo khách (Ảo)"; PHẢI THU theo nhóm CUS, PHẢI TRẢ theo nhóm Điều vận.
+   badge cam "Báo khách (Ảo)"; PHẢI THU theo nhóm CUS, PHẢI TRẢ theo nhóm Điều vận. (6.3) LCL
+   @ Chi tiết lô: cột Nâng/Hạ hiển thị **điểm đóng / điểm trả** đúng nghĩa lô lẻ — LCL không có
+   khái niệm nâng/hạ (ruling 22/10 card 261022093846, `ca57c8fc`).
 7. **Form tạo lô hàng lẻ (bổ sung 17/10, Trung Kiên):** (7.1) Label động theo chiều — Nhập:
    "Nhà máy (Điểm trả hàng) *" + "Kho lấy hàng (CFS/Cảng) *" (placeholder "Chọn hoặc nhập
    kho CFS lấy hàng..."); Xuất: "Nhà máy (Điểm lấy hàng) *" + "Kho trả hàng (CFS/Cảng) *"
@@ -255,3 +257,10 @@ Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi v�
 | §5 Debit Note BKS ảo | LAND | FB-094 `239556ec`/`150acee0` + billing-export-shared |
 | §6 Hiển thị CUS + Kế toán | LAND | ShipmentContainerLedger + AccountingDebitClosePage (coverage §3–§4) |
 | §7 Form LCL label động + combobox + layout + đồng bộ điều vận | LAND | `032145a2` + audit card 211026011500 (0-gap, driver 9/9 + 3/3) |
+
+### Cập nhật rulings 22/10/2026 (Chi tiết lô + form LCL)
+
+| Mục | Ruling 22/10 | Nguồn | Trạng thái |
+|---|---|---|---|
+| Nâng/Hạ với lô LCL (Chi tiết lô) | **LCL không có khái niệm nâng/hạ** — hiển thị **điểm đóng / điểm trả** đúng nghĩa lô lẻ; cột Nâng/Hạ không giữ placeholder "Chưa cập nhật" cho LCL | card 261022093846 | LAND `ca57c8fc` (xem §6.3) |
+| Kho lấy hàng (CFS) form LCL (§7.2) | Kho lấy hàng = **danh mục dùng chung**, **KHÔNG lọc theo khách hàng** đã chọn | card 261022093245 (Zalo 22/10 09:31) | Ruling chốt — combobox kho lấy hàng không scoped theo KH |

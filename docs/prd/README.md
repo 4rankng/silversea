@@ -170,7 +170,7 @@ Tiêu chí cụ thể của từng quy trình nằm ngay trong tài liệu tươ
 ứng cả luồng thông thường và các tình huống thiếu dữ liệu, nhập sai, mất kết nối, thay
 đổi đồng thời, tên/mã dài và nhiều bản ghi.
 
-## 7. Ma trận truy vấn nguồn — yêu cầu → AC → hiện thực → QA (chốt 21/10/2026)
+## 7. Ma trận truy vấn nguồn — yêu cầu → AC → hiện thực → QA (chốt 21/10/2026 · cập nhật rulings/verdicts 22/10/2026)
 
 Truy vấn nguồn cho 222 phiếu yêu cầu Kanban (`FINAL-REQUIREMENTS-211026.docx`, 219 phiếu
 đóng PASS + 3 phiếu nợ test đã xanh trên main 21/10 theo `qa/2026-10-21-be-canonical.md`
@@ -213,13 +213,13 @@ Spec («…») trích nguyên văn "hành vi mong muốn" từ tonghop-35yc.json
 | CUS-02 | «Khi vào sửa/bổ sung ngày giờ cho lô hàng chưa có lịch, nhấn phím Enter phải tự động lưu và thoát về danh sách chính thay vì lưu nhưng vẫn đứng ở bảng popup.» | VERIFY 9aab78d2 | FB-002 R27/28 PASS; lan 3 `c73c7bbc` (card 211026034109) | form giờ · CUS · G draft hoàn chỉnh W Enter THEN POST lưu + thoát về danh sách | ×N verify-fail; root-cause lan 3: 2 nút submit nằm ngoài `<form>` |
 | CUS-03 | «Thêm nút 'Copy thời gian' để 1 lần thao tác có thể gán ngày giao chung cho tất cả các cont của lô nhiều cont, tránh phải nhập thủ công từng cont.» | LAND | FB-009 (101026163010) | bảng cont · CUS · G lô nhiều cont W bấm copy THEN mọi cont nhận chung ngày giờ | PASS (doc tổng hợp); từng flappy ×2 (nút biến mất 111026111200, 131026233500) |
 | CUS-04 | «Sửa lỗi khi con trỏ ở ô 'Số cont' bấm phím TAB sang ô 'Loại cont', người dùng gõ phím phải kích hoạt danh sách gợi ý loại cont tự động thay vì bắt buộc phải click chuột.» | VERIFY 9aab78d2 | — | /shipments/new · CUS · G TAB sang ô Loại cont W gõ THEN dropdown gợi-y tự mở | R30 VERIFY chưa P |
-| CUS-05 | «Cho phép nhập nhiều tờ khai trên một lô. Khi thêm số tờ khai cho 1 cont, tự động cập nhật đồng bộ cho tất cả các cont trong lô. Hỗ trợ sửa/thêm trực tiếp tại màn hình chi tiết.» | VERIFY 9aab78d2 | FB-085/109 (họ 1310262006xx) | chi tiết lô · CUS · G thêm tờ khai 1 cont THEN đồng bộ cả lô + header /shipments/:id cập nhật | P R17; regression 141026012500 + A1 verify-fail ×2 đã đóng |
+| CUS-05 | «Cho phép nhập nhiều tờ khai trên một lô. Khi thêm số tờ khai cho 1 cont, tự động cập nhật đồng bộ cho tất cả các cont trong lô. Hỗ trợ sửa/thêm trực tiếp tại màn hình chi tiết.» | VERIFY 9aab78d2 | FB-085/109 (họ 1310262006xx) | chi tiết lô · CUS · G thêm tờ khai 1 cont THEN đồng bộ cả lô + header /shipments/:id cập nhật | P R17; regression 141026012500 + A1 verify-fail ×2 đã đóng; **ruling 22/10 (cards 221026095229/221026095329): inline edit @Chi tiết lô + nhập 1 cont sync mọi cont cùng lô — CUS-05 clarify** |
 | CUS-06 | «Khắc phục lỗi người dùng đã nhập số tờ khai hải quan nhưng hệ thống không ghi nhận/lưu vào cơ sở dữ liệu sau khi bấm hoàn tất.» | VERIFY 9aab78d2 | FB-110 (171026122110) | G nhập tờ khai W lưu + mở lại THEN số còn đúng | PASS (doc) |
 | CUS-07 | «Màn hình nhập liệu chỉ hiển thị gọn tên nhà máy. Thêm nút thu gọn/mở rộng ('Xem chi tiết') để xem địa chỉ đầy đủ và thông tin xuất hóa đơn khi cần thiết.» | LAND | (per tổng hợp 21/10) | /shipments/new · CUS · mặc định tên gọn · G bấm 'Xem chi tiết' THEN mở địa chỉ + xuất hóa đơn | chưa có verdict P riêng trên build mới |
 | CUS-08 | «Bỏ 2 chữ số 0 thập phân không có ý nghĩa sau dấu phẩy tại trường trọng lượng hàng (ví dụ: '25,000.00 kg' chuyển thành '25,000 kg').» | LAND — đi xa hơn: hiển thị theo TẤN | CHANGELOG 21/10 (phiếu 211026125242/5715/5815) | mọi màn hiển thị trọng lượng · G cont 18.500 kg THEN "18,5 tấn"; ô nhập vẫn kg | P theo CHANGELOG; root-cause FB-069: dấu chấm nghìn vi-VN bị đọc nhầm thập phân |
-| CUS-09 | «Sửa lỗi hệ thống khi chỉnh sửa số lượng cont của lô đã tạo. Khi bổ sung cont mới, tự động sao chép các trường thông tin chung xuống, chỉ để trống số cont và loại cont.» | LAND — ruling 21/10 ghi đè: Loại cont CŨNG tự copy | `ef90a995` + `7d1f5c1f` + `017adf63` (card 211026112600) | drawer Tổng quan · CUS · G thêm cont THEN copy trường chung (kể cả Loại cont, client-side seed); KHÔNG đặt nút ở Chi tiết | regpack fb111; R27 P; FB-086 verify-fail ×2 + lan 3 đóng |
-| CUS-10 | «Thêm nút 'Xóa cont' trực tiếp trong bảng chi tiết lô hàng CUS để xử lý nhanh trường hợp nhập thừa hoặc khách hủy bớt container.» | LAND — giải theo TICKET-09 | `171026182554` | thao tác thêm/xóa cont tại drawer **Tổng quan** ("Quản lý container"); xóa cont đang có chuyến bị chặn kèm lý do; KHÔNG nút ở màn Chi tiết | phần "nút @Chi tiết" ĐÓNG theo ruling TICKET-09 > FB-086@detail |
-| CUS-11 | «Sắp xếp lại thứ tự hiển thị trường chứng từ theo chuẩn: 1. Số Booking -> 2. Số Tờ khai -> 3. Nhập/Xuất -> 4. Hãng tàu.» | LAND + lane IN-FLIGHT `fix-cus11-dri04-visible` | `ba9981c2` | /shipments/:id · CUS · G lô có tờ khai W mở header THEN đúng thứ tự 4 trường; thêm tờ khai cập nhật ngay | P R26 staging d39ee741 + standing 20/10 + audit UI DRIVEN; ×3 verify-fail do 3 màn trùng tên |
+| CUS-09 | «Sửa lỗi hệ thống khi chỉnh sửa số lượng cont của lô đã tạo. Khi bổ sung cont mới, tự động sao chép các trường thông tin chung xuống, chỉ để trống số cont và loại cont.» | LAND — ruling 21/10 ghi đè: Loại cont CŨNG tự copy | `ef90a995` + `7d1f5c1f` + `017adf63` (card 211026112600) | drawer Tổng quan · CUS · G thêm cont THEN copy trường chung (kể cả Loại cont, client-side seed); KHÔNG đặt nút ở Chi tiết *(theo TICKET-09 — SUPERSEDED 22/10, xem CUS-10)* | regpack fb111; R27 P; FB-086 verify-fail ×2 + lan 3 đóng |
+| CUS-10 | «Thêm nút 'Xóa cont' trực tiếp trong bảng chi tiết lô hàng CUS để xử lý nhanh trường hợp nhập thừa hoặc khách hủy bớt container.» | **REVERSED 22/10** — TICKET-09 (17/10) SUPERSEDED: bật lại nút Thêm/Xóa cont @Chi tiết | `171026182554` (TICKET-09, hết hiệu lực 22/10) | Chi tiết lô · CUS · G mở Chi tiết THEN thấy nút Thêm/Xóa container (bật lại theo yêu cầu mới); thao tác drawer Tổng quan giữ nguyên | ruling 22/10 (Zalo 09:50, QA xác nhận bỏ ruling by-design): FB-112 REVERSED — "nút @Chi tiết" MỞ LẠI, TICKET-09 > FB-086@detail không còn hiệu lực; chờ implement bật lại + gỡ pin vitest |
+| CUS-11 | «Sắp xếp lại thứ tự hiển thị trường chứng từ theo chuẩn: 1. Số Booking -> 2. Số Tờ khai -> 3. Nhập/Xuất -> 4. Hãng tàu.» | LAND + lane IN-FLIGHT `fix-cus11-dri04-visible` | `ba9981c2` + `ca57c8fc` | /shipments/:id · CUS · G lô có tờ khai W mở header THEN đúng thứ tự 4 trường **BILL/BOOKING → SỐ TỜ KHAI → NHẬP/XUẤT → HÃNG TÀU** (ruling 22/10 card 221026095429 — ô đầu là BILL/BOOKING); thêm tờ khai cập nhật ngay | P R26 staging d39ee741 + standing 20/10 + audit UI DRIVEN; ×3 verify-fail do 3 màn trùng tên |
 | DIS-01 | «Ô nhập văn bản ghi chú cho điều vận bị chặn phím Space. Yêu cầu sửa bộ gõ/input để người dùng soạn thảo nội dung bình thường có dấu cách.» | LAND | (Đã xử lý theo doc khách) | /dispatch-detail · dieuvan · G gõ 'a b' ô ghi chú THEN space giữ nguyên | PASS (doc) |
 | DIS-02 | «Khách hàng không có nhu cầu hẹn giờ phát lệnh. Bỏ popup chọn ngày giờ khi bấm phát lệnh, chuyển sang icon phát lệnh trực tiếp một chạm.» | LAND | `a5e0039b` + `3349fd52` | /dispatch-detail · dieuvan · G dòng đủ xe/lịch W bấm icon phát lệnh THEN phát ngay, không popup hẹn giờ | R30 FAIL (6110af65) → fix; endgame spot P 9aab78d2 |
 | DIS-03 | «Khi 1 xe đầu kéo chạy kế hoạch chở kẹp 2 container 20ft, phát lệnh cont thứ nhất thành công nhưng cont thứ hai bị chặn do báo trùng đầu kéo. Cần cho phép gán cùng 1 đầu kéo cho cả 2 cont kẹp.» | LAND | FB-012 `f6cbe97c` + `3349fd52` | /dispatch-detail · dieuvan · G cặp kẹp W phát lệnh cont 2 THEN không bị chặn "trùng đầu kéo" trong chính cặp (trùng khung giờ ngoài cặp → confirm "Vẫn lưu?") | R27 B2 write-test P; R30-endgame spot P (dialog confirm + lưu 200) |
@@ -269,9 +269,9 @@ Spec («…») trích nguyên văn "hành vi mong muốn" từ tonghop-35yc.json
 | REQ-18 | DRI-04 | ✓ FB-020 đạt R24; FB-082 (121026141020) cùng họ | regpack fb020 |
 | REQ-19 | LCL-07 | ✓ luật mới d375239b (ruling 15:22) | endgame 6/6 |
 | REQ-20 | LCL-04 | ✓ FB-084 R27 PASS (CBM trống lưu OK) | — |
-| REQ-21 | FB-085/109/110 | ✓ tờ khai tự copy R27; verify-fail A1 ×2 (201026090100, 201026124500) đã đóng | 131026200630 họ |
+| REQ-21 | FB-085/109/110 | ✓ tờ khai tự copy R27; verify-fail A1 ×2 (201026090100, 201026124500) đã đóng; **ruling 22/10 cards 221026095229/221026095329 (CUS-05 clarify): inline edit @Chi tiết lô + nhập 1 cont sync mọi cont** | 131026200630 họ |
 | REQ-22 | FB-111/086 | ✓ + **ruling 21/10: tự copy KỂ CẢ Loại cont** `017adf63` | regpack fb111; qa/2026-10-21-fb086-autocopy |
-| REQ-23 | TICKET-09 + FB-113 | ✓ bỏ nút @Chi tiết ("regression" R29 là ĐÚNG); thêm cont chỉ ở TỔNG QUAN | pin vitest |
+| REQ-23 | TICKET-09 + FB-113 | ✗ **SUPERSEDED 22/10** — FB-112 REVERSED: bật lại nút Thêm/Xóa @Chi tiết (Zalo 22/10 09:50, QA xác nhận bỏ ruling by-design); TICKET-09 không còn hiệu lực, "bỏ nút @Chi tiết" (R29) chỉ đúng tới hết 21/10 | pin vitest "no Thêm container affordance" cần gỡ khi implement bật lại |
 
 ### 7.4 FB / phiếu theo mảng (consolidate từ 222 phiếu)
 
@@ -286,16 +286,16 @@ Legend: 🔒 = regression-pack locked (`testplan/2026-10-21-regpack-regression-p
 | FB-007 | 111026175000 + 121026185520 | SĐT nhà máy hiển thị ở picker + popup chi tiết | — | PASS 1/2 → PASS (doc) | Một nửa (picker) trượt vòng đầu |
 | FB-009 | 101026163010 + 111026111200 + 131026233500 | Nút copy thời gian per-row | — | PASS (doc) | ×2 verify-fail: nút không tồn tại ở vòng sau (flaky) |
 | FB-085 họ | 131026200630/131026201700 + 141026012500 | Số tờ khai per-container + auto-copy; regression mất input → FIXED | — | P R17 + regression đóng | — |
-| FB-086 🔒-họ | 131026201000 + 171026113520 + 201026234505 + 211026112600 | Sửa lô @Chi tiết (containers giữ read-only theo TICKET-09); thêm cont tự copy kể cả Loại cont | 7d1f5c1f (Sửa lô) + 4a35d3cf/017adf63 (autocopy) | R29 invalid-at-surface 1 phần → land; autocopy P (local repro) | QA tick lại phần "thêm cont@chi tiết" = INVALID theo TICKET-09; loại cont không seed theo A.1 cũ → ruling 11:26 khôi phục client-side |
+| FB-086 🔒-họ | 131026201000 + 171026113520 + 201026234505 + 211026112600 | Sửa lô @Chi tiết (containers giữ read-only theo TICKET-09 — **TICKET-09 superseded 22/10**); thêm cont tự copy kể cả Loại cont | 7d1f5c1f (Sửa lô) + 4a35d3cf/017adf63 (autocopy) | R29 invalid-at-surface 1 phần → land; autocopy P (local repro) | QA tick lại phần "thêm cont@chi tiết" = INVALID theo TICKET-09 (**hết hiệu lực 22/10** — FB-112 REVERSED); loại cont không seed theo A.1 cũ → ruling 11:26 khôi phục client-side |
 | FB-105 | 171026115800 + 181026143000 | Kho lấy/trả trống + label theo chiều → fix + dialog quick-add | 032145a2 | P (5040/5040) | — |
 | FB-106 | 171026115810 | FCL sau tạo lô chuyển chi tiết + nút "Tạo lô mới" | — | PASS (doc) | — |
-| FB-107 | 171026115820 | "Nơi giao/Nơi nhận" trống → thay bằng Nâng/Hạ | — | PASS (doc) | — |
+| FB-107 | 171026115820 | "Nơi giao/Nơi nhận" trống → thay bằng Nâng/Hạ; **LCL @Chi tiết lô: cột Nâng/Hạ hiển thị điểm đóng/trả** (ruling 22/10 card 261022093846 — LCL không có khái niệm nâng/hạ, hết "Chưa cập nhật") | `ca57c8fc` (LCL đóng/trả) | PASS (doc) + LCL đóng/trả P 22/10 | — |
 | FB-108 | 171026115830 | Cụm thao tác cuối trang tạo lô | — | PASS (doc) | — |
 | FB-109 | 171026122100 | Popup tờ khai auto-copy/lưu chạy đúng | — | PASS (doc) | — |
 | FB-110 | 171026122110 | Nhập tờ khai lưu được, không mất | — | PASS (doc) | — |
 | FB-111 🔒 | 171026122120 + 191026090405 | Thêm cont copy trường chung | ef90a995 + 017adf63 (Loại cont) | P R27 + regpack | Copy thiếu trường từng vòng |
-| FB-112 | 171026122130 | Bổ sung nút Thêm/Xóa cont @Chi tiết | ĐÓNG theo TICKET-09 | — | Đảo chiều bởi yêu cầu mới hơn |
-| FB-113 🔒 | 171026122140 | Thứ tự chứng từ | ba9981c2 | P (R26 + standing + audit) | 3 surface trùng tên |
+| FB-112 | 171026122130 | Bổ sung nút Thêm/Xóa cont @Chi tiết | **REVERSED 22/10** — bật lại nút @Chi tiết (ruling Zalo 22/10 09:50; QA xác nhận bỏ ruling by-design TICKET-09) | — | TICKET-09 `171026182554` superseded; chờ implement bật lại + gỡ pin vitest |
+| FB-113 🔒 | 171026122140 | Thứ tự chứng từ — **BILL/BOOKING → SỐ TỜ KHAI → NHẬP/XUẤT → HÃNG TÀU** (ruling 22/10 card 221026095429) | ba9981c2 + `ca57c8fc` | P (R26 + standing + audit) | 3 surface trùng tên |
 | FB-114 | 171026122150 + 171026185348 | Nút "+" hãng tàu + persist danh mục | 08325ed6 | P sau verify-fail | Chưa lưu danh mục chung vòng 1 |
 | FB-115 | 171026122160 | Gán xe nhóm hàng lẻ thực hiện được | (đóng qua LCL-07) | PASS (doc) | — |
 | 171026000406 | — | Bỏ bit "thiếu thông tin" tờ khai per-cont khỏi completeness | — | PASS (doc) | — |
@@ -385,6 +385,7 @@ Legend: 🔒 = regression-pack locked (`testplan/2026-10-21-regpack-regression-p
 | R30 (QA) | 6110af65 | 9 card chấm "chưa implement" → audit lật toàn bộ (surface mismatch); dis-02/03/05/08/10 FAIL → 3349fd52 |
 | R30-endgame | 9aab78d2 | PASS 6/6 staging: LCL-07 a-d + dis-03 + dis-05 |
 | QA 18:04 21/10 | 9aab78d2 | DIS-08 verify-fail lần 2 (wedge cột Hàng) → lan 2 `5b77082f` P local, deploy giữ đến wave close |
+| QA 22/10 (R32 freight-lag) | local dev `839d0577` (feat-quote-engine-wiring) | **PASS**: UI lag mặc định 1 (NEWEB) · route NEWEB id=12 130km đã tạo · engine áp (transport_date − lag) — case `testplan/cases/case-QA-2026-10-22-quote-engine-wiring.md` QE-R4/R5. **Outstanding:** tạo khung giá qua UI fail-im-lặng (đang điều tra) |
 
 Ghi chú: lúc chốt bản này còn lane in-flight theo nguồn 21/10 (main `18f8abd9`):
 `fix-cus11-dri04-visible` (CUS-11+DRI-04), `fix-dri01-dis09-visible` (DRI-01+DIS-09),
@@ -396,7 +397,8 @@ mặt đó có thể đổi khi wave đóng. Đã merge vào main: `fix-dis08-la
 
 CUS-01, CUS-02, CUS-04, CUS-05, CUS-06, DIS-06 luồng Lấy Lẻ, DIS-07, DRI-02, REP-01/02
 (cả nhóm "verify 9aab78d2"), FB-005, FB-009, FB-051, FB-055, FB-057, FB-069 (đóng bằng luật
-hiển thị CUS-08, formatWeight), FB-074, FB-106..FB-110, FB-112 (đóng theo TICKET-09),
+hiển thị CUS-08, formatWeight), FB-074, FB-106..FB-110, FB-112 (REVERSED 22/10 — mở lại nút
+Thêm/Xóa @Chi tiết theo Zalo 22/10 09:50, TICKET-09 superseded; chưa có test khóa cho nút bật lại),
 FB-115, nhóm phiếu 16/10 CUS (161026232xx), 171026000406/0407, 171026154000, 161026100400,
 191026181942 họ đã DEV XONG nhưng spec khóa = unit suite theo lane, nhóm chấm công
 (1410262307xx), bảng giá (161026095800/121500), 181026180300, 181026183500, QA1-003/004,

@@ -4,6 +4,30 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-22 — Rulings 22/10: FB-112 đảo chiều (bật lại nút Thêm/Xóa @Chi tiết), LCL đóng/trả thay nâng/hạ, kho CFS chung, tờ khai inline+sync, thứ tự chứng từ, freight lag verified
+
+- **FB-112 REVERSED — nút Thêm/Xóa container tại Chi tiết lô được BẬT LẠI** (yêu cầu khách
+  Zalo 22/10 09:50; QA xác nhận bỏ ruling by-design): TICKET-09 (`171026182554`, 17/10 —
+  "bỏ nút thêm/xóa container ở Chi tiết lô") **SUPERSEDED**; CUS-10 và REQ-23 đảo chiều theo.
+  Thao tác thêm/xóa ở drawer Tổng quan giữ nguyên. Pin vitest "no Thêm container affordance"
+  cần gỡ khi implement bật lại — trạng thái hiện tại: ruling chốt, chưa có commit bật lại nút.
+- **LCL không có khái niệm nâng/hạ** (card 261022093846): cột Nâng/Hạ tại Chi tiết lô hiển
+  thị **điểm đóng / điểm trả** đúng nghĩa lô lẻ, hết placeholder "Chưa cập nhật"
+  (`ca57c8fc`; chi tiết tại [OpsVanHanh.md](OpsVanHanh.md) mục Cập nhật 22/10 và
+  [LoHangKepKetHop.md](LoHangKepKetHop.md) §6.3).
+- **Kho lấy hàng (CFS) = danh mục dùng chung** (card 261022093245, Zalo 22/10 09:31): combobox
+  kho lấy hàng của form LCL **KHÔNG lọc theo khách hàng** đã chọn
+  ([LoHangKepKetHop.md](LoHangKepKetHop.md) §7.2).
+- **Tờ khai: inline edit + sync (CUS-05 clarify, cards 221026095229/221026095329):** sửa/thêm
+  số tờ khai ngay tại Chi tiết lô (không tab ra tab vào); nhập cho 1 cont → **mọi cont cùng lô
+  tự sync** — hành vi đã land FB-085/109, ruling 22/10 xác nhận clarify.
+- **Thứ tự chứng từ (card 221026095429): BILL/BOOKING → SỐ TỜ KHAI → NHẬP/XUẤT → HÃNG TÀU**
+  (`ca57c8fc`) — ô đầu chốt là BILL/BOOKING, không chỉ "Số booking" như spec A.3/CUS-11 cũ.
+- **Freight lag QA verified 22/10 (R32) — PASS:** UI lag mặc định 1 (NEWEB) · route NEWEB
+  id=12 130km đã tạo · engine áp (transport_date − lag) — evidence
+  `testplan/cases/case-QA-2026-10-22-quote-engine-wiring.md` (QE-R4/R5) + `qa/2026-10-22-quote-ui/`.
+  **Outstanding:** tạo khung giá qua UI fail-im-lặng — đang điều tra.
+
 ## 2026-10-21 — PRD all-markdown: bỏ file .docx khỏi repo, nguồn gốc giữ ở GDrive
 
 Chủ sản phẩm chốt docs/prd giữ **toàn bộ dữ liệu dạng Markdown** — không còn file .docx
@@ -39,6 +63,8 @@ chiếu `§n.m` giữ nguyên trên file .md.
   vẫn gửi explicit null; contract server A.1 không đổi. **TICKET-09/REQ-23 vẫn giữ:** không có
   nút thêm/xóa container tại màn Chi tiết lô — thêm container chỉ ở drawer Tổng quan. Xung đột
   CUS-10 ("bổ sung nút Xóa cont tại chi tiết lô") chốt theo TICKET-09: **không thêm lại**.
+  *(**SUPERSEDED 22/10** — FB-112 REVERSED, Zalo 22/10 09:50: khách đảo chiều, bật lại nút
+  Thêm/Xóa @Chi tiết; xem mục 2026-10-22.)*
   Triển khai `4a35d3cf` (merge `017adf63`), evidence `qa/2026-10-21-fb086-autocopy/`.
 - **Chi phí vừa tạo không bị khóa (FB-033, chốt 21/10):** khoản chi hộ **vừa tạo sửa/xóa được
   cho tới khi có settlement thủ công** — bút toán tự đối trừ tạm ứng (auto-offset) không còn làm
