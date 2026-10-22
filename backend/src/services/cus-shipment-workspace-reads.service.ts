@@ -8,7 +8,7 @@
  * `cus-shipment-workspace.service.ts` remains the facade importers target.
  */
 import { Role, ShipmentCusBucket, ShipmentStatus, localDateInBusinessZone, type DispatchClassification, type ShipmentCusContainerQuery, type ShipmentCusWorkspaceDetail, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceQuery, type ShipmentCusContainerFlatResponse, type ShipmentCusContainerFlatRow } from '@tingting/shared';
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 
 
 import { db, type Executor } from '../db';
@@ -23,7 +23,7 @@ import {
 } from './shipment-accounting-lock.service';
 
 
-import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDayTriageCondition, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
+import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDayTriageCondition, shipmentTransportDateCondition, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
 import { billOrBookNumberFor, trimOrNull } from './cus-workspace-mapping.service';
 
 export * from './cus-workspace-sql.service';
@@ -787,24 +787,15 @@ async function buildShipmentPageConditions(
       conditions.push(containerDayTriageCondition(dateArms));
     }
   } else if (query.transportDateFrom || query.transportDateTo) {
-    // Shipment-level: also consider container appointment dates so allocated
-    // shipments (whose containers may have been reappointed to a different
-    // day than the shipment's EDD) still appear under the user's chosen day.
-    // containerTransportDateSql() is interpolated verbatim so the
-    // appointment-date contract stays single-sourced with container mode.
+    // Shipment-level (card 261022201006b): the lot's days are the union of
+    // its containers' coalesce(appointment VN date, EDD) days; the lot's own
+    // expectedDeliveryDate counts only for a container-less lot. The previous
+    // unconditional EDD arm surfaced reappointed lots under their OLD day and
+    // contradicted the Chi tiết day triage. See shipmentTransportDateCondition
+    // (single-sourced with the dispatch master-plan delivery-date filter).
     const dateFrom = query.transportDateFrom ?? '0001-01-01';
     const dateTo = query.transportDateTo ?? '9999-12-31';
-    conditions.push(or(
-      and(
-        gte(s.shipments.expectedDeliveryDate, dateFrom),
-        lte(s.shipments.expectedDeliveryDate, dateTo),
-      ),
-      sql`exists (
-        select 1 from ${s.shipmentContainers}
-        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-          and ${containerTransportDateSql()} between ${dateFrom} and ${dateTo}
-      )`,
-    )!);
+    conditions.push(shipmentTransportDateCondition(dateFrom, dateTo));
   }
   if (query.customerId) {
     conditions.push(eq(s.shipments.customerId, query.customerId));

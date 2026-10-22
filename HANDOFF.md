@@ -1,3 +1,59 @@
+# HANDOFF — fix-tiepvu-rb2 (cards 261022201006b/c, TiepVu 22/10 evening)
+
+- Owner/controller: this session (worktree
+  /Users/dev/.paseo/worktrees/1njkloyy/fix-tiepvu-rb2, branch `fix-tiepvu-rb2`
+  off main 39e40fc1).
+- Last updated: 2026-10-22 ~22:15.
+- Goal: (b) "Lọc theo ngày trên CUS vẫn trả lô ngày khác" +
+  (c) "App lái xe bỏ hiển thị mã chuyến" (REQ-07 cũ). STATUS: DONE —
+  independent code-reviewer verdict READY_WITH_CONCERNS, all 5 findings
+  resolved (strict date grammar + 400 at the route, end-exclusive VN-day
+  bound, coalesce-law regex pin in tests, dead CSS removed, comment anchors
+  fixed); landing via the trunk commit titled `fix(cus,driver): filter ngày
+  đúng VN timezone + bỏ mã chuyến màn lái xe (TiepVu 22/10, cards
+  261022201006b/c)`.
+- Card B root causes (probe-first, `qa/scripts/2026-10-22-tiepvu-filter-boundary-probe.mjs`
+  — before 8/13 with 4 leak FAILs → after 13/13):
+  (1) lot-level date filter OR-ed `expectedDeliveryDate` unconditionally —
+  reappointed lots leaked back under their old EDD day (fixture lot Z). Fix =
+  `shipmentTransportDateCondition` in `cus-workspace-sql.service.ts` (EDD is
+  the day only for container-less lots; else union of per-container
+  `coalesce(appointment VN date, EDD)` — same law as the Chi tiết triage);
+  used by CUS workspace shipment-mode AND `list-summaries` deliveryDate arm.
+  (2) `GET /shipments?dateFrom&dateTo` compared `customsCutoffAt` (timestamptz)
+  to a UTC-day window (`new Date('YYYY-MM-DD')`) — leaked/dropped rows at the
+  00:00/23:59 VN boundary. Fix = `businessZoneDayStartInstant`/
+  `businessZoneDayEndInstant` in `container-date-filter.ts` (VN-day window).
+  FE param format was already YYYY-MM-DD — no FE change for card B.
+- Card C: trip-code display removed from `/my-trips` cards, `/my-trips/:id`
+  fact grid (Thông tin lệnh), and `/my-penalties` meta (sweep). `tripCode`
+  KEPT on wire/DB (board matching in DriverTripDetailPage untouched).
+  `driverTripCodeLabel` (REQ-07) deleted with its tests as dead code.
+- Non-goals: card 261022201006a (tờ khai) — trùng scope lane
+  `fix-cus-tokhai-cont` đang chạy, không thuộc changeset này. Also spotted
+  same-class comparison on the dispatch handoff queue
+  (`date(dispatch_handoffs.vehicle_needed_by)` in dispatch-planning-queries) —
+  different screen/owner, NOT in this card; open a follow-up card if wanted.
+- Env verify: BE worktree :3006 + FE :7179 (VITE proxy 3006), DB chung :5441
+  (ss-prod-db); trunk :3002/:7175 and tokhai lane :3005/:7178 untouched.
+  Worktree stacks can stay up or be killed after the session.
+- Gates: root lint 0 · BE tsc 0 · BE tests 338/338 · FE tsgo 0 + `tsc -b` 0 ·
+  FULL FE 710 files/5473 tests (after `vite build` — numeric-identity needs
+  dist) · `make build` OK.
+- QA artifacts: `qa/2026-10-22-tiepvu-b-c/` (probe before/after logs, UI
+  driver logs + screenshots for BOTH cards, DB proofs, gates.log). Regression
+  cases with results: `testplan/2026-10-22-card261022201006b-cus-date-filter.md`,
+  `testplan/2026-10-22-card261022201006c-driver-trip-code.md`.
+- Blockers/next: none. Review informational (pre-existing, NOT this diff):
+  `CONTAINER_SORT_SQL.transportDate` / `containerMissingBitsSql` still give an
+  FCL-undated container a NULL sort/completeness date while the filter law
+  counts it under the lot's EDD day — pre-existing divergence worth a card if
+  the owner wants full single-sourcing. Same-class date comparison on the
+  dispatch handoff queue (`date(dispatch_handoffs.vehicle_needed_by)` in
+  dispatch-planning-queries) — different screen/owner, NOT in this card.
+
+---
+
 # HANDOFF — fix-uui-select-modal (card 221026123031)
 
 - Owner/controller: this session (OpenCode, worktree

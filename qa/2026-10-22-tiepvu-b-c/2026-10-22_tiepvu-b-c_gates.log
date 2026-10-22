@@ -1,0 +1,85 @@
+# QA gates — cards 261022201006b/c (TiepVu 22/10 evening) — 2026-10-22
+# Worktree: /Users/dev/.paseo/worktrees/1njkloyy/fix-tiepvu-rb2 (branch fix-tiepvu-rb2 off main 39e40fc1)
+# Stack under evidence: BE :3006 (worktree), FE :7179 (VITE proxy 3006), DB :5441 (ss-prod-db, shared).
+# Ports 3002/7175 (trunk checkout) and 3005/7178 (parallel fix-cus-tokhai-cont lane) untouched.
+
+$ pnpm lint
+exit=0 (0 errors, 0 warnings)
+
+$ cd backend && npx tsc --noEmit
+exit=0
+
+$ cd backend && pnpm test
+tests 338 · pass 338 · fail 0 (unit 80 suites incl. new
+  src/tests/unit/container-date-window.test.ts,
+  src/tests/unit/shipment-transport-date-condition.test.ts)
+exit=0
+
+$ cd frontend && npx tsgo --noEmit
+exit=0
+
+$ cd frontend && npx tsc -b
+exit=0
+
+$ cd frontend && npx vite build   # prerequisite: numeric-identity needs dist (HANDOFF 22/10)
+✓ built in 5.78s
+
+$ cd frontend && pnpm test        # FULL FE
+Test Files 710 passed (710)
+Tests 5473 passed (5473)
+exit=0
+
+$ make build
+✓ built (frontend dist + backend) — exit=0
+
+# ── Card 261022201006b — date-filter 3-day VN boundary evidence ─────────────
+$ node qa/scripts/2026-10-22-tiepvu-filter-boundary-probe.mjs   # BEFORE fix
+9/13 checks passed — 4 FAILs reproduce the card:
+  - cus-workspace day=day1 leaked lot Z (EDD day1, conts reappointed day3):
+    "expect=[E,G] got=[E,G,Z]" ← "lọc ngày A vẫn trả lô ngày khác"
+  - /shipments dateFrom/dateTo (customsCutoffAt) UTC window:
+    day1 expect=[K] got=[H] · day2 expect=[H,I] got=[I,J] (day-3 lot leaked in)
+    · day3 expect=[J] got=[]   (own-day row leaked OUT)
+log: 2026-10-22_tiepvu-b_filter-probe-before.log
+
+$ node qa/scripts/2026-10-22-tiepvu-filter-boundary-probe.mjs   # AFTER fix
+13/13 checks passed
+log: 2026-10-22_tiepvu-b_filter-probe-after.log
+
+$ node qa/scripts/2026-10-22-tiepvu-filter-ui.mjs               # rung-3 UI
+7/7 passed — Tổng quan CUS driven at /shipments?…&transportDateFrom/To=day:
+  F01 request URL carries YYYY-MM-DD bounds; late (23:45 VN) + early (00:30 VN)
+  boundary lots show under day A; reappointed Z absent under old EDD day;
+  F02 Z shows under its appointment day B only. Screenshots
+  2026-10-22_tiepvu-b_ui-filter-dayA.png / -filter-dayB.png · DB fixture proof
+  2026-10-22_tiepvu-b_db-fixture.txt · log 2026-10-22_tiepvu-b_ui-driver.log
+
+# ── Card 261022201006c — driver trip-code removal evidence ──────────────────
+$ node qa/scripts/2026-10-22-tiepvu-driver-tripcode-ui.mjs       # rung-3 UI
+13/13 passed — driver `quyet`, trip 194055 (TRP-202712-0003):
+  T01 /my-trips: no [data-testid=trip-code], no "Mã chuyến", no code text;
+     bill/booking still leads.
+  T02 /my-trips/194055: fact grid leads with "Ngày giờ kế hoạch"; no code fact.
+  T03 /my-penalties: no code text.
+  CONTRACT: journey-board API still carries tripCode; DB row captured
+  (2026-10-22_tiepvu-c_db-trips-row.txt: "194055 | TRP-202712-0003 | CREATED").
+  Screenshots 2026-10-22_tiepvu-c_ui-list-390.png / -detail-390.png /
+  -penalties-390.png · log 2026-10-22_tiepvu-c_ui-driver.log (exit 0)
+BEFORE-state evidence: qa/2026-10-21-req07-tripcode/ (REQ-07 drive showed the
+code on list + detail before this ruling).
+
+# ── Post independent-review re-runs (all findings resolved) ─────────────────
+# Review verdict READY_WITH_CONCERNS (5 findings): resolved as
+#   (1) strict date grammar — canonical YYYY-MM-DD or tz-qualified instant,
+#       anything else → 400 at /shipments (verified: 2026-1-2 / tz-less /
+#       2026-02-30 → 400 'dateFrom không hợp lệ'; date-only + tz-instant → 200)
+#   (2) condition test pins the full coalesce(date(...at time zone...), EDD)
+#       law regex (mirrors cus-container-day-triage.test.ts)
+#   (3) end-exclusive VN-day upper bound (`lt` next VN midnight) — repo law
+#   (4) dead .driver-journey-card__code CSS removed
+#   (5) comment anchors fixed (Asia/Ho_Chi_Minh fixed +07:00 since 1975)
+$ pnpm lint                       → exit 0
+$ cd backend && npx tsc --noEmit  → exit 0
+$ cd backend && pnpm test         → pass 338 · fail 0
+$ cd frontend && pnpm test        → Test Files 710 passed · Tests 5473 passed
+$ node qa/scripts/2026-10-22-tiepvu-filter-boundary-probe.mjs → 13/13 passed

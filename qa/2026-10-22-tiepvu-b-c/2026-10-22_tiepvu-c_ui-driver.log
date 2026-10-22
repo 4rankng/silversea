@@ -1,0 +1,16 @@
+HEALTH status=ok api=http://localhost:3006/api front=http://localhost:7179
+LOGIN ok driver=quyet
+PASS CONTRACT journey-board still carries tripCode — tripId=194055 tripCode=TRP-202712-0003
+PASS CONTRACT trips.trip_code preserved in DB — 194055 | TRP-202712-0003 | CREATED
+TRIP under drive: id=194055
+PASS T01 no trip-code testid on list — count=0
+PASS T01 no "Mã chuyến" label on list
+PASS T01 no raw/formatted code text on list
+PASS T01 bill/booking still the lead identity — ["REGPK-pxj4d3015","REGPK-pyd0o9072","REGPK-ow8t61419"]
+PASS T02 no "Mã chuyến" fact on detail — ["Ngày giờ kế hoạch","Tên nhà máy","Địa chỉ nhà máy","SĐT kho"]
+PASS T02 schedule fact leads the grid — Ngày giờ kế hoạch
+PASS T02 no raw/formatted code text on detail
+PASS T03 penalty page renders
+PASS T03 no trip-code text on penalties
+PASS console errors none — clean
+DONE failures=0

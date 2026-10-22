@@ -10,10 +10,11 @@ import { count, gte } from 'drizzle-orm';
 import { canonicalShipmentStatus, Role } from '@tingting/shared';
 import { loadDispatchExpenseNotes } from '../dispatch-expense-notes.service';
 import type { ShipmentStatus } from '../shipment-types';
-import { containerTransportDateSql } from '../cus-shipment-workspace-reads.service';
+import { shipmentTransportDateCondition } from '../cus-workspace-sql.service';
+import { businessZoneDayEndExclusiveInstant, businessZoneDayStartInstant } from '../container-date-filter';
 import * as s from '../../db/schema';
 import { CARGO_MODE } from '../../db/schema';
-import { and, asc, desc, eq, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { alias, type AnyPgColumn } from 'drizzle-orm/pg-core';
 import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
@@ -747,48 +748,39 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     conditions.push(eq(s.shipments.blNumber, options.blNumber.trim()));
   }
   if (options.dateFrom) {
-    const from = new Date(options.dateFrom);
-    if (!isNaN(from.getTime())) {
+    // Card 261022201006b: ngày đóng/trả is a timestamptz — a date-only bound
+    // must open at VN midnight (Asia/Ho_Chi_Minh), not at UTC midnight like
+    // `new Date('YYYY-MM-DD')` produced. The UTC window dropped each day's
+    // 00:00–06:59 VN rows and leaked the NEXT day's 00:00–06:59 VN rows into
+    // the filter ("lọc ngày A vẫn trả lô ngày khác"). Invalid shapes are
+    // rejected at the route (400) — never a server-timezone parse here.
+    const from = businessZoneDayStartInstant(options.dateFrom);
+    if (from) {
       conditions.push(gte(s.shipments.customsCutoffAt, from));
     }
   }
   if (options.dateTo) {
-    const to = new Date(options.dateTo);
-    if (!isNaN(to.getTime())) {
-      // Inclusive end-of-day: bump to T23:59:59.999Z if user gave a date-only.
-      const inclusive = options.dateTo.length === 10
-        ? new Date(to.getTime() + 24 * 60 * 60 * 1000 - 1)
-        : to;
-      conditions.push(lte(s.shipments.customsCutoffAt, inclusive));
+    const toExclusive = businessZoneDayEndExclusiveInstant(options.dateTo);
+    if (toExclusive) {
+      // End-exclusive VN day: `lt` over the next VN midnight covers the whole
+      // day 00:00–23:59:59.999… without an inclusive-last-ms gap.
+      conditions.push(lt(s.shipments.customsCutoffAt, toExclusive));
     }
   }
-  // Dispatch master-plan: delivery-date range filters on the per-container
-  // appointment date (with shipment-level EDD as fallback), so a shipment
-  // whose CUS-set container appointment differs from the shipment's EDD still
-  // shows up under the user's chosen day. Mirrors the CUS workspace
-  // contract (containerTransportDateSql): coalesce(date(customerAppointmentAt
-  // at time zone 'Asia/Ho_Chi_Minh'), shipments.expectedDeliveryDate).
+  // Dispatch master-plan: delivery-date range rides the single-source lot-day
+  // law (shipmentTransportDateCondition): the per-container
+  // coalesce(appointment VN date, EDD) day — so a shipment whose CUS-set
+  // container appointment differs from the shipment's EDD still shows up
+  // under the user's chosen day (the field-reported drop this EXISTS arm
+  // covers: the Kế hoạch tổng quát view would show "Không có lô hàng nào cần
+  // phân xe" for a day that did have plated, ready-to-dispatch lots) — and the
+  // lot-level EDD counts only for container-less lots. The old unconditional
+  // EDD arm re-surfaced reappointed lots under their OLD day (card
+  // 261022201006b "lọc ngày A vẫn trả lô ngày khác").
   if (options.deliveryDateFrom || options.deliveryDateTo) {
     const from = options.deliveryDateFrom ?? '0001-01-01';
     const to = options.deliveryDateTo ?? '9999-12-31';
-    // Either the shipment's EDD is in range, OR at least one container's
-    // appointment date is in range. The EXISTS branch covers the field-reported
-    // bug where filtering by date dropped FCL shipments whose containers had
-    // been reappointed to a day other than the shipment's EDD — most visible
-    // once CUS has already assigned a carrier (the Kế hoạch tổng quát view
-    // would show "Không có lô hàng nào cần phân xe" for a day that did have
-    // plated, ready-to-dispatch lots).
-    conditions.push(or(
-      and(
-        gte(s.shipments.expectedDeliveryDate, from),
-        lte(s.shipments.expectedDeliveryDate, to),
-      ),
-      sql`exists (
-        select 1 from ${s.shipmentContainers}
-        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-          and ${containerTransportDateSql()} between ${from} and ${to}
-      )`,
-    )!);
+    conditions.push(shipmentTransportDateCondition(from, to));
   }
   // Dispatch master-plan facets: OR within each dimension, AND
   // across dimensions. Correlated EXISTS keeps multi-container shipments to one

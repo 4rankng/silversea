@@ -10,7 +10,7 @@ import { formatDateTimeShort, formatNumber } from '../lib/format';
 import { PageHeader } from '../components/UI';
 import { EmptyState } from '../design-system';
 import { Tabs } from '../design-system/Tabs';
-import { driverLocationLabels, driverTripCodeLabel } from '../features/driver/driver-display';
+import { driverLocationLabels } from '../features/driver/driver-display';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -117,11 +117,9 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   // 20260927_1). Mirrors the app-wide "Chưa có Bill/Booking" pending copy.
   const billLabel = card.blNumber || card.bookingRef || 'Chưa có Bill/Booking';
   const billPending = !card.blNumber && !card.bookingRef;
-  // REQ-07: the trip code rides every card as a secondary formatted reference
-  // under the bill — the bill/booking stays the lead identity (internal-ids
-  // law), the code is labeled metadata in the ONE driver shape. Hidden when
-  // the trip carries no code (legacy rows), never a raw generator string.
-  const tripCodeLabel = driverTripCodeLabel(card.tripCode);
+  // Card 261022201006c: the app lái xe BỎ hiển thị mã chuyến (REQ-07 cũ) —
+  // bill/booking is the only trip identity a driver sees. The tripCode field
+  // stays on the wire (detail-screen board matching); nothing renders it here.
   const { selectedLabels: operationTags, manualText: operationManualText } = parseDriverTaskNote(card.operationalNotes, tagLabels);
 
   /* Ticket 365943ea field order: Nhà máy (top) → Tuyến đường → Cont →
@@ -157,14 +155,6 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
           {card.scheduledAt ? formatDateTimeShort(card.scheduledAt) : 'Chưa chốt lịch'}
         </span>
       </div>
-
-      {/* REQ-07: formatted trip code — secondary reference under the bill
-          header, hidden when the trip carries no code. */}
-      {tripCodeLabel ? (
-        <p className="driver-journey-card__code" data-testid="trip-code">
-          <span className="driver-journey-card__port-label">Mã chuyến</span> {tripCodeLabel}
-        </p>
-      ) : null}
 
       {/* 1. Factory name — top, headline */}
       {isPresent(card.factoryShortName || card.factoryName) ? (

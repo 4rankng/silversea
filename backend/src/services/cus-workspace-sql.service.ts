@@ -42,6 +42,38 @@ export function containerTransportDateSql() {
   )`;
 }
 
+/** Lot-level transport-date filter (cards 261022201006b): the lot's schedule
+ *  days are the UNION of its containers' coalesce(appointment VN date, EDD)
+ *  days — the exact per-container law `containerTransportDateSql()` states —
+ *  and the lot-level expectedDeliveryDate is the day ONLY for a lot that owns
+ *  no container at all (container-less LCL lots, intake skeletons before the
+ *  first container exists).
+ *
+ *  The previous shape OR-ed the EDD arm UNCONDITIONALLY, so a lot whose every
+ *  container had been reappointed to another day still surfaced under its old
+ *  EDD day ("lọc ngày A vẫn trả lô ngày khác" — card 261022201006b, probe
+ *  fixture lot Z) and contradicted the Chi tiết workboard, which day-gates
+ *  each container row by the same coalesce. Gating the fallback restores the
+ *  single-source contract shared by Tổng quan, Chi tiết and the dispatch
+ *  master-plan delivery-date filter. */
+export function shipmentTransportDateCondition(dateFrom: string, dateTo: string): SQL {
+  return or(
+    sql`exists (
+      select 1 from ${s.shipmentContainers}
+      where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+        and ${containerTransportDateSql()} between ${dateFrom} and ${dateTo}
+    )`,
+    and(
+      sql`not exists (
+        select 1 from ${s.shipmentContainers}
+        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+      )`,
+      sql`${s.shipments.expectedDeliveryDate} >= ${dateFrom}`,
+      sql`${s.shipments.expectedDeliveryDate} <= ${dateTo}`,
+    ),
+  )!;
+}
+
 /** Container workboard day triage (D.6, completed by cards 211026132257 and
  *  211026180528): the day triage narrows dated rows to their
  *  appointment/EDD day; a row with NO triage day at all rides outside it.

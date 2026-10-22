@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-10-22 (tối) — fix(cus,driver): filter ngày đúng VN timezone + bỏ mã chuyến màn lái xe (TiepVu 22/10, cards 261022201006b/c)
+
+TiepVu 22/10 tối: (b) lọc theo ngày trên CUS vẫn trả lô ngày khác; (c) app
+lái xe bỏ hiển thị mã chuyến (REQ-07 cũ) — UI-only, GIỮ field DB/API.
+
+- **Card 261022201006b — filter ngày leak (2 root cause, repro-first)**:
+  probe 3 ngày liền + biên 00:00/23:59 VN (`qa/scripts/2026-10-22-tiepvu-filter-boundary-probe.mjs`)
+  bắt được đúng 2 lỗi so sánh ngày:
+  1. **EDD arm vô điều kiện** — lot-level filter OR `expectedDeliveryDate`
+     giữa khoảng KHÔNG kèm điều kiện fallback, nên lô đã dời lịch cont sang
+     ngày khác vẫn lọt về ngày EDD cũ ("lọc ngày A vẫn trả lô ngày khác" —
+     fixture lot Z: EDD day1, cont dời day3). Fix: `shipmentTransportDateCondition`
+     (cus-workspace-sql.service) — nguồn sự thật duy nhất cho cả Tổng quan CUS
+     và master-plan `deliveryDateFrom/To`: ngày của lô = union ngày
+     `coalesce(appointment VN, EDD)` của từng cont; EDD cấp lô chỉ là ngày của
+     lô KHÔNG CÓ cont nào. Trùng luật với Chi tiết (containerDayTriageCondition).
+  2. **UTC window cho cột timestamptz** — `GET /shipments?dateFrom&dateTo`
+     (customsCutoffAt) so với `new Date('YYYY-MM-DD')` = cửa sổ UTC: rớt lô
+     00:00–06:59 VN của ngày lọc, lọt lô 00:00–06:59 VN của ngày KỀ SAU
+     (biên 23:59/00:00 VN). Fix: `businessZoneDayStartInstant` /
+     `businessZoneDayEndInstant` (container-date-filter.ts) — cửa sổ ngày
+     Asia/Ho_Chi_Minh 00:00:00.000–23:59:59.999.
+  FE param format đã đúng `YYYY-MM-DD` (schema `z.string().date()` + test) —
+  không đổi FE cho card này. Test: 2 file unit mới (biên 3 ngày + SQL contract
+  của điều kiện lọc). Evidence: probe trước fix 8/13 (đúng 5 dòng leak) → sau
+  fix 13/13; UI drive Tổng quan CUS 7/7 (rung 3, screenshots + DB proof).
+- **Card 261022201006c — bỏ mã chuyến màn lái xe**: ẩn mã chuyến khỏi
+  `/my-trips` (journey card), chi tiết `/my-trips/:id` (fact "Mã chuyến") và
+  sweep `/my-penalties` (meta vi phạm). `tripCode` GIỮ nguyên trên wire + DB
+  (board matching trong DriverTripDetailPage không đổi). REQ-07 formatter
+  `driverTripCodeLabel` thành dead code — xóa cùng tests; tests liên quan
+  (DriverTripsPage, DriverTripDetailPage, DriverTaskInfoSections,
+  DriverPenaltyPage, driver-display) update theo luật mới (assert vắng mặt).
+  Evidence UI drive 13/13 (rung 3: screenshots list/detail/penalties + DB/API
+  contract proof `trips.trip_code` còn nguyên).
+- **Gates**: root lint 0 · BE tsc 0 · BE tests 338/338 · FE tsgo 0 + `tsc -b` 0
+  · FULL FE 710 files/5473 tests (sau `vite build` — numeric-identity cần dist)
+  · `make build` OK. Trùng scope card 261022201006a (tờ khai) với lane
+  `fix-cus-tokhai-cont` đang chạy — card a không thuộc changeset này.
+
 ## 2026-10-22 — fix(lcl): Kho lấy hàng (CFS/Cảng) list từ danh mục chung, không lọc theo khách (card 261022093245)
 
 Zalo khách 22/10 09:31: form tạo lô hàng lẻ, ô bắt buộc "Kho lấy hàng
