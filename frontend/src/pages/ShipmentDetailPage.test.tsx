@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Role, ShipmentCusBucket, ShipmentDocumentCustody, ShipmentStatus } from '@tingting/shared';
-import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
+import type { ShipmentCusWorkspaceListItem, ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import type { ShipmentDetail as ShipmentDetailData } from '../api/shipmentClient';
 
 const { getShipmentDetailMock, listShipmentEventsMock, deleteCusShipmentMock, createDeclarationMock, deleteDeclarationMock, getCusShipmentWorkspaceDetailMock, updateShipmentMock, updateShipmentDeclarationMock, currentUser } = vi.hoisted(() => ({
@@ -955,6 +955,19 @@ describe('ShipmentDetailPage', () => {
       ...overrides,
     });
 
+    // Card 261022095235b: the management host's workspace-detail feed — the
+    // same shape the drawer's ledger consumes.
+    const managementWorkspaceDetail = {
+      summary: {
+        id: 1,
+        version: 4,
+        cargoMode: 'FCL',
+        fieldAccess: { declarationNumber: { mode: 'DIRECT', reason: null } },
+      },
+      containers: [],
+      selectors: { routes: [], containerTypes: [], operationalSites: [], externalCarriers: [], carrierVehicles: [], ports: [] },
+    } as unknown as ShipmentCusWorkspaceDetail;
+
     function renderLot() {
       return render(
         <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -979,17 +992,44 @@ describe('ShipmentDetailPage', () => {
       expect(screen.getByText('TGHU7654321')).toBeTruthy();
     });
 
-    it('offers no Thêm container affordance even on an unlocked FCL lot (card 171026182554)', async () => {
+    it('offers the shared management ledger with Thêm container to writers (card 261022095235b supersedes TICKET-09)', async () => {
       currentUser.role = Role.ADMIN;
-      // The exact state FB-086 once fixed by adding a button here: a lot with
-      // no container row, role ADMIN, no accounting lock. Card 171026182554
-      // supersedes that: composition lives ONLY in the /shipments drawer, so
-      // the detail screen must withhold the button everywhere.
+      // Customer ruling 22/10 09:50 reverses card 171026182554 (TICKET-09):
+      // add/remove container works FROM the detail screen again — hosted as
+      // the SAME management ledger the /shipments drawer mounts, not a
+      // second bespoke dialog.
       getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null, containers: [] });
+      getCusShipmentWorkspaceDetailMock.mockResolvedValue(managementWorkspaceDetail);
       renderLot();
-      expect(await screen.findByText('Containers (0)')).toBeTruthy();
+      expect(await screen.findByRole('button', { name: /Thêm container/ })).toBeTruthy();
+      expect(screen.getByText('Lô hàng chưa có dữ liệu container.')).toBeTruthy();
+      // The read-only facts card must not double-list the containers.
+      expect(screen.queryByText('Containers (0)')).toBeNull();
+    });
+
+    it('keeps the read-only facts section for reader roles (ACCOUNTANT)', async () => {
+      currentUser.role = Role.ACCOUNTANT;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null, containers: [] });
+      getCusShipmentWorkspaceDetailMock.mockResolvedValue(managementWorkspaceDetail);
+      renderLot();
+      await screen.findByText('Containers (0)');
       expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
-      expect(screen.queryByRole('dialog')).toBeNull();
+      // The reader host never even asks for the workspace detail.
+      expect(getCusShipmentWorkspaceDetailMock).not.toHaveBeenCalledWith(1);
+    });
+
+    it('keeps the read-only facts section on a terminal (COMPLETED) lot', async () => {
+      currentUser.role = Role.CUS;
+      getShipmentDetailMock.mockResolvedValue({
+        ...detail,
+        accountingLock: null,
+        shipment: { ...detail.shipment, status: 'COMPLETED' },
+        containers: [],
+      });
+      getCusShipmentWorkspaceDetailMock.mockResolvedValue(managementWorkspaceDetail);
+      renderLot();
+      await screen.findByText('Containers (0)');
+      expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
     });
 
     it('withholds Thêm container on an LCL lot (an LCL lot owns no container)', async () => {
@@ -1002,6 +1042,10 @@ describe('ShipmentDetailPage', () => {
       renderLot();
       await screen.findByText('Containers (0)');
       expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+      // Review 22/10 medium #3: LCL keeps the read-only facts section — no
+      // dead management card, no workspace-detail fetch for a containerless lot.
+      expect(screen.queryByText('Lô hàng chưa có dữ liệu container.')).toBeNull();
+      expect(getCusShipmentWorkspaceDetailMock).not.toHaveBeenCalledWith(1);
     });
 
     it('hides Thêm container while the accounting lock is active', async () => {

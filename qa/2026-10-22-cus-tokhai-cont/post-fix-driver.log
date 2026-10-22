@@ -1,0 +1,20 @@
+LOGIN OK cus
+fixture lot=312543 bl=HAGHTB29725897 rows=141721,141722,141723 (#1 dirty MSKU1234560)
+PASS UI-R6 Thêm container @detail :: {"add":true,"declCol":true,"declTriggers":3,"removeBtns":3}
+PASS UI-R1 Số tờ khai column + triggers :: triggers=3
+PASS UI-R6 Xóa container rows :: remove=3
+PASS UI-R2 sync toast :: toast text found in body
+PASS UI-R2 all rows synced in DOM :: HAGHTB29725897-TK01|HAGHTB29725897-TK01|HAGHTB29725897-TK01
+PASS UI-R2 DB proof :: HAGHTB29725897-TK01|HAGHTB29725897-TK01|HAGHTB29725897-TK01
+PASS UI-R3 divergence kept :: HAGHTB29725897-TK01-NEW|TK-RIENG-25897|HAGHTB29725897-TK01
+PASS UI-R3 DB proof :: HAGHTB29725897-TK01-NEW|TK-RIENG-25897|HAGHTB29725897-TK01
+PASS UI-R6b add FROM detail :: rows=4
+PASS UI-R6b DB proof :: count=4
+PASS UI-added row inherits tờ khai :: HAGHTB29725897-TK01-NEW
+PASS UI-R6c remove FROM detail :: count=3
+PASS UI-R8 ISO hint :: {"has":true,"text":"Số cont sai chữ số kiểm tra — kiểm tra lại.Đổi thành MSKU1234565","fix":"Đổi thành MSKU1234565"}
+PASS UI-R8 one-tap fix :: fixed=MSKU1234565
+PASS UI-R8 DB proof dirty number fixed :: first row now=MSKU1234565
+
+15/15 UI checks passed
+LOT= 312543 TK= HAGHTB29725897

@@ -383,6 +383,20 @@
    number field, left-aligned like the other secondary row actions. */
 .shipment-container-ledger__declaration-copy { display: flex; min-width: 0; }
 .shipment-container-ledger__declaration-copy > button { justify-self: start; }
+/* Card 261022095235b: live ISO 6346 hint under the container editor's số
+   cont input — the same warning + one-tap correction the drawer's add row
+   shows (card 191026100000), so a mistyped "đổi số cont" ends at a one-tap
+   fix instead of a dead-end 400. */
+.shipment-container-ledger__number-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning-text);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold, 600);
+  line-height: 1.4;
+}
 .shipment-container-ledger__field--request > input,
 .shipment-container-ledger__field--request > .searchable-select__trigger { border-color: var(--warning); }
 .shipment-container-ledger__field--request > input:focus-visible,

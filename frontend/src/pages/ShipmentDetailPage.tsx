@@ -40,6 +40,7 @@ import { formatCurrency, formatDate, formatDateTimeShort as formatDateTime, form
 import { formatQuantity } from '../features/shipments/cus/cusUtils';
 import { allocationSummaryFromDetail } from '../features/shipments/detail/shipment-detail-view';
 import { ShipmentDetailContainers } from '../features/shipments/detail/ShipmentDetailContainers';
+import { ShipmentDetailContainerManagement } from '../features/shipments/detail/ShipmentDetailContainerManagement';
 import { billBookingReference } from '../lib/business-reference';
 import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
 import { ShipmentQuickEditModal } from '../features/shipments/cus/ShipmentQuickEditModal';
@@ -47,6 +48,10 @@ import { QUICK_EDIT_GROUP_LABELS } from '../features/shipments/cus/cusUtils';
 import { quickEditGroupGate, type QuickEditField } from '../features/shipments/cus/cusQuickEditModel';
 import { useToast } from '../components/shared/Toast';
 import './WorkflowFinance.css';
+// Card 261022095235b: the shared container-management ledger (hosted below)
+// is styled by the CUS workspace page's stylesheet — import it here so the
+// detail route carries the styles even when /shipments was never opened.
+import './ShipmentsPage.css';
 import './ShipmentDetailPage.css';
 
 const STATUS_DOT_CLASS: Record<ShipmentStatus, string> = {
@@ -303,6 +308,9 @@ export default function ShipmentDetailPage() {
   // (/shipments). The detail screen stays read + business-edit; a second
   // composition surface raced the drawer's optimistic version and dead-ended
   // its dialog on 409s.
+  // ── SUPERSEDED 22/10 09:50 (card 261022095235b): the customer asked for
+  // the detail-screen add/remove back; see canManageContainersFromDetail
+  // below (defined after the detail destructuring).
 
   if (loading) {
     return (
@@ -350,6 +358,23 @@ export default function ShipmentDetailPage() {
     .find(Boolean) ?? null;
   const customerLabel = shipment.customerName?.trim() || 'Chưa có tên khách hàng';
   const accountingLock = data.accountingLock ?? null;
+  // Card 261022095235b (ruling 22/10 09:50, supersedes TICKET-09 of 17/10 /
+  // card 171026182554): container add/remove works FROM the lot-detail
+  // screen again. The version-race concern that motivated TICKET-09 is
+  // answered by hosting the drawer's OWN ledger (idempotent writes +
+  // FB-086-r19 stale-version reload), not a second bespoke dialog — one
+  // shared implementation, two hosts. Mirrors requireWorkspaceWriter roles;
+  // locked and terminal lots stay on the read-only facts section (the
+  // server refuses those writes, so the affordance must not offer them).
+  // LCL is containerless BY DESIGN (card 20261007_395) — a management card
+  // that can never add a row would be a dead surface, so LCL keeps the
+  // read-only facts section too (review 22/10 medium #3). Legacy null
+  // cargoMode lots that own container rows still get the ledger.
+  const canManageContainersFromDetail = !accountingLock
+    && shipment.cargoMode !== 'LCL'
+    && shipment.status !== 'COMPLETED' && shipment.status !== 'CANCELED'
+    && (user?.role === Role.ADMIN || user?.role === Role.MANAGER
+      || user?.role === Role.CUS || user?.role === Role.DISPATCHER);
   // FB-098 — cùng vai trò với nút "+ Thêm khoản chi" trong panel chi phí.
   const canDeclareCost = !accountingLock
     && (user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT);
@@ -579,10 +604,19 @@ export default function ShipmentDetailPage() {
           </section>
         )}
 
-        <ShipmentDetailContainers
-          containers={containers}
-          assignments={data.carrierAssignments}
-        />
+        {/* ── Card 261022095235b (ruling 22/10 09:50, supersedes TICKET-09 of
+            17/10): container add/remove works FROM the lot-detail screen
+            again. Writers get the SAME management ledger the Tổng quan
+            drawer hosts (one shared implementation); readers and locked or
+            terminal lots keep the read-only facts section. */}
+        {canManageContainersFromDetail ? (
+          <ShipmentDetailContainerManagement shipmentId={shipment.id} onChanged={() => void fetchDetail()} />
+        ) : (
+          <ShipmentDetailContainers
+            containers={containers}
+            assignments={data.carrierAssignments}
+          />
+        )}
 
         {/* Documents */}
         {/* chiphispec §1 — the cost-entry affordance must not hide from OPS:

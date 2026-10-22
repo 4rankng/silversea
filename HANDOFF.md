@@ -1,6 +1,47 @@
 
 ---
 
+# CUS tờ khai inline + sync · sửa/thêm cont hết lỗi (cards 261022095235a/b, Zalo 20:03 + ruling 09:50 22/10) — 2026-10-22
+
+Controller: this agent, worktree `1njkloyy/fix-cus-tokhai-cont`, branch
+`fix-cus-tokhai-cont` (off main 839d0577).
+
+**Status**: DONE — repro-first: API flows add/đổi/xóa cont trên lô data bẩn
+ĐÃ XANH từ các card trước (probe 13/13); gap thật = (1) /shipments/:id không
+còn nút Thêm/Xóa cont (TICKET-09 gỡ 17/10 — ruling 09:50 22/10 BẬT LẠI,
+supersede, FB-112 mở lại), (2) editor số cont workboard dead-end 400 không
+gợi ý sửa. Cả hai đã fix + tờ khai click-to-edit đưa vào ledger chia sẻ.
+
+- **Card A (261022095235a)**: cột "Số tờ khai" MỚI trên `CusContainerLedger`
+  (drawer Tổng quan + /shipments/:id) — click-to-edit, Enter lưu ngay qua
+  container-line command = law FB-109 auto-copy (chỉ cont còn trống,
+  divergence cho phép, toast theo declarationSync); nút Copy 1-call
+  (copy-declaration). KHÔNG phát minh law mới — BE không đổi.
+- **Card B (261022095235b)**: `/shipments/:id` host CHÍNH
+  `CusContainerLedger` (writer roles ADMIN/MANAGER/CUS/DISPATCHER, chưa lock,
+  chưa COMPLETED/CANCELED; reader giữ section đọc) → Thêm/Xóa container hoạt
+  động TỪ màn chi tiết; remove 409 có recovery (parity add r19); workboard
+  editor số cont có ISO hint + "Đổi thành <số>" 1 chạm (giống add-row
+  191026100000).
+- **Gates (sau review fixes)**: root lint 0 · FE `tsgo --noEmit` 0 + `tsc -b`
+  0 · **FULL FE 5467/5467 TOÀN XANH** · `make build` OK. BE/src không đổi →
+  BE gates không đụng.
+- **Evidence**: `qa/2026-10-22-cus-tokhai-cont/` — pre-fix driver (hasAdd:false
+  @detail), api-repro-dirty-flows, sync-probe 13/13 (R2/R3/R2b/cross-lot
+  409/cardB), post-fix driver 15/15 UI (rung 3: screenshots + DB proof qua
+  psql), resp-sweep 12/12 @390/768/1440 (cell hiển thị, không page-overflow,
+  scroll nằm trong band), drawer-fanout 6/6 (sau review fix HIGH#1); probe
+  `qa/scripts/2026-10-22-tokhai-cont-sync-probe.mjs`; regression
+  `testplan/2026-10-22-card261022095235ab-tokhai-containers.md` (TOKHAI-R1…R9
+  + mục review đã xử lý).
+- **Review độc lập**: code-reviewer DONE_WITH_CONCERNS → 4 finding (HIGH
+  drawer sibling stale, MEDIUM disable-blur, MEDIUM LCL dead card, LOW
+  !line-throw/idempotency) — TẤT CẢ đã fix + test + verify rung 3.
+- **Env verify**: BE worktree :3005 + FE :7178 (VITE proxy 3005), DB chung
+  :5441 (ss-prod-db), role cus. Port 3002/7175 thuộc checkout main — không đụng.
+
+---
+
 # R32 báo giá UI spec verify (card 221026040542) — 2026-10-22
 
 Controller: this agent, worktree fix-quote-ui-spec (off main cae84f8d), branch fix-quote-ui-spec.

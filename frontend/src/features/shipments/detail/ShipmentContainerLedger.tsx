@@ -11,6 +11,7 @@ import type {
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { displayNote } from '../cus/cusUtils';
+import { checkContainerNumber } from '../../../components/trip/container-instance-helpers';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
@@ -223,6 +224,9 @@ function InlineEditor({
   )).length;
   const [copyingDeclaration, setCopyingDeclaration] = useState(false);
   const [containerNumber, setContainerNumber] = useState(line.raw.containerNumber ?? '');
+  // Card 261022095235b: live ISO 6346 pre-check for the số cont editor — the
+  // same shared hint + one-tap correction the drawer's add row shows.
+  const containerNumberHint = checkContainerNumber(containerNumber);
   const [containerTypeId, setContainerTypeId] = useState(line.raw.containerTypeId ? String(line.raw.containerTypeId) : '');
   const [cargoWeightKg, setCargoWeightKg] = useState(stripDecimalTrailingZeros(line.raw.cargoWeightKg));
   const [cargoVolumeCbm, setCargoVolumeCbm] = useState(line.raw.cargoVolumeCbm ?? '');
@@ -525,6 +529,25 @@ function InlineEditor({
       {mode === 'container' && (
         <div className="shipment-container-ledger__editor-grid">
           <label><span>Số container</span><input value={containerNumber} onChange={(event) => setContainerNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || line.fieldAccess.containerNumber.mode === 'READ_ONLY'} /></label>
+          {/* Card 261022095235b: the SAME live ISO 6346 pre-check + one-tap
+              correction the drawer's add row shows (card 191026100000) — a
+              mistyped "đổi số cont" used to dead-end at the server's 400 with
+              no way to fix the check digit. Informational only; the save
+              still rides the server's strict gate. */}
+          {containerNumberHint.warning && (
+            <div className="shipment-container-ledger__number-hint" role="note">
+              <span>{containerNumberHint.warning}</span>
+              {containerNumberHint.suggestion && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => setContainerNumber(containerNumberHint.suggestion!)}
+                >
+                  Đổi thành {containerNumberHint.suggestion}
+                </button>
+              )}
+            </div>
+          )}
           <label><span>Loại container</span><SearchableSelect id={`shipment-detail-container-type-${line.id}`} value={containerTypeId} onChange={setContainerTypeId} options={detail.selectors.containerTypes.map((item) => ({ value: String(item.id), label: item.label, searchText: `${item.code} ${item.name}` }))} placeholder="Chọn loại container" searchPlaceholder="Tìm loại container" disabled={saving || line.fieldAccess.containerTypeId.mode === 'READ_ONLY'} /></label>
           <label><span>Trọng lượng (kg)</span><input type="number" min="0" step="0.01" value={cargoWeightKg} onChange={(event) => setCargoWeightKg(event.target.value)} disabled={saving || line.fieldAccess.cargoWeightKg.mode === 'READ_ONLY'} /></label>
           <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={cargoVolumeCbm} onChange={(event) => setCargoVolumeCbm(event.target.value)} disabled={saving || line.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} /></label>

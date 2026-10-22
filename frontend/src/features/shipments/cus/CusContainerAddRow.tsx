@@ -124,6 +124,12 @@ export function CusContainerAddRow({
           </div>
         )}
       </th>
+      {/* Card 261022095235a: the tờ khai column's add-row cell stays EMPTY —
+          the add API carries no document fields; the lot's number rides the
+          server-side lot-default inherit (A.1+A.6), so the new row reads the
+          lot's tờ khai the moment it lands. The cell keeps the track so no
+          upstream column shifts. */}
+      <td className="cus-container-ledger__add-blank" />
       <td data-label="Loại cont" className="cus-container-cell">
         <UuiSelectField
           label="Loại cont"

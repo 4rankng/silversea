@@ -1,0 +1,16 @@
+PASS FIXTURE create 3-cont lot :: status=201 id=312531
+fixture: lot=312531 rows=141698,141699,141700 — row#1 seeded dirty MSKU1234560 (bad check digit)
+PASS TOKHAI-R2 sync fan-out reported :: status=200 sync=[141699,141700]
+PASS TOKHAI-R2 persisted siblings :: HAGHTB29700-83370|HAGHTB29700-83370|HAGHTB29700-83370
+PASS TOKHAI-R3 set #2 own number :: status=200
+PASS TOKHAI-R3 #1 update ok :: status=200 sync=0
+PASS TOKHAI-R3 divergence preserved :: HAGHTB29700-83370-NEW|TK-RIENG-83370|HAGHTB29700-83370
+PASS TOKHAI-R2b clear #3 local :: HAGHTB29700-83370-NEW|TK-RIENG-83370|
+PASS CARDB fix dirty cont number :: status=200 new=MSKU1234565
+PASS CARDB add container :: status=201
+PASS CARDB added row inherits declaration :: added decl=HAGHTB29700-83370-NEW
+PASS CARDB remove container :: status=200
+PASS FIXTURE other lot :: status=201 
+PASS TOKHAI cross-lot duplicate rejected :: status=409 Số tờ khai đã thuộc lô hàng khác. Vui lòng kiểm tra lại trước khi lưu.
+
+13/13 checks passed
