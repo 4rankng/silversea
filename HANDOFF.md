@@ -1,3 +1,31 @@
+# HANDOFF — fix-uui-select-modal (card 221026123031)
+
+- Owner/controller: this session (OpenCode, worktree
+  /Users/dev/.paseo/worktrees/1njkloyy/fix-uui-select-modal, branch
+  `fix-uui-select-modal` off main 5c917db5).
+- Last updated: 2026-10-22 ~13:35.
+- Goal: "UuiSelectField listbox không click được trong modal (blocker tạo khung
+  giá)". STATUS: DONE — nhưng KẾT LUẬN LÀ FALSE POSITIVE, không có bug sản phẩm.
+  Product code KHÔNG đổi; main đã được verify E2E tạo khung giá OK (KH chọn
+  được, `201 POST /api/quotations` id 2526/2527, list refetch, DB proof).
+- Root cause chuỗi sai của repro cũ: (1) `[role="option"]` trần trúng row của
+  `ul[role=listbox].quotation-frames__list` (trang, dưới scrim modal — chặn
+  click là ĐÚNG); (2) thiếu "Ngày hiệu lực"; (3) fill() tràn vào segment DD của
+  ô ngày segmented. Giả thuyết z-index BỊ BÁC BỎ: react-aria useOverlayPosition
+  hardcode inline `zIndex: 100000` cho popover portalled — luôn trên --z-modal.
+- Fix thật (đúng defect class — QA harness): driver chuẩn
+  `qa/scripts/2026-10-22-uui-select-modal-driver.mjs` (scope option vào
+  `.ds-uui-select__popover`, type ngày theo digits, đủ trường bắt buộc);
+  testplan/cases/case-QA-2026-10-22-uui-select-modal.md; evidence
+  qa/2026-10-22-uui-select-modal/.
+- Gates (trên tree final = main + QA files): FE scoped 282/282, tsc -b 0,
+  lint 0, vite build OK, FULL FE 710 files/5481 tests PASS (sau build dist —
+  numeric-identity cần dist như HANDOFF trước đã ghi).
+- Blockers/next: none. Lưu ý: đã revert sạch sửa z-index popover.tsx thử trong
+  phiên (no-op thua inline style của react-aria) — không được đem lại.
+
+---
+
 # HANDOFF — fix-lcl-kho-chung (card 261022093245)
 
 - Owner/controller: this session (OpenCode, worktree
