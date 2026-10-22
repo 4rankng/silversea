@@ -79,7 +79,7 @@ Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề tác vụ ưu ti
 
 | Nhóm | Yêu cầu |
 |------|---------|
-| Mã chuyến | Hàng "Mã chuyến" đứng đầu lưới thông tin lệnh, hiển thị dạng định dạng thân thiện (`TRP <yyyy>-<mm> · <seq>`); Bill/Booking vẫn là định danh chính; chuỗi mã thô (`TRP-…`, `SHP-…`) không hiển thị (REQ-07) |
+| Mã chuyến | KHÔNG hiển thị trên app lái xe — danh sách lẫn chi tiết lệnh (ruling 22/10, card 261022201006c, bỏ REQ-07 cũ). Bill/Booking là định danh chính, dẫn đầu lưới thông tin; chuỗi mã thô (`TRP-…`, `SHP-…`) không hiển thị. Field mã chuyến GIỮ nguyên ở DB và API payload; màn desktop/điều phối/kế toán giữ nguyên hiển thị |
 | Lịch và địa điểm làm hàng | Lịch đóng/trả, tên ngắn và tên đầy đủ nhà máy khi có, **Địa chỉ nhà máy**, rồi tên người liên hệ cùng **Số điện thoại liên hệ** ngay dưới địa chỉ |
 | Hàng hóa | Số container gắn với loại tương ứng, số chì và thao tác của chính công việc; số lượng tổng chỉ bổ sung, không thay cặp số–loại |
 | Lộ trình | Cảng nâng, cảng hạ và điểm giao/điểm trả vỏ riêng khi có khác biệt nghiệp vụ |

@@ -410,3 +410,5 @@ spec regression-pack (`frontend/e2e/regression/`, chạy `pnpm reg:local`).
 | FB-107 | 171026115820 | "Nơi giao/Nơi nhận" trống → thay bằng Nâng/Hạ | — | PASS (doc) | — |
 | FB-112 | 171026122130 | Bổ sung nút Thêm/Xóa cont @Chi tiết | MỞ LẠI 22/10 — card 261022095235b (Zalo 09:50) supersede TICKET-09 | `261022095235b` | Đóng theo TICKET-09 17/10 → khách yêu cầu bật lại; /shipments/:id host ledger chia sẻ của drawer (thêm/xóa hoạt động, QA 15/15 UI) |
 | FB-113 🔒 | 171026122140 | Thứ tự chứng từ | ba9981c2 | P (R26 + standing + audit) | 3 surface trùng tên |
+| 261022201006b | TiepVu 22/10 tối | Filter ngày CUS theo NGÀY VN — sửa 2 root cause: EDD arm vô điều kiện + cửa sổ UTC cho cột timestamptz | 6a633ed6 | probe 13/13 + UI 7/7 + `container-date-window.test.ts`/`shipment-transport-date-condition.test.ts` | — |
+| 261022201006c | TiepVu 22/10 tối (owner ruling) | BỎ mã chuyến khỏi app lái xe (list+detail), UI-only — đảo REQ-07 cũ; DB/API giữ field, màn khác giữ nguyên | 6a633ed6 | scoped vitest 160/160 · FULL FE 5473/5473 · drive UI 13/13 | — |
