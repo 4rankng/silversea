@@ -138,20 +138,31 @@ async function loadSiteSnapshot(
     .filter((id): id is number => id != null);
   if (requestedIds.length === 0) return {};
 
+  // Card 261022093245: the two points carry DIFFERENT ownership laws. The
+  // Nhà máy (operationalSiteId) is the lot customer's own factory and stays
+  // customer-scoped (ad-hoc lots keep the null-customer waiver). The Kho
+  // (CFS/Cảng) point is shared infrastructure — an ACTIVE warehouse owned by
+  // ANY customer may serve as the lot's lift/drop point, so the customer
+  // equality never applies to it.
   const sites = await tx.select().from(s.operationalSites)
     .where(and(
       inArray(s.operationalSites.id, requestedIds),
-      ...(shipment.customerId != null
-        ? [eq(s.operationalSites.customerId, shipment.customerId)]
-        : []),
       eq(s.operationalSites.isActive, true),
       isNull(s.operationalSites.deletedAt),
     ));
-  if (sites.length !== new Set(requestedIds).size) {
+  const byId = new Map(sites.map((site) => [site.id, operationalSiteSnapshot(site)]));
+  const factoryRow = sites.find((site) => site.id === shipment.operationalSiteId);
+  if (shipment.operationalSiteId != null
+    && (!factoryRow
+      || factoryRow.siteType !== 'FACTORY'
+      || (shipment.customerId != null && factoryRow.customerId !== shipment.customerId))) {
     throw new ApiError(409, 'Điểm vận hành không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
   }
-
-  const byId = new Map(sites.map((site) => [site.id, operationalSiteSnapshot(site)]));
+  const warehouseRow = sites.find((site) => site.id === shipment.pickupWarehouseSiteId);
+  if (shipment.pickupWarehouseSiteId != null
+    && (!warehouseRow || warehouseRow.siteType !== 'WAREHOUSE')) {
+    throw new ApiError(409, 'Điểm vận hành không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
+  }
   return {
     deliverySite: shipment.operationalSiteId ? byId.get(shipment.operationalSiteId) : null,
     pickupWarehouse: shipment.pickupWarehouseSiteId ? byId.get(shipment.pickupWarehouseSiteId) : null,

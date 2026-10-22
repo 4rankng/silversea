@@ -17,6 +17,9 @@ export interface ShipmentCreateLclRouteSectionProps {
   operationalSites: OperationalSite[];
   /** FB-105 §2: the Kho (CFS/Cảng) picker now lives in this card. */
   warehouseSites: OperationalSite[];
+  /** Card 261022093245: the shared catalog's own load state — distinct from
+   *  the customer-scoped sites fetch behind the Nhà máy picker. */
+  warehouseSitesLoading: boolean;
   selectedOperationalSite: OperationalSite | null;
   selectOperationalSite: (value: string) => void;
   routeCustomText?: (text: string) => void;
@@ -37,6 +40,7 @@ export function ShipmentCreateLclRouteSection({
   routeOptions,
   operationalSites,
   warehouseSites,
+  warehouseSitesLoading,
   selectedOperationalSite,
   selectOperationalSite,
   routeCustomText,
@@ -180,7 +184,11 @@ export function ShipmentCreateLclRouteSection({
         )}
         {/* FB-105 (spec §2): the Kho (CFS/Cảng) picker shares this card with
             Tuyến đường / Nhà máy so every địa điểm lives in one place; "Thông
-            tin hàng" keeps only the cargo fields. */}
+            tin hàng" keeps only the cargo fields.
+            Card 261022093245 (Zalo 22/10): the options are the SHARED
+            warehouse catalog — every active kho across ALL customers, never
+            filtered to the lot's customer. A CFS/depot is hạ tầng dùng chung:
+            a customer without its own kho still picks from the danh mục. */}
         <div data-field-id="shipment-pickup-warehouse" style={{ display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'stretch' }}>
           <SearchableField
             id="shipment-pickup-warehouse"
@@ -198,7 +206,7 @@ export function ShipmentCreateLclRouteSection({
               searchText: `${site.code} ${site.name} ${site.address ?? ''}`,
             }))}
             placeholder={
-              sitesLoading
+              warehouseSitesLoading
                 ? 'Đang tải…'
                 : !form.customerId
                   ? (form.isAdHoc ? 'Không áp dụng cho lệnh chạy ngoài' : 'Chọn khách hàng trước')
@@ -206,14 +214,14 @@ export function ShipmentCreateLclRouteSection({
                     ? 'Chọn hoặc nhập kho CFS hạ/giao hàng...'
                     : 'Chọn hoặc nhập kho CFS lấy hàng...'
             }
-            disabled={!form.customerId || sitesLoading || saving}
+            disabled={!form.customerId || sitesLoading || warehouseSitesLoading || saving}
             error={issueByField.get('shipment-pickup-warehouse')}
             allowsCustomValue
             {...(warehouseCustomText ? { onCustomValue: warehouseCustomText } : {})}
             hint={
-              form.customerId && !sitesLoading && warehouseSites.length === 0 ? (
+              form.customerId && !sitesLoading && !warehouseSitesLoading && warehouseSites.length === 0 ? (
                 <>
-                  Chưa có kho cho khách hàng này.{' '}
+                  Chưa có kho trong danh mục.{' '}
                   <button
                     type="button"
                     onClick={() => openCreateSiteDialog('WAREHOUSE')}

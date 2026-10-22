@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   bootstrap: vi.fn(),
   quickCreate: vi.fn(),
   sites: vi.fn(),
+  // Card 261022093245: the shared Kho (CFS/Cảng) catalog — a separate client
+  // call, so its mock stands apart from the customer-scoped sites list.
+  sharedWarehouseSites: vi.fn(),
   saveContainers: vi.fn(),
   createDeclaration: vi.fn(),
   updateDeclaration: vi.fn(),
@@ -45,6 +48,7 @@ vi.mock('../../api/configClient', () => ({
 vi.mock('../../api/shipmentClient', () => ({
   quickCreateShipment: mocks.quickCreate,
   listOperationalSites: mocks.sites,
+  listSharedWarehouseSites: mocks.sharedWarehouseSites,
   createOperationalSite: mocks.createSite,
   saveShipmentContainers: mocks.saveContainers,
   createShipmentDeclaration: mocks.createDeclaration,
@@ -167,6 +171,8 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     Object.values(mocks).forEach((mock) => mock.mockReset());
     mocks.bootstrap.mockResolvedValue(bootstrap);
     mocks.sites.mockResolvedValue(sites);
+    // Shared catalog mirror: WAREHOUSE rows only (the BE scope=shared shape).
+    mocks.sharedWarehouseSites.mockResolvedValue(sites.filter((site) => site.siteType === 'WAREHOUSE'));
     mocks.quickCreate.mockResolvedValue({ id: 90, version: 1 });
     mocks.saveContainers.mockResolvedValue({ shipmentVersion: 2, items: [], upsertedIds: [], changeMode: 'DIRECT', changeRequestId: null });
     mocks.createDeclaration.mockResolvedValue({ id: 1 });
@@ -1470,6 +1476,11 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     const created = { ...sites[0], id: 43, code: 'NEW43', name: 'Điểm vận hành mới', shortName: 'Điểm mới', siteType, routeId: siteType === 'FACTORY' ? 11 : null };
     mocks.createSite.mockResolvedValue(created);
     mocks.sites.mockResolvedValueOnce(sites).mockImplementation(() => new Promise(() => {}));
+    // Card 261022093245: the kho picker reads the SHARED catalog — its
+    // post-create refetch must hang the same way so the assertion exercises
+    // the optimistic merge (immediate selection BEFORE any reload lands).
+    mocks.sharedWarehouseSites.mockResolvedValueOnce(sites.filter((site) => site.siteType === 'WAREHOUSE'))
+      .mockImplementation(() => new Promise(() => {}));
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
     if (mode === 'LCL') fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
