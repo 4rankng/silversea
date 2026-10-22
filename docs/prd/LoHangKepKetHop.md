@@ -267,12 +267,10 @@ Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi v�
 
 ## Rulings & Changes 22/10 (TiepVu22Oct-2)
 
-## Rulings & Changes 22/10 (TiepVu22Oct-2)
 ### Card 261022213755b — Search kho CFS phải khớp 'GLC'
 - Combobox Kho lấy hàng (danh mục chung — card 261022093245): gõ GLC/Glc/glc phải ra kho GLC (case-insensitive + contains, normalize dấu). Data có GLC thì phải thấy.
 - Nguồn: TiepVu22Oct-2 22/10 · landed 24f8d14c.
 
-## Rulings & Changes 22/10 (TiepVu22Oct-2)
 ### Card 261022213755c — Tag NHẬP LẺ / XUẤT LẺ riêng cho lô lẻ
 - List + Chi tiết lô: lô LCL hiển thị badge NHẬP LẺ / XUẤT LẺ (hoặc icon ký hiệu riêng) nhất quán style NHẬP/XUẤT — hết lẫn lộn với lô cont.
 - Nguồn: TiepVu22Oct-2 22/10 · landed 24f8d14c.

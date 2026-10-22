@@ -229,12 +229,10 @@ Các điểm này cần được làm rõ với người phụ trách nghiệp v
 
 ## Rulings & Changes 22/10 (TiepVu22Oct-2)
 
-## Rulings & Changes 22/10 (TiepVu22Oct-2)
 ### Card 261022213755a — Nhận lệnh KHÔNG bắt buộc tải ảnh
 - Luồng nhận lệnh: ảnh là TÙY CHỌN — nhận lệnh được khi chưa có ảnh; upload sau nhận cũng được.
 - Nguồn: TiepVu22Oct-2.docx (Tiệp Vũ 22/10) · landed 24f8d14c.
 
-## Rulings & Changes 22/10 (TiepVu22Oct-2)
-### Card 261022201006c / 261022213755b — BỎ mã chuyến trên màn lái xe
+### Card 261022201006c — BỎ mã chuyến trên màn lái xe (b/I)
 - Mã chuyến (REQ-07 cũ) KHÔNG còn hiển thị trên UI driver (field DB/API giữ nguyên).
 - Nguồn: TiepVu22Oct 22/10 · landed 9a3441b0/8fa41805.
