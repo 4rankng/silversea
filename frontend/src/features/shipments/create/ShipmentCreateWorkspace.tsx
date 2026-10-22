@@ -14,6 +14,7 @@ import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
   createShippingLine,
   listOperationalSites,
+  listSharedWarehouseSites,
   type OperationalSite,
 } from '../../../api/shipmentClient';
 import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-duplicate-guard';
@@ -59,6 +60,11 @@ export function ShipmentCreateWorkspace() {
   const navigate = useNavigate();
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
   const [sites, setSites] = useState<OperationalSite[]>([]);
+  // Card 261022093245: the SHARED Kho (CFS/Cảng) catalog — customer-independent
+  // infrastructure, so it loads once on mount (and refetches when a new site
+  // is created), never per customer.
+  const [warehouseCatalog, setWarehouseCatalog] = useState<OperationalSite[]>([]);
+  const [warehouseCatalogLoading, setWarehouseCatalogLoading] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const workspaceFormRef = useRef<HTMLFormElement>(null);
   const [customerNotes, setCustomerNotes] = useState('');
@@ -148,10 +154,22 @@ export function ShipmentCreateWorkspace() {
     () => operationalSites.find((site) => String(site.id) === form.operationalSiteId) ?? null,
     [form.operationalSiteId, operationalSites],
   );
-  // "Kho lấy hàng" reads the same customer-scoped operational sites as the
-  // factory picker, narrowed to siteType='WAREHOUSE' (the list itself comes
-  // from GET /api/shipments/operational-sites?customerId=<id>).
-  const warehouseSites = useMemo(() => sites.filter((site) => site.siteType === 'WAREHOUSE'), [sites]);
+  // Card 261022093245 (Zalo 22/10): the Kho (CFS/Cảng) picker reads the SHARED
+  // warehouse catalog (GET /operational-sites?scope=shared — every active
+  // warehouse across ALL customers), NOT the lot customer's own sites. A
+  // CFS/depot is shared infrastructure: a customer with no warehouses of its
+  // own still picks from the shared list instead of being forced into
+  // "+ Thêm kho". The catalog loads once on mount and refetches whenever a
+  // site is created (sitesVersion), so the freshly added kho appears too.
+  const warehouseSites = warehouseCatalog;
+  /** Customer sites + shared warehouses, deduped by id — the payload builder
+   *  resolves display labels (pickup/delivery location) for BOTH the lot
+   *  customer's factories and a shared warehouse owned by another customer. */
+  const payloadSiteCatalog = useMemo(() => {
+    const byId = new Map(sites.map((site) => [site.id, site]));
+    for (const site of warehouseCatalog) if (!byId.has(site.id)) byId.set(site.id, site);
+    return Array.from(byId.values());
+  }, [sites, warehouseCatalog]);
   const readiness = useMemo(
     () => getShipmentCreateReadiness(form, containers),
     [containers, form],
@@ -216,7 +234,11 @@ export function ShipmentCreateWorkspace() {
   const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
     form,
     containers,
-    sites,
+    // Card 261022093245: label resolution needs BOTH the customer's sites and
+    // the shared warehouse catalog — a picked shared kho belongs to another
+    // customer, so its shortName/name must resolve from the union or
+    // pickup/delivery location would silently store null.
+    sites: payloadSiteCatalog,
     readiness,
     onValidationIssues: setValidationIssues,
     customerNotes,
@@ -234,6 +256,21 @@ export function ShipmentCreateWorkspace() {
       .finally(() => { if (!cancelled) setSitesLoading(false); });
     return () => { cancelled = true; };
   }, [form.customerId, sitesVersion, reportError]);
+
+  // Card 261022093245: shared Kho (CFS/Cảng) catalog — customer-independent,
+  // fetched once on mount and refetched after "+ Thêm kho" creates a site.
+  // A failed fetch leaves the previous list standing (initially empty): the
+  // empty-catalog hint — not an error toast — is the picker's failure
+  // surface, matching the factory picker's degraded mode.
+  useEffect(() => {
+    let cancelled = false;
+    setWarehouseCatalogLoading(true);
+    listSharedWarehouseSites()
+      .then((value) => { if (!cancelled) setWarehouseCatalog(value); })
+      .catch(() => { /* degraded: keep whatever list already stands */ })
+      .finally(() => { if (!cancelled) setWarehouseCatalogLoading(false); });
+    return () => { cancelled = true; };
+  }, [sitesVersion]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => {
@@ -411,6 +448,11 @@ export function ShipmentCreateWorkspace() {
   function handleSiteCreated(site: OperationalSite) {
     setCreateSiteDialog({ open: false, siteType: site.siteType });
     setSites((current) => [...current.filter((item) => item.id !== site.id), site]);
+    if (site.siteType === 'WAREHOUSE') {
+      // Card 261022093245: the kho picker reads the shared catalog — merge the
+      // new site in immediately (the sitesVersion refetch lands right after).
+      setWarehouseCatalog((current) => [...current.filter((item) => item.id !== site.id), site]);
+    }
     setSitesVersion((version) => version + 1);
     if (site.siteType === 'FACTORY') {
       const derivedRouteId = site.routeId != null ? String(site.routeId) : '';
@@ -749,6 +791,7 @@ export function ShipmentCreateWorkspace() {
               routeOptions={routeOptions}
               operationalSites={operationalSites}
               warehouseSites={warehouseSites}
+              warehouseSitesLoading={warehouseCatalogLoading}
               selectedOperationalSite={selectedOperationalSite}
               selectOperationalSite={selectOperationalSite}
               routeCustomText={routeCustomText}

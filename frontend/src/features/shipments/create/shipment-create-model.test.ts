@@ -565,3 +565,41 @@ describe('shipment create model', () => {
     expect(picked.rawPickupPortName).toBeNull();
   });
 });
+// Card 261022093245: a shared-catalog kho belongs to ANOTHER customer — the
+// payload builder must still resolve its display label from the sites list
+// the caller passes (the workspace feeds the union of the customer's sites
+// and the shared warehouse catalog), or pickup/delivery location would
+// silently store null for a shared-kho pick.
+describe('buildShipmentRootPayload — shared-catalog kho label resolution', () => {
+  const sharedKhoForm = {
+    ...EMPTY_SHIPMENT_CREATE_FORM,
+    customerId: '25282',
+    cargoMode: 'LCL' as const,
+    tradeDirection: 'IMPORT' as const,
+    routeId: '1',
+    operationalSiteId: '3625',
+    pickupWarehouseSiteId: '442',
+    blNumber: 'BL-KHOCHUNG',
+  };
+
+  it('resolves pickup_location from a kho owned by another customer', () => {
+    const payload = buildShipmentRootPayload(sharedKhoForm, [], [
+      { id: 3625, name: 'Nhà máy Resolve', shortName: '' },
+      { id: 442, name: 'ICD Hà Nội', shortName: 'ICD Hà Nội' },
+    ]);
+    expect(payload.pickupWarehouseSiteId).toBe(442);
+    // Nhập khẩu: lấy tại Kho (CFS) giao tại Nhà máy.
+    expect(payload.pickupLocation).toBe('ICD Hà Nội');
+    expect(payload.deliveryLocation).toBe('Nhà máy Resolve');
+  });
+
+  it('resolves the label through the union even when the kho is NOT in the customer list alone', () => {
+    // Only the customer's factory — the kho comes from the shared catalog.
+    const customerOnly = [{ id: 3625, name: 'Nhà máy Resolve', shortName: '' }];
+    const withShared = [...customerOnly, { id: 442, name: 'Kho ICD Hà Nội', shortName: 'ICD Hà Nội' }];
+    const missing = buildShipmentRootPayload(sharedKhoForm, [], customerOnly);
+    expect(missing.pickupLocation).toBeNull(); // documents why the union is required
+    const resolved = buildShipmentRootPayload(sharedKhoForm, [], withShared);
+    expect(resolved.pickupLocation).toBe('ICD Hà Nội');
+  });
+});

@@ -805,6 +805,19 @@ export async function listOperationalSites(customerId: number): Promise<Operatio
   return response.items;
 }
 
+/**
+ * Card 261022093245 (Zalo 22/10): the SHARED Kho (CFS/Cảng) catalog — every
+ * active warehouse across ALL customers. A CFS/depot is shared infrastructure,
+ * not a per-customer assignment, so the LCL "Kho lấy hàng (CFS/Cảng)" picker
+ * reads this list; the customer's own warehouses are simply part of it.
+ */
+export async function listSharedWarehouseSites(): Promise<OperationalSite[]> {
+  const response = await api.get<{ items: OperationalSite[] }>(
+    '/shipments/operational-sites?scope=shared',
+  );
+  return response.items;
+}
+
 // Settlement contracts live in ./shipmentDebit — re-exported so the
 // historical import path keeps working (guard-debt extraction).
 export * from './shipmentDebit';

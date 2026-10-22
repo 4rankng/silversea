@@ -43,7 +43,7 @@ import {
   listShipmentReferenceConflicts,
   normalizeDocumentReference,
 } from '../../services/shipment-lifecycle-shared.service';
-import { assignShipmentCarriers, createOperationalSiteForIntake, createShippingLineForIntake, deleteOperationalSiteForAdmin, listOperationalSitesForAdmin, listOperationalSitesForIntake, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
+import { assignShipmentCarriers, createOperationalSiteForIntake, createShippingLineForIntake, deleteOperationalSiteForAdmin, listOperationalSitesForAdmin, listOperationalSitesForIntake, listSharedWarehouseSitesForIntake, resolveOperationalSitesListQuery, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
@@ -450,11 +450,17 @@ coreRoutes.get(
   '/operational-sites',
   requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER),
   asyncHandler(async (req: Request, res: Response) => {
-    const customerId = Number(req.query.customerId);
-    if (!Number.isInteger(customerId) || customerId < 1) {
-      throw new ApiError(400, 'customerId không hợp lệ.');
-    }
-    res.json({ items: await listOperationalSitesForIntake(customerId, getUser(req)) });
+    // Card 261022093245: `?customerId=<id>` (customer-scoped, historical) or
+    // `?scope=shared` (the shared Kho (CFS/Cảng) catalog across customers).
+    const resolved = resolveOperationalSitesListQuery({
+      customerId: req.query.customerId,
+      scope: req.query.scope,
+    });
+    res.json({
+      items: resolved.kind === 'shared-warehouses'
+        ? await listSharedWarehouseSitesForIntake(getUser(req))
+        : await listOperationalSitesForIntake(resolved.customerId, getUser(req)),
+    });
   }),
 );
 

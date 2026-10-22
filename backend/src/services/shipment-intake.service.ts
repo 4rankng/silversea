@@ -378,6 +378,86 @@ type SubmitShipmentForDispatchResult = {
   handoff: typeof s.dispatchHandoffs.$inferSelect;
 };
 
+/** Intake-visible operational-site columns (the shared select shape for the
+ *  customer-scoped list and the shared warehouse catalog — card 261022093245). */
+const OPERATIONAL_SITE_INTAKE_FIELDS = {
+  id: s.operationalSites.id,
+  customerId: s.operationalSites.customerId,
+  code: s.operationalSites.code,
+  name: s.operationalSites.name,
+  shortName: s.operationalSites.shortName,
+  siteType: s.operationalSites.siteType,
+  routeId: s.operationalSites.routeId,
+  address: s.operationalSites.address,
+  googleMapsUrl: s.operationalSites.googleMapsUrl,
+  contactName: s.operationalSites.contactName,
+  contactPhone: s.operationalSites.contactPhone,
+  contacts: s.operationalSites.contacts,
+  liftFeeInvoiceName: s.operationalSites.liftFeeInvoiceName,
+  liftFeeInvoiceAddress: s.operationalSites.liftFeeInvoiceAddress,
+  liftFeeTaxCode: s.operationalSites.liftFeeTaxCode,
+  strictRules: s.operationalSites.strictRules,
+  version: s.operationalSites.version,
+} as const;
+
+type IntakeOperationalSite = {
+  id: number;
+  customerId: number;
+  code: string;
+  name: string;
+  shortName: string;
+  siteType: 'FACTORY' | 'WAREHOUSE';
+  routeId: number | null;
+  address: string;
+  liftFeeInvoiceName: string | null;
+  liftFeeInvoiceAddress: string | null;
+  liftFeeTaxCode: string | null;
+  version: number;
+};
+
+/** ACCOUNTANT sees the accounting facts only — no contacts/links/ops rules. */
+function toAccountantSiteProjection(site: IntakeOperationalSite) {
+  return {
+    id: site.id,
+    customerId: site.customerId,
+    code: site.code,
+    name: site.name,
+    shortName: site.shortName,
+    siteType: site.siteType,
+    routeId: site.routeId,
+    address: site.address,
+    liftFeeInvoiceName: site.liftFeeInvoiceName,
+    liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
+    liftFeeTaxCode: site.liftFeeTaxCode,
+    version: site.version,
+  };
+}
+
+/**
+ * Card 261022093245 (Zalo 22/10): the GET /operational-sites query contract.
+ * `?customerId=<id>` keeps the historical customer-scoped list (the customer's
+ * factories AND warehouses). `?scope=shared` is the shared-infrastructure
+ * mode: the Kho (CFS/Cảng) catalog spans ALL customers because a CFS/depot is
+ * shared infrastructure, never a per-customer assignment. Anything else —
+ * missing both params or an unknown scope — stays a 400 like before.
+ */
+export type OperationalSitesListQuery =
+  | { kind: 'customer'; customerId: number }
+  | { kind: 'shared-warehouses' };
+
+export function resolveOperationalSitesListQuery(
+  query: { customerId?: unknown; scope?: unknown },
+): OperationalSitesListQuery {
+  const scope = typeof query.scope === 'string' ? query.scope.trim() : '';
+  if (scope === 'shared') return { kind: 'shared-warehouses' };
+  if (scope !== '') throw new ApiError(400, 'scope không hợp lệ.');
+  const customerId = Number(query.customerId);
+  if (!Number.isInteger(customerId) || customerId < 1) {
+    throw new ApiError(400, 'customerId không hợp lệ.');
+  }
+  return { kind: 'customer', customerId };
+}
+
 export async function listOperationalSitesForIntake(customerId: number, actor: AuthUser) {
   if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.ACCOUNTANT, Role.DISPATCHER].includes(actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền xem điểm vận hành.');
@@ -386,45 +466,40 @@ export async function listOperationalSitesForIntake(customerId: number, actor: A
     .where(and(eq(s.customers.id, customerId), isNull(s.customers.deletedAt))).limit(1);
   if (!customer) throw new ApiError(404, 'Không tìm thấy khách hàng.');
 
-  const sites = await db.select({
-    id: s.operationalSites.id,
-    customerId: s.operationalSites.customerId,
-    code: s.operationalSites.code,
-    name: s.operationalSites.name,
-    shortName: s.operationalSites.shortName,
-    siteType: s.operationalSites.siteType,
-    routeId: s.operationalSites.routeId,
-    address: s.operationalSites.address,
-    googleMapsUrl: s.operationalSites.googleMapsUrl,
-    contactName: s.operationalSites.contactName,
-    contactPhone: s.operationalSites.contactPhone,
-    contacts: s.operationalSites.contacts,
-    liftFeeInvoiceName: s.operationalSites.liftFeeInvoiceName,
-    liftFeeInvoiceAddress: s.operationalSites.liftFeeInvoiceAddress,
-    liftFeeTaxCode: s.operationalSites.liftFeeTaxCode,
-    strictRules: s.operationalSites.strictRules,
-    version: s.operationalSites.version,
-  }).from(s.operationalSites).where(and(
-    eq(s.operationalSites.customerId, customerId),
-    eq(s.operationalSites.isActive, true),
-    isNull(s.operationalSites.deletedAt),
-  )).orderBy(s.operationalSites.shortName, s.operationalSites.name);
+  const sites = await db.select(OPERATIONAL_SITE_INTAKE_FIELDS)
+    .from(s.operationalSites).where(and(
+      eq(s.operationalSites.customerId, customerId),
+      eq(s.operationalSites.isActive, true),
+      isNull(s.operationalSites.deletedAt),
+    )).orderBy(s.operationalSites.shortName, s.operationalSites.name);
 
   if (actor.role === Role.ACCOUNTANT) {
-    return sites.map((site) => ({
-      id: site.id,
-      customerId: site.customerId,
-      code: site.code,
-      name: site.name,
-      shortName: site.shortName,
-      siteType: site.siteType,
-      routeId: site.routeId,
-      address: site.address,
-      liftFeeInvoiceName: site.liftFeeInvoiceName,
-      liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
-      liftFeeTaxCode: site.liftFeeTaxCode,
-      version: site.version,
-    }));
+    return sites.map(toAccountantSiteProjection);
+  }
+
+  return sites;
+}
+
+/**
+ * Card 261022093245: the shared Kho (CFS/Cảng) catalog — every ACTIVE
+ * warehouse across ALL customers. The LCL intake "Kho lấy hàng (CFS/Cảng)"
+ * dropdown reads this so a customer with no warehouses of its own still sees
+ * the shared infrastructure instead of "Chưa có kho cho khách hàng này".
+ * Same read roles and ACCOUNTANT reduction as {@link listOperationalSitesForIntake}.
+ */
+export async function listSharedWarehouseSitesForIntake(actor: AuthUser) {
+  if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.ACCOUNTANT, Role.DISPATCHER].includes(actor.role)) {
+    throw new ApiError(403, 'Bạn không có quyền xem điểm vận hành.');
+  }
+  const sites = await db.select(OPERATIONAL_SITE_INTAKE_FIELDS)
+    .from(s.operationalSites).where(and(
+      eq(s.operationalSites.siteType, 'WAREHOUSE'),
+      eq(s.operationalSites.isActive, true),
+      isNull(s.operationalSites.deletedAt),
+    )).orderBy(s.operationalSites.shortName, s.operationalSites.name);
+
+  if (actor.role === Role.ACCOUNTANT) {
+    return sites.map(toAccountantSiteProjection);
   }
 
   return sites;
@@ -840,17 +915,19 @@ async function assertReferenceIsActive(
         throw new ApiError(409, 'Vui lòng chọn kho lấy hàng.');
       }
     } else {
+      // Card 261022093245: the Kho (CFS/Cảng) point is shared infrastructure —
+      // an ACTIVE warehouse owned by ANY customer may serve as the lot's
+      // lift/drop point, so the customer equality below applies to the
+      // factory point only. Type/active/live guards stay: a stale or
+      // non-warehouse row must still 409.
       const [warehouse] = await tx.select({ id: s.operationalSites.id }).from(s.operationalSites)
         .where(and(
           eq(s.operationalSites.id, shipment.pickupWarehouseSiteId),
-          ...(shipment.customerId != null
-            ? [eq(s.operationalSites.customerId, shipment.customerId)]
-            : []),
           eq(s.operationalSites.siteType, 'WAREHOUSE'),
           eq(s.operationalSites.isActive, true),
           isNull(s.operationalSites.deletedAt),
         )).limit(1);
-      if (!warehouse) throw new ApiError(409, 'Kho lấy hàng không còn hiệu lực hoặc không thuộc khách hàng.');
+      if (!warehouse) throw new ApiError(409, 'Kho lấy hàng không còn hiệu lực.');
     }
   }
 }

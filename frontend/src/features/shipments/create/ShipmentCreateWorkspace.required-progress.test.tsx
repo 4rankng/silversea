@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBootstrap, listOperationalSites } = vi.hoisted(() => ({ getBootstrap: vi.fn(), listOperationalSites: vi.fn() }));
+const { getBootstrap, listOperationalSites, listSharedWarehouseSites } = vi.hoisted(() => ({ getBootstrap: vi.fn(), listOperationalSites: vi.fn(), listSharedWarehouseSites: vi.fn() }));
 vi.mock('../../../api/tripClient', () => ({
   tripClient: { getBootstrap },
 }));
@@ -11,6 +11,7 @@ vi.mock('./FreightPreviewCard', () => ({ FreightPreviewCard: () => null }));
 vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../../api/shipmentClient')>(),
   listOperationalSites,
+  listSharedWarehouseSites,
 }));
 
 import { ToastProvider } from '../../../components/shared/Toast';
@@ -42,6 +43,8 @@ describe('shipment create required progress (chip + missing-info panel)', { time
   beforeEach(() => {
     getBootstrap.mockReset();
     listOperationalSites.mockReset();
+    listSharedWarehouseSites.mockReset();
+    listSharedWarehouseSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
     listOperationalSites.mockResolvedValue([
       { id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' },
     ]);

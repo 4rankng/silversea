@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-10-22 — fix(lcl): Kho lấy hàng (CFS/Cảng) list từ danh mục chung, không lọc theo khách (card 261022093245)
+
+Zalo khách 22/10 09:31: form tạo lô hàng lẻ, ô bắt buộc "Kho lấy hàng
+(CFS/Cảng)\*" chỉ list kho gán cho KHÁCH HÀNG của lô — KH chưa có kho thấy
+"Chưa có kho cho khách hàng này", buộc bấm "+ Thêm kho". Nguyên tắc khách:
+kho CFS/đóng ghép trả hàng là hạ tầng DÙNG CHUNG — phải hiện từ danh mục
+kho/cảng chung (active), KHÔNG cần gán khách; chọn xong lưu như bây giờ.
+
+- **BE**: `GET /api/shipments/operational-sites` nhận thêm `?scope=shared` —
+  danh mục kho active MỌI khách (`listSharedWarehouseSitesForIntake`, same
+  intake roles + ACCOUNTANT giảm projection); `?customerId=<id>` giữ nguyên
+  hành vi cũ; thiếu cả hai hoặc scope lạ → 400 như cũ (pure resolver
+  `resolveOperationalSitesListQuery`, unit tests 4 case). Bỏ 2 guard
+  customer-scope đang chặn kho thuộc khách khác: `loadSiteSnapshot`
+  (shipment-fulfillment — chạy trong quick-create) và validate điểm LCL khi
+  submit dispatch (shipment-intake): nhà máy GIỮ customer-scope, kho chỉ cần
+  WAREHOUSE + active + live.
+- **FE**: dropdown Kho (CFS/Cảng) trên `ShipmentCreateLclRouteSection` đọc
+  danh mục chung (`listSharedWarehouseSites`, load on mount + refetch khi tạo
+  kho, optimistic merge sau "+ Thêm kho"); payload label resolution qua union
+  customer-sites + shared catalog (kéo location đúng cho kho thuộc khách
+  khác); hint reword "Chưa có kho trong danh mục" — chỉ khi danh mục chung
+  rỗng; nút "+ Thêm kho" giữ nguyên, không còn là cách duy nhất.
+- **QA (LOCAL, rung 3)**: KH 25282 (0 kho riêng) — BEFORE (trunk 839d0577):
+  dropdown 0 option + hint cũ; AFTER: 13 kho active của 5 khách, tạo lô thật
+  với kho chung "ICD Hà Nội" (site 442, khách 4) → shipment 312533 /
+  SHP-2610-19366, `pickup_warehouse_site_id=442`, pickup/delivery location giải
+  đúng label. Regression case
+  `testplan/cases/case-QA-2026-10-22-lcl-kho-chung.md`; evidence
+  `qa/2026-10-22-lcl-kho-chung/` (API before/after + UI driver + screenshots).
+
 ## 2026-10-21 — fix(accounting): FIX CHI PHÍ lần 2 (spec 19/10) — verify 9 mục + money-format sweep
 
 Verify-first trên build `56a5d509` (spec `19.10 - FIX CHI PHÍ.docx` + 3 mục §c

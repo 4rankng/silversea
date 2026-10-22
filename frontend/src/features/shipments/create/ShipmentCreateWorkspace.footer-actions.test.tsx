@@ -3,10 +3,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBootstrap, quickCreateShipment, listOperationalSites } = vi.hoisted(() => ({
+const { getBootstrap, quickCreateShipment, listOperationalSites, listSharedWarehouseSites } = vi.hoisted(() => ({
   getBootstrap: vi.fn(),
   quickCreateShipment: vi.fn(),
   listOperationalSites: vi.fn(),
+  listSharedWarehouseSites: vi.fn(),
 }));
 vi.mock('../../../api/tripClient', () => ({ tripClient: { getBootstrap } }));
 vi.mock('./FreightPreviewCard', () => ({ FreightPreviewCard: () => null }));
@@ -14,6 +15,7 @@ vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   ...await importOriginal<typeof ShipmentClientModule>(),
   quickCreateShipment,
   listOperationalSites,
+  listSharedWarehouseSites,
 }));
 
 import type * as ShipmentClientModule from '../../../api/shipmentClient';
@@ -73,6 +75,8 @@ describe('FB-108 card 171026115830 — the action cluster repeated at the foot o
     getBootstrap.mockReset();
     quickCreateShipment.mockReset();
     listOperationalSites.mockReset();
+    listSharedWarehouseSites.mockReset();
+    listSharedWarehouseSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
     listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
     quickCreateShipment.mockResolvedValue({ id: 501, version: 1, initialDeclarationId: null });
     getBootstrap.mockResolvedValue({
