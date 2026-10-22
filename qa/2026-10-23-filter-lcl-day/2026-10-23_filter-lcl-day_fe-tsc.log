@@ -1,0 +1,3 @@
+CMD: npx tsgo -b && npx tsc -b
+EXIT_TSGO=0
+EXIT_TSC=0

@@ -1,3 +1,59 @@
+# HANDOFF — fix-filter-lcl-day (card 231026000252, ticket 261022201006b)
+
+- Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/1njkloyy/
+  fix-filter-lcl-day`, branch `fix-filter-lcl-day`). Last updated: 2026-10-23.
+- Goal: "FILTER NGÀY LỌT lô LCL" — lot K547238574983 (LCL, transportDate
+  2026-10-17) survived the 23/10..23/10 filter on Chi tiết while Tổng quan
+  filtered it away. Owner law: **undated = luôn hiện; dated = phải qua filter
+  như lô cont**; giữ đồng bộ LCL-01 (SAME filter → same lots on both surfaces).
+  STATUS: DONE — fix + tests + real-data QA + UI rung-3 + full gates green,
+  independent review in flight at handoff time (commit lands after verdict).
+- Root cause: `containerDayTriageCondition` (cus-workspace-sql.service.ts)
+  lane-1 blanket escape for container-less LCL rows (added for LCL-01) exempted
+  DATED LCL lot rows from the day triage entirely ("bỏ qua bộ lọc ngày hoàn toàn").
+- Fix — one law, three shared implementations:
+  1. `containerDayTriageCondition`: 2 arms now (null-day passthrough +
+     dateArms). A lot row's day is its EDD leg of
+     `coalesce(appointment VN, EDD)`; dated rows pass the filter.
+  2. `shipmentTransportDateCondition` (Tổng quan + list-summaries deliveryDate
+     arm = core.routes master-plan): null-day passthrough in BOTH arms (EXISTS +
+     container-less) so undated lots show under every filter. Card
+     261022201006b's Z-leak gate (`not exists (containers)` on the EDD leg) kept.
+  3. `filterContainersByDateRange` (container-date-filter.ts, scoped-count twin):
+     keeps rows resolving to no day — counts never contradict rows (2 old pins
+     flipped to the new contract, cited to the card).
+- Tests: 4 named cases (LCL dated in-range / LCL dated out-range / LCL undated /
+  cont dated) in colocated `backend/src/services/container-date-filter.test.ts`
+  (pre-ruling location; pure unit) + SQL-contract pins rewritten in
+  `backend/src/tests/unit/cus-container-day-triage.test.ts` and
+  `backend/src/tests/unit/shipment-transport-date-condition.test.ts`.
+- Evidence `qa/2026-10-23-filter-lcl-day/`: repro before 19/27 (8 FAIL = defect,
+  incl. real lot on Chi tiết 23/10) → after 27/27; UI rung-3 17/17 (both screens,
+  screenshots + DOM + scoped requests + DB proof); tiepvu-filter-ui rerun 7/7
+  (driver has 7 checks — brief said 8); boundary probe 13/13; lcl01-lan2-repro
+  5/7 — the 2 FAILs are ONE dated-2099 fixture under Chi-tiết's default lens,
+  superseded by req 2 (see case doc Supersession note).
+- Supersession (read before claiming "phá LCL-01"): the old LCL-01 repro's
+  "dated LCL lot visible on CHI TIẾT default lens" checks ARE requirement 2's
+  target behavior reversed — dated = phải qua filter (acceptance: fixture dated
+  2026-10-17 under 23/10 filter → 0 kết quả). Same-filter sync verified by the
+  new driver's SYNC checks; undated-always is the discoverability anchor.
+- Gates: root lint 0 · be-tsc 0 · BE full 338/338 · fe tsgo 0 + `tsc -b` 0 ·
+  FE full 5489/5489 (711 files) · make build 0 · boundary probe 13/13 ·
+  scoped date-filter tests 26/26. dev-port-contract 11/11 (one driver-comment
+  port hardcode fixed in the new repro driver).
+- Local env: BE worktree :3008 + FE :7181 (VITE_API_PROXY_TARGET 3008), DB :5441
+  (ss-prod-db = staging mirror; real lot K547238574983 = id 124 / SHP-2610-00064,
+  booking_ref column). Demo `cus` user CREATED (local-only, customer_id=1,
+  testaccounts.txt demo stand-in) because the staging mirror has no CUS demo
+  account (prod has none by design) — needed for the tiepvu UI rerun. Trunk
+  :3002/:7175 untouched.
+- Not covered / limits: `filterContainersByDateRange` undated-keep changes scoped
+  count cells + dispatch master-plan totals to match visible rows (by design,
+  not separately UI-swept); FE default-lens asymmetry (Tổng quan bare vs Chi
+  tiết today-lens) unchanged — identical to cont lots ("như lô cont"); customs
+  cutoff (`dateFrom/dateTo` on /api/shipments) deliberately untouched.
+
 # HANDOFF — fix-tiepvu-rb2 (cards 261022201006b/c, TiepVu 22/10 evening)
 
 - Owner/controller: this session (worktree

@@ -1,0 +1,2 @@
+CMD: cd backend && npx tsc --noEmit
+EXIT=0

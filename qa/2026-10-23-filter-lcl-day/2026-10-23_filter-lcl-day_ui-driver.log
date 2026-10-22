@@ -1,0 +1,23 @@
+# 2026-10-23 LCL day-filter UI drive — backend=http://localhost:3008/api front=http://localhost:7181 stamp=03820207
+# fixtures: LDAYUI03820207D (LCL dated 2026-10-17), LDAYUI03820207U (LCL undated)
+PASS dated-out-tongquan: request scoped to LDAYUI03820207D with the day filter :: http://localhost:7181/api/shipments/cus-workspace?page=1&limit=20&searchSuffix=LDAYUI03820207D&transportDateFrom=2026-10-23&transportDateTo=2026-10-23
+PASS dated-out-tongquan: fixture LDAYUI03820207D ABSENT on /shipments filter 2026-10-23 :: body contains=false
+PASS dated-out-chitiet: request scoped to LDAYUI03820207D with the day filter :: http://localhost:7181/api/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=LDAYUI03820207D&transportDateFrom=2026-10-23&transportDateTo=2026-10-23
+PASS dated-out-chitiet: fixture LDAYUI03820207D ABSENT on /shipments-detail filter 2026-10-23 :: body contains=false
+PASS dated-in-tongquan: request scoped to LDAYUI03820207D with the day filter :: http://localhost:7181/api/shipments/cus-workspace?page=1&limit=20&searchSuffix=LDAYUI03820207D&transportDateFrom=2026-10-17&transportDateTo=2026-10-17
+PASS dated-in-tongquan: fixture LDAYUI03820207D PRESENT on /shipments filter 2026-10-17 :: body contains=true
+PASS dated-in-chitiet: request scoped to LDAYUI03820207D with the day filter :: http://localhost:7181/api/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=LDAYUI03820207D&transportDateFrom=2026-10-17&transportDateTo=2026-10-17
+PASS dated-in-chitiet: fixture LDAYUI03820207D PRESENT on /shipments-detail filter 2026-10-17 :: body contains=true
+PASS undated-tongquan: request scoped to LDAYUI03820207U with the day filter :: http://localhost:7181/api/shipments/cus-workspace?page=1&limit=20&searchSuffix=LDAYUI03820207U&transportDateFrom=2026-10-23&transportDateTo=2026-10-23
+PASS undated-tongquan: fixture LDAYUI03820207U PRESENT on /shipments filter 2026-10-23 :: body contains=true
+PASS undated-chitiet: request scoped to LDAYUI03820207U with the day filter :: http://localhost:7181/api/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=LDAYUI03820207U&transportDateFrom=2026-10-23&transportDateTo=2026-10-23
+PASS undated-chitiet: fixture LDAYUI03820207U PRESENT on /shipments-detail filter 2026-10-23 :: body contains=true
+PASS undated-bare-tongquan: request scoped to LDAYUI03820207U with the day filter :: http://localhost:7181/api/shipments/cus-workspace?page=1&limit=20&searchSuffix=LDAYUI03820207U
+PASS undated-bare-tongquan: fixture LDAYUI03820207U PRESENT on /shipments filter bare :: body contains=true
+PASS undated-bare-chitiet: request scoped to LDAYUI03820207U with the day filter :: http://localhost:7181/api/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=LDAYUI03820207U&transportDateFrom=2026-10-23&transportDateTo=2026-10-23
+PASS undated-bare-chitiet: fixture LDAYUI03820207U PRESENT on /shipments-detail filter bare :: body contains=true
+PASS console errors none :: clean
+DB proof:
+LDAYUI03820207D | transportDate=2026-10-17
+LDAYUI03820207U | transportDate=NULL
+17/17 checks pass

@@ -5,11 +5,10 @@
  * re-exports every symbol so consumer imports are unchanged. Acyclic rule:
  * readers (main) and mapping import FROM this leaf, never the reverse.
  */
-import { and, eq, isNull, or, sql, type Column, type SQL } from 'drizzle-orm';
+import { and, isNull, or, sql, type Column, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { type ShipmentCusContainerSortKey, type ShipmentCusWorkspaceSortKey } from '@tingting/shared';
 import * as s from '../db/schema';
-import { CARGO_MODE } from '../db/schema';
 import { operationalName } from '../db/master-data-name';
 
 export const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.customers.name);
@@ -42,12 +41,12 @@ export function containerTransportDateSql() {
   )`;
 }
 
-/** Lot-level transport-date filter (cards 261022201006b): the lot's schedule
- *  days are the UNION of its containers' coalesce(appointment VN date, EDD)
- *  days — the exact per-container law `containerTransportDateSql()` states —
- *  and the lot-level expectedDeliveryDate is the day ONLY for a lot that owns
- *  no container at all (container-less LCL lots, intake skeletons before the
- *  first container exists).
+/** Lot-level transport-date filter (cards 261022201006b and 231026000252):
+ *  the lot's schedule days are the UNION of its containers' coalesce(appointment
+ *  VN date, EDD) days — the exact per-container law `containerTransportDateSql()`
+ *  states — and the lot-level expectedDeliveryDate is the day ONLY for a lot
+ *  that owns no container at all (container-less LCL lots, intake skeletons
+ *  before the first container exists).
  *
  *  The previous shape OR-ed the EDD arm UNCONDITIONALLY, so a lot whose every
  *  container had been reappointed to another day still surfaced under its old
@@ -55,47 +54,58 @@ export function containerTransportDateSql() {
  *  fixture lot Z) and contradicted the Chi tiết workboard, which day-gates
  *  each container row by the same coalesce. Gating the fallback restores the
  *  single-source contract shared by Tổng quan, Chi tiết and the dispatch
- *  master-plan delivery-date filter. */
+ *  master-plan delivery-date filter.
+ *
+ *  Undated passes through (card 231026000252, lot K547238574983): a lot whose
+ *  only candidate day is NULL (container rows with neither appointment nor
+ *  lot EDD, or a container-less LCL lot with no transportDate) has no day a
+ *  range could match, yet the workboard keeps it under every lens
+ *  ("undated = luôn hiện"). Both arms therefore accept NULL alongside the
+ *  in-range test — dated must pass the filter, undated never gets dropped —
+ *  so Tổng quan, Chi tiết and the master-plan agree row-for-row. */
 export function shipmentTransportDateCondition(dateFrom: string, dateTo: string): SQL {
   return or(
     sql`exists (
       select 1 from ${s.shipmentContainers}
       where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-        and ${containerTransportDateSql()} between ${dateFrom} and ${dateTo}
+        and (${containerTransportDateSql()} is null
+          or ${containerTransportDateSql()} between ${dateFrom} and ${dateTo})
     )`,
     and(
       sql`not exists (
         select 1 from ${s.shipmentContainers}
         where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
       )`,
-      sql`${s.shipments.expectedDeliveryDate} >= ${dateFrom}`,
-      sql`${s.shipments.expectedDeliveryDate} <= ${dateTo}`,
+      or(
+        isNull(s.shipments.expectedDeliveryDate),
+        and(
+          sql`${s.shipments.expectedDeliveryDate} >= ${dateFrom}`,
+          sql`${s.shipments.expectedDeliveryDate} <= ${dateTo}`,
+        ),
+      ),
     ),
   )!;
 }
 
 /** Container workboard day triage (D.6, completed by cards 211026132257 and
- *  211026180528): the day triage narrows dated rows to their
- *  appointment/EDD day; a row with NO triage day at all rides outside it.
- *  Two shapes own that outside lane. (1) A container-less LCL lot (lan 1):
- *  lot rows are never day-gated — dated or not, whatever day the workboard
- *  lens holds, a lot visible on Tổng quan (whose default carries no date
- *  scope) is never missing on Chi tiết. The lot row's `transportDate` (its
- *  EDD) stays the sort/display schedule; it is simply not a filter gate.
- *  (2) A row whose triage day `coalesce(appointment, EDD)` is NULL (lan 2 —
- *  QA card 211026180528, staging lot SHP-2610-00069: intake skeleton with
- *  containers but no appointment and no EDD): no date range could ever
- *  match NULL, so the old dateArms-only branch dropped it while Tổng quan
- *  listed it — the same "no day it could match" law, one shape further.
+ *  211026180528, law fixed by card 231026000252, lot K547238574983): a row's
+ *  day is `coalesce(appointment VN date, EDD)` — for a container-less LCL lot
+ *  row that is simply the lot EDD — and the law is:
+ *    - dated rows must pass the active day filter, exactly like any container
+ *      row. The lan-1 blanket escape for container-less LCL lots (keep them
+ *      on the workboard whatever the lens) made transportDate=2026-10-17 stay
+ *      visible under a 23/10..23/10 filter on Chi tiết while Tổng quan
+ *      filtered it away — "bỏ qua bộ lọc ngày hoàn toàn".
+ *    - rows with NO day at all (coalesce NULL: no appointment and no EDD —
+ *      lan 2, QA card 211026180528, staging lot SHP-2610-00069) ride outside
+ *      the filter and always show: no date range could ever match NULL.
+ *  One law on both surfaces keeps the LCL-01 goal — a lot visible under a
+ *  filter on Tổng quan is visible under the SAME filter on Chi tiết — while
+ *  "undated = luôn hiện; dated = phải qua filter" holds for every row shape.
  *  This also revives the board's nulls-first sort arm: unscheduled rows sit
- *  at the top, mirroring the overview's operational priority queue. Dated
- *  container rows keep the full `dateArms` triage unchanged. */
+ *  at the top, mirroring the overview's operational priority queue. */
 export function containerDayTriageCondition(dateArms: SQL[]): SQL {
   return or(
-    and(
-      isNull(s.shipmentContainers.id),
-      eq(s.shipments.cargoMode, CARGO_MODE.LCL),
-    ),
     isNull(containerTransportDateSql()),
     and(...dateArms),
   )!;

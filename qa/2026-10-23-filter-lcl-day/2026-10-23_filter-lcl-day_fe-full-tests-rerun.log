@@ -1,0 +1,18 @@
+CMD: npx vite build && pnpm exec vitest run
+dist/assets/index-DQhyZHH8.js                            782.87 kB │ gzip: 224.99 kB
+dist/assets/exceljs.min-CcmEv2LI.js                      940.20 kB │ gzip: 271.34 kB
+✓ built in 5.70s
+EXIT_BUILD=0
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 710 passed (711)
+      Tests  1 failed | 5488 passed (5489)
+   Start at  05:14:46
+   Duration  172.82s (transform 31.45s, setup 103.64s, import 464.33s, tests 466.12s, environment 415.81s)
+
+EXIT_VITEST=1

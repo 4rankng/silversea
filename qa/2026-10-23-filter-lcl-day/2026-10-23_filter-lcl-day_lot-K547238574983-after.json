@@ -1,0 +1,1030 @@
+{
+  "backend": "http://localhost:3008/api",
+  "stamp": "03005341",
+  "label": "after",
+  "matrix": {
+    "tongquan": {
+      "23/10..23/10": {
+        "page": 1,
+        "limit": 20,
+        "total": 0,
+        "totalPages": 0,
+        "statusCounts": {
+          "needsSchedule": 0,
+          "needsVehicle": 0,
+          "waitingAccounting": 0
+        },
+        "items": []
+      },
+      "17/10..17/10": {
+        "page": 1,
+        "limit": 20,
+        "total": 1,
+        "totalPages": 1,
+        "statusCounts": {
+          "needsSchedule": 0,
+          "needsVehicle": 1,
+          "waitingAccounting": 1
+        },
+        "items": [
+          {
+            "id": 124,
+            "version": 4,
+            "status": "READY_FOR_DISPATCH",
+            "cargoMode": "LCL",
+            "bucket": "NEW",
+            "bucketLabel": "Mới tạo",
+            "customerName": "LOG COM",
+            "factoryName": "NEWEB-KHO 1",
+            "effectiveFactoryNames": [
+              "NEWEB-KHO 1"
+            ],
+            "billOrBookNumber": "K547238574983",
+            "declarationNumber": "CUS35-TEST-001",
+            "declarationNumbers": [
+              "CUS35-TEST-001"
+            ],
+            "shippingLineName": null,
+            "routeName": "KCN ĐỒNG VĂN, HÀ NAM",
+            "isCombined": false,
+            "direction": "EXPORT",
+            "containerSummary": "2 Pallet",
+            "packageCount": 2,
+            "packageType": "Pallet",
+            "weightKg": "100.00",
+            "volumeCbm": null,
+            "transportDate": "2026-10-17",
+            "customsCutoffAt": null,
+            "closingAt": null,
+            "plannedReturnAt": null,
+            "deliveryLocation": null,
+            "liftSiteNames": [],
+            "dropoffSiteNames": [],
+            "customerAppointmentAts": [],
+            "appointmentGroups": [],
+            "carrierAssignments": [],
+            "customerNotes": null,
+            "operationalNotes": null,
+            "raw": {
+              "customerId": 2,
+              "isAdHoc": false,
+              "factoryName": "NEWEB-KHO 1",
+              "routeId": 9,
+              "deliveryLocation": null,
+              "blNumber": null,
+              "bookingRef": "K547238574983",
+              "declarationNumber": "CUS35-TEST-001",
+              "tradeDirection": "EXPORT",
+              "shippingLineName": null,
+              "packageCount": 2,
+              "packageType": "Pallet",
+              "cargoWeightKg": "100.00",
+              "cargoVolumeCbm": null,
+              "customsCutoffAt": null,
+              "closingAt": null,
+              "plannedReturnAt": null,
+              "customerNotes": null,
+              "operationalNotes": null,
+              "declarationId": 64,
+              "declarationIssuedAt": null,
+              "declarationScope": "SINGLE",
+              "declarationNote": null,
+              "declarations": [
+                {
+                  "id": 64,
+                  "declarationNumber": "CUS35-TEST-001",
+                  "issuedAt": null,
+                  "scope": "SINGLE",
+                  "note": null
+                }
+              ]
+            },
+            "fieldAccess": {
+              "customerId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "factoryName": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "routeId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "deliveryLocation": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "blNumber": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "bookingRef": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "declarationNumber": {
+                "mode": "DIRECT",
+                "reason": "Cập nhật tờ khai trực tiếp theo lô hàng."
+              },
+              "tradeDirection": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "shippingLineName": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "packageCount": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "packageType": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "cargoWeightKg": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "cargoVolumeCbm": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "customsCutoffAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "closingAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "plannedReturnAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "customerNotes": {
+                "mode": "DIRECT",
+                "reason": "Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."
+              },
+              "operationalNotes": {
+                "mode": "DIRECT",
+                "reason": "Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."
+              }
+            },
+            "operational": {
+              "scheduleReadiness": "OVERDUE",
+              "vehicleReadiness": "WAITING_CARRIER",
+              "totalContainers": 0,
+              "assignedContainers": 0,
+              "externalContainers": 0,
+              "plateAssignedContainers": 0,
+              "missingCarrierContainers": 0,
+              "missingPlateContainers": 0,
+              "orderIssuedContainers": 0,
+              "transportDateEditable": true,
+              "deletable": true
+            },
+            "finance": {
+              "customerInvoiceTotal": null,
+              "customerNoInvoiceTotal": null,
+              "totalCost": "0",
+              "isLoss": null,
+              "hasPendingRecovery": false,
+              "customerChargeTotalsAvailable": false,
+              "totalCostAvailable": true,
+              "customerTotalsAuthority": "UNAVAILABLE"
+            },
+            "debitNote": {
+              "available": false,
+              "billingDocumentId": null,
+              "documentNumber": null,
+              "issuedAt": null,
+              "debitNoteStatus": null,
+              "disabledReason": "Chưa có Debit Note hiện hành đủ điều kiện."
+            },
+            "documentCustody": {
+              "status": null,
+              "label": null,
+              "available": false,
+              "editable": false
+            },
+            "accountingConfirmation": {
+              "status": "PENDING",
+              "confirmationId": null,
+              "checksum": null,
+              "billingDocumentId": null,
+              "confirmedAt": null,
+              "confirmedByName": null
+            },
+            "activeLock": null,
+            "action": {
+              "kind": "LOCK",
+              "label": "Khóa lô",
+              "enabled": false,
+              "disabledReason": "Chỉ CUS được khóa lô."
+            }
+          }
+        ]
+      },
+      "bare": {
+        "page": 1,
+        "limit": 20,
+        "total": 1,
+        "totalPages": 1,
+        "statusCounts": {
+          "needsSchedule": 0,
+          "needsVehicle": 1,
+          "waitingAccounting": 1
+        },
+        "items": [
+          {
+            "id": 124,
+            "version": 4,
+            "status": "READY_FOR_DISPATCH",
+            "cargoMode": "LCL",
+            "bucket": "NEW",
+            "bucketLabel": "Mới tạo",
+            "customerName": "LOG COM",
+            "factoryName": "NEWEB-KHO 1",
+            "effectiveFactoryNames": [
+              "NEWEB-KHO 1"
+            ],
+            "billOrBookNumber": "K547238574983",
+            "declarationNumber": "CUS35-TEST-001",
+            "declarationNumbers": [
+              "CUS35-TEST-001"
+            ],
+            "shippingLineName": null,
+            "routeName": "KCN ĐỒNG VĂN, HÀ NAM",
+            "isCombined": false,
+            "direction": "EXPORT",
+            "containerSummary": "2 Pallet",
+            "packageCount": 2,
+            "packageType": "Pallet",
+            "weightKg": "100.00",
+            "volumeCbm": null,
+            "transportDate": "2026-10-17",
+            "customsCutoffAt": null,
+            "closingAt": null,
+            "plannedReturnAt": null,
+            "deliveryLocation": null,
+            "liftSiteNames": [],
+            "dropoffSiteNames": [],
+            "customerAppointmentAts": [],
+            "appointmentGroups": [],
+            "carrierAssignments": [],
+            "customerNotes": null,
+            "operationalNotes": null,
+            "raw": {
+              "customerId": 2,
+              "isAdHoc": false,
+              "factoryName": "NEWEB-KHO 1",
+              "routeId": 9,
+              "deliveryLocation": null,
+              "blNumber": null,
+              "bookingRef": "K547238574983",
+              "declarationNumber": "CUS35-TEST-001",
+              "tradeDirection": "EXPORT",
+              "shippingLineName": null,
+              "packageCount": 2,
+              "packageType": "Pallet",
+              "cargoWeightKg": "100.00",
+              "cargoVolumeCbm": null,
+              "customsCutoffAt": null,
+              "closingAt": null,
+              "plannedReturnAt": null,
+              "customerNotes": null,
+              "operationalNotes": null,
+              "declarationId": 64,
+              "declarationIssuedAt": null,
+              "declarationScope": "SINGLE",
+              "declarationNote": null,
+              "declarations": [
+                {
+                  "id": 64,
+                  "declarationNumber": "CUS35-TEST-001",
+                  "issuedAt": null,
+                  "scope": "SINGLE",
+                  "note": null
+                }
+              ]
+            },
+            "fieldAccess": {
+              "customerId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "factoryName": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "routeId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "deliveryLocation": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "blNumber": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "bookingRef": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "declarationNumber": {
+                "mode": "DIRECT",
+                "reason": "Cập nhật tờ khai trực tiếp theo lô hàng."
+              },
+              "tradeDirection": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "shippingLineName": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "packageCount": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "packageType": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "cargoWeightKg": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "cargoVolumeCbm": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "customsCutoffAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "closingAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "plannedReturnAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "customerNotes": {
+                "mode": "DIRECT",
+                "reason": "Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."
+              },
+              "operationalNotes": {
+                "mode": "DIRECT",
+                "reason": "Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."
+              }
+            },
+            "operational": {
+              "scheduleReadiness": "OVERDUE",
+              "vehicleReadiness": "WAITING_CARRIER",
+              "totalContainers": 0,
+              "assignedContainers": 0,
+              "externalContainers": 0,
+              "plateAssignedContainers": 0,
+              "missingCarrierContainers": 0,
+              "missingPlateContainers": 0,
+              "orderIssuedContainers": 0,
+              "transportDateEditable": true,
+              "deletable": true
+            },
+            "finance": {
+              "customerInvoiceTotal": null,
+              "customerNoInvoiceTotal": null,
+              "totalCost": "0",
+              "isLoss": null,
+              "hasPendingRecovery": false,
+              "customerChargeTotalsAvailable": false,
+              "totalCostAvailable": true,
+              "customerTotalsAuthority": "UNAVAILABLE"
+            },
+            "debitNote": {
+              "available": false,
+              "billingDocumentId": null,
+              "documentNumber": null,
+              "issuedAt": null,
+              "debitNoteStatus": null,
+              "disabledReason": "Chưa có Debit Note hiện hành đủ điều kiện."
+            },
+            "documentCustody": {
+              "status": null,
+              "label": null,
+              "available": false,
+              "editable": false
+            },
+            "accountingConfirmation": {
+              "status": "PENDING",
+              "confirmationId": null,
+              "checksum": null,
+              "billingDocumentId": null,
+              "confirmedAt": null,
+              "confirmedByName": null
+            },
+            "activeLock": null,
+            "action": {
+              "kind": "LOCK",
+              "label": "Khóa lô",
+              "enabled": false,
+              "disabledReason": "Chỉ CUS được khóa lô."
+            }
+          }
+        ]
+      }
+    },
+    "chitiet": {
+      "23/10..23/10": {
+        "page": 1,
+        "limit": 20,
+        "total": 0,
+        "totalPages": 0,
+        "filterOptions": {
+          "customers": [
+            {
+              "id": 2,
+              "name": "LOG COM"
+            },
+            {
+              "id": 1,
+              "name": "Long Minh"
+            },
+            {
+              "id": 20,
+              "name": "YUANFANG"
+            }
+          ]
+        },
+        "items": []
+      },
+      "17/10..17/10": {
+        "page": 1,
+        "limit": 20,
+        "total": 1,
+        "totalPages": 1,
+        "filterOptions": {
+          "customers": [
+            {
+              "id": 2,
+              "name": "LOG COM"
+            },
+            {
+              "id": 1,
+              "name": "Long Minh"
+            },
+            {
+              "id": 20,
+              "name": "YUANFANG"
+            }
+          ]
+        },
+        "items": [
+          {
+            "id": -124,
+            "isLotLevel": true,
+            "shipmentId": 124,
+            "shipmentVersion": 4,
+            "ordinal": 1,
+            "customerId": 2,
+            "isAdHoc": false,
+            "customerName": "LOG COM",
+            "factoryName": "NEWEB-KHO 1",
+            "routeName": "KCN ĐỒNG VĂN, HÀ NAM",
+            "billOrBookNumber": "K547238574983",
+            "declarationNumber": "CUS35-TEST-001",
+            "shippingLineName": null,
+            "isCombined": false,
+            "classification": "LCL",
+            "direction": "EXPORT",
+            "containerNumber": null,
+            "containerTypeLabel": null,
+            "dispatchStatus": "AWAITING_VEHICLE",
+            "carrierName": null,
+            "carrierType": null,
+            "plateNumber": null,
+            "actualTruckNo": null,
+            "billingTruckNo": null,
+            "revVehicleClassCode": null,
+            "costVehicleClassCode": null,
+            "liftSite": "NEWEB-KHO 1",
+            "dropoffSite": "VICONSHIP",
+            "transportDate": "2026-10-17",
+            "closingAt": null,
+            "plannedReturnAt": null,
+            "customerAppointmentAt": null,
+            "customerNotes": null,
+            "operationalNotes": null,
+            "raw": {
+              "containerNumber": null,
+              "containerTypeId": null,
+              "cargoWeightKg": null,
+              "cargoVolumeCbm": null
+            },
+            "fieldAccess": {
+              "operationalSiteId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "containerNumber": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "containerTypeId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "cargoWeightKg": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "cargoVolumeCbm": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "routeId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "liftSiteId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "dropoffSiteId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              }
+            },
+            "shipmentFieldAccess": {
+              "customerId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "factoryName": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "routeId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "deliveryLocation": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "blNumber": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "bookingRef": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "declarationNumber": {
+                "mode": "DIRECT",
+                "reason": "Cập nhật tờ khai trực tiếp theo lô hàng."
+              },
+              "tradeDirection": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "shippingLineName": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "packageCount": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "packageType": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "cargoWeightKg": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "cargoVolumeCbm": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "customsCutoffAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "closingAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "plannedReturnAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "customerNotes": {
+                "mode": "DIRECT",
+                "reason": "Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."
+              },
+              "operationalNotes": {
+                "mode": "DIRECT",
+                "reason": "Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."
+              }
+            },
+            "informationStatus": "COMPLETE",
+            "missingFields": [],
+            "shipmentScheduleEditable": false,
+            "shipmentNotesEditable": false,
+            "carrierEditable": false,
+            "plateEditable": false,
+            "liftSiteEditable": false,
+            "dropoffSiteEditable": false,
+            "routeEditable": false,
+            "customerAppointmentEditable": false,
+            "scheduleEditable": false
+          }
+        ]
+      },
+      "bare": {
+        "page": 1,
+        "limit": 20,
+        "total": 1,
+        "totalPages": 1,
+        "filterOptions": {
+          "customers": [
+            {
+              "id": 2,
+              "name": "LOG COM"
+            },
+            {
+              "id": 1,
+              "name": "Long Minh"
+            },
+            {
+              "id": 20,
+              "name": "YUANFANG"
+            }
+          ]
+        },
+        "items": [
+          {
+            "id": -124,
+            "isLotLevel": true,
+            "shipmentId": 124,
+            "shipmentVersion": 4,
+            "ordinal": 1,
+            "customerId": 2,
+            "isAdHoc": false,
+            "customerName": "LOG COM",
+            "factoryName": "NEWEB-KHO 1",
+            "routeName": "KCN ĐỒNG VĂN, HÀ NAM",
+            "billOrBookNumber": "K547238574983",
+            "declarationNumber": "CUS35-TEST-001",
+            "shippingLineName": null,
+            "isCombined": false,
+            "classification": "LCL",
+            "direction": "EXPORT",
+            "containerNumber": null,
+            "containerTypeLabel": null,
+            "dispatchStatus": "AWAITING_VEHICLE",
+            "carrierName": null,
+            "carrierType": null,
+            "plateNumber": null,
+            "actualTruckNo": null,
+            "billingTruckNo": null,
+            "revVehicleClassCode": null,
+            "costVehicleClassCode": null,
+            "liftSite": "NEWEB-KHO 1",
+            "dropoffSite": "VICONSHIP",
+            "transportDate": "2026-10-17",
+            "closingAt": null,
+            "plannedReturnAt": null,
+            "customerAppointmentAt": null,
+            "customerNotes": null,
+            "operationalNotes": null,
+            "raw": {
+              "containerNumber": null,
+              "containerTypeId": null,
+              "cargoWeightKg": null,
+              "cargoVolumeCbm": null
+            },
+            "fieldAccess": {
+              "operationalSiteId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "containerNumber": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "containerTypeId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "cargoWeightKg": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "cargoVolumeCbm": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "routeId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "liftSiteId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              },
+              "dropoffSiteId": {
+                "mode": "READ_ONLY",
+                "reason": "Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng."
+              }
+            },
+            "shipmentFieldAccess": {
+              "customerId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "factoryName": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "routeId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "deliveryLocation": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "blNumber": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "bookingRef": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "declarationNumber": {
+                "mode": "DIRECT",
+                "reason": "Cập nhật tờ khai trực tiếp theo lô hàng."
+              },
+              "tradeDirection": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "shippingLineName": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "packageCount": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "packageType": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "cargoWeightKg": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "cargoVolumeCbm": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "customsCutoffAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "closingAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "plannedReturnAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trường này."
+              },
+              "customerNotes": {
+                "mode": "DIRECT",
+                "reason": "Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."
+              },
+              "operationalNotes": {
+                "mode": "DIRECT",
+                "reason": "Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán."
+              }
+            },
+            "informationStatus": "COMPLETE",
+            "missingFields": [],
+            "shipmentScheduleEditable": false,
+            "shipmentNotesEditable": false,
+            "carrierEditable": false,
+            "plateEditable": false,
+            "liftSiteEditable": false,
+            "dropoffSiteEditable": false,
+            "routeEditable": false,
+            "customerAppointmentEditable": false,
+            "scheduleEditable": false
+          }
+        ]
+      }
+    },
+    "core": {
+      "23/10..23/10": {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "limit": 50
+      },
+      "17/10..17/10": {
+        "items": [
+          {
+            "id": 124,
+            "shipmentCode": "SHP-2610-00064",
+            "version": 4,
+            "customerId": 2,
+            "isAdHoc": false,
+            "rawCustomerName": null,
+            "rawRouteName": null,
+            "routeId": 9,
+            "cargoTypeId": null,
+            "responsibleUnitId": null,
+            "status": "READY_FOR_DISPATCH",
+            "bookingRef": "K547238574983",
+            "blNumber": null,
+            "tradeDirection": "EXPORT",
+            "cargoMode": "LCL",
+            "operationalSiteId": 2,
+            "pickupWarehouseSiteId": 11,
+            "factoryName": "NEWEB-KHO 1",
+            "isCombined": false,
+            "shippingLineName": null,
+            "expectedDeliveryDate": "2026-10-17",
+            "customsCutoffAt": null,
+            "closingAt": null,
+            "plannedReturnAt": null,
+            "orderExchangeStartedAt": null,
+            "orderExchangeStartedBy": null,
+            "orderExchangeCompletedAt": null,
+            "orderExchangeCompletedBy": null,
+            "cargoWeightKg": "100.00",
+            "cargoVolumeCbm": null,
+            "packageCount": 2,
+            "packageType": "Pallet",
+            "operationalNotes": null,
+            "customerNotes": null,
+            "pickupLocation": null,
+            "deliveryLocation": null,
+            "costGroupId": null,
+            "costGroupOrder": null,
+            "revGroupId": null,
+            "revGroupOrder": null,
+            "actualTruckNo": null,
+            "billingTruckNo": null,
+            "costVehicleClassId": null,
+            "revVehicleClassId": null,
+            "contactName": null,
+            "contactPhone": null,
+            "createdBy": 18,
+            "updatedBy": 19,
+            "createdAt": "2026-10-17T03:56:08.375Z",
+            "updatedAt": "2026-10-21T04:51:09.949Z",
+            "deletedAt": null,
+            "customerName": "LOG COM",
+            "pickupWarehouseSiteName": "VICONSHIP",
+            "costVehicleClassCode": null,
+            "costVehicleClassName": null,
+            "costVehicleClassIsContainer": null,
+            "costGroupPrincipalRef": null,
+            "revGroupPrincipalRef": null,
+            "costGroupMemberCount": null,
+            "revGroupMemberCount": null,
+            "factoryNotes": "\"3. Lưu ý cần chú ý khi đóng/ trả hàng tại nhà máy\n- Lái xe đăng ký bảo vệ vào đóng/ trả cho công ty Long Minh- Trước khi vào đóng/ trả hàng lái xe gọi đúng SĐT\nngười quản lý hàng xuất/nhập trong kho để hướng dẫn vị trí đóng/ trả hàng- Nghiêm cấm hút thuốc trong địa phận công ty\n- Hàng đóng điện tử yêu cầu vỏ đẹp, sàn chắc khỏe, ko thủng rách, dính dầu, nước, không, mù\"",
+            "opsRecoveryNotes": [],
+            "containersMissingAppointment": 0,
+            "containerTotal": 0,
+            "hasActiveLclShipment": true,
+            "factoryNames": [
+              "NEWEB-KHO 1"
+            ],
+            "routeName": "KCN ĐỒNG VĂN, HÀ NAM",
+            "cargoSummary": "2 Pallet",
+            "shippingLineSummary": null,
+            "carrierSummary": null,
+            "vehiclePlateSummary": null,
+            "declarationNumber": "CUS35-TEST-001",
+            "containerCount20": 0,
+            "containerCount40": 0,
+            "containerTypeSummary": null,
+            "totalCargoWeightKg": null,
+            "allocationStatus": "NOT_ALLOCATED",
+            "carrierAllocationSummary": [],
+            "appointmentGroups": [],
+            "containerPortGroups": []
+          }
+        ],
+        "total": 1,
+        "page": 1,
+        "limit": 50
+      },
+      "bare": {
+        "items": [
+          {
+            "id": 124,
+            "shipmentCode": "SHP-2610-00064",
+            "version": 4,
+            "customerId": 2,
+            "isAdHoc": false,
+            "rawCustomerName": null,
+            "rawRouteName": null,
+            "routeId": 9,
+            "cargoTypeId": null,
+            "responsibleUnitId": null,
+            "status": "READY_FOR_DISPATCH",
+            "bookingRef": "K547238574983",
+            "blNumber": null,
+            "tradeDirection": "EXPORT",
+            "cargoMode": "LCL",
+            "operationalSiteId": 2,
+            "pickupWarehouseSiteId": 11,
+            "factoryName": "NEWEB-KHO 1",
+            "isCombined": false,
+            "shippingLineName": null,
+            "expectedDeliveryDate": "2026-10-17",
+            "customsCutoffAt": null,
+            "closingAt": null,
+            "plannedReturnAt": null,
+            "orderExchangeStartedAt": null,
+            "orderExchangeStartedBy": null,
+            "orderExchangeCompletedAt": null,
+            "orderExchangeCompletedBy": null,
+            "cargoWeightKg": "100.00",
+            "cargoVolumeCbm": null,
+            "packageCount": 2,
+            "packageType": "Pallet",
+            "operationalNotes": null,
+            "customerNotes": null,
+            "pickupLocation": null,
+            "deliveryLocation": null,
+            "costGroupId": null,
+            "costGroupOrder": null,
+            "revGroupId": null,
+            "revGroupOrder": null,
+            "actualTruckNo": null,
+            "billingTruckNo": null,
+            "costVehicleClassId": null,
+            "revVehicleClassId": null,
+            "contactName": null,
+            "contactPhone": null,
+            "createdBy": 18,
+            "updatedBy": 19,
+            "createdAt": "2026-10-17T03:56:08.375Z",
+            "updatedAt": "2026-10-21T04:51:09.949Z",
+            "deletedAt": null,
+            "customerName": "LOG COM",
+            "pickupWarehouseSiteName": "VICONSHIP",
+            "costVehicleClassCode": null,
+            "costVehicleClassName": null,
+            "costVehicleClassIsContainer": null,
+            "costGroupPrincipalRef": null,
+            "revGroupPrincipalRef": null,
+            "costGroupMemberCount": null,
+            "revGroupMemberCount": null,
+            "factoryNotes": "\"3. Lưu ý cần chú ý khi đóng/ trả hàng tại nhà máy\n- Lái xe đăng ký bảo vệ vào đóng/ trả cho công ty Long Minh- Trước khi vào đóng/ trả hàng lái xe gọi đúng SĐT\nngười quản lý hàng xuất/nhập trong kho để hướng dẫn vị trí đóng/ trả hàng- Nghiêm cấm hút thuốc trong địa phận công ty\n- Hàng đóng điện tử yêu cầu vỏ đẹp, sàn chắc khỏe, ko thủng rách, dính dầu, nước, không, mù\"",
+            "opsRecoveryNotes": [],
+            "containersMissingAppointment": 0,
+            "containerTotal": 0,
+            "hasActiveLclShipment": true,
+            "factoryNames": [
+              "NEWEB-KHO 1"
+            ],
+            "routeName": "KCN ĐỒNG VĂN, HÀ NAM",
+            "cargoSummary": "2 Pallet",
+            "shippingLineSummary": null,
+            "carrierSummary": null,
+            "vehiclePlateSummary": null,
+            "declarationNumber": "CUS35-TEST-001",
+            "containerCount20": 0,
+            "containerCount40": 0,
+            "containerTypeSummary": null,
+            "totalCargoWeightKg": null,
+            "allocationStatus": "NOT_ALLOCATED",
+            "carrierAllocationSummary": [],
+            "appointmentGroups": [],
+            "containerPortGroups": []
+          }
+        ],
+        "total": 1,
+        "page": 1,
+        "limit": 50
+      }
+    }
+  }
+}
