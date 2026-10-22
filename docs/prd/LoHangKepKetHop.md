@@ -264,3 +264,15 @@ Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi v�
 |---|---|---|---|
 | Nâng/Hạ với lô LCL (Chi tiết lô) | **LCL không có khái niệm nâng/hạ** — hiển thị **điểm đóng / điểm trả** đúng nghĩa lô lẻ; cột Nâng/Hạ không giữ placeholder "Chưa cập nhật" cho LCL | card 261022093846 | LAND `ca57c8fc` (xem §6.3) |
 | Kho lấy hàng (CFS) form LCL (§7.2) | Kho lấy hàng = **danh mục dùng chung**, **KHÔNG lọc theo khách hàng** đã chọn | card 261022093245 (Zalo 22/10 09:31) | Ruling chốt — combobox kho lấy hàng không scoped theo KH |
+
+## Rulings & Changes 22/10 (TiepVu22Oct-2)
+
+## Rulings & Changes 22/10 (TiepVu22Oct-2)
+### Card 261022213755b — Search kho CFS phải khớp 'GLC'
+- Combobox Kho lấy hàng (danh mục chung — card 261022093245): gõ GLC/Glc/glc phải ra kho GLC (case-insensitive + contains, normalize dấu). Data có GLC thì phải thấy.
+- Nguồn: TiepVu22Oct-2 22/10 · landed 24f8d14c.
+
+## Rulings & Changes 22/10 (TiepVu22Oct-2)
+### Card 261022213755c — Tag NHẬP LẺ / XUẤT LẺ riêng cho lô lẻ
+- List + Chi tiết lô: lô LCL hiển thị badge NHẬP LẺ / XUẤT LẺ (hoặc icon ký hiệu riêng) nhất quán style NHẬP/XUẤT — hết lẫn lộn với lô cont.
+- Nguồn: TiepVu22Oct-2 22/10 · landed 24f8d14c.

@@ -224,3 +224,15 @@ Các điểm này cần được làm rõ với người phụ trách nghiệp v
 Ứng dụng gửi yêu cầu nghiệp vụ bình thường; nếu backend không khả dụng thì báo lỗi API và giữ nội dung chưa lưu trong màn hình để người dùng thử lại. Không heartbeat, kiểm tra sức khỏe trước thao tác hoặc tự gửi lại mutation khi mạng phục hồi.
 
 - Chi phí trên chuyến đang tồn tại nhưng chưa gắn lô hàng vẫn nhập và xem lại được theo quyền hiện hành. Chỉ liên kết sổ đối chiếu lô khi có lô thật; không tạo lô/chuyến giả và không mất người chi, chứng từ hoặc số tiền đã nhập.
+
+## Rulings & Changes 22/10 (TiepVu22Oct-2)
+
+## Rulings & Changes 22/10 (TiepVu22Oct-2)
+### Card 261022213755a — Nhận lệnh KHÔNG bắt buộc tải ảnh
+- Luồng nhận lệnh: ảnh là TÙY CHỌN — nhận lệnh được khi chưa có ảnh; upload sau nhận cũng được.
+- Nguồn: TiepVu22Oct-2.docx (Tiệp Vũ 22/10) · landed 24f8d14c.
+
+## Rulings & Changes 22/10 (TiepVu22Oct-2)
+### Card 261022201006c / 261022213755b — BỎ mã chuyến trên màn lái xe
+- Mã chuyến (REQ-07 cũ) KHÔNG còn hiển thị trên UI driver (field DB/API giữ nguyên).
+- Nguồn: TiepVu22Oct 22/10 · landed 9a3441b0/8fa41805.
