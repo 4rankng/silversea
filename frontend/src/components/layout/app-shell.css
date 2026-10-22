@@ -36,6 +36,61 @@
   background: var(--bg);
 }
 
+/* ─── iOS standalone bottom-gap (consult Gemini+DeepSeek 23/10, fixes #2+#4) ─
+   A home-screen WKWebView reports a visualViewport shorter than the screen
+   (WebKit bug) and 100dvh can resolve short of the physical bottom, so the
+   dvh-sized shell can stop above the true edge and the canvas below reads
+   as a gray band. Inside a standalone launch only, the shell (and its row
+   track) grows through the fallback chain to the stable LARGE viewport
+   (100lvh — immune to the standalone dvh shrink), then to the JS-measured
+   --app-height from lib/ios-standalone-viewport.ts once the visual viewport
+   actually diverges. height goes auto so min-height/track own the size.
+   Normal browsers are untouched: gated on the hybrid `pwa-standalone`
+   class from lib/pwa-standalone.ts (iOS WebKit evaluates the display-mode
+   media query false even when launched standalone) with the media query as
+   belt-and-braces for engines that honor it. The .is-driver variant beats
+   bottom-nav.css's `.app.is-driver { min-height: 100% }` on iOS. */
+html.pwa-standalone .app,
+html.pwa-standalone .app.is-driver {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: 100lvh;
+  min-height: var(--app-height, 100lvh);
+  grid-template-rows: 100vh;
+  grid-template-rows: 100dvh;
+  grid-template-rows: 100lvh;
+  grid-template-rows: var(--app-height, 100lvh);
+  box-sizing: border-box;
+}
+
+/* The main column keeps its own 100dvh height otherwise; inside the
+   lvh/--app-height row it must stretch to the TRACK, not re-impose dvh
+   (a stale dvh here would re-shorten the scroll area the fix just grew). */
+html.pwa-standalone .app-main {
+  height: auto;
+}
+
+@media all and (display-mode: standalone) {
+  .app,
+  .app.is-driver {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: 100lvh;
+    min-height: var(--app-height, 100lvh);
+    grid-template-rows: 100vh;
+    grid-template-rows: 100dvh;
+    grid-template-rows: 100lvh;
+    grid-template-rows: var(--app-height, 100lvh);
+    box-sizing: border-box;
+  }
+
+  .app-main {
+    height: auto;
+  }
+}
+
 /* Desktop sidebar toggle (1024px and above) */
 @media (min-width: 1024px) {
   .app.sidebar-closed {

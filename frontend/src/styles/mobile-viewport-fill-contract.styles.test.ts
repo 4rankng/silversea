@@ -62,8 +62,11 @@ describe('mobile viewport-fill contract (card 20261004_327)', () => {
     expect(shell).toMatch(/height: 100%;\s*height: 100dvh;/);
     expect(shell).toMatch(/\.app\s*\{[\s\S]*?background:\s*var\(--bg\);/);
     expect(shell).toMatch(/\.app-body,[\s\S]*?background:\s*var\(--bg\);/);
-    // The root canvas paint stays as defense in depth for genuine overscroll.
-    expect(base).toMatch(/html\s*\{[^}]*background:\s*var\(--bg\);/);
+    // The root canvas paint stays as defense in depth for genuine overscroll —
+    // and since the bottom-gap unification (consult Gemini+DeepSeek 23/10) it
+    // is pinned on ALL THREE canvas layers by one shared rule: html (the
+    // propagated canvas), body and #root must never drift to a foreign tone.
+    expect(base).toMatch(/html,\s*body,\s*#root\s*\{\s*background:\s*var\(--bg\);\s*\}/);
   });
 
   it('the retired slack band does not come back', () => {

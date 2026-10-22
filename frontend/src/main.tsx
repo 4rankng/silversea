@@ -6,6 +6,7 @@ import App from './App';
 import { installChunkErrorHandler } from './lib/chunk-error';
 import './index.css';
 import './lib/page-leave-events';
+import { installStandaloneViewportHeight } from './lib/ios-standalone-viewport';
 import { retireOfflineStorage } from './lib/retire-offline-storage';
 
 const queryClient = new QueryClient({
@@ -24,6 +25,11 @@ const queryClient = new QueryClient({
 // Recover only after verifying that a newer entry asset is available.
 // Connection failures keep their manual recovery state without deleting caches.
 installChunkErrorHandler();
+
+// iOS standalone bottom-gap (consult 23/10): publish --app-height from the
+// visualViewport when the standalone WKWebView's viewport units lie. Runs
+// once at load; re-measures via its own listeners (resize/pageshow/focus).
+installStandaloneViewportHeight();
 
 void retireOfflineStorage().then(() => {
   ReactDOM.createRoot(document.getElementById('root')!).render(
