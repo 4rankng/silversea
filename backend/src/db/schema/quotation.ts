@@ -22,6 +22,12 @@ export const quotations = pgTable('quotations', {
   surchargeRoundingMode: varchar('surcharge_rounding_mode', { length: 20 })
     .notNull()
     .default('NONE'),
+  // QA R32 (BaoGia.md §2 "độ trễ áp giá dầu (lag)"): frame-level fuel-price
+  // lag. Giá dầu áp dụng = giá dầu kỳ (Ngày vận chuyển − lag) —
+  // CuocPhiPhuPhiDau.md §7. Default 1 = import-lag NEWEB đã chốt
+  // (PhuongAnTinhCuocTuDong.md §3.1). The pricing engine prefers this over
+  // freight_rate_terms.fuel_lag_days when a frame is in effect.
+  fuelPriceLagDays: integer('fuel_price_lag_days').notNull().default(1),
   note: text('note'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

@@ -7,6 +7,23 @@
  *   3. Lock freight price (system_calculated_freight, read-only)
  *
  * Source: `Phương án tính cước tự động.docx` + PRD `CuocPhiThietKeDB.docx`.
+ *
+ * ── Công thức mapping (QA R32, CuocPhiPhuPhiDau.md §2 — Long Minh NEWEB) ──
+ * Step 3 below resolves D from fuel_consumption_norms (KHÔNG nhập tay);
+ * Steps 5-10 call shared computeFreightRate():
+ *   C (km khứ hồi) = billingKmOneWay × billingKmMultiplier      → billedKm
+ *   E (lít/chuyến) = C × D (định mức lít/km theo loại xe)       → liters
+ *   F (giá dầu mốc) = freight_rate_terms.baseFuelPrice
+ *   G (giá dầu kỳ)  = fuel_price_periods.unitPrice hiệu lực tại (ngày vận
+ *                     chuyển − lag) sau ngưỡng — lag = lag khung giá hiệu
+ *                     lực, fallback terms (BaoGia.md §2, §7 lag)
+ *   H (phụ phí dầu) = max(0, (G − F) × E)                       → surcharge
+ *                     (rồi × hệ số ô heSo, làm tròn theo khung)
+ *   J (giá cos)     = I × (1 + %chia sẻ)                        → freight
+ *   K (cước cuối)   = J + H                                     → total
+ * Ví dụ NEWEB CONT 40 (260 km × 0,35 = 91 lít, I=4.100.000, chia sẻ 2%):
+ *   J = 4.182.000; G=27.620 → H = 9.777,4074 × 91 = 889.744 → K = 5.071.744;
+ *   G=16.000 (≤ F) → H = 0, K = J = 4.182.000 (dầu rẻ không giảm cước).
  */
 
 import { db, type Executor } from '../db';
@@ -17,9 +34,19 @@ import { quotationBaseClassCode } from '@tingting/shared';
 import { roundHalfAwayFromZero } from '@tingting/shared';
 import type { ComputeFreightRateResult } from '@tingting/shared';
 import { ApiError } from '../errors';
+import { effectiveFuelLagDays } from './freight-lot-basis';
 
 
 // ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface QuotationFrameSource {
+  /** The quotation frame the engine priced against (nguồn frame). */
+  id: number;
+  templateName: string;
+  effectiveDate: string;
+  /** Độ trễ áp giá dầu (ngày) the engine applied — BaoGia.md §2. */
+  fuelPriceLagDays: number;
+}
 
 export interface ResolveFreightRateInput {
   customerId: number;
@@ -64,26 +91,46 @@ export interface ResolvedFreightRate extends ComputeFreightRateResult {
    *  surcharge-pending path). Persisted on the snapshot; the read side
    *  prefers it over the rebuilt hint. Absent elsewhere. */
   formulaText?: string;
+  /** QA R32: the effective quotation frame whose Hệ số / rounding / lag the
+   *  engine applied. Absent when the customer has no frame effective at the
+   *  transport date (pure terms/pricing resolution). Never persisted — the
+   *  snapshot freezes numbers; this is resolution provenance for previews. */
+  quotationFrame?: QuotationFrameSource;
 }
 
 // ─── Resolve freight rate (3-step engine) ───────────────────────────────────
 
+interface QuotationHints {
+  heSo: number;
+  roundingMode: string;
+  /** The frame the hints came from — null when the customer has no frame
+   *  effective at the transport date (QA R32: also carries the frame lag). */
+  frame: QuotationFrameSource | null;
+}
+
 /**
- * Per-cell Hệ số + the quotation frame's rounding mode (cards _59/_60): the
- * customer's latest active quotation at the transport date. Cell candidates
- * in order: the exact class code, the base class's LIGHT split (the price-
- * carrying column when callers address the base code), the base code itself.
- * No quotation / no cell ⇒ { heSo: 1, roundingMode: 'NONE' } (ruling 5/7
- * deterministic defaults — pre-card behavior intact).
+ * Per-cell Hệ số + the quotation frame's rounding mode + the frame's fuel
+ * lag (cards _59/_60 + QA R32): the customer's latest active quotation at
+ * the transport date. Cell candidates in order: the exact class code, the
+ * base class's LIGHT split (the price-carrying column when callers address
+ * the base code), the base code itself. No quotation / no cell ⇒
+ * { heSo: 1, roundingMode: 'NONE' } (ruling 5/7 deterministic defaults —
+ * pre-card behavior intact).
  */
 async function resolveQuotationHints(
   customerId: number,
   routeId: number,
   vehicleSizeClassCode: string,
   transportDate: string,
-): Promise<{ heSo: number; roundingMode: string }> {
+): Promise<QuotationHints> {
   const [quotation] = await db
-    .select({ id: s.quotations.id, roundingMode: s.quotations.surchargeRoundingMode })
+    .select({
+      id: s.quotations.id,
+      templateName: s.quotations.templateName,
+      effectiveDate: s.quotations.effectiveDate,
+      fuelPriceLagDays: s.quotations.fuelPriceLagDays,
+      roundingMode: s.quotations.surchargeRoundingMode,
+    })
     .from(s.quotations)
     .where(and(
       eq(s.quotations.customerId, customerId),
@@ -92,7 +139,7 @@ async function resolveQuotationHints(
     ))
     .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
     .limit(1);
-  if (!quotation) return { heSo: 1, roundingMode: 'NONE' };
+  if (!quotation) return { heSo: 1, roundingMode: 'NONE', frame: null };
 
   const base = quotationBaseClassCode(vehicleSizeClassCode);
   const candidates = [vehicleSizeClassCode, `${base}.LIGHT`, base]
@@ -114,7 +161,16 @@ async function resolveQuotationHints(
       break;
     }
   }
-  return { heSo, roundingMode: quotation.roundingMode };
+  return {
+    heSo,
+    roundingMode: quotation.roundingMode,
+    frame: {
+      id: quotation.id,
+      templateName: quotation.templateName,
+      effectiveDate: quotation.effectiveDate,
+      fuelPriceLagDays: Number(quotation.fuelPriceLagDays),
+    },
+  };
 }
 
 /**
@@ -170,10 +226,11 @@ export async function resolveFreightRate(
     );
   }
 
-  // ── Card 20260922_59/_60: per-cell Hệ số + the frame's rounding mode ──
-  // Both live on the customer's active quotation (quotation frame + cells,
-  // _66). Defaults keep pre-card behavior intact: multiplier 1, no rounding.
-  const { heSo, roundingMode } = await resolveQuotationHints(
+  // ── Card 20260922_59/_60 + QA R32: per-cell Hệ số + the frame's rounding
+  // mode + the frame's fuel lag ── All live on the customer's active
+  // quotation (quotation frame + cells, _66). Defaults keep pre-card
+  // behavior intact: multiplier 1, no rounding, terms lag.
+  const { heSo, roundingMode, frame: quotationFrame } = await resolveQuotationHints(
     customerId, routeId, vehicleSizeClassCode, transportDate,
   );
 
@@ -251,6 +308,7 @@ export async function resolveFreightRate(
       heSo: 1,
       source: 'MANUAL',
       formula: `Thiếu giá gốc cho ${effectivePriceClass} — cần nhập tay`,
+      quotationFrame: quotationFrame ?? undefined,
     };
   }
 
@@ -329,11 +387,17 @@ export async function resolveFreightRate(
       source: 'AUTO',
       formula: pendingFormula,
       formulaText: pendingFormula,
+      quotationFrame: quotationFrame ?? undefined,
     };
   }
 
   // ── Step 4: fuel_price_periods (with lag + threshold) ──
-  const lagDays = terms.fuelLagDays ?? 0;
+  // QA R32 (BaoGia.md §2 + CuocPhiPhuPhiDau.md §7): giá dầu áp dụng = giá dầu
+  // kỳ (Ngày vận chuyển − lag). The FRAME's fuelPriceLagDays wins when the
+  // customer has an effective quotation frame; freight_rate_terms' per-route
+  // lag stays the fallback (seed/legacy customers without frames price
+  // identically — NEWEB terms converge on the same lag 1/confirmed).
+  const lagDays = effectiveFuelLagDays(quotationFrame?.fuelPriceLagDays, terms.fuelLagDays);
   const targetDate = subtractDays(transportDate, lagDays);
 
   // ── Card 20260922_61 (ruling 8): the approval gate ──
@@ -416,7 +480,8 @@ export async function resolveFreightRate(
     }
   }
 
-  // ── Steps 5-10: Compute ──
+  // ── Steps 5-10: Compute (E = C × D; J = I × (1 + %chia sẻ);
+  // H = max(0,(G−F) × E); K = J + H — see the formula map in the header) ──
   const billedKm =
     Number(terms.billingKmOneWay) * Number(terms.billingKmMultiplier);
   const liters = billedKm * Number(norm.litersPerKm);
@@ -468,6 +533,7 @@ export async function resolveFreightRate(
     heSo,
     source: 'AUTO',
     formula,
+    quotationFrame: quotationFrame ?? undefined,
   };
 }
 

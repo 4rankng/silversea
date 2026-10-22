@@ -22,7 +22,7 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
-import { localDateInBusinessZone, resolveContainerPriceClass } from '@tingting/shared';
+import { localDateInBusinessZone } from '@tingting/shared';
 import { ApiError } from '../errors';
 import {
   persistFreightRateSnapshot,
@@ -30,6 +30,7 @@ import {
   type ResolveFreightRateInput,
   type ResolvedFreightRate,
 } from './freight-pricing-engine.service';
+import { classifyLotPricingBasis } from './freight-lot-basis';
 import type { Tx } from './trip-shared';
 
 type DbOrTx = typeof db | Tx;
@@ -131,6 +132,12 @@ export interface LockShipmentFreightRateArgs {
  *   - no derivable rate key (no typed container and no override) — LCL
  *     shipments without a dispatcher rate key lock at dispatch instead.
  *
+ * The đủ-căn cứ/thiếu-căn cứ decision itself lives in the pure
+ * `classifyLotPricingBasis` (freight-lot-basis.ts, unit-tested): đủ căn cứ
+ * (tuyến + khách + hạng xe + ngày vận chuyển [+ trọng tải cont]) → resolve +
+ * persist; thiếu → SKIP, không bịa số — DISPATCH's requirePrice turns
+ * MISSING_WEIGHT into the loud 409 (card _58 ruling 4c).
+ *
  * Always runs inside the caller's transaction: derivation reads see this
  * transaction's rows, and a rolled-back intake leaves no orphan snapshot.
  */
@@ -149,11 +156,6 @@ export async function lockShipmentFreightRate(
     .where(and(eq(s.shipments.id, args.shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) return null;
-  // Lệnh chạy ngoài: bảng định mức cước nội bộ không áp dụng — doanh thu chỉ
-  // gồm cước do khách báo và phí chi hộ (spec §4). Đây là bản chất của loại
-  // lô, không phải cơ chế bỏ qua kiểm tra cước phí.
-  if (shipment.isAdHoc) return null;
-  if (shipment.customerId == null) return null;
 
   // Route source: FCL lots carry the route on containers (the CUS create form
   // keeps shipments.route_id null for FCL), LCL keeps it on the shipment. The
@@ -183,7 +185,6 @@ export async function lockShipmentFreightRate(
       .limit(1);
     routeId = routed?.routeId ?? null;
   }
-  if (routeId == null) return null;
 
   // Derive the rate key: explicit override (dispatch) beats the anchor
   // container's class, which beats the shipment's first typed container.
@@ -191,7 +192,7 @@ export async function lockShipmentFreightRate(
   // per-container class at dispatch; intake approximation is acceptable
   // because dispatch supersedes with the precise row.
   let rateKey = args.rateKeyOverride?.trim().toUpperCase() || null;
-  let transportDate: string | null = null;
+  let containerTransportDate: string | null = null;
   if (!rateKey) {
     const [typedContainer] = await tx.select({
       typeCode: s.containerTypes.code,
@@ -207,27 +208,19 @@ export async function lockShipmentFreightRate(
         : eq(s.shipmentContainers.shipmentId, args.shipmentId))
       .orderBy(s.shipmentContainers.id)
       .limit(1);
-    if (!rateKey) {
-      rateKey = containerTypeCodeToRateKey(typedContainer?.typeCode);
-    }
-    transportDate = (typedContainer?.customerAppointmentAt
+    rateKey = containerTypeCodeToRateKey(typedContainer?.typeCode);
+    containerTransportDate = typedContainer?.customerAppointmentAt
       ? localDateInBusinessZone(typedContainer.customerAppointmentAt)
-      : null) ?? shipment.expectedDeliveryDate ?? null;
+      : null;
   }
-  transportDate = transportDate
-    ?? shipment.expectedDeliveryDate
-    ?? args.fallbackTransportDate?.trim()
-    ?? null;
-  if (!rateKey || !transportDate) return null;
 
   // Card 20260922_58 selection half: container base classes pick their PRICE
   // column from the anchor container's cargo weight (operator ruling: ≥20,0t
   // nặng; weight = cargo weight; missing weight BLOCKS — never a default).
-  // Norms stay keyed on the base class, so liters never change. A dispatch
-  // override that is already a 4-class code is dispatch precision and is
-  // respected verbatim.
-  let priceVehicleSizeClassCode: string | undefined;
-  if (/^(CONT20|CONT40)$/.test(rateKey)) {
+  // Norms stay keyed on the base class, so liters never change. The weight
+  // read only runs for container base rate keys (truck keys price unsplit).
+  let containerCargoWeightKg: number | null = null;
+  if (rateKey != null && /^(CONT20|CONT40)$/.test(rateKey)) {
     const [anchorContainer] = await tx.select({ cargoWeightKg: s.shipmentContainers.cargoWeightKg })
       .from(s.shipmentContainers)
       .where(args.shipmentContainerId != null
@@ -241,30 +234,44 @@ export async function lockShipmentFreightRate(
         ))
       .orderBy(s.shipmentContainers.id)
       .limit(1);
-    const weightKg = anchorContainer?.cargoWeightKg == null ? null : Number(anchorContainer.cargoWeightKg);
+    containerCargoWeightKg = anchorContainer?.cargoWeightKg == null
+      ? null
+      : Number(anchorContainer.cargoWeightKg);
+  }
+
+  const decision = classifyLotPricingBasis({
+    isAdHoc: shipment.isAdHoc,
+    customerId: shipment.customerId,
+    routeId,
+    rateKey,
+    containerTransportDate,
+    expectedDeliveryDate: shipment.expectedDeliveryDate,
+    fallbackTransportDate: args.fallbackTransportDate ?? null,
+    containerCargoWeightKg,
+  });
+  if (decision.action === 'SKIP') {
     // Ruling (c): missing weight = NO PRICE, deterministically — the freeze is
     // SKIPPED (no invented number, no stale column) rather than throwing:
     // a hard 409 here would also block plain intake edits (dates, etc.) on
     // weightless lots, which never asked for a price. Dispatch surfaces the
     // missing price through the absent freeze; the shared resolver's
     // MISSING_WEIGHT message carries the reason for price-preview surfaces.
-    if (weightKg == null || !Number.isFinite(weightKg) || weightKg <= 0) {
-      if (args.requirePrice) {
-        throw new ApiError(409, 'Thiếu trọng tải — không thể tính giá container. Nhập trọng tải hàng theo booking rồi thử lại.');
-      }
-      return null;
+    if (decision.reason === 'MISSING_WEIGHT' && args.requirePrice) {
+      throw new ApiError(409, 'Thiếu trọng tải — không thể tính giá container. Nhập trọng tải hàng theo booking rồi thử lại.');
     }
-    const baseType = rateKey === 'CONT40' ? 'CONT40' as const : 'CONT20' as const;
-    const resolution = resolveContainerPriceClass(baseType, weightKg / 1000);
-    if (resolution.ok) priceVehicleSizeClassCode = resolution.code;
+    return null;
   }
+
+  // classifyLotPricingBasis only LOCKs with customer + route present; these
+  // guards keep the resolved call's types honest without inventing defaults.
+  if (shipment.customerId == null || routeId == null) return null;
 
   const resolved = await resolveFreightRateWithManualFallback({
     customerId: shipment.customerId,
     routeId,
-    vehicleSizeClassCode: rateKey,
-    priceVehicleSizeClassCode,
-    transportDate,
+    vehicleSizeClassCode: decision.rateKey,
+    priceVehicleSizeClassCode: decision.priceVehicleSizeClassCode,
+    transportDate: decision.transportDate,
   });
 
   const snapshotId = await persistFreightRateSnapshot(resolved, {

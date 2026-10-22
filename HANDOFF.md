@@ -29,6 +29,59 @@ Controller: this agent, worktree fix-quote-ui-spec (off main cae84f8d), branch f
   pre-existing tại cae84f8d — debt aging, ngoài scope, không thuộc gates.)
 - **Testplan case**: `testplan/2026-10-22-card221026040542-quote-ui-spec.md`
   (QA-BG-UI-1…5).
+# QA R32 — Báo giá ENGINE WIRING + fuelPriceLagDays khung giá — 2026-10-22
+
+Controller: this agent, worktree `1njkloyy/feat-quote-engine-wiring`, branch
+`feat-quote-engine-wiring` (off main `cae84f8d`). Closes
+`testplan/cases/case-QA-2026-10-22-quote-engine-wiring.md` (QA R32 "không
+engine", spec BaoGia.md §2 + CuocPhiPhuPhiDau.md §2/§7).
+
+**Status**: DONE — verify-first: engine wiring đã có sẵn ở trunk từ R31 (8
+call site qua `lockShipmentFreightRate`); lane bổ sung (1) lag là thuộc tính
+KHUNG giá, (2) endpoint preview-rate cho QA, (3) test pin công thức + căn cứ.
+
+- **fuelPriceLagDays khung giá**: column `quotations.fuel_price_lag_days`
+  (int ≥0, NOT NULL DEFAULT 1 = import-lag NEWEB; migration
+  `20261022090000` + journal idx 152, đã áp dev 5441, backfill an toàn) +
+  zod `quotationCreateSchema` + `QuotationView`; create/update/get/list +
+  import commit ghi lag khung qua `resolveImportedFuelLag`; FE
+  QuotationCreateDialog (default 1) + strip "Thông tin khung" trên
+  QuotationConfigPage hiển thị + sửa được (draft-on-blur, số rác không lưu).
+- **Engine theo khung hiệu lực**: `resolveQuotationHints` trả frame nguồn
+  (id/tên/effectiveDate/lag); lag tra giá dầu = `effectiveFuelLagDays(frame,
+  terms)` — khung THẮNG, terms fallback (khách chưa có khung giữ nguyên hành
+  vi seed NEWEB lag 1). Formula mapping comment code→C/E/F/G/H/J/K trong
+  engine header.
+- **Preview-rate (QA probe)**: `POST /api/quotations/preview-rate`
+  {customerId, factoryId|routeId, hạng, ngày} → J/H/K + liters + nguồn frame;
+  non-material-write + ACCOUNTANT/ADMIN như import preview; nhà máy =
+  operational_sites FACTORY → route canonical.
+- **Pure wiring core**: `freight-lot-basis.ts` (không db) —
+  `classifyLotPricingBasis` (đủ/thiếu căn cứ LOCK/SKIP, giữ nguyên hành vi
+  lockShipmentFreightRate gồm LCL-lock-at-dispatch và 409 MISSING_WEIGHT ở
+  dispatch) + `effectiveFuelLagDays`; unit-test đầy đủ.
+
+**Evidence** (`qa/2026-10-22-quote-engine/`, backend worktree port 3009, dev
+DB 5441, account ketoan): case1 đủ căn cứ NEWEB CONT40 2026-09-20 → AUTO
+E=91, J=4.182.000, H=889.744, K=5.071.744 + frame nguồn #1 lag 1 (khớp bảng
+§6.1); case2 thiếu điều khoản → MANUAL 0/0/0 + formula chỉ thiếu căn cứ
+(không bịa số); case3 khung lag 71 → target 07-11 → H=354.664, K=4.536.664
+(khớp §6.2 — chứng minh lag KHUNG điều khiển engine, terms vẫn lag 1); case4
+dọn frame tạm xong quay lại đúng case1; case5 factoryId 27004 → route 1 cùng
+K. Driver log + JSON mỗi case.
+
+**Gates**: root lint 0 · be-tsc 0 · BE unit 386/386 + full BE (unit+
+integration) 0 fail · shared touched-file tests 25/25 (10 fail fifoAging là
+pre-existing trên main, ngoài scope) · fe tsc -b 0 · scoped quotation FE
+27/27 · **full FE suite 708 files / 5.455 tests 0 fail** · make build 0.
+
+## Not covered (R32 lane)
+
+- UI click-through màn QuotationConfigPage (lag editor) — DB/API VERIFIED
+  (PUT payload có test FE; evidence cấp API theo brief). QA R32 tự E2E.
+- Staging (owner NEVER per law); role CUS gọi preview-rate (chỉ ACCOUNTANT/
+  ADMIN theo thiết kế admin/test).
+- shared fifoAging 10 fail pre-existing main — không đụng lane này.
 
 ---
 

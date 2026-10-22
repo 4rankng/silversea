@@ -20,6 +20,7 @@ import type {
 } from '@tingting/shared';
 import type { ResolvedFreightRate } from './freight-pricing-engine.service';
 import { resolveFreightRate } from './freight-pricing-engine.service';
+import { resolveFreightRateWithManualFallback } from './freight-rate-snapshot-lifecycle.service';
 import type { Tx } from './trip-shared';
 
 type DbOrTx = typeof db | Tx;
@@ -116,6 +117,7 @@ export async function createQuotation(
     templateName: input.templateName,
     effectiveDate: input.effectiveDate,
     surchargeRoundingMode: input.surchargeRoundingMode ?? 'NONE',
+    fuelPriceLagDays: input.fuelPriceLagDays ?? 1,
     note: input.note ?? null,
   }).returning({ id: s.quotations.id });
   await writeCells(row.id, input.cells ?? [], ex);
@@ -136,6 +138,7 @@ export async function updateQuotation(
     templateName: input.templateName,
     effectiveDate: input.effectiveDate,
     surchargeRoundingMode: input.surchargeRoundingMode ?? 'NONE',
+    fuelPriceLagDays: input.fuelPriceLagDays ?? 1,
     note: input.note ?? null,
     updatedAt: new Date(),
   }).where(eq(s.quotations.id, quotationId));
@@ -235,6 +238,13 @@ async function buildGrid(
     .where(eq(s.quotationCells.quotationId, quotationId));
   const heSoByKey = new Map(overrideRows.map((r) => [`${r.routeId}:${r.code}`, Number(r.heSo)]));
 
+  // QA R32: lag displayed per route strip = the FRAME's lag — the value the
+  // engine prefers when this frame is effective (BaoGia.md §2). Terms lag
+  // stays the engine fallback for frame-less customers.
+  const [frameRow] = await db.select({ fuelPriceLagDays: s.quotations.fuelPriceLagDays })
+    .from(s.quotations).where(eq(s.quotations.id, quotationId)).limit(1);
+  const frameLagDays = frameRow != null ? Number(frameRow.fuelPriceLagDays) : null;
+
   // Route sections = the customer's terms rows at the effective date.
   const termRows = await db.select({
     routeId: s.freightRateTerms.routeId,
@@ -291,7 +301,7 @@ async function buildGrid(
         vehicleSizeClassCode: column.vehicleSizeClassCode,
         heSo,
         baseFuelPrice: Number(route.baseFuelPrice),
-        fuelLagDays: route.fuelLagDays,
+        fuelLagDays: frameLagDays ?? Number(route.fuelLagDays ?? 0),
       };
       const base = quotationBaseClassCode(column.vehicleSizeClassCode);
       let rate = rateByBase.get(base);
@@ -327,6 +337,7 @@ export async function getQuotation(quotationId: number): Promise<QuotationView> 
     templateName: s.quotations.templateName,
     effectiveDate: s.quotations.effectiveDate,
     surchargeRoundingMode: s.quotations.surchargeRoundingMode,
+    fuelPriceLagDays: s.quotations.fuelPriceLagDays,
     note: s.quotations.note,
   }).from(s.quotations)
     .innerJoin(s.customers, eq(s.customers.id, s.quotations.customerId))
@@ -338,6 +349,7 @@ export async function getQuotation(quotationId: number): Promise<QuotationView> 
   return {
     ...frame,
     surchargeRoundingMode: frame.surchargeRoundingMode as QuotationView['surchargeRoundingMode'],
+    fuelPriceLagDays: Number(frame.fuelPriceLagDays),
     cells: grid,
     fees,
   };
@@ -351,6 +363,7 @@ export async function listQuotations(): Promise<QuotationView[]> {
     templateName: s.quotations.templateName,
     effectiveDate: s.quotations.effectiveDate,
     surchargeRoundingMode: s.quotations.surchargeRoundingMode,
+    fuelPriceLagDays: s.quotations.fuelPriceLagDays,
     note: s.quotations.note,
   }).from(s.quotations)
     .innerJoin(s.customers, eq(s.customers.id, s.quotations.customerId))
@@ -360,9 +373,77 @@ export async function listQuotations(): Promise<QuotationView[]> {
   return rows.map((r) => ({
     ...r,
     surchargeRoundingMode: r.surchargeRoundingMode as QuotationView['surchargeRoundingMode'],
+    fuelPriceLagDays: Number(r.fuelPriceLagDays),
     cells: [],
     fees: [],
   }));
+}
+
+// ─── QA R32: preview-rate (admin/test engine probe, BaoGia.md) ──────────────
+
+export interface PreviewQuotationRateInput {
+  customerId: number;
+  /** Nhà máy (FACTORY operational site) — resolves the canonical route. */
+  factoryId?: number;
+  /** Tuyến — direct alternative to factoryId. */
+  routeId?: number;
+  /** Hạng xe (vehicle size class code, e.g. CONT40 / 5T / CONT40.HEAVY). */
+  vehicleSizeClassCode: string;
+  /** Ngày vận chuyển (YYYY-MM-DD) — the date freight locks to. */
+  transportDate: string;
+}
+
+/**
+ * Resolve J/H/K from the pricing engine WITHOUT creating a lot — the QA
+ * probe behind POST /api/quotations/preview-rate (QA R32 "engine không gọi":
+ * verify the engine + the effective quotation frame on real catalog data).
+ * Thiếu căn cứ never invents numbers: the MANUAL fallback's formula names
+ * the missing parameter (điều khoản/giá gốc/định mức/kỳ giá dầu).
+ */
+export async function previewQuotationRate(
+  input: PreviewQuotationRateInput,
+): Promise<ResolvedFreightRate & { factoryId: number | null; factoryName: string | null; routeId: number }> {
+  if (input.factoryId == null && input.routeId == null) {
+    throw new ApiError(400, 'Cần nhà máy hoặc tuyến để xem trước giá cước.');
+  }
+  let routeId = input.routeId ?? null;
+  let factoryName: string | null = null;
+  if (input.factoryId != null) {
+    const [site] = await db.select({
+      id: s.operationalSites.id,
+      name: s.operationalSites.name,
+      siteType: s.operationalSites.siteType,
+      customerId: s.operationalSites.customerId,
+      siteRouteId: s.operationalSites.routeId,
+    })
+      .from(s.operationalSites)
+      .where(and(
+        eq(s.operationalSites.id, input.factoryId),
+        isNull(s.operationalSites.deletedAt),
+      ))
+      .limit(1);
+    if (!site) throw new ApiError(404, `Không tìm thấy nhà máy #${input.factoryId}`);
+    if (site.customerId !== input.customerId) {
+      throw new ApiError(400, `Nhà máy #${input.factoryId} không thuộc khách hàng #${input.customerId}`);
+    }
+    if (site.siteType !== 'FACTORY') {
+      throw new ApiError(400, `Địa điểm #${input.factoryId} không phải nhà máy (FACTORY)`);
+    }
+    factoryName = site.name;
+    // MasterDataNhaMay: a FACTORY has one canonical FCL route. The explicit
+    // routeId wins when both are supplied; the factory resolves the other.
+    routeId = routeId ?? site.siteRouteId;
+    if (routeId == null) {
+      throw new ApiError(400, `Nhà máy "${site.name}" chưa gắn tuyến đường — chọn tuyến trực tiếp.`);
+    }
+  }
+  const resolved = await resolveFreightRateWithManualFallback({
+    customerId: input.customerId,
+    routeId: routeId!,
+    vehicleSizeClassCode: input.vehicleSizeClassCode.trim().toUpperCase(),
+    transportDate: input.transportDate,
+  });
+  return { ...resolved, factoryId: input.factoryId ?? null, factoryName, routeId: routeId! };
 }
 
 // ─── Card 20260922_61: fuel-update approval workflow (ruling 8) ─────────────

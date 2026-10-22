@@ -1,0 +1,139 @@
+=== POST /api/quotations/preview-rate (case1-du-can-cu)
+BODY: {"customerId":1,"routeId":1,"vehicleSizeClassCode":"CONT40","transportDate":"2026-09-20"}
+HTTP 200 → qa/2026-10-22-quote-engine/preview-rate-case1-du-can-cu.json
+{
+ "source": "AUTO",
+ "freight": 4182000,
+ "surcharge": 889744,
+ "total": 5071744,
+ "liters": 91,
+ "billedKm": 260,
+ "sharePct": 2,
+ "heSo": 1,
+ "fuelPricePeriodId": 2,
+ "rateTermsId": 1,
+ "pricingTableId": 8,
+ "fuelNormId": 9,
+ "quotationFrame": {
+  "id": 1,
+  "templateName": "Mẫu báo giá 1",
+  "effectiveDate": "2026-09-15",
+  "fuelPriceLagDays": 1
+ },
+ "factoryName": null,
+ "routeId": 1,
+ "formula": "4100000 × (1 + 2.00%) = 4182000 + MAX(0, (27620.00 − 17842.5926) × 91.000) = 5071744"
+}
+
+=== POST /api/quotations/preview-rate (case2-thieu-can-cu)
+BODY: {"customerId":1,"routeId":4,"vehicleSizeClassCode":"CONT40","transportDate":"2026-09-20"}
+HTTP 200 → qa/2026-10-22-quote-engine/preview-rate-case2-thieu-can-cu.json
+{
+ "source": "MANUAL",
+ "freight": 0,
+ "surcharge": 0,
+ "total": 0,
+ "liters": 0,
+ "billedKm": 0,
+ "sharePct": 0,
+ "heSo": null,
+ "fuelPricePeriodId": 0,
+ "rateTermsId": 0,
+ "pricingTableId": 0,
+ "fuelNormId": 0,
+ "quotationFrame": null,
+ "factoryName": null,
+ "routeId": 4,
+ "formula": "Không tìm thấy điều khoản cước cho khách hàng #1, tuyến #4 — cần nhập tay giá cước"
+}
+
+=== POST /api/quotations (lag-probe frame): {"id":2519}
+=== POST /api/quotations/preview-rate (case3-lag-khung-gia-71)
+BODY: {"customerId":1,"routeId":1,"vehicleSizeClassCode":"CONT40","transportDate":"2026-09-20"}
+HTTP 200 → qa/2026-10-22-quote-engine/preview-rate-case3-lag-khung-gia-71.json
+{
+ "source": "AUTO",
+ "freight": 4182000,
+ "surcharge": 354664,
+ "total": 4536664,
+ "liters": 91,
+ "billedKm": 260,
+ "sharePct": 2,
+ "heSo": 1,
+ "fuelPricePeriodId": 1,
+ "rateTermsId": 1,
+ "pricingTableId": 8,
+ "fuelNormId": 9,
+ "quotationFrame": {
+  "id": 2519,
+  "templateName": "QA R32 lag-probe (xóa sau)",
+  "effectiveDate": "2026-09-16",
+  "fuelPriceLagDays": 71
+ },
+ "factoryName": null,
+ "routeId": 1,
+ "formula": "4100000 × (1 + 2.00%) = 4182000 + MAX(0, (21740.00 − 17842.5926) × 91.000) = 4536664"
+}
+
+=== DELETE /api/quotations/2519 → HTTP 200
+=== POST /api/quotations/preview-rate (case4-sau-khi-don)
+BODY: {"customerId":1,"routeId":1,"vehicleSizeClassCode":"CONT40","transportDate":"2026-09-20"}
+HTTP 200 → qa/2026-10-22-quote-engine/preview-rate-case4-sau-khi-don.json
+{
+ "source": "AUTO",
+ "freight": 4182000,
+ "surcharge": 889744,
+ "total": 5071744,
+ "liters": 91,
+ "billedKm": 260,
+ "sharePct": 2,
+ "heSo": 1,
+ "fuelPricePeriodId": 2,
+ "rateTermsId": 1,
+ "pricingTableId": 8,
+ "fuelNormId": 9,
+ "quotationFrame": {
+  "id": 1,
+  "templateName": "Mẫu báo giá 1",
+  "effectiveDate": "2026-09-15",
+  "fuelPriceLagDays": 1
+ },
+ "factoryName": null,
+ "routeId": 1,
+ "formula": "4100000 × (1 + 2.00%) = 4182000 + MAX(0, (27620.00 − 17842.5926) × 91.000) = 5071744"
+}
+
+{
+    "freight": 4182000,
+    "surcharge": 889744,
+    "total": 5071744,
+    "fuelDelta": 9777.4074,
+    "surchargeRaw": 889744,
+    "fuelPricePeriodId": 2,
+    "rateTermsId": 1,
+    "pricingTableId": 8,
+    "fuelNormId": 9,
+    "billedKm": 260,
+    "liters": 91,
+    "sharePct": 2,
+    "heSo": 1,
+    "source": "AUTO",
+    "formula": "4100000 × (1 + 2.00%) = 4182000 + MAX(0, (27620.00 − 17842.5926) × 91.000) = 5071744",
+    "quotationFrame": {
+        "id": 1,
+        "templateName": "Mẫu báo giá 1",
+        "effectiveDate": "2026-09-15",
+        "fuelPriceLagDays": 1
+    },
+    "factoryId": 27004,
+    "factoryName": "NM REGPK 670328",
+    "routeId": 1
+}
+
+=== BONUS factory path: POST preview-rate {customerId:1, factoryId:27004 (NM REGPK 670328 → route 1)} → 200 AUTO K=5.071.744, factoryName=NM REGPK 670328
+{'factoryId': 27004, 'factoryName': 'NM REGPK 670328', 'routeId': 1, 'source': 'AUTO', 'freight': 4182000, 'surcharge': 889744, 'total': 5071744}
+
+NOTE: run 1 của case3 dùng lag=9 — sai số học ngày (target 2026-09-11 vẫn
+SAU kỳ 07-18 nên K không đổi); run 2 sửa lag=71 (target = 2026-07-11) và
+đúng §6.2. File case3 lag=9 bị bỏ khỏi artifact; log này giữ nguyên vết
+run 1 (fail→repair theo quy ước qa/). Case4 xác nhận frame tạm đã DELETE.

@@ -40,6 +40,8 @@ export interface QuotationFrame {
   customerName: string;
   templateName: string;
   effectiveDate: string;
+  /** QA R32 (BaoGia.md §2): độ trễ áp giá dầu của khung (ngày). */
+  fuelPriceLagDays: number;
   note: string | null;
 }
 

@@ -6,7 +6,7 @@ import { Modal, TextField, UuiSelectField, BufferedUuiDateInput } from '../../de
 import { useAllCustomers } from '../../hooks/useCatalogQueries';
 import { useCreateQuotation } from '../../hooks/useQuotationQueries';
 
-type FieldErrors = Partial<Record<'customerId' | 'templateName' | 'effectiveDate', string>>;
+type FieldErrors = Partial<Record<'customerId' | 'templateName' | 'effectiveDate' | 'fuelPriceLagDays', string>>;
 
 export function QuotationCreateDialog({ onClose, onCreated }: {
   onClose: () => void;
@@ -20,6 +20,9 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
   const [templateName, setTemplateName] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
   const [rounding, setRounding] = useState('NONE');
+  // QA R32 (BaoGia.md §2): "độ trễ áp giá dầu (lag)" — default 1 = import-lag
+  // NEWEB đã chốt. Engine tra giá dầu kỳ (ngày giao − lag).
+  const [lagDays, setLagDays] = useState('1');
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
   const selectedCustomer = customers.data?.find(customer => String(customer.id) === customerId);
@@ -28,7 +31,14 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (create.isPending) return;
-    const parsed = quotationCreateSchema.safeParse({ customerId: Number(customerId), templateName, effectiveDate, surchargeRoundingMode: rounding, note });
+    const parsed = quotationCreateSchema.safeParse({
+      customerId: Number(customerId),
+      templateName,
+      effectiveDate,
+      surchargeRoundingMode: rounding,
+      fuelPriceLagDays: lagDays.trim() === '' ? undefined : Number(lagDays.replace(',', '.')),
+      note,
+    });
     const validControls = formRef.current?.checkValidity();
     if (!parsed.success || !validControls) {
       const fields: FieldErrors = {};
@@ -37,6 +47,7 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
         if (field === 'customerId') fields.customerId = 'Chọn khách hàng.';
         if (field === 'templateName') fields.templateName = templateName.trim() ? 'Tên mẫu báo giá tối đa 120 ký tự.' : 'Nhập tên mẫu báo giá.';
         if (field === 'effectiveDate') fields.effectiveDate = 'Chọn ngày hiệu lực hợp lệ.';
+        if (field === 'fuelPriceLagDays') fields.fuelPriceLagDays = 'Độ trễ áp giá dầu phải là số nguyên ngày ≥ 0.';
       }
       if (parsed.success && !validControls) fields.effectiveDate = 'Chọn ngày hiệu lực hợp lệ.';
       setErrors(fields);
@@ -68,6 +79,10 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
         <UuiSelectField label="Làm tròn phụ phí dầu" value={rounding} size="md" disabled={create.isPending}
           options={[{ value: 'NONE', label: 'Không làm tròn' }, { value: 'THOUSAND', label: 'Đến hàng nghìn' }, { value: 'TEN_THOUSAND', label: 'Đến hàng chục nghìn' }]}
           onChange={event => setRounding(event.target.value)} />
+        <TextField label="Độ trễ áp giá dầu (ngày)" value={lagDays} required inputMode="numeric" error={errors.fuelPriceLagDays}
+          helpText="Giá dầu áp dụng = giá dầu kỳ (ngày vận chuyển − độ trễ). Mặc định 1 theo NEWEB."
+          disabled={create.isPending}
+          onChange={event => { setLagDays(event.target.value); setErrors(previous => ({ ...previous, fuelPriceLagDays: undefined })); }} />
         <TextField label="Ghi chú" value={note} maxLength={2000} disabled={create.isPending} onChange={event => setNote(event.target.value)} />
       </form>
     </Modal>

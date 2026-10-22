@@ -57,6 +57,9 @@ export const QUOTATION_PATHS = {
   FUEL_APPROVALS_DECIDE: '/quotations/fuel-approvals/decide',
   IMPORT: '/quotations/import',
   IMPORT_COMMIT: '/quotations/import/commit',
+  /** QA R32 (BaoGia.md): admin/test rate preview — resolve J/H/K from the
+   *  engine + the effective quotation frame WITHOUT creating a lot. */
+  PREVIEW_RATE: '/quotations/preview-rate',
 } as const;
 
 /**
@@ -109,11 +112,21 @@ export const quotationCellSchema = z.object({
   heSo: heSoSchema.default(1),
 }).strict();
 
+// Độ trễ áp giá dầu (lag) của KHUNG giá — BaoGia.md §2 ("độ trễ áp giá dầu
+// (lag)") + CuocPhiPhuPhiDau.md §7: giá dầu áp dụng = giá dầu kỳ
+// (Ngày vận chuyển − lag). Default 1 = import-lag NEWEB đã chốt
+// (PhuongAnTinhCuocTuDong §3.1: NEWEB N=1; lag của ASKEY/SUNRISE+SJ chưa
+// chốt). Engine ưu tiên lag khung hiệu lực, fallback freight_rate_terms.
+const fuelPriceLagDaysSchema = z.coerce.number().int('Độ trễ áp giá dầu phải là số nguyên ngày')
+  .min(0, 'Độ trễ áp giá dầu không được âm')
+  .max(365, 'Độ trễ áp giá dầu quá lớn (tối đa 365 ngày)');
+
 export const quotationCreateSchema = z.object({
   customerId: z.coerce.number().int().positive(),
   templateName: z.string().trim().min(1).max(120),
   effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày hiệu lực phải có dạng YYYY-MM-DD'),
   surchargeRoundingMode: z.enum(SURCHARGE_ROUNDING_MODES).default('NONE'),
+  fuelPriceLagDays: fuelPriceLagDaysSchema.default(1),
   note: z.string().trim().max(2000).nullable().optional(),
   cells: z.array(quotationCellSchema).max(400).default([]),
   // Card 20260922_64: the per-customer "Chi phí khác" catalog rides the frame
@@ -159,6 +172,8 @@ export interface QuotationView {
   templateName: string;
   effectiveDate: string;
   surchargeRoundingMode: SurchargeRoundingMode;
+  /** Độ trễ áp giá dầu (ngày) — BaoGia.md §2; engine tra giá kỳ (ngày giao − lag). */
+  fuelPriceLagDays: number;
   note: string | null;
   cells: QuotationCellView[];
   /** Card _64: the per-customer fee catalog (Chi phí khác), routing included. */

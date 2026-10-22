@@ -22,7 +22,8 @@ import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   createQuotation, decideQuotationFuelApprovals, deleteQuotation, getQuotation,
-  listActiveQuotationFeesForCustomer, listQuotationFuelApprovals, listQuotations, updateQuotation,
+  listActiveQuotationFeesForCustomer, listQuotationFuelApprovals, listQuotations,
+  previewQuotationRate, updateQuotation,
 } from '../../services/quotation.service';
 import {
   getQuotationVersionPayload, listQuotationVersions, releaseQuotationVersion,
@@ -72,6 +73,26 @@ router.get('/fees/active', asyncHandler(async (req: Request, res: Response) => {
   const parsed = activeFeesQuerySchema.safeParse(req.query);
   if (!parsed.success) throw new ApiError(400, parsed.error.errors[0]?.message ?? 'customerId không hợp lệ');
   res.json({ items: await listActiveQuotationFeesForCustomer(parsed.data.customerId) });
+}));
+
+// ─── QA R32 (BaoGia.md): admin/test engine probe ─────────────────────────
+// POST /api/quotations/preview-rate — resolve J/H/K from the pricing engine
+// against the effective quotation frame WITHOUT creating a lot. Same
+// read-only posture as the xlsx import preview (non-material write declared,
+// ACCOUNTANT/ADMIN gate): QA verifies đủ căn cứ → AUTO breakdown (J/H/K +
+// liters + nguồn frame) and thiếu căn cứ → MANUAL hint naming the missing
+// parameter — engine never invents numbers.
+const previewRateSchema = z.object({
+  customerId: z.coerce.number().int().positive(),
+  factoryId: z.coerce.number().int().positive().optional(),
+  routeId: z.coerce.number().int().positive().optional(),
+  vehicleSizeClassCode: z.string().trim().min(1).max(20),
+  transportDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày vận chuyển phải có dạng YYYY-MM-DD'),
+}).strict();
+router.post('/preview-rate', declareNonMaterialWrite('Read-only engine rate preview (QA R32, BaoGia.md) — resolves J/H/K without persisting a snapshot or creating a lot; no DB write.'), requireRoles(Role.ACCOUNTANT, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
+  const parsed = previewRateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues[0]?.message ?? 'Tham số xem trước giá không hợp lệ');
+  res.json(await previewQuotationRate(parsed.data));
 }));
 
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
