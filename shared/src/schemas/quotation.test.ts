@@ -68,7 +68,32 @@ test('create schema coerces ids and defaults empty cells', () => {
   assert.deepStrictEqual(parsed.cells, []);
 });
 
+// QA R32 (BaoGia.md §2): lag là thuộc tính khung giá — int ≥ 0, default 1
+// (import-lag NEWEB đã chốt).
+test('fuelPriceLagDays defaults to 1 and rejects invalid values', () => {
+  const parsed = quotationCreateSchema.parse({
+    customerId: '7',
+    templateName: 'Mẫu báo giá 1',
+    effectiveDate: '2026-09-22',
+  });
+  assert.strictEqual(parsed.fuelPriceLagDays, 1);
+  assert.strictEqual(
+    quotationCreateSchema.parse({ ...parsed, fuelPriceLagDays: '2' }).fuelPriceLagDays,
+    2,
+  );
+  assert.strictEqual(
+    quotationCreateSchema.safeParse({ ...parsed, fuelPriceLagDays: -1 }).success,
+    false,
+  );
+  assert.strictEqual(
+    quotationCreateSchema.safeParse({ ...parsed, fuelPriceLagDays: 0.5 }).success,
+    false,
+  );
+  assert.strictEqual(parsed.fuelPriceLagDays, 1, 'absent input must not mutate the parsed frame');
+});
+
 test('quotation paths resolve', () => {
   assert.strictEqual(QUOTATION_PATHS.LIST, '/quotations');
   assert.strictEqual(QUOTATION_PATHS.DETAIL(3), '/quotations/3');
+  assert.strictEqual(QUOTATION_PATHS.PREVIEW_RATE, '/quotations/preview-rate');
 });

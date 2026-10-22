@@ -18,8 +18,8 @@ function makeWrapper() {
 }
 
 const frames = [
-  { id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null },
-  { id: 2, customerId: 9, customerName: 'Công ty B', templateName: 'LOG COM', effectiveDate: '2026-09-15', note: 'Hiệu lực sau' },
+  { id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', surchargeRoundingMode: 'NONE', fuelPriceLagDays: 1, note: null },
+  { id: 2, customerId: 9, customerName: 'Công ty B', templateName: 'LOG COM', effectiveDate: '2026-09-15', surchargeRoundingMode: 'THOUSAND', fuelPriceLagDays: 2, note: 'Hiệu lực sau' },
 ];
 
 function cell(overrides: Partial<Record<string, unknown>>): Record<string, unknown> {
@@ -43,7 +43,8 @@ beforeEach(() => {
   apiGet.mockImplementation((path: string) => {
     if (path === '/quotations') return Promise.resolve(frames);
     if (path === '/quotations/1') return Promise.resolve({
-      id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01', note: null,
+      id: 1, customerId: 7, customerName: 'Công ty A', templateName: 'Mẫu 1', effectiveDate: '2026-09-01',
+      surchargeRoundingMode: 'NONE', fuelPriceLagDays: 1, note: null,
       cells: gridCells,
       fees: [],
     });
@@ -118,6 +119,33 @@ describe('QuotationConfigPage (card 20260922_56)', () => {
     expect(body.cells[0]).toEqual({ routeId: 3, vehicleSizeClassCode: '1.25T', heSo: 1.5 });
     expect(body.templateName).toBe('Mẫu 1');
     expect(body.effectiveDate).toBe('2026-09-01');
+    // QA R32: replace-all payload keeps carrying the frame lag (no reset).
+    expect(body.fuelPriceLagDays).toBe(1);
+  });
+
+  // QA R32 (BaoGia.md §2): độ trễ áp giá dầu hiển thị trên strip "Thông tin
+  // khung", sửa được, và PUT mang giá trị mới; số rác không bịa.
+  it('shows the frame fuel lag, persists edits, and rejects garbage without saving', async () => {
+    apiPut.mockClear();
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
+    fireEvent.click(await within(framesRegion).findByText('Công ty A'));
+    const lagInput = await screen.findByLabelText('Độ trễ áp giá dầu (ngày)');
+    expect(screen.getByText(/engine tra giá dầu kỳ \(ngày vận chuyển − độ trễ\)/)).toBeTruthy();
+
+    // Garbage draft never fires a PUT.
+    fireEvent.change(lagInput, { target: { value: '2,5' } });
+    fireEvent.blur(lagInput);
+    expect(apiPut).not.toHaveBeenCalled();
+
+    fireEvent.change(lagInput, { target: { value: '3' } });
+    fireEvent.blur(lagInput);
+    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
+    const [path, body] = apiPut.mock.calls[0];
+    expect(path).toBe('/quotations/1');
+    expect(body.fuelPriceLagDays).toBe(3);
+    expect(body.templateName).toBe('Mẫu 1');
+    expect(body.cells[0]).toEqual({ routeId: 3, vehicleSizeClassCode: '1.25T', heSo: 1 });
   });
 });
 

@@ -1060,6 +1060,13 @@
    "when": 1792246777000,
    "tag": "20261017220000_driver_salary_mode",
    "breakpoints": true
+  },
+  {
+   "idx": 152,
+   "version": "7",
+   "when": 1792659600000,
+   "tag": "20261022090000_quotation_fuel_price_lag_days",
+   "breakpoints": true
   }
  ]
 }

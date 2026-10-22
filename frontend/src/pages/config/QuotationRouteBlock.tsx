@@ -78,7 +78,7 @@ export function RouteBlock({ block, saving, onSaveHeSo }: {
       <div className="quotation-route-block__head">
         <h3>{block.routeName}</h3>
         <p className="quotation-route-block__params">
-          Giá dầu tham chiếu {money(baseFuel)}/lít · Trễ {lag ?? '—'} ngày · Làm tròn từng khoản: từ 5 lên
+          Giá dầu tham chiếu {money(baseFuel)}/lít · Trễ {lag ?? '—'} ngày (theo khung giá) · Làm tròn từng khoản: từ 5 lên
         </p>
         <p className="quotation-route-block__link">
           <a href="/config/freight-rate-terms">Sửa tham số giá dầu/lag tại Bảng điều kiện giá</a>

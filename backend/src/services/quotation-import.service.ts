@@ -324,11 +324,29 @@ export async function commitQuotationImport(
         throw new ApiError(400, `Không nhận diện được khách hàng cho sheet "${enriched.sheet}".`);
       }
       const today = new Date().toISOString().slice(0, 10);
+      // QA R32 (BaoGia.md §2): the frame carries its own fuel-price lag. The
+      // file's "Lag Day n" header is the customer's confirmation; an omitted
+      // cell carries the customer×route terms forward (R31 freight-04 law —
+      // never fabricate 0/confirmed). Same decision table as the per-route
+      // terms below, resolved once from the first route's current terms.
+      const [firstRouteTerms] = await tx
+        .select({ fuelLagDays: s.freightRateTerms.fuelLagDays, fuelLagConfirmed: s.freightRateTerms.fuelLagConfirmed })
+        .from(s.freightRateTerms)
+        .where(and(
+          eq(s.freightRateTerms.customerId, enriched.customerId),
+          eq(s.freightRateTerms.routeId, enriched.routes[0]!.routeId!),
+          lte(s.freightRateTerms.effectiveDate, today),
+          isNull(s.freightRateTerms.deletedAt),
+        ))
+        .orderBy(desc(s.freightRateTerms.effectiveDate))
+        .limit(1);
+      const frameLag = resolveImportedFuelLag(enriched.fuelLagDays, firstRouteTerms);
       const [frame] = await tx.insert(s.quotations).values({
         customerId: enriched.customerId,
         templateName: `${enriched.sheet} (${today})`,
         effectiveDate: today,
         surchargeRoundingMode: enriched.roundingMode === 'NONE' ? 'NONE' : enriched.roundingMode,
+        fuelPriceLagDays: frameLag.fuelLagDays,
       }).returning({ id: s.quotations.id });
       // Card _8 (Director ruling, 2026-09-25): the file's Phụ phí grid row is
       // the fee catalog when the customer embeds it — one quotation_fees row

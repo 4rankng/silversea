@@ -1,0 +1,15 @@
+-- QA R32 — BaoGia.md §2: "độ trễ áp giá dầu (lag)" là thuộc tính KHUNG báo giá.
+-- Giá dầu áp dụng = giá dầu kỳ (Ngày vận chuyển − lag) — CuocPhiPhuPhiDau.md §7;
+-- NEWEB đã chốt N=1 (PhuongAnTinhCuocTuDong.md §3.1) nên default 1.
+--
+-- An toàn deployment (drizzle-safe-migrations):
+--   1. ADD COLUMN ... NOT NULL DEFAULT 1 — bảng quotations nhỏ; PG16+ ghi
+--      DEFAULT dạng catalog (không rewrite bảng). Existing frames backfill
+--      lag 1 = giá trị NEWEB đã chốt, đúng "default theo import-lag NEWEB".
+--   2. Không constraint thêm, không backfill dữ liệu ngoài default —
+--      engine vẫn fallback freight_rate_terms.fuel_lag_days khi khách chưa
+--      có khung hiệu lực, nên frame cũ mang lag 1 không đổi hành vi của
+--      khách chưa từng cấu hình (seed NEWEB terms cũng là lag 1/confirmed).
+--   3. Idempotent theo journal drizzle-kit migrate; `make setup`
+--      (migrate trước seed) không phụ thuộc thứ tự seed nào.
+ALTER TABLE "quotations" ADD COLUMN "fuel_price_lag_days" integer DEFAULT 1 NOT NULL;

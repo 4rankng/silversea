@@ -95,6 +95,28 @@
 
 .quotation-status { color: var(--ink-3); font-size: var(--text-caption-size); }
 
+/* ── Frame summary strip: template + hiệu lực + rounding + lag (QA R32) ──── */
+.quotation-frame-summary {
+  margin: 0 0 10px;
+}
+
+.quotation-frame-summary__params {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+}
+
+.quotation-frame-summary__lag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 /* ── Route block: parameter strip + the 5×10 grid ───────────────────────── */
 .quotation-route-block {
   min-width: 0;

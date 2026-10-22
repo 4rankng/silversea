@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Btn, PageHeader } from '../../components/UI';
 import { EmptyState, FilterBar, UuiSelectField } from '../../design-system';
+import { TextField } from '../../design-system';
 import { Alert } from '../../components/shared/Alert';
 import { StatusText } from '../../components/shared/StatusText';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
@@ -38,6 +39,35 @@ function todayIso(): string {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * QA R32 (BaoGia.md §2): the frame's "độ trễ áp giá dầu" editor. Draft-then-
+ * commit on blur, exactly like the grid's Hệ số cells: an invalid draft never
+ * fires a save (không bịa số) and the control falls back to the persisted
+ * value on the next render.
+ */
+function FrameLagEditor({ lag, saving, onSave }: {
+  lag: number;
+  saving: boolean;
+  onSave: (raw: string) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <TextField
+      aria-label="Độ trễ áp giá dầu (ngày)"
+      value={draft ?? String(lag)}
+      inputMode="numeric"
+      controlSize="sm"
+      controlWidth="short-number"
+      disabled={saving}
+      onChange={(event: React.ChangeEvent<HTMLInputElement>) => setDraft(event.target.value)}
+      onBlur={(event: React.FocusEvent<HTMLInputElement>) => {
+        onSave(event.target.value);
+        setDraft(null);
+      }}
+    />
+  );
 }
 
 export default function QuotationConfigPage() {
@@ -165,6 +195,7 @@ export default function QuotationConfigPage() {
         templateName: detail.data!.templateName,
         effectiveDate: detail.data!.effectiveDate,
         surchargeRoundingMode: detail.data!.surchargeRoundingMode,
+        fuelPriceLagDays: detail.data!.fuelPriceLagDays,
         note: detail.data!.note,
         cells: mergeQuotationCoefficients(detail.data!.cells, cells),
         fees: schemaCleanFees(detail.data!.fees),
@@ -179,6 +210,7 @@ export default function QuotationConfigPage() {
         templateName: detail.data!.templateName,
         effectiveDate: detail.data!.effectiveDate,
         surchargeRoundingMode: detail.data!.surchargeRoundingMode,
+        fuelPriceLagDays: detail.data!.fuelPriceLagDays,
         note: detail.data!.note,
         cells: detail.data!.cells.map((cell) => ({
           routeId: cell.routeId,
@@ -189,6 +221,33 @@ export default function QuotationConfigPage() {
       },
     });
   }
+
+  // QA R32 (BaoGia.md §2): frame-level fuel lag, editable on the frame strip.
+  // Same replace-all payload as the other save paths; invalid drafts reset to
+  // the persisted value instead of saving garbage (không bịa số).
+  function saveLagDays(raw: string) {
+    const parsed = raw.trim().replace(',', '.');
+    const value = Number(parsed);
+    if (!Number.isInteger(value) || value < 0) return;
+    if (value === detail.data!.fuelPriceLagDays) return;
+    update.mutate({
+      id: selectedId!,
+      body: {
+        templateName: detail.data!.templateName,
+        effectiveDate: detail.data!.effectiveDate,
+        surchargeRoundingMode: detail.data!.surchargeRoundingMode,
+        fuelPriceLagDays: value,
+        note: detail.data!.note,
+        cells: detail.data!.cells.map((cell) => ({
+          routeId: cell.routeId,
+          vehicleSizeClassCode: cell.vehicleSizeClassCode,
+          heSo: cell.heSo,
+        })),
+        fees: schemaCleanFees(detail.data!.fees),
+      },
+    });
+  }
+
 
   return (
     <div className="quotation-page">
@@ -298,6 +357,20 @@ export default function QuotationConfigPage() {
           {selectedId == null && <EmptyState context="pricing" title="Chọn một báo giá để xem lưới giá." />}
           {selectedId != null && detail.isError && <Alert variant="error" style="soft">{String(detail.error)}</Alert>}
           {selectedId != null && detail.isLoading && <p className="quotation-status">Đang tải lưới giá…</p>}
+          {selectedId != null && detail.data && (
+            <section className="quotation-frame-summary" aria-label="Thông tin khung báo giá">
+              <p className="quotation-frame-summary__params">
+                <span className="data-token">{detail.data.templateName}</span>
+                <span className="data-token">{formatDate(detail.data.effectiveDate)}</span>
+                <span>Làm tròn phụ phí: {detail.data.surchargeRoundingMode === 'NONE' ? 'Không' : detail.data.surchargeRoundingMode === 'THOUSAND' ? 'Hàng nghìn' : 'Hàng chục nghìn'}</span>
+                <span className="quotation-frame-summary__lag">
+                  Độ trễ áp giá dầu{' '}
+                  <FrameLagEditor lag={detail.data.fuelPriceLagDays} saving={update.isPending} onSave={saveLagDays} />
+                  {' '}ngày — engine tra giá dầu kỳ (ngày vận chuyển − độ trễ)
+                </span>
+              </p>
+            </section>
+          )}
           {selectedId != null && detail.data && routeBlocks.length === 0 && (
             <EmptyState context="pricing" title="Báo giá chưa có biểu giá theo tuyến." />
           )}
