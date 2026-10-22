@@ -34,6 +34,18 @@ body:has(.app.is-driver) {
   background: var(--surface);
 }
 
+/* Bottom-gap unification (consult 23/10, fix #1): #root joins the same
+   canvas family — with the static `var(--bg)` fill from base.css it would
+   otherwise be the one layer still painting the page canvas under a driver
+   surface. */
+#root:has(.app.is-driver .driver-task-screen) {
+  background: var(--surface-2);
+}
+
+#root:has(.app.is-driver) {
+  background: var(--surface);
+}
+
 /* Card 20260927_1: the ROOT canvas is what paints any strip the browser
    reveals beyond the layout viewport (the same collapsed-toolbar slack the
    .bottom-nav: :after band covers). Body keeps the page tone for the visible

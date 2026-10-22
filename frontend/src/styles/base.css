@@ -13,19 +13,65 @@
    content cannot programmatically scroll these layers), while height:100%
    lets the dvh-sized shell reach whatever the dynamic viewport becomes. */
 html, body, #root { height: 100%; overflow: hidden; }
-html { background: var(--bg); }
+/* iOS standalone bottom-gap (consult Gemini+DeepSeek 23/10, fix #1): every
+   canvas layer paints the SAME page token — html (the propagated canvas),
+   body (the visible box) and #root (the shell's parent, previously
+   transparent). Wherever the standalone WKWebView's viewport bug reveals a
+   layer early, the revealed strip reads as the app canvas, never system
+   gray. The driver-mode `:has()` mirrors in bottom-nav.css keep #root in
+   the same tone family when the driver surface takes over. */
+html, body, #root { background: var(--bg); }
 
 body {
   margin: 0;
   font-family: var(--font-body);
   font-size: var(--fs-sm);
   color: var(--ink);
-  background: var(--bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* Disable iOS Safari pull-to-refresh bounce inside the app shell. */
   overscroll-behavior-y: contain;
 }
+
+/* iOS standalone bottom-gap (consult 23/10, fix #5): static fallback strip —
+   a fixed, app-toned band at the physical bottom edge that paints whatever
+   the standalone WKWebView leaves unpainted below the shell (its height IS
+   the safe-area inset; 0 — invisible — where there is none). Standalone
+   only: gated on the hybrid `pwa-standalone` class from
+   lib/pwa-standalone.ts (iOS WebKit evaluates the display-mode media query
+   false even when launched standalone) with the media query as
+   belt-and-braces for engines that honor it. It sits UNDER the fixed bottom
+   nav (--z-sticky) and above the in-flow canvas, ignores touches, and — as
+   a content:"" pseudo-element — is decorative and outside the accessibility
+   tree (the aria-hidden equivalent, with zero DOM churn). */
+html.pwa-standalone body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  /* `inherit` tracks body's LIVE tone — including the driver-mode `:has()`
+     overrides — so the strip can never clash with the page it backs. */
+  background: inherit;
+  z-index: calc(var(--z-sticky, 100) - 1);
+  pointer-events: none;
+}
+
+@media all and (display-mode: standalone) {
+  body::after {
+    content: "";
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: env(safe-area-inset-bottom, 0px);
+    background: inherit;
+    z-index: calc(var(--z-sticky, 100) - 1);
+    pointer-events: none;
+  }
+}
+
 /* Keep native controls consistent without outranking Tailwind/UUI size
    utilities. Unlayered resets override every named cascade layer. */
 @layer base {
