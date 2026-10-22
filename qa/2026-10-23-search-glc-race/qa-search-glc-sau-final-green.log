@@ -1,0 +1,51 @@
+
+=== green run 2026-10-22T18:30:10.790Z BASE=http://localhost:7176 ===
+diacritics "Bãi": {"expanded":"true","value":"Bãi","visible":["GLC"]}
+diacritics "Đà Nẵng": {"expanded":"true","value":"Đà Nẵng","visible":["BB Đà Nẵng"]}
+picked Kho ST: {"expanded":"false","value":"Kho ST","visible":[]}
+re-typed GLC over pick: {"expanded":"true","value":"GLC","visible":["GLC"]}
+bare-Enter over re-typed GLC: {"expanded":"false","value":"GLC","visible":[]}
+fresh re-typed GLC: {"expanded":"true","value":"GLC","visible":["GLC"]}
+after clicking GLC option: {"expanded":"false","value":"GLC","visible":[]}
+GREEN-FAIL: locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('[role="option"]').filter({ hasText: 'LONG MINH' }).first()[22m
+[2m    - locator resolved to <div data-rac="" data-key="1" role="option" data-value="1" aria-selected="false" data-selection-mode="single" data-react-aria-pressable="true" id="react-aria2444525246-_r_9_-option-1" data-collection="react-aria2444525246-_r_a_" aria-labelledby="react-aria2444525246-_r_ta1_" class="w-full py-px outline-hidden px-1 csc-customer-option">…</div>[22m
+[2m  - attempting click action[22m
+[2m    - waiting for element to be visible, enabled and stable[22m
+[2m    - element is visible, enabled and stable[22m
+[2m    - scrolling into view if needed[22m
+[2m    - done scrolling[22m
+[2m    - performing click action[22m
+
+
+=== green run 2026-10-22T18:31:44.476Z BASE=http://localhost:7176 ===
+diacritics "Bãi": {"expanded":"true","value":"Bãi","visible":["GLC"]}
+diacritics "Đà Nẵng": {"expanded":"true","value":"Đà Nẵng","visible":["BB Đà Nẵng"]}
+picked Kho ST: {"expanded":"false","value":"Kho ST","visible":[]}
+re-typed GLC over pick: {"expanded":"true","value":"GLC","visible":["GLC"]}
+bare-Enter over re-typed GLC: {"expanded":"false","value":"GLC","visible":[]}
+fresh re-typed GLC: {"expanded":"true","value":"GLC","visible":["GLC"]}
+after clicking GLC option: {"expanded":"false","value":"GLC","visible":[]}
+GREEN-FAIL: locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('#shipment-customer input, [data-field-id="shipment-customer"] input').first()[22m
+[2m    - locator resolved to <input value="" title="" required="" data-rac="" type="text" tabindex="0" role="combobox" autocorrect="off" autocomplete="off" spellcheck="false" aria-expanded="false" aria-autocomplete="list" placeholder="Gõ để tìm kiếm" id="react-aria5184551274-_r_c_" aria-labelledby="react-aria5184551274-_r_d_" class="z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed text-[length:var(--text-control-compact-…/>[22m
+[2m  - attempting click action[22m
+[2m    - waiting for element to be visible, enabled and stable[22m
+[2m    - element is visible, enabled and stable[22m
+[2m    - scrolling into view if needed[22m
+[2m    - done scrolling[22m
+[2m    - performing click action[22m
+
+
+=== green run 2026-10-22T18:34:47.166Z BASE=http://localhost:7176 ===
+diacritics "Bãi": {"expanded":"true","value":"Bãi","visible":["GLC"]}
+diacritics "Đà Nẵng": {"expanded":"true","value":"Đà Nẵng","visible":["BB Đà Nẵng"]}
+picked Kho ST: {"expanded":"false","value":"Kho ST","visible":[]}
+re-typed GLC over pick: {"expanded":"true","value":"GLC","visible":["GLC"]}
+bare-Enter over re-typed GLC: {"expanded":"false","value":"GLC","visible":[]}
+fresh re-typed GLC: {"expanded":"true","value":"GLC","visible":["GLC"]}
+after clicking GLC option: {"expanded":"false","value":"GLC","visible":[]}
+390 typed GLC: {"expanded":"true","value":"GLC","visible":["GLC"]}
+GREEN-OK exit 0

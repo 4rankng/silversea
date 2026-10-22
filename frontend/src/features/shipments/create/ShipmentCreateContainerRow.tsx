@@ -326,6 +326,13 @@ export function ShipmentCreateContainerRow({
             required={!isAdHoc}
             value={row.dropoffPortId}
             onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)}
+            // TiepVu22Oct-3 sweep: the EXACT twin of Cảng nâng above — the
+            // ad-hoc dropoff port accepts typed free text through
+            // onCustomValue (rawDropoffPortName), so it needs the same
+            // allowsCustomValue flag or every non-matching keystroke flips
+            // dropoffPortId → '' outside the typing-session guard and the
+            // sync effect eats the character (the GLC bug class).
+            allowsCustomValue={isAdHoc}
             options={portOptions}
             placeholder={isAdHoc ? 'Chọn hoặc gõ tên cảng' : 'Chọn cảng hạ'}
             disabled={saving}

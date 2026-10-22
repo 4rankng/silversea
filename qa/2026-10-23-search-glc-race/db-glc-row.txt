@@ -1,0 +1,5 @@
+  id   | customer_id | code |  name   | short_name | site_type | is_active | deleted_at 
+-------+-------------+------+---------+------------+-----------+-----------+------------
+ 27166 |           1 | GLC  | Bãi GLC | GLC        | WAREHOUSE | t         | 
+(1 row)
+
