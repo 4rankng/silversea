@@ -1101,3 +1101,50 @@ DONE — replaced per protocol.
 
 **Status**: DONE — root-caused, fixed, verified UI DRIVEN 15/15 (390/768/1440),
 gates green, review APPROVE. Commit trên branch; push theo brief.
+
+---
+
+# Quote-frame CREATE fail-im-lặng (card 221026040742) — 2026-10-22
+
+Controller: agent, worktree `fix-quote-create` (off main `839d0577`).
+
+**Status**: DONE — root-caused, fixed, verified UI DRIVEN, gates green,
+review pending-at-write (see qa/2026-10-22-quote-create/).
+
+**Symptom (QA 22/10)**: Config → Báo giá → tạo khung: submit mà list trống,
+không thấy lỗi → không có khung → không set lag NEWEB được.
+
+**Exonerated (evidence, not guesses)**: BE create handler + tx (POST 201
+`{"id":2520}` với đúng dialog payload; 45/45 `quotations.create` idempotency
+rows committed trên DB local); React-Query keys/refetch (list tự refetch
+không cần F5); shared schema (dialog payload accepted nguyên trạng).
+
+**Root cause**: dialog chặn submit ở FE (Zod fail hoặc native
+`form.checkValidity()` fail) nhưng chỉ set per-field hint nhỏ — không có
+dialog-level Alert → operator tin form đã gửi (fail-im-lặng). Hai lớp thực tế
+bơm đúng triệu chứng (reproduced UI DRIVEN): KH combobox gõ rồi thoát không
+chọn; ngày draft chưa hoàn chỉnh (`22/10/26`) hiển thị đầy nhưng state rỗng.
+Bonus bug: lag bỏ trống → lỗi gán nhầm vào "Ngày hiệu lực".
+
+**Fix** (`QuotationCreateDialog.tsx`): state `attempted` + dialog-level Alert
+"Chưa tạo được báo giá — chưa gửi gì đi. Kiểm tra: <trường>." khi submit bị
+chặn; attribution đúng trường cho lag rỗng. KHÔNG weaken validation.
+
+**Tests**: `QuotationCreateDialog.test.tsx` MỚI — RC-QC-CREATE-1..4 (4/4);
+page tests 13/13 giữ green; regression doc
+`testplan/cycles/2026-10/2026-10-22-quote-create-silent-fail.md`.
+
+**Gates**: lint 0 · FE tsc 0 · FE full 709 files/5459 tests green · BE tsc 0
+· BE 724 tests green · `make build` ok (qa/2026-10-22-quote-create/gates.txt).
+
+**UI DRIVEN chain (qa/2026-10-22-quote-create/)**: block-loud (A/B, 0 POST) →
+fix-date → Alert biến mất → POST 201 → list +1 KHÔNG F5 → frame strip lag=1 →
+preview-rate lag A/B: lag=1 dùng kỳ ≤21/10 (period 2 @27620), lag=0 dùng kỳ
+22/10 (period 1719 @33500) — lag áp dụng đúng. QA data dọn sạch (cleanup.txt).
+
+**Nợ/lưu ý**: (1) chuỗi NEWEB-lag retest trên staging theo owner (local đã
+pass); (2) "KH mới" trong brief diễn giải là khung MỚI cho KH có sẵn terms
+(customer 1 — KH có freight_rate_terms route NEWEB local) — nếu ý là tạo
+customer record mới thì preview-rate sẽ MANUAL (thiếu terms), đã ghi trong
+báo cáo; (3) khung 2518/2519 "QA R32 lag-probe" của QA (đã deleted trước đó)
+không đụng.

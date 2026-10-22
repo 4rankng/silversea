@@ -25,6 +25,10 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
   const [lagDays, setLagDays] = useState('1');
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
+  // Card 221026040742: a blocked submit must be LOUD. Per-field hints alone
+  // read as "nothing happened" (fail-im-lặng) — the operator believes the
+  // form submitted while no request ever left the browser.
+  const [attempted, setAttempted] = useState(false);
   const selectedCustomer = customers.data?.find(customer => String(customer.id) === customerId);
   const close = () => { if (!create.isPending) onClose(); };
 
@@ -49,12 +53,20 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
         if (field === 'effectiveDate') fields.effectiveDate = 'Chọn ngày hiệu lực hợp lệ.';
         if (field === 'fuelPriceLagDays') fields.fuelPriceLagDays = 'Độ trễ áp giá dầu phải là số nguyên ngày ≥ 0.';
       }
-      if (parsed.success && !validControls) fields.effectiveDate = 'Chọn ngày hiệu lực hợp lệ.';
+      if (parsed.success) {
+        // Zod passed, so a native-invalid control is an empty required field
+        // Zod defaulted away. Attribute it to its OWN field — an empty lag
+        // used to be misreported as a date error.
+        if (lagDays.trim() === '') fields.fuelPriceLagDays = 'Nhập độ trễ áp giá dầu (số nguyên ngày ≥ 0).';
+        if (Object.keys(fields).length === 0) fields.effectiveDate = 'Chọn ngày hiệu lực hợp lệ.';
+      }
       setErrors(fields);
+      setAttempted(true);
       requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
       return;
     }
     setErrors({});
+    setAttempted(false);
     try {
       const result = await create.mutateAsync(parsed.data);
       onCreated(result.id);
@@ -63,6 +75,13 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
     }
   }
 
+  const blockedLabels = [
+    errors.customerId && 'khách hàng',
+    errors.templateName && 'tên mẫu báo giá',
+    errors.effectiveDate && 'ngày hiệu lực',
+    errors.fuelPriceLagDays && 'độ trễ áp giá dầu',
+  ].filter((label): label is string => Boolean(label));
+
   return (
     <Modal isOpen title="Tạo báo giá" onClose={close} backdropDismiss={false} polished
       footer={<><Btn onClick={close} disabled={create.isPending}>Hủy</Btn><Btn variant="primary" type="submit" form={formId} disabled={create.isPending || customers.isLoading || customers.isError}>{create.isPending ? 'Đang tạo…' : 'Tạo báo giá'}</Btn></>}
@@ -70,6 +89,11 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
       <form id={formId} ref={formRef} className="stack" onSubmit={submit} noValidate>
         {customers.isError && <Alert variant="error" style="soft">Không tải được danh sách khách hàng. <Btn size="sm" onClick={() => void customers.refetch()}>Thử lại</Btn></Alert>}
         {create.isError && <Alert variant="error" style="soft">{create.error.message}</Alert>}
+        {attempted && blockedLabels.length > 0 && (
+          <Alert variant="error" style="soft">
+            Chưa tạo được báo giá — chưa gửi gì đi. Kiểm tra: {blockedLabels.join(', ')}.
+          </Alert>
+        )}
         <UuiSelectField label="Khách hàng" value={customerId} required size="md" error={errors.customerId} hint={selectedCustomer?.name}
           disabled={create.isPending || customers.isLoading || customers.isError}
           options={[{ value: '', label: 'Chọn khách hàng' }, ...(customers.data ?? []).map(customer => ({ value: String(customer.id), label: customer.name }))]}
