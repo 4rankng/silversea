@@ -1436,3 +1436,137 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     expect(screen.queryByText(/BKS Báo khách/)).toBeNull();
   });
 });
+
+/* Card 261022093846 (Zalo khách 22/10 09:38) — cột Nâng/hạ của dòng LCL.
+ * Khách làm rõ: lô LCL KHÔNG có khái niệm nâng/hạ, chỉ có điểm đóng hàng +
+ * điểm trả hàng. Backend đã resolve hai điểm đó từ intake data của lô (kho
+ * CFS + nhà máy, swap theo hướng — luật lotLiftDropPoints); ledger chỉ còn
+ * in đúng nghĩa: nhãn Đóng/Trả + tooltip luật, TUYỆT ĐỐI không fallback
+ * "Chưa cập nhật" như đang chờ data không bao giờ đến (bài học DRI-04).
+ * Dòng container giữ nguyên nhãn Nâng/Hạ + "Chưa cập nhật". */
+describe('ShipmentContainerLedger LCL lot route cell (card 261022093846)', () => {
+  const lotRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}) => baseRow({
+    id: -7,
+    isLotLevel: true,
+    containerNumber: null,
+    containerTypeLabel: null,
+    classification: 'LCL',
+    ...overrides,
+  });
+
+  function renderRows(rows: ShipmentCusContainerFlatRow[]) {
+    return render(
+      <MemoryRouter>
+        <ShipmentContainerLedger
+          rows={rows}
+          totalContainers={rows.length}
+          today="2026-10-22"
+          sort={null}
+          onSortChange={vi.fn()}
+          activeEdit={null}
+          editLoadingRowId={null}
+          editError={null}
+          onStartEdit={vi.fn()}
+          onCancelEdit={vi.fn()}
+          onSaveRoute={vi.fn(async () => {})}
+          onSaveVehicle={vi.fn(async () => {})}
+          onSaveSchedule={vi.fn(async () => {})}
+          onSaveNotes={vi.fn(async () => {})}
+          onSaveIdentity={vi.fn(async () => {})}
+          onSaveDocuments={vi.fn(async () => {})}
+          onSaveContainer={vi.fn(async () => {})}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  function routeCell(container: ReturnType<typeof renderRows>['container']): HTMLElement {
+    return container.querySelector('td[data-label="Nâng / hạ"]') as HTMLElement;
+  }
+
+  it('NANGHA-R1 LCL NHẬP: prints Đóng <kho> / Trả <nhà máy> with the law tooltip — never "Chưa cập nhật"', () => {
+    const view = renderRows([lotRow({ liftSite: 'Kho CFS Long Biên', dropoffSite: 'Nhà máy ASKEY' })]);
+    const cell = routeCell(view.container);
+    expect(within(cell).getByText('Đóng')).toBeTruthy();
+    expect(within(cell).getByText('Kho CFS Long Biên')).toBeTruthy();
+    expect(within(cell).getByText('Trả')).toBeTruthy();
+    expect(within(cell).getByText('Nhà máy ASKEY')).toBeTruthy();
+    expect(within(cell).queryByText('Chưa cập nhật')).toBeNull();
+    expect(cell.querySelector('.shipment-container-ledger__route--lot')?.getAttribute('title'))
+      .toBe('Lô lẻ: không nâng/hạ — đóng tại Kho CFS Long Biên, trả tại Nhà máy ASKEY');
+  });
+
+  it('NANGHA-R2 LCL XUẤT: prints the swapped pair the backend resolved (Đóng nhà máy / Trả kho)', () => {
+    const view = renderRows([lotRow({ direction: 'EXPORT', liftSite: 'Nhà máy Long Minh', dropoffSite: 'Kho ICD Hà Nội' })]);
+    const cell = routeCell(view.container);
+    expect(within(cell).getByText('Đóng')).toBeTruthy();
+    expect(within(cell).getByText('Nhà máy Long Minh')).toBeTruthy();
+    expect(within(cell).getByText('Trả')).toBeTruthy();
+    expect(within(cell).getByText('Kho ICD Hà Nội')).toBeTruthy();
+  });
+
+  it('NANGHA-R3 LCL lot missing both points: "—" halves, tooltip says chưa rõ — still never "Chưa cập nhật"', () => {
+    const view = renderRows([lotRow({ liftSite: null, dropoffSite: null })]);
+    const cell = routeCell(view.container);
+    expect(within(cell).getAllByText('—')).toHaveLength(2);
+    expect(within(cell).queryByText('Chưa cập nhật')).toBeNull();
+    expect(cell.querySelector('.shipment-container-ledger__route--lot')?.getAttribute('title'))
+      .toBe('Lô lẻ: không nâng/hạ — đóng tại chưa rõ, trả tại chưa rõ');
+  });
+
+  it('NANGHA-R4 container rows keep the Nâng/Hạ pair, placeholder included', () => {
+    const view = renderRows([
+      baseRow({ liftSite: 'Cảng A', dropoffSite: 'KCN B' }),
+      baseRow({ id: 2, ordinal: 2, liftSite: null, dropoffSite: null }),
+    ]);
+    const cells = view.container.querySelectorAll('td[data-label="Nâng / hạ"]');
+    expect(cells).toHaveLength(2);
+    const filled = cells[0] as HTMLElement;
+    const empty = cells[1] as HTMLElement;
+    expect(within(filled).getByText('Nâng')).toBeTruthy();
+    expect(within(filled).getByText('Cảng A')).toBeTruthy();
+    expect(within(filled).getByText('Hạ')).toBeTruthy();
+    expect(within(empty).getAllByText('Chưa cập nhật')).toHaveLength(2);
+    expect(view.container.querySelector('.shipment-container-ledger__route--lot')).toBeNull();
+  });
+});
+
+/* Card QA 221026095429 (22/10) — documents column order pin. The requested
+ * order BILL/BOOKING → SỐ TỜ KHAI → NHẬP/XUẤT → HÃNG TÀU is already the
+ * FB-113 v2 implementation (card 171026122140); this pin guards it against
+ * future column refactors so the QA contract stays locked in this table. */
+describe('ShipmentContainerLedger documents column order (card 221026095429)', () => {
+  it('COLDOCS-R1 the four documents columns render Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu, header and cells alike', () => {
+    const view = render(
+      <MemoryRouter>
+        <ShipmentContainerLedger
+          rows={[baseRow()]}
+          totalContainers={1}
+          today="2026-10-22"
+          sort={null}
+          onSortChange={vi.fn()}
+          activeEdit={null}
+          editLoadingRowId={null}
+          editError={null}
+          onStartEdit={vi.fn()}
+          onCancelEdit={vi.fn()}
+          onSaveRoute={vi.fn(async () => {})}
+          onSaveVehicle={vi.fn(async () => {})}
+          onSaveSchedule={vi.fn(async () => {})}
+          onSaveNotes={vi.fn(async () => {})}
+          onSaveIdentity={vi.fn(async () => {})}
+          onSaveDocuments={vi.fn(async () => {})}
+          onSaveContainer={vi.fn(async () => {})}
+        />
+      </MemoryRouter>,
+    );
+    const headerLabels = Array.from(view.container.querySelectorAll('.shipment-container-ledger thead th'))
+      .map((th) => (th.textContent ?? '').trim());
+    // The documents group starts after the identity column.
+    expect(headerLabels.slice(1, 5)).toEqual(['Bill/Booking', 'Số tờ khai', 'Nhập/Xuất', 'Hãng tàu']);
+    const firstRow = view.container.querySelector('.shipment-container-ledger tbody tr') as HTMLElement;
+    const docCells = Array.from(firstRow.querySelectorAll('td[data-label]'))
+      .map((td) => td.getAttribute('data-label'));
+    expect(docCells.slice(0, 4)).toEqual(['Bill/Booking', 'Số tờ khai', 'Nhập/Xuất', 'Hãng tàu']);
+  });
+});
