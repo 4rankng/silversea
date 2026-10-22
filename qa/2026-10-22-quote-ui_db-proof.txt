@@ -1,0 +1,33 @@
+-- DB: vehicle_size_classes (grid codes) — docker exec ss-prod-db psql -U postgres -d silversea (local dev, port 5441)
+     code     |               name                | is_container | sort_order 
+--------------+-----------------------------------+--------------+------------
+ 1.25T        | Xe 1.25 tấn                       | f            |          1
+ 2.5T         | Xe 2.5 tấn                        | f            |          2
+ 3.5T         | Xe 3.5 tấn                        | f            |          3
+ 5T           | Xe 5 tấn                          | f            |          4
+ 8T           | Xe 8 tấn                          | f            |          5
+ 10T          | Xe 10 tấn                         | f            |          6
+ CONT20       | Container 20 feet                 | t            |          8
+ CONT40       | Container 40 feet                 | t            |          9
+ CONT20.LIGHT | Cont 20 - Trọng tải < 20 tấn      | t            |         10
+ CONT20.HEAVY | Cont 20 - Trọng tải > 20 tấn      | t            |         11
+ CONT40.LIGHT | Cont 40 nhẹ - Trọng tải < 20 tấn  | t            |         12
+ CONT40.HEAVY | Cont 40 nặng - Trọng tải > 20 tấn | t            |         13
+(12 rows)
+
+-- DB: quotations + sparse he-so overrides (hệ số mặc định 1 không lưu dòng)
+ id |               customer                | template_name | effective_date | surcharge_rounding_mode | he_so_rows 
+----+---------------------------------------+---------------+----------------+-------------------------+------------
+  1 | CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH | Mẫu báo giá 1 | 2026-09-15     | NONE                    |          0
+  2 | Công ty TNHH LOG COM Việt Nam         | Mẫu LOG COM   | 2026-09-15     | NONE                    |          4
+(2 rows)
+
+-- DB: version snapshots của 2 khung sống (250 dòng còn lại là residue khung test đã soft-delete)
+ quotation_id | version | trigger_kind  |       released_at       
+--------------+---------+---------------+-------------------------
+            1 |       1 | FUEL_APPROVED | 2026-10-21 15:29:56
+            2 |       1 | MANUAL_EDIT   | 2026-10-03 04:05:44.262
+(2 rows)
+
+-- API: GET /api/quotations/1/export → HTTP 200, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, 6590 bytes
+-- API: GET /api/quotations/1 → 30 cells = 3 routes × 10 class codes; cell[0]: heSo=1 liters=26 giaCos=1326000 baseFuelPrice=17842.5926 fuelLagDays=1 (chi tiết trong driver log)

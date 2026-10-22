@@ -1,6 +1,37 @@
 
 ---
 
+# R32 báo giá UI spec verify (card 221026040542) — 2026-10-22
+
+Controller: this agent, worktree fix-quote-ui-spec (off main cae84f8d), branch fix-quote-ui-spec.
+
+**Status**: DONE — verify-first, **0 src change cần thiết**: QA verify-fail
+"không có UI báo giá" là SAI — 14/14 mục checklist BaoGia.md CÓ tại
+`/config/quotations`. UI DRIVEN 29/29 + gates xanh + evidence + commit/push.
+(Prepend theo quy ước stacked log; lịch sử các lane trước giữ nguyên bên dưới.)
+
+- **Đối chiếu field-by-field** (`qa/2026-10-22-quote-ui/README.md`): khung giá
+  (tên mẫu/giá dầu tham chiếu/ngày hiệu lực/làm tròn NONE-THOUSAND-TEN_THOUSAND)
+  · lưới 10 hạng/tuyến (6 lẻ + 4 cont, nhãn từ `QUOTATION_GRID_COLUMNS`, seed
+  đủ 12 mã chuẩn trong `vehicle_size_classes`) · mỗi ô 3 giá trị (Hệ số input +
+  Lít dẫn xuất + Giá cos, thiếu giá hiện "Thiếu giá" đúng ruling 2) · nút
+  Nhập xlsx (preview→Ghi nhận/Huỷ, Huỷ không ghi vết 2→2) + Xuất xlsx (6590B
+  khớp API) + per-version Xuất xlsx + Xem payload chỉ đọc.
+- **KHÔNG đụng lag field**: hiển thị "Trễ N ngày" từ `freight_rate_terms`;
+  `fuelPriceLagDays` do lane song song thêm — đã ghi trong evidence là sắp có.
+- **UI DRIVEN 29/29** (`qa/drivers/2026-10-22-quote-ui-drive.mjs` →
+  `qa/2026-10-22-quote-ui_ui-driver.log`, 1440×1000, admin): API identity
+  30 cell = 3 tuyến × 10 mã; DB proof `qa/2026-10-22-quote-ui_db-proof.txt`.
+- **Gates**: FE `tsgo --noEmit` 0 + `tsgo -b` 0 · scoped vitest config pages
+  236/236 · **FULL FE 5454/5454** (run 1 fail 2 chỉ vì worktree chưa build —
+  test pin production CSS cần dist; sau `pnpm build` toàn xanh) · root lint 0.
+  0 src change → BE gates không đụng. (Shared `npm test` có 2 fail fifoAging
+  pre-existing tại cae84f8d — debt aging, ngoài scope, không thuộc gates.)
+- **Testplan case**: `testplan/2026-10-22-card221026040542-quote-ui-spec.md`
+  (QA-BG-UI-1…5).
+
+---
+
 # DRI-03 lan 2 (card 211026180628) — kẹp 2x20' verify theo lot QA 133/SHP-2610-00069 — 2026-10-21
 
 Controller: this agent, worktree fix-dri03-lan2 (off main 9aab78d2), branch fix-dri03-lan2.
