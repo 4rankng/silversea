@@ -75,6 +75,8 @@ Một lô có thể vừa có phần chưa chốt lịch, phần đã phân xe v
 
 Một container hoàn thành không làm cả lô hoàn thành. Lô chỉ hoàn thành khi mọi phần việc bắt buộc còn hiệu lực đã xong. Lô đã phát, hoàn thành hoặc hủy vẫn tra cứu được; bộ lọc phải cho biết vì sao một lô không xuất hiện trong danh sách hiện tại.
 
+Lô hàng lẻ hiển thị tag chiều **NHẬP LẺ / XUẤT LẺ** ngay trên row (danh sách CUS, dòng lô-level của ledger, header chi tiết lô) — chiều lấy theo cargoMode/isLotLevel của lô, người dùng phân biệt nhập/xuất không cần mở detail (card `261022213755c`).
+
 ### 3.2 Thay đổi phân công trước và sau nhận lệnh
 
 | Tình huống | Quy tắc nghiệp vụ |
@@ -98,6 +100,7 @@ Một khách hàng có nhiều nhà máy. Nhà máy có tuyến cố định và
 - Với nhà máy cũ chưa có tuyến, người có quyền vẫn có thể chọn một tuyến hợp lệ cho công việc và được nhắc bổ sung danh mục. Lựa chọn cho một lô không tự thay đổi danh mục nhà máy. Nếu vẫn thiếu tuyến bắt buộc thì chưa được phát lệnh.
 - Tạo nhà máy mới phải có tuyến. Người dùng biết ai có thể bổ sung cấu hình khi mình không có quyền.
 - Lựa chọn sau cùng của người dùng được giữ đúng. Danh sách chưa tải được phải có thông báo và cách thử lại, khác với danh sách thực sự không có dữ liệu.
+- Ô tìm kiếm kho nhận text gõ tay: gõ "GLC" phải gợi ý đúng kho GLC (và "LC" vẫn thấy LC). Text đang gõ chỉ là passthrough lọc gợi ý — không được tự adopt thành lựa chọn rồi đóng menu giữa chừng; chỉ hành động pick của người dùng mới chọn giá trị (card `261022213755b`).
 
 ### 4.2 Nhập thông tin đã biết, bổ sung thông tin còn thiếu
 

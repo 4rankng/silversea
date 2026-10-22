@@ -127,6 +127,8 @@ Giữ thao tác hoàn thành gọn đã được xác định: lái xe phải t�
 
 Ảnh tải đến 100% chưa đồng nghĩa hồ sơ đã lưu thành công; người dùng phải biết ảnh nào đã lưu và có thể mở lại. Thiếu bằng chứng phải có chỉ dẫn cụ thể; đủ bằng chứng không tạo thêm bước chờ phê duyệt e-POD hoặc kế toán. Vẫn kiểm tra quyền sở hữu, trạng thái còn cho phép hoàn thành và thứ tự KẾT HỢP; không yêu cầu nhập thêm các mốc thủ công chỉ để đủ thủ tục. Ảnh container/chì, vé cầu đường, thu hồi chứng từ gốc, đối soát chi phí hoặc xác nhận doanh thu bằng 0 không trở thành điều kiện bổ sung để lái xe đóng chuyến.
 
+Ảnh e-POD là **tùy chọn, không bắt buộc** (owner ruling 22/10, card `261022213755a`): lái xe nhận lệnh và hoàn thành chuyến được ngay cả khi 0 ảnh — trạng thái hồ sơ "sẵn sàng" chỉ còn phụ thuộc mốc nhận lệnh, hệ thống không chặn gửi hồ sơ vì thiếu ảnh; nhãn hiển thị "Tùy chọn / Chưa có" thay vì "bắt buộc".
+
 Khi hệ thống xác nhận hoàn thành, thẻ chuyển sang **Lịch sử** và Điều vận/CUS/Ops thấy tiến độ mới. Lô hàng có nhiều phần việc chỉ hoàn thành khi các phần bắt buộc đã xong; một container xong không đồng nghĩa mọi container trong lô đã xong.
 
 Với LCL, ghi nhận hoàn thành cho công việc hàng lẻ, không phụ thuộc vào container. Bộ chứng từ thay cho phiếu hạ container chưa được xác định đầy đủ và phải làm rõ theo nghiệp vụ hàng lẻ; không tự coi bộ chứng từ FCL là bắt buộc cho mọi công việc LCL. Không yêu cầu số container hoặc ảnh container giả để đóng lệnh.

@@ -412,3 +412,6 @@ spec regression-pack (`frontend/e2e/regression/`, chạy `pnpm reg:local`).
 | FB-113 🔒 | 171026122140 | Thứ tự chứng từ | ba9981c2 | P (R26 + standing + audit) | 3 surface trùng tên |
 | 261022201006b | TiepVu 22/10 tối | Filter ngày CUS theo NGÀY VN — sửa 2 root cause: EDD arm vô điều kiện + cửa sổ UTC cho cột timestamptz | 6a633ed6 | probe 13/13 + UI 7/7 + `container-date-window.test.ts`/`shipment-transport-date-condition.test.ts` | — |
 | 261022201006c | TiepVu 22/10 tối (owner ruling) | BỎ mã chuyến khỏi app lái xe (list+detail), UI-only — đảo REQ-07 cũ; DB/API giữ field, màn khác giữ nguyên | 6a633ed6 | scoped vitest 160/160 · FULL FE 5473/5473 · drive UI 13/13 | — |
+| 261022213755a | TiepVu 22/10-2 (owner ruling docx) | e-POD ảnh TÙY CHỌN — nhận lệnh/hoàn thành không chặn vì thiếu ảnh; ready = milestone only | 4fadceb5 | UI driven trip 194126 0 ảnh + DB COMPLETED · FE FULL 5497/5497 | — |
+| 261022213755b | TiepVu 22/10-2 | Search kho: gõ "GLC" ra GLC — typed text không tự adopt thành pick (shared uui-searchable-field) | 4fadceb5 | exact-label vitest 113 dòng mới + UI drive trước/sau | — |
+| 261022213755c | TiepVu 22/10-2 | Tag NHẬP LẺ/XUẤT LẺ theo cargoMode/isLotLevel (list CUS + ledger lot-level + header detail) | 4fadceb5 | vitest cus-cards + ledger + ShipmentDetail | — |
