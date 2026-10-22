@@ -47,8 +47,8 @@ const FILE_TYPE_LABELS: Record<string, string> = {
 };
 
 const FILE_TYPE_HELP: Record<string, string> = {
-  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Bắt buộc. Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.',
-  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Bắt buộc. Phải có chữ ký giao nhận đầy đủ.',
+  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Tùy chọn. Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.',
+  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Tùy chọn. Phải có chữ ký giao nhận đầy đủ.',
 };
 
 // Driver submission completes directly; legacy review states remain readable
@@ -245,7 +245,10 @@ export function TripPodSubmission({
     <section className="trip-pod">
       <div className="trip-pod__head">
         <div>
-          <h2 className="trip-pod__title">Chứng từ bắt buộc</h2>
+          {/* Card 261022213755a (owner ruling 22/10): e-POD photos are
+              OPTIONAL — the title names the section without the retired
+              "bắt buộc" claim. */}
+          <h2 className="trip-pod__title">Chứng từ giao hàng</h2>
           <p className="trip-pod__subtitle">{documentNumber?.trim() || 'Chưa có số Bill/Booking'}</p>
         </div>
         {currentSubmission && currentSubmission.status !== TripPodStatus.DRAFT && (
@@ -287,7 +290,7 @@ export function TripPodSubmission({
                 <div>
                   <h3 className="trip-pod__card-title">
                     {FILE_TYPE_LABELS[fileType]}
-                    <span className="trip-pod__required">Bắt buộc</span>
+                    <span className="trip-pod__required">Tùy chọn</span>
                   </h3>
                   <p className="trip-pod__card-help">{FILE_TYPE_HELP[fileType]}</p>
                 </div>
@@ -295,7 +298,7 @@ export function TripPodSubmission({
                   {files.length > 0 ? (
                     <span className="trip-pod__state-ok"><CheckCircle2 size={15} /><span className="trip-pod__state-count">{`${files.length} tệp`}</span></span>
                   ) : (
-                    <span className="trip-pod__state-missing">Thiếu</span>
+                    <span className="trip-pod__state-missing">Chưa có</span>
                   )}
                 </div>
               </div>
@@ -401,14 +404,16 @@ export function TripPodSubmission({
       <div className="trip-pod__foot">
         <div className="trip-pod__readiness">
           <strong>
-            Điều kiện hoàn thành
+            Tiến độ chứng từ
             <span className="trip-pod__progress-pct">{uploadProgressPercent}%</span>
           </strong>
-          {/* Spec (Phần 4): the literal "thanh tiến trình" — submit unlocks at 100%. */}
+          {/* Card 261022213755a: the progress bar is informational — the
+              photos are optional, "Hoàn thành chuyến" no longer waits for
+              100%. */}
           <div
             className="trip-pod__progress"
             role="progressbar"
-            aria-label="Tiến độ hồ sơ e-POD bắt buộc"
+            aria-label="Tiến độ chứng từ e-POD"
             aria-valuenow={uploadProgressPercent}
             aria-valuemin={0}
             aria-valuemax={100}
@@ -419,10 +424,10 @@ export function TripPodSubmission({
             />
           </div>
           {missingRequired.length === 0 ? (
-            <span>{isLocked ? 'Đã lưu đủ hai loại chứng từ.' : 'Đủ hai loại chứng từ để hoàn thành chuyến.'}</span>
+            <span>{isLocked ? 'Đã lưu đủ hai loại chứng từ.' : 'Đủ hai loại chứng từ.'}</span>
           ) : (
             <span>
-              Còn thiếu {missingRequired.map((fileType) => FILE_TYPE_LABELS[fileType]).join(', ')}.
+              Chưa có {missingRequired.map((fileType) => FILE_TYPE_LABELS[fileType]).join(', ')} (tùy chọn).
             </span>
           )}
         </div>

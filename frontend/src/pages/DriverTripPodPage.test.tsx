@@ -241,7 +241,7 @@ describe('DriverTripPodPage', () => {
     expect(podSubmissionMock.mock.calls.at(-1)?.[0].documentNumber).toBe('Chưa có số Bill/Booking');
   });
 
-  it('renders the e-POD screen with the mandatory-photo footer gate', async () => {
+  it('renders the e-POD screen with photos optional — completion is never photo-gated (card 261022213755a)', async () => {
     renderPage();
 
     expect(await screen.findByTestId('trip-pod-submission')).toBeTruthy();
@@ -249,18 +249,18 @@ describe('DriverTripPodPage', () => {
     // The section label lives inside TripPodSubmission's own eyebrow — the
     // page must not stack a second "e-POD bắt buộc" head above it.
     expect(screen.queryByText('e-POD bắt buộc')).toBeNull();
-    // Both mandatory photos are listed as missing and completion is gated.
-    expect(screen.getByText('Thiếu Phiếu bãi / phiếu hạ')).toBeTruthy();
-    expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }).hasAttribute('disabled')).toBe(true);
-    // DRV-DET-06: the e-POD screen states that the e-POD is mandatory and
-    // names the uppercase command — without minting a second `e-POD bắt buộc`
-    // label (asserted absent above).
-    expect(screen.getByText(/e-POD là bắt buộc/)).toBeTruthy();
+    // The optional photos are named as absent, and completion stays ENABLED
+    // with zero photos (owner ruling 22/10: optional, not compulsory).
+    expect(screen.getByText('Chưa có Phiếu bãi / phiếu hạ (tùy chọn)')).toBeTruthy();
+    expect(screen.getByText('Chưa có Biên bản giao nhận (tùy chọn)')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }).hasAttribute('disabled')).toBe(false);
+    // The footer states the photos are optional and names the uppercase
+    // command — without the retired `e-POD là bắt buộc` claim.
+    expect(screen.getByText(/Ảnh e-POD hiện tùy chọn/)).toBeTruthy();
     expect(screen.getByText('HOÀN THÀNH CHUYẾN')).toBeTruthy();
   });
 
-  it('enables HOÀN THÀNH CHUYẾN once both mandatory photos are on the draft', async () => {
+  it('still completes with both photos on the draft and names the ready state', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: makePod([
@@ -279,7 +279,6 @@ describe('DriverTripPodPage', () => {
     const complete = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
     expect(complete.hasAttribute('disabled')).toBe(false);
     expect(screen.getByText('Đủ điều kiện hoàn thành chuyến.')).toBeTruthy();
-    expect(screen.queryByText(/Thiếu/)).toBeNull();
   });
 
   it('shows the operational note from cus/điều vận above the upload card', async () => {
@@ -328,6 +327,30 @@ describe('DriverTripPodPage', () => {
     expect(completeTripMock).toHaveBeenCalledWith(FULFILLMENT_ID, { expectedVersion: 3 }, expect.any(String));
     expect(submitPodMock.mock.invocationCallOrder[0]).toBeLessThan(completeTripMock.mock.invocationCallOrder[0]);
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã lưu chứng từ giao hàng.' });
+  });
+
+  // Card 261022213755a (owner ruling 22/10): ảnh e-POD tùy chọn — hoàn thành
+  // phải chạy được khi KHÔNG có bất kỳ ảnh/chứng từ nào.
+  it('completes the trip with ZERO pod photos — no draft, no submit, straight to complete', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      // No currentPod at all: the driver never opened the e-POD screen.
+      data: makeTaskDetail({ currentPod: null, podHistory: [] }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    renderPage();
+
+    const complete = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
+    expect(complete.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(complete);
+
+    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+    // No draft exists, so nothing submits — completion goes straight through.
+    expect(submitPodMock).not.toHaveBeenCalled();
+    expect(completeTripMock).toHaveBeenCalledWith(FULFILLMENT_ID, { expectedVersion: 3 }, expect.any(String));
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
   });
 
   it.each(['submit', 'complete'])('keeps the driver on the POD screen when %s fails', async (stage) => {

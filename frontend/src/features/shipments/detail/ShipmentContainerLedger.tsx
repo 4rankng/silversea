@@ -1061,7 +1061,7 @@ export function ShipmentContainerLedger({
                   <td data-label="Nhập/Xuất" className={cellClassName(documentsEditable, 'documents')}>
                     {editableCell(row, 'documents', documentsEditable,
                       <div className="shipment-container-ledger__multiline">
-                        <b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction)}</b>
+                        <b className={`shipment-container-ledger__direction shipment-container-ledger__direction--${row.direction?.toLowerCase() ?? 'unknown'}`}>{directionLabel(row.direction, Boolean(row.isLotLevel))}</b>
                       </div>,
                       { rendersEditor: false, triggerKey: 'direction', cellLabel: 'Nhập/Xuất' })}
                   </td>

@@ -364,13 +364,14 @@ function DriverTripDetailContent() {
     .map((p) => p.storageKey);
   const accountingLock = trip.accountingLock ?? null;
   // Spec (Phần 4): the completion gate lives on the e-POD screen
-  // (/my-trips/:id/pod) — this page only links there. The footer still
-  // surfaces the two mandatory-photo gaps so the driver knows what is missing
-  // before tapping through.
+  // (/my-trips/:id/pod) — this page only links there. Card 261022213755a:
+  // the photos are optional, so the footer surfaces the doc facts as
+  // informational hints, not gaps the driver must fill.
   const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
 
   // Card 20260926_28 item 10: live completion state for the sticky bar (and
-  // the top progress strip) — missing = the POD-gate files still absent.
+  // the top progress strip) — the count names the optional docs still absent
+  // (card 261022213755a: informational only, never a completion gate).
   const podHave = (hasYardReceipt ? 1 : 0) + (hasSignedNote ? 1 : 0);
   const missingDocs = 2 - podHave;
   const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
@@ -545,8 +546,9 @@ function DriverTripDetailContent() {
       </section>
 
       {/* Phần 4 ticket 2026-08-28: e-POD moved to its own screen
-          (/my-trips/:id/pod) so the driver focuses on the two mandatory
-          photos (Phiếu bãi/hạ + Biên bản giao nhận). The "Hoàn thành"
+          (/my-trips/:id/pod) so the driver handles the delivery photos
+          (Phiếu bãi/hạ + Biên bản giao nhận — optional per card
+          261022213755a) in one place. The "Hoàn thành"
           CTA at the bottom navigates there. The cost-entry form is hidden
           here per the trial-readiness plan ("kế toán từ từ"). Backend
           schema + endpoints for both are retained for the post-trial phase. */}
@@ -662,7 +664,10 @@ function DriverTripDetailContent() {
         <div ref={actionBarRef} className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
           <div className="driver-task-complete-sticky__inner">
             <span className="driver-task-complete-sticky__status" data-testid="complete-sticky-status">
-              {missingDocs > 0 ? `Còn thiếu ${missingDocs} chứng từ` : 'Đủ điều kiện hoàn thành'}
+              {/* Card 261022213755a: photos are optional — the status names
+                  the doc count factually instead of a "Còn thiếu" that reads
+                  like a blocker. */}
+              {missingDocs > 0 ? `Chưa có ${missingDocs}/2 ảnh chứng từ (tùy chọn)` : 'Đã có đủ 2 ảnh chứng từ'}
             </span>
             <button
               type="button"

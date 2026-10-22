@@ -109,6 +109,15 @@ export function USearchableField({
   // react-aria treat a typed string matching an option as 'picked' — closing
   // the suggestion menu mid-word (20260917_14).
   const [chosenKey, setChosenKey] = useState<string | null>(null);
+  // The live custom-typed text (FB-105 §4.2 passthrough). When the caller's
+  // onCustomValue resolves an exact option-label match to the catalog id, the
+  // form value flips to that id mid-word — the sync effect below must not
+  // adopt it as chosenKey, or react-aria reads the controlled selectedKey
+  // change as a real pick and closes the dropdown exactly when the user
+  // finishes typing a full label (card 261022213755b: gõ đủ "GLC" làm menu
+  // kho đóng ngầm, chỉ "LC" mới thấy). Cleared on real picks, clear and blur
+  // so later external value changes adopt their key normally.
+  const typedCustomTextRef = useRef<string | null>(null);
   // Re-sync the visible text only when the FORM value actually changes
   // (external reset, dialog apply), or when the label for the CURRENT value
   // resolves later — a reload can restore the id before the catalog lands,
@@ -132,7 +141,16 @@ export function USearchableField({
     // KeepSuggestionsOpen treat the mid-word menu close as a real pick —
     // suggestions (and the "Thêm mới" create option) never came back while
     // typing. A custom value shows through inputValue above; it is not a pick.
-    setChosenKey(selected?.value ?? null);
+    // Card 261022213755b: the SAME law covers the exact-label passthrough —
+    // onCustomValue resolving a typed label to the catalog id flips `value`
+    // mid-word, and adopting that id here would snap the dropdown shut the
+    // moment the full label is typed. While the resolved label IS the live
+    // typed text, the change came from typing, not from a pick.
+    const fromLiveTyping = allowsCustomValue
+      && typedCustomTextRef.current != null
+      && typedCustomTextRef.current !== ''
+      && selectedLabel === typedCustomTextRef.current;
+    setChosenKey(fromLiveTyping ? null : selected?.value ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, selectedLabel]);
   // 20260922_4: bare Enter (menu open, no highlighted option) commits the
@@ -181,6 +199,12 @@ export function USearchableField({
           // silently satisfied the required checks and rode into
           // pickup_location/delivery_location (FB-105 card 171026115800).
           onCustomValue?.('');
+          typedCustomTextRef.current = null;
+        }}
+        onBlur={() => {
+          // Leaving the field ends the typing session: later external value
+          // changes (dialog apply, form reset) must adopt their key again.
+          typedCustomTextRef.current = null;
         }}
         onSelectionChange={(key) => {
           if (createOption && String(key) === '__create__') {
@@ -190,6 +214,10 @@ export function USearchableField({
             // and pops the suggestions back open over the create dialog this
             // onSelect opens (with react-aria's ariaHideOutside still scoped to
             // the popover, that dialog renders aria-hidden to AT and tests).
+            // Card 261022213755b review: a real pick also ends the typing
+            // session so the post-dialog value (the created item's id) can
+            // adopt its key normally.
+            typedCustomTextRef.current = null;
             setChosenKey('__create__');
             createOption.onSelect(inputValue);
             return;
@@ -208,6 +236,9 @@ export function USearchableField({
             }
             return;
           }
+          // A real pick ends any live typing session (card 261022213755b):
+          // the pick's own key must be adoptable by the sync effect below.
+          typedCustomTextRef.current = null;
           setChosenKey(String(key));
           onChange(String(key));
           if (searchable) {
@@ -220,6 +251,10 @@ export function USearchableField({
               allowsCustomValue: Boolean(allowsCustomValue),
               onInputChange: (text: string) => {
                 setInputValue(text);
+                // Track the live typed text before the passthrough so the
+                // sync effect can tell a typing-resolved id from a real pick
+                // (card 261022213755b — see typedCustomTextRef).
+                typedCustomTextRef.current = text;
                 onCustomValue?.(text);
                 if (!allowsCustomValue && text === '') {
                   onChange('');

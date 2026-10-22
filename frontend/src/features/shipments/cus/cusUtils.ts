@@ -33,9 +33,16 @@ export function formatDate(value: string | null): string {
 // lib/format helpers (midnight-normalized dates; raw echo on invalid input)
 // to keep the CUS workspace's visible output stable.
 
-export function directionLabel(direction: ShipmentCusWorkspaceListItem['direction']): string {
-  if (direction === 'IMPORT') return 'Nhập';
-  if (direction === 'EXPORT') return 'Xuất';
+export function directionLabel(
+  direction: ShipmentCusWorkspaceListItem['direction'],
+  cargoMode?: ShipmentCusWorkspaceListItem['cargoMode'],
+): string {
+  // Card 261022213755c (TiepVu 22/10-2): hàng lẻ đọc "Nhập lẻ"/"Xuất lẻ"
+  // ngay trên badge direction — lô lẻ phân biệt rõ với cont trong cùng một
+  // pill, không thêm chrome thứ hai (owner ruling: classification là thông
+  // tin, không phải control).
+  if (direction === 'IMPORT') return cargoMode === 'LCL' ? 'Nhập lẻ' : 'Nhập';
+  if (direction === 'EXPORT') return cargoMode === 'LCL' ? 'Xuất lẻ' : 'Xuất';
   return '—';
 }
 

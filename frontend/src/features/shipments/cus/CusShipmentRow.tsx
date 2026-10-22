@@ -183,7 +183,7 @@ export function CusShipmentRow({
               bare '—' was chrome (and a generic placeholder) inside a data
               cell — design law §1 (text-only cells, name the missing field). */}
           {item.direction && (
-            <span className={`cus-direction-badge cus-direction-badge--${item.direction.toLowerCase()}`}>{directionLabel(item.direction)}</span>
+            <span className={`cus-direction-badge cus-direction-badge--${item.direction.toLowerCase()}`}>{directionLabel(item.direction, item.cargoMode)}</span>
           )}
         </span></button>
       </td>)}

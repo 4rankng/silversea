@@ -11,6 +11,7 @@ const access = (mode: string) => ({ mode, reason: `reason:${mode}` });
 
 function makeItem(overrides: {
   cargoMode?: 'FCL' | 'LCL';
+  direction?: 'IMPORT' | 'EXPORT';
   containerSummary?: string | null;
   weightKg?: string | null;
   volumeCbm?: string | null;
@@ -22,6 +23,7 @@ function makeItem(overrides: {
 } = {}): ShipmentCusWorkspaceListItem {
   const {
     cargoMode = 'LCL',
+    direction = 'IMPORT',
     containerSummary = '',
     weightKg = '1200',
     volumeCbm = null,
@@ -37,7 +39,7 @@ function makeItem(overrides: {
     bucket: 'NEW',
     bucketLabel: 'Mới',
     cargoMode,
-    direction: 'IMPORT',
+    direction,
     customerName,
     routeName,
     deliveryLocation: null,
@@ -117,6 +119,20 @@ function renderRow(item: ShipmentCusWorkspaceListItem, dateFilter: { from?: stri
 }
 
 describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => {
+  // Card 261022213755c (TiepVu 22/10-2): the direction badge itself names
+  // the cargo mode for LCL lots — "Nhập lẻ"/"Xuất lẻ" in the same
+  // cus-direction-badge pill, FCL rows keep the plain "Nhập"/"Xuất".
+  it.each([
+    { cargoMode: 'LCL', direction: 'IMPORT', expected: 'Nhập lẻ' },
+    { cargoMode: 'LCL', direction: 'EXPORT', expected: 'Xuất lẻ' },
+    { cargoMode: 'FCL', direction: 'IMPORT', expected: 'Nhập' },
+    { cargoMode: 'FCL', direction: 'EXPORT', expected: 'Xuất' },
+  ] as const)('direction badge reads "$expected" for $cargoMode $direction', ({ cargoMode, direction, expected }) => {
+    const { container } = renderRow(makeItem({ cargoMode, direction }));
+    const badge = container.querySelector('.cus-direction-badge')!;
+    expect(badge.textContent).toBe(expected);
+  });
+
   it('R3 names the LCL lot cargo object in the day-filter empty state', () => {
     renderRow(makeItem({ cargoMode: 'LCL', containerSummary: null }), { from: '2026-10-19', to: '2026-10-19' });
     expect(screen.getByText('Không có hàng lẻ chạy ngày đã chọn')).toBeTruthy();

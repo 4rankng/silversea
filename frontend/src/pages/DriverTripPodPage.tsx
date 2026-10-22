@@ -112,13 +112,17 @@ export function DriverTripPodPage() {
     ? (parsedDriverNote.manualText || null)
     : (trip?.notes ?? null);
 
-  const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
+  const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
   const documentBusy = preparingPod || creatingDraft || uploadingPod;
+  // Card 261022213755a (owner ruling 22/10 — "let us keep them optional, not
+  // compulsory to have image"): the e-POD photos are optional evidence, so
+  // completion no longer waits on podReady; the backend gate is
+  // milestone-only. The readiness facts stay for the footer's informational
+  // hints.
   const completionBlocked = !validFulfillmentId
     || Boolean(trip?.accountingLock)
     || trip?.status !== 'IN_TRANSIT'
-    || documentBusy
-    || !podReady;
+    || documentBusy;
 
   async function handleEnsureDraft(): Promise<DriverTaskPodSubmission> {
     if (!trip || !validFulfillmentId) {
@@ -238,7 +242,9 @@ export function DriverTripPodPage() {
       return;
     }
     if (completionBlocked) {
-      toast({ kind: 'warning', message: 'Cần đủ 2 ảnh e-POD trước khi hoàn thành chuyến.' });
+      // Card 261022213755a: the photo gate is gone; the remaining blocks are
+      // contextual (lock/read-only/busy) and each already has its own surface.
+      toast({ kind: 'warning', message: documentReadOnlyReason ?? 'Chưa thể hoàn thành chuyến lúc này. Vui lòng thử lại.' });
       return;
     }
     setCompleting(true);
@@ -398,8 +404,8 @@ export function DriverTripPodPage() {
         )}
 
         {/* No section __head here: TripPodSubmission already opens with its
-            own "e-POD bắt buộc" eyebrow — a second copy stacks duplicate
-            labels at the top of the card. */}
+            own card head — a second copy stacks duplicate labels at the top
+            of the card. */}
         <section className="driver-task-section">
           <TripPodSubmission
             key={trip.id}
@@ -424,21 +430,20 @@ export function DriverTripPodPage() {
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
-            {/* DRV-DET-06 + DRV-DET-05: the screen states that the e-POD is
-                mandatory without a second `e-POD bắt buộc` label (the
-                TripPodSubmission card above owns that literal), and names the
-                uppercase command the driver must press. */}
+            {/* Card 261022213755a (owner ruling 22/10): e-POD photos are
+                OPTIONAL — the copy says so and names the uppercase command
+                without the retired "bắt buộc" claim. */}
             <p>
-              e-POD là bắt buộc: thêm đủ hai loại chứng từ — Phiếu bãi / phiếu hạ và Biên bản
-              giao nhận — rồi bấm HOÀN THÀNH CHUYẾN để gửi hồ sơ và kết thúc lệnh.
+              Ảnh e-POD hiện tùy chọn: có thể thêm Phiếu bãi / phiếu hạ và Biên bản
+              giao nhận trước khi bấm HOÀN THÀNH CHUYẾN, hoặc hoàn thành ngay không cần ảnh.
             </p>
             {(!hasYardReceipt || !hasSignedNote) && (
               <ul className="driver-task-footer__issues">
-                {!hasYardReceipt && <li>Thiếu Phiếu bãi / phiếu hạ</li>}
-                {!hasSignedNote && <li>Thiếu Biên bản giao nhận</li>}
+                {!hasYardReceipt && <li>Chưa có Phiếu bãi / phiếu hạ (tùy chọn)</li>}
+                {!hasSignedNote && <li>Chưa có Biên bản giao nhận (tùy chọn)</li>}
               </ul>
             )}
-            {podReady && trip.status === 'IN_TRANSIT' && (
+            {trip.status === 'IN_TRANSIT' && !trip.accountingLock && (
               <div className="driver-task-footer__ready">
                 <CheckCircle2 size={16} />
                 <span>Đủ điều kiện hoàn thành chuyến.</span>

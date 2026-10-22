@@ -474,6 +474,26 @@ describe('documents column split + Sửa button (FB-109/113 v2)', () => {
     return { view, onStartEdit };
   }
 
+  // Card 261022213755c (TiepVu 22/10-2): a lot-level row IS an LCL lot, so
+  // its direction cell reads "Nhập lẻ"/"Xuất lẻ"; container rows keep the
+  // plain "Nhập"/"Xuất" — lẻ vs cont reads apart at a glance.
+  it('direction cell reads Nhập lẻ/Xuất lẻ for lot-level (LCL) rows and plain Nhập/Xuất for container rows', () => {
+    const containerImport = renderIdleLedger([baseRow({ direction: 'IMPORT' })]);
+    expect(containerImport.view.container.querySelectorAll('.shipment-container-ledger__direction')[0].textContent).toBe('Nhập');
+    containerImport.view.unmount();
+
+    const containerExport = renderIdleLedger([baseRow({ direction: 'EXPORT' })]);
+    expect(containerExport.view.container.querySelectorAll('.shipment-container-ledger__direction')[0].textContent).toBe('Xuất');
+    containerExport.view.unmount();
+
+    const lotImport = renderIdleLedger([baseRow({ id: -7, isLotLevel: true, containerNumber: null, direction: 'IMPORT' })]);
+    expect(lotImport.view.container.querySelectorAll('.shipment-container-ledger__direction')[0].textContent).toBe('Nhập lẻ');
+    lotImport.view.unmount();
+
+    const lotExport = renderIdleLedger([baseRow({ id: -8, isLotLevel: true, containerNumber: null, direction: 'EXPORT' })]);
+    expect(lotExport.view.container.querySelectorAll('.shipment-container-ledger__direction')[0].textContent).toBe('Xuất lẻ');
+  });
+
   it('FB-113 heads the table with the four document columns in the QA order', () => {
     renderIdleLedger([baseRow()]);
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
