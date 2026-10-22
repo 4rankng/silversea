@@ -109,40 +109,35 @@ describe('DriverTripsPage', () => {
     renderPage();
     expect(screen.queryByTestId('cont-weight')).toBeNull();
   });
-  it('journey card leads with the bill/booking code; the internal shipment code never shows (CHIEF 26/09, as reshaped by REQ-07)', () => {
-    // REQ-07 (client doc, dispatch-approved) supersedes the old "TRP never
-    // renders" clause: the trip code now rides the card as LABELED metadata
-    // in the one driver display shape. The bill/booking still leads as the
-    // display key, the internal SHP-/QADRV- shipment key still never
-    // surfaces, and the RAW generator string never renders.
+  it('journey card leads with the bill/booking code; the internal shipment code never shows (CHIEF 26/09)', () => {
+    // Card 261022201006c: the app lái xe BỎ hiển thị mã chuyến (REQ-07 cũ) —
+    // NO trip-code row renders at all (raw or formatted). The bill/booking
+    // still leads as the display key, and the internal SHP-/QADRV- shipment
+    // key still never surfaces.
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ tripCode: 'TRP-202609-0019', blNumber: 'BILL-2026-0777', shipmentCode: 'QADRV-SHP-9999' }),
     ]));
     renderPage();
     expect(screen.getByText('BILL-2026-0777')).toBeTruthy();
-    expect(screen.getByTestId('trip-code').textContent).toBe('Mã chuyến TRP 2026-09 · 0019');
+    expect(screen.queryByTestId('trip-code')).toBeNull();
+    expect(screen.queryByText(/Mã chuyến/)).toBeNull();
     expect(screen.queryByText('TRP-202609-0019')).toBeNull();
+    expect(screen.queryByText(/TRP 2026-09/)).toBeNull();
     expect(screen.queryByText('TRIP-55')).toBeNull();
     expect(screen.queryByText('QADRV-SHP-9999')).toBeNull();
   });
 
-  it('REQ-07 renders the trip code as labeled, spaced card metadata', () => {
-    useDriverJourneyBoardMock.mockReturnValue(board([
-      card({ tripCode: 'TRP-202610-0007', blNumber: 'BILL-2026-0777' }),
-    ]));
-    renderPage();
-    expect(screen.getByTestId('trip-code').textContent).toBe('Mã chuyến TRP 2026-10 · 0007');
-  });
-
-  it('REQ-07 hides the code row when no code exists and passes legacy codes through', () => {
+  it('never shows the trip code on any card — canonical, legacy or missing (card 261022201006c)', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ fulfillmentId: 1, tripCode: null }),
       card({ fulfillmentId: 2, tripCode: '  TRP-C12-53-1791212851260-gvr4vb  ' }),
+      card({ fulfillmentId: 3, tripCode: 'TRP-202610-0007' }),
     ]));
     renderPage();
-    const codes = screen.getAllByTestId('trip-code');
-    expect(codes).toHaveLength(1);
-    expect(codes[0].textContent).toBe('Mã chuyến TRP-C12-53-1791212851260-gvr4vb');
+    expect(screen.queryByTestId('trip-code')).toBeNull();
+    expect(screen.queryByText(/Mã chuyến/)).toBeNull();
+    expect(screen.queryByText(/TRP-C12-53/)).toBeNull();
+    expect(screen.queryByText(/TRP 2026-10/)).toBeNull();
   });
 
   it('journey card never titles itself with the internal shipment code when no bill/booking was captured', () => {

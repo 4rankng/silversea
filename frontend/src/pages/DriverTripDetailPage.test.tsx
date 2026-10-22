@@ -266,14 +266,14 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
   });
 
-  it('REQ-07 shows the trip code as a labeled fact in Thông tin lệnh — formatted, never the raw generator string', async () => {
+  it('never shows the trip code in Thông tin lệnh — raw or formatted (card 261022201006c)', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({ tripCode: 'TRP-202610-0007' }), isLoading: false, error: null, refetch: vi.fn(),
     });
     renderPage();
     await screen.findByText('BL-2026-001');
-    const fact = screen.getByText('Mã chuyến').closest('.driver-task-fact');
-    expect(fact?.textContent).toContain('TRP 2026-10 · 0007');
+    expect(screen.queryByText('Mã chuyến')).toBeNull();
+    expect(screen.queryByText(/TRP 2026-10/)).toBeNull();
     expect(screen.queryByText('TRP-202610-0007')).toBeNull();
   });
 
@@ -534,16 +534,15 @@ describe('DriverTripDetailPage', () => {
   // 1af13d12 + dc1b1cba; amended 26/09 card _26: the bill/booking code moved
   // into the header title (item 4), so the grid leads with the factory block
   // + kho phone, then the working facts (container, ports) — the Tuyến
-  // address line is demoted below them. REQ-07 (client doc, dispatch-approved)
-  // amends again: the formatted trip code leads the grid as labeled identity
-  // metadata, ahead of the schedule.
-  it('renders the customer field order: trip code, factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
+  // address line is demoted below them. Card 261022201006c supersedes the
+  // REQ-07 amendment: the app lái xe no longer shows the trip code, so the
+  // grid leads with the schedule.
+  it('renders the customer field order: factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
-      'Mã chuyến',
       'Ngày giờ kế hoạch',
       'Tên nhà máy',
       'Địa chỉ nhà máy',

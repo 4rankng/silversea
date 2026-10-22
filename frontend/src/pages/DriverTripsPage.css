@@ -195,21 +195,6 @@
   overflow-wrap: anywhere;
 }
 
-/* REQ-07: formatted trip code — a plain text reference line under the bill
-   header (data cells are text-only: no pill, no fill), caption-sized and
-   muted like the Giờ chạy chip. */
-.driver-journey-card__code {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px;
-  margin: 2px 0 0;
-  font-size: var(--text-caption-size);
-  font-weight: 600;
-  color: var(--ink-3);
-  overflow-wrap: anywhere;
-}
-
 /* Headline — factory name is the primary identifier a driver scans a 27-card
    history for. Carries the card's largest type and the brand-colored icon. */
 .driver-journey-card__factory--headline {

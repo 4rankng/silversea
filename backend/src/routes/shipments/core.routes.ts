@@ -43,6 +43,7 @@ import {
   listShipmentReferenceConflicts,
   normalizeDocumentReference,
 } from '../../services/shipment-lifecycle-shared.service';
+import { businessZoneDayEndExclusiveInstant, businessZoneDayStartInstant } from '../../services/container-date-filter';
 import { assignShipmentCarriers, createOperationalSiteForIntake, createShippingLineForIntake, deleteOperationalSiteForAdmin, listOperationalSitesForAdmin, listOperationalSitesForIntake, listSharedWarehouseSitesForIntake, resolveOperationalSitesListQuery, submitShipmentForDispatch, updateOperationalSiteForAdmin } from '../../services/shipment-intake.service';
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
@@ -245,10 +246,14 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
   const dateTo = typeof req.query.dateTo === 'string' && req.query.dateTo.trim().length > 0
     ? req.query.dateTo.trim()
     : undefined;
-  if (dateFrom && isNaN(new Date(dateFrom).getTime())) {
+  // Card 261022201006b: only canonical YYYY-MM-DD business days or
+  // tz-qualified instants — anything else would parse in the SERVER timezone
+  // and leak rows across the VN 00:00/23:59 boundary (see
+  // businessZoneDayStartInstant grammar).
+  if (dateFrom && businessZoneDayStartInstant(dateFrom) === null) {
     throw new ApiError(400, 'dateFrom không hợp lệ');
   }
-  if (dateTo && isNaN(new Date(dateTo).getTime())) {
+  if (dateTo && businessZoneDayEndExclusiveInstant(dateTo) === null) {
     throw new ApiError(400, 'dateTo không hợp lệ');
   }
 

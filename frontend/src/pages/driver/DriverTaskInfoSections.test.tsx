@@ -106,7 +106,6 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip()} />);
 
     expect(labels()).toEqual([
-      'Mã chuyến',
       'Ngày giờ kế hoạch',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
@@ -121,22 +120,16 @@ describe('DriverTaskInfoSections', () => {
     ]);
   });
 
-  it('REQ-07 renders the trip code as the leading labeled fact, formatted — never the raw generator string', () => {
+  it('never renders the trip code fact — raw or formatted (card 261022201006c)', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ tripCode: 'TRP-202610-0007' })} />);
 
-    expect(valueOf('Mã chuyến')).toBe('TRP 2026-10 · 0007');
+    expect(labels()).not.toContain('Mã chuyến');
+    expect(screen.queryByText(/TRP 2026-10/)).toBeNull();
     expect(screen.queryByText('TRP-202610-0007')).toBeNull();
-  });
 
-  it('REQ-07 passes a legacy-shaped code through and dashes when the trip carries no code', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ tripCode: 'TRP-C12-53-1791212851260-gvr4vb' })} />);
-    expect(valueOf('Mã chuyến')).toBe('TRP-C12-53-1791212851260-gvr4vb');
-
-    render(<DriverTaskInfoSections trip={makeTrip({ tripCode: null })} />);
-    const values = Array.from(document.querySelectorAll('.driver-task-fact'))
-      .filter((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Mã chuyến')
-      .map((el) => el.querySelector('.driver-task-fact__value')?.textContent);
-    expect(values[values.length - 1]).toBe('—');
+    expect(screen.queryByText('Mã chuyến')).toBeNull();
+    expect(screen.queryByText(/TRP-C12-53/)).toBeNull();
   });
 
   it('FB-082: IMPORT Địa chỉ giao hàng names the factory destination, not the discharge yard', () => {
@@ -498,7 +491,6 @@ describe('DriverTaskInfoSections', () => {
     render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS' } })} />);
 
     expect(labels()).toEqual([
-      'Mã chuyến',
       'Ngày giờ kế hoạch',
       'Tên nhà máy',
       'Địa chỉ nhà máy',

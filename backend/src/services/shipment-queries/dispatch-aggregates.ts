@@ -287,7 +287,8 @@ export async function computeDispatchSummaryForSet(
 
   // Scope container counts to the active date range when one is present.
   // Undated containers inherit the shipment's expected delivery date — the
-  // same column the deliveryDateFrom/To row filter uses — so the summary
+  // same coalesce(appointment, EDD) law the deliveryDateFrom/To row filter
+  // applies per container (containerTransportDateSql) — so the summary
   // cannot zero-count rows the filter still returns.
   const containerRows = dateRange
     ? filterContainersByDateRange(rawContainerRows, dateRange.dateFrom, dateRange.dateTo, (row) => row.expectedDeliveryDate)

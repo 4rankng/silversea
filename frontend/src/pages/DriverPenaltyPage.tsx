@@ -1,12 +1,11 @@
 import { useState, useMemo } from 'react';
 import { formatCurrency, formatDate } from '../lib/format';
 import { Money } from '../components/shared/Money';
-import { ShieldCheck, AlertTriangle, AlertOctagon, Loader2, Calendar, Truck } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, AlertOctagon, Loader2, Calendar } from 'lucide-react';
 import { PageHeader } from '../components/UI';
 import { useSalaryPeriod, useDriverPenalties } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations } from '../hooks/animations';
 import { UuiSelectField } from '../design-system';
-import { driverTripCodeLabel } from '../features/driver/driver-display';
 import './DriverPenaltyPage.css';
 import { EmptyState } from '../design-system';
 
@@ -221,9 +220,9 @@ export default function DriverPenaltyPage() {
         ) : (
           <div ref={listRef} className="penalty-violation-list">
             {filteredPenalties.map(p => {
-              // REQ-07: the code renders in the ONE driver display shape
-              // (driverTripCodeLabel), never the raw generator string.
-              const tripCodeLabel = driverTripCodeLabel(p.tripCode);
+              // Card 261022201006c: the app lái xe BỎ hiển thị mã chuyến —
+              // the violation row names date + reason only; p.tripCode stays
+              // on the wire untouched.
               return (
               <div key={p.id} className="penalty-violation-row">
                 <div className="penalty-violation-row__icon">
@@ -240,7 +239,6 @@ export default function DriverPenaltyPage() {
                   </div>
                   <div className="penalty-violation-row__meta">
                     <span><Calendar size={12} /> {formatDate(p.date)}</span>
-                    {p.tripId && tripCodeLabel && <span><Truck size={12} /> {tripCodeLabel}</span>}
                   </div>
                   {p.customReason && p.reasonText && (
                     <div className="penalty-violation-row__note">

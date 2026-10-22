@@ -44,13 +44,14 @@ describe('penalty KPI labels keep the separator space before the salary period',
   });
 });
 
-// REQ-07: the violation-row meta shows the trip code in the ONE driver
-// display shape — the raw generator string used to leak here verbatim.
-describe('penalty violation rows show the formatted trip code (REQ-07)', () => {
+// Card 261022201006c: the app lái xe BỎ hiển thị mã chuyến (REQ-07 cũ) —
+// the violation-row meta names the date only; the wire's tripCode never
+// reaches the DOM (raw or formatted).
+describe('penalty violation rows never show the trip code (261022201006c)', () => {
   beforeEach(() => {
     queries.useSalaryPeriod.mockReturnValue({ data: { start: '2026-09-01', end: '2026-09-30' }, isLoading: false, isError: false });
   });
-  it('formats a canonical code and omits the row when the penalty has no trip', () => {
+  it('renders date + reason only, whatever code the penalty carries', () => {
     queries.useDriverPenalties.mockReturnValue({
       data: [
         { id: 1, driverId: 7, tripId: 55, tripCode: 'TRP-202610-0007', reasonId: null, customReason: 'Không đội mũ', amount: '100000', date: '2026-10-01' },
@@ -61,8 +62,7 @@ describe('penalty violation rows show the formatted trip code (REQ-07)', () => {
     });
     render(<DriverPenaltyPage />);
     const meta = [...document.querySelectorAll('.penalty-violation-row__meta')].map((el) => el.textContent);
-    expect(meta[0]).toContain('TRP 2026-10 · 0007');
-    expect(meta[0]).not.toContain('TRP-202610-0007');
-    expect(meta[1]).not.toContain('TRP');
+    expect(meta[0]).toContain('01/10/2026');
+    expect(meta.join(' ')).not.toMatch(/TRP|Mã chuyến/);
   });
 });

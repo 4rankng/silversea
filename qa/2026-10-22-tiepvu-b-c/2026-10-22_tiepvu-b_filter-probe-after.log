@@ -1,0 +1,50 @@
+VN window: day1=2026-10-23 day2=2026-10-24 day3=2026-10-25 (fixture EDD far day=2026-10-31)
+fixture lots: A=312633 B=312634 C=312635 D=312636 E=312637 F=312638 G=312639 H=312640 I=312641 J=312642 K=312643 Z=312644 (bl prefix TBFL516222)
+PASS rows /shipments/cus-workspace transportDateFrom=2026-10-23&transportDateTo=2026-10-23 :: expect=[E,G] got=[E,G]
+   row G transportDate=2026-10-23 groups=2026-10-23
+   row E transportDate=2026-10-23 groups=2026-10-23
+PASS rows /shipments/cus-workspace transportDateFrom=2026-10-24&transportDateTo=2026-10-24 :: expect=[A,B,C,F] got=[A,B,C,F]
+   row F transportDate=2026-10-24 groups=2026-10-24
+   row C transportDate=2026-10-24 groups=2026-10-24
+   row B transportDate=2026-10-24 groups=2026-10-24
+   row A transportDate=? groups=
+PASS rows /shipments/cus-workspace transportDateFrom=2026-10-25&transportDateTo=2026-10-25 :: expect=[D,G,Z] got=[D,G,Z]
+   row G transportDate=2026-10-25 groups=2026-10-25
+   row D transportDate=2026-10-25 groups=2026-10-25
+   row Z transportDate=2026-10-25 groups=2026-10-25
+PASS rows /shipments dateFrom=2026-10-23&dateTo=2026-10-23 :: expect=[K] got=[K]
+   row K transportDate=? groups=
+PASS rows /shipments dateFrom=2026-10-24&dateTo=2026-10-24 :: expect=[H,I] got=[H,I]
+   row I transportDate=? groups=
+   row H transportDate=? groups=
+PASS rows /shipments dateFrom=2026-10-25&dateTo=2026-10-25 :: expect=[J] got=[J]
+   row J transportDate=? groups=
+PASS rows /shipments deliveryDateFrom=2026-10-23&deliveryDateTo=2026-10-23 :: expect=[E,G] got=[E,G]
+   row G transportDate=? groups=2026-10-23|2026-10-25
+   row E transportDate=? groups=2026-10-23
+PASS rows /shipments deliveryDateFrom=2026-10-24&deliveryDateTo=2026-10-24 :: expect=[A,B,C,F] got=[A,B,C,F]
+   row F transportDate=? groups=2026-10-24
+   row C transportDate=? groups=2026-10-24
+   row B transportDate=? groups=2026-10-24
+   row A transportDate=? groups=
+PASS rows /shipments deliveryDateFrom=2026-10-25&deliveryDateTo=2026-10-25 :: expect=[D,G,Z] got=[D,G,Z]
+   row Z transportDate=? groups=2026-10-25
+   row G transportDate=? groups=2026-10-23|2026-10-25
+   row D transportDate=? groups=2026-10-25
+PASS rows /containers day=2026-10-23 :: expect=[E,G] got=[E,G]
+   cont-row G transportDate=2026-10-23
+   cont-row E transportDate=2026-10-23
+PASS rows /containers day=2026-10-24 :: expect=[A,B,C,F] got=[A,B,C,F]
+   cont-row F transportDate=2026-10-24
+   cont-row C transportDate=2026-10-24
+   cont-row B transportDate=2026-10-24
+   cont-row A transportDate=?
+PASS rows /containers day=2026-10-25 :: expect=[D,G,Z] got=[D,G,Z]
+   cont-row Z transportDate=2026-10-25
+   cont-row G transportDate=2026-10-25
+   cont-row D transportDate=2026-10-25
+PASS rows /shipments/cus-workspace range day1..day3 :: expect=[A,B,C,D,E,F,G,Z] got=[A,B,C,D,E,F,G,Z]
+
+cleanup: fixture lots TBFL516222% soft-deleted
+
+13/13 checks passed
