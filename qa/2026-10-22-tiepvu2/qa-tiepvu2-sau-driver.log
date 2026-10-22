@@ -1,0 +1,96 @@
+
+=== run 2026-10-22T14:47:08.700Z BASE=http://localhost:7176 TAG=sau TRIP=194126 ===
+login laixe: token=present url=http://localhost:7176/my-trips
+(a) accept-bar=0 complete-bar=1 status="Chưa có 2/2 ảnh chứng từ (tùy chọn)" url=http://localhost:7176/my-trips/194126
+(a) ePOD card="Chứng từ giao hàng" button={"disabled":false,"text":"HOÀN THÀNH CHUYẾN"}
+(a) footer="Hoàn thành chuyến\n\nẢnh e-POD hiện tùy chọn: có thể thêm Phiếu bãi / phiếu hạ và Biên bản giao nhận trước khi bấm HOÀN THÀNH CHUYẾN, hoặc hoàn thành ngay không cần ảnh.\n\nChưa có Phiếu bãi / phiếu hạ (tùy chọn)\nChưa có Biên bản giao nhận (tùy chọn)\nĐủ điều kiện hoàn thành chuyến."
+(a) after complete → http://localhost:7176/my-trips/194126/pod
+login cus: token=present url=http://localhost:7176/shipments
+(b) after typing GLC: input={"expanded":"true","value":"GLC"} glcOptions=1
+(b) variant Glc: options=1 expanded=true
+(b) variant glc: options=1 expanded=true
+(b) variant GL: options=1 expanded=true
+(b) picked GLC → input value="GLC"
+(b) net:
+200 GET http://localhost:7176/src/components/shipments/ShipmentActionModal.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/ShipmentQuickEditModal.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusDetailContent.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusDrawerFooter.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusShipmentRow.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusBadges.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/use-cus-workspace-state.ts
+200 GET http://localhost:7176/src/features/shipments/cus/use-cus-quick-edit.ts
+200 GET http://localhost:7176/src/features/shipments/cus/cusQuickEditModel.ts
+200 GET http://localhost:7176/src/features/shipments/cus/use-cus-actions.ts
+200 GET http://localhost:7176/src/features/shipments/cus/cusUtils.ts
+200 GET http://localhost:7176/src/features/shipments/cus/cusExport.ts
+login cus: token=present url=http://localhost:7176/shipments
+(c) direction badges on list: ["Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập"]
+(c) LCL row text: LONG MINH | Chưa có nhà máy | Chưa có tuyến đường | 	 | LCL01L2-UNDATED-017205 | Chưa có tờ khai | 	 | Chưa có hãng tàu | Nhập lẻ | 	 | 5 Pallet | 0,8 tấn | 	 | Chưa chốt ngày | Toàn bộ ch
+(c) navigated → http://localhost:7176/shipments
+(c) detail Xuất / Nhập = ""
+
+=== run 2026-10-22T14:50:31.648Z BASE=http://localhost:7176 TAG=sau TRIP=194126 ===
+login laixe: token=present url=http://localhost:7176/my-trips
+(a) accept-bar=0 complete-bar=1 status="Chưa có 2/2 ảnh chứng từ (tùy chọn)" url=http://localhost:7176/my-trips/194126
+(a) ePOD card="Chứng từ giao hàng" button={"disabled":false,"text":"HOÀN THÀNH CHUYẾN"}
+(a) footer="Hoàn thành chuyến\n\nẢnh e-POD hiện tùy chọn: có thể thêm Phiếu bãi / phiếu hạ và Biên bản giao nhận trước khi bấm HOÀN THÀNH CHUYẾN, hoặc hoàn thành ngay không cần ảnh.\n\nChưa có Phiếu bãi / phiếu hạ (tùy chọn)\nChưa có Biên bản giao nhận (tùy chọn)\nĐủ điều kiện hoàn thành chuyến."
+(a) complete POST → 400 {"error":"Ngày hoàn thành không thể trước ngày khởi hành."}
+(a) after complete → http://localhost:7176/my-trips/194126/pod
+login cus: token=present url=http://localhost:7176/shipments
+(b) after typing GLC: input={"expanded":"true","value":"GLC"} glcOptions=1
+(b) variant Glc: options=1 expanded=true
+(b) variant glc: options=1 expanded=true
+(b) variant GL: options=1 expanded=true
+(b) picked GLC → input value="GLC"
+(b) net:
+200 GET http://localhost:7176/src/components/shipments/ShipmentActionModal.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusBadges.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusDetailContent.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/ShipmentQuickEditModal.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusDrawerFooter.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/use-cus-workspace-state.ts
+200 GET http://localhost:7176/src/features/shipments/cus/use-cus-quick-edit.ts
+200 GET http://localhost:7176/src/features/shipments/cus/cusUtils.ts
+200 GET http://localhost:7176/src/features/shipments/cus/CusShipmentRow.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/cusExport.ts
+200 GET http://localhost:7176/src/features/shipments/cus/cusQuickEditModel.ts
+200 GET http://localhost:7176/src/features/shipments/cus/use-cus-actions.ts
+login cus: token=present url=http://localhost:7176/shipments
+(c) direction badges on list: ["Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập"]
+(c) LCL row text: LONG MINH | Chưa có nhà máy | Chưa có tuyến đường | 	 | LCL01L2-UNDATED-017205 | Chưa có tờ khai | 	 | Chưa có hãng tàu | Nhập lẻ | 	 | 5 Pallet | 0,8 tấn | 	 | Chưa chốt ngày | Toàn bộ ch
+(c) navigated → http://localhost:7176/shipments
+(c) detail Xuất / Nhập = ""
+
+=== run 2026-10-22T14:52:26.187Z BASE=http://localhost:7176 TAG=sau TRIP=194126 ===
+login laixe: token=present url=http://localhost:7176/my-trips
+(a) accept-bar=0 complete-bar=1 status="Chưa có 2/2 ảnh chứng từ (tùy chọn)" url=http://localhost:7176/my-trips/194126
+(a) ePOD card="Chứng từ giao hàng" button={"disabled":false,"text":"HOÀN THÀNH CHUYẾN"}
+(a) footer="Hoàn thành chuyến\n\nẢnh e-POD hiện tùy chọn: có thể thêm Phiếu bãi / phiếu hạ và Biên bản giao nhận trước khi bấm HOÀN THÀNH CHUYẾN, hoặc hoàn thành ngay không cần ảnh.\n\nChưa có Phiếu bãi / phiếu hạ (tùy chọn)\nChưa có Biên bản giao nhận (tùy chọn)\nĐủ điều kiện hoàn thành chuyến."
+(a) complete POST → 200 {"tripId":194126,"fulfillmentId":143547,"status":"COMPLETED","version":6,"completedAt":"2026-10-22T14:52:36.568Z","evidenceStatus":{"ready":true,"missing":[],"hasDeliveredMilestone":true,"hasSubmittedPod":false,"hasRequi
+(a) after complete → http://localhost:7176/my-trips
+login cus: token=present url=http://localhost:7176/shipments
+(b) after typing GLC: input={"expanded":"true","value":"GLC"} glcOptions=1
+(b) variant Glc: options=1 expanded=true
+(b) variant glc: options=1 expanded=true
+(b) variant GL: options=1 expanded=true
+(b) picked GLC → input value="GLC"
+(b) net:
+200 GET http://localhost:7176/src/components/shipments/ShipmentActionModal.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusBadges.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/ShipmentQuickEditModal.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusDrawerFooter.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/CusDetailContent.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/use-cus-quick-edit.ts
+200 GET http://localhost:7176/src/features/shipments/cus/CusShipmentRow.tsx
+200 GET http://localhost:7176/src/features/shipments/cus/use-cus-workspace-state.ts
+200 GET http://localhost:7176/src/features/shipments/cus/cusQuickEditModel.ts
+200 GET http://localhost:7176/src/features/shipments/cus/use-cus-actions.ts
+200 GET http://localhost:7176/src/features/shipments/cus/cusExport.ts
+200 GET http://localhost:7176/src/features/shipments/cus/cusUtils.ts
+login cus: token=present url=http://localhost:7176/shipments
+(c) direction badges on list: ["Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập","Nhập"]
+(c) LCL row text: LONG MINH | Chưa có nhà máy | Chưa có tuyến đường | 	 | LCL01L2-UNDATED-017205 | Chưa có tờ khai | 	 | Chưa có hãng tàu | Nhập lẻ | 	 | 5 Pallet | 0,8 tấn | 	 | Chưa chốt ngày | Toàn bộ ch
+(c) navigated → http://localhost:7176/shipments
+(c) detail Xuất / Nhập = ""
+(c) detail 312423: Xuất / Nhập="Nhập lẻ" | Loại lô="Hàng lẻ (LCL)" | url=http://localhost:7176/shipments/312423

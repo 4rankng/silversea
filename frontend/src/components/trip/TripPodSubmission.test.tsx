@@ -41,8 +41,14 @@ describe('TripPodSubmission', () => {
 
     expect(screen.getAllByText(/Phiếu bãi \/ phiếu hạ/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Biên bản giao nhận có ký nhận/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Còn thiếu/)).toBeTruthy();
-    expect(screen.getByText(/Điều kiện hoàn thành/)).toBeTruthy();
+    // Card 261022213755a: photos are optional — the card state reads
+    // "Chưa có" and the foot names the missing types as optional under the
+    // informational "Tiến độ chứng từ", never a mandatory-gate claim.
+    expect(screen.getAllByText('Chưa có').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Chưa có .+ \(tùy chọn\)\./)).toBeTruthy();
+    expect(screen.getByText(/Tiến độ chứng từ/)).toBeTruthy();
+    expect(screen.queryByText(/Điều kiện hoàn thành/)).toBeNull();
+    expect(screen.queryByText('Chứng từ bắt buộc')).toBeNull();
   });
 
   it('creates a draft if needed before uploading a picked file', async () => {
@@ -105,7 +111,9 @@ describe('TripPodSubmission', () => {
     );
 
     expect(screen.getByText('100%')).toBeTruthy();
-    expect(screen.getByText('Đủ hai loại chứng từ để hoàn thành chuyến.')).toBeTruthy();
+    // Card 261022213755a: optional copy — the foot names the fact without the
+    // retired completion-gate claim.
+    expect(screen.getByText('Đủ hai loại chứng từ.')).toBeTruthy();
   });
 
   // vantaiphucloc EPOD pattern: "Chụp" opens the fullscreen camera overlay

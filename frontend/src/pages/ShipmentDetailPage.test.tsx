@@ -246,6 +246,30 @@ describe('ShipmentDetailPage', () => {
     expect(screen.getByText('Số tờ khai').nextElementSibling?.textContent).toBe('TK-2026-001, TK-2026-002');
   });
 
+  // Card 261022213755c (TiepVu 22/10-2): hàng lẻ đọc "Nhập lẻ"/"Xuất lẻ" ở
+  // dòng Xuất / Nhập — FCL giữ nguyên "Nhập"/"Xuất".
+  it.each([
+    { cargoMode: 'FCL', tradeDirection: 'IMPORT', expected: 'Nhập' },
+    { cargoMode: 'FCL', tradeDirection: 'EXPORT', expected: 'Xuất' },
+    { cargoMode: 'LCL', tradeDirection: 'IMPORT', expected: 'Nhập lẻ' },
+    { cargoMode: 'LCL', tradeDirection: 'EXPORT', expected: 'Xuất lẻ' },
+  ] as const)('header Xuất / Nhập reads "$expected" for a $cargoMode $tradeDirection lot', async ({ cargoMode, tradeDirection, expected }) => {
+    getShipmentDetailMock.mockResolvedValue({
+      ...detail,
+      shipment: { ...detail.shipment, cargoMode, tradeDirection },
+    });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+          <Routes>
+            <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+          </Routes>
+        </MemoryRouter></ToastProvider>
+      </QueryClientProvider>,
+    );
+    expect((await screen.findByText('Xuất / Nhập')).nextElementSibling?.textContent).toBe(expected);
+  });
+
   // ── CUS-11 (card 211026125915) ────────────────────────────────────────────
   // The header used to read ONLY the lot-level declaration rows, so a lot
   // whose containers each carry their per-cont số tờ khai (card 261013200312

@@ -513,7 +513,10 @@ export default function ShipmentDetailPage() {
                 )}
               </dd>
             </div>
-            <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? 'Nhập' : shipment.tradeDirection === 'EXPORT' ? 'Xuất' : '—'}</dd></div>
+            {/* Card 261022213755c: hàng lẻ đọc "Nhập lẻ"/"Xuất lẻ" — lô lẻ
+                phân biệt rõ với cont ngay ở dòng direction (cùng luật với
+                badge cus-direction-badge trên list). */}
+            <div><dt>Xuất / Nhập</dt><dd>{shipment.tradeDirection === 'IMPORT' ? (shipment.cargoMode === 'LCL' ? 'Nhập lẻ' : 'Nhập') : shipment.tradeDirection === 'EXPORT' ? (shipment.cargoMode === 'LCL' ? 'Xuất lẻ' : 'Xuất') : '—'}</dd></div>
             <div><dt>Hãng tàu</dt><dd>{shipment.shippingLineName ?? '—'}</dd></div>
             <div><dt>Nâng</dt><dd>{liftDropPoints.lift ?? '—'}</dd></div>
             <div><dt>Hạ</dt><dd>{liftDropPoints.drop ?? '—'}</dd></div>

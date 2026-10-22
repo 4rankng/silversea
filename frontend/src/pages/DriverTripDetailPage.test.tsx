@@ -794,10 +794,11 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // Trip IN_TRANSIT, 0/2 POD files → the bar shows the missing count and
-    // the completion action navigates to the e-POD screen.
+    // Trip IN_TRANSIT, 0/2 POD files → the bar names the optional doc count
+    // (card 261022213755a: photos are optional, never a blocker) and the
+    // completion action navigates to the e-POD screen.
     expect(screen.getByTestId('complete-sticky-bar')).toBeTruthy();
-    expect(screen.getByTestId('complete-sticky-status').textContent).toBe('Còn thiếu 2 chứng từ');
+    expect(screen.getByTestId('complete-sticky-status').textContent).toBe('Chưa có 2/2 ảnh chứng từ (tùy chọn)');
     const btn = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     expect(btn).toBeEnabled();
   });

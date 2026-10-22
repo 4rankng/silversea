@@ -370,33 +370,21 @@ export async function getDriverCompletionEvidenceStatus(
   const latestStatus = latestSubmission?.status as TripPodStatus | undefined;
   const hasSubmittedPod = latestStatus === TripPodStatus.SUBMITTED || latestStatus === TripPodStatus.ACCEPTED;
 
+  // Card 261022213755a (TiepVu 22/10-2, owner ruling "let us keep them
+  // optional, not compulsory to have image"): the e-POD photos are OPTIONAL
+  // driver evidence — `ready` no longer requires the two file types or a
+  // submitted e-POD, so a trip can complete without any photo (QA needs to
+  // finish lots quickly). The photo facts stay in the payload for the
+  // informational counters; only the recorded milestones gate completion.
   const missing: string[] = [];
-  if (!seen.has(DriverProgressEventType.PICKED_UP)) {
-    missing.push(DRIVER_PROGRESS_EVENT_LABELS[DriverProgressEventType.PICKED_UP]);
-  }
-  if (!seen.has(DriverProgressEventType.LOADING_OR_RETURNING)) {
-    missing.push(DRIVER_PROGRESS_EVENT_LABELS[DriverProgressEventType.LOADING_OR_RETURNING]);
-  }
-  if (!seen.has(DriverProgressEventType.DELIVERED)) {
-    missing.push(DRIVER_PROGRESS_EVENT_LABELS[DriverProgressEventType.DELIVERED]);
-  }
-  if (!latestSubmission) {
-    missing.push(fileTypeLabel(TripPodFileType.YARD_OR_DROP_RECEIPT));
-    missing.push(fileTypeLabel(TripPodFileType.SIGNED_DELIVERY_NOTE));
-    missing.push('e-POD đã gửi');
-  } else {
-    for (const fileType of TRIP_POD_REQUIRED_FILE_TYPES) {
-      if (!requiredFileTypes.has(fileType)) {
-        missing.push(fileTypeLabel(fileType));
-      }
-    }
-    if (!hasSubmittedPod) {
-      missing.push('e-POD đã gửi');
+  for (const eventType of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE) {
+    if (!seen.has(eventType)) {
+      missing.push(DRIVER_PROGRESS_EVENT_LABELS[eventType]);
     }
   }
 
   return {
-    ready: hasDeliveredMilestone && hasRequiredPodFiles && hasSubmittedPod,
+    ready: hasDeliveredMilestone,
     missing,
     hasDeliveredMilestone,
     hasSubmittedPod,
@@ -868,17 +856,12 @@ export async function submitPod(args: {
         throw new ApiError(409, 'e-POD này không còn ở trạng thái nháp.');
       }
 
-      const files = await tx.select({
-        fileType: s.tripPodFiles.fileType,
-      }).from(s.tripPodFiles)
-        .where(eq(s.tripPodFiles.submissionId, submission.id));
-      const fileTypes = new Set(files.map((row) => row.fileType as TripPodFileType));
-      const missingRequired = TRIP_POD_REQUIRED_FILE_TYPES
-        .filter((fileType) => !fileTypes.has(fileType))
-        .map((fileType) => fileTypeLabel(fileType));
-      if (missingRequired.length > 0) {
-        throw new ApiError(409, `e-POD chưa đủ hồ sơ bắt buộc: ${missingRequired.join(', ')}.`);
-      }
+      // Card 261022213755a (owner ruling 22/10): e-POD photos are optional
+      // evidence. Submitting a draft no longer demands the two required file
+      // types — the driver may submit whatever documents exist (or none) and
+      // the completion gate no longer depends on them either. The files are
+      // still listed for review; isReadyForReview still flags a submission
+      // missing its documents.
 
       const [updated] = await tx.update(s.tripPodSubmissions).set({
         status: TripPodStatus.SUBMITTED,

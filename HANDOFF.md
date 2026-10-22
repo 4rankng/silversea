@@ -1,3 +1,43 @@
+# HANDOFF — fix-tiepvu2-off2 (TiepVu 22/10-2, cards 261022213755a/b/c)
+
+- Owner/controller: session OpenCode GLM-5.3, worktree
+  /Users/dev/.paseo/worktrees/1njkloyy/fix-tiepvu2-off2, branch `fix-tiepvu2-off2`
+  (off main, không tạo branch mới).
+- Last updated: 2026-10-22 ~23:30. STATUS: DONE — implement + tests + UI DRIVEN
+  cả 3 item + gates green + independent review APPROVE; commit + push theo brief.
+- (a) Driver e-POD ảnh TÙY CHỌN (owner ruling docx: "optional, not compulsory"):
+  BE `trip-pod.service.ts` — `ready` của getDriverCompletionEvidenceStatus chỉ
+  còn milestone (bỏ required-pod-files + submitted-pod); submitPod bỏ 409 hồ sơ
+  bắt buộc. FE — DriverTripPodPage bỏ gate !podReady, copy tùy chọn;
+  TripPodSubmission "bắt buộc"→"Tùy chọn/Chưa có"; sticky bar detail đổi wording.
+  UI DRIVEN: trip 194126 hoàn thành 0 ảnh, POST 200, DB COMPLETED + 0 pod
+  submission + 4 mốc tự ghi.
+- (b) Search kho GLC: root cause là typing exact-label → onCustomValue resolve
+  id → sync effect set chosenKey → react-aria coi là pick → đóng menu giữa
+  chừng ("gõ GLC không ra, LC lại thấy"). Fix shared owner
+  `uui-searchable-field.tsx`: typedCustomTextRef — typing passthrough không bao
+  giờ được adopt làm pick (clear trên pick/clear/blur/__create__). UI DRIVEN
+  truoc (menu đóng tại GLC) / sau (GLC/Glc/glc/GL đều mở + option, pick commit).
+- (c) Badge NHẬP LẺ/XUẤT LẺ: directionLabel nhận cargoMode/isLotLevel — list CUS
+  (cus-direction-badge), ledger lot-level row, detail header "Xuất / Nhập".
+  House primitive giữ nguyên (classification = information, không pill mới);
+  UUI PRO consulted (base/badges) — ghi trong qa README.
+- Gates: lint 0 · BE tsc 0 · BE tests 397+338 pass · FE tsc -b 0 · tsgo 0 ·
+  FE FULL 5497/5497 (4 runs, 1 run có 1 fail đơn lẻ không xác định được tên —
+  output bị cắt; 3 run sau green tuyệt đối) · make build OK.
+- QA evidence: `qa/2026-10-22-tiepvu2/` (README + screenshots truoc/sau +
+  driver logs + DB proof). Cleanup: kho QA GLC (id 27165) soft-deleted;
+  trip 194126 driver_id restore 42966, giữ COMPLETED (side-effect QA dứt
+  khoát, append-only), planned_start_at còn giá trị QA 2026-10-20.
+- Review: code-reviewer APPROVE — 4 minor đã fix hết (clear ref ở __create__,
+  gate hint theo accountingLock, 3 stale comments, formatting test).
+- Nợ/lưu ý: (1) ảnh docx không vision-analyze được (gemini CLI IneligibleTier,
+  không có API key) — behavior lấy từ text docx, đã ghi giới hạn; (2) nit chưa
+  làm: class `.trip-pod__required` giờ mang text "Tùy chọn" (đổi tên class đụng
+  CSS/pins, thuần cosmetic); (3) 1 FE run có 1 fail lạ không tái hiện (xem trên).
+
+---
+
 # HANDOFF — fix-uui-select-modal (card 221026123031)
 
 - Owner/controller: this session (OpenCode, worktree

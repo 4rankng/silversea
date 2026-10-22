@@ -208,9 +208,10 @@ export async function transitionTripStatus(
       // Driver completion (Q15) hands off evidence but deliberately leaves the
       // trip IN_TRANSIT until the independently approved financial close — the
       // journey board already buckets such trips into HISTORY. Operationally
-      // the truck is free once the driver delivered the full evidence set
-      // (4 milestones + submitted e-POD); only still-running trips block a
-      // new departure on the same truck.
+      // the truck is free once the driver delivered the full milestone set
+      // (card 261022213755a: e-POD photos are optional evidence, so
+      // evidence-ready no longer waits on a submitted e-POD); only
+      // still-running trips block a new departure on the same truck.
       let simultaneousPartnerId: number | null = null;
       if (trip.activeTripPairId != null) {
         const [pair] = await tx.select({ firstTripId: s.tripPairs.firstTripId, secondTripId: s.tripPairs.secondTripId })
