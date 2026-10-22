@@ -1066,7 +1066,26 @@ export function ShipmentContainerLedger({
                     </div>)}
                   </td>
 {!isHidden('route') && (<td data-label="Nâng / hạ" className={cellClassName(routeEditable, 'route')}>
-                    {editableCell(row, 'route', routeEditable, <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
+                    {/* Card 261022093846 (Zalo 22/10): an LCL lot has NO
+                        nâng/hạ concept — its real operating points are Điểm
+                        đóng hàng / Điểm trả hàng, resolved server-side from
+                        the lot's own intake data (kho CFS + nhà máy,
+                        direction-swapped). The lot row prints them under
+                        Đóng/Trả labels with the law in a tooltip — never the
+                        container rows' "Chưa cập nhật" placeholder, which
+                        read like data that would never arrive. Container
+                        rows keep the Nâng/Hạ pair untouched. */}
+                    {editableCell(row, 'route', routeEditable, row.isLotLevel
+                      ? (
+                        <div
+                          className="shipment-container-ledger__route shipment-container-ledger__route--lot"
+                          title={`Lô lẻ: không nâng/hạ — đóng tại ${row.liftSite ?? 'chưa rõ'}, trả tại ${row.dropoffSite ?? 'chưa rõ'}`}
+                        >
+                          <span><small>Đóng</small>{fallback(row.liftSite, '—')}</span>
+                          <span><small>Trả</small>{fallback(row.dropoffSite, '—')}</span>
+                        </div>
+                      )
+                      : <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>)}
 {!isHidden('schedule') && (<td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>

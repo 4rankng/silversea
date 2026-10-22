@@ -266,8 +266,11 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id)),
     // Card 161026232339: the two LCL billing-class links ride along so the
     // page's class codes resolve in ONE batched lookup below (never per row).
+    // Card 261022093846: pickupWarehouseSiteId rides too — the LCL lot row's
+    // Điểm đóng/trả resolve the kho site name from the same site map below.
     executor.select({
       operationalSiteId: s.shipments.operationalSiteId,
+      pickupWarehouseSiteId: s.shipments.pickupWarehouseSiteId,
       costVehicleClassId: s.shipments.costVehicleClassId,
       revVehicleClassId: s.shipments.revVehicleClassId,
     })
@@ -520,6 +523,9 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
 
   // Effective-factory labels for per-container authority + shipment fallback:
   // short name preferred, unique by site id (one lookup for the whole page).
+  // Card 261022093846: the set also collects the LCL lots' pickup-warehouse
+  // site ids, so the lot row's Điểm đóng (kho CFS/cảng) resolves from the
+  // same map — it is a generic operationalSites id→name lookup.
   const factoryNameBySiteId = new Map<number, { shortName: string; fullName: string }>();
   {
     const siteIds = new Set<number>();
@@ -528,6 +534,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     }
     for (const shipment of shipmentSiteRows) {
       if (shipment.operationalSiteId != null) siteIds.add(shipment.operationalSiteId);
+      if (shipment.pickupWarehouseSiteId != null) siteIds.add(shipment.pickupWarehouseSiteId);
     }
     if (siteIds.size > 0) {
       const siteRows = await executor.select({
@@ -993,6 +1000,30 @@ export async function getCusShipmentWorkspaceDetail(
  * lot's own data (identity, docs, schedule, lot-level allocation) carries the
  * row. Identity is `-shipmentId` (see shipmentCusContainerFlatRowSchema).
  */
+/**
+ * Card 261022093846 (Zalo khách 22/10): a containerless LCL lot has NO
+ * nâng/hạ concept — its two real operating points are Điểm đóng hàng and
+ * Điểm trả hàng, resolved from the LOT's own intake data. Same direction
+ * rule as the one frontend display rule (`resolveLiftDropPoints`, user
+ * directive 2026-10-17): IMPORT đóng tại kho (CFS/cảng), trả tại nhà máy;
+ * EXPORT reverses. The stored free-text pair (`pickup_location` /
+ * `delivery_location`) backs up a half whose catalog site was never picked.
+ * Pure so the workboard's lot rows and the unit test share ONE rule.
+ */
+export function lotLiftDropPoints(input: {
+  tradeDirection: 'IMPORT' | 'EXPORT' | null;
+  warehouseSiteName: string | null;
+  factoryName: string | null;
+  pickupLocation: string | null;
+  deliveryLocation: string | null;
+}): { lift: string | null; drop: string | null } {
+  const exportLot = input.tradeDirection === 'EXPORT';
+  return {
+    lift: (exportLot ? input.factoryName : input.warehouseSiteName) ?? input.pickupLocation,
+    drop: (exportLot ? input.warehouseSiteName : input.factoryName) ?? input.deliveryLocation,
+  };
+}
+
 function buildLotFlatRow(
   row: ShipmentListRow,
   actor: AuthUser,
@@ -1013,11 +1044,26 @@ function buildLotFlatRow(
         : identity.plateNumber != null
           ? 'PLANNED'
           : 'AWAITING_VEHICLE';
-  const liftSite = resolveLiftSite(support, null, lotAssignment);
-  const dropoffSite = resolveDropoffSite(support, null, lotAssignment);
   const shipmentFactoryName = row.shipment.operationalSiteId != null
     ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
     : null;
+  // Card 261022093846: the lot's two operating points come from the LOT's own
+  // intake data (kho CFS site + nhà máy, direction-swapped), never from the
+  // per-container port pair an LCL lot cannot own. The legacy PORT-typed
+  // assignment snapshot stays the last-resort display for a pre-catalog lot
+  // whose intake fields never filled — readPortSnapshot only ever answers a
+  // PORT site, so a CFS warehouse snapshot cannot masquerade as one here.
+  const lotPoints = lotLiftDropPoints({
+    tradeDirection: row.shipment.tradeDirection ?? null,
+    warehouseSiteName: row.shipment.pickupWarehouseSiteId != null
+      ? support.factoryNameBySiteId.get(row.shipment.pickupWarehouseSiteId)?.shortName ?? null
+      : null,
+    factoryName: shipmentFactoryName ?? trimOrNull(row.shipment.factoryName),
+    pickupLocation: trimOrNull(row.shipment.pickupLocation),
+    deliveryLocation: trimOrNull(row.shipment.deliveryLocation),
+  });
+  const legacyLiftSite = resolveLiftSite(support, null, lotAssignment);
+  const legacyDropoffSite = resolveDropoffSite(support, null, lotAssignment);
   const readOnly = { mode: 'READ_ONLY' as const, reason: 'Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng.' };
   return {
     id: -row.shipment.id,
@@ -1053,8 +1099,8 @@ function buildLotFlatRow(
     costVehicleClassCode: row.shipment.costVehicleClassId != null
       ? support.vehicleClassCodeById.get(row.shipment.costVehicleClassId) ?? null
       : null,
-    liftSite: liftSite?.name ?? null,
-    dropoffSite: dropoffSite?.name ?? null,
+    liftSite: lotPoints.lift ?? legacyLiftSite?.name ?? null,
+    dropoffSite: lotPoints.drop ?? legacyDropoffSite?.name ?? null,
     // Mirrors the container rows' LCL branch: the lot's schedule IS its
     // expectedDeliveryDate (the overview reads the same date).
     transportDate: row.shipment.expectedDeliveryDate,
