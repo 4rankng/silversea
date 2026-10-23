@@ -1,5 +1,53 @@
 # Changelog
 
+## 2026-10-23 (chiều muộn) — feat(dispatch): redesign Kế hoạch Tổng quát /dispatch — cân đối cột + card-list mobile, nhất quán detailed-plan (QA R38, cards 231026123901 liên quan; issue #12)
+
+Lane `redesign-master-plan` sau merge feat-gomhang-fe (60d0c576). Pattern chuẩn
+`8a28c094` áp ngược về /dispatch — và lane bắt thêm 2 defect class trên chính
+board detailed-plan đã merge:
+
+- **Cột cân đối (desktop ≥640px)**: table floor `min-width: 1200px` + shares
+  mới (THỜI GIAN 10% ≈ 120px @floor — thu từ 15.5%/177px; KHÁCH HÀNG & NHÀ MÁY
+  17.5% + TUYẾN ĐƯỜNG 14.5% vùng đọc rộng nhất; Nâng/Trả 9/8.5% đủ 1 dòng +
+  ellipsis + title tooltip). Row **69-90px theo nội dung** (clamp 77px cell
+  body) — hết tower `--mpg-row-h: 96px`; chips phân bổ 1 dòng ellipsis + title;
+  demand "2 x 40HC + 1 x 20DC" gộp 1 dòng (`formatContainerSummaryLine`).
+  QA BEFORE: THỜI GIAN 177px, Cảng hạ 82px cắt cụt, rows 116-117px.
+- **Card list mobile <640px** (`MasterPlanCardList.tsx`, pattern
+  DispatchPlanCardList): mỗi lô 1 card — head [tick gộp khi mode] + KH + Bill +
+  loại (Nhập · Lẻ) + menu ⋯ duy nhất (shared `dispatch-row-menu.css` tách khỏi
+  DetailedPlanGrid.css); body giờ+ngày · Nâng · Trả · hàng hóa · tuyến · xe ·
+  cảnh báo/hải quan · ghi chú 1 dòng (bấm mở modal); foot "Phân bổ nhà xe" khi
+  lô còn nhận phân bổ. FB-014 giữ: bấm card → /dispatch-detail. Notes editor
+  inline qua đúng bundle của grid — table/card không thể lệch hành vi
+  (`MasterPlanCellValues.ts` tách helper thuần, grid re-export giữ import path
+  của XLSX export + tests).
+- **Fix class #1 — header sập cột dọc (live trên main)**: `display:
+  -webkit-box` đặt trực tiếp trên `thead th` (8a28c094) phá table-cell layout —
+  mọi header cell của /dispatch-detail sếp DỌC tại cột đầu (đo trunk :7175:
+  spread 0, left=272 hết). Clamp 2 dòng chuyển vào phần tử CON
+  (`__th-label` span master; `__sort` button detailed có sẵn); th chỉ giữ
+  wrap-at-spaces + keep-all. Sau fix: spread 1056/1104px, cả 2 board.
+- **Fix class #2 — rail giết sticky thead**: wrapper `overflow-x: auto` là
+  scroll container (overflow-y: clip computes thành hidden) nên thead sticky
+  theo app-body chết ngầm trên cả 2 board từ khi có rail. Wrapper đổi thành
+  **pane bounded** (`overflow: auto` + `max-height: calc(100dvh - var(--topbar-h)
+  - 72px)`) — thead pin trong pane, board cuộn cả 2 trục; `--cards` variant
+  reset (cards flow page).
+- **Gộp hàng on-demand GIỮ NGUYÊN** (cards 231026123901/902/903): cột CHỌN
+  on-demand, tick LCL/FCL dim, floating bar, dialog 4 trường — chỉ đổi trình
+  bày, KHÔNG đụng data-flow (QA D1-D5 rung 3, dialog hủy không lưu, DB
+  identity null/null trước/sau).
+- QA (`qa/2026-10-23-master-plan-redesign/`, driver `qa/scripts/
+  2026-10-23-master-plan-redesign.mjs`, BEFORE :7175 / AFTER :7184, dungnv):
+  AFTER 23/23 PASS — rows ≤93px mọi VP table, THỜI GIAN 125px, header sticky
+  + spread đúng cột, cards 390 + FB-014 tap, Phân xe sweep 20/5/20.
+  Case `testplan/2026-10-23-master-plan-redesign.md` (MP-RD-01…07).
+- Gates: root lint 0 · fe tsc -b 0 · tsgo -b 0 · scoped 647/647 · FULL FE
+  5525/5525 (sau `make build` dist) · make build 0 · dev-port-contract 11/11.
+  design:drift: delta lane ≤ base mọi counter (containerWidthValues 22→20 do
+  xóa @container bands; base đỏ sẵn = nợ baseline stale 2026-10-04).
+
 ## 2026-10-23 (chiều) — feat(lcl,dispatch): FE gộp hàng on-demand — toggle+checkbox+floating bar + popup ĐV 4 trường + CUS gộp thu 3 trường (spec 23/10, cards 231026123901/902/903)
 
 Wave FE của spec 23/10 (BE đã live 71f1468b) — phủ lên nền grid redesign

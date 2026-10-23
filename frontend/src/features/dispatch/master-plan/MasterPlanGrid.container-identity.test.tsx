@@ -56,12 +56,13 @@ describe('MasterPlanGrid — container identity class wiring (DIS-08, card 21102
     const cargoCell = container.querySelector('td[data-label="Tổng quan hàng hóa"], td[data-label="Hàng"]') as HTMLElement;
     expect(cargoCell).toBeTruthy();
     const cargoLines = Array.from(cargoCell.querySelectorAll('.master-plan-grid__line')).map(lineInfo);
-    expect(cargoLines).toHaveLength(3);
-    expect(cargoLines[0]).toMatchObject({ text: '2 x 40HC', identity: true });
-    expect(cargoLines[1]).toMatchObject({ text: '1 x 20DC', identity: true });
+    // Owner redesign 23/10 ("đủ 1 dòng"): the per-type demand joins onto ONE
+    // identity line; the weight stays the muted supporting fact under it.
+    expect(cargoLines).toHaveLength(2);
+    expect(cargoLines[0]).toMatchObject({ text: '2 x 40HC + 1 x 20DC', identity: true });
     // The muted weight line is a supporting fact, not container identity.
-    expect(cargoLines[2]!.text).toMatch(/tấn$/);
-    expect(cargoLines[2]!.identity).toBe(false);
+    expect(cargoLines[1]!.text).toMatch(/tấn$/);
+    expect(cargoLines[1]!.identity).toBe(false);
 
     for (const label of ['Cảng nâng', 'Nâng', 'Cảng hạ', 'Hạ']) {
       const portCell = container.querySelector(`td[data-label="${label}"]`) as HTMLElement;
@@ -72,10 +73,10 @@ describe('MasterPlanGrid — container identity class wiring (DIS-08, card 21102
         const lines = Array.from(block.children);
         // First line is the port name — regular, no identity class.
         expect(lines[0]!.classList.contains('ops-container-line')).toBe(false);
-        // Every container summary after it carries the identity class.
+        // The joined container summary under it carries the identity class.
         const summaries = lines.slice(1).map(lineInfo);
-        expect(summaries).toHaveLength(2);
-        expect(summaries.every((s) => s.identity)).toBe(true);
+        expect(summaries).toHaveLength(1);
+        expect(summaries[0]).toMatchObject({ text: '2 x 40HC + 1 x 20DC', identity: true });
       }
     }
   });

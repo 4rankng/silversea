@@ -1,0 +1,434 @@
+import { Fragment, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Container as ContainerIcon, MoreHorizontal, PencilLine } from 'lucide-react';
+import type { RefObject } from 'react';
+import type { ShipmentListItem } from '../../../api/shipmentClient';
+import { billBookingReference } from '../../../lib/business-reference';
+import { formatDateTimeShort } from '../../../lib/format';
+import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
+import { LclSelectCheckbox } from '../LclSelectCheckbox';
+import {
+  aggregateContainerPortGroupLines,
+  cargoCellLines,
+  cutoffUrgency,
+  scheduleBlocks,
+} from './MasterPlanCellValues';
+import { isLclLotRow } from './lclLot';
+import type { ActiveNoteDetail } from './MasterPlanNoteModal';
+
+/** Owner redesign 23/10 — the master-plan phone card list (<640px), following
+ *  the DispatchPlanCardList pattern (commit 8a28c094): one card per lô.
+ *  Head = [tick gộp hàng khi mode bật] + KH + Bill/Booking + loại + the single
+ *  ⋯ menu; body = giờ+ngày · Nâng · Trả (nơi trả 1 dòng) · container/hàng hóa
+ *  · tuyến · xe · cảnh báo · ghi chú (1 dòng, bấm xem toàn bộ); foot = nút
+ *  chính "Phân bổ nhà xe" khi lô còn nhận phân bổ. FB-014 giữ nguyên: bấm card
+ *  (ngoài control) mở Kế hoạch Chi tiết. The grid owns every piece of state —
+ *  the card list only renders, so the table and the card can never fork in
+ *  behaviour (notes editor, merge selection, allocation dialog wiring). */
+
+/** The note-editor bundle the grid's `useMasterPlanNoteEditor` returns —
+ *  forwarded verbatim so the card edits notes through the exact same flow. */
+export interface MasterCardNoteEditorBundle {
+  editingNotesId: number | null;
+  editingNotesValue: string;
+  setEditingNotesValue: (value: string) => void;
+  savingNotes: boolean;
+  notesError: string | null;
+  notesInputRef: RefObject<HTMLTextAreaElement | null>;
+  startNotesEdit: (shipment: ShipmentListItem) => void;
+  cancelNotesEdit: () => void;
+  saveNotesEdit: (shipment: ShipmentListItem) => void | Promise<void>;
+}
+
+export interface MasterPlanCardListProps {
+  items: ShipmentListItem[];
+  /** Active single-day view (YYYY-MM-DD) — narrows each row's lines to that
+   *  day, the same narrowing the table serves. */
+  scheduleDate?: string | null;
+  onAllocate: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
+  onViewContainers?: (shipment: ShipmentListItem, trigger: HTMLButtonElement) => void;
+  /** FB-014 — a tap on the card (outside its controls) opens the lot on
+   *  /dispatch-detail. */
+  onOpenDispatchDetail?: (shipment: ShipmentListItem) => void;
+  /** Opens the shared MasterPlanNoteModal (Xem ghi chú đầy đủ). */
+  onOpenNoteModal: (detail: ActiveNoteDetail) => void;
+  /** The grid's per-row gates, forwarded so the card serves the SAME laws the
+   *  table column serves (never a second opinion): allocationLocked =
+   *  assignShipmentCarriers would refuse the save; notesLocked = the
+   *  dispatcher intake-stage gate. */
+  isAllocationLocked: (shipment: ShipmentListItem) => boolean;
+  isNotesLocked: (shipment: ShipmentListItem) => boolean;
+  notes: MasterCardNoteEditorBundle;
+  /** SPEC 18/10/2026 §2.1 — LCL multi-select feeding the "Gán xe nhóm" bar;
+   *  present only while the page's [📦 Gộp hàng] mode is active. */
+  selectedLclShipmentIds?: ReadonlySet<number>;
+  onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
+}
+
+/** FB-014 control guard — same selector family the table row uses: every
+ *  interactive element inside the card keeps its own behavior. */
+const CARD_CLICK_CONTROL_SELECTOR = [
+  'button',
+  'a',
+  'input',
+  'select',
+  'textarea',
+  'label',
+  '[role="button"]',
+  '[role="menu"]',
+  '[role="menuitem"]',
+  '[role="listbox"]',
+  '[role="option"]',
+  '.searchable-select',
+].join(', ');
+
+function cardClickHitsControl(target: HTMLElement) {
+  return target.closest(CARD_CLICK_CONTROL_SELECTOR) != null;
+}
+
+/** Menu geometry — the DispatchRowActionsMenu contract: fixed-positioned at
+ *  body level so no card/list clipping can hide the items. */
+const MENU_WIDTH = 216;
+const MENU_GAP = 6;
+const VIEWPORT_PADDING = 8;
+const MENU_ITEM_H = 38;
+
+/** The card's single ⋯ menu — the row's secondary verbs (Chi tiết container,
+ *  Sửa/Thêm ghi chú) in the shared dispatch-row-menu chrome. The primary
+ *  verb (Phân bổ nhà xe) rides the card foot instead, per the dpcard
+ *  one-primary-per-card law. */
+function CardActionsMenu({ identity, hasContainers, notesEditable, noteLabel, onViewContainers, onEditNotes }: {
+  identity: string;
+  hasContainers: boolean;
+  notesEditable: boolean;
+  noteLabel: string;
+  onViewContainers: (trigger: HTMLButtonElement) => void;
+  onEditNotes: () => void;
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState<{ top: number; left: number } | null>(null);
+  useDropdownDismiss(open, () => setOpen(false));
+
+  if (!hasContainers && !notesEditable) return null;
+
+  const itemCount = (hasContainers ? 1 : 0) + (notesEditable ? 1 : 0);
+  const menuHeight = itemCount * MENU_ITEM_H + 12;
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const left = Math.max(VIEWPORT_PADDING, Math.min(rect.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - VIEWPORT_PADDING));
+        const below = rect.bottom + MENU_GAP;
+        const top = below + menuHeight > window.innerHeight - VIEWPORT_PADDING
+          ? Math.max(VIEWPORT_PADDING, rect.top - MENU_GAP - menuHeight)
+          : below;
+        setPlacement({ top, left });
+      }
+    } else {
+      setPlacement(null);
+    }
+  };
+
+  const menu = open && placement && (
+    <div
+      className="dispatch-row-menu__list"
+      role="menu"
+      aria-label={`Thao tác lô · ${identity}`}
+      data-dropdown-root=""
+      style={{ position: 'fixed', top: placement.top, left: placement.left, width: MENU_WIDTH }}
+    >
+      {hasContainers && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            onViewContainers(triggerRef.current ?? (triggerRef as unknown as HTMLButtonElement));
+          }}
+        >
+          <ContainerIcon size={14} aria-hidden="true" />
+          Chi tiết container
+        </button>
+      )}
+      {notesEditable && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            onEditNotes();
+          }}
+        >
+          <PencilLine size={14} aria-hidden="true" />
+          {noteLabel}
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="dispatch-row-menu" data-dropdown-root={open ? '' : undefined}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="dispatch-row-menu__trigger"
+        aria-label={`Thao tác lô · ${identity}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={`Thao tác · ${identity}`}
+        onClick={toggle}
+      >
+        <MoreHorizontal size={16} aria-hidden="true" />
+      </button>
+      {menu && createPortal(menu, document.body)}
+    </div>
+  );
+}
+
+export function MasterPlanCardList({
+  items,
+  scheduleDate,
+  onAllocate,
+  onViewContainers = () => {},
+  onOpenDispatchDetail,
+  onOpenNoteModal,
+  isAllocationLocked,
+  isNotesLocked,
+  notes,
+  selectedLclShipmentIds,
+  onToggleLclSelection,
+}: MasterPlanCardListProps) {
+  return (
+    <ul className="mpcard-list" role="list">
+      {items.map((item) => {
+        const urgency = cutoffUrgency(item.customsCutoffAt);
+        const portGroupLines = aggregateContainerPortGroupLines(item, scheduleDate);
+        const liftRun = portGroupLines
+          .filter((line) => line.direction === 'lift')
+          .map((line) => line.portName)
+          .join(' + ');
+        const dropRun = portGroupLines
+          .filter((line) => line.direction === 'drop')
+          .map((line) => line.portName)
+          .join(' + ');
+        const cargoLines = cargoCellLines(item, scheduleDate);
+        const cargoDemand = cargoLines.filter((line) => !line.muted && !line.empty).map((line) => line.text).join(' + ');
+        const cargoMeasures = cargoLines.filter((line) => line.muted && !line.empty).map((line) => line.text).join(' · ');
+        const reference = billBookingReference(item.blNumber, item.bookingRef);
+        // Same allocation-lock law as the table (assignShipmentCarriers refuses
+        // intake-phase + CANCELED; past READY the freeze is per-container).
+        const allocationChips = item.carrierAllocationSummary.map((entry) => {
+          const counts = [
+            entry.count20 > 0 ? `${entry.count20}x20'` : null,
+            entry.count40 > 0 ? `${entry.count40}x40'` : null,
+          ].filter(Boolean).join(' · ');
+          return counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel;
+        }).join(' · ');
+        const hasContainers = Boolean(
+          (item.containerTotal != null
+            ? item.containerTotal > 0
+            : ((item.containerCount20 ?? 0) + (item.containerCount40 ?? 0) > 0))
+          && item.containerTypeSummary !== 'Chưa có cont',
+        );
+        const allocationLocked = isAllocationLocked(item);
+        const notesLocked = isNotesLocked(item);
+        const notesEditable = notes.editingNotesId !== item.id && !notesLocked;
+        const openableDetail = onOpenDispatchDetail != null;
+        return (
+          <li
+            key={item.id}
+            className={`mpcard${openableDetail ? ' mpcard--detail-link' : ''}`}
+            tabIndex={openableDetail ? 0 : undefined}
+            onClick={openableDetail ? (event) => {
+              if (cardClickHitsControl(event.target as HTMLElement)) return;
+              onOpenDispatchDetail(item);
+            } : undefined}
+            onKeyDown={openableDetail ? (event) => {
+              if (event.target !== event.currentTarget) return;
+              if (event.key !== 'Enter' && event.key !== ' ') return;
+              event.preventDefault();
+              onOpenDispatchDetail(item);
+            } : undefined}
+          >
+            <div className="mpcard__head">
+              {onToggleLclSelection && (isLclLotRow(item) ? (
+                <LclSelectCheckbox
+                  isSelected={selectedLclShipmentIds?.has(item.id) ?? false}
+                  isDisabled={item.costGroupId != null}
+                  onToggle={(next: boolean) => onToggleLclSelection(item.id, next)}
+                  ariaLabel={`Chọn lô ${reference}`}
+                  title={item.costGroupId != null ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.' : 'Chọn lô này để gán xe nhóm'}
+                />
+              ) : (
+                /* Spec 23/10 §2 — FCL cards read the mode too, dimmed and
+                   untouchable so the merge selection stays LCL-only. */
+                <LclSelectCheckbox
+                  isSelected={false}
+                  isDisabled
+                  onToggle={() => {}}
+                  ariaLabel={`Lô ${reference} không tham gia gộp hàng`}
+                  title="Chỉ ghép lô hàng lẻ (LCL) — lô cont không tích được."
+                />
+              ))}
+              <div className="mpcard__identity">
+                <span className="mpcard__customer" title={item.customerName ?? undefined}>
+                  {item.customerName || '—'}
+                </span>
+                <span className="mpcard__bill" title={reference}>
+                  {reference}
+                  {item.isAdHoc && <span className="adhoc-label mpcard__adhoc" data-adhoc-label>Chạy ngoài</span>}
+                </span>
+              </div>
+              <span className="mpcard__type">
+                {`${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · ${isLclLotRow(item) ? 'Lẻ' : 'Cont'}`}
+              </span>
+              <CardActionsMenu
+                identity={reference}
+                hasContainers={hasContainers}
+                notesEditable={notesEditable}
+                noteLabel={item.operationalNotes ? 'Sửa ghi chú' : 'Thêm ghi chú'}
+                onViewContainers={(trigger) => onViewContainers(item, trigger)}
+                onEditNotes={() => notes.startNotesEdit(item)}
+              />
+            </div>
+            <div className="mpcard__body">
+              {scheduleBlocks(item, scheduleDate).map((block, blockIdx) => (
+                <Fragment key={`${item.id}-${blockIdx}`}>
+                  {block.head && (
+                    <div className="mpcard__line mpcard__line--strong" title={block.head}>{block.head}</div>
+                  )}
+                  {block.sub && (
+                    <div className="mpcard__line mpcard__line--muted" title={block.sub}>{block.sub}</div>
+                  )}
+                </Fragment>
+              ))}
+              {(item.containersMissingAppointment ?? 0) > 0 && (item.containerTotal ?? 0) > 0 && (
+                <div className="mpcard__line mpcard__line--warning" role="status">
+                  {`Còn ${item.containersMissingAppointment}/${item.containerTotal} cont chưa chốt ngày đóng trả`}
+                </div>
+              )}
+              {item.customsCutoffAt && (
+                <div
+                  className={`mpcard__line${urgency === 'soon' ? ' mpcard__line--soon' : ' mpcard__line--urgent'}`}
+                  title={`Hạn hoàn tất hải quan: ${formatDateTimeShort(item.customsCutoffAt)}`}
+                >
+                  {`Hải quan: ${formatDateTimeShort(item.customsCutoffAt)}`}
+                </div>
+              )}
+              {cargoDemand && (
+                <div className="mpcard__line mpcard__line--strong ops-container-line" title={cargoDemand}>{cargoDemand}</div>
+              )}
+              {cargoMeasures && (
+                <div className="mpcard__line mpcard__line--muted" title={cargoMeasures}>{cargoMeasures}</div>
+              )}
+              <div className="mpcard__line" title={liftRun}>{`Nâng · ${liftRun}`}</div>
+              <div className="mpcard__line" title={dropRun}>{`Trả · ${dropRun}`}</div>
+              {(item.routeName || item.shippingLineName) && (
+                <div
+                  className="mpcard__line mpcard__line--muted"
+                  title={[item.routeName, item.shippingLineName].filter(Boolean).join(' · ')}
+                >
+                  {[item.routeName, item.shippingLineName].filter(Boolean).join(' · ')}
+                </div>
+              )}
+              <div className="mpcard__line mpcard__line--muted" title={allocationChips || undefined}>
+                {allocationChips ? `Xe: ${allocationChips}` : 'Chưa phân bổ'}
+              </div>
+              {notes.editingNotesId === item.id ? (
+                <div className="master-plan-grid__notes-editor">
+                  <textarea
+                    ref={notes.notesInputRef}
+                    className="master-plan-grid__notes-input"
+                    value={notes.editingNotesValue}
+                    disabled={notes.savingNotes}
+                    onChange={(e) => notes.setEditingNotesValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        void notes.saveNotesEdit(item);
+                        return;
+                      }
+                      if (e.key === 'Escape') notes.cancelNotesEdit();
+                    }}
+                    rows={2}
+                    maxLength={2000}
+                    aria-label="Ghi chú điều phối"
+                  />
+                  {notes.notesError && <p className="dispatch-plan-page__error" role="alert">{notes.notesError}</p>}
+                  <div className="master-plan-grid__notes-actions">
+                    <button
+                      type="button"
+                      className="master-plan-grid__notes-save"
+                      onClick={() => void notes.saveNotesEdit(item)}
+                      disabled={notes.savingNotes}
+                    >
+                      {notes.savingNotes ? 'Đang lưu…' : 'Lưu'}
+                    </button>
+                    <button
+                      type="button"
+                      className="master-plan-grid__notes-cancel"
+                      aria-disabled={notes.savingNotes || undefined}
+                      onClick={() => { if (notes.savingNotes) return; notes.cancelNotesEdit(); }}
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {item.operationalNotes && (
+                    <button
+                      type="button"
+                      className="mpcard__note"
+                      title="Bấm để xem toàn bộ ghi chú"
+                      onClick={() => onOpenNoteModal({
+                        title: 'Ghi chú điều hành',
+                        note: item.operationalNotes!,
+                        customerName: item.customerName,
+                        blNumber: item.blNumber,
+                        shipmentCode: item.shipmentCode,
+                        isOperational: true,
+                        shipment: item,
+                      })}
+                    >
+                      {`Ghi chú: ${item.operationalNotes.replace(/\n/g, ' ')}`}
+                    </button>
+                  )}
+                  {item.factoryNotes && (
+                    <div className="mpcard__line mpcard__line--muted" title={item.factoryNotes}>
+                      {`NM: ${item.factoryNotes}`}
+                    </div>
+                  )}
+                  {item.opsRecoveryNotes?.map(note => (
+                    <div key={note} className="mpcard__line mpcard__line--muted" title={note}>
+                      {`OPS: ${note}`}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+            {/* Foot: the ONE primary action — Phân bổ nhà xe — only while the
+                lot accepts a carrier save; a locked lot keeps its roster line
+                above instead of a dead button. */}
+            {!allocationLocked && (
+              <div className="mpcard__foot">
+                <button
+                  type="button"
+                  className="mpcard__allocate"
+                  aria-label={`Phân bổ nhà xe · ${reference}`}
+                  onClick={(event) => onAllocate(item, event.currentTarget)}
+                >
+                  Phân bổ nhà xe
+                </button>
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

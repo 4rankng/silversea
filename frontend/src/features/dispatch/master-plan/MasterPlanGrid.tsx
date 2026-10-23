@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
 import { isLclLotRow } from './lclLot';
 import { canonicalShipmentStatus, ShipmentStatus } from '@tingting/shared';
@@ -8,21 +8,45 @@ import { DisabledActionTip } from '../../../components/shared/DisabledActionTip'
 import { NameCell } from '../../../components/shared/NameCell';
 import {
   displayNote,
-  formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
-import { formatDateTimeShort, formatISODate, formatNumber, formatVolumeCbm, formatWeight } from '../../../lib/format';
+import { formatDateTimeShort } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
-import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import {
   isNoteLong,
   MasterPlanNoteModal,
   truncateNote,
   type ActiveNoteDetail,
 } from './MasterPlanNoteModal';
+import { MasterPlanCardList } from './MasterPlanCardList';
 import { LclSelectCheckbox } from '../LclSelectCheckbox';
 import '../LclSelectCheckbox.css';
+import '../dispatch-row-menu.css';
 import '../../../styles/operational-table-typography.css';
 import './MasterPlanGrid.css';
+import {
+  aggregateContainerPortGroupLines,
+  cargoCellLines,
+  cutoffUrgency,
+  formatContainerSummaryLine,
+  scheduleBlocks,
+} from './MasterPlanCellValues';
+
+/* Owner redesign 23/10 — the pure per-row composers live in
+ * MasterPlanCellValues (shared with MasterPlanCardList); this re-export keeps
+ * the historical import surface (the XLSX export and the tests) unchanged. */
+export {
+  aggregateContainerPortGroupLines,
+  cargoCellLines,
+  cutoffUrgency,
+  dayContainerSummary,
+  formatContainerSummaryLines,
+  scheduleBlocks,
+} from './MasterPlanCellValues';
+export type {
+  CargoCellLine,
+  ContainerPortGroupLine,
+  ScheduleBlock,
+} from './MasterPlanCellValues';
 
 interface MasterPlanGridProps {
   items: ShipmentListItem[];
@@ -49,12 +73,6 @@ interface MasterPlanGridProps {
   onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
 }
 
-/** Schedule blocks: one per container appointment — the ICT line leads in the
- *  canonical padded shape and the "factory · containers" line indents beneath
- *  it. No per-container appointments → ONE canonical lot-level datetime line
- *  (card 20260921_23: no more dateless "15H" fragments). */
-export type ScheduleBlock = { head: string | null; sub: string | null };
-
 /** FB-014: a click anywhere on the row opens dispatch detail EXCEPT on the
  *  row's own controls — every interactive element (buttons, quick-view
  *  trigger, notes editor, LCL checkbox, the allocation action cell) keeps its
@@ -78,283 +96,31 @@ function rowClickHitsControl(target: HTMLElement) {
   return target.closest(ROW_CLICK_CONTROL_SELECTOR) != null;
 }
 
-export function scheduleBlocks(item: ShipmentListItem, scheduleDate?: string | null): ScheduleBlock[] {
-  if (!item.appointmentGroups?.length) {
-    // Lot-level fallback: the delivery date plus the close/return instant —
-    // both in canonical shapes, never an hour-only fragment (card 20260921_23).
-    const fallbackInstant = item.plannedReturnAt ?? item.closingAt;
-    const instantLine = fallbackInstant ? formatDateTimeShort(fallbackInstant) : null;
-    const dateLine = item.expectedDeliveryDate ? formatISODate(item.expectedDeliveryDate) : null;
-    const blocks: ScheduleBlock[] = [];
-    if (dateLine) blocks.push({ head: dateLine, sub: null });
-    if (instantLine && instantLine !== '—') blocks.push({ head: instantLine, sub: null });
-    return blocks;
-  }
-  const groups = scheduleDate
-    ? item.appointmentGroups.filter((group) => group.localDate === scheduleDate)
-    : item.appointmentGroups;
-  return groups.map((group) => {
-    const factory = group.factoryName?.trim();
-    return {
-      head: formatAppointmentGroupLine(group.at, group.localDate),
-      sub: factory ? `${factory} · ${group.containerSummary}` : group.containerSummary,
-    };
-  });
-}
+/** Owner redesign 23/10 — the phone card list takes over below this
+ *  CONTAINER width (measured on the grid's own wrapper, not the viewport:
+ *  the workspace is the layout container at every zoom/sidebar state). Same
+ *  law as the detailed-plan grid (CARD_MODE_BREAKPOINT = 640 there). */
+const CARD_MODE_BREAKPOINT = 640;
 
-/** Cutoff proximity: orange within 3 days, red when overdue/today. */
-function cutoffUrgency(iso: string | null | undefined): 'none' | 'soon' | 'urgent' {
-  if (!iso) return 'none';
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) return 'none';
-  const days = (date.getTime() - Date.now()) / (24 * 60 * 60 * 1000);
-  if (days < 1) return 'urgent';
-  if (days <= 3) return 'soon';
-  return 'none';
-}
-
-
-/**
- * The API uses ` + ` to keep the grouped container demand machine-readable.
- * Render each type as its own operational line, while accepting summaries from
- * an older backend that still used `*` or `×` during a rolling deployment.
- */
-export function formatContainerSummaryLines(summary: string | null): string[] {
-  // Missing cargo demand names the missing fact instead of a bare '—'
-  // (design §1: empty values name the field).
-  if (!summary) return ['Chưa có cont'];
-
-  return summary
-    .split(/\s*\+\s*/)
-    .map((part) => part.trim().replace(/^(\d+)\s*(?:\*|×|x)\s*/i, '$1 x '))
-    .filter(Boolean);
-}
-
-/** Parsed container-type demand bucket: type label → count.
- *  Insertion order is preserved so the formatted output stays deterministic. */
-type ContainerTypeCounts = Map<string, number>;
-
-/**
- * Parse a `containerSummary` string ("1 x 40DC + 1 x 20DC") into a type→count
- * map. Accepts `*` / `×` / `x` separators (rolling-deployment tolerance).
- * Returns null for empty/invalid input so callers can keep the original
- * `null` semantics instead of forcing a fake zero.
- */
-function parseContainerTypeCounts(summary: string | null | undefined): ContainerTypeCounts | null {
-  if (!summary) return null;
-  const counts: ContainerTypeCounts = new Map();
-  const parts = summary.split(/\s*\+\s*/);
-  for (const raw of parts) {
-    const part = raw.trim();
-    if (!part) continue;
-    const match = part.match(/^(\d+)\s*(?:\*|×|x)\s*([A-Za-z0-9]+)\s*$/);
-    if (!match) continue;
-    const qty = Number.parseInt(match[1], 10);
-    const type = match[2];
-    if (!Number.isFinite(qty) || qty <= 0) continue;
-    counts.set(type, (counts.get(type) ?? 0) + qty);
-  }
-  return counts.size > 0 ? counts : null;
-}
-
-/** Render a type→count map back to the operational "1 x 40DC + 1 x 20DC"
- *  shape. Insertion order is preserved so the first appearance order drives
- *  the line order (matches the CUS workspace contract). */
-function formatContainerTypeCounts(counts: ContainerTypeCounts): string {
-  return Array.from(counts.entries())
-    .map(([type, qty]) => `${qty} x ${type}`)
-    .join(' + ');
-}
-
-export type ContainerPortGroupLine = {
-  direction: 'lift' | 'drop';
-  label: 'Nâng' | 'Hạ';
-  portName: string;
-  containerSummary: string | null;
-};
-
-type ContainerPortGroupKey = string;
-
-/**
- * Lift/drop lines for one row's Cảng nâng / Cảng hạ columns.
- *
- * LCL — its two sites, no aggregation (see the branch below).
- *
- * FCL — the backend exposes one `containerPortGroup` per appointment instant
- * (per-day when a lot splits across close/return dates), so a single shipment
- * can carry N groups for the SAME (pickup → dropoff) pair — each with a partial
- * container count. Dispatch needs the TOTAL demand per lift/drop pair, not the
- * per-day split. We aggregate groups by (pickup, dropoff) and sum the
- * container-type counts so each port column reads "Cảng HP · 3 x 40DC" instead
- * of three "1 x 40DC" lines.
- *
- * Customer feedback L2 (24/08/2026) — for FCL, when `scheduleDate` is set, only
- * groups whose `localDate` matches are aggregated, so the cảng cells reflect only
- * the conts running on that day.
- *
- * An LCL lot owns no container (LCL + container is refused at intake), so it has
- * no container port pair to aggregate. Its two columns name the lot's OWN
- * lift/drop points instead, and those SWAP with the trade direction — FB-105 §3,
- * the one rule every surface shares (`resolveLiftDropPoints`): Nhập khẩu reads
- * "Kho lấy hàng (CFS/Cảng)" under Cảng nâng and "Nhà máy" under Cảng hạ; Xuất
- * khẩu the reverse. The warehouse is `pickupWarehouseSiteId` (projected as
- * `pickupWarehouseSiteName`), the factory is the lot's operational site (the
- * same column the detailed-plan "Điểm trả" facet filters on, projected here as
- * `factoryName`). A side whose catalog site was never picked falls back to the
- * lot's stored free text (`pickupLocation` / `deliveryLocation`) and otherwise
- * reads "—", never "Chưa có cont" (FB-091: a container placeholder on a lot that
- * can never have a container names a false fact).
- *
- * A single-day filter does not blank these: an LCL lot's schedule IS its
- * `expectedDeliveryDate` (`resolveEffectiveFulfillmentDate`), so both sites
- * stay true on every day the lot appears.
- */
-export function aggregateContainerPortGroupLines(item: ShipmentListItem, scheduleDate?: string | null): ContainerPortGroupLine[] {
-  if (item.cargoMode === 'LCL') {
-    // FB-105 §3 — the sides swap with the direction, so resolve them through the
-    // shared rule instead of assuming Nhập (lift = kho) for every lot.
-    const points = resolveLiftDropPoints({
-      cargoMode: 'LCL',
-      tradeDirection: item.tradeDirection,
-      warehouseName: item.pickupWarehouseSiteName,
-      factoryName: item.factoryName,
-      liftFallback: item.pickupLocation,
-      dropFallback: item.deliveryLocation,
+/** Measures the wrapper's inline size and reports whether the card list
+ *  owns the layout. jsdom (unit tests) has no ResizeObserver: the table is
+ *  the default and card suites drive the card list directly. The anchor is
+ *  a STATE callback ref, not a mount-time effect: the wrapper must re-bind
+ *  when the layout mode flips its children. */
+function useCardLayoutMode(): [React.Dispatch<React.SetStateAction<HTMLDivElement | null>>, boolean] {
+  const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
+  const [isCardMode, setIsCardMode] = useState(false);
+  useEffect(() => {
+    if (!anchorEl || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      const next = width < CARD_MODE_BREAKPOINT;
+      setIsCardMode((current) => (current === next ? current : next));
     });
-    return [
-      { direction: 'lift', label: 'Nâng', portName: points.lift ?? '—', containerSummary: null },
-      { direction: 'drop', label: 'Hạ', portName: points.drop ?? '—', containerSummary: null },
-    ];
-  }
-  const allGroups = item.containerPortGroups ?? [];
-  const containerPortGroups = scheduleDate
-    ? allGroups.filter((group) => group.localDate === scheduleDate)
-    : allGroups;
-  if (containerPortGroups.length === 0) {
-    if (allGroups.length === 0) {
-      return [
-        { direction: 'lift', label: 'Nâng', portName: 'Chưa có cont', containerSummary: null },
-        { direction: 'drop', label: 'Hạ', portName: 'Chưa có cont', containerSummary: null },
-      ];
-    }
-    // Date filter active but no conts on that day — same named placeholder,
-    // never a bare '—' (design §1).
-    return [
-      { direction: 'lift', label: 'Nâng', portName: 'Chưa có cont', containerSummary: null },
-      { direction: 'drop', label: 'Hạ', portName: 'Chưa có cont', containerSummary: null },
-    ];
-  }
-
-  const aggregated = new Map<ContainerPortGroupKey, {
-    pickup: string | null;
-    dropoff: string | null;
-    counts: ContainerTypeCounts;
-  }>();
-
-  for (const group of containerPortGroups) {
-    const key = `${group.pickupPortName ?? ''}__${group.dropoffPortName ?? ''}`;
-    const existing = aggregated.get(key);
-    if (existing) {
-      const parsed = parseContainerTypeCounts(group.containerSummary);
-      if (parsed) {
-        for (const [type, qty] of parsed.entries()) {
-          existing.counts.set(type, (existing.counts.get(type) ?? 0) + qty);
-        }
-      }
-    } else {
-      aggregated.set(key, {
-        pickup: group.pickupPortName,
-        dropoff: group.dropoffPortName,
-        counts: parseContainerTypeCounts(group.containerSummary) ?? new Map(),
-      });
-    }
-  }
-
-  return Array.from(aggregated.values()).flatMap((entry) => {
-    const liftName = entry.pickup ?? '—';
-    const dropName = entry.dropoff ?? '—';
-    const summary = entry.counts.size > 0 ? formatContainerTypeCounts(entry.counts) : null;
-    return [
-      { direction: 'lift' as const, label: 'Nâng' as const, portName: liftName, containerSummary: summary },
-      { direction: 'drop' as const, label: 'Hạ' as const, portName: dropName, containerSummary: summary },
-    ];
-  });
-}
-
-/** Single-day cargo line (customer feedback L2): when a single-day filter is
- * applied, the cargo cell shows that day's cont count merged from
- * `appointmentGroups` instead of the master lô totals; null when the day has
- * no groups or no parseable summary (caller falls back to the lot summary). */
-export function dayContainerSummary(item: ShipmentListItem, scheduleDate?: string | null): string | null {
-  const dayGroups = scheduleDate
-    ? (item.appointmentGroups ?? []).filter((g) => g.localDate === scheduleDate)
-    : [];
-  if (dayGroups.length === 0) return null;
-  const merged = new Map<string, number>();
-  for (const group of dayGroups) {
-    for (const piece of (group.containerSummary || '').split(/\s*\+\s*/)) {
-      const trimmed = piece.trim();
-      const match = trimmed.match(/^(\d+)\s*[x*×]\s*(.+)$/i);
-      if (match) {
-        const qty = Number(match[1]);
-        const label = match[2].trim();
-        merged.set(label, (merged.get(label) ?? 0) + qty);
-      }
-    }
-  }
-  if (merged.size === 0) return null;
-  return Array.from(merged.entries())
-    .map(([label, qty]) => `${qty} x ${label}`)
-    .join(' + ');
-}
-
-/** One rendered line of the Tổng quan hàng hóa cell. `muted` marks the
- *  supporting measure line under the composition line; `empty` marks a line that
- *  rendered no value, which the phone record card collapses (`data-empty`). The
- *  flag is explicit rather than inferred from the text: two lines can carry the
- *  same placeholder, and a custom `FormatValueOptions.empty` label must not
- *  silently stop collapsing. */
-export type CargoCellLine = { text: string; muted: boolean; empty: boolean; identity?: boolean };
-
-/**
- * Cargo-cell lines, in render order — the ONE source both the grid and the XLSX
- * export read, so the sheet can never disagree with the screen.
- *
- * LCL (FB-091) — a containerless lot has no container demand to print, so the
- * cell states the lot's own CUS cargo fields instead of "Chưa có cont":
- * `[số lượng] [loại bao bì]` over `[tấn] · [CBM]`, e.g.
- * `5 PALLET` / `1,922 tấn · 4 CBM`. CBM is optional for LCL (helpdesk
- * 2026-10-13), so each measure joins the line only when the lot has one;
- * a lot that entered neither keeps "—" rather than a bare unit.
- *
- * FCL — the container-type demand lines (narrowed to the active day when a
- * single-day filter is on) plus the lot's aggregated weight.
- */
-export function cargoCellLines(item: ShipmentListItem, scheduleDate?: string | null): CargoCellLine[] {
-  if (item.cargoMode === 'LCL') {
-    const demand = [item.packageCount != null ? formatNumber(item.packageCount) : null, item.packageType?.trim() || null]
-      .filter(Boolean)
-      .join(' ');
-    const measures = [
-      item.cargoWeightKg ? formatWeight(item.cargoWeightKg) : null,
-      item.cargoVolumeCbm ? formatVolumeCbm(item.cargoVolumeCbm) : null,
-    ].filter(Boolean).join(' · ');
-    return [
-      { text: demand || '—', muted: false, empty: !demand },
-      { text: measures || '—', muted: true, empty: !measures },
-    ];
-  }
-  const weight = formatWeight(item.totalCargoWeightKg);
-  const containerSummarySource = dayContainerSummary(item, scheduleDate) ?? item.containerTypeSummary;
-  return [
-    ...formatContainerSummaryLines(containerSummarySource)
-      // Real container demand carries the shared identity weight (DIS-08,
-      // card 211026180428); the 'Chưa có cont' placeholder names a MISSING
-      // fact and stays regular. `!!` mirrors formatContainerSummaryLines'
-      // own emptiness check so a '' summary can never bold the placeholder.
-      .map((text): CargoCellLine => ({ text, muted: false, empty: false, identity: !!containerSummarySource })),
-    { text: weight, muted: true, empty: item.totalCargoWeightKg == null },
-  ];
+    observer.observe(anchorEl);
+    return () => observer.disconnect();
+  }, [anchorEl]);
+  return [setAnchorEl, isCardMode];
 }
 
 /** The statuses a DISPATCHER may write (`assertDispatcherCanMutateShipmentIntake`). */
@@ -364,13 +130,16 @@ const DISPATCHER_INTAKE_STATUSES: Record<string, true> = {
 };
 
 /**
- * Multi-line dispatch master-plan grid (docx §3): 8 grouped columns with
- * distinct lift/drop port columns and no horizontal scroll. The allocation column exposes its
- * allocation values as the edit trigger, matching the full-cell editing
- * contract used by data grids.
+ * Multi-line dispatch master-plan grid (docx §3): grouped columns with
+ * distinct lift/drop port columns. Owner redesign 23/10 (QA R38): the
+ * balanced table (min-width floor + horizontal rail) serves every canvas
+ * ≥640px; below that the phone card list (`MasterPlanCardList`) takes over.
+ * The allocation column exposes its values as the edit trigger, matching the
+ * full-cell editing contract used by data grids.
  */
 export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {}, onOpenDispatchDetail, scheduleDate, onUpdateNotes, notesIntakeOnly = false, selectedLclShipmentIds, onToggleLclSelection }: MasterPlanGridProps) {
   const [activeNoteModal, setActiveNoteModal] = useState<ActiveNoteDetail | null>(null);
+  const [wrapperRef, isCardMode] = useCardLayoutMode();
   const {
     editingNotesId, editingNotesValue, setEditingNotesValue, savingNotes,
     notesError, notesInputRef, startNotesEdit, cancelNotesEdit, saveNotesEdit,
@@ -379,9 +148,52 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
   const noteModalShipment = activeNoteModal?.shipment;
   const noteModalEditable = Boolean(noteModalShipment && onUpdateNotes
     && (!notesIntakeOnly || DISPATCHER_INTAKE_STATUSES[noteModalShipment.status]));
+  // The per-row gates, shared by the table columns and the phone card (one
+  // law, one implementation — the card never re-derives them).
+  const isAllocationLocked = (item: ShipmentListItem) => {
+    // A lot's allocation is editable whenever the backend can accept the
+    // save at all: `assignShipmentCarriers` refuses only intake phase (NEW /
+    // PENDING_DATE) and CANCELED lots. Past READY the freeze is PER-CONTAINER
+    // (card 354): trip-bound containers keep their carrier while unallocated
+    // / untripped siblings accept fills — so DISPATCHED / IN_TRANSIT /
+    // COMPLETED rows must stay editable, and the dialog's per-container guard
+    // carries the precise "Không thể đổi nhà xe…" message when a change would
+    // touch a container that already has an order.
+    const canonical = canonicalShipmentStatus(item.status);
+    return canonical == null
+      || (canonical !== ShipmentStatus.READY_FOR_DISPATCH
+        && canonical !== ShipmentStatus.DISPATCHED
+        && canonical !== ShipmentStatus.IN_TRANSIT
+        && canonical !== ShipmentStatus.COMPLETED);
+  };
+  const isNotesLocked = (item: ShipmentListItem) =>
+    // Same stage rule as the note trigger: outside the intake window a
+    // dispatcher's save is a 403, so the affordance is not offered there.
+    !onUpdateNotes || (notesIntakeOnly && !DISPATCHER_INTAKE_STATUSES[item.status]);
 
   return (
-    <div className="master-plan-grid__wrapper">
+    <div
+      ref={wrapperRef}
+      className={`master-plan-grid__wrapper${isCardMode ? ' master-plan-grid__wrapper--cards' : ''}`}
+    >
+      {isCardMode ? (
+        <MasterPlanCardList
+          items={items}
+          scheduleDate={scheduleDate}
+          onAllocate={onAllocate}
+          onViewContainers={onViewContainers}
+          onOpenDispatchDetail={onOpenDispatchDetail}
+          onOpenNoteModal={setActiveNoteModal}
+          isAllocationLocked={isAllocationLocked}
+          isNotesLocked={isNotesLocked}
+          notes={{
+            editingNotesId, editingNotesValue, setEditingNotesValue, savingNotes,
+            notesError, notesInputRef, startNotesEdit, cancelNotesEdit, saveNotesEdit,
+          }}
+          selectedLclShipmentIds={selectedLclShipmentIds}
+          onToggleLclSelection={onToggleLclSelection}
+        />
+      ) : (
       <table className="master-plan-grid ops-table">
         <colgroup>
           {/* Spec 23/10 (261023110000 §2) — the CHỌN column is on-demand: it
@@ -406,44 +218,41 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 <span className="sr-only"> lô</span>
               </th>
             )}
-            <th scope="col">Thời gian &amp; lịch trình</th>
-            <th scope="col">Khách hàng &amp; nhà máy</th>
-            <th scope="col">Tuyến đường &amp; hãng tàu</th>
-            <th scope="col">Cảng nâng</th>
-            <th scope="col">Cảng hạ</th>
-            <th scope="col">Tổng quan hàng hóa</th>
-            <th scope="col">Phân bổ nhà xe</th>
-            <th scope="col">Ghi chú</th>
+            <th scope="col"><span className="master-plan-grid__th-label">Thời gian &amp; lịch trình</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Khách hàng &amp; nhà máy</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Tuyến đường &amp; hãng tàu</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Cảng nâng</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Cảng hạ</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Tổng quan hàng hóa</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Phân bổ nhà xe</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Ghi chú</span></th>
           </tr>
         </thead>
         <tbody>
           {items.map((item) => {
             const urgency = cutoffUrgency(item.customsCutoffAt);
             const portGroupLines = aggregateContainerPortGroupLines(item, scheduleDate);
-            // A lot's allocation is editable whenever the backend can accept
-            // the save at all: `assignShipmentCarriers` refuses only intake
-            // phase (NEW / PENDING_DATE) and CANCELED lots. Past READY the
-            // freeze is PER-CONTAINER (card 354): trip-bound containers keep
-            // their carrier while unallocated / untripped siblings accept
-            // fills — so DISPATCHED / IN_TRANSIT / COMPLETED rows must stay
-            // editable, and the dialog's per-container guard carries the
-            // precise "Không thể đổi nhà xe…" message when a change would
-            // touch a container that already has an order.
-            const canonical = canonicalShipmentStatus(item.status);
-            const allocationLocked = canonical == null
-              || (canonical !== ShipmentStatus.READY_FOR_DISPATCH
-                && canonical !== ShipmentStatus.DISPATCHED
-                && canonical !== ShipmentStatus.IN_TRANSIT
-                && canonical !== ShipmentStatus.COMPLETED);
-            // Same stage rule for the note trigger: outside the intake window a
-            // dispatcher's save is a 403, so the affordance is not offered there.
-            const notesLocked = notesIntakeOnly && !DISPATCHER_INTAKE_STATUSES[item.status];
+            const allocationLocked = isAllocationLocked(item);
+            const notesLocked = isNotesLocked(item);
             // FB-014: the whole row is the lot's open trigger when the parent
             // wires dispatch-detail navigation. Keyboard rides the row itself
             // (Enter/Space, UserTable convention) — every control inside keeps
             // its own key handling because the handler requires the row to be
             // the event target.
             const openableDetail = onOpenDispatchDetail != null;
+            // Owner redesign 23/10 — the tooltip payloads: the cell bodies
+            // clamp at the 93px row budget, so every fact that can ellipsize
+            // carries its full value in a title (the sanctioned fallback).
+            const scheduleTooltip = scheduleBlocks(item, scheduleDate)
+              .map((block) => [block.head, block.sub].filter(Boolean).join(' · '))
+              .join(' || ');
+            const allocationChipsText = item.carrierAllocationSummary.map((entry) => {
+              const counts = [
+                entry.count20 > 0 ? `${entry.count20}x20'` : null,
+                entry.count40 > 0 ? `${entry.count40}x40'` : null,
+              ].filter(Boolean).join(' · ');
+              return counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel;
+            }).join(' · ');
             return (
               <tr
                 key={item.id}
@@ -487,10 +296,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   </td>
                 )}
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
-                  {/* FB-043 (card 141026001010, re-report 2): every cell rides
-                      the fixed-height body so a lot with stacked trips can no
-                      longer render twice as tall as a single-trip lot. */}
-                  <div className="master-plan-grid__cell-body">
+                  {/* Owner redesign 23/10: content-sized body (the FB-043
+                      fixed-height tower is gone) — the cell's title carries
+                      every clamped schedule fact. */}
+                  <div className="master-plan-grid__cell-body" title={scheduleTooltip || undefined}>
                   {scheduleBlocks(item, scheduleDate).map((block, blockIdx) => (
                     <div className="master-plan-grid__schedule-block" key={`${item.id}-${blockIdx}`}>
                       {block.head && <div className="master-plan-grid__line">{block.head}</div>}
@@ -505,12 +314,16 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     <div
                       className="master-plan-grid__line master-plan-grid__line--warning"
                       role="status"
+                      title={`Cảnh báo: Còn ${item.containersMissingAppointment}/${item.containerTotal} cont chưa chốt ngày đóng trả`}
                     >
                       Cảnh báo: Còn {item.containersMissingAppointment}/{item.containerTotal} cont chưa chốt ngày đóng trả
                     </div>
                   )}
                   {item.customsCutoffAt && (
-                    <div className={`master-plan-grid__line${urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}>
+                    <div
+                      className={`master-plan-grid__line${urgency === 'soon' ? ' master-plan-grid__line--soon' : ' master-plan-grid__line--urgent'}`}
+                      title={`Hạn hoàn tất hải quan: ${formatDateTimeShort(item.customsCutoffAt)}`}
+                    >
                       Hạn hoàn tất hải quan: {formatDateTimeShort(item.customsCutoffAt)}
                     </div>
                   )}
@@ -521,8 +334,16 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!item.customerName ? 'true' : undefined}>{item.customerName
                     ? <NameCell name={item.customerName} />
                     : '—'}</div>
-                  <div className="master-plan-grid__line" data-empty={!(item.factoryNames?.length || item.factoryName) ? 'true' : undefined}>{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
-                  <div className="master-plan-grid__line master-plan-grid__line--strong" data-empty={!(item.blNumber || item.bookingRef || item.isAdHoc) ? 'true' : undefined}>
+                  <div
+                    className="master-plan-grid__line"
+                    data-empty={!(item.factoryNames?.length || item.factoryName) ? 'true' : undefined}
+                    title={item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? undefined}
+                  >{item.factoryNames && item.factoryNames.length > 0 ? item.factoryNames.join(' + ') : item.factoryName ?? '—'}</div>
+                  <div
+                    className="master-plan-grid__line master-plan-grid__line--strong"
+                    data-empty={!(item.blNumber || item.bookingRef || item.isAdHoc) ? 'true' : undefined}
+                    title={billBookingReference(item.blNumber, item.bookingRef) || undefined}
+                  >
                     {item.blNumber || item.bookingRef || '—'}
                     {item.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
                   </div>
@@ -541,7 +362,11 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         <span>Xuất</span>
                       ) : '—'}
                     </div>
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier" data-empty={!item.shippingLineName ? 'true' : undefined}>{item.shippingLineName ?? '—'}</div>
+                    <div
+                      className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier"
+                      data-empty={!item.shippingLineName ? 'true' : undefined}
+                      title={item.shippingLineName ?? undefined}
+                    >{item.shippingLineName ?? '—'}</div>
                   </div>
                   </div>
                 </td>
@@ -551,10 +376,15 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     .filter((line) => line.direction === 'lift')
                     .map((line, index) => (
                       <div key={`${index}-${line.portName}`} className="master-plan-grid__location-block">
-                        <div className="master-plan-grid__line master-plan-grid__location-value">{line.portName}</div>
-                        {line.containerSummary && formatContainerSummaryLines(line.containerSummary).map((summaryLine) => (
-                          <div key={summaryLine} className="master-plan-grid__line master-plan-grid__location-value ops-container-line">{summaryLine}</div>
-                        ))}
+                        <div className="master-plan-grid__line master-plan-grid__location-value" title={line.portName}>{line.portName}</div>
+                        {line.containerSummary && (
+                          <div
+                            className="master-plan-grid__line master-plan-grid__location-value ops-container-line"
+                            title={formatContainerSummaryLine(line.containerSummary)}
+                          >
+                            {formatContainerSummaryLine(line.containerSummary)}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -565,10 +395,15 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     .filter((line) => line.direction === 'drop')
                     .map((line, index) => (
                       <div key={`${index}-${line.portName}`} className="master-plan-grid__location-block">
-                        <div className="master-plan-grid__line master-plan-grid__location-value">{line.portName}</div>
-                        {line.containerSummary && formatContainerSummaryLines(line.containerSummary).map((summaryLine) => (
-                          <div key={summaryLine} className="master-plan-grid__line master-plan-grid__location-value ops-container-line">{summaryLine}</div>
-                        ))}
+                        <div className="master-plan-grid__line master-plan-grid__location-value" title={line.portName}>{line.portName}</div>
+                        {line.containerSummary && (
+                          <div
+                            className="master-plan-grid__line master-plan-grid__location-value ops-container-line"
+                            title={formatContainerSummaryLine(line.containerSummary)}
+                          >
+                            {formatContainerSummaryLine(line.containerSummary)}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -577,15 +412,33 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   <div className="master-plan-grid__cell-body">
                   <div className="master-plan-grid__cargo-content">
                     <div className="master-plan-grid__cargo-summary">
-                      {cargoCellLines(item, scheduleDate).map((line, index) => (
-                        <div
-                          key={`${index}-${line.text}`}
-                          className={`master-plan-grid__line${line.muted ? ' master-plan-grid__line--muted' : ''}${line.identity ? ' ops-container-line' : ''}`}
-                          data-empty={line.empty ? 'true' : undefined}
-                        >
-                          {line.text}
-                        </div>
-                      ))}
+                      {/* Owner redesign 23/10 — "Container đủ 1 dòng": the
+                          per-type demand joins onto ONE ellipsized line
+                          (title carries the whole roster). */}
+                      {(() => {
+                        const lines = cargoCellLines(item, scheduleDate);
+                        const demand = lines.filter((line) => !line.muted).map((line) => line.text).join(' + ');
+                        const measures = lines.filter((line) => line.muted).map((line) => line.text).join(' · ');
+                        const demandIdentity = lines.some((line) => !line.muted && line.identity);
+                        return (
+                          <>
+                            <div
+                              className={`master-plan-grid__line master-plan-grid__line--strong${demandIdentity ? ' ops-container-line' : ''}`}
+                              data-empty={lines.filter((line) => !line.muted).every((line) => line.empty) ? 'true' : undefined}
+                              title={demand || undefined}
+                            >
+                              {demand}
+                            </div>
+                            <div
+                              className="master-plan-grid__line master-plan-grid__line--muted"
+                              data-empty={lines.filter((line) => line.muted).every((line) => line.empty) ? 'true' : undefined}
+                              title={measures || undefined}
+                            >
+                              {measures}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                     {Boolean(
                       (item.containerTotal != null
@@ -646,7 +499,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     >
                     <span className="master-plan-grid__allocation-label" aria-hidden="true">Phân bổ nhà xe</span>
                     {item.carrierAllocationSummary.length > 0 ? (
-                      <span className="master-plan-grid__chips">
+                      <span className="master-plan-grid__chips" title={allocationChipsText || undefined}>
                         {item.carrierAllocationSummary.map((entry) => {
                           const counts = [
                             entry.count20 > 0 ? `${entry.count20}x20'` : null,
@@ -723,9 +576,9 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     </div>
                   ) : (
                     <>
-                      {(item.operationalNotes || (onUpdateNotes && !notesLocked)) && (
+                      {(item.operationalNotes || (!notesLocked)) && (
                         <div className="master-plan-grid__line master-plan-grid__line--notes">
-                          {onUpdateNotes && !notesLocked ? (
+                          {!notesLocked ? (
                             <button
                               type="button"
                               className="master-plan-grid__notes-trigger"
@@ -738,7 +591,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                                 : 'Thêm ghi chú'}
                             </button>
                           ) : (
-                            <div>{truncateNote(displayNote(item.operationalNotes))}</div>
+                            <div title={item.operationalNotes ?? undefined}>{truncateNote(displayNote(item.operationalNotes))}</div>
                           )}
                           {item.operationalNotes && isNoteLong(item.operationalNotes) && (
                                 <UUIButton
@@ -763,9 +616,20 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           )}
                         </div>
                       )}
-                      {item.opsRecoveryNotes?.map(note => <p key={note} className="master-plan-grid__line master-plan-grid__line--notes" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><strong>OPS: </strong>{note}</p>)}
+                      {item.opsRecoveryNotes?.map(note => (
+                        <p
+                          key={note}
+                          className="master-plan-grid__line master-plan-grid__line--notes"
+                          title={note}
+                        >
+                          <strong>OPS: </strong>{note}
+                        </p>
+                      ))}
                       {item.factoryNotes && (
-                        <div className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes" title={item.factoryNotes}>
+                        <div
+                          className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes"
+                          title={item.factoryNotes}
+                        >
                           {isNoteLong(item.factoryNotes) ? (
                             <>
                               <div>NM: {truncateNote(item.factoryNotes)}</div>
@@ -803,6 +667,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
           })}
         </tbody>
       </table>
+      )}
 
       <MasterPlanNoteModal
         activeNote={activeNoteModal}

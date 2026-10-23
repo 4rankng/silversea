@@ -1,6 +1,15 @@
-/* Dispatch master-plan grid (Kế hoạch Tổng quát) — 8 multi-line columns,
-   ≤3 lines/cell, no horizontal scroll at 1280px. Follows the
-   dispatch-plan-page__* BEM conventions. */
+/* Dispatch master-plan grid (Kế hoạch Tổng quát /dispatch) — owner redesign
+   23/10 (QA R38 "mess vẫn live", screenshot 12:39): the same defect class the
+   owner rejected on DetailedPlanGrid, fixed with the SAME standardized
+   pattern (commit 8a28c094 — DispatchPlanCardList + DetailedPlanGrid.css
+   compact). Layout reference: Tailkit `a-c-tables-13` (overflow rail +
+   per-column floors) for the table half, house record-card conventions
+   (borders + inline labels) for the <640px card half — rebuilt on house
+   tokens. Desktop: THỜI GIAN thu lại (~110-130px at the floor), KHÁCH HÀNG &
+   LỘ TRÌNH owns the largest zone without bloating, Nâng/Trả/Hàng hóa one
+   line + title tooltip, rows sized to their clamped content (70-93px — the
+   FB-043 fixed-height tower is gone). Mobile <640px: one card per lô
+   (`MasterPlanCardList`). */
 
 /* Unified dispatch toolbar (case QA-2026-09-27-02 / card 20260927_2, re-cut on
    the one-filter-strip contract, card 20260927_152): the strip is the shared
@@ -83,42 +92,51 @@
   color: var(--fg-2);
 }
 
+/* ── Owner redesign 23/10 — the wrapper owns a BOUNDED PANE: the horizontal
+   rail (per-column floors via the table's min-width) AND the vertical scroll
+   of the board itself. A CSS rail is a scroll container, and a scroll
+   container is the sticky reference of everything inside it — an unbounded
+   `overflow-x: auto` wrapper therefore KILLS the app-body-sticky thead (the
+   thead pins to a rail that never scrolls vertically and rides off-screen
+   with the page; the latent defect the rail pattern shipped with on both
+   dispatch boards, caught by this lane's MP-RD-03 probe). Bounding the pane
+   and pinning the thead INSIDE it keeps the header reachable at every
+   width: the page carries the filter chrome, the pane carries the rows. */
 .master-plan-grid__wrapper {
   width: 100%;
-  container-type: inline-size;
-  /* No card chrome to clip: keep the wrapper transparent to overflow so the
-     grid's sticky thead can pin against the app-body scrollport. */
-  overflow: visible;
+  overflow: auto;
+  max-height: calc(100dvh - var(--topbar-h, 56px) - 72px);
   border-top: 1px solid var(--line);
+}
+
+.master-plan-grid__wrapper--cards {
+  overflow: visible;
+  max-height: none;
+  border-top: 0;
 }
 
 .master-plan-grid {
   width: 100%;
-  min-width: 0;
+  /* Owner redesign 23/10: fixed layout + this floor is what balances the
+     board — every column's one-line budget (THỜI GIAN ~120px, KHÁCH HÀNG the
+     widest reading zone, Nâng/Trả đủ 1 dòng) holds at the floor and the rail
+     carries the overflow; wider canvases redistribute the same shares. The
+     old shares (schedule 15.5% / customer 15.75% / route 17.25%) were the
+     "50-70% trống, cột cắt cụt" defect: three fat columns starved the rest. */
+  min-width: 1200px;
   /* separate (not collapse) keeps the sticky thead's border-bottom rendering
      with the pinned cells instead of scrolling away beneath them. */
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
   font-size: var(--ops-table-supporting-size);
-  /* FB-043 (card 141026001010, re-report 2): the uniform row-height budget.
-     Round 1 fixed this class only on the detail-plan grid, so /dispatch kept
-     the defect the card reports — a lot with stacked trips (each block is a
-     head + a "nhà máy · container" sub line) rendered ~2x a single-trip lot.
-     The component, not a column rebalance, now bounds every cell body: the
-     budget holds two trip blocks (4 dense lines ≈ 72px) plus one status line,
-     so ordinary lots never clip and pathological ones truncate. */
-  --mpg-row-h: 96px;
 }
 
-/* Card 091026091550: with the one-line header law every column's floor is
-   its longest header label. Percentages are measured off the live grid at
-   its worst desktop case — the 1144px canvas a 1440 viewport gets with the
-   expanded sidebar — at the 8px header gutter: "TUYẾN ĐƯỜNG & HÃNG TÀU"
-   needs 17.25%, "KHÁCH HÀNG & NHÀ MÁY" 15.75%, schedule 15.5%. Labels ride
-   one nowrap line, so the note column (label needs under 7%) frees most of
-   its old share — 9.5% keeps both the label and the "Thêm ghi chú" trigger
-   (79px text, measured) on one line. */
+/* Shares sum to 96 so the on-demand CHỌN column's fixed 48px fits inside the
+   1200px floor exactly (96% × 1200 + 48 = 1200); without the CHỌN column the
+   small leftover spreads over the reading columns. Measured floors at
+   1200px: schedule 120 · customer 210 · route 174 · lift 108 · drop 102 ·
+   cargo 144 · allocation 156 · notes 138. */
 .master-plan-grid__col--select { width: 48px; }
 .master-plan-grid__select-head-label {
   font-size: 11px;
@@ -135,26 +153,31 @@
 .master-plan-grid__select-head {
   padding-inline: 4px;
 }
-/* SPEC 18/10/2026 §2.1 — leading checkbox column: the LCL selection reuses the
-   schedule column's 15.5% minus the fixed 34px gutter. */
-.master-plan-grid__col--schedule { width: 15.5%; }
-.master-plan-grid__col--customer { width: 15.75%; }
+/* SPEC 18/10/2026 §2.1 — leading checkbox column: the LCL selection reuses
+   the schedule column's share minus the fixed 48px gutter. */
+.master-plan-grid__col--schedule { width: 10%; }
+.master-plan-grid__col--customer { width: 17.5%; }
 .master-plan-grid__cell[data-label="Khách hàng & nhà máy"] > .master-plan-grid__line--strong:first-child {
   text-transform: uppercase;
 }
-.master-plan-grid__col--route-shipping { width: 17.25%; }
-.master-plan-grid__col--lift-port { width: 8.75%; }
-.master-plan-grid__col--drop-port { width: 7.25%; }
-.master-plan-grid__col--cargo { width: 14.75%; }
-.master-plan-grid__col--notes { width: 9.5%; }
-.master-plan-grid__col--allocation { width: 11.25%; }
+.master-plan-grid__col--route-shipping { width: 14.5%; }
+.master-plan-grid__col--lift-port { width: 9%; }
+.master-plan-grid__col--drop-port { width: 8.5%; }
+.master-plan-grid__col--cargo { width: 12%; }
+.master-plan-grid__col--notes { width: 11.5%; }
+.master-plan-grid__col--allocation { width: 13%; }
 
+/* The pane owns the board's vertical scroll, so the header pins to the
+   pane's own top edge (the old --sticky-thead-top offset belonged to the
+   app-body scrollport this board no longer rides). Sticky rides on the TH
+   itself — and the two-line clamp must NEVER ride on the th: a
+   `display: -webkit-box` th leaves table-cell layout and the whole header
+   row collapses into a vertical label stack (the live defect this lane
+   found on the merged /dispatch-detail board; the clamp lives on the
+   `.master-plan-grid__th-label` span inside the cell instead). */
 .master-plan-grid thead th {
   position: sticky;
-  /* Negating the scrollport's top padding (see --sticky-thead-top in
-     tokens.css) pins the header flush under the topbar while .app-body
-     scrolls, matching the shipments worksheet behavior. */
-  top: var(--sticky-thead-top, -24px);
+  top: 0;
   z-index: 3;
   text-align: left;
   /* Card 091026091550: 8px gutter — at the global 12px the eight compound
@@ -171,15 +194,24 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-strong);
   line-height: var(--ops-table-header-line-height);
-  /* Card 091026091550: a header label is ONE line — the same nowrap the
-     global `thead th` rule mandates for every other table. This board used
-     to override it with normal/anywhere for its multi-line CELLS, which let
-     the compound labels wrap ("THỜI GIAN & / LỊCH TRÌNH"). Cell VALUES keep
-     wrapping: the law below is header-scoped, `.master-plan-grid__line`
-     keeps normal/anywhere. The colgroup above sizes every column so its
-     label fits this one line at the 1144px worst-case canvas. */
-  white-space: nowrap;
+  /* Owner redesign 23/10 (spec addendum, detailed-plan pattern): a header
+     label wraps AT SPACES up to TWO lines and never more — the old nowrap
+     law (card 091026091550) is what starved the data columns, and a "…" cut
+     is banned. word-break: keep-all keeps words whole (the shattered-header
+     defect, card 20260922_54); the column floors above carry the longest
+     word. The 2-line clamp itself lives on the inner __th-label span. */
+  white-space: normal;
   overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+/* The inner clamp wrapper: the ONLY place the -webkit-box line clamp may
+   live. On the th itself it destroys the header row's table layout. */
+.master-plan-grid__th-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* A record is not itself an action. Restrict the quiet desktop scan aid to
@@ -218,10 +250,8 @@
   cursor: auto;
 }
 
-
-
 .master-plan-grid__cell {
-  padding: 10px 12px;
+  padding: 8px 12px;
   vertical-align: top;
   border-bottom: 1px solid var(--line);
   color: var(--fg-2);
@@ -229,62 +259,35 @@
   overflow: hidden;
 }
 
-/* FB-043 (card 141026001010, re-report 2): the row budget is a property of
-   the table, not of any one column — stacked trips, port groups, cargo and
-   the "Xem thêm" note all ride it, so no cell can inflate the row on its own.
-   Table form only: the ≤900px card bands below let records own their height
-   (they are stacked records, not dense rows) and must reset this. */
+/* ── Owner redesign 23/10 — the compact content-sized row (detailed-plan
+   pattern). The FB-043 fixed-height body (the 96px row budget + overflow
+   hidden) is what made the "row cao trống rỗng" tower the owner rejected:
+   it is GONE. Rows now size to their clamped content (~70-93px): every value
+   line is ONE nowrap ellipsized line (title carries the full value — the
+   sanctioned tooltip fallback), and the body clamps at the 93px row budget
+   (93 − 16px cell padding) so a pathological lot (5+ schedule blocks) clips
+   instead of inflating the row; the cell title keeps the clipped facts one
+   hover away. */
 .master-plan-grid__cell-body {
+  display: grid;
+  align-content: start;
+  gap: 2px;
   min-width: 0;
-}
-@container (min-width: 901px) {
-  .master-plan-grid__cell-body {
-    display: flex;
-    flex-direction: column;
-    height: var(--mpg-row-h);
-    overflow: hidden;
-  }
-  /* Value lines hold one line: the budget decides which facts a dense row
-     shows, and the ellipsis marks the rest instead of a hard clip. */
-  .master-plan-grid__cell-body .master-plan-grid__line,
-  .master-plan-grid__cell-body .master-plan-grid__location-block,
-  .master-plan-grid__cell-body .master-plan-grid__route-shipping {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  /* The row action stays reachable: it never gives ground to the values.
-     (0,2,0) beats the base trigger rules, so the pin holds wherever the
-     trigger sits — the cargo column nests it under __cargo-content. */
-  .master-plan-grid__cell-body .master-plan-grid__container-detail-trigger {
-    flex: 0 0 auto;
-  }
-  /* The notes stack gives ground instead: the note text clips, its
-     "Xem thêm" trigger keeps its own line so the full note stays one click
-     away (the card's "ghi chú có 'Xem thêm' cũng cao thấp khác nhau"). */
-  .master-plan-grid__cell-body > .master-plan-grid__line--notes {
-    flex: 0 1 auto;
-    min-height: 0;
-    overflow: hidden;
-  }
-  .master-plan-grid__cell-body .master-plan-grid__note-detail-trigger {
-    flex: 0 0 auto;
-  }
+  max-height: 77px;
+  overflow: hidden;
 }
 
+/* One line per value: an ellipsized tail instead of a wrapped second line —
+   wrapping was the inflation mechanism of every row-height regression
+   (FB-043 / R22 / the 23/10 screenshots). The line's title (set in the
+   component) carries the complete value. */
 .master-plan-grid__line {
   line-height: var(--ops-table-supporting-line-height);
-  /* Schedule, customer, factory, bill, and carrier names are operational
-     information. Keep the compact table scale, but let the complete value
-     wrap instead of silently turning it into an ellipsis. */
   min-width: 0;
-  overflow-wrap: anywhere;
-  white-space: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   max-width: none;
-}
-
-.master-plan-grid__line + .master-plan-grid__line {
-  margin-top: 2px;
 }
 
 .master-plan-grid__line--strong {
@@ -298,7 +301,7 @@
    identities. Keep port + total count readable without competing with the
    shipment identity. */
 .master-plan-grid__location-block + .master-plan-grid__location-block {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 /* Card B 18/10 (customer: "số container in đậm, cảng không in đậm"), superseded
@@ -360,7 +363,7 @@
 }
 
 .master-plan-grid__line--notes {
-  white-space: normal;
+  white-space: nowrap;
   color: var(--fg-2);
   font-size: var(--ops-table-note-size);
   font-weight: var(--ops-table-note-weight);
@@ -377,8 +380,12 @@
   font: inherit;
   line-height: inherit;
   text-align: left;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  /* Owner redesign 23/10: the preview is ONE ellipsized line; the full note
+     rides the button's own title (already set by the component) and the
+     "Xem thêm" dialog. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
   border-radius: var(--radius-xs, 4px);
   transition: background-color 100ms var(--ease);
@@ -459,14 +466,9 @@
   gap: 2px 8px;
 }
 
-/* Card 20261004_321 (repair of the 03/10 law's misfire, not the law): these
-   two `flex` values were HORIZONTAL sizing in the pre-302 wrapping row — a
-   56px summary basis that grew to push the action right, and a note line whose
-   first child grew to push its trigger right. The 03/10 column flip left them
-   behind, where they became vertical inflation: a short summary was forced to
-   56px and the footnote dropped 22–39px below the values ("khoảng trống dọc
-   lớn … ghim xuống đáy ô"). Both blocks are content-height now, so the
-   footnote hugs its values 2px below and the row keeps its dense rhythm. */
+/* Card 20261004_321 (repair of the 03/10 law's misfire, not the law): both
+   blocks are content-height so the footnote hugs its values 2px below and
+   the row keeps its dense rhythm. */
 .master-plan-grid__cargo-summary {
   flex: 0 0 auto;
   min-width: 0;
@@ -559,21 +561,20 @@
   cursor: pointer;
 }
 
+/* Owner redesign 23/10: the allocation chips ride ONE ellipsized line (the
+   full roster in the container's title) so a many-carrier lot can no longer
+   wrap its chips into a second line and inflate the row; the mobile CARD
+   prints the same roster on its own one-line run. */
 .master-plan-grid__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .master-plan-grid__chip {
-  /* Carrier allocation is identifying information, not a secondary label.
-     Keep the complete name visible inside the mobile record instead of
-     clipping it behind an ellipsis. */
-  display: inline-block;
-  max-inline-size: 100%;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  white-space: normal;
+  display: inline;
 }
 
 /* Keep the semantic Untitled UI button behavior while presenting the existing
@@ -622,202 +623,214 @@
   line-height: var(--ops-table-meta-line-height);
 }
 
-@container (max-width: 900px) {
-  .master-plan-grid {
-    display: block;
-    font-size: var(--ops-table-supporting-size);
-  }
-
-  .master-plan-grid colgroup,
-  .master-plan-grid thead {
-    display: none;
-  }
-
-  .master-plan-grid tbody {
-    display: grid;
-    gap: 8px;
-  }
-
-  .master-plan-grid__row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-areas: "schedule customer"
-      "route route"
-      "lift drop"
-      "cargo allocation"
-      "notes notes";
-    overflow: hidden;
-    border: 1px solid var(--line);
-    border-radius: var(--app-radius-md);
-    background: var(--surface);
-  }
-
-  .master-plan-grid__cell {
-    display: block;
-    padding: 10px 16px;
-    border: 0;
-  }
-
-  .master-plan-grid__cell + .master-plan-grid__cell {
-    border-top: 1px solid var(--line);
-  }
-  .master-plan-grid__cell[data-label="Thời gian & lịch trình"] { grid-area: schedule; }
-  .master-plan-grid__cell[data-label="Khách hàng & nhà máy"] { grid-area: customer; border-top: 0; border-inline-start: 1px solid var(--line); }
-  .master-plan-grid__cell[data-label="Tuyến đường & hãng tàu"] { grid-area: route; }
-  .master-plan-grid__cell--lift-port { grid-area: lift; }
-  .master-plan-grid__cell--drop-port { grid-area: drop; border-inline-start: 1px solid var(--line); }
-  .master-plan-grid__cell[data-label="Tổng quan hàng hóa"] { grid-area: cargo; }
-  .master-plan-grid__cell--action { grid-area: allocation; border-inline-start: 1px solid var(--line); }
-  .master-plan-grid__cell[data-label="Ghi chú"] { grid-area: notes; }
-
-  .master-plan-grid__cell::before {
-    display: inline;
-    margin: 0 6px 0 0;
-    color: var(--fg-2);
-    content: attr(data-label-short);
-    font-size: var(--text-label-size);
-    font-weight: 600;
-    letter-spacing: 0;
-    line-height: 1.6;
-    text-transform: none;
-  }
-
-  /* FB-043: the card layout is a stacked RECORD, not a dense row — it owns
-     its height, so the desktop row budget and its one-line law are undone
-     here (a card band and the desktop band can never co-apply). */
-  .master-plan-grid__cell-body {
-    display: block;
-    height: auto;
-    overflow: visible;
-  }
-
-  .master-plan-grid__line {
-    white-space: normal;
-    overflow-wrap: anywhere;
-    text-overflow: clip;
-  }
-
-  .master-plan-grid__container-detail-trigger,
-  .master-plan-grid__note-detail-trigger {
-    min-height: var(--control-max-h);
-  }
-
-  .master-plan-grid__cell--action {
-    min-width: 0;
-    padding: 0;
-  }
-
-  .master-plan-grid__cell--action::before {
-    display: none;
-  }
-
-  .master-plan-grid__allocation-trigger {
-    min-height: var(--control-max-h);
-    padding: 10px 16px;
-  }
-
-  /* Keep empty/short notes on the shared 40px compact control budget.
-     Allocation and note records may grow to show their multiple facts;
-     their inner detail actions retain the ordinary control budget. */
-  .master-plan-grid__notes-trigger {
-    min-height: var(--control-max-h);
-  }
-
-  /* (this rule's sentence-case override for the phone/tablet record lives at
-     the end of this band — see the 2026-09-27 record-line block) */
-  .master-plan-grid__allocation-label {
-    display: block;
-    margin-bottom: 4px;
-    color: var(--fg-3);
-    font-size: var(--text-label-size);
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    line-height: 1.3;
-    text-transform: uppercase;
-  }
-
-  /* Value runs ride the record line: the plain line stack, the schedule
-     blocks and the two port location blocks all collapse to inline. */
-  .master-plan-grid__line,
-  .master-plan-grid__schedule-block,
-  .master-plan-grid__location-block {
-    display: inline;
-    margin-right: 8px;
-  }
-
-  .master-plan-grid__line + .master-plan-grid__line,
-  .master-plan-grid__schedule-block + .master-plan-grid__schedule-block,
-  .master-plan-grid__location-block + .master-plan-grid__location-block {
-    margin-top: 0;
-  }
-
-  .master-plan-grid__line + .master-plan-grid__line::before,
-  .master-plan-grid__schedule-block + .master-plan-grid__schedule-block::before,
-  .master-plan-grid__location-block + .master-plan-grid__location-block::before {
-    margin-right: 8px;
-    color: var(--fg-3);
-    content: '·';
-  }
-
-  /* The route block and the cargo block were fixed grids/flex runs, so their
-     label could never ride the first value. Released to inline on the phone
-     record they read as one line each — "Tuyến C12 route · Nhập · Hãng tàu"
-     and "Hàng 1 x Container · 22 t · Chi tiết". */
-  .master-plan-grid__route-shipping,
-  .master-plan-grid__route-shipping-route,
-  .master-plan-grid__route-shipping-carrier,
-  .master-plan-grid__route-shipping-direction,
-  .master-plan-grid__cargo-content,
-  .master-plan-grid__cargo-summary {
-    display: inline;
-  }
-
-  /* The direction chip and the cargo "Chi tiết" action are block-level flex
-     boxes — inline so neither forces its own line. */
-  .master-plan-grid__route-shipping-direction > span {
-    display: inline-flex;
-    vertical-align: middle;
-  }
-
-  /* Ghi chú's own value run (the note preview + the OPS line) never opens on
-     a stranded separator. */
-  .master-plan-grid__cell[data-label="Ghi chú"] .master-plan-grid__line + .master-plan-grid__line::before {
-    content: none;
-    margin-right: 0;
-  }
-
-  /* The action cell's trigger paints its own label inside the button, so the
-     td label above it would print the concept twice (§1 one concept, one
-     place) — the ≤900 band hid it, the label rule above must not undo that. */
-  .master-plan-grid__cell--action::before {
-    display: none;
-  }
-
-  /* A '—' placeholder no longer drags a separator through the record line
-     ("Khách C12 CUSTOMER 117 · — · —"); the desktop table keeps its column. */
-  .master-plan-grid__line[data-empty='true'] {
-    display: none;
-  }
-
-  /* The allocation trigger paints its own label inside the button; it takes
-     the same sentence-case voice so the card has one label style, not two. */
-  .master-plan-grid__allocation-label {
-    margin-bottom: 2px;
-    font-weight: 600;
-    letter-spacing: 0;
-    text-transform: none;
-  }
+/* ── Owner redesign 23/10 — the <640px phone card list (`MasterPlanCardList`),
+   following the DispatchPlanCardList pattern (commit 8a28c094): one card per
+   lô, head = identity + loại + the single ⋯ menu, body = one-line ellipsized
+   facts (title carries the full value), foot = the ONE primary action
+   (Phân bổ nhà xe) when the lot accepts a save. The card rides the same
+   merge-mode checkbox, note editor and modals the table serves — behaviour
+   never forks between the two layouts. */
+.mpcard-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-/* Phone retains the semantic pairs while reducing the inherited cell inset. */
-@container (max-width: 599px) {
-  .master-plan-grid__cell { padding: 6px 10px; }
-  .master-plan-grid__cell--action { padding: 0; }
-  .master-plan-grid__allocation-trigger { padding: 6px 10px; }
+.mpcard {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color-secondary, var(--line));
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+/* FB-014: the whole card is the lot's open trigger (outside its controls),
+   same law as the table row. */
+.mpcard--detail-link {
+  cursor: pointer;
+}
+
+.mpcard--detail-link :is(button, input, select, textarea, label, a) {
+  cursor: auto;
+}
+
+.mpcard__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mpcard__identity {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.mpcard__customer {
+  font-size: var(--ops-table-primary-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-primary-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpcard__bill {
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Loại = plain text (§1 data-cells-are-text law: no pill bubble). */
+.mpcard__type {
+  flex: 0 0 auto;
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  font-weight: var(--fw-semibold, 600);
+  white-space: nowrap;
+}
+
+/* The ⋯ menu trigger rides the shared touch floor (40px law 2026-09-27);
+   the menu's generic chrome lives in the shared dispatch-row-menu.css. */
+.mpcard .dispatch-row-menu {
+  margin-left: auto;
+}
+
+.mpcard .dispatch-row-menu__trigger {
+  width: var(--control-touch-h, 44px);
+  height: var(--control-touch-h, 44px);
+}
+
+/* Body: giờ+ngày · Nâng · Trả · hàng hóa · xe — one line each, ellipsized
+   with the full value in title. */
+.mpcard__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mpcard__line {
+  font-size: var(--ops-table-supporting-size);
+  line-height: var(--ops-table-supporting-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpcard__line--strong {
+  font-size: var(--ops-table-primary-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-primary-line-height);
+}
+
+.mpcard__line--muted {
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+}
+
+.mpcard__line--urgent {
+  color: var(--danger-text);
+  font-weight: var(--fw-semibold);
+}
+
+.mpcard__line--soon {
+  color: var(--warning-deep);
+  font-weight: 500;
+}
+
+.mpcard__line--warning {
+  color: var(--warning-text);
+  font-weight: var(--fw-semibold);
+}
+
+.mpcard__adhoc {
+  margin-left: 6px;
+  color: var(--fg-3);
+  font-size: var(--ops-table-meta-size);
+  font-weight: var(--fw-medium);
+}
+
+/* Ghi chú: one ellipsized line; the full text reopens in the shared modal
+   (or the inline editor when "Sửa ghi chú" was picked). */
+.mpcard__note {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--fg-2);
+  font: inherit;
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpcard__note:hover {
+  color: var(--fg-1);
+}
+
+.mpcard__note:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Foot: the ONE primary action — Phân bổ nhà xe — full-width pill on the
+   touch floor, only when the lot accepts a carrier save (the locked row
+   keeps its chips as a muted body line instead of a dead button). */
+.mpcard__foot {
+  display: flex;
+  gap: 8px;
+}
+
+.mpcard__allocate {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  color: var(--surface);
+  background: var(--accent);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+
+.mpcard__allocate:hover {
+  background: color-mix(in srgb, var(--accent) 85%, var(--fg-1));
+}
+
+.mpcard__allocate:active {
+  background: var(--accent-2);
+}
+
+.mpcard__allocate:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Shared Table.css paints every hovered td green. Suppress that passive wash
-   for phone/touch records; feedback belongs to the actual pressed control. */
+   for phone/touch records; feedback belongs to the actual pressed control.
+   The card list has no tds — the rules below keep guarding the table half
+   wherever a touch pointer meets a ≥640px canvas. */
 @media (max-width: 640px), (hover: none), (pointer: coarse) {
   .master-plan-grid tbody > .master-plan-grid__row:hover { background: var(--surface); }
   .master-plan-grid tbody tr:hover > .master-plan-grid__cell { background: transparent; }

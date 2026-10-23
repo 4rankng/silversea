@@ -176,8 +176,8 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
     render(<MasterPlanGrid items={[fcl]} onAllocate={vi.fn()} />);
     expect(within(cell('Cảng nâng')).getByText('Cảng Cát Lái')).toBeTruthy();
     const cargo = within(cell('Tổng quan hàng hóa'));
-    expect(cargo.getByText('2 x 40HC')).toBeTruthy();
-    expect(cargo.getByText('1 x 20DC')).toBeTruthy();
+    // Owner redesign 23/10: the demand joins onto ONE line (đủ 1 dòng).
+    expect(cargo.getByText('2 x 40HC + 1 x 20DC')).toBeTruthy();
     expect(screen.queryByText('5 PALLET')).toBeNull();
   });
 

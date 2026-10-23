@@ -1,0 +1,88 @@
+/* ── Dispatch row actions menu (⋯) — shared across the dispatch grids ────────
+   Born DIS-09 (card 211026130015) on the detailed-plan grid, promoted 23/10
+   (owner redesign, master-plan lane) to the ONE dispatch-wide row-menu
+   surface: the detailed-plan board (DispatchRowActionsMenu) and the
+   master-plan phone card list (MasterPlanCardList) render the same trigger
+   and the same body-portalled list, so the kebab menu looks and behaves
+   identically on every dispatch surface. React-state dropdown on the global
+   dismissal layer (data-dropdown-root); the open list portals to body with
+   FIXED coordinates — table cells clip absolute dropdowns. Page-local rules
+   (the dpcard touch-floor bump) stay in the owning page sheet. */
+.dispatch-row-menu {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* Owner redesign 23/10 — the ONE action trigger of the row. Neutral kebab on
+   the control surface (white, hairline border — the control-surface law §3),
+   30px in the pinned table rail; phone cards bump it to the touch floor
+   (their page sheets own that bump). */
+.dispatch-row-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+
+.dispatch-row-menu__trigger:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong, var(--line-2));
+}
+
+.dispatch-row-menu__trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-bg-success-solid, #17b26a) 55%, transparent);
+  outline-offset: 2px;
+}
+
+/* A destructive item rides LAST, past a hairline, in the danger voice — it
+   must look separate before the owning page's confirm dialog opens. */
+.dispatch-row-menu__list button.dispatch-row-menu__item--danger {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--danger);
+}
+
+.dispatch-row-menu__list button.dispatch-row-menu__item--danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.dispatch-row-menu__list {
+  z-index: var(--z-dropdown, 60);
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+}
+
+.dispatch-row-menu__list button {
+  width: 100%;
+  min-height: var(--control-compact-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  color: var(--ink-2);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dispatch-row-menu__list button:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}

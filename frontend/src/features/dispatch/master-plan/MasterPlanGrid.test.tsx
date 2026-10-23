@@ -208,16 +208,17 @@ describe('MasterPlanGrid', () => {
     expect(screen.getAllByText('Cảng Hải Phòng')).toHaveLength(2);
     expect(screen.getByText('Cảng Tân Cảng 128 Hải Phòng')).toBeTruthy();
     expect(screen.getByText('Bãi SITC')).toBeTruthy();
-    // Pair 1 aggregates 2 x 40DC + 1 x 20DC (both port columns); pair 2 adds
-    // its own 2 x 40DC block. Scoped per column so the cargo summary does not
-    // interfere with the counts.
+    // Pair 1 aggregates 2 x 40DC + 1 x 20DC onto ONE line (owner redesign
+    // 23/10 — "Nâng/Trả/Container đủ 1 dòng", full roster in the title);
+    // pair 2 keeps its own 2 x 40DC line. Scoped per column so the cargo
+    // summary does not interfere with the counts.
     const liftCell = screen.getAllByText('Cảng Hải Phòng')[0].closest('td');
-    expect(within(liftCell!).getAllByText('2 x 40DC')).toHaveLength(2);
+    expect(within(liftCell!).getByText('2 x 40DC + 1 x 20DC')).toBeTruthy();
     // The drop column hosts both pair blocks in one cell: Tân Cảng carries
-    // 2 x 40DC + 1 x 20DC, Bãi SITC carries its own 2 x 40DC.
+    // the joined 2 x 40DC + 1 x 20DC, Bãi SITC carries its own 2 x 40DC.
     const dropCell = screen.getByText('Cảng Tân Cảng 128 Hải Phòng').closest('td');
-    expect(within(dropCell!).getAllByText('2 x 40DC')).toHaveLength(2);
-    expect(within(dropCell!).getAllByText('1 x 20DC')).toHaveLength(1);
+    expect(within(dropCell!).getByText('2 x 40DC + 1 x 20DC')).toBeTruthy();
+    expect(within(dropCell!).getByText('2 x 40DC')).toBeTruthy();
   });
 
   it('renders separated port values at the regular location weight', () => {
@@ -362,19 +363,20 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('Nhập')).toBeTruthy();
     expect(screen.getByText('Cảng Cát Lái')).toBeTruthy();
     expect(screen.getByText('Kho Bình Dương')).toBeTruthy();
-    // Port blocks split each container type onto its own line under the port name.
+    // Port blocks keep the demand on ONE joined line under the port name
+    // (owner redesign 23/10 — "đủ 1 dòng", the full roster rides the title).
     const liftPortCell = screen.getByText('Cảng Cát Lái').closest('td');
     const dropPortCell = screen.getByText('Kho Bình Dương').closest('td');
     expect(liftPortCell).toHaveAttribute('data-label', 'Cảng nâng');
     expect(dropPortCell).toHaveAttribute('data-label', 'Cảng hạ');
-    expect(within(liftPortCell!).getByText('2 x 40HC')).toBeTruthy();
-    expect(within(liftPortCell!).getByText('1 x 20DC')).toBeTruthy();
+    expect(within(liftPortCell!).getByText('2 x 40HC + 1 x 20DC')).toBeTruthy();
     expect(screen.getByText('Cảng Cát Lái')).not.toHaveClass('master-plan-grid__line--strong');
     expect(screen.getByText('Kho Bình Dương')).not.toHaveClass('master-plan-grid__line--strong');
     const cargoCell = Array.from(document.querySelectorAll('td')).find((td) => td.getAttribute('data-label') === 'Tổng quan hàng hóa');
     expect(cargoCell).toBeTruthy();
-    expect(within(cargoCell!).getByText('2 x 40HC')).not.toHaveClass('master-plan-grid__line--strong');
-    expect(within(cargoCell!).getByText('1 x 20DC')).not.toHaveClass('master-plan-grid__line--strong');
+    // The joined demand line carries the shared container identity weight
+    // (DIS-08); the measure line under it stays muted.
+    expect(within(cargoCell!).getByText('2 x 40HC + 1 x 20DC')).toHaveClass('ops-container-line');
     expect(screen.getByText(/41,001 tấn/)).toBeTruthy();
     expect(screen.getByText('Giao giờ hành chính')).toBeTruthy();
     expect(screen.getByText('20/08/2026')).not.toHaveClass('master-plan-grid__line--strong');
@@ -392,58 +394,77 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('"carrier direction"');
   });
 
-  it('rebalances the fixed columns so every one-line header fits (card 091026091550)', () => {
+  it('balances the fixed columns for the 1200px floor — THỜI GIAN thu lại, KHÁCH & TUYẾN the widest zone (owner redesign 23/10)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const widthFor = (column: string) => Number(css.match(new RegExp(`\\.master-plan-grid__col--${column}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%`))?.[1] ?? 0);
 
     const widths = ['schedule', 'customer', 'route-shipping', 'lift-port', 'drop-port', 'cargo', 'notes', 'allocation'].map(widthFor);
 
-    // Card 091026091550: the plan-board header law is ONE line per header —
-    // `thead th` restores the global nowrap the board used to override, so
-    // the colgroup must hand each column at least its longest label's
-    // measured width. Labels were measured on the live grid at its widest
-    // fixed-layout stress point (1144px canvas, 1440 viewport, expanded
-    // sidebar): "TUYẾN ĐƯỜNG & HÃNG TÀU" alone needs 17.25%. The 12px
-    // header gutter narrows to 8px — at 12px the eight compound labels
-    // consume ~99% of the canvas and leave the note column nothing. The
-    // old schedule<allocation density invariant is superseded: a header
-    // dictates its column's floor now.
-    expect(widthFor('schedule')).toBe(15.5);
-    expect(widthFor('customer')).toBe(15.75);
-    expect(widthFor('route-shipping')).toBe(17.25);
-    expect(widthFor('lift-port')).toBe(8.75);
-    expect(widthFor('drop-port')).toBe(7.25);
-    expect(widthFor('cargo')).toBe(14.75);
-    expect(widthFor('allocation')).toBe(11.25);
-    expect(widthFor('notes')).toBe(9.5);
-    expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
+    // Owner redesign 23/10 (QA R38): the shares sum to 96% so the on-demand
+    // CHỌN column's fixed 48px fits inside the 1200px floor exactly
+    // (96% × 1200 + 48 = 1200). Measured floors at 1200px: schedule 120
+    // (THỜI GIAN ~110-130px per the brief) · customer 210 · route 174 — the
+    // KHÁCH HÀNG & LỘ TRÌNH zone owns the widest share — · lift 108 · drop
+    // 102 (đủ 1 dòng) · cargo 144 · allocation 156 · notes 138. The old
+    // 15.5/15.75/17.25 leading trio was the "50-70% trống, cột cắt cụt"
+    // defect this rebalance retires.
+    expect(widthFor('schedule')).toBe(10);
+    expect(widthFor('customer')).toBe(17.5);
+    expect(widthFor('route-shipping')).toBe(14.5);
+    expect(widthFor('lift-port')).toBe(9);
+    expect(widthFor('drop-port')).toBe(8.5);
+    expect(widthFor('cargo')).toBe(12);
+    expect(widthFor('allocation')).toBe(13);
+    expect(widthFor('notes')).toBe(11.5);
+    expect(widths.reduce((total, width) => total + width, 0)).toBe(96);
+    // The table owns a floor + the wrapper a BOUNDED PANE (both scrolls), so
+    // no column ever starves AND the thead keeps a working sticky reference
+    // (an unbounded rail is a scroll container that kills the header pin).
+    expect(css).toMatch(/\.master-plan-grid \{[\s\S]*?min-width:\s*1200px;/);
+    expect(css).toMatch(/\.master-plan-grid__wrapper \{[\s\S]*?overflow:\s*auto;[\s\S]*?max-height:\s*calc\(100dvh/);
+    expect(css).toMatch(/\.master-plan-grid thead th \{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*0;/);
   });
 
-  it('keeps every plan-board header on one line — the global nowrap law restored (card 091026091550)', () => {
+  it('wraps a long header label at spaces up to TWO lines — never mid-word, never more (owner redesign 23/10)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const headerRule = css.match(/\.master-plan-grid thead th \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(headerRule).toContain('white-space: nowrap;');
-    expect(headerRule).toContain('overflow-wrap: normal;');
-    expect(headerRule).not.toContain('white-space: normal');
+    // Detailed-plan pattern (spec addendum 23/10): the old nowrap law
+    // (card 091026091550) starved the data columns; labels now wrap AT
+    // SPACES up to two lines, words stay whole (card 20260922_54), and a
+    // "…" cut is banned. The clamp lives on the INNER __th-label span — a
+    // `display: -webkit-box` th collapses the header row's table layout
+    // (the live defect this lane caught on /dispatch-detail).
+    expect(headerRule).toContain('white-space: normal');
+    expect(headerRule).toContain('word-break: keep-all');
+    expect(headerRule).not.toContain('white-space: nowrap');
+    expect(headerRule).not.toContain('-webkit-line-clamp');
+    expect(headerRule).not.toContain('display: -webkit-box');
     expect(headerRule).toContain('padding: 10px 8px;');
+    const labelRule = css.match(/\.master-plan-grid__th-label \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(labelRule).toContain('-webkit-line-clamp: 2');
   });
 
-  it('wraps operational values instead of truncating them in compact table columns', () => {
+  it('holds every value line to ONE ellipsized line with the full value in title (owner redesign 23/10)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const lineRule = css.match(/\.master-plan-grid__line \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(lineRule).toContain('white-space: normal');
-    expect(lineRule).toContain('overflow-wrap: anywhere');
-    expect(lineRule).not.toContain('text-overflow: ellipsis');
-    expect(lineRule).not.toContain('overflow: hidden');
+    // Supersedes the wrap-in-place law for this board (the same supersession
+    // the detailed-plan grid took in 8a28c094): wrapping was the inflation
+    // mechanism of every row-height regression; one nowrap ellipsized line +
+    // the component's title tooltip is the sanctioned pair.
+    expect(lineRule).toContain('white-space: nowrap');
+    expect(lineRule).toContain('overflow: hidden');
+    expect(lineRule).toContain('text-overflow: ellipsis');
+    expect(lineRule).not.toContain('overflow-wrap: anywhere');
   });
 
-  it('normalizes older container-summary separators while keeping each type on its own line', () => {
+  it('normalizes older container-summary separators onto the one joined demand line', () => {
     render(<MasterPlanGrid items={[item({ containerTypeSummary: '1 * 40HC + 1×20HC' })]} onAllocate={vi.fn()} />);
 
-    expect(screen.getByText('1 x 40HC')).toBeTruthy();
-    expect(screen.getByText('1 x 20HC')).toBeTruthy();
+    // Owner redesign 23/10: the per-type demand joins onto ONE operational
+    // run ("đủ 1 dòng"), separators normalized along the way.
+    expect(screen.getByText('1 x 40HC + 1 x 20HC')).toBeTruthy();
   });
 
   it('uses the allocation values as the full-cell edit trigger without a separate edit button', () => {
@@ -667,21 +688,27 @@ describe('MasterPlanGrid', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('keeps the allocation editor full-width with visible focus and a touch-safe mobile target', () => {
+  it('keeps the allocation editor full-width with visible focus; the phone card owns the touch target', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const triggerRule = css.match(/\.master-plan-grid__allocation-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
     expect(triggerRule).toContain('width: 100%');
     expect(triggerRule).toContain('text-align: left');
     expect(css).toContain('.master-plan-grid__allocation-trigger:focus-visible');
-    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__allocation-trigger\s*\{[^}]*min-height:\s*var\(--control-max-h\);/);
+    // Owner redesign 23/10: the ≤900px td-card bands are gone — the phone
+    // surface is the MasterPlanCardList, whose foot button carries the
+    // allocation touch target at the house control budget.
+    expect(css).not.toContain('@container (max-width: 900px)');
+    expect(css).toMatch(/\.mpcard__allocate \{[\s\S]*?min-height:\s*36px;/);
   });
 
-  it('keeps the per-row container detail action compact on desktop and touch-safe on narrow screens', () => {
+  it('keeps the per-row container detail action compact; the phone card serves it from the ⋯ menu', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('.master-plan-grid__container-detail-trigger');
     expect(css).toContain('min-height: max(28px, var(--uui-control-h))');
-    expect(css).toMatch(/@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__container-detail-trigger,\s*\.master-plan-grid__note-detail-trigger\s*\{[\s\S]*?min-height:\s*var\(--control-max-h\);/);
+    // Owner redesign 23/10: no more td-card trigger bump — the card list's
+    // single ⋯ menu carries "Chi tiết container" at the shared touch floor.
+    expect(css).toMatch(/\.mpcard \.dispatch-row-menu__trigger \{[\s\S]*?width:\s*var\(--control-touch-h,\s*44px\);/);
   });
 
   it('labels every shipment field group for the stacked narrow-screen layout', () => {
@@ -718,7 +745,7 @@ describe('MasterPlanGrid', () => {
     ]);
   });
 
-  it('wraps long allocation carrier labels inside their cell instead of truncating them', () => {
+  it('keeps the allocation roster on ONE ellipsized line with the full roster in title (owner redesign 23/10)', () => {
     render(
       <MasterPlanGrid
         items={[item({
@@ -738,18 +765,20 @@ describe('MasterPlanGrid', () => {
     );
 
     expect(screen.getByText("Công ty Cổ phần Giao nhận Vận tải Container Quốc tế Đại Dương Xanh Miền Bắc: 1x40'")).toBeTruthy();
+    // The roster container carries the complete allocation in its tooltip —
+    // the row can no longer wrap a second line for a many-carrier lot.
+    const chips = document.querySelector('.master-plan-grid__chips');
+    expect(chips?.getAttribute('title')).toBe("Công ty Cổ phần Giao nhận Vận tải Container Quốc tế Đại Dương Xanh Miền Bắc: 1x40'");
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    const chipRule = css.match(/\.master-plan-grid__chip \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const chipsRule = css.match(/\.master-plan-grid__chips \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(chipRule).toContain('max-inline-size: 100%');
-    expect(chipRule).toContain('white-space: normal');
-    expect(chipRule).toContain('overflow-wrap: anywhere');
-    expect(chipRule).not.toContain('text-overflow: ellipsis');
-    expect(chipRule).not.toContain('overflow: hidden');
+    expect(chipsRule).toContain('white-space: nowrap');
+    expect(chipsRule).toContain('overflow: hidden');
+    expect(chipsRule).toContain('text-overflow: ellipsis');
   });
 
-  it('keeps the mobile record surface stable while scrolling and uses one semantic text scale', () => {
+  it('keeps the table surface stable while scrolling and the phone card list on one semantic scale', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
 
     expect(css).toContain('@media (hover: hover) and (pointer: fine)');
@@ -759,47 +788,41 @@ describe('MasterPlanGrid', () => {
     // replaces hovered nodes mid-hover and a transition lets the painted tint
     // stick after the pointer leaves.
     expect(css).not.toMatch(/\.master-plan-grid__row\s*{[^}]*transition/);
-    expect(css).toContain('@container (max-width: 599px)');
-    expect(css).toContain('.master-plan-grid__cell--lift-port { grid-area: lift; }');
-    expect(css).toContain('.master-plan-grid__cell--drop-port { grid-area: drop;');
+    // Owner redesign 23/10: the phone surface is the MasterPlanCardList —
+    // no td-grid bands, no per-cell grid-areas; the card list is the layout.
+    expect(css).not.toContain('@container (max-width: 599px)');
+    expect(css).not.toContain('grid-area: lift');
+    expect(css).toContain('.mpcard-list');
+    expect(css).toContain('.master-plan-grid__wrapper--cards');
     expect(css).toContain('color: var(--fg-1)');
     expect(css).toContain('color: var(--fg-2)');
     expect(css).toContain('color: var(--fg-3)');
   });
 
-  it('pairs related phone/tablet fields and gives long routes and notes the full record width', () => {
+  it('serves the phone card list in the DispatchPlanCardList shape (owner redesign 23/10)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    const start = css.indexOf('@container (max-width: 900px)');
-    const phoneStart = css.indexOf('@container (max-width: 599px)');
-    expect(start).toBeGreaterThan(-1);
-    expect(phoneStart).toBeGreaterThan(start);
-    const record = css.slice(start, phoneStart);
-    expect(record).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
-    expect(record).toContain('"schedule customer"');
-    expect(record).toContain('"route route"');
-    expect(record).toContain('"lift drop"');
-    expect(record).toContain('"cargo allocation"');
-    expect(record).toContain('"notes notes"');
-    expect(record).toContain('overflow-wrap: anywhere');
-    // 2026-09-27 record rework: the SHORT label rides the value line across the
-    // whole record range (tablet band), and the phone band only tightens the
-    // inset. Placeholder lines collapse rather than printing a bare '—'.
-    expect(record).toContain('content: attr(data-label-short)');
-    expect(record).toContain(".master-plan-grid__line[data-empty='true']");
-    expect(css.slice(phoneStart)).toContain('padding: 6px 10px');
+
+    // One card per lô: bordered record card on house tokens, head = identity
+    // + loại + the single ⋯ menu, body = one-line ellipsized facts, foot =
+    // the one primary action. The td-grid bands this replaces are gone.
+    expect(css).toMatch(/\.mpcard-list\s*\{[^}]*display:\s*grid;/);
+    expect(css).toMatch(/\.mpcard\s*\{[^}]*border-radius:\s*10px;/);
+    expect(css).toMatch(/\.mpcard__line\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
+    expect(css).toMatch(/\.mpcard__note\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
+    expect(css).not.toMatch(/\.mpcard[^{]*\{[^}]*overflow-wrap:\s*anywhere/);
+    expect(css).toMatch(/\.mpcard__allocate \{[\s\S]*?min-height:\s*36px;/);
+    expect(css).not.toContain('@container (max-width: 900px)');
   });
 
-  // Empty/short notes and the action cell share the canonical 40px ceiling.
-  it('grounds the notes-trigger to the canonical control budget inside the ≤900px card view', () => {
+  // The note preview is one ellipsized line everywhere now; the full text
+  // rides the trigger's title + the shared modal.
+  it('grounds the notes-trigger to one ellipsized preview line with the full note in title', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const triggerRule = css.match(/\.master-plan-grid__notes-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(css).toMatch(
-      /@container \(max-width: 900px\)[\s\S]*?\.master-plan-grid__notes-trigger\s*\{[\s\S]*?min-height:\s*var\(--control-max-h\)/,
-    );
-
-    // Desktop table view stays untouched — only the card view pins the floor.
-    const desktopNotesTriggerRule = css.match(/\.master-plan-grid__notes-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(desktopNotesTriggerRule).not.toMatch(/min-height/);
+    expect(triggerRule).toContain('white-space: nowrap');
+    expect(triggerRule).toContain('text-overflow: ellipsis');
+    expect(triggerRule).toContain('cursor: pointer');
   });
 });
 

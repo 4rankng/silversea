@@ -39,6 +39,7 @@ import '../LclSelectCheckbox.css';
 export { lclCargoLine, lclMeasureLine } from './DispatchPlanCellValues';
 
 import '../../../styles/operational-table-typography.css';
+import '../dispatch-row-menu.css';
 import './DetailedPlanGrid.css';
 import { formatWeight } from '../../../lib/format';
 
