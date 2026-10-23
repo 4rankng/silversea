@@ -37,10 +37,18 @@
   D1-D5 rung 3 (dialog HỦY không lưu — DB 122/173 cost_group null trước/sau),
   Phân xe sweep 20/5/20.
 - Gates: root lint 0 · fe tsc -b 0 · tsgo -b 0 · scoped master-plan+detailed
-  647/647 · FULL FE 5525/5525 (sau `make build` dist — numeric-identity cần
-  dist như HANDOFF trước) · make build 0 · dev-port-contract 11/11.
-  design:drift: base (trunk) ĐỎ sẵn (baseline stale 2026-10-04); delta lane
-  ≤ base MỌI counter, containerWidthValues 22→20 (xóa @container bands).
+  648/648 (sau review fixes) · FULL FE 5525/5525 (sau `make build` dist —
+  numeric-identity cần dist như HANDOFF trước) · make build 0 ·
+  dev-port-contract 11/11. design:drift: base (trunk) ĐỎ sẵn (baseline stale
+  2026-10-04); delta lane ≤ base MỌI counter, containerWidthValues 22→20
+  (xóa @container bands).
+- Independent code-review pass: DONE_WITH_CONCERNS → 5 finding fix trong
+  changeset (H1 notes-editor clip khi lỗi lưu + rung 3 force-500; M1 đo
+  borderBoxSize chống oscillation 640px scrollbar cổ điển — sweep cả
+  detailed-plan; M2 hasContainerDemand/formatCarrierAllocationChips về shared
+  MasterPlanCellValues; L1 DisabledActionTip card Hủy; L2 bỏ cast null);
+  L3 (touch-floor 640-900 table) chấp nhận có ý thức — pattern-consistent
+  với detailed board, ghi trong qa README.
 - Gotcha QA: API master-plan với date filter dùng transport-date arm — 12 lô
   TBFL ngày 01/11 (containers không appointment day) bị loại khỏi board có
   date; driver đo trên DEFAULT scope (20 rows page-1) cho cả 2 phase.
