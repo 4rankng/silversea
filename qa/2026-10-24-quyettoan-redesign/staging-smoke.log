@@ -1,0 +1,16 @@
+STG-ASSET present: Chờ số liệu
+STG-ASSET present: Gộp hàng
+STG-ASSET present: Tổng cộng
+STG-ASSET present: Khoảng ngày quyết toán
+STG-ASSET present: Chứng từ
+STG-ASSET present: Hành động lô
+STG-ASSET present: Chưa xác định
+health buildHash: fd09dc9e
+á: CƯỚC VẬN TẢI (AUTO) đang Chưa xác định`:`Đã lưu lo
+=>t==null||Number.isNaN(t)?"Chưa xác định":R(t);funct
+ull||Number.isNaN(t)?{text:"Chưa xác định",warn:!1}:{
+.Fragment,{children:r?R(l):"Chưa xác định"}),e.jsx(e.
+
+NOTE: 'Chưa xác định' remains ONLY inside the L2 workspace (Bảng 2.1/2.2 cell
+renderers — kept unchanged per brief scope). The L1 board's money cells are
+clean (DOM-asserted 0 on both local phases).
