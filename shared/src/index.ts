@@ -34,6 +34,7 @@ export {
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
   LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS, lclVehicleSourcingRule,
   parseTonnageKg, assessLclCargoFit,
+  effectiveBillingPlate,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
   LCL_PICKUP_TRAILER_TYPE,
   LCL_PACKAGE_TYPE_SUGGESTIONS,
@@ -95,15 +96,18 @@ export type { ShipmentInvoiceRecordInput, ContainerDepositInput } from './schema
 // FB-092/093/095 — LCL lot grouping commands + wire facts.
 export {
   assignLclCostGroupSchema,
+  updateLclCostGroupSchema,
   mergeLclRevGroupSchema,
   setLclLotRevClassSchema,
   unmergeLclLotSchema,
   unmergeLclGroupSchema,
   updateLclTruckSchema,
   LCL_GROUP_DIMENSIONS,
+  LCL_REV_MERGE_TAG,
 } from './schemas/lcl-grouping';
 export type {
   AssignLclCostGroupInput,
+  UpdateLclCostGroupInput,
   MergeLclRevGroupInput,
   SetLclLotRevClassInput,
   UnmergeLclLotInput,

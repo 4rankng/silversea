@@ -206,6 +206,10 @@ async function loadLegacyFrozenLotRenderInfo(
     ));
   for (const row of rows) {
     const info: LegacyFrozenLotRenderInfo = {
+      // Review M2 — legacy frozen lines keep their ORIGINAL rendering law
+      // (billing plate or nothing); the spec 23/10 BKS fallback is
+      // materialized at FREEZE time for new documents (shipment-cost-lock),
+      // never applied retroactively to already-issued ones.
       truckPlate: row.billingTruckNo?.trim() || null,
       vehicleType: row.revVehicleClassName ?? row.revVehicleClassCode ?? null,
     };

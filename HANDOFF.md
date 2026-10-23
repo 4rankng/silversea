@@ -1655,3 +1655,426 @@ K. Driver log + JSON mỗi case.
 integration) 0 fail · shared touched-file tests 25/25 (10 fail fifoAging là
 pre-existing trên main, ngoài scope) · fe tsc -b 0 · scoped quotation FE
 27/27 · **full FE suite 708 files / 5.455 tests 0 fail** · make build 0.
+
+# HANDOFF — feat-gomhang-be (card 261023110000, spec khách 23/10 "Điều chỉnh luồng Gộp hàng lẻ")
+
+- Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/1njkloyy/
+  feat-gomhang-be`, branch `feat-gomhang-be` off main). Last updated: 2026-10-23.
+- Scope: CHỈ BACKEND (shared schemas/services/routes/BE tests) — FE grid/lane
+  redesign là wave sau (FE đang sở hữu detailed-plan lane riêng); FE tsc chỉ
+  smoke (0 errors) chứ không sửa FE.
+
+**RULING (bắt buộc giữ khi làm tiếp): ruling 21/10 (thu per-lot đơn giá×SL)
+vẫn là DEFAULT — mỗi lô LCL = 1 chuyến riêng với Loại xe thu/Giá cước thu/BKS
+báo khách của chính lô đó (per-lot outputs, `setLclLotRevClass`). 100/0 CHỈ
+trong nhóm CUS gộp CHỦ ĐỘNG (rev_group): Lô 1 = 100% cước thu nhóm, Lô 2..N =
+0₫ + tag "Ghép thu cước cùng Lô 1" — đã ghi PRD (lane docs).** Tách nhóm rev
+group dùng luật FB-093 (100/0-era): tách cả nhóm ⇒ tiền về pre-merge
+(`restoreRevPreMergeMoney`); tách Lô 1 ⇒ chuyển 100% cho Lô kế ("Đón cước
+chính"); 1 thành viên về riêng ⇒ giữ cước hiện tại + lý do chờ định giá lại
+(`restateRevLeaverMoney`). ĐIỀU VẬN (cost_group) giữ nguyên luật 1 dòng/chuyến
+(Lô 1 = 100% cước trả ĐVVC, members 0₫).
+
+## Thay đổi chính (spec 261023110000)
+
+1. **Tách nhóm xác nhận**: `cost_group_id` (ĐV) vs `rev_group_id` (CUS) độc
+   lập hoàn toàn — patch builders `lcl-grouping-law.ts`
+   (`costGroupMemberPatch`/`revGroupMemberPatch`) là seam thuần + test chốt
+   không rò cột giữa 2 chiều. Không migration phá dữ liệu cũ.
+2. **ĐV popup = đúng 4 trường** (Loại xe tính cước trả ĐV · Nhà xe · BKS thực ·
+   Cước trả ĐVVC blank=auto/nhập tay=override): `assignLclCostGroupSchema`
+   XÓA `billingTruckNo`/`billingTruckNos` (BKS-báo-khách-ảo là concept CUS;
+   unknown keys bị strip nên FE cũ vẫn chạy). **THÊM/SỬA**: endpoint mới
+   `POST /api/shipments/lcl/cost-group/update` (`updateLclCostGroup`,
+   membership cố định, resubmit 4 fields, freightCost omitted = re-trace).
+3. **Cước trả ĐVVC nhập tay sống tới phát lệnh** (defect class thật: assign
+   xảy ra TRƯỚC khi có trip nên giá trị rơi rụng): cột mới
+   `shipments.cost_group_freight_manual` (migration
+   `20261023120000_lcl_cost_group_freight_manual.sql`, nullable, không
+   backfill) — assign/update ghi, `applyLclCostGroupFreightToNewTrip` ưu tiên
+   nó hơn bảng giá, FB-095 promote chuyển nó theo vương miện như cước trả.
+4. **CUS per-lot outputs** (`setLclLotRevClass`): Loại xe thu (optional) +
+   Giá cước thu `freightRevenue` (auto tra bảng giá theo loại+ngày; nhập tay
+   override — manual bỏ qua trace entirely). BKS báo khách per-lot =
+   `updateLclTruck` với `billingTruckNo: null` = XÓA (BLANK).
+5. **BKS fallback (BLANK ⇒ BKS thực ĐV đã gán, lên Debit Note)**:
+   `effectiveBillingPlate` (shared, pure — LCL only; non-LCL giữ GAP-3 "không
+   in BKS thực"). Dùng ở: draft render (`buildTripRenderData`), freeze Debit
+   (`shipment-cost-lock` 2 paths — vật hóa BKS reported vào frozen lot), legacy
+   frozen path (`billing-export-shared`).
+6. **Gộp CUS (rev_group)**: validation cùng KH về pure law
+   (`findRevCustomerConflict`/`assertSameRevCustomer`, 400 liệt kê đủ lô+KH) ·
+   nhóm nhận Loại xe thu nhóm + BKS báo khách chung (blank = giữ per-lot,
+   KHÔNG copy BKS thực vào field CUS) + Cước thu Lô 1 `freightRevenue`
+   (blank=auto, nhập tay=override) · 100/0 + tag `LCL_REV_MERGE_TAG`
+   ('Ghép thu cước cùng Lô 1') = stamp + field trên API (`LclGroupWire
+   .revMergeTag` ở list-summaries + `revMergeTag` trong merge result members).
+   `updateLclTruckSchema.billingTruckNo` nullable (null=clear).
+
+- **Independent review (code-reviewer) = REQUEST-CHANGES → đã fix hết
+  findings trước commit**: C1 (tách cả nhóm restore nhầm `revenueOriginal`
+  first-override + bịa 0₫ trần) ⇒ capture "trạng thái trước ghép" riêng
+  `trip_financial_state.revenue_pre_group(_captured)` (migration
+  `20261023130000_lcl_rev_pre_merge_capture.sql`; captured NULL ⇒ khôi phục
+  NULL "Chưa xác định"; nhóm legacy không capture ⇒ fallback luật cũ); H1
+  (payload SỬA 1 trường wipe Nhà xe + manual) ⇒ `updateLclCostGroup` PARTIAL
+  thật + `freightCost` 3-state (number=manual, null=auto, omitted=giữ nguyên);
+  M1 (promote fallback trộn kênh) ⇒ snapshot fallback chỉ khi leaver KHÔNG có
+  trip; M2 (frozen doc cũ render lại BKS live) ⇒ revert path legacy về luật cũ
+  (fallback chỉ vật hóa lúc freeze cho doc mới); + L1–L8 (stale tag promotee,
+  refine test uuid, pins wiring/call-sites, testplan filename, copy).
+
+## Tests (BE unit-only)
+
+- `backend/src/tests/unit/lcl-gop-hang-split-law.test.ts` — 2 nhóm độc lập
+  (patch builders), validation cùng KH, BKS fallback, wire contract (ĐV 4
+  trường, strip billing, schema các lệnh, tag constant).
+- `backend/src/tests/unit/lcl-gop-hang-money-wiring.test.ts` — 100/0 từng
+  nhóm (COST+REV), auto-tra vs override (cả 2 chiều + sống tới phát lệnh),
+  tách nhóm (promote/restore/restate), ĐV không viết BKS báo khách, default
+  per-lot 21/10 giữ nguyên. (Thay file `lcl-rev-perlot-money-wiring.test.ts`
+  đã xóa — pin luật 21/10 cho merge path nay bị spec 23/10 supersede.)
+- `material-write-registry-exhaustive.test.ts`: + entry
+  `cost-group/update` (audit `SHIPMENT_UPDATED` + action `cost-group-update`).
+
+## Environment / còn nợ
+
+- Dev DB :5441 (ss-prod-db) đã chạy migration mới (additive nullable).
+- FE: `AssignTruckGroupDialog`/`LclGroupTruckEditDialog`/`MergeRevGroupDialog`
+  còn gửi field cũ (billing) — server strip, UI chỉnh ở FE wave; FE cần
+  hiển thị `revMergeTag` + per-lot `freightRevenue` + nút SỬA 4 trường nhóm ĐV.
+- Chưa UI-drive (BE-only brief; rung 0 cho UI claims). `customer-debt-summary`
+  fallback copy "Ghép cước cùng Bill X" và Debit Note "Ghép xe cùng Bill" giữ
+  nguyên (out of spec scope).
+
+# HANDOFF — fix-filter-lcl-day (card 231026000252, ticket 261022201006b)
+
+- Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/1njkloyy/
+  fix-filter-lcl-day`, branch `fix-filter-lcl-day`). Last updated: 2026-10-23.
+- Goal: "FILTER NGÀY LỌT lô LCL" — lot K547238574983 (LCL, transportDate
+  2026-10-17) survived the 23/10..23/10 filter on Chi tiết while Tổng quan
+  filtered it away. Owner law: **undated = luôn hiện; dated = phải qua filter
+  như lô cont**; giữ đồng bộ LCL-01 (SAME filter → same lots on both surfaces).
+  STATUS: DONE — fix + tests + real-data QA + UI rung-3 + full gates green,
+  independent review in flight at handoff time (commit lands after verdict).
+- Root cause: `containerDayTriageCondition` (cus-workspace-sql.service.ts)
+  lane-1 blanket escape for container-less LCL rows (added for LCL-01) exempted
+  DATED LCL lot rows from the day triage entirely ("bỏ qua bộ lọc ngày hoàn toàn").
+- Fix — one law, three shared implementations:
+  1. `containerDayTriageCondition`: 2 arms now (null-day passthrough +
+     dateArms). A lot row's day is its EDD leg of
+     `coalesce(appointment VN, EDD)`; dated rows pass the filter.
+  2. `shipmentTransportDateCondition` (Tổng quan + list-summaries deliveryDate
+     arm = core.routes master-plan): null-day passthrough in BOTH arms (EXISTS +
+     container-less) so undated lots show under every filter. Card
+     261022201006b's Z-leak gate (`not exists (containers)` on the EDD leg) kept.
+  3. `filterContainersByDateRange` (container-date-filter.ts, scoped-count twin):
+     keeps rows resolving to no day — counts never contradict rows (2 old pins
+     flipped to the new contract, cited to the card).
+- Tests: 4 named cases (LCL dated in-range / LCL dated out-range / LCL undated /
+  cont dated) in colocated `backend/src/services/container-date-filter.test.ts`
+  (pre-ruling location; pure unit) + SQL-contract pins rewritten in
+  `backend/src/tests/unit/cus-container-day-triage.test.ts` and
+  `backend/src/tests/unit/shipment-transport-date-condition.test.ts`.
+- Evidence `qa/2026-10-23-filter-lcl-day/`: repro before 19/27 (8 FAIL = defect,
+  incl. real lot on Chi tiết 23/10) → after 27/27; UI rung-3 17/17 (both screens,
+  screenshots + DOM + scoped requests + DB proof); tiepvu-filter-ui rerun 7/7
+  (driver has 7 checks — brief said 8); boundary probe 13/13; lcl01-lan2-repro
+  5/7 — the 2 FAILs are ONE dated-2099 fixture under Chi-tiết's default lens,
+  superseded by req 2 (see case doc Supersession note).
+- Supersession (read before claiming "phá LCL-01"): the old LCL-01 repro's
+  "dated LCL lot visible on CHI TIẾT default lens" checks ARE requirement 2's
+  target behavior reversed — dated = phải qua filter (acceptance: fixture dated
+  2026-10-17 under 23/10 filter → 0 kết quả). Same-filter sync verified by the
+  new driver's SYNC checks; undated-always is the discoverability anchor.
+- Gates: root lint 0 · be-tsc 0 · BE full 338/338 · fe tsgo 0 + `tsc -b` 0 ·
+  FE full 5489/5489 (711 files) · make build 0 · boundary probe 13/13 ·
+  scoped date-filter tests 26/26. dev-port-contract 11/11 (one driver-comment
+  port hardcode fixed in the new repro driver).
+- Local env: BE worktree :3008 + FE :7181 (VITE_API_PROXY_TARGET 3008), DB :5441
+  (ss-prod-db = staging mirror; real lot K547238574983 = id 124 / SHP-2610-00064,
+  booking_ref column). Demo `cus` user CREATED (local-only, customer_id=1,
+  testaccounts.txt demo stand-in) because the staging mirror has no CUS demo
+  account (prod has none by design) — needed for the tiepvu UI rerun. Trunk
+  :3002/:7175 untouched.
+- Not covered / limits: `filterContainersByDateRange` undated-keep changes scoped
+  count cells + dispatch master-plan totals to match visible rows (by design,
+  not separately UI-swept); FE default-lens asymmetry (Tổng quan bare vs Chi
+  tiết today-lens) unchanged — identical to cont lots ("như lô cont"); customs
+  cutoff (`dateFrom/dateTo` on /api/shipments) deliberately untouched.
+
+# HANDOFF — fix-kho-search-race (TiepVu22Oct-3: gõ GLC đè pick bị ăn ký tự)
+
+- Owner/controller: this session (worktree
+  /Users/dev/.paseo/worktrees/1njkloyy/fix-kho-search-race, branch
+  `fix-kho-search-race` off main 19140823).
+- Last updated: 2026-10-23.
+- Goal: search kho lấy hàng (danh mục chung) — khách báo gõ đủ "GLC" không
+  ra, gõ "LC" lại thấy (TiepVu22Oct-3 / TiepVu22Oct-4.docx image4).
+  STATUS: DONE — fix + unit tests (red-green) + Playwright UI driven
+  (truoc/sau, delay 0/120/400ms, final green trên build cuối) + gates +
+  independent review (code-reviewer DONE_WITH_CONCERNS → 2 findings fix
+  trong changeset: dropoff-port sweep + commitEnterMatch session-end;
+  1 finding từ chối có lý do — blur-resync sẽ wipe free-text FB-105);
+  landing via trunk commit `fix(cus): search kho — chặn race stale-response,
+  gõ full 'GLC' ra kết quả (TiepVu22Oct-3)` + push theo instruction của
+  owner.
+- Điều tra (repro-first, `qa/2026-10-23-search-glc-race/`): KHÔNG có
+  server-side search theo keystroke (network log chỉ mount-time
+  `?scope=shared` + `?customerId=1`); không có ngưỡng ≤2/≥3 ký tự. Lỗi còn
+  sót trên main sau 261022213755b: gõ ĐÈ lên ô kho đã có pick — keystroke
+  đầu làm onCustomValue clear id (value id → '') và sync effect trong
+  `uui-searchable-field.tsx` chạy `setInputValue('')` ăn mất chữ vừa gõ
+  ("GLC" → ô còn "LC"). Symptom "GLC → menu đóng" của khách trùng dạng
+  pre-fix 261022213755b (ảnh chụp trước khi fix deploy); field trống đã
+  xanh trên main — residual là path gõ đè, đã fix bằng typing-session law:
+  khi typedCustomTextRef live, sync effect không đè inputValue; luật
+  chosenKey (fromLiveTyping) giữ nguyên.
+- Files: `frontend/src/features/shipments/create/uui-searchable-field.tsx`
+  (+26/−8: typing-session guard + commitEnterMatch session-end),
+  `frontend/src/features/shipments/create/ShipmentCreateContainerRow.tsx`
+  (sweep: allowsCustomValue cho Cảng hạ, twin Cảng nâng), test mới
+  `uui-searchable-field.typing-session.test.tsx` (8 tests, 2 fail trên code
+  cũ — red-green proof), testplan case
+  `testplan/cycles/2026-10/2026-10-23-tiepvu3-kho-search-stale-race.md`.
+- Env verify: FE worktree :7176 (proxy chung BE :3002, đã tắt sau QA); trunk
+  :3002/:7175 chạy từ main checkout. DB :5441 có kho GLC id 27166 (tạo cho
+  repro, GIỮ LẠI để regression tái chạy).
+- Gates: root lint 0 · FE `tsc -b` 0 · `make build` 0 · FE full vitest FINAL
+  712 files / 5497 tests ALL PASS (2 run đầu: 2 fail thiếu dist ở worktree
+  mới — xanh sau build; 1 flake KT-16 ShipmentFinanceForm dưới tải — xanh
+  scoped 4/4, không import module bị đổi) · scoped searchable-field 23/23 ·
+  create-feature 224/224.
+- Non-goals: không đổi exact-match semantics của warehouseCustomText
+  (owner ruling 261022213755b passthrough); không thêm server search;
+  UuiSelectField/finance form không thuộc changeset.
+# HANDOFF — fix-tiepvu-rb2 (cards 261022201006b/c, TiepVu 22/10 evening)
+
+- Owner/controller: this session (worktree
+  /Users/dev/.paseo/worktrees/1njkloyy/fix-tiepvu-rb2, branch `fix-tiepvu-rb2`
+  off main 39e40fc1).
+- Last updated: 2026-10-22 ~22:15.
+- Goal: (b) "Lọc theo ngày trên CUS vẫn trả lô ngày khác" +
+  (c) "App lái xe bỏ hiển thị mã chuyến" (REQ-07 cũ). STATUS: DONE —
+  independent code-reviewer verdict READY_WITH_CONCERNS, all 5 findings
+  resolved (strict date grammar + 400 at the route, end-exclusive VN-day
+  bound, coalesce-law regex pin in tests, dead CSS removed, comment anchors
+  fixed); landing via the trunk commit titled `fix(cus,driver): filter ngày
+  đúng VN timezone + bỏ mã chuyến màn lái xe (TiepVu 22/10, cards
+  261022201006b/c)`.
+- Card B root causes (probe-first, `qa/scripts/2026-10-22-tiepvu-filter-boundary-probe.mjs`
+  — before 8/13 with 4 leak FAILs → after 13/13):
+  (1) lot-level date filter OR-ed `expectedDeliveryDate` unconditionally —
+  reappointed lots leaked back under their old EDD day (fixture lot Z). Fix =
+  `shipmentTransportDateCondition` in `cus-workspace-sql.service.ts` (EDD is
+  the day only for container-less lots; else union of per-container
+  `coalesce(appointment VN date, EDD)` — same law as the Chi tiết triage);
+  used by CUS workspace shipment-mode AND `list-summaries` deliveryDate arm.
+  (2) `GET /shipments?dateFrom&dateTo` compared `customsCutoffAt` (timestamptz)
+  to a UTC-day window (`new Date('YYYY-MM-DD')`) — leaked/dropped rows at the
+  00:00/23:59 VN boundary. Fix = `businessZoneDayStartInstant`/
+  `businessZoneDayEndInstant` in `container-date-filter.ts` (VN-day window).
+  FE param format was already YYYY-MM-DD — no FE change for card B.
+- Card C: trip-code display removed from `/my-trips` cards, `/my-trips/:id`
+  fact grid (Thông tin lệnh), and `/my-penalties` meta (sweep). `tripCode`
+  KEPT on wire/DB (board matching in DriverTripDetailPage untouched).
+  `driverTripCodeLabel` (REQ-07) deleted with its tests as dead code.
+- Non-goals: card 261022201006a (tờ khai) — trùng scope lane
+  `fix-cus-tokhai-cont` đang chạy, không thuộc changeset này. Also spotted
+  same-class comparison on the dispatch handoff queue
+  (`date(dispatch_handoffs.vehicle_needed_by)` in dispatch-planning-queries) —
+  different screen/owner, NOT in this card; open a follow-up card if wanted.
+- Env verify: BE worktree :3006 + FE :7179 (VITE proxy 3006), DB chung :5441
+  (ss-prod-db); trunk :3002/:7175 and tokhai lane :3005/:7178 untouched.
+  Worktree stacks can stay up or be killed after the session.
+- Gates: root lint 0 · BE tsc 0 · BE tests 338/338 · FE tsgo 0 + `tsc -b` 0 ·
+  FULL FE 710 files/5473 tests (after `vite build` — numeric-identity needs
+  dist) · `make build` OK.
+- QA artifacts: `qa/2026-10-22-tiepvu-b-c/` (probe before/after logs, UI
+  driver logs + screenshots for BOTH cards, DB proofs, gates.log). Regression
+  cases with results: `testplan/2026-10-22-card261022201006b-cus-date-filter.md`,
+  `testplan/2026-10-22-card261022201006c-driver-trip-code.md`.
+- Blockers/next: none. Review informational (pre-existing, NOT this diff):
+  `CONTAINER_SORT_SQL.transportDate` / `containerMissingBitsSql` still give an
+  FCL-undated container a NULL sort/completeness date while the filter law
+  counts it under the lot's EDD day — pre-existing divergence worth a card if
+  the owner wants full single-sourcing. Same-class date comparison on the
+  dispatch handoff queue (`date(dispatch_handoffs.vehicle_needed_by)` in
+  dispatch-planning-queries) — different screen/owner, NOT in this card.
+
+---
+
+# HANDOFF — fix-uui-select-modal (card 221026123031)
+
+- Owner/controller: this session (OpenCode, worktree
+  /Users/dev/.paseo/worktrees/1njkloyy/fix-uui-select-modal, branch
+  `fix-uui-select-modal` off main 5c917db5).
+- Last updated: 2026-10-22 ~13:35.
+- Goal: "UuiSelectField listbox không click được trong modal (blocker tạo khung
+  giá)". STATUS: DONE — nhưng KẾT LUẬN LÀ FALSE POSITIVE, không có bug sản phẩm.
+  Product code KHÔNG đổi; main đã được verify E2E tạo khung giá OK (KH chọn
+  được, `201 POST /api/quotations` id 2526/2527, list refetch, DB proof).
+- Root cause chuỗi sai của repro cũ: (1) `[role="option"]` trần trúng row của
+  `ul[role=listbox].quotation-frames__list` (trang, dưới scrim modal — chặn
+  click là ĐÚNG); (2) thiếu "Ngày hiệu lực"; (3) fill() tràn vào segment DD của
+  ô ngày segmented. Giả thuyết z-index BỊ BÁC BỎ: react-aria useOverlayPosition
+  hardcode inline `zIndex: 100000` cho popover portalled — luôn trên --z-modal.
+- Fix thật (đúng defect class — QA harness): driver chuẩn
+  `qa/scripts/2026-10-22-uui-select-modal-driver.mjs` (scope option vào
+  `.ds-uui-select__popover`, type ngày theo digits, đủ trường bắt buộc);
+  testplan/cases/case-QA-2026-10-22-uui-select-modal.md; evidence
+  qa/2026-10-22-uui-select-modal/.
+- Gates (trên tree final = main + QA files): FE scoped 282/282, tsc -b 0,
+  lint 0, vite build OK, FULL FE 710 files/5481 tests PASS (sau build dist —
+  numeric-identity cần dist như HANDOFF trước đã ghi).
+- Blockers/next: none. Lưu ý: đã revert sạch sửa z-index popover.tsx thử trong
+  phiên (no-op thua inline style của react-aria) — không được đem lại.
+
+---
+
+# HANDOFF — fix-lcl-kho-chung (card 261022093245)
+
+- Owner/controller: this session (OpenCode, worktree
+  /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-kho-chung).
+- Last updated: 2026-10-22 ~10:45.
+- Goal: LCL "Kho lấy hàng (CFS/Cảng)" list từ danh mục chung, không lọc theo
+  khách. STATUS: DONE — commit 57f692d5 pushed to origin/fix-lcl-kho-chung.
+- Scope: BE `GET /operational-sites?scope=shared` + drop customer-scope guards
+  on the warehouse point (fulfillment snapshot + intake dispatch validate;
+  factory keeps customer-scope). FE create form reads shared catalog; payload
+  labels resolve via union; hint reword; "+ Thêm kho" kept.
+- Non-goals: FCL port pickers, cus-workspace, ports-catalog merge into the kho
+  dropdown (id spaces differ — deliberately not mixed).
+- Files owned: shipment-intake.service.ts, shipment-fulfillment.service.ts,
+  core.routes.ts (operational-sites GET), shipmentClient.ts,
+  ShipmentCreateWorkspace.tsx, ShipmentCreateLclRouteSection.tsx + tests.
+- Preserved: user's trunk backend on :3002 untouched; worktree QA stack
+  (3003/7177) stopped after evidence; docker network pool full — worktree
+  `make dev` fails on network create, run backend/frontend directly instead.
+- QA artifacts: qa/2026-10-22-lcl-kho-chung/ (before/after API, UI driver
+  before/after + screenshots, gates.log). Regression case:
+  testplan/cases/case-QA-2026-10-22-lcl-kho-chung.md (all R1–R6 verified;
+  R1/R2 UI DRIVEN rung 3, shipment 312533 SHP-2610-19366 on shared kho 442).
+- Gates: lint 0, BE tsc 0, BE tests pass (unit 4/4 new + integration 338/338),
+  FE tsc -b 0, FE full suite green (numeric-identity needs dist — built),
+  make build OK. All on final code state.
+- Blockers/next: none. Possible follow-up: UI hiển thị owner-khách của từng
+  kho trong dropdown (hiện chỉ tên kho) nếu owner muốn.
+
+
+---
+
+# CUS tờ khai inline + sync · sửa/thêm cont hết lỗi (cards 261022095235a/b, Zalo 20:03 + ruling 09:50 22/10) — 2026-10-22
+
+Controller: this agent, worktree `1njkloyy/fix-cus-tokhai-cont`, branch
+`fix-cus-tokhai-cont` (off main 839d0577).
+
+**Status**: DONE — repro-first: API flows add/đổi/xóa cont trên lô data bẩn
+ĐÃ XANH từ các card trước (probe 13/13); gap thật = (1) /shipments/:id không
+còn nút Thêm/Xóa cont (TICKET-09 gỡ 17/10 — ruling 09:50 22/10 BẬT LẠI,
+supersede, FB-112 mở lại), (2) editor số cont workboard dead-end 400 không
+gợi ý sửa. Cả hai đã fix + tờ khai click-to-edit đưa vào ledger chia sẻ.
+
+- **Card A (261022095235a)**: cột "Số tờ khai" MỚI trên `CusContainerLedger`
+  (drawer Tổng quan + /shipments/:id) — click-to-edit, Enter lưu ngay qua
+  container-line command = law FB-109 auto-copy (chỉ cont còn trống,
+  divergence cho phép, toast theo declarationSync); nút Copy 1-call
+  (copy-declaration). KHÔNG phát minh law mới — BE không đổi.
+- **Card B (261022095235b)**: `/shipments/:id` host CHÍNH
+  `CusContainerLedger` (writer roles ADMIN/MANAGER/CUS/DISPATCHER, chưa lock,
+  chưa COMPLETED/CANCELED; reader giữ section đọc) → Thêm/Xóa container hoạt
+  động TỪ màn chi tiết; remove 409 có recovery (parity add r19); workboard
+  editor số cont có ISO hint + "Đổi thành <số>" 1 chạm (giống add-row
+  191026100000).
+- **Gates (sau review fixes)**: root lint 0 · FE `tsgo --noEmit` 0 + `tsc -b`
+  0 · **FULL FE 5467/5467 TOÀN XANH** · `make build` OK. BE/src không đổi →
+  BE gates không đụng.
+- **Evidence**: `qa/2026-10-22-cus-tokhai-cont/` — pre-fix driver (hasAdd:false
+  @detail), api-repro-dirty-flows, sync-probe 13/13 (R2/R3/R2b/cross-lot
+  409/cardB), post-fix driver 15/15 UI (rung 3: screenshots + DB proof qua
+  psql), resp-sweep 12/12 @390/768/1440 (cell hiển thị, không page-overflow,
+  scroll nằm trong band), drawer-fanout 6/6 (sau review fix HIGH#1); probe
+  `qa/scripts/2026-10-22-tokhai-cont-sync-probe.mjs`; regression
+  `testplan/2026-10-22-card261022095235ab-tokhai-containers.md` (TOKHAI-R1…R9
+  + mục review đã xử lý).
+- **Review độc lập**: code-reviewer DONE_WITH_CONCERNS → 4 finding (HIGH
+  drawer sibling stale, MEDIUM disable-blur, MEDIUM LCL dead card, LOW
+  !line-throw/idempotency) — TẤT CẢ đã fix + test + verify rung 3.
+- **Env verify**: BE worktree :3005 + FE :7178 (VITE proxy 3005), DB chung
+  :5441 (ss-prod-db), role cus. Port 3002/7175 thuộc checkout main — không đụng.
+
+---
+
+# R32 báo giá UI spec verify (card 221026040542) — 2026-10-22
+
+Controller: this agent, worktree fix-quote-ui-spec (off main cae84f8d), branch fix-quote-ui-spec.
+
+**Status**: DONE — verify-first, **0 src change cần thiết**: QA verify-fail
+"không có UI báo giá" là SAI — 14/14 mục checklist BaoGia.md CÓ tại
+`/config/quotations`. UI DRIVEN 29/29 + gates xanh + evidence + commit/push.
+(Prepend theo quy ước stacked log; lịch sử các lane trước giữ nguyên bên dưới.)
+
+- **Đối chiếu field-by-field** (`qa/2026-10-22-quote-ui/README.md`): khung giá
+  (tên mẫu/giá dầu tham chiếu/ngày hiệu lực/làm tròn NONE-THOUSAND-TEN_THOUSAND)
+  · lưới 10 hạng/tuyến (6 lẻ + 4 cont, nhãn từ `QUOTATION_GRID_COLUMNS`, seed
+  đủ 12 mã chuẩn trong `vehicle_size_classes`) · mỗi ô 3 giá trị (Hệ số input +
+  Lít dẫn xuất + Giá cos, thiếu giá hiện "Thiếu giá" đúng ruling 2) · nút
+  Nhập xlsx (preview→Ghi nhận/Huỷ, Huỷ không ghi vết 2→2) + Xuất xlsx (6590B
+  khớp API) + per-version Xuất xlsx + Xem payload chỉ đọc.
+- **KHÔNG đụng lag field**: hiển thị "Trễ N ngày" từ `freight_rate_terms`;
+  `fuelPriceLagDays` do lane song song thêm — đã ghi trong evidence là sắp có.
+- **UI DRIVEN 29/29** (`qa/drivers/2026-10-22-quote-ui-drive.mjs` →
+  `qa/2026-10-22-quote-ui_ui-driver.log`, 1440×1000, admin): API identity
+  30 cell = 3 tuyến × 10 mã; DB proof `qa/2026-10-22-quote-ui_db-proof.txt`.
+- **Gates**: FE `tsgo --noEmit` 0 + `tsgo -b` 0 · scoped vitest config pages
+  236/236 · **FULL FE 5454/5454** (run 1 fail 2 chỉ vì worktree chưa build —
+  test pin production CSS cần dist; sau `pnpm build` toàn xanh) · root lint 0.
+  0 src change → BE gates không đụng. (Shared `npm test` có 2 fail fifoAging
+  pre-existing tại cae84f8d — debt aging, ngoài scope, không thuộc gates.)
+- **Testplan case**: `testplan/2026-10-22-card221026040542-quote-ui-spec.md`
+  (QA-BG-UI-1…5).
+# QA R32 — Báo giá ENGINE WIRING + fuelPriceLagDays khung giá — 2026-10-22
+
+Controller: this agent, worktree `1njkloyy/feat-quote-engine-wiring`, branch
+`feat-quote-engine-wiring` (off main `cae84f8d`). Closes
+`testplan/cases/case-QA-2026-10-22-quote-engine-wiring.md` (QA R32 "không
+engine", spec BaoGia.md §2 + CuocPhiPhuPhiDau.md §2/§7).
+
+**Status**: DONE — verify-first: engine wiring đã có sẵn ở trunk từ R31 (8
+call site qua `lockShipmentFreightRate`); lane bổ sung (1) lag là thuộc tính
+KHUNG giá, (2) endpoint preview-rate cho QA, (3) test pin công thức + căn cứ.
+
+- **fuelPriceLagDays khung giá**: column `quotations.fuel_price_lag_days`
+  (int ≥0, NOT NULL DEFAULT 1 = import-lag NEWEB; migration
+  `20261022090000` + journal idx 152, đã áp dev 5441, backfill an toàn) +
+  zod `quotationCreateSchema` + `QuotationView`; create/update/get/list +
+  import commit ghi lag khung qua `resolveImportedFuelLag`; FE
+  QuotationCreateDialog (default 1) + strip "Thông tin khung" trên
+  QuotationConfigPage hiển thị + sửa được (draft-on-blur, số rác không lưu).
+- **Engine theo khung hiệu lực**: `resolveQuotationHints` trả frame nguồn
+  (id/tên/effectiveDate/lag); lag tra giá dầu = `effectiveFuelLagDays(frame,
+  terms)` — khung THẮNG, terms fallback (khách chưa có khung giữ nguyên hành
+  vi seed NEWEB lag 1). Formula mapping comment code→C/E/F/G/H/J/K trong
+  engine header.
+- **Preview-rate (QA probe)**: `POST /api/quotations/preview-rate`
+  {customerId, factoryId|routeId, hạng, ngày} → J/H/K + liters + nguồn frame;
+  non-material-write + ACCOUNTANT/ADMIN như import preview; nhà máy =
+  operational_sites FACTORY → route canonical.
+- **Pure wiring core**: `freight-lot-basis.ts` (không db) —
+  `classifyLotPricingBasis` (đủ/thiếu căn cứ LOCK/SKIP, giữ nguyên hành vi
+  lockShipmentFreightRate gồm LCL-lock-at-dispatch và 409 MISSING_WEIGHT ở
+  dispatch) + `effectiveFuelLagDays`; unit-test đầy đủ.
+
+**Evidence** (`qa/2026-10-22-quote-engine/`, backend worktree port 3009, dev
+DB 5441, account ketoan): case1 đủ căn cứ NEWEB CONT40 2026-09-20 → AUTO
+E=91, J=4.182.000, H=889.744, K=5.071.744 + frame nguồn #1 lag 1 (khớp bảng
+§6.1); case2 thiếu điều khoản → MANUAL 0/0/0 + formula chỉ thiếu căn cứ
+(không bịa số); case3 khung lag 71 → target 07-11 → H=354.664, K=4.536.664
+(khớp §6.2 — chứng minh lag KHUNG điều khiển engine, terms vẫn lag 1); case4
+dọn frame tạm xong quay lại đúng case1; case5 factoryId 27004 → route 1 cùng
+K. Driver log + JSON mỗi case.
+
+**Gates**: root lint 0 · be-tsc 0 · BE unit 386/386 + full BE (unit+
+integration) 0 fail · shared touched-file tests 25/25 (10 fail fifoAging là
+pre-existing trên main, ngoài scope) · fe tsc -b 0 · scoped quotation FE
+27/27 · **full FE suite 708 files / 5.455 tests 0 fail** · make build 0.

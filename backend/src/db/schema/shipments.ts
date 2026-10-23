@@ -70,16 +70,23 @@ export const shipments = pgTable('shipments', {
   // trip's external_freight_cost is zeroed by the grouping service.
   costGroupId: varchar('cost_group_id', { length: 36 }),
   costGroupOrder: integer('cost_group_order'),
+  // Spec 23/10 (261023110000) — the "Cước trả ĐVVC" manual override of the
+  // ĐV "Gán xe nhóm" popup, kept on the group principal so the value survives
+  // to trip issuance ("phát lệnh" creates the trips AFTER grouping). Null ⇒
+  // auto-trace the carrier price board (tuyến × loại xe × nhà xe); a value
+  // always wins over the traced one. Money law (Lô 1 = 100%, members 0₫) is
+  // unchanged.
+  costGroupFreightManual: numeric('cost_group_freight_manual', { precision: 15, scale: 0 }),
   // FB-093 — the REV group (cước thu khách, CUS side). `rev_group_order` 1 is
   // the principal lot carrying 100% of CƯỚC VẬN TẢI; members 2..N carry 0₫
   // with the override reason "Ghép cước cùng Bill X".
   revGroupId: varchar('rev_group_id', { length: 36 }),
   revGroupOrder: integer('rev_group_order'),
   // The group's truck identity. actualTruckNo = BKS thực (what runs the
-  // lane); billingTruckNo = BKS báo khách ("xe ảo", FB-092) — what the
-  // customer is told. Billing auto-copies actual at assignment and may
-  // diverge afterwards; the debit note (FB-094) MUST print billing, never
-  // actual.
+  // lane, ĐV "Gán xe nhóm"); billingTruckNo = BKS báo khách (CUS side —
+  // per-lot or the rev group's shared value). The ĐV flow never writes it
+  // (spec 23/10); when blank, the Debit Note reports the actual plate via
+  // `effectiveBillingPlate` (LCL only — non-LCL keeps the GAP-3 law).
   actualTruckNo: varchar('actual_truck_no', { length: 20 }),
   billingTruckNo: varchar('billing_truck_no', { length: 20 }),
   // Loại xe tính cước trả ĐV — link into the FB-090 vehicle_size_classes
