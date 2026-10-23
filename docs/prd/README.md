@@ -312,6 +312,7 @@ Legend: 🔒 = regression-pack locked (`testplan/2026-10-21-regpack-regression-p
 | FB-012 | 181026145600 | Cont 2 cặp kẹp không báo nhầm "trùng đầu kéo" | f6cbe97c | P R27 B2 | Regression sau guard overlap |
 | FB-014 | 201026112500 + R26 | Click lô mở dispatch detail (date thắng month bounds) | 37838c06 | P R26 staging d39ee741 3/3 | — |
 | FB-038/072 | 101026043000 + 121026185530 + 171026121100 (xem DIS-07 phần trùng lịch) | Cảnh báo trùng lịch khi gán xe (confirm "Vẫn lưu?") | 9d109c0d + 3349fd52 | P endgame | ×3 verify-fail |
+| FB-011 | 201026135800 | Curly warning (dấu ngoặc kép cong trên MasterPlanFilters) | bb394516 | P (doc + test MasterPlanFilters.test.tsx) | — |
 | FB-043 | 141026001010 + 201026164000 | Hàng bảng đều chiều cao | 0245b9f5 | P sau regression #33 | Dòng lịch trình kéo cao hàng |
 | FB-045 🔒 | 201026140000 | Dialog giờ không clip cột GIỜ HẸN | bb394516 + 31bcbb2a (lan 2) | P lan 2 (4 viewport × 2 drawer) | Lan 1 floored header chưa đủ: select min-width tràn + cột % bóp |
 | FB-066 🔒 | 101026043010 + 121026141040 + 141026012020 + 191026102040 + 201026101600 | Quick-add biển số xe (editor + dialog Phân bổ nhà xe LCL) | 22c9c80b + 22b8b65a (lan 3) | P lan 3 + flake test đóng d19c82b5 | ×3 verify-fail nút thiếu; flake Escape đua focus async react-aria |
