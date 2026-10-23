@@ -274,3 +274,127 @@ Doanh thu, công nợ khách hàng, phí nâng/hạ, vệ sinh và lưu bãi v�
 ### Card 261022213755c — Tag NHẬP LẺ / XUẤT LẺ riêng cho lô lẻ
 - List + Chi tiết lô: lô LCL hiển thị badge NHẬP LẺ / XUẤT LẺ (hoặc icon ký hiệu riêng) nhất quán style NHẬP/XUẤT — hết lẫn lộn với lô cont.
 - Nguồn: TiepVu22Oct-2 22/10 · landed 24f8d14c.
+
+## Spec 23/10 — Điều chỉnh luồng Gộp hàng (ĐV vs CUS)
+
+> **Nguồn:** Kanban TODO `261023110000-dieu-chinh-luong-gom-hang-le.docx` (23/10/2026 — Google
+> Drive `SilverSea/Kanban/TODO`, 56 đoạn, không kèm ảnh mockup; note kèm theo card
+> `261023110000-note-dieu-chinh-gom-hang-le.docx`). Tiêu đề gốc — header dài, wrap 2 dòng:
+> «ĐIỀU CHỈNH LUỒNG GỘP HÀNG LẺ & TỐI ƯU UI CHẾ ĐỘ "GỘP HÀNG"» / «(ĐIỀU VẬN & CUS)».
+
+> **⚖️ RULING NOTE (23/10 — điều chỉnh ruling 21/10, chỉ cho case gộp chủ động):**
+> Mặc định chiều **THU khách vẫn per-lot độc lập** — mỗi lô lẻ = **đơn giá bảng giá
+> (Tuyến×KH × loại xe của lô) × SL**; **ruling 21/10 (boss 15:22) CÒN HIỆU LỰC** cho trạng
+> thái thường: không dồn tiền, không chia tỷ lệ.
+> Luật **100%/0₫ CHỈ áp dụng trong nhóm gộp CUS chủ động** (CUS bật [📦 Gộp hàng], tích lô và
+> lưu nhóm `rev_group_id`): Lô 1 giữ 100% giá cước thu, Lô 2..N = 0₫. Điểm này **supersedes**
+> mệnh đề «KHÔNG dồn 100%/0₫» của ruling 21/10 **duy nhất cho case gộp này**; ngoài case gộp,
+> luật per-lot giữ nguyên.
+> Chiều **TRẢ nhà xe** (`cost_group_id`) không đổi: 100%/0₫ theo nhóm như spec gốc.
+
+### 1. Nguyên tắc — tách hoàn toàn nghiệp vụ Gộp hàng của Điều vận và CUS
+
+- **Điều vận (Đầu vào — Trả nhà xe):** căn cứ lượng hàng lẻ trong ngày, gộp nhiều lô đi chung
+  **1 xe thực tế** để tính **cước trả nhà xe** (Loại xe, Nhà xe, BKS thực, Cước trả ĐV).
+  **Không nhập BKS báo khách (xe ảo) tại màn hình Điều vận.**
+- **CUS (Đầu ra — Thu khách & làm Debit):** mặc định **mỗi lô hàng lẻ = 1 chuyến xe riêng biệt**
+  (có Loại xe, Giá cước và BKS báo khách riêng). Khi có các lô đã báo khách đi chung 1 xe, CUS
+  dùng **chức năng Gộp hàng riêng của CUS** để tính cước thu khách — **độc lập hoàn toàn** với
+  việc gộp xe của Điều vận.
+- Hai nhóm lưu **2 định danh độc lập**: `cost_group_id` (Điều vận — chiều trả) và
+  `rev_group_id` (CUS — chiều thu). Gộp/tách một bên không ảnh hưởng nhóm của bên kia.
+
+### 2. Nút [📦 Gộp hàng] — bật/tắt cột CHỌN (chung cho ĐV & CUS)
+
+Áp dụng trên thanh Filter của Điều vận (Kế hoạch Tổng quát / Kế hoạch Chi tiết Xe) và CUS
+(Chi tiết lô hàng / Chi phí – Quyết toán). Mục tiêu: tránh rác giao diện, tiết kiệm chiều
+ngang bảng — cột checkbox on-demand thay vì hiện mặc định.
+
+| Trạng thái | Hành vi |
+|---|---|
+| Mặc định (xem/thao tác thường) | **Ẩn cột CHỌN (Checkbox)** đầu bảng; Filter hiển thị nút **[📦 Gộp hàng]** (style viền/secondary) |
+| Kích hoạt (nhấn nút) | Nút đổi trạng thái active (đổi màu hoặc đổi text thành **[✕ Thoát gộp hàng]**); cột **CHỌN** xuất hiện ở **cột đầu tiên bên trái** bảng |
+| UX hỗ trợ | Chỉ hiển thị checkbox ở dòng **Hàng lẻ (LCL)** (hoặc tự lọc/làm mờ dòng Cont FCL) — không tích nhầm hàng Cont |
+| Đã chọn ≥ 1 dòng | Thanh **Bottom Floating Bar** dưới đáy màn hình: «Đang chọn N lô: Tổng X tấn \| Y CBM — Lô 1 giữ 100% tiền…» + nút hành động mở Popup gộp + nút Bỏ chọn / Hủy |
+| Thoát chế độ | Hoàn tất xác nhận gộp trên Popup **HOẶC** bấm [✕ Thoát gộp hàng] / Hủy → tự ẩn cột CHỌN, đóng Floating Bar, trả lại giao diện bảng gọn gàng như ban đầu |
+
+### 3. Điều vận — Popup «Gán xe nhóm» chỉ giữ 4 trường (xóa BKS ảo)
+
+Mở từ: bật [📦 Gộp hàng] → tích các lô lẻ → nút **[Gán xe nhóm]** ở thanh dưới đáy.
+
+**XÓA BỎ** khỏi Popup Điều vận: trường **BKS báo khách (ảo)** và cụm **BKS báo khách từng lô**
+(Lô 1, Lô 2…) — BKS ảo là dữ liệu Đầu ra của CUS, không thuộc đầu vào Điều vận.
+
+Popup chỉ giữ **4 trường** phục vụ tính cước Đầu vào:
+
+| # | Trường | Quy tắc |
+|---|---|---|
+| 1 | **Loại xe tính cước trả ĐV** * | Chọn trọng tải xe tải (1.25T, 2.5T, 5T…) hoặc Cont 20'/40'. Ràng buộc: chọn **xe tải** → chỉ cho chọn **Nhà xe ngoài**; chọn **Cont 20'/40'** → cho chọn cả **Đội xe nội bộ SilverSea** hoặc Nhà xe ngoài |
+| 2 | **Nhà xe** * | Chọn nhà xe thực tế vận chuyển |
+| 3 | **BKS thực (xe chạy chuyến)** * | Chọn BKS của nhà xe hoặc gõ mới |
+| 4 | **Cước trả ĐVVC (đ)** | Bỏ trống = tự tra bảng giá trả nhà xe; nhập tay = lấy theo giá nhập tay |
+
+**Logic lưu (`cost_group_id`):** Lô 1 giữ **100% tiền cước trả ĐVVC**, các lô còn lại trong
+nhóm = **0 ₫** (giữ nguyên luật chiều trả của spec gốc — ruling 21/10 không đổi chiều trả).
+
+### 4. CUS — Đầu ra thu khách
+
+#### 4.1 Mặc định (KHÔNG gộp): mỗi lô lẻ = 1 xe riêng (per-lot)
+
+Mỗi lô hàng lẻ được tính cước thu khách như **1 chuyến xe độc lập**. Trên từng dòng lô lẻ của
+CUS, cho phép chọn/nhập **3 thông tin Đầu ra**:
+
+| # | Trường | Quy tắc |
+|---|---|---|
+| 1 | **Loại xe thu khách** | Chọn loại tấn xe tải hoặc Cont 20'/40' |
+| 2 | **Giá cước thu khách** | Tự động tra bảng giá thu khách theo Loại xe thu khách, hoặc CUS tự nhập tay giá thỏa thuận |
+| 3 | **BKS báo khách** | Chọn từ danh mục hoặc gõ text tự do. **Quy tắc lấy dữ liệu:** để trống → mặc định lấy **BKS thực** (Điều vận đã gán) để báo khách và in lên Debit Note; có nhập → lấy BKS do CUS nhập |
+
+#### 4.2 Gộp hàng CUS (nhiều lô báo khách đi chung 1 xe)
+
+Luồng: bấm [📦 Gộp hàng] trên Filter → cột Checkbox xuất hiện → tích các lô lẻ **đã báo khách
+đi chung 1 xe** → Floating Bar («Đang chọn N lô: Tổng X tấn \| Y CBM — Lô 1 giữ 100% tiền thu
+khách») → bấm **[Gộp xe thu khách]**.
+
+- **Validation:** chỉ cho phép gộp các lô **cùng 1 Khách hàng**; khác khách hàng → báo lỗi chặn.
+- **Popup 3 trường:**
+
+| # | Trường | Quy tắc |
+|---|---|---|
+| 1 | **Loại xe tính cước thu khách** * | Chọn trọng tải xe (tấn) hoặc Cont 20'/40' cho **cả nhóm gộp** |
+| 2 | **BKS báo khách (chung cho nhóm)** | Để trống = mặc định lấy theo BKS thực vận chuyển; nhập = áp dụng BKS vừa nhập cho **toàn bộ các lô trong nhóm** để lên Debit Note |
+| 3 | **Cước thu khách Lô 1 (đ)** — nhập tay | Bỏ trống = tự tra bảng giá thu khách; nhập tay = ghi đè theo giá thỏa thuận |
+
+**Kết quả sau khi lưu gộp (`rev_group_id`):**
+
+- Hoạt động **độc lập hoàn toàn** với nhóm gộp của Điều vận (`cost_group_id`).
+- Lô 1 trong nhóm CUS: nhận **100% Giá cước thu khách**.
+- Các lô còn lại (Lô 2..N): Giá cước thu khách = **0 ₫**, hiển thị tag **«Ghép thu cước cùng
+  Lô 1»**.
+- Tự động ẩn lại cột Checkbox sau khi hoàn tất gộp.
+- Nút **[Tách nhóm]** trên dòng đã gộp: CUS chủ động hủy gộp, mỗi lô trở về cước độc lập
+  per-lot (§4.1) — tách nhóm money-neutral.
+
+### 5. Hiển thị — header dài wrap 2 dòng
+
+Header dài (tiêu đề chế độ gộp — VD cụm «ĐIỀU CHỈNH LUỒNG GỘP HÀNG LẺ & TỐI ƯU UI CHẾ ĐỘ
+"GỘP HÀNG" — (ĐIỀU VẬN & CUS)») được **wrap 2 dòng** thay vì cắt cụt hoặc co chữ để nhét
+1 dòng (nhất quán luật «các mã/nội dung quan trọng không bị cắt» tại [README](README.md) §3).
+
+### Tiêu chí nghiệm thu (theo docx gốc + note kèm card 261023110000)
+
+1. Toggle [📦 Gộp hàng] trên cả 2 phân hệ: mặc định ẩn cột CHỌN; bật → hiện checkbox (chỉ dòng
+   LCL); thoát (xong gộp hoặc [✕ Thoát gộp hàng] / Hủy) → tự ẩn cột + đóng Floating Bar.
+2. Floating bar đúng nội dung «Đang chọn N lô: Tổng X tấn \| Y CBM — Lô 1 giữ 100% tiền…» khi
+   chọn ≥ 1 dòng; Bỏ chọn / Hủy hoạt động.
+3. Popup Gán xe nhóm Điều vận: không còn bất kỳ trường BKS báo khách (ảo) nào (cả trường chung
+   lẫn cụm từng lô); đúng 4 trường bảng §3; ràng buộc xe tải = chỉ Nhà xe ngoài, cont = nội bộ
+   hoặc ngoài; lưu `cost_group_id` — Lô 1 100% tiền trả, lô còn lại 0₫.
+4. CUS per-lot mặc định: 3 trường §4.1 trên từng dòng lô lẻ; BKS báo khách để trống → Debit
+   Note in BKS thực; có nhập → Debit Note in BKS CUS nhập.
+5. Gộp CUS: chặn gộp khác khách hàng; popup 3 trường §4.2; lưu `rev_group_id` — Lô 1 100% thu,
+   Lô 2..N 0₫ + tag «Ghép thu cước cùng Lô 1»; nhóm CUS độc lập hoàn toàn với nhóm ĐV (gộp/
+   tách một bên không đổi tiền nhóm bên kia).
+6. [Tách nhóm]: hủy gộp về per-lot, tiền về đúng từng lô.
+7. QA retest 2 phân hệ theo note kèm card: toggle, floating bar, popup, validation cùng KH,
+   100/0 theo nhóm, tách nhóm.
