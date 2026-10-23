@@ -1,4 +1,5 @@
 import { Loader2, Send } from 'lucide-react';
+import { useEffect } from 'react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
@@ -15,13 +16,22 @@ interface QuickIssueOrderButtonProps {
    *  action ("Phát lệnh"); the desktop actions column keeps the compact
    *  icon-only release. Same single-sourced issue flow either way. */
   variant?: 'icon' | 'labeled';
+  /** Issue #13 (card 3-dòng, review M1) — the card's action slot is a 44px
+   *  head cell with no room for an inline error band. Pass `onError` to
+   *  route a failed release to the caller's surface (the card uses the
+   *  shared toast); the inline role="alert" paragraph stays the default for
+   *  hosts with a full-width context (the old foot geometry). */
+  onError?: (message: string) => void;
 }
 
 /** Release a saved assignment immediately; planning times stay owned by CUS. */
-export function QuickIssueOrderButton({ row, onIssueOrder, variant = 'icon' }: QuickIssueOrderButtonProps) {
+export function QuickIssueOrderButton({ row, onIssueOrder, variant = 'icon', onError }: QuickIssueOrderButtonProps) {
   const { issue, issuing, issueError, issueConfirmDialog } = useIssueOrder({
     row, open: false, canIssue: true, onIssueOrder, onIssued: () => undefined,
   });
+  useEffect(() => {
+    if (issueError && onError) onError(issueError);
+  }, [issueError, onError]);
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
   return (
     <div>
@@ -44,7 +54,7 @@ export function QuickIssueOrderButton({ row, onIssueOrder, variant = 'icon' }: Q
               : <Send size={14} aria-hidden="true" />}
         </button>
       </DisabledActionTip>
-      {issueError && <p className="dispatch-assignment-dialog__error" role="alert">{issueError}</p>}
+      {!onError && issueError && <p className="dispatch-assignment-dialog__error" role="alert">{issueError}</p>}
       {issueConfirmDialog}
     </div>
   );

@@ -615,15 +615,24 @@
    the shared `features/dispatch/dispatch-row-menu.css` so the master-plan
    phone card list serves the identical menu; only the dpcard-scoped bumps
    live here. */
+/* GP-06 — the phone-card touch floor is 44px even where the shared
+   --control-touch-h token sits at 40px (owner: ordinary controls ≤40px;
+   tap targets on cards ≥44px). The companion `#root` lift below is a
+   DELIBERATE specificity bump: the global coarse-pointer band
+   `:is(#root, body) button { min-width/height: var(--control-touch-h) }`
+   carries (1,0,1) and used to clamp this floor back to 40px on touch
+   devices — the card is the one place a control may exceed the 40px law. */
 .dpcard .dispatch-row-menu__trigger {
   width: var(--control-touch-h, 44px);
   height: var(--control-touch-h, 44px);
-  /* GP-06 — the phone-card touch floor is 44px even where the shared
-     --control-touch-h token sits at 40px (owner: ordinary controls ≤40px;
-     tap targets on cards ≥44px). */
   min-width: 44px;
   min-height: 44px;
   flex-shrink: 0;
+}
+
+#root .dpcard .dispatch-row-menu__trigger {
+  min-width: 44px;
+  min-height: 44px;
 }
 
 /* GP-06 — the card tick's touch floor: the BUTTON is the 44px hit target and
@@ -801,11 +810,15 @@
 }
 
 
-/* ── Owner redesign 23/10 (spec A) — the phone card list (<640px) ───────────
+/* ── Owner redesign 23/10 (spec A) + issue #13 (card 3-dòng, 23/10 tối) —
+   the phone card list (<640px) ────────────────────────────────────────────
    One card per lô/tác vụ, replacing the squeezed-table-with-td-hacks. Layout
    reference: Tailkit `a-c-tables-13` (overflow rail + trailing actions) for
    the table half, and the house record-card conventions (borders + inline
-   labels, record-table.css) for the card — rebuilt on house tokens. */
+   labels, record-table.css) for the card — rebuilt on house tokens. Card
+   anatomy (issue #13): head = identity + status chip + dynamic action slot;
+   info = 3-dòng hierarchy (BKS+Xe · Tên·SĐT · Loại lô·tuyến); body = cargo ·
+   giờ · nhóm · ghi chú. */
 .dpcard-list {
   display: grid;
   gap: 8px;
@@ -859,17 +872,12 @@
   text-overflow: ellipsis;
 }
 
-/* Loại = plain text (§1 data-cells-are-text law: no pill bubble). */
-.dpcard__type {
-  flex: 0 0 auto;
-  color: var(--fg-2);
-  font-size: var(--ops-table-meta-size);
-  font-weight: var(--fw-semibold, 600);
-}
+/* Loại (Đơn/Kẹp/Kết hợp/Lẻ/Lấy Lẻ) moved INTO the 3-line info block's dòng 3
+   (issue #13) — the head badge rule is deleted with the span. */
 
-/* GP-05 — the status badge is ONE line beside the ⋯ menu: bounded width,
+/* GP-05 — the status badge is ONE line beside the action slot: bounded width,
    ellipsized (the full label rides the chip's title tooltip), and it shrinks
-   before anything else so the head gap to the menu stays ≥8px. */
+   before anything else so the head gap to the slot stays ≥8px. */
 .dpcard__issue {
   flex: 0 1 auto;
   min-width: 0;
@@ -894,6 +902,15 @@
   white-space: nowrap;
 }
 
+/* Issue #13 (spec B) — the DYNAMIC ACTION SLOT: pinned to the head's right,
+   never squeezed (the paper-plane keeps the same 44px floor the ⋯ had). */
+.dpcard__action {
+  display: flex;
+  align-items: center;
+  flex: none;
+  margin-left: auto;
+}
+
 /* GP-05/GP-06 — the ⋯ menu keeps its 44px floor: `flex: none` stops the
    compact merge-mode head (extra tick) from squeezing the trigger below it. */
 .dpcard .dispatch-row-menu {
@@ -901,8 +918,126 @@
   flex: none;
 }
 
-/* Body: cargo · tuyến 2 dòng · giờ · xe/SĐT — one line each, ellipsized with
-   the full value in title (the SĐT line NEVER wraps per character). */
+/* The unissued slot's paper-plane: the shared icon action is 28px on desktop
+   — the card floor is 44px (GP-06 touch law, same as the ⋯ trigger). The
+   `#root` lift carries the same reason as the trigger rule above: the global
+   coarse-pointer band would otherwise clamp it back to the 40px token. */
+.dpcard__action .detailed-plan-grid__note-action--icon {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  height: 44px;
+  padding: 0;
+}
+
+#root .dpcard__action .detailed-plan-grid__note-action--icon {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* ── Issue #13 (spec A) — the 3-dòng info block ─────────────────────────────
+   Dòng 1 BKS (semibold) + Xe {class} inline · dòng 2 Tên · SĐT (SĐT is a
+   nowrap non-shrinking run — ellipsis can only ever eat the NAME) ·
+   dòng 3 Loại lô · tuyến (hoặc giờ). Live rows render it as the card-tap
+   button (opens the ⋯ menu); completed rows read it as static text. */
+.dpcard__info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dpcard__info:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, #4a9e7d) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.dpcard__info--static {
+  cursor: default;
+}
+
+.dpcard__info-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dpcard__plate {
+  min-width: 0;
+  flex: 0 1 auto;
+  font-family: var(--font-data, inherit);
+  font-size: var(--ops-table-primary-size);
+  font-weight: var(--fw-semibold, 600);
+  line-height: var(--ops-table-primary-line-height);
+  color: var(--fg-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dpcard__plate-class {
+  flex: none;
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  color: var(--fg-3);
+  white-space: nowrap;
+}
+
+.dpcard__driver {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  font-size: var(--ops-table-primary-size);
+  line-height: var(--ops-table-primary-line-height);
+  color: var(--fg-2);
+}
+
+/* The name carries the separator and ALL the shrinking; the SĐT never
+   truncates (spec A — "không bao giờ truncate SĐT"). */
+.dpcard__driver-name {
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dpcard__driver-phone {
+  flex: none;
+  font-family: var(--font-data, inherit);
+  white-space: nowrap;
+}
+
+.dpcard__info-meta {
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  color: var(--fg-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Spec C — completed cards are history: dòng 1-2 drop to the dimmest
+   foreground (gray-500 band) so live work reads first. */
+.dpcard--completed .dpcard__plate,
+.dpcard--completed .dpcard__driver,
+.dpcard--completed .dpcard__driver-name,
+.dpcard--completed .dpcard__driver-phone {
+  color: var(--fg-3);
+}
+
+/* Body: cargo identity · giờ — one line each, ellipsized with the full value
+   in title. (The Nâng/Trả pair and the old joined plate·tên·SĐT line moved
+   into the 3-dòng info block above — issue #13.) */
 .dpcard__body {
   display: grid;
   gap: 3px;
@@ -929,11 +1064,6 @@
   line-height: var(--ops-table-meta-line-height);
 }
 
-/* Plate · driver · SĐT: data face for the digit-heavy run. */
-.dpcard__line--vehicle {
-  font-family: var(--font-data, inherit);
-}
-
 .dpcard__group {
   justify-self: start;
 }
@@ -955,18 +1085,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Foot: the ONE primary action when the row is ready (Phát lệnh / Hoàn
-   thành) — full-width pill on the touch floor. */
-.dpcard__foot {
-  display: flex;
-  gap: 8px;
-}
-
-.dpcard__foot .detailed-plan-grid__note-action {
-  flex: 1 1 auto;
-  height: 36px;
 }
 
 /* The hidden plan-editor mount: the card prints its own compact facts, the

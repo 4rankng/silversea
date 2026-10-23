@@ -593,7 +593,7 @@ describe('DetailedPlanGrid', () => {
     expect(css).not.toContain('content: attr(data-label-short)');
   });
 
-  it('renders the phone card list under 640px — one card per row with the single ⋯ menu (owner redesign 23/10)', () => {
+  it('renders the phone card list under 640px — one card per row; 3-dòng info + dynamic action slot (owner redesign 23/10 + issue #13)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const gridTsx = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx'), 'utf8');
     const cardTsx = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanCardList.tsx'), 'utf8');
@@ -602,14 +602,16 @@ describe('DetailedPlanGrid', () => {
     // not declared as a container band.
     expect(gridTsx).toContain('CARD_MODE_BREAKPOINT = 640');
     expect(gridTsx).toContain('useCardLayoutMode');
-    // Card anatomy: header identity + Loại + status + the 44px menu; body
-    // lines are one-line runs (SĐT never wraps per character); foot carries
-    // the one primary action.
+    // Card anatomy (issue #13): head identity + status chip + dynamic action
+    // slot (≤1 visible button by state); info = 3-dòng hierarchy with the
+    // SĐT as a never-truncated run; the card body tap opens the ⋯ menu.
     expect(cardTsx).toContain('dpcard__customer');
     expect(cardTsx).toContain('dpcard__bill');
-    expect(cardTsx).toContain('dpcard__type');
-    expect(cardTsx).toContain('dpcard__line--vehicle');
-    expect(cardTsx).toContain('variant="labeled"');
+    expect(cardTsx).toContain('dpcard__info');
+    expect(cardTsx).toContain('dpcard__driver-phone');
+    expect(cardTsx).toContain('formatPhoneGroups');
+    expect(cardTsx).toContain('variant="icon"');
+    expect(cardTsx).toContain('triggerless={canQuickIssue}');
     expect(css).toMatch(/\.dpcard-list\s*\{[^}]*display:\s*grid;/);
     expect(css).toMatch(/\.dpcard \.dispatch-row-menu__trigger\s*\{[^}]*width:\s*var\(--control-touch-h,\s*44px\);/);
     // The old td-grid record hacks are deleted.

@@ -2,19 +2,21 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// Owner redesign 23/10 (spec A): the <640px phone surface is the dedicated
-// card list (`DispatchPlanCardList`), replacing the squeezed table + td-grid
-// hacks. Density contract:
-// 1. One card per lô/tác vụ; header = customer + Bill/Booking + Loại + status
-//    + the SINGLE ⋯ menu at the 44px touch floor.
-// 2. Body lines are one-line ellipsized runs — the plate·driver·SĐT line
-//    NEVER wraps per character; the note line truncates to one line.
-// 3. The card's only primary action ("Phát lệnh"/"Hoàn thành") rides the foot.
-// 4. No inline red delete — Xóa lô is the LAST ⋯ menu item (danger voice).
+// Owner redesign 23/10 (spec A) + issue #13 (card 3-dòng): the <640px phone
+// surface is the dedicated card list (`DispatchPlanCardList`), replacing the
+// squeezed table + td-grid hacks. Density contract:
+// 1. One card per lô/tác vụ; header = customer + Bill/Booking + status chip
+//    (dot-leading, góc phải) + the DYNAMIC ACTION SLOT — ≤1 visible button
+//    per state (paper-plane khi chưa phát lệnh, ⋯ khi đã phát lệnh/chưa phân
+//    xe, none khi hoàn thành) at the 44px touch floor.
+// 2. Info = 3-dòng hierarchy: BKS semibold + Xe {class} · Tên · SĐT (SĐT is
+//    a nowrap non-shrinking run — never truncated) · Loại lô · tuyến. Body
+//    lines are one-line ellipsized runs; the note line truncates to one line.
+// 3. Completed cards dim dòng 1-2 to the gray-500 band (spec C).
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 
-describe('phone card list density (owner redesign 23/10, spec A)', () => {
+describe('phone card list density (owner redesign 23/10 + issue #13 card 3-dòng)', () => {
   it('renders a dedicated card-list component under the wrapper--cards mode', () => {
     const gridTsx = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx');
     expect(gridTsx).toContain('DispatchPlanCardList');
@@ -25,34 +27,64 @@ describe('phone card list density (owner redesign 23/10, spec A)', () => {
     expect(css).toMatch(/\.dpcard\s*\{[^}]*border-radius:\s*10px;/);
   });
 
-  it('carries the SINGLE 44px ⋯ menu in the card header — no inline button sprawl', () => {
+  it('carries the dynamic action slot in the card header — ≤1 visible button per state, no inline button sprawl', () => {
     const cardTsx = read('src/features/dispatch/detailed-plan/DispatchPlanCardList.tsx');
     expect(cardTsx).toContain('DispatchRowActionsMenu');
-    // The card's action surface is the menu + the one primary — nothing else.
+    // The slot: paper-plane (icon) khi chưa phát lệnh; the ⋯ trigger stands in
+    // otherwise; completed cards render no action at all.
+    expect(cardTsx).toContain('dpcard__action');
+    expect(cardTsx).toContain('variant="icon"');
+    expect(cardTsx).toContain('{!completed && (');
+    // The old foot band is deleted with its full-width pill.
+    expect(cardTsx).not.toContain('dpcard__foot');
+    expect(cardTsx).not.toContain('variant="labeled"');
+    // The card's action surface is the slot + the card-tap menu — nothing else.
     expect(cardTsx).not.toContain('note-action--delete');
 
     const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
     expect(css).toMatch(/\.dpcard \.dispatch-row-menu__trigger\s*\{[^}]*width:\s*var\(--control-touch-h,\s*44px\);/);
     expect(css).toMatch(/\.dpcard \.dispatch-row-menu\s*\{[^}]*margin-left:\s*auto;/);
+    // The paper-plane keeps the same 44px card floor the ⋯ trigger had (GP-06).
+    expect(css).toMatch(/\.dpcard__action \.detailed-plan-grid__note-action--icon\s*\{[^}]*width:\s*44px;[^}]*min-height:\s*44px;/);
+    // The slot itself never gets squeezed.
+    expect(css).toMatch(/\.dpcard__action\s*\{[^}]*flex:\s*none;/);
+    expect(css).not.toMatch(/\.dpcard__foot/);
   });
 
-  it('keeps SĐT/vehicle/plate runs on one line — never per-character wrap', () => {
+  it('info block = 3 dòng: BKS semibold + Xe class / Tên · SĐT (không bao giờ truncate SĐT) / Loại lô · tuyến', () => {
+    const cardTsx = read('src/features/dispatch/detailed-plan/DispatchPlanCardList.tsx');
+    expect(cardTsx).toContain('formatPhoneGroups');
+    expect(cardTsx).toContain('dpcard__info');
+    expect(cardTsx).toContain('dpcard__plate');
+    expect(cardTsx).toContain('dpcard__driver-phone');
+
     const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+    // The joined plate·tên·SĐT one-line run is GONE (issue #13's defect).
+    expect(css).not.toMatch(/\.dpcard__line--vehicle/);
+    // Dòng 1: BKS semibold data-face, shrinks before the inline Xe class.
+    expect(css).toMatch(/\.dpcard__plate\s*\{[^}]*font-weight:\s*var\(--fw-semibold,\s*600\);[^}]*text-overflow:\s*ellipsis;/);
+    expect(css).toMatch(/\.dpcard__plate-class\s*\{[^}]*flex:\s*none;/);
+    // Dòng 2: the NAME carries all the shrinking; the SĐT is nowrap + flex:none
+    // — ellipsis can only ever eat the name, never the phone.
+    expect(css).toMatch(/\.dpcard__driver-name\s*\{[^}]*min-width:\s*0;[^}]*text-overflow:\s*ellipsis;/);
+    expect(css).toMatch(/\.dpcard__driver-phone\s*\{[^}]*flex:\s*none;[^}]*white-space:\s*nowrap;/);
+    // Dòng 3: muted one-line meta.
+    expect(css).toMatch(/\.dpcard__info-meta\s*\{[^}]*color:\s*var\(--fg-3\);[^}]*text-overflow:\s*ellipsis;/);
+    // The card-tap surface is a real button (tác vụ phụ qua tap card) with a
+    // focus ring; completed rows read the same block as static text.
+    expect(css).toMatch(/\.dpcard__info\s*\{[^}]*cursor:\s*pointer;/);
+    expect(css).toMatch(/\.dpcard__info:focus-visible\s*\{/);
+    expect(css).toMatch(/\.dpcard__info--static\s*\{[^}]*cursor:\s*default;/);
+    // Body lines keep the one-line ellipsized contract; the note truncates.
     expect(css).toMatch(/\.dpcard__line\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
-    expect(css).toMatch(/\.dpcard__line--vehicle\s*\{[^}]*font-family:\s*var\(--font-data/);
     expect(css).toMatch(/\.dpcard__note\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
     expect(css).not.toMatch(/\.dpcard[^{]*\{[^}]*overflow-wrap:\s*anywhere/);
   });
 
-  it('rides the ONE primary action in the card foot at the ≤36px control ceiling', () => {
-    const cardTsx = read('src/features/dispatch/detailed-plan/DispatchPlanCardList.tsx');
-    expect(cardTsx).toContain('variant="labeled"');
-    expect(cardTsx).toContain('dpcard__foot');
-
+  it('spec C: completed cards dim dòng 1-2 to the gray band — history reads after live work', () => {
     const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
-    expect(css).toMatch(/\.dpcard__foot \.detailed-plan-grid__note-action\s*\{[^}]*height:\s*36px;/);
-    // The pre-redesign phone media band for the old note-action pill is gone.
-    expect(css).not.toMatch(/@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*?\.detailed-plan-grid__note-action/);
+    expect(css).toMatch(/\.dpcard--completed \.dpcard__plate,/);
+    expect(css).toMatch(/\.dpcard--completed \.dpcard__driver-phone\s*\{[^}]*color:\s*var\(--fg-3\);/);
   });
 
   it('drops the squeezed-table card bands — the td-grid record hack is deleted', () => {

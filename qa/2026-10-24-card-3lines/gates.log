@@ -1,0 +1,18 @@
+== Gate commands & exit statuses (run in worktree fix-card-3lines, 2026-10-24) ==
+-- pnpm lint
+exit 0 (see 2026-10-24 lint log: qa/2026-10-24-card-3lines/qa-lint-final.log)
+-- cd backend && npx tsc --noEmit : NOT RUN (no backend changes)
+-- cd frontend && npx tsc -b
+exit 0
+-- cd frontend && npx tsgo -b
+exit 0
+-- cd frontend && pnpm test (FULL, dist present)
+exit 0 — see full-fe-vitest.log (final run after review fixes)
+-- scoped: vitest run DispatchPlanCardList.test.tsx DetailedPlanGrid.compact-cards.styles.test.ts DetailedPlanGrid.test.tsx DetailedPlanGrid.row-menu.* DetailedPlanGrid.rowheights.styles.test.ts
+exit 0 — 116/116 (after review-fix round: QuickIssue onError toast routing, stale-signal guard, label de-dup, +2 tests)
+-- make build
+exit 0 (qa-build-final.log)
+-- numeric-identity.styles.test.ts (dist-pinned)
+exit 0 — 6/6
+-- node qa/scripts/2026-10-24-card-3lines.mjs (rung-3 driver, BEFORE :7187 trunk + AFTER :7186 worktree)
+exit 0 — 35 PASS / 0 FAIL (card-3lines_ui-driver.log, driver-console.log)
