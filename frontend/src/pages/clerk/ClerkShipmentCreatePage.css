@@ -56,9 +56,10 @@
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
-/* Card 181026200200 (A.3) column map: Khách hàng 6 · Số Bill/Booking 6, then
-   (below the tờ khai strip) Hình thức xuất nhập khẩu 6 · Hãng tàu 6, with the
-   Tuỳ chọn chips full width. */
+/* Card 261023093200 (Tiệp Vũ FB 23/10) column map: Khách hàng 6 · Hình thức
+   xuất nhập khẩu 6, then Số Bill/Booking 6 · Hãng tàu 6, the Tuỳ chọn chips
+   full width, and the tờ khai strip LAST (dưới cùng). Supersedes the A.3
+   band map of card 181026200200 (Bill/Booking · tờ khai · XNK · Hãng tàu). */
 .csc-identity-grid__customer { grid-column: span 6; }
 .csc-identity-grid__trade-direction { grid-column: span 6; }
 .csc-identity-grid__booking { grid-column: span 6; }

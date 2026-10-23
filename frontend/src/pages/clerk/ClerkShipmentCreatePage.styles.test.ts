@@ -161,9 +161,9 @@ describe('shipment create responsive layout', () => {
 
   it('gives customer identity the widest column and reflows cleanly by viewport', () => {
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
-    // Card 181026200200 (A.3) column map: the document fields read
-    // Số Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu, so band 1 is
-    // 6 / 6 (customer + booking) and band 3 is 6 / 6 (direction + carrier).
+    // Card 261023093200 column map: the document fields read Hình thức XNK →
+    // Số Bill/Booking → Hãng tàu → Số tờ khai (cuối), so band 1 is
+    // 6 / 6 (customer + direction) and band 2 is 6 / 6 (booking + carrier).
     expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 6;/);
