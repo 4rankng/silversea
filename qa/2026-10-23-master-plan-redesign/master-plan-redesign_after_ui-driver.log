@@ -1,0 +1,39 @@
+PHASE=after front=http://localhost:7184 health=ok
+DB before: [{"id":122,"cost_group_id":null,"cost_group_order":null},{"id":173,"cost_group_id":null,"cost_group_order":null}]
+A 390px {"mode":"card-list","records":20,"maxRowHeight":302,"minRowHeight":222,"overflowX":0,"rail":false,"tableMinWidth":null}
+PASS A 390: page KHÔNG overflow ngang — overflowX=0
+PASS A 390: card list owns the layout — cards=20
+A 768px {"mode":"table","records":20,"maxRowHeight":90,"minRowHeight":69,"overflowX":0,"rail":true,"tableMinWidth":"1200px"}
+PASS A 768: page KHÔNG overflow ngang — overflowX=0
+PASS A 768: table rows ≤ 93px (max 90px) — heights=70,70,70,70,70,70,70,70,70,70,70,70,70,70,70,70,70,90,70,69
+PASS A 768: header sticky
+PASS A 768: header cells trải ngang đúng cột (spread 1056px) — spread=1056
+A 1440px {"mode":"table","records":20,"maxRowHeight":90,"minRowHeight":69,"overflowX":0,"rail":true,"tableMinWidth":"1200px"}
+PASS A 1440: page KHÔNG overflow ngang — overflowX=0
+PASS A 1440: table rows ≤ 93px (max 90px) — heights=70,70,70,70,70,70,70,70,70,70,70,70,70,70,70,70,70,90,70,69
+PASS A 1440: header sticky
+PASS A 1440: header cells trải ngang đúng cột (spread 1056px) — spread=1056
+PASS A 768: THỜI GIAN thu lại (≤ ~150px, got 125px)
+PASS A 1440: THỜI GIAN thu lại (≤ ~150px, got 125px)
+B sweep: Tất cả=20 (click=true) · Chờ phân xe=5 (click=true) · Đã phân xong=20 (click=true)
+PASS B: bộ lọc Phân xe đổi tập row theo trạng thái — all=20 cho=5 done=20
+C pane sticky: {"paneScrollTop":400,"thTop":40,"paneTop":39,"rowsUnderHeader":15,"nextRowTop":41}
+PASS C: thead pin trong pane khi cuộn board (rung 3) — {"paneScrollTop":400,"thTop":40,"paneTop":39,"rowsUnderHeader":15,"nextRowTop":41}
+D1 default {"selectCol":false,"toggle":true}
+PASS D1: mặc định KHÔNG cột CHỌN, nút [📦 Gộp hàng] trên filter
+D2 merge-on {"selectCol":true,"exitBtn":true} (toggled=true)
+PASS D2: bật mode → cột CHỌN hiện + nút ✕ Thoát gộp hàng
+D3 ticks A=true B=true bar={"text":"Đang chọn 2 lô: Tổng 1 tấn | 0 CBM— Lô 1 giữ 100% cước trả ĐV: K04573847543Bỏ chọnGán xe nhóm","fixed":"static"}
+PASS D3: tick 2 lô LCL → floating bar totals + Lô 1 giữ 100% cước trả ĐV — bar=Đang chọn 2 lô: Tổng 1 tấn | 0 CBM— Lô 1 giữ 100% cước trả ĐV: K04573847543Bỏ chọnGán xe nhóm
+D4 dialog {"labels":["Loại xe tính cước trả ĐV*","Nhà xe*","Cước trả ĐVVC (đ)"],"hasVehicleClass":true,"hasCarrier":true,"hasActualBks":true,"hasFreight":true,"hasGhostBks":false} (opened=true)
+PASS D4: popup Gán xe nhóm đúng 4 trường, hết BKS báo khách (ảo) — labels=Loại xe tính cước trả ĐV*|Nhà xe*|Cước trả ĐVVC (đ)
+D4 dialog closed without saving: true
+D5 exit true → {"selectCol":false,"boxes":0}
+PASS D5: thoát mode → cột CHỌN tự ẩn, selection clear
+E1 card {"head":true,"bill":true,"type":"Nhập · Lẻ","hasNang":true,"hasTra":true,"hasCargo":true,"menuBtn":true,"footBtn":true,"tableGone":true}
+PASS E1: card có head KH+bill, loại, Nâng/Trả, cargo, menu ⋯, foot Phân bổ — {"head":true,"bill":true,"type":"Nhập · Lẻ","hasNang":true,"hasTra":true,"hasCargo":true,"menuBtn":true,"footBtn":true,"tableGone":true}
+E2 FB-014 card tap: http://localhost:7184/dispatch → http://localhost:7184/dispatch-detail?q=LCL01L2-DATED-259802&date=2099-06-15
+PASS E2: card tap mở /dispatch-detail (FB-014) — http://localhost:7184/dispatch-detail?q=LCL01L2-DATED-259802&date=2099-06-15
+DB after: [{"id":122,"cost_group_id":null,"cost_group_order":null},{"id":173,"cost_group_id":null,"cost_group_order":null}]
+PASS DB identity: nhóm gộp trước/sau không đổi (dialog hủy, không lưu)
+DONE failures=0

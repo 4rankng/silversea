@@ -39,6 +39,7 @@ import '../LclSelectCheckbox.css';
 export { lclCargoLine, lclMeasureLine } from './DispatchPlanCellValues';
 
 import '../../../styles/operational-table-typography.css';
+import '../dispatch-row-menu.css';
 import './DetailedPlanGrid.css';
 import { formatWeight } from '../../../lib/format';
 
@@ -59,7 +60,14 @@ function useCardLayoutMode(): [React.Dispatch<React.SetStateAction<HTMLDivElemen
   useEffect(() => {
     if (!anchorEl || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width ?? 0;
+      // Master-plan lane fix (review M1, same defect class): measure the
+      // BORDER box — a classic scrollbar on the pane shrinks the content box
+      // ~15px and a contentRect measurement oscillates table↔cards at the
+      // 640px boundary (the pane this lane added makes the board overflow,
+      // so the scrollbar case is now reachable on this board too).
+      const entry = entries[0];
+      const width = entry?.borderBoxSize?.[0]?.inlineSize
+        ?? entry?.contentRect.width ?? 0;
       const next = width < CARD_MODE_BREAKPOINT;
       setIsCardMode((current) => (current === next ? current : next));
     });

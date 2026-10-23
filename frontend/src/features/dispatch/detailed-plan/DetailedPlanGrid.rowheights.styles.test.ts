@@ -31,10 +31,15 @@ const TABLE_MIN_WIDTH = 1340;
 describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 23/10)', () => {
   it('gives the table a min-width floor so every column keeps its one-line budget', () => {
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1340px;/);
-    expect(css).toMatch(/\.detailed-plan-grid__wrapper\s*\{[^}]*overflow-x:\s*auto;/);
-    // overflow-y: clip keeps the wrapper out of vertical scrolling so the
-    // thead's app-body sticky pin survives the horizontal rail.
-    expect(css).toMatch(/\.detailed-plan-grid__wrapper\s*\{[^}]*overflow-y:\s*clip;/);
+    // Master-plan lane fix (same defect class, MP-RD-03 probe): the wrapper
+    // is a BOUNDED PANE owning both scrolls — `overflow: auto` + the dvh
+    // bound. The old `overflow-x: auto / overflow-y: clip` pair computed to
+    // `auto hidden`, and a scroll-container wrapper silently killed the
+    // thead's sticky reference (the header rode off-screen with the page);
+    // the thead now pins to the pane's own top edge.
+    expect(css).toMatch(/\.detailed-plan-grid__wrapper\s*\{[^}]*overflow:\s*auto;/);
+    expect(css).toMatch(/\.detailed-plan-grid__wrapper\s*\{[^}]*max-height:\s*calc\(100dvh/);
+    expect(css).toMatch(/\.detailed-plan-grid thead th \{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*0;/);
   });
 
   it('keeps the owner floors at the table minimum: Khách hàng ≥180px, Điều phối ≥200px, Ghi chú ≥160px', () => {

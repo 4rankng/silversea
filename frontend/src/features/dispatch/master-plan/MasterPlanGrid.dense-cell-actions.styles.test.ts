@@ -44,8 +44,11 @@ describe('master-plan grid dense cell actions (card 20261004_321)', () => {
 
   it('keeps allocated-cell values inside the column at every width (AC3 clip class)', () => {
     // The full-cell trigger IS the affordance (values-as-trigger, no separate
-    // edit button to bleed past the column edge) and the chips wrap inside the
-    // cell — so no glyph or value can be cut off by the column at any width.
+    // edit button to bleed past the column edge) and the roster rides ONE
+    // ellipsized line (owner redesign 23/10: a many-carrier lot can no longer
+    // wrap its chips into a second line and inflate the row — the complete
+    // roster lives in the container's title), so no glyph or value is cut off
+    // by the column at any width.
     const trigger = css.match(/\.master-plan-grid__allocation-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(trigger).toContain('width: 100%');
     expect(trigger).toContain('white-space: normal');
@@ -54,10 +57,9 @@ describe('master-plan grid dense cell actions (card 20261004_321)', () => {
     expect(trigger).toContain('min-height: 100%');
     expect(trigger).toContain('align-items: flex-start');
 
-    const chip = css.match(/\.master-plan-grid__chip \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(chip).toContain('max-inline-size: 100%');
-    expect(chip).toContain('overflow-wrap: anywhere');
-    expect(chip).toContain('white-space: normal');
-    expect(chip).not.toContain('text-overflow: ellipsis');
+    const chips = css.match(/\.master-plan-grid__chips \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(chips).toContain('white-space: nowrap');
+    expect(chips).toContain('overflow: hidden');
+    expect(chips).toContain('text-overflow: ellipsis');
   });
 });

@@ -1,3 +1,64 @@
+# HANDOFF — redesign-master-plan (QA R38 "mess vẫn live" — /dispatch cân đối cột + card mobile + 2 fix class trên detailed-plan)
+
+- Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/
+  1njkloyy/redesign-master-plan`, branch `redesign-master-plan` off main
+  `60d0c576` — SAU merge feat-gomhang-fe, đúng gate điều kiện của brief).
+  Last updated: 2026-10-23 chiều muộn. Issue card: 4rankng/silversea#12.
+- Goal: redesign Kế hoạch Tổng quát /dispatch theo pattern detailed-plan
+  (8a28c094) — THỜI GIAN ~110-130px @floor 1200, KHÁCH & TUYẾN vùng rộng
+  nhất, Nâng/Trả/Hàng 1 dòng + title tooltip, rows 70-93px THEO NỘI DUNG
+  (hết tower 96px), header line-clamp-2, mobile <640 card list, GIỮ nguyên
+  logic gộp hàng. STATUS: DONE — code + QA + gates xong, independent review
+  in flight lúc viết handoff (xem dưới).
+- Bắt thêm 2 DEFECT CLASS trên detailed-plan đã merge main (sweep §2):
+  1. `display: -webkit-box` trên `thead th` (8a28c094) làm header row SẬP
+     thành cột nhãn dọc (trunk :7175 đo spread=0) — clamp chuyển vào phần tử
+     con (`__th-label` span mới ở master; `__sort` button có sẵn ở detailed).
+  2. Wrapper rail `overflow-x: auto` là scroll container (overflow-y: clip
+     computes → hidden) giết thead sticky theo app-body trên CẢ 2 board —
+     wrapper thành PANE bounded (`overflow: auto` + `max-height:
+     calc(100dvh - var(--topbar-h) - 72px)`), thead sticky top 0 trong pane,
+     `--cards` variant reset. Lưu ý cho session sau: ĐỪNG bỏ max-height của
+     pane và ĐỪNG đặt -webkit-box/-webkit-line-clamp trực tiếp lên th — 2 pin
+     test chặn (DetailedPlanGrid.test.tsx, MasterPlanGrid.test.tsx).
+- Files owned: master-plan/MasterPlanGrid.tsx/.css (rewrite), MasterPlanCardList
+  .tsx/.test.tsx (NEW), MasterPlanCellValues.ts (NEW — grid re-export giữ import
+  surface cho masterPlanExport.ts + tests), dispatch/dispatch-row-menu.css (NEW
+  — generic kebab menu tách khỏi DetailedPlanGrid.css, 2 grid dùng chung),
+  detailed-plan/DetailedPlanGrid.css/.tsx (2 fix class), test pins cập nhật
+  (MasterPlanGrid.* styles/behavior, DetailedPlanGrid.test.tsx +
+  rowheights.styles). KHÔNG đụng BE/API/data-flow.
+- QA: `qa/2026-10-23-master-plan-redesign/` (README + coverage §9), driver
+  `qa/scripts/2026-10-23-master-plan-redesign.mjs` (env-only ports). BEFORE
+  :7175 (trunk = main 60d0c576): defect chốt — THỜI GIAN 177px, Cảng hạ 82px,
+  rows 116-117px, mobile td-cards 269-388px. AFTER :7184 (worktree FE, proxy
+  trunk BE :3002): 23/23 PASS — rows 69-90px ≤93 mọi VP table, THỜI GIAN
+  125px, header sticky + spread 1056/1104px, cards 390 + FB-014 tap, gộp hàng
+  D1-D5 rung 3 (dialog HỦY không lưu — DB 122/173 cost_group null trước/sau),
+  Phân xe sweep 20/5/20.
+- Gates: root lint 0 · fe tsc -b 0 · tsgo -b 0 · scoped master-plan+detailed
+  648/648 (sau review fixes) · FULL FE 5525/5525 (sau `make build` dist —
+  numeric-identity cần dist như HANDOFF trước) · make build 0 ·
+  dev-port-contract 11/11. design:drift: base (trunk) ĐỎ sẵn (baseline stale
+  2026-10-04); delta lane ≤ base MỌI counter, containerWidthValues 22→20
+  (xóa @container bands).
+- Independent code-review pass: DONE_WITH_CONCERNS → 5 finding fix trong
+  changeset (H1 notes-editor clip khi lỗi lưu + rung 3 force-500; M1 đo
+  borderBoxSize chống oscillation 640px scrollbar cổ điển — sweep cả
+  detailed-plan; M2 hasContainerDemand/formatCarrierAllocationChips về shared
+  MasterPlanCellValues; L1 DisabledActionTip card Hủy; L2 bỏ cast null);
+  L3 (touch-floor 640-900 table) chấp nhận có ý thức — pattern-consistent
+  với detailed board, ghi trong qa README.
+- Gotcha QA: API master-plan với date filter dùng transport-date arm — 12 lô
+  TBFL ngày 01/11 (containers không appointment day) bị loại khỏi board có
+  date; driver đo trên DEFAULT scope (20 rows page-1) cho cả 2 phase.
+- Non-goals: /dispatch-detail redesign khác (chỉ 2 fix class trên), CUS quyết
+  toán, role sweep, staging (owner NEVER), keyboard-nav menu ngoài react-aria.
+- Env: worktree FE :7184 + trunk BE :3002/DB :5441 của main checkout; KHÔNG
+  mutate data QA dùng chung (dialog gộp hàng hủy không lưu).
+
+---
+
 # HANDOFF — feat-gomhang-fe (spec 23/10 cards 231026123901/902/903 — FE gộp hàng on-demand)
 
 - Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/

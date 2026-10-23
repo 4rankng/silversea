@@ -277,8 +277,13 @@ describe('DetailedPlanGrid', () => {
 
     expect(headerRule).toContain('white-space: normal;');
     expect(headerRule).toContain('word-break: keep-all;');
-    expect(headerRule).toContain('-webkit-line-clamp: 2;');
     expect(headerRule).toContain('padding: 10px 8px;');
+    // Master-plan lane fix (same defect class): the -webkit-box clamp must
+    // NEVER ride on the th itself — it takes the cell out of table layout
+    // and the whole header row collapses into a vertical label stack (the
+    // live defect on this board). The clamp lives on INNER elements.
+    expect(headerRule).not.toContain('-webkit-line-clamp');
+    expect(headerRule).not.toContain('display: -webkit-box');
     const sortRule = css.match(/\.detailed-plan-grid__sort \{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(sortRule).toContain('-webkit-line-clamp: 2;');
   });
