@@ -118,9 +118,30 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expectNoClip(rules(css, /\.ops-bill-mobile-list__identity strong/));
   });
 
-  it('debit row customer names wrap (no 2-line clamp on the identity value)', () => {
+  it('debit board values truncate on ONE baseline with a tooltip (owner redesign 23/10 supersedes the wrap doctrine here)', () => {
+    // Owner spec v2 23/10 ("Tờ khai truncate 1 dòng + tooltip", "Mọi cell 1
+    // baseline ngang — hết vỡ dòng") supersedes law book §4's wrap doctrine
+    // FOR THIS BOARD: single-line cells, ellipsis + title tooltip, and the
+    // row stays 52px. The identity cell the old case pinned no longer exists
+    // (customer names moved to the group header, one Title-Case line).
     const css = read('src/pages/ShipmentDebitPage.css');
-    expectNoClip(rules(css, /\.shipment-debit-row__customer/));
+    const cell = rules(css, /\.shipment-debit-table td\s*\{/)[0];
+    expect(cell).toMatch(/white-space:\s*nowrap/);
+    expect(cell).toMatch(/text-overflow:\s*ellipsis/);
+    for (const oneLine of [
+      /\.shipment-debit-booking/,
+      /\.shipment-debit-lane/,
+      /\.shipment-debit-cell--customs__wrap/,
+    ]) {
+      const found = rules(css, oneLine);
+      expect(found.length).toBeGreaterThan(0);
+      for (const rule of found) {
+        expect(rule).toMatch(/white-space:\s*nowrap|overflow:\s*hidden/);
+        expect(rule).toMatch(/text-overflow:\s*ellipsis|overflow:\s*hidden/);
+      }
+    }
+    // The full value stays reachable: every truncating cell's markup rides a
+    // title tooltip (pinned by the page tests: booking/lane/customs cells).
   });
 
   it('config customer full names wrap in the compact-card render', () => {

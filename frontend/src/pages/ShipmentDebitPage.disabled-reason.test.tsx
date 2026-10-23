@@ -34,10 +34,10 @@ import { ShipmentDebitPage } from './ShipmentDebitPage';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import type { ShipmentDebitLotRow } from '../api/shipmentClient';
 
-/** Spec 23/10 (261023110000 §2) — the selection ticks are on-demand: the
- *  export-selection flows ride the SAME [📦 Gộp hàng] column reveal. */
-function openMergeMode() {
-  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
+/** Owner redesign 23/10 — the ticks are always on the board; selection flows
+ *  start directly from the leading checkbox / row click. */
+function tickLot(labelText: string) {
+  fireEvent.click(screen.getAllByText(labelText)[0].closest('tr')!);
 }
 
 function renderPage(initialEntry = '/shipments-debit') {
@@ -131,8 +131,7 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     await screen.findAllByText('BL-1');
-    openMergeMode();
-    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
+    tickLot('BL-1');
 
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' });
     fireEvent.click(button);
@@ -153,8 +152,7 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     await screen.findAllByText('BL-1');
-    openMergeMode();
-    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
+    tickLot('BL-1');
 
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' });
     expect(button).not.toHaveAttribute('aria-disabled');
@@ -167,38 +165,56 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     expect(createBatch).toHaveBeenCalledWith([101]);
   });
 
-  it('Xóa lọc explains the empty-filters disable and clears when a filter is active', () => {
+  it('Xóa bộ lọc explains the empty-filters disable and clears (counting every applied criterion)', () => {
     const onClear = vi.fn();
     const base = {
-      // Owner 2026-10-17: the customer picker rides the strip but stays OUT of
-      // the strip's own filter logic — `Xóa lọc` still owns from/to/lock only
-      // (layout move, not a filter-semantics change).
       customerValue: '',
       customerOptions: [],
       onCustomerChange: vi.fn(),
       onLockChange: vi.fn(),
       onDeliveryRangeChange: vi.fn(),
-      onResetSecondary: vi.fn(),
       onClear,
     };
-    const wrap = (deliveryFrom: string) => (
+    const wrap = (appliedCount: number) => (
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <ToastProvider>
-          <ShipmentDebitRibbon deliveryFrom={deliveryFrom} deliveryTo="" lockStatus="ALL" {...base} />
+          <ShipmentDebitRibbon deliveryFrom="" deliveryTo="" lockStatus="ALL" appliedCount={appliedCount} {...base} />
         </ToastProvider>
       </QueryClientProvider>
     );
-    const view = render(wrap(''));
-    const button = screen.getByRole('button', { name: 'Xóa lọc' });
+    // Nothing applied: the tip explains why the clear action is inert.
+    const view = render(wrap(0));
+    const button = screen.getByRole('button', { name: 'Xóa bộ lọc' });
     expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getAllByText('Chưa có bộ lọc nào để xóa.').length).toBeGreaterThan(0);
     fireEvent.click(button);
     expect(onClear).not.toHaveBeenCalled();
 
-    view.rerender(wrap('2026-10-01'));
-    const armed = screen.getByRole('button', { name: 'Xóa lọc' });
+    // Applied criteria arm the action and the label carries the live count
+    // (owner spec v2 (d): badge đếm 'Xóa bộ lọc (N)').
+    view.rerender(wrap(3));
+    const armed = screen.getByRole('button', { name: 'Xóa bộ lọc (3)' });
     expect(armed).not.toHaveAttribute('aria-disabled');
     fireEvent.click(armed);
     expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  it('Gộp hàng (redesign 23/10) explains the ≥2-pick prerequisite on the action bar', async () => {
+    listSummary.mockResolvedValue({
+      items: [row({ cargoMode: 'LCL' }), row({ shipmentId: 102, code: 'SHP-26-0002', billOrBookNumber: 'BL-2', cargoMode: 'LCL' })],
+      total: 2,
+    });
+    renderPage('/shipments-debit?customer=1');
+    await screen.findAllByText('BL-1');
+
+    const merge = screen.getByRole('button', { name: 'Gộp hàng' });
+    expect(merge).toHaveAttribute('aria-disabled', 'true');
+    expect(reasonOf(merge)).toBe('Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.');
+    tickLot('BL-1');
+    expect(screen.getByRole('button', { name: 'Gộp hàng' })).toHaveAttribute('aria-disabled', 'true');
+    tickLot('BL-2');
+    expect(screen.getByRole('button', { name: 'Gộp hàng' })).not.toHaveAttribute('aria-disabled');
+    // The GP-01 selection clause rides the action row while anything is picked.
+    expect(screen.getByText(/Đang chọn 2 lô/)).toBeTruthy();
   });
 });

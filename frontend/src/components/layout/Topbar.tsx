@@ -175,7 +175,11 @@ function Topbar({
   // CHIEF ruling (27/09): config and master-data catalog views are
   // period-independent asset inventories — the global month navigator is
   // noise there and is hidden (config/*, fleet/*, dispatch/catalogs/*).
-  const isPeriodIndependentView = /^\/(config|fleet)(\/|$)|^\/dispatch\/catalogs/.test(location.pathname);
+  // Owner redesign 23/10 (audit #4: "3 cơ chế ngày chồng nhau") — the quyết
+  // toán board owns its own date range (the unified range picker), so the
+  // global month chip is a dead 4th date mechanism there. Hidden on the
+  // route only; every period-driven surface keeps it.
+  const isPeriodIndependentView = /^\/(config|fleet)(\/|$)|^\/dispatch\/catalogs|^\/shipments-debit/.test(location.pathname);
   const topbarRef = useTopbarEntrance();
   const navigate = useNavigate();
   const { searchQuery, setSearchQuery } = useSearch();

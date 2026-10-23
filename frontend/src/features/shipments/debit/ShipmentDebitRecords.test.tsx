@@ -68,7 +68,7 @@ function renderOnPhone(rows: ShipmentDebitLotRow[], over: Partial<Parameters<typ
   viewport(390);
   return render(
     <ShipmentDebitRecords
-      rows={rows} canManage={false} mergeMode={false} selectedIds={new Set()} expandedId={null}
+      rows={rows} canManage={false} selectedIds={new Set()} expandedId={null}
       onSelect={vi.fn()} onToggle={vi.fn()} onSaved={vi.fn()}
       {...over}
     />,
@@ -128,22 +128,39 @@ describe('BD-01 (161026204709) — the merged 100%/0₫ lane stays on the card f
     expect(within(record).queryByText(/Ghép cước/)).toBeNull();
   });
 
-  // Spec 23/10 (261023110000 §2) — the phone cards read the on-demand law
-  // too: no tick while the mode is off, every lot tickable once it's on.
-  it('spec 23/10 §2: the card tick exists only while the [📦 Gộp hàng] mode is on', async () => {
+  // Owner redesign 23/10 — the ticks are ALWAYS on the phone cards for a
+  // managing user (no on-demand mode left); a read-only user gets none.
+  it('redesign 23/10: the card tick is always present for canManage, absent read-only', async () => {
     const rows = [factRow({ shipmentId: 203, billOrBookNumber: 'BL-S', code: 'SHP-26-0203' })];
     const onSelect = vi.fn();
-    const first = renderOnPhone(rows, { canManage: true, onSelect });
+    const first = renderOnPhone(rows, { onSelect });
     const record = await screen.findByRole('article', { name: 'BL-S' });
     expect(within(record).queryByRole('checkbox')).toBeNull();
     first.unmount();
 
-    renderOnPhone(rows, { canManage: true, mergeMode: true, onSelect });
+    renderOnPhone(rows, { canManage: true, onSelect });
     const tick = await screen.findByRole('checkbox', { name: /Chọn BL-S/ });
-    // Any lot is selectable once the mode is on: the ticks feed BOTH the
-    // merge and the Debit-Note export (the old locked-only gate died with
-    // the always-on tick).
+    // Any lot is selectable: the ticks feed BOTH the merge and the Debit-Note
+    // export (the old locked-only gate died with the always-on tick).
     fireEvent.click(tick);
     expect(onSelect).toHaveBeenCalledWith(203, true);
+  });
+
+  // Owner redesign 23/10 (spec v2 (c)) — the money facts carry the board's
+  // three states; the banned 'Chưa xác định' string is gone for good.
+  it('redesign 23/10 (c): money facts render number | 0 | Chờ số liệu — never "Chưa xác định"', async () => {
+    renderOnPhone([
+      factRow({ shipmentId: 204, billOrBookNumber: 'BL-N', code: 'SHP-26-0204', receivableTotal: 4200000, payableTotal: 0, profit: null }),
+    ]);
+    const record = await screen.findByRole('article', { name: 'BL-N' });
+    const receivable = laneFact(record, 'Doanh thu');
+    expect(receivable.textContent).toContain('4.200.000');
+    const payable = laneFact(record, 'Tổng chi');
+    expect(within(payable).getByText('0')).toBeTruthy();
+    expect(within(payable).getByText('0').getAttribute('title')).toBe('Phát sinh nhưng tổng bằng 0');
+    const profit = laneFact(record, 'Lợi nhuận');
+    expect(within(profit).getByText('Chờ số liệu')).toBeTruthy();
+    expect(within(profit).getByText('Chờ số liệu').getAttribute('title')).toBe('Chưa chốt — đang chờ số liệu đối soát');
+    expect(screen.queryByText('Chưa xác định')).toBeNull();
   });
 });

@@ -597,3 +597,33 @@ includes phones in landscape); the iOS dynamic-viewport growth slack is
 shell-wide and transient.
 *Source:* owner phone report 2026-10-16 21:07 SGT, screenshot
 `img_4391901f3bfc.jpg`.
+
+**Ruling 2026-10-23 (owner redesign messages 23/10 — "UI UX layout shitty" +
+spec v2 1819).** The `/shipments-debit` settlement board is redesigned under
+an owner-approved spec that supersedes three earlier laws ON THAT SURFACE
+ONLY (authority order: explicit current user decision over dated rulings):
+1. *One unified date range picker.* The 2026-09-27 "two separate from/to
+   fields, no daterangepicker" ruling is superseded on this surface by the
+   Unified Date Range Picker (280×36 trigger, popover = preset rail + dual-
+   month calendar, auto-apply) — `design-system/forms/UnifiedDateRangePicker`.
+   `DateRangeFields` remains the primitive everywhere else. The topbar month
+   chip is hidden on the route (Topbar.tsx `isPeriodIndependentView`) so no
+   fourth date mechanism exists.
+2. *Single-line truncate + tooltip replaces the wrap doctrine on this board*
+   (law §4's no-truncation doctrine): every L1 cell keeps one baseline
+   (52px rows), ellipsis + `title` tooltip; the old identity cell (customer
+   ALL-CAPS per row) is gone — customers group under one Title-Case sticky
+   header. Enforcement: `table-no-truncation.styles.test.ts` debit case
+   rewritten to pin the truncate law instead of the wrap law.
+3. *Uppercase 12px tracking-.02em one-line headers* on the board's thead
+   (money headers right-aligned to match data, currency ₫ fixed in the
+   header, data renders bare #,##0) — allowlisted in
+   `workboard-standard.styles.test.ts`.
+Also landed with the spec: three-state money cells (number | '0' |
+'Chờ số liệu' pill — 'Chưa xác định' banned from money cells), group headers
+sticky under the thead inside a bounded scroll pane with a sticky totals
+foot (the pane law the dispatch grids landed the same day), permanent
+Checkbox column + action-bar [Gộp hàng] (layers icon, no emoji) replacing
+the on-demand merge mode, and the ⋯ kebab as the row's ONE action affordance
+(no standalone KHÓA LÔ HÀNG button mid-layout).
+*Source:* owner screenshots + audit 23/10, spec final v2 message 1819 SGT.

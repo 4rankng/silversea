@@ -97,7 +97,7 @@ beforeEach(() => {
 });
 
 describe('F-2 — Cước vận tải (Auto) đọc kênh ghi đè (ruling b)', () => {
-  it('renders the member 0₫ with the "Ghép cước cùng Bill" note beneath the money', async () => {
+  it('renders the member 0₫ with the "Ghép cước cùng Bill" marker on the money cell', async () => {
     listSummary.mockResolvedValue({
       items: [
         lclRow({
@@ -118,30 +118,31 @@ describe('F-2 — Cước vận tải (Auto) đọc kênh ghi đè (ruling b)', 
     renderPage();
     await screen.findAllByText('BL-P');
 
-    const note = screen.getByText('Ghép cước cùng Bill BL-P');
-    expect(note.tagName).toBe('SMALL');
-    // The note rides INSIDE the member's Cước vận tải (Auto) cell, under the
-    // formatted 0₫ — not somewhere else on the row.
-    const cell = note.closest('td')!;
+    // Redesign 23/10: the note is a one-glyph marker on the Doanh thu cell
+    // (one baseline per cell) with the full reason in its tooltip.
+    const marker = screen.getByTitle('Ghép cước cùng Bill BL-P');
+    expect(marker.getAttribute('aria-label')).toBe('Ghi chú cước: Ghép cước cùng Bill BL-P');
+    const cell = marker.closest('td')!;
+    expect(cell.getAttribute('data-col')).toBe('receivable');
+    // The member's money reads the real computed 0 (đã tính, = 0).
     expect(cell.textContent).toContain('0');
-    expect(screen.queryByText('Ghép cước cùng Bill BL-P', { selector: 'small:not(.shipment-debit-row__freight-note)' })).toBeNull();
 
-    // The principal carries 100% and NO note (the snapshot-look of the cell
+    // The principal carries 100% and NO marker (the snapshot-look of the cell
     // is unchanged when the override channel set no stamp).
     const principalRow = screen.getAllByText('BL-P')[0]!.closest('tr')!;
-    expect(principalRow.querySelector('.shipment-debit-row__freight-note')).toBeNull();
+    expect(principalRow.querySelector('.shipment-debit-money__note')).toBeNull();
     expect(principalRow.textContent).toContain('3.150.000');
   });
 
-  it('renders no note when the snapshot channel produced the freight', async () => {
+  it('renders no marker when the snapshot channel produced the freight', async () => {
     listSummary.mockResolvedValue({
-      items: [lclRow({ shipmentId: 203, billOrBookNumber: 'BL-S', code: 'SHP-26-0203', freightAuto: 1234000 })],
+      items: [lclRow({ shipmentId: 203, billOrBookNumber: 'BL-S', code: 'SHP-26-0203', freightAuto: 1234000, receivableTotal: 1234000 })],
       total: 1,
     });
     renderPage();
     await screen.findAllByText('BL-S');
-    expect(screen.getByText('1.234.000')).toBeTruthy();
-    expect(document.querySelector('.shipment-debit-row__freight-note')).toBeNull();
+    expect(screen.getAllByText('1.234.000').length).toBeGreaterThan(0);
+    expect(document.querySelector('.shipment-debit-money__note')).toBeNull();
   });
 });
 

@@ -26,6 +26,7 @@ const THEAD_CASE_ALLOWLIST = [
   'src/pages/config/config-page.css', // pre-existing CrudTable family skin
   'src/pages/config/debit-note-template-editor.css', // pre-existing editor preview
   'src/pages/ForwarderTripsPage.css', // dead CSS kept by a stale test (see memory) — fork is moot
+  'src/pages/ShipmentDebitPage.css', // owner redesign 23/10: uppercase 12px tracking .02em one-line headers (spec v2 KHUNG)
 ];
 
 function cssFiles(dir: string): string[] {

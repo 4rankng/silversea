@@ -1,8 +1,12 @@
 /**
  * FB-093 — CUS "Ghép cước thu khách" on Chi phí - Quyết toán: OPEN lots are
- * selectable (merging is pre-lock), the merge button arms on ≥2 ungrouped LCL
- * lots, the same-customer gate blocks mixed selections, and the expanded lot
- * shows the LCL facts strip (THÔNG SỐ CONTAINER / PHÂN XE / group notes).
+ * selectable (merging is pre-lock), the [Gộp hàng] action-bar button arms on
+ * ≥2 ungrouped LCL picks, the same-customer gate blocks mixed selections, and
+ * the expanded lot shows the LCL facts strip.
+ *
+ * Owner redesign 23/10: the on-demand [📦 Gộp hàng] mode is GONE — the ticks
+ * ride a permanent Checkbox column and the merge CTA lives on the table
+ * action bar (secondary, layers icon) beside [Xuất Debit Note].
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
@@ -104,14 +108,20 @@ beforeEach(() => {
   listSummary.mockResolvedValue({ items: [], total: 0 });
 });
 
-/** Spec 23/10 (261023110000 §2) — the CHỌN ticks are on-demand: every
- *  selection flow now starts by flipping the strip's [📦 Gộp hàng]. */
-function openMergeMode() {
-  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
-}
+/** Redesign 23/10 — no mode to flip: the row click IS the pick. */
+const pickLot = (label: string) => {
+  fireEvent.click(screen.getAllByText(label)[0].closest('tr')!);
+};
+
+/** Redesign 23/10 — L2 expansion rides the ⋯ kebab. */
+const openLot = async (label: string) => {
+  const row = screen.getAllByText(label)[0].closest('tr')!;
+  fireEvent.click(within(row).getByRole('button', { name: `Hành động lô ${label}` }));
+  fireEvent.click(await screen.findByRole('menuitem', { name: `Mở chi tiết lô ${label}` }));
+};
 
 describe('FB-093 — Ghép cước thu khách', () => {
-  it('hides the ticks by default and arms the floating-bar merge CTA at ≥2 ungrouped lots (spec 23/10 §2)', async () => {
+  it('always shows the ticks and arms the action-bar [Gộp hàng] at ≥2 ungrouped lots (redesign 23/10)', async () => {
     listSummary.mockResolvedValue({
       items: [
         lclRow(),
@@ -122,26 +132,24 @@ describe('FB-093 — Ghép cước thu khách', () => {
     renderPage();
     await screen.findAllByText('BL-1');
 
-    // Default: no tick anywhere, no floating bar.
-    expect(screen.queryByRole('checkbox', { name: /Chọn lô/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Gộp xe thu khách' })).toBeNull();
-
-    openMergeMode();
-
-    // OPEN lots select now — merging is a pre-lock action.
-    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
-    // One pick: the floating bar is up and the CTA explains itself.
-    const cta = screen.getByRole('button', { name: 'Gộp xe thu khách' });
+    // Default: the ticks are permanently on (no on-demand mode anymore) and
+    // the merge CTA explains itself until the picks are valid.
+    expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeTruthy();
+    const cta = screen.getByRole('button', { name: 'Gộp hàng' });
     expect(cta.getAttribute('aria-disabled')).toBe('true');
-    expect(screen.getByText('Đang chọn 1 lô')).toBeTruthy();
-    expect(screen.getByText(/Lô 1 giữ 100% tiền thu khách: BL-1/)).toBeTruthy();
 
-    fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
-    // Re-query inside the wait: the bar re-renders with the new count.
+    // OPEN lots select — merging is a pre-lock action.
+    pickLot('BL-1');
+    // One pick: the selection clause is up; the CTA still explains itself.
+    expect(screen.getByText(/Đang chọn 1 lô/)).toBeTruthy();
+    expect(screen.getByText(/Lô 1 giữ 100% tiền thu khách: BL-1/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Gộp hàng' }).getAttribute('aria-disabled')).toBe('true');
+
+    pickLot('BL-2');
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Gộp xe thu khách' }).getAttribute('aria-disabled')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Gộp hàng' }).getAttribute('aria-disabled')).toBeNull();
     });
-    expect(screen.getByText('Đang chọn 2 lô')).toBeTruthy();
+    expect(screen.getByText(/Đang chọn 2 lô/)).toBeTruthy();
   });
 
   it('blocks mixed-customer selections in the dialog and merges same-customer lots', async () => {
@@ -155,21 +163,18 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
-    openMergeMode();
-    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
-    fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
-    fireEvent.click(screen.getAllByText('BL-3')[0].closest('tr')!);
-    fireEvent.click(screen.getByRole('button', { name: 'Gộp xe thu khách' }));
+    pickLot('BL-1');
+    pickLot('BL-2');
+    pickLot('BL-3');
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng' }));
 
     // Same-customer gate names the conflict before any request leaves.
     expect(await screen.findByText(/cùng một khách hàng/)).toBeTruthy();
     expect(mergeRev).not.toHaveBeenCalled();
 
-    // Drop the foreign lot; the merge proceeds in operator order (Lô 1 = BL-1).
-    fireEvent.click(screen.getAllByText('BL-3')[0].closest('tr')!);
-    // The bar CTA is the FIRST 'Gộp xe thu khách' button in the DOM (the
-    // dialog's submit rides the body portal after it).
-    fireEvent.click(screen.getAllByRole('button', { name: 'Gộp xe thu khách' })[0]!);
+    // Drop the foreign lot (the dialog's rows follow the live selection);
+    // the merge proceeds in operator order (Lô 1 = BL-1).
+    pickLot('BL-3');
     const dialog = await screen.findByRole('dialog');
     const lots = within(dialog).getAllByRole('listitem');
     expect(lots[0]!.textContent).toContain('Lô 1 · BL-1');
@@ -195,7 +200,7 @@ describe('FB-093 — Ghép cước thu khách', () => {
     })));
   });
 
-  // ── Card 161026232359 — the desktop tick + the [Gộp xe thu khách] gate ──
+  // ── Card 161026232359 — the permanent leading tick ──
   it('gives every desktop row a leading checkbox that ticks exactly that lot (card 161026232359)', async () => {
     listSummary.mockResolvedValue({
       items: [lclRow(), lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002' })],
@@ -203,13 +208,12 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
-    openMergeMode();
 
     const rowA = screen.getAllByText('BL-1')[0]!.closest('tr')!;
     const rowB = screen.getAllByText('BL-2')[0]!.closest('tr')!;
     const checkA = within(rowA).getByRole('checkbox', { name: 'Chọn lô BL-1' });
     const checkB = within(rowB).getByRole('checkbox', { name: 'Chọn lô BL-2' });
-    // The tick IS the first cell's content (tick beside [+], no tenth column).
+    // The tick IS the first cell's content (the Checkbox column, redesign v2).
     expect(rowA.querySelector('td')).toBe(checkA.closest('td'));
     expect(rowB.querySelector('td')).toBe(checkB.closest('td'));
 
@@ -229,37 +233,33 @@ describe('FB-093 — Ghép cước thu khách', () => {
     fireEvent.click(rowB);
     expect(rowB.getAttribute('data-selected')).not.toBeNull();
     expect(within(rowB).getByRole('checkbox', { name: 'Chọn lô BL-2' })).toBeChecked();
-
-    // Leaving the mode clears the picks and hides the ticks again (§2).
-    fireEvent.click(screen.getByRole('button', { name: '✕ Thoát gộp hàng' }));
-    expect(screen.queryByRole('checkbox', { name: /Chọn lô/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Gộp xe thu khách' })).toBeNull();
   });
 
-  it('arms Gộp xe thu khách from the checkbox picks and keeps the tick across expand/collapse (card 161026232359)', async () => {
+  it('arms Gộp hàng from the checkbox picks and keeps the tick across expand/collapse (card 161026232359)', async () => {
     listSummary.mockResolvedValue({
       items: [lclRow(), lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002' })],
       total: 2,
     });
     renderPage();
     await screen.findAllByText('BL-1');
-    openMergeMode();
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
-    expect(screen.getByRole('button', { name: 'Gộp xe thu khách' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Gộp hàng' })).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Gộp xe thu khách' })).not.toHaveAttribute('aria-disabled');
+      expect(screen.getByRole('button', { name: 'Gộp hàng' })).not.toHaveAttribute('aria-disabled');
     });
 
     // Criterion 3 — the tick is the row's own state, not a transient highlight.
-    fireEvent.click(screen.getByRole('button', { name: 'Mở chi tiết lô BL-1' }));
+    await openLot('BL-1');
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeChecked();
-    fireEvent.click(screen.getByRole('button', { name: 'Đóng chi tiết lô BL-1' }));
+    const row = screen.getAllByText('BL-1')[0].closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: 'Hành động lô BL-1' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Đóng chi tiết lô BL-1' }));
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeChecked();
 
     // …and the dialog opens with exactly those two picks, in click order.
-    fireEvent.click(screen.getByRole('button', { name: 'Gộp xe thu khách' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng' }));
     const dialog = await screen.findByRole('dialog');
     const lots = within(dialog).getAllByRole('listitem');
     expect(lots[0]!.textContent).toContain('Lô 1 · BL-1');
@@ -277,11 +277,10 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
-    openMergeMode();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-3' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Gộp xe thu khách' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng' }));
     expect(await screen.findByText(/cùng một khách hàng/)).toBeTruthy();
     expect(mergeRev).not.toHaveBeenCalled();
   });
@@ -298,11 +297,10 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
-    openMergeMode();
     // Row-click selection (the kept alias) — this red pins the OPTION LIST.
-    fireEvent.click(screen.getAllByText('BL-1')[0]!.closest('tr')!);
-    fireEvent.click(screen.getAllByText('BL-2')[0]!.closest('tr')!);
-    fireEvent.click(screen.getByRole('button', { name: 'Gộp xe thu khách' }));
+    pickLot('BL-1');
+    pickLot('BL-2');
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng' }));
     const dialog = await screen.findByRole('dialog');
 
     // Class pick (required) then BKS báo khách = the dialog's second combobox.
@@ -345,11 +343,11 @@ describe('FB-093 — Ghép cước thu khách', () => {
     })));
 
     // Criterion 6 — the value is re-displayed on the merged lots afterwards
-    // (the merge exits the on-demand mode, so the strip reopens via expand).
-    fireEvent.click(await screen.findByRole('button', { name: /Mở chi tiết lô BL-1/ }));
+    // (the merge completes and DROPS the selection; expansion rides the kebab).
+    await openLot('BL-1');
     expect(await screen.findByText(/Báo khách \(Ảo\): 29C-111\.22/)).toBeTruthy();
-    // Spec 23/10 §4.2 — finishing the merge exited the on-demand mode.
-    expect(screen.queryByRole('checkbox', { name: /Chọn lô/ })).toBeNull();
+    // Finishing the merge cleared the picks (the ticks stay, unchecked).
+    expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).not.toBeChecked();
   });
 
   it('still submits a free-typed BKS báo khách with the merge (card 161026232409)', async () => {
@@ -359,11 +357,9 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
-    openMergeMode();
-    // Row-click selection (the kept alias) — this red pins the OPTION LIST.
-    fireEvent.click(screen.getAllByText('BL-1')[0]!.closest('tr')!);
-    fireEvent.click(screen.getAllByText('BL-2')[0]!.closest('tr')!);
-    fireEvent.click(screen.getByRole('button', { name: 'Gộp xe thu khách' }));
+    pickLot('BL-1');
+    pickLot('BL-2');
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng' }));
     const dialog = await screen.findByRole('dialog');
 
     const classCombo = within(dialog).getAllByRole('combobox')[0]!;
@@ -402,7 +398,7 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
-    fireEvent.click(screen.getByRole('button', { name: /Mở chi tiết lô BL-1/ }));
+    await openLot('BL-1');
 
     expect(await screen.findByText('Lô lẻ | Thu: Xe 3.5T | Trả: Xe 10T')).toBeTruthy();
     expect(screen.getByText(/Báo khách \(Ảo\): 30C-999\.99/)).toBeTruthy();
@@ -413,9 +409,9 @@ describe('FB-093 — Ghép cước thu khách', () => {
     expect(screen.getByText('Ghép cước cùng Bill BL-9').getAttribute('title')).toBe('Ghép cước cùng Bill BL-9');
   });
 
-  // ── GP-01 (testplan/2026-10-23-gomhang-polish.md) — the CUS floating bar
-  // wires total tấn/CBM like the ĐV bar ("Đang chọn N lô: Tổng X tấn | Y CBM").
-  it('GP-01: floating bar sums the wire cargo measures — "Tổng X tấn | Y CBM" như bar ĐV', async () => {
+  // ── GP-01 (testplan/2026-10-23-gomhang-polish.md) — the action-bar clause
+  // wires total tấn/CBM like the ĐV bar ("Đang chọn N lô · Tổng X tấn | Y CBM").
+  it('GP-01: the selection clause sums the wire cargo measures — "Tổng X tấn | Y CBM" như bar ĐV', async () => {
     listSummary.mockResolvedValue({
       items: [
         lclRow({ cargoWeightKg: '1922.00', cargoVolumeCbm: '4.000' }),
@@ -425,14 +421,11 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
-    openMergeMode();
-    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
-    fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
+    pickLot('BL-1');
+    pickLot('BL-2');
 
-    const totals = await screen.findByText(
-      (_, element) => element?.classList.contains('lcl-selection-bar__totals') ?? false,
-    );
-    expect(totals.textContent).toMatch(/^Đang chọn 2 lô: Tổng /);
+    const totals = await screen.findByText(/Đang chọn 2 lô/);
+    expect(totals.classList.contains('shipment-debit-header__selection')).toBe(true);
     // 1922 + 778 kg = 2,7 tấn; 4 + 3,5 CBM.
     expect(totals.textContent).toContain('2,7 tấn');
     expect(totals.textContent).toContain('7,5 CBM');
@@ -448,19 +441,17 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
-    openMergeMode();
-    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
-    fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
+    pickLot('BL-1');
+    pickLot('BL-2');
 
-    const totals = await screen.findByText(
-      (_, element) => element?.classList.contains('lcl-selection-bar__totals') ?? false,
-    );
-    expect(totals.textContent).toBe('Đang chọn 2 lô: Tổng 1 tấn');
+    const totals = await screen.findByText(/Đang chọn 2 lô/);
+    expect(totals.textContent).toBe('Đang chọn 2 lô · Tổng 1 tấn — Lô 1 giữ 100% tiền thu khách: BL-1');
   });
 
-  // ── GP-02 — the "Ghép thu cước cùng Lô 1" tag keeps its wire meaning but
-  // renders as ONE truncated line with the full text in the tooltip.
-  it('GP-02: tag "Ghép thu cước cùng Lô 1" = 1 dòng truncate + title toàn văn', async () => {
+  // ── GP-02 — the "Ghép thu cước cùng Lô 1" wire reason rides the money cell
+  // as a one-glyph marker with the full text in its tooltip (redesign 23/10:
+  // one baseline per cell), and the NHÓM GHÉP strip keeps the one-line law.
+  it('GP-02: reason "Ghép thu cước cùng Lô 1" = marker 1 dòng + title toàn văn', async () => {
     listSummary.mockResolvedValue({
       items: [lclRow({
         freightAuto: 0,
@@ -471,14 +462,12 @@ describe('FB-093 — Ghép cước thu khách', () => {
     renderPage();
     await screen.findAllByText('BL-1');
 
-    const tag = screen.getByText('Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu');
-    expect(tag.className).toContain('shipment-debit-row__freight-note');
-    expect(tag.getAttribute('title')).toBe('Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu');
+    const marker = screen.getByRole('img', { name: 'Ghi chú cước: Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu' });
+    expect(marker.getAttribute('title')).toBe('Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu');
     // The one-line law lives in the page CSS (nowrap + ellipsis), pinned here
     // so the tag can never reflow to a second line — for BOTH the money-cell
     // note and the NHÓM GHÉP strip's group notes.
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
-    expect(css).toMatch(/\.shipment-debit-row__freight-note\s*\{[^}]*white-space:\s*nowrap;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/);
     expect(css).toMatch(/\.debit-lot-lcl-facts__groups em\s*\{[^}]*white-space:\s*nowrap;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/);
   });
 });
