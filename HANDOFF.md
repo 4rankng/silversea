@@ -44,10 +44,14 @@
   scroll trong container, sticky actions khi scroll, page không overflow;
   DB identity trước/sau không đổi (n=186). Case testplan/
   2026-10-23-dispatch-grid-redesign.md.
-- Gates: lint 0 · FE tsc -b 0 · tsgo -b 0 · scoped detailed-plan 399/399 ·
-  dispatch-feature 76 files 689/689 · page tests (delete-lot, lcl-unmerge)
-  xanh · full FE + make build: xem mục Gates cuối handoff (chạy tại thời điểm
-  land). BE không đổi → BE gates không đụng.
+- Gates (final, logs trong qa/2026-10-23-dispatch-grid-redesign/): lint 0 ·
+  FE tsc -b 0 · tsgo -b 0 · scoped detailed-plan 399/399 · dispatch-feature
+  76 files 689/689 · FULL FE 714 files 5506/5506 PASS (sau `make build` dist)
+  · make build 0. design:drift ĐỎ ở base (nợ baseline stale, stash-verified);
+  delta lane ≤ base. dev-port-contract đỏ ở base do comment script lane
+  create-field-order (7176) — fixed drive-by trong changeset (comment →
+  placeholder). BE không đổi → BE gates không đụng. Commit 8a28c094 pushed
+  origin/redesign-dispatch-grid.
 - Env verify: worktree FE :7182 (VITE proxy :3002), DB chung :5441; trunk
   :3002/:7175 của main checkout không đụng. Không mutate data QA dùng chung.
 - Non-goals: master plan /dispatch; role sweep khác; staging; keyboard-nav
