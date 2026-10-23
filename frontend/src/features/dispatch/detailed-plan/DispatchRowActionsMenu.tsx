@@ -1,9 +1,20 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link2, MoreHorizontal, PencilLine, Repeat, Shuffle, Trash2, Unlink } from 'lucide-react';
+import { CheckCircle2, Link2, MoreHorizontal, PencilLine, Repeat, Shuffle, Trash2, Unlink } from 'lucide-react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { billBookingReference } from '../../../lib/business-reference';
+import { detailRowKey } from './DispatchPlanCellValues';
+
+/** Issue #13 (card 3-dòng) — a card-body tap opens this menu without the
+ *  ⋯ trigger (unissued cards show the paper-plane slot instead). The anchor
+ *  rect is captured at tap time: the portalled list is fixed-positioned, so
+ *  click-time viewport coordinates are the correct geometry. */
+export interface RowMenuOpenRequest {
+  key: string;
+  nonce: number;
+  anchorRect?: { top: number; left: number; right: number; bottom: number } | null;
+}
 
 /** Menu geometry — fixed-positioned at body level so no table-cell clipping
  *  (`.detailed-plan-grid__cell-body` is a shared overflow:hidden band) can
@@ -38,8 +49,16 @@ const MENU_DANGER_BLOCK_H = 46;
  * The list renders through a body portal in FIXED viewport coordinates —
  * table cells clip absolute dropdowns. Completed rows are frozen history:
  * no menu at all.
+ *
+ * Issue #13 (card 3-dòng, owner + Gemini consult 23/10 tối): the phone card's
+ * single-action slot drives this menu two ways — the visible ⋯ trigger
+ * (issued/unassigned cards), or `triggerless` + `openRequest` when the slot
+ * shows the paper-plane instead (unissued cards open the same menu by
+ * tapping the card's 3-line info block). "Hoàn thành" rides the menu for
+ * external live trips so the old foot button could be removed without
+ * losing the staff close flow.
  */
-export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot }: {
+export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, triggerless = false, openRequest, onOpenRequestConsumed }: {
   row: DispatchDetailPlanRow;
   /** Opens the row's plan editor (the grid routes it to the cell's signal). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
@@ -54,6 +73,19 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   onUnmergeLclGroup?: (groupId: string) => void;
   /** Card 211026005623 — the page's delete flow (confirm + lý do + role law). */
   onDeleteLot?: (row: DispatchDetailPlanRow) => void;
+  /** Issue #13 (card 3-dòng) — external live trips close from the menu on
+   *  the phone card (the single-action slot replaces the old foot button);
+   *  external drivers don't use the app, so this surface is the only one
+   *  that can complete their trips (feedback 2026-09-08). */
+  onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
+  /** Issue #13 — render no ⋯ trigger (the card's single-action law: the slot
+   *  shows the paper-plane instead); the menu still mounts so the card-body
+   *  signal can open it. */
+  triggerless?: boolean;
+  /** Card-body tap signal (same nonce pattern the editor cell consumes). */
+  openRequest?: RowMenuOpenRequest | null;
+  /** Clears the caller's pending signal once consumed. */
+  onOpenRequestConsumed?: () => void;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -76,34 +108,54 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
     && !row.dispatch.pairKind
     && row.dispatch.tripStatus !== 'CANCELED';
   const canUnmergeGroup = onUnmergeLclGroup != null && lclGroup != null && lclGroup.order === 1;
-
-  // Completed rows are frozen history — no menu, no dead triggers.
-  if (row.taskStatus === 'COMPLETED') {
-    return null;
-  }
+  const canCompleteExternal = onCompleteExternalTrip != null
+    && row.dispatch.carrierType === 'EXTERNAL'
+    && row.dispatch.tripId != null
+    && row.taskStatus === 'DISPATCHED';
 
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
-  const itemCount = 1 + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
+  const itemCount = 1 + (canCompleteExternal ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
   const menuHeight = itemCount * MENU_ITEM_H + (onDeleteLot ? MENU_DANGER_BLOCK_H : 0) + 12;
+
+  const placeAt = (anchor: { top: number; left: number; right: number; bottom: number } | null | undefined) => {
+    if (!anchor) return;
+    const left = Math.max(VIEWPORT_PADDING, Math.min(anchor.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - VIEWPORT_PADDING));
+    const below = anchor.bottom + MENU_GAP;
+    // Not enough room below the row (viewport bottom) → open upward.
+    const top = below + menuHeight > window.innerHeight - VIEWPORT_PADDING
+      ? Math.max(VIEWPORT_PADDING, anchor.top - MENU_GAP - menuHeight)
+      : below;
+    setPlacement({ top, left });
+  };
 
   const toggle = () => {
     const next = !open;
     setOpen(next);
     if (next) {
-      const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) {
-        const left = Math.max(VIEWPORT_PADDING, Math.min(rect.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - VIEWPORT_PADDING));
-        const below = rect.bottom + MENU_GAP;
-        // Not enough room below the row (viewport bottom) → open upward.
-        const top = below + menuHeight > window.innerHeight - VIEWPORT_PADDING
-          ? Math.max(VIEWPORT_PADDING, rect.top - MENU_GAP - menuHeight)
-          : below;
-        setPlacement({ top, left });
-      }
+      placeAt(triggerRef.current?.getBoundingClientRect());
     } else {
       setPlacement(null);
     }
   };
+
+  // Issue #13 — the card body's tap signal opens the same menu the ⋯ trigger
+  // owns (nonce-guarded, exactly the editor cell's openRequest pattern). It
+  // must run before the completed early-return below: the hook count has to
+  // stay constant across the row's lifecycle states.
+  const openNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (openRequest == null || openRequest.nonce === openNonceRef.current) return;
+    openNonceRef.current = openRequest.nonce;
+    if (openRequest.key !== detailRowKey(row)) return;
+    onOpenRequestConsumed?.();
+    setOpen(true);
+    placeAt(openRequest.anchorRect ?? triggerRef.current?.getBoundingClientRect());
+  }, [openRequest, row, onOpenRequestConsumed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Completed rows are frozen history — no menu, no dead triggers.
+  if (row.taskStatus === 'COMPLETED') {
+    return null;
+  }
 
   const menu = open && placement && (
     <div
@@ -129,6 +181,20 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
           ? <><Shuffle size={14} aria-hidden="true" />Phân xe lại</>
           : <><PencilLine size={14} aria-hidden="true" />Sửa điều phối</>}
       </button>
+      {canCompleteExternal && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            onCompleteExternalTrip(row);
+          }}
+          title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
+        >
+          <CheckCircle2 size={14} aria-hidden="true" />
+          Hoàn thành
+        </button>
+      )}
       {lclGroup && (
         <button
           type="button"
@@ -191,18 +257,20 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
 
   return (
     <div className="dispatch-row-menu" data-dropdown-root={open ? '' : undefined}>
-      <button
-        ref={triggerRef}
-        type="button"
-        className="dispatch-row-menu__trigger"
-        aria-label={`Thao tác dòng · ${identity}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        title={`Thao tác · ${identity}`}
-        onClick={toggle}
-      >
-        <MoreHorizontal size={16} aria-hidden="true" />
-      </button>
+      {triggerless ? null : (
+        <button
+          ref={triggerRef}
+          type="button"
+          className="dispatch-row-menu__trigger"
+          aria-label={`Thao tác dòng · ${identity}`}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          title={`Thao tác · ${identity}`}
+          onClick={toggle}
+        >
+          <MoreHorizontal size={16} aria-hidden="true" />
+        </button>
+      )}
       {menu && createPortal(menu, document.body)}
     </div>
   );

@@ -1,14 +1,16 @@
+import { useEffect, useRef, useState } from 'react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { billBookingReference } from '../../../lib/business-reference';
+import { useToastOptional } from '../../../components/shared/Toast';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { LclSelectCheckbox } from '../LclSelectCheckbox';
 import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult, type IssueOrderResult } from './DispatchPlanEditorCell';
-import { DispatchRowActionsMenu } from './DispatchRowActionsMenu';
+import { DispatchRowActionsMenu, type RowMenuOpenRequest } from './DispatchRowActionsMenu';
 import { QuickIssueOrderButton } from './QuickIssueOrderButton';
 import {
   detailRowKey,
@@ -95,7 +97,9 @@ function firstNote(row: DispatchDetailPlanRow): DispatchCardNoteRequest & { prev
 }
 
 /** Cargo identity line: FCL = serial + [KẸP/KẾT HỢP] + type + weight; LCL =
- *  kind + package + measure (+ vehicle class once grouped). */
+ *  package + measure. Issue #13 (card 3-dòng): the lot-kind prefix ("Lẻ") and
+ *  the vehicle class ("Xe 3.5T") moved into the 3-line info block (dòng 3 and
+ *  dòng 1 respectively), so this line carries only the lot's own cargo. */
 function cargoLine(row: DispatchDetailPlanRow): string {
   if (row.cargoMode === 'FCL') {
     const serial = row.container.containerNumber?.trim() || 'Chưa có số cont';
@@ -107,7 +111,6 @@ function cargoLine(row: DispatchDetailPlanRow): string {
     ].filter(Boolean).join(' · ');
   }
   return [
-    `Lẻ${row.lcl?.group?.vehicleClassCode ? ` · Xe ${row.lcl.group.vehicleClassCode}` : ''}`,
     lclCargoLine(row),
     lclMeasureLine(row),
   ].filter(Boolean).join(' · ');
@@ -132,13 +135,53 @@ function routeSides(row: DispatchDetailPlanRow): { lift: string; drop: string } 
   };
 }
 
-/** Owner redesign 23/10 (spec A) — the <640px phone card list: one card per
- *  lô/tác vụ. Header = KHÁCH HÀNG + Bill/Booking + badge Loại + chip trạng
- *  thái + the SINGLE ⋯ menu (44px); body = cargo · tuyến 2 dòng · xe/SĐT 1
- *  dòng (không bao giờ wrap ký tự) · ghi chú truncate 1 dòng; foot = nút
- *  chính Phát lệnh/Hoàn thành khi sẵn sàng. The plan editor mounts hidden
- *  per card (its Modal portals to body) so the menu's "Sửa điều phối" opens
- *  the exact same dialog the table serves. */
+/** Issue #13 (card 3-dòng, spec A dòng 2) — SĐT nhóm 3-4 số để đọc ra cả ở
+ *  390px: digits group from the right in 3s, the leading group keeps the
+ *  remainder (VN mobile 10 số → `0985 246 985`). Non-digits (ext suffixes)
+ *  collapse; anything too short to group returns as-is. */
+export function formatPhoneGroups(raw: string): string {
+  const trimmed = raw.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length < 8) return trimmed;
+  const groups: string[] = [];
+  let rest = digits;
+  while (rest.length > 4) {
+    groups.unshift(rest.slice(-3));
+    rest = rest.slice(0, -3);
+  }
+  groups.unshift(rest);
+  return groups.join(' ');
+}
+
+/** Issue #13 (spec A dòng 1) — placeholder parity with the desktop Điều phối
+ *  cell: no plate yet reads differently by carrier mode. */
+function platePlaceholder(row: DispatchDetailPlanRow): string {
+  return row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung';
+}
+
+/** Issue #13 (spec A dòng 3 + C) — Loại lô · tuyến. The classification label
+ *  (Đơn/Kẹp/Kết hợp/Lẻ/Lấy Lẻ — the label the old head badge carried) plus
+ *  the one-line Nâng → Trả route; when both route sides are missing the
+ *  schedule line stands in ("hoặc thời gian"). Completed rows keep this
+ *  fallback: the row shape projects no completedAt/POD, and the spec's
+ *  "Giao HH:mm dd/mm · POD" is explicitly "nếu có" — never faked here. */
+function infoMetaLine(row: DispatchDetailPlanRow, lift: string, drop: string): string {
+  const type = DISPATCH_CLASSIFICATION_LABELS[row.classification];
+  const sides = [lift, drop].filter((side) => side && side !== '—');
+  if (sides.length === 0) return `${type} · ${detailedScheduleLine(row)}`;
+  return `${type} · ${sides.join(' → ')}`;
+}
+
+/** Owner redesign 23/10 + issue #13 (card 3-dòng, owner screenshots + Gemini
+ *  consult 23/10 tối) — the <640px phone card list: one card per lô/tác vụ.
+ *  Head = KHÁCH HÀNG + Bill/Booking + status chip (dot-leading, góc phải) +
+ *  the DYNAMIC ACTION SLOT (bất kỳ lúc nào ≤1 nút): paper-plane khi chưa
+ *  phát lệnh (1-tap Phát lệnh, tác vụ phụ qua tap card), ⋯ khi đã phát
+ *  lệnh / chưa phân xe, KHÔNG nút khi hoàn thành (history đóng băng,
+ *  DIS-09). Body = 3-dòng info hierarchy (BKS + Xe {class} / Tên · SĐT
+ *  không bao giờ truncate / Loại lô · tuyến) + cargo · giờ · ghi chú.
+ *  The plan editor mounts hidden per card (its Modal portals to body) so
+ *  the menu's "Sửa điều phối" opens the exact same dialog the table serves. */
 export function DispatchPlanCardList({
   items, selectedLclShipmentIds, onToggleLclSelection,
   onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot,
@@ -146,6 +189,27 @@ export function DispatchPlanCardList({
   onAtomicSave, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck,
   editRequest, onOpenRequestConsumed,
 }: DispatchPlanCardListProps) {
+  // Issue #13 — the card-body tap → ⋯ menu signal (nonce pattern; the menu
+  // consumes it and opens at the tap-time anchor rect).
+  const [menuRequest, setMenuRequest] = useState<RowMenuOpenRequest | null>(null);
+  const menuNonceRef = useRef(0);
+  // Review m3 — a signal whose row unmounts before its menu consumes it
+  // (filter change / refetch in the same tick) must not linger: a later row
+  // mounting under the same detailRowKey would auto-open its menu.
+  useEffect(() => {
+    if (menuRequest != null && !items.some((item) => detailRowKey(item) === menuRequest.key)) {
+      setMenuRequest(null);
+    }
+  }, [items, menuRequest]);
+  // Review M1 — a failed 1-tap release reports through the shared toast
+  // (owner law: errors in accessible toast/popover), never as text stuffed
+  // into the 44px head slot. Null-safe: hosts without the provider keep the
+  // button's inline role="alert" paragraph (QuickIssueOrderButton default).
+  const toastApi = useToastOptional();
+  const quickIssueOnError = toastApi
+    ? (message: string) => toastApi.toast({ kind: 'error', message })
+    : undefined;
+
   return (
     <ul className="dpcard-list" role="list">
       {items.map((row) => {
@@ -159,16 +223,50 @@ export function DispatchPlanCardList({
         const canCompleteExternal = row.dispatch.carrierType === 'EXTERNAL'
           && row.dispatch.tripId != null
           && row.taskStatus === 'DISPATCHED';
+        const completed = row.taskStatus === 'COMPLETED';
         const { lift, drop } = routeSides(row);
-        const vehicleParts = [
-          row.dispatch.assignedPlate,
-          row.dispatch.assignedDriverName,
-          row.dispatch.assignedDriverPhone,
-        ].filter(Boolean).join(' · ');
+        const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
+        const vehicleClass = row.cargoMode === 'LCL' ? row.lcl?.group?.vehicleClassCode : null;
+        const driverName = row.dispatch.assignedDriverName?.trim() || null;
+        const driverPhone = row.dispatch.assignedDriverPhone?.trim() || null;
         const note = firstNote(row);
         const group = row.cargoMode === 'LCL' ? row.lcl?.group : undefined;
+        const rowKey = detailRowKey(row);
+        const openMenuFromCard = (anchor: { top: number; left: number; right: number; bottom: number }) => {
+          menuNonceRef.current += 1;
+          setMenuRequest({ key: rowKey, nonce: menuNonceRef.current, anchorRect: anchor });
+        };
+        // The 3-line info block (spec A). A button on live rows: tapping it
+        // opens the ⋯ menu (the "tác vụ phụ qua tap card" law — unissued cards
+        // carry no ⋯ trigger). Completed rows are frozen history: plain text.
+        const infoBlock = (
+          <>
+            <span className="dpcard__info-top">
+              <span className="dpcard__plate" title={row.dispatch.assignedPlate ?? platePlaceholder(row)}>
+                {row.dispatch.assignedPlate ?? platePlaceholder(row)}
+              </span>
+              {vehicleClass && <span className="dpcard__plate-class">{`Xe ${vehicleClass}`}</span>}
+            </span>
+            <span className="dpcard__driver">
+              {/* The separator rides the NAME span: when the line overflows,
+                  ellipsis only ever eats the name — the SĐT span is a
+                  nowrap non-shrinking run and can never truncate (spec A). */}
+              <span className="dpcard__driver-name" title={driverName ?? 'Chưa có tài xế'}>
+                {driverName ? `${driverName} ·` : 'Chưa có tài xế'}
+              </span>
+              {driverPhone && (
+                <span className="dpcard__driver-phone" title={`SĐT lái xe: ${driverPhone}`}>
+                  {formatPhoneGroups(driverPhone)}
+                </span>
+              )}
+            </span>
+            <span className="dpcard__info-meta" title={`${DISPATCH_CLASSIFICATION_LABELS[row.classification]} · Nâng ${lift} → Trả ${drop}`}>
+              {infoMetaLine(row, lift, drop)}
+            </span>
+          </>
+        );
         return (
-          <li key={detailRowKey(row)} className={`dpcard${row.lotFullyPlated ? ' dpcard--plated' : ''}`}>
+          <li key={rowKey} className={`dpcard${row.lotFullyPlated ? ' dpcard--plated' : ''}${completed ? ' dpcard--completed' : ''}`}>
             <div className="dpcard__head">
               {onToggleLclSelection && (row.cargoMode === 'LCL' ? (
                 <LclSelectCheckbox
@@ -199,26 +297,54 @@ export function DispatchPlanCardList({
                   {billBookingReference(row.docs.billNumber)}
                 </span>
               </div>
-              <span className="dpcard__type">{DISPATCH_CLASSIFICATION_LABELS[row.classification]}</span>
               <span className="dpcard__issue"><DispatchIssueStatusChip status={issueStatus} /></span>
-              <DispatchRowActionsMenu
-                row={row}
-                onEditPlan={onEditPlan}
-                onChangeGroupTruckInline={onChangeGroupTruckInline}
-                onOpenTripReassign={onOpenTripReassign}
-                onOpenPair={onOpenPair}
-                onUnmergeLclGroup={onUnmergeLclGroup}
-                onDeleteLot={onDeleteLot}
-              />
+              {/* Issue #13 (spec B) — the DYNAMIC ACTION SLOT: exactly one
+                  VISIBLE button, chosen by state. Paper-plane keeps 1-tap
+                  Phát lệnh (owner law) with the ⋯ menu mounted triggerless
+                  beside it (opens by card tap); the ⋯ trigger stands in once
+                  a trip is live or nothing is issuable; completed cards show
+                  no action at all (frozen history — no dead triggers). */}
+              {!completed && (
+                <div className="dpcard__action">
+                  {canQuickIssue && (
+                    <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} variant="icon" onError={quickIssueOnError} />
+                  )}
+                  <DispatchRowActionsMenu
+                    row={row}
+                    onEditPlan={onEditPlan}
+                    onChangeGroupTruckInline={onChangeGroupTruckInline}
+                    onOpenTripReassign={onOpenTripReassign}
+                    onOpenPair={onOpenPair}
+                    onUnmergeLclGroup={onUnmergeLclGroup}
+                    onDeleteLot={onDeleteLot}
+                    onCompleteExternalTrip={canCompleteExternal ? onCompleteExternalTrip : undefined}
+                    triggerless={canQuickIssue}
+                    openRequest={menuRequest?.key === rowKey ? menuRequest : null}
+                    onOpenRequestConsumed={() => setMenuRequest(null)}
+                  />
+                </div>
+              )}
             </div>
+            {completed ? (
+              <div className="dpcard__info dpcard__info--static">{infoBlock}</div>
+            ) : (
+              <button
+                type="button"
+                className="dpcard__info"
+                aria-label={`Mở thao tác dòng · ${identity}`}
+                aria-haspopup="menu"
+                title="Mở thao tác dòng (Sửa điều phối · Ghép · Xóa lô…)"
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  openMenuFromCard({ top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom });
+                }}
+              >
+                {infoBlock}
+              </button>
+            )}
             <div className="dpcard__body">
               <div className="dpcard__line dpcard__line--strong" title={cargoLine(row)}>{cargoLine(row)}</div>
-              <div className="dpcard__line" title={lift}>{`Nâng · ${lift}`}</div>
-              <div className="dpcard__line" title={drop}>{`Trả · ${drop}`}</div>
               <div className="dpcard__line dpcard__line--muted" title={detailedScheduleLine(row)}>{detailedScheduleLine(row)}</div>
-              {vehicleParts && (
-                <div className="dpcard__line dpcard__line--vehicle" title={vehicleParts}>{vehicleParts}</div>
-              )}
               {group && (onOpenGroupMenu ? (
                 <button
                   type="button"
@@ -239,22 +365,6 @@ export function DispatchPlanCardList({
                 </button>
               )}
             </div>
-            {(canQuickIssue || canCompleteExternal) && (
-              <div className="dpcard__foot">
-                {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} variant="labeled" />}
-                {canCompleteExternal && (
-                  <button
-                    type="button"
-                    className="detailed-plan-grid__note-action"
-                    onClick={() => onCompleteExternalTrip(row)}
-                    aria-label={`Hoàn thành · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
-                    title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
-                  >
-                    Hoàn thành
-                  </button>
-                )}
-              </div>
-            )}
             {/* The plan editor: facts hidden (the card prints its own compact
                 assignment line), dialog portalled to body by the shared Modal. */}
             <div className="dpcard__editor">
@@ -268,7 +378,7 @@ export function DispatchPlanCardList({
                 autoOpenFulfillmentId={autoOpenFulfillmentId}
                 onAutoOpenConsumed={onAutoOpenConsumed}
                 onChangeGroupTruck={onChangeGroupTruck}
-                openRequest={editRequest?.key === detailRowKey(row) ? editRequest : null}
+                openRequest={editRequest?.key === rowKey ? editRequest : null}
                 onOpenRequestConsumed={onOpenRequestConsumed}
               />
             </div>
