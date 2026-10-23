@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Calendar, Truck } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, Truck, Menu, Search } from 'lucide-react';
 import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -233,7 +233,7 @@ function Topbar({
           title="Ẩn / hiện menu"
           onClick={onToggleSidebar}
         >
-          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <Menu size={20} aria-hidden="true" />
         </button>
       )}
 
@@ -246,7 +246,7 @@ function Topbar({
 
       {!isDriver && (
         <div ref={searchContainerRef} className="topbar__search" style={{ position: 'relative' }}>
-          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <Search size={14} aria-hidden="true" />
           <input
             ref={searchInputRef}
             type="text"

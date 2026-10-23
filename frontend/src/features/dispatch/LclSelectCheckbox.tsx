@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import type { MouseEventHandler } from 'react';
 
 /**
@@ -36,15 +37,7 @@ export function LclSelectCheckbox({ isSelected, isDisabled, onToggle, ariaLabel,
       onClick={handleClick}
     >
       {isSelected && (
-        <svg viewBox="0 0 14 14" fill="none" aria-hidden="true" focusable="false">
-          <path
-            d="M11.6666 3.5L5.24992 9.91667L2.33325 7"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <Check size={14} strokeWidth={2} aria-hidden="true" focusable="false" />
       )}
     </button>
   );
