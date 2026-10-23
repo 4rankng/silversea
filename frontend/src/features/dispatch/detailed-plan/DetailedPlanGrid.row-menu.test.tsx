@@ -135,11 +135,11 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' }));
 
-    // The edit form is already open and pre-filled from the group's BKS pair.
+    // The edit form is already open and pre-filled from the group's BKS —
+    // GP-03: no "BKS báo khách" field on the ĐV-side edit.
     const actualInput = screen.getByLabelText('BKS thực (cả nhóm ghép)') as HTMLInputElement;
-    const billingInput = screen.getByLabelText('BKS báo khách (riêng lô này)') as HTMLInputElement;
     expect(actualInput.value).toBe('29X-QA482D');
-    expect(billingInput.value).toBe('29X-QA482D');
+    expect(screen.queryByLabelText(/BKS báo khách/)).toBeNull();
 
     fireEvent.change(actualInput, { target: { value: '29X-QA9999' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu xe nhóm' }));

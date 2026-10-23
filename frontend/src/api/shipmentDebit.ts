@@ -18,6 +18,12 @@ export interface ShipmentDebitLotRow {
   customsNumber: string | null;
   /** Lot-level proof summary, e.g. "5/6" — null when nothing is recorded yet. */
   documentsSummary: string | null;
+  /** GP-01 — cargo measures (kg / CBM decimal strings) for the merge bar's
+   *  total tấn/CBM; null = the lot entered none. Optional like the other
+   *  late-added wire fields (`freightOverrideReason?`, `cargoMode?`): an
+   *  older summary response simply drops that component from the totals. */
+  cargoWeightKg?: string | null;
+  cargoVolumeCbm?: string | null;
   /** Auto freight for the whole lot. null = not computable yet, never 0-by-default.
    *  F-2 ruling (b): a REV-grouped or override-stamped lot reads the
    *  trip_financial_state.revenue override channel (per-lot cước thu per

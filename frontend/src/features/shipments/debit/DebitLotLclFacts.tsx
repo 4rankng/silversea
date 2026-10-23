@@ -260,7 +260,7 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             {row.costGroupId != null && (
               <span className="debit-lot-lcl-facts__group">
                 <span>Trả ĐV: Ghép ({row.costGroupOrder ?? '?'}/{row.costGroupMemberCount ?? '?'})</span>
-                {row.costGroupPrincipalRef && <em>Ghép cùng Bill {row.costGroupPrincipalRef}</em>}
+                {row.costGroupPrincipalRef && <em title={`Ghép cùng Bill ${row.costGroupPrincipalRef}`}>{`Ghép cùng Bill ${row.costGroupPrincipalRef}`}</em>}
                 <UUIButton
                   size="sm"
                   color="secondary"
@@ -274,7 +274,7 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             {row.revGroupId != null && (
               <span className="debit-lot-lcl-facts__group">
                 <span>Thu khách: Ghép ({row.revGroupOrder ?? '?'}/{row.revGroupMemberCount ?? '?'})</span>
-                {row.revGroupPrincipalRef && <em>Ghép cước cùng Bill {row.revGroupPrincipalRef}</em>}
+                {row.revGroupPrincipalRef && <em title={`Ghép cước cùng Bill ${row.revGroupPrincipalRef}`}>{`Ghép cước cùng Bill ${row.revGroupPrincipalRef}`}</em>}
                 <UUIButton
                   size="sm"
                   color="secondary"

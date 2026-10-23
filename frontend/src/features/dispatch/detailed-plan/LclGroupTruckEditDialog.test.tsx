@@ -1,9 +1,10 @@
 /**
- * Card 191026100010 (DV-B1-03) — "Đổi BKS nhóm": dialog đổi cặp BKS thực/ảo
- * của một COST group sau khi đã "Gán xe nhóm", gọi đúng API đã có
- * updateLclTruck (FB-093). Luật seed/auto-copy bám AssignTruckGroupDialog:
- * BKS ảo copy BKS thực cho tới khi operator sửa tay; BKS ảo đã lưu khi reopen
- * không bị nuốt. Submit rỗng BKS thực bị chặn tại client.
+ * Card 191026100010 (DV-B1-03) — "Đổi BKS nhóm": dialog đổi BKS thực của một
+ * COST group sau khi đã "Gán xe nhóm", gọi đúng API đã có updateLclTruck
+ * (FB-093). GP-03 (testplan/2026-10-23-gomhang-polish.md, spec 23/10 §1 "không
+ * nhập BKS báo khách tại màn hình Điều vận"): hết ô BKS báo khách — BKS ảo là
+ * output CUS-side, ĐV chỉ sửa BKS thực và payload không bao giờ mang
+ * billingTruckNo. Submit rỗng BKS thực bị chặn tại client.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -83,7 +84,7 @@ describe('Card 191026100010 — LclGroupTruckEditDialog (DV-B1-03)', () => {
     toastMock.mockReset();
   });
 
-  it('seeds both BKS from the stored group and submits them via updateLclTruck', async () => {
+  it('GP-03: seeds BKS thực, không còn ô BKS báo khách, payload chỉ mang actualTruckNo', async () => {
     const onSaved = vi.fn();
     const onClose = vi.fn();
     render(
@@ -94,16 +95,17 @@ describe('Card 191026100010 — LclGroupTruckEditDialog (DV-B1-03)', () => {
       />,
     );
     expect((screen.getByRole('combobox', { name: /BKS thực/ }) as HTMLInputElement).value).toBe('29C-111.11');
-    // Stored ảo BKS is seeded too (reopen never clobbers it with the actual).
-    expect((screen.getByRole('combobox', { name: /BKS báo khách/ }) as HTMLInputElement).value).toBe('29C-999.99');
+    // Spec 23/10 §1 — BKS báo khách là output CUS-side: no field here at all.
+    expect(screen.queryByRole('combobox', { name: /BKS báo khách/ })).toBeNull();
+    expect(screen.queryByLabelText(/BKS báo khách/)).toBeNull();
 
     setField(/BKS thực/, '30C-222.22');
     submit();
     await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledTimes(1));
+    // billingTruckNo NEVER rides the ĐV write — even when the group stored one.
     expect(updateLclTruckMock.mock.calls[0]![0]).toEqual({
       shipmentId: 11,
       actualTruckNo: '30C-222.22',
-      billingTruckNo: '29C-999.99',
     });
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -111,38 +113,6 @@ describe('Card 191026100010 — LclGroupTruckEditDialog (DV-B1-03)', () => {
       kind: 'success',
       message: expect.stringContaining('Đã đổi BKS nhóm 3 lô'),
     }));
-  });
-
-  it('auto-copies the billing BKS from the actual one until the operator edits it', async () => {
-    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
-    const billing = screen.getByRole('combobox', { name: /BKS báo khách/ }) as HTMLInputElement;
-    // No stored ảo BKS ⇒ it mirrors the actual plate…
-    await waitFor(() => expect(billing.value).toBe('29C-111.11'));
-    setField(/BKS thực/, '30C-222.22');
-    // …and keeps following it until touched.
-    await waitFor(() => expect(billing.value).toBe('30C-222.22'));
-
-    // Touch the ảo field: it stops following.
-    setField(/BKS báo khách/, '30C-888.88');
-    setField(/BKS thực/, '30C-333.33');
-    await waitFor(() => expect(billing.value).toBe('30C-888.88'));
-
-    submit();
-    await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledTimes(1));
-    expect(updateLclTruckMock.mock.calls[0]![0]).toEqual({
-      shipmentId: 11,
-      actualTruckNo: '30C-333.33',
-      billingTruckNo: '30C-888.88',
-    });
-  });
-
-  it('omits billingTruckNo from the wire when it equals the actual plate', async () => {
-    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
-    setField(/BKS thực/, '30C-222.22');
-    submit();
-    await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledTimes(1));
-    // Billing mirrors actual (autocopy, untouched) ⇒ server default applies.
-    expect(updateLclTruckMock.mock.calls[0]![0]).toEqual({ shipmentId: 11, actualTruckNo: '30C-222.22' });
   });
 
   it('refuses an empty BKS thực at the client — no wire, no close', async () => {

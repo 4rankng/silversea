@@ -67,8 +67,10 @@ export function dispatchIssueStatusVariant(status: DispatchIssueStatus): StatusV
  *  returned null for it. */
 export function DispatchIssueStatusChip({ status }: { status: DispatchIssueStatus }) {
   if (status === 'UNASSIGNED') return null;
+  // GP-05 — the label doubles as the truncation tooltip (mobile card: one
+  // ellipsized line beside the ⋯ menu).
   return (
-    <StatusText variant={dispatchIssueStatusVariant(status)} className="dispatch-assignment-cell__issue" style={{ whiteSpace: 'normal' }}>
+    <StatusText variant={dispatchIssueStatusVariant(status)} className="dispatch-assignment-cell__issue" title={DISPATCH_ISSUE_STATUS_LABELS[status]} style={{ whiteSpace: 'normal' }}>
       {DISPATCH_ISSUE_STATUS_LABELS[status]}
     </StatusText>
   );

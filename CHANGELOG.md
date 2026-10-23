@@ -1,55 +1,48 @@
 # Changelog
 
-## 2026-10-23 (chiều muộn) — feat(dispatch): redesign Kế hoạch Tổng quát /dispatch — cân đối cột + card-list mobile, nhất quán detailed-plan (QA R38, cards 231026123901 liên quan; issue #12)
+## 2026-10-23 (chiều 2) — fix(lcl,dispatch): gomhang hygiene — CUS bar tấn/CBM, tag gọn, dọn BKS ảo sót, 400-path UI, card status/touch polish
 
-Lane `redesign-master-plan` sau merge feat-gomhang-fe (60d0c576). Pattern chuẩn
-`8a28c094` áp ngược về /dispatch — và lane bắt thêm 2 defect class trên chính
-board detailed-plan đã merge:
+Các dòng còn lại sau wave 60d0c576 (testplan/2026-10-23-gomhang-polish.md,
+GP-01…GP-06). Không đụng `pages/MasterPlanPage*` + `features/dispatch/
+master-plan/*` (lane khác sở hữu).
 
-- **Cột cân đối (desktop ≥640px)**: table floor `min-width: 1200px` + shares
-  mới (THỜI GIAN 10% ≈ 120px @floor — thu từ 15.5%/177px; KHÁCH HÀNG & NHÀ MÁY
-  17.5% + TUYẾN ĐƯỜNG 14.5% vùng đọc rộng nhất; Nâng/Trả 9/8.5% đủ 1 dòng +
-  ellipsis + title tooltip). Row **69-90px theo nội dung** (clamp 77px cell
-  body) — hết tower `--mpg-row-h: 96px`; chips phân bổ 1 dòng ellipsis + title;
-  demand "2 x 40HC + 1 x 20DC" gộp 1 dòng (`formatContainerSummaryLine`).
-  QA BEFORE: THỜI GIAN 177px, Cảng hạ 82px cắt cụt, rows 116-117px.
-- **Card list mobile <640px** (`MasterPlanCardList.tsx`, pattern
-  DispatchPlanCardList): mỗi lô 1 card — head [tick gộp khi mode] + KH + Bill +
-  loại (Nhập · Lẻ) + menu ⋯ duy nhất (shared `dispatch-row-menu.css` tách khỏi
-  DetailedPlanGrid.css); body giờ+ngày · Nâng · Trả · hàng hóa · tuyến · xe ·
-  cảnh báo/hải quan · ghi chú 1 dòng (bấm mở modal); foot "Phân bổ nhà xe" khi
-  lô còn nhận phân bổ. FB-014 giữ: bấm card → /dispatch-detail. Notes editor
-  inline qua đúng bundle của grid — table/card không thể lệch hành vi
-  (`MasterPlanCellValues.ts` tách helper thuần, grid re-export giữ import path
-  của XLSX export + tests).
-- **Fix class #1 — header sập cột dọc (live trên main)**: `display:
-  -webkit-box` đặt trực tiếp trên `thead th` (8a28c094) phá table-cell layout —
-  mọi header cell của /dispatch-detail sếp DỌC tại cột đầu (đo trunk :7175:
-  spread 0, left=272 hết). Clamp 2 dòng chuyển vào phần tử CON
-  (`__th-label` span master; `__sort` button detailed có sẵn); th chỉ giữ
-  wrap-at-spaces + keep-all. Sau fix: spread 1056/1104px, cả 2 board.
-- **Fix class #2 — rail giết sticky thead**: wrapper `overflow-x: auto` là
-  scroll container (overflow-y: clip computes thành hidden) nên thead sticky
-  theo app-body chết ngầm trên cả 2 board từ khi có rail. Wrapper đổi thành
-  **pane bounded** (`overflow: auto` + `max-height: calc(100dvh - var(--topbar-h)
-  - 72px)`) — thead pin trong pane, board cuộn cả 2 trục; `--cards` variant
-  reset (cards flow page).
-- **Gộp hàng on-demand GIỮ NGUYÊN** (cards 231026123901/902/903): cột CHỌN
-  on-demand, tick LCL/FCL dim, floating bar, dialog 4 trường — chỉ đổi trình
-  bày, KHÔNG đụng data-flow (QA D1-D5 rung 3, dialog hủy không lưu, DB
-  identity null/null trước/sau).
-- QA (`qa/2026-10-23-master-plan-redesign/`, driver `qa/scripts/
-  2026-10-23-master-plan-redesign.mjs`, BEFORE :7175 / AFTER :7184, dungnv):
-  AFTER 22/22 PASS — rows ≤93px mọi VP table, THỜI GIAN 125px, header sticky
-  + spread đúng cột, cards 390 + FB-014 tap, Phân xe sweep 20/5/20, gộp hàng
-  mobile (probe 390), H1 error-path rung 3 (force 500 — Lưu/Hủy visible).
-  Case `testplan/2026-10-23-master-plan-redesign.md` (MP-RD-01…07).
-  Independent review resolved (H1/M1/M2/L1/L2 fix; L3 accepted) — scoped
-  648/648 sau fix.
-- Gates: root lint 0 · fe tsc -b 0 · tsgo -b 0 · scoped 647/647 · FULL FE
-  5525/5525 (sau `make build` dist) · make build 0 · dev-port-contract 11/11.
-  design:drift: delta lane ≤ base mọi counter (containerWidthValues 22→20 do
-  xóa @container bands; base đỏ sẵn = nợ baseline stale 2026-10-04).
+- **GP-01 CUS bar mang tổng tấn/CBM như bar ĐV**: wire `shipment-debit-summary`
+  thêm `cargoWeightKg`/`cargoVolumeCbm` (shared schema + BE read-side, cùng cột
+  dispatch grids đọc); bar CUS nay in «Đang chọn N lô: Tổng X tấn | Y CBM —
+  Lô 1 giữ 100%…» — thành phần không lô nào có số liệu thì BỎ khỏi câu (không
+  bịa 0). Đóng deviation (a) của wave trước.
+- **GP-02 tag "Ghép thu cước cùng Lô 1" gọn**: `shipment-debit-row__freight-note`
+  (desktop row + phone card) 1 dòng, truncate + `title` = toàn văn — nghĩa theo
+  wire giữ nguyên (không đổi text); strip NHÓM GHÉP (`debit-lot-lcl-facts__groups
+  em` "Ghép cùng Bill X") cùng luật 1 dòng + tooltip.
+- **GP-03 hết "BKS báo khách" trong dialog ĐV**: bỏ ô + state + auto-copy +
+  `billingTruckNo` khỏi payload ở `LclGroupTruckEditDialog` (Đổi BKS nhóm) và
+  inline edit badge menu/row menu `DetailedPlanGrid` («Đổi nhà xe/BKS») — chỉ
+  còn BKS thực; validation «sửa BKS thực trước khi lưu». Grep toàn
+  `features/dispatch`: các hit còn lại là comment luật (AssignTruckGroupDialog)
+  hoặc read-only display (`LclGroupTruckLine` "Ảo:", tooltip badge "Báo khách
+  X" — spec §1 cấm NHẬP ở ĐV, không cấm hiển thị); `DispatchAllocationLclDialog`
+  (master-plan) còn ô BKS báo khách — để lane đó sửa (out of scope).
+- **GP-04 đường server-error gộp CUS khác-KH không im lặng**: gate cùng-KH siết
+  đúng luật BE (1 customerId KHÁC NULL duy nhất — lô `customerId` null cũng là
+  conflict như `findRevCustomerConflict`, chặn TRƯỚC khi gọi API — guard nằm ở
+  CẢ `submit()` lẫn `isDisabled`, hết double-click race); BE 400 → inline
+  `role=alert` + error toast (footer line một mình trôi khỏi viewport phone),
+  dialog giữ nguyên cho retry.
+- **GP-05 card mobile status badge**: chip trạng thái 1 dòng (max-width 42% +
+  ellipsis, table giữ wrap cũ qua element-level rule), `title` = nhãn đầy đủ
+  (StatusText thêm prop `title`), giữ ≥8px tới nút ⋯ (badge co trước).
+- **GP-06 touch target ⋯/tick ≥44px mọi card**: trigger ⋯ `min-width/min-height:
+  44px` + `flex-shrink: 0` + wrapper `flex: none` (token `--control-touch-h`
+  đang 40px — sàn 44px riêng cho tap target trên card); tick = button 44px, hộp
+  vẽ 18px chuyển sang `::before` — gồm compact merge-mode head (đầu card thêm
+  tick) và tick FCL dim.
+- QA rung 3 (`qa/2026-10-23-gomhang-polish/`, driver `qa/scripts/
+  2026-10-23-gomhang-polish.mjs`, 390px, READ-ONLY — DB groups trước/sau
+  identity): GP-01 bar đúng số liệu wire («Tổng 2,214 tấn | 9,002 CBM» từ lô
+  106+107), GP-05 badge gap 8px/1 dòng/title + ⋯ 44×44, GP-06 tick 44×44 cả
+  enabled lẫn dim. Gates: root lint 0 · be tsc 0 · be tests · fe tsc -b 0 ·
+  fe tsgo -b 0 · FULL FE green (sau `make build`) · make build 0.
 
 ## 2026-10-23 (chiều) — feat(lcl,dispatch): FE gộp hàng on-demand — toggle+checkbox+floating bar + popup ĐV 4 trường + CUS gộp thu 3 trường (spec 23/10, cards 231026123901/902/903)
 

@@ -56,6 +56,57 @@
   toán, role sweep, staging (owner NEVER), keyboard-nav menu ngoài react-aria.
 - Env: worktree FE :7184 + trunk BE :3002/DB :5441 của main checkout; KHÔNG
   mutate data QA dùng chung (dialog gộp hàng hủy không lưu).
+# HANDOFF — feat-gomhang-polish (các dòng còn lại sau wave 60d0c576 — GP-01…GP-06)
+
+- Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/
+  1njkloyy/feat-gomhang-polish`, branch `feat-gomhang-polish` off main
+  60d0c576). Last updated: 2026-10-23.
+- Goal: 6 dòng hygiene/polish còn lại sau wave gộp hàng (testplan/
+  2026-10-23-gomhang-polish.md): GP-01 CUS bar mang tấn/CBM (wire
+  `shipment-debit-summary` thêm `cargoWeightKg`/`cargoVolumeCbm`) · GP-02 tag
+  "Ghép thu cước cùng Lô 1" 1 dòng truncate+tooltip · GP-03 bỏ ô "BKS báo
+  khách" khỏi dialog ĐV (LclGroupTruckEditDialog + inline edit DetailedPlanGrid)
+  · GP-04 server-error gộp khác-KH không im lặng (gate null-customerId + error
+  toast) · GP-05 card badge 1 dòng/title/gap ≥8px · GP-06 ⋯/tick ≥44px card.
+  STATUS: DONE — rung 3 QA + full gates green (CHANGELOG 23/10 chiều 2,
+  qa/2026-10-23-gomhang-polish/).
+- Scope cấm đã giữ: KHÔNG đụng `pages/MasterPlanPage*` +
+  `features/dispatch/master-plan/*`. Sót ngoài scope: ô "BKS báo khách (ảo)"
+  của `DispatchAllocationLclDialog` (master-plan lane — grep "BKS báo khách"
+  toàn dispatch features còn đúng field đó + comment luật ở
+  `AssignTruckGroupDialog` + read-only display `LclGroupTruckLine` "Ảo:" /
+  tooltip badge "Báo khách X" — spec §1 cấm NHẬP ở ĐV, display giữ nguyên).
+- Wire đổi (shared schema + BE read-side): `shipmentDebitSummaryItemSchema`
+  thêm `cargoWeightKg`/`cargoVolumeCbm` (nullable decimal string, kg/CBM);
+  BE `shipment-debit-summary.service.ts` select + passthrough 2 cột sẵn có.
+  Bar CUS drop-empty: thành phần không lô nào có số liệu thì khỏi câu tổng
+  (không bịa 0) — khác bar ĐV (luôn in cả hai).
+- Quyết định có ý thức: (a) `--control-touch-h` = 40px nhưng sàn tap target
+  card ≥44px theo brief → trigger ⋯ đặt `min-width/min-height: 44px` riêng;
+  tick = button 44px + hộp vẽ 18px `::before` (scoped `.dpcard`, không sửa
+  `LclSelectCheckbox.css` shared — master-plan lane đang dùng component đó);
+  (b) chip trạng thái giữ inline `white-space: normal` cho TABLE, card ép
+  1 dòng bằng rule element-level `.dpcard__issue .dispatch-assignment-cell__issue
+  > span:not([aria-hidden])`; (c) MergeRevGroupDialog gate giờ là "1 customerId
+  KHÁC NULL duy nhất" — mirror `findRevCustomerConflict` của BE (null = conflict).
+- QA: rung 3 READ-ONLY (driver qa/scripts/2026-10-23-gomhang-polish.mjs, 390px,
+  BE worktree :3003 + FE :7183; DB groups trước/sau identity null/null):
+  GP-01 bar "Đang chọn 2 lô: Tổng 2,214 tấn | 9,002 CBM" (lô 106+107 KH id 2)
+  đúng số liệu wire · GP-05 gap 8px/1 dòng/title/⋯ 44×44 · GP-06 tick 44×44
+  enabled + dim. Ảnh: gp01-cus-bar-390.png · gp05-card-badge-390.png ·
+  gp06-card-touch-390.png.
+- Independent code-review pass (code-reviewer): verdict pass-with-nits; đã sửa
+  hết findings hành động được — strip NHÓM GHÉP vào luật GP-02 (High), test
+  GP-04 mixed null + rename (Medium), guard submit chống double-fire/gate lách
+  (Low×2), tách thông báo rỗng vs không đổi ở inline BKS nhóm (Low); giữ
+  optional type cho 2 field wire mới (old-server tolerance, đúng convention
+  `freightOverrideReason?`). Finding "vitest pin CSS text" chấp nhận: rung 3
+  Playwright là bằng chứng rendered (gap/44px đo bằng getBoundingClientRect).
+- Gates: root lint 0 · be tsc 0 · be tests 0 · fe tsc -b 0 · fe tsgo -b 0 ·
+  scoped vitest 540/540 · FULL FE 5523/5523 (715 files; sau `make build` cho
+  numeric-identity) · make build 0. Lưu ý flake tải: 2 test debounce
+  (PayableListPage CommissionModal, AccountingWorkspaceRoot strip reset) fail
+  khi chạy song song make build+puppeteer, pass isolation + pass rerun unloaded.
 
 ---
 

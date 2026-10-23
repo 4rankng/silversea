@@ -1,0 +1,19 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/feat-gomhang-polish/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  715 passed (715)
+      Tests  5523 passed (5523)
+   Start at  16:58:44
+   Duration  160.32s (transform 29.80s, setup 95.76s, import 432.58s, tests 432.39s, environment 380.83s)
+

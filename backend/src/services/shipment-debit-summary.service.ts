@@ -46,6 +46,10 @@ export async function getShipmentDebitSummary(query: {
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
     tradeDirection: s.shipments.tradeDirection,
+    // GP-01 (2026-10-23) — cargo measures for the CUS merge bar's total
+    // tấn/CBM (same columns the dispatch grids read).
+    cargoWeightKg: s.shipments.cargoWeightKg,
+    cargoVolumeCbm: s.shipments.cargoVolumeCbm,
     // FB-092/093 LCL grouping facts (read raw here; class codes + member
     // counts resolve in the batched lookups below).
     cargoMode: s.shipments.cargoMode,
@@ -461,6 +465,9 @@ export async function getShipmentDebitSummary(query: {
       billOrBookNumber: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       customsNumber: [...(declarationNumbersByLot.get(lot.id) ?? [])].join(', ') || null,
       documentsSummary: null,
+      // GP-01 — the merge bar's cargo totals read the lot's own measures.
+      cargoWeightKg: lot.cargoWeightKg ?? null,
+      cargoVolumeCbm: lot.cargoVolumeCbm ?? null,
       freightAuto: freightAuto == null ? null : String(freightAuto),
       // F-2: the override stamp behind the money column — the spec §3.2
       // "chú thích nhỏ bên dưới" under CƯỚC VẬN TẢI (AUTO) ("Ghép cước cùng

@@ -497,10 +497,15 @@
 }
 
 /* F-2 (card 161026113900, spec §3.2): the override-channel freight's reason
-   note rides under the money value — its own line, wrappable (the cell keeps
-   nowrap for the number itself), quiet mid ink at the docs-small size. */
+   note rides under the money value ("Ghép thu cước cùng Lô 1" / operator
+   reasons). GP-02: the tag stays ONE line — truncated with the full text in
+   its title tooltip — so long reason text never reflows the money cell. */
 .shipment-debit-row__freight-note {
-  white-space: normal;
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   color: var(--ink-2);
 }
@@ -623,7 +628,14 @@
   gap: 2px;
 }
 
+/* GP-02 — the group's principal note ("Ghép cước cùng Bill X") is one
+   truncated line like the money-cell tag; the full text rides its tooltip. */
 .debit-lot-lcl-facts__groups em {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--ink-3);
   font-style: normal;
 }

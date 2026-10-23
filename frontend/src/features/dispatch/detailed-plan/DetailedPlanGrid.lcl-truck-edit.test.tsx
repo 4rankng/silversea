@@ -1,10 +1,10 @@
 /**
  * Card B 18/10 (B.1) — the FB-095 badge menu gains "Đổi nhà xe/BKS": a merged
- * Ghép-trả-ĐV cost group's truck pair edits in place, PRE-FILLED from the
- * group's stored BKS, saving through the FB-093 `updateLclTruck` endpoint —
+ * Ghép-trả-ĐV cost group's BKS edits in place, PRE-FILLED from the group's
+ * stored BKS thực, saving through the FB-093 `updateLclTruck` endpoint —
  * the one write that keeps the whole group (members' BKS + planned plates)
- * coherent. An untouched field must NOT ride the payload (BKS báo khách is a
- * per-lot CUS-side identity; the server writes it only for the named lot).
+ * coherent. GP-03 (spec 23/10 §1): no "BKS báo khách" field on the ĐV side —
+ * the payload never carries billingTruckNo (that is the CUS-side identity).
  */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -101,7 +101,7 @@ function renderGrid(onLclTruckUpdated: () => void) {
 }
 
 describe('FB-095 badge menu — Đổi nhà xe/BKS (card B 18/10, B.1)', () => {
-  it('the badge menu offers Đổi nhà xe/BKS and saves the changed pair through updateLclTruck', async () => {
+  it('the badge menu offers Đổi nhà xe/BKS and saves the changed BKS through updateLclTruck', async () => {
     updateLclTruckMock.mockClear();
     toastMock.mockClear();
     const onLclTruckUpdated = vi.fn();
@@ -110,14 +110,13 @@ describe('FB-095 badge menu — Đổi nhà xe/BKS (card B 18/10, B.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lẻ · Ghép (1/2)' }));
     fireEvent.click(screen.getByRole('button', { name: 'Đổi nhà xe/BKS' }));
 
-    // Pre-filled from the group's stored BKS pair.
+    // Pre-filled from the group's stored BKS — GP-03: the "BKS báo khách"
+    // field is gone from the ĐV-side edit (CUS-side output only).
     const actualInput = screen.getByLabelText('BKS thực (cả nhóm ghép)') as HTMLInputElement;
-    const billingInput = screen.getByLabelText('BKS báo khách (riêng lô này)') as HTMLInputElement;
     expect(actualInput.value).toBe('29C-123.45');
-    expect(billingInput.value).toBe('29C-123.45');
+    expect(screen.queryByLabelText(/BKS báo khách/)).toBeNull();
 
-    // The dispatcher changes the group's truck only; the untouched billing
-    // field must NOT ride the payload.
+    // The dispatcher changes the group's truck only.
     fireEvent.change(actualInput, { target: { value: '29C-999.99' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu xe nhóm' }));
 

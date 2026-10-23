@@ -40,6 +40,12 @@ describe('DispatchIssueStatusChip', () => {
     const { container } = render(<DispatchIssueStatusChip status="UNASSIGNED" />);
     expect(container.textContent).toBe('');
   });
+
+  it('GP-05: truncated chip keeps the full label reachable via title (mobile card tooltip)', () => {
+    render(<DispatchIssueStatusChip status="ISSUED" />);
+    const chip = screen.getByText('Đã phát lệnh cho tài xế').closest('span')!.parentElement!;
+    expect(chip.getAttribute('title')).toBe('Đã phát lệnh cho tài xế');
+  });
 });
 
 describe('DispatchIssueStatusSummaryChip', () => {

@@ -230,22 +230,22 @@ export function DetailedPlanGrid({
   // FB-095 — the grouped row whose badge menu (Xem nhóm / Hủy ghép) is open.
   const [groupMenuRow, setGroupMenuRow] = useState<DispatchDetailPlanRow | null>(null);
   // Card B 18/10 (B.1) — the badge menu's "Đổi nhà xe/BKS" edit state: the
-  // BKS pair pre-filled from the group, saved through the FB-093 endpoint
-  // (`updateLclTruck` — actual rewrites every group member, billing the named
-  // lot only), with the page refetching via `onLclTruckUpdated`.
-  const [groupTruckDraft, setGroupTruckDraft] = useState<{ actual: string; billing: string } | null>(null);
+  // BKS thực pre-filled from the group, saved through the FB-093 endpoint
+  // (`updateLclTruck` — actual rewrites every group member). GP-03: no
+  // billing field — billingTruckNo is the CUS-side identity and never rides
+  // this ĐV write — with the page refetching via `onLclTruckUpdated`.
+  const [groupTruckDraft, setGroupTruckDraft] = useState<{ actual: string } | null>(null);
   const [savingGroupTruck, setSavingGroupTruck] = useState(false);
   const [groupTruckError, setGroupTruckError] = useState<string | null>(null);
   // DIS-09 (card 211026130015) — the row menu's "Đổi nhà xe/BKS" lands in the
   // SAME edit state the badge menu's button drives: modal open + pre-filled
-  // pair, one click from the row without opening the badge first.
+  // BKS, one click from the row without opening the badge first.
   const openGroupTruckEdit = (row: DispatchDetailPlanRow) => {
     const group = row.lcl?.group;
     if (!group) return;
     setGroupMenuRow(row);
     setGroupTruckDraft({
       actual: group.actualTruckNo ?? '',
-      billing: group.billingTruckNo ?? '',
     });
     setGroupTruckError(null);
   };
@@ -830,7 +830,6 @@ export function DetailedPlanGrid({
                     if (!groupMenuRow || !group) return;
                     setGroupTruckDraft({
                       actual: group.actualTruckNo ?? '',
-                      billing: group.billingTruckNo ?? '',
                     });
                     setGroupTruckError(null);
                   }}
@@ -865,17 +864,20 @@ export function DetailedPlanGrid({
                     const group = groupMenuRow.lcl?.group;
                     if (!group) return;
                     const actual = groupTruckDraft.actual.trim();
-                    const billing = groupTruckDraft.billing.trim();
-                    if ((!actual || actual === (group.actualTruckNo ?? '')) && (!billing || billing === (group.billingTruckNo ?? ''))) {
-                      setGroupTruckError('Chưa có gì thay đổi — sửa BKS thực hoặc BKS báo khách trước khi lưu.');
+                    if (!actual) {
+                      setGroupTruckError('Nhập BKS thực của xe chạy chuyến');
+                      return;
+                    }
+                    if (actual === (group.actualTruckNo ?? '')) {
+                      setGroupTruckError('Chưa có gì thay đổi — sửa BKS thực trước khi lưu.');
                       return;
                     }
                     setSavingGroupTruck(true);
                     setGroupTruckError(null);
+                    // GP-03 — only BKS thực rides the ĐV write.
                     void updateLclTruck({
                       shipmentId: groupMenuRow.shipmentId,
-                      ...(actual !== (group.actualTruckNo ?? '') && actual !== '' ? { actualTruckNo: actual } : {}),
-                      ...(billing !== (group.billingTruckNo ?? '') && billing !== '' ? { billingTruckNo: billing } : {}),
+                      actualTruckNo: actual,
                     })
                       .then((result) => {
                         toastCtx?.toast({
@@ -933,22 +935,15 @@ export function DetailedPlanGrid({
             )}
             {groupTruckDraft != null && (
               <div>
-                {/* Card B 18/10 (B.1): the scope law the dispatcher must see
-                    before saving — actual = the WHOLE group's truck, billing =
-                    THIS lot's "xe báo khách" only. */}
+                {/* GP-03 (spec 23/10 §1) — only BKS thực: the whole group
+                    follows this plate; "BKS báo khách" is a CUS-side output
+                    and no longer renders in any ĐV edit. */}
                 <TextField
                   id="lcl-group-truck-actual"
                   label="BKS thực (cả nhóm ghép)"
                   autoComplete="off"
                   value={groupTruckDraft.actual}
                   onChange={(event) => setGroupTruckDraft((current) => (current == null ? current : { ...current, actual: event.target.value }))}
-                />
-                <TextField
-                  id="lcl-group-truck-billing"
-                  label="BKS báo khách (riêng lô này)"
-                  autoComplete="off"
-                  value={groupTruckDraft.billing}
-                  onChange={(event) => setGroupTruckDraft((current) => (current == null ? current : { ...current, billing: event.target.value }))}
                 />
               </div>
             )}
