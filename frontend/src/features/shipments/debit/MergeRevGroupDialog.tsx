@@ -62,11 +62,22 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
     [vehicleClasses.data],
   );
 
-  // Same-customer gate (FB-093): the server enforces it; this names the lots.
-  const customerIds = new Set(rows.map((row) => row.customerId));
-  const sameCustomer = customerIds.size === 1;
+  // Same-customer gate (FB-093 + GP-04): the server enforces it; this names
+  // the lots BEFORE any request leaves. A lot with NO customer is a conflict
+  // too (BE law `findRevCustomerConflict` reads "Chưa có khách hàng" as one),
+  // so the merge needs exactly one DISTINCT non-null customerId.
+  const missingCustomer = rows.some((row) => row.customerId == null);
+  const customerIds = new Set(rows.map((row) => row.customerId).filter((id): id is number => id != null));
+  const sameCustomer = !missingCustomer && customerIds.size === 1;
+  const gateMessage = missingCustomer
+    ? 'Chỉ ghép cước thu được các lô của cùng một khách hàng — có lô chưa xác định khách hàng.'
+    : `Chỉ ghép cước thu được các lô của cùng một khách hàng — các lô đã chọn thuộc ${customerIds.size} khách hàng khác nhau.`;
 
   async function submit() {
+    // GP-04 — the gate lives HERE too (not only on the button's isDisabled):
+    // no future submit path may send a merge the same-customer law refuses,
+    // and the guard closes the double-click race before `saving` re-renders.
+    if (saving || !sameCustomer || rows.length < 2) return;
     setError(null);
     const selectedClass = sortedClasses.find((vc) => String(vc.id) === vehicleClassId);
     if (!selectedClass) {
@@ -88,7 +99,13 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
       onMerged();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gộp xe thu khách thất bại');
+      // GP-04 — a server refusal (BE 400 khác-KH, locked money, …) must never
+      // be silent: the message shows inline AND as an error toast (the footer
+      // line alone scrolls out of view on phone modals), the dialog stays
+      // open and a corrected retry re-arms.
+      const message = err instanceof Error ? err.message : 'Gộp xe thu khách thất bại';
+      setError(message);
+      toast({ kind: 'error', message });
     } finally {
       setSaving(false);
     }
@@ -122,7 +139,7 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
         </ol>
         {!sameCustomer && rows.length > 0 && (
           <p className="merge-rev-group__error" role="alert">
-            Chỉ ghép cước thu được các lô của cùng một khách hàng — các lô đã chọn thuộc {customerIds.size} khách hàng khác nhau.
+            {gateMessage}
           </p>
         )}
         {/* Field 1 — Loại xe tính cước thu khách (cả nhóm gộp). */}

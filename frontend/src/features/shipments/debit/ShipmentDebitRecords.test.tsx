@@ -104,6 +104,8 @@ describe('BD-01 (161026204709) — the merged 100%/0₫ lane stays on the card f
     expect(memberLane.textContent).toContain('0');
     const note = within(memberLane).getByText('Ghép cước cùng Bill BL-P');
     expect(note.tagName).toBe('SMALL');
+    // GP-02 — the tag is one truncated line; its full text is the tooltip.
+    expect(note.getAttribute('title')).toBe('Ghép cước cùng Bill BL-P');
     // Spec §3.2: the note rides BENEATH the money — never above it.
     expect(within(memberLane).getByText(/^0/).compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(note.closest('details')).toBeNull();

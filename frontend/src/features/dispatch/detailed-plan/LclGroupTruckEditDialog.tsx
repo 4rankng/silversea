@@ -1,20 +1,19 @@
 // Card 191026100010 (B.1, cases DV-B1-03/04) — sau "Gán xe nhóm" (FB-092/093)
-// cặp BKS sống trên COST GROUP, và cả hai màn điều vận đều khép lại: checkbox
+// BKS sống trên COST GROUP, và cả hai màn điều vận đều khép lại: checkbox
 // lô trên /dispatch bị khóa ("tách nhóm trước khi ghép lại"), tái chọn lô thì
-// assignLclCostGroup 409 ("đã thuộc nhóm ghép"), và updateLclTruck chưa hề
-// được gọi từ đâu. Module này sở hữu CẢ HAI affordance đổi BKS và một luật
-// chung: updateLclTruck({ shipmentId, … }) lan toả BKS thực của TOÀN nhóm (+
-// BKS ảo của lô được nêu tên), nên:
+// assignLclCostGroup 409 ("đã thuộc nhóm ghép"). Module này sở hữu CẢ HAI
+// affordance đổi BKS và một luật chung: updateLclTruck({ shipmentId, … }) lan
+// toả BKS thực của TOÀN nhóm, nên:
 //   • dialog (row action "Đổi BKS nhóm" trong menu Nhóm ghép trả ĐV) sửa
-//     cặp BKS — BKS thực + BKS báo khách (ảo, auto-copy từ thực cho khi
-//     operator sửa tay, đúng luật AssignTruckGroupDialog) — và PAGE sở hữu
-//     refetch qua onSaved, giống hệt wiring của Hủy ghép;
+//     BKS thực của nhóm — GP-03 (spec 23/10 §1 "không nhập BKS báo khách tại
+//     màn hình Điều vận"): hết ô BKS báo khách, BKS ảo là output CUS-side —
+//     và PAGE sở hữu refetch qua onSaved, giống hệt wiring của Hủy ghép;
 //   • dòng nhóm compact trong popup "Chỉnh sửa điều phối" (LclGroupTruckLine)
 //     raise CÙNG page-owned dialog; còn save() của editor từ chối đẩy biển số
 //     mới qua đường plan-save chỉ-hàng (xem DispatchPlanEditorCell) — save
 //     hàng đơn lẻ sẽ làm grid hiện 2 BKS cho một nhóm và Debit Note (FB-094)
 //     in nhầm BKS ảo cũ.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '../../../components/UI';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { useToast } from '../../../components/shared/Toast';
@@ -46,22 +45,16 @@ export interface LclGroupTruckEditDialogProps {
 }
 
 /**
- * Card 191026100010 (DV-B1-03) — "Đổi BKS nhóm": dialog hai field, seed từ
- * BKS đã lưu của nhóm; BKS ảo auto-copy BKS thực cho tới khi operator sửa tay
- * (luật AssignTruckGroupDialog). Submit gọi updateLclTruck đúng theo contract
- * đã có (FB-093) — không API mới.
+ * Card 191026100010 (DV-B1-03) — "Đổi BKS nhóm": dialog một field BKS thực,
+ * seed từ BKS đã lưu của nhóm, gọi updateLclTruck đúng theo contract đã có
+ * (FB-093) — không API mới. GP-03: không ô BKS báo khách ở ĐV (spec 23/10
+ * §1) — payload không bao giờ mang billingTruckNo.
  */
 export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruckEditDialogProps) {
   const { toast } = useToast();
   const group = row?.lcl?.group ?? null;
 
   const [actualTruckNo, setActualTruckNo] = useState(group?.actualTruckNo ?? '');
-  const [billingTruckNo, setBillingTruckNo] = useState(group?.billingTruckNo ?? '');
-  // Ref, không phải state: flag chỉ gate hiệu ứng auto-copy, và ref khởi tạo
-  // đã đúng ngay ở commit đầu (một state flag lúc đó vẫn đọc false và clobber
-  // BKS ảo đã lưu bằng BKS thực) — cùng kỹ thuật billingTouchedRef của
-  // AssignTruckGroupDialog.
-  const billingTouchedRef = useRef(Boolean(group?.billingTruckNo?.trim()));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Round-19 law (TripReassignDialog): BKS là SELECTOR trên fleet của chính
@@ -109,13 +102,6 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
     setQuickAddOpen(false);
   };
 
-  // Auto-copy: BKS ảo bám BKS thực cho tới khi operator sửa tay (spec
-  // "auto-copy từ thực tế"). BKS ảo đã lưu khi seed thì luôn là "sửa tay" —
-  // reopen không được nuốt nó bằng BKS thực.
-  useEffect(() => {
-    if (!billingTouchedRef.current) setBillingTruckNo(actualTruckNo.trim());
-  }, [actualTruckNo]);
-
   async function submit() {
     if (saving || !row || !group) return;
     setError(null);
@@ -124,20 +110,17 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
       setError('Nhập BKS thực của xe chạy chuyến');
       return;
     }
-    const billing = billingTouchedRef.current ? billingTruckNo.trim() : '';
     setSaving(true);
     try {
+      // GP-03 — only BKS thực rides the ĐV write; billingTruckNo is the
+      // CUS-side identity and never appears on this payload.
       await updateLclTruck({
         shipmentId: row.shipmentId,
         actualTruckNo: actual,
-        // BKS ảo bằng BKS thực (hoặc trống = copy thực) thì bỏ khỏi payload —
-        // server đã coi mặc định là copy, đúng hình dáng dây của
-        // AssignTruckGroupDialog; chỉ một BKS ảo KHÁC mới được nêu tên.
-        ...(billing && billing !== actual ? { billingTruckNo: billing } : {}),
       });
       toast({
         kind: 'success',
-        message: `Đã đổi BKS nhóm ${group.memberCount ?? '?'} lô — BKS thực ${actual}${billing && billing !== actual ? ` · BKS ảo ${billing}` : ''}`,
+        message: `Đã đổi BKS nhóm ${group.memberCount ?? '?'} lô — BKS thực ${actual}`,
       });
       onSaved();
       onClose();
@@ -211,18 +194,9 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
             disabled={saving}
           />
         </div>
-        <USearchableField
-          label="BKS báo khách (ảo)"
-          value={billingTruckNo}
-          onChange={(next) => { billingTouchedRef.current = true; setBillingTruckNo(next); }}
-          onCustomValue={(text) => { billingTouchedRef.current = true; setBillingTruckNo(text); }}
-          options={plateOptions}
-          placeholder="Mặc định copy BKS thực"
-          searchable
-          allowsCustomValue
-          disabled={saving}
-          hint="Debit Note (FB-094) sẽ in BKS này, tuyệt đối không in BKS thực."
-        />
+        {/* GP-03 (spec 23/10 §1) — no "BKS báo khách" field on the ĐV side:
+            the ảo plate is the CUS-side output (quick edit on Chi phí -
+            Quyết toán / chi tiết lô), never entered at Điều vận. */}
       </div>
       {/* FB-066 — register a brand-new plate under this lot's source; the
           created plate is preselected and folds into the option list. */}

@@ -12,7 +12,7 @@ import { createDebitNoteBatch, exportDebitNoteFile } from '../api/shipmentDebit'
 import { useToast } from '../components/shared/Toast';
 import { ApiError } from '../lib/api';
 import { qk } from '../api/keys';
-import { formatMoney } from '../lib/format';
+import { formatMoney, formatWeight, formatVolumeCbm } from '../lib/format';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
@@ -136,7 +136,7 @@ function DebitLotRow({
               "Ghép cước cùng Bill X" note names the group it belongs to
               (thu: per-lot cước; trả: 1 dòng/chuyến trên Lô 1). */}
           {row.freightOverrideReason && (
-            <small className="shipment-debit-row__freight-note">{row.freightOverrideReason}</small>
+            <small className="shipment-debit-row__freight-note" title={row.freightOverrideReason}>{row.freightOverrideReason}</small>
           )}
           {/* Card 211026024348 — the merged group's undo sits WHERE the merge
               state shows (the "Ghép cước cùng Bill X" note under the money):
@@ -310,6 +310,25 @@ export function ShipmentDebitPage() {
   // group; the same-customer gate runs in the dialog and on the server.
   const selectedRows = items.filter((row) => selectedIds.has(row.shipmentId));
   const mergeableRows = selectedRows.filter((row) => row.cargoMode === 'LCL' && row.revGroupId == null);
+  // GP-01 — the bar's "Tổng X tấn | Y CBM" clause, computed like the ĐV bar
+  // from the wire's cargo measures. A measure no selected lot carries drops
+  // from the clause entirely — never a fabricated 0 (testplan GP-01 case 3).
+  const selectionMeasureClause = (() => {
+    let weight = 0;
+    let volume = 0;
+    let hasWeight = false;
+    let hasVolume = false;
+    for (const row of selectedRows) {
+      const kg = Number(row.cargoWeightKg);
+      if (row.cargoWeightKg != null && Number.isFinite(kg)) { weight += kg; hasWeight = true; }
+      const cbm = Number(row.cargoVolumeCbm);
+      if (row.cargoVolumeCbm != null && Number.isFinite(cbm)) { volume += cbm; hasVolume = true; }
+    }
+    return [
+      hasWeight ? formatWeight(String(weight)) : null,
+      hasVolume ? formatVolumeCbm(String(volume)) : null,
+    ].filter(Boolean).join(' | ');
+  })();
   const mergeDisabledReason = mergeableRows.length < 2
     ? 'Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.'
     : null;
@@ -537,16 +556,17 @@ export function ShipmentDebitPage() {
             <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
             {/* Spec 23/10 (261023110000 §2/§4.2) — the selection's floating
                 bottom bar: raised by the [📦 Gộp hàng] mode once ≥1 lot is
-                ticked. The settlement wire carries no cargo measures, so the
-                bar states the merge law (Lô 1 giữ 100% tiền thu khách) instead
-                of kg/CBM totals; the CTA opens the "Gộp xe thu khách" popup
-                and needs ≥2 ungrouped same-customer LCL lots. The bar also
-                serves a Debit-Note-only selection (no merge clause, no CTA
-                arming) because the ticks it summarizes feed the export too. */}
+                ticked. GP-01: the bar carries the selection's total tấn/CBM
+                like the ĐV bar (the settlement wire now ships the cargo
+                measures) plus the merge law (Lô 1 giữ 100% tiền thu khách);
+                the CTA opens the "Gộp xe thu khách" popup and needs ≥2
+                ungrouped same-customer LCL lots. The bar also serves a
+                Debit-Note-only selection (no merge clause, no CTA arming)
+                because the ticks it summarizes feed the export too. */}
             {canManage && mergeMode && !print && selectedRows.length > 0 && (
               <div className="lcl-selection-bar shipment-debit-merge-bar" role="status">
                 <span className="lcl-selection-bar__totals">
-                  {`Đang chọn ${selectedRows.length} lô`}
+                  {`Đang chọn ${selectedRows.length} lô${selectionMeasureClause ? `: Tổng ${selectionMeasureClause}` : ''}`}
                 </span>
                 {mergeableRows.length > 0 && (
                   <span className="lcl-selection-bar__first">

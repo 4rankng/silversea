@@ -33,6 +33,8 @@ interface StatusTextProps {
   dot?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  /** Optional tooltip (e.g. the full status label beside a truncated chip). */
+  title?: string;
   /** Optional aria-label override; defaults to the rendered text. */
   'aria-label'?: string;
 }
@@ -54,6 +56,7 @@ export function StatusText({
   children,
   className,
   style,
+  title,
   'aria-label': ariaLabel,
 }: StatusTextProps) {
   const tokens = VARIANT_TOKENS[variant];
@@ -62,6 +65,7 @@ export function StatusText({
     <span
       className={className}
       aria-label={ariaLabel ?? text}
+      title={title}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

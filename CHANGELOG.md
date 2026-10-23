@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-10-23 (chiều 2) — fix(lcl,dispatch): gomhang hygiene — CUS bar tấn/CBM, tag gọn, dọn BKS ảo sót, 400-path UI, card status/touch polish
+
+Các dòng còn lại sau wave 60d0c576 (testplan/2026-10-23-gomhang-polish.md,
+GP-01…GP-06). Không đụng `pages/MasterPlanPage*` + `features/dispatch/
+master-plan/*` (lane khác sở hữu).
+
+- **GP-01 CUS bar mang tổng tấn/CBM như bar ĐV**: wire `shipment-debit-summary`
+  thêm `cargoWeightKg`/`cargoVolumeCbm` (shared schema + BE read-side, cùng cột
+  dispatch grids đọc); bar CUS nay in «Đang chọn N lô: Tổng X tấn | Y CBM —
+  Lô 1 giữ 100%…» — thành phần không lô nào có số liệu thì BỎ khỏi câu (không
+  bịa 0). Đóng deviation (a) của wave trước.
+- **GP-02 tag "Ghép thu cước cùng Lô 1" gọn**: `shipment-debit-row__freight-note`
+  (desktop row + phone card) 1 dòng, truncate + `title` = toàn văn — nghĩa theo
+  wire giữ nguyên (không đổi text); strip NHÓM GHÉP (`debit-lot-lcl-facts__groups
+  em` "Ghép cùng Bill X") cùng luật 1 dòng + tooltip.
+- **GP-03 hết "BKS báo khách" trong dialog ĐV**: bỏ ô + state + auto-copy +
+  `billingTruckNo` khỏi payload ở `LclGroupTruckEditDialog` (Đổi BKS nhóm) và
+  inline edit badge menu/row menu `DetailedPlanGrid` («Đổi nhà xe/BKS») — chỉ
+  còn BKS thực; validation «sửa BKS thực trước khi lưu». Grep toàn
+  `features/dispatch`: các hit còn lại là comment luật (AssignTruckGroupDialog)
+  hoặc read-only display (`LclGroupTruckLine` "Ảo:", tooltip badge "Báo khách
+  X" — spec §1 cấm NHẬP ở ĐV, không cấm hiển thị); `DispatchAllocationLclDialog`
+  (master-plan) còn ô BKS báo khách — để lane đó sửa (out of scope).
+- **GP-04 đường server-error gộp CUS khác-KH không im lặng**: gate cùng-KH siết
+  đúng luật BE (1 customerId KHÁC NULL duy nhất — lô `customerId` null cũng là
+  conflict như `findRevCustomerConflict`, chặn TRƯỚC khi gọi API — guard nằm ở
+  CẢ `submit()` lẫn `isDisabled`, hết double-click race); BE 400 → inline
+  `role=alert` + error toast (footer line một mình trôi khỏi viewport phone),
+  dialog giữ nguyên cho retry.
+- **GP-05 card mobile status badge**: chip trạng thái 1 dòng (max-width 42% +
+  ellipsis, table giữ wrap cũ qua element-level rule), `title` = nhãn đầy đủ
+  (StatusText thêm prop `title`), giữ ≥8px tới nút ⋯ (badge co trước).
+- **GP-06 touch target ⋯/tick ≥44px mọi card**: trigger ⋯ `min-width/min-height:
+  44px` + `flex-shrink: 0` + wrapper `flex: none` (token `--control-touch-h`
+  đang 40px — sàn 44px riêng cho tap target trên card); tick = button 44px, hộp
+  vẽ 18px chuyển sang `::before` — gồm compact merge-mode head (đầu card thêm
+  tick) và tick FCL dim.
+- QA rung 3 (`qa/2026-10-23-gomhang-polish/`, driver `qa/scripts/
+  2026-10-23-gomhang-polish.mjs`, 390px, READ-ONLY — DB groups trước/sau
+  identity): GP-01 bar đúng số liệu wire («Tổng 2,214 tấn | 9,002 CBM» từ lô
+  106+107), GP-05 badge gap 8px/1 dòng/title + ⋯ 44×44, GP-06 tick 44×44 cả
+  enabled lẫn dim. Gates: root lint 0 · be tsc 0 · be tests · fe tsc -b 0 ·
+  fe tsgo -b 0 · FULL FE green (sau `make build`) · make build 0.
+
 ## 2026-10-23 (chiều) — feat(lcl,dispatch): FE gộp hàng on-demand — toggle+checkbox+floating bar + popup ĐV 4 trường + CUS gộp thu 3 trường (spec 23/10, cards 231026123901/902/903)
 
 Wave FE của spec 23/10 (BE đã live 71f1468b) — phủ lên nền grid redesign

@@ -59,6 +59,12 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // persistence. Until then every lot reads OPEN.
   lockStatus: z.enum(['OPEN', 'LOCKED']),
   lockedAt: z.string().datetime().nullable(),
+  // ── GP-01 (2026-10-23-gomhang-polish) — the lot's own cargo measures, for
+  // the CUS merge bar's "Tổng X tấn | Y CBM" (parity with the ĐV bar).
+  // Decimal strings like every measure on the wire (kg / CBM); null = the lot
+  // entered none — the bar drops that component rather than inventing a 0.
+  cargoWeightKg: z.string().nullable(),
+  cargoVolumeCbm: z.string().nullable(),
   // ── FB-092/093 LCL grouping facts ────────────────────────────────────────
   cargoMode: z.enum(['FCL', 'LCL']).nullable(),
   costGroupId: z.string().nullable(),

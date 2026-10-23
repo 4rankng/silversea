@@ -644,6 +644,52 @@
 .dpcard .dispatch-row-menu__trigger {
   width: var(--control-touch-h, 44px);
   height: var(--control-touch-h, 44px);
+  /* GP-06 — the phone-card touch floor is 44px even where the shared
+     --control-touch-h token sits at 40px (owner: ordinary controls ≤40px;
+     tap targets on cards ≥44px). */
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+/* GP-06 — the card tick's touch floor: the BUTTON is the 44px hit target and
+   the shared painted box (18px) moves onto ::before, so every card — including
+   the compact merge-mode head — keeps a ≥44px tap area without a 44px painted
+   checkbox. */
+.dpcard .ops-lcl-check {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.dpcard .ops-lcl-check::before {
+  content: '';
+  position: absolute;
+  inset: 13px;
+  border: 1.5px solid #94a3b8;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.dpcard .ops-lcl-check:hover:not(:disabled)::before {
+  border-color: var(--color-accent, #4a9e7d);
+}
+
+.dpcard .ops-lcl-check--on {
+  background: transparent;
+  border-color: transparent;
+}
+
+.dpcard .ops-lcl-check--on::before {
+  background: var(--color-accent, #4a9e7d);
+  border-color: var(--color-accent, #4a9e7d);
+}
+
+.dpcard .ops-lcl-check svg {
+  position: relative;
 }
 
 /* Xóa lô rides LAST, past a hairline, in the danger voice — the destructive
@@ -891,13 +937,38 @@
   font-weight: var(--fw-semibold, 600);
 }
 
+/* GP-05 — the status badge is ONE line beside the ⋯ menu: bounded width,
+   ellipsized (the full label rides the chip's title tooltip), and it shrinks
+   before anything else so the head gap to the menu stays ≥8px. */
 .dpcard__issue {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 42%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The chip's own inline `white-space: normal` may wrap its text in the
+   TABLE cell; the card pins the label span to one ellipsized line instead
+   (an element-level rule beats the inherited inline value). */
+.dpcard__issue .dispatch-assignment-cell__issue {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dpcard__issue .dispatch-assignment-cell__issue > span:not([aria-hidden]) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* GP-05/GP-06 — the ⋯ menu keeps its 44px floor: `flex: none` stops the
+   compact merge-mode head (extra tick) from squeezing the trigger below it. */
 .dpcard .dispatch-row-menu {
   margin-left: auto;
+  flex: none;
 }
 
 /* Body: cargo · tuyến 2 dòng · giờ · xe/SĐT — one line each, ellipsized with

@@ -5,6 +5,8 @@
  * shows the LCL facts strip (THÔNG SỐ CONTAINER / PHÂN XE / group notes).
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -407,5 +409,76 @@ describe('FB-093 — Ghép cước thu khách', () => {
     expect(screen.getByText('Ghép cước cùng Bill BL-9')).toBeTruthy();
     expect(screen.getByText('Thu khách: Ghép (2/3)')).toBeTruthy();
     expect(screen.getByText('Trả ĐV: Ghép (2/2)')).toBeTruthy();
+    // GP-02 — the strip's group notes carry the same one-line law + tooltip.
+    expect(screen.getByText('Ghép cước cùng Bill BL-9').getAttribute('title')).toBe('Ghép cước cùng Bill BL-9');
+  });
+
+  // ── GP-01 (testplan/2026-10-23-gomhang-polish.md) — the CUS floating bar
+  // wires total tấn/CBM like the ĐV bar ("Đang chọn N lô: Tổng X tấn | Y CBM").
+  it('GP-01: floating bar sums the wire cargo measures — "Tổng X tấn | Y CBM" như bar ĐV', async () => {
+    listSummary.mockResolvedValue({
+      items: [
+        lclRow({ cargoWeightKg: '1922.00', cargoVolumeCbm: '4.000' }),
+        lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002', cargoWeightKg: '778.00', cargoVolumeCbm: '3.500' }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    openMergeMode();
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
+    fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
+
+    const totals = await screen.findByText(
+      (_, element) => element?.classList.contains('lcl-selection-bar__totals') ?? false,
+    );
+    expect(totals.textContent).toMatch(/^Đang chọn 2 lô: Tổng /);
+    // 1922 + 778 kg = 2,7 tấn; 4 + 3,5 CBM.
+    expect(totals.textContent).toContain('2,7 tấn');
+    expect(totals.textContent).toContain('7,5 CBM');
+  });
+
+  it('GP-01: một thành phần thiếu số liệu thì bỏ khỏi tổng — không bịa 0', async () => {
+    listSummary.mockResolvedValue({
+      items: [
+        lclRow({ cargoWeightKg: '1000.00', cargoVolumeCbm: null }),
+        lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002', cargoWeightKg: null, cargoVolumeCbm: null }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    openMergeMode();
+    fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
+    fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
+
+    const totals = await screen.findByText(
+      (_, element) => element?.classList.contains('lcl-selection-bar__totals') ?? false,
+    );
+    expect(totals.textContent).toBe('Đang chọn 2 lô: Tổng 1 tấn');
+  });
+
+  // ── GP-02 — the "Ghép thu cước cùng Lô 1" tag keeps its wire meaning but
+  // renders as ONE truncated line with the full text in the tooltip.
+  it('GP-02: tag "Ghép thu cước cùng Lô 1" = 1 dòng truncate + title toàn văn', async () => {
+    listSummary.mockResolvedValue({
+      items: [lclRow({
+        freightAuto: 0,
+        freightOverrideReason: 'Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu',
+      })],
+      total: 1,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+
+    const tag = screen.getByText('Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu');
+    expect(tag.className).toContain('shipment-debit-row__freight-note');
+    expect(tag.getAttribute('title')).toBe('Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu');
+    // The one-line law lives in the page CSS (nowrap + ellipsis), pinned here
+    // so the tag can never reflow to a second line — for BOTH the money-cell
+    // note and the NHÓM GHÉP strip's group notes.
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
+    expect(css).toMatch(/\.shipment-debit-row__freight-note\s*\{[^}]*white-space:\s*nowrap;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/);
+    expect(css).toMatch(/\.debit-lot-lcl-facts__groups em\s*\{[^}]*white-space:\s*nowrap;[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/);
   });
 });

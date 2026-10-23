@@ -15,7 +15,9 @@ function freightFact(row: ShipmentDebitLotRow): ReactNode {
   return (
     <span className="record-cell-stack">
       <span>{value}</span>
-      <small className="shipment-debit-row__freight-note">{row.freightOverrideReason}</small>
+      {/* GP-02 — one truncated line; the full tag ("Ghép thu cước cùng Lô 1" /
+          operator reasons) lives in the tooltip. */}
+      <small className="shipment-debit-row__freight-note" title={row.freightOverrideReason ?? undefined}>{row.freightOverrideReason}</small>
     </span>
   );
 }
