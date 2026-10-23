@@ -9,14 +9,20 @@
 //
 // LCL contract (lclspec — the "Gán xe nhóm" popup's own law, labels reused
 // verbatim): the lot's allocation facts are its LOẠI XE TÍNH CƯỚC TRẢ ĐV, its
-// NHÀ XE and its BKS pair. Of those, the pair a dispatcher may rewrite from a
-// SINGLE lot is the BKS pair — `updateLclTruck` (POST /shipments/lcl/truck),
+// NHÀ XE and its BKS THỰC. Of those, the fact a dispatcher may rewrite from a
+// SINGLE lot is BKS thực — `updateLclTruck` (POST /shipments/lcl/truck),
 // the exact write "Đổi BKS nhóm" owns, which propagates BKS thực to the whole
 // COST group and stamps the lot's "phân bổ xe" channel. Loại xe and nhà xe of
 // hàng lẻ are GROUP facts (FB-090/161026232309): they are set by "Gán xe nhóm"
 // (≥2 lô, same screen) or per-lot in Kế hoạch Chi tiết — the dialog states
 // them as facts with that routing hint instead of offering dead editors.
-import { useEffect, useMemo, useRef, useState } from 'react';
+//
+// GP-03 sweep (audit £100, 2026-10-24): BKS báo khách (ảo) is GONE from this
+// dialog — spec 23/10 §1: "không nhập BKS báo khách tại màn hình Điều vận".
+// It is the CUS OUTPUT (Chi phí - Quyết toán / chốt-debit own its edit); the
+// ĐV payload carries ONLY actualTruckNo (an omitted billingTruckNo is
+// "untouched" server-side, so a CUS-set ảo value survives a ĐV re-allocation).
+import { useEffect, useMemo, useState } from 'react';
 import {
   listDispatchFleetResources,
   updateLclTruck,
@@ -58,11 +64,6 @@ function carrierLabel(shipment: ShipmentListItem): string {
 export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: DispatchAllocationLclDialogProps) {
   const { toast } = useToast();
   const [actualTruckNo, setActualTruckNo] = useState(shipment.actualTruckNo ?? '');
-  const [billingTruckNo, setBillingTruckNo] = useState(shipment.billingTruckNo ?? '');
-  // Ref, not state (AssignTruckGroupDialog/Đổi BKS nhóm law): the flag only
-  // gates the auto-copy effect, and a stored "BKS báo khách" must read as
-  // hand-edited so a reopen never clobbers it with BKS thực.
-  const billingTouchedRef = useRef(Boolean(shipment.billingTruckNo?.trim()));
   const [plateOptions, setPlateOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,12 +141,6 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
     setQuickAddOpen(false);
   };
 
-  // Auto-copy: BKS báo khách follows BKS thực until the operator edits it by
-  // hand (lclspec "auto-copy từ thực tế").
-  useEffect(() => {
-    if (!billingTouchedRef.current) setBillingTruckNo(actualTruckNo.trim());
-  }, [actualTruckNo]);
-
   async function save() {
     if (saving) return;
     setError(null);
@@ -154,23 +149,16 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
       setError('Nhập BKS thực của xe chạy chuyến');
       return;
     }
-    const billing = billingTouchedRef.current ? billingTruckNo.trim() : '';
     setSaving(true);
     try {
+      // GP-03 sweep (audit £100, 2026-10-24): spec 23/10 §1 — the ĐV flow
+      // NEVER writes `billingTruckNo` (BKS báo khách is the CUS output, edited
+      // on Chi phí - Quyết toán / chốt-debit). The payload carries ONLY the
+      // BKS thực pair fact; a stored ảo value is the CUS's and stays
+      // untouched server-side ("omitted ⇒ untouched").
       await updateLclTruck({
         shipmentId: shipment.id,
         actualTruckNo: actual,
-        // A billing equal to (or copied from) the actual plate stays off the
-        // payload — the server already treats copy-from-actual as the default
-        // (same wire shape as Đổi BKS nhóm / Gán xe nhóm). FB-141 sweep: a
-        // TOUCHED-but-blank ảo field sends `null` — an explicit clear back to
-        // the "lấy BKS thực" default — instead of omitting the field and
-        // leaving the stored ảo value orphaned in the DB.
-        ...(billing && billing !== actual
-          ? { billingTruckNo: billing }
-          : billingTouchedRef.current && !billing
-            ? { billingTruckNo: null }
-            : {}),
       });
       toast({
         kind: 'success',
@@ -179,9 +167,6 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
       onSaved({
         ...shipment,
         actualTruckNo: actual,
-        // Cleared ảo reads back as the actual plate (the fallback the server
-        // now holds after the explicit null).
-        billingTruckNo: billing && billing !== actual ? billing : actual,
       });
       onClose();
     } catch (err) {
@@ -279,18 +264,11 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
               }}
             />
           </div>
-          <USearchableField
-            label="BKS báo khách (ảo)"
-            value={billingTruckNo}
-            onChange={(next) => { billingTouchedRef.current = true; setBillingTruckNo(next); }}
-            onCustomValue={(text) => { billingTouchedRef.current = true; setBillingTruckNo(text); }}
-            options={plateChoices}
-            placeholder={actualTruckNo ? actualTruckNo : 'Trống = tự động dùng BKS thực'}
-            searchable
-            allowsCustomValue
-            disabled={saving}
-            hint="Debit Note (FB-094) sẽ in BKS này, tuyệt đối không in BKS thực. Mặc định dùng BKS thực tế nếu để trống."
-          />
+          {/* GP-03 sweep (audit £100, 2026-10-24): the "BKS báo khách (ảo)"
+              field is GONE from the ĐV dialog — spec 23/10 §1 ("không nhập
+              BKS báo khách tại màn hình Điều vận"): it is the CUS OUTPUT,
+              edited on Chi phí - Quyết toán / chốt-debit. The ĐV dialog edits
+              ONLY the BKS thực pair fact. */}
         </div>
 
         {error && (

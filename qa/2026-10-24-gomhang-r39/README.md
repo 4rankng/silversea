@@ -31,3 +31,11 @@ inject trước SPA navigation — `puppeteer-spa-auth` pattern).
   trực tiếp cho sub-flow constraint. Đã ghi testplan case FB-138.
 - FB-145 driver dựng nhóm bằng API (`POST /shipments/lcl/rev-group`,
   Idempotency-Key) rồi tách bằng UI thật — đúng flow card.
+
+## GP-03 sweep (audit £100, 2026-10-24)
+
+Driver `qa/scripts/2026-10-24-gp03-sweep.mjs` (AFTER-only). Dialog
+"Phân bổ nhà xe" của ĐV KHÔNG còn ô "BKS báo khách (ảo)" (spec 23/10 §1);
+payload ĐV chỉ `{shipmentId, actualTruckNo}`; billing của CUS giữ nguyên qua
+lần write ĐV. Evidence: `gp03_after_allocation-dialog.png`,
+`gp03_after_save.png`, `gp03-sweep_ui-driver.log` (0 fail, exit 0).

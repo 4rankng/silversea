@@ -89,9 +89,11 @@ describe('DispatchAllocationPopover — field-set theo cargoMode (card 191026181
     expect(screen.getByText('Xe tải 5 tấn · 5T')).toBeTruthy();
     expect(screen.getByText('Nhà xe')).toBeTruthy();
     expect(screen.getByText('HÀ AN')).toBeTruthy();
-    // The BKS pair the dispatcher may rewrite from a single lot.
+    // The BKS fact the dispatcher may rewrite from a single lot. GP-03 sweep
+    // (audit £100, 2026-10-24): NO BKS báo khách editor on the ĐV side
+    // (spec 23/10 §1 — CUS output only).
     expect(bksField(/BKS thực/)).toHaveValue('30H-123.45');
-    expect(bksField(/BKS báo khách/)).toBeTruthy();
+    expect(screen.queryByRole('combobox', { name: /BKS báo khách/ })).toBeNull();
     // The cont contract is gone: no demand progress, no 20'/40' columns, no
     // per-carrier count inputs, no "Thêm nhà xe".
     expect(screen.queryByText(/container 20'/i)).toBeNull();
@@ -100,23 +102,24 @@ describe('DispatchAllocationPopover — field-set theo cargoMode (card 191026181
     expect(screen.queryByRole('button', { name: /Thêm nhà xe/ })).toBeNull();
   });
 
-  it('LCL lot: BKS thực typed by hand saves through updateLclTruck; a copied BKS ảo stays off the payload', async () => {
+  it('LCL lot: BKS thực typed by hand saves through updateLclTruck — payload chỉ có BKS thực', async () => {
     render(<DispatchAllocationPopover shipment={lclShipment({ actualTruckNo: null })} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     const actual = await screen.findByRole('combobox', { name: /BKS thực/ }) as HTMLInputElement;
     fireEvent.change(actual, { target: { value: '30H-777.88' } });
-    // Untouched BKS ảo auto-copies the actual plate (lclspec) — and the copy
-    // must not be named on the wire (server default = copy from actual).
-    expect(bksField(/BKS báo khách/)).toHaveValue('30H-777.88');
     fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
 
+    // GP-03: the ĐV write names ONLY the BKS thực fact — no billingTruckNo
+    // of any shape (a CUS-set ảo value stays untouched server-side).
     await waitFor(() => expect(updateLclTruck).toHaveBeenCalledWith({
       shipmentId: 2,
       actualTruckNo: '30H-777.88',
     }));
+    const payload = vi.mocked(updateLclTruck).mock.calls.at(-1)![0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('billingTruckNo');
   });
 
-  it('LCL lot: a hand-edited BKS ảo rides the payload and the dialog reports the backend refusal', async () => {
+  it('LCL lot: the dialog reports a backend refusal (khóa sổ) and stays open', async () => {
     vi.mocked(updateLclTruck).mockRejectedValue(new Error('Nhóm ghép đã chốt kế toán — Lô BL-2026-001 đang khóa sổ, không sửa BKS thực của nhóm được'));
     const onSaved = vi.fn();
     const onClose = vi.fn();
@@ -124,7 +127,6 @@ describe('DispatchAllocationPopover — field-set theo cargoMode (card 191026181
 
     const actual = await screen.findByRole('combobox', { name: /BKS thực/ }) as HTMLInputElement;
     fireEvent.change(actual, { target: { value: '30H-666.66' } });
-    fireEvent.change(bksField(/BKS báo khách/), { target: { value: '30H-000.01' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Nhóm ghép đã chốt kế toán');
