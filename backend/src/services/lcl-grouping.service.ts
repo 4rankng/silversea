@@ -53,6 +53,11 @@ import {
   findRevCustomerConflict,
   revGroupMemberPatch,
 } from './lcl-grouping-law';
+import {
+  isRevGroupNote,
+  REV_LOT_AWAITING_REPRICE_REASON,
+  REV_LOT_OWN_CUOC_REASON,
+} from './lcl-rev-notes';
 
 export interface LclGroupActor {
   userId: number;
@@ -137,6 +142,13 @@ export interface LclGroupDissolveResult {
   memberCount: number;
   members: LclGroupMemberResult[];
   dissolved: true;
+  /**
+   * FB-145 (card 231026163927) — the dissolved REV group's loại xe
+   * (vehicle_size_classes.id, from Lô 1 before the clear) so the FE toast's
+   * [Hoàn tác] can re-merge the same class. Null for COST (its class stays
+   * on the lots — FB-095 QA C-1) and for legacy class-less groups.
+   */
+  vehicleClassId: number | null;
 }
 
 export type ShipmentRow = typeof s.shipments.$inferSelect;
@@ -328,6 +340,12 @@ function clearLeaverDimensionPatch(dimension: LclGroupDimension): Partial<typeof
  * fields go, so it can group again later. Its class + BKS + money stay
  * (FB-095 law; QA C-1 — clearing the class here stripped the dispatch and
  * accounting boards, and the Debit Note, of the survivor's loại xe).
+ *
+ * FB-145 exception (card 231026163927, QA R39): the WHOLE-group REV "Tách
+ * nhóm" additionally clears `revVehicleClassId` on every member — see
+ * `unmergeLclGroup` (the group's shared class leaves with the group; CUS
+ * re-picks per-lot, spec 23/10 §4.1). That extra clear lives at the call
+ * site, not here, so the lot-level survivor path keeps the C-1 law intact.
  */
 function dissolveGroupMembershipPatch(dimension: LclGroupDimension): Partial<typeof s.shipments.$inferInsert> {
   return dimension === 'COST'
@@ -555,9 +573,24 @@ export async function unmergeLclGroup(
     const tripFacts = await loadLiveTripFactsByShipment(tx, ordered.map((row) => row.id));
     await assertGroupMutable(tx, ordered, tripFacts);
 
+    // FB-145 (card 231026163927, QA R39) — hand the FE the group's loại xe
+    // BEFORE the REV clear below eats it (the toast's [Hoàn tác] re-merges
+    // with this class). Read from Lô 1; members share one stamp per the
+    // merge law.
+    const dissolvedVehicleClassId = input.dimension === 'REV'
+      ? ordered[0]?.revVehicleClassId ?? null
+      : null;
+
     for (const member of ordered) {
       await tx.update(s.shipments).set({
         ...dissolveGroupMembershipPatch(input.dimension),
+        // FB-145 acceptance: "loại xe của nhóm gộp cũng phải được gỡ khỏi các
+        // lô" — Tách nhóm CẢ NHÓM là "hủy gộp về lại từng xe riêng" (spec
+        // 23/10 §4.2), nên stamp loại xe của NHÓM phải rời theo nhóm; CUS chọn
+        // lại loại xe từng lô (§4.1). Chỉ flow này: survivor của unmerge-theo-
+        // lô vẫn GIỮ loại xe (FB-095 QA C-1 — bảng điều vận/kế toán và Debit
+        // Note đễ đọc loại xe survivor) và COST dissolve giữ luật cũ.
+        ...(input.dimension === 'REV' ? { revVehicleClassId: null } : {}),
         version: member.version + 1,
         updatedBy: actor.userId,
         updatedAt: new Date(),
@@ -583,6 +616,7 @@ export async function unmergeLclGroup(
       memberCount: ordered.length,
       members: ordered.map((row, idx) => ({ shipmentId: row.id, order: idx + 1, reference: lotReference(row) })),
       dissolved: true,
+      vehicleClassId: dissolvedVehicleClassId,
     };
   });
 }
@@ -821,29 +855,17 @@ async function latestShipmentLevelSnapshotAmount(tx: Tx, shipmentId: number): Pr
 }
 
 // ─── Spec 23/10 (261023110000) — REV "Tách nhóm" of a 100%/0₫ merged group ─
+// The note vocabulary itself lives in lcl-rev-notes.ts (db-free) since FB-145:
+// the debit read boards classify these notes without importing this service.
 
 /** Every prose note THIS service writes onto a lot's money. Anything else on a
  *  stamp/snapshot is an operator's own edit and must survive a tách nhóm. */
-const REV_GROUP_NOTE_PREFIXES = [
-  'Ghép cước',
-  'Ghép thu cước',
-  'Tách khỏi nhóm ghép',
-  'Tách nhóm — chuyển',
-  'Đón cước chính',
-  'Tách nhóm — cước thu',
-] as const;
-
-function isRevGroupNote(note: string | null): boolean {
-  return note != null && REV_GROUP_NOTE_PREFIXES.some((prefix) => note.startsWith(prefix));
-}
-
-/** The per-lot marker a REV lot carries once it no longer shares a bill and
- *  keeps a non-zero cước of its own (21/10-era groups). */
-const REV_LOT_OWN_CUOC_REASON = 'Tách nhóm — cước thu theo đơn giá khách × tuyến (lô độc lập)';
-
-/** A separated lot with a cited 0₫ awaits per-lot re-pricing (D02: a computed
- *  financial zero is a value — it keeps its reason). */
-const REV_LOT_AWAITING_REPRICE_REASON = 'Tách khỏi nhóm ghép — chờ định giá lại';
+export {
+  REV_GROUP_NOTE_PREFIXES,
+  isRevGroupNote,
+  REV_LOT_OWN_CUOC_REASON,
+  REV_LOT_AWAITING_REPRICE_REASON,
+} from './lcl-rev-notes';
 
 /**
  * Whole-group "Tách nhóm" (REV) — "tiền cước về lại từng lô đúng trạng thái

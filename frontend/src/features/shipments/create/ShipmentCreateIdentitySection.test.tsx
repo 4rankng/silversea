@@ -59,21 +59,23 @@ describe('QA1-001 — Bill/Booking placeholder before a trade direction is picke
   });
 });
 
-describe('Card 261023093200 (Tiệp Vũ FB 23/10) — Nhận diện lô field order', () => {
-  it('reads Hình thức XNK → Số Bill/Booking → Hãng tàu → Tuỳ chọn → Số tờ khai (cuối) in DOM order', () => {
+describe('FB-127 (TIEPVU-21, Tiệp Vũ 23/10 — MỚI NHẤT, thắng card 261023093200) — Nhận diện lô field order', () => {
+  it('reads 2 cụm "Chứng từ & định danh" → "Phân loại nghiệp vụ"; Số Bill/Booking TRƯỚC Hình thức XNK', () => {
     renderSection({ tradeDirection: 'EXPORT' } as Partial<ShipmentCreateFormState>);
-    // The owner picks the trade direction FIRST, so the picker rides beside
-    // Khách hàng and the Bill/Booking field it gates sits directly below it;
-    // the tờ khai strip is the LAST band of the section. Supersedes the A.3
-    // order of card 181026200200 (Bill/Booking → tờ khai → Nhập/Xuất →
-    // Hãng tàu; FB-113 set that same old order on the ledger popup).
+    // FB-127 rule (docs/prd/TaoMoiLoHang.md): thứ tự field chốt theo luồng
+    // chứng từ giấy — Cụm 1 Chứng từ & định danh (Khách hàng · Số
+    // Bill/Booking · Hãng tàu · Số tờ khai cuối cụm), Cụm 2 Phân loại nghiệp
+    // vụ (Hình thức XNK · Tuỳ chọn). The Bill/Booking gate (blNumber XOR
+    // bookingRef theo hướng, FB-113) is unchanged — only the layout moved.
+    expect(screen.getByText('Chứng từ & định danh')).toBeTruthy();
+    expect(screen.getByText('Phân loại nghiệp vụ')).toBeTruthy();
     const chain = [
       '[data-field-id="shipment-customer"]',
-      '[data-field-id="shipment-trade-direction"]',
       '[data-field-id="shipment-booking-ref"]',
       '[data-field-id="shipment-shipping-line"]',
-      '[data-field-id="shipment-deposit"]',
       '[data-field-id="shipment-declarations"]',
+      '[data-field-id="shipment-trade-direction"]',
+      '[data-field-id="shipment-deposit"]',
     ].map((selector) => document.querySelector(selector));
     for (const node of chain) expect(node, `missing ${node}`).toBeTruthy();
     for (let i = 0; i < chain.length - 1; i += 1) {
@@ -82,5 +84,17 @@ describe('Card 261023093200 (Tiệp Vũ FB 23/10) — Nhận diện lô field or
         `field ${i + 1} must precede field ${i + 2}`,
       ).toBeTruthy();
     }
+  });
+
+  it('cluster divider: 2 cụm là adjacent siblings (CSS "+" selector gắn divider)', () => {
+    // jsdom không load page CSS, nên pin cấu trúc mà rule
+    // `.csc-identity-cluster + .csc-identity-cluster { border-top… }` cần:
+    // hai cụm kề nhau trong cùng cha — divider chắc chắn áp cho cụm 2.
+    const { container } = renderSection({} as Partial<ShipmentCreateFormState>);
+    const clusters = container.querySelectorAll(':scope > .csc-section-body > .csc-identity-cluster, .csc-identity-cluster');
+    expect(clusters.length).toBe(2);
+    expect(clusters[1]!.previousElementSibling).toBe(clusters[0]!);
+    expect(clusters[1]!.querySelector('[data-field-id="shipment-trade-direction"]')).toBeTruthy();
+    expect(clusters[0]!.querySelector('[data-field-id="shipment-booking-ref"]')).toBeTruthy();
   });
 });

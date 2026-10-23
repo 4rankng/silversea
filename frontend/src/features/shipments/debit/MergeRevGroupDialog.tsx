@@ -21,6 +21,7 @@ import { USearchableField } from '../create/uui-searchable-field';
 import { useToast } from '../../../components/shared/Toast';
 import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { mergeLclRevGroup } from '../../../api/dispatchPlanningClient';
+import { vehicleClassSectionedOptions } from '../../../lib/vehicle-class-options';
 
 /** The only lot facts this dialog reads: identity, the customer the merge
  *  groups by, and the three labels the lot list renders. Structural — the
@@ -142,12 +143,14 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
             {gateMessage}
           </p>
         )}
-        {/* Field 1 — Loại xe tính cước thu khách (cả nhóm gộp). */}
+        {/* Field 1 — Loại xe tính cước thu khách (cả nhóm gộp). FB-138: grouped
+            menu — "XE TẢI (TẤN)" | "CONTAINER" headers, same shared builder as
+            the ĐV popup so one pattern serves every loại xe dropdown. */}
         <USearchableField
           label="Loại xe tính cước thu khách"
           value={vehicleClassId}
           onChange={(next) => setVehicleClassId(next)}
-          options={sortedClasses.map((vc) => ({ value: String(vc.id), label: vc.name, searchText: vc.code }))}
+          options={vehicleClassSectionedOptions(sortedClasses)}
           placeholder="Chọn loại xe (trọng tải / cont)"
           searchable
           required

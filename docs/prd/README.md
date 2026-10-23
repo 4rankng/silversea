@@ -118,6 +118,7 @@ Chủ sản phẩm chốt giữ các quy tắc này ngày2026-10-01; xem
 | Tài liệu | Phạm vi | Không thuộc tài liệu này |
 |----------|---------|--------------------------|
 | [QuyTrinhO2C.md](QuyTrinhO2C.md) | Quy trình từ tiếp nhận lô đến điều vận, giao nhận, hoàn thành hồ sơ và thu tiền; trách nhiệm từng vai trò | Công thức cước chi tiết, thiết kế bảng giá |
+| [TaoMoiLoHang.md](TaoMoiLoHang.md) | Màn "Tạo mới lô hàng" (/shipments/new): thứ tự trường "Nhận diện lô" theo luồng chứng từ giấy (FB-127, rule chốt Lead Ops approval) | Công thức cước, phân xe, quy trình O2C chung |
 | [MasterDataNhaMay.md](MasterDataNhaMay.md) | Khách hàng, nhà máy, tuyến và địa điểm; lựa chọn dữ liệu theo quan hệ; lệnh chạy ngoài | Cách tính cước, phân xe, lương |
 | [LoHangKepKetHop.md](LoHangKepKetHop.md) | Kẹp hai container đồng thời và kết hợp hai công việc nối tiếp; nguồn lực, tiến độ, chi phí và doanh thu | Quy trình chung mỗi lô đơn lẻ |
 | [OpsVanHanh.md](OpsVanHanh.md) | Kế hoạch làm hàng, theo dõi phương tiện, tiền ứng, chi phí, chứng từ và quyết toán của nhân viên hiện trường | Lương lái xe, công nợ khách hàng |

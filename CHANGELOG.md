@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-10-24 — fix(lcl,dispatch): QA R39 residuals — FB-138 xe tải rule, FB-127 field order, FB-141 BKS clear, FB-145 unmerge rate revert
+
+4 card QA R39 retest (231026162327 / 231026163927×3, testplan/cases/
+case-QA-2026-10-23-fb1*.md; artifacts qa/2026-10-24-gomhang-r39/). Design
+direction 24/10 (Gemini consult + Untitled UI PRO, chủ duyệt).
+
+- **FB-138 dropdown Loại xe có Xe tải**: các lớp xe tải 1.25T…15T chỉ sống
+  trong DEMO seeder dev/staging — staging prod-mirror (chạy migration) không
+  có ⇒ dropdown chỉ 4 options Cont. Migration mới `20261024090000_lcl_truck_
+  tonnage_classes.sql` hội tụ catalog (idempotent, cùng pattern card58). Dropdown
+  Loại xe (ĐV Gán xe nhóm · CUS Gộp xe thu khách · strip per-lot) render
+  grouped menu 2 section header "XE TẢI (TẤN)" / "CONTAINER" (RAC ListBoxSection,
+  KHÔNG segmented). Đang giữ Đội xe nội bộ mà đổi sang lớp xe tải ⇒ reset nhà xe
+  + warning dưới field (không giữ ID mồ côi).
+- **FB-127 Số Bill/Booking TRƯỚC Hình thức XNK** (TIEPVU-21, thắng card
+  261023093200): "Nhận diện lô" chia 2 cụm divider — "Chứng từ & định danh"
+  (Khách hàng · Bill/Booking · Hãng tàu · tờ khai) / "Phân loại nghiệp vụ"
+  (Hình thức XNK · Tuỳ chọn). Gate blNumber XOR bookingRef giữ nguyên. Rule
+  ghi docs/prd/TaoMoiLoHang.md: thứ tự field chốt theo luồng chứng từ giấy,
+  đổi cần approval Lead Ops.
+- **FB-141 BKS báo khách để trống = hợp lệ**: schema cho ''/null qua (service
+  normalize `|| null` — clear ⇒ fallback BKS thực); FE gửi null khi trống,
+  placeholder ghost = BKS thực, hint "Mặc định dùng BKS thực tế nếu để trống".
+  Sweep sibling: Phân bổ nhà xe (ĐV) clear BKS ảo giờ cũng gửi null.
+- **FB-145 Tách nhóm hoàn cước per-lot**: BE gỡ `revVehicleClassId` của nhóm
+  khỏi mọi lô khi tách CẢ NHÓM (flow Tách nhóm CUS; survivor unmerge-theo-lô
+  giữ luật C-1) + response trả `vehicleClassId` cho nút [Hoàn tác]. Read rule
+  gom về MỘT pure helper `lcl-effective-freight.ts`: citation nhóm
+  ("chờ định giá lại", member-zero tail) trên lô ĐÃ TÁCH đọc "Chưa xác định",
+  không bao giờ in 0₫ stale (cả debit summary lẫn chốt-debit Kế toán). FE:
+  invalidate + skeleton cell cước tới khi bảng mới về; toast "Đã tách nhóm
+  cước thành công" + [Hoàn tác] sống ~6.5s re-merge đúng thứ tự + loại xe.
+
+Gates: BE unit 338 pass (`lcl-unmerge-revert-r39.test.ts` mới — pure rule +
+wire + source pins), FE full 5542 pass, tsc BE/FE 0, lint 0, `make build` OK,
+Playwright before/after 2 phase 0 fail (rung 3, artifacts kèm folder).
+
 ## 2026-10-23 (chiều 2) — fix(lcl,dispatch): gomhang hygiene — CUS bar tấn/CBM, tag gọn, dọn BKS ảo sót, 400-path UI, card status/touch polish
 
 Các dòng còn lại sau wave 60d0c576 (testplan/2026-10-23-gomhang-polish.md,

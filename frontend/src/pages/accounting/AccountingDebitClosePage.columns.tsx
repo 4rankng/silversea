@@ -4,6 +4,7 @@ import { billBookingReference } from '../../lib/business-reference';
 import { StatusPill } from '../../components/UI';
 import { NameCell } from '../../components/shared/NameCell';
 import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
+import { Skeleton } from '../../components/shared/Skeleton';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
@@ -39,6 +40,10 @@ export interface CellContext {
   /** Card 211026024348 — the shared "Tách nhóm" action finished: the board
    *  refetch the caller owns (the group state and money just changed). */
   onRevGroupUnmerged: () => void;
+  /** FB-145 — true while the tách-nhóm refresh is in flight: the cước thu
+   *  cell skeletons (h-4 w-16) instead of repainting the dissolved group's
+   *  stale 0₫. */
+  ratesRefreshing?: boolean;
 }
 
 /**
@@ -219,7 +224,12 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   {
     key: 'cuocThu', label: 'Cước thu (tự động)', className: 'debit-col--money', group: 'thu',
     autoHideWhenEmpty: true, raw: (row) => row.thu.cuocThu,
-    cell: (row) => money(row.thu.cuocThu, 'Thiếu cước thu'),
+    // FB-145 — the tách-nhóm refresh skeletons the cell (design direction
+    // 24/10: h-4 w-16); "Thiếu cước thu"/the fresh per-lot price renders only
+    // from the refetched board.
+    cell: (row, context) => (context?.ratesRefreshing
+      ? <Skeleton width={64} height={16} />
+      : money(row.thu.cuocThu, 'Thiếu cước thu')),
   },
   {
     key: 'lachHuyen', label: 'Lạch Huyện (tự động)', className: 'debit-col--money', group: 'thu',

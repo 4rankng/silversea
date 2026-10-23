@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { ShipmentDebitRecords } from '../features/shipments/debit/ShipmentDebitRecords';
 import { canManageShipmentDebit } from '../lib/role-access';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { tripClient } from '../api/tripClient';
 import { listShipmentDebitSummary, type ShipmentDebitLotRow } from '../api/shipmentClient';
@@ -51,7 +51,7 @@ function overlappingLotCodesFrom(cause: unknown): string[] | null {
  *  Spec 23/10 (261023110000 §2): the tick is ON-DEMAND — it renders only
  *  while the page's [📦 Gộp hàng] mode is active. */
 function DebitLotRow({
-  row, expanded, onToggle, onSaved, selected, onSelect, canManage, mergeMode, plateOptions,
+  row, expanded, onToggle, onSaved, onUnmerged, ratesRefreshing, selected, onSelect, canManage, mergeMode, plateOptions,
 }: {
   row: ShipmentDebitLotRow;
   canManage: boolean;
@@ -60,6 +60,12 @@ function DebitLotRow({
   expanded: boolean;
   onToggle: () => void;
   onSaved: () => void;
+  /** FB-145 — the [Tách nhóm] refresh: invalidates + refetches the money
+   *  queries while the cells below render skeletons (never a stale 0₫). */
+  onUnmerged: () => void;
+  /** FB-145 — true while the unmerge refresh is in flight: the money cells
+   *  skeleton instead of painting the pre-tách numbers. */
+  ratesRefreshing: boolean;
   selected: boolean;
   onSelect: (id: number, next: boolean) => void;
   /** FB-093: BKS combobox suggestions for the PHÂN XE quick edit. */
@@ -130,7 +136,15 @@ function DebitLotRow({
       </td>
       <td className="shipment-debit-row__money">
         <div className="record-cell-stack shipment-debit-row__freight">
-          <span>{row.freightAuto == null ? 'Chưa xác định' : formatMoney(row.freightAuto)}</span>
+          {/* FB-145 — while the unmerge refresh is in flight the cell
+              skeletons (h-4 w-16, design direction 24/10): the pre-tách 0₫
+              must never repaint, and "Chưa xác định" only means something
+              once it comes from the fresh board. */}
+          {ratesRefreshing ? (
+            <Skeleton width={64} height={16} className="shipment-debit-row__rate-skeleton" />
+          ) : (
+            <span>{row.freightAuto == null ? 'Chưa xác định' : formatMoney(row.freightAuto)}</span>
+          )}
           {/* F-2 (card 161026113900, spec §3.2): a freight the override
               channel produced carries its reason beneath the money — the
               "Ghép cước cùng Bill X" note names the group it belongs to
@@ -150,13 +164,19 @@ function DebitLotRow({
               disabledReason={row.lockStatus === 'LOCKED'
                 ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
                 : null}
-              onUnmerged={onSaved}
+              onUnmerged={onUnmerged}
             />
           )}
         </div>
       </td>
       <td className="shipment-debit-row__money">{row.chiHoTotal == null ? 'Chưa xác định' : formatMoney(row.chiHoTotal)}</td>
-      <td className="shipment-debit-row__money shipment-debit-row__money--strong">{row.receivableTotal == null ? 'Chưa xác định' : formatMoney(row.receivableTotal)}</td>
+      <td className="shipment-debit-row__money shipment-debit-row__money--strong">
+        {ratesRefreshing ? (
+          <Skeleton width={64} height={16} className="shipment-debit-row__rate-skeleton" />
+        ) : (
+          row.receivableTotal == null ? 'Chưa xác định' : formatMoney(row.receivableTotal)
+        )}
+      </td>
       <td className="shipment-debit-row__money">{row.payableTotal == null ? 'Chưa xác định' : formatMoney(row.payableTotal)}</td>
       <td className="shipment-debit-row__money">{row.profit == null ? 'Chưa xác định' : formatMoney(row.profit)}</td>
       <td>
@@ -287,6 +307,8 @@ export function ShipmentDebitPage() {
   };
 
   const bootstrap = useQuery({ queryKey: qk.shipmentDebit.bootstrap, queryFn: () => tripClient.getBootstrap() });
+  const queryClient = useQueryClient();
+  const [ratesRefreshing, setRatesRefreshing] = useState(false);
   const summary = useQuery({
     queryKey: qk.shipmentDebit.summary(customerId, deliveryFrom, deliveryTo, lockStatus),
     // Card _202: an empty customer means EVERY customer, so the list always
@@ -298,6 +320,23 @@ export function ShipmentDebitPage() {
       lockStatus,
     }),
   });
+  /** FB-145 (design direction 24/10) — the [Tách nhóm] refresh: invalidate
+   *  the money query IMMEDIATELY and skeleton the rate cells until the fresh
+   *  board lands, so the pre-tách 0₫ never repaints. Reused by the toast's
+   *  [Hoàn tác] (re-merge refreshes the same way). `refetchType: 'none'` +
+   *  ONE explicit refetch: a default invalidate would double-fetch the board
+   *  (invalidate refetches active queries, refetch refetches again). */
+  const refreshRates = () => {
+    setRatesRefreshing(true);
+    void (async () => {
+      try {
+        await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.summary(customerId, deliveryFrom, deliveryTo, lockStatus), refetchType: 'none' });
+        await summary.refetch();
+      } finally {
+        setRatesRefreshing(false);
+      }
+    })();
+  };
 
   const customers = bootstrap.data?.customers ?? [];
   const items = summary.data?.items ?? [];
@@ -534,6 +573,8 @@ export function ShipmentDebitPage() {
                     expanded={canManage && expandedId === row.shipmentId}
                     onToggle={() => toggleExpandedLot(row.shipmentId)}
                     onSaved={() => summary.refetch()}
+                    onUnmerged={refreshRates}
+                    ratesRefreshing={ratesRefreshing}
                     selected={selectedIds.has(row.shipmentId)}
                     onSelect={(id, next) => setSelectedIds((current) => {
                       const set = new Set(current);

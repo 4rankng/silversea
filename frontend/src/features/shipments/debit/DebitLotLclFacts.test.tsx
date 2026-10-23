@@ -328,3 +328,40 @@ describe('FB-095 — nút "Hủy ghép" trên khối NHÓM GHÉP', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
+
+// ─── FB-141 (card 231026163927, QA R39) — BKS báo khách để trống là hợp lệ ───
+
+describe('FB-141 — BKS báo khách: clear về trống gửi null, không còn 400', () => {
+  it('xóa trắng ô đã lưu rồi Lưu BKS ⇒ gửi billingTruckNo: null (fallback BKS thực), toast thành công', async () => {
+    updateTruck.mockResolvedValue({ updatedShipmentIds: [9001] });
+    const { onChanged } = renderStrip({
+      actualTruckNo: '15C-167.31',
+      billingTruckNo: '29H-77777',
+    });
+
+    // Ghost placeholder = chính BKS thực khi có (design direction 24/10).
+    const billing = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' }) as HTMLInputElement;
+    expect(billing.placeholder).toBe('15C-167.31');
+    expect(screen.getByText('Mặc định dùng BKS thực tế nếu để trống')).toBeInTheDocument();
+
+    // The stored ảo value shows; the operator clears it…
+    expect(billing).toHaveValue('29H-77777');
+    fireEvent.focusIn(billing);
+    fireEvent.change(billing, { target: { value: '' } });
+    fireEvent.blur(billing);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS' }));
+    // …and the clear rides as null — the OLD wire sent '' and 400'd
+    // "BKS không được để trống".
+    await waitFor(() => expect(updateTruck).toHaveBeenCalledWith({ shipmentId: 9001, billingTruckNo: null }));
+    expect(onChanged).toHaveBeenCalled();
+    expect(await screen.findByText(/Đã cập nhật BKS/)).toBeInTheDocument();
+    expect(screen.queryByText(/BKS không được để trống/)).toBeNull();
+  });
+
+  it('chưa có BKS thực: placeholder fallback text hướng dẫn dùng BKS thực', () => {
+    renderStrip({ actualTruckNo: null, billingTruckNo: null });
+    const billing = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' }) as HTMLInputElement;
+    expect(billing.placeholder).toBe('Trống = tự động dùng BKS thực');
+  });
+});

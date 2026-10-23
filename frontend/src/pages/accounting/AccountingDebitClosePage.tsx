@@ -78,6 +78,9 @@ export default function AccountingDebitClosePage() {
   // board selection. Same dialog the Chi phí - Quyết toán page runs
   // (`MergeRevGroupDialog`); no second implementation.
   const [mergeOpen, setMergeOpen] = useState(false);
+  // FB-145 — true while the [Tách nhóm] refresh is in flight: the cước thu
+  // column skeletons instead of painting the dissolved group's stale 0₫.
+  const [revGroupRefreshing, setRevGroupRefreshing] = useState(false);
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
@@ -251,10 +254,24 @@ export default function AccountingDebitClosePage() {
     confirm: (requestIds) => confirmMutation.mutate(requestIds),
     withdraw: (requestIds) => withdrawMutation.mutate(requestIds),
     isBusy: confirmMutation.isPending || withdrawMutation.isPending,
+    // FB-145 — the [Tách nhóm] skeleton flag for the money columns.
+    ratesRefreshing: revGroupRefreshing,
     // Card 211026024348 — the shared "Tách nhóm" action landed: the board's
-    // group state + money columns just changed, refetch them.
+    // group state + money columns just changed, refetch them. FB-145: the
+    // refresh skeletons the cước thu cell while in flight (the stale 0₫ of
+    // the dissolved group must never repaint).
     onRevGroupUnmerged: () => {
-      void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
+      setRevGroupRefreshing(true);
+      void (async () => {
+        try {
+          // refetchType 'none' + ONE refetch — a default invalidate would
+          // double-fetch the board.
+          await queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll, refetchType: 'none' });
+          await boardQuery.refetch();
+        } finally {
+          setRevGroupRefreshing(false);
+        }
+      })();
     },
     editBillingPlate: (shipmentId) => {
       const row = rows.find((candidate) => candidate.shipmentId === shipmentId);

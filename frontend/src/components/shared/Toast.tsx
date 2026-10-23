@@ -12,12 +12,19 @@ interface ToastEntry {
   kind: ToastKind;
   message: string;
   exiting?: boolean;
+  /** FB-145 — an inline action ([Hoàn tác] …): rendered as a button beside
+   *  the message; pressing it runs the handler and dismisses the toast. */
+  action?: { label: string; onPress: () => void };
 }
 
 export interface ToastOptions {
   kind: ToastKind;
   message: string;
   duration?: number;
+  /** FB-145 (design direction 24/10, owner-approved) — one optional action
+   *  on the toast (e.g. "Hoàn tác" for tách nhóm). Pass a `duration` in the
+   *  5–8s window: the action must be reachable before auto-dismiss. */
+  action?: { label: string; onPress: () => void };
 }
 
 interface ToastContextValue {
@@ -166,7 +173,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
     const id = `toast-${++counter.current}`;
     const duration = options.duration ?? 4500;
-    setToasts(prev => [...prev, { id, kind: options.kind, message: options.message }]);
+    setToasts(prev => [...prev, { id, kind: options.kind, message: options.message, action: options.action }]);
     timers.current.set(id, setTimeout(() => dismiss(id), duration));
     return id;
   }, [dismiss]);
@@ -227,6 +234,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <Icon size={18} className="toast__icon" aria-hidden="true" />
                 <div className="toast__body">
                   <div className="toast__message">{t.message}</div>
+                  {t.action && (
+                    <button
+                      type="button"
+                      className="toast__action"
+                      onClick={() => {
+                        t.action!.onPress();
+                        dismiss(t.id);
+                      }}
+                    >
+                      {t.action.label}
+                    </button>
+                  )}
                 </div>
                 <button
                   className="toast__close"

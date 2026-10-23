@@ -12,6 +12,16 @@ import { z } from 'zod';
 // the frontend clients import the inferred types.
 
 const truckNo = z.string().trim().min(1, 'BKS không được để trống').max(20);
+/**
+ * FB-141 (card 231026163927, QA R39) — BKS báo khách là output TÙY CHỌN của
+ * CUS (spec 23/10 §4.1: trống = hợp lệ ⇒ fallback BKS thực ĐV đã gán). Blank
+ * ('' / toàn khoảng trắng) phải ĐI QUA wire: service normalize `trim() || null`
+ * chuyển thành clear. min(1) cũ biến phép clear thành 400 "BKS không được để
+ * trống" — người dùng không hoàn tác được về mặc định sau khi đã nhập.
+ * BKS THỰC (actualTruckNo) giữ luật min(1) nghiêm ngặt như cũ.
+ */
+const billingTruckNo = z.string().trim().max(20, 'BKS báo khách tối đa 20 ký tự').nullable();
+
 const shipmentIdList = z
   .array(z.number().int().positive())
   .min(2, 'Nhóm ghép cần ít nhất 2 lô');
@@ -96,8 +106,9 @@ export const mergeLclRevGroupSchema = z.object({
    * BKS báo khách (chung cho nhóm). Omitted/blank ⇒ every lot keeps its own
    * per-lot value and a blank lot reports the ĐV-assigned BKS thực (spec
    * 23/10 read-side fallback). A value is stamped onto every member.
+   * FB-141: blank đi qua (service normalize null) — clear là thao tác hợp lệ.
    */
-  billingTruckNo: truckNo.optional(),
+  billingTruckNo: billingTruckNo.optional(),
   /**
    * Spec 23/10 — "Cước thu khách Lô 1 (đ) – nhập tay": manual override of the
    * group's 100% cước thu. Omitted ⇒ auto-trace bảng giá thu khách
@@ -157,9 +168,10 @@ export type UnmergeLclGroupInput = z.infer<typeof unmergeLclGroupSchema>;
 export const updateLclTruckSchema = z.object({
   shipmentId: z.number().int().positive(),
   actualTruckNo: truckNo.optional(),
-  /** BKS báo khách (CUS). `null` clears it ⇒ BLANK ⇒ the lot reports the
-   *  ĐV-assigned BKS thực (spec 23/10 fallback). Omitted ⇒ untouched. */
-  billingTruckNo: truckNo.nullable().optional(),
+  /** BKS báo khách (CUS). `null` HOẶC '' clears it ⇒ BLANK ⇒ the lot reports
+   *  the ĐV-assigned BKS thực (spec 23/10 fallback). Omitted ⇒ untouched.
+   *  FB-141: để trống = hợp lệ, không còn 400 "BKS không được để trống". */
+  billingTruckNo: billingTruckNo.optional(),
 });
 export type UpdateLclTruckInput = z.infer<typeof updateLclTruckSchema>;
 

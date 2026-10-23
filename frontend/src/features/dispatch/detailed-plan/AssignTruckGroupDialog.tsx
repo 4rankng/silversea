@@ -43,6 +43,7 @@ import {
 } from '../../../api/dispatchPlanningClient';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { lclVehicleSourcingRule, LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS, assessLclCargoFit } from '@tingting/shared';
+import { vehicleClassSectionedOptions } from '../../../lib/vehicle-class-options';
 import { billBookingReference } from '../../../lib/business-reference';
 import { formatVolumeCbm, formatWeight } from '../../../lib/format';
 import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
@@ -216,6 +217,26 @@ export function AssignTruckGroupDialog({
   }, [carrierKey]);
   const ownFleet = carrierKey === OWN_CARRIER_KEY;
 
+  // FB-138 (design direction 24/10, owner-approved) — switching the class to
+  // a truck-tonnage rung while the form still holds the internal fleet (a
+  // CONT-era pick) must RESET the nhà xe, never keep a dead OWN id that the
+  // filtered list no longer offers (the QA "mồ côi" complaint): the plate
+  // follows its source, and a warning tells the dispatcher to re-pick. An
+  // outside nhà xe survives the flip (it is legal for both sourcing rules).
+  const [carrierResetWarning, setCarrierResetWarning] = useState<string | null>(null);
+  useEffect(() => {
+    if (sourcingRule !== LclVehicleSourcing.EXTERNAL_ONLY) return;
+    if (carrierKey === '' || carrierKey === OWN_CARRIER_KEY) {
+      if (carrierKey === OWN_CARRIER_KEY) {
+        setCarrierKey('');
+        setActualTruckNo('');
+        setCarrierResetWarning('Loại xe tải 100% xe ngoài — đã bỏ lựa chọn Đội xe nội bộ. Chọn lại Nhà xe (xe ngoài).');
+      }
+      return;
+    }
+    setCarrierResetWarning(null);
+  }, [sourcingRule, carrierKey]);
+
   // Reopen a grouped lot with its stored identity in the form: loại xe, BKS
   // thực and the persisted vehicle source (nhà xe / đội xe nội bộ). Guarded by
   // the anchor's group id so a background re-render never clobbers edits.
@@ -382,11 +403,10 @@ export function AssignTruckGroupDialog({
           label="Loại xe tính cước trả ĐV"
           value={vehicleClassId}
           onChange={(next) => setVehicleClassId(next)}
-          options={sortedClasses.map((vc) => ({
-            value: String(vc.id),
-            label: vc.name,
-            searchText: vc.code,
-          }))}
+          // FB-138 — grouped menu: "XE TẢI (TẤN)" | "CONTAINER" section
+          // headers (design direction 24/10), so the tonnage rungs are as
+          // visible as the cont classes and the sourcing rule is testable.
+          options={vehicleClassSectionedOptions(sortedClasses)}
           placeholder="Chọn loại xe (trọng tải / cont)"
           searchable
           required
@@ -418,6 +438,8 @@ export function AssignTruckGroupDialog({
             setCarrierKey(next);
             // The plate belongs to the source, never carried across it.
             setActualTruckNo('');
+            // FB-138 — a fresh pick resolves the reset warning on its own.
+            if (next !== '') setCarrierResetWarning(null);
           }}
           options={carrierOptions}
           placeholder={sourcingRule === LclVehicleSourcing.EXTERNAL_ONLY
@@ -426,6 +448,12 @@ export function AssignTruckGroupDialog({
           searchable
           required
         />
+        {/* FB-138 — the sourcing flip's visible consequence (never a silent
+            dead id): the internal-fleet pick was dropped, re-pick an outside
+            nhà xe. */}
+        {carrierResetWarning && (
+          <p className="assign-truck-group__hint" role="status">{carrierResetWarning}</p>
+        )}
         {/* FB-066 — the "BKS thực" picker gets the quick-add affordance the
             dispatch editor and trip form already own: a dispatcher meeting a
             brand-new plate registers it under the chosen nhà xe without

@@ -19,6 +19,7 @@ import type { ShipmentDebitSummaryItem, ShipmentDebitSummaryResponse } from '@ti
 import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { loadRevenueOverrideByLot } from './revenue-override-read.service';
+import { effectiveLclFreight } from './lcl-effective-freight';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -147,6 +148,10 @@ export async function getShipmentDebitSummary(query: {
     shipmentId: s.freightRateSnapshots.shipmentId,
     tripId: s.freightRateSnapshots.tripId,
     totalAmount: s.freightRateSnapshots.totalAmount,
+    // FB-145 (card 231026163927) — the intake row's formula note decides
+    // whether its amount is a live price or a group artifact (merge member
+    // zero / "chờ định giá lại" citation) on an UNGROUPED lot.
+    formulaText: s.freightRateSnapshots.formulaText,
   }).from(s.freightRateSnapshots)
     .leftJoin(s.trips, eq(s.trips.id, s.freightRateSnapshots.tripId))
     .where(and(
@@ -161,9 +166,8 @@ export async function getShipmentDebitSummary(query: {
           and latest.trip_id is not distinct from ${s.freightRateSnapshots.tripId}
       )`,
     ));
-  const freightByLot = new Map<number, number>();
   const tripLegFreight = new Map<number, number>();
-  const intakeFreight = new Map<number, number>();
+  const intakeFreight = new Map<number, { total: number; formulaNote: string | null }>();
   for (const row of grainRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
@@ -171,46 +175,45 @@ export async function getShipmentDebitSummary(query: {
       tripLegFreight.set(lot, (tripLegFreight.get(lot) ?? 0) + toNumber(row.totalAmount));
     } else {
       // The latest-per-grain filter leaves at most one trip-NULL row per lot.
-      intakeFreight.set(lot, toNumber(row.totalAmount));
+      intakeFreight.set(lot, { total: toNumber(row.totalAmount), formulaNote: row.formulaText ?? null });
     }
   }
+  /** The snapshot channel as the effective-freight rule reads it: trip legs
+   *  win (additive per-trip freezes — real prices, never group artifacts);
+   *  otherwise the intake row WITH its formula note (FB-145 classification). */
+  const snapshotChannelByLot = new Map<number, { total: number; formulaNote: string | null }>();
   for (const lot of lotIds) {
     const legs = tripLegFreight.get(lot);
-    const intake = intakeFreight.get(lot);
-    const freight = legs !== undefined ? legs : intake;
-    if (freight !== undefined) freightByLot.set(lot, freight);
+    if (legs !== undefined) {
+      snapshotChannelByLot.set(lot, { total: legs, formulaNote: null });
+    } else {
+      const intake = intakeFreight.get(lot);
+      if (intake != null) snapshotChannelByLot.set(lot, intake);
+    }
   }
 
-  // F-2 (card 161026113900, owner ruling b): CƯỚC VẬN TẢI (AUTO) reads the
-  // override channel `trip_financial_state.revenue` for an LCL lot that is
-  // REV-grouped (the merge re-prices the principal without override markers)
-  // or whose live trip carries an override stamp (FB-095 transfers/re-stamps —
-  // and the survivor of a dissolved 2-lot group is ungrouped). LCL-only keeps
-  // every FCL lot on the snapshot channel byte-for-byte. Spec §3.2: members
-  // read 0₫ with the reason note; chi hộ still counts into TỔNG PHẢI THU
-  // KHÁCH — only the freight component follows the group law.
+  // F-2 (card 161026113900, owner ruling b) + FB-145 (card 231026163927):
+  // CƯỚC VẬN TẢI (AUTO) follows ONE pure rule — `effectiveLclFreight`
+  // (lcl-effective-freight.ts, pinned by unit tests). LCL-only keeps every
+  // FCL lot on the snapshot channel byte-for-byte. Spec §3.2: members read
+  // 0₫ with the reason note; chi hộ still counts into TỔNG PHẢI THU KHÁCH —
+  // only the freight component follows the group law. FB-145: once the lot
+  // is UNGROUPED, a group artifact behind its money (member-zero tail or the
+  // "chờ định giá lại" citation) reads "Chưa xác định" — never a stale 0₫.
   const overrideByLot = await loadRevenueOverrideByLot(db, lotIds);
   const effectiveFreightByLot = new Map<number, { value: number | null; reason: string | null }>();
   for (const lot of lots) {
-    const override = overrideByLot.get(lot.id);
-    const qualified = lot.cargoMode === 'LCL'
-      && (lot.revGroupId != null || (override?.stamped ?? false));
-    if (!qualified) {
-      effectiveFreightByLot.set(lot.id, { value: freightByLot.get(lot.id) ?? null, reason: null });
-      continue;
-    }
-    // 161026204709: a merged lot with no live trip has no override-channel
-    // total (nothing to read there) — fall back to the snapshot channel,
-    // where the merge materialized each lot's own lane price (per boss 21/10
-    // — per-lot AUTO, no member zero) as a shipment-level row. Still null when
-    // neither channel holds a number ("Chưa xác định" — never a fabricated 0).
-    const memberNote = (lot.revGroupOrder ?? 1) > 1
-      ? `Ghép cước cùng Bill ${revPrincipalRefs.get(lot.revGroupId!) ?? ''}`.trim()
-      : null;
-    effectiveFreightByLot.set(lot.id, {
-      value: override?.total ?? freightByLot.get(lot.id) ?? null,
-      reason: override?.reason ?? memberNote,
-    });
+    const override = overrideByLot.get(lot.id) ?? null;
+    effectiveFreightByLot.set(lot.id, effectiveLclFreight({
+      snapshotChannel: snapshotChannelByLot.get(lot.id) ?? null,
+      override: override == null
+        ? null
+        : { total: override.total, reason: override.reason, stamped: override.stamped },
+      revGroupId: lot.revGroupId ?? null,
+      revGroupOrder: lot.revGroupOrder ?? null,
+      revPrincipalRef: lot.revGroupId != null ? revPrincipalRefs.get(lot.revGroupId) ?? null : null,
+      cargoMode: lot.cargoMode,
+    }));
   }
 
   // Tổng chi hộ: what SS pays on the lot's live trips (CVC + Ops fees).

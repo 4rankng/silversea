@@ -270,3 +270,88 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     expect(await screen.findByText(/Bill BL-2 thành Lô chính và nhận 100% cước thu nhóm/)).toBeTruthy();
   });
 });
+
+// ─── FB-145 (card 231026163927, QA R39 + design direction 24/10) ─────────────
+
+describe('FB-145 — Tách nhóm: skeleton cell cước + toast [Hoàn tác] re-merge', () => {
+  it('ngay sau khi tách: cell cước skeleton tới khi bảng mới về — không vẽ lại 0₫ stale', async () => {
+    let releaseRefetch: ((value: ReturnType<typeof summaryOf>) => void) | null = null;
+    listSummary.mockResolvedValueOnce(mergedPair());
+    // The refresh hangs until the test releases it — the skeleton window is
+    // observable.
+    listSummary.mockImplementationOnce(() => new Promise((resolve) => { releaseRefetch = resolve; }));
+    renderPage();
+    await screen.findAllByText('BL-2');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
+    await screen.findByRole('dialog');
+    unmergeGroup.mockResolvedValue({
+      dimension: 'REV', groupId: 'g-rev-1', memberCount: 2,
+      members: [
+        { shipmentId: 101, order: 1, reference: 'BL-1' },
+        { shipmentId: 102, order: 2, reference: 'BL-2' },
+      ],
+      dissolved: true, vehicleClassId: 21,
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
+
+    await waitFor(() => expect(unmergeGroup).toHaveBeenCalled());
+    // The money cells skeleton while the refresh is in flight (h-4 w-16 —
+    // the QA law: the pre-tách 0₫ must never repaint).
+    await waitFor(() => {
+      expect(document.querySelectorAll('.shipment-debit-row__rate-skeleton').length).toBeGreaterThan(0);
+    });
+    const bl2Row = (await screen.findAllByText('BL-2'))[0]!.closest('.shipment-debit-row')!;
+    expect(bl2Row.textContent).not.toContain(formatMoney(0));
+
+    // Release: the fresh board lands, the skeletons go, the restored cước
+    // renders.
+    releaseRefetch!(unmergedPair());
+    await waitFor(() => {
+      expect(document.querySelector('.shipment-debit-row__rate-skeleton')).toBeNull();
+    });
+    expect(await screen.findByText(formatMoney(700000))).toBeTruthy();
+  });
+
+  it('toast [Hoàn tác]: bấm trong cửa sổ 5–8s → re-merge đúng thứ tự + loại xe nhóm', async () => {
+    const { mergeLclRevGroup } = await import('../api/dispatchPlanningClient');
+    const mergeSpy = vi.spyOn({ mergeLclRevGroup }, 'mergeLclRevGroup');
+    // The REAL page module already closed over the client module — spy on its
+    // method instead of re-mocking (the module mock above spreads the
+    // original, so the function identity is shared).
+    const client = await import('../api/dispatchPlanningClient');
+    const realMerge = client.mergeLclRevGroup;
+    const mergeMock = vi.fn().mockResolvedValue({ groupId: 'g-rev-2', memberCount: 2, members: [] });
+    client.mergeLclRevGroup = mergeMock as unknown as typeof client.mergeLclRevGroup;
+
+    listSummary.mockResolvedValueOnce(mergedPair()).mockResolvedValue(unmergedPair());
+    renderPage();
+    await screen.findAllByText('BL-2');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
+    await screen.findByRole('dialog');
+    unmergeGroup.mockResolvedValue({
+      dimension: 'REV', groupId: 'g-rev-1', memberCount: 2,
+      members: [
+        { shipmentId: 101, order: 1, reference: 'BL-1' },
+        { shipmentId: 102, order: 2, reference: 'BL-2' },
+      ],
+      dissolved: true, vehicleClassId: 21,
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
+
+    await waitFor(() => expect(unmergeGroup).toHaveBeenCalled());
+    // The FB-145 toast: success + a live [Hoàn tác] action.
+    expect(await screen.findByText('Đã tách nhóm cước thành công')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
+
+    await waitFor(() => expect(mergeMock).toHaveBeenCalledWith({
+      shipmentIds: [101, 102],
+      vehicleSizeClassId: 21,
+    }));
+    expect(await screen.findByText('Đã gộp lại nhóm cước thu khách')).toBeTruthy();
+
+    client.mergeLclRevGroup = realMerge;
+    mergeSpy.mockRestore();
+  });
+});
