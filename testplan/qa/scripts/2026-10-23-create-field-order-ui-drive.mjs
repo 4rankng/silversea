@@ -3,7 +3,7 @@
 // pre-change code); AFTER phase drives THIS worktree's frontend on its own
 // port against the same backend/DB:
 //   node testplan/qa/scripts/2026-10-23-create-field-order-ui-drive.mjs            # before
-//   PHASE=after FRONT=http://localhost:7176 \
+//   PHASE=after FRONT=http://localhost:$WORKTREE_FE_PORT \
 //     node testplan/qa/scripts/2026-10-23-create-field-order-ui-drive.mjs         # after
 //
 // Surface: form Tạo lô (/shipments/new) — section "Nhận diện lô".
