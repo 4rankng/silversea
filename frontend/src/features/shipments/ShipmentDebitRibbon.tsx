@@ -2,6 +2,7 @@ import { RotateCcw } from 'lucide-react';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { Button as UUIButton } from '../../components/untitled-ui/base/buttons/button';
 import { DisabledActionTip } from '../../components/shared/DisabledActionTip';
+import { LclMergeModeToggle } from '../../components/shared/LclMergeModeToggle';
 import {
   DateRangeFields, DateRangePresetSelect, DateRangePresets, FilterBar, InlineLabelSelect, SearchableSelect,
   type DateRangePreset, type DateRangeValue, type SearchableSelectOption,
@@ -75,6 +76,11 @@ export interface ShipmentDebitRibbonProps {
   onResetSecondary: () => void;
   /** Clears every filter of the strip. */
   onClear: () => void;
+  /** Spec 23/10 (261023110000 §2) — the on-demand [📦 Gộp hàng] mode: the
+   *  toggle rides the strip's actions; the page keeps the state (absent on
+   *  read-only sessions ⇒ no button, no ticks). */
+  mergeMode?: boolean;
+  onToggleMergeMode?: () => void;
 }
 
 export function ShipmentDebitRibbon({
@@ -88,6 +94,8 @@ export function ShipmentDebitRibbon({
   onDeliveryRangeChange,
   onResetSecondary,
   onClear,
+  mergeMode,
+  onToggleMergeMode,
 }: ShipmentDebitRibbonProps) {
   const range = { from: deliveryFrom, to: deliveryTo };
   // The badge counts exactly the criterion the dialog owns, so the trigger's
@@ -105,10 +113,17 @@ export function ShipmentDebitRibbon({
     <FilterBar
       presets={presetChips}
       actions={(
-        <DisabledActionTip
-          id="shipment-debit-clear-filters"
-          reason={!hasFilters ? 'Chưa có bộ lọc nào để xóa.' : null}
-        >
+        <>
+          {/* Spec 23/10 (261023110000 §2) — the on-demand merge mode rides the
+              filter strip like the dispatch surfaces; OFF keeps the board free
+              of leading ticks. */}
+          {onToggleMergeMode && (
+            <LclMergeModeToggle active={Boolean(mergeMode)} onToggle={onToggleMergeMode} />
+          )}
+          <DisabledActionTip
+            id="shipment-debit-clear-filters"
+            reason={!hasFilters ? 'Chưa có bộ lọc nào để xóa.' : null}
+          >
           <UUIButton
             className="shipment-debit-ribbon__clear"
             size="sm"
@@ -120,7 +135,8 @@ export function ShipmentDebitRibbon({
           >
             Xóa lọc
           </UUIButton>
-        </DisabledActionTip>
+          </DisabledActionTip>
+        </>
       )}
     >
       {/* Owner 2026-10-17 (reverses card _202): the Khách hàng picker rides the

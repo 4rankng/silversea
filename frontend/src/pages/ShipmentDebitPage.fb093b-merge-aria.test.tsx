@@ -96,12 +96,20 @@ const twoSameCustomerLots = () => ({
   total: 2,
 });
 
-describe('FB-093b — Ghép cước thu khách ARIA + click contract', () => {
-  it('mỗi lô có role=checkbox đầu dòng mang tên lô; tick đúng lô đó', async () => {
+describe('FB-093b — Gộp xe thu khách ARIA + click contract', () => {
+  /** Spec 23/10 §2 — the ticks are on-demand; every flow opens the mode. */
+  const openMergeMode = () => fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
+
+  it('mặc định ẩn tick; bật [📦 Gộp hàng] thì mỗi lô có role=checkbox đầu dòng mang tên lô (spec 23/10 §2)', async () => {
     listSummary.mockResolvedValue(twoSameCustomerLots());
     renderPage();
     await screen.findAllByText('BL-1');
 
+    // OFF: no tick, no floating bar, and the toggle announces the mode it opens.
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByText((_, element) => element?.classList.contains('lcl-selection-bar') ?? false)).toBeNull();
+
+    openMergeMode();
     const tick1 = screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }) as HTMLInputElement;
     const tick2 = screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }) as HTMLInputElement;
     expect(tick1.checked).toBe(false);
@@ -110,12 +118,15 @@ describe('FB-093b — Ghép cước thu khách ARIA + click contract', () => {
     expect(tick2.checked).toBe(false);
   });
 
-  it('nút Ghép: role=button, aria-disabled=true khi chưa đủ 2 lô, reason qua aria-describedby', async () => {
+  it('nút Gộp: role=button, aria-disabled=true khi chưa đủ 2 lô, reason qua aria-describedby', async () => {
     listSummary.mockResolvedValue(twoSameCustomerLots());
     renderPage();
     await screen.findAllByText('BL-1');
+    openMergeMode();
 
-    const button = screen.getByRole('button', { name: 'Ghép cước thu khách' });
+    // One pick already raises the floating bar; the CTA explains itself.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
+    const button = screen.getByRole('button', { name: 'Gộp xe thu khách' });
     expect(button.getAttribute('aria-disabled')).toBe('true');
     const describedBy = button.getAttribute('aria-describedby');
     expect(describedBy).toBeTruthy();
@@ -123,10 +134,9 @@ describe('FB-093b — Ghép cước thu khách ARIA + click contract', () => {
 
     // Ticking the second lot arms it; ticking does not go through row clicks
     // here — the checkbox itself is the control under contract.
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Ghép cước thu khách' }).getAttribute('aria-disabled')).toBeNull(),
+      expect(screen.getByRole('button', { name: 'Gộp xe thu khách' }).getAttribute('aria-disabled')).toBeNull(),
     );
   });
 
@@ -135,10 +145,11 @@ describe('FB-093b — Ghép cước thu khách ARIA + click contract', () => {
     getBootstrap.mockResolvedValue({ customers: [{ id: 1, name: 'KH A' }], trucks: [] });
     renderPage();
     await screen.findAllByText('BL-1');
+    openMergeMode();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ghép cước thu khách' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp xe thu khách' }));
     const dialog = await screen.findByRole('dialog');
     expect(dialog.getAttribute('aria-modal')).toBe('true');
 
@@ -149,7 +160,7 @@ describe('FB-093b — Ghép cước thu khách ARIA + click contract', () => {
 
     const combos = within(dialog).getAllByRole('combobox');
     expect(combos.length).toBeGreaterThanOrEqual(2);
-    // The class field is required before submit; pick it then Ghép.
+    // The class field is required before submit; pick it then Gộp.
     fireEvent.focusIn(combos[0]!);
     fireEvent.click(combos[0]!);
     fireEvent.change(combos[0]!, { target: { value: '1.25' } });
@@ -159,7 +170,7 @@ describe('FB-093b — Ghép cước thu khách ARIA + click contract', () => {
       groupId: 'g', memberCount: 2,
       members: [{ shipmentId: 101, order: 1, reference: 'BL-1' }, { shipmentId: 102, order: 2, reference: 'BL-2' }],
     });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Ghép cước thu khách' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Gộp xe thu khách' }));
     await waitFor(() => expect(mergeRev).toHaveBeenCalledWith(expect.objectContaining({
       shipmentIds: [101, 102],
       vehicleSizeClassId: 5,

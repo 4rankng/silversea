@@ -2,9 +2,13 @@
 //
 // Assigns ONE truck to the dispatcher's selected LCL lots: a cost group whose
 // Lô 1 carries 100% of the cước trả ĐV (members 2..N drop to 0₫ — the service
-// owns that money jump) plus the group's BKS pair: actual (what runs the
-// lane) and billing ("xe ảo", what the customer is told; auto-copied from the
-// actual and freely editable).
+// owns that money jump).
+//
+// Spec 23/10 (261023110000 §3): the popup carries EXACTLY 4 cost-side fields —
+// Loại xe tính cước trả ĐV · Nhà xe · BKS thực · Cước trả ĐVVC. BKS báo khách
+// ("xe ảo") is a CUS OUTPUT (spec §1: "không nhập BKS báo khách tại màn hình
+// Điều vận") and no longer renders here, neither as a group field nor as the
+// old per-lot cluster.
 //
 // Field 2 (161026232309) — "Chọn Nhà xe & Biển số xe thực tế": the group's
 // vehicle source is chosen first, and it decides the plate list.
@@ -14,7 +18,7 @@
 // The chosen source persists with the group (the lot's "phân bổ xe" channel),
 // so reopening a grouped lot redisplays the nhà xe it was assigned to.
 //
-// Field 3 (161026232319) — cước trả ĐV of Lô 1: left empty the server traces
+// Field 4 (161026232319) — Cước trả ĐVVC of Lô 1: left empty the server traces
 // the bảng giá cước trả nhà xe (tuyến × loại xe × nhà xe); a value typed here
 // is the "Điều vận nhập tay" price and always wins.
 //
@@ -71,7 +75,6 @@ export interface LclGroupDialogRow {
     groupId: string;
     vehicleClassCode: string | null;
     actualTruckNo: string | null;
-    billingTruckNo: string | null;
   } | null;
   carrierType: 'OWN' | 'EXTERNAL' | null;
   externalCarrierId: number | null;
@@ -104,7 +107,6 @@ export function lclGroupRowFromMasterPlan(item: ShipmentListItem): LclGroupDialo
         groupId: item.costGroupId,
         vehicleClassCode: item.costVehicleClassCode ?? null,
         actualTruckNo: item.actualTruckNo ?? null,
-        billingTruckNo: item.billingTruckNo ?? null,
       }
       : null,
     carrierType: null,
@@ -145,15 +147,6 @@ export function AssignTruckGroupDialog({
   const [vehicleClassId, setVehicleClassId] = useState(initialVehicleClassId ?? '');
   const [carrierKey, setCarrierKey] = useState(initialCarrierKey ?? '');
   const [actualTruckNo, setActualTruckNo] = useState('');
-  const [billingTruckNo, setBillingTruckNo] = useState('');
-  // SPEC 18/10/2026 §2.3 — per-lot "BKS báo khách" overrides. An absent entry
-  // means the lot rides the group default (`billingTruckNo`).
-  const [lotBilling, setLotBilling] = useState<Record<number, string>>({});
-  // A ref, not state: the flag only gates the auto-copy effect, and the seed
-  // effect must be able to raise it BEFORE that sibling effect runs in the
-  // same commit (a state flag would still read false there and clobber the
-  // stored "BKS báo khách" with the actual plate on reopen).
-  const billingTouchedRef = useRef(false);
   const [manualFreightCost, setManualFreightCost] = useState<number | ''>('');
   const [carrierVehicles, setCarrierVehicles] = useState<DispatchCarrierVehicle[]>([]);
   // FB-066 — quick-add a plate from the "BKS thực" picker. The nonce re-runs
@@ -224,8 +217,10 @@ export function AssignTruckGroupDialog({
   const ownFleet = carrierKey === OWN_CARRIER_KEY;
 
   // Reopen a grouped lot with its stored identity in the form: loại xe, BKS
-  // pair and the persisted vehicle source (nhà xe / đội xe nội bộ). Guarded by
+  // thực and the persisted vehicle source (nhà xe / đội xe nội bộ). Guarded by
   // the anchor's group id so a background re-render never clobbers edits.
+  // (Spec 23/10 §3: BKS báo khách is no longer a ĐV field, so only the cost
+  // facts reseed.)
   const seededForRef = useRef<string | null>(null);
   useEffect(() => {
     const anchor = rows[0];
@@ -235,22 +230,12 @@ export function AssignTruckGroupDialog({
     seededForRef.current = group.groupId;
     const storedClass = (vehicleClasses.data ?? []).find((vc) => vc.code === group.vehicleClassCode);
     if (storedClass) setVehicleClassId(String(storedClass.id));
-    if (group.billingTruckNo) {
-      billingTouchedRef.current = true;
-      setBillingTruckNo(group.billingTruckNo);
-    }
     if (group.actualTruckNo) setActualTruckNo(group.actualTruckNo);
     if (anchor.carrierType === 'OWN') setCarrierKey(OWN_CARRIER_KEY);
     else if (anchor.externalCarrierId != null) {
       setCarrierKey(carrierOptionKey('EXTERNAL', anchor.externalCarrierId));
     }
   }, [rows, vehicleClasses.data]);
-
-  // Auto-copy: the billing BKS follows the actual one until the operator
-  // edits it by hand (spec: "auto-copy từ thực tế").
-  useEffect(() => {
-    if (!billingTouchedRef.current) setBillingTruckNo(actualTruckNo.trim());
-  }, [actualTruckNo]);
 
   // The selected nhà xe's fleet — the plate list for an outside truck
   // (round-19 pattern, shared with TripReassignDialog: first page, free text
@@ -340,19 +325,12 @@ export function AssignTruckGroupDialog({
     }
     setSaving(true);
     try {
-      const groupBilling = billingTruckNo.trim();
-      const perLotBilling = rows
-        .map((row) => ({
-          shipmentId: row.shipmentId,
-          billingTruckNo: (lotBilling[row.shipmentId] ?? groupBilling).trim(),
-        }))
-        .filter((entry) => entry.billingTruckNo !== '' && entry.billingTruckNo !== groupBilling);
+      // Spec 23/10 §3 — exactly the 4 cost fields; the ĐV flow never writes a
+      // BKS báo khách (that is CUS's output on /shipments/lcl/truck).
       const result = await assignLclCostGroup({
         shipmentIds: rows.map((row) => row.shipmentId),
         vehicleSizeClassId: selectedClass.id,
         actualTruckNo: actual,
-        ...(groupBilling && groupBilling !== actual ? { billingTruckNo: groupBilling } : {}),
-        ...(perLotBilling.length > 0 ? { billingTruckNos: perLotBilling } : {}),
         ...(ownFleet ? { carrierType: 'OWN' as const } : { carrierType: 'EXTERNAL' as const, carrierId: externalCarrierId! }),
         ...(manualFreightCost === '' ? {} : { freightCost: manualFreightCost }),
       });
@@ -472,48 +450,17 @@ export function AssignTruckGroupDialog({
             required
           />
         </div>
-        <USearchableField
-          label="BKS báo khách (ảo)"
-          value={billingTruckNo}
-          onChange={(next) => { billingTouchedRef.current = true; setBillingTruckNo(next); }}
-          options={plateOptions}
-          placeholder="Mặc định copy BKS thực"
-          allowsCustomValue
-          searchable
-          onCustomValue={(text) => { billingTouchedRef.current = true; setBillingTruckNo(text); }}
-          hint="Debit Note (FB-094) sẽ in BKS này, tuyệt đối không in BKS thực."
-        />
-        {/* SPEC 18/10/2026 §2.3 — "sửa lại cho từng lô trong nhóm": the group
-            field above is the default; these fields override it per member. */}
-        {rows.length > 1 && (
-          <div style={{ display: 'grid', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border, #e4e7ec)' }}>
-            <strong style={{ fontSize: 'var(--text-label-size)' }}>BKS báo khách từng lô</strong>
-            <p className="assign-truck-group__hint">
-              Bỏ trống = dùng BKS báo khách chung của nhóm.
-            </p>
-            {rows.map((row, index) => (
-              <USearchableField
-                key={row.shipmentId}
-                label={`Lô ${index + 1} — ${row.reference}`}
-                value={lotBilling[row.shipmentId] || billingTruckNo}
-                onChange={(next) => setLotBilling((current) => ({ ...current, [row.shipmentId]: next }))}
-                options={plateOptions}
-                placeholder={billingTruckNo || 'Mặc định copy BKS thực'}
-                allowsCustomValue
-                searchable
-                onCustomValue={(text) => setLotBilling((current) => ({ ...current, [row.shipmentId]: text }))}
-              />
-            ))}
-          </div>
-        )}
+        {/* Spec 23/10 §3 field 4 — Cước trả ĐVVC. Blank ⇒ the server traces
+            the carrier price board; a typed value is the manual override that
+            always wins (161026232319). */}
         <NumberField
-          label="Cước trả ĐV Lô 1 (đ) — nhập tay"
+          label="Cước trả ĐVVC (đ)"
           value={manualFreightCost}
           onChange={setManualFreightCost}
           grouped
           min={0}
           placeholder="Bỏ trống = tự tra bảng giá"
-          helpText="Bỏ trống: hệ thống tự tra bảng giá cước trả nhà xe (tuyến × loại xe × nhà xe). Nhập tay: số tiền này thắng giá tra được."
+          helpText="Bỏ trống: hệ thống tự tra bảng giá cước trả nhà xe (tuyến × loại xe × nhà xe). Nhập tay: số tiền này thắng giá tra được — Lô 1 giữ 100%, các lô còn lại 0₫."
         />
       </div>
       {/* FB-066 — register a brand-new plate under the chosen source; the

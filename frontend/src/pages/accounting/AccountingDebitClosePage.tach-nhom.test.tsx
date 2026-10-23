@@ -187,7 +187,7 @@ describe('card 211026024348 — "Tách nhóm" trên /accounting/chot-debit', () 
 
     fireEvent.click(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' }));
     const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('giữ nguyên đơn giá Tuyến×KH của riêng nó');
+    expect(dialog.textContent).toContain('cước thu của từng lô trở về giá trước khi ghép');
 
     unmergeLclGroup.mockResolvedValue({
       dimension: 'REV',

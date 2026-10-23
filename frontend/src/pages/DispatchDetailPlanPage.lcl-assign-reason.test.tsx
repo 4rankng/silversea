@@ -146,14 +146,47 @@ function renderPage() {
 
 const REASON = 'Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ.';
 
+/** Spec 23/10 (261023110000 §2) — the CHỌN column is on-demand: this is the
+ *  step every grouping flow now starts with. */
+function openMergeMode() {
+  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
+}
+
 beforeEach(() => {
   plan.refresh.mockReset();
   plan.items = [lclRow(301, 'BL-301'), lclRow(302, 'BL-302')];
 });
 
+describe('Spec 23/10 §2 — on-demand CHỌN column', () => {
+  it('default: no checkbox anywhere; the toggle reveals the leading column and flips its own label', () => {
+    renderPage();
+
+    // OFF: the mode's affordances are absent from the board.
+    expect(screen.queryByRole('checkbox', { name: /Chọn lô/ })).toBeNull();
+    expect(screen.queryByText((_, element) => element?.classList.contains('lcl-selection-bar') ?? false)).toBeNull();
+
+    openMergeMode();
+
+    // ON: every LCL row carries its tick and the toggle announces the exit.
+    expect(screen.getByRole('button', { name: '✕ Thoát gộp hàng' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getAllByRole('checkbox', { name: /Chọn lô/ })).toHaveLength(2);
+
+    // Exiting drops the column again — and clears any pick with it.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-301' }));
+    fireEvent.click(screen.getByRole('button', { name: '✕ Thoát gộp hàng' }));
+    expect(screen.queryByRole('checkbox', { name: /Chọn lô/ })).toBeNull();
+    expect(screen.queryByText((_, element) => element?.classList.contains('lcl-selection-bar') ?? false)).toBeNull();
+
+    // Reopening starts clean (no stale floating bar from the dropped pick).
+    openMergeMode();
+    expect(screen.queryByText((_, element) => element?.classList.contains('lcl-selection-bar') ?? false)).toBeNull();
+  });
+});
+
 describe('171026154000 (C) — Gán xe nhóm explains itself as text', () => {
   it('one selected lot: visible reason, aria-described + aria-disabled, guarded click', () => {
     renderPage();
+    openMergeMode();
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-301' }));
 
@@ -180,6 +213,7 @@ describe('171026154000 (C) — Gán xe nhóm explains itself as text', () => {
 
   it('two selected lots: reason gone, enabled click opens the group dialog', async () => {
     renderPage();
+    openMergeMode();
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-301' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-302' }));

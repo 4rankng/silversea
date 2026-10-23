@@ -384,7 +384,11 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
     <div className="master-plan-grid__wrapper">
       <table className="master-plan-grid ops-table">
         <colgroup>
-          <col className="master-plan-grid__col master-plan-grid__col--select" />
+          {/* Spec 23/10 (261023110000 §2) — the CHỌN column is on-demand: it
+              renders only while the page's [📦 Gộp hàng] mode is active
+              (i.e. while it wires `onToggleLclSelection`); the default table
+              reads full-width without it. */}
+          {onToggleLclSelection && <col className="master-plan-grid__col master-plan-grid__col--select" />}
           <col className="master-plan-grid__col master-plan-grid__col--schedule" />
           <col className="master-plan-grid__col master-plan-grid__col--customer" />
           <col className="master-plan-grid__col master-plan-grid__col--route-shipping" />
@@ -396,10 +400,12 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
         </colgroup>
         <thead>
           <tr>
-            <th scope="col" className="master-plan-grid__select-head">
-              <span className="master-plan-grid__select-head-label">Chọn</span>
-              <span className="sr-only"> lô</span>
-            </th>
+            {onToggleLclSelection && (
+              <th scope="col" className="master-plan-grid__select-head">
+                <span className="master-plan-grid__select-head-label">Chọn</span>
+                <span className="sr-only"> lô</span>
+              </th>
+            )}
             <th scope="col">Thời gian &amp; lịch trình</th>
             <th scope="col">Khách hàng &amp; nhà máy</th>
             <th scope="col">Tuyến đường &amp; hãng tàu</th>
@@ -454,19 +460,32 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   onOpenDispatchDetail(item);
                 } : undefined}
               >
-                <td className="master-plan-grid__cell master-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
-                  <div className="master-plan-grid__cell-body">
-                    {isLclLotRow(item) && onToggleLclSelection && (
-                      <LclSelectCheckbox
-                        isSelected={selectedLclShipmentIds?.has(item.id) ?? false}
-                        isDisabled={item.costGroupId != null}
-                        onToggle={(next: boolean) => onToggleLclSelection(item.id, next)}
-                        ariaLabel={`Chọn lô ${billBookingReference(item.blNumber, item.bookingRef)}`}
-                        title={item.costGroupId != null ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.' : 'Chọn lô này để gán xe nhóm'}
-                      />
-                    )}
-                  </div>
-                </td>
+                {onToggleLclSelection && (
+                  <td className="master-plan-grid__cell master-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
+                    <div className="master-plan-grid__cell-body">
+                      {/* Spec 23/10 §2 — only LCL rows are tickable; FCL/cont
+                          rows render dimmed so the operator cannot even try
+                          to merge them (the merge is an LCL-only tool). */}
+                      {isLclLotRow(item) ? (
+                        <LclSelectCheckbox
+                          isSelected={selectedLclShipmentIds?.has(item.id) ?? false}
+                          isDisabled={item.costGroupId != null}
+                          onToggle={(next: boolean) => onToggleLclSelection(item.id, next)}
+                          ariaLabel={`Chọn lô ${billBookingReference(item.blNumber, item.bookingRef)}`}
+                          title={item.costGroupId != null ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.' : 'Chọn lô này để gán xe nhóm'}
+                        />
+                      ) : (
+                        <LclSelectCheckbox
+                          isSelected={false}
+                          isDisabled
+                          onToggle={() => {}}
+                          ariaLabel={`Lô ${billBookingReference(item.blNumber, item.bookingRef)} không tham gia gộp hàng`}
+                          title="Chỉ ghép lô hàng lẻ (LCL) — lô cont không tích được."
+                        />
+                      )}
+                    </div>
+                  </td>
+                )}
                 <td className="master-plan-grid__cell" data-label="Thời gian & lịch trình" data-label-short="Giờ">
                   {/* FB-043 (card 141026001010, re-report 2): every cell rides
                       the fixed-height body so a lot with stacked trips can no

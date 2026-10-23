@@ -34,6 +34,12 @@ import { ShipmentDebitPage } from './ShipmentDebitPage';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import type { ShipmentDebitLotRow } from '../api/shipmentClient';
 
+/** Spec 23/10 (261023110000 §2) — the selection ticks are on-demand: the
+ *  export-selection flows ride the SAME [📦 Gộp hàng] column reveal. */
+function openMergeMode() {
+  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
+}
+
 function renderPage(initialEntry = '/shipments-debit') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]} initialIndex={0}>
@@ -125,6 +131,7 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     await screen.findAllByText('BL-1');
+    openMergeMode();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
 
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' });
@@ -146,6 +153,7 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     await screen.findAllByText('BL-1');
+    openMergeMode();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
 
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' });

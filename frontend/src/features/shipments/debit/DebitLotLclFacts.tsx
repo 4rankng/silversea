@@ -16,11 +16,13 @@
 // USearchableField — vendored at components/untitled-ui.
 import { useEffect, useMemo, useState } from 'react';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
+import { NumberField } from '../../../design-system';
 import { USearchableField } from '../create/uui-searchable-field';
 import { useToast } from '../../../components/shared/Toast';
 import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { setLclLotRevClass, unmergeLclLot, updateLclTruck } from '../../../api/dispatchPlanningClient';
 import { ConfirmDialog } from '../../../components/UI';
+import { formatMoney } from '../../../lib/format';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 
 export interface DebitLotLclFactsProps {
@@ -54,6 +56,9 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
     return current ? String(current.id) : '';
   }, [sortedClasses, row.revVehicleClassCode]);
   const [revClassId, setRevClassId] = useState(currentRevClassId);
+  // Spec 23/10 §4.1 field 2 — "Giá cước thu khách": auto-traced from the
+  // picked class; a typed value is the negotiated override (blank = auto).
+  const [manualFreightRevenue, setManualFreightRevenue] = useState<number | ''>('');
 
   useEffect(() => {
     setActual(row.actualTruckNo ?? '');
@@ -63,6 +68,11 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   useEffect(() => {
     setRevClassId(currentRevClassId);
   }, [row.shipmentId, currentRevClassId]);
+  // A per-lot manual price never survives a lot switch (it belongs to the lot
+  // being edited, not the strip).
+  useEffect(() => {
+    setManualFreightRevenue('');
+  }, [row.shipmentId]);
 
   const truckDirty = useMemo(
     () => actual.trim() !== (row.actualTruckNo ?? '') || billing.trim() !== (row.billingTruckNo ?? ''),
@@ -70,9 +80,11 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   );
 
   const revClassDirty = revClassId !== '' && revClassId !== currentRevClassId;
-  // A grouped lot's class is set by the merge (per boss 21/10 the cước thu is
-  // per-lot, but the class is still a group-level choice — change it after
-  // un-grouping).
+  // Spec 23/10 §4.1 — the save arms on EITHER output: a new class (auto cước
+  // theo loại xe) or a typed negotiated price (override).
+  const revOutputDirty = revClassDirty || manualFreightRevenue !== '';
+  // A grouped lot's class is set by the merge (spec 23/10 §4.2: the group's
+  // Lô-1 law owns its members' cước thu) — change it after un-grouping.
   const revClassLocked = row.revGroupId != null;
 
   async function saveTruck() {
@@ -93,41 +105,55 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   }
 
   async function saveRevClass() {
+    // Spec 23/10 §4.1 — send whichever output changed: a NEW class (with or
+    // without a typed price) or the price alone (the untouched class is
+    // already stored server-side; the schema needs just one of the two).
     const selected = sortedClasses.find((vc) => String(vc.id) === revClassId);
-    if (!selected) return;
+    if (revClassId !== '' && !selected) return;
     setSavingRevClass(true);
     try {
-      const result = await setLclLotRevClass({ shipmentId: row.shipmentId, vehicleSizeClassId: selected.id });
+      const result = await setLclLotRevClass({
+        shipmentId: row.shipmentId,
+        ...(revClassDirty && selected ? { vehicleSizeClassId: selected.id } : {}),
+        ...(manualFreightRevenue !== '' ? { freightRevenue: manualFreightRevenue } : {}),
+      });
       toast({
         kind: 'success',
-        message: result.freightAuto == null
-          ? `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — bảng giá khách × tuyến chưa có giá: CƯỚC VẬN TẢI (AUTO) đang Chưa xác định`
-          : `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — CƯỚC VẬN TẢI (AUTO) = 100% đơn giá loại xe`,
+        message: manualFreightRevenue !== ''
+          ? `Đã lưu giá cước thu khách nhập tay — ${formatMoney(manualFreightRevenue)} ₫ áp cho lô này`
+          : result.freightAuto == null
+            ? `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — bảng giá khách × tuyến chưa có giá: CƯỚC VẬN TẢI (AUTO) đang Chưa xác định`
+            : `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — CƯỚC VẬN TẢI (AUTO) = 100% đơn giá loại xe`,
       });
+      // The typed price is consumed by the save — clear it so the button
+      // re-arms only on the NEXT real edit (no accidental double-send).
+      setManualFreightRevenue('');
       onChanged();
     } catch (err) {
-      toast({ kind: 'error', message: err instanceof Error ? err.message : 'Lưu loại xe tính cước thu thất bại' });
+      toast({ kind: 'error', message: err instanceof Error ? err.message : 'Lưu cước thu khách thất bại' });
     } finally {
       setSavingRevClass(false);
     }
   }
 
-  // FB-095 — one lot leaves its group; the server promotes Lô 2 with 100% of
-  // the money (or dissolves the group) inside one transaction.
+  // FB-095 — one lot leaves its group; the server promotes Lô 2 with the
+  // crown + 100% of the money (or dissolves the group) inside one transaction.
   async function doUnmerge() {
     const dimension = confirmUnmerge;
     if (dimension == null) return;
     setUnmerging(dimension);
     try {
       const result = await unmergeLclLot({ shipmentId: row.shipmentId, dimension });
-      // COST: the crown inherits 100% cước trả ĐV (money moves). REV (per
-      // boss 21/10): cước thu per-lot — tách nhóm KHÔNG chuyển tiền; mỗi lô
-      // tự giữ đơn giá Tuyến×KH của nó, chỉ bỏ ghi chú "Ghép cước".
+      // Spec 23/10 §4.2: inside a REV group Lô 1 holds 100% and members 0₫ —
+      // so the principal's exit PROMOTES the money to Lô 2 (transferredAmount),
+      // while a member's exit leaves it awaiting its own per-lot reprice.
       const message = result.promoted
         ? (dimension === 'REV'
-          ? `Đã hủy ghép — Bill ${result.promoted.reference} thành Lô chính; mỗi lô tự giữ đơn giá Tuyến×KH (không chuyển tiền).`
+          ? `Đã hủy ghép — Bill ${result.promoted.reference} thành Lô chính và nhận 100% cước thu nhóm`
           : `Đã hủy ghép — Bill ${result.promoted.reference} nhận 100% cước trả ĐV`)
-        : 'Đã hủy ghép — nhóm giải tán';
+        : result.dissolved
+          ? 'Đã hủy ghép — nhóm giải tán'
+          : `Đã hủy ghép — lô rời nhóm, còn ${result.remaining.length} lô trong nhóm`;
       toast({ kind: 'success', message });
       setConfirmUnmerge(null);
       onChanged();
@@ -188,11 +214,12 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
           </span>
         )}
       </div>
-      {/* 161026232349 (§II.3.2 "Thu riêng từng lô") — the lot's OWN thu class.
-          A lot inside a rev group keeps the group's class: the field is
-          disabled and says so (the server refuses the same way). */}
+      {/* 161026232349 (§II.3.2 "Thu riêng từng lô") + spec 23/10 §4.1 — the
+          lot's OWN thu outputs: Loại xe thu khách + Giá cước thu (auto theo
+          loại / nhập tay). A lot inside a rev group keeps the group's outputs:
+          the fields disable and say so (the server refuses the same way). */}
       <div className="debit-lot-lcl-facts__block">
-        <small>LOẠI XE TÍNH CƯỚC THU KHÁCH</small>
+        <small>CƯỚC THU KHÁCH (TỪNG LÔ)</small>
         <div className="debit-lot-lcl-facts__truck">
           <USearchableField
             label="Loại xe tính cước thu khách"
@@ -206,13 +233,23 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
               ? 'Lô đã thuộc nhóm ghép cước thu khách — tách nhóm (Hủy ghép) trước khi chọn loại xe riêng cho lô này.'
               : 'CƯỚC VẬN TẢI (AUTO) của lô = 100% đơn giá của loại xe đã chọn.'}
           />
+          <NumberField
+            label="Giá cước thu khách (đ)"
+            value={manualFreightRevenue}
+            onChange={setManualFreightRevenue}
+            grouped
+            min={0}
+            placeholder="Bỏ trống = tự tra bảng giá"
+            helpText="Nhập tay giá thỏa thuận — thắng giá tra bảng theo loại xe. Bỏ trống: tự tra bảng giá thu khách."
+            disabled={revClassLocked}
+          />
           <UUIButton
             size="sm"
             color="secondary"
             onPress={() => void saveRevClass()}
-            isDisabled={revClassLocked || !revClassDirty || savingRevClass}
+            isDisabled={revClassLocked || !revOutputDirty || savingRevClass}
           >
-            {savingRevClass ? 'Đang lưu…' : 'Lưu loại xe'}
+            {savingRevClass ? 'Đang lưu…' : 'Lưu cước thu'}
           </UUIButton>
         </div>
       </div>
@@ -254,7 +291,7 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
       <ConfirmDialog
         isOpen={confirmUnmerge != null}
         message={confirmUnmerge === 'REV'
-          ? 'Hủy ghép cước thu khách cho lô này? Khoản cước 100% tự động chuyển sang lô kế tiếp trong nhóm (nhóm còn 1 lô thì giải tán).'
+          ? 'Hủy ghép cước thu khách cho lô này? Lô chính rời nhóm thì 100% cước thu chuyển sang lô kế tiếp (nhóm còn 1 lô thì giải tán); thành viên rời nhóm thì cước thu của lô đó chờ định giá lại theo từng lô.'
           : 'Hủy ghép cước trả ĐV cho lô này? Khoản cước 100% tự động chuyển sang lô kế tiếp trong nhóm (nhóm còn 1 lô thì giải tán).'}
         confirmLabel={unmerging != null ? 'Đang hủy…' : 'Hủy ghép'}
         onConfirm={() => void doUnmerge()}

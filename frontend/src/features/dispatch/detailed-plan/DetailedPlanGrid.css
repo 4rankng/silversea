@@ -239,6 +239,24 @@
    documents 106 · container 148 · assignment 202 · classification 96 ·
    notes 162 · actions 74. */
 .detailed-plan-grid__col--schedule { width: 10%; }
+/* Spec 23/10 (261023110000 §2) — the on-demand CHỌN column: fixed 48px
+   (master-plan precedent) so the reading columns keep their percentage
+   shares whether or not the merge mode is active. */
+.detailed-plan-grid__col--select { width: 48px; }
+.detailed-plan-grid__th--select {
+  padding-inline: 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.detailed-plan-grid__cell--select .detailed-plan-grid__cell-body--select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .detailed-plan-grid__col--route { width: 13.6%; }
 .detailed-plan-grid__col--ports { width: 8.8%; }
 .detailed-plan-grid__col--documents { width: 7.9%; }

@@ -20,8 +20,13 @@ function freightFact(row: ShipmentDebitLotRow): ReactNode {
   );
 }
 
-export function ShipmentDebitRecords({ rows, canManage, selectedIds, expandedId, onSelect, onToggle, onSaved }: {
-  rows: ShipmentDebitLotRow[]; canManage: boolean; selectedIds: Set<number>; expandedId: number | null;
+export function ShipmentDebitRecords({ rows, canManage, mergeMode, selectedIds, expandedId, onSelect, onToggle, onSaved }: {
+  rows: ShipmentDebitLotRow[]; canManage: boolean;
+  /** Spec 23/10 (261023110000 §2) — ticks exist only while the merge mode is
+   *  on; they serve both jobs (gộp xe thu khách + xuất Debit Note), so every
+   *  lot stays selectable once the mode is active. */
+  mergeMode: boolean;
+  selectedIds: Set<number>; expandedId: number | null;
   onSelect: (id: number, selected: boolean) => void; onToggle: (id: number) => void; onSaved: () => void;
 }) {
   return <LedgerRecordList rows={rows.map((row) => {
@@ -29,7 +34,8 @@ export function ShipmentDebitRecords({ rows, canManage, selectedIds, expandedId,
     const expanded = canManage && expandedId === row.shipmentId;
     return {
       key: row.shipmentId, title, subtitle: row.customerName?.toUpperCase(),
-      selected: selectedIds.has(row.shipmentId), selectable: canManage && row.lockStatus === 'LOCKED',
+      selected: selectedIds.has(row.shipmentId),
+      selectable: canManage && mergeMode,
       onSelect: (next: boolean) => onSelect(row.shipmentId, next),
       facts: [
         { key: 'receivable', label: 'Tổng phải thu khách', value: money(row.receivableTotal), primary: true },

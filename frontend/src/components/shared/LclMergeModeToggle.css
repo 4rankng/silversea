@@ -1,0 +1,23 @@
+/* Spec 23/10 (261023110000 §2) — the [📦 Gộp hàng] filter-strip toggle.
+   OFF: the house secondary outline (a quiet mode invite). ON: the emerald
+   accent fill so the "đang trong chế độ gộp" state is unmistakable and the
+   ✕ label reads as the way out. House tokens only — one implementation
+   shared by every grouping surface (ĐV Tổng quát / Chi tiết, CUS Quyết toán). */
+.lcl-merge-toggle {
+  border-color: var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.lcl-merge-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.lcl-merge-toggle--active,
+.lcl-merge-toggle--active:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--fg-on-brand, #fff);
+}

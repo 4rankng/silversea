@@ -1,9 +1,11 @@
 /**
- * FB-092 — "Gán xe nhóm" dialog: lot order list, billing-BKS auto-copy, the
- * FB-090/161026232309 vehicle-source rule (truck-tonnage classes are 100% xe
- * ngoài and their plate list only carries that nhà xe's fleet; container
- * classes accept the SilverSea fleet OR a nhà xe), the persisted-source
- * redisplay, and the assign call's payload (161026232319 manual cước trả).
+ * FB-092 + spec 23/10 (261023110000 §3) — "Gán xe nhóm" dialog: lot order
+ * list, the 4-field law (NO BKS báo khách — neither the group field nor the
+ * old per-lot cluster), the FB-090/161026232309 vehicle-source rule
+ * (truck-tonnage classes are 100% xe ngoài and their plate list only carries
+ * that nhà xe's fleet; container classes accept the SilverSea fleet OR a
+ * nhà xe), the persisted-source redisplay, and the assign call's payload
+ * (161026232319 manual cước trả).
  */
 import { useState } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -136,6 +138,31 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
     expect(items[1]!.textContent).toContain('Lô 2 · BL-2');
   });
 
+  // Spec 23/10 §3 — the popup is EXACTLY 4 cost fields: Loại xe tính cước
+  // trả ĐV · Nhà xe · BKS thực · Cước trả ĐVVC. BKS báo khách (ảo) is a CUS
+  // output and must not render — not as a group field, not per lot.
+  it('spec 23/10 §3: không còn trường BKS báo khách (ảo) nào — đúng 4 trường (FB136-139)', async () => {
+    assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    await pickCarrier('Nhà xe Hải Vân');
+    setField(/BKS thực/, '29H-111.11');
+
+    expect(screen.queryByRole('combobox', { name: /BKS báo khách/ })).toBeNull();
+    expect(screen.queryByLabelText(/BKS báo khách từng lô/)).toBeNull();
+    expect(screen.queryByRole('combobox', { name: /Lô 2 — BL-2/ })).toBeNull();
+    expect(screen.getByRole('combobox', { name: /Loại xe tính cước trả ĐV/ })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: /^Nhà xe/ })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: /BKS thực/ })).toBeTruthy();
+    expect(screen.getByLabelText(/Cước trả ĐVVC/)).toBeTruthy();
+
+    submit();
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
+    const payload = assignMock.mock.calls[0]![0];
+    expect(payload).not.toHaveProperty('billingTruckNo');
+    expect(payload).not.toHaveProperty('billingTruckNos');
+  });
+
   it('xe tải: bắt buộc chọn Nhà xe (xe ngoài), danh sách BKS chỉ có biển của nhà xe (161026232309)', async () => {
     assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
     renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
@@ -212,51 +239,28 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
     expect(payload).not.toHaveProperty('carrierId');
   });
 
-  it('auto-copies the billing BKS from the actual one (FB092-03)', async () => {
+  it('auto-copies nothing onto a billing field — the ĐV flow has none (spec 23/10 §3)', async () => {
     assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
     renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
     await pickVehicleClass('Xe 3.5 tấn');
     await pickCarrier('Nhà xe Hải Vân');
     setField(/BKS thực/, '29H-111.11');
-    const billing = screen.getByRole('combobox', { name: /BKS báo khách/ }) as HTMLInputElement;
-    await waitFor(() => expect(billing.value).toBe('29H-111.11'));
     submit();
     await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
-    // Billing equals actual ⇒ the server-side default applies; no explicit
-    // billingTruckNo rides the payload.
+    // The old auto-copy contract is GONE with the field: the payload carries
+    // only the 4 cost fields, never a billingTruckNo of any shape.
     expect(assignMock.mock.calls[0]![0]).not.toHaveProperty('billingTruckNo');
+    expect(assignMock.mock.calls[0]![0]).not.toHaveProperty('billingTruckNos');
   });
 
-  it('cho phép sửa BKS báo khách cho từng lô trong nhóm (SPEC 18/10/2026 §2.3)', async () => {
+  it('gửi cước trả ĐVVC nhập tay khi có, bỏ trống thì để server tự tra (161026232319)', async () => {
     assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
     renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
     await pickVehicleClass('Xe 3.5 tấn');
     await pickCarrier('Nhà xe Hải Vân');
     setField(/BKS thực/, '29H-111.11');
 
-    // Group default stays the actual plate; only Lô 2 gets its own ảo plate.
-    fireEvent.change(screen.getByRole('combobox', { name: /Lô 2 — BL-2/ }), {
-      target: { value: '29H-999.99' },
-    });
-
-    submit();
-    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
-    expect(assignMock.mock.calls[0]![0]).toMatchObject({
-      shipmentIds: [31, 32],
-      billingTruckNos: [{ shipmentId: 32, billingTruckNo: '29H-999.99' }],
-    });
-    // The group field was untouched ⇒ no group-level default is sent.
-    expect(assignMock.mock.calls[0]![0]).not.toHaveProperty('billingTruckNo');
-  });
-
-  it('gửi cước trả ĐV nhập tay khi có, bỏ trống thì để server tự tra (161026232319)', async () => {
-    assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
-    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
-    await pickVehicleClass('Xe 3.5 tấn');
-    await pickCarrier('Nhà xe Hải Vân');
-    setField(/BKS thực/, '29H-111.11');
-
-    const freight = screen.getByLabelText(/Cước trả ĐV Lô 1/) as HTMLInputElement;
+    const freight = screen.getByLabelText(/Cước trả ĐVVC/) as HTMLInputElement;
     fireEvent.change(freight, { target: { value: '1250000' } });
     submit();
     await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
@@ -277,7 +281,7 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
     expect(screen.getByText(/chưa có Nhà xe \(Xe ngoài\)/)).toBeTruthy();
   });
 
-  it('mở lại lô đã vào nhóm: hiện lại loại xe, nhà xe đã lưu và BKS (161026232309)', async () => {
+  it('mở lại lô đã vào nhóm: hiện lại loại xe, nhà xe đã lưu và BKS thực (161026232309)', async () => {
     const grouped = row(31, 'BL-1');
     grouped.lcl = {
       packageCount: 3,
@@ -288,7 +292,7 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
         order: 1,
         memberCount: 2,
         actualTruckNo: '29H-111.11',
-        billingTruckNo: '29H-999.99',
+        billingTruckNo: null,
         vehicleClassCode: '3.5T',
         vehicleClassName: 'Xe 3.5 tấn',
       },
@@ -311,8 +315,8 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
       .toContain('Xe 3.5 tấn');
     expect((screen.getByRole('combobox', { name: /BKS thực/ }) as HTMLInputElement).value)
       .toBe('29H-111.11');
-    expect((screen.getByRole('combobox', { name: /BKS báo khách/ }) as HTMLInputElement).value)
-      .toBe('29H-999.99');
+    // Spec 23/10 §3: no billing field exists to reseed either.
+    expect(screen.queryByRole('combobox', { name: /BKS báo khách/ })).toBeNull();
   });
 
   it('giữ lựa chọn Loại xe + Nhà xe qua một lần "Hủy" rồi mở lại (card _171026133000)', async () => {

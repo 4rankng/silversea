@@ -303,12 +303,30 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByText('15:00 23/08/2026')).toBeTruthy();
   });
 
-  it('renders all 8 dispatch columns plus the LCL selection column for a READY_FOR_DISPATCH row', () => {
+  it('renders all 8 dispatch columns by default; the LCL selection column is on-demand (spec 23/10 §2)', () => {
     const onAllocate = vi.fn();
-    render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
+    // No `onToggleLclSelection` ⇒ the merge mode is OFF ⇒ no CHỌN column.
+    const first = render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
+      'Thời gian & lịch trình',
+      'Khách hàng & nhà máy',
+      'Tuyến đường & hãng tàu',
+      'Cảng nâng',
+      'Cảng hạ',
+      'Tổng quan hàng hóa',
+      'Phân bổ nhà xe',
+      'Ghi chú',
+    ]);
+    first.unmount();
+
+    // With the mode wired (the page passes the toggle while [📦 Gộp hàng] is
+    // active), the leading CHỌN column comes back as column #1.
+    render(
+      <MasterPlanGrid items={[item()]} onAllocate={onAllocate} onToggleLclSelection={vi.fn()} />,
+    );
+    expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
       'Chọn lô',
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
@@ -319,6 +337,11 @@ describe('MasterPlanGrid', () => {
       'Phân bổ nhà xe',
       'Ghi chú',
     ]);
+  });
+
+  it('renders the full READY_FOR_DISPATCH row content across the 8 columns', () => {
+    const onAllocate = vi.fn();
+    render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);
 
     expect(screen.getByText('20/08/2026')).toBeTruthy();
     expect(screen.getByText(/Hạn hoàn tất hải quan:/)).toBeTruthy();
@@ -662,10 +685,28 @@ describe('MasterPlanGrid', () => {
   });
 
   it('labels every shipment field group for the stacked narrow-screen layout', () => {
-    render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} />);
+    // Spec 23/10 §2 — the CHỌN cell is on-demand: with the mode wired it
+    // leads the stack; without it (default) the 8 reading groups remain.
+    const { unmount } = render(
+      <MasterPlanGrid items={[item()]} onAllocate={vi.fn()} onToggleLclSelection={vi.fn()} />,
+    );
 
     expect(screen.getAllByRole('cell').map((cell) => cell.getAttribute('data-label'))).toEqual([
       'Chọn',
+      'Thời gian & lịch trình',
+      'Khách hàng & nhà máy',
+      'Tuyến đường & hãng tàu',
+      'Cảng nâng',
+      'Cảng hạ',
+      'Tổng quan hàng hóa',
+      'Phân bổ nhà xe',
+      'Ghi chú',
+    ]);
+    unmount();
+
+    // Default (mode off): no Chọn cell in the stack.
+    render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} />);
+    expect(screen.getAllByRole('cell').map((cell) => cell.getAttribute('data-label'))).toEqual([
       'Thời gian & lịch trình',
       'Khách hàng & nhà máy',
       'Tuyến đường & hãng tàu',

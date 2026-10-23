@@ -39,6 +39,12 @@ function renderPage(initialEntry = '/shipments-debit') {
   );
 }
 
+/** Spec 23/10 (261023110000 §2) — the selection ticks are on-demand; every
+ *  export-selection flow now starts by flipping the strip's [📦 Gộp hàng]. */
+function openMergeMode() {
+  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
+}
+
 const row = (over: Partial<ShipmentDebitLotRow> = {}): ShipmentDebitLotRow => ({
   shipmentId: 101,
   code: 'SHP-26-0001',
@@ -265,6 +271,7 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     const lockedRow = screen.getAllByText('BL-1')[0].closest('tr')!;
     expect(lockedRow.getAttribute('data-locked')).toBe('');
     expect(lockedRow.getAttribute('data-selected')).toBeNull();
+    openMergeMode();
     fireEvent.click(lockedRow);
     expect(lockedRow.getAttribute('data-selected')).not.toBeNull();
   });
@@ -284,6 +291,7 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     // Sweep card 20261008_1: the disabled reason mounts the DisabledActionTip
     // wrapper, which remounts the button on every state flip — re-query.
     expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).toHaveAttribute('aria-disabled', 'true');
+    openMergeMode();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).not.toHaveAttribute('aria-disabled');
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
@@ -294,6 +302,7 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    openMergeMode();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' });
     expect(button).not.toHaveAttribute('aria-disabled');
@@ -351,6 +360,7 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     });
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    openMergeMode();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' });
@@ -370,6 +380,7 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'BL-1', lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    openMergeMode();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
@@ -386,6 +397,7 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     createBatch.mockRejectedValue(new ApiError(409, { error: '...', overlappingLotCodes: ['101', '157'] }, 'conflict'));
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    openMergeMode();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     expect(await screen.findByText('Các lô đã nằm trong Debit Note đã xuất: BL-1 +1')).toBeTruthy();
@@ -404,6 +416,7 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     createBatch.mockRejectedValue(new ApiError(409, { error: '...', overlappingLotCodes: ['101', '102', '201', '301', '401'] }, 'conflict'));
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    openMergeMode();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getAllByText('BL-2')[0].closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
@@ -415,6 +428,7 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     createBatch.mockRejectedValue(new ApiError(409, { error: 'Trùng lô đã xuất' }, 'conflict'));
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    openMergeMode();
     fireEvent.click(screen.getAllByText('BL-1')[0].closest('tr')!);
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     expect(await screen.findByText('Không xuất được Debit Note. Vui lòng thử lại.')).toBeTruthy();
@@ -612,6 +626,9 @@ it('QA-AUDIT-UI-39 phone selection is explicit, expansion preserves it, and filt
   const record = await screen.findByRole('article', { name: 'BL-1' });
   expect(screen.getAllByRole('article')).toHaveLength(20);
   expect(screen.queryByRole('table')).toBeNull();
+  // Spec 23/10 §2 — the phone ticks are on-demand too.
+  expect(within(record).queryByRole('checkbox')).toBeNull();
+  openMergeMode();
   const checkbox = within(record).getByRole('checkbox', { name: 'Chọn BL-1' });
   fireEvent.click(checkbox); expect(checkbox).toBeChecked();
   fireEvent.click(within(record).getByText('Chi tiết'));

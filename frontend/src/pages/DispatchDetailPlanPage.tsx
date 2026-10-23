@@ -81,8 +81,16 @@ export default function DispatchDetailPlanPage() {
   // FB-092 LCL grouping: the dispatcher's selected lots in click order —
   // index 0 becomes Lô 1 (100% cước trả ĐV). Only ungrouped LCL rows join a
   // new group; rows already in one are refused until un-merged (FB-095).
+  // Spec 23/10 (261023110000 §2): the selection is ON-DEMAND — `lclMergeMode`
+  // gates the grid's CHỌN column; exiting the mode (or finishing a group)
+  // drops the selection and hides the column again.
   const [selectedLclRows, setSelectedLclRows] = useState<DispatchDetailPlanRow[]>([]);
+  const [lclMergeMode, setLclMergeMode] = useState(false);
   const [truckGroupOpen, setTruckGroupOpen] = useState(false);
+  const exitLclMergeMode = () => {
+    setLclMergeMode(false);
+    setSelectedLclRows([]);
+  };
   // SPEC 18/10/2026 §4 — Tách nhóm: the COST group id awaiting confirmation.
   const [unmergeGroupId, setUnmergeGroupId] = useState<string | null>(null);
   const [unmergingGroup, setUnmergingGroup] = useState(false);
@@ -285,7 +293,15 @@ export default function DispatchDetailPlanPage() {
           autoOpenFulfillmentId={detailPlan.autoOpenFulfillmentId}
           onAutoOpenConsumed={detailPlan.consumeAutoOpen}
           selectedLclShipmentIds={selectedIds}
-          onToggleLclSelection={toggleLclSelection}
+          onToggleLclSelection={lclMergeMode ? toggleLclSelection : undefined}
+          lclMergeMode={lclMergeMode}
+          onToggleLclMergeMode={() => {
+            // Spec 23/10 §2 — the toggle both exits and enters: leaving the
+            // mode clears every pick so a reopened mode never shows a stale
+            // floating bar.
+            if (lclMergeMode) exitLclMergeMode();
+            else setLclMergeMode(true);
+          }}
           onUnmergeLclGroup={setUnmergeGroupId}
           onUnmergeLclLot={setUnmergeLot}
           onLclTruckUpdated={() => { void detailPlan.refresh(); }}
@@ -300,7 +316,7 @@ export default function DispatchDetailPlanPage() {
               {formatVolumeCbm(String(selectionTotals.volume))}
             </span>
             <span className="lcl-selection-bar__first" title="Lô 1 giữ 100% cước trả ĐV">
-              Lô 1: {billBookingReference(selectedLclRows[0]!.docs.billNumber)}
+              — Lô 1 giữ 100% cước trả ĐV: {billBookingReference(selectedLclRows[0]!.docs.billNumber)}
             </span>
             <button
               type="button"
@@ -367,7 +383,9 @@ export default function DispatchDetailPlanPage() {
           onDraftChange={handleGroupDraftChange}
           onClose={() => setTruckGroupOpen(false)}
           onAssigned={() => {
-            setSelectedLclRows([]);
+            // Spec 23/10 §2 — completing the group exits the mode: the CHỌN
+            // column hides itself and the floating bar closes with it.
+            exitLclMergeMode();
             void detailPlan.refresh();
           }}
         />

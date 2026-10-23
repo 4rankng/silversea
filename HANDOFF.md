@@ -1,3 +1,41 @@
+# HANDOFF — feat-gomhang-fe (spec 23/10 cards 231026123901/902/903 — FE gộp hàng on-demand)
+
+- Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/
+  1njkloyy/feat-gomhang-fe`, branch `feat-gomhang-fe` off main aab19931).
+  Last updated: 2026-10-23.
+- Goal: 3 QA ticket R38 trên nền grid redesign 23/10 — (901) cột CHỌN
+  on-demand + nút [📦 Gộp hàng] + floating bar cả ĐV lẫn CUS; (902) popup
+  Gán xe nhóm ĐV đúng 4 trường, hết BKS ảo; (903) CUS per-lot 3 outputs +
+  Gộp xe thu khách popup 3 trường, 100/0 + tag + Tách nhóm. STATUS: DONE —
+  rung 3 QA + full gates green (xem CHANGELOG 23/10 chiều, qa/2026-10-23-gomhang-fe/).
+- Nhánh chính đổi: `LclMergeModeToggle` (components/shared) + dock
+  `styles/lcl-merge.css` dùng chung 3 mặt; DetailedPlanGrid/MasterPlanGrid
+  render cột CHỌN khi page truyền `onToggleLclSelection` (= mode bật); ĐV FCL
+  dim/disable, CUS tick mọi dòng (tick phục vụ cả Xuất Debit Note — gộp vẫn
+  chỉ LCL chưa nhóm; CTA gộp dời header → floating bar). Client:
+  `assignLclCostGroup` xóa billing fields; `mergeLclRevGroup`/
+  `setLclLotRevClass` nhận `freightRevenue`.
+- Deviation đã ghi: (a) CUS bar không có tấn/CBM (wire quyết toán không mang
+  cargo measures — FE-only scope); (b) tag thành viên trên bảng CUS in dạng
+  BE "Ghép cước cùng Bill {Lô 1}" thay vì literal "Ghép thu cước cùng Lô 1"
+  (BE live, response `revMergeTag` mang literal; FE hiển thị theo wire).
+- QA: BEFORE :7175 / AFTER :7183 (driver qa/scripts/2026-10-23-gomhang-fe.mjs;
+  BE trunk :3002; fixture lô 122+173 KH LONG MINH, dọn bằng tách nhóm — FINAL
+  DB groups null). Catalog QA note: đã tạo vehicle_size_classes "3.5T" (id 5,
+  admin idempotency qa-gomhang-fe-35t) vì dev DB chỉ có cont classes.
+- Gates: root lint 0 · fe tsc -b 0 · fe tsgo -b 0 · FULL FE 714/5514 PASS
+  (make build trước cho numeric-identity) · make build 0. BE không đổi.
+  Independent code-review pass resolved: UnmergeRevGroupAction copy về luật
+  23/10 (dissolve = restore pre-merge), print guard bar CUS, clear selection
+  khi đổi khoảng ngày, reset giá nhập tay sau lưu. Chấp nhận có ý thức: FCL
+  dim tick dùng native disabled (house pattern của LclSelectCheckbox, giống
+  lô đã nhóm). Follow-up đề xuất (ngoài scope 3 card): ĐV còn ô BKS báo
+  khách ở DispatchAllocationLclDialog + LclGroupTruckEditDialog (spec §1 nói
+  không nhập BKS ảo ở ĐV — cần owner ruling); toast tách nhóm COST của
+  DispatchDetailPlanPage ("về cước riêng" — BE giữ tiền Lô 1).
+
+---
+
 # HANDOFF — redesign-dispatch-grid (owner screenshots 23/10 "UI shitty")
 
 - Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/1njkloyy/

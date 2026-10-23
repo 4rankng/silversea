@@ -14,6 +14,7 @@ import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from '
 import type { DispatchDetailPlanAssignmentCounts } from '../../../api/dispatchPlanningClient';
 import { DispatchTimeFilterField } from './DispatchTimeFilterField';
 import { useVehicleRouteOptions, VehicleDriverSelect, FleetFilterFields } from './DetailedPlanVehicleFilters';
+import { LclMergeModeToggle } from '../../../components/shared/LclMergeModeToggle';
 
 import type { FacetLoader } from '../facet-types';
 
@@ -28,6 +29,10 @@ interface DetailedPlanFiltersProps {
   /** Card 20261008_3 — the two assignment chips' counts from the grid query's
    *  `assignmentStatusCounts` (full-set over the union of both branches). */
   assignmentCounts?: DispatchDetailPlanAssignmentCounts;
+  /** Spec 23/10 (261023110000 §2) — the [📦 Gộp hàng] mode and its toggle;
+   *  absent on surfaces that don't group (no button, no checkbox column). */
+  lclMergeMode?: boolean;
+  onToggleLclMergeMode?: () => void;
 }
 
 const DIRECTION_OPTIONS: Array<{ id: string; label: string }> = [
@@ -123,6 +128,8 @@ export function DetailedPlanFilters({
   loadDropoffPortFacets,
   zones,
   assignmentCounts,
+  lclMergeMode,
+  onToggleLclMergeMode,
 }: DetailedPlanFiltersProps) {
   const [draftResetKey, setDraftResetKey] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -291,6 +298,12 @@ export function DetailedPlanFilters({
         presets={dateScope}
         actions={(
           <>
+            {/* Spec 23/10 (261023110000 §2) — the on-demand merge mode: OFF by
+                default (no CHỌN column), ON reveals the leading checkboxes +
+                the selection's floating bar. Secondary/outline face per spec. */}
+            {onToggleLclMergeMode && (
+              <LclMergeModeToggle active={Boolean(lclMergeMode)} onToggle={onToggleLclMergeMode} />
+            )}
             <UUIButton size="sm" color="primary" iconLeading={Plus} onPress={goAssign}>
               Gán xe
             </UUIButton>

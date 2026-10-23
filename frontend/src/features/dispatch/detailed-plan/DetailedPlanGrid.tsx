@@ -132,9 +132,16 @@ interface DetailedPlanGridProps {
   onOpenPair?: (row: DispatchDetailPlanRow) => void;
   /** FB-092 LCL grouping: when present, LCL rows get a selection checkbox and
    *  the toggles flow to the page's selection state (sticky total bar + the
-   *  gán-xe-nhóm dialog). Pages that don't pass it see no checkboxes. */
+   *  gán-xe-nhóm dialog). Pages that don't pass it see no checkboxes.
+   *  Spec 23/10 (261023110000 §2): the CHỌN column is ON-DEMAND — pages pass
+   *  it only while the [📦 Gộp hàng] mode is active, so the default table
+   *  keeps its full reading width. */
   selectedLclShipmentIds?: ReadonlySet<number>;
   onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
+  /** Spec 23/10 §2 — the filter strip's [📦 Gộp hàng] mode + its toggle,
+   *  forwarded to the grid's own DetailedPlanFilters render sites. */
+  lclMergeMode?: boolean;
+  onToggleLclMergeMode?: () => void;
   /** SPEC 18/10/2026 §4 — dispatch-side "Tách nhóm" for a COST group. Shown
    *  on the principal row only (one action per group). */
   onUnmergeLclGroup?: (groupId: string) => void;
@@ -198,6 +205,8 @@ export function DetailedPlanGrid({
   onOpenPair,
   selectedLclShipmentIds,
   onToggleLclSelection,
+  lclMergeMode,
+  onToggleLclMergeMode,
   onUnmergeLclGroup,
   onUnmergeLclLot,
   onLclTruckUpdated,
@@ -269,7 +278,7 @@ export function DetailedPlanGrid({
   if (error && items.length === 0) {
     return (
       <>
-        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} />
+        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} />
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
           {/* Sweep (card 20261008_1): the retry used to disable silently
@@ -292,7 +301,7 @@ export function DetailedPlanGrid({
 
   return (
     <>
-      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} />
+      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} />
 
       <ZoneTruckPresencePanel
         items={presence?.items ?? []}
@@ -370,6 +379,11 @@ export function DetailedPlanGrid({
           ) : (
           <table className="detailed-plan-grid ops-table">
             <colgroup>
+              {/* Spec 23/10 §2 — the on-demand CHỌN column rides FIRST while
+                  the [📦 Gộp hàng] mode is active (fixed 48px, master-plan
+                  precedent); absent by default so the reading columns keep
+                  their shares. */}
+              {onToggleLclSelection && <col className="detailed-plan-grid__col detailed-plan-grid__col--select" />}
               <col className="detailed-plan-grid__col detailed-plan-grid__col--schedule" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--route" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--ports" />
@@ -383,6 +397,12 @@ export function DetailedPlanGrid({
             </colgroup>
             <thead>
               <tr>
+                {onToggleLclSelection && (
+                  <th scope="col" className="detailed-plan-grid__th--select">
+                    <span className="sr-only">Chọn lô</span>
+                    Chọn
+                  </th>
+                )}
                 <th scope="col" aria-sort={sortKey === 'runHour' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
                   <button
                     type="button"
@@ -454,19 +474,41 @@ export function DetailedPlanGrid({
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
+                  {onToggleLclSelection && (
+                    <td className="detailed-plan-grid__cell detailed-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
+                      <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--select">
+                        {/* Spec 23/10 §2: only LCL rows are tickable (FCL stays
+                            dimmed so a dispatcher cannot merge cont rows);
+                            master-plan law — a lot already in a cost group is
+                            refused until tách nhóm (the server 409s the same
+                            way). */}
+                        {row.cargoMode === 'LCL' ? (
+                          <LclSelectCheckbox
+                            isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
+                            isDisabled={row.lcl?.group != null}
+                            onToggle={(next: boolean) => onToggleLclSelection(row.shipmentId, next)}
+                            ariaLabel={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
+                            title={row.lcl?.group != null
+                              ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.'
+                              : 'Chọn lô này để gán xe nhóm'}
+                          />
+                        ) : (
+                          <LclSelectCheckbox
+                            isSelected={false}
+                            isDisabled
+                            onToggle={() => {}}
+                            ariaLabel={`Lô cont ${row.container.containerNumber ?? ''} không tham gia gộp hàng`}
+                            title="Chỉ ghép lô hàng lẻ (LCL) — dòng cont không tích được."
+                          />
+                        )}
+                      </div>
+                    </td>
+                  )}
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--schedule" data-label="Thời gian & lịch trình" data-label-short="Giờ">
                     {/* FB-043: every cell rides the fixed-height body so row
                         height is uniform by construction, not by column
                         tuning (the R22/141026001010 regression class). */}
                     <div className="detailed-plan-grid__cell-body">
-                      {onToggleLclSelection && row.cargoMode === 'LCL' && (
-                        <LclSelectCheckbox
-                          isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
-                          onToggle={(next: boolean) => onToggleLclSelection(row.shipmentId, next)}
-                          ariaLabel={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
-                          title="Chọn lô này để gán xe nhóm"
-                        />
-                      )}
                       <div className="ops-schedule">
                         <strong className="ops-schedule__datetime" title={scheduleValue}>{scheduleValue}</strong>
                         <span className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={!row.docs.tradeDirection ? 'true' : undefined} title={row.docs.tradeDirection || differentTransportDate ? `${row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : ''}${differentTransportDate ? ` · Ngày vận chuyển: ${differentTransportDate}` : ''}` : undefined}>

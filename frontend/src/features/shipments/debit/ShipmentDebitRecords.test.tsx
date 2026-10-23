@@ -4,7 +4,7 @@
  * the CARD FACE — Lô 1 = 100% lane price, member = 0₫ + "Ghép cước cùng
  * Bill X" note — never inside the collapsed 'Chi tiết' disclosure.
  */
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./ShipmentDebitWorkspace', () => ({ ShipmentDebitWorkspace: () => null }));
@@ -64,12 +64,13 @@ function laneFact(record: HTMLElement, label: string) {
   return fact!;
 }
 
-function renderOnPhone(rows: ShipmentDebitLotRow[]) {
+function renderOnPhone(rows: ShipmentDebitLotRow[], over: Partial<Parameters<typeof ShipmentDebitRecords>[0]> = {}) {
   viewport(390);
   return render(
     <ShipmentDebitRecords
-      rows={rows} canManage={false} selectedIds={new Set()} expandedId={null}
+      rows={rows} canManage={false} mergeMode={false} selectedIds={new Set()} expandedId={null}
       onSelect={vi.fn()} onToggle={vi.fn()} onSaved={vi.fn()}
+      {...over}
     />,
   );
 }
@@ -123,5 +124,24 @@ describe('BD-01 (161026204709) — the merged 100%/0₫ lane stays on the card f
     const lane = laneFact(record, 'Cước vận tải (Auto)');
     expect(lane.textContent).toContain('1.234.000');
     expect(within(record).queryByText(/Ghép cước/)).toBeNull();
+  });
+
+  // Spec 23/10 (261023110000 §2) — the phone cards read the on-demand law
+  // too: no tick while the mode is off, every lot tickable once it's on.
+  it('spec 23/10 §2: the card tick exists only while the [📦 Gộp hàng] mode is on', async () => {
+    const rows = [factRow({ shipmentId: 203, billOrBookNumber: 'BL-S', code: 'SHP-26-0203' })];
+    const onSelect = vi.fn();
+    const first = renderOnPhone(rows, { canManage: true, onSelect });
+    const record = await screen.findByRole('article', { name: 'BL-S' });
+    expect(within(record).queryByRole('checkbox')).toBeNull();
+    first.unmount();
+
+    renderOnPhone(rows, { canManage: true, mergeMode: true, onSelect });
+    const tick = await screen.findByRole('checkbox', { name: /Chọn BL-S/ });
+    // Any lot is selectable once the mode is on: the ticks feed BOTH the
+    // merge and the Debit-Note export (the old locked-only gate died with
+    // the always-on tick).
+    fireEvent.click(tick);
+    expect(onSelect).toHaveBeenCalledWith(203, true);
   });
 });

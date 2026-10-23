@@ -1,15 +1,21 @@
-// FB-093 — CUS "Ghép cước thu khách" dialog (Chi phí - Quyết toán).
+// FB-093 + spec 23/10 (261023110000 §4.2) — CUS "Gộp xe thu khách" dialog
+// (Chi phí - Quyết toán; the Kế toán chốt-debit board reuses it).
 //
-// Merges the selected same-customer LCL lots into ONE bill (rev group). per
-// boss 21/10 — mỗi lô tự tính đơn giá (bảng giá Tuyến×KH × loại xe) của CHÍNH
-// lô đó: độc lập, không gộp 100% vào Lô 1, không 0₫ thành viên. Same-customer
-// validation runs client-side first (the server remains the authority) so the
-// operator sees the conflicting lots before losing the selection.
+// Merges the selected same-customer LCL lots into ONE rev group. Spec 23/10
+// ruling (supersedes the 21/10 per-lot rule ONLY inside this active merge):
+// Lô 1 keeps 100% of the group's cước thu khách, members 2..N drop to 0₫ and
+// carry the "Ghép thu cước cùng Lô 1" tag (BE stamps it). Outside a merge the
+// per-lot law of 21/10 keeps holding.
+//
+// Same-customer validation runs client-side first (the server remains the
+// authority and 400s the same way) so the operator sees the conflicting lots
+// before losing the selection.
 //
 // UI provenance: house Modal + Untitled UI PRO v8 (base `button`, base
 // `select`/`combobox` via USearchableField) — vendored at components/untitled-ui.
 import { useMemo, useState } from 'react';
 import { Modal } from '../../../components/UI';
+import { NumberField } from '../../../design-system';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { USearchableField } from '../create/uui-searchable-field';
 import { useToast } from '../../../components/shared/Toast';
@@ -45,6 +51,9 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
   const vehicleClasses = useVehicleSizeClasses();
   const [vehicleClassId, setVehicleClassId] = useState('');
   const [billingTruckNo, setBillingTruckNo] = useState('');
+  // Spec 23/10 §4.2 field 3 — "Cước thu khách Lô 1 (đ) – nhập tay": blank ⇒
+  // the server auto-traces bảng giá thu khách; a typed value overrides it.
+  const [manualFreightRevenue, setManualFreightRevenue] = useState<number | ''>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,15 +79,16 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
         shipmentIds: rows.map((row) => row.shipmentId),
         vehicleSizeClassId: selectedClass.id,
         ...(billingTruckNo.trim() ? { billingTruckNo: billingTruckNo.trim() } : {}),
+        ...(manualFreightRevenue === '' ? {} : { freightRevenue: manualFreightRevenue }),
       });
       toast({
         kind: 'success',
-        message: `Đã ghép cước thu khách cho ${result.memberCount} lô — mỗi lô tự tính đơn giá Tuyến×KH × loại xe của chính lô đó (độc lập)`,
+        message: `Đã gộp xe thu khách cho ${result.memberCount} lô — Lô 1 (${rows[0]?.billOrBookNumber || rows[0]?.customsNumber || rows[0]?.code || ''}) giữ 100% cước thu khách, các lô còn lại 0₫`,
       });
       onMerged();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ghép cước thu khách thất bại');
+      setError(err instanceof Error ? err.message : 'Gộp xe thu khách thất bại');
     } finally {
       setSaving(false);
     }
@@ -88,20 +98,20 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
     <Modal
       isOpen={rows.length > 0}
       onClose={onClose}
-      title="Ghép cước thu khách"
-      subtitle={`${rows.length} lô lẻ · mỗi lô tự tính đơn giá Tuyến×KH (Auto), gộp chung 1 Bill`}
+      title="Gộp xe thu khách"
+      subtitle={`${rows.length} lô lẻ · Lô 1 giữ 100% cước thu khách, các lô còn lại 0₫`}
       footer={
         <>
           {error && <p className="merge-rev-group__error" role="alert">{error}</p>}
           <UUIButton size="sm" color="secondary" onPress={onClose} isDisabled={saving}>Hủy</UUIButton>
           <UUIButton size="sm" color="tertiary" onPress={() => void submit()} isDisabled={saving || !sameCustomer || rows.length < 2}>
-            {saving ? 'Đang ghép…' : 'Ghép cước thu khách'}
+            {saving ? 'Đang ghép…' : 'Gộp xe thu khách'}
           </UUIButton>
         </>
       }
     >
       <div className="merge-rev-group">
-        <ol className="merge-rev-group__lots" title="Thứ tự ghép bill — mỗi lô tự tính đơn giá Tuyến×KH">
+        <ol className="merge-rev-group__lots" title="Thứ tự ghép — Lô 1 giữ 100% cước thu khách">
           {rows.map((row, index) => (
             <li key={row.shipmentId}>
               {index === 0 ? 'Lô 1 · ' : `Lô ${index + 1} · `}
@@ -115,6 +125,7 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
             Chỉ ghép cước thu được các lô của cùng một khách hàng — các lô đã chọn thuộc {customerIds.size} khách hàng khác nhau.
           </p>
         )}
+        {/* Field 1 — Loại xe tính cước thu khách (cả nhóm gộp). */}
         <USearchableField
           label="Loại xe tính cước thu khách"
           value={vehicleClassId}
@@ -124,16 +135,30 @@ export function MergeRevGroupDialog({ rows, plateOptions, onClose, onMerged }: M
           searchable
           required
         />
+        {/* Field 2 — BKS báo khách chung nhóm. Spec 23/10: blank ⇒ each lot
+            reports the ĐV-assigned BKS thực (the BE read-side fallback); a
+            value is stamped onto every member for the Debit Note. */}
         <USearchableField
-          label="BKS báo khách (ảo) chung nhóm"
+          label="BKS báo khách (chung nhóm)"
           value={billingTruckNo}
           onChange={setBillingTruckNo}
           options={plateOptions}
           placeholder="Chọn BKS hệ thống hoặc gõ mới"
-          hint="Để trống = giữ BKS hiện tại của nhóm."
+          hint="Để trống = lấy BKS thực (Điều vận đã gán) của từng lô khi báo khách."
           allowsCustomValue
           searchable
           onCustomValue={setBillingTruckNo}
+        />
+        {/* Field 3 — Cước thu khách Lô 1: blank = auto-trace bảng giá thu
+            khách; typed = the negotiated override that wins. */}
+        <NumberField
+          label="Cước thu khách Lô 1 (đ)"
+          value={manualFreightRevenue}
+          onChange={setManualFreightRevenue}
+          grouped
+          min={0}
+          placeholder="Bỏ trống = tự tra bảng giá"
+          helpText="Bỏ trống: hệ thống tự tra bảng giá thu khách (KH × tuyến × loại xe). Nhập tay: số tiền này thắng giá tra được — Lô 1 giữ 100%, các lô còn lại 0₫."
         />
       </div>
     </Modal>
