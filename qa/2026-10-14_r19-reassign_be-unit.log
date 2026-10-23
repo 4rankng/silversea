@@ -1,0 +1,15 @@
+▶ resolveReassignExternalVehicleId (round 19 change-carrier)
+  ✔ keeps the issued vehicle when the payload changes neither carrier nor plate (0.251625ms)
+  ✔ drops the issued vehicle when the payload switches carrier (TC-R19-REASSIGN-01) (0.050959ms)
+  ✔ drops the issued vehicle when a different plate is typed for the same carrier (0.048084ms)
+  ✔ an explicit picker-provided vehicle id always wins (0.038791ms)
+  ✔ a vehicle-less issued trip stays vehicle-less unless the picker names one (0.042125ms)
+✔ resolveReassignExternalVehicleId (round 19 change-carrier) (0.80175ms)
+ℹ tests 5
+ℹ suites 1
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 553.61375

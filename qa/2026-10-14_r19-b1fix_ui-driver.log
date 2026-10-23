@@ -1,0 +1,14 @@
+[PLAN status() {
+        return this.#status;
+    }] total=5 q=null from=2026-10-01 to=2026-10-31
+[PLAN status() {
+        return this.#status;
+    }] total=5 q=null from=2026-10-01 to=2026-10-31
+[REQ PATCH] http://localhost:7185/api/trips/256/reassign body={"carrierType":"EXTERNAL","truckId":null,"driverId":null,"externalCarrierId":10,"externalCarrierVehicleId":null,"externalPlateNumber":"29H-123.45","externalDriverName":"Anh Gaya","externalDriverPhone":"0987","reason":"qa
+[RES status() {
+        return this.#status;
+    }] http://localhost:7185/api/trips/256/reassign
+[PLAN status() {
+        return this.#status;
+    }] total=5 q=null from=2026-10-01 to=2026-10-31
+exit=done 2026-10-14T03:14:41.400Z

@@ -1,0 +1,38 @@
+logged in admin/dieuvan/giaonhan/ketoan
+housekeeping: cancel trip 194216 → 200
+housekeeping: cancel trip 194217 → 200
+PASS setup: created type-null trailer — {"id":20510,"licensePlate":"RS-R31-44138","type":null,"maxPayloadTons":null,"maxAxleLoadFrontTons":null,"maxAxleLoadRear
+PASS setup: free tractor found — truckId=1
+PASS setup: free driver found — driverId=1
+PASS setup: coupled type-null trailer to the tractor — {"id":1,"licensePlate":"60C-12345","trailerPlateNumber":"RS-R31-44138","trailerType":null,"currentTrailerId":20510,"carrierId":null,"status":"ACTIVE","nextInspe
+PASS setup: reference data — route=110 type20=1 site=27164
+PASS setup: lot created — {"id":312503,"shipmentCode":"SHP-2610-19357","version":1,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRoute
+PASS setup: two 20' containers declared — {"items":[{"id":141663,"shipmentId":312503,"containerTypeId":1,"containerNumber":"TSTU3443058","sealNumber":null,"declar
+PASS setup: lot submitted for dispatch — {"shipment":{"id":312503,"shipmentCode":"SHP-2610-19357","version":3,"customerId":1,"isAdHoc":false,
+PASS setup: two unissued 20' rows found — got 2
+PASS setup: issued leg 1 (fulfillment 143653) — {"fulfillmentId":143653,"version":2,"trip":{"id":194218,"version":2,"tripCode":"TRP-202610-1646","status":"CREATED","plannedStartAt":"2026-1
+PASS setup: issued leg 2 (fulfillment 143654) — {"fulfillmentId":143654,"version":2,"trip":{"id":194219,"version":2,"tripCode":"TRP-202610-1647","status":"CREATED","plannedStartAt":"2026-1
+PASS setup: driver incidental cost recorded — {"payerKind":null,"costGroup":"DRIVER_ROAD","feeName":"R31 QA tiền đường","customerChargeAmount":"0","invoiceNumber":nul
+PASS setup: BOTH legs carry NULL capacity (the card state) — cap A='' cap B=''
+PASS ui1: Ghép action rendered on the issued unpaired row — count=2
+PASS ui1: Kẹp kind picked — Kẹp — 2 cont 20' chạy cùng lúc
+PASS ui1: partner selected — BK-R31KEP-1792603344273 · TSTU3443063 · Tuyến test 1790591441700-hwu8zp
+PASS ui1: pair saved with the soft advisory — Xe chưa khai tải trọng trong danh mục — hệ thống không đối chiếu được tổng trọng lượng cặp. Điều vận chịu trách nhiệm kiểm tra tải trước khi
+PASS ui1: warning names the dispatcher responsibility
+PASS ui1: trip_pairs row ACTIVE KEP — 2922|ACTIVE|KEP|194218|194219
+PASS ui1: both trips linked to the pair — linked=2
+PASS ui2: tiền đường rows exist for the seeded trip — tripId=194218
+PASS ui2: tiền đường "Thực chi" typed "-5000" — minus stripped, digits kept — value="5.000"
+PASS ui2: Ops orders list offers Khai chi phí
+PASS ui2: a no-invoice fee type exists — TIRE_WEIGH:Cân lốp
+PASS ui2: Loại phí combobox located
+PASS ui2: fee type committed — value="Cân lốp"
+PASS ui2: Thực chi money input located
+PASS ui2: typed "-123000" — minus stripped to the positive 123.000 — value="123.000"
+PASS ui2: Ghi chú textarea located
+ui2: Lưu still disabled — errors: (none rendered)
+ui2: toast seen = false (the DB row below is the side-effect proof)
+PASS ui2: DB row amount=123000 (positive landed) — 31105|123000
+PASS api2: POST /ops/expenses amount=-50000 → 400 with the named message — 400 {"error":"Số tiền không được âm."}
+PASS api2: amount=0 still refused — 400 {"error":"Số tiền không được bằng 0."}
+ALL GREEN

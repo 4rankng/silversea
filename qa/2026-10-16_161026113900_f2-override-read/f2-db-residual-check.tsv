@@ -1,0 +1,16 @@
+shipment|624|QA-F2-10162045-A|t
+shipment|625|QA-F2-10162045-B|t
+shipment|626|QA-F2-10162045-C|t
+shipment|627|QA-F2-10162045-D|t
+shipment|628|QA-F2-10162045-E|t
+customer|96|QA-F2-10162045 khách QA F-2|t
+trip|189|t
+trip|190|t
+trip|191|t
+trip|192|t
+trip|193|t
+tfs_rows_for_my_trips|5
+snapshots_total|180
+snapshots_qa_shipments|0
+live_qa_shipments|0
+live_qa_customer|0

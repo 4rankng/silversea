@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-req22-rev3/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  182 passed (182)
+   Start at  20:12:50
+   Duration  12.07s (transform 1.09s, setup 311ms, import 2.74s, tests 12.49s, environment 1.13s)
+
+vitest_scoped_exit=0

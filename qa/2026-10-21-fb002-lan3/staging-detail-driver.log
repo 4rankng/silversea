@@ -1,0 +1,82 @@
+[
+  {
+    "at": "2026-10-20T20:10:53.031Z",
+    "step": "lot_before",
+    "shipmentId": 963,
+    "version": 9,
+    "closingAt": null,
+    "plannedReturnAt": null,
+    "transportDate": "2026-10-26"
+  },
+  {
+    "at": "2026-10-20T20:10:55.362Z",
+    "step": "picker_picked",
+    "picked": "Lịch trình"
+  },
+  {
+    "at": "2026-10-20T20:10:55.850Z",
+    "step": "S1_dialog_state",
+    "dialogOpen": true,
+    "activeLabel": "Giờ",
+    "activeSeg": null,
+    "timeValue": "",
+    "dayValue": "26",
+    "alertText": null,
+    "noticeText": null
+  },
+  {
+    "at": "2026-10-20T20:10:56.231Z",
+    "step": "S1_after_click",
+    "dialogOpen": true,
+    "activeLabel": "Giờ",
+    "activeSeg": null,
+    "timeValue": "",
+    "dayValue": "26",
+    "alertText": null,
+    "noticeText": null
+  },
+  {
+    "at": "2026-10-20T20:10:57.079Z",
+    "step": "S1_after_typing_1430",
+    "dialogOpen": true,
+    "activeLabel": null,
+    "activeSeg": "dd",
+    "timeValue": "14:30",
+    "dayValue": "26",
+    "alertText": null,
+    "noticeText": null
+  },
+  {
+    "at": "2026-10-20T20:10:57.280Z",
+    "step": "mutation",
+    "method": "PUT",
+    "url": "https://vantai.tingting.vip/api/shipments/963",
+    "body": "{\"expectedVersion\":9,\"expectedDeliveryDate\":\"2026-10-26\",\"plannedReturnAt\":\"2026-10-26T14:30:00+07:00\"}"
+  },
+  {
+    "at": "2026-10-20T20:10:58.884Z",
+    "step": "S1_after_enter",
+    "dialogOpen": false,
+    "activeLabel": null,
+    "activeSeg": null,
+    "timeValue": null,
+    "dayValue": null,
+    "alertText": null,
+    "noticeText": null,
+    "mutations": 1
+  },
+  {
+    "at": "2026-10-20T20:10:59.168Z",
+    "step": "RESULT",
+    "id": "S1 /shipments/:id Sửa lô → Lịch trình: click giờ + \"1430\" + Enter → PUT fired + saved + dialog closed (no wipe)",
+    "pass": true,
+    "detail": "mutations=1 dialogOpen=false timeValue=null before=null after=2026-10-26T07:30:00.000Z alert=null notice=null"
+  },
+  {
+    "at": "2026-10-20T20:10:59.368Z",
+    "step": "RESULT",
+    "id": "S1 restore lot 963 fields",
+    "pass": true,
+    "detail": "status=200 plannedReturnAt=null"
+  }
+]

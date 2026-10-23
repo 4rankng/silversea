@@ -1,0 +1,110 @@
+URL: /dispatch-detail?q=R15B3-FCL-01&date=2026-10-12
+q=R15B3-FCL-01 date=2026-10-12
+heading=Kế hoạch Chi tiết Xe
+dateInputs=["12","10","2026","12","10","2026"] topbarMonth=Tháng 10/2026
+boardRows=2
+wire=https://vantai.tingting.vip/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&q=R15B3-FCL-01&date=2026-10-12
+
+Bỏ qua đến nội dung chính
+Đã chuyển đến Kế hoạch Chi tiết Xe
+TransTing
+Quản lý vận tải và logistics
+Điều độ Phương tiện
+Kế hoạch Tổng quát
+Kế hoạch Chi tiết Xe
+Chấm công lái xe
+Quản Lý
+Danh mục Xe nội bộ
+Danh mục Tài xế
+Xe ngoài
+Nhà thầu
+Khai báo
+Khách hàng & Đối tác
+Tuyến đường
+Nhà máy / Kho
+Nhân viên Điều vận Demo
+Điều vận
+Đang xem
+Kế hoạch Chi tiết Xe
+Tháng 10/2026
+·
+01/10 – 31/10
+Từ ngày
+Từ
+/
+/
+→
+Đến ngày
+Đến
+/
+/
+Xuất / Nhập: Tất cả
+Bộ lọc
+Hôm nay
+Hôm sau
+Tất cả
+Tất cả
+Chưa gán xe
+1
+Đã gán xe
+1
+Gán xe
+Xóa lọc
+THỜI GIAN & LỊCH TRÌNH ↕	KHÁCH HÀNG & LỘ TRÌNH ↕	NÂNG HÀNG	TRẢ HÀNG ↕	TUYẾN ĐƯỜNG	CONTAINER	ĐIỀU PHỐI	PHÂN LOẠI	GHI CHÚ
+
+08:00 12/10/2026
+trả hàng
+	
+LONG MINH
+LM Võ Cường
+Bill: R15B3-FCL-01
+	
+—
+	
+—
+	
+KCN QUẾ VÕ, BẮC NINH
+Nhập
+	
+Chưa có số cont
+20'DC
+—
+	
+SilverSea
+15H-118.47
+Lục Văn Lô
+0339224168
+Đã điều xe
+Sửa
+	
+Đơn
+	
+
+
+08:00 12/10/2026
+trả hàng
+	
+LONG MINH
+LM Võ Cường
+Bill: R15B3-FCL-01
+	
+—
+	
+—
+	
+KCN QUẾ VÕ, BẮC NINH
+Nhập
+	
+Chưa có số cont
+20'DC
+—
+	
+Chưa phân nhà xe
+CUS sẽ bổ sung
+Sửa
+	
+Đơn
+	
+FB-014 AFTER row click · lot inside the topbar month (Oct 2026) · q=R15B3-FCL-01 · date=2026-10-12
+URL: https://vantai.tingting.vip/dispatch-detail?q=R15B3-FCL-01&date=2026-10-12
+build d39ee741 · QA R26 · 2026-10-20T09:50:35.025Z

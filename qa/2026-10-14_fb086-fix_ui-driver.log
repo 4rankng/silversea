@@ -1,0 +1,2 @@
+[POST 201] http://localhost:7185/api/shipments/cus-workspace/285/containers
+exit=done

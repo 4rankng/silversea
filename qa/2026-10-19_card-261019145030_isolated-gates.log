@@ -1,0 +1,35 @@
+# Card 261019145030 gates 1-2 — isolated runs (post-fix final)
+# cmd: cd backend && ./node_modules/.bin/tsx --test src/tests/ad-hoc-orders.test.ts ; then q20
+=== ad-hoc-orders.test.ts ===
+▶ lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4)
+  ✔ full free-text create stores raw names with null ids; master catalogs stay clean (69.099375ms)
+  ✔ non-ad-hoc create still requires a catalog customer (4.406917ms)
+  ✔ ad-hoc create without any customer text is rejected (4.021208ms)
+  ✔ mixed row: free-text customer + catalog route id (16.44275ms)
+  ✔ detail view coalesces the customer name — never an empty cell (32.061583ms)
+  ✔ reopen-for-edit keeps the ad-hoc flag (AC10) (15.011833ms)
+  ✔ pricing projection reports the ad-hoc bypass instead of blocking (13.392375ms)
+✔ lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4) (240.19825ms)
+ℹ tests 7
+ℹ suites 1
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1258.66275
+EXIT-adhoc=0
+=== q20-official-reporting-periods.test.ts ===
+▶ Q20 official reporting period attribution
+  ✔ completion date drives P&L, dashboard, fuel variance, and quarterly distribution while in-progress trips stay excluded (265.686625ms)
+  ✔ fuel reconciliation keeps trip fuel on the completion period and expense-side fuel on the actual invoice event date (26.570458ms)
+✔ Q20 official reporting period attribution (319.768167ms)
+ℹ tests 2
+ℹ suites 1
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 765.459792
+EXIT-q20=0

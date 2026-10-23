@@ -1,0 +1,156 @@
+[
+  {
+    "at": "2026-10-16T07:06:49.818Z",
+    "step": "health",
+    "buildHash": "7dcdcf33",
+    "expect": "7dcdcf33"
+  },
+  {
+    "at": "2026-10-16T07:06:50.121Z",
+    "step": "identity",
+    "user": "hoapt",
+    "jwtUsername": "hoapt"
+  },
+  {
+    "at": "2026-10-16T07:06:55.746Z",
+    "step": "wave-a-expense",
+    "expenseInput": 0,
+    "expenseRequired": 0,
+    "dsRequired": 4,
+    "nativeRequired": 0,
+    "inputCount": 10,
+    "sectionTexts": [
+      "Ghi nhận chi phí",
+      "Thông tin chung",
+      "Danh mục",
+      "Số tiền",
+      "Ảnh hóa đơn"
+    ],
+    "hasChung": true,
+    "hasDanhMuc": true,
+    "hasSoTien": true
+  },
+  {
+    "at": "2026-10-16T07:06:55.800Z",
+    "step": "TC",
+    "id": "WAVE-A-1/expense",
+    "verdict": "PASS",
+    "sections": [
+      true,
+      true,
+      true
+    ],
+    "dsRequired": 4,
+    "nativeRequired": 0
+  },
+  {
+    "at": "2026-10-16T07:06:59.283Z",
+    "step": "wave-a-expense-mobile",
+    "scrollW": 390,
+    "innerW": 390,
+    "overflows": false
+  },
+  {
+    "at": "2026-10-16T07:06:59.283Z",
+    "step": "TC",
+    "id": "WAVE-A-1/expense-mobile",
+    "verdict": "PASS",
+    "scrollW": 390,
+    "innerW": 390,
+    "overflows": false
+  },
+  {
+    "at": "2026-10-16T07:07:04.541Z",
+    "step": "invoice-modal-open",
+    "opened": true
+  },
+  {
+    "at": "2026-10-16T07:07:06.046Z",
+    "step": "wave-a-invoice-desktop",
+    "gridFound": true,
+    "cols": "253px 253px",
+    "tracks": 2,
+    "rawInputCount": 0,
+    "controlCount": 25,
+    "modalFound": true
+  },
+  {
+    "at": "2026-10-16T07:07:07.016Z",
+    "step": "wave-a-invoice-mobile",
+    "gridFound": true,
+    "cols": "348px",
+    "tracks": 1,
+    "rawInputCount": 0,
+    "controlCount": 25,
+    "modalFound": true
+  },
+  {
+    "at": "2026-10-16T07:07:07.054Z",
+    "step": "TC",
+    "id": "WAVE-A-2/invoice-modal",
+    "verdict": "PASS",
+    "desktopTracks": 2,
+    "mobileTracks": 1,
+    "rawInput": 0,
+    "controls": 25
+  },
+  {
+    "at": "2026-10-16T07:07:13.526Z",
+    "step": "debt-link",
+    "debtLink": "/debt/1",
+    "agingStatus": 200,
+    "agingN": 4,
+    "sample": [
+      "customerId",
+      "customerName",
+      "contactInfo",
+      "linkedSupplierId",
+      "linkedSupplierApBalance",
+      "netBalance",
+      "totalOutstanding",
+      "aging"
+    ]
+  },
+  {
+    "at": "2026-10-16T07:07:20.389Z",
+    "step": "fb048-empty",
+    "openPay": true,
+    "btnFound": true,
+    "disabledEmpty": true,
+    "amountEmpty": true
+  },
+  {
+    "at": "2026-10-16T07:07:20.390Z",
+    "step": "TC",
+    "id": "FB-048-empty-submit",
+    "verdict": "PASS",
+    "note": "disabled until both required fields non-empty"
+  },
+  {
+    "at": "2026-10-16T07:07:22.117Z",
+    "step": "fb048-invalid",
+    "clicked": {
+      "clicked": true,
+      "disabled": false
+    },
+    "banner": "Số tiền không hợp lệ.",
+    "ariaInvalid": "true",
+    "borderColor": "rgb(160, 68, 78)"
+  },
+  {
+    "at": "2026-10-16T07:07:22.117Z",
+    "step": "TC",
+    "id": "FB-048-invalid-paint",
+    "verdict": "PASS",
+    "banner": "Số tiền không hợp lệ.",
+    "ariaInvalid": "true",
+    "borderColor": "rgb(160, 68, 78)"
+  },
+  {
+    "at": "2026-10-16T07:07:23.005Z",
+    "step": "fb048-no-write",
+    "payCountBefore": -1,
+    "payCountAfter": -1,
+    "unchanged": true
+  }
+]

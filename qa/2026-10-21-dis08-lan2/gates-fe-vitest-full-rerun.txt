@@ -1,0 +1,49 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-dis08-lan2/frontend
+> vitest run
+
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-dis08-lan2/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/components/work-inbox/RoleWorkInbox.test.tsx (22 tests | 1 failed) 3065ms
+     × preserves restored queue and page through first asynchronous customer scope hydration (UI43) 706ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/work-inbox/RoleWorkInbox.test.tsx > RoleWorkInbox > preserves restored queue and page through first asynchronous customer scope hydration (UI43)
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/components/work-inbox/RoleWorkInbox.test.tsx:124:95
+    122|     await act(async () => { await new Promise((r) => setTimeout(r, 60)…
+    123|     expect(apiGet.mock.calls.length).toBeLessThanOrEqual(3);
+    124|     expect(apiGet.mock.calls.every(([path]) => String(path).includes('…
+       |                                                                                               ^
+    125|     expect(screen.getByTestId('inbox-location').textContent).toBe(rout…
+    126|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 702 passed (703)
+      Tests  1 failed | 5419 passed (5420)
+   Start at  18:36:09
+   Duration  321.42s (transform 52.47s, setup 187.22s, import 850.78s, tests 910.12s, environment 804.33s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+full-fe-exit=1

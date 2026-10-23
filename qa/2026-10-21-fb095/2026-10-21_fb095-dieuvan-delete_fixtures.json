@@ -1,0 +1,15 @@
+{
+  "host": {
+    "status": 201,
+    "id": 311938,
+    "lotStatus": "READY_FOR_DISPATCH"
+  },
+  "member": {
+    "status": 201,
+    "id": 311939,
+    "lotStatus": "READY_FOR_DISPATCH"
+  },
+  "refHost": "QA-095D-86c5f1c5-1",
+  "refMember": "QA-095D-86c5f1c5-2",
+  "groupId": "40e33ef2-b92d-4423-bb1d-b532d24ee0ac"
+}

@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-lcl-form-visible/frontend
+
+
+ Test Files  3 passed (3)
+      Tests  163 passed (163)
+   Start at  20:39:00
+   Duration  21.55s (transform 2.49s, setup 612ms, import 5.68s, tests 18.66s, environment 1.98s)
+
+EXIT=0

@@ -1,0 +1,13 @@
+2026-10-20T19:57:26.259Z
+A row: +UI-LCL-B77AP2-3UI KHÁCH HÀNG B77AP2Số Bill: UI-LCL-B77AP2-3Số tờ khai: Chưa cóChi tiết →4.500.000Tách nhóm04.500.000Chưa xác địnhChưa xác địnhĐang mở
+B row: +UI-LCL-B77AP2-5UI KHÁCH HÀNG B77AP2Số Bill: UI-LCL-B77AP2-5Số tờ khai: Chưa cóChi tiết →0Ghép cước cùng Bill UI-LCL-B77AP2-3Tách nhóm00Chưa xác địnhChưa xác địnhĐang mở
+Tách nhóm buttons: [
+ {
+  "label": "Tách nhóm ghép cước thu khách — lô UI-LCL-B77AP2-3",
+  "ariaDisabled": null
+ },
+ {
+  "label": "Tách nhóm ghép cước thu khách — lô UI-LCL-B77AP2-5",
+  "ariaDisabled": null
+ }
+]

@@ -1,0 +1,9 @@
+# TC-A4/A6 COST: gán xe nhóm + nhảy tiền (staging API, build 2176e29e)
+lots: 570 QAC2R3-CL01, 571 QAC2R3-CL02 (LCL, LOGCOM, route 12, trips 184/185, freight 1500000 each)
+NEG POST /api/shipments/lcl/cost-group class 4 (5T) + actualTruckNo 15E-016.26 (internal)
+  -> 400 'Hàng lẻ xe tải 100% xe ngoài — BKS 15E-016.26 là xe nội bộ, chọn BKS nhà xe' (FB-090)
+POS POST /lcl/cost-group {shipmentIds:[570,571], vehicleSizeClassId:4, actualTruckNo:'50C-123.45', billingTruckNo:'50C-999.99'}
+  -> 201 {groupId: bcfe8e87…, members:[{570,order:1},{571,order:2}]}
+GET /api/trips/184 -> externalFreightCost=1500000 (Lô 1 keeps 100%)
+GET /api/trips/185 -> externalFreightCost=0 (Lô 2 zeroed)
+shipments: both carry costGroupId, actualTruckNo 50C-123.45, billingTruckNo 50C-999.99, costVehicleClassCode 5T

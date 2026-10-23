@@ -1,0 +1,14 @@
+{
+  "pin": "11720424",
+  "date": "2026-10-17T14:52:19.239Z",
+  "results": {
+    "B.5": {
+      "verdict": "PASS",
+      "note": "board structure: PHẢI THU=true, PHẢI TRẢ=true, Tiền thu=false, buttons(Đối soát=true, Hoàn tác=true, Xác nhận=true, Chọn Debit=true), filters(search=true, Từ/Đến ngày cells=true, khách hàng=true, nhà xe=true)"
+    },
+    "A.5": {
+      "verdict": "PASS",
+      "note": "Chọn Debit dialog: opened=true, btn=\"Chọn Debit (1 dòng)\", fieldsOk=true, text=Chọn Debit — chốt đợt đối soát (1 lô) Khách hàng CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH Nhà xe (từ phân xe của các lô) — Từ ngày / / Đến ngày / / Lần Lần 1 Tháng Tháng 9 Năm 2026 Chiều đối soát Phải th"
+    }
+  }
+}

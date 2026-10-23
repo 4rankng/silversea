@@ -1,0 +1,6 @@
+PASS — customer cell shows short name
+PASS — customer tooltip keeps full name
+PASS — carrier label shows short name
+PASS — carrier tooltip keeps full name
+console/page errors: none
+RUNG3_DRIVE_PASS

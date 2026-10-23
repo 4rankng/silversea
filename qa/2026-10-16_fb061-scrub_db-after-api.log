@@ -1,0 +1,10 @@
+BEGIN
+UPDATE 1
+COMMIT
+28|12|EXTERNAL|||15H-021.39||2026-10-16 10:36:02.198341
+23|STG VERIFY NHA XE 09|t|2026-10-04 13:14:44.155
+
+-- staging API proof (build at scrub time, code fix NOT yet deployed):
+GET /api/expense-accounting/phoi-phieu/rows?search=EBKG18452303 → trip 12: plateNumber 15H-021.39 intact, carrierName null (STG VERIFY NHA XE 09 GONE), customerName = real customer intact.
+GET /api/expense-accounting/phoi-phieu/report THU 2026-09-01..2026-10-16 → 'QA0915 QA-138 Credit Customer | 140000' STILL PRESENT on the pre-fix build (residual closed by code fix at next deploy; buckets under Chưa xác định per LEAK-3 pin). TRA: no deleted names.
+raw row JSON: {"items":[{"tripId":12,"tripCode":"TRP-202609-0010","shipmentId":8,"shipmentCode":"SHP-2609-00008","billOrBooking":"EBKG18452303","customerName":"CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH","factoryName":"SUNRISE","routeName":"KCN Vân Trung, Nếnh, Bắc Ninh","containerNumber":null,"containerTypeLabel":"20'DC","cargoWeightKg":5,"containerPayloadKg":28200,"liftSite":"Bãi Medlog","dropSite":"TIL

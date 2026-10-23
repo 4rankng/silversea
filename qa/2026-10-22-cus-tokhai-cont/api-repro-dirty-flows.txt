@@ -1,0 +1,14 @@
+LOGIN OK
+seed lot 312525 201
+dirty rows seeded: [ 'HAGU123456', 'MSKU1234560' ]
+
+1) GET detail: 2 containers OK
+2) ADD valid on dirty lot: 201 OK
+3) UPDATE dirty→valid: 200 OK
+4) UPDATE dirty→dirty2: 400 {"error":"Số container \"MSKU1234561\" không hợp lệ: Sai số kiểm tra — định dạng đúng nhưng mã kiểm tra không khớp"}
+5) UPDATE weight-only on dirty row: 200 OK
+6) UPDATE echo-dirty-number + weight: 200 OK
+7) REMOVE dirty row: 200 OK
+8) PUT reconcile (echo dirty set): 200 OK
+
+DIRTY_LOT_ID=312525

@@ -1,0 +1,15 @@
+# FB-048 (card 141026003600) — frontend gates
+$ npx tsc --noEmit
+exit=0
+
+$ npx vitest run src/features/shipments src/design-system/forms
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-w5-fb-verifyfails/frontend
+
+
+ Test Files  65 passed (65)
+      Tests  608 passed (608)
+   Start at  14:57:33
+   Duration  14.63s (transform 5.44s, setup 7.53s, import 42.72s, tests 40.18s, environment 29.00s)
+
+
+$ FAILING-BEFORE (old pre-gate restored): 1 failed | 1 passed (partial-draft case)

@@ -1,0 +1,22 @@
+QA — docs/prd rulings 22/10 (docs-only) — context/link checks
+Date: 2026-10-22 · Scope: docs/prd/*.md (README matrix + CHANGELOG + OpsVanHanh + LoHangKepKetHop)
+
+Gate 1 — context check (AGENTS.md §5: docs-only = context/link checks)
+Command: pnpm context:check
+Output:
+  > tingting@ context:check
+  > node scripts/context-for.mjs --check
+  Context manifest valid: v1, 8 profiles, 25 context paths.
+Exit status: 0
+
+Gate 2 — markdown link + touched table-row integrity (relative links in docs/prd/*.md all resolve; edited table rows keep cell counts)
+Command: python3 (link/table check over docs/prd/*.md)
+Output: issues: NONE
+Exit status: 0
+
+Gate 3 — TICKET-09 supersede sweep (every docs/prd mention of TICKET-09 carries SUPERSEDED/REVERSED/hết hiệu lực marking or sits in the annotated 21/10 historical quote)
+Command: grep -n "TICKET-09" docs/prd/*.md
+Result: 11 hits — all in (a) new 22/10 CHANGELOG entry + matrix rows citing the supersede, (b) 21/10 historical quote whose closing paragraph is marked "*(**SUPERSEDED 22/10** — FB-112 REVERSED, Zalo 22/10 09:50 …)*", (c) rows annotated "TICKET-09 superseded 22/10".
+Exit status: 0
+
+No code gates run — docs-only change (KHÔNG sửa code per task).

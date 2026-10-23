@@ -1,0 +1,163 @@
+URL: /shipments/176
+checks: {
+  "headerCardPresent": true,
+  "hasSoToKhaiField": true,
+  "soToKhaiValue": "102250318903",
+  "soToKhaiFilled": true,
+  "orderBillBooking_before_toKhai": true,
+  "order_toKhai_before_direction": true,
+  "order_direction_before_carrier": true
+}
+
+field order:
+1. Khách hàng = TNHH XNK Hà Nội
+2. Số Bill / Số Booking = DNKM13337
+3. Số tờ khai = 102250318903
+4. Xuất / Nhập = Xuất
+5. Hãng tàu = ONE
+6. Nâng = Đình Vũ
+7. Hạ = HICT
+8. Liên hệ = Trịnh Văn Hà · 02438888888
+9. Ngày tạo = 16:28 19/09/2026
+10. Loại lô = Container (FCL)
+11. Nhà máy / công trường = —
+12. Tuyến đường = —
+13. Cut-off hải quan = —
+14. Giờ đóng hàng = 15:00 11/08/2026
+15. Thời gian trả = —
+16. Trọng lượng = —
+17. Cước dự kiến = — ₫
+18. Phụ phí nhiên liệu dự kiến = — ₫
+19. Ghi chú cho lái xe = —
+
+Bỏ qua đến nội dung chính
+Đã chuyển đến Chi tiết lô hàng
+TransTing
+Quản lý vận tải và logistics
+Nghiệp vụ Chứng từ
+Tổng quan lô hàng
+Chi tiết lô hàng
+Chi phí - Quyết toán
+Đối soát
+Theo dõi hóa đơn
+Quản Lý
+Khách hàng & Đối tác
+Tuyến đường
+Giá dầu theo kỳ
+Nhà máy / Kho
+Nhân viên CUS Demo
+Chứng từ
+Đang xem
+Chi tiết lô hàng
+Tháng 10/2026
+·
+01/10 – 31/10
+DNKM13337
+Tạo lô mới
+Xóa lô
+Đang chạy
+v4
+Khách hàng
+TNHH XNK Hà Nội
+Số Bill / Số Booking
+DNKM13337
+Số tờ khai
+102250318903
+Xuất / Nhập
+Xuất
+Hãng tàu
+ONE
+Nâng
+Đình Vũ
+Hạ
+HICT
+Liên hệ
+Trịnh Văn Hà · 02438888888
+Ngày tạo
+16:28 19/09/2026
+Loại lô
+Container (FCL)
+Nhà máy / công trường
+—
+Tuyến đường
+—
+Cut-off hải quan
+—
+Giờ đóng hàng
+15:00 11/08/2026
+Thời gian trả
+—
+Trọng lượng
+—
+Cước dự kiến
+— ₫
+Phụ phí nhiên liệu dự kiến
+— ₫
+Ghi chú cho lái xe
+—
+Ghi nhận giá theo cấu hình hiện hành
+
+Mỗi container cần tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.
+
+Nhà xe
+
+Chưa phân nhà xe
+
+Phối hợp khách hàng
+Tạo cập nhật
+
+Các cập nhật dưới đây là bản nội dung đã phân loại để khách hàng xem; đây không phải hội thoại trực tiếp.
+
+Chưa có cập nhật nào đã gửi khách hàng.
+
+Containers (1)
+LOẠI	SỐ CONTAINER	NHÀ XE	XE ĐÃ GÁN	SỐ SEAL	LỊCH GIAO	TRỌNG LƯỢNG (KG)	GHI CHÚ
+40'DC	MAGU2468720	—	—	SL8371065	—	19.300	—
+Chi phí / thực thu
+
+Số tính cho khách theo thỏa thuận, có thể thấp hơn thực chi hoặc bằng 0. Không phải số khách đã thanh toán.
+
+Chưa có khoản chi cho lô này.
+
+Hồ sơ chi phí
+Ngày hóa đơn từ
+Từ
+/
+/
+→
+Đến ngày
+Đến
+/
+/
+Tìm
+
+0 hồ sơ
+
+Chưa có hóa đơn phù hợp.
+
+Tài liệu (0)
+Chưa có tài liệu nào.
+Tờ khai hải quan (1)
++ Thêm tờ khai
+102250318903
+Loại: Chung · Ngày phát hành: —
+Tờ khai gộp 2 lô
+Lịch sử trạng thái (3)
+Đã phân xe
+→
+Đang chạy
+Đang vận chuyển (seed)
+16:28 19/09/2026
+Sẵn sàng điều xe
+→
+Đã phân xe
+Điều vận (seed)
+16:28 19/09/2026
+—
+→
+Sẵn sàng điều xe
+Tạo lô hàng
+16:28 19/09/2026
+FB-113 header · https://vantai.tingting.vip/shipments/176 · lot 176 DNKM13337 · tờ khai 102250318903
+URL: https://vantai.tingting.vip/shipments/176
+build d39ee741 · QA R26 · 2026-10-20T09:50:28.725Z

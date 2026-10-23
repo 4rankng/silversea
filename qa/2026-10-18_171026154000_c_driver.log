@@ -1,0 +1,45 @@
+# 171026154000 (C) assign-reason driver — 2026-10-18
+# command: node testplan/qa/scripts/2026-10-18-171026154000_c-assign-reason.mjs
+# started: 2026-10-17T16:29:08.169Z
+# backend=http://localhost:3002/api frontend=http://localhost:7186 window=2026-10-01..2026-10-31 user=dieuvan
+2026-10-17T16:29:08.182Z health-backend {"status":200,"ms":11}
+2026-10-17T16:29:08.183Z PASS {"check":"backend-health-200","detail":200}
+2026-10-17T16:29:08.253Z login {"user":"dieuvan","tokenPresent":true}
+2026-10-17T16:29:08.282Z api-lcl {"status":200,"total":32,"page1":32,"url":"http://localhost:3002/api/shipments/dispatch-detail-plan-rows?dateFrom=2026-10-01&dateTo=2026-10-31&cargoMode=LCL"}
+2026-10-17T16:29:08.283Z PASS {"check":"api-lcl-200","detail":200}
+2026-10-17T16:29:08.283Z PASS {"check":"api-lcl-page1-all-LCL","detail":["LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL"]}
+2026-10-17T16:29:08.283Z PASS {"check":"api-two-drivable-rows","detail":[{"id":110503,"bill":"FB105-7D985A-IMP"},{"id":110504,"bill":"FB105PROBE-IMPORT"}]}
+2026-10-17T16:29:08.283Z driven-rows [{"shipmentId":110503,"bill":"FB105-7D985A-IMP"},{"shipmentId":110504,"bill":"FB105PROBE-IMPORT"}]
+2026-10-17T16:29:08.431Z db-before {"sql":"SELECT s.id, s.cargo_mode, s.cost_group_id, s.cost_group_order, s.status FROM shipments s WHERE s.id IN (110503,110504) ORDER BY s.id","rows":["110503 | LCL |  |  | READY_FOR_DISPATCH","110504 | LCL |  |  | READY_FOR_DISPATCH"]}
+2026-10-17T16:29:11.050Z ui-pick-lcl {"trigger":"Loại hàng: Tất cả","picked":"Hàng lẻ (LCL)"}
+2026-10-17T16:29:11.050Z ui-lcl-response {"status":200,"url":"http://localhost:7186/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31&cargoMode=LCL"}
+2026-10-17T16:29:12.382Z ui-shot {"file":"/Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter/qa/2026-10-18_171026154000_c_ui-1-lcl-grid.png"}
+2026-10-17T16:29:12.384Z ui-checkboxes {"count":32,"first":"Chọn lô UI-LCL-B77AP2-1"}
+2026-10-17T16:29:12.384Z PASS {"check":"ui-lcl-checkboxes-present","detail":32}
+2026-10-17T16:29:12.559Z ui-one-lot-bar {"bar":true,"totals":"Đang chọn 1 lô: Tổng 1.922 kg | 4 CBM","reasonText":"Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ.","reasonVisible":true,"assignAriaDisabled":"true","assignDescribedBy":"lcl-group-assign-reason","assignTitle":"Gán xe nhóm trả ĐV"}
+2026-10-17T16:29:12.560Z PASS {"check":"ui-bar-visible-one-lot"}
+2026-10-17T16:29:12.560Z PASS {"check":"ui-reason-text-verbatim","detail":"Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ."}
+2026-10-17T16:29:12.560Z PASS {"check":"ui-reason-is-visible-text","detail":true}
+2026-10-17T16:29:12.560Z PASS {"check":"ui-assign-aria-disabled","detail":"true"}
+2026-10-17T16:29:12.560Z PASS {"check":"ui-assign-described-by-reason","detail":"lcl-group-assign-reason"}
+2026-10-17T16:29:12.560Z PASS {"check":"ui-assign-title-action-purpose","detail":"Gán xe nhóm trả ĐV"}
+2026-10-17T16:29:12.782Z ui-shot {"file":"/Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter/qa/2026-10-18_171026154000_c_ui-2-one-lot-reason.png"}
+2026-10-17T16:29:14.306Z ui-guarded-click {"dialog":null,"newApiWrites":[]}
+2026-10-17T16:29:14.307Z PASS {"check":"ui-guarded-click-no-dialog","detail":null}
+2026-10-17T16:29:14.307Z PASS {"check":"ui-guarded-click-no-api-write","detail":[]}
+2026-10-17T16:29:14.413Z ui-shot {"file":"/Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter/qa/2026-10-18_171026154000_c_ui-3-guarded-click.png"}
+2026-10-17T16:29:14.915Z ui-two-lots-bar {"bar":true,"totals":"Đang chọn 2 lô: Tổng 3.844 kg | 8 CBM","reasonText":null,"reasonVisible":false,"assignAriaDisabled":null,"assignDescribedBy":null,"assignTitle":"Gán xe nhóm trả ĐV"}
+2026-10-17T16:29:14.915Z PASS {"check":"ui-reason-gone-two-lots","detail":null}
+2026-10-17T16:29:14.915Z PASS {"check":"ui-assign-enabled-two-lots","detail":null}
+2026-10-17T16:29:15.242Z ui-dialog-open {"text":"2 lô lẻ · Lô 1 giữ 100% cước trả ĐV, các lô còn lại 0₫Gán xe nhómLô 1 · UI-LCL-B77AP2-1 — UI Khách hàng B77AP2Lô 2 · UI-LCL-B77AP2-2 — UI Khách hàng B77AP2Loại xe tính cước trả ĐV*Nhà xe*UI Nhà xe B77"}
+2026-10-17T16:29:15.243Z PASS {"check":"ui-dialog-opens-two-lots","detail":"2 lô lẻ · Lô 1 giữ 100% cước trả ĐV, các lô còn lại 0₫Gán xe nhómLô 1 · UI-LCL-B77AP2-1 — UI Khách hàng B77AP2Lô 2 · UI-LCL-B77AP2-2 — UI Khách hàng B77AP2Loại xe tính cước trả ĐV*Nhà xe*UI Nhà xe B77"}
+2026-10-17T16:29:15.484Z ui-shot {"file":"/Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter/qa/2026-10-18_171026154000_c_ui-4-dialog-open.png"}
+2026-10-17T16:29:16.937Z ui-phone-one-lot-bar {"bar":true,"totals":"Đang chọn 1 lô: Tổng 1.922 kg | 4 CBM","reasonText":"Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ.","reasonVisible":true,"assignAriaDisabled":"true","assignDescribedBy":"lcl-group-assign-reason","assignTitle":"Gán xe nhóm trả ĐV"}
+2026-10-17T16:29:16.938Z PASS {"check":"ui-phone-reason-text","detail":"Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ."}
+2026-10-17T16:29:17.039Z ui-shot {"file":"/Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter/qa/2026-10-18_171026154000_c_ui-5-phone-reason.png"}
+2026-10-17T16:29:17.040Z ui-writes-total []
+2026-10-17T16:29:17.040Z PASS {"check":"ui-no-api-writes-whole-drive","detail":[]}
+2026-10-17T16:29:17.214Z db-after {"rows":["110503 | LCL |  |  | READY_FOR_DISPATCH","110504 | LCL |  |  | READY_FOR_DISPATCH"]}
+2026-10-17T16:29:17.215Z PASS {"check":"db-driven-rows-unchanged","detail":{"before":["110503 | LCL |  |  | READY_FOR_DISPATCH","110504 | LCL |  |  | READY_FOR_DISPATCH"],"after":["110503 | LCL |  |  | READY_FOR_DISPATCH","110504 | LCL |  |  | READY_FOR_DISPATCH"]}}
+2026-10-17T16:29:17.215Z summary {"checks":{"backend-health-200":true,"api-lcl-200":true,"api-lcl-page1-all-LCL":true,"api-two-drivable-rows":true,"ui-lcl-checkboxes-present":true,"ui-bar-visible-one-lot":true,"ui-reason-text-verbatim":true,"ui-reason-is-visible-text":true,"ui-assign-aria-disabled":true,"ui-assign-described-by-reason":true,"ui-assign-title-action-purpose":true,"ui-guarded-click-no-dialog":true,"ui-guarded-click-no-api-write":true,"ui-reason-gone-two-lots":true,"ui-assign-enabled-two-lots":true,"ui-dialog-opens-two-lots":true,"ui-phone-reason-text":true,"ui-no-api-writes-whole-drive":true,"db-driven-rows-unchanged":true},"counts":{"pass":19}}
+# finished: 2026-10-17T16:29:17.215Z pass=19 fail=0

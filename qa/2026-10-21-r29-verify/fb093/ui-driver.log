@@ -1,0 +1,213 @@
+{
+  "results": [
+    {
+      "id": "FB-093 setup: ghép cước thu khách 2 lô OK (cả 2 cùng revGroup, Lô 2 = 0₫ + note ghép)",
+      "pass": false,
+      "detail": "[{\"ship\":809,\"code\":\"SHP-2610-00433\",\"bill\":\"CL4C-01\",\"freight\":null,\"note\":null,\"revGroup\":\"fbd7a585-a2ac-4520-a6c0-7f0cdd7508d0\",\"members\":2,\"lock\":\"OPEN\"},{\"ship\":810,\"code\":\"SHP-2610-00434\",\"bill\":\"CL4C-02\",\"freight\":\"0\",\"note\":\"Ghép cước cùng Bill CL4C-01\",\"revGroup\":\"fbd7a585-a2ac-4520-a6c0-7f0cdd7508d0\",\"members\":2,\"lock\":\"OPEN\"}]"
+    },
+    {
+      "id": "FB-093: phía KẾ TOÁN có nút \"Tách nhóm\" trên MỖI dòng thuộc nhóm ghép (2 nút, aria-label nêu Số Bill)",
+      "pass": false,
+      "detail": "[{\"aria\":\"Tách nhóm ghép cước thu khách — lô LCLQa24BB\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô LCLQa43B6\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô FB080-RUNG-1\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L03\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô BILL-RET1026-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô BILL-RET1026-02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL4C-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL4C-02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5-BILL-04\",\"disabled\":false,\"ariaDisabled\":null}]"
+    },
+    {
+      "id": "FB-093: click \"Tách nhóm\" (Kế toán) → unmerge group OK — nhóm giải tán, note ghép biến mất",
+      "pass": false,
+      "detail": "apis=[] rows=[{\"ship\":809,\"code\":\"SHP-2610-00433\",\"bill\":\"CL4C-01\",\"freight\":null,\"note\":null,\"revGroup\":null,\"members\":null,\"lock\":\"OPEN\"},{\"ship\":810,\"code\":\"SHP-2610-00434\",\"bill\":\"CL4C-02\",\"freight\":\"0\",\"note\":null,\"revGroup\":null,\"members\":null,\"lock\":\"OPEN\"}]"
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-10-21T01:33:56.133Z",
+      "step": "health",
+      "status": "ok",
+      "build": "ebd032fb"
+    },
+    {
+      "0": {
+        "ship": 809,
+        "code": "SHP-2610-00433",
+        "bill": "CL4C-01",
+        "freight": null,
+        "note": null,
+        "revGroup": null,
+        "members": null,
+        "lock": "OPEN"
+      },
+      "1": {
+        "ship": 810,
+        "code": "SHP-2610-00434",
+        "bill": "CL4C-02",
+        "freight": "0",
+        "note": null,
+        "revGroup": null,
+        "members": null,
+        "lock": "OPEN"
+      },
+      "at": "2026-10-21T01:33:57.446Z",
+      "step": "before_rows"
+    },
+    {
+      "at": "2026-10-21T01:34:03.655Z",
+      "step": "selection",
+      "hasCheckbox1": true,
+      "selected": 2,
+      "mergeBtn": false
+    },
+    {
+      "at": "2026-10-21T01:34:05.187Z",
+      "step": "merge_dialog",
+      "open": true,
+      "text": "2 lô lẻ · Lô 1 giữ 100% CƯỚC VẬN TẢI (Auto), các lô còn lại 0₫Ghép cước thu kháchLô 1 · CL4C-01 — CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG Ô TÔ YUANFANG VIỆT NAMLô 2 · CL4C-02 — CÔNG TY TNHH CÔNG NGHỆ PHỤ TÙNG"
+    },
+    {
+      "at": "2026-10-21T01:34:07.401Z",
+      "step": "vehicle_class_picked",
+      "pickedClass": "Xe 5 tấn"
+    },
+    {
+      "0": {
+        "ship": 809,
+        "code": "SHP-2610-00433",
+        "bill": "CL4C-01",
+        "freight": null,
+        "note": null,
+        "revGroup": "fbd7a585-a2ac-4520-a6c0-7f0cdd7508d0",
+        "members": 2,
+        "lock": "OPEN"
+      },
+      "1": {
+        "ship": 810,
+        "code": "SHP-2610-00434",
+        "bill": "CL4C-02",
+        "freight": "0",
+        "note": "Ghép cước cùng Bill CL4C-01",
+        "revGroup": "fbd7a585-a2ac-4520-a6c0-7f0cdd7508d0",
+        "members": 2,
+        "lock": "OPEN"
+      },
+      "at": "2026-10-21T01:34:08.903Z",
+      "step": "after_merge_rows"
+    },
+    {
+      "at": "2026-10-21T01:34:09.178Z",
+      "step": "RESULT",
+      "id": "FB-093 setup: ghép cước thu khách 2 lô OK (cả 2 cùng revGroup, Lô 2 = 0₫ + note ghép)",
+      "pass": false,
+      "detail": "[{\"ship\":809,\"code\":\"SHP-2610-00433\",\"bill\":\"CL4C-01\",\"freight\":null,\"note\":null,\"revGroup\":\"fbd7a585-a2ac-4520-a6c0-7f0cdd7508d0\",\"members\":2,\"lock\":\"OPEN\"},{\"ship\":810,\"code\":\"SHP-2610-00434\",\"bill\":\"CL4C-02\",\"freight\":\"0\",\"note\":\"Ghép cước cùng Bill CL4C-01\",\"revGroup\":\"fbd7a585-a2ac-4520-a6c0-7f0cdd7508d0\",\"members\":2,\"lock\":\"OPEN\"}]"
+    },
+    {
+      "at": "2026-10-21T01:34:13.433Z",
+      "step": "ketoan_board",
+      "rowsWithNote": 1,
+      "tachButtons": [
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô LCLQa24BB",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô LCLQa43B6",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô FB080-RUNG-1",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L02",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5B-L03",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô BILL-RET1026-01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô BILL-RET1026-02",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL4C-01",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL4C-02",
+          "disabled": false,
+          "ariaDisabled": null
+        },
+        {
+          "aria": "Tách nhóm ghép cước thu khách — lô CL5-BILL-04",
+          "disabled": false,
+          "ariaDisabled": null
+        }
+      ],
+      "dateInputs": []
+    },
+    {
+      "at": "2026-10-21T01:34:13.817Z",
+      "step": "RESULT",
+      "id": "FB-093: phía KẾ TOÁN có nút \"Tách nhóm\" trên MỖI dòng thuộc nhóm ghép (2 nút, aria-label nêu Số Bill)",
+      "pass": false,
+      "detail": "[{\"aria\":\"Tách nhóm ghép cước thu khách — lô LCLQa24BB\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô LCLQa43B6\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô FB080-RUNG-1\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5B-L03\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô BILL-RET1026-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô BILL-RET1026-02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL4C-01\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL4C-02\",\"disabled\":false,\"ariaDisabled\":null},{\"aria\":\"Tách nhóm ghép cước thu khách — lô CL5-BILL-04\",\"disabled\":false,\"ariaDisabled\":null}]"
+    },
+    {
+      "at": "2026-10-21T01:34:14.921Z",
+      "step": "tach_confirm_dialog",
+      "open": true,
+      "text": "Tách nhóm ghép cước thu khách? Tiền cước của mỗi lô trở về đúng trạng thái trước ghép, ghi chú \"Ghép cước cùng Bill\" được gỡ.HủyTách nhóm"
+    },
+    {
+      "at": "2026-10-21T01:34:18.082Z",
+      "step": "after_tach_ui",
+      "rowsWithNote": 1,
+      "tachButtons": 9
+    },
+    {
+      "0": {
+        "ship": 809,
+        "code": "SHP-2610-00433",
+        "bill": "CL4C-01",
+        "freight": null,
+        "note": null,
+        "revGroup": null,
+        "members": null,
+        "lock": "OPEN"
+      },
+      "1": {
+        "ship": 810,
+        "code": "SHP-2610-00434",
+        "bill": "CL4C-02",
+        "freight": "0",
+        "note": null,
+        "revGroup": null,
+        "members": null,
+        "lock": "OPEN"
+      },
+      "at": "2026-10-21T01:34:18.726Z",
+      "step": "after_tach_rows"
+    },
+    {
+      "at": "2026-10-21T01:34:18.726Z",
+      "step": "RESULT",
+      "id": "FB-093: click \"Tách nhóm\" (Kế toán) → unmerge group OK — nhóm giải tán, note ghép biến mất",
+      "pass": false,
+      "detail": "apis=[] rows=[{\"ship\":809,\"code\":\"SHP-2610-00433\",\"bill\":\"CL4C-01\",\"freight\":null,\"note\":null,\"revGroup\":null,\"members\":null,\"lock\":\"OPEN\"},{\"ship\":810,\"code\":\"SHP-2610-00434\",\"bill\":\"CL4C-02\",\"freight\":\"0\",\"note\":null,\"revGroup\":null,\"members\":null,\"lock\":\"OPEN\"}]"
+    }
+  ]
+}

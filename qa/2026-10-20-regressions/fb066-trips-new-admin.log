@@ -1,0 +1,3 @@
+{"at":"2026-10-20T02:58:00.855Z","step":"trips-new-admin","url":"http://localhost:7175/trips/new","noAccess":false,"quickAddCount":2,"quickAddVisible":2,"fieldHeads":["Xe đầu kéo*Thêm nhanh","Lái xe*Thêm nhanh"],"truckSelectExists":true}
+{"at":"2026-10-20T02:58:02.295Z","step":"quick-add-dialog","dialogs":["Thêm nhanh biển số xeNhà xe: Đội xe nội bộXe được lưu vào danh sách xe nội bộ (g"]}
+{"at":"2026-10-20T02:58:02.400Z","step":"run-complete"}

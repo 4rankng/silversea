@@ -1,0 +1,141 @@
+{
+  "afterSeedInfo": {
+    "headers": [
+      "CONTAINER",
+      "LOẠI CONT",
+      "TUYẾN",
+      "ĐIỀU VẬN",
+      "NHÀ XE",
+      "BIỂN SỐ",
+      "NÂNG",
+      "HẠ",
+      "TRỌNG LƯỢNG (KG)",
+      "GIỜ HẸN ĐÓNG/TRẢ",
+      "THAO TÁC"
+    ],
+    "sourceRows": [
+      [
+        "1\nMSCU7654329",
+        "20DC\nLoại container MSCU7654329\n20DC",
+        "KCN QUẾ VÕ, BẮC NINH\nTuyến đường của container MSCU7654329\nKCN QUẾ VÕ, BẮC NINH",
+        "Đã điều xe",
+        "Đội xe nội bộ SilverSea\nNhà xe của container MSCU7654329\nĐội xe nội bộ SilverSea\nThêm nhà xe",
+        "15H-021.39",
+        "Chọn cảng nâng\nCảng nâng của container MSCU7654329\nChọn cảng nâng",
+        "Chọn cảng hạ\nCảng hạ của container MSCU7654329\nChọn cảng hạ",
+        "—",
+        "Chọn ngày giờ",
+        ""
+      ]
+    ],
+    "addRowCells": [
+      {
+        "idx": 0,
+        "header": "CONTAINER",
+        "className": "cus-container-cell cus-container-cell--identity",
+        "text": ""
+      },
+      {
+        "idx": 1,
+        "header": "LOẠI CONT",
+        "className": "cus-container-cell",
+        "text": ""
+      },
+      {
+        "idx": 2,
+        "header": "TUYẾN",
+        "className": "cus-container-cell",
+        "text": "KCN QUẾ VÕ, BẮC NINH"
+      },
+      {
+        "idx": 3,
+        "header": "ĐIỀU VẬN",
+        "className": "cus-container-ledger__add-blank",
+        "text": ""
+      },
+      {
+        "idx": 4,
+        "header": "NHÀ XE",
+        "className": "cus-container-cell cus-container-cell--carrier",
+        "text": "SilverSea"
+      },
+      {
+        "idx": 5,
+        "header": "BIỂN SỐ",
+        "className": "cus-container-ledger__add-blank",
+        "text": ""
+      },
+      {
+        "idx": 6,
+        "header": "NÂNG",
+        "className": "cus-container-cell",
+        "text": "—"
+      },
+      {
+        "idx": 7,
+        "header": "HẠ",
+        "className": "cus-container-cell",
+        "text": "—"
+      },
+      {
+        "idx": 8,
+        "header": "TRỌNG LƯỢNG (KG)",
+        "className": "cus-container-cell",
+        "text": ""
+      },
+      {
+        "idx": 9,
+        "header": "GIỜ HẸN ĐÓNG/TRẢ",
+        "className": "cus-container-cell",
+        "text": ":\n/\n/"
+      },
+      {
+        "idx": 10,
+        "header": "THAO TÁC",
+        "className": "cus-container-cell cus-container-cell--actions",
+        "text": "Thêm\nHủy"
+      }
+    ]
+  },
+  "afterSubmitInfo": {
+    "sourceRows": [
+      [
+        "1 MSCU7654329",
+        "20DC Loại container MSCU7654329 20DC",
+        "KCN QUẾ VÕ, BẮC NINH Tuyến đường của container MSCU7654329 KCN QUẾ VÕ, BẮC NINH",
+        "Đã điều xe",
+        "Đội xe nội bộ SilverSea Nhà xe của container MSCU7654329 Đội xe nội bộ SilverSea Thêm nhà xe",
+        "15H-021.39 Biển số xe của container MSCU7654329 Xóa biển số",
+        "Chọn cảng nâng Cảng nâng của container MSCU7654329 Chọn cảng nâng",
+        "Chọn cảng hạ Cảng hạ của container MSCU7654329 Chọn cảng hạ",
+        "—",
+        "Chọn ngày giờ",
+        ""
+      ],
+      [
+        "2 CSQU3054383",
+        "Chọn loại cont Loại container CSQU3054383 Chọn loại cont",
+        "KCN QUẾ VÕ, BẮC NINH Tuyến đường của container CSQU3054383 KCN QUẾ VÕ, BẮC NINH",
+        "Chờ phân xe",
+        "Đội xe nội bộ SilverSea Nhà xe của container CSQU3054383 Đội xe nội bộ SilverSea Thêm nhà xe",
+        "Nhập biển số Biển số xe của container CSQU3054383",
+        "Chọn cảng nâng Cảng nâng của container CSQU3054383 Chọn cảng nâng",
+        "Chọn cảng hạ Cảng hạ của container CSQU3054383 Chọn cảng hạ",
+        "—",
+        "Chọn ngày giờ",
+        ""
+      ]
+    ]
+  },
+  "persistedProbeLine": {
+    "id": 495,
+    "containerNumber": "CSQU3054383",
+    "containerTypeId": null,
+    "routeId": 6,
+    "routeName": "KCN QUẾ VÕ, BẮC NINH",
+    "carrierType": "OWN",
+    "carrierName": "SilverSea",
+    "plateNumber": null
+  },
+  "cleanedContainersCount": 2
+}

@@ -1,0 +1,7 @@
+gate: frontend tsc -b
+command: cd frontend && npx tsc -b
+exit: 0 (no output)
+
+gate: scoped vitest (FB-048 payment contract + FB-042 calendar trip chip contract)
+command: cd frontend && npx vitest run src/pages/DebtDetailPage.payment.test.tsx src/pages/salary-attendance/calendar-trip-chip.styles.test.ts
+exit: 0 — Test Files 2 passed (2), Tests 7 passed (7)

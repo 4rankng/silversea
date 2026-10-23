@@ -1,0 +1,19 @@
+=== FB-061 card 141026012010 — demo seed gate covers every demo seeder
+Run: 2026-10-16T04:24:09Z in backend
+
+--- failing-before (seed-dashboard.ts + seed-demo-freight-pricing.ts reverted to ungated) ---
+  npx tsx --test src/tests/unit/seed-demo-gate.test.ts
+  AssertionError: seed/seed-demo-freight-pricing.ts is a self-executing demo seeder with no production gate
+  tests 12 | pass 10 | fail 2   exit 1
+
+--- passing-after (shared demo-seed-gate.ts owner, both entrypoints gated) ---
+  npx tsx --test src/tests/unit/seed-demo-gate.test.ts
+  tests 12 | pass 12 | fail 0   exit 0
+
+--- backend unit suite ---
+  npx tsx --test 'src/tests/unit/*.test.ts'
+  tests 284 | pass 284 | fail 0   exit 0
+
+--- backend typecheck ---
+  npx tsc --noEmit
+  exit 0 (no output)

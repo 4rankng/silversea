@@ -1,0 +1,26 @@
+[
+  {
+    "url": "fonts/fonts.css",
+    "status": 200
+  },
+  {
+    "url": "fonts/BeVietnamPro-Bold.ttf",
+    "status": 200
+  },
+  {
+    "url": "fonts/BeVietnamPro-SemiBold.ttf",
+    "status": 200
+  },
+  {
+    "url": "fonts/BeVietnamPro-Medium.ttf",
+    "status": 200
+  },
+  {
+    "url": "fonts/BeVietnamPro-Regular.ttf",
+    "status": 200
+  },
+  {
+    "url": "fonts/BeVietnamPro-Italic.ttf",
+    "status": 200
+  }
+]

@@ -1,0 +1,15 @@
+── Phase chot-debit (items 5, 6) ──
+debit board: {"rows":117,"selectAll":true,"exportBtn":true,"chooseDebit":true}
+PASS item5: board renders with Chọn tất cả/Chọn Debit/Xuất Debit Note — {"rows":117,"selectAll":true,"exportBtn":true,"chooseDebit":true}
+column chooser button idx: 23
+after reveal-all: {"count":9,"zeroWidth":0,"offscreen":9} (toggled {"before":9,"btnCount":1})
+PASS item5: every column on — no zero-width header cell (UI not broken) — {"count":9,"zeroWidth":0,"offscreen":9}
+row click state: {"rowClicked":{"ok":true,"attr":"true","bg":"rgb(255, 255, 255)","cls":"debit-row--pickable","ngayText":""},"selectedState":{"cls":"debit-row--pickable","firstCellText":"","hasTick":false}}
+PASS item5: clicked row is visually highlighted (state attr/class) — {"cls":"debit-row--pickable","firstCellText":"","hasTick":false}
+Chọn Debit dialog: {"hasDialog":true,"checkboxes":10,"legend":"Chọn ngày (9/9 ngày · 116 lô)","textHead":"Chọn Debit — chốt đợt đối soát (116/116 lô)Chọn ngày (9/9 ngày · 116 lô)Bỏ chọn tất cả ngày01/10/2026 (26 lô)02/10/2026 (4 lô)06/10/2026 (5 lô)10/10/2026 (1 lô)16/10/2026 (8 lô)17/10/2026 (27 lô)18/10/2026 (14 lô)19/10/2"}
+PASS item5: Chọn Debit dialog groups selection BY NGÀY with tick boxes — {"hasDialog":true,"checkboxes":10,"legend":"Chọn ngày (9/9 ngày · 116 lô)","textHead":"Chọn Debit — chốt đợt đối soát (116/116 lô)Chọn ngày (9/9 ngày · 116 lô)Bỏ chọn tất cả ngày01/10/2026 (26 lô)02/10/2026 (4 lô)06/10/2026 (5 lô)10/10/2026 (1 lô)16/10/2026 (8 lô)17/10/2026 (27 lô)18/10/2026 (14 lô)19/10/2"}
+export consent: confirmed-lock-export
+download dir: []
+banner: 
+FAIL item6: Xuất Debit Note downloads a real file — {"files":[],"banner":""}
+DONE failures=1

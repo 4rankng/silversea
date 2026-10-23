@@ -1,0 +1,9 @@
+before|189|7654321|
+before|190|0|Ghép cước cùng Bill QA-F2-10162045-A
+before|191|0|
+before|192|0|
+before|193|0|Ghép cước cùng Bill QA-F2-10162045-D
+BEGIN
+DELETE 5
+COMMIT
+after_count|0

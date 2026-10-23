@@ -1,0 +1,46 @@
+[
+  {
+    "at": "2026-10-20T09:39:28.479Z",
+    "step": "login-start",
+    "data": {
+      "user": "admin",
+      "url": "https://vantai.tingting.vip/api"
+    }
+  },
+  {
+    "at": "2026-10-20T09:39:28.815Z",
+    "step": "login-success",
+    "data": {
+      "tokenPrefix": "eyJhbGciOi"
+    }
+  },
+  {
+    "at": "2026-10-20T09:39:28.882Z",
+    "step": "navigate-shipments",
+    "data": {
+      "url": "http://localhost:7175/shipments"
+    }
+  },
+  {
+    "at": "2026-10-20T09:39:34.280Z",
+    "step": "row-measurements",
+    "data": {
+      "totalRows": 20,
+      "minHeight": 76.6,
+      "maxHeight": 76.6,
+      "spread": 0,
+      "uniqueHeights": [
+        76.6
+      ],
+      "isUniform": true
+    }
+  },
+  {
+    "at": "2026-10-20T09:39:36.259Z",
+    "step": "verdict",
+    "data": {
+      "status": "PASS",
+      "criterion": "spread <= 1.5px across all table rows (#33 / FB-043)"
+    }
+  }
+]

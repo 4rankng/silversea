@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-dri03-lan2/frontend
+
+
+ Test Files  5 passed (5)
+      Tests  185 passed (185)
+   Start at  18:48:55
+   Duration  9.47s (transform 6.65s, setup 1.37s, import 16.11s, tests 9.05s, environment 5.21s)
+
+scoped exit=0

@@ -1,0 +1,29 @@
+dialog opened: true
+options count: 10078
+ERR locator.click: Timeout 4000ms exceeded.
+Call log:
+[2m  - waiting for locator('[role="option"]').nth(1)[22m
+[2m    - locator resolved to <li tabindex="0" role="option" aria-selected="false">…</li>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div role="dialog" aria-modal="true" aria-labelledby="_r_13_" class="modal modal--operational-density modal--polished">…</div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div role="dialog" aria-modal="true" aria-labelledby="_r_13_" class="modal modal--operational-density modal--polished">…</div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    5 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is visible, enabled and stable[22m
+[2m      - scrolling into view if needed[22m
+[2m      - done scrolling[22m
+[2m      - <div role="dialog" aria-modal="true" aria-labelledby="_r_13_" class="modal modal--operational-density modal--polished">…</div> intercepts pointer events[22m
+[2m    - retrying click action[22m
+[2m      - waiting 500ms[22m
+

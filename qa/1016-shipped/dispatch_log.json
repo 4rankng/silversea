@@ -1,0 +1,50 @@
+[
+  {
+    "at": "2026-10-16T07:10:48.165Z",
+    "step": "health",
+    "buildHash": "7dcdcf33",
+    "expect": "7dcdcf33"
+  },
+  {
+    "at": "2026-10-16T07:10:48.515Z",
+    "step": "identity",
+    "user": "dungnv",
+    "jwtUsername": "dungnv"
+  },
+  {
+    "at": "2026-10-16T07:10:55.583Z",
+    "step": "dispatch-page",
+    "cells": 42,
+    "text": "Bỏ qua đến nội dung chính Đã chuyển đến Kế hoạch Chi tiết Xe TransTing Quản lý vận tải và logistics Điều độ Phương tiện Kế hoạch Tổng quát Kế hoạch Chi tiết Xe Chấm công lái xe Quản Lý Danh mục Xe nội bộ Danh mục Tài xế Xe ngoài Nhà thầu Khai báo Khách hàng & "
+  },
+  {
+    "at": "2026-10-16T07:10:55.654Z",
+    "step": "fb043-band",
+    "cells": 42,
+    "heights": [
+      100
+    ],
+    "plateWhiteSpace": "nowrap",
+    "plateTextOverflow": "ellipsis",
+    "carrierWhiteSpace": "nowrap",
+    "driverWhiteSpace": "nowrap",
+    "plateDriverSameLine": true,
+    "sampleCellWidth": 137
+  },
+  {
+    "at": "2026-10-16T07:10:55.654Z",
+    "step": "TC",
+    "id": "FB-043/assignment-band",
+    "verdict": "PASS",
+    "cells": 42,
+    "heights": [
+      100
+    ],
+    "plateWhiteSpace": "nowrap",
+    "plateTextOverflow": "ellipsis",
+    "carrierWhiteSpace": "nowrap",
+    "driverWhiteSpace": "nowrap",
+    "plateDriverSameLine": true,
+    "sampleCellWidth": 137
+  }
+]

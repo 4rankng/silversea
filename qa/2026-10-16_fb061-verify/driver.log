@@ -1,0 +1,136 @@
+2026-10-16T11:13:35.505Z   [PASS] health buildHash — got 9aedd95a
+2026-10-16T11:13:35.884Z   [PASS] login admin — status 200
+2026-10-16T11:13:36.211Z   [PASS] login hoangnh (OPS) — status 200
+2026-10-16T11:13:36.749Z   [PASS] bootstrap — routes 15
+2026-10-16T11:13:36.750Z   catalogs: route=11 cargo=1 containerType=1 expenseType=LIFT_EMPTY
+2026-10-16T11:13:36.899Z   [PASS] create QA customer — status 201 {"id":95,"name":"QA FB061 KH FE48B9","shortName":"QA FB061 KH FE48B9","code":null,"taxCode":null,"partnerId":null,"contactPerson":null,"phone":null,"contactInfo":null,"address":null,"accountantName":n
+2026-10-16T11:13:36.981Z   [PASS] create QA supplier — status 201 {"id":35,"name":"QA FB061 NCC FE48B9","shortName":"","contactPerson":null,"phone":null,"taxCode":null,"partnerId":null,"note":null,"status":"ACTIVE","linkedCustomerId":null,"isFuelSupplier":false,"typ
+2026-10-16T11:13:37.081Z   [PASS] create QA shipment — status 201 {"id":618,"shipmentCode":"SHP-2610-00249","version":1,"customerId":95,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":null,"cargoTypeId":null,"responsibleUnitId":null,"status":"PE
+2026-10-16T11:13:37.171Z   [PASS] create OPS expense (50,000) — status 201 {"payerKind":null,"costGroup":"INVOICED_LIFT","feeName":"QA FB061 EXP FE48B9","customerChargeAmount":"50000","invoiceNumber":null,"invoiceDate":null,"recoveryNote":null,"photoStorageKeys":[],"id":45,"shipmentId":618,"shipmentContainerId":null,"expenseTypeCode":"LIFT_EMPTY","amount":"50000","paidById
+2026-10-16T11:13:37.557Z   [PASS] create EXTERNAL trip (carrier=QA customer) — status 201 {"id":188,"tripCode":"TRP-202610-0089","version":1,"createdBy":61,"customerId":95,"customerReference":null,"truckId":null,"driverId":null,"routeId":11,"trailerId":null,"trailerType":null,"cargoTypeId":1,"containerCount":1,"status":"CREATED","departureDate":"2026-10-16","plannedStartAt":null,"planned
+2026-10-16T11:13:37.650Z   [PASS] read expense entry — status 200
+2026-10-16T11:13:37.813Z   [PASS] link source → trip — status 200 tripId=188
+2026-10-16T11:13:37.813Z SETUP DONE: cust=95 sup=35 shipment=618 expense=45 trip=188 bl=QA-FB061-FE48B9
+2026-10-16T11:13:37.814Z PHASE setup RESULT: all checks passed
+2026-10-16T11:13:56.576Z   [PASS] board: fixture row present — items 1
+2026-10-16T11:13:56.577Z   [PASS] board LIVE: carrierName resolves — got "QA FB061 KH FE48B9"
+2026-10-16T11:13:56.577Z   [PASS] board LIVE: customerName resolves — got "QA FB061 KH FE48B9"
+2026-10-16T11:13:56.577Z   [PASS] board LIVE: plate kept — got "QA-FE48B9-FB061"
+2026-10-16T11:13:56.577Z   [PASS] board LIVE: driver kept — got "QA Tai xe FB061"
+2026-10-16T11:13:56.643Z   [PASS] THU LIVE: bucket under QA customer name — tong=50000 soLuong=1
+2026-10-16T11:13:56.643Z   [PASS] THU LIVE: amount 50000 — got 50000
+2026-10-16T11:13:56.695Z   [PASS] TRA LIVE: bucket under QA customer name (EXTERNAL/CUSTOMER) — tong=50000
+2026-10-16T11:13:56.875Z   [PASS] deposit PUT (bet leg = QA lot) — status 200 {"ok":true,"version":2}
+2026-10-16T11:13:56.902Z   [PASS] DEPOSIT LIVE: customerName resolves — got "QA FB061 KH FE48B9"
+2026-10-16T11:13:56.902Z PHASE live RESULT: all checks passed
+2026-10-16T11:14:05.892Z   [FAIL] soft-delete QA customer (product path) — status 428 {"error":"Thiếu phiên bản dữ liệu. Vui lòng tải lại danh mục trước khi cập nhật.","code":"VERSION_TOKEN_REQUIRED"}
+2026-10-16T11:14:06.011Z   [FAIL] BOARD LEAK-1: carrierName is designed fallback — got "QA FB061 KH FE48B9"
+2026-10-16T11:14:06.012Z   [FAIL] BOARD LEAK-1: deleted name never surfaces — carrierName="QA FB061 KH FE48B9"
+2026-10-16T11:14:06.012Z   [FAIL] BOARD: customerName no longer resolves — got "QA FB061 KH FE48B9"
+2026-10-16T11:14:06.012Z   [PASS] BOARD: plate kept (operational data) — got "QA-FE48B9-FB061"
+2026-10-16T11:14:06.012Z   [PASS] BOARD: driver kept (operational data) — got "QA Tai xe FB061"
+2026-10-16T11:14:06.047Z   [FAIL] THU LEAK-3: deleted name absent — parties contain QA name: true
+2026-10-16T11:14:06.047Z   [FAIL] THU LEAK-3: money re-bucketed under Chưa xác định (Δ = +50,000) — Chưa xđ now=570000 pre=570000 Δ=0
+2026-10-16T11:14:06.047Z   [PASS] THU LEAK-3: money not dropped (unknown bucket soLuong ≥ 1) — soLuong=3 (deleted row: {"party":"QA FB061 KH FE48B9","tienNang":50000,"tienHa":0,"psKhac":0,"tongPhaiThuTra":50000,"daThuTra":0,"conLai":50000,"ghiChu":null,"soLuong":1,"phaiThu":0,"phaiTra":0})
+2026-10-16T11:14:06.084Z   [FAIL] TRA: deleted customer name absent
+2026-10-16T11:14:06.084Z   [FAIL] TRA: money re-bucketed under fallback (Δ = +50,000) — Chưa xđ now=570000 pre=570000 Δ=0
+2026-10-16T11:14:06.109Z   [FAIL] DEPOSIT: customerName falls to null (dialog empty state) — got "QA FB061 KH FE48B9"
+2026-10-16T11:14:06.109Z   [PASS] DEPOSIT: bet leg intact — shipment=618 bill=QA-FB061-CTY-97CBEE
+2026-10-16T11:14:06.109Z PHASE delcust RESULT: 9 FAIL(s): soft-delete QA customer (product path); BOARD LEAK-1: carrierName is designed fallback; BOARD LEAK-1: deleted name never surfaces; BOARD: customerName no longer resolves; THU LEAK-3: deleted name absent; THU LEAK-3: money re-bucketed under Chưa xác định (Δ = +50,000); TRA: deleted customer name absent; TRA: money re-bucketed under fallback (Δ = +50,000); DEPOSIT: customerName falls to null (dialog empty state)
+2026-10-16T11:14:57.428Z   [PASS] soft-delete QA customer (product path) — status 200 {"ok":true}
+2026-10-16T11:14:57.587Z   [PASS] BOARD LEAK-1: carrierName is designed fallback — got "Đơn vị vận chuyển không còn trong danh mục"
+2026-10-16T11:14:57.588Z   [PASS] BOARD LEAK-1: deleted name never surfaces — carrierName="Đơn vị vận chuyển không còn trong danh mục"
+2026-10-16T11:14:57.588Z   [PASS] BOARD: customerName no longer resolves — got "null"
+2026-10-16T11:14:57.588Z   [PASS] BOARD: plate kept (operational data) — got "QA-FE48B9-FB061"
+2026-10-16T11:14:57.588Z   [PASS] BOARD: driver kept (operational data) — got "QA Tai xe FB061"
+2026-10-16T11:14:57.623Z   [PASS] THU LEAK-3: deleted name absent — parties contain QA name: false
+2026-10-16T11:14:57.624Z   [PASS] THU LEAK-3: money re-bucketed under Chưa xác định (Δ = +50,000) — Chưa xđ now=620000 pre=570000 Δ=50000
+2026-10-16T11:14:57.624Z   [PASS] THU LEAK-3: money not dropped (unknown bucket soLuong ≥ 1) — soLuong=4 (deleted row: undefined)
+2026-10-16T11:14:57.662Z   [PASS] TRA: deleted customer name absent
+2026-10-16T11:14:57.662Z   [FAIL] TRA: money re-bucketed under fallback (Δ = +50,000) — Chưa xđ now=570000 pre=570000 Δ=0
+2026-10-16T11:14:57.689Z   [PASS] DEPOSIT: customerName falls to null (dialog empty state) — got "null"
+2026-10-16T11:14:57.689Z   [PASS] DEPOSIT: bet leg intact — shipment=618 bill=QA-FB061-CTY-97CBEE
+2026-10-16T11:14:57.690Z PHASE delcust RESULT: 1 FAIL(s): TRA: money re-bucketed under fallback (Δ = +50,000)
+2026-10-16T11:16:09.973Z   [PASS] BOARD LEAK-1: carrierName is designed fallback — got "Đơn vị vận chuyển không còn trong danh mục"
+2026-10-16T11:16:09.975Z   [PASS] BOARD LEAK-1: deleted name never surfaces — carrierName="Đơn vị vận chuyển không còn trong danh mục"
+2026-10-16T11:16:09.975Z   [PASS] BOARD: customerName no longer resolves — got "null"
+2026-10-16T11:16:09.976Z   [PASS] BOARD: plate kept (operational data) — got "QA-FE48B9-FB061"
+2026-10-16T11:16:09.976Z   [PASS] BOARD: driver kept (operational data) — got "QA Tai xe FB061"
+2026-10-16T11:16:10.056Z   [PASS] THU LEAK-3: deleted name absent
+2026-10-16T11:16:10.057Z   [PASS] THU LEAK-3: money re-bucketed under Chưa xác định (Δ = +50,000) — Chưa xđ now=620000 pre=570000 Δ=50000 soLuong=4
+2026-10-16T11:16:10.101Z   [PASS] TRA: deleted customer name absent
+2026-10-16T11:16:10.101Z   [PASS] TRA: money re-bucketed under fallback text (Δ = +50,000) — fallback now=50000 pre=0 Δ=50000
+2026-10-16T11:16:10.128Z   [PASS] DEPOSIT: customerName falls to null (dialog empty state) — got "null"
+2026-10-16T11:16:10.128Z   [PASS] DEPOSIT: bet leg intact — shipment=618 bill=QA-FB061-CTY-97CBEE
+2026-10-16T11:16:10.129Z PHASE readcust RESULT: all checks passed
+2026-10-16T11:16:11.890Z   sidecar before: 188|CUSTOMER|95|QA-FE48B9-FB061
+2026-10-16T11:16:11.896Z   [PASS] flip guard: sidecar is fixture CUSTOMER row — 188|CUSTOMER|95|QA-FE48B9-FB061
+2026-10-16T11:16:56.277Z   sidecar before: 188|CUSTOMER|95|QA-FE48B9-FB061
+2026-10-16T11:16:56.282Z   [PASS] flip guard: sidecar is fixture CUSTOMER row — 188|CUSTOMER|95|QA-FE48B9-FB061
+2026-10-16T11:16:56.740Z   guarded UPDATE: UPDATE 1
+2026-10-16T11:16:56.741Z   [PASS] flip guard: UPDATE 1 — UPDATE 1
+2026-10-16T11:16:57.177Z   sidecar after: 188|SUPPLIER|35
+2026-10-16T11:16:57.545Z   [PASS] BOARD LEAK-2 LIVE: supplier name resolves via carrierSupplier join — got "QA FB061 NCC FE48B9"
+2026-10-16T11:16:57.621Z   [PASS] TRA LEAK-2 LIVE: supplier bucket by name — tong=50000
+2026-10-16T11:16:57.622Z PHASE flip RESULT: all checks passed
+2026-10-16T11:17:01.153Z   [PASS] soft-delete QA supplier (product path) — status 200 {"ok":true}
+2026-10-16T11:17:01.305Z   [PASS] BOARD LEAK-2: carrierName is designed fallback (supplier deleted) — got "Đơn vị vận chuyển không còn trong danh mục"
+2026-10-16T11:17:01.306Z   [PASS] BOARD LEAK-2: supplier name never surfaces — carrierName="Đơn vị vận chuyển không còn trong danh mục"
+2026-10-16T11:17:01.306Z   [PASS] BOARD LEAK-2: plate/driver still kept — plate="QA-FE48B9-FB061" driver="QA Tai xe FB061"
+2026-10-16T11:17:01.360Z   [PASS] TRA LEAK-2: supplier name absent
+2026-10-16T11:17:01.361Z   TRA fallback bucket: now=50000 (baseline pre-fixture=0, Δ=50000 — expect 0 here: same 50,000 already re-bucketed at delcust)
+2026-10-16T11:17:01.361Z   [PASS] TRA LEAK-2: money stays under fallback text (soLuong ≥ 1) — soLuong=1
+2026-10-16T11:17:01.361Z PHASE delsup RESULT: all checks passed
+2026-10-16T11:17:11.775Z   [PASS] cleanup: void OPS expense — status 200 {"success":true}
+2026-10-16T11:17:12.029Z   [PASS] cleanup: cancel fixture trip — status 200 {"id":188,"tripCode":"TRP-202610-0089","version":3,"createdBy":61,"customerId":95,"customerReference":null,"truckId":null,"driverId":null,"routeId":11,"trailerId":null,"trailerType":null,"cargoTypeId"
+2026-10-16T11:17:12.030Z   cleanup: masters soft-deleted in-test; shipment/sidecar/expense handled by make qapurge (registry-driven, identifier-gated)
+2026-10-16T11:17:12.030Z PHASE cleanup RESULT: all checks passed
+2026-10-16T11:17:42.629Z   [PASS] census board: no fixture rows — items=0
+2026-10-16T11:17:42.716Z   [PASS] census THU: no QA names
+2026-10-16T11:17:42.773Z   [PASS] census TRA: no QA names
+2026-10-16T11:17:42.823Z   [PASS] census customers: not live — search hits: []
+2026-10-16T11:17:42.851Z   [PASS] census suppliers: not live — search hits: []
+2026-10-16T11:17:59.325Z   [PASS] census board: no fixture rows — items=0
+2026-10-16T11:17:59.451Z   [PASS] census THU: no QA names
+2026-10-16T11:17:59.512Z   [PASS] census TRA: no QA names
+2026-10-16T11:17:59.538Z   [PASS] census customers: not live — search hits: []
+2026-10-16T11:17:59.570Z   [PASS] census suppliers: not live — search hits: []
+2026-10-16T11:18:00.503Z   DB end state:
+    cust|95|2026-10-16 11:14:57.437
+    sup|35|2026-10-16 11:17:01.142
+    shipment|618|2026-10-16 11:17:20.070361
+    trip|188|CANCELED
+    sidecar|0|-
+    opsentry|0|-
+    source|0|-
+2026-10-16T11:18:00.504Z   [PASS] census DB: sidecar purged — sidecar|0|-
+2026-10-16T11:18:00.504Z   [PASS] census DB: ops entry purged — opsentry|0|-
+2026-10-16T11:18:00.505Z   [PASS] census DB: source purged — source|0|-
+2026-10-16T11:18:00.505Z   [PASS] census DB: customer soft-deleted — cust|95|2026-10-16 11:14:57.437
+2026-10-16T11:18:00.506Z   [FAIL] census DB: supplier soft-deleted — sup|35|2026-10-16 11:17:01.142
+2026-10-16T11:18:00.506Z   [FAIL] census DB: shipment soft-deleted — shipment|618|2026-10-16 11:17:20.070361
+2026-10-16T11:18:00.506Z   [FAIL] census DB: trip canceled — trip|188|CANCELED
+2026-10-16T11:18:00.506Z CENSUS DONE — failures so far: 3
+2026-10-16T11:18:00.507Z PHASE census RESULT: 3 FAIL(s): census DB: supplier soft-deleted; census DB: shipment soft-deleted; census DB: trip canceled
+2026-10-16T11:18:34.210Z   [PASS] census board: no fixture rows — items=0
+2026-10-16T11:18:34.263Z   [PASS] census THU: no QA names
+2026-10-16T11:18:34.311Z   [PASS] census TRA: no QA names
+2026-10-16T11:18:34.339Z   [PASS] census customers: not live — search hits: []
+2026-10-16T11:18:34.370Z   [PASS] census suppliers: not live — search hits: []
+2026-10-16T11:18:35.836Z   DB end state:
+    cust|95|2026-10-16 11:14:57.437
+    sup|35|2026-10-16 11:17:01.142
+    shipment|618|2026-10-16 11:17:20.070361
+    trip|188|CANCELED
+    sidecar|0|-
+    opsentry|0|-
+    source|0|-
+2026-10-16T11:18:35.837Z   [PASS] census DB: sidecar purged — sidecar|0|-
+2026-10-16T11:18:35.838Z   [PASS] census DB: ops entry purged — opsentry|0|-
+2026-10-16T11:18:35.838Z   [PASS] census DB: source purged — source|0|-
+2026-10-16T11:18:35.838Z   [PASS] census DB: customer soft-deleted — cust|95|2026-10-16 11:14:57.437
+2026-10-16T11:18:35.838Z   [PASS] census DB: supplier soft-deleted — sup|35|2026-10-16 11:17:01.142
+2026-10-16T11:18:35.839Z   [PASS] census DB: shipment soft-deleted — shipment|618|2026-10-16 11:17:20.070361
+2026-10-16T11:18:35.839Z   [PASS] census DB: trip canceled — trip|188|CANCELED
+2026-10-16T11:18:35.839Z CENSUS DONE — failures so far: 0
+2026-10-16T11:18:35.839Z PHASE census RESULT: all checks passed

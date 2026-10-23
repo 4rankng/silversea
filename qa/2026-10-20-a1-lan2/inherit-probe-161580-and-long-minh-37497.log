@@ -1,0 +1,30 @@
+=== PROBE 161580 ===
+lot 161580 ref container routeName="Detail route 1792322777298-14n5l4-77" liftSite="DF pickup 1792322777298-14n5l4-143" dropoffSite="DF dropoff 1792322777298-14n5l4-144"
+{
+  "verdict": "INHERIT_PASS",
+  "newLine": {
+    "routeName": "Detail route 1792322777298-14n5l4-77",
+    "liftSite": "DF pickup 1792322777298-14n5l4-143",
+    "dropoffSite": "DF dropoff 1792322777298-14n5l4-144",
+    "rawRouteId": 60701,
+    "rawPickupPortId": null,
+    "rawDropoffPortId": null
+  }
+}
+cleanup remove -> 200
+=== PROBE LONG MINH 37497 (shipments.route_id=1, shipment_containers.route_id=NULL) ===
+{
+  "beforeContainer0": {
+    "id": 14403,
+    "containerNumber": "MSKU1234565",
+    "routeId": 1,
+    "routeName": "Hải Phòng"
+  },
+  "addedLine": {
+    "id": 141166,
+    "containerNumber": "CSQU3054383",
+    "routeId": 1,
+    "routeName": "Hải Phòng"
+  },
+  "cleanupStatus": 200
+}

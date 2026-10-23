@@ -1,0 +1,46 @@
+▶ lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4)
+  ✖ full free-text create stores raw names with null ids; master counts unchanged (47.068708ms)
+  ✔ non-ad-hoc create still requires a catalog customer (6.826125ms)
+  ✔ ad-hoc create without any customer text is rejected (5.204709ms)
+  ✔ mixed row: free-text customer + catalog route id (21.596ms)
+  ✔ detail view coalesces the customer name — never an empty cell (37.116833ms)
+  ✔ reopen-for-edit keeps the ad-hoc flag (AC10) (18.784792ms)
+  ✔ pricing projection reports the ad-hoc bypass instead of blocking (15.302208ms)
+✖ lệnh chạy ngoài — hybrid intake (MasterDataNhaMay §4) (256.84ms)
+ℹ tests 7
+ℹ suites 1
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1238.104292
+
+✖ failing tests:
+
+test at src/tests/ad-hoc-orders.test.ts:5:1390
+✖ full free-text create stores raw names with null ids; master counts unchanged (47.068708ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   customers: '8998',
+  -   customers: '9001',
+      ports: '178',
+      routes: '9382',
+      sites: '111'
+    }
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-261019145030-fullsuite-pollution-rb1/backend/src/tests/ad-hoc-orders.test.ts:135:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { customers: '8998', sites: '111', routes: '9382', ports: '178' },
+    expected: { customers: '9001', sites: '111', routes: '9382', ports: '178' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

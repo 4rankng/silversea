@@ -1,0 +1,7 @@
+login ok=true
+rows=1
+drawer containers=4
+A.1 seeded={"number":"","weight":"1000","time":"","day":"","typeTrigger":null}
+A.6 hint="Số cont sai chữ số kiểm tra — kiểm tra lại.Đổi thành MSCU4615859"
+A.6 after-fix={"number":"MSCU4615859","hint":null}
+add row closed=true

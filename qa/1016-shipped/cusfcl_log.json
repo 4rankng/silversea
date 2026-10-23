@@ -1,0 +1,125 @@
+[
+  {
+    "at": "2026-10-16T07:26:18.311Z",
+    "step": "health",
+    "buildHash": "7dcdcf33",
+    "expect": "7dcdcf33"
+  },
+  {
+    "at": "2026-10-16T07:26:18.642Z",
+    "step": "identity",
+    "user": "tiepvv",
+    "jwtUsername": "tiepvv"
+  },
+  {
+    "at": "2026-10-16T07:26:19.714Z",
+    "step": "fcl-created",
+    "status": 201,
+    "id": 612,
+    "bl": "QAW16CUSF261016072618"
+  },
+  {
+    "at": "2026-10-16T07:26:20.029Z",
+    "step": "ver-refresh",
+    "ver": 2
+  },
+  {
+    "at": "2026-10-16T07:26:20.403Z",
+    "step": "containers-put",
+    "status": 200,
+    "err": null
+  },
+  {
+    "at": "2026-10-16T07:26:26.761Z",
+    "step": "board",
+    "rowCount": 3,
+    "ourRowFound": true,
+    "rowText": "Chỉnh sửa ô khách hàng và lộ trình QAWU2000003: LONG MINHChưa có nhà máyChưa có tuyến đườngChỉnh sửa ô chứng từ và hãng tàu QAWU2000003: QAW16CUSF261016072618Chưa có tờ khaiNhập· QA LineChỉnh sửa ô th"
+  },
+  {
+    "at": "2026-10-16T07:26:27.981Z",
+    "step": "editor-guard",
+    "containerNum": "QAWU2000003",
+    "open": true,
+    "heading": "QAWU2000003",
+    "ours": true
+  },
+  {
+    "at": "2026-10-16T07:26:31.345Z",
+    "step": "after-autocopy",
+    "midDecls": [
+      {
+        "num": "QAWU2000003",
+        "tk": "TKQAW160001"
+      },
+      {
+        "num": "QAWU2000019",
+        "tk": "TKQAW160001"
+      },
+      {
+        "num": "QAWU2000024",
+        "tk": "TKQAW160001"
+      }
+    ]
+  },
+  {
+    "at": "2026-10-16T07:26:32.559Z",
+    "step": "editor-guard",
+    "containerNum": "QAWU2000019",
+    "open": true,
+    "heading": "QAWU2000019",
+    "ours": true
+  },
+  {
+    "at": "2026-10-16T07:26:35.710Z",
+    "step": "copy-button",
+    "copyBtn": null
+  },
+  {
+    "at": "2026-10-16T07:26:35.903Z",
+    "step": "verify-declarations",
+    "decls": [
+      {
+        "num": "QAWU2000003",
+        "tk": "TKQAW160001"
+      },
+      {
+        "num": "QAWU2000019",
+        "tk": "TKQAW160002"
+      },
+      {
+        "num": "QAWU2000024",
+        "tk": "TKQAW160001"
+      }
+    ]
+  },
+  {
+    "at": "2026-10-16T07:26:35.903Z",
+    "step": "TC",
+    "id": "FB-085/per-container-tokhai",
+    "verdict": "PASS",
+    "decls": [
+      {
+        "num": "QAWU2000003",
+        "tk": "TKQAW160001"
+      },
+      {
+        "num": "QAWU2000019",
+        "tk": "TKQAW160002"
+      },
+      {
+        "num": "QAWU2000024",
+        "tk": "TKQAW160001"
+      }
+    ],
+    "autoCopied": true,
+    "copyBtn": null,
+    "note": "first-save fan-out filled empty siblings; divergent per-cont edit persisted"
+  },
+  {
+    "at": "2026-10-16T07:26:36.218Z",
+    "step": "cleanup",
+    "shipmentId": 612,
+    "deleteStatus": 200
+  }
+]

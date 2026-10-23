@@ -1,0 +1,14 @@
+{
+  "newContainer": [
+    {
+      "id": 141746,
+      "container_number": "REVU2200008",
+      "container_type_id": null,
+      "route_id": 1,
+      "pickup_port_id": 1,
+      "dropoff_port_id": 2,
+      "weight": "9000.00",
+      "customer_appointment_at": "2026-10-27T05:00:00.000Z"
+    }
+  ]
+}

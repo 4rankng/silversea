@@ -1,0 +1,29 @@
+HEALTH status=ok buildHash=1c00c17a pin=1c00c17a
+customer=1 "CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"
+LCL create -> 201 id=613 status=READY_FOR_DISPATCH ref=QA-W4B-LCL-cda225e9
+LH400-01 API: rows=1 [{"fulfillmentId":415,"fulfillmentType":"LCL_SHIPMENT","cargoMode":"LCL","group":null}]
+LH400-01 API: assignment counts {"UNASSIGNED":1,"ASSIGNED":0}
+HEALTH status=ok buildHash=1c00c17a pin=1c00c17a
+customer=1 "CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"
+LCL create -> 201 id=614 status=READY_FOR_DISPATCH ref=QA-W4B-LCL-da419c7c
+LH400-01 API: rows=1 [{"fulfillmentId":416,"fulfillmentType":"LCL_SHIPMENT","cargoMode":"LCL","group":null}]
+LH400-01 API: assignment counts {"UNASSIGNED":1,"ASSIGNED":0}
+HEALTH status=ok buildHash=1c00c17a pin=1c00c17a
+customer=1 "CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH"
+LCL create -> 201 id=615 status=READY_FOR_DISPATCH ref=QA-W4B-LCL-069301b2
+LH400-01 API: rows=1 [{"fulfillmentId":417,"fulfillmentType":"LCL_SHIPMENT","cargoMode":"LCL","group":null}]
+LH400-01 API: assignment counts {"UNASSIGNED":1,"ASSIGNED":0}
+LH400-01 DB: fulfillment rows -> [LCL_SHIPMENT||1]
+LH400-01 api=true dbOk=true
+LH400-01 UI 1440px: {"refVisible":true,"rowMatches":1,"rowText":["Ngày giao 16/10/2026 đóng hàng LONG MINH — Bill: QA-W4B-LCL-069301b2 — — Chưa có tuyến đường Xuất Lẻ — — Chưa phân nhà xe CUS sẽ bổ sung Sửa Lẻ "],"leLabel":true,"leWithClass":false,"unassignedChip":"16"}
+LH400-01 UI 390px: {"refVisible":true,"rowMatches":1,"rowText":["Ngày giao 16/10/2026đóng hàng LONG MINHBill: QA-W4B-LCL-069301b2 Chưa có tuyến đường Xuất Lẻ Chưa phân nhà xe CUS sẽ bổ sung Sửa Lẻ"],"leLabel":true,"leWithClass":false,"unassignedChip":null}
+PAGE-ERRORS []
+FCL create -> 201 id=616 status=READY_FOR_DISPATCH ref=QA-W4B-FCL-069301b2
+FCL DB right after create: fulfillments=0 (expected 0 — create-path decompose is LCL-only)
+container type: 1
+FCL containers PUT -> 200 {"items":[{"id":449,"shipmentId":616,"containerTypeId":1,"containerNumber":null,"sealNumber":null,"declarationNumber":null,"psActualAmount":null,"psActualNote":
+FCL after container write: DB fulfillments=0 detailRows=1 (expected >=1 both)
+LCLCTRL create -> 201 id=617 status=PENDING_DATE ref=QA-W4B-LCLCTRL-069301b2
+LH400-02 control: DB fulfillments=0 (expected 0) detailRows=0 (expected 0)
+FIXTURES shipmentIds=615,616,617
+DONE

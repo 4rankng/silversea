@@ -1,0 +1,45 @@
+HEALTH status=ok api=http://localhost:3031/api
+LOGIN ok user=admin
+API /trips/194048 factorySite={"name":"NM DRI pt0939559","address":"Khu 2, Phường Võ Cường, Tỉnh Bắc Ninh","contactName":"Chị An","contactPhone":"02253555555","source":"SNAPSHOT"}
+PASS DRI01-API factorySite.contactPhone reaches the admin trip wire — 02253555555
+NAVIGATE to http://localhost:7181/trips/194048
+DOM BASIC TEL: {"label":"SĐT kho/nhà máy","href":"tel:02253555555","text":"02253555555"}
+PASS DRI01-R1 /trips/:id renders SĐT kho/nhà máy row — {"label":"SĐT kho/nhà máy","href":"tel:02253555555","text":"02253555555"}
+PASS DRI01-R2 the number is the tel: anchor with normalized href — tel:02253555555
+PASS DRI01-R3 visible digits intact (02253555555) — 02253555555
+CAPTURE dri01-01-trips-detail-tel-390.png
+PASS DRI01-R4 tap on the tel: link keeps the SPA on /trips/:id (headless has no dialer) — http://localhost:7181/trips/194048
+SEED instructions PUT status=200
+PASS DRI01-R5a seed instructions accepted (formatted phone kept verbatim)
+SEEDED instructions: {"id":194048,"notes":"DRI-01 evidence: SĐT liên hệ dạng có khoảng trắng.","tripId":194048,"updatedAt":"2026-10-21T12:04:03.106Z","contactName":"Chị An (QA)","contactPhone":"0989 130 345","replayed":true}
+DOM INSTRUCTIONS TEL: {"present":true,"href":"tel:0989130345","text":"0989 130 345"}
+PASS DRI01-R5 instructions SĐT is the TelLink anchor — visible digits keep spaces — {"present":true,"href":"tel:0989130345","text":"0989 130 345"}
+PASS DRI01-R6 instructions SĐT href strips ALL whitespace (tel:0989130345) — tel:0989130345
+CAPTURE dri01-03-instructions-tel-390.png
+NAVIGATE to /config/factories
+DOM FACTORIES LIST: {"cells":272,"telLinks":52,"goButtons":26}
+PASS DRI01-R7 /config/factories renders site phone numbers as tel: links — {"cells":272,"telLinks":52,"goButtons":26}
+PASS DRI01-R8 /config/factories carries Gọi buttons beside the numbers — {"cells":272,"telLinks":52,"goButtons":26}
+CAPTURE dri01-02-factories-list-tel-390.png
+DB BEFORE group: [{"id":109225,"cost_group_id":"8038cabd-d0fa-4e63-a404-10b9ebbc8b22","actual_truck_no":"29X-QA482D","billing_truck_no":"29X-QA482D"},{"id":109226,"cost_group_id":"8038cabd-d0fa-4e63-a404-10b9ebbc8b22","actual_truck_no":"29X-QA482D","billing_truck_no":"29X-QA482D"}]
+PASS DIS09-DB0 both group members start on the known plate — [{"id":109225,"cost_group_id":"8038cabd-d0fa-4e63-a404-10b9ebbc8b22","actual_truck_no":"29X-QA482D","billing_truck_no":"29X-QA482D"},{"id":109226,"cost_group_id":"8038cabd-d0fa-4e63-a404-10b9ebbc8b22","actual_truck_no":"29X-QA482D","billing_truck_no":"29X-QA482D"}]
+LOGIN ok user=dieuvan
+NAVIGATE to /dispatch-detail?q=FB095UI-482D6671-A
+DOM TARGET ROW (FB095UI-482D6671-A): {"found":true,"ariaLabel":"Thao tác dòng · FB095UI-482D6671-A","badge":"Lẻ · Ghép (1/2)"}
+PASS DIS09-R1 the assigned grouped row carries the ⋯ row menu — {"found":true,"ariaLabel":"Thao tác dòng · FB095UI-482D6671-A","badge":"Lẻ · Ghép (1/2)"}
+DOM ROW MENU ITEMS: ["Đổi nhà xe/BKS"]
+PASS DIS09-R2 the row menu offers Đổi nhà xe/BKS (one click from the row, no badge first) — ["Đổi nhà xe/BKS"]
+CAPTURE dis09-01-row-menu-open-1440.png
+DOM TRUCK EDIT PREFILLED: {"actual":"29X-QA482D","billing":"29X-QA482D","modalTitle":"Nhóm ghép trả ĐV · Lẻ (1/2)"}
+PASS DIS09-R3 the dialog opens pre-filled with the group BKS pair — {"actual":"29X-QA482D","billing":"29X-QA482D","modalTitle":"Nhóm ghép trả ĐV · Lẻ (1/2)"}
+CAPTURE dis09-02-truck-edit-prefilled-1440.png
+DOM TOAST after save: đã-đổi-xe-nhóm=true
+PASS DIS09-R4 save closes the dialog (and toasts Đã đổi xe nhóm) — modalClosed=true toast=true
+DB AFTER change: [{"id":109225,"actual_truck_no":"29X-QA-D9A","billing_truck_no":"29X-QA482D"},{"id":109226,"actual_truck_no":"29X-QA-D9A","billing_truck_no":"29X-QA482D"}]
+PASS DIS09-DB1 the group truck write persisted (BKS thực mới trên CẢ HAI thành viên nhóm) — [{"id":109225,"actual_truck_no":"29X-QA-D9A","billing_truck_no":"29X-QA482D"},{"id":109226,"actual_truck_no":"29X-QA-D9A","billing_truck_no":"29X-QA482D"}]
+CAPTURE dis09-03-after-save-1440.png
+DOM REVERT PREFILLED: 29X-QA-D9A
+PASS DIS09-R5 the reopened dialog is pre-filled with the SAVED plate (refetch coherence) — value=29X-QA-D9A
+DB REVERTED: [{"id":109225,"actual_truck_no":"29X-QA482D","billing_truck_no":"29X-QA482D"},{"id":109226,"actual_truck_no":"29X-QA482D","billing_truck_no":"29X-QA482D"}]
+PASS DIS09-DB2 revert through the same UI path restored the original plate on BOTH members — [{"id":109225,"actual_truck_no":"29X-QA482D","billing_truck_no":"29X-QA482D"},{"id":109226,"actual_truck_no":"29X-QA482D","billing_truck_no":"29X-QA482D"}]
+RESULT: ALL CHECKS PASS

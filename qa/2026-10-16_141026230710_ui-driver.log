@@ -1,0 +1,26 @@
+{"at":"2026-10-16T12:06:44.660Z","step":"health","status":"ok","timestamp":"2026-10-16T12:06:44.682Z","buildHash":"8610a42b"}
+{"at":"2026-10-16T12:06:44.940Z","step":"login","status":200,"gotToken":true,"user":"hoangnh","role":"OPS"}
+{"at":"2026-10-16T12:06:44.957Z","step":"shipments-probe","status":403,"expected":403,"note":"FB-033 owner ruling: OPS has no /api/shipments policy row — by design"}
+{"at":"2026-10-16T12:06:44.982Z","step":"orders-scan","scanned":[{"date":"2026-10-16","count":1,"withConts":1}],"chosen":{"date":"2026-10-16","id":175,"billRef":"DNKM13336","containerNumbers":["MSDU1245780","TGBU3190086"],"rowIndex":0}}
+{"at":"2026-10-16T12:06:44.998Z","step":"claimants-before","claimants":[]}
+{"at":"2026-10-16T12:06:49.051Z","step":"page","url":"https://vantai.tingting.vip/ops/orders?date=2026-10-16","rows":1}
+{"at":"2026-10-16T12:06:51.580Z","step":"dialog-open","clickedRow":" DNKM13336 Công ty CP Vận tải Biển Bạc Hải Phòng-NEWEB 2 · MSDU1245780, TGBU3190086 Đã phát lệnh Khai chi phí","modalOpen":true,"perVehicleRefusal":false,"permissionRefusal":false,"anyAlert":null}
+{"at":"2026-10-16T12:06:53.384Z","step":"cont-choice","contNumber":"MSDU1245780","chosen":false}
+{"at":"2026-10-16T12:06:53.385Z","step":"FAIL","error":"could not pick the container in the Số Cont select"}
+{"at":"2026-10-16T12:07:44.072Z","step":"health","status":"ok","timestamp":"2026-10-16T12:07:44.104Z","buildHash":"8610a42b"}
+{"at":"2026-10-16T12:07:44.491Z","step":"login","status":200,"gotToken":true,"user":"hoangnh","role":"OPS"}
+{"at":"2026-10-16T12:07:44.521Z","step":"shipments-probe","status":403,"expected":403,"note":"FB-033 owner ruling: OPS has no /api/shipments policy row — by design"}
+{"at":"2026-10-16T12:07:44.542Z","step":"orders-scan","scanned":[{"date":"2026-10-16","count":1,"withConts":1}],"chosen":{"date":"2026-10-16","id":175,"billRef":"DNKM13336","containerNumbers":["MSDU1245780","TGBU3190086"],"rowIndex":0}}
+{"at":"2026-10-16T12:07:44.559Z","step":"claimants-before","claimants":[]}
+{"at":"2026-10-16T12:07:48.539Z","step":"page","url":"https://vantai.tingting.vip/ops/orders?date=2026-10-16","rows":1}
+{"at":"2026-10-16T12:07:51.047Z","step":"dialog-open","clickedRow":" DNKM13336 Công ty CP Vận tải Biển Bạc Hải Phòng-NEWEB 2 · MSDU1245780, TGBU3190086 Đã phát lệnh Khai chi phí","modalOpen":true,"perVehicleRefusal":false,"permissionRefusal":false,"anyAlert":null}
+{"at":"2026-10-16T12:07:52.808Z","step":"cont-choice","contNumber":"MSDU1245780","triggerClicked":true,"chosen":true}
+{"at":"2026-10-16T12:07:55.495Z","step":"type-choice","comboFocused":true,"chosen":"Lưu bãi (lúc hạ)"}
+{"at":"2026-10-16T12:07:57.514Z","step":"form-filled","amountClicked":true}
+{"at":"2026-10-16T12:07:57.516Z","step":"pre-save","savePresent":true,"saveDisabled":false}
+{"at":"2026-10-16T12:07:57.523Z","step":"save-clicked","clicked":true}
+{"at":"2026-10-16T12:07:58.526Z","step":"post-save","toastText":"Đã ghi nhận khoản chi.","modalClosed":true}
+{"at":"2026-10-16T12:07:59.633Z","step":"wallet-side-effect","status":200,"found":{"id":47,"expenseTypeCode":"YARD_STORAGE","amount":"15000","containerNumber":"MSDU1245780","paidByName":"Nguyễn Huy Hoàng"}}
+{"at":"2026-10-16T12:07:59.678Z","step":"claimants-after","claimants":[{"containerId":145,"containerNumber":"MSDU1245780","paidByName":"Nguyễn Huy Hoàng"}],"myClaim":{"containerId":145,"containerNumber":"MSDU1245780","paidByName":"Nguyễn Huy Hoàng"}}
+{"at":"2026-10-16T12:07:59.734Z","step":"cleanup-void","expenseId":47,"status":200,"body":{"success":true}}
+{"at":"2026-10-16T12:07:59.927Z","step":"cleanup-verify","voided":true,"approvalStatus":"VOIDED"}

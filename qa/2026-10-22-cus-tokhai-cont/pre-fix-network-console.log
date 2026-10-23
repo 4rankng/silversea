@@ -1,0 +1,11 @@
+GET 200 /api/shipments/cus-workspace?page=1&limit=20
+GET 200 /api/shipments/cus-workspace/312525
+CONSOLE: Failed to load resource: the server responded with a status of 400 (Bad Request)
+POST 400 /api/shipments/cus-workspace/312525/containers :: {"error":"Số container \"CSQU3054383\" đã tồn tại trong lô hàng."}
+GET 200 /api/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=HAGHTB29820461
+GET 304 /api/shipments/cus-workspace/containers?page=1&limit=20&searchSuffix=HAGHTB29820461
+GET 200 /api/shipments/312525
+GET 304 /api/shipments/312525
+GET 200 /api/shipments/312525/customer-events
+GET 200 /api/shipments/312525/finance-records?page=1
+GET 304 /api/shipments/312525/customer-events

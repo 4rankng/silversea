@@ -1,0 +1,15 @@
+$ npx tsx --test src/constants/lcl-vehicle-sourcing.test.ts
+▶ FB-090 LCL vehicle sourcing rule (DEV SPEC Hàng lẻ §I)
+  ✔ truck tonnage classes are 100% external (EXTERNAL_ONLY) (0.2435ms)
+  ✔ container classes allow internal or external fleet (0.042ms)
+  ✔ every rule has a Vietnamese display label (0.067833ms)
+✔ FB-090 LCL vehicle sourcing rule (DEV SPEC Hàng lẻ §I) (0.706458ms)
+ℹ tests 3
+ℹ suites 1
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 105.834041
+EXIT=0

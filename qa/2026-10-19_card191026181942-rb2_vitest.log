@@ -1,0 +1,70 @@
+=== cmd: cd frontend && pnpm exec vitest run src/features/dispatch/master-plan/DispatchAllocationPopover.cargo-mode.test.tsx src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx src/lib/column-visibility.test.ts src/pages/accounting/AccountingDebitClosePage.cost-dot.test.tsx src/pages/accounting/AccountingDebitClosePage.test.tsx ===
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-dieuvan-ketoan-ui-rb2/frontend
+
+ ❯ src/pages/accounting/AccountingDebitClosePage.cost-dot.test.tsx (10 tests | 1 failed) 10322ms
+     × the dot column is pinned — the picker never offers it, and the essential default opens ≤6 columns 6181ms
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx (3 tests | 1 failed) 10487ms
+     × LCL lot: the lclspec field-set and NO container 20'/40' demand UI 7743ms
+ ❯ src/pages/accounting/AccountingDebitClosePage.test.tsx (25 tests | 1 failed) 30435ms
+     × offers phone facts and independent selection without writing a cancelled debit 5848ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.cost-dot.test.tsx > the leading cost-state track on the board > the dot column is pinned — the picker never offers it, and the essential default opens ≤6 columns
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/AccountingDebitClosePage.cost-dot.test.tsx:129:3
+    127|   });
+    128|
+    129|   it('the dot column is pinned — the picker never offers it, and the e…
+       |   ^
+    130|     listBoard.mockResolvedValue({ items: [row()], total: 1 });
+    131|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.test.tsx > AccountingDebitClosePage — heading and board identity > offers phone facts and independent selection without writing a cancelled debit
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/AccountingDebitClosePage.test.tsx:98:3
+     96|     expect(sendRequests).not.toHaveBeenCalled(); expect(createRound).n…
+     97|   });
+     98|   it('offers phone facts and independent selection without writing a c…
+       |   ^
+     99|     window.matchMedia = (media): MediaQueryList => ({
+    100|       media, matches: media === '(max-width: 640px)', onchange: null,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx > DispatchPlanEditorCell — cửa sổ điều phối theo cargoMode (operator report 191026) > LCL lot: the lclspec field-set and NO container 20'/40' demand UI
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx:196:3
+    194|
+    195| describe('DispatchPlanEditorCell — cửa sổ điều phối theo cargoMode (op…
+    196|   it('LCL lot: the lclspec field-set and NO container 20\'/40\' demand…
+       |   ^
+    197|     renderCell(row());
+    198|     await openDialog();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  3 failed | 2 passed (5)
+      Tests  3 failed | 57 passed (60)
+   Start at  20:54:34
+   Duration  100.82s (transform 35.42s, setup 23.44s, import 122.03s, tests 62.55s, environment 157.32s)
+
+EXIT=1
+=== rerun scoped vitest (files sequential, machine-load flake check) ===
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-dieuvan-ketoan-ui-rb2/frontend
+
+
+ Test Files  3 passed (3)
+      Tests  38 passed (38)
+   Start at  20:57:01
+   Duration  22.05s (transform 8.35s, setup 3.72s, import 26.77s, tests 11.53s, environment 10.07s)
+
+EXIT=0

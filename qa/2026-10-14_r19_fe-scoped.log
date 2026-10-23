@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-round19-wave/frontend
+
+
+ Test Files  46 passed (46)
+      Tests  530 passed (530)
+   Start at  10:32:03
+   Duration  17.73s (transform 5.18s, setup 5.55s, import 26.66s, tests 56.07s, environment 20.29s)
+

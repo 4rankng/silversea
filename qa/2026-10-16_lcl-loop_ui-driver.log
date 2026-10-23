@@ -1,0 +1,21 @@
+# UI drive log — Track 2 (staging build 2176e29e + local fix retest)
+driver: qa/drivers/2026-10-16-lcl-loop-ui-drive.mjs (static sweep)
+exit: 0 — output:
+CREATE-MOBILE {"url":"/shipments/new","lclToggle":true,"sections":[true,true,false],"hOverflow":0,"chevrons":11,"requiredMarks":0,"twoColGrids":0}
+CREATE-DESKTOP {"url":"/shipments/new","containerTable":{"rows":2,"headers":["STT","Số container","Loại container","Nhà máy","Tuyến đường","Cảng nâng"]},"hOverflow":0}
+MASTER-DESKTOP {"url":"/dispatch","rows":27,"hOverflow":0}
+MASTER-MOBILE {"hOverflow":0}
+DETAIL-DESKTOP {"url":"/shipments/571","hasChip":false,"hOverflow":0}  (chip text is "Hàng lẻ (LCL)" — assertion literal too strict; visually confirmed in shot)
+DETAIL-MOBILE {"hOverflow":0}
+PAGE-ERRORS []
+
+driver: qa/drivers/2026-10-16-lcl-loop-ui-drive3.mjs (interactive)
+exit: 0 — output:
+MODE2 {"checked":["LCL"],"lclFields":{"khoLayHang":true,"quyCach":true,"soLuong":true,"trongLuong":true,"cbm":true}}
+GRID {"row":"156.5px 156.5px","inner":"150.5px 0px"}   <= 2-col pairs at 375px
+DESKTOP2 {"tableRows":1,"bandsDisplay":["none","none","none"]}  <= grouped bands hidden on desktop, table intact
+PAGE-ERRORS []
+
+driver: qa/drivers/2026-10-16-lcl-loop-ui-retest-fix.mjs (F-3 retest, local :7175 with fix)
+exit: 0 — output:
+FIX-PROBE {"labelHtml":"<label ... for=\"shipment-expected-delivery\">Ngày giao hàng<span class=\"ds-field__required\" aria-hidden=\"true\"> *</span></label>","starCount":1,"brandStars":0,"dsStars":1}

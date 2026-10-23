@@ -1,0 +1,17 @@
+=== FB-030/075 + FB-066 gates (2026-10-19T04:43:54Z) branch fix-fb030-fb066 ===
+--- FE tsgo -b ---
+tsgo exit=0
+--- FE tsc -b ---
+tsc exit=0
+--- root lint ---
+
+> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-fb030-fb066
+> eslint .
+
+--- scoped vitest (FB-030 surfaces + dispatch dialogs) ---
+
+ Test Files  8 passed (8)
+      Tests  149 passed (149)
+   Start at  12:44:29
+   Duration  7.11s (transform 2.77s, setup 1.19s, import 8.99s, tests 8.01s, environment 3.79s)
+

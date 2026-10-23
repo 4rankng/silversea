@@ -1,0 +1,64 @@
+{
+  "vvtrung-list": {
+    "codeLines": [
+      "Mã chuyến TRP 2026-09 · 0015"
+    ],
+    "billLead": "NOSTC26HF67858"
+  },
+  "vvtrung-detail": {
+    "label": "Mã chuyến",
+    "value": "TRP 2026-09 · 0015",
+    "order": [
+      "Mã chuyến",
+      "Ngày giờ kế hoạch",
+      "Tên nhà máy",
+      "Địa chỉ nhà máy",
+      "SĐT kho",
+      "Container / lô hàng",
+      "Cảng nâng",
+      "Cảng hạ",
+      "Địa chỉ giao hàng",
+      "Tên công ty",
+      "Địa chỉ",
+      "MST"
+    ],
+    "values": [
+      "Mã chuyếnTRP 2026-09 · 0015",
+      "Ngày giờ kế hoạch08:00 21/09/2026",
+      "Tên nhà máyCÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM"
+    ]
+  },
+  "tvtham-list": {
+    "codeLines": [
+      "Mã chuyến TRP 2026-09 · 0017"
+    ],
+    "billLead": "NOSTC26HF67879"
+  },
+  "tvtham-detail": {
+    "label": "Mã chuyến",
+    "value": "TRP 2026-09 · 0017",
+    "order": [
+      "Mã chuyến",
+      "Ngày giờ kế hoạch",
+      "Tên nhà máy",
+      "Địa chỉ nhà máy",
+      "SĐT kho",
+      "Container / lô hàng",
+      "Cảng nâng",
+      "Cảng hạ",
+      "Địa chỉ giao hàng",
+      "Tên công ty",
+      "Địa chỉ",
+      "MST"
+    ],
+    "values": [
+      "Mã chuyếnTRP 2026-09 · 0017",
+      "Ngày giờ kế hoạch08:00 21/09/2026",
+      "Tên nhà máyCÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM"
+    ]
+  },
+  "bqhuong-list": {
+    "cards": 0,
+    "snippet": "\n    Bỏ qua đến nội dung chínhĐã chuyển đến Hành trìnhTransTingQuản lý vận tải và logisticsCông việc của tôiHành trìnhThông báoThu nhậpKỷ luậtBùi Quang HườngLái xeBùi Quang Hường15H-061.14Tháng 10/202"
+  }
+}

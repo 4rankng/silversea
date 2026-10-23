@@ -1,0 +1,24 @@
+DELETE /shipments/613 -> 400 {"error":"version là bắt buộc để xóa lô hàng"}
+DELETE /shipments/614 -> 400 {"error":"version là bắt buộc để xóa lô hàng"}
+DELETE /shipments/615 -> 400 {"error":"version là bắt buộc để xóa lô hàng"}
+DELETE /shipments/616 -> 400 {"error":"version là bắt buộc để xóa lô hàng"}
+DELETE /shipments/617 -> 400 {"error":"version là bắt buộc để xóa lô hàng"}
+CENSUS shipments q=QA-W4B -> visible=5 [{"id":617,"ref":"QA-W4B-LCLCTRL-069301b2","deletedAt":null},{"id":616,"ref":"QA-W4B-FCL-069301b2","deletedAt":null},{"id":615,"ref":"QA-W4B-LCL-069301b2","deletedAt":null},{"id":614,"ref":"QA-W4B-LCL-da419c7c","deletedAt":null},{"id":613,"ref":"QA-W4B-LCL-cda225e9","deletedAt":null}]
+DRIVER COSTS trip 173 -> total=6 rows=[{"id":47,"feeName":"Phí vệ sinh","amount":"9500"},{"id":46,"feeName":"Phí vệ sinh","amount":"9000"},{"id":45,"feeName":"QA-W4B-CP700-BE-ROAD","amount":"3000"},{"id":42,"feeName":"Phí nâng container","amount":"12000"},{"id":43,"feeName":"Phí nâng container","amount":"8000"},{"id":44,"feeName":"Vé cầu đường","amount":"5000"}]
+DONE
+GET /shipments/613 failed
+GET /shipments/614 failed
+GET /shipments/615 failed
+GET /shipments/616 failed
+GET /shipments/617 failed
+CENSUS shipments q=QA-W4B -> visible=5
+remaining=[{"id":617,"ref":"QA-W4B-LCLCTRL-069301b2"},{"id":616,"ref":"QA-W4B-FCL-069301b2"},{"id":615,"ref":"QA-W4B-LCL-069301b2"},{"id":614,"ref":"QA-W4B-LCL-da419c7c"},{"id":613,"ref":"QA-W4B-LCL-cda225e9"}]
+DONE
+DELETE /shipments/613 v1 -> 200 {"ok":true}
+DELETE /shipments/614 v1 -> 200 {"ok":true}
+DELETE /shipments/615 v1 -> 200 {"ok":true}
+DELETE /shipments/616 v2 -> 200 {"ok":true}
+DELETE /shipments/617 v1 -> 200 {"ok":true}
+CENSUS shipments q=QA-W4B -> visible=0
+remaining=[]
+DONE

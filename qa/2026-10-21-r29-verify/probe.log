@@ -1,0 +1,67 @@
+R29 probe 2026-10-21T00:09:31.952Z api=https://vantai.tingting.vip/api
+
+== FB-019 probe: bqhuong journey board ==
+LOGIN ok bqhuong role=DRIVER
+board status=200 items=9
+  [RUNNING] ful=723 trip=228 code=TRP-202610-0122 bill=null booking=R27E2E-001 truck=15H-117.55 status=? pairLocked=false
+  [HISTORY] ful=532 trip=196 code=TRP-202610-0097 bill=null booking=CL2-B2-002 truck=15H-117.55 status=? pairLocked=false
+  [NEW] ful=596 trip=206 code=TRP-202610-0101 bill=CL5-BILL-04 booking=null truck=15H-117.55 status=? pairLocked=false
+  [NEW] ful=352 trip=173 code=TRP-202610-0074 bill=R17B3-LE-01 booking=null truck=15H-117.55 status=? pairLocked=false
+  [NEW] ful=322 trip=162 code=TRP-202610-0063 bill=null booking=null truck=15H-117.55 status=? pairLocked=false
+  [HISTORY] ful=20 trip=14 code=TRP-202609-0012 bill=EGLV260904500013 booking=null truck=15H-061.14 status=? pairLocked=false
+  [HISTORY] ful=226 trip=135 code=TRP-202610-0041 bill=E2EROLE001 booking=null truck=15H-117.55 status=? pairLocked=false
+  [HISTORY] ful=172 trip=117 code=TRP-202610-0025 bill=BLCUSa24BB booking=null truck=15H-061.14 status=? pairLocked=false
+  [NEW] ful=20 trip=79 code=TRP-202609-0045 bill=EGLV260904500013 booking=null truck=15H-061.14 status=? pairLocked=false
+
+== FB-033 probe: ops wallet summaries ==
+LOGIN ok giaonhan role=OPS
+wallet giaonhan: status=200 body={"totalAdvance":"0","approved":"2470000","pending":"0","rejected":"0","returned":"0","balance":"-2470000"}
+LOGIN ok hoangnh role=OPS
+wallet hoangnh: status=200 body={"totalAdvance":"200000","approved":"1120000","pending":"0","rejected":"500000","returned":"0","balance":"-920000"}
+LOGIN ok hungld role=OPS
+wallet hungld: status=200 body={"totalAdvance":"0","approved":"0","pending":"0","rejected":"0","returned":"0","balance":"0"}
+LOGIN ok duongtt role=OPS
+wallet duongtt: status=200 body={"totalAdvance":"0","approved":"0","pending":"0","rejected":"0","returned":"0","balance":"0"}
+LOGIN ok tuvn role=OPS
+wallet tuvn: status=200 body={"totalAdvance":"0","approved":"0","pending":"0","rejected":"0","returned":"0","balance":"0"}
+LOGIN ok hoangnm role=OPS
+wallet hoangnm: status=200 body={"totalAdvance":"0","approved":"0","pending":"0","rejected":"0","returned":"0","balance":"0"}
+LOGIN ok cuongvd role=OPS
+wallet cuongvd: status=200 body={"totalAdvance":"0","approved":"2200000","pending":"0","rejected":"0","returned":"0","balance":"-2200000"}
+
+== FB-093 probe: tiepvv debit-summary ==
+LOGIN ok tiepvv role=CUS
+debit-summary status=200 rows=199
+row keys: customerId,shipmentId,code,customerName,factoryName,factoryAddress,billOrBookNumber,customsNumber,documentsSummary,freightAuto,freightOverrideReason,chiHoTotal,receivableTotal,payableTotal,profit,lockStatus,lockedAt,cargoMode,costGroupId,costGroupOrder,revGroupId,revGroupOrder,costGroupMemberCount,revGroupMemberCount,actualTruckNo,billingTruckNo,costVehicleClassCode,revVehicleClassCode,costGroupPrincipalRef,revGroupPrincipalRef
+  ship=171 code=SHP-2609-00171 bill=? rev=? revGroup=- note=- trip=?
+  ship=178 code=SHP-2609-00178 bill=? rev=? revGroup=- note=- trip=?
+  ship=163 code=SHP-2609-00163 bill=? rev=? revGroup=- note=- trip=?
+  ship=172 code=SHP-2609-00172 bill=? rev=? revGroup=- note=- trip=?
+  ship=180 code=SHP-2609-00180 bill=? rev=? revGroup=- note=- trip=?
+  ship=179 code=SHP-2609-00179 bill=? rev=? revGroup=- note=- trip=?
+  ship=181 code=SHP-2609-00181 bill=? rev=? revGroup=- note=- trip=?
+  ship=2 code=SHP-2609-00002 bill=? rev=? revGroup=- note=- trip=?
+  ship=3 code=SHP-2609-00003 bill=? rev=? revGroup=- note=- trip=?
+  ship=4 code=SHP-2609-00004 bill=? rev=? revGroup=- note=- trip=?
+  ship=5 code=SHP-2609-00005 bill=? rev=? revGroup=- note=- trip=?
+  ship=6 code=SHP-2609-00006 bill=? rev=? revGroup=- note=- trip=?
+  ship=7 code=SHP-2609-00007 bill=? rev=? revGroup=- note=- trip=?
+  ship=8 code=SHP-2609-00008 bill=? rev=? revGroup=- note=- trip=?
+  ship=221 code=SHP-2609-00208 bill=? rev=2000000 revGroup=- note=- trip=?
+  ship=11 code=SHP-2609-00011 bill=? rev=? revGroup=- note=- trip=?
+  ship=10 code=SHP-2609-00010 bill=? rev=? revGroup=- note=- trip=?
+  ship=13 code=SHP-2609-00013 bill=? rev=0 revGroup=- note=- trip=?
+  ship=14 code=SHP-2609-00014 bill=? rev=? revGroup=- note=- trip=?
+  ship=15 code=SHP-2609-00015 bill=? rev=? revGroup=- note=- trip=?
+  ship=16 code=SHP-2609-00016 bill=? rev=? revGroup=- note=- trip=?
+  ship=17 code=SHP-2609-00017 bill=? rev=? revGroup=- note=- trip=?
+  ship=24 code=SHP-2609-00024 bill=? rev=0 revGroup=- note=- trip=?
+  ship=25 code=SHP-2609-00025 bill=? rev=? revGroup=- note=- trip=?
+  ship=12 code=SHP-2609-00012 bill=? rev=? revGroup=- note=- trip=?
+  ship=26 code=SHP-2609-00026 bill=? rev=? revGroup=- note=- trip=?
+  ship=30 code=SHP-2609-00030 bill=? rev=? revGroup=- note=- trip=?
+  ship=144 code=SHP-2609-00144 bill=? rev=? revGroup=- note=- trip=?
+  ship=28 code=SHP-2609-00028 bill=? rev=? revGroup=- note=- trip=?
+  ship=208 code=SHP-2609-00195 bill=? rev=0 revGroup=- note=- trip=?
+
+PROBE DONE

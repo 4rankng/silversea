@@ -1,0 +1,18 @@
+{"level":30,"time":1792247404047,"pid":60919,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+{"level":30,"time":1792247404205,"pid":60919,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ FB-086 (round 21) — CUS reads the container-type catalog
+  ✔ CUS gets the container-type list instead of 403 (3929.358166ms)
+{"level":30,"time":1792247404253,"pid":60919,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+  ✔ the grant is scoped — other config catalogs stay denied to CUS (65.580208ms)
+{"level":30,"time":1792247404330,"pid":60919,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+  ✔ the grant is GET-only — a write on the same path is still denied (88.39175ms)
+  ✔ a near-miss path under the same prefix is not swept in (42.703292ms)
+✔ FB-086 (round 21) — CUS reads the container-type catalog (4133.218375ms)
+ℹ tests 4
+ℹ suites 1
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6082.622042

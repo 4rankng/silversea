@@ -1,0 +1,8 @@
+# FB-061 (card 141026012010) — backend gates
+$ npx tsc --noEmit
+exit=0
+
+$ DATABASE_URL=postgres://postgres:postgres@localhost:5441/silversea npx tsx --test --test-concurrency=1 src/tests/qa-fixture-purge.test.ts
+ℹ tests 11
+ℹ pass 11
+ℹ fail 0

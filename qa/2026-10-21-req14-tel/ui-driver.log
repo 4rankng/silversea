@@ -1,0 +1,16 @@
+
+=== run 2026-10-21T00:30:55.105Z ===
+2026-10-21T00:30:55.258Z login quyet (DRIVER): OK
+2026-10-21T00:30:58.263Z PASS detail page renders the driver task grid (not the login screen) — url=http://localhost:7175/my-trips/85065
+2026-10-21T00:30:58.264Z PASS SĐT kho row renders an <a href="tel:…"> — {"text":"02253555555","href":"tel:02253555555","isAnchor":true}
+2026-10-21T00:30:58.264Z PASS SĐT kho href normalized (spaces/dots stripped) — href=tel:02253555555
+2026-10-21T00:30:58.264Z PASS SĐT liên hệ row renders an <a href="tel:…"> (number differs from kho) — {"text":"0987654321","href":"tel:0987654321","isAnchor":true}
+2026-10-21T00:30:58.264Z PASS SĐT liên hệ href normalized — href=tel:0987654321
+2026-10-21T00:30:58.309Z shot ui-1-info-grid-tel-rows.png (390px, THÔNG TIN LỆNH grid)
+2026-10-21T00:30:58.314Z PASS call bar renders a Gọi kho affordance (multi-contact → modal button) — {"found":true,"tag":"button","href":null}
+2026-10-21T00:30:58.826Z PASS modal lists both nhà máy contacts — [{"name":"Phạm Thị Biển","numberText":"02253555555","telHref":"tel:02253555555","numberIsLink":true,"goiHref":"tel:02253555555"},{"name":"Bảo vệ kho","numberText":"0901.234.567","telHref":"tel:0901234567","numberIsLink":true,"goiHref":"tel:0901234567"}]
+2026-10-21T00:30:58.826Z PASS contact 1 (Phạm Thị Biển): displayed number is a tel: link with normalized href — {"name":"Phạm Thị Biển","numberText":"02253555555","telHref":"tel:02253555555","numberIsLink":true,"goiHref":"tel:02253555555"}
+2026-10-21T00:30:58.826Z PASS contact 2 (Bảo vệ kho, dots kept on screen): href strips dots → tel:0901234567 — {"name":"Bảo vệ kho","numberText":"0901.234.567","telHref":"tel:0901234567","numberIsLink":true,"goiHref":"tel:0901234567"}
+2026-10-21T00:30:58.826Z PASS explicit Gọi buttons still present beside the numbers (layout untouched) — goiHrefs=tel:02253555555, tel:0901234567
+2026-10-21T00:30:58.913Z shot ui-2-call-modal-tel-links.png (390px, modal Chọn liên hệ để gọi)
+2026-10-21T00:30:59.027Z RESULT: ALL CHECKS PASS

@@ -1,0 +1,52 @@
+# cargoMode rung driver — 2026-10-17 card 171026154000
+# command: node testplan/qa/scripts/2026-10-17-171026154000-cargomode-rung.mjs
+# started: 2026-10-17T09:06:10.860Z
+# backend=http://localhost:3092/api frontend=http://localhost:7185 window=2026-10-01..2026-10-31 user=dieuvan
+2026-10-17T09:06:10.862Z rung1-begin {"window":"2026-10-01..2026-10-31"}
+2026-10-17T09:06:10.876Z health-backend {"status":200,"ms":13}
+2026-10-17T09:06:10.876Z PASS {"rung":"api","check":"backend-health-200","detail":200}
+2026-10-17T09:06:10.880Z health-frontend-proxy {"status":200}
+2026-10-17T09:06:10.881Z PASS {"rung":"api","check":"frontend-proxy-health-200","detail":{"status":200}}
+2026-10-17T09:06:10.958Z login {"user":"dieuvan","backend":"http://localhost:3092/api","tokenPresent":true}
+2026-10-17T09:06:10.992Z api-unfiltered {"status":200,"total":109,"pageSize":50,"page1Items":50,"page1Mix":{"FCL":50,"LCL":0,"other":0},"url":"http://localhost:3092/api/shipments/dispatch-detail-plan-rows?dateFrom=2026-10-01&dateTo=2026-10-31"}
+2026-10-17T09:06:10.993Z PASS {"rung":"api","check":"unfiltered-200","detail":200}
+2026-10-17T09:06:10.993Z PASS {"rung":"api","check":"unfiltered-has-total","detail":109}
+2026-10-17T09:06:11.011Z api-lcl {"status":200,"total":44,"pageSize":50,"page1Items":44,"page1Mix":{"FCL":0,"LCL":44,"other":0},"url":"http://localhost:3092/api/shipments/dispatch-detail-plan-rows?dateFrom=2026-10-01&dateTo=2026-10-31&cargoMode=LCL"}
+2026-10-17T09:06:11.011Z PASS {"rung":"api","check":"lcl-200","detail":200}
+2026-10-17T09:06:11.011Z PASS {"rung":"api","check":"lcl-page1-nonempty","detail":44}
+2026-10-17T09:06:11.011Z PASS {"rung":"api","check":"lcl-page1-all-cargoMode-LCL","detail":{"FCL":0,"LCL":44,"other":0}}
+2026-10-17T09:06:11.011Z PASS {"rung":"api","check":"lcl-total-lte-unfiltered","detail":{"lclTotal":44,"unfilteredTotal":109}}
+2026-10-17T09:06:11.011Z PASS {"rung":"api","check":"lcl-total-reduced-when-fcl-exists","detail":{"lclTotal":44,"unfilteredTotal":109,"unfilteredPage1Mix":{"FCL":50,"LCL":0,"other":0}}}
+2026-10-17T09:06:11.012Z rung2-begin {"compareWith":44}
+2026-10-17T09:06:11.136Z db-lcl-count-recipe {"count":45,"sql":"SELECT count(*) FROM shipment_fulfillments f JOIN shipments s ON s.id = f.shipment_id WHERE f.cargo_mode = 'LCL' AND f.canceled_at IS NULL AND s.deleted_at IS NULL AND s.status IN ('READY_FOR_DISPATCH','DISPATCHED','IN_TRANSIT','COMPLETED') AND s.expected_delivery_date BETWEEN '2026-10-01' AND '2026-10-31'"}
+2026-10-17T09:06:11.184Z db-lcl-count-filter-identity {"count":44,"sql":"SELECT count(*) FROM shipment_fulfillments f JOIN shipments s ON s.id = f.shipment_id JOIN customers cu ON cu.id = s.customer_id AND cu.deleted_at IS NULL WHERE f.cargo_mode = 'LCL' AND f.canceled_at IS NULL AND s.deleted_at IS NULL AND s.status IN ('READY_FOR_DISPATCH','DISPATCHED','IN_TRANSIT','COMPLETED') AND s.expected_delivery_date BETWEEN '2026-10-01' AND '2026-10-31'"}
+2026-10-17T09:06:11.184Z PASS {"rung":"db","check":"db-filter-count-equals-api-lcl-total","detail":{"filterCount":44,"apiLclTotal":44,"note":"match"}}
+2026-10-17T09:06:11.227Z db-recipe-divergence {"recipeCount":45,"filterCount":44,"rows":["20440 | 48480 | 23645 | LCL | LCL | READY_FOR_DISPATCH | 2026-10-10 | customer-row-missing"]}
+2026-10-17T09:06:11.227Z rung3-begin {"frontend":"http://localhost:7185","viewport":"1440x900"}
+2026-10-17T09:06:11.290Z ui-login {"user":"dieuvan","tokenPresent":true}
+2026-10-17T09:06:13.379Z ui-pre {"url":"http://localhost:7185/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31","status":200,"total":109,"pageSize":50,"page1Mix":{"FCL":50,"LCL":0,"other":0},"domKinds":["FCL","FCL","FCL","FCL","FCL","FCL","FCL","EMPTY","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL"]}
+2026-10-17T09:06:13.379Z PASS {"rung":"ui","check":"pre-response-captured","detail":{"status":200,"total":109}}
+2026-10-17T09:06:13.529Z ui-shot {"file":"/Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter-rb2/qa/2026-10-17_171026154000_ui-1-pre.png"}
+2026-10-17T09:06:14.670Z ui-pick-lcl {"trigger":"Loại hàng: Tất cả","picked":"Hàng lẻ (LCL)"}
+2026-10-17T09:06:14.778Z ui-lcl {"url":"http://localhost:7185/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31&cargoMode=LCL","status":200,"total":44,"page1Mix":{"FCL":0,"LCL":44,"other":0},"domKinds":["LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL"]}
+2026-10-17T09:06:14.778Z PASS {"rung":"ui","check":"pick-registered","detail":{"trigger":"Loại hàng: Tất cả","picked":"Hàng lẻ (LCL)"}}
+2026-10-17T09:06:14.778Z PASS {"rung":"ui","check":"lcl-request-has-cargoMode-LCL","detail":"http://localhost:7185/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31&cargoMode=LCL"}
+2026-10-17T09:06:14.779Z PASS {"rung":"ui","check":"lcl-response-all-LCL","detail":{"FCL":0,"LCL":44,"other":0}}
+2026-10-17T09:06:14.779Z PASS {"rung":"ui","check":"lcl-total-lte-pre","detail":{"lclTotal":44,"preTotal":109}}
+2026-10-17T09:06:14.779Z PASS {"rung":"ui","check":"lcl-total-reduced-when-fcl-exists","detail":{"lclTotal":44,"preTotal":109,"preMix":{"FCL":50,"LCL":0,"other":0}}}
+2026-10-17T09:06:14.779Z PASS {"rung":"ui","check":"lcl-dom-all-container-cells-LCL","detail":["LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL","LCL"]}
+2026-10-17T09:06:15.384Z ui-shot {"file":"/Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter-rb2/qa/2026-10-17_171026154000_ui-2-lcl.png"}
+2026-10-17T09:06:16.570Z ui-pick-clear {"trigger":"Loại hàng: Hàng lẻ (LCL)","picked":"Tất cả"}
+2026-10-17T09:06:16.678Z ui-clear {"url":"http://localhost:7185/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31","status":304,"total":109,"page1Mix":{"FCL":50,"LCL":0,"other":0},"domKinds":["FCL","FCL","FCL","FCL","FCL","FCL","FCL","EMPTY","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL"]}
+2026-10-17T09:06:16.678Z PASS {"rung":"ui","check":"clear-pick-registered","detail":{"trigger":"Loại hàng: Hàng lẻ (LCL)","picked":"Tất cả"}}
+2026-10-17T09:06:16.678Z PASS {"rung":"ui","check":"clear-request-without-cargoMode","detail":"http://localhost:7185/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31"}
+2026-10-17T09:06:16.678Z PASS {"rung":"ui","check":"clear-total-equals-pre","detail":{"clearTotal":109,"preTotal":109}}
+2026-10-17T09:06:16.678Z PASS {"rung":"ui","check":"clear-mix-equals-pre-mix","detail":{"clearMix":{"FCL":50,"LCL":0,"other":0},"preMix":{"FCL":50,"LCL":0,"other":0}}}
+2026-10-17T09:06:16.679Z PASS {"rung":"ui","check":"clear-dom-not-lcl-only","detail":["FCL","FCL","FCL","FCL","FCL","FCL","FCL","EMPTY","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL"]}
+2026-10-17T09:06:16.679Z PASS {"rung":"ui","check":"clear-mixed-modes-return","detail":{"preMixedPage1":false,"preMix":{"FCL":50,"LCL":0,"other":0},"clearMix":{"FCL":50,"LCL":0,"other":0},"clearDomKinds":["FCL","FCL","FCL","FCL","FCL","FCL","FCL","EMPTY","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL","FCL"],"note":"unfiltered page 1 is single-mode under the server priority order; mixed set proven by total+mix equality"}}
+2026-10-17T09:06:17.310Z ui-shot {"file":"/Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter-rb2/qa/2026-10-17_171026154000_ui-3-clear.png"}
+2026-10-17T09:06:18.209Z ui-shot {"file":"/Users/dev/.paseo/worktrees/1njkloyy/fix-171026154000-cargomode-filter-rb2/qa/2026-10-17_171026154000_ui-4-phone.png","viewport":"390x844"}
+2026-10-17T09:06:18.210Z ui-net-log {"requests":[{"url":"http://localhost:7185/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31","status":200,"total":109,"page1Mix":{"FCL":50,"LCL":0,"other":0}},{"url":"http://localhost:7185/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31","status":304,"total":109,"page1Mix":{"FCL":50,"LCL":0,"other":0}},{"url":"http://localhost:7185/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31&cargoMode=LCL","status":200,"total":44,"page1Mix":{"FCL":0,"LCL":44,"other":0}},{"url":"http://localhost:7185/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31","status":304,"total":109,"page1Mix":{"FCL":50,"LCL":0,"other":0}}]}
+2026-10-17T09:06:18.210Z ui-page-log {"pageErrors":[]}
+2026-10-17T09:06:18.326Z VERDICT {"rungs":{"api":true,"db":true,"ui":true},"totals":{"pass":23,"fail":0},"api":{"pass":9,"fail":0},"db":{"pass":1,"fail":0},"ui":{"pass":13,"fail":0}}
+2026-10-17T09:06:18.327Z exit-status 0

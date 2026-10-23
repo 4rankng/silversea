@@ -1,0 +1,12 @@
+HEALTH status=ok api=http://localhost:3008/api front=http://localhost:7181
+LOGIN ok role=CUS (cus)
+FIXTURE lots={"E":169,"B":170,"Z":171} (bl prefix TBFLUI207433) dayA=2026-10-24 dayB=2026-10-25
+PASS F01 request carries YYYY-MM-DD day-A bounds — http://localhost:7181/api/shipments/cus-workspace?page=1&limit=20&searchSuffix=TBFLUI207433&transportDateFrom=2026-10-24&transportDateTo=2026-10-24
+PASS F01 late-boundary lot (23:45 VN) shows under day A
+PASS F01 early-boundary lot (00:30 VN) shows under day A
+PASS F01 reappointed Z absent under its old EDD day A
+PASS F02 reappointed Z shows under its appointment day B
+PASS F02 day-A boundary lots absent under day B
+PASS console errors none — clean
+CLEANUP fixture TBFLUI207433% soft-deleted
+DONE failures=0

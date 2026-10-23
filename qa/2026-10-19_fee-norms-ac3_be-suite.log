@@ -1,0 +1,20 @@
+▶ card 20260921_7 - driver fee norms
+  ✔ norms ship seeded: 8 rows, customer amounts, road bucket (AC2 data) (44.323542ms)
+  ✔ norm entry pins the road bucket and drops customer charge (AC1) (58.5725ms)
+  ✔ norm row stores the SYSTEM amount; a divergent driver amount is ignored (AC3 superseded by card 182300) (31.057458ms)
+✔ card 20260921_7 - driver fee norms (134.995625ms)
+▶ card 20260921_7 - guards
+  ✔ unknown norm code rejected (400) (19.376916ms)
+  ✔ norm ref and catalog ref are mutually exclusive (400) (17.851833ms)
+  ✔ accounting suggestions use active configured labels and numeric amounts (6.143584ms)
+  ✔ list fn returns the ACTIVE norms for the FE auto-fill (AC2) (1.451416ms)
+✔ card 20260921_7 - guards (45.350833ms)
+ℹ tests 7
+ℹ suites 2
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2418.709125
+SUITE_EXIT=0

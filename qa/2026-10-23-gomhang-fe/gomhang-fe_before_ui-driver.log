@@ -1,0 +1,20 @@
+PHASE=before front=http://localhost:7175 health=ok
+scope=Tất cả clicked
+A1 1440 default {"checkboxCount":1,"selectCol":false,"toggle":false}
+PASS A1(before): checkbox luôn hiện mặc định (defect spec 23/10)
+PASS A1(before): không có nút [📦 Gộp hàng]
+scope=Tất cả clicked
+A2 390 toggle false → {"ticks":1,"dimmed":0,"exitBtn":false} (before ticks=1)
+PASS A2(before): card LCL luôn có tick mặc định (defect)
+scope=Tất cả clicked
+A3 unscoped merge-on {"lcl":0,"dimmed":0}
+PASS A3: tích lô K04573847543
+PASS A3: tích lô LCL01L2-DATED-259802
+A3 floating bar {"text":"Đang chọn 2 lô: Tổng 1 tấn | 0 CBM Lô 1: K04573847543 Bỏ chọn Gán xe nhóm","fixed":"sticky","bottom":157}
+A3 popup {"hasBillingGroup":true,"hasBillingPerLot":true,"combos":["Loại xe tính cước trả ĐV*","Nhà xe*","BKS thực (xe chạy chuyến)","BKS báo khách (ảo)","Lô 1 — K04573847543","Lô 2 — LCL01L2-DATED-259802"],"hasFreight":false}
+PASS A3(before): popup còn trường BKS báo khách (ảo)
+B1 1440 default {"ticks":75,"toggle":false,"headerMerge":true}
+PASS B1(before): tick luôn hiện mặc định (defect spec 23/10)
+PASS B1(before): nút Ghép cước thu khách trên header
+FINAL db [{"id":122,"cost_group_id":null,"cost_group_order":null,"rev_group_id":null,"rev_group_order":null},{"id":173,"cost_group_id":null,"cost_group_order":null,"rev_group_id":null,"rev_group_order":null}]
+DONE failures=0

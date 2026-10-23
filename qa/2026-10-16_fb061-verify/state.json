@@ -1,0 +1,128 @@
+{
+  "admin": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjYxLCJ1c2VybmFtZSI6ImFkbWluIiwiZW1haWwiOiJhZG1pbkBuZXBvLnZuIiwiZnVsbE5hbWUiOiJRdeG6o24gdHLhu4sgdmnDqm4iLCJyb2xlIjoiQURNSU4iLCJqdGkiOiI1NDdkN2EyNy0xYWY3LTQ1MWMtYmViMy00OTAxNTA3ZGUzYzIiLCJpYXQiOjE3OTIxNDkyMTUsImV4cCI6MTc5Mjc1NDAxNX0.lU_Au1mQ03w8XUU9KJdJNiTH5M8AAJyGxZ2D_1uPsLI",
+  "ops": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjMsInVzZXJuYW1lIjoiaG9hbmduaCIsImVtYWlsIjpudWxsLCJmdWxsTmFtZSI6Ik5ndXnhu4VuIEh1eSBIb8OgbmciLCJyb2xlIjoiT1BTIiwianRpIjoiZTM1MmViYmUtMWFhMS00ZjU4LWE2NjQtMmM0M2FjODA0OTIzIiwiaWF0IjoxNzkyMTQ5MjE2LCJleHAiOjE3OTI3NTQwMTZ9.9vy1yxlkZ7_lkeJCf08TKcXO2tuwUKrL7oFbXxsNP7k",
+  "routeId": 11,
+  "cargoTypeId": 1,
+  "containerTypeId": 1,
+  "expenseTypeCode": "LIFT_EMPTY",
+  "custName": "QA FB061 KH FE48B9",
+  "custId": 95,
+  "supName": "QA FB061 NCC FE48B9",
+  "supId": 35,
+  "bl": "QA-FB061-FE48B9",
+  "shipmentId": 618,
+  "expenseId": 45,
+  "plate": "QA-FE48B9-FB061",
+  "tripId": 188,
+  "tripVersion": 1,
+  "boardPre": {
+    "tripId": 188,
+    "tripCode": "TRP-202610-0089",
+    "shipmentId": 618,
+    "shipmentCode": "SHP-2610-00249",
+    "billOrBooking": "QA-FB061-FE48B9",
+    "customerName": "QA FB061 KH FE48B9",
+    "factoryName": null,
+    "routeName": "Thuận Thành, Bắc Ninh",
+    "containerNumber": null,
+    "containerTypeLabel": null,
+    "cargoWeightKg": null,
+    "containerPayloadKg": null,
+    "liftSite": null,
+    "dropSite": null,
+    "plateNumber": "QA-FE48B9-FB061",
+    "driverName": "QA Tai xe FB061",
+    "carrierName": "QA FB061 KH FE48B9",
+    "carrierSupplierId": null,
+    "departureDate": "2026-10-16",
+    "transportDate": null,
+    "tripStatus": "CREATED",
+    "phoiTakenDate": null,
+    "phoiTakeStatus": null,
+    "chiHoTra": 50000,
+    "chiHoThu": 50000,
+    "chiHoTripTra": null,
+    "chiHoTripThu": null,
+    "eligibleIn": 0,
+    "eligibleOut": 0,
+    "tienDuong": 0,
+    "cusDispatchNotes": [],
+    "opsRecoveryNotes": [
+      "Thu khách: QA FB061 EXP FE48B9"
+    ],
+    "driverNote": null,
+    "confirmable": false,
+    "openSources": []
+  },
+  "thuPre": [
+    {
+      "party": "Chưa xác định",
+      "tienNang": 0,
+      "tienHa": 0,
+      "psKhac": 570000,
+      "tongPhaiThuTra": 570000,
+      "daThuTra": 0,
+      "conLai": 570000,
+      "ghiChu": null,
+      "soLuong": 3,
+      "phaiThu": 0,
+      "phaiTra": 0
+    },
+    {
+      "party": "QA FB061 KH FE48B9",
+      "tienNang": 50000,
+      "tienHa": 0,
+      "psKhac": 0,
+      "tongPhaiThuTra": 50000,
+      "daThuTra": 0,
+      "conLai": 50000,
+      "ghiChu": null,
+      "soLuong": 1,
+      "phaiThu": 0,
+      "phaiTra": 0
+    }
+  ],
+  "traPre": [
+    {
+      "party": "Chưa xác định",
+      "tienNang": 0,
+      "tienHa": 0,
+      "psKhac": 570000,
+      "tongPhaiThuTra": 570000,
+      "daThuTra": 0,
+      "conLai": 570000,
+      "ghiChu": null,
+      "soLuong": 3,
+      "phaiThu": 0,
+      "phaiTra": 0
+    },
+    {
+      "party": "QA FB061 KH FE48B9",
+      "tienNang": 50000,
+      "tienHa": 0,
+      "psKhac": 0,
+      "tongPhaiThuTra": 50000,
+      "daThuTra": 0,
+      "conLai": 50000,
+      "ghiChu": null,
+      "soLuong": 1,
+      "phaiThu": 0,
+      "phaiTra": 0
+    }
+  ],
+  "depositBill": "QA-FB061-CTY-97CBEE",
+  "lastFailures": [
+    {
+      "name": "census DB: supplier soft-deleted",
+      "detail": "sup|35|2026-10-16 11:17:01.142"
+    },
+    {
+      "name": "census DB: shipment soft-deleted",
+      "detail": "shipment|618|2026-10-16 11:17:20.070361"
+    },
+    {
+      "name": "census DB: trip canceled",
+      "detail": "trip|188|CANCELED"
+    }
+  ]
+}

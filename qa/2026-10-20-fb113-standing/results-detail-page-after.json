@@ -1,0 +1,32 @@
+{
+  "build": "dev",
+  "usedPath": "direct-url",
+  "results": [
+    {
+      "id": "build under test is dev",
+      "pass": true,
+      "detail": "buildHash=dev"
+    },
+    {
+      "id": "[detail-page] header has Số tờ khai",
+      "pass": true,
+      "detail": "dts=[\"Khách hàng\",\"Số Bill / Số Booking\",\"Số tờ khai\",\"Xuất / Nhập\",\"Hãng tàu\",\"Nâng\",\"Hạ\",\"Liên hệ\",\"Ngày tạo\",\"Loại lô\",\"Nhà máy / công trường\",\"Tuyến đường\",\"Cut-off hải quan\",\"Giờ đóng hàng\",\"Thời gian trả\",\"Trọng lượng\",\"Cước dự kiến\",\"Phụ phí nhiên liệu dự kiến\",\"Ghi chú cho lái xe\"]"
+    },
+    {
+      "id": "[detail-page] documents order Bill/Booking → Số tờ khai → Xuất/Nhập → Hãng tàu",
+      "pass": true,
+      "detail": "[\"Khách hàng\",\"Số Bill / Số Booking\",\"Số tờ khai\",\"Xuất / Nhập\",\"Hãng tàu\",\"Nâng\",\"Hạ\",\"Liên hệ\",\"Ngày tạo\",\"Loại lô\",\"Nhà máy / công trường\",\"Tuyến đường\",\"Cut-off hải quan\",\"Giờ đóng hàng\",\"Thời gian trả\",\"Trọng lượng\",\"Cước dự kiến\",\"Phụ phí nhiên liệu dự kiến\",\"Ghi chú cho lái xe\"]"
+    },
+    {
+      "id": "[detail-page] UI↔API Bill/Booking identity",
+      "pass": true,
+      "detail": "ui=\"FB110-735710\" api=\"FB110-735710\""
+    },
+    {
+      "id": "[detail-page] UI↔API Số tờ khai identity",
+      "pass": true,
+      "detail": "ui=\"—\" api=\"—\""
+    }
+  ],
+  "exitCode": 0
+}

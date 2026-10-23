@@ -1,0 +1,19 @@
+
+=== run 2026-10-22T17:57:24.199Z BASE=http://localhost:7175 TAG=truoc-d0 DELAY=0 ===
+S0-open: exp=true value="" popover=null/false visible=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | E2E942626 | GLC | ICD Hà Nội | Kho ST | NEWEB-KHO 1 | NEWEB-KHO 2 | NEWEB-KHO 3 | QA Nhà xe | SCONECT | SJ TECH | SUNRISE] mounted=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | E2E942626 | GLC | ICD Hà Nội | Kho ST | NEWEB-KHO 1 | NEWEB-KHO 2 | NEWEB-KHO 3 | QA Nhà xe | SCONECT | SJ TECH | SUNRISE]
+A-typed-G: exp=true value="G" popover=null/false visible=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | E2E942626 | GLC | ICD Hà Nội | Kho ST | NEWEB-KHO 1 | NEWEB-KHO 2 | NEWEB-KHO 3 | SCONECT | SJ TECH | SUNRISE] mounted=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | E2E942626 | GLC | ICD Hà Nội | Kho ST | NEWEB-KHO 1 | NEWEB-KHO 2 | NEWEB-KHO 3 | SCONECT | SJ TECH | SUNRISE]
+A-typed-GL: exp=true value="GL" popover=null/false visible=[GLC] mounted=[GLC]
+A-typed-GLC: exp=true value="GLC" popover=null/false visible=[GLC] mounted=[GLC]
+B-typed-L: exp=true value="L" popover=null/false visible=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | GLC | ICD Hà Nội | NEWEB-KHO 1 | NEWEB-KHO 2 | SCONECT | SJ TECH | SUNRISE] mounted=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | GLC | ICD Hà Nội | NEWEB-KHO 1 | NEWEB-KHO 2 | SCONECT | SJ TECH | SUNRISE]
+B-typed-LC: exp=true value="LC" popover=null/false visible=[GLC] mounted=[GLC]
+C0-picked-song-than: exp=false value="Kho ST" popover=null/false visible=[] mounted=[]
+C-typed-G: exp=true value="" popover=null/false visible=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | E2E942626 | GLC | ICD Hà Nội | Kho ST | NEWEB-KHO 1 | NEWEB-KHO 2 | NEWEB-KHO 3 | QA Nhà xe | SCONECT | SJ TECH | SUNRISE] mounted=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | E2E942626 | GLC | ICD Hà Nội | Kho ST | NEWEB-KHO 1 | NEWEB-KHO 2 | NEWEB-KHO 3 | QA Nhà xe | SCONECT | SJ TECH | SUNRISE]
+C-typed-GL: exp=true value="L" popover=null/false visible=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | GLC | ICD Hà Nội | NEWEB-KHO 1 | NEWEB-KHO 2 | SCONECT | SJ TECH | SUNRISE] mounted=[ASKEY - XƯỞNG 1 | ASKEY - XƯỞNG 2 | BB Đà Nẵng | GLC | ICD Hà Nội | NEWEB-KHO 1 | NEWEB-KHO 2 | SCONECT | SJ TECH | SUNRISE]
+C-typed-GLC: exp=true value="LC" popover=null/false visible=[GLC] mounted=[GLC]
+net operational-sites (6):
+GET http://localhost:7175/api/shipments/operational-sites?scope=shared
+GET http://localhost:7175/api/shipments/operational-sites?scope=shared
+<= 200 http://localhost:7175/api/shipments/operational-sites?scope=shared
+<= 200 http://localhost:7175/api/shipments/operational-sites?scope=shared
+GET http://localhost:7175/api/shipments/operational-sites?customerId=1
+<= 200 http://localhost:7175/api/shipments/operational-sites?customerId=1

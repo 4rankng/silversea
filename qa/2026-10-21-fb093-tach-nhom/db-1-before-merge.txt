@@ -1,0 +1,13 @@
+== db-1 BEFORE merge 2026-10-20T19:55:24Z
+   id   |    bl_number    | rev_group_id | rev_group_order | trip_id | revenue | revenue_original | revenue_override_reason 
+--------+-----------------+--------------+-----------------+---------+---------+------------------+-------------------------
+ 104252 | UI-LCL-B77AP2-3 |              |                 |   60441 | 3000000 |                  | 
+ 104254 | UI-LCL-B77AP2-5 |              |                 |   60443 | 1800000 |                  | 
+(2 rows)
+
+ shipment_id | trip_id | total_amount | formula_text 
+-------------+---------+--------------+--------------
+      104252 |   60441 |      3050000 | 
+      104254 |   60443 |      1800000 | 
+(2 rows)
+
