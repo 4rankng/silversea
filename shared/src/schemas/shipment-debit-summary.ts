@@ -50,6 +50,16 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // What SS pays on the customer's behalf (CVC + Ops fees, trip expenses).
   chiHoTotal: moneyString.nullable(),
   receivableTotal: moneyString.nullable(),
+  // ── Redesign 23/10 (owner spec v2, "Chi hãng tàu" / "Chi nội địa") — the
+  // two live components behind payableTotal, shipped separately so L1 can
+  // render the cost split. Cước trả hãng = Σ trip_carrier_info
+  // .external_freight_cost (null while any active trip lacks its carrier
+  // cost); Chi nội địa = the lot's live ops expense entries (null at zero
+  // rows). Same null law as payableTotal: unknown stays null, never a 0.
+  // Optional like the GP-01 measures — an older summary response simply
+  // drops the columns' data instead of failing.
+  carrierCostTotal: moneyString.nullable().optional(),
+  opsCostTotal: moneyString.nullable().optional(),
   // TỔNG PHẢI TRẢ (ruling 2026-09-19): Cước trả (CVC) + ops-entered
   // expenses. Null whenever either component is unknown — never a 0.
   payableTotal: moneyString.nullable(),

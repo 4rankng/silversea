@@ -27,6 +27,11 @@ const sharedMoneyTabularSources = [
   join(sourceRoot, 'styles/typography.css'),
   join(sourceRoot, 'styles/record-table.css'),
   join(sourceRoot, 'design-system/forms/NumberField.css'),
+  // Owner redesign 23/10 — the unified range picker is a SHARED design-system
+  // primitive (same tier as NumberField): its trigger range, month titles and
+  // day grid are date data; the declaration is the primitive's, not a
+  // page-local copy.
+  join(sourceRoot, 'design-system/forms/UnifiedDateRangePicker.css'),
 ];
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 

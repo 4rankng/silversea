@@ -1,0 +1,35 @@
+PHASE=after front=http://localhost:7195 health=ok
+summary items=158 (unfiltered)
+DB identity before: count=158 latest=2026-10-23 11:13:45.796
+PASS QT-RD-01 row heights ≤56px (158 rows) — min=52 max=52
+PASS QT-RD-01 money cells right-align + share the header edge — {"alignments":["right"],"edgeDeltaMax":0,"headerCols":5}
+PASS QT-RD-02 no "Chưa xác định" in money cells — found=0
+INFO pending pills on screen: 691
+PASS QT-RD-03 unified range picker present
+PASS QT-RD-03 picker popover (presets + dual-month) opens
+PASS QT-RD-03 dual-month calendar — panels=2
+INFO active presets with empty range: 0
+PASS QT-RD-04 totals bar rendered
+PASS QT-RD-04 tfoot receivable = Σ body cells — foot=5.000.000 Σ=5000000 known=95
+PASS QT-RD-04 tfoot payable = Σ body cells — foot=— Σ=0 known=0
+PASS QT-RD-04 tfoot profit = Σ body cells — foot=— Σ=0 known=0
+PASS QT-RD-04 totals bar sticky-visible at 1440×900 — pinned=839 pane=840 vh=900
+PASS QT-RD-04 DOM receivable total = API sum (known values) — dom=5000000 api=5000000
+PASS QT-RD-04 customer group header rendered
+PASS QT-RD-04 group collapse hides its rows — 158 → 83
+PASS QT-RD-06 chứng từ badge rendered
+PASS QT-RD-06 hover opens the checklist popover
+PASS QT-RD-06 copy tờ khai raises the toast
+PASS QT-RD-05 Gộp hàng on the action bar (no emoji)
+PASS QT-RD-05 ≥2 valid ticks arm Gộp hàng — before=true clicked=47
+PASS QT-RD-08 kebab menu trigger rendered
+PASS QT-RD-08 kebab lists "Mở chi tiết lô"
+PASS QT-RD-08 L2 workspace mounts under the row — Cước vận tảiSố ContainerCước thuPhụ phí xăng dầu—Phí Hải Qua
+PASS QT-RD-07 phone renders the record cards (no table) — cards=20
+PASS QT-RD-07 phone totals strip visible
+PASS QT-RD-07 phone totals strip on-screen (top area) — y=302
+PASS QT-RD-07 no "Chưa xác định" on the phone board — found=0
+INFO phone pending pills: 92
+DB identity after: count=158 latest=2026-10-23 11:13:45.796
+PASS DB identity: no persisted state changed by the run — count 158→158, latest 2026-10-23 11:13:45.796→2026-10-23 11:13:45.796
+SUMMARY phase=after failures=0

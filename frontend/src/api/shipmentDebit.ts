@@ -37,6 +37,13 @@ export interface ShipmentDebitLotRow {
   chiHoTotal: number | null;
   /** phải thu khách − phải trả. null = chưa xác định. */
   receivableTotal: number | null;
+  /** Redesign 23/10 — Cước trả hãng (Σ trip_carrier_info.external_freight_cost),
+   *  the carrier leg of payableTotal. Optional: an older BE ships only the
+   *  total and the split column reads "Chờ số liệu". null = unknown cost. */
+  carrierCostTotal?: string | null;
+  /** Redesign 23/10 — Chi nội địa (live ops expense entries), the ops leg of
+   *  payableTotal. Same optional/unknown law as carrierCostTotal. */
+  opsCostTotal?: string | null;
   /** TỔNG PHẢI TRẢ (CVC + phí chi cho Ops). Producer lands via _7/spec-close
    *  FullStack half; null/absent = chưa xác định — never derived, never 0. */
   payableTotal?: number | null;

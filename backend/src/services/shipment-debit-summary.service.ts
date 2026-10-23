@@ -479,6 +479,10 @@ export async function getShipmentDebitSummary(query: {
       freightOverrideReason: effectiveFreight.reason,
       chiHoTotal: hasTrips || chiHo != null ? String(chiHo ?? 0) : null,
       receivableTotal: receivableValue == null ? null : String(receivableValue),
+      // Redesign 23/10 — the payableTotal split, live values (a locked lot's
+      // frozen payable rides its snapshot; the split columns stay live).
+      carrierCostTotal: externalFreight == null ? null : String(externalFreight),
+      opsCostTotal: opsTotal == null ? null : String(opsTotal),
       payableTotal,
       profit: profit == null ? null : String(profit),
       lockStatus: (lock != null ? 'LOCKED' : 'OPEN') as 'LOCKED' | 'OPEN',

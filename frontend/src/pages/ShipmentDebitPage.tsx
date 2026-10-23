@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import { ShipmentDebitRecords } from '../features/shipments/debit/ShipmentDebitRecords';
 import { canManageShipmentDebit } from '../lib/role-access';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
@@ -17,13 +15,14 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { EmptyState } from '../design-system';
-import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
-import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
-import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
-import { DebitLotLclFacts } from '../features/shipments/debit/DebitLotLclFacts';
-import { UnmergeRevGroupAction } from '../features/shipments/debit/UnmergeRevGroupAction';
 import { DisabledActionTip } from '../components/shared/DisabledActionTip';
+import { EmptyState } from '../design-system';
+import { Layers } from 'lucide-react';
+import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
+import { DebitLotTable } from '../features/shipments/debit/DebitLotTable';
+import { ShipmentDebitRecords } from '../features/shipments/debit/ShipmentDebitRecords';
+import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
+import { sumMoneyStates, moneyState } from '../features/shipments/debit/debitMoney';
 import './ShipmentDebitPage.css';
 
 /** sessionStorage key for the L2 open-state restore (reload persistence). */
@@ -43,166 +42,16 @@ function overlappingLotCodesFrom(cause: unknown): string[] | null {
   return known.length > 0 ? known : null;
 }
 
-/** Lot-level settlement row (L1) — identity, money rollup, lock state.
- *  Nine columns per the customer drawing: the pick tick lives INSIDE the
- *  first cell beside [+] (no tenth column), TỔNG PHẢI TRẢ rides its own
- *  wire field — null stays "Chưa xác định", never derived, never 0.
- *
- *  Spec 23/10 (261023110000 §2): the tick is ON-DEMAND — it renders only
- *  while the page's [📦 Gộp hàng] mode is active. */
-function DebitLotRow({
-  row, expanded, onToggle, onSaved, onUnmerged, ratesRefreshing, selected, onSelect, canManage, mergeMode, plateOptions,
-}: {
-  row: ShipmentDebitLotRow;
-  canManage: boolean;
-  /** Spec 23/10 §2 — the [📦 Gộp hàng] mode gates the leading tick. */
-  mergeMode: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-  onSaved: () => void;
-  /** FB-145 — the [Tách nhóm] refresh: invalidates + refetches the money
-   *  queries while the cells below render skeletons (never a stale 0₫). */
-  onUnmerged: () => void;
-  /** FB-145 — true while the unmerge refresh is in flight: the money cells
-   *  skeleton instead of painting the pre-tách numbers. */
-  ratesRefreshing: boolean;
-  selected: boolean;
-  onSelect: (id: number, next: boolean) => void;
-  /** FB-093: BKS combobox suggestions for the PHÂN XE quick edit. */
-  plateOptions: Array<{ value: string; label: string; searchText?: string }>;
-}) {
-  // Identity renders from business keys only — DB ids and id-derived codes
-  // never surface as user-visible text; absent keys collapse to '—'.
-  const lotLabel = row.billOrBookNumber || row.customsNumber || '—';
-  return (
-    <>
-    <tr
-      className="shipment-debit-row"
-      data-locked={row.lockStatus === 'LOCKED' ? '' : undefined}
-      data-selected={selected || undefined}
-      onClick={() => { if (canManage && mergeMode) onSelect(row.shipmentId, !selected); }}
-      title={canManage && mergeMode ? 'Chọn lô (gộp xe thu khách / xuất Debit Note)' : undefined}
-    >
-      <td className="shipment-debit-row__lead">
-        {canManage ? <span className="shipment-debit-row__lead-controls">
-          {/* Card 161026232359 — the leading tick the CUS asked for: the first
-              thing in the row, beside [+]. `stopPropagation` keeps the row's
-              own click (kept as a selection ALIAS) from toggling it a second
-              time; the tick is the row's own state, so it survives expand and
-              collapse and never rests on the row highlight alone.
-              Spec 23/10 §2: the tick only exists while the merge mode is on —
-              and it serves BOTH selection jobs (gộp LCL + xuất Debit Note on
-              locked lots), so every row stays tickable, not just LCL. */}
-          {mergeMode && (
-            <input
-              type="checkbox"
-              className="shipment-debit-row__select"
-              checked={selected}
-              aria-label={`Chọn lô ${lotLabel}`}
-              onClick={(event) => event.stopPropagation()}
-              onChange={(event) => onSelect(row.shipmentId, event.target.checked)}
-            />
-          )}
-          <button
-            type="button"
-            className="shipment-debit-row__expand-button"
-            aria-expanded={expanded}
-            aria-label={`${expanded ? 'Đóng' : 'Mở'} chi tiết lô ${lotLabel}`}
-            onClick={(event) => { event.stopPropagation(); onToggle(); }}
-          >
-            {expanded ? '−' : '+'}
-          </button>
-        </span> : <span aria-label="Chỉ xem tổng hợp">—</span>}
-      </td>
-      <td className="shipment-debit-row__identity">
-        <span className="shipment-debit-row__code">{lotLabel}</span>
-        <strong className="shipment-debit-row__customer">{row.customerName?.toUpperCase()}</strong>
-        {row.factoryName && <span className="shipment-debit-row__factory">({row.factoryName})</span>}
-        {row.factoryAddress && <span className="shipment-debit-row__address"><em>{row.factoryAddress}</em></span>}
-      </td>
-      <td className="shipment-debit-row__docs">
-        <span><small>Số Bill:</small> {row.billOrBookNumber ?? 'Chưa có'}</span>
-        <span><small>Số tờ khai:</small> {row.customsNumber ?? 'Chưa có'}</span>
-        {row.shipmentId && (
-          <Link
-            to={`/shipments/${row.shipmentId}`}
-            className="shipment-debit-row__detail-link"
-            title="Xem chi tiết lô hàng"
-            onClick={(e) => e.stopPropagation()}
-          >
-            Chi tiết →
-          </Link>
-        )}
-      </td>
-      <td className="shipment-debit-row__money">
-        <div className="record-cell-stack shipment-debit-row__freight">
-          {/* FB-145 — while the unmerge refresh is in flight the cell
-              skeletons (h-4 w-16, design direction 24/10): the pre-tách 0₫
-              must never repaint, and "Chưa xác định" only means something
-              once it comes from the fresh board. */}
-          {ratesRefreshing ? (
-            <Skeleton width={64} height={16} className="shipment-debit-row__rate-skeleton" />
-          ) : (
-            <span>{row.freightAuto == null ? 'Chưa xác định' : formatMoney(row.freightAuto)}</span>
-          )}
-          {/* F-2 (card 161026113900, spec §3.2): a freight the override
-              channel produced carries its reason beneath the money — the
-              "Ghép cước cùng Bill X" note names the group it belongs to
-              (thu: per-lot cước; trả: 1 dòng/chuyến trên Lô 1). */}
-          {row.freightOverrideReason && (
-            <small className="shipment-debit-row__freight-note" title={row.freightOverrideReason}>{row.freightOverrideReason}</small>
-          )}
-          {/* Card 211026024348 — the merged group's undo sits WHERE the merge
-              state shows (the "Ghép cước cùng Bill X" note under the money):
-              QA found no path back from a merged rev group. Same shared
-              action (and same unmerge endpoint) as /accounting/chot-debit. */}
-          {canManage && row.revGroupId != null && (
-            <UnmergeRevGroupAction
-              id={`shipment-debit-tach-nhom-${row.shipmentId}`}
-              groupId={row.revGroupId}
-              lotRef={lotLabel}
-              disabledReason={row.lockStatus === 'LOCKED'
-                ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
-                : null}
-              onUnmerged={onUnmerged}
-            />
-          )}
-        </div>
-      </td>
-      <td className="shipment-debit-row__money">{row.chiHoTotal == null ? 'Chưa xác định' : formatMoney(row.chiHoTotal)}</td>
-      <td className="shipment-debit-row__money shipment-debit-row__money--strong">
-        {ratesRefreshing ? (
-          <Skeleton width={64} height={16} className="shipment-debit-row__rate-skeleton" />
-        ) : (
-          row.receivableTotal == null ? 'Chưa xác định' : formatMoney(row.receivableTotal)
-        )}
-      </td>
-      <td className="shipment-debit-row__money">{row.payableTotal == null ? 'Chưa xác định' : formatMoney(row.payableTotal)}</td>
-      <td className="shipment-debit-row__money">{row.profit == null ? 'Chưa xác định' : formatMoney(row.profit)}</td>
-      <td>
-        {row.lockStatus === 'LOCKED'
-          ? <span className="shipment-debit-row__lock shipment-debit-row__lock--locked">Đã khóa</span>
-          : <span className="shipment-debit-row__lock shipment-debit-row__lock--open">Đang mở</span>}
-      </td>
-    </tr>
-      {canManage && expanded && (
-        <tr className="shipment-debit-expand">
-          <td colSpan={9}>
-            {/* FB-093: the lot's own LCL facts — THÔNG SỐ CONTAINER, the
-                PHÂN XE two-plate quick edit, group tags and Hủy ghép — sit
-                ABOVE the fee workspace so the settlement reads the group
-                state before touching money. */}
-            {row.cargoMode === 'LCL' && (
-              <DebitLotLclFacts row={row} plateOptions={plateOptions} onChanged={onSaved} />
-            )}
-            {/* Card _202: the fee catalog keys off the ROW's customer — the
-                list can span customers, so the page's filter is not the truth. */}
-            <ShipmentDebitWorkspace shipmentId={row.shipmentId} customerId={row.customerId} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
-          </td>
-        </tr>
-      )}
-    </>
-  );
+/** The filtered list's column totals — the tfoot's numbers, reused by the
+ *  phone summary strip (owner redesign 23/10: a settlement board MUST show
+ *  its totals; gate asserts they equal the sum of the rendered cells). */
+function listTotals(items: ShipmentDebitLotRow[]) {
+  return {
+    count: items.length,
+    receivable: sumMoneyStates(items.map((row) => moneyState(row.receivableTotal))),
+    payable: sumMoneyStates(items.map((row) => moneyState(row.payableTotal))),
+    profit: sumMoneyStates(items.map((row) => moneyState(row.profit))),
+  };
 }
 
 export function ShipmentDebitPage() {
@@ -227,15 +76,6 @@ export function ShipmentDebitPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [issuing, setIssuing] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
-  // Spec 23/10 (261023110000 §2) — the on-demand [📦 Gộp hàng] mode: OFF by
-  // default (no leading ticks anywhere on the board), ON reveals them plus
-  // the selection's floating bottom bar. Finishing a merge (or toggling off)
-  // exits the mode and drops the selection.
-  const [mergeMode, setMergeMode] = useState(false);
-  const exitMergeMode = () => {
-    setMergeMode(false);
-    setSelectedIds(new Set());
-  };
   // Case 2026-10-17 — the shadow line's trip list (open state is the user's;
   // a filter change keeps it where it was, the rows just re-render).
   const [shadowOpen, setShadowOpen] = useState(false);
@@ -321,11 +161,8 @@ export function ShipmentDebitPage() {
     }),
   });
   /** FB-145 (design direction 24/10) — the [Tách nhóm] refresh: invalidate
-   *  the money query IMMEDIATELY and skeleton the rate cells until the fresh
-   *  board lands, so the pre-tách 0₫ never repaints. Reused by the toast's
-   *  [Hoàn tác] (re-merge refreshes the same way). `refetchType: 'none'` +
-   *  ONE explicit refetch: a default invalidate would double-fetch the board
-   *  (invalidate refetches active queries, refetch refetches again). */
+   *  the money query IMMEDIATELY and pending-pill the money cells until the
+   *  fresh board lands, so the pre-tách 0₫ never repaints. */
   const refreshRates = () => {
     setRatesRefreshing(true);
     void (async () => {
@@ -344,14 +181,13 @@ export function ShipmentDebitPage() {
   // backend, which renders the plain line with no dead toggle.
   const shadowTrips = summary.data?.excludedTrips ?? [];
   const anyLockedSelected = items.some((row) => selectedIds.has(row.shipmentId) && row.lockStatus === 'LOCKED');
-  // FB-093 — the merge works on the SELECTION (row click; OPEN lots included —
-  // merging is a pre-lock action). Only ungrouped LCL lots may join a new
-  // group; the same-customer gate runs in the dialog and on the server.
+  // FB-093 — the merge works on the SELECTION. Only ungrouped LCL lots may
+  // join a new group; the same-customer gate runs in the dialog and server.
   const selectedRows = items.filter((row) => selectedIds.has(row.shipmentId));
   const mergeableRows = selectedRows.filter((row) => row.cargoMode === 'LCL' && row.revGroupId == null);
-  // GP-01 — the bar's "Tổng X tấn | Y CBM" clause, computed like the ĐV bar
-  // from the wire's cargo measures. A measure no selected lot carries drops
-  // from the clause entirely — never a fabricated 0 (testplan GP-01 case 3).
+  // GP-01 — the "Tổng X tấn | Y CBM" clause, computed like the ĐV bar from
+  // the wire's cargo measures. A measure no selected lot carries drops from
+  // the clause entirely — never a fabricated 0 (testplan GP-01 case 3).
   const selectionMeasureClause = (() => {
     let weight = 0;
     let volume = 0;
@@ -368,14 +204,15 @@ export function ShipmentDebitPage() {
       hasVolume ? formatVolumeCbm(String(volume)) : null,
     ].filter(Boolean).join(' | ');
   })();
+  // Owner redesign 23/10 (spec v2 (d)): [Gộp hàng] rides the table action
+  // bar beside [Xuất Debit Note] and arms only at ≥2 valid picks — the ticks
+  // themselves are now always on the board (no on-demand mode to flip).
   const mergeDisabledReason = mergeableRows.length < 2
     ? 'Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.'
     : null;
   const mergeDisabled = mergeDisabledReason != null;
   // FB-093 + card 161026232409: BKS suggestions for the PHÂN XE quick edit and
-  // the merge dialog's "BKS báo khách (ảo)" field — the bootstrap fleet's plates
-  // (the same fleet the Điều vận "Gán xe nhóm" dialog sources) plus every plate
-  // already on the page's lots (group trucks a dispatcher typed).
+  // the merge dialog's "BKS báo khách (ảo)" field.
   const plateOptions = (() => {
     const plates = new Set<string>();
     for (const truck of (bootstrap.data?.trucks ?? [])) {
@@ -397,12 +234,8 @@ export function ShipmentDebitPage() {
     searchText: `${customer.name} ${customer.fullName ?? ''}`,
   }));
 
-  // Sweep (card 20261008_1): the export used to disable silently on two of
-  // its three causes (only the no-customer case carried a wrapper `title`).
-  // Every cause now rides the aria-described + aria-disabled pattern
-  // (DisabledActionTip) so the reason is reachable on hover AND keyboard
-  // focus — `isDisabled`/the `disabled` attribute would take the button out
-  // of both.
+  // Sweep (card 20261008_1): every disable cause rides the aria-disabled
+  // pattern so the reason stays hover/focus-reachable.
   const exportDisabledReason = issuing
     ? 'Đang xuất Debit Note…'
     : !customerId
@@ -412,6 +245,17 @@ export function ShipmentDebitPage() {
         : null;
   const exportDisabled = exportDisabledReason != null;
 
+  // 'Xóa bộ lọc (N)': N counts every applied criterion of the strip.
+  const appliedFilterCount = (customerId ? 1 : 0) + (deliveryFrom || deliveryTo ? 1 : 0) + (lockStatus !== 'ALL' ? 1 : 0);
+  const totals = listTotals(items);
+
+  const selectLot = (id: number, next: boolean) => setSelectedIds((current) => {
+    const set = new Set(current);
+    if (next) set.add(id);
+    else set.delete(id);
+    return set;
+  });
+
   return (
     <div className="shipment-debit-page data-workspace">
       <Breadcrumbs items={[{ label: 'Tổng quan lô hàng', to: '/shipments' }, { label: 'Chi phí - Quyết toán' }]} />
@@ -419,60 +263,67 @@ export function ShipmentDebitPage() {
       {summary.isError && <Alert variant="error">Không thể tải danh sách quyết toán. Vui lòng thử lại.</Alert>}
 
       <section className="shipment-debit-workspace" aria-label="Danh sách lô quyết toán" aria-busy={summary.isFetching}>
-        {/* Owner 2026-10-17 (reverses card _202): the Khách hàng picker rides
-            the shared filter strip below as its first control, not its own bar.
-            The action row comes last, directly above the rows it acts on: both
-            bulk actions work on the selection below, so the DOM order is the
-            phone's reading order and desktop re-pins the title row on top via
-            grid order (page CSS), never a second copy of the cluster. */}
-        {/* Card 20260927_153: the filter strip owns its own layout and every
-            control width (FilterBar.css L1-L3), so the page hands it criteria
-            values and URL writers only — no filter rule, no applied-count and
-            no reset markup lives here. */}
+        {/* Owner redesign 23/10 (spec v2 (d)): ONE date mechanism (the unified
+            range picker) + the customer axis + the Khóa lô criterion, all
+            auto-applied; 'Xóa bộ lọc (N)' counts what is live. The topbar
+            month chip is hidden on this route (Topbar.tsx) — no 4th date
+            mechanism. */}
         <ShipmentDebitRibbon
           customerValue={customerId}
           customerOptions={customerOptions}
           onCustomerChange={(value) => { setSelectedIds(new Set()); updateParam('customer', value || null); }}
           deliveryFrom={deliveryFrom}
           deliveryTo={deliveryTo}
-          lockStatus={lockStatus}
-          onLockChange={(key) => { setSelectedIds(new Set()); updateParam('lock', key === 'ALL' ? null : key); }}
           onDeliveryRangeChange={({ from, to }) => {
-            // Same clearing law as the customer/lock criteria above (review
-            // symmetry fix): a narrowed range can hide picked lots, and stale
-            // ids must not resurrect as ticks when the range widens again.
+            // Same clearing law as the customer criterion: a narrowed range
+            // can hide picked lots, and stale ids must not resurrect as
+            // ticks when the range widens again.
             setSelectedIds(new Set());
             updateParam('from', from || null);
             updateParam('to', to || null);
           }}
-          onResetSecondary={() => { setSelectedIds(new Set()); updateParam('lock', null); }}
+          lockStatus={lockStatus}
+          onLockChange={(key) => { setSelectedIds(new Set()); updateParam('lock', key === 'ALL' ? null : key); }}
+          appliedCount={appliedFilterCount}
           onClear={() => {
             setSelectedIds(new Set());
+            updateParam('customer', null);
             updateParam('from', null);
             updateParam('to', null);
             updateParam('lock', null);
           }}
-          mergeMode={canManage ? mergeMode : undefined}
-          onToggleMergeMode={canManage ? () => {
-            // Spec 23/10 §2 — leaving the mode drops every pick so a reopened
-            // mode never shows a stale floating bar.
-            if (mergeMode) exitMergeMode();
-            else setMergeMode(true);
-          } : undefined}
         />
-        {/* The two-tier header (row 1: title + actions; row 2: the strip above).
-            The DOM position is the phone band's reading order — the actions
-            land directly above the rows they act on. Above 640px the workspace
-            grid re-pins this row on top (page CSS) so the title baseline keeps
-            its cluster: "Xuất Debit Note" (needs a customer + a locked lot in
-            the selection) carries the live brand CTA face (card 20260922_31's
-            model: brand fill when live, neutral when not). The merge CTA
-            moved to the selection's floating bottom bar (spec 23/10 §2/§4.2):
-            it acts on picked lots, so it lives where the picks are counted. */}
+        {/* The action row, directly above the rows it acts on (the phone
+            band's reading order; desktop re-pins it on top via page CSS).
+            [Gộp hàng] (secondary, layers icon — never an emoji) sits beside
+            [Xuất Debit Note] and arms at ≥2 valid picks; the GP-01 selection
+            clause rides between them while anything is picked. */}
         <header className="shipment-debit-header" data-component="shipment-debit-header">
           <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
+          {canManage && selectedRows.length > 0 && (
+            <p className="shipment-debit-header__selection">
+              {`Đang chọn ${selectedRows.length} lô${selectionMeasureClause ? ` · Tổng ${selectionMeasureClause}` : ''}`}
+              {mergeableRows.length > 0 && (
+                <span className="shipment-debit-header__selection-law">
+                  {` — Lô 1 giữ 100% tiền thu khách: ${mergeableRows[0]?.billOrBookNumber || mergeableRows[0]?.customsNumber || mergeableRows[0]?.code}`}
+                </span>
+              )}
+            </p>
+          )}
           {canManage && (
             <span className="shipment-debit-header__export">
+              <DisabledActionTip id="shipment-debit-merge-rev" reason={mergeDisabledReason}>
+                <UUIButton
+                  className="shipment-debit-merge-rev"
+                  size="sm"
+                  color="secondary"
+                  iconLeading={Layers}
+                  aria-disabled={mergeDisabled || undefined}
+                  onPress={() => { if (mergeDisabled) return; setMergeOpen(true); }}
+                >
+                  Gộp hàng
+                </UUIButton>
+              </DisabledActionTip>
               <DisabledActionTip id="shipment-debit-export" reason={exportDisabledReason}>
                 <UUIButton
                   className="shipment-debit-export"
@@ -495,14 +346,8 @@ export function ShipmentDebitPage() {
           <>
             {/* Card 20260924_2 F1 shadow line (BE 855aef81; FE half per BE spec):
                 fees on fulfillment-NULL trips stay out of chốt — say so plainly
-                instead of a silent gap. Hidden at zero; red needs-attention ink
-                now lives in the class rule. It sits BESIDE the scroll box
-                (card 20260924_9): inside the overflow-x wrap the line rode the
-                table's sideways scroll and its tail clipped at the right edge.
-                Case 2026-10-17: the line also NAMES what it excludes — a house
-                link-action after the static red text expands the trip
-                identities (Mã chuyến · lô · khách hàng · ngày chạy · phí).
-                No canManage gate: every role that can see the line can open it. */}
+                instead of a silent gap. Hidden at zero; sits BESIDE the scroll
+                pane (card 20260924_9). */}
             {(summary.data?.excludedCount ?? 0) > 0 && (
               <div className="shipment-debit-shadow">
                 <p className="shipment-debit-shadow-line" role="status">
@@ -520,8 +365,6 @@ export function ShipmentDebitPage() {
                     </button>
                   )}
                 </p>
-                {/* Rendered only while open: no dangling aria-controls id, no
-                    hidden DOM to keep in sync — aria-expanded carries state. */}
                 {shadowOpen && (
                   <ul id="shipment-debit-shadow-trips" className="shipment-debit-shadow-trips">
                     {shadowTrips.map((trip) => (
@@ -542,106 +385,38 @@ export function ShipmentDebitPage() {
                 )}
               </div>
             )}
-            {phone && !print ? <ShipmentDebitRecords key={JSON.stringify([customerId, deliveryFrom, deliveryTo, lockStatus])}
-              rows={items} canManage={canManage} mergeMode={mergeMode} selectedIds={selectedIds} expandedId={expandedId}
-              onToggle={toggleExpandedLot} onSaved={() => { void summary.refetch(); }}
-              onSelect={(id, next) => setSelectedIds((current) => {
-                const set = new Set(current); if (next) set.add(id); else set.delete(id); return set;
-              })}
-            /> : <div className="shipment-debit-table-wrap ledger-desktop">
-            <table className="shipment-debit-table">
-              <thead>
-                <tr>
-                  <th scope="col" className="shipment-debit-col--lead"><span className="sr-only">{canManage ? 'Chọn và mở rộng' : 'Chỉ xem'}</span></th>
-                  <th scope="col" className="shipment-debit-col--text">THÔNG TIN LÔ HÀNG</th>
-                  <th scope="col" className="shipment-debit-col--docs">Chứng từ</th>
-                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--freight">CƯỚC VẬN TẢI (Auto)</th>
-                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--chiho">TỔNG CHI HỘ</th>
-                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--receivable">TỔNG PHẢI THU KHÁCH</th>
-                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--payable">TỔNG PHẢI TRẢ</th>
-                  <th scope="col" className="shipment-debit-col--money shipment-debit-col--profit">LỢI NHUẬN</th>
-                  <th scope="col" className="shipment-debit-col--status">TRẠNG THÁI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((row) => (
-                  <DebitLotRow
-                    key={row.shipmentId}
-                    row={row}
-                    canManage={canManage}
-                    mergeMode={mergeMode}
-                    expanded={canManage && expandedId === row.shipmentId}
-                    onToggle={() => toggleExpandedLot(row.shipmentId)}
-                    onSaved={() => summary.refetch()}
-                    onUnmerged={refreshRates}
-                    ratesRefreshing={ratesRefreshing}
-                    selected={selectedIds.has(row.shipmentId)}
-                    onSelect={(id, next) => setSelectedIds((current) => {
-                      const set = new Set(current);
-                      if (next) set.add(id); else set.delete(id);
-                      return set;
-                    })}
-                    plateOptions={plateOptions}
-                  />
-                ))}
-              </tbody>
-            </table>
-            </div>}
-            {/* Scroll cue (card 20260924_9, re-hung card 191026100030): the
-                L1 table's 1108px floor scrolls sideways in 641–1107px windows
-                — say so plainly there (page CSS's own band). No `ledger-desktop`
-                on this element: that class hides it with `display: none
-                !important` at ≤640, which is exactly where the old reveal
-                lived — the cue could never show. At ≤640 the phone record
-                cards render instead, so no cue is needed. */}
-            <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
-            {/* Spec 23/10 (261023110000 §2/§4.2) — the selection's floating
-                bottom bar: raised by the [📦 Gộp hàng] mode once ≥1 lot is
-                ticked. GP-01: the bar carries the selection's total tấn/CBM
-                like the ĐV bar (the settlement wire now ships the cargo
-                measures) plus the merge law (Lô 1 giữ 100% tiền thu khách);
-                the CTA opens the "Gộp xe thu khách" popup and needs ≥2
-                ungrouped same-customer LCL lots. The bar also serves a
-                Debit-Note-only selection (no merge clause, no CTA arming)
-                because the ticks it summarizes feed the export too. */}
-            {canManage && mergeMode && !print && selectedRows.length > 0 && (
-              <div className="lcl-selection-bar shipment-debit-merge-bar" role="status">
-                <span className="lcl-selection-bar__totals">
-                  {`Đang chọn ${selectedRows.length} lô${selectionMeasureClause ? `: Tổng ${selectionMeasureClause}` : ''}`}
-                </span>
-                {mergeableRows.length > 0 && (
-                  <span className="lcl-selection-bar__first">
-                    — Lô 1 giữ 100% tiền thu khách:{' '}
-                    {mergeableRows[0]?.billOrBookNumber || mergeableRows[0]?.customsNumber || mergeableRows[0]?.code}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  className="lcl-selection-bar__clear"
-                  onClick={() => setSelectedIds(new Set())}
-                >
-                  Bỏ chọn
-                </button>
-                <button
-                  type="button"
-                  className="lcl-selection-bar__assign"
-                  aria-disabled={mergeDisabled || undefined}
-                  aria-describedby={mergeDisabled ? 'shipment-debit-merge-rev' : undefined}
-                  title="Gộp xe thu khách — Lô 1 giữ 100% cước thu, các lô còn lại 0₫"
-                  onClick={() => {
-                    if (mergeDisabled) return;
-                    setMergeOpen(true);
-                  }}
-                >
-                  Gộp xe thu khách
-                </button>
-                {mergeDisabled && (
-                  <span id="shipment-debit-merge-rev" className="lcl-selection-bar__hint">
-                    {mergeDisabledReason}
-                  </span>
-                )}
-              </div>
+            {phone && !print ? (
+              <>
+                <p className="shipment-debit-totals shipment-debit-totals--phone" data-testid="shipment-debit-totals-mobile">
+                  <span className="shipment-debit-totals__label">{`Tổng (${totals.count} lô)`}</span>
+                  <span>DT {totals.receivable == null ? '—' : formatMoney(totals.receivable)}</span>
+                  <span>TChi {totals.payable == null ? '—' : formatMoney(totals.payable)}</span>
+                  <span>LN {totals.profit == null ? '—' : formatMoney(totals.profit)}</span>
+                </p>
+                <ShipmentDebitRecords key={JSON.stringify([customerId, deliveryFrom, deliveryTo, lockStatus])}
+                  rows={items} canManage={canManage} selectedIds={selectedIds} expandedId={expandedId}
+                  onToggle={toggleExpandedLot} onSaved={() => { void summary.refetch(); }}
+                  onSelect={selectLot}
+                />
+              </>
+            ) : (
+              <DebitLotTable
+                items={items}
+                canManage={canManage}
+                selectedIds={selectedIds}
+                expandedId={expandedId}
+                onToggle={toggleExpandedLot}
+                onSaved={() => { void summary.refetch(); }}
+                onUnmerged={refreshRates}
+                ratesRefreshing={ratesRefreshing}
+                plateOptions={plateOptions}
+                onSelect={selectLot}
+              />
             )}
+            {/* Scroll cue (card 20260924_9): the table's 1348px floor scrolls
+                sideways below that width. At ≤640 the phone record cards
+                render instead, so no cue is needed there. */}
+            <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
           </>
         )}
       </section>
@@ -652,9 +427,9 @@ export function ShipmentDebitPage() {
           plateOptions={plateOptions}
           onClose={() => setMergeOpen(false)}
           onMerged={() => {
-            // Spec 23/10 §4.2 — completing the merge exits the mode: the
-            // checkbox column hides itself and the floating bar closes.
-            exitMergeMode();
+            // Completing the merge drops the selection: the group changed,
+            // the ticks must not survive as a stale pick set.
+            setSelectedIds(new Set());
             void summary.refetch();
           }}
         />

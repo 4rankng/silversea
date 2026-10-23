@@ -125,7 +125,14 @@ const ordinaryOwners: Record<string, string[]> = {
     ".commission-form .input"
   ],
   "src/pages/ShipmentDebitPage.css": [
-    ".shipment-debit-row__expand-button"
+    // Owner redesign 23/10: the ⋯ kebab trigger (28px, 40px at coarse) and
+    // the tờ khai copy glyph replaced the old expand button.
+    ".shipment-debit-menu__trigger",
+    ".shipment-debit-copy"
+  ],
+  "src/design-system/forms/UnifiedDateRangePicker.css": [
+    ".udrp__trigger",
+    ".udrp-nav"
   ],
   "src/pages/SettlementPrintPage.css": [
     ".settlement-expense-editor__actions .btn",

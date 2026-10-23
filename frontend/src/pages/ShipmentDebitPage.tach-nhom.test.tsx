@@ -16,7 +16,7 @@
  *  - promote-on-unmerge (FB-095) stays covered on the same surface: "Hủy ghép"
  *    of the principal names the Bill that inherits 100% of the cước thu.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -110,11 +110,14 @@ const summaryOf = (items: ShipmentDebitLotRow[]) => ({
   excludedTrips: [],
 });
 
-/** The card's own QA state: Lô 1 = 100% CƯỚC VẬN TẢI AUTO, Lô 2 = 0₫ + note. */
+/** The card's own QA state: Lô 1 = 100% cước (DOANH THU face), Lô 2 = 0₫ +
+ *  note. Redesign 23/10: the freight story rides the Doanh thu column and the
+ *  note rides its marker (title) — the wire law is unchanged. */
 const mergedPair = () => summaryOf([
   lclRow({
     billOrBookNumber: 'BL-1',
     freightAuto: 3150000,
+    receivableTotal: 3150000,
     revGroupId: 'g-rev-1',
     revGroupOrder: 1,
     revGroupMemberCount: 2,
@@ -124,6 +127,7 @@ const mergedPair = () => summaryOf([
     code: 'SHP-26-0002',
     billOrBookNumber: 'BL-2',
     freightAuto: 0,
+    receivableTotal: 0,
     freightOverrideReason: 'Ghép cước cùng Bill BL-1',
     revGroupId: 'g-rev-1',
     revGroupOrder: 2,
@@ -134,12 +138,13 @@ const mergedPair = () => summaryOf([
 
 /** Pre-merge face the server restores on tách nhóm (restoreRevPreMergeMoney). */
 const unmergedPair = () => summaryOf([
-  lclRow({ billOrBookNumber: 'BL-1', freightAuto: 3150000 }),
+  lclRow({ billOrBookNumber: 'BL-1', freightAuto: 3150000, receivableTotal: 3150000 }),
   lclRow({
     shipmentId: 102,
     code: 'SHP-26-0002',
     billOrBookNumber: 'BL-2',
     freightAuto: 700000,
+    receivableTotal: 700000,
   }),
 ]);
 
@@ -154,7 +159,14 @@ beforeEach(() => {
 });
 
 describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu khách', () => {
-  it('mỗi dòng trong nhóm mang <button> thật "Tách nhóm", aria nêu lô; dòng thường thì không', async () => {
+  /** Redesign 23/10 — the tách nhóm action rides the row's ⋯ kebab menu. */
+  const openTachNhom = async (label: string) => {
+    const row = screen.getAllByText(label)[0].closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: `Hành động lô ${label}` }));
+    return screen.findByRole('button', { name: `Tách nhóm ghép cước thu khách — lô ${label}` });
+  };
+
+  it('mỗi dòng trong nhóm mang <button> thật "Tách nhóm" (qua menu ⋯); dòng thường thì không', async () => {
     listSummary.mockResolvedValue(summaryOf([
       ...mergedPair().items,
       lclRow({ shipmentId: 103, code: 'SHP-26-0003', billOrBookNumber: 'BL-3', freightAuto: 900000 }),
@@ -162,21 +174,22 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     renderPage();
     await screen.findAllByText('BL-1');
 
-    const principal = screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' });
-    const member = screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' });
+    const principal = await openTachNhom('BL-1');
     expect(principal.tagName).toBe('BUTTON');
-    expect(member.getAttribute('type')).toBe('button');
-    // A lot outside a rev group has no action at all.
-    expect(screen.queryByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-3' })).toBeNull();
     // Ungated: no aria-disabled, no description.
     expect(principal.getAttribute('aria-disabled')).toBeNull();
     expect(principal.getAttribute('aria-describedby')).toBeNull();
+    // A lot outside a rev group has no tách item at all.
+    fireEvent.click(screen.getByRole('button', { name: 'Hành động lô BL-3' }));
+    expect(await screen.findByRole('menu')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-3' })).toBeNull();
   });
 
   it('nhóm đã chốt kế toán: aria-disabled + lý do qua aria-describedby, click bị guard (không mở dialog)', async () => {
     listSummary.mockResolvedValue(summaryOf([lclRow({
       billOrBookNumber: 'BL-1',
       freightAuto: 3150000,
+      receivableTotal: 3150000,
       lockStatus: 'LOCKED',
       lockedAt: '2026-10-20T10:00:00.000Z',
       revGroupId: 'g-rev-1',
@@ -186,7 +199,7 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     renderPage();
     await screen.findAllByText('BL-1');
 
-    const button = screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' });
+    const button = await openTachNhom('BL-1');
     expect(button.getAttribute('aria-disabled')).toBe('true');
     expect(button.hasAttribute('disabled')).toBe(false);
     const describedBy = button.getAttribute('aria-describedby');
@@ -202,10 +215,13 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     listSummary.mockResolvedValueOnce(mergedPair()).mockResolvedValueOnce(unmergedPair());
     renderPage();
     await screen.findAllByText('BL-2');
-    // Pre-tách face: Lô 1 = 100% CƯỚC VẬN TẢI (AUTO), Lô 2 = 0₫ + the note QA read.
-    expect(screen.getByText('Ghép cước cùng Bill BL-1')).toBeTruthy();
+    // Pre-tách face: Lô 1 = 100% cước on the Doanh thu column, Lô 2 = 0₫ +
+    // the note marker (redesign 23/10: one glyph, full reason in the title).
+    expect(screen.getByTitle('Ghép cước cùng Bill BL-1')).toBeTruthy();
+    expect(screen.getByTitle('Phát sinh nhưng tổng bằng 0')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
+    const tach = await openTachNhom('BL-2');
+    fireEvent.click(tach);
     const dialog = await screen.findByRole('dialog');
     expect(dialog.textContent).toContain('cước thu của từng lô trở về giá trước khi ghép');
 
@@ -219,27 +235,26 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
       ],
       dissolved: true,
     });
-    // The strip-less dialog confirm shares the pill's text — the LAST match
-    // once the dialog is open is the confirm.
+    // The menu-less confirm shares the action's text — the LAST match once
+    // the dialog is open is the confirm.
     fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
 
     await waitFor(() => expect(unmergeGroup).toHaveBeenCalledWith({ groupId: 'g-rev-1', dimension: 'REV' }));
     // The refetch (onUnmerged) re-reads the board: each lot's own cước is back.
     await waitFor(() => expect(listSummary.mock.calls.length).toBeGreaterThanOrEqual(2));
     expect(await screen.findByText(formatMoney(700000))).toBeTruthy();
-    expect(screen.getByText(formatMoney(3150000))).toBeTruthy();
-    // The lot-row "Ghép cước cùng Bill" note is shed (the toast may still
-    // name it — the note leaving the BOARD row is the invariant). Scoped to
-    // the BL-2 row, not a global query that the toast would match.
+    expect(screen.getAllByText(formatMoney(3150000)).length).toBeGreaterThan(0);
+    // The "Ghép cước cùng Bill" marker is shed from the BL-2 row.
     const bl2Row = (await screen.findAllByText('BL-2'))[0]!.closest('.shipment-debit-row')!;
     expect(bl2Row).not.toBeNull();
-    expect(bl2Row.textContent).not.toContain('Ghép cước cùng Bill');
+    expect(bl2Row.querySelector('[title="Ghép cước cùng Bill BL-1"]')).toBeNull();
   });
 
   it('cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm', async () => {
     listSummary.mockResolvedValue(summaryOf([lclRow({
       billOrBookNumber: 'BL-1',
       freightAuto: 3150000,
+      receivableTotal: 3150000,
       revGroupId: 'g-rev-1',
       revGroupOrder: 1,
       revGroupMemberCount: 2,
@@ -248,7 +263,8 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     await screen.findAllByText('BL-1');
 
     // The per-lot exit lives on the expanded strip (FB-095 "Hủy ghép").
-    fireEvent.click(screen.getByRole('button', { name: /Mở chi tiết lô BL-1/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hành động lô BL-1' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Mở chi tiết lô BL-1' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Hủy ghép' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
 
@@ -274,16 +290,18 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
 // ─── FB-145 (card 231026163927, QA R39 + design direction 24/10) ─────────────
 
 describe('FB-145 — Tách nhóm: skeleton cell cước + toast [Hoàn tác] re-merge', () => {
-  it('ngay sau khi tách: cell cước skeleton tới khi bảng mới về — không vẽ lại 0₫ stale', async () => {
+  it('ngay sau khi tách: cell tiền pending tới khi bảng mới về — không vẽ lại 0₫ stale', async () => {
     let releaseRefetch: ((value: ReturnType<typeof summaryOf>) => void) | null = null;
     listSummary.mockResolvedValueOnce(mergedPair());
-    // The refresh hangs until the test releases it — the skeleton window is
+    // The refresh hangs until the test releases it — the pending window is
     // observable.
     listSummary.mockImplementationOnce(() => new Promise((resolve) => { releaseRefetch = resolve; }));
     renderPage();
     await screen.findAllByText('BL-2');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
+    const tach = await screen.findByRole('button', { name: 'Hành động lô BL-2' });
+    fireEvent.click(tach);
+    fireEvent.click(await screen.findByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
     await screen.findByRole('dialog');
     unmergeGroup.mockResolvedValue({
       dimension: 'REV', groupId: 'g-rev-1', memberCount: 2,
@@ -296,19 +314,24 @@ describe('FB-145 — Tách nhóm: skeleton cell cước + toast [Hoàn tác] re-
     fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
 
     await waitFor(() => expect(unmergeGroup).toHaveBeenCalled());
-    // The money cells skeleton while the refresh is in flight (h-4 w-16 —
-    // the QA law: the pre-tách 0₫ must never repaint).
+    // FB-145 (redesign 23/10 face): the money cells carry the pending pill
+    // while the refresh is in flight — the pre-tách 0₫ must never repaint.
     await waitFor(() => {
-      expect(document.querySelectorAll('.shipment-debit-row__rate-skeleton').length).toBeGreaterThan(0);
+      const bl2Pending = (screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row')!)
+        .querySelector('td[data-col="receivable"] .shipment-debit-money__pending');
+      expect(bl2Pending).not.toBeNull();
     });
-    const bl2Row = (await screen.findAllByText('BL-2'))[0]!.closest('.shipment-debit-row')!;
-    expect(bl2Row.textContent).not.toContain(formatMoney(0));
+    const bl2Cell = (screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row')!)
+      .querySelector('td[data-col="receivable"]')!;
+    expect(bl2Cell.textContent).not.toBe('0');
 
-    // Release: the fresh board lands, the skeletons go, the restored cước
-    // renders.
+    // Release: the fresh board lands, the pending pill goes, the restored
+    // cước renders.
     releaseRefetch!(unmergedPair());
     await waitFor(() => {
-      expect(document.querySelector('.shipment-debit-row__rate-skeleton')).toBeNull();
+      const bl2After = (screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row')!)
+        .querySelector('td[data-col="receivable"] .shipment-debit-money__pending');
+      expect(bl2After).toBeNull();
     });
     expect(await screen.findByText(formatMoney(700000))).toBeTruthy();
   });
@@ -328,7 +351,8 @@ describe('FB-145 — Tách nhóm: skeleton cell cước + toast [Hoàn tác] re-
     renderPage();
     await screen.findAllByText('BL-2');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hành động lô BL-2' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
     await screen.findByRole('dialog');
     unmergeGroup.mockResolvedValue({
       dimension: 'REV', groupId: 'g-rev-1', memberCount: 2,

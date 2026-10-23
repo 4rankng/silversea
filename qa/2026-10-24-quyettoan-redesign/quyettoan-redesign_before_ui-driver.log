@@ -1,0 +1,13 @@
+PHASE=before front=http://localhost:7175 health=ok
+summary items=158 (unfiltered)
+DB identity before: count=158 latest=2026-10-23 11:13:45.796
+FAIL QT-RD-01 row heights ≤56px (158 rows) — min=127 max=182
+FAIL QT-RD-01 money cells right-align + share the header edge — {"alignments":[],"edgeDeltaMax":0,"headerCols":3}
+INFO BEFORE 'Chưa xác định' occurrences on screen: 557
+INFO BEFORE topbar month chip on route: true
+INFO BEFORE rows >90px: 158/158
+PASS QT-RD-07 phone renders the record cards (no table) — cards=20
+INFO BEFORE phone 'Chưa xác định' occurrences: 92
+DB identity after: count=158 latest=2026-10-23 11:13:45.796
+PASS DB identity: no persisted state changed by the run — count 158→158, latest 2026-10-23 11:13:45.796→2026-10-23 11:13:45.796
+SUMMARY phase=before failures=2
