@@ -51,6 +51,21 @@
   overflow-wrap: anywhere;
 }
 
+/* FB-145 — one inline action per toast ([Hoàn tác]): quiet secondary chip,
+   32px touch, keyboard reachable (a real <button> in Toast.tsx). Rides the
+   canonical --surface token like the toast itself (UI80: never the banned
+   --surface-1 alias). */
+.toast__action {
+  display: inline-flex; align-items: center;
+  height: 32px; margin-top: 6px; padding: 0 12px;
+  border: 1px solid var(--border-2); border-radius: 8px;
+  background: var(--surface); color: var(--ink);
+  font-size: var(--text-label-size, 13px); font-weight: 600;
+  cursor: pointer; transition: background 150ms ease, border-color 150ms ease;
+}
+.toast__action:hover { background: var(--surface-3); }
+.toast__action:focus-visible { outline: 2px solid var(--focus, var(--border-2)); outline-offset: 2px; }
+
 .toast__close {
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;

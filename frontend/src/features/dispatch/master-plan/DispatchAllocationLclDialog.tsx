@@ -162,8 +162,15 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
         actualTruckNo: actual,
         // A billing equal to (or copied from) the actual plate stays off the
         // payload — the server already treats copy-from-actual as the default
-        // (same wire shape as Đổi BKS nhóm / Gán xe nhóm).
-        ...(billing && billing !== actual ? { billingTruckNo: billing } : {}),
+        // (same wire shape as Đổi BKS nhóm / Gán xe nhóm). FB-141 sweep: a
+        // TOUCHED-but-blank ảo field sends `null` — an explicit clear back to
+        // the "lấy BKS thực" default — instead of omitting the field and
+        // leaving the stored ảo value orphaned in the DB.
+        ...(billing && billing !== actual
+          ? { billingTruckNo: billing }
+          : billingTouchedRef.current && !billing
+            ? { billingTruckNo: null }
+            : {}),
       });
       toast({
         kind: 'success',
@@ -172,6 +179,8 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
       onSaved({
         ...shipment,
         actualTruckNo: actual,
+        // Cleared ảo reads back as the actual plate (the fallback the server
+        // now holds after the explicit null).
         billingTruckNo: billing && billing !== actual ? billing : actual,
       });
       onClose();
@@ -276,11 +285,11 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
             onChange={(next) => { billingTouchedRef.current = true; setBillingTruckNo(next); }}
             onCustomValue={(text) => { billingTouchedRef.current = true; setBillingTruckNo(text); }}
             options={plateChoices}
-            placeholder="Mặc định copy BKS thực"
+            placeholder={actualTruckNo ? actualTruckNo : 'Trống = tự động dùng BKS thực'}
             searchable
             allowsCustomValue
             disabled={saving}
-            hint="Debit Note (FB-094) sẽ in BKS này, tuyệt đối không in BKS thực."
+            hint="Debit Note (FB-094) sẽ in BKS này, tuyệt đối không in BKS thực. Mặc định dùng BKS thực tế nếu để trống."
           />
         </div>
 

@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { ComboBox, matchesComboboxSearch } from '../../../components/untitled-ui/base/select/combobox';
 import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
+import { Header, ListBoxSection } from 'react-aria-components';
 
 interface USearchableFieldProps {
   size?: 'sm' | 'md';
@@ -16,7 +17,19 @@ interface USearchableFieldProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  options: Array<{ value: string; label: string; searchText?: string; supportingText?: string }>;
+  options: Array<{
+    value: string;
+    label: string;
+    searchText?: string;
+    supportingText?: string;
+    /**
+     * FB-138 (design direction 24/10, owner-approved) — group the option
+     * under a section header (uppercase label + divider). Options sharing a
+     * `section` render inside ONE grouped block, first-appearance order;
+     * an option WITHOUT `section` renders before the first group, headerless.
+     */
+    section?: string;
+  }>;
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
@@ -189,6 +202,67 @@ export function USearchableField({
     setInputValue(match.label);
     return { id: String(match.value), label: match.label };
   };
+  // FB-138 — grouped options: options carrying a `section` fold into RAC
+  // Section nodes (Header + Collection); the create footer and sectionless
+  // options stay plain items after them. First-appearance order.
+  type ComboItem = {
+    id: string | number;
+    label?: string;
+    searchText?: string;
+    supportingText?: string;
+    children?: ComboItem[];
+  };
+  const comboBoxItems: ComboItem[] = (() => {
+    const toComboItem = (option: { value: string; label: string; searchText?: string; supportingText?: string }): ComboItem => ({
+      id: option.value,
+      label: option.label,
+      searchText: option.searchText,
+      supportingText: option.supportingText,
+    });
+    const hasSections = options.some((option) => option.section != null && option.section !== '');
+    if (!hasSections) {
+      return options.map(toComboItem).concat(createOption ? [{
+        id: '__create__',
+        label: createOption.label ? createOption.label(inputValue ?? '') : '+ Thêm',
+        searchText: inputValue ?? '',
+        supportingText: undefined,
+      }] : []);
+    }
+    const sections: ComboItem[] = [];
+    const sectionById = new Map<string, ComboItem>();
+    for (const option of options) {
+      const key = option.section ?? '';
+      let group = sectionById.get(key);
+      if (group == null) {
+        group = { id: `section:${key}`, ...(key ? { label: key } : {}), children: [] };
+        sectionById.set(key, group);
+        sections.push(group);
+      }
+      group.children!.push(toComboItem(option));
+    }
+    return sections.concat(createOption ? [{
+      id: '__create__',
+      label: createOption.label ? createOption.label(inputValue ?? '') : '+ Thêm',
+      searchText: inputValue ?? '',
+      supportingText: undefined,
+    }] : []);
+  })();
+  const renderItem = (item: ComboItem) => (
+    <SelectItem
+      id={item.id}
+      value={item}
+      data-value={String(item.id)}
+      className={optionClassName}
+      label={item.label}
+      // The search chain rides textValue (filter-only) — rendering it
+      // as supportingText bloated every dropdown row (20260917_13).
+      // An explicit supportingText is different: the caller opts a
+      // specific field into a visible secondary line (FB-007: the
+      // factory phone in the picker options).
+      textValue={`${item.label} ${item.searchText ?? ''}`.trim()}
+      {...(item.supportingText ? { supportingText: item.supportingText } : {})}
+    />
+  );
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
       <ComboBox
@@ -285,17 +359,7 @@ export function USearchableField({
             : createOption
               ? { onInputChange: (text: string) => setInputValue(text) }
               : {})}
-        items={options.map((option) => ({
-          id: option.value,
-          label: option.label,
-          searchText: option.searchText,
-          supportingText: option.supportingText,
-        })).concat(createOption ? [{
-          id: '__create__',
-          label: createOption.label ? createOption.label(inputValue ?? '') : '+ Thêm',
-          searchText: inputValue ?? '',
-          supportingText: undefined,
-        }] : [])}
+        items={comboBoxItems as Array<{ id: string | number; label?: string; searchText?: string; supportingText?: string }>}
         placeholder={placeholder}
         isDisabled={disabled}
         isRequired={required}
@@ -307,22 +371,37 @@ export function USearchableField({
         className="csc-uui-field csc-control-boundary"
         {...(openApiRef ? { onReady: (api: { open: () => void }) => { openApiRef.current = api; } } : {})}
       >
-        {(item: { id: string | number; label?: string; searchText?: string; supportingText?: string }) => (
-          <SelectItem
-            id={item.id}
-            value={item}
-            data-value={String(item.id)}
-            className={optionClassName}
-            label={item.label}
-            // The search chain rides textValue (filter-only) — rendering it
-            // as supportingText bloated every dropdown row (20260917_13).
-            // An explicit supportingText is different: the caller opts a
-            // specific field into a visible secondary line (FB-007: the
-            // factory phone in the picker options).
-            textValue={`${item.label} ${item.searchText ?? ''}`.trim()}
-            {...(item.supportingText ? { supportingText: item.supportingText } : {})}
-          />
-        )}
+        {/* FB-138 — a section item renders as a grouped block (Header +
+            its options as STATIC SelectItems — no <Collection>: the dynamic
+            Collection wrapper feeds React's dev render-diff logger a node
+            whose `childNodes` getter throws, aborting the pick's commit
+            (browser dev builds; 2026-10-24 driver probe). React-aria's
+            combobox filter still drops emptied sections automatically. */}
+        {(item: {
+          id: string | number;
+          label?: string;
+          searchText?: string;
+          supportingText?: string;
+          children?: Array<{ id: string | number; label?: string; searchText?: string; supportingText?: string }>;
+        }) => (Array.isArray(item.children)
+          ? (
+            <ListBoxSection>
+              {item.label ? (
+                <Header
+                  // Design direction 24/10 (owner-approved): divider + label
+                  // uppercase text-xs font-semibold — house tokens
+                  // (text-quaternary = fg-quaternary, border-secondary) so
+                  // the header styles load on every surface that mounts this
+                  // field, not only pages that ship the csc-* stylesheet.
+                  className="csc-combobox-section-header border-t border-secondary px-2.5 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-quaternary"
+                >
+                  {item.label}
+                </Header>
+              ) : null}
+              {item.children.map((child) => renderItem(child))}
+            </ListBoxSection>
+          )
+          : renderItem(item))}
       </ComboBox>
 
     </div>

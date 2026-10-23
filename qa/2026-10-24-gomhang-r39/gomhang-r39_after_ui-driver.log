@@ -1,0 +1,46 @@
+PHASE=after front=http://localhost:7185 api=http://localhost:3012/api health=ok
+catalog classes (11): 1.25T, 2.5T, 3.5T, 5T, 8T, 10T, 15T, CONT20.LIGHT, CONT20.HEAVY, CONT40.LIGHT, CONT40.HEAVY
+PASS FB-138 migration converged: đủ 7 lớp xe tải + 4 cont
+PASS FB-138: [📦 Gộp hàng] toggle
+PASS FB-138: tích 2 lô LCL — A=true B=true
+PASS FB-138: floating bar thấy 2 lô — bar=2
+PASS FB-138: mở popup Gán xe nhóm
+PASS FB-138: tìm combobox Loại xe
+FB-138 dropdown options (11): ["Xe 1.25 tấn","Xe 2.5 tấn","Xe 3.5 tấn","Xe 5 tấn","Xe 8 tấn","Xe 10 tấn","Xe 15 tấn","Cont 20 - Trọng tải < 20 tấn","Cont 20 - Trọng tải > 20 tấn","Cont 40 nhẹ - Trọng tải < 20 tấn","Cont 40 nặng - Trọng tải > 20 tấn"]
+FB-138 listbox text: "XE TẢI (TẤN)Xe 1.25 tấnXe 2.5 tấnXe 3.5 tấnXe 5 tấnXe 8 tấnXe 10 tấnXe 15 tấnCONTAINERCont 20 - Trọng tải < 20 tấnCont 20 - Trọng tải > 20 tấnCont 40 nhẹ - Trọng tải < 20 tấnCont 40 nặng - Trọng tải > 20 tấn"
+PASS FB-138 AFTER: section header "XE TẢI (TẤN)"
+PASS FB-138 AFTER: section header "CONTAINER"
+PASS FB-138 AFTER: đủ options xe tải — 11 tải
+PASS FB-138 AFTER: giữ được Đội xe nội bộ trên lớp Cont — pickedCont=true pickedOwn=true held="Đội xe nội bộ SilverSea"
+PASS FB-138 AFTER: đổi loại xe sang Xe 5 tấn
+PASS FB-138 AFTER: đổi sang xe tải reset chọn Đội xe nội bộ (không giữ ID mồ côi) — {"carrierValue":"","warning":true}
+PASS FB-138 AFTER: warning nhẹ dưới field
+openAndPick: option Nhà xe never appeared
+FB-138 nhà xe options (lớp xe tải): ["ĐĂNG QUÂN — xe ngoài","PCAV — xe ngoài","VĨNH NIỆM ( C QUYỀN) — xe ngoài","J&K — xe ngoài","KIÊN LONG — xe ngoài","HOÀNG KIM — xe ngoài","SBI — xe ngoài","VC ĐỨC THỊNH — xe ngoài","HÀ AN — xe ngoài","ĐQ — xe ngoài","HỒNG TRANG — xe ngoài","SK — xe ngoài","QUANG PHÚ — xe ngoài","THẾ LUÂN — xe ngoài","DƯƠNG PHONG — xe ngoài","TPT — xe ngoài","ATS — xe ngoài","DH-BẮC NINH — xe ngoài","MINH KHÁNH — xe ngoài","BIỂN XANH — xe ngoài","VÂN LAN — xe ngoài","MMTRANS — xe ngoài","DUYÊN HẢI — xe ngoài","QUANG HOÀNG — xe ngoài","TRUNG THÀNH — xe ngoài","4GS — xe ngoài"]
+PASS FB-138 AFTER: danh sách Nhà xe KHÔNG có Đội xe nội bộ (xe tải)
+FB-127: {"missing":false,"bookingFirst":true,"clusters":["Chứng từ & định danh","Phân loại nghiệp vụ"],"hint":true}
+PASS FB-127 AFTER: Số Bill/Booking đứng TRƯỚC Hình thức XNK
+PASS FB-127 AFTER: 2 cụm có heading — ["Chứng từ & định danh","Phân loại nghiệp vụ"]
+PASS FB-127 AFTER: gate giữ nguyên — hint "Chọn Hình thức xuất nhập khẩu trước"
+PASS FB-141: mở rộng dòng K04573847543
+clearCombo BKS báo khách: value=""
+PASS FB-141: xóa trắng ô BKS báo khách
+PASS FB-141: bấm Lưu BKS
+PASS FB-141 AFTER: KHÔNG còn lỗi để trống
+PASS FB-141 AFTER: toast thành công
+FB-141 DB billing_truck_no=null
+PASS FB-141 AFTER DB: billing_truck_no = NULL (fallback BKS thực)
+PASS FB-145: dựng nhóm gộp qua API — status=201 {"groupId":"ac1a6469-2b6e-4221-b9ac-cbe253dd7beb","memberCount":2,"members":[{"shipmentId":150,"order":1,"reference":"TV
+FB-145 group state: {"id":150,"gid":"ac1a6469-2b6e-4221-b9ac-cbe253dd7beb","rev_group_order":1,"rev_vehicle_class_id":1}
+PASS FB-145: bấm [Tách nhóm] trên dòng thành viên
+PASS FB-145: xác nhận dialog
+PASS FB-145 AFTER: toast "Đã tách nhóm cước thành công"
+PASS FB-145 AFTER: nút [Hoàn tác] sống trong toast
+FB-145 member freight cell (reload): {"freight":"Chưa xác định"}
+PASS FB-145 AFTER: member = "Chưa xác định" (không còn 0₫ stale) — Chưa xác định
+FB-145 member loại xe combobox = ""
+PASS FB-145 AFTER: combobox TRỐNG (loại xe nhóm đã gỡ)
+FB-145 DB member state: {"id":147,"gid":null,"rev_vehicle_class_id":null}
+PASS FB-145 DB: nhóm đã giải tán (rev_group_id NULL)
+PASS FB-145 DB AFTER: rev_vehicle_class_id = NULL (loại xe nhóm gỡ)
+SUMMARY after: failures=0

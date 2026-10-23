@@ -248,7 +248,13 @@ test('updateLclTruckSchema: billingTruckNo null = xóa (BLANK ⇒ BKS thực fal
   assert.equal(updateLclTruckSchema.parse({ shipmentId: 1, billingTruckNo: null }).billingTruckNo, null);
   assert.equal(updateLclTruckSchema.parse({ shipmentId: 1, billingTruckNo: '51C-1' }).billingTruckNo, '51C-1');
   assert.equal('billingTruckNo' in updateLclTruckSchema.parse({ shipmentId: 1, actualTruckNo: '29H-1' }), false);
-  assert.throws(() => updateLclTruckSchema.parse({ shipmentId: 1, billingTruckNo: '   ' }));
+  // FB-141 (card 231026163927, QA R39 — supersedes the old min(1) law): a
+  // BLANK/whitespace billing value passes the wire (the service normalizes
+  // `trim() || null` into the clear) — the old 400 "BKS không được để trống"
+  // made the clear-to-default undoable, which is exactly what QA reported.
+  assert.equal(updateLclTruckSchema.parse({ shipmentId: 1, billingTruckNo: '   ' }).billingTruckNo, '');
+  // BKS THỰC keeps the strict law.
+  assert.throws(() => updateLclTruckSchema.parse({ shipmentId: 1, actualTruckNo: '   ' }));
 });
 
 test('tag của Lô 2..N trong nhóm CUS gộp là "Ghép thu cước cùng Lô 1"', () => {

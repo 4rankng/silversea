@@ -30,6 +30,7 @@ import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { operationalName } from '../db/master-data-name';
 import { loadRevenueOverrideByLot } from './revenue-override-read.service';
+import { effectiveLclFreight } from './lcl-effective-freight';
 import type { Tx } from './trip-shared';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { carrierKeysForLot } from './debit-settlement-shared';
@@ -193,6 +194,9 @@ export async function getAccountingDebitBoard(query: {
     tripId: s.freightRateSnapshots.tripId,
     freightAmount: s.freightRateSnapshots.freightAmount,
     surchargeAmount: s.freightRateSnapshots.surchargeAmount,
+    // FB-145 — the intake row's formula note decides live price vs group
+    // artifact (member-zero tail / "chờ định giá lại") for ungrouped lots.
+    formulaText: s.freightRateSnapshots.formulaText,
   }).from(s.freightRateSnapshots)
     .leftJoin(s.trips, eq(s.trips.id, s.freightRateSnapshots.tripId))
     .where(and(
@@ -204,10 +208,9 @@ export async function getAccountingDebitBoard(query: {
           and latest.trip_id is not distinct from ${s.freightRateSnapshots.tripId}
       )`,
     ));
-  const freightByLot = new Map<number, number>();
   const psAutoByLot = new Map<number, number>();
   const tripLegs = new Map<number, { freight: number; surcharge: number }>();
-  const intake = new Map<number, { freight: number; surcharge: number }>();
+  const intake = new Map<number, { freight: number; surcharge: number; formulaNote: string | null }>();
   for (const row of grainRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
@@ -221,39 +224,45 @@ export async function getAccountingDebitBoard(query: {
       acc.surcharge += leg.surcharge;
       tripLegs.set(lot, acc);
     } else {
-      intake.set(lot, leg);
+      intake.set(lot, { ...leg, formulaNote: row.formulaText ?? null });
     }
   }
   for (const lot of lotIds) {
     const pick = tripLegs.get(lot) ?? intake.get(lot);
     if (pick !== undefined) {
-      freightByLot.set(lot, pick.freight);
       psAutoByLot.set(lot, pick.surcharge);
     }
   }
 
-  // F-2 (card 161026113900, owner ruling b): CƯỚC THU (TỰ ĐỘNG) reads the
-  // override channel `trip_financial_state.revenue` for an LCL lot that is
-  // REV-grouped (the FB-093 merge re-prices the principal without override
-  // markers) or whose live trip carries an override stamp (FB-095
-  // transfers/re-stamps — the survivor of a dissolved 2-lot group is
-  // ungrouped). LCL-only keeps every FCL lot on the snapshot channel
-  // byte-for-byte. Spec §4: Lô 1 hiện 100% tiền cước nhóm, các lô phụ hiện
-  // 0 ₫. Phụ ps stays on the snapshot channel — the merge owns only the
-  // freight/revenue figure.
+  // F-2 (card 161026113900, owner ruling b) + FB-145 (card 231026163927):
+  // CƯỚC THU (TỰ ĐỘNG) follows the SAME pure rule as the debit board —
+  // `effectiveLclFreight` (lcl-effective-freight.ts): override channel for a
+  // REV-grouped / stamped LCL lot (Σ live-trip revenue, falling back to the
+  // snapshot channel for merged-but-undispatched lots), snapshot channel for
+  // everyone else — and, since FB-145, a group artifact (member-zero tail or
+  // the "chờ định giá lại" citation) behind an UNGROUPED lot's money reads
+  // "Chưa xác định", never a stale 0₫. Spec §4: Lô 1 hiện 100% tiền cước
+  // nhóm, các lô phụ hiện 0 ₫. Phụ ps stays on the snapshot channel — the
+  // merge owns only the freight/revenue figure.
   const overrideByLot = await loadRevenueOverrideByLot(executor, lotIds);
   const effectiveFreightByLot = new Map<number, number | null>();
   for (const lot of lots) {
-    const override = overrideByLot.get(lot.id);
-    const qualified = lot.cargoMode === 'LCL'
-      && (lot.revGroupId != null || (override?.stamped ?? false));
-    effectiveFreightByLot.set(lot.id,
-      qualified
-        // 161026204709: merged-but-undispatched lots hold their merge money
-        // as shipment-level snapshots (no trip ⇒ no override total) — fall
-        // back to the snapshot channel instead of forcing "Chưa xác định".
-        ? override?.total ?? freightByLot.get(lot.id) ?? null
-        : freightByLot.get(lot.id) ?? null);
+    const override = overrideByLot.get(lot.id) ?? null;
+    const legs = tripLegs.get(lot.id);
+    const snapshotChannel = legs !== undefined
+      ? { total: legs.freight, formulaNote: null }
+      : (intake.get(lot.id) != null
+        ? { total: intake.get(lot.id)!.freight, formulaNote: intake.get(lot.id)!.formulaNote }
+        : null);
+    effectiveFreightByLot.set(lot.id, effectiveLclFreight({
+      snapshotChannel,
+      override: override == null
+        ? null
+        : { total: override.total, reason: override.reason, stamped: override.stamped },
+      revGroupId: lot.revGroupId ?? null,
+      revGroupOrder: lot.revGroupOrder ?? null,
+      cargoMode: lot.cargoMode,
+    }).value);
   }
 
   // Lạch Huyện cells + Phát sinh ĐV: ops-expense rows per lot.

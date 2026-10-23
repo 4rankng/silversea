@@ -448,3 +448,62 @@ describe('REQ-19 — AssignTruckGroupDialog cargo-fit advisory', () => {
     expect(fit.textContent).toContain('3.5T');
   });
 });
+
+// ─── FB-138 (card 231026162327, QA R39 + design direction 24/10) ────────────
+
+describe('FB-138 — grouped Loại xe menu + nhà xe reset khi đổi sang xe tải', () => {
+  beforeEach(() => {
+    assignMock.mockReset();
+    toastMock.mockReset();
+    fleetMock.mockReset();
+    carrierCatalog = { options: carrierOptions, empty: false };
+    fleetMock.mockImplementation(async () => ({ items: [], total: 0, limit: 50, nextCursor: null }));
+  });
+
+  it('dropdown Loại xe là grouped menu: 2 section header "XE TẢI (TẤN)" / "CONTAINER", đủ options', async () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    const options = await openFieldOptions(/Loại xe tính cước trả ĐV/);
+    const texts = options.map((item) => item.textContent ?? '');
+    // The truck rungs are as visible as the cont classes (the QA repro: only
+    // 4 Cont options on a prod-mirror catalog).
+    expect(texts.some((t) => t.includes('Xe 3.5 tấn'))).toBe(true);
+    expect(texts.some((t) => t.includes('Container 20 feet'))).toBe(true);
+    // Section headers render inside the SAME listbox (role=group heading, not
+    // options — a grouped menu, not a segmented control).
+    const listbox = screen.getByRole('listbox');
+    const flat = listbox.textContent ?? '';
+    expect(flat).toContain('XE TẢI (TẤN)');
+    expect(flat).toContain('CONTAINER');
+    // DOM order: the truck header precedes its options, the container header
+    // follows them (sortOrder 1–7 tải, 8+ cont).
+    expect(flat.indexOf('XE TẢI (TẤN)')).toBeLessThan(flat.indexOf('Xe 3.5 tấn'));
+    expect(flat.indexOf('Xe 3.5 tấn')).toBeLessThan(flat.indexOf('CONTAINER'));
+  });
+
+  it('đang giữ Đội xe nội bộ (lớp Cont) rồi đổi sang Xe tải → reset nhà xe + warning, không giữ ID mồ côi', async () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Container 20 feet');
+    await pickCarrier('Đội xe nội bộ SilverSea');
+    const carrierCombo = screen.getByRole('combobox', { name: /^Nhà xe/ }) as HTMLInputElement;
+    expect(carrierCombo.value).toContain('Đội xe nội bộ SilverSea');
+
+    // Flip the class to a truck rung: the OWN pick is dropped loudly.
+    await pickVehicleClass('Xe 3.5 tấn');
+    await waitFor(() => {
+      expect(screen.getByText(/đã bỏ lựa chọn Đội xe nội bộ/)).toBeTruthy();
+    });
+    // The combobox no longer carries the dead OWN id (value cleared).
+    await waitFor(() => {
+      expect((screen.getByRole('combobox', { name: /^Nhà xe/ }) as HTMLInputElement).value).toBe('');
+    });
+    // A fresh outside pick resolves the warning.
+    fleetMock.mockImplementation(async (_resource: string, filters: { carrierId?: number }) => ({
+      items: filters.carrierId === 41 ? [{ id: 501, carrierId: 41, licensePlate: '29H-111.11', isActive: true }] : [],
+      total: 1, limit: 50, nextCursor: null,
+    }));
+    await pickCarrier('Nhà xe Hải Vân');
+    await waitFor(() => {
+      expect(screen.queryByText(/đã bỏ lựa chọn Đội xe nội bộ/)).toBeNull();
+    });
+  });
+});

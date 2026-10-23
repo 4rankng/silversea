@@ -8,10 +8,16 @@
 // its lot, gated by DisabledActionTip (aria-disabled, NEVER the `disabled`
 // attribute — the FB-093b pattern), confirming on the SHARED ConfirmDialog
 // and calling the EXISTING `POST /shipments/lcl/unmerge-group`
-// (`unmergeLclGroup`) — never a second unmerge path. Because cước thu is
-// per-lot (per boss 21/10), tách nhóm moves NO money: each lot keeps its own
-// AUTO đơn giá and only sheds the merge note (`keepRevPerLotMoney`); the
-// audit ride is SHIPMENT_LCL_GROUP_UNMERGED.
+// (`unmergeLclGroup`) — never a second unmerge path.
+//
+// FB-145 (card 231026163927, QA R39 + design direction 24/10 owner-approved):
+// the unmerge reverts every lot to its pre-merge price (a never-priced lot
+// reads "Chưa xác định" again — BE read rule) and clears the group's loại xe.
+// The success toast carries a [Hoàn tác] action for ~6.5s: it re-merges the
+// SAME members in the SAME order with the SAME class (the response hands
+// back vehicleClassId + ordered members), then the caller refreshes again.
+// No toolbar undo button (owner ruling 24/10) — the toast IS the undo
+// surface, and it dies with the toast.
 //
 // UI provenance: house primitive — the same native <button> + shared
 // ConfirmDialog + DisabledActionTip trio the dispatch board's "Tách nhóm"
@@ -21,7 +27,7 @@ import { useState } from 'react';
 import { ConfirmDialog } from '../../../components/UI';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { useToast } from '../../../components/shared/Toast';
-import { unmergeLclGroup } from '../../../api/dispatchPlanningClient';
+import { mergeLclRevGroup, unmergeLclGroup } from '../../../api/dispatchPlanningClient';
 import './UnmergeRevGroupAction.css';
 
 export interface UnmergeRevGroupActionProps {
@@ -33,9 +39,15 @@ export interface UnmergeRevGroupActionProps {
   lotRef: string;
   /** Why the action is unavailable (a settled/locked group) — null = armed. */
   disabledReason: string | null;
-  /** Called after a successful tách — the caller refetches its board. */
+  /** Called after a successful tách (and after a successful Hoàn tác) — the
+   *  caller invalidates its money queries and refetches the board. */
   onUnmerged: () => void;
 }
+
+/** The [Hoàn tác] window (design direction: 5–8s) — long enough to read the
+ *  toast and click, short enough that a stale undo cannot resurrect a group
+ *  the operator has since re-arranged. */
+const UNDO_TOAST_MS = 6500;
 
 export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onUnmerged }: UnmergeRevGroupActionProps) {
   const { toast } = useToast();
@@ -45,13 +57,39 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
   async function doUnmerge() {
     setBusy(true);
     try {
-      await unmergeLclGroup({ groupId, dimension: 'REV' });
-      toast({
-        kind: 'success',
-        message: 'Đã tách nhóm — cước thu của từng lô trở về giá trước khi ghép, ghi chú ghép đã được gỡ.',
-      });
+      const result = await unmergeLclGroup({ groupId, dimension: 'REV' });
       setConfirmOpen(false);
+      // Refresh FIRST (the board must never keep painting the stale group /
+      // stale 0₫), then offer the undo on top of the refreshed state.
       onUnmerged();
+      // A legacy class-less group cannot be auto-re-merged (the merge command
+      // requires its loại xe) — its toast stays informational.
+      toast(result.vehicleClassId != null
+        ? {
+            kind: 'success',
+            message: 'Đã tách nhóm cước thành công',
+            duration: UNDO_TOAST_MS,
+            action: {
+              label: 'Hoàn tác',
+              onPress: () => {
+                void (async () => {
+                  try {
+                    await mergeLclRevGroup({
+                      // Members come back in their stored order — Lô 1 first —
+                      // with the group's own loại xe (FB-145 response contract).
+                      shipmentIds: [...result.members].sort((a, b) => a.order - b.order).map((m) => m.shipmentId),
+                      vehicleSizeClassId: result.vehicleClassId!,
+                    });
+                    toast({ kind: 'success', message: 'Đã gộp lại nhóm cước thu khách' });
+                    onUnmerged();
+                  } catch (err) {
+                    toast({ kind: 'error', message: err instanceof Error ? err.message : 'Hoàn tác thất bại' });
+                  }
+                })();
+              },
+            },
+          }
+        : { kind: 'success', message: 'Đã tách nhóm cước thành công' });
     } catch (err) {
       toast({ kind: 'error', message: err instanceof Error ? err.message : 'Tách nhóm thất bại' });
     } finally {
@@ -80,7 +118,7 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
       <ConfirmDialog
         isOpen={confirmOpen}
         message={'Tách nhóm ghép cước thu khách? Cả nhóm giải tán: cước thu của từng lô trở về giá trước khi ghép'
-          + ' (lô thành viên không còn 0₫), ghi chú "Ghép cước" được gỡ.'}
+          + ' (lô chưa từng có giá hiện "Chưa xác định"), loại xe nhóm được gỡ khỏi các lô.'}
         confirmLabel={busy ? 'Đang tách…' : 'Tách nhóm'}
         onConfirm={() => void doUnmerge()}
         onCancel={() => { if (!busy) setConfirmOpen(false); }}

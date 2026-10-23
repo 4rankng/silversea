@@ -24,6 +24,7 @@ import { setLclLotRevClass, unmergeLclLot, updateLclTruck } from '../../../api/d
 import { ConfirmDialog } from '../../../components/UI';
 import { formatMoney } from '../../../lib/format';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
+import { vehicleClassSectionedOptions } from '../../../lib/vehicle-class-options';
 
 export interface DebitLotLclFactsProps {
   row: ShipmentDebitLotRow;
@@ -93,7 +94,12 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
       await updateLclTruck({
         shipmentId: row.shipmentId,
         ...(actual.trim() !== (row.actualTruckNo ?? '') ? { actualTruckNo: actual.trim() } : {}),
-        ...(billing.trim() !== (row.billingTruckNo ?? '') ? { billingTruckNo: billing.trim() } : {}),
+        // FB-141 (card 231026163927, spec 23/10 §4.1): BKS báo khách để trống
+        // là HỢP LỆ — gửi `null` để clear về fallback "lấy BKS thực", không
+        // gửi '' (schema cũ 400 "BKS không được để trống").
+        ...(billing.trim() !== (row.billingTruckNo ?? '')
+          ? { billingTruckNo: billing.trim() === '' ? null : billing.trim() }
+          : {}),
       });
       toast({ kind: 'success', message: 'Đã cập nhật BKS của nhóm xe' });
       onChanged();
@@ -190,6 +196,10 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             onCustomValue={setActual}
             hideLabel={false}
           />
+          {/* FB-141 — BKS báo khách là output TÙY CHỌN: ghost placeholder =
+              BKS thực khi có (người dùng thấy giá trị sẽ được dùng nếu bỏ
+              trống), fallback text hướng dẫn; hint chốt luật. Submit gửi
+              null khi trống (xem saveTruck). */}
           <USearchableField
             label="BKS báo khách (Ảo)"
             value={billing}
@@ -198,6 +208,8 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             allowsCustomValue
             searchable
             onCustomValue={setBilling}
+            placeholder={row.actualTruckNo ? row.actualTruckNo : 'Trống = tự động dùng BKS thực'}
+            hint="Mặc định dùng BKS thực tế nếu để trống"
           />
           <UUIButton
             size="sm"
@@ -217,7 +229,10 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
       {/* 161026232349 (§II.3.2 "Thu riêng từng lô") + spec 23/10 §4.1 — the
           lot's OWN thu outputs: Loại xe thu khách + Giá cước thu (auto theo
           loại / nhập tay). A lot inside a rev group keeps the group's outputs:
-          the fields disable and say so (the server refuses the same way). */}
+          the fields disable and say so (the server refuses the same way).
+          FB-145: sau Tách nhóm ô này phải TRỐNG (BE gỡ revVehicleClassId của
+          nhóm) — CUS chọn lại loại xe từng lô. FB-138: grouped menu
+          "XE TẢI (TẤN)" | "CONTAINER" — cùng builder shared với popup ĐV. */}
       <div className="debit-lot-lcl-facts__block">
         <small>CƯỚC THU KHÁCH (TỪNG LÔ)</small>
         <div className="debit-lot-lcl-facts__truck">
@@ -225,7 +240,7 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             label="Loại xe tính cước thu khách"
             value={revClassId}
             onChange={setRevClassId}
-            options={sortedClasses.map((vc) => ({ value: String(vc.id), label: vc.name, searchText: vc.code }))}
+            options={vehicleClassSectionedOptions(sortedClasses)}
             placeholder="Chọn loại xe (trọng tải / cont)"
             searchable
             disabled={revClassLocked}

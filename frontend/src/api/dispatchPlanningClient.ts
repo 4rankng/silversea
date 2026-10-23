@@ -257,8 +257,10 @@ export async function mergeLclRevGroup(input: {
   );
 }
 
-/** FB-093 — quick-edit a lot's (or its cost group's) BKS pair. */
-export async function updateLclTruck(input: { shipmentId: number; actualTruckNo?: string; billingTruckNo?: string }) {
+/** FB-093 — quick-edit a lot's (or its cost group's) BKS pair.
+ * FB-141: `billingTruckNo: null` (hoặc '') clears the CUS output — the lot
+ * falls back to reporting the ĐV-assigned BKS thực. */
+export async function updateLclTruck(input: { shipmentId: number; actualTruckNo?: string; billingTruckNo?: string | null }) {
   return api.post<{ updatedShipmentIds: number[] }>(SHIPMENTS.LCL_TRUCK, input);
 }
 
@@ -301,6 +303,13 @@ export async function unmergeLclGroup(input: { groupId: string; dimension: 'COST
     memberCount: number;
     members: Array<{ shipmentId: number; order: number; reference: string }>;
     dissolved: true;
+    /**
+     * FB-145 — the dissolved REV group's loại xe (vehicle_size_classes.id,
+     * captured before the unmerge clears it off the lots) so the FE toast's
+     * [Hoàn tác] can re-merge with the same class. Null for COST and for
+     * legacy class-less groups.
+     */
+    vehicleClassId: number | null;
   }>(SHIPMENTS.LCL_UNMERGE_GROUP, input);
 }
 
