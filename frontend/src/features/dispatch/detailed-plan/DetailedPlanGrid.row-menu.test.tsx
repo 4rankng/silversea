@@ -85,7 +85,7 @@ function makeRow(overrides: {
   } as unknown as DispatchDetailPlanRow;
 }
 
-function renderGrid(row: DispatchDetailPlanRow, props: { onOpenTripReassign?: (tripId: number) => void; onLclTruckUpdated?: () => void } = {}) {
+function renderGrid(row: DispatchDetailPlanRow, props: { onOpenTripReassign?: (tripId: number) => void; onLclTruckUpdated?: () => void; onOpenPair?: (row: DispatchDetailPlanRow) => void; onUnmergeLclGroup?: (groupId: string) => void; onDeleteLot?: (row: DispatchDetailPlanRow) => void } = {}) {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={new QueryClient()}>
@@ -112,7 +112,10 @@ function renderGrid(row: DispatchDetailPlanRow, props: { onOpenTripReassign?: (t
             onOpenTripReassign={props.onOpenTripReassign ?? vi.fn()}
             onCompleteExternalTrip={vi.fn()}
             onIssueOrder={vi.fn()}
+            onOpenPair={props.onOpenPair}
             onUnmergeLclLot={vi.fn()}
+            onUnmergeLclGroup={props.onUnmergeLclGroup}
+            onDeleteLot={props.onDeleteLot}
             onLclTruckUpdated={props.onLclTruckUpdated}
           />
         </MonthProvider>
@@ -171,13 +174,30 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
     expect(screen.getByRole('menuitem', { name: 'Phân xe lại' })).toBeTruthy();
   });
 
-  it('an unassigned row (no carrier on the plan) renders no row menu', () => {
-    renderGrid(makeRow({ dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } }));
-    expect(screen.queryByRole('button', { name: /Thao tác dòng/ })).toBeNull();
+  it('an unassigned row (no carrier on the plan) still gets the menu — "Sửa điều phối" is the assign verb', () => {
+    renderGrid(makeRow({
+      lclGroup: null,
+      dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+    }));
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.getByRole('menuitem', { name: 'Sửa điều phối' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeNull();
   });
 
   it('a completed assigned row renders no row menu (frozen history)', () => {
     renderGrid(makeRow({ taskStatus: 'COMPLETED', dispatch: { tripId: 9003, tripStatus: 'COMPLETED' } }));
     expect(screen.queryByRole('button', { name: /Thao tác dòng/ })).toBeNull();
+  });
+
+  it('owner redesign 23/10 — the menu carries Ghép chuyến, Tách nhóm and the LAST-position danger Xóa lô', () => {
+    renderGrid(makeRow(), { onOpenPair: vi.fn(), onUnmergeLclGroup: vi.fn(), onDeleteLot: vi.fn() } as never);
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    const items = screen.getAllByRole('menuitem');
+    const deleteItem = items.find((item) => item.textContent === 'Xóa lô');
+    expect(deleteItem).toBeTruthy();
+    expect(deleteItem).toHaveClass('dispatch-row-menu__item--danger');
+    // Xóa lô rides LAST — a destructive tap must cross the group's hairline.
+    expect(items[items.length - 1]).toBe(deleteItem);
+    expect(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeTruthy();
   });
 });

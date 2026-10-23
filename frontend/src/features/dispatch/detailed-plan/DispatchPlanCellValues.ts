@@ -5,6 +5,8 @@ import {
 } from '@tingting/shared';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import type { SearchableSelectOption } from '../../../design-system';
+import { formatAppointmentGroupLine } from '../../shipments/cus/cusUtils';
+import { formatISODate, formatNumber, formatVolumeCbm, formatWeight } from '../../../lib/format';
 
 // Cell value vocabulary shared by the plan editor: every carrier/vehicle
 // choice serialises into a prefixed string so the select stays a single
@@ -148,4 +150,50 @@ export function detailRowKey(row: DispatchDetailPlanRow): string {
   if (row.fulfillmentId != null) return `f-${row.fulfillmentId}`;
   if (row.shipmentContainerId != null) return `c-${row.shipmentContainerId}`;
   return `s-${row.shipmentId}-${row.shipmentCode ?? 'lot'}`;
+}
+
+/* ── Owner redesign 23/10 — shared schedule line ──────────────────────────
+ * The table cell and the mobile card both print the SAME schedule reading
+ * (one definition, two surfaces): stored plannedEndAt outranks the
+ * appointment-derived run timestamp, a present date renders ALONE (card
+ * 20261003_304), and the delivery-date fallback stays LABELLED (card
+ * 20261003_318). Lives beside the row-key helper so neither surface imports
+ * the other for it. */
+export function detailedScheduleLine(row: Pick<DispatchDetailPlanRow, 'plannedEndAt' | 'time'>): string {
+  if (row.plannedEndAt) return formatAppointmentGroupLine(row.plannedEndAt);
+  if (row.time.runAt) return formatAppointmentGroupLine(row.time.runAt);
+  if (row.time.runHour != null) {
+    return [
+      `${row.time.runHour}H`,
+      row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null,
+    ].filter(Boolean).join(' ');
+  }
+  return row.time.deliveryDate
+    ? `Ngày giao ${formatISODate(row.time.deliveryDate)}`
+    : '—';
+}
+
+/* ── Owner redesign 23/10 — LCL cargo lines, shared by table + card ────────
+ * Moved verbatim from DetailedPlanGrid.tsx (FB-092) so the mobile card list
+ * reads the SAME cargo/measure derivation; the grid re-exports them to keep
+ * the existing import surface. */
+export function lclCargoLine(row: DispatchDetailPlanRow): string | null {
+  const lcl = row.lcl;
+  if (!lcl) return null;
+  return [
+    lcl.packageCount != null ? formatNumber(lcl.packageCount) : null,
+    lcl.packageType?.trim() || null,
+  ].filter(Boolean).join(' ') || null;
+}
+
+export function lclMeasureLine(row: DispatchDetailPlanRow): string | null {
+  const lcl = row.lcl;
+  const weight = row.container.cargoWeightKg != null && row.container.cargoWeightKg !== ''
+    ? formatWeight(row.container.cargoWeightKg)
+    : null;
+  if (!lcl) return weight;
+  return [
+    weight,
+    lcl.cargoVolumeCbm ? formatVolumeCbm(lcl.cargoVolumeCbm) : null,
+  ].filter(Boolean).join(' · ') || null;
 }

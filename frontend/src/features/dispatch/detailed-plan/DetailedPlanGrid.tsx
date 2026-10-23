@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { EmptyState, TextField } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
@@ -16,10 +16,9 @@ import {
   type IssueOrderResult,
 } from './DispatchPlanEditorCell';
 import { QuickIssueOrderButton } from './QuickIssueOrderButton';
-import { DispatchPairAction } from './DispatchPairAction';
 import { DispatchRowActionsMenu } from './DispatchRowActionsMenu';
+import { DispatchPlanCardList } from './DispatchPlanCardList';
 import { deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
-import { formatAppointmentGroupLine } from '../../shipments/cus/cusUtils';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
@@ -28,41 +27,46 @@ import { formatISODate } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { DispatchDriverNote } from './DispatchDriverNote';
-import { detailRowKey } from './DispatchPlanCellValues';
+import { detailRowKey, detailedScheduleLine, lclCargoLine, lclMeasureLine } from './DispatchPlanCellValues';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
 import { LclSelectCheckbox } from '../LclSelectCheckbox';
 import '../LclSelectCheckbox.css';
 
+// FB-092 helpers moved to the shared cell-vocabulary module (owner redesign
+// 23/10: the mobile card list reads the same derivation). Re-exported here so
+// the existing import surface (tests, siblings) keeps working.
+export { lclCargoLine, lclMeasureLine } from './DispatchPlanCellValues';
+
 import '../../../styles/operational-table-typography.css';
 import './DetailedPlanGrid.css';
-import { formatNumber, formatVolumeCbm, formatWeight } from '../../../lib/format';
+import { formatWeight } from '../../../lib/format';
 
-/** FB-092 — the LCL CONTAINER cell's cargo line: `{số lượng} {bao bì}`
- *  (e.g. "5 PALLET"); each half joins only when the lot has one. Null when
- *  neither is set (the cell prints its "—" placeholder). */
-export function lclCargoLine(row: DispatchDetailPlanRow): string | null {
-  const lcl = row.lcl;
-  if (!lcl) return null;
-  return [
-    lcl.packageCount != null ? formatNumber(lcl.packageCount) : null,
-    lcl.packageType?.trim() || null,
-  ].filter(Boolean).join(' ') || null;
-}
+/** Owner redesign 23/10 — the phone card list takes over below this
+ *  CONTAINER width (measured on the grid's own wrapper, not the viewport:
+ *  the workspace is the layout container at every zoom/sidebar state). */
+const CARD_MODE_BREAKPOINT = 640;
 
-/** FB-092 — the LCL CONTAINER cell's measure line: `{tấn} · {CBM}`, each half
- *  joining only when the lot has one (CBM is optional for LCL). Falls back to
- *  the weight-only line on pre-FB-092 wire shapes. */
-export function lclMeasureLine(row: DispatchDetailPlanRow): string | null {
-  const lcl = row.lcl;
-  const weight = row.container.cargoWeightKg != null && row.container.cargoWeightKg !== ''
-    ? formatWeight(row.container.cargoWeightKg)
-    : null;
-  if (!lcl) return weight;
-  return [
-    weight,
-    lcl.cargoVolumeCbm ? formatVolumeCbm(lcl.cargoVolumeCbm) : null,
-  ].filter(Boolean).join(' · ') || null;
+/** Measures the wrapper's inline size and reports whether the card list
+ *  owns the layout. jsdom (unit tests) has no ResizeObserver: the table is
+ *  the default and card suites drive the card list directly. The anchor is
+ *  a STATE callback ref, not a mount-time effect: the wrapper only renders
+ *  once rows have loaded (the skeleton branch has none), so an effect keyed
+ *  on `[]` ran against a null element and never observed the real node. */
+function useCardLayoutMode(): [React.Dispatch<React.SetStateAction<HTMLDivElement | null>>, boolean] {
+  const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
+  const [isCardMode, setIsCardMode] = useState(false);
+  useEffect(() => {
+    if (!anchorEl || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      const next = width < CARD_MODE_BREAKPOINT;
+      setIsCardMode((current) => (current === next ? current : next));
+    });
+    observer.observe(anchorEl);
+    return () => observer.disconnect();
+  }, [anchorEl]);
+  return [setAnchorEl, isCardMode];
 }
 
 /** FB-092/FB-095 — the group tag's tooltip: dimension + truck identity. */
@@ -228,6 +232,22 @@ export function DetailedPlanGrid({
     });
     setGroupTruckError(null);
   };
+  // Owner redesign 23/10 — the row ⋯ menu replaces every inline trigger. Its
+  // "Sửa điều phối" opens the row's plan editor through this signal: the
+  // matching DispatchPlanEditorCell (table cell or hidden card mount) picks
+  // it up, runs the same guarded openEditor (live-trip reroute + branch
+  // decompose included) and consumes the request.
+  const [editRequest, setEditRequest] = useState<{ key: string; nonce: number } | null>(null);
+  const editNonceRef = useRef(0);
+  const requestEditPlan = (row: DispatchDetailPlanRow) => {
+    editNonceRef.current += 1;
+    setEditRequest({ key: detailRowKey(row), nonce: editNonceRef.current });
+  };
+  const consumeEditRequest = () => setEditRequest(null);
+  // Owner redesign 23/10 (spec A/B) — one markup per mode, measured on the
+  // grid's own wrapper: ≥640px keeps the table (scroll box + pinned actions
+  // column), below it the phone card list takes over.
+  const [layoutAnchorRef, isCardMode] = useCardLayoutMode();
   const toastCtx = useToastOptional();
   // `items` is ONE server page of the plan, so Xem nhóm can only see the
   // on-page members of the group — the menu says how many live elsewhere.
@@ -320,7 +340,34 @@ export function DetailedPlanGrid({
           description="Các container của lô đã phân bổ nhà xe sẽ xuất hiện ở đây."
         />
       ) : (
-        <div className="detailed-plan-grid__wrapper">
+        <div
+          ref={layoutAnchorRef}
+          className={`detailed-plan-grid__wrapper${isCardMode ? ' detailed-plan-grid__wrapper--cards' : ''}`}
+        >
+          {isCardMode ? (
+            <DispatchPlanCardList
+              items={items}
+              selectedLclShipmentIds={selectedLclShipmentIds}
+              onToggleLclSelection={onToggleLclSelection}
+              onEditPlan={requestEditPlan}
+              onChangeGroupTruckInline={openGroupTruckEdit}
+              onOpenTripReassign={onOpenTripReassign}
+              onOpenPair={onOpenPair}
+              onUnmergeLclGroup={onUnmergeLclGroup}
+              onDeleteLot={onDeleteLot}
+              onOpenGroupMenu={onUnmergeLclLot ? setGroupMenuRow : undefined}
+              onExpandNote={setExpandedNote}
+              onAtomicSave={onAtomicSave}
+              onCompleteExternalTrip={onCompleteExternalTrip}
+              onIssueOrder={onIssueOrder}
+              onEnsureFulfillment={onEnsureFulfillment}
+              autoOpenFulfillmentId={autoOpenFulfillmentId}
+              onAutoOpenConsumed={onAutoOpenConsumed}
+              onChangeGroupTruck={onChangeGroupTruck}
+              editRequest={editRequest}
+              onOpenRequestConsumed={consumeEditRequest}
+            />
+          ) : (
           <table className="detailed-plan-grid ops-table">
             <colgroup>
               <col className="detailed-plan-grid__col detailed-plan-grid__col--schedule" />
@@ -332,6 +379,7 @@ export function DetailedPlanGrid({
               <col className="detailed-plan-grid__col detailed-plan-grid__col--assignment" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--classification" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--actions" />
             </colgroup>
             <thead>
               <tr>
@@ -373,17 +421,20 @@ export function DetailedPlanGrid({
                 <th scope="col">Điều phối</th>
                 <th scope="col">Phân loại</th>
                 <th scope="col">Ghi chú</th>
+                {/* Owner redesign 23/10 — the ONE pinned action column: the ⋯
+                    row menu (+ the compact primary when ready) lives here,
+                    never inside a data cell. */}
+                <th scope="col" className="detailed-plan-grid__th--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {items.map((row) => {
-                // Row action BENEATH the notes (customer placement ruling):
-                // "Phát lệnh" for plated-not-issued rows, "Hoàn thành" for
-                // external trips in flight — same derivation as the
-                // assignment cell's chip; the two conditions are mutually
-                // exclusive. Computed up front so the notes cell can also
-                // tell the narrow-card CSS whether it renders anything at
-                // all (an all-empty notes cell collapses on phones).
+                // Owner redesign 23/10 — the primary row action ("Phát lệnh"
+                // for plated-not-issued rows, "Hoàn thành" for external trips
+                // in flight) rides the PINNED Thao tác column with the ⋯ menu,
+                // so the notes cell is notes-only again. The two conditions
+                // are mutually exclusive; same derivation as the assignment
+                // cell's chip.
                 const issueStatus = deriveDispatchIssueStatus({
                   vehicleAssigned: row.dispatch.assignedPlate != null,
                   carrierAssigned: row.dispatch.externalCarrierId != null,
@@ -396,27 +447,10 @@ export function DetailedPlanGrid({
                 const canCompleteExternal = row.dispatch.carrierType === 'EXTERNAL'
                   && row.dispatch.tripId != null
                   && row.taskStatus === 'DISPATCHED';
-                const actionLabel = canQuickIssue
-                  ? 'Phát lệnh'
-                  : canCompleteExternal ? 'Hoàn thành' : null;
-                const notesCellBlank = !row.notes.vehicleNote && !row.notes.customerNote && !row.notes.opsRecoveryNotes?.length && actionLabel == null;
-                // PM 03/10 (card 20261003_304): a present date renders ALONE —
-                // the '—' placeholder never prefixes it. The bare dash stays
-                // only for a fully unknown schedule (no date, no hour).
-                // Card 20261002_269 (PM R34): the saved Giờ trả hàng shows in
-                // this column the moment it is saved — the staged plannedEndAt
-                // outranks the appointment-derived run timestamp, so the
-                // dispatcher sees 13:00 immediately after Lưu, and after reload.
-                // Card 20261003_318: the delivery-date fallback is LABELLED —
-                // a bare date read as a stored return hour sent the user into
-                // the editor expecting it there.
-                const scheduleValue = row.plannedEndAt
-                  ? formatAppointmentGroupLine(row.plannedEndAt)
-                  : row.time.runAt ? formatAppointmentGroupLine(row.time.runAt)
-                    : row.time.runHour != null
-                      ? [`${row.time.runHour}H`, row.time.deliveryDate ? formatISODate(row.time.deliveryDate) : null].filter(Boolean).join(' ')
-                      : row.time.deliveryDate ? `Ngày giao ${formatISODate(row.time.deliveryDate)}`
-                        : '—';
+                // Schedule law (cards 20261003_304 / 20261002_269 /
+                // 20261003_318) — one shared derivation for table + card
+                // (DispatchPlanCellValues.detailedScheduleLine).
+                const scheduleValue = detailedScheduleLine(row);
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
@@ -604,6 +638,8 @@ export function DetailedPlanGrid({
                       onCompleteExternalTrip={onCompleteExternalTrip}
                       onIssueOrder={onIssueOrder}
                       onChangeGroupTruck={onChangeGroupTruck}
+                      openRequest={editRequest?.key === detailRowKey(row) ? editRequest : null}
+                      onOpenRequestConsumed={consumeEditRequest}
                     />
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại" data-label-short="Loại">
@@ -631,27 +667,16 @@ export function DetailedPlanGrid({
                           {`Lẻ · Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
                         </span>
                       ))}
-                      {/* SPEC 18/10/2026 §4 — one group action, anchored on Lô 1. */}
-                      {row.cargoMode === 'LCL'
-                        && row.lcl?.group
-                        && row.lcl.group.order === 1
-                        && onUnmergeLclGroup && (
-                          <button
-                            type="button"
-                            className="detailed-plan-grid__lcl-unmerge"
-                            title="Tách nhóm ghép — mỗi lô trở về cước trả ĐV độc lập"
-                            onClick={() => onUnmergeLclGroup(row.lcl!.group!.groupId)}
-                          >
-                            Tách nhóm
-                          </button>
-                        )}
-                      <DispatchPairAction row={row} onOpenPair={onOpenPair} />
+                      {/* Owner redesign 23/10 — "Tách nhóm" (SPEC 18/10/2026 §4,
+                          Lô 1 only) and "Ghép chuyến" (LoHangKepKetHop §3.1)
+                          moved into the row ⋯ menu: this cell is data-only. */}
                     </div>
                   </td>
-                  <td className={`detailed-plan-grid__cell detailed-plan-grid__cell--notes${notesCellBlank ? ' detailed-plan-grid__cell--blank' : ''}`} data-label="Ghi chú" data-label-short="Ghi chú">
-                    {/* FB-043: the note stack flexes inside the fixed body so
-                        the row action never clips — long notes give ground
-                        (their full text is one click away in the dialog). */}
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--notes" data-label="Ghi chú" data-label-short="Ghi chú">
+                    {/* Notes only (owner redesign 23/10): the actions moved to
+                        the pinned Thao tác column, so nothing here can cover a
+                        note again. Long notes clamp; the full text is one
+                        click away in the dialog. */}
                     <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--notes">
                       <div className="detailed-plan-grid__note-stack">
                         {row.notes.vehicleNote && (
@@ -680,44 +705,35 @@ export function DetailedPlanGrid({
                           </button>
                         )}
                       </div>
-                      <div className="detailed-plan-grid__note-actions">
-                        {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}
-                        {/* DIS-09 (card 211026130015) — the row menu (⋯) puts
-                            "Đổi nhà xe/BKS" one click from every assigned
-                            task row; grouped LCL opens the SAME pre-filled
-                            group-truck edit as the badge menu. */}
-                        <DispatchRowActionsMenu
-                          row={row}
-                          onChangeGroupTruckInline={openGroupTruckEdit}
-                          onOpenTripReassign={onOpenTripReassign}
-                        />
-                        {canCompleteExternal && (
-                          <button
-                            type="button"
-                            className="detailed-plan-grid__note-action"
-                            onClick={() => onCompleteExternalTrip(row)}
-                            aria-label={`Hoàn thành · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
-                            title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
-                          >
-                            Hoàn thành
-                          </button>
-                        )}
-                        {/* Card 211026005623 (FB-095) — the Điều vận surface's
-                            lot-delete affordance: the page owns the confirm +
-                            reason + role law; the FB-095 group guards run
-                            server-side (promote-on-delete). */}
-                        {onDeleteLot && (
-                          <button
-                            type="button"
-                            className="detailed-plan-grid__note-action detailed-plan-grid__note-action--delete"
-                            onClick={() => onDeleteLot(row)}
-                            aria-label={`Xóa lô · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
-                            title="Xóa lô hàng — nhóm ghép tự chuyển quyền Lô chính theo FB-095"
-                          >
-                            Xóa lô
-                          </button>
-                        )}
-                      </div>
+                    </div>
+                  </td>
+                  {/* Owner redesign 23/10 (spec B) — the ONE pinned action
+                      column: ⋯ menu always (non-completed rows) + the compact
+                      primary (Phát lệnh icon / Hoàn thành) when ready. Sticky
+                      right so it never scrolls away or covers a value. */}
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--actions" data-label="Thao tác">
+                    <div className="detailed-plan-grid__row-actions">
+                      {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}
+                      {canCompleteExternal && (
+                        <button
+                          type="button"
+                          className="detailed-plan-grid__note-action"
+                          onClick={() => onCompleteExternalTrip(row)}
+                          aria-label={`Hoàn thành · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
+                          title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
+                        >
+                          Hoàn thành
+                        </button>
+                      )}
+                      <DispatchRowActionsMenu
+                        row={row}
+                        onEditPlan={requestEditPlan}
+                        onChangeGroupTruckInline={openGroupTruckEdit}
+                        onOpenTripReassign={onOpenTripReassign}
+                        onOpenPair={onOpenPair}
+                        onUnmergeLclGroup={onUnmergeLclGroup}
+                        onDeleteLot={onDeleteLot}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -725,6 +741,7 @@ export function DetailedPlanGrid({
               })}
             </tbody>
           </table>
+          )}
         </div>
       )}
       <Modal

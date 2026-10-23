@@ -40,6 +40,7 @@ vi.mock('./useDispatchTaskTags', () => ({
 import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
+import { detailRowKey } from './DispatchPlanCellValues';
 
 const listResourcesMock = vi.mocked(listDispatchFleetResources);
 getTrailersMock.mockResolvedValue([]);
@@ -126,6 +127,8 @@ function renderCell(
       onOpenTripReassign={vi.fn()}
       onCompleteExternalTrip={handlers.onCompleteExternalTrip ?? vi.fn()}
       onIssueOrder={handlers.onIssueOrder ?? vi.fn().mockResolvedValue({})}
+      openRequest={{ key: detailRowKey(item), nonce: 1 }}
+      onOpenRequestConsumed={vi.fn()}
     />,
   );
 }
@@ -142,28 +145,22 @@ function issueButton(): HTMLButtonElement {
 }
 
 describe('DispatchPlanEditorCell disabled reasons (card 20261008_1 sweep)', () => {
-  it('a completed row explains the frozen plan and the trigger stays inert', () => {
+  it('a completed row is frozen history — even a stray open signal never opens the editor', async () => {
     mockFleetResources();
     renderCell(row({
       taskStatus: 'COMPLETED',
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 77, tripStatus: 'COMPLETED' },
     } as Partial<DispatchDetailPlanRow>));
 
-    const trigger = screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
-    expect(trigger).toHaveAttribute('aria-disabled', 'true');
-    expect(trigger).not.toBeDisabled();
-    expect(reasonOf(trigger)).toBe('Chuyến đã hoàn thành — kế hoạch điều phối đã chốt.');
-    fireEvent.click(trigger);
+    // Owner redesign 23/10: no inline trigger exists to lock; the row ⋯ menu
+    // does not render for completed rows, and openEditor itself refuses.
     expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(screen.getByText('Đã hoàn thành')).toBeTruthy());
   });
 
-  it('an editable row keeps the trigger armed (no reason) and opens the editor', async () => {
+  it('an editable row opens the editor through the menu signal', async () => {
     mockFleetResources();
     renderCell(row());
-    const trigger = screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
-    expect(trigger).not.toHaveAttribute('aria-disabled');
-    expect(trigger).not.toHaveAttribute('aria-describedby');
-    fireEvent.click(trigger);
     expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeTruthy();
   });
 
@@ -175,7 +172,6 @@ describe('DispatchPlanEditorCell disabled reasons (card 20261008_1 sweep)', () =
     const onAtomicSave = vi.fn(() => new Promise((resolve) => { resolveSave = resolve; })) as never;
     renderCell(row(), { onAtomicSave });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' }));
     await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' });
     fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
@@ -200,7 +196,6 @@ describe('DispatchPlanEditorCell disabled reasons (card 20261008_1 sweep)', () =
     const onIssueOrder = vi.fn().mockResolvedValue({});
     renderCell(row(), { onIssueOrder });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' }));
     await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' });
     fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '123' } });
 
@@ -217,7 +212,7 @@ describe('DispatchPlanEditorCell disabled reasons (card 20261008_1 sweep)', () =
     const onIssueOrder = vi.fn().mockResolvedValue({});
     renderCell(row(), { onIssueOrder });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' }));
+    await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' });
     await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' });
 
     const issue = issueButton();
@@ -246,7 +241,7 @@ describe('DispatchPlanEditorCell disabled reasons (card 20261008_1 sweep)', () =
       },
     } as Partial<DispatchDetailPlanRow>), { onAtomicSave });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' }));
+    await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' });
     await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' });
     fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));

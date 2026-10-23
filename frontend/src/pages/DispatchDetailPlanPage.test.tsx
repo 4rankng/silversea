@@ -141,17 +141,18 @@ beforeEach(() => {
 });
 
 describe('DispatchDetailPlanPage — ghép chuyến wiring (DISP-DP-12)', () => {
-  it('renders the row affordance and pairs the trip through the real dialog, then refreshes the plan', async () => {
+  it('renders the row affordance (⋯ menu) and pairs the trip through the real dialog, then refreshes the plan', async () => {
     vi.mocked(tripClient.getTrip).mockResolvedValue(tripDetail({ id: 901 }));
     vi.mocked(tripClient.createPair).mockResolvedValue({ id: 55, status: 'ACTIVE', pairKind: 'KET_HOP', warnings: [] } as never);
 
     renderPage();
 
-    const pairButtons = screen.getAllByRole('button', { name: 'Ghép chuyến' });
-    expect(pairButtons).toHaveLength(2);
-    expect(pairButtons.map(button => button.textContent?.trim())).toEqual(['Ghép', 'Ghép']);
-    expect(pairButtons[0]).toHaveAttribute('title', 'Ghép chuyến · TGHU900');
-    fireEvent.click(pairButtons[0]);
+    // Owner redesign 23/10: "Ghép chuyến" is a row ⋯ menu item, not an
+    // inline button — open the first row's menu and pick it.
+    const menus = screen.getAllByRole('button', { name: /Thao tác dòng · TGHU/ });
+    expect(menus).toHaveLength(2);
+    fireEvent.click(menus[0]!);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ghép chuyến' }));
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveTextContent('Ghép chuyến điều vận');
@@ -178,7 +179,14 @@ describe('DispatchDetailPlanPage — ghép chuyến wiring (DISP-DP-12)', () => 
     plan.items = [row(902, { dispatch: { ...row(902).dispatch, ...dispatch } }), row(901)];
     renderPage();
 
-    expect(screen.getAllByRole('button', { name: 'Ghép chuyến' })).toHaveLength(1);
+    // Only the qualifying row's menu carries the item.
+    const menus = screen.getAllByRole('button', { name: /Thao tác dòng · TGHU/ });
+    expect(menus).toHaveLength(2);
+    fireEvent.click(menus[0]!);
+    expect(screen.queryByRole('menuitem', { name: 'Ghép chuyến' })).toBeNull();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(menus[1]!);
+    expect(screen.getByRole('menuitem', { name: 'Ghép chuyến' })).toBeTruthy();
   });
 });
 

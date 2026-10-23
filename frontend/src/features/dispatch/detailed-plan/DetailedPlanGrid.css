@@ -200,56 +200,53 @@
 
 .detailed-plan-grid__wrapper {
   width: 100%;
-  /* No card chrome to clip: keep the wrapper transparent to overflow so the
-     grid's sticky thead can pin against the app-body scrollport. */
-  overflow: visible;
+  /* Owner redesign 23/10 (spec B): the table owns a horizontal rail INSIDE
+     the container — per-column floors via the table's min-width — instead of
+     squeezing into the viewport; the page itself never overflows sideways.
+     overflow-y: clip keeps the wrapper OUT of the vertical scroll business
+     (an `auto` y would swallow the thead's app-body sticky pin), so the
+     header keeps behaving like the unbounded /shipments worksheet. */
+  overflow-x: auto;
+  overflow-y: clip;
   border-top: 1px solid var(--border-color-secondary, var(--line));
+}
+
+/* The phone card list needs no rail: cards flow the page width. */
+.detailed-plan-grid__wrapper--cards {
+  overflow-x: visible;
+  overflow-y: visible;
+  border-top: 0;
 }
 
 .detailed-plan-grid {
   width: 100%;
-  min-width: 0;
+  /* Owner redesign 23/10: fixed layout + this floor is what balances the
+     board — every column's measured one-line budget (Khách hàng ≥180px,
+     Điều phối ≥200px with the SĐT line nowrap, Ghi chú ≥160px, Nâng/Trả
+     đủ 1 dòng, Thao tác pinned) holds at the floor and the scroll box
+     carries the overflow; wider canvases redistribute the same shares. The
+     old shares (schedule 17% / route 17.5%) were the "~230px row, 70%
+     trống" defect: two fat columns starved the rest. */
+  min-width: 1340px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
   font-size: var(--ops-table-supporting-size);
-  /* ── FB-043 (2026-10-14): the uniform row-height contract ─────────────
-     Two row-height regressions (R22 compact rows, ticket 141026001010) were
-     each fixed by re-tuning colgroup shares — a symptom patch: any future
-     rebalance that starves a column re-wraps a cell and rows go uneven
-     again. The system fix bounds the row at the component level instead:
-     every cell renders one fixed-height body (—__cell-body) that clips, and
-     every text line is one nowrap line with an ellipsis (title carries the
-     full value). Column widths now choose WHAT gets ellipsized, never how
-     tall the row is. The ≤900px card bands reset the body (cards own their
-     height). Budget: 3 meta/supporting lines (≈53px) + the notes cell's
-     3-line clamp above a never-clipped action row (28px + gap). */
-  --dpg-row-h: 84px;
 }
 
-/* Keep every fixed-layout column explicit and the complete set at 100%.
-   Otherwise a newly added column collapses to zero width and its wrapped
-   header label dictates the height of the entire header row. Phân loại needs
-   enough of the desktop workspace for its header as well as its one-word
-   saved value; a 5% share at the normal 1076px dispatch canvas made it wrap
-   letter by letter. Card 091026091550: with the one-line header law each
-   column's floor is its longest label, measured on the live 1144px canvas
-   (1440 viewport, expanded sidebar) at the 8px header gutter.
-   Ticket 141026001010 (round 17): the 091026091550 rebalance starved
-   Điều phối to 7.5% (~85px), so every plate/driver pair and the action row
-   wrapped onto extra lines — assigned rows towered at 164-198px beside 97px
-   unassigned ones (the R22 compact-row contract, regressed). The assignment
-   column returns to its pre-regression 12% share; the label budgets stay
-   measured (sort-button chrome included) on the 1041px worst-case canvas:
-   schedule 16.62%, route 17.2%, notes 5.84%. */
-.detailed-plan-grid__col--schedule { width: 17%; }
-.detailed-plan-grid__col--route { width: 17.5%; }
-.detailed-plan-grid__col--ports { width: 8.5%; }
-.detailed-plan-grid__col--documents { width: 10%; }
-.detailed-plan-grid__col--container { width: 8.25%; }
-.detailed-plan-grid__col--assignment { width: 12%; }
-.detailed-plan-grid__col--classification { width: 8%; }
-.detailed-plan-grid__col--notes { width: 10.25%; }
+/* Shares sum to exactly 100 (ports covers two <col> elements). Measured
+   floors at the 1340px minimum: schedule 134 · route 182 · ports 118×2 ·
+   documents 106 · container 148 · assignment 202 · classification 96 ·
+   notes 162 · actions 74. */
+.detailed-plan-grid__col--schedule { width: 10%; }
+.detailed-plan-grid__col--route { width: 13.6%; }
+.detailed-plan-grid__col--ports { width: 8.8%; }
+.detailed-plan-grid__col--documents { width: 7.9%; }
+.detailed-plan-grid__col--container { width: 11.05%; }
+.detailed-plan-grid__col--assignment { width: 15.1%; }
+.detailed-plan-grid__col--classification { width: 7.15%; }
+.detailed-plan-grid__col--notes { width: 12.1%; }
+.detailed-plan-grid__col--actions { width: 5.5%; }
 
 .detailed-plan-grid thead th {
   position: sticky;
@@ -270,14 +267,18 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-strong);
   line-height: var(--ops-table-header-line-height);
-  /* Card 091026091550: a header label is ONE line — the same nowrap the
-     global `thead th` rule mandates for every other table. This board kept
-     normal/anywhere for its multi-line CELLS, which let "THỜI GIAN & /
-     LỊCH TRÌNH" wrap even though its sort buttons were pinned one-line
-     below. Cell VALUES keep wrapping; the law is header-scoped. Every
-     column is sized above so its label fits this one line. */
-  white-space: nowrap;
+  /* Owner redesign 23/10 (spec addendum): a header label wraps AT SPACES up
+     to TWO lines and never more — the old nowrap law (card 091026091550) is
+     what starved the data columns, and a "…" cut is banned. word-break:
+     keep-all keeps words whole (the shattered-header defect, card
+     20260922_54); the column floors above carry the longest word. */
+  white-space: normal;
   overflow-wrap: normal;
+  word-break: keep-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .detailed-plan-grid__sort {
@@ -289,6 +290,14 @@
   letter-spacing: inherit;
   cursor: pointer;
   padding: 0;
+  width: 100%;
+  text-align: inherit;
+  /* Same two-line budget as the plain th: the label (and its inline ▲▼
+     marker) wraps at spaces, never mid-word, never past line 2. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .detailed-plan-grid__sort.is-sorted {
@@ -317,84 +326,96 @@
 
 .detailed-plan-grid td {
   /* FB-043: spacing-scale padding — the row contract's vertical rhythm comes
-     from the shared --space-* scale, not raw pixels (the R22 8px 10px pin is
-     superseded by the same 8px on-scale value). */
+     from the shared --space-* scale, not raw pixels. */
   padding: var(--space-sm) var(--space-sm);
   border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
 
-/* ── FB-043 contract rules — table form only (container wider than the
-   900px card switch). Each block mirrors the card bands' max-width so the
-   two modes can never co-apply. ──────────────────────────────────────── */
-@container (min-width: 901px) {
-  .detailed-plan-grid__cell-body {
-    height: var(--dpg-row-h);
-    overflow: hidden;
-  }
-
-  .detailed-plan-grid__cell-body--row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-xs);
-  }
-
-  .detailed-plan-grid__cell-body--notes {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-  }
-
-  /* The note text gives ground to the row action: the stack flexes (and
-     clips internally — the full note is one click away in the dialog), the
-     action row never clips so Phát lệnh/Hoàn thành stay clickable. */
-  .detailed-plan-grid__note-stack {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .detailed-plan-grid__note-actions {
-    flex: 0 0 auto;
-  }
-
-  .detailed-plan-grid__note-actions:empty {
-    display: none;
-  }
-
-  .detailed-plan-grid__note-actions .detailed-plan-grid__note-action,
-  .detailed-plan-grid__note-actions .detailed-plan-grid__pair-btn {
-    margin-top: 0;
-  }
-
-  /* One line per value: an ellipsized tail instead of a wrapped second line
-     — the wrapping was the inflation mechanism of both regressions. */
-  .detailed-plan-grid__line,
-  .detailed-plan-grid .ops-schedule__datetime {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* The pair tag rides the ellipsized container line; it must not force a
-     second line when the number is long. */
-  .detailed-plan-grid__pair-tag {
-    flex-shrink: 0;
-  }
-
-  /* The documents cell keeps its two-row grid inside the body; the grid's
-     own min-height already fits the budget. */
-  .detailed-plan-grid__documents {
-    min-height: 0;
-  }
+/* ── Owner redesign 23/10 — the compact content-sized row ──────────────────
+   The FB-043 fixed-height body (84px + overflow:hidden) is gone: it is what
+   buried "Phát lệnh/ĐẶT ĐUÔI" behind the note clamp and turned any column
+   starvation into a clip. Rows now size to their clamped content (~64-88px):
+   every value line is ONE nowrap ellipsized line (title carries the full
+   value — the sanctioned tooltip fallback), the note stack keeps its
+   3-line clamp, and the actions own their pinned column so nothing can
+   overlap a value anymore. */
+.detailed-plan-grid__cell-body {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
 }
 
-/* Multi-line cells wrap instead of clipping the spec's line stack. */
-.detailed-plan-grid__cell {
-  white-space: normal !important;
+.detailed-plan-grid__cell-body--row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.detailed-plan-grid__cell-body--notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.detailed-plan-grid__note-stack {
+  min-height: 0;
+}
+
+/* One line per value: an ellipsized tail instead of a wrapped second line —
+   wrapping was the inflation mechanism of every row-height regression
+   (R22 / 141026001010 / the 23/10 screenshots). */
+.detailed-plan-grid__line,
+.detailed-plan-grid .ops-schedule__datetime {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The pair tag rides the ellipsized container line; it must not force a
+   second line when the number is long. */
+.detailed-plan-grid__pair-tag {
+  flex-shrink: 0;
+}
+
+/* The phone's plate·driver·SĐT line is a single token run: it ellipsizes on
+   ONE line with the full trio in the title — never wraps per character (the
+   "0984/9634/84 on 3 lines" defect). */
+
+/* ── The pinned Thao tác column (spec B) ────────────────────────────────────
+   Sticky right inside the wrapper's horizontal rail: the ⋯ menu (and the
+   compact primary) stay reachable at every scroll offset; the opaque surface
+   + hairline read as a deliberate rail, and scrolling columns never bleed
+   under it. z-index sits above the scrolling cells but below the sticky
+   thead band; the corner cell outranks both. */
+.detailed-plan-grid th.detailed-plan-grid__th--actions,
+.detailed-plan-grid td.detailed-plan-grid__cell--actions {
+  position: sticky;
+  right: 0;
+  z-index: var(--z-base, 1);
+  background: var(--surface);
+  border-left: 1px solid var(--border-color-secondary, var(--line));
+}
+
+.detailed-plan-grid th.detailed-plan-grid__th--actions {
+  /* Corner cell (sticky top AND right): above the sticky header band so the
+     scrolling header never paints over the pinned rail. Rides the base token
+     the same way the band rule does, keeping the drift counters flat. */
+  z-index: calc(var(--z-base, 1) + 3);
+}
+
+.detailed-plan-grid__row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
   min-width: 0;
-  overflow-wrap: anywhere;
+}
+
+.detailed-plan-grid__cell {
+  min-width: 0;
 }
 
 .detailed-plan-grid__line {
@@ -455,24 +476,12 @@
   opacity: 0.5;
 }
 
-.detailed-plan-grid__documents {
-  display: grid;
-  grid-template-areas: "bill bill"
-    "combined direction";
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: minmax(0, 1fr) auto;
-  min-height: 48px;
-  gap: 3px 8px;
-}
-
-.detailed-plan-grid__documents-bill { grid-area: bill; }
-.detailed-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }
-
 .detailed-plan-grid__route-direction {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 2px 6px;
+  min-width: 0;
 }
 
 .detailed-plan-grid__route-direction .detailed-plan-grid__documents-direction {
@@ -545,7 +554,7 @@
   min-height: 26px;
   height: 28px;
   max-height: 36px;
-  margin-top: 6px;
+  margin-top: 0;
   padding: 0 10px;
   color: var(--fg-inverse);
   background: var(--accent);
@@ -572,27 +581,6 @@
   outline-offset: 2px;
 }
 
-/* Card 211026005623 — "Xóa lô" is destructive: the danger token instead of
-   the emerald action pill, so a destructive tap is never a green surprise. */
-.detailed-plan-grid__note-action--delete {
-  color: var(--danger);
-  background: transparent;
-  border: 1px solid var(--danger);
-}
-
-.detailed-plan-grid__note-action--delete:hover {
-  background: var(--danger-soft);
-}
-
-.detailed-plan-grid__note-action--delete:active {
-  background: var(--danger-soft);
-}
-
-.detailed-plan-grid__note-action--delete:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--danger) 55%, transparent);
-  outline-offset: 2px;
-}
-
 /* ── DIS-09 (card 211026130015) — row actions menu (⋯) ────────────────────
    The assigned task's "Đổi nhà xe/BKS" (and an issued row's "Phân xe lại")
    lives in this dropdown on the row itself, one click from the row instead of
@@ -602,31 +590,56 @@
 .dispatch-row-menu {
   position: relative;
   display: inline-flex;
-  margin-top: 6px;
+  flex: 0 0 auto;
 }
 
+/* Owner redesign 23/10 — the ONE action trigger of the row. Neutral kebab on
+   the control surface (white, hairline border — the control-surface law §3),
+   30px in the pinned table rail; the phone card bumps it to the 44px touch
+   floor (the card's only action surface — the sanctioned min:44 case the
+   filter locks document). */
 .dispatch-row-menu__trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  color: var(--fg-inverse);
-  background: var(--accent);
-  border: 1px solid transparent;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   cursor: pointer;
-  transition: background var(--t-fast);
+  transition: background var(--t-fast), border-color var(--t-fast);
 }
 
 .dispatch-row-menu__trigger:hover {
-  background: color-mix(in srgb, var(--accent) 88%, #000);
+  background: var(--surface-2);
+  border-color: var(--line-strong, var(--line-2));
 }
 
 .dispatch-row-menu__trigger:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--color-bg-success-solid, #17b26a) 55%, transparent);
   outline-offset: 2px;
+}
+
+.dpcard .dispatch-row-menu__trigger {
+  width: var(--control-touch-h, 44px);
+  height: var(--control-touch-h, 44px);
+}
+
+/* Xóa lô rides LAST, past a hairline, in the danger voice — the destructive
+   item must look separate before the page's confirm + lý do dialog opens. */
+.dispatch-row-menu__list button.dispatch-row-menu__item--danger {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--danger);
+}
+
+.dispatch-row-menu__list button.dispatch-row-menu__item--danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .dispatch-row-menu__list {
@@ -657,18 +670,6 @@
 
 .dispatch-row-menu__list button:hover {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
-}
-
-@media (max-width: 767px) {
-  .detailed-plan-grid__note-action {
-    display: inline-flex;
-    width: auto;
-    max-width: max-content;
-    min-height: 28px;
-    height: 30px;
-    max-height: 36px;
-    padding: 0 10px;
-  }
 }
 
 /* Direct release remains one icon target instead of a full-width empty pill. */
@@ -731,316 +732,6 @@
    the `Bộ lọc` trigger pack themselves. Nothing here may come back: a band that
    re-declares the strip's layout is the defect the bar's own sheet replaced. */
 
-/* ── Phone records ─────────────────────────────────────────────────────── */
-
-/* Nine operational columns no longer have a usable decision width below
-   this measure. Match the master-plan workspace and switch to labelled
-   records before badges and notes can collide. */
-@container (max-width: 900px) {
-  .detailed-plan-grid__wrapper {
-    overflow: visible;
-    border-top: 0;
-  }
-
-  .detailed-plan-grid {
-    display: block;
-    min-width: 0;
-  }
-
-  .detailed-plan-grid colgroup,
-  .detailed-plan-grid thead {
-    display: none;
-  }
-
-  .detailed-plan-grid tbody {
-    display: grid;
-    gap: 12px;
-  }
-
-  .detailed-plan-grid__row {
-    /* Facts pair on two flexible tracks; the intrinsic type/action track
-       owns header space instead of painting over the business identity. */
-    position: relative;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, max-content);
-    overflow: hidden;
-    border: 1px solid var(--border-color-secondary, var(--line));
-    border-radius: 10px;
-    background: var(--surface);
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
-  }
-
-  .detailed-plan-grid__row--plated {
-    background: var(--surface);
-  }
-
-  /* td specificity: must out-rank the base `.detailed-plan-grid td`
-     padding or the 12px desktop padding wins and the card stays airy. */
-  td.detailed-plan-grid__cell {
-    display: block;
-    min-width: 0;
-    padding: 4px 8px;
-    border: 0;
-  }
-
-  /* FB-043: the uniform-height contract (—__cell-body) is scoped to the
-     table form's (min-width: 901px) container band, so it never reaches the
-     card layout — cards own their height and their record lines wrap. */
-
-  /* Label rides on the same line as the value — no dedicated label row.
-     The field lines below are inlined too, so label + fields flow as one
-     dense record line per cell (the data-intensive treatment). */
-  .detailed-plan-grid__cell::before {
-    display: inline;
-    margin: 0 6px 0 0;
-    color: var(--fg-2);
-    content: attr(data-label-short);
-    font-size: var(--text-label-size);
-    font-weight: 600;
-    letter-spacing: 0;
-    line-height: 1.6;
-    text-transform: none;
-  }
-
-  .detailed-plan-grid__cell .detailed-plan-grid__line {
-    display: inline;
-    margin-right: 10px;
-    overflow-wrap: anywhere;
-  }
-
-  /* Middot separator between consecutive inline fields keeps the record
-     line scannable without giving each field its own row. */
-  .detailed-plan-grid__cell .detailed-plan-grid__line + .detailed-plan-grid__line::before {
-    margin-right: 10px;
-    color: var(--fg-3);
-    content: '·';
-  }
-
-  /* The schedule cell stacks time over direction inside `.ops-schedule` (the
-     shared ops-table flex column). Inlined, the schedule reads as ONE record
-     line — "Giờ 08:00 07/09/2026 trả hàng" — instead of three stacked ones. */
-  .detailed-plan-grid__cell--schedule .ops-schedule {
-    display: inline;
-  }
-
-  .detailed-plan-grid__cell--schedule .ops-schedule > * + * {
-    margin-left: 6px;
-  }
-
-  /* Cargo codes are single tokens ("20'HC", "EMCU6163403"): they move as a
-     unit to the next line instead of breaking mid-token. */
-  .detailed-plan-grid__cell--container .detailed-plan-grid__line {
-    overflow-wrap: normal;
-  }
-
-  /* The direction marker used to own a second line under the route value, with
-     the record separator stranded at the end of the first. Inline, the route
-     cell reads "Tuyến Hải Phòng · Nhập" on one line, which is what sets this
-     row's height. (The marker was an Untitled UI pill badge until card
-     20260930_215; it is plain text now — law §1 bans the pill in a data cell.) */
-  .detailed-plan-grid__documents-direction {
-    display: inline;
-    align-self: start;
-    justify-self: start;
-  }
-
-  .detailed-plan-grid__documents-direction > span {
-    display: inline-flex;
-    vertical-align: middle;
-  }
-
-  /* The dispatch decision cell keeps its editor layout — never inline it. */
-  td.detailed-plan-grid__cell--editable .detailed-plan-grid__line {
-    display: block;
-    margin-right: 0;
-  }
-
-  td.detailed-plan-grid__cell--editable .detailed-plan-grid__line + .detailed-plan-grid__line::before {
-    content: none;
-  }
-
-  /* Row 1: time | route; row 2: customer & lot | container. All four are
-     short field groups — pairing them halves the card height. */
-  /* Tablet records use explicit pairs. Auto-placement otherwise skips the
-     left column when later cells are assigned to column two. */
-  .detailed-plan-grid__cell--schedule,
-  .detailed-plan-grid__cell--documents { grid-row: 1; }
-  .detailed-plan-grid__cell--route,
-  .detailed-plan-grid__cell--container { grid-row: 2; }
-  .detailed-plan-grid__row td:nth-child(3) { grid-row: 3; grid-column: 1; }
-  .detailed-plan-grid__row td:nth-child(4) { grid-row: 3; grid-column: 2 / -1; padding-left: 10px; }
-  /* (row/column of the two interactive cells: see the paired rule below) */
-
-  .detailed-plan-grid__cell--schedule { grid-column: 1; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  .detailed-plan-grid__cell--documents { grid-column: 2; border-bottom: 1px solid var(--line); }
-  .detailed-plan-grid__cell--route { grid-column: 1; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-  .detailed-plan-grid__cell--ports { grid-column: 1 / -1; display: inline-block; padding: 2px 10px; border: 0; }
-  .detailed-plan-grid__cell--ports + .detailed-plan-grid__cell--ports { padding-left: 0; }
-  .detailed-plan-grid__cell--container { grid-column: 2 / -1; border-bottom: 1px solid var(--line); }
-
-  /* The two interactive blocks PAIR at tablet instead of each owning a
-     full-width row: at 768px a 742px row holding 30%-wide content (the
-     dispatch trigger, the note preview) reads as a hole in the middle of the
-     card. Paired, both columns close and the card ends on a straight edge.
-     The phone band below re-spans them — there a half column is too narrow
-     for the trigger. */
-  .detailed-plan-grid__cell--editable {
-    grid-row: 4;
-    grid-column: 1;
-    border-top: 0;
-    border-right: 1px solid var(--line);
-  }
-
-  .detailed-plan-grid__cell--notes {
-    grid-row: 4;
-    grid-column: 2 / -1;
-    border-top: 0;
-  }
-
-  td.detailed-plan-grid__cell--notes {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    align-content: start;
-    column-gap: 8px;
-    row-gap: 4px;
-  }
-
-  td.detailed-plan-grid__cell--notes::before {
-    margin: 0;
-  }
-
-  td.detailed-plan-grid__cell--notes > * {
-    grid-column: 2;
-    min-width: 0;
-  }
-
-  /* Natural header height includes the ordinary row action, so its full
-     type/action group cannot continue into the customer/Bill lane. */
-  td.detailed-plan-grid__cell--classification {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-    grid-row: 1;
-    grid-column: 3;
-    padding: 0 10px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .detailed-plan-grid__cell--classification .detailed-plan-grid__pair-btn {
-    margin-top: 0;
-    flex-shrink: 0;
-  }
-
-  td.detailed-plan-grid__cell--classification::before {
-    display: none;
-  }
-
-  /* An all-empty notes cell (no notes, no row action) collapses — it would
-     otherwise reserve a labelled blank band at the card tail. */
-  td.detailed-plan-grid__cell--blank {
-    display: none;
-  }
-}
-
-/* Phone records keep labels above their values. Compact column pairing and
-   supporting cargo metadata preserve density without mixing labels into
-   names or leaving separators at the start of a wrapped field. */
-@container (max-width: 640px) {
-  .detailed-plan-grid tbody {
-    gap: 6px;
-  }
-
-  .detailed-plan-grid__row {
-    box-shadow: none;
-  }
-
-  .detailed-plan-grid__cell {
-    min-width: 0;
-    padding: 4px 8px;
-  }
-
-  .detailed-plan-grid__cell + .detailed-plan-grid__cell {
-    border-top: 0;
-  }
-
-  /* 2026-09-27 phone rework — the label rides the record line it names
-     instead of owning one. Nine stacked uppercase label rows made a
-     eight-datum card 469px tall (measured at 390px) and the card the
-     operator's "wasted space" complaint was photographed on. The label is
-     now the sentence-case SHORT name (`data-label-short`, e.g. "Giờ",
-     "Nâng") in the house 11px support size; consecutive values keep the
-     exported `·` separator from the tablet band so wrapped fields never
-     open a line with a stray separator (§4). */
-  .detailed-plan-grid__cell::before {
-    display: inline;
-    margin: 0 6px 0 0;
-    color: var(--fg-2);
-    content: attr(data-label-short);
-    font-size: var(--text-label-size);
-    font-weight: 600;
-    letter-spacing: 0;
-    line-height: 1.5;
-    text-transform: none;
-  }
-
-  .detailed-plan-grid__cell .detailed-plan-grid__line {
-    display: inline;
-    margin-right: 8px;
-    max-width: 100%;
-    vertical-align: top;
-    overflow-wrap: anywhere;
-  }
-
-  .detailed-plan-grid__cell .detailed-plan-grid__line + .detailed-plan-grid__line::before {
-    margin-right: 8px;
-    color: var(--fg-3);
-    content: '·';
-  }
-
-  /* A missing field no longer drags its '—' through the middle of a record
-     line ("Khách LONG MINH · — · Bill: …"). The phone record drops the
-     placeholder slot exactly the way it already drops an empty Nâng/Trả pair
-     (card 20260926_5); the desktop table still prints it in its own column. */
-  .detailed-plan-grid__line[data-empty='true'] {
-    display: none;
-  }
-
-  .detailed-plan-grid__cell--route,
-  .detailed-plan-grid__cell--ports,
-  .detailed-plan-grid__cell--notes,
-  .detailed-plan-grid__cell--editable {
-    grid-column: 1 / -1;
-  }
-
-  .detailed-plan-grid__row td.detailed-plan-grid__cell--schedule {
-    grid-column: 1 / 3;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .detailed-plan-grid__cell--route {
-    border-bottom: 1px solid var(--line);
-  }
-
-  /* Route/direction facts keep the complete width below header/identity. */
-  .detailed-plan-grid__cell--documents {
-    padding-right: 10px;
-    border-right: 1px solid var(--line);
-  }
-
-  .detailed-plan-grid__documents {
-    min-height: 0;
-  }
-
-  .detailed-plan-grid__cell--notes,
-  .detailed-plan-grid__cell--editable {
-    border-top: 1px solid var(--line);
-  }
-
-}
-
-
 /* Classification column (Phân loại): every saved value uses one neutral,
    regular-weight tag. Card 20260922_27: a VALUE renders as plain text —
    the rounded border read as a button and contradicted the workboard text
@@ -1065,47 +756,6 @@
   font-weight: 700;
   color: var(--brand);
   white-space: nowrap;
-}
-
-/* Ghép chuyến row action (LoHangKepKetHop §3.1): only on unpaired OWN-carrier
- * rows that already have a trip. */
-.detailed-plan-grid__pair-btn {
-  margin-top: 6px;
-  white-space: nowrap;
-  min-height: 26px;
-  height: 28px;
-  max-height: 36px;
-  padding: 0 10px;
-  font-size: var(--text-caption-size);
-  line-height: 1;
-}
-
-/* Keep the two port cells and two cargo cells paired after the schedule and
-   customer identity; explicit rows prevent auto-placement leaving a blank
-   left half beside both the documents and container. */
-@container (max-width: 640px) {
-  .detailed-plan-grid__cell--schedule { grid-row: 1; }
-  .detailed-plan-grid__cell--route { grid-row: 2; }
-  /* Card 20260926_5 (content-shaped grid): the Nâng/Trả pair rides 2-up only
-     when both sides have values — an empty side disappears (no lone '—'
-     slot) and the populated side spans the full row. Attr-driven, replacing
-     the old static nth-child pairing. */
-  .detailed-plan-grid__cell--ports[data-empty='true'] { display: none; }
-  .detailed-plan-grid__row:has(.detailed-plan-grid__cell--ports[data-empty='true'])
-    .detailed-plan-grid__cell--ports:not([data-empty='true']) { grid-row: 3; grid-column: 1 / -1; }
-  .detailed-plan-grid__row:not(:has(.detailed-plan-grid__cell--ports[data-empty='true']))
-    .detailed-plan-grid__cell--ports:nth-of-type(3) { grid-row: 3; grid-column: 1; }
-  .detailed-plan-grid__row:not(:has(.detailed-plan-grid__cell--ports[data-empty='true']))
-    .detailed-plan-grid__cell--ports:nth-of-type(4) { grid-row: 3; grid-column: 2 / -1; padding-left: 10px; }
-  /* Route and container each carry a value list that needs the full 390px
-     record width (route + direction chip, or cont no. + type + weight): at
-     half width both wrapped, which dropped the value separator to the start
-     of the next line. Full width, each reads as one line. The Nâng/Trả pair
-     above stays 2-up — those values are one short name each. */
-  .detailed-plan-grid__cell--documents { grid-row: 4; grid-column: 1 / -1; }
-  .detailed-plan-grid__cell--container { grid-row: 5; grid-column: 1 / -1; }
-  .detailed-plan-grid__cell--editable { grid-row: 6; }
-  .detailed-plan-grid__cell--notes { grid-row: 7; }
 }
 
 /* The Ghi chú cell must wrap like every other notes surface (user report
@@ -1156,23 +806,152 @@
   list-style: disc;
 }
 
-/* SPEC 18/10/2026 §4 — Tách nhóm sits beside the group tag on Lô 1. */
-.detailed-plan-grid__lcl-unmerge {
-  border: 1px solid var(--app-border, #e4e7ec);
-  background: var(--app-surface-raised, #fff);
-  color: var(--app-text-muted, #475467);
-  border-radius: 6px;
-  padding: 1px 8px;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  cursor: pointer;
-}
-.detailed-plan-grid__lcl-unmerge:hover {
-  color: var(--app-text, #1d2939);
-  border-color: var(--app-border-strong, #d0d5dd);
+
+/* ── Owner redesign 23/10 (spec A) — the phone card list (<640px) ───────────
+   One card per lô/tác vụ, replacing the squeezed-table-with-td-hacks. Layout
+   reference: Tailkit `a-c-tables-13` (overflow rail + trailing actions) for
+   the table half, and the house record-card conventions (borders + inline
+   labels, record-table.css) for the card — rebuilt on house tokens. */
+.dpcard-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-/* FB-092 — LCL selection checkbox column alignment inside the schedule cell. */
-.detailed-plan-grid__cell--schedule .react-aria-Checkbox {
-  margin-bottom: 4px;
+.dpcard {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color-secondary, var(--line));
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.dpcard--plated {
+  background: var(--surface);
+}
+
+/* Header: identity + Loại badge + status chip + the single 44px ⋯ menu. */
+.dpcard__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dpcard__identity {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dpcard__customer {
+  font-size: var(--ops-table-primary-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-primary-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dpcard__bill {
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Loại = plain text (§1 data-cells-are-text law: no pill bubble). */
+.dpcard__type {
+  flex: 0 0 auto;
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  font-weight: var(--fw-semibold, 600);
+}
+
+.dpcard__issue {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.dpcard .dispatch-row-menu {
+  margin-left: auto;
+}
+
+/* Body: cargo · tuyến 2 dòng · giờ · xe/SĐT — one line each, ellipsized with
+   the full value in title (the SĐT line NEVER wraps per character). */
+.dpcard__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dpcard__line {
+  font-size: var(--ops-table-supporting-size);
+  line-height: var(--ops-table-supporting-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dpcard__line--strong {
+  font-size: var(--ops-table-primary-size);
+  font-weight: var(--ops-table-primary-weight);
+  line-height: var(--ops-table-primary-line-height);
+}
+
+.dpcard__line--muted {
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+}
+
+/* Plate · driver · SĐT: data face for the digit-heavy run. */
+.dpcard__line--vehicle {
+  font-family: var(--font-data, inherit);
+}
+
+.dpcard__group {
+  justify-self: start;
+}
+
+/* Ghi chú: one ellipsized line; the full text reopens in the shared dialog. */
+.dpcard__note {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--fg-2);
+  font: inherit;
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Foot: the ONE primary action when the row is ready (Phát lệnh / Hoàn
+   thành) — full-width pill on the touch floor. */
+.dpcard__foot {
+  display: flex;
+  gap: 8px;
+}
+
+.dpcard__foot .detailed-plan-grid__note-action {
+  flex: 1 1 auto;
+  height: 36px;
+}
+
+/* The hidden plan-editor mount: the card prints its own compact facts, the
+   cell contributes only its (body-portalled) dialog. */
+.dpcard__editor {
+  display: none;
 }
