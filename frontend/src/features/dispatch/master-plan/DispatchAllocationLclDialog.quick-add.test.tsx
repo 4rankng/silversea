@@ -56,6 +56,7 @@ vi.mock('../../../components/shared/Toast', () => ({
 import {
   createCarrierFleetVehicle,
   createInternalTruck,
+  updateLclTruck,
 } from '../../../api/dispatchPlanningClient';
 
 const lclShipment = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
@@ -192,18 +193,45 @@ describe('DispatchAllocationLclDialog — quick-add BKS trong dialog Phân bổ 
     }));
   });
 
-  it('draft của dialog phân bổ sống sót trọn vẹn qua vòng quick-add (BKS báo khách đã sửa tay không bị nuốt)', { timeout: 20_000 }, async () => {
+  it('draft BKS THỰC sống sót trọn vẹn qua vòng quick-add (dialog phân bổ không đóng)', { timeout: 20_000 }, async () => {
     render(<DispatchAllocationPopover shipment={lclShipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
-    fireEvent.change(bksField(/BKS báo khách/), { target: { value: '30C-888.88' } });
+    fireEvent.change(bksField(/BKS thực/), { target: { value: '29C-066.55' } });
     fireEvent.click(screen.getByRole('button', { name: /Thêm nhanh/ }));
     fireEvent.change(await screen.findByLabelText('Biển số xe'), { target: { value: '29C-066.55' } });
     fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
 
+    // The typed draft survives the nested quick-add round-trip untouched.
     await waitFor(() => expect(bksField(/BKS thực/)).toHaveValue('29C-066.55'));
-    // Hand-edited BKS ảo stays; the untouched auto-copy law never clobbers it.
-    expect(bksField(/BKS báo khách/)).toHaveValue('30C-888.88');
     expect(screen.getByText('Phân bổ nhà xe')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Lưu phân bổ' })).toBeTruthy();
+  });
+
+  // GP-03 sweep (audit £100, 2026-10-24) — spec 23/10 §1: the ĐV allocation
+  // dialog carries NO BKS báo khách (ảo) editor (same absence law as the
+  // "Gán xe nhóm" popup, AssignTruckGroupDialog.test.tsx) and its save writes
+  // ONLY the BKS thực fact (a stored ảo value belongs to the CUS).
+  it('không còn BKS báo khách trong allocation dialog ĐV — payload chỉ có BKS thực', async () => {
+    render(<DispatchAllocationPopover
+      shipment={lclShipment({ billingTruckNo: '30C-999.99' })}
+      onClose={vi.fn()}
+      onSaved={vi.fn()}
+    />);
+    // No ảo editor — not as a field, not as a per-lot cluster, not in prose.
+    expect(screen.queryByRole('combobox', { name: /BKS báo khách/ })).toBeNull();
+    expect(screen.queryByLabelText(/BKS báo khách/)).toBeNull();
+    expect(screen.queryByText(/Debit Note .* sẽ in BKS này/)).toBeNull();
+    expect(screen.getByRole('combobox', { name: /BKS thực/ })).toBeTruthy();
+
+    fireEvent.change(bksField(/BKS thực/), { target: { value: '29C-066.88' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+    await waitFor(() => expect(vi.mocked(updateLclTruck)).toHaveBeenCalledWith({
+      shipmentId: 2,
+      actualTruckNo: '29C-066.88',
+    }));
+    // The ĐV write NEVER carries a billingTruckNo of any shape.
+    const payload = vi.mocked(updateLclTruck).mock.calls.at(-1)![0] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('billingTruckNo');
+    expect(payload).not.toHaveProperty('billingTruckNos');
   });
 });

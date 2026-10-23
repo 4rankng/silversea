@@ -37,6 +37,14 @@ Gates: BE unit 338 pass (`lcl-unmerge-revert-r39.test.ts` mới — pure rule +
 wire + source pins), FE full 5542 pass, tsc BE/FE 0, lint 0, `make build` OK,
 Playwright before/after 2 phase 0 fail (rung 3, artifacts kèm folder).
 
+GP-03 sweep (audit £100, 24/10 chiều): **xóa ô "BKS báo khách (ảo)" khỏi
+dialog "Phân bổ nhà xe" của ĐV** (spec 23/10 §1 — violation sót sau khi
+exclusion zone master-plan hết hiệu lực): payload ĐV giờ chỉ
+`{shipmentId, actualTruckNo}`; billing của CUS giữ nguyên qua lần write ĐV
+("omitted ⇒ untouched"). Test absence theo pattern AssignTruckGroupDialog +
+rung-3 driver `qa/scripts/2026-10-24-gp03-sweep.mjs` (0 fail). Auto-copy
+ảo↔thực phía ĐV bỏ hẳn (auto-copy logic chỉ còn ý nghĩa phía CUS).
+
 ## 2026-10-23 (chiều 2) — fix(lcl,dispatch): gomhang hygiene — CUS bar tấn/CBM, tag gọn, dọn BKS ảo sót, 400-path UI, card status/touch polish
 
 Các dòng còn lại sau wave 60d0c576 (testplan/2026-10-23-gomhang-polish.md,
