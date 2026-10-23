@@ -2,7 +2,7 @@ import { Fragment, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { formatCompact, formatNumber } from '../lib/format';
 import { downloadCSV } from '../lib/csv';
-import { AlertTriangle, CalendarDays, CheckCircle2, ChevronDown, ExternalLink } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, ChevronDown, ExternalLink, Download } from 'lucide-react';
 import { EmptyState } from '../design-system';
 import { PageHeader, Panel } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -193,7 +193,7 @@ export default function FinancePage() {
                 setExporting(false);
               }
             }}>
-              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <Download size={14} aria-hidden="true" />
               {exporting ? 'Đang xuất…' : 'Xuất Excel'}
             </button>
           </div>

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronRight, ChevronUp, Download, Truck } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronUp, Download, Truck, ArrowRight } from 'lucide-react';
 import { formatMoney, formatNumber } from '../lib/format';
 import { useAuth } from '../hooks/useAuth';
 import type { DashboardDecisionItem, Role } from '@tingting/shared';
@@ -80,7 +80,7 @@ export function DashboardMonthlyFinanceChart({ reports, month, year, onViewRepor
         </div>
         <div className="wf-chart-actions">
           <button className="d-btn d-btn-link d-btn-sm wf-link" onClick={onViewReport}>Xem báo cáo
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            <ArrowRight size={13} strokeWidth={2.5} />
           </button>
         </div>
       </div>

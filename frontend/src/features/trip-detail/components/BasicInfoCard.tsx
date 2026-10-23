@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Truck, User, Calendar, Package, Hash, CheckCircle, Phone } from 'lucide-react';
+import { Truck, User, Calendar, Package, Hash, CheckCircle, Phone, Container } from 'lucide-react';
 import { formatDate } from '../../../lib/format';
 import type { TripDetail } from '@tingting/shared';
 import { api } from '../../../lib/api';
@@ -55,9 +55,7 @@ export function BasicInfoCard({ trip }: BasicInfoCardProps) {
     { icon: <User size={17} />, label: 'Lái xe', value: trip.driver?.name ?? '—' },
     {
       icon: (
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="2" y="6" width="16" height="10" rx="1" /><path d="M18 12h3M9 16v2" /><circle cx="9" cy="18" r="2" />
-        </svg>
+        <Container size={17} />
       ),
       label: 'Rơ moóc',
       value: trip.trailer ? `${trip.trailer.licensePlate} · ${trip.trailer.type || (trip.trailerType ?? '—')}` : (trip.trailerType ?? '—'),

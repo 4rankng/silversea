@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { formatCurrency, formatDate } from '../lib/format';
 import { Money } from '../components/shared/Money';
-import { ShieldCheck, AlertTriangle, AlertOctagon, Loader2, Calendar } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, AlertOctagon, Loader2, Calendar, DollarSign } from 'lucide-react';
 import { PageHeader } from '../components/UI';
 import { useSalaryPeriod, useDriverPenalties } from '../hooks/useQueries';
 import { usePageAnimations, useListAnimations } from '../hooks/animations';
@@ -154,7 +154,7 @@ export default function DriverPenaltyPage() {
           </div>
           <div className="kpi__meta">Trừ vào lương tháng</div>
           <div className="kpi__watermark" aria-hidden="true">
-            <svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <DollarSign size={72} strokeWidth={1.5} aria-hidden="true" />
           </div>
         </div>
 

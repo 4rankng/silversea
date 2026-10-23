@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Settings, Truck, DollarSign, LogIn, FileText, Activity } from 'lucide-react';
+import { Settings, Truck, DollarSign, LogIn, FileText, Activity, ArrowRight } from 'lucide-react';
 import type { DashboardAuditEntry } from '../hooks/useDashboardData';
 import { ACTION_LABELS, resolveCategory, formatTimeShort } from '../../../lib/audit-helpers';
 import { ClickableCard } from '../../../components/shared/ClickableCard';
@@ -49,9 +49,7 @@ export function AuditLogWidget({ entries, navigate }: AuditLogWidgetProps) {
         </div>
         <button className="d-btn d-btn-link d-btn-sm wf-link" onClick={() => navigate('/audit-log')}>
           Xem tất cả
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14M13 6l6 6-6 6" />
-          </svg>
+          <ArrowRight size={13} strokeWidth={2.5} />
         </button>
       </div>
       <div className="body">

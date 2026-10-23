@@ -4,7 +4,7 @@ import { useBackShortcut } from '../../hooks/useBackShortcut';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Plus, Loader2, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Loader2, MoreHorizontal, Pencil, Trash2, Download } from 'lucide-react';
 import { PageHeader, useConfirm, Modal } from '../../components/UI';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
@@ -204,7 +204,7 @@ export default function CustomersConfigPage() {
               totalsLabel: 'TỔNG CỘNG',
             });
           }}>
-            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <Download size={14} aria-hidden="true" />
             Xuất Excel
           </button>
           <button className="btn btn--primary" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}>

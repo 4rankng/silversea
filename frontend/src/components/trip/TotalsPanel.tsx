@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import './TripSummaryCard.css';
-import { Clock, Users, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronUp, MapPin } from "lucide-react";
+import { Clock, Users, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronUp, MapPin, Landmark } from 'lucide-react';
 import { useTripFormContext } from "../../hooks/useTripFormContext";
 import { Money } from '../shared/Money';
 import { formatMoney } from '../../lib/format';
@@ -173,11 +173,7 @@ export function TotalsPanel() {
         >
           <span className="tc-totals-row__lbl">
             <span aria-hidden style={{ display: 'inline-flex' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 21h18" />
-                <path d="M5 21V8l4-3 4 3v13" />
-                <path d="M13 21V12l4-2 4 2v9" />
-              </svg>
+              <Landmark size={13} />
             </span>
             Chi phí đường bộ
             {showRoadBreakdown ? <ChevronUp size={12} className="tc-totals-row__chev" /> : <ChevronDown size={12} className="tc-totals-row__chev" />}

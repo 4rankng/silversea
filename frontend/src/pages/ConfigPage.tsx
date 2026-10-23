@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Search, ChevronRight } from 'lucide-react';
 import { PageHeader } from '../components/UI';
 import { FilterBar } from '../design-system';
 import { AssetIcon } from '../components/AssetIcon';
@@ -14,7 +14,7 @@ import { isCompanyInfoConfigured, Role } from '@tingting/shared';
 import type { CompanyInfo } from '@tingting/shared';
 import './ConfigPage.css';
 
-const CHEVRON = <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
+const CHEVRON = <ChevronRight size={12} strokeWidth={2.5} aria-hidden="true" />;
 
 type ListResponse = { total: number };
 
