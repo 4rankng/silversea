@@ -151,10 +151,35 @@ describe('FB-092 — LCL selection', () => {
     // LclSelectCheckbox (9e806f53) renders a button[role=checkbox] with
     // aria-checked — the old HTMLInputElement `.checked` contract died with it.
     expect(checkbox).toHaveAttribute('aria-checked', 'true');
-    // FCL rows never get one — exactly one selection checkbox exists.
+    // FCL rows never get a tickable one — exactly one selection checkbox
+    // exists (spec 23/10 §2: FCL rides the column dimmed, not selectable).
     expect(screen.getAllByRole('checkbox', { name: /Chọn lô/ })).toHaveLength(1);
     fireEvent.click(checkbox);
     expect(onToggle).toHaveBeenCalledWith(31, false);
+  });
+
+  it('spec 23/10 §2 — the CHỌN column is the FIRST cell and only exists while the page wires the mode', () => {
+    const onToggle = vi.fn();
+    const fcl = baseRow({
+      shipmentId: 32, cargoMode: 'FCL', fulfillmentType: 'FCL_CONTAINER',
+      container: { containerNumber: 'MSCU7654321', containerTypeLabel: '20DC', cargoWeightKg: '18000.00' },
+      lcl: null,
+    });
+    const { unmount } = renderGrid([baseRow(), fcl], { onToggleLclSelection: onToggle });
+
+    // The leading CHỌN header + the LCL tick in the first cell of its row;
+    // the FCL row's tick is dimmed (aria-disabled) and carries the cont copy.
+    expect(screen.getByRole('columnheader', { name: /Chọn/ })).toBeTruthy();
+    const lclTick = screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' });
+    expect(lclTick.closest('td')).toBe(lclTick.closest('tr')!.querySelector('td'));
+    const fclTick = screen.getByRole('checkbox', { name: /MSCU7654321 không tham gia gộp hàng/ });
+    expect(fclTick).toHaveAttribute('aria-disabled', 'true');
+    unmount();
+
+    // Without the mode wiring (the page's default), no column, no ticks.
+    renderGrid([baseRow()]);
+    expect(screen.queryByRole('columnheader', { name: /Chọn/ })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: /Chọn lô/ })).toBeNull();
   });
 });
 

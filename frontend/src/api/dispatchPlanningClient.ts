@@ -213,14 +213,18 @@ export interface LclRowFacts {
   } | null;
 }
 
-/** FB-092 — assign one truck to the selected LCL lots (cost group). */
+/**
+ * FB-092 — assign one truck to the selected LCL lots (cost group).
+ *
+ * Spec 23/10 (261023110000 §3): the ĐV assign carries EXACTLY the 4 cost-side
+ * fields — BKS báo khách ("xe ảo") is a CUS output and never rides this call
+ * (the server strips unknown keys; the type drops them so the ĐV flow cannot
+ * even construct them).
+ */
 export async function assignLclCostGroup(input: {
   shipmentIds: number[];
   vehicleSizeClassId: number;
   actualTruckNo: string;
-  billingTruckNo?: string;
-  /** SPEC 18/10/2026 §2.3 — per-lot BKS báo khách; wins over the group value. */
-  billingTruckNos?: Array<{ shipmentId: number; billingTruckNo: string }>;
   /** 161026232309 — the group's nhà xe (customers.isCarrier). */
   carrierId?: number;
   /** 161026232309 — OWN = Đội xe nội bộ SilverSea (container classes). */
@@ -234,11 +238,18 @@ export async function assignLclCostGroup(input: {
   );
 }
 
-/** FB-093 — merge the selected same-customer LCL lots into one bill (rev group). */
+/**
+ * FB-093 — merge the selected same-customer LCL lots into one bill (rev
+ * group). Spec 23/10 §4.2: the ACTIVE merge law is Lô 1 = 100% cước thu,
+ * members 2..N = 0₫; `freightRevenue` (optional) is the manual "Cước thu
+ * khách Lô 1" override — omitted ⇒ auto-trace bảng giá thu khách.
+ */
 export async function mergeLclRevGroup(input: {
   shipmentIds: number[];
   vehicleSizeClassId: number;
   billingTruckNo?: string;
+  /** Spec 23/10 §4.2 — "Cước thu khách Lô 1 (đ) – nhập tay" (VND). */
+  freightRevenue?: number;
 }) {
   return api.post<{ groupId: string; memberCount: number; members: Array<{ shipmentId: number; order: number; reference: string }> }>(
     SHIPMENTS.LCL_REV_GROUP,
@@ -252,12 +263,13 @@ export async function updateLclTruck(input: { shipmentId: number; actualTruckNo?
 }
 
 /**
- * 161026232349 (§II.3.2 "Thu riêng từng lô") — CUS picks the thu vehicle class
- * for ONE ungrouped LCL lot. The lot's CƯỚC VẬN TẢI (AUTO) jumps to 100% of
- * that class' customer × route price lane; `freightAuto` comes back null
- * (never 0) when the lane has no price row — the class still saves.
+ * 161026232349 (§II.3.2 "Thu riêng từng lô") + spec 23/10 §4.1 — CUS per-lot
+ * outputs of ONE ungrouped LCL lot: Loại xe thu khách and/or Giá cước thu
+ * nhập tay. The lot's CƯỚC VẬN TẢI (AUTO) jumps to the class' lane price
+ * unless `freightRevenue` overrides it; `freightAuto` comes back null (never
+ * 0) when the lane has no price row — the class still saves.
  */
-export async function setLclLotRevClass(input: { shipmentId: number; vehicleSizeClassId: number }) {
+export async function setLclLotRevClass(input: { shipmentId: number; vehicleSizeClassId?: number; freightRevenue?: number }) {
   return api.post<{
     shipmentId: number;
     reference: string;

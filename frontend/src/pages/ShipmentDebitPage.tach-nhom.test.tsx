@@ -207,7 +207,7 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
 
     fireEvent.click(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
     const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('giữ nguyên đơn giá Tuyến×KH của riêng nó');
+    expect(dialog.textContent).toContain('cước thu của từng lô trở về giá trước khi ghép');
 
     unmergeGroup.mockResolvedValue({
       dimension: 'REV',
@@ -236,7 +236,7 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     expect(bl2Row.textContent).not.toContain('Ghép cước cùng Bill');
   });
 
-  it('cover promote-on-unmerge (FB-095, REV per-lot): Hủy ghép Lô 1 → Lô 2 thành Lô chính, KHÔNG chuyển tiền', async () => {
+  it('cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm', async () => {
     listSummary.mockResolvedValue(summaryOf([lclRow({
       billOrBookNumber: 'BL-1',
       freightAuto: 3150000,
@@ -252,13 +252,14 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     fireEvent.click(await screen.findByRole('button', { name: 'Hủy ghép' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
 
-    // Per boss 21/10 REV is per-lot: the crown moves, money does not.
+    // Spec 23/10: inside a rev group Lô 1 holds 100% — the crown takes the
+    // money with it (money conserved on the promoted lot).
     unmergeLot.mockResolvedValue({
       dimension: 'REV',
       groupId: 'g-rev-1',
       leaver: { shipmentId: 101, order: 1, reference: 'BL-1' },
       promoted: { shipmentId: 102, order: 1, reference: 'BL-2' },
-      transferredAmount: null,
+      transferredAmount: '3150000',
       remaining: [],
       dissolved: true,
     });
@@ -266,7 +267,6 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     fireEvent.click(confirm);
 
     await waitFor(() => expect(unmergeLot).toHaveBeenCalledWith({ shipmentId: 101, dimension: 'REV' }));
-    expect(await screen.findByText(/Bill BL-2 thành Lô chính; mỗi lô tự giữ đơn giá Tuyến×KH/)).toBeTruthy();
-    expect(screen.queryByText(/nhận 100% cước thu khách/)).toBeNull();
+    expect(await screen.findByText(/Bill BL-2 thành Lô chính và nhận 100% cước thu nhóm/)).toBeTruthy();
   });
 });

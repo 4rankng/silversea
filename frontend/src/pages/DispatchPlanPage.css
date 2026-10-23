@@ -115,67 +115,7 @@
 }
 
 /* ─── FB-092 LCL selection bar ──────────────────────────────────────────────
-   Sticky summary shown while the dispatcher has LCL lots selected for a
-   cost-group assignment. Totals mirror the grid's own measure formatting
-   (kg · CBM) so the bar can never disagree with the rows. */
-.lcl-selection-bar {
-  position: sticky;
-  bottom: 12px;
-  z-index: 30;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-radius: var(--app-radius-md);
-  /* Customer 18/10: the white bar vanished into the white table — invert it
-     into a dark floating toolbar so selection state is unmistakable. */
-  background: var(--ink, #101513);
-  color: #fff;
-  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.lcl-selection-bar__totals {
-  font-weight: 600;
-}
-
-.lcl-selection-bar__first {
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 0.875rem;
-}
-
-.lcl-selection-bar__clear {
-  margin-inline-start: auto;
-  border: none;
-  background: none;
-  color: rgba(255, 255, 255, 0.85);
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.lcl-selection-bar__assign {
-  border: none;
-  border-radius: var(--app-radius-sm, 8px);
-  padding: 8px 14px;
-  background: var(--color-accent, #4A9E7D);
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Card 171026154000 (C): aria-disabled, never the native `disabled` attribute
-   (the DisabledActionTip contract) — keep the dimmed non-actionable look. */
-.lcl-selection-bar__assign[aria-disabled='true'] {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-/* The reason the group-assign action is unavailable — real text beside the
-   button, muted so it never reads as an action (owner: static status text
-   must not look actionable). */
-.lcl-selection-bar__hint {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 0.875rem;
-}
+   Spec 23/10 (261023110000 §2): the bar moved to the SHARED floating dock —
+   `src/styles/lcl-merge.css` (loaded through LclMergeModeToggle) — because
+   CUS Chi phí - Quyết toán floats the same bar. One pattern, one shared
+   implementation; nothing page-local remains here. */

@@ -109,10 +109,31 @@ function mount() {
   return render(<MemoryRouter><MasterPlanPage /></MemoryRouter>);
 }
 
+/** Spec 23/10 (261023110000 §2) — the CHỌN column is on-demand: every
+ *  grouping flow now starts by flipping the strip's toggle. */
+function openMergeMode() {
+  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
+}
+
 describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
   beforeEach(() => {
     toast.mockReset();
     plan.items = [];
+  });
+
+  it('default hides the CHỌN column; the toggle reveals it (spec 23/10 §2)', () => {
+    plan.items = [lclItem(), fclItem()];
+    mount();
+
+    // OFF: no select column, no ticks — the reading table keeps its width.
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(document.querySelector('.master-plan-grid__cell--select')).toBeNull();
+    expect(document.querySelector('.master-plan-grid__select-head')).toBeNull();
+
+    openMergeMode();
+    expect(screen.getByRole('button', { name: '✕ Thoát gộp hàng' })).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('.master-plan-grid__select-head')).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' })).toBeTruthy();
   });
 
   it('gives a checkbox to a lot the Sản lượng count includes even when its payload lacks cargoMode (DOM-vs-visual regression lock)', () => {
@@ -126,16 +147,22 @@ describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
       lclItem({ id: 4, blNumber: 'BL-LEGACY-4', hasActiveLclShipment: undefined }),
     ] as ShipmentListItem[];
     mount();
+    openMergeMode();
 
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-FLAG-3' })).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-LEGACY-4' })).toBeTruthy();
   });
 
-  it('renders the empty select cell on cont rows — no checkbox, cell present', () => {
+  it('renders the select cell on cont rows dimmed and untouchable once the mode is on (spec 23/10 §2)', () => {
     plan.items = [fclItem()];
     mount();
+    openMergeMode();
 
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    // FCL rows read the mode too — a dimmed, disabled tick so the merge
+    // selection stays LCL-only (spec: "không tích nhầm hàng Cont").
+    const fclTick = screen.getByRole('checkbox', { name: /BL-FCL-9 không tham gia gộp hàng/ });
+    expect(fclTick).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByRole('checkbox', { name: 'Chọn lô BL-FCL-9' })).toBeNull();
     expect(document.querySelector('.master-plan-grid__cell--select')).toBeTruthy();
     expect(document.querySelector('.master-plan-grid__select-head')).toBeTruthy();
   });
@@ -147,6 +174,7 @@ describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
       fclItem(),
     ];
     mount();
+    openMergeMode();
 
     const free = screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' }) as HTMLInputElement;
     const grouped = screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-2' }) as HTMLInputElement;
@@ -161,6 +189,7 @@ describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
       lclItem({ id: 2, blNumber: 'BL-LCL-2', cargoWeightKg: '1000.00', cargoVolumeCbm: '2.000' }),
     ];
     mount();
+    openMergeMode();
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-2' }));
@@ -171,7 +200,7 @@ describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
     expect(totals.textContent).toContain('Đang chọn 2 lô: Tổng');
     expect(totals.textContent).toContain('tấn');
     expect(totals.textContent).toContain('CBM');
-    expect(screen.getByText(/Lô 1 giữ 100% tiền trả nhà xe/)).toBeTruthy();
+    expect(screen.getByText(/Lô 1 giữ 100% cước trả ĐV: BL-LCL-1/)).toBeTruthy();
 
     const assign = screen.getByRole('button', { name: 'Gán xe nhóm' });
     expect(assign).not.toHaveAttribute('aria-disabled');

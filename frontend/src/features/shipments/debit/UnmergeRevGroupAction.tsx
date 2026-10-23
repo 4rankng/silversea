@@ -48,7 +48,7 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
       await unmergeLclGroup({ groupId, dimension: 'REV' });
       toast({
         kind: 'success',
-        message: 'Đã tách nhóm — mỗi lô giữ nguyên đơn giá Tuyến×KH của riêng nó, ghi chú "Ghép cước cùng Bill" đã được gỡ.',
+        message: 'Đã tách nhóm — cước thu của từng lô trở về giá trước khi ghép, ghi chú ghép đã được gỡ.',
       });
       setConfirmOpen(false);
       onUnmerged();
@@ -79,8 +79,8 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
       </DisabledActionTip>
       <ConfirmDialog
         isOpen={confirmOpen}
-        message={'Tách nhóm ghép cước thu khách? Mỗi lô giữ nguyên đơn giá Tuyến×KH của riêng nó'
-          + ' (cước thu per-lot, không chuyển tiền giữa các lô), ghi chú "Ghép cước cùng Bill" được gỡ.'}
+        message={'Tách nhóm ghép cước thu khách? Cả nhóm giải tán: cước thu của từng lô trở về giá trước khi ghép'
+          + ' (lô thành viên không còn 0₫), ghi chú "Ghép cước" được gỡ.'}
         confirmLabel={busy ? 'Đang tách…' : 'Tách nhóm'}
         onConfirm={() => void doUnmerge()}
         onCancel={() => { if (!busy) setConfirmOpen(false); }}

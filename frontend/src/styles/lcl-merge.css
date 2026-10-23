@@ -1,0 +1,70 @@
+/* ─── Spec 23/10 (261023110000 §2) — the LCL merge-mode shared UI ────────────
+   The selection's Bottom Floating Bar, shared by every grouping surface:
+   ĐV Kế hoạch Tổng quát, ĐV Kế hoạch Chi tiết Xe and CUS Chi phí - Quyết
+   toán. Loaded through LclMergeModeToggle (every surface renders the toggle),
+   so one implementation owns the look (customer 18/10: a dark floating
+   toolbar so selection state is unmistakable) and the spec's "dưới đáy màn
+   hình" placement — fixed at the viewport bottom, not sticky in the flow. */
+.lcl-selection-bar {
+  position: fixed;
+  /* Centered floating dock: full-bleed minus gutters on phones, capped on
+     wide canvases so the totals line never stretches absurdly. */
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: max(12px, env(safe-area-inset-bottom, 12px));
+  width: min(calc(100vw - 24px), 960px);
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 14px;
+  border-radius: var(--app-radius-md, 12px);
+  background: var(--ink, #101513);
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.lcl-selection-bar__totals {
+  font-weight: 600;
+}
+
+.lcl-selection-bar__first {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.875rem;
+}
+
+.lcl-selection-bar__clear {
+  margin-inline-start: auto;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lcl-selection-bar__assign {
+  border: none;
+  border-radius: var(--app-radius-sm, 8px);
+  padding: 8px 14px;
+  background: var(--accent, #4a9e7d);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Card 171026154000 (C): aria-disabled, never the native `disabled` attribute
+   (the DisabledActionTip contract) — keep the dimmed non-actionable look. */
+.lcl-selection-bar__assign[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* The reason the merge action is unavailable — real text beside the button,
+   muted so it never reads as an action (owner: static status text must not
+   look actionable). */
+.lcl-selection-bar__hint {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.875rem;
+}

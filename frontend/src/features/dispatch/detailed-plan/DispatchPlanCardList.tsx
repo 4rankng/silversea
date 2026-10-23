@@ -170,14 +170,27 @@ export function DispatchPlanCardList({
         return (
           <li key={detailRowKey(row)} className={`dpcard${row.lotFullyPlated ? ' dpcard--plated' : ''}`}>
             <div className="dpcard__head">
-              {onToggleLclSelection && row.cargoMode === 'LCL' && (
+              {onToggleLclSelection && (row.cargoMode === 'LCL' ? (
                 <LclSelectCheckbox
                   isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
+                  isDisabled={row.lcl?.group != null}
                   onToggle={(next: boolean) => onToggleLclSelection(row.shipmentId, next)}
                   ariaLabel={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
-                  title="Chọn lô này để gán xe nhóm"
+                  title={row.lcl?.group != null
+                    ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.'
+                    : 'Chọn lô này để gán xe nhóm'}
                 />
-              )}
+              ) : (
+                /* Spec 23/10 §2 — FCL cards read the mode too, dimmed and
+                   untouchable so the merge selection stays LCL-only. */
+                <LclSelectCheckbox
+                  isSelected={false}
+                  isDisabled
+                  onToggle={() => {}}
+                  ariaLabel={`Lô cont ${row.container.containerNumber ?? ''} không tham gia gộp hàng`}
+                  title="Chỉ ghép lô hàng lẻ (LCL) — lô cont không tích được."
+                />
+              ))}
               <div className="dpcard__identity">
                 <span className="dpcard__customer" title={row.customerRoute.customerName ?? undefined}>
                   {row.customerRoute.customerName || '—'}

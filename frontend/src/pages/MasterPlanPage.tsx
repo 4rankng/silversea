@@ -25,6 +25,7 @@ import {
 } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
 import { billBookingReference } from '../lib/business-reference';
 import { formatVolumeCbm, formatWeight } from '../lib/format';
+import { LclMergeModeToggle } from '../components/shared/LclMergeModeToggle';
 import './DispatchPlanPage.css';
 
 /**
@@ -47,8 +48,15 @@ export default function MasterPlanPage() {
   // SPEC 18/10/2026 §2.1–2.2 — the Kế hoạch Tổng quát LCL multi-select: click
   // order decides Lô 1 (100% cước trả ĐV). Grouped lots are refused client-side
   // (checkbox disabled) because the server refuses them with a 409.
+  // Spec 23/10 (261023110000 §2): the CHỌN column is on-demand — `lclMergeMode`
+  // gates it; exiting (or finishing a group) drops the selection.
   const [selectedLcl, setSelectedLcl] = useState<ShipmentListItem[]>([]);
+  const [lclMergeMode, setLclMergeMode] = useState(false);
   const [truckGroupOpen, setTruckGroupOpen] = useState(false);
+  const exitLclMergeMode = () => {
+    setLclMergeMode(false);
+    setSelectedLcl([]);
+  };
   const selectedLclIds = useMemo(
     () => new Set(selectedLcl.map((item) => item.id)),
     [selectedLcl],
@@ -203,6 +211,13 @@ export default function MasterPlanPage() {
                   aria-disabled (focusable + hoverable, NEVER `disabled`) so
                   DisabledActionTip can explain "Không có dữ liệu để xuất" on
                   hover AND keyboard focus. */}
+              {/* Spec 23/10 (261023110000 §2) — the on-demand [📦 Gộp hàng]
+                  mode rides the filter strip; OFF keeps the CHỌN column out
+                  of the reading table entirely. */}
+              <LclMergeModeToggle
+                active={lclMergeMode}
+                onToggle={() => { if (lclMergeMode) exitLclMergeMode(); else setLclMergeMode(true); }}
+              />
               <DisabledActionTip id="master-plan-export" reason={exportDisabledReason}>
                 <button
                   type="button"
@@ -289,7 +304,7 @@ export default function MasterPlanPage() {
               notesIntakeOnly={user?.role === Role.DISPATCHER}
               scheduleDate={scheduleDate}
               selectedLclShipmentIds={selectedLclIds}
-              onToggleLclSelection={toggleLclSelection}
+              onToggleLclSelection={lclMergeMode ? toggleLclSelection : undefined}
             />
             {selectedLcl.length > 0 && (
               <div className="lcl-selection-bar" role="status">
@@ -299,8 +314,8 @@ export default function MasterPlanPage() {
                   {formatVolumeCbm(String(selectionTotals.volume))}
                 </span>
                 <span className="lcl-selection-bar__first">
-                  Lô 1 giữ 100% tiền trả nhà xe
-                  {selectedLcl[0] ? ` · ${billBookingReference(selectedLcl[0].blNumber, selectedLcl[0].bookingRef)}` : ''}
+                  — Lô 1 giữ 100% cước trả ĐV
+                  {selectedLcl[0] ? `: ${billBookingReference(selectedLcl[0].blNumber, selectedLcl[0].bookingRef)}` : ''}
                 </span>
                 <button
                   type="button"
@@ -371,7 +386,9 @@ export default function MasterPlanPage() {
           rows={selectedLcl.map(lclGroupRowFromMasterPlan)}
           onClose={() => setTruckGroupOpen(false)}
           onAssigned={() => {
-            setSelectedLcl([]);
+            // Spec 23/10 §2 — completing the group exits the mode (the CHỌN
+            // column hides itself, the floating bar closes with it).
+            exitLclMergeMode();
             masterPlan.refetch();
           }}
         />

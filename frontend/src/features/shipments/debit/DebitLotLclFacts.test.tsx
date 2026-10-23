@@ -71,7 +71,8 @@ function renderStrip(over: Partial<ShipmentDebitLotRow> = {}) {
 }
 
 const classField = () => screen.getByRole('combobox', { name: 'Loại xe tính cước thu khách' });
-const saveClassButton = () => screen.getByRole('button', { name: 'Lưu loại xe' });
+const priceField = () => screen.getByLabelText(/Giá cước thu khách/);
+const saveClassButton = () => screen.getByRole('button', { name: 'Lưu cước thu' });
 
 async function pickClass(combo: HTMLElement, typed: string, optionName: RegExp) {
   fireEvent.focusIn(combo);
@@ -114,7 +115,7 @@ describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng 
     // The success toast states the money law the customer asked for.
     expect(await screen.findByText(/100% đơn giá loại xe/)).toBeInTheDocument();
     // The save button comes back from its busy state.
-    await waitFor(() => expect(saveClassButton()).toHaveTextContent('Lưu loại xe'));
+    await waitFor(() => expect(saveClassButton()).toHaveTextContent('Lưu cước thu'));
   });
 
   it('a lane miss still saves the class and says the money column stays "Chưa xác định"', async () => {
@@ -147,7 +148,7 @@ describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng 
     fireEvent.click(saveClassButton());
 
     expect(await screen.findByText(/đã thuộc nhóm ghép cước thu khách — tách khỏi nhóm/)).toBeInTheDocument();
-    await waitFor(() => expect(saveClassButton()).toHaveTextContent('Lưu loại xe'));
+    await waitFor(() => expect(saveClassButton()).toHaveTextContent('Lưu cước thu'));
     expect(onChanged).not.toHaveBeenCalled();
   });
 
@@ -175,6 +176,60 @@ describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng 
     await waitFor(() => expect(updateTruck).toHaveBeenCalledWith({ shipmentId: 9001, billingTruckNo: '29C-111.11' }));
     expect(onChanged).toHaveBeenCalled();
     expect(setClass).not.toHaveBeenCalled();
+  });
+
+  // ── Spec 23/10 §4.1 field 2 — "Giá cước thu khách" manual override ──
+  it('giá nhập tay (§4.1 trường 2): arm/save gửi freightRevenue, thắng giá tra bảng', async () => {
+    setClass.mockResolvedValue({
+      shipmentId: 9001,
+      reference: 'BL-1',
+      vehicleSizeClassId: 9,
+      vehicleClassCode: '5T',
+      freightAuto: '2800000',
+      channel: 'TRIP',
+      reason: 'Giá cước thu khách nhập tay',
+    });
+    const { onChanged } = renderStrip({ revVehicleClassCode: '5T' });
+
+    // Class unchanged + no price: nothing to save yet (§4.1 needs one output).
+    expect(saveClassButton()).toBeDisabled();
+
+    fireEvent.change(priceField(), { target: { value: '2800000' } });
+    expect(saveClassButton()).not.toBeDisabled();
+    fireEvent.click(saveClassButton());
+
+    // Price alone rides the wire — the untouched class is not re-sent.
+    await waitFor(() => expect(setClass).toHaveBeenCalledWith({ shipmentId: 9001, freightRevenue: 2800000 }));
+    expect(onChanged).toHaveBeenCalled();
+    expect(await screen.findByText(/Đã lưu giá cước thu khách nhập tay/)).toBeInTheDocument();
+  });
+
+  it('giá nhập tay + đổi loại xe: cả hai outputs cùng lưu trong một lần', async () => {
+    setClass.mockResolvedValue({
+      shipmentId: 9001,
+      reference: 'BL-1',
+      vehicleSizeClassId: 9,
+      vehicleClassCode: '5T',
+      freightAuto: '2800000',
+      channel: 'TRIP',
+      reason: null,
+    });
+    renderStrip({ revVehicleClassCode: '3.5T' });
+
+    await pickClass(classField(), '5', /Xe 5 tấn/);
+    fireEvent.change(priceField(), { target: { value: '3000000' } });
+    fireEvent.click(saveClassButton());
+
+    await waitFor(() => expect(setClass).toHaveBeenCalledWith({
+      shipmentId: 9001,
+      vehicleSizeClassId: 9,
+      freightRevenue: 3000000,
+    }));
+  });
+
+  it('lô trong nhóm rev: ô giá cũng khóa theo loại xe (nhóm owns cước thu)', () => {
+    renderStrip({ revGroupId: 'g-1', revGroupOrder: 1, revVehicleClassCode: '3.5T' });
+    expect(priceField()).toBeDisabled();
   });
 });
 
@@ -232,8 +287,7 @@ describe('FB-095 — nút "Hủy ghép" trên khối NHÓM GHÉP', () => {
     fireEvent.click(confirmButton());
 
     await waitFor(() => expect(unmerge).toHaveBeenCalledWith({ shipmentId: 9001, dimension: 'REV' }));
-    expect(await screen.findByText(/Bill BL-2 thành Lô chính; mỗi lô tự giữ đơn giá Tuyến×KH/)).toBeInTheDocument();
-    expect(screen.queryByText(/nhận 100% cước thu khách/)).toBeNull();
+    expect(await screen.findByText(/Bill BL-2 thành Lô chính và nhận 100% cước thu nhóm/)).toBeInTheDocument();
     expect(onChanged).toHaveBeenCalled();
   });
 

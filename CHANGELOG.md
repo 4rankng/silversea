@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-10-23 (chiều) — feat(lcl,dispatch): FE gộp hàng on-demand — toggle+checkbox+floating bar + popup ĐV 4 trường + CUS gộp thu 3 trường (spec 23/10, cards 231026123901/902/903)
+
+Wave FE của spec 23/10 (BE đã live 71f1468b) — phủ lên nền grid redesign
+23/10 (cards <640px + table min-width), không phá layout mới.
+
+- **Card 231026123901 — UI on-demand**: cột CHỌN mặc định ẨN trên cả ĐV (Kế
+  hoạch Tổng quát + Chi tiết Xe) và CUS (Chi phí – Quyết toán); nút
+  `[📦 Gộp hàng]` (secondary/outline, `LclMergeModeToggle` house token) trên
+  thanh Filter bật mode — nút đổi `✕ Thoát gộp hàng`, hiện cột CHỌN đầu bảng
+  (ĐV: chỉ dòng LCL tick được, dòng FCL dim/disable; CUS: mọi dòng tick được
+  vì tick phục vụ cả xuất Debit Note — gộp vẫn chỉ tính LCL chưa nhóm).
+  Floating bar cố định đáy màn hình (`styles/lcl-merge.css` — 1 stylesheet
+  dùng chung 3 mặt): ĐV «Đang chọn N lô: Tổng X tấn | Y CBM — Lô 1 giữ 100%
+  cước trả ĐV», CUS «Đang chọn N lô — Lô 1 giữ 100% tiền thu khách» (wire
+  quyết toán không mang kg/CBM). Thoát/hoàn tất gộp ⇒ tự ẩn cột + clear
+  selection. Mobile 390: tick trên card list + bar fixed.
+- **Card 231026123902 — popup Gán xe nhóm ĐV đúng 4 trường**: xóa trường
+  «BKS báo khách (ảo)» chung LẪN cụm per-lô (state + auto-copy + wire
+  `billingTruckNo`/`billingTruckNos` khỏi client); label cước đổi
+  «Cước trả ĐVVC (đ)» (blank = auto tra bảng giá trả). Sau lưu: chip
+  «Lẻ · Ghép (i/N)» trên row/card; lô đã nhóm bị khóa tick.
+- **Card 231026123903 — CUS thu khách**: per-lot (mặc định, expanded lot)
+  đủ 3 outputs — Loại xe thu khách · Giá cước thu khách nhập tay
+  (`setLclLotRevClass` nhận `freightRevenue`, gửi đúng output đổi) · BKS báo
+  khách (có sẵn, blank = BKS thực). Gộp chủ động: CTA «Gộp xe thu khách» dời
+  từ header xuống floating bar, popup 3 trường (Loại xe thu nhóm · BKS báo
+  khách chung blank=BKS thực · Cước thu Lô 1 blank=auto qua
+  `mergeLclRevGroup.freightRevenue`); validation cùng KH giữ (FE chặn rõ,
+  BE 400); lưu rev_group độc lập cost_group — Lô 1 100% thu / lô kia 0₫, tag
+  ghép dưới CƯỚC VẬN TẢI (BE in dạng "Ghép cước cùng Bill {Lô 1}") + nút
+  «Tách nhóm» trên dòng đã gộp; tách nhóm money-neutral restore; copy
+  confirm/toast theo luật 100/0 mới.
+- QA rung 3 (`qa/2026-10-23-gomhang-fe/`, driver `qa/scripts/
+  2026-10-23-gomhang-fe.mjs`): BEFORE (:7175) chốt defect cũ (checkbox luôn
+  hiện, popup còn BKS ảo, 75 tick CUS luôn mở) — AFTER (:7183) 41/41 PASS,
+  DB trước/sau identity (nhóm cost+rev đều tạo → tách hết, FINAL null).
+  Gates: root lint 0 · fe tsc -b 0 · fe tsgo -b 0 · scoped vitest + FULL FE
+  green (sau `make build`) · make build 0. Case testplan/2026-10-23-gomhang-fe.md.
+
 ## 2026-10-23 — feat(lcl): BE gộp hàng tách biệt cost_group (ĐV) vs rev_group (CUS) + per-lot CUS outputs (spec 23/10, card 261023110000)
 
 Spec khách 23/10 "Điều chỉnh luồng Gộp hàng lẻ" — CHỈ BE (shared contracts/
