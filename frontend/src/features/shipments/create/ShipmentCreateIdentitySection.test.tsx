@@ -59,16 +59,21 @@ describe('QA1-001 — Bill/Booking placeholder before a trade direction is picke
   });
 });
 
-describe('Card 181026200200 (A.3) — Nhận diện lô field order', () => {
-  it('reads Số Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu in DOM order', () => {
+describe('Card 261023093200 (Tiệp Vũ FB 23/10) — Nhận diện lô field order', () => {
+  it('reads Hình thức XNK → Số Bill/Booking → Hãng tàu → Tuỳ chọn → Số tờ khai (cuối) in DOM order', () => {
     renderSection({ tradeDirection: 'EXPORT' } as Partial<ShipmentCreateFormState>);
-    // The four document fields in exactly the operator's order (FB-113 set
-    // the same order on the ledger popup; this is the create form).
+    // The owner picks the trade direction FIRST, so the picker rides beside
+    // Khách hàng and the Bill/Booking field it gates sits directly below it;
+    // the tờ khai strip is the LAST band of the section. Supersedes the A.3
+    // order of card 181026200200 (Bill/Booking → tờ khai → Nhập/Xuất →
+    // Hãng tàu; FB-113 set that same old order on the ledger popup).
     const chain = [
-      '[data-field-id="shipment-booking-ref"]',
-      '[data-field-id="shipment-declarations"]',
+      '[data-field-id="shipment-customer"]',
       '[data-field-id="shipment-trade-direction"]',
+      '[data-field-id="shipment-booking-ref"]',
       '[data-field-id="shipment-shipping-line"]',
+      '[data-field-id="shipment-deposit"]',
+      '[data-field-id="shipment-declarations"]',
     ].map((selector) => document.querySelector(selector));
     for (const node of chain) expect(node, `missing ${node}`).toBeTruthy();
     for (let i = 0; i < chain.length - 1; i += 1) {
