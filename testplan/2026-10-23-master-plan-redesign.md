@@ -90,6 +90,15 @@ Sau fix: spread 1056px (master) / 1104px (detailed); sticky hoạt động.
 Pin: `DetailedPlanGrid.test.tsx` (th NOT contain -webkit-line-clamp) +
 `MasterPlanGrid.test.tsx` (th-label rule).
 
+## Independent review — resolved
+
+Code-reviewer (CODE-READ + evidence lane): DONE_WITH_CONCERNS → H1 (notes
+editor clip khi lỗi lưu — `:has()` override + pin + rung 3 force-500 probe),
+M1 (oscillation 640px scrollbar cổ điển — `borderBoxSize` ở cả 2 grid), M2
+(`hasContainerDemand`/`formatCarrierAllocationChips` về MasterPlanCellValues),
+L1 (DisabledActionTip card Hủy), L2 (bỏ cast null) — tất cả fix trong
+changeset; L3 chấp nhận có ý thức (xem qa README). Scoped 648/648 sau fix.
+
 ## Gates
 
 - vitest scoped: MasterPlanGrid.* + MasterPlanPage.* + master-plan feature

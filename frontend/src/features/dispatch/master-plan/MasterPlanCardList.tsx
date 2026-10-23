@@ -6,11 +6,14 @@ import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { billBookingReference } from '../../../lib/business-reference';
 import { formatDateTimeShort } from '../../../lib/format';
 import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
+import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { LclSelectCheckbox } from '../LclSelectCheckbox';
 import {
   aggregateContainerPortGroupLines,
   cargoCellLines,
   cutoffUrgency,
+  formatCarrierAllocationChips,
+  hasContainerDemand,
   scheduleBlocks,
 } from './MasterPlanCellValues';
 import { isLclLotRow } from './lclLot';
@@ -147,7 +150,8 @@ function CardActionsMenu({ identity, hasContainers, notesEditable, noteLabel, on
           role="menuitem"
           onClick={() => {
             setOpen(false);
-            onViewContainers(triggerRef.current ?? (triggerRef as unknown as HTMLButtonElement));
+            const trigger = triggerRef.current;
+            if (trigger) onViewContainers(trigger);
           }}
         >
           <ContainerIcon size={14} aria-hidden="true" />
@@ -221,19 +225,8 @@ export function MasterPlanCardList({
         const reference = billBookingReference(item.blNumber, item.bookingRef);
         // Same allocation-lock law as the table (assignShipmentCarriers refuses
         // intake-phase + CANCELED; past READY the freeze is per-container).
-        const allocationChips = item.carrierAllocationSummary.map((entry) => {
-          const counts = [
-            entry.count20 > 0 ? `${entry.count20}x20'` : null,
-            entry.count40 > 0 ? `${entry.count40}x40'` : null,
-          ].filter(Boolean).join(' · ');
-          return counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel;
-        }).join(' · ');
-        const hasContainers = Boolean(
-          (item.containerTotal != null
-            ? item.containerTotal > 0
-            : ((item.containerCount20 ?? 0) + (item.containerCount40 ?? 0) > 0))
-          && item.containerTypeSummary !== 'Chưa có cont',
-        );
+        const hasContainers = hasContainerDemand(item);
+        const allocationChips = formatCarrierAllocationChips(item);
         const allocationLocked = isAllocationLocked(item);
         const notesLocked = isNotesLocked(item);
         const notesEditable = notes.editingNotesId !== item.id && !notesLocked;
@@ -368,14 +361,23 @@ export function MasterPlanCardList({
                     >
                       {notes.savingNotes ? 'Đang lưu…' : 'Lưu'}
                     </button>
-                    <button
-                      type="button"
-                      className="master-plan-grid__notes-cancel"
-                      aria-disabled={notes.savingNotes || undefined}
-                      onClick={() => { if (notes.savingNotes) return; notes.cancelNotesEdit(); }}
+                    {/* Card 081026093510 sweep (review L1): the phone editor
+                        carries the same aria-disabled + explained cancel the
+                        table serves — the "Đang lưu…" lock reason stays
+                        discoverable on touch too. */}
+                    <DisabledActionTip
+                      id={`master-card-notes-cancel-${item.id}`}
+                      reason={notes.savingNotes ? 'Đang lưu ghi chú — chưa hủy được.' : null}
                     >
-                      Hủy
-                    </button>
+                      <button
+                        type="button"
+                        className="master-plan-grid__notes-cancel"
+                        aria-disabled={notes.savingNotes || undefined}
+                        onClick={() => { if (notes.savingNotes) return; notes.cancelNotesEdit(); }}
+                      >
+                        Hủy
+                      </button>
+                    </DisabledActionTip>
                   </div>
                 </div>
               ) : (

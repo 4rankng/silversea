@@ -40,9 +40,12 @@ board detailed-plan đã merge:
   identity null/null trước/sau).
 - QA (`qa/2026-10-23-master-plan-redesign/`, driver `qa/scripts/
   2026-10-23-master-plan-redesign.mjs`, BEFORE :7175 / AFTER :7184, dungnv):
-  AFTER 23/23 PASS — rows ≤93px mọi VP table, THỜI GIAN 125px, header sticky
-  + spread đúng cột, cards 390 + FB-014 tap, Phân xe sweep 20/5/20.
+  AFTER 22/22 PASS — rows ≤93px mọi VP table, THỜI GIAN 125px, header sticky
+  + spread đúng cột, cards 390 + FB-014 tap, Phân xe sweep 20/5/20, gộp hàng
+  mobile (probe 390), H1 error-path rung 3 (force 500 — Lưu/Hủy visible).
   Case `testplan/2026-10-23-master-plan-redesign.md` (MP-RD-01…07).
+  Independent review resolved (H1/M1/M2/L1/L2 fix; L3 accepted) — scoped
+  648/648 sau fix.
 - Gates: root lint 0 · fe tsc -b 0 · tsgo -b 0 · scoped 647/647 · FULL FE
   5525/5525 (sau `make build` dist) · make build 0 · dev-port-contract 11/11.
   design:drift: delta lane ≤ base mọi counter (containerWidthValues 22→20 do

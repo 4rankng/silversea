@@ -269,9 +269,7 @@ export function dayContainerSummary(item: ShipmentListItem, scheduleDate?: strin
  *  flag is explicit rather than inferred from the text: two lines can carry the
  *  same placeholder, and a custom `FormatValueOptions.empty` label must not
  *  silently stop collapsing. */
-export type CargoCellLine = { text: string; muted: boolean; empty: boolean; identity?: boolean };
-
-/**
+export type CargoCellLine = { text: string; muted: boolean; empty: boolean; identity?: boolean };/**
  * Cargo-cell lines, in render order — the ONE source both the grid and the XLSX
  * export read, so the sheet can never disagree with the screen.
  *
@@ -310,4 +308,32 @@ export function cargoCellLines(item: ShipmentListItem, scheduleDate?: string | n
       .map((text): CargoCellLine => ({ text, muted: false, empty: false, identity: !!containerSummarySource })),
     { text: weight, muted: true, empty: item.totalCargoWeightKg == null },
   ];
+}
+
+/** Review M2 (this lane): the row's container-demand visibility and the
+ *  allocation roster string — ONE implementation shared by the table row and
+ *  the phone card so the two layouts can never disagree on what shows. */
+
+/** The "Chi tiết container" affordance's visibility law: a lot with a real
+ *  container demand (legacy count columns OR containerTotal, and not the
+ *  named-missing-fact placeholder) offers the container peek. */
+export function hasContainerDemand(item: ShipmentListItem): boolean {
+  return Boolean(
+    (item.containerTotal != null
+      ? item.containerTotal > 0
+      : ((item.containerCount20 ?? 0) + (item.containerCount40 ?? 0) > 0))
+    && item.containerTypeSummary !== 'Chưa có cont',
+  );
+}
+
+/** The allocation roster as one operational run: "Nhà xe: 2x20' · 1x40'" —
+ *  joined with ' · ' in summary order; empty when nothing is allocated. */
+export function formatCarrierAllocationChips(item: ShipmentListItem): string {
+  return item.carrierAllocationSummary.map((entry) => {
+    const counts = [
+      entry.count20 > 0 ? `${entry.count20}x20'` : null,
+      entry.count40 > 0 ? `${entry.count40}x40'` : null,
+    ].filter(Boolean).join(' · ');
+    return counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel;
+  }).join(' · ');
 }

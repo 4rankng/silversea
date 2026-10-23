@@ -281,6 +281,16 @@
    wrapping was the inflation mechanism of every row-height regression
    (FB-043 / R22 / the 23/10 screenshots). The line's title (set in the
    component) carries the complete value. */
+/* Review H1 (this lane): the inline notes editor owns its height while it
+   is mounted — a failed save renders the error line under the textarea and
+   the 77px clamp would hide the Lưu/Hủy row exactly when the user needs to
+   retry or cancel. The editor is a transient overlay, not a dense reading
+   row: it lifts the clamp for its cell. */
+.master-plan-grid__cell-body:has(> .master-plan-grid__notes-editor) {
+  max-height: none;
+  overflow: visible;
+}
+
 .master-plan-grid__line {
   line-height: var(--ops-table-supporting-line-height);
   min-width: 0;

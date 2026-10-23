@@ -1,0 +1,284 @@
+{
+  "390": {
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "mode": "stacked-cards",
+    "pageOverflowX": 0,
+    "theadPosition": "sticky",
+    "headerSpreadX": 0,
+    "wrapper": {
+      "scrollWidth": 374,
+      "clientWidth": 374,
+      "rail": false
+    },
+    "tableMinWidth": "0px",
+    "records": 20,
+    "heights": [
+      293,
+      345,
+      269,
+      269,
+      269,
+      327,
+      327,
+      327,
+      386,
+      293,
+      368,
+      309,
+      269,
+      269,
+      345,
+      345,
+      345,
+      363,
+      352,
+      345
+    ],
+    "maxRowHeight": 386,
+    "minRowHeight": 269,
+    "headers": [
+      {
+        "label": "Thời gian & lịch trình",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Khách hàng & nhà máy",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Tuyến đường & hãng tàu",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Cảng nâng",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Cảng hạ",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Tổng quan hàng hóa",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Phân bổ nhà xe",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Ghi chú",
+        "width": 0,
+        "left": 0
+      }
+    ],
+    "cardCount": 0,
+    "firstRowCellBodyHeights": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+    ]
+  },
+  "768": {
+    "viewport": {
+      "w": 768,
+      "h": 900
+    },
+    "mode": "stacked-cards",
+    "pageOverflowX": 0,
+    "theadPosition": "sticky",
+    "headerSpreadX": 0,
+    "wrapper": {
+      "scrollWidth": 729,
+      "clientWidth": 729,
+      "rail": false
+    },
+    "tableMinWidth": "0px",
+    "records": 20,
+    "heights": [
+      329,
+      351,
+      293,
+      293,
+      293,
+      351,
+      351,
+      351,
+      388,
+      329,
+      388,
+      351,
+      293,
+      293,
+      351,
+      351,
+      351,
+      369,
+      388,
+      351
+    ],
+    "maxRowHeight": 388,
+    "minRowHeight": 293,
+    "headers": [
+      {
+        "label": "Thời gian & lịch trình",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Khách hàng & nhà máy",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Tuyến đường & hãng tàu",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Cảng nâng",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Cảng hạ",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Tổng quan hàng hóa",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Phân bổ nhà xe",
+        "width": 0,
+        "left": 0
+      },
+      {
+        "label": "Ghi chú",
+        "width": 0,
+        "left": 0
+      }
+    ],
+    "cardCount": 0,
+    "firstRowCellBodyHeights": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+    ]
+  },
+  "1440": {
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "mode": "table",
+    "pageOverflowX": 0,
+    "theadPosition": "sticky",
+    "headerSpreadX": 1022,
+    "wrapper": {
+      "scrollWidth": 1129,
+      "clientWidth": 1129,
+      "rail": false
+    },
+    "tableMinWidth": "0px",
+    "records": 20,
+    "heights": [
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      117,
+      116
+    ],
+    "maxRowHeight": 117,
+    "minRowHeight": 116,
+    "headers": [
+      {
+        "label": "Thời gian & lịch trình",
+        "width": 175,
+        "left": 272
+      },
+      {
+        "label": "Khách hàng & nhà máy",
+        "width": 178,
+        "left": 447
+      },
+      {
+        "label": "Tuyến đường & hãng tàu",
+        "width": 195,
+        "left": 625
+      },
+      {
+        "label": "Cảng nâng",
+        "width": 99,
+        "left": 820
+      },
+      {
+        "label": "Cảng hạ",
+        "width": 82,
+        "left": 918
+      },
+      {
+        "label": "Tổng quan hàng hóa",
+        "width": 167,
+        "left": 1000
+      },
+      {
+        "label": "Phân bổ nhà xe",
+        "width": 127,
+        "left": 1167
+      },
+      {
+        "label": "Ghi chú",
+        "width": 107,
+        "left": 1294
+      }
+    ],
+    "cardCount": 0,
+    "firstRowCellBodyHeights": [
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none",
+      "none"
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/redesign-master-plan/frontend
+> vitest run
+
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/redesign-master-plan/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+
+ Test Files  715 passed (715)
+      Tests  5525 passed (5525)
+   Start at  16:18:02
+   Duration  248.45s (transform 32.20s, setup 153.76s, import 656.42s, tests 631.06s, environment 670.24s)
+

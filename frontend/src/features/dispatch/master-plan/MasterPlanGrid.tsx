@@ -27,7 +27,9 @@ import {
   aggregateContainerPortGroupLines,
   cargoCellLines,
   cutoffUrgency,
+  formatCarrierAllocationChips,
   formatContainerSummaryLine,
+  hasContainerDemand,
   scheduleBlocks,
 } from './MasterPlanCellValues';
 
@@ -106,14 +108,22 @@ const CARD_MODE_BREAKPOINT = 640;
  *  owns the layout. jsdom (unit tests) has no ResizeObserver: the table is
  *  the default and card suites drive the card list directly. The anchor is
  *  a STATE callback ref, not a mount-time effect: the wrapper must re-bind
- *  when the layout mode flips its children. */
+ *  when the layout mode flips its children.
+ *
+ *  Review M1 (this lane): the measurement rides borderBoxSize — a classic
+ *  (Windows) scrollbar on the pane shrinks the CONTENT box ~15px, so a
+ *  contentRect measurement at the 640px boundary flips table→cards (no
+ *  scrollbar)→table… in a sustained loop. The border box keeps reporting
+ *  the same width whether or not the pane's own scrollbar is drawn. */
 function useCardLayoutMode(): [React.Dispatch<React.SetStateAction<HTMLDivElement | null>>, boolean] {
   const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
   const [isCardMode, setIsCardMode] = useState(false);
   useEffect(() => {
     if (!anchorEl || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width ?? 0;
+      const entry = entries[0];
+      const width = entry?.borderBoxSize?.[0]?.inlineSize
+        ?? entry?.contentRect.width ?? 0;
       const next = width < CARD_MODE_BREAKPOINT;
       setIsCardMode((current) => (current === next ? current : next));
     });
@@ -246,13 +256,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             const scheduleTooltip = scheduleBlocks(item, scheduleDate)
               .map((block) => [block.head, block.sub].filter(Boolean).join(' · '))
               .join(' || ');
-            const allocationChipsText = item.carrierAllocationSummary.map((entry) => {
-              const counts = [
-                entry.count20 > 0 ? `${entry.count20}x20'` : null,
-                entry.count40 > 0 ? `${entry.count40}x40'` : null,
-              ].filter(Boolean).join(' · ');
-              return counts ? `${entry.carrierLabel}: ${counts}` : entry.carrierLabel;
-            }).join(' · ');
+            const allocationChipsText = formatCarrierAllocationChips(item);
             return (
               <tr
                 key={item.id}
@@ -440,12 +444,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         );
                       })()}
                     </div>
-                    {Boolean(
-                      (item.containerTotal != null
-                        ? item.containerTotal > 0
-                        : ((item.containerCount20 ?? 0) + (item.containerCount40 ?? 0) > 0)) &&
-                      item.containerTypeSummary !== 'Chưa có cont'
-                    ) && (
+                    {hasContainerDemand(item) && (
                       <UUIButton
                         size="xs"
                         color="link-color"

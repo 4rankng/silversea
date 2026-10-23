@@ -61,6 +61,17 @@ describe('MasterPlanGrid content-sized row contract (owner redesign 23/10; super
     expect(css).toMatch(/\.master-plan-grid__container-detail-trigger,\s*\n\.master-plan-grid__note-detail-trigger \{[\s\S]*?flex:\s*0 0 auto/);
   });
 
+  it('lifts the row clamp while the inline notes editor is mounted (review H1)', () => {
+    // A FAILED save renders the error line under the textarea; the 77px
+    // clamp would hide the Lưu/Hủy row exactly when the user must retry or
+    // cancel. The editor is a transient overlay — its cell leaves the
+    // reading-row budget.
+    const override = css.match(/\.master-plan-grid__cell-body:has\(> \.master-plan-grid__notes-editor\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(override, 'the :has(notes-editor) clamp override must exist').toBeTruthy();
+    expect(override).toMatch(/max-height:\s*none/);
+    expect(override).toMatch(/overflow:\s*visible/);
+  });
+
   it('gives the phone surface to the card list below the 640px container width', () => {
     // The JS switch (same law as the detailed-plan grid): the table is the
     // jsdom default, the card list renders only under a real ResizeObserver.
