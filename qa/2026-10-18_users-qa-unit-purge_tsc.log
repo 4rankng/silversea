@@ -1,3 +1,0 @@
-$ cd backend && npx tsc --noEmit
-BE-TSC-EXIT=0
-(no diagnostics)

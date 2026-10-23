@@ -1,4 +1,0 @@
-cmd: cd frontend && npx vitest run src/pages/DispatchDetailPlanPage.delete-lot.test.tsx src/pages/DispatchDetailPlanPage.lcl-unmerge.test.tsx src/pages/DispatchDetailPlanPage.test.tsx src/pages/DispatchDetailPlanPage.lcl-assign-reason.test.tsx src/pages/ShipmentsPage.test.tsx src/pages/ShipmentDetailPage.test.tsx src/features/dispatch/detailed-plan/
- Test Files  42 passed (42)
-      Tests  599 passed (599)
-exit status: 0

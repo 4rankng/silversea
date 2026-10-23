@@ -1,5 +1,0 @@
-CMD: pnpm lint
-> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-filter-lcl-day
-> eslint .
-
-EXIT=0

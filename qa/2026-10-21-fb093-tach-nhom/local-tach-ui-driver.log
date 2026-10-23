@@ -1,8 +1,0 @@
-login thanhdc @ http://localhost:7188 ok
-[PASS] tach-nhom-clicked — {"label":"Tách nhóm ghép cước thu khách — lô UI-LCL-B77AP2-5","x":808,"y":910.984375}
-[PASS] tach-confirmed — confirm clicked
-[PASS] tach-money-back — A 3.050.000=true · B 1.800.000=true
-[PASS] tach-note-shed — B=+UI-LCL-B77AP2-5UI KHÁCH HÀNG B77AP2Số Bill: UI-LCL-B77AP2-5Số tờ khai: Chưa cóChi tiết →1.800.00001.800.000Chưa xác địnhChưa xác địnhĐang mở
-[PASS] tach-buttons-gone — []
-
-== local/tach: 5/5 PASS · exit 0

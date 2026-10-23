@@ -1,7 +1,0 @@
-# Card 261019145030 — root lint
-# cmd: pnpm lint
-
-> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-261019145030-fullsuite-pollution-rb1
-> eslint .
-
-EXIT=0

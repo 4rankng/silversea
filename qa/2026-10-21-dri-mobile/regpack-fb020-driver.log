@@ -1,7 +1,0 @@
-
-Running 2 tests using 1 worker
-
-  ✓  1 [chromium] › e2e/regression/fb020-driver-cang-ha.spec.ts:44:1 › TC-FB020-001: portless IMPORT — Cảng hạ = tên điểm trả, Địa chỉ giao hàng = nhà máy đầy đủ (2.5s)
-  ✓  2 [chromium] › e2e/regression/fb020-driver-cang-ha.spec.ts:116:1 › TC-FB020-002 (control): IMPORT CÓ cảng hạ — hai hàng khác nhau, không đổ lẫn (1.7s)
-
-  2 passed (5.4s)

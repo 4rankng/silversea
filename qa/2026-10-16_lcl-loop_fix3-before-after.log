@@ -1,4 +1,0 @@
-{
- "labelHtml": "<label class=\"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold\" data-label=\"true\" for=\"shipment-expected-delivery\">Ngày giao hàng<span class=\"ds-field__required\" aria-hidden=\"true\"> *</span><span aria-hidden=\"true\" class=\"text-brand-tertiary\">*</span></label>",
- "visibleStars": 11
-}

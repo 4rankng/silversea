@@ -1,5 +1,0 @@
-CMD: pnpm exec tsc --noEmit
-EXIT: 0
-=== RE-RUN after review fixes 17:29:00 ===
-CMD: pnpm exec tsc --noEmit
-EXIT: 0

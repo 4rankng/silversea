@@ -1,9 +1,0 @@
-{"at":"2026-10-20T12:04:06.121Z","step":"env","base":"http://localhost:7176","api":"http://localhost:3002/api","backendBuild":"dev"}
-{"at":"2026-10-20T12:04:06.240Z","step":"login_api","username":"admin","role":"ADMIN","id":1}
-{"at":"2026-10-20T12:04:12.177Z","step":"tab1_identity_before","pathname":"/config","name":"Trần Văn Admin","role":"Quản trị viên"}
-{"at":"2026-10-20T12:04:16.236Z","step":"tab2_inherited_identity","pathname":"/config","name":"Trần Văn Admin","role":"Quản trị viên"}
-{"at":"2026-10-20T12:04:22.449Z","step":"tc2_result","tab1":{"pathname":"/login","name":null,"role":null},"toasts":["Phiên đăng nhập đã kết thúc ở thẻ khác."],"server_revocation":{"status":401,"error":"Token đã bị thu hồi"}}
-{"at":"2026-10-20T12:04:30.866Z","step":"tab1_resigned_as_admin","pathname":"/config","name":"Trần Văn Admin","role":"Quản trị viên"}
-{"at":"2026-10-20T12:04:35.734Z","step":"tab2_login_ketoan","pathname":"/accounting","name":"Nguyễn Thị Mai","role":"Kế toán"}
-{"at":"2026-10-20T12:04:36.500Z","step":"tc1_result","tab2_seeded_session":"ketoan","tab1":{"pathname":"/accounting","name":"Nguyễn Thị Mai","role":"Kế toán"},"toasts":["Thẻ khác đã đăng nhập — phiên này chuyển sang Nguyễn Thị Mai (ACCOUNTANT). Kiểm tra lại vai trò trước khi tiếp tục.Bạn không có quyền truy cập trang này.","Thẻ khác đã đăng nhập — phiên này chuyển sang Nguyễn Thị Mai (ACCOUNTANT). Kiểm tra lại vai trò trước khi tiếp tục.","Bạn không có quyền truy cập trang này."],"meNow":{"status":200,"id":3,"username":"ketoan","role":"ACCOUNTANT","fullName":"Nguyễn Thị Mai"}}
-{"at":"2026-10-20T12:04:36.500Z","step":"verdict","tc2_logout_toast_visible":true,"tc2_tab1_back_to_login":true,"tc2_token_revoked_server_side":true,"tc1_toast_visible":true,"tc1_identity_swapped_to_ketoan":true,"consoleErrors":[]}

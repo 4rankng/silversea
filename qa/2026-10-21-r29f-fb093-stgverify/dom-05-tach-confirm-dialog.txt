@@ -1,4 +1,0 @@
-{
-  "open": true,
-  "text": "Tách nhóm ghép cước thu khách? Tiền cước của mỗi lô trở về đúng trạng thái trước ghép, ghi chú \"Ghép cước cùng Bill\" được gỡ.HủyTách nhóm"
-}

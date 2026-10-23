@@ -1,5 +1,0 @@
-CMD: npx tsc -b
-EXIT: 0
-=== RE-RUN after review fixes ===
-CMD: npx tsc -b
-EXIT: 0

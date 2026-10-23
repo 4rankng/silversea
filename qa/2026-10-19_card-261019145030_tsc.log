@@ -1,3 +1,0 @@
-# Card 261019145030 gate 4 — backend typecheck
-# cmd: cd backend && pnpm exec tsc --noEmit
-EXIT=0

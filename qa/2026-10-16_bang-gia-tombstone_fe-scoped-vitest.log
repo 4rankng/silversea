@@ -1,7 +1,0 @@
-== cmd: cd frontend && npx vitest run src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx
- Test Files  1 passed (1)
-      Tests  4 passed (4)
-   Start at  15:01:48
-   Duration  4.30s (transform 1.25s, setup 137ms, import 2.25s, tests 1.25s, environment 546ms)
-
-exit: 0

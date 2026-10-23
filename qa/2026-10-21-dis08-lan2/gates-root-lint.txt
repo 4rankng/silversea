@@ -1,6 +1,0 @@
-$ pnpm lint (repo root)
-
-> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-dis08-lan2
-> eslint .
-
-exit=0

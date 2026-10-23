@@ -1,6 +1,0 @@
-
-> tingting@ context:check /Users/dev/.paseo/worktrees/1njkloyy/feat-r29f-fb093-stgverify
-> node scripts/context-for.mjs --check
-
-Context manifest valid: v1, 8 profiles, 25 context paths.
-exit=0

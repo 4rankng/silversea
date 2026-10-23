@@ -1,2 +1,0 @@
-=== cmd: cd backend && pnpm exec tsc --noEmit (rerun after pnpm install) ===
-exit=0

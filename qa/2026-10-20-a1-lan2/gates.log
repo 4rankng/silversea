@@ -1,8 +1,0 @@
-=== Gates Summary (2026-10-20 A.1 lan-2) ===
-1. cd frontend && npx tsgo -b -> EXIT 0 (0 errors)
-2. cd backend && npx tsc --noEmit -> EXIT 0 (0 errors)
-3. pnpm lint -> EXIT 0 (0 errors)
-4. cd frontend && npx vitest run src/features/shipments/cus/CusContainerLedger.test.tsx -> 40/40 passed
-5. cd frontend && npx vitest run src/pages/ShipmentsPage.test.tsx -> 138/138 passed
-6. cd backend && npx tsx --test src/tests/unit/added-container-carrier-plan.test.ts -> 8/8 passed
-7. cd backend && pnpm test -> unit 305/305 + integration 326/326 passed (fail 0)

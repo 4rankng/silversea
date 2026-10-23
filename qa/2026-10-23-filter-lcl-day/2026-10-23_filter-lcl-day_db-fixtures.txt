@@ -1,5 +1,0 @@
-LDAYD02783116 | cargoMode=LCL | transportDate=2026-10-17 | createdAt=2026-10-22
-LDAYU02783116 | cargoMode=LCL | transportDate=NULL | createdAt=2026-10-22
-LDAYD03005341 | cargoMode=LCL | transportDate=2026-10-17 | createdAt=2026-10-22
-LDAYU03005341 | cargoMode=LCL | transportDate=NULL | createdAt=2026-10-22
-124 | bl=NULL | booking=K547238574983 | code=SHP-2610-00064 | cargoMode=LCL | transportDate=2026-10-17

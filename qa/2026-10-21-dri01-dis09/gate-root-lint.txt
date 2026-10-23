@@ -1,5 +1,0 @@
-
-> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-dri01-dis09-visible
-> eslint .
-
-LINT_EXIT=0

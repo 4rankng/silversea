@@ -1,9 +1,0 @@
-baseline truck1+driver1: status=201 code=null id=44480 msg=null
-same tractor (t1) +driver5: status=409 code=RIG_OVERLAP_COMPLETED id=null msg=Đầu xe 60C-12345 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?
-other tractor (t2) +driver1: status=409 code=RIG_OVERLAP_COMPLETED id=null msg=Tài xế đã có 1 chuyến khác trùng khung giờ phân công này. Vẫn lưu?
-
-RESULT: driver overlap refused/warned
-cleanup: 44480 deleted
-holder: 201 44481 | cross-tractor warn: 409 RIG_OVERLAP_COMPLETED
-confirmed retry: 201 44482
-cleanup done; exit PASS

@@ -1,9 +1,0 @@
-
- RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/ragged-sheep/frontend
-
-
- Test Files  1 passed (1)
-      Tests  5 passed (5)
-   Start at  16:22:11
-   Duration  21.42s (transform 3.42s, setup 367ms, import 7.68s, tests 11.21s, environment 1.92s)
-

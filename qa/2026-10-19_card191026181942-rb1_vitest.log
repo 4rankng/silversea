@@ -1,4 +1,0 @@
-=== cmd: cd frontend && pnpm exec vitest run src/features/dispatch/master-plan/DispatchAllocationPopover.cargo-mode.test.tsx src/lib/column-visibility.test.ts src/pages/accounting/AccountingDebitClosePage.cost-dot.test.tsx src/pages/accounting/AccountingDebitClosePage.test.tsx ===
-
- RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-dieuvan-ketoan-ui-rb1/frontend
-

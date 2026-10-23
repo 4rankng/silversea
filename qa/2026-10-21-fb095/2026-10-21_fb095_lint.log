@@ -1,6 +1,0 @@
-cmd: pnpm lint
-
-> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-fb095-xoa-lo-chinh
-> eslint .
-
-exit status: 0

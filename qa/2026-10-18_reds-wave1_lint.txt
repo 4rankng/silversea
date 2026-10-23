@@ -1,5 +1,0 @@
-
-> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-be-reds-wave1
-> eslint .
-
-exit: 0

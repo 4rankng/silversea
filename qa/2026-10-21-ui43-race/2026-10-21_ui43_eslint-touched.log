@@ -1,2 +1,0 @@
-$ pnpm exec eslint src/components/work-inbox/RoleWorkInbox.tsx src/components/work-inbox/RoleWorkInbox.test.tsx
-exit=0

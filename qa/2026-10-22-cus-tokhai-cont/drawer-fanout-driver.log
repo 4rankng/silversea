@@ -1,9 +1,0 @@
-fixture lot=312562 bl=HAGHTB29677441 (2 có số + 1 placeholder)
-PASS drawer open
-PASS drawer tờ khai triggers :: n=3
-PASS R2 drawer siblings filled in-place :: HAGHTB29677441-D1|HAGHTB29677441-D1|HAGHTB29677441-D1
-PASS R2 DB proof :: HAGHTB29677441-D1|HAGHTB29677441-D1|HAGHTB29677441-D1
-PASS R3 drawer divergence kept :: HAGHTB29677441-D1X|HAGHTB29677441-D2|HAGHTB29677441-D1
-PASS R2 copy affordance clears when full :: n=0
-
-6/6 drawer checks passed

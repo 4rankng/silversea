@@ -1,6 +1,0 @@
-$ pnpm lint
-
-> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-fb109-fb113-shipdocs
-> eslint .
-
-EXIT:0

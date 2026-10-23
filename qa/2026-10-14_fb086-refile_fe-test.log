@@ -1,9 +1,0 @@
-
- RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/melodic-sloth/frontend
-
-
- Test Files  4 passed (4)
-      Tests  149 passed (149)
-   Start at  20:21:10
-   Duration  25.43s (transform 4.23s, setup 1.04s, import 10.63s, tests 29.35s, environment 4.83s)
-

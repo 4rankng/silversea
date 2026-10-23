@@ -1,4 +1,0 @@
-
-> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-quote-ui-spec
-> eslint .
-

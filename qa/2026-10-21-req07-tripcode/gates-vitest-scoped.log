@@ -1,9 +1,0 @@
-
- RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/feat-req07-trip-code-format/frontend
-
-
- Test Files  10 passed (10)
-      Tests  195 passed (195)
-   Start at  09:07:48
-   Duration  3.74s (transform 4.48s, setup 1.80s, import 14.85s, tests 3.09s, environment 5.71s)
-
