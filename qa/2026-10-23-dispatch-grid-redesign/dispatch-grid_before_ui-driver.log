@@ -1,0 +1,13 @@
+PHASE=before front=http://localhost:7175 health=ok
+scope=Tất cả clicked @390
+390 metrics {"mode":"table","rowCount":50,"rowHeights":[434,470,470,452,426,502,466,434],"phoneText":"0984963484","phoneHeight":15,"menuTriggerPx":28,"redDelete":50,"inlineDelete":50,"wrapperScroll":{"sw":374,"cw":374},"pageOverflowX":0,"stickyActions":false}
+PASS BEFORE 390: board renders rows — rows=50
+scope=Tất cả clicked @768
+768 metrics {"mode":"table","rowCount":50,"rowHeights":[260,242,242,242,242,254,242,260],"phoneText":"0985246985","phoneHeight":15,"menuTriggerPx":28,"redDelete":50,"inlineDelete":50,"wrapperScroll":{"sw":744,"cw":744},"pageOverflowX":0,"stickyActions":false}
+PASS BEFORE 768: board renders rows — rows=50
+scope=Tất cả clicked @1440
+1440 metrics {"mode":"table","rowCount":50,"rowHeights":[101,101,101,101,101,101,101,101],"phoneText":"0985246985","phoneHeight":46,"menuTriggerPx":28,"redDelete":50,"inlineDelete":50,"wrapperScroll":{"sw":1144,"cw":1144},"pageOverflowX":0,"stickyActions":false}
+1440 wrapper scrolled {"sw":1144,"cw":1144}
+PASS BEFORE 1440: board renders rows — rows=50
+BEFORE 1440 row heights: 101,101,101,101,101,101,101,101 (owner defect: ~230px towers)
+SUMMARY phase=before failures=0

@@ -147,8 +147,11 @@ function renderPage() {
   );
 }
 
-function openDeleteDialog(ariaLabel: string) {
-  fireEvent.click(screen.getByRole('button', { name: ariaLabel }));
+function openDeleteDialog(rowIdentity: string) {
+  // Owner redesign 23/10: Xóa lô rides the row ⋯ menu (LAST item, danger
+  // voice) — open the row's menu by identity, then pick the item.
+  fireEvent.click(screen.getByRole('button', { name: `Thao tác dòng · ${rowIdentity}` }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Xóa lô' }));
   return screen.getByRole('dialog', { name: 'Xóa lô hàng' });
 }
 
@@ -167,17 +170,30 @@ beforeEach(() => {
 describe('FB-095 — Điều vận "Xóa lô" (FB095-UI-05..07, card 211026005623)', () => {
   it('FB095-UI-05a: ADMIN gets "Xóa lô" on every lot row — including the Lô chính row', () => {
     renderPage();
-    const buttons = screen.getAllByRole('button', { name: /^Xóa lô · / });
-    expect(buttons).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Xóa lô · CL4C-01' })).toBeTruthy();
-    // The principal row keeps its group action next to the new affordance.
-    expect(screen.getByRole('button', { name: 'Tách nhóm' })).toBeTruthy();
+    // Both rows' ⋯ menus carry the destructive item (LAST position); the
+    // principal row additionally keeps its group action (SPEC 18/10 §4).
+    const openMenu = (identity: string) => {
+      fireEvent.click(screen.getByRole('button', { name: `Thao tác dòng · ${identity}` }));
+      return screen.getAllByRole('menuitem');
+    };
+    const dismissMenu = () => fireEvent.keyDown(document, { key: 'Escape' });
+
+    let items = openMenu('CL4C-01');
+    expect(items[items.length - 1]).toHaveTextContent('Xóa lô');
+    expect(items.some((item) => item.textContent === 'Tách nhóm')).toBe(true);
+    dismissMenu();
+
+    items = openMenu('CL4C-02');
+    expect(items[items.length - 1]).toHaveTextContent('Xóa lô');
+    expect(items.some((item) => item.textContent === 'Tách nhóm')).toBe(false);
+    dismissMenu();
   });
 
   it('FB095-UI-05b: DISPATCHER gets the guard\'s law text instead of a delete execution (role law not loosened)', () => {
     auth.user = { userId: 9, role: Role.DISPATCHER };
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa lô · CL4C-01' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thao tác dòng · CL4C-01' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Xóa lô' }));
     // Verbatim the `requestShipmentDelete` refusal — the affordance answers
     // with the guard's own reason (card 20260923_1) and never reaches the API.
     expect(screen.getByRole('alert').textContent).toBe(
@@ -191,7 +207,7 @@ describe('FB-095 — Điều vận "Xóa lô" (FB095-UI-05..07, card 21102600562
     deleteLot.mockResolvedValue(undefined);
     renderPage();
 
-    const dialog = openDeleteDialog('Xóa lô · CL4C-01');
+    const dialog = openDeleteDialog('CL4C-01');
     expect(within(dialog).getByText(/Lô này là Lô chính của nhóm 2 lô ghép trả ĐV/)).toBeTruthy();
     expect(within(dialog).getByText(/chuyển 100% cước trả ĐV cho lô kế tiếp/)).toBeTruthy();
     expect(within(dialog).getByText(/Nhóm giải tán vì chỉ còn một lô/)).toBeTruthy();
@@ -220,7 +236,7 @@ describe('FB-095 — Điều vận "Xóa lô" (FB095-UI-05..07, card 21102600562
     ));
     renderPage();
 
-    const dialog = openDeleteDialog('Xóa lô · CL4C-01');
+    const dialog = openDeleteDialog('CL4C-01');
     fillReason(dialog, 'Thử xóa lô đã phát lệnh');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa lô hàng' }));
 
@@ -237,7 +253,7 @@ describe('FB-095 — Điều vận "Xóa lô" (FB095-UI-05..07, card 21102600562
     plan.items = [lclRow(31, 'CL4C-01', 1, 3), lclRow(32, 'CL4C-02', 2, 3), lclRow(33, 'CL4C-03', 3, 3)];
     renderPage();
 
-    const dialog = openDeleteDialog('Xóa lô · CL4C-02');
+    const dialog = openDeleteDialog('CL4C-02');
     expect(within(dialog).getByText(/Lô này là thành viên nhóm 3 lô ghép trả ĐV/)).toBeTruthy();
     expect(within(dialog).getByText(/Lô 1 giữ nguyên 100% cước; các thành viên còn lại được đánh số lại/)).toBeTruthy();
     expect(within(dialog).queryByText(/Nhóm giải tán/)).toBeNull();

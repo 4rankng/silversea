@@ -1,0 +1,24 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/redesign-dispatch-grid/frontend
+> vitest run
+
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/redesign-dispatch-grid/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  714 passed (714)
+      Tests  5506 passed (5506)
+   Start at  11:43:47
+   Duration  161.25s (transform 36.38s, setup 97.77s, import 435.59s, tests 431.06s, environment 385.26s)
+
+EXIT=0

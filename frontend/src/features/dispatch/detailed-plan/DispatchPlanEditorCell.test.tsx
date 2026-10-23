@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
@@ -22,6 +22,7 @@ vi.mock('../../../api/configClient', () => ({
 import { createCarrierFleetVehicle, createInternalTruck, listDispatchFleetResources, updateLclTruck } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
+import { detailRowKey } from './DispatchPlanCellValues';
 
 // The note composer pulls the tag pool through react-query; pin it so the
 // modal tests stay provider-free and deterministic.
@@ -151,6 +152,11 @@ function renderCell(
     onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
     onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
   } = {},
+  /** Owner redesign 23/10 — the inline trigger is gone; the row ⋯ menu opens
+   *  the editor through the openRequest signal. `open: true` mounts with the
+   *  signal already fired (the dialog opens on mount); tests that need to
+   *  re-open use `reopenEditor`. */
+  options: { open?: boolean } = {},
 ) {
   const defaultAtomicSave = vi.fn().mockResolvedValue({
     fulfillmentVersion: 4,
@@ -169,7 +175,8 @@ function renderCell(
     notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },
     replayed: false,
   });
-  return render(
+  const key = detailRowKey(item);
+  const element = (open: boolean, nonce: number) => (
     <DispatchPlanEditorCell
       row={item}
       onAtomicSave={(handlers.onAtomicSave as never) ?? (defaultAtomicSave as never)}
@@ -178,12 +185,23 @@ function renderCell(
       onIssueOrder={(handlers.onIssueOrder as never) ?? (defaultIssueOrder as never)}
       onEnsureFulfillment={handlers.onEnsureFulfillment}
       onChangeGroupTruck={handlers.onChangeGroupTruck}
-    />,
+      openRequest={open ? { key, nonce } : null}
+      onOpenRequestConsumed={vi.fn()}
+    />
   );
+  const view = render(element(options.open !== false, 1));
+  let nonce = 1;
+  return {
+    ...view,
+    /** Bumps the signal so the cell re-opens its editor (menu re-click). */
+    reopenEditor() {
+      nonce += 1;
+      view.rerender(element(true, nonce));
+    },
+  };
 }
 
 async function openDialog() {
-  fireEvent.click(screen.getByRole('button', { name: /Sửa ô điều phối/ }));
   await waitFor(() => expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy());
 }
 
@@ -194,48 +212,43 @@ describe('UI52-B editor business identity', () => {
     { container: ' ', bill: ' BOOK-2026-010 ', expected: 'BOOK-2026-010' },
     { container: null, bill: null, expected: 'Chưa có số Bill/Booking' },
     { container: ' ', bill: ' ', expected: 'Chưa có số Bill/Booking' },
-  ])('keeps $expected in the editor trigger/title and Cancel preserves the exact row', async ({ container, bill, expected }) => {
+  ])('keeps $expected in the editor title and Cancel preserves the exact row', async ({ container, bill, expected }) => {
     mockFleetResources();
     const original = row();
     original.container = { ...original.container, containerNumber: container };
     original.docs = { ...original.docs, billNumber: bill };
     const onAtomicSave = vi.fn();
     renderCell(original, { onAtomicSave });
-    const name = `Sửa ô điều phối ${expected}`;
-    const trigger = screen.getByRole('button', { name });
-    expect(trigger).toHaveAttribute('title', `Chỉnh sửa điều phối · ${expected}`);
-    expect(trigger.getAttribute('aria-label')).not.toContain(original.shipmentCode);
-    fireEvent.click(trigger);
+    // Owner redesign 23/10: the identity lives in the dialog title (the row
+    // ⋯ menu names it too); the internal shipment code never surfaces.
     expect(await screen.findByRole('heading', { name: `Chỉnh sửa điều phối · ${expected}` })).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain(original.shipmentCode ?? 'SS-SENTINEL');
     expect(screen.getByLabelText('Nhà xe').id).toBe(`dispatch-carrier-${original.fulfillmentId}`);
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByRole('button', { name })).toBe(trigger);
     expect(onAtomicSave).not.toHaveBeenCalled();
   });
 });
 
 describe('QA-AUDIT-UI-92 complete assignment facts', () => {
-  it('keeps full facts outside one compact edit action and Cancel preserves the row', async () => {
+  it('keeps the cell as read-only facts (no trigger) and Cancel preserves the row', async () => {
     mockFleetResources();
     const original = row();
     original.dispatch = { ...original.dispatch, assignedDriverName: PAIRED_TRUCK.assignedDriverName };
     const saved = structuredClone(original);
     const onAtomicSave = vi.fn();
     const { container } = renderCell(original, { onAtomicSave });
-    const trigger = screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
-    expect(trigger).toHaveTextContent(/^Sửa$/);
+    // Owner redesign 23/10: the inline trigger is GONE — the cell carries
+    // facts only; the row ⋯ menu owns the open verb.
+    const cell = container.querySelector('.dispatch-assignment-cell') as HTMLElement;
+    expect(cell?.querySelectorAll('button')).toHaveLength(0);
     for (const text of [original.dispatch.carrierName ?? 'Chưa phân nhà xe', PAIRED_TRUCK.licensePlate, PAIRED_TRUCK.assignedDriverName, 'Đã điều xe']) {
-      const fact = screen.getByText(text);
-      expect(container.querySelector('.dispatch-assignment-cell')).toContainElement(fact);
-      expect(trigger).not.toContainElement(fact);
+      const fact = within(cell).getByText(text);
+      expect(cell).toContainElement(fact);
     }
-    fireEvent.click(trigger);
     expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' })).toBe(trigger);
-    expect(trigger).toHaveFocus();
     expect(onAtomicSave).not.toHaveBeenCalled();
     expect(original).toEqual(saved);
   });
@@ -466,25 +479,26 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(issueButton()).toBeUndefined();
   });
 
-  it('routes ISSUED rows to the trip-reassign flow instead of the editor', () => {
+  it('routes ISSUED rows to the trip-reassign flow instead of the editor', async () => {
     const onOpenTripReassign = vi.fn();
     renderCell(row({
       taskStatus: 'DISPATCHED',
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 55, tripStatus: 'CREATED' },
     }), { onOpenTripReassign });
-    fireEvent.click(screen.getByRole('button', { name: /Phân xe lại/ }));
-    expect(onOpenTripReassign).toHaveBeenCalledWith(55);
+    // Owner redesign 23/10: the row menu's open signal drives the same
+    // reroute the old inline trigger owned — a live trip never opens the
+    // plan editor, it goes straight to the governed reassignment dialog.
+    await waitFor(() => expect(onOpenTripReassign).toHaveBeenCalledWith(55));
     expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
   });
 
-  it('routes in-flight (IN_TRANSIT) trips to the reassign flow too — the plan is no longer editable', () => {
+  it('routes in-flight (IN_TRANSIT) trips to the reassign flow too — the plan is no longer editable', async () => {
     const onOpenTripReassign = vi.fn();
     renderCell(row({
       taskStatus: 'DISPATCHED',
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 55, tripStatus: 'IN_TRANSIT' },
     }), { onOpenTripReassign });
-    fireEvent.click(screen.getByRole('button', { name: /Phân xe lại/ }));
-    expect(onOpenTripReassign).toHaveBeenCalledWith(55);
+    await waitFor(() => expect(onOpenTripReassign).toHaveBeenCalledWith(55));
     expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
   });
 
@@ -576,12 +590,9 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.getByText('Đã hoàn thành')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Hoàn thành chuyến xe ngoài/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Phát lệnh nhanh/ })).toBeNull();
-    // The plan is frozen history — the trigger locks with an explanation and
-    // never opens the editor (its save would only 409 at the live-trip guard).
-    const trigger = screen.getByRole('button', { name: /Sửa ô điều phối/ });
-    expect(trigger).toHaveAttribute('aria-disabled', 'true');
-    expect(trigger.title).toMatch(/Chuyến đã hoàn thành/);
-    fireEvent.click(trigger);
+    // The plan is frozen history — the row menu does not render for
+    // completed rows, and even a stray open signal never opens the editor
+    // (its save would only 409 at the live-trip guard).
     expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
   });
 
@@ -701,7 +712,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     const onEnsureFulfillment = vi.fn(async () => null);
     renderCell(row({ fulfillmentId: null as unknown as number }), { onEnsureFulfillment });
 
-    fireEvent.click(screen.getByRole('button', { name: /Sửa ô điều phối/ }));
+    // The open signal already fired at mount (renderCell default).
     await waitFor(() => expect(onEnsureFulfillment).toHaveBeenCalledTimes(1));
 
     expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
@@ -871,14 +882,15 @@ describe('DispatchPlanEditorCell — editor mount stability across background re
 
   it('stays open with the draft intact across a fresh row-object render, and closes on Hủy', async () => {
     mockFleetResources();
-    const view = render(<DispatchPlanEditorCell {...cellProps(row())} />);
+    const withSignal = (item: ReturnType<typeof row>) => ({ ...cellProps(item), openRequest: { key: detailRowKey(item), nonce: 1 }, onOpenRequestConsumed: vi.fn() });
+    const view = render(<DispatchPlanEditorCell {...withSignal(row())} />);
     await openDialog();
 
     // Unsaved draft work the refresh must not discard.
     fireEvent.change(screen.getByLabelText('Ghi chú thêm'), { target: { value: 'bảo lãnh trước 30p' } });
 
     // Background refresh: same fulfillmentId, new object identity + version.
-    view.rerender(<DispatchPlanEditorCell {...cellProps(row({ version: 4 }))} />);
+    view.rerender(<DispatchPlanEditorCell {...withSignal(row({ version: 4 }))} />);
 
     expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
     expect((screen.getByLabelText('Ghi chú thêm') as HTMLTextAreaElement).value).toBe('bảo lãnh trước 30p');

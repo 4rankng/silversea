@@ -188,6 +188,7 @@ describe('DetailedPlanGrid', () => {
       'Điều phối',
       'Phân loại',
       'Ghi chú',
+      'Thao tác',
     ]);
 
     // Column 1: time and date together, operation below.
@@ -213,7 +214,7 @@ describe('DetailedPlanGrid', () => {
     // Column 7 (last): notes after atomic dispatch and classification.
     expect(screen.getByText('Xe: Giao giờ hành chính')).toBeTruthy();
     expect(screen.getByText('Khách: Gặp anh Hùng')).toBeTruthy();
-    expect(Array.from(container.querySelectorAll('td')).map((cell) => cell.getAttribute('data-label'))).toEqual([
+    expect(Array.from(container.querySelectorAll('tr').item(1)!.querySelectorAll('td')).map((cell) => cell.getAttribute('data-label'))).toEqual([
       'Thời gian & lịch trình',
       'Khách hàng & lộ trình',
       'Nâng hàng',
@@ -223,19 +224,19 @@ describe('DetailedPlanGrid', () => {
       'Điều phối',
       'Phân loại',
       'Ghi chú',
+      'Thao tác',
     ]);
   });
 
-  it('anchors the direction marker and quiet combined note on one document footer line', () => {
+  it('anchors the direction marker and quiet combined note on one route line', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
-    expect(css).toContain('.detailed-plan-grid__documents-direction { grid-area: direction; align-self: end; justify-self: end; }');
-    expect(css).toContain('"combined direction"');
+    expect(css).toMatch(/\.detailed-plan-grid__route-direction\s*\{[^}]*display:\s*flex;/);
     expect(css).toContain('.detailed-plan-grid__combined-note');
     expect(css).toContain('font-weight: 400;');
     expect(css).toContain('white-space: nowrap;');
   });
 
-  it('gives every fixed-layout desktop column an explicit share of exactly 100%', () => {
+  it('gives every fixed-layout column an explicit share of exactly 100% over a min-width floor (owner redesign 23/10)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const columnNames = [
       'schedule',
@@ -247,6 +248,7 @@ describe('DetailedPlanGrid', () => {
       'assignment',
       'classification',
       'notes',
+      'actions',
     ];
 
     const widths = columnNames.map((columnName) => {
@@ -256,32 +258,29 @@ describe('DetailedPlanGrid', () => {
     });
 
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
-    expect(widths[columnNames.indexOf('classification')]).toBeGreaterThanOrEqual(8);
-    // Card 091026091550: with the one-line header law, each column's floor is
-    // its longest header label INCLUDING the sort button's chrome, measured on
-    // the live 1041px worst-case canvas (1440 viewport with the expanded
-    // sidebar). Ticket 141026001010 (round 17): the 7.5% assignment share
-    // starved Điều phối to ~85px and re-inflated assigned rows (the R22
-    // compact-row contract), so the assignment column holds its
-    // pre-regression 12%; donors stay above their measured floors
-    // (schedule 16.62%, route 17.2%, notes 5.84%).
-    expect(widths[columnNames.indexOf('schedule')]).toBe(17);
-    expect(widths[columnNames.indexOf('route')]).toBe(17.5);
-    expect(widths[columnNames.indexOf('ports')]).toBe(8.5);
-    expect(widths[columnNames.indexOf('notes')]).toBe(10.25);
-    expect(widths[columnNames.indexOf('assignment')]).toBe(12);
+    // Owner spec floors at the 1340px table minimum: Khách hàng ≥180px,
+    // Điều phối ≥200px (SĐT one line), Ghi chú ≥160px; the formerly-fat
+    // schedule/route columns came back to content budgets.
+    expect(widths[columnNames.indexOf('route')] * 13.4).toBeGreaterThanOrEqual(180);
+    expect(widths[columnNames.indexOf('assignment')] * 13.4).toBeGreaterThanOrEqual(200);
+    expect(widths[columnNames.indexOf('notes')] * 13.4).toBeGreaterThanOrEqual(160);
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1340px;/);
     expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);
-    expect(css).toContain('@container (max-width: 900px)');
+    // The squeezed-table card bands are gone; the <640px surface is the
+    // dedicated card list (DispatchPlanCardList).
+    expect(css).not.toContain('@container (max-width: 900px)');
   });
 
-  it('keeps every desktop header label complete — nowrap is the board-wide law (card 091026091550)', () => {
+  it('lets header labels wrap at spaces up to two lines — never nowrap, never a "…" cut (owner redesign 23/10)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const headerRule = css.match(/\.detailed-plan-grid thead th \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(headerRule).toContain('white-space: nowrap;');
-    expect(headerRule).toContain('overflow-wrap: normal;');
-    expect(headerRule).not.toContain('white-space: normal');
+    expect(headerRule).toContain('white-space: normal;');
+    expect(headerRule).toContain('word-break: keep-all;');
+    expect(headerRule).toContain('-webkit-line-clamp: 2;');
     expect(headerRule).toContain('padding: 10px 8px;');
+    const sortRule = css.match(/\.detailed-plan-grid__sort \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(sortRule).toContain('-webkit-line-clamp: 2;');
   });
 
   it('renders container-less LCL rows with package/weight instead', () => {
@@ -341,7 +340,8 @@ describe('DetailedPlanGrid', () => {
       },
     })], { onOpenTripReassign });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Phân xe lại MSCU1234567' }));
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng · MSCU1234567/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Phân xe lại' }));
     expect(onOpenTripReassign).toHaveBeenCalledWith(77);
     expect(screen.queryByRole('dialog', { name: /Chỉnh sửa điều phối/i })).toBeNull();
   });
@@ -375,7 +375,8 @@ describe('DetailedPlanGrid', () => {
     });
     renderGrid([row({ classification: 'SINGLE' })], { onAtomicSave });
 
-    fireEvent.click(screen.getByRole('button', { name: /sửa ô điều phối/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sửa điều phối' }));
     fireEvent.change(screen.getByLabelText('Cước thu dự kiến'), { target: { value: '2.500.000' } });
     expect(screen.getByLabelText<HTMLInputElement>('Cước thu dự kiến').value).toBe('2.500.000');
     // UUI select: open the trigger, then pick the option from the listbox —
@@ -412,7 +413,8 @@ describe('DetailedPlanGrid', () => {
     });
     renderGrid([row({ classification: 'SINGLE' })], { onAtomicSave });
 
-    fireEvent.click(screen.getByRole('button', { name: /sửa ô điều phối/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sửa điều phối' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledWith(
@@ -445,17 +447,15 @@ describe('DetailedPlanGrid', () => {
     expect(container.querySelectorAll('.detailed-plan-grid__classification')).toHaveLength(4);
   });
 
-  it('opens one atomic edit dialog from the compact Điều phối action', async () => {
+  it('opens one atomic edit dialog from the row ⋯ menu — the Điều phối cell is facts-only', async () => {
     const { container } = renderGrid([row({ classification: 'SINGLE' })]);
     const dispatchCell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
     expect(dispatchCell).toBeTruthy();
-
-    const trigger = screen.queryByRole('button', { name: /sửa ô điều phối/i });
-    expect(trigger).toBeTruthy();
-    if (!trigger) return;
-    expect(dispatchCell?.querySelectorAll('button')).toHaveLength(1);
-    expect(trigger).toHaveClass('dispatch-assignment-cell__trigger');
-    fireEvent.click(trigger);
+    // Owner redesign 23/10: no trigger in the cell — the pinned Thao tác
+    // column owns the verb.
+    expect(dispatchCell?.querySelectorAll('button')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng · MSCU1234567/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sửa điều phối' }));
 
     const dialog = await screen.findByRole('dialog', { name: /Chỉnh sửa điều phối.*MSCU1234567/ });
     expect(within(dialog).getByLabelText('Nhà xe')).toBeTruthy();
@@ -469,17 +469,15 @@ describe('DetailedPlanGrid', () => {
     expect(within(dialog).queryByLabelText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
   });
 
-  it('keeps assignment facts as read content beside one independently named edit action', () => {
+  it('keeps the assignment cell as read-only facts — the menu owns the edit verb', () => {
     const item = row();
     const { container } = renderGrid([item]);
     const cell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
     if (!cell) throw new Error('Missing actual assignment cell');
-    const trigger = within(cell).getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
-    expect(cell.querySelectorAll('button')).toHaveLength(1);
-    expect(trigger).toHaveTextContent(/^Sửa$/);
+    // Owner redesign 23/10: no buttons inside the cell at all.
+    expect(cell.querySelectorAll('button')).toHaveLength(0);
     for (const text of [item.dispatch.carrierName ?? 'Chưa phân nhà xe', 'Chưa phân xe']) {
-      const fact = within(cell).getByText(text);
-      expect(trigger).not.toContainElement(fact);
+      expect(within(cell).getByText(text)).toBeTruthy();
     }
     expect(cell).toHaveAttribute('data-label-short', 'Điều phối');
     expect(within(cell).queryByRole('textbox')).toBeNull();
@@ -583,36 +581,36 @@ describe('DetailedPlanGrid', () => {
     expect(css).not.toContain('detailed-plan-filters__primary-row');
     expect(css).not.toContain('detailed-plan-filters__secondary-row');
     expect(css).toContain('.detailed-plan-filters__points {\n  position: relative;');
-    expect(css).toContain('.detailed-plan-grid__cell::before');
-    // The record bands print the SHORT label name; the desktop table pins
-    // headers instead (2026-09-27 record rework).
-    expect(css).toContain('content: attr(data-label-short)');
+    // Owner redesign 23/10: the squeezed-table record bands (td ::before
+    // short labels) are deleted with the card switch — the <640px surface is
+    // the dedicated DispatchPlanCardList.
+    expect(css).not.toContain('.detailed-plan-grid__cell::before');
+    expect(css).not.toContain('content: attr(data-label-short)');
   });
 
-  it('condenses phone records into a two-column decision layout without shrinking the dispatch target', () => {
+  it('renders the phone card list under 640px — one card per row with the single ⋯ menu (owner redesign 23/10)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
+    const gridTsx = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx'), 'utf8');
+    const cardTsx = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanCardList.tsx'), 'utf8');
 
-    expect(css).toContain('@container (max-width: 640px)');
-    expect(css).toMatch(/\.detailed-plan-grid__row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\) minmax\(0, max-content\);/);
-    expect(css).toContain('.detailed-plan-grid__cell--route,\n  .detailed-plan-grid__cell--ports,\n  .detailed-plan-grid__cell--notes,\n  .detailed-plan-grid__cell--editable {\n    grid-column: 1 / -1;');
-    expect(css).toMatch(/td\.detailed-plan-grid__cell--classification\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*grid-row:\s*1;[^}]*grid-column:\s*3;/);
-    // 2026-09-27 phone rework ("messy and wasted lots of space"): the label
-    // rides the record line it names (short, sentence case) instead of owning
-    // an uppercase row, and the values keep the `·` separator. Pinned so the
-    // nine-stacked-label card cannot come back.
-    const phoneCss = css.slice(css.indexOf('@container (max-width: 640px)'));
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell::before\s*\{[^}]*display:\s*inline;[^}]*content:\s*attr\(data-label-short\);[^}]*text-transform:\s*none;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell \.detailed-plan-grid__line\s*\{[^}]*display:\s*inline;[^}]*margin-right:\s*8px;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__line \+ \.detailed-plan-grid__line::before\s*\{[^}]*content:\s*'·';/);
-    // The two values that need the whole record width stack full-row.
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--documents\s*\{[^}]*grid-column:\s*1 \/ -1;/);
-    expect(phoneCss).toMatch(/\.detailed-plan-grid__cell--container\s*\{[^}]*grid-column:\s*1 \/ -1;/);
-    // The direction chip is un-blocked in the tablet record band (phones are a
-    // subset), so it rides the route line at every card width.
-    expect(css).toMatch(/\.detailed-plan-grid__documents-direction\s*\{[^}]*align-self:\s*start;[^}]*justify-self:\s*start;/);
-    // SCHEDULE-LAYOUT-09: match td.cell specificity so the empty notes tail
-    // actually beats the responsive display:block declaration.
-    expect(css).toContain('td.detailed-plan-grid__cell--blank {\n    display: none;\n  }');
+    // The mode switch is MEASURED on the grid's own wrapper (ResizeObserver),
+    // not declared as a container band.
+    expect(gridTsx).toContain('CARD_MODE_BREAKPOINT = 640');
+    expect(gridTsx).toContain('useCardLayoutMode');
+    // Card anatomy: header identity + Loại + status + the 44px menu; body
+    // lines are one-line runs (SĐT never wraps per character); foot carries
+    // the one primary action.
+    expect(cardTsx).toContain('dpcard__customer');
+    expect(cardTsx).toContain('dpcard__bill');
+    expect(cardTsx).toContain('dpcard__type');
+    expect(cardTsx).toContain('dpcard__line--vehicle');
+    expect(cardTsx).toContain('variant="labeled"');
+    expect(css).toMatch(/\.dpcard-list\s*\{[^}]*display:\s*grid;/);
+    expect(css).toMatch(/\.dpcard \.dispatch-row-menu__trigger\s*\{[^}]*width:\s*var\(--control-touch-h,\s*44px\);/);
+    // The old td-grid record hacks are deleted.
+    expect(css).not.toContain('@container (max-width: 640px)');
+    expect(css).not.toContain('td.detailed-plan-grid__cell--blank');
+    expect(css).toMatch(/\.dpcard__note\s*\{[^}]*text-overflow:\s*ellipsis;/);
   });
 
   it('rides the frozen design-system controls and carries zero self-made filter chrome (card 20260926_50)', () => {
@@ -653,25 +651,28 @@ describe('DetailedPlanGrid', () => {
     ));
     renderGrid([row({ fulfillmentId: null as unknown as number })], { onEnsureFulfillment });
 
-    // Integration gate: the click must reach the cell's handler through the
-    // grid's prop chain (QA closed-row repro: silent no-op on the live cut).
-    fireEvent.click(screen.getByRole('button', { name: /Sửa ô điều phối/ }));
+    // Integration gate: the menu's open signal must reach the cell's
+    // openEditor through the grid's prop chain (QA closed-row repro: silent
+    // no-op on the live cut).
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Sửa điều phối' }));
     expect(await screen.findByText(/Chỉnh sửa điều phối/)).toBeTruthy();
     expect(onEnsureFulfillment).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the Phát lệnh action inside the Ghi chú cell, not the assignment cell', () => {
+  it('renders the Phát lệnh action in the pinned Thao tác column — never over a data cell', () => {
     const { container } = renderGrid([row({
       taskStatus: 'READY',
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345' },
     })]);
     const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
     const assignmentCell = container.querySelector('.detailed-plan-grid__cell--editable') as HTMLElement;
-    const note = notesCell.querySelector('.detailed-plan-grid__note') as HTMLElement;
-    const action = within(notesCell).getByRole('button', { name: /Phát lệnh/ });
+    const actionsCell = container.querySelector('.detailed-plan-grid__cell--actions') as HTMLElement;
+    // Owner redesign 23/10: the release lives in the action rail only.
+    const action = within(actionsCell).getByRole('button', { name: /Phát lệnh/ });
+    expect(within(notesCell).queryByRole('button', { name: /Phát lệnh/ })).toBeNull();
     expect(within(assignmentCell).queryByRole('button', { name: /Phát lệnh/ })).toBeNull();
-    // Customer ruling: the action sits BENEATH the notes inside the cell.
-    expect(action.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(actionsCell).toContainElement(action);
   });
 
   it('VID-DSP-02 releases directly from the Ghi chú action without a scheduling dialog', async () => {
@@ -701,8 +702,8 @@ describe('DetailedPlanGrid', () => {
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'CREATED' },
     });
     const { container } = renderGrid([item], { onCompleteExternalTrip });
-    const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
-    const action = within(notesCell).getByRole('button', { name: `Hoàn thành · ${reference}` });
+    const actionsCell = container.querySelector('.detailed-plan-grid__cell--actions') as HTMLElement;
+    const action = within(actionsCell).getByRole('button', { name: `Hoàn thành · ${reference}` });
     expect(action).not.toHaveAccessibleName(/SS-000200|dòng 101/);
     fireEvent.click(action);
     expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1);
@@ -715,7 +716,9 @@ describe('DetailedPlanGrid', () => {
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345', tripId: 55, tripStatus: 'CREATED' },
     })]);
     const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
+    const actionsCell = container.querySelector('.detailed-plan-grid__cell--actions') as HTMLElement;
     expect(within(notesCell).queryByRole('button', { name: /Phát lệnh|Hoàn thành/ })).toBeNull();
+    expect(within(actionsCell).queryByRole('button', { name: /Phát lệnh|Hoàn thành/ })).toBeNull();
   });
 });
 
@@ -860,25 +863,29 @@ describe('DetailedPlanGrid — unique row keys', () => {
 // cards stop reserving a labelled blank band. Any content — a note or the
 // Phát lệnh/Hoàn thành action — keeps the cell present.
 describe('DetailedPlanGrid — blank notes cell collapse', () => {
-  it('marks the notes cell blank when there are no notes and no row action', () => {
+  it('renders an empty notes cell with no placeholder clutter (owner redesign 23/10: notes-only cell)', () => {
     const { container } = renderGrid([row({
       notes: { vehicleNote: null, customerNote: null },
     })]);
-    expect(container.querySelector('.detailed-plan-grid__cell--notes.detailed-plan-grid__cell--blank')).toBeTruthy();
+    const notesCell = container.querySelector('.detailed-plan-grid__cell--notes') as HTMLElement;
+    expect(notesCell).toBeTruthy();
+    // The blank-collapse class died with the actions that shared the cell;
+    // an all-empty cell simply holds no note buttons.
+    expect(notesCell.querySelectorAll('button')).toHaveLength(0);
+    expect(notesCell.textContent?.trim()).toBe('');
   });
 
   it('keeps the notes cell present for vehicle notes', () => {
     const { container } = renderGrid([row()]);
-    expect(container.querySelector('.detailed-plan-grid__cell--blank')).toBeNull();
+    expect(container.querySelector('.detailed-plan-grid__cell--notes')?.querySelector('.detailed-plan-grid__note')).toBeTruthy();
   });
 
-  it('keeps the notes cell present when only the row action renders', () => {
+  it('keeps the release action available when notes are empty (it lives in the action rail)', () => {
     // PLATED_NOT_ISSUED: plate assigned, order not yet issued.
-    const { container } = renderGrid([row({
+    renderGrid([row({
       notes: { vehicleNote: null, customerNote: null },
       dispatch: { ...row().dispatch, assignedPlate: '15H-104.03' },
     })]);
-    expect(container.querySelector('.detailed-plan-grid__cell--blank')).toBeNull();
     expect(screen.getByRole('button', { name: /Phát lệnh/ })).toBeTruthy();
   });
 });
@@ -1000,17 +1007,20 @@ describe('allocation editor mounts on every press (20260916_9)', () => {
       shipmentContainerId: 55,
     } as DispatchDetailPlanRow;
     render(<PressHost initialRow={branch} />);
-    const trigger = () => screen.getByRole('button', { name: 'Sửa ô điều phối MSCU1234567' });
+    const openViaMenu = () => {
+      fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Sửa điều phối' }));
+    };
 
     // Press 1 — decompose path, then the editor must mount on the fresh row.
-    fireEvent.click(trigger());
+    openViaMenu();
     await waitFor(() => expect(screen.getByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeNull());
 
     // Presses 2-3 — direct path after the row gained its fulfillment.
     for (let round = 2; round <= 3; round++) {
-      fireEvent.click(trigger());
+      openViaMenu();
       await waitFor(() => expect(screen.getByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeTruthy(), { timeout: 1500 });
       fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
       await waitFor(() => expect(screen.queryByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeNull());

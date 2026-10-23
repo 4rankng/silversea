@@ -49,8 +49,10 @@ export default [
   // Card 20260930_246: the budgets hold at their original values — the band
   // (20260930_229) coexists with them because the advisory strips compact
   // to §8 density lines; control heights never drop below the 44px touch law.
-  { id: 'dispatch-detail/phone/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 275, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
-  { id: 'dispatch-detail/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 500, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 275, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
+  // Owner redesign 23/10: <640px renders the dedicated card list, so the
+  // phone locks follow the .dpcard item instead of the deleted td-grid row.
+  { id: 'dispatch-detail/phone/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 390, kind: 'maxTop', selector: '.dpcard', max: 275, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height; owner redesign 23/10 retargets the selector to the phone card list' },
+  { id: 'dispatch-detail/split-window/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 500, kind: 'maxTop', selector: '.dpcard', max: 275, note: 'original 2026-09-27 budget restored by card 20260930_246; owner redesign 23/10 retargets the selector to the phone card list' },
   { id: 'dispatch-detail/tablet/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 768, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 230, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
   { id: 'dispatch-detail/desktop/chrome-budget', role: 'dieuvan', path: '/dispatch-detail', width: 1440, kind: 'maxTop', selector: '.detailed-plan-grid__row', max: 285, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
   { id: 'master-plan/phone/chrome-budget', role: 'dieuvan', path: '/dispatch', width: 390, kind: 'maxTop', selector: '.master-plan-grid__row', max: 305, note: 'original 2026-09-27 budget restored by card 20260930_246: the zone-presence/cargo-summary advisory strips compact to one §8 density line instead of stealing a record height' },
@@ -92,8 +94,8 @@ export default [
   {
     id: 'dispatch-detail/phone/record-row-height',
     role: 'dieuvan', path: '/dispatch-detail', width: PHONE,
-    kind: 'maxHeight', selector: '.detailed-plan-grid__row', max: 380,
-    note: 'a phone container card printed up to nine uppercase label rows of its own and measured 469px; the short inline label brought it to 371px',
+    kind: 'maxHeight', selector: '.dpcard', max: 300,
+    note: 'owner redesign 23/10 (spec A): the phone record is the dedicated card (header identity + badge + status + 44px ⋯ menu, one-line body facts, foot primary); the old td-grid card measured 469px at its worst — the card keeps the compact budget',
   },
   {
     id: 'dispatch-detail/tablet/record-row-height',

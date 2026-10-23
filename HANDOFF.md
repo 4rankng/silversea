@@ -1,3 +1,68 @@
+# HANDOFF — redesign-dispatch-grid (owner screenshots 23/10 "UI shitty")
+
+- Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/1njkloyy/
+  redesign-dispatch-grid`, branch `redesign-dispatch-grid` off main 2425726d).
+  Last updated: 2026-10-23.
+- Goal: làm lại từ gốc grid Điều vận Chi tiết (/dispatch-detail) theo spec
+  consult + brief A/B/C: <640px card list (header KHÁCH HÀNG + Bill + badge
+  Loại + chip trạng thái + menu ⋯ duy nhất; body 1 dòng/fact, SĐT không bao
+  giờ wrap ký tự; Phát lệnh = nút chính duy nhất) · ≥640px table min-width
+  (Khách ≥180 · Điều phối ≥200 · Ghi chú ≥160) scroll TRONG container +
+  sticky header + cột Thao tác pin phải chỉ ⋯ menu — hết nút đỏ inline ·
+  desktop row compact theo nội dung (64–88px), header line-clamp-2, cân đối
+  cột (thu Thời gian/Khách hàng). STATUS: DONE — see qa/2026-10-23-dispatch-grid-redesign/.
+- Thay đổi (FE-only, không đụng BE/API):
+  - `DispatchRowActionsMenu.tsx`: menu ⋯ duy nhất chứa mọi row verb (Sửa điều
+    phối/Phân xe lại · Đổi nhà xe/BKS · Ghép chuyến · Tách nhóm · Xóa lô LAST
+    danger); render trên MỌI dòng chưa COMPLETED (kể cả chưa gán xe).
+  - `DispatchPlanEditorCell.tsx`: bỏ nút Sửa inline; editor mở qua prop
+    `openRequest` signal (key = detailRowKey); SĐT driver-phone nowrap+
+    ellipsis ở base (chặn wrap từng ký tự).
+  - NEW `DispatchPlanCardList.tsx` (<640px) + grid switch bằng ResizeObserver
+    đo wrapper (`CARD_MODE_BREAKPOINT = 640`, jsdom fallback = table).
+  - `DetailedPlanGrid.tsx/.css`: cột Thao tác sticky-right; table min-width
+    1340px + shares 100% (schedule 10.3/route 13.6/ports 8.8×2/documents 7.9/
+    container 11.05/assignment 15.1/classification 7.15/notes 12.1/actions
+    5.5); header wrap tối đa 2 dòng; XÓA band card td-grid 900/640 + FB-043
+    fixed-height (--dpg-row-h) + pair-btn + lcl-unmerge + note-action--delete;
+    wrapper `overflow-x:auto; overflow-y:clip` (giữ sticky thead theo app-body).
+  - Xóa `DispatchPairAction.tsx` (logic vào menu); QuickIssueOrderButton thêm
+    variant `labeled` cho card foot; `lclCargoLine/lclMeasureLine` +
+    `detailedScheduleLine` chuyển vào `DispatchPlanCellValues.ts` (grid
+    re-export giữ import surface cũ).
+  - design-lock `dispatch.mjs`: phone locks (390/500) retarget `.dpcard`.
+- Lưu ý luật áp dụng: menu trigger card 40px (`--control-touch-h`, ceiling
+  40px law 2026-09-27) thay vì "44px" trong brief — dùng token nhà; design:drift
+  ĐỎ ở base (baseline stale 2026-10-04, nợ có sẵn như HANDOFF REQ-07 ghi);
+  delta lane này: mọi counter ≤ base (rawZIndex giữ 82 nhờ z-index calc token).
+- QA (qa/2026-10-23-dispatch-grid-redesign/, driver `qa/scripts/
+  2026-10-23-dispatch-grid-redesign.mjs`, env-only ports): BEFORE (main :7175)
+  xác nhận đúng defect owner — rows 242–502px @390/768, SĐT 46px = 3 dòng
+  @1440, 50 nút Xóa lô đỏ. AFTER (worktree :7182, role dungnv NV015 vì mirror
+  không có demo dieuvan): 20/20 PASS rung 3 — cards @390 + menu mở (items
+  đúng, Xóa lô LAST), rows 70–93px, SĐT 1 dòng 15px, 0 inline delete, rail
+  scroll trong container, sticky actions khi scroll, page không overflow;
+  DB identity trước/sau không đổi (n=186). Case testplan/
+  2026-10-23-dispatch-grid-redesign.md.
+- Gates (final, logs trong qa/2026-10-23-dispatch-grid-redesign/): lint 0 ·
+  FE tsc -b 0 · tsgo -b 0 · scoped detailed-plan 399/399 · dispatch-feature
+  76 files 689/689 · FULL FE 714 files 5506/5506 PASS (sau `make build` dist)
+  · make build 0. design:drift ĐỎ ở base (nợ baseline stale, stash-verified);
+  delta lane ≤ base. dev-port-contract đỏ ở base do comment script lane
+  create-field-order (7176) — fixed drive-by trong changeset (comment →
+  placeholder). BE không đổi → BE gates không đụng. Commit 8a28c094 pushed
+  origin/redesign-dispatch-grid.
+- Env verify: worktree FE :7182 (VITE proxy :3002), DB chung :5441; trunk
+  :3002/:7175 của main checkout không đụng. Không mutate data QA dùng chung.
+- Non-goals: master plan /dispatch; role sweep khác; staging; keyboard-nav
+  menu; Card tap → "Chi tiết" (grid KHÔNG có navigation đó hiện tại — không
+  phát minh; note line mở dialog ghi chú như cũ).
+- Merge note cho orchestrator: lane `fix-cus-tokhai-cont` (fd3974b) sửa
+  tờ khai gần vùng CUS ledger — không đụng file nào trong changeset này;
+  conflict (nếu có) chỉ có thể ở HANDOFF.md/qa paths.
+
+---
+
 # HANDOFF — fix-filter-lcl-day (card 231026000252, ticket 261022201006b)
 
 - Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/1njkloyy/

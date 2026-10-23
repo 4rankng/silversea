@@ -159,7 +159,7 @@ describe('FB-092 — LCL selection', () => {
 });
 
 describe('SPEC 18/10/2026 §4 — Tách nhóm', () => {
-  it('offers one group action on Lô 1 and none on member rows', () => {
+  it('offers one group action on Lô 1 and none on member rows (row ⋯ menu)', () => {
     const onUnmerge = vi.fn();
     const group = {
       groupId: 'grp-1',
@@ -174,13 +174,19 @@ describe('SPEC 18/10/2026 §4 — Tách nhóm', () => {
       baseRow({ shipmentId: 32, lcl: { packageCount: 4, packageType: 'PALLET', cargoVolumeCbm: '3.000', group: { ...group, order: 2 } } }),
     ], { onUnmergeLclGroup: onUnmerge });
 
-    const actions = screen.getAllByRole('button', { name: 'Tách nhóm' });
-    expect(actions).toHaveLength(1);
-    fireEvent.click(actions[0]!);
+    // Owner redesign 23/10: Tách nhóm rides the row ⋯ menu — open both and
+    // only Lô 1's menu carries the item.
+    const menus = screen.getAllByRole('button', { name: /Thao tác dòng/ });
+    expect(menus).toHaveLength(2);
+    fireEvent.click(menus[0]!);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Tách nhóm' }));
     expect(onUnmerge).toHaveBeenCalledWith('grp-1');
+
+    fireEvent.click(menus[1]!);
+    expect(screen.queryByRole('menuitem', { name: 'Tách nhóm' })).toBeNull();
   });
 
-  it('hides the action when the page does not wire it', () => {
+  it('hides the menu item when the page does not wire it', () => {
     renderGrid([baseRow({
       lcl: {
         packageCount: 5, packageType: 'PALLET', cargoVolumeCbm: '4.000',
@@ -191,7 +197,8 @@ describe('SPEC 18/10/2026 §4 — Tách nhóm', () => {
         },
       },
     })]);
-    expect(screen.queryByRole('button', { name: 'Tách nhóm' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Tách nhóm' })).toBeNull();
   });
 });
 

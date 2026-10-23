@@ -38,6 +38,7 @@ vi.mock('../../../api/configClient', () => ({
 
 import { listDispatchFleetResources, updateLclTruck } from '../../../api/dispatchPlanningClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
+import { detailRowKey } from './DispatchPlanCellValues';
 
 // The note composer pulls the tag pool through react-query; pin it so the
 // modal tests stay provider-free and deterministic (same idiom as
@@ -157,12 +158,15 @@ function renderCell(item: DispatchDetailPlanRow, handlers: { onChangeGroupTruck?
       onCompleteExternalTrip={vi.fn()}
       onIssueOrder={vi.fn()}
       onChangeGroupTruck={handlers.onChangeGroupTruck}
+      openRequest={{ key: detailRowKey(item), nonce: 1 }}
+      onOpenRequestConsumed={vi.fn()}
     />,
   );
 }
 
 async function openDialog() {
-  fireEvent.click(screen.getByRole('button', { name: /Sửa ô điều phối/ }));
+  // Owner redesign 23/10: the editor opens through the row-menu signal,
+  // already fired at mount.
   await waitFor(() => expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy());
 }
 

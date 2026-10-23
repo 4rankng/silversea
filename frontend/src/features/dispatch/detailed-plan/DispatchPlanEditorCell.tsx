@@ -25,6 +25,7 @@ import {
   OWN_CARRIER_VALUE,
   SUGGESTION_LABELS,
   carrierValueForRow,
+  detailRowKey,
   normalizePlate,
   parseCarrier,
   plateCompareKey,
@@ -110,6 +111,14 @@ interface DispatchPlanEditorCellProps {
    *  LCL đã ghép nhóm render một dòng nhóm + nút raise page (page owns
    *  dialog + refetch). Unwired = không dòng, không nút chết. */
   onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
+  /** Owner redesign 23/10 — the inline "Sửa" trigger is gone from the cell
+   *  (it lives in the row ⋯ menu now). The menu opens the editor through
+   *  this signal: the grid bumps `nonce` with the row's `detailRowKey`, the
+   *  matching cell calls its own openEditor (decompose + live-trip reroute
+   *  included), then consumes the request. */
+  openRequest?: { key: string; nonce: number } | null;
+  /** Clears the grid's pending open-request once consumed. */
+  onOpenRequestConsumed?: () => void;
   disabled?: boolean;
 }
 
@@ -228,9 +237,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * hợp flag is CUS-owned and has no control here — the checkbox was removed as
  * redundant with the Kết hợp classification.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, disabled = false }: DispatchPlanEditorCellProps) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const restoreFocusRef = useRef(false);
+export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, openRequest, onOpenRequestConsumed, disabled = false }: DispatchPlanEditorCellProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlanEditorDraft>(() => draftForRow(row));
   // Live completeness of the Giờ trả hàng segments ('complete' | 'empty' |
@@ -347,7 +354,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     open,
     canIssue,
     onIssueOrder,
-    onIssued: () => { restoreFocusRef.current = true; setOpen(false); },
+    onIssued: () => setOpen(false),
   });
 
   useEffect(() => {
@@ -364,11 +371,18 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     onAutoOpenConsumed?.(autoOpenFulfillmentId);
   }, [autoOpenFulfillmentId, row, open, onAutoOpenConsumed]);
 
+  // Owner redesign 23/10 — the row menu's "Sửa điều phối" lands here: the
+  // grid bumps the signal for THIS row's key, the cell opens its editor
+  // through the same guarded path the old inline trigger drove (live-trip
+  // reroute + branch decompose included), then hands the request back.
+  const openRequestRef = useRef<{ key: string; nonce: number } | null>(null);
   useEffect(() => {
-    if (open || !restoreFocusRef.current) return;
-    restoreFocusRef.current = false;
-    triggerRef.current?.focus({ preventScroll: true });
-  }, [open]);
+    if (openRequest == null || openRequest.nonce === openRequestRef.current?.nonce) return;
+    openRequestRef.current = openRequest;
+    if (openRequest.key !== detailRowKey(row)) return;
+    onOpenRequestConsumed?.();
+    void openEditor();
+  }, [openRequest, row, onOpenRequestConsumed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return undefined;
@@ -576,7 +590,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   function closeEditor() {
     if (saving) return;
-    restoreFocusRef.current = true;
     setError(null);
     setOpen(false);
   }
@@ -735,7 +748,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         }
       }
       await attemptSave({});
-      restoreFocusRef.current = true;
       setOpen(false);
     } catch (saveError) {
       // The grid-level banner renders behind this modal, so the dialog must
@@ -755,7 +767,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         if (proceed) {
           try {
             await attemptSave({ rigOverlapCompletedConfirmed: true });
-            restoreFocusRef.current = true;
             setOpen(false);
           } catch (retryError) {
             const retry = retryError as { status?: number; message?: string };
@@ -776,25 +787,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
   const currentPlate = row.dispatch.assignedPlate;
-  // Completed rows are frozen history (the backend rejects plan saves), so the
-  // trigger locks with an explanation instead of opening a doomed editor.
-  const planFrozen = row.taskStatus === 'COMPLETED';
-  const canReassignIssuedTrip = row.taskStatus === 'DISPATCHED'
-    && row.dispatch.tripId != null
-    && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT');
+  // Completed rows are frozen history (the backend rejects plan saves) — the
+  // row menu does not render for them at all, so the editor can never open
+  // onto a doomed save.
 
   // Sweep (card 20261008_1): every action button here used to disable
   // silently. Each disable cause now carries its own aria-described reason
   // (DisabledActionTip) — reachable on hover AND keyboard focus — and the
   // handlers guard the same conditions the reasons name (aria-disabled does
   // not block clicks the way `disabled` did).
-  const triggerDisabledReason = planFrozen
-    ? 'Chuyến đã hoàn thành — kế hoạch điều phối đã chốt.'
-    : ensuring
-      ? 'Đang chuẩn bị dữ liệu chuyến — thử lại sau.'
-      : disabled
-        ? 'Ô điều phối đang khóa thao tác.'
-        : null;
   const cancelDisabledReason = saving
     ? 'Đang lưu thay đổi — chưa hủy được.'
     : issuing
@@ -846,24 +847,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         {row.lotFullyPlated && !currentPlate && (
           <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
         )}
-        <DisabledActionTip id={`dispatch-plan-trigger-${row.fulfillmentId ?? row.shipmentId}`} reason={triggerDisabledReason}>
-          <button
-            ref={triggerRef}
-            type="button"
-            className="btn btn--secondary btn--sm dispatch-assignment-cell__trigger"
-            onClick={openEditor}
-            aria-disabled={disabled || planFrozen || ensuring || undefined}
-            aria-haspopup={canReassignIssuedTrip ? undefined : 'dialog'}
-            aria-label={canReassignIssuedTrip ? `Phân xe lại ${identity}` : `Sửa ô điều phối ${identity}`}
-            title={planFrozen
-              ? 'Chuyến đã hoàn thành — kế hoạch điều phối đã chốt'
-              : canReassignIssuedTrip
-                ? 'Phân xe lại trước khi chuyến xuất phát'
-                : `Chỉnh sửa điều phối · ${identity}`}
-          >
-            {canReassignIssuedTrip ? 'Phân xe lại' : 'Sửa'}
-          </button>
-        </DisabledActionTip>
+        {/* Owner redesign 23/10 — no inline trigger here anymore: the row ⋯
+            menu's "Sửa điều phối"/"Phân xe lại" opens this cell's editor
+            through the `openRequest` signal, so the cell is read-only facts
+            (carrier · plate · driver · SĐT · status) plus the dialog. */}
       </div>
 
       <Modal

@@ -2,63 +2,65 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// Ticket 20261002_287 (Requirement R22): Compact dispatch cards layout
-// 1. Reduce dispatch card height on /dispatch-detail by at least 25%–30% through
-//    information grid reorganization and tighter spacing.
-// 2. Pair related facts on the same line or compact pair:
-//    - (Biển số & Lái xe) in .dispatch-assignment-cell__vehicle-group
-//    - (Tuyến đường & Chiều) in .detailed-plan-grid__route-direction
-// 3. Action buttons must be compact with heights not exceeding 36px.
-// 4. Desktop and mobile views display more trips per screen without losing clarity.
+// Owner redesign 23/10 (spec A): the <640px phone surface is the dedicated
+// card list (`DispatchPlanCardList`), replacing the squeezed table + td-grid
+// hacks. Density contract:
+// 1. One card per lô/tác vụ; header = customer + Bill/Booking + Loại + status
+//    + the SINGLE ⋯ menu at the 44px touch floor.
+// 2. Body lines are one-line ellipsized runs — the plate·driver·SĐT line
+//    NEVER wraps per character; the note line truncates to one line.
+// 3. The card's only primary action ("Phát lệnh"/"Hoàn thành") rides the foot.
+// 4. No inline red delete — Xóa lô is the LAST ⋯ menu item (danger voice).
 
 const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8');
 
-describe('compact dispatch cards layout (Requirement R22 / Ticket 20261002_287)', () => {
-  it('pairs route and direction on the same line via .detailed-plan-grid__route-direction', () => {
-    const tsx = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx');
-    expect(tsx).toContain('detailed-plan-grid__route-direction');
+describe('phone card list density (owner redesign 23/10, spec A)', () => {
+  it('renders a dedicated card-list component under the wrapper--cards mode', () => {
+    const gridTsx = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx');
+    expect(gridTsx).toContain('DispatchPlanCardList');
+    expect(gridTsx).toContain("detailed-plan-grid__wrapper--cards");
 
     const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
-    expect(css).toMatch(/\.detailed-plan-grid__route-direction\s*\{[^}]*display:\s*flex;/);
-    expect(css).toMatch(/\.detailed-plan-grid__route-direction\s*\{[^}]*align-items:\s*baseline;/);
+    expect(css).toMatch(/\.dpcard-list\s*\{[^}]*display:\s*grid;/);
+    expect(css).toMatch(/\.dpcard\s*\{[^}]*border-radius:\s*10px;/);
   });
 
-  it('pairs plate and driver inline via .dispatch-assignment-cell__vehicle-group with middot separator', () => {
-    const tsx = read('src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx');
-    expect(tsx).toContain('dispatch-assignment-cell__vehicle-group');
+  it('carries the SINGLE 44px ⋯ menu in the card header — no inline button sprawl', () => {
+    const cardTsx = read('src/features/dispatch/detailed-plan/DispatchPlanCardList.tsx');
+    expect(cardTsx).toContain('DispatchRowActionsMenu');
+    // The card's action surface is the menu + the one primary — nothing else.
+    expect(cardTsx).not.toContain('note-action--delete');
 
-    const css = read('src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css');
-    expect(css).toMatch(/\.dispatch-assignment-cell__vehicle-group\s*\{[^}]*display:\s*flex;/);
-    expect(css).toMatch(/\.dispatch-assignment-cell__vehicle-group\s*\.dispatch-assignment-cell__driver::before\s*\{[^}]*content:\s*'·';/);
+    const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+    expect(css).toMatch(/\.dpcard \.dispatch-row-menu__trigger\s*\{[^}]*width:\s*var\(--control-touch-h,\s*44px\);/);
+    expect(css).toMatch(/\.dpcard \.dispatch-row-menu\s*\{[^}]*margin-left:\s*auto;/);
   });
 
-  it('enforces action button heights not exceeding 36px ceiling', () => {
-    const gridCss = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
-    const cellCss = read('src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css');
-
-    // Note action button ("Phát lệnh" / "Hoàn thành")
-    expect(gridCss).toMatch(/\.detailed-plan-grid__note-action\s*\{[^}]*max-height:\s*36px;/);
-    expect(gridCss).toMatch(/@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*?\.detailed-plan-grid__note-action\s*\{[^}]*max-height:\s*36px;/);
-
-    // Pair button ("Ghép chuyến")
-    expect(gridCss).toMatch(/\.detailed-plan-grid__pair-btn\s*\{[^}]*max-height:\s*36px;/);
-
-    // Dispatch assignment trigger button ("Điều phối" / "Phân xe")
-    expect(cellCss).toMatch(/\.dispatch-assignment-cell__trigger\s*\{[^}]*max-height:\s*36px;/);
+  it('keeps SĐT/vehicle/plate runs on one line — never per-character wrap', () => {
+    const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+    expect(css).toMatch(/\.dpcard__line\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
+    expect(css).toMatch(/\.dpcard__line--vehicle\s*\{[^}]*font-family:\s*var\(--font-data/);
+    expect(css).toMatch(/\.dpcard__note\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
+    expect(css).not.toMatch(/\.dpcard[^{]*\{[^}]*overflow-wrap:\s*anywhere/);
   });
 
-  it('tightens desktop cell padding and mobile container spacing for vertical density', () => {
-    const gridCss = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+  it('rides the ONE primary action in the card foot at the ≤36px control ceiling', () => {
+    const cardTsx = read('src/features/dispatch/detailed-plan/DispatchPlanCardList.tsx');
+    expect(cardTsx).toContain('variant="labeled"');
+    expect(cardTsx).toContain('dpcard__foot');
 
-    // Desktop table cell padding rides the spacing scale (FB-043 superseded
-    // the raw 8px 10px with the same 8px on-scale value)
-    expect(gridCss).toMatch(/\.detailed-plan-grid td\s*\{[^}]*padding:\s*var\(--space-sm\) var\(--space-sm\);/);
+    const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+    expect(css).toMatch(/\.dpcard__foot \.detailed-plan-grid__note-action\s*\{[^}]*height:\s*36px;/);
+    // The pre-redesign phone media band for the old note-action pill is gone.
+    expect(css).not.toMatch(/@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*?\.detailed-plan-grid__note-action/);
+  });
 
-    // Tablet container (900px) tightened to 4px 8px
-    expect(gridCss).toMatch(/@container\s*\(max-width:\s*900px\)\s*\{[\s\S]*?td\.detailed-plan-grid__cell\s*\{[^}]*padding:\s*4px 8px;/);
-
-    // Phone container (640px) tightened gap and cell padding
-    expect(gridCss).toMatch(/@container\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\.detailed-plan-grid tbody\s*\{[^}]*gap:\s*6px;/);
-    expect(gridCss).toMatch(/@container\s*\(max-width:\s*640px\)\s*\{[\s\S]*?\.detailed-plan-grid__cell\s*\{[^}]*padding:\s*4px 8px;/);
+  it('drops the squeezed-table card bands — the td-grid record hack is deleted', () => {
+    const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+    expect(css).not.toContain('@container (max-width: 900px)');
+    expect(css).not.toContain('@container (max-width: 640px)');
+    expect(css).not.toContain('attr(data-label-short)');
+    expect(css).not.toContain('.detailed-plan-grid__pair-btn');
+    expect(css).not.toContain('.detailed-plan-grid__lcl-unmerge');
   });
 });
