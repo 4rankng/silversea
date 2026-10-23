@@ -7,7 +7,7 @@
 import { db } from '../../db';
 import type { AuthUser } from '../../middleware/auth';
 import { count, gte } from 'drizzle-orm';
-import { canonicalShipmentStatus, Role } from '@tingting/shared';
+import { canonicalShipmentStatus, LCL_REV_MERGE_TAG, Role } from '@tingting/shared';
 import { loadDispatchExpenseNotes } from '../dispatch-expense-notes.service';
 import type { ShipmentStatus } from '../shipment-types';
 import { shipmentTransportDateCondition } from '../cus-workspace-sql.service';
@@ -1029,6 +1029,11 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
       : null,
     revGroupMemberCount: row.shipment.revGroupId != null
       ? groupMemberCounts.get(`REV:${row.shipment.revGroupId}`) ?? null
+      : null,
+    // Spec 23/10 — the "Ghép thu cước cùng Lô 1" tag of a REV-group member
+    // (Lô 2..N: cước thu 0₫ vì nằm cùng Lô 1); null on Lô 1 and ungrouped.
+    revMergeTag: row.shipment.revGroupId != null && (row.shipment.revGroupOrder ?? 1) > 1
+      ? LCL_REV_MERGE_TAG
       : null,
     // Factory operating notes for the master-plan notes column.
     factoryNotes: row.factoryNotes,

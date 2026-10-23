@@ -1,3 +1,94 @@
+# HANDOFF — feat-gomhang-be (card 261023110000, spec khách 23/10 "Điều chỉnh luồng Gộp hàng lẻ")
+
+- Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/1njkloyy/
+  feat-gomhang-be`, branch `feat-gomhang-be` off main). Last updated: 2026-10-23.
+- Scope: CHỈ BACKEND (shared schemas/services/routes/BE tests) — FE grid/lane
+  redesign là wave sau (FE đang sở hữu detailed-plan lane riêng); FE tsc chỉ
+  smoke (0 errors) chứ không sửa FE.
+
+**RULING (bắt buộc giữ khi làm tiếp): ruling 21/10 (thu per-lot đơn giá×SL)
+vẫn là DEFAULT — mỗi lô LCL = 1 chuyến riêng với Loại xe thu/Giá cước thu/BKS
+báo khách của chính lô đó (per-lot outputs, `setLclLotRevClass`). 100/0 CHỈ
+trong nhóm CUS gộp CHỦ ĐỘNG (rev_group): Lô 1 = 100% cước thu nhóm, Lô 2..N =
+0₫ + tag "Ghép thu cước cùng Lô 1" — đã ghi PRD (lane docs).** Tách nhóm rev
+group dùng luật FB-093 (100/0-era): tách cả nhóm ⇒ tiền về pre-merge
+(`restoreRevPreMergeMoney`); tách Lô 1 ⇒ chuyển 100% cho Lô kế ("Đón cước
+chính"); 1 thành viên về riêng ⇒ giữ cước hiện tại + lý do chờ định giá lại
+(`restateRevLeaverMoney`). ĐIỀU VẬN (cost_group) giữ nguyên luật 1 dòng/chuyến
+(Lô 1 = 100% cước trả ĐVVC, members 0₫).
+
+## Thay đổi chính (spec 261023110000)
+
+1. **Tách nhóm xác nhận**: `cost_group_id` (ĐV) vs `rev_group_id` (CUS) độc
+   lập hoàn toàn — patch builders `lcl-grouping-law.ts`
+   (`costGroupMemberPatch`/`revGroupMemberPatch`) là seam thuần + test chốt
+   không rò cột giữa 2 chiều. Không migration phá dữ liệu cũ.
+2. **ĐV popup = đúng 4 trường** (Loại xe tính cước trả ĐV · Nhà xe · BKS thực ·
+   Cước trả ĐVVC blank=auto/nhập tay=override): `assignLclCostGroupSchema`
+   XÓA `billingTruckNo`/`billingTruckNos` (BKS-báo-khách-ảo là concept CUS;
+   unknown keys bị strip nên FE cũ vẫn chạy). **THÊM/SỬA**: endpoint mới
+   `POST /api/shipments/lcl/cost-group/update` (`updateLclCostGroup`,
+   membership cố định, resubmit 4 fields, freightCost omitted = re-trace).
+3. **Cước trả ĐVVC nhập tay sống tới phát lệnh** (defect class thật: assign
+   xảy ra TRƯỚC khi có trip nên giá trị rơi rụng): cột mới
+   `shipments.cost_group_freight_manual` (migration
+   `20261023120000_lcl_cost_group_freight_manual.sql`, nullable, không
+   backfill) — assign/update ghi, `applyLclCostGroupFreightToNewTrip` ưu tiên
+   nó hơn bảng giá, FB-095 promote chuyển nó theo vương miện như cước trả.
+4. **CUS per-lot outputs** (`setLclLotRevClass`): Loại xe thu (optional) +
+   Giá cước thu `freightRevenue` (auto tra bảng giá theo loại+ngày; nhập tay
+   override — manual bỏ qua trace entirely). BKS báo khách per-lot =
+   `updateLclTruck` với `billingTruckNo: null` = XÓA (BLANK).
+5. **BKS fallback (BLANK ⇒ BKS thực ĐV đã gán, lên Debit Note)**:
+   `effectiveBillingPlate` (shared, pure — LCL only; non-LCL giữ GAP-3 "không
+   in BKS thực"). Dùng ở: draft render (`buildTripRenderData`), freeze Debit
+   (`shipment-cost-lock` 2 paths — vật hóa BKS reported vào frozen lot), legacy
+   frozen path (`billing-export-shared`).
+6. **Gộp CUS (rev_group)**: validation cùng KH về pure law
+   (`findRevCustomerConflict`/`assertSameRevCustomer`, 400 liệt kê đủ lô+KH) ·
+   nhóm nhận Loại xe thu nhóm + BKS báo khách chung (blank = giữ per-lot,
+   KHÔNG copy BKS thực vào field CUS) + Cước thu Lô 1 `freightRevenue`
+   (blank=auto, nhập tay=override) · 100/0 + tag `LCL_REV_MERGE_TAG`
+   ('Ghép thu cước cùng Lô 1') = stamp + field trên API (`LclGroupWire
+   .revMergeTag` ở list-summaries + `revMergeTag` trong merge result members).
+   `updateLclTruckSchema.billingTruckNo` nullable (null=clear).
+
+- **Independent review (code-reviewer) = REQUEST-CHANGES → đã fix hết
+  findings trước commit**: C1 (tách cả nhóm restore nhầm `revenueOriginal`
+  first-override + bịa 0₫ trần) ⇒ capture "trạng thái trước ghép" riêng
+  `trip_financial_state.revenue_pre_group(_captured)` (migration
+  `20261023130000_lcl_rev_pre_merge_capture.sql`; captured NULL ⇒ khôi phục
+  NULL "Chưa xác định"; nhóm legacy không capture ⇒ fallback luật cũ); H1
+  (payload SỬA 1 trường wipe Nhà xe + manual) ⇒ `updateLclCostGroup` PARTIAL
+  thật + `freightCost` 3-state (number=manual, null=auto, omitted=giữ nguyên);
+  M1 (promote fallback trộn kênh) ⇒ snapshot fallback chỉ khi leaver KHÔNG có
+  trip; M2 (frozen doc cũ render lại BKS live) ⇒ revert path legacy về luật cũ
+  (fallback chỉ vật hóa lúc freeze cho doc mới); + L1–L8 (stale tag promotee,
+  refine test uuid, pins wiring/call-sites, testplan filename, copy).
+
+## Tests (BE unit-only)
+
+- `backend/src/tests/unit/lcl-gop-hang-split-law.test.ts` — 2 nhóm độc lập
+  (patch builders), validation cùng KH, BKS fallback, wire contract (ĐV 4
+  trường, strip billing, schema các lệnh, tag constant).
+- `backend/src/tests/unit/lcl-gop-hang-money-wiring.test.ts` — 100/0 từng
+  nhóm (COST+REV), auto-tra vs override (cả 2 chiều + sống tới phát lệnh),
+  tách nhóm (promote/restore/restate), ĐV không viết BKS báo khách, default
+  per-lot 21/10 giữ nguyên. (Thay file `lcl-rev-perlot-money-wiring.test.ts`
+  đã xóa — pin luật 21/10 cho merge path nay bị spec 23/10 supersede.)
+- `material-write-registry-exhaustive.test.ts`: + entry
+  `cost-group/update` (audit `SHIPMENT_UPDATED` + action `cost-group-update`).
+
+## Environment / còn nợ
+
+- Dev DB :5441 (ss-prod-db) đã chạy migration mới (additive nullable).
+- FE: `AssignTruckGroupDialog`/`LclGroupTruckEditDialog`/`MergeRevGroupDialog`
+  còn gửi field cũ (billing) — server strip, UI chỉnh ở FE wave; FE cần
+  hiển thị `revMergeTag` + per-lot `freightRevenue` + nút SỬA 4 trường nhóm ĐV.
+- Chưa UI-drive (BE-only brief; rung 0 cho UI claims). `customer-debt-summary`
+  fallback copy "Ghép cước cùng Bill X" và Debit Note "Ghép xe cùng Bill" giữ
+  nguyên (out of spec scope).
+
 # HANDOFF — fix-filter-lcl-day (card 231026000252, ticket 261022201006b)
 
 - Owner/controller: this session (worktree `/Users/dev/.paseo/worktrees/1njkloyy/

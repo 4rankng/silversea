@@ -5,6 +5,7 @@
 // never recomputed after lock — "mở kỳ mới không đổi số đã khóa".
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
+import { effectiveBillingPlate } from '@tingting/shared';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { ApiError } from '../errors';
@@ -286,6 +287,8 @@ export async function createDebitNoteFromCostLock(
         expectedDeliveryDate: s.shipments.expectedDeliveryDate,
         // FB-094 §II.4: the file must print BKS báo khách + loại xe tính cước thu.
         billingTruckNo: s.shipments.billingTruckNo,
+        actualTruckNo: s.shipments.actualTruckNo,
+        cargoMode: s.shipments.cargoMode,
         revVehicleClassName: s.vehicleSizeClasses.name,
         revVehicleClassCode: s.vehicleSizeClasses.code,
       }).from(s.shipments)
@@ -307,7 +310,10 @@ export async function createDebitNoteFromCostLock(
         snapshot,
         lot.shipmentCode ?? String(input.shipmentId),
         {
-          billingTruckNo: lot.billingTruckNo,
+          // Spec 23/10 — the frozen record holds the plate REPORTED to the
+          // customer: BKS báo khách, or the ĐV-assigned BKS thực when blank
+          // (effectiveBillingPlate; LCL only).
+          billingTruckNo: effectiveBillingPlate(lot),
           vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
         },
       );
@@ -379,6 +385,8 @@ export async function createConsolidatedDebitNote(
     expectedDeliveryDate: s.shipments.expectedDeliveryDate,
     // FB-094 §II.4: BKS báo khách + loại xe tính cước thu khách per lot.
     billingTruckNo: s.shipments.billingTruckNo,
+    actualTruckNo: s.shipments.actualTruckNo,
+    cargoMode: s.shipments.cargoMode,
     revVehicleClassName: s.vehicleSizeClasses.name,
     revVehicleClassCode: s.vehicleSizeClasses.code,
   }).from(s.shipments)
@@ -415,7 +423,8 @@ export async function createConsolidatedDebitNote(
           (lockRow?.snapshot ?? {}) as Record<string, unknown>,
           lot.shipmentCode ?? String(lot.id),
           {
-            billingTruckNo: lot.billingTruckNo,
+            // Spec 23/10 — same reported-plate law as the single-lot export.
+            billingTruckNo: effectiveBillingPlate(lot),
             vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
           },
         );

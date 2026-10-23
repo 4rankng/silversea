@@ -825,6 +825,7 @@ export const PUSH_RULES: Partial<Record<NotificationType, PushAudience>> = {
 
 export * from './api-paths';
 export * from './lcl-cargo-fit';
+export * from './billing-plate';
 
 // ─── Supplier type taxonomy (Wave 3 M6.2) ──────────────────────────────────
 

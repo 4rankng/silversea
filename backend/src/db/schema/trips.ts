@@ -162,6 +162,15 @@ export const tripFinancialState = pgTable('trip_financial_state', {
   vehicleShiftAllowance: numeric('vehicle_shift_allowance', { precision: 15, scale: 0 }).default('0'),
   grossProfit: numeric('gross_profit', { precision: 15, scale: 0 }),
   revenueOriginal: numeric('revenue_original', { precision: 15, scale: 0 }),
+  // Spec 23/10 (261023110000) — the cước thu this trip carried when its lot
+  // JOINED a rev group ("trạng thái trước ghép" for "Tách nhóm"). NOT the
+  // M2.1 first-override original above: that slot is preserve-first and goes
+  // stale across layered overrides (per-lot price → merge). Captured at merge
+  // time; `revenue_pre_group_captured` distinguishes a captured NULL
+  // ("Chưa xác định" before the merge) from "never merged" (no capture —
+  // legacy groups fall back to revenueOriginal on restore).
+  revenuePreGroup: numeric('revenue_pre_group', { precision: 15, scale: 0 }),
+  revenuePreGroupCaptured: boolean('revenue_pre_group_captured').notNull().default(false),
   revenueOverriddenBy: integer('revenue_overridden_by'),
   revenueOverriddenAt: timestamp('revenue_overridden_at'),
   revenueOverrideReason: text('revenue_override_reason'),

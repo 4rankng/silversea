@@ -1,5 +1,55 @@
 # Changelog
 
+## 2026-10-23 — feat(lcl): BE gộp hàng tách biệt cost_group (ĐV) vs rev_group (CUS) + per-lot CUS outputs (spec 23/10, card 261023110000)
+
+Spec khách 23/10 "Điều chỉnh luồng Gộp hàng lẻ" — CHỈ BE (shared contracts/
+services/routes/tests); FE grid là wave sau. Luật tiền mới: **ruling 21/10 (thu
+per-lot đơn giá×SL) vẫn là DEFAULT** (mỗi lô = 1 chuyến riêng); **100/0 CHỈ
+trong nhóm CUS gộp chủ động** (Lô 1 = 100% cước thu nhóm, Lô 2..N = 0₫ + tag
+"Ghép thu cước cùng Lô 1" — field/tag trên API). ĐV giữ luật 1 dòng/chuyến
+(Lô 1 = 100% cước trả ĐVVC, members 0₫).
+
+- **Tách nhóm 2 chiều**: `costGroupMemberPatch`/`revGroupMemberPatch`
+  (`lcl-grouping-law.ts`, pure) chốt cột 2 chiều không bao giờ rò sang nhau —
+  gộp ĐV không kéo CUS và ngược lại. Schema cũ giữ nguyên, không phá dữ liệu.
+- **ĐV popup đúng 4 trường + THÊM/SỬA**: `assignLclCostGroupSchema` xóa
+  `billingTruckNo`/`billingTruckNos` (BKS-báo-khách-ảo là concept CUS — giữ ở
+  CUS per-lot + rev group); endpoint mới `POST /api/shipments/lcl/cost-group/
+  update` sửa 4 trường của nhóm đã gán — PARTIAL update thật (bỏ trống = GIỮ
+  Nhà xe/biểu giá hiện tại; `freightCost` 3-state: số = nhập tay, null = blank
+  auto-trace bảng giá trả nhà xe, bỏ qua = giữ nguyên tiền). Nhập tay "Cước
+  trả ĐVVC" sống tới phát lệnh qua cột mới
+  `shipments.cost_group_freight_manual` (migration additive nullable, không
+  backfill) — trước đây giá trị rơi rụng vì assign xảy ra trước khi có
+  trip. FB-095 promote chuyển manual theo vương miện như cước trả.
+- **CUS per-lot outputs** (`POST /lcl/rev-class`): Loại xe thu (optional) +
+  Giá cước thu `freightRevenue` (auto tra bảng giá theo loại + ngày; nhập tay
+  = override thắng auto). BKS báo khách per-lot qua `/lcl/truck` với
+  `billingTruckNo: null` = xóa (BLANK).
+- **BKS fallback (BLANK ⇒ BKS thực ĐV đã gán, in Debit Note)** —
+  `effectiveBillingPlate` (shared, LCL only; non-LCL giữ GAP-3 không in BKS
+  thực): áp ở draft render + freeze Debit (vật hóa BKS reported vào frozen lot
+  lúc freeze — doc mới). Doc đã xuất từ trước giữ nguyên luật render cũ (không
+  retroactive đổi nội dung khách đã nhận).
+- **Gộp CUS (rev_group)**: validation cùng KH về pure law
+  (`assertSameRevCustomer`, 400 liệt kê đủ lô + KH); nhận Loại xe thu nhóm +
+  BKS báo khách chung (blank = giữ per-lot, không copy BKS thực) + Cước thu
+  Lô 1 `freightRevenue` (blank=auto, nhập tay=override); 100/0 + tag
+  `LCL_REV_MERGE_TAG` = stamp + field `revMergeTag` trên wire. Tách nhóm rev
+  group = luật FB-093 (100/0-era): cả nhóm ⇒ tiền về pre-merge; Lô 1 rời ⇒
+  chuyển 100% cho Lô kế; 1 thành viên về riêng ⇒ giữ cước + lý do chờ định
+  giá lại (`restoreRevPreMergeMoney`/`restateRevLeaverMoney` thay
+  `keepRevPerLotMoney` của luật 21/10 merge path). "Trạng thái trước ghép"
+  là capture riêng `trip_financial_state.revenue_pre_group(_captured)`
+  (migration additive) — không dùng `revenue_original` first-override (đi lệch
+  qua các lớp override; NULL trước ghép ⇒ khôi phục NULL, không bịa 0₫).
+- Tests BE unit-only: `lcl-gop-hang-split-law.test.ts` (độc lập 2 nhóm,
+  validation cùng KH, BKS fallback, wire contract) + `lcl-gop-hang-money-
+  wiring.test.ts` (100/0 từng nhóm, auto vs override, tách nhóm) — thay
+  `lcl-rev-perlot-money-wiring.test.ts` (pin luật 21/10 cho merge path nay bị
+  spec supersede). Gates: be-tsc 0 · BE 428 unit + 338 pass · root lint 0 ·
+  fe tsc -b 0 · make build 0.
+
 ## 2026-10-22 (tối) — fix(cus,driver): filter ngày đúng VN timezone + bỏ mã chuyến màn lái xe (TiepVu 22/10, cards 261022201006b/c)
 
 TiepVu 22/10 tối: (b) lọc theo ngày trên CUS vẫn trả lô ngày khác; (c) app

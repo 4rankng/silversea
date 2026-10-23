@@ -16,7 +16,13 @@ const shipmentIdList = z
   .array(z.number().int().positive())
   .min(2, 'Nhóm ghép cần ít nhất 2 lô');
 
-/** FB-092 — dispatch "Gán xe nhóm" popup (cost dimension). */
+/**
+ * FB-092 — dispatch "Gán xe nhóm" popup (cost dimension). Spec 23/10
+ * (261023110000): the ĐV popup carries EXACTLY these 4 fields (Loại xe tính
+ * cước trả ĐV · Nhà xe · BKS thực · Cước trả ĐVVC) — BKS báo khách ("xe ảo")
+ * is a CUS concept and is deliberately ABSENT here (unknown keys are
+ * stripped; the ĐV flow never writes `billing_truck_no`).
+ */
 export const assignLclCostGroupSchema = z.object({
   /** Selected lots in operator order: index 0 becomes Lô 1 (principal). */
   shipmentIds: shipmentIdList,
@@ -24,18 +30,6 @@ export const assignLclCostGroupSchema = z.object({
   vehicleSizeClassId: z.number().int().positive(),
   /** BKS thực (what runs the lane). Truck-tonnage classes must stay vendor. */
   actualTruckNo: truckNo,
-  /** BKS báo khách ("xe ảo") dùng chung cả nhóm. Omitted ⇒ server copies
-   *  actualTruckNo. Per-lot overrides ride `billingTruckNos`. */
-  billingTruckNo: truckNo.optional(),
-  /**
-   * SPEC 18/10/2026 §2.3 — "cho phép điều vận sửa lại [BKS báo khách] cho
-   * từng lô trong nhóm": the group default above, overridden per member here.
-   * Entries must name lots inside `shipmentIds` and win over `billingTruckNo`.
-   */
-  billingTruckNos: z.array(z.object({
-    shipmentId: z.number().int().positive(),
-    billingTruckNo: truckNo,
-  })).max(200).optional(),
   /**
    * 161026232309 — the nhà xe (Xe ngoài) the group's truck belongs to:
    * a customers.id flagged isCarrier (the row every "Chọn nhà xe" dropdown
@@ -49,41 +43,96 @@ export const assignLclCostGroupSchema = z.object({
    */
   carrierType: z.enum(['OWN', 'EXTERNAL']).optional(),
   /**
-   * 161026232319 — Điều vận nhập tay cước trả ĐV của Lô 1 (VND). Omitted ⇒ the
-   * server auto-traces the carrier price board (tuyến × loại xe × nhà xe).
-   * A manual value always wins over the traced one.
+   * 161026232319 — Điều vận nhập tay cước trả ĐVVC của Lô 1 (VND). Omitted ⇒
+   * the server auto-traces the carrier price board (tuyến × loại xe × nhà xe).
+   * A manual value always wins over the traced one and survives to trip
+   * issuance (ships.cost_group_freight_manual).
    */
   freightCost: z.number().int().min(0).optional(),
 });
 export type AssignLclCostGroupInput = z.infer<typeof assignLclCostGroupSchema>;
 
+/**
+ * Spec 23/10 (261023110000) — SỬA 4 trường của một nhóm ĐV đã gán ("API gán
+ * nhóm ĐV THÊM/SỬA"). Membership is fixed (tách/gộp đổi thành viên bằng lối
+ * riêng); every field is optional but at least one must be present — this is
+ * a true PARTIAL update: an omitted field KEEPS its current value (Nhà xe
+ * identity, BKS, loại xe and money all survive a one-field payload).
+ *
+ * `freightCost` is 3-state: a number = the manual "Cước trả ĐVVC" (wins over
+ * the board); `null` = BLANK ⇒ auto-trace the carrier price board again (the
+ * popup's blank field); omitted = keep the group's current money untouched.
+ */
+export const updateLclCostGroupSchema = z.object({
+  /** The COST group to edit (shipments.cost_group_id, uuid). */
+  groupId: z.string().uuid(),
+  /** Loại xe tính cước trả ĐV — vehicle_size_classes.id (FB-090 catalog). */
+  vehicleSizeClassId: z.number().int().positive().optional(),
+  /** BKS thực (what runs the lane) — rewritten on every live member. */
+  actualTruckNo: truckNo.optional(),
+  /** Nhà xe (Xe ngoài, customers.id isCarrier). */
+  carrierId: z.number().int().positive().optional(),
+  /** OWN = Đội xe nội bộ SilverSea (container classes only). */
+  carrierType: z.enum(['OWN', 'EXTERNAL']).optional(),
+  /** Cước trả ĐVVC Lô 1 (VND). `null` = auto-trace; omitted = keep as-is. */
+  freightCost: z.number().int().min(0).nullable().optional(),
+}).refine(
+  (value) => value.vehicleSizeClassId != null
+    || value.actualTruckNo != null
+    || value.carrierId != null
+    || value.carrierType != null
+    || value.freightCost !== undefined,
+  { message: 'Không có gì để sửa — truyền ít nhất một trong 4 trường gán xe nhóm' },
+);
+export type UpdateLclCostGroupInput = z.infer<typeof updateLclCostGroupSchema>;
+
 /** FB-093 — CUS "Ghép cước thu khách" (rev dimension, one customer only). */
 export const mergeLclRevGroupSchema = z.object({
   /** Selected lots in operator order: index 0 becomes Lô 1 (100% cước thu). */
   shipmentIds: shipmentIdList,
-  /** Loại xe tính cước thu khách — vehicle_size_classes.id (FB-090 catalog). */
+  /** Loại xe tính cước thu nhóm — vehicle_size_classes.id (FB-090 catalog). */
   vehicleSizeClassId: z.number().int().positive(),
-  /** BKS ảo chung nhóm. Omitted ⇒ copies the group's actual if already set. */
+  /**
+   * BKS báo khách (chung cho nhóm). Omitted/blank ⇒ every lot keeps its own
+   * per-lot value and a blank lot reports the ĐV-assigned BKS thực (spec
+   * 23/10 read-side fallback). A value is stamped onto every member.
+   */
   billingTruckNo: truckNo.optional(),
+  /**
+   * Spec 23/10 — "Cước thu khách Lô 1 (đ) – nhập tay": manual override of the
+   * group's 100% cước thu. Omitted ⇒ auto-trace bảng giá thu khách
+   * (KH × tuyến × loại xe, ngày giao dự kiến của Lô 1).
+   */
+  freightRevenue: z.number().int().min(0).optional(),
 });
 export type MergeLclRevGroupInput = z.infer<typeof mergeLclRevGroupSchema>;
 
 /**
  * 161026232349 (DEV SPEC Hàng lẻ §II.3.2 — "Trường hợp 1 · Thu riêng từng lô")
- * — CUS picks the thu vehicle class for ONE ungrouped lot. The spec's law:
- * "CUS không cần ghép ... chọn Loại xe tính cước thu khách ... Cột CƯỚC VẬN
- * TẢI (AUTO) của từng lô sẽ nhảy 100% đơn giá của loại xe đã chọn cho lô đó."
+ * — the per-lot CUS outputs of a lot NOT in a rev group (spec 23/10 §4.1:
+ * "Mặc định mỗi lô hàng lẻ được tính cước thu khách như 1 chuyến xe độc lập").
+ * At least one of the two fields must be present:
  *
- * This is the single-lot sibling of `mergeLclRevGroupSchema`: same class
- * catalog, same customer × route × class price lane, but NO group is created
- * (`revGroupId` stays null) — a lot already inside a rev group is refused
- * (tách nhóm trước).
+ *  - `vehicleSizeClassId` — Loại xe thu khách (tải trọng hoặc Cont 20'/40');
+ *    with the class picked, the AUTO cước thu traces bảng giá thu khách theo
+ *    loại + ngày (KH × tuyến × loại xe, ngày giao dự kiến).
+ *  - `freightRevenue` — Giá cước thu khách nhập tay (VND); a manual value
+ *    wins over the traced lane price (thỏa thuận với khách).
+ *
+ * A lot already inside a rev group is refused (tách nhóm trước): the group
+ * owns its members' cước thu (merge Lô-1 100% / 0₫ law).
  */
 export const setLclLotRevClassSchema = z.object({
   shipmentId: z.number().int().positive(),
   /** Loại xe tính cước thu khách — vehicle_size_classes.id (FB-090 catalog). */
-  vehicleSizeClassId: z.number().int().positive(),
-});
+  vehicleSizeClassId: z.number().int().positive().optional(),
+  /** Giá cước thu khách nhập tay (VND). Omitted ⇒ auto tra bảng giá theo
+   *  loại xe + ngày của chính lô này. */
+  freightRevenue: z.number().int().min(0).optional(),
+}).refine(
+  (value) => value.vehicleSizeClassId != null || value.freightRevenue != null,
+  { message: 'Cần ít nhất Loại xe thu khách hoặc Giá cước thu khách nhập tay' },
+);
 export type SetLclLotRevClassInput = z.infer<typeof setLclLotRevClassSchema>;
 
 /** FB-092/093 — the money dimensions a lot group can live in. */
@@ -108,9 +157,19 @@ export type UnmergeLclGroupInput = z.infer<typeof unmergeLclGroupSchema>;
 export const updateLclTruckSchema = z.object({
   shipmentId: z.number().int().positive(),
   actualTruckNo: truckNo.optional(),
-  billingTruckNo: truckNo.optional(),
+  /** BKS báo khách (CUS). `null` clears it ⇒ BLANK ⇒ the lot reports the
+   *  ĐV-assigned BKS thực (spec 23/10 fallback). Omitted ⇒ untouched. */
+  billingTruckNo: truckNo.nullable().optional(),
 });
 export type UpdateLclTruckInput = z.infer<typeof updateLclTruckSchema>;
+
+/**
+ * Spec 23/10 (261023110000 §4.2) — the tag a REV-group member (Lô 2..N)
+ * carries: its Giá cước thu khách is 0₫ because the whole group's cước thu
+ * rides Lô 1. Returned as a field on the wire (`LclGroupWire.revMergeTag`)
+ * and stamped as the member's revenue-override reason.
+ */
+export const LCL_REV_MERGE_TAG = 'Ghép thu cước cùng Lô 1';
 
 /** Group facts every list surface renders the same way (FB-092/093 §display). */
 export interface LclGroupWire {
@@ -124,4 +183,6 @@ export interface LclGroupWire {
   costVehicleClassCode: string | null;
   costVehicleClassName: string | null;
   costVehicleClassIsContainer: boolean | null;
+  /** `LCL_REV_MERGE_TAG` on Lô 2..N of a rev group; null elsewhere. */
+  revMergeTag: string | null;
 }

@@ -285,9 +285,10 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-governance.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.CONTAINER_EDIT_REQUEST_DECISION',
   }],
-  // LCL grouping family (FB-092/093/095 + 161026232349), reviewed 2026-10-17 in
-  // card 171026010018 by reading these six mounts against
-  // lcl-grouping.service.ts. Each route is one `db.transaction` durable write;
+  // LCL grouping family (FB-092/093/095 + 161026232349 + spec 23/10), reviewed
+  // 2026-10-17 in card 171026010018 by reading these mounts against
+  // lcl-grouping.service.ts (the cost-group/update mount joined 2026-10-23 for
+  // spec 261023110000). Each route is one `db.transaction` durable write;
   // its audit record is the `audit_logs` row that same transaction writes via
   // the service's own `auditGroupChange`, identified by the event (and, for the
   // shared SHIPMENT_UPDATED, the action) noted on each entry. The family
@@ -298,6 +299,12 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
     marker: 'export async function assignLclCostGroup(',
     // audit_logs: entityType shipment, event SHIPMENT_LCL_COST_GROUP_ASSIGNED.
+  }],
+  ['shipments/lcl-grouping.routes.ts|POST|/lcl/cost-group/update', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
+    marker: 'export async function updateLclCostGroup(',
+    // audit_logs: entityType shipment, event SHIPMENT_UPDATED + dimension 'COST',
+    // action 'cost-group-update' (the shared event's own discriminator).
   }],
   ['shipments/lcl-grouping.routes.ts|POST|/lcl/rev-group', {
     serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),

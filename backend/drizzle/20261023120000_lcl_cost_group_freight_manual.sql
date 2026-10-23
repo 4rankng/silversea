@@ -1,0 +1,16 @@
+-- Spec 23/10 (261023110000) — "Cước trả ĐVVC" nhập tay của popup Gán xe nhóm
+-- ĐV phải sống tới lúc phát lệnh tạo chuyến (assign xảy ra TRƯỚC khi có trip;
+-- trip_carrier_info.external_freight_cost chưa tồn tại để ghi). Cột này giữ
+-- override của Lô 1 (cost_group_order = 1); NULL = tự tra bảng giá trả nhà xe
+-- (tuyến × loại xe × nhà xe). Luật tiền 100%/0₫ của nhóm KHÔNG đổi.
+--
+-- An toàn deployment (drizzle-safe-migrations):
+--   1. ADD COLUMN nullable — không DEFAULT, không NOT NULL, không backfill:
+--      mọi hàng cũ đọc là NULL = auto-trace như hiện hành, không đổi hành vi.
+--   2. Không constraint thêm; application đọc/ghi qua Drizzle schema
+--      shipments.costGroupFreightManual (lcl-grouping / lcl-cost-group-freight).
+--   3. Idempotent theo journal drizzle-kit migrate; `make setup` (migrate
+--      trước seed) không phụ thuộc thứ tự seed nào. Rollback = DROP COLUMN
+--      (mất override nhập tay đã ghi — dữ liệu tiền không đổi vì trip
+--      external_freight_cost đã vật hóa giá trị tại thời điểm gán/phát lệnh).
+ALTER TABLE "shipments" ADD COLUMN "cost_group_freight_manual" numeric(15, 0);

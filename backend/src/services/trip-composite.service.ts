@@ -23,6 +23,7 @@ export const TRIP_FINANCIAL_FIELD_NAMES: ReadonlySet<string> = new Set([
   'fuelSurchargeSnapshotDirty', 'totalRoadAllowance', 'tollCost', 'tollDeduction', 'reconciledTollCost', 'reconciledExtraCost',
   'roadAllowanceOverride', 'totalCost', 'revenue', 'revenueEmptyReturn', 'revenueCombine',
   'twoPointDeliveryBonus', 'vehicleShiftAllowance', 'grossProfit', 'revenueOriginal',
+  'revenuePreGroup', 'revenuePreGroupCaptured',
   'revenueOverriddenBy', 'revenueOverriddenAt', 'revenueOverrideReason', 'pricingSource',
   'pricingFormula', 'pricingSnapshot', 'customerCommission', 'tripWageDays',
   'fuelSupplierId', 'vatRate', 'arCostHash', 'arSnapshotDirty', 'arSnapshotChangedAt',

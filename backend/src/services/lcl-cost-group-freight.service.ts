@@ -29,13 +29,13 @@ import { resolveCarrierVehicleClassPrice } from './pricing.service';
 import type { LclCostCarrier, LiveTripFacts, ShipmentRow } from './lcl-grouping.service';
 
 /**
- * 161026232319 — Lô 1's cước trả ĐV at group assignment (live-trip case).
+ * 161026232319 — Lô 1's cước trả ĐVVC at group assignment (spec 23/10: the
+ * manual override wins whenever dispatch typed one, trip or no trip — the
+ * sticky copy on `shipments.cost_group_freight_manual` is written by the
+ * caller's row patch and rides the trip here).
  *
- * The manual entry ("Điều vận nhập tay") wins; otherwise the carrier price
- * board is traced for the lane (tuyến × loại xe, nhà xe's own row first, the
- * generic row as fallback), dated at the lot's delivery day — else the trip's
- * departure day. A board miss leaves Lô 1's own value untouched: an absent
- * price is never an invented 0₫ (and never a wiped freight).
+ * A board miss leaves Lô 1's own value untouched: an absent price is never
+ * an invented 0₫ (and never a wiped freight).
  */
 export async function applyPrincipalCostFreight(
   tx: Tx,
@@ -48,11 +48,11 @@ export async function applyPrincipalCostFreight(
   },
 ): Promise<{ amount: string; source: 'MANUAL' | 'PRICE_BOARD' } | null> {
   const { row, trip, vehicleClassId, carrier, manualFreightCost } = args;
-  if (trip == null) return null;
   if (manualFreightCost != null) {
-    await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(manualFreightCost) });
+    if (trip) await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(manualFreightCost) });
     return { amount: String(manualFreightCost), source: 'MANUAL' };
   }
+  if (trip == null) return null;
   if (row.routeId == null) return null;
   const date = row.expectedDeliveryDate ?? trip.departureDate;
   if (date == null) return null;
@@ -113,6 +113,13 @@ export async function applyLclCostGroupFreightToNewTrip(
 
   if (shipment.costGroupOrder === 1) {
     if (existing?.externalFreightCost != null) return;
+    // Spec 23/10 — the manual "Cước trả ĐVVC" the ĐV popup recorded on the
+    // group principal survives to issuance and beats the board trace (the
+    // popup law: blank = auto, nhập tay = override).
+    if (shipment.costGroupFreightManual != null) {
+      await upsertTripCarrierInfo(tx, tripId, { externalFreightCost: shipment.costGroupFreightManual });
+      return;
+    }
     const vehicleClassId = shipment.costVehicleClassId;
     if (vehicleClassId == null || shipment.routeId == null) return;
     const date = shipment.expectedDeliveryDate ?? departureDate;
