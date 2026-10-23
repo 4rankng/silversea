@@ -48,7 +48,7 @@ case "$cmd" in
     echo "── scoped BE tests (files changed vs origin/main) ──"
     CHANGED=$(git diff --name-only origin/main...HEAD -- 'backend/src/tests/*.test.ts' | sed 's|backend/||' || true)
     if [ -n "$CHANGED" ]; then
-      (cd backend && pnpm exec tsx --test $CHANGED 2>&1 | tee /tmp/gate-scoped.log | grep -E "^ℹ (tests|pass|fail)")
+      (cd backend && pnpm exec tsx --test $CHANGED 2>&1 | tee /tmp/gate-scoped.log | grep -E "^ℹ (tests|pass|fail)") || true
       # FLAKE QUARANTINE (Oct 2026 TIA practice): fail → rerun MỖI file cô lập 1 lần.
       # Fail lại khi cô lập = red thật; pass khi cô lập = flake → quarantine, không chặn wave.
       if grep -qE "^ℹ fail [1-9]" /tmp/gate-scoped.log; then
