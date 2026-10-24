@@ -18,6 +18,9 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { isTripRunningOnDepartureDay } from '../../services/trip-busy-gate';
 
 // ── Transition Matrix ──────────────────────────────────────────────────────
 // Which target statuses are valid from each current status?
@@ -190,5 +193,76 @@ describe('Trip Status Machine — Lifecycle Happy Path', () => {
   test('re-dispatch lifecycle: COMPLETED → IN_TRANSIT', () => {
     const redispatch = TRANSITION_RULES.find(r => r.from === 'COMPLETED' && r.to === 'IN_TRANSIT');
     assert.ok(redispatch && redispatch.allowed, 'COMPLETED→IN_TRANSIT (re-dispatch) must be allowed');
+  });
+});
+
+// SIL-474 — "Chuyến future IN_TRANSIT chặn nhận lệnh". The enum has no
+// ASSIGNED state, so an early "Xuất phát"/"Nhận lệnh" parks a future-departure
+// trip in IN_TRANSIT. The truck-busy gate used to treat every IN_TRANSIT row
+// as a running truck, freezing the vehicle for all other orders from today
+// until the future departure date passed — while the completion rule (correct:
+// ngày hoàn thành không thể trước ngày khởi hành) kept anyone from closing the
+// future trip to free it. These tests pin the shared running-trip predicate:
+// only rows whose departure day has arrived or passed may block.
+describe('Truck availability gate — SIL-474 future IN_TRANSIT', () => {
+  const TODAY = '2026-10-24'; // the day QA hit the deadlock (trip TVREQ-LX-C4 departs 2026-10-28)
+
+  test('IN_TRANSIT with FUTURE departure day does not run — a new order is not blocked with 409', () => {
+    assert.strictEqual(
+      isTripRunningOnDepartureDay('2026-10-28', TODAY),
+      false,
+      'a future-departure IN_TRANSIT row is planning state, not a running truck',
+    );
+  });
+
+  test('IN_TRANSIT with PAST departure day still runs — keep blocking (correct behavior preserved)', () => {
+    assert.strictEqual(
+      isTripRunningOnDepartureDay('2026-10-17', TODAY),
+      true,
+      'a genuinely running/stuck trip whose departure day passed must keep blocking',
+    );
+  });
+
+  test('IN_TRANSIT departing TODAY runs — the normal started-trip case keeps blocking', () => {
+    assert.strictEqual(isTripRunningOnDepartureDay('2026-10-24', TODAY), true);
+  });
+
+  test('legacy row without a departure date keeps the conservative block', () => {
+    assert.strictEqual(isTripRunningOnDepartureDay(null, TODAY), true);
+    assert.strictEqual(isTripRunningOnDepartureDay('', TODAY), true);
+  });
+
+  test('unreadable business clock keeps the conservative block', () => {
+    assert.strictEqual(isTripRunningOnDepartureDay('2026-10-28', null), true);
+    assert.strictEqual(isTripRunningOnDepartureDay('2026-10-28', undefined), true);
+    assert.strictEqual(isTripRunningOnDepartureDay('2026-10-28', ''), true);
+  });
+
+  test('day-boundary sweep: the gate flips exactly on the departure day', () => {
+    const departures = ['2026-10-23', '2026-10-24', '2026-10-25'];
+    assert.deepStrictEqual(
+      departures.map((d) => isTripRunningOnDepartureDay(d, TODAY)),
+      [true, true, false],
+      'lexicographic ISO-day comparison must flip exactly at departure day == today',
+    );
+  });
+
+  test('the status machine busy loop actually consults the predicate', () => {
+    // Wiring pin: the predicate only protects trips if the busy-trip loop in
+    // transitionTripStatus keeps consulting it. Source-scan, no DB.
+    const serviceSource = readFileSync(
+      fileURLToPath(new URL('../../services/trip-status-machine.service.ts', import.meta.url)),
+      'utf8',
+    );
+    assert.match(
+      serviceSource,
+      /isTripRunningOnDepartureDay\(candidate\.departureDate, todayInBusinessZone\)/,
+      'the busy-trip loop must skip rows whose departure day has not arrived',
+    );
+    assert.match(
+      serviceSource,
+      /departureDate: s\.trips\.departureDate/,
+      'the busy-trip select must carry the departure date for the running check',
+    );
   });
 });
