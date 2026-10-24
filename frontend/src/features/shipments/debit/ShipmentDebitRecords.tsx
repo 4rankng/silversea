@@ -2,15 +2,16 @@ import type { ReactNode } from 'react';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 import { LedgerRecordList } from '../../../components/shared/LedgerRecordList';
 import { formatMoney } from '../../../lib/format';
-import { PENDING_TOOLTIP, ZERO_TOOLTIP, moneyState, titleCaseName } from './debitMoney';
+import { ZERO_TOOLTIP, moneyState, titleCaseName } from './debitMoney';
 import { ShipmentDebitWorkspace } from './ShipmentDebitWorkspace';
 
-/** Owner redesign 23/10 (spec v2 (c)): the phone cards share the desktop
- *  board's three money states — number | '0' (đã tính, = 0) | 'Chờ số liệu'
- *  pill. The banned string 'Chưa xác định' is gone from money facts. */
+/** Owner redesign 23/10 (spec v2 (c)), amended 24/10: the phone cards share
+ *  the desktop board's money states — number | '0' (đã tính, = 0) | blank
+ *  (pending reads as an empty cell; the amber pill drowned 170-lot boards).
+ *  The banned string 'Chưa xác định' stays gone from money facts. */
 function money(value: ShipmentDebitLotRow['payableTotal'] | string | null | undefined): ReactNode {
   const state = moneyState(value);
-  if (state.kind === 'pending') return <span className="shipment-debit-money__pending" title={PENDING_TOOLTIP}>Chờ số liệu</span>;
+  if (state.kind === 'pending') return null;
   if (state.kind === 'zero') return <span className="shipment-debit-money__zero" title={ZERO_TOOLTIP}>0</span>;
   return formatMoney(state.value);
 }

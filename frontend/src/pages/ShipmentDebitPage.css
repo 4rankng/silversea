@@ -429,19 +429,7 @@
   color: var(--ink-3);
 }
 
-.shipment-debit-money__pending {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
-  color: var(--color-warning);
-  font-size: var(--text-caption-size);
-  font-weight: 500;
-  cursor: help;
-}
+/* The pending state renders as an EMPTY cell (owner 24/10) — no pill. */
 
 /* The F-2 override marker (Ghép cước cùng Bill X) — one 12px glyph beside the
  * money, full reason in its tooltip. */

@@ -31,9 +31,11 @@ type MoneyVariant = 'receivable' | 'carrier' | 'domestic' | 'payable' | 'profit'
 function MoneyCell({ state, variant, note }: { state: ReturnType<typeof moneyState>; variant: MoneyVariant; note?: string | null }) {
   const cls = `shipment-debit-money shipment-debit-money--${variant}`;
   if (state.kind === 'pending') {
+    // Owner 24/10: an undetermined figure reads as an EMPTY cell — the amber
+    // 'Chờ số liệu' pill repeated ~5× per row across 170 lots and drowned the
+    // real numbers. Known / zero / note keep their renders.
     return (
       <td className={cls} data-col={variant}>
-        <span className="shipment-debit-money__pending" title={PENDING_TOOLTIP}>Chờ số liệu</span>
         {note && <span className="shipment-debit-money__note" title={note} role="img" aria-label={`Ghi chú cước: ${note}`}><Layers size={12} aria-hidden="true" /></span>}
       </td>
     );

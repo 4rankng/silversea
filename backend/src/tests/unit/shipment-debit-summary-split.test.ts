@@ -47,7 +47,7 @@ const baseRow = {
 
 test('the shared zod contract keeps the split fields optional + nullable (skew-safe like GP-01)', () => {
   // An older response (no split fields) still parses — the FE renders
-  // 'Chờ số liệu' instead of failing.
+  // a blank cell instead of failing.
   const legacy = shipmentDebitSummaryItemSchema.safeParse(baseRow);
   assert.equal(legacy.success, true);
   if (legacy.success) assert.equal(legacy.data.carrierCostTotal ?? null, null);

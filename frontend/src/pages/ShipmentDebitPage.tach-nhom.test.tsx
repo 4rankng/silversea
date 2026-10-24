@@ -314,25 +314,17 @@ describe('FB-145 — Tách nhóm: skeleton cell cước + toast [Hoàn tác] re-
     fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
 
     await waitFor(() => expect(unmergeGroup).toHaveBeenCalled());
-    // FB-145 (redesign 23/10 face): the money cells carry the pending pill
-    // while the refresh is in flight — the pre-tách 0₫ must never repaint.
+    // FB-145 (redesign 23/10 face), 24/10 blank-pending law: while the
+    // refresh is in flight the money cell reads EMPTY — the pre-tách 0₫ must
+    // never repaint, and no pill stands in for data.
     await waitFor(() => {
-      const bl2Pending = (screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row')!)
-        .querySelector('td[data-col="receivable"] .shipment-debit-money__pending');
-      expect(bl2Pending).not.toBeNull();
+      const bl2Cell = (screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row')!)
+        .querySelector('td[data-col="receivable"]')!;
+      expect(bl2Cell.textContent).toBe('');
     });
-    const bl2Cell = (screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row')!)
-      .querySelector('td[data-col="receivable"]')!;
-    expect(bl2Cell.textContent).not.toBe('0');
 
-    // Release: the fresh board lands, the pending pill goes, the restored
-    // cước renders.
+    // Release: the fresh board lands, the restored cước renders.
     releaseRefetch!(unmergedPair());
-    await waitFor(() => {
-      const bl2After = (screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row')!)
-        .querySelector('td[data-col="receivable"] .shipment-debit-money__pending');
-      expect(bl2After).toBeNull();
-    });
     expect(await screen.findByText(formatMoney(700000))).toBeTruthy();
   });
 

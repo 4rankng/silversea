@@ -146,9 +146,9 @@ describe('BD-01 (161026204709) — the merged 100%/0₫ lane stays on the card f
     expect(onSelect).toHaveBeenCalledWith(203, true);
   });
 
-  // Owner redesign 23/10 (spec v2 (c)) — the money facts carry the board's
-  // three states; the banned 'Chưa xác định' string is gone for good.
-  it('redesign 23/10 (c): money facts render number | 0 | Chờ số liệu — never "Chưa xác định"', async () => {
+  // Owner redesign 23/10 (spec v2 (c)), amended 24/10 — the money facts carry
+  // the board's states number | 0 | BLANK pending; 'Chưa xác định' stays gone.
+  it('redesign 23/10 (c) + 24/10: money facts render number | 0 | blank — never "Chưa xác định"', async () => {
     renderOnPhone([
       factRow({ shipmentId: 204, billOrBookNumber: 'BL-N', code: 'SHP-26-0204', receivableTotal: 4200000, payableTotal: 0, profit: null }),
     ]);
@@ -159,8 +159,8 @@ describe('BD-01 (161026204709) — the merged 100%/0₫ lane stays on the card f
     expect(within(payable).getByText('0')).toBeTruthy();
     expect(within(payable).getByText('0').getAttribute('title')).toBe('Phát sinh nhưng tổng bằng 0');
     const profit = laneFact(record, 'Lợi nhuận');
-    expect(within(profit).getByText('Chờ số liệu')).toBeTruthy();
-    expect(within(profit).getByText('Chờ số liệu').getAttribute('title')).toBe('Chưa chốt — đang chờ số liệu đối soát');
+    expect(profit.querySelector('dd')?.textContent ?? '').toBe('');
+    expect(screen.queryByText('Chờ số liệu')).toBeNull();
     expect(screen.queryByText('Chưa xác định')).toBeNull();
   });
 });

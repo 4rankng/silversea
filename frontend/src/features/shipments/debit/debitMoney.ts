@@ -3,16 +3,17 @@ import { formatMoney } from '../../../lib/format';
 
 /**
  * Money-state helpers for the redesigned Chi phí - Quyết toán L1 board
- * (owner spec v2 (c), 23/10). The wire's null never means 0 — it means the
- * figure is not determined yet ("chưa xác định — chờ đối soát"). The board
- * renders exactly three states and NOTHING else:
+ * (owner spec v2 (c), 23/10; pending amended to BLANK 24/10). The wire's
+ * null never means 0 — it means the figure is not determined yet ("chưa
+ * xác định — chờ đối soát"). The board renders exactly:
  *
  *   known  → the formatted number (tabular, right-aligned)
  *   zero   → '0' — phát sinh nhưng tổng bằng 0
- *   pending→ 'Chờ số liệu' pill — chờ đối soát/chưa chốt
+ *   pending→ an EMPTY cell — the 'Chờ số liệu' pill repeated ~5×/row over
+ *            170 lots and buried the real figures (owner 24/10)
  *
- * The banned strings: 'Chưa xác định' in a money cell (audit #3 — ~25
- * repeats per screen), and any fabricated 0.
+ * The banned strings: 'Chưa xác định' in a money cell (audit #3), and any
+ * fabricated 0.
  */
 
 export type MoneyState =

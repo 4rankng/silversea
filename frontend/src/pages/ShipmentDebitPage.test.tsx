@@ -196,7 +196,7 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     expect(css).toMatch(/\.shipment-debit-workspace > \.shipment-debit-header \{ order: -1; \}/);
   });
 
-  it('renders the three money states — numbers, a real 0, and the Chờ số liệu pill (redesign 23/10 (c))', async () => {
+  it('renders the money states — numbers, a real 0, and a BLANK pending cell (redesign 23/10 (c) + 24/10)', async () => {
     listSummary.mockResolvedValue({
       items: [
         row({ lockStatus: 'LOCKED', carrierCostTotal: '1500000', opsCostTotal: '500000', payableTotal: 2000000 }),
@@ -215,9 +215,12 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     // A real computed zero renders '0' with its own tooltip.
     const zero = screen.getByTitle('Phát sinh nhưng tổng bằng 0');
     expect(zero.textContent).toBe('0');
-    // Unknown money renders the pending pill — 'Chưa xác định' is banned.
-    const pending = screen.getAllByTitle('Chưa chốt — đang chờ số liệu đối soát');
-    expect(pending.length).toBeGreaterThan(0);
+    // Unknown money reads as an EMPTY cell (owner 24/10): the amber pill
+    // repeated ~5×/row and buried the figures. 'Chưa xác định' stays banned,
+    // and only group/foot sums may answer '—'.
+    const bl2Row = screen.getAllByText('BL-2')[0].closest('tr')!;
+    expect(bl2Row.querySelector('td[data-col="profit"]')?.textContent ?? '').toBe('');
+    expect(screen.queryByText('Chờ số liệu')).toBeNull();
     expect(screen.queryByText('Chưa xác định')).toBeNull();
     // The locked row selects on click (row = selection alias, redesign 23/10).
     const lockedRow = screen.getAllByText('BL-1')[0].closest('tr')!;
@@ -591,7 +594,6 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
     expect(foot).toMatch(/box-shadow:/);
     // Money cells: right-aligned tabular; the pending pill is a pill.
     expect(rule(/\.shipment-debit-money\s*\{([^}]*)\}/)).toMatch(/text-align:\s*right/);
-    expect(rule(/\.shipment-debit-money__pending\s*\{([^}]*)\}/)).toMatch(/border-radius:\s*999px/);
   });
 
   it('marks a picked row with the house surface + ink bar, never a lone accent hex (card 161026232359)', () => {
