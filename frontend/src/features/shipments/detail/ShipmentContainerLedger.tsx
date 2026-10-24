@@ -20,7 +20,7 @@ import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { USearchableField } from '../create/uui-fields';
 import { externalVendorPlateOptions } from '../external-plate-options';
 import { normalizePlate } from '../../dispatch/detailed-plan/DispatchPlanCellValues';
-import { updateLclTruck } from '../../../api/dispatchPlanningClient';
+import { listDispatchFleetResources, updateLclTruck } from '../../../api/dispatchPlanningClient';
 import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { directionLabel, fallback, formatScheduleTime } from './shipment-container-ledger-utils';
@@ -252,10 +252,47 @@ function InlineEditor({
     })),
     { value: 'NEW_EXTERNAL', label: 'Nhập nhà xe mới', searchText: 'nhà xe mới' },
   ], [detail.selectors.externalCarriers]);
-  const vehicleOptions = useMemo(() => detail.selectors.carrierVehicles
-    .filter((vehicle) => vehicle.carrierId === Number(carrierId))
-    .map((vehicle) => ({ value: String(vehicle.id), label: vehicle.label, searchText: vehicle.licensePlate })),
-  [carrierId, detail.selectors.carrierVehicles]);
+  // SIL-167: the plate list is scoped to the chosen nhà xe. OWN ("Đội xe
+  // SilverSea") plates live in the trucks catalog behind the dispatch-fleet
+  // TRUCK resource — the same source every dispatch plate picker uses
+  // (AssignTruckGroupDialog / LclGroupTruckEditDialog / DispatchAllocationLclDialog).
+  // The workspace selectors' carrierVehicles only carries external carriers'
+  // fleets (carrier_fleet_vehicles), and Number('OWN') is NaN, so the old
+  // selector-only filter could never surface a single own-fleet plate.
+  const [ownFleetPlates, setOwnFleetPlates] = useState<Array<{ id: number; licensePlate: string }>>([]);
+  const [ownFleetStatus, setOwnFleetStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  useEffect(() => {
+    if (carrierId !== 'OWN' || mode !== 'vehicle') {
+      setOwnFleetStatus('idle');
+      return undefined;
+    }
+    let cancelled = false;
+    setOwnFleetStatus('loading');
+    listDispatchFleetResources('TRUCK', { limit: 50 })
+      .then((response) => {
+        if (cancelled) return;
+        setOwnFleetPlates(response.items.map((truck) => ({ id: truck.id, licensePlate: truck.licensePlate })));
+        setOwnFleetStatus('ready');
+      })
+      .catch(() => {
+        // A failed load degrades to free text (the field allows custom
+        // values); the empty-state hint below names the reason out loud.
+        if (cancelled) return;
+        setOwnFleetPlates([]);
+        setOwnFleetStatus('error');
+      });
+    return () => { cancelled = true; };
+  }, [carrierId, mode]);
+  const vehicleOptions = useMemo(() => {
+    if (carrierId === 'OWN') {
+      return ownFleetPlates.map((truck) => ({ value: String(truck.id), label: truck.licensePlate, searchText: truck.licensePlate }));
+    }
+    const externalId = Number(carrierId);
+    if (!Number.isFinite(externalId)) return [];
+    return detail.selectors.carrierVehicles
+      .filter((vehicle) => vehicle.carrierId === externalId)
+      .map((vehicle) => ({ value: String(vehicle.id), label: vehicle.label, searchText: vehicle.licensePlate }));
+  }, [carrierId, detail.selectors.carrierVehicles, ownFleetPlates]);
   // Card 20260925_6: on the new-external-vendor path the typed name selects
   // the quick-select source — plates already used with THAT vendor (matched
   // by name or short name), restored after 16fc0d89 dropped the field.
@@ -565,6 +602,20 @@ function InlineEditor({
           <label><span>Nhà xe</span><SearchableSelect id={`shipment-detail-carrier-${line.id}`} value={carrierId} onChange={(value) => { setCarrierId(value); setPlateNumber(''); }} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" disabled={saving || !line.permissions.carrierEditable} /></label>
           {carrierId === 'NEW_EXTERNAL' && <label><span>Tên nhà xe mới</span><input value={newCarrierName} onChange={(event) => setNewCarrierName(event.target.value)} maxLength={255} disabled={saving} /></label>}
           {carrierId && carrierId !== 'NEW_EXTERNAL' && <label><span>Biển số xe</span><USearchableField id={`shipment-detail-vehicle-${line.id}`} label="Biển số xe" hideLabel value={plateNumber} onChange={(plate) => setPlateNumber(plate.toUpperCase())} onCustomValue={(text) => setPlateNumber(text.toUpperCase().slice(0, 20))} options={vehicleOptions.map((vehicle) => ({ value: vehicle.label, label: vehicle.label, searchText: vehicle.searchText }))} placeholder="Chọn hoặc nhập biển số" disabled={saving || !line.permissions.plateEditable} allowsCustomValue searchable /></label>}
+          {/* SIL-167: a silent blank dropdown is a dead end — when the chosen
+              nhà xe has no plates to offer, say WHY under the field (AC2) and
+              point at the free-text escape the field already allows. */}
+          {carrierId && carrierId !== 'NEW_EXTERNAL' && vehicleOptions.length === 0 && (
+            <small className="shipment-container-ledger__plate-empty-hint" data-testid="plate-options-empty-hint">
+              {carrierId === 'OWN'
+                ? ownFleetStatus === 'loading'
+                  ? 'Đang tải danh sách xe nội bộ…'
+                  : ownFleetStatus === 'error'
+                    ? 'Không tải được danh sách xe nội bộ — gõ trực tiếp để nhập biển số kế hoạch.'
+                    : 'Chưa có xe nào trong đội xe nội bộ — gõ trực tiếp để nhập biển số kế hoạch.'
+                : 'Nhà xe này chưa có biển số trong danh mục — gõ trực tiếp để nhập biển số kế hoạch.'}
+            </small>
+          )}
           {carrierId === 'NEW_EXTERNAL' && <label><span>Biển số xe</span><USearchableField id={`shipment-detail-vehicle-new-${line.id}`} label="Biển số xe" hideLabel value={plateNumber} onChange={(plate) => setPlateNumber(plate.toUpperCase())} onCustomValue={(text) => setPlateNumber(text.toUpperCase().slice(0, 20))} options={newVendorPlateOptions} placeholder="Chọn hoặc nhập biển số" disabled={saving || !line.permissions.plateEditable} allowsCustomValue searchable /></label>}
           {carrierId && carrierId !== 'NEW_EXTERNAL' && line.plateNumber && line.permissions.plateEditable && (
             <small className="shipment-container-ledger__plate-clear">

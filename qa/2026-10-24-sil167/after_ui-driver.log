@@ -1,0 +1,12 @@
+phase=after front=http://localhost:7175 api=http://localhost:3002/api health=ok
+login ok (dungnv / DISPATCHER)
+— surface: /shipments-detail?searchSuffix=SILQ1520011 — "Chỉnh sửa phân xe" SILQ1520011
+plate menu open=true options=["15C-167.31","15C-184.62","15C-888.88","15E-016.26","15E-018.83","15E-019.80","15F-016.98","15H-002.14","15H-021.39","15H-039.39","15H-052.82","15H-055.79","15H-061.14","15H-076.36","15H-076.50","15H-085.66","15H-087.19","15H-104.03","15H-116.24","15H-117.55","15H-118.47","15H-118.97","15H-119.64","15H-119.87","15H-121.95","15H-147.38","15H-149.80","15H-150.77","15H-154.26","15H-154.38","15H-154.98","15H-174.23","15H-174.81","15H-175.17","15H-176.51","15H-176.93","15H-205.57","15H-207.01","15H-209.49","15H-209.51"] hint=null
+PASS AFTER-fix: plate dropdown lists own-fleet plates — options=["15C-167.31","15C-184.62","15C-888.88","15E-016.26","15E-018.83"]
+PASS AFTER-fix: no empty-state reason when plates loaded — hint=null
+external carrier "ATS" hint="Nhà xe này chưa có biển số trong danh mục — gõ trực tiếp để nhập biển số kế hoạch."
+PASS AFTER-fix: external carrier with no catalog plates states the reason — hint="Nhà xe này chưa có biển số trong danh mục — gõ trực tiếp để nhập biển số kế hoạch."
+DB shipment_fulfillments (SILQ1520011): [{"shipment_container_id":306,"container_number":"SILQ1520011","planned_carrier_type":"OWN","planned_vehicle_plate_number":"15E-016.26","planned_external_carrier_id":null}]
+PASS AFTER-fix DB: container 2 planned carrier_type = OWN — row={"shipment_container_id":306,"container_number":"SILQ1520011","planned_carrier_type":"OWN","planned_vehicle_plate_number":"15E-016.26","planned_external_carrier_id":null}
+PASS AFTER-fix DB: container 2 planned plate = 15E-016.26 — row={"shipment_container_id":306,"container_number":"SILQ1520011","planned_carrier_type":"OWN","planned_vehicle_plate_number":"15E-016.26","planned_external_carrier_id":null}
+RESULT: PASS (after)

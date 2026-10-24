@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ShipmentCusContainerFlatRow,
   ShipmentCusWorkspaceContainerLine,
@@ -1271,9 +1271,19 @@ describe('documents editor per-container tờ khai (card 261013200312)', () => {
  * the THÔNG SỐ CONTAINER cell prints the lot's chosen cước classes and the
  * PHÂN XE cell splits into BKS thực / BKS báo khách (Ảo), the second line
  * carrying the inline quick edit that writes through `updateLclTruck`. */
-const { updateLclTruckMock } = vi.hoisted(() => ({ updateLclTruckMock: vi.fn(async () => ({ updatedShipmentIds: [] })) }));
+const { updateLclTruckMock, listDispatchFleetResourcesMock } = vi.hoisted(() => ({
+  updateLclTruckMock: vi.fn(async () => ({ updatedShipmentIds: [] })),
+  // SIL-167: the vehicle editor pulls OWN plates from the dispatch-fleet
+  // TRUCK resource; default to an empty fleet so unrelated tests stay
+  // deterministic (vehicle-mode tests override per case).
+  listDispatchFleetResourcesMock: vi.fn(
+    async (_resource: string, _filters?: unknown): Promise<{ items: Array<{ id: number; licensePlate: string }>; total: number; limit: number; nextCursor: string | null }> =>
+      ({ items: [], total: 0, limit: 50, nextCursor: null }),
+  ),
+}));
 vi.mock('../../../api/dispatchPlanningClient', () => ({
   updateLclTruck: updateLclTruckMock,
+  listDispatchFleetResources: listDispatchFleetResourcesMock,
 }));
 
 describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => {
@@ -1656,5 +1666,119 @@ describe('row details expander (SIL-149 phase 2 — consultation tie-breaker 24/
     const { view } = renderExpanderRow(baseRow({ containerNumber: 'MSKU1234567' }));
     const toggle = view.container.querySelector('.shipment-container-ledger__row-toggle')!;
     expect(toggle.getAttribute('aria-label')).toBe('Xem thêm thông tin phụ của MSKU1234567');
+  });
+});
+
+/* SIL-167 (regression): "Chỉnh sửa phân xe" — the Biển số xe dropdown used to
+ * render EMPTY for Đội xe SilverSea (OWN). Two stacked defects: the option
+ * filter compared `carrierId === Number('OWN')` (NaN, never matches), and the
+ * option source (selectors.carrierVehicles) only carries EXTERNAL carriers'
+ * fleets — own-fleet plates live in the trucks catalog behind the
+ * dispatch-fleet TRUCK resource. AC2: a silent blank dropdown must state WHY
+ * when a nhà xe has no plates. */
+describe('SIL-167 vehicle plate options by nhà xe + empty-state reason', () => {
+  beforeEach(() => {
+    listDispatchFleetResourcesMock.mockReset();
+    listDispatchFleetResourcesMock.mockResolvedValue({ items: [], total: 0, limit: 50, nextCursor: null });
+  });
+
+  const ownLine = () => ({
+    ...baseLine(),
+    carrierType: 'OWN' as const,
+    externalCarrierId: null,
+    externalCarrierVehicleId: null,
+    carrierName: 'SilverSea',
+    plateNumber: null,
+    permissions: { ...baseLine().permissions },
+  });
+
+  const ownFleetResponse = {
+    items: [
+      { id: 1, licensePlate: '15E-016.26', status: 'ACTIVE', trailerType: null, currentTrailerId: null, currentTrailerPlate: null, capacityKg: null, assignedDriverId: null, assignedDriverName: null, carrierId: null, carrierName: null },
+      { id: 2, licensePlate: '15H-087.19', status: 'ACTIVE', trailerType: null, currentTrailerId: null, currentTrailerPlate: null, capacityKg: null, assignedDriverId: null, assignedDriverName: null, carrierId: null, carrierName: null },
+    ],
+    total: 2,
+    limit: 50,
+    nextCursor: null,
+  };
+
+  it('SIL167-01 OWN lists the own-fleet plates from the dispatch-fleet TRUCK resource (previously always empty)', async () => {
+    listDispatchFleetResourcesMock.mockResolvedValue(ownFleetResponse);
+    renderLedger('vehicle', baseRow(), baseDetail(), ownLine());
+    // The plate field mounts as soon as OWN is the chosen carrier.
+    const plate = await screen.findByLabelText('Biển số xe');
+    // Open the searchable combobox and read its options.
+    fireEvent.focus(plate);
+    fireEvent.keyDown(plate, { key: 'ArrowDown' });
+    const options = await screen.findAllByRole('option');
+    const labels = options.map((option) => option.textContent?.trim());
+    expect(labels).toContain('15E-016.26');
+    expect(labels).toContain('15H-087.19');
+    expect(listDispatchFleetResourcesMock).toHaveBeenCalledWith('TRUCK', { limit: 50 });
+    // AC2: no empty-state reason when plates DID load.
+    expect(screen.queryByTestId('plate-options-empty-hint')).toBeNull();
+  });
+
+  it('SIL167-02 OWN with an empty fleet states the reason instead of a blank dropdown (AC2)', async () => {
+    renderLedger('vehicle', baseRow(), baseDetail(), ownLine());
+    const hint = await screen.findByTestId('plate-options-empty-hint');
+    await waitFor(() => expect(hint.textContent).toContain('Chưa có xe nào trong đội xe nội bộ'));
+    expect(hint.textContent).toContain('gõ trực tiếp');
+    // The free-text escape stays available (allowsCustomValue).
+    expect(screen.getByLabelText('Biển số xe')).toBeTruthy();
+  });
+
+  it('SIL167-03 a failed own-fleet load degrades to free text and names the error (AC2)', async () => {
+    listDispatchFleetResourcesMock.mockRejectedValue(new Error('network'));
+    renderLedger('vehicle', baseRow(), baseDetail(), ownLine());
+    const hint = await screen.findByTestId('plate-options-empty-hint');
+    await waitFor(() => expect(hint.textContent).toContain('Không tải được danh sách xe nội bộ'));
+  });
+
+  it('SIL167-04 an external carrier still filters selector vehicles by its own id, and states the reason when it has none', async () => {
+    const detail = baseDetail();
+    (detail.selectors as { externalCarriers: unknown[]; carrierVehicles: unknown[] }).externalCarriers = [
+      { id: 91, label: 'Nhà xe Năm Troc', name: 'Nhà xe Năm Troc', shortName: null },
+      { id: 92, label: 'Nhà xe khác', name: 'Nhà xe khác', shortName: null },
+      { id: 93, label: 'Nhà xe Ba', name: 'Nhà xe Ba', shortName: null },
+    ];
+    (detail.selectors as { carrierVehicles: unknown[] }).carrierVehicles = [
+      { id: 9001, carrierId: 91, licensePlate: '29H-123.45', label: '29H-123.45' },
+      // Belongs to carrier 93 — must never leak into carrier 91's dropdown.
+      { id: 9002, carrierId: 93, licensePlate: '30F-000.00', label: '30F-000.00' },
+    ];
+    const externalLine = {
+      ...baseLine(),
+      carrierType: 'EXTERNAL' as const,
+      externalCarrierId: 91,
+      externalCarrierVehicleId: null,
+      carrierName: 'Nhà xe Năm Troc',
+      plateNumber: null,
+      permissions: { ...baseLine().permissions },
+    };
+    const first = renderLedger('vehicle', baseRow(), detail, externalLine as never);
+    const plate = await screen.findByLabelText('Biển số xe');
+    fireEvent.focus(plate);
+    fireEvent.keyDown(plate, { key: 'ArrowDown' });
+    const options = await screen.findAllByRole('option');
+    const labels = options.map((option) => option.textContent?.trim());
+    expect(labels).toContain('29H-123.45');
+    expect(labels).not.toContain('30F-000.00');
+    // OWN fetch must NOT fire for an external carrier.
+    expect(listDispatchFleetResourcesMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('plate-options-empty-hint')).toBeNull();
+    first.unmount();
+
+    // Carrier 92 has no vehicles in the selectors → external empty-state reason.
+    const emptyLine = { ...externalLine, externalCarrierId: 92, carrierName: 'Nhà xe khác' };
+    renderLedger('vehicle', baseRow(), detail, emptyLine as never);
+    const hint = await screen.findByTestId('plate-options-empty-hint');
+    await waitFor(() => expect(hint.textContent).toContain('Nhà xe này chưa có biển số trong danh mục'));
+  });
+
+  it('SIL167-05 the own-fleet fetch only runs for the vehicle editor (not notes/route on an OWN row)', async () => {
+    renderLedger('notes', baseRow(), baseDetail(), ownLine());
+    expect(screen.queryByTestId('plate-options-empty-hint')).toBeNull();
+    expect(listDispatchFleetResourcesMock).not.toHaveBeenCalled();
   });
 });
