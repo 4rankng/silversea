@@ -25,6 +25,7 @@ import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 import { BillingPlateEditor } from './AccountingDebitClosePage.billing-plate';
 import { MergeRevGroupDialog } from '../../features/shipments/debit/MergeRevGroupDialog';
+import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
 import { DisabledActionTip } from '../../components/shared/DisabledActionTip';
 import { Button as UUIButton } from '../../components/untitled-ui/base/buttons/button';
 import { BOARD_CAPTION, BOARD_COLUMNS, type CellContext } from './AccountingDebitClosePage.columns';
@@ -192,6 +193,39 @@ export default function AccountingDebitClosePage() {
     [selectedRows],
   );
   const allSelected = allOfSelected(selectableIds);
+
+  // FB-093 (card 211026024348, SIL-191 QA R42) — the strip-level "Tách nhóm".
+  // The per-lot action lives inside the Thông số container column AND only
+  // reads revGroupId, so an operator selecting the merged lots through the
+  // toolbar had no reachable unmerge — and the QA's merged lots were ghép
+  // TRẢ ĐV (cost-merged): revGroupId null, only ghépCùngRef named the group.
+  // The strip re-exposes the SAME shared component (same confirm, same
+  // unmerge endpoint, same undo toast) once the selection spans ≥2 lots and
+  // carries exactly ONE merged group — RES first, else the cost group. The
+  // unmerge dissolves the WHOLE group — the dialog copy says so — so mixed
+  // or multiple groups is a refusal, not a guess.
+  const selectedMergedRows = useMemo(
+    () => selectedRows.filter((row) => row.lcl != null && (row.lcl.revGroupId != null || row.lcl.costGroupId != null)),
+    [selectedRows],
+  );
+  const stripUnmergeTarget = useMemo(() => {
+    const revIds = new Set<string>();
+    const costIds = new Set<string>();
+    for (const row of selectedMergedRows) {
+      if (row.lcl?.revGroupId != null) revIds.add(row.lcl.revGroupId);
+      if (row.lcl?.costGroupId != null) costIds.add(row.lcl.costGroupId);
+    }
+    // A group of the row's OWN dimension wins; a row carrying both is one
+    // membership in each and still resolves by the single-distinct rule.
+    if (revIds.size === 1 && costIds.size <= 1) return { dimension: 'REV' as const, groupId: [...revIds][0] };
+    if (revIds.size === 0 && costIds.size === 1) return { dimension: 'COST' as const, groupId: [...costIds][0] };
+    return null;
+  }, [selectedMergedRows]);
+  const stripUnmergeDisabledReason = selectedMergedRows.some((row) => row.costLockedAt != null)
+    ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
+    : stripUnmergeTarget == null
+      ? 'Các lô đang chọn thuộc nhóm ghép khác nhau — bỏ bớt lựa chọn để tách từng nhóm.'
+      : null;
 
   const summary = useMemo(() => [
     { label: 'Lô trong kỳ', value: visibleRows.length },
@@ -608,6 +642,26 @@ export default function AccountingDebitClosePage() {
             >
               {sendMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu điều chỉnh cước'}
             </button>
+            {/* FB-093 (SIL-191 QA R42): the toolbar twin of the per-row action —
+                exposed when the selection IS a multi-select of merged lots
+                (≥2 merged rows, per the FB-093 expectation); armed only when
+                those rows resolve to ONE group, in whichever dimension
+                (REV/COST) it lives. A lone merged row among unmerged ones
+                keeps the per-row path — dissolving a whole group whose other
+                members are not even selected must not arm from the strip. */}
+            {selectedMergedRows.length >= 2 && (
+              <UnmergeRevGroupAction
+                id="accounting-debit-tach-nhom-strip"
+                groupId={stripUnmergeTarget?.groupId ?? ''}
+                dimension={stripUnmergeTarget?.dimension ?? 'REV'}
+                lotRef={selectedMergedRows
+                  .map((row) => billBookingReference(row.billOrBooking) || row.code)
+                  .filter(Boolean)
+                  .join(', ')}
+                disabledReason={stripUnmergeDisabledReason}
+                onUnmerged={cellContext.onRevGroupUnmerged}
+              />
+            )}
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => selection.clear()}>Bỏ chọn</button>
           </>
         )}

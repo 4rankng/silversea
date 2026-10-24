@@ -205,3 +205,155 @@ describe('card 211026024348 — "Tách nhóm" trên /accounting/chot-debit', () 
     await waitFor(() => expect(listBoard.mock.calls.length).toBeGreaterThanOrEqual(2));
   });
 });
+
+// ─── SIL-191 (QA R42): thanh công cụ chọn lô thiếu "Tách nhóm" ───────────────
+// QA chọn 2 lô đang ghép rồi đọc TOOLBAR — nút chỉ nằm trong cột Thông số
+// container nên không bao giờ gặp. Strip phải expose cùng action khi chọn
+// ≥2 lô và lựa chọn có lô đang ghép.
+
+function clickRow(ref: string) {
+  fireEvent.click(screen.getByText(ref).closest('tr')!);
+}
+
+describe('SIL-191 — "Tách nhóm" trên strip chọn lô của /accounting/chot-debit', () => {
+  it('chọn 2 lô CÙNG nhóm ghép → strip hiện nút, armed; click → confirm → unmergeLclGroup đúng nhóm', async () => {
+    listBoard.mockResolvedValue({
+      items: [
+        lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } }),
+        lclRow({ shipmentId: 2, billOrBooking: 'BL-2', lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    clickRow('BL-1');
+    clickRow('BL-2');
+
+    const stripButton = screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1, BL-2' });
+    expect(stripButton.tagName).toBe('BUTTON');
+    expect(stripButton.getAttribute('aria-disabled')).toBeNull();
+
+    unmergeLclGroup.mockResolvedValue({ dimension: 'REV', groupId: 'g-rev-1', memberCount: 2, members: [], dissolved: true });
+    fireEvent.click(stripButton);
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('Cả nhóm giải tán');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
+    await waitFor(() => expect(unmergeLclGroup).toHaveBeenCalledWith({ groupId: 'g-rev-1', dimension: 'REV' }));
+  });
+
+  it('chọn ĐÚNG 1 lô → strip KHÔNG thêm nút (per-row trong cột vẫn là đường chính)', async () => {
+    listBoard.mockResolvedValue({
+      items: [
+        lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } }),
+        lclRow({ shipmentId: 2, billOrBooking: 'BL-2', lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    clickRow('BL-1');
+
+    expect(screen.queryByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1, BL-2' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' })).toBeTruthy();
+  });
+
+  it('chọn 1 lô ghép + 1 lô thường → strip KHÔNG hiện nút (tách nguyên nhóm không được arm từ lựa chọn lận cận)', async () => {
+    listBoard.mockResolvedValue({
+      items: [
+        lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } }),
+        lclRow({ shipmentId: 2, billOrBooking: 'BL-9', lcl: { revGroupId: null } }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    clickRow('BL-1');
+    clickRow('BL-9');
+
+    expect(screen.queryByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1, BL-9' })).toBeNull();
+  });
+
+  it('chọn 2 lô CHƯA ghép → không có nút strip (đúng điều kiện "đang ghép")', async () => {
+    listBoard.mockResolvedValue({
+      items: [
+        lclRow({ lcl: { revGroupId: null } }),
+        lclRow({ shipmentId: 2, billOrBooking: 'BL-2', lcl: { revGroupId: null } }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    clickRow('BL-1');
+    clickRow('BL-2');
+
+    expect(screen.queryByRole('button', { name: /Tách nhóm ghép cước thu khách — lô BL-1, BL-2/ })).toBeNull();
+  });
+
+  it('2 lô thuộc HAI nhóm khác nhau → nút hiện nhưng aria-disabled kèm lý do, click bị guard', async () => {
+    listBoard.mockResolvedValue({
+      items: [
+        lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } }),
+        lclRow({ shipmentId: 2, billOrBooking: 'BL-2', lcl: { ghépCùngRef: 'BL-9', revGroupId: 'g-rev-2' } }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    clickRow('BL-1');
+    clickRow('BL-2');
+
+    const stripButton = screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1, BL-2' });
+    expect(stripButton.getAttribute('aria-disabled')).toBe('true');
+    const describedBy = stripButton.getAttribute('aria-describedby');
+    expect(document.getElementById(describedBy!)?.textContent)
+      .toContain('Các lô đang chọn thuộc nhóm ghép khác nhau');
+    fireEvent.click(stripButton);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(unmergeLclGroup).not.toHaveBeenCalled();
+  });
+
+  it('lô trong nhóm đã chốt kế toán (costLockedAt) → aria-disabled kèm lý do chốt', async () => {
+    listBoard.mockResolvedValue({
+      items: [
+        lclRow({ costLockedAt: '2026-10-20T10:00:00.000Z', lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } }),
+        lclRow({ shipmentId: 2, billOrBooking: 'BL-2', lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    clickRow('BL-1');
+    clickRow('BL-2');
+
+    const stripButton = screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1, BL-2' });
+    expect(stripButton.getAttribute('aria-disabled')).toBe('true');
+    const describedBy = stripButton.getAttribute('aria-describedby');
+    expect(document.getElementById(describedBy!)?.textContent)
+      .toContain('Nhóm ghép đã chốt kế toán — không thể tách nhóm.');
+  });
+
+  it('lô ghép TRẢ ĐV (costGroupId, revGroupId null — đúng dữ liệu QA R42) → strip armed theo dimension COST', async () => {
+    listBoard.mockResolvedValue({
+      items: [
+        lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: null, costGroupId: 'g-cost-1' } }),
+        lclRow({ shipmentId: 2, billOrBooking: 'BL-2', lcl: { ghépCùngRef: 'BL-1', revGroupId: null, costGroupId: 'g-cost-1' } }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    clickRow('BL-1');
+    clickRow('BL-2');
+
+    const stripButton = screen.getByRole('button', { name: 'Tách nhóm ghép trả ĐV — lô BL-1, BL-2' });
+    expect(stripButton.getAttribute('aria-disabled')).toBeNull();
+
+    unmergeLclGroup.mockResolvedValue({ dimension: 'COST', groupId: 'g-cost-1', memberCount: 2, members: [], dissolved: true, vehicleClassId: null });
+    fireEvent.click(stripButton);
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('Tách nhóm ghép trả ĐV?');
+    expect(dialog.textContent).toContain('cước trả ĐV độc lập');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
+    await waitFor(() => expect(unmergeLclGroup).toHaveBeenCalledWith({ groupId: 'g-cost-1', dimension: 'COST' }));
+  });
+});
