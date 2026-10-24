@@ -910,7 +910,10 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
       ...detail,
       containers: [{ ...detail.containers[0], carrierType: 'OWN', carrierName: 'SilverSea', permissions: { ...detail.containers[0].permissions, plateEditable: false } }],
     } as unknown as ShipmentCusWorkspaceDetail;
-    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(ownDetail);
+    // SIL-167: the OWN vehicle editor also fetches the own-fleet plate list
+    // (dispatch-fleet TRUCK) — a catch-all keeps that third GET deterministic.
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(ownDetail)
+      .mockResolvedValue({ items: [], total: 0, limit: 50, nextCursor: null });
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');
@@ -930,7 +933,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
       ...detail,
       containers: [{ ...detail.containers[0], carrierType: 'OWN', carrierName: 'SilverSea', permissions: { ...detail.containers[0].permissions, plateEditable: true } }],
     } as unknown as ShipmentCusWorkspaceDetail;
-    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(ownEditableDetail);
+    // SIL-167: catch-all for the OWN editor's own-fleet plate fetch.
+    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(ownEditableDetail)
+      .mockResolvedValue({ items: [], total: 0, limit: 50, nextCursor: null });
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     await screen.findByText('CONT-002');

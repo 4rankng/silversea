@@ -1,0 +1,8 @@
+phase=before front=http://localhost:7175 api=http://localhost:3002/api health=ok
+login ok (dungnv / DISPATCHER)
+— surface: /shipments-detail?searchSuffix=SILQ1520011 — "Chỉnh sửa phân xe" SILQ1520011
+plate menu open=true options=[] hint=null
+PASS BEFORE-defect: plate dropdown has NO options for Đội xe SilverSea — options=[]
+PASS BEFORE-defect: no empty-state reason is shown — hint=null
+DB shipment_fulfillments (SILQ1520011): [{"shipment_container_id":306,"container_number":"SILQ1520011","planned_carrier_type":null,"planned_vehicle_plate_number":null,"planned_external_carrier_id":null}]
+RESULT: PASS (before)
