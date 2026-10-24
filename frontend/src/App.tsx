@@ -7,9 +7,6 @@ import { ReducedMotionProvider } from './hooks/usePrefersReducedMotion';
 import { Role } from '@tingting/shared';
 import Layout from './components/Layout';
 import CustomerPortalLayout from './pages/portal/CustomerPortalLayout';
-// Demo tree (SIL-155): fixture-only /demo/* surface. The shell is a static
-// import because it WRAPS the lazy pages (Suspense lives inside `page()`).
-import DemoAppShell from './demo/DemoAppShell';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
@@ -193,15 +190,6 @@ const OpsReconciliationReportPage = lazy(() => import('./pages/accounting/OpsRec
 const TirePositionsConfigPage = lazy(() => import('./pages/config/TirePositionsConfigPage'));
 const DebitNoteTemplatesConfigPage = lazy(() => import('./pages/config/DebitNoteTemplatesConfigPage'));
 const DebitNoteTemplateEditorPage = lazy(() => import('./pages/config/DebitNoteTemplateEditorPage'));
-
-// Demo tree placeholder pages (SIL-155) — each renders title + skeleton
-// inside DemoAppShell; the lanes that follow replace them in place.
-const DemoDashboardPage = lazy(() => import('./demo/pages/DemoDashboardPage'));
-const DemoDispatchPage = lazy(() => import('./demo/pages/DemoDispatchPage'));
-const DemoPortPaymentsPage = lazy(() => import('./demo/pages/DemoPortPaymentsPage'));
-const DemoBillingPage = lazy(() => import('./demo/pages/DemoBillingPage'));
-const DemoMasterDataPage = lazy(() => import('./demo/pages/DemoMasterDataPage'));
-const DemoDriverAppPage = lazy(() => import('./demo/pages/DemoDriverAppPage'));
 
 function PageLoader() {
   return (
@@ -394,14 +382,7 @@ export function AppRoutes() {
       </Suspense>
     </ErrorBoundary>
   );
-  // Demo tree (SIL-155): /demo/* renders in its OWN shell, isolated from the
-  // production Layout/sidebar — demo pages never mix into the real nav, and
-  // the real screens are untouched. The tree is auth-only and deliberately
-  // role-agnostic: every page renders static fixtures from
-  // frontend/src/demo/data and performs zero API calls, so any authenticated
-  // role can walk a stakeholder demo without new Casbin surface.
-  const isDemoRoute = location.pathname === '/demo' || location.pathname.startsWith('/demo/');
-  const Shell = isDemoRoute ? DemoAppShell : isCustomer ? CustomerPortalLayout : Layout;
+  const Shell = isCustomer ? CustomerPortalLayout : Layout;
 
   return (
     <Shell>
@@ -601,16 +582,6 @@ export function AppRoutes() {
           <Route path="/portal/shipments/:id" element={customerOnly(page(<PortalShipmentDetailPage />))} />
           <Route path="/portal/debit-notes" element={customerOnly(page(<PortalDebitNotesPage />))} />
           <Route path="/portal/statement" element={customerOnly(page(<PortalStatementPage />))} />
-          {/* Demo tree (SIL-155, spec 2026.10.24_Demo_layout §2) — 6 route
-              placeholder theo shell chung. Auth-only (xem comment tại Shell);
-              không nằm trong PAGE_CATALOG/nav thật. */}
-          <Route path="/demo" element={<Navigate to="/demo/dashboard" replace />} />
-          <Route path="/demo/dashboard" element={page(<DemoDashboardPage />)} />
-          <Route path="/demo/dispatch" element={page(<DemoDispatchPage />)} />
-          <Route path="/demo/port-payments" element={page(<DemoPortPaymentsPage />)} />
-          <Route path="/demo/billing" element={page(<DemoBillingPage />)} />
-          <Route path="/demo/master-data" element={page(<DemoMasterDataPage />)} />
-          <Route path="/demo/driver-app" element={page(<DemoDriverAppPage />)} />
           <Route path="*" element={page(<NotFoundPage />)} />
         </Routes>
       </Shell>
