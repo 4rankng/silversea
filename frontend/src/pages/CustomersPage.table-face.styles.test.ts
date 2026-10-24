@@ -44,18 +44,31 @@ describe('customers ≥640 face is the real 7-column table (SIL-169 re-dispatch)
 });
 
 describe('short-name chips are title-cased on every face (SIL-169 re-dispatch ④)', () => {
-  it('the /customers table row and mobile card chips both case the short name', () => {
+  it('the /customers table row and mobile card chips both use the chip label rule', () => {
     const chips = pageTsx.match(/<span className="cus-chip">\{[^}]*\}<\/span>/g) ?? [];
     expect(chips.length, 'both chip faces render').toBe(2);
     for (const chip of chips) {
-      expect(chip).toContain('titleCaseVn(c.shortName)');
+      expect(chip).toContain('shortNameChipLabel(c.shortName)');
       expect(chip).not.toContain('{c.shortName}');
     }
   });
 
-  it('the /config/customers catalog chip cases the short name too', () => {
+  it('the /config/customers catalog chip uses the chip label rule too', () => {
     const chip = configTsx.match(/<span className="cus-chip">\{[^}]*\}<\/span>/)?.[0];
     expect(chip, 'the catalog chip renders').toBeTruthy();
-    expect(chip).toContain('titleCaseVn(c.shortName)');
+    expect(chip).toContain('shortNameChipLabel(c.shortName)');
+  });
+
+  it('the chip label rule title-cases words but keeps identifier-like codes', async () => {
+    // Behavior pin (not just source shape): "LOG COM" → "Log Com" per the
+    // verdict; a digit-bearing catalog short name ("TCT-1") stays AS STORED —
+    // title-casing it corrupted the code to "Tct-1" (caught by
+    // CustomersConfigPage.test.tsx row-text pin).
+    const { shortNameChipLabel } = await import('../lib/format');
+    expect(shortNameChipLabel('LOG COM')).toBe('Log Com');
+    expect(shortNameChipLabel('Long Minh')).toBe('Long Minh');
+    expect(shortNameChipLabel('TCT-1')).toBe('TCT-1');
+    expect(shortNameChipLabel('LM2')).toBe('LM2');
+    expect(shortNameChipLabel(null)).toBe('');
   });
 });

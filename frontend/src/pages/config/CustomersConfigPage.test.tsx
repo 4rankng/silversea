@@ -299,7 +299,7 @@ describe('SIL-169 seven-column table contract', () => {
     await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
     const headers = Array.from(container.querySelectorAll('.cfg-customer-table thead th'))
       .map((th) => (th.textContent ?? '').trim());
-    expect(headers).toEqual(['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn thanh toán', 'Công nợ', 'Thao tác']);
+    expect(headers).toEqual(['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn TT', 'Công nợ', 'Thao tác']);
     // The verdict's widths ride the colgroup (260/110/180/180/96/120); the
     // kebab column rides the .cus-col-action class (no inline width — it
     // must answer the coarse-pointer media query).

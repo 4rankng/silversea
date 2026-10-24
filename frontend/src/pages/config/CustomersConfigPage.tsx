@@ -315,7 +315,7 @@ export default function CustomersConfigPage() {
                   <SortHeader label="MST" sortKey="taxCode" sort={sort} onSortChange={handleSort} />
                   <th>Địa chỉ</th>
                   <th>Liên hệ</th>
-                  <th>Hạn thanh toán</th>
+                  <th>Hạn TT</th>
                   <th className="cus-th-debt">Công nợ</th>
                   <th><span className="sr-only">Thao tác</span></th>
                 </tr>
@@ -341,7 +341,7 @@ export default function CustomersConfigPage() {
                       {/* Title-case display (SIL-169); the full legal name
                           rides the title tooltip and every export. */}
                       <span className="row-strong cfg-customer-full-name" title={c.name}>{titleCaseVn(c.name)}</span>
-                      {c.shortName && c.shortName !== c.name && <span className="cus-chip">{titleCaseVn(c.shortName)}</span>}
+                      {c.shortName && c.shortName !== c.name && <span className="cus-chip">{shortNameChipLabel(c.shortName)}</span>}
                       {c.status === CustomerStatus.LOCKED && <span className="cus-chip cus-chip--locked">Tạm khoá</span>}
                     </span>
                     {c.code && <span className="cus-code-sub"><span className="data-token">{c.code}</span></span>}

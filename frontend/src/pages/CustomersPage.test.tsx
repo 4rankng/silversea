@@ -136,7 +136,7 @@ describe('CustomersPage table contract (SIL-169) + updatedAt carry (card 0610261
     // trả, Cập nhật, split contact) must not come back as headers. (jsdom
     // renders both faces, so headers may also appear as mobile labels —
     // query all matches.)
-    for (const header of ['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn thanh toán', 'Công nợ']) {
+    for (const header of ['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn TT', 'Công nợ']) {
       expect((await screen.findAllByText(header)).length).toBeGreaterThan(0);
     }
     expect(screen.queryByText('Trạng thái')).toBeNull();

@@ -848,7 +848,7 @@ export default function CustomersPage() {
                   <SortHeader label="MST" sortKey="taxCode" sort={sort} onSortChange={applySort} />
                   <th>Địa chỉ</th>
                   <th>Liên hệ</th>
-                  <th>Hạn thanh toán</th>
+                  <th>Hạn TT</th>
                   <th className="cus-th-debt">Công nợ</th>
                   <th><span className="sr-only">Thao tác</span></th>
                 </tr>

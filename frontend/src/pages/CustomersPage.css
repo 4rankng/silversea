@@ -254,8 +254,11 @@
 
 /* Address: the ONE verdict-mandated single-line cell (owner spec supersedes
    the wrap doctrine for this secondary datum, debit-board precedent 23/10) —
-   full value rides the title tooltip and the row drawer. */
-.cus-addr-cell {
+   full value rides the title tooltip and the row drawer. The selector carries
+   the .record-table element on purpose (0,2,1): the shared card band's
+   `white-space: normal` on td (0,1,2, container ≤1100px) otherwise outranks a
+   bare class rule and re-wraps the address into 3-4 line rows. */
+.record-table td.cus-addr-cell {
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
