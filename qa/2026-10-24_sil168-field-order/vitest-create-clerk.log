@@ -1,0 +1,11 @@
+# cmd: npx vitest run src/features/shipments/create src/pages/clerk
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil168-field-order/frontend
+
+
+ Test Files  34 passed (34)
+      Tests  323 passed (323)
+   Start at  15:53:39
+   Duration  23.12s (transform 6.34s, setup 4.71s, import 34.85s, tests 74.99s, environment 18.81s)
+
+EXIT=0

@@ -1,0 +1,21 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7177
+LOGIN ok role=cus
+DB shipments count BEFORE drive = 203
+PAGE /shipments/new loaded, identity section present
+PASS SIL168-R2 XNK đứng TRƯỚC Số Bill/Booking (DOM)
+PASS band1 Khách hàng → XNK
+PASS band2 Bill/Booking → Hãng tàu
+PASS band3 Hãng tàu → Tuỳ chọn
+PASS SIL168-AC2 Số tờ khai là band cuối section
+PASS Tuỳ chọn trước Số tờ khai
+PASS cụm divider FB-127 đã bỏ
+PASS SIL168-AC3 gate: Bill/Booking disable trước khi chọn hướng
+PASS gate hint text hiển thị
+PASS click option "Xuất khẩu"
+PASS SIL168-AC4 sau khi chọn Xuất: Bill/Booking enable
+PASS placeholder theo hướng Xuất — Nhập số Booking (hàng Xuất)
+SHOT qa/2026-10-24_sil168-field-order/ui-after-pick-export-1440.png
+PASS AC5 390px: band không tràn ngang
+SHOT qa/2026-10-24_sil168-field-order/ui-mobile-390.png
+PASS DB không đổi sau drive (read-only) — 203 → 203
+DONE failures=0

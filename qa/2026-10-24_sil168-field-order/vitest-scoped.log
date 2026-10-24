@@ -1,0 +1,11 @@
+# cmd: npx vitest run src/features/shipments/create/ShipmentCreateIdentitySection.test.tsx src/pages/clerk/ClerkShipmentCreatePage.styles.test.ts
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil168-field-order/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  40 passed (40)
+   Start at  15:53:30
+   Duration  1.99s (transform 377ms, setup 331ms, import 1.04s, tests 131ms, environment 1.21s)
+
+EXIT=0
