@@ -149,6 +149,7 @@
   grid-template-areas: 'carrier vehicle'
     'classification combined'
     'revenue cost'
+    'run run'
     'end end';
   gap: 14px 12px;
   align-items: end;
@@ -156,10 +157,16 @@
 
 /* Giờ trả hàng gets its own full-width row: the 2-col cell shrinks the
  * split-datetime tracks and stretches/overflows its segments (seen live
- * 15:40); the wide row lets the control size naturally. */
-.dispatch-assignment-dialog__end-field {
+ * 15:40); the wide row lets the control size naturally. SIL-473 — Giờ điều
+ * vận rides the same full-width row law, above it. */
+.dispatch-assignment-dialog__end-field,
+.dispatch-assignment-dialog__run-field {
   grid-area: end;
   min-width: 0;
+}
+
+.dispatch-assignment-dialog__run-field {
+  grid-area: run;
 }
 
 /* The vehicle block is a div (its <label> lives inside the head row now — a
@@ -492,6 +499,7 @@
       'vehicle vehicle'
       'classification combined'
       'revenue cost'
+      'run run'
       'end end';
   }
 
