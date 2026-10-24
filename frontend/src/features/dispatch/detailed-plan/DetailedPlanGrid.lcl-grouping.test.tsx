@@ -170,6 +170,11 @@ describe('FB-092 — LCL selection', () => {
     // The leading CHỌN header + the LCL tick in the first cell of its row;
     // the FCL row's tick is dimmed (aria-disabled) and carries the cont copy.
     expect(screen.getByRole('columnheader', { name: /Chọn/ })).toBeTruthy();
+    // SIL-174: the header's text-content reads exactly "Chọn lô" — the same
+    // structure as /dispatch (visible "Chọn" + sr-only " lô"; the old
+    // sr-only-first markup read "Chọn lô Chọn").
+    const selectHeader = screen.getByRole('columnheader', { name: /Chọn/ });
+    expect(selectHeader.textContent).toBe('Chọn lô');
     const lclTick = screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' });
     expect(lclTick.closest('td')).toBe(lclTick.closest('tr')!.querySelector('td'));
     const fclTick = screen.getByRole('checkbox', { name: /MSCU7654321 không tham gia gộp hàng/ });

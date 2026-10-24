@@ -407,8 +407,12 @@ export function DetailedPlanGrid({
               <tr>
                 {onToggleLclSelection && (
                   <th scope="col" className="detailed-plan-grid__th--select">
-                    <span className="sr-only">Chọn lô</span>
+                    {/* SIL-174: same structure as the master-plan header —
+                        visible label first, sr-only " lô" after — so both
+                        screens read the same "Chọn lô" (the old sr-only-first
+                        markup read "Chọn lô Chọn"). */}
                     Chọn
+                    <span className="sr-only"> lô</span>
                   </th>
                 )}
                 <th scope="col" aria-sort={sortKey === 'runHour' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
