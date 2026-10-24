@@ -30,3 +30,20 @@ export {
   demoUncFees,
   demoVendors,
 } from './seed';
+export type {
+  DemoFactoryEntry,
+  DemoFreightRateRow,
+  DemoPortRateCellKey,
+  DemoPortRateColumn,
+  DemoPortRateRow,
+  DemoRateOperation,
+} from './master-data';
+export {
+  DEMO_PORT_RATE_COLUMNS,
+  demoFactoryDirectory,
+  demoFreightRates,
+  demoPortRateMatrix,
+  demoVendorTripCounts,
+  freightRateForTrip,
+  portRateCellKey,
+} from './master-data';

@@ -1,0 +1,20 @@
+PASS  fleet grid renders BKS 51C-138.65 — "51C-138.65Shacman X3000Nguyễn Văn Tâm0903 715 204034201001234Hạng E51R-072.4451C-138.65+51R-072.44+Nguyễn Văn Tâm"
+PASS  pairing chips render trailer — "51C-138.65+51R-072.44+Nguyễn Văn Tâm"
+PASS  search 469 hides TRK-01 row — "true"
+PASS  search 469 keeps TRK-04 row — "72L-846.30Foton AumanPhạm Quốc Dũng0905 227 469034204004258Hạng E72R-097.5172L-846.30+72R-097.51+Phạm Quốc Dũng"
+PASS  added truck row renders — "51C-777.77Isuzu GigaNguyễn Văn Tâm0903 715 204034201001234Hạng E51R-777.7751C-777.77+51R-777.77+Nguyễn Văn Tâm"
+PASS  added truck pairing chip shows driver — "51C-777.77+51R-777.77+Nguyễn Văn Tâm"
+PASS  partner customers render — "MãKhách hàngNhà máy giao nhậnKCN / Khu vựcSAMSamsung Electronics HCM CEKCN Hiệp PhướcNhà Bè, TP.HCMINTIntel Việt NamSHTP"
+PASS  partner factories render — "Nhà máy / KCNKhu vựcChủ hàng gắnKCN Hiệp PhướcNhà Bè, TP.HCMSAM · Samsung Electronics HCM CESHTPThủ Đức, TP.HCMINT · Int"
+PASS  partner vendors render — "Nhà xeSĐTChuyến xe ngoài trong fixturesGiao Nhận Nam Hải0908 103 4472 chuyến / 20 chuyến fixturesHTD Vận Tải0914 256 703"
+PASS  customer search keeps Samsung — "MãKhách hàngNhà máy giao nhậnKCN / Khu vựcSAMSamsung Electronics HCM CEKCN Hiệp PhướcNhà Bè, TP.HCM"
+PASS  customer search hides Intel — "false"
+PASS  port matrix Cát Lái lift 20 export — "1.250.000 ₫"
+PASS  hover crosshair lights row band — "px-2 py-1  bg-brand-50"
+PASS  port cell edit commits 1.350.000 — "1.350.000 ₫"
+PASS  save notice confirms — "Đã lưu — Cảng VICT — 20′ · Xuất · Nâng: 1.350.000 ₫"
+PASS  freight cell edit commits 5.000.000 — "5.000.000 ₫"
+
+consoleErrors: 0
+passed: 16/16
+exit: 0
