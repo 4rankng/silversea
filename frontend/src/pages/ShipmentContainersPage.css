@@ -626,11 +626,11 @@
   .shipment-container-ledger td[data-label='Số tờ khai'] .shipment-container-ledger__missing,
   .shipment-container-ledger td[data-label='Hãng tàu'] .shipment-container-ledger__missing,
   .shipment-container-ledger td[data-label='Nâng / hạ'] .shipment-container-ledger__missing,
-  /* The customer header keeps its placeholders only when there is no name to
-     anchor the card; "Chưa có khách hàng" must survive, factory/route noise
-     must not. */
-  .shipment-container-ledger tbody > tr > th .shipment-container-ledger__multiline:has(> strong) > .shipment-container-ledger__missing,
   .shipment-container-ledger td[data-label='Lịch trình'] .shipment-container-ledger__schedule-gap { display: none; }
+  /* The customer header needs !important: the global `.multiline > *` display
+     law stacks eight classes via its :not() chain and would out-specify this
+     hide on the only placeholders that sit as direct multiline children. */
+  .shipment-container-ledger tbody > tr > th .shipment-container-ledger__multiline:has(> strong) > .shipment-container-ledger__missing { display: none !important; }
   .shipment-container-ledger td[data-label='Bill/Booking'] .shipment-container-ledger__code:has(> .shipment-container-ledger__missing)::after,
   .shipment-container-ledger td[data-label='Số tờ khai'] .shipment-container-ledger__code:has(> .shipment-container-ledger__missing)::after,
   .shipment-container-ledger td[data-label='Hãng tàu'] .shipment-container-ledger__multiline > span:has(> .shipment-container-ledger__missing)::after,
