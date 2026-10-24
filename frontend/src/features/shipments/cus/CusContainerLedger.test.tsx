@@ -882,6 +882,130 @@ describe('CUS-10 — drawer Xóa container confirm flow', () => {
   });
 });
 
+// SIL-472 (QA R41, build e04e7a15): confirming the delete of a row that
+// carries a tờ khai must run the SIL-177 guard's own recovery — gỡ tờ khai
+// (the container-line command, the endpoint the inline tờ khai editor uses)
+// then DELETE with the fresh version that gỡ returns — instead of
+// dead-ending on the guard 409 with the dialog stuck open forever.
+describe('SIL-472 — confirm xóa dòng mang tờ khai: gỡ tờ khai rồi xóa', () => {
+  const declaredContainer = {
+    ...detail.containers[0],
+    id: 20,
+    containerNumber: null,
+    ordinal: 2,
+    declarationNumber: 'Q-DECL-177-389454',
+  };
+  const declaredDetail = {
+    ...detail,
+    containers: [declaredContainer],
+  } as unknown as ShipmentCusWorkspaceDetail;
+
+  const renderSil472 = (overrides: Record<string, unknown> = {}) => render(
+    <ToastProvider>
+      <ContainerLedger
+        detail={declaredDetail}
+        onLineSaved={vi.fn()}
+        getIdempotencyKey={() => 'k'}
+        clearIdempotencyKey={() => {}}
+        idPrefix="sil472"
+        {...overrides}
+      />
+    </ToastProvider>,
+  );
+
+  beforeEach(() => {
+    updateCusShipmentContainerLine.mockClear();
+    removeCusShipmentContainerRow.mockClear();
+  });
+
+  it('runs the gỡ-tờ-khai step, then deletes with the fresh version — dialog closes, host refetches', async () => {
+    // The straight delete of a declared row is what the SIL-177 guard
+    // refuses (card 211026094500) — pre-fix code never runs the gỡ step
+    // below, so the gỡ-call assertions fail. The guard 409 shape itself is
+    // pinned by the CUS-10 test above.
+    removeCusShipmentContainerRow.mockResolvedValue({ removedId: 20, shipmentVersion: 8 });
+    updateCusShipmentContainerLine.mockResolvedValueOnce({
+      line: { ...declaredContainer, declarationNumber: null, shipmentVersion: 7 },
+    });
+    const onLineSaved = vi.fn();
+    const onContainerRemoved = vi.fn();
+    renderSil472({ onLineSaved, onContainerRemoved });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
+
+    // The guard's named recovery runs FIRST: clear this row's tờ khai via
+    // the line command, at the detail's current version.
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(
+      1,
+      20,
+      { expectedShipmentVersion: 4, declarationNumber: '' },
+      'k',
+    );
+    // The delete then rides the FRESH version the gỡ response carries.
+    await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
+    expect(removeCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      20,
+      { expectedShipmentVersion: 7 },
+      'k',
+    );
+    // Structural change: host refetches (null line), drawer-close signal
+    // fires, and the dialog dismisses — the row is gone for the operator.
+    await waitFor(() => expect(onLineSaved).toHaveBeenCalledWith(null));
+    expect(onContainerRemoved).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByText(/Xóa container 2\?/)).toBeNull());
+  });
+
+  it('a row without tờ khai deletes directly — the gỡ command never fires', async () => {
+    removeCusShipmentContainerRow.mockResolvedValueOnce({ removedId: 20, shipmentVersion: 5 });
+    const onLineSaved = vi.fn();
+    renderSil472({ onLineSaved, detail: detail });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
+
+    await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
+    expect(removeCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      10,
+      { expectedShipmentVersion: 4 },
+      'k',
+    );
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+    await waitFor(() => expect(onLineSaved).toHaveBeenCalledWith(null));
+  });
+
+  it('a refused gỡ keeps the dialog open, never fires the delete, and surfaces the server reason', async () => {
+    updateCusShipmentContainerLine.mockRejectedValueOnce(new ApiError(
+      403,
+      { error: 'Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.' },
+      'Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.',
+    ));
+    const onLineSaved = vi.fn();
+    renderSil472({ onLineSaved });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
+
+    expect(await screen.findByText('Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.')).toBeTruthy();
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+    expect(onLineSaved).not.toHaveBeenCalled();
+    expect(screen.getByText(/Xóa container 2\?/)).toBeTruthy();
+  });
+
+  it('the confirm dialog names the tờ khai before the operator confirms', async () => {
+    renderSil472();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
+
+    expect(await screen.findByText('Xóa container 2? Cont đang mang tờ khai Q-DECL-177-389454 — xóa sẽ gỡ tờ khai khỏi dòng này.')).toBeTruthy();
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
+});
+
 // Card 201026124500 (181026185900 A.1), REVERSED by card 221026173728
 // (owner ruling 22/10 — hủy ruling 21/10 card 211026112600): opening the add
 // form copies the lot's existing row values down — Tuyến, Nhà xe, Nâng, Hạ,

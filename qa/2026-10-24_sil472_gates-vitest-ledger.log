@@ -1,0 +1,11 @@
+$ cd frontend && pnpm exec vitest run src/features/shipments/cus/CusContainerLedger.test.tsx
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil472-del-cont/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  48 passed (48)
+   Start at  23:22:30
+   Duration  4.27s (transform 546ms, setup 102ms, import 1.15s, tests 2.59s, environment 359ms)
+
+EXIT=0

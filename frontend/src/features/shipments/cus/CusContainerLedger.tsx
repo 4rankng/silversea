@@ -32,8 +32,20 @@ export interface ContainerLedgerHandle {
   discardAll: () => void;
 }
 
-function parseCarrierKey(carrierKey: string): ['OWN' | 'EXTERNAL', number | null] {
-  if (carrierKey === 'OWN') return ['OWN', null];
+/** SIL-472: the confirm must name the tờ khai a declared row will shed — the
+ *  SIL-177 guard (card 211026094500) makes that gỡ the delete's first step,
+ *  and the incident behind the guard was a number disappearing without a
+ *  word. Undeclared rows keep the bare CUS-10 message. */
+function removeConfirmMessage(line: ShipmentCusWorkspaceContainerLine | null): string {
+  if (!line) return '';
+  const declared = line.declarationNumber?.trim() ?? '';
+  const name = line.containerNumber || line.ordinal;
+  return declared !== ''
+    ? `Xóa container ${name}? Cont đang mang tờ khai ${declared} — xóa sẽ gỡ tờ khai khỏi dòng này.`
+    : `Xóa container ${name}?`;
+}
+
+function parseCarrierKey(carrierKey: string): ['OWN' | 'EXTERNAL', number | null] {  if (carrierKey === 'OWN') return ['OWN', null];
   if (carrierKey.startsWith('EXTERNAL:')) {
     const id = Number(carrierKey.slice('EXTERNAL:'.length));
     return ['EXTERNAL', Number.isNaN(id) ? null : id];
@@ -376,12 +388,39 @@ export function ContainerLedger({
     if (removingId != null) return;
     setRemovingId(line.id);
     setAddError(null);
-    const signature = idempotencySignature(`container-remove:${detail.summary.id}:${line.id}`);
+    const removeSignature = idempotencySignature(`container-remove:${detail.summary.id}:${line.id}`);
     try {
+      // SIL-472 (QA R41, build e04e7a15): a row carrying a tờ khai cannot
+      // delete outright — the SIL-177 guard (card 211026094500) refuses it
+      // with 409 "gỡ tờ khai trước khi xóa", and after the SIL-173 auto-copy
+      // every row of a lot that ever had a tờ khai carries one, so the
+      // confirm button dead-ended on the common case. Run the guard's own
+      // recovery AS the confirmed flow: clear THIS row's tờ khai through the
+      // same container-line command the inline tờ khai editor uses (a clear
+      // stays local — the shipment_declarations registry entry is never
+      // touched; the dialog names the number before the confirm, so it never
+      // disappears silently — the incident the guard exists for), then
+      // delete with the version the gỡ returns (the clear bumps the
+      // shipment version; reusing the stale one would 409 the delete).
+      // Roles without tờ khai authority (DISPATCHER) get the server's own
+      // 403 reason as a toast and keep the dialog to walk away with Hủy.
+      let expectedShipmentVersion = detail.summary.version;
+      const declaredNumber = line.declarationNumber?.trim() ?? '';
+      if (declaredNumber !== '') {
+        const clearSignature = idempotencySignature(`container-declare-clear:${detail.summary.id}:${line.id}`);
+        const cleared = await updateCusShipmentContainerLine(
+          detail.summary.id,
+          line.id,
+          { expectedShipmentVersion: detail.summary.version, declarationNumber: '' },
+          getIdempotencyKey(clearSignature),
+        );
+        clearIdempotencyKey(clearSignature);
+        expectedShipmentVersion = cleared.line.shipmentVersion;
+      }
       await removeCusShipmentContainerRow(detail.summary.id, line.id, {
-        expectedShipmentVersion: detail.summary.version,
-      }, getIdempotencyKey(signature));
-      clearIdempotencyKey(signature);
+        expectedShipmentVersion,
+      }, getIdempotencyKey(removeSignature));
+      clearIdempotencyKey(removeSignature);
       toast({ kind: 'success', message: `Đã xóa container ${line.containerNumber || line.ordinal}.` });
       // Structural change: no line payload — applySavedContainerLine's null
       // branch refreshes the list so the overview row drops the deleted
@@ -896,7 +935,7 @@ export function ContainerLedger({
           reason (toast) and Hủy both stay reachable. */}
       <ConfirmDialog
         isOpen={pendingRemoveLine != null}
-        message={`Xóa container ${(pendingRemoveLine?.containerNumber || pendingRemoveLine?.ordinal) ?? ''}?`}
+        message={removeConfirmMessage(pendingRemoveLine)}
         confirmLabel={removingId != null ? 'Đang xóa…' : 'Xóa container'}
         variant="danger"
         onConfirm={() => { if (pendingRemoveLine) void removeContainer(pendingRemoveLine); }}

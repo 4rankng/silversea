@@ -1,0 +1,2 @@
+$ cd frontend && pnpm exec eslint src/features/shipments/cus/CusContainerLedger.tsx src/features/shipments/cus/CusContainerLedger.test.tsx
+EXIT=0
