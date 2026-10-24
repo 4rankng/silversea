@@ -1,0 +1,25 @@
+phase=after front=http://localhost:7175 api=http://localhost:3002/api health=ok
+login ok (dungnv / DISPATCHER)
+— surface A: /shipments/new (create workspace, ContainerTypeCellPicker)
+PASS A1 pick 20DC shows its label — input="20DC"
+PASS A2[after-fix] typed 4 STAYS in the input — early="4" settled="4"
+PASS A2[after-fix] menu filters by the draft (40HC visible, 20DC hidden) — options=["40DC","40HC","40RF","45HC","+ Thêm"]
+PASS A3 mouse re-pick shows the new label (both builds) — input="40HC"
+PASS A4[after-fix] keyboard re-pick commits from the 4-filtered set — input="40DC"
+— surface B: /shipments drawer lot 249 (REGPK-ths3n635t4) — Thêm container
+PASS B1 pick 20DC shows its label — input="20DC"
+PASS B2[after-fix] typed 4 STAYS in the input — early="4" settled="4"
+PASS B3[after-fix] new pick 40HC replaces 20DC in the add row — input="40HC"
+PASS B3[after-fix] ledger row lands and shows 40HC — row="2SILQ1520011—40HCLoại container SILQ152001140HCKCN QUẾ VÕ, BẮC NINHTuyến đường của container SILQ1520011KCN QUẾ VÕ, BẮC NINHChờ phân xeChọn nhà xeNhà xe của container SILQ1520011Chọn nhà xeThêm nhà xeNhập biển sốBiển số xe của container SILQ152001129C-111.22Cảng Tân VũCảng nâng của container SILQ1520011Cảng Tân VũCảng Đình VũCảng hạ của container SILQ1520011Cảng Đình Vũ—01:11 08/03/2027Xóa container"
+DB shipment_containers (SIL152QA-*): [{"id":306,"shipment_id":249,"container_number":"SILQ1520011","container_type_id":4}]
+PASS DB side-effect: added container committed container_type_id=40HC — id=306 shipment_id=249 container_type_id=4
+PASS DB identity: 20DC was replaced, not persisted
+phase=after failures=0
+
+[gate] pnpm lint → 0 errors (exit 0)
+[gate] npx tsc -b (frontend) → 0 errors (exit 0)
+[gate] pnpm test (frontend full) → 722 files / 5585 tests PASS (exit 0; log: fe-full-vitest.log)
+[gate] scoped combobox suites → 52/52 PASS (exit 0)
+[gate] make build → success (exit 0; log: build.log)
+[gate] ui-driver after (trunk 6bc3acc3) → 12/12 PASS exit 0
+[gate] ui-driver before (base 96b1a9b5) → defect evidence exit 0

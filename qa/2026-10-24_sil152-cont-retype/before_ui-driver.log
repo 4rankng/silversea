@@ -1,0 +1,17 @@
+phase=before front=http://localhost:7175 api=http://localhost:3002/api health=ok
+login ok (dungnv / DISPATCHER)
+— surface A: /shipments/new (create workspace, ContainerTypeCellPicker)
+PASS A1 pick 20DC shows its label — input="20DC"
+PASS A2[before-defect] typed 4 reverts to old label 20DC — early="20DC" settled="20DC"
+PASS A2[before-defect] draft never reaches the filter (menu ignores the typed 4) — options=["20DC","20HC","20RF","40DC","40HC","40RF","45HC","+ Thêm"]
+PASS A3 mouse re-pick shows the new label (both builds) — input="40HC"
+PASS A4[before-defect] keyboard re-pick commits from the UNFILTERED list (draft ignored) — input="20HC"
+— surface B: /shipments drawer lot 249 (REGPK-ths3n635t4) — Thêm container
+PASS B1 pick 20DC shows its label — input="20DC"
+PASS B2[before-defect] typed 4 reverts to old label 20DC — early="20DC" settled="20DC"
+B3[before-defect] after clicking 40HC the add-row label reads: "40HC"
+B3[before-defect] after Thêm: alert=null addRowOpen=false toasts=["Đã lưu dữ liệu container. Kế toán cần đối soát dữ liệu mới nhất trước khi khóa lô.","Đã thêm container SILQ1520006."]
+B3[before-defect] ledger row after add: "2SILQ1520006—40HCLoại container SILQ152000640HCKCN QUẾ VÕ, BẮC NINHTuyến đường của container SILQ1520006KCN QUẾ VÕ, BẮC NINHChờ phân xeChọn nhà xeNhà xe của container SILQ1520006Chọn nhà xeThêm nhà xeNhập biển sốBiển số xe của container SILQ152000629C-111.22Cảng Tân VũCảng nâng của container SILQ1520006Cảng Tân VũCảng Đình VũCảng hạ của container SILQ1520006Cảng Đình Vũ—01:11 08/03/2027Xóa container"
+DB shipment_containers (SIL152QA-*): [{"id":304,"shipment_id":249,"container_number":"SILQ1520006","container_type_id":4}]
+PASS DB evidence (before): mouse-pick add persisted 40HC — the typing path was the broken leg — id=304 container_type_id=4
+phase=before failures=0
