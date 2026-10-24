@@ -1,0 +1,39 @@
+# SIL-472 UI driver log — 2026-10-24
+# Driver: agent-browser 0.38.2 (CDP Chromium) · app: vite dev :7175 (worktree fix-sil472-del-cont) → API :3002 (local trunk backend)
+# Account: tiepvv / Abc123 (role CUS) · Lot: 319 (SIL177A389454, FCL, PENDING_DATE, version 2 at start)
+# Pre-state DB: shipment_containers id=420 & id=421, BOTH declaration_number='Q-DECL-177-389454' (SIL-173 auto-copy state — the exact QA repro class)
+
+# repro of the ORIGINAL bug on trunk f1dd21f6 (pre-fix bundle served by same vite session):
+agent-browser open http://localhost:7175/login                                      → exit 0 (login page)
+agent-browser fill @e4 "tiepvv"                                                     → exit 0
+agent-browser fill @e5 "Abc123"                                                     → exit 0
+agent-browser click @e7                                                             → exit 0 (landed /shipments overview)
+agent-browser open http://localhost:7175/shipments/319                              → exit 0
+agent-browser click @e372   # row "Xóa container 2"                                 → exit 0 (dialog "Xóa container 2?" opened)
+agent-browser click @e396   # dialog confirm "Xóa container"                        → exit 0
+agent-browser screenshot /tmp/sil472-after-confirm.png                              → exit 0
+# OBSERVED PRE-FIX: dialog stays open, row NOT deleted, error toast
+#   "Cont có tờ khai Q-DECL-177-389454 — gỡ tờ khai trước khi xóa dòng container."
+#   = SIL-177 guard 409 surfaced (network POST …/remove → 409). Bug reproduced.
+
+# post-fix UI drive (same vite session, component hot-swapped to fix):
+agent-browser open http://localhost:7175/shipments/319                              → exit 0
+agent-browser click @e476   # row "Xóa container 1" (declared row)                  → exit 0
+agent-browser screenshot qa/2026-10-24_sil472_ui-1-confirm-named-to-khai.png        → exit 0
+# DOM assertion (pre-confirm): dialog text reads
+#   "Xóa container 1? Cont đang mang tờ khai Q-DECL-177-389454 — xóa sẽ gỡ tờ khai khỏi dòng này."
+agent-browser click @e503   # dialog confirm "Xóa container"                        → exit 0
+agent-browser screenshot qa/2026-10-24_sil472_ui-2-after-confirm-deleted.png        → exit 0
+# DOM assertion (post-confirm): success toast "Đã xóa container 1."; dialog gone;
+#   management section lists ONE Xóa container button (was 2); header version badge v2→v4.
+agent-browser open http://localhost:7175/shipments/319                              → exit 0 (hard reload)
+# DOM assertion (persist): exactly 1 "Xóa container" button after reload.
+agent-browser console | grep -iE "error|warn" (minus vite/ReactDevTools noise)      → exit 0 (no output = clean)
+
+# DB side-effect proof (docker exec ss-prod-db psql, exit 0):
+#   SELECT id, container_number, declaration_number FROM shipment_containers WHERE shipment_id=319 ORDER BY id;
+#     → 1 row: id=421, declaration_number='Q-DECL-177-389454'   (row id=420 DELETED)
+#   SELECT count(*) FROM shipment_containers WHERE shipment_id=319; → 1
+#   SELECT version FROM shipments WHERE id=319; → 4  (gỡ bump + delete bump)
+#   SELECT id, declaration_number FROM shipment_declarations WHERE shipment_id=319; → 0 rows
+#     (registry table never written by this flow — only the row's number copy was cleared with its row)
