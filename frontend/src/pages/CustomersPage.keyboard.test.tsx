@@ -39,10 +39,13 @@ describe('customer row keyboard boundaries', () => {
     fireEvent.keyDown(row, { key: ' ' });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await waitFor(() => expect(row).toHaveAttribute('data-selected', 'true'));
-    // Chief grid: direct hover actions replaced the dots menu — Enter on the
-    // edit affordance opens the edit modal (its own dialog carries the same
-    // accessible name), and the row's own Space never does.
-    const edit = screen.getByRole('button', { name: 'Sửa khách hàng Biển Bạc' });
+    // SIL-169: the row's actions ride one kebab — its menu item keeps the
+    // named affordance, and the menu itself opens with its own keyboard path.
+    // (Both faces render the kebab in jsdom; either opens the same menu.)
+    const kebab = screen.getAllByRole('button', { name: 'Thao tác với Biển Bạc' })[0]!;
+    expect(fireEvent.keyDown(kebab, { key: 'Enter' })).toBe(true);
+    fireEvent.click(kebab);
+    const edit = (await screen.findAllByRole('menuitem', { name: 'Sửa khách hàng Biển Bạc' }))[0]!;
     expect(fireEvent.keyDown(edit, { key: 'Enter' })).toBe(true);
     fireEvent.click(edit);
     await waitFor(() => expect(screen.getByRole('dialog', { name: 'Sửa khách hàng Biển Bạc' })).toBeTruthy());

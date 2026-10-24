@@ -149,42 +149,36 @@ describe('supplier/customer action columns keep their width budgets (action-colu
     expect(widthAtFloor(money) - 2 * cellPaddingX).toBeGreaterThanOrEqual(moneyTokenChars * dataCharPx);
   });
 
-  it('customers action column holds the worst-case row-action run at every width source', () => {
-    const cols = parseColgroup(customersSource, '<table className="record-table ops-table"');
-    // 8 since card 061026172805 (commit 2bd830cf, 2026-10-07): the Cập nhật
-    // last-updated column is back — it had never landed for real (a staging
-    // build verified a lane's uncommitted WIP that clean cuts dropped). The
-    // landing adds one 150px data track; the action col stays last.
-    expect(cols).toHaveLength(8);
+  it('customers action column holds the kebab run at every pointer regime (SIL-169)', () => {
+    const cols = parseColgroup(customersSource, '<table className="record-table ops-table cus-table"');
+    // 7 columns since the SIL-169 verdict: the retired set (Trạng thái, Cước
+    // thu / trả, Cập nhật, the split contact pair) collapsed into identity /
+    // MST / address / contact / term / debt + ONE kebab column.
+    expect(cols).toHaveLength(7);
     const actionCol = cols[cols.length - 1];
-    expect(actionCol.kind).toBe('px');
-    expect(actionCol.value - 2 * cellPaddingX).toBeGreaterThanOrEqual(fineRun);
-    expect(actionCol.value - 2 * cellPaddingX).toBeGreaterThanOrEqual(worstCaseRun);
-    const hint = actionThWidthHint(customersSource);
-    expect(hint).not.toBeNull();
-    expect(hint! - 2 * cellPaddingX).toBeGreaterThanOrEqual(worstCaseRun);
+    // The kebab column rides the .cus-col-action class — an inline col width
+    // cannot answer the coarse-pointer media query that must widen it.
+    expect(actionCol.kind).toBe('auto');
+    const fine = matchNumber(customersCss, /\.cus-col-action \{ width: (\d+)px; \}/, 'fine-pointer kebab col');
+    expect(fine).toBe(32);
+    // Coarse pointers: the global rule raises EVERY button to the touch
+    // floor, so the column must admit one square button + the cell padding
+    // (card 324's law for the one-button run).
+    expect(customersCss).toMatch(
+      /@media \(pointer: coarse\) \{\s*\.cus-col-action \{ width: calc\(var\(--control-touch-h\) \+ 2 \* 8px\); \}/,
+    );
   });
 
-  it('customers grant is funded without costing the identity column any width', () => {
-    // AC2 no-truncation — the customers table keeps ONE auto column (the
-    // wrapping identity column) absorbing the remainder. The pre-card fixed
-    // width set summed to 808px; if the ACTION grant grows that sum, the auto
-    // column narrows at every width and the name cell's ellipsis point moves
-    // earlier. The grant is funded from the wrap-yield contact column instead.
-    // Baseline moved 808 → 958 by card 061026172805 (commit 2bd830cf,
-    // 2026-10-07): the restored Cập nhật data column carries its own 150px
-    // track. That is a new data column, not an action-grant re-funding — the
-    // action col keeps its card-335 112px and the auto identity column is
-    // still the table's only remainder absorber, asserted below.
-    const customersBaselineFixedSum = 958;
-    const cols = parseColgroup(customersSource, '<table className="record-table ops-table"');
-    expect(cols.filter((col) => col.kind === 'auto')).toHaveLength(1);
-    expect(cols[1].kind).toBe('auto');
-    const fixedSum = cols.reduce((sum, col) => sum + (col.kind === 'px' ? col.value : 0), 0);
-    expect(fixedSum).toBeLessThanOrEqual(customersBaselineFixedSum);
-    // The funded-from contact column still fits its phone token on one line.
+  it('customers fixed budget is the verdict column set, floors intact (SIL-169)', () => {
+    // The verdict's own budget: 260/110/180/180/96/120 (+ the 32px kebab) ≈
+    // 978px inside the 1008px content box at 1280. Every column is a fixed
+    // track — the wrap doctrine lives in the identity cell (the name wraps
+    // in full), and each fixed neighbour keeps its one-line data-token floor.
+    const cols = parseColgroup(customersSource, '<table className="record-table ops-table cus-table"');
+    const widths = cols.slice(0, 6).map((col) => (col.kind === 'px' ? col.value : -1));
+    expect(widths).toEqual([260, 110, 180, 180, 96, 120]);
+    // The merged contact column still fits a spaced phone token on one line.
     const contact = cols[3];
-    expect(contact.kind).toBe('px');
     expect(contact.value - 2 * cellPaddingX).toBeGreaterThanOrEqual(phoneTokenChars * dataCharPx);
   });
 

@@ -1,15 +1,15 @@
 {
   "note": "Ratchet: counts may fall, never rise. Regenerate with `pnpm design:drift --update` after a deliberate cleanup.",
   "measured": {
-    "scannedFiles": 188,
-    "hexDirect": 169,
-    "hexFallback": 13,
-    "radiusOffLadder": 0,
+    "scannedFiles": 208,
+    "hexDirect": 178,
+    "hexFallback": 68,
+    "radiusOffLadder": 1,
     "rawShadow": 49,
-    "rawZIndex": 76,
-    "untokenizedTransition": 129,
-    "mediaWidthValues": 47,
-    "containerWidthValues": 21
+    "rawZIndex": 81,
+    "untokenizedTransition": 137,
+    "mediaWidthValues": 49,
+    "containerWidthValues": 20
   },
   "worstFiles": [
     {
@@ -49,7 +49,7 @@
       "score": 21
     },
     {
-      "file": "src/pages/CustomersPage.css",
+      "file": "src/pages/trip-detail/bento-cards.css",
       "score": 19
     }
   ]

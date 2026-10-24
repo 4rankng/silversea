@@ -95,6 +95,21 @@ export function moneyParts(amount: number, compact: boolean): MoneyParts {
   return { num: fmt(amount), unit: '₫', format: fmt };
 }
 
+/** Business-name display case (SIL-169): the customer catalog stores legal
+ * names in ALL CAPS; the customers screens render them title-case. Vietnamese
+ * corporate acronyms and short suffixes keep their caps so "CÔNG TY TNHH ANH
+ * DƯƠNG" reads "Công Ty TNHH Anh Dương", never "Công Ty Tnhh Anh Dương".
+ * Diacritics are preserved (lowercase/uppercase are locale-aware per char). */
+const TITLE_CASE_KEEP_CAPS = new Set(['TNHH', 'MTV', 'CP', 'TV', 'LD', 'XX', 'DN']);
+
+export function titleCaseVn(name: string | null | undefined): string {
+  if (!name) return '';
+  return name.split(/\s+/).map((word) => {
+    if (TITLE_CASE_KEEP_CAPS.has(word.toUpperCase())) return word.toUpperCase();
+    return word.charAt(0).toLocaleUpperCase('vi-VN') + word.slice(1).toLocaleLowerCase('vi-VN');
+  }).join(' ');
+}
+
 /** THE canonical table-cell date (card 20260921_23): "DD/MM/YYYY" padded,
  * Vietnam wall-clock. Replaces the unpadded vi-VN locale output ("20/9/2026")
  * so date-only cells match the datetime contract everywhere. */

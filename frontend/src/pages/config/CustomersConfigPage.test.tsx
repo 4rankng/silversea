@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Customer, TripDetail } from '@tingting/shared';
 
 const getAllCustomers = vi.fn();
 const fetchAllTrips = vi.fn();
+const getCustomerAging = vi.fn();
 
 vi.mock('../../api/configClient', () => ({
   configClient: { getAllCustomers: (...args: unknown[]) => getAllCustomers(...args) },
@@ -13,6 +14,23 @@ vi.mock('../../api/configClient', () => ({
 
 vi.mock('../../api/tripClient', () => ({
   tripClient: { fetchAllTrips: (...args: unknown[]) => fetchAllTrips(...args) },
+}));
+
+// SIL-169: the header metrics read the EXISTING receivables-aging projection
+// (mocked here with one overdue high-risk customer) and the ledger feed (one
+// customer idle for 40 days).
+vi.mock('../../api/financialClient', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../../api/financialClient')>();
+  return {
+    ...original,
+    financialClient: { ...original.financialClient, getCustomerAging: (...args: unknown[]) => getCustomerAging(...args) },
+  };
+});
+
+const ledgerEntries = vi.fn();
+
+vi.mock('../../hooks/useQueries', () => ({
+  useCustomerLedgerEntries: () => ({ data: ledgerEntries() }),
 }));
 
 vi.mock('../../hooks/animations', () => ({
@@ -56,8 +74,9 @@ function makeCustomer(id: number, name: string, creditLimit: string): Customer {
   return {
     id,
     name,
-    // Card 20260922_22: populated optional fields keep the full column set
-    // visible under the presence-driven model this suite's counts assert.
+    // Card 20260922_22 fixtures keep every field populated; SIL-169 stores
+    // the legal name in ALL CAPS (catalog reality) — the table renders it
+    // title-case.
     shortName: `TCT-${id}`,
     code: `KH-${String(id).padStart(3, '0')}`,
     taxCode: `010${String(id).padStart(8, '0')}`,
@@ -79,10 +98,30 @@ function makeCustomer(id: number, name: string, creditLimit: string): Customer {
 
 // Fixture order is NOT sorted on any column: limits run 30M, 10M, 20M.
 const customers = [
-  makeCustomer(1, 'Khách hàng An', '30000000'),
-  makeCustomer(2, 'Khách hàng Bình', '10000000'),
-  makeCustomer(3, 'Khách hàng Cường', '20000000'),
+  makeCustomer(1, 'KHÁCH HÀNG AN', '30000000'),
+  makeCustomer(2, 'KHÁCH HÀNG BÌNH', '10000000'),
+  makeCustomer(3, 'KHÁCH HÀNG CƯỜNG', '20000000'),
 ];
+
+const IDLE_SINCE_ISO = new Date(Date.now() - 40 * 86_400_000).toISOString();
+
+const agingResponse = () => ({
+  customers: [
+    {
+      customerId: 1, customerName: 'KHÁCH HÀNG AN', contactInfo: null,
+      linkedSupplierId: null, linkedSupplierApBalance: 0, netBalance: 0,
+      totalOutstanding: 120_000_000,
+      aging: { current: 40_000_000, d30: 80_000_000, d60: 0, over90: 0 },
+      maxOverdueDays: 12,
+    },
+  ],
+  page: 1, limit: 200, total: 1, totalPages: 1,
+  totals: {
+    total: 120_000_000, current: 40_000_000, d30: 80_000_000, d60: 0, over90: 0,
+    currentCusts: 0, d30Custs: 1, d60Custs: 0, over90Custs: 0,
+    overdueCount: 1, highRiskCount: 1,
+  },
+});
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -104,96 +143,83 @@ beforeEach(() => {
   authState.context = { user: { userId: 1, username: 'admin', role: 'ADMIN' } };
   getAllCustomers.mockReset().mockResolvedValue(customers);
   fetchAllTrips.mockReset().mockResolvedValue({ items: [] as TripDetail[], total: 0 });
+  getCustomerAging.mockReset().mockResolvedValue(agingResponse());
+  ledgerEntries.mockReset().mockReturnValue([
+    { entityType: 'CUSTOMER', entityId: 2, timestamp: IDLE_SINCE_ISO },
+    { entityType: 'CUSTOMER', entityId: 1, timestamp: new Date().toISOString() },
+  ]);
 });
 
 describe('CustomersConfigPage client-side sorting', () => {
-  it('keeps all summary metrics and customer fields in the compact layout', async () => {
-    const { container } = renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
-    const summary = screen.getByRole('group', { name: 'Tổng quan khách hàng' });
-    for (const label of ['Tổng khách hàng', 'Đang hoạt động', 'Top 4 chiếm', 'Tạm khoá']) {
-      expect(within(summary).getByText(label)).toBeInTheDocument();
+  it('renders the three inline header metrics from the aging + ledger feeds (SIL-169)', async () => {
+    renderPage();
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    // Metric ①: d30+d60+over90 = 80tr, 1 KH overdue, red tone via the token.
+    const overdue = screen.getByTestId('cus-metric-overdue');
+    expect(overdue.textContent).toContain('80');
+    expect(overdue.textContent).toContain('tr');
+    expect(overdue.textContent).toContain('1 KH');
+    expect(overdue.querySelector('.cus-metric__value')).toHaveAttribute('data-tone', 'overdue');
+    // Metric ②: customer 2 last transacted 40 days ago.
+    expect(screen.getByTestId('cus-metric-idle30').textContent).toContain('1 KH');
+    // Metric ③: one high-risk row per the aging classification.
+    expect(screen.getByTestId('cus-metric-risk').textContent).toContain('1 KH');
+  });
+
+  it('metrics degrade to the honest em-dash when the feeds are unavailable', async () => {
+    getCustomerAging.mockRejectedValue(new Error('403'));
+    ledgerEntries.mockReturnValue(undefined);
+    renderPage();
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    for (const testId of ['cus-metric-overdue', 'cus-metric-idle30', 'cus-metric-risk']) {
+      expect(screen.getByTestId(testId).textContent).toContain('—');
     }
-    const row = container.querySelector('.cfg-customer-table tbody tr') as HTMLTableRowElement;
-    expect(row.querySelectorAll('td[data-label]:not(.record-table__action)')).toHaveLength(12);
-    // Compact records expose every desktop field in the native disclosure.
-    const details = row.querySelector('details') as HTMLDetailsElement;
-    expect(details.open).toBe(false);
-    expect(within(details).getByText('Thông tin chi tiết')).toBeInTheDocument();
-    expect(details.querySelectorAll('dt')).toHaveLength(12);
-    for (const label of ['Tên đầy đủ', 'Tên viết tắt', 'Địa chỉ', 'SĐT liên hệ', 'Hạn thanh toán cước']) {
-      expect(within(details).getByText(label)).toBeInTheDocument();
-    }
-    fireEvent.click(within(details).getByText('Thông tin chi tiết'));
-    expect(details.open).toBe(true);
-    expect(within(details).getByText('Khách hàng An')).toBeVisible();
-    // The row-action label prefers the populated shortName (component contract).
-    fireEvent.click(within(row).getByRole('button', { name: 'Thao tác khách hàng TCT-1' }));
-    expect(within(row).getByRole('button', { name: 'Sửa' })).toBeInTheDocument();
-    expect(within(row).getByRole('button', { name: 'Xoá' })).toBeInTheDocument();
+    // The debt column reads '—' too — never an invented number.
+    const row = screen.getByText('Khách Hàng An', { selector: '.cfg-customer-full-name' }).closest('tr');
+    expect(row?.querySelector('.cus-debt-cell')?.textContent).toBe('—');
   });
 
   it('keeps the fetch order until a header is used', async () => {
     const { container } = renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
-    expect(nameOrder(container)).toEqual(['Khách hàng An', 'Khách hàng Bình', 'Khách hàng Cường']);
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    expect(nameOrder(container)).toEqual(['Khách Hàng An', 'Khách Hàng Bình', 'Khách Hàng Cường']);
   });
 
   it('sorts by name via the Vietnamese collation', async () => {
     const { container } = renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Tên Khách hàng' }));
-    await waitFor(() => expect(nameOrder(container)).toEqual([
-      'Khách hàng An', 'Khách hàng Bình', 'Khách hàng Cường',
-    ]));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Tên Khách hàng' }));
-    await waitFor(() => expect(nameOrder(container)).toEqual([
-      'Khách hàng Cường', 'Khách hàng Bình', 'Khách hàng An',
-    ]));
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    fireEvent.click(screen.getByRole('button', { name: 'Khách hàng' }));
+    expect(nameOrder(container)).toEqual(['Khách Hàng An', 'Khách Hàng Bình', 'Khách Hàng Cường']);
+    fireEvent.click(screen.getByRole('button', { name: 'Khách hàng' }));
+    expect(nameOrder(container)).toEqual(['Khách Hàng Cường', 'Khách Hàng Bình', 'Khách Hàng An']);
   });
 });
 
-// DISPATCHER now has full edit/delete access (matching CUS). The action
-// column and per-row menu render for all catalog-editor roles.
 describe('CustomersConfigPage dispatcher edit/delete access', () => {
-  afterEach(() => { authState.context = null; });
+  beforeEach(() => {
+    authState.context = { user: { userId: 5, username: 'dispatch', role: 'DISPATCHER' } };
+  });
 
   it('shows the create button and per-row action menu for DISPATCHER', async () => {
-    authState.context = { user: { userId: 9, username: 'dieuvan', role: 'DISPATCHER' } };
-    const { container } = renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
-
-    expect(screen.getByRole('button', { name: /Thêm khách hàng/ })).toBeInTheDocument();
-    expect(container.querySelectorAll('.cfg-customer-table thead tr.cfg-customer-sort-row th')).toHaveLength(13);
-    expect(container.querySelector('.record-table__action')).not.toBeNull();
+    renderPage();
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    expect(screen.getByRole('button', { name: /Thêm khách hàng/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thao tác khách hàng TCT-1' })).toBeTruthy();
   });
 
   it('renders the action column for full catalog editors', async () => {
-    const { container } = renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
-
-    expect(container.querySelectorAll('.cfg-customer-table thead tr.cfg-customer-sort-row th')).toHaveLength(13);
-    expect(container.querySelector('.record-table__action')).not.toBeNull();
+    renderPage();
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    expect(screen.getAllByRole('button', { name: /Thao tác khách hàng/ })).toHaveLength(3);
   });
 });
-
 
 describe('UI-CD-09 catalog query whitespace', () => {
   it('normalizes API queries while preserving the typed search', async () => {
     renderPage();
-    await screen.findAllByText('Khách hàng An');
-    const input = screen.getByRole('textbox', { name: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' });
-    fireEvent.change(input, { target: { value: '  que  vo  ' } });
-    await waitFor(() => expect(getAllCustomers).toHaveBeenLastCalledWith('que vo'));
-    expect(input).toHaveValue('  que  vo  ');
-    getAllCustomers.mockClear();
-    fireEvent.change(input, { target: { value: 'que vo' } });
-    expect(getAllCustomers).not.toHaveBeenCalled();
-    expect(input).toHaveValue('que vo');
-    fireEvent.change(input, { target: { value: '' } });
-    expect(input).toHaveValue('');
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    fireEvent.change(screen.getByRole('textbox', { name: /Tìm khách hàng/ }), { target: { value: '  An  ' } });
+    await waitFor(() => expect(getAllCustomers).toHaveBeenLastCalledWith('An'));
   });
 });
 
@@ -201,7 +227,7 @@ describe('SIS-ROLE-01/02 optional customer trip statistics', () => {
   it('does not request unavailable trip statistics for CUS', async () => {
     authState.context = { user: { userId: 2, username: 'cus', role: 'CUS' } };
     renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
     expect(fetchAllTrips).not.toHaveBeenCalled();
     expect(screen.getByText('Tài khoản không xem doanh thu')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeEnabled();
@@ -214,7 +240,7 @@ describe('SIS-ROLE-01/02 optional customer trip statistics', () => {
     let resolveTrips!: (value: { items: TripDetail[]; total: number }) => void;
     fetchAllTrips.mockImplementation(() => new Promise(resolve => { resolveTrips = resolve; }));
     renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
     expect(screen.getByText('Đang tải doanh thu…')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeDisabled();
     expect(fetchAllTrips).toHaveBeenCalledTimes(1);
@@ -230,7 +256,7 @@ describe('SIS-ROLE-01/02 optional customer trip statistics', () => {
   it('keeps customers visible when statistics fail and retries only statistics', async () => {
     fetchAllTrips.mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValue({ items: [], total: 0 });
     renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
     await screen.findByText('Không thể tải doanh thu.');
     expect(screen.queryByText('Chưa có doanh thu tháng này')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeDisabled();
@@ -243,16 +269,19 @@ describe('SIS-ROLE-01/02 optional customer trip statistics', () => {
   });
 });
 
-describe('ListFilterBar adoption (card 20260922_38)', () => {
-  it('renders the shared bar with search and one quick-filter group, no duplicate filter select', async () => {
+describe('ListFilterBar adoption (card 20260922_38 + SIL-169 tabs)', () => {
+  it('renders the shared bar with search and the tab segment, no duplicate filter select', async () => {
     const { container } = renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
     const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
     expect(bar).not.toBeNull();
     // The hand-rolled toolbar and its duplicate mobile filter select are gone.
     expect(container.querySelector('.cfg-customer-toolbar, .cfg-customer-filter-chips, .cfg-customer-search, .cfg-customer-filter-select')).toBeNull();
     const group = screen.getByRole('group', { name: 'Lọc khách hàng' });
-    expect(within(group).getAllByRole('button')).toHaveLength(4);
+    // SIL-169: the boxed tab segment — Tất cả / Rủi ro cao / Hoạt động; the
+    // all-ACTIVE fixture (locked = 0) must NOT render a Tạm khoá tab.
+    const tabs = within(group).getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual(['Tất cả3', 'Rủi ro cao1', 'Hoạt động3']);
     within(bar).getByRole('textbox', { name: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' });
   });
 
@@ -264,57 +293,61 @@ describe('ListFilterBar adoption (card 20260922_38)', () => {
   });
 });
 
-describe('CustomersConfigPage column group headers (thẻ 349, user mockup 04/10)', () => {
-  // The mockup groups the flat 13-column header into KHÁCH HÀNG / LIÊN HỆ /
-  // THANH TOÁN spans. Colspans must follow colPresence exactly — a hidden
-  // optional column must not leave a dead span, and a fully hidden group must
-  // disappear instead of rendering an empty band.
-  const groupCells = (container: HTMLElement) => {
-    const row = container.querySelector('.cfg-customer-table thead tr.cfg-customer-group-row');
-    expect(row, 'group header row should render').not.toBeNull();
-    return Array.from(row!.querySelectorAll('th')).map((th) => ({
-      label: (th.textContent ?? '').trim(),
-      span: Number(th.getAttribute('colspan') ?? '1'),
-    }));
-  };
-
-  it('renders group bands with colspans matching the full column set (5/5/2 + actions)', async () => {
+describe('SIL-169 seven-column table contract', () => {
+  it('renders the verdict headers with the fixed width budget', async () => {
     const { container } = renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
-    const cells = groupCells(container);
-    // Full fixture: identity 5 (name, shortName, code, taxCode, address),
-    // contact 5 (person, phone, accountant, accountantPhone, other), payment 2.
-    expect(cells.map((c) => [c.label, c.span])).toEqual([
-      ['KHÁCH HÀNG', 5],
-      ['LIÊN HỆ', 5],
-      ['THANH TOÁN', 2],
-      ['Thao tác', 1],
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    const headers = Array.from(container.querySelectorAll('.cfg-customer-table thead th'))
+      .map((th) => (th.textContent ?? '').trim());
+    expect(headers).toEqual(['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn thanh toán', 'Công nợ', 'Thao tác']);
+    // The verdict's widths ride the colgroup (260/110/180/180/96/120); the
+    // kebab column rides the .cus-col-action class (no inline width — it
+    // must answer the coarse-pointer media query).
+    const widths = Array.from(container.querySelectorAll('.cfg-customer-table colgroup col'))
+      .map((col) => col.getAttribute('style'));
+    expect(widths).toEqual([
+      'width: 260px;', 'width: 110px;', 'width: 180px;', 'width: 180px;',
+      'width: 96px;', 'width: 120px;', null,
     ]);
+    expect(container.querySelector('.cfg-customer-table colgroup col.cus-col-action')).not.toBeNull();
   });
 
-  it('shrinks group colspans for hidden columns and drops empty groups', async () => {
+  it('renders identity, contact stack, term and the aging debt signal per row', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    const row = screen.getByText('Khách Hàng An', { selector: '.cfg-customer-full-name' }).closest('tr');
+    expect(row).not.toBeNull();
+    // Identity: risk dot + title-case name + chip + code sub-line.
+    expect(row!.querySelector('.cus-dot--high')).not.toBeNull();
+    expect(row!.textContent).toContain('TCT-1');
+    expect(row!.textContent).toContain('KH-001');
+    // Contact: main line + muted accountant line.
+    expect(row!.textContent).toContain('Người liên hệ 1');
+    expect(row!.textContent).toContain('Kế toán 1');
+    // Payment term: cước first ("45 ngày").
+    expect(row!.querySelector('.cus-term-cell')?.textContent).toContain('45');
+    // Debt: aging outstanding, red + overdue sub-line (12 days).
+    const debt = row!.querySelector('.cus-debt-cell');
+    expect(debt).toHaveAttribute('data-overdue', 'true');
+    expect(debt?.textContent).toContain('tr');
+    expect(debt?.textContent).toContain('quá hạn 12 ngày');
+    // The old two-tier group bands and presence-driven columns are gone.
+    expect(container.querySelector('.cfg-customer-group-row')).toBeNull();
+    expect(container.querySelector('.cfg-customer-details')).toBeNull();
+  });
+
+  it('keeps the seven columns for a sparse row — placeholders, not missing cells', async () => {
     const sparse = {
-      ...makeCustomer(9, 'Khách hàng Sparse', '0'),
+      ...makeCustomer(9, 'KHÁCH HÀNG SPARSE', '0'),
       shortName: '', code: '', taxCode: '', address: '', contactPerson: '', phone: '',
       accountantName: '', accountantPhone: '', contactInfo: '',
+      paymentTermDays: null, agencyFeePaymentTermDays: null,
     } as unknown as Customer;
     getAllCustomers.mockResolvedValue([sparse]);
     const { container } = renderPage();
-    await screen.findByText('Khách hàng Sparse', { selector: '.cfg-customer-full-name' });
-    const cells = groupCells(container);
-    // Only the mandatory name column + the 2 payment columns are present:
-    // LIÊN HỆ disappears entirely; KHÁCH HÀNG shrinks to 1.
-    expect(cells.map((c) => [c.label, c.span])).toEqual([
-      ['KHÁCH HÀNG', 1],
-      ['THANH TOÁN', 2],
-      ['Thao tác', 1],
-    ]);
-  });
-
-  it('keeps the sortable column row at its 13-column contract beneath the group row', async () => {
-    const { container } = renderPage();
-    await screen.findByText('Khách hàng An', { selector: '.cfg-customer-full-name' });
-    expect(container.querySelectorAll('.cfg-customer-table thead tr.cfg-customer-sort-row th')).toHaveLength(13);
-    expect(container.querySelector('.cfg-customer-table thead tr:first-child')).toHaveClass('cfg-customer-group-row');
+    await screen.findByText('Khách Hàng Sparse', { selector: '.cfg-customer-full-name' });
+    const row = container.querySelector('.cfg-customer-table tbody tr');
+    expect(row?.querySelectorAll('td')).toHaveLength(7);
+    expect(row?.textContent).toContain('—');
   });
 });

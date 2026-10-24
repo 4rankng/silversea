@@ -81,12 +81,18 @@ function renderPage() {
 
 async function openEditModal() {
   expect(await screen.findAllByText('Biển Bạc')).toBeTruthy();
-  fireEvent.click(await screen.findByText('Sửa'));
+  // SIL-169: the row actions ride the kebab menu — open it, then "Sửa" (both
+  // faces render the same open menu in jsdom; the first match opens the
+  // shared edit modal).
+  fireEvent.click(screen.getAllByRole('button', { name: /Thao tác với/ })[0]!);
+  fireEvent.click((await screen.findAllByText('Sửa'))[0]!);
   expect(await screen.findByText('Sửa khách hàng')).toBeTruthy();
 }
 
 async function openAddModal() {
-  fireEvent.click(await screen.findByRole('button', { name: /Thêm khách hàng/ }));
+  // The toolbar button and the mobile FAB share the accessible name; the
+  // toolbar one is the desktop affordance under test here.
+  fireEvent.click(screen.getAllByRole('button', { name: /Thêm khách hàng/ })[0]!);
   expect(await screen.findByText('Tên đầy đủ')).toBeTruthy();
 }
 

@@ -8,34 +8,59 @@ import { Plus, Loader2, MoreHorizontal, Pencil, Trash2, Download } from 'lucide-
 import { PageHeader, useConfirm, Modal } from '../../components/UI';
 import { configClient } from '../../api/configClient';
 import { tripClient } from '../../api/tripClient';
+import { financialClient, type CustomerAging } from '../../api/financialClient';
+import { useCustomerLedgerEntries } from '../../hooks/useQueries';
+import { qk } from '../../api/keys';
 import { downloadCSV } from '../../lib/csv';
 import { useCRUD } from '../../hooks/useCRUD';
 import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
-import { qk } from '../../api/keys';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
+import { titleCaseVn } from '../../lib/format';
+import { Money } from '../../components/shared/Money';
 import type { Customer } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import { CustomerForm } from './CustomerForm';
-import { EmptyState, FilterBar } from '../../design-system';
+import { CustomerMetricsRow } from '../../features/customers/CustomerHeaderMetrics';
+import { EmptyState, FilterBar, Tabs } from '../../design-system';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './config-page.css';
 import './customer-config-density.css';
+// SIL-169: the shared customers-surface contract (metric row, chips, dots,
+// kebab menu, 7-column table cells). Page-scoped rules in that sheet key off
+// .customers-page and stay inert here.
+import '../CustomersPage.css';
 
-function CustomerCompactDetails({ customer: c }: { customer: Customer }) {
-  const tokenLabels = new Set(['Mã KH', 'Mã số thuế', 'SĐT liên hệ', 'SĐT kế toán']);
-  const facts: Array<[string, string | null | undefined]> = [
-    ['Tên đầy đủ', c.name], ['Tên viết tắt', c.shortName], ['Mã KH', c.code], ['Mã số thuế', c.taxCode],
-    ['Địa chỉ', c.address || c.contactInfo], ['Người liên hệ', c.contactPerson], ['SĐT liên hệ', c.phone],
-    ['Kế toán liên hệ', c.accountantName], ['SĐT kế toán', c.accountantPhone], ['Liên hệ khác', c.contactInfo],
-    ['Hạn thanh toán chi hộ', c.agencyFeePaymentTermDays == null ? null : `${c.agencyFeePaymentTermDays} ngày`],
-    ['Hạn thanh toán cước', c.paymentTermDays == null ? null : `${c.paymentTermDays} ngày`],
-  ];
-  return <details className="cfg-customer-details">
-    <summary>Thông tin chi tiết</summary>
-    <dl>{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd><span className={tokenLabels.has(label) ? 'data-token' : undefined}>{value || 'Chưa cập nhật'}</span></dd></div>)}</dl>
-  </details>;
+/** SIL-169 mirrors the aging risk rule so the catalog's risk tab, dot and
+ * metric agree with the accounting screens (same source: aging.service.ts). */
+type RiskLevel = 'high' | 'med' | 'low';
+function classifyAgingRisk(totalOutstanding: number, aging: { over90: number; d30: number; d60: number }): RiskLevel {
+  if (totalOutstanding <= 0) return 'low';
+  if (aging.over90 > 0 || totalOutstanding > 100_000_000) return 'high';
+  if (aging.d30 > 0 || aging.d60 > 0) return 'med';
+  return 'low';
+}
+
+/** SIL-169 metric ② — same idle definition as the /customers page. */
+function idleCustomerCount(entries: { entityType: string; entityId: number; timestamp: string }[] | undefined): { count: number; since: string | null } | null {
+  if (!entries) return null;
+  const lastByCustomer = new Map<number, string>();
+  for (const entry of entries) {
+    if (entry.entityType !== 'CUSTOMER') continue;
+    const prev = lastByCustomer.get(entry.entityId);
+    if (!prev || entry.timestamp > prev) lastByCustomer.set(entry.entityId, entry.timestamp);
+  }
+  const cutoff = Date.now() - 30 * 86_400_000;
+  let count = 0;
+  let oldestSince: string | null = null;
+  for (const ts of lastByCustomer.values()) {
+    const t = Date.parse(ts);
+    if (Number.isNaN(t) || t >= cutoff) continue;
+    count += 1;
+    if (!oldestSince || ts < oldestSince) oldestSince = ts;
+  }
+  return { count, since: oldestSince };
 }
 
 export default function CustomersConfigPage() {
@@ -76,6 +101,35 @@ export default function CustomersConfigPage() {
   });
   const customers = useMemo(() => data ?? [], [data]);
   const exportStatsUnavailable = canReadTripStats && (tripStats.isFetching || tripStats.isError || !tripStats.data);
+  // SIL-169 — the three inline header metrics: debt/overdue/risk from the
+  // EXISTING receivables-aging projection, idle-30 from the ledger feed. The
+  // aging endpoint serves ADMIN/MANAGER/ACCOUNTANT; this catalog page also
+  // hosts CUS/DISPATCHER editors, for whom the projection is unavailable and
+  // the metrics read '—' — never an invented number (no new endpoint).
+  const AGING_SNAPSHOT_LIMIT = 200;
+  const { data: agingSnapshot } = useQuery({
+    queryKey: qk.financial.customerAging({ limit: AGING_SNAPSHOT_LIMIT }),
+    queryFn: () => financialClient.getCustomerAging({ limit: AGING_SNAPSHOT_LIMIT }),
+    staleTime: 2 * 60 * 1000,
+    retry: false,
+  });
+  const agingByCustomer = useMemo(
+    () => new Map((agingSnapshot?.customers ?? []).map((row: CustomerAging) => [row.customerId, row])),
+    [agingSnapshot],
+  );
+  const agingTotals = agingSnapshot?.totals;
+  const overdueAmount = agingTotals ? agingTotals.d30 + agingTotals.d60 + agingTotals.over90 : null;
+  const { data: ledgerEntries } = useCustomerLedgerEntries();
+  const idle30 = useMemo(() => idleCustomerCount(ledgerEntries), [ledgerEntries]);
+  /** Risk dot + risk tab share one definition with the aging projection. */
+  const riskOf = (c: Customer): RiskLevel => {
+    const row = agingByCustomer.get(c.id);
+    if (row) return classifyAgingRisk(row.totalOutstanding, row.aging);
+    // No projection (or a role it does not serve): a locked account is still
+    // a standing risk the catalog itself knows about.
+    if (c.status === CustomerStatus.LOCKED) return 'high';
+    return 'low';
+  };
   const customerTripStats = useMemo(() => {
     const statsMap = new Map<number, { trips: number; revenue: number }>();
     if (!canReadTripStats) return statsMap;
@@ -102,20 +156,13 @@ export default function CustomersConfigPage() {
   const top4Revenue = allRevenues.slice(0, 4).reduce((s, v) => s + v, 0);
   const top4Pct = totalRevenue > 0 ? Math.round((top4Revenue / totalRevenue) * 100) : null;
 
-  function getRiskLevel(c: Customer): 'high' | 'med' | 'low' {
-    const debt = 0;
-    const limit = parseFloat(c.creditLimit || '0');
-    if (limit > 0 && debt > limit * 0.8) return 'high';
-    if (c.status === CustomerStatus.LOCKED) return 'high';
-    if (limit > 0 && debt > limit * 0.5) return 'med';
-    return 'low';
-  }
-
   const filtered = useMemo(() => {
     const byStatus = customers.filter(c => {
       if (customerFilter === 'active') return c.status === CustomerStatus.ACTIVE;
       if (customerFilter === 'locked') return c.status === CustomerStatus.LOCKED;
-      if (customerFilter === 'high-risk') return getRiskLevel(c) === 'high';
+      // SIL-169: one risk definition with the aging projection (was a stub
+      // with debt = 0 that could only ever fire for locked accounts).
+      if (customerFilter === 'high-risk') return riskOf(c) === 'high';
       return true;
     });
     // The API searches full/short name, tax code, phone and contact person.
@@ -142,186 +189,192 @@ export default function CustomersConfigPage() {
       },
       status: c => c.status,
     }, (a, b) => b.id - a.id);
-  }, [customers, customerFilter, sort, customerTripStats]);
+  }, [customers, customerFilter, sort, customerTripStats, agingByCustomer]);
 
-  // Card 20260922_22 — a column no row in the current result fills hides
-  // itself: the catalog previously spent most of its width on "—"
-  // placeholders. Mandatory columns (Tên khách hàng + actions) always render;
-  // hidden columns return as soon as any filtered row carries data.
-  const colPresence = useMemo(() => {
-    const present: Record<string, boolean> = {};
-    for (const c of filtered) {
-      if (c.shortName?.trim() && c.shortName !== c.name) present.shortName = true;
-      if (c.code?.trim()) present.code = true;
-      if (c.taxCode?.trim()) present.taxCode = true;
-      if (c.address?.trim()) present.address = true;
-      if (c.contactPerson?.trim()) present.contactPerson = true;
-      if (c.phone?.trim()) present.phone = true;
-      if (c.accountantName?.trim()) present.accountantName = true;
-      if (c.accountantPhone?.trim()) present.accountantPhone = true;
-      if (c.contactInfo?.trim()) present.contactInfo = true;
-      if (c.agencyFeePaymentTermDays != null) present.agencyFeePaymentTermDays = true;
-      if (c.paymentTermDays != null) present.paymentTermDays = true;
-    }
-    return present;
-  }, [filtered]);
+  /** Card _37 export — unchanged sheet contract; SIS-ROLE gating stays: the
+   * button waits for the month stats this sheet promises its reader. */
+  async function exportCatalog() {
+    const headers = ['Khách hàng', 'MST', 'Liên hệ', 'Chuyến ' + monthLabel, 'Doanh thu ' + monthLabel, 'Hạn mức TD', 'Trạng thái'];
+    const rows = filtered.map(c => {
+      const stats = customerTripStats.get(c.id);
+      const creditLimit = parseFloat(c.creditLimit || '0');
+      return [
+        c.name,
+        c.taxCode || '',
+        c.contactInfo || c.phone || '',
+        stats?.trips ?? '',
+        stats?.revenue ?? '',
+        creditLimit > 0 ? creditLimit : '',
+        c.status === CustomerStatus.LOCKED ? 'Tạm khoá' : 'Hoạt động',
+      ];
+    });
+    await downloadCSV(`khach-hang-${monthLabel.replace(/\s/g, '-')}.xlsx`, headers, rows, {
+      title: 'DANH SÁCH KHÁCH HÀNG',
+      subtitle: `Tháng ${monthLabel} · ${filtered.length} khách hàng`,
+      columnTypes: ['text', 'text', 'text', 'number', 'currency', 'currency', 'text'],
+      totalsColumns: [3, 4],
+      totalsLabel: 'TỔNG CỘNG',
+    });
+  }
 
   return (
     <div ref={pageRef} className="cfg-page cfg-page--customers">
+      {/* SIL-169: the four KPI cards are gone; the same three inline metrics
+          as /customers ride beside the H1 (aging + ledger feeds — '—' for the
+          roles the aging endpoint does not serve). */}
       <PageHeader
         title="Khách hàng & Đối tác"
-        description={
-          <>
-            <strong>{data ? totalCount : '—'}</strong> khách hàng đang quản lý
-            {top4Pct != null && top4Pct > 0 && <> · <strong style={{ color: 'var(--danger)' }}>{top4Pct}%</strong> doanh thu tập trung ở 4 KH lớn nhất</>}
-          </>
-        }
         onBack={handleBack}
-        iconName="customer"
-        action={
-          <div className="page-actions">
-          <button className="btn btn--secondary" disabled={isFetching || isError || exportStatsUnavailable}
-            title={exportStatsUnavailable ? 'Tải xong doanh thu để xuất đầy đủ dữ liệu' : undefined} onClick={async () => {
-            const headers = ['Khách hàng', 'MST', 'Liên hệ', 'Chuyến ' + monthLabel, 'Doanh thu ' + monthLabel, 'Hạn mức TD', 'Trạng thái'];
-            const rows = filtered.map(c => {
-              const stats = customerTripStats.get(c.id);
-              const creditLimit = parseFloat(c.creditLimit || '0');
-              return [
-                c.name,
-                c.taxCode || '',
-                c.contactInfo || c.phone || '',
-                stats?.trips ?? '',
-                stats?.revenue ?? '',
-                creditLimit > 0 ? creditLimit : '',
-                c.status === CustomerStatus.LOCKED ? 'Tạm khoá' : 'Hoạt động',
-              ];
-            });
-            await downloadCSV(`khach-hang-${monthLabel.replace(/\s/g, '-')}.xlsx`, headers, rows, {
-              title: 'DANH SÁCH KHÁCH HÀNG',
-              subtitle: `Tháng ${monthLabel} · ${filtered.length} khách hàng`,
-              columnTypes: ['text', 'text', 'text', 'number', 'currency', 'currency', 'text'],
-              totalsColumns: [3, 4],
-              totalsLabel: 'TỔNG CỘNG',
-            });
-          }}>
-            <Download size={14} aria-hidden="true" />
-            Xuất Excel
-          </button>
-          <button className="btn btn--primary" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}>
-            <Plus size={14} /> Thêm khách hàng
-          </button>
-          </div>
-        }
+        action={(
+          <CustomerMetricsRow
+            data={{
+              overdueAmount,
+              overdueCount: agingTotals?.overdueCount ?? null,
+              idleCount: idle30?.count ?? null,
+              idleSince: idle30?.since ?? null,
+              riskCount: agingTotals?.highRiskCount ?? null,
+            }}
+          />
+        )}
       />
 
-      <div className="kpi-grid cfg-customer-summary" role="group" aria-label="Tổng quan khách hàng" aria-busy={isFetching}>
-        <div className="kpi">
-          <div className="kpi__top"><span className="kpi__label">Tổng khách hàng</span></div>
-          <div className="kpi__value">{data ? totalCount : '—'}</div>
-          <div className="kpi__meta kpi__meta--up">Đang quản lý</div>
-        </div>
-        <div className="kpi kpi--success">
-          <div className="kpi__top"><span className="kpi__label">Đang hoạt động</span></div>
-          <div className="kpi__value">{data ? activeCount : '—'}{data && <span className="kpi__value-unit">/{totalCount}</span>}</div>
-          <div className="kpi__meta">Trạng thái hoạt động</div>
-        </div>
-        <div className="kpi kpi--warn">
-          <div className="kpi__top"><span className="kpi__label">Top 4 chiếm</span></div>
-          <div className="kpi__value">{top4Pct ?? '—'}{top4Pct != null && <span className="kpi__value-unit">%</span>}</div>
-          <div className="kpi__meta">{!canReadTripStats ? 'Tài khoản không xem doanh thu'
-            : tripStats.isError ? <>Không thể tải doanh thu. <button type="button" className="btn btn--ghost btn--sm" onClick={() => { void tripStats.refetch(); }}>Thử lại</button></>
-              : tripStats.isPending ? 'Đang tải doanh thu…'
-                : top4Pct == null ? 'Chưa có doanh thu tháng này' : top4Pct > 60 ? 'Rủi ro tập trung cao' : 'Doanh thu tháng này'}</div>
-        </div>
-        <div className="kpi kpi--danger">
-          <div className="kpi__top"><span className="kpi__label">Tạm khoá</span></div>
-          <div className="kpi__value">{data ? lockedCount : '—'}</div>
-          <div className="kpi__meta">Trạng thái tạm khoá</div>
-        </div>
-      </div>
-
       <div className="table-wrap">
-        {/* Shared filter-bar contract (card 20260922_38): one quick-filter
-            group + search; the duplicate mobile "Lọc khách hàng" select is
-            gone (one input per datum — the pills wrap under the bar contract). */}
+        {/* Shared filter-bar contract (card 20260922_38) + SIL-169: the
+            boxed tab segment with whole-set counts, the export and the add
+            button on ONE row. "Tạm khoá" hides while it counts zero rows. */}
         <FilterBar
           search={{ value: search, onChange: setSearch, placeholder: 'Tên, MST, điện thoại…', ariaLabel: 'Tìm khách hàng theo tên, tên ngắn, mã số thuế, điện thoại hoặc người liên hệ' }}
           quickFiltersLabel="Lọc khách hàng"
-          quickFilters={(['all', 'high-risk', 'active', 'locked'] as const).map(f => {
-            const labels = { all: `Tất cả${data ? ` · ${totalCount}` : ''}`, 'high-risk': 'Rủi ro cao', active: `Hoạt động${data ? ` · ${activeCount}` : ''}`, locked: `Tạm khoá${data ? ` · ${lockedCount}` : ''}` };
-            return <button key={f} type="button" aria-pressed={customerFilter === f} className={`filter-chip${customerFilter === f ? ' is-active' : ''}`} onClick={() => setCustomerFilter(f)}>{labels[f]}</button>;
-          })}
+          quickFilters={(
+            <Tabs
+              variant="boxed"
+              tabs={[
+                { id: 'all', label: 'Tất cả', count: data ? totalCount : undefined },
+                { id: 'high-risk', label: 'Rủi ro cao', count: agingTotals?.highRiskCount, countTone: (agingTotals?.highRiskCount ?? 0) > 0 ? 'warning' : undefined },
+                { id: 'active', label: 'Hoạt động', count: data ? activeCount : undefined },
+                ...(lockedCount > 0 ? [{ id: 'locked' as const, label: 'Tạm khoá', count: lockedCount }] : []),
+              ]}
+              value={customerFilter}
+              onChange={(id) => setCustomerFilter(id as typeof customerFilter)}
+              ariaLabel="Lọc theo trạng thái khách hàng"
+            />
+          )}
+          actions={(
+            <>
+              <button type="button" className="btn btn--secondary btn--sm" disabled={isFetching || isError || exportStatsUnavailable}
+                title={exportStatsUnavailable ? 'Tải xong doanh thu để xuất đầy đủ dữ liệu' : undefined} onClick={() => void exportCatalog()}>
+                <Download size={14} aria-hidden="true" />
+                Xuất Excel
+              </button>
+              <button type="button" className="btn btn--primary btn--sm" onClick={() => { crud.setError(null); crud.setShowAddForm(true); }}>
+                <Plus size={14} /> Thêm khách hàng
+              </button>
+            </>
+          )}
         />
         <div className="cfg-customer-fetch-status" role="status" aria-live="polite">
           {isFetching ? (isPending ? 'Đang tải khách hàng…' : 'Đang cập nhật kết quả…') : isError ? <>
             Không thể tải khách hàng. <button type="button" className="btn btn--ghost btn--sm" onClick={() => { void refetch(); }}>Thử lại</button>
           </> : null}
+          {' · '}
+          {/* SIS-ROLE-01/02 contracts (unchanged states, new home): the month
+              stats line keeps its exact strings (own span each, so assistive
+              text stays queryable), the retry refetches ONLY the stats, and
+              the export keeps waiting on them. */}
+          {!canReadTripStats ? <span>Tài khoản không xem doanh thu</span>
+            : tripStats.isError ? <span>Không thể tải doanh thu.</span>
+              : tripStats.isPending ? <span>Đang tải doanh thu…</span>
+                : top4Pct == null ? <span>Chưa có doanh thu tháng này</span>
+                  : <span>Top 4 KH chiếm {top4Pct}% doanh thu {monthLabel}{top4Pct > 60 ? ' — rủi ro tập trung cao' : ''}</span>}
+          {canReadTripStats && tripStats.isError && (
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => { void tripStats.refetch(); }}>Thử lại</button>
+          )}
         </div>
         <div className="table-scroll" aria-busy={isFetching}>
           <div className="record-table-wrap">
-          <table className="record-table ops-table cfg-customer-table">
-            <thead>
-              {/* Two-tier header (thẻ 349, user mockup 04/10): group bands over
-                  the sortable row. Colspans follow colPresence so a hidden
-                  optional column never leaves a dead span, and a fully hidden
-                  group disappears (span 0 renders nothing). */}
-              <tr className="cfg-customer-group-row">
-                <th colSpan={1 + Number(!!colPresence.shortName) + Number(!!colPresence.code) + Number(!!colPresence.taxCode) + Number(!!colPresence.address)} scope="col" className="cfg-col-group">KHÁCH HÀNG</th>
-                {(Number(!!colPresence.contactPerson) + Number(!!colPresence.phone) + Number(!!colPresence.accountantName) + Number(!!colPresence.accountantPhone) + Number(!!colPresence.contactInfo)) > 0 && (
-                  <th colSpan={Number(!!colPresence.contactPerson) + Number(!!colPresence.phone) + Number(!!colPresence.accountantName) + Number(!!colPresence.accountantPhone) + Number(!!colPresence.contactInfo)} scope="col" className="cfg-col-group">LIÊN HỆ</th>
-                )}
-                {(Number(!!colPresence.agencyFeePaymentTermDays) + Number(!!colPresence.paymentTermDays)) > 0 && (
-                  <th colSpan={Number(!!colPresence.agencyFeePaymentTermDays) + Number(!!colPresence.paymentTermDays)} scope="col" className="cfg-col-group">THANH TOÁN</th>
-                )}
-                <th scope="col" className="cfg-col-group cfg-col-group--actions"><span className="sr-only">Thao tác</span></th>
-              </tr>
-              <tr className="cfg-customer-sort-row">
-                <SortHeader label="Tên Khách hàng" sortKey="name" sort={sort} onSortChange={handleSort} />
-                {colPresence.shortName && <SortHeader label="Tên viết tắt" sortKey="shortName" sort={sort} onSortChange={handleSort} />}
-                {colPresence.code && <SortHeader label="Mã KH" sortKey="code" sort={sort} onSortChange={handleSort} />}
-                {colPresence.taxCode && <SortHeader label="Mã Số Thuế" sortKey="taxCode" sort={sort} onSortChange={handleSort} />}
-                {colPresence.address && <SortHeader label="Địa Chỉ" sortKey="address" sort={sort} onSortChange={handleSort} />}
-                {colPresence.contactPerson && <SortHeader label="Người liên hệ" sortKey="contactPerson" sort={sort} onSortChange={handleSort} />}
-                {colPresence.phone && <SortHeader label="SĐT liên hệ" sortKey="phone" sort={sort} onSortChange={handleSort} />}
-                {colPresence.accountantName && <SortHeader label="Kế toán liên hệ" sortKey="accountantName" sort={sort} onSortChange={handleSort} />}
-                {colPresence.accountantPhone && <SortHeader label="SĐT Kế toán" sortKey="accountantPhone" sort={sort} onSortChange={handleSort} />}
-                {colPresence.contactInfo && <SortHeader label="Liên hệ khác" sortKey="contactInfo" sort={sort} onSortChange={handleSort} />}
-                {colPresence.agencyFeePaymentTermDays && <SortHeader className="num" label="Hạn Thanh Toán Chi hộ (Ngày)" sortKey="agencyFeePaymentTermDays" sort={sort} onSortChange={handleSort} />}
-                {colPresence.paymentTermDays && <SortHeader className="num" label="Hạn Thanh Toán Cước (Ngày)" sortKey="paymentTermDays" sort={sort} onSortChange={handleSort} />}
-                <th style={{ width: 88 }}></th>
-              </tr>
-            </thead>
+          <table className="record-table ops-table cfg-customer-table cus-table" style={{ tableLayout: 'fixed' }}>
+              {/* SIL-169 verdict (b): the same 7-column budget as /customers —
+                  the two-tier group header and the presence-driven column set
+                  are retired with it. Client-side sort stays on the business
+                  keys the catalog owns (name, taxCode). */}
+              <colgroup>
+                <col style={{ width: 260 }} />
+                <col style={{ width: 110 }} />
+                <col style={{ width: 180 }} />
+                <col style={{ width: 180 }} />
+                <col style={{ width: 96 }} />
+                <col style={{ width: 120 }} />
+                <col className="cus-col-action" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <SortHeader label="Khách hàng" sortKey="name" sort={sort} onSortChange={handleSort} />
+                  <SortHeader label="MST" sortKey="taxCode" sort={sort} onSortChange={handleSort} />
+                  <th>Địa chỉ</th>
+                  <th>Liên hệ</th>
+                  <th>Hạn thanh toán</th>
+                  <th className="cus-th-debt">Công nợ</th>
+                  <th><span className="sr-only">Thao tác</span></th>
+                </tr>
+              </thead>
             <tbody>
-              {!isFetching && !isError && filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={2 + Object.keys(colPresence).length} data-label="">
+              {!isFetching && !isError && filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={7} data-label="">
                 <EmptyState variant="compact" illustration="fleet" title={search || customerFilter !== 'all' ? 'Không có khách hàng phù hợp' : 'Chưa có khách hàng'} />
               </td></tr>}
-              {filtered.map((c, index) => (
+              {filtered.map((c, index) => {
+                const aging = agingByCustomer.get(c.id);
+                const debt = aging ? aging.totalOutstanding : null;
+                const overdueDays = aging?.maxOverdueDays ?? 0;
+                const termDays = c.paymentTermDays != null ? Number(c.paymentTermDays)
+                  : c.agencyFeePaymentTermDays != null ? Number(c.agencyFeePaymentTermDays) : null;
+                const termTitle = c.paymentTermDays != null ? 'Hạn thanh toán cước'
+                  : c.agencyFeePaymentTermDays != null ? 'Hạn thanh toán chi hộ' : undefined;
+                const addr = c.address || c.contactInfo;
+                return (
                 <tr key={c.id}>
-                  <td data-label="Tên Khách hàng" className="cfg-customer-identity">
-                    {c.shortName && c.shortName !== c.name && <strong className="cfg-customer-short-name">{c.shortName}</strong>}
-                    <div className="row-strong cfg-customer-full-name" title={c.name}>{c.name}</div>
-                    <div className="cfg-customer-compact-meta">
-                      {c.taxCode && <span>MST <span className="data-token">{c.taxCode}</span></span>}
-                      {(c.contactPerson || c.phone) && <span>{c.contactPerson}{c.contactPerson && c.phone && ' · '}{c.phone && <span className="data-token">{c.phone}</span>}</span>}
-                    </div>
-                    <CustomerCompactDetails customer={c} />
+                  <td data-label="Khách hàng" className="cfg-customer-identity">
+                    <span className="cus-id">
+                      <span className={`cus-dot cus-dot--${riskOf(c)}`} aria-hidden="true" />
+                      {/* Title-case display (SIL-169); the full legal name
+                          rides the title tooltip and every export. */}
+                      <span className="row-strong cfg-customer-full-name" title={c.name}>{titleCaseVn(c.name)}</span>
+                      {c.shortName && c.shortName !== c.name && <span className="cus-chip">{c.shortName}</span>}
+                      {c.status === CustomerStatus.LOCKED && <span className="cus-chip cus-chip--locked">Tạm khoá</span>}
+                    </span>
+                    {c.code && <span className="cus-code-sub"><span className="data-token">{c.code}</span></span>}
                   </td>
-                  {colPresence.shortName && <td data-label="Tên viết tắt">{c.shortName || '—'}</td>}
-                  {colPresence.code && <td data-label="Mã KH"><span className="data-token">{c.code || '—'}</span></td>}
-                  {colPresence.taxCode && <td data-label="Mã Số Thuế"><span className="data-token">{c.taxCode || '—'}</span></td>}
-                  {/* Card 20260926_9: staging census (BE) — 2 live rows keep
-                      their address in contact_info; ĐỊA CHỈ falls back to the
-                      address-bearing field (Director's no-migration ruling)
-                      so the row no longer renders two '—' address slots.
-                      LIÊN HỆ KHÁC keeps its own data untouched. */}
-                  {colPresence.address && <td data-label="Địa Chỉ" style={{ overflowWrap: 'anywhere' }}>{c.address || c.contactInfo || '—'}</td>}
-                  {colPresence.contactPerson && <td data-label="Người liên hệ">{c.contactPerson || '—'}</td>}
-                  {colPresence.phone && <td data-label="SĐT liên hệ"><span className="data-token">{c.phone || '—'}</span></td>}
-                  {colPresence.accountantName && <td data-label="Kế toán liên hệ">{c.accountantName || '—'}</td>}
-                  {colPresence.accountantPhone && <td data-label="SĐT Kế toán"><span className="data-token">{c.accountantPhone || '—'}</span></td>}
-                  {colPresence.contactInfo && <td data-label="Liên hệ khác" style={{ overflowWrap: 'anywhere' }}>{c.contactInfo || '—'}</td>}
-                  {colPresence.agencyFeePaymentTermDays && <td className="num" data-label="Hạn Thanh Toán Chi hộ (Ngày)">{c.agencyFeePaymentTermDays ?? '—'}</td>}
-                  {colPresence.paymentTermDays && <td className="num" data-label="Hạn Thanh Toán Cước (Ngày)">{c.paymentTermDays ?? '—'}</td>}
+                  <td data-label="Mã số thuế"><span className="data-token">{c.taxCode || '—'}</span></td>
+                  {/* Card 20260926_9 (Director's no-migration ruling): ĐỊA CHỈ
+                      falls back to the address-bearing contact_info field. */}
+                  <td data-label="Địa chỉ" className="cus-addr-cell" title={addr || undefined}>{addr || '—'}</td>
+                  <td data-label="Liên hệ">
+                    <span className="customers-contact-stack">
+                      <span className="cus-contact-main">
+                        {c.contactPerson || '—'}
+                        {c.phone && <span className="data-token" style={{ marginLeft: 6 }}>{c.phone}</span>}
+                      </span>
+                      {(c.accountantName || c.accountantPhone) && (
+                        <span className="cus-contact-sub">
+                          {c.accountantName}
+                          {c.accountantName && c.accountantPhone && ' · '}
+                          {c.accountantPhone && <span className="data-token">{c.accountantPhone}</span>}
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                  <td data-label="Hạn thanh toán" className="cus-term-cell" title={termTitle ?? undefined}>
+                    {termDays != null ? <>{termDays} <span className="cus-term-unit">ngày</span></> : '—'}
+                  </td>
+                  {/* Debt/overdue from the aging projection; CUS/DISPATCHER
+                      editors read '—' — the endpoint is not theirs. */}
+                  <td data-label="Công nợ" className="cus-debt-cell" data-overdue={overdueDays > 0 || undefined}>
+                    {debt != null
+                      ? <span className="customers-contact-stack">
+                          <Money value={debt} compact />
+                          {overdueDays > 0 && <span className="cus-debt-sub">quá hạn {overdueDays} ngày</span>}
+                        </span>
+                      : '—'}
+                  </td>
                   <td
                     data-label=""
                     className="record-table__action"
@@ -339,24 +392,12 @@ export default function CustomersConfigPage() {
                       </button>
                     </div>
                     {menuOpenId === c.id && (
-                      <div style={{
-                        position: 'absolute', right: 12, zIndex: 20,
-                        background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8,
-                        /* Card 20260926_9: CHIEF asked for a soft shadow here, but §3
-                           flat contract + its styles test ban ad-hoc elevation —
-                           separation comes from border + radius + padding. Flagged
-                           for a Chief-signed law amendment if the shadow is wanted. */
-                        padding: 4,
-                        overflow: 'hidden', minWidth: 140,
-                        ...(index >= filtered.length - 2 && filtered.length > 2
-                          ? { bottom: '100%', marginBottom: 4 }
-                          : { top: '100%', marginTop: 4 }),
-                      }} onClick={(e) => e.stopPropagation()}>
-                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--ink)' }}
+                      <div className={`cus-kebab-menu${index >= filtered.length - 2 && filtered.length > 2 ? ' cus-kebab-menu--up' : ''}`} role="menu" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" role="menuitem"
                           onClick={() => { setMenuOpenId(null); crud.setError(null); crud.setEditingId(c.id); }}>
                           <Pencil size={13} /> Sửa
                         </button>
-                        <button style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px',  border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--danger)' }}
+                        <button type="button" role="menuitem" className="cus-kebab-menu__danger"
                           disabled={crud.deleting === c.id}
                           onClick={async () => {
                             const ok = await confirm(`Xóa khách hàng "${c.name}"?`, { confirmLabel: 'Xóa', variant: 'danger' });
@@ -368,7 +409,8 @@ export default function CustomersConfigPage() {
                     )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           </div>

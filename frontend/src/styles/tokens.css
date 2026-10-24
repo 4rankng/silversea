@@ -330,6 +330,22 @@
   --status-text-weight: 700;
   --status-text-letter-spacing: 0.02em;
 
+  /* --- SIL-169 risk & neutral-hairline accents (consult verdict 24/10) ---
+   * The Khách hàng & Đối tác redesign (board SIL-169) pins the risk-dot triad
+   * and the overdue money red to the Untitled UI scale rather than the muted
+   * house danger/warning text tones, and gives tables a neutral (non-sage)
+   * hairline. They live HERE because a page must never write a raw value
+   * (design-system 01-tokens); pages consume the tokens, the drift ratchet
+   * stays clean. Sage remains the only brand accent (verdict part c). */
+  --risk-high: #D92D20;
+  --risk-med: #F79009;
+  --risk-low: #98A2B3;
+  --overdue-text: #B42318;
+  --hairline: #EAECF0;
+  --hairline-hover: #F9FAFB;
+  --chip-neutral-bg: #F2F4F7;
+  --text-subtle: #98A2B3;
+
   /* --- Motion --- */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);

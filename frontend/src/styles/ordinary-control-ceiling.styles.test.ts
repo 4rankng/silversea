@@ -174,8 +174,7 @@ const ordinaryOwners: Record<string, string[]> = {
     ".customer-form__actions > .btn"
   ],
   "src/pages/config/customer-config-density.css": [
-    ".cfg-page--customers .cfg-customer-table .row-action",
-    ".cfg-customer-details > summary"
+    ".cfg-page--customers .cfg-customer-table .row-action"
   ],
   "src/pages/config/config-page.css": [
     ".cfg-page .page-header__back-btn,\n.cfg-page .page-header [aria-label*=\"quay\" i]",

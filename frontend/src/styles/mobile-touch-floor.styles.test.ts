@@ -53,11 +53,15 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     // An inline `min-height` beats EVERY stylesheet rule — this exact bug
     // rendered the search at 30px across 360-1024 (2026-09-26 sweep).
     expect(tsx, 'no inline min-height on controls').not.toMatch(/minHeight:\s*'var\(--control/);
+    // SIL-169 / card 20260927_152: the page-local `.customers-quick-search`
+    // shell is retired — /customers search rides the shared FilterBar band,
+    // whose control floor (`--filter-control-h`, with its own touch band)
+    // lives in FilterBar.css. The page sheet must not re-declare a local
+    // search height (a higher-specificity copy would silently beat the band).
     const css = read('src/pages/CustomersPage.css');
-    expect(css).toMatch(/\.customers-quick-search\s*\{\s*min-height:\s*var\(--control-compact-h\);/);
-    expect(css).toMatch(
-      /@media \(max-width: 640px\), \(pointer: coarse\) \{\s*\.customers-quick-search \{\s*min-height:\s*var\(--control-touch-h\);/,
-    );
+    expect(css, 'no page-local search-shell height survives the band cutover').not.toMatch(/\.customers-quick-search/);
+    const band = read('src/components/FilterBar.css');
+    expect(band).toMatch(/min-height:\s*var\(--filter-control-h\)/);
   });
 
   it('keeps header/page action buttons on the shared phone floor, not the 30px bare-button floor', () => {
