@@ -37,6 +37,7 @@ import type { Tx } from './trip-shared';
 import { createFulfillmentForAddedContainer, ensureShipmentFulfillmentsInTx, operationalSiteSnapshot } from './shipment-fulfillment.service';
 import { resolveAddedContainerCarrierPlan, type ResolvedCarrierPlan } from './added-container-carrier-plan';
 import { ensureReadyShipmentHandoff } from './shipment-intake.service';
+import { listShipmentDeclarations, syncDeclarationOntoEmptyContainers } from './shipment-documents.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
@@ -1110,13 +1111,29 @@ export async function addCusShipmentContainer(args: {
     // extend a partial set.
     await createFulfillmentForAddedContainer(tx, args.shipmentId, inserted!.id, args.actor.userId, carrierPlan);
 
+    // SIL-173 (CUS-05 theo SIL-166 da2eb512): tờ khai CẤP LÔ copy vào MỌI
+    // dòng container trống — kể cả dòng thêm sau. Sibling-inherit ở insert đã
+    // lấy số per-cont của lô (nếu sibling mang số); fan-out này kéo số tờ khai
+    // mức lô (shipment_declarations) xuống mọi dòng còn trống bằng đúng
+    // predicate FB-109 của SIL-166 (NULL/blank mới nhận — never-overwrite).
+    // Cùng tx với add: version bump một lần bởi projectShipmentScheduleAndVersion
+    // bên dưới, và dòng cũ được điền sẽ về kèm response qua declarationSync.
+    const lotDeclarations = await listShipmentDeclarations(args.shipmentId, tx);
+    const lotDeclarationNumber = lotDeclarations.find((row) => row.declarationNumber?.trim())?.declarationNumber ?? null;
+    const declarationSynced = await syncDeclarationOntoEmptyContainers(tx, args.shipmentId, lotDeclarationNumber);
+
     await projectShipmentScheduleAndVersion(tx, args.shipmentId, args.actor.userId);
     await lockShipmentFreightRate(tx, { shipmentId: args.shipmentId });
 
     const detail = await buildWorkspaceDetail(await loadShipmentRow(args.shipmentId, args.actor, tx), args.actor, tx);
     const line = detail.containers.find((item) => item.id === inserted!.id);
     if (!line) throw new ApiError(500, 'Không thể tải lại dòng container vừa thêm.');
-    return { line };
+    return {
+      line,
+      ...(declarationSynced.length > 0
+        ? { declarationSync: { updatedContainerIds: declarationSynced.map((row) => row.id) } }
+        : {}),
+    };
   };
   return runInTx(args.transaction, execute);
 }

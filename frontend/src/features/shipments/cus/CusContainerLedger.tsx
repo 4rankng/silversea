@@ -341,9 +341,21 @@ export function ContainerLedger({
       }, getIdempotencyKey(signature));
       clearIdempotencyKey(signature);
       await onLineSaved(result.line);
+      // SIL-173 (CUS-05 theo SIL-166): tờ khai cấp lô có thể đã fan-out sang
+      // MỌI dòng trống của lô (dòng mới + dòng cũ còn trống) trong cùng tx —
+      // onLineSaved chỉ patch dòng mới vào detail cache, nên mọi dòng khác
+      // bị đụng phải refetch cả detail (cùng kênh onDetailStale của
+      // commitDeclaration), và toast nêu đúng số dòng được copy.
+      const syncedIds = result?.declarationSync?.updatedContainerIds ?? [];
+      if (syncedIds.length > 0) onDetailStale?.();
       closeAddRow();
       setAddFields(EMPTY_ADD_FIELDS);
-      toast({ kind: 'success', message: `Đã thêm container ${containerNumber}.` });
+      toast({
+        kind: 'success',
+        message: syncedIds.length > 0
+          ? `Đã thêm container ${containerNumber}. Tờ khai cấp lô copy sang ${syncedIds.length} dòng còn trống.`
+          : `Đã thêm container ${containerNumber}.`,
+      });
     } catch (error) {
       // FB-086 (round 19): a version 409 means the drawer's cached
       // expectedShipmentVersion went stale (the lot advanced elsewhere — a

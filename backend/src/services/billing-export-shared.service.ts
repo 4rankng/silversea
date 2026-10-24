@@ -18,6 +18,12 @@ import {
   expenseDocumentCode,
   splitRouteName,
 } from './billing-document.service';
+import {
+  applyLiveLotIdentityToFrozenLine,
+  resolveDebitNoteLotIdentity,
+  type DebitNoteLotClaims,
+  type DebitNoteLotBillingIdentity,
+} from './billing-export-live-identity';
 
 const SERVICE_FEE_EXPORT_LABELS: Record<string, string> = {
   LIFTING: 'Phí nâng container',
@@ -173,28 +179,31 @@ export function renderColumnValue(line: BillingDocumentLine, col: DebitNoteTempl
   }
 }
 
-/** FB-094 / cards 161026232429: frozen Debit Note lines issued before the plate
- *  fix carry no renderData and no sourceId, so the BKS / loại xe cells rendered
- *  empty. Resolve them at render time through the document's OWN lot claims
- *  (debit_note_lots): a single-lot note by identity, a multi-lot consolidated
- *  note by the lot code the frozen builder stamped into the description.
- *  Anything unresolved is left untouched — never a guessed plate. */
-type LegacyFrozenLotRenderInfo = { truckPlate: string | null; vehicleType: string | null };
-
-async function loadLegacyFrozenLotRenderInfo(
+/** FB-094 / cards 161026232429 + SIL-172: frozen Debit Note lines claim their
+ *  lot through debit_note_lots. The loader returns each claimed lot's LIVE
+ *  identity (BKS báo khách, BKS thực, cargo mode, THU billing class) so the
+ *  export can print the lot's CURRENT plate/class — post-FB-094 frozen lines
+ *  carry renderData whose plate is a CACHE of the issue-time resolution, and
+ *  FB-094's own law says a plate/class rename (or clear) must never need a
+ *  re-lock. Lines issued before the plate fix carry no renderData at all; the
+ *  same claims resolve them too. Anything unresolved stays untouched — never
+ *  a guessed plate. */
+async function loadDebitNoteLotClaims(
   lines: readonly BillingDocumentLine[],
-): Promise<Map<number, Map<string, LegacyFrozenLotRenderInfo>>> {
-  const byDocument = new Map<number, Map<string, LegacyFrozenLotRenderInfo>>();
+): Promise<DebitNoteLotClaims> {
+  const claims: DebitNoteLotClaims = new Map();
   const documentIds = [...new Set(lines
-    .filter((line) => line.sourceType === 'ADHOC' && !line.renderData && line.documentId != null)
+    .filter((line) => line.sourceType === 'ADHOC' && line.documentId != null)
     .map((line) => Number(line.documentId))
     .filter((id) => Number.isFinite(id) && id > 0))];
-  if (documentIds.length === 0) return byDocument;
+  if (documentIds.length === 0) return claims;
   const rows = await db.select({
     documentId: s.debitNoteLots.documentId,
     shipmentId: s.debitNoteLots.shipmentId,
     shipmentCode: s.shipments.shipmentCode,
     billingTruckNo: s.shipments.billingTruckNo,
+    actualTruckNo: s.shipments.actualTruckNo,
+    cargoMode: s.shipments.cargoMode,
     revVehicleClassName: s.vehicleSizeClasses.name,
     revVehicleClassCode: s.vehicleSizeClasses.code,
   }).from(s.debitNoteLots)
@@ -205,40 +214,37 @@ async function loadLegacyFrozenLotRenderInfo(
       isNull(s.debitNoteLots.releasedAt),
     ));
   for (const row of rows) {
-    const info: LegacyFrozenLotRenderInfo = {
-      // Review M2 — legacy frozen lines keep their ORIGINAL rendering law
-      // (billing plate or nothing); the spec 23/10 BKS fallback is
-      // materialized at FREEZE time for new documents (shipment-cost-lock),
-      // never applied retroactively to already-issued ones.
-      truckPlate: row.billingTruckNo?.trim() || null,
+    const identity: DebitNoteLotBillingIdentity = {
+      shipmentId: row.shipmentId,
+      lotCode: row.shipmentCode ?? String(row.shipmentId),
+      billingTruckNo: row.billingTruckNo ?? null,
+      actualTruckNo: row.actualTruckNo ?? null,
+      cargoMode: row.cargoMode ?? null,
       vehicleType: row.revVehicleClassName ?? row.revVehicleClassCode ?? null,
     };
-    let lots = byDocument.get(row.documentId);
+    let lots = claims.get(row.documentId);
     if (!lots) {
       lots = new Map();
-      byDocument.set(row.documentId, lots);
+      claims.set(row.documentId, lots);
     }
     // Both keys the frozen builder can name a lot by: the lot code, or its id.
-    lots.set(row.shipmentCode ?? String(row.shipmentId), info);
-    lots.set(String(row.shipmentId), info);
+    lots.set(identity.lotCode, identity);
+    lots.set(String(row.shipmentId), identity);
   }
-  return byDocument;
+  return claims;
 }
 
-const FROZEN_LOT_CODE_IN_DESCRIPTION = /— lô (\S+) \(chốt từ snapshot khóa lô\)\s*$/;
-
-function legacyFrozenLotInfo(
-  line: BillingDocumentLine,
-  byDocument: Map<number, Map<string, LegacyFrozenLotRenderInfo>>,
-): LegacyFrozenLotRenderInfo | null {
-  const lots = line.documentId != null ? byDocument.get(Number(line.documentId)) : undefined;
-  if (!lots) return null;
-  const lotCodes = [...new Set(lots.keys())];
-  if (lotCodes.length === 0) return null;
-  const lotCode = FROZEN_LOT_CODE_IN_DESCRIPTION.exec(line.description)?.[1];
-  if (lotCode) return lots.get(lotCode) ?? null;
-  // No lot code in the description (single-lot note): only one lot can own it.
-  return lots.size === 1 ? lots.get(lotCodes[0]!) ?? null : null;
+/** Legacy frozen lines (no renderData, issued before FB-094) keep their
+ *  ORIGINAL rendering law — billing plate or nothing. The spec 23/10 BKS
+ *  fallback is materialized at FREEZE time for new documents
+ *  (shipment-cost-lock), never applied retroactively (Review M2 ruling). */
+function legacyFrozenRenderData(
+  identity: DebitNoteLotBillingIdentity,
+): { truckPlate: string | null; vehicleType: string | null } {
+  return {
+    truckPlate: identity.billingTruckNo?.trim() || null,
+    vehicleType: identity.vehicleType,
+  };
 }
 
 /**
@@ -303,13 +309,14 @@ export async function enrichLinesForDebitNoteRender(
     ...directTripIds,
     ...expenseTripRows.map((row) => row.tripId),
   ]));
-  const legacyLotRenderInfo = await loadLegacyFrozenLotRenderInfo(normalizedLines);
+  const lotClaims = await loadDebitNoteLotClaims(normalizedLines);
   if (tripIds.length === 0 && expenseById.size === 0) {
     return normalizedLines.map((line) => {
-      const lotInfo = line.renderData || line.sourceType !== 'ADHOC'
-        ? null
-        : legacyFrozenLotInfo(line, legacyLotRenderInfo);
-      return lotInfo ? { ...line, renderData: { ...lotInfo } } : line;
+      if (line.sourceType !== 'ADHOC') return line;
+      // SIL-172: a frozen line's plate/class re-resolve from the LIVE lot.
+      if (line.renderData) return applyLiveLotIdentityToFrozenLine(line, lotClaims);
+      const identity = resolveDebitNoteLotIdentity(line, lotClaims);
+      return identity ? { ...line, renderData: { ...legacyFrozenRenderData(identity) } } : line;
     });
   }
 
@@ -369,19 +376,24 @@ export async function enrichLinesForDebitNoteRender(
       : undefined;
     const documentCode = expenseInfo ? expenseDocumentCode(expenseInfo) : null;
     if (line.renderData) {
+      // SIL-172: the frozen plate/class is a cache — re-stamp the LIVE lot
+      // identity before render so a cleared or renamed BKS báo khách (saved
+      // after issue, FB-141's tail) reaches the file. documentCode keeps its
+      // fill-only-if-missing contract; money fields are never touched here.
+      const liveLine = applyLiveLotIdentityToFrozenLine(line, lotClaims);
       return {
-        ...line,
+        ...liveLine,
         renderData: {
-          ...line.renderData,
-          documentCode: line.renderData.documentCode ?? documentCode,
+          ...liveLine.renderData!,
+          documentCode: liveLine.renderData?.documentCode ?? documentCode,
         },
       };
     }
     // Legacy frozen lot lines (issued before FB-094): the plate/class come from
     // the document's own lot claim, not from a guess.
     if (line.sourceType === 'ADHOC') {
-      const lotInfo = legacyFrozenLotInfo(line, legacyLotRenderInfo);
-      return lotInfo ? { ...line, renderData: { ...lotInfo } } : line;
+      const identity = resolveDebitNoteLotIdentity(line, lotClaims);
+      return identity ? { ...line, renderData: { ...legacyFrozenRenderData(identity) } } : line;
     }
     if (!line.sourceId) return line;
     const tripId = line.sourceType === 'TRIP'
