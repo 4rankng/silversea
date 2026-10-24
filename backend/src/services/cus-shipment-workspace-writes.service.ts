@@ -1153,6 +1153,7 @@ export async function removeCusShipmentContainer(args: {
       id: s.shipmentContainers.id,
       containerNumber: s.shipmentContainers.containerNumber,
       customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+      declarationNumber: s.shipmentContainers.declarationNumber,
     })
       .from(s.shipmentContainers)
       .where(and(
@@ -1162,6 +1163,18 @@ export async function removeCusShipmentContainer(args: {
       .limit(1)
       .for('update');
     if (!container) throw new ApiError(404, 'Không tìm thấy container của lô hàng.');
+
+    // Card 211026094500 (SIL-177, QA R42): a row carrying a customs
+    // declaration number is document-bearing state — the number anchors the
+    // shared shipment_declarations entity to this lot, so deleting the row
+    // silently dropped a declared document (QA: MSKU1234586 + Q1-DECL-177
+    // vanished). Same recovery-first contract as the trip guard below: refuse
+    // with the exact number and the gỡ-tờ-khai step, for every writer role —
+    // the ruling blocks "cont có chứng từ" without an admin bypass.
+    const declaredNumber = container.declarationNumber?.trim() ?? '';
+    if (declaredNumber !== '') {
+      throw new ApiError(409, `Cont có tờ khai ${declaredNumber} — gỡ tờ khai trước khi xóa dòng container.`);
+    }
 
     if (shipment.cargoMode === CARGO_MODE.FCL) {
       const [{ total }] = await tx.select({ total: sql<number>`count(*)::int` })
