@@ -721,6 +721,14 @@ export const shipmentCusContainerAddSchema = z.object({
 
 export const shipmentCusContainerAddResultSchema = z.object({
   line: shipmentCusWorkspaceContainerLineSchema,
+  // SIL-173 (CUS-05 theo SIL-166 da2eb512): present when the lot carries a
+  // lot-level tờ khai and this add's fan-out wrote it onto still-empty
+  // container rows — the new row and/or older still-empty siblings — in the
+  // same transaction. Same shape as the line-update result's declarationSync;
+  // ids are real container ids of rows the lot-level number reached.
+  declarationSync: z.object({
+    updatedContainerIds: z.array(z.number().int().positive()),
+  }).optional(),
 }).strict();
 
 export const shipmentCusContainerRemoveSchema = z.object({
