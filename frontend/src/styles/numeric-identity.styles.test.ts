@@ -106,8 +106,10 @@ describe('QA-AUDIT-UI-22 numeric identity values', () => {
     expect(rule).toMatch(/overflow-wrap:\s*normal/);
     expect(rule).not.toMatch(/ellipsis|overflow:\s*hidden|max-width/);
     expect(css).toMatch(/\.record-table tbody td\s*\{[^}]*white-space:\s*normal/);
-    expect(read('pages/config/FactoriesConfigPage.tsx')).toContain('data-label="STT">{index + 1}');
+    // CrudTable stays the STT authority for the config catalogs; the factories
+    // board dropped its STT column by owner directive (SIL-467, 24/10).
     expect(read('components/config/CrudTable.tsx')).toContain('data-label="STT">{i + 1}');
+    expect(read('pages/config/FactoriesConfigPage.tsx')).not.toContain('data-label="STT"');
   });
 
   it('keeps the entire value atomic without clipping, while the outer fact can wrap', () => {

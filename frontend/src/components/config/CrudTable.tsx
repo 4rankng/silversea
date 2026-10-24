@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, AlertCircle } from 'lucide-react';
+import { Pencil, Plus, AlertCircle, Trash2 } from 'lucide-react';
 import { EmptyState } from '../../design-system';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllPaginated } from '../../lib/http/paginate';
@@ -60,17 +60,31 @@ interface CrudTableProps<T extends { id: number; updatedAt?: string }> {
   emptyContext?: import('../../lib/emptyIllustrations').EmptyContext;
   emptyTitle?: string;
   emptyHint?: string;
+  /** SIL-466: the operational-list empty face (compact card _41) for pages that
+   * must not keep a tall empty band under a short catalogue. */
+  emptyVariant?: 'default' | 'compact';
+  /** Search placeholder; defaults to the generic catalogue copy. */
+  searchPlaceholder?: string;
+  /** SIL-466 (Should): page-scoped STT removal — the shared default keeps it. */
+  showIndex?: boolean;
+  /** SIL-466: fixed Sửa/Xóa icon actions on every row (Nhà máy/Kho pattern)
+   * instead of the click-anywhere-to-edit affordance alone. */
+  rowActions?: boolean;
   pageSlug?: string;
   iconName?: import('../../components/AssetIcon').AssetIconName;
 }
 
 export function CrudTable<T extends { id: number; updatedAt?: string }>({
-  title, description, endpoint, listQuery = '', columns, renderForm, colSpan,
+  title, description, endpoint, listQuery = '', columns, renderForm,
   showDelete = true, onDelete, modalChip, sortFn, computeActiveIds, rowStyle,
   toolbarLeft, backTo = '/config',
   emptyContext = 'config',
   emptyTitle = 'Chưa có dữ liệu',
   emptyHint,
+  emptyVariant = 'default',
+  searchPlaceholder = 'Tìm trong danh mục…',
+  showIndex = true,
+  rowActions = false,
   pageSlug,
   iconName,
 }: CrudTableProps<T>) {
@@ -112,6 +126,21 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
 
   const handleDelete = onDelete ?? ((id: number, expectedUpdatedAt?: string) => crud.doDelete(id, expectedUpdatedAt));
 
+  // SIL-466: the row's Xóa icon runs the same confirmation contract as the
+  // edit modal's FormActions delete (danger confirm, then the caller-bound
+  // handler); an open edit dialog for the same row closes with it.
+  const deleteFromRow = async (item: T) => {
+    const ok = await confirm(`Bạn có chắc chắn muốn xóa ${title.toLowerCase()} này?`, {
+      variant: 'danger',
+      confirmLabel: 'Xóa',
+    });
+    if (!ok) return;
+    await handleDelete(item.id, item.updatedAt);
+    if (crud.editingId === item.id) crud.cancelForm();
+  };
+
+  const columnCount = columns.length + (showIndex ? 1 : 0) + (rowActions ? 1 : 0);
+
   const wrapperClass = ['fade-up', 'cfg-page', pageSlug ? `cfg-page--${pageSlug}` : ''].filter(Boolean).join(' ');
 
   return (
@@ -129,7 +158,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
         search={{
           value: search,
           onChange: setSearch,
-          placeholder: 'Tìm trong danh mục…',
+          placeholder: searchPlaceholder,
           ariaLabel: `Tìm trong ${title.toLowerCase()}`,
           inputProps: { type: 'search' },
         }}
@@ -167,21 +196,23 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
             <caption className="sr-only">{title}</caption>
             <thead>
               <tr>
-                <th style={{ width: 54 }}>STT</th>
+                {showIndex && <th style={{ width: 54 }}>STT</th>}
                 {columns.map(col => (
                   <th key={col.header} style={col.width ? { width: col.width } : undefined} className={col.className}>
                     {col.header}
                   </th>
                 ))}
+                {rowActions && <th style={{ width: 90 }}><span className="sr-only">Thao tác</span></th>}
               </tr>
             </thead>
             <tbody>
-              {isLoading && <tr className="cfg-empty-row"><td colSpan={columns.length + 1} data-label=""><div className="cfg-catalogue-feedback" role="status">Đang tải danh mục…</div></td></tr>}
+              {isLoading && <tr className="cfg-empty-row"><td colSpan={columnCount} data-label=""><div className="cfg-catalogue-feedback" role="status">Đang tải danh mục…</div></td></tr>}
               {!isLoading && !isError && items.length === 0 && !crud.showAddForm && (
                 <tr className="cfg-empty-row">
-                  <td colSpan={colSpan + 1} data-label="" style={{ textAlign: 'center' }}>
+                  <td colSpan={columnCount} data-label="" style={{ textAlign: 'center' }}>
                     <EmptyState
                       context={emptyContext}
+                      variant={emptyVariant}
                       title={emptyTitle}
                       description={emptyHint}
                       action={
@@ -193,7 +224,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                   </td>
                 </tr>
               )}
-              {!isLoading && items.length > 0 && visibleItems.length === 0 && <tr className="cfg-empty-row"><td colSpan={columns.length + 1} data-label=""><div className="cfg-catalogue-feedback" role="status"><span>Không có mục phù hợp.</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => setSearch('')}>Xóa tìm kiếm</button></div></td></tr>}
+              {!isLoading && items.length > 0 && visibleItems.length === 0 && <tr className="cfg-empty-row"><td colSpan={columnCount} data-label=""><div className="cfg-catalogue-feedback" role="status"><span>Không có mục phù hợp.</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => setSearch('')}>Xóa tìm kiếm</button></div></td></tr>}
               {visibleItems.map((item, i) => {
                 const isActive = activeIds.has(item.id);
                 return (
@@ -215,12 +246,36 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                     aria-label={`Chỉnh sửa ${title.toLowerCase()} thứ ${i + 1}`}
                     title="Nhấp để chỉnh sửa hoặc xóa"
                   >
-                    <td className="num" data-label="STT">{i + 1}</td>
+                    {showIndex && <td className="num" data-label="STT">{i + 1}</td>}
                     {columns.map(col => (
                       <td key={col.header} className={col.className} data-label={col.header}>
                         {col.render(item, i, isActive, items)}
                       </td>
                     ))}
+                    {rowActions && (
+                      <td data-label="" className="record-table__action">
+                        <div className="row-actions">
+                          <button
+                            className="row-action"
+                            title={`Sửa ${title.toLowerCase()}`}
+                            aria-label={`Sửa ${title.toLowerCase()}`}
+                            onClick={() => crud.setEditingId(item.id)}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          {showDelete && (
+                            <button
+                              className="row-action"
+                              title={`Xóa ${title.toLowerCase()}`}
+                              aria-label={`Xóa ${title.toLowerCase()}`}
+                              onClick={() => { void deleteFromRow(item); }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}

@@ -16,6 +16,7 @@ import { quotationClient, type QuotationFuelApprovalRow } from '../../api/quotat
 import { qk } from '../../api/keys';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { formatMoney, formatDate } from '../../lib/format';
+import './fuel-price-periods-config.css';
 
 /** Card 20260922_61: the kế-toán alert — pending "ĐỒNG Ý CẬP NHẬT BÁO GIÁ"
  *  rows surface as a banner + a role=dialog batch list (select-all + per-row;
@@ -194,6 +195,28 @@ function QuotationFuelApprovalAlert() {
 
 const fmtPrice = (v: string) => formatMoney(Number(v));
 
+/** Today as the YYYY-MM-DD the API's dates compare against. */
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/** SIL-466: the fee engine prices against the period whose effectiveFrom is
+ * the latest one ≤ today — surface that ruling as the row's "Đang áp dụng"
+ * badge instead of making the reader infer it from the dates. */
+function activeFuelPeriodId(items: FuelPricePeriodRow[]): number | null {
+  const today = todayIso();
+  let active: FuelPricePeriodRow | null = null;
+  for (const row of items) {
+    if (row.effectiveFrom > today) continue;
+    if (!active || row.effectiveFrom > active.effectiveFrom) active = row;
+  }
+  return active?.id ?? null;
+}
+
+/** Badge state for one row: active (latest ≤ today), future, or superseded. */
+function fuelPeriodState(item: FuelPricePeriodRow, allItems: FuelPricePeriodRow[]): 'Đang áp dụng' | 'Sắp áp dụng' | null {
+  if (item.effectiveFrom > todayIso()) return 'Sắp áp dụng';
+  return item.id === activeFuelPeriodId(allItems) ? 'Đang áp dụng' : null;
+}
+
 function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deleting }: {
   saving: boolean;
   item?: FuelPricePeriodRow;
@@ -281,15 +304,44 @@ export default function FuelPricePeriodsConfigPage() {
         colSpan={4}
         pageSlug="fuel-price-periods"
         emptyTitle="Chưa có kỳ giá dầu"
-        emptyHint="Nhập kỳ giá đầu tiên để động cơ cước tự động có dữ liệu đối chiếu."
+        emptyVariant="compact"
+        searchPlaceholder="Tìm theo ngày hiệu lực, ghi chú…"
+        showIndex={false}
+        rowActions
         sortFn={(a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom)}
         columns={[
-          { header: 'Ngày hiệu lực', render: r => formatDate(r.effectiveFrom) },
-          { header: 'Giá dầu (đ/lít)', render: r => fmtPrice(r.unitPrice) },
-          // Missing values name their own field (design §1): a bare '—' and a
-          // generic 'Không xác định' both read as an unhandled row.
-          { header: 'Ghi chú', render: r => r.sourceNote || 'Chưa có ghi chú' },
-          { header: 'Người nhập', render: r => r.createdByName || 'Chưa rõ người nhập' },
+          {
+            header: 'Ngày hiệu lực',
+            width: 190,
+            render: (r, _index, _isActive, allItems) => {
+              const state = fuelPeriodState(r, allItems);
+              return (
+                <span className="fp-period">
+                  <span>{formatDate(r.effectiveFrom)}</span>
+                  {state && (
+                    <span className={state === 'Đang áp dụng' ? 'fp-chip fp-chip--active' : 'fp-chip'}>{state}</span>
+                  )}
+                </span>
+              );
+            },
+          },
+          { header: 'Giá dầu (đ/lít)', width: 130, className: 'num', render: r => fmtPrice(r.unitPrice) },
+          {
+            header: 'Ghi chú',
+            // SIL-466: one line, ellipsis + full-text title tooltip (owner
+            // review 24/10 supersedes the wrap doctrine for this cell, same
+            // class as the 23/10 debit-board ruling).
+            render: r => (r.sourceNote
+              ? <span className="fp-note" title={r.sourceNote}>{r.sourceNote}</span>
+              : 'Chưa có ghi chú'),
+          },
+          {
+            header: 'Người nhập',
+            width: 130,
+            // Missing values name their own field (design §1); the legacy
+            // null entrant reads '—', never the noisy 'Chưa rõ người nhập'.
+            render: r => r.createdByName || '—',
+          },
         ]}
         renderForm={p => (
           <FuelPricePeriodForm

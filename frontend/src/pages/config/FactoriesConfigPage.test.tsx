@@ -103,14 +103,19 @@ beforeEach(() => {
 });
 
 describe('FactoriesConfigPage', () => {
-  it('shows address and named phone values directly and edits the default contact list', { timeout: 15000 }, async () => {
+  it('runs the one-line details: address, dialable number and the contacts tooltip, and edits the default contact list', { timeout: 15000 }, async () => {
     const contacts = [{ name: 'Cổng kho', phone: '0901234567', isDefault: true }, { name: 'Điều phối', phone: '0907654321', isDefault: false }];
     listMock.mockResolvedValue([{ ...factory, contacts }]);
     renderPage();
     await screen.findByText('Nhà máy A');
+    // One baseline: the address and the first dialable number read directly;
+    // the full address + every contact live in the cell's title tooltip.
     expect(screen.getByText('KCN Đình Vũ')).toBeVisible();
-    expect(screen.getByText('0907654321')).toBeVisible();
-    expect(document.querySelector('.factory-record-details details')).toBeNull();
+    expect(screen.getByText('0901234567')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Gọi 0901234567' })).toBeTruthy();
+    const detailsCell = document.querySelector('.factories-table td[data-label="Địa chỉ · Liên hệ"]') as HTMLElement;
+    expect(detailsCell.querySelector('.factory-addr')?.getAttribute('title')).toContain('Liên hệ Điều phối: 0907654321');
+    expect(document.querySelector('.site-contact-list')).toBeNull();
     fireEvent.click(screen.getByTitle('Sửa điểm vận hành'));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(within(dialog).getByRole('textbox', { name: 'Tên liên hệ 2' }), { target: { value: 'Điều phối mới' } });
@@ -121,11 +126,12 @@ describe('FactoriesConfigPage', () => {
     expect(updateMock).toHaveBeenCalledWith(11, expect.objectContaining({ contacts: [{ name: 'Điều phối mới', phone: '0907654321', isDefault: true }] }));
   });
 
-  it('preserves a legacy named contact with no phone on unrelated metadata edits', async () => {
+  it('preserves a legacy named contact with no phone in the details tooltip on unrelated metadata edits', async () => {
     listMock.mockResolvedValue([{ ...factory, contactPhone: null, contacts: [] }]);
     renderPage();
     await screen.findByText('Nhà máy A');
-    expect(screen.getByText('Anh Tùng · Chưa có số điện thoại')).toBeVisible();
+    const detailsCell = document.querySelector('.factories-table td[data-label="Địa chỉ · Liên hệ"]') as HTMLElement;
+    expect((detailsCell.querySelector('.factory-addr') as HTMLElement).getAttribute('title')).toContain('Anh Tùng · Chưa có số điện thoại');
     fireEvent.click(screen.getByTitle('Sửa điểm vận hành'));
     fireEvent.change(await screen.findByDisplayValue('Nhà máy A'), { target: { value: 'Nhà máy A sửa tên' } });
     fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
@@ -134,37 +140,42 @@ describe('FactoriesConfigPage', () => {
     expect(updateMock.mock.calls[0][1].contactName).toBe('Anh Tùng');
   });
 
-  it('lists sites with customer, type, route and status', async () => {
+  it('lists sites as Mã · Tên identity with the Loại chip and route, no STT and no TRẠNG THÁI column', async () => {
     renderPage();
     expect(await screen.findByText('Nhà máy A')).toBeTruthy();
     // The customer name also appears in the filter dropdown — assert the
     // table cell occurrence (row-scoped) rather than a unique-text query.
     expect(screen.getAllByText('Khách A').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Tuyến Lạch Huyện')).toBeTruthy();
-    expect(screen.getByText('Đang dùng')).toBeTruthy();
-    expect(screen.getByText('Đã ngưng')).toBeTruthy();
+    // Merged identity: the Loại chip rides the MÃ · TÊN line.
+    expect(screen.getByText('Nhà máy', { selector: '.factory-type-chip' })).toBeTruthy();
+    expect(screen.getByText('Kho', { selector: '.factory-type-chip' })).toBeTruthy();
+    expect(screen.getByText('FAC-1')).toBeTruthy();
+    // SIL-467: no STT column and no TRẠNG THÁI column anywhere.
+    expect(screen.queryByText('STT')).toBeNull();
+    expect(document.querySelector('.factories-table td[data-label="Trạng thái"]')).toBeNull();
     expect(listMock).toHaveBeenCalledOnce();
   });
 
-  // Card 20261004_324: the TRẠNG THÁI pill wore a stray pencil glyph at its
-  // right edge — the action run's start-edge overflow painting over the status
-  // cell (mechanism + budgets pinned in config-action-glyph-bleed.styles.test.ts).
-  // These DOM pins hold the two cells' contents apart: the status cell is clean
-  // text and nothing else, and both real action affordances stay whole in the
-  // action cell (no clipping fix — design law §4).
-  it('keeps the status cell clean text and both row actions whole in their own cell', async () => {
+  // SIL-467 (owner directive 24/10): the TRẠNG THÁI column is gone — an
+  // inactive site keeps its information as the row's dimming plus a
+  // "Đã ngưng" tooltip, and the Sửa/Xóa affordances stay whole in their own
+  // cell (no clipping fix — design law §4; run budgets pinned in
+  // config-action-glyph-bleed.styles.test.ts).
+  it('dims inactive rows behind a "Đã ngưng" tooltip and keeps both row actions whole', async () => {
     renderPage();
     await screen.findByText('Nhà máy A');
     const rows = document.querySelectorAll('.factories-table tbody tr:not(.cfg-empty-row)');
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
-      const statusCell = row.querySelector('td[data-label="Trạng thái"]') as HTMLElement;
-      expect(statusCell.querySelector('svg, button, .row-action, .row-actions')).toBeNull();
-      expect(['Đang dùng', 'Đã ngưng']).toContain(statusCell.textContent?.trim());
       const actionCell = row.querySelector('td.record-table__action') as HTMLElement;
       expect(actionCell.querySelector('button[title="Sửa điểm vận hành"] svg')).not.toBeNull();
       expect(actionCell.querySelector('button[title="Xóa nhà máy / kho"] svg')).not.toBeNull();
     }
+    const dimmed = [...rows].filter((row) => row.getAttribute('title') === 'Đã ngưng') as HTMLElement[];
+    // Exactly one inactive fixture row (WH-1); active rows carry no tooltip.
+    expect(dimmed).toHaveLength(1);
+    expect(Number(getComputedStyle(dimmed[0]).opacity)).toBeLessThan(1);
   });
 
   it('explains how to create the first site when the catalog is empty', async () => {

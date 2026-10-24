@@ -179,7 +179,6 @@ const ordinaryOwners: Record<string, string[]> = {
   "src/pages/config/config-page.css": [
     ".cfg-page .page-header__back-btn,\n.cfg-page .page-header [aria-label*=\"quay\" i]",
     ".company-info-comparison > summary",
-    ".factory-record-details summary",
     ".cfg-secret-input__toggle",
     ".factories-table .row-action"
   ],

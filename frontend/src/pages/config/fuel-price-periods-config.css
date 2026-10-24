@@ -1,0 +1,66 @@
+/* ============================================================================
+ * SIL-466 (owner review 24/10) — page-scoped density for the fuel-price
+ * periods catalogue. Sizing only: the shared CrudTable tabular frame keeps
+ * its shape, and every rule keys off .cfg-page--fuel-price-periods so no
+ * other catalogue inherits it.
+ * ========================================================================== */
+
+/* The shared .table-scroll carries a 180px dropdown-guard floor; this surface
+   hosts no in-table dropdown, and that floor is what left a large void under
+   a one-row catalogue. */
+.cfg-page--fuel-price-periods .table-scroll { min-height: 0; }
+
+/* Row 40–48px, header 36–40px (the CrudTable frame pads 7px/10px). */
+.cfg-page--fuel-price-periods .record-table--config thead th { padding: 11px 12px; }
+.cfg-page--fuel-price-periods .record-table--config tbody td { padding: 11px 12px; }
+
+/* Date + state badge on one baseline. Flex (not inline-flex): the td line
+   strut was padding ~9px of phantom descender below the 20px chip. */
+.fp-period {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.fp-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-field);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--fg-3) 9%, transparent);
+  color: var(--ink-2);
+}
+
+.fp-chip--active {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+/* Ghi chú truncates on ONE baseline with its full text in a title tooltip
+   (owner review 24/10 supersedes the wrap doctrine for this cell — same
+   owner-directive class as the 23/10 debit-board ruling; the full value
+   stays reachable, pinned by the page tests). */
+.fp-note {
+  display: inline-block;
+  max-width: 260px;
+  vertical-align: bottom;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Row actions run chip-sized (24px): the shared --control-compact-h run is
+   what pushed rows past the 48px budget on this 4-fact catalogue. */
+.cfg-page--fuel-price-periods .row-action { width: 24px; height: 24px; min-width: 24px; min-height: 24px; }
+
+/* Compact empty band ≤120px when the catalogue has no rows (SIL-466 AC6):
+   smaller illustration, tighter padding, no second paragraph. */
+.cfg-page--fuel-price-periods .ds-empty-state--compact { padding: 8px 12px; gap: 4px; }
+.cfg-page--fuel-price-periods .ds-empty-state--compact .ds-empty-state__illustration { width: 40px; height: 32px; }
+.cfg-page--fuel-price-periods .ds-empty-state--compact .ds-empty-state__action { margin-top: 2px; }
