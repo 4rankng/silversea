@@ -1,100 +1,79 @@
-/* ─── Empty state ─── */
+/* ─── Empty state (SIL-468: one compact band, ~72px — no illustration stage) ─── */
 
 .penalty-empty-log {
-  padding: 24px 16px;
+  padding: 14px 16px;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  text-align: center;
-  gap: 16px;
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 50%, transparent) 100%);
+  text-align: left;
+  gap: 10px 18px;
 }
 
 .penalty-empty-icon-wrap {
-  width: 80px;
-  height: 80px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 15%, transparent), color-mix(in srgb, var(--accent) 5%, transparent));
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--accent-soft);
   border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
   display: grid;
   place-items: center;
   color: var(--accent);
-  margin-bottom: 8px;
-  box-shadow: 0 12px 24px color-mix(in srgb, var(--accent) 10%, transparent), inset 0 2px 4px color-mix(in srgb, white 50%, transparent);
-  position: relative;
+  flex-shrink: 0;
 }
 
-.penalty-empty-icon-wrap::after {
-  content: '';
-  position: absolute;
-  inset: -12px;
-  border-radius: 24px;
-  border: 1px dashed color-mix(in srgb, var(--accent) 25%, transparent);
-  animation: penalty-spin 10s linear infinite;
-}
-
-@keyframes penalty-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.penalty-empty-copy {
+  min-width: 180px;
+  flex: 1 1 240px;
 }
 
 .penalty-empty-title {
-  font-size: var(--fs-lg);
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--ink);
   letter-spacing: 0;
 }
 
 .penalty-empty-desc {
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   color: var(--ink-3);
   max-width: 440px;
-  line-height: 1.6;
+  line-height: 1.45;
 }
 
 .penalty-empty-stats {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-top: 12px;
-  padding: 10px 16px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  border: 1px solid color-mix(in srgb, var(--ink) 6%, transparent);
-  border-radius: 16px;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 3%, transparent);
+  gap: 14px;
+  padding: 6px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
 
 .penalty-empty-stat {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: center;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .penalty-empty-stat .lbl {
   font-size: var(--fs-2xs);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
 }
 
 .penalty-empty-stat .val {
   font-family: var(--font-data);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--ink);
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
-  justify-content: center;
   gap: 3px;
 }
 
 .penalty-empty-stat .val .u {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   color: var(--ink-3);
   font-weight: 500;
 }
@@ -105,26 +84,29 @@
 
 .penalty-empty-divider {
   width: 1px;
-  height: 32px;
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  height: 20px;
+  background: var(--line);
 }
 
 .penalty-empty-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 4px;
-  padding-top: 8px;
+  gap: 8px;
 }
 
-/* ─── Empty violation types ─── */
+/* ─── Empty violation types (SIL-468: one inline line ≤72px) ─── */
 
-.penalty-empty-reasons {
+.penalty-reasons-empty {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 12px;
-  padding: 28px 16px;
+  gap: 8px;
+  padding: 12px 16px;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.penalty-reasons-empty svg {
+  flex-shrink: 0;
+  color: var(--ink-4);
 }
 
 

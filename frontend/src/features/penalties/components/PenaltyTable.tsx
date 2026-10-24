@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, X, ChevronDown } from 'lucide-react';
 import { Panel, Btn, PageHeader } from '../../../components/UI';
-import { FilterBar, Pagination, SummaryRail, UuiSelectField } from '../../../design-system';
+import { FilterBar, Pagination, SummaryRail, Tabs, UuiSelectField } from '../../../design-system';
 import { Money } from '../../../components/shared/Money';
 import { formatCurrency, formatNumber, formatDate } from '../../../lib/format';
 import { downloadCSV } from '../../../lib/csv';
 import { PenaltyStatus } from '@tingting/shared';
 import { getSeverity, getSeverityLabel, getViolationGrade, getGradeClass, formatTenure } from '../utils';
-import { EmptyState } from '../../../design-system';
 import { PenaltySeverityIcon } from './penalty-severity-icon';
 import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
 import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
@@ -41,6 +40,10 @@ function violationsInWindow(row: PenaltyInsightsScoreboardRow, window: PenaltySc
   if (window === '90d') return row.violations90d;
   return row.violationsYtd;
 }
+
+/** SIL-468: the violations and YTD-fine figures share one column — the short
+ *  window tag names the first half; the fine half is always YTD. */
+const WINDOW_SHORT: Record<PenaltyScoreWindow, string> = { '7d': '7N', '30d': '30N', '90d': '90N', ytd: 'YTD' };
 
 export function PenaltyTable({
   rows,
@@ -108,6 +111,12 @@ export function PenaltyTable({
   const avgStreak = insights?.avgStreak ?? 0;
   const driversOver90 = insights?.driversOver90 ?? 0;
   const driversOver6m = insights?.driversOver6m ?? 0;
+
+  // SIL-468: when the whole ranking sits at zero violations AND zero fines the
+  // two right-hand columns carry no information — the table folds to a compact
+  // leaderboard (rank · driver · streak) and a quiet chip says why.
+  const windowHasActivity = scoreboardRows.some((d) => d.violations > 0 || d.fineYtd > 0);
+  const mergedColLabel = scoreFilter === 'ytd' ? 'YTD' : `${WINDOW_SHORT[scoreFilter]} / YTD`;
 
   const handleExport = async () => {
     const headers = ['Lái xe', 'Bill/Booking', 'Lý do', 'Số tiền', 'Ngày'];
@@ -248,11 +257,13 @@ export function PenaltyTable({
           ) : rows.length === 0 ? (
             <div className="penalty-empty-log">
               <div className="penalty-empty-icon-wrap">
-                <ShieldCheck size={36} strokeWidth={2.5} />
+                <ShieldCheck size={20} strokeWidth={2.5} />
               </div>
-              <div className="penalty-empty-title">Toàn đội đang giữ chuẩn nghiệp vụ</div>
-              <div className="penalty-empty-desc">
-                Chưa có biên bản vi phạm nào khớp bộ lọc trong kỳ này. Hệ thống sẽ tự động khấu trừ vào bảng lương ngay khi biên bản có hiệu lực.
+              <div className="penalty-empty-copy">
+                <div className="penalty-empty-title">Toàn đội đang giữ chuẩn nghiệp vụ</div>
+                <div className="penalty-empty-desc">
+                  Chưa có biên bản vi phạm nào khớp bộ lọc trong kỳ này. Hệ thống sẽ tự động khấu trừ vào bảng lương ngay khi biên bản có hiệu lực.
+                </div>
               </div>
               <div className="penalty-empty-stats">
                 <div className="penalty-empty-stat">
@@ -368,22 +379,24 @@ export function PenaltyTable({
               <div className="penalty-card-title">
                 Bảng xếp hạng lái xe
                 <span className="count-pill">{scoreboardRows.length}</span>
+                {!windowHasActivity && (
+                  <span className="penalty-quiet-chip">Không phát sinh trong kỳ</span>
+                )}
               </div>
               <div className="penalty-card-sub">Sắp xếp theo chuỗi ngày an toàn và mức vi phạm nghiệp vụ</div>
             </div>
           </div>
           <div className="penalty-head-tools">
-            <div className="penalty-seg" data-control-group="compact">
-              {SCORE_WINDOWS.map(f => (
-                <button
-                  key={f.key}
-                  className={scoreFilter === f.key ? 'active' : ''}
-                  onClick={() => setScoreFilter(f.key)}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            {/* Ruling 2026-09-27: `Tabs variant="boxed"` is THE canonical button
+                group — the hand-rolled `.penalty-seg` was a page-local variant
+                of it. The window toggle is client-side (one insights payload). */}
+            <Tabs
+              variant="boxed"
+              tabs={SCORE_WINDOWS.map(f => ({ id: f.key, label: f.label }))}
+              value={scoreFilter}
+              onChange={(id) => setScoreFilter(id as PenaltyScoreWindow)}
+              ariaLabel="Chu kỳ bảng xếp hạng"
+            />
           </div>
         </div>
         {/* Phone: the ranking collapses by default so the violation ledger
@@ -414,18 +427,18 @@ export function PenaltyTable({
                   <th className="penalty-scoreboard-col-rank">STT</th>
                   <th>Lái xe</th>
                   <th>Chuỗi an toàn</th>
-                  <th>Vi phạm {scoreFilter === '90d' ? '90N' : scoreFilter.toUpperCase()}</th>
-                  <th>Phạt YTD</th>
-                  <th className="penalty-scoreboard-col-center">Mức</th>
+                  {windowHasActivity && <th className="num">{mergedColLabel}</th>}
                 </tr>
               </thead>
               <tbody>
                 {scoreboardRows.map((d, idx) => {
                   const rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
                   const streakPct = Math.min(100, (d.streakDays / 180) * 100);
-                  const vClass = d.violations === 0 ? 'zero' : d.violations <= 2 ? 'warn' : 'bad';
-                  const moneyClass = d.fineYtd === 0 ? 'zero' : '';
+                  // SIL-468: the Mức column is gone — the grade rides beside the
+                  // name and only when it is not the A+ default every clean row
+                  // would otherwise repeat.
                   const gc = getGradeClass(d.grade);
+                  const showGrade = d.grade !== 'A+';
                   return (
                     <tr key={d.driverId} onClick={() => onOpenDrawer(d.driverId)} className="penalty-scoreboard-row">
                       <td data-label="" className="penalty-scoreboard-col-center">
@@ -437,7 +450,10 @@ export function PenaltyTable({
                             <UserRound size={14} aria-hidden="true" />
                           </span>
                           <span className="penalty-driver-info">
-                            <div className="name">{d.name}</div>
+                            <div className="name">
+                              <span className="name-text">{d.name}</span>
+                              {showGrade && <span className={`penalty-grade ${gc}`}>{d.grade}</span>}
+                            </div>
                             <div className="role">
                               {[d.truckPlate || 'Chưa phân xe', d.tenure].filter(Boolean).join(' · ')}
                             </div>
@@ -457,20 +473,13 @@ export function PenaltyTable({
                           </span>
                         </span>
                       </td>
-                      <td data-label="Vi phạm">
-                        <span className={`penalty-violation-count ${vClass}`}>
-                          <span className="dot" />
-                          {`${d.violations} vụ`}
-                        </span>
-                      </td>
-                      <td data-label="Phạt YTD" className="num">
-                        <span className={`penalty-money ${moneyClass}`}>
-                          {d.fineYtd > 0 ? formatNumber(d.fineYtd) : `0`}<span className="unit"> đ</span>
-                        </span>
-                      </td>
-                      <td data-label="Mức" className="penalty-scoreboard-col-center">
-                        <span className={`penalty-grade ${gc}`}>{d.grade}</span>
-                      </td>
+                      {windowHasActivity && (
+                        <td data-label={mergedColLabel} className="num">
+                          <span className={`penalty-money ${d.violations === 0 && d.fineYtd === 0 ? 'zero' : ''}`}>
+                            {`${d.violations} / ${formatNumber(d.fineYtd)}`}<span className="unit"> đ</span>
+                          </span>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -507,13 +516,11 @@ export function PenaltyTable({
             </div>
           </div>
           {reasons.length === 0 ? (
-            <div className="penalty-empty-reasons">
-              <EmptyState
-                context="penalty-reasons"
-                title="Chưa có phân loại vi phạm"
-                description="Thêm các mức phạt nội quy để hệ thống tự động áp dụng khi lập biên bản kỷ luật."
-                action={<Btn variant="secondary" icon={<Plus size={13} />} onClick={() => navigate('/config/penalty-reasons')}>Thêm nội quy đầu tiên</Btn>}
-              />
+            /* SIL-468: an empty catalogue is one quiet line, not a half-screen
+               illustration — the operator came here for the ledger. */
+            <div className="penalty-reasons-empty">
+              <FileText size={14} aria-hidden="true" />
+              <span>Chưa có phân loại vi phạm — nội quy trống.</span>
             </div>
           ) : (
           <div className="penalty-vio-type-list">

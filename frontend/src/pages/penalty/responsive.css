@@ -55,9 +55,12 @@
 }
 
 /* Phone collapse toggle for the scoreboard (default closed) — the violation
-   ledger and its status chips belong in the first viewport. */
+   ledger and its status chips belong in the first viewport. Desktop keeps the
+   full table visible, so the toggle is a ≤820px-only control (utilities.css
+   breakpoint): the base `display: flex` here used to leak it onto desktop
+   where it only duplicated a row above the table. */
 .penalty-m-toggle {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -70,6 +73,10 @@
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 820px) {
+  .penalty-m-toggle { display: flex; }
 }
 
 .penalty-m-toggle__label {
@@ -288,22 +295,6 @@
     width: 100%;
     margin-top: 2px;
   }
-  
-  .penalty-seg {
-    display: flex;
-    width: 100%;
-    background: var(--surface-2);
-    padding: 4px;
-    border-radius: 10px;
-  }
-  
-  .penalty-seg button {
-    flex: 1;
-    text-align: center;
-    padding: 8px 0;
-    font-size: var(--fs-sm);
-    border-radius: 8px;
-  }
 
   /* Page header — stack, full-width actions */
   .penalty-page .page-header {
@@ -430,11 +421,6 @@
   .penalty-chip {
     min-height: var(--control-max-h);
     padding: 8px 14px;
-    font-size: var(--fs-xs);
-  }
-  .penalty-seg button {
-    min-height: var(--control-max-h);
-    padding: 10px 14px;
     font-size: var(--fs-xs);
   }
   .penalty-row-act {
