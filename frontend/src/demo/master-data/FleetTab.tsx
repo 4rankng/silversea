@@ -135,7 +135,7 @@ export function FleetTab({ drivers = demoDrivers }: FleetTabProps) {
           <Input
             size="sm"
             label="BKS đầu kéo"
-            placeholder="51C-000.00"
+            placeholder="Vd 51C-000.00"
             data-testid="fleet-add-plate"
             value={form.plate}
             onChange={(value) => setForm((current) => ({ ...current, plate: value }))}
@@ -151,7 +151,7 @@ export function FleetTab({ drivers = demoDrivers }: FleetTabProps) {
           <Input
             size="sm"
             label="BKS rơ-moóc"
-            placeholder="51R-000.00"
+            placeholder="Vd 51R-000.00"
             data-testid="fleet-add-trailer"
             value={form.trailerPlate}
             onChange={(value) => setForm((current) => ({ ...current, trailerPlate: value }))}
