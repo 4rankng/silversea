@@ -118,8 +118,7 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expectNoClip(rules(css, /\.ops-bill-mobile-list__identity strong/));
   });
 
-  it('debit board values truncate on ONE baseline with a tooltip (owner redesign 23/10 supersedes the wrap doctrine here)', () => {
-    // Owner spec v2 23/10 ("Tờ khai truncate 1 dòng + tooltip", "Mọi cell 1
+  it('debit board values truncate on ONE baseline with a tooltip (owner redesign 23/10 supersedes the wrap doctrine here)', () => {    // Owner spec v2 23/10 ("Tờ khai truncate 1 dòng + tooltip", "Mọi cell 1
     // baseline ngang — hết vỡ dòng") supersedes law book §4's wrap doctrine
     // FOR THIS BOARD: single-line cells, ellipsis + title tooltip, and the
     // row stays 52px. The identity cell the old case pinned no longer exists
@@ -142,6 +141,18 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     }
     // The full value stays reachable: every truncating cell's markup rides a
     // title tooltip (pinned by the page tests: booking/lane/customs cells).
+  });
+
+  it('fuel-period note truncates on ONE baseline with a tooltip (SIL-466 owner review 24/10 supersedes the wrap doctrine here)', () => {
+    // Same owner-directive class as the debit board above: the fuel-periods
+    // catalogue keeps its rows at 40–48px by truncating the note to one line
+    // (ellipsis, max-width 260px) and carrying the FULL text in the cell's
+    // title tooltip — pinned by FuelPricePeriodsConfigPage.table.test.tsx.
+    const css = read('src/pages/config/fuel-price-periods-config.css');
+    const rule = rules(css, /\.fp-note\s*\{/)[0];
+    expect(rule).toMatch(/white-space:\s*nowrap/);
+    expect(rule).toMatch(/text-overflow:\s*ellipsis/);
+    expect(rule).toMatch(/max-width:\s*260px/);
   });
 
   it('config customer full names wrap in the compact-card render', () => {
