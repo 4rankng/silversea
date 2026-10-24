@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Phone, Plus, Trash2 } from 'lucide-react';
 
 import { PageHeader, Modal } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
@@ -25,8 +25,8 @@ import {
   type AdminOperationalSite,
 } from '../../api/shipmentClient';
 import { operationalSiteContacts, type OperationalSiteContact, type Route } from '@tingting/shared';
-import { OperationalSiteContactsList } from '../../components/shipment/OperationalSiteContactsList';
 import { OperationalSiteContactsEditor } from '../../components/shipment/OperationalSiteContactsEditor';
+import { telHref } from '../../components/TelLink';
 import { removeDiacritics } from '../../lib/format';
 import './config-page.css';
 
@@ -164,6 +164,19 @@ export default function FactoriesConfigPage() {
 
   const isFactory = editing?.siteType === 'FACTORY';
 
+  /** SIL-467 one-baseline details: the first dialable number in the row, the
+   * full address + every contact reachable through the title tooltip. */
+  const detailsOf = (site: AdminOperationalSite) => {
+    const contacts = operationalSiteContacts(site);
+    const phone = contacts[0]?.phone ?? site.contactPhone ?? null;
+    const title = [
+      site.address || 'Chưa có địa chỉ',
+      ...contacts.map((contact) => `Liên hệ ${contact.name}: ${contact.phone}`),
+      !contacts.length && site.contactName ? `${site.contactName} · Chưa có số điện thoại` : null,
+    ].filter(Boolean).join('\n');
+    return { contacts, phone, title };
+  };
+
   async function confirmDelete() {
     if (!deleting || deleteBusy) return;
     setDeleteBusy(true);
@@ -235,19 +248,15 @@ export default function FactoriesConfigPage() {
           <table className="record-table ops-table factories-table">
             <caption className="sr-only">Danh mục nhà máy / kho theo khách hàng</caption>
             <colgroup>
-              {[4, 10, 9, 16, 7, 11, 22, 10, 11].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+              {[15, 33, 16, 24, 12].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
             </colgroup>
             <thead>
               <tr>
-                <th className="num">STT</th>
                 <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Mã" sortKey="code" sort={sort} onSortChange={handleSort} />
-                <SortHeader label="Tên" sortKey="name" sort={sort} onSortChange={handleSort} />
-                <th>Loại</th>
+                <SortHeader label="Mã · Tên" sortKey="code" sort={sort} onSortChange={handleSort} />
                 <th>Tuyến</th>
-                <SortHeader label="Địa chỉ / Liên hệ" sortKey="address" sort={sort} onSortChange={handleSort} />
-                <th>Trạng thái</th>
-                <th style={{ width: 76 }}></th>
+                <SortHeader label="Địa chỉ · Liên hệ" sortKey="address" sort={sort} onSortChange={handleSort} />
+                <th style={{ width: 120 }}><span className="sr-only">Thao tác</span></th>
               </tr>
             </thead>
             <tbody>
@@ -257,7 +266,7 @@ export default function FactoriesConfigPage() {
                   result may claim the catalog is empty. */}
               {sitesQuery.isError && (
                 <tr className="cfg-empty-row">
-                  <td colSpan={9} data-label="" style={{ textAlign: 'center', padding: '28px 12px' }}>
+                  <td colSpan={5} data-label="" style={{ textAlign: 'center', padding: '28px 12px' }}>
                     <Alert
                       variant="error"
                       style="soft"
@@ -279,7 +288,7 @@ export default function FactoriesConfigPage() {
               )}
               {!sitesQuery.isError && filtered.length === 0 && (
                 <tr className="cfg-empty-row">
-                  <td colSpan={9} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
+                  <td colSpan={5} data-label="" style={{ textAlign: 'center', padding: '28px 12px', color: 'var(--fg-3)' }}>
                     {sitesQuery.isLoading
                       ? 'Đang tải…'
                       : sites.length ? 'Không tìm thấy nhà máy / kho phù hợp. Thử từ khóa khác hoặc xóa bộ lọc.'
@@ -287,49 +296,75 @@ export default function FactoriesConfigPage() {
                   </td>
                 </tr>
               )}
-              {filtered.map((site, index) => (
-                <tr key={site.id} style={site.isActive ? undefined : { opacity: 0.62 }}>
-                  <td className="num" data-label="STT">{index + 1}</td>
-                  <td data-label="Khách hàng">{site.customerName}</td>
-                  <td data-label="Mã" style={{ color: 'var(--fg-2)' }}>{site.code}</td>
-                  <td data-label="Tên"><div className="row-strong">{site.name}</div></td>
-                  <td data-label="Loại">{site.siteType === 'FACTORY' ? 'Nhà máy' : 'Kho'}</td>
-                  <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
-                  <td data-label="Chi tiết" className="factory-record-details">
-                    <div>{site.address || 'Chưa có địa chỉ'}</div>
-                    {/* DRI-01 (card 211026130743): the master-data list's SĐT
-                        kho dials — callable makes each number the shared
-                        TelLink beside its Gọi button. */}
-                    <OperationalSiteContactsList contacts={operationalSiteContacts(site)} callable />
-                    {!operationalSiteContacts(site).length && site.contactName ? <div>{site.contactName} · Chưa có số điện thoại</div> : null}
-                  </td>
-                  <td data-label="Trạng thái">
-                    {site.isActive
-                      ? <span style={{ color: 'var(--success)', fontWeight: 500 }}>Đang dùng</span>
-                      : <span style={{ color: 'var(--fg-3)' }}>Đã ngưng</span>}
-                  </td>
-                  <td data-label="" className="record-table__action">
-                    <div className="row-actions">
-                      <button
-                        className="row-action"
-                        title="Sửa điểm vận hành"
-                        aria-label={`Sửa ${site.shortName || site.name}`}
-                        onClick={() => openEdit(site)}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        className="row-action"
-                        title="Xóa nhà máy / kho"
-                        aria-label={`Xóa ${site.shortName || site.name}`}
-                        onClick={() => setDeleting(site)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((site) => {
+                // SIL-467: TRẠNG THÁI column removed by owner directive — an
+                // inactive site keeps its information as the row's dimming
+                // plus a "Đã ngưng" tooltip (no pill, no extra column).
+                const details = detailsOf(site);
+                return (
+                  <tr
+                    key={site.id}
+                    style={site.isActive ? undefined : { opacity: 0.62 }}
+                    title={site.isActive ? undefined : 'Đã ngưng'}
+                  >
+                    <td data-label="Khách hàng">{site.customerName}</td>
+                    <td data-label="Mã · Tên">
+                      <div className="factory-identity">
+                        <span className="factory-type-chip">{site.siteType === 'FACTORY' ? 'Nhà máy' : 'Kho'}</span>
+                        <span className="factory-code">{site.code}</span>
+                        <span className="factory-identity-sep" aria-hidden="true">·</span>
+                        {/* Name truncates on one line with its full text in
+                            the title tooltip (SIL-467 owner directive — same
+                            one-baseline class as the 23/10 debit ruling). */}
+                        <span className="factory-name" title={site.name}>{site.name}</span>
+                      </div>
+                    </td>
+                    <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
+                    <td data-label="Địa chỉ · Liên hệ">
+                      <div className="factory-oneline">
+                        <span className="factory-addr" title={details.title}>{site.address || 'Chưa có địa chỉ'}</span>
+                        {details.phone && (
+                          <>
+                            <span className="factory-oneline-sep" aria-hidden="true">•</span>
+                            {/* DRI-01 (card 211026130743): the number itself
+                                dials; the icon beside it is the explicit
+                                call affordance on the one-line run. */}
+                            <span className="data-token">{details.phone}</span>
+                            <a
+                              className="row-action factory-call"
+                              href={telHref(details.phone)}
+                              aria-label={`Gọi ${details.phone}`}
+                              title={`Gọi ${details.phone}`}
+                            >
+                              <Phone size={14} />
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    <td data-label="" className="record-table__action">
+                      <div className="row-actions">
+                        <button
+                          className="row-action"
+                          title="Sửa điểm vận hành"
+                          aria-label={`Sửa ${site.shortName || site.name}`}
+                          onClick={() => openEdit(site)}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          className="row-action"
+                          title="Xóa nhà máy / kho"
+                          aria-label={`Xóa ${site.shortName || site.name}`}
+                          onClick={() => setDeleting(site)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           </div>

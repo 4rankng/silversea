@@ -551,45 +551,67 @@
      page-private copy. */
 }
 
-/* ── Factories record-table ──────────────────────────────────────────
-   Pinned shares (routes-table idiom): long address/contact strings wrap
-   inside their own columns instead of squeezing code/name into multi-line
-   wraps; nowrap keeps Vietnamese caps headers (STT/TUYẾN) un-chopped. */
-.factories-table { min-width: 1120px; table-layout: fixed; width: 100%; }
+/* ── Factories record-table (SIL-467, owner directive 24/10) ─────────
+   Data-dense 5-column board: KHÁCH HÀNG / MÃ · TÊN (Loại chip + identity
+   one line) / TUYẾN / ĐỊA CHỈ · LIÊN HỆ (one baseline) / actions. The
+   TRẠNG THÁI column is gone — inactive rows dim with a "Đã ngưng" tooltip.
+   One-baseline truncation with title tooltips supersedes the wrap doctrine
+   for this board (same owner-directive class as the 23/10 debit ruling);
+   the full values stay reachable and are pinned by the page tests. */
+.factories-table { min-width: 1000px; table-layout: fixed; width: 100%; }
 .factories-table thead th { white-space: nowrap; }
- .factories-table thead th:nth-child(1) { width: 40px; }
-.factories-table thead th:nth-child(2) { width: 140px; }
-.factories-table thead th:nth-child(3) { width: 100px; }
-.factories-table thead th:nth-child(4) { width: 190px; }
-.factories-table thead th:nth-child(5) { width: 70px; }
-.factories-table thead th:nth-child(6) { width: 200px; }
-.factories-table thead th:nth-child(7) { width: 150px; }
-.factories-table thead th:nth-child(8) { width: 104px; }
-.factories-table thead th:nth-child(9),
-.factories-table td.record-table__action { width: 112px; }
+/* Density band (rows 48–56px, header ~40px): one class above the shared
+   record-table base so stylesheet order can never flip the padding. */
+.cfg-page .factories-table thead th { padding: 12px 12px; }
+.cfg-page .factories-table tbody td { padding: 9px 12px; }
+.factories-table thead th:nth-child(5),
+.factories-table td.record-table__action { width: 120px; }
+
+.factory-identity { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.factory-type-chip {
+  flex: none;
+  display: inline-flex; align-items: center;
+  height: 20px; padding: 0 8px;
+  border-radius: var(--radius-field);
+  font-size: var(--text-caption-size);
+  font-weight: 500; line-height: 1; white-space: nowrap;
+  background: color-mix(in srgb, var(--fg-3) 9%, transparent);
+  color: var(--ink-2);
+}
+.factory-code { flex: none; color: var(--ink-3); font-family: var(--font-data); white-space: nowrap; }
+.factory-identity-sep { flex: none; color: var(--fg-3); }
+.factory-name {
+  min-width: 0;
+  max-width: 300px;
+  font-weight: 500; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.factory-oneline { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.factory-addr { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.factory-oneline-sep { flex: none; color: var(--fg-3); }
+/* The explicit call affordance rides chip-size (24px) beside the number —
+   coarse pointers raise bare buttons to the shared touch floor. */
+.factory-call { flex: none; width: 24px; height: 24px; min-width: 24px; min-height: 24px; }
+
 /* Card 20261004_324: the desktop action run (2 × row-action + gap + padding)
    used to overflow its frozen column and — flex-end overflow — escape out the
    cell's start edge over the TRẠNG THÁI pill (the stray pencil glyph). The
-   budgets above and in the colgroup now hold the run at the 1120px floor; the
+   budgets above and in the colgroup now hold the run at the 1000px floor; the
    `safe` fallback keeps any future run growth spilling toward the table's
    right edge (clipped by .table-scroll) instead. Desktop band only — the
    ≤1100px card band's absolute 44px action box intentionally spills into the
-   Tên cell's reserved 48px gutter and must keep flex-end. */
+   identity cell's reserved gutter and must keep flex-end. */
 @container (min-width: 1101px) {
   .factories-table .row-actions {
     justify-content: flex-end;
     justify-content: safe flex-end;
   }
 }
-.factory-record-details summary { cursor: pointer; min-height: var(--control-max-h); align-content: center; font-size: var(--text-control-size); }
-.factory-record-details dl { display: grid; gap: 6px; margin: 4px 0; }
-.factory-record-details dt { color: var(--ink-3); font-size: var(--text-label-size); }
-.factory-record-details dd { margin: 0; overflow-wrap: anywhere; }
-
 
 /* When the shared record-table base collapses rows to labelled cards
    (container ≤1100px), release the desktop-only fixed-layout geometry so the
-   cards follow the container width instead of the 1120px column floor. */
+   cards follow the container width instead of the 1000px column floor. */
 @container (max-width: 1100px) {
   .factories-table {
     min-width: 0;
@@ -1291,19 +1313,18 @@
     padding-block: 6px;
   }
   .factories-table tbody tr td[data-label] { padding: 4px 8px; border: 0; }
-  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='STT'] { position: absolute; top: 6px; left: 0; width: 24px; display: block; }
-  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='STT']::before { display: none; }
-  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Tên'] { grid-row: 1; grid-column: 1 / -1; padding: 4px 48px 6px 32px; }
-  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Tên']::before { display: none; }
+  /* Row 1 — the identity line: Loại chip + MÃ · Tên, full width under the
+     absolute action box. Its own data-label stays off (the line IS the title). */
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Mã · Tên'] { grid-row: 1; grid-column: 1 / -1; padding: 4px 100px 6px 8px; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Mã · Tên']::before { display: none; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Mã · Tên'] .factory-name { max-width: none; }
   .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Khách hàng'] { grid-row: 2; grid-column: 1; }
-  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Mã'] { grid-row: 2; grid-column: 2; }
-  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Loại'] { grid-row: 3; grid-column: 1; }
-  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Trạng thái'] { grid-row: 3; grid-column: 2; }
-  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Tuyến'] { grid-row: 4; grid-column: 1 / -1; }
-  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Chi tiết'] { grid-row: 5; grid-column: 1 / -1; }
-  .factories-table tbody tr td.record-table__action { position: absolute; top: 0; right: 0; width: 44px; padding: 0; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Tuyến'] { grid-row: 2; grid-column: 2; }
+  .cfg-page.cfg-page--factories .factories-table tbody tr td[data-label='Địa chỉ · Liên hệ'] { grid-row: 3; grid-column: 1 / -1; }
+  /* Both affordances fit the card's action box (2 × 40px touch floor + 6px
+     gap + padding = 92px) — the old 44px box clipped Xóa off the card. */
+  .factories-table tbody tr td.record-table__action { position: absolute; top: 0; right: 0; width: 92px; padding: 0; }
   .factories-table .row-action { min-height: var(--control-max-h); min-width: var(--control-max-h); }
-  .factories-table td[data-label='Chi tiết']::before { display: none; }
   .factories-table tbody tr td::before { text-transform: none; letter-spacing: 0; font-size: var(--text-label-size); }
 }
 /* Card 20260927_152: the shell's `.cfg-catalogue-search` cell, its 360px cap

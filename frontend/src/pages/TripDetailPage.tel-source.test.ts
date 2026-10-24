@@ -32,9 +32,13 @@ describe('DRI-01 — house TelLink on admin trip-detail + site surfaces', () => 
     expect(source).toContain('label="Số điện thoại" value={site.contactPhone} tel');
   });
 
-  it('the master-data factory list renders its contacts callable (TelLink + Gọi)', () => {
+  it('the master-data factory list renders its number dialable with an explicit call affordance (SIL-467 one-line run keeps DRI-01)', () => {
     const source = read('src/pages/config/FactoriesConfigPage.tsx');
-    expect(source).toMatch(/<OperationalSiteContactsList contacts=\{operationalSiteContacts\(site\)\} callable \/>/);
+    // The number itself dials (telHref) and a labelled icon anchor is the
+    // explicit affordance beside it — the one-baseline replacement for the
+    // per-contact TelLink + Gọi button run.
+    expect(source).toContain('href={telHref(details.phone)}');
+    expect(source).toContain('aria-label={`Gọi ${details.phone}`}');
   });
 
   it('the basic-facts card dials SĐT kho/nhà máy through TelLink when the site has one', () => {

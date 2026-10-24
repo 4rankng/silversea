@@ -57,40 +57,34 @@ expect(compactH).toBeLessThanOrEqual(touchH);
 // The worst-case `.row-actions` run inside one action cell: two square buttons at
 // the coarse-pointer floor plus the flex gap.
 const worstCaseRun = 2 * touchH + actionsGap;
-// "Đang dùng" is the longest TRẠNG THÁI token (9 chars at the cell's 12px/500
-// data role ≈ 60px). Below this content budget the text wraps mid-phrase or
-// spills toward the action cell — either way the pill stops reading clean.
-const statusTokenFloor = 60;
 
-// The factories fixed-layout budget at the 1120px column floor.
+// SIL-467 (owner directive 24/10): the TRẠNG THÁI column is gone — the board is
+// 5 shares (Khách hàng / Mã · Tên / Tuyến / Địa chỉ · Liên hệ / actions) at the
+// 1000px column floor. The status budgets above died with the column; the
+// action-run budget carries over unchanged as the bleed guard.
 const factoriesColShares = (factoriesSource.match(/\{\[([0-9,\s]+)\]\.map\(\(width, index\)/)?.[1] ?? '')
   .split(',').map((share) => Number(share.trim()));
 const factoriesFloor = matchNumber(configPageCss, /\.factories-table \{ min-width: (\d+)px; table-layout: fixed/, 'factories floor');
-const factoriesStatusBudget = (factoriesColShares[7] / 100) * factoriesFloor - 2 * cellPaddingX;
-const factoriesActionBudget = (factoriesColShares[8] / 100) * factoriesFloor - 2 * cellPaddingX;
+const factoriesActionBudget = (factoriesColShares[4] / 100) * factoriesFloor - 2 * cellPaddingX;
 
 describe('config table action/status cells keep their budgets (glyph-bleed class)', () => {
-  it('factories TRẠNG THÁI column holds its status token on one line at the table floor', () => {
-    expect(factoriesColShares).toHaveLength(9);
+  it('factories board holds its 5 shares after the SIL-467 column removal', () => {
+    expect(factoriesColShares).toHaveLength(5);
     expect(factoriesColShares.reduce((a, b) => a + b, 0)).toBe(100);
-    // AC1 — the pill needs its own clean line box inside its own column.
-    expect(factoriesStatusBudget).toBeGreaterThanOrEqual(statusTokenFloor);
   });
 
   it('factories action column holds the worst-case row-action run at the table floor', () => {
     // AC1 + AC2 — if the run fits its frozen cell, the flex overflow that bled
-    // the Pencil onto the pill is impossible, and both affordances stay whole
-    // (no overflow:hidden anywhere — design law §4 bans clipping fixes).
+    // the Pencil onto its neighbour is impossible, and both affordances stay
+    // whole (no overflow:hidden anywhere — design law §4 bans clipping fixes).
     expect(factoriesActionBudget).toBeGreaterThanOrEqual(worstCaseRun);
   });
 
   it('factories px width hints agree with the same budgets', () => {
     // Fixed layout reads the <col> widths first (CSS 2.1 §17.5.2.2), but the
-    // th/td px hints are a second width source — both must clear the budgets.
-    const statusPx = matchNumber(configPageCss, /\.factories-table thead th:nth-child\(8\) \{ width: (\d+)px/, 'factories status hint');
-    const actionPx = matchNumber(configPageCss, /\.factories-table td\.record-table__action \{ width: (\d+)px/, 'factories action hint');
-    expect(statusPx - 2 * cellPaddingX).toBeGreaterThanOrEqual(statusTokenFloor);
-    expect(actionPx - 2 * cellPaddingX).toBeGreaterThanOrEqual(worstCaseRun);
+    // th/td px hints are a second width source — both must clear the budget.
+    const headerActionPx = matchNumber(configPageCss, /\.factories-table thead th:nth-child\(5\),\n\.factories-table td\.record-table__action \{ width: (\d+)px/, 'factories action hint');
+    expect(headerActionPx - 2 * cellPaddingX).toBeGreaterThanOrEqual(worstCaseRun);
   });
 
   it('factories desktop band cannot re-aim overflow at the status cell', () => {

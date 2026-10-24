@@ -155,6 +155,22 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expect(rule).toMatch(/max-width:\s*260px/);
   });
 
+  it('factories identity and address truncate on ONE baseline with tooltips (SIL-467 owner directive 24/10 supersedes the wrap doctrine here)', () => {
+    // Same owner-directive class as the debit board and SIL-466: the factories
+    // board keeps rows ≤56px by running the merged "Mã · Tên" identity and the
+    // "Địa chỉ · Liên hệ" cell on one baseline each — ellipsis + title tooltip
+    // carries the FULL name / address + every contact (page tests pin the
+    // tooltips; the ≤1100px card band releases the cap where the card owns the
+    // width).
+    const css = read('src/pages/config/config-page.css');
+    for (const oneLine of [/\.factory-name\s*\{/, /\.factory-addr\s*\{/]) {
+      const rule = rules(css, oneLine)[0];
+      expect(rule).toMatch(/white-space:\s*nowrap/);
+      expect(rule).toMatch(/text-overflow:\s*ellipsis/);
+    }
+    expect(rules(css, /\.factory-name\s*\{/)[0]).toMatch(/max-width:\s*300px/);
+  });
+
   it('config customer full names wrap in the compact-card render', () => {
     const css = read('src/pages/config/customer-config-density.css');
     expectNoClip(rules(css, /\.cfg-customer-full-name/));
