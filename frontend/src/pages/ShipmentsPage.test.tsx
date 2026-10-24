@@ -1542,16 +1542,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
     fireEvent.change(within(drawer).getByLabelText('Số container'), { target: { value: 'msku7654321' } });
-    // The loại-cont picker is the house UuiSelectField (native selects are
-    // banned): its trigger carries the value text as its accessible name, and
-    // the options live in a portalled listbox.
-    // Card 221026173728 (22/10 REQ-22 REVERSED): the trigger opens on the
+    // The loại-cont picker is the type-to-open combobox (SIL-68/CUS-04 swap:
+    // native selects are banned; suggestions now open on TYPING, not just
+    // click): its options live in a portalled listbox.
+    // Card 221026173728 (22/10 REQ-22 REVERSED): the combobox rests on the
     // PLACEHOLDER (no seeded type) — the manual 20DC pick below is now the
     // ONLY way the type lands, which is exactly the ruled behavior.
     const addRow = drawer.querySelector('.cus-container-ledger__add-row') as HTMLElement;
-    fireEvent.click(within(addRow).getByRole('button', { name: /Chưa chọn loại cont/ }));
+    fireEvent.click(within(addRow).getByRole('combobox', { name: 'Loại cont' }));
     fireEvent.click(await screen.findByRole('option', { name: '20DC' }));
-    expect(within(drawer).getByRole('button', { name: /20DC/ })).toBeTruthy();
+    await waitFor(() => expect(within(addRow).getByText('20DC')).toBeTruthy());
     fireEvent.change(within(drawer).getByLabelText('Trọng lượng (kg)'), { target: { value: '3000' } });
     // Card 20260926_1: the datetime rides the shared segmented field — fill
     // the date and time segments (paste distribution emits the ISO payload).
@@ -1789,8 +1789,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(table.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('add-container form: the Loại cont select fills its column cell, never a sliver (QA-2026-09-23-02, card 20260923_9)', () => {
-    // The form's UuiSelectField used to carry width="content": with hideLabel
+  it('add-container form: the Loại cont combobox fills its column cell, never a sliver (QA-2026-09-23-02, card 20260923_9)', () => {
+    // The form's type picker used to carry width="content": with hideLabel
     // and react-aria's search-text-sized input, fit-content resolved to ~2px
     // and the MatchWidth option list to 0 — the control existed but nobody
     // could see it. It now lives in the ledger's LOẠI CONT cell and fills it
@@ -1798,11 +1798,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // once the add row rides the table grid; a fixed 150px floor cannot co-exist
     // with that 7% column (it would overflow into the next cell). jsdom has no
     // layout to measure, so the owned-width contract itself is the fence.
+    // SIL-68 (CUS-04): the picker is now the type-to-open combobox — the
+    // same cell-track class rides its wrapper (`className`, the combobox
+    // adapter's own wrapper prop, replacing UuiSelectField's wrapperClassName).
     const floors = [...css.matchAll(/\.cus-container-ledger__add-select\s*\{([^}]*)}/g)]
       .map((match) => Number(/min-width:\s*(\d+)px/.exec(match[1])?.[1] ?? 0));
     expect(Math.max(0, ...floors)).toBe(0);
     expect(addRowSource).not.toContain('width="content"');
-    expect(addRowSource).toContain('wrapperClassName="cus-container-ledger__add-select"');
+    expect(addRowSource).toContain('className="cus-container-ledger__add-select"');
   });
 
   it('does not open edit dialogs or the drawer from locked shipment cells', async () => {
