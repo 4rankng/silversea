@@ -65,11 +65,11 @@ describe('payables data-dense density (SIL-470)', () => {
     );
   });
 
-  it('keeps the aging cell a compact stacked bar with tabular overdue figure', () => {
+  it('keeps the aging cell a compact stacked bar without page-local tabular-nums', () => {
     expect(rules).toMatch(/\.payables-aging-cell__bar\s*\{[^}]*width:\s*72px;[^}]*height:\s*6px;/);
-    expect(rules).toMatch(
-      /\.payables-aging-cell__overdue\s*\{[^}]*font-variant-numeric:\s*tabular-nums;/,
-    );
+    // Font-family contract: tabular-nums is owned by shared primitives only.
+    // A page-local copy is inert (proportional UI family) and breaks the gate.
+    expect(rules).not.toMatch(/font-variant-numeric:\s*tabular-nums;/);
   });
 
   it('tightens the row band toward the 44–48px target', () => {

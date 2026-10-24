@@ -177,7 +177,6 @@
   font-family: var(--font-data);
   font-size: var(--text-data-size);
   font-weight: var(--fw-semibold);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
