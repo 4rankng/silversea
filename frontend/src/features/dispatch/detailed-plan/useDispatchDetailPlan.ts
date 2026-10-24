@@ -22,7 +22,7 @@ import {
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
 import { useMonth } from '../../../hooks/useMonth';
-import { dispatchShipment, type DispatchShipmentRequest } from '../../../api/shipmentClient';
+import { dispatchShipment, updateCusShipmentContainerLine, type DispatchShipmentRequest } from '../../../api/shipmentClient';
 
 const PAGE_SIZE = 50;
 
@@ -346,6 +346,12 @@ export function useDispatchDetailPlan() {
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
       plannedEndAt?: string | null;
+      /** SIL-473 (DIS-05 theo SIL-80) — Giờ điều vận: the row's container
+       *  appointment, edited in the plan dialog. NEVER part of the plan PATCH
+       *  body (that schema is strict): when present, savePlan sequences a
+       *  separate cus-workspace container-line write AFTER the plan save, on
+       *  the shipmentVersion the plan save returned. null = clear. */
+      customerAppointmentAt?: string | null;
       /** Phân loại (Đơn/Kẹp/Kết hợp) — the dispatcher's call since 2026-09-08;
        *  optional so CUS-derived values stay valid when a caller omits it. */
       classification?: DispatchClassification;
@@ -357,10 +363,17 @@ export function useDispatchDetailPlan() {
   ) => {
     setAssignmentError(null);
     try {
+      // SIL-473 — the appointment rides the callback contract, not the plan
+      // write: the atomic plan schema is strict and would 400 on the extra
+      // key, and the two writes have their own version authorities.
+      const { customerAppointmentAt, planBody } = (() => {
+        const { customerAppointmentAt: appointment, ...rest } = body;
+        return { customerAppointmentAt: appointment, planBody: rest };
+      })();
       const result = await updateDispatchDetailPlan(row.fulfillmentId, {
         expectedFulfillmentVersion: row.version,
         expectedShipmentVersion: row.shipmentVersion,
-        ...body,
+        ...planBody,
       });
       const assignmentStatus = filtersRef.current.assignmentStatus;
       const nowAssigned = !!result.dispatch.assignedPlate;
@@ -387,9 +400,32 @@ export function useDispatchDetailPlan() {
             ? { ...item, shipmentVersion: result.shipmentVersion, lotFullyPlated: result.lotFullyPlated }
             : item;
         }));
+      // SIL-473 — Giờ điều vận sync: one existing write path owns the
+      // container appointment (cus-workspace container line — the same command
+      // the CUS schedule editor uses; DISPATCHER is an allowed writer). It
+      // must run AFTER the plan save on the plan save's returned
+      // shipmentVersion (both writes bump the shipment version). The backend
+      // re-derives Ngày vận chuyển and enforces its own guards there (live
+      // trip → 409 'Container đã gắn chuyến xe…', terminal lot, accounting
+      // lock), so the operator's refusal reason is the server's own message.
+      if (customerAppointmentAt !== undefined && row.shipmentContainerId != null) {
+        await updateCusShipmentContainerLine(row.shipmentId, row.shipmentContainerId, {
+          expectedShipmentVersion: result.shipmentVersion,
+          customerAppointmentAt,
+        });
+        // Exact known truth for the just-written instant — the follow-up
+        // refetch reconciles the rest (Ngày vận chuyển is the server's
+        // earliest-appointment projection across the lot, not this field).
+        setItems((previous) => previous.map((item) => (item.fulfillmentId === row.fulfillmentId
+          ? { ...item, time: { ...item.time, runAt: customerAppointmentAt } }
+          : item)));
+      }
       // A pre-save refresh must not overwrite the saved row/version, even
       // without an assignment filter. Reconcile counts and the current page
       // with a fresh background read after invalidating older responses.
+      // Rides AFTER the appointment write so the refetched page already
+      // carries the new schedule (SIL-80: the time column must not keep the
+      // old hour after a save).
       requestIdRef.current += 1;
       refetch();
       if (result.lotFullyPlated) {

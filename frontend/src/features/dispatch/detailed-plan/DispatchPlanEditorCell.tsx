@@ -83,6 +83,11 @@ interface DispatchPlanEditorCellProps {
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
       plannedEndAt?: string | null;
+      /** SIL-473 (DIS-05 theo SIL-80) — Giờ điều vận. The hook sequences this
+       *  as the separate cus-workspace appointment write (the strict plan
+       *  schema must never see it). Omit = untouched, null = clear,
+       *  zone-aware ISO = set. */
+      customerAppointmentAt?: string | null;
       classification: DispatchClassification;
       operationalNotes?: string | null;
       /** dis-03 (card 211026131857) — confirmed kẹp-candidate overlap retry. */
@@ -130,6 +135,11 @@ interface PlanEditorDraft {
   plannedCarrierCost: number | '';
   /** Giờ trả hàng — local 'YYYY-MM-DDTHH:mm' in Vietnam wall-clock; '' = unset. */
   plannedEndAt: string;
+  /** SIL-473 (DIS-05 theo SIL-80) — Giờ điều vận: the row's run timestamp
+   *  (container appointment → closing → planned return). Local
+   *  'YYYY-MM-DDTHH:mm' in Vietnam wall-clock; '' = unset. Persists to the
+   *  container's customer appointment through the cus-workspace line write. */
+  runAt: string;
   classification: DispatchClassification;
   /** Composed driver note (tags + manual text) — see DispatchTaskTagEditor. */
   operationalNotes: string | null;
@@ -176,6 +186,17 @@ function effectivePlanEndLocal(row: DispatchDetailPlanRow): string {
   return iso ? isoToVietnamLocalInput(iso) : '';
 }
 
+/**
+ * SIL-473 (DIS-05 theo SIL-80) — the row's Giờ điều vận: the run timestamp the
+ * grid's "Thời gian & lịch trình" column displays (container appointment →
+ * closing → planned return, the read model's own precedence). Unlike the
+ * Giờ trả hàng field it is NOT an override prefill — it shows the schedule
+ * itself, and saving writes the container appointment that feeds it.
+ */
+function effectiveRunLocal(row: DispatchDetailPlanRow): string {
+  return isoToVietnamLocalInput(row.time.runAt ?? null);
+}
+
 function sameInstantMinute(a: string | null | undefined, b: string | null | undefined): boolean {
   if (!a && !b) return true;
   if (!a || !b) return false;
@@ -195,6 +216,7 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
     plannedRevenue: estimateToDraft(row.estimates.plannedRevenue),
     plannedCarrierCost: estimateToDraft(row.estimates.plannedCarrierCost),
     plannedEndAt: effectivePlanEndLocal(row),
+    runAt: effectiveRunLocal(row),
     classification: row.classification,
     operationalNotes: row.notes.vehicleNote,
   };
@@ -244,6 +266,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   // 'incomplete') — 'incomplete' must BLOCK the save; '' from the field alone
   // can't distinguish an intentional clear from a half-typed edit.
   const endCompletenessRef = useRef<'complete' | 'empty' | 'incomplete'>('empty');
+  // SIL-473 — same completeness law for the Giờ điều vận segments.
+  const runCompletenessRef = useRef<'complete' | 'empty' | 'incomplete'>('empty');
   const [carrierOptions, setCarrierOptions] = useState<SearchableSelectOption[]>([]);
   const [carrierSearch, setCarrierSearch] = useState('');
   const [carrierCursor, setCarrierCursor] = useState<string | null>(null);
@@ -334,7 +358,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     || !storedRevenue.valid || !storedCarrierCost.valid
     || draftRevenue !== storedRevenue.value
     || draftCarrierCost !== storedCarrierCost.value
-    || draft.plannedEndAt !== effectivePlanEndLocal(row);
+    || draft.plannedEndAt !== effectivePlanEndLocal(row)
+    // SIL-473 — an edited Giờ điều vận is an unsaved plan change too: Phát
+    // lệnh must not ride a schedule the operator typed but didn't store.
+    || draft.runAt !== effectiveRunLocal(row);
   // Card 20261004_359 — a deferred-plate external assignment is issuable too.
   const canIssue = (issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && !planDirty;
 
@@ -716,6 +743,24 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       return;
     }
     const endTouched = !sameInstantMinute(draftEndIso, storedEnd);
+    // SIL-473 (DIS-05 theo SIL-80) — Giờ điều vận: same completeness law as
+    // Giờ trả hàng. A half-typed edit must block the save; a completed edit
+    // rides the body ONLY when it actually differs from the row's run time
+    // (the hook owns the separate appointment write; the plan schema never
+    // sees this key). Rows without a container line (LCL lots) have no
+    // per-container appointment authority — the field renders disabled, so a
+    // touched value cannot occur; the write gate double-checks that here.
+    if (runCompletenessRef.current === 'incomplete') {
+      setError('Giờ điều vận chưa hoàn chỉnh — chọn đủ ngày và giờ.');
+      return;
+    }
+    const draftRunIso = draft.runAt === '' ? null : vietnamLocalInputToIso(draft.runAt);
+    if (draft.runAt !== '' && draftRunIso == null) {
+      setError('Giờ điều vận chưa hoàn chỉnh — chọn đủ ngày và giờ.');
+      return;
+    }
+    const runTouched = row.shipmentContainerId != null
+      && draft.runAt !== effectiveRunLocal(row);
     setSaving(true);
     setError(null);
     const saveBody = {
@@ -729,6 +774,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       // Same touch-gating as the vehicle block: an untouched field must
       // never reach the wire and clobber a value another editor saved.
       ...(endTouched ? { plannedEndAt: draftEndIso } : {}),
+      ...(runTouched ? { customerAppointmentAt: draftRunIso } : {}),
       classification: draft.classification,
       operationalNotes: draft.operationalNotes,
     };
@@ -1109,6 +1155,23 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               value={draft.plannedCarrierCost}
               onChange={(n) => { setDraft((current) => ({ ...current, plannedCarrierCost: n })); setError(null); }}
               disabled={saving}
+            />
+            {/* SIL-473 (DIS-05 theo SIL-80) — Giờ điều vận: the run schedule
+                the grid's time column displays, editable pre-issuance.
+                Always rendered (the regression was the field's absence);
+                LCL lot rows own no container appointment — disabled with the
+                reason, never a silent dead control. */}
+            <DateTimeField
+              id={`dispatch-plan-run-${row.fulfillmentId}`}
+              className="dispatch-assignment-dialog__run-field"
+              label="Giờ điều vận"
+              value={draft.runAt}
+              onChange={(next) => { setDraft((current) => ({ ...current, runAt: next })); setError(null); }}
+              onCompletenessChange={(state) => { runCompletenessRef.current = state; }}
+              disabled={saving || row.shipmentContainerId == null}
+              hint={row.shipmentContainerId == null
+                ? 'Lô hàng lẻ (LCL) không có lịch hẹn theo container — giờ chạy theo lịch của lô.'
+                : undefined}
             />
             <DateTimeField
               id={`dispatch-plan-end-${row.fulfillmentId}`}

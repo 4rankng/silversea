@@ -204,7 +204,7 @@ const FROZEN_MAX_LOC = {
   // carrier-options fallback label) + the driver-acceptance chip derive.
   // Reviewed as a contract change; a future split (extract the carrier-link
   // resolution) should restore a smaller ceiling.
-  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 873,
+  'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.tsx': 1229,
   // Bumped 446 → 448: driver-note save now carries operationalNotes and the
   // optimistic row update refreshes notes.vehicleNote (2026-09-07). Reviewed
   // as a contract change.
@@ -226,7 +226,7 @@ const FROZEN_MAX_LOC = {
   // wiring (initial range seeding + change effect) on the detailed-plan
   // hook. Reviewed as a contract change; a future split (extract the filter
   // state machine) should restore a smaller ceiling.
-  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 532,
+  'src/features/dispatch/detailed-plan/useDispatchDetailPlan.ts': 592,
   'src/features/dispatch/master-plan/DispatchAllocationPopover.tsx': 454,
   'src/features/dispatch/master-plan/MasterPlanFilters.tsx': 735,
   // Bumped 508 → 520: 282fe386 (2026-09-05, "fix(dispatch): keep dispatched

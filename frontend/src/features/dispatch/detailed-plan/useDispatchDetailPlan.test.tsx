@@ -331,13 +331,17 @@ describe('useDispatchDetailPlan plate assignment vs assignment-status filter', (
   });
 });
 
-const { dispatchShipmentMock } = vi.hoisted(() => ({ dispatchShipmentMock: vi.fn() }));
+const { dispatchShipmentMock, updateCusShipmentContainerLineMock } = vi.hoisted(() => ({
+  dispatchShipmentMock: vi.fn(),
+  updateCusShipmentContainerLineMock: vi.fn(),
+}));
 
 vi.mock('../../../api/shipmentClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/shipmentClient')>();
   return {
     ...actual,
     dispatchShipment: dispatchShipmentMock,
+    updateCusShipmentContainerLine: updateCusShipmentContainerLineMock,
   };
 });
 
@@ -1034,5 +1038,98 @@ describe('useDispatchDetailPlan FB-014 deep link seeding', () => {
     expect(call).not.toHaveProperty('q');
     expect(call.dateFrom).toBe('2026-09-01');
     expect(call.dateTo).toBe('2026-09-30');
+  });
+});
+
+describe('SIL-473 — savePlan sequences the Giờ điều vận appointment write (DIS-05 theo SIL-80)', () => {
+  const plannedResult = {
+    fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
+    classification: 'SINGLE' as const, isCombined: false, operationalNotes: null,
+    plannedEndAt: null,
+    dispatch: { carrierType: 'OWN' as const, carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15C-167.31' },
+    estimates: { plannedRevenue: null, plannedCarrierCost: null },
+    lotFullyPlated: false, driverNotified: false, driverHint: null, replayed: false,
+  };
+  const planBody = { carrierType: 'OWN' as const, plannedRevenue: null, plannedCarrierCost: null };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row({ shipmentContainerId: 777 })]));
+    updateDispatchDetailPlanMock.mockResolvedValue(plannedResult);
+    updateCusShipmentContainerLineMock.mockResolvedValue({ line: {} as never });
+  });
+
+  it('writes the edited appointment through the cus-workspace line command on the plan save returned shipmentVersion', async () => {
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    // The post-save refetch hangs — the assertion observes the optimistic
+    // row patch, not the refetched page.
+    listDispatchDetailPlanRowsMock.mockImplementation(() => new Promise(() => {}));
+
+    await act(async () => {
+      await result.current.savePlan(result.current.items[0], {
+        ...planBody,
+        customerAppointmentAt: '2026-10-26T07:00:00.000Z',
+      });
+    });
+
+    // The plan PATCH body must never carry the appointment — its schema is strict.
+    const planCall = updateDispatchDetailPlanMock.mock.calls[0]![1] as Record<string, unknown>;
+    expect('customerAppointmentAt' in planCall).toBe(false);
+    expect(updateCusShipmentContainerLineMock).toHaveBeenCalledTimes(1);
+    expect(updateCusShipmentContainerLineMock).toHaveBeenCalledWith(11, 777, {
+      expectedShipmentVersion: 6,
+      customerAppointmentAt: '2026-10-26T07:00:00.000Z',
+    });
+    // The written instant lands on the row immediately — the schedule column
+    // and a dialog reopen read the saved value even before the refetch lands.
+    expect(result.current.items[0]?.time.runAt).toBe('2026-10-26T07:00:00.000Z');
+  });
+
+  it('skips the appointment write when the save body omits the key — omit = untouched', async () => {
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.savePlan(result.current.items[0], { ...planBody });
+    });
+
+    expect(updateCusShipmentContainerLineMock).not.toHaveBeenCalled();
+  });
+
+  it('skips the appointment write on rows without a container line (LCL lots)', async () => {
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row({ shipmentContainerId: null, cargoMode: 'LCL', fulfillmentType: 'LCL_SHIPMENT' })]));
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.savePlan(result.current.items[0], {
+        ...planBody,
+        customerAppointmentAt: '2026-10-26T07:00:00.000Z',
+      });
+    });
+
+    expect(updateCusShipmentContainerLineMock).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the server refusal and keeps the plan-save versions patched so a retry cannot 409', async () => {
+    updateCusShipmentContainerLineMock.mockRejectedValue(
+      Object.assign(new Error('Container đã gắn chuyến xe (TRP-9). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa.'), { status: 409 }),
+    );
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(result.current.savePlan(result.current.items[0], {
+        ...planBody,
+        customerAppointmentAt: '2026-10-26T07:00:00.000Z',
+      })).rejects.toBeTruthy();
+    });
+
+    expect(result.current.assignmentError).toBe('Container đã gắn chuyến xe (TRP-9). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa.');
+    // The plan write DID commit — the row carries its fresh versions, so the
+    // dialog's retry runs a no-op plan save and re-attempts only the schedule.
+    expect(result.current.items[0]?.version).toBe(4);
+    expect(result.current.items[0]?.shipmentVersion).toBe(6);
   });
 });
