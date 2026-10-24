@@ -48,7 +48,6 @@
   font-weight: 700;
   line-height: 1.25;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -125,7 +124,6 @@
   font-family: var(--font-data);
   font-weight: 600;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
 }
 
 .payables-band__legend-count { color: var(--ink-3); }
@@ -330,7 +328,6 @@
   font-weight: 600;
   line-height: 1.35;
   color: var(--fg-3);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
