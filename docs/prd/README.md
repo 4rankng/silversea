@@ -299,6 +299,7 @@ Legend: 🔒 = regression-pack locked (`testplan/2026-10-21-regpack-regression-p
 | FB-113 🔒 | 171026122140 | Thứ tự chứng từ — **BILL/BOOKING → SỐ TỜ KHAI → NHẬP/XUẤT → HÃNG TÀU** (ruling 22/10 card 221026095429) | ba9981c2 + `ca57c8fc` | P (R26 + standing + audit) | 3 surface trùng tên |
 | FB-114 | 171026122150 + 171026185348 | Nút "+" hãng tàu + persist danh mục | 08325ed6 | P sau verify-fail | Chưa lưu danh mục chung vòng 1 |
 | FB-115 | 171026122160 | Gán xe nhóm hàng lẻ thực hiện được | (đóng qua LCL-07) | PASS (doc) | — |
+| FB-147 | SIL-171 (QA R41 24/10 + khách Zalo 24/10) | **"Sửa lô" dùng lại form Tạo lô hàng ở chế độ edit** (/shipments/:id/edit): pre-fill toàn bộ kể cả Hình thức XNK, validation form tạo giữ nguyên, submit = PATCH (expectedVersion); container reconcile theo persisted id; dialog 6 nút cũ thành fallback "Sửa nhanh". Kèm: route PUT /:id forward `isCombined` (bo sót), edit ẩn flag create-only, chặn form lô khóa kế toán | `f0c87b15` | QA gate (board SIL-171, 24/10) | QA R41: dialog 6 nút không có XNK/layout form tạo — đúng replay của A.6 hướng ngược |
 | 171026000406 | — | Bỏ bit "thiếu thông tin" tờ khai per-cont khỏi completeness | — | PASS (doc) | — |
 | 171026000407 | — | FCL cũng hiện 2 dòng phân xe khi BKS báo khách ≠ thực | — | PASS (doc) | — |
 | 161026232339/49/59/69 | — | Chi tiết lô: loại xe thu/trả + 2 dòng phân xe; tách cước chọn loại xe từng lô; checkbox ghép cước desktop; BKS báo khách chọn từ danh mục | — | PASS (doc, DEV COMPLETED 18-19/10) | — |
