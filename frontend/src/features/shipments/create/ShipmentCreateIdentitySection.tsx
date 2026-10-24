@@ -111,17 +111,15 @@ export function ShipmentCreateIdentitySection({
       title="Nhận diện lô"
       description="Khách hàng, chứng từ và hướng xuất nhập khẩu."
     >
-      {/* FB-127 (TIEPVU-21, Tiệp Vũ 23/10 — yêu cầu MỚI NHẤT, thắng bố cục
-          A.3 của card 261023093200): Số Bill/Booking phải đứng TRƯỚC Hình
-          thức XNK. Form chia 2 cụm có divider — chứng từ giấy trước, phân
-          loại nghiệp vụ sau. RULE (PRD docs/prd/TaoMoiLoHang.md): "Thứ tự
-          field chốt theo luồng chứng từ giấy; thay đổi sau này cần approval
-          Lead Ops." Gate blNumber XOR bookingRef theo Hình thức XNK GIỮ
-          NGUYÊN (FB-113): Bill/Booking disable + hint cho tới khi chọn
-          hướng (picker giờ nằm dưới, cụm 2). */}
-      <div className="csc-identity-cluster">
-        <p className="csc-identity-cluster__heading">Chứng từ &amp; định danh</p>
-        <div className="csc-identity-grid">
+      {/* BAND 1 — identity. SIL-168 (owner ruling B 24/10, khách gửi lại yêu
+          cầu lần 3): Hình thức XNK picked FIRST, riding beside Khách hàng —
+          the Số Bill/Booking field it gates sits directly below. Supersedes
+          the FB-127 reading (9f174360: Bill/Booking trước XNK, 2 cụm divider)
+          and restores the 2425726d band map the customer quoted verbatim on
+          23+24/10. Older history: 2425726d superseded the A.3 order of card
+          181026200200 (Bill/Booking → tờ khai → Nhập/Xuất → Hãng tàu). Gate
+          blNumber XOR bookingRef theo hướng GIỮ NGUYÊN (FB-113). */}
+      <div className="csc-identity-grid">
         <div
           className="csc-identity-grid__customer csc-field-with-append"
           data-field="shipment-customer"
@@ -157,6 +155,30 @@ export function ShipmentCreateIdentitySection({
           </button>
         </div>
 
+        <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction">
+          <SelectField
+            id="shipment-trade-direction"
+            label="Hình thức xuất nhập khẩu"
+            required
+            value={form.tradeDirection}
+            onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])}
+            disabled={saving}
+            error={issueByField.get('shipment-trade-direction')}
+            options={[
+              { value: '', label: '— Chọn hình thức —' },
+              { value: 'IMPORT', label: 'Nhập khẩu' },
+              { value: 'EXPORT', label: 'Xuất khẩu' },
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* BAND 2 — Số Bill/Booking (gated by the direction picked above), then
+          Hãng tàu for FCL. The handler is verbatim — the Bill-vs-Booking
+          switch and the prerequisite hint on the booking field keep working;
+          a not-yet-directed lot shows the hint directly under the picker
+          that sets it. */}
+      <div className="csc-identity-grid">
         <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref">
           <TextField
             id="shipment-booking-ref"
@@ -222,17 +244,72 @@ export function ShipmentCreateIdentitySection({
             </button>
           </div>
         )}
-        </div>
+      </div>
 
-        {/* `Số tờ khai` dense chip input — chứng từ hải quan, giữ vị trí cuối
-            cụm 1 (card 261023093200 dời xuống cuối; FB-127 giữ nguyên vị trí
-            này trong cụm chứng từ). Built to the owner's reference ("Số tờ
-            khai - dense chip input.html"): a head row with the count and the
-            two bulk actions, ONE bordered field holding every code as a chip
-            plus the inline entry, and a foot with the paste/Enter/Backspace
-            hint and the status line. N codes cost N chips, never a form field
-            each; the field scrolls inside itself so a long list never grows
-            the page. */}
+      {/* BAND 3 — the Tuỳ chọn flags on their own full-width band. All three
+          boolean flags share the ONE .csc-flag-checkbox chip treatment
+          (density pass, owner 11/10). DOM order keeps the flag contract:
+          Lệnh chạy ngoài → Có cược container → Đóng kết hợp. */}
+      <div className="csc-identity-grid">
+        <div
+          className="csc-identity-grid__flags csc-identity-grid__flags--solo"
+          data-field-id="shipment-deposit"
+        >
+          <span className="csc-identity-grid__flags-label">Tuỳ chọn</span>
+          <div className="csc-identity-grid__flags-row">
+            <label className="csc-flag-checkbox" data-field-id="shipment-is-adhoc">
+              <input
+                type="checkbox"
+                checked={form.isAdHoc}
+                onChange={(event) => update('isAdHoc', event.target.checked)}
+                disabled={saving}
+              />
+              <span>Lệnh chạy ngoài</span>
+            </label>
+            <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
+              <input
+                type="checkbox"
+                checked={form.hasDeposit}
+                onChange={(event) => update('hasDeposit', event.target.checked)}
+                disabled={saving}
+              />
+              <span><strong>Có cược container</strong></span>
+            </label>
+            <label className="csc-flag-checkbox" data-field-id="shipment-is-combined">
+              <input
+                type="checkbox"
+                checked={form.isCombined}
+                onChange={(event) => update('isCombined', event.target.checked)}
+                disabled={saving}
+              />
+              <span><strong>Đóng kết hợp</strong></span>
+            </label>
+            {form.hasDeposit && (
+              <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
+                <TextField
+                  id="shipment-deposit-amount"
+                  label="Tiền cược dự kiến"
+                  value={form.depositAmount}
+                  onChange={(event) => update('depositAmount', formatVnMoney(event.target.value))}
+                  maxLength={15}
+                  placeholder="Ví dụ: 5.000.000"
+                  disabled={saving}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* BAND 4 — `Số tờ khai` dense chip input, the LAST band of Nhận diện
+          lô (SIL-168 giữ nguyên vị trí này từ 2425726d; FB-127 từng nhét
+          strip vào cuối cụm 1). Built to the owner's reference ("Số tờ
+          khai - dense chip input.html"): a head row with the count and the
+          two bulk actions, ONE bordered field holding every code as a chip
+          plus the inline entry, and a foot with the paste/Enter/Backspace
+          hint and the status line. N codes cost N chips, never a form field
+          each; the field scrolls inside itself so a long list never grows
+          the page. */}
       <div className="csc-declaration-strip" data-field-id="shipment-declarations">
         <div className="csc-declaration-strip__head">
           <span className="csc-declaration-strip__title">Số tờ khai</span>
@@ -379,81 +456,6 @@ export function ShipmentCreateIdentitySection({
           )
           : null;
       })}
-      </div>
-
-      {/* FB-127 cụm 2 — "Phân loại nghiệp vụ": Hình thức XNK + Tuỳ chọn, sau
-          divider. Hình thức XNK đứng SAU Số Bill/Booking (yêu cầu Tiệp Vũ
-          23/10); gate dữ liệu giữ nguyên — Bill/Booking (cụm 1) disable tới
-          khi hướng được chọn tại đây. */}
-      <div className="csc-identity-cluster">
-        <p className="csc-identity-cluster__heading">Phân loại nghiệp vụ</p>
-        <div className="csc-identity-grid">
-          <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction">
-            <SelectField
-              id="shipment-trade-direction"
-              label="Hình thức xuất nhập khẩu"
-              required
-              value={form.tradeDirection}
-              onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])}
-              disabled={saving}
-              error={issueByField.get('shipment-trade-direction')}
-              options={[
-                { value: '', label: '— Chọn hình thức —' },
-                { value: 'IMPORT', label: 'Nhập khẩu' },
-                { value: 'EXPORT', label: 'Xuất khẩu' },
-              ]}
-            />
-          </div>
-          {/* The Tuỳ chọn flags share the ONE .csc-flag-checkbox chip
-              treatment (density pass, owner 11/10). DOM order keeps the flag
-              contract: Lệnh chạy ngoài → Có cược container → Đóng kết hợp. */}
-          <div className="csc-identity-grid__flags" data-field-id="shipment-deposit">
-            <span className="csc-identity-grid__flags-label">Tuỳ chọn</span>
-            <div className="csc-identity-grid__flags-row">
-              <label className="csc-flag-checkbox" data-field-id="shipment-is-adhoc">
-                <input
-                  type="checkbox"
-                  checked={form.isAdHoc}
-                  onChange={(event) => update('isAdHoc', event.target.checked)}
-                  disabled={saving}
-                />
-                <span>Lệnh chạy ngoài</span>
-              </label>
-              <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
-                <input
-                  type="checkbox"
-                  checked={form.hasDeposit}
-                  onChange={(event) => update('hasDeposit', event.target.checked)}
-                  disabled={saving}
-                />
-                <span><strong>Có cược container</strong></span>
-              </label>
-              <label className="csc-flag-checkbox" data-field-id="shipment-is-combined">
-                <input
-                  type="checkbox"
-                  checked={form.isCombined}
-                  onChange={(event) => update('isCombined', event.target.checked)}
-                  disabled={saving}
-                />
-                <span><strong>Đóng kết hợp</strong></span>
-              </label>
-              {form.hasDeposit && (
-                <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
-                  <TextField
-                    id="shipment-deposit-amount"
-                    label="Tiền cược dự kiến"
-                    value={form.depositAmount}
-                    onChange={(event) => update('depositAmount', formatVnMoney(event.target.value))}
-                    maxLength={15}
-                    placeholder="Ví dụ: 5.000.000"
-                    disabled={saving}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
     </ShipmentCreateSection>
   );
 }

@@ -56,17 +56,12 @@
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
-/* FB-127 (TIEPVU-21, Tiệp Vũ 23/10 — MỚI NHẤT, thắng card 261023093200): the
-   section splits into 2 clusters with a divider — "Chứng từ & định danh"
-   (Khách hàng · Số Bill/Booking · Hãng tàu · tờ khai strip) then "Phân loại
-   nghiệp vụ" (Hình thức XNK · Tuỳ chọn). RULE (docs/prd/TaoMoiLoHang.md):
-   thứ tự field chốt theo luồng chứng từ giấy; thay đổi cần approval Lead Ops. */
-.csc-identity-cluster { display: grid; gap: 8px; min-width: 0; }
-.csc-identity-cluster + .csc-identity-cluster { border-top: 1px solid var(--border-1); padding-top: 10px; }
-.csc-identity-cluster__heading { margin: 0; color: var(--fg-3); font-size: var(--text-label-size); font-weight: 600; line-height: 18px; text-transform: uppercase; letter-spacing: 0.02em; }
-/* Column map inside the clusters: Khách hàng 6 · Số Bill/Booking 6 · Hãng tàu
-   6 (FCL), then Hình thức XNK 6 · Tuỳ chọn 6 (cụm 2). Gate blNumber XOR
-   bookingRef theo hướng GIỮ NGUYÊN (FB-113). */
+/* SIL-168 (owner ruling B 24/10 — khách yêu cầu lần 3): Hình thức XNK stands
+   FIRST beside Khách hàng. Column map: Khách hàng 6 · Hình thức XNK 6, then
+   Số Bill/Booking 6 · Hãng tàu 6, the Tuỳ chọn chips full width, and the tờ
+   khai strip LAST (dưới cùng). Supersedes the FB-127 cluster split
+   (9f174360); restores the 2425726d band map. Gate blNumber XOR bookingRef
+   theo hướng GIỮ NGUYÊN (FB-113). */
 .csc-identity-grid__customer { grid-column: span 6; }
 .csc-identity-grid__trade-direction { grid-column: span 6; }
 .csc-identity-grid__booking { grid-column: span 6; }

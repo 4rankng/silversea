@@ -1,0 +1,4 @@
+# cmd: npx tsc -b (frontend)
+EXIT=0
+# cmd: npx tsgo --noEmit -p e2e
+EXIT=0

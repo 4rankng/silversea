@@ -4,6 +4,16 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-24 — SIL-168 ruling B: Hình thức XNK TRƯỚC Số Bill/Booking (lần đảo thứ 3)
+
+Khách gửi lại đúng văn bản cũ lần 3 ("Đổi vị trí Số Bill/Booking và Hình thức
+XNK; Số tờ khai đẩy xuống dưới cùng"). Owner chốt phương án B: đảo lại reading
+của FB-127 (9f174360 đặt Bill/Booking trước XNK theo "luồng chứng từ giấy") —
+trở lại bố cục 2425726d: XNK cạnh Khách hàng, Bill/Booking band 2, Số tờ khai
+band cuối. Bỏ cụm divider "Chứng từ & định danh" / "Phân loại nghiệp vụ".
+Gate blNumber XOR bookingRef (FB-113) và semantics tờ khai per-cont (CUS-05/
+REQ-22) giữ nguyên. Chi tiết: docs/prd/TaoMoiLoHang.md §1 (bảng lịch sử 3 lần đảo).
+
 ## 2026-10-22 — Rulings 22/10: FB-112 đảo chiều (bật lại nút Thêm/Xóa @Chi tiết), LCL đóng/trả thay nâng/hạ, kho CFS chung, tờ khai inline+sync, thứ tự chứng từ, freight lag verified
 
 - **FB-112 REVERSED — nút Thêm/Xóa container tại Chi tiết lô được BẬT LẠI** (yêu cầu khách
