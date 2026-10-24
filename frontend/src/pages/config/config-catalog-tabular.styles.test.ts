@@ -57,17 +57,24 @@ describe('config catalog tables stay tabular below the shared card fold', () => 
     expect(base).toContain('@container (max-width: 360px)');
   });
 
-  it('pins the catalogs to content-sized auto layout without width shares (card 20260922_22)', () => {
-    // Both config catalogs size columns to real content; persistently-empty
-    // columns hide at the component level (colPresence), so no equal-split
-    // nth-child width share may re-enter the routes block, and the customers
-    // table carries the same auto-layout contract.
-    expect(css).toContain('.cfg-customer-table { min-width: 0; table-layout: auto; width: 100%; }');
+  it('routes stay content-sized auto; the customers catalog rides the SIL-169 fixed budget (supersedes card 20260922_22)', () => {
+    // Routes keep card 20260922_22: columns size to their real content, and
+    // no equal-split nth-child width share may re-enter the routes block.
+    expect(css).toContain('.routes-table { min-width: 0; table-layout: auto; width: 100%; }');
     const routesBlock = css.slice(
       css.indexOf('.routes-table { min-width: 0;'),
       css.indexOf('/* When the shared record-table base collapses'),
     );
     expect(routesBlock).not.toMatch(/nth-child\(\d+\)\s*\{\s*width:/);
+    // SIL-169 verdict (24/10) supersedes the auto layout on the customers
+    // catalog: the table is the FIXED 7-column budget — inline
+    // table-layout: fixed + verdict colgroup pinned by
+    // CustomersConfigPage.test.tsx, geometry keyed on the shared .cus-table
+    // in CustomersPage.css. The page sheet must not re-declare a table
+    // layout for it, and the verdict's 978px floor must exist.
+    expect(css).not.toMatch(/\.cfg-customer-table[^{]*\{[^}]*table-layout/);
+    const customersCss = read('src/pages/CustomersPage.css');
+    expect(customersCss).toContain('.record-table.cus-table { min-width: 978px; }');
   });
 });
 
