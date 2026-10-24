@@ -356,7 +356,7 @@ export function USearchableField({
             }
           : allowsCustomValue
             ? { allowsCustomValue: true, onInputChange: (text: string) => onChange(text) }
-            : createOption
+            : createOption || openOnType
               ? { onInputChange: (text: string) => setInputValue(text) }
               : {})}
         items={comboBoxItems as Array<{ id: string | number; label?: string; searchText?: string; supportingText?: string }>}

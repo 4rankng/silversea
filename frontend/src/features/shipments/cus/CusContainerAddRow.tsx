@@ -1,10 +1,15 @@
 import type { KeyboardEvent } from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { UuiSelectField } from '../../../design-system';
 import { BufferedUuiDateTimeInput } from '../../../design-system/forms/BufferedUuiDateTimeInput';
 // Card 191026100000 (chungtu-dieuvan A.6): the shared ISO 6346 pre-check —
 // the same warning + one-tap correction the trip container card shows.
 import { checkContainerNumber } from '../../../components/trip/container-instance-helpers';
+// SIL-68 (CUS-04): the same type-to-open combobox the create flow's
+// ContainerTypeCellPicker rides (20260921_1 law: gõ sau khi Tab sang ô Loại
+// cont phải tự mở gợi ý). The house UUI combobox adapter is feature-owned by
+// the create module — the detail ledger already imports it cross-feature, so
+// this follows the established seam.
+import { USearchableField } from '../create/uui-fields';
 
 /**
  * The add-row draft: the container-add wire fields plus the A.1 copy set.
@@ -79,13 +84,20 @@ export function CusContainerAddRow({
 }) {
   // Native implicit submission is gone with the <form> element (a form cannot
   // wrap a table row): Enter in the text fields submits the row, while the
-  // house select keeps Enter for committing a typed option and the buttons
-  // keep their own activation.
+  // combobox keeps Enter for committing a highlighted suggestion and the
+  // buttons keep their own activation.
   const submitOnEnter = (event: KeyboardEvent<HTMLTableRowElement>) => {
     if (event.key !== 'Enter' || event.defaultPrevented) return;
     const target = event.target as HTMLElement;
     if (target instanceof HTMLButtonElement) return;
-    if (target.closest('.cus-container-ledger__add-select, [role="listbox"]')) return;
+    // The suggestion listbox lives in a portal — Enter inside it picks an
+    // option, never submits the row. While the combobox's own menu is OPEN
+    // (aria-expanded on its input), the combobox owns Enter: finishing a pick
+    // must not also fire the add. With the menu closed the row's Enter-submit
+    // law stands (SIL-68 kept the old select's contract: Enter in a resting
+    // field still adds the row).
+    if (target.closest('[role="listbox"], [role="option"]')) return;
+    if (target.closest('[aria-expanded="true"]')) return;
     event.preventDefault();
     onSubmit();
   };
@@ -131,17 +143,22 @@ export function CusContainerAddRow({
           upstream column shifts. */}
       <td className="cus-container-ledger__add-blank" />
       <td data-label="Loại cont" className="cus-container-cell">
-        <UuiSelectField
+        {/* SIL-68 (CUS-04): type-to-open suggestions. The native select showed
+            no list until a mouse click; the combobox opens + prefix-filters
+            ('2' → 20DC) the moment the operator types after Tab-ing in. The
+            '' pseudo-option becomes the placeholder; clearing still commits
+            '' through the shared onClear contract. */}
+        <USearchableField
           label="Loại cont"
           hideLabel
           size="sm"
-          wrapperClassName="cus-container-ledger__add-select"
+          openOnType
+          className="cus-container-ledger__add-select"
           value={fields.containerTypeId}
-          onChange={(event) => onChange({ containerTypeId: event.target.value })}
-          options={[
-            { value: '', label: 'Chưa chọn loại cont' },
-            ...containerTypes.map((type) => ({ value: String(type.id), label: type.code })),
-          ]}
+          onChange={(value) => onChange({ containerTypeId: value })}
+          options={containerTypes.map((type) => ({ value: String(type.id), label: type.code }))}
+          placeholder="Chưa chọn loại cont"
+          disabled={adding}
         />
       </td>
       {/* Card 201026124500 (A.1): the copy-down columns SHOW their seeded

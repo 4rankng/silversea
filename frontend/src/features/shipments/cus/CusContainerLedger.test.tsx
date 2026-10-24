@@ -932,7 +932,11 @@ describe('add-row seed copies the lot row values TRỪ Loại cont (A.1 reversed
     // card 221026173728 (owner ruling 22/10 hủy 21/10): copy TẤT CẢ trừ
     // Số cont + Loại cont — operator picks the type themselves.
     expect((screen.getByLabelText('Số container') as HTMLInputElement).value).toBe('');
-    expect(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ })).toBeTruthy();
+    // SIL-68 (CUS-04): the Loại cont cell is the type-to-open combobox —
+    // resting state shows the placeholder, no picked value.
+    const restingTypeCombo = within(addRowEl()).getByRole('combobox', { name: 'Loại cont' }) as HTMLInputElement;
+    expect(restingTypeCombo.value).toBe('');
+    expect(restingTypeCombo.placeholder).toBe('Chưa chọn loại cont');
     // The A.1 copy set renders in the add row's own column cells.
     expect(within(addRowEl()).getByText('ASKEY')).toBeTruthy();
     expect(within(addRowEl()).getByText('SilverSea')).toBeTruthy();
@@ -981,13 +985,15 @@ describe('add-row seed copies the lot row values TRỪ Loại cont (A.1 reversed
     renderLedger({ detail: a1Detail([a1Row()]) });
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
-    // Trigger opens on the placeholder; pick 40HC then clear back.
-    fireEvent.click(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ }));
+    // The combobox opens on click; pick 40HC then clear back through the Xoá
+    // affordance — the native '' pseudo-option is gone, the clear button is
+    // the empty commit (SIL-68 swap, wire contract unchanged).
+    const typeCombo = within(addRowEl()).getByRole('combobox', { name: 'Loại cont' });
+    fireEvent.click(typeCombo);
     fireEvent.click(await screen.findByRole('option', { name: '40HC' }));
-    expect(within(addRowEl()).getByRole('button', { name: /40HC/ })).toBeTruthy();
-    fireEvent.click(within(addRowEl()).getByRole('button', { name: /40HC/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Chưa chọn loại cont' }));
-    expect(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ })).toBeTruthy();
+    await waitFor(() => expect(within(addRowEl()).getByText('40HC')).toBeTruthy());
+    fireEvent.click(within(addRowEl()).getByRole('button', { name: 'Xoá' }));
+    await waitFor(() => expect(within(addRowEl()).queryByText('40HC')).toBeNull());
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
     fireEvent.click(within(addRowEl()).getByRole('button', { name: /^Thêm$/ }));
 
@@ -1056,7 +1062,7 @@ describe('add-row seed copies the lot row values TRỪ Loại cont (A.1 reversed
     expect(cellText('Hạ')).toBe('TC - HICT');
     expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('12500');
     // Loại cont: NOT seeded anymore (REQ-22 REVERSED 22/10) — placeholder.
-    expect(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ })).toBeTruthy();
+    expect((within(addRowEl()).getByRole('combobox', { name: 'Loại cont' }) as HTMLInputElement).placeholder).toBe('Chưa chọn loại cont');
     const { time, date } = appointmentInputs();
     expect(time.value).toBe('10');
     expect(date.value).toBe('01');
@@ -1107,7 +1113,7 @@ describe('add-row seed copies the lot row values TRỪ Loại cont (A.1 reversed
     expect(cellText('Nhà xe')).toBe('SilverSea');
     expect(cellText('Nâng')).toBe('—');
     expect(cellText('Hạ')).toBe('—');
-    expect(within(addRowEl()).getByRole('button', { name: /Chưa chọn loại cont/ })).toBeTruthy();
+    expect((within(addRowEl()).getByRole('combobox', { name: 'Loại cont' }) as HTMLInputElement).placeholder).toBe('Chưa chọn loại cont');
 
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
     fireEvent.click(within(addRowEl()).getByRole('button', { name: /^Thêm$/ }));
@@ -1252,10 +1258,10 @@ describe('add-row loại-cont dropdown loads its options (FB-086, round 21)', ()
       } as unknown as ShipmentCusWorkspaceDetail,
     });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
-    // Card 221026173728 (22/10): no seed — the trigger opens on the
+    // Card 221026173728 (22/10): no seed — the combobox rests on the
     // placeholder. The options assertion below is the point of this test.
     const addRow = document.querySelector('.cus-container-ledger__add-row') as HTMLElement;
-    fireEvent.click(within(addRow).getByRole('button', { name: /Chưa chọn loại cont/ }));
+    fireEvent.click(within(addRow).getByRole('combobox', { name: 'Loại cont' }));
     const listbox = await screen.findByRole('listbox');
     const optionTexts = within(listbox).getAllByRole('option').map((option) => option.textContent);
     expect(optionTexts.length).toBeGreaterThanOrEqual(1);
