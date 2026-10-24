@@ -1,11 +1,10 @@
-import { AgingDisclosure } from '../components/finance/AgingDisclosure';
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { formatCurrency, moneyParts } from '../lib/format';
 import { useToast } from '../components/shared/Toast';
 import { billBookingReference } from '../lib/business-reference';
 import { downloadCSV } from '../lib/csv';
 import type { PayableSummary, PayablesCategory } from '@tingting/shared';
-import { ChevronRight, Gift, Download } from 'lucide-react';
+import { ChevronRight, Gift, Download, Clock } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { SortHeader } from '../components/shared/SortHeader';
 import { PageHeader, Modal } from '../components/UI';
@@ -19,11 +18,7 @@ import { useCatalogs } from '../hooks/useCatalogs';
 import { useAuth } from '../hooks/useAuth';
 import { PartyMonthlyProductionSummary } from '../features/accounting/PartyMonthlyProductionSummary';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
-import {
-  usePageAnimations,
-  useCounterAnimation,
-} from '../hooks/animations';
-import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import { usePageAnimations } from '../hooks/animations';
 import { FuelInvoicesPanel } from './payables-fuel-invoices';
 import './PayableListPage.css';
 import '../styles/table-sort.css';
@@ -32,7 +27,7 @@ import '../styles/operational-table-typography.css';
 import { useQuery } from '@tanstack/react-query';
 import { tripClient } from '../api/tripClient';
 import { qk } from '../api/keys';
-import { EmptyState, FilterBar, NumberField, Pagination, SearchableSelect, SummaryRail, Tabs, UuiSelectField } from '../design-system';
+import { EmptyState, FilterBar, NumberField, Pagination, SearchableSelect, Tabs, UuiSelectField } from '../design-system';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -205,6 +200,66 @@ export function CommissionModal({
   );
 }
 
+/* ─── Aging segments (SIL-470) ────────────────────────────────────────────── */
+/* Same bucket colors as the /debt aging lanes — the two công nợ surfaces read
+ * as one visual language. The summary band renders these as one segmented bar
+ * with a legend; the table renders them per-row as a mini stacked bar. */
+
+interface AgingSegment {
+  key: 'current' | 'd30' | 'd60' | 'over90';
+  countKey: 'currentCount' | 'd30Count' | 'd60Count' | 'over90Count';
+  shortLabel: string;
+  barLabel: string;
+  color: string;
+}
+
+const AGING_SEGMENTS: AgingSegment[] = [
+  { key: 'current', countKey: 'currentCount', shortLabel: 'Trong hạn', barLabel: 'Chưa đến hạn', color: 'var(--success)' },
+  { key: 'd30', countKey: 'd30Count', shortLabel: '0–30', barLabel: 'Quá hạn 1–30', color: 'var(--warning)' },
+  { key: 'd60', countKey: 'd60Count', shortLabel: '31–90', barLabel: 'Quá hạn 31–90', color: 'var(--warning-deep)' },
+  { key: 'over90', countKey: 'over90Count', shortLabel: '>90', barLabel: 'Quá hạn trên 90', color: 'var(--danger)' },
+];
+
+/** One row's aging cell (SIL-470 verdict 2): a mini stacked bar (64–80px) plus
+ *  the overdue total, with the four-bucket breakdown in the tooltip. Segments
+ *  only render for buckets the supplier actually owes in — no '—' filler. */
+function PayableAgingCell({ aging }: { aging: PayableSummary['aging'] }) {
+  const sum = aging.current + aging.d30 + aging.d60 + aging.over90;
+  const overdue = aging.d30 + aging.d60 + aging.over90;
+  const pct = (amount: number) => (sum > 0 ? `${(amount / sum) * 100}%` : '0%');
+  const tip = AGING_SEGMENTS
+    .map((seg) => `${seg.barLabel} ${formatCurrency(aging[seg.key])}`)
+    .join(' · ');
+  return (
+    <div className="payables-aging-cell" title={tip}>
+      <div className="payables-aging-cell__bar" aria-hidden="true">
+        {AGING_SEGMENTS.map((seg) => (
+          aging[seg.key] > 0 && sum > 0 ? (
+            <span
+              key={seg.key}
+              className="payables-aging-cell__seg"
+              style={{ width: pct(aging[seg.key]), background: seg.color }}
+            />
+          ) : null
+        ))}
+      </div>
+      <span className="payables-aging-cell__overdue" data-overdue={overdue > 0 ? 'true' : 'false'}>
+        {overdue > 0 ? formatCurrency(overdue) : 'Trong hạn'}
+      </span>
+      <span className="sr-only">{tip}</span>
+    </div>
+  );
+}
+
+/** SIL-470 verdict 3: the supplier sub-line is contact data, not decoration.
+ *  A blank, underscore or dash placeholder renders NOTHING — the wrapper is
+ *  not mounted, so no junk character can appear under the name. */
+export function supplierSubLine(phone: string | null | undefined): string | null {
+  const trimmed = phone?.trim() ?? '';
+  if (!trimmed || /^[_\-—.]+$/.test(trimmed)) return null;
+  return trimmed;
+}
+
 /* ─── Component ───────────────────────────────────────────────────────────── */
 
 type PayablesSummaryEnvelope = Awaited<ReturnType<typeof financialClient.getPayablesSummary>>;
@@ -252,11 +307,9 @@ export default function PayableListPage() {
   const apiSupplierCount = data?.totalSuppliers ?? 0;
   const apiOverdueCount = data?.overdueSuppliers ?? 0;
   const error = queryError ? (queryError as Error).message : null;
-  // Card 071026141620: the summary rail's values are only real once the query
+  // Card 071026141620: the summary band's values are only real once the query
   // settled — before that it degrades to an em dash, like the accounting rail.
   const payablesReady = !loading && !error;
-  const prefersReduced = usePrefersReducedMotion();
-  const compact = false; // full VND everywhere — no short form (e.g. "12,5 tr")
 
   /* ── Commission modal ── */
   const [commissionOpen, setCommissionOpen] = useState(false);
@@ -282,18 +335,10 @@ export default function PayableListPage() {
   const { rootRef } = usePageAnimations({
     ready: !loading,
     selectors: [
-      '.aging-card',
+      '.payables-band',
       '.payables-data-card',
     ],
   });
-
-  /* ── Counter animation ── */
-  const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 400 });
-
-  const agingCurrentRef = useRef<HTMLSpanElement>(null);
-  const agingD30Ref = useRef<HTMLSpanElement>(null);
-  const agingD60Ref = useRef<HTMLSpanElement>(null);
-  const agingOver90Ref = useRef<HTMLSpanElement>(null);
 
   /* ── Derived data ── */
   // Aging-bucket totals arrive server-computed over the search-scoped full
@@ -323,31 +368,16 @@ export default function PayableListPage() {
   // also be a customer, but its receivable ledger is a different account.
   const rowHref = (d: PayableSummary) => payableDetailHref(d);
 
-  /* ── Kick counter animations when data settles ── */
-  useEffect(() => {
-    if (loading || payables.length === 0 || prefersReduced) return;
+  /* ── Summary band (SIL-470): tổng trái + chips + aging segmented bar ── */
+  // The bucket pills above narrow the list; "Quá hạn" is the cross-bucket
+  // aggregate the overview already deep-links with (?filter=overdue).
+  const overdueOnly = table.filters.bucket === 'overdue';
+  const toggleOverdueOnly = () => table.setFilter('bucket', overdueOnly ? undefined : 'overdue');
 
-    animateCounters([
-      { el: agingCurrentRef.current, value: totals.current, format: moneyParts(totals.current, compact).format },
-      { el: agingD30Ref.current, value: totals.d30, format: moneyParts(totals.d30, compact).format },
-      { el: agingD60Ref.current, value: totals.d60, format: moneyParts(totals.d60, compact).format },
-      { el: agingOver90Ref.current, value: totals.over90, format: moneyParts(totals.over90, compact).format },
-    ]);
-  }, [loading, payables.length, totals, animateCounters, prefersReduced, compact]);
-
-  /* ── Aging progress percentages ── */
   const agingTotal = totals.current + totals.d30 + totals.d60 + totals.over90 || 1;
-  const pctCurrent = (totals.current / agingTotal) * 100;
-  const pctD30 = (totals.d30 / agingTotal) * 100;
-  const pctD60 = (totals.d60 / agingTotal) * 100;
-  const pctOver90 = (totals.over90 / agingTotal) * 100;
 
-  /* ── Money display parts (hero always full; aging compact on narrow cards) ── */
+  /* ── Money display parts (band total always full VND) ── */
   const heroMoney = moneyParts(totals.total, false);
-  const currentMoney = moneyParts(totals.current, compact);
-  const d30Money = moneyParts(totals.d30, compact);
-  const d60Money = moneyParts(totals.d60, compact);
-  const over90Money = moneyParts(totals.over90, compact);
 
   /* ── CSV export ── */
   const handleExport = async () => {
@@ -415,95 +445,59 @@ export default function PayableListPage() {
         }
       />
 
-      {/* ── Zone 1: Summary rail — one ruled row before the aging lanes ── */}
-      {/* Card 071026141620: same contract as the accounting overview rail —
-          every label carries a value; while the query is not settled the value
-          is an explicit em dash (never a blank, never a fake 0), and a loaded
-          empty set is a real "0". */}
-      <SummaryRail
-        ariaLabel="Tóm tắt công nợ phải trả"
-        items={[
-          { label: 'Tổng công nợ phải trả', value: payablesReady ? `${heroMoney.num} ${heroMoney.unit}` : '—' },
-          { label: 'Nhà cung cấp', value: payablesReady ? totals.supplierCount : '—' },
-          { label: 'Quá hạn', value: payablesReady ? totals.overdueCount : '—', tone: payablesReady && totals.overdueCount > 0 ? 'warning' : undefined },
-        ]}
-      />
-
-      <AgingDisclosure label="Hạn nợ nhà cung cấp · mở chi tiết">
-      <div className="payables-aging-grid">
-        {/* Trong hạn (chưa đến hạn) */}
-        <div className="aging-card aging-card--ok">
-          <div className="aging-card__header">
-            <span className="aging-card__dot aging-card__dot--ok" />
-            <span className="aging-card__label">
-              <strong>Trong hạn</strong>
-              <small>chưa đến hạn</small>
+      {/* ── SIL-470: Summary band ≤96px — replaces the old rail + four ~110px
+              aging cards. Tổng trái, chips quá hạn/NCC, aging segmented bar
+              (màu đồng bộ /debt) + legend; đầy đủ dữ liệu 4 bucket khi hover. ── */}
+      <section className="payables-band" aria-label="Tóm tắt công nợ phải trả" data-testid="payables-band">
+        <div className="payables-band__total">
+          <span className="payables-band__total-label">Tổng công nợ phải trả (gồm VAT)</span>
+          <span className="payables-band__total-value" data-testid="payables-band-total">
+            {payablesReady ? `${heroMoney.num} ${heroMoney.unit}` : '—'}
+          </span>
+        </div>
+        <div className="payables-band__aging">
+          <div className="payables-band__chips">
+            <span
+              className={`payables-band__chip${payablesReady && totals.overdueCount > 0 ? ' payables-band__chip--warning' : ''}`}
+              data-testid="payables-band-overdue"
+            >
+              {payablesReady ? `${totals.overdueCount} quá hạn` : '—'}
+            </span>
+            <span className="payables-band__chip" data-testid="payables-band-suppliers">
+              {payablesReady ? `${totals.supplierCount} NCC` : '—'}
             </span>
           </div>
-          <span className="aging-card__value">
-            <span ref={agingCurrentRef}>{prefersReduced ? currentMoney.num : 0}</span><span className="aging-card__unit">{currentMoney.unit}</span>
-          </span>
-          <span className="aging-card__count">{totals.currentCount} NCC</span>
-          <div className="aging-card__bar-track">
-            <div className="aging-card__bar aging-card__bar--ok" style={{ width: `${pctCurrent}%` }} />
+          <div
+            className="payables-band__bar"
+            role="img"
+            aria-label={`Phân bố hạn nợ: ${AGING_SEGMENTS.map((s) => `${s.barLabel} ${formatCurrency(totals[s.key])}`).join(', ')}`}
+          >
+            {AGING_SEGMENTS.map((seg) => {
+              const amount = totals[seg.key];
+              const width = (amount / agingTotal) * 100;
+              return width > 0 && payablesReady ? (
+                <div
+                  key={seg.key}
+                  className="payables-band__seg"
+                  style={{ width: `${width}%`, background: seg.color }}
+                  title={`${seg.barLabel}: ${formatCurrency(amount)} · ${totals[seg.countKey]} NCC`}
+                />
+              ) : null;
+            })}
+          </div>
+          <div className="payables-band__legend">
+            {AGING_SEGMENTS.map((seg) => (
+              <span key={seg.key} className="payables-band__legend-item" title={`${seg.barLabel}: ${formatCurrency(totals[seg.key])} · ${totals[seg.countKey]} NCC`}>
+                <span className="payables-band__dot" style={{ background: seg.color }} aria-hidden="true" />
+                {seg.shortLabel}
+                {' '}
+                <b>{payablesReady ? formatCurrency(totals[seg.key]) : '—'}</b>
+                {payablesReady && <span className="payables-band__legend-count">· {totals[seg.countKey]} NCC</span>}
+              </span>
+            ))}
           </div>
         </div>
-
-        {/* Quá hạn 1–30 */}
-        <div className="aging-card aging-card--warn">
-          <div className="aging-card__header">
-            <span className="aging-card__dot aging-card__dot--warn" />
-            <span className="aging-card__label">
-              <strong>Quá hạn</strong>
-              <small>1–30 ngày</small>
-            </span>
-          </div>
-          <span className="aging-card__value">
-            <span ref={agingD30Ref}>{prefersReduced ? d30Money.num : 0}</span><span className="aging-card__unit">{d30Money.unit}</span>
-          </span>
-          <span className="aging-card__count">{totals.d30Count} NCC</span>
-          <div className="aging-card__bar-track">
-            <div className="aging-card__bar aging-card__bar--warn" style={{ width: `${pctD30}%` }} />
-          </div>
-        </div>
-
-        {/* Quá hạn 31–90 */}
-        <div className="aging-card aging-card--deep">
-          <div className="aging-card__header">
-            <span className="aging-card__dot aging-card__dot--deep" />
-            <span className="aging-card__label">
-              <strong>Quá hạn</strong>
-              <small>31–90 ngày</small>
-            </span>
-          </div>
-          <span className="aging-card__value">
-            <span ref={agingD60Ref}>{prefersReduced ? d60Money.num : 0}</span><span className="aging-card__unit">{d60Money.unit}</span>
-          </span>
-          <span className="aging-card__count">{totals.d60Count} NCC</span>
-          <div className="aging-card__bar-track">
-            <div className="aging-card__bar aging-card__bar--deep" style={{ width: `${pctD60}%` }} />
-          </div>
-        </div>
-
-        {/* Quá hạn trên 90 */}
-        <div className="aging-card aging-card--danger">
-          <div className="aging-card__header">
-            <span className="aging-card__dot aging-card__dot--danger" />
-            <span className="aging-card__label">
-              <strong>Quá hạn</strong>
-              <small>trên 90 ngày</small>
-            </span>
-          </div>
-          <span className="aging-card__value">
-            <span ref={agingOver90Ref}>{prefersReduced ? over90Money.num : 0}</span><span className="aging-card__unit">{over90Money.unit}</span>
-          </span>
-          <span className="aging-card__count">{totals.over90Count} NCC</span>
-          <div className="aging-card__bar-track">
-            <div className="aging-card__bar aging-card__bar--danger" style={{ width: `${pctOver90}%` }} />
-          </div>
-        </div>
-      </div>
-      </AgingDisclosure>
+      </section>
 
       {/* ── Zone 3: Data Card ───────────────────────────────────────────── */}
       <div className="payables-data-card">
@@ -521,13 +515,28 @@ export default function PayableListPage() {
             inputProps: { name: 'supplierPayableSearch' },
           }}
           quickFilters={(
-            <Tabs
-              variant="boxed"
-              tabs={CATEGORY_CHIPS.map(chip => ({ id: chip.value ?? 'all', label: chip.label }))}
-              value={category ?? 'all'}
-              onChange={(id) => table.setFilter('category', id === 'all' ? undefined : id as PayablesCategory)}
-              ariaLabel="Lọc theo loại công nợ"
-            />
+            <>
+              <Tabs
+                variant="boxed"
+                tabs={CATEGORY_CHIPS.map(chip => ({ id: chip.value ?? 'all', label: chip.label }))}
+                value={category ?? 'all'}
+                onChange={(id) => table.setFilter('category', id === 'all' ? undefined : id as PayablesCategory)}
+                ariaLabel="Lọc theo loại công nợ"
+              />
+              {/* SIL-470 verdict E: lọc nhanh "Quá hạn" — cross-bucket aggregate
+                  (?filter=overdue convention) so kế toán không phải đọc cột. */}
+              <button
+                type="button"
+                className={`filter-chip${overdueOnly ? ' is-active' : ''}`}
+                aria-pressed={overdueOnly}
+                onClick={toggleOverdueOnly}
+                title="Chỉ hiện nhà cung cấp có nợ quá hạn"
+              >
+                <Clock size={14} aria-hidden="true" />
+                <span>Quá hạn</span>
+                <span className="filter-chip__count">{payablesReady ? totals.overdueCount : '—'}</span>
+              </button>
+            </>
           )}
         />
 
@@ -551,6 +560,7 @@ export default function PayableListPage() {
                   <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu." />
                 ) : (
                   payables.map(d => {
+                    const sub = supplierSubLine(d.supplier.phone);
                     const totalAging = d.aging.current + d.aging.d30 + d.aging.d60 + d.aging.over90;
                     const pctCur = totalAging > 0 ? (d.aging.current / totalAging) * 100 : 100;
                     const pct30 = totalAging > 0 ? (d.aging.d30 / totalAging) * 100 : 0;
@@ -564,8 +574,8 @@ export default function PayableListPage() {
                             {formatCurrency(d.totalOutstanding)}
                           </span>
                         </div>
-                        {d.supplier.phone && (
-                          <div className="m-card__meta">{d.supplier.phone}</div>
+                        {sub && (
+                          <div className="m-card__meta">{sub}</div>
                         )}
                         {d.totalOutstanding > 0 && (
                           <>
@@ -593,65 +603,59 @@ export default function PayableListPage() {
             </div>
 
             {/* ── Desktop table (>640px) — record-table base owns the thead
-                  skin, neutral gated hover and the card collapse. ── */}
+                  skin, neutral gated hover and the card collapse. SIL-470:
+                  4 cột aging tiền → 1 cột "Hạn nợ" (mini stacked bar + tooltip
+                  breakdown); tên NCC 1 dòng + tooltip; sub-line chỉ khi có SĐT. ── */}
             <div className="desktop-only">
               <div className="record-table-wrap">
                 <table className="record-table ops-table">
                   <thead>
                     <tr>
                       <SortHeader label="Nhà cung cấp" sortKey="supplierName" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
-                      <SortHeader label="Chưa đến hạn" sortKey="current" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label="Quá hạn 1-30" sortKey="d30" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label="Quá hạn 31-90" sortKey="d60" sort={sortState} onSortChange={handleSortChange} />
-                      <SortHeader label="Quá hạn >90" sortKey="over90" sort={sortState} onSortChange={handleSortChange} />
-                      <th></th>
+                      <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" style={{ width: 170 }} />
+                      <th style={{ width: 220 }}>Hạn nợ</th>
+                      <th className="record-table__action-col" style={{ width: 40 }}></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {payables.map(d => (
-                      <ClickableCard
-                        as="tr"
-                        key={`${d.kind ?? 'vendor'}-${d.supplier.id}`}
-                        to={rowHref(d)}
-                      >
-                        <td data-label="Nhà cung cấp">
-                          <div style={{ display: 'flex', alignItems: 'center', fontWeight: 600, color: 'var(--fg-1)' }}>
-                            {d.supplier.name}
-                          </div>
-                          <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)' }}>
-                            {d.supplier.phone || '—'}
-                          </div>
-                        </td>
-                        <td data-label="Tổng nợ" className="num typo-mono" style={{
-                          fontWeight: 700,
-                          color: d.totalOutstanding > 0 ? 'var(--warning-text)' : 'var(--success)'
-                        }}>
-                          {formatCurrency(d.totalOutstanding)}
-                        </td>
-                        {/* Card 20261002_293: a computed 0 bucket renders "0 ₫"
-                            (quietly toned), never a dash that reads as no data. */}
-                        <td data-label="Chưa đến hạn" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.current > 0 ? 'var(--fg-1)' : 'var(--fg-3)' }}>
-                          {d.aging.current != null ? formatCurrency(d.aging.current) : '—'}
-                        </td>
-                        <td data-label="Quá hạn 1-30" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d30 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
-                          {d.aging.d30 != null ? formatCurrency(d.aging.d30) : '—'}
-                        </td>
-                        <td data-label="Quá hạn 31-90" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.d60 > 0 ? 'var(--warning)' : 'var(--fg-3)' }}>
-                          {d.aging.d60 != null ? formatCurrency(d.aging.d60) : '—'}
-                        </td>
-                        <td data-label="Quá hạn >90" className="num" style={{ fontSize: 'var(--text-data-size)', color: d.aging.over90 > 0 ? 'var(--danger)' : 'var(--fg-3)' }}>
-                          {d.aging.over90 != null ? formatCurrency(d.aging.over90) : '—'}
-                        </td>
-                        <td data-label="" className="record-table__action" style={{ textAlign: 'right' }}>
-                          <ChevronRight size={14} style={{ color: 'var(--fg-3)' }} />
-                        </td>
-                      </ClickableCard>
-                    ))}
+                    {payables.map(d => {
+                      const sub = supplierSubLine(d.supplier.phone);
+                      return (
+                        <ClickableCard
+                          as="tr"
+                          key={`${d.kind ?? 'vendor'}-${d.supplier.id}`}
+                          to={rowHref(d)}
+                        >
+                          <td data-label="Nhà cung cấp">
+                            <div className="payables-supplier-name" data-testid="payables-supplier-name" title={d.supplier.name}>
+                              {d.supplier.name}
+                            </div>
+                            {sub && (
+                              <div className="payables-row-sub">{sub}</div>
+                            )}
+                          </td>
+                          <td data-label="Tổng nợ" className="num typo-mono" style={{
+                            fontWeight: 700,
+                            color: d.totalOutstanding > 0 ? 'var(--warning-text)' : 'var(--success)'
+                          }}>
+                            {formatCurrency(d.totalOutstanding)}
+                          </td>
+                          {/* SIL-470: one aging cell — segmented bar only renders
+                              buckets with money; computed 0 shows "Trong hạn"
+                              (card 20261002_293), never a '—' filler. */}
+                          <td data-label="Hạn nợ">
+                            <PayableAgingCell aging={d.aging} />
+                          </td>
+                          <td data-label="" className="record-table__action" style={{ textAlign: 'right' }}>
+                            <ChevronRight size={16} style={{ color: 'var(--fg-3)' }} />
+                          </td>
+                        </ClickableCard>
+                      );
+                    })}
 
                     {payables.length === 0 && (
                       <tr>
-                        <td colSpan={7} data-label="">
+                        <td colSpan={4} data-label="">
                           <EmptyState variant="compact" context="payables" title="Không tìm thấy dữ liệu công nợ phải trả." />
                         </td>
                       </tr>

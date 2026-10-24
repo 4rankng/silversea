@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PayableSummary } from '@tingting/shared';
 
 const listTripsMock = vi.hoisted(() => vi.fn());
 const getPayablesSummaryMock = vi.hoisted(() => vi.fn());
@@ -174,9 +175,13 @@ describe('PayableListPage server-side column sorting', () => {
     expect(lastCallParams()).toMatchObject({ page: 1, limit: 25 });
     expect(lastCallParams()?.sortBy).toBeUndefined();
     expect(lastCallParams()?.sortDir).toBeUndefined();
-    for (const name of ['Nhà cung cấp', 'Tổng nợ', 'Chưa đến hạn', 'Quá hạn 1-30', 'Quá hạn 31-90', 'Quá hạn >90']) {
+    for (const name of ['Nhà cung cấp', 'Tổng nợ']) {
       expect(screen.getByRole('columnheader', { name }).getAttribute('aria-sort')).toBe('none');
     }
+    // SIL-470: the aging matrix collapsed into one plain "Hạn nợ" column —
+    // it is not a sort button and never sends a sort param.
+    expect(screen.getByRole('columnheader', { name: 'Hạn nợ' }).getAttribute('aria-sort')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hạn nợ' })).toBeNull();
   });
 
   it('sends sortBy/sortDir on header clicks, toggles asc → desc, and tracks aria-sort', async () => {
@@ -197,10 +202,10 @@ describe('PayableListPage server-side column sorting', () => {
     }));
     expect(totalHeader.getAttribute('aria-sort')).toBe('descending');
 
-    // An aging bucket column starts fresh ascending.
-    fireEvent.click(screen.getByRole('button', { name: 'Quá hạn 1-30' }));
+    // The supplier column starts fresh ascending.
+    fireEvent.click(screen.getByRole('button', { name: 'Nhà cung cấp' }));
     await waitFor(() => expect(lastCallParams()).toMatchObject({
-      sortBy: 'd30', sortDir: 'asc',
+      sortBy: 'supplierName', sortDir: 'asc',
     }));
   });
 
@@ -374,14 +379,13 @@ describe('PayableListPage export feedback (card 071026141590)', () => {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Card 071026141620 — the summary rail's labels must ALWAYS carry a value: an
-// em dash while the query is unsettled (the accounting rail's contract), real
-// numbers once loaded, and a real 0 when the set is empty. The QA finding
-// ("labels render without values") is exactly the state this contract rules
-// out. Merged into this file after a careless whole-file overwrite of the
-// suites above (restored verbatim); tests drive the same API seam as the rest.
-describe('PayableListPage summary rail values (card 071026141620)', () => {
-  function renderRail() {
+// SIL-470 — the summary band carries the card-071026141620 contract forward:
+// every value slot degrades to an explicit em dash while the query is
+// unsettled (never a blank, never a fake 0), a loaded empty set is a real "0".
+// The band replaces the old rail + four aging cards (tổng trái + chips +
+// aging segmented bar, đồng bộ /debt).
+describe('PayableListPage summary band values (SIL-470)', () => {
+  function renderBand() {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     return render(
       <QueryClientProvider client={client}>
@@ -392,9 +396,12 @@ describe('PayableListPage summary rail values (card 071026141620)', () => {
     );
   }
 
-  function railValues(): string[] {
-    const rail = screen.getByRole('region', { name: 'Tóm tắt công nợ phải trả' });
-    return [...rail.querySelectorAll('dd')].map((dd) => dd.textContent ?? '');
+  function bandValues(): string[] {
+    return [
+      screen.getByTestId('payables-band-total').textContent ?? '',
+      screen.getByTestId('payables-band-overdue').textContent ?? '',
+      screen.getByTestId('payables-band-suppliers').textContent ?? '',
+    ];
   }
 
   beforeEach(() => {
@@ -402,20 +409,20 @@ describe('PayableListPage summary rail values (card 071026141620)', () => {
     getPhoiPhieuReportMock.mockReset().mockResolvedValue({ rows: [], grand: null });
   });
 
-  it('shows an em dash on every label while loading — never a blank, never a fake 0', () => {
+  it('shows an em dash on every value while loading — never a blank, never a fake 0', () => {
     getPayablesSummaryMock.mockReset().mockReturnValue(new Promise(() => {}));
-    renderRail();
-    expect(railValues()).toEqual(['—', '—', '—']);
+    renderBand();
+    expect(bandValues()).toEqual(['—', '—', '—']);
   });
 
-  it('shows an em dash on every label when the query failed, with the error stated', async () => {
+  it('shows an em dash on every value when the query failed, with the error stated', async () => {
     getPayablesSummaryMock.mockReset().mockRejectedValue(new Error('mất kết nối máy chủ'));
-    renderRail();
+    renderBand();
     await screen.findByText('mất kết nối máy chủ');
-    expect(railValues()).toEqual(['—', '—', '—']);
+    expect(bandValues()).toEqual(['—', '—', '—']);
   });
 
-  it('shows real numbers once loaded', async () => {
+  it('shows real numbers once loaded, with the aging legend carrying the four buckets', async () => {
     getPayablesSummaryMock.mockReset().mockResolvedValue({
       items: [],
       totalOutstanding: '42051910',
@@ -425,12 +432,21 @@ describe('PayableListPage summary rail values (card 071026141620)', () => {
       limit: 25,
       total: 0,
       totalPages: 1,
-      totals: { current: 0, d30: 0, d60: 0, over90: 0, currentCount: 0, d30Count: 0, d60Count: 0, over90Count: 0 },
+      totals: { current: 30_000_000, d30: 8_000_000, d60: 3_000_000, over90: 1_051_910, currentCount: 5, d30Count: 2, d60Count: 1, over90Count: 1 },
     });
-    renderRail();
-    await waitFor(() => expect(railValues()[1]).toBe('8'));
-    expect(railValues()[2]).toBe('3');
-    expect(railValues()[0]).toContain('42');
+    renderBand();
+    await waitFor(() => expect(bandValues()[1]).toBe('3 quá hạn'));
+    expect(bandValues()[2]).toBe('8 NCC');
+    expect(bandValues()[0]).toContain('42');
+
+    const region = screen.getByRole('region', { name: 'Tóm tắt công nợ phải trả' });
+    const legend = region.querySelector('.payables-band__legend')!.textContent ?? '';
+    expect(legend).toContain('Trong hạn');
+    expect(legend).toContain('30.000.000 ₫');
+    expect(legend).toContain('1.051.910 ₫');
+    // The segmented bar exposes the full breakdown to assistive tech.
+    const bar = region.querySelector('.payables-band__bar')!;
+    expect(bar.getAttribute('aria-label')).toContain('Quá hạn trên 90');
   });
 
   it('shows a real 0 (not a dash, not a blank) for a loaded empty set', async () => {
@@ -445,8 +461,166 @@ describe('PayableListPage summary rail values (card 071026141620)', () => {
       totalPages: 1,
       totals: { current: 0, d30: 0, d60: 0, over90: 0, currentCount: 0, d30Count: 0, d60Count: 0, over90Count: 0 },
     });
-    renderRail();
-    await waitFor(() => expect(railValues()[1]).toBe('0'));
-    expect(railValues().slice(1)).toEqual(['0', '0']);
+    renderBand();
+    await waitFor(() => expect(bandValues()[2]).toBe('0 NCC'));
+    expect(bandValues()[1]).toBe('0 quá hạn');
+    expect(bandValues()[0]).toContain('0');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SIL-470 — supplier cell: name one line (truncated + tooltip), the contact
+// sub-line only mounts for real data. A '_', dash or blank phone renders
+// NOTHING (the old '_' junk row bug), and no aging cell ever prints '—'.
+describe('PayableListPage supplier cell + aging cell (SIL-470)', () => {
+  function payableRow(overrides: Partial<{ name: string; phone: string | null; aging: PayableSummary['aging'] }> = {}) {
+    return {
+      supplier: {
+        id: 1, name: overrides.name ?? 'CÔNG TY TNHH DỊCH VỤ XNK VÀ VẬN TẢI ĐĂNG QUÂN DÀI QUÁ',
+        contactPerson: null, phone: overrides.phone ?? null, taxCode: null, note: null,
+        status: 'ACTIVE', linkedCustomerId: null, isFuelSupplier: false,
+        createdAt: '', updatedAt: '', deletedAt: null,
+      },
+      totalOutstanding: 600,
+      aging: overrides.aging ?? { current: 600, d30: 0, d60: 0, over90: 0 },
+      maxOverdueDays: 0,
+      kind: 'vendor' as const,
+    };
+  }
+
+  function mount(rows: ReturnType<typeof payableRow>[]) {
+    getPayablesSummaryMock.mockReset().mockResolvedValue({
+      items: rows,
+      totalOutstanding: '600',
+      totalSuppliers: rows.length,
+      overdueSuppliers: 0,
+      page: 1,
+      limit: 25,
+      total: rows.length,
+      totalPages: 1,
+      totals: { current: 600, d30: 0, d60: 0, over90: 0, currentCount: 1, d30Count: 0, d60Count: 0, over90Count: 0 },
+    });
+    getPhoiPhieuReportMock.mockReset().mockResolvedValue({ rows: [], grand: null });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <PayableListPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it('renders the name one line with a tooltip and mounts no sub-line for placeholder phones', async () => {
+    mount([payableRow({ phone: '_' }), payableRow({ name: 'NCC CÓ SĐT', phone: '0983 418 689' })]);
+    const cells = await screen.findAllByTestId('payables-supplier-name');
+    expect(cells.length).toBe(2);
+    for (const cell of cells) {
+      expect(cell.getAttribute('title')).toBe(cell.textContent);
+    }
+    // '_' and null phones mount no sub-line wrapper at all — no junk character.
+    expect(screen.queryAllByText('_')).toEqual([]);
+    // The real phone renders as the desktop sub-line (and the mobile meta row).
+    expect(screen.getAllByText('0983 418 689').map((el) => el.className))
+      .toEqual(expect.arrayContaining([expect.stringContaining('payables-row-sub')]));
+  });
+
+  it('the aging cell renders only funded buckets plus the overdue total, never a dash', async () => {
+    mount([
+      payableRow({ name: 'BA BUCKET', aging: { current: 100, d30: 200, d60: 0, over90: 300 } }),
+      payableRow({ name: 'MỘT BUCKET', aging: { current: 600, d30: 0, d60: 0, over90: 0 } }),
+    ]);
+    await screen.findAllByTestId('payables-supplier-name');
+
+    // Scope to the desktop table row (the mobile card list renders its own
+    // compact aging bar and is covered by the visual drive).
+    const desktopCell = (name: string) =>
+      screen.getAllByTestId('payables-supplier-name')
+        .find((el) => el.textContent === name)!
+        .closest('tr')!
+        .querySelector('.payables-aging-cell')!;
+
+    const four = desktopCell('BA BUCKET');
+    // 3 funded segments (d60=0 renders none) + the overdue sum, no '—'.
+    expect(four.querySelectorAll('.payables-aging-cell__seg').length).toBe(3);
+    expect((four.querySelector('.payables-aging-cell__overdue') as HTMLElement).textContent).toBe('500 ₫');
+    expect((four.querySelector('.payables-aging-cell__overdue') as HTMLElement).dataset.overdue).toBe('true');
+    expect(four.getAttribute('title')).toContain('Quá hạn trên 90 300 ₫');
+    expect(four.textContent).not.toContain('—');
+
+    const one = desktopCell('MỘT BUCKET');
+    expect(one.querySelectorAll('.payables-aging-cell__seg').length).toBe(1);
+    expect((one.querySelector('.payables-aging-cell__overdue') as HTMLElement).textContent).toBe('Trong hạn');
+    expect((one.querySelector('.payables-aging-cell__overdue') as HTMLElement).dataset.overdue).toBe('false');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SIL-470 verdict E — the "Quá hạn" quick filter rides the bar's quick-filter
+// slot and drives the cross-bucket aggregate (?filter=overdue convention).
+describe('PayableListPage quick filter Quá hạn (SIL-470)', () => {
+  function mountRow() {
+    getPayablesSummaryMock.mockReset().mockResolvedValue({
+      items: [{
+        supplier: {
+          id: 1, name: 'NCC A', contactPerson: null, phone: null, taxCode: null, note: null,
+          status: 'ACTIVE', linkedCustomerId: null, isFuelSupplier: false,
+          createdAt: '', updatedAt: '', deletedAt: null,
+        },
+        totalOutstanding: 12_000_000,
+        aging: { current: 12_000_000, d30: 0, d60: 0, over90: 0 },
+        maxOverdueDays: 0,
+        kind: 'vendor' as const,
+      }],
+      totalOutstanding: '12000000',
+      totalSuppliers: 1,
+      overdueSuppliers: 0,
+      page: 1,
+      limit: 25,
+      total: 1,
+      totalPages: 1,
+      totals: { current: 12_000_000, d30: 0, d60: 0, over90: 0, currentCount: 1, d30Count: 0, d60Count: 0, over90Count: 0 },
+    });
+    getPhoiPhieuReportMock.mockReset().mockResolvedValue({ rows: [], grand: null });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <PayableListPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  function lastPageCall() {
+    const calls = getPayablesSummaryMock.mock.calls.filter(
+      (call) => (call[0] as { limit?: number } | undefined)?.limit !== 500,
+    );
+    return calls[calls.length - 1]?.[0] as Record<string, unknown> | undefined;
+  }
+
+  it('toggles bucket=overdue on and off, reflecting the pressed state', async () => {
+    mountRow();
+    const chip = () => screen.getByRole('button', { name: /Quá hạn/ });
+    expect(chip().getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(chip());
+    await waitFor(() => expect(lastPageCall()).toMatchObject({ bucket: 'overdue', page: 1 }));
+    expect(chip().getAttribute('aria-pressed')).toBe('true');
+    expect(chip().className).toContain('is-active');
+
+    // Toggling off returns to the unfiltered query key (a cache hit — no new
+    // request is owed); the chip visibly leaves the pressed state.
+    fireEvent.click(chip());
+    await waitFor(() => expect(chip().getAttribute('aria-pressed')).toBe('false'));
+    expect(chip().className).not.toContain('is-active');
+  });
+
+  it('stays inside the shared bar next to the category tabs', async () => {
+    const { container } = mountRow();
+    expect((await screen.findAllByText('NCC A')).length).toBeGreaterThan(0);
+    const bar = container.querySelector('.filter-bar')!;
+    expect(bar.contains(screen.getByRole('tablist', { name: 'Lọc theo loại công nợ' }))).toBe(true);
+    expect(bar.contains(screen.getByRole('button', { name: /Quá hạn/ }))).toBe(true);
   });
 });

@@ -1,0 +1,16 @@
+design-drift: 208 page CSS files scanned
+  hexDirect                178
+  hexFallback              68
+  radiusOffLadder          1
+  rawShadow                49
+  rawZIndex                77
+  untokenizedTransition    136
+  mediaWidthValues         49
+  containerWidthValues     20
+  worst files             src/pages/config/debit-note-template-editor.css(101) src/pages/salary-attendance/calendar.css(67) src/pages/payables-fuel-invoices.css(42) src/pages/salary-attendance/responsive.css(33)
+
+design drift fell — lower the baseline with: pnpm design:drift --update
+  rawZIndex: 81 → 77
+  untokenizedTransition: 137 → 136
+design drift: no growth.
+EXIT=0

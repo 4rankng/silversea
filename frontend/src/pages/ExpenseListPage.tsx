@@ -181,7 +181,10 @@ export default function ExpenseListPage() {
   };
 
   const renderEmptyState = () => (
+    // SIL-471: compact variant — an empty list is a ≤120px quiet state, not a
+    // tall illustration band under the table.
     <EmptyState
+      variant="compact"
       context="expenses"
       title="Chưa có khoản chi phí nào."
       action={<button className="btn btn--primary" onClick={() => navigate('/expenses/new')}><Plus size={15} /> Thêm phiếu chi</button>}
@@ -311,7 +314,6 @@ export default function ExpenseListPage() {
               <SortHeader label="Nhà cung cấp" sortKey="supplierName" sort={sort} onSortChange={handleSort} />
               <SortHeader label="Hạng mục" sortKey="categoryName" sort={sort} onSortChange={handleSort} />
               <SortHeader label="Xe" sortKey="vehiclePlate" sort={sort} onSortChange={handleSort} />
-              <SortHeader label="Thành phần" sortKey="vehicleComponent" sort={sort} onSortChange={handleSort} />
               <SortHeader className="num" label="Số tiền" sortKey="amount" sort={sort} onSortChange={handleSort} />
               <SortHeader label="Trạng thái" sortKey="paymentStatus" sort={sort} onSortChange={handleSort} />
               <th style={{ width: 40 }}></th>
@@ -320,11 +322,11 @@ export default function ExpenseListPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} data-label="">{renderLoadingState()}</td>
+                <td colSpan={7} data-label="">{renderLoadingState()}</td>
               </tr>
             ) : expenses.length === 0 ? (
               <tr>
-                <td colSpan={8} data-label="">{renderEmptyState()}</td>
+                <td colSpan={7} data-label="">{renderEmptyState()}</td>
               </tr>
             ) : (
               expenses.map(e => (
@@ -335,21 +337,26 @@ export default function ExpenseListPage() {
                   <td data-label="Ngày phát sinh" className="expense-record-table__date">
                     <StatusStrip color={EXPENSE_STATUS_COLORS[e.paymentStatus] ?? '#999'} />
                     {formatDate(e.expenseDate)}
+                    {/* SIL-471: the entry date rides inline as a badge — the
+                        date cell stays one line (no sub-line band). */}
                     {e.createdAt?.slice(0, 10) && e.createdAt.slice(0, 10) !== e.expenseDate.slice(0, 10) && (
-                      <div className="expense-record-table__entry-date" title="Ngày nhập dữ liệu (khác ngày phát sinh = nhập luồng)">
-                        nhập {formatDate(e.createdAt)}
-                      </div>
+                      <span className="expense-record-table__entry-badge" title="Ngày nhập dữ liệu (khác ngày phát sinh = nhập luồng)">
+                        Nhập {formatDate(e.createdAt)}
+                      </span>
                     )}
                   </td>
                   <td data-label="Nhà cung cấp" className="expense-record-table__supplier">{e.supplier?.name || '—'}</td>
                   <td data-label="Hạng mục" className="expense-record-table__muted">{e.category?.name || '—'}</td>
+                  {/* SIL-471: the constant THÀNH PHẦN column folded into Xe —
+                      the component rides as a muted suffix next to the plate. */}
                   <td data-label="Xe">
                     {e.vehicleComponent === 'TRAILER'
                       ? (e.trailer?.licensePlate ? <span className="expense-plate">{e.trailer.licensePlate}</span> : <span className="expense-record-table__muted">—</span>)
                       : (e.truck?.licensePlate ? <span className="expense-plate">{e.truck.licensePlate}</span> : <span className="expense-record-table__muted">—</span>)
                     }
+                    {e.vehicleComponent === 'TRAILER' && <span className="expense-record-table__component">Rơ-mooc</span>}
+                    {e.vehicleComponent === 'TRUCK' && <span className="expense-record-table__component">Đầu kéo</span>}
                   </td>
-                  <td data-label="Thành phần" className="expense-record-table__muted">{e.vehicleComponent === 'TRAILER' ? 'Rơ-mooc' : e.vehicleComponent === 'TRUCK' ? 'Đầu kéo' : ''}</td>
                   <td data-label="Số tiền" className="num">
                     <Money
                       value={Number(e.amount)}
@@ -369,7 +376,13 @@ export default function ExpenseListPage() {
         </table>
       </div>
 
-      <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={pageSize} onChange={setPage} disabled={isLoading} />
+      {/* SIL-471: pagination stays hidden for a one-page set — the shared
+          component already nulls there; keeping the guard here makes the
+          intent explicit so a future `summary` prop can't resurrect page
+          controls for data that fits one page. */}
+      {totalPages > 1 && (
+        <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={pageSize} onChange={setPage} disabled={isLoading} />
+      )}
     </div>
   );
 }
