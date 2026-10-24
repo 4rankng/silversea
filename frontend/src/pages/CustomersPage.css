@@ -17,6 +17,48 @@
   .customers-page .mobile-only  { display: none !important; }
 }
 
+/* ── SIL-169 visual-gate re-dispatch (24/10): the REAL TABLE is the ≥640
+   face. The shared record-table card band fires on CONTAINER width
+   (@container ≤1100px in record-table.css) — at 1440 the app sidebar leaves
+   this table a ~1095px container, so the band hijacked the desktop face:
+   stacked data-label cells ("MÃ SỐ THUẾ …"), clipped code sub-lines
+   (LONGMINH), 230-240px rows with dead bands, the debt cell drifting alone.
+   The shared --table opt-in restores geometry only from 768px viewport;
+   the verdict's boundary is 640, so this sheet owns the whole ≥640 geometry,
+   keyed on .cus-table — the class both this page and the /config/customers
+   catalog (which imports this sheet) put on their 7-column budget. Specificity
+   (0,2,x) outranks every card-band rule (0,1,x); below 640 this block is
+   inert and the page renders its own mobile card face. ── */
+@media (min-width: 640px) {
+  .record-table.cus-table { display: table; }
+  .record-table.cus-table colgroup { display: table-column-group; }
+  .record-table.cus-table thead { display: table-header-group; }
+  .record-table.cus-table tbody { display: table-row-group; gap: 0; }
+  .record-table.cus-table tbody tr {
+    display: table-row;
+    gap: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .record-table.cus-table tbody th,
+  .record-table.cus-table tbody td {
+    display: table-cell;
+    min-width: 0;
+    border: 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  /* The card band's inline data-label eyebrow has no table meaning — the
+     header renders exactly once, at the top of the table. */
+  .record-table.cus-table tbody td::before { content: none; }
+}
+
+/* The verdict's 978px budget (260+110+180+180+96+120+32) is a FLOOR, not a
+   squeeze target: 640–1023 canvases scroll the fixed budget horizontally
+   (record-table-wrap--scroll on both pages' wraps) instead of crushing the
+   columns — 1024+ fits it inside the content box. */
+.record-table.cus-table { min-width: 978px; }
+
 /* Verdict (c): the page reads white — the canvas around the app shell keeps
    the house sage tint, this surface carries its own neutral contract. */
 .customers-page {

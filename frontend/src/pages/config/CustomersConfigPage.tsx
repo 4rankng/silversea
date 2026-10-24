@@ -16,7 +16,7 @@ import { useCRUD } from '../../hooks/useCRUD';
 import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
 import { SortHeader } from '../../components/shared/SortHeader';
 import { nextTableSort, sortClientSide, type TableSortState } from '../../lib/table-sort';
-import { titleCaseVn } from '../../lib/format';
+import { titleCaseVn, shortNameChipLabel } from '../../lib/format';
 import { Money } from '../../components/shared/Money';
 import type { Customer } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
@@ -291,7 +291,10 @@ export default function CustomersConfigPage() {
           )}
         </div>
         <div className="table-scroll" aria-busy={isFetching}>
-          <div className="record-table-wrap">
+          {/* SIL-169 visual-gate re-dispatch: --scroll adoption — the fixed
+              978px budget scrolls on 640–1023 canvases; the ≥640 real-table
+              geometry comes from CustomersPage.css (.cus-table key). */}
+          <div className="record-table-wrap record-table-wrap--scroll">
           <table className="record-table ops-table cfg-customer-table cus-table" style={{ tableLayout: 'fixed' }}>
               {/* SIL-169 verdict (b): the same 7-column budget as /customers —
                   the two-tier group header and the presence-driven column set
@@ -338,7 +341,7 @@ export default function CustomersConfigPage() {
                       {/* Title-case display (SIL-169); the full legal name
                           rides the title tooltip and every export. */}
                       <span className="row-strong cfg-customer-full-name" title={c.name}>{titleCaseVn(c.name)}</span>
-                      {c.shortName && c.shortName !== c.name && <span className="cus-chip">{c.shortName}</span>}
+                      {c.shortName && c.shortName !== c.name && <span className="cus-chip">{titleCaseVn(c.shortName)}</span>}
                       {c.status === CustomerStatus.LOCKED && <span className="cus-chip cus-chip--locked">Tạm khoá</span>}
                     </span>
                     {c.code && <span className="cus-code-sub"><span className="data-token">{c.code}</span></span>}

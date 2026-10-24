@@ -26,7 +26,7 @@ import {
 } from '../features/customers/customer-debt-projection';
 import { CustomerDrawerHistories } from '../features/customers/CustomerDrawerHistories';
 import { useToast } from '../components/shared/Toast';
-import { formatCurrency, formatDateTimeVN, titleCaseVn } from '../lib/format';
+import { formatCurrency, formatDateTimeVN, titleCaseVn, shortNameChipLabel } from '../lib/format';
 import { financialClient, type CustomerAging } from '../api/financialClient';
 import type { Customer, LedgerEntry } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
@@ -669,7 +669,7 @@ export default function CustomersPage() {
         onExcludeOwnFleetChange={setExcludeOwnFleet}
       />
 
-      {/* ── Mobile card list (≤820px) ──────────────────────────────────── */}
+      {/* ── Mobile card list (<640 per the SIL-169 verdict) ────────────── */}
       <div className="mobile-only mobile-table-wrap">
         <div className="m-card-list">
           {loading ? (
@@ -695,7 +695,7 @@ export default function CustomersPage() {
                   <span className="cus-m-card__title">
                     <span className={`cus-dot cus-dot--${riskOf(c)}`} aria-hidden="true" />
                     {titleCaseVn(c.name)}
-                    {c.shortName && c.shortName !== c.name && <span className="cus-chip">{c.shortName}</span>}
+                    {c.shortName && c.shortName !== c.name && <span className="cus-chip">{shortNameChipLabel(c.shortName)}</span>}
                     {c.linkedSupplierId && <Badge variant="success">2 chiều</Badge>}
                   </span>
                   <span className="cus-m-card__head-right">
@@ -812,10 +812,14 @@ export default function CustomersPage() {
         </span>
       </div>
 
-      {/* ── Desktop table (≥641px per the SIL-169 verdict: cards are the
-             <640 face) ─────────────────────────────────────────────────── */}
+      {/* ── Desktop table (≥640px per the SIL-169 verdict: the card face is
+              <640 only) ────────────────────────────────────────────────── */}
       <div className="desktop-only table-wrap">
-        <div className="record-table-wrap">
+        {/* SIL-169 visual-gate re-dispatch (24/10): --scroll is the shared
+            wide-table adoption — 640–1023 canvases scroll the fixed 978px
+            budget horizontally instead of squeezing it (CustomersPage.css
+            owns the ≥640 real-table geometry for this budget). */}
+        <div className="record-table-wrap record-table-wrap--scroll">
           <table className="record-table ops-table cus-table" style={{ tableLayout: 'fixed' }}>
               {/* SIL-169 verdict (b): 9 visual columns collapsed to the 7 that
                   carry information — identity (dot + title-case name + chip +
@@ -893,7 +897,7 @@ export default function CustomersPage() {
                         <span className="cus-id">
                           <span className={`cus-dot cus-dot--${riskOf(c)}`} aria-hidden="true" />
                           <span className="customers-name-cell">{titleCaseVn(c.name)}</span>
-                          {c.shortName && c.shortName !== c.name && <span className="cus-chip">{c.shortName}</span>}
+                          {c.shortName && c.shortName !== c.name && <span className="cus-chip">{shortNameChipLabel(c.shortName)}</span>}
                           {c.status === CustomerStatus.LOCKED && <span className="cus-chip cus-chip--locked">Tạm khoá</span>}
                         </span>
                         {c.code && <span className="cus-code-sub">{c.code}</span>}

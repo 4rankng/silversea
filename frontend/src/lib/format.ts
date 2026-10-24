@@ -110,6 +110,16 @@ export function titleCaseVn(name: string | null | undefined): string {
   }).join(' ');
 }
 
+/** SIL-169 chip label (visual-gate re-dispatch 24/10 ④): word-like short
+ * names title-case for the chip ("LOG COM" → "Log Com", matching the
+ * title-cased legal name beside it), but identifier-like ones — anything
+ * carrying a digit, e.g. the "TCT-1" catalog code — render AS STORED, since
+ * casing a code corrupts the value ("Tct-1"). */
+export function shortNameChipLabel(name: string | null | undefined): string {
+  if (!name) return '';
+  return /\d/.test(name) ? name : titleCaseVn(name);
+}
+
 /** THE canonical table-cell date (card 20260921_23): "DD/MM/YYYY" padded,
  * Vietnam wall-clock. Replaces the unpadded vi-VN locale output ("20/9/2026")
  * so date-only cells match the datetime contract everywhere. */
