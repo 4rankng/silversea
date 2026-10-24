@@ -613,6 +613,42 @@
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__cell--status { display: block; }
   .shipment-container-ledger__cell--status::before { display: none; }
   .shipment-container-ledger__cell--status > .shipment-container-ledger__multiline { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+
+  /* Webchat consultation 2026-10-24 (Gemini + DeepSeek, both concurring):
+     phone cards read as 8 repeated "Chưa có…" sentences around 2-3 real
+     facts, and the same missing-date state printed three times per page.
+     On phones the amber "Thiếu N thông tin" chip owns the gap list (its
+     items jump straight into the editors), so per-cell placeholder
+     sentences collapse to a muted dash. DOM/text is untouched — only the
+     phone presentation hides it, and every trigger's accessible name still
+     names its field. */
+  .shipment-container-ledger td[data-label='Bill/Booking'] .shipment-container-ledger__missing,
+  .shipment-container-ledger td[data-label='Số tờ khai'] .shipment-container-ledger__missing,
+  .shipment-container-ledger td[data-label='Hãng tàu'] .shipment-container-ledger__missing,
+  .shipment-container-ledger td[data-label='Nâng / hạ'] .shipment-container-ledger__missing,
+  /* The customer header keeps its placeholders only when there is no name to
+     anchor the card; "Chưa có khách hàng" must survive, factory/route noise
+     must not. */
+  .shipment-container-ledger tbody > tr > th .shipment-container-ledger__multiline:has(> strong) > .shipment-container-ledger__missing,
+  .shipment-container-ledger td[data-label='Lịch trình'] .shipment-container-ledger__schedule-gap { display: none; }
+  .shipment-container-ledger td[data-label='Bill/Booking'] .shipment-container-ledger__code:has(> .shipment-container-ledger__missing)::after,
+  .shipment-container-ledger td[data-label='Số tờ khai'] .shipment-container-ledger__code:has(> .shipment-container-ledger__missing)::after,
+  .shipment-container-ledger td[data-label='Hãng tàu'] .shipment-container-ledger__multiline > span:has(> .shipment-container-ledger__missing)::after,
+  .shipment-container-ledger td[data-label='Nâng / hạ'] .shipment-container-ledger__route:has(.shipment-container-ledger__missing)::after { content: '—'; color: var(--ink-3); }
+  /* A missing appointment keeps the amber cell tint (attention cue) but stops
+     shouting a bold placeholder + a second amber badge on top of it. */
+  .shipment-container-ledger__schedule > strong:not(.ops-schedule__datetime) { font-weight: 400; color: var(--ink-2); }
+  /* FB-109 v2's always-visible Sửa is desktop-table affordance: on phones the
+     whole cell already is the edit trigger, so the lone button only floated
+     mid-card. It stays in the DOM for keyboard/AT flows. */
+  .shipment-container-ledger__declaration-edit { display: none; }
+  /* Customer name is the scan anchor: it outranked nothing at 12px. */
+  .shipment-container-ledger tbody > tr > th .shipment-container-ledger__multiline > strong { font-size: 14px; font-weight: var(--fw-bold, 700); }
+
+  /* Card anatomy instead of the 6px surface band: real elevation, rounded
+     corners, and whitespace do the separation (consultation 3.2). */
+  .shipment-container-ledger tbody > tr { margin: 10px 10px 0; border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 5%, transparent); }
+  .shipment-container-ledger tbody > tr:last-child { margin-bottom: 10px; }
 }
 
 /* Stack labels above values inside tablet record blocks. A fixed 96px label
