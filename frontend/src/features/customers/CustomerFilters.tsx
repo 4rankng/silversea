@@ -1,19 +1,24 @@
 import type { RefObject } from 'react';
-import { Download, Plus, RotateCcw } from 'lucide-react';
-import { FilterBar, Tabs } from '../../design-system';
-import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
-import { formatCurrency } from '../../lib/format';
+import { Download, Loader2, Plus, RotateCcw } from 'lucide-react';
+import { FilterBar, Tabs, type TabItem } from '../../design-system';
 
 /** The status axis of `/customers`; both of its controls write this one value. */
 export type CustomerFilterKey = 'all' | 'locked' | 'active' | 'risk';
 
-/** Debt-concentration signal the strip reports beside the result count. */
-export interface CustomerConcentration {
-  top: Array<{ id: number; name: string; debt: number; share: number }>;
-  topShare: number;
-  anyDebt: boolean;
-}
-
+/**
+ * The `/customers` toolbar (SIL-169 consult verdict 24/10): ONE 44px row —
+ * segmented status tabs with counts on the left of the actions, the search
+ * shell, an icon-only export and the primary add button. The former status
+ * select is retired: the tab segment owns the whole status axis (Tất cả /
+ * Rủi ro cao / Hoạt động, plus Tạm khoá only while it has rows — a zero tab is
+ * dead weight), and the "Bỏ xe công ty" tick stays the band's one folded
+ * criterion. The strip's former `n/total` line is retired with it — the tab
+ * counts and the pagination carry the same numbers.
+ *
+ * Still the shared `FilterBar` band underneath (card 20260927_152 + 20260930_
+ * 229): this component declares no strip box, no search shell and no control
+ * width; only the tab set and the action cluster are this surface's own.
+ */
 export interface CustomerFiltersProps {
   search: string;
   onSearch: (value: string) => void;
@@ -23,20 +28,19 @@ export interface CustomerFiltersProps {
   onFilter: (filter: CustomerFilterKey) => void;
   total: number;
   /** Card 071026141610 — whole-dataset per-status census from
-   *  GET /customers/status-counts. Every status pill must carry a count so the
-   *  pills add up to `total`; they previously rendered with no numeral at all.
-   *  Stays undefined while in flight: the pills then simply carry no numeral,
-   *  which is honest. Defaulting to 0 here would print a WRONG zero. */
+   *  GET /customers/status-counts. Pills add up to `total`; stays undefined
+   *  while in flight so no pill prints a provisional (wrong) numeral. */
   statusCounts?: { all: number; active: number; locked: number };
-  /** Rows the current criteria leave — the bar's `n/total khách hàng` count. */
-  resultCount: number;
-  concentration: CustomerConcentration;
+  /** SIL-169 — whole-dataset high-risk census from the receivables-aging
+   *  projection, so the "Rủi ro cao" tab count matches the header metric.
+   *  Undefined while in flight / unavailable → no numeral, never a fake 0. */
+  riskCount?: number;
   onExport: () => void;
-  /** Card 20261006_391 — while the page's export runs, the strip's export
-   *  button reports busy ("Đang xuất…") instead of staying clickable. */
+  /** Card 20261006_391 — while the page's export runs, the icon button
+   *  reports busy (spinner + "Đang xuất…") instead of staying clickable. */
   exporting?: boolean;
   onAdd: () => void;
-  /** Clears exactly the strip's own criteria (search + status + tick). */
+  /** Clears the strip's own criteria (search + status + tick). */
   onReset: () => void;
   hasActiveFilters: boolean;
   /** "Bỏ xe công ty" — ON drops the shipments that ran on a company vehicle.
@@ -46,31 +50,25 @@ export interface CustomerFiltersProps {
   onExcludeOwnFleetChange: (value: boolean) => void;
 }
 
-/**
- * The `/customers` filter strip (card 20260927_152), extracted from
- * `CustomersPage` so the page stays inside its line ceiling — an option
- * adapter over the `FilterBar` band since card 20260930_229.
- *
- * The band owns the strip: this component declares no bar markup, no search
- * shell, no spacer and no control width — the page-local strip box, its two
- * rows and its 190px status width are gone with it.
- *
- * The status axis keeps BOTH of its pre-existing controls: the shared boxed
- * `Tabs` segment (with counts) rides the quick-filter slot and the labelled
- * select is handed to the band's `fold` slot. While the strip holds two rows
- * the select renders inline exactly as before; past the budget it is the bar
- * that folds it behind `Bộ lọc` — /customers@640 used to be the one surface
- * the audit could only EXEMPT from the two-row law because it had no fold
- * affordance at all. Each control carries its own label/aria name and both
- * write the same `onFilter`, so the move drops no label, control or writer.
- */
 export function CustomerFilters({
   search, onSearch, searchInputRef,
   filter, onFilter,
-  total, statusCounts, resultCount, concentration,
+  total, statusCounts, riskCount,
   onExport, exporting = false, onAdd, onReset, hasActiveFilters,
   excludeOwnFleet, onExcludeOwnFleetChange,
 }: CustomerFiltersProps) {
+  // SIL-169 tab order per the verdict: Tất cả · Rủi ro cao · Hoạt động, and
+  // "Tạm khoá" only while it counts rows — a "· 0" tab is noise the owner
+  // called out. While the census is in flight nothing renders a numeral.
+  const tabs: TabItem[] = [
+    { id: 'all', label: 'Tất cả', count: statusCounts?.all ?? total },
+    { id: 'risk', label: 'Rủi ro cao', count: riskCount, countTone: (riskCount ?? 0) > 0 ? 'warning' : undefined },
+    { id: 'active', label: 'Hoạt động', count: statusCounts?.active },
+  ];
+  if ((statusCounts?.locked ?? 0) > 0) {
+    tabs.push({ id: 'locked', label: 'Tạm khoá', count: statusCounts?.locked });
+  }
+
   return (
     <FilterBar
       search={{
@@ -84,100 +82,54 @@ export function CustomerFilters({
       quickFiltersLabel="Lọc nhanh khách hàng"
       quickFilters={(
         <Tabs variant="boxed"
-          tabs={[
-            // While the census is in flight no pill carries a numeral yet — a
-            // provisional 0 would read as a real measurement.
-            { id: 'all', label: 'Tất cả', count: statusCounts?.all ?? total },
-            { id: 'active', label: 'Hoạt động', count: statusCounts?.active },
-            { id: 'locked', label: 'Tạm khoá', count: statusCounts?.locked },
-          ]}
+          tabs={tabs}
           value={filter}
           onChange={(id) => onFilter(id as CustomerFilterKey)}
           ariaLabel="Lọc theo trạng thái khách hàng"
         />
       )}
-      status={(
-        <>
-          {concentration.anyDebt && (
-            <div className="customers-strip__risk" tabIndex={0}>
-              <span aria-hidden="true">⚠️</span> Top 4 KH chiếm {concentration.topShare}% công nợ
-              <div className="customers-strip__risk-pop" role="tooltip">
-                <strong>Công nợ tập trung — top 4 khách hàng</strong>
-                {concentration.top.map((row) => (
-                  <div key={row.id} className="customers-strip__risk-row">
-                    <span>{row.name}</span>
-                    <span className="customers-strip__risk-share">{row.share}% · {formatCurrency(row.debt)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <span className="customers-strip__count">{resultCount}/{total} khách hàng</span>
-        </>
-      )}
       actions={(
         <>
-          <button className="btn btn--secondary btn--sm" onClick={onExport} disabled={exporting}>
-            <Download size={14} /> {exporting ? 'Đang xuất…' : 'Xuất Excel'}
+          {/* SIL-169 verdict: icon-only 32px ghost export — the accessible
+              name carries the label, the title carries the hover hint, and
+              the busy state swaps the icon for the spinner + "Đang xuất…". */}
+          <button
+            type="button"
+            className="btn btn--ghost btn--icon"
+            onClick={onExport}
+            disabled={exporting}
+            aria-label={exporting ? 'Đang xuất…' : 'Xuất Excel'}
+            title="Xuất Excel danh sách khách hàng"
+          >
+            {exporting ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
           </button>
-          <button className="btn btn--primary btn--sm" onClick={onAdd}>
+          <button type="button" className="btn btn--primary btn--sm" onClick={onAdd}>
             <Plus size={14} /> Thêm khách hàng
           </button>
           {hasActiveFilters && (
-            <button type="button" className="btn btn--ghost btn--sm" onClick={onReset}>
-              <RotateCcw size={13} /> Xóa lọc
+            <button type="button" className="btn btn--ghost btn--icon" onClick={onReset} aria-label="Xóa lọc" title="Xóa lọc (tìm kiếm, trạng thái, bỏ xe công ty)">
+              <RotateCcw size={14} />
             </button>
           )}
         </>
       )}
       fold={{
         criteria: (
-          <>
-            <UuiSelectField
-              label="Trạng thái"
-              hideLabel
-              ariaLabel="Lọc theo trạng thái"
-              value={filter === 'active' ? 'active' : filter === 'locked' ? 'locked' : 'all'}
-              onChange={(event) => onFilter(event.target.value as CustomerFilterKey)}
-              options={[
-                { value: 'all', label: 'Trạng thái: tất cả' },
-                { value: 'active', label: 'Trạng thái: hoạt động' },
-                { value: 'locked', label: 'Trạng thái: tạm khoá' },
-              ]}
+          <label className="filter-chip">
+            <input
+              type="checkbox"
+              checked={excludeOwnFleet}
+              onChange={(event) => onExcludeOwnFleetChange(event.target.checked)}
             />
-            {/* Card 20260928_177 — "Bỏ xe công ty": the accounting vocabulary
-                for the own fleet is CarrierType.OWN ("Xe nhà"). Ticking it
-                drops the shipment lines that ran on a company vehicle from
-                each customer's freight figures; the numbers are recomputed
-                SERVER-SIDE (the `excludeOwnFleet` request param), never by
-                subtracting here, so the exported sheet shows the same figure.
-                Card 20260930_236 ruling: the tick is a boolean CRITERION, not
-                a one-click lens — per law §255 it lives in the `Bộ lọc` fold
-                (inline on the bar while the strip holds two rows, behind the
-                trigger when it does not), beside the status select it
-                complements. Control shape unchanged: the shared `.filter-chip`
-                labelled checkbox (Tailkit `a-c-form-elements-04` original
-                reference, `a-c-tables-14`; Untitled UI `base/checkbox`). */}
-            <label className="filter-chip">
-              <input
-                type="checkbox"
-                checked={excludeOwnFleet}
-                onChange={(event) => onExcludeOwnFleetChange(event.target.checked)}
-              />
-              <span>Bỏ xe công ty</span>
-            </label>
-          </>
+            <span>Bỏ xe công ty</span>
+          </label>
         ),
-        count: (filter !== 'all' ? 1 : 0) + (excludeOwnFleet ? 1 : 0),
+        count: excludeOwnFleet ? 1 : 0,
         ariaLabel: 'Bộ lọc',
         dialogLabel: 'Bộ lọc khách hàng',
-        // Đặt lại clears exactly the folded criteria (status axis + the tick);
-        // the strip's own reset ("Xóa lọc") keeps clearing search + status +
-        // tick unchanged.
-        onReset: () => {
-          onFilter('all');
-          onExcludeOwnFleetChange(false);
-        },
+        // The fold's Đặt lại clears the folded criteria only (the tick); the
+        // status axis rides the tabs and search rides its own input.
+        onReset: () => onExcludeOwnFleetChange(false),
       }}
     />
   );

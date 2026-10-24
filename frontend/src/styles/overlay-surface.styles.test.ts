@@ -40,6 +40,7 @@ const CSS_SCOPE = [
   'src/components/layout/topbar.css', // .month-picker popover
   'src/components/layout/sidebar.css', // .rail-tooltip, user dropdown
   'src/components/shipment/CarrierAllocationDialog.css', // allocation dialog
+  'src/pages/CustomersPage.css', // .cus-kebab-menu floating row menu (SIL-169)
   'src/components/untitled-ui/base/select/combobox.css', // combobox popover
   'src/components/billing/BillingDocumentBuilder.css', // dialog-hosted builder
   'src/design-system/forms/DateTimePickerPanels.css', // .dtp-popover / .dtp-dialog
@@ -118,13 +119,12 @@ const TSX_SURFACES: Array<[string, RegExp]> = [
   ['src/components/UI/Select/Select.tsx', /bg-\[var\(--surface\)\]/],
   ['src/components/untitled-ui/base/select/popover.tsx', /bg-\[var\(--surface\)\]/],
   ['src/features/users/components/UserTable.tsx', /background: 'var\(--surface\)'/],
-  // CustomersConfigPage / SupplierListPage are the two files that actually
-  // render a floating row menu with an inline surface fill. CustomersPage and
-  // RoutesConfigPage were listed from an older shape of those screens: they
-  // render plain row-action buttons only (the edit surfaces are shared
-  // Modal/Drawer components, whose CSS carries the token), so demanding the
-  // inline fill there asserted a surface neither file paints.
-  ['src/pages/config/CustomersConfigPage.tsx', /background: 'var\(--surface\)'/],
+  // SupplierListPage renders its floating row menu with an inline surface
+  // fill. CustomersConfigPage's row menu moved to the shared `.cus-kebab-menu`
+  // class (SIL-169) — its surface is asserted in the CSS scope below via
+  // src/pages/CustomersPage.css; CustomersPage and RoutesConfigPage render
+  // plain row-action buttons only.
+  ['src/pages/CustomersPage.css', /background:\s*var\(--surface\)/],
   ['src/pages/SupplierListPage.tsx', /background: 'var\(--surface\)'/],
 ];
 

@@ -74,39 +74,29 @@ describe('config catalog tables stay tabular below the shared card fold', () => 
 describe('customer catalog uses compact scoped summary and record layouts', () => {
   const css = read('src/pages/config/customer-config-density.css');
 
-  it('keeps four tablet metrics in one flat strip and two phone columns', () => {
-    expect(css).toMatch(/\.cfg-page--customers \.cfg-customer-summary\s*\{[^}]*grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/\.cfg-page--customers \.cfg-customer-summary > \.kpi\s*\{[^}]*min-height: 0;[^}]*border: 0;[^}]*border-radius: 0;/);
-    expect(css).toMatch(/@media \(max-width: 640px\)\s*\{\s*\.cfg-page--customers \.cfg-customer-summary\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/);
-    expect(css).toMatch(/@media \(max-width: 1100px\)\s*\{\s*\.cfg-page--customers \.cfg-customer-summary \.kpi__watermark\s*\{\s*display: none;/);
-    expect(css).toContain('font-size: var(--text-metric-size);');
-    expect(css).toContain('font-size: var(--text-caption-size);');
+  it('the four-card KPI strip is retired; metrics ride the header row (SIL-169)', () => {
+    // The verdict collapsed the 4 KPI cards ("5 KH / 5 active / 0 suspended"
+    // trivia) into three inline header metrics rendered by the shared
+    // CustomerMetricsRow — the page sheet declares no summary strip at all.
+    expect(css).not.toMatch(/\.cfg-customer-summary/);
+    expect(css).not.toMatch(/\.kpi\b/);
   });
 
-  it('keeps a compact identity row with accessible two-column details on tablet and phone', () => {
-    const responsiveRecords = css.slice(css.indexOf('@container (max-width: 1100px)'));
-    expect(responsiveRecords).toMatch(/\.cfg-page--customers \.cfg-customer-table tbody tr\s*\{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\) 44px;/);
-    expect(responsiveRecords).toMatch(/td\.record-table__action\s*\{[^}]*grid-column: 2;[^}]*grid-row: 1;/);
-    expect(responsiveRecords).toMatch(/\.cfg-customer-details dl\s*\{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(260px, 1fr\)\);/);
-    expect(responsiveRecords).toMatch(/\.cfg-customer-details dd\s*\{[^}]*overflow-wrap: anywhere;/);
-    expect(responsiveRecords).toMatch(/\.cfg-customer-details > summary:focus-visible\s*\{[^}]*outline: 2px solid var\(--focus\);/);
-    expect(responsiveRecords).toMatch(/@media \(pointer: coarse\)\s*\{\s*\.cfg-customer-details > summary\s*\{\s*min-height: var\(--control-max-h\);/);
-    expect(responsiveRecords).toContain('min-width: var(--control-max-h); min-height: var(--control-max-h);');
+  it('narrow widths scroll the fixed verdict budget instead of hiding columns', () => {
+    // The old container card-band stacked every row down to identity + kebab
+    // and hid the rest behind a details disclosure. The 7-column verdict
+    // budget is fixed geometry: the wrap scrolls, so no column silently
+    // disappears (the SIL-169 supersession of the card-fold approach).
+    expect(css).not.toContain('@container');
+    expect(css).toMatch(/\.cfg-page--customers \.record-table-wrap\s*\{[^}]*overflow: auto;/);
+    expect(css).not.toContain('display: grid;');
   });
 
-  it('keeps the shared record-card surface on rows and the anchored fact-line details', () => {
-    // The card recipe (surface fill, 1px line, radius, card gap) is owned by
-    // styles/record-table.css; the page band must not re-strip it into a
-    // transparent hairline list, and must not re-declare the recipe itself.
-    const responsiveRecords = css.slice(css.indexOf('@container (max-width: 1100px)'));
-    expect(responsiveRecords).not.toContain('background: transparent;');
-    expect(responsiveRecords).not.toContain('border-radius: 0;');
-    expect(responsiveRecords).not.toContain('border-bottom: 1px solid var(--line);');
-    // The disclosure anchors with a hairline like the shared ledger record.
-    expect(responsiveRecords).toMatch(/\.cfg-customer-details\s*\{[^}]*border-top: 1px solid var\(--line\);/);
-    // Facts ride one line: label left, the value flooding the rest.
-    expect(responsiveRecords).toMatch(/\.cfg-customer-details dl > div\s*\{[^}]*display: flex;/);
-    expect(responsiveRecords).toMatch(/\.cfg-customer-details dd\s*\{[^}]*flex: 1 1 120px;/);
+  it('the identity row keeps the wrap doctrine at every width', () => {
+    // Card 20261004_336's law survives the redesign: the catalog's business
+    // name wraps in full — no clamp, no ellipsis, no tooltip crutch.
+    expect(css).toMatch(/\.cfg-customer-identity \.cfg-customer-full-name\s*\{[^}]*white-space:\s*normal;/);
+    expect(css).toMatch(/\.cfg-customer-identity \.cfg-customer-full-name\s*\{[^}]*overflow-wrap:\s*anywhere;/);
   });
 });
 

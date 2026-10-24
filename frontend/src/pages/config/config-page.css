@@ -623,25 +623,15 @@
 }
 
 /* ── Desktop: customers-table layout ────────────────────────────────
-   Card 20260922_22: columns size to their real content (table-layout:
-   auto) and persistently-empty columns hide at the component level
-   (colPresence), so the width budget goes to data. Customer codes, tax
-   codes, phones and payment terms keep their tokens on one line; the
-   identity cell and prose columns wrap freely. */
-.cfg-customer-table { min-width: 0; table-layout: auto; width: 100%; }
-.cfg-customer-table tbody td:not(.record-table__action) {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-/* Identifiers scan as single tokens: Mã KH, MST, SĐT and payment terms. */
-.cfg-customer-table td[data-label='Mã KH'],
-.cfg-customer-table td[data-label='Mã Số Thuế'],
-.cfg-customer-table td[data-label='SĐT liên hệ'],
-.cfg-customer-table td[data-label='SĐT Kế toán'],
-.cfg-customer-table td.num {
-  white-space: nowrap;
-  overflow-wrap: normal;
-}
+   SIL-169 verdict (24/10) supersedes card 20260922_22 here: the catalog
+   table is the FIXED 7-column budget — inline table-layout: fixed +
+   colgroup, the 978px floor via .cus-table in CustomersPage.css — not the
+   auto layout with component-level colPresence (both retired). Cell
+   wrapping follows CustomersPage.css: prose cells wrap, and the address
+   cell is the ONE verdict-mandated single line. The old auto-layout
+   declarations and its retired data-label nowrap selectors (Mã KH /
+   SĐT liên hệ / SĐT Kế toán no longer exist as columns) were removed with
+   the design they served. */
 
 /* When the shared record-table base collapses rows to labelled cards
    (container ≤1100px), release the desktop-only fixed-layout geometry so the

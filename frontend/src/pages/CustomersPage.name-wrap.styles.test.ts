@@ -40,9 +40,11 @@ describe('customers business-name cell wraps in full (card 20261004_336)', () =>
   it('the rendered name cell carries no truncation-compensating title tooltip', () => {
     const cell = tsx.match(/<span className="customers-name-cell"[\s\S]*?<\/span>/)?.[0];
     expect(cell, 'the name span still renders').toBeTruthy();
-    // No hover crutch on the opening tag, and the value renders in full.
+    // No hover crutch on the opening tag, and the value renders in full —
+    // SIL-169 title-cases the stored ALL-CAPS name for display, a pure text
+    // transform: the full name still renders, just cased.
     expect(cell!).not.toMatch(/<span[^>]*\btitle=/);
-    expect(cell!).toContain('>{c.name}</span>');
+    expect(cell!).toContain('>{titleCaseVn(c.name)}</span>');
   });
 
   it('a long business name renders its full text in the cell', () => {
@@ -50,7 +52,7 @@ describe('customers business-name cell wraps in full (card 20261004_336)', () =>
     // of it — truncation, if it ever returned, would live in CSS/JS shortening,
     // and both halves above guard those.
     const cell = tsx.match(/<span className="customers-name-cell"[^>]*>[\s\S]*?<\/span>/)?.[0] ?? '';
-    expect(cell).toContain('{c.name}');
+    expect(cell).toContain('titleCaseVn(c.name)');
     expect(cell).not.toMatch(/slice|substring|truncate|ellipsis/i);
   });
 });

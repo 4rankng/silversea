@@ -62,11 +62,14 @@ function renderPage() {
 
 async function openEditModal() {
   // The list renders asynchronously (useTableQueryState → useQuery); wait for
-  // the fixture row before interacting. The mobile card exposes a direct
-  // "Sửa" button; the desktop row hides its "Sửa" behind a dropdown until
-  // menuOpenId matches, so the first match is the mobile one in jsdom.
+  // the fixture row before interacting. SIL-169: every face (mobile card and
+  // desktop row) opens its actions through the SAME kebab menu, so open the
+  // first one and pick "Sửa" from the mounted menu.
   expect(await screen.findAllByText('Biển Bạc')).toBeTruthy();
-  fireEvent.click(await screen.findByText('Sửa'));
+  fireEvent.click(screen.getAllByRole('button', { name: /Thao tác với/ })[0]!);
+  // Both faces (mobile card + desktop row) key off the same menuOpenId, so
+  // the menu item exists twice in jsdom — click the first, same modal opens.
+  fireEvent.click((await screen.findAllByText('Sửa'))[0]!);
   // New polished header: 'Sửa khách hàng' is the eyebrow above the title.
   expect(await screen.findByText('Sửa khách hàng')).toBeTruthy();
   expect(screen.getAllByText('Biển Bạc').length).toBeGreaterThan(0);

@@ -27,6 +27,12 @@ const THEAD_CASE_ALLOWLIST = [
   'src/pages/config/debit-note-template-editor.css', // pre-existing editor preview
   'src/pages/ForwarderTripsPage.css', // dead CSS kept by a stale test (see memory) — fork is moot
   'src/pages/ShipmentDebitPage.css', // owner redesign 23/10: uppercase 12px tracking .02em one-line headers (spec v2 KHUNG)
+  // SIL-169 owner redesign 24/10 (consult verdict b): the customers screens'
+  // 7-column table carries uppercase 11px tracking .03em headers — the same
+  // owner-spec supersession pattern as ShipmentDebitPage above, scoped to the
+  // two sheets that skin this surface.
+  'src/pages/CustomersPage.css',
+  'src/pages/config/customer-config-density.css',
 ];
 
 function cssFiles(dir: string): string[] {

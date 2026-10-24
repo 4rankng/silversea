@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Plus, Download,
-  Pencil, Trash2, X, Save, Loader2,
+  Pencil, Trash2, X, Save, Loader2, MoreHorizontal,
   Building2, Hash, Landmark, MapPin, User, Phone,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -18,6 +18,7 @@ import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, Pagination, useTableQueryState } from '../design-system';
 import { useTableRowSelection } from '../hooks/useTableRowSelection';
 import { CustomerFilters, type CustomerFilterKey } from '../features/customers/CustomerFilters';
+import { CustomerMetricsRow } from '../features/customers/CustomerHeaderMetrics';
 import {
   customerDebtSummaryQuery,
   customerFreightMap,
@@ -25,7 +26,8 @@ import {
 } from '../features/customers/customer-debt-projection';
 import { CustomerDrawerHistories } from '../features/customers/CustomerDrawerHistories';
 import { useToast } from '../components/shared/Toast';
-import { formatCurrency, formatDateTimeVN } from '../lib/format';
+import { formatCurrency, formatDateTimeVN, titleCaseVn, shortNameChipLabel } from '../lib/format';
+import { financialClient, type CustomerAging } from '../api/financialClient';
 import type { Customer, LedgerEntry } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import { useCustomerLedgerEntries } from '../hooks/useQueries';
@@ -59,6 +61,44 @@ function riskDot(debt: number | null, limit: number | null) {
   if (ratio > 0.8) return 'high';
   if (ratio >= 0.5) return 'med';
   return 'low';
+}
+
+/** SIL-169 — mirrors the server's aging risk rule (aging.service.ts
+ * classifyAgingRisk) so the row dot, the "Rủi ro cao" tab and the header
+ * metric count agree on one definition. Rows without an aging projection
+ * fall back to the ledger-balance heuristic in `riskDot`. */
+type RiskLevel = 'high' | 'med' | 'low';
+function classifyAgingRisk(totalOutstanding: number, aging: { over90: number; d30: number; d60: number }): RiskLevel {
+  if (totalOutstanding <= 0) return 'low';
+  if (aging.over90 > 0 || totalOutstanding > 100_000_000) return 'high';
+  if (aging.d30 > 0 || aging.d60 > 0) return 'med';
+  return 'low';
+}
+
+/** SIL-169 metric ② — customers whose last CUSTOMER ledger activity is older
+ * than 30 days (they stopped transacting; a customer with no entry at all has
+ * nothing to "stop", so it does not count). The sub line carries the OLDEST
+ * idle-since date ("từ dd/MM"). Pure derivation over the existing ledger
+ * feed — no new endpoint. */
+const IDLE_WINDOW_DAYS = 30;
+function idleCustomerSummary(entries: LedgerEntry[] | undefined): { count: number; since: string | null } | null {
+  if (!entries) return null;
+  const lastByCustomer = new Map<number, string>();
+  for (const entry of entries) {
+    if (entry.entityType !== 'CUSTOMER') continue;
+    const prev = lastByCustomer.get(entry.entityId);
+    if (!prev || entry.timestamp > prev) lastByCustomer.set(entry.entityId, entry.timestamp);
+  }
+  const cutoff = Date.now() - IDLE_WINDOW_DAYS * 86_400_000;
+  let count = 0;
+  let oldestSince: string | null = null;
+  for (const ts of lastByCustomer.values()) {
+    const t = Date.parse(ts);
+    if (Number.isNaN(t) || t >= cutoff) continue;
+    count += 1;
+    if (!oldestSince || ts < oldestSince) oldestSince = ts;
+  }
+  return { count, since: oldestSince };
 }
 
 export function buildCustomerDebtMap(entries: LedgerEntry[]): Map<number, number> {
@@ -348,6 +388,45 @@ export default function CustomersPage() {
     return buildCustomerDebtMap(ledgerEntries ?? []);
   }, [ledgerEntries]);
 
+  // SIL-169 — the header metrics + per-row debt/overdue/risk read the
+  // EXISTING receivables-aging projection (GET /reports/receivables-aging),
+  // whose roles (ADMIN/MANAGER/ACCOUNTANT) are exactly this page's audience.
+  // One un-searched snapshot covers the whole catalog: `totals` feeds the
+  // inline metrics and the "Rủi ro cao" tab count, the rows carry each
+  // customer's outstanding balance and contractual overdue span. While the
+  // projection is unavailable the metrics read '—' and rows fall back to the
+  // ledger debt map — never an invented number.
+  const AGING_SNAPSHOT_LIMIT = 200;
+  const { data: agingSnapshot } = useQuery({
+    queryKey: qk.financial.customerAging({ limit: AGING_SNAPSHOT_LIMIT }),
+    queryFn: () => financialClient.getCustomerAging({ limit: AGING_SNAPSHOT_LIMIT }),
+    staleTime: 2 * 60 * 1000,
+  });
+  const agingByCustomer = useMemo(
+    () => new Map((agingSnapshot?.customers ?? []).map((row: CustomerAging) => [row.customerId, row])),
+    [agingSnapshot],
+  );
+  const agingTotals = agingSnapshot?.totals;
+  const overdueAmount = agingTotals ? agingTotals.d30 + agingTotals.d60 + agingTotals.over90 : null;
+  /** One risk answer per row: the aging rule first, ledger heuristic fallback. */
+  const riskOf = (c: Customer): RiskLevel => {
+    const row = agingByCustomer.get(c.id);
+    if (row) return classifyAgingRisk(row.totalOutstanding, row.aging);
+    return riskDot(debtMap.get(c.id) ?? 0, Number(c.creditLimit || 0));
+  };
+  const idle30 = useMemo(() => idleCustomerSummary(ledgerEntries), [ledgerEntries]);
+  /** Display fields the 7-column contract (SIL-169 verdict b) derives per row. */
+  const rowDetail = (c: Customer) => {
+    const aging = agingByCustomer.get(c.id);
+    const debt = aging ? aging.totalOutstanding : (debtMap.get(c.id) ?? 0);
+    const overdueDays = aging?.maxOverdueDays ?? 0;
+    const termDays = c.paymentTermDays != null ? Number(c.paymentTermDays)
+      : c.agencyFeePaymentTermDays != null ? Number(c.agencyFeePaymentTermDays) : null;
+    const termTitle = c.paymentTermDays != null ? 'Hạn thanh toán cước'
+      : c.agencyFeePaymentTermDays != null ? 'Hạn thanh toán chi hộ' : undefined;
+    return { aging, debt, overdueDays, termDays, termTitle };
+  };
+
   // Server-side freight figures for the rows on screen. Keyed by the visible
   // customer ids so the projection stays bounded to the page the user sees —
   // the same rows the CSV export writes.
@@ -379,16 +458,13 @@ export default function CustomersPage() {
   const filtered = useMemo(() => customers.filter(c => {
       if (filter === 'active') return c.status === CustomerStatus.ACTIVE;
       if (filter === 'locked') return c.status === CustomerStatus.LOCKED;
-      if (filter === 'risk') {
-        const debt = debtMap.get(c.id) ?? 0;
-        const limit = Number(c.creditLimit || 0);
-        if (debt <= 0) return false;
-        // No credit limit + outstanding debt = unlimited risk exposure
-        if (limit <= 0) return true;
-        return debt / limit > 0.8;
-      }
+      // SIL-169: the "Rủi ro cao" tab filters by the SAME aging rule that
+      // feeds the metric count and the row dot (previously the ledger-ratio
+      // heuristic — a different definition than the count it sat beside).
+      if (filter === 'risk') return riskOf(c) === 'high';
       return true;
-  }), [customers, filter, debtMap]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- riskOf closes over agingByCustomer/debtMap, both of which are deps below
+  }), [customers, filter, debtMap, agingByCustomer]);
   // Card 20260929_207: the page-wide select-all, scoped to the rows on screen.
   const allOnPageSelected = selection.allOfSelected(filtered.map((c) => c.id));
   const toggleAllOnPage = () => {
@@ -540,13 +616,40 @@ export default function CustomersPage() {
           { label: 'Khách hàng' },
         ]}
       />
-      {/* Page chrome is the shared `PageHeader`; the strip IS the shared
-          `ListFilterBar` (card 20260927_152), rendered by `CustomerFilters` so
-          this page declares no strip box, no search shell and no control width.
-          The status axis keeps both of its controls (see the component). */}
+      {/* SIL-169 verdict (a): the page header is ONE 56px line — H1 on the
+          left, the three inline metrics on the right (no card boxes, no
+          88px KPI row, ~150px handed back to the table). The concentration
+          signal (card 20260926_60) rides the same line as a compact warning
+          chip with its popover — it is metric-family information, and moving
+          it here is what keeps the toolbar to a single 44px row below. */}
       <PageHeader
         title="Khách hàng & Đối tác"
         onBack={() => navigate('/dashboard')}
+        action={(
+          <CustomerMetricsRow
+            data={{
+              overdueAmount,
+              overdueCount: agingTotals?.overdueCount ?? null,
+              idleCount: idle30?.count ?? null,
+              idleSince: idle30?.since ?? null,
+              riskCount: agingTotals?.highRiskCount ?? null,
+            }}
+            extra={concentration.anyDebt && (
+              <div className="customers-strip__risk" tabIndex={0}>
+                <span aria-hidden="true">⚠️</span> Top 4 KH chiếm {concentration.topShare}% công nợ
+                <div className="customers-strip__risk-pop" role="tooltip">
+                  <strong>Công nợ tập trung — top 4 khách hàng</strong>
+                  {concentration.top.map((row) => (
+                    <div key={row.id} className="customers-strip__risk-row">
+                      <span>{row.name}</span>
+                      <span className="customers-strip__risk-share">{row.share}% · {formatCurrency(row.debt)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          />
+        )}
       />
       <CustomerFilters
         search={search}
@@ -556,8 +659,7 @@ export default function CustomersPage() {
         onFilter={setFilter}
         total={total}
         statusCounts={customersStatusCounts}
-        resultCount={filtered.length}
-        concentration={concentration}
+        riskCount={agingTotals?.highRiskCount}
         onExport={exportCustomers}
         exporting={exporting === 'all'}
         onAdd={() => { setShowAddForm(true); setEditingId(null); }}
@@ -567,7 +669,7 @@ export default function CustomersPage() {
         onExcludeOwnFleetChange={setExcludeOwnFleet}
       />
 
-      {/* ── Mobile card list (≤820px) ──────────────────────────────────── */}
+      {/* ── Mobile card list (<640 per the SIL-169 verdict) ────────────── */}
       <div className="mobile-only mobile-table-wrap">
         <div className="m-card-list">
           {loading ? (
@@ -577,68 +679,84 @@ export default function CustomersPage() {
               context="clients"
               title={search || filter !== 'all' ? 'Không có khách hàng phù hợp.' : 'Chưa có khách hàng'}
               description={search || filter !== 'all' ? 'Thử thay đổi từ khóa hoặc bộ lọc.' : 'Thêm khách hàng đầu tiên để bắt đầu quản lý công nợ.'}
-              action={<button className="btn btn--primary" onClick={() => { setShowAddForm(true); setEditingId(null); }}><Plus size={14} /> Thêm khách hàng</button>}
             />
           ) : (
-            filtered.map(c => (
-              <ClickableCard key={c.id} className="m-card" style={{ position: 'relative' }} onClick={() => navigate(`/customers/${c.id}`)}>
+            filtered.map(c => {
+              const { debt, overdueDays, termDays } = rowDetail(c);
+              const addr = c.address || c.contactInfo;
+              return (
+              /* SIL-169 verdict (d): the mobile card is the same 7-column
+                 contract stacked — dot + title-case name + chip header, a
+                 label/value grid body, and the debt footer that goes red when
+                 the aging projection says overdue. */
+              <ClickableCard key={c.id} className="m-card cus-m-card" style={{ position: 'relative' }} onClick={() => navigate(`/customers/${c.id}`)}>
                 <StatusStrip status={c.status} />
-                <div className="m-card__top">
-                  <span className="m-card__title">
-                    <span className={`risk-dot risk-dot--${riskDot(debtMap.get(c.id) ?? 0, Number(c.creditLimit || 0))}`} />
-                    {c.shortName || c.name}
-                    {c.linkedSupplierId && (
-                      <Badge variant="success" style={{ marginLeft: 6 }}>2 chiều</Badge>
-                    )}
+                <div className="cus-m-card__head">
+                  <span className="cus-m-card__title">
+                    <span className={`cus-dot cus-dot--${riskOf(c)}`} aria-hidden="true" />
+                    {titleCaseVn(c.name)}
+                    {c.shortName && c.shortName !== c.name && <span className="cus-chip">{shortNameChipLabel(c.shortName)}</span>}
+                    {c.linkedSupplierId && <Badge variant="success">2 chiều</Badge>}
                   </span>
-                  <StatusPill variant={c.status === CustomerStatus.ACTIVE ? 'success' : 'danger'}>
-                    {STATUS_LABELS[c.status] || c.status}
-                  </StatusPill>
-                </div>
-                {c.taxCode && (
-                  <div className="m-card__meta" style={{ fontFamily: 'var(--font-data)' }}>
-                    MST <span className="data-token">{c.taxCode}</span>
-                  </div>
-                )}
-                {(c.contactPerson || c.phone) && (
-                  <div className="m-card__meta">
-                    {c.contactPerson}
-                    {c.phone && <><span className="m-card__meta-sep">·</span><span className="data-token">{c.phone}</span></>}
-                  </div>
-                )}
-                {c.creditLimit && (
-                  <div className="m-card__row">
-                    <span className="m-card__row-label">Hạn mức tín dụng</span>
-                    <span className="m-card__row-value">{formatCurrency(c.creditLimit)}</span>
-                  </div>
-                )}
-                <div className="m-card__row">
-                  <span className="m-card__row-label">Công nợ</span>
-                  <span className="m-card__row-value" style={debtMap.get(c.id) ? { color: 'var(--warning-text)' } : undefined}>
-                    <Money value={debtMap.get(c.id) ?? 0} />
+                  <span className="cus-m-card__head-right">
+                    <StatusPill variant={c.status === CustomerStatus.ACTIVE ? 'success' : 'danger'}>
+                      {STATUS_LABELS[c.status] || c.status}
+                    </StatusPill>
+                    <button
+                      type="button"
+                      className="row-action"
+                      aria-label={`Thao tác với ${c.shortName || c.name}`}
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpenId === c.id}
+                      onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}
+                    >
+                      <MoreHorizontal size={16} />
+                    </button>
                   </span>
                 </div>
-                {/* Card 20260928_177 — the freight figures the "Bỏ xe công ty"
-                    tick changes, read off the server projection. */}
-                {(() => {
-                  const freight = freightByCustomer.get(c.id);
-                  if (!freight) return null;
-                  return (
-                    <div className="m-card__row">
-                      <span className="m-card__row-label">Cước thu / trả</span>
-                      <span className="m-card__row-value" style={{ fontFamily: 'var(--font-data)' }}>
-                        <Money value={freight.freightRevenue} compact /> · <Money value={freight.freightPayable} compact />
-                      </span>
-                    </div>
-                  );
-                })()}
-                <div className="m-card-edit-row">
-                  <button className="btn btn--ghost btn--sm" onClick={(e) => { e.stopPropagation(); setEditingId(c.id); setShowAddForm(false); }}>
-                    Sửa
-                  </button>
+                <div className="cus-m-card__grid">
+                  {c.taxCode && (
+                    <span className="cus-m-card__row"><span className="cus-m-card__label">MST</span><span className="data-token">{c.taxCode}</span></span>
+                  )}
+                  {addr && (
+                    <span className="cus-m-card__row"><span className="cus-m-card__label">Địa chỉ</span><span className="cus-m-card__addr" title={addr}>{addr}</span></span>
+                  )}
+                  <span className="cus-m-card__row">
+                    <span className="cus-m-card__label">Liên hệ</span>
+                    <span className="cus-m-card__contact">
+                      {c.contactPerson || '—'}{c.phone && <> · <span className="data-token">{c.phone}</span></>}
+                      {(c.accountantName || c.accountantPhone) && (
+                        <span className="cus-m-card__contact-sub">{[c.accountantName, c.accountantPhone].filter(Boolean).join(' · ')}</span>
+                      )}
+                    </span>
+                  </span>
+                  {termDays != null && (
+                    <span className="cus-m-card__row"><span className="cus-m-card__label">Hạn TT</span><span className="cus-chip">{termDays} ngày</span></span>
+                  )}
                 </div>
+                <div className="cus-m-card__foot">
+                  <span className="cus-m-card__label">Công nợ</span>
+                  <span className="cus-m-card__debt" data-overdue={overdueDays > 0 || undefined}>
+                    <Money value={debt} compact />
+                    {overdueDays > 0 && <span className="cus-debt-sub">quá hạn {overdueDays} ngày</span>}
+                  </span>
+                </div>
+                {menuOpenId === c.id && (
+                  <div className="cus-kebab-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" role="menuitem" aria-label={`Sửa khách hàng ${c.shortName || c.name}`}
+                      onClick={() => { setMenuOpenId(null); setEditingId(c.id); setShowAddForm(false); }}>
+                      <Pencil size={13} /> Sửa
+                    </button>
+                    <button type="button" role="menuitem" className="cus-kebab-menu__danger" aria-label={`Xoá khách hàng ${c.shortName || c.name}`}
+                      disabled={deleting === c.id}
+                      onClick={() => { setMenuOpenId(null); void doDelete(c.id); }}>
+                      {deleting === c.id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Xoá
+                    </button>
+                  </div>
+                )}
               </ClickableCard>
-            ))
+              );
+            })
           )}
         </div>
         <div className="table-foot">
@@ -694,62 +812,69 @@ export default function CustomersPage() {
         </span>
       </div>
 
-      {/* ── Desktop table (>640px) ──────────────────────────────────────── */}
+      {/* ── Desktop table (≥640px per the SIL-169 verdict: the card face is
+              <640 only) ────────────────────────────────────────────────── */}
       <div className="desktop-only table-wrap">
-        <div className="record-table-wrap">
-          <table className="record-table ops-table" style={{ tableLayout: 'fixed' }}>
-              {/* Card 20261004_335: the action column budgets the worst-case
-                  row-action run (2 × coarse 40px square + 6px gap = 86px + 24px
-                  cell padding → 112px, card-324 idiom). The +32px grant is
-                  funded from the wrap-yield "Liên hệ & SĐT" column so the
-                  fixed set still sums 808px and the auto identity column is
-                  pixel-identical to before at every width (no-truncation law;
-                  styles test: action-column-width-budget). */}
+        {/* SIL-169 visual-gate re-dispatch (24/10): --scroll is the shared
+            wide-table adoption — 640–1023 canvases scroll the fixed 978px
+            budget horizontally instead of squeezing it (CustomersPage.css
+            owns the ≥640 real-table geometry for this budget). */}
+        <div className="record-table-wrap record-table-wrap--scroll">
+          <table className="record-table ops-table cus-table" style={{ tableLayout: 'fixed' }}>
+              {/* SIL-169 verdict (b): 9 visual columns collapsed to the 7 that
+                  carry information — identity (dot + title-case name + chip +
+                  code sub-line), MST, address, one merged contact column (both
+                  contact lines), payment term, debt with the overdue signal,
+                  and a single 32px kebab. Widths are the verdict's own budget
+                  (260/110/180/180/96/120/32 ≈ 978px inside the 1008px content
+                  box at 1280). Sort stays server-side on the endpoint's
+                  whitelist keys (name, taxCode). */}
               <colgroup>
-                <col style={{ width: 140 }} />
-                <col />
-                <col style={{ width: 120 }} />
-                <col style={{ width: 168 }} />
+                <col style={{ width: 260 }} />
                 <col style={{ width: 110 }} />
-                <col style={{ width: 158 }} />
-                <col style={{ width: 150 }} />
-                <col style={{ width: 112 }} />
+                <col style={{ width: 180 }} />
+                <col style={{ width: 180 }} />
+                <col style={{ width: 96 }} />
+                <col style={{ width: 120 }} />
+                {/* The kebab column rides a CSS class, not an inline width:
+                    32px at fine pointers (the verdict's budget) and the
+                    coarse-pointer floor when a touch hand needs the button —
+                    an inline col width cannot answer a media query. */}
+                <col className="cus-col-action" />
               </colgroup>
               <thead>
                 <tr>
-                  <SortHeader label="Mã / Tên rút gọn" sortKey="shortName" sort={sort} onSortChange={applySort} />
-                  <SortHeader label="Tên doanh nghiệp" sortKey="name" sort={sort} onSortChange={applySort} />
+                  <SortHeader label="Khách hàng" sortKey="name" sort={sort} onSortChange={applySort} />
                   <SortHeader label="MST" sortKey="taxCode" sort={sort} onSortChange={applySort} />
-                  <SortHeader label="Liên hệ & SĐT" sortKey="contactPerson" sort={sort} onSortChange={applySort} />
-                  <th>Trạng thái</th>
-                  <th>Cước thu / trả</th>
-                  {/* Card 061026172805 (FB-007 regression): the last-updated
-                      column is back. Non-sortable by design — the list
-                      endpoint's sort enum covers business keys only; the
-                      sibling Trạng thái / Cước columns are plain th too. */}
-                  <th>Cập nhật</th>
-                  <th style={{ width: 112 }}></th>
+                  <th>Địa chỉ</th>
+                  <th>Liên hệ</th>
+                  <th>Hạn TT</th>
+                  <th className="cus-th-debt">Công nợ</th>
+                  <th><span className="sr-only">Thao tác</span></th>
                 </tr>
               </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <Loader2 size={22} className="spin" style={{ display: 'inline-block', marginBottom: 8 }} />
                   <p style={{ fontSize: 'var(--text-data-size)' }}>Đang tải…</p>
                 </td></tr>
               )}
               {error && (
-                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--danger)' }}>
                   <p>{error}</p>
                   <button className="btn btn--secondary btn--sm" style={{ marginTop: 8 }} onClick={() => refetchCustomers()}>Thử lại</button>
                 </td></tr>
               )}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={8} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
+                <tr><td colSpan={7} data-label="" style={{ textAlign: 'center', padding: 32, color: 'var(--ink-3)' }}>
                   <EmptyState variant="compact" context="clients" title={search || filter !== 'all' ? 'Không có khách hàng phù hợp.' : 'Chưa có dữ liệu'} />
                 </td></tr>
               )}
-              {filtered.map((c) => (
+              {filtered.map((c, index) => {
+                const { aging, debt, overdueDays, termDays, termTitle } = rowDetail(c);
+                const addr = c.address || c.contactInfo;
+                return (
                   <tr
                     key={c.id}
                     tabIndex={0}
@@ -758,103 +883,132 @@ export default function CustomersPage() {
                     className="customers-row"
                     {...rowProps(c.id)}
                   >
-                    <td data-label="Mã / Tên rút gọn" className="customers-code-cell">
-                      {c.shortName || <span className="customers-muted">—</span>}
-                    </td>
                     {/* Card 20260929_207 (PM decision): the row is the selection
                         control, so opening the customer moved to the name — the
-                        cell that carries its identity. */}
-                    <td data-label="Tên doanh nghiệp">
+                        cell that carries its identity. The dot + chip + code
+                        sub-line join it under the SIL-169 identity column. */}
+                    <td data-label="Khách hàng">
                       <button
                         type="button"
                         className="customers-name-open"
                         aria-label={`Mở hồ sơ ${c.name}`}
                         onClick={() => openCustomerDrawer(c.id)}
                       >
-                        <span className="customers-name-cell">{c.name}</span>
+                        <span className="cus-id">
+                          <span className={`cus-dot cus-dot--${riskOf(c)}`} aria-hidden="true" />
+                          <span className="customers-name-cell">{titleCaseVn(c.name)}</span>
+                          {c.shortName && c.shortName !== c.name && <span className="cus-chip">{shortNameChipLabel(c.shortName)}</span>}
+                          {c.status === CustomerStatus.LOCKED && <span className="cus-chip cus-chip--locked">Tạm khoá</span>}
+                        </span>
+                        {c.code && <span className="cus-code-sub">{c.code}</span>}
                       </button>
                     </td>
                     <td data-label="Mã số thuế" className="customers-mono-cell">
                       <span className="data-token">{c.taxCode || <span className="customers-muted">—</span>}</span>
                     </td>
-                    <td data-label="Người liên hệ & SĐT">
+                    {/* Address is the one datum the verdict explicitly budgets
+                        as a single ellipsized line — the full value rides the
+                        title tooltip and the row drawer, so nothing is lost. */}
+                    <td data-label="Địa chỉ" className="cus-addr-cell" title={addr || undefined}>
+                      {addr || <span className="customers-muted">—</span>}
+                    </td>
+                    <td data-label="Liên hệ">
                       <span className="customers-contact-stack">
-                        <span>{c.contactPerson || '—'}</span>
-                        {c.phone && (
-                          <button
-                            type="button"
-                            className="customers-copy-phone"
-                            title="Sao chép số điện thoại"
-                            aria-label={`Sao chép số điện thoại ${c.phone}`}
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              try {
-                                await navigator.clipboard.writeText(c.phone as string);
-                                toast({ kind: 'success', message: `Đã sao chép ${c.phone}` });
-                              } catch { toast({ kind: 'error', message: 'Không sao chép được' }); }
-                            }}
-                          >
-                            <span className="data-token">{c.phone}</span>
-                          </button>
+                        <span className="cus-contact-main">
+                          {c.contactPerson || '—'}
+                          {c.phone && (
+                            <button
+                              type="button"
+                              className="customers-copy-phone"
+                              title="Sao chép số điện thoại"
+                              aria-label={`Sao chép số điện thoại ${c.phone}`}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await navigator.clipboard.writeText(c.phone as string);
+                                  toast({ kind: 'success', message: `Đã sao chép ${c.phone}` });
+                                } catch { toast({ kind: 'error', message: 'Không sao chép được' }); }
+                              }}
+                            >
+                              <span className="data-token">{c.phone}</span>
+                            </button>
+                          )}
+                        </span>
+                        {(c.accountantName || c.accountantPhone) && (
+                          <span className="cus-contact-sub">{[c.accountantName, c.accountantPhone].filter(Boolean).join(' · ')}</span>
                         )}
-                        {!c.phone && <span className="customers-muted">—</span>}
                       </span>
                     </td>
-                    <td data-label="Trạng thái">
-                      <StatusPill variant={c.status === CustomerStatus.ACTIVE ? 'success' : 'warn'}>
-                        {STATUS_LABELS[c.status] || c.status}
-                      </StatusPill>
+                    <td data-label="Hạn thanh toán" className="cus-term-cell" title={termTitle ?? undefined}>
+                      {termDays != null
+                        ? <>{termDays} <span className="cus-term-unit">ngày</span></>
+                        : <span className="customers-muted">—</span>}
                     </td>
                     <td
-                      data-label="Cước thu / trả"
-                      className="customers-mono-cell"
-                      title={freightByCustomer.get(c.id)
-                        ? `${freightByCustomer.get(c.id)!.tripCount} chuyến · xe công ty: ${freightByCustomer.get(c.id)!.ownFleetTripCount} chuyến`
-                        : undefined}
+                      data-label="Công nợ"
+                      className="cus-debt-cell"
+                      title={aging ? undefined : 'Công nợ theo sổ cái (chưa có dữ liệu quá hạn)'}
                     >
-                      {(() => {
-                        const freight = freightByCustomer.get(c.id);
-                        if (!freight) return <span className="customers-muted">—</span>;
-                        return (
-                          <span className="customers-contact-stack">
-                            <span>Thu <Money value={freight.freightRevenue} compact /></span>
-                            <span>Trả <Money value={freight.freightPayable} compact /></span>
-                          </span>
-                        );
-                      })()}
+                      <span className="customers-contact-stack">
+                        <Money value={debt} compact />
+                        {overdueDays > 0 && <span className="cus-debt-sub">quá hạn {overdueDays} ngày</span>}
+                      </span>
                     </td>
-                    <td data-label="Cập nhật" className="customers-muted">
-                      {formatDateTimeVN(c.updatedAt)}
-                    </td>
-                    <td data-label="" className="record-table__action customers-actions-cell">
+                    <td
+                      data-label=""
+                      className="record-table__action customers-actions-cell"
+                      style={{ position: 'relative' }}
+                    >
                       <div className="row-actions">
                         <button
                           className="row-action"
-                          title="Sửa khách hàng"
-                          aria-label={`Sửa khách hàng ${c.shortName || c.name}`}
-                          onClick={(e) => { e.stopPropagation(); setEditingId(c.id); setShowAddForm(false); }}
+                          title="Thao tác"
+                          aria-label={`Thao tác với ${c.shortName || c.name}`}
+                          aria-haspopup="menu"
+                          aria-expanded={menuOpenId === c.id}
+                          onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === c.id ? null : c.id); }}
                         >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          className="row-action"
-                          title="Xoá khách hàng"
-                          aria-label={`Xoá khách hàng ${c.shortName || c.name}`}
-                          disabled={deleting === c.id}
-                          onClick={(e) => { e.stopPropagation(); doDelete(c.id); }}
-                        >
-                          {deleting === c.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
+                          <MoreHorizontal size={16} />
                         </button>
                       </div>
+                      {menuOpenId === c.id && (
+                        <div
+                          role="menu"
+                          className={`cus-kebab-menu${index >= filtered.length - 2 && filtered.length > 2 ? ' cus-kebab-menu--up' : ''}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button type="button" role="menuitem" aria-label={`Sửa khách hàng ${c.shortName || c.name}`}
+                            onClick={() => { setMenuOpenId(null); setEditingId(c.id); setShowAddForm(false); }}>
+                            <Pencil size={13} /> Sửa
+                          </button>
+                          <button type="button" role="menuitem" className="cus-kebab-menu__danger" aria-label={`Xoá khách hàng ${c.shortName || c.name}`}
+                            disabled={deleting === c.id}
+                            onClick={() => { setMenuOpenId(null); void doDelete(c.id); }}>
+                            {deleting === c.id ? <Loader2 size={13} className="spin" /> : <Trash2 size={13} />} Xoá
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         <Pagination page={page} totalPages={totalPages} totalItems={total} pageSize={pageSize} onChange={setPage} />
       </div>
+
+      {/* SIL-169 verdict (d): on the mobile face the primary add action is a
+          fixed 48px FAB, not a toolbar button fighting the full-width search. */}
+      <button
+        type="button"
+        className="cus-fab"
+        aria-label="Thêm khách hàng"
+        onClick={() => { setShowAddForm(true); setEditingId(null); }}
+      >
+        <Plus size={20} />
+      </button>
 
       {/* Customer add/edit modal */}
       <CustomerFormModal
@@ -906,7 +1060,7 @@ export default function CustomersPage() {
       {drawerId != null && (() => {
         const c = filtered.find(x => x.id === drawerId) ?? customers.find(x => x.id === drawerId);
         if (!c) return null;
-        const debt = debtMap.get(c.id) ?? 0;
+        const detail = rowDetail(c);
         return (
           <Drawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} title={`Chi tiết ${c.shortName || c.name}`}>
               <div className="customers-drawer__body">
@@ -923,12 +1077,22 @@ export default function CustomersPage() {
                   <dd>{c.shortName || '—'}</dd>
                   <dt>Mã số thuế</dt>
                   <dd><span className="data-token">{c.taxCode || '—'}</span></dd>
+                  <dt>Địa chỉ</dt>
+                  <dd>{c.address || c.contactInfo || '—'}</dd>
                   <dt>Hạn mức tín dụng</dt>
                   <dd>{c.creditLimit != null ? formatCurrency(c.creditLimit) : '—'}</dd>
+                  <dt>Hạn thanh toán</dt>
+                  <dd>{detail.termDays != null ? `${detail.termDays} ngày` : '—'}</dd>
                   <dt>Công nợ hiện tại</dt>
-                  <dd style={debt > 0 ? { color: 'var(--warning-text)' } : undefined}>
-                    <Money value={debt} />
+                  <dd style={detail.overdueDays > 0 ? { color: 'var(--overdue-text)' } : undefined}>
+                    <Money value={detail.debt} />
+                    {detail.overdueDays > 0 && <span className="cus-debt-sub">quá hạn {detail.overdueDays} ngày</span>}
                   </dd>
+                  {/* FB-007 carry-over (card 061026172805): the last-updated
+                      value moved here when the SIL-169 verdict retired the
+                      Cập nhật column — the datum stays on the surface. */}
+                  <dt>Cập nhật</dt>
+                  <dd>{formatDateTimeVN(c.updatedAt)}</dd>
                 </dl>
                 <dl className="customers-drawer__section">
                   <dt>Giám đốc</dt>

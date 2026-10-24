@@ -32,7 +32,9 @@ import CustomersPage from './CustomersPage';
 
 const customer = {
   id: 7,
-  name: 'Công ty TNHH Ánh Dương',
+  // Realistic stored shape (SIL-169): legal names live in ALL CAPS in the
+  // catalog; the table renders them title-case — "Công Ty TNHH Ánh Dương".
+  name: 'CÔNG TY TNHH ÁNH DƯƠNG',
   shortName: 'Ánh Dương',
   taxCode: '0101234567',
   contactPerson: 'Nguyễn Văn Bình',
@@ -53,11 +55,12 @@ function renderPage() {
   );
 }
 
-/** The table row of the seeded customer, found via its unique name cell. */
+/** The table row of the seeded customer. jsdom renders BOTH faces (the mobile
+ * card list and the desktop table), so the title-cased name matches twice —
+ * the row is the match that sits inside a <tr>. */
 async function nameRow() {
-  await screen.findByText('Công ty TNHH Ánh Dương');
-  const cell = screen.getByText('Công ty TNHH Ánh Dương');
-  const row = cell.closest('tr');
+  const cells = await screen.findAllByText('Công Ty TNHH Ánh Dương');
+  const row = cells.map((cell) => cell.closest('tr')).find((tr) => tr !== null);
   if (!row) throw new Error('customer row not found');
   return row;
 }
@@ -125,16 +128,49 @@ describe('CustomersPage CSV export feedback (card 20261006_391)', () => {
   });
 });
 
-describe('CustomersPage Cập nhật column (card 061026172805 — FB-007 regression)', () => {
-  it('the table carries the Cập nhật column and the row shows its last-updated timestamp', async () => {
+describe('CustomersPage table contract (SIL-169) + updatedAt carry (card 061026172805, FB-007)', () => {
+  it('renders the 7-column verdict header and the title-cased identity', async () => {
     renderPage();
-    // The header regressed out of the staging build (FB-007 round-3 retest):
-    // the column must render again, and the seeded row must carry its
-    // formatted last-updated value rather than an em-dash placeholder.
-    expect(await screen.findByText('Cập nhật')).toBeTruthy();
-    const row = await nameRow();
+    // The verdict's column set: identity, MST, address, merged contact,
+    // payment term, debt, kebab. The retired columns (Trạng thái, Cước thu /
+    // trả, Cập nhật, split contact) must not come back as headers. (jsdom
+    // renders both faces, so headers may also appear as mobile labels —
+    // query all matches.)
+    for (const header of ['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn TT', 'Công nợ']) {
+      expect((await screen.findAllByText(header)).length).toBeGreaterThan(0);
+    }
+    expect(screen.queryByText('Trạng thái')).toBeNull();
+    expect(screen.queryByText('Cước thu / trả')).toBeNull();
+    expect(screen.queryByText('Cập nhật')).toBeNull();
+    // The stored ALL-CAPS name renders title-case with the abbreviation chip
+    // (both the mobile card face and the table face).
+    expect((await screen.findAllByText('Công Ty TNHH Ánh Dương')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Ánh Dương').length).toBeGreaterThan(0);
+  });
+
+  it('the last-updated timestamp moved into the detail drawer (FB-007 carry)', async () => {
+    renderPage();
+    await nameRow();
+    // SIL-169 retired the Cập nhật COLUMN; the datum rides the row drawer —
+    // the seeded row must still surface its formatted last-updated value.
+    fireEvent.click(screen.getByRole('button', { name: 'Mở hồ sơ CÔNG TY TNHH ÁNH DƯƠNG' }));
+    const drawer = await screen.findByRole('dialog', { name: 'Chi tiết Ánh Dương' });
     // formatDateTimeVN renders "HH:mm:ss D/M/YYYY" (time part is TZ-dependent;
     // 03:45Z stays on 6/10 in every VN-adjacent zone, so pin the date alone).
-    expect(row.textContent).toContain('6/10/2026');
+    expect(drawer.textContent).toContain('6/10/2026');
+  });
+
+  it('the inline header metrics render with stable testids (SIL-169 verdict a)', async () => {
+    renderPage();
+    await nameRow();
+    // The aging projection is unavailable in this suite's mock env — the
+    // overdue and risk metrics read the honest '—', never a fake 0. The idle
+    // metric's ledger feed IS available (empty: no customer ever
+    // transacted), so it reports a real 0.
+    for (const testId of ['cus-metric-overdue', 'cus-metric-risk']) {
+      const metric = screen.getByTestId(testId);
+      expect(metric.textContent).toContain('—');
+    }
+    expect(screen.getByTestId('cus-metric-idle30').textContent).toContain('0 KH');
   });
 });
