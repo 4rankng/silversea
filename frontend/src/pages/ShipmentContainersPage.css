@@ -194,6 +194,9 @@
    11-char ISO codes stay on one line at supporting size. */
 .shipment-container-ledger td[data-label="Container"] .shipment-container-ledger__multiline > strong { font-size: var(--text-caption-size); font-weight: 400; white-space: nowrap; }
 .shipment-container-ledger__multiline > span { color: var(--ink-2); }
+/* SIL-149 phase 2: the row expander is a phone-only affordance (the ≤520px
+   block flips it on); desktop tables never render a control. */
+.shipment-container-ledger__row-toggle { display: none; }
 .shipment-container-ledger__multiline > em { color: var(--ink-3); font-style: italic; font-size: var(--ops-table-meta-size); line-height: var(--ops-table-meta-line-height); }
 .shipment-container-ledger__multiline > .shipment-container-ledger__row-warning { display: inline-flex; width: fit-content; max-width: 100%; align-items: center; gap: 4px; margin-top: 2px; padding: 2px 8px; border-radius: 6px; background: var(--warning-soft); color: var(--warning-text); font-size: var(--text-caption-size); font-weight: var(--fw-bold); line-height: 1.5; white-space: nowrap; }
 .shipment-container-ledger__row-warning svg { width: 12px; height: 12px; flex: 0 0 12px; }
@@ -649,6 +652,37 @@
      corners, and whitespace do the separation (consultation 3.2). */
   .shipment-container-ledger tbody > tr { margin: 10px 10px 0; border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 5%, transparent); }
   .shipment-container-ledger tbody > tr:last-child { margin-bottom: 10px; }
+
+  /* SIL-149 phase 2 (tie-breaker 24/10, both consultants concurring): rows
+     collapse the four LOW-frequency cells (Hãng tàu, Nhập/Xuất, 'Nâng / hạ',
+     'Ghi chú') behind the th expander. The high-frequency edit lanes —
+     lịch hẹn, phân xe, tờ khai — stay on the card face. The expander is the
+     th trigger's SIBLING (never nested inside the react-aria button), and an
+     editor opened from the missing-fields chip keeps rendering through the
+     editing-cell override below even while its base cell is collapsed. */
+  .shipment-container-ledger tbody > tr > th { position: relative; }
+  .shipment-container-ledger tbody > tr > th .shipment-container-ledger__cell-trigger { padding-right: 52px; }
+  .shipment-container-ledger__row-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .shipment-container-ledger__row-toggle svg { width: 20px; height: 20px; transition: transform 150ms ease; }
+  .shipment-container-ledger__row-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .shipment-container-ledger tbody > tr[data-expanded="false"] > td[data-label='Hãng tàu'],
+  .shipment-container-ledger tbody > tr[data-expanded="false"] > td[data-label='Nhập/Xuất'],
+  .shipment-container-ledger tbody > tr[data-expanded="false"] > td[data-label='Nâng / hạ'],
+  .shipment-container-ledger tbody > tr[data-expanded="false"] > td[data-label='Ghi chú'] { display: none !important; }
+  .shipment-container-ledger tbody > tr[data-expanded="false"] > td.shipment-container-ledger__editing-cell { display: block !important; }
 }
 
 /* Stack labels above values inside tablet record blocks. A fixed 96px label

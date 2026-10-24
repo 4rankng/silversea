@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button as AriaButton } from 'react-aria-components';
-import { CalendarOff } from 'lucide-react';
+import { CalendarOff, ChevronDown } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
@@ -695,6 +695,19 @@ export function ShipmentContainerLedger({
   const isHidden = (key: string) => hiddenColumns.includes(key);
   const missingDateCount = rows.filter((row) => row.transportDate == null).length;
   const [copyingRowId, setCopyingRowId] = useState<number | null>(null);
+  // SIL-149 phase 2 (consultation tie-breaker 24/10): phone rows collapse the
+  // four low-frequency cells behind a per-row expander. Default COLLAPSED;
+  // expanded ids ride component state keyed by row id, so pagination/filter
+  // rerenders never leak one row's expansion into another.
+  const [expandedRowIds, setExpandedRowIds] = useState<ReadonlySet<number>>(() => new Set());
+  const toggleRowDetails = (rowId: number) => {
+    setExpandedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
+      return next;
+    });
+  };
   // The workboard is MULTI-LOT, so "still empty" is counted PER LOT: a copy on
   // one row only ever fills its own lot's rows and can never touch a
   // neighbouring lot sharing the page. Counted over the LOADED page (this
@@ -1017,6 +1030,7 @@ export function ShipmentContainerLedger({
               const lotBillingPlate = billingPlateFor(row);
               const lotBillingDiffers = lotBillingPlate !== '' && normalizePlate(lotBillingPlate) !== normalizePlate(lotActualPlate);
               const lotBillingEditing = billingEditorForRowId === row.id;
+              const detailsExpanded = expandedRowIds.has(row.id);
               // Card 191026181942 (empty allocation = pending label): with
               // NOTHING allocated — no carrier, no plate, not even a hand-typed
               // BKS thực — the cell prints ONE muted "Chưa phân xe" label. The
@@ -1029,7 +1043,12 @@ export function ShipmentContainerLedger({
                 edit?.mode === mode && 'shipment-container-ledger__editing-cell',
               ].filter(Boolean).join(' ') || undefined;
               return (
-                <tr key={row.id} className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}>
+                <tr
+                  key={row.id}
+                  id={`shipment-row-details-${row.id}`}
+                  data-expanded={detailsExpanded ? 'true' : 'false'}
+                  className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}
+                >
                   <th scope="row" data-label="Khách hàng & lộ trình" className={cellClassName(identityEditable, 'identity')}>
                     <StatusStrip color={DISPATCH_STRIP_COLORS[row.dispatchStatus]} />
                     {editableCell(row, 'identity', identityEditable, <div className="shipment-container-ledger__multiline">
@@ -1039,6 +1058,20 @@ export function ShipmentContainerLedger({
                       {row.factoryName ? <NameCell name={row.factoryName} /> : fallback(null, 'Chưa có nhà máy')}
                       {row.routeName ? <NameCell as="em" name={row.routeName} /> : fallback(null, 'Chưa có tuyến đường')}
                     </div>)}
+                    {/* SIL-149 phase 2 (consultation tie-breaker 24/10): a
+                        SIBLING of the cell trigger, never nested inside it —
+                        phones collapse the four secondary cells behind this
+                        expander; desktop hides it outright. */}
+                    <button
+                      type="button"
+                      className="shipment-container-ledger__row-toggle"
+                      aria-expanded={detailsExpanded}
+                      aria-controls={`shipment-row-details-${row.id}`}
+                      aria-label={`${detailsExpanded ? 'Thu gọn' : 'Xem thêm'} thông tin phụ của ${row.containerNumber || row.billOrBookNumber || `container số ${row.ordinal}`}`}
+                      onClick={() => toggleRowDetails(row.id)}
+                    >
+                      <ChevronDown aria-hidden="true" />
+                    </button>
                   </th>
                   {/* FB-113 v2: the documents group, one headed column per
                       field in the QA order. All four open the ONE documents

@@ -192,6 +192,13 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1 !important;/);
     expect(phone).toMatch(/\.shipment-container-ledger__editing-cell\s*\{[^}]*display:\s*block;[^}]*grid-column:\s*1 \/ -1 !important;[^}]*padding:\s*0 0 8px !important;/);
     expect(phone).toMatch(/\.shipment-container-ledger__editing-cell::before\s*\{[^}]*display:\s*none;/);
+    // SIL-149 phase 2 (tie-breaker 24/10): the four secondary cells collapse
+    // behind the th expander; an editor opened while collapsed keeps
+    // rendering, and the expander itself is a phone-only 44px control.
+    expect(phone).toMatch(/\.shipment-container-ledger__row-toggle\s*\{[^}]*position:\s*absolute;[^}]*width:\s*44px;[^}]*height:\s*44px;/);
+    expect(phone).toMatch(/tr\[data-expanded="false"\] > td\[data-label='Hãng tàu'\][^}]*display:\s*none\s*!important/);
+    expect(phone).toMatch(/tr\[data-expanded="false"\] > td\.shipment-container-ledger__editing-cell\s*\{[^}]*display:\s*block\s*!important/);
+    expect(css).toMatch(/\.shipment-container-ledger__row-toggle\s*\{\s*display:\s*none;\s*\}/);
     const tablet = css.slice(css.indexOf('@container shipments-detail (min-width: 641px)'));
     expect(tablet).toMatch(/\.shipment-container-ledger__cell-trigger\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(tablet).toMatch(/\.shipment-container-ledger__cell-trigger::before\s*\{[^}]*position:\s*static;/);

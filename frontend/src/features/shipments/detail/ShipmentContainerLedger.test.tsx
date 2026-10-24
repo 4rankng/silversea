@@ -1607,3 +1607,54 @@ describe('ShipmentContainerLedger documents column order (card 221026095429)', (
     expect(docCells.slice(0, 4)).toEqual(['Bill/Booking', 'Số tờ khai', 'Nhập/Xuất', 'Hãng tàu']);
   });
 });
+
+describe('row details expander (SIL-149 phase 2 — consultation tie-breaker 24/10)', () => {
+  function renderExpanderRow(row = baseRow()) {
+    const view = render(
+      <MemoryRouter>
+        <ShipmentContainerLedger
+          rows={[row]}
+          totalContainers={1}
+          today="2026-10-24"
+          sort={null}
+          onSortChange={vi.fn()}
+          activeEdit={null}
+          editLoadingRowId={null}
+          editError={null}
+          onStartEdit={vi.fn()}
+          onCancelEdit={vi.fn()}
+          onSaveRoute={vi.fn(async () => {})}
+          onSaveVehicle={vi.fn(async () => {})}
+          onSaveSchedule={vi.fn(async () => {})}
+          onSaveNotes={vi.fn(async () => {})}
+          onSaveIdentity={vi.fn(async () => {})}
+          onSaveDocuments={vi.fn(async () => {})}
+          onSaveContainer={vi.fn(async () => {})}
+        />
+      </MemoryRouter>,
+    );
+    return { view };
+  }
+
+  it('EXPAND-01 starts collapsed, flips aria-expanded and data-expanded, wires aria-controls to its row', () => {
+    const { view } = renderExpanderRow();
+    const toggle = view.container.querySelector<HTMLButtonElement>('.shipment-container-ledger__row-toggle')!;
+    expect(toggle).toBeTruthy();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    const row = toggle.closest('tr')!;
+    expect(row.getAttribute('data-expanded')).toBe('false');
+    expect(row.getAttribute('id')).toBe(toggle.getAttribute('aria-controls'));
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(row.getAttribute('data-expanded')).toBe('true');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(row.getAttribute('data-expanded')).toBe('false');
+  });
+
+  it('EXPAND-02 names the expander after the row identity so the control is self-describing', () => {
+    const { view } = renderExpanderRow(baseRow({ containerNumber: 'MSKU1234567' }));
+    const toggle = view.container.querySelector('.shipment-container-ledger__row-toggle')!;
+    expect(toggle.getAttribute('aria-label')).toBe('Xem thêm thông tin phụ của MSKU1234567');
+  });
+});
