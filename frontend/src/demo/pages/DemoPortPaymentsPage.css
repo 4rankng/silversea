@@ -10,8 +10,9 @@
  *
  *  - consult 24/10: cột checkbox w-10 (40px); dòng chờ highlight nền
  *    warning-50 (cùng họ pill ⏳); dòng đã UNC mờ đi (opacity .6).
- *  - header: không uppercase (nhãn VN mixed-case), không sticky trong demo.
- *  - numeric/action cột: phải + nowrap + tabular-nums (tiền không tách dòng).
+ *  - header: case/tracking nhận từ global thead th (styles/table.css) —
+ *    không khai lại; không sticky trong demo.
+ *  - numeric/action cột: phải + nowrap (tiền không tách dòng).
  *  - min-width 1080px cho 7 cột dày đặc (global 900px là của các bảng cũ).
  */
 .demo-port-payments table {
@@ -28,8 +29,6 @@
   padding: 9px 12px;
   background: transparent;
   border-bottom: 1px solid var(--line);
-  text-transform: none;
-  letter-spacing: normal;
   font-weight: 600;
   color: var(--ink-3);
   white-space: nowrap;
@@ -67,7 +66,6 @@
 }
 
 .demo-port-payments td.pp-col--num .pp-money {
-  font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--ink);
 }

@@ -19,6 +19,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FileAttachment01 } from '@untitledui/icons';
+import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/untitled-ui/base/badges/badges';
 import { Button } from '@/components/untitled-ui/base/buttons/button';
 import { Checkbox } from '@/components/untitled-ui/base/checkbox/checkbox';
@@ -76,18 +77,7 @@ function StatusPill({ tone, children }: { tone: 'warning' | 'success'; children:
 function MiniSpinner({ label }: { label: string }) {
   return (
     <span role="status" aria-label={label} data-testid="unc-spinner" className="inline-flex items-center gap-1.5 text-tertiary">
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="size-4 animate-spin">
-        <circle className="stroke-current opacity-30" cx="10" cy="10" r="8" strokeWidth="2" />
-        <circle
-          className="stroke-current"
-          cx="10"
-          cy="10"
-          r="8"
-          strokeWidth="2"
-          strokeDasharray="12.5 50"
-          strokeLinecap="round"
-        />
-      </svg>
+      <Loader2 size={16} aria-hidden="true" className="size-4 animate-spin" />
       <span className="text-xs font-medium">Đang UNC…</span>
     </span>
   );
