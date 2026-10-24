@@ -1,0 +1,23 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-cont-combobox-revert/frontend
+> vitest run
+
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-cont-combobox-revert/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  722 passed (722)
+      Tests  5585 passed (5585)
+   Start at  12:17:33
+   Duration  196.31s (transform 34.11s, setup 116.01s, import 538.08s, tests 544.93s, environment 458.70s)
+

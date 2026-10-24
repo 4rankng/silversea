@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { CusContainerAddRow, EMPTY_ADD_FIELDS, type AddContainerFields } from './CusContainerAddRow';
 
@@ -121,5 +122,78 @@ describe('SIL-152: typing over an existing Loại cont pick must not revert to t
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ containerTypeId: '40' }));
     await waitFor(() => expect(combo().value).toBe('40HC'));
+  });
+});
+
+/**
+ * SIL-152 (theo dõi SIL-68, lane fix-cont-combobox-revert / SIL-163): gõ đè
+ * lên lựa chọn ĐÃ CHỌN phải giữ text vừa gõ và chọn loại MỚI được — không
+ * revert label cũ. Shared root cause with the create flow's cell: the
+ * non-searchable openOnType branch fed the committed label back as the
+ * controlled inputValue. These complement the lean pins above: parent-state
+ * commit flip, blur restore, and the create-surface twin lives in
+ * ContainerTypeCellPicker.test.tsx.
+ */
+describe('SIL-152: add-row Loại cont — gõ đè lựa chọn đã chọn (SIL-163 lane pins)', () => {
+  function AddRowHarness({ initialTypeId }: { initialTypeId: string }) {
+    const [fields, setFields] = useState<AddContainerFields>({ ...EMPTY_ADD_FIELDS, containerTypeId: initialTypeId });
+    return (
+      <table>
+        <tbody>
+          <CusContainerAddRow
+            fields={fields}
+            containerTypes={TYPES}
+            adding={false}
+            onChange={(patch) => setFields((prev) => ({ ...prev, ...patch }))}
+            onSubmit={vi.fn()}
+            onCancel={vi.fn()}
+          />
+        </tbody>
+      </table>
+    );
+  }
+
+  it('đã chọn 20DC, gõ "4" → text giữ nguyên, lọc còn 40HC, chọn 40HC commit id MỚI', async () => {
+    render(<AddRowHarness initialTypeId="20" />);
+    const combo = screen.getByRole('combobox', { name: 'Loại cont' }) as HTMLInputElement;
+    expect(combo.value).toBe('20DC');
+
+    // Gõ đè: the draft owns the input (the old build reverted to '20DC').
+    combo.focus();
+    fireEvent.change(combo, { target: { value: '4' } });
+    expect(combo.value).toBe('4');
+    // Filter follows the draft: 40HC reachable, 20DC hidden.
+    expect(await screen.findByRole('option', { name: '40HC' })).toBeTruthy();
+    expect(screen.queryByRole('option', { name: '20DC' })).toBeNull();
+
+    // Chọn lại 40HC: the NEW id replaces the old one.
+    fireEvent.click(screen.getByRole('option', { name: '40HC' }));
+    await waitFor(() => expect(combo.value).toBe('40HC'));
+  });
+
+  it('gõ "4" rồi Enter commit từ danh sách đã lọc — không còn "revert về label cũ"', async () => {
+    render(<AddRowHarness initialTypeId="20" />);
+    const combo = screen.getByRole('combobox', { name: 'Loại cont' }) as HTMLInputElement;
+
+    combo.focus();
+    fireEvent.change(combo, { target: { value: '4' } });
+    expect(await screen.findByRole('option', { name: '40HC' })).toBeTruthy();
+
+    fireEvent.keyDown(combo, { key: 'ArrowDown' });
+    fireEvent.keyDown(combo, { key: 'Enter' });
+    await waitFor(() => expect(combo.value).not.toBe('20DC'));
+    expect(combo.value).toMatch(/40|45/);
+  });
+
+  it('gõ rồi blur không chọn: phục hồi label của lựa chọn đã commit', async () => {
+    render(<AddRowHarness initialTypeId="20" />);
+    const combo = screen.getByRole('combobox', { name: 'Loại cont' }) as HTMLInputElement;
+
+    combo.focus();
+    fireEvent.change(combo, { target: { value: '4' } });
+    expect(combo.value).toBe('4');
+
+    fireEvent.blur(combo);
+    await waitFor(() => expect(combo.value).toBe('20DC'));
   });
 });
