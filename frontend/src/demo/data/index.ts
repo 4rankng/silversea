@@ -19,6 +19,7 @@ export type {
   DemoVendor,
 } from './types';
 export {
+  DEMO_TODAY,
   demoCustomers,
   demoDriverCashFees,
   demoDrivers,
