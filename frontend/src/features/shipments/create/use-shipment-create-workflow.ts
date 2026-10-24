@@ -13,6 +13,7 @@ import {
 } from '../../../api/shipmentClient';
 import type { OperationalSite, QuickCreateShipmentRequest } from '../../../api/shipmentClient';
 import type { ShipmentReferenceConflict } from '../../../api/shipmentDuplicateClient';
+import type { ShipmentEditSeed } from './shipment-edit-prefill';
 import {
   buildShipmentContainerPayload,
   buildShipmentRootPayload,
@@ -51,6 +52,15 @@ function isAmbiguousCreateError(error: unknown) {
   return !(error instanceof ApiError) || error.status >= 500;
 }
 
+/**
+ * SIL-171 edit seed: a signature value no real container payload can produce
+ * (`JSON.stringify` of a container array always starts with '['). Seeding it
+ * forces the FCL container reconcile to fire on the first edit save —
+ * including the delete-all-rows case whose payload is `[]` and would
+ * otherwise be skipped as "nothing to reconcile".
+ */
+const EDIT_CONTAINER_SENTINEL = '"__edit-seed__"';
+
 interface UseShipmentCreateWorkflowArgs {
   form: ShipmentCreateFormState;
   containers: ShipmentContainerDraft[];
@@ -58,6 +68,15 @@ interface UseShipmentCreateWorkflowArgs {
   readiness: ShipmentCreateReadiness;
   onValidationIssues: (issues: ShipmentCreateIssue[]) => void;
   onSaved?: (shipmentId: number, intent: SaveIntent) => void;
+  /**
+   * SIL-171 (FB-147) edit mode: when set, the FIRST save starts from the
+   * existing lot (id/version/declaration ids) instead of POST /shipments/quick
+   * — the root reconcile PUT /shipments/:id (the lot PATCH) fires immediately,
+   * declarations update in place, and FCL container rows reconcile by their
+   * persisted ids. Validation is unchanged: the same create-form readiness
+   * gates the save.
+   */
+  editSeed?: ShipmentEditSeed;
   /**
    * Customer-facing note (two-note model). The shared create/update payload
    * builders live in `shipment-create-model.ts` and are not owned by this
@@ -83,6 +102,7 @@ export function useShipmentCreateWorkflow({
   readiness,
   onValidationIssues,
   onSaved,
+  editSeed,
   customerNotes,
   onDuplicateConflict,
 }: UseShipmentCreateWorkflowArgs) {
@@ -111,7 +131,26 @@ export function useShipmentCreateWorkflow({
     setSubmitError(null);
     setDuplicateConflict(null);
     try {
-      const attempt = attemptRef.current ?? { createKey: crypto.randomUUID(), submitKey: crypto.randomUUID() };
+      // SIL-171 edit mode: seed the attempt from the loaded lot so the save
+      // starts at the update/reconcile stage — the create branch below stays
+      // unreachable for a seeded attempt (shipmentId/version are set).
+      const attempt = attemptRef.current ?? (editSeed
+        ? {
+            createKey: crypto.randomUUID(),
+            submitKey: crypto.randomUUID(),
+            shipmentId: editSeed.shipmentId,
+            version: editSeed.version,
+            // undefined ≠ any payload signature → the root PUT fires on the
+            // first save. The edit submit IS the lot PATCH.
+            rootSignature: undefined,
+            declarationId: editSeed.declarations[0]?.id,
+            declarationSignature: editSeed.declarations[0]?.number ?? '',
+            extraDeclarationIds: Object.fromEntries(
+              editSeed.declarations.slice(1).map((row) => [row.number, row.id] as const),
+            ),
+            ...(editSeed.fclContainers ? { containerSignature: EDIT_CONTAINER_SENTINEL } : {}),
+          }
+        : { createKey: crypto.randomUUID(), submitKey: crypto.randomUUID() });
       attemptRef.current = attempt;
       const customerNotesValue = customerNotes?.trim() || null;
       const createPayload = {
@@ -157,7 +196,15 @@ export function useShipmentCreateWorkflow({
         attempt.containerSignature = containerSignature;
       }
       if (attempt.rootSignature !== rootSignature) {
-        const updated = await updateShipment(attempt.shipmentId, { expectedVersion: attempt.version, ...createPayload });
+        // The update schema accepts customerId only as a positive int — an
+        // ad-hoc lot (null) must OMIT the key so the server keeps the stored
+        // identity instead of rejecting the whole PATCH.
+        const updateBody: Parameters<typeof updateShipment>[1] = {
+          expectedVersion: attempt.version,
+          ...createPayload,
+        };
+        if (updateBody.customerId == null) delete updateBody.customerId;
+        const updated = await updateShipment(attempt.shipmentId, updateBody);
         attempt.version = updated.version;
         attempt.rootSignature = rootSignature;
       }
@@ -259,7 +306,7 @@ export function useShipmentCreateWorkflow({
     } finally {
       setSaving(null);
     }
-  }, [containers, customerNotes, form, navigate, onDuplicateConflict, onSaved, onValidationIssues, readiness, sites]);
+  }, [containers, customerNotes, editSeed, form, navigate, onDuplicateConflict, onSaved, onValidationIssues, readiness, sites]);
 
   return { clearFeedback, reportError: setSubmitError, save, saving, submitError, duplicateConflict };
 }

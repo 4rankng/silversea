@@ -20,11 +20,19 @@ export interface ShipmentCreateActionsProps {
    * — duplicate matches are ambiguous), so the footer variant names itself.
    */
   variant?: 'topline' | 'footer';
+  /**
+   * SIL-171 (FB-147) edit mode: the cluster becomes Huỷ + one primary
+   * "Lưu thay đổi" (the lot PATCH). "Lưu nháp" is create-only intent — a
+   * partial save of an EXISTING lot has no draft semantics, so it is hidden
+   * rather than repurposed.
+   */
+  mode?: 'create' | 'edit';
 }
 
-/** The three create-page actions (Huỷ / Lưu nháp / Tạo lô hàng).
+/** The create-page actions (Huỷ / Lưu nháp / Tạo lô hàng) and their edit-mode
+ *  pair (Huỷ / Lưu thay đổi).
  *
- * The two save actions are DIFFERENT intents (owner-confirmed):
+ * The two create save actions are DIFFERENT intents (owner-confirmed):
  * `Lưu nháp` = partial create (customer only, SaveIntent 'DRAFT'),
  * `Tạo lô hàng` = full intake validation (SaveIntent 'CREATE'). Neither submits
  * for dispatch. */
@@ -35,14 +43,18 @@ export function ShipmentCreateActions({
   onCreate,
   className,
   variant = 'topline',
+  mode = 'create',
 }: ShipmentCreateActionsProps) {
   const footer = variant === 'footer';
+  const edit = mode === 'edit';
   const label = (text: string) => (footer ? `${text} (cuối trang)` : undefined);
   return (
     <div
       className={[footer ? 'csc-actions csc-actions--footer' : 'csc-actions', className].filter(Boolean).join(' ')}
       role="group"
-      aria-label={footer ? 'Thao tác tạo lô hàng (cuối trang)' : 'Thao tác tạo lô hàng'}
+      aria-label={footer
+        ? (edit ? 'Thao tác sửa lô hàng (cuối trang)' : 'Thao tác tạo lô hàng (cuối trang)')
+        : (edit ? 'Thao tác sửa lô hàng' : 'Thao tác tạo lô hàng')}
     >
       <UUIButton
         type="button"
@@ -55,17 +67,19 @@ export function ShipmentCreateActions({
       >
         Huỷ
       </UUIButton>
-      <UUIButton
-        type="button"
-        size="md"
-        color="secondary"
-        iconLeading={Save}
-        onClick={onSaveDraft}
-        isDisabled={Boolean(saving)}
-        aria-label={label(saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu nháp')}
-      >
-        {saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu nháp'}
-      </UUIButton>
+      {!edit && (
+        <UUIButton
+          type="button"
+          size="md"
+          color="secondary"
+          iconLeading={Save}
+          onClick={onSaveDraft}
+          isDisabled={Boolean(saving)}
+          aria-label={label(saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu nháp')}
+        >
+          {saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu nháp'}
+        </UUIButton>
+      )}
       <UUIButton
         type="button"
         size="md"
@@ -74,9 +88,13 @@ export function ShipmentCreateActions({
         iconLeading={Check}
         onClick={onCreate}
         isDisabled={Boolean(saving)}
-        aria-label={label(saving === 'CREATE' ? 'Đang tạo…' : 'Tạo lô hàng')}
+        aria-label={label(edit
+          ? (saving ? 'Đang lưu…' : 'Lưu thay đổi')
+          : (saving === 'CREATE' ? 'Đang tạo…' : 'Tạo lô hàng'))}
       >
-        {saving === 'CREATE' ? 'Đang tạo…' : 'Tạo lô hàng'}
+        {edit
+          ? (saving ? 'Đang lưu…' : 'Lưu thay đổi')
+          : (saving === 'CREATE' ? 'Đang tạo…' : 'Tạo lô hàng')}
       </UUIButton>
     </div>
   );

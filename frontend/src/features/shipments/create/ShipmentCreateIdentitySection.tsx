@@ -29,6 +29,14 @@ export interface ShipmentCreateIdentitySectionProps {
   shippingLineAddButtonRef: RefObject<HTMLButtonElement | null>;
   onOpenCustomerDialog: () => void;
   onOpenShippingLineDialog: () => void;
+  /**
+   * SIL-171 edit mode: PUT /shipments/:id cannot persist the create-only
+   * intake flags (hasDeposit → deposit trackers; the ad-hoc identity XOR).
+   * Those controls hide here instead of reporting a silent success, and an
+   * ad-hoc lot's customer identity locks (converting it in-place would write
+   * customerId onto a row that keeps isAdHoc=true).
+   */
+  editMode?: boolean;
 }
 
 export function ShipmentCreateIdentitySection({
@@ -48,6 +56,7 @@ export function ShipmentCreateIdentitySection({
   shippingLineAddButtonRef,
   onOpenCustomerDialog,
   onOpenShippingLineDialog,
+  editMode = false,
 }: ShipmentCreateIdentitySectionProps) {
   const declarations = form.declarationNumbers ?? [];
   const [declDraft, setDeclDraft] = useState('');
@@ -134,7 +143,10 @@ export function ShipmentCreateIdentitySection({
             allowsCustomValue={form.isAdHoc}
             options={customerOptions}
             placeholder={form.isAdHoc ? 'Chọn hoặc gõ tên mới' : 'Gõ để tìm kiếm'}
-            disabled={saving}
+            // SIL-171: an ad-hoc lot's identity is immutable on edit — the
+            // update contract keeps isAdHoc, so converting it here would
+            // persist customerId onto a still-ad-hoc row (XOR break).
+            disabled={saving || (editMode && form.isAdHoc)}
             error={issueByField.get('shipment-customer')}
             className="csc-customer-field"
             popoverClassName="csc-customer-popover"
@@ -257,24 +269,32 @@ export function ShipmentCreateIdentitySection({
         >
           <span className="csc-identity-grid__flags-label">Tuỳ chọn</span>
           <div className="csc-identity-grid__flags-row">
-            <label className="csc-flag-checkbox" data-field-id="shipment-is-adhoc">
-              <input
-                type="checkbox"
-                checked={form.isAdHoc}
-                onChange={(event) => update('isAdHoc', event.target.checked)}
-                disabled={saving}
-              />
-              <span>Lệnh chạy ngoài</span>
-            </label>
-            <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
-              <input
-                type="checkbox"
-                checked={form.hasDeposit}
-                onChange={(event) => update('hasDeposit', event.target.checked)}
-                disabled={saving}
-              />
-              <span><strong>Có cược container</strong></span>
-            </label>
+            {/* SIL-171: create-only intake flags hide on edit — the update
+                contract cannot persist them, so showing them would report a
+                silent success. "Đóng kết hợp" stays (the update chain
+                supports it). */}
+            {!editMode && (
+              <label className="csc-flag-checkbox" data-field-id="shipment-is-adhoc">
+                <input
+                  type="checkbox"
+                  checked={form.isAdHoc}
+                  onChange={(event) => update('isAdHoc', event.target.checked)}
+                  disabled={saving}
+                />
+                <span>Lệnh chạy ngoài</span>
+              </label>
+            )}
+            {!editMode && (
+              <label className="csc-flag-checkbox" data-field-id="shipment-has-deposit">
+                <input
+                  type="checkbox"
+                  checked={form.hasDeposit}
+                  onChange={(event) => update('hasDeposit', event.target.checked)}
+                  disabled={saving}
+                />
+                <span><strong>Có cược container</strong></span>
+              </label>
+            )}
             <label className="csc-flag-checkbox" data-field-id="shipment-is-combined">
               <input
                 type="checkbox"
@@ -284,7 +304,7 @@ export function ShipmentCreateIdentitySection({
               />
               <span><strong>Đóng kết hợp</strong></span>
             </label>
-            {form.hasDeposit && (
+            {!editMode && form.hasDeposit && (
               <div className="csc-deposit-amount" data-field-id="shipment-deposit-amount">
                 <TextField
                   id="shipment-deposit-amount"

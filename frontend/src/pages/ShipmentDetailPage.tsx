@@ -222,14 +222,16 @@ export default function ShipmentDetailPage() {
     }
   }, [data, declDeleteTarget, declSaving, fetchDetail]);
 
-  // ─── Sửa lô (FB-086 R29 remainder, steer 21/10) ─────────────────────────
+  // ─── Sửa lô (FB-086 R29 remainder, steer 21/10; SIL-171 24/10) ───────────
   //
   // Reconciliation: TICKET-09 (card 171026182554) superseded FB-086 at this
   // surface for CONTAINERS — /shipments/:id stays read-only on the container
   // set (composition lives solely in the Tổng quan drawer). The valid
-  // remainder is lot-INFORMATION editing: the header "Sửa lô" button opens a
-  // picker over the same six field groups the Tổng quan grid edits, then the
-  // SAME shared quick-edit modal (one lot-info editor, two hosts). Roles =
+  // remainder is lot-INFORMATION editing: the header "Sửa lô" button now
+  // (SIL-171 / FB-147, khách Zalo 24/10 + QA R41) opens the FULL edit form —
+  // the Tạo lô hàng workspace pre-filled at /shipments/:id/edit, submit =
+  // PATCH. The original six-group picker below stays as the "Sửa nhanh"
+  // fallback (one lot-info editor, two hosts). Roles =
   // SHIPMENT_INTAKE_MUTATION_ROLES (ADMIN/MANAGER/CUS/DISPATCHER) — exactly
   // what PUT /shipments/:id authorizes; per-field gating is the workspace
   // payload's own fieldAccess, so the button never widens what the server
@@ -430,13 +432,28 @@ export default function ShipmentDetailPage() {
                 </button>
               )}
               {canEditLot && (
-                <button
-                  type="button"
-                  className="btn btn--secondary btn--sm"
-                  onClick={openLotEditPicker}
-                >
-                  <Pencil size={14} aria-hidden="true" /> Sửa lô
-                </button>
+                <>
+                  {/* SIL-171 (FB-147, 24/10): "Sửa lô" opens the FULL edit
+                      form — the same Tạo lô hàng workspace pre-filled with the
+                      lot (incl. Hình thức XNK) at /shipments/:id/edit; submit
+                      PATCHes the lot. The former 6-button group picker stays
+                      reachable as the lighter "Sửa nhanh" fallback beside it. */}
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => navigate(`/shipments/${shipment.id}/edit`)}
+                  >
+                    <Pencil size={14} aria-hidden="true" /> Sửa lô
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={openLotEditPicker}
+                    title="Sửa nhanh theo nhóm trường (dialog gọn)"
+                  >
+                    Sửa nhanh
+                  </button>
+                </>
               )}
               {canCreateShipment && (
                 <button
@@ -901,7 +918,8 @@ export default function ShipmentDetailPage() {
           )}
         </Modal>
       )}
-      {/* Sửa lô — group picker (FB-086 R29 remainder). Fetches the same
+      {/* Sửa nhanh — group picker (FB-086 R29 remainder, kept as the
+          SIL-171 fallback behind the "Sửa nhanh" button). Fetches the same
           workspace detail the Tổng quan edits from, then hands the picked
           group to the shared quick-edit modal below. */}
       {lotEditPickerOpen && (
