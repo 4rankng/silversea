@@ -709,3 +709,30 @@ what the provider let through. The JSON report is the source of truth for CI and
 future runs; `ifixai run` also enforces a default `--min-score` gate, exiting non-zero and
 printing "Score X is below minimum ..." when the overall score is under the threshold.
 <!-- IFIXAI:END -->
+
+## Board tickets — plan.tingting.vip (bắt buộc từ 24/10)
+MỌI thay đổi code bắt nguồn từ request/complaint/feedback PHẢI có issue trên board TRƯỚC khi code; commit message cite ticket (vd SIL-123).
+
+- Board: https://plan.tingting.vip/tingtingsoft/SIL
+- Quản lý qua MCP JSON-RPC: `POST https://plan.tingting.vip/mcp` với headers
+  `Authorization: Bearer $(cat ~/.hermes/profiles/dev/cache/scratch/ttplan-token.txt)`
+  và `Accept: application/json, text/event-stream`.
+  Flow: `initialize` (giữ header Mcp-Session-Id từ response) → `notifications/initialized` → `tools/call`.
+- Tools hay dùng: `list_issues {projectKey:"SIL"}` (mỗi call = 1 page — lặp với seen-id set)
+  · `create_issue {projectKey, columnId, title, description}`
+  · `update_issue {issueId, columnId}` để chuyển cột (KHÔNG dùng move_issue — đó là đổi project)
+  · `add_comment {issueId, body}`.
+- Cột của SIL: Backlog=1 · Todo=2 · In Progress=3 · Done=4 · Canceled=5.
+- Luật chuyển cột: mọi chuyển PHẢI kèm `add_comment` evidence (Done = có evidence kiểm chứng;
+  Canceled = won't-do + ghi rõ ruling/owner decision). Không đổi trạng thái khi thiếu evidence.
+
+## Consultation — webchat (design/UI/UX/SDLC)
+Khi gặp quyết định design/UI/UX, lựa chọn kiến trúc/library, hoặc challenge SDLC chưa rõ hướng:
+consult webchat TRƯỚC khi tự quyết:
+```bash
+cd /Volumes/LexarSSD/projects/one-shot
+timeout 240 python3 tools/webchat.py gemini send "<câu hỏi + NGỮ CẢNH + số liệu cụ thể>"
+sleep 60 && timeout 120 python3 tools/webchat.py gemini capture   # lặp nếu câu trả lời dài
+```
+- Adapter gemini/deepseek ONLY. Gửi kèm constraint + số đo thật (px, test counts, spec gốc).
+- Pattern/verdict trả về phải được dẫn lại trong brief hoặc comment ticket.
