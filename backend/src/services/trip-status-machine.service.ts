@@ -6,7 +6,8 @@ import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { eq, and, isNull, ne, sql } from 'drizzle-orm';
-import { TripStatus, Role } from '@tingting/shared';
+import { TripStatus, Role, localDateInBusinessZone } from '@tingting/shared';
+import { isTripRunningOnDepartureDay } from './trip-busy-gate';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -197,6 +198,7 @@ export async function transitionTripStatus(
         id: s.trips.id, tripCode: s.trips.tripCode,
         activeTripPairId: s.trips.activeTripPairId,
         driverId: s.trips.driverId, trailerId: s.trips.trailerId,
+        departureDate: s.trips.departureDate,
       })
         .from(s.trips)
         .where(and(
@@ -212,6 +214,14 @@ export async function transitionTripStatus(
       // (card 261022213755a: e-POD photos are optional evidence, so
       // evidence-ready no longer waits on a submitted e-POD); only
       // still-running trips block a new departure on the same truck.
+      // SIL-474: a row whose planned departure day has not arrived is not a
+      // running truck — an early "Xuất phát"/"Nhận lệnh" parks future trips
+      // in IN_TRANSIT (the enum has no ASSIGNED state), and such a row used
+      // to freeze the truck for every other order until the date passed.
+      // Today's Asia/Ho_Chi_Minh date is computed once per transition; the
+      // running decision lives in trip-busy-gate so tests share the real
+      // predicate.
+      const todayInBusinessZone = localDateInBusinessZone(new Date());
       let simultaneousPartnerId: number | null = null;
       if (trip.activeTripPairId != null) {
         const [pair] = await tx.select({ firstTripId: s.tripPairs.firstTripId, secondTripId: s.tripPairs.secondTripId })
@@ -229,6 +239,7 @@ export async function transitionTripStatus(
           && candidate.activeTripPairId === trip.activeTripPairId
           && trip.driverId != null && candidate.driverId === trip.driverId
           && trip.trailerId != null && candidate.trailerId === trip.trailerId) continue;
+        if (!isTripRunningOnDepartureDay(candidate.departureDate, todayInBusinessZone)) continue;
         const evidence = await getDriverCompletionEvidenceStatus(candidate.id, tx);
         if (!evidence.ready) blockingTrips.push(candidate);
       }
