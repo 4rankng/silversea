@@ -97,6 +97,31 @@
   cursor: pointer;
 }
 
+/* SIL-468 density — both log and scoreboard rows land at the 40–44px band:
+   the shared record-table's 10px block padding is the last 4px. The
+   `.penalty-page` prefix outranks `.record-table tbody td`, which is imported
+   after this sheet and would otherwise win the tie. */
+.penalty-page .penalty-log-table tbody td,
+.penalty-page .penalty-scoreboard-table tbody td {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+/* ─── Quiet state chip (SIL-468) — a whole-zero window replaces the two
+   right-hand columns with this one label beside the section title. ─── */
+
+.penalty-quiet-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--ink-3);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* ─── Month pill badge (header) ─── */
 
 .penalty-month-pill {
@@ -120,40 +145,6 @@
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-
-/* ─── Segmented time filter ─── */
-
-.penalty-seg {
-  display: inline-flex;
-  padding: 3px;
-  background: var(--surface-3);
-  border-radius: 8px;
-  border: 1px solid var(--line);
-}
-
-.penalty-seg button {
-  border: 0;
-  background: transparent;
-  min-height: 36px;
-  padding: 7px 12px;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--ink-3);
-  border-radius: 6px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 120ms var(--ease), color 120ms var(--ease), box-shadow 120ms var(--ease);
-}
-
-.penalty-seg button.active {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
-}
-
-.penalty-seg button:hover:not(.active) {
-  color: var(--ink-2);
 }
 
 /* ─── Card header (reuse fleet pattern) ─── */
@@ -254,39 +245,6 @@
   color: var(--warning-text);
 }
 
-/* ─── Driver cell ─── */
-
-.penalty-driver-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.penalty-driver-mini {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  flex-shrink: 0;
-}
-
-.penalty-driver-info .name {
-  font-weight: 600;
-  color: var(--ink);
-  font-size: var(--fs-sm);
-  line-height: 1.2;
-}
-
-.penalty-driver-info .role {
-  font-size: var(--fs-2xs);
-  color: var(--ink-3);
-  margin-top: 1px;
-}
-
 /* ─── Streak bar ─── */
 
 .penalty-streak {
@@ -333,46 +291,43 @@
   background: linear-gradient(90deg, var(--accent), var(--brass-3));
 }
 
-/* ─── Violation count indicator ─── */
+/* ─── Driver cell ─── */
 
-.penalty-violation-count {
+.penalty-driver-cell {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-family: var(--font-data);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--ink-2);
+  gap: 10px;
 }
 
-.penalty-violation-count .dot {
-  width: 8px;
-  height: 8px;
+.penalty-driver-mini {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: var(--accent);
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
+  flex-shrink: 0;
 }
 
-.penalty-violation-count.zero {
-  color: var(--accent-2);
+.penalty-driver-info .name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  line-height: 1.2;
 }
 
-.penalty-violation-count.warn {
-  color: var(--warning-text);
+.penalty-driver-info .name .penalty-grade {
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 1px 6px;
 }
 
-.penalty-violation-count.warn .dot {
-  background: var(--warning);
-}
-
-.penalty-violation-count.bad {
-  color: var(--danger-text);
-}
-
-.penalty-violation-count.bad .dot {
-  background: var(--danger);
-}
-
-/* ─── Money display ─── */
+/* ─── Money display (merged SIL-468 window/fine cell rides this too) ─── */
 
 .penalty-money {
   font-family: var(--font-data);

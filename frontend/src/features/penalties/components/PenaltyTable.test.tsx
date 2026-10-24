@@ -174,22 +174,56 @@ describe('PenaltyTable', () => {
     expect(within(desktopTable).getByText('Trần An Toàn')).toBeTruthy();
     expect(within(desktopTable).getByText(/210/)).toBeTruthy();
     expect(within(desktopTable).getByText('51H-999.88')).toBeTruthy(); // server-provided plate
-    expect(within(desktopTable).getByRole('columnheader', { name: /Vi phạm 90N/ })).toBeTruthy();
-    // Default window: violations90d (3 for Nguyễn Văn A), server grade B.
-    expect(within(desktopTable).getAllByText('3 vụ').length).toBeGreaterThan(0);
+    // SIL-468: the window-violation and YTD-fine figures share one column.
+    expect(within(desktopTable).getByRole('columnheader', { name: '90N / YTD' })).toBeTruthy();
+    // Default window: violations90d (3 for Nguyễn Văn A) + fineYtd — one cell
+    // ('3 / 1.800.000' own-text node; the unit ' đ' rides the child span).
+    expect(within(desktopTable).getAllByText('3 / 1.800.000').length).toBeGreaterThan(0);
+    for (const cell of within(desktopTable).getAllByText('3 / 1.800.000')) {
+      expect(cell.textContent?.endsWith(' đ')).toBe(true);
+    }
+    // SIL-468: the Mức column is gone — the grade rides beside the name.
     expect(within(desktopTable).getAllByText('B').length).toBeGreaterThan(0);
+    expect(within(desktopTable).queryByText('Mức')).toBeNull();
     expect(screen.getAllByText('Trần An Toàn').length).toBeGreaterThan(0); // insights.streakLeader leads the scoreboard
+  });
+
+  it('SIL-468: an all-zero window folds the table to a compact leaderboard plus a quiet chip', () => {
+    const zeroInsights = ((): PenaltyInsights => {
+      const base = insights();
+      return {
+        ...base,
+        scoreboard: base.scoreboard.map((d) => ({
+          ...d,
+          violations7d: 0, violations30d: 0, violations90d: 0, violationsYtd: 0, fineYtd: 0,
+          grade: 'A+',
+        })),
+      };
+    })();
+    renderTable({ insights: zeroInsights });
+
+    const desktopTable = document.querySelector('.penalty-scoreboard-table') as HTMLElement;
+    expect(desktopTable).not.toBeNull();
+    // The merged column disappears; a quiet chip states why it did.
+    expect(within(desktopTable).queryByRole('columnheader', { name: '90N / YTD' })).toBeNull();
+    expect(screen.getByText('Không phát sinh trong kỳ')).toBeTruthy();
+    // The compact leaderboard keeps rank · driver · streak.
+    expect(within(desktopTable).getByRole('columnheader', { name: 'Chuỗi an toàn' })).toBeTruthy();
+    expect(within(desktopTable).getByText('Trần An Toàn')).toBeTruthy();
+    expect(within(desktopTable).getAllByText(/210/).length).toBeGreaterThan(0);
   });
 
   it('switches scoreboard windows client-side from the same insights payload', () => {
     renderTable({ insights: insights() });
     const desktopTable = () => document.querySelector('.penalty-scoreboard-table') as HTMLElement;
 
-    fireEvent.click(screen.getByRole('button', { name: '7 ngày' }));
+    // Ruling 2026-09-27: the window toggle rides the shared boxed Tabs group.
+    fireEvent.click(within(screen.getByRole('tablist', { name: 'Chu kỳ bảng xếp hạng' })).getByRole('tab', { name: '7 ngày' }));
 
-    expect(within(desktopTable()).getByRole('columnheader', { name: /Vi phạm 7D/ })).toBeTruthy();
-    // Nguyễn Văn A: violations7d = 1 (was 3 under 90d) → grade recomputed A.
-    expect(within(desktopTable()).getAllByText('1 vụ').length).toBeGreaterThan(0);
+    expect(within(desktopTable()).getByRole('columnheader', { name: '7N / YTD' })).toBeTruthy();
+    // Nguyễn Văn A: violations7d = 1 (was 3 under 90d) → grade recomputed A;
+    // the fine half of the merged cell stays YTD.
+    expect(within(desktopTable()).getAllByText('1 / 1.800.000').length).toBeGreaterThan(0);
     expect(within(desktopTable()).getAllByText('A').length).toBeGreaterThan(0);
     expect(within(desktopTable()).queryByText('B')).toBeNull();
   });

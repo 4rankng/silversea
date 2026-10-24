@@ -189,7 +189,6 @@ const ordinaryOwners: Record<string, string[]> = {
   "src/pages/penalty/responsive.css": [
     ".penalty-row-act",
     ".penalty-chip",
-    ".penalty-seg button",
     ".penalty-page .penalty-log-table .record-table__action .penalty-row-act"
   ],
   "src/pages/salary-attendance/salary-summary.css": [
