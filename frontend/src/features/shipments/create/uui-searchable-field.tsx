@@ -109,6 +109,19 @@ export function USearchableField({
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   const selectedLabel = selected?.label;
+  // SIL-152: the type-to-open modes (openOnType / createOption) must keep the
+  // visible text in local `inputValue` — a controlled `selected?.label` here
+  // re-asserted the old pick's label on every keystroke typed over it, so the
+  // input visibly reverted mid-word and no new pick could be typed. Same
+  // contract as the searchable branch: local text leads; the sync effect
+  // adopts external value changes; the null-selection settle below falls
+  // unmatched text back to the committed pick's label.
+  const inputDriven = !searchable && !allowsCustomValue && (Boolean(createOption) || Boolean(openOnType));
+  // The label of the last COMMITTED pick (menu pick, Enter commit, external
+  // sync). inputDriven typing releases its key only when the text diverges
+  // from this — RAC also fires onInputChange when IT writes a picked label
+  // into the input, and that echo must not read as divergence (SIL-152).
+  const lastPickLabelRef = useRef(selectedLabel ?? '');
   // Local input text so type-to-search survives the controlled re-renders.
   // Synced with the selected option's label whenever `value` changes externally
   // (form reset, dialog-create success, etc.). A custom (allowsCustomValue)
@@ -157,6 +170,7 @@ export function USearchableField({
       && typedText !== '';
     lastSyncedValue.current = value;
     lastSyncedLabel.current = selectedLabel;
+    lastPickLabelRef.current = selectedLabel ?? '';
     if (!typingSessionLive) {
       // Custom (allowsCustomValue) values are not in the catalog, so `selected`
       // is undefined — keep the applied value in the input instead of blanking it.
@@ -200,6 +214,7 @@ export function USearchableField({
     setChosenKey(match.value);
     onChange(match.value);
     setInputValue(match.label);
+    lastPickLabelRef.current = match.label;
     return { id: String(match.value), label: match.label };
   };
   // FB-138 — grouped options: options carrying a `section` fold into RAC
@@ -276,9 +291,12 @@ export function USearchableField({
         // the field feel like a closed select.
         menuTrigger={searchable ? 'focus' : openOnType ? 'input' : 'manual'}
         openOnPress
-        selectedKey={searchable && allowsCustomValue ? chosenKey : (value || null)}
+        // SIL-152: inputDriven typing rides chosenKey (null mid-word) — a
+        // selectedKey still pinned to the old pick kept the suggestion menu
+        // shut the moment typed text diverged from it.
+        selectedKey={(searchable && allowsCustomValue) || inputDriven ? chosenKey : (value || null)}
         inputValue={
-          searchable
+          searchable || inputDriven
             ? inputValue
             : selected?.label ?? (allowsCustomValue ? value : undefined)
         }
@@ -323,8 +341,10 @@ export function USearchableField({
             // containerTypeId, blanking the cell and failing the save with
             // "containerTypeId là bắt buộc"). Instead, make the visible text
             // agree with the committed value: unmatched typed text falls
-            // back to the committed pick's label.
-            if (searchable && !allowsCustomValue) {
+            // back to the committed pick's label — SIL-152 extends that
+            // settle law to the type-to-open modes, whose local text no
+            // longer reverts on every keystroke.
+            if (!allowsCustomValue) {
               setInputValue(options.find((option) => option.value === (value ?? ''))?.label ?? '');
             }
             return;
@@ -336,6 +356,14 @@ export function USearchableField({
           onChange(String(key));
           if (searchable) {
             const picked = options.find((option) => String(option.value) === String(key));
+            setInputValue(picked?.label ?? '');
+          }
+          if (inputDriven) {
+            const picked = options.find((option) => String(option.value) === String(key));
+            lastPickLabelRef.current = picked?.label ?? '';
+            // The input is CONTROLLED here (inputValue prop) — react-aria only
+            // resets the text itself when props.inputValue is undefined, so
+            // the pick must write its own label (else the typed text sticks).
             setInputValue(picked?.label ?? '');
           }
         }}
@@ -357,7 +385,18 @@ export function USearchableField({
           : allowsCustomValue
             ? { allowsCustomValue: true, onInputChange: (text: string) => onChange(text) }
             : createOption || openOnType
-              ? { onInputChange: (text: string) => setInputValue(text) }
+              ? {
+                  onInputChange: (text: string) => {
+                    setInputValue(text);
+                    // SIL-152: divergent typing releases the pinned pick key —
+                    // a selectedKey still sitting on the old pick kept the
+                    // suggestion menu shut over the typed text. RAC's own
+                    // echo of a picked label matches lastPickLabelRef and
+                    // keeps the key; the sync effect re-adopts on external
+                    // value changes.
+                    setChosenKey((prev) => (prev != null && text !== lastPickLabelRef.current ? null : prev));
+                  },
+                }
               : {})}
         items={comboBoxItems as Array<{ id: string | number; label?: string; searchText?: string; supportingText?: string }>}
         placeholder={placeholder}

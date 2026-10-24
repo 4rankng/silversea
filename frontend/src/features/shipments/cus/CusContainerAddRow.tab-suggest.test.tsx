@@ -94,3 +94,32 @@ describe('SIL-68 (CUS-04): add-row Loại cont type-to-open suggestions', () => 
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('SIL-152: typing over an existing Loại cont pick must not revert to the old label', () => {
+  it('keeps the typed text in the input instead of re-asserting the old pick label', () => {
+    renderAddRow({ containerTypeId: '20' });
+
+    expect(combo().value).toBe('20DC');
+    combo().focus();
+    // Type over the committed pick — the old controlled-label wiring snapped
+    // the input back to '20DC' on every keystroke.
+    fireEvent.change(combo(), { target: { value: '4' } });
+    expect(combo().value).toBe('4');
+    // The filter follows the typed text, not the stale pick.
+    expect(screen.queryByRole('option', { name: '20DC' })).toBeNull();
+    expect(screen.getByRole('option', { name: '40HC' })).toBeTruthy();
+  });
+
+  it('committing the typed-over pick hands the NEW type id to the row', async () => {
+    const { onChange } = renderAddRow({ containerTypeId: '20' });
+
+    combo().focus();
+    fireEvent.change(combo(), { target: { value: '4' } });
+    await screen.findByRole('option', { name: '40HC' });
+    fireEvent.keyDown(combo(), { key: 'ArrowDown' });
+    fireEvent.keyDown(combo(), { key: 'Enter' });
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith({ containerTypeId: '40' }));
+    await waitFor(() => expect(combo().value).toBe('40HC'));
+  });
+});
