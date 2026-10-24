@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/frontend
+
+
+ Test Files  13 passed (13)
+      Tests  158 passed (158)
+   Start at  22:33:03
+   Duration  5.84s (transform 4.27s, setup 1.72s, import 10.27s, tests 5.11s, environment 6.47s)
+
+EXIT=0

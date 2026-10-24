@@ -1,119 +1,143 @@
 /* ============================================================================
- * PayableListPage — one aging comparison rail over a flat record surface.
+ * PayableListPage — data-dense surface (SIL-470).
  *
- * Zone 1: SummaryRail (the shared workboard strip).
- * Zone 2: Aging distribution rail — four cells divided by rules, not cards.
- * Zone 3: Data surface — the shared `ListFilterBar`, the record table and the
- *         phone card list, with no page-local card chrome around them.
+ * Zone 1: summary band ≤96px — tổng trái + chips quá hạn/NCC + aging
+ *         segmented bar (bucket colors đồng bộ /debt), legend 4 bucket.
+ * Zone 3: Data surface — the shared `ListFilterBar`, the record table (1 cột
+ *         "Hạn nợ" mini stacked bar thay 4 cột aging tiền) and the phone card
+ *         list, with no page-local card chrome around them.
  *
- * The Bento generation this sheet opened with — the hero KPI row, the
- * translucent `backdrop-filter` aging cards and their hover lift — is deleted.
- * It was already invisible (the flat generation at the foot of the sheet
- * re-declared every one of its properties at equal or higher specificity) and
- * it is exactly what docs/design-guidelines.md §3 bans: no box-shadow, no 3D
- * surfaces.
+ * The bento generation this sheet opened with — the hero KPI row, the aging
+ * cards and their progress bars — is deleted with SIL-470 (24/10): the band
+ * carries the same four buckets in ~90px that the cards needed ~110px each
+ * to show.
  * ========================================================================== */
 
 /* ============================================================================
- * Zone 2 — Aging distribution rail (four equal cells)
+ * Zone 1 — Summary band (SIL-470): tổng trái + chips + aging segmented bar
  * ========================================================================== */
-.payables-aging-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin-bottom: 16px;
-}
-
-.aging-card__header {
+.payables-band {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 0;
+  margin-bottom: 12px;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
 }
 
-.aging-card__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.aging-card__dot--ok     { background: var(--success); }
-.aging-card__dot--warn   { background: var(--warning); }
-.aging-card__dot--deep   { background: var(--warning-deep); }
-.aging-card__dot--danger { background: var(--danger); }
-
-.aging-card__label {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 1px;
-  color: var(--ink-3);
-}
-.aging-card__label strong {
-  font-family: var(--font-data);
-  font-size: var(--text-body-size);
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  text-transform: none;
-  color: var(--ink);
-}
-.aging-card__label small {
-  font-size: var(--text-label-size);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-3);
-}
-
-.aging-card__value {
+.payables-band__total {
   display: flex;
-  align-items: baseline;
-  gap: 3px;
-  font-family: var(--font-display);
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1.35;
-  color: var(--ink);
-  margin-bottom: 4px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-/* Currency unit / compact suffix rendered at subtitle size */
-.aging-card__unit {
+.payables-band__total-label {
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.payables-band__total-value {
   font-family: var(--font-data);
-  font-size: var(--text-caption-size);
-  font-weight: 500;
-  color: var(--ink-3);
+  font-size: var(--text-metric-size);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.aging-card__count {
-  display: block;
+.payables-band__aging {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 520px;
+  min-width: 0;
+}
+
+.payables-band__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payables-band__chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-3);
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
-  line-height: 1.35;
-  color: var(--ink-3);
-  margin-bottom: 10px;
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
 }
 
-/* ── Progress bars ───────────────────────────────────────────────────────── */
-.aging-card__bar-track {
-  width: 100%;
-  height: 4px;
-  background: var(--line);
-  border-radius: 2px;
+.payables-band__chip--warning {
+  color: var(--warning-text);
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+}
+
+.payables-band__bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
   overflow: hidden;
+  background: var(--line);
 }
 
-.aging-card__bar {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.6s var(--ease, cubic-bezier(0.4, 0, 0.2, 1));
+.payables-band__seg { height: 100%; }
+
+.payables-band__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
+  color: var(--ink-2);
 }
 
-.aging-card__bar--ok     { background: var(--success); }
-.aging-card__bar--warn   { background: var(--warning); }
-.aging-card__bar--deep   { background: var(--warning-deep); }
-.aging-card__bar--danger { background: var(--danger); }
+.payables-band__legend-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.payables-band__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  align-self: center;
+  flex: 0 0 auto;
+}
+
+.payables-band__legend b {
+  font-family: var(--font-data);
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.payables-band__legend-count { color: var(--ink-3); }
+
+@media (max-width: 1023px) {
+  .payables-band {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .payables-band__aging { flex-basis: auto; }
+}
 
 /* ============================================================================
  * Zone 3 — Data surface
@@ -170,18 +194,6 @@
     width: 100%;
     justify-content: center;
     min-height: var(--control-max-h);
-  }
-
-  .payables-aging-grid {
-    margin-bottom: 14px;
-  }
-
-  .aging-card__header {
-    margin-bottom: 8px;
-  }
-
-  .aging-card__count {
-    margin-bottom: 8px;
   }
 
   /* Mobile amount text in card list */
@@ -265,41 +277,71 @@
   flex-direction: column;
   gap: 10px;
 }
-/* One comparison rail above a flat record surface; keep data visible without
+
+/* One summary band above a flat record surface; keep data visible without
    repeated decorative cards around cards. */
-.payables-aging-grid {
-  gap: 0;
-  border-block: 1px solid var(--line);
-  background: var(--surface);
-}
-.payables-aging-grid > .aging-card {
-  min-width: 0;
-  padding: 10px 12px;
-  border: 0;
-  border-inline-end: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-  backdrop-filter: none;
-  box-shadow: none;
-  transform: none;
-}
-.payables-aging-grid > .aging-card:last-child { border-inline-end: 0; }
-.payables-aging-grid > .aging-card:hover { background: var(--surface-2); box-shadow: none; transform: none; }
-.payables-aging-grid .aging-card__value { font-size: var(--text-metric-size); flex-wrap: wrap; overflow-wrap: anywhere; }
-.payables-aging-grid .aging-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .payables-data-card { border: 0; border-radius: 0; background: transparent; backdrop-filter: none; box-shadow: none; padding: 0; }
-@media (max-width: 1023px) {
-  .payables-aging-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .payables-aging-grid > .aging-card:nth-child(2) { border-inline-end: 0; }
-  .payables-aging-grid > .aging-card:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
-}
 @media (max-width: 640px) {
-  .payables-aging-grid > .aging-card { padding: 8px; }
-  .payables-aging-grid .aging-card__value { font-size: var(--text-metric-size); }
   .payables-data-card { padding: 0; }
 }
+
+/* ============================================================================
+ * Zone 3 — record table density (SIL-470): tên 1 dòng + tooltip, sub-line chỉ
+ * khi có SĐT, 1 cột "Hạn nợ" mini stacked bar, row đích 44–48px.
+ * ========================================================================== */
+.payables-supplier-name {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--fg-1);
+}
+
+.payables-row-sub {
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
+  color: var(--fg-3);
+}
+
+.payables-aging-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.payables-aging-cell__bar {
+  display: flex;
+  flex: 0 0 auto;
+  width: 72px;
+  height: 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.payables-aging-cell__seg { height: 100%; }
+
+.payables-aging-cell__overdue {
+  font-family: var(--font-data);
+  font-size: var(--text-data-size);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.payables-aging-cell__overdue[data-overdue='true'] { color: var(--danger); }
+
+/* Row band: tên 1 dòng + sub-line tuỳ chọn → 2 dòng ≈ 46px, 1 dòng ≈ 32px
+   (đích 44–48px của ticket). */
+.payables-page .record-table tbody td { padding-block: 7px; }
+
 @media (prefers-reduced-motion: reduce) {
-  .payables-aging-grid *, .payables-aging-grid > .aging-card { transition: none; }
+  .payables-band *, .payables-aging-cell * { transition: none; }
 }
 
 @media (max-width: 640px) {
