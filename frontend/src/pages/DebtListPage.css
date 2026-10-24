@@ -13,138 +13,229 @@
 
 
 /* ════════════════════════════════════════════════════════════════════════════
- *  ZONE 2 — Aging Distribution Grid (4 equal glass cards)
+ *  ZONE 2 — SIL-469 summary band (88–96px): total + risk chips + a
+ *  proportional aging bar (the /payables `aging-bar__seg` pattern) over four
+ *  bucket filters. Replaces the former summary rail + disclosure + card grid,
+ *  so /debt and /payables read the same shape.
  * ════════════════════════════════════════════════════════════════════════════ */
 
-.debt-aging-grid {
+.debt-band {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 14px;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 8px 28px;
+  align-items: center;
+  margin: 12px 16px 0;
+  padding: 14px 0;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
 }
 
-.debt-aging-card {
+.debt-band__lead {
   display: flex;
   flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.debt-band__label {
+  color: var(--ink-2);
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+}
+
+.debt-band__total {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
+}
+
+.debt-band__unit {
+  font-size: var(--text-body-size);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+/* Quiet count chips — status text, never controls (design law §1/§7): no
+   hover, no pointer, tone colours the text only. */
+.debt-band__chips {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  padding: 18px 20px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 18px;
-  position: relative;
-  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
-  cursor: pointer;
-  text-align: left;
+}
+
+.debt-band__chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--ink-3);
+  font-family: var(--font-data);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.debt-band__chip[data-tone='warning'] {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
+
+.debt-band__aging {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* The segmented aging bar — same classes /payables renders (colors owned by
+   the shared aging-bar__seg definitions), widths proportional to money. */
+.debt-band__bar {
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  background: var(--surface-3);
+}
+
+.debt-band__buckets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.debt-band__bucket {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'dot label'
+    'dot figures';
+  column-gap: 7px;
+  row-gap: 1px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
   font-family: inherit;
   color: inherit;
-  transition:
-    transform 0.15s var(--ease),
-    box-shadow 0.15s var(--ease),
-    border-color 0.2s var(--ease);
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms var(--ease);
 }
 
-.debt-aging-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(9, 9, 11, 0.07);
-}
+.debt-band__bucket:hover { background: var(--surface-2); }
+.debt-band__bucket.is-active { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-2); }
+.debt-band__bucket:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
-.debt-aging-card.is-active {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 2px 8px rgba(9, 9, 11, 0.06);
-}
-
-/* Status strip — 3×20px centered indicator, NOT full-height border */
-.debt-aging-card.is-active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  border-radius: 0 2px 2px 0;
-  background: var(--ink);
-}
-
-.debt-aging-card__header {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.debt-aging__dot {
+.debt-band__dot {
+  grid-area: dot;
+  align-self: center;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  flex-shrink: 0;
+  background: var(--bucket-color);
 }
 
-.debt-aging__dot--ok     { background: var(--accent); }
-.debt-aging__dot--warn   { background: var(--warning); }
-.debt-aging__dot--deep   { background: var(--warning-deep); }
-.debt-aging__dot--danger { background: var(--danger); }
-
-.debt-aging-card__label {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 1px;
-  color: var(--ink-3);
-}
-.debt-aging-card__label strong {
-  font-family: var(--font-data);
-  font-size: var(--text-body-size);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--ink-1);
-  text-transform: none;
-}
-.debt-aging-card__label small {
-  font-size: var(--text-label-size);
-  font-weight: 500;
-  color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.debt-aging-card__amount {
+.debt-band__bucket-label {
+  grid-area: label;
   display: flex;
   align-items: baseline;
   gap: 4px;
-  font-family: var(--font-display);
-  font-size: var(--fs-xl);
-  line-height: 1.35;
-  font-weight: 600;
-  letter-spacing: 0;
+  min-width: 0;
+}
+
+.debt-band__bucket-label strong {
+  color: var(--ink-1);
+  font-size: var(--text-label-size);
+  font-weight: var(--fw-semibold);
   line-height: 1.25;
+}
+
+.debt-band__bucket-label small {
+  color: var(--ink-3);
+  font-size: var(--fs-2xs);
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.debt-band__bucket-figures {
+  grid-area: figures;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  min-width: 0;
+}
+
+.debt-band__bucket-amount {
   color: var(--ink);
-}
-
-.debt-aging-card__unit {
-  font-size: var(--text-body-size);
-  line-height: 1.35;
-  font-weight: 500;
-  color: var(--ink-3);
-}
-
-.debt-aging-card__count {
   font-family: var(--font-data);
-  font-size: var(--fs-xs);
+  font-size: var(--text-data-size);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.debt-band__bucket-unit {
   color: var(--ink-3);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
 }
 
-.debt-aging-card__bar-track {
-  height: 4px;
-  background: var(--surface-3);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-top: 4px;
+.debt-band__bucket-count {
+  color: var(--ink-3);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.debt-aging-card__bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+/* SIL-469 — the row's overdue age as one compact bucket-coloured badge
+ * (xanh 1–30 / vàng 31–60 / cam 61–90 / đỏ >90). Same chip anatomy the
+ * customers redesign landed (h20, radius 6, mono). */
+.debt-overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-family: var(--font-data);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.debt-overdue-badge--ok     { background: var(--success-soft); color: var(--success-text); }
+.debt-overdue-badge--warn   { background: var(--warning-soft); color: var(--warning-text); }
+.debt-overdue-badge--deep   { background: color-mix(in srgb, var(--warning-deep) 12%, var(--surface)); color: var(--warning-deep); }
+.debt-overdue-badge--danger { background: var(--danger-soft); color: var(--danger-text); }
+
+/* The total cell reads as one line — amount nowrap, the ' · status' suffix
+   wraps at the dot when the column runs tight (wrap, never clip: law §4). */
+.debt-list-table__total-cell {
+  white-space: normal;
+}
+
+/* SIL-469 row target 44–48px: the shared 10px block padding lands a
+   single-line row at ~38px — the page lifts the block padding to 14px
+   (~46px single-line rows; long names wrap taller, never clipped). */
+.debt-list-page .debt-list-table tbody td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.debt-list-table__amount {
+  white-space: nowrap;
+}
+
+.debt-list-table__debt-status {
+  font-family: var(--font-body);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -243,28 +334,7 @@
  *  Mobile overrides (≤640px)
  * ════════════════════════════════════════════════════════════════════════════ */
 
-@media (max-width: 768px) {
-  /* Aging: 2x2 grid */
-  .debt-aging-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-}
-
 @media (max-width: 640px) {
-  /* Aging: 2x2 compact */
-  .debt-aging-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .debt-aging-card {
-    padding: 12px 14px;
-    border-radius: 14px;
-  }
-  .debt-aging-card__amount {
-    font-size: var(--fs-lg);
-  }
-
   /* Data card compact */
   .debt-data-card {
     border-radius: 14px;
@@ -290,9 +360,7 @@
  * ════════════════════════════════════════════════════════════════════════════ */
 
 @media (max-width: 420px) {
-  .debt-aging-card__amount {
-    font-size: var(--fs-sm);
-  }
+  .debt-band__total { font-size: var(--fs-lg); }
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -321,40 +389,31 @@
   }
 }
 
-/* One comparison rail above a flat record surface; keep data visible without
+/* One summary band above a flat record surface; keep data visible without
    repeated decorative cards around cards. */
-.debt-aging-grid {
-  gap: 0;
-  border-block: 1px solid var(--line);
-  background: var(--surface);
-}
-.debt-aging-grid > .debt-aging-card {
-  min-width: 0;
-  padding: 10px 12px;
-  border: 0;
-  border-inline-end: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-  backdrop-filter: none;
-  box-shadow: none;
-  transform: none;
-  gap: 4px;
-}
-.debt-aging-grid > .debt-aging-card:last-child { border-inline-end: 0; }
-.debt-aging-grid > .debt-aging-card:hover { background: var(--surface-2); box-shadow: none; transform: none; }
-.debt-aging-grid .debt-aging-card__amount { font-size: var(--text-metric-size); flex-wrap: wrap; overflow-wrap: anywhere; }
-.debt-aging-grid .debt-aging-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .debt-data-card { border: 0; border-radius: 0; background: transparent; backdrop-filter: none; box-shadow: none; padding: 0; }
+
+/* SIL-469: the band stacks below the tablet fold — total block first, then
+   the aging bar + its four bucket figures in a 2×2 grid. Buckets read as
+   label-over-figures cards (the row-reverse right-align experiment read
+   "1–30 ngày Quá hạn" — wrong word order). */
 @media (max-width: 1023px) {
-  .debt-aging-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .debt-aging-grid > .debt-aging-card:nth-child(2) { border-inline-end: 0; }
-  .debt-aging-grid > .debt-aging-card:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  .debt-band {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .debt-band__buckets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 640px) {
-  .debt-aging-grid > .debt-aging-card { padding: 8px; }
-  .debt-aging-grid .debt-aging-card__amount { font-size: var(--text-metric-size); }
+  .debt-band {
+    margin: 8px 12px 0;
+    padding: 10px 0;
+  }
+  .debt-band__bucket { padding: 5px 6px; }
+  .debt-band__bucket-amount { font-size: var(--fs-xs); }
+  .debt-band__bucket-count { display: none; }
   .debt-data-card { padding: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .debt-aging-grid *, .debt-aging-grid > .debt-aging-card { transition: none; }
+  .debt-band, .debt-band__bucket { transition: none; }
 }

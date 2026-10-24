@@ -1,4 +1,3 @@
-import { AgingDisclosure } from '../components/finance/AgingDisclosure';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency, moneyParts } from '../lib/format';
@@ -6,9 +5,9 @@ import { api } from '../lib/api';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
 import { SortHeader } from '../components/shared/SortHeader';
-import { Users, Clock, CalendarCheck2, Hourglass, AlertOctagon, Building2, Phone, Loader2, Download } from 'lucide-react';
+import { Users, Clock, Building2, Phone, Loader2, Download } from 'lucide-react';
 import { PageHeader } from '../components/UI';
-import { FilterBar, Pagination, SummaryRail } from '../design-system';
+import { FilterBar, Pagination } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { ClickableCard } from '../components/shared/ClickableCard';
 import { Badge } from '../components/shared/Badge';
@@ -66,7 +65,6 @@ interface AgingBucket {
   subLabel: string;
   amountKey: 'current' | 'd30' | 'd60' | 'over90';
   countKey: 'currentCusts' | 'd30Custs' | 'd60Custs' | 'over90Custs';
-  dotClass: string;
   color: string;
   /** Each bucket owns its own filter — never grouped. */
   filterMode: BucketFilterMode;
@@ -87,19 +85,20 @@ const AGING_BUCKETS: AgingBucket[] = [
   // hạn" / "Quá hạn 1–30" / "Quá hạn 31–90" / "Quá hạn trên 90", so every
   // "Trong hạn"/"Quá hạn" word on the page means the same thing as the row
   // chip and the KPI tiles. (P0-W6's lane intent, now truthful about bands.)
-  { key: 'current', label: 'Trong hạn (chưa đến hạn)', shortLabel: 'Trong hạn', subLabel: 'chưa đến hạn', amountKey: 'current', countKey: 'currentCusts', dotClass: 'debt-aging__dot--ok', color: 'var(--success, #177448)', filterMode: 'current' },
-  { key: 'd30', label: 'Quá hạn 1–30', shortLabel: 'Quá hạn', subLabel: '1–30 ngày', amountKey: 'd30', countKey: 'd30Custs', dotClass: 'debt-aging__dot--warn', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
-  { key: 'd60', label: 'Quá hạn 31–90', shortLabel: 'Quá hạn', subLabel: '31–90 ngày', amountKey: 'd60', countKey: 'd60Custs', dotClass: 'debt-aging__dot--deep', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
-  { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', dotClass: 'debt-aging__dot--danger', color: 'var(--danger, #E32434)', filterMode: 'over90' },
+  { key: 'current', label: 'Trong hạn (chưa đến hạn)', shortLabel: 'Trong hạn', subLabel: 'chưa đến hạn', amountKey: 'current', countKey: 'currentCusts', color: 'var(--success, #177448)', filterMode: 'current' },
+  { key: 'd30', label: 'Quá hạn 1–30', shortLabel: 'Quá hạn', subLabel: '1–30 ngày', amountKey: 'd30', countKey: 'd30Custs', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
+  { key: 'd60', label: 'Quá hạn 31–90', shortLabel: 'Quá hạn', subLabel: '31–90 ngày', amountKey: 'd60', countKey: 'd60Custs', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
+  { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', color: 'var(--danger, #E32434)', filterMode: 'over90' },
 ];
 
-/* Map bucket → lucide icon (semantic progression: on-time → critical) */
-const BUCKET_ICONS: Record<string, typeof CalendarCheck2> = {
-  current: CalendarCheck2,
-  d30: Clock,
-  d60: Hourglass,
-  over90: AlertOctagon,
-};
+/** SIL-469: the row's overdue age renders as one compact bucket-coloured
+ *  badge (xanh 1–30 / vàng 31–60 / cam 61–90 / đỏ >90), never a bare number. */
+function overdueBand(days: number): 'ok' | 'warn' | 'deep' | 'danger' {
+  if (days <= 30) return 'ok';
+  if (days <= 60) return 'warn';
+  if (days <= 90) return 'deep';
+  return 'danger';
+}
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
 
@@ -196,7 +195,7 @@ export default function DebtListPage() {
   const compact = false; // full VND everywhere — no short form (e.g. "12,5 tr")
   const { rootRef } = usePageAnimations({
     ready: !loading,
-    selectors: ['.debt-aging-card', '.debt-data-card'],
+    selectors: ['.debt-band', '.debt-data-card'],
   });
   const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 300, stagger: 80 });
 
@@ -262,6 +261,15 @@ export default function DebtListPage() {
   /* ── Helpers ── */
   const heroMoney = moneyParts(totals.total, false);
 
+  // SIL-469: the band's aging bar splits by MONEY share (same ladder the
+  // /payables bar renders). `|| 1` keeps an all-zero period from dividing 0/0
+  // — every segment just closes to width 0.
+  const agingTotal = totals.current + totals.d30 + totals.d60 + totals.over90 || 1;
+  const pctCurrent = (totals.current / agingTotal) * 100;
+  const pctD30 = (totals.d30 / agingTotal) * 100;
+  const pctD60 = (totals.d60 / agingTotal) * 100;
+  const pctOver90 = (totals.over90 / agingTotal) * 100;
+
   const handleBucketClick = (bucket: AgingBucket) => {
     table.setFilter('bucket', bucket.filterMode === 'all' ? undefined : bucket.filterMode);
   };
@@ -301,69 +309,77 @@ export default function DebtListPage() {
       />
 
       {/* ══════════════════════════════════════════════════════════════════════
-        *  ZONE 1 — Summary rail: one ruled row the accountant can scan
-        *  ("Tổng 360tr · 80 KH · 0 quá hạn · 0 rủi ro cao") before the lanes.
+        *  ZONE 1 — SIL-469 summary band (88–96px): the full total on the left,
+        *  the two risk counts as quiet chips, and the aging distribution as a
+        *  proportional segmented bar (the /payables aging-bar pattern) over
+        *  four clickable bucket figures. One band replaces the former rail +
+        *  disclosure + card grid — the two finance lists now share one shape.
         * ══════════════════════════════════════════════════════════════════════ */}
-      <SummaryRail
-        ariaLabel="Tóm tắt công nợ phải thu"
-        items={[
-          { label: 'Tổng công nợ phải thu', value: `${heroMoney.num} ${heroMoney.unit}` },
-          { label: 'Khách hàng', value: totalCustomers },
-          { label: 'Quá hạn', value: totals.overdueCount, tone: totals.overdueCount > 0 ? 'warning' : undefined },
-          { label: 'Rủi ro cao', value: totals.highRiskCount, tone: totals.highRiskCount > 0 ? 'warning' : undefined },
-        ]}
-      />
-
-      <AgingDisclosure label="Nhóm hạn nợ khách hàng · mở chi tiết">
-      <div className="debt-aging-grid" data-tour-id="debt-aging">
-        {AGING_BUCKETS.map((bucket) => {
-          const amount = totals[bucket.amountKey];
-          const count = totals[bucket.countKey];
-          const money = moneyParts(amount, compact);
-          const isActive = filterMode === bucket.filterMode;
-          const BucketIcon = BUCKET_ICONS[bucket.key];
-
-          return (
-            <button
-              key={bucket.key}
-              type="button"
-              className={`debt-aging-card${isActive ? ' is-active' : ''}`}
-              onClick={() => handleBucketClick(bucket)}
-              style={{ '--bucket-color': bucket.color } as React.CSSProperties}
-              aria-label={`${bucket.label}: ${formatCurrency(amount)}, ${count} khách hàng`}
-            >
-              <div className="debt-aging-card__header">
-                {BucketIcon && (
-                  <BucketIcon
-                    size={16}
-                    strokeWidth={2}
-                    aria-hidden="true"
-                    style={{ color: bucket.color, flex: '0 0 auto' }}
-                  />
-                )}
-                <span className={`debt-aging__dot ${bucket.dotClass}`} />
-                <span className="debt-aging-card__label">
-                  <strong>{bucket.shortLabel}</strong>
-                  <small>{bucket.subLabel}</small>
-                </span>
-              </div>
-              <div className="debt-aging-card__amount">
-                <span ref={(el) => {
-                  if (bucket.amountKey === 'current') counterRefs.current.currentAmount = el;
-                  else if (bucket.amountKey === 'd30') counterRefs.current.d30Amount = el;
-                  else if (bucket.amountKey === 'd60') counterRefs.current.d60Amount = el;
-                  else if (bucket.amountKey === 'over90') counterRefs.current.over90Amount = el;
-                }}>
-                  {prefersReduced ? money.num : '0'}
-                </span>
-                <span className="debt-aging-card__unit">{money.unit}</span>
-              </div>
-              <div className="debt-aging-card__count">{count} khách hàng</div>
-            </button>
-          );
-        })}
-      </div>
-      </AgingDisclosure>
+      <section className="debt-band" aria-label="Tổng quan công nợ phải thu" data-tour-id="debt-aging">
+        <div className="debt-band__lead">
+          <span className="debt-band__label">Tổng công nợ phải thu</span>
+          <span className="debt-band__total">
+            {heroMoney.num} <span className="debt-band__unit">{heroMoney.unit}</span>
+          </span>
+          <div className="debt-band__chips">
+            <span className="debt-band__chip" data-tone={totals.overdueCount > 0 ? 'warning' : undefined}>
+              {totals.overdueCount} quá hạn
+            </span>
+            <span className="debt-band__chip" data-tone={totals.highRiskCount > 0 ? 'warning' : undefined}>
+              {totals.highRiskCount} rủi ro cao
+            </span>
+          </div>
+        </div>
+        <div className="debt-band__aging">
+          <div
+            className="debt-band__bar"
+            role="img"
+            aria-label={`Phân bố hạn nợ: trong hạn ${formatCurrency(totals.current)}, quá hạn 1–30 ${formatCurrency(totals.d30)}, quá hạn 31–90 ${formatCurrency(totals.d60)}, quá hạn trên 90 ${formatCurrency(totals.over90)}`}
+          >
+            <div className="aging-bar__seg aging-bar__seg--ok" style={{ width: `${pctCurrent}%` }} />
+            <div className="aging-bar__seg aging-bar__seg--t1" style={{ width: `${pctD30}%` }} />
+            <div className="aging-bar__seg aging-bar__seg--t2" style={{ width: `${pctD60}%` }} />
+            <div className="aging-bar__seg aging-bar__seg--t4" style={{ width: `${pctOver90}%` }} />
+          </div>
+          <div className="debt-band__buckets">
+            {AGING_BUCKETS.map((bucket) => {
+              const amount = totals[bucket.amountKey];
+              const count = totals[bucket.countKey];
+              const money = moneyParts(amount, compact);
+              const isActive = filterMode === bucket.filterMode;
+              return (
+                <button
+                  key={bucket.key}
+                  type="button"
+                  className={`debt-band__bucket${isActive ? ' is-active' : ''}`}
+                  onClick={() => handleBucketClick(bucket)}
+                  style={{ '--bucket-color': bucket.color } as React.CSSProperties}
+                  aria-label={`${bucket.label}: ${formatCurrency(amount)}, ${count} khách hàng`}
+                  aria-pressed={isActive}
+                >
+                  <span className="debt-band__dot" aria-hidden="true" />
+                  <span className="debt-band__bucket-label">
+                    <strong>{bucket.shortLabel}</strong>
+                    <small>{bucket.subLabel}</small>
+                  </span>
+                  <span className="debt-band__bucket-figures">
+                    <span className="debt-band__bucket-amount" ref={(el) => {
+                      if (bucket.amountKey === 'current') counterRefs.current.currentAmount = el;
+                      else if (bucket.amountKey === 'd30') counterRefs.current.d30Amount = el;
+                      else if (bucket.amountKey === 'd60') counterRefs.current.d60Amount = el;
+                      else if (bucket.amountKey === 'over90') counterRefs.current.over90Amount = el;
+                    }}>
+                      {prefersReduced ? money.num : '0'}
+                    </span>
+                    <span className="debt-band__bucket-unit">{money.unit}</span>
+                    <span className="debt-band__bucket-count">· {count} KH</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       {/* ══════════════════════════════════════════════════════════════════════
         *  ZONE 3 — Data Section (full-width card with filters + table/cards)
@@ -506,11 +522,6 @@ export default function DebtListPage() {
                                 <Badge variant="success">2 chiều</Badge>
                               )}
                             </div>
-                            <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginLeft: 16 }}>
-                              {d.totalOutstanding > 0
-                                ? (d.maxOverdueDays > 0 ? "Nợ quá hạn" : "Trong hạn")
-                                : (d.totalOutstanding < 0 ? "Trả trước" : "Cân bằng")}
-                            </div>
                           </td>
 
                           {bucketShareLabel && (
@@ -519,11 +530,25 @@ export default function DebtListPage() {
                             </td>
                           )}
 
-                          <td data-label="Tổng nợ" className="num typo-mono" style={{
-                            fontWeight: 700,
-                            color: d.totalOutstanding > 0 ? 'var(--warning-text)' : 'var(--success)'
-                          }}>
-                            {formatCurrency(d.totalOutstanding)}
+                          {/* SIL-469: the former second line under the name
+                              ("Nợ quá hạn" / "Trong hạn") folds into this cell —
+                              the amount keeps its own nowrap span and the status
+                              suffix wraps at the dot only when width demands. */}
+                          <td data-label="Tổng nợ" className="num typo-mono debt-list-table__total-cell">
+                            <span className="debt-list-table__amount" style={{
+                              fontWeight: 700,
+                              color: d.totalOutstanding > 0 ? 'var(--warning-text)' : 'var(--success)'
+                            }}>
+                              {formatCurrency(d.totalOutstanding)}
+                            </span>
+                            <span
+                              className="debt-list-table__debt-status"
+                              style={{ color: d.totalOutstanding > 0 && d.maxOverdueDays > 0 ? 'var(--danger-text)' : 'var(--fg-3)' }}
+                            >
+                              {' · '}{d.totalOutstanding > 0
+                                ? (d.maxOverdueDays > 0 ? 'Nợ quá hạn' : 'Trong hạn')
+                                : (d.totalOutstanding < 0 ? 'Trả trước' : 'Cân bằng')}
+                            </span>
                           </td>
 
                           {/* Card 071026211110: the backend always computes netBalance
@@ -543,9 +568,9 @@ export default function DebtListPage() {
                             {formatCurrency(d.netBalance)}
                           </td>
 
-                          <td data-label="Quá hạn" className="num" style={{ textAlign: 'center', fontWeight: 600 }}>
+                          <td data-label="Quá hạn" className="num">
                             {d.maxOverdueDays > 0 ? (
-                              <span style={{ color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
+                              <span className={`debt-overdue-badge debt-overdue-badge--${overdueBand(d.maxOverdueDays)}`}>
                                 {d.maxOverdueDays} ngày
                               </span>
                             ) : (

@@ -208,7 +208,10 @@ describe('DebtListPage monthly production summary (card 380)', () => {
       .map((el) => el.closest('td'))
       .find((td) => td?.dataset.label === 'Khách hàng');
     expect(mainCell).toBeDefined();
-    const tongNo = mainCell!.closest('tr')!.querySelector('td[data-label="Tổng nợ"]')!.textContent;
+    // SIL-469: the cell now carries a ' · status' suffix after the amount —
+    // the reconciliation number is the amount span, which must equal the
+    // summary's Còn nợ cell verbatim.
+    const tongNo = mainCell!.closest('tr')!.querySelector('td[data-label="Tổng nợ"] .debt-list-table__amount')!.textContent;
     expect(tongNo).toBe('12.000.000 ₫');
 
     const summaryCell = screen.getAllByText('Công ty A')
