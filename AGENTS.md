@@ -730,9 +730,9 @@ MỌI thay đổi code bắt nguồn từ request/complaint/feedback PHẢI có 
 Khi gặp quyết định design/UI/UX, lựa chọn kiến trúc/library, hoặc challenge SDLC chưa rõ hướng:
 consult webchat TRƯỚC khi tự quyết:
 ```bash
-cd /Volumes/LexarSSD/projects/one-shot
-timeout 240 python3 tools/webchat.py gemini send "<câu hỏi + NGỮ CẢNH + số liệu cụ thể>"
-sleep 60 && timeout 120 python3 tools/webchat.py gemini capture   # lặp nếu câu trả lời dài
+python3 /Volumes/LexarSSD/projects/one-shot/tools/webchat.py gemini send "<câu hỏi + NGỮ CẢNH + số đo thật>" --json --tail 0
+# câu trả lời nằm ngay trong response_text của lệnh send (full text cũng ở /tmp/webchat-last-<site>.txt)
 ```
+Preflight/smoke, deepresearch, multi-turn, triage `error_stage`: skill `/webchat`.
 - Adapter gemini/deepseek ONLY. Gửi kèm constraint + số đo thật (px, test counts, spec gốc).
 - Pattern/verdict trả về phải được dẫn lại trong brief hoặc comment ticket.
