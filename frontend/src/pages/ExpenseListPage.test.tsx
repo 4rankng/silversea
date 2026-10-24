@@ -1,4 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -249,4 +251,76 @@ it('keeps visible date labels and clears the selected date range', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Xóa bộ lọc' }));
   expect(screen.getByLabelText('Từ ngày')).toHaveValue('');
   expect(screen.getByLabelText('Đến ngày')).toHaveValue('');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SIL-471 — data-dense: ngày 1 dòng với badge "Nhập" inline, cột hằng số
+// THÀNH PHẦN gộp vào ô Xe, phân trang ẩn khi ≤1 trang, empty state gọn.
+describe('ExpenseListPage data-dense density (SIL-471)', () => {
+  function mountEnvelope(items: ExpenseWithRefs[], total = items.length) {
+    apiGet.mockReset();
+    apiGet.mockResolvedValue(envelope(items, total));
+    return renderPage();
+  }
+
+  it('renders the entry date as an inline badge — the date cell keeps one line', async () => {
+    mountEnvelope(rows);
+    await screen.findByText('Garage Auto 123');
+
+    // rows[0] nhập 21/08 ≠ phát sinh 20/08 → badge cạnh ngày, không còn div phụ.
+    const badge = screen.getByText(/Nhập 21\/08\/2026/);
+    expect(badge.className).toContain('expense-record-table__entry-badge');
+    expect(badge.closest('td')!.querySelector('.expense-record-table__entry-date')).toBeNull();
+    // Same-date record (rows[1]) renders no badge at all.
+    expect(screen.queryByText(/Nhập 19\/08\/2026/)).toBeNull();
+  });
+
+  it('drops the constant THÀNH PHẦN column and folds the component into the Xe cell', async () => {
+    mountEnvelope(rows);
+    await screen.findByText('Garage Auto 123');
+
+    expect(screen.queryByRole('columnheader', { name: 'Thành phần' })).toBeNull();
+    // Truck row: plate + muted component suffix in the same cell.
+    const xeCell = screen.getByText('51H-123.45').closest('td')!;
+    expect(xeCell.dataset.label).toBe('Xe');
+    expect(xeCell.querySelector('.expense-record-table__component')!.textContent).toBe('Đầu kéo');
+    // Non-vehicle row keeps its quiet dash with no invented component.
+    const emptyCell = screen.getByText('—').closest('td')!;
+    expect(emptyCell.dataset.label).toBe('Xe');
+    expect(emptyCell.querySelector('.expense-record-table__component')).toBeNull();
+  });
+
+  it('hides pagination entirely when the set fits one page, count stays in the rail', async () => {
+    const { container } = mountEnvelope(rows, 2);
+    await screen.findByText('Garage Auto 123');
+
+    expect(container.querySelector('.ds-pagination')).toBeNull();
+    // The phiếu counts live in the summary rail, not in pagination controls.
+    const rail = screen.getByRole('region', { name: 'Tóm tắt chi phí' });
+    expect(rail.textContent).toContain('phiếu');
+  });
+
+  it('keeps pagination controls for a multi-page set', async () => {
+    mountEnvelope(rows, 43);
+    await screen.findByText('Garage Auto 123');
+    // 43 / 20 → 3 trang: control trang phải có mặt.
+    expect(screen.getByRole('button', { name: '2' })).toBeTruthy();
+  });
+
+  it('renders a compact in-table empty state with no illustration band (≤120px)', async () => {
+    apiGet.mockReset();
+    apiGet.mockResolvedValue(envelope([], 0));
+    const { container } = renderPage();
+    await screen.findByText('Chưa có khoản chi phí nào.');
+
+    // The page mounts the shared compact face...
+    const empty = container.querySelector('.ds-empty-state--compact')!;
+    expect(empty).toBeTruthy();
+    expect(empty.querySelector('button')).toBeTruthy();
+    // ...and the page stylesheet strips its illustration band + padding so the
+    // in-table empty face stays ≤120px (jsdom cannot compute the cascade).
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ExpenseListRecordTable.css'), 'utf8');
+    expect(css).toMatch(/\.expense-record-table \.ds-empty-state--compact \{ padding: 14px 16px; \}/);
+    expect(css).toMatch(/\.expense-record-table \.ds-empty-state--compact \.ds-empty-state__illustration \{ display: none; \}/);
+  });
 });

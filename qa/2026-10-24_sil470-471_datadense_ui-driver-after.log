@@ -1,0 +1,21 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175 phase=after
+LOGIN ok role=hoapt (ACCOUNTANT)
+
+===== EXPENSES (/expenses) phase=after =====
+[expenses 1568] metrics={"pageHeight":947,"bandHeight":null,"railHeight":40,"firstRowHeight":44,"headers":["Ngày phát sinh","Nhà cung cấp","Hạng mục","Xe","Số tiền","Trạng thái"],"paginationVisible":false,"paginationText":null}
+[expenses 1568] screenshot=/Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/qa/2026-10-24_expenses/after-expenses-1568.png
+[expenses 768] metrics={"pageHeight":900,"bandHeight":null,"railHeight":58,"firstRowHeight":124,"headers":["Ngày phát sinh","Nhà cung cấp","Hạng mục","Xe","Số tiền","Trạng thái"],"paginationVisible":false,"paginationText":null}
+[expenses 768] screenshot=/Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/qa/2026-10-24_expenses/after-expenses-768.png
+[expenses 390] metrics={"pageHeight":844,"bandHeight":null,"railHeight":108,"firstRowHeight":135,"headers":["Ngày phát sinh","Nhà cung cấp","Hạng mục","Xe","Số tiền","Trạng thái"],"paginationVisible":false,"paginationText":null}
+[expenses 390] screenshot=/Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/qa/2026-10-24_expenses/after-expenses-390.png
+expenses facts={"railHeight":40,"railLabels":["Tổng chi phí","Chưa thanh toán · 7 phiếu","Đã thanh toán · 0 phiếu"],"dateOneLine":true,"entryBadgePresent":true,"entryBadgeText":"Nhập 24/10/2026","legacyEntryDivPresent":false,"componentHeaderPresent":false,"xeSuffixText":"Đầu kéo","amountTabular":"tabular-nums","statusColumnPresent":true,"pageHeight":947,"paginationText":null}
+PASS 471 stat strip ≤64px (Tổng | Chưa thanh toán | Đã thanh toán) — height=40 labels=["Tổng chi phí","Chưa thanh toán · 7 phiếu","Đã thanh toán · 0 phiếu"]
+PASS 471 ngày 1 dòng + badge nhập inline (không còn div phụ) — badge="Nhập 24/10/2026"
+PASS 471 bỏ cột THÀNH PHẦN — gộp vào ô Xe — componentHeader=false xeSuffix="Đầu kéo"
+PASS 471 giữ cột TRẠNG THÁI (desc spec: pill giữ)
+PASS 471 SỐ TIỀN tabular — font-variant-numeric=tabular-nums
+PASS 471 pagination chỉ render khi >1 trang (hoặc ẩn hẳn với data 1 trang) — pagination=null
+PASS 471 page ≤~950px @1568×947 — pageHeight=947
+PASS không có console error
+
+PHASE after done — failures=0

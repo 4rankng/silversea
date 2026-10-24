@@ -1,0 +1,25 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175 phase=before
+LOGIN ok role=hoapt (ACCOUNTANT)
+
+===== PAYABLES (/payables) phase=before =====
+[payables 1568] metrics={"pageHeight":947,"bandHeight":null,"railHeight":40,"firstRowHeight":54,"headers":["Nhà cung cấp","Tổng nợ","Chưa đến hạn","Quá hạn 1-30","Quá hạn 31-90","Quá hạn >90","STT","Chủ xe","Phải thu","Phải trả","Đã thanh toán","Tồn cuối kỳ","Còn nợ","Số ĐNTT","% thuế · HĐ · số CT/ngày","Lập Phiếu","SL","Cước VC","Thuế","SL","Cước VC","Thuế","Phải thu","Phải trả"],"paginationVisible":false,"paginationText":null}
+[payables 1568] screenshot=/Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/qa/2026-10-24_payables/before-payables-1568.png
+[payables 768] metrics={"pageHeight":900,"bandHeight":null,"railHeight":58,"firstRowHeight":0,"headers":["Nhà cung cấp","Tổng nợ","Chưa đến hạn","Quá hạn 1-30","Quá hạn 31-90","Quá hạn >90","STT","Chủ xe","Phải thu","Phải trả","Đã thanh toán","Tồn cuối kỳ","Còn nợ","Số ĐNTT","% thuế · HĐ · số CT/ngày","Lập Phiếu","SL","Cước VC","Thuế","SL","Cước VC","Thuế","Phải thu","Phải trả"],"paginationVisible":false,"paginationText":null}
+[payables 768] screenshot=/Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/qa/2026-10-24_payables/before-payables-768.png
+[payables 390] metrics={"pageHeight":844,"bandHeight":null,"railHeight":108,"firstRowHeight":0,"headers":["Nhà cung cấp","Tổng nợ","Chưa đến hạn","Quá hạn 1-30","Quá hạn 31-90","Quá hạn >90","STT","Chủ xe","Phải thu","Phải trả","Đã thanh toán","Tồn cuối kỳ","Còn nợ","Số ĐNTT","% thuế · HĐ · số CT/ngày","Lập Phiếu","SL","Cước VC","Thuế","SL","Cước VC","Thuế","Phải thu","Phải trả"],"paginationVisible":false,"paginationText":null}
+[payables 390] screenshot=/Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/qa/2026-10-24_payables/before-payables-390.png
+payables facts={"bandPresent":false,"bandHeight":null,"bandText":null,"agingHeader":false,"dashAgingCells":0,"nameOneLine":false,"nameTitle":null,"subLines":[],"overdueChipPresent":false,"agingBars":0}
+BEFORE state: band=false agingHeader(4 cột tiền)=false dashAgingCells=0
+
+===== EXPENSES (/expenses) phase=before =====
+[expenses 1568] metrics={"pageHeight":947,"bandHeight":null,"railHeight":40,"firstRowHeight":54,"headers":["Ngày phát sinh","Nhà cung cấp","Hạng mục","Xe","Thành phần","Số tiền","Trạng thái"],"paginationVisible":false,"paginationText":null}
+[expenses 1568] screenshot=/Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/qa/2026-10-24_expenses/before-expenses-1568.png
+[expenses 768] metrics={"pageHeight":900,"bandHeight":null,"railHeight":58,"firstRowHeight":136,"headers":["Ngày phát sinh","Nhà cung cấp","Hạng mục","Xe","Thành phần","Số tiền","Trạng thái"],"paginationVisible":false,"paginationText":null}
+[expenses 768] screenshot=/Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/qa/2026-10-24_expenses/before-expenses-768.png
+[expenses 390] metrics={"pageHeight":844,"bandHeight":null,"railHeight":108,"firstRowHeight":147,"headers":["Ngày phát sinh","Nhà cung cấp","Hạng mục","Xe","Thành phần","Số tiền","Trạng thái"],"paginationVisible":false,"paginationText":null}
+[expenses 390] screenshot=/Users/dev/.paseo/worktrees/1njkloyy/fix-ux-payables-expenses/qa/2026-10-24_expenses/before-expenses-390.png
+expenses facts={"railHeight":40,"railLabels":["Tổng chi phí","Chưa thanh toán · 7 phiếu","Đã thanh toán · 0 phiếu"],"dateOneLine":false,"entryBadgePresent":false,"entryBadgeText":null,"legacyEntryDivPresent":true,"componentHeaderPresent":true,"xeSuffixText":null,"amountTabular":"tabular-nums","statusColumnPresent":true,"pageHeight":947,"paginationText":null}
+BEFORE state: rail=40px componentCol=true entryDiv=true pageHeight=947
+PASS không có console error
+
+PHASE before done — failures=0

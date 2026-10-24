@@ -18,18 +18,48 @@
   cursor: pointer;
 }
 
-/* Anchors the StatusStrip rail; keeps date + entry-date on one line each. */
+/* Anchors the StatusStrip rail; the entry date rides INLINE as a badge so the
+   date cell stays one line (SIL-471). */
 .expense-record-table__date {
   position: relative;
   white-space: nowrap;
   color: var(--ink-2);
 }
 
-.expense-record-table__entry-date {
+/* SIL-471: "Nhập <ngày>" inline badge — chip h20 thay dòng phụ, ô ngày 1 dòng. */
+.expense-record-table__entry-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 7px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink-3);
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+
+/* SIL-471: the constant THÀNH PHẦN column folded into Xe — muted suffix. */
+.expense-record-table__component {
+  margin-left: 8px;
   font-size: var(--text-caption-size);
   line-height: 1.35;
-  color: var(--ink-4);
+  color: var(--ink-3);
+  white-space: nowrap;
 }
+
+/* SIL-471: row band 44px — single-line cells (date badge inline, no sub-line). */
+.expense-record-table tbody td { padding-block: 12px; }
+
+/* SIL-471: in-table empty face ≤120px — the shared compact face minus its
+   illustration band; an empty phiếu-chi list is a quiet line, not a mural. */
+.expense-record-table .ds-empty-state--compact { padding: 14px 16px; }
+.expense-record-table .ds-empty-state--compact .ds-empty-state__illustration { display: none; }
 
 .expense-record-table__supplier {
   font-weight: 600;
