@@ -21,7 +21,7 @@ import {
   toNullableTimestamp,
 } from './shipment-shared.service';
 import { getShipment } from './shipment-detail-reads.service';
-import { upsertShipmentDeclaration, listShipmentDeclarations } from './shipment-documents.service';
+import { listShipmentDeclarations, syncDeclarationOntoEmptyContainers, upsertShipmentDeclaration } from './shipment-documents.service';
 import {
   type CreateShipmentInput,
   assertShipmentDocumentReferences,
@@ -323,6 +323,14 @@ export async function createShipmentIdempotent(
         assertContainerSetValid(input.containers);
         await reconcileShipmentContainersInTx(tx, shipment.id, input.createdBy ?? null, input.containers);
         await lockShipmentFreightRate(tx, { shipmentId: shipment.id });
+        // SIL-166 (CUS-05): the combined create's lot-level tờ khai stamps
+        // the container rows it just inserted — the earlier
+        // upsertShipmentDeclaration ran before these rows existed, so its
+        // own fan-out was a no-op here. The rows are born in this same tx
+        // (all empty), so the FB-109 empty-only predicate fills exactly
+        // them. No version bump — the lot is still being born and the
+        // caller's returned version must stay coherent for its next write.
+        await syncDeclarationOntoEmptyContainers(tx, shipment.id, input.declarationNumber);
       }
       return { ...shipment, initialDeclarationId };
     },

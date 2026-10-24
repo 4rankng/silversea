@@ -69,6 +69,54 @@ export async function attachShipmentDocument(
   return runInTx(transaction, execute);
 }
 
+/** SIL-166 (CUS-05 ruling 22/10): a lot-level tờ khai write must reach the
+ * per-container rows the shared ledger renders — the customer enters the
+ * number once and the "Số tờ khai" column fills for the whole lot. The
+ * fan-out mirrors the FB-109 law exactly: only NULL/blank container rows
+ * receive the number, so a container carrying its own number is never
+ * overwritten and per-cont divergence stays possible. Same-lot repeats are
+ * legal — the number already belongs to THIS lot, so no cross-lot
+ * availability re-check fires. Returns the container ids actually written. */
+export async function syncDeclarationOntoEmptyContainers(
+  tx: Tx,
+  shipmentId: number,
+  declarationNumber: string | null | undefined,
+): Promise<Array<{ id: number }>> {
+  const trimmed = declarationNumber?.trim();
+  if (!trimmed) return [];
+  return await tx.update(s.shipmentContainers)
+    .set({ declarationNumber: trimmed, updatedAt: new Date() })
+    .where(and(
+      eq(s.shipmentContainers.shipmentId, shipmentId),
+      sql`(${s.shipmentContainers.declarationNumber} IS NULL OR btrim(${s.shipmentContainers.declarationNumber}) = '')`,
+    ))
+    .returning({ id: s.shipmentContainers.id });
+}
+
+/** The declaration fan-out wrote container rows, so the lot version advances
+ * ONCE — the same reconcile contract as copyCusShipmentContainerDeclaration
+ * (a document attribute never re-anchors scheduling or freight pricing, but
+ * concurrent editors holding expectedShipmentVersion must see the change).
+ * The caller's FOR UPDATE has held the shipment row since the read, so the
+ * guarded bump cannot miss. */
+async function bumpShipmentVersionAfterDeclarationSync(
+  tx: Tx,
+  shipmentId: number,
+  currentVersion: number,
+  syncedCount: number,
+  updatedBy: number | null,
+) {
+  if (syncedCount === 0) return;
+  const [versioned] = await tx.update(s.shipments)
+    .set({ version: currentVersion + 1, updatedAt: new Date(), updatedBy })
+    .where(and(
+      eq(s.shipments.id, shipmentId),
+      eq(s.shipments.version, currentVersion),
+    ))
+    .returning({ id: s.shipments.id });
+  if (!versioned) throw new ApiError(409, 'Lô hàng vừa thay đổi. Vui lòng tải lại và thử lại.');
+}
+
 export async function upsertShipmentDeclaration(
   shipmentId: number,
   input: ShipmentDeclarationMutationInput,
@@ -101,6 +149,10 @@ export async function upsertShipmentDeclaration(
         ))
         .returning();
       if (!updated) throw new ApiError(404, 'Không tìm thấy tờ khai cần cập nhật');
+      // SIL-166: the lot-level number rides onto still-empty container rows
+      // (FB-109 never-overwrite), and rows written advance the version once.
+      const synced = await syncDeclarationOntoEmptyContainers(tx, shipmentId, updated.declarationNumber);
+      await bumpShipmentVersionAfterDeclarationSync(tx, shipmentId, existingShipment.version, synced.length, input.updatedBy ?? null);
       return updated;
     }
 
@@ -112,6 +164,10 @@ export async function upsertShipmentDeclaration(
       note: input.note ?? null,
       createdBy: input.updatedBy ?? null,
     }).returning();
+    // Same copy-down as the update branch — a newly added lot-level tờ khai
+    // fills the lot's empty container rows the same way (SIL-166).
+    const synced = await syncDeclarationOntoEmptyContainers(tx, shipmentId, created.declarationNumber);
+    await bumpShipmentVersionAfterDeclarationSync(tx, shipmentId, existingShipment.version, synced.length, input.updatedBy ?? null);
     return created;
   };
   return runInTx(transaction, execute);
