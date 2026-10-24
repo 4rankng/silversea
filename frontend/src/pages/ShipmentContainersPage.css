@@ -683,6 +683,24 @@
   .shipment-container-ledger tbody > tr[data-expanded="false"] > td[data-label='Nâng / hạ'],
   .shipment-container-ledger tbody > tr[data-expanded="false"] > td[data-label='Ghi chú'] { display: none !important; }
   .shipment-container-ledger tbody > tr[data-expanded="false"] > td.shipment-container-ledger__editing-cell { display: block !important; }
+
+  /* SIL-150 (C-chrome, consultation 24/10): reclaim the phone top-of-page.
+     The rail reads as one 40px scrollable strip instead of the 2×2 pairing,
+     and the filter bar packs tight — the quick-range strip drops because the
+     page passes the SAME ranges into the 'Bộ lọc' dialog. Control geometry
+     stays with control-geometry.css: only gaps, padding, and visibility. */
+  .shipments-detail-workspace .summary-rail { margin: 8px 10px 0; }
+  .shipments-detail-workspace .summary-rail dl { display: flex; flex-direction: row; align-items: center; gap: 14px; height: 40px; margin: 0; overflow-x: auto; scrollbar-width: none; }
+  .shipments-detail-workspace .summary-rail dl::-webkit-scrollbar { display: none; }
+  .shipments-detail-workspace .summary-rail .summary-rail__item { flex: 0 0 auto; flex-direction: row; align-items: baseline; gap: 5px; padding: 0; border-right: 0; }
+  .shipments-detail-workspace .summary-rail dt,
+  .shipments-detail-workspace .summary-rail dd { white-space: nowrap; }
+  /* Filter layout/gaps belong to FilterBar (card 20260927_152 law); the page
+     only tightens the card padding and drops the quick-range strip (the
+     'Bộ lọc' dialog carries the same ranges). */
+  .shipments-detail-filters .filter-bar { padding: 8px; }
+  .shipments-detail-filters .filter-bar__presets { display: none; }
+  .shipments-detail-filters .filter-bar__search-cell { flex: 1 1 100%; }
 }
 
 /* Stack labels above values inside tablet record blocks. A fixed 96px label

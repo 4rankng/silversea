@@ -1,8 +1,2 @@
-[mcp_servers.repowise]
-command = "repowise"
-args = ["mcp"]
-cwd = "/Volumes/LexarSSD/projects/silversea-prod"
-startup_timeout_sec = 20
-
 [features]
 hooks = true
