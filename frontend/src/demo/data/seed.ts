@@ -93,6 +93,9 @@ const fee = (
 
 const TODAY = '2026-10-24';
 
+/** Ngày demo chính (SIL-155): các lane /driver-app v.v. lọc chuyến theo ngày này. */
+export const DEMO_TODAY = TODAY;
+
 export const demoTrips: readonly DemoTrip[] = [
   /* TRK-01 — Tâm: ca sáng Samsung, ca chiều Duy Tan */
   {
