@@ -539,7 +539,7 @@ function InlineEditor({
               </button>
             </div>
           )}
-          <small>Số tờ khai lưu theo từng container của lô; nhập số trên một container sẽ tự copy sang các container còn trống của lô — container đã có số không bị ghi đè; xóa số chỉ áp cho container đang sửa.</small>
+          <small>Số tờ khai lưu theo từng container của lô; nhập hay sửa số trên một container sẽ tự đồng bộ sang các cont còn trống và các cont đang cùng số cũ của lô — cont đã có số khác không bị ghi đè; xóa số chỉ áp cho container đang sửa.</small>
           {/* Card 171026122140 (FB-113): positions 3 and 4 of the requested
               order. The direction select keeps its handler verbatim — it still
               owns the Bill-vs-Booking switch and clears the other side. */}

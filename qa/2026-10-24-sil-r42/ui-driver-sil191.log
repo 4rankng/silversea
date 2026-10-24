@@ -1,0 +1,28 @@
+── PHASE A: BEFORE trên staging fe966b30 (read-only) ──
+PASS BEFORE: login hoapt (Kế toán) staging OK
+PASS BEFORE: không bị đẩy về login — https://vantai.tingting.vip/accounting/chot-debit
+PASS BEFORE: chọn R39B1-LCL01 (row data-selected) — {"found":true,"selected":true}
+PASS BEFORE: chọn R39B1-LCL02 (row data-selected) — {"found":true,"selected":true}
+PASS BEFORE: strip báo "Đã chọn 2 lô" — Bỏ chọn tất cảĐã chọn 2 lôĐối soátHoàn tácGửi yêu cầu điều chỉnh cướcBỏ chọn
+PASS BEFORE (defect): strip KHÔNG có nút Tách nhóm — strip=0
+PASS BEFORE (defect): toàn trang KHÔNG có nút Tách nhóm nào (per-row không render với lô cost-merged) — anywhere=0
+SCREENSHOT qa/2026-10-24-sil-r42/ui-before-staging-1440.png
+── PHASE B: AFTER trên local worktree (BE :3092 / FE :7175) ──
+PASS AFTER: local API health
+PASS AFTER: logins cus (tạo lô) + bacdk (ghép trả ĐV) + hoapt (Kế toán drive)
+PASS AFTER: fixture catalog (khách hàng + loại xe) — customer=1 class=76
+PASS AFTER: tạo 2 lô Q- LCL — A=329 B=330
+PASS AFTER: ghép trả ĐV (cost group) 201 — status=201 {"groupId":"ad27f88e-2b0f-428d-9d8b-4f1108456666","memberCount":2,"cargoFit":{"status":"NO_WEIGHT","totalWeightKg":null,"tonnageKg":1250},"members":[{"shipmentI
+PASS AFTER: DB rev/cost group đã gắn trước drive — cost_group_id=ad27f88e-2b0f-428d-9d8b-4f1108456666
+PASS AFTER: không bị đẩy về login — http://localhost:7175/accounting/chot-debit
+PASS AFTER: chọn lô Q-191 A (data-selected) — Q191A711779 {"found":true,"selected":true}
+PASS AFTER: chọn lô Q-191 B (data-selected) — Q191B711779 {"found":true,"selected":true}
+PASS AFTER: strip CÓ nút "Tách nhóm" khi chọn 2 lô đang ghép
+PASS AFTER: nút armed (aria-disabled không set) + aria nêu đúng dimension trả ĐV — {"label":"Tách nhóm ghép trả ĐV — lô Q191A711779, Q191B711779","disabled":null}
+SCREENSHOT qa/2026-10-24-sil-r42/ui-after-local-1440.png (chưa click)
+PASS AFTER: dialog confirm copy ghép trả ĐV — Tách nhóm ghép trả ĐV? Mỗi lô trở về cước trả ĐV độc lập — tiền cước 100% của Lô 1 vẫn giữ nguyên trên Lô 1, các lô còn lại chờ định giá lại
+PASS AFTER: sau tách, strip hết nút (lô không còn ghép)
+PASS AFTER: toast "Đã tách nhóm cước trả ĐV" hiển thị
+SCREENSHOT qa/2026-10-24-sil-r42/ui-after-local-1440-unmerged.png
+PASS AFTER: DB side-effect — cost_group_id + loại xe nhóm gỡ khỏi cả 2 lô — 329=<NULL>/76 | 330=<NULL>/76
+SIL-191 UI drive: ALL PASS

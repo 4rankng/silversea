@@ -221,6 +221,16 @@ export async function reconcileShipmentContainersInTx(
 
   const toDelete = [...existingIds].filter((id) => !incomingIds.has(id));
   if (toDelete.length > 0) {
+    // Card 211026094500 (SIL-177, QA R42): the reconcile's hard-delete must
+    // not become the side door around the remove guard — a "Sửa thông tin lô"
+    // payload that omits a declared container would drop the same
+    // document-bearing row the drawer's Xóa container refuses to. Refuse the
+    // whole save with the same recovery message; un-declared rows still
+    // reconcile freely.
+    const declaredVictim = current.find((row) => toDelete.includes(row.id) && (row.declarationNumber?.trim() ?? '') !== '');
+    if (declaredVictim) {
+      throw new ApiError(409, `Cont có tờ khai ${declaredVictim.declarationNumber!.trim()} — gỡ tờ khai trước khi xóa dòng container.`);
+    }
     await tx.delete(s.shipmentContainers)
       .where(inArray(s.shipmentContainers.id, toDelete));
   }

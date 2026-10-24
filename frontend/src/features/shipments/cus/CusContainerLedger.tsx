@@ -606,8 +606,11 @@ export function ContainerLedger({
       const synced = result?.declarationSync?.updatedContainerIds.length ?? 0;
       toast({
         kind: 'success',
+        // SIL-184 (CUS-05 clarify): the fan-out now covers BOTH the still-empty
+        // siblings (FB-109 auto-copy) and the in-sync copies the edit drags
+        // along — the toast must not claim "còn trống" for an edit-sync.
         message: synced > 0
-          ? `Đã lưu tờ khai — tự copy sang ${synced} cont còn trống của lô.`
+          ? `Đã lưu tờ khai — tự đồng bộ sang ${synced} cont khác của lô.`
           : 'Đã lưu tờ khai.',
       });
       if (result?.line) {

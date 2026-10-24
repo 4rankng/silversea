@@ -1,0 +1,12 @@
+PASS FIXTURE lô Q-177 tạo :: id=320
+PASS FIXTURE gắn tờ khai cont#1 :: status=200
+PASS FIXTURE clear cont#2 (trở thành cont thường) :: status=200
+PASS FIXTURE DB: #1 mang tờ khai, #2 trống :: [422=Q-DECL-177-436846 | 423=<NULL>]
+PASS TC-SIL177-R2 remove cont có tờ khai → 409 :: status=409 body={"error":"Cont có tờ khai Q-DECL-177-436846 — gỡ tờ khai trước khi xóa dòng container."}
+PASS TC-SIL177-R2 message nêu đúng số tờ khai + chỉ dẫn gỡ :: message="Cont có tờ khai Q-DECL-177-436846 — gỡ tờ khai trước khi xóa dòng container."
+PASS TC-SIL177-R2 DB: dòng vẫn còn nguyên :: [422=Q-DECL-177-436846 | 423=<NULL>]
+PASS TC-SIL177-R4 ADMIN xóa cont có tờ khai → 409 :: status=409
+PASS TC-SIL177-R1 remove cont thường → 200 :: status=200 body={"removedId":423,"shipmentVersion":4}
+PASS TC-SIL177-R1 DB: cont thường biến mất, cont tờ khai còn :: [422=Q-DECL-177-436846]
+
+SIL-177 probe: 10/10 PASS

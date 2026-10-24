@@ -39,6 +39,12 @@ export interface AccountingDebitBoardRow {
      *  action (null = not in a rev group). Optional so a rolling deployment
      *  can lag the board wire without breaking the cell. */
     revGroupId?: string | null;
+    /** SIL-191 (QA R42) — the COST (ghép trả ĐV) group id. The QA's merged
+     *  lots were cost-merged, where revGroupId is null and only the
+     *  ghépCùngRef fallback named the group; the strip's "Tách nhóm" reads
+     *  this to unmerge the RIGHT dimension. Optional for the same rolling
+     *  deployment reason. */
+    costGroupId?: string | null;
   } | null;
   thu: AccountingDebitBoardThu;
   tra: AccountingDebitBoardTra;

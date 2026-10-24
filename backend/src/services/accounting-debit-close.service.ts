@@ -66,6 +66,10 @@ export interface AccountingDebitBoardRow {
      *  row's "Tách nhóm" action needs it to call the existing
      *  `POST /shipments/lcl/unmerge-group` — never a second unmerge path. */
     revGroupId: string | null;
+    /** SIL-191 (QA R42) — the COST (ghép trả ĐV) group id the strip's
+     *  "Tách nhóm" reads to pick the unmerge dimension (revGroupId is null
+     *  on cost-merged lots, where only ghépCùngRef named the group). */
+    costGroupId: string | null;
   } | null;
   thu: {
     cuocThu: string | null;
@@ -633,6 +637,12 @@ export async function getAccountingDebitBoard(query: {
         actualTruckNo: lot.actualTruckNo,
         billingTruckNo: lot.billingTruckNo,
         revGroupId: lot.revGroupId,
+        // SIL-191 (QA R42): the strip "Tách nhóm" must know a ghép TRẢ ĐV
+        // (COST) group from a ghép cước thu khách (REV) one — `ghépCùngRef`
+        // alone falls back to the cost principal, which is exactly how the
+        // QA's cost-merged lots (R39B1-LCL01: revGroupId null, ref set)
+        // rendered the merge note with NO reachable unmerge.
+        costGroupId: lot.costGroupId,
         ghépCùngRef: (lot.revGroupId != null && (lot.revGroupOrder ?? 1) > 1
           ? lclPrincipalRefs.get(lot.revGroupId) ?? null
           : lot.costGroupId != null && (lot.costGroupOrder ?? 1) > 1

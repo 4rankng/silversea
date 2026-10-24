@@ -35,6 +35,12 @@ export interface UnmergeRevGroupActionProps {
   id: string;
   /** The merged rev group the lot belongs to. */
   groupId: string;
+  /** Which merge dimension the group lives in. REV (ghép cước thu khách) is
+   *  the card's original surface; COST (ghép trả ĐV) rides the SAME unmerge
+   *  endpoint with the dispatch page's copy — SIL-191 (QA R42): the
+   *  accountant's merged lots were cost-merged, and a REV-only action never
+   *  reached them. Defaults to 'REV' so every existing caller is unchanged. */
+  dimension?: 'REV' | 'COST';
   /** Số Bill / Số Booking of the lot row the action sits on (aria copy). */
   lotRef: string;
   /** Why the action is unavailable (a settled/locked group) — null = armed. */
@@ -49,25 +55,46 @@ export interface UnmergeRevGroupActionProps {
  *  the operator has since re-arranged. */
 const UNDO_TOAST_MS = 6500;
 
-export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onUnmerged }: UnmergeRevGroupActionProps) {
+const COPY = {
+  REV: {
+    actionLabel: 'Tách nhóm',
+    aria: (lotRef: string) => `Tách nhóm ghép cước thu khách — lô ${lotRef}`,
+    confirm: 'Tách nhóm ghép cước thu khách? Cả nhóm giải tán: cước thu của từng lô trở về giá trước khi ghép'
+      + ' (lô chưa từng có giá hiện "Chưa xác định"), loại xe nhóm được gỡ khỏi các lô.',
+    done: 'Đã tách nhóm cước thành công',
+    remerged: 'Đã gộp lại nhóm cước thu khách',
+  },
+  COST: {
+    actionLabel: 'Tách nhóm',
+    aria: (lotRef: string) => `Tách nhóm ghép trả ĐV — lô ${lotRef}`,
+    // Same confirmation shape the dispatch board's cost-group Tách nhóm runs.
+    confirm: 'Tách nhóm ghép trả ĐV? Mỗi lô trở về cước trả ĐV độc lập — tiền cước 100% của Lô 1 vẫn giữ nguyên trên Lô 1, các lô còn lại chờ định giá lại khi ghép nhóm mới.',
+    done: 'Đã tách nhóm cước trả ĐV',
+    remerged: 'Đã gộp lại nhóm cước trả ĐV',
+  },
+} as const;
+
+export function UnmergeRevGroupAction({ id, groupId, dimension = 'REV', lotRef, disabledReason, onUnmerged }: UnmergeRevGroupActionProps) {
   const { toast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const copy = COPY[dimension];
 
   async function doUnmerge() {
     setBusy(true);
     try {
-      const result = await unmergeLclGroup({ groupId, dimension: 'REV' });
+      const result = await unmergeLclGroup({ groupId, dimension });
       setConfirmOpen(false);
       // Refresh FIRST (the board must never keep painting the stale group /
       // stale 0₫), then offer the undo on top of the refreshed state.
       onUnmerged();
-      // A legacy class-less group cannot be auto-re-merged (the merge command
-      // requires its loại xe) — its toast stays informational.
+      // A class-less group cannot be auto-re-merged (the merge command
+      // requires its loại xe) — its toast stays informational. COST unmerges
+      // hand back no vehicleClassId by contract, so they always land here.
       toast(result.vehicleClassId != null
         ? {
             kind: 'success',
-            message: 'Đã tách nhóm cước thành công',
+            message: copy.done,
             duration: UNDO_TOAST_MS,
             action: {
               label: 'Hoàn tác',
@@ -80,7 +107,7 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
                       shipmentIds: [...result.members].sort((a, b) => a.order - b.order).map((m) => m.shipmentId),
                       vehicleSizeClassId: result.vehicleClassId!,
                     });
-                    toast({ kind: 'success', message: 'Đã gộp lại nhóm cước thu khách' });
+                    toast({ kind: 'success', message: copy.remerged });
                     onUnmerged();
                   } catch (err) {
                     toast({ kind: 'error', message: err instanceof Error ? err.message : 'Hoàn tác thất bại' });
@@ -89,7 +116,7 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
               },
             },
           }
-        : { kind: 'success', message: 'Đã tách nhóm cước thành công' });
+        : { kind: 'success', message: copy.done });
     } catch (err) {
       toast({ kind: 'error', message: err instanceof Error ? err.message : 'Tách nhóm thất bại' });
     } finally {
@@ -103,7 +130,7 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
         <button
           type="button"
           className="tach-nhom-action"
-          aria-label={`Tách nhóm ghép cước thu khách — lô ${lotRef}`}
+          aria-label={copy.aria(lotRef)}
           aria-disabled={disabledReason != null || undefined}
           onClick={() => {
             // aria-disabled does not block clicks the way `disabled` did —
@@ -112,13 +139,12 @@ export function UnmergeRevGroupAction({ id, groupId, lotRef, disabledReason, onU
             setConfirmOpen(true);
           }}
         >
-          Tách nhóm
+          {copy.actionLabel}
         </button>
       </DisabledActionTip>
       <ConfirmDialog
         isOpen={confirmOpen}
-        message={'Tách nhóm ghép cước thu khách? Cả nhóm giải tán: cước thu của từng lô trở về giá trước khi ghép'
-          + ' (lô chưa từng có giá hiện "Chưa xác định"), loại xe nhóm được gỡ khỏi các lô.'}
+        message={copy.confirm}
         confirmLabel={busy ? 'Đang tách…' : 'Tách nhóm'}
         onConfirm={() => void doUnmerge()}
         onCancel={() => { if (!busy) setConfirmOpen(false); }}
