@@ -731,7 +731,7 @@ Khi gặp quyết định design/UI/UX, lựa chọn kiến trúc/library, hoặ
 consult webchat TRƯỚC khi tự quyết:
 ```bash
 python3 /Volumes/LexarSSD/projects/one-shot/tools/webchat.py gemini send "<câu hỏi + NGỮ CẢNH + số đo thật>" --json --tail 0
-# câu trả lời nằm ngay trong response_text của lệnh send (full text cũng ở /tmp/webchat-last-<site>.txt)
+# câu trả lời nằm ngay trong response_text của lệnh send (full text cũng ở $TMPDIR/webchat-last-<site>.txt)
 ```
 Preflight/smoke, deepresearch, multi-turn, triage `error_stage`: skill `/webchat`.
 - Adapter gemini/deepseek ONLY. Gửi kèm constraint + số đo thật (px, test counts, spec gốc).
