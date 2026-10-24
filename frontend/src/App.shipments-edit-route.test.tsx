@@ -33,6 +33,16 @@ vi.mock('./pages/ShipmentDetailPage', () => ({
   },
 }));
 
+// SIL-171: /shipments/:id/edit is the REAL edit form now — mock it so this
+// route test observes wiring only, not the workspace's own fetches.
+const editRendered = vi.hoisted(() => ({ count: 0 }));
+vi.mock('./pages/clerk/ClerkShipmentEditPage', () => ({
+  default: () => {
+    editRendered.count += 1;
+    return <div>shipment edit form surface</div>;
+  },
+}));
+
 import { AppRoutes } from './App';
 
 function LocationProbe() {
@@ -49,22 +59,28 @@ function renderRoute(path: string) {
   );
 }
 
-describe('AppRoutes /shipments/:id/edit alias (card 358 criterion 2)', () => {
+// Card 20261004_358 criterion 2 said "no 404 for guessed edit URLs"; SIL-171
+// (FB-147, 24/10) upgrades the alias to the real edit surface. The contract
+// that survives: the URL never dead-ends.
+describe('AppRoutes /shipments/:id/edit — SIL-171 real edit form', () => {
   beforeEach(() => {
     authState.role = Role.DISPATCHER;
     detailRendered.props = null;
+    editRendered.count = 0;
   });
 
-  it('lands a guessed edit URL on the shipment detail surface instead of the 404', async () => {
+  it('lands a guessed edit URL on the shipment EDIT FORM instead of the 404', async () => {
     renderRoute('/shipments/315/edit');
-    expect(await screen.findByText('shipment detail surface')).toBeTruthy();
+    expect(await screen.findByText('shipment edit form surface')).toBeTruthy();
     expect(screen.queryByText(/Trang bạn tìm|Không tìm thấy|404/)).toBeNull();
-    expect(screen.getByTestId('loc').textContent).toBe('/shipments/315');
+    // The URL stays put — no redirect to the detail page.
+    expect(screen.getByTestId('loc').textContent).toBe('/shipments/315/edit');
   });
 
   it('keeps the plain detail route untouched', async () => {
     renderRoute('/shipments/315');
     expect(await screen.findByText('shipment detail surface')).toBeTruthy();
     expect(screen.getByTestId('loc').textContent).toBe('/shipments/315');
+    expect(editRendered.count).toBe(0);
   });
 });

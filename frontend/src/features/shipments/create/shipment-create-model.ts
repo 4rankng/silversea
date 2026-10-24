@@ -57,6 +57,12 @@ export interface ShipmentCreateFormState {
 
 export interface ShipmentContainerDraft {
   key: string;
+  /** Persisted row id when the draft edits an EXISTING container (SIL-171
+   *  edit mode). The batch reconcile updates by id and deletes the rest, so
+   *  carrying it keeps an unchanged edit an UPDATE — without it every save
+   *  would delete + reinsert the lot's containers (and 409 on lots with
+   *  issued dispatch orders). Undefined on the create form. */
+  id?: number;
   containerNumber: string;
   containerTypeId: string;
   /** Selected independently for this container. */
@@ -184,6 +190,9 @@ export function createContainerFromPrevious(
     ...previous,
     key: crypto.randomUUID(),
     containerNumber: '',
+    // SIL-171: a cloned row is a NEW container — never inherit the source
+    // row's persisted id (the reconcile would overwrite its sibling).
+    id: undefined,
   };
 }
 
@@ -393,6 +402,9 @@ export function buildShipmentContainerPayload(
     ? containers.filter((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value))
     : [];
   return rows.map((row) => ({
+    // SIL-171 edit mode: existing rows ride their persisted id so the
+    // reconcile updates in place instead of delete + reinsert.
+    ...(row.id != null ? { id: row.id } : {}),
     containerNumber: row.containerNumber || null,
     containerTypeId: row.containerTypeId ? Number(row.containerTypeId) : null,
     shippingLineName: form.shippingLineName || null,

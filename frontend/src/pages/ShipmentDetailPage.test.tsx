@@ -1081,14 +1081,16 @@ describe('ShipmentDetailPage', () => {
     });
   });
 
-  // ── Sửa lô (FB-086 R29 remainder, steer 21/10) ────────────────────────────
+  // ── Sửa lô (FB-086 R29 remainder, steer 21/10; SIL-171 24/10) ────────────
   // Reconciliation: TICKET-09 (card 171026182554) superseded FB-086 at this
   // surface for CONTAINERS — the read-only Containers section here IS the
   // correct state (QA's R29 "no add container" observation is
-  // invalid-at-surface). The valid remainder is lot-INFORMATION editing:
-  // "Sửa lô" in the header opens a picker over the same six field groups the
-  // Tổng quan grid edits, then opens the SAME shared quick-edit modal
-  // (ShipmentQuickEditModal — one lot-info editor, two hosts). Roles =
+  // invalid-at-surface). The valid remainder is lot-INFORMATION editing.
+  // SIL-171 (FB-147, khách Zalo 24/10 + QA R41): "Sửa lô" now opens the FULL
+  // edit FORM (/shipments/:id/edit — the Tạo lô hàng workspace pre-filled,
+  // submit = PATCH). The former six-group picker stays reachable as "Sửa
+  // nhanh" and still hands the picked group to the SAME shared quick-edit
+  // modal (one lot-info editor, two hosts). Roles =
   // SHIPMENT_INTAKE_MUTATION_ROLES (testplan/roles/01-cus.md: CUS "read &
   // write the shipment workspace: create, edit, …").
   describe('Sửa lô affordance (FB-086 R29 remainder)', () => {
@@ -1258,6 +1260,7 @@ describe('ShipmentDetailPage', () => {
         getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
         renderLot();
         expect(await screen.findByRole('button', { name: /Sửa lô/ })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Sửa nhanh' })).toBeTruthy();
       },
     );
 
@@ -1267,6 +1270,7 @@ describe('ShipmentDetailPage', () => {
       renderLot();
       await screen.findByText('Khách hàng');
       expect(screen.queryByRole('button', { name: /Sửa lô/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Sửa nhanh' })).toBeNull();
     });
 
     it('hides Sửa lô while the accounting lock is active — narrower than the server (notes stay editable on Tổng quan only)', async () => {
@@ -1274,6 +1278,7 @@ describe('ShipmentDetailPage', () => {
       renderLot();
       await screen.findByText(/Khóa lô do CUS/);
       expect(screen.queryByRole('button', { name: /Sửa lô/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Sửa nhanh' })).toBeNull();
     });
 
     it('sits before Tạo lô mới, which still sits immediately before Xóa lô', async () => {
@@ -1281,19 +1286,44 @@ describe('ShipmentDetailPage', () => {
       getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
       renderLot();
       const editBtn = await screen.findByRole('button', { name: /Sửa lô/ });
+      const quickBtn = screen.getByRole('button', { name: 'Sửa nhanh' });
       const createBtn = screen.getByRole('button', { name: /Tạo lô mới/ });
       const deleteBtn = screen.getByRole('button', { name: /Xóa lô/ });
       expect(editBtn.parentElement).toBe(createBtn.parentElement);
-      expect(editBtn.nextElementSibling).toBe(createBtn);
+      expect(editBtn.nextElementSibling).toBe(quickBtn);
+      expect(quickBtn.nextElementSibling).toBe(createBtn);
       expect(createBtn.nextElementSibling).toBe(deleteBtn);
     });
 
-    it('opens the group picker from the workspace detail; FCL Lịch trình is per-container and stays disabled', async () => {
+    // SIL-171 (FB-147, 24/10): "Sửa lô" rời dialog 6 nút — nó mở FORM SỬA
+    // (dùng lại Tạo lô hàng) tại /shipments/:id/edit; dialog cũ chỉ còn qua
+    // "Sửa nhanh".
+    it('Sửa lô navigates to the edit form (/shipments/:id/edit) — SIL-171', async () => {
+      currentUser.role = Role.CUS;
+      getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
+      const { unmount } = render(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider><MemoryRouter initialEntries={['/shipments/1']}>
+            <Routes>
+              <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+              <Route path="/shipments/:id/edit" element={<div>edit form surface</div>} />
+            </Routes>
+          </MemoryRouter></ToastProvider>
+        </QueryClientProvider>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: /Sửa lô/ }));
+      expect(await screen.findByText('edit form surface')).toBeTruthy();
+      // Dialog 6 nút KHÔNG mở cùng lúc.
+      expect(screen.queryByText('Sửa thông tin lô')).toBeNull();
+      unmount();
+    });
+
+    it('Sửa nhanh opens the group picker from the workspace detail; FCL Lịch trình is per-container and stays disabled', async () => {
       currentUser.role = Role.CUS;
       getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
       getCusShipmentWorkspaceDetailMock.mockResolvedValue(workspaceDetail);
       renderLot();
-      fireEvent.click(await screen.findByRole('button', { name: /Sửa lô/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Sửa nhanh' }));
       expect(await screen.findByText('Sửa thông tin lô')).toBeTruthy();
       expect(getCusShipmentWorkspaceDetailMock).toHaveBeenCalledWith(1);
       for (const label of ['Khách hàng & nhà máy', 'Chứng từ', 'Phân loại & hãng tàu', 'Tổng quan hàng hóa', 'Lịch trình', 'Ghi chú']) {
@@ -1304,12 +1334,12 @@ describe('ShipmentDetailPage', () => {
       expect(scheduleBtn.getAttribute('title')).toBe('Lịch FCL được cập nhật theo từng container.');
     });
 
-    it('picking Chứng từ opens the shared quick-edit modal and Lưu thay đổi PATCHes the lot with its version', async () => {
+    it('picking Chứng từ (qua Sửa nhanh) opens the shared quick-edit modal and Lưu thay đổi PATCHes the lot with its version', async () => {
       currentUser.role = Role.CUS;
       getShipmentDetailMock.mockResolvedValue({ ...detail, accountingLock: null });
       getCusShipmentWorkspaceDetailMock.mockResolvedValue(workspaceDetail);
       renderLot();
-      fireEvent.click(await screen.findByRole('button', { name: /Sửa lô/ }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Sửa nhanh' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Chứng từ' }));
       const billInput = await screen.findByLabelText('Số Bill');
       expect((billInput as HTMLInputElement).value).toBe('BL-001');

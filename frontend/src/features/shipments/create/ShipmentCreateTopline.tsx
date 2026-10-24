@@ -8,6 +8,8 @@ interface ShipmentCreateToplineProps {
   onCancel: () => void;
   onSaveDraft: () => void;
   onCreate: () => void;
+  /** SIL-171 edit mode: title + action cluster swap to the edit pair. */
+  mode?: 'create' | 'edit';
 }
 
 /* Owner mock 11/10 ("Tạo lô hàng – dense layout.html"): the page title, the
@@ -26,16 +28,19 @@ export function ShipmentCreateTopline({
   onCancel,
   onSaveDraft,
   onCreate,
+  mode = 'create',
 }: ShipmentCreateToplineProps) {
+  const edit = mode === 'edit';
   return (
     <div className="csc-topline">
-      <h1 className="csc-topline__title">Tạo lô hàng</h1>
+      <h1 className="csc-topline__title">{edit ? 'Sửa lô hàng' : 'Tạo lô hàng'}</h1>
       <span className="csc-topline__progress">
         Bắt buộc: <strong>{requiredDone}/{requiredTotal}</strong>
       </span>
       <ShipmentCreateActions
         className="csc-topline__actions"
         variant="topline"
+        mode={mode}
         saving={saving}
         onCancel={onCancel}
         onSaveDraft={onSaveDraft}

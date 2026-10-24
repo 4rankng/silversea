@@ -25,6 +25,9 @@ interface UseShipmentReferenceDuplicateGuardArgs {
   debounceMs?: number;
   /** Skip the lookup when the inputs are too short to be meaningful. */
   minChars?: number;
+  /** SIL-171 edit mode: the lot being edited never conflicts with itself —
+   *  exclude it so resubmitting its own stored Bill/Booking stays silent. */
+  excludeShipmentId?: number;
 }
 
 export interface ShipmentReferenceDuplicateGuardResult {
@@ -44,6 +47,7 @@ export function useShipmentReferenceDuplicateGuard({
   tradeDirection,
   debounceMs = 350,
   minChars = 3,
+  excludeShipmentId,
 }: UseShipmentReferenceDuplicateGuardArgs): ShipmentReferenceDuplicateGuardResult {
   const [conflicts, setConflicts] = useState<ShipmentReferenceConflict[]>([]);
   const { toast } = useToast();
@@ -71,9 +75,10 @@ export function useShipmentReferenceDuplicateGuard({
           blNumber: trimmedBl || undefined,
           bookingRef: trimmedBooking || undefined,
           declarationNumber: trimmedDeclarations[0] || undefined,
+          excludeShipmentId,
         }),
         ...trimmedDeclarations.slice(1).map((declarationNumber) => (
-          checkShipmentReferenceDuplicate({ declarationNumber })
+          checkShipmentReferenceDuplicate({ declarationNumber, excludeShipmentId })
         )),
       ];
       Promise.all(requests)
@@ -93,7 +98,7 @@ export function useShipmentReferenceDuplicateGuard({
       clearTimeout(handle);
       active = false;
     };
-  }, [blNumber, bookingRef, declarationKey, tradeDirection, debounceMs, minChars]);
+  }, [blNumber, bookingRef, declarationKey, tradeDirection, debounceMs, minChars, excludeShipmentId]);
 
   const reportServerConflict = useCallback((conflict: ShipmentReferenceConflict) => {
     setConflicts((current) => (

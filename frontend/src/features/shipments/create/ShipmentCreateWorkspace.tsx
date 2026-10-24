@@ -13,6 +13,7 @@ import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
   createShippingLine,
+  getShipmentDetail,
   listOperationalSites,
   listSharedWarehouseSites,
   type OperationalSite,
@@ -31,6 +32,10 @@ import {
   type ShipmentCreateFormState,
   type ShipmentCreateIssue,
 } from './shipment-create-model';
+import {
+  buildShipmentEditPrefill,
+  type ShipmentEditSeed,
+} from './shipment-edit-prefill';
 import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
@@ -56,7 +61,15 @@ type ContainerRow = ShipmentContainerDraft;
 const EMPTY_FORM = EMPTY_SHIPMENT_CREATE_FORM;
 const newContainer = createEmptyContainer;
 
-export function ShipmentCreateWorkspace() {
+/**
+ * SIL-171 (FB-147): "Sửa lô" opens THIS workspace in edit mode. `editTarget`
+ * pins the lot: the detail is fetched once, mapped onto the same form state
+ * (validation identical to create), and the workflow PATCHes the existing lot
+ * instead of POSTing a new one. Omitted → the plain create form, unchanged.
+ */
+export function ShipmentCreateWorkspace({ editTarget }: {
+  editTarget?: { shipmentId: number };
+} = {}) {
   const navigate = useNavigate();
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
   const [sites, setSites] = useState<OperationalSite[]>([]);
@@ -72,6 +85,13 @@ export function ShipmentCreateWorkspace() {
   const [loading, setLoading] = useState(true);
   const [sitesLoading, setSitesLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // ── SIL-171 edit mode ── the lot's own seed (id/version/declarations) and
+  // the pristine baseline the leave-confirm diff reads. The detail is fetched
+  // ONCE per editTarget; a route id change refetches fresh.
+  const [editSeed, setEditSeed] = useState<ShipmentEditSeed | null>(null);
+  const [editLoadError, setEditLoadError] = useState<string | null>(null);
+  const editBaselineRef = useRef<string | null>(null);
+  const editRequestRef = useRef(0);
   const [validationIssues, setValidationIssues] = useState<ShipmentCreateIssue[]>([]);
   // Summary de-noise (17/10): the "Cần bổ sung" panel is submit-gated — it may
   // not confront a freshly opened form. Any action-button save click ("Tạo lô
@@ -95,6 +115,7 @@ export function ShipmentCreateWorkspace() {
     bookingRef: form.bookingRef,
     declarationNumbers: form.declarationNumbers && form.declarationNumbers.length > 0 ? form.declarationNumbers : [form.declarationNumber],
     tradeDirection: form.tradeDirection,
+    excludeShipmentId: editTarget?.shipmentId,
   });
   const [routeDialogTargetKey, setRouteDialogTargetKey] = useState<string | null>(null);
   const [routeDialogInitialName, setRouteDialogInitialName] = useState('');
@@ -110,6 +131,41 @@ export function ShipmentCreateWorkspace() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // SIL-171: load the lot being edited ONCE per shipmentId and prefill the
+  // whole form — same fields, same layout as "Tạo lô hàng", including the
+  // Hình thức XNK radio. A stale-response guard keeps a rapid id change from
+  // overwriting the newer prefill. The dependency is the SCALAR id (not the
+  // editTarget object) so a re-render with a fresh prop literal cannot
+  // re-run the fetch and wipe in-progress edits.
+  const editShipmentId = editTarget?.shipmentId;
+  useEffect(() => {
+    if (editShipmentId == null) return;
+    const reqId = ++editRequestRef.current;
+    setEditLoadError(null);
+    setEditSeed(null);
+    getShipmentDetail(editShipmentId)
+      .then((detail) => {
+        if (editRequestRef.current !== reqId) return;
+        const prefill = buildShipmentEditPrefill(detail);
+        // Server refuses every non-notes write on a locked lot (ruling
+        // 2026-09-20 carve-out aside) — arming a full editable form would
+        // waste the whole edit on a guaranteed 409, so the lock stops here.
+        if (detail.accountingLock) {
+          setEditLoadError('Lô hàng đã bị khóa kế toán nên không thể sửa thông tin. Ghi chú vẫn sửa được ở Tổng quan.');
+          return;
+        }
+        setForm(prefill.form);
+        setContainers(prefill.containers);
+        setCustomerNotes(prefill.customerNotes);
+        editBaselineRef.current = JSON.stringify([prefill.form, prefill.containers, prefill.customerNotes]);
+        setEditSeed(prefill.seed);
+      })
+      .catch(() => {
+        if (editRequestRef.current !== reqId) return;
+        setEditLoadError('Không thể tải thông tin lô hàng để sửa. Vui lòng thử lại.');
+      });
+  }, [editShipmentId]);
 
   useEffect(() => {
     let revalidateInFlight = false;
@@ -214,6 +270,11 @@ export function ShipmentCreateWorkspace() {
   }, [catalogs]);
 
   const isDirty = useMemo(() => {
+    // SIL-171 edit mode: dirty is measured against the PREFILLED baseline —
+    // opening the form and leaving without touching anything is not "dirty".
+    if (editTarget) {
+      return editBaselineRef.current !== JSON.stringify([form, containers, customerNotes]);
+    }
     const hasFormData = Object.entries(form).some(([key, value]) => (
       key === 'cargoMode' ? value !== EMPTY_FORM.cargoMode
         : key === 'isCombined' ? value !== EMPTY_FORM.isCombined
@@ -226,14 +287,18 @@ export function ShipmentCreateWorkspace() {
         : value !== ''
     ));
     const hasContainerData = containers.some((row) => (
-      Object.entries(row).some(([key, value]) => key !== 'key' && value !== '')
+      // `id` may exist as undefined (cloned/empty rows) — treat that as empty.
+      Object.entries(row).some(([key, value]) => key !== 'key' && value !== '' && value !== undefined)
     ));
     return hasFormData || hasContainerData || customerNotes.trim() !== '';
-  }, [containers, customerNotes, form]);
+  }, [containers, customerNotes, editTarget, form]);
 
   const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
     form,
     containers,
+    // SIL-171: seeded with the loaded lot's id/version/declarations, the
+    // save starts at the PATCH + reconcile stage — no create call ever fires.
+    editSeed: editSeed ?? undefined,
     // Card 261022093245: label resolution needs BOTH the customer's sites and
     // the shared warehouse catalog — a picked shared kho belongs to another
     // customer, so its shortName/name must resolve from the union or
@@ -585,7 +650,7 @@ export function ShipmentCreateWorkspace() {
   // `expectedDeliveryDate` unchanged). FCL keeps the full schedule section.
 
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
-    const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '') || hasDateDraft(scope);
+    const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '' && value !== undefined) || hasDateDraft(scope);
     if (hasEnteredData) {
       setPendingContainerDelete(row);
       return;
@@ -615,12 +680,22 @@ export function ShipmentCreateWorkspace() {
       setBackConfirmOpen(true);
       return;
     }
-    navigate(-1);
+    leaveWorkspace();
+  }
+
+  // SIL-171: the edit form's home context is the lot detail — cancel returns
+  // there deterministically (also correct for a direct /shipments/:id/edit
+  // URL entry, where history-back would leave the app). The create form keeps
+  // its original history-back behavior.
+  function leaveWorkspace() {
+    if (editTarget) navigate(`/shipments/${editTarget.shipmentId}`);
+    else navigate(-1);
   }
 
   function discardAndGoBack() {
     setBackConfirmOpen(false);
-    navigate(-1);
+    if (editTarget) navigate(`/shipments/${editTarget.shipmentId}`);
+    else navigate(-1);
   }
 
   async function save(intent: SaveIntent) {
@@ -657,13 +732,25 @@ export function ShipmentCreateWorkspace() {
     [form, containers, readiness],
   );
 
-  if (loading) return <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-3)' }}>Đang tải…</div>;
+  if (loading || (editTarget && !editSeed && !editLoadError)) {
+    return <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-3)' }}>Đang tải…</div>;
+  }
   if (loadError) return <div role="alert" style={{ padding: 24, color: 'var(--danger)' }}>{loadError}</div>;
+  if (editLoadError) {
+    return (
+      <div role="alert" style={{ padding: 24, color: 'var(--danger)' }}>
+        {editLoadError}
+      </div>
+    );
+  }
   if (!catalogs?.customers.length) return <EmptyState context="clients" title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
+
+  const workspaceMode = editTarget ? 'edit' as const : 'create' as const;
 
   return (
     <div className="csc-page">
       <ShipmentCreateTopline
+        mode={workspaceMode}
         saving={saving}
         requiredDone={completion.done}
         requiredTotal={completion.total}
@@ -782,6 +869,7 @@ export function ShipmentCreateWorkspace() {
             shippingLineAddButtonRef={shippingLineAddButtonRef}
             onOpenCustomerDialog={() => setCustomerDialogOpen(true)}
             onOpenShippingLineDialog={() => setShippingLineDialogOpen(true)}
+            editMode={Boolean(editTarget)}
           />
 
           {form.cargoMode === 'LCL' && (
@@ -969,6 +1057,7 @@ export function ShipmentCreateWorkspace() {
         <div className="csc-form-actions">
           <ShipmentCreateActions
             variant="footer"
+            mode={workspaceMode}
             saving={saving}
             onCancel={goBack}
             onSaveDraft={() => void save('DRAFT')}
