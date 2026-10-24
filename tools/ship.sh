@@ -64,9 +64,11 @@ case "$cmd" in
     fi
     ;;
   deploy)
-    TODO=$(ls "$K/TODO" 2>/dev/null | grep -c docx || true)
-    if [ "$TODO" != "0" ]; then
-      echo "⛔ GDrive TODO=$TODO (deploy gate: chỉ deploy khi board sạch)"; exit 1
+    # Board gate (SIL-150, ruling 24/10 — GDrive retire): chặn deploy khi
+    # project SIL còn ticket Backlog(1)/In Progress(3) chưa xử lý.
+    BT=$(bash "$HOME/.hermes/profiles/dev/scripts/board-todo.sh" 2>/dev/null)
+    if [ "${BT:-0}" != "0" ]; then
+      echo "⛔ Board còn $BT ticket Backlog/In Progress (deploy gate: board phải sạch — plan.tingting.vip/tingtingsoft/SIL)"; exit 1
     fi
     # QA BUILD-PIN (user goal 21/10 — zero QA rejection): QA round active → khóa deploy
     QA_PIN="$HOME/.hermes/profiles/dev/state/qa-round-active"
