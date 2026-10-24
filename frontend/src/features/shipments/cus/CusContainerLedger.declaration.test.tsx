@@ -138,9 +138,11 @@ describe('ContainerLedger tờ khai inline cell (card 261022095235a)', () => {
     expect(containerId).toBe(10);
     expect(patch.expectedShipmentVersion).toBe(4);
     expect(patch.declarationNumber).toBe('TK-2026-777');
-    // FB-109: the save IS the auto-copy — the toast states the server's
-    // reported fan-out, never a client-side guess.
-    expect(await screen.findByText(/Đã lưu tờ khai — tự copy sang 2 cont còn trống của lô/)).toBeTruthy();
+    // FB-109 + SIL-184 (CUS-05 clarify): the save IS the auto-sync — the
+    // toast states the server's reported fan-out, never a client-side guess,
+    // and no longer claims the siblings were "còn trống" (an edit-sync drags
+    // in-sync copies along too).
+    expect(await screen.findByText(/Đã lưu tờ khai — tự đồng bộ sang 2 cont khác của lô/)).toBeTruthy();
     await waitFor(() => expect(onLineSaved).toHaveBeenCalled());
     // Review 22/10 (TOKHAI-R2, drawer host): a fan-out commit rewrote the
     // SIBLING rows server-side; the drawer's onLineSaved patches only the

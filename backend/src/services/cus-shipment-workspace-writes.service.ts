@@ -544,10 +544,13 @@ export async function updateCusShipmentContainerLine(args: {
     // Card 171026122100 (FB-109) auto-copy law — narrowing the 171026180010
     // sync to the card's design note: a NON-EMPTY save auto-copies the number
     // onto the lot's STILL-EMPTY containers inside this same transaction and
-    // reports the written siblings for the save's toast. A container that
-    // already carries a number is NEVER overwritten ("cont đã có số không bị
-    // ghi đè") — divergence stays possible by design. A clear stays local —
-    // one backspace must never wipe the lot's document numbers wholesale.
+    // reports the written siblings for the save's toast. A container carrying
+    // a DIFFERENT number is never overwritten ("cont đã có số không bị ghi
+    // đè") — divergence stays possible by design; a sibling still holding the
+    // number this save replaces is a lot-copy, not a divergence, and follows
+    // the edit (CUS-05 clarify, card 261022095235a — SIL-184). A clear stays
+    // local — one backspace must never wipe the lot's document numbers
+    // wholesale.
     let declarationSyncedContainerIds: number[] | null = null;
     if (args.input.declarationNumber !== undefined) {
       requireContainerDeclarationWriter(args.actor);
@@ -564,16 +567,25 @@ export async function updateCusShipmentContainerLine(args: {
         if (nextDeclarationNumber != null) {
           // Same-lot repeats are legal (the copy affordance's whole point), so
           // the siblings need no cross-lot availability re-check — the number
-          // was just validated for THIS lot. Only NULL/blank siblings receive
-          // the auto-copy (FB-109: a filled sibling is never overwritten), so
-          // the report never carries fake writes and an echo churns nothing.
+          // was just validated for THIS lot. CUS-05 clarify (card
+          // 261022095235a, SIL-184 QA R42): the sync covers BOTH halves of the
+          // lot's followers — the STILL-EMPTY containers (FB-109 auto-copy)
+          // AND the siblings still holding the number this save REPLACES
+          // (they were copies of this line; the edit drags them along, which
+          // is what "đồng bộ theo lô" means for a SỬA, not just a THÊM). A
+          // sibling carrying any OTHER non-empty number diverged on purpose
+          // (card 261013200312 — "cont đã có số không bị ghi đè") and is
+          // never touched; a clear stays local.
+          const inSyncSiblingMatch = container.declarationNumber != null
+            ? sql` OR btrim(${s.shipmentContainers.declarationNumber}) = ${container.declarationNumber.trim()}`
+            : sql``;
           const syncedSiblings = await tx.update(s.shipmentContainers).set({
             declarationNumber: nextDeclarationNumber,
             updatedAt: now,
           }).where(and(
             eq(s.shipmentContainers.shipmentId, args.shipmentId),
             ne(s.shipmentContainers.id, container.id),
-            sql`(${s.shipmentContainers.declarationNumber} IS NULL OR btrim(${s.shipmentContainers.declarationNumber}) = '')`,
+            sql`(${s.shipmentContainers.declarationNumber} IS NULL OR btrim(${s.shipmentContainers.declarationNumber}) = ''${inSyncSiblingMatch})`,
           )).returning({ id: s.shipmentContainers.id });
           declarationSyncedContainerIds = syncedSiblings.map((row) => row.id);
         }

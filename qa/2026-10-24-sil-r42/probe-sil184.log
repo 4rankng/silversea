@@ -1,0 +1,15 @@
+PASS FIXTURE lô Q-184 tạo :: id=322
+PASS FIXTURE cont#1 = X (fan-out điền trống) :: status=200 db=[Q-DECL-184-X-523436|Q-DECL-184-X-523436|Q-DECL-184-X-523436]
+PASS TC-SIL184-R1 sửa X→Y status 200 :: status=200
+PASS TC-SIL184-R1 declarationSync báo đúng 2 sibling :: synced=[428,429] expect=[428,429]
+PASS TC-SIL184-R1 RELOAD: cả lô mang Y (QA repro đã đóng) :: db=[Q-DECL-184-Y-523436|Q-DECL-184-Y-523436|Q-DECL-184-Y-523436]
+PASS FIXTURE clear cont#3 (local) :: status=200
+PASS FIXTURE cont#3 = Z (divergence) :: status=200 synced=[]
+PASS FIXTURE trạng thái divergence: #1 #2 = Y, #3 = Z :: [Q-DECL-184-Y-523436|Q-DECL-184-Y-523436|Q-DECL-184-Z-523436]
+PASS TC-SIL184-R3 sibling giữ số cũ (Y) đi theo W :: cont#2=Q-DECL-184-W-523436
+PASS TC-SIL184-R3 divergence Z KHÔNG bị ghi đè :: cont#3=Q-DECL-184-Z-523436
+PASS TC-SIL184-R3 declarationSync chỉ gồm cont#2 :: synced=[428]
+PASS TC-SIL184-R4 clear status 200 + không fan-out :: status=200 synced=[]
+PASS TC-SIL184-R4 DB: #1 trống, #2 vẫn W :: [<NULL>|Q-DECL-184-W-523436|Q-DECL-184-Z-523436]
+
+SIL-184 probe: 13/13 PASS
