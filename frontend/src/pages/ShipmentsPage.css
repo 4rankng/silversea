@@ -231,157 +231,6 @@
   font-size: var(--text-caption-size);
 }
 
-.cus-drawer-workflow {
-  display: grid;
-  gap: 12px;
-  /* SIL-480: the drawer body owns the outer 20/24 inset; this section keeps
-     only its divider rhythm — hairline bottom, 16px above and below. */
-  padding: 0 0 16px;
-  margin: 0 0 16px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-}
-
-.cus-drawer-workflow__heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.cus-drawer-workflow__heading h3,
-.cus-drawer-workflow__action p {
-  margin: 0;
-}
-
-/* SIL-480: section label 13/16/500, uppercase, tracking .04em, muted ink.
-   The badge shares this flex row, so the label's "margin-bottom 8" from the
-   spec is carried by the section grid's row gap (12px) instead of a margin
-   that would knock the badge off center. */
-.cus-drawer-workflow__heading h3 {
-  margin: 0;
-  color: var(--ink-3);
-  font-family: var(--font-display);
-  font-size: 13px;
-  line-height: 16px;
-  font-weight: var(--fw-medium);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.cus-drawer-workflow__action p {
-  color: var(--ink-2);
-  font-size: var(--text-caption-size);
-  line-height: 1.4;
-}
-
-.cus-drawer-decision-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.88fr) minmax(240px, 1.15fr);
-  background: var(--surface);
-}
-
-.cus-drawer-decision {
-  display: grid;
-  align-content: start;
-  gap: 5px;
-  min-width: 0;
-  padding: 8px 12px;
-  border-right: 1px solid var(--line);
-}
-
-.cus-drawer-decision:first-child { padding-left: 14px; }
-.cus-drawer-decision:last-child {
-  padding-right: 14px;
-  border-right: 0;
-}
-
-.cus-drawer-decision__label,
-.cus-drawer-decision--custody [data-label] {
-  color: var(--ink-2);
-  font-size: var(--text-label-size);
-  font-weight: var(--fw-semibold);
-  line-height: 1.3;
-}
-
-.cus-drawer-decision > strong,
-.cus-drawer-decision__appointments {
-  color: var(--ink);
-  font-size: var(--text-body-size);
-  font-weight: var(--fw-medium);
-  line-height: 1.4;
-}
-
-.cus-drawer-decision__appointments {
-  display: grid;
-  gap: 2px;
-}
-
-.cus-drawer-inline-control {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-}
-
-.cus-drawer-uui-field {
-  min-width: 0;
-}
-
-.cus-drawer-uui-control,
-.cus-drawer-uui-select {
-  border-radius: var(--app-radius-md);
-  background: var(--surface);
-  box-shadow: none;
-}
-
-.cus-drawer-uui-input,
-.cus-drawer-uui-select {
-  min-width: 0;
-}
-
-.cus-drawer-save-date {
-  width: auto;
-  border-radius: var(--app-radius-md);
-  box-shadow: none;
-}
-
-.cus-drawer-workflow__action {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0 0;
-  border-top: 1px solid var(--line);
-  background: var(--surface);
-}
-
-/* Card 20261004 drawer restyle (Untitled UI PRO consult — application/
-   slideout-menus project-details-menu): the decorative status rail and the
-   tinted action box are retired; the drawer reads as flat white sections
-   divided by hairlines. Blocked-state semantics stay in the reason text
-   (aria-describedby) and the secondary-toned action button. */
-
-.cus-drawer-workflow__action > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.cus-drawer-workflow__action > div > strong {
-  color: var(--ink);
-  font-size: var(--text-body-size);
-  font-weight: var(--fw-semibold);
-  line-height: 1.35;
-}
-
-.cus-drawer-primary-action {
-  min-width: max-content;
-  min-height: 34px;
-  border-radius: var(--app-radius-md);
-  box-shadow: none;
-}
-
 @media (max-width: 700px) {
   .cus-worksheet-meta { margin-inline: 0; }
 }
@@ -1291,63 +1140,6 @@
   color: var(--ink-3);
 }
 
-.cus-finance-evidence {
-  display: grid;
-  gap: 10px;
-  color: var(--ink-2);
-
-}
-
-.cus-finance-loss,
-.cus-finance-quiet,
-.cus-finance-confirmation {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.cus-finance-loss {
-  color: var(--danger-text);
-}
-
-.cus-finance-quiet {
-  color: var(--ink-3);
-}
-
-.cus-finance-evidence span {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cus-finance-evidence small {
-  color: var(--ink-3);
-  font-size: var(--text-caption-size);
-  font-weight: var(--fw-semibold);
-  line-height: 1.3;
-}
-
-.cus-finance-evidence strong {
-  color: currentColor;
-  font-size: var(--text-caption-size);
-  font-weight: var(--fw-semibold);
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-/* Confirmation modifier emitted dynamically:
-   `cus-finance-confirmation--${confirmationIsCurrent ? 'confirmed' : 'attention'}` */
-.cus-finance-confirmation--confirmed {
-  color: var(--success-text);
-}
-
-.cus-finance-confirmation--attention {
-  color: var(--warning-deep);
-}
-
-.cus-finance-evidence strong { }
 
 /* Card 20260922_27 (operator): the status renders as PLAIN TEXT — the pill
    bubble (padding + full rounding + tinted fill) and its icon are gone;
@@ -1404,45 +1196,6 @@
 }
 .cus-dashboard-detail:focus-visible {
   outline-offset: 3px;
-}
-
-.cus-signals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 5px;
-}
-
-/* Signal modifiers emitted dynamically: `cus-signal--${signal.tone}` */
-.cus-signal {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  width: max-content;
-  padding: 3px 7px;
-  border-radius: 6px;
-  font-size: var(--text-caption-size);
-  font-style: normal;
-  font-weight: var(--fw-semibold);
-  line-height: 1.3;
-  max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.cus-signal--danger {
-  background: var(--danger-soft);
-  color: var(--danger-text);
-}
-
-.cus-signal--warning {
-  background: var(--warning-soft);
-  color: var(--warning-text);
-}
-
-.cus-signal--info {
-  background: var(--info-soft);
-  color: var(--info-text);
 }
 
 .cus-action-reason {
@@ -1566,510 +1319,6 @@
   background: var(--surface);
 }
 
-.cus-container-ledger {
-  display: grid;
-  gap: 0;
-  /* SIL-480: outer inset moved to .drawer__body (16/24/20) — the ledger keeps
-     none, or the drawer would double-count the side padding. */
-  padding: 0;
-  background: var(--surface);
-}
-
-.cus-container-ledger__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 36px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
-}
-
-.cus-container-ledger__head > div {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.cus-container-ledger__actions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.cus-container-edit-action {
-  border-radius: var(--app-radius-md);
-  box-shadow: none;
-}
-
-.cus-container-ledger__head strong {
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: var(--text-body-size);
-}
-
-.cus-container-ledger__head span {
-  color: var(--ink-3);
-  font-family: var(--font-data);
-  font-size: var(--fs-xs);
-
-}
-
-.cus-container-table-scroll {
-  width: 100%;
-  min-width: 0;
-  overflow-x: auto;
-  /* SIL-483 anti-nesting: the scroll band is the table container — layer 2 of
-     the two allowed borders (drawer = layer 1). Radius rides the house 8px
-     token (the raw 10px is retired). */
-  border: 1px solid var(--hairline, var(--line));
-  border-radius: var(--app-radius-sm);
-  background: var(--surface);
-  scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent;
-  scrollbar-width: thin;
-}
-
-.cus-container-table {
-  width: 100%;
-  /* SIL-483: percentage tracks derived from the consult px table at its 1088px
-     reference (Tờ khai 120 · Container 200 · Tuyến 160 · Nhà xe/BKS 220 ·
-     Nâng/Hạ 100 · Trọng lượng 100 · Giờ đóng/trả 140 · Actions 48). A fixed
-     layout with proportional tracks never scrolls horizontally — the consult's
-     own "không scroll ngang ở ≥1024" — and reads as exactly the specced pixel
-     grid at the wide drawer; below it, grouped cells compress instead. The
-     FB-045 px-floor + min-width doctrine it supersedes squeezed the sheet
-     against the very grouped-cell redesign this ticket ships. */
-  min-width: 0;
-  border-collapse: collapse;
-  table-layout: fixed;
-  background: var(--surface);
-}
-
-/* FB-045 lan 2 (card 201026140000) SUPERSEDES the 2026-09-08 "percentage
- * columns (sum 100%) so the ledger always fits its container — no horizontal
- * scroll" doctrine (ShipmentsPage.density.test.ts contract updated with it):
- * columns own px floors sized to their content instead. The GIỜ HẸN floor
- * (164px) holds the add-row segmented datetime input's max-content and the
- * one-line value; the Thao tác floor (116px) holds Thêm + Hủy on one line —
- * before this, the 15%/4% slices squeezed the segmented input and the button
- * pair spilled LEFT on top of the date segments ("clip cột GIờ hẹn").
- * Drawer widths below the 1110px floor scroll horizontally ("scroll-x hợp
- * lý", not chật cứng); card mode (@container ≤760px) resets min-width and
- * never sees the column grid. Wrapping columns still wrap (route, site names)
- * per the no-truncation doctrine. */
-/* SIL-483 tracks: % of the 1088px consult reference, in column order
-   (declaration → identity → route → carrier → site → weight → appointment →
-   actions); sums to 100.00%. */
-.cus-container-col__declaration { width: 11.03%; } /* 120px */
-.cus-container-col__identity { width: 18.38%; } /* 200px */
-.cus-container-col__route { width: 14.71%; } /* 160px */
-.cus-container-col__carrier { width: 20.22%; } /* 220px */
-.cus-container-col__site { width: 9.19%; } /* 100px */
-.cus-container-col__weight { width: 9.19%; } /* 100px */
-.cus-container-col__appointment { width: 12.87%; } /* 140px */
-.cus-container-col__actions { width: 4.41%; } /* 48px */
-
-/* SIL-479 (owner 24/10 — /shipments/:id "Chi tiết container"): from the
- * desktop band the page host is full-row (grid-column pin in
- * ShipmentDetailPage.css), so the drawer's min-width lock must not apply
- * there — the columns take percentage shares of the REAL row and the table
- * never scrolls on desktop. RE-DERIVED on the SIL-483 grouped 8-column grid
- * (the old 12-col shares died with the type/dispatch/plate tracks): the six
- * content tracks are the drawer's consult % scaled into the 70.1% left after
- * the behavioral floors, which SIL-479 pins at the measured 1024px worst
- * case (wrapper 863px) — giờ hẹn keeps ≥150px (17.5%, the add-row segmented
- * datetime's measured need; the page host has no shipment-drawer container,
- * so the drawer's ≤1000px single-track add-form law never fires here) and
- * Thao tác keeps ≥100px (12.4%, the Thêm/Hủy pair). Every other column wraps
- * inside its share per the no-truncation doctrine — the grouped lines wrap,
- * and a missing container number wraps via its data-missing-container rule.
- * The drawer host and viewports <1024 keep the drawer's proportional sheet
- * + scroll fallback. */
-@media (min-width: 1024px) { /* SIL-479 page-host full-row */
-  .shipment-detail__card--flush .cus-container-table { min-width: 0; }
-  .shipment-detail__card--flush .cus-container-col__declaration { width: 9.35%; }
-  .shipment-detail__card--flush .cus-container-col__identity { width: 15.58%; }
-  .shipment-detail__card--flush .cus-container-col__route { width: 12.47%; }
-  .shipment-detail__card--flush .cus-container-col__carrier { width: 17.14%; }
-  .shipment-detail__card--flush .cus-container-col__site { width: 7.79%; }
-  .shipment-detail__card--flush .cus-container-col__weight { width: 7.77%; }
-  .shipment-detail__card--flush .cus-container-col__appointment { width: 17.5%; }
-  .shipment-detail__card--flush .cus-container-col__actions { width: 12.4%; }
-}
-
-.cus-container-table th.cus-container-cell--actions,
-.cus-container-table td.cus-container-cell--actions {
-  text-align: center;
-  padding: 4px 2px;
-}
-
-/* SIL-483 anti-nesting: hairline horizontals ONLY — no vertical borders, and
-   the outer band already carries layer 2, so rows carry nothing but the
-   divider. */
-.cus-container-table th,
-.cus-container-table td {
-  min-width: 0;
-  border-right: 0;
-  border-bottom: 1px solid var(--hairline, var(--line));
-}
-
-.cus-container-table th:last-child,
-.cus-container-table td:last-child { border-right: 0; }
-.cus-container-table tbody tr:last-child > * { border-bottom: 0; }
-
-.cus-container-table thead th {
-  /* Consult: header band 40px. */
-  min-height: 40px;
-  height: 40px;
-  padding: 6px 8px;
-  background: var(--surface-2);
-  color: var(--ink-2);
-  font-size: var(--text-caption-size);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.3;
-  text-align: left;
-  text-transform: uppercase;
-  white-space: normal;
-  overflow-wrap: normal;
-  word-break: normal;
-  vertical-align: middle;
-}
-
-.cus-container-table tbody th,
-.cus-container-table tbody td {
-  /* Consult: body rows 56–64 tall; the grouped cells own the height. */
-  padding: 4px 2px;
-  background: var(--surface);
-  color: var(--ink);
-  font-size: var(--text-caption-size);
-  font-weight: var(--fw-medium);
-  line-height: 1.35;
-  vertical-align: middle;
-  overflow-wrap: anywhere;
-  /* The legacy global table rule makes body cells nowrap. Reset it here so
-     long site and carrier names stay within their own fixed columns. */
-  white-space: normal;
-}
-
-.cus-container-cell > strong { font: inherit; }
-
-/* ── SIL-483 grouped multi-line cell ──────────────────────────────────────
- * One cell = one or two (plus aux) 28px ghost lines. Line 1: 500 --ink;
- * line 2: 400 --ink-2; aux links ride a 20px muted line. Hover/focus fill is
- * the only chrome a line owns — no frames, no nested cards (anti-nesting:
- * "input trong bảng = ghost", "bảng chỉ hairline ngang"). */
-.cus-container-cell .cus-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cus-container-cell .cus-line {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  min-height: 28px;
-  padding: 0 4px;
-  border-radius: var(--app-radius-sm);
-}
-
-.cus-container-cell .cus-line--primary { font-weight: var(--fw-medium); color: var(--ink); }
-.cus-container-cell .cus-line--secondary { font-weight: var(--fw-regular); color: var(--ink-2); }
-.cus-container-cell .cus-line--aux {
-  min-height: 20px;
-  gap: 10px;
-}
-
-.cus-container-cell .cus-line__value {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* The chevron hint: 12px --text-subtle, revealed on hover/focus only (always
-   visible on coarse pointers where hover never comes). */
-.cus-line__chevron {
-  flex: 0 0 auto;
-  margin-left: auto;
-  color: var(--text-subtle, var(--ink-3));
-  opacity: 0;
-  transition: var(--t-fast);
-}
-
-.cus-container-cell .cus-line--trigger:hover,
-.cus-container-cell .cus-line--trigger:focus-visible,
-.cus-appointment-trigger:hover,
-.cus-appointment-trigger:focus-visible,
-.cus-appointment-trigger--active {
-  background: var(--hairline-hover, var(--surface-2));
-}
-
-.cus-container-cell .cus-line--trigger:hover .cus-line__chevron,
-.cus-container-cell .cus-line--trigger:focus-visible .cus-line__chevron,
-.cus-appointment-trigger:hover .cus-line__chevron,
-.cus-appointment-trigger:focus-visible .cus-line__chevron,
-.cus-appointment-trigger--active .cus-line__chevron {
-  opacity: 1;
-}
-
-@media (hover: none), (pointer: coarse) {
-  .cus-container-cell .cus-line__chevron { opacity: 1; }
-}
-
-.cus-container-cell .cus-line--trigger {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.cus-container-cell .cus-line--trigger:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-/* Empty pick lines read as '—' (--text-subtle). */
-.cus-line--empty .cus-line__value {
-  color: var(--text-subtle, var(--ink-3));
-}
-
-/* Ghost editors inside a line — the anti-nesting input law: no border, no
-   background; hover fills, focus keeps the house ring. */
-.cus-container-cell input,
-.cus-container-cell .searchable-select__trigger {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: 28px;
-  padding: 0 4px;
-  border: 0;
-  border-radius: var(--app-radius-sm);
-  background: transparent;
-  font-size: var(--text-caption-size);
-  line-height: 1.35;
-  transition: var(--t-fast);
-}
-
-.cus-container-cell input:hover:not(:focus):not(:disabled):not([readonly]),
-.cus-container-cell .searchable-select__trigger:hover {
-  background: var(--hairline-hover, var(--surface-2));
-}
-
-.cus-container-cell input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-  background: var(--surface);
-}
-
-.cus-container-cell :is(.searchable-select__value, .searchable-select__placeholder) {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.cus-container-cell .searchable-select__placeholder {
-  color: var(--text-subtle, var(--ink-3));
-}
-
-/* Inline editor span (số container / tờ khai): the ghost input plus the
-   primary Lưu button ride the same line. */
-.cus-inline-editor,
-.cus-declaration-editor {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  min-width: 0;
-}
-
-.cus-inline-editor input,
-.cus-declaration-editor input {
-  padding: 0 4px;
-  border: 0;
-  border-radius: var(--app-radius-sm);
-  background: var(--hairline-hover, var(--surface-2));
-}
-
-/* ── Numeric cells (Nâng/Hạ, Trọng lượng) — right-aligned ────────────────
- * The consult's tabular-nums is NOT declared here: the font-family contract
- * (SIL-469/470 fix-tabular-ban-gate) bans page-local tabular declarations —
- * Be Vietnam Pro ships proportional figures and the shared primitives own
- * any future switch. The alignment is the page's business; the figures are
- * the primitive's. */
-.cus-container-cell--num {
-  text-align: right;
-}
-
-.cus-container-cell--num .cus-line { justify-content: flex-end; }
-
-.cus-container-cell--num .cus-line__value,
-.cus-container-cell--num strong {
-  text-align: right;
-}
-
-.cus-container-cell--num .searchable-select__trigger { justify-content: flex-end; }
-.cus-container-cell--num .searchable-select__trigger .searchable-select__value,
-.cus-container-cell--num .searchable-select__trigger .searchable-select__placeholder {
-  text-align: right;
-}
-
-.cus-container-cell--identity {
-  font-family: var(--font-data);
-  /* Container codes never render bold and never wrap (user ruling 2026-09-18,
-     mirroring the detail workboard): an 11-character ISO code stays on one line
-     at caption size, so the row reads as an identifier, not as a heading. */
-  font-weight: 400 !important;
-  vertical-align: middle;
-}
-
-.cus-container-cell--identity .cus-line--primary {
-  flex-wrap: wrap;
-  row-gap: 2px;
-  font-family: var(--font-data);
-  font-weight: 400;
-  letter-spacing: 0;
-}
-
-/* A missing number wraps its fallback instead of clipping. */
-.cus-container-cell--identity .cus-line__value[data-missing-container='true'] {
-  white-space: normal;
-  overflow-wrap: normal;
-  word-break: normal;
-}
-
-.cus-container-row__ordinal {
-  color: var(--ink-3);
-  font-size: var(--text-caption-size);
-  line-height: 1;
-  text-align: right;
-  min-width: 14px;
-}
-
-/* Dispatch chip rides the Container line 1 (SIL-483 merged the Điều vận
-   column away). Anti-nesting: soft fill, NO border, pill radius, 22px tall,
-   12/16/500. Tones ride the house status tokens; the modifier is emitted
-   dynamically:
-   `cus-container-dispatch--${line.dispatchStatus.toLowerCase()}` */
-.cus-container-dispatch {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  height: 22px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: var(--app-radius-full);
-  color: var(--ink-2);
-  background: var(--chip-neutral-bg, var(--surface-2));
-  font-size: var(--text-data-size);
-  font-weight: var(--fw-medium);
-  line-height: 16px;
-  overflow-wrap: anywhere;
-}
-
-.cus-container-dispatch--awaiting-vehicle { color: var(--info-text); background: var(--info-soft); }
-.cus-container-dispatch--planned { color: var(--info-text); background: var(--info-soft); }
-.cus-container-dispatch--created { color: var(--accent-2); background: var(--accent-soft); }
-.cus-container-dispatch--in_transit { color: var(--info-text); background: var(--info-soft); }
-.cus-container-dispatch--completed { color: var(--success-text); background: var(--success-soft); }
-
-.cus-detail-collapse {
-  position: sticky;
-  right: 10px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 36px;
-  padding: 7px 9px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--app-radius-sm);
-  background: var(--surface);
-  color: var(--ink-2);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
-  cursor: pointer;
-}
-
-.cus-detail-collapse:hover {
-  border-color: var(--accent-2);
-  color: var(--accent-2);
-}
-
-.cus-detail-collapse:disabled {
-  cursor: wait;
-  opacity: 0.62;
-}
-
-.cus-detail-collapse:disabled:hover {
-  border-color: var(--line-strong);
-  color: var(--ink-2);
-}
-
-.cus-detail-collapse:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.cus-carrier-editor {
-  display: grid;
-  gap: 3px;
-}
-
-.cus-carrier-editor__switch {
-  width: fit-content;
-  min-height: 20px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--accent-2);
-  font: inherit;
-  font-size: var(--text-caption-size);
-  font-weight: var(--fw-semibold);
-  text-align: left;
-  cursor: pointer;
-}
-
-.cus-container-row__error {
-  display: block;
-  margin-top: 4px;
-  color: var(--danger-text);
-  font-size: var(--text-caption-size);
-  line-height: 1.3;
-}
-
-.cus-discard-confirmation {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--warning) 36%, var(--line));
-  border-radius: var(--app-radius-sm);
-  background: var(--warning-soft);
-  color: var(--warning-text);
-  font-size: var(--fs-xs);
-}
-
-.cus-discard-confirmation > span { margin-right: auto; }
-
-.cus-detail-empty {
-  margin: 0;
-  padding: 16px;
-  color: var(--ink-3);
-  text-align: center;
-}
-
 .cus-inline-error {
   display: flex;
   align-items: center;
@@ -2089,183 +1338,421 @@
   cursor: pointer;
 }
 
-.cus-detail-content {
-  overflow: visible;
-  border-top: 0;
+/* _35: multiline note previews keep their typed line breaks (user-ruled).
+   2-line clamp + ellipsis; the drawer/detail surfaces show the full note. */
+.cus-note-clamp {
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* _35 specificity override: .cus-note-preview > span (0,1,1) was stomping
+   .cus-note-clamp (0,1,0). Scoped child selector wins. */
+.cus-note-preview > .cus-note-clamp {
+  white-space: pre-wrap;
 }
 
-@container shipment-drawer (max-width: 700px) {
-  .cus-drawer-decision-grid { grid-template-columns: 1fr 1fr; }
-  .cus-drawer-decision,
-  .cus-drawer-decision:first-child,
-  .cus-drawer-decision:last-child {
-    padding-inline: 14px;
-  }
-  .cus-drawer-decision:nth-child(2) { border-right: 0; }
-  .cus-drawer-decision--finance {
-    grid-column: 1 / -1;
-    border-top: 1px solid var(--line);
-  }
-  .cus-drawer-decision--finance .cus-finance-evidence {
-    grid-template-columns: 1fr 1fr;
-  }
+/* ── SIL-483 supplements 3+4: the drawer lot-bar tabs are GONE ────────────
+ * The drawer opens straight into the content; Xóa lô rides the header as the
+ * ghost trash (.cus-drawer-lot-delete, styled with the drawer head block) and
+ * the 'Chi tiết lô hàng' Link to /shipments/:id is removed (supplement 4 —
+ * wrong entry point; the page itself survives the post-creation flow). Only
+ * the blocked-delete banner remains, opening the body right under the header. */
+.cus-drawer-lot-error {
+  margin: 0 0 16px;
+  color: var(--danger-text);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold, 600);
+}
+
+/* Phone (2026-09-27): the bar wraps into packed lines, so the page releases
+   nothing to full width — the from/to group keeps its two fields side by side
+   at their own 168px, and a short-value control stays short. Card
+   20260927_152: a control as wide as the row is the defect, not the fix, and
+   the shared `.filter-bar` sheet owns every one of those widths, so this band
+   has no page rule left to make. */
+
+/* ── SIL-485 (owner mockup 25/10): the drawer lot review ───────────────────
+ * The body is a designed read-only review: status chips on the head row, a
+ * four-step workflow stepper, then white cards on the sage canvas (Nhận diện
+ * lô → Thông tin hàng → Lịch & ghi chú + Đối soát). Every colour rides the
+ * house token ladder — the canvas is --surface-2, the card bands --surface-3,
+ * chips reuse the semantic soft/text pairs. Null values render "—". */
+.cus-shipment-drawer .drawer__body {
+  background: var(--surface-2);
+}
+
+.cus-shipment-drawer .drawer__titlerow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cus-lot-chips {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cus-lot-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.cus-lot-chip--solid { background: var(--ink); color: var(--surface); }
+.cus-lot-chip--amber { background: var(--warning-soft); color: var(--warning-text); }
+.cus-lot-chip--mint { background: var(--success-soft); color: var(--success-text); }
+.cus-lot-chip--danger { background: var(--danger-soft); color: var(--danger-text); }
+
+/* Header workflow icon — same 32×32 ghost chrome as the trash beside it. */
+.cus-shipment-drawer .cus-drawer-lot-action:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--accent-2);
+}
+
+.cus-shipment-drawer .cus-drawer-lot-action:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.cus-lot-view {
+  display: grid;
+  gap: 12px;
+}
+
+.cus-lot-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+  color: var(--ink-3);
+}
+
+/* Stepper — the current step fills --accent-2, later steps stay outline. */
+.cus-lot-stepper {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 12px 16px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-field);
+}
+
+.cus-lot-stepper__step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.cus-lot-stepper__step + .cus-lot-stepper__step::before {
+  content: '';
+  flex: 1 1 auto;
+  min-width: 20px;
+  height: 1px;
+  margin: 0 10px;
+  background: var(--line);
+}
+
+.cus-lot-stepper__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+}
+
+.cus-lot-stepper__label {
+  font-size: var(--text-label-size, 13px);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.cus-lot-stepper__step--current .cus-lot-stepper__dot {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: var(--surface);
+}
+
+.cus-lot-stepper__step--current .cus-lot-stepper__label {
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+}
+
+.cus-lot-stepper__step--done .cus-lot-stepper__dot {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: var(--surface);
+}
+
+.cus-lot-stepper__step--done .cus-lot-stepper__label {
+  color: var(--ink-2);
+}
+
+/* Cards — white sheet, sage band header. */
+.cus-lot-card {
+  background: var(--surface);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-field);
+  overflow: hidden;
+}
+
+.cus-lot-card__band {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--surface-3);
+}
+
+.cus-lot-card__band h3 {
+  margin: 0;
+  font-size: var(--text-label-size, 13px);
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+}
+
+.cus-lot-card__band p {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+
+.cus-lot-card__body {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.cus-lot-card__body--flush {
+  padding: 0;
+}
+
+.cus-lot-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.cus-lot-fact-grid--secondary {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.cus-lot-fact-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cus-lot-fact {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  align-content: start;
+}
+
+.cus-lot-microlabel {
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+
+.cus-lot-fact__value {
+  font-size: var(--text-label-size, 13px);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cus-lot-quiet {
+  color: var(--ink-3);
+}
+
+.cus-lot-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cus-lot-flag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+  background: var(--surface);
+}
+
+.cus-lot-flag--on {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+  background: var(--accent-soft);
+  font-weight: var(--fw-semibold);
+}
+
+.cus-lot-empty-line {
+  margin: 0;
+  padding: 14px;
+  font-size: var(--text-label-size, 13px);
+}
+
+/* Thông tin hàng — the 11-column read-only sheet; narrow canvases scroll
+   horizontally inside the card, the head row stays sticky-free and plain. */
+.cus-lot-table-scroll {
+  overflow-x: auto;
+}
+
+.cus-lot-table {
+  width: 100%;
+  min-width: 1060px;
+  border-collapse: collapse;
+}
+
+.cus-lot-table th,
+.cus-lot-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-label-size, 13px);
+  color: var(--ink);
+  vertical-align: top;
+}
+
+.cus-lot-table tbody tr:last-child th,
+.cus-lot-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.cus-lot-table thead th {
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.cus-lot-table tbody th {
+  font-weight: var(--fw-regular);
+  color: var(--ink-3);
+}
+
+.cus-lot-table__num {
+  font-variant-numeric: normal;
+  white-space: nowrap;
+}
+
+.cus-lot-dispatch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.cus-lot-dispatch--awaiting { background: var(--warning-soft); color: var(--warning-text); }
+.cus-lot-dispatch--planned { background: var(--success-soft); color: var(--success-text); }
+.cus-lot-dispatch--created { background: var(--accent-soft); color: var(--accent-2); }
+.cus-lot-dispatch--transit { background: var(--info-soft); color: var(--info-text); }
+.cus-lot-dispatch--completed { background: var(--success-soft); color: var(--success-text); }
+
+.cus-lot-appointment {
+  display: block;
+}
+
+.cus-lot-tone-ok { color: var(--success-text); }
+.cus-lot-tone-warn { color: var(--warning-text); font-weight: var(--fw-semibold); }
+.cus-lot-tone-danger { color: var(--danger-text); font-weight: var(--fw-semibold); }
+
+.cus-lot-cards-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Footer edit bar — the single "Sửa" affordance; a locked lot keeps the
+   button visible but disabled with the reason beside it (card 20260923_1
+   law: the reason rides the surface, not a vanishing control). */
+.cus-drawer-editbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.cus-drawer-editbar__reason {
+  margin-right: auto;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+
+.cus-drawer-editbar .cus-drawer-edit {
+  margin-left: auto;
 }
 
 @container shipment-drawer (max-width: 760px) {
-  .cus-container-table-scroll {
-    overflow: visible;
-    border: 0;
-    background: transparent;
-  }
-
-  .cus-container-table,
-  .cus-container-table tbody,
-  .cus-container-table tfoot {
-    display: block;
-    width: 100%;
-    min-width: 0;
-    background: transparent;
-  }
-
-  .cus-container-table colgroup,
-  .cus-container-table thead { display: none; }
-  .cus-container-table tbody { display: grid; gap: 8px; }
-
-  /* Card mode: the add row rides the shared ≤1000px single-track form (the
-     add-row rules live in that band now); only the blank cells drop out
-     here. */
-  .cus-container-table .cus-container-ledger__add-blank { display: none; }
-
-  .cus-container-table .cus-container-row {
-    position: relative;
-    display: grid;
+  .cus-lot-fact-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 10px;
-    padding: 10px;
-    border: 1px solid var(--line);
-    background: var(--surface);
   }
 
-  .cus-container-table .cus-container-row > * {
-    display: grid;
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    text-align: left;
+  .cus-lot-fact-grid--secondary {
+    grid-template-columns: 1fr;
   }
 
-  .cus-container-table .cus-container-cell::before {
-    margin-bottom: 4px;
-    color: var(--ink-3);
-    content: attr(data-label);
-    font-size: var(--text-label-size);
-    font-weight: var(--fw-semibold);
-    line-height: 1.3;
-    text-transform: uppercase;
+  .cus-lot-cards-row {
+    grid-template-columns: 1fr;
   }
 
-  .cus-container-table .cus-container-cell--identity {
-    grid-column: 1 / -1;
-    min-height: 28px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--line);
+  .cus-lot-stepper {
+    flex-wrap: wrap;
+    row-gap: 8px;
   }
 
-  .cus-container-table .cus-container-cell--identity .cus-group {
-    gap: 4px;
-  }
-
-  .cus-container-row-error {
-    display: block;
-    width: 100%;
-  }
-
-  .cus-container-row-error__cell {
-    display: block;
-    padding: 0 !important;
-    border: 0;
-  }
-
-  .cus-container-table .cus-container-row__ordinal {
-    position: absolute;
-    top: 10px;
-    right: 12px;
-  }
-
-  /* Card mode stacks the identity cell full-width and pins the ordinal top-right;
-     the copy affordance follows it there so it can never sit on the code. */
-  .cus-container-table .cus-container-row__copy {
-    top: 10px;
-    right: 12px;
-    left: auto;
-    transform: none;
-  }
-
-  /* The per-row remove owns the Thao tác card field now (card 20260923_9):
-     the CUS-10 labeled danger button keeps the 40px touch floor
-     (`--control-max-h`) and sits at the card's end instead of an overlay
-     slot; the coarse-pointer rule below keeps it visible. */
-  .cus-container-table .cus-container-row__remove {
-    position: static;
-    width: auto;
-    height: auto;
-    min-height: var(--control-max-h);
-    transform: none;
-    justify-self: end;
+  .cus-lot-stepper__step + .cus-lot-stepper__step::before {
+    min-width: 12px;
+    margin: 0 6px;
   }
 }
 
-/* Card 20260923_9 residual (QA rung, staging 390): inside the card the add row
-   was a 2-column grid, so Trọng lượng (kg) rendered 160.5px wide in a 353px
-   row — the other half of its row blank, unlike Số container, which owns its
-   whole row. SIL-483 re-extends the single-track law up to a 1000px container:
-   the 8-track sheet compresses proportionally below its 1088px reference, and
-   the add row's segmented giờ hẹn input cannot live in a 12.87% track that
-   narrow — the add FORM drops to one field per row while the container ROWS
-   keep the spreadsheet until card mode takes over. */
-@container shipment-drawer (max-width: 1000px) {
-  .cus-container-table .cus-container-ledger__add-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-    padding: 10px;
-    border-top: 1px solid var(--hairline, var(--line));
-    background: var(--surface-2);
-  }
-
-  .cus-container-table .cus-container-ledger__add-row > * {
-    display: grid;
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    text-align: left;
-  }
-
-  .cus-container-table .cus-container-ledger__add-row .cus-container-cell::before {
-    margin-bottom: 4px;
-    color: var(--ink-3);
-    content: attr(data-label);
-    font-size: var(--text-label-size);
-    font-weight: var(--fw-semibold);
-    line-height: 1.3;
-    text-transform: uppercase;
-  }
-
-  .cus-container-table .cus-container-ledger__add-row .cus-container-ledger__add-blank {
-    display: none;
-  }
-
-  .cus-container-table .cus-container-ledger__add-row .cus-container-cell--actions {
-    grid-column: 1 / -1;
-  }
-
-  .cus-container-table .cus-container-ledger__add-row .cus-container-ledger__add-actions {
-    justify-content: flex-end;
+@container shipment-drawer (max-width: 480px) {
+  .cus-lot-fact-grid,
+  .cus-lot-fact-grid--two {
+    grid-template-columns: 1fr;
   }
 }
 
+/* Phone tier (≤560): the shell band + drawer chrome insets. The review cards'
+ * column stepping is owned by the shipment-drawer container queries above. */
 @media (max-width: 560px) {
   .shipments-page {
     gap: 14px;
@@ -2303,62 +1790,8 @@
     padding: 16px 18px 20px;
   }
 
-  .cus-drawer-workflow {
-    gap: 10px;
-    padding: 0 0 16px;
-    margin: 0 0 16px;
-  }
-
-  .cus-drawer-workflow__heading {
-    align-items: flex-start;
+  .cus-drawer-editbar {
     flex-wrap: wrap;
-  }
-
-  .cus-drawer-decision-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .cus-drawer-decision,
-  .cus-drawer-decision:first-child,
-  .cus-drawer-decision:last-child {
-    grid-column: auto;
-    padding: 13px 0;
-    border-right: 0;
-    border-top: 1px solid var(--line);
-  }
-
-  .cus-drawer-decision:first-child { border-top: 0; }
-
-  .cus-drawer-decision--finance .cus-finance-evidence {
-    grid-template-columns: 1fr;
-  }
-
-  .cus-drawer-workflow__action {
-    align-items: stretch;
-    flex-direction: column;
-    padding: 12px 0 0;
-  }
-
-  .cus-drawer-primary-action {
-    width: 100%;
-    min-height: var(--control-max-h);
-  }
-
-  .cus-shipment-drawer .cus-container-ledger {
-    padding: 0;
-  }
-
-  .cus-container-table .cus-container-cell input,
-  .cus-container-table .cus-container-cell .searchable-select__trigger {
-    min-height: var(--control-max-h);
-    font-size: var(--control-field-font-size);
-  }
-
-  .cus-container-edit-action {
-    min-width: 96px;
-    min-height: var(--control-max-h);
-    border-radius: var(--app-radius-md);
-    box-shadow: none;
   }
 }
 
@@ -2371,760 +1804,3 @@
     animation-duration: 0.01ms !important;
   }
 }
-
-/* Dirty-row confirm pair floats over the rows below the Giờ hẹn đóng/trả
- * input (customer feedback 2026-09-08: an in-flow pair stretched the row —
- * the pair must overlay like the native calendar picker, not take part in
- * the cell layout). Text-only compact buttons keep the popover unobtrusive. */
-.cus-container-table .cus-container-cell {
-  /* Anchor for the floating confirm popover; also lets the editing cell's
-   * stacking context rise above later rows while it owns focus. */
-  position: relative;
-}
-
-.cus-container-table .cus-container-cell:focus-within {
-  z-index: 6;
-}
-
-/* Appointment compact cell and bounded popover */
-.cus-appointment-cell {
-  position: relative;
-}
-
-/* Bulk appointment copy (20260917_1, relocated 2026-09-18): a row that already
-   has an appointment offers to copy its datetime to every line whose
-   appointment is still empty. The affordance replaces the ordinal on hover —
-   same slot, same shape as the row's inputs — and never covers the container
-   number or the appointment trigger. Rest state hides it with opacity, not
-   visibility: visibility: hidden drops it out of the accessibility tree and
-   out of harness actionability, so the button appeared/disappeared in AX
-   snapshots with the pointer's position (card 101026163010). Opacity keeps it
-   rendered, AX-exposed and hit-testable while looking identical — a pointer
-   that can reach the button is already on the row, which reveals it. */
-.cus-container-row__copy {
-  opacity: 0;
-  position: absolute;
-  top: 50%;
-  left: auto;
-  right: 12px;
-  transform: translateY(-50%);
-  z-index: 2;
-  display: inline-flex;
-  width: 26px;
-  height: 26px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink-3);
-  cursor: pointer;
-}
-.cus-container-row__copy:hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); }
-.cus-container-row__copy:focus-visible { opacity: 1; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
-.cus-container-row:hover .cus-container-row__copy,
-.cus-container-row:focus-within .cus-container-row__copy { opacity: 1; }
-/* The icon takes the ordinal's slot while the pointer is on the row; hover-only
-   so the row number survives a touch tap. */
-@media (hover: hover) {
-  .cus-container-row:hover .cus-container-row__ordinal,
-  .cus-container-row:focus-within .cus-container-row__ordinal { visibility: hidden; }
-}
-@media (max-width: 640px), (pointer: coarse) {
-  .cus-container-row__copy { opacity: 1; }
-}
-
-/* FB-009 (2026-10-14): copy-time affordance in the Giờ hẹn cell — the time
-   itself goes to the OS clipboard (toast confirms). Same slot/laws as the
-   bulk-copy glyph above: rests at opacity 0 (AX-exposed and hit-testable,
-   card 101026163010), revealed by row hover/focus-within, always visible on
-   coarse pointers; never covers the value text, only the trigger's tail. */
-.cus-appointment-cell__copy {
-  opacity: 0;
-  position: absolute;
-  top: 50%;
-  right: 4px;
-  transform: translateY(-50%);
-  z-index: 2;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink-3);
-}
-.cus-appointment-cell__copy:hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); }
-.cus-appointment-cell__copy:focus-visible { opacity: 1; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
-.cus-container-row:hover .cus-appointment-cell__copy,
-.cus-container-row:focus-within .cus-appointment-cell__copy { opacity: 1; }
-@media (max-width: 640px), (pointer: coarse) {
-  .cus-appointment-cell__copy { opacity: 1; }
-}
-
-.cus-appointment-trigger {
-  /* SIL-483: the appointment mask is ONE ghost cell — no frame; hover fills
-     (shared .cus-appointment-trigger hover rule in the grouped-cell block),
-     the chevron rides .cus-line__chevron. */
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  min-height: 28px;
-  padding: 0 4px;
-  border: 0;
-  border-radius: var(--app-radius-sm, 6px);
-  background: transparent;
-  color: var(--ink);
-  font-family: inherit;
-  font-size: var(--text-caption-size);
-  line-height: 1.3;
-  text-align: left;
-  cursor: pointer;
-  transition: var(--t-fast);
-  box-sizing: border-box;
-}
-
-.cus-appointment-trigger:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-/* The read-only appointment mask is a span — never advertise a pointer. */
-.cus-appointment-trigger--static {
-  cursor: default;
-}
-
-.cus-appointment-trigger--active {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-.cus-appointment-trigger__text {
-  /* FB-045 lan 2 (card 201026140000): the datetime value is ONE line
-     ("HH:mm DD/MM/YYYY"); the 164px column floor gives it room, the
-     ellipsis guard only catches pathological data. */
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow-wrap: normal;
-  font-weight: 500;
-}
-
-.cus-appointment-trigger.cus-line--empty .cus-appointment-trigger__text {
-  color: var(--text-subtle, var(--ink-3));
-  font-weight: 400;
-}
-
-/* ── Card 261022095235a (CUS-05): per-container tờ khai cell ──────────────
- * The trigger lives on the shared grouped-line chrome now (SIL-483:
- * .cus-line--trigger); only the Copy affordance stays file-local — it is the
- * card's explicit fan-out action, mirroring the workboard editor's labeled
- * copy button. */
-
-.cus-container-cell--declaration {
-  white-space: nowrap;
-}
-
-.cus-declaration-copy {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  flex: none;
-  padding: 2px 6px;
-  border: 0;
-  border-radius: var(--app-radius-full);
-  background: var(--chip-neutral-bg, var(--surface-2));
-  color: var(--ink-2);
-  font-family: inherit;
-  font-size: var(--text-caption-size);
-  line-height: 1.3;
-  cursor: pointer;
-}
-
-.cus-declaration-copy:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2));
-  color: var(--accent-2);
-}
-
-.cus-declaration-copy:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-/* In-app Bounded Appointment Popover — dismissal rides the house popover
- * idiom's useClickOutside (card 20261001_251); no private backdrop. */
-.cus-appointment-popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: var(--z-popover);
-  width: 275px;
-  max-width: calc(100vw - 32px);
-  padding: 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--app-radius-sm, 8px);
-  background: var(--surface);
-  box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
-  animation: cusAppointmentPopIn 130ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes cusAppointmentPopIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.cus-appointment-popover__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
-}
-
-.cus-appointment-popover__title {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--ink);
-  font-size: var(--text-section-size);
-  font-weight: 600;
-}
-
-.cus-appointment-popover__title svg {
-  color: var(--brand);
-}
-
-.cus-appointment-popover__badge {
-  font-size: var(--text-caption-size);
-  font-weight: 500;
-  color: var(--ink-3);
-  background: var(--surface-2);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
-
-.cus-appointment-popover__close {
-  display: inline-grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--ink-3);
-  cursor: pointer;
-}
-
-.cus-appointment-popover__close:hover {
-  background: var(--surface-2);
-  color: var(--ink);
-}
-
-.cus-appointment-popover__section-label {
-  margin-bottom: 4px;
-  color: var(--ink-3);
-  font-size: var(--text-label-size);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.cus-appointment-popover__pills {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 10px;
-}
-
-.cus-quick-pill {
-  flex: 1;
-  padding: 4px 6px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--surface-2);
-  color: var(--ink-2);
-  font-family: inherit;
-  font-size: var(--text-control-compact-size);
-  font-weight: 500;
-  text-align: center;
-  cursor: pointer;
-  transition: all 100ms;
-}
-
-.cus-quick-pill:hover {
-  background: var(--surface);
-  border-color: var(--brand);
-  color: var(--brand);
-}
-
-.cus-quick-pill.is-active {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--fg-inverse);
-  font-weight: 600;
-}
-
-.cus-appointment-popover__inputs {
-  display: grid;
-  /* Một trường "Ngày giờ" 24h duy nhất ("HH: mm DD/MM/YYYY") — input văn bản
-     theo hợp đồng ngày+giờ kết hợp, pill nhanh bên dưới vẫn là đường tắt. */
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.cus-appointment-input-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.cus-appointment-input-wrap label {
-  color: var(--ink-3);
-  font-size: var(--text-label-size);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.cus-appointment-input {
-  width: 100%;
-  height: 30px;
-  padding: 2px 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--ink);
-  font-family: inherit;
-  font-size: var(--control-field-font-size);
-  box-sizing: border-box;
-}
-
-.cus-appointment-input:focus {
-  outline: 2px solid var(--brand);
-  outline-offset: -1px;
-}
-
-/* Calendar affordance: the visible button opens the browser picker through a
-   clipped (not display:none) native input — display:none pickers are refused
-   by some engines. The 24h text entry beside it stays the typed path. */
-.cus-appointment-input-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.cus-appointment-picker-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-.cus-appointment-picker-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 30px;
-  flex: 0 0 28px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.cus-appointment-picker-btn:hover {
-  background: var(--surface-2);
-  color: var(--brand);
-}
-
-.cus-appointment-popover__times {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-
-.cus-time-pill {
-  flex: 1;
-  padding: 3px 2px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--ink-2);
-  font-family: inherit;
-  font-size: var(--text-control-compact-size);
-  text-align: center;
-  cursor: pointer;
-  transition: all 100ms;
-}
-
-.cus-time-pill:hover {
-  background: var(--surface-2);
-  color: var(--brand);
-}
-
-.cus-time-pill.is-active {
-  background: var(--surface-2);
-  border-color: var(--brand);
-  color: var(--brand);
-  font-weight: 600;
-}
-
-.cus-appointment-popover__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
-.cus-appointment-popover__clear {
-  padding: 2px 4px;
-  border: 0;
-  background: transparent;
-  color: var(--danger);
-  font-family: inherit;
-  font-size: var(--text-control-compact-size);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.cus-appointment-popover__clear:hover {
-  color: #b91c1c;
-}
-
-.cus-appointment-popover__hint {
-  font-size: var(--text-caption-size);
-  color: var(--ink-3);
-}
-
-.cus-container-row--dirty {
-  background-color: rgba(0, 90, 45, 0.04) !important;
-}
-
-/* Consolidated Drawer Footer */
-.cus-drawer-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 12px;
-}
-
-.cus-drawer-footer__status {
-  font-size: var(--text-data-size);
-  color: var(--ink-2);
-}
-
-.cus-drawer-footer__dirty-note {
-  color: var(--brand);
-  font-weight: 500;
-}
-
-.cus-drawer-footer__clean-note {
-  color: var(--ink-3);
-}
-
-.cus-drawer-footer__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cus-drawer-footer__actions .btn {
-  min-height: 34px;
-  padding: 4px 16px;
-  font-size: var(--text-caption-size);
-  font-weight: 600;
-  border-radius: var(--app-radius-sm, 6px);
-}
-
-.cus-container-ledger__sticky-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  margin-top: 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--app-radius-sm, 6px);
-}
-
-.cus-container-ledger__sticky-note {
-  font-size: var(--text-caption-size);
-  color: var(--brand);
-  font-weight: 500;
-}
-
-.cus-container-cell .cus-container-confirm-group--floating,
-.cus-container-ledger__sticky-bar .cus-container-confirm-group--floating {
-  display: flex;
-  gap: 6px;
-  width: max-content;
-}
-
-/* Text-only compact pair: matches the ledger's 11px cell scale instead of
- * the default .btn--sm chrome. */
-.cus-container-confirm-group--floating .btn {
-  min-height: 26px;
-  padding: 2px 10px;
-  font-size: var(--text-caption-size);
-  white-space: nowrap;
-}
-.cus-container-confirm--floating {
-  background-color: var(--brand) !important;
-  color: var(--fg-inverse) !important;
-}
-
-.cus-container-row-error {
-  background: var(--surface);
-}
-.cus-container-row-error__cell {
-  padding: 6px 12px !important;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
-}
-.cus-container-row-error__banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: var(--app-radius-sm, 6px);
-  background: var(--danger-soft);
-  border: 1px solid var(--danger-soft);
-  color: var(--danger-text);
-  font-size: var(--text-caption-size);
-  line-height: 1.4;
-  position: sticky;
-  left: 0;
-  max-width: calc(100vw - 48px);
-}
-.cus-container-row-error__text {
-  flex: 1;
-  word-break: break-word;
-}
-.cus-container-row-error__dismiss {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  margin: -4px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  opacity: 0.7;
-  cursor: pointer;
-  border-radius: 4px;
-}
-.cus-container-row-error__dismiss:hover {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.05);
-}
-.cus-container-confirm:focus-visible,
-.cus-container-revert:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-/* Anchored editors must remain reachable with the keyboard open or in landscape. */
-.cus-appointment-popover {
-  max-height: calc(100dvh - 24px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.cus-appointment-popover__error {
-  margin: 8px 0;
-  color: var(--danger-text);
-  font-size: var(--text-caption-size);
-  line-height: 1.4;
-}
-.cus-appointment-popover__footer { gap: 8px; flex-wrap: wrap; }
-@media (prefers-reduced-motion: reduce) {
-  .cus-appointment-popover { animation: none; }
-}
-
-/* _35: multiline note previews keep their typed line breaks (user-ruled).
-   2-line clamp + ellipsis; the drawer/detail surfaces show the full note. */
-.cus-note-clamp {
-  white-space: pre-wrap;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-/* _35 specificity override: .cus-note-preview > span (0,1,1) was stomping
-   .cus-note-clamp (0,1,0). Scoped child selector wins. */
-.cus-note-preview > .cus-note-clamp {
-  white-space: pre-wrap;
-}
-
-/* ── SIL-483 supplements 3+4: the drawer lot-bar tabs are GONE ────────────
- * The drawer opens straight into the content; Xóa lô rides the header as the
- * ghost trash (.cus-drawer-lot-delete, styled with the drawer head block) and
- * the 'Chi tiết lô hàng' Link to /shipments/:id is removed (supplement 4 —
- * wrong entry point; the page itself survives the post-creation flow). Only
- * the blocked-delete banner remains, opening the body right under the header. */
-.cus-drawer-lot-error {
-  margin: 0 0 16px;
-  color: var(--danger-text);
-  font-size: var(--text-caption-size);
-  font-weight: var(--fw-semibold, 600);
-}
-
-/* Per-row remove — SIL-483: the specced 32×32 ghost trash (icon 16), stacked
-   with the ghost complete-check for external-trip lines. Hover tints red per
-   the consult (#FEF3F2/#B42318 on house tokens); the CUS-10 confirm dialog
-   still stands between the click and the delete. */
-.cus-container-row__action-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-}
-
-.cus-container-row__remove,
-.cus-container-row__complete {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-selector);
-  background: transparent;
-  color: var(--ink-2);
-  cursor: pointer;
-  transition: var(--t-fast);
-}
-
-.cus-container-row__remove:hover:not(:disabled) {
-  background: var(--danger-soft);
-  color: var(--overdue-text);
-}
-
-.cus-container-row__remove:focus-visible,
-.cus-container-row__complete:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.cus-container-row__complete:hover:not(:disabled) {
-  background: var(--success-soft);
-  color: var(--success-text);
-}
-
-.cus-container-row__remove:disabled,
-.cus-container-row__complete:disabled { opacity: 0.35; cursor: not-allowed; }
-/* Touch viewports never hover. The copy affordance already reveals itself for
-   coarse pointers; the DESTRUCTIVE action must not be the one the operator
-   cannot find on mobile (card 20260923_1 acceptance). */
-@media (max-width: 640px), (pointer: coarse) {
-  .cus-container-row__remove { visibility: visible; }
-}
-
-/* Thêm container — button below the last container row (card 20260923_1) and,
-   card 20260923_9, an ADD ROW inside the ledger table's tfoot so its fields
-   ride the table's own column grid: each control sits in its column's cell and
-   every column without an input keeps an empty cell, which is what makes the
-   input edges meet the column edges at every drawer width. */
-.cus-container-ledger__add { margin: 10px 0 0; }
-
-.cus-container-ledger__add-row > * {
-  padding: 6px;
-  border-top: 1px solid var(--line);
-  background: var(--surface-2);
-  vertical-align: middle;
-}
-
-.cus-container-ledger__add-row input {
-  /* SIL-483 anti-nesting: the add row rides the same ghost law — no frame;
-     hover fill, house focus ring. */
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: 28px;
-  padding: 0 4px;
-  border: 0;
-  border-radius: var(--app-radius-sm);
-  background: transparent;
-  color: var(--ink);
-  font-size: var(--text-caption-size);
-  line-height: 1.35;
-}
-
-.cus-container-ledger__add-row input:hover:not(:focus) {
-  background: var(--hairline-hover, var(--surface-2));
-}
-
-.cus-container-ledger__add-row input[aria-label='Số container'] { text-transform: uppercase; }
-
-/* QA-2026-09-23-02: the picker must never render as a sliver. It used to be
-   `width="content"` (fit-content ⇒ ~2px trigger from react-aria's
-   search-text-sized input + hideLabel); it now fills its column cell like the
-   row controls do, so the field is visible at any drawer width. */
-.cus-container-ledger__add-select { min-width: 0; }
-
-.cus-container-ledger__add-actions {
-  display: flex;
-  /* FB-045 lan 2: wrap instead of spill — during `adding` the submit label
-     swaps to "Đang thêm…" (wider than "Thêm"); a wrapping pair stacks inside
-     the 116px Thao tác floor and can never paint over the GIỜ HẸN cell. */
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.cus-container-ledger__add-error {
-  margin: 6px 0 0;
-  color: var(--danger-text);
-  font-size: var(--text-caption-size);
-  font-weight: var(--fw-semibold, 600);
-}
-
-/* Card 191026100000 (A.6): live ISO 6346 hint inside the add row's container
-   cell — warning text plus the one-tap "Đổi thành <số gợi ý>" correction.
-   Mirrors the trip card's ci-field-warning contract in drawer-local classes
-   (the trip CSS is not loaded on the CUS workboard). */
-.cus-container-ledger__add-hint {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  color: var(--warning-text);
-  font-size: var(--text-caption-size);
-  font-weight: var(--fw-semibold, 600);
-  line-height: 1.4;
-}
-
-.cus-container-ledger__add-hint svg {
-  flex: 0 0 auto;
-}
-/* Phone (2026-09-27): the bar wraps into packed lines, so the page releases
-   nothing to full width — the from/to group keeps its two fields side by side
-   at their own 168px, and a short-value control stays short. Card
-   20260927_152: a control as wide as the row is the defect, not the fix, and
-   the shared `.filter-bar` sheet owns every one of those widths, so this band
-   has no page rule left to make. */

@@ -12,15 +12,13 @@
 //   - `loading` toggles on every fetch, including background polls.
 //
 // Drawer-scoped per-shipment detail reads stay on the manual guarded path
-// (detailRequestSequence): they are per-id, drawer-gated, patched
-// optimistically by applySavedContainerLine, and pinned by the page's
-// characterization tests — migrating them buys no observable behavior.
+// (detailRequestSequence): they are per-id, drawer-gated, and pinned by the
+// page's characterization tests — migrating them buys no observable behavior.
 
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type {
   ShipmentCusBucket,
-  ShipmentCusWorkspaceContainerLine,
   ShipmentCusWorkspaceDetail,
   ShipmentCusWorkspaceListResponse,
   ShipmentCusWorkspaceSortKey,
@@ -72,8 +70,6 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
   const [details, setDetails] = useState<Record<number, ShipmentCusWorkspaceDetail>>({});
   const [detailLoadingIds, setDetailLoadingIds] = useState<Set<number>>(() => new Set());
   const [detailErrors, setDetailErrors] = useState<Record<number, string>>({});
-  const [dirtyDetailIds, setDirtyDetailIds] = useState<Set<number>>(() => new Set());
-  const [savingDetailIds, setSavingDetailIds] = useState<Set<number>>(() => new Set());
   const detailRequestSequence = useRef<Record<number, number>>({});
   const idempotencyKeysRef = useRef<Record<string, string>>({});
 
@@ -189,68 +185,9 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
     }
   }, [details]);
 
-  const applySavedContainerLine = useCallback(async (shipmentId: number, line?: ShipmentCusWorkspaceContainerLine | null) => {
-    if (!line) {
-      // Defensive: callers guard the response envelope, but a stale row also
-      // matters — an in-flight save for a line that just disappeared must
-      // not crash the reducer and blank the page.
-      await loadList();
-      return;
-    }
-    setDetails((current) => {
-      const detail = current[shipmentId];
-      if (!detail) return current;
-      const externalCarriers = line.externalCarrierId && line.carrierName && !detail.selectors.externalCarriers.some((carrier) => carrier.id === line.externalCarrierId)
-        ? [...detail.selectors.externalCarriers, { id: line.externalCarrierId, name: line.carrierName, shortName: null, label: line.carrierName }]
-        : detail.selectors.externalCarriers;
-      const carrierVehicles = line.externalCarrierId && line.externalCarrierVehicleId && line.plateNumber && !detail.selectors.carrierVehicles.some((vehicle) => vehicle.id === line.externalCarrierVehicleId)
-        ? [...detail.selectors.carrierVehicles, { id: line.externalCarrierVehicleId, carrierId: line.externalCarrierId, licensePlate: line.plateNumber, label: line.plateNumber }]
-        : detail.selectors.carrierVehicles;
-      // Case QA-2026-09-23-01 D3: a map alone replaces a matching id and
-      // otherwise keeps the same set — a brand-new line (container ADD) would
-      // never reach the open ledger. Append when the id is not present yet.
-      const matched = detail.containers.some((currentLine) => currentLine.id === line.id);
-      const containers = detail.containers.map((currentLine) => (
-        currentLine.id === line.id
-          ? line
-          : { ...currentLine, shipmentVersion: line.shipmentVersion }
-      ));
-      if (!matched) containers.push(line);
-      return {
-        ...current,
-        [shipmentId]: {
-          ...detail,
-          summary: { ...detail.summary, version: line.shipmentVersion },
-          selectors: { ...detail.selectors, externalCarriers, carrierVehicles },
-          containers,
-        },
-      };
-    });
-    setNotice('Đã lưu dữ liệu container. Kế toán cần đối soát dữ liệu mới nhất trước khi khóa lô.');
-    await loadList();
-  }, [loadList]);
-
-  const setDetailDirty = useCallback((shipmentId: number, dirty: boolean) => {
-    setDirtyDetailIds((current) => {
-      const has = current.has(shipmentId);
-      if (dirty ? has : !has) return current;
-      const next = new Set(current);
-      if (dirty) next.add(shipmentId);
-      else next.delete(shipmentId);
-      return next;
-    });
-  }, []);
-
-  const setDetailSaving = useCallback((shipmentId: number, saving: boolean) => {
-    setSavingDetailIds((current) => {
-      const has = current.has(shipmentId);
-      if (saving ? has : !has) return current;
-      const next = new Set(current);
-      if (saving) next.add(shipmentId);
-      else next.delete(shipmentId);
-      return next;
-    });
-  }, []);
+  // SIL-485: applySavedContainerLine and the dirty/saving container-draft
+  // sets retired with the editable ledger — the drawer view is read-only, so
+  // nothing patches lines optimistically and nothing blocks a close on drafts.
 
   /** Drop the cached detail so the next open refetches from the server. */
   const invalidateDetail = useCallback((shipmentId: number) => {
@@ -304,7 +241,6 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
   return {
     data, loading, error, notice, setError: setActionError as Dispatch<SetStateAction<string | null>>, setNotice, loadList,
     details, detailLoadingIds, detailErrors, loadDetail,
-    applySavedContainerLine, dirtyDetailIds, savingDetailIds, setDetailDirty, setDetailSaving,
     invalidateDetail, getIdempotencyKey, clearIdempotencyKey,
   };
 }

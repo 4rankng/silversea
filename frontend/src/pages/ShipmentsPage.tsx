@@ -1,31 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { CircleCheck, FileLock2, FileSpreadsheet, Loader2, LockOpen, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
   CUS_SEARCH_PATTERN, SHIPMENT_CUS_WORKSPACE_SORT_KEYS, SHIPMENT_CUS_BUCKET_LABELS,
-  SHIPMENT_DOCUMENT_CUSTODY_LABELS, ShipmentCusBucket, ShipmentDocumentCustody, Role,
+  SHIPMENT_INTAKE_MUTATION_ROLES, ShipmentCusBucket, Role,
   type ShipmentCusWorkspaceListItem, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { FilterDropdown } from '../components/FilterDropdown';
 import { ListFilterBar } from '../components/ListFilterBar';
 import { ShipmentActionModal } from '../components/shipments/ShipmentActionModal';
-import { StatusSwatch } from '../components/shared/StatusStrip';
-import { Drawer, Modal } from '../components/UI';
+import { Drawer } from '../components/UI';
 import { Tooltip } from '../components/shared/Tooltip';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
-import { DateRangeFields, DateRangePresetSelect, DateRangePresets, EmptyState, InlineLabelSelect, Pagination, SearchableMultiSelect, Tabs, UuiSelectField } from '../design-system';
+import { DateRangeFields, DateRangePresetSelect, DateRangePresets, EmptyState, InlineLabelSelect, Pagination, SearchableMultiSelect, Tabs } from '../design-system';
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { isOverlayOpen } from '../lib/overlayState';
-import { FinanceEvidence, ShipmentSignals, WorkflowBadge } from '../features/shipments/cus/CusBadges';
 import { ShipmentQuickEditModal } from '../features/shipments/cus/ShipmentQuickEditModal';
-import { ShipmentDetailContent } from '../features/shipments/cus/CusDetailContent';
-import { CusDrawerFooter } from '../features/shipments/cus/CusDrawerFooter';
-import type { ContainerLedgerHandle } from '../features/shipments/cus/CusContainerLedger';
+import { CusLotStatusChips, CusLotView } from '../features/shipments/cus/CusLotView';
 import { CusShipmentRow, CUS_ROW_COLUMNS } from '../features/shipments/cus/CusShipmentRow';
 import { SHIPMENT_CUS_PAGE_SIZES, readCusPageSize, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
 import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
@@ -33,7 +29,7 @@ import { factoryDetailPath } from '../features/shipments/cus/cusQuickEditModel';
 import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
 import { useHiddenColumns } from '../hooks/useHiddenColumns';
-import { appointmentGroupFactorySegment, formatAppointmentGroupLine, noteLines, safeError, SHIPMENT_BUCKET_COLORS } from '../features/shipments/cus/cusUtils';
+import { noteLines, safeError } from '../features/shipments/cus/cusUtils';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
@@ -115,10 +111,9 @@ export default function ShipmentsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canCreateShipment = user?.role === Role.ADMIN || user?.role === Role.CUS || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER; // ADMIN/MANAGER/CUS/DISPATCHER — mirrors the shipmentCreatorOnly route guard (testplan/roles/01-cus.md)
-  // CUS-10 (ruling 21/10): the drawer's Xóa container rides the remove API's
-  // own requireWorkspaceWriter gate — same four writer roles, so the button
-  // never renders for a viewer the endpoint would 403.
-  const canRemoveContainers = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.CUS || user?.role === Role.DISPATCHER;
+  // CUS-10 rode the drawer's container ledger; the SIL-485 read-only drawer
+  // has no container affordances left, so the remove-role gate retired with
+  // the ledger.
   // Card 071026204710, then re-ruled by the lead on the same card: the lot
   // delete is now CUS **or** ADMIN (routes/shipments/cus-workspace.routes.ts:344
   // and services/shipment-governance.service.ts:36 both widened together). This
@@ -127,6 +122,10 @@ export default function ShipmentsPage() {
   // through the API but unable to reach the button. The affordance mirrors the
   // guard; when the guard moves, this moves with it.
   const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
+  // SIL-485: the drawer's "Sửa" rides the same intake-mutation authority the
+  // /shipments/:id/edit route guard enforces — the host page owns useAuth and
+  // decides here whether the edit affordance exists at all.
+  const canEditLot = !!user?.role && SHIPMENT_INTAKE_MUTATION_ROLES.includes(user.role);
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const pageSize = readCusPageSize(searchParams.get('limit'));
@@ -159,14 +158,16 @@ export default function ShipmentsPage() {
   const sort: TableSortState | null = useMemo(() => sortKey ? { by: sortKey, dir: sortDir } : null, [sortKey, sortDir]);
 
   const [drawerId, setDrawerId] = useState<number | null>(null);
-  const [drawerCloseConfirmId, setDrawerCloseConfirmId] = useState<number | null>(null);
   // Card 20260923_1: the drawer's Xóa lô stays reachable at every state and
   // answers with a reason instead of vanishing. The stored value is the BLOCK
   // KIND (not a message) so the banner self-heals: once the blocking condition
   // stops holding, the derived message is empty without an extra effect.
   const [deleteLotBlock, setDeleteLotBlock] = useState<{ shipmentId: number; kind: 'dispatched' } | null>(null);
+  // SIL-485: the header workflow icon (Khóa lô / Xác nhận đối soát / Đề nghị
+  // mở lại) is always clickable; a blocked action answers with the guard's
+  // own disabledReason through the same banner law as the delete block.
+  const [lotActionBlock, setLotActionBlock] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
-  const containerLedgerRef = useRef<ContainerLedgerHandle | null>(null);
   // Card 20260922_42: the toolbar's draft state moved page-side — search
   // applies on the same 350ms debounce with the same silent pattern-skip;
   // dateResetKey clears the buffered date drafts; the export gate validates
@@ -183,13 +184,13 @@ export default function ShipmentsPage() {
     setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList, invalidateDetail: ws.invalidateDetail,
   });
   const actions = useCusActions({
-    dirtyDetailIds: ws.dirtyDetailIds, drawerId, setDrawerId,
+    drawerId, setDrawerId,
     setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList,
     loadDetail: ws.loadDetail, invalidateDetail: ws.invalidateDetail,
     getIdempotencyKey: ws.getIdempotencyKey, clearIdempotencyKey: ws.clearIdempotencyKey,
   });
 
-  const { loadList, loadDetail, applySavedContainerLine, dirtyDetailIds, savingDetailIds, setDetailDirty, setDetailSaving } = ws;
+  const { loadList, loadDetail } = ws;
   const { quickEditDraft, setQuickEditDraft, savingQuickEdit, quickEditError, startQuickEdit, closeQuickEdit, saveQuickEdit } = qe;
 
   const updateParam = useCallback((key: string, value: string | null) => {
@@ -289,6 +290,7 @@ export default function ShipmentsPage() {
   const openShipmentDetail = useCallback((shipmentId: number) => {
     setDrawerId(shipmentId);
     setDeleteLotBlock(null);
+    setLotActionBlock(null);
     void loadDetail(shipmentId);
   }, [loadDetail]);
 
@@ -305,24 +307,25 @@ export default function ShipmentsPage() {
     actions.openAction(item, 'delete');
   }, [actions]);
 
-  const requestCloseMobileDetail = useCallback(() => {
-    if (drawerId != null && savingDetailIds.has(drawerId)) {
-      ws.setError('Đang lưu dữ liệu container. Vui lòng chờ hoàn tất.');
+  // SIL-485: the header icon carries whatever workflow action the API derived
+  // (Khóa lô / Xác nhận đối soát / Đề nghị mở lại). A blocked action never
+  // opens the modal — it answers with the guard's reason (card 20260923_1
+  // banner law), then self-heals once the condition clears.
+  const requestLotAction = useCallback((item: ShipmentCusWorkspaceListItem) => {
+    if (!item.action.enabled) {
+      setLotActionBlock(item.id);
       return;
     }
-    if (drawerId != null && dirtyDetailIds.has(drawerId)) {
-      setDrawerCloseConfirmId(drawerId);
-      return;
-    }
-    setDrawerId(null);
-  }, [dirtyDetailIds, drawerId, savingDetailIds, ws]);
+    setLotActionBlock(null);
+    const mode = item.action.kind === 'CONFIRM_FINANCE'
+      ? 'confirm'
+      : item.action.kind === 'LOCK'
+        ? 'lock'
+        : 'reopen';
+    actions.openAction(item, mode);
+  }, [actions]);
 
-  const discardMobileDetailChanges = useCallback(() => {
-    containerLedgerRef.current?.discardAll();
-    if (drawerCloseConfirmId != null) setDetailDirty(drawerCloseConfirmId, false);
-    setDrawerCloseConfirmId(null);
-    setDrawerId(null);
-  }, [drawerCloseConfirmId, setDetailDirty]);
+  const closeDrawer = useCallback(() => setDrawerId(null), []);
 
 
 
@@ -367,6 +370,13 @@ export default function ShipmentsPage() {
   const lotDeleteMessage = lotDeleteBlockKind === 'dispatched' && drawerItem != null && !drawerItem.operational.deletable
     ? LOT_DELETE_BLOCK_MESSAGES.dispatched
     : null;
+  const lotActionMessage = lotActionBlock != null && drawerItem != null && lotActionBlock === drawerItem.id && !drawerItem.action.enabled
+    ? drawerItem.action.disabledReason
+    : null;
+  // SIL-485: the "Sửa" affordance follows the view page's lock law — a lot
+  // with an active accounting lock stays readable but refuses editing, so the
+  // footer button is disabled with the reason beside it.
+  const lotEditLocked = drawerItem?.activeLock != null;
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;
@@ -405,29 +415,6 @@ export default function ShipmentsPage() {
     } finally {
       setExporting(false);
     }
-  };
-
-  const shipmentActionButton = (item: ShipmentCusWorkspaceListItem) => {
-    if (item.action.kind === 'NONE') return null;
-    const mode = item.action.kind === 'CONFIRM_FINANCE'
-      ? 'confirm'
-      : item.action.kind === 'LOCK'
-        ? 'lock'
-        : 'reopen';
-    return (
-      <UUIButton
-        size="sm"
-        color={item.action.enabled ? 'primary' : 'secondary'}
-        className="cus-drawer-primary-action"
-        isDisabled={!item.action.enabled}
-        aria-label={item.action.label}
-        aria-describedby={!item.action.enabled && item.action.disabledReason ? `cus-drawer-action-reason-${item.id}` : undefined}
-        onPress={() => actions.openAction(item, mode)}
-        iconLeading={item.action.kind === 'LOCK' ? <FileLock2 size={16} aria-hidden="true" /> : undefined}
-      >
-        {item.action.label}
-      </UUIButton>
-    );
   };
 
   return (
@@ -648,115 +635,85 @@ export default function ShipmentsPage() {
         save={() => { if (quickEditItem) void saveQuickEdit(quickEditItem); }}
       />
 
+      {/* SIL-485 (owner mockup 25/10, superseding the SIL-483 custom table
+          and the earlier workspace-view consult for the drawer body): the
+          drawer reads as a designed review — head chips, the four-step
+          stepper and the read-only cards of CusLotView. The header keeps its
+          SIL-483 chrome (expand + Xóa-lô trash), the workflow icon (Khóa lô
+          / Xác nhận đối soát / Đề nghị mở lại) joins it, and editing leaves
+          the drawer entirely: "Sửa" navigates to /shipments/:id/edit. */}
       <Drawer
         isOpen={drawerId != null}
-        onClose={requestCloseMobileDetail}
+        onClose={closeDrawer}
         title={drawerItem?.customerName || 'Chi tiết lô hàng'}
-        subtitle={drawerItem?.billOrBookNumber || drawerItem?.declarationNumber || undefined}
         className="cus-shipment-drawer"
         expandable
-        headerAction={drawerItem && canDeleteLot ? (
-          /* SIL-483 supplements 3+4 (owner 25/10): the lot-bar tabs are gone —
-             the drawer opens straight into the content and Xóa lô rides the
-             header as a 32×32 ghost trash beside expand/close. Card 20260923_1's
-             law stands: always clickable, and a dispatched lot answers with the
-             guard's reason instead of a dead affordance. The old 'Chi tiết lô
-             hàng' Link to /shipments/:id is removed (supplement 4 — wrong entry
-             point; the page itself survives the post-creation flow). */
-          <Tooltip label="Xóa lô" side="bottom">
-            <button
-              type="button"
-              className="drawer__close cus-drawer-lot-delete"
-              onClick={() => requestDeleteLot(drawerItem)}
-              aria-label="Xóa lô"
-            >
-              <Trash2 size={16} />
-            </button>
-          </Tooltip>
+        titleChips={drawerItem ? <CusLotStatusChips item={drawerItem} /> : undefined}
+        headerAction={drawerItem ? (
+          <>
+            {drawerItem.action.kind !== 'NONE' && (
+              <Tooltip label={drawerItem.action.enabled ? drawerItem.action.label : drawerItem.action.disabledReason ?? drawerItem.action.label} side="bottom">
+                <button
+                  type="button"
+                  className="drawer__close cus-drawer-lot-action"
+                  onClick={() => requestLotAction(drawerItem)}
+                  aria-label={drawerItem.action.label}
+                  aria-disabled={!drawerItem.action.enabled}
+                >
+                  {drawerItem.action.kind === 'LOCK' && <FileLock2 size={16} />}
+                  {drawerItem.action.kind === 'CONFIRM_FINANCE' && <CircleCheck size={16} />}
+                  {drawerItem.action.kind === 'REQUEST_REOPEN' && <LockOpen size={16} />}
+                </button>
+              </Tooltip>
+            )}
+            {canDeleteLot && (
+              <Tooltip label="Xóa lô" side="bottom">
+                <button
+                  type="button"
+                  className="drawer__close cus-drawer-lot-delete"
+                  onClick={() => requestDeleteLot(drawerItem)}
+                  aria-label="Xóa lô"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </Tooltip>
+            )}
+          </>
         ) : undefined}
-        headerGraphic={drawerItem ? <StatusSwatch color={SHIPMENT_BUCKET_COLORS[drawerItem.bucket]} /> : undefined}
-        footer={drawerItem ? <CusDrawerFooter isDirty={dirtyDetailIds.has(drawerItem.id)} isSaving={savingDetailIds.has(drawerItem.id)} onDiscard={() => containerLedgerRef.current?.discardAll()} onSave={() => { void containerLedgerRef.current?.saveAll().then((saved) => { if (saved) setDrawerId(null); }); }} /> : undefined}
+        footer={drawerItem && canEditLot ? (
+          <div className="cus-drawer-editbar">
+            {lotEditLocked && <span className="cus-drawer-editbar__reason">Lô đã khóa kế toán — dữ liệu chỉ đọc.</span>}
+            <UUIButton
+              size="sm"
+              color="primary"
+              className="cus-drawer-edit"
+              isDisabled={lotEditLocked}
+              onPress={() => navigate(routes.shipmentDetailEdit(drawerItem.id))}
+            >
+              Sửa
+            </UUIButton>
+          </div>
+        ) : undefined}
       >
         <div id={drawerItem ? `cus-detail-drawer-${drawerItem.id}` : undefined}>
           {drawerItem && (
             <>
-              {/* Card 20260923_1: a blocked Xóa lô still answers with a reason —
-                  the banner opens the body right under the header trash. */}
+              {/* Card 20260923_1: a blocked Xóa lô (or workflow action) still
+                  answers with a reason — the banners open the body right
+                  under the header. */}
               {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
-              {/* SIL-483 (SUPPLEMENT 2, layout parity /shipments/new): the
-                  drawer body reads in the create-form's section order —
-                  Nhận diện lô (the drawer head: khách hàng + Bill/Book) →
-                  Hàng hóa/Container (the ledger) → Điều vận/Phân xe, Chứng từ
-                  (Phơi phiếu) và Chi phí (Đối soát) which all live in the
-                  Trạng thái lô section below. Only the order moved; the
-                  section itself is untouched. */}
-              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} actionsRef={containerLedgerRef} onExternalTripCompleted={() => void loadDetail(drawerItem.id, true)} onDetailStale={() => void loadDetail(drawerItem.id, true)} onAppointmentSavedAndExit={requestCloseMobileDetail} canRemoveContainer={canRemoveContainers} onContainerRemoved={requestCloseMobileDetail} canEditContainerNumber={canRemoveContainers} />
-
-              <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
-                <div className="cus-drawer-workflow__heading">
-                  <h3 id="cus-drawer-workflow-title">Trạng thái lô</h3>
-                  {drawerItem.raw.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
-                  <WorkflowBadge item={drawerItem} />
-                </div>
-                <ShipmentSignals item={drawerItem} />
-
-                <div className="cus-drawer-decision-grid" aria-label="Điều kiện xử lý lô hàng">
-                  <div className="cus-drawer-decision cus-drawer-decision--schedule">
-                    <span className="cus-drawer-decision__label">Lịch cont</span>
-                    {drawerItem.appointmentGroups.length > 0 ? (
-                      <div className="cus-drawer-decision__appointments">
-                        {drawerItem.appointmentGroups.map((group) => (
-                          <span key={`${group.at}-${group.factoryName ?? ''}`}>
-                            {formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}
-                          </span>
-                        ))}
-                      </div>
-                    ) : <strong>Chưa có lịch</strong>}
-                  </div>
-                  <div className="cus-drawer-decision cus-drawer-decision--custody">
-                    <UuiSelectField
-                      label="Phơi phiếu"
-                      ariaLabel="Phơi phiếu"
-                      value={drawerItem.documentCustody.status ?? ''}
-                      disabled={drawerItem.bucket === ShipmentCusBucket.LOCKED || !drawerItem.documentCustody.available || !drawerItem.documentCustody.editable}
-                      onChange={(event) => void actions.updateCustody(drawerItem, event.target.value as ShipmentDocumentCustody)}
-                      options={[
-                        { value: '', label: 'Chưa xác định', disabled: true },
-                        ...Object.values(ShipmentDocumentCustody).map((status) => ({ value: status, label: SHIPMENT_DOCUMENT_CUSTODY_LABELS[status] })),
-                      ]}
-                      wrapperClassName="cus-drawer-uui-field"
-                      controlClassName="cus-drawer-uui-select"
-                    />
-                  </div>
-                  <div className="cus-drawer-decision cus-drawer-decision--finance"><FinanceEvidence item={drawerItem} /></div>
-                </div>
-
-                <div className={`cus-drawer-workflow__action cus-drawer-workflow__action--${drawerItem.action.kind === 'NONE' ? 'idle' : drawerItem.action.enabled ? 'ready' : 'blocked'}`}>
-                  <div>
-                    <strong>{drawerItem.action.kind === 'NONE' ? 'Theo dõi' : drawerItem.action.label}</strong>
-                    {!drawerItem.action.enabled && drawerItem.action.disabledReason && <p id={`cus-drawer-action-reason-${drawerItem.id}`}>{drawerItem.action.disabledReason}</p>}
-                  </div>
-                  {shipmentActionButton(drawerItem)}
-                </div>
-              </section>
+              {lotActionMessage && <p className="cus-drawer-lot-error" role="alert">{lotActionMessage}</p>}
+              <CusLotView
+                item={drawerItem}
+                detail={ws.details[drawerItem.id]}
+                loading={ws.detailLoadingIds.has(drawerItem.id)}
+                error={ws.detailErrors[drawerItem.id]}
+                onRetry={() => void loadDetail(drawerItem.id, true)}
+              />
             </>
           )}
         </div>
       </Drawer>
-
-      <Modal
-        isOpen={drawerCloseConfirmId != null}
-        title="Bỏ thay đổi container?"
-        onClose={() => setDrawerCloseConfirmId(null)}
-        footer={(
-          <>
-            <button type="button" className="btn btn--ghost" onClick={() => setDrawerCloseConfirmId(null)}>Tiếp tục chỉnh sửa</button>
-            <button type="button" className="btn btn--secondary" onClick={discardMobileDetailChanges}>Bỏ thay đổi và đóng</button>
-          </>
-        )}
-      >
-        <p>Có thay đổi container chưa lưu. Hãy lưu dữ liệu hoặc xác nhận bỏ thay đổi trước khi đóng.</p>
-      </Modal>
 
       <ShipmentActionModal actions={actions} />
     </div>

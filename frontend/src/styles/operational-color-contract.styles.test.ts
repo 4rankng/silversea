@@ -82,8 +82,9 @@ describe('operational color contract', () => {
     // on a category. Same discipline, same guarantee.
     const combinedTag = shipmentList.match(/\.cus-combined-tag\s*\{[^}]*\}/)?.[0] ?? '';
     expect(combinedTag).not.toMatch(/--(?:warning|danger|info|success|warn|err|ok)\b/);
-    // Colour still has a home: the real status signal keeps it.
-    expect(shipmentList).toMatch(/\.cus-signal--warning\s*\{[^}]*background:\s*var\(--warning-soft\)/);
+    // Colour still has a home: the real status signal keeps it — SIL-485: the
+    // drawer head chips carry the soft-fill status palette.
+    expect(shipmentList).toMatch(/\.cus-lot-chip--amber\s*\{[^}]*background:\s*var\(--warning-soft\)/);
     expect(tripTable).not.toMatch(/#(?:1E40AF|3B82F6|10B981|EF4444|991B1B)/);
     expect(dispatchFilters).not.toMatch(/#(?:3B82F6|F59E0B)/);
     expect(externalCarrierBadge).toMatch(/color: 'var\(--info-text\)'/);

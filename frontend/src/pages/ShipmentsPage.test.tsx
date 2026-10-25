@@ -32,7 +32,6 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => authState }));
 import ShipmentsPage from './ShipmentsPage';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
-const addRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerAddRow.tsx'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
 const uiSource = readFileSync(resolve(process.cwd(), 'src/components/UI.tsx'), 'utf8');
 // FB-086 R29 remainder: the quick-edit modal presentation lives in the shared
@@ -287,6 +286,7 @@ function renderPage(path = '/shipments') {
           <Routes>
             <Route path="/shipments" element={<ShipmentsPage />} />
             <Route path="/shipments/new" element={<div data-testid="shipment-create-page">Tạo lô hàng mới</div>} />
+            <Route path="/shipments/:id/edit" element={<div data-testid="shipment-edit-page">Sửa lô hàng</div>} />
             <Route path="/shipments-detail" element={<div data-testid="container-detail-page">Chi tiết container</div>} />
           </Routes>
         </MemoryRouter>
@@ -447,9 +447,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    const missing = await screen.findByText('Chưa có số container');
-    expect(missing.getAttribute('data-missing-container')).toBe('true');
-    expect(missing.id).toBeTruthy();
+    // SIL-485 view sheet: the SỐ CONTAINER cell says what is missing in words
+    // — a descriptive phrase, never an ISO-identifier-shaped placeholder.
+    expect(await screen.findByText('Chưa có số cont')).toBeTruthy();
   });
 
   it('renders the approved seven-column multi-line dashboard and opens detail in a drawer', async () => {
@@ -478,8 +478,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByRole('heading', { name: 'Trạng thái lô' })).toBeTruthy();
-    expect(within(dialog).getByRole('row', { name: 'MSKU1234567' })).toBeTruthy();
+    // SIL-485: the drawer review opens on the read-only cards — Nhận diện lô
+    // first, the container sheet carrying the lot's rows.
+    expect(within(dialog).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
+    expect(within(dialog).getAllByText('MSKU1234567').length).toBeGreaterThan(0);
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
   });
 
@@ -505,10 +507,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     for (let open = 1; open <= 3; open++) {
       fireEvent.click(masterRowDetailButton());
       const dialog = await screen.findByRole('dialog');
-      // The drawer body settles on the workflow section + ledger — for an LCL
-      // lot the ledger reads "0 cont" with the no-containers note.
-      await waitFor(() => expect(within(dialog).getByRole('heading', { name: 'Trạng thái lô' })).toBeTruthy());
-      expect(within(dialog).getByText('Lô hàng chưa có dữ liệu container.')).toBeTruthy();
+      // The drawer body settles on the SIL-485 review cards — for an LCL lot
+      // with no containers the sheet reads its empty note.
+      await waitFor(() => expect(within(dialog).getByRole('heading', { name: 'Thông tin hàng' })).toBeTruthy());
+      expect(within(dialog).getByText('Chưa có container trong lô.')).toBeTruthy();
       // Design truth pinned per the card's consistency AC: the dialog is not a
       // tabbed surface — no tablist inside it, ever.
       expect(dialog.querySelectorAll('[role="tablist"], [role="tab"]')).toHaveLength(0);
@@ -519,25 +521,34 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(new Set(opens).size).toBe(1);
   });
 
-  it('opens straight into the content — no lot-bar tabs, ledger before Trạng thái lô (SIL-483)', async () => {
+  it('opens straight into the content — stepper, chips and cards, no tabs (SIL-485)', async () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
     const drawer = await screen.findByRole('dialog');
-    // Supplements 3+4 (owner 25/10): the tab bar is gone — no segmented
-    // control and no 'Chi tiết lô hàng' Link to /shipments/:id in the drawer.
+    // Still a single-view surface: no segmented lot bar and no 'Chi tiết lô
+    // hàng' Link to /shipments/:id inside the drawer.
     expect(document.querySelector('.cus-drawer-lot-bar')).toBeNull();
     expect(within(drawer).queryByRole('link', { name: /Chi tiết lô hàng/ })).toBeNull();
-    // Header chrome instead: the Xóa lô ghost trash and the expand toggle
-    // ride the head-actions cluster beside close.
+    expect(within(drawer).queryByRole('tablist')).toBeNull();
+    // Head chrome: the workflow icon (Khóa lô for this lot's action) and the
+    // Xóa lô ghost trash ride the head-actions cluster beside expand/close.
+    expect(within(drawer).getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Phóng to toàn màn hình' })).toBeTruthy();
-    // Layout parity (/shipments/new section order): Nhận diện lô is the
-    // drawer head, so Hàng hóa/Container (the ledger) reads BEFORE the
-    // Trạng thái lô band (Điều vận/Phân xe + Chứng từ + Chi phí).
-    const ledger = within(drawer).getByLabelText('Chi tiết container');
-    const statusHeading = within(drawer).getByRole('heading', { name: 'Trạng thái lô' });
-    expect(ledger.compareDocumentPosition(statusHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Head row carries the status chips inline after the title (Hàng FCL solid
+    // + the operational signals).
+    expect(within(drawer).getByText('Hàng FCL')).toBeTruthy();
+    // Body order: the stepper leads, Nhận diện lô precedes Thông tin hàng.
+    const stepper = within(drawer).getByLabelText('Tiến trình lô hàng');
+    const identity = within(drawer).getByRole('heading', { name: 'Nhận diện lô' });
+    const cargo = within(drawer).getByRole('heading', { name: 'Thông tin hàng' });
+    expect(stepper.compareDocumentPosition(identity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(identity.compareDocumentPosition(cargo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The stepper reads this lot at its last step — lịch đã chốt, xe đã phân,
+    // đối soát đã xác nhận; Khóa lô is the first unfinished step (current).
+    const currentStep = stepper.querySelector('.cus-lot-stepper__step--current');
+    expect(currentStep?.textContent).toContain('Khóa lô');
   });
 
   it('does not repeat the shipment-level closing or return date before container appointments', async () => {
@@ -1537,128 +1548,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeNull());
 
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
-    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
-    expect(await within(drawer).findByText('MSKU1234567')).toBeTruthy();
-    expect(within(drawer).getByRole('button', { name: 'Thêm container' })).toBeTruthy();
-    expect(within(drawer).getByRole('button', { name: 'Xóa container MSKU1234567' })).toBeTruthy();
-  });
-
-  it('adds a container from the drawer and refreshes the row summary immediately (card 20260923_1)', { timeout: 15000 }, async () => {
-    let containers = manageDetail.containers.slice(0, 1);
-    let listSummary = '2x40HC';
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...manageDetail, containers })
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', containerSummary: listSummary }]))
-    ));
-    apiPost.mockImplementation(() => {
-      containers = manageDetail.containers;
-      listSummary = '2x40HC + 1x20DC';
-      return Promise.resolve({ line: manageDetail.containers[1] });
-    });
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
-    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
-    fireEvent.change(within(drawer).getByLabelText('Số container'), { target: { value: 'msku7654321' } });
-    // The loại-cont picker is the type-to-open combobox (SIL-68/CUS-04 swap:
-    // native selects are banned; suggestions now open on TYPING, not just
-    // click): its options live in a portalled listbox.
-    // Card 221026173728 (22/10 REQ-22 REVERSED): the combobox rests on the
-    // PLACEHOLDER (no seeded type) — the manual 20DC pick below is now the
-    // ONLY way the type lands, which is exactly the ruled behavior.
-    const addRow = drawer.querySelector('.cus-container-ledger__add-row') as HTMLElement;
-    fireEvent.click(within(addRow).getByRole('combobox', { name: 'Loại cont' }));
-    fireEvent.click(await screen.findByRole('option', { name: '20DC' }));
-    await waitFor(() => expect(within(addRow).getByText('20DC')).toBeTruthy());
-    fireEvent.change(within(drawer).getByLabelText('Trọng lượng (kg)'), { target: { value: '3000' } });
-    // Card 20260926_1: the datetime rides the shared segmented field — fill
-    // the date and time segments (paste distribution emits the ISO payload).
-    // Both groups' first segments carry the field's aria-label, so pick the
-    // date (dd) and time (hh) segments by their data-seg marker.
-    const apptSeg = (segKey: string) => within(drawer).getAllByLabelText('Giờ hẹn đóng/trả')
-      .filter((el) => el.tagName === 'INPUT')
-      .find((el) => (el as HTMLInputElement).dataset.seg === segKey) as HTMLInputElement;
-    fireEvent.change(apptSeg('dd'), { target: { value: '13/08/2026' } });
-    fireEvent.change(apptSeg('hh'), { target: { value: '09:30' } });
-    fireEvent.click(within(drawer).getByRole('button', { name: /^Thêm$/ }));
-
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
-      '/shipments/cus-workspace/1/containers',
-      expect.objectContaining({
-        expectedShipmentVersion: 3,
-        containerNumber: 'MSKU7654321',
-        containerTypeId: 3,
-        cargoWeightKg: '3000',
-        customerAppointmentAt: expect.stringContaining('2026-08-13T09:30'),
-      }),
-      { headers: { 'Idempotency-Key': expect.any(String) } },
-    ));
-    // The row summary reflects the new composition immediately.
-    expect(await within(masterRow()).findByText('1x20DC')).toBeTruthy();
-    expect(within(masterRow()).getByText('2x40HC')).toBeTruthy();
-    // D3 (case QA-2026-09-23-01): the customer's own checkpoint is the open
-    // drawer — "Lưu → dòng mới hiện". The returned line must render in the
-    // ledger, not only in the list's summary chip.
-    expect(await within(drawer).findByText('MSKU7654321')).toBeTruthy();
-  });
-
-  it('removes an unattached container from the drawer (card 20260923_1)', async () => {
-    let containers = manageDetail.containers;
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...manageDetail, containers })
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
-    apiPost.mockImplementation(() => {
-      containers = [];
-      return Promise.resolve({ removedId: 13, shipmentVersion: 4 });
-    });
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
-    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
-
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' }));
-    // CUS-10 (ruling 21/10): the drawer delete rides the danger confirm —
-    // the row button only opens "Xóa container <số>?".
-    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
-
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
-      '/shipments/cus-workspace/1/containers/13/remove',
-      { expectedShipmentVersion: 3 },
-      { headers: { 'Idempotency-Key': expect.any(String) } },
-    ));
-    // CUS-10: after the confirmed remove the drawer closes and the user lands
-    // on the refreshed overview list (the row refresh rides onLineSaved(null)).
-    // 4000 > the drawer's ~240ms anime.js exit — the unmount lags isOpen by
-    // the animation; 1s default flaked here before the animation settled.
-    await waitFor(() => expect(document.querySelector('.cus-shipment-drawer')).toBeNull(), { timeout: 4000 });
-  });
-
-  it('surfaces the 409 guard on a trip-attached container removal (card 20260923_1)', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(manageDetail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
-    apiPost.mockRejectedValueOnce(new Error('Container đã gắn chuyến xe TRIP-9 — không xóa được.'));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
-    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
-
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
-
-    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
-    // The guard surfaces as a toast, never a raw alert.
-    expect(await screen.findByText(/Container đã gắn chuyến xe TRIP-9/)).toBeTruthy();
+    // SIL-485: the drawer shows the read-only review sheet; editing leaves the
+    // drawer entirely (footer "Sửa" navigates), so no container add/remove
+    // affordance exists here anymore.
+    await within(await screen.findByRole('dialog')).findByText('MSKU1234567');
+    expect(screen.queryByRole('button', { name: 'Thêm container' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xóa container MSKU1234567' })).toBeNull();
   });
 
   it('allows Xóa lô directly when deletable=true even with containers remaining, resolving Catch-22 deadlock (cards 351, 352)', { timeout: 15000 }, async () => {
@@ -1675,7 +1570,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
+    await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
     // Containers present (3 containers) → no deadlock; confirmed delete flow opens immediately
@@ -1696,7 +1591,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
+    await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
   });
@@ -1718,7 +1613,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
+    await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
   });
@@ -1737,7 +1632,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
+    await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     expect(within(drawer).queryByRole('button', { name: 'Xóa lô' })).toBeNull();
   });
@@ -1759,7 +1654,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
+    await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
     fireEvent.click(within(drawer).getByRole('button', { name: 'Xóa lô' }));
@@ -1768,67 +1663,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiPost).not.toHaveBeenCalled();
   });
 
-  it('keeps the container remove icon reachable on touch and blocks trip-attached rows (card 20260923_1)', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(manageDetail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
-    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
-
-    // Touch viewports have no hover: the destructive affordance must be
-    // revealed for coarse pointers (operator could not find it on mobile).
-    expect(css).toMatch(/@media[^{]*\(pointer:\s*coarse\)[^{]*\{[\s\S]{0,200}\.cus-container-row__remove\s*\{\s*visibility:\s*visible/);
-
-    // A live trip blocks its own row (mirrors findActiveTripForContainer);
-    // a CANCELED trip does not — an over-block has no in-UI recovery.
-    const attached = within(drawer).getByRole('button', { name: 'Xóa container MSKU1234567' });
-    expect(attached).toBeDisabled();
-    expect(attached.getAttribute('title')).toBe('Không thể xóa container đã gắn chuyến xe');
-    expect(within(drawer).getByRole('button', { name: 'Xóa container MSKU7654321' })).not.toBeDisabled();
-    expect(within(drawer).getByRole('button', { name: 'Xóa container MSKU2222333' })).not.toBeDisabled();
-  });
-
-  it('places Thêm container directly below the last container row (card 20260923_1)', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(manageDetail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    await screen.findByText('Trạng thái lô');
-    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
-
-    const ledger = within(drawer).getByLabelText('Chi tiết container');
-    const table = within(ledger).getByRole('table');
-    const addButton = within(ledger).getByRole('button', { name: 'Thêm container' });
-    expect(table.compareDocumentPosition(addButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it('add-container form: the Loại cont combobox fills its column cell, never a sliver (QA-2026-09-23-02, card 20260923_9)', () => {
-    // The form's type picker used to carry width="content": with hideLabel
-    // and react-aria's search-text-sized input, fit-content resolved to ~2px
-    // and the MatchWidth option list to 0 — the control existed but nobody
-    // could see it. It now lives in the ledger's LOẠI CONT cell and fills it
-    // (the width="content" variant is gone), which is what keeps it visible
-    // once the add row rides the table grid; a fixed 150px floor cannot co-exist
-    // with that 7% column (it would overflow into the next cell). jsdom has no
-    // layout to measure, so the owned-width contract itself is the fence.
-    // SIL-68 (CUS-04): the picker is now the type-to-open combobox — the
-    // same cell-track class rides its wrapper (`className`, the combobox
-    // adapter's own wrapper prop, replacing UuiSelectField's wrapperClassName).
-    const floors = [...css.matchAll(/\.cus-container-ledger__add-select\s*\{([^}]*)}/g)]
-      .map((match) => Number(/min-width:\s*(\d+)px/.exec(match[1])?.[1] ?? 0));
-    expect(Math.max(0, ...floors)).toBe(0);
-    expect(addRowSource).not.toContain('width="content"');
-    expect(addRowSource).toContain('className="cus-container-ledger__add-select"');
-  });
 
   it('does not open edit dialogs or the drawer from locked shipment cells', async () => {
     const lockedFieldAccess = Object.fromEntries(Object.entries(row.fieldAccess).map(([key, access]) => [
@@ -2017,37 +1851,21 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByRole('button', { name: 'Tạo lô mới' })).toBeTruthy();
   });
 
-  it('opens the governed shipment controls from the row button', async () => {
+  it('opens the governed workflow controls from the row button', async () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).queryByText('Điều hành lô hàng')).toBeNull();
-    expect(within(dialog).getByRole('heading', { name: 'Trạng thái lô' })).toBeTruthy();
-    expect(within(dialog).getByText('Đối soát chi phí')).toBeTruthy();
-    expect(within(dialog).queryByText('Hành động tiếp theo')).toBeNull();
-    expect(within(dialog).getByText('Đối soát tài chính')).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole('button', { name: /Phơi phiếu/i }));
-    expect(screen.getByRole('option', { name: 'Chưa xác định' })).toHaveAttribute('aria-disabled', 'true');
-    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+    // SIL-485: the Đối soát card carries the finance pair; the custody select
+    // retired with the ledger — PHƠI PHIẾU is a display fact now.
+    expect(within(dialog).getByRole('heading', { name: 'Đối soát' })).toBeTruthy();
+    expect(within(dialog).getByText('Chi phí')).toBeTruthy();
+    expect(within(dialog).getByText('Tài chính')).toBeTruthy();
+    expect(within(dialog).getByText('Phơi phiếu')).toBeTruthy();
+    expect(within(dialog).queryByRole('listbox')).toBeNull();
+    // The workflow action rides the header as the ghost icon.
     expect(within(dialog).getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
-  });
-
-  it('names the custody select by its label alone, not value-then-label (card 071026204720)', async () => {
-    // The staging retest lot (TEST-LCL-362) rides null custody: the '' sentinel
-    // option is genuinely selected, so RAC composites the button name as
-    // value+label — "Chưa xác định Phơi phiếu". The null-state text stays the
-    // visible trigger content; the NAME must remain the field label.
-    apiGet.mockResolvedValueOnce(listResponse([{
-      ...row,
-      documentCustody: { status: null, label: null, available: true, editable: true },
-    }]));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(masterRowDetailButton());
-    const dialog = await screen.findByRole('dialog');
-    const trigger = await within(dialog).findByRole('button', { name: 'Phơi phiếu' });
-    expect(trigger.textContent).toContain('Chưa xác định');
   });
 
   it('states unavailable financial confirmation honestly instead of presenting it as pending', async () => {
@@ -2089,14 +1907,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    const reason = within(dialog).getByText('Xác nhận Kế toán đã hết hiệu lực.');
-    const action = within(dialog).getByRole('button', { name: 'Khóa lô' }) as HTMLButtonElement;
-    expect(reason).toBeTruthy();
-    expect(action.disabled).toBe(true);
-    expect(action.getAttribute('aria-describedby')).toBe(reason.id);
+    // SIL-485: the header icon stays clickable; a blocked action answers on
+    // the surface with the guard's own reason (card 20260923_1 banner law) —
+    // no tooltip and no dead control.
+    expect(within(dialog).getByRole('button', { name: 'Khóa lô' }).getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Khóa lô' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Xác nhận Kế toán đã hết hiệu lực.');
+    expect(apiPost).not.toHaveBeenCalled();
   });
 
-  it('loads operational container detail lazily and keeps finance entry outside the expansion', async () => {
+  it('loads the lot detail lazily when the drawer opens and reads the review cards', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
@@ -2104,108 +1924,21 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(masterRowDetailButton());
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1'));
     expect(screen.getByRole('dialog')).toBeTruthy();
-    const ledger = await screen.findByLabelText('Chi tiết container');
-    expect(within(ledger).getByText('MSKU1234567')).toBeTruthy();
-    expect(within(ledger).getByRole('columnheader', { name: 'Container' })).toBeTruthy();
-    expect(within(ledger).getByRole('columnheader', { name: 'Nhà xe/BKS' })).toBeTruthy();
-    expect(within(ledger).getByText('Giờ đóng/trả')).toBeTruthy();
+    const dialog = await screen.findByRole('dialog');
+    // SIL-485: the container sheet carries the lot's rows — read-only, no
+    // editors, no finance entry surfaces here.
+    const sheet = await within(dialog).findByText('MSKU1234567');
+    expect(sheet).toBeTruthy();
+    expect(within(dialog).getByRole('columnheader', { name: 'Nhà xe / BKS' })).toBeTruthy();
+    expect(within(dialog).getByText('Nhà xe An Phát · 15C-123.45')).toBeTruthy();
+    expect(within(dialog).getByText('Đã tạo chuyến')).toBeTruthy();
     expect(within(masterRow()).getByText('Maersk')).toBeTruthy();
-    expect(within(ledger).queryByText('Maersk')).toBeNull();
-    expect(within(ledger).getByText('Đã tạo chuyến')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Hoàn tất' })).toBeTruthy();
-    expect(screen.getByLabelText(/Biển số xe của container MSKU1234567/)).toBeTruthy();
-    const containerType = within(ledger).getByRole('button', { name: 'Loại container MSKU1234567' });
-    expect(containerType.textContent).toBe('40HC');
-    expect(containerType.textContent).not.toContain('Container 40HC');
-    expect(within(ledger).getByText('40HC', { selector: '.searchable-select__value' })).toBeTruthy();
-    expect(within(ledger).getByText('Nhà xe An Phát', { selector: '.searchable-select__value' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
-    expect(within(ledger).queryByText(/Chi phí không nhập tại đây/)).toBeNull();
+    expect(within(dialog).getByRole('heading', { name: 'Đối soát' })).toBeTruthy();
     expect(screen.queryByText('Cước đầu ra')).toBeNull();
     expect(screen.queryByText('Cước đầu vào')).toBeNull();
     expect(screen.queryByText('Phí chi hộ')).toBeNull();
     expect(screen.queryByText('Chưa thu hồi sửa chữa')).toBeNull();
-  });
-
-  it('protects unsaved container changes when closing the drawer', async () => {
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(masterRowDetailButton());
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.change(within(dialog).getByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-888.88' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
-    expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi container?' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Bỏ thay đổi và đóng' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  });
-
-  it('cancels an individual container draft with Escape', async () => {
-    renderPage();
-    await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRowDetailButton());
-    const plate = await screen.findByLabelText(/Biển số xe của container MSKU1234567/);
-    fireEvent.change(plate, { target: { value: '15C-555.55' } });
-    fireEvent.keyDown(plate, { key: 'Escape' });
-
-    expect((screen.getByLabelText(/Biển số xe của container MSKU1234567/) as HTMLInputElement).value).toBe('15C-123.45');
-    expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
-    expect(apiPost).not.toHaveBeenCalled();
-  });
-
-  it('asks before closing the mobile container drawer with unsaved changes', async () => {
-    class CardLayoutObserver {
-      constructor(private callback: ResizeObserverCallback) {}
-      observe() {
-        this.callback([{ contentRect: { width: 759 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
-      }
-      disconnect() {}
-      unobserve() {}
-    }
-    const originalResizeObserver = window.ResizeObserver;
-    window.ResizeObserver = CardLayoutObserver as unknown as typeof ResizeObserver;
-
-    renderPage();
-    await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRowDetailButton());
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.change(await within(dialog).findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-777.77' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
-    expect(await screen.findByRole('dialog', { name: 'Bỏ thay đổi container?' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Bỏ thay đổi và đóng' })).toBeTruthy();
-
-    window.ResizeObserver = originalResizeObserver;
-  });
-
-  it('keeps the mobile drawer open while a container save is in progress', async () => {
-    class CardLayoutObserver {
-      constructor(private callback: ResizeObserverCallback) {}
-      observe() {
-        this.callback([{ contentRect: { width: 759 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
-      }
-      disconnect() {}
-      unobserve() {}
-    }
-    const originalResizeObserver = window.ResizeObserver;
-    window.ResizeObserver = CardLayoutObserver as unknown as typeof ResizeObserver;
-    let resolveSave: ((value: { line: typeof detail.containers[0] }) => void) | undefined;
-    apiPost.mockImplementationOnce(() => new Promise((resolve) => { resolveSave = resolve; }));
-
-    renderPage();
-    await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRowDetailButton());
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.change(await within(dialog).findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-666.66' } });
-    fireEvent.keyDown(await within(dialog).findByLabelText(/Biển số xe của container MSKU1234567/), { key: 'Enter' });
-    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
-
-    expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.queryByRole('dialog', { name: 'Bỏ thay đổi container?' })).toBeNull();
-    expect(screen.getByText('Đang lưu dữ liệu container. Vui lòng chờ hoàn tất.')).toBeTruthy();
-    resolveSave?.({ line: { ...detail.containers[0], plateNumber: '15C-666.66', shipmentVersion: 4 } });
-    await waitFor(() => expect(screen.queryByText('Đang lưu dữ liệu container. Vui lòng chờ hoàn tất.')).toBeNull());
-
-    window.ResizeObserver = originalResizeObserver;
+    expect(within(dialog).queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
   });
 
   it('keeps a clear empty state when a shipment has no container rows', async () => {
@@ -2218,7 +1951,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
 
-    const emptyState = await screen.findByText('Lô hàng chưa có dữ liệu container.');
+    const emptyState = await screen.findByText('Chưa có container trong lô.');
     const dialog = emptyState.closest('[role="dialog"]') as HTMLElement;
     expect(within(dialog).queryByText(/Chi phí không nhập tại đây/)).toBeNull();
   });
@@ -2242,184 +1975,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).queryByRole('button', { name: 'Chốt lịch' })).toBeNull();
     expect(within(dialog).getByText('Lịch cont')).toBeTruthy();
     expect(apiPut).not.toHaveBeenCalled();
-  });
-
-  it.each(['appointment', 'plate'] as const)('VID-CUS-DRAWER keeps the save lifecycle mounted when %s moves its row out of the list', { timeout: 15000 }, async (field) => {
-    const waitingRow = { ...row, transportDate: null, appointmentGroups: [], customerAppointmentAts: [], operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const } };
-    const waitingDetail = { ...detail, summary: waitingRow, containers: [{ ...detail.containers[0], customerAppointmentAt: null }] };
-    let saved = false;
-    apiGet.mockImplementation((url: string) => Promise.resolve(url === '/shipments/cus-workspace/1' ? waitingDetail : listResponse(saved ? [] : [waitingRow])));
-    apiPost.mockImplementationOnce(async () => {
-      saved = true;
-      return { line: { ...waitingDetail.containers[0], shipmentVersion: 4, ...(field === 'appointment' ? { customerAppointmentAt: '2026-09-24T08:17:00.000Z' } : { plateNumber: '15C-666.66' }) } };
-    });
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(masterRowDetailButton());
-    await screen.findByLabelText('Chi tiết container');
-    if (field === 'appointment') {
-      fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả/ }));
-      // Segmented pair: the first segment of each part distributes a full
-      // pasted string across its segments.
-      const hourInput = document.querySelector<HTMLInputElement>('[data-split-datetime] input[data-seg="hh"]')!;
-      const dayInput = document.querySelector<HTMLInputElement>('[data-split-datetime] input[data-seg="dd"]')!;
-      fireEvent.change(hourInput, { target: { value: '15:17' } });
-      fireEvent.change(dayInput, { target: { value: '24/09/2026' } });
-      fireEvent.keyDown(hourInput, { key: 'Enter' });
-    } else {
-      const plate = screen.getByLabelText(/Biển số xe của container MSKU1234567/);
-      fireEvent.change(plate, { target: { value: '15C-666.66' } });
-      fireEvent.keyDown(plate, { key: 'Enter' });
-      await waitFor(() => expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace?page=1&limit=20')).toHaveLength(2));
-    }
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(apiPost).toHaveBeenCalledTimes(1);
-    expect(apiPost.mock.calls[0][1]).toEqual(expect.objectContaining(field === 'appointment' ? { customerAppointmentAt: '2026-09-24T15:17:00+07:00' } : { plateNumber: '15C-666.66' }));
-    expect(screen.queryByText('Đang lưu dữ liệu container. Vui lòng chờ hoàn tất.')).toBeNull();
-    expect(screen.queryByRole('dialog', { name: 'Bỏ thay đổi container?' })).toBeNull();
-  });
-
-  // Same treatment as the drawer-lifecycle case above (card 20260928_196): the
-  // chain is render → findAllByText → open the drawer → findByLabelText →
-  // segmented time/date entry → save, and it measures ~6.4-7.2s of honest test
-  // time on a loaded dev box, i.e. deterministically over vitest's 5s default.
-  it('saves only the server-permitted container fields with optimistic versions', { timeout: 15000 }, async () => {
-    apiPost.mockResolvedValueOnce({
-      line: {
-        ...detail.containers[0],
-        plateNumber: '15C-999.99',
-        shipmentVersion: 4,
-      },
-    });
-    renderPage();
-    await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRowDetailButton());
-
-    const plate = await screen.findByLabelText(/Biển số xe của container MSKU1234567/);
-    expect(screen.getByLabelText(/Loại container MSKU1234567/)).toBeTruthy();
-    fireEvent.change(plate, { target: { value: '15C-999.99' } });
-    fireEvent.click(screen.getByRole('button', { name: /Giờ hẹn đóng hoặc trả tại nhà máy của container MSKU1234567/ }));
-    // Segmented pair — complete time + date text publishes the contract
-    // (pasted into the first segment of each part).
-    const hourInput = document.querySelector<HTMLInputElement>('[data-split-datetime] input[data-seg="hh"]')!;
-    const dayInput = document.querySelector<HTMLInputElement>('[data-split-datetime] input[data-seg="dd"]')!;
-    fireEvent.change(hourInput, { target: { value: '10:30' } });
-    fireEvent.change(dayInput, { target: { value: '14/08/2026' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
-
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
-      '/shipments/cus-workspace/1/containers/10',
-      expect.objectContaining({
-        expectedShipmentVersion: 3,
-        plateNumber: '15C-999.99',
-        // Naive popover drafts persist as Vietnam wall-clock (+07:00) — pinned,
-        // not the test-runner timezone's UTC the old parse produced.
-        customerAppointmentAt: '2026-08-14T10:30:00+07:00',
-      }),
-      expect.any(Object),
-    ));
-    const [, payload] = apiPost.mock.calls[0] ?? [];
-    expect(payload.outboundCharges).toBeUndefined();
-    expect(payload.inboundCharges).toBeUndefined();
-    expect(await screen.findByText('Đã lưu dữ liệu container. Kế toán cần đối soát dữ liệu mới nhất trước khi khóa lô.')).toBeTruthy();
-    await waitFor(() => expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace?page=1&limit=20').length).toBeGreaterThan(1));
-  });
-
-  it('saves the container route from the CUS dashboard ledger when the plan needs one', async () => {
-    apiPost.mockResolvedValueOnce({
-      line: {
-        ...detail.containers[0],
-        routeId: 9,
-        routeName: 'Đình Vũ — Quốc lộ 5',
-        shipmentVersion: 4,
-      },
-    });
-    renderPage();
-    await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRowDetailButton());
-
-    const ledger = await screen.findByLabelText('Chi tiết container');
-    expect(within(ledger).getByRole('columnheader', { name: 'Tuyến' })).toBeTruthy();
-    fireEvent.click(within(ledger).getByRole('button', { name: /Tuyến đường của container MSKU1234567/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Đình Vũ — Quốc lộ 5' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
-
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
-      '/shipments/cus-workspace/1/containers/10',
-      expect.objectContaining({
-        expectedShipmentVersion: 3,
-        routeId: 9,
-      }),
-      expect.any(Object),
-    ));
-  });
-
-  // 2026-09-19 (card _D2 wave): this test flaked red once on FullStack's
-  // parity run and passes isolated at the same sha — the default 5000ms
-  // per-test timeout is tight for this 90-test suite on the slow-SSD
-  // external-volume checkout (module graph cold-paging). 15000ms covers the
-  // p95 without masking real hangs; scoped to this test, not blanket.
-  it('keeps a sibling container draft while refreshing its shipment version after another save',
-    { timeout: 15000 }, async () => {
-    const secondLine = { ...detail.containers[0], id: 11, ordinal: 2, containerNumber: 'MSKU7654321', plateNumber: '15C-456.78' };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...detail, containers: [detail.containers[0], secondLine] })
-        : Promise.resolve(listResponse())
-    ));
-    apiPost
-      .mockResolvedValueOnce({ line: { ...detail.containers[0], plateNumber: '15C-999.99', shipmentVersion: 4 } })
-      .mockResolvedValueOnce({ line: { ...secondLine, plateNumber: '15C-888.88', shipmentVersion: 5 } });
-    renderPage();
-    await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRowDetailButton());
-
-    fireEvent.change(await screen.findByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '15C-999.99' } });
-    fireEvent.change(screen.getByLabelText(/Biển số xe của container MSKU7654321/), { target: { value: '15C-888.88' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
-    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(apiGet.mock.calls.filter(([url]) => url === '/shipments/cus-workspace?page=1&limit=20').length).toBeGreaterThan(1));
-    fireEvent.click(masterRowDetailButton());
-    expect(((await screen.findByLabelText(/Biển số xe của container MSKU7654321/)) as HTMLInputElement).value).toBe('15C-888.88');
-  });
-
-  // 2026-09-19 slow-SSD external-volume bump (BE dispatch, LEAD option a):
-  // cold module-graph paging makes the 5s default structurally tight for this
-  // suite; 15s covers p95 without masking real hangs. Live-flaked at 5334ms.
-  it('creates a new external carrier through the container workflow', { timeout: 15000 }, async () => {
-    apiPost.mockResolvedValueOnce({
-      line: {
-        ...detail.containers[0],
-        carrierName: 'Nhà xe Tân Cảng',
-        plateNumber: '51D-888.99',
-        shipmentVersion: 4,
-      },
-    });
-    renderPage();
-    await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRowDetailButton());
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Thêm nhà xe' }));
-    fireEvent.change(screen.getByLabelText('Tên nhà xe mới'), { target: { value: 'Nhà xe Tân Cảng' } });
-    fireEvent.change(screen.getByLabelText(/Biển số xe của container MSKU1234567/), { target: { value: '51D-888.99' } });
-    fireEvent.keyDown(screen.getByLabelText(/Biển số xe của container MSKU1234567/), { key: 'Enter' });
-
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
-      '/shipments/cus-workspace/1/containers/10',
-      expect.objectContaining({
-        expectedShipmentVersion: 3,
-        carrierType: 'EXTERNAL',
-        newExternalCarrier: {
-          name: 'Nhà xe Tân Cảng',
-          plateNumber: '51D-888.99',
-        },
-      }),
-      expect.any(Object),
-    ));
-    const payload = apiPost.mock.calls[0]?.[1] as Record<string, unknown>;
-    expect(payload.externalCarrierId).toBeUndefined();
-    expect(payload.externalCarrierVehicleId).toBeUndefined();
-    expect(payload.plateNumber).toBeUndefined();
   });
 
   it('renders locked container detail without active inputs or save controls', async () => {
@@ -2451,10 +2006,46 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
-    expect(await screen.findByText('15C-123.45')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Chỉnh sửa' })).toBeNull();
-    expect(screen.queryByLabelText(/Biển số xe của container MSKU1234567/)).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
+    const dialog = await screen.findByRole('dialog');
+    // SIL-485: the whole review is read-only — the sheet renders text cells,
+    // not editors; the lot's carrier data stays visible.
+    expect(await within(dialog).findByText('Nhà xe An Phát · 15C-123.45')).toBeTruthy();
+    expect(within(dialog).queryByLabelText(/Biển số xe của container MSKU1234567/)).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
+    // The reopen request rides the header icon; the footer "Sửa" is disabled
+    // with the accounting-lock reason beside it.
+    expect(within(dialog).getByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeTruthy();
+    const edit = within(dialog).getByRole('button', { name: 'Sửa' }) as HTMLButtonElement;
+    expect(edit.disabled).toBe(true);
+    expect(within(dialog).getByText('Lô đã khóa kế toán — dữ liệu chỉ đọc.')).toBeTruthy();
+  });
+
+  it('navigates to the edit workspace from the drawer footer and gates it by role', async () => {
+    // SIL-485: editing leaves the drawer — "Sửa" rides /shipments/:id/edit
+    // where ShipmentCreateWorkspace owns the form. The affordance exists only
+    // for the intake-mutation roles the edit route guard admits.
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
+    ));
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sửa' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByTestId('shipment-edit-page')).toBeTruthy();
+
+    // A viewer the edit route refuses (ACCOUNTANT) never sees the button.
+    authState.user.role = Role.ACCOUNTANT;
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
+    ));
+    renderPage();
+    await screen.findAllByText('Công ty Silver Sea');
+    fireEvent.click(masterRowDetailButton());
+    const secondDialog = await screen.findByRole('dialog');
+    expect(within(secondDialog).queryByRole('button', { name: 'Sửa' })).toBeNull();
+    authState.user.role = Role.CUS;
   });
 
   it('confirms the consequential lock action and closes the dialog after success', async () => {
@@ -2567,14 +2158,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).not.toMatch(/cus-worksheet-toolbar|cus-search-field|cus-worksheet-advanced|cus-advanced-toggle|cus-active-filter-summary/);
     // Card 20260926_47: the create action rides the Row 1 actions cluster.
     expect(source).toMatch(/\{canCreateShipment && \(\s*<UUIButton/);
-    // Container codes: one line, never bold, copy icon in the ordinal slot
-    // (user ruling 2026-09-18; SIL-483 carries the law onto the grouped line).
-    expect(css).toMatch(/\.cus-container-cell--identity \.cus-line--primary\s*\{[^}]*font-weight:\s*400;/);
-    expect(css).toMatch(/\.cus-container-cell--identity \.cus-line__value\[data-missing-container='true'\]\s*\{[^}]*white-space:\s*normal;/);
-    expect(css).toMatch(/\.cus-container-table thead th\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*normal;/);
     // 2026-09-18 relocation ruling: the copy affordance replaces the ordinal on
     // hover — same top-right slot, never over the container number.
-    expect(css).toMatch(/\.cus-container-row__copy\s*\{[^}]*left:\s*auto;[^}]*right:\s*12px;/);
+    // (SIL-485: the editable ledger retired, so its cell/copy rules went with
+    // it; the row-level multiline rhythm below is the surviving contract.)
     // Card 20260926_47: export rides the Row 1 action cluster; the rail's
     // export class is retired from source and CSS.
     expect(source).toContain('shipments-control__export');
@@ -2594,22 +2181,29 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
   it('adapts the drawer to its actual canvas instead of only the browser width', () => {
     expect(css).toMatch(/\.cus-shipment-drawer\s*\{[\s\S]*?container-name:\s*shipment-drawer;[\s\S]*?container-type:\s*inline-size;/);
-    expect(css).toMatch(/@container shipment-drawer \(max-width: 700px\)[\s\S]*?\.cus-drawer-decision-grid\s*\{\s*grid-template-columns:\s*1fr 1fr;/);
-    expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-drawer-decision-grid\s*\{\s*grid-template-columns:\s*1fr;/);
+    // SIL-485: the review cards reflow on the drawer's own canvas — the fact
+    // grids step 4→2→1 and the bottom card pair stacks.
+    expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-lot-fact-grid\s*\{\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-lot-cards-row\s*\{\s*grid-template-columns:\s*1fr;/);
+    expect(css).toMatch(/@container shipment-drawer \(max-width: 480px\)[\s\S]*?\.cus-lot-fact-grid,\s*\n\s*\.cus-lot-fact-grid--two\s*\{\s*grid-template-columns:\s*1fr;/);
   });
 
   it('keeps the shipment drawer flat, compact, and honest about blocked actions', () => {
     expect(css).toMatch(/\.cus-shipment-drawer\s*\{[^}]*background:\s*var\(--surface\);/);
-    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
-    // 20261004 drawer restyle (Untitled UI PRO consult, application/slideout-menus):
-    // the action row is a flat white section divided by a hairline — the old
-    // decorative ::before status rail and the tinted action box are retired.
-    // Blocked semantics stay in the reason text + the secondary-toned button.
-    expect(css).not.toMatch(/\.cus-drawer-workflow__action[^{]*::before/);
-    expect(css).toMatch(/\.cus-drawer-workflow__action\s*\{[^}]*border-top:\s*1px solid var\(--line\);[^}]*background:\s*var\(--surface\);/);
+    // SIL-485: the body is the sage canvas with white cards; the card band is
+    // the next surface rung, and the sheet table collapses like the page's.
+    expect(css).toMatch(/\.cus-shipment-drawer \.drawer__body\s*\{[^}]*background:\s*var\(--surface-2\);/);
+    expect(css).toMatch(/\.cus-lot-card__band\s*\{[^}]*background:\s*var\(--surface-3\);/);
+    expect(css).toMatch(/\.cus-lot-card\s*\{[^}]*border-radius:\s*var\(--radius-field\);/);
+    expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*border-collapse:\s*collapse;/);
+    // Blocked semantics stay on the surface: the banner law (card 20260923_1)
+    // is the only blocked-action presentation — no dead affordances.
+    expect(css).toMatch(/\.cus-drawer-lot-error\s*\{[^}]*color:\s*var\(--danger-text\);/);
+    expect(css).not.toMatch(/cus-drawer-workflow|cus-container-ledger|cus-container-table/);
+    expect(source).not.toContain('cus-drawer-workflow');
+    expect(source).not.toContain('cus-container-ledger');
     expect(css).toMatch(/\.cus-shipment-drawer \.drawer__foot\s*\{[^}]*background:\s*var\(--surface\);/);
     expect(css).not.toMatch(/\.cus-shipment-drawer \.drawer__body\s*\{[^}]*padding:\s*0 0 \d+px/);
-    expect(source).toContain("color={item.action.enabled ? 'primary' : 'secondary'}");
   });
 
   it('normalizes the drawer chrome to the SIL-480/SIL-483 consult spec', () => {
@@ -2640,14 +2234,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(uiSource).toContain('Maximize2');
     // Content band: 16px below the divider, 20/24 inset owned by the body.
     expect(css).toMatch(/\.cus-shipment-drawer \.drawer__body\s*\{[^}]*padding:\s*16px 24px 20px;/);
-    expect(css).toMatch(/\.cus-container-ledger\s*\{[^}]*padding:\s*0;/);
-    // Section label: 13/16/500 uppercase muted.
-    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*font-size:\s*13px;/);
-    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*line-height:\s*16px;/);
-    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*font-weight:\s*var\(--fw-medium\);/);
-    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*letter-spacing:\s*0\.04em;/);
-    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*text-transform:\s*uppercase;/);
-    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*color:\s*var\(--ink-3\);/);
+    // SIL-485: the card band h3 and the body micro-labels carry the
+    // uppercase-muted section-label contract the workflow heading used to own.
+    expect(css).toMatch(/\.cus-lot-card__band h3\s*\{[^}]*font-size:\s*var\(--text-label-size, 13px\);/);
+    expect(css).toMatch(/\.cus-lot-card__band h3\s*\{[^}]*font-weight:\s*var\(--fw-semibold\);/);
+    expect(css).toMatch(/\.cus-lot-microlabel\s*\{[^}]*text-transform:\s*uppercase;/);
+    expect(css).toMatch(/\.cus-lot-microlabel\s*\{[^}]*letter-spacing:\s*0\.05em;/);
+    expect(css).toMatch(/\.cus-lot-microlabel\s*\{[^}]*color:\s*var\(--ink-3\);/);
   });
 
   it('uses distinct semantic colors for running and locked shipments', () => {
@@ -2761,8 +2354,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const combined = css.match(/\.cus-combined-tag\s*\{[^}]*\}/)?.[0] ?? '';
     expect(combined).not.toMatch(/background:\s*var\(--warning-soft\)/);
     expect(combined).not.toMatch(/background:\s*var\(--danger-soft\)/);
-    // The real warning badge keeps it, so the rule still has a home.
-    expect(css).toMatch(/\.cus-signal--warning\s*\{[^}]*background:\s*var\(--warning-soft\)/);
+    // The real warning badge keeps it, so the rule still has a home —
+    // SIL-485: the drawer head chips carry the amber/mint/danger soft fills.
+    expect(css).toMatch(/\.cus-lot-chip--amber\s*\{[^}]*background:\s*var\(--warning-soft\)/);
+    expect(css).toMatch(/\.cus-lot-chip--mint\s*\{[^}]*background:\s*var\(--success-soft\)/);
+    expect(css).toMatch(/\.cus-lot-chip--danger\s*\{[^}]*background:\s*var\(--danger-soft\)/);
   });
 
   it('renders every --warn consumer off the real token, not a raw hex fallback', () => {

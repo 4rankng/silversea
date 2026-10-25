@@ -330,8 +330,8 @@ describe('shipment create responsive layout', () => {
 });
 
 describe('copy-icon STT placement rework (20260918_3)', () => {
-  const ledgerCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
-
+  // SIL-485: the CUS ledger copy site retired with the editable ledger — only
+  // the create form's own rules are pinned here now.
   const ruleBlock = (cssText: string, selector: string) => {
     const i = cssText.indexOf(selector);
     return cssText.slice(i, cssText.indexOf('}', i) + 1);
@@ -343,17 +343,8 @@ describe('copy-icon STT placement rework (20260918_3)', () => {
     expect(block).toMatch(/border-radius:\s*8px/);
   });
 
-  it('ledger copy button keeps the shared shape, hugging the right edge in card mode', () => {
-    const block = ruleBlock(ledgerCss, '\n.cus-container-row__copy {');
-    expect(block).toMatch(/width:\s*26px/);
-    expect(block).toMatch(/height:\s*26px/);
-    expect(block).toMatch(/border-radius:\s*8px/);
-    // Card mode pins the ordinal top-right; the copy affordance follows it
-    // there so it can never sit on the container code.
-    const cardBlock = ruleBlock(ledgerCss, '.cus-container-table .cus-container-row__copy {');
-    expect(cardBlock).toMatch(/right:\s*12px/);
-    expect(cardBlock).toMatch(/left:\s*auto/);
-  });
+  // SIL-485: the CUS ledger copy site retired with the editable ledger — the
+  // create form's row copy button is the contract's only remaining host.
 
   it('create container rows carry the compact in-row control height (30px)', () => {
     expect(css).toMatch(/@media \(min-width: 641px\)\s*\{\s*\.csc-container-row \.csc-icon-button \{\s*min-width: 30px;\s*min-height: 30px;/);
@@ -425,39 +416,29 @@ describe('CUS "Ngày giờ đóng trả" cluster geometry (cards 051026230627 �
  * pointer-position luck, not copy logic). The reveal mechanism is therefore
  * `opacity: 0` at rest: still rendered, still in the AX tree, still
  * hit-testable, visually identical because a pointer that can reach the
- * button is already on the row, which reveals it. Both copy sites (create
- * form + CUS ledger) share the contract. */
+ * button is already on the row, which reveals it. (SIL-485: the CUS ledger
+ * copy site retired with the editable ledger; the create form is the host.) */
 describe('copy affordance AX/actionability contract (card 101026163010)', () => {
-  const ledgerCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
   const blockOf = (text: string, selector: string) => {
     const i = text.indexOf(selector);
     expect(i, `selector missing: ${selector}`).toBeGreaterThan(-1);
     return text.slice(i, text.indexOf('}', i) + 1);
   };
 
-  it('keeps both copy buttons in the accessibility tree at rest', () => {
+  it('keeps the copy button in the accessibility tree at rest', () => {
     const createBlock = blockOf(css, '.csc-container-row__copy {');
     expect(createBlock).toMatch(/opacity:\s*0;/);
     expect(createBlock).not.toMatch(/visibility:\s*hidden/);
-
-    const ledgerBlock = blockOf(ledgerCss, '\n.cus-container-row__copy {');
-    expect(ledgerBlock).toMatch(/opacity:\s*0;/);
-    expect(ledgerBlock).not.toMatch(/visibility:\s*hidden/);
   });
 
-  it('reveals on row hover and row focus-within at both sites', () => {
+  it('reveals on row hover and row focus-within', () => {
     expect(css).toMatch(
       /\.csc-container-row:hover \.csc-container-row__copy,[\s\S]*?\.csc-container-row:focus-within \.csc-container-row__copy \{[^}]*opacity:\s*1;/,
     );
-    expect(ledgerCss).toMatch(
-      /\.cus-container-row:hover \.cus-container-row__copy,[\s\S]*?\.cus-container-row:focus-within \.cus-container-row__copy \{[^}]*opacity:\s*1;/,
-    );
   });
 
-  it('reveals on keyboard focus and on coarse/narrow screens at both sites', () => {
+  it('reveals on keyboard focus and on coarse/narrow screens', () => {
     expect(css).toMatch(/\.csc-container-row__copy:focus-visible \{[^}]*opacity:\s*1;/);
-    expect(ledgerCss).toMatch(/\.cus-container-row__copy:focus-visible \{[^}]*opacity:\s*1;/);
     expect(css).toMatch(/\.csc-container-row__copy \{\s*opacity:\s*1;/);
-    expect(ledgerCss).toMatch(/\.cus-container-row__copy \{\s*opacity:\s*1;/);
   });
 });
