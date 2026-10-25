@@ -219,7 +219,7 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
 
                 <div className="uui-combobox__input relative flex min-w-0 w-full items-center">
                     {inputValue && (
-                        <span className={cx("absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 truncate", sizes[size].textContainer)} aria-hidden="true">
+                        <span className={cx("absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 truncate", sizes[size].textContainer, onClear && hasClearableValue && "pr-8")} aria-hidden="true">
                             <p className={cx("font-medium text-primary", sizes[size].text)}>{first}</p>
                             {last && <p className={cx("-ml-0.75 text-tertiary", sizes[size].text)}>{last}</p>}
                         </span>
@@ -237,7 +237,7 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                         className={cx(
                             "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
                             sizes[size].text,
-                            onClear && hasClearableValue && "pr-5",
+                            onClear && hasClearableValue && "pr-8",
                         )}
                         // The app's global `:focus-visible` rule (base.css) is unlayered, so it
                         // always beats the layered `focus:outline-hidden` utility above and draws
@@ -253,7 +253,13 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                         type="button"
                         tabIndex={-1}
                         aria-label="Xoá"
-                        className="absolute right-1 z-20 flex shrink-0 items-center justify-center rounded p-0.5 text-secondary transition-colors hover:text-primary cursor-pointer"
+                        // SIL-482 geometry (consult spec 24/10): 24×24 hit area
+                        // at right:8 with a 16px icon; the input AND the ghost
+                        // value span above carry pr-8 (32px) so a committed
+                        // value can never run under the × (the old 18px button
+                        // at right:4 with a pr-5-only input measured a real
+                        // 14×16px text/× overlap on the debit PHÂN XE strip).
+                        className="absolute right-2 z-20 flex h-6 w-6 shrink-0 items-center justify-center rounded p-0.5 text-secondary transition-colors hover:text-primary cursor-pointer"
                         onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -266,7 +272,7 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                             state?.setInputValue('');
                         }}
                     >
-                        <XClose className="size-3.5" />
+                        <XClose className="size-4" />
                     </button>
                 )}
             </div>

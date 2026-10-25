@@ -791,6 +791,40 @@
   align-items: flex-end;
 }
 
+/* SIL-482 (consult spec 24/10 — form PHÂN XE): two plate fields side by
+   side in an even grid that never staggers or clips: minmax(0,1fr) lets a
+   field shrink inside its column (labels wrap, inputs truncate) instead of
+   pushing siblings to a new flex line; mobile stacks to one column. The
+   container keeps overflow visible and no fixed height — a wrapped label
+   must stay fully visible. The CƯỚC THU KHÁCH block keeps the legacy
+   `.debit-lot-lcl-facts__truck` flex row (outside this ticket's scope). */
+.debit-lot-lcl-facts__truck-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.debit-lot-lcl-facts__truck-grid > * {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .debit-lot-lcl-facts__truck-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* SIL-482: the save action is its own right-aligned row under the grid —
+   inline-right placement rode the helper text line and overflowed narrow
+   widths (owner screenshot 24/10). */
+.debit-lot-lcl-facts__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
 .debit-lot-lcl-facts__billing-warn {
   color: var(--danger);
   font-size: 12px;

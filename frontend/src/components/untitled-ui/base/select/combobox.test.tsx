@@ -119,6 +119,34 @@ describe('ComboBox', () => {
 
     expect(onClear).toHaveBeenCalledTimes(1);
   });
+
+  // SIL-482 geometry contract: with a clearable value, the × (24×24 at
+  // right:8) and the value clearance (pr-8 on BOTH the real input and the
+  // ghost value span) must co-render — the old pr-5-only input let a
+  // committed value run under the × on the debit PHÂN XE strip (measured
+  // 14×16px text/× overlap, owner screenshot 24/10). jsdom cannot measure
+  // rects; these classes ARE the contract the browser evidence pins.
+  it('clearable value carries the × clearance contract (pr-8 ghost + input, 24×24 right-2 ×)', () => {
+    render(
+      <ComboBox
+        label="Tuyến đường"
+        size="sm"
+        items={[{ id: 'route-1', label: 'Hà Nội - Hải Phòng' }]}
+        selectedKey="route-1"
+        onClear={() => {}}
+      >
+        {(item) => <SelectItem id={item.id} value={item} label={item.label} />}
+      </ComboBox>,
+    );
+
+    const clearButton = screen.getByRole('button', { name: 'Xoá' });
+    expect(clearButton.className).toContain('h-6 w-6');
+    expect(clearButton.className).toContain('right-2');
+    const ghost = document.querySelector('[data-uui-control="combobox"] span[aria-hidden="true"]');
+    expect(ghost?.className).toContain('pr-8');
+    const input = document.querySelector('[data-uui-control="combobox"] input');
+    expect(input?.className).toContain('pr-8');
+  });
 });
 
 const FACTORIES = [

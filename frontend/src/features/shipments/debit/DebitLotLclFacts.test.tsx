@@ -329,6 +329,46 @@ describe('FB-095 — nút "Hủy ghép" trên khối NHÓM GHÉP', () => {
   });
 });
 
+// ─── SIL-482 — form PHÂN XE dọn theo consult spec 24/10 ───
+
+describe('SIL-482 — form PHÂN XE: placeholder Việt hóa + grid 2 cột + hàng action', () => {
+  it('ô "Nhà xe - BKS thực" dùng placeholder Việt, không còn "Search" tiếng Anh nào trên form', () => {
+    renderStrip({ actualTruckNo: null, billingTruckNo: null });
+
+    const actualInput = screen.getByRole('combobox', { name: 'Nhà xe - BKS thực' }) as HTMLInputElement;
+    expect(actualInput.placeholder).toBe('Chọn nhà xe / BKS thực…');
+    // The consult spec bans the English default anywhere on this form —
+    // the search affordance lives in the dropdown, not the placeholder.
+    for (const input of document.querySelectorAll('.debit-lot-lcl-facts input')) {
+      expect((input as HTMLInputElement).placeholder).not.toBe('Search');
+    }
+  });
+
+  it('hai ô BKS nằm trong grid 2 cột; nút Lưu BKS ở hàng action RIÊNG bên dưới grid', () => {
+    renderStrip({ actualTruckNo: '15C-167.31', billingTruckNo: '88Q-10657' });
+
+    const grid = document.querySelector('.debit-lot-lcl-facts__truck-grid');
+    expect(grid).not.toBeNull();
+    // Both plate fields inside the grid…
+    const gridInputs = grid!.querySelectorAll('input');
+    expect(gridInputs.length).toBe(2);
+    expect(grid!.textContent).toContain('Nhà xe - BKS thực');
+    expect(grid!.textContent).toContain('BKS báo khách (Ảo)');
+    // …and the save action OUTSIDE it (the old inline-right placement rode
+    // the helper line and overflowed narrow widths).
+    const save = screen.getByRole('button', { name: 'Lưu BKS' });
+    expect(grid!.contains(save)).toBe(false);
+    expect(save.closest('.debit-lot-lcl-facts__actions')).not.toBeNull();
+  });
+
+  it('Lưu BKS là nút primary cỡ 40px theo spec', () => {
+    renderStrip({ actualTruckNo: '15C-167.31' });
+    const save = screen.getByRole('button', { name: 'Lưu BKS' });
+    expect(save.className).toContain('min-h-10'); // UUIButton md = 40px
+    expect(save.className).toContain('bg-brand-solid'); // house primary paint
+  });
+});
+
 // ─── FB-141 (card 231026163927, QA R39) — BKS báo khách để trống là hợp lệ ───
 
 describe('FB-141 — BKS báo khách: clear về trống gửi null, không còn 400', () => {
