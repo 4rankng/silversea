@@ -90,7 +90,9 @@ export function ShipmentCreateContainerRow({
   const factory = operationalSites.find((site) => String(site.id) === row.operationalSiteId);
   // Card 20261010_3: one empty destination is enough — the 2-container lot
   // (one scheduled, one empty) is the common case and must see the affordance.
-  const canCopyAppointment = Boolean(row.customerAppointmentAt) && emptyAppointmentCount >= 1;
+  // SIL-481: `saving` is the view mode's disable channel — the copy-down
+  // mutation never renders on the read-only review.
+  const canCopyAppointment = Boolean(row.customerAppointmentAt) && !saving && emptyAppointmentCount >= 1;
   // Card 20261002_272: open handle for the paired-field Tab hand-off.
   const typePickerOpenApi = useRef<{ open: () => void } | null>(null);
   // Card 20261002_268: read-only factory detail peek beside the cell value.
@@ -379,7 +381,10 @@ export function ShipmentCreateContainerRow({
         error={issueByField.get(`container-${row.key}-customer-appointment`)}
         onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
         mobileFieldChrome
-        actions={row.customerAppointmentAt ? (
+        actions={row.customerAppointmentAt && !saving ? (
+          /* SIL-481 (design law): the copy affordance belongs to
+             schedule-EDITING surfaces — the read-only review never grows it
+             (`saving` is the view mode's disable channel). */
           <CopyCodeButton
             className="csc-container-cell__action"
             value={formatContainerAppointment(row.customerAppointmentAt)}
@@ -401,7 +406,10 @@ export function ShipmentCreateContainerRow({
         />
       </ShipmentContainerCell>
       <td className="csc-container-row__actions">
-        {containersLength > 1 && (
+        {/* SIL-481: hidden while `saving` (the view mode's channel) — the
+            delete confirm reaches discardContainer → setContainers, a
+            mutation the read-only review must not offer. */}
+        {containersLength > 1 && !saving && (
           <button
             type="button"
             className="csc-icon-button csc-icon-button--danger"

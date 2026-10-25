@@ -1,4 +1,5 @@
 import { ShipmentCreateActions } from './ShipmentCreateActions';
+import { ShipmentViewActions } from './ShipmentViewActions';
 import type { SaveIntent } from './shipment-create-model';
 
 interface ShipmentCreateToplineProps {
@@ -9,7 +10,13 @@ interface ShipmentCreateToplineProps {
   onSaveDraft: () => void;
   onCreate: () => void;
   /** SIL-171 edit mode: title + action cluster swap to the edit pair. */
-  mode?: 'create' | 'edit';
+  mode?: 'create' | 'edit' | 'view';
+  /** SIL-481 view mode only — the read-only review pair (Quay lại /
+   *  Chuyển sang sửa) replaces the create/edit cluster, and the required
+   *  progress chip is meaningless on a form nobody is filling, so it hides. */
+  onBack?: () => void;
+  onEdit?: () => void;
+  editLocked?: boolean;
 }
 
 /* Owner mock 11/10 ("Tạo lô hàng – dense layout.html"): the page title, the
@@ -29,23 +36,39 @@ export function ShipmentCreateTopline({
   onSaveDraft,
   onCreate,
   mode = 'create',
+  onBack,
+  onEdit,
+  editLocked = false,
 }: ShipmentCreateToplineProps) {
   const edit = mode === 'edit';
+  const view = mode === 'view';
   return (
     <div className="csc-topline">
-      <h1 className="csc-topline__title">{edit ? 'Sửa lô hàng' : 'Tạo lô hàng'}</h1>
-      <span className="csc-topline__progress">
-        Bắt buộc: <strong>{requiredDone}/{requiredTotal}</strong>
-      </span>
-      <ShipmentCreateActions
-        className="csc-topline__actions"
-        variant="topline"
-        mode={mode}
-        saving={saving}
-        onCancel={onCancel}
-        onSaveDraft={onSaveDraft}
-        onCreate={onCreate}
-      />
+      <h1 className="csc-topline__title">{view ? 'Chi tiết lô hàng' : edit ? 'Sửa lô hàng' : 'Tạo lô hàng'}</h1>
+      {!view && (
+        <span className="csc-topline__progress">
+          Bắt buộc: <strong>{requiredDone}/{requiredTotal}</strong>
+        </span>
+      )}
+      {view ? (
+        <ShipmentViewActions
+          className="csc-topline__actions"
+          variant="topline"
+          onBack={onBack ?? onCancel}
+          onEdit={onEdit}
+          editLocked={editLocked}
+        />
+      ) : (
+        <ShipmentCreateActions
+          className="csc-topline__actions"
+          variant="topline"
+          mode={mode}
+          saving={saving}
+          onCancel={onCancel}
+          onSaveDraft={onSaveDraft}
+          onCreate={onCreate}
+        />
+      )}
     </div>
   );
 }

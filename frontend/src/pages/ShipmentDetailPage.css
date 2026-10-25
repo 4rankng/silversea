@@ -1,6 +1,11 @@
 /* ShipmentDetailPage — read-only Wave 0 detail.
    Layout: stacked cards in a responsive grid. Cards mirror the panel
-   aesthetic used by DebitNote / Trip detail pages. */
+   aesthetic used by DebitNote / Trip detail pages.
+   SIL-481: since the route renders the create workspace in view mode, NO
+   page imports this file anymore — it is the frozen /shipments/:id family
+   pinned by src/styles/*.styles.test.ts and stays until the removed panels
+   find their next host (testplan/cases/case-QA-2026-10-25-sil481-postview.md),
+   after which the pins retire with it. */
 
 .shipment-detail {
   display: flex;

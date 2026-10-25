@@ -1,0 +1,53 @@
+=== check-structure — post review fixes ===
+src/pages/AccountingInvoiceTrackingPage.tsx: 473L exceeds frozen ceiling 460L (ratchet only shrinks)
+src/pages/CustomersPage.tsx: 1144L exceeds frozen ceiling 963L (ratchet only shrinks)
+src/pages/DebtDetailPage.tsx: 838L exceeds frozen ceiling 816L (ratchet only shrinks)
+src/pages/DebtListPage.tsx: 612L exceeds frozen ceiling 548L (ratchet only shrinks)
+src/pages/DispatchDetailPlanPage.tsx: 445L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/pages/DriverTripDetailPage.tsx: 723L exceeds frozen ceiling 691L (ratchet only shrinks)
+src/pages/ExpenseEntryPage.tsx: 730L exceeds frozen ceiling 704L (ratchet only shrinks)
+src/pages/ExpenseListPage.tsx: 404L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/pages/ForwarderSettlementCreatePage.tsx: 507L exceeds frozen ceiling 503L (ratchet only shrinks)
+src/pages/PayableListPage.tsx: 708L exceeds frozen ceiling 680L (ratchet only shrinks)
+src/pages/ShipmentDebitPage.tsx: 441L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/pages/TripDetailPage.tsx: 450L exceeds frozen ceiling 438L (ratchet only shrinks)
+src/pages/accounting/AccountingDebitClosePage.tsx: 795L exceeds frozen ceiling 432L (ratchet only shrinks)
+src/pages/accounting/DepositRefundTrackerPage.tsx: 454L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/pages/config/CompanyInfoConfigPage.tsx: 422L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/pages/config/DebitNoteTemplateEditorPage.tsx: 480L exceeds frozen ceiling 421L (ratchet only shrinks)
+src/pages/config/FactoriesConfigPage.tsx: 558L exceeds frozen ceiling 460L (ratchet only shrinks)
+src/pages/config/PenaltyReasonsConfigPage.tsx: 539L exceeds frozen ceiling 537L (ratchet only shrinks)
+src/pages/config/QuotationConfigPage.tsx: 482L exceeds frozen ceiling 440L (ratchet only shrinks)
+src/features/accounting/AccountingOverview.tsx: 469L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/accounting/AccountingTransportRegister.tsx: 403L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/accounting/PartyMonthlyProductionSummary.tsx: 451L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/dispatch/detailed-plan/AssignTruckGroupDialog.tsx: 505L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx: 980L exceeds frozen ceiling 455L (ratchet only shrinks)
+src/features/dispatch/detailed-plan/TripReassignDialog.tsx: 444L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/dispatch/master-plan/MasterPlanCardList.tsx: 436L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/dispatch/master-plan/MasterPlanGrid.tsx: 678L exceeds frozen ceiling 585L (ratchet only shrinks)
+src/features/ops/OpsExpenseFormModal.tsx: 681L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/shipments/create/ShipmentCreateContainerRow.tsx: 425L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/shipments/create/ShipmentCreateIdentitySection.tsx: 481L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/shipments/create/shipment-create-model.ts: 423L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/shipments/create/uui-searchable-field.tsx: 448L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/shipments/cus/CusContainerLedger.tsx: 1006L exceeds frozen ceiling 591L (ratchet only shrinks)
+src/features/shipments/cus/CusContainerLedgerRow.tsx: 616L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/shipments/cus/use-cus-detail.ts: 481L exceeds frozen ceiling 414L (ratchet only shrinks)
+src/features/shipments/debit/DebitLotTable.tsx: 533L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/features/shipments/detail/ShipmentContainerLedger.tsx: 1311L exceeds frozen ceiling 905L (ratchet only shrinks)
+src/components/Layout.tsx: 962L exceeds frozen ceiling 879L (ratchet only shrinks)
+src/components/billing/BillingDocumentBuilder.tsx: 785L exceeds frozen ceiling 784L (ratchet only shrinks)
+src/components/shipment/OperationalSiteCreateDialog.tsx: 629L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+src/components/trip/ContainerInstancesCard.tsx: 592L exceeds frozen ceiling 591L (ratchet only shrinks)
+src/components/trip/DriverContainerCard.tsx: 833L exceeds frozen ceiling 738L (ratchet only shrinks)
+src/components/trip/TripPodSubmission.tsx: 475L exceeds frozen ceiling 423L (ratchet only shrinks)
+src/components/untitled-ui/base/select/combobox.tsx: 493L exceeds frozen ceiling 486L (ratchet only shrinks)
+src/components/work-inbox/RoleWorkInbox.tsx: 523L exceeds frozen ceiling 499L (ratchet only shrinks)
+src/hooks/use-trip-form-submit.ts: 684L exceeds frozen ceiling 650L (ratchet only shrinks)
+src/api/dispatchPlanningClient.ts: 616L exceeds frozen ceiling 449L (ratchet only shrinks)
+src/api/driverClient.ts: 739L exceeds frozen ceiling 691L (ratchet only shrinks)
+src/api/keys.ts: 644L exceeds frozen ceiling 606L (ratchet only shrinks)
+src/api/shipmentClient.ts: 1283L exceeds frozen ceiling 1164L (ratchet only shrinks)
+src/lib/format.ts: 418L exceeds the 400L new-file ceiling — split it or justify a baseline entry
+EXIT=1

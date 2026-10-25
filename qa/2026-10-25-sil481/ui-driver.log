@@ -1,0 +1,43 @@
+2026-10-25T10:51:18.580Z [before] login cus OK (token 367 chars), BASE=http://localhost:7175, lot=300
+2026-10-25T10:51:47.411Z [before] 390 view-state {"path":"/shipments/300","h1":null,"totalInputs":0,"disabledInputs":0,"enabledInputs":0,"totalButtons":0,"enabledButtons":0,"billValue":null,"billDisabled":null,"hasProgressChip":false,"btnCreate":false,"btnDraft":false,"btnEditTop":false,"btnBackTop":true,"btnEditFooter":false,"btnBackFooter":false,"horizontalOverflow":false}
+2026-10-25T10:51:47.545Z [before] shot qa/2026-10-25-sil481/before-390.png
+2026-10-25T10:51:47.546Z [before] console-errors: none
+2026-10-25T10:52:10.964Z [before] 768 view-state {"path":"/shipments/300","h1":null,"totalInputs":0,"disabledInputs":0,"enabledInputs":0,"totalButtons":0,"enabledButtons":0,"billValue":null,"billDisabled":null,"hasProgressChip":false,"btnCreate":false,"btnDraft":false,"btnEditTop":false,"btnBackTop":true,"btnEditFooter":false,"btnBackFooter":false,"horizontalOverflow":false}
+2026-10-25T10:52:11.302Z [before] shot qa/2026-10-25-sil481/before-768.png
+2026-10-25T10:52:11.302Z [before] console-errors: none
+2026-10-25T10:52:34.689Z [before] 1440 view-state {"path":"/shipments/300","h1":null,"totalInputs":0,"disabledInputs":0,"enabledInputs":0,"totalButtons":0,"enabledButtons":0,"billValue":null,"billDisabled":null,"hasProgressChip":false,"btnCreate":false,"btnDraft":false,"btnEditTop":false,"btnBackTop":true,"btnEditFooter":false,"btnBackFooter":false,"horizontalOverflow":false}
+2026-10-25T10:52:34.904Z [before] shot qa/2026-10-25-sil481/before-1440.png
+2026-10-25T10:52:34.904Z [before] console-errors: none
+2026-10-25T10:52:35.034Z [before] done
+2026-10-25T10:53:14.025Z [after] login cus OK (token 367 chars), BASE=http://localhost:7176, lot=300
+2026-10-25T10:53:17.363Z [after] 390 view-state {"path":"/shipments/300","h1":"Chi tiết lô hàng","totalInputs":25,"disabledInputs":25,"enabledInputs":0,"totalButtons":20,"enabledButtons":11,"billValue":"SIL171-FB147-BL-V2","billDisabled":true,"hasProgressChip":false,"btnCreate":false,"btnDraft":false,"btnEditTop":true,"btnBackTop":true,"btnEditFooter":true,"btnBackFooter":true,"horizontalOverflow":false}
+2026-10-25T10:53:17.427Z [after] shot qa/2026-10-25-sil481/after-390.png
+2026-10-25T10:53:17.428Z [after] console-errors: none
+2026-10-25T10:53:20.143Z [after] 768 view-state {"path":"/shipments/300","h1":"Chi tiết lô hàng","totalInputs":25,"disabledInputs":25,"enabledInputs":0,"totalButtons":20,"enabledButtons":11,"billValue":"SIL171-FB147-BL-V2","billDisabled":true,"hasProgressChip":false,"btnCreate":false,"btnDraft":false,"btnEditTop":true,"btnBackTop":true,"btnEditFooter":true,"btnBackFooter":true,"horizontalOverflow":false}
+2026-10-25T10:53:20.358Z [after] shot qa/2026-10-25-sil481/after-768.png
+2026-10-25T10:53:20.358Z [after] console-errors: none
+2026-10-25T10:53:23.015Z [after] 1440 view-state {"path":"/shipments/300","h1":"Chi tiết lô hàng","totalInputs":25,"disabledInputs":25,"enabledInputs":0,"totalButtons":20,"enabledButtons":11,"billValue":"SIL171-FB147-BL-V2","billDisabled":true,"hasProgressChip":false,"btnCreate":false,"btnDraft":false,"btnEditTop":true,"btnBackTop":true,"btnEditFooter":true,"btnBackFooter":true,"horizontalOverflow":false}
+2026-10-25T10:53:23.110Z [after] shot qa/2026-10-25-sil481/after-1440.png
+2026-10-25T10:53:23.115Z [after] click Chuyển sang sửa → true
+2026-10-25T10:53:24.634Z [after] after-edit {"path":"/shipments/300/edit","h1":"Sửa lô hàng","btnSave":true}
+2026-10-25T10:53:24.904Z [after] shot qa/2026-10-25-sil481/after-1440-after-click-edit.png
+2026-10-25T10:53:27.428Z [after] click Quay lại → true
+2026-10-25T10:53:28.886Z [after] shot qa/2026-10-25-sil481/after-1440-after-click-back-list.png path=/shipments
+2026-10-25T10:53:28.886Z [after] console-errors: none
+2026-10-25T10:53:28.995Z [after] done
+2026-10-25T11:03:44.323Z [after] login cus OK (token 367 chars), BASE=http://localhost:7176, lot=300
+2026-10-25T11:03:54.502Z [after] 390 view-state {"path":"/shipments/300","h1":"Chi tiết lô hàng","totalInputs":25,"disabledInputs":25,"enabledInputs":0,"totalButtons":12,"enabledButtons":3,"billValue":"SIL171-FB147-BL-V2","billDisabled":true,"hasProgressChip":false,"btnCreate":false,"btnDraft":false,"btnEditTop":true,"btnBackTop":true,"btnEditFooter":true,"btnBackFooter":true,"horizontalOverflow":false}
+2026-10-25T11:03:54.630Z [after] shot qa/2026-10-25-sil481/after-390.png
+2026-10-25T11:03:54.630Z [after] console-errors: none
+2026-10-25T11:03:58.823Z [after] 768 view-state {"path":"/shipments/300","h1":"Chi tiết lô hàng","totalInputs":25,"disabledInputs":25,"enabledInputs":0,"totalButtons":12,"enabledButtons":3,"billValue":"SIL171-FB147-BL-V2","billDisabled":true,"hasProgressChip":false,"btnCreate":false,"btnDraft":false,"btnEditTop":true,"btnBackTop":true,"btnEditFooter":true,"btnBackFooter":true,"horizontalOverflow":false}
+2026-10-25T11:03:59.023Z [after] shot qa/2026-10-25-sil481/after-768.png
+2026-10-25T11:03:59.023Z [after] console-errors: none
+2026-10-25T11:04:02.372Z [after] 1440 view-state {"path":"/shipments/300","h1":"Chi tiết lô hàng","totalInputs":25,"disabledInputs":25,"enabledInputs":0,"totalButtons":12,"enabledButtons":3,"billValue":"SIL171-FB147-BL-V2","billDisabled":true,"hasProgressChip":false,"btnCreate":false,"btnDraft":false,"btnEditTop":true,"btnBackTop":true,"btnEditFooter":true,"btnBackFooter":true,"horizontalOverflow":false}
+2026-10-25T11:04:02.532Z [after] shot qa/2026-10-25-sil481/after-1440.png
+2026-10-25T11:04:02.538Z [after] click Chuyển sang sửa → true
+2026-10-25T11:04:04.069Z [after] after-edit {"path":"/shipments/300/edit","h1":"Sửa lô hàng","btnSave":true}
+2026-10-25T11:04:04.181Z [after] shot qa/2026-10-25-sil481/after-1440-after-click-edit.png
+2026-10-25T11:04:07.143Z [after] click Quay lại → true
+2026-10-25T11:04:08.756Z [after] shot qa/2026-10-25-sil481/after-1440-after-click-back-list.png path=/shipments
+2026-10-25T11:04:08.756Z [after] console-errors: none
+2026-10-25T11:04:09.013Z [after] done

@@ -138,6 +138,11 @@
 .csc-mode input { position: absolute; opacity: 0; pointer-events: none; }
 .csc-mode__option { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); white-space: nowrap; transition: background-color var(--t-fast), color var(--t-fast); }
 .csc-mode label:hover .csc-mode__option { background: var(--surface-2); color: var(--fg-1); }
+/* SIL-481: the read-only review keeps every control disabled — the hover must
+   not paint an editing affordance the view cannot honor (design law: read-only
+   views never grow editing affordances). */
+.csc-mode label:has(input:disabled) { cursor: default; }
+.csc-mode label:has(input:disabled):hover .csc-mode__option { background: transparent; color: var(--fg-2); }
 .csc-mode input:checked + span { background: var(--ink); color: var(--surface); }
 .csc-mode input:focus-visible + span { outline: 2px solid var(--accent-2); outline-offset: -2px; }
 .csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: end; gap: 12px; min-width: 0; }
