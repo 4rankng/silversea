@@ -77,9 +77,10 @@ table hover is neutral and fine-pointer-only, including sticky cells.
 
 ### Status / value cells
 - **Use** — `StatusText` (`frontend/src/components/shared/StatusText.tsx`, card `20260924_21`): plain text + one 7px dot — no pill/fill/border. 28 usages; legacy `Badge` (`shared/Badge.tsx`) delegates to it (purge at the shared layer).
+- **Row-status chip (grouped rows only)** — `LedgerGroupedList`'s 24px filled pill (`ledger-glist__chip`, SIL-478 verdict 2026-10-25; law-book ruling 2026-10-25): the phone grouped rows' ONE sanctioned chip, tones via `--chip-*` tokens. Inline cell statuses stay `StatusText`.
 - **Never** — 145 bespoke `*badge*/*chip*/*pill*/*tag*` classes re-declaring radius/fill/colour: `.tc-status-pill` (17, `features/trips/*`), `.penalty-sev-pill` (5), `.penalty-grade-badge` (5), `.cus-direction-badge` (3, `ShipmentsPage.css:369`), `.dtp-pill` (4), `.container-tag` (3). 20 CSS files still hardcode status hex (`#177448`, `#A0444E`).
-- **Divergence** — 1 primitive / 28 uses vs 145 bespoke chip classes.
-- **Enforced by** — `src/components/shared/StatusText.test.tsx`; `src/styles/semantic-token-contrast.styles.test.ts` (status token ≥4.5:1); `src/styles/operational-color-contract.styles.test.ts`.
+- **Divergence** — 1 primitive / 28 uses vs 145 bespoke chip classes (plus the sanctioned grouped-row chip).
+- **Enforced by** — `src/components/shared/StatusText.test.tsx`; `src/styles/semantic-token-contrast.styles.test.ts` (status token ≥4.5:1); `src/styles/operational-color-contract.styles.test.ts`; `src/components/shared/LedgerGroupedList.test.tsx` (chip geometry + token pins).
 - **Gap** — nothing forbids a new page-local status pill; the 145 chips are unchecked.
 
 ### Status strips / dots

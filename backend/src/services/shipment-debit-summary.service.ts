@@ -47,6 +47,9 @@ export async function getShipmentDebitSummary(query: {
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
     tradeDirection: s.shipments.tradeDirection,
+    // SIL-478 — the phone row's meta line rides the lot's own delivery date
+    // (the same edd the list orders/filters by).
+    expectedDeliveryDate: s.shipments.expectedDeliveryDate,
     // GP-01 (2026-10-23) — cargo measures for the CUS merge bar's total
     // tấn/CBM (same columns the dispatch grids read).
     cargoWeightKg: s.shipments.cargoWeightKg,
@@ -239,6 +242,10 @@ export async function getShipmentDebitSummary(query: {
   const tripCountRows = await db.select({
     shipmentId: s.trips.shipmentId,
     total: sql<number>`count(*)::int`,
+    // SIL-478 — the phone meta's "n cont": Σ container_count over the same
+    // active-trip scope (physical containers on the lot — NOT the chốt's
+    // fulfillment-only money scope; the shadow line still owns that law).
+    containers: sql<number>`coalesce(sum(${s.trips.containerCount}), 0)::int`,
   }).from(s.trips)
     .where(and(
       inArray(s.trips.shipmentId, lotIds),
@@ -247,6 +254,7 @@ export async function getShipmentDebitSummary(query: {
     ))
     .groupBy(s.trips.shipmentId);
   const tripCountByLot = new Map(tripCountRows.map((row) => [row.shipmentId, row.total]));
+  const containerCountByLot = new Map(tripCountRows.map((row) => [row.shipmentId, row.containers]));
 
   // Debit-lock sync (card _19): the active cost lock drives 🔓/🔒 — a lot
   // with an active lock reads LOCKED with its lock time.
@@ -467,6 +475,10 @@ export async function getShipmentDebitSummary(query: {
       factoryAddress: lot.factoryAddress,
       billOrBookNumber: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       customsNumber: [...(declarationNumbersByLot.get(lot.id) ?? [])].join(', ') || null,
+      // SIL-478 — the phone row's meta segments (ngày giao · n cont). Both
+      // null on an intake-only lot: the FE drops the segment, never a 0.
+      deliveryDate: lot.expectedDeliveryDate ?? null,
+      containerCount: tripCountByLot.has(lot.id) ? (containerCountByLot.get(lot.id) ?? null) : null,
       documentsSummary: null,
       // GP-01 — the merge bar's cargo totals read the lot's own measures.
       cargoWeightKg: lot.cargoWeightKg ?? null,

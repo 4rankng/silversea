@@ -1,0 +1,8 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175
+LOGIN ok role=cus
+PROBE role=cus w=390 {"viewport":{"w":390,"h":844},"recordCardCount":0,"matrixRendered":false,"matrixScrollWidth":null,"firstCardLeftText":null,"firstCardFacts":null,"chip":null,"kebabCount":0}
+PROBE role=cus w=768 {"viewport":{"w":768,"h":844},"recordCardCount":0,"matrixRendered":true,"matrixScrollWidth":1348,"firstCardLeftText":null,"firstCardFacts":null,"chip":{"fontFamily":"\"Be Vietnam Pro\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif","fontSize":"11px","height":"22px","background":"rgb(255, 255, 255)","color":"rgb(95, 104, 114)"},"kebabCount":208}
+LOGIN ok role=admin
+PROBE role=admin w=390 {"viewport":{"w":390,"h":844},"recordCardCount":20,"matrixRendered":false,"matrixScrollWidth":null,"firstCardLeftText":"HANGE4769700 | Công Ty Tnhh Một Thành Viên Long Minh","firstCardFacts":["Doanh thu","Tổng chi","Lợi nhuận","Trạng tháiĐang mở","Cước vận tải (Auto)"],"chip":null,"kebabCount":0}
+PROBE role=admin w=768 {"viewport":{"w":768,"h":844},"recordCardCount":0,"matrixRendered":true,"matrixScrollWidth":1348,"firstCardLeftText":null,"firstCardFacts":null,"chip":{"fontFamily":"\"Be Vietnam Pro\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif","fontSize":"11px","height":"22px","background":"rgb(255, 255, 255)","color":"rgb(95, 104, 114)"},"kebabCount":208}
+DONE label=before

@@ -627,3 +627,33 @@ Checkbox column + action-bar [Gộp hàng] (layers icon, no emoji) replacing
 the on-demand merge mode, and the ⋯ kebab as the row's ONE action affordance
 (no standalone KHÓA LÔ HÀNG button mid-layout).
 *Source:* owner screenshots + audit 23/10, spec final v2 message 1819 SGT.
+
+**Ruling 2026-10-25 (owner ticket SIL-478 — "/shipments-debit mobile: rows
+TRỐNG"; owner-approved consult verdict).** The phone grouped rows land a NEW
+pattern that supersedes two earlier laws FOR THIS PATTERN (grouped ledger
+rows at ≤640px), while everything else stands:
+
+1. *Filled 24px status chip replaces text+dot on grouped rows* (§1's
+   2026-09-24 text+dot contract, card 20260924_21): the row-status chip is a
+   24px pill (padding 0 8px, radius 999, font 12/16/500, letter-spacing
+   .01em) in the verdict's Untitled-UI tints — Đang mở #EFF8FF/#B2DDFF/
+   #175CD3, Đã thu #ECFDF3/#ABEFC6/#027A48, Quá hạn #FEF3F2/#FECDCA/#B42318,
+   khác #F2F4F7/#EAECF0/#344054 — tokenized as `--chip-{tone}-{bg|border|
+   text}` (styles/tokens.css); component CSS references var() only (drift
+   ratchet). `StatusText` remains the treatment for INLINE cell statuses.
+   Shared implementation: `components/shared/LedgerGroupedList.tsx`.
+   Enforcement: `LedgerGroupedList.test.tsx` CSS pins (24px/999/token colors,
+   no raw hex) + the tokens pin.
+2. *The row is the expand control* (the 23/10 ⋯-kebab law was a desktop
+   ruling): on grouped rows there is no per-row action button — the row tap
+   (and Enter/Space) opens the detail; the selection checkbox is the only
+   nested interactive and never propagates. Row geometry: 2-column grid
+   (`minmax(0,1fr)` + auto), padding 12px, min-height 64px; line 1 identity
+   14px/600 truncate, line 2 meta 12px truncate ("Số Bill · ngày · n cont");
+   right side money 16px/600 tabular + chip on ONE baseline. Grouped
+   container: 1px hairline, 12px radius, white surface, no per-row
+   gaps/shadows; `:active`/selected read through `--surface-2` — no
+   decorative row highlight (the audit's sage band). First consumers:
+   /shipments-debit phone rows.
+*Source:* plan.tingting.vip SIL-478 (vision audit + deepseek consult verdict,
+owner "IMPLEMENT THEO VERDICT"), landed 2026-10-25.

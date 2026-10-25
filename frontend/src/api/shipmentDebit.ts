@@ -7,15 +7,22 @@ import type { ShipmentDebitEditPayload } from '@tingting/shared';
 /** One collapsed lot row on the CUS settlement screen (Chi phí - Quyết toán). */
 export interface ShipmentDebitLotRow {
   /** Card _202: the row's OWN customer. The list can span customers, so the L2
-   *  workspace keys its fee catalog off this, never off the page's filter. */
+   *  workspace keys its fee catalog off this, never off the page's filter.
+   *  Nullable like the shared zod contract — the customer LEFT JOIN can miss
+   *  (SIL-478 P0: the phone row renders '—', never an empty identity). */
   customerId: number | null;
   shipmentId: number;
   code: string;
-  customerName: string;
+  customerName: string | null;
   factoryName: string | null;
   factoryAddress: string | null;
   billOrBookNumber: string;
   customsNumber: string | null;
+  /** SIL-478 — the phone meta segments: the lot's delivery date (YYYY-MM-DD)
+   *  and its active container count. Optional/nullable like every late-added
+   *  wire field; absent = the meta drops the segment. */
+  deliveryDate?: string | null;
+  containerCount?: number | null;
   /** Lot-level proof summary, e.g. "5/6" — null when nothing is recorded yet. */
   documentsSummary: string | null;
   /** GP-01 — cargo measures (kg / CBM decimal strings) for the merge bar's

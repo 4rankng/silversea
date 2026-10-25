@@ -93,6 +93,15 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // null when ungrouped or when the row IS the principal.
   revGroupPrincipalRef: z.string().nullable(),
   costGroupPrincipalRef: z.string().nullable(),
+  // ── SIL-478 (2026-10-25) — the phone row's meta line ("Bill · ngày · n
+  // cont"). `deliveryDate` = the lot's expected delivery date (the same
+  // edd the list orders and filters by); `containerCount` = Σ active trips'
+  // container_count (non-deleted, non-CANCELED — physical containers on the
+  // lot, not the chốt's fulfillment-only money scope). Both nullable/optional
+  // like every late-added wire field: an older response simply drops the
+  // meta segment instead of failing.
+  deliveryDate: z.string().nullable().optional(),
+  containerCount: z.number().int().nonnegative().nullable().optional(),
 });
 
 // Case 2026-10-17 — the L1 shadow line must NAME what it excludes: one entry

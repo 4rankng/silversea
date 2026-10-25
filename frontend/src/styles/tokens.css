@@ -184,6 +184,26 @@
   --info-soft: #E8F1EF;
   --info-text: #25574F;
 
+  /* --- Status chip (filled pill, SIL-478 verdict 2026-10-25) --- */
+  /* The owner-approved SIL-478 consult verdict specs the row-status chip as a
+     24px filled pill (Untitled UI tints) for the grouped ledger rows — a dated
+     supersession of the 2026-09-24 text+dot ruling for THIS pattern (inline
+     cell statuses stay StatusText). Raw hex lives here, per the drift
+     ratchet; consumers reference var() only. Four tones: open (blue), done
+     (green), overdue (red), neutral (gray). */
+  --chip-open-bg: #EFF8FF;
+  --chip-open-border: #B2DDFF;
+  --chip-open-text: #175CD3;
+  --chip-done-bg: #ECFDF3;
+  --chip-done-border: #ABEFC6;
+  --chip-done-text: #027A48;
+  --chip-overdue-bg: #FEF3F2;
+  --chip-overdue-border: #FECDCA;
+  --chip-overdue-text: #B42318;
+  --chip-neutral-bg: #F2F4F7;
+  --chip-neutral-border: #EAECF0;
+  --chip-neutral-text: #344054;
+
   /* --- Sidebar (forest green) --- */
   --sb-bg: #005A2D;
   --sb-gradient-start: #005A2D;
