@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-xnk-font/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  105 passed (105)
+   Start at  11:44:18
+   Duration  3.83s (transform 632ms, setup 251ms, import 1.25s, tests 2.03s, environment 831ms)
+
