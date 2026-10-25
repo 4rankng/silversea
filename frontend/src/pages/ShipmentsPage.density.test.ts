@@ -41,26 +41,27 @@ describe('shipment container editor density', () => {
     expect(rowSource).toContain("onStartQuickEdit(item, 'notes')");
   });
 
-  it('uses the create-form spreadsheet pattern instead of two tall operational bands', () => {
+  it('uses the grouped multi-line spreadsheet pattern instead of two tall operational bands', () => {
     expect(ledgerSource).toContain('<table className="cus-container-table">');
-    expect(ledgerRowSource).toContain('<ShipmentContainerCell');
-    expect(ledgerRowSource).toContain("import { ShipmentContainerCell } from '../create/ShipmentContainerCell';");
+    // SIL-483: the drawer row is the grouped multi-line sheet — value lines
+    // with ghost editors, no ShipmentContainerCell reveal shells.
+    expect(ledgerRowSource).toContain('cus-line cus-line--trigger');
+    expect(ledgerRowSource).not.toContain('<ShipmentContainerCell');
     expect(ledgerSource).toContain('<th scope="col">Container</th>');
-    expect(ledgerSource).toContain('<th scope="col">Giờ hẹn đóng/trả</th>');
-    // FB-045 lan 2 (card 201026140000) supersedes the 2026-09-08 percentage
-    // doctrine: px column floors + a table min-width; narrower drawers scroll
-    // horizontally in the __table-scroll band instead of squeezing columns.
-    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1238px;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
-    expect(css).toMatch(/\.cus-container-col__site\s*\{\s*width:\s*95px;/);
-    expect(css).toMatch(/\.cus-container-table tbody \.csc-container-cell\s*\{\s*padding:\s*0;/);
-    expect(css).toMatch(
-      /\.cus-container-cell :is\(\.searchable-select__value, \.searchable-select__placeholder\)\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/,
-    );
-    expect(ledgerRowSource).toContain('label: option.code');
+    expect(ledgerSource).toContain('<th scope="col">Giờ đóng/trả</th>');
+    // SIL-483 supersedes the FB-045 px-floor doctrine: percentage tracks (the
+    // consult px grid at its 1088px reference) mean the sheet compresses with
+    // the drawer instead of scrolling — the AC "không scroll ngang ở ≥1024".
+    expect(css).toMatch(/\.cus-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*border-collapse:\s*collapse;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
+    expect(css).toMatch(/\.cus-container-table-scroll\s*\{[^}]*border:\s*1px solid var\(--hairline, var\(--line\)\);/);
+    // Anti-nesting: hairline horizontals only — no vertical borders.
+    expect(css).toMatch(/\.cus-container-table th,\s*\n\.cus-container-table td\s*\{[^}]*border-right:\s*0;[^}]*border-bottom:\s*1px solid var\(--hairline, var\(--line\)\);/);
+    // Ghost inputs: no border, hover fill, grouped lines own 28px hits.
     expect(css).toMatch(/\.cus-container-cell input,[\s\S]*?box-sizing:\s*border-box;[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?min-height:\s*28px;/);
+    expect(css).toMatch(/\.cus-container-cell \.cus-line\s*\{[^}]*min-height:\s*28px;/);
+    expect(css).toMatch(/\.cus-container-cell \.cus-line--trigger:hover[\s\S]*?background:\s*var\(--hairline-hover, var\(--surface-2\)\);/);
     expect(css).toMatch(/\.cus-container-ledger__head\s*\{/);
-    expect(css).not.toMatch(/\.cus-container-record__tier\s*\{/);
     expect(ledgerSource).not.toContain('cus-container-cell--save');
     expect(ledgerSource).not.toContain('Lưu container');
   });
@@ -68,29 +69,26 @@ describe('shipment container editor density', () => {
   it('switches the worksheet into two-column task cards while retaining touch-sized controls', () => {
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-row\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-column:\s*1 \/ -1;/);
-    expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-cell--identity\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
     expect(ledgerRowSource).toMatch(/<SearchableSelect[\s\S]*?size="sm"/);
     expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-cell input,[\s\S]*?\.cus-container-table \.cus-container-cell \.searchable-select__trigger\s*\{[^}]*min-height:\s*var\(--control-max-h\);[^}]*font-size:\s*var\(--control-field-font-size\);/);
     expect(css).toMatch(/\.shipments-page \.ds-pagination__controls\s*\{[\s\S]*?flex-wrap:\s*wrap;/);
   });
 
-  // FB-045 lan 2 (card 201026140000) SUPERSEDES card 20260923_9's percentage
-  // grid: the add-container row still rides the ledger's colgroup, but the
-  // tracks own px floors now (content-sized) and the set must sum to the
-  // table min-width — a track below its content is what squeezed the add
-  // row's segmented giờ hẹn input and let Thêm/Hủy spill over it.
-  it('keeps every ledger column on one px floor grid that sums to the table min-width', () => {
+  // SIL-483 SUPERSEDES card 201026140000/FB-045 lan 2 (px floors + min-width):
+  // the consult's own AC — "không scroll ngang ở ≥1024" — is incompatible with
+  // 1088px of px floors inside a 960px drawer, so the tracks are the consult
+  // px grid expressed as percentages of its 1088px reference. At the wide
+  // drawer the sheet reads exactly the specced pixel grid; below it, grouped
+  // cells compress. The add row leaves the grid at ≤1000px (single-track form)
+  // because the segmented giờ hẹn input cannot live in a 12.87% track.
+  it('keeps every ledger column on one proportional grid derived from the consult px table', () => {
     const colgroup = ledgerSource.slice(ledgerSource.indexOf('<colgroup>'), ledgerSource.indexOf('</colgroup>'));
     const classes = [...colgroup.matchAll(/<col className="(cus-container-col__\w+)"/g)].map((match) => match[1]);
     expect(classes).toEqual([
-      'cus-container-col__identity',
       'cus-container-col__declaration',
-      'cus-container-col__type',
+      'cus-container-col__identity',
       'cus-container-col__route',
-      'cus-container-col__dispatch',
       'cus-container-col__carrier',
-      'cus-container-col__plate',
-      'cus-container-col__site',
       'cus-container-col__site',
       'cus-container-col__weight',
       'cus-container-col__appointment',
@@ -98,43 +96,46 @@ describe('shipment container editor density', () => {
     ]);
 
     const widths = classes.map((className) => {
-      const rule = new RegExp(`\\.${className} \\{ width: (\\d+)px; \\}`).exec(css);
-      expect(rule, `${className} carries a px floor`).toBeTruthy();
+      const rule = new RegExp(`\\.${className} \\{ width: ([\\d.]+)%; \\}`).exec(css);
+      expect(rule, `${className} carries its percentage track`).toBeTruthy();
       return Number(rule![1]);
     });
-    const minWidth = Number(/\.cus-container-table \{[^}]*min-width: (\d+)px;/.exec(css)![1]);
-    expect(widths.reduce((total, width) => total + width, 0)).toBe(minWidth);
+    const total = widths.reduce((sum, width) => sum + width, 0);
+    expect(Math.round(total * 100) / 100).toBe(100);
 
-    // FB-045 laws on this ledger: the giờ hẹn column floors the one-line
-    // header AND the add-row segmented datetime input's max-content; the
-    // actions column floors Thêm + Hủy on one line so the pair can never
-    // paint over the giờ hẹn cell again.
-    const appointment = Number(/\.cus-container-col__appointment \{ width: (\d+)px; \}/.exec(css)![1]);
-    expect(appointment).toBeGreaterThanOrEqual(150);
-    const actions = Number(/\.cus-container-col__actions \{ width: (\d+)px; \}/.exec(css)![1]);
-    expect(actions).toBeGreaterThanOrEqual(100);
-    // The one-line value law for "HH:mm DD/MM/YYYY".
+    // The consult px reference each track derives from (1088px sum).
+    const pxReference: Record<string, number> = {
+      'cus-container-col__declaration': 120,
+      'cus-container-col__identity': 200,
+      'cus-container-col__route': 160,
+      'cus-container-col__carrier': 220,
+      'cus-container-col__site': 100,
+      'cus-container-col__weight': 100,
+      'cus-container-col__appointment': 140,
+      'cus-container-col__actions': 48,
+    };
+    for (const [index, className] of classes.entries()) {
+      expect(Math.round(widths[index]! / 100 * 1088)).toBe(pxReference[className]!);
+    }
+    // The one-line value law for the giờ đóng/trả mask.
     expect(css).toMatch(/\.cus-appointment-trigger__text\s*\{[^}]*white-space:\s*nowrap;/);
     expect(css).toMatch(/\.cus-appointment-trigger__text\s*\{[^}]*text-overflow:\s*ellipsis;/);
-    // The add-actions pair WRAPS inside its floor (FB-045 lan 2): during
-    // `adding` the submit label swaps to the wider "Đang thêm…" — a wrapping
-    // pair can never spill onto the giờ hẹn cell in any label state.
+    // The add-actions pair WRAPS inside its track — during `adding` the submit
+    // label swaps to the wider "Đang thêm…" and stacking can never spill.
     expect(css).toMatch(/\.cus-container-ledger__add-actions\s*\{[^}]*flex-wrap:\s*wrap;/);
   });
 
-  // Card 20260923_9 residual (QA rung, staging 390): inside the card the add
-  // row was a 2-column grid, so Trọng lượng (kg) rendered 160.5px wide in a
-  // 353px row — the other half of its row blank, unlike Số container, which
-  // owns its whole row. Phones drop the add row to a single track so every
-  // field takes its full row; the 2-column card stays for wider drawers.
-  it('gives every add-container field its whole row on phones', () => {
+  // Card 20260923_9 residual, re-scoped by SIL-483: the add-container form
+  // gives every field its whole row once the sheet compresses (≤1000px
+  // container) — the segmented giờ hẹn input cannot live in a 12.87% track.
+  it('gives every add-container field its whole row once the sheet compresses', () => {
     expect(css).toMatch(
-      /@container shipment-drawer \(max-width: 560px\)[\s\S]*?\.cus-container-table \.cus-container-ledger__add-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/,
+      /@container shipment-drawer \(max-width: 1000px\)[\s\S]*?\.cus-container-table \.cus-container-ledger__add-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/,
     );
     // The single track is only reachable while the card layout owns the row —
-    // a bare 1fr override on the table row would fight the 11-column grid.
+    // a bare 1fr override on the table row would fight the 8-track grid.
     expect(css).toMatch(
-      /@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-container-table \.cus-container-ledger__add-row\s*\{[\s\S]*?display:\s*grid;/,
+      /@container shipment-drawer \(max-width: 1000px\)[\s\S]*?\.cus-container-table \.cus-container-ledger__add-row\s*\{[\s\S]*?display:\s*grid;/,
     );
   });
 });

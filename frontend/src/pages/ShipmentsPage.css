@@ -1458,12 +1458,35 @@
   text-align: right;
 }
 
+/* SIL-483 (consult px table): drawer width ladder — ≥1280: min(92vw,1200px);
+   1024–1279: min(96vw,960px); <1024 full-screen. The expanded toggle
+   (Drawer `expandable`) overrides every rung with the full viewport. */
 .cus-shipment-drawer {
-  width: min(1180px, 100vw);
-  max-width: min(1180px, 100vw);
+  width: 100vw;
+  max-width: 100vw;
   background: var(--surface);
   container-name: shipment-drawer;
   container-type: inline-size;
+}
+
+@media (min-width: 1024px) {
+  .cus-shipment-drawer {
+    width: min(96vw, 960px);
+    max-width: min(96vw, 960px);
+  }
+}
+
+@media (min-width: 1280px) {
+  .cus-shipment-drawer {
+    width: min(92vw, 1200px);
+    max-width: min(92vw, 1200px);
+  }
+}
+
+/* Expanded state beats the ladder (two classes out-rank the media rules). */
+.cus-shipment-drawer.drawer--expanded {
+  width: 100vw;
+  max-width: 100vw;
 }
 
 /* SIL-480 (owner spec 25/10, consult px table): the lot drawer chrome is a
@@ -1513,6 +1536,19 @@
 .cus-shipment-drawer .drawer__close svg {
   width: 16px;
   height: 16px;
+}
+
+/* SIL-483 supplements 3+4: Xóa lô rides the header as the same 32×32 ghost
+   chrome as close/expand (class pair `drawer__close cus-drawer-lot-delete`),
+   with the destructive red hover the consult pins for the row trash. */
+.cus-shipment-drawer .cus-drawer-lot-delete:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--overdue-text);
+}
+
+.cus-shipment-drawer .cus-drawer-lot-delete:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
 }
 
 .cus-shipment-drawer .drawer__body {
@@ -1585,8 +1621,11 @@
   width: 100%;
   min-width: 0;
   overflow-x: auto;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  /* SIL-483 anti-nesting: the scroll band is the table container — layer 2 of
+     the two allowed borders (drawer = layer 1). Radius rides the house 8px
+     token (the raw 10px is retired). */
+  border: 1px solid var(--hairline, var(--line));
+  border-radius: var(--app-radius-sm);
   background: var(--surface);
   scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent;
   scrollbar-width: thin;
@@ -1594,10 +1633,15 @@
 
 .cus-container-table {
   width: 100%;
-  /* FB-045 lan 2 (card 201026140000): the sum of the px column floors below —
-   * narrower drawers scroll horizontally in the __table-scroll band.
-   * Card 261022095235a: +128px for the Số tờ khai column (12 tracks now). */
-  min-width: 1238px;
+  /* SIL-483: percentage tracks derived from the consult px table at its 1088px
+     reference (Tờ khai 120 · Container 200 · Tuyến 160 · Nhà xe/BKS 220 ·
+     Nâng/Hạ 100 · Trọng lượng 100 · Giờ đóng/trả 140 · Actions 48). A fixed
+     layout with proportional tracks never scrolls horizontally — the consult's
+     own "không scroll ngang ở ≥1024" — and reads as exactly the specced pixel
+     grid at the wide drawer; below it, grouped cells compress instead. The
+     FB-045 px-floor + min-width doctrine it supersedes squeezed the sheet
+     against the very grouped-cell redesign this ticket ships. */
+  min-width: 0;
   border-collapse: collapse;
   table-layout: fixed;
   background: var(--surface);
@@ -1615,20 +1659,17 @@
  * lý", not chật cứng); card mode (@container ≤760px) resets min-width and
  * never sees the column grid. Wrapping columns still wrap (route, site names)
  * per the no-truncation doctrine. */
-.cus-container-col__identity { width: 120px; }
-/* Card 261022095235a: tờ khai per-container — holds the mono number (11+
- * chars at caption size), the click-to-edit trigger, and the compact Copy
- * affordance beside it; below the drawer floor it scrolls with the grid. */
-.cus-container-col__declaration { width: 128px; }
-.cus-container-col__type { width: 85px; }
-.cus-container-col__route { width: 95px; }
-.cus-container-col__dispatch { width: 78px; }
-.cus-container-col__carrier { width: 82px; }
-.cus-container-col__plate { width: 85px; }
-.cus-container-col__site { width: 95px; }
-.cus-container-col__weight { width: 95px; }
-.cus-container-col__appointment { width: 164px; }
-.cus-container-col__actions { width: 116px; }
+/* SIL-483 tracks: % of the 1088px consult reference, in column order
+   (declaration → identity → route → carrier → site → weight → appointment →
+   actions); sums to 100.00%. */
+.cus-container-col__declaration { width: 11.03%; } /* 120px */
+.cus-container-col__identity { width: 18.38%; } /* 200px */
+.cus-container-col__route { width: 14.71%; } /* 160px */
+.cus-container-col__carrier { width: 20.22%; } /* 220px */
+.cus-container-col__site { width: 9.19%; } /* 100px */
+.cus-container-col__weight { width: 9.19%; } /* 100px */
+.cus-container-col__appointment { width: 12.87%; } /* 140px */
+.cus-container-col__actions { width: 4.41%; } /* 48px */
 
 .cus-container-table th.cus-container-cell--actions,
 .cus-container-table td.cus-container-cell--actions {
@@ -1636,11 +1677,14 @@
   padding: 4px 2px;
 }
 
+/* SIL-483 anti-nesting: hairline horizontals ONLY — no vertical borders, and
+   the outer band already carries layer 2, so rows carry nothing but the
+   divider. */
 .cus-container-table th,
 .cus-container-table td {
   min-width: 0;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-right: 0;
+  border-bottom: 1px solid var(--hairline, var(--line));
 }
 
 .cus-container-table th:last-child,
@@ -1648,7 +1692,10 @@
 .cus-container-table tbody tr:last-child > * { border-bottom: 0; }
 
 .cus-container-table thead th {
-  padding: 8px 6px;
+  /* Consult: header band 40px. */
+  min-height: 40px;
+  height: 40px;
+  padding: 6px 8px;
   background: var(--surface-2);
   color: var(--ink-2);
   font-size: var(--text-caption-size);
@@ -1660,11 +1707,13 @@
   white-space: normal;
   overflow-wrap: normal;
   word-break: normal;
+  vertical-align: middle;
 }
 
 .cus-container-table tbody th,
 .cus-container-table tbody td {
-  padding: 8px 6px;
+  /* Consult: body rows 56–64 tall; the grouped cells own the height. */
+  padding: 4px 2px;
   background: var(--surface);
   color: var(--ink);
   font-size: var(--text-caption-size);
@@ -1677,24 +1726,173 @@
   white-space: normal;
 }
 
-.cus-container-table tbody .csc-container-cell {
-  padding: 0;
-  vertical-align: middle;
-}
-
 .cus-container-cell > strong { font: inherit; }
 
-/* Drawer ledger cells must share one typography scale. The base
- * `.csc-container-cell__display` rule hard-codes 13px for the create-form
- * spreadsheet, which leaves the Biển số / Nâng / Hạ / Giờ hẹn rows in the
- * read-only CuS container ledger visually offset from the same column on
- * rows that are still editable. Inherit the parent td's 12px / medium so
- * both branches render at the same size — only the placeholder tone (and
- * any hover/focus ring) should differ. */
-.cus-container-cell .csc-container-cell__display {
-  font-size: inherit;
-  font-weight: inherit;
-  line-height: inherit;
+/* ── SIL-483 grouped multi-line cell ──────────────────────────────────────
+ * One cell = one or two (plus aux) 28px ghost lines. Line 1: 500 --ink;
+ * line 2: 400 --ink-2; aux links ride a 20px muted line. Hover/focus fill is
+ * the only chrome a line owns — no frames, no nested cards (anti-nesting:
+ * "input trong bảng = ghost", "bảng chỉ hairline ngang"). */
+.cus-container-cell .cus-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cus-container-cell .cus-line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 4px;
+  border-radius: var(--app-radius-sm);
+}
+
+.cus-container-cell .cus-line--primary { font-weight: var(--fw-medium); color: var(--ink); }
+.cus-container-cell .cus-line--secondary { font-weight: var(--fw-regular); color: var(--ink-2); }
+.cus-container-cell .cus-line--aux {
+  min-height: 20px;
+  gap: 10px;
+}
+
+.cus-container-cell .cus-line__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The chevron hint: 12px --text-subtle, revealed on hover/focus only (always
+   visible on coarse pointers where hover never comes). */
+.cus-line__chevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--text-subtle, var(--ink-3));
+  opacity: 0;
+  transition: var(--t-fast);
+}
+
+.cus-container-cell .cus-line--trigger:hover,
+.cus-container-cell .cus-line--trigger:focus-visible,
+.cus-appointment-trigger:hover,
+.cus-appointment-trigger:focus-visible,
+.cus-appointment-trigger--active {
+  background: var(--hairline-hover, var(--surface-2));
+}
+
+.cus-container-cell .cus-line--trigger:hover .cus-line__chevron,
+.cus-container-cell .cus-line--trigger:focus-visible .cus-line__chevron,
+.cus-appointment-trigger:hover .cus-line__chevron,
+.cus-appointment-trigger:focus-visible .cus-line__chevron,
+.cus-appointment-trigger--active .cus-line__chevron {
+  opacity: 1;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .cus-container-cell .cus-line__chevron { opacity: 1; }
+}
+
+.cus-container-cell .cus-line--trigger {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cus-container-cell .cus-line--trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Empty pick lines read as '—' (--text-subtle). */
+.cus-line--empty .cus-line__value {
+  color: var(--text-subtle, var(--ink-3));
+}
+
+/* Ghost editors inside a line — the anti-nesting input law: no border, no
+   background; hover fills, focus keeps the house ring. */
+.cus-container-cell input,
+.cus-container-cell .searchable-select__trigger {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
+  transition: var(--t-fast);
+}
+
+.cus-container-cell input:hover:not(:focus):not(:disabled):not([readonly]),
+.cus-container-cell .searchable-select__trigger:hover {
+  background: var(--hairline-hover, var(--surface-2));
+}
+
+.cus-container-cell input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--surface);
+}
+
+.cus-container-cell :is(.searchable-select__value, .searchable-select__placeholder) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.cus-container-cell .searchable-select__placeholder {
+  color: var(--text-subtle, var(--ink-3));
+}
+
+/* Inline editor span (số container / tờ khai): the ghost input plus the
+   primary Lưu button ride the same line. */
+.cus-inline-editor,
+.cus-declaration-editor {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.cus-inline-editor input,
+.cus-declaration-editor input {
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: var(--hairline-hover, var(--surface-2));
+}
+
+/* ── Numeric cells (Nâng/Hạ, Trọng lượng) — right-aligned ────────────────
+ * The consult's tabular-nums is NOT declared here: the font-family contract
+ * (SIL-469/470 fix-tabular-ban-gate) bans page-local tabular declarations —
+ * Be Vietnam Pro ships proportional figures and the shared primitives own
+ * any future switch. The alignment is the page's business; the figures are
+ * the primitive's. */
+.cus-container-cell--num {
+  text-align: right;
+}
+
+.cus-container-cell--num .cus-line { justify-content: flex-end; }
+
+.cus-container-cell--num .cus-line__value,
+.cus-container-cell--num strong {
+  text-align: right;
+}
+
+.cus-container-cell--num .searchable-select__trigger { justify-content: flex-end; }
+.cus-container-cell--num .searchable-select__trigger .searchable-select__value,
+.cus-container-cell--num .searchable-select__trigger .searchable-select__placeholder {
+  text-align: right;
 }
 
 .cus-container-cell--identity {
@@ -1706,30 +1904,19 @@
   vertical-align: middle;
 }
 
-.cus-container-cell--identity strong {
+.cus-container-cell--identity .cus-line--primary {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  font-family: var(--font-data);
   font-weight: 400;
-  font-size: var(--text-caption-size);
   letter-spacing: 0;
-  white-space: nowrap;
 }
 
-.cus-container-cell--identity strong[data-missing-container='true'] {
+/* A missing number wraps its fallback instead of clipping. */
+.cus-container-cell--identity .cus-line__value[data-missing-container='true'] {
   white-space: normal;
   overflow-wrap: normal;
   word-break: normal;
-}
-
-.cus-container-cell__identity-inner {
-  position: relative;
-  display: grid;
-  /* The ordinal track keeps its natural width: the identity column is sized so
-   * an 11-character ISO container number fits on ONE line, and widening the
-   * track wraps it. The copy button is narrower than the track + gap, so it
-   * replaces the ordinal on hover without touching a glyph. */
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  min-height: 28px;
-  gap: 8px;
 }
 
 .cus-container-row__ordinal {
@@ -1740,56 +1927,32 @@
   min-width: 14px;
 }
 
-/* Dispatch modifier emitted dynamically:
+/* Dispatch chip rides the Container line 1 (SIL-483 merged the Điều vận
+   column away). Anti-nesting: soft fill, NO border, pill radius, 22px tall,
+   12/16/500. Tones ride the house status tokens; the modifier is emitted
+   dynamically:
    `cus-container-dispatch--${line.dispatchStatus.toLowerCase()}` */
 .cus-container-dispatch {
   display: inline-flex;
+  align-items: center;
   max-width: 100%;
-  padding: 2px 6px;
-  border-radius: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--app-radius-full);
   color: var(--ink-2);
-  background: var(--surface-2);
-  font-size: var(--text-caption-size);
-  font-weight: var(--fw-semibold);
-  line-height: 1.3;
+  background: var(--chip-neutral-bg, var(--surface-2));
+  font-size: var(--text-data-size);
+  font-weight: var(--fw-medium);
+  line-height: 16px;
   overflow-wrap: anywhere;
 }
 
-/* Text-only dispatch chips (2026-09-08): the tinted blob backgrounds were
- * visual noise in the ledger — tone now survives via text color alone.
- * AWAITING_VEHICLE ("Chờ phân xe") keeps the warning tone: it is the state
- * that needs dispatch action. PLANNED ("Đã phân xe") reads as info: the
- * vehicle is on the line, dispatch is done until the trip runs. */
-.cus-container-dispatch--awaiting-vehicle { color: var(--warning-text); background: transparent; }
-.cus-container-dispatch--planned { color: var(--info-text); background: transparent; }
-.cus-container-dispatch--created { color: var(--accent-strong); background: transparent; }
-.cus-container-dispatch--in_transit { color: var(--info-text); background: transparent; }
-.cus-container-dispatch--completed { color: var(--success-text); background: transparent; }
-
-.cus-container-cell input,
-.cus-container-cell .searchable-select__trigger {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: 28px;
-  padding-inline: 6px;
-  border-radius: var(--app-radius-sm);
-  font-size: var(--text-caption-size);
-  line-height: 1.35;
-}
-
-.cus-container-cell :is(.searchable-select__value, .searchable-select__placeholder) {
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.cus-container-cell input:focus-visible {
-  border-color: var(--accent);
-  outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
-  outline-offset: 1px;
-}
+.cus-container-dispatch--awaiting-vehicle { color: var(--info-text); background: var(--info-soft); }
+.cus-container-dispatch--planned { color: var(--info-text); background: var(--info-soft); }
+.cus-container-dispatch--created { color: var(--accent-2); background: var(--accent-soft); }
+.cus-container-dispatch--in_transit { color: var(--info-text); background: var(--info-soft); }
+.cus-container-dispatch--completed { color: var(--success-text); background: var(--success-soft); }
 
 .cus-detail-collapse {
   position: sticky;
@@ -1940,36 +2103,10 @@
   .cus-container-table thead { display: none; }
   .cus-container-table tbody { display: grid; gap: 8px; }
 
-  /* Card mode: the add row is a card like a container row, its input-bearing
-     cells keep the labelled 2-column layout, and the columns the add API does
-     not fill drop out (no empty labelled fields). */
-  .cus-container-table .cus-container-ledger__add-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 10px;
-    margin-top: 8px;
-    padding: 10px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-  }
-
-  .cus-container-table .cus-container-ledger__add-row > * {
-    display: grid;
-    min-width: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    text-align: left;
-  }
-
+  /* Card mode: the add row rides the shared ≤1000px single-track form (the
+     add-row rules live in that band now); only the blank cells drop out
+     here. */
   .cus-container-table .cus-container-ledger__add-blank { display: none; }
-
-  .cus-container-table .cus-container-ledger__add-row .cus-container-cell--actions {
-    grid-column: 1 / -1;
-  }
-  .cus-container-table .cus-container-ledger__add-row .cus-container-ledger__add-actions {
-    justify-content: flex-end;
-  }
 
   .cus-container-table .cus-container-row {
     position: relative;
@@ -2007,8 +2144,7 @@
     border-bottom: 1px solid var(--line);
   }
 
-  .cus-container-table .cus-container-cell--identity .cus-container-cell__identity-inner {
-    grid-template-columns: minmax(0, 1fr);
+  .cus-container-table .cus-container-cell--identity .cus-group {
     gap: 4px;
   }
 
@@ -2055,18 +2191,50 @@
 /* Card 20260923_9 residual (QA rung, staging 390): inside the card the add row
    was a 2-column grid, so Trọng lượng (kg) rendered 160.5px wide in a 353px
    row — the other half of its row blank, unlike Số container, which owns its
-   whole row. Phones drop the add row to a single track so every field takes
-   its full row (the wider 2-column card above is unchanged). */
-@container shipment-drawer (max-width: 560px) {
+   whole row. SIL-483 re-extends the single-track law up to a 1000px container:
+   the 8-track sheet compresses proportionally below its 1088px reference, and
+   the add row's segmented giờ hẹn input cannot live in a 12.87% track that
+   narrow — the add FORM drops to one field per row while the container ROWS
+   keep the spreadsheet until card mode takes over. */
+@container shipment-drawer (max-width: 1000px) {
   .cus-container-table .cus-container-ledger__add-row {
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid var(--hairline, var(--line));
+    background: var(--surface-2);
   }
-}
 
-@media (max-width: 1039px) {
-  .cus-shipment-drawer {
-    width: min(100vw, 620px);
-    max-width: min(100vw, 620px);
+  .cus-container-table .cus-container-ledger__add-row > * {
+    display: grid;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+  }
+
+  .cus-container-table .cus-container-ledger__add-row .cus-container-cell::before {
+    margin-bottom: 4px;
+    color: var(--ink-3);
+    content: attr(data-label);
+    font-size: var(--text-label-size);
+    font-weight: var(--fw-semibold);
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .cus-container-table .cus-container-ledger__add-row .cus-container-ledger__add-blank {
+    display: none;
+  }
+
+  .cus-container-table .cus-container-ledger__add-row .cus-container-cell--actions {
+    grid-column: 1 / -1;
+  }
+
+  .cus-container-table .cus-container-ledger__add-row .cus-container-ledger__add-actions {
+    justify-content: flex-end;
   }
 }
 
@@ -2268,39 +2436,41 @@
 }
 
 .cus-appointment-trigger {
+  /* SIL-483: the appointment mask is ONE ghost cell — no frame; hover fills
+     (shared .cus-appointment-trigger hover rule in the grouped-cell block),
+     the chevron rides .cus-line__chevron. */
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   width: 100%;
   min-height: 28px;
-  padding: 2px 6px;
-  border: 1px solid var(--line);
+  padding: 0 4px;
+  border: 0;
   border-radius: var(--app-radius-sm, 6px);
-  background: var(--surface);
+  background: transparent;
   color: var(--ink);
   font-family: inherit;
   font-size: var(--text-caption-size);
   line-height: 1.3;
   text-align: left;
   cursor: pointer;
-  transition: all var(--t-fast);
+  transition: var(--t-fast);
   box-sizing: border-box;
 }
 
-.cus-appointment-trigger:hover {
-  border-color: var(--brand);
-  background: var(--surface-2);
+.cus-appointment-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
-.cus-appointment-trigger:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 1px;
+/* The read-only appointment mask is a span — never advertise a pointer. */
+.cus-appointment-trigger--static {
+  cursor: default;
 }
 
 .cus-appointment-trigger--active {
-  border-color: var(--brand);
-  background: var(--surface-2);
-  box-shadow: 0 0 0 1px var(--brand);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .cus-appointment-trigger__text {
@@ -2315,73 +2485,19 @@
   font-weight: 500;
 }
 
-.cus-appointment-trigger__text--empty {
-  color: var(--ink-3);
+.cus-appointment-trigger.cus-line--empty .cus-appointment-trigger__text {
+  color: var(--text-subtle, var(--ink-3));
   font-weight: 400;
 }
 
 /* ── Card 261022095235a (CUS-05): per-container tờ khai cell ──────────────
- * Click-to-edit trigger mirrors the appointment trigger's shape so the two
- * inline editors in one grid read as one family; the editor span swaps the
- * trigger for an input + Lưu, and the compact Copy affordance sits beside
- * the persisted number (always visible — it is the card's explicit fan-out
- * action, mirroring the workboard editor's labeled copy button). */
-.cus-declaration-trigger {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 28px;
-  padding: 2px 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--app-radius-sm, 6px);
-  background: var(--surface);
-  color: var(--ink);
-  font-family: inherit;
-  font-size: var(--text-caption-size);
-  line-height: 1.3;
-  text-align: left;
-  cursor: pointer;
-  transition: all var(--t-fast);
-  box-sizing: border-box;
-}
-
-.cus-declaration-trigger:hover {
-  border-color: var(--brand);
-  background: var(--surface-2);
-}
-
-.cus-declaration-trigger:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 1px;
-}
-
-.cus-declaration-trigger--empty {
-  color: var(--ink-3);
-  font-weight: 400;
-}
+ * The trigger lives on the shared grouped-line chrome now (SIL-483:
+ * .cus-line--trigger); only the Copy affordance stays file-local — it is the
+ * card's explicit fan-out action, mirroring the workboard editor's labeled
+ * copy button. */
 
 .cus-container-cell--declaration {
   white-space: nowrap;
-}
-
-.cus-declaration-editor {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  min-width: 0;
-}
-
-.cus-declaration-editor input {
-  width: 100%;
-  min-width: 0;
-  padding: 2px 6px;
-  border: 1px solid var(--brand);
-  border-radius: var(--app-radius-sm, 6px);
-  font-family: inherit;
-  font-size: var(--text-caption-size);
-  line-height: 1.3;
-  box-sizing: border-box;
 }
 
 .cus-declaration-copy {
@@ -2390,10 +2506,10 @@
   gap: 3px;
   flex: none;
   padding: 2px 6px;
-  border: 1px solid var(--line-2);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink-3);
+  border: 0;
+  border-radius: var(--app-radius-full);
+  background: var(--chip-neutral-bg, var(--surface-2));
+  color: var(--ink-2);
   font-family: inherit;
   font-size: var(--text-caption-size);
   line-height: 1.3;
@@ -2833,70 +2949,66 @@
   white-space: pre-wrap;
 }
 
-/* ── Card 20260923_1: drawer lot ops ─────────────────────────────────────── */
-/* Xóa lô bar — topmost row of the drawer body; the inline error rides it. */
-/* SIL-480 (owner spec 25/10, consult px table): the lot actions render as one
-   segmented control — container 32px tall, 2px padding, #F2F4F7 band (house
-   --surface-2), items 28px, radius 8, 13/500; the active segment sits on the
-   white surface with a light shadow. Catalog provenance: Untitled UI PRO
-   application/slideout-menus (button-menu header row); Tailkit has no
-   segmented/drawer match (searched 25/10) — house rebuild on tokens. */
-.cus-drawer-lot-bar {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  min-height: 32px;
-  padding: 2px;
-  border-radius: var(--radius-selector);
-  background: var(--surface-2);
-  margin: 0 0 16px;
-}
-.cus-drawer-lot-seg {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--radius-selector);
-  background: transparent;
-  color: var(--ink-2);
-  font-size: 13px;
-  font-weight: var(--fw-medium);
-  line-height: 1;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background 150ms var(--ease), color 150ms var(--ease);
-}
-.cus-drawer-lot-seg:hover { color: var(--ink); }
-.cus-drawer-lot-seg:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.cus-drawer-lot-seg--active {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--shadow-sm);
-}
+/* ── SIL-483 supplements 3+4: the drawer lot-bar tabs are GONE ────────────
+ * The drawer opens straight into the content; Xóa lô rides the header as the
+ * ghost trash (.cus-drawer-lot-delete, styled with the drawer head block) and
+ * the 'Chi tiết lô hàng' Link to /shipments/:id is removed (supplement 4 —
+ * wrong entry point; the page itself survives the post-creation flow). Only
+ * the blocked-delete banner remains, opening the body right under the header. */
 .cus-drawer-lot-error {
-  /* Sits between the control's 16px bottom margin and the next section:
-     pulled up 8 so the error rides 8px under the control, 16px above the
-     section — never inside the gray band. */
-  margin: -8px 0 16px;
+  margin: 0 0 16px;
   color: var(--danger-text);
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold, 600);
 }
 
-/* Per-row remove — lives in the row's own Thao tác cell (card 20260923_9).
-   CUS-10 (ruling 21/10): the action is the labeled `btn btn--danger-outline
-   btn--sm` danger button (markup owns the colors) that opens the confirm
-   dialog — this class only carries the cell centering. */
-.cus-container-row__remove {
-  margin: 0 auto;
+/* Per-row remove — SIL-483: the specced 32×32 ghost trash (icon 16), stacked
+   with the ghost complete-check for external-trip lines. Hover tints red per
+   the consult (#FEF3F2/#B42318 on house tokens); the CUS-10 confirm dialog
+   still stands between the click and the delete. */
+.cus-container-row__action-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
-.cus-container-row__remove:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.cus-container-row__remove,
+.cus-container-row__complete {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-selector);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: var(--t-fast);
+}
+
+.cus-container-row__remove:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--overdue-text);
+}
+
+.cus-container-row__remove:focus-visible,
+.cus-container-row__complete:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cus-container-row__complete:hover:not(:disabled) {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.cus-container-row__remove:disabled,
+.cus-container-row__complete:disabled { opacity: 0.35; cursor: not-allowed; }
 /* Touch viewports never hover. The copy affordance already reveals itself for
    coarse pointers; the DESTRUCTIVE action must not be the one the operator
    cannot find on mobile (card 20260923_1 acceptance). */
@@ -2919,25 +3031,26 @@
 }
 
 .cus-container-ledger__add-row input {
+  /* SIL-483 anti-nesting: the add row rides the same ghost law — no frame;
+     hover fill, house focus ring. */
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
   min-height: 28px;
-  padding: 0 6px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--app-radius-sm, 6px);
-  background: var(--surface);
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
   color: var(--ink);
   font-size: var(--text-caption-size);
   line-height: 1.35;
 }
 
-.cus-container-ledger__add-row input[aria-label='Số container'] { text-transform: uppercase; }
-.cus-container-ledger__add-row input:focus-visible {
-  border-color: var(--accent);
-  outline: 2px solid color-mix(in srgb, var(--accent) 24%, transparent);
-  outline-offset: 1px;
+.cus-container-ledger__add-row input:hover:not(:focus) {
+  background: var(--hairline-hover, var(--surface-2));
 }
+
+.cus-container-ledger__add-row input[aria-label='Số container'] { text-transform: uppercase; }
 
 /* QA-2026-09-23-02: the picker must never render as a sliver. It used to be
    `width="content"` (fit-content ⇒ ~2px trigger from react-aria's

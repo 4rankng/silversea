@@ -1,0 +1,27 @@
+SIL-483 UI drive — 2026-10-25
+Driver: node qa/2026-10-25-sil483/drive.mjs <baseUrl> <tag> (puppeteer-core 25.3.0, headless Chrome, 2x DPR)
+Auth: POST /api/auth/login cus/Abc123 (local dev, testplan/testaccounts.txt) → JWT injected via evaluateOnNewDocument BEFORE first paint
+Environment: BEFORE = main checkout dev server :7175 @ main 45549b7d (post SIL-480 merge) · AFTER = worktree fix-drawer-table dev server :7199 (this branch) · backend :3002 shared local
+Screenshots: sil483_{before,after}_{390,1024,1440}_drawer.png + sil483_after_1440_drawer-expanded.png (+ before 1440 non-expanded)
+Exit status: 0 (both runs; JSON reports sil483_{before,after}_report.json)
+
+Measured (after):
+- drawer width: 390→390 (full) · 1024→960 (min(96vw,960)) · 1440→1200 (min(92vw,1200)) · expanded@1440→1440 + drawer--expanded ✓
+- table scroll-x: 390 false · 1024 false (909/909) · 1440 false (1149/1149) — AC "không scroll ngang trong drawer" PASS (before@1440: 1238>1129 scrollsX TRUE)
+- headers: Số tờ khai · Container · Tuyến · Nhà xe/BKS · Nâng/Hạ · Trọng lượng · Giờ đóng/trả · Thao tác (8) ✓
+- hasLotBar false · chiTietLink false (supplements 3+4) · headerDelete true · expandButton true ✓
+- ledgerBeforeStatus true (layout parity order) ✓
+
+Pre-existing (NOT from this change, documented): design:drift radiusOffLadder 1→2 fails at HEAD itself
+(DebtListPage.css 3px + ClerkShipmentCreatePage.css 99px; baseline stale — SIL-480 recorded the same);
+pnpm size-check script broken at HEAD (retired structure.guard vitest filter, e54504bf) — plain
+`node scripts/check-structure.mjs` exit 0 (over-ceiling files pre-existing frozen ratchet).
+
+Re-run 2 (post code-review fixes: appointment read-only gate, idempotency-key release,
+declaration-copy-while-open hide, read-only titles, entrance-time expand reset):
+node drive.mjs http://localhost:7199 after — exit 0. Same measurements: drawer 390/960/1200,
+scrollsX false ×3, expanded 1440 + drawer--expanded, no lot bar, header trash + expand,
+ledger before Trạng thái lô. Screenshots overwritten with the final tree.
+Note: the read-only appointment static-mask branch (customerAppointmentEditable=false) has no
+row in the local demo data — covered by unit test (CusContainerLedger.test SIL-483 describe),
+NOT UI-driven; claim rung for that branch = code + unit test only.

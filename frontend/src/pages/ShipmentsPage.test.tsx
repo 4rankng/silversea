@@ -34,6 +34,7 @@ import ShipmentsPage from './ShipmentsPage';
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const addRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerAddRow.tsx'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
+const uiSource = readFileSync(resolve(process.cwd(), 'src/components/UI.tsx'), 'utf8');
 // FB-086 R29 remainder: the quick-edit modal presentation lives in the shared
 // component now (hosted by both the Tổng quan grid and the lot detail page).
 const quickEditModalSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/ShipmentQuickEditModal.tsx'), 'utf8');
@@ -485,9 +486,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   // Card 091026164530: the lot quick-view dialog ('Mở chi tiết lô hàng') was
   // reported to show a 'Tổng quan'/'Chi tiết' tablist on the first open and no
   // tablist on later opens. Verified against the design and on staging: the
-  // drawer is a single-view surface (lot bar → Trạng thái lô → Chi tiết
-  // container) that carries NO tablist at any width, and its content must be
-  // identical on every open of the same lot. Pin that consistency contract:
+  // drawer is a single-view surface (lot bar → Chi tiết container → Trạng thái
+  // lô, the SIL-483 create-form section order) that carries NO tablist at any
+  // width, and its content must be identical on every open of the same lot. Pin that consistency contract:
   // three open/close cycles, byte-identical dialog content, no tablist ever —
   // any reopen-divergent render state (a flag not reset on close, a
   // condition keyed to the detail cache) turns this red.
@@ -516,6 +517,27 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     }
     expect(new Set(opens).size).toBe(1);
+  });
+
+  it('opens straight into the content — no lot-bar tabs, ledger before Trạng thái lô (SIL-483)', async () => {
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    const drawer = await screen.findByRole('dialog');
+    // Supplements 3+4 (owner 25/10): the tab bar is gone — no segmented
+    // control and no 'Chi tiết lô hàng' Link to /shipments/:id in the drawer.
+    expect(document.querySelector('.cus-drawer-lot-bar')).toBeNull();
+    expect(within(drawer).queryByRole('link', { name: /Chi tiết lô hàng/ })).toBeNull();
+    // Header chrome instead: the Xóa lô ghost trash and the expand toggle
+    // ride the head-actions cluster beside close.
+    expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
+    expect(within(drawer).getByRole('button', { name: 'Phóng to toàn màn hình' })).toBeTruthy();
+    // Layout parity (/shipments/new section order): Nhận diện lô is the
+    // drawer head, so Hàng hóa/Container (the ledger) reads BEFORE the
+    // Trạng thái lô band (Điều vận/Phân xe + Chứng từ + Chi phí).
+    const ledger = within(drawer).getByLabelText('Chi tiết container');
+    const statusHeading = within(drawer).getByRole('heading', { name: 'Trạng thái lô' });
+    expect(ledger.compareDocumentPosition(statusHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('does not repeat the shipment-level closing or return date before container appointments', async () => {
@@ -2085,8 +2107,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const ledger = await screen.findByLabelText('Chi tiết container');
     expect(within(ledger).getByText('MSKU1234567')).toBeTruthy();
     expect(within(ledger).getByRole('columnheader', { name: 'Container' })).toBeTruthy();
-    expect(within(ledger).getByRole('columnheader', { name: 'Nhà xe' })).toBeTruthy();
-    expect(within(ledger).getByText('Giờ hẹn đóng/trả')).toBeTruthy();
+    expect(within(ledger).getByRole('columnheader', { name: 'Nhà xe/BKS' })).toBeTruthy();
+    expect(within(ledger).getByText('Giờ đóng/trả')).toBeTruthy();
     expect(within(masterRow()).getByText('Maersk')).toBeTruthy();
     expect(within(ledger).queryByText('Maersk')).toBeNull();
     expect(within(ledger).getByText('Đã tạo chuyến')).toBeTruthy();
@@ -2095,8 +2117,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const containerType = within(ledger).getByRole('button', { name: 'Loại container MSKU1234567' });
     expect(containerType.textContent).toBe('40HC');
     expect(containerType.textContent).not.toContain('Container 40HC');
-    expect(within(ledger).getByText('40HC', { selector: '.csc-container-cell__display' })).toBeTruthy();
-    expect(within(ledger).getByText('Nhà xe An Phát', { selector: '.csc-container-cell__display' })).toBeTruthy();
+    expect(within(ledger).getByText('40HC', { selector: '.searchable-select__value' })).toBeTruthy();
+    expect(within(ledger).getByText('Nhà xe An Phát', { selector: '.searchable-select__value' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
     expect(within(ledger).queryByText(/Chi phí không nhập tại đây/)).toBeNull();
     expect(screen.queryByText('Cước đầu ra')).toBeNull();
@@ -2546,9 +2568,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // Card 20260926_47: the create action rides the Row 1 actions cluster.
     expect(source).toMatch(/\{canCreateShipment && \(\s*<UUIButton/);
     // Container codes: one line, never bold, copy icon in the ordinal slot
-    // (user ruling 2026-09-18).
-    expect(css).toMatch(/\.cus-container-cell--identity strong\s*\{[^}]*font-weight:\s*400;[^}]*white-space:\s*nowrap;/);
-    expect(css).toMatch(/\.cus-container-cell--identity strong\[data-missing-container='true'\]\s*\{[^}]*white-space:\s*normal;/);
+    // (user ruling 2026-09-18; SIL-483 carries the law onto the grouped line).
+    expect(css).toMatch(/\.cus-container-cell--identity \.cus-line--primary\s*\{[^}]*font-weight:\s*400;/);
+    expect(css).toMatch(/\.cus-container-cell--identity \.cus-line__value\[data-missing-container='true'\]\s*\{[^}]*white-space:\s*normal;/);
     expect(css).toMatch(/\.cus-container-table thead th\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*normal;/);
     // 2026-09-18 relocation ruling: the copy affordance replaces the ordinal on
     // hover — same top-right slot, never over the container number.
@@ -2590,25 +2612,32 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).toContain("color={item.action.enabled ? 'primary' : 'secondary'}");
   });
 
-  it('normalizes the drawer chrome to the SIL-480 consult spec', () => {
-    // Owner spec 25/10 (consult px table, ticket SIL-480): header bar 56px,
-    // title 18/24/600 truncated, close 32×32 with a 16px icon, segmented lot
-    // control 32/28, content inset 20/24 with the first section 16px below
-    // the header divider. Catalog: Untitled UI PRO application/slideout-menus.
+  it('normalizes the drawer chrome to the SIL-480/SIL-483 consult spec', () => {
+    // Owner spec 25/10 (consult px table, tickets SIL-480 + SIL-483): header
+    // bar 56px, title 18/24/600 truncated, close 32×32 with a 16px icon,
+    // content inset 20/24 with the first section 16px below the header
+    // divider. Catalog: Untitled UI PRO application/slideout-menus.
     expect(css).toMatch(/\.cus-shipment-drawer \.drawer__head\s*\{[^}]*min-height:\s*calc\(56px \+ env\(safe-area-inset-top, 0px\)\);/);
     expect(css).toMatch(/\.cus-shipment-drawer \.drawer__head\s*\{[^}]*align-items:\s*center;/);
     expect(css).toMatch(/\.cus-shipment-drawer \.drawer__title\s*\{[^}]*font-size:\s*18px;[^}]*line-height:\s*24px;[^}]*font-weight:\s*var\(--fw-semibold\);[\s\S]*?text-overflow:\s*ellipsis;/);
     expect(css).toMatch(/\.cus-shipment-drawer \.drawer__close\s*\{[^}]*width:\s*32px;[\s\S]*?min-height:\s*32px;/);
     expect(css).toMatch(/\.cus-shipment-drawer \.drawer__close svg\s*\{[^}]*width:\s*16px;/);
-    // Segmented control: one 32px container on the house band, 28px items,
-    // active segment on the raised surface — never two loose buttons.
-    expect(css).toMatch(/\.cus-drawer-lot-bar\s*\{[^}]*min-height:\s*32px;[^}]*padding:\s*2px;[^}]*background:\s*var\(--surface-2\);/);
-    expect(css).toMatch(/\.cus-drawer-lot-seg\s*\{[^}]*height:\s*28px;[^}]*font-size:\s*13px;[^}]*font-weight:\s*var\(--fw-medium\);/);
-    expect(css).toMatch(/\.cus-drawer-lot-seg--active\s*\{[^}]*background:\s*var\(--surface\);[\s\S]*?box-shadow:\s*var\(--shadow-sm\);/);
-    expect(source).toContain('cus-drawer-lot-seg cus-drawer-lot-seg--active');
-    // The old loose-button chrome must not come back.
-    expect(source).not.toContain('cus-drawer-lot-detail');
-    expect(css).not.toMatch(/\.cus-drawer-lot-detail|\.cus-drawer-lot-delete/);
+    // SIL-483 supplements 3+4 (owner 25/10): the lot-bar tabs are GONE — the
+    // drawer opens straight into the content; Xóa lô is the header ghost
+    // trash (danger hover) and the /shipments/:id Link is removed. The
+    // segmented lot control must not come back.
+    expect(css).not.toMatch(/\.cus-drawer-lot-bar|\.cus-drawer-lot-seg/);
+    expect(source).not.toContain('cus-drawer-lot-bar');
+    expect(source).not.toContain('cus-drawer-lot-seg');
+    expect(source).toContain('cus-drawer-lot-delete');
+    expect(css).toMatch(/\.cus-shipment-drawer \.cus-drawer-lot-delete:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--danger-soft\);[^}]*color:\s*var\(--overdue-text\);/);
+    // SIL-483: the drawer width ladder + expand toggle (Maximize2 ghost beside
+    // close; expanded = full viewport).
+    expect(css).toMatch(/@media \(min-width: 1280px\)\s*\{\s*\.cus-shipment-drawer\s*\{[^}]*width:\s*min\(92vw, 1200px\);/);
+    expect(css).toMatch(/@media \(min-width: 1024px\)\s*\{\s*\.cus-shipment-drawer\s*\{[^}]*width:\s*min\(96vw, 960px\);/);
+    expect(css).toMatch(/\.cus-shipment-drawer\.drawer--expanded\s*\{[^}]*width:\s*100vw;/);
+    expect(uiSource).toContain('expandable');
+    expect(uiSource).toContain('Maximize2');
     // Content band: 16px below the divider, 20/24 inset owned by the body.
     expect(css).toMatch(/\.cus-shipment-drawer \.drawer__body\s*\{[^}]*padding:\s*16px 24px 20px;/);
     expect(css).toMatch(/\.cus-container-ledger\s*\{[^}]*padding:\s*0;/);

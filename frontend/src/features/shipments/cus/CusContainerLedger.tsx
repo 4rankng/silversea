@@ -117,6 +117,7 @@ export function ContainerLedger({
   onAppointmentSavedAndExit,
   canRemoveContainer,
   onContainerRemoved,
+  canEditContainerNumber,
 }: {
   detail: ShipmentCusWorkspaceDetail;
   onLineSaved: (line: ShipmentCusWorkspaceContainerLine | null) => Promise<void>;
@@ -149,6 +150,10 @@ export function ContainerLedger({
    *  host closes the drawer so the user lands on the refreshed list that no
    *  longer carries the deleted cont. */
   onContainerRemoved?: () => void;
+  /** SIL-483: gates the row's inline số-container edit on the same writer
+   *  roles the line update API enforces (requireWorkspaceWriter). Default
+   *  true keeps the ledger's affordance for hosts that pre-gate the surface. */
+  canEditContainerNumber?: boolean;
 }) {
   const [drafts, setDrafts] = useState<Record<number, ContainerLineDraft>>(() => (
     Object.fromEntries(detail.containers.map((c) => [c.id, lineDraft(c)]))
@@ -188,6 +193,10 @@ export function ContainerLedger({
   // hard delete with no undo.
   const [pendingRemoveLine, setPendingRemoveLine] = useState<ShipmentCusWorkspaceContainerLine | null>(null);
   const removeGateOpen = canRemoveContainer !== false;
+  // SIL-483: the số-container inline edit rides the same editing toggle and
+  // the same writer gate as the remove affordance (both mirror
+  // requireWorkspaceWriter on the line APIs).
+  const numberGateOpen = canEditContainerNumber !== false;
 
   const closeAddRow = useCallback(() => {
     setAddOpen(false);
@@ -687,6 +696,55 @@ export function ContainerLedger({
   // number, and only rows that themselves carry a persisted number.
   const emptyDeclarationCount = detail.containers.filter((c) => !(c.declarationNumber ?? '').trim()).length;
 
+  // ── SIL-483: per-container số container inline commit ────────────────────
+  // Same law as the tờ khai cell: an immediate per-row MERGED save read from
+  // the synchronous drafts mirror, so a number commit never strands the row's
+  // other unsaved drafts. The line update API owns the validation (ISO 6346
+  // check + in-lot duplicate 400); writer gating rides the same
+  // requireWorkspaceWriter route guard the host mirrors through
+  // canEditContainerNumber.
+  const commitContainerNumber = useCallback(async (lineId: number, value: string): Promise<boolean> => {
+    const line = detail.containers.find((c) => c.id === lineId);
+    if (!line) {
+      toast({ kind: 'error', message: 'Không tìm thấy container của lô hàng — đã tải lại danh sách.' });
+      return false;
+    }
+    const next = value.trim().toUpperCase();
+    const persisted = (line.containerNumber ?? '').trim();
+    if (next === persisted) return true;
+    setSaving(true);
+    let saved = false;
+    // Hoisted so the catch can release the key (commitDeclaration contract).
+    let signature = '';
+    try {
+      const expectedVersion = detail.summary.version ?? (line.shipmentVersion ?? 1);
+      const draft: ContainerLineDraft = draftsRef.current[line.id] ?? lineDraft(line);
+      const patch = {
+        ...buildContainerPatch(line, draft, detail, expectedVersion),
+        containerNumber: next || null,
+      };
+      signature = idempotencySignature('container', detail.summary.id, line.id, expectedVersion);
+      const idempotencyKey = getIdempotencyKey(signature);
+      const result = await updateCusShipmentContainerLine(detail.summary.id, line.id, patch, idempotencyKey);
+      clearIdempotencyKey(signature);
+      if (result?.line) {
+        await onLineSaved(result.line);
+      }
+      toast({ kind: 'success', message: next ? `Đã lưu số container ${next}.` : 'Đã xóa số container.' });
+      saved = true;
+    } catch (error) {
+      // Same recovery contract as commitDeclaration: release the key so a
+      // corrected retry at the same version cannot ride the stored payload
+      // hash into a spurious idempotency 409.
+      if (signature) clearIdempotencyKey(signature);
+      if (isOptimisticShipmentConflict(error)) onDetailStale?.();
+      toastActionError(toast, 'lưu số container', error, 'Không thể lưu số container.');
+    } finally {
+      setSaving(false);
+    }
+    return saved;
+  }, [clearIdempotencyKey, detail, getIdempotencyKey, onDetailStale, onLineSaved, toast]);
+
   const scheduleExit = useAppointmentSaveExit(isDirty, saving, onAppointmentSavedAndExit);
 
   /** _34: dismissal without commit — revert the line's appointment draft to
@@ -797,39 +855,30 @@ export function ContainerLedger({
         >
           <table className="cus-container-table">
             <caption className="sr-only">Danh sách container và điều vận</caption>
+            {/* SIL-483: the 8-column grouped grid (consult px table, % of the
+                1088px reference so the sheet compresses instead of scrolling —
+                AC "1024/1440 không scroll ngang trong drawer"). The old 12
+                tracks (Điều vận, Biển số, Nâng, Hạ as separate columns) are
+                merged: dispatch rides the Container line 1, BKS rides the
+                Nhà xe cell line 2, Nâng/Hạ share one grouped cell. */}
             <colgroup>
-              <col className="cus-container-col__identity" />
               <col className="cus-container-col__declaration" />
-              <col className="cus-container-col__type" />
+              <col className="cus-container-col__identity" />
               <col className="cus-container-col__route" />
-              <col className="cus-container-col__dispatch" />
               <col className="cus-container-col__carrier" />
-              <col className="cus-container-col__plate" />
               <col className="cus-container-col__site" />
-              <col className="cus-container-col__site" />
-              {/* Card 20260923_9: Trọng lượng + Thao tác join the ledger grid
-                  so the add-container row below can sit under every column it
-                  owns (weight was already a per-line field the drawer never
-                  showed; the action cell hosts the row Xóa and the add row's
-                  Thêm/Hủy). */}
               <col className="cus-container-col__weight" />
               <col className="cus-container-col__appointment" />
               <col className="cus-container-col__actions" />
             </colgroup>
             <thead><tr>
-              <th scope="col">Container</th>
               <th scope="col">Số tờ khai</th>
-              <th scope="col">Loại cont</th>
+              <th scope="col">Container</th>
               <th scope="col">Tuyến</th>
-              <th scope="col">Điều vận</th>
-              <th scope="col">Nhà xe</th>
-              <th scope="col">Biển số</th>
-              <th scope="col">Nâng</th>
-              <th scope="col">Hạ</th>
-              {/* The read cells render tấn (formatWeight); the add-row input
-                  at the foot of this column keeps its kg entry unit. */}
+              <th scope="col">Nhà xe/BKS</th>
+              <th scope="col">Nâng/Hạ</th>
               <th scope="col">Trọng lượng</th>
-              <th scope="col">Giờ hẹn đóng/trả</th>
+              <th scope="col">Giờ đóng/trả</th>
               <th scope="col" className="cus-container-cell--actions" aria-label="Thao tác">
                 <span className="sr-only">Thao tác</span>
               </th>
@@ -857,6 +906,8 @@ export function ContainerLedger({
                   showCopyDeclaration={declarationEditable && Boolean((line.declarationNumber ?? '').trim()) && emptyDeclarationCount > 0}
                   onCopyDeclaration={() => void copyDeclaration(line)}
                   copyingDeclaration={copyingDeclarationId === line.id}
+                  numberEditable={editing && numberGateOpen}
+                  onNumberCommit={numberGateOpen ? (value) => commitContainerNumber(line.id, value) : undefined}
                   onRemove={removeGateOpen ? () => setPendingRemoveLine(line) : undefined}
                   removing={removingId === line.id}
                 />

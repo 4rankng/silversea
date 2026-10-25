@@ -1,0 +1,82 @@
+{
+  "base": "http://localhost:7199",
+  "tag": "after",
+  "widths": {
+    "390": {
+      "drawerWidth": 390,
+      "hasLotBar": false,
+      "chiTietLink": false,
+      "headerDelete": true,
+      "expandButton": true,
+      "ledgerBeforeStatus": true,
+      "headerCells": [
+        "Số tờ khai",
+        "Container",
+        "Tuyến",
+        "Nhà xe/BKS",
+        "Nâng/Hạ",
+        "Trọng lượng",
+        "Giờ đóng/trả",
+        "Thao tác"
+      ],
+      "tableGeometry": {
+        "scrollWidth": 353,
+        "clientWidth": 353,
+        "scrollsX": false
+      },
+      "trashButtons": 3
+    },
+    "1024": {
+      "drawerWidth": 960,
+      "hasLotBar": false,
+      "chiTietLink": false,
+      "headerDelete": true,
+      "expandButton": true,
+      "ledgerBeforeStatus": true,
+      "headerCells": [
+        "Số tờ khai",
+        "Container",
+        "Tuyến",
+        "Nhà xe/BKS",
+        "Nâng/Hạ",
+        "Trọng lượng",
+        "Giờ đóng/trả",
+        "Thao tác"
+      ],
+      "tableGeometry": {
+        "scrollWidth": 909,
+        "clientWidth": 909,
+        "scrollsX": false
+      },
+      "trashButtons": 3
+    },
+    "1440": {
+      "drawerWidth": 1200,
+      "hasLotBar": false,
+      "chiTietLink": false,
+      "headerDelete": true,
+      "expandButton": true,
+      "ledgerBeforeStatus": true,
+      "headerCells": [
+        "Số tờ khai",
+        "Container",
+        "Tuyến",
+        "Nhà xe/BKS",
+        "Nâng/Hạ",
+        "Trọng lượng",
+        "Giờ đóng/trả",
+        "Thao tác"
+      ],
+      "tableGeometry": {
+        "scrollWidth": 1149,
+        "clientWidth": 1149,
+        "scrollsX": false
+      },
+      "trashButtons": 3
+    }
+  },
+  "expanded": {
+    "width": 1440,
+    "expandedClass": true
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "base": "http://localhost:7175",
+  "tag": "before",
+  "widths": {
+    "390": {
+      "drawerWidth": 390,
+      "hasLotBar": true,
+      "chiTietLink": true,
+      "headerDelete": false,
+      "expandButton": false,
+      "ledgerBeforeStatus": false,
+      "headerCells": [
+        "Container",
+        "Số tờ khai",
+        "Loại cont",
+        "Tuyến",
+        "Điều vận",
+        "Nhà xe",
+        "Biển số",
+        "Nâng",
+        "Hạ",
+        "Trọng lượng",
+        "Giờ hẹn đóng/trả",
+        "Thao tác"
+      ],
+      "tableGeometry": {
+        "scrollWidth": 353,
+        "clientWidth": 353,
+        "scrollsX": false
+      },
+      "trashButtons": 3
+    },
+    "1024": {
+      "drawerWidth": 620,
+      "hasLotBar": true,
+      "chiTietLink": true,
+      "headerDelete": false,
+      "expandButton": false,
+      "ledgerBeforeStatus": false,
+      "headerCells": [
+        "Container",
+        "Số tờ khai",
+        "Loại cont",
+        "Tuyến",
+        "Điều vận",
+        "Nhà xe",
+        "Biển số",
+        "Nâng",
+        "Hạ",
+        "Trọng lượng",
+        "Giờ hẹn đóng/trả",
+        "Thao tác"
+      ],
+      "tableGeometry": {
+        "scrollWidth": 571,
+        "clientWidth": 571,
+        "scrollsX": false
+      },
+      "trashButtons": 3
+    },
+    "1440": {
+      "drawerWidth": 1180,
+      "hasLotBar": true,
+      "chiTietLink": true,
+      "headerDelete": false,
+      "expandButton": false,
+      "ledgerBeforeStatus": false,
+      "headerCells": [
+        "Container",
+        "Số tờ khai",
+        "Loại cont",
+        "Tuyến",
+        "Điều vận",
+        "Nhà xe",
+        "Biển số",
+        "Nâng",
+        "Hạ",
+        "Trọng lượng",
+        "Giờ hẹn đóng/trả",
+        "Thao tác"
+      ],
+      "tableGeometry": {
+        "scrollWidth": 1238,
+        "clientWidth": 1129,
+        "scrollsX": true
+      },
+      "trashButtons": 3
+    }
+  }
+}

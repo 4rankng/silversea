@@ -46,6 +46,18 @@ export function formatVietnamDateInput(value: string | Date | null | undefined):
   return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
 }
 
+/** SIL-483: the drawer's ghost appointment mask reads "HH:mm DD/MM" — the
+ *  year is context the lot already carries, so the cell drops it and the full
+ *  "HH:mm DD/MM/YYYY" rides the title/aria text instead. Pure formatter over
+ *  the naive "YYYY-MM-DDTHH:mm" the popover drafts carry — no zone math, the
+ *  same parse contract as the shared formatDateTime24. */
+export function formatTimeShortDate(value: string | null | undefined): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value ?? '');
+  if (!match) return '';
+  const [, , month, day, hour, minute] = match;
+  return `${hour}:${minute} ${day}/${month}`;
+}
+
 export function formatVietnamDateTimeInput(value: string | Date | null | undefined): string {
   if (value == null || value === '') return '';
   const parts = getVietnamParts(value);

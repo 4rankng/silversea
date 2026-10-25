@@ -66,7 +66,10 @@ describe('Drawer keyboard focus', () => {
     expect(drawerStyles).toMatch(/\.drawer__foot\s*\{[^}]*padding:\s*8px 16px calc\(8px \+ env\(safe-area-inset-bottom, 0px\)\);/);
     expect(drawerStyles).toContain('padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;');
     expect(drawerStyles).toContain('padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));');
-    expect(shipmentStyles).toContain('padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;');
+    // SIL-480 superseded the old calc(16px…) phone band: the safe-area rides
+    // ABOVE the 56px head (min-height carries it), the body keeps 16/18/20.
+    expect(shipmentStyles).toContain('padding: env(safe-area-inset-top, 0px) 12px 0 16px;');
+    expect(shipmentStyles).toContain('padding: 16px 18px 20px;');
     expect(userStyles).toContain('padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));');
     expect(userStyles).toContain('padding: 10px max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));');
   });

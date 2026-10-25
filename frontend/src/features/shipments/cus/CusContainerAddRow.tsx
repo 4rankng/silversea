@@ -63,9 +63,9 @@ export const EMPTY_ADD_FIELDS: AddContainerFields = {
  * a free-floating flex form could not hold that promise (Chief 23/09 defect
  * "form thêm container không thẳng cột với bảng phía trên").
  *
- * Cell order MUST track the ledger's colgroup/thead:
- * Container · Loại cont · Tuyến · Điều vận · Nhà xe · Biển số · Nâng · Hạ ·
- * Trọng lượng (kg) · Giờ hẹn đóng/trả · Thao tác.
+ * Cell order MUST track the ledger's SIL-483 grouped colgroup/thead:
+ * Số tờ khai (blank) · Container (số + loại) · Tuyến · Nhà xe/BKS ·
+ * Nâng/Hạ · Trọng lượng (kg) · Giờ hẹn đóng/trả · Thao tác.
  */
 export function CusContainerAddRow({
   fields,
@@ -111,15 +111,44 @@ export function CusContainerAddRow({
 
   return (
     <tr className="cus-container-ledger__add-row" onKeyDown={submitOnEnter}>
+      {/* The tờ khai column's add-row cell stays EMPTY — the add API carries
+          no document fields; the lot's number rides the server-side
+          lot-default inherit (A.1+A.6), so the new row reads the lot's tờ khai
+          the moment it lands. The cell keeps the track so no upstream column
+          shifts. */}
+      <td className="cus-container-ledger__add-blank" />
       <th scope="row" data-label="Container" className="cus-container-cell cus-container-cell--identity">
-        <input
-          aria-label="Số container"
-          placeholder="Số container"
-          value={fields.containerNumber}
-          onChange={(event) => onChange({ containerNumber: event.target.value })}
-          autoFocus
-          maxLength={50}
-        />
+        <div className="cus-group">
+          <div className="cus-line cus-line--primary">
+            <input
+              aria-label="Số container"
+              placeholder="Số container"
+              value={fields.containerNumber}
+              onChange={(event) => onChange({ containerNumber: event.target.value })}
+              autoFocus
+              maxLength={50}
+            />
+          </div>
+          <div className="cus-line cus-line--secondary">
+            {/* SIL-68 (CUS-04): type-to-open suggestions. The native select
+                showed no list until a mouse click; the combobox opens +
+                prefix-filters ('2' → 20DC) the moment the operator types after
+                Tab-ing in. The '' pseudo-option becomes the placeholder;
+                clearing still commits '' through the shared onClear contract. */}
+            <USearchableField
+              label="Loại cont"
+              hideLabel
+              size="sm"
+              openOnType
+              className="cus-container-ledger__add-select"
+              value={fields.containerTypeId}
+              onChange={(value) => onChange({ containerTypeId: value })}
+              options={containerTypes.map((type) => ({ value: String(type.id), label: type.code }))}
+              placeholder="Chưa chọn loại cont"
+              disabled={adding}
+            />
+          </div>
+        </div>
         {numberHint.warning && (
           <div className="cus-container-ledger__add-hint" role="note">
             <AlertTriangle size={14} aria-hidden="true" />
@@ -136,52 +165,36 @@ export function CusContainerAddRow({
           </div>
         )}
       </th>
-      {/* Card 261022095235a: the tờ khai column's add-row cell stays EMPTY —
-          the add API carries no document fields; the lot's number rides the
-          server-side lot-default inherit (A.1+A.6), so the new row reads the
-          lot's tờ khai the moment it lands. The cell keeps the track so no
-          upstream column shifts. */}
-      <td className="cus-container-ledger__add-blank" />
-      <td data-label="Loại cont" className="cus-container-cell">
-        {/* SIL-68 (CUS-04): type-to-open suggestions. The native select showed
-            no list until a mouse click; the combobox opens + prefix-filters
-            ('2' → 20DC) the moment the operator types after Tab-ing in. The
-            '' pseudo-option becomes the placeholder; clearing still commits
-            '' through the shared onClear contract. */}
-        <USearchableField
-          label="Loại cont"
-          hideLabel
-          size="sm"
-          openOnType
-          className="cus-container-ledger__add-select"
-          value={fields.containerTypeId}
-          onChange={(value) => onChange({ containerTypeId: value })}
-          options={containerTypes.map((type) => ({ value: String(type.id), label: type.code }))}
-          placeholder="Chưa chọn loại cont"
-          disabled={adding}
-        />
-      </td>
       {/* Card 201026124500 (A.1): the copy-down columns SHOW their seeded
           values in the add row — Tuyến/Nhà xe/Nâng/Hạ read like the rows
           above before the operator ever submits. Điều vận (computed dispatch
           status) and Biển số (per-truck entry, ngoài danh sách A.1) keep an
-          empty cell; the row still covers every grid track so nothing
+          empty line; the row still covers every grid track so nothing
           upstream shifts (Chief 23/09). */}
       <td data-label="Tuyến" className="cus-container-cell">
         <strong>{fields.routeName || '—'}</strong>
       </td>
-      <td className="cus-container-ledger__add-blank" />
-      <td data-label="Nhà xe" className="cus-container-cell cus-container-cell--carrier">
-        <strong>{fields.carrierName || '—'}</strong>
+      <td data-label="Nhà xe/BKS" className="cus-container-cell cus-container-cell--carrier">
+        <div className="cus-group">
+          <div className="cus-line cus-line--primary">
+            <strong>{fields.carrierName || '—'}</strong>
+          </div>
+          <div className="cus-line cus-line--secondary">
+            <span>—</span>
+          </div>
+        </div>
       </td>
-      <td className="cus-container-ledger__add-blank" />
-      <td data-label="Nâng" className="cus-container-cell">
-        <strong>{fields.liftSiteName || '—'}</strong>
+      <td data-label="Nâng/Hạ" className="cus-container-cell cus-container-cell--num">
+        <div className="cus-group">
+          <div className="cus-line cus-line--primary">
+            <strong>{fields.liftSiteName || '—'}</strong>
+          </div>
+          <div className="cus-line cus-line--secondary">
+            <span>{fields.dropoffSiteName || '—'}</span>
+          </div>
+        </div>
       </td>
-      <td data-label="Hạ" className="cus-container-cell">
-        <strong>{fields.dropoffSiteName || '—'}</strong>
-      </td>
-      <td data-label="Trọng lượng (kg)" className="cus-container-cell">
+      <td data-label="Trọng lượng (kg)" className="cus-container-cell cus-container-cell--num">
         <input
           aria-label="Trọng lượng (kg)"
           placeholder="Trọng lượng (kg)"

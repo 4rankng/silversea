@@ -63,7 +63,7 @@ const detail = {
   selectors: { externalCarriers: [], ports: [], containerTypes: [], routes: [], carrierVehicles: [] },
 } as unknown as ShipmentCusWorkspaceDetail;
 
-function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyChange?: (dirty: boolean) => void; detail?: ShipmentCusWorkspaceDetail } = {}) {
+function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyChange?: (dirty: boolean) => void; detail?: ShipmentCusWorkspaceDetail; canEditContainerNumber?: boolean } = {}) {
   const props = {
     detail: opts.detail ?? detail,
     onLineSaved: vi.fn(),
@@ -72,6 +72,7 @@ function renderLedger(opts: { onAppointmentSavedAndExit?: () => void; onDirtyCha
     idPrefix: 'test',
     onAppointmentSavedAndExit: opts.onAppointmentSavedAndExit,
     onDirtyChange: opts.onDirtyChange,
+    canEditContainerNumber: opts.canEditContainerNumber,
   };
   const utils = render(
     <ToastProvider>
@@ -182,9 +183,11 @@ describe('ContainerLedger confirm affordances', () => {
 
     const table = screen.getByRole('table');
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
+    // SIL-483: the grouped 8-track sheet (Tờ khai · Container+Loại · Tuyến ·
+    // Nhà xe/BKS · Nâng/Hạ · Trọng lượng · Giờ đóng/trả · Thao tác).
     expect(headers).toEqual([
-      'Container', 'Số tờ khai', 'Loại cont', 'Tuyến', 'Điều vận', 'Nhà xe', 'Biển số',
-      'Nâng', 'Hạ', 'Trọng lượng', 'Giờ hẹn đóng/trả', 'Thao tác',
+      'Số tờ khai', 'Container', 'Tuyến', 'Nhà xe/BKS', 'Nâng/Hạ',
+      'Trọng lượng', 'Giờ đóng/trả', 'Thao tác',
     ]);
 
     const addRow = table.querySelector<HTMLTableRowElement>('tfoot tr');
@@ -199,39 +202,40 @@ describe('ContainerLedger confirm affordances', () => {
 
     // The add row covers every track, so no column upstream can shift.
     expect(addRow!.children).toHaveLength(headers.length);
-    expect(cellOf('input[aria-label="Số container"]').cellIndex).toBe(0);
-    expect(cellOf('.cus-container-ledger__add-select').cellIndex).toBe(2);
-    expect(cellOf('input[aria-label="Trọng lượng (kg)"]').cellIndex).toBe(9);
-    expect(cellOf('input[aria-label="Giờ hẹn đóng/trả"]').cellIndex).toBe(10);
-    expect(cellOf('.cus-container-ledger__add-actions').cellIndex).toBe(11);
+    expect(cellOf('input[aria-label="Số container"]').cellIndex).toBe(1);
+    expect(cellOf('.cus-container-ledger__add-select').cellIndex).toBe(1);
+    expect(cellOf('input[aria-label="Trọng lượng (kg)"]').cellIndex).toBe(5);
+    expect(cellOf('input[aria-label="Giờ hẹn đóng/trả"]').cellIndex).toBe(6);
+    expect(cellOf('.cus-container-ledger__add-actions').cellIndex).toBe(7);
 
-    // Card 201026124500 (A.1): the copy-down columns (Tuyến/Nhà xe/Nâng/Hạ)
-    // now carry their seeded cell; the tờ khai track (1 — inherited from the
-    // lot server-side, never typed here), Điều vận (computed) and Biển số
-    // (per-truck entry, ngoài danh sách A.1) keep an EMPTY cell — every track
-    // stays its own cell, never merged away. This fixture's rows carry no
-    // display names and an empty ports catalog, so the seeded cells read '—'
-    // here; the seeding suite pins the copied values themselves.
-    for (const index of [3, 5, 7, 8]) {
-      const cell = addRow!.children[index] as HTMLElement;
+    // Card 201026124500 (A.1): the copy-down tracks (Tuyến/Nhà xe/Nâng/Hạ)
+    // carry their seeded cells; the tờ khai track (inherited from the lot
+    // server-side, never typed here) stays an EMPTY cell — every track stays
+    // its own cell, never merged away. This fixture's rows carry no display
+    // names and an empty ports catalog, so the seeded cells read '—' here;
+    // the seeding suite pins the copied values themselves.
+    const seededEmpty = addRow!.querySelectorAll('td[data-label="Tuyến"], td[data-label="Nhà xe/BKS"], td[data-label="Nâng/Hạ"]');
+    expect(seededEmpty).toHaveLength(3);
+    for (const cell of seededEmpty) {
       expect(cell.className).toContain('cus-container-cell');
-      expect(cell.textContent).toBe('—');
+      // Grouped cells read one '—' per line (Nhà xe/BKS and Nâng/Hạ carry two).
+      expect(cell.textContent).toMatch(/^—{1,2}$/);
     }
-    for (const index of [1, 4, 6]) {
-      const cell = addRow!.children[index] as HTMLElement;
-      expect(cell.className).toContain('cus-container-ledger__add-blank');
-      expect(cell.textContent).toBe('');
-    }
+    expect(addRow!.querySelector('.cus-container-ledger__add-blank')).toBeTruthy();
 
     // The data row rides the same tracks, and its action lives in the same
     // column as the add row's buttons.
     const dataRow = table.querySelector<HTMLTableRowElement>('tbody tr')!;
     expect(dataRow.children).toHaveLength(headers.length);
     const cellByLabel = (label: string) => dataRow.querySelector(`[data-label="${label}"]`) as HTMLTableCellElement;
-    expect(cellByLabel('Số tờ khai').cellIndex).toBe(1);
-    expect(cellByLabel('Trọng lượng').cellIndex).toBe(9);
-    expect(cellByLabel('Giờ hẹn đóng/trả').cellIndex).toBe(10);
-    expect(cellByLabel('Thao tác').cellIndex).toBe(11);
+    expect(cellByLabel('Số tờ khai').cellIndex).toBe(0);
+    expect(cellByLabel('Container').cellIndex).toBe(1);
+    expect(cellByLabel('Tuyến').cellIndex).toBe(2);
+    expect(cellByLabel('Nhà xe/BKS').cellIndex).toBe(3);
+    expect(cellByLabel('Nâng/Hạ').cellIndex).toBe(4);
+    expect(cellByLabel('Trọng lượng').cellIndex).toBe(5);
+    expect(cellByLabel('Giờ hẹn đóng/trả').cellIndex).toBe(6);
+    expect(cellByLabel('Thao tác').cellIndex).toBe(7);
     expect(cellByLabel('Thao tác').querySelector('.cus-container-row__remove')).toBeTruthy();
   });
 
@@ -821,10 +825,13 @@ describe('CUS-10 — drawer Xóa container confirm flow', () => {
     removeCusShipmentContainerRow.mockClear();
   });
 
-  it('renders the labeled danger button by default and hides it without the remove permission', () => {
+  it('renders the ghost trash by default and hides it without the remove permission', () => {
+    // SIL-483: the CUS-10 danger affordance is the specced 32×32 ghost trash —
+    // its own class owns the chrome (danger hover, confirm dialog upstream).
     const { unmount } = renderCus10();
-    expect(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }).className)
-      .toContain('btn--danger-outline');
+    const trash = screen.getByRole('button', { name: 'Xóa container MSKU1234567' });
+    expect(trash.className).toContain('cus-container-row__remove');
+    expect(trash.querySelector('svg')).toBeTruthy();
     unmount();
 
     renderCus10({ canRemoveContainer: false });
@@ -1143,11 +1150,12 @@ describe('add-row seed copies the lot row values TRỪ Loại cont (A.1 reversed
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    // SIL-483: Nhà xe và BKS share the Nhà xe/BKS cell (lines 1+2), Nâng và
+    // Hạ share the Nâng/Hạ cell.
     const cellText = (label: string) => addRowEl().querySelector(`[data-label="${label}"]`)?.textContent;
     expect(cellText('Tuyến')).toBe('ASKEY');
-    expect(cellText('Nhà xe')).toBe('SilverSea');
-    expect(cellText('Nâng')).toBe('Cảng Đình Vũ');
-    expect(cellText('Hạ')).toBe('TC - HICT');
+    expect(cellText('Nhà xe/BKS')).toBe('SilverSea—');
+    expect(cellText('Nâng/Hạ')).toBe('Cảng Đình VũTC - HICT');
     expect((screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement).value).toBe('12500');
     // Loại cont: NOT seeded anymore (REQ-22 REVERSED 22/10) — placeholder.
     expect((within(addRowEl()).getByRole('combobox', { name: 'Loại cont' }) as HTMLInputElement).placeholder).toBe('Chưa chọn loại cont');
@@ -1196,11 +1204,12 @@ describe('add-row seed copies the lot row values TRỪ Loại cont (A.1 reversed
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    // SIL-483: Tuyến rides its own grouped cell; Nhà xe và Hạ share the
+    // Nhà xe/BKS and Nâng/Hạ cells (line 1 + line 2).
     const cellText = (label: string) => addRowEl().querySelector(`[data-label="${label}"]`)?.textContent;
     expect(cellText('Tuyến')).toBe('KCN QUẾ VÕ, BẮC NINH');
-    expect(cellText('Nhà xe')).toBe('SilverSea');
-    expect(cellText('Nâng')).toBe('—');
-    expect(cellText('Hạ')).toBe('—');
+    expect(cellText('Nhà xe/BKS')).toBe('SilverSea—');
+    expect(cellText('Nâng/Hạ')).toBe('——');
     expect((within(addRowEl()).getByRole('combobox', { name: 'Loại cont' }) as HTMLInputElement).placeholder).toBe('Chưa chọn loại cont');
 
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'CSQU3054383' } });
@@ -1417,5 +1426,90 @@ describe('add-container version-409 recovery (FB-086, round 19)', () => {
     await screen.findByText(/đã tồn tại trong lô hàng/);
     expect(screen.queryByText(/Đã tải lại dữ liệu lô/)).toBeNull();
     expect(onDetailStale).not.toHaveBeenCalled();
+  });
+});
+
+// ── SIL-483: grouped multi-line row + số container inline edit ──────────────
+// The drawer ledger is the owner-specced 8-column grouped sheet: the identity
+// cell carries the number (click-to-edit through the merged line patch), the
+// soft dispatch chip and the loại select on its second line, and the action
+// column is the ghost trash. The number edit rides the same writer gate the
+// line update API enforces.
+describe('SIL-483 grouped drawer ledger', () => {
+  beforeEach(() => {
+    updateCusShipmentContainerLine.mockClear();
+  });
+
+  it('renders the grouped identity cell: number trigger + soft dispatch chip + loại line', () => {
+    renderLedger();
+    const identity = document.querySelector('th[data-label="Container"]') as HTMLElement;
+    expect(identity.querySelector('.cus-container-row__ordinal')?.textContent).toBe('1');
+    // Line 1: the number is the click-to-edit trigger (chevron chrome).
+    const numberTrigger = within(identity).getByRole('button', { name: /Số container MSKU1234567/ });
+    expect(numberTrigger.className).toContain('cus-line--trigger');
+    // The dispatch chip rides line 1 (the old Điều vận column merged here).
+    expect(within(identity).getByText('Chờ phân xe')).toBeTruthy();
+    // Line 2: the loại select keeps its accessible name.
+    expect(within(identity).getByLabelText('Loại container MSKU1234567')).toBeTruthy();
+  });
+
+  it('commits the container number in place through the merged line patch (uppercase-normalized)', async () => {
+    updateCusShipmentContainerLine.mockResolvedValue({
+      line: { ...detail.containers[0], containerNumber: 'MSKU7654321', shipmentVersion: 6 },
+    });
+    renderLedger();
+    fireEvent.click(screen.getByRole('button', { name: /Số container MSKU1234567/ }));
+    // Role-scoped: the row's own aria-labelledby mirrors the same text.
+    const input = screen.getByRole('textbox', { name: /Số container MSKU1234567/ });
+    fireEvent.change(input, { target: { value: 'msku7654321' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    const [, , patch] = updateCusShipmentContainerLine.mock.calls[0];
+    expect(patch.expectedShipmentVersion).toBe(4);
+    expect(patch.containerNumber).toBe('MSKU7654321');
+    expect(await screen.findByText('Đã lưu số container MSKU7654321.')).toBeTruthy();
+  });
+
+  it('keeps the editor open when the server rejects the number (duplicate 400)', async () => {
+    updateCusShipmentContainerLine.mockRejectedValueOnce(
+      new ApiError(400, { error: 'Số container "MSKU7654321" đã tồn tại trong lô hàng.' }, 'Số container "MSKU7654321" đã tồn tại trong lô hàng.'),
+    );
+    renderLedger();
+    fireEvent.click(screen.getByRole('button', { name: /Số container MSKU1234567/ }));
+    const input = screen.getByRole('textbox', { name: /Số container MSKU1234567/ });
+    fireEvent.change(input, { target: { value: 'MSKU7654321' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(await screen.findByText(/đã tồn tại trong lô hàng/)).toBeTruthy();
+    // false keeps the editor open — the rejected draft is still on screen.
+    expect(screen.getByRole('textbox', { name: /Số container MSKU1234567/ })).toBeTruthy();
+  });
+
+  it('hides the number editor without the writer gate (read-only identity)', () => {
+    renderLedger({ canEditContainerNumber: false });
+    expect(screen.queryByRole('button', { name: /Số container/ })).toBeNull();
+    const value = document.querySelector('th[data-label="Container"] .cus-line__value') as HTMLElement;
+    expect(value.textContent).toBe('MSKU1234567');
+  });
+
+  it('renders the appointment as a static mask on rows without the appointment permission', () => {
+    // Card 20260923_9 lineage, SIL-483 rewrite: a trip-assigned line (the BE
+    // flips customerAppointmentEditable off) must never offer the popover —
+    // an offered edit the save path would refuse is the banned defect class.
+    const locked = {
+      ...detail,
+      containers: [{
+        ...detail.containers[0],
+        customerAppointmentAt: '2026-09-11T02:00:00.000Z',
+        permissions: { ...detail.containers[0].permissions, customerAppointmentEditable: false },
+      }],
+    } as unknown as ShipmentCusWorkspaceDetail;
+    renderLedger({ detail: locked });
+    expect(screen.queryByRole('button', { name: /Giờ hẹn đóng hoặc trả/ })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: /Chọn giờ hẹn đóng\/trả/ })).toBeNull();
+    // The mask still reads the line value (Vietnam law) + the copy affordance.
+    expect(screen.getByText(/09:00 11\/09/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Copy Giờ hẹn đóng trả' })).toBeTruthy();
   });
 });
