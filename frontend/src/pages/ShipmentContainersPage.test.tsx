@@ -168,8 +168,8 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(unassignedContainerCell?.querySelector('.shipment-container-ledger__container-classification')?.textContent).toBe('Kẹp');
     expect(screen.getByText('TK-001')).toBeTruthy();
     // FB-113 v2: four documents cells per row, all triggers onto the ONE
-    // documents editor; FB-109 v2: the Số tờ khai cell additionally carries
-    // the always-visible Sửa button.
+    // documents editor (SIL-477 removed the extra Sửa button — the cell
+    // click is the single trigger).
     const documentsTriggers = screen.getAllByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-001/ });
     expect(documentsTriggers).toHaveLength(4);
     expect(documentsTriggers.every((trigger) => trigger.querySelector('[data-icon]') === null)).toBe(true);
@@ -181,7 +181,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     const declarationTableCell = documentsTriggers[1]!.closest('td');
     expect(declarationTableCell?.getAttribute('data-label')).toBe('Số tờ khai');
     expect(declarationTableCell?.textContent).toContain('TK-001');
-    expect(within(declarationTableCell!).getByRole('button', { name: 'Sửa tờ khai container CONT-001' })).toBeTruthy();
+    expect(within(declarationTableCell!).getAllByRole('button')).toEqual([documentsTriggers[1]]);
     const cont001Row = screen.getByText('CONT-001').closest('tr');
     expect(cont001Row?.querySelector('td[data-label="Nhập/Xuất"]')?.textContent).toContain('Nhập');
     expect(cont001Row?.querySelector('td[data-label="Hãng tàu"]')?.textContent).toContain('MSC');
@@ -223,10 +223,10 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(missingDateStatusCell?.querySelector('.shipment-container-ledger__multiline')?.lastElementChild).toBe(rowWarning);
     expect(missingDateIdentityCell.contains(rowWarning)).toBe(false);
     expect(identityCell.querySelector('[data-icon]')).toBeNull();
-    // FB-109 v2: the Sửa affordance now exists — one visible button per
-    // editable container row, in the Số tờ khai column only; the value
-    // triggers themselves stay icon-free (asserted via [data-icon] above).
-    expect(screen.getAllByRole('button', { name: /Sửa tờ khai container/ })).toHaveLength(2);
+    // SIL-477: the FB-109 v2 Sửa button is gone from every row — the cell
+    // trigger is the only affordance, and it stays icon-free (asserted via
+    // [data-icon] above).
+    expect(screen.queryByRole('button', { name: /Sửa tờ khai container/ })).toBeNull();
     expect(screen.getByText((_, element) => element?.classList.contains('ds-pagination__summary') === true && element.textContent === 'Trang này có 2 / 2 container phù hợp')).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Danh sách container' })).toBeTruthy();
     expect(screen.queryByText('Sổ điều hành container')).toBeNull();
@@ -436,7 +436,13 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
   });
 
   it('opens value-cell editors with click, Enter, and Space without pencil controls', async () => {
-    apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(detail).mockResolvedValueOnce(detail);
+    // Endpoint-aware (not queued): each editor open re-fetches its shipment
+    // detail, and the exact call count across the four phases is incidental.
+    apiGet.mockImplementation((url: string) =>
+      String(url).includes('/containers?')
+        ? Promise.resolve(response)
+        : Promise.resolve(detail),
+    );
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     const clickTrigger = await screen.findByRole('button', { name: /^Chỉnh sửa ô khách hàng và lộ trình CONT-002/ });
@@ -458,11 +464,23 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     fireEvent.keyDown(spaceTrigger, { key: ' ', code: 'Space' });
     fireEvent.keyUp(spaceTrigger, { key: ' ', code: 'Space' });
     expect(await screen.findByLabelText('Nhà máy')).toBeTruthy();
-    // FB-109 v2: with an editor open the Sửa buttons disable but stay
-    // present — one per editable row, in the Số tờ khai column only.
-    const suaButtons = screen.getAllByRole('button', { name: /Sửa tờ khai container/ });
-    expect(suaButtons).toHaveLength(2);
-    expect(suaButtons.every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
+    const spaceEditor = (await screen.findByLabelText('Nhà máy')).closest('.shipment-container-ledger__inline-editor')!;
+    fireEvent.keyDown(spaceEditor, { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(document.activeElement).toBe(spaceTrigger));
+    // The cancel completes asynchronously: wait until the editor unmounts so
+    // the triggers re-enable before the next phase presses one.
+    await waitFor(() => expect(document.querySelector('.shipment-container-ledger__inline-editor')).toBeNull());
+    // SIL-477 (supersedes FB-109 v2): with the Sửa button gone, the Số tờ
+    // khai cell's own click trigger is the only way in — clicking it opens
+    // the documents editor, and Escape restores focus onto that trigger.
+    const declTrigger = screen.getAllByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu CONT-002/ })
+      .find((button) => button.closest('td')?.getAttribute('data-label') === 'Số tờ khai');
+    expect(declTrigger).toBeTruthy();
+    fireEvent.click(declTrigger!);
+    const declEditor = (await screen.findByLabelText('Số Booking')).closest('.shipment-container-ledger__inline-editor')!;
+    fireEvent.keyDown(declEditor, { key: 'Escape', code: 'Escape' });
+    await waitFor(() => expect(document.activeElement).toBe(declTrigger));
+    expect(screen.queryByRole('button', { name: /Sửa tờ khai container/ })).toBeNull();
   });
 
   it('marks every editable detail cell as a full-cell editor target', async () => {
