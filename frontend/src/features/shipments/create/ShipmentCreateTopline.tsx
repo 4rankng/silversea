@@ -12,7 +12,7 @@ interface ShipmentCreateToplineProps {
   /** SIL-171 edit mode: title + action cluster swap to the edit pair. */
   mode?: 'create' | 'edit' | 'view';
   /** SIL-481 view mode only — the read-only review pair (Quay lại /
-   *  Chuyển sang sửa) replaces the create/edit cluster, and the required
+   *  Sửa) replaces the create/edit cluster, and the required
    *  progress chip is meaningless on a form nobody is filling, so it hides. */
   onBack?: () => void;
   onEdit?: () => void;

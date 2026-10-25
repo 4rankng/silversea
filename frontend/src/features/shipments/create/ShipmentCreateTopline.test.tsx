@@ -171,7 +171,7 @@ describe('SIL-481 view-mode topline (post-create review)', () => {
     expect(screen.getByRole('heading', { name: 'Chi tiết lô hàng' })).toBeTruthy();
     expect(screen.queryByText(/Bắt buộc:/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Chuyển sang sửa' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sửa' })).toBeTruthy();
     // No create/save affordance rides the read-only topline.
     expect(screen.queryByRole('button', { name: 'Tạo lô hàng' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Lưu nháp' })).toBeNull();
@@ -181,12 +181,12 @@ describe('SIL-481 view-mode topline (post-create review)', () => {
   it('a viewer without the edit gate sees Quay lại alone', () => {
     render(<ShipmentCreateTopline mode="view" {...viewProps} onEdit={undefined} />);
     expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Chuyển sang sửa' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull();
   });
 
-  it('an accounting-locked lot disables Chuyển sang sửa with the reason', () => {
+  it('an accounting-locked lot disables Sửa with the reason', () => {
     render(<ShipmentCreateTopline mode="view" {...viewProps} editLocked />);
-    const edit = screen.getByRole('button', { name: 'Chuyển sang sửa' });
+    const edit = screen.getByRole('button', { name: 'Sửa' });
     expect(edit.getAttribute('data-disabled')).toBe('true');
   });
 });

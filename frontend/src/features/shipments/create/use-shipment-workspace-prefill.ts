@@ -39,7 +39,7 @@ export function useShipmentWorkspacePrefill({
   const [editSeed, setEditSeed] = useState<ShipmentEditSeed | null>(null);
   const [editLoadError, setEditLoadError] = useState<string | null>(null);
   // SIL-481 view mode: a locked lot still READS fine — the lock only disables
-  // "Chuyển sang sửa" (edit mode refuses to open at all, see the fetch below).
+  // "Sửa" (edit mode refuses to open at all, see the fetch below).
   const [viewLocked, setViewLocked] = useState(false);
   // The pristine baseline the leave-confirm dirty diff reads (edit + view).
   const editBaselineRef = useRef<string | null>(null);

@@ -20,7 +20,7 @@ export interface ShipmentViewActionsProps {
 /**
  * SIL-481 (ruling 25/10): the post-create review (/shipments/:id) shows the
  * Tạo lô hàng workspace read-only, so its action pair replaces the create
- * cluster (Huỷ / Lưu nháp / Tạo lô hàng) with "Quay lại" + "Chuyển sang sửa"
+ * cluster (Huỷ / Lưu nháp / Tạo lô hàng) with "Quay lại" + "Sửa"
  * — the "post view action after create" the owner asked for. Rendered twice
  * (topline + footer) through the same FB-108 repetition the create cluster
  * uses, hence the same variant/aria-label law.
@@ -59,9 +59,9 @@ export function ShipmentViewActions({
           iconLeading={Pencil}
           onClick={onEdit}
           isDisabled={editLocked}
-          aria-label={label(editLocked ? 'Chuyển sang sửa — lô đã khóa kế toán' : 'Chuyển sang sửa')}
+          aria-label={label(editLocked ? 'Sửa — lô đã khóa kế toán' : 'Sửa')}
         >
-          Chuyển sang sửa
+          Sửa
         </UUIButton>
       )}
     </div>
