@@ -1,5 +1,12 @@
 # SIL-472 — Xóa container: confirm không xóa được dòng trên màn chi tiết lô
 
+> **⚠️ SUPERSEDED 25/10 — SIL-177 (QA verdict 24/10, build f3be253b):** flow
+> "gỡ tờ khai rồi xóa" dưới đây chính là warn-and-allow bypass guard 409 mà
+> QA bắt. Luật mới: dòng mang tờ khai có nút xóa **disabled** kèm tooltip
+> guard; gỡ tờ khai là bước tường minh riêng của operator. Xem
+> `2026-10-25-sil177-declared-row-delete-gate.md`. Body dưới đây giữ nguyên
+> làm lịch sử.
+
 - **Case ID:** SIL-472-REG-1
 - **Ticket:** plan.tingting.vip SIL-472 (id 529) — QA Glint, build `e04e7a15` (R42 merge)
 - **Surface:** `/shipments/:id` → section "Quản lý container" (`ShipmentDetailContainerManagement` → `CusContainerLedger`) — cùng ledger ở drawer Tổng quan `/shipments`

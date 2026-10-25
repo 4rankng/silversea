@@ -882,12 +882,14 @@ describe('CUS-10 — drawer Xóa container confirm flow', () => {
   });
 });
 
-// SIL-472 (QA R41, build e04e7a15): confirming the delete of a row that
-// carries a tờ khai must run the SIL-177 guard's own recovery — gỡ tờ khai
-// (the container-line command, the endpoint the inline tờ khai editor uses)
-// then DELETE with the fresh version that gỡ returns — instead of
-// dead-ending on the guard 409 with the dialog stuck open forever.
-describe('SIL-472 — confirm xóa dòng mang tờ khai: gỡ tờ khai rồi xóa', () => {
+// SIL-177 (QA verdict 24/10, build f3be253b): the FE used to warn-and-allow —
+// the confirm named the tờ khai, then removeContainer silently cleared the
+// number through the line command and deleted anyway, bypassing the BE 409
+// guard (card 211026094500, cf47ad30). The law is the opposite: a row carrying
+// a tờ khai has its Xóa button DISABLED with the guard's own reason, and the
+// operator gỡs the number explicitly through the inline editor first. Only
+// undeclared rows keep the confirm-delete flow.
+describe('SIL-177 — nút xóa dòng mang tờ khai bị chặn ở FE, không auto-gỡ', () => {
   const declaredContainer = {
     ...detail.containers[0],
     id: 20,
@@ -900,14 +902,14 @@ describe('SIL-472 — confirm xóa dòng mang tờ khai: gỡ tờ khai rồi x�
     containers: [declaredContainer],
   } as unknown as ShipmentCusWorkspaceDetail;
 
-  const renderSil472 = (overrides: Record<string, unknown> = {}) => render(
+  const renderSil177 = (overrides: Record<string, unknown> = {}) => render(
     <ToastProvider>
       <ContainerLedger
         detail={declaredDetail}
         onLineSaved={vi.fn()}
         getIdempotencyKey={() => 'k'}
         clearIdempotencyKey={() => {}}
-        idPrefix="sil472"
+        idPrefix="sil177"
         {...overrides}
       />
     </ToastProvider>,
@@ -918,50 +920,29 @@ describe('SIL-472 — confirm xóa dòng mang tờ khai: gỡ tờ khai rồi x�
     removeCusShipmentContainerRow.mockClear();
   });
 
-  it('runs the gỡ-tờ-khai step, then deletes with the fresh version — dialog closes, host refetches', async () => {
-    // The straight delete of a declared row is what the SIL-177 guard
-    // refuses (card 211026094500) — pre-fix code never runs the gỡ step
-    // below, so the gỡ-call assertions fail. The guard 409 shape itself is
-    // pinned by the CUS-10 test above.
-    removeCusShipmentContainerRow.mockResolvedValue({ removedId: 20, shipmentVersion: 8 });
-    updateCusShipmentContainerLine.mockResolvedValueOnce({
-      line: { ...declaredContainer, declarationNumber: null, shipmentVersion: 7 },
-    });
+  it('dòng mang tờ khai: nút xóa disabled kèm tooltip nêu số tờ khai — click không mở dialog, không gọi API nào', async () => {
     const onLineSaved = vi.fn();
-    const onContainerRemoved = vi.fn();
-    renderSil472({ onLineSaved, onContainerRemoved });
+    renderSil177({ onLineSaved });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
+    const removeButton = screen.getByRole('button', { name: 'Xóa container 2' }) as HTMLButtonElement;
+    expect(removeButton.disabled).toBe(true);
+    expect(removeButton.title).toBe('Cont có tờ khai Q-DECL-177-389454 — gỡ tờ khai trước khi xóa');
 
-    // The guard's named recovery runs FIRST: clear this row's tờ khai via
-    // the line command, at the detail's current version.
-    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
-    expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(
-      1,
-      20,
-      { expectedShipmentVersion: 4, declarationNumber: '' },
-      'k',
-    );
-    // The delete then rides the FRESH version the gỡ response carries.
-    await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1));
-    expect(removeCusShipmentContainerRow).toHaveBeenCalledWith(
-      1,
-      20,
-      { expectedShipmentVersion: 7 },
-      'k',
-    );
-    // Structural change: host refetches (null line), drawer-close signal
-    // fires, and the dialog dismisses — the row is gone for the operator.
-    await waitFor(() => expect(onLineSaved).toHaveBeenCalledWith(null));
-    expect(onContainerRemoved).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(screen.queryByText(/Xóa container 2\?/)).toBeNull());
+    // A disabled control fires no handler: no confirm dialog, no clear call,
+    // no delete call — the BE 409 guard can no longer be bypassed from here.
+    fireEvent.click(removeButton);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.queryByText(/Xóa container 2\?/)).toBeNull();
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+    expect(onLineSaved).not.toHaveBeenCalled();
   });
 
-  it('a row without tờ khai deletes directly — the gỡ command never fires', async () => {
+  it('dòng không tờ khai xóa qua confirm — không có bước gỡ tờ khai nào trên wire', async () => {
     removeCusShipmentContainerRow.mockResolvedValueOnce({ removedId: 20, shipmentVersion: 5 });
     const onLineSaved = vi.fn();
-    renderSil472({ onLineSaved, detail: detail });
+    renderSil177({ onLineSaved, detail: detail });
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
@@ -977,30 +958,13 @@ describe('SIL-472 — confirm xóa dòng mang tờ khai: gỡ tờ khai rồi x�
     await waitFor(() => expect(onLineSaved).toHaveBeenCalledWith(null));
   });
 
-  it('a refused gỡ keeps the dialog open, never fires the delete, and surfaces the server reason', async () => {
-    updateCusShipmentContainerLine.mockRejectedValueOnce(new ApiError(
-      403,
-      { error: 'Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.' },
-      'Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.',
-    ));
-    const onLineSaved = vi.fn();
-    renderSil472({ onLineSaved });
+  it('confirm của cont thường chỉ nêu số cont — không còn nhánh "xóa sẽ gỡ tờ khai"', async () => {
+    renderSil177({ detail: detail });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU1234567' }));
 
-    expect(await screen.findByText('Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.')).toBeTruthy();
-    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
-    expect(onLineSaved).not.toHaveBeenCalled();
-    expect(screen.getByText(/Xóa container 2\?/)).toBeTruthy();
-  });
-
-  it('the confirm dialog names the tờ khai before the operator confirms', async () => {
-    renderSil472();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
-
-    expect(await screen.findByText('Xóa container 2? Cont đang mang tờ khai Q-DECL-177-389454 — xóa sẽ gỡ tờ khai khỏi dòng này.')).toBeTruthy();
+    expect(await screen.findByText('Xóa container MSKU1234567?')).toBeTruthy();
+    expect(screen.queryByText(/gỡ tờ khai/)).toBeNull();
     expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
   });

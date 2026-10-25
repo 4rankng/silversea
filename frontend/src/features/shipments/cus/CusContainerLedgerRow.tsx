@@ -239,6 +239,13 @@ export function ContainerLineRow({
   // its removal unless it was CANCELED. The 409 stays authoritative — this only
   // keeps the affordance from inviting a doomed click.
   const activeTrip = line.tripId != null && line.tripStatus !== 'CANCELED';
+  // SIL-177 (QA verdict 24/10): a row carrying a tờ khai must not delete —
+  // mirrors the backend guard 409 "Cont có tờ khai <số> — gỡ tờ khai trước
+  // khi xóa" at the affordance level: the button disables with the guard's
+  // own reason instead of the FE clearing the number behind the operator's
+  // back (the warn-and-allow flow QA repro'd). Gỡ tờ khai stays the inline
+  // editor's explicit job.
+  const declaredNumber = line.declarationNumber?.trim() ?? '';
 
   const carrierOptions = [
     { value: 'OWN', label: 'Đội xe nội bộ SilverSea' },
@@ -437,8 +444,10 @@ export function ContainerLineRow({
             type="button"
             className="btn btn--danger-outline btn--sm cus-container-row__remove"
             onClick={onRemove}
-            disabled={removing || activeTrip}
-            title={activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
+            disabled={removing || activeTrip || declaredNumber !== ''}
+            title={declaredNumber !== ''
+              ? `Cont có tờ khai ${declaredNumber} — gỡ tờ khai trước khi xóa`
+              : activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
             aria-label={`Xóa container ${line.containerNumber || line.ordinal}`}
           >
             Xóa container
