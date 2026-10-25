@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ExternalLink, FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileLock2, FileSpreadsheet, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
   CUS_SEARCH_PATTERN, SHIPMENT_CUS_WORKSPACE_SORT_KEYS, SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_DOCUMENT_CUSTODY_LABELS, ShipmentCusBucket, ShipmentDocumentCustody, Role,
@@ -12,6 +12,7 @@ import { ListFilterBar } from '../components/ListFilterBar';
 import { ShipmentActionModal } from '../components/shipments/ShipmentActionModal';
 import { StatusSwatch } from '../components/shared/StatusStrip';
 import { Drawer, Modal } from '../components/UI';
+import { Tooltip } from '../components/shared/Tooltip';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { DateRangeFields, DateRangePresetSelect, DateRangePresets, EmptyState, InlineLabelSelect, Pagination, SearchableMultiSelect, Tabs, UuiSelectField } from '../design-system';
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
@@ -653,39 +654,44 @@ export default function ShipmentsPage() {
         title={drawerItem?.customerName || 'Chi tiết lô hàng'}
         subtitle={drawerItem?.billOrBookNumber || drawerItem?.declarationNumber || undefined}
         className="cus-shipment-drawer"
+        expandable
+        headerAction={drawerItem && canDeleteLot ? (
+          /* SIL-483 supplements 3+4 (owner 25/10): the lot-bar tabs are gone —
+             the drawer opens straight into the content and Xóa lô rides the
+             header as a 32×32 ghost trash beside expand/close. Card 20260923_1's
+             law stands: always clickable, and a dispatched lot answers with the
+             guard's reason instead of a dead affordance. The old 'Chi tiết lô
+             hàng' Link to /shipments/:id is removed (supplement 4 — wrong entry
+             point; the page itself survives the post-creation flow). */
+          <Tooltip label="Xóa lô" side="bottom">
+            <button
+              type="button"
+              className="drawer__close cus-drawer-lot-delete"
+              onClick={() => requestDeleteLot(drawerItem)}
+              aria-label="Xóa lô"
+            >
+              <Trash2 size={16} />
+            </button>
+          </Tooltip>
+        ) : undefined}
         headerGraphic={drawerItem ? <StatusSwatch color={SHIPMENT_BUCKET_COLORS[drawerItem.bucket]} /> : undefined}
         footer={drawerItem ? <CusDrawerFooter isDirty={dirtyDetailIds.has(drawerItem.id)} isSaving={savingDetailIds.has(drawerItem.id)} onDiscard={() => containerLedgerRef.current?.discardAll()} onSave={() => { void containerLedgerRef.current?.saveAll().then((saved) => { if (saved) setDrawerId(null); }); }} /> : undefined}
       >
         <div id={drawerItem ? `cus-detail-drawer-${drawerItem.id}` : undefined}>
           {drawerItem && (
             <>
-              {/* Card 20260923_1: the lot-delete affordance lives in the drawer
-                  header — topmost row of the drawer body. It stays reachable in
-                  every state and answers with a reason (containers first, then
-                  the lifecycle guard) instead of disappearing. */}
-              {/* SIL-480 (owner spec 25/10, consult px table): the pair renders
-                  as ONE segmented control — 32px container, 28px items,
-                  active segment on the raised white fill. The inline error
-                  rides BELOW the control, never inside its gray band. */}
-              <div className="cus-drawer-lot-bar" role="group" aria-label="Thao tác lô hàng">
-                <Link
-                  to={`/shipments/${drawerItem.id}`}
-                  className="cus-drawer-lot-seg cus-drawer-lot-seg--active"
-                  title="Xem toàn màn hình chi tiết lô hàng"
-                >
-                  <ExternalLink size={14} /> Chi tiết lô hàng
-                </Link>
-                {canDeleteLot && (
-                  <button
-                    type="button"
-                    className="cus-drawer-lot-seg"
-                    onClick={() => requestDeleteLot(drawerItem)}
-                  >
-                    Xóa lô
-                  </button>
-                )}
-              </div>
+              {/* Card 20260923_1: a blocked Xóa lô still answers with a reason —
+                  the banner opens the body right under the header trash. */}
               {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
+              {/* SIL-483 (SUPPLEMENT 2, layout parity /shipments/new): the
+                  drawer body reads in the create-form's section order —
+                  Nhận diện lô (the drawer head: khách hàng + Bill/Book) →
+                  Hàng hóa/Container (the ledger) → Điều vận/Phân xe, Chứng từ
+                  (Phơi phiếu) và Chi phí (Đối soát) which all live in the
+                  Trạng thái lô section below. Only the order moved; the
+                  section itself is untouched. */}
+              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} actionsRef={containerLedgerRef} onExternalTripCompleted={() => void loadDetail(drawerItem.id, true)} onDetailStale={() => void loadDetail(drawerItem.id, true)} onAppointmentSavedAndExit={requestCloseMobileDetail} canRemoveContainer={canRemoveContainers} onContainerRemoved={requestCloseMobileDetail} canEditContainerNumber={canRemoveContainers} />
+
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
                 <div className="cus-drawer-workflow__heading">
                   <h3 id="cus-drawer-workflow-title">Trạng thái lô</h3>
@@ -733,8 +739,6 @@ export default function ShipmentsPage() {
                   {shipmentActionButton(drawerItem)}
                 </div>
               </section>
-
-              <ShipmentDetailContent detail={ws.details[drawerItem.id]} loading={ws.detailLoadingIds.has(drawerItem.id)} error={ws.detailErrors[drawerItem.id]} onRetry={() => void loadDetail(drawerItem.id, true)} onLineSaved={(line) => applySavedContainerLine(drawerItem.id, line)} getIdempotencyKey={ws.getIdempotencyKey} clearIdempotencyKey={ws.clearIdempotencyKey} idPrefix="cus-drawer-detail" onDirtyChange={(dirty) => setDetailDirty(drawerItem.id, dirty)} onSavingChange={(saving) => setDetailSaving(drawerItem.id, saving)} actionsRef={containerLedgerRef} onExternalTripCompleted={() => void loadDetail(drawerItem.id, true)} onDetailStale={() => void loadDetail(drawerItem.id, true)} onAppointmentSavedAndExit={requestCloseMobileDetail} canRemoveContainer={canRemoveContainers} onContainerRemoved={requestCloseMobileDetail} />
             </>
           )}
         </div>

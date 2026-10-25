@@ -23,6 +23,7 @@ export function ShipmentDetailContent({
   onAppointmentSavedAndExit,
   canRemoveContainer,
   onContainerRemoved,
+  canEditContainerNumber,
 }: {
   detail?: ShipmentCusWorkspaceDetail;
   loading: boolean;
@@ -50,6 +51,9 @@ export function ShipmentDetailContent({
   canRemoveContainer?: boolean;
   /** CUS-10: the host closes the drawer after a confirmed remove settles. */
   onContainerRemoved?: () => void;
+  /** SIL-483: gates the row's inline số-container edit on the line update
+   *  API's writer roles. */
+  canEditContainerNumber?: boolean;
 }) {
   return (
     <div className="cus-detail-content">
@@ -73,6 +77,7 @@ export function ShipmentDetailContent({
           onDetailStale={onDetailStale}
           canRemoveContainer={canRemoveContainer}
           onContainerRemoved={onContainerRemoved}
+          canEditContainerNumber={canEditContainerNumber}
         />
       ) : null}
     </div>

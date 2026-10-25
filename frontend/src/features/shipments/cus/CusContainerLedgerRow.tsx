@@ -1,20 +1,162 @@
-import { useMemo, useRef, useState } from 'react';
-import { Copy } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, useId } from 'react';
+import { Check, ChevronDown, Copy, Trash2 } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import { formatDateTime24, formatWeight } from '../../../lib/format';
-import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
+import { formatTimeShortDate, formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import { SearchableSelect } from '../../../design-system';
 import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import { externalVendorPlateOptions } from '../external-plate-options';
-import { ShipmentContainerCell } from '../create/ShipmentContainerCell';
 import { CusAppointmentPopover } from './CusAppointmentPopover';
 import {
   dispatchStatusLabel,
   type ContainerLineDraft,
 } from './cusUtils';
+
+/** SIL-483: the drawer ledger is the grouped multi-line spreadsheet the owner
+ *  specced — every cell is one or two 28px ghost lines (line 1 ink/500, line 2
+ *  ink-2/400), hairline row dividers only, chevron + soft hover fill as the
+ *  only edit chrome. The 12-column outlined grid and its ShipmentContainerCell
+ *  reveal shells are gone (anti-nesting: no input wrapped in its own frame). */
+
+const chevronHint = <ChevronDown size={12} aria-hidden="true" className="cus-line__chevron" />;
+
+/** SIL-483 grouped-cell text line: click the ghost line to edit IN PLACE
+ *  (container number, tờ khai), Enter commits an immediate per-row save,
+ *  Esc/outside dismisses and reverts (_34 contract). A commit resolving false
+ *  keeps the editor open (the error rode the host toast). The accessible name
+ *  is the value itself — the row's aria-labelledby target can point here. */
+function InlineTextCell({
+  value,
+  placeholder,
+  emptyText = '—',
+  ariaLabel,
+  title,
+  editable,
+  maxLength,
+  onCommit,
+  wrapperId,
+  editorClassName = 'cus-inline-editor',
+  missingAttr,
+  /** Notifies the host when the in-place editor opens/closes — the tờ khai
+   *  cell hides its Copy affordance while the draft editor is up (clicking
+   *  Copy outside the editor's blur containment would revert the draft). */
+  onOpenChange,
+}: {
+  value: string;
+  /** Trigger text while the line is empty in edit mode (e.g. "Nhập tờ khai"). */
+  placeholder: string;
+  /** Static fallback when the line renders read-only and empty. */
+  emptyText?: string;
+  ariaLabel: string;
+  title: string;
+  editable: boolean;
+  maxLength: number;
+  onCommit?: (value: string) => Promise<boolean>;
+  /** Element carrying the value text in every state — hosts point their
+   *  aria-labelledby (the container row's name) here. */
+  wrapperId?: string;
+  editorClassName?: string;
+  /** Mirrors the old data-missing-container marker for CSS hooks. */
+  missingAttr?: boolean;
+  /** See the prop doc above. */
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const persisted = value;
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(persisted);
+  const [busy, setBusy] = useState(false);
+  const inputId = useId();
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => { onOpenChangeRef.current = onOpenChange; }, [onOpenChange]);
+  useEffect(() => { onOpenChangeRef.current?.(open); }, [open]);
+
+  const close = () => {
+    if (busy) return;
+    setOpen(false);
+    setDraft(persisted);
+  };
+
+  const commit = async () => {
+    const next = draft.trim();
+    if (next === persisted) { close(); return; }
+    if (!onCommit) { close(); return; }
+    setBusy(true);
+    let ok = false;
+    try {
+      ok = await onCommit(next);
+    } finally {
+      setBusy(false);
+    }
+    if (ok) close();
+  };
+
+  if (!editable || !onCommit) {
+    return (
+      // Read-only: the title carries the VALUE, never an edit hint — a line
+      // the save path would refuse must not advertise "press to edit".
+      <span className="cus-line__value" data-missing-container={missingAttr && !persisted ? 'true' : undefined} title={persisted || undefined}>
+        <span id={wrapperId}>{persisted || emptyText}</span>
+      </span>
+    );
+  }
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className={`cus-line cus-line--trigger${persisted ? '' : ' cus-line--empty'}`}
+        onClick={() => { setDraft(persisted); setOpen(true); }}
+        disabled={busy}
+        aria-label={ariaLabel}
+        title={title}
+      >
+        {/* The id + missing marker live on the value span itself so hosts
+            pointing aria-labelledby here (the container row's name) and CSS
+            hooks reading [data-missing-container] resolve the text node. */}
+        <span id={wrapperId} className="cus-line__value" data-missing-container={missingAttr && !persisted ? 'true' : undefined}>{persisted || placeholder}</span>
+        {chevronHint}
+      </button>
+    );
+  }
+  return (
+    <span
+      id={wrapperId}
+      className={editorClassName}
+      onBlur={(event) => {
+        // Outside blur dismisses (revert) unless the click landed on the
+        // commit controls inside this editor. Never while a commit is in
+        // flight — disabling a focused input moves focus to <body> and the
+        // resulting blur must not discard the in-flight draft.
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) close();
+      }}
+    >
+      <label className="sr-only" htmlFor={inputId}>{ariaLabel}</label>
+      <input
+        id={inputId}
+        value={draft}
+        maxLength={maxLength}
+        readOnly={busy}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (event.key === 'Escape') { event.preventDefault(); close(); }
+          if (event.key === 'Enter') { event.preventDefault(); void commit(); }
+        }}
+        autoFocus
+      />
+      <button
+        type="button"
+        className="btn btn--primary btn--sm"
+        disabled={busy || draft.trim() === persisted}
+        onClick={() => void commit()}
+      >
+        {busy ? 'Đang lưu…' : 'Lưu'}
+      </button>
+    </span>
+  );
+}
 
 /** Card 261022095235a (CUS-05): the per-container tờ khai cell — click the
  *  value to edit it IN PLACE (no tab/section switch). Enter commits an
@@ -42,102 +184,42 @@ function DeclarationCell({
   copying: boolean;
 }) {
   const persisted = (line.declarationNumber ?? '').trim();
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(persisted);
-  const [busy, setBusy] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const identity = line.containerNumber || `container số ${line.ordinal}`;
-
-  const close = () => {
-    // _34-style dismissal: revert to the persisted value so a dismissed
-    // draft never leaks back on reopen. NEVER while a commit is in flight —
-    // Chrome/Safari move focus to <body> when the input is disabled and the
-    // resulting blur (relatedTarget=null) must not discard the in-flight
-    // draft (review 22/10 medium #2).
-    if (busy) return;
-    setOpen(false);
-    setDraft(persisted);
-  };
-
-  const commit = async () => {
-    const next = draft.trim();
-    if (next === persisted) { close(); return; }
-    setBusy(true);
-    let ok = false;
-    try {
-      ok = await onCommit(next);
-    } finally {
-      setBusy(false);
-    }
-    if (ok) close();
-  };
-
-  if (!editable) {
-    return (
-      <td data-label="Số tờ khai" className="cus-container-cell cus-container-cell--declaration">
-        <strong>{persisted || '—'}</strong>
-      </td>
-    );
-  }
   return (
     <td data-label="Số tờ khai" className="cus-container-cell cus-container-cell--declaration">
-      {open ? (
-        <span className="cus-declaration-editor" onBlur={(event) => {
-          // Outside blur dismisses (revert) unless the click landed on the
-          // commit/copy controls inside this cell.
-          if (!event.currentTarget.contains(event.relatedTarget as Node)) close();
-        }}>
-          <label className="sr-only" htmlFor={`declaration-input-${line.id}`}>Số tờ khai của container {identity}</label>
-          <input
-            id={`declaration-input-${line.id}`}
-            value={draft}
+      <div className="cus-group">
+        <div className="cus-line cus-line--primary">
+          <InlineTextCell
+            value={persisted}
+            placeholder="Nhập tờ khai"
+            emptyText="—"
+            ariaLabel={`Số tờ khai của container ${identity}: ${persisted || 'Chưa có'}. Nhấn để sửa.`}
+            title="Nhấn để sửa số tờ khai của container này"
+            editable={editable}
             maxLength={50}
-            // readOnly (not disabled) while busy: disabling a focused input
-            // moves focus to <body> in real browsers, firing the blur that
-            // used to close the editor mid-commit. readOnly keeps focus and
-            // still blocks edits.
-            readOnly={busy}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.nativeEvent.isComposing) return;
-              if (event.key === 'Escape') { event.preventDefault(); close(); }
-              if (event.key === 'Enter') { event.preventDefault(); void commit(); }
-            }}
-            autoFocus
+            onCommit={onCommit}
+            editorClassName="cus-declaration-editor"
+            onOpenChange={setEditorOpen}
           />
-          <button
-            type="button"
-            className="btn btn--primary btn--sm"
-            disabled={busy || draft.trim() === persisted}
-            onClick={() => void commit()}
-          >
-            {busy ? 'Đang lưu…' : 'Lưu'}
-          </button>
-        </span>
-      ) : (
-        <button
-          type="button"
-          className={`cus-declaration-trigger${persisted ? '' : ' cus-declaration-trigger--empty'}`}
-          onClick={() => { setDraft(persisted); setOpen(true); }}
-          disabled={busy}
-          aria-label={`Số tờ khai của container ${identity}: ${persisted || 'Chưa có'}. Nhấn để sửa.`}
-          title="Nhấn để sửa số tờ khai của container này"
-        >
-          {persisted || 'Nhập tờ khai'}
-        </button>
-      )}
-      {showCopy && !open && (
-        <button
-          type="button"
-          className="cus-declaration-copy"
-          onClick={onCopy}
-          disabled={copying || busy}
-          title="Copy số tờ khai này sang các container còn trống của lô"
-          aria-label={`Copy số tờ khai ${persisted} sang các container chưa có số của lô`}
-        >
-          <Copy size={13} aria-hidden="true" />
-          Copy
-        </button>
-      )}
+          {/* Old card law restored: the Copy affordance hides while the draft
+              editor is open — it sits outside the editor's blur containment,
+              so clicking it would revert the in-progress draft. */}
+          {showCopy && !editorOpen && (
+            <button
+              type="button"
+              className="cus-declaration-copy"
+              onClick={onCopy}
+              disabled={copying}
+              title="Copy số tờ khai này sang các container còn trống của lô"
+              aria-label={`Copy số tờ khai ${persisted} sang các container chưa có số của lô`}
+            >
+              <Copy size={13} aria-hidden="true" />
+              Copy
+            </button>
+          )}
+        </div>
+      </div>
     </td>
   );
 }
@@ -162,6 +244,8 @@ export function ContainerLineRow({
   showCopyDeclaration,
   onCopyDeclaration,
   copyingDeclaration,
+  numberEditable,
+  onNumberCommit,
   onRemove,
   removing,
 }: {
@@ -172,11 +256,15 @@ export function ContainerLineRow({
   onDraftChange: (patch: Partial<ContainerLineDraft>) => void;
   idPrefix: string;
   editing: boolean;
+  /** SIL-483: the container number edits in place through the same line
+   *  update API (writer-gated by the host); absent for read-only viewers. */
+  numberEditable?: boolean;
+  onNumberCommit?: (value: string) => Promise<boolean>;
   /** Card 20260923_1: lot-level remove — the drawer manages container
    *  composition; absent when no refetch path is wired or the viewer lacks
-   *  the remove permission (CUS-10). CUS-10 (ruling 21/10): the action is a
-   *  labeled danger button that opens the confirm dialog — the bare icon it
-   *  replaces deleted immediately on a mis-click with no undo. */
+   *  the remove permission (CUS-10). SIL-483: the affordance is the specced
+   *  32×32 ghost trash; the confirm dialog still stands between the click
+   *  and the delete. */
   onRemove?: () => void;
   removing?: boolean;
   /** Staff close for external-carrier trips (external drivers don't use the
@@ -246,6 +334,7 @@ export function ContainerLineRow({
   // back (the warn-and-allow flow QA repro'd). Gỡ tờ khai stays the inline
   // editor's explicit job.
   const declaredNumber = line.declarationNumber?.trim() ?? '';
+  const rowName = line.containerNumber || line.ordinal;
 
   const carrierOptions = [
     { value: 'OWN', label: 'Đội xe nội bộ SilverSea' },
@@ -256,35 +345,25 @@ export function ContainerLineRow({
     })),
   ];
   const selectedContainerType = detail.selectors.containerTypes.find((option) => String(option.id) === draft.containerTypeId);
-  const selectedRoute = detail.selectors.routes.find((option) => String(option.id) === draft.routeId);
-  const selectedCarrier = carrierOptions.find((option) => option.value === draft.carrierKey);
   const selectedLiftPort = detail.selectors.ports.find((option) => String(option.id) === draft.liftSiteId);
   const selectedDropoffPort = detail.selectors.ports.find((option) => String(option.id) === draft.dropoffSiteId);
+  // The mask reads the DRAFT while the line is editable (the popover writes
+  // naive "YYYY-MM-DDTHH:mm") and the LINE (Vietnam law) once read-only —
+  // both are naive strings the pure formatters parse without a zone shift
+  // (formatVietnamDateTimeInput on an already-naive draft would re-interpret
+  // it through the host zone and drift an hour).
+  const appointmentValue = customerAppointmentEditable
+    ? draft.customerAppointmentAt
+    : formatVietnamDateTimeInput(line.customerAppointmentAt);
+  const appointmentFull = appointmentValue ? formatDateTime24(appointmentValue) : '';
+  const appointmentMask = appointmentValue ? formatTimeShortDate(appointmentValue) : '';
 
   return (
     <tr
       className={`cus-container-row${dirty ? ' cus-container-row--dirty' : ''}`}
       aria-labelledby={`${idPrefix}-container-${line.id}`}
     >
-      <th scope="row" data-label="Container" className="cus-container-cell cus-container-cell--identity">
-        <div className="cus-container-cell__identity-inner">
-          <span className="cus-container-row__ordinal">{line.ordinal}</span>
-          <strong id={`${idPrefix}-container-${line.id}`} data-missing-container={line.containerNumber ? undefined : 'true'}>{line.containerNumber || 'Chưa có số container'}</strong>
-          {showCopyAppointment && (
-            <button
-              type="button"
-              className="cus-container-row__copy"
-              onClick={onCopyAppointmentToEmpty}
-              title={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các cont chưa có lịch`}
-              aria-label={`Copy giờ hẹn ${formatDateTime24(draft.customerAppointmentAt)} sang các container chưa có lịch`}
-            >
-              <Copy size={13} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      </th>
-      {/* Card 261022095235a (CUS-05): tờ khai per-container, sửa ngay tại
-           chỗ hiển thị — documents stay one click away, no tab switch. */}
+      {/* ── 1/8 · Số tờ khai ─────────────────────────────────────────────── */}
       <DeclarationCell
         line={line}
         editable={Boolean(declarationEditable && onDeclarationCommit)}
@@ -293,166 +372,244 @@ export function ContainerLineRow({
         onCopy={onCopyDeclaration ?? (() => {})}
         copying={Boolean(copyingDeclaration)}
       />
-      {containerTypeEditable ? (
-        <ShipmentContainerCell
-          label="Loại cont"
-          value={selectedContainerType?.code ?? ''}
-          placeholder="Chọn loại cont"
-          displayTitle={selectedContainerType ? `${selectedContainerType.code} — ${selectedContainerType.name}` : undefined}
-          className="cus-container-cell"
-          picker
-        >
-          <label className="sr-only" htmlFor={`${idPrefix}-container-type-${line.id}`}>Loại container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-container-type-${line.id}`} size="sm" value={draft.containerTypeId} onChange={(value) => onDraftChange({ containerTypeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.code, searchText: `${option.code} ${option.name}` }))} placeholder="Chọn loại cont" />
-        </ShipmentContainerCell>
-      ) : <td data-label="Loại cont" className="cus-container-cell"><strong>{line.containerTypeLabel || '—'}</strong></td>}
-      {routeEditable ? (
-        <ShipmentContainerCell
-          label="Tuyến"
-          value={selectedRoute?.label ?? ''}
-          placeholder="Chọn tuyến"
-          className="cus-container-cell"
-          picker
-        >
-          <label className="sr-only" htmlFor={`${idPrefix}-route-${line.id}`}>Tuyến đường của container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-route-${line.id}`} size="sm" value={draft.routeId} onChange={(value) => onDraftChange({ routeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.routes.map((option) => ({ value: String(option.id), label: option.label, searchText: option.name }))} placeholder="Chọn tuyến" />
-        </ShipmentContainerCell>
-      ) : <td data-label="Tuyến" className="cus-container-cell"><strong>{line.routeName || '—'}</strong></td>}
-      <td data-label="Điều vận" className="cus-container-cell">
-        <div className="cus-container-dispatch-group">
-          <span className={`cus-container-dispatch cus-container-dispatch--${line.dispatchStatus.toLowerCase()}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
-          {onCompleteExternalTrip && (
-            <button
-              type="button"
-              className="cus-container-dispatch-complete"
-              onClick={() => onCompleteExternalTrip(line)}
-              disabled={completing}
-              aria-label={`Hoàn thành chuyến xe ngoài của container ${line.containerNumber || line.ordinal}`}
-              title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên CS/điều vận chốt thay"
-            >
-              {completing ? 'Đang…' : 'Hoàn thành'}
-            </button>
+      {/* ── 2/8 · Container (dòng 1: số cont — click-edit; dòng 2: loại) ── */}
+      <th scope="row" data-label="Container" className="cus-container-cell cus-container-cell--identity">
+        <div className="cus-group">
+          <div className="cus-line cus-line--primary">
+            <span className="cus-container-row__ordinal">{line.ordinal}</span>
+            <InlineTextCell
+              wrapperId={`${idPrefix}-container-${line.id}`}
+              value={line.containerNumber?.trim() ?? ''}
+              placeholder="Chưa có số container"
+              emptyText="Chưa có số container"
+              ariaLabel={`Số container ${rowName}. Nhấn để sửa.`}
+              title={line.containerNumber || 'Nhấn để sửa số container'}
+              editable={Boolean(numberEditable && onNumberCommit)}
+              maxLength={50}
+              onCommit={onNumberCommit}
+              editorClassName="cus-inline-editor"
+              missingAttr
+            />
+            <span className={`cus-container-dispatch cus-container-dispatch--${line.dispatchStatus.toLowerCase()}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
+            {showCopyAppointment && (
+              <button
+                type="button"
+                className="cus-container-row__copy"
+                onClick={onCopyAppointmentToEmpty}
+                title={`Copy giờ hẹn ${formatDateTime24(appointmentValue)} sang các cont chưa có lịch`}
+                aria-label={`Copy giờ hẹn ${formatDateTime24(appointmentValue)} sang các container chưa có lịch`}
+              >
+                <Copy size={13} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          <div className="cus-line cus-line--secondary">
+            {containerTypeEditable ? (
+              <>
+                <label className="sr-only" htmlFor={`${idPrefix}-container-type-${line.id}`}>Loại container {rowName}</label>
+                <SearchableSelect id={`${idPrefix}-container-type-${line.id}`} size="sm" value={draft.containerTypeId} onChange={(value) => onDraftChange({ containerTypeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.containerTypes.map((option) => ({ value: String(option.id), label: option.code, searchText: `${option.code} ${option.name}` }))} placeholder="—" />
+              </>
+            ) : (
+              <span className="cus-line__value" title={selectedContainerType ? `${selectedContainerType.code} — ${selectedContainerType.name}` : undefined}>{line.containerTypeLabel || '—'}</span>
+            )}
+          </div>
+        </div>
+      </th>
+      {/* ── 3/8 · Tuyến ──────────────────────────────────────────────────── */}
+      <td data-label="Tuyến" className="cus-container-cell">
+        <div className="cus-group">
+          <div className="cus-line cus-line--primary">
+            {routeEditable ? (
+              <>
+                <label className="sr-only" htmlFor={`${idPrefix}-route-${line.id}`}>Tuyến đường của container {rowName}</label>
+                <SearchableSelect id={`${idPrefix}-route-${line.id}`} size="sm" value={draft.routeId} onChange={(value) => onDraftChange({ routeId: value })} onOpenChange={setSelectOpen} options={detail.selectors.routes.map((option) => ({ value: String(option.id), label: option.label, searchText: option.name }))} placeholder="—" />
+              </>
+            ) : (
+              <strong className="cus-line__value" title={line.routeName || undefined}>{line.routeName || '—'}</strong>
+            )}
+          </div>
+        </div>
+      </td>
+      {/* ── 4/8 · Nhà xe/BKS (dòng 1: nhà xe; dòng 2: BKS; cột XE cũ gộp) ── */}
+      <td data-label="Nhà xe/BKS" className="cus-container-cell cus-container-cell--carrier">
+        <div className="cus-group">
+          <div className="cus-line cus-line--primary">
+            {carrierEditable && draft.carrierKey !== 'NEW_EXTERNAL' && (
+              <>
+                <label className="sr-only" htmlFor={`${idPrefix}-carrier-${line.id}`}>Nhà xe của container {rowName}</label>
+                <SearchableSelect id={`${idPrefix}-carrier-${line.id}`} size="sm" value={draft.carrierKey} onChange={(value) => onDraftChange({ carrierKey: value, newCarrierName: '' })} onOpenChange={setSelectOpen} options={carrierOptions} placeholder="—" searchPlaceholder="Tìm nhà xe" />
+              </>
+            )}
+            {carrierEditable && draft.carrierKey === 'NEW_EXTERNAL' && (
+              <input
+                id={`${idPrefix}-new-carrier-${line.id}`}
+                value={draft.newCarrierName}
+                maxLength={255}
+                placeholder="Tên nhà xe mới"
+                aria-label="Tên nhà xe mới"
+                onChange={(event) => onDraftChange({ newCarrierName: event.target.value })}
+              />
+            )}
+            {!carrierEditable && (
+              <strong className="cus-line__value" title={line.carrierName || undefined}>{line.carrierName || '—'}</strong>
+            )}
+          </div>
+          <div className="cus-line cus-line--secondary">
+            {plateEditable ? (
+              <>
+                <input
+                  id={`${idPrefix}-plate-${line.id}`}
+                  value={draft.plateNumber}
+                  list={`${idPrefix}-plates-${line.id}`}
+                  maxLength={20}
+                  placeholder="—"
+                  aria-label={`Biển số xe của container ${rowName}`}
+                  title={line.plateNumber || 'Gán BKS'}
+                  onChange={(event) => onDraftChange({ plateNumber: event.target.value })}
+                />
+                <datalist id={`${idPrefix}-plates-${line.id}`}>{plateOptions.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
+              </>
+            ) : (
+              <span className="cus-line__value" title={line.plateNumber || undefined}>{line.plateNumber || '—'}</span>
+            )}
+          </div>
+          {carrierEditable && plateEditable && (
+            <div className="cus-line cus-line--aux">
+              {draft.carrierKey === 'NEW_EXTERNAL' ? (
+                <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ carrierKey: '', newCarrierName: '', plateNumber: '' })}>Chọn sẵn có</button>
+              ) : (
+                <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ carrierKey: 'NEW_EXTERNAL', newCarrierName: '', plateNumber: '' })}>Thêm nhà xe</button>
+              )}
+              {line.plateNumber && (
+                <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ plateNumber: '' })}>Xóa biển số</button>
+              )}
+            </div>
           )}
         </div>
       </td>
-      {carrierEditable ? (
-        <ShipmentContainerCell
-          label="Nhà xe"
-          value={draft.carrierKey === 'NEW_EXTERNAL' ? draft.newCarrierName : selectedCarrier?.label ?? ''}
-          placeholder={draft.carrierKey === 'NEW_EXTERNAL' ? 'Nhập nhà xe mới' : 'Chọn nhà xe'}
-          className="cus-container-cell cus-container-cell--carrier"
-        >
-          <div className="cus-carrier-editor">
-            {draft.carrierKey === 'NEW_EXTERNAL' ? (
+      {/* ── 5/8 · Nâng/Hạ (dòng 1: cảng nâng; dòng 2: cảng hạ) ──────────── */}
+      <td data-label="Nâng/Hạ" className="cus-container-cell cus-container-cell--num">
+        <div className="cus-group">
+          <div className="cus-line cus-line--primary">
+            {liftSiteEditable ? (
               <>
-                <label className="sr-only" htmlFor={`${idPrefix}-new-carrier-${line.id}`}>Tên nhà xe mới</label>
-                <input id={`${idPrefix}-new-carrier-${line.id}`} value={draft.newCarrierName} maxLength={255} placeholder="Tên nhà xe mới" onChange={(event) => onDraftChange({ newCarrierName: event.target.value })} />
-                <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ carrierKey: '', newCarrierName: '', plateNumber: '' })}>Chọn sẵn có</button>
+                <label className="sr-only" htmlFor={`${idPrefix}-lift-site-${line.id}`}>Cảng nâng của container {rowName}</label>
+                <SearchableSelect id={`${idPrefix}-lift-site-${line.id}`} size="sm" value={draft.liftSiteId} onChange={(value) => onDraftChange({ liftSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="—" />
               </>
             ) : (
-              <>
-                <label className="sr-only" htmlFor={`${idPrefix}-carrier-${line.id}`}>Nhà xe của container {line.containerNumber || line.ordinal}</label>
-                <SearchableSelect id={`${idPrefix}-carrier-${line.id}`} size="sm" value={draft.carrierKey} onChange={(value) => onDraftChange({ carrierKey: value, newCarrierName: '' })} onOpenChange={setSelectOpen} options={carrierOptions} placeholder="Chọn nhà xe" searchPlaceholder="Tìm nhà xe" />
-                {plateEditable && <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ carrierKey: 'NEW_EXTERNAL', newCarrierName: '', plateNumber: '' })}>Thêm nhà xe</button>}
-              </>
+              <strong className="cus-line__value" title={selectedLiftPort ? `${selectedLiftPort.code ?? ''} — ${selectedLiftPort.name}` : undefined}>{line.liftSite || '—'}</strong>
             )}
           </div>
-        </ShipmentContainerCell>
-      ) : <td data-label="Nhà xe" className="cus-container-cell cus-container-cell--carrier"><strong>{line.carrierName || '—'}</strong></td>}
-      {plateEditable ? (
-        <ShipmentContainerCell label="Biển số" value={draft.plateNumber} placeholder="Nhập biển số" className="cus-container-cell">
-          <label className="sr-only" htmlFor={`${idPrefix}-plate-${line.id}`}>Biển số xe của container {line.containerNumber || line.ordinal}</label>
-          <input id={`${idPrefix}-plate-${line.id}`} value={draft.plateNumber} list={`${idPrefix}-plates-${line.id}`} maxLength={20} onChange={(event) => onDraftChange({ plateNumber: event.target.value })} />
-          <datalist id={`${idPrefix}-plates-${line.id}`}>{plateOptions.map((vehicle) => <option value={vehicle.licensePlate} key={vehicle.id}>{vehicle.label}</option>)}</datalist>
-          {line.plateNumber && (
-            <button type="button" className="cus-carrier-editor__switch" onClick={() => onDraftChange({ plateNumber: '' })}>Xóa biển số</button>
-          )}
-        </ShipmentContainerCell>
-      ) : <td data-label="Biển số" className="cus-container-cell"><strong>{line.plateNumber || '—'}</strong></td>}
-      {liftSiteEditable ? (
-        <ShipmentContainerCell label="Nâng" value={selectedLiftPort?.name ?? ''} displayTitle={selectedLiftPort ? `${selectedLiftPort.code ?? ''} — ${selectedLiftPort.name}` : undefined} placeholder="Chọn cảng nâng" className="cus-container-cell" picker>
-          <label className="sr-only" htmlFor={`${idPrefix}-lift-site-${line.id}`}>Cảng nâng của container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-lift-site-${line.id}`} size="sm" value={draft.liftSiteId} onChange={(value) => onDraftChange({ liftSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng nâng" />
-        </ShipmentContainerCell>
-      ) : <td data-label="Nâng" className="cus-container-cell"><strong>{line.liftSite || '—'}</strong></td>}
-      {dropoffSiteEditable ? (
-        <ShipmentContainerCell label="Hạ" value={selectedDropoffPort?.name ?? ''} displayTitle={selectedDropoffPort ? `${selectedDropoffPort.code ?? ''} — ${selectedDropoffPort.name}` : undefined} placeholder="Chọn cảng hạ" className="cus-container-cell" picker>
-          <label className="sr-only" htmlFor={`${idPrefix}-dropoff-site-${line.id}`}>Cảng hạ của container {line.containerNumber || line.ordinal}</label>
-          <SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => onDraftChange({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="Chọn cảng hạ" />
-        </ShipmentContainerCell>
-      ) : <td data-label="Hạ" className="cus-container-cell"><strong>{line.dropoffSite || '—'}</strong></td>}
-      {/* Card 20260923_9: the line's own weight, and the remove action in its
-          own column — the drawer's add row sits under both. The cell reads
-          tấn through the shared formatWeight (CUS-08); the add-row input
-          below keeps its kg entry unit, so its labels stay "(kg)". */}
-      <td data-label="Trọng lượng" className="cus-container-cell">
-        <strong>{formatWeight(line.raw.cargoWeightKg)}</strong>
+          <div className="cus-line cus-line--secondary">
+            {dropoffSiteEditable ? (
+              <>
+                <label className="sr-only" htmlFor={`${idPrefix}-dropoff-site-${line.id}`}>Cảng hạ của container {rowName}</label>
+                <SearchableSelect id={`${idPrefix}-dropoff-site-${line.id}`} size="sm" value={draft.dropoffSiteId} onChange={(value) => onDraftChange({ dropoffSiteId: value })} onOpenChange={setSelectOpen} options={detail.selectors.ports.map((option) => ({ value: String(option.id), label: option.label, searchText: `${option.code ?? ''} ${option.name}` }))} placeholder="—" />
+              </>
+            ) : (
+              <span className="cus-line__value" title={selectedDropoffPort ? `${selectedDropoffPort.code ?? ''} — ${selectedDropoffPort.name}` : undefined}>{line.dropoffSite || '—'}</span>
+            )}
+          </div>
+        </div>
       </td>
-      {customerAppointmentEditable ? (
-        <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell cus-appointment-cell">
-          <button
-            ref={appointmentTriggerRef}
-            id={`${idPrefix}-customer-appointment-${line.id}`}
-            type="button"
-            className={`cus-appointment-trigger${appointmentOpen ? ' cus-appointment-trigger--active' : ''}`}
-            onClick={() => setAppointmentOpen((current) => !current)}
-            aria-haspopup="dialog"
-            aria-expanded={appointmentOpen}
-            aria-label={`Giờ hẹn đóng hoặc trả tại nhà máy của container ${line.containerNumber || line.ordinal}: ${draft.customerAppointmentAt ? formatDateTime24(draft.customerAppointmentAt) : 'Chưa có'}`}
-            title="Nhấn để chọn giờ hẹn đóng/trả"
-          >
-            <span className={draft.customerAppointmentAt ? 'cus-appointment-trigger__text' : 'cus-appointment-trigger__text cus-appointment-trigger__text--empty'}>
-              {draft.customerAppointmentAt ? formatDateTime24(draft.customerAppointmentAt) : 'Chọn ngày giờ'}
-            </span>
-          </button>
-          {draft.customerAppointmentAt && (
-            <CopyCodeButton
-              className="cus-appointment-cell__copy"
-              value={formatDateTime24(draft.customerAppointmentAt)}
-              label="Giờ hẹn đóng trả"
-              onCopied={() => onAppointmentCopied?.(formatDateTime24(draft.customerAppointmentAt))}
-            />
-          )}
-          <CusAppointmentPopover
-            isOpen={appointmentOpen}
-            value={draft.customerAppointmentAt}
-            containerLabel={line.containerNumber || `Cont ${line.ordinal}`}
-            onClose={() => setAppointmentOpen(false)}
-            onChange={(val) => onDraftChange({ customerAppointmentAt: val })}
-            onCommit={onAppointmentCommit}
-            onCancel={onAppointmentCancel}
-            idPrefix={`${idPrefix}-apt-${line.id}`}
-            triggerRef={appointmentTriggerRef}
-          />
-        </td>
-      ) : (
-        <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell cus-appointment-cell">
-          <strong>{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</strong>
-          {line.customerAppointmentAt && (
-            <CopyCodeButton
-              className="cus-appointment-cell__copy"
-              value={formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt))}
-              label="Giờ hẹn đóng trả"
-              onCopied={() => onAppointmentCopied?.(formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)))}
-            />
-          )}
-        </td>
-      )}
+      {/* ── 6/8 · Trọng lượng ────────────────────────────────────────────── */}
+      <td data-label="Trọng lượng" className="cus-container-cell cus-container-cell--num">
+        <div className="cus-group">
+          <div className="cus-line cus-line--primary">
+            {/* The read cells render tấn (formatWeight, CUS-08); the add-row
+                input at the foot of this column keeps its kg entry unit. */}
+            <strong>{formatWeight(line.raw.cargoWeightKg)}</strong>
+          </div>
+        </div>
+      </td>
+      {/* ── 7/8 · Giờ đóng/trả — 1 ô ghost mask HH:mm DD/MM (năm ở title) ──
+          The picker is gated on the row's appointment permission exactly like
+          the pre-SIL-483 cell: read-only rows (trip assigned / accounting
+          lock) render the static mask + copy and never open the popover —
+          an offered edit the save path would refuse is the defect class the
+          ledger bans. */}
+      <td data-label="Giờ hẹn đóng/trả" className="cus-container-cell cus-appointment-cell">
+        <div className="cus-group">
+          <div className="cus-line cus-line--primary">
+            {customerAppointmentEditable ? (
+              <>
+                <button
+                  ref={appointmentTriggerRef}
+                  id={`${idPrefix}-customer-appointment-${line.id}`}
+                  type="button"
+                  className={`cus-appointment-trigger${appointmentOpen ? ' cus-appointment-trigger--active' : ''}${appointmentMask ? '' : ' cus-line--empty'}`}
+                  onClick={() => setAppointmentOpen((current) => !current)}
+                  aria-haspopup="dialog"
+                  aria-expanded={appointmentOpen}
+                  aria-label={`Giờ hẹn đóng hoặc trả tại nhà máy của container ${rowName}: ${appointmentFull || 'Chưa có'}`}
+                  title={appointmentFull || 'Gán giờ'}
+                >
+                  <span className="cus-appointment-trigger__text">{appointmentMask || '—'}</span>
+                  {chevronHint}
+                </button>
+                <CusAppointmentPopover
+                  isOpen={appointmentOpen}
+                  value={draft.customerAppointmentAt}
+                  containerLabel={line.containerNumber || `Cont ${line.ordinal}`}
+                  onClose={() => setAppointmentOpen(false)}
+                  onChange={(val) => onDraftChange({ customerAppointmentAt: val })}
+                  onCommit={onAppointmentCommit}
+                  onCancel={onAppointmentCancel}
+                  idPrefix={`${idPrefix}-apt-${line.id}`}
+                  triggerRef={appointmentTriggerRef}
+                />
+              </>
+            ) : (
+              <span
+                id={`${idPrefix}-customer-appointment-${line.id}`}
+                className={`cus-appointment-trigger cus-appointment-trigger--static${appointmentMask ? '' : ' cus-line--empty'}`}
+                aria-label={`Giờ hẹn đóng hoặc trả tại nhà máy của container ${rowName}: ${appointmentFull || 'Chưa có'}`}
+                title={appointmentFull || undefined}
+              >
+                <span className="cus-appointment-trigger__text">{appointmentMask || '—'}</span>
+              </span>
+            )}
+            {appointmentValue && (
+              <CopyCodeButton
+                className="cus-appointment-cell__copy"
+                value={appointmentFull}
+                label="Giờ hẹn đóng trả"
+                onCopied={() => onAppointmentCopied?.(appointmentFull)}
+              />
+            )}
+          </div>
+        </div>
+      </td>
+      {/* ── 8/8 · Thao tác — ghost trash 32×32; hoàn-thành xe ngoài ghép đè ── */}
       <td data-label="Thao tác" className="cus-container-cell cus-container-cell--actions">
-        {onRemove && (
-          <button
-            type="button"
-            className="btn btn--danger-outline btn--sm cus-container-row__remove"
-            onClick={onRemove}
-            disabled={removing || activeTrip || declaredNumber !== ''}
-            title={declaredNumber !== ''
-              ? `Cont có tờ khai ${declaredNumber} — gỡ tờ khai trước khi xóa`
-              : activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
-            aria-label={`Xóa container ${line.containerNumber || line.ordinal}`}
-          >
-            Xóa container
-          </button>
-        )}
+        <div className="cus-container-row__action-stack">
+          {onCompleteExternalTrip && (
+            <button
+              type="button"
+              className="cus-container-row__complete"
+              onClick={() => onCompleteExternalTrip(line)}
+              disabled={completing}
+              aria-label={`Hoàn thành chuyến xe ngoài của container ${rowName}`}
+              title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên CS/điều vận chốt thay"
+            >
+              <Check size={16} aria-hidden="true" />
+            </button>
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              className="cus-container-row__remove"
+              onClick={onRemove}
+              disabled={removing || activeTrip || declaredNumber !== ''}
+              title={declaredNumber !== ''
+                ? `Cont có tờ khai ${declaredNumber} — gỡ tờ khai trước khi xóa`
+                : activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
+              aria-label={`Xóa container ${rowName}`}
+            >
+              <Trash2 size={16} aria-hidden="true" />
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );

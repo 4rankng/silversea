@@ -66,13 +66,14 @@ describe('Drawer keyboard focus', () => {
     expect(drawerStyles).toMatch(/\.drawer__foot\s*\{[^}]*padding:\s*8px 16px calc\(8px \+ env\(safe-area-inset-bottom, 0px\)\);/);
     expect(drawerStyles).toContain('padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;');
     expect(drawerStyles).toContain('padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));');
-    // SIL-480: the compact lot drawer chrome is a 56px band — the safe-area
-    // inset rides ABOVE the band (min-height carries it, padding-top passes
-    // it through), so the notch never eats the bar on phones.
+    // SIL-480 + SIL-479 merged: the 56px band carries the safe-area ABOVE it
+    // (min-height passes the inset through as padding-top, the notch never
+    // eats the bar on phones); the ≤560 band keeps its own tighter gutters
+    // and the body keeps 16/18/20 on phones.
     expect(shipmentStyles).toContain('min-height: calc(56px + env(safe-area-inset-top, 0px));');
     expect(shipmentStyles).toContain('padding: env(safe-area-inset-top, 0px) 12px 0 20px;');
     expect(shipmentStyles).toMatch(/@media \(max-width: 560px\)[\s\S]*?\.cus-shipment-drawer \.drawer__head\s*\{[^}]*padding:\s*env\(safe-area-inset-top, 0px\) 12px 0 16px;/);
-    expect(userStyles).toContain('padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) 10px max(12px, env(safe-area-inset-left, 0px));');
+    expect(shipmentStyles).toContain('padding: 16px 18px 20px;');
     expect(userStyles).toContain('padding: 10px max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));');
   });
 

@@ -1,6 +1,6 @@
-import React, { useId, useRef } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDownRight, ArrowUpRight, X } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Maximize2, Minimize2, X } from 'lucide-react';
 import { animate, utils, type JSAnimation } from 'animejs';
 import { AssetIcon, type AssetIconName } from './AssetIcon';
 export { PageHeader } from './PageHeader';
@@ -354,13 +354,26 @@ interface DrawerProps {
   onConfirm?: () => void;
   className?: string;
   headerGraphic?: React.ReactNode;
+  /** SIL-483: renders the Maximize2 ghost toggle beside the close button;
+   *  while expanded the drawer covers the full viewport (100vw, radius 0)
+   *  and the toggle flips to Minimize2. Hosts that don't opt in render
+   *  exactly as before. */
+  expandable?: boolean;
+  /** SIL-483 supplement 3: host-provided header action (the Xóa lô trash),
+   *  rendered inside the head-actions cluster before expand/close so hosts
+   *  keep one heading/actions flex split. */
+  headerAction?: React.ReactNode;
 }
 
-export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onConfirm, className = '', headerGraphic }: DrawerProps) {
+export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onConfirm, className = '', headerGraphic, expandable = false, headerAction }: DrawerProps) {
   const titleId = useId();
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
   const asideRef = useRef<HTMLElement>(null);
+  // SIL-483: the expand choice is per open cycle. The reset rides the ENTRANCE
+  // (not the close) so the exit slide runs at whatever width the panel is in —
+  // dropping the class on close would snap 100vw → ladder width mid-animation.
+  const [expanded, setExpanded] = useState(false);
   // In-flight anime.js handles. anime.js does not cancel animations targeting
   // the same property across separate `animate()` calls, so a reopen landing
   // mid-exit leaves the stale exit ticking — it finishes LAST and writes
@@ -383,6 +396,8 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
     onClose,
     entrance: (overlay, aside, prefersReduced) => {
       stopDrawerAnimations();
+      // Per-open-cycle expand state: every open starts as the slide-in panel.
+      setExpanded(false);
       if (prefersReduced) {
         utils.set(overlay, { opacity: 1 });
         utils.set(aside, { translateX: '0%' });
@@ -431,7 +446,7 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
         />
         <aside
           ref={asideRef}
-          className={`drawer${densityClass} ${className}`.trim()}
+          className={`drawer${densityClass} ${className}${expanded ? ' drawer--expanded' : ''}`.trim()}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
@@ -445,16 +460,32 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
                 {subtitle && <p className="drawer__subtitle">{subtitle}</p>}
               </div>
             </div>
-            <Tooltip label="Đóng" side="bottom">
-              <button
-                className="drawer__close"
-                onClick={handleClose}
-                aria-label="Đóng"
-                type="button"
-              >
-                <X size={18} />
-              </button>
-            </Tooltip>
+            <div className="drawer__head-actions">
+              {headerAction}
+              {expandable && (
+                <Tooltip label={expanded ? 'Thu về drawer' : 'Phóng to toàn màn hình'} side="bottom">
+                  <button
+                    className="drawer__close drawer__expand"
+                    onClick={() => setExpanded((current) => !current)}
+                    aria-label={expanded ? 'Thu về drawer' : 'Phóng to toàn màn hình'}
+                    aria-pressed={expanded}
+                    type="button"
+                  >
+                    {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+                </Tooltip>
+              )}
+              <Tooltip label="Đóng" side="bottom">
+                <button
+                  className="drawer__close"
+                  onClick={handleClose}
+                  aria-label="Đóng"
+                  type="button"
+                >
+                  <X size={18} />
+                </button>
+              </Tooltip>
+            </div>
           </header>
           <div className="drawer__body">{children}</div>
           {footer && <div className="drawer__foot">{footer}</div>}

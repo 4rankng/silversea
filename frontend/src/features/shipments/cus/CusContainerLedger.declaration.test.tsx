@@ -229,6 +229,10 @@ describe('ContainerLedger tờ khai inline cell (card 261022095235a)', () => {
     expect(screen.queryAllByRole('button', { name: /Số tờ khai của container/ })).toHaveLength(0);
     expect(screen.queryAllByRole('button', { name: /Copy số tờ khai/ })).toHaveLength(0);
     expect(screen.getByText('TK-LOCKED')).toBeTruthy();
-    expect(screen.getAllByText('—').length).toBe(2);
+    // SIL-483: the read-only declaration cell renders the plain value; its
+    // empty siblings read '—'. The count is scoped to the declaration column —
+    // the grouped sheet renders '—' in every empty cell by design now.
+    const declarationCells = Array.from(document.querySelectorAll('td[data-label="Số tờ khai"]'));
+    expect(declarationCells.filter((cell) => cell.textContent === '—')).toHaveLength(2);
   });
 });
