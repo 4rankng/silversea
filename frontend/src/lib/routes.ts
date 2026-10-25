@@ -71,7 +71,8 @@ export const routes = {
   shipmentDebit: PAGE_CATALOG.shipmentDebit.path,
   shipmentNew: '/shipments/new',
   shipmentDetail: (id: number | string) => PAGE_CATALOG.shipmentDetail.path({ id }),
-  // SIL-171: the SIL-171 edit workspace — the drawer's "Sửa" lands here.
+  // SIL-171: the SIL-171 edit workspace — the drawer's "Sửa" (SIL-485) and
+  // the view page's edit pair (SIL-481) land here.
   shipmentDetailEdit: (id: number | string) => `/shipments/${id}/edit`,
   expenses: PAGE_CATALOG.expenses.path,
   expenseNew: PAGE_CATALOG.expenseNew.path,

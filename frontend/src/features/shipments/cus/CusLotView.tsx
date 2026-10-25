@@ -54,7 +54,7 @@ interface LotStep {
 
 /** Step done/current derivation — the same readiness fields the workboard
  *  tabs count, read left to right; the first unfinished step is current. */
-export function deriveLotSteps(item: ShipmentCusWorkspaceListItem): LotStep[] {
+function deriveLotSteps(item: ShipmentCusWorkspaceListItem): LotStep[] {
   return [
     { label: 'Chốt lịch', done: item.operational.scheduleReadiness === 'SCHEDULED' },
     { label: 'Phân xe', done: item.operational.vehicleReadiness === 'READY' },
@@ -65,8 +65,7 @@ export function deriveLotSteps(item: ShipmentCusWorkspaceListItem): LotStep[] {
 
 export function CusLotStepper({ item }: { item: ShipmentCusWorkspaceListItem }) {
   const steps = deriveLotSteps(item);
-  const current = steps.findIndex((step) => !step.done);
-  return (
+  const current = steps.findIndex((step) => !step.done);  return (
     <ol className="cus-lot-stepper" aria-label="Tiến trình lô hàng">
       {steps.map((step, index) => {
         const state = step.done ? 'done' : index === current ? 'current' : 'todo';
@@ -138,7 +137,9 @@ export function CusLotView({
 }) {
   const containers = detail?.containers ?? [];
   const totalWeight = containers.reduce((sum, line) => sum + Number(line.raw.cargoWeightKg ?? 0), 0);
-  const declarations = item.raw.declarations ?? [];
+  // One authority for count AND join — the same list the workboard row joins
+  // (card 20260921_3), so the card can never inflate N past what it prints.
+  const declarationNumbers = item.declarationNumbers ?? [];
   const financeCost = financeCostLine(item);
   const confirmationAttention = item.accountingConfirmation.status !== 'CONFIRMED';
 
@@ -172,10 +173,10 @@ export function CusLotView({
                     <span className={`cus-lot-flag${item.isCombined ? ' cus-lot-flag--on' : ''}`}>Đóng kết hợp: {item.isCombined ? 'Có' : 'Không'}</span>
                   </span>
                 </div>
-                <FactCell label={`Số tờ khai (${declarations.length})`}>
-                  {declarations.length === 0
+                <FactCell label={`Số tờ khai (${declarationNumbers.length})`}>
+                  {declarationNumbers.length === 0
                     ? <span className="cus-lot-quiet">Chưa có tờ khai</span>
-                    : declarations.map((declaration) => declaration.declarationNumber).filter(Boolean).join(', ') || dash}
+                    : declarationNumbers.join(', ')}
                 </FactCell>
               </div>
             </div>

@@ -1,8 +1,10 @@
-// Governed bucket actions + document-custody updates for the CUS workboard.
+// Governed bucket actions for the CUS workboard.
 //
 // Extracted verbatim from pages/ShipmentsPage.tsx in the 2026-09-01 structural
 // split: the confirm/lock/reopen/delete modal state machine, signature-keyed
 // idempotency, and the optimistic-version guards each action must carry.
+// SIL-485: the document-custody update retired with the editable drawer —
+// custody reads through CusLotView now.
 
 import { useCallback, useState } from 'react';
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';

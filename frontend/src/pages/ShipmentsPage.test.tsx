@@ -155,6 +155,7 @@ const detail = {
     id: 10,
     ordinal: 1,
     containerNumber: 'MSKU1234567',
+    operationalSiteId: 31,
     containerTypeId: 2,
     containerTypeLabel: '40HC',
     routeId: 7,
@@ -1907,11 +1908,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    // SIL-485: the header icon stays clickable; a blocked action answers on
-    // the surface with the guard's own reason (card 20260923_1 banner law) —
-    // no tooltip and no dead control.
-    expect(within(dialog).getByRole('button', { name: 'Khóa lô' }).getAttribute('aria-disabled')).toBe('true');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Khóa lô' }));
+    // SIL-485: the header icon stays clickable; its accessible name already
+    // carries the guard's reason (SR users hear why before acting), and the
+    // click answers on the surface with the same reason (card 20260923_1
+    // banner law) — no tooltip and no dead control.
+    const blocked = within(dialog).getByRole('button', { name: /Khóa lô — Xác nhận Kế toán đã hết hiệu lực\./ });
+    expect(blocked.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(blocked);
     expect(await screen.findByRole('alert')).toHaveTextContent('Xác nhận Kế toán đã hết hiệu lực.');
     expect(apiPost).not.toHaveBeenCalled();
   });
@@ -1931,7 +1934,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(sheet).toBeTruthy();
     expect(within(dialog).getByRole('columnheader', { name: 'Nhà xe / BKS' })).toBeTruthy();
     expect(within(dialog).getByText('Nhà xe An Phát · 15C-123.45')).toBeTruthy();
+    // NHÀ MÁY resolves the line's site id through the detail's own catalog —
+    // the same name the CẦNG NÂNG cell shows from its label column.
+    expect(within(dialog).getAllByText('Cảng Đình Vũ').length).toBeGreaterThanOrEqual(2);
     expect(within(dialog).getByText('Đã tạo chuyến')).toBeTruthy();
+    // Đối soát card values come from the finance derivation, not placeholders.
+    expect(within(dialog).getByText(/Lỗ /)).toBeTruthy();
+    expect(within(dialog).getByText(/Đã đối soát/)).toBeTruthy();
     expect(within(masterRow()).getByText('Maersk')).toBeTruthy();
     expect(within(dialog).getByRole('heading', { name: 'Đối soát' })).toBeTruthy();
     expect(screen.queryByText('Cước đầu ra')).toBeNull();

@@ -657,7 +657,9 @@ export default function ShipmentsPage() {
                   type="button"
                   className="drawer__close cus-drawer-lot-action"
                   onClick={() => requestLotAction(drawerItem)}
-                  aria-label={drawerItem.action.label}
+                  aria-label={drawerItem.action.enabled
+                    ? drawerItem.action.label
+                    : `${drawerItem.action.label} — ${drawerItem.action.disabledReason ?? 'hiện không khả dụng'}`}
                   aria-disabled={!drawerItem.action.enabled}
                 >
                   {drawerItem.action.kind === 'LOCK' && <FileLock2 size={16} />}

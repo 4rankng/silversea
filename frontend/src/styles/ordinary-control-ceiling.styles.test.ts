@@ -93,6 +93,7 @@ const ordinaryOwners: Record<string, string[]> = {
     ".cus-quick-edit-modal__fields input:not([data-uui-control] > input),\n  .cus-quick-edit-modal__fields select",
     ".cus-quick-edit-modal__fields .ds-uui-select button",
     ".cus-quick-edit-modal__action",
+    ".cus-shipment-drawer .drawer__close",
     ".cus-lot-chip",
     ".cus-lot-stepper__dot",
     ".cus-lot-dispatch",

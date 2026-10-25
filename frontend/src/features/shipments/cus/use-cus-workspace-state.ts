@@ -198,15 +198,12 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
     });
   }, []);
 
-  // `details[shipmentId]` is fetched once on first drawer open and cached
-  // for the rest of the session (see loadDetail), so its `selectors` catalogs
-  // (external carriers, vehicles, routes, ports, container types) go stale —
-  // a carrier added elsewhere (admin config, another tab) never appears in
-  // an already-cached shipment's "Chọn nhà xe" dropdown without a full page
-  // reload. Revalidate the open drawer's selectors on window-focus/visibility
-  // regain, same trigger already used for shipment-create catalogs
-  // (ShipmentCreateWorkspace.tsx). Containers/summary are left untouched so
-  // in-progress edit drafts (keyed off the container signature) survive.
+  // The open drawer's cached detail carries the selectors the REVIEW reads —
+  // the Nhận diện/Thông tin cells resolve labels (site names) from them, so
+  // a rename landing elsewhere (admin config, another tab) must surface here
+  // without a full reload. Revalidate on window-focus/visibility regain, same
+  // trigger already used for shipment-create catalogs
+  // (ShipmentCreateWorkspace.tsx). Containers/summary stay untouched.
   useEffect(() => {
     if (activeDetailId == null) return;
     const shipmentId = activeDetailId;
