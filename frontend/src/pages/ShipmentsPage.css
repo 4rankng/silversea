@@ -234,7 +234,10 @@
 .cus-drawer-workflow {
   display: grid;
   gap: 12px;
-  padding: 14px 20px 12px;
+  /* SIL-480: the drawer body owns the outer 20/24 inset; this section keeps
+     only its divider rhythm — hairline bottom, 16px above and below. */
+  padding: 0 0 16px;
+  margin: 0 0 16px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
@@ -251,12 +254,19 @@
   margin: 0;
 }
 
+/* SIL-480: section label 13/16/500, uppercase, tracking .04em, muted ink.
+   The badge shares this flex row, so the label's "margin-bottom 8" from the
+   spec is carried by the section grid's row gap (12px) instead of a margin
+   that would knock the badge off center. */
 .cus-drawer-workflow__heading h3 {
-  color: var(--ink);
+  margin: 0;
+  color: var(--ink-3);
   font-family: var(--font-display);
-  font-size: var(--text-section-size);
-  font-weight: var(--fw-semibold);
-  line-height: 1.25;
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .cus-drawer-workflow__action p {
@@ -1456,9 +1466,15 @@
   container-type: inline-size;
 }
 
+/* SIL-480 (owner spec 25/10, consult px table): the lot drawer chrome is a
+   56px bar — title 18/24/600 truncated to one line, close 32×32 ghost with a
+   16px icon inset 12px from the top/right edge. The safe-area inset rides
+   ABOVE the 56px band (min-height carries it), so the notch never eats the
+   bar on phones and the close still centers in the visible 56px. */
 .cus-shipment-drawer .drawer__head {
-  min-height: 76px;
-  padding: 16px 28px;
+  min-height: calc(56px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 12px 0 20px;
+  align-items: center;
   background: var(--surface);
 }
 
@@ -1467,22 +1483,43 @@
 }
 
 .cus-shipment-drawer .drawer__title {
-  margin-bottom: 2px;
-  font-size: var(--text-dialog-title-size);
-  line-height: 1.2;
+  margin: 0;
+  font-size: 18px; /* SIL-480 spec: 18/24/600 — above the 16px dialog-title token */
+  line-height: 24px;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cus-shipment-drawer .drawer__subtitle {
+  margin: 2px 0 0;
   font-family: var(--font-data);
-  font-size: var(--text-caption-size);
-  line-height: 1.35;
+  font-size: var(--text-data-size); /* 12px — SIL-480 subtitle 12/16 */
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cus-shipment-drawer .drawer__close {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: var(--radius-selector);
+}
+
+.cus-shipment-drawer .drawer__close svg {
+  width: 16px;
+  height: 16px;
 }
 
 .cus-shipment-drawer .drawer__body {
-  /* The footer is a flex sibling of the scrolling body (Drawer.css) — no
-     overlap, so the old 72px phantom clearance is gone (20261004 drawer
-     restyle; it read as a dead band above the Huỷ/Lưu bar). */
-  padding: 0;
+  /* SIL-480: the content band owns the 20/24 padding and the 16px
+     header→content gap itself (section đầu cách divider 16). The sections
+     below surrender their own outer padding so the inset is counted once. */
+  padding: 16px 24px 20px;
 }
 
 /* Untitled UI slideout Footer pattern: the action bar sits on the same white
@@ -1496,7 +1533,9 @@
 .cus-container-ledger {
   display: grid;
   gap: 0;
-  padding: 12px 20px 20px;
+  /* SIL-480: outer inset moved to .drawer__body (16/24/20) — the ledger keeps
+     none, or the drawer would double-count the side padding. */
+  padding: 0;
   background: var(--surface);
 }
 
@@ -2061,21 +2100,17 @@
 
   .cus-shipment-drawer .drawer__head {
     gap: 10px;
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 18px 12px;
-  }
-
-  .cus-shipment-drawer .drawer__title {
-    font-size: var(--text-dialog-title-size);
-    line-height: 1.2;
+    padding: env(safe-area-inset-top, 0px) 12px 0 16px;
   }
 
   .cus-shipment-drawer .drawer__body {
-    padding: 0;
+    padding: 16px 18px 20px;
   }
 
   .cus-drawer-workflow {
     gap: 10px;
-    padding: 14px 18px;
+    padding: 0 0 16px;
+    margin: 0 0 16px;
   }
 
   .cus-drawer-workflow__heading {
@@ -2114,7 +2149,7 @@
   }
 
   .cus-shipment-drawer .cus-container-ledger {
-    padding: 16px 18px 24px;
+    padding: 0;
   }
 
   .cus-container-table .cus-container-cell input,
@@ -2800,14 +2835,55 @@
 
 /* ── Card 20260923_1: drawer lot ops ─────────────────────────────────────── */
 /* Xóa lô bar — topmost row of the drawer body; the inline error rides it. */
+/* SIL-480 (owner spec 25/10, consult px table): the lot actions render as one
+   segmented control — container 32px tall, 2px padding, #F2F4F7 band (house
+   --surface-2), items 28px, radius 8, 13/500; the active segment sits on the
+   white surface with a light shadow. Catalog provenance: Untitled UI PRO
+   application/slideout-menus (button-menu header row); Tailkit has no
+   segmented/drawer match (searched 25/10) — house rebuild on tokens. */
 .cus-drawer-lot-bar {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 0 8px;
+  gap: 2px;
+  min-height: 32px;
+  padding: 2px;
+  border-radius: var(--radius-selector);
+  background: var(--surface-2);
+  margin: 0 0 16px;
+}
+.cus-drawer-lot-seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-selector);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 150ms var(--ease), color 150ms var(--ease);
+}
+.cus-drawer-lot-seg:hover { color: var(--ink); }
+.cus-drawer-lot-seg:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.cus-drawer-lot-seg--active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
 }
 .cus-drawer-lot-error {
-  margin: 0;
+  /* Sits between the control's 16px bottom margin and the next section:
+     pulled up 8 so the error rides 8px under the control, 16px above the
+     section — never inside the gray band. */
+  margin: -8px 0 16px;
   color: var(--danger-text);
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold, 600);

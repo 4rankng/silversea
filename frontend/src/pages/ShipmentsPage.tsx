@@ -663,10 +663,14 @@ export default function ShipmentsPage() {
                   header — topmost row of the drawer body. It stays reachable in
                   every state and answers with a reason (containers first, then
                   the lifecycle guard) instead of disappearing. */}
-              <div className="cus-drawer-lot-bar">
+              {/* SIL-480 (owner spec 25/10, consult px table): the pair renders
+                  as ONE segmented control — 32px container, 28px items,
+                  active segment on the raised white fill. The inline error
+                  rides BELOW the control, never inside its gray band. */}
+              <div className="cus-drawer-lot-bar" role="group" aria-label="Thao tác lô hàng">
                 <Link
                   to={`/shipments/${drawerItem.id}`}
-                  className="btn btn--secondary btn--sm cus-drawer-lot-detail"
+                  className="cus-drawer-lot-seg cus-drawer-lot-seg--active"
                   title="Xem toàn màn hình chi tiết lô hàng"
                 >
                   <ExternalLink size={14} /> Chi tiết lô hàng
@@ -674,14 +678,14 @@ export default function ShipmentsPage() {
                 {canDeleteLot && (
                   <button
                     type="button"
-                    className="btn btn--ghost btn--sm cus-drawer-lot-delete"
+                    className="cus-drawer-lot-seg"
                     onClick={() => requestDeleteLot(drawerItem)}
                   >
                     Xóa lô
                   </button>
                 )}
-                {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
               </div>
+              {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
               <section className="cus-drawer-workflow" aria-labelledby="cus-drawer-workflow-title">
                 <div className="cus-drawer-workflow__heading">
                   <h3 id="cus-drawer-workflow-title">Trạng thái lô</h3>

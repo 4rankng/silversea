@@ -2590,6 +2590,37 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).toContain("color={item.action.enabled ? 'primary' : 'secondary'}");
   });
 
+  it('normalizes the drawer chrome to the SIL-480 consult spec', () => {
+    // Owner spec 25/10 (consult px table, ticket SIL-480): header bar 56px,
+    // title 18/24/600 truncated, close 32×32 with a 16px icon, segmented lot
+    // control 32/28, content inset 20/24 with the first section 16px below
+    // the header divider. Catalog: Untitled UI PRO application/slideout-menus.
+    expect(css).toMatch(/\.cus-shipment-drawer \.drawer__head\s*\{[^}]*min-height:\s*calc\(56px \+ env\(safe-area-inset-top, 0px\)\);/);
+    expect(css).toMatch(/\.cus-shipment-drawer \.drawer__head\s*\{[^}]*align-items:\s*center;/);
+    expect(css).toMatch(/\.cus-shipment-drawer \.drawer__title\s*\{[^}]*font-size:\s*18px;[^}]*line-height:\s*24px;[^}]*font-weight:\s*var\(--fw-semibold\);[\s\S]*?text-overflow:\s*ellipsis;/);
+    expect(css).toMatch(/\.cus-shipment-drawer \.drawer__close\s*\{[^}]*width:\s*32px;[\s\S]*?min-height:\s*32px;/);
+    expect(css).toMatch(/\.cus-shipment-drawer \.drawer__close svg\s*\{[^}]*width:\s*16px;/);
+    // Segmented control: one 32px container on the house band, 28px items,
+    // active segment on the raised surface — never two loose buttons.
+    expect(css).toMatch(/\.cus-drawer-lot-bar\s*\{[^}]*min-height:\s*32px;[^}]*padding:\s*2px;[^}]*background:\s*var\(--surface-2\);/);
+    expect(css).toMatch(/\.cus-drawer-lot-seg\s*\{[^}]*height:\s*28px;[^}]*font-size:\s*13px;[^}]*font-weight:\s*var\(--fw-medium\);/);
+    expect(css).toMatch(/\.cus-drawer-lot-seg--active\s*\{[^}]*background:\s*var\(--surface\);[\s\S]*?box-shadow:\s*var\(--shadow-sm\);/);
+    expect(source).toContain('cus-drawer-lot-seg cus-drawer-lot-seg--active');
+    // The old loose-button chrome must not come back.
+    expect(source).not.toContain('cus-drawer-lot-detail');
+    expect(css).not.toMatch(/\.cus-drawer-lot-detail|\.cus-drawer-lot-delete/);
+    // Content band: 16px below the divider, 20/24 inset owned by the body.
+    expect(css).toMatch(/\.cus-shipment-drawer \.drawer__body\s*\{[^}]*padding:\s*16px 24px 20px;/);
+    expect(css).toMatch(/\.cus-container-ledger\s*\{[^}]*padding:\s*0;/);
+    // Section label: 13/16/500 uppercase muted.
+    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*font-size:\s*13px;/);
+    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*line-height:\s*16px;/);
+    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*font-weight:\s*var\(--fw-medium\);/);
+    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*letter-spacing:\s*0\.04em;/);
+    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*text-transform:\s*uppercase;/);
+    expect(css).toMatch(/\.cus-drawer-workflow__heading h3\s*\{[^}]*color:\s*var\(--ink-3\);/);
+  });
+
   it('uses distinct semantic colors for running and locked shipments', () => {
     expect(cusUtilsSource).toMatch(/\[ShipmentCusBucket\.RUNNING\]:\s*'var\(--accent\)'/);
     expect(cusUtilsSource).toMatch(/\[ShipmentCusBucket\.LOCKED\]:\s*'var\(--slate-4\)'/);
