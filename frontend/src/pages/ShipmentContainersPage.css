@@ -223,8 +223,12 @@
 /* Direction is structural classification, not a status: neutral token chip
    (surface-3/ink-2) matching the frozen overview's treatment — accent fills
    stay reserved for state signals. FB-113 v2: the chip moved into its own
-   9% column, so it may wrap ("CHƯA XÁC ĐỊNH") instead of overflowing. */
-.shipment-container-ledger__direction { display: inline-flex; width: fit-content; max-width: 100%; padding: 2px 7px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); letter-spacing: .04em; text-transform: uppercase; white-space: normal; }
+   9% column, so it may wrap ("CHƯA XÁC ĐỊNH") instead of overflowing.
+   SIL-484 (owner 25/10): the chip reads the table's DATA scale, not the
+   caption scale — 12px (--text-data-size, the neighboring Bill/Tờ khai/
+   Hãng tàu cells) at line-height 1.5 + the 2px block padding lands the
+   pill at ~22px, inside the owner's 20-22px band. */
+.shipment-container-ledger__direction { display: inline-flex; width: fit-content; max-width: 100%; padding: 2px 7px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-data-size); line-height: 1.5; font-weight: var(--fw-semibold); letter-spacing: .04em; text-transform: uppercase; white-space: normal; }
 .shipment-container-ledger__direction--unknown { color: var(--ink-3); }
 .shipment-container-ledger__container-classification { color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-medium); }
 .shipment-container-ledger__combined { display: inline-flex; width: fit-content; padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-bold); }

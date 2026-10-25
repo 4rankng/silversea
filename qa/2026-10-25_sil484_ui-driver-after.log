@@ -1,0 +1,7 @@
+LOGIN ok role=cus
+[api] GET /api/shipments => 200, items: 50 (read-only identity probe)
+[nav] /shipments-detail loaded, direction pill found (title: Chi tiết lô hàng · TransTing)
+[region] pill="Nhập" td={"x":635.359375,"y":337.578125,"width":103.8125,"height":130.75} next={"x":739.171875,"y":337.578125,"width":64.859375,"height":130.75}
+[metrics] {"label":"Nhập/Xuất","nextLabel":"Hãng tàu","pillFontSize":"12px","pillLineHeight":"18px","pillWeight":"600","pillPadding":"2px 7px","pillRect":{"w":50.6,"h":22},"nextText":"Chỉnh sửa ô chứng từ và hãng tàu contain","nextFontSize":"12px"}
+[shot] qa/2026-10-25_sil484_ui-pill-after-zoom.png (clip={"x":627.359375,"y":323.578125,"width":184.671875,"height":158.75})
+[shot] qa/2026-10-25_sil484_ui-ledger-after.png
