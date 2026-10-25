@@ -293,12 +293,6 @@
   margin: 0;
   padding: 10px;
 }
-/* FB-109 v2: the Số tờ khai cell stacks its trigger and the always-visible
-   Sửa button — the trigger yields its full-cell height so the button reads
-   as a row action under the value, not an overlay on it. */
-.shipment-container-ledger__cell-editor--with-action { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
-.shipment-container-ledger__editable-cell > .shipment-container-ledger__cell-editor--with-action > .shipment-container-ledger__cell-trigger { height: auto; min-height: 0; }
-.shipment-container-ledger__declaration-edit { align-self: flex-start; }
 /* An open editor shares the cell with its trigger. The full-height click target
    above must yield or it inflates to the whole cell and pushes the editor past
    the bottom edge — off-screen wherever the editor sits in flow instead of
@@ -641,10 +635,6 @@
   /* A missing appointment keeps the amber cell tint (attention cue) but stops
      shouting a bold placeholder + a second amber badge on top of it. */
   .shipment-container-ledger__schedule > strong:not(.ops-schedule__datetime) { font-weight: 400; color: var(--ink-2); }
-  /* FB-109 v2's always-visible Sửa is desktop-table affordance: on phones the
-     whole cell already is the edit trigger, so the lone button only floated
-     mid-card. It stays in the DOM for keyboard/AT flows. */
-  .shipment-container-ledger__declaration-edit { display: none; }
   /* Customer name is the scan anchor: it outranked nothing at 12px. */
   .shipment-container-ledger tbody > tr > th .shipment-container-ledger__multiline > strong { font-size: 14px; font-weight: var(--fw-bold, 700); }
 

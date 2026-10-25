@@ -1,5 +1,12 @@
 # FB-109 + FB-113 v2 — bảng ledger: cột Số tờ khai + nút Sửa inline (regression case)
 
+> **SUPERSEDED 25/10 (SIL-477, owner ruling):** phần FB-109 v2 "nút Sửa
+> always-visible ở cột Số tờ khai" đã BỊ XOÁ — owner xác nhận cell
+> click-to-edit là đủ, nút trùng lặp với chính cái cell. Trigger duy nhất là
+> click ô Số tờ khai (id canonical `shipment-detail-edit-documents-<row>`),
+> focus restore sau save giữ nguyên. Phần FB-113 (4 cột chứng từ theo thứ tự
+> QA) vẫn còn hiệu lực. Case bên dưới giữ nguyên làm bản ghi lịch sử v2.
+
 Case ID: TC-171026122100-V2 / TC-171026122140-V2
 Feature: bảng ledger Chi tiết lô hàng (`ShipmentContainerLedger.tsx`) — cột chứng từ và nút sửa từng dòng tờ khai.
 

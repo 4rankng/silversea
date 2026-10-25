@@ -895,23 +895,12 @@ export function ShipmentContainerLedger({
     }
   }
 
-  /* FB-109 v2 (QA 18/10): the ledger's documents cells were click-to-edit
-   * only, which QA could not discover — "không có nút sửa inline". Every
-   * container row now carries an always-visible Sửa button in the Số tờ khai
-   * column that opens the SAME documents editor the cell click opens. It is
-   * rendered by `editableCell` as a sibling of the trigger (nested buttons
-   * are invalid HTML) and shares the row's canonical documents trigger id so
-   * the post-save focus restore lands back on this cell. */
-  const declarationEditAction = (row: ShipmentCusContainerFlatRow) => (
-    <button
-      type="button"
-      className="btn btn--secondary btn--sm shipment-container-ledger__declaration-edit"
-      aria-label={`Sửa tờ khai container ${row.containerNumber || `số ${row.ordinal}`}`}
-      title="Sửa chứng từ và hãng tàu của container này"
-      disabled={editLoadingRowId === row.id || activeEdit != null}
-      onClick={() => onStartEdit(row, 'documents', `shipment-detail-edit-documents-${row.id}`)}
-    >Sửa</button>
-  );
+  /* Owner 24/10 (SIL-477) supersedes FB-109 v2's always-visible Sửa button
+   * here: the whole Số tờ khai cell already is the edit trigger, so the
+   * duplicate button read as two competing affordances on one value. The
+   * cell click — the canonical `shipment-detail-edit-documents-<row>`
+   * trigger below — is the single way into the documents editor again, and
+   * the post-save focus restore still lands on it. */
 
   const missingVehicleTodayCount = rows.filter((row) => row.transportDate === today && (!row.carrierName || !row.plateNumber)).length;
   // Card 20261009_3: at ≤640px every inline editor docks to the viewport as a
@@ -964,12 +953,9 @@ export function ShipmentContainerLedger({
       triggerKey?: string;
       /** Mobile card label override — the physical column's own header. */
       cellLabel?: string;
-      /** FB-109 v2: an always-visible row action rendered as a SIBLING of
-       *  the cell trigger (never nested inside the button). */
-      trailing?: ReactNode;
     } = {},
   ) => {
-    const { rendersEditor = true, triggerKey, cellLabel, trailing } = options;
+    const { rendersEditor = true, triggerKey, cellLabel } = options;
     // Lot-level rows (card 365 — container-less LCL lots) are display-only on
     // this workboard: there is no container line behind them to open an edit
     // session against, so every cell renders read-only regardless of the
@@ -983,7 +969,7 @@ export function ShipmentContainerLedger({
     if (!canEdit) return <div className={className}>{children}</div>;
     return (
       <div
-        className={`shipment-container-ledger__cell-editor${expanded ? ' shipment-container-ledger__cell-editor--expanded' : ''}${trailing ? ' shipment-container-ledger__cell-editor--with-action' : ''}`}
+        className={`shipment-container-ledger__cell-editor${expanded ? ' shipment-container-ledger__cell-editor--expanded' : ''}`}
         data-mode={mode}
       >
         <AriaButton
@@ -999,7 +985,6 @@ export function ShipmentContainerLedger({
           <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {row.containerNumber || `container số ${row.ordinal}`}: </span>
           {children}
         </AriaButton>
-        {trailing}
         {expanded && activeEdit && rendersEditor && renderInlineEditor(activeEdit, editorId)}
       </div>
     );
@@ -1126,8 +1111,9 @@ export function ShipmentContainerLedger({
                   </th>
                   {/* FB-113 v2: the documents group, one headed column per
                       field in the QA order. All four open the ONE documents
-                      editor; only the Số tờ khai cell mounts it and carries
-                      the always-visible Sửa button (FB-109 v2). */}
+                      editor; only the Số tờ khai cell mounts it (SIL-477
+                      removed the extra Sửa button — the cell click is the
+                      single trigger). */}
                   <td data-label="Bill/Booking" className={cellClassName(documentsEditable, 'documents')}>
                     {editableCell(row, 'documents', documentsEditable,
                       <div className="shipment-container-ledger__multiline">
@@ -1140,7 +1126,7 @@ export function ShipmentContainerLedger({
                       <div className="shipment-container-ledger__multiline">
                         <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
                       </div>,
-                      { cellLabel: 'Số tờ khai', trailing: declarationEditAction(row) })}
+                      { cellLabel: 'Số tờ khai' })}
                   </td>
                   <td data-label="Nhập/Xuất" className={cellClassName(documentsEditable, 'documents')}>
                     {editableCell(row, 'documents', documentsEditable,

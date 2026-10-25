@@ -441,12 +441,12 @@ describe('documents editor field order (FB-113, card 171026122140)', () => {
 
 /* ─── FB-109/113 v2 (QA 18/10) ──────────────────────────────────────────────
  * The QA surface is the ledger TABLE, not the documents popup: "header thiếu
- * trường Số tờ khai, thứ tự không đúng" and "không có nút sửa inline". The
- * single Chứng từ & hãng tàu column becomes four headed columns in the QA
- * order (Số Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu), and every
- * editable container row carries an always-visible Sửa button in the Số tờ
- * khai column that opens the same documents editor the cell click opens. */
-describe('documents column split + Sửa button (FB-109/113 v2)', () => {
+ * trường Số tờ khai, thứ tự không đúng". The single Chứng từ & hãng tàu
+ * column becomes four headed columns in the QA order (Số Bill/Booking →
+ * Số tờ khai → Nhập/Xuất → Hãng tàu). SIL-477 (owner 24/10) later removed
+ * v2's always-visible Sửa button — the cell click is the single documents
+ * trigger again, so the tests here pin THAT control. */
+describe('documents column split + cell click-to-edit (FB-109/113 v2, SIL-477)', () => {
   function renderIdleLedger(rows: ShipmentCusContainerFlatRow[]) {
     const onStartEdit = vi.fn();
     const view = render(
@@ -512,12 +512,13 @@ describe('documents column split + Sửa button (FB-109/113 v2)', () => {
     ]);
   });
 
-  it('FB-109 shows Sửa on a row WITH a tờ khai and opens the documents editor', () => {
+  it('SIL-477: clicking the Số tờ khai cell opens the documents editor — the v2 Sửa button stays gone', () => {
     const row = baseRow({ declarationNumber: 'TK-2026-001' });
     const { onStartEdit } = renderIdleLedger([row]);
     const cell = screen.getByText('TK-2026-001').closest('td');
     expect(cell?.getAttribute('data-label')).toBe('Số tờ khai');
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa tờ khai container MSKU1234567' }));
+    expect(screen.queryByRole('button', { name: /Sửa tờ khai container/ })).toBeNull();
+    fireEvent.click(within(cell!).getByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu MSKU1234567/ }));
     expect(onStartEdit).toHaveBeenCalledTimes(1);
     expect(onStartEdit).toHaveBeenCalledWith(row, 'documents', `shipment-detail-edit-documents-${row.id}`);
   });
@@ -538,7 +539,7 @@ describe('documents column split + Sửa button (FB-109/113 v2)', () => {
     expect(container.querySelector('td[data-label="Số tờ khai"] .shipment-container-ledger__inline-editor')).not.toBeNull();
   });
 
-  it('hides Sửa when documents are read-only and on lot-level rows', () => {
+  it('renders the Số tờ khai cell read-only when documents are locked and on lot-level rows (no trigger, no Sửa)', () => {
     const lockedRow = baseRow();
     const locked = { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.' };
     lockedRow.shipmentFieldAccess = {
@@ -550,11 +551,13 @@ describe('documents column split + Sửa button (FB-109/113 v2)', () => {
       declarationNumber: locked,
     } as typeof lockedRow.shipmentFieldAccess;
     const first = renderIdleLedger([lockedRow]);
+    expect(screen.queryByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Sửa tờ khai/ })).toBeNull();
     first.view.unmount();
 
     const lotRow = baseRow({ id: -7, isLotLevel: true, containerNumber: null, classification: 'LCL' });
     renderIdleLedger([lotRow]);
+    expect(screen.queryByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Sửa tờ khai/ })).toBeNull();
   });
 });
