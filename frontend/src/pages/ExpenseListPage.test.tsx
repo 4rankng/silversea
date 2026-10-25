@@ -271,8 +271,20 @@ describe('ExpenseListPage data-dense density (SIL-471)', () => {
     const badge = screen.getByText(/Nhập 21\/08\/2026/);
     expect(badge.className).toContain('expense-record-table__entry-badge');
     expect(badge.closest('td')!.querySelector('.expense-record-table__entry-date')).toBeNull();
-    // Same-date record (rows[1]) renders no badge at all.
-    expect(screen.queryByText(/Nhập 19\/08\/2026/)).toBeNull();
+    // QA wave 8cea1a6b AC2: the badge is UNCONDITIONAL — a same-date record
+    // still carries its entry date ("Nhập 19/08/2026"), it no longer renders
+    // a bare date cell.
+    expect(screen.getByText(/Nhập 19\/08\/2026/).className).toContain('expense-record-table__entry-badge');
+  });
+
+  it('reads an incomplete slip as "Nháp" in the date cell (QA wave 8cea1a6b AC2)', async () => {
+    mountEnvelope([{ ...rows[0]!, id: 104, approvalStatus: 'DRAFT' }]);
+    await screen.findByText('Garage Auto 123');
+
+    const draftBadge = screen.getByText('Nháp');
+    expect(draftBadge.className).toContain('expense-record-table__entry-badge');
+    // A draft row shows the draft marker, not an entry-date badge.
+    expect(screen.queryByText(/Nhập /)).toBeNull();
   });
 
   it('drops the constant THÀNH PHẦN column and folds the component into the Xe cell', async () => {
