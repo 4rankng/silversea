@@ -85,16 +85,16 @@
   text-align: center;
 }
 
-.pm-summary__stt {
+.pm-summary .pm-summary__stt {
   min-width: 44px;
 }
 
-.pm-summary__party {
+.pm-summary .pm-summary__party {
   min-width: 180px;
   font-weight: 600;
 }
 
-.pm-summary__sl {
+.pm-summary .pm-summary__sl {
   min-width: 48px;
 }
 
@@ -145,6 +145,59 @@
 
 .pm-summary__error {
   color: var(--danger, #E32434);
+}
+
+/* SIL-476 (QA verdict 24/10, build f3be253b): the shared record-table card
+   band (@container ≤1100px) turns tbody into cards but leaves this tfoot a
+   bare table row inside a display:block table — zero cell padding, numeric
+   cells crushed to ~8px, the totals gluing into
+   'Tổng cộng theo báo cáo kỳ320.000 ₫–320.000 ₫–…' at 768. This matrix is a
+   --scroll wide board by its own 2026-09-29 law (a board too wide for the
+   canvas scrolls on purpose, per-column min-widths), so it keeps REAL table
+   geometry at every canvas width: thead/tbody/tfoot columns stay aligned,
+   the totals band keeps its column spacing exactly like 1568, and the
+   excess width scrolls inside .pm-summary__scroll. Same shape as the house
+   --table restore (record-table.css): specificity (0,2,x) outranks every
+   band rule (0,1,x), so no import-order dependence. */
+@container (max-width: 1100px) {
+  .pm-summary .pm-summary__table {
+    display: table;
+  }
+
+  .pm-summary .pm-summary__table thead {
+    display: table-header-group;
+  }
+
+  .pm-summary .pm-summary__table tbody {
+    display: table-row-group;
+    gap: 0;
+  }
+
+  .pm-summary .pm-summary__table tfoot {
+    display: table-footer-group;
+  }
+
+  .pm-summary .pm-summary__table tbody tr {
+    display: table-row;
+    gap: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .pm-summary .pm-summary__table tbody td {
+    display: table-cell;
+    padding: 10px 12px;
+    border: 0;
+    border-inline-start: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* The card band's inline label eyebrow has no table-mode meaning (only the
+     party cell carries a data-label, and the real header above owns it). */
+  .pm-summary .pm-summary__table tbody td::before {
+    content: none;
+  }
 }
 
 @media (max-width: 640px) {
