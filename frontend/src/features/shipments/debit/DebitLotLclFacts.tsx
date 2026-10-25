@@ -185,7 +185,12 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
       </div>
       <div className="debit-lot-lcl-facts__block">
         <small>PHÂN XE</small>
-        <div className="debit-lot-lcl-facts__truck">
+        {/* SIL-482 (consult spec 24/10): the two plate fields sit in a 2-col
+            grid (minmax(0,1fr) — items can shrink, no wrap/clip) instead of
+            the old flex-wrap that staggered field 1 under field 2 and pushed
+            "Lưu BKS" inline beside the helper text. Action row lives below
+            the grid, right-aligned, per the same spec. */}
+        <div className="debit-lot-lcl-facts__truck-grid">
           <USearchableField
             label="Nhà xe - BKS thực"
             value={actual}
@@ -195,6 +200,7 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             searchable
             onCustomValue={setActual}
             hideLabel={false}
+            placeholder="Chọn nhà xe / BKS thực…"
           />
           {/* FB-141 — BKS báo khách là output TÙY CHỌN: ghost placeholder =
               BKS thực khi có (người dùng thấy giá trị sẽ được dùng nếu bỏ
@@ -211,9 +217,11 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             placeholder={row.actualTruckNo ? row.actualTruckNo : 'Trống = tự động dùng BKS thực'}
             hint="Mặc định dùng BKS thực tế nếu để trống"
           />
+        </div>
+        <div className="debit-lot-lcl-facts__actions">
           <UUIButton
-            size="sm"
-            color="secondary"
+            size="md"
+            color="primary"
             onPress={() => void saveTruck()}
             isDisabled={!truckDirty || savingTruck}
           >
