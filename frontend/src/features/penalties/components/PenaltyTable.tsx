@@ -19,10 +19,12 @@ import '../../../styles/table-sort.css';
 
 const STATUS_CHIPS: Array<{ key: PenaltyStatusFilter; label: string }> = [
   { key: 'all', label: 'Tất cả' },
-  // ACTIVE records are final on creation — payroll deducts them in the current
-  // period with no approval step (attendance.service sums every non-CANCELED
-  // row). The chip must not promise a gate that doesn't exist.
-  { key: PenaltyStatus.ACTIVE, label: 'Hiệu lực' },
+  // The owner's SIL-468 spec names this chip "Chờ duyệt" (QA wave 8cea1a6b
+  // re-flagged the "Hiệu lực" wording). The DATA semantics are unchanged —
+  // every non-CANCELED biên bản (no approval gate exists; attendance.service
+  // sums every non-CANCELED row) — the label is the owner's naming for the
+  // non-canceled set, not a new workflow state.
+  { key: PenaltyStatus.ACTIVE, label: 'Chờ duyệt' },
   { key: PenaltyStatus.CANCELED, label: 'Đã hủy' },
 ];
 
@@ -170,6 +172,7 @@ export function PenaltyTable({
         </div>
       ) : (
       <SummaryRail
+        size="lg"
         ariaLabel="Tóm tắt kỷ luật tháng"
         items={[
           { label: `Vi phạm · ${monthLabel}`, value: `${incidentCount} vụ`, tone: incidentCount > 0 ? 'warning' : undefined },
@@ -500,6 +503,28 @@ export function PenaltyTable({
       </Panel>
 
       {/* ── Violation type reference ─────────────────────────────────────── */}
+      {reasons.length === 0 ? (
+        /* SIL-468 (QA wave 8cea1a6b ③): an empty catalogue is ONE ≤72px band —
+           the section title, the quiet note and the config link share a single
+           row instead of the ~145px card-head + empty-line + foot chrome. */
+        <Panel flush className="penalty-transparent-panel">
+          <div className="penalty-reasons-empty">
+            <FileText size={14} aria-hidden="true" />
+            <span className="penalty-reasons-empty-title">
+              Phân loại vi phạm
+              <span className="count-pill">{reasons.length}</span>
+            </span>
+            <span className="penalty-reasons-empty-note">Chưa có phân loại — nội quy trống.</span>
+            <a
+              href="/config/penalty-reasons"
+              className="penalty-reasons-empty-link"
+              onClick={(e) => { e.preventDefault(); navigate('/config/penalty-reasons'); }}
+            >
+              Sửa bảng phạt →
+            </a>
+          </div>
+        </Panel>
+      ) : (
       <Panel flush className="penalty-transparent-panel">
           <div className="penalty-card-head">
             <div className="penalty-card-lead">
@@ -515,14 +540,6 @@ export function PenaltyTable({
               </div>
             </div>
           </div>
-          {reasons.length === 0 ? (
-            /* SIL-468: an empty catalogue is one quiet line, not a half-screen
-               illustration — the operator came here for the ledger. */
-            <div className="penalty-reasons-empty">
-              <FileText size={14} aria-hidden="true" />
-              <span>Chưa có phân loại vi phạm — nội quy trống.</span>
-            </div>
-          ) : (
           <div className="penalty-vio-type-list">
             {reasons.map((r, idx) => {
               const amount = Number(r.defaultAmount);
@@ -548,7 +565,6 @@ export function PenaltyTable({
               );
             })}
           </div>
-          )}
           <div className="penalty-table-foot">
             <div className="legend">
               <span>Cập nhật lần cuối: <span className="penalty-foot-value">{formatDate(new Date().toISOString().slice(0, 10))}</span></span>
@@ -562,6 +578,7 @@ export function PenaltyTable({
             </a>
           </div>
         </Panel>
+      )}
     </>
   );
 }

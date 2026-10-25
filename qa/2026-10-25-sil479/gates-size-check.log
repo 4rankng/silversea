@@ -1,0 +1,15 @@
+
+> @tingting/frontend@0.1.0 size-check /Users/dev/.paseo/worktrees/1njkloyy/fix-container-fullrow/frontend
+> node scripts/check-size.mjs
+
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-container-fullrow/frontend
+
+No test files found, exiting with code 1
+
+filter: src/tests/structure.guard.test.ts
+include: src/**/*.test.{ts,tsx}
+exclude:  **/node_modules/**, **/.git/**
+
+ ELIFECYCLE  Command failed with exit code 1.
+SIZE_EXIT=1

@@ -180,6 +180,28 @@ export default function ExpenseListPage() {
     );
   };
 
+  /** SIL-471 (QA wave 8cea1a6b AC2): the date cell ALWAYS carries its inline
+   *  badge. An incomplete slip reads "Nháp" — the same set the status pill
+   *  calls "Cần hoàn thiện"; a recorded slip reads "Nhập <ngày>" (the entry
+   *  date). The old same-date condition hid the badge exactly on the rows QA
+   *  sampled, leaving the entry date visible only in the edit view. */
+  const renderEntryBadge = (expense: ExpenseWithRefs) => {
+    const approval = expense.approvalStatus ?? 'APPROVED';
+    if (approval === 'DRAFT' || approval === 'PENDING' || approval === 'CHECKED') {
+      return (
+        <span className="expense-record-table__entry-badge" title="Phiếu nháp — chưa hoàn thiện">
+          Nháp
+        </span>
+      );
+    }
+    if (!expense.createdAt) return null;
+    return (
+      <span className="expense-record-table__entry-badge" title="Ngày nhập dữ liệu">
+        Nhập {formatDate(expense.createdAt)}
+      </span>
+    );
+  };
+
   const renderEmptyState = () => (
     // SIL-471: compact variant — an empty list is a ≤120px quiet state, not a
     // tall illustration band under the table.
@@ -337,13 +359,7 @@ export default function ExpenseListPage() {
                   <td data-label="Ngày phát sinh" className="expense-record-table__date">
                     <StatusStrip color={EXPENSE_STATUS_COLORS[e.paymentStatus] ?? '#999'} />
                     {formatDate(e.expenseDate)}
-                    {/* SIL-471: the entry date rides inline as a badge — the
-                        date cell stays one line (no sub-line band). */}
-                    {e.createdAt?.slice(0, 10) && e.createdAt.slice(0, 10) !== e.expenseDate.slice(0, 10) && (
-                      <span className="expense-record-table__entry-badge" title="Ngày nhập dữ liệu (khác ngày phát sinh = nhập luồng)">
-                        Nhập {formatDate(e.createdAt)}
-                      </span>
-                    )}
+                    {renderEntryBadge(e)}
                   </td>
                   <td data-label="Nhà cung cấp" className="expense-record-table__supplier">{e.supplier?.name || '—'}</td>
                   <td data-label="Hạng mục" className="expense-record-table__muted">{e.category?.name || '—'}</td>

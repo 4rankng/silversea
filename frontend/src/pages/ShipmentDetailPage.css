@@ -52,6 +52,16 @@
   padding: 8px;
 }
 
+/* SIL-479 (owner 24/10): from the desktop band the container-management card
+ * spans the FULL grid row — the 12-column ledger squeezed into one half of
+ * the 2-column grid is what locked it behind a horizontal scrollbar while the
+ * page had room to spare. Table columns flex with the wider row per the
+ * ShipmentsPage.css SIL-479 band; tablet (≤1023) keeps the half-width card
+ * and its scroll. */
+@media (min-width: 1024px) {
+  .shipment-detail__card--flush { grid-column: 1 / -1; }
+}
+
 @media (max-width: 768px) {
   .shipment-detail__card--flush {
     padding: 4px;

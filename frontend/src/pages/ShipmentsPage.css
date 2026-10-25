@@ -1671,6 +1671,34 @@
 .cus-container-col__appointment { width: 12.87%; } /* 140px */
 .cus-container-col__actions { width: 4.41%; } /* 48px */
 
+/* SIL-479 (owner 24/10 — /shipments/:id "Chi tiết container"): from the
+ * desktop band the page host is full-row (grid-column pin in
+ * ShipmentDetailPage.css), so the drawer's min-width lock must not apply
+ * there — the columns take percentage shares of the REAL row and the table
+ * never scrolls on desktop. RE-DERIVED on the SIL-483 grouped 8-column grid
+ * (the old 12-col shares died with the type/dispatch/plate tracks): the six
+ * content tracks are the drawer's consult % scaled into the 70.1% left after
+ * the behavioral floors, which SIL-479 pins at the measured 1024px worst
+ * case (wrapper 863px) — giờ hẹn keeps ≥150px (17.5%, the add-row segmented
+ * datetime's measured need; the page host has no shipment-drawer container,
+ * so the drawer's ≤1000px single-track add-form law never fires here) and
+ * Thao tác keeps ≥100px (12.4%, the Thêm/Hủy pair). Every other column wraps
+ * inside its share per the no-truncation doctrine — the grouped lines wrap,
+ * and a missing container number wraps via its data-missing-container rule.
+ * The drawer host and viewports <1024 keep the drawer's proportional sheet
+ * + scroll fallback. */
+@media (min-width: 1024px) { /* SIL-479 page-host full-row */
+  .shipment-detail__card--flush .cus-container-table { min-width: 0; }
+  .shipment-detail__card--flush .cus-container-col__declaration { width: 9.35%; }
+  .shipment-detail__card--flush .cus-container-col__identity { width: 15.58%; }
+  .shipment-detail__card--flush .cus-container-col__route { width: 12.47%; }
+  .shipment-detail__card--flush .cus-container-col__carrier { width: 17.14%; }
+  .shipment-detail__card--flush .cus-container-col__site { width: 7.79%; }
+  .shipment-detail__card--flush .cus-container-col__weight { width: 7.77%; }
+  .shipment-detail__card--flush .cus-container-col__appointment { width: 17.5%; }
+  .shipment-detail__card--flush .cus-container-col__actions { width: 12.4%; }
+}
+
 .cus-container-table th.cus-container-cell--actions,
 .cus-container-table td.cus-container-cell--actions {
   text-align: center;

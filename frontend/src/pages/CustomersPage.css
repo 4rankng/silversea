@@ -68,6 +68,15 @@
   padding: 12px 16px 20px;
 }
 
+/* QA wave 8cea1a6b ③: the sage canvas AROUND this card is what the re-review
+   failed — the customers screens' page canvas itself goes #FFFFFF, page-
+   scoped via :has() so no other surface loses the house tint. The card keeps
+   its hairline/radius; it now sits on white instead of sage. */
+.app-body:has(.customers-page),
+.app-body:has(.cfg-page--customers) {
+  background: #FFFFFF;
+}
+
 /* ── Header metric row (verdict a): three inline metrics beside the H1. ── */
 .cus-metrics {
   display: flex;

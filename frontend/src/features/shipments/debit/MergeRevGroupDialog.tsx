@@ -31,7 +31,9 @@ import { vehicleClassSectionedOptions } from '../../../lib/vehicle-class-options
 export interface MergeRevGroupLot {
   shipmentId: number;
   customerId: number | null;
-  customerName: string;
+  /** Nullable like the wire (SIL-478 P0): the dialog renders the name only
+   *  when it exists. */
+  customerName: string | null;
   code: string;
   billOrBookNumber: string;
   customsNumber?: string | null;

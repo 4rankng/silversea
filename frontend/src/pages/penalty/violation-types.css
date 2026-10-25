@@ -99,7 +99,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  /* SIL-468 (QA wave 8cea1a6b ③): the empty catalogue band targets ≤72px
+     total — one 40–44px row carries title + note + link. */
+  min-height: 40px;
+  padding: 10px 16px;
   color: var(--ink-3);
   font-size: var(--fs-xs);
 }
@@ -107,6 +110,33 @@
 .penalty-reasons-empty svg {
   flex-shrink: 0;
   color: var(--ink-4);
+}
+
+.penalty-reasons-empty-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.penalty-reasons-empty-note {
+  min-width: 0;
+}
+
+.penalty-reasons-empty-link {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: var(--fs-xs);
+  text-decoration: none;
+}
+
+.penalty-reasons-empty-link:hover {
+  text-decoration: underline;
 }
 
 

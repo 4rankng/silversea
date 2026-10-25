@@ -149,7 +149,7 @@ describe('PenaltyTable', () => {
       Array.from(document.querySelectorAll<HTMLButtonElement>('button.penalty-chip'))
         .find(b => b.textContent?.startsWith(label));
     expect(chip('Tất cả')?.textContent).toContain('7');
-    expect(chip('Hiệu lực')?.textContent).toContain('5');
+    expect(chip('Chờ duyệt')?.textContent).toContain('5');
     expect(chip('Đã hủy')?.textContent).toContain('2');
   });
 
@@ -252,7 +252,7 @@ describe('PenaltyTable', () => {
       onPageChange,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Hiệu lực/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Chờ duyệt/ }));
     expect(onStatusFilterChange).toHaveBeenCalledWith(PenaltyStatus.ACTIVE);
 
     // Pagination summary carries the server total, not the loaded row count.

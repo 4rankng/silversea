@@ -613,7 +613,7 @@ function phoneViewport() {
 }
 afterEach(() => { window.matchMedia = originalMedia; });
 
-it('QA-AUDIT-UI-39 phone selection is explicit, expansion preserves it, and filters reset the20-row page', async () => {
+it('QA-AUDIT-UI-39 phone selection is explicit, row-tap expansion preserves it, and filters reset the20-row page', async () => {
   phoneViewport();
   listSummary.mockResolvedValue({ items: Array.from({ length: 21 }, (_, i) => row({ shipmentId: 101 + i, billOrBookNumber: `BL-${i + 1}`, lockStatus: 'LOCKED' })), total: 21 });
   getDetail.mockResolvedValue({ shipmentId: 101, freightRows: [], chiHoRows: [], unattachedTrips: [], payables: { chiHoTotal: null }, thuKhachTotal: null });
@@ -621,16 +621,20 @@ it('QA-AUDIT-UI-39 phone selection is explicit, expansion preserves it, and filt
   const record = await screen.findByRole('article', { name: 'BL-1' });
   expect(screen.getAllByRole('article')).toHaveLength(20);
   expect(screen.queryByRole('table')).toBeNull();
-  // Redesign 23/10 — the phone totals strip rides above the cards.
+  // Redesign 23/10 — the phone totals strip rides above the rows.
   expect(screen.getByTestId('shipment-debit-totals-mobile')).toBeTruthy();
   // The ticks are always on (redesign 23/10) — no mode flip anymore.
   const checkbox = within(record).getByRole('checkbox', { name: 'Chọn BL-1' });
   fireEvent.click(checkbox); expect(checkbox).toBeChecked();
-  fireEvent.click(within(record).getByText('Chi tiết'));
-  fireEvent.click(within(record).getByRole('button', { name: 'Mở chi tiết lô BL-1' }));
-  expect((await screen.findByText('Cước vận tải')).closest('.ledger-record__fact')).toHaveAttribute('data-layout', 'full-width');
+  // SIL-478 (b) — the row tap is the expand control; no per-row button left.
+  const toggle = within(record).getByRole('button', { name: 'Chi tiết BL-1' });
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  fireEvent.click(toggle);
+  expect((await screen.findByText(/Cước vận tải/)).closest('.ledger-glist__fact')).toBeTruthy();
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
   expect(checkbox).toBeChecked();
-  fireEvent.click(within(record).getByRole('button', { name: 'Đóng chi tiết lô BL-1' }));
+  fireEvent.click(within(record).getByRole('button', { name: 'Chi tiết BL-1' }));
+  expect(within(record).getByRole('button', { name: 'Chi tiết BL-1' }).getAttribute('aria-expanded')).toBe('false');
   expect(checkbox).toBeChecked();
   fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
   expect(screen.getByRole('article', { name: 'BL-21' })).toBeTruthy();

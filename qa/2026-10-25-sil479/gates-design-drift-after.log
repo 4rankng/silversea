@@ -1,0 +1,21 @@
+
+> @tingting/frontend@0.1.0 design:drift /Users/dev/.paseo/worktrees/1njkloyy/fix-container-fullrow/frontend
+> node scripts/check-design-drift.mjs
+
+design-drift: 208 page CSS files scanned
+  hexDirect                178
+  hexFallback              68
+  radiusOffLadder          2
+  rawShadow                46
+  rawZIndex                77
+  untokenizedTransition    134
+  mediaWidthValues         49
+  containerWidthValues     20
+  worst files             src/pages/config/debit-note-template-editor.css(101) src/pages/salary-attendance/calendar.css(67) src/pages/payables-fuel-invoices.css(42) src/pages/salary-attendance/responsive.css(33)
+
+✗ design drift GREW — a raw value or a new breakpoint entered a page stylesheet.
+  radiusOffLadder: 1 → 2
+
+  Use a token/primitive instead (docs/design-system/01-tokens.md), or, if this is a
+  deliberate system change, update the ladder in docs AND run: pnpm design:drift --update
+ ELIFECYCLE  Command failed with exit code 1.

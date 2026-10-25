@@ -8,6 +8,12 @@ const pageSource = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.
 const rowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
 const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedger.tsx'), 'utf8');
 const ledgerRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedgerRow.tsx'), 'utf8');
+// SIL-479: the page-host wrapper floor measured at the 1024px viewport with
+// the card full-row (sidebar 248 + gutters) — the narrowest desktop row the
+// percentage shares must satisfy. Re-measure with
+// qa/scripts/2026-10-25-sil479-container-fullrow-shots.mjs if the shell
+// chrome ever changes.
+const SIL479_PAGE_WRAPPER_FLOOR = 863;
 
 describe('shipment container editor density', () => {
   it('keeps Untitled toolbar inputs inside a single outlined control shell', () => {
@@ -125,9 +131,46 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/\.cus-container-ledger__add-actions\s*\{[^}]*flex-wrap:\s*wrap;/);
   });
 
-  // Card 20260923_9 residual, re-scoped by SIL-483: the add-container form
-  // gives every field its whole row once the sheet compresses (≤1000px
-  // container) — the segmented giờ hẹn input cannot live in a 12.87% track.
+  // SIL-479 (owner 24/10) — re-derived on the SIL-483 grouped 8-column grid
+  // (the old 12-col share list died with the type/dispatch/plate tracks; the
+  // six content tracks are the drawer's consult % scaled into the 70.1% the
+  // two behavioral floors leave): the /shipments/:id page host spans the full
+  // grid row from 1024 (grid-column pin lives in ShipmentDetailPage.css) and
+  // its columns take percentage shares of the real row — the drawer's lock
+  // must not leak there, and the floor laws must still hold at the 1024px
+  // worst case. Scoped to `.shipment-detail__card--flush`: the drawer host
+  // and viewports <1024 keep the drawer's proportional sheet + scroll law.
+  it('SIL-479: page-host ledger goes full-row percentage from 1024 — drawer floors stay the fallback', () => {
+    const detailCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDetailPage.css'), 'utf8');
+    expect(detailCss).toMatch(
+      /@media \(min-width: 1024px\)\s*\{\s*\.shipment-detail__card--flush \{ grid-column: 1 \/ -1; \}\s*\}/,
+    );
+    const band = /@media \(min-width: 1024px\) \{\s*\/\* SIL-479[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(band).toContain('.shipment-detail__card--flush .cus-container-table { min-width: 0; }');
+    const share = (name: string) => Number(
+      new RegExp(`\\.shipment-detail__card--flush \\.cus-container-col__${name} \\{ width: ([\\d.]+)%; \\}`).exec(band)?.[1] ?? NaN,
+    );
+    // SIL-483 colgroup: eight grouped tracks, site ONCE (the old 12-col list
+    // counted site twice — the type/dispatch/plate tracks no longer exist).
+    const names = ['declaration', 'identity', 'route', 'carrier', 'site', 'weight', 'appointment', 'actions'] as const;
+    const total = names.reduce((sum, name) => sum + share(name), 0);
+    expect(total).toBeCloseTo(100, 5);
+    // SIL-479's re-derived behavioral floors survive the SIL-483 squeeze at
+    // the measured 1024px worst case (wrapper 863): giờ hẹn keeps the
+    // segmented datetime's measured need — the page host has no
+    // shipment-drawer container, so the drawer's ≤1000px single-track
+    // add-form law never fires there and the add row still rides the grid —
+    // and Thao tác keeps the Thêm/Hủy pair.
+    expect(share('appointment') / 100 * SIL479_PAGE_WRAPPER_FLOOR).toBeGreaterThanOrEqual(150);
+    expect(share('actions') / 100 * SIL479_PAGE_WRAPPER_FLOOR).toBeGreaterThanOrEqual(100);
+    // The override never re-binds the drawer host.
+    expect(band).not.toContain('cus-shipment-drawer');
+  });
+
+  // Card 20260923_9 residual, re-scoped by SIL-483 (the ≤560 single-track law
+  // broadened to ≤1000): the add-container form gives every field its whole
+  // row once the sheet compresses — the segmented giờ hẹn input cannot live
+  // in a 12.87% track.
   it('gives every add-container field its whole row once the sheet compresses', () => {
     expect(css).toMatch(
       /@container shipment-drawer \(max-width: 1000px\)[\s\S]*?\.cus-container-table \.cus-container-ledger__add-row\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/,

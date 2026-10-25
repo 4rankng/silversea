@@ -1,0 +1,8 @@
+BEFORE {"rows":20,"expanded":0,"toggleAria":"false"}
+AFTER {"expanded":1,"toggleAria":"true","factLabels":["Tổng chi","Lợi nhuận","Cước vận tải (Auto)","Số tờ khai","Nhà máy","Địa chỉ nhà máy"],"workspaceMounted":true,"checkboxChecked":false}
+API ["http://localhost:7176/api/shipments/22/debit-detail -> 200"]
+DONE
+FACE(customer=2,oct) {"name":"Công Ty Tnhh Logcom Việt Nam","nameStyle":{"size":"14px","weight":"600","family":"\"Be Vietnam Pro\""},"meta":"YMJAI491362768 · 01/10/2026","amount":"0","amountStyle":{"size":"16px","weight":"600","numeric":"tabular-nums"},"chip":"Đang mở","chipStyle":{"height":"24px","radius":"999px","bg":"rgb(239, 248, 255)","color":"rgb(23, 92, 211)","size":"12px","family":"\"Be Vietnam Pro\""},"rowHeight":64,"rowPadding":"12px","groupCount":1,"itemDivider":"1px","baselineDelta":0}
+TAP(customer=2,oct) {"expanded":1,"ariaExpanded":"true","facts":"Tổng chi,Lợi nhuận,Cước vận tải (Auto),Số tờ khai,Nhà máy,Địa chỉ nhà máy","workspacePanel":true,"ticked":false}
+API ["http://localhost:7176/api/shipments/60/debit-detail -> 200"]
+DONE

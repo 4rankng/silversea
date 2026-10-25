@@ -4,7 +4,7 @@
  * override reason as the spec §3.2 "chú thích nhỏ bên dưới"; a lot whose
  * freight came from the snapshot channel carries no note.
  */
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -147,8 +147,8 @@ describe('F-2 — Cước vận tải (Auto) đọc kênh ghi đè (ruling b)', 
 });
 
 // BD-01/BD-03 (card 161026204709): the phone row renderer is a separate
-// surface — LedgerRecordList folds every non-primary fact into a closed
-// 'Chi tiết' disclosure — so the lane law must hold there too.
+// surface — SIL-478's grouped rows fold the remaining facts into the row's
+// tap-expanded region — so the lane law must hold there too.
 const originalMedia = window.matchMedia;
 /** jsdom has no viewport media engine; this is the browser API polyfill. */
 function viewport(width: number) {
@@ -160,8 +160,8 @@ function viewport(width: number) {
 }
 afterEach(() => { window.matchMedia = originalMedia; });
 
-describe('BD-01 (161026204709) — phone card face keeps the merged 100%/0₫ lane visible', () => {
-  it('renders principal lane price + member 0₫ and reason outside the Chi tiết disclosure', async () => {
+describe('BD-01 (161026204709) — phone row keeps the merged 100%/0₫ lane visible', () => {
+  it('renders principal lane price + member 0₫ and reason on the expanded face, never nested in a disclosure', async () => {
     viewport(390);
     listSummary.mockResolvedValue({
       items: [
@@ -183,28 +183,30 @@ describe('BD-01 (161026204709) — phone card face keeps the merged 100%/0₫ la
     });
     renderPage();
 
-    // Lô 1 = 100% lane price on the card face, no note.
+    // Lô 1 = 100% lane price on the expanded face, no note.
     const principal = await screen.findByRole('article', { name: 'BL-P' });
-    const principalLane = within(principal).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-record__fact')!;
+    fireEvent.click(within(principal).getByRole('button', { name: 'Chi tiết BL-P' }));
+    const principalLane = within(principal).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-glist__fact')!;
     expect(principalLane.closest('details')).toBeNull();
     expect(principalLane.textContent).toContain('3.150.000');
 
-    // Member = 0₫ + the note under it — both outside the disclosure.
+    // Member = 0₫ + the note under it — both on the expanded face.
     const member = await screen.findByRole('article', { name: 'BL-M' });
-    const memberLane = within(member).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-record__fact')!;
+    fireEvent.click(within(member).getByRole('button', { name: 'Chi tiết BL-M' }));
+    const memberLane = within(member).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-glist__fact')!;
     expect(memberLane.closest('details')).toBeNull();
     expect(memberLane.textContent).toContain('0');
     const note = within(memberLane).getByText('Ghép cước cùng Bill BL-P');
     expect(note.tagName).toBe('SMALL');
 
-    // The disclosure still holds the sibling facts — never the lane.
-    const details = within(member).getByText('Chi tiết').closest('details')!;
-    expect(within(details).queryByText('Cước vận tải (Auto)')).toBeNull();
-    expect(within(details).queryByText('Ghép cước cùng Bill BL-P')).toBeNull();
+    // The rebuild removed the nested disclosure — the lane can never hide in
+    // one, and the sibling facts live flat on the same face.
+    expect(within(member).queryByText('Chi tiết')).toBeNull();
 
     // BD-03 control: a snapshot-channel row shows the money, no note.
     const snap = await screen.findByRole('article', { name: 'BL-S' });
-    const snapLane = within(snap).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-record__fact')!;
+    fireEvent.click(within(snap).getByRole('button', { name: 'Chi tiết BL-S' }));
+    const snapLane = within(snap).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-glist__fact')!;
     expect(snapLane.closest('details')).toBeNull();
     expect(snapLane.textContent).toContain('1.234.000');
     expect(within(snap).queryByText(/Ghép cước/)).toBeNull();

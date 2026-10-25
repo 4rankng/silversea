@@ -299,6 +299,12 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__row-warning svg\s*\{[^}]*flex:\s*0 0 12px;/);
     // Structural classification chips stay neutral — accent fills are state-only.
     expect(css).toMatch(/\.shipment-container-ledger__direction\s*\{[^}]*background:\s*var\(--surface-3\);[^}]*color:\s*var\(--ink-2\);/);
+    // SIL-484 (owner 25/10): the chip reads the table's DATA scale (12px,
+    // same as the neighboring cells) — not the 11px caption scale — and the
+    // line-height keeps the pill inside the owner's 20-22px band
+    // (12px × 1.5 + 2px × 2 padding = 22px).
+    expect(css).toMatch(/\.shipment-container-ledger__direction\s*\{[^}]*font-size:\s*var\(--text-data-size\);[^}]*line-height:\s*1\.5;/);
+    expect(css).not.toMatch(/\.shipment-container-ledger__direction\s*\{[^}]*font-size:\s*var\(--text-caption-size\)/);
     expect(css).not.toMatch(/__direction--import\s*\{[^}]*var\(--info/);
     expect(css).not.toMatch(/__direction--export\s*\{[^}]*var\(--brand/);
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-alert/);

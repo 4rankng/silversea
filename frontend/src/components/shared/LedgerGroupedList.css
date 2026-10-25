@@ -1,0 +1,166 @@
+/* SIL-478 (2026-10-25) — the grouped ledger rows: ONE bordered container per
+ * the verdict's spec (a): hairline dividers, no per-row gaps/shadows, rows are
+ * a 2-column grid (identity left, money + status chip right on one baseline).
+ * The filled 24px status chip is the verdict's dated supersession of the
+ * 2026-09-24 text+dot ruling for THIS pattern; colors ride --chip-* tokens
+ * (styles/tokens.css), never raw hex — the drift ratchet counts it. */
+.ledger-glist { display: none; }
+
+@media (max-width: 640px) {
+  .ledger-glist { display: grid; gap: var(--space-md); min-width: 0; }
+
+  /* The verdict's grouped list: ONE container holds the page of rows; rows
+   * separate by hairline dividers, never per-row boxes/gaps/shadows. */
+  .ledger-glist__group {
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--app-radius-md);
+    overflow: hidden;
+  }
+
+  .ledger-glist__item { min-width: 0; }
+  .ledger-glist__item + .ledger-glist__item { border-top: 1px solid var(--line); }
+
+  .ledger-glist__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--space-md);
+    align-items: center;
+    padding: var(--space-md) var(--space-md);
+    min-height: 64px;
+  }
+  .ledger-glist__row[data-selectable] { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .ledger-glist__row[data-expandable] { cursor: pointer; }
+  .ledger-glist__row[data-expandable]:focus-visible { outline: 2px solid var(--brand, var(--ink)); outline-offset: -2px; }
+  .ledger-glist__row[data-expandable]:active,
+  .ledger-glist__item[data-selected] .ledger-glist__row { background: var(--surface-2); }
+
+  .ledger-glist__pick {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-height: var(--control-h);
+    color: var(--ink-2);
+    font-size: var(--text-control-size);
+    cursor: pointer;
+  }
+
+  .ledger-glist__id { display: grid; gap: 2px; min-width: 0; }
+  .ledger-glist__name {
+    min-width: 0;
+    color: var(--ink);
+    font-size: var(--text-section-size);
+    line-height: 20px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ledger-glist__meta {
+    min-width: 0;
+    color: var(--ink-3);
+    font-size: var(--text-body-size);
+    line-height: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ledger-glist__side {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-shrink: 0;
+  }
+  .ledger-glist__amount {
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .ledger-glist__chip {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 var(--space-sm);
+    border-radius: 999px;
+    border: 1px solid var(--chip-neutral-border);
+    background: var(--chip-neutral-bg);
+    color: var(--chip-neutral-text);
+    font-family: inherit;
+    font-size: var(--text-body-size);
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .ledger-glist__chip[data-tone='open'] {
+    border-color: var(--chip-open-border);
+    background: var(--chip-open-bg);
+    color: var(--chip-open-text);
+  }
+  .ledger-glist__chip[data-tone='done'] {
+    border-color: var(--chip-done-border);
+    background: var(--chip-done-bg);
+    color: var(--chip-done-text);
+  }
+  .ledger-glist__chip[data-tone='overdue'] {
+    border-color: var(--chip-overdue-border);
+    background: var(--chip-overdue-bg);
+    color: var(--chip-overdue-text);
+  }
+
+  /* The expanded region: the row's remaining facts + workspace. Facts reuse
+   * the ledger-record fact layout law (label left, value right, pairs wrap).
+   * Flat — the F-2 lane law bans nesting the freight fact in a disclosure. */
+  .ledger-glist__detail {
+    border-top: 1px solid var(--line);
+    padding: var(--space-md);
+    display: grid;
+    gap: var(--space-sm);
+  }
+  .ledger-glist__facts { display: grid; gap: var(--space-xs); margin: 0; }
+  .ledger-glist__fact {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-md);
+    row-gap: var(--space-xs);
+    align-items: center;
+    min-width: 0;
+  }
+  .ledger-glist__fact dt {
+    flex: 1 1 calc(50% - var(--space-xs));
+    min-width: 0;
+    color: var(--ink-3);
+    font-size: var(--text-caption-size);
+    margin: 0;
+  }
+  .ledger-glist__fact dd {
+    flex: 1 1 calc(50% - var(--space-xs));
+    min-width: min-content;
+    max-width: 100%;
+    margin: 0;
+    color: var(--ink);
+    font-size: var(--text-body-size);
+    overflow-wrap: anywhere;
+  }
+  .ledger-glist__fact dd[data-align='end'] { text-align: right; }
+
+  .ledger-glist__pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    font-size: var(--text-caption-size);
+  }
+  .ledger-glist__empty { margin: 0; padding: var(--space-md); color: var(--ink-3); background: var(--surface); }
+}
+
+@media print {
+  .ledger-glist { display: none !important; }
+}

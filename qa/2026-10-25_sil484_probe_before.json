@@ -1,0 +1,40 @@
+{
+  "label": "before",
+  "metrics": {
+    "label": "Nhập/Xuất",
+    "nextLabel": "Hãng tàu",
+    "pillFontSize": "11px",
+    "pillLineHeight": "15.4px",
+    "pillWeight": "600",
+    "pillPadding": "2px 7px",
+    "pillRect": {
+      "w": 47.6,
+      "h": 19.4
+    },
+    "nextText": "Chỉnh sửa ô chứng từ và hãng tàu contain",
+    "nextFontSize": "12px"
+  },
+  "region": {
+    "pillText": "Nhập",
+    "pill": {
+      "x": 645.359375,
+      "y": 392.75,
+      "width": 47.59375,
+      "height": 19.390625
+    },
+    "td": {
+      "x": 635.359375,
+      "y": 337.578125,
+      "width": 103.8125,
+      "height": 130.75
+    },
+    "next": {
+      "x": 739.171875,
+      "y": 337.578125,
+      "width": 64.859375,
+      "height": 130.75
+    },
+    "rowTop": 337.578125,
+    "rowBottom": 468.328125
+  }
+}
