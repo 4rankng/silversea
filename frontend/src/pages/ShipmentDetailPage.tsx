@@ -7,7 +7,7 @@ import { ShipmentCreateWorkspace } from '../features/shipments/create/ShipmentCr
  * SIL-481 (ruling owner 25/10): /shipments/:id is the POST-CREATE REVIEW —
  * "just post view action after create mới lô hàng". The page shows the SAME
  * Tạo lô hàng workspace as /shipments/new in VIEW mode: read-only pre-fill,
- * "Chuyển sang sửa" opens the SIL-171 edit form, "Quay lại" returns to the
+ * "Sửa" opens the SIL-171 edit form, "Quay lại" returns to the
  * list. One form layout everywhere (create → view → edit); no panels, no
  * second layout. Reached from the create flow's own landing (and legacy
  * links); the Tổng quan drawer deliberately does NOT navigate here.

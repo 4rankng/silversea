@@ -363,9 +363,13 @@ interface DrawerProps {
    *  rendered inside the head-actions cluster before expand/close so hosts
    *  keep one heading/actions flex split. */
   headerAction?: React.ReactNode;
+  /** SIL-485 (owner mockup 25/10): status chips rendered inline right after
+   *  the title, before the optional subtitle — hosts that don't pass it
+   *  render exactly as before. */
+  titleChips?: React.ReactNode;
 }
 
-export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onConfirm, className = '', headerGraphic, expandable = false, headerAction }: DrawerProps) {
+export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onConfirm, className = '', headerGraphic, expandable = false, headerAction, titleChips }: DrawerProps) {
   const titleId = useId();
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -456,7 +460,10 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
             <div className="drawer__heading">
               {headerGraphic}
               <div style={{ minWidth: 0 }}>
-                <h2 id={titleId} className="drawer__title">{title}</h2>
+                <div className="drawer__titlerow">
+                  <h2 id={titleId} className="drawer__title">{title}</h2>
+                  {titleChips}
+                </div>
                 {subtitle && <p className="drawer__subtitle">{subtitle}</p>}
               </div>
             </div>

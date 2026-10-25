@@ -93,10 +93,11 @@ const ordinaryOwners: Record<string, string[]> = {
     ".cus-quick-edit-modal__fields input:not([data-uui-control] > input),\n  .cus-quick-edit-modal__fields select",
     ".cus-quick-edit-modal__fields .ds-uui-select button",
     ".cus-quick-edit-modal__action",
-    ".cus-container-table .cus-container-row__remove",
-    ".cus-drawer-primary-action",
-    ".cus-container-table .cus-container-cell input,\n  .cus-container-table .cus-container-cell .searchable-select__trigger",
-    ".cus-container-edit-action"
+    ".cus-shipment-drawer .drawer__close",
+    ".cus-lot-chip",
+    ".cus-lot-stepper__dot",
+    ".cus-lot-dispatch",
+    ".cus-lot-flag"
   ],
   "src/pages/ShipmentContainersPage.css": [
     ".shipment-container-ledger__schedule-pill,\n  .shipment-container-ledger__schedule-time-pill",

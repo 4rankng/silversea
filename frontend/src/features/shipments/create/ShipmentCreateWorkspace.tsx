@@ -67,7 +67,7 @@ const newContainer = createEmptyContainer;
  * SIL-481 (ruling 25/10): `viewTarget` opens the SAME workspace read-only —
  * the /shipments/:id post-create review. Identical fetch-once prefill, every
  * control disabled through the same channel the saving state uses, and the
- * action pair swaps to Quay lại / Chuyển sang sửa (ShipmentViewActions). One
+ * action pair swaps to Quay lại / Sửa (ShipmentViewActions). One
  * form layout everywhere: create → view → edit.
  */
 export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
@@ -740,7 +740,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // review needs no per-field changes anywhere in the worksheet. In
   // create/edit this is exactly the old Boolean(saving).
   const controlsDisabled = viewMode || Boolean(saving);
-  // SIL-481: "Chuyển sang sửa" opens the SIL-171 edit form for this lot.
+  // SIL-481: "Sửa" opens the SIL-171 edit form for this lot.
   const goEdit = () => {
     if (viewTarget) navigate(`/shipments/${viewTarget.shipmentId}/edit`);
   };
@@ -1066,7 +1066,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           {viewMode ? (
             /* SIL-481: the FB-108 repetition keeps its place at the foot of
              * the worksheet, but the read-only review repeats the VIEW pair
-             * (Quay lại / Chuyển sang sửa), not a save cluster. */
+             * (Quay lại / Sửa), not a save cluster. */
             <ShipmentViewActions
               variant="footer"
               onBack={goShipmentList}

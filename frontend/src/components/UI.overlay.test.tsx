@@ -103,7 +103,7 @@ describe('Drawer keyboard focus', () => {
   });
 
   it('QA-AUDIT-UI-06 keeps authored close and save hints free of shortcut suffixes', () => {
-    for (const file of ['src/design-system/Modal.tsx', 'src/components/UI.tsx', 'src/components/PhotoViewer.tsx', 'src/features/shipments/cus/CusContainerLedger.tsx']) {
+    for (const file of ['src/design-system/Modal.tsx', 'src/components/UI.tsx', 'src/components/PhotoViewer.tsx']) {
       expect(readFileSync(resolve(process.cwd(), file), 'utf8')).not.toMatch(/(?:label|title)="[^"]*\((?:Esc|Enter)\)/);
     }
   });

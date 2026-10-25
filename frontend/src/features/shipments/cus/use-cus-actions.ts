@@ -1,22 +1,22 @@
-// Governed bucket actions + document-custody updates for the CUS workboard.
+// Governed bucket actions for the CUS workboard.
 //
 // Extracted verbatim from pages/ShipmentsPage.tsx in the 2026-09-01 structural
 // split: the confirm/lock/reopen/delete modal state machine, signature-keyed
 // idempotency, and the optimistic-version guards each action must carry.
+// SIL-485: the document-custody update retired with the editable drawer —
+// custody reads through CusLotView now.
 
 import { useCallback, useState } from 'react';
-import type { ShipmentCusWorkspaceListItem, ShipmentDocumentCustody } from '@tingting/shared';
+import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import {
   confirmCusShipmentFinance,
   lockCusShipment,
   requestCusShipmentReopen,
   deleteCusShipment,
-  updateCusShipmentDocumentCustody,
 } from '../../../api/shipmentClient';
 import { idempotencySignature, safeError } from './cusUtils';
 
 export interface UseCusActionsDeps {
-  dirtyDetailIds: Set<number>;
   drawerId: number | null;
   setDrawerId: (id: number | null) => void;
   setError: (error: string | null) => void;
@@ -30,7 +30,7 @@ export interface UseCusActionsDeps {
 
 export function useCusActions(deps: UseCusActionsDeps) {
   const {
-    dirtyDetailIds, drawerId, setDrawerId, setError, setNotice,
+    drawerId, setDrawerId, setError, setNotice,
     loadList, loadDetail, invalidateDetail, getIdempotencyKey, clearIdempotencyKey,
   } = deps;
   const [actionItem, setActionItem] = useState<ShipmentCusWorkspaceListItem | null>(null);
@@ -38,32 +38,11 @@ export function useCusActions(deps: UseCusActionsDeps) {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const updateCustody = useCallback(async (item: ShipmentCusWorkspaceListItem, status: ShipmentDocumentCustody) => {
-    if (dirtyDetailIds.has(item.id)) {
-      setError('Hãy lưu hoặc bỏ thay đổi container trước khi cập nhật phơi phiếu.');
-      return;
-    }
-    setNotice(null);
-    try {
-      const signature = idempotencySignature('custody', item.id, item.version, status);
-      await updateCusShipmentDocumentCustody(
-        item.id,
-        { expectedShipmentVersion: item.version, status },
-        getIdempotencyKey(signature),
-      );
-      clearIdempotencyKey(signature);
-      setNotice('Đã cập nhật trạng thái phơi phiếu.');
-      await Promise.all([loadList(), loadDetail(item.id, true)]);
-    } catch (custodyError) {
-      setError(safeError(custodyError, 'Không thể cập nhật trạng thái phơi phiếu.'));
-    }
-  }, [clearIdempotencyKey, dirtyDetailIds, getIdempotencyKey, loadDetail, loadList, setError, setNotice]);
-
+  // SIL-485: the drawer's Phơi phiếu select retired with the editable ledger —
+  // custody reads through CusLotView now, so updateCustody is gone. The
+  // container-draft guard ("lưu hoặc bỏ thay đổi container trước khi…") died
+  // with it: the read-only drawer holds no drafts.
   const openAction = useCallback((item: ShipmentCusWorkspaceListItem, mode: 'confirm' | 'lock' | 'reopen' | 'delete') => {
-    if (dirtyDetailIds.has(item.id)) {
-      setError('Hãy lưu hoặc bỏ thay đổi container trước khi thực hiện thao tác này.');
-      return;
-    }
     setActionItem(item);
     setActionMode(mode);
     setDrawerId(null);
@@ -76,7 +55,7 @@ export function useCusActions(deps: UseCusActionsDeps) {
             ? ''
             : '',
     );
-  }, [dirtyDetailIds, setDrawerId, setError]);
+  }, [setDrawerId]);
 
   const closeAction = useCallback(() => {
     if (submitting) return;
@@ -145,6 +124,6 @@ export function useCusActions(deps: UseCusActionsDeps) {
 
   return {
     actionItem, actionMode, reason, setReason, submitting,
-    openAction, closeAction, submitAction, updateCustody,
+    openAction, closeAction, submitAction,
   };
 }

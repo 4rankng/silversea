@@ -313,13 +313,8 @@ const FROZEN_MAX_LOC = {
   // refetch hook). Reviewed as a contract change; a future split (extract
   // the external-trip close dialog) should restore a smaller ceiling.
   // Bumped 530 → 591: 2026-09-23 card 20260923_1 — the drawer owns the lot's
-  // container composition again: the Thêm container form (fields, inline
-  // validation, add API call, house UuiSelectField for loại cont) and the
-  // per-row Xóa riding the cus-workspace add/remove endpoints, plus the
-  // trip-attached disable. Reviewed as a contract change; split candidate:
-  // extract the add-container form into its own component (the ledger is now
-  // the largest CUS feature file).
-  'src/features/shipments/cus/CusContainerLedger.tsx': 591,
+  // SIL-485: the CUS container-ledger baseline entry retired with the file —
+  // the drawer body is the read-only CusLotView sheet now.
   // Bumped 750 -> 852: 2026-09-21 card 20260921_2 - per-row add/remove
   // affordances and the inline add-row form on the container workboard.
   // Bumped 852 -> 858: 2026-09-22 card 20260922_3 — the container Xoa gains

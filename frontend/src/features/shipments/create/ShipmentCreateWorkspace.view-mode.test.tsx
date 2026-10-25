@@ -150,19 +150,19 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
     expect(screen.queryByText(/Bắt buộc:/)).toBeNull();
   });
 
-  it('the action pair is Quay lại + Chuyển sang sửa, repeated at the foot', async () => {
+  it('the action pair is Quay lại + Sửa, repeated at the foot', async () => {
     renderView({ canEditLot: true });
 
-    expect(await screen.findByRole('button', { name: 'Chuyển sang sửa' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Sửa' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Chuyển sang sửa (cuối trang)' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sửa (cuối trang)' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Quay lại (cuối trang)' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Huỷ (cuối trang)' })).toBeNull();
   });
 
-  it('"Chuyển sang sửa" opens the SIL-171 edit form for the same lot', async () => {
+  it('"Sửa" opens the SIL-171 edit form for the same lot', async () => {
     renderView({ canEditLot: true });
-    fireEvent.click(await screen.findByRole('button', { name: 'Chuyển sang sửa' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa' }));
     await waitFor(() => expect(screen.getByTestId('edit-form')).toBeTruthy());
   });
 
@@ -175,11 +175,11 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
   it('a role the edit route refuses sees Quay lại only — no edit button', async () => {
     renderView({ canEditLot: false });
     expect(await screen.findByRole('button', { name: 'Quay lại' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Chuyển sang sửa' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Chuyển sang sửa (cuối trang)' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sửa (cuối trang)' })).toBeNull();
   });
 
-  it('an accounting-locked lot still reads, but Chuyển sang sửa is disabled with the reason', async () => {
+  it('an accounting-locked lot still reads, but Sửa is disabled with the reason', async () => {
     getShipmentDetail.mockResolvedValue(lotDetail({
       accountingLock: { reason: 'Kế toán đã khóa', activatedAt: null, activatedByName: null },
     }));
@@ -192,7 +192,7 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
       return el!;
     });
     expect(bill).toBeDisabled();
-    const edit = await screen.findByRole('button', { name: 'Chuyển sang sửa' });
+    const edit = await screen.findByRole('button', { name: 'Sửa' });
     // react-aria buttons express disabled as data-disabled (still focusable).
     expect(edit.getAttribute('data-disabled')).toBe('true');
   });
