@@ -100,11 +100,18 @@
 /* SIL-468 density — both log and scoreboard rows land at the 40–44px band:
    the shared record-table's 10px block padding is the last 4px. The
    `.penalty-page` prefix outranks `.record-table tbody td`, which is imported
-   after this sheet and would otherwise win the tie. */
-.penalty-page .penalty-log-table tbody td,
-.penalty-page .penalty-scoreboard-table tbody td {
+   after this sheet and would otherwise win the tie. QA wave 8cea1a6b ④
+   re-measured the leaderboard pitch just above the band, so the scoreboard
+   takes one more pixel off each edge (4px block padding ≈ 41px rows) while
+   the log rows keep the 5px landing they already measured inside the band. */
+.penalty-page .penalty-log-table tbody td {
   padding-top: 5px;
   padding-bottom: 5px;
+}
+
+.penalty-page .penalty-scoreboard-table tbody td {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 /* ─── Quiet state chip (SIL-468) — a whole-zero window replaces the two

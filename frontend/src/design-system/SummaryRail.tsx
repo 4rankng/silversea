@@ -37,10 +37,18 @@ export interface SummaryRailItem {
  * An item may stay inert text, act as an in-place filter (`onClick`), or
  * drill down into the list that owns its count (`href`) — never more than one
  * mode at a time.
+ *
+ * `size="lg"` (SIL-468, QA wave 8cea1a6b): the penalties page's KPI strip is
+ * that surface's hero metric band — the AC pins it to a 56–64px strip with
+ * the numbers reading large. A shared variant, not a page-local override: the
+ * ruled anatomy is unchanged, only the band height and number size step up.
  */
-export function SummaryRail({ items, ariaLabel }: { items: SummaryRailItem[]; ariaLabel: string }) {
+export function SummaryRail({ items, ariaLabel, size }: { items: SummaryRailItem[]; ariaLabel: string; size?: 'md' | 'lg' }) {
   return (
-    <section className="summary-rail" aria-label={ariaLabel}>
+    <section
+      className={`summary-rail${size === 'lg' ? ' summary-rail--lg' : ''}`}
+      aria-label={ariaLabel}
+    >
       <dl>
         {items.map((item) => {
           const content = (
