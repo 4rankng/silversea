@@ -13,12 +13,12 @@ import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
   createShippingLine,
-  getShipmentDetail,
   listOperationalSites,
   listSharedWarehouseSites,
   type OperationalSite,
 } from '../../../api/shipmentClient';
 import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-duplicate-guard';
+import { useShipmentWorkspacePrefill } from './use-shipment-workspace-prefill';
 import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine } from './catalogMerger';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
@@ -32,14 +32,11 @@ import {
   type ShipmentCreateFormState,
   type ShipmentCreateIssue,
 } from './shipment-create-model';
-import {
-  buildShipmentEditPrefill,
-  type ShipmentEditSeed,
-} from './shipment-edit-prefill';
 import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
 import { ShipmentCreateActions } from './ShipmentCreateActions';
+import { ShipmentViewActions } from './ShipmentViewActions';
 import { requiredCompletion } from './ShipmentCreateTopline.progress';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection } from './ShipmentCreateSections';
@@ -66,11 +63,24 @@ const newContainer = createEmptyContainer;
  * pins the lot: the detail is fetched once, mapped onto the same form state
  * (validation identical to create), and the workflow PATCHes the existing lot
  * instead of POSTing a new one. Omitted → the plain create form, unchanged.
+ *
+ * SIL-481 (ruling 25/10): `viewTarget` opens the SAME workspace read-only —
+ * the /shipments/:id post-create review. Identical fetch-once prefill, every
+ * control disabled through the same channel the saving state uses, and the
+ * action pair swaps to Quay lại / Chuyển sang sửa (ShipmentViewActions). One
+ * form layout everywhere: create → view → edit.
  */
-export function ShipmentCreateWorkspace({ editTarget }: {
+export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   editTarget?: { shipmentId: number };
+  /** `canEditLot` rides the target so the host page (owner of useAuth)
+   *  decides the role gate; the workspace layers the accounting lock on top. */
+  viewTarget?: { shipmentId: number; canEditLot?: boolean };
 } = {}) {
   const navigate = useNavigate();
+  const viewMode = Boolean(viewTarget);
+  /** Role gate decided by the host page (it owns useAuth): may this viewer
+   *  open the edit form? The lock is applied on top once the detail lands. */
+  const viewCanEditLot = Boolean(viewTarget?.canEditLot);
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
   const [sites, setSites] = useState<OperationalSite[]>([]);
   // Card 261022093245: the SHARED Kho (CFS/Cảng) catalog — customer-independent
@@ -88,10 +98,6 @@ export function ShipmentCreateWorkspace({ editTarget }: {
   // ── SIL-171 edit mode ── the lot's own seed (id/version/declarations) and
   // the pristine baseline the leave-confirm diff reads. The detail is fetched
   // ONCE per editTarget; a route id change refetches fresh.
-  const [editSeed, setEditSeed] = useState<ShipmentEditSeed | null>(null);
-  const [editLoadError, setEditLoadError] = useState<string | null>(null);
-  const editBaselineRef = useRef<string | null>(null);
-  const editRequestRef = useRef(0);
   const [validationIssues, setValidationIssues] = useState<ShipmentCreateIssue[]>([]);
   // Summary de-noise (17/10): the "Cần bổ sung" panel is submit-gated — it may
   // not confront a freshly opened form. Any action-button save click ("Tạo lô
@@ -111,9 +117,12 @@ export function ShipmentCreateWorkspace({ editTarget }: {
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const routeAddButtonRef = useRef<HTMLButtonElement>(null);
   const { getConflict: getReferenceConflict, reportServerConflict } = useShipmentReferenceDuplicateGuard({
-    blNumber: form.blNumber,
-    bookingRef: form.bookingRef,
-    declarationNumbers: form.declarationNumbers && form.declarationNumbers.length > 0 ? form.declarationNumbers : [form.declarationNumber],
+    // SIL-481 view mode: nothing is being typed, so the as-you-type duplicate
+    // lookup would only paint stale warnings over read-only values — pass it
+    // nothing to look for.
+    blNumber: viewMode ? '' : form.blNumber,
+    bookingRef: viewMode ? '' : form.bookingRef,
+    declarationNumbers: !viewMode && form.declarationNumbers && form.declarationNumbers.length > 0 ? form.declarationNumbers : [viewMode ? '' : form.declarationNumber],
     tradeDirection: form.tradeDirection,
     excludeShipmentId: editTarget?.shipmentId,
   });
@@ -132,40 +141,16 @@ export function ShipmentCreateWorkspace({ editTarget }: {
     return () => { cancelled = true; };
   }, []);
 
-  // SIL-171: load the lot being edited ONCE per shipmentId and prefill the
-  // whole form — same fields, same layout as "Tạo lô hàng", including the
-  // Hình thức XNK radio. A stale-response guard keeps a rapid id change from
-  // overwriting the newer prefill. The dependency is the SCALAR id (not the
-  // editTarget object) so a re-render with a fresh prop literal cannot
-  // re-run the fetch and wipe in-progress edits.
-  const editShipmentId = editTarget?.shipmentId;
-  useEffect(() => {
-    if (editShipmentId == null) return;
-    const reqId = ++editRequestRef.current;
-    setEditLoadError(null);
-    setEditSeed(null);
-    getShipmentDetail(editShipmentId)
-      .then((detail) => {
-        if (editRequestRef.current !== reqId) return;
-        const prefill = buildShipmentEditPrefill(detail);
-        // Server refuses every non-notes write on a locked lot (ruling
-        // 2026-09-20 carve-out aside) — arming a full editable form would
-        // waste the whole edit on a guaranteed 409, so the lock stops here.
-        if (detail.accountingLock) {
-          setEditLoadError('Lô hàng đã bị khóa kế toán nên không thể sửa thông tin. Ghi chú vẫn sửa được ở Tổng quan.');
-          return;
-        }
-        setForm(prefill.form);
-        setContainers(prefill.containers);
-        setCustomerNotes(prefill.customerNotes);
-        editBaselineRef.current = JSON.stringify([prefill.form, prefill.containers, prefill.customerNotes]);
-        setEditSeed(prefill.seed);
-      })
-      .catch(() => {
-        if (editRequestRef.current !== reqId) return;
-        setEditLoadError('Không thể tải thông tin lô hàng để sửa. Vui lòng thử lại.');
-      });
-  }, [editShipmentId]);
+  // SIL-171 edit + SIL-481 view: the pinned-lot fetch/prefill lives in its
+  // own hook (structure-guard split debt, D1 note).
+  const pinnedShipmentId = editTarget?.shipmentId ?? viewTarget?.shipmentId;
+  const { editSeed, editLoadError, viewLocked, editBaselineRef } = useShipmentWorkspacePrefill({
+    pinnedShipmentId,
+    viewMode,
+    setForm,
+    setContainers,
+    setCustomerNotes,
+  });
 
   useEffect(() => {
     let revalidateInFlight = false;
@@ -272,7 +257,9 @@ export function ShipmentCreateWorkspace({ editTarget }: {
   const isDirty = useMemo(() => {
     // SIL-171 edit mode: dirty is measured against the PREFILLED baseline —
     // opening the form and leaving without touching anything is not "dirty".
-    if (editTarget) {
+    // SIL-481 view mode rides the same baseline; its controls are disabled,
+    // so nothing can ever diverge.
+    if (editTarget || viewMode) {
       return editBaselineRef.current !== JSON.stringify([form, containers, customerNotes]);
     }
     const hasFormData = Object.entries(form).some(([key, value]) => (
@@ -291,7 +278,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
       Object.entries(row).some(([key, value]) => key !== 'key' && value !== '' && value !== undefined)
     ));
     return hasFormData || hasContainerData || customerNotes.trim() !== '';
-  }, [containers, customerNotes, editTarget, form]);
+  }, [containers, customerNotes, editBaselineRef, editTarget, form, viewMode]);
 
   const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
     form,
@@ -686,9 +673,11 @@ export function ShipmentCreateWorkspace({ editTarget }: {
   // SIL-171: the edit form's home context is the lot detail — cancel returns
   // there deterministically (also correct for a direct /shipments/:id/edit
   // URL entry, where history-back would leave the app). The create form keeps
-  // its original history-back behavior.
+  // its original history-back behavior. SIL-481: the view's home is the lô
+  // list.
   function leaveWorkspace() {
     if (editTarget) navigate(`/shipments/${editTarget.shipmentId}`);
+    else if (viewMode) navigate('/shipments');
     else navigate(-1);
   }
 
@@ -732,7 +721,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
     [form, containers, readiness],
   );
 
-  if (loading || (editTarget && !editSeed && !editLoadError)) {
+  if (loading || ((editTarget || viewTarget) && !editSeed && !editLoadError)) {
     return <div style={{ padding: 48, textAlign: 'center', color: 'var(--fg-3)' }}>Đang tải…</div>;
   }
   if (loadError) return <div role="alert" style={{ padding: 24, color: 'var(--danger)' }}>{loadError}</div>;
@@ -745,7 +734,17 @@ export function ShipmentCreateWorkspace({ editTarget }: {
   }
   if (!catalogs?.customers.length) return <EmptyState context="clients" title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
 
-  const workspaceMode = editTarget ? 'edit' as const : 'create' as const;
+  const workspaceMode = viewMode ? 'view' as const : editTarget ? 'edit' as const : 'create' as const;
+  // SIL-481 view mode reuses the SAVING channel as the disable channel: every
+  // child control already paints disabled from this prop, so a read-only
+  // review needs no per-field changes anywhere in the worksheet. In
+  // create/edit this is exactly the old Boolean(saving).
+  const controlsDisabled = viewMode || Boolean(saving);
+  // SIL-481: "Chuyển sang sửa" opens the SIL-171 edit form for this lot.
+  const goEdit = () => {
+    if (viewTarget) navigate(`/shipments/${viewTarget.shipmentId}/edit`);
+  };
+  const goShipmentList = () => navigate('/shipments');
 
   return (
     <div className="csc-page">
@@ -757,11 +756,20 @@ export function ShipmentCreateWorkspace({ editTarget }: {
         onCancel={goBack}
         onSaveDraft={() => void save('DRAFT')}
         onCreate={() => void save('CREATE')}
+        onBack={goShipmentList}
+        onEdit={viewCanEditLot ? goEdit : undefined}
+        editLocked={viewLocked}
       />
       <form
         ref={workspaceFormRef}
         noValidate
-        onSubmit={(event) => { event.preventDefault(); void save('CREATE'); }}
+        onSubmit={(event) => {
+          event.preventDefault();
+          // Read-only review: nothing may submit — the Enter law below and
+          // the disabled controls already guarantee it; this is the backstop.
+          if (viewMode) return;
+          void save('CREATE');
+        }}
         onKeyDown={(event) => {
           // FB-002 (cards 181026000027 + 171026215500 family, lần 3 — card
           // 211026034109): this workspace is the last major time-field host
@@ -779,7 +787,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
           // handled. Same guard set as the CUS quick-edit modal and the
           // dispatch assignment dialog.
           if (event.defaultPrevented) return;
-          if (event.key !== 'Enter' || event.nativeEvent.isComposing || saving) return;
+          if (event.key !== 'Enter' || event.nativeEvent.isComposing || controlsDisabled) return;
           const target = event.target as HTMLElement;
           // Open date/time pickers own their Enter (commit the draft / close
           // the panel) — never steal it.
@@ -827,7 +835,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
                           value={mode}
                           checked={form.cargoMode === mode}
                           onChange={() => changeMode(mode)}
-                          disabled={Boolean(saving)}
+                          disabled={controlsDisabled}
                         />
                         <span className="csc-mode__option">{mode === 'FCL' ? 'Hàng FCL' : 'Hàng lẻ'}</span>
                       </label>
@@ -845,7 +853,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
                     requiredMark
                     value={form.expectedDeliveryDate}
                     onChange={(event) => update('expectedDeliveryDate', event.target.value)}
-                    disabled={Boolean(saving)}
+                    disabled={controlsDisabled}
                     error={issueByField.get('shipment-expected-delivery')}
                   />
                 </div>
@@ -859,7 +867,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
             customerOptions={customerOptions}
             shippingLineOptions={shippingLineOptions}
             customerCustomText={customerCustomText}
-            saving={Boolean(saving)}
+            saving={controlsDisabled}
             issueByField={issueByField}
             billConflict={billConflict}
             bookingConflict={bookingConflict}
@@ -889,7 +897,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
               setRouteDialogOpen={setRouteDialogOpen}
               openCreateSiteDialog={openCreateSiteDialog}
               setDetailSite={setDetailSite}
-              saving={Boolean(saving)}
+              saving={controlsDisabled}
               sitesLoading={sitesLoading}
               issueByField={issueByField}
             />
@@ -902,14 +910,14 @@ export function ShipmentCreateWorkspace({ editTarget }: {
                   <button
                     type="button"
                     onClick={() => openCreateSiteDialog('FACTORY')}
-                    disabled={Boolean(saving)}
+                    disabled={controlsDisabled}
                     className="csc-utility-button csc-utility-button--dashed"
                   >
                     <Plus size={15} aria-hidden="true" />Thêm nhà máy
                   </button>
                 </div>
                 <ShipmentContainerEditor
-                  saving={Boolean(saving)}
+                  saving={controlsDisabled}
                   onAdd={(count) => setContainers((current) => {
                     const source = current[current.length - 1];
                     return [
@@ -944,7 +952,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
                           isAdHoc={form.isAdHoc}
                           customerId={form.customerId}
                           sitesLoading={sitesLoading}
-                          saving={Boolean(saving)}
+                          saving={controlsDisabled}
                           routeOptions={routeOptions}
                           portOptions={portOptions}
                         />
@@ -957,7 +965,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
               <ShipmentCreateLclCargoFields
                 form={form}
                 update={update}
-                saving={Boolean(saving)}
+                saving={controlsDisabled}
                 issueByField={issueByField}
               />
             )}
@@ -976,7 +984,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
                       label="Ngày giờ đóng trả cho tất cả cont"
                       value={bulkAppointment}
                       onChange={(event) => setBulkAppointment(event.target.value)}
-                      disabled={Boolean(saving)}
+                      disabled={controlsDisabled}
                       combinedPicker
                     />
                     <button
@@ -984,7 +992,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
                       className="csc-utility-button csc-utility-button--dashed"
                       title={`Áp dụng ngày giờ đóng trả này cho ${emptyAppointmentCount} container chưa có lịch`}
                       onClick={applyBulkAppointment}
-                      disabled={Boolean(saving) || !bulkAppointment}
+                      disabled={controlsDisabled || !bulkAppointment}
                     >
                       <CalendarDays size={15} aria-hidden="true" />Áp dụng cho {emptyAppointmentCount} container
                     </button>
@@ -1016,7 +1024,7 @@ export function ShipmentCreateWorkspace({ editTarget }: {
                     data-field-id="shipment-copy-appointment-all"
                     title={`Copy ngày giờ ${formatDateTime24(copySourceRow.customerAppointmentAt) || copySourceRow.customerAppointmentAt} cho TẤT CẢ ${containers.length} container — ghi đè cả lịch đã có`}
                     onClick={() => applyAppointmentToAll(copySourceRow.key)}
-                    disabled={Boolean(saving)}
+                    disabled={controlsDisabled}
                   >
                     <Copy size={15} aria-hidden="true" />Copy giờ hẹn cho tất cả {containers.length} cont
                   </button>
@@ -1028,14 +1036,14 @@ export function ShipmentCreateWorkspace({ editTarget }: {
                     style={{ justifySelf: 'start', alignSelf: 'start', width: 'fit-content' }}
                     title={`Copy ngày giờ ${formatDateTime24(copySourceRow.customerAppointmentAt) || copySourceRow.customerAppointmentAt} từ dòng đầu tiên có lịch sang các container chưa có lịch`}
                     onClick={() => copyAppointmentToEmpty(copySourceRow.key)}
-                    disabled={Boolean(saving)}
+                    disabled={controlsDisabled}
                   >
                     <Copy size={15} aria-hidden="true" />Copy giờ hẹn xuống cont trống
                   </button>
                 )}
                 <div className="csc-notes-grid">
-                  <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={Boolean(saving)} />
-                  <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={Boolean(saving)} />
+                  <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={controlsDisabled} />
+                  <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={controlsDisabled} />
                 </div>
             </ShipmentCreateSection>
           )}
@@ -1055,14 +1063,26 @@ export function ShipmentCreateWorkspace({ editTarget }: {
             back the bottom bar the 11/10 mock had retired (owner request,
             17/10). */}
         <div className="csc-form-actions">
-          <ShipmentCreateActions
-            variant="footer"
-            mode={workspaceMode}
-            saving={saving}
-            onCancel={goBack}
-            onSaveDraft={() => void save('DRAFT')}
-            onCreate={() => void save('CREATE')}
-          />
+          {viewMode ? (
+            /* SIL-481: the FB-108 repetition keeps its place at the foot of
+             * the worksheet, but the read-only review repeats the VIEW pair
+             * (Quay lại / Chuyển sang sửa), not a save cluster. */
+            <ShipmentViewActions
+              variant="footer"
+              onBack={goShipmentList}
+              onEdit={viewCanEditLot ? goEdit : undefined}
+              editLocked={viewLocked}
+            />
+          ) : (
+            <ShipmentCreateActions
+              variant="footer"
+              mode={editTarget ? 'edit' : 'create'}
+              saving={saving}
+              onCancel={goBack}
+              onSaveDraft={() => void save('DRAFT')}
+              onCreate={() => void save('CREATE')}
+            />
+          )}
         </div>
       </form>
 

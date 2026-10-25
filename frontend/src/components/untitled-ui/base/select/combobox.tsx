@@ -65,7 +65,7 @@ interface ComboBoxValueProps extends AriaGroupProps {
     ref?: Ref<HTMLDivElement>;
 }
 
-const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassName: _shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, isInvalid, onClear, onEnterCommit, onReady, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null; onReady?: (api: { open: () => void }) => void }) => {
+const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassName: _shortcutClassName, icon: IconProp, openOnPress, allowsCustomValue, triggerClassName, isInvalid, isDisabled = false, onClear, onEnterCommit, onReady, ref, onEscapeClose, containerRef, ...otherProps }: ComboBoxValueProps & { onEscapeClose?: () => void; containerRef?: RefObject<HTMLDivElement | null>; onEnterCommit?: (typedText: string) => { id: string; label: string } | null; onReady?: (api: { open: () => void }) => void; isDisabled?: boolean }) => {
     const state = useContext(ComboBoxStateContext);
     // True from the last explicit option-navigation key until the next typing
     // key or a consumed Enter — see the keydown-capture handler below.
@@ -219,7 +219,7 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
 
                 <div className="uui-combobox__input relative flex min-w-0 w-full items-center">
                     {inputValue && (
-                        <span className={cx("absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 truncate", sizes[size].textContainer, onClear && hasClearableValue && "pr-8")} aria-hidden="true">
+                        <span className={cx("absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 truncate", sizes[size].textContainer, onClear && hasClearableValue && !isDisabled && "pr-8")} aria-hidden="true">
                             <p className={cx("font-medium text-primary", sizes[size].text)}>{first}</p>
                             {last && <p className={cx("-ml-0.75 text-tertiary", sizes[size].text)}>{last}</p>}
                         </span>
@@ -237,7 +237,7 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                         className={cx(
                             "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
                             sizes[size].text,
-                            onClear && hasClearableValue && "pr-8",
+                            onClear && hasClearableValue && !isDisabled && "pr-8",
                         )}
                         // The app's global `:focus-visible` rule (base.css) is unlayered, so it
                         // always beats the layered `focus:outline-hidden` utility above and draws
@@ -248,11 +248,14 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                     />
                 </div>
 
-                {onClear && hasClearableValue && (
+                {onClear && hasClearableValue && !isDisabled && (
                     <button
                         type="button"
                         tabIndex={-1}
                         aria-label="Xoá"
+                        // SIL-481: a disabled combobox never renders its clear
+                        // affordance — the × ignored isDisabled and stayed
+                        // clickable over read-only values.
                         // SIL-482 geometry (consult spec 24/10): 24×24 hit area
                         // at right:8 with a 16px icon; the input AND the ghost
                         // value span above carry pr-8 (32px) so a committed
@@ -452,6 +455,8 @@ export const ComboBox = ({
                             allowsCustomValue={otherProps.allowsCustomValue}
                             triggerClassName={triggerClassName}
                             isInvalid={isInvalid}
+                            // RAC render props carry the live disabled state.
+                            isDisabled={state.isDisabled}
                             onClear={onClear}
                             onEnterCommit={onEnterCommit}
                             size={size}

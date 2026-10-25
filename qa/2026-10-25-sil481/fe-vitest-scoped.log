@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-481-postview/frontend
+
+
+ Test Files  99 passed (99)
+      Tests  994 passed (994)
+   Start at  19:32:34
+   Duration  28.87s (transform 6.72s, setup 11.49s, import 61.06s, tests 102.78s, environment 45.58s)
+

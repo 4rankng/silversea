@@ -153,3 +153,40 @@ describe('required completion — the whole form, live', () => {
     expect(screen.getByText('3/9')).toBeTruthy();
   });
 });
+
+describe('SIL-481 view-mode topline (post-create review)', () => {
+  const viewProps = {
+    saving: null,
+    requiredDone: 9,
+    requiredTotal: 9,
+    onCancel: vi.fn(),
+    onSaveDraft: vi.fn(),
+    onCreate: vi.fn(),
+    onBack: vi.fn(),
+    onEdit: vi.fn(),
+  };
+
+  it('titles the review, hides the fill-progress chip and swaps the cluster', () => {
+    render(<ShipmentCreateTopline mode="view" {...viewProps} />);
+    expect(screen.getByRole('heading', { name: 'Chi tiết lô hàng' })).toBeTruthy();
+    expect(screen.queryByText(/Bắt buộc:/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chuyển sang sửa' })).toBeTruthy();
+    // No create/save affordance rides the read-only topline.
+    expect(screen.queryByRole('button', { name: 'Tạo lô hàng' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Lưu nháp' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Huỷ' })).toBeNull();
+  });
+
+  it('a viewer without the edit gate sees Quay lại alone', () => {
+    render(<ShipmentCreateTopline mode="view" {...viewProps} onEdit={undefined} />);
+    expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Chuyển sang sửa' })).toBeNull();
+  });
+
+  it('an accounting-locked lot disables Chuyển sang sửa with the reason', () => {
+    render(<ShipmentCreateTopline mode="view" {...viewProps} editLocked />);
+    const edit = screen.getByRole('button', { name: 'Chuyển sang sửa' });
+    expect(edit.getAttribute('data-disabled')).toBe('true');
+  });
+});
