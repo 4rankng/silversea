@@ -174,6 +174,8 @@ describe('supplier/customer action columns keep their width budgets (action-colu
     // 978px inside the 1008px content box at 1280. Every column is a fixed
     // track — the wrap doctrine lives in the identity cell (the name wraps
     // in full), and each fixed neighbour keeps its one-line data-token floor.
+    // QA wave 8cea1a6b ④ keeps the track: the full "HẠN THANH TOÁN" header
+    // wraps to two unclipped lines instead of reclaiming budget.
     const cols = parseColgroup(customersSource, '<table className="record-table ops-table cus-table"');
     const widths = cols.slice(0, 6).map((col) => (col.kind === 'px' ? col.value : -1));
     expect(widths).toEqual([260, 110, 180, 180, 96, 120]);

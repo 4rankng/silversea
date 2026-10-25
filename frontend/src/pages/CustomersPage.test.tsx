@@ -12,12 +12,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 const getCustomers = vi.hoisted(() => vi.fn());
+const getAllCustomers = vi.hoisted(() => vi.fn());
 const apiGet = vi.hoisted(() => vi.fn());
 const downloadCSV = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/configClient', () => ({
-  configClient: { getCustomers },
+  configClient: { getCustomers, getAllCustomers },
 }));
 vi.mock('../lib/api', () => ({
   api: { get: apiGet, post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -41,6 +42,9 @@ const customer = {
   phone: '0901234567',
   creditLimit: 50000000,
   status: 'ACTIVE',
+  // QA wave 8cea1a6b (metric ②): a never-posted customer anchors its idle
+  // "từ dd/MM" at the creation date — the fixture account predates the window.
+  createdAt: '2026-08-01T10:00:00.000Z',
   updatedAt: '2026-10-06T03:45:00.000Z',
 };
 
@@ -67,6 +71,9 @@ async function nameRow() {
 
 beforeEach(() => {
   getCustomers.mockReset().mockResolvedValue({ items: [customer], total: 1 });
+  // The idle census reads the full catalog (useAllCustomers), not just the
+  // paginated table rows.
+  getAllCustomers.mockReset().mockResolvedValue([customer]);
   apiGet.mockReset().mockResolvedValue({ items: [] });
   downloadCSV.mockReset().mockResolvedValue(undefined);
   toast.mockReset();
@@ -135,10 +142,12 @@ describe('CustomersPage table contract (SIL-169) + updatedAt carry (card 0610261
     // payment term, debt, kebab. The retired columns (Trạng thái, Cước thu /
     // trả, Cập nhật, split contact) must not come back as headers. (jsdom
     // renders both faces, so headers may also appear as mobile labels —
-    // query all matches.)
-    for (const header of ['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn TT', 'Công nợ']) {
+    // query all matches.) QA wave 8cea1a6b: the payment-term header carries
+    // the full name — no abbreviated "HẠN TT".
+    for (const header of ['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn thanh toán', 'Công nợ']) {
       expect((await screen.findAllByText(header)).length).toBeGreaterThan(0);
     }
+    expect(screen.queryByText('Hạn TT')).toBeNull();
     expect(screen.queryByText('Trạng thái')).toBeNull();
     expect(screen.queryByText('Cước thu / trả')).toBeNull();
     expect(screen.queryByText('Cập nhật')).toBeNull();
@@ -165,12 +174,16 @@ describe('CustomersPage table contract (SIL-169) + updatedAt carry (card 0610261
     await nameRow();
     // The aging projection is unavailable in this suite's mock env — the
     // overdue and risk metrics read the honest '—', never a fake 0. The idle
-    // metric's ledger feed IS available (empty: no customer ever
-    // transacted), so it reports a real 0.
+    // metric's ledger feed IS available (empty: the customer never posted) and
+    // QA wave 8cea1a6b: a never-posted customer counts as idle anchored at
+    // its creation date, so the sub line carries the "từ dd/MM" date instead
+    // of the old bare fallback text.
     for (const testId of ['cus-metric-overdue', 'cus-metric-risk']) {
       const metric = screen.getByTestId(testId);
       expect(metric.textContent).toContain('—');
     }
-    expect(screen.getByTestId('cus-metric-idle30').textContent).toContain('0 KH');
+    const idle = screen.getByTestId('cus-metric-idle30');
+    expect(idle.textContent).toContain('1 KH');
+    expect(idle.textContent).toContain('từ 01/08');
   });
 });

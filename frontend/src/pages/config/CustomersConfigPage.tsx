@@ -42,9 +42,14 @@ function classifyAgingRisk(totalOutstanding: number, aging: { over90: number; d3
   return 'low';
 }
 
-/** SIL-169 metric ② — same idle definition as the /customers page. */
-function idleCustomerCount(entries: { entityType: string; entityId: number; timestamp: string }[] | undefined): { count: number; since: string | null } | null {
-  if (!entries) return null;
+/** SIL-169 metric ② — same idle definition as the /customers page: a customer
+ * with no ledger row anchors at its creation date (QA wave 8cea1a6b — the
+ * "từ dd/MM" sub must appear for a never-posted account too). */
+function idleCustomerCount(
+  entries: { entityType: string; entityId: number; timestamp: string }[] | undefined,
+  catalog: ReadonlyArray<Pick<Customer, 'id' | 'createdAt'>> | undefined,
+): { count: number; since: string | null } | null {
+  if (!entries || !catalog) return null;
   const lastByCustomer = new Map<number, string>();
   for (const entry of entries) {
     if (entry.entityType !== 'CUSTOMER') continue;
@@ -54,11 +59,16 @@ function idleCustomerCount(entries: { entityType: string; entityId: number; time
   const cutoff = Date.now() - 30 * 86_400_000;
   let count = 0;
   let oldestSince: string | null = null;
-  for (const ts of lastByCustomer.values()) {
+  const consider = (ts: string | undefined) => {
+    if (!ts) return;
     const t = Date.parse(ts);
-    if (Number.isNaN(t) || t >= cutoff) continue;
+    if (Number.isNaN(t) || t >= cutoff) return;
     count += 1;
     if (!oldestSince || ts < oldestSince) oldestSince = ts;
+  };
+  for (const ts of lastByCustomer.values()) consider(ts);
+  for (const c of catalog) {
+    if (!lastByCustomer.has(c.id)) consider(c.createdAt);
   }
   return { count, since: oldestSince };
 }
@@ -120,7 +130,9 @@ export default function CustomersConfigPage() {
   const agingTotals = agingSnapshot?.totals;
   const overdueAmount = agingTotals ? agingTotals.d30 + agingTotals.d60 + agingTotals.over90 : null;
   const { data: ledgerEntries } = useCustomerLedgerEntries();
-  const idle30 = useMemo(() => idleCustomerCount(ledgerEntries), [ledgerEntries]);
+  // `data` (not the `[]`-defaulted list) so a still-loading catalog keeps the
+  // metric at the honest '—' instead of a transient 0.
+  const idle30 = useMemo(() => idleCustomerCount(ledgerEntries, data), [ledgerEntries, data]);
   /** Risk dot + risk tab share one definition with the aging projection. */
   const riskOf = (c: Customer): RiskLevel => {
     const row = agingByCustomer.get(c.id);
@@ -315,7 +327,7 @@ export default function CustomersConfigPage() {
                   <SortHeader label="MST" sortKey="taxCode" sort={sort} onSortChange={handleSort} />
                   <th>Địa chỉ</th>
                   <th>Liên hệ</th>
-                  <th>Hạn TT</th>
+                  <th>Hạn thanh toán</th>
                   <th className="cus-th-debt">Công nợ</th>
                   <th><span className="sr-only">Thao tác</span></th>
                 </tr>
@@ -353,7 +365,7 @@ export default function CustomersConfigPage() {
                   <td data-label="Liên hệ">
                     <span className="customers-contact-stack">
                       <span className="cus-contact-main">
-                        {c.contactPerson || '—'}
+                        {c.contactPerson ? titleCaseVn(c.contactPerson) : '—'}
                         {c.phone && <span className="data-token" style={{ marginLeft: 6 }}>{c.phone}</span>}
                       </span>
                       {(c.accountantName || c.accountantPhone) && (

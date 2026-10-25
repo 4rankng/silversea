@@ -160,8 +160,12 @@ describe('CustomersConfigPage client-side sorting', () => {
     expect(overdue.textContent).toContain('tr');
     expect(overdue.textContent).toContain('1 KH');
     expect(overdue.querySelector('.cus-metric__value')).toHaveAttribute('data-tone', 'overdue');
-    // Metric ②: customer 2 last transacted 40 days ago.
-    expect(screen.getByTestId('cus-metric-idle30').textContent).toContain('1 KH');
+    // Metric ②: customer 2 last posted 40 days ago; customer 3 never posted
+    // and anchors at its 2026-01-01 creation (QA wave 8cea1a6b) — 2 KH idle,
+    // oldest anchor 01/01.
+    const idle = screen.getByTestId('cus-metric-idle30');
+    expect(idle.textContent).toContain('2 KH');
+    expect(idle.textContent).toContain('từ 01/01');
     // Metric ③: one high-risk row per the aging classification.
     expect(screen.getByTestId('cus-metric-risk').textContent).toContain('1 KH');
   });
@@ -299,10 +303,11 @@ describe('SIL-169 seven-column table contract', () => {
     await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
     const headers = Array.from(container.querySelectorAll('.cfg-customer-table thead th'))
       .map((th) => (th.textContent ?? '').trim());
-    expect(headers).toEqual(['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn TT', 'Công nợ', 'Thao tác']);
+    expect(headers).toEqual(['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn thanh toán', 'Công nợ', 'Thao tác']);
     // The verdict's widths ride the colgroup (260/110/180/180/96/120); the
     // kebab column rides the .cus-col-action class (no inline width — it
-    // must answer the coarse-pointer media query).
+    // must answer the coarse-pointer media query). The term header reads the
+    // full "HẠN THANH TOÁN" (QA wave 8cea1a6b ④) and wraps unclipped.
     const widths = Array.from(container.querySelectorAll('.cfg-customer-table colgroup col'))
       .map((col) => col.getAttribute('style'));
     expect(widths).toEqual([
@@ -321,8 +326,9 @@ describe('SIL-169 seven-column table contract', () => {
     expect(row!.querySelector('.cus-dot--high')).not.toBeNull();
     expect(row!.textContent).toContain('TCT-1');
     expect(row!.textContent).toContain('KH-001');
-    // Contact: main line + muted accountant line.
-    expect(row!.textContent).toContain('Người liên hệ 1');
+    // Contact: main line + muted accountant line. The stored catalog value is
+    // cased as typed; the cell renders it title-case (QA wave 8cea1a6b ②).
+    expect(row!.textContent).toContain('Người Liên Hệ 1');
     expect(row!.textContent).toContain('Kế toán 1');
     // Payment term: cước first ("45 ngày").
     expect(row!.querySelector('.cus-term-cell')?.textContent).toContain('45');

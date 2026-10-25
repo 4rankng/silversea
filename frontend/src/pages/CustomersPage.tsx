@@ -31,6 +31,7 @@ import { financialClient, type CustomerAging } from '../api/financialClient';
 import type { Customer, LedgerEntry } from '@tingting/shared';
 import { CustomerStatus } from '@tingting/shared';
 import { useCustomerLedgerEntries } from '../hooks/useQueries';
+import { useAllCustomers } from '../hooks/useCatalogQueries';
 import { configClient } from '../api/configClient';
 import { qk } from '../api/keys';
 import { usePageAnimations } from '../hooks/animations';
@@ -76,13 +77,19 @@ function classifyAgingRisk(totalOutstanding: number, aging: { over90: number; d3
 }
 
 /** SIL-169 metric ② — customers whose last CUSTOMER ledger activity is older
- * than 30 days (they stopped transacting; a customer with no entry at all has
- * nothing to "stop", so it does not count). The sub line carries the OLDEST
- * idle-since date ("từ dd/MM"). Pure derivation over the existing ledger
- * feed — no new endpoint. */
+ * than 30 days (they stopped transacting). A customer with NO ledger row at
+ * all is anchored at its creation date: an account that has existed for months
+ * without a single posting is exactly the "ngừng phát sinh" signal the metric
+ * exists for (QA wave 8cea1a6b: the sub line must carry the "từ dd/MM" date
+ * even when the ledger never posted for the customer). The sub line carries
+ * the OLDEST idle-since date ("từ dd/MM"). Pure derivation over the existing
+ * catalog + ledger feeds — no new endpoint. */
 const IDLE_WINDOW_DAYS = 30;
-function idleCustomerSummary(entries: LedgerEntry[] | undefined): { count: number; since: string | null } | null {
-  if (!entries) return null;
+function idleCustomerSummary(
+  entries: LedgerEntry[] | undefined,
+  catalog: ReadonlyArray<Pick<Customer, 'id' | 'createdAt'>> | undefined,
+): { count: number; since: string | null } | null {
+  if (!entries || !catalog) return null;
   const lastByCustomer = new Map<number, string>();
   for (const entry of entries) {
     if (entry.entityType !== 'CUSTOMER') continue;
@@ -92,11 +99,16 @@ function idleCustomerSummary(entries: LedgerEntry[] | undefined): { count: numbe
   const cutoff = Date.now() - IDLE_WINDOW_DAYS * 86_400_000;
   let count = 0;
   let oldestSince: string | null = null;
-  for (const ts of lastByCustomer.values()) {
+  const consider = (ts: string | undefined) => {
+    if (!ts) return;
     const t = Date.parse(ts);
-    if (Number.isNaN(t) || t >= cutoff) continue;
+    if (Number.isNaN(t) || t >= cutoff) return;
     count += 1;
     if (!oldestSince || ts < oldestSince) oldestSince = ts;
+  };
+  for (const ts of lastByCustomer.values()) consider(ts);
+  for (const c of catalog) {
+    if (!lastByCustomer.has(c.id)) consider(c.createdAt);
   }
   return { count, since: oldestSince };
 }
@@ -368,6 +380,12 @@ export default function CustomersPage() {
 
   const { rootRef } = usePageAnimations({ ready: !loading });
   const { data: ledgerEntries } = useCustomerLedgerEntries();
+  // QA wave 8cea1a6b (metric ②): the idle census covers the WHOLE catalog —
+  // the paginated table rows would undercount customers beyond the current
+  // page, and a never-posted customer is precisely the signal. The full list
+  // rides the existing all-customers feed (5-min staleTime, the same endpoint
+  // the catalog screen reads).
+  const { data: allCustomers } = useAllCustomers();
 
   /**
    * Mutation failures must surface as a toast: the edit modal stays open and
@@ -414,7 +432,7 @@ export default function CustomersPage() {
     if (row) return classifyAgingRisk(row.totalOutstanding, row.aging);
     return riskDot(debtMap.get(c.id) ?? 0, Number(c.creditLimit || 0));
   };
-  const idle30 = useMemo(() => idleCustomerSummary(ledgerEntries), [ledgerEntries]);
+  const idle30 = useMemo(() => idleCustomerSummary(ledgerEntries, allCustomers ?? customers), [ledgerEntries, allCustomers, customers]);
   /** Display fields the 7-column contract (SIL-169 verdict b) derives per row. */
   const rowDetail = (c: Customer) => {
     const aging = agingByCustomer.get(c.id);
@@ -724,14 +742,14 @@ export default function CustomersPage() {
                   <span className="cus-m-card__row">
                     <span className="cus-m-card__label">Liên hệ</span>
                     <span className="cus-m-card__contact">
-                      {c.contactPerson || '—'}{c.phone && <> · <span className="data-token">{c.phone}</span></>}
+                      {c.contactPerson ? titleCaseVn(c.contactPerson) : '—'}{c.phone && <> · <span className="data-token">{c.phone}</span></>}
                       {(c.accountantName || c.accountantPhone) && (
                         <span className="cus-m-card__contact-sub">{[c.accountantName, c.accountantPhone].filter(Boolean).join(' · ')}</span>
                       )}
                     </span>
                   </span>
                   {termDays != null && (
-                    <span className="cus-m-card__row"><span className="cus-m-card__label">Hạn TT</span><span className="cus-chip">{termDays} ngày</span></span>
+                    <span className="cus-m-card__row"><span className="cus-m-card__label">Hạn thanh toán</span><span className="cus-chip">{termDays} ngày</span></span>
                   )}
                 </div>
                 <div className="cus-m-card__foot">
@@ -827,13 +845,20 @@ export default function CustomersPage() {
                   contact lines), payment term, debt with the overdue signal,
                   and a single 32px kebab. Widths are the verdict's own budget
                   (260/110/180/180/96/120/32 ≈ 978px inside the 1008px content
-                  box at 1280). Sort stays server-side on the endpoint's
+                  box at 1280; the term header carries the full "HẠN THANH
+                  TOÁN" per QA wave 8cea1a6b ④, wrapping unclipped on the
+                  verdict's 96px track). Sort stays server-side
+                  on the endpoint's
                   whitelist keys (name, taxCode). */}
               <colgroup>
                 <col style={{ width: 260 }} />
                 <col style={{ width: 110 }} />
                 <col style={{ width: 180 }} />
                 <col style={{ width: 180 }} />
+                {/* QA wave 8cea1a6b ④: the header carries the full "HẠN THANH
+                    TOÁN" (no abbreviation); at the verdict's 96px track it
+                    wraps to two unclipped lines — the wrap-without-clip
+                    doctrine, not a squeeze. */}
                 <col style={{ width: 96 }} />
                 <col style={{ width: 120 }} />
                 {/* The kebab column rides a CSS class, not an inline width:
@@ -848,7 +873,9 @@ export default function CustomersPage() {
                   <SortHeader label="MST" sortKey="taxCode" sort={sort} onSortChange={applySort} />
                   <th>Địa chỉ</th>
                   <th>Liên hệ</th>
-                  <th>Hạn TT</th>
+                  {/* QA wave 8cea1a6b: the abbreviated header read as a
+                      different column — the full name is the contract. */}
+                  <th>Hạn thanh toán</th>
                   <th className="cus-th-debt">Công nợ</th>
                   <th><span className="sr-only">Thao tác</span></th>
                 </tr>
@@ -915,7 +942,7 @@ export default function CustomersPage() {
                     <td data-label="Liên hệ">
                       <span className="customers-contact-stack">
                         <span className="cus-contact-main">
-                          {c.contactPerson || '—'}
+                          {c.contactPerson ? titleCaseVn(c.contactPerson) : '—'}
                           {c.phone && (
                             <button
                               type="button"
