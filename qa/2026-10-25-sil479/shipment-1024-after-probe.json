@@ -1,0 +1,65 @@
+{
+  "viewport": 1024,
+  "wrap": {
+    "clientWidth": 863,
+    "scrollWidth": 861,
+    "overflowX": "auto",
+    "scrolls": false
+  },
+  "table": {
+    "width": 861,
+    "scrollWidth": 861,
+    "minWidth": "0px",
+    "layout": "fixed"
+  },
+  "cols": [
+    {
+      "cls": "identity",
+      "w": "79.2031px"
+    },
+    {
+      "cls": "declaration",
+      "w": "73.1719px"
+    },
+    {
+      "cls": "type",
+      "w": "54.2344px"
+    },
+    {
+      "cls": "route",
+      "w": "54.2344px"
+    },
+    {
+      "cls": "dispatch",
+      "w": "54.2344px"
+    },
+    {
+      "cls": "carrier",
+      "w": "59.4062px"
+    },
+    {
+      "cls": "plate",
+      "w": "59.4062px"
+    },
+    {
+      "cls": "site",
+      "w": "56.8125px"
+    },
+    {
+      "cls": "site",
+      "w": "56.8125px"
+    },
+    {
+      "cls": "weight",
+      "w": "55.9531px"
+    },
+    {
+      "cls": "appointment",
+      "w": "150.688px"
+    },
+    {
+      "cls": "actions",
+      "w": "106.844px"
+    }
+  ]
+}

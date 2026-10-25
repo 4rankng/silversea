@@ -1630,6 +1630,40 @@
 .cus-container-col__appointment { width: 164px; }
 .cus-container-col__actions { width: 116px; }
 
+/* SIL-479 (owner 24/10 — /shipments/:id "Chi tiết container"): from the
+ * desktop band the page host is full-row (grid-column pin in
+ * ShipmentDetailPage.css), so the drawer's 1238px lock must not apply there —
+ * the 12 columns take percentage shares of the REAL row and the table never
+ * scrolls on desktop. Shares are validated at the measured 1024px worst case
+ * (wrapper 863px): the share floors are RE-DERIVED BEHAVIORAL FLOORS, not the
+ * drawer's FB-045 px floors (164/116) — giờ hẹn keeps ≥150px (the segmented
+ * datetime's measured need) and Thao tác ≥100px (the Thêm/Hủy pair), verified
+ * live with the add row open. Every other column wraps inside its share per
+ * the no-truncation doctrine. The drawer host and viewports <1024 keep the px
+ * floors + scroll above. */
+@media (min-width: 1024px) { /* SIL-479 page-host full-row */
+  .shipment-detail__card--flush .cus-container-table { min-width: 0; }
+  /* The identity column's drawer floor assumes an 11-char container number on
+   * one nowrap line (rule above; "never wrap" per the 2026-09-18 user
+   * ruling); the full-row shares run narrower than 120px at 1024, so keeping
+   * nowrap here would paint the number over its neighbour — on THIS page-host
+   * band the number wraps like every other column instead. The drawer keeps
+   * the ruling's one-line nowrap. Flagged to the owner on SIL-479 for
+   * ratification. "Chưa có số container" already wraps via its own rule. */
+  .shipment-detail__card--flush .cus-container-cell--identity strong { white-space: normal; }
+  .shipment-detail__card--flush .cus-container-col__identity { width: 9.2%; }
+  .shipment-detail__card--flush .cus-container-col__declaration { width: 8.5%; }
+  .shipment-detail__card--flush .cus-container-col__type { width: 6.3%; }
+  .shipment-detail__card--flush .cus-container-col__route { width: 6.3%; }
+  .shipment-detail__card--flush .cus-container-col__dispatch { width: 6.3%; }
+  .shipment-detail__card--flush .cus-container-col__carrier { width: 6.9%; }
+  .shipment-detail__card--flush .cus-container-col__plate { width: 6.9%; }
+  .shipment-detail__card--flush .cus-container-col__site { width: 6.6%; }
+  .shipment-detail__card--flush .cus-container-col__weight { width: 6.5%; }
+  .shipment-detail__card--flush .cus-container-col__appointment { width: 17.5%; }
+  .shipment-detail__card--flush .cus-container-col__actions { width: 12.4%; }
+}
+
 .cus-container-table th.cus-container-cell--actions,
 .cus-container-table td.cus-container-cell--actions {
   text-align: center;
