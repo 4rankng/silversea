@@ -8,6 +8,12 @@ const pageSource = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.
 const rowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
 const ledgerSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedger.tsx'), 'utf8');
 const ledgerRowSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusContainerLedgerRow.tsx'), 'utf8');
+// SIL-479: the page-host wrapper floor measured at the 1024px viewport with
+// the card full-row (sidebar 248 + gutters) — the narrowest desktop row the
+// percentage shares must satisfy. Re-measure with
+// qa/scripts/2026-10-25-sil479-container-fullrow-shots.mjs if the shell
+// chrome ever changes.
+const SIL479_PAGE_WRAPPER_FLOOR = 863;
 
 describe('shipment container editor density', () => {
   it('keeps Untitled toolbar inputs inside a single outlined control shell', () => {
@@ -120,6 +126,38 @@ describe('shipment container editor density', () => {
     // `adding` the submit label swaps to the wider "Đang thêm…" — a wrapping
     // pair can never spill onto the giờ hẹn cell in any label state.
     expect(css).toMatch(/\.cus-container-ledger__add-actions\s*\{[^}]*flex-wrap:\s*wrap;/);
+  });
+
+  // SIL-479 (owner 24/10): the /shipments/:id page host spans the full grid
+  // row from 1024 (grid-column pin lives in ShipmentDetailPage.css) and its
+  // columns take percentage shares of the real row — the drawer's 1238px lock
+  // must not leak there, and the FB-045 floors must still hold at the 1024px
+  // worst case. Scoped to `.shipment-detail__card--flush`: the drawer host
+  // and viewports <1024 keep the px floors + scroll law above.
+  it('SIL-479: page-host ledger goes full-row percentage from 1024 — drawer floors stay the fallback', () => {
+    const detailCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDetailPage.css'), 'utf8');
+    expect(detailCss).toMatch(
+      /@media \(min-width: 1024px\)\s*\{\s*\.shipment-detail__card--flush \{ grid-column: 1 \/ -1; \}\s*\}/,
+    );
+    const band = /@media \(min-width: 1024px\) \{\s*\/\* SIL-479[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(band).toContain('.shipment-detail__card--flush .cus-container-table { min-width: 0; }');
+    const share = (name: string) => Number(
+      new RegExp(`\\.shipment-detail__card--flush \\.cus-container-col__${name} \\{ width: ([\\d.]+)%; \\}`).exec(band)?.[1] ?? NaN,
+    );
+    // Colgroup order (the px-floor test above owns it): site appears twice —
+    // one rule sizes both columns, so the share sum must count it twice to
+    // answer for the full 12-column row.
+    const names = ['identity', 'declaration', 'type', 'route', 'dispatch', 'carrier', 'plate', 'site', 'site', 'weight', 'appointment', 'actions'] as const;
+    const total = names.reduce((sum, name) => sum + share(name), 0);
+    expect(total).toBeCloseTo(100, 5);
+    // Re-derived behavioral floors survive the squeeze at the measured 1024px
+    // worst case (NOT the drawer's FB-045 px floors 164/116): giờ hẹn keeps
+    // the segmented datetime's measured need, Thao tác keeps Thêm + Hủy —
+    // both verified live with the add row open.
+    expect(share('appointment') / 100 * SIL479_PAGE_WRAPPER_FLOOR).toBeGreaterThanOrEqual(150);
+    expect(share('actions') / 100 * SIL479_PAGE_WRAPPER_FLOOR).toBeGreaterThanOrEqual(100);
+    // The override never re-binds the drawer host.
+    expect(band).not.toContain('cus-shipment-drawer');
   });
 
   // Card 20260923_9 residual (QA rung, staging 390): inside the card the add
