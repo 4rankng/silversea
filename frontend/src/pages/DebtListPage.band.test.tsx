@@ -187,11 +187,11 @@ describe('DebtListPage summary band (SIL-469)', () => {
     const badgeBand = (name: string) => {
       const cell = [...document.querySelectorAll('td[data-label="Khách hàng"]')]
         .find((td) => td.textContent?.includes(name));
-      const row = cell?.closest('tr')!;
+      const row = cell?.closest('tr');
       return {
-        badge: row.querySelector('.debt-overdue-badge')?.className,
-        text: row.querySelector('td[data-label="Quá hạn"]')?.textContent,
-        total: row.querySelector('td[data-label="Tổng nợ"]')?.textContent,
+        badge: row?.querySelector('.debt-overdue-badge')?.className,
+        text: row?.querySelector('td[data-label="Quá hạn"]')?.textContent,
+        total: row?.querySelector('td[data-label="Tổng nợ"]')?.textContent,
       };
     };
 

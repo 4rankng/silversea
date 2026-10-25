@@ -642,7 +642,7 @@
 .csc-declaration-strip { grid-column: 1 / -1; display: grid; gap: 6px; min-width: 0; }
 .csc-declaration-strip__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .csc-declaration-strip__title { color: var(--fg-1); font-size: var(--text-label-size); font-weight: 600; }
-.csc-declaration-strip__count { display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 99px; background: var(--surface-3); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 600; line-height: 1; }
+.csc-declaration-strip__count { display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 999px; background: var(--surface-3); color: var(--fg-2); font-size: var(--text-caption-size); font-weight: 600; line-height: 1; }
 .csc-declaration-strip__actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .csc-declaration-strip__action { padding: 2px 4px; border: 0; background: none; color: var(--accent-ink); font: inherit; font-size: var(--text-caption-size); font-weight: 600; cursor: pointer; }
 .csc-declaration-strip__action:not(:disabled):hover { text-decoration: underline; }

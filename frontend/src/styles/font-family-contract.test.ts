@@ -32,6 +32,10 @@ const sharedMoneyTabularSources = [
   // day grid are date data; the declaration is the primitive's, not a
   // page-local copy.
   join(sourceRoot, 'design-system/forms/UnifiedDateRangePicker.css'),
+  // SIL-478 (2026-10-25) — the grouped ledger rows are the shared phone
+  // counterpart of the ledger matrices: their row money carries the same
+  // tabular digit edge the verdict specs ("Số tiền … tabular-nums").
+  join(sourceRoot, 'components/shared/LedgerGroupedList.css'),
 ];
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 

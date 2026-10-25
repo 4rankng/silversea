@@ -1,0 +1,8 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7176
+LOGIN ok role=cus
+PROBE role=cus w=390 {"viewport":{"w":390,"h":844},"recordCardCount":20,"matrixRendered":false,"firstCardLeftText":"Công Ty Tnhh Một Thành Viên Long Minh | HANGE4769700 · 01/09/2026","rowStyle":{"display":"grid","cols":"52px 175.891px 72.1094px","minHeight":"40px","height":64},"amountText":null,"chip":{"fontFamily":"\"Be Vietnam Pro\", ui-sans-seri","fontSize":"12px","height":"24px","background":"rgb(239, 248, 255)","color":"rgb(23, 92, 211)","radius":"999px"},"kebabCount":0}
+PROBE role=cus w=768 {"viewport":{"w":768,"h":844},"recordCardCount":0,"matrixRendered":true,"firstCardLeftText":null,"rowStyle":null,"amountText":null,"chip":{"fontFamily":"\"Be Vietnam Pro\", ui-sans-seri","fontSize":"11px","height":"22px","background":"rgb(255, 255, 255)","color":"rgb(95, 104, 114)","radius":"999px"},"kebabCount":208}
+LOGIN ok role=admin
+PROBE role=admin w=390 {"viewport":{"w":390,"h":844},"recordCardCount":20,"matrixRendered":false,"firstCardLeftText":"Công Ty Tnhh Một Thành Viên Long Minh | HANGE4769700 · 01/09/2026","rowStyle":{"display":"grid","cols":"52px 175.891px 72.1094px","minHeight":"40px","height":64},"amountText":null,"chip":{"fontFamily":"\"Be Vietnam Pro\", ui-sans-seri","fontSize":"12px","height":"24px","background":"rgb(239, 248, 255)","color":"rgb(23, 92, 211)","radius":"999px"},"kebabCount":0}
+PROBE role=admin w=768 {"viewport":{"w":768,"h":844},"recordCardCount":0,"matrixRendered":true,"firstCardLeftText":null,"rowStyle":null,"amountText":null,"chip":{"fontFamily":"\"Be Vietnam Pro\", ui-sans-seri","fontSize":"11px","height":"22px","background":"rgb(255, 255, 255)","color":"rgb(95, 104, 114)","radius":"999px"},"kebabCount":208}
+DONE label=after
