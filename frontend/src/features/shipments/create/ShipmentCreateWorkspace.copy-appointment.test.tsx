@@ -250,10 +250,11 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     expect(appointmentValue(1).time).toBe('09:00');
   });
 
-  it('bulk date control fills every row without a schedule and never overwrites set rows (case 2026-10-11-R14-02)', async () => {
-    // FB-008 round-14 ("không có nhập ngày giao hàng loạt cho lô nhiều
-    // container"): the copy affordance needs a source row first; this control
-    // types the schedule once and applies it to every row still without one.
+  it('keeps the bulk input as a clipboard source but renders no apply chip (SIL-511)', async () => {
+    // SIL-511 (owner 26/10): the 'Áp dụng cho N container' chip is retired —
+    // the typed value feeds the section clipboard copy only, and the
+    // copy-down / copy-ALL buttons below stay the apply-all paths. Locks the
+    // removal so a merge cannot resurrect the chip or re-wire an apply.
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
@@ -267,16 +268,14 @@ describe('shipment create bulk appointment copy', { timeout: 20000 }, () => {
     fireEvent.change(bulkDate, { target: { value: '25/12/2026' } });
     fireEvent.change(bulkTime, { target: { value: '14:30' } });
 
-    const applyBtn = await screen.findByRole('button', { name: /Áp dụng cho 2 container/ });
-    fireEvent.click(applyBtn);
-    await waitFor(() => expect(appointmentValue(1).date).toBe('25/12/2026'));
-    expect(appointmentValue(1).time).toBe('14:30');
-    expect(appointmentValue(2).date).toBe('25/12/2026');
-    expect(appointmentValue(2).time).toBe('14:30');
-    // Rows holding a schedule keep it.
-    expect(appointmentValue(0).date).toBe('20/09/2026');
-    expect(appointmentValue(0).time).toBe('09:00');
-    expect(await screen.findByText(/Đã áp dụng ngày giờ đóng trả cho 2 container chưa có lịch/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Áp dụng cho \d+ container/ })).toBeNull();
+    // The clipboard copy affordance survives with the complete typed value.
+    expect(document.querySelector('.csc-bulk-appointment__copy')).toBeTruthy();
+    // No apply path: rows without a schedule stay untouched by this input.
+    [1, 2].forEach((i) => {
+      expect(appointmentValue(i).date).toBe('');
+      expect(appointmentValue(i).time).toBe('');
+    });
   });
 
   // User ruling 2026-09-18: the affordance lives in the STT cell as an icon
