@@ -52,6 +52,10 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose }: { 
     setForwarderId(id);
     setSelectedRequestIds(new Set());
     setSelectedExpenseIds(new Set());
+    // SIL-487 review — refund/note typed for the previous staff must not ride
+    // into another staff's phiếu; the balance warning alone is not a guard.
+    setRefundAmount('0');
+    setNote('');
     setRefundConfirmed(false);
   }
 

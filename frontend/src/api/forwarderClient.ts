@@ -217,8 +217,10 @@ export const forwarderClient = {
     }>(`${FINANCIAL.ADVANCE_SETTLEMENTS}/eligibility${toQuery({ forwarderId })}`);
   },
   // SIL-487 — kế toán lập phiếu hoàn ứng CHO nhân viên (nghiệp vụ chi hộ).
-  // Idempotency-Key tự đính kèm ở tầng api (mutation-identity) — same-key
-  // double submit replay, không nhân bản phiếu.
+  // Double-submit: nút Ghi nhận disabled khi pending + BE đã gắn phiếu trả 409
+  // (validateSettlementInputs). Idempotency-Key (mutation-identity tự sinh UUID
+  // MỚI mỗi lần gọi api.post) bảo vệ transport-retry không rõ kết quả — BE
+  // replay khi key trùng, không nhân bản phiếu.
   createAdvanceSettlementForForwarder: async (data: AdminCreateAdvanceSettlementInput) => {
     return api.post<AdvanceSettlementWithRefs>(FINANCIAL.ADVANCE_SETTLEMENTS, data);
   },

@@ -294,6 +294,10 @@ export const qk = {
     settlementOpsCompletion: (settlementIds: number[]) =>
       ['admin-settlement-ops-completion', settlementIds] as const,
     settlementOpsCompletionAll: ['admin-settlement-ops-completion'] as const,
+    /** Broad prefix — SIL-487: invalidate every per-forwarder eligibility cache
+     *  after a phiếu lands (the just-consumed advances/expenses must not stay
+     *  selectable for the next dialog open). */
+    settlementEligibilityAll: ['admin-settlement-eligibility'] as const,
     advanceBalances: ['admin-advance-balances'] as const,
   },
 

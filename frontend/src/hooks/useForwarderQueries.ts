@@ -236,6 +236,9 @@ export function useCreateAdvanceSettlementForForwarder() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
       qc.invalidateQueries({ queryKey: qk.adminForwarder.advanceBalances });
+      // SIL-487 review — the phiếu just consumed its advances/expenses; a stale
+      // eligibility cache would offer them again and 409 on the next submit.
+      qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementEligibilityAll });
     },
   });
 }
