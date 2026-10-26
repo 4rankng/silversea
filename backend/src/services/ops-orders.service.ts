@@ -38,6 +38,12 @@ export async function listOpsOrders(
     const needle = `%${search.trim()}%`;
     conditions.push(or(
       ilike(s.shipments.shipmentCode, needle),
+      // SIL-495 — the column this page renders as "Bill / Booking" is
+      // bl_number (IMPORT) / booking_ref (EXPORT); the search box
+      // advertises "Bill/Booking · Khách hàng · Số cont", so both reference
+      // columns must match (same shape as the dispatch planning search).
+      ilike(s.shipments.blNumber, needle),
+      ilike(s.shipments.bookingRef, needle),
       ilike(s.customers.name, needle),
       // Container-number search through a correlated exists — avoids a join
       // that would fan out rows before the page is assembled.
