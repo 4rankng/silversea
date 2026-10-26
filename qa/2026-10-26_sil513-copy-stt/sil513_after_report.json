@@ -1,0 +1,51 @@
+{
+  "tag": "after",
+  "before": {
+    "rowCount": 2,
+    "sttCopy": {
+      "x": 284,
+      "y": 624,
+      "opacity": "1"
+    },
+    "ordinalVisible": "visible",
+    "ordinalRight": 282,
+    "copyBesideOrdinal": true,
+    "copyInAppointmentCell": false,
+    "copyAllChipGone": true,
+    "weightHeader": {
+      "boxW": 140,
+      "textW": 127
+    }
+  },
+  "hoverOpacity": "1",
+  "after": {
+    "rowCount": 3,
+    "rows": [
+      {
+        "number": "MSCU6639870",
+        "weight": "24500",
+        "appt": {
+          "date": "20/09/2026",
+          "time": "09:00"
+        }
+      },
+      {
+        "number": "MSCU6639870",
+        "weight": "24500",
+        "appt": {
+          "date": "20/09/2026",
+          "time": "09:00"
+        }
+      },
+      {
+        "number": "",
+        "weight": "",
+        "appt": {
+          "date": "//",
+          "time": ":"
+        }
+      }
+    ],
+    "toast": true
+  }
+}

@@ -198,6 +198,26 @@ export function createContainerFromPrevious(
   };
 }
 
+/**
+ * SIL-513 (owner 26/10): the STT column's hover copy DUPLICATES the row — a
+ * full-value copy of the source line (số cont, loại, nhà máy, tuyến, cảng,
+ * kg, giờ đóng/trả) inserted right below it. Deliberately DIFFERENT from
+ * `createContainerFromPrevious` (whose REQ-22-reversed contract leaves số
+ * cont + loại empty for "Thêm container"): the owner names cont and loại
+ * among the copied values, so this clone carries the whole line. Still never
+ * inherits the persisted `id` — a duplicated row is a NEW container; the
+ * reconcile would overwrite its sibling.
+ */
+export function duplicateContainerRow(
+  previous: ShipmentContainerDraft,
+): ShipmentContainerDraft {
+  return {
+    ...previous,
+    key: crypto.randomUUID(),
+    id: undefined,
+  };
+}
+
 function issue(
   fieldId: string,
   message: string,

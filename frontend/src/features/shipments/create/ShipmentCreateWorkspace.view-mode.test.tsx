@@ -259,10 +259,11 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
       // The cell renders its collapsed mask as text (no editor input in view).
       expect(document.body.textContent).toContain('CSQU3054383');
     });
-    // MAJOR-fix pins (review 25/10): the per-row copy-down mutation and the
-    // per-row delete (which opens the discard confirm) must not render in
-    // view. The SECTION-level copy button stays in the DOM but disabled.
-    expect(screen.queryByRole('button', { name: /Copy ngày giờ đóng trả .* sang các container chưa có lịch/ })).toBeNull();
+    // MAJOR-fix pins (review 25/10) + SIL-513: no per-row mutation renders in
+    // view — the STT duplicate affordance and the per-row delete (which opens
+    // the discard confirm) stay hidden (`saving` is the view channel). The
+    // SECTION-level copy button stays in the DOM but disabled.
+    expect(screen.queryByRole('button', { name: /Nhân bản container/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xóa container 1' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xóa container 2' })).toBeNull();
     const sectionCopy = screen.queryByRole('button', { name: /Copy giờ hẹn xuống cont trống/ });

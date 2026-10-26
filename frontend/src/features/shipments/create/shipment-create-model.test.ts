@@ -3,6 +3,7 @@ import {
   EMPTY_SHIPMENT_CREATE_FORM,
   buildShipmentContainerPayload,
   createContainerFromPrevious,
+  duplicateContainerRow,
   buildShipmentRootPayload,
   createEmptyContainer,
   getShipmentCreateReadiness,
@@ -189,6 +190,27 @@ describe('shipment create model', () => {
       containerTypeId: '',
       customerAppointmentAt: '2026-08-20T09:30',
     });
+  });
+
+  it('duplicates a row with EVERY value (SIL-513 STT copy) but never the persisted id', () => {
+    vi.stubGlobal('crypto', { randomUUID: () => 'row-3' });
+    const clone = duplicateContainerRow({
+      ...container,
+      id: 77,
+      customerAppointmentAt: '2026-08-20T09:30',
+    });
+
+    // SIL-513 (owner 26/10): the STT hover copy duplicates the whole line —
+    // số cont and loại INCLUDED (deliberately different from
+    // createContainerFromPrevious, whose REQ-22-reversed contract serves
+    // "Thêm container"). A duplicated row is still a NEW container: fresh
+    // key, no persisted id (the reconcile would overwrite its sibling).
+    expect(clone).toMatchObject({
+      ...container,
+      key: 'row-3',
+      customerAppointmentAt: '2026-08-20T09:30',
+    });
+    expect(clone.id).toBeUndefined();
   });
 
   it('requires only LCL-specific cargo and schedule fields for dispatch', () => {

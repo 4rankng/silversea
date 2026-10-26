@@ -23,6 +23,7 @@ import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine } from './catal
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
   createContainerFromPrevious,
+  duplicateContainerRow,
   createEmptyContainer,
   getShipmentCreateReadiness,
   resetCustomerSite,
@@ -599,18 +600,11 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetKeys.size} container chưa có lịch` });
   }
 
-  // Ticket 211026125242 (CUS-03): one click stamps the SAME ngày giờ đóng trả
-  // on EVERY container of the lot — including rows that already hold a
-  // schedule or a partial draft. The copy-down button above deliberately
-  // fills only the still-empty rows; QA's flow is "set one row, overwrite
-  // the rest", which until now forced per-row edits.
-  function applyAppointmentToAll(fromKey: string) {
-    const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
-    if (!source) return;
-    const total = containers.length;
-    setContainers((current) => current.map((row) => ({ ...row, customerAppointmentAt: source })));
-    toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả cho tất cả ${total} container` });
-  }
+  // Ticket 211026125242 (CUS-03) — RETIRED by SIL-513 (owner 26/10): the
+  // "Copy giờ hẹn cho tất cả N cont" chip is gone. The copy-down button below
+  // keeps filling only the still-empty rows, and the bulk "Ngày giờ đóng trả
+  // cho tất cả cont" field + Áp dụng path (SIL-511's surface) remain the
+  // overwrite route.
 
   function applyBulkAppointment() {
     if (!bulkAppointment) return;
@@ -630,6 +624,22 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // it renders whenever the row holds a schedule, never gated on siblings.
   function notifyAppointmentCopied(formatted: string) {
     toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` });
+  }
+
+  // SIL-513 (owner 26/10): the STT hover copy duplicates the row IN PLACE —
+  // the full-value clone inserts immediately BELOW the source row (not at
+  // the list's end, where "Thêm container" appends), so the operator sees
+  // the copy beside what they copied.
+  function duplicateContainer(fromKey: string) {
+    const sourceIndex = containers.findIndex((row) => row.key === fromKey);
+    if (sourceIndex < 0) return;
+    const clone = duplicateContainerRow(containers[sourceIndex]);
+    setContainers((current) => {
+      const at = current.findIndex((row) => row.key === fromKey);
+      if (at < 0) return current;
+      return [...current.slice(0, at + 1), clone, ...current.slice(at + 1)];
+    });
+    toast({ kind: 'success', message: `Đã nhân bản container ${sourceIndex + 1} — kiểm tra số cont trước khi lưu` });
   }
 
   // Card D.4 (18/10, hàng lẻ D.4) completed by 181026200700: the "Lịch & ghi
@@ -943,8 +953,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                           containersLength={containers.length}
                           catalogs={catalogs}
                           operationalSites={operationalSites}
-                          emptyAppointmentCount={emptyAppointmentCount}
-                          copyAppointmentToEmpty={copyAppointmentToEmpty}
+                          onDuplicate={duplicateContainer}
                           onAppointmentCopied={notifyAppointmentCopied}
                           updateContainer={updateContainer}
                           removeContainer={removeContainer}
@@ -1020,23 +1029,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     )}
                   </div>
                 )}
-                {/* Ticket 211026125242 (CUS-03): the copy-ALL button sits
-                    beside the copy-down one — one click gives EVERY container
-                    the same ngày giờ, overwriting set schedules, which the
-                    copy-down rule deliberately never touches. Needs a
-                    scheduled source row and a second container to matter. */}
-                {copySourceRow && containers.length >= 2 && (
-                  <button
-                    type="button"
-                    className="csc-utility-button csc-utility-button--dashed"
-                    data-field-id="shipment-copy-appointment-all"
-                    title={`Copy ngày giờ ${formatDateTime24(copySourceRow.customerAppointmentAt) || copySourceRow.customerAppointmentAt} cho TẤT CẢ ${containers.length} container — ghi đè cả lịch đã có`}
-                    onClick={() => applyAppointmentToAll(copySourceRow.key)}
-                    disabled={controlsDisabled}
-                  >
-                    <Copy size={15} aria-hidden="true" />Copy giờ hẹn cho tất cả {containers.length} cont
-                  </button>
-                )}
+                {/* SIL-513 (owner 26/10): the "Copy giờ hẹn cho tất cả N cont"
+                    chip retired — the copy affordances now live ONLY on the
+                    STT column (duplicate-row) and the copy-down button above. */}
                 {copySourceRow && emptyAppointmentCount >= 1 && (
                   <button
                     type="button"
