@@ -4,7 +4,8 @@ import { CircleCheck, FileLock2, FileSpreadsheet, Loader2, LockOpen, Plus, Rotat
 import {
   CUS_SEARCH_PATTERN, SHIPMENT_CUS_WORKSPACE_SORT_KEYS, SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_INTAKE_MUTATION_ROLES, ShipmentCusBucket, Role,
-  type ShipmentCusWorkspaceListItem, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceSortKey,
+  type ShipmentCusWorkspaceContainerLine, type ShipmentCusWorkspaceListItem,
+  type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { FilterDropdown } from '../components/FilterDropdown';
@@ -22,6 +23,7 @@ import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { isOverlayOpen } from '../lib/overlayState';
 import { ShipmentQuickEditModal } from '../features/shipments/cus/ShipmentQuickEditModal';
 import { CusLotStatusChips, CusLotView } from '../features/shipments/cus/CusLotView';
+import { copyCusShipmentContainerDeclaration, updateCusShipmentContainerLine } from '../api/shipmentClient';
 import { CusShipmentRow, CUS_ROW_COLUMNS } from '../features/shipments/cus/CusShipmentRow';
 import { SHIPMENT_CUS_PAGE_SIZES, readCusPageSize, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
 import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
@@ -377,6 +379,73 @@ export default function ShipmentsPage() {
   // with an active accounting lock stays readable but refuses editing, so the
   // footer button is disabled with the reason beside it.
   const lotEditLocked = drawerItem?.activeLock != null;
+  // SIL-498: the drawer's per-cont tờ khai cell is writable exactly when the
+  // workspace fieldAccess publishes a non-READ_ONLY declarationNumber (role
+  // CUS/Quản trị/Quản lý + no accounting lock, computed server-side), the
+  // viewer holds the intake-mutation authority and the drawer detail is
+  // loaded. DISPATCHER keeps the rest of the container-line command but not
+  // this field — the same split the BE gate enforces.
+  const drawerDetail = drawerId != null ? ws.details[drawerId] : undefined;
+  const drawerDeclarationEditable = Boolean(
+    canEditLot
+    && !lotEditLocked
+    && drawerDetail
+    && drawerDetail.summary.fieldAccess.declarationNumber.mode !== 'READ_ONLY',
+  );
+  /** SIL-498-R1: save ONE row's tờ khai through the container-line command —
+   *  the same endpoint the ledger editor rides, so the BE fan-out (empty +
+   *  same-old-number siblings follow, divergent untouched, clear local —
+   *  SIL-184) applies verbatim. The drawer detail force-reloads so the sheet
+   *  always reads persisted state, and the toast names the auto-synced
+   *  siblings the command reports. */
+  const saveDrawerDeclaration = useCallback(async (line: ShipmentCusWorkspaceContainerLine, value: string) => {
+    if (drawerId == null || drawerDetail == null) return;
+    const shipmentId = drawerId;
+    const next = value || null;
+    const signature = `drawer-decl:${shipmentId}:${line.id}:${drawerDetail.summary.version}:${next ?? ''}`;
+    const key = ws.getIdempotencyKey(signature);
+    try {
+      const result = await updateCusShipmentContainerLine(shipmentId, line.id, {
+        expectedShipmentVersion: drawerDetail.summary.version,
+        declarationNumber: next,
+      }, key);
+      ws.clearIdempotencyKey(signature);
+      const synced = result.declarationSync?.updatedContainerIds.length ?? 0;
+      const target = line.containerNumber ? `cho ${line.containerNumber}` : `cho container số ${line.ordinal}`;
+      ws.setNotice(synced > 0
+        ? `Đã lưu tờ khai ${target} — tự đồng bộ sang ${synced} cont.`
+        : `Đã lưu tờ khai ${target}.`);
+      await ws.loadDetail(shipmentId, true);
+    } catch (error) {
+      ws.clearIdempotencyKey(signature);
+      ws.setError(safeError(error, 'Không thể lưu số tờ khai. Vui lòng thử lại.'));
+      throw error;
+    }
+  }, [drawerDetail, drawerId, ws]);
+  /** SIL-498-R2: the first row's copy affordance — ONE call fans the saved
+   *  number onto every still-empty sibling (never a divergent one), the same
+   *  contract as the ledger's copy button. */
+  const copyDrawerDeclaration = useCallback(async (line: ShipmentCusWorkspaceContainerLine) => {
+    if (drawerId == null || drawerDetail == null) return;
+    const shipmentId = drawerId;
+    const signature = `drawer-decl-copy:${shipmentId}:${line.id}:${drawerDetail.summary.version}`;
+    const key = ws.getIdempotencyKey(signature);
+    try {
+      const result = await copyCusShipmentContainerDeclaration(shipmentId, line.id, {
+        expectedShipmentVersion: drawerDetail.summary.version,
+      }, key);
+      ws.clearIdempotencyKey(signature);
+      ws.setNotice(`Đã copy tờ khai sang ${result.updatedContainerIds.length} cont còn trống.`);
+      await ws.loadDetail(shipmentId, true);
+    } catch (error) {
+      ws.clearIdempotencyKey(signature);
+      ws.setError(safeError(error, 'Không thể copy tờ khai. Vui lòng thử lại.'));
+      throw error;
+    }
+  }, [drawerDetail, drawerId, ws]);
+  const drawerDeclarationActions = useMemo(() => (
+    drawerDeclarationEditable ? { onSaveDeclaration: saveDrawerDeclaration, onCopyDeclaration: copyDrawerDeclaration } : undefined
+  ), [copyDrawerDeclaration, drawerDeclarationEditable, saveDrawerDeclaration]);
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;
@@ -711,6 +780,8 @@ export default function ShipmentsPage() {
                 loading={ws.detailLoadingIds.has(drawerItem.id)}
                 error={ws.detailErrors[drawerItem.id]}
                 onRetry={() => void loadDetail(drawerItem.id, true)}
+                canEditDeclaration={drawerDeclarationEditable}
+                declarationActions={drawerDeclarationActions}
               />
             </>
           )}

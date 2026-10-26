@@ -1,4 +1,5 @@
-import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CopyPlus, Loader2 } from 'lucide-react';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -17,9 +18,16 @@ import {
  * consult for the drawer body): the Tổng quan drawer reads as a designed
  * lot review — status chips on the head row, a four-step workflow stepper
  * (Chốt lịch → Phân xe → Đối soát → Khóa lô), then read-only cards: Nhận
- * diện lô, Thông tin hàng (the 11-column container sheet), Lịch & ghi chú
- * and Đối soát. Editing stays out of the drawer: the footer "Sửa" navigates
- * to /shipments/:id/edit where ShipmentCreateWorkspace owns the form.
+ * diện lô, Thông tin hàng (the container sheet), Lịch & ghi chú and Đối
+ * soát. Editing stays out of the drawer: the footer "Sửa" navigates to
+ * /shipments/:id/edit where ShipmentCreateWorkspace owns the form.
+ *
+ * SIL-498 (customer 25/10): the ONE deliberate inline exception is tờ khai —
+ * a per-CONT document number the customer enters right in the Thông tin hàng
+ * sheet. Each row carries its own input (or plain text when the lot is not
+ * writable), and the first row owns the copy affordance that fans the saved
+ * number out to the lot's still-empty rows (BE copy endpoint — never
+ * overwrites a divergent sibling). Everything else stays read-only.
  *
  * Every value renders from the same CUS workspace payload the workboard row
  * already reads (list item + lazily loaded detail); a missing value is "—",
@@ -110,6 +118,106 @@ const DISPATCH_CHIP_CLASS: Record<ShipmentCusWorkspaceContainerLine['dispatchSta
   COMPLETED: 'cus-lot-dispatch--completed',
 };
 
+/** SIL-498 callbacks the host page owns: the drawer stays presentational, the
+ *  page performs the container-line write / copy call, reloads the detail and
+ *  surfaces the toast. A rejected promise leaves the draft standing so the
+ *  user can retry or Escape-revert. */
+export interface CusLotDeclarationActions {
+  onSaveDeclaration: (line: ShipmentCusWorkspaceContainerLine, value: string) => Promise<void>;
+  onCopyDeclaration: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
+}
+
+/** One row's tờ khai cell: an inline input when the lot is writable (the
+ *  customer enters the number right here, per-cont — SPEC SIL-498), plain
+ *  text otherwise. Commit rides Enter or blur, only when the trimmed draft
+ *  actually differs from the persisted value; Escape reverts the draft. The
+ *  copy affordance (first row only) repeats the reviewed ledger rule: it
+ *  fans the PERSISTED number out to still-empty siblings, so it shows only
+ *  while the draft matches the saved value — a retyped-but-unsaved value
+ *  must never look copyable. */
+function DeclarationCell({
+  line,
+  isFirst,
+  emptySiblingCount,
+  editable,
+  actions,
+}: {
+  line: ShipmentCusWorkspaceContainerLine;
+  isFirst: boolean;
+  emptySiblingCount: number;
+  editable: boolean;
+  actions?: CusLotDeclarationActions;
+}) {
+  const persisted = (line.declarationNumber ?? '').trim();
+  const [draft, setDraft] = useState(persisted);
+  const [busy, setBusy] = useState(false);
+  const [copying, setCopying] = useState(false);
+  // The drawer reloads the detail after every save; reseed the draft from
+  // the persisted value so the round-trip never reads as an unsaved edit.
+  useEffect(() => { setDraft(persisted); }, [persisted]);
+  const dirty = draft.trim() !== persisted;
+
+  const commit = async () => {
+    if (!editable || busy || !dirty || !actions) return;
+    setBusy(true);
+    try {
+      await actions.onSaveDeclaration(line, draft.trim());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!editable || !actions) {
+    return persisted
+      ? <span className="cus-lot-decl__value">{persisted}</span>
+      : <span className="cus-lot-quiet">Chưa có tờ khai</span>;
+  }
+
+  const copyReady = isFirst && persisted !== '' && emptySiblingCount > 0 && !dirty;
+
+  return (
+    <div className="cus-lot-decl">
+      <input
+        className="cus-lot-decl__input"
+        type="text"
+        inputMode="text"
+        autoComplete="off"
+        maxLength={50}
+        aria-label={`Số tờ khai — container ${line.ordinal}${line.containerNumber ? ` (${line.containerNumber})` : ''}`}
+        placeholder="Nhập số tờ khai…"
+        value={draft}
+        disabled={busy}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            void commit();
+          } else if (event.key === 'Escape') {
+            setDraft(persisted);
+          }
+        }}
+        onBlur={() => { void commit(); }}
+      />
+      {copyReady && (
+        <button
+          type="button"
+          className="cus-lot-decl__copy"
+          aria-label={`Copy tờ khai cho các dòng dưới (${emptySiblingCount} dòng trống)`}
+          title={`Copy tờ khai cho các dòng dưới — điền ${emptySiblingCount} dòng trống, không ghi đè dòng đã có số`}
+          disabled={copying || busy}
+          onClick={() => {
+            setCopying(true);
+            actions.onCopyDeclaration(line).finally(() => setCopying(false));
+          }}
+        >
+          <CopyPlus size={14} aria-hidden="true" />
+          {copying ? 'Đang copy…' : 'Copy tờ khai'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Đối soát CHI PHÍ — the FinanceEvidence derivation, restated for the
  *  mockup's micro-label pair (value only, no icon rail). */
 function financeCostLine(item: ShipmentCusWorkspaceListItem): { text: string; tone: 'ok' | 'danger' | 'quiet' } {
@@ -128,18 +236,33 @@ export function CusLotView({
   loading,
   error,
   onRetry,
+  canEditDeclaration = false,
+  declarationActions,
 }: {
   item: ShipmentCusWorkspaceListItem;
   detail?: ShipmentCusWorkspaceDetail;
   loading: boolean;
   error?: string;
   onRetry: () => void;
+  /** SIL-498: the host page resolves the write gate — writable lot field,
+   *  intake-mutation role and no accounting lock — before passing true. */
+  canEditDeclaration?: boolean;
+  declarationActions?: CusLotDeclarationActions;
 }) {
   const containers = detail?.containers ?? [];
   const totalWeight = containers.reduce((sum, line) => sum + Number(line.raw.cargoWeightKg ?? 0), 0);
   // One authority for count AND join — the same list the workboard row joins
   // (card 20260921_3), so the card can never inflate N past what it prints.
-  const declarationNumbers = item.declarationNumbers ?? [];
+  // SIL-498: prefer the DETAIL summary — an inline tờ khai save force-reloads
+  // the detail, so the card's count updates with the sheet; the list item
+  // only catches up on the next 30s poll.
+  const declarationNumbers = detail?.summary.declarationNumbers ?? item.declarationNumbers ?? [];
+  // Per-cont copy targets: rows still without a number, excluding the first
+  // row itself (the copy source — SPEC SIL-498: the button lives on dòng đầu).
+  const firstLine = containers[0] ?? null;
+  const emptyDeclarationSiblingCount = firstLine
+    ? containers.filter((candidate) => candidate.id !== firstLine.id && !(candidate.declarationNumber ?? '').trim()).length
+    : 0;
   const financeCost = financeCostLine(item);
   const confirmationAttention = item.accountingConfirmation.status !== 'CONFIRMED';
 
@@ -200,6 +323,7 @@ export function CusLotView({
                       <tr>
                         <th scope="col">STT</th>
                         <th scope="col">Số container</th>
+                        <th scope="col">Số tờ khai</th>
                         <th scope="col">Loại</th>
                         <th scope="col">Nhà máy</th>
                         <th scope="col">Tuyến đường</th>
@@ -212,10 +336,19 @@ export function CusLotView({
                       </tr>
                     </thead>
                     <tbody>
-                      {containers.map((line) => (
+                      {containers.map((line, index) => (
                         <tr key={line.id}>
                           <th scope="row">{line.ordinal}</th>
                           <td>{line.containerNumber ?? <span className="cus-lot-quiet">Chưa có số cont</span>}</td>
+                          <td>
+                            <DeclarationCell
+                              line={line}
+                              isFirst={index === 0}
+                              emptySiblingCount={index === 0 ? emptyDeclarationSiblingCount : 0}
+                              editable={canEditDeclaration}
+                              actions={declarationActions}
+                            />
+                          </td>
                           <td>{line.containerTypeLabel ?? dash}</td>
                           <td>{siteLabel(detail, line.operationalSiteId)}</td>
                           <td>{line.routeName ?? dash}</td>

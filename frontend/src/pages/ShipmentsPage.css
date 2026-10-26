@@ -675,7 +675,7 @@
 .cus-quick-edit-modal__fields textarea { min-height: 84px; resize: vertical; }
 .cus-quick-edit-modal__fields input:not([data-uui-control] > input):focus-visible,
 .cus-quick-edit-modal__fields select:focus-visible,
-.cus-quick-edit-modal__fields textarea:focus-visible { border-color: var(--brand); outline: 2px solid var(--brand-subtle); outline-offset: 1px; }
+.cus-quick-edit-modal__fields textarea:focus-visible { border-color: var(--brand); outline: 2px solid var(--brand); outline-offset: 1px; }
 .cus-quick-edit-modal__help,
 .cus-quick-edit-modal__fields > .cus-inline-edit-error { grid-column: 1 / -1; margin: 0; }
 .cus-quick-edit-modal__help { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
@@ -708,7 +708,7 @@
 }
 .cus-quick-edit-modal__fields .ds-uui-select button:focus-visible {
   border-color: var(--brand);
-  outline: 2px solid var(--brand-subtle);
+  outline: 2px solid var(--brand);
   outline-offset: 1px;
 }
 
@@ -1631,7 +1631,7 @@
 
 .cus-lot-table {
   width: 100%;
-  min-width: 1060px;
+  min-width: 1200px;
   border-collapse: collapse;
 }
 
@@ -1667,6 +1667,76 @@
 .cus-lot-table__num {
   font-variant-numeric: normal;
   white-space: nowrap;
+}
+
+/* SIL-498 — the per-cont tờ khai cell: one inline input per row (opaque
+   control surface, house radius/height) plus the first row's copy affordance.
+   Editing affordances live only here; a non-writable lot renders plain text
+   from the same cell component. */
+.cus-lot-decl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.cus-lot-decl__value {
+  overflow-wrap: anywhere;
+}
+
+.cus-lot-decl__input {
+  height: 32px;
+  min-width: 0;
+  flex: 1 1 120px;
+  padding: 0 8px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-label-size, 13px);
+}
+
+.cus-lot-decl__input:disabled {
+  color: var(--ink-3);
+  background: var(--surface-2);
+}
+
+.cus-lot-decl__input:focus-visible {
+  border-color: var(--brand);
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.cus-lot-decl__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cus-lot-decl__copy:hover {
+  background: var(--surface-2);
+}
+
+.cus-lot-decl__copy:disabled {
+  color: var(--ink-4);
+  cursor: default;
+}
+
+.cus-lot-decl__copy:focus-visible {
+  border-color: var(--brand);
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
 }
 
 .cus-lot-dispatch {
