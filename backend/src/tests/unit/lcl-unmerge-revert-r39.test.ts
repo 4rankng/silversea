@@ -20,7 +20,7 @@ import {
   effectiveLclFreight,
   type LclFreightChannelFacts,
 } from '../../services/lcl-effective-freight';
-import { REV_LOT_AWAITING_REPRICE_REASON } from '../../services/lcl-rev-notes';
+import { REV_LOT_AWAITING_REPRICE_REASON, REV_LOT_OWN_CUOC_REASON } from '../../services/lcl-rev-notes';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
@@ -52,6 +52,39 @@ test('ungrouped never-priced lot (cited-0 awaiting reprice) reads "Chưa xác đ
   const out = effectiveLclFreight({
     ...base,
     snapshotChannel: { total: 0, formulaNote: REV_LOT_AWAITING_REPRICE_REASON },
+  });
+  assert.equal(out.value, null);
+});
+
+// SIL-490 — a cited NON-ZERO is real money the service moved or kept on the
+// ungrouped lot; hiding it made the promote toast's "nhận 100% cước thu
+// nhóm" claim vanish from every board.
+test('ungrouped lot holding PROMOTED money ("Đón cước chính", non-zero) reads the amount (SIL-490)', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    snapshotChannel: {
+      total: 2_000_000,
+      formulaNote: 'Đón cước chính khi tách nhóm (từ Bill R42CUS-MRG-01) — 100% cước thu',
+    },
+  });
+  assert.equal(out.value, 2_000_000);
+});
+
+test('ungrouped kept own cước (non-zero per-lot marker) reads the amount (SIL-490 sweep)', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    snapshotChannel: { total: 1_500_000, formulaNote: REV_LOT_OWN_CUOC_REASON },
+  });
+  assert.equal(out.value, 1_500_000);
+});
+
+test('ungrouped moved-out zero ("Tách nhóm — chuyển 100% cước cho Bill Y") still reads UNSET', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    snapshotChannel: {
+      total: 0,
+      formulaNote: 'Tách nhóm — chuyển 100% cước cho Bill R42CUS-MRG-02',
+    },
   });
   assert.equal(out.value, null);
 });

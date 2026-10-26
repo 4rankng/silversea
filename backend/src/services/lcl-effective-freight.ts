@@ -17,12 +17,16 @@
 //
 // FB-145 additions — a group artifact is NOT a live price:
 //   1. An UNGROUPED lot whose latest snapshot note is a rev-group citation
-//      (merge member-zero tail, or the "chờ định giá lại" citation the
-//      unmerge writes for a lot that never had a price) reads UNSET. The lot
-//      went back to "từng xe riêng" — its price comes back only through the
-//      per-lot outputs (§4.1) or a re-materialized pre-merge snapshot (whose
-//      note "Tách nhóm — trở về cước thu trước ghép" is NOT a citation of a
-//      dead group state and keeps its amount).
+//      AND whose amount is ZERO reads UNSET (merge member-zero tail, the
+//      "chờ định giá lại" citation the unmerge writes for a lot that never
+//      had a price, the moved-out "chuyển 100%" tail). The lot went back to
+//      "từng xe riêng" — its price comes back only through the per-lot
+//      outputs (§4.1) or a re-materialized pre-merge snapshot (whose note
+//      "Tách nhóm — trở về cước thu trước ghép" is NOT a citation of a dead
+//      group state and keeps its amount). A cited NON-ZERO is the writer's
+//      real money — the FB-095 promote's "Đón cước chính … — 100% cước thu"
+//      the crown left behind, or a kept own-cước marker — and reads
+//      (SIL-489/SIL-490: hiding it made the merge/unmerge toasts lie).
 //   2. An override whose reason is the awaiting-reprice citation reads UNSET
 //      for the same reason (single-lot unmerge "1 lô về riêng" with a live
 //      trip: revenue stays 0₫ citing the wait — QA must read "Chưa xác
@@ -63,10 +67,16 @@ export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLcl
   }
   const qualified = facts.revGroupId != null || (facts.override?.stamped ?? false);
   if (!qualified) {
-    // FB-145 rule 1: the latest snapshot being a group citation means the
-    // lot's own price is GONE with the group — "Chưa xác định", never the
-    // cited 0₫ (or the merge's member-zero tail).
-    if (facts.snapshotChannel != null && isRevGroupNote(facts.snapshotChannel.formulaNote)) {
+    // FB-145 rule 1 — a cited ZERO behind an ungrouped lot is a group
+    // artifact (the merge's member-zero tail, the "chờ định giá lại"
+    // citation, the moved-out "chuyển 100%" tail): "Chưa xác định", never a
+    // stale 0₫. A cited NON-ZERO is real money the service just moved or
+    // kept on the lot (the FB-095 promote's "Đón cước chính … — 100% cước
+    // thu", the 21/10-era own-cước marker) — it reads (SIL-490: the
+    // promotee's inherited 100% must reach the board or the toast lies).
+    if (facts.snapshotChannel != null
+      && facts.snapshotChannel.total === 0
+      && isRevGroupNote(facts.snapshotChannel.formulaNote)) {
       return { value: null, reason: null };
     }
     return { value: facts.snapshotChannel?.total ?? null, reason: null };
