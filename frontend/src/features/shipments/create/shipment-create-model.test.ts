@@ -170,22 +170,23 @@ describe('shipment create model', () => {
     expect(createEmptyContainer().cargoVolumeCbm).toBe('');
   });
 
-  it('copies a preceding container in full, leaving only Số container empty', () => {
+  it('copies a preceding container except Số container and Loại cont (REQ-22 REVERSED)', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'row-2' });
     const copied = createContainerFromPrevious({
       ...container,
       customerAppointmentAt: '2026-08-20T09:30',
     });
 
-    // FB-111 + 181026200100 (A.1): "Thêm container" inherits the previous
-    // row — Loại cont (40DC stays, superseding card 071026100800's
-    // blank-type ruling on this form), route, factory, ports, weight and the
-    // schedule window all ride. Only the Số container is per-container and
-    // stays empty for entry.
+    // REQ-22 REVERSED (ticket 221026173728, 22/10; SIL-488 — workspace gap of
+    // reversal 093c5334): "Thêm container" inherits the previous row's shared
+    // fields — route, factory, ports, weight and the schedule window — but the
+    // two per-container identifiers stay empty: Số container for entry and
+    // Loại cont ("Chọn loại") for the operator's own pick.
     expect(copied).toMatchObject({
       ...container,
       key: 'row-2',
       containerNumber: '',
+      containerTypeId: '',
       customerAppointmentAt: '2026-08-20T09:30',
     });
   });

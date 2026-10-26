@@ -120,6 +120,61 @@ test('no channels at all reads UNSET (lô mới — never a fabricated 0)', () =
   assert.equal(effectiveLclFreight({ ...base }).value, null);
 });
 
+// ─── SIL-491 — the FB-095 crown inheritance is live money, not an artifact ──
+
+test('SIL491-R1: ungrouped promoted survivor keeps the transferred 100% cước (crown citation, non-zero)', () => {
+  // The exact ticket repro: 2-lot REV group, Lô 1 deleted — the survivor
+  // dissolved (revGroupId null) and received the crown snapshot with the
+  // group's whole freight. It must PRINT, never mask as "Chưa xác định".
+  const out = effectiveLclFreight({
+    ...base,
+    snapshotChannel: {
+      total: 2_000_000,
+      formulaNote: 'Đón cước chính khi tách nhóm (từ Bill R42CUS-MRG-01) — 100% cước thu',
+    },
+  });
+  assert.equal(out.value, 2_000_000);
+  assert.equal(out.reason, null);
+});
+
+test('SIL491 edge: crown citation with NOTHING transferred (cited 0₫) still reads UNSET', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    snapshotChannel: {
+      total: 0,
+      formulaNote: 'Đón cước chính khi tách nhóm (từ Bill X) — chưa có cước thu để chuyển',
+    },
+  });
+  assert.equal(out.value, null);
+  assert.equal(out.reason, null);
+});
+
+test('SIL491-R2: promoted Lô 1 of a still-live group (≥3 lots) reads the crown money via the fallback', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    revGroupId: 'g1',
+    revGroupOrder: 1,
+    snapshotChannel: {
+      total: 2_000_000,
+      formulaNote: 'Đón cước chính khi tách nhóm (từ Bill R42CUS-MRG-01) — 100% cước thu',
+    },
+  });
+  assert.equal(out.value, 2_000_000);
+  assert.equal(out.reason, null);
+});
+
+test('SIL491 sibling: the lot\'s own re-cited price (own-cuoc marker, non-zero) prints', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    snapshotChannel: {
+      total: 1_500_000,
+      formulaNote: 'Tách nhóm — cước thu theo đơn giá khách × tuyến (lô độc lập)',
+    },
+  });
+  assert.equal(out.value, 1_500_000);
+  assert.equal(out.reason, null);
+});
+
 // ─── FB-141 — the wire contract: BKS báo khách blank là hợp lệ ──────────────
 
 test('updateLclTruck: billingTruckNo chấp nhận null VÀ chuỗi rỗng (clear ⇒ fallback BKS thực)', () => {
