@@ -1,0 +1,401 @@
+{
+  "tag": "before",
+  "verdict": {
+    "req2_gap_px": 0,
+    "req2_pass": false,
+    "req1_labelTopDelta_px": {
+      "customer_vs_declaration": 3,
+      "tradeDirection_vs_declaration": 205.8
+    },
+    "req1_controlTopDelta_px": {
+      "customerInput_vs_declarationField": -4.4,
+      "tradeDirection_vs_declarationField": 4
+    }
+  },
+  "labels": {
+    "customer": {
+      "top": 201.8,
+      "bottom": 219.8,
+      "height": 18,
+      "text": "Khách hàng*"
+    },
+    "tradeDirection": {
+      "top": -1,
+      "bottom": 16,
+      "height": 17,
+      "text": "— Chọn hình thức —Nhập khẩuXuất khẩu"
+    },
+    "declarationTitle": {
+      "top": 204.8,
+      "bottom": 218.8,
+      "height": 14,
+      "text": "Số tờ khai"
+    },
+    "booking": {
+      "top": 271.8,
+      "bottom": 289.8,
+      "height": 18,
+      "text": "Số Bill/Booking*"
+    },
+    "flagsLabel": {
+      "top": 160.8,
+      "bottom": 174.8,
+      "height": 14,
+      "text": "Tuỳ chọn"
+    }
+  },
+  "labelStyle": {
+    "customer": {
+      "font-size": "11px",
+      "line-height": "18px",
+      "font-weight": "600"
+    },
+    "declarationTitle": {
+      "font-size": "11px",
+      "line-height": "16.5px",
+      "font-weight": "600"
+    },
+    "declarationHeadAlign": {
+      "align-items": "center",
+      "height": "20.5px"
+    }
+  },
+  "controls": {
+    "customer": {
+      "top": 201.8,
+      "bottom": 255.8,
+      "left": 665,
+      "right": 835,
+      "height": 54,
+      "width": 170
+    },
+    "customerInput": {
+      "top": 232.7,
+      "bottom": 248.9,
+      "left": 672,
+      "right": 826,
+      "height": 16.2,
+      "width": 154
+    },
+    "tradeDirection": {
+      "top": 224.3,
+      "bottom": 254.3,
+      "left": 889,
+      "right": 1103,
+      "height": 30,
+      "width": 214
+    },
+    "declarationField": {
+      "top": 228.3,
+      "bottom": 266.3,
+      "left": 1111,
+      "right": 1403,
+      "height": 38,
+      "width": 292
+    },
+    "declarationInput": {
+      "top": 235.3,
+      "bottom": 259.3,
+      "left": 1118,
+      "right": 1396,
+      "height": 24,
+      "width": 278
+    },
+    "declarationCount": {
+      "top": 203,
+      "bottom": 221,
+      "left": 1173.7,
+      "right": 1193.7,
+      "height": 18,
+      "width": 20
+    },
+    "declarationActions": {
+      "top": 201.8,
+      "bottom": 222.3,
+      "left": 1249.4,
+      "right": 1403,
+      "height": 20.5,
+      "width": 153.6
+    },
+    "bookingInput": {
+      "top": 296.8,
+      "bottom": 324.8,
+      "left": 666,
+      "right": 878,
+      "height": 28,
+      "width": 212
+    }
+  },
+  "controlStyle": {
+    "customerInput": {
+      "height": "16.1875px",
+      "border-radius": "0px",
+      "font-size": "12px"
+    },
+    "declarationField": {
+      "padding-top": "6px",
+      "padding-bottom": "6px",
+      "border-radius": "8px",
+      "border-width": "1px",
+      "min-height": "auto"
+    }
+  },
+  "toplineActions": {
+    "top": 84,
+    "bottom": 118,
+    "left": 1080,
+    "right": 1417,
+    "height": 34,
+    "width": 337
+  },
+  "topline": {
+    "top": 84,
+    "bottom": 118,
+    "left": 256,
+    "right": 1417,
+    "height": 34,
+    "width": 1161
+  },
+  "identityHeading": {
+    "top": 118,
+    "bottom": 151.8,
+    "left": 651,
+    "right": 1117,
+    "height": 33.8,
+    "width": 466
+  },
+  "identitySection": {
+    "top": 118,
+    "bottom": 360.3,
+    "left": 651,
+    "right": 1417,
+    "height": 242.3,
+    "width": 766
+  },
+  "toplineStyle": {
+    "margin-bottom": "0px"
+  },
+  "audit": [
+    {
+      "field": "shipment-customer",
+      "label": {
+        "top": 201.8,
+        "bottom": 219.8,
+        "height": 18,
+        "text": "Khách hàng*"
+      },
+      "labelStyle": {
+        "font-size": "11px",
+        "line-height": "18px",
+        "font-weight": "600"
+      },
+      "control": {
+        "top": 232.7,
+        "bottom": 248.9,
+        "left": 672,
+        "right": 826,
+        "height": 16.2,
+        "width": 154
+      },
+      "controlStyle": {
+        "height": "16.1875px",
+        "border-radius": "0px",
+        "font-size": "12px",
+        "padding-top": "0px",
+        "padding-bottom": "0px"
+      }
+    },
+    {
+      "field": "shipment-trade-direction",
+      "label": {
+        "top": -1,
+        "bottom": 16,
+        "height": 17,
+        "text": "— Chọn hình thức —Nhập khẩuXuất khẩu"
+      },
+      "labelStyle": {
+        "font-size": "12px",
+        "line-height": "18px",
+        "font-weight": "400"
+      },
+      "control": {
+        "top": -1,
+        "bottom": 16,
+        "left": -1,
+        "right": 133,
+        "height": 17,
+        "width": 134
+      },
+      "controlStyle": {
+        "height": "17px",
+        "border-radius": "8px",
+        "font-size": "12px",
+        "padding-top": "0px",
+        "padding-bottom": "0px"
+      }
+    },
+    {
+      "field": "shipment-booking-ref",
+      "label": {
+        "top": 271.8,
+        "bottom": 289.8,
+        "height": 18,
+        "text": "Số Bill/Booking*"
+      },
+      "labelStyle": {
+        "font-size": "11px",
+        "line-height": "18px",
+        "font-weight": "600"
+      },
+      "control": {
+        "top": 296.8,
+        "bottom": 324.8,
+        "left": 666,
+        "right": 878,
+        "height": 28,
+        "width": 212
+      },
+      "controlStyle": {
+        "height": "28px",
+        "border-radius": "0px",
+        "font-size": "12px",
+        "padding-top": "4px",
+        "padding-bottom": "4px"
+      }
+    },
+    {
+      "field": "shipment-shipping-line",
+      "label": {
+        "top": 273.8,
+        "bottom": 287.8,
+        "height": 14,
+        "text": "Hãng tàu"
+      },
+      "labelStyle": {
+        "font-size": "11px",
+        "line-height": "18px",
+        "font-weight": "600"
+      },
+      "control": {
+        "top": 302.7,
+        "bottom": 318.9,
+        "left": 896,
+        "right": 1050,
+        "height": 16.2,
+        "width": 154
+      },
+      "controlStyle": {
+        "height": "16.1875px",
+        "border-radius": "0px",
+        "font-size": "12px",
+        "padding-top": "0px",
+        "padding-bottom": "0px"
+      }
+    },
+    {
+      "field": "shipment-deposit",
+      "label": {
+        "top": 167.8,
+        "bottom": 185.8,
+        "height": 18,
+        "text": "Lệnh chạy ngoài"
+      },
+      "labelStyle": {
+        "font-size": "12px",
+        "line-height": "18px",
+        "font-weight": "700"
+      },
+      "control": null,
+      "controlStyle": null
+    },
+    {
+      "field": "shipment-is-adhoc",
+      "label": null,
+      "labelStyle": null,
+      "control": null,
+      "controlStyle": null
+    },
+    {
+      "field": "shipment-has-deposit",
+      "label": null,
+      "labelStyle": null,
+      "control": null,
+      "controlStyle": null
+    },
+    {
+      "field": "shipment-is-combined",
+      "label": null,
+      "labelStyle": null,
+      "control": null,
+      "controlStyle": null
+    },
+    {
+      "field": "shipment-declarations",
+      "label": {
+        "top": 204.8,
+        "bottom": 218.8,
+        "height": 14,
+        "text": "Số tờ khai"
+      },
+      "labelStyle": {
+        "font-size": "11px",
+        "line-height": "16.5px",
+        "font-weight": "600"
+      },
+      "control": {
+        "top": 228.3,
+        "bottom": 266.3,
+        "left": 1111,
+        "right": 1403,
+        "height": 38,
+        "width": 292
+      },
+      "controlStyle": {
+        "height": "38px",
+        "border-radius": "8px",
+        "font-size": "12px",
+        "padding-top": "6px",
+        "padding-bottom": "6px"
+      }
+    }
+  ],
+  "rows": {
+    "contact": {
+      "top": 201.8,
+      "bottom": 263.8,
+      "left": 665,
+      "right": 1103,
+      "height": 62,
+      "width": 438
+    },
+    "refs": {
+      "top": 271.8,
+      "bottom": 348.3,
+      "left": 665,
+      "right": 1103,
+      "height": 76.5,
+      "width": 438
+    },
+    "choices": {
+      "top": 159.8,
+      "bottom": 193.8,
+      "left": 665,
+      "right": 1403,
+      "height": 34,
+      "width": 738
+    },
+    "strip": {
+      "top": 201.8,
+      "bottom": 290.3,
+      "left": 1111,
+      "right": 1403,
+      "height": 88.5,
+      "width": 292
+    }
+  },
+  "viewport": {
+    "w": 1440,
+    "h": 900,
+    "dpr": 1
+  }
+}

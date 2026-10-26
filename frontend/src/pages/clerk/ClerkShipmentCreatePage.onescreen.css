@@ -28,7 +28,6 @@
  */
 @media (min-width: 1280px) {
   .csc-page { padding: 4px 0; }
-  .csc-topline { margin-bottom: 0; }
   .csc-workspace { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 12px; }
   /* The form element keeps its DOM semantics (Enter law, requestSubmit);
      its children join the worksheet grid. */
@@ -53,6 +52,10 @@
   /* ── SPEC density: card padding 12-16, gap 12, section band 36 ── */
   .csc-section { padding: 12px 14px !important; gap: 8px !important; }
   .csc-section__heading { margin: -12px -14px 0; padding: 7px 14px; }
+  /* SIL-509 (owner 26/10): the actions row sat flush on the "Nhận diện lô"
+     band (gap 0). ≥12px separation wins over the SIL-499 zero-margin
+     density squeeze — explicit owner ticket supersedes the band budget. */
+  .csc-topline { margin-bottom: 12px; }
   .csc-form-actions { padding-top: 4px; }
 
   /* Loại hàng: legend rides the segmented control's line (was stacked).

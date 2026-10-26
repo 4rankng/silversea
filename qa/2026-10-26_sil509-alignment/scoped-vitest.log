@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-509-alignment/frontend
+
+
+ Test Files  41 passed (41)
+      Tests  495 passed (495)
+   Start at  21:41:43
+   Duration  23.44s (transform 6.31s, setup 5.28s, import 39.37s, tests 93.89s, environment 19.85s)
+
+vitest exit: 0

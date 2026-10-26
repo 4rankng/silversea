@@ -1,0 +1,2 @@
+$ npx tsgo --noEmit
+tsgo exit: 0

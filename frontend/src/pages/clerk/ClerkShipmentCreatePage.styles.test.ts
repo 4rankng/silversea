@@ -274,6 +274,14 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-declaration-chip\s*\{[^}]*border-radius:\s*6px;/);
     expect(css).toMatch(/\.csc-declaration-chip--flash\s*\{/);
     expect(css).toMatch(/\.csc-declaration-strip__bulk-input\s*\{/);
+    // SIL-509: the strip rides the section's shared grid laws — the head is
+    // the same 18px label line as the UUI fields beside it, and the bordered
+    // field sits on the 30px compact control boundary (not a hand-rolled 38px).
+    expect(css).toMatch(/\.csc-declaration-strip__title\s*\{[^}]*font-size:\s*var\(--text-label-size\);[^}]*line-height:\s*18px;[^}]*font-weight:\s*600;/);
+    expect(css).toMatch(/\.csc-declaration-strip__action\s*\{[^}]*line-height:\s*14px;/);
+    expect(css).toMatch(/\.csc-declaration-strip__field\s*\{[^}]*min-height:\s*var\(--control-compact-h\);/);
+    expect(css).toMatch(/\.csc-declaration-strip__input\s*\{[^}]*line-height:\s*20px;/);
+    expect(css).toMatch(/\.csc-declaration-chip\s*\{[^}]*line-height:\s*14px;/);
     // The per-declaration row list is retired — no leftover class names.
     expect(css).not.toContain('.csc-declaration-ledger');
     expect(css).not.toContain('.csc-declaration-row');
@@ -322,6 +330,10 @@ describe('shipment create responsive layout', () => {
     // worksheet. The fixed bottom bar this supersedes is retired for good.
     expect(css).toMatch(/\.csc-topline\s*\{[^}]*display:\s*flex;/);
     expect(css).toMatch(/\.csc-topline__actions\s*\{[^}]*margin-left:\s*auto;/);
+    // SIL-509: the topline never sits flush on the section band below —
+    // ≥12px separation in the base layout (the ≥1280 onescreen band pins
+    // its own 12px in ClerkShipmentCreatePage.onescreen.css).
+    expect(css).toMatch(/\.csc-topline\s*\{[^}]*margin:\s*0 0 12px;/);
     expect(css).not.toContain('.csc-action-bar');
     expect(css).not.toContain('csc-action-bar-h');
     expect(css).not.toContain('.csc-page__title');
