@@ -1,0 +1,38 @@
+logged in as admin
+report written: qa/2026-10-26_sil516-phanxe/sil516_after2_report.json
+
+== 1440px (after2) ==
+  placeholder: {"text":"Chọn hoặc nhập BKS","textWidthPx":122.1,"inputClientW":167,"availablePx":167,"truncated":false,"rect":{"left":1095.5,"right":1262.1,"top":450.3,"width":166.6,"height":16.2}}
+  helper     : w=182.6 lines=2 verticalCharWrap=false
+  save       : insideCell=true overflowRightPx=-105
+  status     : cutAtViewportEdge=false cutAtRegionEdge=false badgeClipsOwnText=false
+  overflow   : doc=false region=false table=false
+  doctrineClipped: 0 
+  headerOverflow : 0 []
+
+== 2000px (after2) ==
+  placeholder: {"text":"Chọn hoặc nhập BKS","textWidthPx":122.1,"inputClientW":256,"availablePx":256,"truncated":false,"rect":{"left":1514.2,"right":1770.6,"top":420.6,"width":256.5,"height":16.2}}
+  helper     : w=298.5 lines=1 verticalCharWrap=false
+  save       : insideCell=true overflowRightPx=-105
+  status     : cutAtViewportEdge=false cutAtRegionEdge=false badgeClipsOwnText=false
+  overflow   : doc=false region=false table=false
+  doctrineClipped: 0 
+  headerOverflow : 0 []
+
+== 768px (after2) ==
+  placeholder: {"text":"Chọn hoặc nhập BKS","textWidthPx":122.1,"inputClientW":640,"availablePx":640,"truncated":false,"rect":{"left":68,"right":708,"top":748.7,"width":640,"height":16.2}}
+  helper     : w=682 lines=1 verticalCharWrap=false
+  save       : insideCell=true overflowRightPx=-103
+  status     : cutAtViewportEdge=false cutAtRegionEdge=false badgeClipsOwnText=false
+  overflow   : doc=false region=false table=false
+  doctrineClipped: 0 
+  headerOverflow : 0 []
+
+== 390px (after2) ==
+  placeholder: {"text":"Chọn hoặc nhập BKS","textWidthPx":122.1,"inputClientW":259,"availablePx":259,"truncated":false,"rect":{"left":77,"right":336,"top":628.1,"width":259,"height":16.2}}
+  helper     : w=305 lines=1 verticalCharWrap=false
+  save       : insideCell=true overflowRightPx=-103
+  status     : cutAtViewportEdge=false cutAtRegionEdge=false badgeClipsOwnText=false
+  overflow   : doc=false region=false table=false
+  doctrineClipped: 0 
+  headerOverflow : 0 []

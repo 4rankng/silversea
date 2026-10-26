@@ -1198,8 +1198,11 @@ export function ShipmentContainerLedger({
                           chosen cước classes ("Lô hàng lẻ | Thu: Xe 3.5T |
                           Trả: Xe 10T") instead of the retired hard-coded
                           "Không có container" — the lot HAS no container, but
-                          that string said nothing about how it bills. */}
-                      <strong className="shipment-container-ledger__code">{row.isLotLevel ? lotSpecLine(row) : fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
+                          that string said nothing about how it bills. The
+                          phrase modifier wraps that sentence-like line; real
+                          container numbers keep the whole-token nowrap law
+                          (SIL-516 doctrine sweep). */}
+                      <strong className={row.isLotLevel ? 'shipment-container-ledger__code shipment-container-ledger__code--phrase' : 'shipment-container-ledger__code'}>{row.isLotLevel ? lotSpecLine(row) : fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       {row.isLotLevel
                         ? (row.revVehicleClassCode == null && row.costVehicleClassCode == null
                           && <span className="shipment-container-ledger__missing">Chưa chọn loại xe tính cước</span>)

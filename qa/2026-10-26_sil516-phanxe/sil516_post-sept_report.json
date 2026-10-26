@@ -1,0 +1,32 @@
+{
+  "base": "http://localhost:7175",
+  "tag": "post-sept",
+  "widths": {
+    "390": {
+      "rows": 20,
+      "cells": 220,
+      "copyButtons": 0,
+      "actionCells": 0,
+      "regionOverflow": false,
+      "tableOverflow": false,
+      "docOverflow": false,
+      "clipped": [],
+      "spilled": [],
+      "ellipsis": [],
+      "headerSpill": []
+    },
+    "1440": {
+      "rows": 20,
+      "cells": 220,
+      "copyButtons": 0,
+      "actionCells": 0,
+      "regionOverflow": false,
+      "tableOverflow": false,
+      "docOverflow": false,
+      "clipped": [],
+      "spilled": [],
+      "ellipsis": [],
+      "headerSpill": []
+    }
+  }
+}

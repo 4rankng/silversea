@@ -1,0 +1,453 @@
+{
+  "base": "http://localhost:7175",
+  "tag": "after2",
+  "account": "admin",
+  "bill": "R40B2-LCL03",
+  "widths": {
+    "390": {
+      "closed": {
+        "rowFound": true,
+        "regionScroll": {
+          "scrollW": 374,
+          "clientW": 374,
+          "overflowsX": false
+        },
+        "tableScroll": {
+          "scrollW": 374,
+          "clientW": 374,
+          "overflowsX": false
+        },
+        "docScroll": {
+          "scrollW": 390,
+          "clientW": 390,
+          "overflowsX": false
+        },
+        "status": {
+          "td": {
+            "left": 19,
+            "right": 371,
+            "top": 626.9,
+            "width": 352,
+            "height": 44
+          },
+          "badge": {
+            "left": 29,
+            "right": 96.8,
+            "top": 630.9,
+            "width": 67.8,
+            "height": 15.4
+          },
+          "badgeText": "Chờ phân xe",
+          "badgeOverflowX": "visible",
+          "badgeClipsOwnText": false,
+          "cutAtViewportEdge": false,
+          "cutAtRegionEdge": false
+        },
+        "doctrineClipped": [],
+        "headerOverflow": []
+      },
+      "editor": {
+        "action": "Nhập BKS thực cho lô R40B2-LCL03",
+        "td": {
+          "left": 19,
+          "right": 371,
+          "top": 539.2,
+          "width": 352,
+          "height": 221.3
+        },
+        "card": {
+          "left": 29,
+          "right": 360,
+          "top": 582.9,
+          "width": 331,
+          "height": 173.7
+        },
+        "trigger": {
+          "left": 42,
+          "right": 347,
+          "top": 616.2,
+          "width": 305,
+          "height": 40
+        },
+        "placeholder": {
+          "text": "Chọn hoặc nhập BKS",
+          "textWidthPx": 122.1,
+          "inputClientW": 259,
+          "availablePx": 259,
+          "truncated": false,
+          "rect": {
+            "left": 77,
+            "right": 336,
+            "top": 628.1,
+            "width": 259,
+            "height": 16.2
+          }
+        },
+        "helper": {
+          "text": "BKS thực là biển số xe chạy thực tế của lô.",
+          "rect": {
+            "left": 42,
+            "right": 347,
+            "top": 665.2,
+            "width": 305,
+            "height": 15.4
+          },
+          "lineHeight": 15.4,
+          "approxLines": 1,
+          "verticalCharWrap": false,
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
+          "whiteSpace": "normal"
+        },
+        "save": {
+          "rect": {
+            "left": 196,
+            "right": 268,
+            "top": 703.6,
+            "width": 72,
+            "height": 40
+          },
+          "text": "Lưu",
+          "insideCell": true,
+          "overflowRightPx": -103,
+          "overflowLeftPx": -177
+        },
+        "cancelText": "Hủy"
+      }
+    },
+    "768": {
+      "closed": {
+        "rowFound": true,
+        "regionScroll": {
+          "scrollW": 729,
+          "clientW": 729,
+          "overflowsX": false
+        },
+        "tableScroll": {
+          "scrollW": 729,
+          "clientW": 729,
+          "overflowsX": false
+        },
+        "docScroll": {
+          "scrollW": 768,
+          "clientW": 768,
+          "overflowsX": false
+        },
+        "status": {
+          "td": {
+            "left": 12,
+            "right": 741,
+            "top": 736.8,
+            "width": 729,
+            "height": 45.7
+          },
+          "badge": {
+            "left": 100.2,
+            "right": 168,
+            "top": 752,
+            "width": 67.8,
+            "height": 15.4
+          },
+          "badgeText": "Chờ phân xe",
+          "badgeOverflowX": "visible",
+          "badgeClipsOwnText": false,
+          "cutAtViewportEdge": false,
+          "cutAtRegionEdge": false
+        },
+        "doctrineClipped": [],
+        "headerOverflow": []
+      },
+      "editor": {
+        "action": "Nhập BKS thực cho lô R40B2-LCL03",
+        "td": {
+          "left": 12,
+          "right": 741,
+          "top": 660.8,
+          "width": 729,
+          "height": 219.3
+        },
+        "card": {
+          "left": 22,
+          "right": 730,
+          "top": 708.5,
+          "width": 708,
+          "height": 163.7
+        },
+        "trigger": {
+          "left": 35,
+          "right": 717,
+          "top": 741.8,
+          "width": 682,
+          "height": 30
+        },
+        "placeholder": {
+          "text": "Chọn hoặc nhập BKS",
+          "textWidthPx": 122.1,
+          "inputClientW": 640,
+          "availablePx": 640,
+          "truncated": false,
+          "rect": {
+            "left": 68,
+            "right": 708,
+            "top": 748.7,
+            "width": 640,
+            "height": 16.2
+          }
+        },
+        "helper": {
+          "text": "BKS thực là biển số xe chạy thực tế của lô.",
+          "rect": {
+            "left": 35,
+            "right": 717,
+            "top": 780.8,
+            "width": 682,
+            "height": 15.4
+          },
+          "lineHeight": 15.4,
+          "approxLines": 1,
+          "verticalCharWrap": false,
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
+          "whiteSpace": "normal"
+        },
+        "save": {
+          "rect": {
+            "left": 566,
+            "right": 638,
+            "top": 819.2,
+            "width": 72,
+            "height": 40
+          },
+          "text": "Lưu",
+          "insideCell": true,
+          "overflowRightPx": -103,
+          "overflowLeftPx": -554
+        },
+        "cancelText": "Hủy"
+      }
+    },
+    "1440": {
+      "closed": {
+        "rowFound": true,
+        "regionScroll": {
+          "scrollW": 1129,
+          "clientW": 1129,
+          "overflowsX": false
+        },
+        "tableScroll": {
+          "scrollW": 1129,
+          "clientW": 1129,
+          "overflowsX": false
+        },
+        "docScroll": {
+          "scrollW": 1440,
+          "clientW": 1440,
+          "overflowsX": false
+        },
+        "status": {
+          "td": {
+            "left": 1297.1,
+            "right": 1401,
+            "top": 379.3,
+            "width": 103.9,
+            "height": 155.5
+          },
+          "badge": {
+            "left": 1309.1,
+            "right": 1376.9,
+            "top": 389.3,
+            "width": 67.8,
+            "height": 15.4
+          },
+          "badgeText": "Chờ phân xe",
+          "badgeOverflowX": "visible",
+          "badgeClipsOwnText": false,
+          "cutAtViewportEdge": false,
+          "cutAtRegionEdge": false
+        },
+        "doctrineClipped": [],
+        "headerOverflow": []
+      },
+      "editor": {
+        "action": "Nhập BKS thực cho lô R40B2-LCL03",
+        "td": {
+          "left": 1063.5,
+          "right": 1297.1,
+          "top": 379.3,
+          "width": 233.6,
+          "height": 215.9
+        },
+        "card": {
+          "left": 1075.5,
+          "right": 1284.1,
+          "top": 410.1,
+          "width": 208.6,
+          "height": 175.1
+        },
+        "trigger": {
+          "left": 1088.5,
+          "right": 1271.1,
+          "top": 443.4,
+          "width": 182.6,
+          "height": 30
+        },
+        "placeholder": {
+          "text": "Chọn hoặc nhập BKS",
+          "textWidthPx": 122.1,
+          "inputClientW": 167,
+          "availablePx": 167,
+          "truncated": false,
+          "rect": {
+            "left": 1095.5,
+            "right": 1262.1,
+            "top": 450.3,
+            "width": 166.6,
+            "height": 16.2
+          }
+        },
+        "helper": {
+          "text": "BKS thực là biển số xe chạy thực tế của lô.",
+          "rect": {
+            "left": 1088.5,
+            "right": 1271.1,
+            "top": 482.4,
+            "width": 182.6,
+            "height": 30.8
+          },
+          "lineHeight": 15.4,
+          "approxLines": 2,
+          "verticalCharWrap": false,
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
+          "whiteSpace": "normal"
+        },
+        "save": {
+          "rect": {
+            "left": 1120.1,
+            "right": 1192.1,
+            "top": 536.1,
+            "width": 72,
+            "height": 36
+          },
+          "text": "Lưu",
+          "insideCell": true,
+          "overflowRightPx": -105,
+          "overflowLeftPx": -56.6
+        },
+        "cancelText": "Hủy"
+      }
+    },
+    "2000": {
+      "closed": {
+        "rowFound": true,
+        "regionScroll": {
+          "scrollW": 1689,
+          "clientW": 1689,
+          "overflowsX": false
+        },
+        "tableScroll": {
+          "scrollW": 1689,
+          "clientW": 1689,
+          "overflowsX": false
+        },
+        "docScroll": {
+          "scrollW": 2000,
+          "clientW": 2000,
+          "overflowsX": false
+        },
+        "status": {
+          "td": {
+            "left": 1805.6,
+            "right": 1961,
+            "top": 349.6,
+            "width": 155.4,
+            "height": 91.8
+          },
+          "badge": {
+            "left": 1817.6,
+            "right": 1885.4,
+            "top": 359.6,
+            "width": 67.8,
+            "height": 15.4
+          },
+          "badgeText": "Chờ phân xe",
+          "badgeOverflowX": "visible",
+          "badgeClipsOwnText": false,
+          "cutAtViewportEdge": false,
+          "cutAtRegionEdge": false
+        },
+        "doctrineClipped": [],
+        "headerOverflow": []
+      },
+      "editor": {
+        "action": "Nhập BKS thực cho lô R40B2-LCL03",
+        "td": {
+          "left": 1456.2,
+          "right": 1805.6,
+          "top": 349.6,
+          "width": 349.5,
+          "height": 200.5
+        },
+        "card": {
+          "left": 1468.2,
+          "right": 1792.6,
+          "top": 380.4,
+          "width": 324.5,
+          "height": 159.7
+        },
+        "trigger": {
+          "left": 1481.2,
+          "right": 1779.6,
+          "top": 413.7,
+          "width": 298.5,
+          "height": 30
+        },
+        "placeholder": {
+          "text": "Chọn hoặc nhập BKS",
+          "textWidthPx": 122.1,
+          "inputClientW": 256,
+          "availablePx": 256,
+          "truncated": false,
+          "rect": {
+            "left": 1514.2,
+            "right": 1770.6,
+            "top": 420.6,
+            "width": 256.5,
+            "height": 16.2
+          }
+        },
+        "helper": {
+          "text": "BKS thực là biển số xe chạy thực tế của lô.",
+          "rect": {
+            "left": 1481.2,
+            "right": 1779.6,
+            "top": 452.7,
+            "width": 298.5,
+            "height": 15.4
+          },
+          "lineHeight": 15.4,
+          "approxLines": 1,
+          "verticalCharWrap": false,
+          "overflowWrap": "break-word",
+          "wordBreak": "break-word",
+          "whiteSpace": "normal"
+        },
+        "save": {
+          "rect": {
+            "left": 1628.6,
+            "right": 1700.6,
+            "top": 491.1,
+            "width": 72,
+            "height": 36
+          },
+          "text": "Lưu",
+          "insideCell": true,
+          "overflowRightPx": -105,
+          "overflowLeftPx": -172.4
+        },
+        "cancelText": "Hủy"
+      }
+    }
+  },
+  "consoleErrors": []
+}

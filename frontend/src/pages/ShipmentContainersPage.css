@@ -118,7 +118,7 @@
    line rather than letting it be painted over by the next th. */
 .shipment-container-ledger__col--customer { width: 6%; }
 .shipment-container-ledger__col--billbook { width: 9%; }
-.shipment-container-ledger__col--declaration { width: 8%; }
+.shipment-container-ledger__col--declaration { width: 7%; }
 .shipment-container-ledger__col--direction { width: 9%; }
 .shipment-container-ledger__col--shippingline { width: 5%; }
 .shipment-container-ledger__col--container { width: 9%; }
@@ -130,7 +130,11 @@
    not share the width the four document headers need; the cells' own
    NÂNG/HẠ labels carry the semantics). */
 .shipment-container-ledger__col--route { width: 7%; }
-.shipment-container-ledger__col--schedule { width: 8%; }
+/* SIL-516 doctrine sweep (SIL-515 wrap-full): 9% holds the unbreakable date
+   token "30/10/2026" (74px at the data scale) whole at every hidden-column
+   set — at 8% the 94% set left the token a 72px box and it spilled 2px into
+   the neighbouring cell. Funded by declaration (its copy wraps). */
+.shipment-container-ledger__col--schedule { width: 9%; }
 .shipment-container-ledger__col--vehicle { width: 18%; }
 .shipment-container-ledger__col--notes { width: 6%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
@@ -193,7 +197,11 @@
    button that stays VISIBLE at rest: the ticket was "the button does not
    exist", and a hover-gated icon is exactly what those two surfaces already
    proved people fail to find. */
-.shipment-container-ledger__copy { white-space: nowrap; }
+/* SIL-516 doctrine sweep (SIL-515 wrap-full): the copy label wraps instead of
+   spilling past the 7% actions cell ("Copy giờ hẹn" is ~78px of nowrap text in
+   a ~55px cell — it overhung the table's right edge wherever the actions
+   column is last). The base.css hover exemption is unchanged. */
+.shipment-container-ledger__copy { white-space: normal; }
 /* The three action groups stack (the actions cell is the narrowest share, so
    side-by-side labels would shear mid-word at 1280). */
 .shipment-container-ledger__cell--actions .shipment-container-ledger__multiline + .shipment-container-ledger__multiline { margin-top: 4px; }
@@ -267,6 +275,13 @@
    size and single-line — the td's overflow-wrap:anywhere breaks them mid-number
    at the column's 12% width. */
 .shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code { font-size: var(--text-caption-size); white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+/* SIL-516 doctrine sweep (SIL-515 wrap-full): the lot row's spec PHRASE
+   ("Lô hàng lẻ | Thu: Xe 10T | Trả: Xe 3.5T") rides the same __code class but
+   is sentence-like copy, not an identifier — the nowrap above kept it one
+   131px unbreakable line in an 84px cell (it spilled 47px over Nâng / hạ).
+   Phrases wrap at spaces and pipes; container NUMBERS keep the whole-token
+   nowrap law above (QA-090: identifiers stay whole). */
+.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code--phrase { white-space: normal; overflow-wrap: break-word; word-break: normal; }
 /* Direction is structural classification, not a status: neutral token chip
    (surface-3/ink-2) matching the frozen overview's treatment — accent fills
    stay reserved for state signals. FB-113 v2: the chip moved into its own
