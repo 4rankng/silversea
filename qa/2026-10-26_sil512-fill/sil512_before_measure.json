@@ -1,0 +1,111 @@
+{
+  "tableWidth": 1131,
+  "scrollClientWidth": 1133,
+  "tableFillsScroll": false,
+  "sectionWidth": 1161,
+  "tableRightInsideSection": true,
+  "colgroup": [
+    {
+      "cls": "csc-container-col__index",
+      "w": 40
+    },
+    {
+      "cls": "csc-container-col__number",
+      "w": 128
+    },
+    {
+      "cls": "csc-container-col__type",
+      "w": 124
+    },
+    {
+      "cls": "csc-container-col__factory",
+      "w": 90.328125
+    },
+    {
+      "cls": "csc-container-col__route",
+      "w": 180
+    },
+    {
+      "cls": "csc-container-col__pickup-port",
+      "w": 90.328125
+    },
+    {
+      "cls": "csc-container-col__dropoff-port",
+      "w": 90.34375
+    },
+    {
+      "cls": "csc-container-col__weight",
+      "w": 144
+    },
+    {
+      "cls": "csc-container-col__appointment",
+      "w": 200
+    },
+    {
+      "cls": "csc-container-col__actions",
+      "w": 44
+    }
+  ],
+  "head": [
+    {
+      "label": "STT",
+      "x": 271,
+      "w": 40
+    },
+    {
+      "label": "Số container",
+      "x": 311,
+      "w": 128
+    },
+    {
+      "label": "Loại container",
+      "x": 439,
+      "w": 124
+    },
+    {
+      "label": "Nhà máy",
+      "x": 563,
+      "w": 90
+    },
+    {
+      "label": "Tuyến đường",
+      "x": 653,
+      "w": 180
+    },
+    {
+      "label": "Cảng nâng",
+      "x": 833,
+      "w": 90
+    },
+    {
+      "label": "Cảng hạ",
+      "x": 924,
+      "w": 90
+    },
+    {
+      "label": "Trọng lượng (kg)",
+      "x": 1014,
+      "w": 144
+    },
+    {
+      "label": "Ngày giờ đóng trả",
+      "x": 1158,
+      "w": 200
+    },
+    {
+      "label": "Thao tác",
+      "x": 1358,
+      "w": 44
+    }
+  ],
+  "appointment": {
+    "cellWidth": 200,
+    "fieldsWidth": 150,
+    "deadStripPx": 50,
+    "timeToDateGapPx": 6,
+    "fieldsLeftOffset": 1
+  },
+  "copyButton": null,
+  "scrollOverflowsX": false,
+  "pageOverflowsX": false
+}
