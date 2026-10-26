@@ -133,9 +133,9 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
     expect(badge.textContent).toBe(expected);
   });
 
-  it('R3 names the LCL lot cargo object in the day-filter empty state', () => {
+  it('R3 names the LCL lot cargo object in the day-filter empty state (SIL-504: one-line label)', () => {
     renderRow(makeItem({ cargoMode: 'LCL', containerSummary: null }), { from: '2026-10-19', to: '2026-10-19' });
-    expect(screen.getByText('Không có hàng lẻ chạy ngày đã chọn')).toBeTruthy();
+    expect(screen.getByText('Chưa chọn hàng lẻ')).toBeTruthy();
     expect(screen.queryByText('Không có cont chạy ngày đã chọn')).toBeNull();
   });
 
