@@ -62,6 +62,12 @@ describe('SIL-499 onescreen wide band', () => {
     expect(CSS).toMatch(/\.csc-container-table tbody th, \.csc-container-table tbody td \{ padding: 7px 6px; \}/);
   });
 
+  it('separates the topline actions from the section band by ≥12px (SIL-509)', () => {
+    // Owner ticket 26/10: the actions row sat flush on the "Nhận diện lô"
+    // band at ≥1280. The SIL-499 zero-margin squeeze is superseded there.
+    expect(CSS).toMatch(/\.csc-topline \{ margin-bottom: 12px; \}/);
+  });
+
   it('never shrinks typography (SPEC: font giữ nguyên)', () => {
     expect(CSS, 'no font-size declarations in the wide band').not.toMatch(/font-size:/);
   });
