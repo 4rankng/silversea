@@ -696,19 +696,26 @@ describe('MasterPlanGrid', () => {
     expect(triggerRule).toContain('text-align: left');
     expect(css).toContain('.master-plan-grid__allocation-trigger:focus-visible');
     // Owner redesign 23/10: the ≤900px td-card bands are gone — the phone
-    // surface is the MasterPlanCardList, whose foot button carries the
-    // allocation touch target at the house control budget.
+    // surface is the MasterPlanCardList. SIL-507 (owner 26/10): the card's
+    // allocate action compacts into the facts row — 32px, hugging its label
+    // (flex: none, never the old full-width foot), with the #root bump that
+    // beats the coarse-pointer 40px band.
     expect(css).not.toContain('@container (max-width: 900px)');
-    expect(css).toMatch(/\.mpcard__allocate \{[\s\S]*?min-height:\s*36px;/);
+    const allocate = css.match(/\.mpcard__allocate \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(allocate).toMatch(/height:\s*32px/);
+    expect(allocate).toMatch(/flex:\s*none/);
+    expect(css).toMatch(/#root \.mpcard__allocate \{[\s\S]*?min-height:\s*32px;/);
   });
 
   it('keeps the per-row container detail action compact; the phone card serves it from the ⋯ menu', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('.master-plan-grid__container-detail-trigger');
     expect(css).toContain('min-height: max(28px, var(--uui-control-h))');
-    // Owner redesign 23/10: no more td-card trigger bump — the card list's
-    // single ⋯ menu carries "Chi tiết container" at the shared touch floor.
-    expect(css).toMatch(/\.mpcard \.dispatch-row-menu__trigger \{[\s\S]*?width:\s*var\(--control-touch-h,\s*44px\);/);
+    // SIL-507: the card list's single ⋯ menu rides the shared 30px rail size
+    // (not the old 44px card bump) with the #root bump against the
+    // coarse-pointer band.
+    expect(css).toMatch(/\.mpcard \.dispatch-row-menu__trigger \{[\s\S]*?width:\s*30px;/);
+    expect(css).toMatch(/#root \.mpcard \.dispatch-row-menu__trigger \{[\s\S]*?min-height:\s*30px;/);
   });
 
   it('labels every shipment field group for the stacked narrow-screen layout', () => {
@@ -799,18 +806,22 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('color: var(--fg-3)');
   });
 
-  it('serves the phone card list in the DispatchPlanCardList shape (owner redesign 23/10)', () => {
+  it('serves the phone card list as the SIL-507 3-dòng divider list', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
 
-    // One card per lô: bordered record card on house tokens, head = identity
-    // + loại + the single ⋯ menu, body = one-line ellipsized facts, foot =
-    // the one primary action. The td-grid bands this replaces are gone.
+    // One divider row per lô (SIL-507: list-divider thay card-box — the per-row
+    // border/radius box is gone), head = identity + loại + ⋯, meta = ONE
+    // ellipsized run, facts = hàng hóa + Xe + the compact allocate button.
     expect(css).toMatch(/\.mpcard-list\s*\{[^}]*display:\s*grid;/);
-    expect(css).toMatch(/\.mpcard\s*\{[^}]*border-radius:\s*10px;/);
+    expect(css).toMatch(/\.mpcard \+ \.mpcard\s*\{[^}]*border-top:\s*1px solid var\(--line\);/);
+    expect(css).toMatch(/\.mpcard\s*\{[^}]*padding:\s*5px 0;/);
+    expect(css).not.toMatch(/\.mpcard\s*\{[^}]*border-radius/);
+    expect(css).toMatch(/\.mpcard__meta\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
     expect(css).toMatch(/\.mpcard__line\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
     expect(css).toMatch(/\.mpcard__note\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
     expect(css).not.toMatch(/\.mpcard[^{]*\{[^}]*overflow-wrap:\s*anywhere/);
-    expect(css).toMatch(/\.mpcard__allocate \{[\s\S]*?min-height:\s*36px;/);
+    // The allocate foot is dead: the button lives in the facts row.
+    expect(css).not.toContain('.mpcard__foot');
     expect(css).not.toContain('@container (max-width: 900px)');
   });
 

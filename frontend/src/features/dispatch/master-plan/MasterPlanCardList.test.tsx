@@ -74,7 +74,7 @@ const renderCards = (overrides: {
 );
 
 describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => {
-  it('renders one card per lot with the identity head and the one-line facts', () => {
+  it('renders one card per lot with the identity head and the SIL-507 3-dòng facts', () => {
     renderCards({ items: [item(), item({ id: 2, blNumber: 'BL-2026-002' })] });
 
     const cards = document.querySelectorAll('li.mpcard');
@@ -83,14 +83,34 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     expect(screen.getAllByText('BL-2026-001')).toHaveLength(1);
     // Loại = plain text (Nhập/Xuất · Cont/Lẻ).
     expect(screen.getAllByText('Nhập · Cont')).toHaveLength(2);
-    // Facts ride one ellipsized line each: giờ+ngày (lot-level fallback here),
-    // the joined container demand, Nâng, Trả, tuyến, phân bổ.
-    expect(screen.getAllByText('20/08/2026')).toHaveLength(2);
+    // Dòng 2 meta: giờ+ngày · Nâng → Trả · tuyến · hãng tàu as ONE run.
+    expect(screen.getAllByText('20/08/2026 · Nâng Cảng Cát Lái → Trả Kho Bình Dương · LH — Biên Hòa · Maersk')).toHaveLength(2);
+    // Dòng 3 facts: joined container demand + the named missing allocation.
     expect(screen.getAllByText('2 x 40HC + 1 x 20DC').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Nâng · Cảng Cát Lái')).toHaveLength(2);
-    expect(screen.getAllByText('Trả · Kho Bình Dương')).toHaveLength(2);
-    expect(screen.getAllByText('LH — Biên Hòa · Maersk')).toHaveLength(2);
     expect(screen.getAllByText('Chưa phân bổ')).toHaveLength(2);
+  });
+
+  it('hides the allocate button once a carrier roster exists; the chips line reads instead (SIL-507 ẩn-khi-đã-phân)', () => {
+    renderCards({
+      items: [item({
+        carrierAllocationSummary: [
+          { carrierType: 'EXTERNAL', externalCarrierId: 7, carrierLabel: 'SilverSea', count20: 0, count40: 3 },
+        ],
+      })],
+    });
+
+    expect(screen.queryByRole('button', { name: 'Phân bổ nhà xe · BL-2026-001' })).toBeNull();
+    expect(screen.getByText("Xe: SilverSea: 3x40'")).toBeTruthy();
+  });
+
+  it('keeps the roster line (no dead button) on an allocation-locked, unallocated lot', () => {
+    renderCards({
+      items: [item({ id: 2, blNumber: 'BL-LOCKED', status: ShipmentStatus.PENDING_DATE })],
+      isAllocationLocked: (shipment) => shipment.id === 2,
+    });
+
+    expect(screen.queryByRole('button', { name: 'Phân bổ nhà xe · BL-LOCKED' })).toBeNull();
+    expect(screen.getByText('Chưa phân bổ')).toBeTruthy();
   });
 
   it('FB-014: tapping the card opens dispatch detail; controls keep their own behavior', () => {
@@ -110,7 +130,7 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     expect(onOpenDispatchDetail).toHaveBeenCalledTimes(2);
   });
 
-  it('rides the ONE primary action (Phân bổ nhà xe) on the foot; locked lots keep no dead button', () => {
+  it('rides the ONE primary action (Phân bổ nhà xe) on the facts row; locked lots keep no dead button', () => {
     const onAllocate = vi.fn();
     const notes = noteBundle();
     render(
@@ -243,23 +263,34 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
 
     expect(screen.getByText('5 PALLET')).toBeTruthy();
     expect(screen.getByText(/1,922 tấn · 4 CBM/)).toBeTruthy();
-    // FB-105 §3 — Nhập: kho under Nâng, nhà máy under Trả.
-    expect(screen.getByText('Nâng · Kho Lấy Hàng Đồng Nai')).toBeTruthy();
-    expect(screen.getByText('Trả · Nhà máy Long Minh')).toBeTruthy();
+    // FB-105 §3 — Nhập: kho under Nâng, nhà máy under Trả (the meta run).
+    expect(screen.getByText(/Nâng Kho Lấy Hàng Đồng Nai → Trả Nhà máy Long Minh/)).toBeTruthy();
     expect(screen.queryByText('Chưa có cont')).toBeNull();
   });
 
-  it('keeps the warning and customs-cutoff lines with their severity voices', () => {
+  it('merges the warning and customs cutoff into ONE severity-voiced status line (SIL-507)', () => {
     renderCards({
       items: [item({
         containersMissingAppointment: 1,
         containerTotal: 3,
       })],
     });
-    const warning = screen.getByText('Còn 1/3 cont chưa chốt ngày đóng trả');
-    expect(warning).toHaveClass('mpcard__line--warning');
-    const cutoff = screen.getByText(/Hải quan: /);
-    expect(cutoff).toHaveClass('mpcard__line--urgent');
+    // The cutoff (overdue) wins the line's voice; both facts ride the run.
+    const status = screen.getByText(/Còn 1\/3 cont chưa chốt ngày đóng trả · Hải quan: /);
+    expect(status).toHaveClass('mpcard__status');
+    expect(status).toHaveClass('mpcard__status--urgent');
+  });
+
+  it('voices the warning severity when only the cont-booking warning is present', () => {
+    renderCards({
+      items: [item({
+        containersMissingAppointment: 2,
+        containerTotal: 3,
+        customsCutoffAt: null,
+      })],
+    });
+    const status = screen.getByText('Còn 2/3 cont chưa chốt ngày đóng trả');
+    expect(status).toHaveClass('mpcard__status--warning');
   });
 
   it('edits notes inline through the grid-owned editor bundle', () => {
