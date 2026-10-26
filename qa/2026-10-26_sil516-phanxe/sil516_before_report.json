@@ -1,0 +1,292 @@
+{
+  "base": "http://localhost:7175",
+  "tag": "before",
+  "account": "admin",
+  "bill": "R40B2-LCL03",
+  "widths": {
+    "390": {
+      "closed": {
+        "rowFound": true,
+        "regionScroll": {
+          "scrollW": 384,
+          "clientW": 374,
+          "overflowsX": true
+        },
+        "tableScroll": {
+          "scrollW": 384,
+          "clientW": 374,
+          "overflowsX": true
+        },
+        "docScroll": {
+          "scrollW": 390,
+          "clientW": 390,
+          "overflowsX": false
+        },
+        "status": {
+          "td": {
+            "left": 19,
+            "right": 391,
+            "top": 610.1,
+            "width": 372,
+            "height": 44
+          },
+          "badge": {
+            "left": 29,
+            "right": 96.8,
+            "top": 614.1,
+            "width": 67.8,
+            "height": 15.4
+          },
+          "badgeText": "Chờ phân xe",
+          "badgeOverflowX": "visible",
+          "badgeClipsOwnText": false,
+          "cutAtViewportEdge": false,
+          "cutAtRegionEdge": false
+        },
+        "doctrineClipped": [
+          {
+            "tag": "caption",
+            "cls": "",
+            "text": "Chi tiết container theo tám nhóm thông tin nghiệp ",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 308,
+            "clientW": 1
+          },
+          {
+            "tag": "th",
+            "cls": "",
+            "text": "Số tờ khai",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 31,
+            "clientW": 1
+          },
+          {
+            "tag": "th",
+            "cls": "",
+            "text": "Nhập/Xuất",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 76,
+            "clientW": 1
+          },
+          {
+            "tag": "th",
+            "cls": "",
+            "text": "Hãng tàu",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 37,
+            "clientW": 1
+          },
+          {
+            "tag": "span",
+            "cls": "shipment-container-ledger__edit-purpose",
+            "text": "Chỉnh sửa ô chứng từ và hãng tàu lô R40B2-LCL03:",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 300,
+            "clientW": 1
+          },
+          {
+            "tag": "span",
+            "cls": "shipment-container-ledger__edit-purpose",
+            "text": "Chỉnh sửa ô chứng từ và hãng tàu lô R40B2-LCL03:",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 300,
+            "clientW": 1
+          }
+        ]
+      },
+      "editor": {
+        "action": "Nhập BKS thực cho lô R40B2-LCL03",
+        "td": {
+          "left": 19,
+          "right": 205,
+          "top": 522.4,
+          "width": 186,
+          "height": 664.8
+        },
+        "card": {
+          "left": 29,
+          "right": 194,
+          "top": 566.1,
+          "width": 165,
+          "height": 617.2
+        },
+        "trigger": null,
+        "placeholder": null,
+        "helper": {
+          "text": "BKS thực là biển số xe chạy thực tế của lô.",
+          "rect": {
+            "left": 14.6,
+            "right": 22,
+            "top": 662.4,
+            "width": 7.4,
+            "height": 507.9
+          },
+          "lineHeight": 15.4,
+          "approxLines": 33,
+          "verticalCharWrap": true,
+          "overflowWrap": "anywhere",
+          "wordBreak": "normal",
+          "whiteSpace": "normal"
+        },
+        "save": {
+          "rect": {
+            "left": 30,
+            "right": 102,
+            "top": 896.3,
+            "width": 72,
+            "height": 40
+          },
+          "text": "Lưu",
+          "insideCell": true,
+          "overflowRightPx": -103,
+          "overflowLeftPx": -11
+        },
+        "cancelText": "Hủy"
+      }
+    },
+    "1440": {
+      "closed": {
+        "rowFound": true,
+        "regionScroll": {
+          "scrollW": 1133,
+          "clientW": 1129,
+          "overflowsX": true
+        },
+        "tableScroll": {
+          "scrollW": 1133,
+          "clientW": 1129,
+          "overflowsX": true
+        },
+        "docScroll": {
+          "scrollW": 1440,
+          "clientW": 1440,
+          "overflowsX": false
+        },
+        "status": {
+          "td": {
+            "left": 1297.2,
+            "right": 1401,
+            "top": 337.6,
+            "width": 103.8,
+            "height": 91.8
+          },
+          "badge": {
+            "left": 1309.2,
+            "right": 1377,
+            "top": 347.6,
+            "width": 67.8,
+            "height": 15.4
+          },
+          "badgeText": "Chờ phân xe",
+          "badgeOverflowX": "visible",
+          "badgeClipsOwnText": false,
+          "cutAtViewportEdge": false,
+          "cutAtRegionEdge": false
+        },
+        "doctrineClipped": [
+          {
+            "tag": "caption",
+            "cls": "",
+            "text": "Chi tiết container theo tám nhóm thông tin nghiệp ",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 308,
+            "clientW": 1
+          },
+          {
+            "tag": "span",
+            "cls": "shipment-container-ledger__edit-purpose",
+            "text": "Chỉnh sửa ô chứng từ và hãng tàu lô R40B2-LCL03:",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 300,
+            "clientW": 1
+          },
+          {
+            "tag": "span",
+            "cls": "shipment-container-ledger__edit-purpose",
+            "text": "Chỉnh sửa ô chứng từ và hãng tàu lô R40B2-LCL03:",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 300,
+            "clientW": 1
+          },
+          {
+            "tag": "span",
+            "cls": "shipment-container-ledger__edit-purpose",
+            "text": "Chỉnh sửa ô chứng từ và hãng tàu lô R40B2-LCL03:",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 300,
+            "clientW": 1
+          },
+          {
+            "tag": "span",
+            "cls": "shipment-container-ledger__edit-purpose",
+            "text": "Chỉnh sửa ô chứng từ và hãng tàu lô R40B2-LCL03:",
+            "ellipsis": false,
+            "clipsNow": true,
+            "scrollW": 300,
+            "clientW": 1
+          }
+        ]
+      },
+      "editor": {
+        "action": "Nhập BKS thực cho lô R40B2-LCL03",
+        "td": {
+          "left": 1193.3,
+          "right": 1297.2,
+          "top": 337.6,
+          "width": 103.8,
+          "height": 664.8
+        },
+        "card": {
+          "left": 1205.3,
+          "right": 1284.2,
+          "top": 385.2,
+          "width": 78.8,
+          "height": 607.2
+        },
+        "trigger": null,
+        "placeholder": null,
+        "helper": {
+          "text": "BKS thực là biển số xe chạy thực tế của lô.",
+          "rect": {
+            "left": 1218.3,
+            "right": 1225.8,
+            "top": 471.5,
+            "width": 7.4,
+            "height": 507.9
+          },
+          "lineHeight": 15.4,
+          "approxLines": 33,
+          "verticalCharWrap": true,
+          "overflowWrap": "anywhere",
+          "wordBreak": "normal",
+          "whiteSpace": "normal"
+        },
+        "save": {
+          "rect": {
+            "left": 1233.8,
+            "right": 1305.8,
+            "top": 707.4,
+            "width": 72,
+            "height": 36
+          },
+          "text": "Lưu",
+          "insideCell": false,
+          "overflowRightPx": 8.6,
+          "overflowLeftPx": -40.5
+        },
+        "cancelText": "Hủy"
+      }
+    }
+  },
+  "consoleErrors": []
+}

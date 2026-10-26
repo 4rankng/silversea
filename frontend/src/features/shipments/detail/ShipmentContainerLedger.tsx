@@ -892,11 +892,14 @@ export function ShipmentContainerLedger({
             searchable
             disabled={billingSaving}
           />
+          {/* SIL-516: the helper sits in the grid (the sibling editors' hint
+              pattern), above the footer — in the footer's flex row the narrow
+              cell squeezed it to min-content, one character per line. As a
+              full-width grid item it wraps as normal horizontal lines. */}
+          <small>{kind === 'actual' ? 'BKS thực là biển số xe chạy thực tế của lô.' : 'BKS báo khách là biển số in cho khách (xe ảo).'}</small>
         </div>
         <div className="shipment-container-ledger__editor-footer">
-          {billingError
-            ? <span className="shipment-container-ledger__edit-error" role="alert">{billingError}</span>
-            : <small>{kind === 'actual' ? 'BKS thực là biển số xe chạy thực tế của lô.' : 'BKS báo khách là biển số in cho khách (xe ảo).'}</small>}
+          {billingError && <span className="shipment-container-ledger__edit-error" role="alert">{billingError}</span>}
           <EditActions
             saving={billingSaving}
             saveDisabled={billingDraft.trim() === ''}
@@ -1241,7 +1244,14 @@ export function ShipmentContainerLedger({
                           ? 'Ngày vận chuyển'
                           : row.isLotLevel ? 'Chốt trên Tổng quan lô hàng' : 'Cập nhật theo từng container'}</span></div>)}
                   </td>)}
-{!isHidden('vehicle') && (<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : undefined)}>
+{!isHidden('vehicle') && (<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', [
+                  missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : '',
+                  // SIL-516: an open BKS plate editor claims the full card row
+                  // on card layouts (see __cell--plate-open in the page CSS) —
+                  // a half-row cell squeezed the combobox below its
+                  // full-placeholder width even at 390px.
+                  plateEditor?.rowId === row.id ? 'shipment-container-ledger__cell--plate-open' : '',
+                ].filter(Boolean).join(' ') || undefined)}>
                     {editableCell(row, 'vehicle', vehicleEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__vehicle">
                       {/* Card 20260922_24: the dispatch state ("Chờ phân xe") lives
                           in the Trạng thái cell; repeating it here as a badge made
