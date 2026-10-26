@@ -448,9 +448,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
-    // SIL-485 view sheet: the SỐ CONTAINER cell says what is missing in words
-    // — a descriptive phrase, never an ISO-identifier-shaped placeholder.
-    expect(await screen.findByText('Chưa có số cont')).toBeTruthy();
+    // SIL-485 view sheet + SIL-508 group: an empty SỐ line still names the
+    // missing fact in words — the writable drawer shows the action phrase
+    // ("Nhập số cont") on its ghost trigger, the read-only drawer says
+    // "Chưa có số cont" (asserted in CusLotView.container-group). Never an
+    // ISO-identifier-shaped placeholder.
+    expect(await screen.findByText('Nhập số cont')).toBeTruthy();
   });
 
   it('renders the approved seven-column multi-line dashboard and opens detail in a drawer', async () => {

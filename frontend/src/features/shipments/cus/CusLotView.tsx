@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { CopyPlus, Loader2 } from 'lucide-react';
+import { useEffect, useId, useState } from 'react';
+import { ChevronDown, CopyPlus, Loader2 } from 'lucide-react';
+import { UuiSelectField } from '../../../design-system';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -22,12 +23,20 @@ import {
  * soát. Editing stays out of the drawer: the footer "Sửa" navigates to
  * /shipments/:id/edit where ShipmentCreateWorkspace owns the form.
  *
- * SIL-498 (customer 25/10): the ONE deliberate inline exception is tờ khai —
+ * SIL-498 (customer 25/10): a deliberate inline exception is tờ khai —
  * a per-CONT document number the customer enters right in the Thông tin hàng
  * sheet. Each row carries its own input (or plain text when the lot is not
  * writable), and the first row owns the copy affordance that fans the saved
  * number out to the lot's still-empty rows (BE copy endpoint — never
- * overwrites a divergent sibling). Everything else stays read-only.
+ * overwrites a divergent sibling).
+ *
+ * SIL-508 (owner 26/10): the second inline exception is the SỐ CONTAINER
+ * group — the cell stacks the row's SỐ / LOẠI / TRỌNG LƯỢNG as three
+ * click-to-edit ghost lines (number, type pick, weight) through the same
+ * container-line command the tờ khai cell rides, each gated by its own
+ * fieldAccess mode. The standalone LOẠI / TRỌNG LƯỢNG columns died with the
+ * merge so the sheet fits the drawer without a horizontal scrollbar at
+ * standard viewports.
  *
  * Every value renders from the same CUS workspace payload the workboard row
  * already reads (list item + lazily loaded detail); a missing value is "—",
@@ -218,6 +227,268 @@ function DeclarationCell({
   );
 }
 
+/** SIL-508 callbacks the host page owns — the same presentational-drawer
+ *  contract as `CusLotDeclarationActions`: the page performs the
+ *  container-line write, force-reloads the detail and surfaces the toast.
+ *  The commit resolves `true` only when the value landed; `false` keeps the
+ *  line editor open (the error rode the host toast) — the SIL-483 ledger
+ *  ghost-line contract. */
+export interface CusLotContainerLineActions {
+  onSaveField: (
+    line: ShipmentCusWorkspaceContainerLine,
+    field: 'containerNumber' | 'containerTypeId' | 'cargoWeightKg',
+    value: string,
+  ) => Promise<boolean>;
+}
+
+/** One ghost line of the SỐ CONTAINER group: micro-label + value. Read-only
+ *  when the line's fieldAccess (or the page's intake gate) denies the edit —
+ *  a line the save path would refuse never advertises "press to edit"
+ *  (SIL-483 law). Editable lines are click-to-edit: the ghost trigger reveals
+ *  an inline editor, Enter/Lưu commits an immediate per-line save,
+ *  Escape/outside dismisses and reverts. */
+function InlineTextLine({
+  label,
+  display,
+  draftValue,
+  placeholder,
+  emptyText = dash,
+  ariaLabel,
+  mono,
+  numeric,
+  editable,
+  onCommit,
+}: {
+  label: string;
+  /** Read-only / trigger text (formatted for display, e.g. "24.000 kg"). */
+  display: string;
+  /** Editor seed — the raw persisted value the draft starts from. */
+  draftValue?: string;
+  placeholder: string;
+  /** Read-only empty fallback — names the missing fact in words
+   *  (QA-AUDIT-UI-08), never a bare dash where the phrase matters. */
+  emptyText?: string;
+  ariaLabel: string;
+  mono?: boolean;
+  numeric?: boolean;
+  editable: boolean;
+  onCommit: (value: string) => Promise<boolean>;
+}) {
+  const persistedDraft = draftValue ?? display;
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(persistedDraft);
+  const [busy, setBusy] = useState(false);
+  const inputId = useId();
+  // The drawer reloads the detail after every save; reseed the draft so the
+  // next open never reads as an unsaved edit (same law as DeclarationCell).
+  useEffect(() => { if (!open) setDraft(persistedDraft); }, [persistedDraft, open]);
+
+  const close = () => {
+    if (busy) return;
+    setOpen(false);
+    setDraft(persistedDraft);
+  };
+
+  const commit = async () => {
+    const next = draft.trim();
+    if (busy) return;
+    if (next === persistedDraft) { close(); return; }
+    setBusy(true);
+    let ok = false;
+    try {
+      ok = await onCommit(next);
+    } finally {
+      setBusy(false);
+    }
+    if (ok) setOpen(false);
+  };
+
+  if (!editable) {
+    return (
+      <span className="cus-lot-line">
+        <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
+        <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{display || emptyText}</span>
+      </span>
+    );
+  }
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className={`cus-lot-line cus-lot-line--trigger${display ? '' : ' cus-lot-line--empty'}`}
+        onClick={() => { setDraft(persistedDraft); setOpen(true); }}
+        disabled={busy}
+        aria-label={ariaLabel}
+        title={ariaLabel}
+      >
+        <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
+        <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{display || placeholder}</span>
+        <ChevronDown size={12} aria-hidden="true" className="cus-lot-line__chevron" />
+      </button>
+    );
+  }
+  return (
+    <span
+      className="cus-lot-line cus-lot-line--editor"
+      onBlur={(event) => {
+        // Outside blur dismisses (revert) unless the click landed on this
+        // editor's own commit control; never while a commit is in flight.
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) close();
+      }}
+    >
+      <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
+      <input
+        id={inputId}
+        className={`cus-lot-line__input${mono ? ' cus-lot-line__value--mono' : ''}`}
+        type="text"
+        inputMode={numeric ? 'decimal' : 'text'}
+        autoComplete="off"
+        aria-label={ariaLabel}
+        value={draft}
+        readOnly={busy}
+        autoFocus
+        onChange={(event) => setDraft(numeric ? event.target.value.replace(/[^0-9.]/g, '') : event.target.value)}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing) return;
+          if (event.key === 'Escape') { event.preventDefault(); close(); }
+          if (event.key === 'Enter') { event.preventDefault(); void commit(); }
+        }}
+      />
+      <button
+        type="button"
+        className="cus-lot-line__save"
+        disabled={busy || draft.trim() === persistedDraft}
+        onClick={() => void commit()}
+      >
+        {busy ? 'Đang lưu…' : 'Lưu'}
+      </button>
+    </span>
+  );
+}
+
+/** The LOẠI line of the group: the same ghost-line shape, but the editor is
+ *  the house UuiSelectField (the only sanctioned select — the ESLint
+ *  no-native-select guard) fed from the detail's container-type catalog. The
+ *  pick commits immediately (one deliberate action, like every picker cell);
+ *  react-aria owns dismissal. */
+function InlineTypeLine({
+  label,
+  display,
+  typeId,
+  options,
+  ariaLabel,
+  editable,
+  onCommit,
+}: {
+  label: string;
+  display: string;
+  typeId: number | null;
+  options: ReadonlyArray<{ id: number; code: string; name: string }>;
+  ariaLabel: string;
+  editable: boolean;
+  onCommit: (value: string) => Promise<boolean>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const commit = async (value: string) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await onCommit(value);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!editable) {
+    return (
+      <span className="cus-lot-line">
+        <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
+        <span className="cus-lot-line__value">{display || dash}</span>
+      </span>
+    );
+  }
+  return (
+    <span className="cus-lot-line" data-busy={busy || undefined}>
+      <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
+      <span className="cus-lot-line__select">
+        <UuiSelectField
+          label={ariaLabel}
+          hideLabel
+          ariaLabel={ariaLabel}
+          size="sm"
+          width="content"
+          // A finite type catalog stays a plain click-to-open listbox — the
+          // type-to-search combobox collapses to a bare caret inside this
+          // narrow ghost line.
+          searchable={false}
+          value={typeId != null ? String(typeId) : ''}
+          placeholder="Chọn loại"
+          disabled={busy}
+          onChange={(event) => void commit(event.target.value)}
+          options={options.map((option) => ({ value: String(option.id), label: option.code }))}
+        />
+      </span>
+    </span>
+  );
+}
+
+/** SIL-508 — the SỐ CONTAINER cell as a three-line group (SỐ / LOẠI /
+ *  TRỌNG LƯỢNG). Each line click-to-edits its own container-line field
+ *  (number, type pick, weight) through the host's container-line command;
+ *  a non-editable lot renders the same three lines as plain text. */
+function ContainerGroupCell({
+  line,
+  detail,
+  editable,
+  actions,
+}: {
+  line: ShipmentCusWorkspaceContainerLine;
+  detail?: ShipmentCusWorkspaceDetail;
+  editable: boolean;
+  actions?: CusLotContainerLineActions;
+}) {
+  const save = (field: 'containerNumber' | 'containerTypeId' | 'cargoWeightKg', value: string) => (
+    actions?.onSaveField(line, field, value) ?? Promise.resolve(false)
+  );
+  const lineEditable = (field: 'containerNumber' | 'containerTypeId' | 'cargoWeightKg') => (
+    editable && Boolean(actions) && line.fieldAccess[field]?.mode === 'DIRECT'
+  );
+  const weightRaw = (line.raw.cargoWeightKg ?? '').trim();
+  return (
+    <div className="cus-lot-contgroup">
+      <InlineTextLine
+        label="Số"
+        display={(line.containerNumber ?? '').trim()}
+        placeholder="Nhập số cont"
+        emptyText="Chưa có số cont"
+        ariaLabel={`Số container — dòng ${line.ordinal}`}
+        mono
+        editable={lineEditable('containerNumber')}
+        onCommit={(value) => save('containerNumber', value)}
+      />
+      <InlineTypeLine
+        label="Loại"
+        display={line.containerTypeLabel ?? ''}
+        typeId={line.containerTypeId}
+        options={detail?.selectors.containerTypes ?? []}
+        ariaLabel={`Loại container — dòng ${line.ordinal}`}
+        editable={lineEditable('containerTypeId')}
+        onCommit={(value) => save('containerTypeId', value)}
+      />
+      <InlineTextLine
+        label="Trọng lượng"
+        display={weightRaw ? formatWeight(weightRaw) : ''}
+        draftValue={weightRaw}
+        placeholder="Nhập kg"
+        ariaLabel={`Trọng lượng — dòng ${line.ordinal}`}
+        numeric
+        editable={lineEditable('cargoWeightKg')}
+        onCommit={(value) => save('cargoWeightKg', value)}
+      />
+    </div>
+  );
+}
+
 /** Đối soát CHI PHÍ — the FinanceEvidence derivation, restated for the
  *  mockup's micro-label pair (value only, no icon rail). */
 function financeCostLine(item: ShipmentCusWorkspaceListItem): { text: string; tone: 'ok' | 'danger' | 'quiet' } {
@@ -238,6 +509,8 @@ export function CusLotView({
   onRetry,
   canEditDeclaration = false,
   declarationActions,
+  canEditCargoLines = false,
+  containerLineActions,
 }: {
   item: ShipmentCusWorkspaceListItem;
   detail?: ShipmentCusWorkspaceDetail;
@@ -248,6 +521,10 @@ export function CusLotView({
    *  intake-mutation role and no accounting lock — before passing true. */
   canEditDeclaration?: boolean;
   declarationActions?: CusLotDeclarationActions;
+  /** SIL-508: the same intake gate for the container group's inline lines —
+   *  each line still answers to its own fieldAccess mode. */
+  canEditCargoLines?: boolean;
+  containerLineActions?: CusLotContainerLineActions;
 }) {
   const containers = detail?.containers ?? [];
   const totalWeight = containers.reduce((sum, line) => sum + Number(line.raw.cargoWeightKg ?? 0), 0);
@@ -324,13 +601,11 @@ export function CusLotView({
                         <th scope="col">STT</th>
                         <th scope="col">Số container</th>
                         <th scope="col">Số tờ khai</th>
-                        <th scope="col">Loại</th>
                         <th scope="col">Nhà máy</th>
                         <th scope="col">Tuyến đường</th>
                         <th scope="col">Nhà xe / BKS</th>
                         <th scope="col">Cảng nâng</th>
                         <th scope="col">Cảng hạ</th>
-                        <th scope="col">Trọng lượng</th>
                         <th scope="col">Đóng / trả</th>
                         <th scope="col">Trạng thái</th>
                       </tr>
@@ -339,7 +614,14 @@ export function CusLotView({
                       {containers.map((line, index) => (
                         <tr key={line.id}>
                           <th scope="row">{line.ordinal}</th>
-                          <td>{line.containerNumber ?? <span className="cus-lot-quiet">Chưa có số cont</span>}</td>
+                          <td>
+                            <ContainerGroupCell
+                              line={line}
+                              detail={detail}
+                              editable={canEditCargoLines}
+                              actions={containerLineActions}
+                            />
+                          </td>
                           <td>
                             <DeclarationCell
                               line={line}
@@ -349,13 +631,11 @@ export function CusLotView({
                               actions={declarationActions}
                             />
                           </td>
-                          <td>{line.containerTypeLabel ?? dash}</td>
                           <td>{siteLabel(detail, line.operationalSiteId)}</td>
                           <td>{line.routeName ?? dash}</td>
                           <td>{carrierLine(line)}</td>
                           <td>{line.liftSite ?? dash}</td>
                           <td>{line.dropoffSite ?? dash}</td>
-                          <td className="cus-lot-table__num">{line.raw.cargoWeightKg ? formatWeight(line.raw.cargoWeightKg) : dash}</td>
                           <td>{line.customerAppointmentAt ? formatTimeShortDate(line.customerAppointmentAt) : dash}</td>
                           <td>
                             <span className={`cus-lot-dispatch ${DISPATCH_CHIP_CLASS[line.dispatchStatus]}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>

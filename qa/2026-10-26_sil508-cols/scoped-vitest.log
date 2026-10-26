@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-508-cols/frontend
+
+
+ Test Files  17 passed (17)
+      Tests  276 passed (276)
+   Start at  21:53:58
+   Duration  10.18s (transform 4.41s, setup 2.17s, import 13.89s, tests 9.59s, environment 7.17s)
+

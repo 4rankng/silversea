@@ -5,6 +5,7 @@ import {
   CUS_SEARCH_PATTERN, SHIPMENT_CUS_WORKSPACE_SORT_KEYS, SHIPMENT_CUS_BUCKET_LABELS,
   SHIPMENT_INTAKE_MUTATION_ROLES, ShipmentCusBucket, Role,
   type ShipmentCusWorkspaceContainerLine, type ShipmentCusWorkspaceListItem,
+  type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -447,6 +448,42 @@ export default function ShipmentsPage() {
   const drawerDeclarationActions = useMemo(() => (
     drawerDeclarationEditable ? { onSaveDeclaration: saveDrawerDeclaration, onCopyDeclaration: copyDrawerDeclaration } : undefined
   ), [copyDrawerDeclaration, drawerDeclarationEditable, saveDrawerDeclaration]);
+  // SIL-508: the SỐ CONTAINER group's inline lines (số cont / loại / trọng
+  // lượng) ride the SAME container-line command and gate split as tờ khai —
+  // intake authority + no accounting lock from the page, the per-field
+  // fieldAccess mode from the line itself (checked in ContainerGroupCell).
+  const drawerCargoEditable = Boolean(canEditLot && !lotEditLocked && drawerDetail);
+  const saveDrawerContainerField = useCallback(async (
+    line: ShipmentCusWorkspaceContainerLine,
+    field: 'containerNumber' | 'containerTypeId' | 'cargoWeightKg',
+    value: string,
+  ): Promise<boolean> => {
+    if (drawerId == null || drawerDetail == null) return false;
+    const shipmentId = drawerId;
+    const version = drawerDetail.summary.version;
+    const payload: ShipmentCusContainerLineUpdateInput = field === 'containerNumber'
+      ? { expectedShipmentVersion: version, containerNumber: value === '' ? null : value }
+      : field === 'containerTypeId'
+        ? { expectedShipmentVersion: version, containerTypeId: value === '' ? null : Number(value) }
+        : { expectedShipmentVersion: version, cargoWeightKg: value === '' ? null : value };
+    const signature = `drawer-line:${shipmentId}:${line.id}:${version}:${field}:${value}`;
+    const key = ws.getIdempotencyKey(signature);
+    const fieldLabel = field === 'containerNumber' ? 'số container' : field === 'containerTypeId' ? 'loại container' : 'trọng lượng';
+    try {
+      await updateCusShipmentContainerLine(shipmentId, line.id, payload, key);
+      ws.clearIdempotencyKey(signature);
+      ws.setNotice(`Đã lưu ${fieldLabel} của dòng ${line.ordinal}.`);
+      await ws.loadDetail(shipmentId, true);
+      return true;
+    } catch (error) {
+      ws.clearIdempotencyKey(signature);
+      ws.setError(safeError(error, 'Không thể lưu thay đổi container. Vui lòng thử lại.'));
+      return false;
+    }
+  }, [drawerDetail, drawerId, ws]);
+  const drawerContainerLineActions = useMemo(() => (
+    drawerCargoEditable ? { onSaveField: saveDrawerContainerField } : undefined
+  ), [drawerCargoEditable, saveDrawerContainerField]);
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;
@@ -783,6 +820,8 @@ export default function ShipmentsPage() {
                 onRetry={() => void loadDetail(drawerItem.id, true)}
                 canEditDeclaration={drawerDeclarationEditable}
                 declarationActions={drawerDeclarationActions}
+                canEditCargoLines={drawerCargoEditable}
+                containerLineActions={drawerContainerLineActions}
               />
             </>
           )}
