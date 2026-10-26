@@ -541,16 +541,18 @@ export async function updateCusShipmentContainerLine(args: {
     // finalize after dispatch), so it deliberately stays OUT of
     // requestedOperationalMutation above — same reasoning as the container
     // number identity exemption. Role gate mirrors the fieldAccess rule.
-    // Card 171026122100 (FB-109) auto-copy law — narrowing the 171026180010
-    // sync to the card's design note: a NON-EMPTY save auto-copies the number
+    // Card 171026122100 (FB-109) auto-copy law — Owner ruling 26/10
+    // (SIL-498 QA fail, lot 257): a NON-EMPTY save auto-copies the number
     // onto the lot's STILL-EMPTY containers inside this same transaction and
-    // reports the written siblings for the save's toast. A container carrying
-    // a DIFFERENT number is never overwritten ("cont đã có số không bị ghi
-    // đè") — divergence stays possible by design; a sibling still holding the
-    // number this save replaces is a lot-copy, not a divergence, and follows
-    // the edit (CUS-05 clarify, card 261022095235a — SIL-184). A clear stays
-    // local — one backspace must never wipe the lot's document numbers
-    // wholesale.
+    // reports the written siblings for the save's toast. The fan-out covers
+    // EMPTY siblings ONLY: a sibling holding ANY number — including the
+    // number this save replaces — keeps it. After the creation fan-out every
+    // row is a copy of the first number, so the retired "số-cũ đi theo"
+    // drag (SIL-184, card 261022095235a) normalized the WHOLE lot on every
+    // edit and made per-cont divergence unreachable (QA: lot 257 sửa dòng
+    // 3 = TK3 → cả 3 dòng thành TK3; mong muốn: 2 dòng khác tờ khai → sửa 1
+    // dòng không đụng dòng kia). A clear stays local — one backspace must
+    // never wipe the lot's document numbers wholesale.
     let declarationSyncedContainerIds: number[] | null = null;
     if (args.input.declarationNumber !== undefined) {
       requireContainerDeclarationWriter(args.actor);
@@ -567,25 +569,16 @@ export async function updateCusShipmentContainerLine(args: {
         if (nextDeclarationNumber != null) {
           // Same-lot repeats are legal (the copy affordance's whole point), so
           // the siblings need no cross-lot availability re-check — the number
-          // was just validated for THIS lot. CUS-05 clarify (card
-          // 261022095235a, SIL-184 QA R42): the sync covers BOTH halves of the
-          // lot's followers — the STILL-EMPTY containers (FB-109 auto-copy)
-          // AND the siblings still holding the number this save REPLACES
-          // (they were copies of this line; the edit drags them along, which
-          // is what "đồng bộ theo lô" means for a SỬA, not just a THÊM). A
-          // sibling carrying any OTHER non-empty number diverged on purpose
-          // (card 261013200312 — "cont đã có số không bị ghi đè") and is
-          // never touched; a clear stays local.
-          const inSyncSiblingMatch = container.declarationNumber != null
-            ? sql` OR btrim(${s.shipmentContainers.declarationNumber}) = ${container.declarationNumber.trim()}`
-            : sql``;
+          // was just validated for THIS lot. The sibling predicate is the
+          // FB-109 empty-only lane: divergence (any non-empty sibling value)
+          // is never overwritten and a clear never fans out.
           const syncedSiblings = await tx.update(s.shipmentContainers).set({
             declarationNumber: nextDeclarationNumber,
             updatedAt: now,
           }).where(and(
             eq(s.shipmentContainers.shipmentId, args.shipmentId),
             ne(s.shipmentContainers.id, container.id),
-            sql`(${s.shipmentContainers.declarationNumber} IS NULL OR btrim(${s.shipmentContainers.declarationNumber}) = ''${inSyncSiblingMatch})`,
+            sql`(${s.shipmentContainers.declarationNumber} IS NULL OR btrim(${s.shipmentContainers.declarationNumber}) = '')`,
           )).returning({ id: s.shipmentContainers.id });
           declarationSyncedContainerIds = syncedSiblings.map((row) => row.id);
         }

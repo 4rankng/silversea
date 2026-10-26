@@ -393,11 +393,12 @@ export default function ShipmentsPage() {
     && drawerDetail.summary.fieldAccess.declarationNumber.mode !== 'READ_ONLY',
   );
   /** SIL-498-R1: save ONE row's tờ khai through the container-line command —
-   *  the same endpoint the ledger editor rides, so the BE fan-out (empty +
-   *  same-old-number siblings follow, divergent untouched, clear local —
-   *  SIL-184) applies verbatim. The drawer detail force-reloads so the sheet
-   *  always reads persisted state, and the toast names the auto-synced
-   *  siblings the command reports. */
+   *  the same endpoint the ledger editor rides, so the BE fan-out (still-
+   *  EMPTY siblings fill only; a sibling holding ANY number — old value
+   *  included — keeps it, divergent untouched; clear local — owner ruling
+   *  26/10, SIL-498 lot 257) applies verbatim. The drawer detail force-
+   *  reloads so the sheet always reads persisted state, and the toast names
+   *  the auto-synced siblings the command reports. */
   const saveDrawerDeclaration = useCallback(async (line: ShipmentCusWorkspaceContainerLine, value: string) => {
     if (drawerId == null || drawerDetail == null) return;
     const shipmentId = drawerId;
