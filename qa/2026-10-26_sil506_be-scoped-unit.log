@@ -1,0 +1,44 @@
+▶ filterContainersByDateRange
+  ✔ returns all containers when no date range is active (0.316375ms)
+  ✔ returns all containers when both bounds are null (0.043584ms)
+  ✔ filters by dateFrom only (0.167917ms)
+  ✔ filters by dateTo only (0.0435ms)
+  ✔ filters by both dateFrom and dateTo (inclusive) (0.04625ms)
+  ✔ filters a wider range (0.037333ms)
+  ✔ keeps containers with no appointment and no fallback when a range is active (0.03825ms)
+  ✔ keeps undated containers whose fallback date is inside the range (0.038917ms)
+  ✔ drops undated containers whose fallback date is outside the range (0.056917ms)
+  ✔ keeps undated containers when the fallback resolver yields null (0.067292ms)
+  ✔ prefers the real appointment over the fallback date (0.048667ms)
+  ✔ returns empty when no containers match the range (0.034ms)
+  ✔ preserves extra properties on container objects (0.029875ms)
+✔ filterContainersByDateRange (1.450583ms)
+▶ day law — card 231026000252 (LCL dated in/out-range, LCL undated, cont dated)
+  ✔ LCL dated in-range: the lot EDD leg passes the filter (0.10075ms)
+  ✔ LCL dated out-range: a dated LCL row is filtered out like a cont row (0.055334ms)
+  ✔ LCL undated: no day at all always shows, any filter (0.050458ms)
+  ✔ cont dated: appointment rows filter by their appointment day (0.045667ms)
+✔ day law — card 231026000252 (LCL dated in/out-range, LCL undated, cont dated) (0.324875ms)
+▶ containerDayTriageCondition — dated rows pass the day filter (card 231026000252, kept)
+  ✔ keeps the container-row date arms intact (0.504458ms)
+  ✔ SIL-506 pin: a dated in-range container satisfies the 23/10..23/10 conjunction (0.090833ms)
+  ✔ has NO unconditional container-less LCL escape — a dated lot row must pass the arms (0.108708ms)
+✔ containerDayTriageCondition — dated rows pass the day filter (card 231026000252, kept) (1.016375ms)
+▶ containerDayTriageCondition — undated rows drop under an active range (SIL-506 supersedes card 231026000252 null lane)
+  ✔ SIL-506 pin: a null-day container can never satisfy the 23/10..23/10 filter — no `is null` escape arm (0.065125ms)
+  ✔ is a pure AND of the date arms — no OR lane left (0.080875ms)
+✔ containerDayTriageCondition — undated rows drop under an active range (SIL-506 supersedes card 231026000252 null lane) (0.196958ms)
+▶ shipmentTransportDateCondition — EDD is a fallback day, never an unconditional arm
+  ✔ keeps the per-container VN-day EXISTS arm (coalesce appointment/EDD) (0.813458ms)
+  ✔ EXISTS arm keeps undated container rows under every filter (card 231026000252) (0.122375ms)
+  ✔ gates the lot-level EDD arm behind "the lot owns no container at all" (0.143125ms)
+  ✔ container-less arm keeps undated lots (no EDD) under every filter (card 231026000252) (0.086791ms)
+✔ shipmentTransportDateCondition — EDD is a fallback day, never an unconditional arm (1.504916ms)
+ℹ tests 26
+ℹ suites 5
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 309.929292

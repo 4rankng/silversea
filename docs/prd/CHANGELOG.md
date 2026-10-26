@@ -4,6 +4,13 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-10-26 — SIL-506: filter ngày Chi tiết bỏ cont không có ngày
+
+Mức cont của ngày Chi tiết (cus-workspace) loại container chưa có ngày vận chuyển
+khi filter ngày đang bật — lọc 23/10..23/10 không còn lọt cont lô 30/45 chưa ngày.
+Null-lane (giữ cont không ngày dưới mọi filter, card 231026000252) chỉ còn áp dụng
+ở mức lô Tổng quan. Commit lane 815f255c; test pin cus-container-day-triage.
+
 ## 2026-10-24 — SIL-168 ruling B: Hình thức XNK TRƯỚC Số Bill/Booking (lần đảo thứ 3)
 
 Khách gửi lại đúng văn bản cũ lần 3 ("Đổi vị trí Số Bill/Booking và Hình thức
