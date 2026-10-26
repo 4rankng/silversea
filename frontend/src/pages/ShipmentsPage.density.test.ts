@@ -41,18 +41,24 @@ describe('shipment container editor density', () => {
 
   it('uses the read-only review sheet instead of an editable ledger (SIL-485)', () => {
     // SIL-485 (owner mockup 25/10): the drawer body is CusLotView — a read-only
-    // 11-column sheet + review cards. The editable ledger chain is deleted;
-    // no editor affordance may come back through a page-local re-implant.
+    // sheet + review cards. The editable ledger chain is deleted; no editor
+    // affordance may come back through a page-local re-implant. The one
+    // sanctioned exception is the SIL-498 (26e42187) per-cont declaration
+    // cell — 12 columns now, and the sheet widened 1060 → 1200px for it.
     const viewSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusLotView.tsx'), 'utf8');
     expect(viewSource).toContain('<table className="cus-lot-table">');
-    for (const header of ['STT', 'Số container', 'Loại', 'Nhà máy', 'Tuyến đường', 'Nhà xe / BKS', 'Cảng nâng', 'Cảng hạ', 'Trọng lượng', 'Đóng / trả', 'Trạng thái']) {
+    for (const header of ['STT', 'Số container', 'Số tờ khai', 'Loại', 'Nhà máy', 'Tuyến đường', 'Nhà xe / BKS', 'Cảng nâng', 'Cảng hạ', 'Trọng lượng', 'Đóng / trả', 'Trạng thái']) {
       expect(viewSource).toContain(header);
     }
     expect(pageSource).not.toContain('CusContainerLedger');
     expect(pageSource).not.toContain('CusDrawerFooter');
     // The sheet compresses by scrolling inside its card, never clipping.
     expect(css).toMatch(/\.cus-lot-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
-    expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*1060px;[^}]*border-collapse:\s*collapse;/);
+    expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*1200px;[^}]*border-collapse:\s*collapse;/);
+    // SIL-498: the declaration cell is the only inline editor in the sheet —
+    // an opaque 32px house control, never a taller or off-token surface.
+    expect(css).toMatch(/\.cus-lot-decl\s*\{[^}]*min-width:\s*180px;/);
+    expect(css).toMatch(/\.cus-lot-decl__input\s*\{[^}]*height:\s*32px;[^}]*border:\s*1px solid var\(--control-border\);[^}]*border-radius:\s*var\(--radius-sm\);/);
     // Anti-nesting: hairline horizontals only — no vertical borders.
     expect(css).toMatch(/\.cus-lot-table th,\s*\n\.cus-lot-table td\s*\{[^}]*border-bottom:\s*1px solid var\(--line\);/);
     expect(css).not.toMatch(/\.cus-lot-table[^{]*\{[^}]*border-right:\s*1px/);
