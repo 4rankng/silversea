@@ -1041,11 +1041,12 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.getByRole('button', { name: 'Thêm container' })).toBeDisabled();
   });
 
-  // FB-111 + 181026200100 (A.1): "Thêm container" inherits the previous
-  // row — Loại cont (the 40DC-style code STAYS, superseding card
-  // 071026100800), route, factory, ports, weight and the schedule window.
-  // Only the Số container is per-container and stays empty for entry.
-  it('copies the previous row into every added container, leaving only Số container empty', async () => {
+  // REQ-22 REVERSED (ticket 221026173728, 22/10; SIL-488 — the workspace
+  // gap of reversal 093c5334): "Thêm container" inherits the previous row's
+  // shared fields — route, factory, ports, weight and the schedule window —
+  // but the two per-container identifiers stay empty: Số container and
+  // Loại cont ("Chọn loại") for the operator's own pick.
+  it('copies the previous row into every added container except Số container and Loại cont', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
@@ -1078,19 +1079,26 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
 
     expect(screen.getAllByLabelText('Số container')).toHaveLength(4);
-    // The ONLY blank inherited field: every Số container, row 1 included.
+    // The blank inherited fields: every Số container, row 1 included…
     expect(screen.getAllByLabelText('Số container').map((field) => (field as HTMLInputElement).value)).toEqual(['', '', '', '']);
-    // Rows 2/3/4 mirror row 1: type code, route, factory, ports, weight…
+    // Rows 2/3/4 mirror row 1 on the shared columns: route, factory, ports,
+    // weight…
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(4);
     const displayValue = (row: HTMLElement, text: string) => within(row).getByText(text, { selector: '.csc-container-cell__display' });
     for (const row of rows) {
-      expect(displayValue(row, '40HC')).toBeTruthy();
       expect(displayValue(row, 'Cát Lái — Sóng Thần')).toBeTruthy();
       expect(displayValue(row, 'Nhà máy Long Minh')).toBeTruthy();
       expect(displayValue(row, 'Cảng Cát Lái')).toBeTruthy();
       expect(displayValue(row, 'Cảng ICD Sóng Thần')).toBeTruthy();
       expect(displayValue(row, '12.000,5')).toBeTruthy();
+    }
+    // …and Loại cont stays blank on the ADDED rows (placeholder "Chọn loại")
+    // while row 1 keeps its own pick.
+    expect(displayValue(rows[0]!, '40HC')).toBeTruthy();
+    for (const row of rows.slice(1)) {
+      expect(displayValue(row, 'Chọn loại')).toBeTruthy();
+      expect(within(row).queryByText('40HC', { selector: '.csc-container-cell__display' })).toBeNull();
     }
     // …and the schedule window rides too.
     expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('09'));

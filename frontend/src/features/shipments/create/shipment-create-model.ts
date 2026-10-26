@@ -173,13 +173,14 @@ export function createEmptyContainer(): ShipmentContainerDraft {
 }
 
 /**
- * Start a new FCL row from the preceding row's data (FB-111 + 181026200100
- * A.1): the operator's intent when pressing "Thêm container" is a row that
- * inherits the previous row — Loại cont (a "40DC" copy is the FEATURE here,
- * per FB-111 superseding card 071026100800's blank-type ruling on this form —
- * mixed-type lots just re-pick the cell), route, factory, ports, weight and
- * the schedule window. The one per-container identifier that must never be
- * invented is the Số container, which stays empty for entry.
+ * Start a new FCL row from the preceding row's data (REQ-22 REVERSED, ticket
+ * 221026173728 22/10 — SIL-488 closes the workspace gap of reversal 093c5334,
+ * which only reached the CUS ledger): pressing "Thêm container" inherits the
+ * previous row's shared fields — route, factory, ports, weight and the
+ * schedule window — but NEVER its two per-container identifiers: the
+ * Số container stays empty for entry and the Loại cont stays blank ("Chọn
+ * loại") for the operator's own pick. The payload already sends an EXPLICIT
+ * `containerTypeId: null` when unpicked, so the server cannot re-copy either.
  */
 export function createContainerFromPrevious(
   previous?: ShipmentContainerDraft,
@@ -190,6 +191,7 @@ export function createContainerFromPrevious(
     ...previous,
     key: crypto.randomUUID(),
     containerNumber: '',
+    containerTypeId: '',
     // SIL-171: a cloned row is a NEW container — never inherit the source
     // row's persisted id (the reconcile would overwrite its sibling).
     id: undefined,
