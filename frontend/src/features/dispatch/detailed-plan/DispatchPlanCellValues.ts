@@ -33,6 +33,17 @@ export function normalizePlate(value: string): string {
   return value.trim().toUpperCase().replace(/\s+/g, ' ');
 }
 
+/** The row's order is issued and its trip is live: the vehicle may only change
+ *  through the governed reassignment flow, never through a plain plan save
+ *  (the backend's live-trip guard would reject it). One authority for every
+ *  trigger that names or routes this verb — the row ⋯ menu, the editor cell's
+ *  openEditor guard, and its click-to-edit carrier label (SIL-500). */
+export function canReassignIssuedTrip(row: DispatchDetailPlanRow): boolean {
+  return row.taskStatus === 'DISPATCHED'
+    && row.dispatch.tripId != null
+    && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT');
+}
+
 export function carrierValueForRow(row: DispatchDetailPlanRow): string {
   // Carrier-less rows (detail plan since 2026-09-09): '' keeps the picker's
   // "Chọn nhà xe" placeholder instead of a garbage `EXT:undefined` value.

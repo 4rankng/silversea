@@ -1,0 +1,59 @@
+{
+  "A": {
+    "cluster": {
+      "present": {
+        "Quay lại": true,
+        "Sửa": true,
+        "Tạo mới lô hàng": true,
+        "Quay lại (cuối trang)": true,
+        "Sửa (cuối trang)": true,
+        "Tạo mới lô hàng (cuối trang)": true
+      },
+      "primaryLabel": "Tạo mới lô hàng"
+    },
+    "afterClick": {
+      "pathname": "/shipments/new",
+      "heading": "Tạo lô hàng",
+      "requiredChip": true
+    },
+    "identity": {
+      "postCountDuringDrive": 0,
+      "posts": [
+        "POST /api/auth/login"
+      ],
+      "note": "expect 0 — \"Tạo mới lô hàng\" only NAVIGATES; no lot is created"
+    },
+    "mobile390": {
+      "present": true,
+      "visible": true,
+      "box": {
+        "w": 152,
+        "h": 34
+      }
+    }
+  },
+  "B": {
+    "cell": {
+      "carrierButtons": 3,
+      "unassignedPresent": true,
+      "firstUnassignedAria": "Sửa điều phối · Chưa phân nhà xe · QATU0001233"
+    },
+    "afterClick": {
+      "dialogTextHead": "Chỉnh sửa điều phối · QATU0001233Nhà xeChọn nhà xeXe / biển sốChọn biển số xePhân loạiKết hợp ĐơnKẹpKết hợpLấy LẻCước thu dự kiếnđCước trả dự kiếnđGiờ điều vận:",
+      "hasCarrierLabel": true,
+      "hasPlateLabel": true
+    },
+    "afterCancel": {
+      "dialogGone": true,
+      "mutatorCallsDuringDrive": 0,
+      "mutators": [
+        "POST /api/auth/login"
+      ],
+      "note": "expect 0 mutators — click opens/closes the dialog only"
+    },
+    "tablet768": {
+      "present": true,
+      "dialogOpened": true
+    }
+  }
+}

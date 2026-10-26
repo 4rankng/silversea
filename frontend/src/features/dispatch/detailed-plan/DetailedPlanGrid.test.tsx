@@ -456,9 +456,9 @@ describe('DetailedPlanGrid', () => {
     const { container } = renderGrid([row({ classification: 'SINGLE' })]);
     const dispatchCell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
     expect(dispatchCell).toBeTruthy();
-    // Owner redesign 23/10: no trigger in the cell — the pinned Thao tác
-    // column owns the verb.
-    expect(dispatchCell?.querySelectorAll('button')).toHaveLength(0);
+    // SIL-500 (KHĐ 26/10): the carrier line is click-to-edit — the full
+    // interactive-element pin lives in the facts test below; the ⋯ menu's
+    // "Sửa điều phối" stays the second path to the same dialog.
     fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng · MSCU1234567/ }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Sửa điều phối' }));
 
@@ -474,13 +474,15 @@ describe('DetailedPlanGrid', () => {
     expect(within(dialog).queryByLabelText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
   });
 
-  it('keeps the assignment cell as read-only facts — the menu owns the edit verb', () => {
+  it('keeps the assignment cell one-line facts with the carrier click-to-edit (SIL-500)', () => {
     const item = row();
     const { container } = renderGrid([item]);
     const cell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
     if (!cell) throw new Error('Missing actual assignment cell');
-    // Owner redesign 23/10: no buttons inside the cell at all.
-    expect(cell.querySelectorAll('button')).toHaveLength(0);
+    // SIL-500 (KHĐ 26/10): exactly ONE interactive element — the carrier
+    // line (click-to-edit); the facts stay text, no editor inputs inline.
+    expect(cell.querySelectorAll('button')).toHaveLength(1);
+    expect(within(cell).getByRole('button', { name: 'Sửa điều phối · SilverSea · MSCU1234567' })).toHaveTextContent(item.dispatch.carrierName ?? 'Chưa phân nhà xe');
     for (const text of [item.dispatch.carrierName ?? 'Chưa phân nhà xe', 'Chưa phân xe']) {
       expect(within(cell).getByText(text)).toBeTruthy();
     }

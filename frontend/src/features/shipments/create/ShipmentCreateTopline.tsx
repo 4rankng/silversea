@@ -11,12 +11,15 @@ interface ShipmentCreateToplineProps {
   onCreate: () => void;
   /** SIL-171 edit mode: title + action cluster swap to the edit pair. */
   mode?: 'create' | 'edit' | 'view';
-  /** SIL-481 view mode only — the read-only review pair (Quay lại /
-   *  Sửa) replaces the create/edit cluster, and the required
-   *  progress chip is meaningless on a form nobody is filling, so it hides. */
+  /** SIL-481 view mode only — the read-only review cluster (Quay lại /
+   *  Sửa / Tạo mới lô hàng — SIL-500) replaces the create/edit cluster, and
+   *  the required progress chip is meaningless on a form nobody is filling,
+   *  so it hides. */
   onBack?: () => void;
   onEdit?: () => void;
   editLocked?: boolean;
+  /** SIL-500: KH's next-lot loop — "Tạo mới lô hàng" → /shipments/new. */
+  onCreateNew?: () => void;
 }
 
 /* Owner mock 11/10 ("Tạo lô hàng – dense layout.html"): the page title, the
@@ -39,6 +42,7 @@ export function ShipmentCreateTopline({
   onBack,
   onEdit,
   editLocked = false,
+  onCreateNew,
 }: ShipmentCreateToplineProps) {
   const edit = mode === 'edit';
   const view = mode === 'view';
@@ -57,6 +61,7 @@ export function ShipmentCreateTopline({
           onBack={onBack ?? onCancel}
           onEdit={onEdit}
           editLocked={editLocked}
+          onCreateNew={onCreateNew}
         />
       ) : (
         <ShipmentCreateActions

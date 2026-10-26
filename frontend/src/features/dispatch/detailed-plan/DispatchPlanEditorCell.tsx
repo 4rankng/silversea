@@ -24,6 +24,7 @@ import {
   FREE_TEXT_PREFIX,
   OWN_CARRIER_VALUE,
   SUGGESTION_LABELS,
+  canReassignIssuedTrip,
   carrierValueForRow,
   detailRowKey,
   normalizePlate,
@@ -591,10 +592,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     // through the trip reassignment flow so the driver/vehicle state stays
     // coherent. Once it completes, the plan is frozen history — the backend's
     // live-trip guard rejects any plan save, so the editor must never open.
-    if (row.dispatch.tripId != null
-      && row.taskStatus === 'DISPATCHED'
-      && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT')) {
-      onOpenTripReassign(row.dispatch.tripId);
+    const liveTripId = row.dispatch.tripId;
+    if (liveTripId != null && canReassignIssuedTrip(row)) {
+      onOpenTripReassign(liveTripId);
       return;
     }
     if (row.taskStatus === 'COMPLETED') return;
@@ -837,9 +837,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
   const currentPlate = row.dispatch.assignedPlate;
-  // Completed rows are frozen history (the backend rejects plan saves) — the
-  // row menu does not render for them at all, so the editor can never open
-  // onto a doomed save.
+  // SIL-500 (KHĐ 26/10): the cell facts are click-to-edit again — the carrier
+  // line opens this cell's own editor (the same verb the row ⋯ menu fires via
+  // openRequest), the affordance the 23/10 grid redesign dropped. Completed
+  // rows are frozen history (the backend rejects plan saves) — the row menu
+  // does not render for them at all, so no clickable carrier either: no dead
+  // triggers. A live issued trip routes through openEditor to the governed
+  // reassignment flow.
+  const carrierEditable = row.taskStatus !== 'COMPLETED';
+  const canReassign = canReassignIssuedTrip(row);
 
   // Sweep (card 20261008_1): every action button here used to disable
   // silently. Each disable cause now carries its own aria-described reason
@@ -871,7 +877,24 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
 
   return (
     <div className="dispatch-assignment-cell" data-cell-label="Điều phối">
-      <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
+      {carrierEditable ? (
+        <button
+          type="button"
+          className="dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action"
+          onClick={openEditor}
+          aria-haspopup="dialog"
+          aria-label={canReassign
+            ? `Phân xe lại · ${row.dispatch.carrierName ?? 'Chưa phân nhà xe'} · ${identity}`
+            : `Sửa điều phối · ${row.dispatch.carrierName ?? 'Chưa phân nhà xe'} · ${identity}`}
+          title={canReassign
+            ? 'Phân xe lại trước khi chuyến xuất phát'
+            : `Bấm để phân nhà xe / sửa điều phối · ${identity}`}
+        >
+          {row.dispatch.carrierName ?? 'Chưa phân nhà xe'}
+        </button>
+      ) : (
+        <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
+      )}
       <div className="dispatch-assignment-cell__vehicle-group">
         <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
           {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
@@ -897,10 +920,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         {row.lotFullyPlated && !currentPlate && (
           <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
         )}
-        {/* Owner redesign 23/10 — no inline trigger here anymore: the row ⋯
-            menu's "Sửa điều phối"/"Phân xe lại" opens this cell's editor
-            through the `openRequest` signal, so the cell is read-only facts
-            (carrier · plate · driver · SĐT · status) plus the dialog. */}
+        {/* SIL-500 (KHĐ 26/10): the open verb rides the carrier line itself
+            again (click-to-edit, above); the row ⋯ menu keeps "Sửa điều phối"/
+            "Phân xe lại" via the `openRequest` signal as the second path. */}
       </div>
 
       <Modal

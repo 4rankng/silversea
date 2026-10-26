@@ -92,6 +92,34 @@
   line-height: var(--ops-table-supporting-line-height);
 }
 
+/* SIL-500 (KHĐ 26/10) — the carrier line is the cell's click-to-edit verb.
+   Same typography as the plain fact, plus the house text-button reset and a
+   quiet hover/focus affordance (dpcard__note / dpcard__info family). */
+.dispatch-assignment-cell__carrier--action {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: var(--ops-table-supporting-size);
+  font-weight: 600;
+  line-height: var(--ops-table-supporting-line-height);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.dispatch-assignment-cell__carrier--action:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.dispatch-assignment-cell__carrier--action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, #4a9e7d) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .dispatch-assignment-cell__plate {
   font-family: var(--font-data, inherit);
   font-size: var(--ops-table-supporting-size);

@@ -103,6 +103,9 @@ function renderView(viewProps: { canEditLot?: boolean } = {}) {
             />
             <Route path="/shipments/:id/edit" element={<div data-testid="edit-form" />} />
             <Route path="/shipments" element={<div data-testid="shipment-list" />} />
+            {/* SIL-500: the static segment outranks /shipments/:id, so the
+                next-lot navigation lands here instead of re-mounting the view. */}
+            <Route path="/shipments/new" element={<div data-testid="shipment-new" />} />
           </Routes>
         </ToastProvider>
       </QueryClientProvider>
@@ -150,14 +153,26 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
     expect(screen.queryByText(/Bắt buộc:/)).toBeNull();
   });
 
-  it('the action pair is Quay lại + Sửa, repeated at the foot', async () => {
+  it('the action cluster is Quay lại + Sửa + Tạo mới lô hàng, repeated at the foot', async () => {
     renderView({ canEditLot: true });
 
     expect(await screen.findByRole('button', { name: 'Sửa' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo mới lô hàng' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sửa (cuối trang)' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Quay lại (cuối trang)' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo mới lô hàng (cuối trang)' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Huỷ (cuối trang)' })).toBeNull();
+  });
+
+  it('SIL-500: "Tạo mới lô hàng" returns to the create form (/shipments/new)', async () => {
+    renderView({ canEditLot: true });
+
+    // Both FB-108 repetitions carry the verb before either is clicked.
+    expect(await screen.findByRole('button', { name: 'Tạo mới lô hàng' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo mới lô hàng (cuối trang)' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo mới lô hàng' }));
+    await waitFor(() => expect(screen.getByTestId('shipment-new')).toBeTruthy());
   });
 
   it('"Sửa" opens the SIL-171 edit form for the same lot', async () => {
@@ -172,11 +187,13 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
     await waitFor(() => expect(screen.getByTestId('shipment-list')).toBeTruthy());
   });
 
-  it('a role the edit route refuses sees Quay lại only — no edit button', async () => {
+  it('a role the edit route refuses sees Quay lại only — no edit, no next-lot button', async () => {
     renderView({ canEditLot: false });
     expect(await screen.findByRole('button', { name: 'Quay lại' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Sửa (cuối trang)' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tạo mới lô hàng' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tạo mới lô hàng (cuối trang)' })).toBeNull();
   });
 
   it('an accounting-locked lot still reads, but Sửa is disabled with the reason', async () => {

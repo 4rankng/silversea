@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-postview-taomoi-dispatch/frontend
+
+
+ Test Files  75 passed (75)
+      Tests  696 passed (696)
+   Start at  12:47:43
+   Duration  23.47s (transform 6.84s, setup 10.10s, import 58.91s, tests 88.98s, environment 38.41s)
+

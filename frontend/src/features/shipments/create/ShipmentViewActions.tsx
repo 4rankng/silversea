@@ -1,16 +1,20 @@
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus } from 'lucide-react';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 
 export interface ShipmentViewActionsProps {
   /** Exit the review — deterministic home is the lô list (/shipments). */
   onBack: () => void;
   /** Navigate to /shipments/:id/edit. Omitted → the role may not edit lots,
-   *  so the pair degrades to "Quay lại" alone (same split the old page's
+   *  so the cluster degrades to "Quay lại" alone (same split the old page's
    *  Sửa lô button used). */
   onEdit?: () => void;
   /** The lot carries an accounting lock — editing is refused server-side, so
    *  the button stays visible but disabled and says why. */
   editLocked?: boolean;
+  /** SIL-500: the KH's next-lot loop — navigate to /shipments/new. Omitted
+   *  → the role may not create lots (the /shipments/new route bounces the
+   *  same authority), so the cluster degrades without it. */
+  onCreateNew?: () => void;
   /** Same layout slot contract as ShipmentCreateActions (topline flex row vs
    *  footer bar; footer names itself for screen readers). */
   className?: string;
@@ -19,16 +23,22 @@ export interface ShipmentViewActionsProps {
 
 /**
  * SIL-481 (ruling 25/10): the post-create review (/shipments/:id) shows the
- * Tạo lô hàng workspace read-only, so its action pair replaces the create
+ * Tạo lô hàng workspace read-only, so its action cluster replaces the create
  * cluster (Huỷ / Lưu nháp / Tạo lô hàng) with "Quay lại" + "Sửa"
  * — the "post view action after create" the owner asked for. Rendered twice
  * (topline + footer) through the same FB-108 repetition the create cluster
  * uses, hence the same variant/aria-label law.
+ *
+ * SIL-500 (KH 26/10): the create cluster's primary "Tạo lô hàng" had no
+ * successor on the review — the KH's create → review → next-lot loop died.
+ * "Tạo mới lô hàng" (→ /shipments/new) restores it as THE primary, so the
+ * cluster keeps the house one-primary law (tertiary → secondary → primary).
  */
 export function ShipmentViewActions({
   onBack,
   onEdit,
   editLocked = false,
+  onCreateNew,
   className,
   variant = 'topline',
 }: ShipmentViewActionsProps) {
@@ -54,14 +64,26 @@ export function ShipmentViewActions({
         <UUIButton
           type="button"
           size="md"
-          color="primary"
-          className="min-h-11"
+          color="secondary"
           iconLeading={Pencil}
           onClick={onEdit}
           isDisabled={editLocked}
           aria-label={label(editLocked ? 'Sửa — lô đã khóa kế toán' : 'Sửa')}
         >
           Sửa
+        </UUIButton>
+      )}
+      {onCreateNew && (
+        <UUIButton
+          type="button"
+          size="md"
+          color="primary"
+          className="min-h-11"
+          iconLeading={Plus}
+          onClick={onCreateNew}
+          aria-label={label('Tạo mới lô hàng')}
+        >
+          Tạo mới lô hàng
         </UUIButton>
       )}
     </div>
