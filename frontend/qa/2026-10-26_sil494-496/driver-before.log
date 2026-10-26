@@ -1,0 +1,7 @@
+login ok → http://localhost:7179/config
+shot before-customers-1440.png
+SIL496 customers background ladder: {"html":"rgb(227, 232, 229)","body":"rgb(227, 232, 229)","appMain":"rgb(227, 232, 229)","appBody":"rgb(255, 255, 255)","pageRoot":"rgb(255, 255, 255)","pageRootFound":true}
+shot before-config-customers-1440.png
+SIL496 config-customers background ladder: {"html":"rgb(227, 232, 229)","body":"rgb(227, 232, 229)","appMain":"rgb(227, 232, 229)","appBody":"rgb(255, 255, 255)","pageRoot":"rgba(0, 0, 0, 0)","pageRootFound":true}
+console errors: 0 []
+PHASE before DONE
