@@ -147,6 +147,16 @@ function lotSpecLine(row: ShipmentCusContainerFlatRow): string {
   return parts.join(' | ');
 }
 
+/** SIL-503: what the edit chrome calls the row — the container number, or for
+ *  a container-less LCL lot the lot itself (its Bill/Booking; a lot without
+ *  one stays "Lô hàng lẻ"). The editor heading and the cell-trigger's
+ *  announced purpose must never call a lot a "container số N". */
+function rowSubjectFor(row: ShipmentCusContainerFlatRow): string {
+  if (row.containerNumber) return row.containerNumber;
+  if (row.isLotLevel) return row.billOrBookNumber ? `lô ${row.billOrBookNumber}` : 'lô hàng lẻ';
+  return `container số ${row.ordinal}`;
+}
+
 function InlineEditor({
   id,
   edit,
@@ -340,7 +350,7 @@ function InlineEditor({
           : mode === 'vehicle' ? 'phân xe'
             : mode === 'schedule' ? 'lịch trình'
               : 'ghi chú';
-  const label = `${modeLabel} ${row.containerNumber || `container số ${row.ordinal}`}`;
+  const label = `${modeLabel} ${rowSubjectFor(row)}`;
 
   // Focus silently on mount: the browser's focusing steps would otherwise
   // scroll the expanded editor (330–400px tall) fully into view and yank the
@@ -493,7 +503,7 @@ function InlineEditor({
       ) : (
         <div className="shipment-container-ledger__editor-heading">
           <strong>Chỉnh sửa {modeLabel}</strong>
-          <span>{row.containerNumber || `Container số ${row.ordinal}`}</span>
+          <span>{row.containerNumber || (row.isLotLevel ? (row.billOrBookNumber ? `Lô ${row.billOrBookNumber}` : 'Lô hàng lẻ') : `Container số ${row.ordinal}`)}</span>
         </div>
       )}
       {mode === 'identity' && (
@@ -539,7 +549,9 @@ function InlineEditor({
               </button>
             </div>
           )}
-          <small>Số tờ khai lưu theo từng container của lô; nhập hay sửa số trên một container sẽ tự đồng bộ sang các cont còn trống và các cont đang cùng số cũ của lô — cont đã có số khác không bị ghi đè; xóa số chỉ áp cho container đang sửa.</small>
+          <small>Số tờ khai lưu theo {row.isLotLevel
+            ? 'LÔ hàng lẻ — nhập hoặc sửa số một lần cho cả lô'
+            : 'từng container của lô; nhập hay sửa số trên một container sẽ tự đồng bộ sang các cont còn trống và các cont đang cùng số cũ của lô — cont đã có số khác không bị ghi đè; xóa số chỉ áp cho container đang sửa'}.</small>
           {/* Card 171026122140 (FB-113): positions 3 and 4 of the requested
               order. The direction select keeps its handler verbatim — it still
               owns the Bill-vs-Booking switch and clears the other side. */}
@@ -780,22 +792,36 @@ export function ShipmentContainerLedger({
   // đủ điều Copy giờ hẹn.
   const hasRowActions = onCopyAppointment != null && activeEdit == null && rows.some(canCopyFrom);
 
-  // ── Card 161026232339 — the lot rows' BKS báo khách quick edit. ──────────
-  // A lot-level row owns no container line, so no edit mode can carry this
-  // write: the ledger calls the same endpoint the settlement strip uses
-  // (`updateLclTruck`) and holds the saved plate as an optimistic overlay until
-  // the page refetches its rows. The overlay is self-healing — the moment the
-  // row carries a different value the server is authoritative again.
-  const [billingEditorForRowId, setBillingEditorForRowId] = useState<number | null>(null);
+  // ── Card 161026232339 + SIL-503 — the lot rows' plate quick edits. ────────
+  // A lot-level row owns no container line, so no edit mode can carry these
+  // writes: the ledger calls the same endpoint the settlement strip uses
+  // (`updateLclTruck`) and holds the saved plate as an optimistic overlay
+  // until the page refetches its rows. The overlay is self-healing — the
+  // moment the row carries a different value the server is authoritative
+  // again. SIL-503 adds the BKS THỰC side (the CUS "phân xe" act on this
+  // board): same endpoint, `actualTruckNo`. Clearing either plate is a
+  // dispatch/settlement-screen concern — the wire forbids an empty actual
+  // plate and `billingTruckNo: null` is the settlement path — so both
+  // editors refuse empty drafts.
+  type PlateEditorKind = 'billing' | 'actual';
+  const [plateEditor, setPlateEditor] = useState<{ rowId: number; kind: PlateEditorKind } | null>(null);
   const [billingDraft, setBillingDraft] = useState('');
   const [billingSaving, setBillingSaving] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [billingOverrides, setBillingOverrides] = useState<Record<number, { base: string; saved: string }>>({});
+  const [actualOverrides, setActualOverrides] = useState<Record<number, { base: string; saved: string }>>({});
   /** Override-aware BKS báo khách — the three call sites (cell render, editor
    *  seed, save baseline) must agree, so the resolution lives here once. */
   function billingPlateFor(row: ShipmentCusContainerFlatRow): string {
     const server = row.billingTruckNo?.trim() ?? '';
     const override = billingOverrides[row.shipmentId];
+    return override && server === override.base ? override.saved : server;
+  }
+  /** Override-aware BKS thực (SIL-503) — same self-healing overlay law as the
+   *  Ảo plate, over `shipments.actualTruckNo`. */
+  function actualTruckNoFor(row: ShipmentCusContainerFlatRow): string {
+    const server = row.actualTruckNo?.trim() ?? '';
+    const override = actualOverrides[row.shipmentId];
     return override && server === override.base ? override.saved : server;
   }
   const plateSuggestions = useMemo(() => {
@@ -806,32 +832,38 @@ export function ShipmentContainerLedger({
       }
     }
     for (const override of Object.values(billingOverrides)) plates.add(override.saved);
+    for (const override of Object.values(actualOverrides)) plates.add(override.saved);
     return [...plates].map((plate) => ({ value: plate, label: plate, searchText: plate }));
-  }, [rows, billingOverrides]);
+  }, [rows, billingOverrides, actualOverrides]);
 
-  function openBillingEditor(row: ShipmentCusContainerFlatRow) {
-    setBillingEditorForRowId(row.id);
-    setBillingDraft(billingPlateFor(row));
+  function openBillingEditor(row: ShipmentCusContainerFlatRow, kind: PlateEditorKind) {
+    setPlateEditor({ rowId: row.id, kind });
+    setBillingDraft(kind === 'actual' ? actualTruckNoFor(row) : billingPlateFor(row));
     setBillingError(null);
   }
 
-  async function saveBillingPlate(row: ShipmentCusContainerFlatRow) {
-    const base = billingPlateFor(row);
+  async function saveBillingPlate(row: ShipmentCusContainerFlatRow, kind: PlateEditorKind) {
+    const base = kind === 'actual' ? actualTruckNoFor(row) : billingPlateFor(row);
     const next = billingDraft.trim();
     // The wire contract forbids an empty plate (`truckNo` = trim().min(1)) —
     // clearing the ảo plate is a settlement-screen action, never a row edit.
     if (next === '' || next === base) {
-      setBillingEditorForRowId(null);
+      setPlateEditor(null);
       return;
     }
     setBillingSaving(true);
     setBillingError(null);
     try {
-      await updateLclTruck({ shipmentId: row.shipmentId, billingTruckNo: next });
-      setBillingOverrides((prev) => ({ ...prev, [row.shipmentId]: { base, saved: next } }));
-      setBillingEditorForRowId(null);
+      if (kind === 'actual') {
+        await updateLclTruck({ shipmentId: row.shipmentId, actualTruckNo: next });
+        setActualOverrides((prev) => ({ ...prev, [row.shipmentId]: { base, saved: next } }));
+      } else {
+        await updateLclTruck({ shipmentId: row.shipmentId, billingTruckNo: next });
+        setBillingOverrides((prev) => ({ ...prev, [row.shipmentId]: { base, saved: next } }));
+      }
+      setPlateEditor(null);
     } catch (err) {
-      setBillingError(err instanceof Error ? err.message : 'Cập nhật BKS báo khách thất bại');
+      setBillingError(err instanceof Error ? err.message : (kind === 'actual' ? 'Cập nhật BKS thực thất bại' : 'Cập nhật BKS báo khách thất bại'));
     } finally {
       setBillingSaving(false);
     }
@@ -839,13 +871,18 @@ export function ShipmentContainerLedger({
 
   // Card 171026000407 §II.3.1: the BKS báo khách quick edit renders from one
   // place for BOTH branches (Hàng lẻ always, container rows when the ảo plate
-  // differs from BKS thực), so the two can never drift.
-  function billingPlateEditor(row: ShipmentCusContainerFlatRow) {
+  // differs from BKS thực), so the two can never drift. SIL-503: the same
+  // editor body also serves the BKS thực kind on lot rows.
+  function billingPlateEditor(row: ShipmentCusContainerFlatRow, kind: PlateEditorKind = 'billing') {
+    // FB-093a pins the a11y names verbatim: combobox "BKS báo khách (Ảo)",
+    // save button "Lưu BKS báo khách". SIL-503's Thực kind names itself.
+    const fieldLabel = kind === 'actual' ? 'BKS thực' : 'BKS báo khách (Ảo)';
+    const actionLabel = kind === 'actual' ? 'BKS thực' : 'BKS báo khách';
     return (
       <div className="shipment-container-ledger__inline-editor">
         <div className="shipment-container-ledger__editor-grid">
           <USearchableField
-            label="BKS báo khách (Ảo)"
+            label={fieldLabel}
             value={billingDraft}
             onChange={setBillingDraft}
             onCustomValue={setBillingDraft}
@@ -859,13 +896,13 @@ export function ShipmentContainerLedger({
         <div className="shipment-container-ledger__editor-footer">
           {billingError
             ? <span className="shipment-container-ledger__edit-error" role="alert">{billingError}</span>
-            : <small>BKS báo khách là biển số in cho khách (xe ảo).</small>}
+            : <small>{kind === 'actual' ? 'BKS thực là biển số xe chạy thực tế của lô.' : 'BKS báo khách là biển số in cho khách (xe ảo).'}</small>}
           <EditActions
             saving={billingSaving}
             saveDisabled={billingDraft.trim() === ''}
-            label="BKS báo khách"
-            onCancel={() => setBillingEditorForRowId(null)}
-            onSave={() => void saveBillingPlate(row)}
+            label={actionLabel}
+            onCancel={() => setPlateEditor(null)}
+            onSave={() => void saveBillingPlate(row, kind)}
           />
         </div>
       </div>
@@ -878,7 +915,7 @@ export function ShipmentContainerLedger({
         type="button"
         className="shipment-container-ledger__plate"
         title="Sửa BKS báo khách"
-        onClick={() => openBillingEditor(row)}
+        onClick={() => openBillingEditor(row, 'billing')}
       >{`BKS Báo khách (Ảo): ${plate}`}</button>
     );
   }
@@ -956,11 +993,14 @@ export function ShipmentContainerLedger({
     } = {},
   ) => {
     const { rendersEditor = true, triggerKey, cellLabel } = options;
-    // Lot-level rows (card 365 — container-less LCL lots) are display-only on
-    // this workboard: there is no container line behind them to open an edit
-    // session against, so every cell renders read-only regardless of the
-    // field's authority (shipment-level edits happen on Tổng quan lô hàng).
-    const canEdit = enabled && row.isLotLevel !== true;
+    // SIL-503: lot-level rows (card 365 — container-less LCL lots) stop being
+    // blanket display-only. The SỐ TỜ KHAI cell opens the SHARED documents
+    // editor — its save path (use-cus-detail) branches to the shipment-level
+    // declaration writes, so no container line is needed behind the session.
+    // Every other cell group stays read-only here: the lot's PHÂN XE cell
+    // keeps its in-cell quick editors (FB-093a Ảo + SIL-503 BKS thực), and
+    // the remaining shipment-level edits live on Tổng quan lô hàng.
+    const canEdit = enabled && (row.isLotLevel !== true || mode === 'documents');
     const triggerId = `shipment-detail-edit-${mode}${triggerKey ? `-${triggerKey}` : ''}-${row.id}`;
     const editorId = `${triggerId}-editor`;
     const busy = editLoadingRowId === row.id;
@@ -982,7 +1022,7 @@ export function ShipmentContainerLedger({
           aria-expanded={expanded}
           data-cell-label={cellLabel ?? modeLabelForTrigger(mode)}
         >
-          <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {row.containerNumber || `container số ${row.ordinal}`}: </span>
+          <span className="shipment-container-ledger__edit-purpose">Chỉnh sửa {mode === 'identity' || mode === 'documents' || mode === 'container' ? 'ô ' : ''}{modeLabelForTrigger(mode)} {rowSubjectFor(row)}: </span>
           {children}
         </AriaButton>
         {expanded && activeEdit && rendersEditor && renderInlineEditor(activeEdit, editorId)}
@@ -1062,17 +1102,24 @@ export function ShipmentContainerLedger({
               // Ảo line is printed only when the billing plate actually differs
               // from BKS thực (spec §II.3.1); the edit stays reachable either
               // way through the small quick-edit trigger below.
-              const lotActualPlate = row.actualTruckNo?.trim() || row.plateNumber?.trim() || '—';
+              // SIL-503: BKS thực becomes override-aware (the CUS quick edit
+              // holds its save until the page refetch) and the lot row gains
+              // the thực trigger beside the Ảo one.
+              const lotActualTruckNo = actualTruckNoFor(row);
+              const lotActualPlate = lotActualTruckNo || row.plateNumber?.trim() || '—';
               const lotBillingPlate = billingPlateFor(row);
               const lotBillingDiffers = lotBillingPlate !== '' && normalizePlate(lotBillingPlate) !== normalizePlate(lotActualPlate);
-              const lotBillingEditing = billingEditorForRowId === row.id;
+              const lotBillingEditing = plateEditor?.rowId === row.id && plateEditor.kind === 'billing';
+              const lotActualEditing = plateEditor?.rowId === row.id && plateEditor.kind === 'actual';
               const detailsExpanded = expandedRowIds.has(row.id);
               // Card 191026181942 (empty allocation = pending label): with
               // NOTHING allocated — no carrier, no plate, not even a hand-typed
               // BKS thực — the cell prints ONE muted "Chưa phân xe" label. The
               // composite read "Chưa phân nhà xe - BKS Thực: —" beside
               // "BKS Báo khách (Ảo): — sửa": three N/A facts dressed as data.
-              const hasLotAllocation = Boolean(row.carrierName?.trim() || row.plateNumber?.trim() || row.actualTruckNo?.trim());
+              // SIL-503 keeps the label law and adds the ACTION below it
+              // ("Nhập BKS thực") — the pending lot's way into the same editor.
+              const hasLotAllocation = Boolean(row.carrierName?.trim() || row.plateNumber?.trim() || lotActualTruckNo);
               const cellClassName = (editable: boolean, mode: ShipmentDetailEditMode, extraClassName?: string) => [
                 extraClassName,
                 editable && 'shipment-container-ledger__editable-cell',
@@ -1203,7 +1250,23 @@ export function ShipmentContainerLedger({
                           duplicate label. */}
                       {row.isLotLevel ? (
                         !hasLotAllocation ? (
-                          <span className="shipment-container-ledger__missing">Chưa phân xe</span>
+                          <>
+                            <span className="shipment-container-ledger__missing">Chưa phân xe</span>
+                            {/* SIL-503: the pending lot's "phân xe" act on this
+                                board is entering BKS thực — an ACTION under the
+                                muted label, never a second data line (card
+                                191026181942's one-label law stays intact). */}
+                            {lotActualEditing
+                              ? billingPlateEditor(row, 'actual')
+                              : (
+                                <button
+                                  type="button"
+                                  className="shipment-container-ledger__missing-fields-toggle"
+                                  aria-label={`Nhập BKS thực cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                                  onClick={() => openBillingEditor(row, 'actual')}
+                                >Nhập BKS thực</button>
+                              )}
+                          </>
                         ) : (
                         <>
                           {/* Card 161026232339 §II.3.1 — two lines for Hàng lẻ:
@@ -1213,7 +1276,7 @@ export function ShipmentContainerLedger({
                               unallocated case never reaches this branch. */}
                           <strong>{`${row.carrierName?.trim() || '—'} - BKS Thực: ${lotActualPlate}`}</strong>
                           {lotBillingEditing
-                            ? billingPlateEditor(row)
+                            ? billingPlateEditor(row, 'billing')
                             : lotBillingDiffers
                               ? billingPlateTrigger(row, lotBillingPlate)
                               : (
@@ -1221,9 +1284,22 @@ export function ShipmentContainerLedger({
                               type="button"
                               className="shipment-container-ledger__missing-fields-toggle"
                               aria-label={`Sửa BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
-                              onClick={() => openBillingEditor(row)}
+                              onClick={() => openBillingEditor(row, 'billing')}
                             >{lotBillingPlate ? `BKS Báo khách (Ảo): ${lotBillingPlate} — sửa` : 'BKS Báo khách (Ảo): — sửa'}</button>
                           )}
+                          {/* SIL-503 — BKS thực quick edit: the composite stays
+                              static text (FB-093a's law), the action lives on
+                              its own trigger under the Ảo line. */}
+                          {lotActualEditing
+                            ? billingPlateEditor(row, 'actual')
+                            : (
+                              <button
+                                type="button"
+                                className="shipment-container-ledger__missing-fields-toggle"
+                                aria-label={`Sửa BKS thực cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                                onClick={() => openBillingEditor(row, 'actual')}
+                              >Sửa BKS thực</button>
+                            )}
                         </>
                         )
                       ) : lotBillingDiffers ? (

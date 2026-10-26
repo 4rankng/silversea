@@ -1,0 +1,13 @@
+{
+  "bill": "SIL503LCL745946",
+  "declaration": "TK-SIL503-745946",
+  "plate": "29H-503.55",
+  "lotId": 342,
+  "declarationCellBefore": "Chỉnh sửa ô chứng từ và hãng tàu lô SIL503LCL745946: Chưa có tờ khai",
+  "declarationCellAfter": "Chỉnh sửa ô chứng từ và hãng tàu lô SIL503LCL745946: TK-SIL503-745946",
+  "vehicleCellBefore": "Chưa phân xeNhập BKS thực",
+  "heading": "Chỉnh sửa chứng từ và hãng tàuLô SIL503LCL745946",
+  "fclHeading": "Chỉnh sửa chứng từ và hãng tàuSILU5001029",
+  "fclHint": "Số tờ khai lưu theo từng container của lô; nhập hay sửa số trên một container sẽ tự đồng bộ sang các cont còn trống và các cont đang cùng số cũ của lô — cont đã có số khác không bị ghi đè; xóa số chỉ áp cho container đang sửa.",
+  "consoleErrors": []
+}

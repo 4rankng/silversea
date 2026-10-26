@@ -1,0 +1,26 @@
+# SIL-503 DB side-effect proofs — run 2026-10-26T05:16:27Z, local dev DB (docker ss-prod-db / silversea)
+
+## Fixture lot (created via POST /api/shipments/quick as cus)
+ id  | shipment_code  | cargo_mode |       status       |    bl_number    | actual_truck_no | version 
+-----+----------------+------------+--------------------+-----------------+-----------------+---------
+ 342 | SHP-2610-00027 | LCL        | READY_FOR_DISPATCH | SIL503LCL745946 | 29H-503.55      |       2
+(1 row)
+
+## shipment_declarations row (tờ khai save via cell click)
+ id | shipment_id | declaration_number | scope  | note |         created_at         
+----+-------------+--------------------+--------+------+----------------------------
+ 12 |         342 | TK-SIL503-745946   | SINGLE |      | 2026-10-26 05:15:48.379999
+(1 row)
+
+## shipments.actual_truck_no after 'Nhập BKS thực' save
+ id  | actual_truck_no | billing_truck_no | version |       updated_at        
+-----+-----------------+------------------+---------+-------------------------
+ 342 | 29H-503.55      |                  |       2 | 2026-10-26 05:15:49.117
+(1 row)
+
+## FCL 318 untouched by the drive (read-only open+cancel)
+ id  | actual_truck_no | decls 
+-----+-----------------+-------
+ 318 |                 |     1
+(1 row)
+

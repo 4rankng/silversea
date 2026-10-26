@@ -539,7 +539,7 @@ describe('documents column split + cell click-to-edit (FB-109/113 v2, SIL-477)',
     expect(container.querySelector('td[data-label="Số tờ khai"] .shipment-container-ledger__inline-editor')).not.toBeNull();
   });
 
-  it('renders the Số tờ khai cell read-only when documents are locked and on lot-level rows (no trigger, no Sửa)', () => {
+  it('renders the Số tờ khai cell read-only when documents are locked; a lot row opens the SHARED trigger (SIL-503)', () => {
     const lockedRow = baseRow();
     const locked = { mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.' };
     lockedRow.shipmentFieldAccess = {
@@ -555,9 +555,13 @@ describe('documents column split + cell click-to-edit (FB-109/113 v2, SIL-477)',
     expect(screen.queryByRole('button', { name: /Sửa tờ khai/ })).toBeNull();
     first.view.unmount();
 
+    // SIL-503: a lot row with writable documents authority opens the SAME
+    // documents trigger (its save rides the shipment-declaration API); only
+    // a LOCKED lot stays triggerless, byte-for-byte parity with locked FCL.
     const lotRow = baseRow({ id: -7, isLotLevel: true, containerNumber: null, classification: 'LCL' });
     renderIdleLedger([lotRow]);
-    expect(screen.queryByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu/ })).toBeNull();
+    const lotTriggers = screen.getAllByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu/ });
+    expect(lotTriggers.length).toBe(4);
     expect(screen.queryByRole('button', { name: /Sửa tờ khai/ })).toBeNull();
   });
 });
@@ -904,11 +908,12 @@ describe('external-vendor plate quick-select (card 20260925_6)', () => {
 });
 
 describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
-  it('renders a container-less LCL lot read-only — no edit triggers, no add/remove actions', () => {
+  it('renders a container-less LCL lot with DOCUMENTS editable, everything else read-only — no add/remove actions', () => {
     const onStartEdit = vi.fn();
-    // Even with DIRECT field authority everywhere, a lot-level row (the
-    // single row a container-less LCL lot gets on the Chi Tiết workboard)
-    // must stay display-only: there is no container line to edit.
+    // SIL-503 amends card 365's blanket display-only law: the lot row opens
+    // the shared documents session (SỐ TỜ KHAI parity) while every other
+    // cell group stays read-only — shipment-level edits belong on Tổng quan
+    // lô hàng, container add/remove stays in the drawer (card 171026182554).
     const lotRow = baseRow({
       id: -7,
       isLotLevel: true,
@@ -944,7 +949,16 @@ describe('ShipmentContainerLedger lot-level rows (card 365)', () => {
     expect(screen.getByText('Lô hàng lẻ')).toBeTruthy();
     expect(screen.getByText('Chưa chọn loại xe tính cước')).toBeTruthy();
     expect(screen.queryByText('Không có container')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Chỉnh sửa/ })).toBeNull();
+    // Documents: the four headed columns share the ONE trigger name (only
+    // Số tờ khai mounts the editor).
+    expect(screen.getAllByRole('button', { name: /^Chỉnh sửa ô chứng từ và hãng tàu/ }).length).toBe(4);
+    // Every other edit family stays closed for the lot row.
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa khách hàng và lộ trình/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa lịch trình/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa ghi chú/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa phân xe/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa thông số container/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa hành trình/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Thêm container cùng lô/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
   });
@@ -1368,7 +1382,7 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     expect(screen.getByRole('button', { name: /Sửa BKS báo khách cho lô/ })).toBeTruthy();
   });
 
-  it('AC5 renders one muted "Chưa phân xe" for an unallocated lot — no BKS composite (card 191026181942)', () => {
+  it('AC5 renders one muted "Chưa phân xe" for an unallocated lot — plus the SIL-503 entry action, no BKS composite (card 191026181942)', () => {
     renderLot(lotRow({ carrierName: null, plateNumber: null, actualTruckNo: null, billingTruckNo: null }));
     expect(screen.getByText('Chưa phân xe')).toBeTruthy();
     // The pending state is the muted missing-field label — one line in the
@@ -1378,6 +1392,9 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     expect(document.querySelector('[data-label="Phân xe"] .shipment-container-ledger__plate')).toBeNull();
     expect(screen.queryByText(/BKS Thực/)).toBeNull();
     expect(screen.queryByText(/BKS Báo khách/)).toBeNull();
+    // SIL-503: the pending lot's way into the editor is an ACTION under the
+    // label — never a second data line.
+    expect(screen.getByRole('button', { name: 'Nhập BKS thực cho lô EGLV149607019409' })).toBeTruthy();
     expect(document.body.textContent).not.toContain('undefined');
   });
 
