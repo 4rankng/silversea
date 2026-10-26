@@ -1,0 +1,14 @@
+{"at":"2026-10-26T05:15:45.958Z","step":"health","status":"ok","buildHash":"dev"}
+{"at":"2026-10-26T05:15:46.024Z","step":"login","username":"cus","role":"CUS"}
+{"at":"2026-10-26T05:15:46.051Z","step":"fixture_lot","id":342,"shipmentCode":"SHP-2610-00027","cargoMode":"LCL"}
+{"at":"2026-10-26T05:15:47.827Z","step":"board_lot_row_visible","search":"SIL503LCL745946"}
+{"at":"2026-10-26T05:15:47.829Z","step":"declaration_cell_before","text":"Chỉnh sửa ô chứng từ và hãng tàu lô SIL503LCL745946: Chưa có tờ khai"}
+{"at":"2026-10-26T05:15:47.830Z","step":"vehicle_cell_before","text":"Chưa phân xeNhập BKS thực"}
+{"at":"2026-10-26T05:15:47.907Z","step":"documents_editor_heading","heading":"Chỉnh sửa chứng từ và hãng tàuLô SIL503LCL745946"}
+{"at":"2026-10-26T05:15:48.640Z","step":"declaration_cell_after","text":"Chỉnh sửa ô chứng từ và hãng tàu lô SIL503LCL745946: TK-SIL503-745946"}
+{"at":"2026-10-26T05:15:49.384Z","step":"vehicle_cell_after","composite":"— - BKS Thực: 29H-503.55"}
+{"at":"2026-10-26T05:15:51.099Z","step":"fcl_editor_heading","heading":"Chỉnh sửa chứng từ và hãng tàuSILU5001029"}
+{"at":"2026-10-26T05:15:51.100Z","step":"fcl_declaration_hint","hint":"Số tờ khai lưu theo từng container của lô; nhập hay sửa số trên một container sẽ tự đồng bộ sang các cont còn trống và các cont đang cùng số cũ của lô — cont đã có số khác không bị ghi đè; xóa số chỉ áp cho container đang sửa."}
+{"at":"2026-10-26T05:15:51.634Z","step":"fcl_editor_cancelled"}
+{"at":"2026-10-26T05:15:51.634Z","step":"console_clean"}
+{"at":"2026-10-26T05:15:51.739Z","step":"DONE"}

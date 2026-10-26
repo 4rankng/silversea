@@ -24,6 +24,8 @@ vi.mock('../../../api/shipmentClient', () => ({
   getCusShipmentWorkspaceDetail,
   updateShipment,
   updateCusShipmentContainerLine,
+  createShipmentDeclaration: vi.fn(),
+  updateShipmentDeclaration: vi.fn(),
 }));
 
 import { CUS_DETAIL_PAGE_SIZE } from './cusDetailModel';

@@ -17,10 +17,12 @@ import type {
 import {
   copyCusShipmentContainerAppointment,
   copyCusShipmentContainerDeclaration,
+  createShipmentDeclaration,
   getCusShipmentWorkspaceDetail,
   listCusShipmentContainers,
   updateCusShipmentContainerLine,
   updateShipment,
+  updateShipmentDeclaration,
 } from '../../../api/shipmentClient';
 import {
   formatVietnamDateTimeInput,
@@ -38,7 +40,7 @@ import {
   type ShipmentVehicleDraft,
 } from '../detail/ShipmentContainerLedger';
 import type { ShipmentDetailEditMode } from '../detail/edit-mode';
-import { canEditMode, isOptimisticShipmentConflict, type DispatchStatusFilter } from './cusDetailModel';
+import { canEditMode, isOptimisticShipmentConflict, lotDeclarationWrite, lotPseudoLine, type DispatchStatusFilter } from './cusDetailModel';
 import { safeError } from './cusUtils';
 
 export interface CusDetailListParams {
@@ -142,8 +144,16 @@ export function useCusDetail(params: CusDetailListParams) {
     try {
       const detail = await getCusShipmentWorkspaceDetail(row.shipmentId);
       if (requestId !== editRequestSequence.current) return;
-      const line = detail.containers.find((candidate) => candidate.id === row.id);
-      const permitted = line && canEditMode(detail, line, mode);
+      // SIL-503: a container-less LCL lot row (negative id) owns no container
+      // line. Its DOCUMENTS session runs against the shipment summary through
+      // the read-only pseudo line; every other mode stays refused for lots —
+      // those edits live on Tổng quan lô hàng or the dispatch flow.
+      const line = row.isLotLevel
+        ? lotPseudoLine(row, detail)
+        : detail.containers.find((candidate) => candidate.id === row.id) ?? null;
+      const permitted = line != null
+        && (!row.isLotLevel || mode === 'documents')
+        && canEditMode(detail, line, mode);
       if (!line || !permitted) throw new Error('Trường này không còn được phép chỉnh sửa. Tải lại trang để xem trạng thái mới nhất.');
       restoreFocusId.current = triggerId;
       setActiveEdit({ row: { ...row, shipmentVersion: detail.summary.version }, detail, line, mode });
@@ -164,7 +174,11 @@ export function useCusDetail(params: CusDetailListParams) {
     const requestId = ++editRequestSequence.current;
     const detail = await getCusShipmentWorkspaceDetail(row.shipmentId);
     if (requestId !== editRequestSequence.current) return;
-    const line = detail.containers.find((candidate) => candidate.id === row.id);
+    // Same lot-row resolution as startEdit: a lot row has no real container
+    // line, so its documents recovery reopens against the refreshed summary.
+    const line = row.isLotLevel
+      ? lotPseudoLine(row, detail)
+      : detail.containers.find((candidate) => candidate.id === row.id);
     if (!line) throw new Error('Container không còn trong lô hàng này.');
     if (!canEditMode(detail, line, mode)) {
       setActiveEdit(null);
@@ -254,16 +268,23 @@ export function useCusDetail(params: CusDetailListParams) {
   const saveDocuments = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft): Promise<ShipmentDocumentsSaveOutcome | void> => {
     if (!activeEdit) throw new Error('Phiên chỉnh sửa không còn hiệu lực.');
     const raw = activeEdit.detail.summary.raw;
+    const isLotRow = activeEdit.row.isLotLevel === true;
     // Two write authorities, one Save (mirrors saveSchedule): the lot-level
     // document fields PATCH the shipment; the tờ khai number is PER-CONT
     // (card 261013200312) and rides the container-line command on whatever
     // version the PATCH returned. A number-only save skips the PATCH — an
     // echo would bump the lot version for nothing.
+    // SIL-503: a lot-level row has no container line, so its tờ khai rides
+    // the shipment-declaration API instead (lotDeclarationWrite diff); the
+    // four shipment-level fields take the identical PATCH.
     const shipmentChanged = (draft.blNumber ?? '') !== (raw.blNumber ?? '')
       || (draft.bookingRef ?? '') !== (raw.bookingRef ?? '')
       || draft.tradeDirection !== (raw.tradeDirection ?? '')
       || (draft.shippingLineName ?? '') !== (raw.shippingLineName ?? '');
-    const numberChanged = (draft.declarationNumber ?? '') !== (activeEdit.line.declarationNumber ?? '').trim();
+    const declarationBaseline = isLotRow
+      ? (raw.declarationNumber ?? '').trim()
+      : (activeEdit.line.declarationNumber ?? '').trim();
+    const numberChanged = (draft.declarationNumber ?? '').trim() !== declarationBaseline;
     if (!shipmentChanged && !numberChanged) return;
     // Card 171026122100 (FB-109) auto-copy law (narrowing 171026180010): the
     // container-line command itself copies a non-empty tờ khai update onto
@@ -288,12 +309,21 @@ export function useCusDetail(params: CusDetailListParams) {
         expectedShipmentVersion = updated.version;
       }
       if (numberChanged && activeEdit.detail.summary.fieldAccess.declarationNumber.mode !== 'READ_ONLY') {
-        const result = await updateCusShipmentContainerLine(row.shipmentId, activeEdit.line.id, {
-          expectedShipmentVersion,
-          declarationNumber: draft.declarationNumber,
-        }, key);
-        if (result.declarationSync) {
-          syncOutcome = { sync: { written: result.declarationSync.updatedContainerIds.length } };
+        if (isLotRow) {
+          const write = lotDeclarationWrite(raw, draft.declarationNumber);
+          if (write.kind === 'update') {
+            await updateShipmentDeclaration(row.shipmentId, write.declarationId, write.body);
+          } else if (write.kind === 'create') {
+            await createShipmentDeclaration(row.shipmentId, write.body);
+          }
+        } else {
+          const result = await updateCusShipmentContainerLine(row.shipmentId, activeEdit.line.id, {
+            expectedShipmentVersion,
+            declarationNumber: draft.declarationNumber,
+          }, key);
+          if (result.declarationSync) {
+            syncOutcome = { sync: { written: result.declarationSync.updatedContainerIds.length } };
+          }
         }
       }
     } catch (error) {

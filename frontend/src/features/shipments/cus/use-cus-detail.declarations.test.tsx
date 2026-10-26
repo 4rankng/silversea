@@ -26,6 +26,8 @@ const getCusShipmentWorkspaceDetail = vi.hoisted(() => vi.fn());
 const updateShipment = vi.hoisted(() => vi.fn());
 const updateCusShipmentContainerLine = vi.hoisted(() => vi.fn());
 const copyCusShipmentContainerDeclaration = vi.hoisted(() => vi.fn());
+const createShipmentDeclaration = vi.hoisted(() => vi.fn());
+const updateShipmentDeclaration = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../api/shipmentClient', () => ({
   listCusShipmentContainers,
@@ -33,6 +35,8 @@ vi.mock('../../../api/shipmentClient', () => ({
   updateShipment,
   updateCusShipmentContainerLine,
   copyCusShipmentContainerDeclaration,
+  createShipmentDeclaration,
+  updateShipmentDeclaration,
 }));
 
 import { CUS_DETAIL_PAGE_SIZE } from './cusDetailModel';
@@ -406,5 +410,143 @@ describe('useCusDetail saveDocuments — the save IS the auto-copy (card 1710261
     });
     expect(outcome).toBeUndefined();
     await waitFor(() => expect(listCusShipmentContainers).toHaveBeenCalledTimes(2));
+  });
+});
+
+/* ── SIL-503 — LOT-LEVEL rows (hàng lẻ): the tờ khai rides the shipment-
+ * declaration API, never a container-line command (no container line exists
+ * behind a negative row id). Non-documents modes stay refused for lots. ── */
+describe('useCusDetail saveDocuments — lot-level hàng lẻ rides the declaration API (SIL-503)', () => {
+  interface LotDeclarationFixture { id: number; declarationNumber: string | null; issuedAt: string | null; scope: 'SINGLE' | 'SHARED' | null; note: string | null }
+  const lotDeclarationRow = (overrides: Partial<LotDeclarationFixture> = {}): LotDeclarationFixture => ({
+    id: 301,
+    declarationNumber: 'TK-LOT-CUR',
+    issuedAt: '2026-10-20T00:00:00.000Z',
+    scope: 'SINGLE',
+    note: 'hồ sơ lot',
+    ...overrides,
+  });
+
+  const lotFlatRow = () => flatRow({
+    id: -71,
+    shipmentId: 71,
+    isLotLevel: true,
+    containerNumber: null,
+    classification: 'LCL',
+    declarationNumber: 'TK-LOT-CUR',
+  });
+
+  const lotDetail = (rawOverrides: Record<string, unknown> = {}) => detail({
+    summary: {
+      id: 71,
+      version: 4,
+      cargoMode: 'LCL',
+      operational: { transportDateEditable: false },
+      raw: {
+        factoryName: null, routeId: null, deliveryLocation: null,
+        blNumber: 'EGLV123', bookingRef: null, tradeDirection: 'IMPORT', shippingLineName: 'Evergreen',
+        declarationNumber: 'TK-LOT-CUR',
+        declarationId: 301,
+        declarations: [lotDeclarationRow()],
+        ...rawOverrides,
+      },
+      fieldAccess: {
+        blNumber: direct,
+        bookingRef: direct,
+        declarationNumber: direct,
+        tradeDirection: direct,
+        shippingLineName: direct,
+      },
+    },
+    containers: [],
+  } as unknown as Partial<ShipmentCusWorkspaceDetail>);
+
+  async function lotSetup(rawOverrides: Record<string, unknown> = {}) {
+    createShipmentDeclaration.mockResolvedValue({ id: 999 });
+    updateShipmentDeclaration.mockResolvedValue({ id: 301 });
+    return setup(lotFlatRow(), lotDetail(rawOverrides));
+  }
+
+  afterEach(() => vi.clearAllMocks());
+
+  it('lot chưa có row tờ khai: nhập số → POST declaration, không PATCH, không container-line', async () => {
+    const api = await lotSetup({ declarationNumber: null, declarationId: null, declarations: [] });
+    await act(async () => {
+      await api.saveDocuments(lotFlatRow(), { ...baseDraft, declarationNumber: 'TK-LOT-NEW' });
+    });
+    expect(updateShipment).not.toHaveBeenCalled();
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+    expect(createShipmentDeclaration).toHaveBeenCalledTimes(1);
+    expect(createShipmentDeclaration).toHaveBeenCalledWith(71, { declarationNumber: 'TK-LOT-NEW' });
+    expect(updateShipmentDeclaration).not.toHaveBeenCalled();
+  });
+
+  it('lot đã có row: PUT đúng row hiển thị, metadata resent verbatim (whole-row PUT contract)', async () => {
+    const api = await lotSetup();
+    await act(async () => {
+      await api.saveDocuments(lotFlatRow(), { ...baseDraft, declarationNumber: 'TK-LOT-NEXT' });
+    });
+    expect(updateShipmentDeclaration).toHaveBeenCalledTimes(1);
+    expect(updateShipmentDeclaration).toHaveBeenCalledWith(71, 301, {
+      declarationNumber: 'TK-LOT-NEXT',
+      issuedAt: '2026-10-20T00:00:00.000Z',
+      scope: 'SINGLE',
+      note: 'hồ sơ lot',
+    });
+    expect(createShipmentDeclaration).not.toHaveBeenCalled();
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
+
+  it('xoá số trên lot → PUT number null, row và metadata sống sót', async () => {
+    const api = await lotSetup();
+    await act(async () => {
+      await api.saveDocuments(lotFlatRow(), { ...baseDraft, declarationNumber: null });
+    });
+    expect(updateShipmentDeclaration).toHaveBeenCalledWith(71, 301, {
+      declarationNumber: null,
+      issuedAt: '2026-10-20T00:00:00.000Z',
+      scope: 'SINGLE',
+      note: 'hồ sơ lot',
+    });
+  });
+
+  it('số echo (không đổi) → không phát sinh bất kỳ write nào', async () => {
+    const api = await lotSetup();
+    await act(async () => {
+      await api.saveDocuments(lotFlatRow(), { ...baseDraft, declarationNumber: 'TK-LOT-CUR' });
+    });
+    expect(updateShipment).not.toHaveBeenCalled();
+    expect(updateShipmentDeclaration).not.toHaveBeenCalled();
+    expect(createShipmentDeclaration).not.toHaveBeenCalled();
+  });
+
+  it('save tổng hợp: PATCH shipment trước rồi PUT declaration (một Save, hai authority)', async () => {
+    const api = await lotSetup();
+    const calls: string[] = [];
+    updateShipment.mockImplementation(async () => { calls.push('PATCH'); return { version: 5 }; });
+    updateShipmentDeclaration.mockImplementation(async () => { calls.push('DECLARATION'); return { id: 301 }; });
+    await act(async () => {
+      await api.saveDocuments(lotFlatRow(), { ...baseDraft, blNumber: 'EGLV999', declarationNumber: 'TK-LOT-NEXT' });
+    });
+    expect(calls).toEqual(['PATCH', 'DECLARATION']);
+  });
+
+  it('lot row từ chối MỌI mode khác documents — vehicle không mở được phiên (documents-only law)', async () => {
+    createShipmentDeclaration.mockResolvedValue({ id: 999 });
+    updateShipmentDeclaration.mockResolvedValue({ id: 301 });
+    listCusShipmentContainers.mockResolvedValue({ items: [lotFlatRow()], total: 1, totalPages: 1 } as unknown as ShipmentCusContainerFlatResponse);
+    getCusShipmentWorkspaceDetail.mockResolvedValue(lotDetail());
+    let api: ReturnType<typeof useCusDetail> | null = null;
+    render(<Probe row={lotFlatRow()} onReady={(value) => { api = value; }} />);
+    await waitFor(() => expect(listCusShipmentContainers).toHaveBeenCalled());
+    await act(async () => {
+      await api!.startEdit(lotFlatRow(), 'vehicle', 'trigger-v');
+    });
+    expect(api!.activeEdit).toBeNull();
+    expect(api!.editError?.rowId).toBe(-71);
+    await act(async () => {
+      await api!.startEdit(lotFlatRow(), 'documents', 'trigger-d');
+    });
+    expect(api!.activeEdit?.mode).toBe('documents');
   });
 });
