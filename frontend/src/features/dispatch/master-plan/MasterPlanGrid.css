@@ -633,16 +633,20 @@
   line-height: var(--ops-table-meta-line-height);
 }
 
-/* ── Owner redesign 23/10 — the <640px phone card list (`MasterPlanCardList`),
-   following the DispatchPlanCardList pattern (commit 8a28c094): one card per
-   lô, head = identity + loại + the single ⋯ menu, body = one-line ellipsized
-   facts (title carries the full value), foot = the ONE primary action
-   (Phân bổ nhà xe) when the lot accepts a save. The card rides the same
-   merge-mode checkbox, note editor and modals the table serves — behaviour
-   never forks between the two layouts. */
+/* ── SIL-507 (owner 26/10 P0) — the <640px phone card list re-densified into
+   a 3-dòng divider list. The per-lot card-BOX (border + radius + surface per
+   row) is REPLACED by hairline dividers between flat rows: dòng 1 head =
+   KH + Bill/Booking + loại + ⋯, dòng 2 meta = giờ · Nâng → Trả · tuyến ·
+   hãng (one ellipsized run), dòng 3 facts = hàng hóa · Xe + the compact 32px
+   allocate button (never full-width, hidden once a roster exists). Row
+   budget: ~72px allocated / ~88px with the button row; the conditional
+   status/note line adds one 11px line when the lot carries one.
+   Owner typography spec 13/11px: the list re-maps the ops-table primary
+   token at this scope — every card rule keeps consuming the token. */
 .mpcard-list {
+  --ops-table-primary-size: 13px;
   display: grid;
-  gap: 8px;
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -650,11 +654,14 @@
 
 .mpcard {
   display: grid;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color-secondary, var(--line));
-  border-radius: 10px;
-  background: var(--surface);
+  gap: 2px;
+  padding: 5px 0;
+  background: none;
+}
+
+/* list-divider thay card-box: hairline between sibling rows, no per-row box. */
+.mpcard + .mpcard {
+  border-top: 1px solid var(--line);
 }
 
 /* FB-014: the whole card is the lot's open trigger (outside its controls),
@@ -674,13 +681,20 @@
   min-width: 0;
 }
 
+/* Identity rides ONE line at SIL-507: KH leads (shrinks first, ellipsized),
+   the Bill/Booking run absorbs the remaining width (also ellipsized; each
+   span's title carries its full value). */
 .mpcard__identity {
-  display: grid;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
 }
 
 .mpcard__customer {
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: var(--ops-table-primary-size);
   font-weight: var(--ops-table-primary-weight);
   line-height: var(--ops-table-primary-line-height);
@@ -690,6 +704,8 @@
 }
 
 .mpcard__bill {
+  flex: 1 1 auto;
+  min-width: 0;
   color: var(--fg-2);
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
@@ -707,58 +723,116 @@
   white-space: nowrap;
 }
 
-/* The ⋯ menu trigger rides the shared touch floor (40px law 2026-09-27);
-   the menu's generic chrome lives in the shared dispatch-row-menu.css. */
+/* SIL-507 — the ⋯ trigger rides the shared 30px rail size (the generic
+   `.dispatch-row-menu__trigger` base) instead of the old 44px card bump:
+   the row's 3-dòng budget cannot afford a 44px square in the head. The
+   `#root` bump is the same deliberate specificity lift the dpcard uses:
+   the global coarse-pointer band `:is(#root, body) button` carries (1,0,1)
+   and would clamp the trigger back up to the 40px token on touch. */
 .mpcard .dispatch-row-menu {
   margin-left: auto;
+  flex: none;
 }
 
 .mpcard .dispatch-row-menu__trigger {
-  width: var(--control-touch-h, 44px);
-  height: var(--control-touch-h, 44px);
+  width: 30px;
+  height: 30px;
 }
 
-/* Body: giờ+ngày · Nâng · Trả · hàng hóa · xe — one line each, ellipsized
-   with the full value in title. */
+#root .mpcard .dispatch-row-menu__trigger {
+  min-width: 30px;
+  min-height: 30px;
+}
+
+/* The merge-mode tick: 30px hit target, the painted 18px box moves onto
+   ::before (same technique as the dpcard, at the SIL-507 compact budget). */
+.mpcard .ops-lcl-check {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  flex: none;
+}
+
+.mpcard .ops-lcl-check::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--slate-1);
+  border-radius: 4px;
+  background: var(--surface);
+}
+
+.mpcard .ops-lcl-check--on::before {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.mpcard .ops-lcl-check svg {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+
+/* Body: dòng 2 meta + dòng 3 facts (+ conditional status/note), 3px apart. */
 .mpcard__body {
   display: grid;
   gap: 3px;
   min-width: 0;
 }
 
-.mpcard__line {
-  font-size: var(--ops-table-supporting-size);
-  line-height: var(--ops-table-supporting-line-height);
+/* Dòng 2 — meta: giờ+ngày · Nâng → Trả · tuyến · hãng tàu as ONE ellipsized
+   run (title carries the full value). */
+.mpcard__meta {
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.mpcard__line--strong {
+/* Dòng 3 — facts: hàng hóa (identity weight) · đo lường · Xe + allocate. */
+.mpcard__facts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mpcard__cargo,
+.mpcard__measures,
+.mpcard__fleet {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpcard__cargo {
+  flex: 0 1 auto;
   font-size: var(--ops-table-primary-size);
   font-weight: var(--ops-table-primary-weight);
   line-height: var(--ops-table-primary-line-height);
 }
 
-.mpcard__line--muted {
+.mpcard__measures {
+  flex: 0 1 auto;
   color: var(--fg-2);
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
 }
 
-.mpcard__line--urgent {
-  color: var(--danger-text);
-  font-weight: var(--fw-semibold);
-}
-
-.mpcard__line--soon {
-  color: var(--warning-deep);
-  font-weight: 500;
-}
-
-.mpcard__line--warning {
-  color: var(--warning-text);
-  font-weight: var(--fw-semibold);
+.mpcard__fleet {
+  flex: 1 1 auto;
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
 }
 
 .mpcard__adhoc {
@@ -766,6 +840,44 @@
   color: var(--fg-3);
   font-size: var(--ops-table-meta-size);
   font-weight: var(--fw-medium);
+}
+
+/* Conditional status line: cont-booking warning + customs cutoff share one
+   severity-voiced line (urgent > warning > soon). */
+.mpcard__status {
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpcard__status--urgent {
+  color: var(--danger-text);
+  font-weight: var(--fw-semibold);
+}
+
+.mpcard__status--warning {
+  color: var(--warning-text);
+  font-weight: var(--fw-semibold);
+}
+
+.mpcard__status--soon {
+  color: var(--warning-deep);
+  font-weight: 500;
+}
+
+/* NM/OPS note lines (no operational note present) stay one muted line. */
+.mpcard__line {
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpcard__line--muted {
+  color: var(--fg-2);
 }
 
 /* Ghi chú: one ellipsized line; the full text reopens in the shared modal
@@ -797,21 +909,17 @@
   outline-offset: 1px;
 }
 
-/* Foot: the ONE primary action — Phân bổ nhà xe — full-width pill on the
-   touch floor, only when the lot accepts a carrier save (the locked row
-   keeps its chips as a muted body line instead of a dead button). */
-.mpcard__foot {
-  display: flex;
-  gap: 8px;
-}
-
+/* SIL-507 — the ONE primary action compacts into the facts row: 32px high,
+   hugging its label (never full-width), and hidden entirely once the lot
+   carries a roster (the Xe chips line reads instead). The `#root` bump beats
+   the coarse-pointer 40px band for the same reason as the ⋯ trigger. */
 .mpcard__allocate {
-  flex: 1 1 auto;
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
-  padding: 0 12px;
+  height: 32px;
+  padding: 0 10px;
   color: var(--surface);
   background: var(--accent);
   border: 1px solid transparent;
@@ -822,6 +930,11 @@
   white-space: nowrap;
   cursor: pointer;
   transition: background var(--t-fast);
+}
+
+#root .mpcard__allocate {
+  min-width: 0;
+  min-height: 32px;
 }
 
 .mpcard__allocate:hover {

@@ -1,4 +1,4 @@
-import { Fragment, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Container as ContainerIcon, MoreHorizontal, PencilLine } from 'lucide-react';
 import type { RefObject } from 'react';
@@ -21,13 +21,18 @@ import type { ActiveNoteDetail } from './MasterPlanNoteModal';
 
 /** Owner redesign 23/10 — the master-plan phone card list (<640px), following
  *  the DispatchPlanCardList pattern (commit 8a28c094): one card per lô.
- *  Head = [tick gộp hàng khi mode bật] + KH + Bill/Booking + loại + the single
- *  ⋯ menu; body = giờ+ngày · Nâng · Trả (nơi trả 1 dòng) · container/hàng hóa
- *  · tuyến · xe · cảnh báo · ghi chú (1 dòng, bấm xem toàn bộ); foot = nút
- *  chính "Phân bổ nhà xe" khi lô còn nhận phân bổ. FB-014 giữ nguyên: bấm card
- *  (ngoài control) mở Kế hoạch Chi tiết. The grid owns every piece of state —
- *  the card list only renders, so the table and the card can never fork in
- *  behaviour (notes editor, merge selection, allocation dialog wiring). */
+ *  SIL-507 (26/10, owner P0) re-densifies the card to a 3-dòng divider row:
+ *  dòng 1 head = [tick gộp hàng khi mode bật] + KH + Bill/Booking (một dòng)
+ *  + loại + the single ⋯ menu; dòng 2 meta = giờ+ngày · Nâng → Trả · tuyến ·
+ *  hãng tàu (ONE ellipsized line, title carries the full value); dòng 3 facts
+ *  = hàng hóa + Xe + the compact 32px "Phân bổ nhà xe" button (rides the
+ *  facts row, NOT full-width, and HIDDEN once the lot carries a carrier
+ *  roster — the chips line reads instead). Conditional status (cont chưa chốt
+ *  + hải quan cutoff, one severity line) and the first note line may extend
+ *  the row. FB-014 giữ nguyên: bấm card (ngoài control) mở Kế hoạch Chi tiết.
+ *  The grid owns every piece of state — the card list only renders, so the
+ *  table and the card can never fork in behaviour (notes editor, merge
+ *  selection, allocation dialog wiring). */
 
 /** The note-editor bundle the grid's `useMasterPlanNoteEditor` returns —
  *  forwarded verbatim so the card edits notes through the exact same flow. */
@@ -231,6 +236,47 @@ export function MasterPlanCardList({
         const notesLocked = isNotesLocked(item);
         const notesEditable = notes.editingNotesId !== item.id && !notesLocked;
         const openableDetail = onOpenDispatchDetail != null;
+        // ── SIL-507 3-dòng composers ──
+        // Dòng 2 (meta): the canonical schedule blocks join the Nâng/Trả run
+        // and the tuyến/hãng line into ONE ellipsized run — the title carries
+        // the full value (same law as every mpcard line).
+        const scheduleLine = scheduleBlocks(item, scheduleDate)
+          .map((block) => [block.head, block.sub].filter(Boolean).join(' · '))
+          .filter(Boolean)
+          .join(' · ');
+        const routeLine = [item.routeName, item.shippingLineName].filter(Boolean).join(' · ');
+        const metaLine = [
+          scheduleLine,
+          `Nâng ${liftRun || '—'} → Trả ${dropRun || '—'}`,
+          routeLine,
+        ].filter(Boolean).join(' · ');
+        // Dòng 3 (facts): the fleet segment prints the roster, or the named
+        // missing fact. The allocate button HIDES once a roster exists ("ẩn
+        // khi đã phân") — the chips line is the allocation's own display.
+        const fleetLine = allocationChips ? `Xe: ${allocationChips}` : 'Chưa phân bổ';
+        const showAllocate = !allocationLocked && !allocationChips;
+        // Conditional status: the cont-booking warning and the customs cutoff
+        // share ONE line (strongest severity wins the voice) so a busy lot
+        // never grows past the divider-row budget.
+        const warningText = (item.containersMissingAppointment ?? 0) > 0 && (item.containerTotal ?? 0) > 0
+          ? `Còn ${item.containersMissingAppointment}/${item.containerTotal} cont chưa chốt ngày đóng trả`
+          : null;
+        const cutoffText = item.customsCutoffAt
+          ? `Hải quan: ${formatDateTimeShort(item.customsCutoffAt)}`
+          : null;
+        const statusLine = [warningText, cutoffText].filter(Boolean).join(' · ');
+        const statusSeverity = urgency === 'urgent' ? 'urgent' : warningText ? 'warning' : 'soon';
+        // Notes collapse to ONE first-present line: the dispatcher's own
+        // operational note (tappable → shared modal) leads; NM/OPS context
+        // prints only when no operational note exists. The desktop table and
+        // the container drawer still carry every note source in full.
+        const notePreview = item.operationalNotes
+          ? { text: `Ghi chú: ${item.operationalNotes.replace(/\n/g, ' ')}`, tappable: true as const }
+          : item.factoryNotes
+            ? { text: `NM: ${item.factoryNotes}`, tappable: false as const }
+            : item.opsRecoveryNotes?.[0]
+              ? { text: `OPS: ${item.opsRecoveryNotes[0]}`, tappable: false as const }
+              : null;
         return (
           <li
             key={item.id}
@@ -289,48 +335,41 @@ export function MasterPlanCardList({
               />
             </div>
             <div className="mpcard__body">
-              {scheduleBlocks(item, scheduleDate).map((block, blockIdx) => (
-                <Fragment key={`${item.id}-${blockIdx}`}>
-                  {block.head && (
-                    <div className="mpcard__line mpcard__line--strong" title={block.head}>{block.head}</div>
-                  )}
-                  {block.sub && (
-                    <div className="mpcard__line mpcard__line--muted" title={block.sub}>{block.sub}</div>
-                  )}
-                </Fragment>
-              ))}
-              {(item.containersMissingAppointment ?? 0) > 0 && (item.containerTotal ?? 0) > 0 && (
-                <div className="mpcard__line mpcard__line--warning" role="status">
-                  {`Còn ${item.containersMissingAppointment}/${item.containerTotal} cont chưa chốt ngày đóng trả`}
-                </div>
-              )}
-              {item.customsCutoffAt && (
-                <div
-                  className={`mpcard__line${urgency === 'soon' ? ' mpcard__line--soon' : ' mpcard__line--urgent'}`}
-                  title={`Hạn hoàn tất hải quan: ${formatDateTimeShort(item.customsCutoffAt)}`}
-                >
-                  {`Hải quan: ${formatDateTimeShort(item.customsCutoffAt)}`}
-                </div>
-              )}
-              {cargoDemand && (
-                <div className="mpcard__line mpcard__line--strong ops-container-line" title={cargoDemand}>{cargoDemand}</div>
-              )}
-              {cargoMeasures && (
-                <div className="mpcard__line mpcard__line--muted" title={cargoMeasures}>{cargoMeasures}</div>
-              )}
-              <div className="mpcard__line" title={liftRun}>{`Nâng · ${liftRun}`}</div>
-              <div className="mpcard__line" title={dropRun}>{`Trả · ${dropRun}`}</div>
-              {(item.routeName || item.shippingLineName) && (
-                <div
-                  className="mpcard__line mpcard__line--muted"
-                  title={[item.routeName, item.shippingLineName].filter(Boolean).join(' · ')}
-                >
-                  {[item.routeName, item.shippingLineName].filter(Boolean).join(' · ')}
-                </div>
-              )}
-              <div className="mpcard__line mpcard__line--muted" title={allocationChips || undefined}>
-                {allocationChips ? `Xe: ${allocationChips}` : 'Chưa phân bổ'}
+              {/* Dòng 2 — meta: giờ+ngày · Nâng → Trả · tuyến · hãng tàu, one
+                  ellipsized line (title = full value). */}
+              <div className="mpcard__meta" title={metaLine}>{metaLine}</div>
+              {/* Dòng 3 — facts: hàng hóa (identity weight, DIS-08) · đo lường
+                  · Xe + the compact allocate button. The button never spans
+                  the row and hides once the roster exists (SIL-507). */}
+              <div className="mpcard__facts">
+                {cargoDemand && (
+                  <span className="mpcard__cargo ops-container-line" title={cargoDemand}>{cargoDemand}</span>
+                )}
+                {cargoMeasures && (
+                  <span className="mpcard__measures" title={cargoMeasures}>{cargoMeasures}</span>
+                )}
+                <span className="mpcard__fleet" title={fleetLine}>{fleetLine}</span>
+                {showAllocate && (
+                  <button
+                    type="button"
+                    className="mpcard__allocate"
+                    aria-label={`Phân bổ nhà xe · ${reference}`}
+                    onClick={(event) => onAllocate(item, event.currentTarget)}
+                  >
+                    Phân bổ nhà xe
+                  </button>
+                )}
               </div>
+              {/* Conditional status: warning + cutoff on ONE severity line. */}
+              {statusLine && (
+                <div
+                  className={`mpcard__status mpcard__status--${statusSeverity}`}
+                  role="status"
+                  title={statusLine}
+                >
+                  {statusLine}
+                </div>
+              )}
               {notes.editingNotesId === item.id ? (
                 <div className="master-plan-grid__notes-editor">
                   <textarea
@@ -381,53 +420,30 @@ export function MasterPlanCardList({
                   </div>
                 </div>
               ) : (
-                <>
-                  {item.operationalNotes && (
-                    <button
-                      type="button"
-                      className="mpcard__note"
-                      title="Bấm để xem toàn bộ ghi chú"
-                      onClick={() => onOpenNoteModal({
-                        title: 'Ghi chú điều hành',
-                        note: item.operationalNotes!,
-                        customerName: item.customerName,
-                        blNumber: item.blNumber,
-                        shipmentCode: item.shipmentCode,
-                        isOperational: true,
-                        shipment: item,
-                      })}
-                    >
-                      {`Ghi chú: ${item.operationalNotes.replace(/\n/g, ' ')}`}
-                    </button>
-                  )}
-                  {item.factoryNotes && (
-                    <div className="mpcard__line mpcard__line--muted" title={item.factoryNotes}>
-                      {`NM: ${item.factoryNotes}`}
-                    </div>
-                  )}
-                  {item.opsRecoveryNotes?.map(note => (
-                    <div key={note} className="mpcard__line mpcard__line--muted" title={note}>
-                      {`OPS: ${note}`}
-                    </div>
-                  ))}
-                </>
+                notePreview && (notePreview.tappable ? (
+                  <button
+                    type="button"
+                    className="mpcard__note"
+                    title="Bấm để xem toàn bộ ghi chú"
+                    onClick={() => onOpenNoteModal({
+                      title: 'Ghi chú điều hành',
+                      note: item.operationalNotes!,
+                      customerName: item.customerName,
+                      blNumber: item.blNumber,
+                      shipmentCode: item.shipmentCode,
+                      isOperational: true,
+                      shipment: item,
+                    })}
+                  >
+                    {notePreview.text}
+                  </button>
+                ) : (
+                  <div className="mpcard__line mpcard__line--muted" title={notePreview.text}>
+                    {notePreview.text}
+                  </div>
+                ))
               )}
             </div>
-            {/* Foot: the ONE primary action — Phân bổ nhà xe — only while the
-                lot accepts a carrier save; a locked lot keeps its roster line
-                above instead of a dead button. */}
-            {!allocationLocked && (
-              <div className="mpcard__foot">
-                <button
-                  type="button"
-                  className="mpcard__allocate"
-                  aria-label={`Phân bổ nhà xe · ${reference}`}
-                  onClick={(event) => onAllocate(item, event.currentTarget)}
-                >
-                  Phân bổ nhà xe
-                </button>
-              </div>
-            )}
           </li>
         );
       })}
