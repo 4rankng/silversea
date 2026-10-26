@@ -79,8 +79,8 @@ describe('MasterPlanGrid content-sized row contract (owner redesign 23/10; super
     expect(tsx).toContain('useCardLayoutMode');
     expect(tsx).toContain('MasterPlanCardList');
     expect(tsx).toContain("master-plan-grid__wrapper--cards");
-    // The card list itself is a stacked record — its own height, one-line
-    // ellipsized facts with titles (pins live with the mpcard suite).
+    // The card list itself is a stacked record — its own height, value
+    // lines wrap full (SIL-515; pins live with the mpcard suite).
     expect(css).toMatch(/\.mpcard-list\s*\{/);
   });
 });

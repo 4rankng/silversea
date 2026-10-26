@@ -15,24 +15,27 @@ import {
   formatCarrierAllocationChips,
   hasContainerDemand,
   scheduleBlocks,
+  scheduleFactoryNames,
 } from './MasterPlanCellValues';
 import { isLclLotRow } from './lclLot';
 import type { ActiveNoteDetail } from './MasterPlanNoteModal';
 
 /** Owner redesign 23/10 — the master-plan phone card list (<640px), following
  *  the DispatchPlanCardList pattern (commit 8a28c094): one card per lô.
- *  SIL-507 (26/10, owner P0) re-densifies the card to a 3-dòng divider row:
+ *  SIL-507 retry (26/10, owner P0) — the card is a 3-dòng divider row under
+ *  the SIL-515 wrap doctrine (the first 26/10 pass still truncated; the
+ *  owner's no-truncate law landed hours later and supersedes it here too):
  *  dòng 1 head = [tick gộp hàng khi mode bật] + KH + Bill/Booking (một dòng)
- *  + loại + the single ⋯ menu; dòng 2 meta = giờ+ngày · Nâng → Trả · tuyến ·
- *  hãng tàu (ONE ellipsized line, title carries the full value); dòng 3 facts
- *  = hàng hóa + Xe + the compact 32px "Phân bổ nhà xe" button (rides the
- *  facts row, NOT full-width, and HIDDEN once the lot carries a carrier
- *  roster — the chips line reads instead). Conditional status (cont chưa chốt
- *  + hải quan cutoff, one severity line) and the first note line may extend
- *  the row. FB-014 giữ nguyên: bấm card (ngoài control) mở Kế hoạch Chi tiết.
- *  The grid owns every piece of state — the card list only renders, so the
- *  table and the card can never fork in behaviour (notes editor, merge
- *  selection, allocation dialog wiring). */
+ *  + loại badge + GIỜ (schedule heads) + the single ⋯ menu; dòng 2 route =
+ *  Nâng → Trả · nhà máy ngày đó · tuyến · hãng tàu, WRAPPING FULL; dòng 3
+ *  meta = hàng hóa · Xe + the compact 32px "Phân bổ nhà xe" button (rides
+ *  the meta row, NOT full-width, and HIDDEN once the lot carries a carrier
+ *  roster — the chips line reads instead). Conditional status (cont chưa
+ *  chốt + hải quan cutoff, one severity line) and the first note line may
+ *  extend the row. FB-014 giữ nguyên: bấm card (ngoài control) mở Kế hoạch
+ *  Chi tiết. The grid owns every piece of state — the card list only
+ *  renders, so the table and the card can never fork in behaviour (notes
+ *  editor, merge selection, allocation dialog wiring). */
 
 /** The note-editor bundle the grid's `useMasterPlanNoteEditor` returns —
  *  forwarded verbatim so the card edits notes through the exact same flow. */
@@ -236,19 +239,23 @@ export function MasterPlanCardList({
         const notesLocked = isNotesLocked(item);
         const notesEditable = notes.editingNotesId !== item.id && !notesLocked;
         const openableDetail = onOpenDispatchDetail != null;
-        // ── SIL-507 3-dòng composers ──
-        // Dòng 2 (meta): the canonical schedule blocks join the Nâng/Trả run
-        // and the tuyến/hãng line into ONE ellipsized run — the title carries
-        // the full value (same law as every mpcard line).
-        const scheduleLine = scheduleBlocks(item, scheduleDate)
-          .map((block) => [block.head, block.sub].filter(Boolean).join(' · '))
+        // ── SIL-507 retry (26/10) 3-dòng composers ──
+        // Dòng 1 (giờ): the schedule heads — appointment instants or the
+        // canonical fallback date/instant line — ride the identity line so a
+        // busy lot never spends a whole row on its clock.
+        const scheduleTime = scheduleBlocks(item, scheduleDate)
+          .map((block) => block.head)
           .filter(Boolean)
           .join(' · ');
-        const routeLine = [item.routeName, item.shippingLineName].filter(Boolean).join(' · ');
-        const metaLine = [
-          scheduleLine,
+        // Dòng 2 (route): the Nâng/Trả run, the day's appointment factories,
+        // tuyến and hãng tàu — WRAPS FULL (SIL-515: the card truncates
+        // nothing; every value line renders entirely on screen, so no title
+        // stand-in exists on the card's value lines).
+        const routeLine = [
           `Nâng ${liftRun || '—'} → Trả ${dropRun || '—'}`,
-          routeLine,
+          ...scheduleFactoryNames(item, scheduleDate),
+          item.routeName,
+          item.shippingLineName,
         ].filter(Boolean).join(' · ');
         // Dòng 3 (facts): the fleet segment prints the roster, or the named
         // missing fact. The allocate button HIDES once a roster exists ("ẩn
@@ -314,10 +321,10 @@ export function MasterPlanCardList({
                 />
               ))}
               <div className="mpcard__identity">
-                <span className="mpcard__customer" title={item.customerName ?? undefined}>
+                <span className="mpcard__customer">
                   {item.customerName || '—'}
                 </span>
-                <span className="mpcard__bill" title={reference}>
+                <span className="mpcard__bill">
                   {reference}
                   {item.isAdHoc && <span className="adhoc-label mpcard__adhoc" data-adhoc-label>Chạy ngoài</span>}
                 </span>
@@ -325,6 +332,9 @@ export function MasterPlanCardList({
               <span className="mpcard__type">
                 {`${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · ${isLclLotRow(item) ? 'Lẻ' : 'Cont'}`}
               </span>
+              {scheduleTime && (
+                <span className="mpcard__time">{scheduleTime}</span>
+              )}
               <CardActionsMenu
                 identity={reference}
                 hasContainers={hasContainers}
@@ -335,20 +345,20 @@ export function MasterPlanCardList({
               />
             </div>
             <div className="mpcard__body">
-              {/* Dòng 2 — meta: giờ+ngày · Nâng → Trả · tuyến · hãng tàu, one
-                  ellipsized line (title = full value). */}
-              <div className="mpcard__meta" title={metaLine}>{metaLine}</div>
-              {/* Dòng 3 — facts: hàng hóa (identity weight, DIS-08) · đo lường
+              {/* Dòng 2 — route: Nâng → Trả · nhà máy ngày đó · tuyến · hãng
+                  tàu, wrapping full (SIL-515 — the card cuts nothing). */}
+              <div className="mpcard__route">{routeLine}</div>
+              {/* Dòng 3 — meta: hàng hóa (identity weight, DIS-08) · đo lường
                   · Xe + the compact allocate button. The button never spans
                   the row and hides once the roster exists (SIL-507). */}
               <div className="mpcard__facts">
                 {cargoDemand && (
-                  <span className="mpcard__cargo ops-container-line" title={cargoDemand}>{cargoDemand}</span>
+                  <span className="mpcard__cargo ops-container-line">{cargoDemand}</span>
                 )}
                 {cargoMeasures && (
-                  <span className="mpcard__measures" title={cargoMeasures}>{cargoMeasures}</span>
+                  <span className="mpcard__measures">{cargoMeasures}</span>
                 )}
-                <span className="mpcard__fleet" title={fleetLine}>{fleetLine}</span>
+                <span className="mpcard__fleet">{fleetLine}</span>
                 {showAllocate && (
                   <button
                     type="button"
@@ -365,7 +375,6 @@ export function MasterPlanCardList({
                 <div
                   className={`mpcard__status mpcard__status--${statusSeverity}`}
                   role="status"
-                  title={statusLine}
                 >
                   {statusLine}
                 </div>
@@ -438,7 +447,7 @@ export function MasterPlanCardList({
                     {notePreview.text}
                   </button>
                 ) : (
-                  <div className="mpcard__line mpcard__line--muted" title={notePreview.text}>
+                  <div className="mpcard__line mpcard__line--muted">
                     {notePreview.text}
                   </div>
                 ))

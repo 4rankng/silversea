@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-507-dense-retry/frontend
+
+
+ Test Files  28 passed (28)
+      Tests  265 passed (265)
+   Start at  23:00:23
+   Duration  5.60s (transform 4.01s, setup 3.08s, import 17.86s, tests 10.79s, environment 12.89s)
+

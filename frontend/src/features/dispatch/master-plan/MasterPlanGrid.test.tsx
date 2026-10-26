@@ -806,22 +806,33 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('color: var(--fg-3)');
   });
 
-  it('serves the phone card list as the SIL-507 3-dòng divider list', () => {
+  it('serves the phone card list as the SIL-507 3-dòng divider list (wrap-full, SIL-515)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
 
     // One divider row per lô (SIL-507: list-divider thay card-box — the per-row
-    // border/radius box is gone), head = identity + loại + ⋯, meta = ONE
-    // ellipsized run, facts = hàng hóa + Xe + the compact allocate button.
+    // border/radius box is gone): head = identity + loại + giờ + ⋯, dòng 2
+    // route, dòng 3 meta with the compact allocate button.
     expect(css).toMatch(/\.mpcard-list\s*\{[^}]*display:\s*grid;/);
     expect(css).toMatch(/\.mpcard \+ \.mpcard\s*\{[^}]*border-top:\s*1px solid var\(--line\);/);
-    expect(css).toMatch(/\.mpcard\s*\{[^}]*padding:\s*5px 0;/);
+    expect(css).toMatch(/\.mpcard\s*\{[^}]*padding:\s*3px 0;/);
     expect(css).not.toMatch(/\.mpcard\s*\{[^}]*border-radius/);
-    expect(css).toMatch(/\.mpcard__meta\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
-    expect(css).toMatch(/\.mpcard__line\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
-    expect(css).toMatch(/\.mpcard__note\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
-    expect(css).not.toMatch(/\.mpcard[^{]*\{[^}]*overflow-wrap:\s*anywhere/);
-    // The allocate foot is dead: the button lives in the facts row.
-    expect(css).not.toContain('.mpcard__foot');
+    // SIL-507 retry under the SIL-515 doctrine: every card value line wraps
+    // its full text — the first 26/10 pass's one-ellipsis-line law is revoked
+    // on this surface too.
+    const cardCss = css.slice(css.indexOf('.mpcard-list'));
+    expect(cardCss, 'the mpcard section must exist').not.toBe('');
+    expect(cardCss).toMatch(/\.mpcard__route\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(cardCss).toMatch(/\.mpcard__customer\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+    expect(cardCss).toMatch(/\.mpcard__time\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+    expect(cardCss).toMatch(/\.mpcard__cargo,\s*\n\.mpcard__measures,\s*\n\.mpcard__fleet\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+    expect(cardCss).not.toMatch(/text-overflow/);
+    expect(cardCss).not.toMatch(/overflow:\s*hidden/);
+    // The 32px allocate button owns the scope's ONLY nowrap (its own label).
+    expect(cardCss.match(/white-space:\s*nowrap/g)?.length).toBe(1);
+    expect(cardCss).toMatch(/\.mpcard__allocate\s*\{[^}]*white-space:\s*nowrap;/);
+    expect(css).toMatch(/#root \.mpcard__allocate \{[\s\S]*?min-height:\s*32px;/);
+    // The allocate foot is dead: the button lives in the meta row.
+    expect(cardCss).not.toContain('.mpcard__foot');
     expect(css).not.toContain('@container (max-width: 900px)');
   });
 

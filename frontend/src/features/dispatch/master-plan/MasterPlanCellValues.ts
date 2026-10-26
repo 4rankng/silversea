@@ -50,6 +50,23 @@ export function scheduleBlocks(item: ShipmentListItem, scheduleDate?: string | n
   });
 }
 
+/** SIL-507 retry (26/10) — the day's distinct appointment factory names (the
+ *  lead segment of every schedule block's sub line, under the SAME
+ *  single-day filter `scheduleBlocks` applies). The phone card's route line
+ *  carries them so an appointment's factory never vanishes off the 3-dòng
+ *  card; the desktop table keeps the full head+sub stack. */
+export function scheduleFactoryNames(item: ShipmentListItem, scheduleDate?: string | null): string[] {
+  const groups = scheduleDate
+    ? (item.appointmentGroups ?? []).filter((group) => group.localDate === scheduleDate)
+    : item.appointmentGroups ?? [];
+  const names: string[] = [];
+  for (const group of groups) {
+    const factory = group.factoryName?.trim();
+    if (factory && !names.includes(factory)) names.push(factory);
+  }
+  return names;
+}
+
 /** Cutoff proximity: orange within 3 days, red when overdue/today. */
 export function cutoffUrgency(iso: string | null | undefined): 'none' | 'soon' | 'urgent' {
   if (!iso) return 'none';

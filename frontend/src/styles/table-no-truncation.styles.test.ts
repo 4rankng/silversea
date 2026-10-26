@@ -212,6 +212,36 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expect(noteCss).not.toMatch(CLAMP);
   });
 
+  it('master-plan phone card wraps full — the mpcard scope carries no clip (SIL-507 retry under SIL-515)', () => {
+    // The card's first 26/10 pass ran the truncate pattern; the owner's
+    // SIL-515 no-truncate law (landed the same day) supersedes it on the
+    // phone card too. Every value line wraps; the only nowrap left in the
+    // scope is the allocate button's own label.
+    const css = read('src/features/dispatch/master-plan/MasterPlanGrid.css');
+    const cardCss = css.slice(css.indexOf('.mpcard-list'));
+    expect(cardCss, 'the mpcard section must exist').not.toBe('');
+    expect(cardCss).not.toMatch(CLIP);
+    expect(cardCss).not.toMatch(CLIP_HIDDEN);
+    expect(cardCss).not.toMatch(CLAMP);
+    for (const wrapLine of [
+      /\.mpcard__customer\s*\{/,
+      /\.mpcard__bill\s*\{/,
+      /\.mpcard__time\s*\{/,
+      /\.mpcard__route\s*\{/,
+      /\.mpcard__cargo,\s*\n\.mpcard__measures,\s*\n\.mpcard__fleet\s*\{/,
+      /\.mpcard__status\s*\{/,
+      /\.mpcard__line\s*\{/,
+      /\.mpcard__note\s*\{/,
+    ]) {
+      const found = rules(cardCss, wrapLine);
+      expect(found.length, `wrap rule for ${wrapLine}`).toBeGreaterThan(0);
+      for (const rule of found) {
+        expect(rule).toMatch(/white-space:\s*normal/);
+        expect(rule).toMatch(/overflow-wrap:\s*anywhere/);
+      }
+    }
+  });
+
   it('config customer full names wrap in the compact-card render', () => {
     const css = read('src/pages/config/customer-config-density.css');
     expectNoClip(rules(css, /\.cfg-customer-full-name/));
