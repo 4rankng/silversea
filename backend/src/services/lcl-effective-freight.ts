@@ -17,12 +17,19 @@
 //
 // FB-145 additions — a group artifact is NOT a live price:
 //   1. An UNGROUPED lot whose latest snapshot note is a rev-group citation
-//      (merge member-zero tail, or the "chờ định giá lại" citation the
-//      unmerge writes for a lot that never had a price) reads UNSET. The lot
-//      went back to "từng xe riêng" — its price comes back only through the
-//      per-lot outputs (§4.1) or a re-materialized pre-merge snapshot (whose
-//      note "Tách nhóm — trở về cước thu trước ghép" is NOT a citation of a
-//      dead group state and keeps its amount).
+//      citing NO money (total 0 — the merge member-zero tail, or the "chờ
+//      định giá lại" citation the unmerge writes for a lot that never had a
+//      price) reads UNSET. The lot went back to "từng xe riêng" — its price
+//      comes back only through the per-lot outputs (§4.1) or a re-materialized
+//      pre-merge snapshot (whose note "Tách nhóm — trở về cước thu trước ghép"
+//      is NOT a citation of a dead group state and keeps its amount).
+//      SIL-491: a citation carrying a NON-zero amount is live money, never an
+//      artifact — the FB-095 crown inheritance ("Đón cước chính khi tách nhóm
+//      (từ Bill X) — 100% cước thu": the group's whole cước thu follows the
+//      promoted lot, the group never falls to 0₫) and the lot's own re-cited
+//      price (REV_LOT_OWN_CUOC_REASON) must print, not mask. Writer invariant
+//      (D02): lost money is re-cited as a 0₫ WITH its reason, so a non-zero
+//      citation is by construction a real transfer/own price.
 //   2. An override whose reason is the awaiting-reprice citation reads UNSET
 //      for the same reason (single-lot unmerge "1 lô về riêng" with a live
 //      trip: revenue stays 0₫ citing the wait — QA must read "Chưa xác
@@ -57,16 +64,22 @@ export interface EffectiveLclFreight {
 }
 
 export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLclFreight {
+  // A group citation is a dead-group artifact only when it cites NO money
+  // (D02 zeros). A non-zero citation is live money — the FB-095 crown
+  // inheritance or the lot's own re-cited price (SIL-491).
+  const deadGroupCitation = facts.snapshotChannel != null
+    && facts.snapshotChannel.total === 0
+    && isRevGroupNote(facts.snapshotChannel.formulaNote);
   // FCL lots never followed the group law — byte-for-byte snapshot channel.
   if (facts.cargoMode !== 'LCL') {
     return { value: facts.snapshotChannel?.total ?? null, reason: null };
   }
   const qualified = facts.revGroupId != null || (facts.override?.stamped ?? false);
   if (!qualified) {
-    // FB-145 rule 1: the latest snapshot being a group citation means the
-    // lot's own price is GONE with the group — "Chưa xác định", never the
-    // cited 0₫ (or the merge's member-zero tail).
-    if (facts.snapshotChannel != null && isRevGroupNote(facts.snapshotChannel.formulaNote)) {
+    // FB-145 rule 1: the latest snapshot being a group citation citing no
+    // money means the lot's own price is GONE with the group — "Chưa xác
+    // định", never the cited 0₫ (or the merge's member-zero tail).
+    if (deadGroupCitation) {
       return { value: null, reason: null };
     }
     return { value: facts.snapshotChannel?.total ?? null, reason: null };
@@ -82,8 +95,10 @@ export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLcl
   // snapshot channel (the merge materialized each lot's own lane price).
   // Still null when neither channel holds a number ("Chưa xác định" — never
   // a fabricated 0). The fallback snapshot, too, must not be a group
-  // citation (FB-145 rule 1 applies to both paths).
-  const fallback = facts.snapshotChannel != null && isRevGroupNote(facts.snapshotChannel.formulaNote)
+  // citation citing no money (FB-145 rule 1 applies to both paths; SIL-491
+  // keeps a non-zero crown snapshot printable for the promoted Lô 1 of a
+  // still-live group).
+  const fallback = deadGroupCitation
     ? null
     : facts.snapshotChannel?.total ?? null;
   return {

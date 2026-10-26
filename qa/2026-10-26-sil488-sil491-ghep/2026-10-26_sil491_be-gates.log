@@ -1,0 +1,19 @@
+== scoped tsx --test (r39 + money-wiring + split-law) ==
+✔ SIL491-R1: ungrouped promoted survivor keeps the transferred 100% cước (crown citation, non-zero) (0.121083ms)
+✔ SIL491 edge: crown citation with NOTHING transferred (cited 0₫) still reads UNSET (0.076458ms)
+✔ SIL491-R2: promoted Lô 1 of a still-live group (≥3 lots) reads the crown money via the fallback (0.069458ms)
+✔ SIL491 sibling: the lot's own re-cited price (own-cuoc marker, non-zero) prints (0.0495ms)
+ℹ tests 45
+ℹ pass 45
+ℹ fail 0
+
+== tsc --noEmit ==
+EXIT=0 (0 errors)
+
+== full pnpm test (unit + integration) ==
+ℹ tests 495
+ℹ pass 495
+ℹ fail 0
+ℹ tests 338
+ℹ pass 338
+ℹ fail 0
