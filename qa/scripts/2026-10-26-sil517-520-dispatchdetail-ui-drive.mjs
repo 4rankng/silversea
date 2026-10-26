@@ -161,11 +161,35 @@ if (MODE === 'T3') {
 }
 
 if (MODE === 'T4') {
-  // Open the editor dialog from the first row's menu (Sửa điều phối).
-  await page.click('.detailed-plan-grid tbody tr .dispatch-row-menu__trigger');
-  await sleep(400);
-  const menuItem = await page.evaluateHandle(() => [...document.querySelectorAll('.dispatch-row-menu__list button')].find((b) => /Sửa điều phối|Phân xe lại/.test(b.textContent ?? '')));
-  await menuItem.asElement().click();
+  // Open the editor dialog from a row menu (Sửa điều phối). Retry across a
+  // few rows: a transient miss must not fail the run.
+  const triggers = await page.$$('.detailed-plan-grid tbody tr .dispatch-row-menu__trigger');
+  let opened = false;
+  for (let i = 0; i < Math.min(triggers.length, 8) && !opened; i++) {
+    // Programmatic activation: the synthetic mouse click hits the kebab's
+    // inner SVG and React's toggler does not fire in the headless pass.
+    await triggers[i].evaluate((el) => el.click());
+    try {
+      await page.waitForSelector('.dispatch-row-menu__list', { timeout: 3000 });
+      // A live issued row routes to the REASSIGN dialog — the ticket repro is
+      // the plan editor on a plated-not-issued row ("Sửa điều phối").
+      const item = await page.evaluateHandle(() => [...document.querySelectorAll('.dispatch-row-menu__list button')].find((b) => b.textContent?.trim() === 'Sửa điều phối'));
+      const el = item.asElement();
+      if (el) { await el.evaluate((elm) => elm.click()); opened = true; }
+      else await page.keyboard.press('Escape');
+    } catch { await page.keyboard.press('Escape'); }
+    if (opened) {
+      try {
+        await page.waitForSelector('.modal .dispatch-assignment-dialog', { timeout: 8000 });
+      } catch {
+        // Something else opened (or nothing) — reset and try the next row.
+        opened = false;
+        await page.keyboard.press('Escape');
+        await sleep(400);
+      }
+    }
+  }
+  if (!opened) { result.checks.push({ name: 'row menu opened', pass: false, detail: 'no Sửa điều phối item across first rows' }); result.pass = false; writeFileSync(resolve(OUT, 'assertions.json'), JSON.stringify(result, null, 2)); await browser.close(); process.exit(2); }
   await page.waitForSelector('.modal .dispatch-assignment-dialog', { timeout: 15000 });
   await sleep(800);
   const data = await page.evaluate(() => {

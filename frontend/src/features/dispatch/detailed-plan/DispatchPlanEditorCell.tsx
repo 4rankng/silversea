@@ -936,7 +936,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         isOpen={open}
         title={`Chỉnh sửa điều phối · ${identity}`}
         onClose={closeEditor}
-        maxWidth={560}
+        // SIL-520 (owner 26/10): the dialog uses the screen's empty side
+        // space instead of pinning at 560px — at desktop widths the whole
+        // form (the "Phát lệnh cho tài xế" fieldset + the footer included)
+        // fits without vertical scrolling. The shared Modal forwards this
+        // as --modal-max-w; its density band still caps at the viewport.
+        maxWidth="min(1000px, calc(100vw - 96px))"
         footer={(
           <>
             <DisabledActionTip id={`dispatch-plan-cancel-${row.fulfillmentId ?? row.shipmentId}`} reason={cancelDisabledReason}>
