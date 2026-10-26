@@ -1,0 +1,8 @@
+$ cd frontend && npx tsgo --noEmit
+rc=0
+$ cd backend && npx tsc --noEmit
+rc=0
+$ cd frontend && npx eslint src/features/shipments/cus/CusShipmentRow.cus-cards.test.tsx src/features/shipments/create/use-shipment-create-workflow.test.tsx
+rc=0
+$ cd backend && npx eslint src/tests/unit/shipment-overview-declaration-wire.test.ts
+rc=0

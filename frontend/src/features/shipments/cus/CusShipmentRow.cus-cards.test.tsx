@@ -20,6 +20,8 @@ function makeItem(overrides: {
   totalContainers?: number;
   customerName?: string | null;
   routeName?: string | null;
+  declarationNumber?: string | null;
+  declarationNumbers?: string[];
 } = {}): ShipmentCusWorkspaceListItem {
   const {
     cargoMode = 'LCL',
@@ -32,6 +34,8 @@ function makeItem(overrides: {
     totalContainers = 0,
     customerName = 'LONG MINH',
     routeName = 'Vân Trung, Bắc Ninh',
+    declarationNumber = null,
+    declarationNumbers = [],
   } = overrides;
   return {
     id: 7,
@@ -47,8 +51,8 @@ function makeItem(overrides: {
     factoryName: 'Factory A',
     isAdHoc: false,
     billOrBookNumber: 'BL123',
-    declarationNumber: null,
-    declarationNumbers: [],
+    declarationNumber,
+    declarationNumbers,
     shippingLineName: null,
     isCombined: false,
     containerSummary,
@@ -177,5 +181,37 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
     const route = screen.getByText('Vân Trung, Bắc Ninh');
     expect(route.className).toContain('name-cell');
     expect(route.getAttribute('aria-label')).toBe('Vân Trung, Bắc Ninh');
+  });
+});
+
+// SIL-502 (spec comment 1886): a lot created WITH tờ khai must never read
+// "Chưa có tờ khai" on the Tổng quan — the Chứng từ cell joins the union
+// list (container rows + declaration entities, card 20260921_3) and falls
+// back through declarationNumbers → declarationNumber → the quiet label.
+describe('CusShipmentRow — Chứng từ cell (SIL-502 regression)', () => {
+  const documentsCell = (container: HTMLElement): HTMLElement =>
+    container.querySelector('td[data-label="Chứng từ"]')!;
+
+  it('joins every declaration number after a create-with-tờ-khai', () => {
+    const { container } = renderRow(makeItem({
+      declarationNumber: '502UI-1',
+      declarationNumbers: ['502UI-1', '502UI-2'],
+    }));
+    expect(documentsCell(container).textContent).toContain('502UI-1, 502UI-2');
+    expect(documentsCell(container).textContent).not.toContain('Chưa có tờ khai');
+  });
+
+  it('still names the missing field when the lot carries no number', () => {
+    const { container } = renderRow(makeItem({}));
+    expect(documentsCell(container).textContent).toContain('Chưa có tờ khai');
+  });
+
+  it('falls back to declarationNumber when the union list is absent', () => {
+    const item = makeItem({ declarationNumber: '502-TK-LEGACY' });
+    // Simulate an older wire snapshot: the optional union key missing.
+    delete (item as { declarationNumbers?: string[] }).declarationNumbers;
+    const { container } = renderRow(item);
+    expect(documentsCell(container).textContent).toContain('502-TK-LEGACY');
+    expect(documentsCell(container).textContent).not.toContain('Chưa có tờ khai');
   });
 });
