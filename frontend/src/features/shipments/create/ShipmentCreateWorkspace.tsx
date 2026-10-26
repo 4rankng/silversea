@@ -67,7 +67,8 @@ const newContainer = createEmptyContainer;
  * SIL-481 (ruling 25/10): `viewTarget` opens the SAME workspace read-only —
  * the /shipments/:id post-create review. Identical fetch-once prefill, every
  * control disabled through the same channel the saving state uses, and the
- * action pair swaps to Quay lại / Sửa (ShipmentViewActions). One
+ * action cluster swaps to Quay lại / Sửa / Tạo mới lô hàng
+ * (ShipmentViewActions). One
  * form layout everywhere: create → view → edit.
  */
 export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
@@ -745,6 +746,11 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     if (viewTarget) navigate(`/shipments/${viewTarget.shipmentId}/edit`);
   };
   const goShipmentList = () => navigate('/shipments');
+  // SIL-500: the KH's create → review → next-lot loop. Same intake authority
+  // as the edit gate — the /shipments/new route (shipmentCreatorOnly) admits
+  // exactly SHIPMENT_INTAKE_MUTATION_ROLES, so one flag wires both verbs.
+  const goCreateNew = () => navigate('/shipments/new');
+  const viewCreateNew = viewCanEditLot ? goCreateNew : undefined;
 
   return (
     <div className="csc-page">
@@ -759,6 +765,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         onBack={goShipmentList}
         onEdit={viewCanEditLot ? goEdit : undefined}
         editLocked={viewLocked}
+        onCreateNew={viewCreateNew}
       />
       <form
         ref={workspaceFormRef}
@@ -1065,13 +1072,14 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         <div className="csc-form-actions">
           {viewMode ? (
             /* SIL-481: the FB-108 repetition keeps its place at the foot of
-             * the worksheet, but the read-only review repeats the VIEW pair
-             * (Quay lại / Sửa), not a save cluster. */
+             * the worksheet, but the read-only review repeats the VIEW cluster
+             * (Quay lại / Sửa / Tạo mới lô hàng — SIL-500), not a save cluster. */
             <ShipmentViewActions
               variant="footer"
               onBack={goShipmentList}
               onEdit={viewCanEditLot ? goEdit : undefined}
               editLocked={viewLocked}
+              onCreateNew={viewCreateNew}
             />
           ) : (
             <ShipmentCreateActions

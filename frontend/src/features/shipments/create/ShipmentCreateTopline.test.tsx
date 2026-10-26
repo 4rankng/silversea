@@ -164,6 +164,7 @@ describe('SIL-481 view-mode topline (post-create review)', () => {
     onCreate: vi.fn(),
     onBack: vi.fn(),
     onEdit: vi.fn(),
+    onCreateNew: vi.fn(),
   };
 
   it('titles the review, hides the fill-progress chip and swaps the cluster', () => {
@@ -172,6 +173,7 @@ describe('SIL-481 view-mode topline (post-create review)', () => {
     expect(screen.queryByText(/Bắt buộc:/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Sửa' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo mới lô hàng' })).toBeTruthy();
     // No create/save affordance rides the read-only topline.
     expect(screen.queryByRole('button', { name: 'Tạo lô hàng' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Lưu nháp' })).toBeNull();
@@ -179,9 +181,12 @@ describe('SIL-481 view-mode topline (post-create review)', () => {
   });
 
   it('a viewer without the edit gate sees Quay lại alone', () => {
-    render(<ShipmentCreateTopline mode="view" {...viewProps} onEdit={undefined} />);
+    // Gating lives in the caller (the workspace omits both verbs for a
+    // role the intake routes refuse) — the cluster renders what it gets.
+    render(<ShipmentCreateTopline mode="view" {...viewProps} onEdit={undefined} onCreateNew={undefined} />);
     expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tạo mới lô hàng' })).toBeNull();
   });
 
   it('an accounting-locked lot disables Sửa with the reason', () => {
