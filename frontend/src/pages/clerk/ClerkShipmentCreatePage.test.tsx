@@ -399,7 +399,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // Persist first (trimmed), then the lot field.
     expect(mocks.createShippingLine).toHaveBeenCalledWith('Ocean Network Express');
     expect((screen.getByRole('combobox', { name: /^Hãng tàu/ }) as HTMLInputElement).value).toBe('Ocean Network Express');
-    expect(screen.getByText("Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập tay lưu cùng lô hàng này; dùng nút bút chì để thêm vào danh mục chung.")).toBeTruthy();
+    // SIL-499: the 2-sentence usage hint is gone (§8 lecturing-copy ban) —
+    // the pencil affordance keeps its honest aria naming instead.
+    expect(screen.queryByText(/Danh mục hãng tàu lấy từ Nhà cung cấp/)).toBeNull();
     expect(addButton).toHaveFocus();
   });
 
