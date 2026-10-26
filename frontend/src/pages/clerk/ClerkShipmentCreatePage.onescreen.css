@@ -1,0 +1,114 @@
+/* SIL-499 — /shipments/:id "onescreen" wide band (≥1280px).
+ *
+ * SPEC (ticket comment 1840): nén vertical để @1280×800 toàn page KHÔNG
+ * scrollbar dọc — card padding 12-16, table row 48, section band 36, gap 12,
+ * font giữ nguyên, KHÔNG bỏ thông tin. 768–1279 giữ layout dọc hiện tại
+ * (scroll chấp nhận theo SPEC). "Stepper compact 40px" = segmented/date
+ * controls hiện có giữ ≤40px (workspace không có stepper riêng — xác nhận
+ * với orchestrator 26/10).
+ *
+ * Provenance: mockup đính theo ticket KHÔNG tới được agent (poll 3 lần:
+ * list_attachments + view_issue_images rỗng; chat trống — orchestrator xác
+ * nhận board rỗng 10:41). Cấu trúc 2 cột chọn bằng số đo: before = 1199px
+ * nội dung vs 744px khả dụng @1280×800; 1 cột nén density tối đa cũng chỉ
+ * xuống ~868px (bằng chứng trong testplan/cases/
+ * case-QA-2026-10-26-sil481-onescreen.md). Owner đối chiếu mockup ở QA —
+ * lệch thì chỉnh band này, không đụng DOM.
+ *
+ * Structure (§5 law: a form must never force vertical scrolling on a wide
+ * screen — the worksheet spreads horizontally):
+ *   r1  mode (c1)            | identity (c2, spans r1-r2)
+ *   r2  freight preview (c1) |   (freight card renders only when the pricing
+ *                              engine has data — :has() collapses its row)
+ *   r3  schedule (FCL) / route (LCL) — full width
+ *   r4  cargo (container sheet — needs the full 1164px min-width) — full
+ *   r5  footer actions — full
+ * Identity re-flows internally: contact+refs bands stack in column 1,
+ * choices + declaration strip stack in column 2 — same DOM, same order.
+ */
+@media (min-width: 1280px) {
+  .csc-page { padding: 4px 0; }
+  .csc-topline { margin-bottom: 0; }
+  .csc-workspace { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 12px; }
+  /* The form element keeps its DOM semantics (Enter law, requestSubmit);
+     its children join the worksheet grid. */
+  .csc-form { display: contents; }
+
+  #shipment-section-mode { grid-area: 1 / 1 / 2 / 2; align-self: start; }
+  [data-freight-preview] { grid-area: 2 / 1 / 3 / 2; align-self: start; margin: 0; }
+  #shipment-section-identity { grid-area: 1 / 2 / 3 / 3; align-self: start; }
+  #shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }
+  #shipment-section-route { grid-area: 3 / 1 / 4 / 3; }
+  #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }
+  .csc-form-actions { grid-area: 5 / 1 / 6 / 3; padding-top: 8px; }
+
+  /* No freight preview → pull schedule/route up into its row, so no empty
+     track (and no orphan gaps) is left behind. */
+  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-identity { grid-area: 1 / 2 / 2 / 3; }
+  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 2 / 1 / 3 / 3; }
+  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-route { grid-area: 2 / 1 / 3 / 3; }
+  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 3 / 1 / 4 / 3; }
+  .csc-workspace:not(:has([data-freight-preview])) .csc-form-actions { grid-area: 4 / 1 / 5 / 3; }
+
+  /* ── SPEC density: card padding 12-16, gap 12, section band 36 ── */
+  .csc-section { padding: 12px 14px !important; gap: 8px !important; }
+  .csc-section__heading { margin: -12px -14px 0; padding: 7px 14px; }
+  .csc-form-actions { padding-top: 4px; }
+
+  /* Loại hàng: legend rides the segmented control's line (was stacked).
+     Chrome renders a flex fieldset's legend as a stacked special box, so
+     the legend floats beside the control instead — same tree, one line. */
+  .csc-mode { display: block; }
+  .csc-mode legend { float: left; margin: 8px 10px 0 0; }
+  .csc-mode-band__row { gap: 10px; }
+
+  /* Section band 36px: title + description share ONE nowrap line (the
+     generic ≥1101px rule flexes them, but the description still wrapped
+     under the title at these widths — measured 51px). */
+  .csc-section__heading > div { flex-wrap: nowrap; align-items: baseline; }
+  .csc-section__heading p { margin: 0; white-space: nowrap; }
+
+  /* Identity: the choices chips take ONE full-width line (sr-only group
+     label), the contact + refs bands stack in the wide column (fields keep
+     ~210px — values like QA-QAENV01-FCL-IMP never clip), and the declaration
+     strip owns the narrow column across both rows (its chip field scrolls
+     internally, capped at 120px). Same DOM, same order — placement is
+     visual only, tab order is untouched. */
+  #shipment-section-identity { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+  .csc-identity-grid--contact { grid-column: 1; grid-row: 3; }
+  .csc-identity-grid--refs { grid-column: 1; grid-row: 4; }
+  .csc-identity-grid--choices { grid-column: 1 / -1; grid-row: 2; }
+  .csc-identity-grid--choices .csc-identity-grid__flags-label {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  .csc-identity-grid--choices .csc-identity-grid__flags-row { flex-wrap: nowrap; }
+  .csc-identity-grid--choices .csc-flag-checkbox { padding-inline: 9px; }
+  #shipment-section-identity .csc-declaration-strip { grid-column: 2; grid-row: 3 / 5; align-self: start; }
+  #shipment-section-identity .csc-field-warning { grid-column: 1 / -1; }
+
+  /* Schedule: the bulk-entry group and the two notes share ONE row —
+     bulk keeps its ~150px datetime floor, the notes pair keeps two
+     proper columns beside it. */
+  #shipment-section-schedule { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; }
+  #shipment-section-schedule > .csc-section__heading { grid-column: 1 / -1; }
+  #shipment-section-schedule .csc-bulk-appointment { grid-column: 1 / 2; grid-row: 2; }
+  #shipment-section-schedule .csc-bulk-appointment .csc-uui-field { flex: 1 1 150px; min-width: 150px; }
+  #shipment-section-schedule .csc-notes-grid { grid-column: 2 / 3; grid-row: 2; }
+  /* rows=3/4 attributes stop driving the notes height — the read-only box
+     shows ~2 lines and scrolls internally. */
+  .csc-section textarea { height: 48px; min-height: 48px; }
+
+  /* Container sheet: SPEC row 48px, slimmer head, tighter scroll lane.
+     Both affordance rows ride the heading band as a section toolbar —
+     factory quick-add at the right edge, the add-container cluster beside
+     it — their standalone rows cost ~80px of the viewport budget. */
+  #shipment-section-cargo { position: relative; }
+  #shipment-section-cargo .csc-fcl-factory-action { position: absolute; top: 2px; right: 14px; }
+  #shipment-section-cargo .csc-container-actions { position: absolute; top: 2px; right: 168px; width: auto; }
+  #shipment-section-cargo .csc-container-add-control input { min-height: 28px; padding: 4px 8px; }
+  #shipment-section-cargo .csc-add-container { min-height: 28px; padding: 4px 10px; }
+  .csc-container-table thead th { padding: 5px 6px; }
+  .csc-container-table tbody th, .csc-container-table tbody td { padding: 7px 6px; }
+  .csc-container-table-scroll { padding-bottom: 8px; }
+}

@@ -127,8 +127,11 @@ export function ShipmentCreateIdentitySection({
           and restores the 2425726d band map the customer quoted verbatim on
           23+24/10. Older history: 2425726d superseded the A.3 order of card
           181026200200 (Bill/Booking → tờ khai → Nhập/Xuất → Hãng tàu). Gate
-          blNumber XOR bookingRef theo hướng GIỮ NGUYÊN (FB-113). */}
-      <div className="csc-identity-grid">
+          blNumber XOR bookingRef theo hướng GIỮ NGUYÊN (FB-113).
+          SIL-499 onescreen: `--contact` is the wide-band grid hook — the
+          contact/refs bands stack in column 1 while choices + declarations
+          stack in column 2 (ClerkShipmentCreatePage.onescreen.css). */}
+      <div className="csc-identity-grid csc-identity-grid--contact">
         <div
           className="csc-identity-grid__customer csc-field-with-append"
           data-field="shipment-customer"
@@ -189,8 +192,8 @@ export function ShipmentCreateIdentitySection({
           Hãng tàu for FCL. The handler is verbatim — the Bill-vs-Booking
           switch and the prerequisite hint on the booking field keep working;
           a not-yet-directed lot shows the hint directly under the picker
-          that sets it. */}
-      <div className="csc-identity-grid">
+          that sets it. SIL-499: `--refs` = wide-band grid hook (column 1). */}
+      <div className="csc-identity-grid csc-identity-grid--refs">
         <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref">
           <TextField
             id="shipment-booking-ref"
@@ -238,9 +241,13 @@ export function ShipmentCreateIdentitySection({
               // catalog (defaults + SHIPPING_LINE suppliers). The pencil
               // dialog persists its name there (survives reload for every
               // user) AND writes this lot's field; a name typed straight into
-              // the field rides this lot only. The hint must never claim a
-              // catalog add the field itself does not make.
-              hint="Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập tay lưu cùng lô hàng này; dùng nút bút chì để thêm vào danh mục chung."
+              // the field rides this lot only.
+              // SIL-499: the old 2-sentence usage hint under the field is
+              // GONE — §8 of the design law book bans lecturing helper text
+              // (trained operators), and at half-width columns it wrapped to
+              // four lines and alone cost ~50px of the one-viewport budget.
+              // The affordances keep their names: the pencil button's
+              // aria-label/title still says what it adds.
               searchable
             />
             <button
@@ -261,8 +268,9 @@ export function ShipmentCreateIdentitySection({
       {/* BAND 3 — the Tuỳ chọn flags on their own full-width band. All three
           boolean flags share the ONE .csc-flag-checkbox chip treatment
           (density pass, owner 11/10). DOM order keeps the flag contract:
-          Lệnh chạy ngoài → Có cược container → Đóng kết hợp. */}
-      <div className="csc-identity-grid">
+          Lệnh chạy ngoài → Có cược container → Đóng kết hợp. SIL-499:
+          `--choices` = wide-band grid hook (column 2, above the strip). */}
+      <div className="csc-identity-grid csc-identity-grid--choices">
         <div
           className="csc-identity-grid__flags csc-identity-grid__flags--solo"
           data-field-id="shipment-deposit"
@@ -460,9 +468,9 @@ export function ShipmentCreateIdentitySection({
         )}
 
         <div className="csc-declaration-strip__foot">
-          <span className="csc-declaration-strip__hint">
-            Dán nhiều số, ngăn cách bằng dấu phẩy hoặc xuống dòng · Enter để thêm · Backspace xóa số cuối
-          </span>
+          {/* SIL-499: the paste/Enter/Backspace usage sentence is gone (§8
+              lecturing-copy ban — it cost a wrapped line at half-width);
+              the strip keeps only its live status line. */}
           <span className="csc-declaration-strip__notice" role="status" aria-live="polite">{declNotice}</span>
         </div>
       </div>

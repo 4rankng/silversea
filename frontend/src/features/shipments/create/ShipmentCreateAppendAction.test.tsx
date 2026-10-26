@@ -114,7 +114,12 @@ describe('shipment-create append action — DOM placement and naming', () => {
 
   it('states where the dropdown catalog comes from and scopes the catalog add to the pencil', () => {
     renderHarness();
-    expect(screen.getByText("Danh mục hãng tàu lấy từ Nhà cung cấp loại 'Hãng tàu'. Tên nhập tay lưu cùng lô hàng này; dùng nút bút chì để thêm vào danh mục chung.")).toBeTruthy();
+    // SIL-499: the 2-sentence usage hint is GONE (§8 lecturing-copy ban; it
+    // wrapped to four lines at half-width columns). The honest naming lives
+    // on the pencil affordance: lot-field naming, never a catalog promise.
+    expect(screen.queryByText(/Danh mục hãng tàu lấy từ Nhà cung cấp/)).toBeNull();
+    const lineButton = screen.getByRole('button', { name: 'Đặt tên hãng tàu cho lô này' });
+    expect(lineButton.title).toContain('hãng tàu');
   });
 });
 

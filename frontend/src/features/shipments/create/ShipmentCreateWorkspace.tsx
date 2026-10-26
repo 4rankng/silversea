@@ -51,6 +51,7 @@ import { ShipmentCreateIdentitySection } from './ShipmentCreateIdentitySection';
 import { ShipmentCreateLclRouteSection } from './ShipmentCreateLclRouteSection';
 import { ShipmentCreateLclCargoFields } from './ShipmentCreateLclCargoFields';
 import '../../../pages/clerk/ClerkShipmentCreatePage.css';
+import '../../../pages/clerk/ClerkShipmentCreatePage.onescreen.css';
 
 type FormState = ShipmentCreateFormState;
 type ContainerRow = ShipmentContainerDraft;
