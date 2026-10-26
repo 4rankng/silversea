@@ -1660,6 +1660,13 @@ export const createAdvanceSettlementSchema = z.object({
   advanceRequestIds: uniquePositiveIdsMinOne,
 });
 
+// SIL-487 — kế toán lập phiếu hoàn ứng CHO nhân viên (nghiệp vụ chi hộ, PRD
+// PhanHeKeToan mockup ảnh 8/9): same payload law as the Ops self-service form
+// (signed refundAmount, unique id lists) plus the forwarder the phiếu settles.
+export const adminCreateAdvanceSettlementSchema = createAdvanceSettlementSchema.extend({
+  forwarderId: z.number().int().positive(),
+});
+
 export const updateAdvanceSettlementSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),
   refundAmount: signedNumeric,
@@ -2238,6 +2245,7 @@ export type DebtOffsetInput = z.infer<typeof debtOffsetSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CreateAdvanceRequestInput = z.infer<typeof createAdvanceRequestSchema>;
 export type CreateAdvanceSettlementInput = z.infer<typeof createAdvanceSettlementSchema>;
+export type AdminCreateAdvanceSettlementInput = z.infer<typeof adminCreateAdvanceSettlementSchema>;
 export type UpdateAdvanceSettlementInput = z.infer<typeof updateAdvanceSettlementSchema>;
 export type ContainerTypeInput = z.infer<typeof containerTypeSchema>;
 export type VehicleSizeClassInput = z.infer<typeof vehicleSizeClassSchema>;

@@ -288,9 +288,16 @@ export const qk = {
     settlementsAll: ['admin-settlements'] as const,
     settlementDetail: (id: number) =>
       ['admin-settlement-detail', id] as const,
+    // SIL-487 — per-forwarder eligibility for the accountant create form.
+    settlementEligibility: (forwarderId: number) =>
+      ['admin-settlement-eligibility', forwarderId] as const,
     settlementOpsCompletion: (settlementIds: number[]) =>
       ['admin-settlement-ops-completion', settlementIds] as const,
     settlementOpsCompletionAll: ['admin-settlement-ops-completion'] as const,
+    /** Broad prefix — SIL-487: invalidate every per-forwarder eligibility cache
+     *  after a phiếu lands (the just-consumed advances/expenses must not stay
+     *  selectable for the next dialog open). */
+    settlementEligibilityAll: ['admin-settlement-eligibility'] as const,
     advanceBalances: ['admin-advance-balances'] as const,
   },
 

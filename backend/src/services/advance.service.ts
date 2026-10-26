@@ -30,6 +30,7 @@ export {
   createAdvanceSettlement,
   listAdvanceSettlements,
   listAdvanceSettlementsPaginated,
+  listAdvanceSettlementEligibility,
   getAdvanceSettlement,
   updateAdvanceSettlement,
   checkAdvanceSettlement,

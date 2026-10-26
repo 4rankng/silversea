@@ -4,14 +4,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminAdvanceSettlementsPage from './AdminAdvanceSettlementsPage';
 
-const { settlementsQuery, checkSettlement, authUser } = vi.hoisted(() => ({
+const { settlementsQuery, checkSettlement, authUser, balancesQuery, eligibilityQuery, createForForwarder } = vi.hoisted(() => ({
   settlementsQuery: vi.fn(),
   checkSettlement: vi.fn(),
   authUser: vi.fn(),
+  balancesQuery: vi.fn(),
+  eligibilityQuery: vi.fn(),
+  createForForwarder: vi.fn(),
 }));
 vi.mock('../hooks/useForwarderQueries', () => ({
   useAdminSettlements: settlementsQuery,
-  useAdminAdvanceBalances: () => ({ data: { items: [], totalOutstanding: 0 } }),
+  useAdminAdvanceBalances: balancesQuery,
+  useAdminSettlementEligibility: eligibilityQuery,
+  useCreateAdvanceSettlementForForwarder: createForForwarder,
+}));
+vi.mock('../hooks/useCatalogs', () => ({
+  useCatalogs: () => ({
+    data: { forwarderExpenseTypes: [{ code: 'FUEL', name: 'Nhiên liệu' }] },
+  }),
 }));
 vi.mock('../hooks/animations', () => ({ usePageAnimations: () => ({ rootRef: { current: null } }) }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: authUser() }) }));
@@ -24,6 +34,14 @@ beforeEach(() => {
   settlementsQuery.mockReset().mockReturnValue({ data: response, isLoading: false });
   checkSettlement.mockReset();
   authUser.mockReset().mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+  balancesQuery.mockReset().mockReturnValue({ data: { items: [], totalOutstanding: 0 } });
+  eligibilityQuery.mockReset().mockReturnValue({ data: { advances: [], expenses: [] }, isPending: false, isError: false, error: null });
+  createForForwarder.mockReset().mockReturnValue({
+    mutateAsync: vi.fn().mockResolvedValue({ id: 77, code: 'PC-26-0077' }),
+    isPending: false,
+    error: null,
+    reset: vi.fn(),
+  });
 });
 
 function renderPage() {
@@ -126,5 +144,115 @@ describe('AdminAdvanceSettlementsPage — DUYỆT PHIẾU HOÀN ỨNG (card 1910
     });
     renderPage();
     expect(screen.getAllByRole('button', { name: 'DUYỆT PHIẾU HOÀN ỨNG' }).length).toBeGreaterThan(0);
+  });
+});
+
+// ── SIL-487 — "Lập phiếu hoàn ứng" cho kế toán (nghiệp vụ chi hộ) ──────────
+// Unblocks SIL-176: QA tạo được phiếu RECORDED rồi test /check replay.
+const staffBalances = {
+  data: {
+    items: [{ forwarderId: 9, name: 'Nguyễn Huy Hoàng', outstanding: '100000' }],
+    totalOutstanding: 100000,
+  },
+};
+const eligibleData = {
+  advances: [
+    { id: 8141, amount: '100000', reason: 'Chi hộ phơi', status: 'RECORDED', createdAt: '2026-10-21T00:00:00.000Z', requesterId: 9 },
+  ],
+  expenses: [
+    { id: 501, tripId: 12, expenseType: 'FUEL', buyAmount: '60000', completionStatus: 'COMPLETED', note: null, createdAt: '2026-10-22T00:00:00.000Z', tripCode: 'TRIP-12', departureDate: '2026-10-22T00:00:00.000Z', truckPlate: '51C-123.45', containerNumbers: 'XYZU1234567' },
+    { id: 502, tripId: 13, expenseType: 'FUEL', buyAmount: '40000', completionStatus: 'IN_PROGRESS', note: null, createdAt: '2026-10-23T00:00:00.000Z', tripCode: 'TRIP-13', departureDate: '2026-10-23T00:00:00.000Z', truckPlate: '51C-999.99', containerNumbers: null },
+  ],
+};
+
+function openCreateDialog() {
+  fireEvent.click(screen.getByRole('button', { name: /Lập phiếu hoàn ứng/ }));
+}
+
+describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', () => {
+  it('finance roles see the create button; MANAGER reads the tab but must not create', () => {
+    const accountant = renderPage();
+    expect(screen.getByRole('button', { name: /Lập phiếu hoàn ứng/ })).toBeInTheDocument();
+    accountant.unmount();
+    authUser.mockReturnValue({ userId: 5, role: 'MANAGER' });
+    renderPage();
+    expect(screen.queryByRole('button', { name: /Lập phiếu hoàn ứng/ })).not.toBeInTheDocument();
+  });
+
+  it('dialog lists staff with outstanding advances; picking one fetches their eligibility', () => {
+    balancesQuery.mockReturnValue(staffBalances);
+    renderPage();
+    openCreateDialog();
+    const dialog = screen.getByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' });
+    expect(dialog).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
+    expect(eligibilityQuery).toHaveBeenLastCalledWith(9);
+  });
+
+  it('R4: submit stays blocked until an advance is picked AND the confirm tick is on', () => {
+    balancesQuery.mockReturnValue(staffBalances);
+    eligibilityQuery.mockReturnValue({ data: eligibleData, isPending: false, isError: false, error: null });
+    renderPage();
+    openCreateDialog();
+    const submit = screen.getByRole('button', { name: /Ghi nhận phiếu/ });
+    expect(submit).toBeDisabled();
+    fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /100\.000 ₫/ }));
+    expect(submit).toBeDisabled(); // tick still missing (FB-100)
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    expect(submit).toBeEnabled();
+  });
+
+  it('R3: an expense Ops has not signed off cannot be picked', () => {
+    balancesQuery.mockReturnValue(staffBalances);
+    eligibilityQuery.mockReturnValue({ data: eligibleData, isPending: false, isError: false, error: null });
+    renderPage();
+    openCreateDialog();
+    fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
+    const incomplete = screen.getByRole('checkbox', { name: /40\.000 ₫/ });
+    expect(incomplete).toBeDisabled();
+  });
+
+  it('R6: ghi nhận posts the payload for the picked staff, advance and COMPLETED expense, then closes', async () => {
+    balancesQuery.mockReturnValue(staffBalances);
+    eligibilityQuery.mockReturnValue({ data: eligibleData, isPending: false, isError: false, error: null });
+    const mutateAsync = vi.fn().mockResolvedValue({ id: 77, code: 'PC-26-0077' });
+    createForForwarder.mockReturnValue({ mutateAsync, isPending: false, error: null, reset: vi.fn() });
+    renderPage();
+    openCreateDialog();
+    fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /100\.000 ₫/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /60\.000 ₫/ }));
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    fireEvent.click(screen.getByRole('button', { name: /Ghi nhận phiếu/ }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({
+      forwarderId: 9,
+      refundAmount: 0,
+      note: undefined,
+      advanceRequestIds: [8141],
+      tripExpenseIds: [501],
+    }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' })).not.toBeInTheDocument());
+  });
+
+  it('R6: a refusal keeps the dialog open and surfaces the API message', async () => {
+    balancesQuery.mockReturnValue(staffBalances);
+    eligibilityQuery.mockReturnValue({ data: eligibleData, isPending: false, isError: false, error: null });
+    const mutateAsync = vi.fn().mockRejectedValue(new Error('Phiếu chưa cân đối: tạm ứng 100000, chi phí 60000, hoàn lại 0'));
+    createForForwarder.mockReturnValue({ mutateAsync, isPending: false, error: new Error('Phiếu chưa cân đối: tạm ứng 100000, chi phí 60000, hoàn lại 0'), reset: vi.fn() });
+    renderPage();
+    openCreateDialog();
+    fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /100\.000 ₫/ }));
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    fireEvent.click(screen.getByRole('button', { name: /Ghi nhận phiếu/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Phiếu chưa cân đối');
+    expect(screen.getByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' })).toBeInTheDocument();
+  });
+
+  it('R2: no outstanding advances anywhere → the dialog says so instead of an empty list', () => {
+    renderPage();
+    openCreateDialog();
+    expect(screen.getByText('Không có tạm ứng nào còn tồn trên hệ thống.')).toBeInTheDocument();
   });
 });

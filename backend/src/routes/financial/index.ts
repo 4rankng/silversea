@@ -23,6 +23,9 @@ registerAuditEvent('POST', '/api/penalties/', '/cancel', AuditEvent.PENALTY_CANC
 registerAuditEvent('POST', '/api/payments/vendor', AuditEvent.PAYMENT_RECEIVED);
 registerAuditEvent('POST', '/api/payments/carrier', AuditEvent.PAYMENT_RECEIVED);
 registerAuditEvent('POST', '/api/reports/distribute-profit', AuditEvent.PROFIT_DISTRIBUTION_REQUESTED);
+// SIL-487 — kế toán lập phiếu hoàn ứng cho nhân viên (entity created; /check
+// và /reversal ở cùng nhóm route đăng ký ENTITY_UPDATED riêng bên dưới).
+registerAuditEvent('POST', '/api/advance-settlements', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('POST', '/api/advance-settlements/', '/reversal', AuditEvent.ENTITY_UPDATED);
 registerAuditEvent('POST', '/api/finance/debt-offsets', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('POST', '/api/finance/credit-overrides', AuditEvent.ENTITY_CREATED);

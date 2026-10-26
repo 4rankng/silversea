@@ -18,6 +18,7 @@ import {
   assertCurrentForwarderExpenseAssignments,
   validateSettlementInputs,
 } from './settlement-validation';
+import { listUnlinkedTripExpenses } from './forwarder.service';
 import type { Tx } from './trip-shared';
 import { propagateRecordedExpenses } from './source-change.service';
 import {
@@ -34,6 +35,12 @@ export async function createAdvanceSettlement(
   forwarderId: number,
   data: { totalExpenseAmount?: number; refundAmount?: number; note?: string; advanceRequestIds: number[]; tripExpenseIds?: number[] },
   transaction?: Tx,
+  // SIL-487 — the admin path (`POST /api/advance-settlements`) passes the
+  // ACCOUNTANT here. FB-100 Option B stamps the SUBMITTER's own confirmation
+  // tick into approved_by; on the forwarder route the submitter is the
+  // forwarder (default below), on the admin route the submitter is the
+  // accountant who ticked "Xác nhận hoàn ứng" in the dialog.
+  options: { approvedBy?: number } = {},
 ) {
   if (!data.advanceRequestIds || data.advanceRequestIds.length === 0) {
     throw new AdvanceError(400, 'At least one advance request ID is required');
@@ -93,7 +100,7 @@ export async function createAdvanceSettlement(
       totalExpenseAmount: String(totalExpenseAmount),
       refundAmount: String(data.refundAmount ?? 0),
       status: 'RECORDED',
-      approvedBy: forwarderId,
+      approvedBy: options.approvedBy ?? forwarderId,
       approvedAt: new Date(),
       // FB-100 F-W1-1 ruling (Option B, card 141026230770): the phiếu applies
       // at creation and the SUBMITTER'S OWN confirmation tick is the
@@ -722,3 +729,32 @@ async function applyNewSettlementEffects(
       adjustmentCount: links.filter(link => Boolean(link.adjustmentReason)).length,
     };
   }
+
+/**
+ * SIL-487 — the accountant-side "Lập phiếu hoàn ứng" form data: the advance
+ * requests of ONE forwarder that can be settled (same eligibility law the Ops
+ * flow consumes — RECORDED, fully funded, not yet consumed — via
+ * filterWholeSettlementAdvances) plus their unlinked trip expenses (the
+ * forwarder-owned list from listUnlinkedTripExpenses, which already excludes
+ * rows linked to a live phiếu and accountant-created expenses).
+ */
+export async function listAdvanceSettlementEligibility(forwarderId: number) {
+  const candidates = await db.select({
+    id: s.advanceRequests.id,
+    amount: s.advanceRequests.amount,
+    status: s.advanceRequests.status,
+    reason: s.advanceRequests.reason,
+    createdAt: s.advanceRequests.createdAt,
+    requesterId: s.advanceRequests.requesterId,
+  }).from(s.advanceRequests).where(and(
+    eq(s.advanceRequests.requesterId, forwarderId),
+    eq(s.advanceRequests.status, 'RECORDED'),
+  )).orderBy(desc(s.advanceRequests.createdAt));
+
+  const [eligibleAdvances, expenses] = await Promise.all([
+    filterWholeSettlementAdvances(db, candidates),
+    listUnlinkedTripExpenses(forwarderId),
+  ]);
+
+  return { advances: eligibleAdvances, expenses };
+}

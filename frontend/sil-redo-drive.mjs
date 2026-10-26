@@ -41,10 +41,7 @@ async function shot(name) {
   log('shot', `${PHASE}-${name}.png`);
 }
 
-// gotoSPA helper retired (44:16 eslint no-unused-vars, 438e87fb leftover):
-// the drive navigates with plain page.goto — remove entirely, never ship an
-// unused symbol in a tracked script.
-
+// gotoSPA helper retired (438e87fb leftover) — plain page.goto; keep removed.
 await login();
 
 // ── SIL-169 /customers ──────────────────────────────────────────────────────
