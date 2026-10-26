@@ -1,0 +1,102 @@
+{
+  "A_scrollTop_1440": {
+    "label": "scroll-top",
+    "position": "fixed",
+    "pinnedToViewportBottom": true,
+    "barHeightPx": 55,
+    "oneRow": true,
+    "rightAligned": true,
+    "buttons": [
+      "Huỷ",
+      "Lưu nháp",
+      "Tạo lô hàng"
+    ],
+    "toplineButtonCount": 0,
+    "actionBarInstances": 1,
+    "groupAriaLabel": "Thao tác tạo lô hàng"
+  },
+  "B_scrollBottom_1440": {
+    "label": "scroll-bottom",
+    "position": "fixed",
+    "pinnedToViewportBottom": true,
+    "barHeightPx": 55,
+    "oneRow": true,
+    "rightAligned": true,
+    "buttons": [
+      "Huỷ",
+      "Lưu nháp",
+      "Tạo lô hàng"
+    ],
+    "toplineButtonCount": 0,
+    "actionBarInstances": 1,
+    "groupAriaLabel": "Thao tác tạo lô hàng",
+    "scroller": {
+      "scrollTop": 0,
+      "scrollHeight": 844,
+      "clientHeight": 844,
+      "noVerticalScrollbar": true,
+      "cargoBottom": 639,
+      "barTop": 845,
+      "addContainerVisible": true
+    }
+  },
+  "C_phone_390": {
+    "top": {
+      "label": "390-scroll-top",
+      "position": "fixed",
+      "pinnedToViewportBottom": true,
+      "barHeightPx": 51,
+      "oneRow": true,
+      "rightAligned": true,
+      "buttons": [
+        "Huỷ",
+        "Lưu nháp",
+        "Tạo lô hàng"
+      ],
+      "toplineButtonCount": 0,
+      "actionBarInstances": 1,
+      "groupAriaLabel": "Thao tác tạo lô hàng"
+    },
+    "bottom": {
+      "label": "390-scroll-bottom",
+      "position": "fixed",
+      "pinnedToViewportBottom": true,
+      "barHeightPx": 51,
+      "oneRow": true,
+      "rightAligned": true,
+      "buttons": [
+        "Huỷ",
+        "Lưu nháp",
+        "Tạo lô hàng"
+      ],
+      "toplineButtonCount": 0,
+      "actionBarInstances": 1,
+      "groupAriaLabel": "Thao tác tạo lô hàng"
+    }
+  },
+  "api": {
+    "desktop": [
+      "GET /api/health",
+      "POST /api/auth/login",
+      "GET /api/salary-periods/resolve",
+      "GET /api/health",
+      "GET /api/auth/me",
+      "GET /api/auth/me",
+      "GET /api/salary-periods/resolve",
+      "GET /api/catalogs/bootstrap",
+      "GET /api/shipments/operational-sites",
+      "GET /api/catalogs/bootstrap",
+      "GET /api/shipments/operational-sites"
+    ],
+    "phone": [
+      "GET /api/health",
+      "GET /api/auth/me",
+      "GET /api/auth/me",
+      "GET /api/salary-periods/resolve",
+      "GET /api/catalogs/bootstrap",
+      "GET /api/shipments/operational-sites",
+      "GET /api/catalogs/bootstrap",
+      "GET /api/shipments/operational-sites"
+    ]
+  }
+}
