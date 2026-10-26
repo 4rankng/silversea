@@ -21,7 +21,6 @@ import {
   toNullableTimestamp,
 } from './shipment-shared.service';
 import { getShipment } from './shipment-detail-reads.service';
-import { listShipmentDeclarations, syncDeclarationOntoEmptyContainers, upsertShipmentDeclaration } from './shipment-documents.service';
 import {
   type CreateShipmentInput,
   assertShipmentDocumentReferences,
@@ -29,7 +28,6 @@ import {
   assertShipmentFactorySiteValid,
   assertShipmentMasterRefsExist,
   findShipmentReferenceConflict,
-  findDeclarationReferenceConflict,
   throwShipmentReferenceConflict,
 } from './shipment-lifecycle-shared.service';
 
@@ -112,11 +110,8 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
       duplicate.field === 'blNumber' ? 'bill' : 'booking',
     );
   }
-  const declarationNumber = normalizeDocumentReference(input.declarationNumber);
-  if (declarationNumber) {
-    const conflict = await findDeclarationReferenceConflict(tx, declarationNumber);
-    if (conflict) throwShipmentReferenceConflict(conflict, 'declaration');
-  }
+  // SIL-521 (owner 26/10): tờ khai không còn là input cấp lô lúc tạo — số
+  // tờ khai chỉ nhập/sửa ở cấp cont (line update) sau khi lô đã tồn tại.
   if (input.operationalSiteId != null && customerId != null) {
     await assertShipmentFactorySiteValid(tx, customerId, input.operationalSiteId);
   }
@@ -168,16 +163,6 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     status: initialStatus,
     version: 1,
   }).returning();
-
-  // Initial declaration belongs to the same intake transaction. A duplicate
-  // or failed declaration must never leave a partially created shipment.
-  let initialDeclarationId: number | null = null;
-  if (declarationNumber) {
-    const declaration = await upsertShipmentDeclaration(shipment.id, {
-      declarationNumber, scope: 'SINGLE', updatedBy: input.createdBy ?? actor?.userId ?? null,
-    }, actor, tx);
-    initialDeclarationId = declaration.id;
-  }
 
   // 2. Allocate the unique shipmentCode from the independent per-month
   // counter (ruling 4b: the code never derives from the row id). Same tx,
@@ -262,7 +247,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     }
   }
 
-  return { shipment: finalized, initialDeclarationId };
+  return { shipment: finalized };
 }
 
 export async function createShipment(input: CreateShipmentInput, actor?: AuthUser, transaction?: Tx) {
@@ -278,11 +263,7 @@ async function rethrowCreateConflict(error: unknown, input: CreateShipmentInput)
   const wrapped = error as { code?: string; constraint_name?: string; cause?: { code?: string; constraint_name?: string } };
   const pg = wrapped?.cause?.code ? wrapped.cause : wrapped;
   if (pg?.code === '23505') {
-    if (pg.constraint_name === 'shipment_declarations_number_uniq_idx') {
-      const declaration = normalizeDocumentReference(input.declarationNumber);
-      const conflict = declaration ? await findDeclarationReferenceConflict(db, declaration) : null;
-      if (conflict) throwShipmentReferenceConflict(conflict, 'declaration');
-    } else if (pg.constraint_name === 'shipments_bl_number_active_uniq_idx'
+    if (pg.constraint_name === 'shipments_bl_number_active_uniq_idx'
       || pg.constraint_name === 'shipments_booking_ref_active_uniq_idx') {
       const conflict = await findShipmentReferenceConflict(db, input);
       if (conflict) throwShipmentReferenceConflict(conflict, conflict.field === 'blNumber' ? 'bill' : 'booking');
@@ -303,7 +284,7 @@ export async function createShipmentIdempotent(
   input: CreateShipmentInput & { containers?: ShipmentContainerInput[] },
   idempotencyKey: string | undefined,
   actor?: AuthUser,
-): Promise<{ shipment: Awaited<ReturnType<typeof createShipment>> & { initialDeclarationId: number | null }; replayed: boolean }> {
+): Promise<{ shipment: Awaited<ReturnType<typeof createShipment>>; replayed: boolean }> {
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_QUICK_CREATE,
     idempotencyKey,
@@ -311,7 +292,7 @@ export async function createShipmentIdempotent(
     createdBy: input.createdBy ?? null,
     entityType: 'shipment',
     create: async (tx) => {
-      const { shipment, initialDeclarationId } = await createShipmentTx(tx, input, actor);
+      const { shipment } = await createShipmentTx(tx, input, actor);
       // Combined save (card 20260918_13): containers ride the SAME
       // transaction — a containers failure rolls the root back with it, so
       // no 0-cont orphan lot can survive a failed intake save. The batch is
@@ -323,24 +304,12 @@ export async function createShipmentIdempotent(
         assertContainerSetValid(input.containers);
         await reconcileShipmentContainersInTx(tx, shipment.id, input.createdBy ?? null, input.containers);
         await lockShipmentFreightRate(tx, { shipmentId: shipment.id });
-        // SIL-166 (CUS-05): the combined create's lot-level tờ khai stamps
-        // the container rows it just inserted — the earlier
-        // upsertShipmentDeclaration ran before these rows existed, so its
-        // own fan-out was a no-op here. The rows are born in this same tx
-        // (all empty), so the FB-109 empty-only predicate fills exactly
-        // them. No version bump — the lot is still being born and the
-        // caller's returned version must stay coherent for its next write.
-        await syncDeclarationOntoEmptyContainers(tx, shipment.id, input.declarationNumber);
       }
-      return { ...shipment, initialDeclarationId };
+      return shipment;
     },
     load: async (id, tx) => {
-      const shipment = await getShipment(id, tx);
-      const declarations = input.declarationNumber ? await listShipmentDeclarations(id, tx) : [];
-      return { ...shipment, initialDeclarationId: declarations[0]?.id ?? null };
+      return await getShipment(id, tx);
     },
   }).catch((error: unknown) => rethrowCreateConflict(error, input));
-  // Older response snapshots predate initial declarations and have no ID.
-  // New snapshots retain the original ID even if that declaration is edited.
-  return { shipment: { ...result, initialDeclarationId: result.initialDeclarationId ?? null }, replayed };
+  return { shipment: result, replayed };
 }

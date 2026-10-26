@@ -1,18 +1,18 @@
-// SIL-502 (spec comment 1886): "tạo lô có tờ khai → Tổng quan vẫn hiện
-// 'Chưa có tờ khai'". Local repro on trunk proved the DB wire intact
-// (shipment_declarations row + container fan-out on create, list/detail
-// union read, workboard render), so the durable guard is the CONTRACT both
-// ends share, pinned at the shared-schema boundary where no refactor can
-// silently drift it: the quick-create schema must keep accepting
-// declarationNumber next to containers (combined save), and the CUS
-// list/summary item must keep carrying declarationNumber plus the
-// declarationNumbers array — the exact keys the Chứng từ column join and
-// the drawer's "Số tờ khai (N)" count read. The DB behavior itself stays
-// with the qa/scripts integration probes (BE tests are unit-only).
+// SIL-502 (spec comment 1886) as amended by SIL-521 (owner 26/10): "tạo lô
+// có tờ khai → Tổng quan vẫn hiện 'Chưa có tờ khai'" was fixed by keeping the
+// READ wire intact; the WRITE half is now REVERSED — tờ khai is per-cont only,
+// so quick-create must NO LONGER accept a lot-level declarationNumber while
+// containers still ride the combined save. The durable guard stays pinned at
+// the shared-schema boundary: the quick-create key list must have dropped
+// declarationNumber, and the CUS list/summary item must keep carrying
+// declarationNumber plus the declarationNumbers array — the exact keys the
+// Chứng từ column join and the drawer's "Số tờ khai (N)" count read (legacy
+// lots keep rendering). The DB behavior itself stays with the qa/scripts
+// integration probes (BE tests are unit-only).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  quickCreateShipmentSchema,
+  QUICK_CREATE_SHIPMENT_KEYS,
   shipmentCusWorkspaceListItemSchema,
   shipmentCusWorkspaceDetailSchema,
   ShipmentCusBucket,
@@ -120,16 +120,12 @@ function minimalListItem(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test('quick-create keeps accepting declarationNumber beside containers (combined save)', () => {
-  // The trim/max pin alone lives in shared/src/schemas/shipment-schema.test.ts;
-  // this case adds the combined-save half: containers ride beside the number.
-  const parsed = quickCreateShipmentSchema.parse({
-    customerId: 1,
-    declarationNumber: '  502-TK-2026  ',
-    containers: [{ containerNumber: 'SILU5001013', containerTypeId: 1 }],
-  });
-  assert.equal(parsed.declarationNumber, '502-TK-2026');
-  assert.equal(parsed.containers?.length, 1);
+test('quick-create no longer takes a lot-level declarationNumber; containers still ride combined save (SIL-521)', () => {
+  // SIL-521: tờ khai hết nhập cấp lô — key list phải đã drop declarationNumber
+  // để assertKnownShipmentKeys chặn; containers vẫn đi combined save.
+  const extra = QUICK_CREATE_SHIPMENT_KEYS.filter((key) => key === 'declarationNumber');
+  assert.deepEqual(extra, []);
+  assert.equal(QUICK_CREATE_SHIPMENT_KEYS.includes('containers'), true);
 });
 
 test('CUS list item carries the declaration numbers the Chứng từ column joins', () => {
