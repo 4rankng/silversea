@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-500-503-504/frontend
+
+
+ Test Files  145 passed (145)
+      Tests  1360 passed (1360)
+   Start at  14:08:30
+   Duration  31.82s (transform 7.94s, setup 15.31s, import 91.36s, tests 104.95s, environment 56.43s)
+
+vitest exit: 0
