@@ -1623,15 +1623,16 @@
   font-size: var(--text-label-size, 13px);
 }
 
-/* Thông tin hàng — the 11-column read-only sheet; narrow canvases scroll
-   horizontally inside the card, the head row stays sticky-free and plain. */
+/* Thông tin hàng — the 10-column sheet (SIL-508: LOẠI + TRỌNG LƯỢNG live
+   inside the SỐ CONTAINER group, so the old 1200px floor is gone — the table
+   fills the drawer width at standard viewports; narrow canvases may still
+   scroll horizontally inside the card rather than crush the columns). */
 .cus-lot-table-scroll {
   overflow-x: auto;
 }
 
 .cus-lot-table {
   width: 100%;
-  min-width: 1200px;
   border-collapse: collapse;
 }
 
@@ -1664,21 +1665,126 @@
   color: var(--ink-3);
 }
 
-.cus-lot-table__num {
-  font-variant-numeric: normal;
-  white-space: nowrap;
+/* SIL-508 — the SỐ CONTAINER group: three stacked ghost lines (SỐ / LOẠI /
+   TRỌNG LƯỢNG), each micro-labelled. Read-only lines are plain; a line the
+   page gate + fieldAccess allow is a click-to-edit trigger (hover fill +
+   chevron, SIL-483 ghost-line law: no frame until the pointer asks). */
+.cus-lot-contgroup {
+  min-width: 140px;
 }
+
+.cus-lot-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cus-lot-line + .cus-lot-line {
+  margin-top: 3px;
+}
+
+.cus-lot-line__label {
+  flex: 0 0 auto;
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.cus-lot-line__value {
+  min-width: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.cus-lot-line__value--mono {
+  font-family: var(--font-data);
+}
+
+button.cus-lot-line--trigger {
+  width: 100%;
+  margin: -1px -4px;
+  padding: 1px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.cus-lot-line--trigger:hover { background: var(--surface-2); }
+
+.cus-lot-line--empty .cus-lot-line__value {
+  color: var(--ink-3);
+}
+
+.cus-lot-line__chevron {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--ink-3);
+}
+
+/* The LOẠI line's house select (UuiSelectField, width content) sits beside
+   its micro-label inside the group cell. */
+.cus-lot-line__select {
+  min-width: 0;
+}
+
+.cus-lot-line--editor {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cus-lot-line__input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-label-size, 13px);
+}
+
+.cus-lot-line__input:focus-visible {
+  border-color: var(--brand);
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.cus-lot-line__save {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.cus-lot-line__save:hover { background: var(--surface-2); color: var(--ink); }
+.cus-lot-line__save:disabled { color: var(--ink-3); cursor: default; }
 
 /* SIL-498 — the per-cont tờ khai cell: one inline input per row (opaque
    control surface, house radius/height) plus the first row's copy affordance.
    Editing affordances live only here; a non-writable lot renders plain text
-   from the same cell component. */
+   from the same cell component. SIL-508: the input is an 11-character mono
+   box — tờ khai numbers read mono and the column stops reserving 180px. */
 .cus-lot-decl {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  min-width: 180px;
+  min-width: 0;
 }
 
 .cus-lot-decl__value {
@@ -1686,14 +1792,16 @@
 }
 
 .cus-lot-decl__input {
+  width: 11ch;
   height: 32px;
   min-width: 0;
-  flex: 1 1 120px;
+  flex: 0 1 auto;
   padding: 0 8px;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
+  font-family: var(--font-data);
   font-size: var(--text-label-size, 13px);
 }
 

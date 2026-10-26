@@ -1,0 +1,101 @@
+{
+  "base": "http://localhost:7176",
+  "tag": "after",
+  "account": "cus",
+  "widths": {
+    "1280": {
+      "headers": [
+        "STT",
+        "Số container",
+        "Số tờ khai",
+        "Nhà máy",
+        "Tuyến đường",
+        "Nhà xe / BKS",
+        "Cảng nâng",
+        "Cảng hạ",
+        "Đóng / trả",
+        "Trạng thái"
+      ],
+      "headerCount": 10,
+      "hasRetiredHeaders": false,
+      "groupLines": [
+        "SốTSTU5023007",
+        "Loại20DC",
+        "Trọng lượngNhập kg"
+      ],
+      "tableScroll": {
+        "scrollWidth": 1127,
+        "clientWidth": 1127,
+        "overflowsX": false
+      },
+      "drawerScroll": {
+        "scrollWidth": 1129,
+        "clientWidth": 1129,
+        "overflowsX": false
+      },
+      "pageScroll": {
+        "scrollWidth": 1280,
+        "clientWidth": 1280,
+        "overflowsX": false
+      },
+      "declInputWidthPx": 81.78125,
+      "firstWeightTrigger": "Trọng lượng — dòng 1"
+    },
+    "1440": {
+      "headers": [
+        "STT",
+        "Số container",
+        "Số tờ khai",
+        "Nhà máy",
+        "Tuyến đường",
+        "Nhà xe / BKS",
+        "Cảng nâng",
+        "Cảng hạ",
+        "Đóng / trả",
+        "Trạng thái"
+      ],
+      "headerCount": 10,
+      "hasRetiredHeaders": false,
+      "groupLines": [
+        "SốTSTU5023007",
+        "Loại20DC",
+        "Trọng lượngNhập kg"
+      ],
+      "tableScroll": {
+        "scrollWidth": 1149,
+        "clientWidth": 1149,
+        "overflowsX": false
+      },
+      "drawerScroll": {
+        "scrollWidth": 1151,
+        "clientWidth": 1151,
+        "overflowsX": false
+      },
+      "pageScroll": {
+        "scrollWidth": 1440,
+        "clientWidth": 1440,
+        "overflowsX": false
+      },
+      "declInputWidthPx": 81.78125,
+      "firstWeightTrigger": "Trọng lượng — dòng 1"
+    }
+  },
+  "edit": {
+    "original": null,
+    "sent": "13579",
+    "apiResponses": [
+      {
+        "status": 200,
+        "url": "/api/shipments/cus-workspace/349/containers/368",
+        "method": "POST"
+      }
+    ],
+    "persistedAfterSave": "13579.00",
+    "toastSeen": true,
+    "persistedMatch": true
+  },
+  "restore": {
+    "status": 200,
+    "value": null
+  }
+}

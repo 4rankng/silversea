@@ -1,0 +1,84 @@
+{
+  "base": "http://localhost:7176",
+  "tag": "narrow",
+  "account": "cus",
+  "widths": {
+    "390": {
+      "headers": [
+        "STT",
+        "Số container",
+        "Số tờ khai",
+        "Nhà máy",
+        "Tuyến đường",
+        "Nhà xe / BKS",
+        "Cảng nâng",
+        "Cảng hạ",
+        "Đóng / trả",
+        "Trạng thái"
+      ],
+      "headerCount": 10,
+      "hasRetiredHeaders": false,
+      "groupLines": [
+        "SốTSTU5023007",
+        "Loại20DC",
+        "Trọng lượngNhập kg"
+      ],
+      "tableScroll": {
+        "scrollWidth": 961,
+        "clientWidth": 351,
+        "overflowsX": true
+      },
+      "drawerScroll": {
+        "scrollWidth": 353,
+        "clientWidth": 353,
+        "overflowsX": false
+      },
+      "pageScroll": {
+        "scrollWidth": 390,
+        "clientWidth": 390,
+        "overflowsX": false
+      },
+      "declInputWidthPx": 81.78125,
+      "firstWeightTrigger": "Trọng lượng — dòng 1"
+    },
+    "768": {
+      "headers": [
+        "STT",
+        "Số container",
+        "Số tờ khai",
+        "Nhà máy",
+        "Tuyến đường",
+        "Nhà xe / BKS",
+        "Cảng nâng",
+        "Cảng hạ",
+        "Đóng / trả",
+        "Trạng thái"
+      ],
+      "headerCount": 10,
+      "hasRetiredHeaders": false,
+      "groupLines": [
+        "SốTSTU5023007",
+        "Loại20DC",
+        "Trọng lượngNhập kg"
+      ],
+      "tableScroll": {
+        "scrollWidth": 961,
+        "clientWidth": 717,
+        "overflowsX": true
+      },
+      "drawerScroll": {
+        "scrollWidth": 719,
+        "clientWidth": 719,
+        "overflowsX": false
+      },
+      "pageScroll": {
+        "scrollWidth": 768,
+        "clientWidth": 768,
+        "overflowsX": false
+      },
+      "declInputWidthPx": 81.78125,
+      "firstWeightTrigger": "Trọng lượng — dòng 1"
+    }
+  },
+  "edit": null
+}
