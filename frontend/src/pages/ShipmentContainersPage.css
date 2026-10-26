@@ -93,19 +93,35 @@
    (2026-10-18, QA "header thiếu trường Số tờ khai, thứ tự không đúng") splits
    the single Chứng từ & hãng tàu column into four headed columns in the QA
    order — Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu — sharing the
-   pinned `documents` visibility key. The three new headers were sized by
-   measured scrollWidth (qa/2026-10-18_fb109-fb113-v2 header-fit probe) so
-   every QA-named header fits on ONE line at ≥1366px (R17/FB-063: headers
-   never wrap mid-token); "Bill/Booking" is the QA spec's own label for the
-   reference column. Customer/container keep their pre-existing shares (their
-   long headers clipped at 1440 before this change too — measured parity).
-   FB-086 (2026-10-14) restored the Thao tác column card 20260922_41 removed. */
-.shipment-container-ledger__col--customer { width: 10%; }
+   pinned `documents` visibility key. SIL-516 (2026-10-26) then re-laddered
+   the shares to fund the PHÂN XE editor (18%): headers no longer forced onto
+   one line — a label that needs a second line wraps at spaces to an even
+   pair (card 20260925_47 + SIL-515 wrap-full doctrine), never mid-token.
+   Customer/container keep their wrap-by-content treatment (long names and
+   codes wrap whole per the no-truncation doctrine). FB-086 (2026-10-14)
+   restored the Thao tác column card 20260922_41 removed. */
+/* SIL-516 (QA card 2026-10-26): the PHÂN XE share was 8% — the in-cell BKS
+   quick editor squeezed its combobox to ~37px ("Chọn h…" placeholder), the
+   helper wrapped one character per line, and the Lưu button spilled past the
+   cell. The editor must fit INSIDE the cell (owner: "nằm gọn trong cell"), so
+   vehicle takes an 18% share — at the 1440 workboard (1129px table, twelve
+   columns) that is a ~203px cell ≈ a 137px combobox input, enough for the
+   full "Chọn hoặc nhập BKS" placeholder. Funded by the content-light columns
+   (customer/billbook/declaration/direction/container/route/schedule), whose
+   copy wraps per the no-truncation doctrine; FB-086's actions 7% tap-target
+   law and the narrow-column law (notes 6%, status 8%) are untouched.
+   Headers that no longer fit on one line now wrap to an even second line
+   (card 20260925_47 + SIL-515 wrap-full doctrine) instead of overflowing
+   into the neighbouring sticky th. Unbreakable header tokens keep their
+   share wide enough for the label ("Bill/Booking" 9%, "Nhập/Xuất" 9%,
+   container codes 9%); the sort button also flex-wraps its icon to a second
+   line rather than letting it be painted over by the next th. */
+.shipment-container-ledger__col--customer { width: 6%; }
 .shipment-container-ledger__col--billbook { width: 9%; }
-.shipment-container-ledger__col--declaration { width: 9%; }
-.shipment-container-ledger__col--direction { width: 8%; }
+.shipment-container-ledger__col--declaration { width: 8%; }
+.shipment-container-ledger__col--direction { width: 9%; }
 .shipment-container-ledger__col--shippingline { width: 5%; }
-.shipment-container-ledger__col--container { width: 11%; }
+.shipment-container-ledger__col--container { width: 9%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
    (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
    table-layout: fixed, the column shrinks below the longest unbreakable
@@ -113,9 +129,9 @@
    FB-113 v2 re-ladder: the header reads "Nâng / hạ" (the full phrase could
    not share the width the four document headers need; the cells' own
    NÂNG/HẠ labels carry the semantics). */
-.shipment-container-ledger__col--route { width: 10%; }
-.shipment-container-ledger__col--schedule { width: 9%; }
-.shipment-container-ledger__col--vehicle { width: 8%; }
+.shipment-container-ledger__col--route { width: 7%; }
+.shipment-container-ledger__col--schedule { width: 8%; }
+.shipment-container-ledger__col--vehicle { width: 18%; }
 .shipment-container-ledger__col--notes { width: 6%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
    from the customer cell so "needs attention" reads next to the status it
@@ -132,11 +148,22 @@
    three-line vertical stack. In that band the actions column takes 9% and
    notes 8% — funded by customer/container/route, so the shares still sum to
    100%. The base ladder above is untouched for ≥1366px. */
+/* SIL-516: this band restates EVERY share (the base ladder changed) so the
+   twelve still sum to 100% — vehicle takes 22% here because the workspace is
+   narrower and the in-cell editor needs its room even more; actions keeps
+   FB-086's 9% band share and notes 8%. */
 @media (min-width: 1101px) and (max-width: 1365px) {
-  .shipment-container-ledger__col--customer { width: 9%; }
+  .shipment-container-ledger__col--customer { width: 4%; }
+  .shipment-container-ledger__col--billbook { width: 10%; }
+  .shipment-container-ledger__col--declaration { width: 4%; }
+  .shipment-container-ledger__col--direction { width: 9%; }
+  .shipment-container-ledger__col--shippingline { width: 4%; }
   .shipment-container-ledger__col--container { width: 10%; }
-  .shipment-container-ledger__col--route { width: 8%; }
+  .shipment-container-ledger__col--route { width: 4%; }
+  .shipment-container-ledger__col--schedule { width: 8%; }
+  .shipment-container-ledger__col--vehicle { width: 22%; }
   .shipment-container-ledger__col--notes { width: 8%; }
+  .shipment-container-ledger__col--status { width: 8%; }
   .shipment-container-ledger__col--actions { width: 9%; }
 }
 /* 761-1100px is desktop layout on auto sizing (card mode starts at 760px), so
@@ -144,10 +171,17 @@
    keeps the rhythm and an explicit min-width — honoured under auto layout —
    guarantees the buttons their room. */
 @media (min-width: 761px) and (max-width: 1100px) {
-  .shipment-container-ledger__col--customer { width: 9%; }
+  .shipment-container-ledger__col--customer { width: 7%; }
+  .shipment-container-ledger__col--billbook { width: 7%; }
+  .shipment-container-ledger__col--declaration { width: 7%; }
+  .shipment-container-ledger__col--direction { width: 6%; }
+  .shipment-container-ledger__col--shippingline { width: 4%; }
   .shipment-container-ledger__col--container { width: 10%; }
-  .shipment-container-ledger__col--route { width: 8%; }
+  .shipment-container-ledger__col--route { width: 7%; }
+  .shipment-container-ledger__col--schedule { width: 7%; }
+  .shipment-container-ledger__col--vehicle { width: 20%; }
   .shipment-container-ledger__col--notes { width: 8%; }
+  .shipment-container-ledger__col--status { width: 8%; }
   .shipment-container-ledger__col--actions { width: 9%; }
   .shipment-container-ledger tbody > tr > *:last-child { min-width: 88px; }
   .shipment-container-ledger thead th:last-child { min-width: 88px; }
@@ -172,6 +206,19 @@
    underline, 10×12 padding — computed-identical to the /shipments table
    (header case/tracking come from the shared table base, as on /shipments). */
 .shipment-container-ledger thead th { position: sticky; top: var(--sticky-thead-top, -24px); z-index: 3; padding: 10px 12px; border-bottom: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink-2); font-size: var(--ops-table-header-size); font-weight: var(--ops-table-header-weight); line-height: var(--ops-table-header-line-height); text-align: left; word-break: keep-all; overflow-wrap: normal; white-space: normal; }
+/* SIL-516 (horizontal overflow / TRẠNG THÁI cut at the right edge): the shared
+   .table-sort-button is `white-space: nowrap` (FB-063's one-line law), so a
+   long label ("Khách hàng & lộ trình", "Thông số container") stayed one line
+   and overflowed its th — the neighbouring sticky th painted over the
+   overflow (header text cut mid-phrase) and the LAST header's button escaped
+   the table box (+3.6px region overflow; cut at the viewport edge wherever
+   the table meets it). The ledger's own th contract is already `white-space:
+   normal` (pinned: "lets headings wrap instead of forcing horizontal scroll"),
+   and the newer header law is "1 line OR an even 2-line wrap" (card
+   20260925_47, SIL-515 wrap-full doctrine) — so the sort button wraps at
+   spaces here (keep-all: never mid-token) and balances across two lines.
+   Shared table-sort.css is untouched. */
+.shipment-container-ledger thead .table-sort-button { flex-wrap: wrap; white-space: normal; overflow-wrap: normal; word-break: keep-all; text-wrap: balance; }
 .shipment-container-ledger tbody > tr > th,
 .shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. Card-collapse modes below MUST reset it to auto (with the workboard's 76px min-height floor) — grid-display cells treat a definite height as a cap and clip. The floor also intentionally outranks __editable-cell's 1px height (workboard parity: rows keep their rhythm; the trigger fills the cell). */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger tbody > tr > :last-child { border-right: 0; }
@@ -327,6 +374,12 @@
 .shipment-container-ledger__cell-trigger:not(.shipment-container-ledger__cell-trigger--read-only):not([disabled]):hover,
 .shipment-container-ledger__cell-trigger--expanded { background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .shipment-container-ledger__cell-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+/* SIL-516: the trigger's -4px right margin + calc(100% + 8px) hit-area bleeds
+   4px past the table's right edge when an editable cell is the row's LAST
+   rendered column (every trailing column hidden) — the same right-edge
+   overflow class as the sort button above. Keep the left expansion, contain
+   the right. */
+.shipment-container-ledger tbody > tr > :last-child .shipment-container-ledger__cell-trigger { width: calc(100% + 4px); margin-right: 0; }
 .shipment-container-ledger__cell-trigger[disabled] { opacity: 1; cursor: default; }
 .shipment-container-ledger__cell-trigger--read-only { cursor: default; }
 .shipment-container-ledger__edit-purpose { position: absolute; width: 1px; height: 1px; overflow: hidden; margin: -1px; padding: 0; border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
@@ -359,6 +412,13 @@
 .shipment-container-ledger__cell-editor[data-mode="vehicle"] > .shipment-container-ledger__inline-editor,
 .shipment-container-ledger__cell-editor[data-mode="notes"] > .shipment-container-ledger__inline-editor { right: -4px; left: auto; }
 .shipment-container-ledger__cell-editor[data-mode="schedule"] > .shipment-container-ledger__inline-editor { right: -4px; left: auto; }
+/* SIL-516: the BKS plate quick editor renders IN-FLOW inside the cell (it is
+   not wrapped in .cell-editor), as a flex child of __multiline whose
+   align-items: flex-start leaves it at fit-content — ~79px wide at the old 8%
+   share, squeezing the combobox and shattering its helper into one character
+   per line. The card fills the cell instead, so every child sizes to the real
+   cell width. */
+.shipment-container-ledger__multiline > .shipment-container-ledger__inline-editor { width: 100%; min-width: 0; }
 .shipment-container-ledger__editor-heading { display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .shipment-container-ledger__editor-heading strong { color: var(--ink); font-size: var(--text-data-size); }
 .shipment-container-ledger__editor-heading span { color: var(--ink-3); font-family: var(--font-data); font-size: var(--text-caption-size); }
@@ -379,7 +439,13 @@
 .shipment-container-ledger__editor-grid select:focus-visible,
 .shipment-container-ledger__editor-grid textarea:focus-visible,
 .shipment-container-ledger__editor-grid .searchable-select__trigger:focus-visible { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent); outline-offset: 1px; }
-.shipment-container-ledger__editor-grid > small { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
+/* SIL-516: wrap law parity with __multiline > small (pinned word-break:
+   break-word) — the plate editor's helper is the line "BKS thực là biển số xe
+   chạy thực tế của lô." and must read as horizontal word-wrap lines. As a
+   full-width grid item it is never squeezed to min-content, so the td's
+   inherited overflow-wrap: anywhere can no longer shatter it one character
+   per line. */
+.shipment-container-ledger__editor-grid > small { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; overflow-wrap: break-word; word-break: break-word; white-space: normal; }
 /* Card 261013200312: the per-cont tờ khai copy affordance sits under the
    number field, left-aligned like the other secondary row actions. */
 .shipment-container-ledger__declaration-copy { display: flex; min-width: 0; }
@@ -406,7 +472,15 @@
 .shipment-container-ledger__request-reason { grid-column: 1 / -1; }
 .shipment-container-ledger__request-reason textarea { min-height: 60px; }
 .shipment-container-ledger__editor-footer { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--line-2); }
+/* SIL-516: margin-left auto keeps the action pair on the footer's trailing
+   edge even when the footer's only other child is an inline error (or there
+   is none at all — the plate editor's helper moved into the grid above), so
+   "Lưu/Hủy" always sit cleanly inside the cell. Scoped to the ledger root:
+   the accounting billing editor reuses __edit-actions under its own layout
+   (.debit-billing-editor) and must not inherit this alignment. The base
+   layout rule stays unscoped for the ≤640px sheet, which portals to body. */
 .shipment-container-ledger__edit-actions { display: flex; flex: 0 0 auto; flex-wrap: nowrap; gap: 6px; }
+.shipment-container-ledger .shipment-container-ledger__edit-actions { margin-left: auto; }
 .shipment-container-ledger__edit-action { display: inline-flex; width: auto; min-width: 36px; height: 36px; min-height: 36px; padding-inline: 12px; font-size: var(--text-data-size); }
 /* Disabled must read as a gray pill, not brand-green at half opacity: the
    base button's only disabled styling is disabled:opacity-50, which washes
@@ -478,6 +552,11 @@
   .shipment-container-ledger tbody > tr > th::before,
   .shipment-container-ledger tbody > tr > td::before { min-width: 0; color: var(--ink-3); content: attr(data-label); font-size: var(--text-label-size); font-weight: var(--fw-bold); letter-spacing: .035em; line-height: 1.35; overflow-wrap: anywhere; text-transform: uppercase; white-space: normal; }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1; }
+  /* SIL-516: the BKS plate quick editor is not an `editing-cell` (it renders
+     beside the cell's display content, without the trigger wrapper), but on
+     card layouts its open cell needs the same full-row span — a half-row cell
+     squeezed the combobox below its full-placeholder width even at 390px. */
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__cell--plate-open { grid-column: 1 / -1; }
   .shipment-container-ledger tbody > tr > th.shipment-container-ledger__editable-cell,
   .shipment-container-ledger tbody > tr > td.shipment-container-ledger__editable-cell { height: auto; }
   .shipment-container-ledger tbody > tr > th.shipment-container-ledger__editable-cell::before,
@@ -543,6 +622,7 @@
   .shipment-container-ledger tbody > tr > th,
   .shipment-container-ledger tbody > tr > td { grid-column: auto; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; height: auto; min-height: 76px; overflow-wrap: anywhere; padding: 8px 10px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .shipment-container-ledger tbody > tr > .shipment-container-ledger__editing-cell { grid-column: 1 / -1 !important; }
+  .shipment-container-ledger tbody > tr > .shipment-container-ledger__cell--plate-open { grid-column: 1 / -1 !important; }
   .shipment-container-ledger tbody > tr > :nth-child(even) { border-right: 0; }
   .shipment-container-ledger tbody > tr > td.shipment-container-ledger__cell--status { grid-column: 1 / -1 !important; border-right: 0; }
   .shipment-container-ledger tbody > tr > :last-child { border-bottom: 0; }
@@ -643,8 +723,12 @@
   .shipment-container-ledger tbody > tr > th .shipment-container-ledger__multiline > strong { font-size: 14px; font-weight: var(--fw-bold, 700); }
 
   /* Card anatomy instead of the 6px surface band: real elevation, rounded
-     corners, and whitespace do the separation (consultation 3.2). */
-  .shipment-container-ledger tbody > tr { margin: 10px 10px 0; border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 5%, transparent); }
+     corners, and whitespace do the separation (consultation 3.2).
+     SIL-516: width auto — the card-mode base rule sets width: 100% and these
+     10px side margins would push the row 20px past the tbody (measured
+     374px row + 20px margins in a 374px tbody at 390px — the row's right
+     edge, and with it the TRẠNG THÁI cell, overflowed the table's box). */
+  .shipment-container-ledger tbody > tr { width: auto; margin: 10px 10px 0; border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 5%, transparent); }
   .shipment-container-ledger tbody > tr:last-child { margin-bottom: 10px; }
 
   /* SIL-149 phase 2 (tie-breaker 24/10, both consultants concurring): rows

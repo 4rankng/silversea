@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-516-phanxe-col/frontend
+
+
+ Test Files  7 passed (7)
+      Tests  190 passed (190)
+   Start at  23:24:02
+   Duration  8.91s (transform 2.77s, setup 1.01s, import 6.64s, tests 11.10s, environment 3.30s)
+

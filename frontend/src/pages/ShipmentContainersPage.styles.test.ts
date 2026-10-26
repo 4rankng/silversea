@@ -327,8 +327,52 @@ describe('shipment detail workboard styling', () => {
     // direction/shippingline — sharing the pinned `documents` key.
     const base = ['customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
     expect(base.reduce((a, b) => a + b, 0)).toBe(100);
+    // SIL-516: the PHÂN XE share funds the in-cell BKS quick editor (full
+    // placeholder + helper + Lưu/Hủy inside the cell) — 18% base, 22%/20% in
+    // the two narrow desktop bands, every band restated to sum to 100%.
+    expect(width('vehicle')).toBe(18);
+    const band = (block: string) => {
+      const shares = ['customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map((cls) => {
+        const m = block.match(new RegExp(`col--${cls}\\s*\\{\\s*width:\\s*([\\d.]+)%`));
+        expect(m, `band missing col--${cls}`).toBeTruthy();
+        return Number(m![1]);
+      });
+      return shares.reduce((a, b) => a + b, 0);
+    };
+    const midBand = css.match(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    const lowBand = css.match(/@media \(min-width: 761px\) and \(max-width: 1100px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(band(midBand), '1101-1365 band sums to 100').toBe(100);
+    expect(band(lowBand), '761-1100 band sums to 100').toBe(100);
+    expect(midBand).toMatch(/col--vehicle\s*\{\s*width:\s*22%;/);
+    expect(lowBand).toMatch(/col--vehicle\s*\{\s*width:\s*20%;/);
     expect(css).toMatch(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);
     expect(css).toMatch(/@media \(min-width: 761px\) and \(max-width: 1100px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);
+  });
+
+  it('SIL-516: the in-cell plate editor fits its cell and headers never overflow the table', () => {
+    // The BKS quick editor renders in-flow inside the cell — it must fill it
+    // (fit-content collapsed the combobox to ~37px and shattered the helper
+    // one character per line).
+    expect(css).toMatch(/\.shipment-container-ledger__multiline > \.shipment-container-ledger__inline-editor\s*\{[^}]*width:\s*100%;/);
+    // Helper reads as horizontal word-wrap lines (wrap law parity with
+    // __multiline > small), never min-content vertical text.
+    expect(css).toMatch(/\.shipment-container-ledger__editor-grid > small\s*\{[^}]*word-break:\s*break-word;[^}]*white-space:\s*normal;/);
+    // The action pair stays on the footer's trailing edge inside the cell.
+    expect(css).toMatch(/\.shipment-container-ledger__edit-actions\s*\{[^}]*margin-left:\s*auto;/);
+    // The shared nowrap sort button overflows its th here (label + icon) —
+    // overlapping the neighbouring sticky header and escaping the table's
+    // right edge (TRẠNG THÁI cut). The ledger wraps it at spaces instead:
+    // keep-all (never mid-token), balanced 2-line wrap (card 20260925_47).
+    expect(css).toMatch(/\.shipment-container-ledger thead \.table-sort-button\s*\{[^}]*white-space:\s*normal;[^}]*word-break:\s*keep-all;[^}]*text-wrap:\s*balance;/);
+    // Same containment for the editable-cell trigger when it is the row's
+    // last rendered column (left hit-area kept, right bleed removed).
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > :last-child \.shipment-container-ledger__cell-trigger\s*\{[^}]*width:\s*calc\(100% \+ 4px\);[^}]*margin-right:\s*0;/);
+    // Card-mode row cards must not overflow their tbody (width: 100% + 10px
+    // side margins pushed the row 20px past the table's box at 390px).
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr\s*\{\s*width:\s*auto;\s*margin:\s*10px 10px 0;/);
+    // An open plate editor claims the full card row on card layouts.
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > \.shipment-container-ledger__cell--plate-open\s*\{\s*grid-column:\s*1 \/ -1;/);
+    expect(ledgerSource).toContain("plateEditor?.rowId === row.id ? 'shipment-container-ledger__cell--plate-open' : ''");
   });
 
   it('card 20260922_54: thead headers wrap at spaces only — never mid-word, never an orphan letter', () => {

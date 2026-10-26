@@ -1,0 +1,18 @@
+logged in as admin
+report written: qa/2026-10-26_sil516-phanxe/sil516_before_report.json
+
+== 1440px (before) ==
+  placeholder: null
+  helper     : w=7.4 lines=33 verticalCharWrap=true
+  save       : insideCell=false overflowRightPx=8.6
+  status     : cutAtViewportEdge=false cutAtRegionEdge=false badgeClipsOwnText=false
+  overflow   : doc=false region=true table=true
+  doctrineClipped: 5 caption:Chi tiết container theo  | shipment-container-ledger__edit-purpose:Chỉnh sửa ô chứng từ và  | shipment-container-ledger__edit-purpose:Chỉnh sửa ô chứng từ và  | shipment-container-ledger__edit-purpose:Chỉnh sửa ô chứng từ và  | shipment-container-ledger__edit-purpose:Chỉnh sửa ô chứng từ và 
+
+== 390px (before) ==
+  placeholder: null
+  helper     : w=7.4 lines=33 verticalCharWrap=true
+  save       : insideCell=true overflowRightPx=-103
+  status     : cutAtViewportEdge=false cutAtRegionEdge=false badgeClipsOwnText=false
+  overflow   : doc=false region=true table=true
+  doctrineClipped: 6 caption:Chi tiết container theo  | th:Số tờ khai | th:Nhập/Xuất | th:Hãng tàu | shipment-container-ledger__edit-purpose:Chỉnh sửa ô chứng từ và  | shipment-container-ledger__edit-purpose:Chỉnh sửa ô chứng từ và 
