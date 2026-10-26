@@ -41,15 +41,6 @@ async function shot(name) {
   log('shot', `${PHASE}-${name}.png`);
 }
 
-async function gotoSPA(path) {
-  // SPA-safe navigation through the app router (client-side nav keeps the session).
-  await page.evaluate((p) => window.history.pushState({}, '', p), path);
-  await page.dispatchEvent(window.location ? 'main' : 'body', 'noop').catch(() => {});
-  // Fallback: direct goto (token persists in localStorage).
-  if (!page.url().includes(path)) await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForTimeout(1200);
-}
-
 await login();
 
 // ── SIL-169 /customers ──────────────────────────────────────────────────────

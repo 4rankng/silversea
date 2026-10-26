@@ -6,6 +6,7 @@ import {
   NotificationType,
   Role,
   accountantSettlementExpensePatchSchema,
+  adminCreateAdvanceSettlementSchema,
   directFinancialActionSchema,
   updateAdvanceSettlementSchema,
 } from '@tingting/shared';
@@ -16,8 +17,10 @@ import { getUser } from '../../middleware/auth';
 import { getAdvanceSettlement } from '../../services/advance.service';
 import { exportSettlementXlsx, exportSettlementHtml } from '../../services/settlement-export.service';
 import {
+  createAdvanceSettlement,
   listAdvanceRequestsPaginated,
   listAdvanceSettlementsPaginated,
+  listAdvanceSettlementEligibility,
   getOutstandingAdvanceBalances,
   adjustSettlementExpense,
   updateAdvanceSettlement,
@@ -99,6 +102,58 @@ router.get('/advance-settlements', asyncHandler(async (req: Request, res: Respon
   const status = req.query.status as string | undefined;
   const { page, limit } = parsePagination(req, { limit: 50, maxLimit: 500 });
   res.json(await listAdvanceSettlementsPaginated({ status, page, limit }));
+}));
+
+// SIL-487 — form data for the accountant-side "Lập phiếu hoàn ứng" flow:
+// what ONE forwarder can settle right now. Registered before `/:id` — the
+// literal segment must win over the `:id` parameter match (parseInt('eligibility')
+// would NaN). Read-only; same read authority as the settlement detail.
+const settlementEligibilityQuerySchema = z.object({
+  forwarderId: z.coerce.number().int().positive(),
+}).strict();
+
+router.get('/advance-settlements/eligibility', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const parsed = settlementEligibilityQuerySchema.safeParse(req.query);
+  if (!parsed.success) throwValidation(parsed.error);
+  res.json(await listAdvanceSettlementEligibility(parsed.data.forwarderId));
+}));
+
+// SIL-487 — kế toán lập phiếu hoàn ứng cho nhân viên (nghiệp vụ chi hộ, PRD
+// PhanHeKeToan mockup ảnh 8/9: nút "Lập phiếu hoàn ứng"). Same apply-at-creation
+// contract as the forwarder route (TC-CHUNK4-009): the phiếu records RECORDED
+// and the SUBMITTER's confirmation tick — here the accountant's, passed as
+// approvedBy — is the "xác nhận hoàn ứng" stamp (FB-100 Option B). Shared
+// schema keeps the signed-refund + unique-id payload law identical to Ops.
+router.post('/advance-settlements', declareMaterialWrite('advance-settlements.create', { method: 'POST', path: '/api/advance-settlements' }), requireRoles(Role.ADMIN, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const parsed = adminCreateAdvanceSettlementSchema.safeParse(req.body);
+  if (!parsed.success) throwValidation(parsed.error);
+  const actor = getUser(req);
+  const { forwarderId, note, ...rest } = parsed.data;
+  const input = { ...rest, note: note ?? undefined };
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.ADVANCE_SETTLEMENT_CREATE,
+    idempotencyKey,
+    payload: { actorId: actor.userId, forwarderId, ...input },
+    createdBy: actor.userId,
+    entityType: 'advance_settlement',
+    responseStatusCode: 201,
+    create: (tx) => createAdvanceSettlement(forwarderId, input, tx, { approvedBy: actor.userId }),
+    getEntityId: (created) => created.id,
+  });
+  res.locals.auditEntityKey = `phiếu hoàn ứng ${result.code} — kế toán lập`;
+  if (!replayed) {
+    emitNotification({
+      type: NotificationType.SYSTEM_ANNOUNCEMENT,
+      title: 'Kế toán đã lập phiếu hoàn ứng',
+      message: `Phiếu ${result.code} đã được kế toán lập để quyết toán tạm ứng của bạn.`,
+      relatedEntityType: 'advance_settlements',
+      relatedEntityId: result.id,
+      targetUserId: result.forwarderId,
+      targetRoles: [],
+    });
+  }
+  res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
 }));
 
 // 2026-09-10 (phê duyệt removed, TC-CHUNK4-009): the settlement

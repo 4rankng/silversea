@@ -288,6 +288,9 @@ export const qk = {
     settlementsAll: ['admin-settlements'] as const,
     settlementDetail: (id: number) =>
       ['admin-settlement-detail', id] as const,
+    // SIL-487 — per-forwarder eligibility for the accountant create form.
+    settlementEligibility: (forwarderId: number) =>
+      ['admin-settlement-eligibility', forwarderId] as const,
     settlementOpsCompletion: (settlementIds: number[]) =>
       ['admin-settlement-ops-completion', settlementIds] as const,
     settlementOpsCompletionAll: ['admin-settlement-ops-completion'] as const,

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2, FileText, Plus } from 'lucide-react';
 import { usePageAnimations } from '../hooks/animations';
 import { formatNumber, formatDate } from '../lib/format';
 import {
@@ -28,6 +28,7 @@ import {
 import './AdminAdvanceSettlementsPage.css';
 import '../styles/operational-table-typography.css';
 import { FilterBar, Pagination } from '../design-system';
+import AdminAdvanceSettlementCreateDialog from './AdminAdvanceSettlementCreateDialog';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -409,6 +410,9 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
   // a refusal (already checked / stale version) surfaces as text.
   const { user } = useAuth();
   const canReview = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
+  // SIL-487 — lập phiếu hoàn ứng (nghiệp vụ chi hộ): cùng thẩm quyền duyệt —
+  // MANAGER đọc được tab nhưng không lập phiếu.
+  const [createOpen, setCreateOpen] = useState(false);
   const cache = useQueryClient();
   const [checkBusyId, setCheckBusyId] = useState<number | null>(null);
   const [checkError, setCheckError] = useState('');
@@ -515,6 +519,17 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
               {tab.label}
             </FilterPill>
           ))}
+          // SIL-487 — nút "Lập phiếu hoàn ứng" theo mockup PRD PhanHeKeToan
+          // (ảnh 8/9): filter + nút cùng hàng, phía kế toán.
+          actions={canReview ? (
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus size={14} aria-hidden="true" /> Lập phiếu hoàn ứng
+            </button>
+          ) : undefined}
         />
 
         {isLoading ? (
@@ -592,6 +607,11 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
           pageSize={data?.limit ?? AS_PAGE_SIZE}
           onChange={setPage}
         />
+      )}
+
+      {/* SIL-487 — lập phiếu hoàn ứng cho nhân viên (nghiệp vụ chi hộ). */}
+      {canReview && (
+        <AdminAdvanceSettlementCreateDialog open={createOpen} onClose={() => setCreateOpen(false)} />
       )}
     </div>
   );

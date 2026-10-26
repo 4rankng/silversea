@@ -3,7 +3,7 @@ import { forwarderClient, getAdvanceRequestsPaginated, type ForwarderAdvanceRequ
 import { financialClient } from '../api/financialClient';
 import { qk } from '../api/keys';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
-import type { AdvanceRequestStatus, AdvanceRequestWithRefs } from '@tingting/shared';
+import type { AdvanceRequestStatus, AdvanceRequestWithRefs, AdminCreateAdvanceSettlementInput } from '@tingting/shared';
 
 export function useForwarderTrips(
   status?: string,
@@ -214,6 +214,29 @@ export function useAdminSettlementOpsCompletion(settlementIds: number[]) {
     queryKey: qk.adminForwarder.settlementOpsCompletion(settlementIds),
     queryFn: () => forwarderClient.getSettlementOpsCompletion(settlementIds),
     enabled: settlementIds.length > 0,
+  });
+}
+
+// SIL-487 — the accountant create form's per-forwarder data: settled-able
+// advances + unlinked expenses. Null forwarder (nothing picked yet) disables
+// the fetch instead of fetching the whole book.
+export function useAdminSettlementEligibility(forwarderId: number | null) {
+  return useQuery({
+    queryKey: qk.adminForwarder.settlementEligibility(forwarderId ?? 0),
+    queryFn: () => forwarderClient.getSettlementEligibility(forwarderId!),
+    enabled: forwarderId != null,
+  });
+}
+
+export function useCreateAdvanceSettlementForForwarder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: AdminCreateAdvanceSettlementInput) =>
+      forwarderClient.createAdvanceSettlementForForwarder(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
+      qc.invalidateQueries({ queryKey: qk.adminForwarder.advanceBalances });
+    },
   });
 }
 

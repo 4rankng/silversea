@@ -154,6 +154,9 @@ export const IDEMPOTENCY_ENDPOINTS = {
   PHOI_PHIEU_TRUCK_ASSIGN: 'expense-accounting.phoi-phieu.truck-assign',
   ADVANCE_DRAFT_RECORD: 'advance-requests.draft.record',
   ADVANCE_DRAFT_VOID: 'advance-requests.draft.void',
+  // SIL-487 — kế toán lập phiếu hoàn ứng cho nhân viên (nghiệp vụ chi hộ):
+  // same durable-command envelope as its siblings below.
+  ADVANCE_SETTLEMENT_CREATE: 'advance-settlements.create',
   ADVANCE_SETTLEMENT_CHECK: 'advance-settlements.check',
   ADVANCE_SETTLEMENT_REVERSE: 'advance-settlements.reverse',
   ADVANCE_SETTLEMENT_UPDATE: 'advance-settlements.update',

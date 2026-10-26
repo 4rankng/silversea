@@ -6,6 +6,7 @@ import type {
   ForwarderTripSummary,
   AdvanceRequestWithRefs,
   AdvanceSettlementWithRefs,
+  AdminCreateAdvanceSettlementInput,
   TripExpenseWithSupplier,
 } from '@tingting/shared';
 
@@ -201,6 +202,25 @@ export const forwarderClient = {
       statusAmounts: Record<string, number>;
       totals: { totalExpenseAmount: number; pendingCount: number };
     }>(`${FINANCIAL.ADVANCE_SETTLEMENTS}${toQuery(params)}`);
+  },
+  // SIL-487 — per-forwarder eligibility for the accountant create form: the
+  // advance requests that can still be settled (RECORDED, funded, unconsumed)
+  // and the forwarder's unlinked trip expenses, same law as the Ops form.
+  getSettlementEligibility: async (forwarderId: number) => {
+    return api.get<{
+      advances: Array<{ id: number; amount: string; reason: string; status: string; createdAt: string; requesterId: number }>;
+      expenses: Array<{
+        id: number; tripId: number; expenseType: string; buyAmount: string; approvalStatus?: string;
+        completionStatus?: string; note: string | null; createdAt: string;
+        tripCode: string | null; departureDate: string | null; truckPlate: string | null; containerNumbers: string | null;
+      }>;
+    }>(`${FINANCIAL.ADVANCE_SETTLEMENTS}/eligibility${toQuery({ forwarderId })}`);
+  },
+  // SIL-487 — kế toán lập phiếu hoàn ứng CHO nhân viên (nghiệp vụ chi hộ).
+  // Idempotency-Key tự đính kèm ở tầng api (mutation-identity) — same-key
+  // double submit replay, không nhân bản phiếu.
+  createAdvanceSettlementForForwarder: async (data: AdminCreateAdvanceSettlementInput) => {
+    return api.post<AdvanceSettlementWithRefs>(FINANCIAL.ADVANCE_SETTLEMENTS, data);
   },
   getSettlementOpsCompletion: async (settlementIds: number[]) => {
     if (settlementIds.length === 0) return { items: [] as Array<{ settlementId: number; opsCompletion: NonNullable<AdvanceSettlementWithRefs['opsCompletion']> }> };
