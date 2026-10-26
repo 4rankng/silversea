@@ -21,12 +21,44 @@
  * 2..N are zeroed. A board miss is never an invented 0₫: Lô 1 keeps its own
  * value (or stays null ⇒ the boards' honest "Thiếu cước trả ĐV").
  */
-import { eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import type { Tx } from '../db';
 import * as s from '../db/schema';
 import { upsertTripCarrierInfo, upsertTripFinancialState } from './trip-composite.service';
 import { resolveCarrierVehicleClassPrice } from './pricing.service';
 import type { LclCostCarrier, LiveTripFacts, ShipmentRow } from './lcl-grouping.service';
+
+/**
+ * SIL-493 — the dispatcher's "Cước trả dự kiến" (the per-lot editor's ONLY
+ * money field) reads `shipment_fulfillments.planned_carrier_cost`, a channel
+ * the group money never touched: after a COST recomposition the money
+ * holder's editor read 0₫ and the dialog promise ("tiền cước 100% của Lô 1
+ * vẫn giữ nguyên trên Lô 1") was invisible. Every seam that LANDS the
+ * group's cước trả on a lot (assignment/update, issuance, promotion,
+ * whole-group tách) mirrors the landed amount here so the money holder's
+ * plan estimate stays the board truth. Members awaiting re-pricing are
+ * never mirrored (their own pre-group estimate is theirs to keep), and no
+ * amount ⇒ no write (an absent price is never a fabricated 0₫).
+ */
+export async function mirrorPlannedCarrierCost(tx: Tx, shipmentId: number, amount: string): Promise<void> {
+  if (amount == null || Number(amount) === 0) return;
+  const fulfillments = await tx.select({
+    id: s.shipmentFulfillments.id,
+    version: s.shipmentFulfillments.version,
+  }).from(s.shipmentFulfillments)
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .orderBy(asc(s.shipmentFulfillments.id));
+  for (const fulfillment of fulfillments) {
+    await tx.update(s.shipmentFulfillments).set({
+      plannedCarrierCost: amount,
+      version: fulfillment.version + 1,
+      updatedAt: new Date(),
+    }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+  }
+}
 
 /**
  * 161026232319 — Lô 1's cước trả ĐVVC at group assignment (spec 23/10: the
@@ -50,6 +82,8 @@ export async function applyPrincipalCostFreight(
   const { row, trip, vehicleClassId, carrier, manualFreightCost } = args;
   if (manualFreightCost != null) {
     if (trip) await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(manualFreightCost) });
+    // SIL-493 — the landed amount is the dispatcher's plan estimate too.
+    await mirrorPlannedCarrierCost(tx, row.id, String(manualFreightCost));
     return { amount: String(manualFreightCost), source: 'MANUAL' };
   }
   if (trip == null) return null;
@@ -64,6 +98,7 @@ export async function applyPrincipalCostFreight(
   });
   if (price == null) return null;
   await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(price.price) });
+  await mirrorPlannedCarrierCost(tx, row.id, String(price.price));
   return { amount: String(price.price), source: 'PRICE_BOARD' };
 }
 
@@ -118,6 +153,7 @@ export async function applyLclCostGroupFreightToNewTrip(
     // popup law: blank = auto, nhập tay = override).
     if (shipment.costGroupFreightManual != null) {
       await upsertTripCarrierInfo(tx, tripId, { externalFreightCost: shipment.costGroupFreightManual });
+      await mirrorPlannedCarrierCost(tx, shipment.id, shipment.costGroupFreightManual);
       return;
     }
     const vehicleClassId = shipment.costVehicleClassId;
@@ -143,6 +179,7 @@ export async function applyLclCostGroupFreightToNewTrip(
     });
     if (price == null) return;
     await upsertTripCarrierInfo(tx, tripId, { externalFreightCost: String(price.price) });
+    await mirrorPlannedCarrierCost(tx, shipment.id, String(price.price));
     return;
   }
 

@@ -17,19 +17,16 @@
 //
 // FB-145 additions — a group artifact is NOT a live price:
 //   1. An UNGROUPED lot whose latest snapshot note is a rev-group citation
-//      citing NO money (total 0 — the merge member-zero tail, or the "chờ
-//      định giá lại" citation the unmerge writes for a lot that never had a
-//      price) reads UNSET. The lot went back to "từng xe riêng" — its price
-//      comes back only through the per-lot outputs (§4.1) or a re-materialized
-//      pre-merge snapshot (whose note "Tách nhóm — trở về cước thu trước ghép"
-//      is NOT a citation of a dead group state and keeps its amount).
-//      SIL-491: a citation carrying a NON-zero amount is live money, never an
-//      artifact — the FB-095 crown inheritance ("Đón cước chính khi tách nhóm
-//      (từ Bill X) — 100% cước thu": the group's whole cước thu follows the
-//      promoted lot, the group never falls to 0₫) and the lot's own re-cited
-//      price (REV_LOT_OWN_CUOC_REASON) must print, not mask. Writer invariant
-//      (D02): lost money is re-cited as a 0₫ WITH its reason, so a non-zero
-//      citation is by construction a real transfer/own price.
+//      AND whose amount is ZERO reads UNSET (merge member-zero tail, the
+//      "chờ định giá lại" citation the unmerge writes for a lot that never
+//      had a price, the moved-out "chuyển 100%" tail). The lot went back to
+//      "từng xe riêng" — its price comes back only through the per-lot
+//      outputs (§4.1) or a re-materialized pre-merge snapshot (whose note
+//      "Tách nhóm — trở về cước thu trước ghép" is NOT a citation of a dead
+//      group state and keeps its amount). A cited NON-ZERO is the writer's
+//      real money — the FB-095 promote's "Đón cước chính … — 100% cước thu"
+//      the crown left behind, or a kept own-cước marker — and reads
+//      (SIL-489/SIL-490: hiding it made the merge/unmerge toasts lie).
 //   2. An override whose reason is the awaiting-reprice citation reads UNSET
 //      for the same reason (single-lot unmerge "1 lô về riêng" with a live
 //      trip: revenue stays 0₫ citing the wait — QA must read "Chưa xác
@@ -64,22 +61,22 @@ export interface EffectiveLclFreight {
 }
 
 export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLclFreight {
-  // A group citation is a dead-group artifact only when it cites NO money
-  // (D02 zeros). A non-zero citation is live money — the FB-095 crown
-  // inheritance or the lot's own re-cited price (SIL-491).
-  const deadGroupCitation = facts.snapshotChannel != null
-    && facts.snapshotChannel.total === 0
-    && isRevGroupNote(facts.snapshotChannel.formulaNote);
   // FCL lots never followed the group law — byte-for-byte snapshot channel.
   if (facts.cargoMode !== 'LCL') {
     return { value: facts.snapshotChannel?.total ?? null, reason: null };
   }
   const qualified = facts.revGroupId != null || (facts.override?.stamped ?? false);
   if (!qualified) {
-    // FB-145 rule 1: the latest snapshot being a group citation citing no
-    // money means the lot's own price is GONE with the group — "Chưa xác
-    // định", never the cited 0₫ (or the merge's member-zero tail).
-    if (deadGroupCitation) {
+    // FB-145 rule 1 — a cited ZERO behind an ungrouped lot is a group
+    // artifact (the merge's member-zero tail, the "chờ định giá lại"
+    // citation, the moved-out "chuyển 100%" tail): "Chưa xác định", never a
+    // stale 0₫. A cited NON-ZERO is real money the service just moved or
+    // kept on the lot (the FB-095 promote's "Đón cước chính … — 100% cước
+    // thu", the 21/10-era own-cước marker) — it reads (SIL-490: the
+    // promotee's inherited 100% must reach the board or the toast lies).
+    if (facts.snapshotChannel != null
+      && facts.snapshotChannel.total === 0
+      && isRevGroupNote(facts.snapshotChannel.formulaNote)) {
       return { value: null, reason: null };
     }
     return { value: facts.snapshotChannel?.total ?? null, reason: null };
@@ -92,17 +89,15 @@ export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLcl
     ? `Ghép cước cùng Bill ${facts.revPrincipalRef ?? ''}`.trim()
     : null;
   // F-2: override first; a merged lot with no live trip falls back to the
-  // snapshot channel (the merge materialized each lot's own lane price).
-  // Still null when neither channel holds a number ("Chưa xác định" — never
-  // a fabricated 0). The fallback snapshot, too, must not be a group
-  // citation citing no money (FB-145 rule 1 applies to both paths; SIL-491
-  // keeps a non-zero crown snapshot printable for the promoted Lô 1 of a
-  // still-live group).
-  const fallback = deadGroupCitation
-    ? null
-    : facts.snapshotChannel?.total ?? null;
+  // snapshot channel — INCLUDING the merge's own materialized rows. Their
+  // citation prose is the ACTIVE group's price state (Lô 1's 100%, the
+  // members' cited 0₫ — D02), not a dead-group artifact: while the group
+  // stands those rows ARE the live board price (SIL-489 — the FB-145
+  // citation filter's scope is the UNGROUPED lot, rule 1 verbatim; it never
+  // reached a still-grouped lot). Still null when neither channel holds a
+  // number ("Chưa xác định" — never a fabricated 0).
   return {
-    value: facts.override?.total ?? fallback,
+    value: facts.override?.total ?? facts.snapshotChannel?.total ?? null,
     reason: facts.override?.reason ?? memberNote,
   };
 }

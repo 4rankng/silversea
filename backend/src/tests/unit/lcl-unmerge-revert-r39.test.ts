@@ -20,7 +20,7 @@ import {
   effectiveLclFreight,
   type LclFreightChannelFacts,
 } from '../../services/lcl-effective-freight';
-import { REV_LOT_AWAITING_REPRICE_REASON } from '../../services/lcl-rev-notes';
+import { REV_LOT_AWAITING_REPRICE_REASON, REV_LOT_OWN_CUOC_REASON } from '../../services/lcl-rev-notes';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
@@ -52,6 +52,39 @@ test('ungrouped never-priced lot (cited-0 awaiting reprice) reads "Chưa xác đ
   const out = effectiveLclFreight({
     ...base,
     snapshotChannel: { total: 0, formulaNote: REV_LOT_AWAITING_REPRICE_REASON },
+  });
+  assert.equal(out.value, null);
+});
+
+// SIL-490 — a cited NON-ZERO is real money the service moved or kept on the
+// ungrouped lot; hiding it made the promote toast's "nhận 100% cước thu
+// nhóm" claim vanish from every board.
+test('ungrouped lot holding PROMOTED money ("Đón cước chính", non-zero) reads the amount (SIL-490)', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    snapshotChannel: {
+      total: 2_000_000,
+      formulaNote: 'Đón cước chính khi tách nhóm (từ Bill R42CUS-MRG-01) — 100% cước thu',
+    },
+  });
+  assert.equal(out.value, 2_000_000);
+});
+
+test('ungrouped kept own cước (non-zero per-lot marker) reads the amount (SIL-490 sweep)', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    snapshotChannel: { total: 1_500_000, formulaNote: REV_LOT_OWN_CUOC_REASON },
+  });
+  assert.equal(out.value, 1_500_000);
+});
+
+test('ungrouped moved-out zero ("Tách nhóm — chuyển 100% cước cho Bill Y") still reads UNSET', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    snapshotChannel: {
+      total: 0,
+      formulaNote: 'Tách nhóm — chuyển 100% cước cho Bill R42CUS-MRG-02',
+    },
   });
   assert.equal(out.value, null);
 });
@@ -94,6 +127,37 @@ test('GROUPED trip-less member falls back to its materialized snapshot price (16
     snapshotChannel: { total: 3_900_000, formulaNote: 'Tuyến × loại xe (bảng giá)' },
   });
   assert.equal(out.value, 3_900_000);
+});
+
+// SIL-489 — the ACTIVE group's own materialized rows are its live price.
+// The FB-145 citation filter never reached a still-grouped lot: while the
+// group stands, the merge's snapshot rows ARE the 100%/0₫ board state.
+test('GROUPED trip-less Lô 1 reads the merge\'s own 100% citation snapshot (SIL-489)', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    revGroupId: 'g-sil489',
+    revGroupOrder: 1,
+    snapshotChannel: {
+      total: 2_000_000,
+      formulaNote: 'Ghép cước thu khách — Lô 1 giữ 100% cước thu nhóm (giá nhập tay, 5T)',
+    },
+  });
+  assert.equal(out.value, 2_000_000);
+});
+
+test('GROUPED trip-less member reads its cited 0₫ snapshot + "Ghép cước cùng Bill X" (SIL-489)', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    revGroupId: 'g-sil489',
+    revGroupOrder: 2,
+    revPrincipalRef: 'R42CUS-MRG-01',
+    snapshotChannel: {
+      total: 0,
+      formulaNote: 'Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu (chưa phân bổ xe)',
+    },
+  });
+  assert.equal(out.value, 0);
+  assert.equal(out.reason, 'Ghép cước cùng Bill R42CUS-MRG-01');
 });
 
 test('trip-leg freezes win the snapshot channel and are never group artifacts', () => {
