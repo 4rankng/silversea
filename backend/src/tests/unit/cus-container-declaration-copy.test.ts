@@ -91,13 +91,17 @@ test('copy bump lot version ĐÚNG 1 lần sau khi ghi (reconcile đồng thời
   assert.ok(updateAt > -1 && bumpAt > updateAt, 'bump sau ghi container');
 });
 
-// ─── SPEC verify ĐƯỜNG TẠO: create lô kéo syncDeclarationOntoEmptyContainers ─
+// ─── SPEC verify ĐƯỜNG TẠO: SIL-521 bỏ input cấp lô lúc tạo ─────────────────
 
-test('create path: syncDeclarationOntoEmptyContainers chạy trong tx tạo lô (SIL-166)', () => {
-  assert.match(
+test('create path: KHÔNG còn fan-out tờ khai cấp lô lúc tạo lô (SIL-521 supersede SIL-166 create leg)', () => {
+  // Owner 26/10: tờ khai chỉ nhập/sửa ở cấp cont. Lô mới sinh ra với các dòng
+  // cont TRỐNG tờ khai — CUS tự nhập per-cont (hoặc copy) sau khi tạo.
+  assert.doesNotMatch(
     createService,
-    /await syncDeclarationOntoEmptyContainers\(tx, shipment\.id, input\.declarationNumber\)/,
+    /syncDeclarationOntoEmptyContainers/,
+    'create không được còn kéo số cấp lô xuống dòng cont',
   );
+  assert.doesNotMatch(createService, /input\.declarationNumber/);
 });
 
 test('helper fan-out dùng chung giữ luật fill-trống ở một chỗ (SIL-166/173)', () => {

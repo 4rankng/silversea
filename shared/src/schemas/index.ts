@@ -1830,7 +1830,6 @@ export const shipmentContainerItemSchema = z.object({
 // Create-workspace combined contract: root + containers in ONE idempotent
 // call - a containers failure rolls back the whole create.
 const quickCreateShipmentBaseSchema = createShipmentBaseSchema.extend({
-  declarationNumber: z.string().trim().max(50).optional().nullable(),
   _requestId: z.string().min(1).max(100).optional(),
   // Create-workspace combined save: containers ride the idempotent create
   // call so a containers failure rolls back the root with it (no 0-cont

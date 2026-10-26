@@ -48,6 +48,12 @@ case "$cmd" in
     echo "── scoped BE tests (files changed vs origin/main) ──"
     CHANGED=$(git diff --name-only origin/main...HEAD -- 'backend/src/tests/*.test.ts' | sed 's|backend/||' || true)
     if [ -n "$CHANGED" ]; then
+      # BE resolve @tingting/shared qua node_modules → shared/dist (FE alias thẳng
+      # vào shared/src nên miễn nhiễm). Build dist tươi đúng như backend pretest
+      # làm (`pnpm --dir ../shared build`): nếu bỏ qua, schema vừa sửa trong
+      # shared/src bị test đọc qua bản dist cũ → đỏ ảo do drift artifact, không
+      # phải test pollution (các file này chạy isolated cũng đỏ y hệt).
+      (cd backend && pnpm --dir ../shared build >/dev/null) || { echo "❌ shared build failed — scoped BE tests cần shared/dist tươi"; exit 1; }
       (cd backend && pnpm exec tsx --test $CHANGED 2>&1 | tee /tmp/gate-scoped.log | grep -E "^ℹ (tests|pass|fail)") || true
       # FLAKE QUARANTINE (Oct 2026 TIA practice): fail → rerun MỖI file cô lập 1 lần.
       # Fail lại khi cô lập = red thật; pass khi cô lập = flake → quarantine, không chặn wave.

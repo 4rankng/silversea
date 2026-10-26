@@ -1,0 +1,30 @@
+✔ copy-declaration wire: expectedShipmentVersion vào, updatedContainerIds + shipmentVersion ra (0.922875ms)
+✔ copy-result strict: trường lạ bị từ chối (0.215625ms)
+✔ copy đọc declarationNumber từ DB (FOR UPDATE) — không phải draft FE (0.117417ms)
+✔ nguồn trống bị chặn 400 — không có gì để copy (0.058667ms)
+✔ copy fan-out giữ predicate TRỐNG (IS NULL OR btrim = "") — không đụng dòng có số khác (0.074209ms)
+✔ hết dòng trống → 409 "Mọi container trong lô đã có số tờ khai." (0.0455ms)
+✔ copy phải qua CẢ requireWorkspaceWriter lẫn requireContainerDeclarationWriter (0.05075ms)
+✔ copy bump lot version ĐÚNG 1 lần sau khi ghi (reconcile đồng thời) (0.055583ms)
+✔ create path: KHÔNG còn fan-out tờ khai cấp lô lúc tạo lô (SIL-521 supersede SIL-166 create leg) (0.073292ms)
+✔ helper fan-out dùng chung giữ luật fill-trống ở một chỗ (SIL-166/173) (0.093083ms)
+▶ shipment create key guard
+  ✔ rejects every unknown key by name (0.401375ms)
+  ✔ keeps the deliberate advice for a containers payload on the create route (0.057417ms)
+  ✔ accepts an unknown key holding an EMPTY array — no data to lose (0.063792ms)
+  ✔ ignores non-object bodies (zod owns those errors) (0.046166ms)
+  ✔ quick-create carries exactly two extra channels over the create list (0.266167ms)
+  ✔ every accepted key passes the guard (0.059667ms)
+✔ shipment create key guard (1.243875ms)
+✔ quick-create no longer takes a lot-level declarationNumber; containers still ride combined save (SIL-521) (0.4915ms)
+✔ CUS list item carries the declaration numbers the Chứng từ column joins (0.944583ms)
+✔ declarationNumbers stays optional with declarationNumber as the fallback source (0.186208ms)
+✔ the drawer summary rides the same item contract as the workboard row (0.039834ms)
+ℹ tests 20
+ℹ suites 1
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 396.367375

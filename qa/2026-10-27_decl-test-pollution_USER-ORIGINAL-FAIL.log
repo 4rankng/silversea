@@ -1,0 +1,81 @@
+✔ copy-declaration wire: expectedShipmentVersion vào, updatedContainerIds + shipmentVersion ra (0.989667ms)
+✔ copy-result strict: trường lạ bị từ chối (0.22375ms)
+✔ copy đọc declarationNumber từ DB (FOR UPDATE) — không phải draft FE (0.126041ms)
+✔ nguồn trống bị chặn 400 — không có gì để copy (0.067333ms)
+✔ copy fan-out giữ predicate TRỐNG (IS NULL OR btrim = "") — không đụng dòng có số khác (0.07325ms)
+✔ hết dòng trống → 409 "Mọi container trong lô đã có số tờ khai." (0.046416ms)
+✔ copy phải qua CẢ requireWorkspaceWriter lẫn requireContainerDeclarationWriter (0.0505ms)
+✔ copy bump lot version ĐÚNG 1 lần sau khi ghi (reconcile đồng thời) (0.0565ms)
+✔ create path: KHÔNG còn fan-out tờ khai cấp lô lúc tạo lô (SIL-521 supersede SIL-166 create leg) (0.07075ms)
+✔ helper fan-out dùng chung giữ luật fill-trống ở một chỗ (SIL-166/173) (0.089209ms)
+▶ shipment create key guard
+  ✔ rejects every unknown key by name (0.428167ms)
+  ✔ keeps the deliberate advice for a containers payload on the create route (0.062292ms)
+  ✔ accepts an unknown key holding an EMPTY array — no data to lose (0.06725ms)
+  ✔ ignores non-object bodies (zod owns those errors) (0.04925ms)
+  ✖ quick-create carries exactly two extra channels over the create list (1.054417ms)
+  ✔ every accepted key passes the guard (0.069292ms)
+✖ shipment create key guard (2.1365ms)
+✖ quick-create no longer takes a lot-level declarationNumber; containers still ride combined save (SIL-521) (1.467459ms)
+✔ CUS list item carries the declaration numbers the Chứng từ column joins (1.074292ms)
+✔ declarationNumbers stays optional with declarationNumber as the fallback source (0.201584ms)
+✔ the drawer summary rides the same item contract as the workboard row (0.04475ms)
+ℹ tests 20
+ℹ suites 1
+ℹ pass 18
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 556.56325
+
+✖ failing tests:
+
+test at src/tests/unit/shipment-create-key-guard.test.ts:1:1283
+✖ quick-create carries exactly two extra channels over the create list (1.054417ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      '_requestId',
+      'containers',
+  +   'declarationNumber'
+    ]
+  
+      at TestContext.<anonymous> (/Volumes/LexarSSD/projects/silversea/backend/src/tests/unit/shipment-create-key-guard.test.ts:45:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '_requestId', 'containers', 'declarationNumber' ],
+    expected: [ '_requestId', 'containers' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/tests/unit/shipment-overview-declaration-wire.test.ts:1:3135
+✖ quick-create no longer takes a lot-level declarationNumber; containers still ride combined save (SIL-521) (1.467459ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'declarationNumber'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/Volumes/LexarSSD/projects/silversea/backend/src/tests/unit/shipment-overview-declaration-wire.test.ts:127:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'declarationNumber' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
