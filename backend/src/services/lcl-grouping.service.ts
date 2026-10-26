@@ -51,6 +51,7 @@ import {
   assertSameRevCustomer,
   costGroupMemberPatch,
   findRevCustomerConflict,
+  lclCostGroupPlannedCosts,
   revGroupMemberPatch,
 } from './lcl-grouping-law';
 import {
@@ -1132,9 +1133,16 @@ async function persistLclCostCarrier(
   shipmentIds: number[],
   carrier: LclCostCarrier,
   actualTruckNo: string,
+  /**
+   * SIL-492 — shipmentId → planned_carrier_cost the money law lands on the
+   * lot row (the "Chỉnh sửa điều phối" popup and the plan grid read exactly
+   * this column). `null`/absent = keep the stored value.
+   */
+  plannedCosts?: ReadonlyMap<number, string | null>,
 ): Promise<void> {
   const fulfillments = await tx.select({
     id: s.shipmentFulfillments.id,
+    shipmentId: s.shipmentFulfillments.shipmentId,
     version: s.shipmentFulfillments.version,
   }).from(s.shipmentFulfillments)
     .where(and(
@@ -1143,11 +1151,13 @@ async function persistLclCostCarrier(
     ))
     .orderBy(asc(s.shipmentFulfillments.id));
   for (const fulfillment of fulfillments) {
+    const plannedCost = plannedCosts?.get(fulfillment.shipmentId) ?? null;
     await tx.update(s.shipmentFulfillments).set({
       plannedCarrierType: carrier.carrierType,
       plannedExternalCarrierId: carrier.carrierId,
       plannedExternalCarrierVehicleId: carrier.carrierVehicleId,
       plannedVehiclePlateNumber: actualTruckNo,
+      ...(plannedCost != null ? { plannedCarrierCost: plannedCost } : {}),
       version: fulfillment.version + 1,
       updatedAt: new Date(),
     }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
@@ -1266,7 +1276,17 @@ export async function assignLclCostGroup(
 
     // The chosen nhà xe / đội xe nội bộ is a fact of every member lot, not a
     // transient dialog state — persisted on the lots so a reopen redisplays it.
-    await persistLclCostCarrier(tx, ordered.map((row) => row.id), carrier, actualTruckNo);
+    // SIL-492 — the money law rides the same write: Lô 1's traced freight
+    // (manual wins, else price board; a board miss keeps the stored value)
+    // and the members' 0₫ land on planned_carrier_cost, the column the
+    // "Chỉnh sửa điều phối" popup and the plan grid render.
+    await persistLclCostCarrier(
+      tx,
+      ordered.map((row) => row.id),
+      carrier,
+      actualTruckNo,
+      lclCostGroupPlannedCosts(ordered.map((row) => row.id), principalFreight),
+    );
 
     await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_LCL_COST_GROUP_ASSIGNED, ordered[0]!, {
       dimension: 'COST',
@@ -1406,7 +1426,18 @@ export async function updateLclCostGroup(
       }
     }
 
-    await persistLclCostCarrier(tx, members.map((row) => row.id), carrier, actualTruckNo);
+    // SIL-492 — same planned-cost law on the partial update, only when the
+    // 3-state money actually moved (omitted freightCost = money untouched,
+    // review H1 — the lot rows' planned costs stay exactly as they are).
+    await persistLclCostCarrier(
+      tx,
+      members.map((row) => row.id),
+      carrier,
+      actualTruckNo,
+      moneyChanged
+        ? lclCostGroupPlannedCosts(members.map((row) => row.id), principalFreight)
+        : undefined,
+    );
 
     await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_UPDATED, principal, {
       dimension: 'COST',

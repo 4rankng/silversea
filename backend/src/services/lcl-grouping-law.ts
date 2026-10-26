@@ -134,3 +134,39 @@ export function assertSameRevCustomer(
     `Chỉ cho phép ghép các lô của cùng một khách hàng (CÙNG 1 KHÁCH HÀNG) — phát hiện xung đột: ${details}`,
   );
 }
+
+// ─── Planned-cost law (SIL-492) — the group's money lands on the lot row ───
+
+/** `applyPrincipalCostFreight`'s outcome — what Lô 1 actually carries. */
+export interface PrincipalFreightOutcome {
+  /** The VND string written to the money columns. */
+  amount: string;
+  source: 'MANUAL' | 'PRICE_BOARD';
+}
+
+/**
+ * SIL-492 — the cost group's money law must land on
+ * `shipment_fulfillments.planned_carrier_cost` too, not only on live trips:
+ * the "Chỉnh sửa điều phối" popup and the plan grid read exactly that column,
+ * so an assignment that skipped it showed 0₫ on Lô 1 despite the toast's
+ * "Lô 1 giữ 100% cước trả ĐV" promise.
+ *
+ * Given the members in group order and Lô 1's freight outcome:
+ *   - Lô 1 (index 0): the traced amount (manual override wins, else the price
+ *     board); `null` outcome = board miss ⇒ KEEP the stored value (an absent
+ *     price is never an invented 0₫ and never a wiped estimate);
+ *   - members 2..N: `'0'` — "nhảy tiền", the group pays the vendor once.
+ *
+ * Returns shipmentId → value-to-write; a `null` value means "leave this
+ * column untouched" (the caller omits it from the UPDATE set).
+ */
+export function lclCostGroupPlannedCosts(
+  orderedShipmentIds: readonly number[],
+  principalFreight: PrincipalFreightOutcome | null,
+): Map<number, string | null> {
+  const planned = new Map<number, string | null>();
+  orderedShipmentIds.forEach((shipmentId, index) => {
+    planned.set(shipmentId, index === 0 ? principalFreight?.amount ?? null : '0');
+  });
+  return planned;
+}

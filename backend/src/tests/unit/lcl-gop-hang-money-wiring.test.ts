@@ -162,3 +162,19 @@ test('default per-lot (ruling 21/10) giữ nguyên ngoài nhóm gộp', () => {
   assert.match(merge(), /findRevCustomerConflict\(/);
   assert.match(merge(), /assertSameRevCustomer\(/);
 });
+
+// ─── SIL-492 — the money law lands on planned_carrier_cost (the popup's column)
+
+test('SIL-492: assign ghi planned cost qua persistLclCostCarrier (Luật pure wired)', () => {
+  const a = assign();
+  assert.match(a, /lclCostGroupPlannedCosts\(ordered\.map\(\(row\) => row\.id\), principalFreight\)/);
+  // persistLclCostCarrier takes the map and writes the column only when the
+  // law carries a value (null = keep).
+  assert.match(svc, /plannedCosts\?\.get\(fulfillment\.shipmentId\) \?\? null/);
+  assert.match(svc, /\.\.\.\(plannedCost != null \? \{ plannedCarrierCost: plannedCost \} : \{\}\)/);
+});
+
+test('SIL-492: update nhóm — planned cost chỉ chạy khi moneyChanged (partial H1)', () => {
+  const u = update();
+  assert.match(u, /moneyChanged\s*\n?\s*\?\s*lclCostGroupPlannedCosts\(members\.map\(\(row\) => row\.id\), principalFreight\)\s*\n?\s*:\s*undefined/);
+});
