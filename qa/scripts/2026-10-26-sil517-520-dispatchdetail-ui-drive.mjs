@@ -98,16 +98,29 @@ if (MODE === 'T1') {
 }
 
 if (MODE === 'T2') {
+  // Focus the unassigned population first: the filter strip's "Chưa gán xe"
+  // chip narrows the board to rows without a vehicle (where the removed
+  // filler used to live). Fall back to the full board if absent.
+  const chip = await page.evaluateHandle(() => [...document.querySelectorAll('button')]
+    .find((b) => /Chưa gán xe/.test(b.textContent ?? '')));
+  if (chip.asElement()) {
+    await chip.asElement().click();
+    await sleep(1500);
+  }
   const data = await page.evaluate(() => {
     const cells = [...document.querySelectorAll('td[data-label="Điều phối"]')];
     const withCus = cells.filter((c) => c.textContent.includes('CUS sẽ bổ sung'));
     const unassigned = cells.filter((c) => c.textContent.includes('Chưa phân nhà xe'));
-    const unassignedDetail = unassigned.map((c) => c.textContent.replace(/\s+/g, ' ').trim());
+    const unassignedDetail = unassigned.map((c) => ({
+      text: c.textContent.replace(/\s+/g, ' ').trim(),
+      hasPlateSpan: c.querySelector('.dispatch-assignment-cell__plate') != null,
+    }));
     return { cellCount: cells.length, cusCount: withCus.length, unassignedCount: unassigned.length, unassignedDetail };
   });
   check('table rendered with rows', data.cellCount > 0, data.cellCount);
+  check('unassigned rows are on the board (evidence exists)', data.unassignedCount > 0, { unassignedCount: data.unassignedCount });
   check('NO "CUS sẽ bổ sung" line anywhere in the Điều phối column', data.cusCount === 0, { cusCount: data.cusCount });
-  check('unassigned rows show only the carrier line (no second placeholder line)', data.unassignedDetail.every((t) => !t.includes('CUS sẽ bổ sung')), data.unassignedDetail);
+  check('unassigned rows render no plate span (the line below is empty)', data.unassignedDetail.every((d) => !d.hasPlateSpan), data.unassignedDetail.slice(0, 4));
   await page.screenshot({ path: resolve(OUT, 'dispatch-detail-full.png') });
 }
 

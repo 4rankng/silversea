@@ -1,0 +1,48 @@
+{
+  "mode": "T2",
+  "url": "http://localhost:7197/dispatch-detail",
+  "checks": [
+    {
+      "name": "table rendered with rows",
+      "pass": true,
+      "detail": 50
+    },
+    {
+      "name": "unassigned rows are on the board (evidence exists)",
+      "pass": true,
+      "detail": {
+        "unassignedCount": 17
+      }
+    },
+    {
+      "name": "NO \"CUS sẽ bổ sung\" line anywhere in the Điều phối column",
+      "pass": true,
+      "detail": {
+        "cusCount": 0
+      }
+    },
+    {
+      "name": "unassigned rows render no plate span (the line below is empty)",
+      "pass": true,
+      "detail": [
+        {
+          "text": "Chưa phân nhà xe",
+          "hasPlateSpan": false
+        },
+        {
+          "text": "Chưa phân nhà xe",
+          "hasPlateSpan": false
+        },
+        {
+          "text": "Chưa phân nhà xe",
+          "hasPlateSpan": false
+        },
+        {
+          "text": "Chưa phân nhà xe",
+          "hasPlateSpan": false
+        }
+      ]
+    }
+  ],
+  "pass": true
+}

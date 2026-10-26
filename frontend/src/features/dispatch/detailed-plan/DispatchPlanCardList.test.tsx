@@ -140,7 +140,9 @@ describe('DispatchPlanCardList — 3-dòng info (C3L-01)', () => {
     expect(slotButtons).toHaveLength(1);
     expect(slotButtons[0].getAttribute('aria-label')).toContain('Phát lệnh');
     expect(document.querySelector('.dpcard .dispatch-row-menu__trigger')).toBeNull();
-    expect(document.querySelector('.dpcard__plate')?.textContent).toBe('CUS sẽ bổ sung');
+    // SIL-518 sweep: the card's BKS line drops the "CUS sẽ bổ sung" filler
+    // too — no plate span renders for an external deferred row.
+    expect(document.querySelector('.dpcard__plate')).toBeNull();
   });
 });
 

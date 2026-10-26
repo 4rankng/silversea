@@ -359,11 +359,14 @@ describe('DetailedPlanGrid', () => {
     expect(screen.queryByRole('dialog', { name: /Chỉnh sửa điều phối/i })).toBeNull();
   });
 
-  it('renders the vendor placeholder hint for unassigned EXTERNAL rows', () => {
+  it('unassigned EXTERNAL rows render NO "CUS sẽ bổ sung" filler line (SIL-518)', () => {
     renderGrid([row({
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe Việt', externalCarrierId: 77, externalCarrierVehicleId: null, assignedPlate: null },
     })]);
-    expect(screen.getByText('CUS sẽ bổ sung')).toBeTruthy();
+    // SIL-518 (owner 26/10): the italic filler under "Chưa phân nhà xe" is
+    // noise — the line below the carrier is EMPTY (no plate span at all).
+    expect(screen.queryByText('CUS sẽ bổ sung')).toBeNull();
+    expect(document.querySelector('.dispatch-assignment-cell__plate')).toBeNull();
     expect(screen.getByText('Nhà xe Việt')).toBeTruthy();
   });
 
