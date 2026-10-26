@@ -6,20 +6,37 @@
    shell canvas, while the app shell remains the single safe outer gutter. */
 .app-main:not(.driver-mode) .app-body > .csc-page { width: 100%; max-width: none; margin-inline: 0; }
 .csc-page { width: 100%; margin: 0; padding: 12px 0; min-width: 0; }
-/* Owner mock 11/10 ("Tạo lô hàng – dense layout.html"): title, required
-   progress and the three actions ride ONE topline; the fixed bottom bar is
-   retired. */
-/* SIL-509: ≥12px separation from the section bands below — the actions row
-   used to sit flush on the "Nhận diện lô" band (gap 0 at ≥1280, 10 here). */
+/* Owner mock 11/10 ("Tạo lô hàng – dense layout.html"): title + required
+   progress ride ONE topline. SIL-510 (owner 26/10): the actions left the
+   topline — the worksheet's ONE action bar is the viewport-fixed footer
+   below, so one viewport never shows two action bars. */
+/* SIL-509: ≥12px separation from the section bands below (supersedes the
+   SIL-499 squeeze; the title row keeps the gap after the actions left). */
 .csc-topline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 12px; }
 .csc-topline__title { margin: 0; color: var(--fg-1); font-size: var(--text-title-size); font-weight: 700; line-height: 1.2; }
 .csc-topline__progress { color: var(--fg-3); font-size: var(--text-data-size); }
 .csc-topline__progress strong { color: var(--accent-ink); font-weight: 700; }
-.csc-topline__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
-/* FB-108 (card 171026115830): the action cluster repeated at the end of the
-   worksheet. Separated from the last card by a rule so it reads as the form's
-   footer, not as part of the note card above it. */
-.csc-form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-1); }
+/* SIL-510 (owner 26/10): THE action bar — viewport-fixed bottom, ONE row
+   (~60px incl. 10px padding, buttons right-aligned), no trailing empty
+   block. Geometry follows the house fixed-action-bar law (tc-action-bar):
+   pinned to the shell's main column via --app-sidebar-offset (0 on
+   tablet/phone), above content, below overlays. */
+.csc-form-actions {
+  position: fixed;
+  bottom: 0;
+  left: var(--app-sidebar-offset, 0px);
+  right: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border-1);
+}
+.csc-form-actions .csc-actions { flex-wrap: nowrap; min-width: 0; }
 .csc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* Card D.4 (18/10) + 181026200700: the hàng lẻ form has NO "Lịch & ghi chú"
    section and NO add button — one always-visible "Ngày giao hàng" field. */
@@ -434,11 +451,18 @@
      replaced the old borderless single-column stack that read as one endless
      form); only the padding tightens here, in the block above. */
   .csc-page {
-    /* No fixed surface rides this route any more (owner mock 11/10: the
-       actions moved to the page topline), so the page clears nothing extra —
-       the shell's ≤640 trailing band is the single bottom clearance. */
     background: var(--surface);
   }
+  /* SIL-510: the fixed action bar rides phones too — tight padding + the
+     safe-area inset, and the three buttons share the row (flex-fill, same
+     law as the house tc-action-bar ≤420px) so the bar stays EXACTLY one
+     line instead of wrapping. */
+  .csc-form-actions {
+    gap: 6px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .csc-form-actions .csc-actions { flex: 1; }
+  .csc-form-actions .csc-actions > * { flex: 1 1 0; min-width: 0; }
 }
 
 /* Narrow phones: the timing pair gives its right half back — the paired
@@ -451,6 +475,16 @@
 
 @media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: var(--control-max-h); } }
 @media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-validation-summary, .csc-submit-error { padding: 8px !important; } }
+/* SIL-510: below the onescreen band the worksheet scrolls vertically — the
+   page clears the fixed bar's MEASURED height (+12px gap; the hook publishes
+   --csc-action-bar-height) so the last row (container sheet / add control)
+   is never covered at scroll-end. ≥1280 the onescreen band fits one viewport
+   (SIL-499, no scrollbar) and the fixed bar overlays the tail the retired
+   in-flow footer row freed — no clearance there, or the 499 law would tip
+   back into scrolling. */
+@media (max-width: 1279px) {
+  .csc-page { padding-bottom: calc(var(--csc-action-bar-height, 60px) + 12px); }
+}
 @media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
 /* The FCL cargo step owns an editable view of the lot route. It shares the

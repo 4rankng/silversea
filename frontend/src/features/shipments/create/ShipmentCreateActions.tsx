@@ -7,19 +7,6 @@ export interface ShipmentCreateActionsProps {
   onCancel: () => void;
   onSaveDraft: () => void;
   onCreate: () => void;
-  /** Extra class for the cluster element — the topline keeps its own
-   *  `.csc-topline__actions` layout class instead of gaining a wrapper div,
-   *  which would break the topline's single flex row. */
-  className?: string;
-  /**
-   * Card 171026115830 (FB-108): the SAME cluster renders twice on the page —
-   * in the topline and again at the end of the worksheet, so a clerk who has
-   * scrolled to the last field does not have to scroll back up to act. The two
-   * clusters therefore share visible labels, which would make them
-   * indistinguishable to a screen reader (and to `getByRole('button', {name})`
-   * — duplicate matches are ambiguous), so the footer variant names itself.
-   */
-  variant?: 'topline' | 'footer';
   /**
    * SIL-171 (FB-147) edit mode: the cluster becomes Huỷ + one primary
    * "Lưu thay đổi" (the lot PATCH). "Lưu nháp" is create-only intent — a
@@ -30,7 +17,15 @@ export interface ShipmentCreateActionsProps {
 }
 
 /** The create-page actions (Huỷ / Lưu nháp / Tạo lô hàng) and their edit-mode
- *  pair (Huỷ / Lưu thay đổi).
+ *  pair (Huỷ / Lưu thay đổi) — THE one action bar of the worksheet.
+ *
+ * SIL-510 (owner 26/10): the cluster mounts exactly once, as the
+ * viewport-fixed footer bar (`.csc-form-actions`) — always visible while
+ * scrolling, one row, actions right-aligned. The topline twin the FB-108
+ * card 171026115830 added is retired by the same ruling (never two action
+ * bars on one viewport), so the plain accessible names live here alone and
+ * the "(cuối trang)" self-naming that only existed to tell the twins apart
+ * is gone with them.
  *
  * The two create save actions are DIFFERENT intents (owner-confirmed):
  * `Lưu nháp` = partial create (customer only, SaveIntent 'DRAFT'),
@@ -41,20 +36,14 @@ export function ShipmentCreateActions({
   onCancel,
   onSaveDraft,
   onCreate,
-  className,
-  variant = 'topline',
   mode = 'create',
 }: ShipmentCreateActionsProps) {
-  const footer = variant === 'footer';
   const edit = mode === 'edit';
-  const label = (text: string) => (footer ? `${text} (cuối trang)` : undefined);
   return (
     <div
-      className={[footer ? 'csc-actions csc-actions--footer' : 'csc-actions', className].filter(Boolean).join(' ')}
+      className="csc-actions"
       role="group"
-      aria-label={footer
-        ? (edit ? 'Thao tác sửa lô hàng (cuối trang)' : 'Thao tác tạo lô hàng (cuối trang)')
-        : (edit ? 'Thao tác sửa lô hàng' : 'Thao tác tạo lô hàng')}
+      aria-label={edit ? 'Thao tác sửa lô hàng' : 'Thao tác tạo lô hàng'}
     >
       <UUIButton
         type="button"
@@ -63,7 +52,6 @@ export function ShipmentCreateActions({
         iconLeading={X}
         onClick={onCancel}
         isDisabled={Boolean(saving)}
-        aria-label={label('Huỷ')}
       >
         Huỷ
       </UUIButton>
@@ -75,7 +63,6 @@ export function ShipmentCreateActions({
           iconLeading={Save}
           onClick={onSaveDraft}
           isDisabled={Boolean(saving)}
-          aria-label={label(saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu nháp')}
         >
           {saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu nháp'}
         </UUIButton>
@@ -88,9 +75,6 @@ export function ShipmentCreateActions({
         iconLeading={Check}
         onClick={onCreate}
         isDisabled={Boolean(saving)}
-        aria-label={label(edit
-          ? (saving ? 'Đang lưu…' : 'Lưu thay đổi')
-          : (saving === 'CREATE' ? 'Đang tạo…' : 'Tạo lô hàng'))}
       >
         {edit
           ? (saving ? 'Đang lưu…' : 'Lưu thay đổi')

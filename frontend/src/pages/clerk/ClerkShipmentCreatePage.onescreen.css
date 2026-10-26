@@ -22,8 +22,9 @@
  *                              engine has data — :has() collapses its row)
  *   r3  schedule (FCL) / route (LCL) — full width
  *   r4  cargo (container sheet — needs the full 1164px min-width) — full
- *   r5  footer actions — full
- * Identity re-flows internally: contact+refs bands stack in column 1,
+ *   SIL-510: the action bar is NOT a grid row — it is the viewport-fixed
+ *   footer (`.csc-form-actions`), always visible while scrolling.
+ *   Identity re-flows internally: contact+refs bands stack in column 1,
  * choices + declaration strip stack in column 2 — same DOM, same order.
  */
 @media (min-width: 1280px) {
@@ -39,7 +40,6 @@
   #shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }
   #shipment-section-route { grid-area: 3 / 1 / 4 / 3; }
   #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }
-  .csc-form-actions { grid-area: 5 / 1 / 6 / 3; padding-top: 8px; }
 
   /* No freight preview → pull schedule/route up into its row, so no empty
      track (and no orphan gaps) is left behind. */
@@ -47,16 +47,18 @@
   .csc-workspace:not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 2 / 1 / 3 / 3; }
   .csc-workspace:not(:has([data-freight-preview])) #shipment-section-route { grid-area: 2 / 1 / 3 / 3; }
   .csc-workspace:not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 3 / 1 / 4 / 3; }
-  .csc-workspace:not(:has([data-freight-preview])) .csc-form-actions { grid-area: 4 / 1 / 5 / 3; }
 
   /* ── SPEC density: card padding 12-16, gap 12, section band 36 ── */
   .csc-section { padding: 12px 14px !important; gap: 8px !important; }
   .csc-section__heading { margin: -12px -14px 0; padding: 7px 14px; }
   /* SIL-509 (owner 26/10): the actions row sat flush on the "Nhận diện lô"
      band (gap 0). ≥12px separation wins over the SIL-499 zero-margin
-     density squeeze — explicit owner ticket supersedes the band budget. */
+     density squeeze — explicit owner ticket supersedes the band budget.
+     SIL-510: the actions left the topline (the ONE bar is the viewport-
+     fixed footer), so this margin is now the title row's own gap; the bar
+     carries no band padding override — its 10px padding law lives in the
+     base stylesheet. */
   .csc-topline { margin-bottom: 12px; }
-  .csc-form-actions { padding-top: 4px; }
 
   /* Loại hàng: legend rides the segmented control's line (was stacked).
      Chrome renders a flex fieldset's legend as a stacked special box, so

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
 import { requiredCompletion } from './ShipmentCreateTopline.progress';
@@ -140,58 +140,22 @@ describe('required completion — the whole form, live', () => {
   });
 
   it('renders the shared denominator in the chip', () => {
-    render(
-      <ShipmentCreateTopline
-        saving={null}
-        requiredDone={3}
-        requiredTotal={9}
-        onCancel={vi.fn()}
-        onSaveDraft={vi.fn()}
-        onCreate={vi.fn()}
-      />,
-    );
+    render(<ShipmentCreateTopline requiredDone={3} requiredTotal={9} />);
     expect(screen.getByText('3/9')).toBeTruthy();
   });
 });
 
 describe('SIL-481 view-mode topline (post-create review)', () => {
-  const viewProps = {
-    saving: null,
-    requiredDone: 9,
-    requiredTotal: 9,
-    onCancel: vi.fn(),
-    onSaveDraft: vi.fn(),
-    onCreate: vi.fn(),
-    onBack: vi.fn(),
-    onEdit: vi.fn(),
-    onCreateNew: vi.fn(),
-  };
-
-  it('titles the review, hides the fill-progress chip and swaps the cluster', () => {
-    render(<ShipmentCreateTopline mode="view" {...viewProps} />);
+  it('titles the review, hides the fill-progress chip and carries no action bar', () => {
+    render(<ShipmentCreateTopline mode="view" requiredDone={9} requiredTotal={9} />);
     expect(screen.getByRole('heading', { name: 'Chi tiết lô hàng' })).toBeTruthy();
     expect(screen.queryByText(/Bắt buộc:/)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Sửa' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tạo mới lô hàng' })).toBeTruthy();
-    // No create/save affordance rides the read-only topline.
-    expect(screen.queryByRole('button', { name: 'Tạo lô hàng' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Lưu nháp' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Huỷ' })).toBeNull();
-  });
-
-  it('a viewer without the edit gate sees Quay lại alone', () => {
-    // Gating lives in the caller (the workspace omits both verbs for a
-    // role the intake routes refuse) — the cluster renders what it gets.
-    render(<ShipmentCreateTopline mode="view" {...viewProps} onEdit={undefined} onCreateNew={undefined} />);
-    expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Tạo mới lô hàng' })).toBeNull();
-  });
-
-  it('an accounting-locked lot disables Sửa with the reason', () => {
-    render(<ShipmentCreateTopline mode="view" {...viewProps} editLocked />);
-    const edit = screen.getByRole('button', { name: 'Sửa' });
-    expect(edit.getAttribute('data-disabled')).toBe('true');
+    // SIL-510 (owner 26/10): the topline retired its action twin — the ONE
+    // action bar of the worksheet is the viewport-fixed footer, so the
+    // review cluster (Quay lại / Sửa / Tạo mới lô hàng) renders only there.
+    // The gating behaviors the old topline buttons carried (role-refused
+    // degradation, the accounting-locked disabled Sửa) stay covered at the
+    // workspace level in ShipmentCreateWorkspace.view-mode.test.tsx.
+    expect(document.querySelector('.csc-topline')!.querySelectorAll('button')).toHaveLength(0);
   });
 });

@@ -22,7 +22,10 @@ import type * as ShipmentClientModule from '../../../api/shipmentClient';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ShipmentCreateWorkspace } from './ShipmentCreateWorkspace';
 
-const FOOTER_LABELS = ['Huỷ (cuối trang)', 'Lưu nháp (cuối trang)', 'Tạo lô hàng (cuối trang)'];
+// SIL-510: ONE action bar — the viewport-fixed footer — so the buttons keep
+// the plain accessible names (the "(cuối trang)" self-naming only existed to
+// tell the FB-108 twins apart).
+const FOOTER_LABELS = ['Huỷ', 'Lưu nháp', 'Tạo lô hàng'];
 
 /** Two history entries so the Huỷ → discard path has a place to land. */
 function renderWorkspace() {
@@ -47,7 +50,7 @@ function expectFooterCluster() {
   expect(footer).toBeTruthy();
   const form = document.querySelector('form.csc-workspace')!;
   expect(form.lastElementChild).toBe(footer);
-  expect(Array.from(footer.querySelectorAll('button')).map((b) => b.getAttribute('aria-label'))).toEqual(FOOTER_LABELS);
+  expect(Array.from(footer.querySelectorAll('button')).map((b) => b.textContent?.trim())).toEqual(FOOTER_LABELS);
 }
 
 async function enterFclWithCatalogCustomer() {
@@ -70,7 +73,7 @@ async function draftCallFor(buttonName: string) {
   return call;
 }
 
-describe('FB-108 card 171026115830 — the action cluster repeated at the foot of the worksheet', { timeout: 20000 }, () => {
+describe('SIL-510 — the ONE action bar: viewport-fixed footer of the worksheet (ex-FB-108 twin)', { timeout: 20000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     quickCreateShipment.mockReset();
@@ -88,7 +91,7 @@ describe('FB-108 card 171026115830 — the action cluster repeated at the foot o
   it.each([
     ['hàng cont', /Hàng FCL/],
     ['hàng lẻ', /Hàng lẻ/],
-  ])('mounts the cluster at the end of the %s worksheet (both modes)', async (_mode, radio) => {
+  ])('mounts the fixed footer bar at the end of the %s worksheet (both modes)', async (_mode, radio) => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     if (!screen.getByRole('radio', { name: radio }).getAttribute('aria-checked')) {
@@ -96,61 +99,46 @@ describe('FB-108 card 171026115830 — the action cluster repeated at the foot o
     }
     await waitFor(() => expectFooterCluster());
 
-    // The topline cluster is untouched and keeps the plain accessible names —
-    // the two clusters must never collide for a screen reader.
+    // SIL-510: the topline retired its action twin — this bar is the ONE
+    // action cluster on the page, so a viewport never shows two of them.
     const topline = document.querySelector('.csc-topline')!;
-    expect(Array.from(topline.querySelectorAll('button')).map((b) => b.getAttribute('aria-label')).filter(Boolean)).toEqual([]);
-    expect(screen.getByRole('button', { name: 'Tạo lô hàng' }).closest('.csc-topline')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tạo lô hàng (cuối trang)' }).closest('.csc-form-actions')).toBeTruthy();
+    expect(topline.querySelectorAll('button')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Tạo lô hàng' }).closest('.csc-form-actions')).toBeTruthy();
   });
 
-  it('saves the draft from the footer exactly like the topline (same payload)', async () => {
-    // A create navigates away, so each intent gets its own mount — the payload
-    // is the contract, not the second click on a page that has left.
-    const fromFooter = await draftCallFor('Lưu nháp (cuối trang)');
-    const fromTopline = await draftCallFor('Lưu nháp');
-
-    // The idempotency key is minted per attempt, so it is the payload that must
-    // match — every field of it does.
-    expect(fromFooter[0]).toEqual(fromTopline[0]);
-    expect(fromFooter[0]).toEqual(expect.objectContaining({ customerId: 1, cargoMode: 'FCL' }));
-    expect(fromFooter[1]).toEqual(expect.any(String));
-    expect(fromTopline[1]).toEqual(expect.any(String));
+  it('saves the draft from the fixed footer bar (partial-create payload)', async () => {
+    // A create navigates away, so the intent gets its own mount — the payload
+    // is the contract.
+    const call = await draftCallFor('Lưu nháp');
+    expect(call[0]).toEqual(expect.objectContaining({ customerId: 1, cargoMode: 'FCL' }));
+    expect(call[1]).toEqual(expect.any(String));
   });
 
-  it('runs the same full-intake validation from the footer as from the topline', async () => {
+  it('runs the full-intake validation from the fixed footer bar', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng (cuối trang)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     const alert = await screen.findByText(/^Cần bổ sung \d+ thông tin$/);
-    // The footer create is the full-intake intent, not the partial one: it
+    // The bar's create is the full-intake intent, not the partial one: it
     // reports the whole missing list and never falls through to a create call.
     expect(alert.textContent).toMatch(/^Cần bổ sung [2-9]\d* thông tin$/);
     expect(quickCreateShipment).not.toHaveBeenCalled();
-
-    // A validation failure never enters `saving`, so the topline cluster keeps
-    // its names and reports the very same list for the same lot.
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng', hidden: true }));
-    await waitFor(() => expect(screen.getAllByText(/^Cần bổ sung \d+ thông tin$/)).toHaveLength(1));
-    expect(screen.getByText(/^Cần bổ sung \d+ thông tin$/).textContent).toBe(alert.textContent);
-    // The same lot, the same fields, the same copy — the two clusters reach the
-    // same validation, not a footer-only subset.
+    // The panel speaks the same list the field paint shows.
     expect(document.querySelector('.csc-validation-summary')!.textContent).toContain('Chọn khách hàng.');
-    expect(quickCreateShipment).not.toHaveBeenCalled();
   });
 
-  it('discards and leaves from the footer Huỷ the way the topline Huỷ does', async () => {
+  it('discards and leaves from the bar Huỷ', async () => {
     await enterFclWithCatalogCustomer();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Huỷ (cuối trang)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
     expect(await screen.findByText('Bỏ tạo lô hàng?')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ thay đổi và quay lại' }));
 
     await waitFor(() => expect(screen.getByTestId('shipment-list')).toBeTruthy());
   });
 
-  it('locks both clusters together while a save is in flight', async () => {
+  it('locks the bar while a save is in flight', async () => {
     await enterFclWithCatalogCustomer();
 
     let release: (() => void) | undefined;
@@ -158,15 +146,13 @@ describe('FB-108 card 171026115830 — the action cluster repeated at the foot o
       release = () => resolve({ id: 502, version: 1, initialDeclarationId: null });
     }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp (cuối trang)' }));
-    // One shared `saving` state: the topline cluster reports the same progress
-    // copy and is disabled with it, so neither copy looks actionable.
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
+    // One shared `saving` state: the bar reports the progress copy and every
+    // button on it is disabled with it, so nothing looks actionable.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Đang lưu…' })).toBeDisabled());
-    expect(screen.getByRole('button', { name: 'Đang lưu… (cuối trang)' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Huỷ' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Huỷ (cuối trang)' })).toBeDisabled();
 
     release!();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu nháp (cuối trang)' })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu nháp' })).toBeEnabled());
   });
 });

@@ -31,7 +31,7 @@ describe('SIL-499 onescreen wide band', () => {
     expect(CSS).toMatch(/\.csc-form \{ display: contents; \}/);
   });
 
-  it('places every section + freight + actions (both with and without freight preview)', () => {
+  it('places every section + freight (both with and without freight preview); the action bar stays viewport-fixed', () => {
     for (const area of [
       '#shipment-section-mode { grid-area: 1 / 1 / 2 / 2;',
       '[data-freight-preview] { grid-area: 2 / 1 / 3 / 2;',
@@ -39,16 +39,18 @@ describe('SIL-499 onescreen wide band', () => {
       '#shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }',
       '#shipment-section-route { grid-area: 3 / 1 / 4 / 3; }',
       '#shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }',
-      '.csc-form-actions { grid-area: 5 / 1 / 6 / 3;',
     ]) {
       expect(CSS, area).toContain(area);
     }
+    // SIL-510: the action bar is NOT a grid row — it is the viewport-fixed
+    // footer, so the wide band places neither a grid area nor a padding
+    // override on it (a comment may name it; a rule may not).
+    expect(CSS).not.toMatch(/\.csc-form-actions\s*\{/);
     // Freight-absent collapse: no empty track may stay behind.
     for (const pull of [
       ':not(:has([data-freight-preview])) #shipment-section-identity { grid-area: 1 / 2 / 2 / 3; }',
       ':not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 2 / 1 / 3 / 3; }',
       ':not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 3 / 1 / 4 / 3; }',
-      ':not(:has([data-freight-preview])) .csc-form-actions { grid-area: 4 / 1 / 5 / 3; }',
     ]) {
       expect(CSS, pull).toContain(pull);
     }
