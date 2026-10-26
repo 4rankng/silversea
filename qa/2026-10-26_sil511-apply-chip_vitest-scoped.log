@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-511-apply-chip/frontend
+
+
+ Test Files  36 passed (36)
+      Tests  272 passed (272)
+   Start at  21:40:00
+   Duration  24.31s (transform 8.29s, setup 8.56s, import 59.06s, tests 103.00s, environment 36.10s)
+

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarDays, Copy, Plus } from 'lucide-react';
+import { Copy, Plus } from 'lucide-react';
 import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
@@ -565,11 +565,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     clearFeedback();
   }
 
-  // Case 2026-10-11-R14-02 (FB-008 round 14, "không có nhập ngày giao hàng
-  // loạt cho lô nhiều container"): bulk delivery-schedule entry — type the
-  // "Ngày giờ đóng trả" once and apply it to every container still without
-  // one. The no-source sibling of 'Copy giờ hẹn xuống cont trống': it fills
-  // the same destination set without requiring a scheduled row first.
+  // Case 2026-10-11-R14-02 (FB-008 round 14): bulk delivery-schedule entry.
+  // SIL-511 (owner 26/10) retired the 'Áp dụng cho N container' chip beside
+  // this input — the copy-down/copy-all buttons below are the apply-all
+  // paths — so the typed value feeds only the section clipboard copy.
   const [bulkAppointment, setBulkAppointment] = useState('');
   // Case 2026-10-11-R14-03 (FB-009 round 14): the count gates visibility at
   // >= 1 destination — any row still without a schedule, including one holding
@@ -610,18 +609,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     const total = containers.length;
     setContainers((current) => current.map((row) => ({ ...row, customerAppointmentAt: source })));
     toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả cho tất cả ${total} container` });
-  }
-
-  function applyBulkAppointment() {
-    if (!bulkAppointment) return;
-    const targetKeys = emptyAppointmentKeys(containers);
-    if (!targetKeys.size) return;
-    setContainers((current) => current.map((row) => (
-      targetKeys.has(row.key) ? { ...row, customerAppointmentAt: bulkAppointment } : row
-    )));
-    setBulkAppointment('');
-    clearFeedback();
-    toast({ kind: 'success', message: `Đã áp dụng ngày giờ đóng trả cho ${targetKeys.size} container chưa có lịch` });
   }
 
   // FB-009 (2026-10-14): the per-row copy-time affordance — the time itself
@@ -995,15 +982,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                       disabled={controlsDisabled}
                       combinedPicker
                     />
-                    <button
-                      type="button"
-                      className="csc-utility-button csc-utility-button--dashed"
-                      title={`Áp dụng ngày giờ đóng trả này cho ${emptyAppointmentCount} container chưa có lịch`}
-                      onClick={applyBulkAppointment}
-                      disabled={controlsDisabled || !bulkAppointment}
-                    >
-                      <CalendarDays size={15} aria-hidden="true" />Áp dụng cho {emptyAppointmentCount} container
-                    </button>
                     {/* FB-009 (card 131026233500, "nút copy thời gian vẫn không
                         tồn tại ở bất kỳ đâu"): the section-level clipboard
                         affordance the card looked for next to this group. It

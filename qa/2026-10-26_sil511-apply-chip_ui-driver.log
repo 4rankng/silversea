@@ -1,0 +1,22 @@
+{
+  "fresh": {
+    "sectionTitle": "Lịch & ghi chú",
+    "applyChipPresent": false,
+    "applyChipText": null,
+    "bulkInputPresent": true,
+    "bulkLabelPresent": true
+  },
+  "withSourceRow": {
+    "applyChipPresent": false,
+    "copyAllPresent": true,
+    "copyAllText": "Copy giờ hẹn cho tất cả 2 cont",
+    "copyDownPresent": true,
+    "sectionButtons": [
+      "Copy giờ hẹn cho tất cả 2 cont",
+      "Copy giờ hẹn xuống cont trống"
+    ],
+    "firstRowFilled": true
+  },
+  "mutatorApiCalls": []
+}
+SIL-511 UI drive: PASS — chip removed, copy-down/copy-ALL apply paths intact
