@@ -1,0 +1,11 @@
+$ cd frontend && npx vitest run src/features/shipments/cus src/features/shipments/create
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-overview-tokhai/frontend
+
+
+ Test Files  46 passed (46)
+      Tests  368 passed (368)
+   Start at  13:00:15
+   Duration  37.66s (transform 10.42s, setup 14.37s, import 91.00s, tests 152.16s, environment 63.21s)
+
+rc=0

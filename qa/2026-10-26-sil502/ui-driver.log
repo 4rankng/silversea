@@ -1,0 +1,20 @@
+Driver: qa/2026-10-26-sil502/ui-repro.mjs (puppeteer-core, headless Chrome 1440x900, role cus)
+Stack: FE http://localhost:7185 (vite, branch fix-overview-tokhai) → BE http://localhost:3012 (tsx src/index.ts, same branch, DB local silversea :5441)
+
+Observed output (exit 0):
+
+SHOT after-create-detail
+CREATED lot id: 318 url: http://localhost:7185/shipments/318
+DETAIL_SHOWS_DECL: true
+SHOT detail-viewport
+OVERVIEW_CELL_TEXT: "SIL502UI1792989848065502UI-1792989848065"
+OVERVIEW_SHOWS_DECL: true
+SHOT after-create-overview
+OK
+
+Earlier probe (check-row.mjs, lot 317 created via API quick-create):
+CELL_TEXT: "SIL502BL1792988713502-REPRO-TOKHAI"
+
+Steps driven in ui-repro.mjs: open-form → customer (combobox LONG MINH) → direction (Nhập khẩu) → bill → declaration chip (Enter commit) → container number + type picker → nhà máy/tuyến/cảng nâng/cảng hạ (ArrowDown+Enter) → bulk appointment 01/11/2026 08:00 applied → click "Tạo lô hàng" → wait /shipments/:id → read detail text → goto /shipments → read #cus-inline-documents-318 textContent.
+
+Result: post-create detail page shows the tờ khai; Tổng quan Chứng từ cell = Bill + tờ khai (no 'Chưa có tờ khai'). NOT REPRODUCIBLE on trunk fb031edb.

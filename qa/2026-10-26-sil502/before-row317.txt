@@ -1,0 +1,2 @@
+CELL_TEXT for lot 317: "SIL502BL1792988713502-REPRO-TOKHAI"
+URL: http://localhost:7185/shipments
