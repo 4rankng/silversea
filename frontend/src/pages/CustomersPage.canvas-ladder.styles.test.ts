@@ -40,4 +40,15 @@ describe('customers screens paint the whole page ladder #FFFFFF (SIL-496)', () =
     // pinned so a refactor cannot silently drop one side of the pair).
     expect(css).toMatch(/\.customers-page\s*\{[^}]*background:\s*var\(--surface\)/);
   });
+
+  it('both routes carry the page-root class the :has() ladder keys on (SIL-496 wiring pin)', () => {
+    // The ladder is keyed on the page roots: if either page renames its
+    // class, every :has() layer above goes inert on that route and the sage
+    // var(--bg) resurfaces — the CSS-text pins above cannot catch a rename
+    // on the TSX side, so the two wirings are pinned here verbatim.
+    const customers = readFileSync(resolve(process.cwd(), 'src/pages/CustomersPage.tsx'), 'utf8');
+    const config = readFileSync(resolve(process.cwd(), 'src/pages/config/CustomersConfigPage.tsx'), 'utf8');
+    expect(customers).toMatch(/className="customers-page"/);
+    expect(config).toMatch(/className="cfg-page cfg-page--customers"/);
+  });
 });
