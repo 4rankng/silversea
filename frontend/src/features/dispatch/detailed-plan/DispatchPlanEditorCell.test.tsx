@@ -152,10 +152,10 @@ function renderCell(
     onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
     onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
   } = {},
-  /** Owner redesign 23/10 — the inline trigger is gone; the row ⋯ menu opens
-   *  the editor through the openRequest signal. `open: true` mounts with the
-   *  signal already fired (the dialog opens on mount); tests that need to
-   *  re-open use `reopenEditor`. */
+  /** SIL-500 — the cell's carrier line is click-to-edit again; the row ⋯ menu
+   *  opens the same editor through the openRequest signal. `open: true`
+   *  mounts with the signal already fired (the dialog opens on mount); tests
+   *  that need to click the carrier themselves use `open: false`. */
   options: { open?: boolean } = {},
 ) {
   const defaultAtomicSave = vi.fn().mockResolvedValue({
@@ -231,17 +231,18 @@ describe('UI52-B editor business identity', () => {
 });
 
 describe('QA-AUDIT-UI-92 complete assignment facts', () => {
-  it('keeps the cell as read-only facts (no trigger) and Cancel preserves the row', async () => {
+  it('keeps the cell as one-line facts with the carrier as the click-to-edit verb, and Cancel preserves the row', async () => {
     mockFleetResources();
     const original = row();
     original.dispatch = { ...original.dispatch, assignedDriverName: PAIRED_TRUCK.assignedDriverName };
     const saved = structuredClone(original);
     const onAtomicSave = vi.fn();
     const { container } = renderCell(original, { onAtomicSave });
-    // Owner redesign 23/10: the inline trigger is GONE — the cell carries
-    // facts only; the row ⋯ menu owns the open verb.
+    // SIL-500 (KHĐ 26/10): the carrier line is the cell's ONLY button — the
+    // click-to-edit verb restored (the row ⋯ menu keeps its openRequest path).
     const cell = container.querySelector('.dispatch-assignment-cell') as HTMLElement;
-    expect(cell?.querySelectorAll('button')).toHaveLength(0);
+    expect(cell?.querySelectorAll('button')).toHaveLength(1);
+    expect(within(cell).getByRole('button', { name: 'Sửa điều phối · SilverSea · MSCU1234567' })).toHaveTextContent('SilverSea');
     for (const text of [original.dispatch.carrierName ?? 'Chưa phân nhà xe', PAIRED_TRUCK.licensePlate, PAIRED_TRUCK.assignedDriverName, 'Đã điều xe']) {
       const fact = within(cell).getByText(text);
       expect(cell).toContainElement(fact);
@@ -280,6 +281,36 @@ describe('QA-AUDIT-UI-92 complete assignment facts', () => {
     const { container } = renderCell(noPhone);
     expect(container.querySelector('.dispatch-assignment-cell__driver-phone')).toBeNull();
     expect(screen.getByText(PAIRED_TRUCK.assignedDriverName as string)).toBeTruthy();
+  });
+});
+
+describe('SIL-500 — carrier click-to-edit (KHĐ 26/10)', () => {
+  it('clicking the unassigned carrier "Chưa phân nhà xe" opens the assign dialog', async () => {
+    mockFleetResources();
+    const unassigned = row();
+    unassigned.dispatch = { ...unassigned.dispatch, carrierName: null, assignedPlate: null };
+    renderCell(unassigned, {}, { open: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa điều phối · Chưa phân nhà xe · MSCU1234567' }));
+    expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeInTheDocument();
+  });
+
+  it('a live issued trip routes the carrier click to the governed reassign flow', async () => {
+    mockFleetResources();
+    const onOpenTripReassign = vi.fn();
+    const issued = row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 77, tripStatus: 'CREATED' } });
+    renderCell(issued, { onOpenTripReassign }, { open: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Phân xe lại · SilverSea · MSCU1234567' }));
+    await waitFor(() => expect(onOpenTripReassign).toHaveBeenCalledWith(77));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('a COMPLETED row keeps the carrier as plain text — frozen history has no dead trigger', () => {
+    mockFleetResources();
+    const done = row({ taskStatus: 'COMPLETED' as DispatchDetailPlanRow['taskStatus'] });
+    const { container } = renderCell(done, {}, { open: false });
+    const cell = container.querySelector('.dispatch-assignment-cell') as HTMLElement;
+    expect(cell.querySelectorAll('button')).toHaveLength(0);
+    expect(within(cell).getByText('SilverSea').tagName).toBe('SPAN');
   });
 });
 

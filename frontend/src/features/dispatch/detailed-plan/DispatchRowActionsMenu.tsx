@@ -4,7 +4,7 @@ import { CheckCircle2, Link2, MoreHorizontal, PencilLine, Repeat, Shuffle, Trash
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { billBookingReference } from '../../../lib/business-reference';
-import { detailRowKey } from './DispatchPlanCellValues';
+import { canReassignIssuedTrip, detailRowKey } from './DispatchPlanCellValues';
 
 /** Issue #13 (card 3-dòng) — a card-body tap opens this menu without the
  *  ⋯ trigger (unissued cards show the paper-plane slot instead). The anchor
@@ -97,9 +97,7 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   const lclGroup = row.cargoMode === 'LCL' ? row.lcl?.group ?? null : null;
   // Same live-trip law as the editor trigger (DispatchPlanEditorCell): a
   // reassignment before departure goes through the governed dialog.
-  const canReassignIssuedTrip = row.taskStatus === 'DISPATCHED'
-    && row.dispatch.tripId != null
-    && (row.dispatch.tripStatus === 'CREATED' || row.dispatch.tripStatus === 'IN_TRANSIT');
+  const canReassignIssued = canReassignIssuedTrip(row);
   // DispatchPairAction law (LoHangKepKetHop §3.1): unpaired OWN-carrier row
   // that already has a trip.
   const canPair = onOpenPair != null
@@ -170,14 +168,14 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
         role="menuitem"
         onClick={() => {
           setOpen(false);
-          if (canReassignIssuedTrip && row.dispatch.tripId != null) {
+          if (canReassignIssued && row.dispatch.tripId != null) {
             onOpenTripReassign(row.dispatch.tripId);
           } else {
             onEditPlan(row);
           }
         }}
       >
-        {canReassignIssuedTrip
+        {canReassignIssued
           ? <><Shuffle size={14} aria-hidden="true" />Phân xe lại</>
           : <><PencilLine size={14} aria-hidden="true" />Sửa điều phối</>}
       </button>
