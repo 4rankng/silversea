@@ -171,6 +171,47 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expect(rules(css, /\.factory-name\s*\{/)[0]).toMatch(/max-width:\s*300px/);
   });
 
+  it('detailed-plan grid cells wrap full — ellipsis/nowrap/clips banned table-wide (SIL-515 owner 26/10)', () => {
+    // The owner's ticket revokes the surface's own 23/10 "one nowrap
+    // ellipsized line per value" law: every cell wraps its full text and
+    // the wrapper's horizontal rail carries the width. The nowrap line was
+    // also the overlap mechanism ("Ngày giao đè Trả hàng"): in a
+    // fixed-layout column a nowrap line refuses to shrink below its
+    // one-line width and paints over the next cell.
+    const css = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+    const editorCss = read('src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css');
+    // Every value line wraps (the table-mode shared line law)…
+    const lineRule = css.match(/\.detailed-plan-grid__line,\s*\n\s*\.detailed-plan-grid \.ops-schedule__datetime\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(lineRule, 'the value-line rule must exist').not.toBe('');
+    expect(lineRule).toContain('white-space: normal');
+    expect(lineRule).toContain('overflow-wrap: anywhere');
+    expectNoClip([lineRule]);
+    // …the header label wraps without a clamp…
+    expectNoClip(rules(css, /\.detailed-plan-grid__sort\s*\{/));
+    expect(rules(css, /\.detailed-plan-grid__sort\s*\{/)[0]).not.toMatch(/white-space:\s*nowrap/);
+    // …and the table-surface one-line pins are gone (rule-local: the phone
+    // dpcard surface in the same file keeps its own owner laws).
+    for (const tableRule of [
+      /\.detailed-plan-grid__cell--container \.detailed-plan-grid__line--strong\s*\{/,
+      /\.detailed-plan-grid__combined-note\s*\{/,
+      /\.detailed-plan-grid__lcl-group-tag\s*\{/,
+      /\.detailed-plan-grid__note-preview\s*\{/,
+    ]) {
+      expectNoClip(rules(css, tableRule));
+      for (const rule of rules(css, tableRule)) expect(rule).not.toMatch(/white-space:\s*nowrap/);
+    }
+    expect(css).not.toMatch(CLAMP);
+    expect(css).not.toContain('detailed-plan-grid__note-clamp');
+    // The Điều phối facts wrap under the same table-wide ban.
+    const band = editorCss.match(/\.dispatch-assignment-cell \.dispatch-assignment-cell__carrier,[\s\S]*?\{([^}]*)\}/)?.[1] ?? '';
+    expect(band, 'the fact band must exist').not.toBe('');
+    expect(band).toContain('white-space: normal');
+    expectNoClip([band]);
+    // The driver-note compact surface (rides the Ghi chú cell) clamps nothing.
+    const noteCss = read('src/features/dispatch/detailed-plan/DispatchDriverNote.css');
+    expect(noteCss).not.toMatch(CLAMP);
+  });
+
   it('config customer full names wrap in the compact-card render', () => {
     const css = read('src/pages/config/customer-config-density.css');
     expectNoClip(rules(css, /\.cfg-customer-full-name/));

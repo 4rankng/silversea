@@ -1,0 +1,67 @@
+{
+  "phase": "after",
+  "url": "http://localhost:7197/dispatch-detail",
+  "user": "dieuvan",
+  "at1440": {
+    "tag": "1440",
+    "width": 1440,
+    "table": true,
+    "rowCount": 5,
+    "firstRowText": "Ngày giao 27/10/2026trả hàngQA KH Demo—Bill: SIL503LCL434916——Chưa có tuyến đườngNhậpLẻ——Chưa phân nhà xeCUS sẽ bổ sungLẻKhách: SIL-503 QA fixture",
+    "violations": {
+      "nowrap": [],
+      "ellipsis": [],
+      "clamp": [],
+      "overflowX": [],
+      "outsideCell": []
+    },
+    "headerClipped": [],
+    "scheduleOverlap": {
+      "scheduleRight": 398,
+      "routeLeft": 406,
+      "overlaps": false
+    }
+  },
+  "at1280": {
+    "tag": "1280",
+    "width": 1280,
+    "table": true,
+    "rowCount": 5,
+    "firstRowText": "Ngày giao 27/10/2026trả hàngQA KH Demo—Bill: SIL503LCL434916——Chưa có tuyến đườngNhậpLẻ——Chưa phân nhà xeCUS sẽ bổ sungLẻKhách: SIL-503 QA fixture",
+    "violations": {
+      "nowrap": [],
+      "ellipsis": [],
+      "clamp": [],
+      "overflowX": [],
+      "outsideCell": []
+    },
+    "headerClipped": [],
+    "scheduleOverlap": {
+      "scheduleRight": 194,
+      "routeLeft": 202,
+      "overlaps": false
+    }
+  },
+  "stress1440": {
+    "tag": "1440",
+    "width": 1440,
+    "violations": {
+      "nowrap": [],
+      "ellipsis": [],
+      "overflowX": [],
+      "outsideCell": []
+    },
+    "hiddenTail": []
+  },
+  "stress1280": {
+    "tag": "1280",
+    "width": 1280,
+    "violations": {
+      "nowrap": [],
+      "ellipsis": [],
+      "overflowX": [],
+      "outsideCell": []
+    },
+    "hiddenTail": []
+  }
+}

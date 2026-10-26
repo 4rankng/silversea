@@ -1,17 +1,12 @@
-// Owner redesign 23/10 (grid Điều vận Chi tiết, screenshots "UI shitty"):
-// the old colgroup-share contract (091026091550 rebalance + FB-043 fixed
-// row-height pins) is REPLACED. The new law, per the owner spec:
-//   - the table owns a horizontal rail: fixed layout + a min-width floor, so
-//     every column keeps its measured one-line budget at ANY canvas;
-//   - the two formerly-fat columns (Thời gian 17% / Khách hàng 17.5%) shrank
-//     to content budgets — they were the "~230px row, 70% trống" defect;
-//   - rows size to their clamped content (~64-88px): the FB-043 fixed-height
-//     clip (--dpg-row-h) is GONE — it buried row actions under the note clamp;
-//   - headers wrap at spaces up to TWO lines (line-clamp-2), never nowrap,
-//     never a "…" cut;
-//   - the SĐT line is one nowrap ellipsized line (the "0984/9634/84" per-
-//     character shatter is the defect this pins out);
-//   - actions live in ONE sticky-right column — no inline red buttons.
+// SIL-515 (owner 26/10 — "CẤM truncate TOÀN BẢNG"): the column-floor +
+// wrap contract of the grid Điều vận Chi tiết. The 23/10 one-line/ellipsis
+// law is REVOKED: the table keeps its horizontal rail (fixed layout +
+// min-width floor + the wrapper's overflow rail) but every cell now WRAPS
+// its full text — ellipsis, clipping overflow and -webkit-line-clamp are
+// banned table-wide, and a nowrap line in a fixed-layout column is the
+// exact mechanism that painted "Ngày giao 23/10/2026" over the next
+// column. Headers wrap at spaces without a clamp; actions live in ONE
+// sticky-right column.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -61,13 +56,26 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(columnShare('route')).toBeLessThanOrEqual(14);
   });
 
-  it('sizes rows to clamped content — the FB-043 fixed-height clip is gone', () => {
+  it('sizes rows to wrapped content — the FB-043 fixed-height clip is gone and no line truncates (SIL-515)', () => {
     expect(css).not.toContain('--dpg-row-h');
     expect(css).not.toMatch(/\.detailed-plan-grid__cell-body\s*\{[^}]*height:/);
-    // Every value line still ellipsizes on ONE line (tooltip carries the
-    // full value) — the row can never re-inflate through a wrapped line.
-    expect(css).toMatch(/\.detailed-plan-grid__line,\s*\n\s*\.detailed-plan-grid \.ops-schedule__datetime\s*\{[^}]*white-space:\s*nowrap;[^}]*text-overflow:\s*ellipsis;/);
-    // The note stack keeps its 3-line clamp and no longer hosts actions.
+    // SIL-515: every value line WRAPS its full text — the old nowrap +
+    // ellipsis law painted "Ngày giao 23/10/2026" over the next column
+    // (a nowrap line refuses to shrink below its one-line width) and cut
+    // the long port name after "NORIGHTFREIG…". The wrap pair is pinned.
+    const lineRule = css.match(/\.detailed-plan-grid__line,\s*\n\s*\.detailed-plan-grid \.ops-schedule__datetime\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(lineRule, 'the value-line rule must exist').not.toBe('');
+    expect(lineRule).toContain('white-space: normal');
+    expect(lineRule).toContain('overflow-wrap: anywhere');
+    expect(lineRule).not.toContain('nowrap');
+    expect(lineRule).not.toContain('ellipsis');
+    expect(lineRule).not.toContain('overflow: hidden');
+    // The note renders in FULL: the 3-line clamp (a truncation) is gone
+    // with its class; the note-preview class carries no clip.
+    expect(css).not.toContain('-webkit-line-clamp');
+    expect(css).not.toContain('detailed-plan-grid__note-clamp');
+    expect(css).toMatch(/\.detailed-plan-grid__note-preview\s*\{[^}]*\}/);
+    // The note stack no longer hosts actions.
     expect(css).toMatch(/\.detailed-plan-grid__note-stack\s*\{[\s\S]*?min-height:\s*0;/);
     expect(css).not.toContain('.detailed-plan-grid__note-actions');
   });
@@ -80,13 +88,25 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(css).not.toContain('.detailed-plan-grid__note-action--delete');
   });
 
-  it('keeps the SĐT line one token run — never wraps per character', () => {
+  it('wraps the Điều phối facts — the carrier band never truncates (SIL-515)', () => {
     const phoneRule = editorCss.match(/\.dispatch-assignment-cell__driver-phone\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(phoneRule).not.toContain('overflow-wrap: anywhere');
+    expect(phoneRule, 'the SĐT rule must exist').not.toBe('');
+    expect(phoneRule).not.toContain('nowrap');
+    expect(phoneRule).not.toContain('ellipsis');
     const band = editorCss.match(/\.dispatch-assignment-cell \.dispatch-assignment-cell__carrier,[\s\S]*?\{([^}]*)\}/)?.[1] ?? '';
-    expect(band).toContain('white-space: nowrap');
-    expect(band).toContain('text-overflow: ellipsis');
-    expect(band).toContain('word-break: keep-all');
+    // SIL-515: the whole fact band wraps — no ellipsis cut, no hidden
+    // overflow; overflow-wrap: anywhere only engages for a token genuinely
+    // wider than the ≥200px column (normal phone numbers stay one run).
+    expect(band).toContain('white-space: normal');
+    expect(band).toContain('overflow-wrap: anywhere');
+    expect(band).not.toContain('white-space: nowrap');
+    expect(band).not.toContain('text-overflow: ellipsis');
+    expect(band).not.toContain('overflow: hidden');
+    // The plate·driver·SĐT trio wraps as whole tokens (the nowrap pin is
+    // what clipped the run inside the fixed-layout column).
+    const group = editorCss.match(/\.dispatch-assignment-cell \.dispatch-assignment-cell__vehicle-group\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(group).toContain('flex-wrap: wrap');
+    expect(group).not.toContain('nowrap');
   });
 
   it('renders every table column through the shared cell body (component pin)', () => {

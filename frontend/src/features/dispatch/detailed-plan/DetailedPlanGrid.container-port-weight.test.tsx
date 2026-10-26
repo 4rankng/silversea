@@ -106,7 +106,7 @@ describe('DetailedPlanGrid — B.5 container/port weight (card 191026100010, REQ
     }
   });
 
-  it('the CSS keeps the container line one-line (nowrap) with the weight carried by the shared ops class', () => {
+  it('the container line wraps with the weight carried by the shared ops class — no nowrap pin (SIL-515)', () => {
     const css = readFileSync(
       resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'),
       'utf8',
@@ -118,7 +118,10 @@ describe('DetailedPlanGrid — B.5 container/port weight (card 191026100010, REQ
 
     const containerRule = css.match(/\.detailed-plan-grid__cell--container \.detailed-plan-grid__line--strong \{[^}]*\}/);
     expect(containerRule, 'the container strong rule must exist').toBeTruthy();
-    expect(containerRule![0]).toContain('white-space: nowrap');
+    // SIL-515: the old nowrap pin painted the code over the next cell when
+    // the code+tag run outgrew the fixed column; the line wraps as whole
+    // tokens now (the shared value-line law carries the wrap).
+    expect(containerRule![0]).not.toContain('white-space: nowrap');
     // The page rule no longer pins a weight: the rendered `.ops-container-line`
     // class owns the container weight law (the base `--strong` rule keeps its
     // own weight declaration for the other strong lines of this grid).

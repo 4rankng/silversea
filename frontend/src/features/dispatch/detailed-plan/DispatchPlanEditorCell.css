@@ -11,31 +11,32 @@
   padding: 6px 10px;
 }
 
-/* ── Owner redesign 23/10 — the compact one-line-per-fact contract ─────────
+/* ── The fact-wrap law (SIL-515, owner 26/10) ──────────────────────────────
    FB-043's fixed-height body (calc(var(--dpg-row-h) + …) + overflow:hidden)
-   is gone with the row-height pin it served; what SURVIVES from FB-043 is
-   the one-line law itself: every fact (carrier, plate, driver, and since the
-   23/10 screenshots the SĐT too) is one nowrap ellipsized line with the full
-   value in its title, so the cell can never re-inflate its row or shatter a
-   phone number per character. Scoped under the cell at (0,2,0) — the
-   FB-043 re-report (card 141026001010) lesson: bare names here tied with
-   later base rules and the band died silently. */
+   is gone with the row-height pin it served, and the 23/10 "one nowrap
+   ellipsized line per fact" law is REVOKED with it: the owner's SIL-515
+   ticket bans truncation TABLE-WIDE, so every fact (carrier, plate, driver,
+   SĐT, estimate) WRAPS its full text and the wrapper's horizontal rail
+   carries the width. Scoped under the cell at (0,2,0) — the FB-043
+   re-report (card 141026001010) lesson: bare names here tied with later
+   base rules and the band died silently. overflow-wrap: anywhere is the
+   pressure valve for an unbroken token longer than the column; the
+   Điều phối floor (≥200px at the 1340px table minimum) keeps normal
+   phone numbers on one run. */
 .dispatch-assignment-cell .dispatch-assignment-cell__carrier,
 .dispatch-assignment-cell .dispatch-assignment-cell__plate,
 .dispatch-assignment-cell .dispatch-assignment-cell__driver,
 .dispatch-assignment-cell .dispatch-assignment-cell__driver-phone,
 .dispatch-assignment-cell .dispatch-assignment-cell__estimate {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  overflow-wrap: normal;
+  white-space: normal;
+  overflow-wrap: anywhere;
   word-break: keep-all;
 }
 
 .dispatch-assignment-cell .dispatch-assignment-cell__vehicle-group {
-  /* The plate·driver·SĐT run stays ONE line (min-width: 0 lets the flex
-     children ellipsize inside it). */
-  flex-wrap: nowrap;
+  /* The plate·driver·SĐT trio wraps as whole tokens when the column is
+     tight — the old one-line pin clipped the run. */
+  flex-wrap: wrap;
   min-width: 0;
 }
 
@@ -137,9 +138,11 @@
 .dispatch-assignment-cell__driver-phone {
   min-width: 0;
   display: block;
-  /* Owner 23/10: the SĐT is a single token run — one line, full value in the
-     title. The old overflow-wrap:anywhere here is exactly what shattered
-     "0984/9634/84" across three phone-width lines. */
+  /* SIL-515: the SĐT wraps like every fact — the 23/10 "one token run"
+     pin rode the ellipsis band and is revoked with it. Phone digits stay
+     one run in practice (the ≥200px column floor dwarfs any real number);
+     overflow-wrap: anywhere only engages for a token genuinely wider than
+     the cell — the wrap valve, never a cut. */
   color: var(--fg-2);
   font-family: var(--font-data, inherit);
   font-size: var(--ops-table-meta-size, 11px);
