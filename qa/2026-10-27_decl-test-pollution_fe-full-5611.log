@@ -1,0 +1,19 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-decl-test-pollution/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  731 passed (731)
+      Tests  5611 passed (5611)
+   Start at  00:34:55
+   Duration  173.66s (transform 30.78s, setup 106.21s, import 484.03s, tests 450.11s, environment 419.06s)
+

@@ -1,0 +1,11 @@
+── tsgo (fast pre-gate) ──
+tsgo OK
+── tsc (final gate) ──
+tsc OK
+be-tsc OK
+── FULL FE suite (post-merge rule: scoped xanh không mở hết merge-break) ──
+      Tests  5611 passed (5611)
+── scoped BE tests (files changed vs origin/main) ──
+ℹ tests 20
+ℹ pass 20
+ℹ fail 0
