@@ -776,13 +776,13 @@ async function buildShipmentPageConditions(
       dateArms.push(sql`${transportDate} <= ${query.transportDateTo}`);
     }
     // Card 181026185900 (D.6), completed by cards 211026132257 (lcl-01) and
-    // 211026180528 (lan 2), law fixed by card 231026000252: the day triage
-    // narrows DATED rows to their appointment/EDD day; rows with NO triage day
-    // (coalesce NULL — intake skeleton or container-less lot without EDD) ride
-    // outside the arms. A dated container-less LCL lot row (day = lot EDD)
-    // passes the arms like any container row; sync with Tổng quan is
-    // same-filter parity ("undated = luôn hiện; dated = phải qua filter").
-    // See containerDayTriageCondition.
+    // 211026180528 (lan 2), law card 231026000252 with its undated lane
+    // SUPERSEDED by SIL-506 (owner ruling 2026-10-26): an active range
+    // narrows the board to dated IN-RANGE rows — appointment/EDD day within
+    // [from, to]. Undated rows (coalesce NULL — intake skeleton or
+    // container-less lot without EDD) match no range and drop while the
+    // range is active; clearing the range restores them (this branch is
+    // skipped entirely without dateArms). See containerDayTriageCondition.
     if (dateArms.length > 0) {
       conditions.push(containerDayTriageCondition(dateArms));
     }

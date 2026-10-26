@@ -87,28 +87,29 @@ export function shipmentTransportDateCondition(dateFrom: string, dateTo: string)
   )!;
 }
 
-/** Container workboard day triage (D.6, completed by cards 211026132257 and
- *  211026180528, law fixed by card 231026000252, lot K547238574983): a row's
- *  day is `coalesce(appointment VN date, EDD)` — for a container-less LCL lot
- *  row that is simply the lot EDD — and the law is:
- *    - dated rows must pass the active day filter, exactly like any container
- *      row. The lan-1 blanket escape for container-less LCL lots (keep them
- *      on the workboard whatever the lens) made transportDate=2026-10-17 stay
- *      visible under a 23/10..23/10 filter on Chi tiết while Tổng quan
- *      filtered it away — "bỏ qua bộ lọc ngày hoàn toàn".
- *    - rows with NO day at all (coalesce NULL: no appointment and no EDD —
- *      lan 2, QA card 211026180528, staging lot SHP-2610-00069) ride outside
- *      the filter and always show: no date range could ever match NULL.
- *  One law on both surfaces keeps the LCL-01 goal — a lot visible under a
- *  filter on Tổng quan is visible under the SAME filter on Chi tiết — while
- *  "undated = luôn hiện; dated = phải qua filter" holds for every row shape.
- *  This also revives the board's nulls-first sort arm: unscheduled rows sit
- *  at the top, mirroring the overview's operational priority queue. */
+/** Container workboard day triage (D.6, cards 211026132257/211026180528,
+ *  law card 231026000252 — undated lane SUPERSEDED by SIL-506, owner ruling
+ *  2026-10-26): a row's day is `coalesce(appointment VN date, EDD)` — for a
+ *  container-less LCL lot row that is simply the lot EDD — and under an
+ *  active range the triage is exactly the date arms:
+ *    - a DATED row must pass the range: in-range shows, out-range drops
+ *      (container-less LCL lot rows included — their day is the EDD leg of
+ *      the same coalesce), and
+ *    - an UNDATED row (coalesce NULL: no appointment and no EDD — intake
+ *      skeleton, staging lot SHP-2610-00069) matches no range and DROPS.
+ *  Card 231026000252's null lane ("undated = luôn hiện") let 30/45
+ *  transportDate-null containers ride through the Chi tiết filter
+ *  23/10..23/10 (ticket SIL-506, staging build e5239fb1, role CUS) — the
+ *  owner ruling flips that law: an active range narrows the board to dated
+ *  in-range rows only. Undated rows stay visible solely when NO range is
+ *  active: the call site pushes this triage only when dateArms is non-empty,
+ *  so the no-filter path keeps the full set with its nulls-first sort.
+ *  Accepted consequence (per the ruling): LCL-01 same-filter parity with
+ *  Tổng quan now holds for dated rows only — Tổng quan still keeps undated
+ *  lots visible under a range (shipmentTransportDateCondition), while Chi
+ *  tiết drops their undated rows. */
 export function containerDayTriageCondition(dateArms: SQL[]): SQL {
-  return or(
-    isNull(containerTransportDateSql()),
-    and(...dateArms),
-  )!;
+  return and(...dateArms)!;
 }
 
 /** CUS workboard record search (QA2-005, card 121026084713): one

@@ -1,25 +1,28 @@
 // Card 211026132257 (lcl-01) — "lô hàng lẻ hiện ở TỔNG QUAN nhưng KHÔNG có
 // ở CHI TIẾT". The container workboard's day triage must narrow DATED rows
-// only: a row with NO triage day rides outside it entirely, so it can never be
-// dropped by the board's default day lens while Tổng quan shows it.
+// through the date arms: a row with a triage day outside the range can never
+// be shown by the board's day lens while Tổng quan filters it too.
 //
-// Card 211026180528 (lcl-01 lan 2) — the same sync re-opened by a SECOND
-// shape: an intake-skeleton row (containers, no appointment, lot without
-// EDD — staging lot SHP-2610-00069) whose triage day coalesce(appointment,
-// EDD) is NULL. No date range can match NULL, so the dateArms-only branch
-// dropped it under the default day lens while Tổng quan listed it. The
-// triage sends EVERY null-day row outside the date arms.
+// Card 211026180528 (lcl-01 lan 2) + card 231026000252 (lot K547238574983)
+// — the laws this file pinned BEFORE: an unconditional containerless-LCL
+// escape and then an unconditional null-day lane ("undated = luôn hiện").
 //
-// Card 231026000252 (the law this file pins now) — the lan-1 blanket escape
-// for container-less LCL lots ("dated or not, ride outside the triage")
-// over-shot: transportDate=2026-10-17 stayed visible under a 23/10..23/10
-// filter on Chi tiết while Tổng quan filtered it away ("bỏ qua bộ lọc ngày
-// hoàn toàn", lot K547238574983). The law is now uniform for every row shape:
-//   - undated (coalesce(appointment, EDD) NULL) always shows — any lens;
-//   - dated must pass the date arms, INCLUDING a container-less LCL lot row
-//     whose day is the lot EDD leg of the same coalesce.
-// One law on both surfaces keeps the lcl-01 sync goal: a lot visible under a
-// filter on Tổng quan is visible under the SAME filter on Chi tiết.
+// SIL-506 (owner ruling 2026-10-26) SUPERSEDES the null-day lane: 30/45
+// transportDate-null containers rode through the Chi tiết filter
+// 23/10..23/10 (staging build e5239fb1, role CUS tiepvv) because no date
+// range can match NULL. The triage under an active range is now exactly the
+// date arms — the law this file pins now:
+//   - a DATED row passes the arms only in-range (the 23/10 pin: an
+//     in-range day satisfies `>= 23/10 AND <= 23/10`; an out-range or NULL
+//     day satisfies neither);
+//   - an UNDATED row (coalesce(appointment, EDD) NULL — intake skeleton,
+//     container-less lot without EDD) matches no range and is DROPPED; it
+//     returns when the range is cleared (the call site skips the triage
+//     without dateArms).
+// Accepted consequence (per the ruling): LCL-01 same-filter parity with
+// Tổng quan holds for dated rows only — Tổng quan keeps undated lots visible
+// under a range (shipmentTransportDateCondition), Chi tiết drops their
+// undated rows.
 //
 // Pure unit test, no database: the drizzle chunk is rendered through
 // PgDialect the way cus-record-search.test.ts pins SQL contracts.
@@ -37,21 +40,31 @@ function render(chunk: SQL): { sql: string; params: unknown[] } {
   return { sql: query.sql, params: query.params };
 }
 
-const dateArms = (): SQL[] => [
-  sql`${containerTransportDateSql()} >= '2026-10-21'`,
-  sql`${containerTransportDateSql()} <= '2026-10-21'`,
+const dateArms = (day: string): SQL[] => [
+  sql`${containerTransportDateSql()} >= '${sql.raw(day)}'`,
+  sql`${containerTransportDateSql()} <= '${sql.raw(day)}'`,
 ];
 
-describe('containerDayTriageCondition — dated rows pass the day filter (card 231026000252)', () => {
+describe('containerDayTriageCondition — dated rows pass the day filter (card 231026000252, kept)', () => {
   it('keeps the container-row date arms intact', () => {
-    const { sql: rendered } = render(containerDayTriageCondition(dateArms()));
+    const { sql: rendered } = render(containerDayTriageCondition(dateArms('2026-10-21')));
     assert.match(rendered, /coalesce\(/);
     assert.match(rendered, />= '2026-10-21'/);
     assert.match(rendered, /<= '2026-10-21'/);
   });
 
+  it('SIL-506 pin: a dated in-range container satisfies the 23/10..23/10 conjunction', () => {
+    // The ticket repro lens: `transportDateFrom=2026-10-23&transportDateTo=
+    // 2026-10-23`. A container whose triage day (coalesce(appointment VN
+    // date, EDD)) IS 2026-10-23 makes both conjuncts TRUE → returned; the
+    // arms must carry exactly that day on both bounds.
+    const { sql: rendered } = render(containerDayTriageCondition(dateArms('2026-10-23')));
+    assert.match(rendered, />= '2026-10-23'/);
+    assert.match(rendered, /<= '2026-10-23'/);
+  });
+
   it('has NO unconditional container-less LCL escape — a dated lot row must pass the arms', () => {
-    const { sql: rendered, params } = render(containerDayTriageCondition(dateArms()));
+    const { sql: rendered, params } = render(containerDayTriageCondition(dateArms('2026-10-21')));
     // The old lan-1 arm (`"shipment_containers"."id" is null and cargo_mode =
     // LCL`) let a dated LCL lot bypass the filter entirely (lot K547238574983
     // visible under a 23/10..23/10 filter). It is gone: a lot row's day is
@@ -63,39 +76,22 @@ describe('containerDayTriageCondition — dated rows pass the day filter (card 2
   });
 });
 
-describe('containerDayTriageCondition — null-day rows ride outside the day triage (lcl-01 lan 2, card 211026180528)', () => {
-  it('exempts rows whose triage day is NULL — coalesce(appointment, EDD) is null arm', () => {
-    const { sql: rendered } = render(containerDayTriageCondition(dateArms()));
-    // The null-day arm is the triage-day expression itself under `is null`:
-    // a container row without an appointment on a lot without an EDD (the
-    // intake skeleton, staging SHP-2610-00069) — and a container-less LCL
-    // lot with no transportDate — can match no date range and must not be
-    // dropped by the board's default day lens.
-    assert.match(
-      rendered,
-      /coalesce\(\s*date\("shipment_containers"\."customer_appointment_at" at time zone 'Asia\/Ho_Chi_Minh'\),\s*"shipments"\."expected_delivery_date"\s*\) is null/,
-      `null-day arm missing: ${rendered}`,
-    );
+describe('containerDayTriageCondition — undated rows drop under an active range (SIL-506 supersedes card 231026000252 null lane)', () => {
+  it('SIL-506 pin: a null-day container can never satisfy the 23/10..23/10 filter — no `is null` escape arm', () => {
+    const { sql: rendered } = render(containerDayTriageCondition(dateArms('2026-10-23')));
+    // The superseded null lane rendered `coalesce(...) is null or (...)`,
+    // letting every transportDate-null container through the filter (30/45
+    // leaked, ticket SIL-506). NULL compared with `>=`/`<=` yields NULL —
+    // never TRUE — so WITHOUT the escape arm an undated row cannot match
+    // the range and is dropped. The rendered triage must therefore carry
+    // no `is null` predicate at all.
+    assert.doesNotMatch(rendered, /is null/, `null-day escape arm present: ${rendered}`);
   });
 
-  it('carries NO date conjunct on the null-day arm — undated rows survive any lens', () => {
-    const { sql: rendered } = render(containerDayTriageCondition(dateArms()));
-    // The null-day arm is everything before the date-arms branch (` or (`):
-    // a bare `… is null` predicate, never ANDed with a range.
-    const end = rendered.indexOf(' or (');
-    const nullDayArm = rendered.slice(0, end);
-    assert.ok(end > 0, `null-day arm not found: ${rendered}`);
-    assert.match(nullDayArm, /is null$/);
-    assert.doesNotMatch(nullDayArm, />=|<=/, `null-day arm must not carry a range: ${nullDayArm}`);
-  });
-
-  it('is a two-arm OR: null-day lane first, then the date arms', () => {
-    const { sql: rendered } = render(containerDayTriageCondition(dateArms()));
-    assert.equal((rendered.match(/ or /g) ?? []).length, 1,
-      `expected exactly two OR arms: ${rendered}`);
-    const nullDayIdx = rendered.indexOf(') is null');
-    const rangeIdx = rendered.indexOf(">= '2026-10-21'");
-    assert.ok(nullDayIdx >= 0 && rangeIdx > nullDayIdx,
-      `arm order must be null-day then dateArms: ${rendered}`);
+  it('is a pure AND of the date arms — no OR lane left', () => {
+    const { sql: rendered } = render(containerDayTriageCondition(dateArms('2026-10-23')));
+    assert.equal((rendered.match(/ or /g) ?? []).length, 0,
+      `no OR arm expected: ${rendered}`);
+    assert.match(rendered, / and /, `date arms must be ANDed: ${rendered}`);
   });
 });
