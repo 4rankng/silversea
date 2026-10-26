@@ -448,6 +448,18 @@ export function ShipmentCreateIdentitySection({
               value={declDraft}
               disabled={saving}
               onChange={(event) => setDeclDraft(event.target.value)}
+              onBlur={() => {
+                // SIL-502 (QA 26/10): a typed-but-uncommitted draft used to
+                // vanish on save — the save reads `form.declarationNumbers`,
+                // which only Enter/,/paste-separator fill, so "gõ số rồi bấm
+                // Tạo lô hàng" silently created the lot WITHOUT the tờ khai.
+                // Blur commits the pending draft through the same
+                // commitDeclarations law (dedupe + notice), so leaving the
+                // field — including by clicking either save button — can never
+                // drop a typed number. The bulk textarea stays on its explicit
+                // Xong/Hủy contract (blur there must stay a discard).
+                if (declDraft.trim()) commitDeclarations(declDraft);
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ',') {
                   event.preventDefault();
