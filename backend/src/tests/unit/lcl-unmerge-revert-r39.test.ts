@@ -96,6 +96,37 @@ test('GROUPED trip-less member falls back to its materialized snapshot price (16
   assert.equal(out.value, 3_900_000);
 });
 
+// SIL-489 — the ACTIVE group's own materialized rows are its live price.
+// The FB-145 citation filter never reached a still-grouped lot: while the
+// group stands, the merge's snapshot rows ARE the 100%/0₫ board state.
+test('GROUPED trip-less Lô 1 reads the merge\'s own 100% citation snapshot (SIL-489)', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    revGroupId: 'g-sil489',
+    revGroupOrder: 1,
+    snapshotChannel: {
+      total: 2_000_000,
+      formulaNote: 'Ghép cước thu khách — Lô 1 giữ 100% cước thu nhóm (giá nhập tay, 5T)',
+    },
+  });
+  assert.equal(out.value, 2_000_000);
+});
+
+test('GROUPED trip-less member reads its cited 0₫ snapshot + "Ghép cước cùng Bill X" (SIL-489)', () => {
+  const out = effectiveLclFreight({
+    ...base,
+    revGroupId: 'g-sil489',
+    revGroupOrder: 2,
+    revPrincipalRef: 'R42CUS-MRG-01',
+    snapshotChannel: {
+      total: 0,
+      formulaNote: 'Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu (chưa phân bổ xe)',
+    },
+  });
+  assert.equal(out.value, 0);
+  assert.equal(out.reason, 'Ghép cước cùng Bill R42CUS-MRG-01');
+});
+
 test('trip-leg freezes win the snapshot channel and are never group artifacts', () => {
   const out = effectiveLclFreight({
     ...base,

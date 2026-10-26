@@ -79,15 +79,15 @@ export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLcl
     ? `Ghép cước cùng Bill ${facts.revPrincipalRef ?? ''}`.trim()
     : null;
   // F-2: override first; a merged lot with no live trip falls back to the
-  // snapshot channel (the merge materialized each lot's own lane price).
-  // Still null when neither channel holds a number ("Chưa xác định" — never
-  // a fabricated 0). The fallback snapshot, too, must not be a group
-  // citation (FB-145 rule 1 applies to both paths).
-  const fallback = facts.snapshotChannel != null && isRevGroupNote(facts.snapshotChannel.formulaNote)
-    ? null
-    : facts.snapshotChannel?.total ?? null;
+  // snapshot channel — INCLUDING the merge's own materialized rows. Their
+  // citation prose is the ACTIVE group's price state (Lô 1's 100%, the
+  // members' cited 0₫ — D02), not a dead-group artifact: while the group
+  // stands those rows ARE the live board price (SIL-489 — the FB-145
+  // citation filter's scope is the UNGROUPED lot, rule 1 verbatim; it never
+  // reached a still-grouped lot). Still null when neither channel holds a
+  // number ("Chưa xác định" — never a fabricated 0).
   return {
-    value: facts.override?.total ?? fallback,
+    value: facts.override?.total ?? facts.snapshotChannel?.total ?? null,
     reason: facts.override?.reason ?? memberNote,
   };
 }
