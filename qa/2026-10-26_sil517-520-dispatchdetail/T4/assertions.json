@@ -1,0 +1,51 @@
+{
+  "mode": "T4",
+  "url": "http://localhost:7197/dispatch-detail",
+  "checks": [
+    {
+      "name": "dialog opened",
+      "pass": true,
+      "detail": "Chỉnh sửa điều phối · TRHU3819085"
+    },
+    {
+      "name": "dialog uses the side space @1440 (width ≥ 900px)",
+      "pass": true,
+      "detail": {
+        "width": 1000,
+        "maxWidthCss": "1000px",
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        }
+      }
+    },
+    {
+      "name": "modal body does NOT scroll (full form visible)",
+      "pass": true,
+      "detail": {
+        "sh": 713,
+        "ch": 713
+      }
+    },
+    {
+      "name": "Phát lệnh cho tài xế section rendered",
+      "pass": true,
+      "detail": {
+        "hasIssueFieldset": true
+      }
+    },
+    {
+      "name": "fieldset sits above the footer (not cut below the fold)",
+      "pass": true,
+      "detail": {
+        "fieldsetBelowFold": false
+      }
+    },
+    {
+      "name": "footer visible in viewport",
+      "pass": true,
+      "detail": true
+    }
+  ],
+  "pass": true
+}
