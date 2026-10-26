@@ -254,7 +254,7 @@ describe('QA-AUDIT-UI-92 complete assignment facts', () => {
     expect(original).toEqual(saved);
   });
 
-  it('renders the driver SĐT beside plate and name in the Điều phối block (FB-036, card 201026135900)', () => {
+  it('stacks plate, driver name and SĐT as own lines in the Điều phối block (FB-036 + SIL-517)', () => {
     mockFleetResources();
     const plated = row();
     plated.dispatch = {
@@ -266,8 +266,9 @@ describe('QA-AUDIT-UI-92 complete assignment facts', () => {
     const cell = container.querySelector('.dispatch-assignment-cell') as HTMLElement;
     const phone = screen.getByText('0901234567');
     expect(cell).toContainElement(phone);
-    // The SĐT rides the plate·driver line: plate, name and phone are siblings
-    // of the same vehicle group.
+    // SIL-517: the three facts are siblings of the same vehicle group, and
+    // the group's CSS stacks them ONE PER LINE (the styles pin holds the
+    // geometry; this holds the structure — no fact merged into a run).
     const group = phone.closest('.dispatch-assignment-cell__vehicle-group') as HTMLElement;
     expect(group.querySelector('.dispatch-assignment-cell__plate')?.textContent).toBe('15H-052.82');
     expect(group.querySelector('.dispatch-assignment-cell__driver')?.textContent).toBe('Đinh Thanh Thịnh');

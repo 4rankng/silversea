@@ -89,7 +89,9 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
   });
 
   it('wraps the Điều phối facts — the carrier band never truncates (SIL-515)', () => {
-    const phoneRule = editorCss.match(/\.dispatch-assignment-cell__driver-phone\s*\{([^}]*)\}/)?.[1] ?? '';
+    // Declarations are what compute; comments may narrate the banned past.
+    const stripComments = (cssText: string) => cssText.replace(/\/\*[\s\S]*?\*\//g, '');
+    const phoneRule = stripComments(editorCss.match(/\.dispatch-assignment-cell__driver-phone\s*\{([^}]*)\}/)?.[1] ?? '');
     expect(phoneRule, 'the SĐT rule must exist').not.toBe('');
     expect(phoneRule).not.toContain('nowrap');
     expect(phoneRule).not.toContain('ellipsis');
@@ -102,11 +104,18 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(band).not.toContain('white-space: nowrap');
     expect(band).not.toContain('text-overflow: ellipsis');
     expect(band).not.toContain('overflow: hidden');
-    // The plate·driver·SĐT trio wraps as whole tokens (the nowrap pin is
-    // what clipped the run inside the fixed-layout column).
-    const group = editorCss.match(/\.dispatch-assignment-cell \.dispatch-assignment-cell__vehicle-group\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(group).toContain('flex-wrap: wrap');
+    // SIL-517 (owner 26/10): one fact per line — the group is a single-column
+    // grid (plate / driver / SĐT each on its own line under the carrier); no
+    // `·` separator may come back (a separator only exists to pack facts onto
+    // one line) and no nowrap pin (SIL-515 law).
+    const group = editorCss.match(/\.dispatch-assignment-cell__vehicle-group\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(group, 'the vehicle-group rule must exist').not.toBe('');
+    expect(group).toContain('display: grid');
+    expect(group).toContain('min-width: 0');
     expect(group).not.toContain('nowrap');
+    // No `·` separator pseudo-content anywhere in the sheet — a separator
+    // only exists to pack facts onto one line (SIL-517).
+    expect(editorCss).not.toMatch(/content:\s*'·'/);
   });
 
   it('renders every table column through the shared cell body (component pin)', () => {

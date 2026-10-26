@@ -33,42 +33,19 @@
   word-break: keep-all;
 }
 
-.dispatch-assignment-cell .dispatch-assignment-cell__vehicle-group {
-  /* The plate·driver·SĐT trio wraps as whole tokens when the column is
-     tight — the old one-line pin clipped the run. */
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
+/* SIL-517 (owner 26/10): ONE FACT PER LINE — the plate·driver·SĐT run used
+   to flow together on one line and cut behind "..." when the column ran out
+   of width (ticket evidence: "15E-0… · Nguyễn H… · 09849…"). The group is a
+   single-column grid now: plate on its own line, driver on the next, SĐT on
+   the next, under the carrier line. No `·` separator may come back — a
+   separator only exists to pack facts onto one line; every fact still wraps
+   full (the SIL-515 band above owns that law). */
 .dispatch-assignment-cell__vehicle-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 2px;
   min-width: 0;
-}
-
-.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__plate,
-.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__driver {
-  display: inline;
-}
-
-.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__driver::before {
-  content: '·';
-  color: var(--fg-3);
-  margin-right: 4px;
-}
-
-/* FB-036 (card 201026135900): the driver's SĐT joins the plate·driver line —
-   same separator law as the name, data font for the digits. */
-.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__driver-phone {
-  display: inline;
-}
-
-.dispatch-assignment-cell__vehicle-group .dispatch-assignment-cell__driver-phone::before {
-  content: '·';
-  color: var(--fg-3);
-  margin-right: 4px;
 }
 
 .dispatch-assignment-cell__actions {
