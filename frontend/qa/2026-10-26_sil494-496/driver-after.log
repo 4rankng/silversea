@@ -1,0 +1,18 @@
+login ok → http://localhost:7179/config
+shot after-customers-1440.png
+SIL496 customers background ladder: {"html":"rgb(255, 255, 255)","body":"rgb(255, 255, 255)","appMain":"rgb(255, 255, 255)","appBody":"rgb(255, 255, 255)","pageRoot":"rgb(255, 255, 255)","pageRootFound":true}
+shot after-config-customers-1440.png
+SIL496 config-customers background ladder: {"html":"rgb(255, 255, 255)","body":"rgb(255, 255, 255)","appMain":"rgb(255, 255, 255)","appBody":"rgb(255, 255, 255)","pageRoot":"rgb(255, 255, 255)","pageRootFound":true}
+console errors: 0 []
+PHASE after DONE
+login ok → http://localhost:7179/config
+shot after-customers-1440.png
+SIL496 customers background ladder: {"html":"rgb(255, 255, 255)","body":"rgb(255, 255, 255)","appMain":"rgb(255, 255, 255)","appBody":"rgb(255, 255, 255)","pageRoot":"rgb(255, 255, 255)","pageRootFound":true}
+shot after-config-customers-1440.png
+SIL496 config-customers background ladder: {"html":"rgb(255, 255, 255)","body":"rgb(255, 255, 255)","appMain":"rgb(255, 255, 255)","appBody":"rgb(255, 255, 255)","pageRoot":"rgb(255, 255, 255)","pageRootFound":true}
+shot after-customers-390.png
+SIL496 customers@390 ladder: {"body":"rgb(255, 255, 255)","appBody":"rgb(255, 255, 255)","pageRoot":"rgb(255, 255, 255)"}
+shot after-config-customers-390.png
+SIL496 config-customers@390 ladder: {"body":"rgb(255, 255, 255)","appBody":"rgb(255, 255, 255)","pageRoot":"rgb(255, 255, 255)"}
+console errors: 0 []
+PHASE after DONE

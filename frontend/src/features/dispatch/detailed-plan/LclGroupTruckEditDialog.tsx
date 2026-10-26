@@ -29,12 +29,42 @@ import {
   CURRENT_PLATE_PREFIX,
   DEFERRED_PLATE_PREFIX,
   FREE_TEXT_PREFIX,
+  plateCompareKey,
 } from './DispatchPlanCellValues';
 import './LclGroupTruckEditDialog.css';
 
 // Same own-fleet label the dispatch editor's quick-add shows (card
 // 101026043010) so the dialog context reads identically across surfaces.
 const OWN_CARRIER_LABEL = 'SilverSea — xe nội bộ';
+
+/**
+ * SIL-494 (QA R3 26/10) — the manual-typing gate of this dialog. A group
+ * plate reaches EVERY member lot, so the free-text path only accepts a real
+ * Vietnamese plate (30K-12345 · 15C-99999 · 99H-004.59); the reserved
+ * deferred label "Bổ sung sau" (any whitespace/case variant) is refused with
+ * the reason — tạm hoãn biển chỉ tồn tại trên lô đơn, qua nút riêng của
+ * editor, không bao giờ qua đường gõ tay của nhóm. Plates picked from the
+ * loaded fleet catalog keep saving as-is: the catalog is the registry of
+ * truth and must not be re-judged by a display-format regex.
+ */
+const VIETNAM_PLATE_PATTERN = /^\d{2}[A-Z]{1,2}-(?:\d{4}|\d{5}|\d{3}\.\d{2})$/;
+const DEFERRED_PLATE_LABEL_PATTERN = /^bổ\s+sung\s+sau$/;
+
+export function groupPlateInputError(
+  raw: string,
+  plateOptions: ReadonlyArray<{ value: string; label: string }>,
+): string | null {
+  const collapsed = raw.trim().replace(/\s+/g, ' ');
+  if (!collapsed) return 'Nhập BKS thực của xe chạy chuyến';
+  if (DEFERRED_PLATE_LABEL_PATTERN.test(collapsed.toLowerCase())) {
+    return '"Bổ sung sau" không phải biển số — nhóm ghép phải có BKS thật. Tạm hoãn biển chỉ dùng trên lô đơn (nút "Bổ sung sau" của dòng lô).';
+  }
+  if (plateOptions.some((option) => plateCompareKey(option.value) === plateCompareKey(raw))) return null;
+  if (!VIETNAM_PLATE_PATTERN.test(collapsed.toUpperCase().replace(/\s+/g, '-'))) {
+    return 'BKS không đúng định dạng biển số Việt Nam (ví dụ 30K-12345 hoặc 30K-123.45).';
+  }
+  return null;
+}
 
 export interface LclGroupTruckEditDialogProps {
   /** Dòng LCL đã ghép nhóm — seed cặp BKS từ row.lcl.group; null = đóng. */
@@ -105,11 +135,15 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
   async function submit() {
     if (saving || !row || !group) return;
     setError(null);
-    const actual = actualTruckNo.trim();
-    if (!actual) {
-      setError('Nhập BKS thực của xe chạy chuyến');
+    const raw = actualTruckNo.trim();
+    const inputError = groupPlateInputError(raw, plateOptions);
+    if (inputError) {
+      setError(inputError);
       return;
     }
+    // Canonical display form (SIL-494): '30k 123.45' saves as 30K-123.45 —
+    // the same shape every BKS column already prints.
+    const actual = raw.toUpperCase().replace(/\s+/g, '-');
     setSaving(true);
     try {
       // GP-03 — only BKS thực rides the ĐV write; billingTruckNo is the

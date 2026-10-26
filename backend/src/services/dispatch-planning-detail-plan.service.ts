@@ -286,6 +286,9 @@ export async function assignFulfillmentCarrierInTx(tx: Tx, input: AssignFulfillm
     eq(s.shipmentFulfillments.version, fulfillment.version),
   )).returning();
   if (!updated) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  // SIL-494 — a carrier change nulls the row's plate (re-plated only when a
+  // new vehicle is picked): drop the lot's stale COST-group identity too.
+  await clearStaleLotActualTruck(tx, shipment.id);
 
   return {
     fulfillmentId: updated.id,
@@ -473,6 +476,33 @@ export async function resolveDispatchVehicleAssignment(tx: Tx, args: {
   };
 }
 
+/**
+ * SIL-494 (QA note 4, 26/10) — khi một dòng kế hoạch vừa RỚT biển (defer
+ * "Bổ sung sau", "Bỏ gán biển số", đổi nhà xe chưa gán xe mới), lô không còn
+ * xe chạy — nhưng cột `shipments.actualTruckNo` (bản sắc nhóm COST kế thừa
+ * trên survivor sau tách nhóm, FB-095) vẫn giữ BKS cũ và Debit Note tiếp tục
+ * in nó qua fallback `effectiveBillingPlate` (LCL). Xóa cột đó cho lô ĐỨNG
+ * NGOÀI nhóm COST — đúng luật FB-094 "cleared plate ⇒ blank/fallback". Nhóm
+ * còn ghép giữ nguyên bản sắc chung: defer ở tầng fulfillment không bao giờ
+ * chạm BKS nhóm (editor chặn sẵn, đây là lớp bảo vệ BE). Best-effort theo
+ * optimistic version — 0 dòng (lô vừa bị ghi bởi tiến trình khác) là bỏ qua,
+ * lần lưu kế hoạch kế tiếp dọn tiếp.
+ */
+export async function clearStaleLotActualTruck(tx: Tx, shipmentId: number): Promise<void> {
+  const [lot] = await tx.select({
+    id: s.shipments.id,
+    version: s.shipments.version,
+    costGroupId: s.shipments.costGroupId,
+    actualTruckNo: s.shipments.actualTruckNo,
+  }).from(s.shipments).where(eq(s.shipments.id, shipmentId)).limit(1);
+  if (!lot || lot.costGroupId != null || lot.actualTruckNo == null) return;
+  await tx.update(s.shipments).set({
+    actualTruckNo: null,
+    version: lot.version + 1,
+    updatedAt: new Date(),
+  }).where(and(eq(s.shipments.id, lot.id), eq(s.shipments.version, lot.version)));
+}
+
 export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmentPlateInput): Promise<PlateMutationResult> {
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
     .where(and(
@@ -545,6 +575,11 @@ export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmen
     eq(s.shipmentFulfillments.version, fulfillment.version),
   )).returning();
   if (!updated) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  // SIL-494 — the row lost its plate: drop the lot's stale COST-group
+  // identity right here (see clearStaleLotActualTruck).
+  if (vehicle.plannedVehiclePlateNumber == null || vehicle.plannedVehiclePlateNumber.trim() === '') {
+    await clearStaleLotActualTruck(tx, fulfillment.shipmentId);
+  }
 
   const lotFullyPlated = await recomputeLotFullyPlated(tx, fulfillment.shipmentId);
 
@@ -1143,12 +1178,23 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   const nextNote = noteProvided ? (input.operationalNotes ?? '') : null;
   const notesChanged = noteProvided && nextNote !== (shipment.operationalNotes ?? '');
   const isCombinedChanged = input.isCombined !== undefined && shipment.isCombined !== input.isCombined;
+  // SIL-494 (QA note 4) — a save that leaves the row PLATE-LESS (defer
+  // "Bổ sung sau", Bỏ gán biển số, carrier switch without a new vehicle)
+  // also drops the lot's stale COST-group identity. Composed into THIS
+  // shipment write on purpose: a separate guarded write would bump version
+  // out from under the notes/isCombined update and 409 the save.
+  const rowPlateless = vehicle != null
+    && (vehicle.plannedVehiclePlateNumber == null || vehicle.plannedVehiclePlateNumber.trim() === '');
+  const lotIdentityReset = rowPlateless
+    && shipment.costGroupId == null
+    && shipment.actualTruckNo != null;
   let storedNote = shipment.operationalNotes;
   let storedIsCombined = shipment.isCombined;
-  if (isCombinedChanged || notesChanged) {
+  if (isCombinedChanged || notesChanged || lotIdentityReset) {
     const [updatedShipment] = await tx.update(s.shipments).set({
       ...(isCombinedChanged ? { isCombined: input.isCombined } : {}),
       ...(notesChanged ? { operationalNotes: nextNote } : {}),
+      ...(lotIdentityReset ? { actualTruckNo: null } : {}),
       version: shipment.version + 1,
       updatedAt: new Date(),
     }).where(and(

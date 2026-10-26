@@ -11,7 +11,26 @@ import { z } from 'zod';
 // These schemas are the single wire contract: routes validate with them and
 // the frontend clients import the inferred types.
 
-const truckNo = z.string().trim().min(1, 'BKS không được để trống').max(20);
+/**
+ * SIL-494 (QA R3 26/10) — "Bổ sung sau" là NHÃN tạm hoãn biển của LÔ ĐƠN
+ * (deferred pick trên editor, DEFERRED_PLATE_PREFIX `defer:`), không bao giờ
+ * là biển số. Chặn literal + biến thể whitespace/case ở MỌI đường ghi BKS
+ * nhóm đi qua shared contract (Gán xe nhóm · sửa nhóm · Đổi BKS nhóm): qua
+ * đường "gõ mới" của dialog nhóm, chuỗi này từng lưu thành công lên cả nhóm
+ * đang ghép. Tạm hoãn nhóm là không-thể-hình-dung — nhóm ghép trả ĐV luôn có
+ * BKS thật; muốn lô rời BKS thì tách nhóm rồi defer từng lô đơn.
+ */
+const DEFERRED_PLATE_LABEL = 'bổ sung sau';
+
+const truckNo = z
+  .string()
+  .trim()
+  .min(1, 'BKS không được để trống')
+  .max(20)
+  .refine(
+    (value) => value.replace(/\s+/g, ' ').toLowerCase() !== DEFERRED_PLATE_LABEL,
+    { message: '"Bổ sung sau" không phải biển số — nhập BKS thật; tạm hoãn biển chỉ dùng trên lô đơn' },
+  );
 /**
  * FB-141 (card 231026163927, QA R39) — BKS báo khách là output TÙY CHỌN của
  * CUS (spec 23/10 §4.1: trống = hợp lệ ⇒ fallback BKS thực ĐV đã gán). Blank

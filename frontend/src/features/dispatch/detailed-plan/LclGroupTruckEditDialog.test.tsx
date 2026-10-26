@@ -133,6 +133,48 @@ describe('Card 191026100010 — LclGroupTruckEditDialog (DV-B1-03)', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  // SIL-494 (QA R3 26/10) — "Bổ sung sau" là nhãn tạm hoãn của LÔ ĐƠN, không
+  // phải biển số: gõ tay chuỗi này (kể cả biến thể khoảng trắng/chữ) qua đường
+  // "gõ mới" của dialog nhóm từng lưu thành công lên CẢ NHÓM đang ghép.
+  it('SIL-494: gõ tay "Bổ sung sau" (biến thể khoảng trắng/chữ hoa) bị chặn kèm lý do — không wire', async () => {
+    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
+    setField(/BKS thực/, ' Bổ   SUNG  sau ');
+    submit();
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('không phải biển số'));
+    expect(screen.getByRole('alert').textContent).toContain('lô đơn');
+    expect(updateLclTruckMock).not.toHaveBeenCalled();
+  });
+
+  it('SIL-494: chuỗi tay không khớp BKS Việt Nam bị chặn — chỉ nhận BKS thật', async () => {
+    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
+    setField(/BKS thực/, 'xe chua co bien');
+    submit();
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('định dạng biển số Việt Nam'));
+    expect(updateLclTruckMock).not.toHaveBeenCalled();
+  });
+
+  it('SIL-494: BKS thật gõ mới vẫn lưu — canonical hoá 30k 123.45 → 30K-123.45', async () => {
+    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
+    setField(/BKS thực/, '30k 123.45');
+    submit();
+    await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledTimes(1));
+    expect(updateLclTruckMock.mock.calls[0]![0]).toEqual({
+      shipmentId: 11,
+      actualTruckNo: '30K-123.45',
+    });
+  });
+
+  it('SIL-494: BKS đã có trong danh mục đội xe giữ nguyên qua submit (escape khỏi regex)', async () => {
+    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
+    setField(/BKS thực/, '29C-111.11');
+    submit();
+    await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledTimes(1));
+    expect(updateLclTruckMock.mock.calls[0]![0]).toEqual({
+      shipmentId: 11,
+      actualTruckNo: '29C-111.11',
+    });
+  });
+
   it('surfaces the backend failure (e.g. 409 chốt kế toán) and keeps the dialog open', async () => {
     updateLclTruckMock.mockRejectedValue(new Error('Nhóm ghép đã chốt kế toán — không thể đổi BKS.'));
     const onSaved = vi.fn();

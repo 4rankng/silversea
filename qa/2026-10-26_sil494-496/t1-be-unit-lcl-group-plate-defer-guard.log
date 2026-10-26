@@ -1,0 +1,16 @@
+✔ SIL-494: updateLclTruckSchema từ chối literal "Bổ sung sau" kèm lý do tạm hoãn lô đơn (1.010458ms)
+✔ SIL-494: biến thể whitespace/chữ hoa-thường cũng bị chặn (0.190542ms)
+✔ SIL-494: BKS thật vẫn đi qua wire trên cả 3 schema nhóm (0.251333ms)
+✔ SIL-494: BKS trống giữ luật cũ (min 1) — không nhầm với luật defer (0.074375ms)
+✔ SIL-494 source-scan: helper dọn stale chỉ chạy khi lô NGOÀI nhóm COST và đang còn BKS (0.048375ms)
+✔ SIL-494 source-scan: cả 3 điểm ghi fulfillment đều gọi clearStaleLotActualTruck khi rớt biển (0.152125ms)
+✔ SIL-494 source-scan: plan save gộp reset vào block shipment write có guard version (0.058959ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 171.639875
+exit=0
