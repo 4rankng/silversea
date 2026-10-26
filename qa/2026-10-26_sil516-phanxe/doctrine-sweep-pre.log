@@ -1,0 +1,16 @@
+
+== 1440px (pre) == rows=20 cells=220 actionCells=0 copyButtons=0
+  overflow: doc=false region=false table=false
+  clipped (0): []
+  spilled (7): [{"label":"Lịch trình","cls":"ops-schedule__datetime","text":"10:00 30/10/2026","scrollW":74,"clientW":72,"whiteSpace":"normal"},{"label":"Lịch trình","cls":"ops-schedule__datetime","text":"08:00 30/10/2026","scrollW":74,"clientW":72,"whiteSpace":"normal"},{"label":"Lịch trình","cls":"ops-schedule__datetime","text":"30/10/2026","scrollW":74,"clientW":72,"whiteSpace":"normal"},{"label":"Lịch trình","cls":"ops-schedule__datetime","text":"30/10/2026","scrollW":74,"clientW":72,"whiteSpace":"normal"},{"label":"Lịch trình","cls":"ops-schedule__datetime","text":"08:00 29/10/2026","scrollW":74,"clientW":72,"whiteSpace":"normal"},{"label":"Lịch trình","cls":"ops-schedule__datetime","text":"28/10/2026","scrollW":74,"clientW":72,"whiteSpace":"normal"},{"label":"Thông số container","cls":"shipment-container-ledger__code","text":"Lô hàng lẻ | Thu: Xe 10T","scrollW":131,"clientW":84,"whiteSpace":"nowrap"}]
+  ellipsis (0): []
+  headerSpill (0): []
+
+== 390px (pre) == rows=20 cells=220 actionCells=0 copyButtons=0
+  overflow: doc=false region=false table=false
+  clipped (0): []
+  spilled (0): []
+  ellipsis (0): []
+  headerSpill (0): []
+
+report: qa/2026-10-26_sil516-phanxe/sil516_pre_report.json

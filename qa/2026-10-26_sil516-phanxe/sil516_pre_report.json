@@ -1,0 +1,89 @@
+{
+  "base": "http://localhost:7175",
+  "tag": "pre",
+  "widths": {
+    "390": {
+      "rows": 20,
+      "cells": 220,
+      "copyButtons": 0,
+      "actionCells": 0,
+      "regionOverflow": false,
+      "tableOverflow": false,
+      "docOverflow": false,
+      "clipped": [],
+      "spilled": [],
+      "ellipsis": [],
+      "headerSpill": []
+    },
+    "1440": {
+      "rows": 20,
+      "cells": 220,
+      "copyButtons": 0,
+      "actionCells": 0,
+      "regionOverflow": false,
+      "tableOverflow": false,
+      "docOverflow": false,
+      "clipped": [],
+      "spilled": [
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "10:00 30/10/2026",
+          "scrollW": 74,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        },
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "08:00 30/10/2026",
+          "scrollW": 74,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        },
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "30/10/2026",
+          "scrollW": 74,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        },
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "30/10/2026",
+          "scrollW": 74,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        },
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "08:00 29/10/2026",
+          "scrollW": 74,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        },
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "28/10/2026",
+          "scrollW": 74,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        },
+        {
+          "label": "Thông số container",
+          "cls": "shipment-container-ledger__code",
+          "text": "Lô hàng lẻ | Thu: Xe 10T",
+          "scrollW": 131,
+          "clientW": 84,
+          "whiteSpace": "nowrap"
+        }
+      ],
+      "ellipsis": [],
+      "headerSpill": []
+    }
+  }
+}

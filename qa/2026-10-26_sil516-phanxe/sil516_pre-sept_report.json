@@ -1,0 +1,65 @@
+{
+  "base": "http://localhost:7175",
+  "tag": "pre-sept",
+  "widths": {
+    "390": {
+      "rows": 20,
+      "cells": 220,
+      "copyButtons": 0,
+      "actionCells": 0,
+      "regionOverflow": false,
+      "tableOverflow": false,
+      "docOverflow": false,
+      "clipped": [],
+      "spilled": [],
+      "ellipsis": [],
+      "headerSpill": []
+    },
+    "1440": {
+      "rows": 20,
+      "cells": 220,
+      "copyButtons": 0,
+      "actionCells": 0,
+      "regionOverflow": false,
+      "tableOverflow": false,
+      "docOverflow": false,
+      "clipped": [],
+      "spilled": [
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "08:00 26/09/2026",
+          "scrollW": 78,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        },
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "08:00 25/09/2026",
+          "scrollW": 77,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        },
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "09:00 25/09/2026",
+          "scrollW": 77,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        },
+        {
+          "label": "Lịch trình",
+          "cls": "ops-schedule__datetime",
+          "text": "08:00 25/09/2026",
+          "scrollW": 77,
+          "clientW": 72,
+          "whiteSpace": "normal"
+        }
+      ],
+      "ellipsis": [],
+      "headerSpill": []
+    }
+  }
+}

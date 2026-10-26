@@ -1,0 +1,16 @@
+
+== 1440px (post) == rows=20 cells=220 actionCells=0 copyButtons=0
+  overflow: doc=false region=false table=false
+  clipped (0): []
+  spilled (0): []
+  ellipsis (0): []
+  headerSpill (0): []
+
+== 390px (post) == rows=20 cells=220 actionCells=0 copyButtons=0
+  overflow: doc=false region=false table=false
+  clipped (0): []
+  spilled (0): []
+  ellipsis (0): []
+  headerSpill (0): []
+
+report: qa/2026-10-26_sil516-phanxe/sil516_post_report.json
