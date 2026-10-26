@@ -155,14 +155,15 @@ export default function ShipmentContainersPage() {
     }
   }, [detail, toast]);
 
-  /** Card 171026122100 (FB-109) auto-sync law + SIL-184 (CUS-05 clarify):
-   *  saving a NON-EMPTY tờ khai on one container syncs the number onto the
-   *  lot's followers inside the same server transaction — the still-EMPTY
-   *  containers (auto-copy) AND the siblings still holding the replaced
-   *  number (an edit drags its lot-copies along); a container with a
-   *  DIFFERENT number is never overwritten. The hook reports what happened
-   *  and this page owns the toast, matching the copy buttons above. A plain
-   *  save (no sibling written) stays silent like every other editor save;
+  /** Card 171026122100 (FB-109) auto-sync law — owner ruling 26/10 (SIL-498
+   *  lot 257, retiring the SIL-184 "số-cũ đi theo" drag): saving a NON-EMPTY
+   *  tờ khai on one container syncs the number onto the lot's STILL-EMPTY
+   *  containers inside the same server transaction ONLY; a sibling holding
+   *  ANY number — the replaced value included — keeps it (per-cont divergence
+   *  stays reachable), and a clear never fans out. The hook reports what
+   *  happened and this page owns the toast, matching the copy buttons above.
+   *  A plain save (no sibling written) stays silent like every other editor
+   *  save;
    *  save errors keep flowing to the editor's inline error channel
    *  untouched. */
   const saveDocuments = useCallback(async (row: ShipmentCusContainerFlatRow, draft: ShipmentDocumentsDraft) => {
