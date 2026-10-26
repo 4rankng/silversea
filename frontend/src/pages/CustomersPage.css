@@ -59,8 +59,9 @@
    columns — 1024+ fits it inside the content box. */
 .record-table.cus-table { min-width: 978px; }
 
-/* Verdict (c): the page reads white — the canvas around the app shell keeps
-   the house sage tint, this surface carries its own neutral contract. */
+/* Verdict (c): the page reads white — since SIL-496 round 2 the GLOBAL
+   canvas (tokens.css --bg/--bg-1) is white too, and this surface carries its
+   own neutral contract with a hairline edge. */
 .customers-page {
   background: var(--surface);
   border: 1px solid var(--hairline);
@@ -68,13 +69,13 @@
   padding: 12px 16px 20px;
 }
 
-/* QA wave 8cea1a6b ③ (SIL-496 retest 26/10, build 52ee6443): the sage canvas
-   AROUND this card is what the re-review failed — the customers screens'
-   WHOLE page ladder goes #FFFFFF, page-scoped via :has() so no other surface
-   loses the house tint. The first round painted only .app-body, but
-   html/body/.app-main still rode var(--bg) (#E3E8E5) beneath it — the
-   overscroll band and any computed-style probe on those layers kept reading
-   rgb(227,232,229). The card keeps its hairline/radius; it sits on white. */
+/* QA wave 8cea1a6b ③ (SIL-496 retests 26/10, round 2 FAIL): the sage canvas
+   AROUND this card is what re-review kept failing — rounds 1-2 painted the
+   ladder page-locally while the GLOBAL --bg/--bg-1 in styles/tokens.css
+   stayed #E3E8E5, so html/body/.app-main kept reading rgb(227,232,229).
+   The tokens are white at the source now; this :has() block stays as a
+   belt-and-suspenders pin for the two routes. The card keeps its
+   hairline/radius; it sits on white. */
 html:has(.customers-page),
 html:has(.cfg-page--customers),
 body:has(.customers-page),

@@ -1,0 +1,9 @@
+
+=== run 2026-10-26T11:09:56.568Z ===
+2026-10-26T11:09:56.642Z login admin: OK
+2026-10-26T11:09:56.651Z GET /api/customers: 200 rows=40 total=40
+2026-10-26T11:09:59.380Z /customers @1440: ALL LAYERS WHITE {"html":"rgb(255, 255, 255)","body":"rgb(255, 255, 255)",".app-main":"rgb(255, 255, 255)",".app-body":"rgb(255, 255, 255)",".customers-page":"rgb(255, 255, 255)"} shot=qa/2026-10-26_sil496-token/2026-10-26_sil496-token_ui-customers-1440.png
+2026-10-26T11:10:01.435Z /config/customers @1440: ALL LAYERS WHITE {"html":"rgb(255, 255, 255)","body":"rgb(255, 255, 255)",".app-main":"rgb(255, 255, 255)",".app-body":"rgb(255, 255, 255)",".cfg-page--customers":"rgb(255, 255, 255)"} shot=qa/2026-10-26_sil496-token/2026-10-26_sil496-token_ui-cfg-customers-1440.png
+2026-10-26T11:10:03.341Z /customers @390: ALL LAYERS WHITE {"html":"rgb(255, 255, 255)","body":"rgb(255, 255, 255)",".app-main":"rgb(255, 255, 255)",".app-body":"rgb(255, 255, 255)",".customers-page":"rgb(255, 255, 255)"} shot=qa/2026-10-26_sil496-token/2026-10-26_sil496-token_ui-customers-390.png
+2026-10-26T11:10:05.374Z /config/customers @390: ALL LAYERS WHITE {"html":"rgb(255, 255, 255)","body":"rgb(255, 255, 255)",".app-main":"rgb(255, 255, 255)",".app-body":"rgb(255, 255, 255)",".cfg-page--customers":"rgb(255, 255, 255)"} shot=qa/2026-10-26_sil496-token/2026-10-26_sil496-token_ui-cfg-customers-390.png
+2026-10-26T11:10:05.494Z RESULT: PASS — computed bg rgb(255,255,255) on every ladder layer, both routes, 1440+390

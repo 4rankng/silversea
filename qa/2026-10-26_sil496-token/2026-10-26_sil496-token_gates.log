@@ -1,0 +1,47 @@
+# SIL-496 token-source micro-fix — gate evidence (2026-10-26)
+Branch fix-496-token @ 03e3f65a + this commit. Worktree: /Users/dev/.paseo/worktrees/1njkloyy/fix-496-token
+
+## 1. Scoped vitest
+$ cd frontend && npx vitest run src/pages/CustomersPage.canvas-ladder.styles.test.ts src/styles/surface-ladder.test.ts src/styles/overlay-surface.styles.test.ts src/styles/selection-state-contract.styles.test.ts src/styles/semantic-token-contrast.styles.test.ts
+ Test Files  5 passed (5)
+      Tests  26 passed (26)
+Duration  740ms → exit 0
+
+## 2. Frontend typecheck
+$ cd frontend && npx tsgo --noEmit
+(no output) → exit 0
+
+## 3. Full frontend vitest (token-global insurance sweep)
+$ cd frontend && npx vitest run
+ Test Files  1 failed | 728 passed (729)
+      Tests  2 failed | 5596 passed (5598)
+The only failures: src/styles/numeric-identity.styles.test.ts (2) —
+"dist/assets missing — run `pnpm --dir frontend build` first" (fresh worktree
+had no production build; environment precondition, not a token regression).
+
+## 4. Production build (closes #3's precondition + §5 build gate)
+$ pnpm --dir frontend build
+✓ built in 6.01s → exit 0
+
+## 5. Rerun of the previously failing file
+$ cd frontend && npx vitest run src/styles/numeric-identity.styles.test.ts
+ Test Files  1 passed (1)
+      Tests  6 passed (6) → exit 0
+
+## 6. Root lint
+$ pnpm lint
+✖ 1 problem (0 errors, 1 warning)
+warning = react-hooks/exhaustive-deps in CustomersConfigPage.tsx:204 (pre-existing, file untouched by this fix) → 0 errors
+
+## 7. Rung-3 UI drive (§9) — qa/scripts/2026-10-26_sil496-token_ui-drive.mjs
+$ node qa/scripts/2026-10-26_sil496-token_ui-drive.mjs → exit 0
+login admin: OK
+GET /api/customers: 200 rows=40 total=40   ← read-only identity proof
+/customers @1440: ALL LAYERS WHITE html/body/.app-main/.app-body/.customers-page = rgb(255, 255, 255)
+/config/customers @1440: ALL LAYERS WHITE (…+.cfg-page--customers) = rgb(255, 255, 255)
+/customers @390: ALL LAYERS WHITE
+/config/customers @390: ALL LAYERS WHITE
+RESULT: PASS
+Driver log: qa/2026-10-26_sil496-token/2026-10-26_sil496-token_ui-driver.log
+Screenshots: qa/2026-10-26_sil496-token/2026-10-26_sil496-token_ui-{customers,cfg-customers}-{1440,390}.png
+Stack: vite :7197 (this worktree) → backend :3002 (shared dev stack, health 200) → dev DB :5441
