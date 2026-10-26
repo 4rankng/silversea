@@ -21,7 +21,12 @@ const WAREHOUSES = [
 
 /** Mirrors the real kho field INCLUDING the non-match branch: the passthrough
  * resolves an exact option-label match to the site id, anything else CLEARS
- * the id (hybrid storage — createAdhocFieldLogic.warehouseCustomText). */
+ * the id (hybrid storage — createAdhocFieldLogic.warehouseCustomText).
+ * DELIBERATE raw matcher (===): this file pins the typing-session law
+ * (typedCustomTextRef) for byte-exact flips — the NORMALIZED matcher law is
+ * owned by create-adhoc-field-logic.test.ts + exact-label.test.tsx. Do not
+ * "fix" this to normalizeSearchText; it would blur which layer each file
+ * pins. */
 function KhoHarness(props: { startValue?: string; onChange?: (value: string) => void } = {}) {
   const [value, setValue] = useState(props.startValue ?? '');
   const onCustomValue = (text: string) => {
