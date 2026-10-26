@@ -1,0 +1,3 @@
+npx tsgo --noEmit — exit 0 (SIL-513)
+npx eslint 9 file đụng — 0 error (1 warning = css file-ignored, harmless)
+npx vitest run src/features/shipments/create src/pages/clerk — 40 files 363/363 (SIL-513)

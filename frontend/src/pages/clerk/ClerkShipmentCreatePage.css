@@ -188,7 +188,7 @@
 .csc-container-col__type { width: 124px; }
 .csc-container-col__route { width: 180px; }
 .csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
-.csc-container-col__weight { width: 144px; }
+.csc-container-col__weight { width: 140px; }
 .csc-container-col__actions { width: 44px; }
 .csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .csc-container-table th:last-child, .csc-container-table td:last-child { border-right: 0; }
@@ -620,25 +620,28 @@
   .csc-bulk-appointment__copy { align-self: flex-start; }
 }
 
-/* Bulk appointment copy (user ruling 2026-09-18): the affordance lives in the
-   STT cell as a hover-revealed icon button shaped like the row's inputs —
-   a rounded rectangle, never an overlay on top of the time/date fields.
-   Rest state hides it with opacity, not visibility: visibility: hidden drops
-   it out of the accessibility tree and out of harness actionability, so the
-   button appeared/disappeared in AX snapshots with the pointer's position
-   and coordinate clicks never landed (card 101026163010). Opacity keeps it
-   rendered, AX-exposed and hit-testable while looking identical — a pointer
-   that can reach the button is already on the row, which reveals it. */
-.csc-container-row__index { position: relative; }
-.csc-container-row__copy {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 2;
+/* SIL-513 (owner 26/10): the copy affordance lives in the STT cell as a
+   small icon BESIDE the ordinal — the ordinal stays visible (the icon no
+   longer swaps with it), the button reveals on row hover and duplicates the
+   row below itself. Rest state hides it with opacity, not visibility:
+   visibility: hidden drops it out of the accessibility tree and out of
+   harness actionability, so the button appeared/disappeared in AX snapshots
+   with the pointer's position and coordinate clicks never landed (card
+   101026163010). Opacity keeps it rendered, AX-exposed and hit-testable
+   while looking identical — a pointer that can reach the button is already
+   on the row, which reveals it. */
+.csc-container-row__index { text-align: center; }
+.csc-container-row__index-row {
   display: inline-flex;
-  width: 26px;
-  height: 26px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 26px;
+}
+.csc-container-row__copy {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -648,17 +651,12 @@
   background: var(--surface);
   color: var(--fg-2);
   cursor: pointer;
+  transition: opacity 100ms linear;
 }
 .csc-container-row__copy:hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 52%, var(--surface)); color: var(--accent-2); }
 .csc-container-row__copy:focus-visible { opacity: 1; outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 1px; }
 .csc-container-row:hover .csc-container-row__copy,
 .csc-container-row:focus-within .csc-container-row__copy { opacity: 1; }
-/* The icon takes the ordinal's slot while the pointer is on the row; the swap
-    is hover-only so the row number survives a touch tap (coarse pointers). */
-@media (hover: hover) {
-  .csc-container-row:hover .csc-container-row__desktop-index,
-  .csc-container-row:focus-within .csc-container-row__desktop-index { visibility: hidden; }
-}
 @media (max-width: 640px), (pointer: coarse) {
   .csc-container-row__copy { opacity: 1; }
 }

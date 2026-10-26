@@ -72,7 +72,13 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1108px;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*180px;/);
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
-    expect(css).toMatch(/\.csc-container-col__weight\s*\{[^}]*width:\s*144px;/);
+    // SIL-513: the weight column hugs its TRUE floor — the FB-063 single-line
+    // nowrap header "TRỌNG LƯỢNG (KG)" measures 127px (+12px padding = 139)
+    // in the live DOM (qa/2026-10-26_sil513-copy-stt/), so 140px is the
+    // honest minimum; anything narrower shears the header into the actions
+    // column. Shortening further is a LABEL decision (owner's call).
+    expect(Number(/\.csc-container-col__weight\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(138);
+    expect(Number(/\.csc-container-col__weight\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeLessThanOrEqual(144);
     expect(css).toMatch(/\.csc-container-col__actions\s*\{[^}]*width:\s*44px;/);
     expect(css).toMatch(/\.csc-container-col__pickup-port,\s*\.csc-container-col__dropoff-port,\s*\.csc-container-col__factory\s*\{[^}]*width:\s*auto;/);
     // The appointment column is deliberately NOT auto: the SplitDateTimeField
@@ -108,7 +114,9 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-container-table thead th\s*\{[^}]*white-space:\s*nowrap;[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*normal;/);
     expect(css).not.toMatch(/\.csc-container-table thead th\s*\{[^}]*white-space:\s*normal;/);
     expect(Number(/\.csc-container-col__type\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(122);
-    expect(Number(/\.csc-container-col__weight\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(141);
+    // SIL-513: the weight floor is the FB-063 single-line header (127px text
+    // + 12px padding, live-measured) — 140px, not the stale 141 claim.
+    expect(Number(/\.csc-container-col__weight\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(138);
     expect(css).toMatch(/\.csc-container-table thead th\s*\{[^}]*background:\s*var\(--surface-2\);[^}]*font-weight:\s*700;/);
     expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-table thead,\s*\.csc-container-table colgroup\s*\{[^}]*display:\s*none;/);
     expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
@@ -362,10 +370,17 @@ describe('copy-icon STT placement rework (20260918_3)', () => {
     return cssText.slice(i, cssText.indexOf('}', i) + 1);
   };
 
-  it('create copy button is truly centered in the STT cell (translate both axes)', () => {
+  it('STT copy sits BESIDE the ordinal (SIL-513), never absolutely centered over it', () => {
     const block = ruleBlock(css, '.csc-container-row__copy {');
-    expect(block).toMatch(/transform:\s*translate\(-50%,\s*-50%\)/);
+    // SIL-513 (owner 26/10): the icon is an inline neighbour of the STT
+    // number — the old translate(-50%,-50%) center-swap (icon replacing the
+    // ordinal on hover) is retired.
+    expect(block).not.toMatch(/position:\s*absolute/);
+    expect(block).not.toMatch(/transform:\s*translate\(-50%,\s*-50%\)/);
+    expect(block).toMatch(/display:\s*inline-flex/);
     expect(block).toMatch(/border-radius:\s*8px/);
+    const row = ruleBlock(css, '.csc-container-row__index-row {');
+    expect(row).toMatch(/display:\s*inline-flex/);
   });
 
   // SIL-485: the CUS ledger copy site retired with the editable ledger — the

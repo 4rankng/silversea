@@ -3,7 +3,6 @@ import { useRef, useState } from 'react';
 import type { CatalogData } from '../../../api/tripClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
 import { formatDateTime24 } from '../../../lib/format';
-import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import {
   USearchableField as SearchableField,
   UTextField as TextField,
@@ -34,8 +33,8 @@ export interface ShipmentCreateContainerRowProps {
   containersLength: number;
   catalogs: CatalogData;
   operationalSites: OperationalSite[];
-  emptyAppointmentCount: number;
-  copyAppointmentToEmpty: (fromKey: string) => void;
+  /** SIL-513: the STT hover copy duplicates the row right below itself. */
+  onDuplicate: (fromKey: string) => void;
   /** FB-009: surfaces the copied text for the workspace's "Đã copy" toast. */
   onAppointmentCopied?: (formatted: string) => void;
   updateContainer: (key: string, field: keyof Omit<ContainerRow, 'key'>, value: string) => void;
@@ -63,8 +62,7 @@ export function ShipmentCreateContainerRow({
   containersLength,
   catalogs,
   operationalSites,
-  emptyAppointmentCount,
-  copyAppointmentToEmpty,
+  onDuplicate,
   onAppointmentCopied,
   updateContainer,
   removeContainer,
@@ -88,11 +86,6 @@ export function ShipmentCreateContainerRow({
   const pickupPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.pickupPortId);
   const dropoffPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.dropoffPortId);
   const factory = operationalSites.find((site) => String(site.id) === row.operationalSiteId);
-  // Card 20261010_3: one empty destination is enough — the 2-container lot
-  // (one scheduled, one empty) is the common case and must see the affordance.
-  // SIL-481: `saving` is the view mode's disable channel — the copy-down
-  // mutation never renders on the read-only review.
-  const canCopyAppointment = Boolean(row.customerAppointmentAt) && !saving && emptyAppointmentCount >= 1;
   // Card 20261002_272: open handle for the paired-field Tab hand-off.
   const typePickerOpenApi = useRef<{ open: () => void } | null>(null);
   // Card 20261002_268: read-only factory detail peek beside the cell value.
@@ -111,19 +104,26 @@ export function ShipmentCreateContainerRow({
   return (
     <tr key={row.key} className="csc-container-row">
       <th scope="row" className="csc-container-row__index">
-        <span className="csc-container-row__desktop-index">{index + 1}</span>
+        {/* SIL-513 (owner 26/10): the copy affordance lives HERE — a small
+            icon BESIDE the ordinal on row hover. Click duplicates the row
+            (full-value clone right below); the old appointment-copy-down
+            behavior moved out with the STT swap. The ordinal stays visible:
+            the icon sits next to it, it no longer replaces it. */}
+        <span className="csc-container-row__index-row">
+          <span className="csc-container-row__desktop-index">{index + 1}</span>
+          {!saving && (
+            <button
+              type="button"
+              className="csc-container-row__copy"
+              onClick={() => onDuplicate(row.key)}
+              title={`Nhân bản dòng ${index + 1} — tạo dòng mới copy toàn bộ giá trị (cont, loại, nhà máy, tuyến, cảng, kg, giờ đóng/trả)`}
+              aria-label={`Nhân bản container ${index + 1}`}
+            >
+              <Copy size={14} aria-hidden="true" />
+            </button>
+          )}
+        </span>
         <span className="csc-container-row__mobile-index">Container {index + 1}</span>
-        {canCopyAppointment && (
-          <button
-            type="button"
-            className="csc-container-row__copy"
-            onClick={() => copyAppointmentToEmpty(row.key)}
-            title={`Copy ngày giờ ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
-            aria-label={`Copy ngày giờ đóng trả ${formatContainerAppointment(row.customerAppointmentAt)} sang các container chưa có lịch`}
-          >
-            <Copy size={15} aria-hidden="true" />
-          </button>
-        )}
       </th>
       {/* Mobile UX consult 16/10: the stacked phone record groups its fields
           into three labelled sub-sections. Desktop hides these bands
@@ -381,17 +381,6 @@ export function ShipmentCreateContainerRow({
         error={issueByField.get(`container-${row.key}-customer-appointment`)}
         onRevert={(value) => updateContainer(row.key, 'customerAppointmentAt', value)}
         mobileFieldChrome
-        actions={row.customerAppointmentAt && !saving ? (
-          /* SIL-481 (design law): the copy affordance belongs to
-             schedule-EDITING surfaces — the read-only review never grows it
-             (`saving` is the view mode's disable channel). */
-          <CopyCodeButton
-            className="csc-container-cell__action"
-            value={formatContainerAppointment(row.customerAppointmentAt)}
-            label="Giờ hẹn đóng trả"
-            onCopied={() => onAppointmentCopied?.(formatContainerAppointment(row.customerAppointmentAt))}
-          />
-        ) : undefined}
       >
         <DateTimeField
           id={`container-${row.key}-customer-appointment`}
