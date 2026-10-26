@@ -76,11 +76,16 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-container-col__actions\s*\{[^}]*width:\s*44px;/);
     expect(css).toMatch(/\.csc-container-col__pickup-port,\s*\.csc-container-col__dropoff-port,\s*\.csc-container-col__factory\s*\{[^}]*width:\s*auto;/);
     // The appointment column is deliberately NOT auto: the SplitDateTimeField
-    // it holds carries min-width:max-content segment groups, so its floor is
-    // ~171px and an auto track sheared the date half of the control out of the
-    // cell (only "HH :" stayed visible). The declared width must clear it.
+    // it holds carries min-width:max-content segment groups, and an auto track
+    // sheared the date half of the control out of the cell (only "HH :" stayed
+    // visible). SIL-512 (owner 26/10): the declared width hugs the LIVE pair
+    // floor (~150px at the house control font, measured in
+    // qa/2026-10-26_sil512-fill/) + 6px slack — 156px — instead of the old
+    // 200px reserve whose ~50px dead strip read as an empty column beside the
+    // row actions. Must clear the floor, must not reserve dead width.
     const appointmentWidth = Number(/\.csc-container-col__appointment\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0);
-    expect(appointmentWidth).toBeGreaterThanOrEqual(172);
+    expect(appointmentWidth).toBeGreaterThanOrEqual(152);
+    expect(appointmentWidth).toBeLessThanOrEqual(170);
     expect(css).not.toMatch(/\.csc-container-col__appointment[,\s][^{]*\{[^}]*width:\s*auto;/);
     expect(css).not.toMatch(/\.csc-container-table thead th:nth-child\([^)]*\)\s*\{[^}]*width:\s*\d+%;/);
     expect(css).toMatch(/\.csc-container-table td:not\(\.csc-container-row__actions\)\s*>\s*\*\s*\{[^}]*min-width:\s*0;/);
@@ -411,12 +416,15 @@ describe('CUS "Ngày giờ đóng trả" cluster geometry (cards 051026230627 �
     );
   });
 
-  it('keeps the desktop column at the 12px-scale cluster floor', () => {
-    // The em-based segment widths scale with the font: at the 12px field font
-    // the pair needs ~200px or the table scroll box shears the date half off.
-    // 176px left the segments cramped (card 051026230627); 240px was the 16px
-    // era's floor.
-    expect(css).toMatch(/\.csc-container-col__appointment\s*\{\s*width:\s*200px/);
+  it('keeps the desktop column hugging the live pair floor (SIL-512 dead-strip fix)', () => {
+    // SIL-512 (owner 26/10): the pair measures ~150px at the house control
+    // font (qa/2026-10-26_sil512-fill/ live DOM), so the column declares
+    // 156px = floor + 6px slack. The previous 200px reserve (itself once
+    // "safe" at 171–176px claims) left a ~50px dead strip after the date
+    // cluster that read as an empty column beside the row actions; the freed
+    // width flows to the auto columns and the sheet fills the card. The
+    // ≤380px @container full-row fallback above still guards the shear.
+    expect(css).toMatch(/\.csc-container-col__appointment\s*\{\s*width:\s*156px/);
   });
 });
 

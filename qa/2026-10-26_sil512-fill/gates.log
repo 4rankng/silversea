@@ -1,0 +1,3 @@
+npx tsgo --noEmit — exit 0 (SIL-512)
+npx eslint ClerkShipmentCreatePage.styles.test.ts — 0 error (SIL-512)
+npx vitest run src/pages/clerk src/features/shipments/create — 40 files 370/370 (SIL-512)

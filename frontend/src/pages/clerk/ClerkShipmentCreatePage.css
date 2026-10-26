@@ -506,13 +506,14 @@
 .csc-field-warning__link:hover { color: var(--warning-text); }
 
 /* Separate time/date controls remain usable in the repeatable desktop grid.
- * 200px = the measured pair floor at the house control font (~150px: the
- * date group ~93px + 6px grid gap + time group ~51px, em-scaled) plus
- * headroom; 240px was the 16px-era floor, the old 176px floor sheared the
- * digits. At narrower widths the date half spills out of the cell and the
- * container table's scroll box cuts it off. The other three auto columns
- * absorb the difference. */
-.csc-container-col__appointment { width: 200px; }
+ * SIL-512 (owner 26/10): the column hugs the measured pair floor — 156px =
+ * the ~150px pair at the house control font + 6px slack. The old 200px
+ * reserve left a ~50px dead strip after the date cluster that read as an
+ * empty column beside the row actions; the freed width flows back to the
+ * auto columns (factory/ports) and the sheet fills the card again. At
+ * narrower widths the date half spills out of the cell and the container
+ * table's scroll box cuts it off. */
+.csc-container-col__appointment { width: 156px; }
 
 /* Card 051026230627 — the appointment cluster is a tap surface first (its
  * whole group opens the picker): the segments keep TOUCH HEIGHT (the cure
