@@ -1376,7 +1376,7 @@ describe('DispatchPlanEditorCell — "Bổ sung sau" deferred plate (card 202610
     expect(dropdownOptions[0]).toBe('Bổ sung sau');
   });
 
-  it('saves the deferred choice as carrier-with-no-vehicle-fields (no plate on the wire)', async () => {
+  it('saves the deferred choice as an explicit plate clear (clearVehicle — SIL-494)', async () => {
     mockFleetResources();
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
@@ -1399,9 +1399,76 @@ describe('DispatchPlanEditorCell — "Bổ sung sau" deferred plate (card 202610
     const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
     expect(body.carrierType).toBe('EXTERNAL');
     expect(body.externalCarrierId).toBe(9);
+    // SIL-494 — "Bổ sung sau" ships the explicit clear: an absent vehicle
+    // block reads as "keep stored columns" on the backend, so the row's old
+    // plate survived the save (the QA revert). clearVehicle keeps the carrier
+    // and ships the plate empty.
+    expect(body.clearVehicle).toBe(true);
     expect(body.externalCarrierVehicleId).toBeUndefined();
     expect(body.plateNumber).toBeUndefined();
     expect(body.truckId).toBeUndefined();
+  });
+
+  it('SIL-494 repro: a PLATED row switched to "Bổ sung sau" wires clearVehicle (plate ships empty, carrier stays)', async () => {
+    mockFleetResources();
+    // Post-split shape from the ticket: R42DIS-02 = THẾ LUÂN + 15C-99999,
+    // carrier unchanged, plate picked back to "Bổ sung sau".
+    const plated = row({
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: 77, assignedPlate: '15C-99999' },
+    });
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 5,
+      shipmentVersion: 7,
+      classification: 'SINGLE',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(plated, { onAtomicSave });
+    await openDialog();
+
+    // The plated picker's trigger carries the current plate, not the
+    // placeholder — click it by its field id.
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    fireEvent.click((await screen.findAllByText('Bổ sung sau'))[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.clearVehicle).toBe(true);
+    expect(body.carrierType).toBe('EXTERNAL');
+    expect(body.externalCarrierId).toBe(9);
+    expect(body.plateNumber).toBeUndefined();
+    expect(body.externalCarrierVehicleId).toBeUndefined();
+  });
+
+  it('a GROUPED LCL lot still refuses the deferred pick at this editor (group plate is shared — Đổi BKS nhóm)', async () => {
+    mockFleetResources();
+    const grouped = row({
+      cargoMode: 'LCL',
+      fulfillmentType: 'LCL_SHIPMENT',
+      container: { containerNumber: null, containerTypeLabel: null, cargoWeightKg: '4000.00' },
+      lcl: {
+        packageCount: 10,
+        packageType: 'Carton',
+        cargoVolumeCbm: '4.00',
+        group: { groupId: 'g-1', order: 1, memberCount: 2, actualTruckNo: '99H-004.59', billingTruckNo: null, vehicleClassCode: '5T', vehicleClassName: 'Xe tải 5 tấn' },
+      },
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: 77, assignedPlate: '99H-004.59' },
+    } as Partial<DispatchDetailPlanRow>);
+    const onAtomicSave = vi.fn();
+    renderCell(grouped, { onAtomicSave });
+    await openDialog();
+
+    fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    fireEvent.click((await screen.findAllByText('Bổ sung sau'))[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Đổi BKS nhóm/);
+    expect(onAtomicSave).not.toHaveBeenCalled();
+    expect(updateLclTruckMock).not.toHaveBeenCalled();
   });
 
   it('shows the Phát lệnh section for a saved deferred row (AWAITING_PLATE is issuable)', async () => {

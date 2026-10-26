@@ -240,14 +240,18 @@ interface VehicleBody {
 
 /** Vehicle body for the atomic save. '' → explicit clear (Bỏ gán biển số);
  *  CURRENT_PLATE → keep stored columns (the snapshot is the stored value);
- *  DEFERRED → carrier stays, plate ships empty (Bổ sung sau — card 20261004_359). */
+ *  DEFERRED → carrier stays, plate ships empty (Bổ sung sau — card
+ *  20261004_359): SIL-494 — the pick MUST wire `clearVehicle` or the backend
+ *  reads the absent vehicle block as "keep stored columns" and the row's old
+ *  plate survives the save (the QA revert: plate changed to "Bổ sung sau",
+ *  saved, reloaded — 15C-99999 still there). */
 function vehicleBody(value: string): VehicleBody | null {
   if (!value) return { clearVehicle: true };
   if (value.startsWith(OWN_TRUCK_PREFIX)) return { truckId: Number(value.slice(OWN_TRUCK_PREFIX.length)) };
   if (value.startsWith(EXTERNAL_VEHICLE_PREFIX)) return { externalCarrierVehicleId: Number(value.slice(EXTERNAL_VEHICLE_PREFIX.length)) };
   if (value.startsWith(FREE_TEXT_PREFIX)) return { plateNumber: value.slice(FREE_TEXT_PREFIX.length) };
   if (value.startsWith(CURRENT_PLATE_PREFIX)) return {};
-  if (value === DEFERRED_PLATE_PREFIX) return {};
+  if (value === DEFERRED_PLATE_PREFIX) return { clearVehicle: true };
   return null;
 }
 
