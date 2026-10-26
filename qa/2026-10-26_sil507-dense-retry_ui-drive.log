@@ -1,0 +1,97 @@
+{
+  "url": "http://localhost:7198/dispatch",
+  "user": "dungnv",
+  "at390": {
+    "cardMode": true,
+    "cardCount": 20,
+    "violations": {
+      "nowrap": [],
+      "ellipsis": [],
+      "clipHidden": [],
+      "overflowX": [],
+      "outsideViewport": []
+    },
+    "heights": {
+      "all": [
+        92,
+        93,
+        194,
+        194,
+        327,
+        103,
+        182,
+        182,
+        179,
+        209,
+        217,
+        108,
+        73,
+        88,
+        88,
+        88,
+        103,
+        71,
+        71,
+        103
+      ],
+      "plainWithButton": {
+        "rows": 8,
+        "min": 88,
+        "max": 108
+      },
+      "plainWithoutButton": {
+        "rows": 4,
+        "min": 71,
+        "max": 93
+      },
+      "extended": {
+        "rows": 8,
+        "min": 179,
+        "max": 327
+      }
+    },
+    "buttons": {
+      "allocate": 8,
+      "tooTall": 0,
+      "tooWide": 0
+    },
+    "typography": {
+      "primary": "13px",
+      "meta": "11px"
+    },
+    "noHorizontalScroll": true,
+    "docScrollWidth": 390,
+    "innerWidth": 390,
+    "firstCard": {
+      "head": "YUANFANG543543543Chạy ngoàiNhập · Cont11:11 22/11/2026",
+      "time": "11:11 22/11/2026",
+      "route": "Nâng — → Trả — · MSC",
+      "fleet": "Chưa phân bổ"
+    }
+  },
+  "popover": {
+    "opened": true,
+    "insideViewport": true,
+    "height": 697,
+    "appeared": true,
+    "activatedBy": "DOM click on the real button node (native puppeteer events unreliable under touch emulation; hit-test above proves the tap lands on the button)",
+    "hitTest": {
+      "buttonRect": {
+        "x": 277,
+        "y": 271,
+        "w": 105,
+        "h": 32
+      },
+      "topIsButton": true,
+      "top": "BUTTON.mpcard__allocate"
+    }
+  },
+  "at768": {
+    "tableMode": true,
+    "cardMode": false,
+    "rowCount": 20,
+    "allocateButtonsInCards": 0
+  },
+  "failures": [],
+  "ALL_CHECKS_PASS": true
+}

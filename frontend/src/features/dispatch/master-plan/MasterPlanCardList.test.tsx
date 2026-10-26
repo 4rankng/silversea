@@ -83,11 +83,32 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     expect(screen.getAllByText('BL-2026-001')).toHaveLength(1);
     // Loại = plain text (Nhập/Xuất · Cont/Lẻ).
     expect(screen.getAllByText('Nhập · Cont')).toHaveLength(2);
-    // Dòng 2 meta: giờ+ngày · Nâng → Trả · tuyến · hãng tàu as ONE run.
-    expect(screen.getAllByText('20/08/2026 · Nâng Cảng Cát Lái → Trả Kho Bình Dương · LH — Biên Hòa · Maersk')).toHaveLength(2);
-    // Dòng 3 facts: joined container demand + the named missing allocation.
+    // Dòng 1 head: KH · mã · loại badge + giờ (the schedule head run).
+    expect(screen.getAllByText('Công ty ABC')).toHaveLength(2);
+    expect(screen.getAllByText('BL-2026-001')).toHaveLength(1);
+    expect(screen.getAllByText('Nhập · Cont')).toHaveLength(2);
+    expect(screen.getAllByText('20/08/2026')).toHaveLength(2);
+    // Dòng 2 route: Nâng → Trả · tuyến · hãng tàu (wraps full, SIL-515).
+    expect(screen.getAllByText('Nâng Cảng Cát Lái → Trả Kho Bình Dương · LH — Biên Hòa · Maersk')).toHaveLength(2);
+    // Dòng 3 meta: joined container demand + the named missing allocation.
     expect(screen.getAllByText('2 x 40HC + 1 x 20DC').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Chưa phân bổ')).toHaveLength(2);
+  });
+
+  it('SIL-507 retry: giờ leads Dòng 1 and the day\'s appointment factory rides the route line', () => {
+    renderCards({
+      items: [item({
+        appointmentGroups: [
+          { at: '2026-08-25T02:00:00.000Z', localDate: '2026-08-25', factoryName: 'NEWWEB-KHO 1', factoryShortName: 'NEWWEB-KHO 1', factoryFullName: null, containerSummary: '3 x 40DC' },
+        ],
+      })],
+    });
+
+    // The appointment instant (ICT 09:00) rides the identity line…
+    expect(screen.getByText('09:00 25/08/2026')).toBeTruthy();
+    // …and the appointment factory joins the route run (no fact lost to the
+    // 3-dòng budget), between the Nâng/Trả pair and the tuyến.
+    expect(screen.getByText('Nâng Cảng Cát Lái → Trả Kho Bình Dương · NEWWEB-KHO 1 · LH — Biên Hòa · Maersk')).toBeTruthy();
   });
 
   it('hides the allocate button once a carrier roster exists; the chips line reads instead (SIL-507 ẩn-khi-đã-phân)', () => {

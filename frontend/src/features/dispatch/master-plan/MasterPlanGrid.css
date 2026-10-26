@@ -633,18 +633,20 @@
   line-height: var(--ops-table-meta-line-height);
 }
 
-/* ── SIL-507 (owner 26/10 P0) — the <640px phone card list re-densified into
-   a 3-dòng divider list. The per-lot card-BOX (border + radius + surface per
-   row) is REPLACED by hairline dividers between flat rows: dòng 1 head =
-   KH + Bill/Booking + loại + ⋯, dòng 2 meta = giờ · Nâng → Trả · tuyến ·
-   hãng (one ellipsized run), dòng 3 facts = hàng hóa · Xe + the compact 32px
-   allocate button (never full-width, hidden once a roster exists). Row
-   budget: ~72px allocated / ~88px with the button row; the conditional
-   status/note line adds one 11px line when the lot carries one.
-   Owner typography spec 13/11px: the list re-maps the ops-table primary
-   token at this scope — every card rule keeps consuming the token. */
+/* ── SIL-507 retry (owner 26/10 P0) — the <640px phone card list as a
+   3-dòng divider list, now under the SIL-515 wrap doctrine (the first
+   26/10 pass still truncated; the owner's no-truncate law landed hours
+   later and supersedes it on this surface too). Dòng 1 head = KH +
+   Bill/Booking + loại badge + giờ + ⋯, dòng 2 route = Nâng → Trả · nhà
+   máy · tuyến · hãng tàu WRAPPING FULL, dòng 3 meta = hàng hóa · Xe + the
+   compact 32px allocate button (never full-width, hidden once a roster
+   exists). Row budget ≈72px allocated / ≈88px with the button row; a
+   wrapping route line may exceed it — wrap wins over the budget (SIL-515).
+   Owner typography spec 13/11px: the list re-maps the ops-table tokens at
+   this scope — every card rule keeps consuming the tokens. */
 .mpcard-list {
   --ops-table-primary-size: 13px;
+  --ops-table-meta-line-height: 1.35;
   display: grid;
   gap: 0;
   margin: 0;
@@ -655,7 +657,7 @@
 .mpcard {
   display: grid;
   gap: 2px;
-  padding: 5px 0;
+  padding: 3px 0;
   background: none;
 }
 
@@ -681,9 +683,9 @@
   min-width: 0;
 }
 
-/* Identity rides ONE line at SIL-507: KH leads (shrinks first, ellipsized),
-   the Bill/Booking run absorbs the remaining width (also ellipsized; each
-   span's title carries its full value). */
+/* Identity rides ONE line at SIL-507: KH leads, the Bill/Booking run follows.
+   SIL-515: both wrap their full text — no ellipsis, no clipping, no title
+   stand-in anywhere on the card. */
 .mpcard__identity {
   display: flex;
   align-items: baseline;
@@ -698,9 +700,8 @@
   font-size: var(--ops-table-primary-size);
   font-weight: var(--ops-table-primary-weight);
   line-height: var(--ops-table-primary-line-height);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .mpcard__bill {
@@ -709,9 +710,8 @@
   color: var(--fg-2);
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Loại = plain text (§1 data-cells-are-text law: no pill bubble). */
@@ -720,7 +720,20 @@
   color: var(--fg-2);
   font-size: var(--ops-table-meta-size);
   font-weight: var(--fw-semibold, 600);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* SIL-507 retry — giờ rides Dòng 1 (schedule heads: appointment instants or
+   the canonical fallback line); it shrinks and wraps before the identity. */
+.mpcard__time {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* SIL-507 — the ⋯ trigger rides the shared 30px rail size (the generic
@@ -779,25 +792,25 @@
   margin: auto;
 }
 
-/* Body: dòng 2 meta + dòng 3 facts (+ conditional status/note), 3px apart. */
+/* Body: dòng 2 route + dòng 3 meta (+ conditional status/note), 2px apart. */
 .mpcard__body {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 
-/* Dòng 2 — meta: giờ+ngày · Nâng → Trả · tuyến · hãng tàu as ONE ellipsized
-   run (title carries the full value). */
-.mpcard__meta {
+/* Dòng 2 — route: Nâng → Trả · nhà máy ngày đó · tuyến · hãng tàu. SIL-515:
+   wraps its FULL run — no ellipsis, no clip, no title stand-in. */
+.mpcard__route {
   color: var(--fg-2);
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-/* Dòng 3 — facts: hàng hóa (identity weight) · đo lường · Xe + allocate. */
+/* Dòng 3 — meta: hàng hóa (identity weight) · đo lường · Xe + allocate.
+   Every span wraps its own text (SIL-515); the row grows instead of cutting. */
 .mpcard__facts {
   display: flex;
   align-items: center;
@@ -809,9 +822,8 @@
 .mpcard__measures,
 .mpcard__fleet {
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .mpcard__cargo {
@@ -843,13 +855,12 @@
 }
 
 /* Conditional status line: cont-booking warning + customs cutoff share one
-   severity-voiced line (urgent > warning > soon). */
+   severity-voiced line; it wraps full (SIL-515). */
 .mpcard__status {
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .mpcard__status--urgent {
@@ -867,21 +878,20 @@
   font-weight: 500;
 }
 
-/* NM/OPS note lines (no operational note present) stay one muted line. */
+/* NM/OPS note lines (no operational note present) wrap full (SIL-515). */
 .mpcard__line {
   font-size: var(--ops-table-meta-size);
   line-height: var(--ops-table-meta-line-height);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .mpcard__line--muted {
   color: var(--fg-2);
 }
 
-/* Ghi chú: one ellipsized line; the full text reopens in the shared modal
-   (or the inline editor when "Sửa ghi chú" was picked). */
+/* Ghi chú: wraps its full first line's text; the full note reopens in the
+   shared modal (or the inline editor when "Sửa ghi chú" was picked). */
 .mpcard__note {
   display: block;
   width: 100%;
@@ -895,9 +905,8 @@
   background: none;
   border: 0;
   cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .mpcard__note:hover {
@@ -909,7 +918,7 @@
   outline-offset: 1px;
 }
 
-/* SIL-507 — the ONE primary action compacts into the facts row: 32px high,
+/* SIL-507 — the ONE primary action compacts into the meta row: 32px high,
    hugging its label (never full-width), and hidden entirely once the lot
    carries a roster (the Xe chips line reads instead). The `#root` bump beats
    the coarse-pointer 40px band for the same reason as the ⋯ trigger. */
