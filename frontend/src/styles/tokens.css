@@ -87,8 +87,14 @@
    * and the order, so a rung can never silently lighten again. Re-measure
    * before lightening any rung.
    *
+   * SIL-496 (owner 26/10, QA round 2): --bg and --bg-1 left the ladder —
+   * the page canvas is #FFFFFF, same rung as --surface. QA measured the
+   * sage rgb(227,232,229) surviving the whole customers ladder on BOTH
+   * routes because the page-scoped :has() override sat beneath a GLOBAL
+   * sage token; the canvas is white at the source now, so the ladder
+   * contract covers inset/border/line rungs only.
+   *
    *   --surface-2 (inset: chips, fields, heads) ... 1.14
-   *   --bg (page canvas) ......................... 1.24
    *   --surface-3 (walked-away, deep inset) ...... 1.30
    *   --border-1 (card/control outline) .......... 1.44
    *   --line (panel border, divider) ............. 1.55
@@ -98,7 +104,7 @@
    *   --control-border (WCAG 1.4.11 non-text) .... 3.05
    *   --ink-4 (placeholder, decorative glyph) .... 4.85
    */
-  --bg: #E3E8E5;
+  --bg: #FFFFFF;
   --bg-2-wire: #D3DAD6;
   --surface: #FFFFFF;
   --surface-2: #EDF1EE;
@@ -124,7 +130,7 @@
   --accent-ink: #00361B;
 
   /* --- Backward-compat aliases (existing code uses these var names) --- */
-  --bg-1: #E3E8E5;
+  --bg-1: #FFFFFF;
   /* --bg-2: white fill alias for NON-overlay fills only (control/field fills,
      hover tints, table-head/notice fills). Card 20260922_36 (nepocorp F4) is
      EXECUTED: every floating overlay surface rides --surface — never this
