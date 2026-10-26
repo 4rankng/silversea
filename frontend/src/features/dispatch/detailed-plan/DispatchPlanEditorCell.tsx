@@ -896,9 +896,16 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         <span className="dispatch-assignment-cell__carrier">{row.dispatch.carrierName ?? 'Chưa phân nhà xe'}</span>
       )}
       <div className="dispatch-assignment-cell__vehicle-group">
-        <span className={`dispatch-assignment-cell__plate${currentPlate ? '' : ' is-placeholder'}`}>
-          {currentPlate || (row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung')}
-        </span>
+        {/* SIL-518 (owner 26/10): a row without a plate renders NO placeholder
+            line — the "CUS sẽ bổ sung" italic filler under "Chưa phân nhà xe"
+            is noise (the owner: the line below is EMPTY). Only the OWN-fleet
+            pending state keeps its text ("Chưa phân xe" — internal-fleet
+            state, not the removed external filler). */}
+        {currentPlate ? (
+          <span className="dispatch-assignment-cell__plate">{currentPlate}</span>
+        ) : row.dispatch.carrierType === 'OWN' ? (
+          <span className="dispatch-assignment-cell__plate is-placeholder">Chưa phân xe</span>
+        ) : null}
         {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
           <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
             {row.dispatch.assignedDriverName || 'Chưa có tài xế'}

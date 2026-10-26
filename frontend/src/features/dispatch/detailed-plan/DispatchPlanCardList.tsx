@@ -153,10 +153,12 @@ export function formatPhoneGroups(raw: string): string {
   return groups.join(' ');
 }
 
-/** Issue #13 (spec A dòng 1) — placeholder parity with the desktop Điều phối
- *  cell: no plate yet reads differently by carrier mode. */
-function platePlaceholder(row: DispatchDetailPlanRow): string {
-  return row.dispatch.carrierType === 'OWN' ? 'Chưa phân xe' : 'CUS sẽ bổ sung';
+/** Issue #13 (spec A dòng 1) — desktop-cell placeholder parity (SIL-518,
+ *  owner 26/10): only the OWN-fleet pending state keeps a text placeholder
+ *  ("Chưa phân xe"); an external/carrier-less row renders NO plate line —
+ *  the removed "CUS sẽ bổ sung" filler is noise on the card's BKS line too. */
+function showsPlateLine(row: DispatchDetailPlanRow): boolean {
+  return row.dispatch.assignedPlate != null || row.dispatch.carrierType === 'OWN';
 }
 
 /** Issue #13 (spec A dòng 3 + C) — Loại lô · tuyến. The classification label
@@ -242,9 +244,11 @@ export function DispatchPlanCardList({
         const infoBlock = (
           <>
             <span className="dpcard__info-top">
-              <span className="dpcard__plate" title={row.dispatch.assignedPlate ?? platePlaceholder(row)}>
-                {row.dispatch.assignedPlate ?? platePlaceholder(row)}
-              </span>
+              {showsPlateLine(row) && (
+                <span className="dpcard__plate" title={row.dispatch.assignedPlate ?? 'Chưa phân xe'}>
+                  {row.dispatch.assignedPlate ?? 'Chưa phân xe'}
+                </span>
+              )}
               {vehicleClass && <span className="dpcard__plate-class">{`Xe ${vehicleClass}`}</span>}
             </span>
             <span className="dpcard__driver">

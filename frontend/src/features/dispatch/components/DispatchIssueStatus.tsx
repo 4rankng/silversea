@@ -61,10 +61,11 @@ export function dispatchIssueStatusVariant(status: DispatchIssueStatus): StatusV
 }
 
 /** Status chip for fulfillment-level rows (Điều vận detail plan grid).
- *  UNASSIGNED renders nothing: the cell's own plate placeholder already says
- *  the vehicle is unassigned ("Chưa phân xe" / "CUS sẽ bổ sung"), and §1 keeps
- *  one concept in one place — the shipment-level summary chip below has always
- *  returned null for it. */
+ *  UNASSIGNED renders nothing: the carrier line already says the state
+ *  ("Chưa phân nhà xe"; an OWN row without a truck keeps its "Chưa phân xe"
+ *  placeholder — SIL-518 removed the external "CUS sẽ bổ sung" filler), and
+ *  §1 keeps one concept in one place — the shipment-level summary chip below
+ *  has always returned null for it. */
 export function DispatchIssueStatusChip({ status }: { status: DispatchIssueStatus }) {
   if (status === 'UNASSIGNED') return null;
   // GP-05 — the label doubles as the truncation tooltip (mobile card: one
