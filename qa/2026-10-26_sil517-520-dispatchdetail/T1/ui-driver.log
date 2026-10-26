@@ -1,0 +1,59 @@
+{
+  "mode": "T1",
+  "url": "http://localhost:7197/dispatch-detail",
+  "checks": [
+    {
+      "name": "vehicle-group renders",
+      "pass": true,
+      "detail": true
+    },
+    {
+      "name": "vehicle-group is single-column grid (one fact per line)",
+      "pass": true,
+      "detail": "grid"
+    },
+    {
+      "name": "facts each on own line (distinct offsetTop)",
+      "pass": true,
+      "detail": {
+        "distinctTops": 3,
+        "factCount": 3
+      }
+    },
+    {
+      "name": "no · separator pseudo-content",
+      "pass": true,
+      "detail": [
+        "none",
+        "none",
+        "none"
+      ]
+    },
+    {
+      "name": "facts wrap full (no nowrap/ellipsis)",
+      "pass": true,
+      "detail": [
+        {
+          "text": "15E-019.80",
+          "display": "block",
+          "whiteSpace": "normal",
+          "textOverflow": "clip"
+        },
+        {
+          "text": "Nguyễn Huy Vương",
+          "display": "block",
+          "whiteSpace": "normal",
+          "textOverflow": "clip"
+        },
+        {
+          "text": "0984963484",
+          "display": "block",
+          "whiteSpace": "normal",
+          "textOverflow": "clip"
+        }
+      ]
+    }
+  ],
+  "pass": true
+}
+EXIT=0
