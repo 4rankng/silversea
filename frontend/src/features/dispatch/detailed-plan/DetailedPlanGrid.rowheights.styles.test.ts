@@ -47,9 +47,13 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(width('route')).toBeGreaterThanOrEqual(180);
     expect(width('assignment')).toBeGreaterThanOrEqual(200);
     expect(width('notes')).toBeGreaterThanOrEqual(160);
-    // Nâng/Trả each fit one short port name; the actions rail fits the menu.
+    // Nâng/Trả each fit one short port name; the actions rail fits the
+    // "Hoàn thành" pill + ⋯ trigger on ONE line inside its own cell
+    // (SIL-519: pill ~87px + gap 6 + trigger 30 + cell padding 16 ≈ 139px
+    // — the 5.5% rail overflowed the sticky cell and painted over the
+    // Ghi chú text).
     expect(width('ports')).toBeGreaterThanOrEqual(110);
-    expect(width('actions')).toBeGreaterThanOrEqual(70);
+    expect(width('actions')).toBeGreaterThanOrEqual(132);
     // The formerly-fat columns came back to content budgets (owner spec
     // addendum: "cột phình thu lại vừa nội dung").
     expect(columnShare('schedule')).toBeLessThanOrEqual(10.5);
@@ -83,6 +87,11 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
   it('pins the Thao tác column sticky-right — one action rail, no inline sprawl', () => {
     expect(css).toMatch(/th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{[^}]*position:\s*sticky;[^}]*right:\s*0;/);
     expect(css).toMatch(/td\.detailed-plan-grid__cell--actions\s*\{[^}]*background:\s*var\(--surface\);/);
+    // SIL-519: the rail wraps as the pressure valve — a too-wide stack wraps
+    // INSIDE the cell instead of painting over the neighbour (no overlap).
+    const rail = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rail, 'the row-actions rule must exist').not.toBe('');
+    expect(rail).toContain('flex-wrap: wrap');
     // The inline destructive button treatment is deleted: Xóa lô lives in
     // the ⋯ menu (danger voice), never as a red inline pill again.
     expect(css).not.toContain('.detailed-plan-grid__note-action--delete');

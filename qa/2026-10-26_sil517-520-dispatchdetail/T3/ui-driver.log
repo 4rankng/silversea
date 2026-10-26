@@ -1,0 +1,29 @@
+{
+  "mode": "T3",
+  "url": "http://localhost:7197/dispatch-detail",
+  "checks": [
+    {
+      "name": "actions rows rendered",
+      "pass": true,
+      "detail": 50
+    },
+    {
+      "name": "every action button sits inside its own cell box (no overlap onto the neighbour cell)",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "actions rail has width for the buttons (≥120px)",
+      "pass": true,
+      "detail": [
+        144
+      ]
+    },
+    {
+      "name": "no truncated action label (Hoàn thành pill uncut / nowrap)",
+      "pass": true,
+      "detail": null
+    }
+  ],
+  "pass": true
+}
