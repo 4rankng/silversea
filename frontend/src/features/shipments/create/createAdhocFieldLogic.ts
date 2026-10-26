@@ -4,10 +4,28 @@
 // ShipmentCreateWorkspace.tsx (structure-guard debt wave): the decisions
 // live here as a factory over injected callbacks — the workspace keeps
 // state ownership.
+import { normalizeSearchText } from '../../../components/untitled-ui/base/select/combobox';
 import type { OperationalSite } from '../../../api/shipmentClient';
 import type { ShipmentContainerDraft, ShipmentCreateFormState } from './shipment-create-model';
 
 interface OptionLike { value: string; label: string }
+
+/**
+ * SIL-505: the free-text passthrough resolves a typed label to the catalog id
+ * under the SAME normalization law the dropdown filter runs
+ * (matchesComboboxSearch/normalizeSearchText) — case- and diacritic-exact.
+ * Raw `===` missed 'glc'→'GLC' style typings the list itself visibly matches,
+ * leaving the catalog pick unresolved (the typed text fell through to the
+ * free-text name slot), and any label≠typed resolution raced the typing
+ * session into reading the flip as a real pick (menu snapped mid-word).
+ */
+function optionLabelMatches(label: string, typed: string): boolean {
+  return normalizeSearchText(label) === normalizeSearchText(typed);
+}
+
+function siteLabelMatches(site: { shortName?: string; name: string }, typed: string): boolean {
+  return optionLabelMatches(site.shortName || site.name, typed);
+}
 
 export interface AdhocFieldLogicDeps {
   customerOptions: OptionLike[];
@@ -35,21 +53,21 @@ export function createAdhocFieldLogic(deps: AdhocFieldLogicDeps) {
   } = deps;
 
   function customerCustomText(text: string) {
-    const match = customerOptions.find((option) => option.label === text);
+    const match = customerOptions.find((option) => optionLabelMatches(option.label, text));
     if (match) { selectCustomer(match.value); return; }
     setForm((current) => ({ ...current, customerId: '', rawCustomerName: text }));
     clearFeedback();
   }
 
   function routeCustomText(text: string) {
-    const match = routeOptions.find((option) => option.label === text);
+    const match = routeOptions.find((option) => optionLabelMatches(option.label, text));
     if (match) { update('routeId', match.value); return; }
     setForm((current) => ({ ...current, routeId: '', rawRouteName: text }));
     clearFeedback();
   }
 
   function factoryCustomText(text: string) {
-    const match = operationalSites.find((site) => (site.shortName || site.name) === text);
+    const match = operationalSites.find((site) => siteLabelMatches(site, text));
     if (match) { selectOperationalSite(String(match.id)); return; }
     setForm((current) => ({ ...current, operationalSiteId: '', factoryName: text }));
     clearFeedback();
@@ -60,7 +78,7 @@ export function createAdhocFieldLogic(deps: AdhocFieldLogicDeps) {
    *  the site id, anything else becomes the lot's free-text lift/drop name
    *  with the id cleared (never written back into the master table). */
   function warehouseCustomText(text: string) {
-    const match = warehouseSites.find((site) => (site.shortName || site.name) === text);
+    const match = warehouseSites.find((site) => siteLabelMatches(site, text));
     if (match) { update('pickupWarehouseSiteId', String(match.id)); return; }
     setForm((current) => ({ ...current, pickupWarehouseSiteId: '', pickupWarehouseName: text }));
     clearFeedback();
@@ -72,14 +90,14 @@ export function createAdhocFieldLogic(deps: AdhocFieldLogicDeps) {
     rawField: 'rawPickupPortName' | 'rawDropoffPortName',
     text: string,
   ) {
-    const match = portOptions.find((option) => option.label === text);
+    const match = portOptions.find((option) => optionLabelMatches(option.label, text));
     if (match) { updateContainer(rowKey, idField, match.value); return; }
     updateContainer(rowKey, idField, '');
     updateContainer(rowKey, rawField, text);
   }
 
   function containerFactoryCustomText(rowKey: string, text: string) {
-    const match = operationalSites.find((site) => (site.shortName || site.name) === text);
+    const match = operationalSites.find((site) => siteLabelMatches(site, text));
     if (match) { selectContainerFactory(rowKey, String(match.id)); return; }
     setContainers((current) => current.map((row) => row.key === rowKey
       ? { ...row, operationalSiteId: '', rawFactoryName: text, routeId: '', rawRouteName: '' }
@@ -88,7 +106,7 @@ export function createAdhocFieldLogic(deps: AdhocFieldLogicDeps) {
   }
 
   function containerRouteCustomText(rowKey: string, text: string) {
-    const match = routeOptions.find((option) => option.label === text);
+    const match = routeOptions.find((option) => optionLabelMatches(option.label, text));
     if (match) { updateContainer(rowKey, 'routeId', match.value); return; }
     setContainers((current) => current.map((row) => row.key === rowKey
       ? { ...row, routeId: '', rawRouteName: text }

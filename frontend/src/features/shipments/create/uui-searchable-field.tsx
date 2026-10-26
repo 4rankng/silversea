@@ -7,7 +7,7 @@
 // re-fire the existing selection (RAC semantics), never the option label.
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { ComboBox, matchesComboboxSearch } from '../../../components/untitled-ui/base/select/combobox';
+import { ComboBox, matchesComboboxSearch, normalizeSearchText } from '../../../components/untitled-ui/base/select/combobox';
 import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
 import { Header, ListBoxSection } from 'react-aria-components';
 
@@ -189,7 +189,16 @@ export function USearchableField({
     // mid-word, and adopting that id here would snap the dropdown shut the
     // moment the full label is typed. While the resolved label IS the live
     // typed text, the change came from typing, not from a pick.
-    const fromLiveTyping = typingSessionLive && selectedLabel === typedText;
+    // SIL-505: "IS the live typed text" compares under the app's search
+    // normalization law (normalizeSearchText — the same one the dropdown
+    // filter runs), not raw ===. The passthrough resolves case/diacritic
+    // variants ('glc' → label 'GLC'), and a raw-equality miss here would
+    // adopt the resolved id as chosenKey mid-word — react-aria reads that as
+    // a real pick and closes the menu exactly when the full label is typed
+    // ("gõ đủ không thấy, gõ lệch vẫn thấy"). Normalized equality also covers
+    // raw equality, so one predicate owns both.
+    const fromLiveTyping = typingSessionLive
+      && normalizeSearchText(selectedLabel ?? '') === normalizeSearchText(typedText);
     setChosenKey(fromLiveTyping ? null : selected?.value ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, selectedLabel]);
