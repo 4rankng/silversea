@@ -117,12 +117,15 @@ export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): strin
 
 /**
  * Empty day-filter copy for the cargo cell (card 191026181942 — wording hàng
- * lẻ): the sentence must name the lot's own cargo object. A container lot
- * misses cont; an LCL lot has no cont at all — its missing object is hàng lẻ.
+ * lẻ; SIL-504 26/10 owner ruling — ngắn gọn): the sentence must name the
+ * lot's own cargo object. A container lot misses cont; an LCL lot has no cont
+ * at all — its missing object is hàng lẻ, named in a one-line label so the
+ * cell never wraps the old three-line sentence ("…chạy ngày đã / chọn" đọc
+ * thành "chọn ngay đã chọn").
  */
 export function emptyDayCargoLabel(cargoMode: ShipmentCusWorkspaceListItem['cargoMode']): string {
   return cargoMode === 'LCL'
-    ? 'Không có hàng lẻ chạy ngày đã chọn'
+    ? 'Chưa chọn hàng lẻ'
     : 'Không có cont chạy ngày đã chọn';
 }
 

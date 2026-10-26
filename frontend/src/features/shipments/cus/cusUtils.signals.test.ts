@@ -83,9 +83,9 @@ describe('deriveShipmentSignals — zero-count vehicle signals are muted pending
   });
 });
 
-describe('emptyDayCargoLabel — wording parameterized by cargoMode (card 191026181942)', () => {
-  it('an LCL lot misses hàng lẻ, not cont', () => {
-    expect(emptyDayCargoLabel('LCL')).toBe('Không có hàng lẻ chạy ngày đã chọn');
+describe('emptyDayCargoLabel — wording parameterized by cargoMode (card 191026181942; SIL-504 26/10)', () => {
+  it('an LCL lot names hàng lẻ in the short one-line label', () => {
+    expect(emptyDayCargoLabel('LCL')).toBe('Chưa chọn hàng lẻ');
   });
 
   it('a container lot keeps the cont wording', () => {

@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-504-lcl-badge/frontend
+
+
+ Test Files  15 passed (15)
+      Tests  249 passed (249)
+   Start at  13:20:27
+   Duration  22.91s (transform 7.19s, setup 3.89s, import 21.51s, tests 20.73s, environment 16.79s)
+
