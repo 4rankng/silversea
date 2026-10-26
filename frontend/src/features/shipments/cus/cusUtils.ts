@@ -154,14 +154,6 @@ export function displayNote(note: string | null | undefined): string {
 
 /** One editable tờ khai row of the documents quick-edit (card 20260921_3).
  * Existing rows PUT the whole row, so passthrough metadata rides along. */
-export interface QuickEditDeclarationRow {
-  id: number | null;
-  declarationNumber: string;
-  declarationIssuedAt: string | null;
-  declarationScope: 'SINGLE' | 'SHARED' | null;
-  declarationNote: string | null;
-}
-
 export interface ShipmentQuickEditDraft {
   shipmentId: number;
   field: 'identity' | 'documents' | 'classification' | 'cargo' | 'schedule' | 'notes';
@@ -172,11 +164,8 @@ export interface ShipmentQuickEditDraft {
   factoryName: string;
   blNumber: string;
   bookingRef: string;
-  declarations: QuickEditDeclarationRow[];
-  // Stored row ids the modal was seeded with (card 20260921_3): the save
-  // deletes ONLY these when absent from the draft, so a declaration another
-  // user added mid-edit is never destroyed by a stale modal.
-  declarationSeedIds: number[];
+  // SIL-521: no lot-level declaration list on the draft — tờ khai is
+  // per-cont only (Tổng quan ledger cells + drawer DeclarationCell).
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   shippingLineName: string;
   packageCount: string;

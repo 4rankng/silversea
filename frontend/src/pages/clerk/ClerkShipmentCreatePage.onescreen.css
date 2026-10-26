@@ -89,7 +89,6 @@
   }
   .csc-identity-grid--choices .csc-identity-grid__flags-row { flex-wrap: nowrap; }
   .csc-identity-grid--choices .csc-flag-checkbox { padding-inline: 9px; }
-  #shipment-section-identity .csc-declaration-strip { grid-column: 2; grid-row: 3 / 5; align-self: start; }
   #shipment-section-identity .csc-field-warning { grid-column: 1 / -1; }
 
   /* Schedule: the bulk-entry group and the two notes share ONE row —

@@ -104,7 +104,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const [loading, setLoading] = useState(true);
   const [sitesLoading, setSitesLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  // ── SIL-171 edit mode ── the lot's own seed (id/version/declarations) and
+  // ── SIL-171 edit mode ── the lot's own seed (id/version) and
   // the pristine baseline the leave-confirm diff reads. The detail is fetched
   // ONCE per editTarget; a route id change refetches fresh.
   const [validationIssues, setValidationIssues] = useState<ShipmentCreateIssue[]>([]);
@@ -131,7 +131,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     // nothing to look for.
     blNumber: viewMode ? '' : form.blNumber,
     bookingRef: viewMode ? '' : form.bookingRef,
-    declarationNumbers: !viewMode && form.declarationNumbers && form.declarationNumbers.length > 0 ? form.declarationNumbers : [viewMode ? '' : form.declarationNumber],
     tradeDirection: form.tradeDirection,
     excludeShipmentId: editTarget?.shipmentId,
   });
@@ -243,7 +242,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
 
   const billConflict = getReferenceConflict('blNumber', form.blNumber);
   const bookingConflict = getReferenceConflict('bookingRef', form.bookingRef);
-  const declarationConflict = getReferenceConflict('declaration', form.declarationNumber);
 
   const mapOptions = <T extends { id: number; name: string }>(items: T[] | undefined) =>
     (items ?? []).map((item) => ({ value: String(item.id), label: item.name }));
@@ -277,8 +275,8 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         : key === 'isAdHoc' ? value !== EMPTY_FORM.isAdHoc
         : key === 'hasDeposit' ? value !== EMPTY_FORM.hasDeposit
         // Arrays diff against their pristine shape: a non-empty array is not
-        // automatically data (declarationNumbers starts empty, and a pristine
-        // form must not report dirty — regression of 73286319).
+        // automatically data (a pristine form must not report dirty —
+        // regression of 73286319).
         : Array.isArray(value) ? JSON.stringify(value) !== JSON.stringify(EMPTY_FORM[key as keyof typeof EMPTY_FORM])
         : value !== ''
     ));
@@ -292,7 +290,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
     form,
     containers,
-    // SIL-171: seeded with the loaded lot's id/version/declarations, the
+    // SIL-171: seeded with the loaded lot's id/version, the
     // save starts at the PATCH + reconcile stage — no create call ever fires.
     editSeed: editSeed ?? undefined,
     // Card 261022093245: label resolution needs BOTH the customer's sites and
@@ -340,23 +338,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           ...current,
           tradeDirection: value as FormState['tradeDirection'],
           ...(value === 'IMPORT' ? { bookingRef: '' } : value === 'EXPORT' ? { blNumber: '' } : {}),
-        };
-      }
-      if (key === 'declarationNumber') {
-        const strVal = (value as string) || '';
-        const currentRest = (current.declarationNumbers ?? []).slice(1);
-        return {
-          ...current,
-          declarationNumber: strVal,
-          declarationNumbers: [strVal, ...currentRest],
-        };
-      }
-      if (key === 'declarationNumbers') {
-        const listVal = (value as string[]) || [];
-        return {
-          ...current,
-          declarationNumbers: listVal,
-          declarationNumber: listVal[0] ?? '',
         };
       }
       return { ...current, [key]: value };
@@ -874,8 +855,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
             issueByField={issueByField}
             billConflict={billConflict}
             bookingConflict={bookingConflict}
-            declarationConflict={declarationConflict}
-            getDeclarationConflict={(decl) => getReferenceConflict('declaration', decl)}
             customerAddButtonRef={customerAddButtonRef}
             shippingLineAddButtonRef={shippingLineAddButtonRef}
             onOpenCustomerDialog={() => setCustomerDialogOpen(true)}

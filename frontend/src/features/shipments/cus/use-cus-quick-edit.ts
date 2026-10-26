@@ -3,25 +3,19 @@
 // Extracted verbatim from pages/ShipmentsPage.tsx in the 2026-09-01 structural
 // split: draft lifecycle (open/close/focus-restore), the single-flight save
 // guard (latest save wins), and the save orchestration — shipment PATCH with
-// access-gated payload, declaration upsert alongside, 409 self-healing that
-// drops the draft and refetches instead of overwriting newer data.
+// access-gated payload, 409 self-healing that drops the draft and refetches
+// instead of overwriting newer data. SIL-521: no declaration walk — tờ khai
+// is per-cont only.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../../lib/api';
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
-import {
-  createShipmentDeclaration,
-  deleteShipmentDeclaration,
-  updateShipment,
-  updateShipmentDeclaration,
-} from '../../../api/shipmentClient';
+import { updateShipment } from '../../../api/shipmentClient';
 import {
   buildQuickEditDraft,
   buildQuickEditPayload,
-  diffQuickEditDeclarations,
   isQuickEditUnchanged,
   quickEditAccessKeys,
-  quickEditDeclarationChanged,
   quickEditSaveIdentity,
 } from './cusQuickEditModel';
 import { safeError, type ShipmentQuickEditDraft } from './cusUtils';
@@ -99,37 +93,17 @@ export function useCusQuickEdit(deps: UseCusQuickEditDeps) {
     setQuickEditError(null);
     try {
       const payload = buildQuickEditPayload(draft, item);
-      const declarationChanged = quickEditDeclarationChanged(draft, item);
-      // When only the declaration changed (bill/booking read-only), skip the
-      // shipment PATCH entirely — an empty body would still bump the version
-      // and fire change-request bookkeeping for nothing.
-      const shipmentKeys = Object.keys(payload).filter((key) => key !== 'expectedVersion');
-      if (shipmentKeys.length > 0) {
-        await updateShipment(item.id, payload);
-      }
-      if (declarationChanged) {
-        const diff = diffQuickEditDeclarations(draft, item);
-        // Deletes first: a tờ khai number moving between lots frees its claim
-        // before any reuse. A failure mid-walk leaves partial application —
-        // the existing 409 self-heal (drop draft + refetch) reconciles truth.
-        for (const id of diff.deletes) {
-          await deleteShipmentDeclaration(item.id, id);
-        }
-        for (const update of diff.updates) {
-          await updateShipmentDeclaration(item.id, update.id, update.body);
-        }
-        for (const body of diff.creates) {
-          await createShipmentDeclaration(item.id, body);
-        }
-      }
+      // A documents save always carries at least one writable key now — the
+      // declaration-only shortcut (skip PATCH, walk the entity diff) retired
+      // with the lot-level list itself (SIL-521).
+      await updateShipment(item.id, payload);
       if (restoreFocus) {
         quickEditFocusTargetRef.current = `cus-inline-${draft.field}-${draft.shipmentId}`;
       }
       setQuickEditDraft((current) => current?.shipmentId === draft.shipmentId && current.field === draft.field ? null : current);
       setNotice(draft.field === 'schedule' ? 'Đã cập nhật lịch đóng/trả.'
         : draft.field === 'notes' ? 'Đã cập nhật ghi chú lô hàng.'
-          : draft.field === 'documents' && declarationChanged ? 'Đã cập nhật chứng từ lô hàng.'
-            : 'Đã lưu ô dữ liệu lô hàng.');
+          : 'Đã lưu ô dữ liệu lô hàng.');
       invalidateDetail(item.id);
       await loadList();
     } catch (quickEditError) {

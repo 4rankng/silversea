@@ -178,10 +178,9 @@ describe('ClerkShipmentEditPage — SIL-171 "Sửa lô" dùng lại form Tạo l
     // Container row giữ id persist (reconcile update-by-id) + số cont.
     const contInputs = screen.getAllByLabelText(/Số container/i) as HTMLInputElement[];
     expect(contInputs.some((input) => input.value === 'CONT-001')).toBe(true);
-    // Số tờ khai lô pre-fill từ declarations — render dạng chip trong strip.
-    const declStrip = document.querySelector('[data-field-id="shipment-declarations"]');
-    expect(declStrip).toBeTruthy();
-    expect(declStrip!.textContent).toContain('TK-001');
+    // SIL-521: form sửa lô KHÔNG còn strip Số tờ khai cấp lô — per-cont only.
+    expect(document.querySelector('[data-field-id="shipment-declarations"]')).toBeNull();
+    expect(document.querySelector('.csc-declaration-strip')).toBeNull();
   });
 
   it('submit = PATCH lô hiện có — updateShipment với expectedVersion, KHÔNG tạo lô mới', async () => {

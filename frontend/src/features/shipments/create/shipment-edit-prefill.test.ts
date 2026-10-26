@@ -78,17 +78,14 @@ describe('buildShipmentEditPrefill', () => {
 
     const prefill = buildShipmentEditPrefill(detail);
 
+    // SIL-521: seed không còn declaration state — tờ khai per-cont only.
     expect(prefill.seed).toEqual({
       shipmentId: 186,
       version: 7,
-      declarations: [
-        { id: 66, number: 'TK-001' },
-        { id: 67, number: 'TK-002' },
-      ],
       fclContainers: true,
     });
-    expect(prefill.form.declarationNumber).toBe('TK-001');
-    expect(prefill.form.declarationNumbers).toEqual(['TK-001', 'TK-002']);
+    expect(prefill.form).not.toHaveProperty('declarationNumber');
+    expect(prefill.form).not.toHaveProperty('declarationNumbers');
     expect(prefill.containers).toHaveLength(1);
     expect(prefill.containers[0].id).toBe(55);
     expect(prefill.containers[0].containerTypeId).toBe('31');

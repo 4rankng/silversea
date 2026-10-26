@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
-import { Pencil, Plus, X } from 'lucide-react';
+import { type RefObject } from 'react';
+import { Pencil, Plus } from 'lucide-react';
 import {
   USearchableField as SearchableField,
   USelectField as SelectField,
@@ -23,8 +23,6 @@ export interface ShipmentCreateIdentitySectionProps {
   issueByField: Map<string, string>;
   billConflict?: ShipmentReferenceConflict | null;
   bookingConflict?: ShipmentReferenceConflict | null;
-  declarationConflict?: ShipmentReferenceConflict | null;
-  getDeclarationConflict?: (value: string) => ShipmentReferenceConflict | undefined;
   customerAddButtonRef: RefObject<HTMLButtonElement | null>;
   shippingLineAddButtonRef: RefObject<HTMLButtonElement | null>;
   onOpenCustomerDialog: () => void;
@@ -50,70 +48,14 @@ export function ShipmentCreateIdentitySection({
   issueByField,
   billConflict,
   bookingConflict,
-  declarationConflict,
-  getDeclarationConflict,
   customerAddButtonRef,
   shippingLineAddButtonRef,
   onOpenCustomerDialog,
   onOpenShippingLineDialog,
   editMode = false,
 }: ShipmentCreateIdentitySectionProps) {
-  const declarations = form.declarationNumbers ?? [];
-  const [declDraft, setDeclDraft] = useState('');
-  const [declNotice, setDeclNotice] = useState('');
-  const [bulkEdit, setBulkEdit] = useState(false);
-  const [bulkText, setBulkText] = useState('');
-  const [flashValue, setFlashValue] = useState<string | null>(null);
-  const declInputRef = useRef<HTMLInputElement>(null);
-  const flashTimer = useRef<number | null>(null);
-  useEffect(() => () => { clearTimeout(flashTimer.current ?? undefined); }, []);
-  /** One code per token; duplicates dropped, order preserved (bulk edit). */
-  function parseDeclarations(text: string): string[] {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const token of text.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean)) {
-      if (seen.has(token)) continue;
-      seen.add(token);
-      out.push(token);
-    }
-    return out;
-  }
-  const conflictFor = (value: string, index: number): ShipmentReferenceConflict | undefined => (
-    getDeclarationConflict
-      ? getDeclarationConflict(value)
-      : (index === 0 ? declarationConflict ?? undefined : undefined)
-  );
-  /** Commit one or many typed/pasted codes. Locally duplicate numbers are
-   *  skipped, never stored twice — `form.declarationNumbers` stays a set of
-   *  non-empty strings (the server-side cross-shipment conflict path is a
-   *  separate concern and untouched). */
-  function commitDeclarations(text: string) {
-    const tokens = text.split(/[\s,;]+/).map((token) => token.trim()).filter(Boolean);
-    const seen = new Set(declarations);
-    const added: string[] = [];
-    let skipped = 0;
-    for (const token of tokens) {
-      if (seen.has(token) || added.includes(token)) { skipped += 1; continue; }
-      seen.add(token); added.push(token);
-    }
-    if (added.length > 0) update('declarationNumbers', [...declarations, ...added]);
-    setDeclDraft('');
-    setDeclNotice(
-      added.length > 0
-        ? (skipped > 0 ? `Đã thêm ${added.length} số, bỏ qua ${skipped} số trùng.` : `Đã thêm ${added.length} số.`)
-        : (skipped > 0 ? `Bỏ qua ${skipped} số trùng.` : ''),
-    );
-    // A duplicate flashes the chip it collided with (owner reference) instead
-    // of silently doing nothing.
-    if (skipped > 0) {
-      const duplicate = declarations.find((value) => tokens.includes(value)) ?? null;
-      if (duplicate) {
-        setFlashValue(duplicate);
-        clearTimeout(flashTimer.current ?? undefined);
-        flashTimer.current = window.setTimeout(() => setFlashValue(null), 900);
-      }
-    }
-  }
+  // SIL-521 (owner 26/10): form tạo/sửa lô KHÔNG còn ô Số tờ khai cấp lô —
+  // số tờ khai quản lý theo cont (Tổng quan / drawer, per-cont line update).
   return (
     <ShipmentCreateSection
       id="identity"
@@ -129,8 +71,9 @@ export function ShipmentCreateIdentitySection({
           181026200200 (Bill/Booking → tờ khai → Nhập/Xuất → Hãng tàu). Gate
           blNumber XOR bookingRef theo hướng GIỮ NGUYÊN (FB-113).
           SIL-499 onescreen: `--contact` is the wide-band grid hook — the
-          contact/refs bands stack in column 1 while choices + declarations
-          stack in column 2 (ClerkShipmentCreatePage.onescreen.css). */}
+          contact/refs bands stack in column 1 while choices flags stack in
+          column 2 (ClerkShipmentCreatePage.onescreen.css). SIL-521: the tờ
+          khai strip band is retired — declaration entry is per-cont. */}
       <div className="csc-identity-grid csc-identity-grid--contact">
         <div
           className="csc-identity-grid__customer csc-field-with-append"
@@ -328,174 +271,6 @@ export function ShipmentCreateIdentitySection({
           </div>
         </div>
       </div>
-
-      {/* BAND 4 — `Số tờ khai` dense chip input, the LAST band of Nhận diện
-          lô (SIL-168 giữ nguyên vị trí này từ 2425726d; FB-127 từng nhét
-          strip vào cuối cụm 1). Built to the owner's reference ("Số tờ
-          khai - dense chip input.html"): a head row with the count and the
-          two bulk actions, ONE bordered field holding every code as a chip
-          plus the inline entry, and a foot with the paste/Enter/Backspace
-          hint and the status line. N codes cost N chips, never a form field
-          each; the field scrolls inside itself so a long list never grows
-          the page. */}
-      <div className="csc-declaration-strip" data-field-id="shipment-declarations">
-        <div className="csc-declaration-strip__head">
-          <span className="csc-declaration-strip__title">Số tờ khai</span>
-          <span className="csc-declaration-strip__count">{declarations.length}</span>
-          <div className="csc-declaration-strip__actions">
-            <button
-              type="button"
-              className="csc-declaration-strip__action"
-              disabled={saving || declarations.length === 0}
-              onClick={() => { setBulkText(declarations.join('\n')); setBulkEdit(true); }}
-            >
-              Sửa hàng loạt
-            </button>
-            <button
-              type="button"
-              className="csc-declaration-strip__action"
-              disabled={saving || declarations.length === 0}
-              onClick={() => { update('declarationNumbers', []); setDeclDraft(''); setDeclNotice(''); }}
-            >
-              Xóa tất cả
-            </button>
-          </div>
-        </div>
-
-        {bulkEdit ? (
-          <div className="csc-declaration-strip__bulk">
-            <textarea
-              className="csc-declaration-strip__bulk-input"
-              aria-label="Sửa danh sách số tờ khai"
-              rows={3}
-              placeholder="Mỗi dòng một số"
-              value={bulkText}
-              disabled={saving}
-              onChange={(event) => setBulkText(event.target.value)}
-            />
-            <div className="csc-declaration-strip__bulk-actions">
-              <button
-                type="button"
-                className="csc-utility-button"
-                disabled={saving}
-                onClick={() => {
-                  const next = parseDeclarations(bulkText);
-                  update('declarationNumbers', next);
-                  setBulkEdit(false);
-                  setDeclNotice(next.length > 0 ? `Đã lưu ${next.length} số.` : '');
-                }}
-              >
-                Xong
-              </button>
-              <button type="button" className="csc-utility-button" disabled={saving} onClick={() => setBulkEdit(false)}>
-                Hủy
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div
-            className="csc-declaration-strip__field"
-            role="group"
-            aria-label="Số tờ khai"
-            onClick={() => declInputRef.current?.focus()}
-          >
-            {declarations.map((value, index) => (
-              <span
-                key={value}
-                className={`csc-declaration-chip${conflictFor(value, index) ? ' csc-declaration-chip--conflict' : ''}${flashValue === value ? ' csc-declaration-chip--flash' : ''}`}
-              >
-                {/* The code itself is the edit affordance: one click moves it
-                    back into the entry (and out of the list). */}
-                <button
-                  type="button"
-                  className="csc-declaration-chip__value"
-                  aria-label={`Sửa tờ khai ${index + 1}: ${value}`}
-                  title="Sửa số tờ khai này"
-                  disabled={saving}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setDeclDraft(value);
-                    setDeclNotice('');
-                    update('declarationNumbers', declarations.filter((_, i) => i !== index));
-                    declInputRef.current?.focus();
-                  }}
-                >
-                  {value}
-                </button>
-                <button
-                  type="button"
-                  className="csc-declaration-chip__remove"
-                  aria-label={`Xóa tờ khai ${index + 1}`}
-                  title="Xóa"
-                  disabled={saving}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    update('declarationNumbers', declarations.filter((_, i) => i !== index));
-                  }}
-                >
-                  <X size={12} aria-hidden="true" />
-                </button>
-              </span>
-            ))}
-            <input
-              ref={declInputRef}
-              className="csc-declaration-strip__input"
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              aria-label="Số tờ khai"
-              placeholder="Nhập hoặc dán nhiều số…"
-              value={declDraft}
-              disabled={saving}
-              onChange={(event) => setDeclDraft(event.target.value)}
-              onBlur={() => {
-                // SIL-502 (QA 26/10): a typed-but-uncommitted draft used to
-                // vanish on save — the save reads `form.declarationNumbers`,
-                // which only Enter/,/paste-separator fill, so "gõ số rồi bấm
-                // Tạo lô hàng" silently created the lot WITHOUT the tờ khai.
-                // Blur commits the pending draft through the same
-                // commitDeclarations law (dedupe + notice), so leaving the
-                // field — including by clicking either save button — can never
-                // drop a typed number. The bulk textarea stays on its explicit
-                // Xong/Hủy contract (blur there must stay a discard).
-                if (declDraft.trim()) commitDeclarations(declDraft);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ',') {
-                  event.preventDefault();
-                  if (declDraft.trim()) commitDeclarations(declDraft);
-                } else if (event.key === 'Backspace' && declDraft === '' && declarations.length > 0) {
-                  update('declarationNumbers', declarations.slice(0, -1));
-                }
-              }}
-              onPaste={(event) => {
-                const text = event.clipboardData.getData('text');
-                if (/[\s,;]/.test(text)) {
-                  event.preventDefault();
-                  commitDeclarations(text);
-                }
-              }}
-            />
-          </div>
-        )}
-
-        <div className="csc-declaration-strip__foot">
-          {/* SIL-499: the paste/Enter/Backspace usage sentence is gone (§8
-              lecturing-copy ban — it cost a wrapped line at half-width);
-              the strip keeps only its live status line. */}
-          <span className="csc-declaration-strip__notice" role="status" aria-live="polite">{declNotice}</span>
-        </div>
-      </div>
-      {declarations.map((value, index) => {
-        const conflict = conflictFor(value, index);
-        return conflict
-          ? (
-            <div key={`conflict-${value}`} className="csc-field-warning">
-              <ShipmentReferenceConflictWarning conflict={conflict} fieldLabel="Số tờ khai" />
-            </div>
-          )
-          : null;
-      })}
     </ShipmentCreateSection>
   );
 }

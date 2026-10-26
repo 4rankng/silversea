@@ -2,14 +2,11 @@ import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError } from '../../../lib/api';
 import {
-  createShipmentDeclaration,
-  deleteShipmentDeclaration,
   getShipmentDetail,
   quickCreateShipment,
   saveShipmentContainers,
   submitShipmentForDispatch,
   updateShipment,
-  updateShipmentDeclaration,
 } from '../../../api/shipmentClient';
 import type { OperationalSite, QuickCreateShipmentRequest } from '../../../api/shipmentClient';
 import type { ShipmentReferenceConflict } from '../../../api/shipmentDuplicateClient';
@@ -31,13 +28,6 @@ interface SaveAttempt {
   shipmentId?: number;
   version?: number;
   rootSignature?: string;
-  declarationId?: number;
-  declarationSignature?: string;
-  extraDeclarationSignature?: string;
-  /** Which extra declaration rows this attempt already wrote (id by number)
-   *  — a retry must never re-create them, and rows removed between retries
-   *  must be deleted (20261004_328: N rows mean exactly N declarations). */
-  extraDeclarationIds?: Record<string, number>;
   containerSignature?: string;
   submitSignature?: string;
   pendingCreatePayload?: QuickCreateShipmentRequest;
@@ -70,11 +60,11 @@ interface UseShipmentCreateWorkflowArgs {
   onSaved?: (shipmentId: number, intent: SaveIntent) => void;
   /**
    * SIL-171 (FB-147) edit mode: when set, the FIRST save starts from the
-   * existing lot (id/version/declaration ids) instead of POST /shipments/quick
+   * existing lot (id/version) instead of POST /shipments/quick
    * — the root reconcile PUT /shipments/:id (the lot PATCH) fires immediately,
-   * declarations update in place, and FCL container rows reconcile by their
-   * persisted ids. Validation is unchanged: the same create-form readiness
-   * gates the save.
+   * and FCL container rows reconcile by their persisted ids. SIL-521: the
+   * seed carries no declaration state — tờ khai is per-cont only. Validation
+   * is unchanged: the same create-form readiness gates the save.
    */
   editSeed?: ShipmentEditSeed;
   /**
@@ -143,11 +133,6 @@ export function useShipmentCreateWorkflow({
             // undefined ≠ any payload signature → the root PUT fires on the
             // first save. The edit submit IS the lot PATCH.
             rootSignature: undefined,
-            declarationId: editSeed.declarations[0]?.id,
-            declarationSignature: editSeed.declarations[0]?.number ?? '',
-            extraDeclarationIds: Object.fromEntries(
-              editSeed.declarations.slice(1).map((row) => [row.number, row.id] as const),
-            ),
             ...(editSeed.fclContainers ? { containerSignature: EDIT_CONTAINER_SENTINEL } : {}),
           }
         : { createKey: crypto.randomUUID(), submitKey: crypto.randomUUID() });
@@ -164,8 +149,9 @@ export function useShipmentCreateWorkflow({
       const containerSignature = signature(containerPayload);
 
       if (attempt.shipmentId == null || attempt.version == null) {
+        // SIL-521: payload không còn declarationNumber — tờ khai hết nhập cấp lô.
         const recoveryPayload = attempt.pendingCreatePayload ?? {
-          ...createPayload, declarationNumber: form.declarationNumber.trim() || null,
+          ...createPayload,
           containers: containerPayload,
         };
         attempt.pendingCreatePayload = recoveryPayload;
@@ -178,18 +164,13 @@ export function useShipmentCreateWorkflow({
         }
         attempt.shipmentId = shipment.id;
         attempt.version = shipment.version;
-        const { declarationNumber: initialDeclarationNumber } = recoveryPayload;
         // The create call already persisted this exact root payload (containers
         // ride it too), so the root is in sync — replaying it as an UPDATE is
-        // redundant. Stripping only declarationNumber left `containers` in the
-        // compared payload, so the signatures never matched and EVERY save
-        // issued a redundant PUT; for ad-hoc lots that PUT 400s (updateShipment
-        // requires a positive customerId, the create allows null).
+        // redundant. Keeping `containers` in the compared payload mattered for
+        // the same reason: without it the signatures never matched and EVERY
+        // save issued a redundant PUT; for ad-hoc lots that PUT 400s
+        // (updateShipment requires a positive customerId, the create allows null).
         attempt.rootSignature = rootSignature;
-        if (shipment.initialDeclarationId != null) {
-          attempt.declarationId = shipment.initialDeclarationId;
-          attempt.declarationSignature = initialDeclarationNumber?.trim() ?? '';
-        }
         attempt.pendingCreatePayload = undefined;
         // Containers landed with the root: the reconcile step below must not
         // replay them for this save.
@@ -211,45 +192,6 @@ export function useShipmentCreateWorkflow({
 
       const shipmentId = attempt.shipmentId;
       let version = attempt.version;
-      const declarationSignature = form.declarationNumber.trim();
-      if (attempt.declarationSignature !== declarationSignature && (declarationSignature || attempt.declarationId != null)) {
-        const declarationPayload = { declarationNumber: declarationSignature || null, scope: 'SINGLE' } as const;
-        const declaration = attempt.declarationId == null
-          ? await createShipmentDeclaration(shipmentId, declarationPayload)
-          : await updateShipmentDeclaration(shipmentId, attempt.declarationId, declarationPayload);
-        attempt.declarationId = declaration.id;
-        attempt.declarationSignature = declarationSignature;
-      }
-
-      const extraDeclarations = (form.declarationNumbers && form.declarationNumbers.length > 1)
-        ? Array.from(new Set(
-            form.declarationNumbers
-              .slice(1)
-              .map((s) => s.trim())
-              .filter((s) => Boolean(s) && s !== declarationSignature)
-          ))
-        : [];
-      const extraSignature = signature(extraDeclarations);
-      if (attempt.extraDeclarationSignature !== extraSignature) {
-        // 20261004_328: reconcile, don't replay. Rows written by an earlier
-        // attempt are kept (never duplicated); rows the clerk removed before
-        // the retry are deleted so the server ends at exactly N declarations.
-        const created = attempt.extraDeclarationIds ?? {};
-        // Bind before writing: a mid-loop failure must leave the partial
-        // progress visible to the retry, never a replayable blank slate.
-        attempt.extraDeclarationIds = created;
-        for (const [declNum, declId] of Object.entries(created)) {
-          if (extraDeclarations.includes(declNum)) continue;
-          await deleteShipmentDeclaration(shipmentId, declId);
-          delete created[declNum];
-        }
-        for (const declNum of extraDeclarations) {
-          if (created[declNum] != null) continue;
-          const declaration = await createShipmentDeclaration(shipmentId, { declarationNumber: declNum, scope: 'SINGLE' });
-          created[declNum] = declaration.id;
-        }
-        attempt.extraDeclarationSignature = extraSignature;
-      }
 
       const mustReconcileContainers = containerPayload.length > 0
         || attempt.containerSignature != null || attempt.containerRecoveryNeeded === true;
