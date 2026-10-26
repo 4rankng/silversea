@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-494-496-retry/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  18:15:13
+   Duration  1.65s (transform 279ms, setup 110ms, import 869ms, tests 229ms, environment 380ms)
+
