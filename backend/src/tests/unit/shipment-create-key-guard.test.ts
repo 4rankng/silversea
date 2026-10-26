@@ -40,12 +40,16 @@ describe('shipment create key guard', () => {
     }
   });
 
-  it('quick-create carries exactly three extra channels over the create list', () => {
+  it('quick-create carries exactly two extra channels over the create list', () => {
     const extra = QUICK_CREATE_SHIPMENT_KEYS.filter((key) => !CREATE_SHIPMENT_KEYS.includes(key));
-    assert.deepEqual(extra.slice().sort(), ['_requestId', 'containers', 'declarationNumber']);
+    assert.deepEqual(extra.slice().sort(), ['_requestId', 'containers']);
     // …and the create route must NOT accept the quick-only channels.
     assert.equal(CREATE_SHIPMENT_KEYS.includes('containers'), false);
     assert.equal(CREATE_SHIPMENT_KEYS.includes('_requestId'), false);
+    // SIL-521 (owner 26/10): tờ khai hết nhập cấp lô — key không nằm trong
+    // bất kỳ create contract nào nữa; số tờ khai chỉ vào qua line update per-cont.
+    assert.equal(QUICK_CREATE_SHIPMENT_KEYS.includes('declarationNumber'), false);
+    assert.equal(CREATE_SHIPMENT_KEYS.includes('declarationNumber'), false);
   });
 
   it('every accepted key passes the guard', () => {

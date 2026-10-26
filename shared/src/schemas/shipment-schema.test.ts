@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { createShipmentSchema, quickCreateShipmentSchema, updateShipmentSchema } from './index';
+import { createShipmentSchema, quickCreateShipmentSchema, updateShipmentSchema, QUICK_CREATE_SHIPMENT_KEYS } from './index';
 
 test('shipment schemas accept canonical calendar dates', () => {
   assert.equal(createShipmentSchema.safeParse({
@@ -62,8 +62,14 @@ test('shipment schemas reject a Bill and Booking on the same shipment', () => {
   }).success, false);
 });
 
-test('VID-CUS-04: quick intake accepts an initial declaration with the declaration length limit', () => {
-  const parsed = quickCreateShipmentSchema.parse({ customerId: 1, declarationNumber: '  TK-01  ' });
-  assert.equal(parsed.declarationNumber, 'TK-01');
-  assert.equal(quickCreateShipmentSchema.safeParse({ customerId: 1, declarationNumber: 'A'.repeat(51) }).success, false);
+test('SIL-521: tờ khai hết nhập cấp lô — quick-create không còn nhận declarationNumber', () => {
+  // Owner 26/10: số tờ khai chỉ nhập/sửa ở cấp cont (container line update).
+  // Key phải rời khỏi quick-create contract để assertKnownShipmentKeys chặn
+  // mọi đường tạo lô vẫn gửi input cấp lô.
+  assert.equal(QUICK_CREATE_SHIPMENT_KEYS.includes('declarationNumber'), false);
+  assert.equal(
+    quickCreateShipmentSchema.safeParse({ customerId: 1, declarationNumber: 'TK-01' }).success,
+    true,
+    'zod non-strict: key lạ vẫn parse được — lệnh chặn là assertKnownShipmentKeys (pin ở key-guard test)',
+  );
 });
