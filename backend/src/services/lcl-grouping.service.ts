@@ -439,6 +439,9 @@ async function promotePrincipalOnRemoval(
       if (leaverTrip) {
         await upsertTripCarrierInfo(tx, leaverTrip.tripId, { externalFreightCost: '0' });
       }
+      // SIL-493 — the promotee now HOLDS the 100% line: its "Cước trả dự
+      // kiến" must say so (the "nhận 100% cước trả ĐV" toast made visible).
+      await mirrorPlannedCarrierCost(tx, promotee.id, freight);
     }
 
     // 161026232329 — the driver's road money (lương chuyến + tiền đường) is
@@ -598,6 +601,25 @@ export async function unmergeLclGroup(
 
       if (input.dimension === 'REV') {
         await restoreRevPreMergeMoney(tx, member, tripFacts.get(member.id) ?? null);
+      }
+    }
+
+    if (input.dimension === 'COST') {
+      // SIL-493 — the whole-group "Tách nhóm" promise ("tiền cước 100% của
+      // Lô 1 vẫn giữ nguyên trên Lô 1") must be VISIBLE in the dispatcher's
+      // only per-lot money field: Lô 1's kept cước trả (the manual entry,
+      // else the 100% its trip already carries) lands on its live
+      // fulfillments' planned_carrier_cost. Members stay untouched (chờ
+      // định giá lại — their own pre-group estimate is theirs to keep).
+      const principal = ordered[0]!;
+      const principalTrip = tripFacts.get(principal.id) ?? null;
+      const tripFreight = principalTrip?.externalFreightCost != null
+          && Number(principalTrip.externalFreightCost) !== 0
+        ? principalTrip.externalFreightCost
+        : null;
+      const kept = principal.costGroupFreightManual ?? tripFreight;
+      if (kept != null) {
+        await mirrorPlannedCarrierCost(tx, principal.id, kept);
       }
     }
 
@@ -1159,7 +1181,7 @@ async function persistLclCostCarrier(
  * zeroing live in `lcl-cost-group-freight.service.ts` (the money seam shared
  * by group assignment and trip issuance).
  */
-import { applyPrincipalCostFreight, zeroMemberDriverMoney } from './lcl-cost-group-freight.service';
+import { applyPrincipalCostFreight, mirrorPlannedCarrierCost, zeroMemberDriverMoney } from './lcl-cost-group-freight.service';
 
 /**
  * FB-092 — dispatch "Gán xe nhóm" (COST dimension). Spec 23/10: the popup is

@@ -162,3 +162,34 @@ test('default per-lot (ruling 21/10) giữ nguyên ngoài nhóm gộp', () => {
   assert.match(merge(), /findRevCustomerConflict\(/);
   assert.match(merge(), /assertSameRevCustomer\(/);
 });
+
+// ─── SIL-493 — tiền COST đổ lên lô nào thì "Cước trả dự kiến" của lô đó thấy─
+
+test('SIL-493: mirror planned_carrier_cost ở CẢ 4 seam tiền COST đổ bộ (tách/promote/gán/phát lệnh)', () => {
+  // ONE shared helper — the money holder's plan estimate stays board truth.
+  assert.match(freight, /export async function mirrorPlannedCarrierCost/);
+  // No amount ⇒ no write (an absent price is never a fabricated 0₫).
+  assert.match(freight, /if \(amount == null \|\| Number\(amount\) === 0\) return;/);
+  // applyPrincipalCostFreight (manual + board) + issuance hook (manual + board).
+  assert.equal((freight.match(/await mirrorPlannedCarrierCost\(/g) ?? []).length, 4);
+  // Whole-group COST tách (Lô 1 keeps) + COST promote (promotee inherits).
+  assert.equal((svc.match(/await mirrorPlannedCarrierCost\(/g) ?? []).length, 2);
+});
+
+test('SIL-493: Tách nhóm COST — Lô 1 giữ manual ?? trip freight, mirror lên editor; member không bị mirror', () => {
+  const dissolve = svc.slice(
+    svc.indexOf('export async function unmergeLclGroup'),
+    svc.indexOf('async function restoreRevPreMergeMoney'),
+  );
+  assert.match(dissolve, /const kept = principal\.costGroupFreightManual \?\? tripFreight;/);
+  assert.match(dissolve, /await mirrorPlannedCarrierCost\(tx, principal\.id, kept\);/);
+  assert.match(dissolve, /input\.dimension === 'COST'/);
+});
+
+test('SIL-493: Hủy ghép COST (promote) — promotee "nhận 100% cước trả ĐV" thấy được trong editor', () => {
+  const promote = svc.slice(
+    svc.indexOf('async function promotePrincipalOnRemoval'),
+    svc.indexOf('export async function unmergeLclGroup'),
+  );
+  assert.match(promote, /await mirrorPlannedCarrierCost\(tx, promotee\.id, freight\);/);
+});
