@@ -1,0 +1,26 @@
+
+- Expected
++ Received
+
+- []
++ [
++   "ClerkShipmentCreatePage.css: padding: 8px 12px calc(8px + env(safe-area-inset-bottom",
++ ]
+
+ ❯ src/styles/mobile-viewport-fill-contract.styles.test.ts:216:84
+    214|       }
+    215|     }
+    216|     expect(offenders, 'env(safe-area-inset-bottom) counted again in pa…
+       |                                                                                    ^
+    217|   });
+    218| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  23:38:26
+   Duration  352ms (transform 22ms, setup 62ms, import 11ms, tests 10ms, environment 210ms)
+
+EXIT=1 (vitest — 1 failed; the EXIT=0 captured was tail's, not vitest's)

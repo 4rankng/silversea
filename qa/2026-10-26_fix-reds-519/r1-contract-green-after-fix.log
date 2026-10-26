@@ -1,0 +1,7 @@
+# cmd: npx vitest run src/styles/mobile-viewport-fill-contract.styles.test.ts (after fix)
+EXIT=0
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  23:39:06
+   Duration  383ms (transform 26ms, setup 70ms, import 19ms, tests 8ms, environment 227ms)
+

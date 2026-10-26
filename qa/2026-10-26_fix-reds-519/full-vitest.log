@@ -1,0 +1,5 @@
+# cmd: npx vitest run (full frontend suite, after fix + fresh pnpm build)
+EXIT=0
+ Test Files  730 passed (730)
+      Tests  5604 passed (5604)
+   Duration  156.58s (transform 29.10s, setup 98.91s, import 432.07s, tests 405.80s, environment 375.74s)
