@@ -1,0 +1,11 @@
+# R2 flakiness check: 3 standalone runs of src/pages/RecoverableCostsPage.test.tsx at 5efe043a+fetch (no code change to this file)
+--- run 1 ---
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+--- run 2 ---
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+--- run 3 ---
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+# also green in both full-suite runs (qa/2026-10-26_fix-reds-519/full-vitest.log)

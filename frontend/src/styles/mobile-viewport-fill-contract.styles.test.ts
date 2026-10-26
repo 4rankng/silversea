@@ -181,7 +181,22 @@ describe('phone-band trailing clearance class law (rework 2026-10-09)', () => {
       const hits = [...text.matchAll(/(?:padding|padding-bottom)\s*:[^;}]*env\(safe-area-inset-bottom/g)];
       for (const hit of hits) {
         const idx = hit.index ?? 0;
-        if (base === 'ShipmentContainersPage.css') {
+        if (base === 'ClerkShipmentCreatePage.css') {
+          // SIL-510 (2026-10-26): the fixed footer action bar is its OWN
+          // surface — its ≤640 box paints the home-indicator strip inside
+          // itself (same law as TripEditPage's fixed edit bar), while the
+          // page content clears the bar through the MEASURED
+          // `--csc-action-bar-height` token (useFixedActionClearance), never
+          // a raw env() re-count in the scroll flow. Every env() hit must sit
+          // inside a `.csc-form-actions` rule; any other env() padding in
+          // this file re-counts the band.
+          const barSpans = [...text.matchAll(/\.csc-form-actions\s*\{[^}]*\}/g)].map(
+            (m) => [(m.index ?? 0), (m.index ?? 0) + m[0].length] as const,
+          );
+          if (!barSpans.some(([a, b]) => idx >= a && idx < b)) {
+            offenders.push(`${base}: ${hit[0].trim()}`);
+          }
+        } else if (base === 'ShipmentContainersPage.css') {
           // The sheet rule only: every hit must sit inside the portaled
           // bottom-sheet rule (its own surface, outside the shell scrollport).
           const sheetSpans = [...text.matchAll(/\.shipment-container-ledger__inline-editor--sheet[^{]*\{[^}]*\}/g)].map(

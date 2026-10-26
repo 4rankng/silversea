@@ -1,0 +1,2 @@
+# cmd: npx tsgo --noEmit (frontend)
+EXIT=0

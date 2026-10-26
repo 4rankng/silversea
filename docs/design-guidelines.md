@@ -598,6 +598,19 @@ shell-wide and transient.
 *Source:* owner phone report 2026-10-16 21:07 SGT, screenshot
 `img_4391901f3bfc.jpg`.
 
+**Amendment 2026-10-26 (SIL-510 gate fallout).** The clerk create-page fixed
+footer action bar (`.csc-form-actions`, `position: fixed; bottom: 0`) joins
+the own-surface class: its ≤640 box counts `env(safe-area-inset-bottom)`
+inside itself — the same law as the TripEditPage fixed edit bar — while the
+page content clears the bar through the MEASURED `--csc-action-bar-height`
+token (`useFixedActionClearance`), never a raw env() re-count in the scroll
+flow. Enforcement: the class-law pin accepts the env() term in
+`ClerkShipmentCreatePage.css` ONLY inside a `.csc-form-actions` rule (scoped
+entry, `ShipmentContainersPage.css` precedent); any other env() padding in
+that file fails.
+*Source:* SIL-510 landed `46b5ecfd` (scoped vitest run missed
+`src/styles/`); contract test caught the stray count at trunk.
+
 **Ruling 2026-10-23 (owner redesign messages 23/10 — "UI UX layout shitty" +
 spec v2 1819).** The `/shipments-debit` settlement board is redesigned under
 an owner-approved spec that supersedes three earlier laws ON THAT SURFACE
