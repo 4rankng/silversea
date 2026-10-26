@@ -33,6 +33,7 @@ import {
   type ShipmentCreateIssue,
 } from './shipment-create-model';
 import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
+import { useFixedActionClearance } from '../../../hooks/useFixedActionClearance';
 import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
 import { ShipmentCreateActions } from './ShipmentCreateActions';
@@ -92,6 +93,11 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const [warehouseCatalogLoading, setWarehouseCatalogLoading] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const workspaceFormRef = useRef<HTMLFormElement>(null);
+  // SIL-510: the worksheet's one action bar is the viewport-fixed footer —
+  // the house hook publishes its measured height (--csc-action-bar-height,
+  // consumed by .csc-page's clearance padding) and keeps the scroller's
+  // scroll-padding clear so focusIssue never lands a field under the bar.
+  const actionBarRef = useFixedActionClearance<HTMLDivElement>('--csc-action-bar-height');
   const [customerNotes, setCustomerNotes] = useState('');
   const [containers, setContainers] = useState<ContainerRow[]>([newContainer()]);
   const [loading, setLoading] = useState(true);
@@ -103,9 +109,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const [validationIssues, setValidationIssues] = useState<ShipmentCreateIssue[]>([]);
   // Summary de-noise (17/10): the "Cần bổ sung" panel is submit-gated — it may
   // not confront a freshly opened form. Any action-button save click ("Tạo lô
-  // hàng" on topline/footer, the form submit, or a failed "Lưu nháp", which
-  // owns the DRAFT copy) flips this on; it never flips back, so the panel
-  // keeps updating live until the list empties.
+  // hàng" on the fixed footer bar, the form submit, or a failed "Lưu nháp",
+  // which owns the DRAFT copy) flips this on; it never flips back, so the
+  // panel keeps updating live until the list empties.
   const [saveAttempted, setSaveAttempted] = useState(false);
   const { toast } = useToast();
   const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
@@ -744,16 +750,8 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     <div className="csc-page">
       <ShipmentCreateTopline
         mode={workspaceMode}
-        saving={saving}
         requiredDone={completion.done}
         requiredTotal={completion.total}
-        onCancel={goBack}
-        onSaveDraft={() => void save('DRAFT')}
-        onCreate={() => void save('CREATE')}
-        onBack={goShipmentList}
-        onEdit={viewCanEditLot ? goEdit : undefined}
-        editLocked={viewLocked}
-        onCreateNew={viewCreateNew}
       />
       <form
         ref={workspaceFormRef}
@@ -768,13 +766,13 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         onKeyDown={(event) => {
           // FB-002 (cards 181026000027 + 171026215500 family, lần 3 — card
           // 211026034109): this workspace is the last major time-field host
-          // without an Enter law. Both submits (Tạo lô hàng / Lưu nháp) live
-          // in the topline OUTSIDE the form and every in-form button is
-          // type="button", so the browser's implicit submission never fires —
-          // Enter after typing a COMPLETE "Ngày giờ đóng trả" was a silent
-          // dead key (không lưu), and the operator's whole typed intake died
-          // with the page when they moved on (mất trắng input). The form
-          // answers Enter itself through the same submit the topline rides
+          // without an Enter law. Both submits (Tạo lô hàng / Lưu nháp) are
+          // type="button" on the viewport-fixed footer bar INSIDE this form,
+          // so no button ever becomes the browser's implicit-submission
+          // default — Enter after typing a COMPLETE "Ngày giờ đóng trả" was a
+          // silent dead key (không lưu), and the operator's whole typed intake
+          // died with the page when they moved on (mất trắng input). The form
+          // answers Enter itself through the same submit the fixed bar rides
           // (requestSubmit keeps the app-owned validation paint; no field is
           // ever wiped). The segmented datetime fields keep their own law: a
           // COMPLETE draft's Enter bubbles here, incomplete/open-picker ones
@@ -1043,18 +1041,18 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           isAdHoc={form.isAdHoc}
         />
 
-        {/* Card 171026115830 (FB-108): the same three actions repeat at the END
-            of the worksheet — a clerk who has just typed the last field must
-            not scroll back to the topline to save. This deliberately brings
-            back the bottom bar the 11/10 mock had retired (owner request,
-            17/10). */}
-        <div className="csc-form-actions">
+        {/* SIL-510 (owner 26/10): the worksheet's ONE action bar — the FB-108
+            end-of-worksheet repetition is promoted to the viewport-fixed
+            footer (always visible while scrolling, one row, actions
+            right-aligned) and the topline twin is retired, so a clerk never
+            sees two action bars on one viewport. The DOM stays the form's
+            last element, so "the bar rides the form's submit" keeps being
+            literally true. */}
+        <div ref={actionBarRef} className="csc-form-actions">
           {viewMode ? (
-            /* SIL-481: the FB-108 repetition keeps its place at the foot of
-             * the worksheet, but the read-only review repeats the VIEW cluster
+            /* SIL-481: the read-only review bar repeats the VIEW cluster
              * (Quay lại / Sửa / Tạo mới lô hàng — SIL-500), not a save cluster. */
             <ShipmentViewActions
-              variant="footer"
               onBack={goShipmentList}
               onEdit={viewCanEditLot ? goEdit : undefined}
               editLocked={viewLocked}
@@ -1062,7 +1060,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
             />
           ) : (
             <ShipmentCreateActions
-              variant="footer"
               mode={editTarget ? 'edit' : 'create'}
               saving={saving}
               onCancel={goBack}

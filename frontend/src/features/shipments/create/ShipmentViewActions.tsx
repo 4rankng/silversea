@@ -15,19 +15,18 @@ export interface ShipmentViewActionsProps {
    *  → the role may not create lots (the /shipments/new route bounces the
    *  same authority), so the cluster degrades without it. */
   onCreateNew?: () => void;
-  /** Same layout slot contract as ShipmentCreateActions (topline flex row vs
-   *  footer bar; footer names itself for screen readers). */
-  className?: string;
-  variant?: 'topline' | 'footer';
 }
 
 /**
  * SIL-481 (ruling 25/10): the post-create review (/shipments/:id) shows the
  * Tạo lô hàng workspace read-only, so its action cluster replaces the create
  * cluster (Huỷ / Lưu nháp / Tạo lô hàng) with "Quay lại" + "Sửa"
- * — the "post view action after create" the owner asked for. Rendered twice
- * (topline + footer) through the same FB-108 repetition the create cluster
- * uses, hence the same variant/aria-label law.
+ * — the "post view action after create" the owner asked for.
+ *
+ * SIL-510 (owner 26/10): the cluster mounts exactly once, as the
+ * viewport-fixed footer bar (`.csc-form-actions`) — the topline twin is
+ * retired (never two action bars on one viewport), so the plain accessible
+ * names need no "(cuối trang)" self-naming.
  *
  * SIL-500 (KH 26/10): the create cluster's primary "Tạo lô hàng" had no
  * successor on the review — the KH's create → review → next-lot loop died.
@@ -39,24 +38,15 @@ export function ShipmentViewActions({
   onEdit,
   editLocked = false,
   onCreateNew,
-  className,
-  variant = 'topline',
 }: ShipmentViewActionsProps) {
-  const footer = variant === 'footer';
-  const label = (text: string) => (footer ? `${text} (cuối trang)` : undefined);
   return (
-    <div
-      className={[footer ? 'csc-actions csc-actions--footer' : 'csc-actions', className].filter(Boolean).join(' ')}
-      role="group"
-      aria-label={footer ? 'Thao tác xem lô hàng (cuối trang)' : 'Thao tác xem lô hàng'}
-    >
+    <div className="csc-actions" role="group" aria-label="Thao tác xem lô hàng">
       <UUIButton
         type="button"
         size="md"
         color="tertiary"
         iconLeading={ArrowLeft}
         onClick={onBack}
-        aria-label={label('Quay lại')}
       >
         Quay lại
       </UUIButton>
@@ -68,7 +58,7 @@ export function ShipmentViewActions({
           iconLeading={Pencil}
           onClick={onEdit}
           isDisabled={editLocked}
-          aria-label={label(editLocked ? 'Sửa — lô đã khóa kế toán' : 'Sửa')}
+          aria-label={editLocked ? 'Sửa — lô đã khóa kế toán' : undefined}
         >
           Sửa
         </UUIButton>
@@ -81,7 +71,6 @@ export function ShipmentViewActions({
           className="min-h-11"
           iconLeading={Plus}
           onClick={onCreateNew}
-          aria-label={label('Tạo mới lô hàng')}
         >
           Tạo mới lô hàng
         </UUIButton>

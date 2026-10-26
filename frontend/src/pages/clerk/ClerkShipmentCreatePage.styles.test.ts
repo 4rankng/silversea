@@ -216,10 +216,13 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode legend,\s*\.csc-mode__option,\s*\.csc-flag-checkbox\s*\{[^}]*font-size:\s*var\(--control-compact-touch-font-size\);[^}]*line-height:\s*var\(--control-compact-touch-line-height\);/);
     expect(css).toMatch(/\.app-main:has\(\.csc-page\) \.app-body\s*\{[^}]*--app-body-pad-x:\s*8px;/);
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.csc-page\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*margin-inline:\s*0;/);
-    // Owner mock 11/10: the topline retires the fixed action bar, so the page
-    // clears nothing extra and the dense worksheet gaps read 10px.
+    // SIL-510: below the onescreen band the worksheet scrolls, so the page
+    // clears the fixed bar's measured height (+12px gap) — ≥1280 keeps the
+    // SIL-499 no-scrollbar fit, the bar overlaying the tail the retired
+    // in-flow footer row freed.
     expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*12px 0;/);
     expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.csc-page\s*\{[^}]*padding:\s*12px 0;/);
+    expect(css).toMatch(/@media \(max-width:\s*1279px\)[\s\S]*?\.csc-page\s*\{[^}]*padding-bottom:\s*calc\(var\(--csc-action-bar-height, 60px\) \+ 12px\);/);
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*10px;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section\s*\{[^}]*padding:\s*8px\s*!important;[^}]*gap:\s*10px\s*!important;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*padding:\s*10px 8px;/);
@@ -329,18 +332,23 @@ describe('shipment create responsive layout', () => {
     expect(css).not.toContain('position: sticky');
   });
 
-  it('keeps the create actions on the page topline', () => {
-    // Owner mock 11/10 ("Tạo lô hàng – dense layout.html"): title, required
-    // progress and Huỷ / Lưu nháp / Tạo lô hàng ride ONE row at the head of the
-    // worksheet. The fixed bottom bar this supersedes is retired for good.
+  it('keeps ONE action bar: the viewport-fixed footer (SIL-510)', () => {
+    // Owner 26/10 (SIL-510): the topline is title + progress only; the ONE
+    // action bar is viewport-fixed at the bottom — ONE row (nowrap), actions
+    // right-aligned, pinned to the shell's main column via
+    // --app-sidebar-offset, above content but below overlays. Supersedes
+    // both the 11/10 topline cluster and the retired pre-FB-108 bar.
     expect(css).toMatch(/\.csc-topline\s*\{[^}]*display:\s*flex;/);
-    expect(css).toMatch(/\.csc-topline__actions\s*\{[^}]*margin-left:\s*auto;/);
     // SIL-509: the topline never sits flush on the section band below —
     // ≥12px separation in the base layout (the ≥1280 onescreen band pins
     // its own 12px in ClerkShipmentCreatePage.onescreen.css).
     expect(css).toMatch(/\.csc-topline\s*\{[^}]*margin:\s*0 0 12px;/);
+    expect(css).not.toContain('.csc-topline__actions');
+    expect(css).toMatch(/\.csc-form-actions\s*\{[^}]*position:\s*fixed;[^}]*bottom:\s*0;[^}]*left:\s*var\(--app-sidebar-offset/);
+    expect(css).toMatch(/\.csc-form-actions\s*\{[^}]*flex-wrap:\s*nowrap;/);
+    expect(css).toMatch(/\.csc-form-actions\s*\{[^}]*justify-content:\s*flex-end;/);
+    expect(css).toMatch(/\.csc-form-actions\s*\{[^}]*z-index:\s*var\(--z-sticky\);/);
     expect(css).not.toContain('.csc-action-bar');
-    expect(css).not.toContain('csc-action-bar-h');
     expect(css).not.toContain('.csc-page__title');
     expect(css).not.toContain('.csc-summary__actions');
   });

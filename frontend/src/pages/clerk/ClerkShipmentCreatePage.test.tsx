@@ -221,19 +221,22 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     });
   });
 
-  it('shows only the topline create/cancel/draft actions, without the superseded dispatch action', async () => {
+  it('shows ONE action bar — the viewport-fixed footer — without the superseded dispatch action', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    // Owner mock 11/10: title + progress + three actions ride ONE page topline
-    // (no fixed bottom bar). `Lưu nháp` is the partial create, `Tạo lô hàng`
-    // the full-intake one.
+    // SIL-510 (owner 26/10): the topline is title + progress only; the three
+    // actions (Huỷ / Lưu nháp partial create / Tạo lô hàng full intake) live
+    // on the single fixed bottom bar.
     expect(screen.getByRole('heading', { level: 1, name: 'Tạo lô hàng' })).toBeTruthy();
+    expect(document.querySelector('.csc-topline')!.querySelectorAll('button')).toHaveLength(0);
+    const bar = document.querySelector('.csc-form-actions')!;
+    expect(bar).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo lô hàng' }).closest('.csc-form-actions')).toBe(bar);
     expect(screen.getByRole('button', { name: 'Tạo lô hàng' })).toHaveClass('min-h-11');
     expect(screen.getByRole('button', { name: 'Huỷ' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Lưu nháp' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Lưu bản nháp|Gửi sang điều phối/ })).toBeNull();
     expect(document.querySelector('.csc-action-bar')).toBeNull();
-    expect(document.querySelector('.csc-topline')).toBeTruthy();
   });
 
   it('uses the approved Vietnamese cargo-mode copy while payloads keep FCL/LCL wire values', async () => {

@@ -153,24 +153,23 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
     expect(screen.queryByText(/Bắt buộc:/)).toBeNull();
   });
 
-  it('the action cluster is Quay lại + Sửa + Tạo mới lô hàng, repeated at the foot', async () => {
+  it('the action cluster is Quay lại + Sửa + Tạo mới lô hàng on the fixed footer bar', async () => {
     renderView({ canEditLot: true });
 
     expect(await screen.findByRole('button', { name: 'Sửa' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tạo mới lô hàng' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Sửa (cuối trang)' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Quay lại (cuối trang)' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tạo mới lô hàng (cuối trang)' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Huỷ (cuối trang)' })).toBeNull();
+    // SIL-510: one bar — every button lives on the fixed footer, none on the
+    // topline, so a viewport never shows two action bars.
+    expect(screen.getByRole('button', { name: 'Sửa' }).closest('.csc-form-actions')).toBeTruthy();
+    expect(document.querySelector('.csc-topline')!.querySelectorAll('button')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Huỷ' })).toBeNull();
   });
 
   it('SIL-500: "Tạo mới lô hàng" returns to the create form (/shipments/new)', async () => {
     renderView({ canEditLot: true });
 
-    // Both FB-108 repetitions carry the verb before either is clicked.
     expect(await screen.findByRole('button', { name: 'Tạo mới lô hàng' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tạo mới lô hàng (cuối trang)' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tạo mới lô hàng' }));
     await waitFor(() => expect(screen.getByTestId('shipment-new')).toBeTruthy());
   });
@@ -191,9 +190,7 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
     renderView({ canEditLot: false });
     expect(await screen.findByRole('button', { name: 'Quay lại' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Sửa (cuối trang)' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Tạo mới lô hàng' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Tạo mới lô hàng (cuối trang)' })).toBeNull();
   });
 
   it('an accounting-locked lot still reads, but Sửa is disabled with the reason', async () => {
@@ -209,7 +206,8 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
       return el!;
     });
     expect(bill).toBeDisabled();
-    const edit = await screen.findByRole('button', { name: 'Sửa' });
+    // SIL-510: the single bar instance keeps the locked-reason accessible name.
+    const edit = await screen.findByRole('button', { name: 'Sửa — lô đã khóa kế toán' });
     // react-aria buttons express disabled as data-disabled (still focusable).
     expect(edit.getAttribute('data-disabled')).toBe('true');
   });

@@ -125,17 +125,16 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     expect(document.querySelector('[data-field-id="shipment-operational-site"]')!.querySelector('.csc-searchable-field--error')).toBeNull();
   });
 
-  it('repeats the Huỷ / Lưu nháp / Tạo lô hàng cluster at the end of the page', async () => {
+  it('mounts the Huỷ / Lưu nháp / Tạo lô hàng bar as the fixed footer', async () => {
     await enterLclWithCatalogCustomer();
 
     const footer = document.querySelector('.csc-form-actions')!;
     expect(footer).toBeTruthy();
-    const labels = Array.from(footer.querySelectorAll('button')).map((button) => button.getAttribute('aria-label'));
-    // Card 171026115830 (FB-108): the footer cluster names itself so its buttons
-    // stay distinguishable from the identical topline cluster.
-    expect(labels).toEqual(['Huỷ (cuối trang)', 'Lưu nháp (cuối trang)', 'Tạo lô hàng (cuối trang)']);
-    // The topline cluster still exists and keeps the plain names.
-    expect(screen.getByRole('button', { name: 'Tạo lô hàng' })).toBeTruthy();
+    const labels = Array.from(footer.querySelectorAll('button')).map((button) => button.textContent?.trim());
+    // SIL-510: ONE action bar — the plain names, no "(cuối trang)" twin suffix.
+    expect(labels).toEqual(['Huỷ', 'Lưu nháp', 'Tạo lô hàng']);
+    // The topline carries no action buttons any more — one viewport, one bar.
+    expect(document.querySelector('.csc-topline')!.querySelectorAll('button')).toHaveLength(0);
   });
 
   // Card 181026143000 (spec 2026.10.17 §1a/§1c): the kho quick-add dialog
