@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-579-582-dispatchdetail/frontend
+
+
+ Test Files  43 passed (43)
+      Tests  451 passed (451)
+   Start at  23:00:31
+   Duration  12.86s (transform 5.38s, setup 5.69s, import 30.84s, tests 38.78s, environment 21.73s)
+
+VITEST-EXIT=0
