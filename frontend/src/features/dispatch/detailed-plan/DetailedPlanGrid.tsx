@@ -224,8 +224,8 @@ export function DetailedPlanGrid({
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
 }: DetailedPlanGridProps) {
-  // Long notes clamp to three lines; tapping reopens the full text in a
-  // dialog so the column stays scannable without hiding content.
+  // SIL-515: notes render in full (no clamp); the dialog is the focused
+  // reading view for a long note, not the place where its tail is stored.
   const [expandedNote, setExpandedNote] = useState<{ title: string; text: string; driver?: boolean } | null>(null);
   // FB-095 — the grouped row whose badge menu (Xem nhóm / Hủy ghép) is open.
   const [groupMenuRow, setGroupMenuRow] = useState<DispatchDetailPlanRow | null>(null);
@@ -743,7 +743,7 @@ export function DetailedPlanGrid({
                             <DispatchDriverNote value={row.notes.vehicleNote} labels={taskLabels} compact />
                           </button>
                         )}
-                        {row.notes.opsRecoveryNotes?.map(note => <button key={note} type="button" className="detailed-plan-grid__note" onClick={() => setExpandedNote({ title: 'Ghi chú OPS', text: note })}><span className="detailed-plan-grid__line detailed-plan-grid__note-clamp" style={{ whiteSpace: 'pre-wrap' }}><strong>OPS: </strong>{note}</span></button>)}
+                        {row.notes.opsRecoveryNotes?.map(note => <button key={note} type="button" className="detailed-plan-grid__note" onClick={() => setExpandedNote({ title: 'Ghi chú OPS', text: note })}><span className="detailed-plan-grid__line detailed-plan-grid__note-preview" style={{ whiteSpace: 'pre-wrap' }}><strong>OPS: </strong>{note}</span></button>)}
                         {row.notes.customerNote && (
                           <button
                             type="button"
@@ -751,7 +751,7 @@ export function DetailedPlanGrid({
                             onClick={() => setExpandedNote({ title: 'Ghi chú khách hàng', text: displayNote(row.notes.customerNote) })}
                             title="Bấm để xem toàn bộ ghi chú"
                           >
-                            <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-clamp">
+                            <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-preview">
                               {`Khách: ${displayNote(row.notes.customerNote)}`.split('\n').map((line, i) => (
                                 <span key={i} className="detailed-plan-grid__note-line">{line}</span>
                               ))}

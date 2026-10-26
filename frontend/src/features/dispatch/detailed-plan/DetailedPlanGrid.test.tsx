@@ -233,7 +233,9 @@ describe('DetailedPlanGrid', () => {
     expect(css).toMatch(/\.detailed-plan-grid__route-direction\s*\{[^}]*display:\s*flex;/);
     expect(css).toContain('.detailed-plan-grid__combined-note');
     expect(css).toContain('font-weight: 400;');
-    expect(css).toContain('white-space: nowrap;');
+    // SIL-515: the combined note wraps like every value — no nowrap pin.
+    const noteRule = css.match(/\.detailed-plan-grid__combined-note\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(noteRule).not.toContain('white-space: nowrap');
   });
 
   it('gives every fixed-layout column an explicit share of exactly 100% over a min-width floor (owner redesign 23/10)', () => {
@@ -271,7 +273,7 @@ describe('DetailedPlanGrid', () => {
     expect(css).not.toContain('@container (max-width: 900px)');
   });
 
-  it('lets header labels wrap at spaces up to two lines — never nowrap, never a "…" cut (owner redesign 23/10)', () => {
+  it('lets header labels wrap at spaces, fully visible — never nowrap, never a "…" cut, no clamp (SIL-515)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const headerRule = css.match(/\.detailed-plan-grid thead th \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
@@ -281,11 +283,17 @@ describe('DetailedPlanGrid', () => {
     // Master-plan lane fix (same defect class): the -webkit-box clamp must
     // NEVER ride on the th itself — it takes the cell out of table layout
     // and the whole header row collapses into a vertical label stack (the
-    // live defect on this board). The clamp lives on INNER elements.
+    // live defect on this board).
     expect(headerRule).not.toContain('-webkit-line-clamp');
     expect(headerRule).not.toContain('display: -webkit-box');
     const sortRule = css.match(/\.detailed-plan-grid__sort \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(sortRule).toContain('-webkit-line-clamp: 2;');
+    // SIL-515: the sort button is a plain block — the old 2-line clamp HID
+    // a third line (a truncation, banned table-wide). The header row grows
+    // to the label it holds instead.
+    expect(sortRule).toContain('display: block;');
+    expect(sortRule).not.toContain('-webkit-line-clamp');
+    expect(sortRule).not.toContain('-webkit-box');
+    expect(sortRule).not.toContain('overflow: hidden');
   });
 
   it('renders container-less LCL rows with package/weight instead', () => {

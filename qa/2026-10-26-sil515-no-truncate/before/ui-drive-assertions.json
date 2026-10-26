@@ -1,0 +1,119 @@
+{
+  "phase": "before",
+  "url": "http://localhost:7197/dispatch-detail",
+  "user": "dieuvan",
+  "at1440": {
+    "tag": "1440",
+    "width": 1440,
+    "table": true,
+    "rowCount": 5,
+    "firstRowText": "Ngày giao 27/10/2026trả hàngQA KH Demo—Bill: SIL503LCL434916——Chưa có tuyến đườngNhậpLẻ——Chưa phân nhà xeCUS sẽ bổ sungLẻKhách: SIL-503 QA fixture",
+    "violations": {
+      "nowrap": [
+        "strong.ops-schedule__datetime|Ngày giao 27/10/2026",
+        "span.detailed-plan-grid__line.detailed-plan-grid__line--muted|trả hàng",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong|QA KH Demo",
+        "div.detailed-plan-grid__line|—",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL434916",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|Chưa có tuyến đường",
+        "div.detailed-plan-grid__line.detailed-plan-grid__documents-direction|Nhập",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong|Lẻ",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|—",
+        "button.dispatch-assignment-cell__carrier.dispatch-assignment-cell__carrier--action|Chưa phân nhà xe",
+        "span.dispatch-assignment-cell__plate.is-placeholder|CUS sẽ bổ sung",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL562267",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL640357",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL731764",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL745946"
+      ],
+      "ellipsis": [
+        "strong.ops-schedule__datetime|Ngày giao 27/10/2026",
+        "span.detailed-plan-grid__line.detailed-plan-grid__line--muted|trả hàng",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong|QA KH Demo",
+        "div.detailed-plan-grid__line|—",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL434916",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|Chưa có tuyến đường",
+        "div.detailed-plan-grid__line.detailed-plan-grid__documents-direction|Nhập",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong|Lẻ",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|—",
+        "button.dispatch-assignment-cell__carrier.dispatch-assignment-cell__carrier--action|Chưa phân nhà xe",
+        "span.dispatch-assignment-cell__plate.is-placeholder|CUS sẽ bổ sung",
+        "span.detailed-plan-grid__line.detailed-plan-grid__line--muted.detailed-plan-grid__note-clamp|Khách: SIL-503 QA fixture",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL562267",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL640357",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL731764",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL745946"
+      ],
+      "clamp": [],
+      "overflowX": [
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|Chưa có tuyến đường scrollW=114 clientW=90"
+      ],
+      "outsideCell": [
+        "strong.ops-schedule__datetime|Ngày giao 27/10/2026 line=[280..416] td=[272..406]"
+      ]
+    },
+    "headerClipped": [],
+    "scheduleOverlap": {
+      "scheduleRight": 416,
+      "routeLeft": 406,
+      "overlaps": true
+    }
+  },
+  "at1280": {
+    "tag": "1280",
+    "width": 1280,
+    "table": true,
+    "rowCount": 5,
+    "firstRowText": "Ngày giao 27/10/2026trả hàngQA KH Demo—Bill: SIL503LCL434916——Chưa có tuyến đườngNhậpLẻ——Chưa phân nhà xeCUS sẽ bổ sungLẻKhách: SIL-503 QA fixture",
+    "violations": {
+      "nowrap": [
+        "strong.ops-schedule__datetime|Ngày giao 27/10/2026",
+        "span.detailed-plan-grid__line.detailed-plan-grid__line--muted|trả hàng",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong|QA KH Demo",
+        "div.detailed-plan-grid__line|—",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL434916",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|Chưa có tuyến đường",
+        "div.detailed-plan-grid__line.detailed-plan-grid__documents-direction|Nhập",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong|Lẻ",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|—",
+        "button.dispatch-assignment-cell__carrier.dispatch-assignment-cell__carrier--action|Chưa phân nhà xe",
+        "span.dispatch-assignment-cell__plate.is-placeholder|CUS sẽ bổ sung",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL562267",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL640357",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL731764",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL745946"
+      ],
+      "ellipsis": [
+        "strong.ops-schedule__datetime|Ngày giao 27/10/2026",
+        "span.detailed-plan-grid__line.detailed-plan-grid__line--muted|trả hàng",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong|QA KH Demo",
+        "div.detailed-plan-grid__line|—",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL434916",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|Chưa có tuyến đường",
+        "div.detailed-plan-grid__line.detailed-plan-grid__documents-direction|Nhập",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong|Lẻ",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|—",
+        "button.dispatch-assignment-cell__carrier.dispatch-assignment-cell__carrier--action|Chưa phân nhà xe",
+        "span.dispatch-assignment-cell__plate.is-placeholder|CUS sẽ bổ sung",
+        "span.detailed-plan-grid__line.detailed-plan-grid__line--muted.detailed-plan-grid__note-clamp|Khách: SIL-503 QA fixture",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL562267",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL640357",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL731764",
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--strong.detailed-plan-grid__route-bill|Bill: SIL503LCL745946"
+      ],
+      "clamp": [],
+      "overflowX": [
+        "div.detailed-plan-grid__line.detailed-plan-grid__line--muted|Chưa có tuyến đường scrollW=114 clientW=90"
+      ],
+      "outsideCell": [
+        "strong.ops-schedule__datetime|Ngày giao 27/10/2026 line=[76..212] td=[68..202]"
+      ]
+    },
+    "headerClipped": [],
+    "scheduleOverlap": {
+      "scheduleRight": 212,
+      "routeLeft": 202,
+      "overlaps": true
+    }
+  }
+}

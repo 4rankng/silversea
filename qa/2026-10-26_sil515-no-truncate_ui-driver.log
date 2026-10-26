@@ -1,0 +1,41 @@
+# SIL-515 UI drive — driver log (26/10)
+
+Env: local dev, worktree fix-515-no-truncate, vite :7197 (proxy /api → :3002),
+backend health `{"status":"ok"}` trước khi chạy. Account: dieuvan (DISPATCHER,
+Abc123 — testplan/testaccounts.txt). Read-only: login + GETs + filter text.
+
+## Lệnh + exit status
+
+1. BEFORE (HEAD bd5f2741, chưa fix):
+   `cd frontend && PHASE=before node ../qa/scripts/2026-10-26-sil515-no-truncate-ui-drive.mjs`
+   → exit 0. Output: qa/2026-10-26-sil515-no-truncate/before/
+   Kết quả @1440/@1280 (rowCount 5):
+   - violations.nowrap = 15 entries (ops-schedule__datetime, __line…,
+     dispatch-assignment-cell__carrier/plate …)
+   - violations.ellipsis = 16 entries
+   - violations.overflowX @1280: "Chưa có tuyến đường scrollW=114 clientW=90"
+   - violations.outsideCell @1280:
+     "strong.ops-schedule__datetime|Ngày giao 27/10/2026 line=[76..212] td=[68..202]"
+   - scheduleOverlap.overlaps = TRUE (scheduleRight 212 > routeLeft 202)
+   → tái hiện đúng defect ảnh ticket (Ngày giao đè cột cạnh + ellipsis).
+
+2. AFTER (sau fix CSS):
+   `cd frontend && PHASE=after node ../qa/scripts/2026-10-26-sil515-no-truncate-ui-drive.mjs`
+   → exit 0. Output: qa/2026-10-26-sil515-no-truncate/after/
+   Kết quả @1440/@1280 (rowCount 5):
+   - violations: nowrap [] ellipsis [] clamp [] overflowX [] outsideCell []
+   - headerClipped = []
+   - scheduleOverlap: @1440 {scheduleRight 398, routeLeft 406, overlaps false};
+     @1280 {194 vs 202, overlaps false}
+   - Stress pass (gán giá trị dài kiểu ticket vào DOM client-side, không
+     ghi DB): "Ngày giao 23/10/2026 08:00 – 17:00 giờ điều vận dài",
+     "NORIGHTFREIGHTINTERNATIONALLONGPORTNAME", tên khách/bill dài,
+     tuyến dài → violations rỗng @1440/@1280, hiddenTail rỗng
+     (innerText == textContent — mọi ký tự render, không đuôi ẩn).
+
+## Artifact
+
+- qa/2026-10-26-sil515-no-truncate/before/*.png + ui-drive-assertions.json
+- qa/2026-10-26-sil515-no-truncate/after/*.png (full/table/stress)
+  + ui-drive-assertions.json
+- Driver script: qa/scripts/2026-10-26-sil515-no-truncate-ui-drive.mjs

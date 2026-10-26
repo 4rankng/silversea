@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-515-no-truncate/frontend
+
+
+ Test Files  46 passed (46)
+      Tests  524 passed (524)
+   Start at  22:15:41
+   Duration  13.31s (transform 5.59s, setup 6.90s, import 30.98s, tests 37.82s, environment 24.99s)
+

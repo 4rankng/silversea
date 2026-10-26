@@ -25,12 +25,7 @@
 
 .dispatch-driver-note__tasks { font-weight: 600; }
 
-/* Each part keeps its own preview, so long tasks cannot consume the note's
-   entire allowance. The enclosing button opens both parts without clamps. */
-.dispatch-driver-note--compact .dispatch-driver-note__tasks,
-.dispatch-driver-note--compact .dispatch-driver-note__text {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
+/* SIL-515 (owner 26/10): nothing here clamps anymore — the compact mode's
+   old 2-line -webkit-box clamp hid the note tail (a truncation, banned
+   table-wide). Both parts render in full; the enclosing button keeps
+   opening the focused dialog view. */

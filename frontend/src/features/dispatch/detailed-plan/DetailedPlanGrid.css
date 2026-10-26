@@ -224,12 +224,14 @@
 .detailed-plan-grid {
   width: 100%;
   /* Owner redesign 23/10: fixed layout + this floor is what balances the
-     board — every column's measured one-line budget (Khách hàng ≥180px,
-     Điều phối ≥200px with the SĐT line nowrap, Ghi chú ≥160px, Nâng/Trả
-     đủ 1 dòng, Thao tác pinned) holds at the floor and the scroll box
-     carries the overflow; wider canvases redistribute the same shares. The
-     old shares (schedule 17% / route 17.5%) were the "~230px row, 70%
-     trống" defect: two fat columns starved the rest. */
+     board — every column's measured budget (Khách hàng ≥180px,
+     Điều phối ≥200px, Ghi chú ≥160px, Nâng/Trả đủ 1 dòng, Thao tác
+     pinned) holds at the floor and the scroll box carries the overflow;
+     wider canvases redistribute the same shares. The old shares (schedule
+     17% / route 17.5%) were the "~230px row, 70% trống" defect: two fat
+     columns starved the rest. SIL-515: with every cell wrapping, the
+     floor is the roominess budget — the rail, not a cut, absorbs
+     anything wider. */
   min-width: 1340px;
   border-collapse: separate;
   border-spacing: 0;
@@ -273,12 +275,12 @@
    wrapper is now a bounded pane owning the board's vertical scroll, so the
    header pins to the pane's own top edge (the old --sticky-thead-top offset
    belonged to the app-body scrollport, which the rail had silently
-   disconnected from this thead). The two-line clamp must NEVER ride on the
-   th itself — a `display: -webkit-box` th leaves table-cell layout and the
-   whole header row collapses into a vertical label stack (the live defect
-   this lane found on this board: every th rendered stacked at the first
-   column's x). The clamp lives on inner elements (the __sort button);
-   plain short labels simply wrap. */
+   disconnected from this thead). NO two-line clamp may ride on the th or on
+   an inner element (SIL-515): a `display: -webkit-box` th leaves table-cell
+   layout and the whole header row collapses into a vertical label stack
+   (the live defect this lane found on this board), and any clamp HID a
+   label line — a truncation, banned table-wide. Plain short labels simply
+   wrap. */
 .detailed-plan-grid thead th {
   position: sticky;
   top: 0;
@@ -295,9 +297,10 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-strong);
   line-height: var(--ops-table-header-line-height);
-  /* Owner redesign 23/10 (spec addendum): a header label wraps AT SPACES up
-     to TWO lines and never more — the old nowrap law (card 091026091550) is
-     what starved the data columns, and a "…" cut is banned. word-break:
+  /* SIL-515 (owner 26/10): a header label wraps AT SPACES, to as many
+     lines as the label needs — the old nowrap law (card 091026091550)
+     starved the data columns, and the 2-line clamp that replaced it HID
+     a third line, which is a truncation (banned table-wide). word-break:
      keep-all keeps words whole (the shattered-header defect, card
      20260922_54); the column floors above carry the longest word. */
   white-space: normal;
@@ -316,12 +319,11 @@
   padding: 0;
   width: 100%;
   text-align: inherit;
-  /* Same two-line budget as the plain th: the label (and its inline ▲▼
-     marker) wraps at spaces, never mid-word, never past line 2. */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  /* Same wrap law as the plain th (SIL-515): the label and its inline ▲▼
+     marker wrap at spaces, never mid-word. The old 2-line clamp HID
+     everything past two lines — a truncation, banned table-wide; without
+     it the sticky header row simply grows to the label it holds. */
+  display: block;
 }
 
 .detailed-plan-grid__sort.is-sorted {
@@ -356,14 +358,17 @@
   vertical-align: top;
 }
 
-/* ── Owner redesign 23/10 — the compact content-sized row ──────────────────
-   The FB-043 fixed-height body (84px + overflow:hidden) is gone: it is what
-   buried "Phát lệnh/ĐẶT ĐUÔI" behind the note clamp and turned any column
-   starvation into a clip. Rows now size to their clamped content (~64-88px):
-   every value line is ONE nowrap ellipsized line (title carries the full
-   value — the sanctioned tooltip fallback), the note stack keeps its
-   3-line clamp, and the actions own their pinned column so nothing can
-   overlap a value anymore. */
+/* ── The value-line law (SIL-515, owner 26/10) ───────────────────────────
+   The FB-043 fixed-height body (84px + overflow:hidden) is gone and the
+   23/10 "one nowrap ellipsized line per value" law is REVOKED with it:
+   the owner's SIL-515 ticket bans truncation TABLE-WIDE — every cell
+   wraps its full text and the wrapper's horizontal rail (the table's
+   min-width + overflow:auto) carries the width instead of a cut. The
+   ellipsis era is also what OVERLAPPED the columns: a nowrap line
+   refuses to shrink below its one-line width inside the flex schedule
+   group and painted over the next cell ("Ngày giao đè Trả hàng"), and
+   the same pressure clipped the long port name after "NORIGHTFREIG…".
+   Rows size to their wrapped content; nothing may hide a value. */
 .detailed-plan-grid__cell-body {
   display: grid;
   align-content: start;
@@ -388,18 +393,19 @@
   min-height: 0;
 }
 
-/* One line per value: an ellipsized tail instead of a wrapped second line —
-   wrapping was the inflation mechanism of every row-height regression
-   (R22 / 141026001010 / the 23/10 screenshots). */
+/* SIL-515 (owner 26/10, supersedes the 23/10 one-line law): every value
+   line WRAPS its full text — ellipsis/nowrap/clips are banned table-wide
+   (law book §4 no-truncation doctrine; the horizontal rail carries the
+   width, never a cut). overflow-wrap: anywhere is the pressure valve for
+   an unbroken token longer than its column. */
 .detailed-plan-grid__line,
 .detailed-plan-grid .ops-schedule__datetime {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-/* The pair tag rides the ellipsized container line; it must not force a
-   second line when the number is long. */
+/* The pair tag rides the container line; it wraps as a whole token to the
+   next line when the code + tag run exceeds the column (no cut). */
 .detailed-plan-grid__pair-tag {
   flex-shrink: 0;
 }
@@ -452,15 +458,15 @@
   line-height: var(--ops-table-primary-line-height);
 }
 
-/* Container codes never wrap. Weight: the 2026-09-16 no-bold ruling is
- * SUPERSEDED 2026-10-05 by card 20261005_361 (REQ-02, owner-acked) —
- * dispatchers scan container codes first, so they carry the primary weight
- * while the port columns dropped theirs. The weight now rides the shared
- * `.ops-container-line` class (DIS-08, card 211026180428) rendered on the
- * line; this rule keeps only the surface-local size/nowrap constraints. */
+/* Container codes carry the primary weight (superseded 2026-10-05 by card
+ * 20261005_361, REQ-02 owner-acked — dispatchers scan container codes
+ * first). SIL-515: the old `white-space: nowrap` pin here is gone — the
+ * code and its pair tag wrap as whole tokens when the column is tight;
+ * nowrap + fixed layout is what painted values over the next cell. The
+ * weight rides the shared `.ops-container-line` class (DIS-08, card
+ * 211026180428). */
 .detailed-plan-grid__cell--container .detailed-plan-grid__line--strong {
   font-size: var(--text-caption-size);
-  white-space: nowrap;
 }
 
 .detailed-plan-grid__line--muted {
@@ -521,7 +527,6 @@
   font-size: var(--ops-table-meta-size);
   font-weight: 400;
   line-height: var(--ops-table-meta-line-height);
-  white-space: nowrap;
 }
 
 .detailed-plan-grid__line--notes {
@@ -546,15 +551,15 @@
   cursor: pointer;
 }
 
-.detailed-plan-grid__note-clamp {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+/* SIL-515: notes render in FULL — the 3-line clamp hid the tail (a
+   truncation, banned table-wide); the dialog stays for focused reading,
+   not as a place where the rest of the note is locked away. */
+.detailed-plan-grid__note-preview {
+  min-width: 0;
 }
 
 /* Each note line is a block span so \n is structurally rendered —
-   the -webkit-line-clamp counts these DOM lines, not CSS whitespace. */
+   the line count comes from these DOM lines, not CSS whitespace. */
 .detailed-plan-grid__note-line {
   display: block;
 }
@@ -753,12 +758,13 @@
 }
 
 /* Pair tag (LoHangKepKetHop §3.2): derived from the ACTIVE trip pair — plain
- * colored text per the project's no-badge convention. */
+ * colored text per the project's no-badge convention. SIL-515: no nowrap —
+ * "[KẾT HỢP]" wraps at its space like any other value when the column is
+ * tight (no cut, no overlap). */
 .detailed-plan-grid__pair-tag {
   margin-left: 6px;
   font-weight: 700;
   color: var(--brand);
-  white-space: nowrap;
 }
 
 /* The Ghi chú cell must wrap like every other notes surface (user report
@@ -766,21 +772,24 @@
    on one line. pre-wrap keeps the tags/text two-line note format. */
 .detailed-plan-grid [class*='__cell--notes'],
 .detailed-plan-grid [class*='__cell--notes'] .detailed-plan-grid__note,
-.detailed-plan-grid .detailed-plan-grid__note-clamp {
+.detailed-plan-grid .detailed-plan-grid__note-preview {
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 /* FB-092 — LCL cost-group tag in the Phân loại cell: names the lot's place in
-   its group ("Lẻ · Ghép (1/5)"); static text, never looks actionable. */
+   its group ("Lẻ · Ghép (1/5)"); static text, never looks actionable.
+   SIL-515: the pill wraps its own label instead of pinning one nowrap run —
+   the classification column is the narrowest on the board and the nowrap
+   pill was the next "paints over the neighbour" candidate. */
 .detailed-plan-grid__lcl-group-tag {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
   padding: 1px 8px;
   border-radius: 999px;
   font-size: 0.75rem;
   line-height: 1.4;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   background: var(--app-accent-emerald-soft, #e6f4ee);
   color: var(--app-accent-emerald-ink, #05603a);
   border: 1px solid var(--app-accent-emerald-border, #abebc6);

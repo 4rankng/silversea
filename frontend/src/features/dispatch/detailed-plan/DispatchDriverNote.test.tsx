@@ -38,9 +38,12 @@ describe('DispatchDriverNote', () => {
     expect(container.querySelector('.dispatch-driver-note__text')?.textContent).toBe('Gọi cổng\nGặp anh B');
   });
 
-  it('preserves whitespace in both read surfaces and only clamps the compact preview', () => {
+  it('preserves whitespace in both read surfaces and clamps nothing (SIL-515 — the compact preview renders in full)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchDriverNote.css'), 'utf8');
     expect(css).toMatch(/\.dispatch-driver-note__tasks,\s*\.dispatch-driver-note__text\s*\{[^}]*white-space: pre-wrap;/);
-    expect(css).toMatch(/\.dispatch-driver-note--compact \.dispatch-driver-note__tasks,\s*\.dispatch-driver-note--compact \.dispatch-driver-note__text\s*\{[^}]*-webkit-line-clamp: 2;/);
+    // SIL-515: the compact mode's 2-line clamp (a truncation) is gone —
+    // every note renders in full on the table too.
+    expect(css).not.toContain('-webkit-line-clamp');
+    expect(css).not.toMatch(/\.dispatch-driver-note--compact \.dispatch-driver-note__tasks,\s*\.dispatch-driver-note--compact \.dispatch-driver-note__text\s*\{[^}]*overflow: hidden/);
   });
 });
