@@ -37,11 +37,12 @@ function contrast(hexColor: string): number {
 const root = css.slice(css.indexOf(':root {'), css.indexOf('/* --- Sidebar'));
 
 // Documented minimums (tokens.css comment block) — real WCAG math, not
-// hand-tolerances. --bg left the ladder at SIL-496 (owner 26/10): the page
-// canvas is #FFFFFF, the same rung as --surface, so it carries no
-// distinct-from-white minimum anymore.
+// hand-tolerances. --bg is back on the ladder at SIL-523 (owner 27/10):
+// the sage #E3E8E5 canvas is global again (SIL-496 white ruling reversed),
+// so it re-carries its 1.24 distinct-from-white minimum.
 const RUNGS: Array<[string, number]> = [
   ['surface-2', 1.14],
+  ['bg', 1.24],
   ['surface-3', 1.3],
   ['border-1', 1.44],
   ['line', 1.55],
