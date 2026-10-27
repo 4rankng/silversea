@@ -182,13 +182,16 @@
       bottom padding reserves that lane (overlay-scrollbar platforms just show
       a small inset). */
 .csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; padding-bottom: 14px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
-.csc-container-table { width: 100%; min-width: 1108px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-table { width: 100%; min-width: 844px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
 .csc-container-col__index { width: 40px; }
-.csc-container-col__number { width: 128px; }
-.csc-container-col__type { width: 124px; }
+/* SIL-508 (owner 26/10): the merged SỐ CONTAINER group (SỐ / LOẠI /
+   TRỌNG LƯỢNG stacked lines) replaces the number + type + weight columns.
+   The line floor is the SỐ line's 11-char container number at the house
+   data font — the same 128px the old number column hugged; the LOẠI picker
+   ("20DC" + chevron) and the TRỌNG LƯỢNG numeric line are narrower. */
+.csc-container-col__contgroup { width: 128px; }
 .csc-container-col__route { width: 180px; }
 .csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
-.csc-container-col__weight { width: 140px; }
 .csc-container-col__actions { width: 44px; }
 .csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .csc-container-table th:last-child, .csc-container-table td:last-child { border-right: 0; }
@@ -422,6 +425,9 @@
   .csc-container-table .csc-container-row__group { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: var(--fg-3); font-size: var(--text-caption-size); font-weight: 700; letter-spacing: 0.07em; line-height: 1.35; text-transform: uppercase; }
   .csc-container-table .csc-container-row__group::after { content: ''; flex: 1; height: 1px; background: var(--line); }
   .csc-container-row .csc-container-cell { position: relative; }
+  /* SIL-508: the merged SỐ/LOẠI/TRỌNG LƯỢNG group is ONE stacked record
+     section on the phone — it owns the full row, not half of it. */
+  .csc-container-row .csc-contgroup-cell { grid-column: 1 / -1; }
   /* Route seam marker: Cảng nâng → Cảng hạ reads as one leg of the journey. */
   .csc-container-row td[data-field-id$='-pickup-port']::after { content: ''; position: absolute; z-index: 2; top: 35px; right: -11px; width: 7px; height: 7px; border-top: 2px solid var(--fg-3); border-right: 2px solid var(--fg-3); transform: rotate(45deg); pointer-events: none; }
   /* In-cell affordances align to the control band, under the new label line. */

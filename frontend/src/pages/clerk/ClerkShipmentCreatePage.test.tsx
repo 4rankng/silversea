@@ -821,7 +821,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
     const input = screen.getByLabelText('Số container') as HTMLInputElement;
-    const cell = input.closest('td');
+    // SIL-508: the SỐ line is a stacked line inside the merged SỐ CONTAINER
+    // group cell — its value-first cell is the line element, not a td.
+    const cell = input.closest<HTMLElement>('.csc-container-cell');
     expect(cell).not.toBeNull();
     expect(within(cell!).getByText('Nhập số container')).toBeTruthy();
 
@@ -1233,12 +1235,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'STT',
       'Số container',
-      'Loại container',
       'Nhà máy',
       'Tuyến đường',
       'Cảng nâng',
       'Cảng hạ',
-      'Trọng lượng (kg)',
       'Ngày giờ đóng trả',
       'Thao tác',
     ]);

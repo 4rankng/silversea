@@ -45,6 +45,15 @@
 .csc-container-cell__error { display: block; padding: 0 10px 6px; color: var(--danger); font-size: var(--text-caption-size); line-height: 1.35; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-height: 4.05em; overflow: hidden; }
 .csc-container-cell__subvalue { display: block; padding: 0 10px 6px; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.35; white-space: normal; word-break: break-word; }
 
+/* SIL-508 (owner 26/10): the merged SỐ CONTAINER group in the create form's
+   cargo table — each line carries the drawer's micro-label (SỐ / LOẠI /
+   TRỌNG LƯỢNG, CusLotView `cus-lot-microlabel`) above its own value-first
+   cell. The micro-label is presentational: the accessible name still comes
+   from the line's control. */
+.csc-container-cell__microlabel { display: block; padding: 0 10px 1px; color: var(--fg-3); font-size: var(--text-caption-size); font-weight: var(--fw-semibold, 600); line-height: 1.35; letter-spacing: 0.05em; text-transform: uppercase; }
+.csc-contgroup { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.csc-contgroup > .csc-container-cell { cursor: text; }
+
 .csc-container-cell--persistent .csc-container-cell__display { display: none; }
 .csc-container-cell--persistent .csc-container-cell__editor > * { opacity: 1; }
 /* Card 20261002_268: always-visible trailing affordance (factory detail peek).

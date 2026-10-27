@@ -13,14 +13,12 @@ const spreadsheetCellCss = readFileSync(
 // ClerkShipmentCreatePage.test.tsx and ShipmentCreateWorkspace.*.test.tsx.
 const CONTAINER_COLUMNS = [
   'index',
-  'number',
-  'type',
+  'contgroup',
   'route',
   'pickup-port',
   'dropoff-port',
   'factory',
   'appointment',
-  'weight',
   'actions',
 ] as const;
 
@@ -58,8 +56,9 @@ describe('shipment create responsive layout', () => {
   });
 
   it('fills the desktop workspace while keeping short-value columns compact', () => {
-    // The sheet declares a width for each of the ten columns the desktop
-    // workspace lays out.
+    // The sheet declares a width for each of the eight columns the desktop
+    // workspace lays out (SIL-508: number + type + weight merged into the
+    // single SỐ CONTAINER group column).
     for (const column of CONTAINER_COLUMNS) {
       expect(css).toMatch(new RegExp(`\\.csc-container-col__${column}[\\s,][^{]*\\{[^}]*width:`));
     }
@@ -69,16 +68,16 @@ describe('shipment create responsive layout', () => {
     // `overflow-y: auto` and the horizontal scrollbar's height makes the table
     // overflow vertically — the page painted TWO scrollbars over one table.
     expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*hidden;/);
-    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1108px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*844px;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*180px;/);
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
-    // SIL-513: the weight column hugs its TRUE floor — the FB-063 single-line
-    // nowrap header "TRỌNG LƯỢNG (KG)" measures 127px (+12px padding = 139)
-    // in the live DOM (qa/2026-10-26_sil513-copy-stt/), so 140px is the
-    // honest minimum; anything narrower shears the header into the actions
-    // column. Shortening further is a LABEL decision (owner's call).
-    expect(Number(/\.csc-container-col__weight\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(138);
-    expect(Number(/\.csc-container-col__weight\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeLessThanOrEqual(144);
+    // SIL-508: the merged group column hugs the SỐ line's floor — the 11-char
+    // container number at the house data font, the same 128px the old number
+    // column carried. The LOẠI picker and TRỌNG LƯỢNG lines are narrower and
+    // stack inside it; the dead type (124px) and weight (140px) tracks are
+    // gone and their width flows to the auto columns.
+    expect(Number(/\.csc-container-col__contgroup\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(128);
+    expect(css).not.toMatch(/\.csc-container-col__(?:type|weight|number)\s*\{/);
     expect(css).toMatch(/\.csc-container-col__actions\s*\{[^}]*width:\s*44px;/);
     expect(css).toMatch(/\.csc-container-col__pickup-port,\s*\.csc-container-col__dropoff-port,\s*\.csc-container-col__factory\s*\{[^}]*width:\s*auto;/);
     // The appointment column is deliberately NOT auto: the SplitDateTimeField
@@ -113,10 +112,9 @@ describe('shipment create responsive layout', () => {
     // (kg)" 141px incl. padding) sit under their column widths above.
     expect(css).toMatch(/\.csc-container-table thead th\s*\{[^}]*white-space:\s*nowrap;[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*normal;/);
     expect(css).not.toMatch(/\.csc-container-table thead th\s*\{[^}]*white-space:\s*normal;/);
-    expect(Number(/\.csc-container-col__type\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(122);
-    // SIL-513: the weight floor is the FB-063 single-line header (127px text
-    // + 12px padding, live-measured) — 140px, not the stale 141 claim.
-    expect(Number(/\.csc-container-col__weight\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(138);
+    // SIL-508: the merged group column hugs the SỐ line floor (128px); the
+    // standalone LOẠI/weight header-width pins died with the merge.
+    expect(Number(/\.csc-container-col__contgroup\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(128);
     expect(css).toMatch(/\.csc-container-table thead th\s*\{[^}]*background:\s*var\(--surface-2\);[^}]*font-weight:\s*700;/);
     expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-table thead,\s*\.csc-container-table colgroup\s*\{[^}]*display:\s*none;/);
     expect(css).toMatch(/@container\s*\(max-width:\s*620px\)[\s\S]*?\.csc-container-row\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
