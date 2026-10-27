@@ -21,10 +21,13 @@ describe('Input', () => {
     expect(screen.getByLabelText('Số container')).toHaveClass('!pr-9');
   });
 
-  it('ellipsizes overflowing placeholder/value instead of clipping mid-word (SIL-541)', () => {
+  it('carries the no-mid-word-cut law: overflowing placeholder/value ends in an ellipsis (SIL-541)', () => {
     // Shared no-mid-word-cut law: a placeholder or committed value longer
     // than the field ends in a clean ellipsis ('Gõ chọn hoặc nhập hãng tì'
     // was the reported mid-word clip on the create form's Hãng tàu field).
+    // jsdom cannot lay out text, so this pins the class that renders the
+    // glyph; the rendered before/after evidence lives in
+    // qa/2026-10-28_sil541-hangtau-placeholder/.
     render(<Input aria-label="Hãng tàu" placeholder="Gõ chọn hoặc nhập hãng tàu" />);
 
     expect(screen.getByLabelText('Hãng tàu')).toHaveClass('text-ellipsis');

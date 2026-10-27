@@ -220,8 +220,14 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                 <div className="uui-combobox__input relative flex min-w-0 w-full items-center">
                     {inputValue && (
                         <span className={cx("absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 truncate", sizes[size].textContainer, onClear && hasClearableValue && !isDisabled && "pr-8")} aria-hidden="true">
-                            <p className={cx("font-medium text-primary", sizes[size].text)}>{first}</p>
-                            {last && <p className={cx("-ml-0.75 text-tertiary", sizes[size].text)}>{last}</p>}
+                            {/* SIL-541 review: `text-overflow` is inert on the
+                                flex container itself — the ellipsis must live
+                                on the block `<p>` children (same structure as
+                                Select's trigger), else an overflowing
+                                committed value is hard-clipped mid-word with
+                                no glyph. */}
+                            <p className={cx("min-w-0 truncate font-medium text-primary", sizes[size].text)}>{first}</p>
+                            {last && <p className={cx("-ml-0.75 min-w-0 truncate text-tertiary", sizes[size].text)}>{last}</p>}
                         </span>
                     )}
 

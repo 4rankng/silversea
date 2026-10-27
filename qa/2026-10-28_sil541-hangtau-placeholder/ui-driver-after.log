@@ -20,3 +20,15 @@
 2026-10-27T18:03:06.908Z PASS input declares a clean overflow treatment (ellipsis) @1024 {"textOverflow":"ellipsis","fits":true}
 2026-10-27T18:03:11.730Z @1024 field={"found":true,"placeholder":"Gõ chọn hoặc nhập hãng tàu","inputW":367.5,"textW":168.4,"fits":true,"paddingLeft":"0px","paddingRight":"0px","textOverflow":"ellipsis","overflow":"clip","fontSize":"12px"}
 2026-10-27T18:03:11.731Z EXIT=0
+2026-10-27T18:14:55.824Z login ok admin (ADMIN)
+2026-10-27T18:15:00.825Z PASS placeholder fits or ends in a clean ellipsis @1440 {"inputW":154,"textW":168.4,"ph":"Gõ chọn hoặc nhập hãng tàu","textOverflow":"ellipsis","path":"ellipsis"}
+2026-10-27T18:15:00.826Z PASS input declares a clean overflow treatment (ellipsis) @1440 {"textOverflow":"ellipsis","fits":false}
+2026-10-27T18:15:07.165Z @1440 field={"found":true,"placeholder":"Gõ chọn hoặc nhập hãng tàu","inputW":154,"textW":168.4,"fits":false,"paddingLeft":"0px","paddingRight":"0px","textOverflow":"ellipsis","overflow":"clip","fontSize":"12px"}
+2026-10-27T18:15:09.908Z PASS committed long value ghost ellipsizes (not hard-clipped) @1440 [{"text":"CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM — Lô C7-2 KC","to":"ellipsis","ws":"nowrap","ov":"hidden"}]
+2026-10-27T18:15:20.766Z PASS placeholder fits or ends in a clean ellipsis @1280 {"inputW":162,"textW":168.4,"ph":"Gõ chọn hoặc nhập hãng tàu","textOverflow":"ellipsis","path":"ellipsis"}
+2026-10-27T18:15:20.766Z PASS input declares a clean overflow treatment (ellipsis) @1280 {"textOverflow":"ellipsis","fits":false}
+2026-10-27T18:15:26.483Z @1280 field={"found":true,"placeholder":"Gõ chọn hoặc nhập hãng tàu","inputW":162,"textW":168.4,"fits":false,"paddingLeft":"0px","paddingRight":"0px","textOverflow":"ellipsis","overflow":"clip","fontSize":"12px"}
+2026-10-27T18:15:31.604Z PASS placeholder fits or ends in a clean ellipsis @1024 {"inputW":367.5,"textW":168.4,"ph":"Gõ chọn hoặc nhập hãng tàu","textOverflow":"ellipsis","path":"fits"}
+2026-10-27T18:15:31.604Z PASS input declares a clean overflow treatment (ellipsis) @1024 {"textOverflow":"ellipsis","fits":true}
+2026-10-27T18:15:37.427Z @1024 field={"found":true,"placeholder":"Gõ chọn hoặc nhập hãng tàu","inputW":367.5,"textW":168.4,"fits":true,"paddingLeft":"0px","paddingRight":"0px","textOverflow":"ellipsis","overflow":"clip","fontSize":"12px"}
+2026-10-27T18:15:37.427Z EXIT=0

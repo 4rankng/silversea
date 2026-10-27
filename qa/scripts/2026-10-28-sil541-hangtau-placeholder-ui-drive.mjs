@@ -76,6 +76,25 @@ for (const width of WIDTHS) {
   const el = await page.$('[data-field-id="shipment-shipping-line"]');
   await el.screenshot({ path: resolve(OUT, `${PHASE}-field-${width}.png`) });
   log(`@${width} field=${JSON.stringify(m)}`);
+
+  // Committed-value ghost layer (SIL-541 review): type a long custom value,
+  // blur, and screenshot the ghost — the block `<p>` children must end in a
+  // clean ellipsis (not a hard mid-glyph clip).
+  if (width === 1440) {
+    const LONG = 'CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM — Lô C7-2 KCN Quế Võ';
+    await page.click("input[placeholder='Gõ chọn hoặc nhập hãng tàu']", { clickCount: 3 });
+    await page.type("input[placeholder='Gõ chọn hoặc nhập hãng tàu']", LONG);
+    await page.keyboard.press('Escape');
+    await page.click('body');
+    await sleep(400);
+    const ghost = await page.evaluate(() => {
+      const ps = [...document.querySelectorAll('[data-uui-control="combobox"] span[aria-hidden="true"] p')];
+      return ps.map((p) => ({ text: p.textContent?.slice(0, 50), to: getComputedStyle(p).textOverflow, ws: getComputedStyle(p).whiteSpace, ov: getComputedStyle(p).overflowX }));
+    });
+    check(`committed long value ghost ellipsizes (not hard-clipped) @${width}`, ghost.length > 0 && ghost.every((p) => p.to === 'ellipsis' && p.ws === 'nowrap'), ghost);
+    const el2 = await page.$('[data-field-id="shipment-shipping-line"]');
+    await el2.screenshot({ path: resolve(OUT, `${PHASE}-field-value-ghost-${width}.png`) });
+  }
 }
 
 writeFileSync(resolve(OUT, `assertions-${PHASE}.json`), JSON.stringify(result, null, 2));

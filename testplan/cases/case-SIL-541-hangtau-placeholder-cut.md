@@ -26,27 +26,48 @@ chữ placeholder 168.4px → cắt tại 'hãng tì'.
   tràn ô → ellipsis; hành vi caret/sửa chữ không đổi). Sweep sibling: mọi
   UUI input khác (Bill/Booking, Tiền cược dự kiến,…) hết lớp cắt-giữa-chữ.
 
+## Review độc lập (code-reviewer DONE_WITH_CONCERNS → đã xử lý)
+
+1. MAJOR — `truncate` trên ghost span `inline-flex` của ComboBox là INERT
+   (`text-overflow` chỉ áp dụng block container): value đã chọn tràn ô vẫn
+   bị cắt cứng giữa chữ, không có glyph. Fix: `truncate min-w-0` xuống đúng
+   phần tử block `<p>` con (mirror cấu trúc Select trigger), pin test đổi
+   sang pin trên `<p>`. Rung-3 sau fix: value dài 'CÔNG TY TNHH C…' —
+   ellipsis sạch (`after-field-value-ghost-1440.png`).
+2. MINOR — sweep thiếu Select trigger: placeholder `<p>` không có treatment
+   (latent — chưa có placeholder Select nào dài trong app). Fix: thêm
+   `truncate` + pin `select.test.tsx`.
+3. NIT — tên test Input overstates coverage → sửa comment ghi rõ jsdom chỉ
+   pin class, by-rendered evidence ở qa/ dir.
+
 ## Case pin (expected sau thay đổi)
 
 1. @1440/1280 (input 154–162px < chữ 168.4px): placeholder hiện
    'Gõ chọn hoặc nhập hån…' — ellipsis sạch, KHÔNG cắt giữa chữ.
 2. @1024 (input 367.5px): placeholder hiện ĐỦ — không ellipsis.
-3. Value đã chọn dài hơn ô: ghost value ellipsis (truncate) — không đổi.
-4. Sibling: mọi Input/ComboBox UUI khác có cùng treatment (class
-   `text-ellipsis` trên input native).
+3. Value đã chọn dài hơn ô: ghost value ellipsis trên `<p>` block
+   ('CÔNG TY TNHH C…') — không cắt cứng giữa chữ.
+4. Sibling: mọi Input/ComboBox UUI + Select trigger placeholder có cùng
+   treatment (class `text-ellipsis` / `truncate`).
 
 ## Regression lock
 
 - `combobox.test.tsx` — pin `text-ellipsis` trên input native + `truncate`
-  trên ghost value (SIL-541 test).
+  trên `<p>` block của ghost value (SIL-541 tests).
 - `input.test.tsx` — pin `text-ellipsis` trên Input base.
+- `select.test.tsx` — pin `truncate` trên placeholder `<p>` của Select
+  trigger.
 
 ## Gates
 
 - Scoped vitest: untitled-ui + design-system/forms + features/shipments +
   ShipmentsPage + clerk (105 file / 1105 test) + styles/design-system sweep
-  (416 test) — pass.
+  (416 test) — pass; select/input/combobox scoped 30 test pass.
 - tsgo --noEmit — 0.
 - Rung 3 driver `qa/scripts/2026-10-28-sil541-hangtau-placeholder-ui-drive.mjs`
-  EXIT=0 @1440/1280/1024 (before: server cũ cắt giữa chữ — after: ellipsis;
-  artifacts `qa/2026-10-28_sil541-hangtau-placeholder/`).
+  EXIT=0 @1440/1280/1024 (before: server cũ cắt giữa chữ — after: ellipsis
+  placeholder + ghost value; artifacts
+  `qa/2026-10-28_sil541-hangtau-placeholder/`).
+- Coverage: Chrome headless (puppeteer, DPR 1) @1440/1280/1024; Safari/
+  Firefox chưa drive (text-overflow trên input là treatment chuẩn mọi
+  evergreen engine — rủi ro thấp); role ADMIN; FCL mode.
