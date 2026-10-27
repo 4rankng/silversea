@@ -172,7 +172,14 @@ export function CusShipmentRow({
       {!isHidden('documents') && (<td data-label="Chứng từ" className="cus-dashboard-cell--editable">
         <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' && item.fieldAccess.declarationNumber.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => onStartQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
           <strong className={item.billOrBookNumber ? undefined : 'cus-empty'}>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
-          <span className={declarationNumbers.length > 0 ? undefined : 'cus-empty'}>{declarationNumbers.length > 0 ? declarationNumbers.join(', ') : 'Chưa có tờ khai'}</span>
+          {/* SIL-532: TẤT CẢ số tờ khai của lô — mỗi số MỘT DÒNG riêng (grid
+              row của .cus-multiline-cell), không phải một đoạn join(', ') chạy
+              dài có thể bị ngắt giữa số khi cột hẹp. Không truncate: số dài
+              hơn cột vẫn wrap nguyên vẹn (overflow-wrap), chỉ không bao giờ
+              gãy giữa hai số. */}
+          {declarationNumbers.length > 0
+            ? declarationNumbers.map((number) => <span key={number}>{number}</span>)
+            : <span className="cus-empty">Chưa có tờ khai</span>}
         </span></button>
       </td>)}
       {!isHidden('classification') && (<td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">

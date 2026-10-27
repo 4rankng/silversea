@@ -1218,7 +1218,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     })));
   });
 
-  it('joins every declaration number in the Chứng từ cell, XLSX-style', async () => {
+  it('shows every declaration number, one per line, in the Chứng từ cell (SIL-532)', async () => {
     const multiDeclaration: ShipmentCusWorkspaceListItem = {
       ...row,
       declarationNumbers: ['TK-54321', 'TK-77777'],
@@ -1232,7 +1232,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
 
     const cell = screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' });
-    expect(cell.textContent).toContain('TK-54321, TK-77777');
+    expect(screen.getByText('TK-54321')).toBeTruthy();
+    expect(screen.getByText('TK-77777')).toBeTruthy();
+    // Two separate line elements — not one joined ', ' run.
+    const lines = [...cell.querySelectorAll('span')].filter((el) => /^TK-\d{5}$/.test(el.textContent ?? ''));
+    expect(lines).toHaveLength(2);
   });
 
   it('documents quick-edit với Bill/Booking READ_ONLY: nhóm bị chặn mở — hết đường ghi tờ khai cấp lô (SIL-521)', async () => {
