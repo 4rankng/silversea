@@ -1,0 +1,13 @@
+ id  | container_number | declaration_number |       updated_at        
+-----+------------------+--------------------+-------------------------
+ 275 | MSKU1234565      | TK-R42RV-001       | 2026-10-27 14:09:14.033
+ 276 | MSKU1234570      | TK-R42RV-001       | 2026-10-27 14:09:14.033
+(2 rows)
+
+
+DB side-effect note (owner contract §9.3): the drive typed TK-R42RV-001 into the
+MSKU1234565 cell (shipment_containers id=275). The psql capture above shows BOTH
+containers of lot R42RV-FCL (275 + 276 MSKU1234570) carrying the number at the
+same updated_at — the FB-109 auto-copy onto the still-empty sibling fired
+server-side in the same transaction, and the board refetch painted both rows.
+

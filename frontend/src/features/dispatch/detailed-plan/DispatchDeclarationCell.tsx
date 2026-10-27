@@ -1,0 +1,185 @@
+import { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../../../hooks/useAuth';
+import { Role } from '@tingting/shared';
+import { useToastOptional } from '../../../components/shared/Toast';
+import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
+
+/**
+ * SIL-591/593 — the SỐ TỜ KHAI cell of the detailed-plan grid, on the
+ * SIL-521 per-container model:
+ *
+ * - FCL row: the container's OWN number (`shipment_containers.declaration_
+ *   number` — the value the per-cont command writes, so the cell shows what
+ *   the edit persists, never a stale lot-level projection). Click-to-edit
+ *   inline (owner ruling: the cell click IS the edit affordance — no extra
+ *   Sửa button, card 20261006_537) for CUS/Quản trị/Quản lý — the card
+ *   261013200312 writer law; DISPATCHER/ACCOUNTANT get static text with no
+ *   edit affordance (the server would 403).
+ * - LCL row: no container — the lot's declaration list reads out as text.
+ *   Lot-level editing keeps its existing homes (CusLotView / ledger /
+ *   quick-edit modal); this surface stays read-only there.
+ *
+ * Save = POST /shipments/cus-workspace/:id/containers/:lineId with
+ * `{ expectedShipmentVersion, declarationNumber }` + an Idempotency-Key (the
+ * FB-109 auto-copy runs server-side; a 409 duplicate names the other lot
+ * verbatim per card 20261005_354). Enter commits, Escape reverts; the cell
+ * refreshes through `onSaved` so the whole board re-reads (a synced sibling
+ * changes other rows too).
+ */
+export function DispatchDeclarationCell({ row, onSaved }: {
+  row: DispatchDetailPlanRow;
+  /** Called after a successful save — the page refetches the rows. */
+  onSaved?: () => void;
+}) {
+  const toastCtx = useToastOptional();
+  const user = useAuth()?.user;
+  // Card 261013200312 — tờ khai writes are CUS/Quản trị/Quản lý only.
+  const canEdit = user != null
+    && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS)
+    && row.shipmentContainerId != null;
+
+  const baseline = row.cargoMode === 'FCL'
+    ? (row.container.declarationNumber ?? '').trim()
+    : '';
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(baseline);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const baselineRef = useRef(baseline);
+  baselineRef.current = baseline;
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  // A row key change (sort/refetch) must not leak a stale draft into the new
+  // row's editor state.
+  const rowKey = `${row.shipmentId}:${row.shipmentContainerId ?? 'lcl'}`;
+  const rowKeyRef = useRef(rowKey);
+  if (rowKeyRef.current !== rowKey) {
+    rowKeyRef.current = rowKey;
+    setEditing(false);
+    setDraft(baseline);
+  }
+
+  const openEditor = () => {
+    if (!canEdit || saving) return;
+    setDraft(baselineRef.current);
+    setEditing(true);
+  };
+
+  const revert = () => {
+    setDraft(baselineRef.current);
+    setEditing(false);
+  };
+
+  const commit = () => {
+    if (!canEdit || saving) return;
+    const next = draft.trim();
+    if (next === baselineRef.current) {
+      revert();
+      return;
+    }
+    setSaving(true);
+    void updateCusShipmentContainerLine(
+      row.shipmentId,
+      row.shipmentContainerId as number,
+      { expectedShipmentVersion: row.shipmentVersion, declarationNumber: next || null },
+      crypto.randomUUID(),
+    )
+      .then((result) => {
+        setEditing(false);
+        const synced = result.declarationSync?.updatedContainerIds.length ?? 0;
+        toastCtx?.toast({
+          kind: 'success',
+          message: synced > 0
+            ? `Đã lưu số tờ khai — tự điền thêm cho ${synced} container còn trống của lô.`
+            : 'Đã lưu số tờ khai.',
+        });
+        onSaved?.();
+      })
+      .catch((error: unknown) => {
+        // Card 20261005_354: surface the backend's precise reason verbatim
+        // (409 trùng lô khác, 403 vai trò, 409 version conflict).
+        const message = error instanceof Error && error.message
+          ? error.message
+          : 'Không lưu được số tờ khai.';
+        toastCtx?.toast({ kind: 'error', message });
+        setSaving(false);
+      });
+  };
+
+  // LCL rows (and any row without a container line) read the lot's list.
+  if (row.cargoMode !== 'FCL') {
+    const lotNumbers = (row.docs.declarationNumbers ?? []).filter((value) => value.trim());
+    return (
+      <div className="detailed-plan-grid__cell-body">
+        <div
+          className={lotNumbers.length === 0 ? 'detailed-plan-grid__line detailed-plan-grid__line--missing' : 'detailed-plan-grid__line'}
+          title={lotNumbers.join(', ') || undefined}
+        >
+          {lotNumbers.length > 0 ? lotNumbers.join(', ') : 'Chưa có tờ khai'}
+        </div>
+      </div>
+    );
+  }
+
+  if (editing) {
+    return (
+      <div className="detailed-plan-grid__cell-body detailed-plan-grid__decl-editor">
+        <input
+          ref={inputRef}
+          className="detailed-plan-grid__decl-input"
+          value={draft}
+          maxLength={50}
+          disabled={saving}
+          aria-label="Số tờ khai"
+          placeholder="Nhập số tờ khai"
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              commit();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              revert();
+            }
+          }}
+          onBlur={revert}
+        />
+        <span className="detailed-plan-grid__decl-hint">Enter lưu · Esc thoát</span>
+      </div>
+    );
+  }
+
+  if (!canEdit) {
+    return (
+      <div className="detailed-plan-grid__cell-body">
+        <div
+          className={baseline ? 'detailed-plan-grid__line detailed-plan-grid__decl-value' : 'detailed-plan-grid__line detailed-plan-grid__line--missing'}
+          title={baseline || undefined}
+        >
+          {baseline || 'Chưa có tờ khai'}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="detailed-plan-grid__cell-body">
+      <button
+        type="button"
+        className={`detailed-plan-grid__decl-value--action${baseline ? '' : ' is-empty'}`}
+        onClick={openEditor}
+        aria-label={`Sửa số tờ khai · ${row.container.containerNumber?.trim() || 'lô hàng lẻ'}`}
+        title={baseline ? `Sửa số tờ khai: ${baseline}` : 'Bấm để nhập số tờ khai'}
+      >
+        {baseline || 'Chưa có tờ khai'}
+      </button>
+    </div>
+  );
+}

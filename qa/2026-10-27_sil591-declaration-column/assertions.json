@@ -1,0 +1,57 @@
+{
+  "viewport": "1440x900",
+  "declarationValue": "TK-R42RV-001",
+  "checks": [
+    {
+      "name": "SỐ TỜ KHAI column present on the board",
+      "pass": true,
+      "detail": [
+        "Thời gian & lịch trình ↕",
+        "Khách hàng & lộ trình ↕",
+        "Nâng hàng",
+        "Trả hàng ↕",
+        "Tuyến đường",
+        "Container",
+        "Số tờ khai",
+        "Điều phối",
+        "Phân loại",
+        "Ghi chú",
+        "Thao tác"
+      ]
+    },
+    {
+      "name": "dispatcher cell renders the read-only value",
+      "pass": true,
+      "detail": "Chưa có tờ khai"
+    },
+    {
+      "name": "dispatcher clicking does NOT open an inline editor (403 law surfaced as no affordance)",
+      "pass": true,
+      "detail": {
+        "hadButton": false,
+        "inputAfterClick": false
+      }
+    },
+    {
+      "name": "manager sees the edit affordance",
+      "pass": true,
+      "detail": "decl edit button present"
+    },
+    {
+      "name": "post-click DOM assertion: the cell shows the saved declaration",
+      "pass": true,
+      "detail": {
+        "cellText": "TK-R42RV-001",
+        "expected": "TK-R42RV-001"
+      }
+    },
+    {
+      "name": "editor closed after save",
+      "pass": true,
+      "detail": {
+        "inputStill": false
+      }
+    }
+  ],
+  "pass": true
+}

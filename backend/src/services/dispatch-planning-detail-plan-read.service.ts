@@ -345,6 +345,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       pickupLocation: s.shipments.pickupLocation,
       deliveryLocation: s.shipments.deliveryLocation,
       containerNumber: s.shipmentContainers.containerNumber,
+      // SIL-591: the row's OWN per-container tờ khai (shipment_containers
+      // attribute — the SIL-521 store). docs.declarationNumbers carries the
+      // lot-level entity list only, which misses container-level values
+      // written through the per-cont command.
+      containerDeclarationNumber: s.shipmentContainers.declarationNumber,
       containerCargoWeightKg: s.shipmentContainers.cargoWeightKg,
       containerTypeId: s.shipmentContainers.containerTypeId,
       containerTypeName: s.containerTypes.name,
@@ -542,6 +547,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             containerNumber: row.containerNumber,
             containerTypeLabel: row.containerTypeName ?? row.containerTypeCode ?? null,
             cargoWeightKg: row.containerCargoWeightKg ?? row.cargoWeightKg,
+            // SIL-591 — this row's own per-container tờ khai (the SIL-521
+            // store); null for LCL rows (no container — the lot's numbers
+            // ride docs.declarationNumbers).
+            declarationNumber: row.containerDeclarationNumber ?? null,
           },
           // FB-092 LCL facts — the lot's own cargo (the CONTAINER cell's 2nd/3rd
           // lines) and its cost-group tag + truck identity.

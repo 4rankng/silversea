@@ -38,7 +38,7 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
   });
 
   it('keeps the owner floors at the table minimum: Khách hàng ≥180px, Điều phối ≥200px, Ghi chú ≥160px', () => {
-    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'assignment', 'classification', 'notes', 'actions'];
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'classification', 'notes', 'actions'];
     const shares = names.map((name) => columnShare(name));
     // The ports class covers both port columns (two <col> elements share it).
     const total = shares.reduce((sum, share) => sum + share, 0) + columnShare('ports');
@@ -102,7 +102,7 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     // 7% ≈ 94px at the 1340px floor — "PHÂN LOẠI" fits one line.
     expect(columnShare('classification')).toBe(7);
     // The 0.9% came back off Container, keeping the sum at exactly 100.
-    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'assignment', 'classification', 'notes', 'actions'];
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'classification', 'notes', 'actions'];
     const total = names.map((name) => columnShare(name)).reduce((sum, share) => sum + share, 0) + columnShare('ports');
     expect(total).toBe(100);
   });

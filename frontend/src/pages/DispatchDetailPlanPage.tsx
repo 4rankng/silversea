@@ -307,6 +307,7 @@ export default function DispatchDetailPlanPage() {
           onLclTruckUpdated={() => { void detailPlan.refresh(); }}
           onChangeGroupTruck={setGroupTruckRow}
           onDeleteLot={requestDeleteLot}
+          onRowsChanged={() => { void detailPlan.refresh(); }}
         />
         {selectedLclRows.length > 0 && (
           <div className="lcl-selection-bar" role="status">

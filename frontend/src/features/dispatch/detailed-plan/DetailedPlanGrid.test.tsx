@@ -174,7 +174,7 @@ describe('DetailedPlanGrid', () => {
     expect(container.textContent).not.toContain('Chưa có cont');
   });
 
-  it('renders the 9 operational columns with multi-line typography', () => {
+  it('renders the 10 operational columns with multi-line typography (SIL-591: + Số tờ khai)', () => {
     const { container } = renderGrid([row()]);
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
@@ -185,6 +185,7 @@ describe('DetailedPlanGrid', () => {
       'Trả hàng ↕',
       'Tuyến đường',
       'Container',
+      'Số tờ khai',
       'Điều phối',
       'Phân loại',
       'Ghi chú',
@@ -221,11 +222,19 @@ describe('DetailedPlanGrid', () => {
       'Trả hàng',
       'Tuyến đường',
       'Container',
+      'Số tờ khai',
       'Điều phối',
       'Phân loại',
       'Ghi chú',
       'Thao tác',
     ]);
+    // SIL-591: the SỐ TỜ KHAI cell names the missing field by default (the
+    // row fixture carries no declaration number and tests render
+    // provider-free → read-only text, no edit affordance).
+    const declCell = Array.from(container.querySelectorAll('tr').item(1)!.querySelectorAll('td'))
+      .find((cell) => cell.getAttribute('data-label') === 'Số tờ khai');
+    expect(declCell?.textContent).toContain('Chưa có tờ khai');
+    expect(declCell?.querySelector('button')).toBeNull();
   });
 
   it('anchors the direction marker and quiet combined note on one route line', () => {
@@ -247,6 +256,7 @@ describe('DetailedPlanGrid', () => {
       'ports',
       'documents',
       'container',
+      'declaration',
       'assignment',
       'classification',
       'notes',
