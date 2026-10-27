@@ -119,6 +119,32 @@ describe('FB-043 (card 201026164000, regression #33) — shipments table uniform
     );
   });
 
+  it('SIL-540: the schedule cell line box can never clip its glyph ink (no half-cut first line)', () => {
+    // Board 606 reported the schedule cell's first line showing only the
+    // bottom half of its glyphs, touching the line beneath. At HEAD the cell
+    // measures ink 13px inside a 14.85px line box (≈0.9px slack per side) with
+    // a 3px grid gap between lines — structurally impossible to clip — and
+    // the reported state was not reproducible across 8 widths × 2 DPR × 3
+    // font stacks × 80 real rows (qa/2026-10-28_sil540-schedule-cell/).
+    // These pins hold the two invariants that make the reported class
+    // impossible; breaking either reopens the defect.
+    //
+    // Invariant 1 — the trigger's line-height factor stays ≥ 1.35: the app's
+    // Vietnamese faces carry ≈1.21em of glyph ink, so 1.35 leaves ≥0.07em of
+    // half-leading per side and `overflow: hidden` (FB-043) can never shave
+    // the top of a line under device-pixel rounding or font fallback.
+    const triggerRule = [...css.matchAll(/\.cus-inline-trigger\s*\{[^}]*\}/g)]
+      .map((match) => match[0])
+      .find((rule) => rule.includes('display: grid')) ?? '';
+    const lineHeight = Number(triggerRule.match(/line-height:\s*([\d.]+)/)?.[1]);
+    expect(lineHeight).toBeGreaterThanOrEqual(1.35);
+
+    // Invariant 2 — the cell's lines stay separated grid rows (3px gap), so
+    // two facts can never fuse into one overlapping run.
+    expect(triggerRule).toMatch(/display:\s*grid;/);
+    expect(triggerRule).toMatch(/gap:\s*3px;/);
+  });
+
   it('DOM contract: schedule cell renders exactly one dispatch status line, never duplicating or stacking', () => {
     // Row 1: Unassigned (plated=0, issued=0)
     const unassigned = makeTestShipment({
