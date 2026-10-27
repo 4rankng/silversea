@@ -16,7 +16,6 @@ import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { DisabledActionTip } from '../components/shared/DisabledActionTip';
-import { LclMergeModeToggle } from '../components/shared/LclMergeModeToggle';
 import { EmptyState } from '../design-system';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { DebitLotTable } from '../features/shipments/debit/DebitLotTable';

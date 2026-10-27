@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { fireEvent, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTableArrowScroll } from './useTableArrowScroll';
