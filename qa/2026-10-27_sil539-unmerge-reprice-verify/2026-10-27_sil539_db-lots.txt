@@ -1,0 +1,5 @@
+242||13
+244||13
+3100000|Tách nhóm — tự tra bảng giá thu khách: Xe 10T × tuyến, ngày 2026-10-26
+0|Ghép thu cước cùng Lô 1 — lô ghép giữ 0₫ cước thu (chưa phân bổ xe)
+3100000|Tách nhóm — tự tra bảng giá thu khách: Xe 10T × tuyến, ngày 2026-10-26

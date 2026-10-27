@@ -20,7 +20,7 @@ import {
   effectiveLclFreight,
   type LclFreightChannelFacts,
 } from '../../services/lcl-effective-freight';
-import { REV_LOT_AWAITING_REPRICE_REASON, REV_LOT_OWN_CUOC_REASON } from '../../services/lcl-rev-notes';
+import { REV_LOT_AWAITING_REPRICE_REASON, REV_LOT_OWN_CUOC_REASON, isRevGroupNote } from '../../services/lcl-rev-notes';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
@@ -299,3 +299,72 @@ test('cả 2 bảng tiền đọc qua MỘT pure rule (debit summary + accountin
   assert.match(close, /effectiveLclFreight\(\{/);
   assert.match(close, /formulaText: s\.freightRateSnapshots\.formulaText/);
 });
+
+// ─── SIL-539 — the split lot's price-table re-lookup (service wiring pins) ──
+
+test('SIL-539: REV leaver GIỮ loại xe (patch chỉ xóa membership) — còn Loại xe để tự tra giá', () => {
+  const svc = read('../../services/lcl-grouping.service.ts');
+  const leaverPatch = svc.slice(
+    svc.indexOf('function clearLeaverDimensionPatch'),
+    svc.indexOf('function dissolveGroupMembershipPatch'),
+  );
+  // Membership columns go; the per-lot class STAYS (the lot still has
+  // vehicle-type information — the ticket's premise).
+  assert.match(leaverPatch, /revGroupId: null, revGroupOrder: null/);
+  assert.doesNotMatch(leaverPatch, /revVehicleClassId: null/);
+  // The whole-group path keeps FB-145's explicit class clear at its call site.
+  const unmergeGroup = svc.slice(
+    svc.indexOf('export async function unmergeLclGroup'),
+    svc.indexOf('export async function unmergeLclLot'),
+  );
+  assert.match(unmergeGroup, /\.\.\.\(input\.dimension === 'REV' \? \{ revVehicleClassId: null \} : \{\}\)/);
+});
+
+test('SIL-539: unmergeLclLot tự tra bảng giá TRƯỚC khi dùng citation chờ định giá lại', () => {
+  const svc = read('../../services/lcl-grouping.service.ts');
+  const unmergeLot = svc.slice(
+    svc.indexOf('export async function unmergeLclLot'),
+    svc.indexOf('export async function promoteLclGroupsOnShipmentDelete'),
+  );
+  // The call ORDER pins the law: the re-lookup runs, and only a lane miss
+  // falls back to the awaiting-reprice citation.
+  assert.match(
+    unmergeLot,
+    /const repriced = await repriceRevLeaverFromPriceTable\((?:.|\n)*?if \(!repriced\) \{\n {8}await restateRevLeaverMoney\(/,
+  );
+});
+
+test('SIL-539: re-lookup đúng lane key (loại xe + tuyến + khách + ngày) qua resolveCustomerVehicleClassPrice', () => {
+  const svc = read('../../services/lcl-grouping.service.ts');
+  const helper = svc.slice(
+    svc.indexOf('async function repriceRevLeaverFromPriceTable'),
+    svc.indexOf('async function restateRevLeaverMoney'),
+  );
+  // The four-part lane key — missing ANY piece ⇒ no invented price.
+  assert.match(helper, /leaver\.revVehicleClassId == null \|\| leaver\.routeId == null/);
+  assert.match(helper, /leaver\.customerId == null \|\| leaver\.expectedDeliveryDate == null/);
+  // The SAME engine the merge popup and setLclLotRevClass use — no parallel one.
+  assert.match(helper, /resolveCustomerVehicleClassPrice\(\{/);
+  assert.match(helper, /vehicleSizeClassId: leaver\.revVehicleClassId/);
+  // Only a group-cited ZEROISH amount is re-priced; the lot's own non-zero
+  // money (SIL-490 sweep) is never touched.
+  assert.match(helper, /standingZeroish/);
+  assert.match(helper, /if \(!standingZeroish\) return false;/);
+  assert.match(helper, /if \(price == null\) return false;/);
+  // The write rides the standing channels only.
+  assert.match(helper, /upsertTripFinancialState\(tx, trip\.tripId/);
+  assert.match(helper, /insertRevMergeSnapshot\(tx, leaver\.id, price\.price, reason\)/);
+});
+
+test('SIL-539: reason tự tra giá KHÔNG nằm trong nhóm note — lần tách sau không ăn mất tiền', () => {
+  const svc = read('../../services/lcl-grouping.service.ts');
+  const helper = svc.slice(
+    svc.indexOf('async function repriceRevLeaverFromPriceTable'),
+    svc.indexOf('async function restateRevLeaverMoney'),
+  );
+  const reasonMatch = helper.match(/const reason = `([^`]+)`/);
+  assert.ok(reasonMatch, 'the re-lookup writes a named reason');
+  const reason = reasonMatch![1]!;
+  assert.equal(isRevGroupNote(reason), false, `reason must not parse as a group note: ${reason}`);
+});
+
