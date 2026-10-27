@@ -262,13 +262,12 @@ export function LclGroupTruckLine({
 }) {
   const group = row.cargoMode === 'LCL' ? row.lcl?.group : null;
   if (!group || !onChange) return null;
-  const billingLine = group.billingTruckNo && group.billingTruckNo !== group.actualTruckNo
-    ? ` · Ảo: ${group.billingTruckNo}`
-    : '';
   return (
     <div className="lcl-group-truck-line">
       <span className="lcl-group-truck-line__text">
-        {`BKS nhóm: ${group.actualTruckNo ?? '—'}${billingLine}`}
+        {/* SIL-537 — BKS thực only: "BKS báo khách" (ảo) is a CUS output and
+            no longer renders on the Điều vận side. */}
+        {`BKS nhóm: ${group.actualTruckNo ?? '—'}`}
       </span>
       <DisabledActionTip
         id={`lcl-group-truck-line-${row.shipmentId}`}

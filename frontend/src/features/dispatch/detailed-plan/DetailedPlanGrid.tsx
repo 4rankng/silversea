@@ -78,8 +78,11 @@ function useCardLayoutMode(): [React.Dispatch<React.SetStateAction<HTMLDivElemen
 }
 
 /** FB-092/FB-095 — the group tag's tooltip: dimension + truck identity. */
-function lclGroupTagTitle(group: { actualTruckNo: string | null; billingTruckNo: string | null }): string {
-  return `Ghép trả ĐV · BKS ${group.actualTruckNo ?? '—'}${group.billingTruckNo && group.billingTruckNo !== group.actualTruckNo ? ` · Báo khách ${group.billingTruckNo}` : ''}`;
+// SIL-537: the group tag names ONLY the BKS thực. "BKS báo khách" (ảo) is a
+// CUS-side output and must not surface anywhere on the Điều vận side (spec
+// 23/10 §1, GP-03 sweep; display half removed 27/10).
+function lclGroupTagTitle(group: { actualTruckNo: string | null }): string {
+  return `Ghép trả ĐV · BKS ${group.actualTruckNo ?? '—'}`;
 }
 
 interface DetailedPlanGridProps {
