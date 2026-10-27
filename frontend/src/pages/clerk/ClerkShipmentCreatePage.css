@@ -186,10 +186,14 @@
 .csc-container-col__index { width: 40px; }
 /* SIL-508 (owner 26/10): the merged SỐ CONTAINER group (SỐ / LOẠI /
    TRỌNG LƯỢNG stacked lines) replaces the number + type + weight columns.
-   The line floor is the SỐ line's 11-char container number at the house
-   data font — the same 128px the old number column hugged; the LOẠI picker
-   ("20DC" + chevron) and the TRỌNG LƯỢNG numeric line are narrower. */
-.csc-container-col__contgroup { width: 128px; }
+   SIL-533 (owner 27/10) re-measures the floor for the DENSE sheet: each
+   group line now sets its micro-label BESIDE the value, so the widest
+   label (TRỌNG LƯỢNG, ~11ch uppercase) shares the row with a usable
+   numeric value — 190px clears label + "Nhập kg" on one line + cell
+   padding; the freed width still flows to the auto columns at real widths
+   (min-width 844 keeps three ~72px auto tracks at the floor, where values
+   wrap per the no-truncation doctrine instead of clipping). */
+.csc-container-col__contgroup { width: 190px; }
 .csc-container-col__route { width: 180px; }
 .csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
 .csc-container-col__actions { width: 44px; }
@@ -554,6 +558,32 @@
  * narrower widths the date half spills out of the cell and the container
  * table's scroll box cuts it off. */
 .csc-container-col__appointment { width: 156px; }
+
+/* SIL-533 (owner 27/10) — DATA-DENSE cargo sheet, desktop only (≥641px;
+   the ≤620px stacked phone record keeps its touch-height form chrome).
+   The sparse sheet measured: row 187.5px, each SỐ/LOẠI/TRỌNG LƯỢNG line a
+   55.8px label-over-field tower, most of it empty paint. Three cures, all
+   scoped to this table so the CUS ledger and the drawer never move:
+   1. Cell floors drop from touch (40px) to the compact control height —
+      a mouse-driven spreadsheet, not a tap grid.
+   2. Every field inside the sheet rides the compact control height token.
+      The appointment cluster's own higher-specificity touch rule
+      (card 051026230627) still wins — that tap surface stays 40px.
+   3. The contgroup lines lay label BESIDE value (one grid line each) so a
+      line is one control tall, not label + control stacked. */
+@media (min-width: 641px) {
+  .csc-container-table .csc-container-cell__value,
+  .csc-container-table .csc-container-cell__editor { min-height: var(--control-compact-h); }
+  .csc-container-table .csc-container-cell [data-uui-control] { --uui-control-h: var(--control-compact-h); }
+  .csc-contgroup { gap: 4px; }
+  .csc-contgroup > .csc-container-cell { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; column-gap: 6px; }
+  .csc-contgroup > .csc-container-cell > .csc-container-cell__microlabel { padding: 0 0 0 10px; line-height: 1.2; }
+  /* The value band's overlay text hugs its column — the inline label already
+     spends the left side, so the 10px gutters would starve "Nhập kg". */
+  .csc-contgroup .csc-container-cell__display { padding: 0 6px; }
+  /* A line's validation paint owns the full row under its label + value. */
+  .csc-contgroup > .csc-container-cell > .csc-container-cell__error { grid-column: 1 / -1; }
+}
 
 /* Card 051026230627 — the appointment cluster is a tap surface first (its
  * whole group opens the picker): the segments keep TOUCH HEIGHT (the cure

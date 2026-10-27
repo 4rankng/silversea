@@ -469,3 +469,46 @@ describe('copy affordance AX/actionability contract (card 101026163010)', () => 
     expect(css).toMatch(/\.csc-container-row__copy \{\s*opacity:\s*1;/);
   });
 });
+
+/* SIL-533 (owner 27/10): the cargo sheet is DATA-DENSE on desktop. The sparse
+ * sheet measured 187.5px per container row with 55.8px label-over-field
+ * towers in the SỐ CONTAINER group; these pins hold the three cures —
+ * compact cell floors, compact in-sheet controls, and label-beside-value
+ * group lines — without touching the phone record or the CUS ledger. */
+describe('cargo sheet density (SIL-533)', () => {
+  const dense = css.slice(css.indexOf('SIL-533 (owner 27/10) — DATA-DENSE'));
+
+  it('desktop cell floors ride the compact control height, scoped to this table', () => {
+    expect(dense).toMatch(/@media \(min-width: 641px\)/);
+    expect(dense).toMatch(
+      /\.csc-container-table \.csc-container-cell__value,\s*\.csc-container-table \.csc-container-cell__editor \{ min-height: var\(--control-compact-h\); \}/,
+    );
+  });
+
+  it('in-sheet fields ride the compact control token — appointment keeps its own touch law', () => {
+    expect(dense).toMatch(
+      /\.csc-container-table \.csc-container-cell \[data-uui-control\] \{ --uui-control-h: var\(--control-compact-h\); \}/,
+    );
+    // Card 051026230627 stands: the appointment cluster is a tap surface and
+    // its higher-specificity touch override must survive the compact scope.
+    expect(css).toMatch(
+      /\.csc-container-cell--appointment [\s\S]{0,160}?--uui-control-h:\s*var\(--control-touch-h/,
+    );
+  });
+
+  it('contgroup lines lay the micro-label BESIDE the value, one control tall', () => {
+    expect(dense).toMatch(
+      /\.csc-contgroup > \.csc-container-cell \{ display: grid; grid-template-columns: max-content minmax\(0, 1fr\); align-items: center; column-gap: 6px; \}/,
+    );
+    expect(dense).toMatch(
+      /\.csc-contgroup > \.csc-container-cell > \.csc-container-cell__microlabel \{ padding: 0 0 0 10px; line-height: 1\.2; \}/,
+    );
+    expect(dense).toMatch(
+      /\.csc-contgroup > \.csc-container-cell > \.csc-container-cell__error \{ grid-column: 1 \/ -1; \}/,
+    );
+  });
+
+  it('the group column clears the widest label (TRỌNG LƯỢNG) beside a usable value', () => {
+    expect(Number(/\.csc-container-col__contgroup\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(190);
+  });
+});
