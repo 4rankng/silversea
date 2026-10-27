@@ -615,45 +615,76 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           )}
                         </div>
                       )}
+                      {/* SIL-507 QA 27/10: the FB-014 row-click owns every bare
+                          click on the row, so each note line carries its own
+                          trigger — clicking OPS/NM text opens the shared note
+                          modal (full text) and never the dispatch-detail
+                          navigation. Buttons are already exempt from the
+                          row-click control guard. */}
                       {item.opsRecoveryNotes?.map(note => (
-                        <p
+                        <button
                           key={note}
-                          className="master-plan-grid__line master-plan-grid__line--notes"
+                          type="button"
+                          className="master-plan-grid__line master-plan-grid__line--notes master-plan-grid__notes-trigger"
                           title={note}
+                          onClick={() => {
+                            setActiveNoteModal({
+                              title: 'Ghi chú OPS',
+                              note,
+                              customerName: item.customerName,
+                              blNumber: item.blNumber,
+                              shipmentCode: item.shipmentCode,
+                              isOperational: false,
+                              shipment: item,
+                            });
+                          }}
                         >
                           <strong>OPS: </strong>{note}
-                        </p>
+                        </button>
                       ))}
                       {item.factoryNotes && (
                         <div
                           className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes"
                           title={item.factoryNotes}
                         >
-                          {isNoteLong(item.factoryNotes) ? (
-                            <>
-                              <div>NM: {truncateNote(item.factoryNotes)}</div>
-                              <UUIButton
-                                size="xs"
-                                color="link-color"
-                                className="master-plan-grid__note-detail-trigger"
-                                aria-label="Xem chi tiết ghi chú nhà máy"
-                                onPress={() => {
-                                  setActiveNoteModal({
-                                    title: 'Ghi chú nhà máy',
-                                    note: item.factoryNotes!,
-                                    customerName: item.customerName,
-                                    blNumber: item.blNumber,
-                                    shipmentCode: item.shipmentCode,
-                                    isOperational: false,
-                                    shipment: item,
-                                  });
-                                }}
-                              >
-                                Xem thêm
-                              </UUIButton>
-                            </>
-                          ) : (
-                            `NM: ${item.factoryNotes}`
+                          <button
+                            type="button"
+                            className="master-plan-grid__notes-trigger"
+                            title={item.factoryNotes}
+                            onClick={() => {
+                              setActiveNoteModal({
+                                title: 'Ghi chú nhà máy',
+                                note: item.factoryNotes!,
+                                customerName: item.customerName,
+                                blNumber: item.blNumber,
+                                shipmentCode: item.shipmentCode,
+                                isOperational: false,
+                                shipment: item,
+                              });
+                            }}
+                          >
+                            {`NM: ${isNoteLong(item.factoryNotes) ? truncateNote(item.factoryNotes) : item.factoryNotes}`}
+                          </button>
+                          {isNoteLong(item.factoryNotes) && (
+                            <UUIButton
+                              size="xs"
+                              color="link-color"
+                              className="master-plan-grid__note-detail-trigger"
+                              aria-label="Xem chi tiết ghi chú nhà máy"
+                              onPress={() => {
+                                setActiveNoteModal({
+                                  title: 'Ghi chú nhà máy',
+                                  note: item.factoryNotes!,
+                                  customerName: item.customerName,
+                                  blNumber: item.blNumber,
+                                  shipmentCode: item.shipmentCode,
+                                  isOperational: false,
+                                  shipment: item,
+                                });
+                              }}
+                            >
+                              Xem thêm
+                            </UUIButton>
                           )}
                         </div>
                       )}

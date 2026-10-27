@@ -611,6 +611,39 @@ describe('MasterPlanGrid', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('SIL-507 QA 27/10: NM/OPS note lines open the note modal instead of the FB-014 row navigation', () => {
+    const onOpenDispatchDetail = vi.fn();
+    render(
+      <MasterPlanGrid
+        items={[
+          item({ operationalNotes: null, factoryNotes: 'Đóng ca chiều' }),
+          item({ id: 2, operationalNotes: null, factoryNotes: null, opsRecoveryNotes: ['Giao theo chứng từ'] }),
+        ]}
+        onAllocate={vi.fn()}
+        onOpenDispatchDetail={onOpenDispatchDetail}
+        onUpdateNotes={vi.fn()}
+      />,
+    );
+
+    // The NM text itself is the trigger (buttons sit outside the row-click
+    // control guard): the shared modal opens with the full factory note and
+    // the dispatch-detail navigation never fires.
+    fireEvent.click(screen.getByRole('button', { name: /NM: Đóng ca chiều/ }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Ghi chú nhà máy' })).toBeTruthy();
+    expect(screen.getByText('Đóng ca chiều')).toBeTruthy();
+    expect(onOpenDispatchDetail).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Đóng' })[0]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // Accessible name collapses the <strong>OPS: </strong> boundary — match
+    // the colon with optional whitespace.
+    fireEvent.click(screen.getByRole('button', { name: /OPS:\s*Giao theo chứng từ/ }));
+    expect(screen.getByRole('heading', { name: 'Ghi chú OPS' })).toBeTruthy();
+    expect(onOpenDispatchDetail).not.toHaveBeenCalled();
+  });
+
   it('allows copying full note to clipboard from the note modal', async () => {
     const writeTextMock = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {

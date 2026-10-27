@@ -96,13 +96,15 @@ describe('shipment create factory cell (card 20260923_2)', { timeout: 20000 }, (
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
-    const factoryCell = document.querySelector('td[data-field-id$="-factory"]');
+    const factoryCell = document.querySelector('[data-field-id$="-factory"]');
     expect(factoryCell?.classList.contains('csc-container-cell--picker')).toBe(true);
     for (const suffix of ['-type', '-route', '-pickup-port', '-dropoff-port']) {
-      const cell = document.querySelector(`td[data-field-id$="${suffix}"]`);
+      // SIL-508: the LOẠI line is a div inside the merged SỐ CONTAINER group
+      // cell — the picker modifier rides the line element, not a td.
+      const cell = document.querySelector(`[data-field-id$="${suffix}"]`);
       expect(cell?.classList.contains('csc-container-cell--picker'), suffix).toBe(true);
     }
-    const numberCell = document.querySelector('td[data-field-id$="-number"]');
+    const numberCell = document.querySelector('[data-field-id$="-number"]');
     expect(numberCell?.classList.contains('csc-container-cell--picker')).toBe(false);
   });
 

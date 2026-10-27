@@ -130,55 +130,91 @@ export function ShipmentCreateContainerRow({
           (.csc-container-row__group below + thead owns the column labels);
           the ≤620px container rules turn them into uppercase dividers. */}
       <td className="csc-container-row__group" aria-hidden="true">Thông tin container</td>
-      <ShipmentContainerCell
-        label="Số container"
-        value={row.containerNumber}
-        placeholder="Nhập số container"
-        fieldId={`container-${row.key}-number`}
-        error={issueByField.get(`container-${row.key}-number`)}
-        onRevert={(value) => updateContainer(row.key, 'containerNumber', value)}
-        mobileFieldChrome
-      >
-        <TextField
-          id={`container-${row.key}-number`}
-          label="Số container"
-          hideLabel
-          value={row.containerNumber}
-          onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())}
-          onKeyDown={(event) => {
-            // Card 20261002_272 (PM 03/10, option a): Tab LEAVING the paired
-            // Số container field opens the Loại container picker's menu
-            // exactly once — a deliberate navigation act. Bare focus and
-            // pass-through stay closed (the 2026-09-21 ruling stands). The
-            // default Tab proceeds: focus lands on the picker, then we open.
-            if (event.key === 'Tab' && !event.shiftKey) {
-              window.setTimeout(() => typePickerOpenApi.current?.open(), 0);
-            }
-          }}
-          disabled={saving}
-          error={issueByField.get(`container-${row.key}-number`)}
-        />
-      </ShipmentContainerCell>
-      <ShipmentContainerCell
-        label="Loại container *"
-        value={containerType?.code ?? ''}
-        placeholder="Chọn loại"
-        displayTitle={containerType ? `${containerType.code} — ${containerType.name}` : undefined}
-        fieldId={`container-${row.key}-type`}
-        error={issueByField.get(`container-${row.key}-type`)}
-        picker
-        mobileFieldChrome
-      >
-        <ContainerTypeCellPicker
-          value={row.containerTypeId}
-          onChange={(value) => updateContainer(row.key, 'containerTypeId', value)}
-          options={catalogs.containerTypes ?? []}
-          fieldId={`container-${row.key}-type`}
-          saving={saving}
-          error={issueByField.get(`container-${row.key}-type`)}
-          openApiRef={typePickerOpenApi}
-        />
-      </ShipmentContainerCell>
+      {/* SIL-508 (owner 26/10) — the drawer's merged SỐ CONTAINER group lands
+          on the create form: the cell stacks SỐ / LOẠI / TRỌNG LƯỢNG as three
+          micro-labelled, click-to-edit lines (the same value-first per-line
+          editors as the standalone cells they replace — SIL-483 ghost-line
+          law). The standalone LOẠI CONTAINER / TRỌNG LƯỢNG (KG) columns die
+          with the merge. The 20261002_272 Tab hand-off (SỐ → open the LOẠI
+          picker) survives: both lines share this cell, in tab order. */}
+      <td className="csc-contgroup-cell" data-label="Số container">
+        <div className="csc-contgroup">
+          <ShipmentContainerCell
+            as="div"
+            microLabel
+            microLabelText="Số"
+            label="Số container"
+            value={row.containerNumber}
+            placeholder="Nhập số container"
+            fieldId={`container-${row.key}-number`}
+            error={issueByField.get(`container-${row.key}-number`)}
+            onRevert={(value) => updateContainer(row.key, 'containerNumber', value)}
+          >
+            <TextField
+              id={`container-${row.key}-number`}
+              label="Số container"
+              hideLabel
+              value={row.containerNumber}
+              onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())}
+              onKeyDown={(event) => {
+                // Card 20261002_272 (PM 03/10, option a): Tab LEAVING the paired
+                // Số container field opens the Loại container picker's menu
+                // exactly once — a deliberate navigation act. Bare focus and
+                // pass-through stay closed (the 2026-09-21 ruling stands). The
+                // default Tab proceeds: focus lands on the picker, then we open.
+                if (event.key === 'Tab' && !event.shiftKey) {
+                  window.setTimeout(() => typePickerOpenApi.current?.open(), 0);
+                }
+              }}
+              disabled={saving}
+              error={issueByField.get(`container-${row.key}-number`)}
+            />
+          </ShipmentContainerCell>
+          <ShipmentContainerCell
+            as="div"
+            microLabel
+            microLabelText="Loại"
+            label="Loại container *"
+            value={containerType?.code ?? ''}
+            placeholder="Chọn loại"
+            displayTitle={containerType ? `${containerType.code} — ${containerType.name}` : undefined}
+            fieldId={`container-${row.key}-type`}
+            error={issueByField.get(`container-${row.key}-type`)}
+            picker
+          >
+            <ContainerTypeCellPicker
+              value={row.containerTypeId}
+              onChange={(value) => updateContainer(row.key, 'containerTypeId', value)}
+              options={catalogs.containerTypes ?? []}
+              fieldId={`container-${row.key}-type`}
+              saving={saving}
+              error={issueByField.get(`container-${row.key}-type`)}
+              openApiRef={typePickerOpenApi}
+            />
+          </ShipmentContainerCell>
+          <ShipmentContainerCell
+            as="div"
+            microLabel
+            microLabelText="Trọng lượng"
+            label="Trọng lượng (kg)"
+            value={formatContainerWeight(row.cargoWeightKg)}
+            placeholder="Nhập kg"
+            className="csc-container-cell--numeric csc-container-cell--weight"
+            onRevert={(value) => updateContainer(row.key, 'cargoWeightKg', value)}
+          >
+            <TextField
+              label="Trọng lượng (kg)"
+              hideLabel
+              type="number"
+              min="0"
+              step="0.01"
+              value={row.cargoWeightKg}
+              onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)}
+              disabled={saving}
+            />
+          </ShipmentContainerCell>
+        </div>
+      </td>
       <td className="csc-container-row__group" aria-hidden="true">Lộ trình</td>
       <ShipmentContainerCell
         label={isAdHoc ? 'Nhà máy' : 'Nhà máy *'}
@@ -352,25 +388,6 @@ export function ShipmentCreateContainerRow({
         </div>
       </ShipmentContainerCell>
       <td className="csc-container-row__group" aria-hidden="true">Thời gian</td>
-      <ShipmentContainerCell
-        label="Trọng lượng (kg)"
-        value={formatContainerWeight(row.cargoWeightKg)}
-        placeholder="Nhập kg"
-        className="csc-container-cell--numeric csc-container-cell--weight"
-        onRevert={(value) => updateContainer(row.key, 'cargoWeightKg', value)}
-        mobileFieldChrome
-      >
-        <TextField
-          label="Trọng lượng (kg)"
-          hideLabel
-          type="number"
-          min="0"
-          step="0.01"
-          value={row.cargoWeightKg}
-          onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)}
-          disabled={saving}
-        />
-      </ShipmentContainerCell>
       <ShipmentContainerCell
         label="Ngày giờ đóng trả *"
         alwaysVisible

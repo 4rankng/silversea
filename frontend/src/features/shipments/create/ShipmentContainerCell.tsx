@@ -26,6 +26,19 @@ interface ShipmentContainerCellProps {
   error?: string;
   className?: string;
   alwaysVisible?: boolean;
+  /** SIL-508 group line: render as a stacked line (div) inside the merged
+   *  SỐ CONTAINER cell instead of a standalone table cell. All per-line
+   *  chrome (value-first reveal, Escape revert, error paint) is unchanged —
+   *  only the element and the cell padding differ. */
+  as?: 'td' | 'div';
+  /** SIL-508 group line: persistent micro-label (SỐ / LOẠI / TRỌNG LƯỢNG)
+   *  above the value — the drawer's `cus-lot-contgroup` pattern (CusLotView),
+   *  applied to the create form. Renders on every viewport and replaces the
+   *  mobile-only field chrome label for that line. */
+  microLabel?: boolean;
+  /** Short display text for the micro-label (drawer parity: SỐ / LOẠI /
+   *  TRỌNG LƯỢNG). `label` keeps the full accessible/data-label string. */
+  microLabelText?: string;
   /** Catalog-picker cell: the editor chrome reveals only while a picker menu
    *  is open inside the cell — a committed pick collapses to the value text
    *  (plus any actions) even though the input keeps focus (card 101026163000). */
@@ -77,11 +90,14 @@ export function ShipmentContainerCell({
   className,
   onRevert,
   alwaysVisible,
+  as = 'td',
+  microLabel = false,
+  microLabelText,
   picker,
   collapsePickedEditor,
   mobileFieldChrome,
 }: ShipmentContainerCellProps) {
-  const cellRef = useRef<HTMLTableCellElement>(null);
+  const cellRef = useRef<HTMLTableCellElement & HTMLDivElement>(null);
   const valueAtFocus = useRef(value);
   // A committed pick ends the cell's edit session: the editor goes back out of
   // the visible DOM (card 171026113500). `value` is the committed display
@@ -112,7 +128,7 @@ export function ShipmentContainerCell({
     control.click();
   }, [editorEditing]);
 
-  const activateCell = (event: MouseEvent<HTMLTableCellElement>) => {
+  const activateCell = (event: MouseEvent<HTMLElement>) => {
     const target = event.target as Element;
     // Portaled overlays (a picker's option list, an inline create dialog) keep
     // this cell in their React ancestry, so their clicks DO bubble here even
@@ -134,13 +150,13 @@ export function ShipmentContainerCell({
     control.click();
   };
 
-  const releaseCell = (event: FocusEvent<HTMLTableCellElement>) => {
+  const releaseCell = (event: FocusEvent<HTMLElement>) => {
     if (!collapsePickedEditor || !picked) return;
     if (event.currentTarget.contains(event.relatedTarget as Node)) return;
     setEditorEditing(false);
   };
 
-  const captureStartingValue = (event: FocusEvent<HTMLTableCellElement>) => {
+  const captureStartingValue = (event: FocusEvent<HTMLElement>) => {
     // React portals keep the cell in their event ancestry, but the picker
     // owns its own input/focus session outside this cell's DOM subtree.
     if (!event.currentTarget.contains(event.target as Node)) return;
@@ -150,7 +166,7 @@ export function ShipmentContainerCell({
     }
   };
 
-  const handleCellKeyDown = (event: KeyboardEvent<HTMLTableCellElement>) => {
+  const handleCellKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     const target = event.target as HTMLElement;
     if (!event.currentTarget.contains(target)) return;
     // Split controls own their partial draft, Escape and picker shortcuts.
@@ -174,8 +190,9 @@ export function ShipmentContainerCell({
     target.blur();
   };
 
+  const CellTag = as;
   return (
-    <td
+    <CellTag
       ref={cellRef}
       data-label={label}
       data-field-id={fieldId}
@@ -185,7 +202,13 @@ export function ShipmentContainerCell({
       onBlurCapture={releaseCell}
       onKeyDownCapture={handleCellKeyDown}
     >
-      {mobileFieldChrome && (
+      {microLabel && (
+        <span className="csc-container-cell__microlabel" aria-hidden="true">
+          {microLabelText ?? labelText}
+          {requiredMark && <span className="csc-container-cell__label-req">*</span>}
+        </span>
+      )}
+      {!microLabel && mobileFieldChrome && (
         <span className="csc-container-cell__label" aria-hidden="true">
           {labelText}
           {requiredMark && <span className="csc-container-cell__label-req">*</span>}
@@ -208,6 +231,6 @@ export function ShipmentContainerCell({
       {subValue && <span className="csc-container-cell__subvalue">{subValue}</span>}
       {actions && <span className="csc-container-cell__actions">{actions}</span>}
       {error && <span className="csc-container-cell__error">{error}</span>}
-    </td>
+    </CellTag>
   );
 }

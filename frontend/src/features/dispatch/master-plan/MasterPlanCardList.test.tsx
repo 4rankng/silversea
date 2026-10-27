@@ -235,6 +235,44 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     }));
   });
 
+  it('SIL-507 QA 27/10: NM/OPS note lines open the note modal, never the detail navigation', () => {
+    const onOpenNoteModal = vi.fn();
+    const onOpenDispatchDetail = vi.fn();
+    render(
+      <MasterPlanCardList
+        items={[
+          item({ operationalNotes: null, factoryNotes: 'Đóng ca chiều' }),
+          item({ id: 2, operationalNotes: null, factoryNotes: null, opsRecoveryNotes: ['Giao theo chứng từ'] }),
+        ]}
+        onAllocate={vi.fn()}
+        onOpenDispatchDetail={onOpenDispatchDetail}
+        onOpenNoteModal={onOpenNoteModal as unknown as (detail: ActiveNoteDetail) => void}
+        isAllocationLocked={() => false}
+        isNotesLocked={() => false}
+        notes={noteBundle()}
+      />,
+    );
+
+    // The NM line is a real trigger: modal opens with the factory note…
+    fireEvent.click(screen.getByRole('button', { name: /NM: Đóng ca chiều/ }));
+    expect(onOpenNoteModal).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Ghi chú nhà máy',
+      note: 'Đóng ca chiều',
+      isOperational: false,
+    }));
+    // …and the card-level FB-014 navigation never fires from a note tap.
+    expect(onOpenDispatchDetail).not.toHaveBeenCalled();
+
+    onOpenNoteModal.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /OPS: Giao theo chứng từ/ }));
+    expect(onOpenNoteModal).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Ghi chú OPS',
+      note: 'Giao theo chứng từ',
+      isOperational: false,
+    }));
+    expect(onOpenDispatchDetail).not.toHaveBeenCalled();
+  });
+
   it('serves the LCL merge mode exactly like the table: LCL tickable, FCL dimmed, grouped refused (spec 23/10 §2)', () => {
     const onToggleLclSelection = vi.fn();
     renderCards({
