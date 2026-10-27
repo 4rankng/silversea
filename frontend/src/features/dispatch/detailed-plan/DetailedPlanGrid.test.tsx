@@ -240,9 +240,6 @@ describe('DetailedPlanGrid', () => {
 
   it('gives every fixed-layout column an explicit share of exactly 100% over a min-width floor (owner redesign 23/10)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
-    // SIL-524 (owner 27/10): Thao tác left the shares — it is a fixed 46px
-    // rail (one button wide), so the percentage shares cover the DATA
-    // columns only and still sum to exactly 100.
     const columnNames = [
       'schedule',
       'route',
@@ -253,6 +250,7 @@ describe('DetailedPlanGrid', () => {
       'assignment',
       'classification',
       'notes',
+      'actions',
     ];
 
     const widths = columnNames.map((columnName) => {
@@ -268,9 +266,6 @@ describe('DetailedPlanGrid', () => {
     expect(widths[columnNames.indexOf('route')] * 13.4).toBeGreaterThanOrEqual(180);
     expect(widths[columnNames.indexOf('assignment')] * 13.4).toBeGreaterThanOrEqual(200);
     expect(widths[columnNames.indexOf('notes')] * 13.4).toBeGreaterThanOrEqual(160);
-    // The actions rail is one button wide (SIL-524): trigger 30px + the
-    // td's 8px side paddings.
-    expect(css).toMatch(/\.detailed-plan-grid__col--actions\s*\{\s*width:\s*46px;\s*\}/);
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1340px;/);
     expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);
     // The squeezed-table card bands are gone; the <640px surface is the
@@ -717,7 +712,7 @@ describe('DetailedPlanGrid', () => {
     ['Bill/Booking projection', null, 'BL-2026-010', 'SS-000200', 'BL-2026-010'],
     ['missing business reference', null, null, 'SS-000200', 'Chưa có số Bill/Booking'],
     ['missing business reference and internal code', null, null, '', 'Chưa có số Bill/Booking'],
-  ] as const)('renders the Hoàn thành action with %s identity and preserves its existing row callback', (_case, containerNumber, billNumber, shipmentCode, reference) => {
+  ] as const)('SIL-588: Hoàn thành is a ⋯ menu item (no inline pill) with %s identity, preserving the row callback', async (_case, containerNumber, billNumber, shipmentCode, reference) => {
     const onCompleteExternalTrip = vi.fn();
     const item = row({
       taskStatus: 'DISPATCHED',
@@ -726,14 +721,16 @@ describe('DetailedPlanGrid', () => {
       docs: { ...row().docs, billNumber },
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'CREATED' },
     });
-    renderGrid([item], { onCompleteExternalTrip });
-    // SIL-524 (owner 27/10): the wide inline pill is gone — the verb rides
-    // the row ⋯ menu, whose identity label carries the display reference
-    // (never the internal shipment code).
-    fireEvent.click(screen.getByRole('button', { name: `Thao tác dòng · ${reference}` }));
-    const action = screen.getByRole('menuitem', { name: 'Hoàn thành' });
-    expect(action).not.toHaveAccessibleName(/SS-000200|dòng 101/);
-    fireEvent.click(action);
+    const { container } = renderGrid([item], { onCompleteExternalTrip });
+    const actionsCell = container.querySelector('.detailed-plan-grid__cell--actions') as HTMLElement;
+    // No inline pill anymore: the rail must not carry a visible Hoàn thành
+    // button — the action lives INSIDE the ⋯ menu (SIL-588).
+    expect(within(actionsCell).queryByRole('button', { name: `Hoàn thành · ${reference}` })).toBeNull();
+    const kebab = within(actionsCell).getByRole('button', { name: `Thao tác dòng · ${reference}` });
+    fireEvent.click(kebab);
+    const menu = await screen.findByRole('menu', { name: `Thao tác dòng · ${reference}` });
+    const menuItem = within(menu).getByRole('menuitem', { name: /Hoàn thành/ });
+    fireEvent.click(menuItem);
     expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1);
     expect(onCompleteExternalTrip).toHaveBeenCalledWith(item);
   });

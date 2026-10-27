@@ -168,7 +168,7 @@ describe('FB-095 — Hủy ghép confirm flow (FB095-UI-02 / FB095-UI-03)', () =
     });
     renderPage();
 
-    const confirm = openBadgeConfirm('Lẻ · Ghép (1/2)');
+    const confirm = openBadgeConfirm('Ghép (1/2)');
     expect(within(confirm).getByText(/Hủy ghép nhóm 2 lô\?/)).toBeTruthy();
     expect(within(confirm).getByText(/Lô 2 sẽ thành Lô chính và nhận 100% tiền cước trả ĐV/)).toBeTruthy();
     expect(within(confirm).getByText(/Nhóm giải tán vì chỉ còn một lô/)).toBeTruthy();
@@ -185,7 +185,7 @@ describe('FB-095 — Hủy ghép confirm flow (FB095-UI-02 / FB095-UI-03)', () =
   it('non-principal lot: the guard says Lô 1 keeps the money — no promotion claim', () => {
     renderPage();
 
-    const confirm = openBadgeConfirm('Lẻ · Ghép (2/2)');
+    const confirm = openBadgeConfirm('Ghép (2/2)');
     expect(within(confirm).getByText(/Lô 1 giữ nguyên 100% tiền cước trả ĐV/)).toBeTruthy();
     expect(within(confirm).queryByText(/Lô 2 sẽ thành Lô chính/)).toBeNull();
 
@@ -198,7 +198,7 @@ describe('FB-095 — Hủy ghép confirm flow (FB095-UI-02 / FB095-UI-03)', () =
     unmergeLot.mockRejectedValue(new Error('Nhóm ghép đã chốt kế toán — không thể tách nhóm'));
     renderPage();
 
-    const confirm = openBadgeConfirm('Lẻ · Ghép (1/2)');
+    const confirm = openBadgeConfirm('Ghép (1/2)');
     fireEvent.click(within(confirm).getByRole('button', { name: 'Hủy ghép' }));
     await waitFor(() => expect(toast).toHaveBeenCalledWith({
       kind: 'error',

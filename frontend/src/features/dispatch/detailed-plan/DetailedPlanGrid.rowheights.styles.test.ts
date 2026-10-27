@@ -38,10 +38,7 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
   });
 
   it('keeps the owner floors at the table minimum: Khách hàng ≥180px, Điều phối ≥200px, Ghi chú ≥160px', () => {
-    // SIL-524 (owner 27/10): the Thao tác rail left the percentage shares —
-    // it is a fixed 46px rail (one button wide), so the shares cover the
-    // DATA columns only and must still sum to exactly 100.
-    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'assignment', 'classification', 'notes'];
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'assignment', 'classification', 'notes', 'actions'];
     const shares = names.map((name) => columnShare(name));
     // The ports class covers both port columns (two <col> elements share it).
     const total = shares.reduce((sum, share) => sum + share, 0) + columnShare('ports');
@@ -50,15 +47,15 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(width('route')).toBeGreaterThanOrEqual(180);
     expect(width('assignment')).toBeGreaterThanOrEqual(200);
     expect(width('notes')).toBeGreaterThanOrEqual(160);
+    // Nâng/Trả each fit one short port name.
     expect(width('ports')).toBeGreaterThanOrEqual(110);
-    // The actions rail is ONE button wide: trigger 30px + the td's 8px
-    // side paddings = 46px (SIL-524; the freed 10.75% share went back to
-    // the data columns above — the old SIL-519 pill+trigger 10.75%
-    // budget is gone with the inline pill).
-    const actionsPx = css.match(/\.detailed-plan-grid__col--actions\s*\{[^}]*width:\s*(\d+(?:\.\d+)?)px/)?.[1];
-    expect(actionsPx, 'the actions col must own a fixed px width').toBeTruthy();
-    expect(Number(actionsPx)).toBeGreaterThanOrEqual(44);
-    expect(Number(actionsPx)).toBeLessThanOrEqual(48);
+    // SIL-588 (owner 27/10, supersedes the SIL-519 ≥132px pill budget): the
+    // rail hosts at most TWO STACKED buttons — the 30px ⋯ trigger (or the
+    // 28px Phát lệnh icon) + 2×8px cell padding + 1px sticky border ≈ 47px —
+    // because "Hoàn thành" moved INTO the ⋯ menu. The rail stays a NARROW
+    // strip: never grows back into a pill-width budget.
+    expect(width('actions')).toBeGreaterThanOrEqual(47);
+    expect(width('actions')).toBeLessThanOrEqual(4.2 * TABLE_MIN_WIDTH / 100);
     // The formerly-fat columns came back to content budgets (owner spec
     // addendum: "cột phình thu lại vừa nội dung").
     expect(columnShare('schedule')).toBeLessThanOrEqual(10.5);
@@ -89,18 +86,38 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(css).not.toContain('.detailed-plan-grid__note-actions');
   });
 
-  it('pins the Thao tác column sticky-right — one vertical action stack, no inline sprawl', () => {
+  it('SIL-589: the LCL group tag is TEXT-ONLY (no pill) and the Phân loại column holds its header on one line', () => {
+    // The old emerald pill (border-radius: 999px + fill + border) wrapped its
+    // label vertically ("Lẻ ·"/"Ghép"/"(1/2)") and overflowed the column —
+    // §1 text-only law: a VALUE renders as plain text.
+    const tag = css.match(/\.detailed-plan-grid__lcl-group-tag\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(tag, 'the group tag rule must exist').not.toBe('');
+    expect(tag).not.toContain('border-radius: 999px');
+    expect(tag).not.toMatch(/background:\s*var\(--app-accent-emerald-soft/);
+    expect(tag).not.toMatch(/border:\s*1px/);
+    // The duplicated "Lẻ" prefix is gone from the copy (TSX pin lives with
+    // the grid tests); the cell keeps ONE "Lẻ" (the classification span).
+    expect(css).not.toContain("'Lẻ · Ghép (");
+    expect(css).not.toContain('"Lẻ · Ghép (');
+    // 7% ≈ 94px at the 1340px floor — "PHÂN LOẠI" fits one line.
+    expect(columnShare('classification')).toBe(7);
+    // The 0.9% came back off Container, keeping the sum at exactly 100.
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'assignment', 'classification', 'notes', 'actions'];
+    const total = names.map((name) => columnShare(name)).reduce((sum, share) => sum + share, 0) + columnShare('ports');
+    expect(total).toBe(100);
+  });
+
+  it('pins the Thao tác column sticky-right — one action rail, no inline sprawl', () => {
     expect(css).toMatch(/th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{[^}]*position:\s*sticky;[^}]*right:\s*0;/);
     expect(css).toMatch(/td\.detailed-plan-grid__cell--actions\s*\{[^}]*background:\s*var\(--surface\);/);
-    // SIL-524 (owner 27/10): the actions stack VERTICALLY — the send
-    // icon on top, ⋯ under it — centered in the one-button rail, so a
-    // not-yet-sent row keeps the same centered ⋯ slot (no layout jump
-    // when send appears) and nothing paints over the neighbouring cell.
+    // SIL-588 (owner 27/10): the rail STACKS its buttons vertically — the
+    // compact primary on top, the ⋯ trigger below — so a narrow 4% column
+    // can host both without wrapping sideways into the neighbour (no
+    // overlap). The old one-line flex wrap is gone with the pill.
     const rail = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(rail, 'the row-actions rule must exist').not.toBe('');
     expect(rail).toContain('flex-direction: column');
-    expect(rail).toContain('align-items: center');
-    expect(rail).toMatch(/gap:\s*[456]px/);
+    expect(rail).not.toContain('flex-wrap');
     // The inline destructive button treatment is deleted: Xóa lô lives in
     // the ⋯ menu (danger voice), never as a red inline pill again.
     expect(css).not.toContain('.detailed-plan-grid__note-action--delete');

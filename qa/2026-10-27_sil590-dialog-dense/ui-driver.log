@@ -1,0 +1,12 @@
+2026-10-27T13:47:47.134Z login ok user=dungnv
+2026-10-27T13:47:52.253Z dispatch-detail rows rendered
+2026-10-27T13:47:53.816Z plan editor dialog opened
+2026-10-27T13:47:54.866Z EXIT 2 — checks: PASS:plan editor dialog opened | PASS:dialog keeps the SIL-520 width (≥900px @1440) | PASS:fields grid is 4 tracks at ≥900 | FAIL:Phân loại + Cước thu + Cước trả share ONE row (same offsetTop ±2) | PASS:money field content-sized (≤205px) | PASS:money input itself narrow (≤170px) | PASS:Giờ điều vận + Giờ trả hàng share their own row (SIL-520 pair law) | PASS:modal body does NOT scroll (full form visible, SIL-520)
+2026-10-27T13:49:04.462Z login ok user=dungnv
+2026-10-27T13:49:07.259Z dispatch-detail rows rendered
+2026-10-27T13:49:08.826Z plan editor dialog opened
+2026-10-27T13:49:09.982Z EXIT 2 — checks: PASS:plan editor dialog opened | PASS:dialog keeps the SIL-520 width (≥900px @1440) | PASS:fields grid is 4 tracks at ≥900 | FAIL:Phân loại + Cước thu + Cước trả occupy the SAME grid row (row 2) | PASS:money field content-sized (≤205px) | PASS:money input itself narrow (≤170px) | PASS:Giờ điều vận + Giờ trả hàng share their own row (SIL-520 pair law) | PASS:modal body does NOT scroll (full form visible, SIL-520)
+2026-10-27T13:50:20.480Z login ok user=dungnv
+2026-10-27T13:50:25.479Z dispatch-detail rows rendered
+2026-10-27T13:50:27.075Z plan editor dialog opened
+2026-10-27T13:50:28.080Z EXIT 0 — checks: PASS:plan editor dialog opened | PASS:dialog keeps the SIL-520 width (≥900px @1440) | PASS:fields grid is 4 tracks at ≥900 | PASS:Phân loại + Cước thu + Cước trả occupy the SAME grid row (one template row, bottoms aligned by the grid) | PASS:money field content-sized (≤205px) | PASS:money input itself narrow (≤170px) | PASS:Giờ điều vận + Giờ trả hàng share their own row (SIL-520 pair law) | PASS:modal body does NOT scroll (full form visible, SIL-520)

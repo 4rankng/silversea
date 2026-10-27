@@ -1,5 +1,5 @@
 /**
- * FB-095 (card 181026145610) — the "Lẻ · Ghép (i/N)" badge on Kế hoạch Chi
+ * FB-095 (card 181026145610) — the "Ghép (i/N)" tag (SIL-589: classification span giữ "Lẻ", tag chỉ nhóm) on Kế hoạch Chi
  * tiết Xe was a static tooltip: QA (dungnv, R23) clicked it and found no way
  * to undo a mistaken "Gán xe nhóm". The badge is now the group's action
  * surface: clicking it opens the group menu (Xem nhóm: members / trucks) with
@@ -116,7 +116,7 @@ describe('FB-095 — the group badge opens Xem nhóm / Hủy ghép', () => {
     ], { onUnmergeLclLot: onUnmergeLot });
 
     // The badge is the trigger — QA clicked the badge itself.
-    fireEvent.click(screen.getByRole('button', { name: 'Lẻ · Ghép (1/2)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép (1/2)' }));
 
     const menu = screen.getByRole('dialog', { name: 'Nhóm ghép trả ĐV · Lẻ (1/2)' });
     // Xem nhóm: the group facts and its members with their business keys.
@@ -135,7 +135,7 @@ describe('FB-095 — the group badge opens Xem nhóm / Hủy ghép', () => {
       groupedRow(32, 'CL4C-02', 2),
     ], { onUnmergeLclLot: onUnmergeLot });
 
-    const badge = screen.getByRole('button', { name: 'Lẻ · Ghép (2/2)' });
+    const badge = screen.getByRole('button', { name: 'Ghép (2/2)' });
     expect(badge.getAttribute('title')).toContain('Ghép trả ĐV · BKS 29C-333.33');
     fireEvent.click(badge);
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Nhóm ghép trả ĐV · Lẻ (2/2)' }))
@@ -145,7 +145,7 @@ describe('FB-095 — the group badge opens Xem nhóm / Hủy ghép', () => {
 
   it('keeps the badge a static tag when the page does not wire the action', () => {
     renderGrid([groupedRow(31, 'CL4C-01', 1), groupedRow(32, 'CL4C-02', 2)]);
-    const badge = screen.getByText('Lẻ · Ghép (1/2)');
+    const badge = screen.getByText('Ghép (1/2)');
     expect(badge.tagName).toBe('SPAN');
     fireEvent.click(badge);
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -155,7 +155,7 @@ describe('FB-095 — the group badge opens Xem nhóm / Hủy ghép', () => {
     const onUnmergeLot = vi.fn();
     renderGrid([groupedRow(31, 'CL4C-01', 1)], { onUnmergeLclLot: onUnmergeLot });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lẻ · Ghép (1/2)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép (1/2)' }));
     const menu = screen.getByRole('dialog', { name: 'Nhóm ghép trả ĐV · Lẻ (1/2)' });
     expect(within(menu).getByText(/Lô 1 · CL4C-01/)).toBeTruthy();
     expect(within(menu).getByText('Còn 1 thành viên ở trang khác')).toBeTruthy();
@@ -163,8 +163,8 @@ describe('FB-095 — the group badge opens Xem nhóm / Hủy ghép', () => {
 
   it('FCL rows never get the badge — even when stale LCL group data rides along', () => {
     renderGrid([groupedRow(31, 'CL4C-01', 1, { cargoMode: 'FCL' })], { onUnmergeLclLot: vi.fn() });
-    expect(screen.queryByText(/Lẻ · Ghép/)).toBeNull();
-    expect(screen.queryByRole('button', { name: /Lẻ · Ghép/ })).toBeNull();
+    expect(screen.queryByText(/Ghép \(/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Ghép \(/ })).toBeNull();
   });
 });
 
@@ -179,7 +179,7 @@ describe('Card 191026100010 — group menu Đổi BKS nhóm (DV-B1-03)', () => {
     ], { onUnmergeLclLot: vi.fn(), onChangeGroupTruck });
 
     // Any member row's badge anchors the menu; the action raises THAT row.
-    fireEvent.click(screen.getByRole('button', { name: 'Lẻ · Ghép (2/2)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép (2/2)' }));
     const menu = screen.getByRole('dialog', { name: 'Nhóm ghép trả ĐV · Lẻ (2/2)' });
     fireEvent.click(within(menu).getByRole('button', { name: 'Đổi BKS nhóm' }));
 
@@ -191,7 +191,7 @@ describe('Card 191026100010 — group menu Đổi BKS nhóm (DV-B1-03)', () => {
 
   it('omits the action when the page does not wire it', () => {
     renderGrid([groupedRow(31, 'CL4C-01', 1)], { onUnmergeLclLot: vi.fn() });
-    fireEvent.click(screen.getByRole('button', { name: 'Lẻ · Ghép (1/2)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép (1/2)' }));
     const menu = screen.getByRole('dialog', { name: 'Nhóm ghép trả ĐV · Lẻ (1/2)' });
     expect(within(menu).queryByRole('button', { name: 'Đổi BKS nhóm' })).toBeNull();
   });

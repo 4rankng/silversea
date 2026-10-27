@@ -182,10 +182,18 @@
 
 @media (min-width: 900px) {
   .dispatch-assignment-dialog__fields {
-    grid-template-areas: 'carrier vehicle'
-      'classification combined'
-      'revenue cost'
-      'run end';
+    /* SIL-590 (owner 27/10, supersedes the ≥900 'classification combined' +
+       'revenue cost' rows): the dialog is DATA-DENSE at the SIL-520 width —
+       Phân loại shares its row with the money pair (the owner's concrete
+       ask: "Phân loại and Cước thu dự kiến on the same row"), Đóng kết hợp
+       rides the same row's last track (FCL only — LCL rows leave the track
+       empty), and the money inputs size to their CONTENT (capped 200px)
+       instead of stretching across a half dialog. Row count ≥900: 4 → 3. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas:
+      'carrier carrier vehicle vehicle'
+      'classification revenue cost combined'
+      'run run end end';
   }
 }
 
@@ -269,6 +277,15 @@
   padding-inline: 10px;
   color: var(--fg-2);
   background: var(--surface-2);
+}
+
+/* SIL-590 (owner 27/10): an amount never needs a half-dialog track — the
+   field sizes to its content (10-digit mono number + đ affix ≈ 140px), the
+   200px cap leaves headroom without stretching. justify-self keeps the
+   narrow field at its track's start so the label grid stays aligned. */
+.dispatch-assignment-dialog__money {
+  width: min(200px, 100%);
+  justify-self: start;
 }
 
 .dispatch-assignment-dialog__revenue {

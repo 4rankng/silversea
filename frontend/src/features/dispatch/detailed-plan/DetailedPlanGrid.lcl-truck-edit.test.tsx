@@ -107,7 +107,7 @@ describe('FB-095 badge menu — Đổi nhà xe/BKS (card B 18/10, B.1)', () => {
     const onLclTruckUpdated = vi.fn();
     renderGrid(onLclTruckUpdated);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lẻ · Ghép (1/2)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép (1/2)' }));
     fireEvent.click(screen.getByRole('button', { name: 'Đổi nhà xe/BKS' }));
 
     // Pre-filled from the group's stored BKS — GP-03: the "BKS báo khách"
@@ -132,7 +132,7 @@ describe('FB-095 badge menu — Đổi nhà xe/BKS (card B 18/10, B.1)', () => {
     updateLclTruckMock.mockClear();
     renderGrid(vi.fn());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Lẻ · Ghép (1/2)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghép (1/2)' }));
     fireEvent.click(screen.getByRole('button', { name: 'Đổi nhà xe/BKS' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu xe nhóm' }));
 

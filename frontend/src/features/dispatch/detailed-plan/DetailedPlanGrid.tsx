@@ -454,23 +454,20 @@ export function DetailedPlanGrid({
                 <th scope="col">Phân loại</th>
                 <th scope="col">Ghi chú</th>
                 {/* Owner redesign 23/10 — the ONE pinned action column: the ⋯
-                    row menu lives here (+ the send quick-issue icon stacked
-                    above it), never inside a data cell. SIL-524 (owner
-                    27/10): the rail is ONE button wide — send stacks ABOVE
-                    ⋯ — and "Hoàn thành" rides the ⋯ menu, so the old wide
-                    inline pill is gone. */}
+                    row menu (+ the compact primary when ready) lives here,
+                    never inside a data cell. */}
                 <th scope="col" className="detailed-plan-grid__th--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {items.map((row) => {
-                // Owner redesign 23/10 — the quick-issue send icon ("Phát
-                // lệnh" for plated-not-issued rows) rides the PINNED Thao
-                // tác column above the ⋯ menu, so the notes cell is
-                // notes-only again. SIL-524 (owner 27/10): the external
-                // trip's "Hoàn thành" verb moved INTO the ⋯ menu (the
-                // menu derives the same EXTERNAL + DISPATCHED condition),
-                // leaving the rail one button wide.
+                // SIL-588 (owner 27/10) — the primary row action ("Phát lệnh"
+                // for plated-not-issued rows) rides the PINNED Thao tác column
+                // stacked ABOVE the ⋯ menu; "Hoàn thành" for external live
+                // trips is a ⋯ MENU ITEM (the menu already owned it since the
+                // card 3-dòng redesign), no longer a second pill beside the
+                // kebab. The two conditions are mutually exclusive; same
+                // derivation as the assignment cell's chip.
                 const issueStatus = deriveDispatchIssueStatus({
                   vehicleAssigned: row.dispatch.assignedPlate != null,
                   carrierAssigned: row.dispatch.externalCarrierId != null,
@@ -705,6 +702,13 @@ export function DetailedPlanGrid({
                       {/* FB-095 — with the page wired, the badge is the group's
                           action surface (Xem nhóm / Hủy ghép); unwired it stays
                           a static tag exactly like the pre-FB-095 badge. */}
+                      {/* SIL-589 (owner 27/10): ONE label per row — the
+                          classification span above already says "Lẻ", so the
+                          group tag carries ONLY the group position, exactly
+                          the copy the phone card (issue #13) already uses.
+                          No pill chrome: §1 text-only (the old oval
+                          border-radius:999px tag wrapped vertically and
+                          overflowed the column). */}
                       {row.cargoMode === 'LCL' && row.lcl?.group && (onUnmergeLclLot ? (
                         <button
                           type="button"
@@ -712,14 +716,14 @@ export function DetailedPlanGrid({
                           title={lclGroupTagTitle(row.lcl.group)}
                           onClick={() => setGroupMenuRow(row)}
                         >
-                          {`Lẻ · Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
+                          {`Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
                         </button>
                       ) : (
                         <span
                           className="detailed-plan-grid__lcl-group-tag"
                           title={lclGroupTagTitle(row.lcl.group)}
                         >
-                          {`Lẻ · Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
+                          {`Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
                         </span>
                       ))}
                       {/* Owner redesign 23/10 — "Tách nhóm" (SPEC 18/10/2026 §4,
@@ -762,13 +766,13 @@ export function DetailedPlanGrid({
                       </div>
                     </div>
                   </td>
-                  {/* Owner redesign 23/10 (spec B) — the ONE pinned action
-                      column. SIL-524 (owner 27/10): the actions stack
-                      VERTICALLY — send icon on top, ⋯ under it — so the rail
-                      is exactly one button wide; a not-yet-sent row keeps the
-                      same centered ⋯ slot (no layout jump). "Hoàn thành" for
-                      external live trips rides the ⋯ menu below. Sticky
-                      right so it never scrolls away or covers a value. */}
+                  {/* SIL-588 (owner 27/10, supersedes the SIL-519 one-line
+                      rail): the ONE pinned action column holds at most TWO
+                      stacked buttons — the compact primary (Phát lệnh icon)
+                      on top, the ⋯ menu below. "Hoàn thành" lives INSIDE the
+                      ⋯ menu (DispatchRowActionsMenu item), so the rail
+                      narrows to its buttons instead of hosting a full-text
+                      pill. Sticky right so it never scrolls away. */}
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--actions" data-label="Thao tác">
                     <div className="detailed-plan-grid__row-actions">
                       {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}

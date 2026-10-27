@@ -1,0 +1,112 @@
+{
+  "url": "http://localhost:7185/dispatch-detail?q=KK95249354",
+  "viewport": "1440x900",
+  "checks": [
+    {
+      "name": "grouped Phân loại rows rendered on the board",
+      "pass": true,
+      "detail": 1
+    },
+    {
+      "name": "PHÂN LOẠI header present",
+      "pass": true,
+      "detail": [
+        {
+          "text": "Thời gian & lịch trình ↕",
+          "h": 51
+        },
+        {
+          "text": "Khách hàng & lộ trình ↕",
+          "h": 51
+        },
+        {
+          "text": "Nâng hàng",
+          "h": 51
+        },
+        {
+          "text": "Trả hàng ↕",
+          "h": 51
+        },
+        {
+          "text": "Tuyến đường",
+          "h": 51
+        },
+        {
+          "text": "Container",
+          "h": 51
+        },
+        {
+          "text": "Điều phối",
+          "h": 51
+        },
+        {
+          "text": "Phân loại",
+          "h": 51
+        },
+        {
+          "text": "Ghi chú",
+          "h": 51
+        },
+        {
+          "text": "Thao tác",
+          "h": 51
+        }
+      ]
+    },
+    {
+      "name": "PHÂN LOẠI header sits on ONE line (same height as the CONTAINER header)",
+      "pass": true,
+      "detail": {
+        "phanLoai": {
+          "text": "Phân loại",
+          "h": 51
+        },
+        "oneLineRef": 51
+      }
+    },
+    {
+      "name": "group tag says \"Ghép (n/m)\" — no \"Lẻ ·\" prefix (one label per cell)",
+      "pass": true,
+      "detail": [
+        "Ghép (2/2)"
+      ]
+    },
+    {
+      "name": "no duplicated \"Lẻ\" in the cell (≤1 occurrence)",
+      "pass": true,
+      "detail": [
+        {
+          "text": "LẻGhép (2/2)",
+          "leCount": 1
+        }
+      ]
+    },
+    {
+      "name": "tag renders on ONE line (compact, no vertical oval)",
+      "pass": true,
+      "detail": [
+        {
+          "tagHeight": 17,
+          "tagLines": 1
+        }
+      ]
+    },
+    {
+      "name": "tag stays inside its own cell (no overflow into ĐIỀU PHỐI/GHI CHÚ)",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "tag carries NO pill chrome (radius 0 / transparent bg / no border)",
+      "pass": true,
+      "detail": [
+        {
+          "radius": "0px",
+          "background": "rgba(0, 0, 0, 0)",
+          "borderWidth": "0px"
+        }
+      ]
+    }
+  ],
+  "pass": true
+}

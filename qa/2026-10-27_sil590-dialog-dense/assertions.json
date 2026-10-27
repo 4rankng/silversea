@@ -1,0 +1,82 @@
+{
+  "url": "http://localhost:7185/dispatch-detail",
+  "viewport": "1440x900",
+  "checks": [
+    {
+      "name": "plan editor dialog opened",
+      "pass": true,
+      "detail": "Chỉnh sửa điều phối · TRHU3819085"
+    },
+    {
+      "name": "dialog keeps the SIL-520 width (≥900px @1440)",
+      "pass": true,
+      "detail": {
+        "width": 1000
+      }
+    },
+    {
+      "name": "fields grid is 4 tracks at ≥900",
+      "pass": true,
+      "detail": {
+        "cols": 4,
+        "template": "\"carrier carrier vehicle vehicle\" \"classification revenue cost combined\" \"run run end end\""
+      }
+    },
+    {
+      "name": "Phân loại + Cước thu + Cước trả occupy the SAME grid row (one template row, bottoms aligned by the grid)",
+      "pass": true,
+      "detail": {
+        "template": "\"carrier carrier vehicle vehicle\" \"classification revenue cost combined\" \"run run end end\"",
+        "bottoms": {
+          "classification": 280,
+          "revenue": 280,
+          "cost": 280
+        },
+        "tops": {
+          "classification": 228,
+          "revenue": 220,
+          "cost": 220
+        }
+      }
+    },
+    {
+      "name": "money field content-sized (≤205px)",
+      "pass": true,
+      "detail": [
+        {
+          "w": 200,
+          "label": "Cước thu dự kiến"
+        },
+        {
+          "w": 200,
+          "label": "Cước trả dự kiến"
+        }
+      ]
+    },
+    {
+      "name": "money input itself narrow (≤170px)",
+      "pass": true,
+      "detail": [
+        170,
+        170
+      ]
+    },
+    {
+      "name": "Giờ điều vận + Giờ trả hàng share their own row (SIL-520 pair law)",
+      "pass": true,
+      "detail": {
+        "topRun": 294,
+        "topEnd": 294
+      }
+    },
+    {
+      "name": "modal body does NOT scroll (full form visible, SIL-520)",
+      "pass": true,
+      "detail": {
+        "sh": 647,
+        "ch": 647
+      }
+    }
+  ],
+  "pass": true
+}
