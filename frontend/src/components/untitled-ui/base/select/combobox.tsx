@@ -235,7 +235,13 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                             }
                         }}
                         className={cx(
-                            "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
+                            // SIL-541: same no-mid-word-cut law as the Input
+                            // base — the placeholder renders from this native
+                            // input (the value rides the transparent text and
+                            // the ghost span's `truncate`), so a placeholder
+                            // longer than the field must end in a clean
+                            // ellipsis, never clip mid-word.
+                            "z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
                             sizes[size].text,
                             onClear && hasClearableValue && !isDisabled && "pr-8",
                         )}

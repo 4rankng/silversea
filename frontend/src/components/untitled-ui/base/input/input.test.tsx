@@ -20,4 +20,13 @@ describe('Input', () => {
 
     expect(screen.getByLabelText('Số container')).toHaveClass('!pr-9');
   });
+
+  it('ellipsizes overflowing placeholder/value instead of clipping mid-word (SIL-541)', () => {
+    // Shared no-mid-word-cut law: a placeholder or committed value longer
+    // than the field ends in a clean ellipsis ('Gõ chọn hoặc nhập hãng tì'
+    // was the reported mid-word clip on the create form's Hãng tàu field).
+    render(<Input aria-label="Hãng tàu" placeholder="Gõ chọn hoặc nhập hãng tàu" />);
+
+    expect(screen.getByLabelText('Hãng tàu')).toHaveClass('text-ellipsis');
+  });
 });

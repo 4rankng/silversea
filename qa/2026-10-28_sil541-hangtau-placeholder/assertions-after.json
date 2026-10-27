@@ -1,0 +1,63 @@
+{
+  "phase": "after",
+  "role": "ADMIN (admin)",
+  "checks": [
+    {
+      "name": "placeholder fits or ends in a clean ellipsis @1440",
+      "pass": true,
+      "detail": {
+        "inputW": 154,
+        "textW": 168.4,
+        "ph": "Gõ chọn hoặc nhập hãng tàu",
+        "textOverflow": "ellipsis",
+        "path": "ellipsis"
+      }
+    },
+    {
+      "name": "input declares a clean overflow treatment (ellipsis) @1440",
+      "pass": true,
+      "detail": {
+        "textOverflow": "ellipsis",
+        "fits": false
+      }
+    },
+    {
+      "name": "placeholder fits or ends in a clean ellipsis @1280",
+      "pass": true,
+      "detail": {
+        "inputW": 162,
+        "textW": 168.4,
+        "ph": "Gõ chọn hoặc nhập hãng tàu",
+        "textOverflow": "ellipsis",
+        "path": "ellipsis"
+      }
+    },
+    {
+      "name": "input declares a clean overflow treatment (ellipsis) @1280",
+      "pass": true,
+      "detail": {
+        "textOverflow": "ellipsis",
+        "fits": false
+      }
+    },
+    {
+      "name": "placeholder fits or ends in a clean ellipsis @1024",
+      "pass": true,
+      "detail": {
+        "inputW": 367.5,
+        "textW": 168.4,
+        "ph": "Gõ chọn hoặc nhập hãng tàu",
+        "textOverflow": "ellipsis",
+        "path": "fits"
+      }
+    },
+    {
+      "name": "input declares a clean overflow treatment (ellipsis) @1024",
+      "pass": true,
+      "detail": {
+        "textOverflow": "ellipsis",
+        "fits": true
+      }
+    }
+  ]
+}
