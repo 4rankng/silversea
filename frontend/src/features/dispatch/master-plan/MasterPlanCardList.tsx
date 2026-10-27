@@ -273,16 +273,26 @@ export function MasterPlanCardList({
           : null;
         const statusLine = [warningText, cutoffText].filter(Boolean).join(' · ');
         const statusSeverity = urgency === 'urgent' ? 'urgent' : warningText ? 'warning' : 'soon';
-        // Notes collapse to ONE first-present line: the dispatcher's own
-        // operational note (tappable → shared modal) leads; NM/OPS context
-        // prints only when no operational note exists. The desktop table and
+        // Notes collapse to ONE first-present line, and EVERY kind opens the
+        // shared note modal (SIL-507 QA 27/10: the bare NM/OPS lines used to
+        // fall through to the card's FB-014 detail navigation — the modal is
+        // the designed behavior, navigation is not). The desktop table and
         // the container drawer still carry every note source in full.
-        const notePreview = item.operationalNotes
-          ? { text: `Ghi chú: ${item.operationalNotes.replace(/\n/g, ' ')}`, tappable: true as const }
+        const notePreview: { text: string; detail: ActiveNoteDetail } | null = item.operationalNotes
+          ? {
+              text: `Ghi chú: ${item.operationalNotes.replace(/\n/g, ' ')}`,
+              detail: { title: 'Ghi chú điều hành', note: item.operationalNotes, isOperational: true },
+            }
           : item.factoryNotes
-            ? { text: `NM: ${item.factoryNotes}`, tappable: false as const }
+            ? {
+                text: `NM: ${item.factoryNotes}`,
+                detail: { title: 'Ghi chú nhà máy', note: item.factoryNotes, isOperational: false },
+              }
             : item.opsRecoveryNotes?.[0]
-              ? { text: `OPS: ${item.opsRecoveryNotes[0]}`, tappable: false as const }
+              ? {
+                  text: `OPS: ${item.opsRecoveryNotes[0]}`,
+                  detail: { title: 'Ghi chú OPS', note: item.opsRecoveryNotes[0], isOperational: false },
+                }
               : null;
         return (
           <li
@@ -429,28 +439,22 @@ export function MasterPlanCardList({
                   </div>
                 </div>
               ) : (
-                notePreview && (notePreview.tappable ? (
+                notePreview && (
                   <button
                     type="button"
                     className="mpcard__note"
                     title="Bấm để xem toàn bộ ghi chú"
                     onClick={() => onOpenNoteModal({
-                      title: 'Ghi chú điều hành',
-                      note: item.operationalNotes!,
+                      ...notePreview.detail,
                       customerName: item.customerName,
                       blNumber: item.blNumber,
                       shipmentCode: item.shipmentCode,
-                      isOperational: true,
                       shipment: item,
                     })}
                   >
                     {notePreview.text}
                   </button>
-                ) : (
-                  <div className="mpcard__line mpcard__line--muted">
-                    {notePreview.text}
-                  </div>
-                ))
+                )
               )}
             </div>
           </li>
