@@ -6,3 +6,4 @@ Gates trên merged tree (2026-10-27):
 - frontend: vitest run src/pages src/features/dispatch src/components/shared -> 307 files / 2529 tests PASS
 - backend: npx tsc --noEmit -> EXIT 0
 - backend: npx tsx --test 'src/tests/unit/*.test.ts' -> 540/540 PASS
+- make build (merged tree, sau merge commit) -> EXIT 0 (frontend vite build ✓ 40.47s)
