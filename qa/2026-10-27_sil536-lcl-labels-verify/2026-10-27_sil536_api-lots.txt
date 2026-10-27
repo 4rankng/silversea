@@ -1,0 +1,7 @@
+# GET /api/shipments/dispatch-detail-plan-rows?q=<ref> (dungnv, local 27/10)
+# SHP-2610-00136 IMPORT·Lẻ: liftDrop.warehouseName="CFS Test" (kho, frozen),
+#   factory="ASKEY-XƯỞNG 1"  -> client resolveLiftDropPoints: Nâng=kho, Hạ=nhà máy ✓
+# SHP-2610-00161 EXPORT·Lẻ: factory="SJ", liftDrop fallback deliveryLocation="GLC" (kho)
+#   -> Nâng=nhà máy, Hạ=kho ✓
+q=R41-LCL06-TEST -> 1 item: SHP-2610-00136 IMPORT
+q=R42RV-D2     -> 1 item: SHP-2610-00161 EXPORT

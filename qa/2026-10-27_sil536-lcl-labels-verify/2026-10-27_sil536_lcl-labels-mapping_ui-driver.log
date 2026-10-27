@@ -1,0 +1,13 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175
+LOGIN ok thanhdc
+PASS T01 default labels stand before a direction is picked — kho="Kho lấy hàng*Thêm kho" nhamay="Nhà máy*Thêm nhà máy"
+PASS T01 Nhập khẩu labels — kho="Kho lấy hàng (CFS/Cảng)*Thêm kho" nhamay="Nhà máy (Điểm trả hàng)*Thêm nhà máy"
+PASS T01 Xuất khẩu labels — kho="Kho trả hàng (CFS/Cảng)*Thêm kho" nhamay="Nhà máy (Điểm lấy hàng)*Thêm nhà máy"
+LOGIN ok dungnv
+PASS T02 IMPORT·Lẻ lot visible — row rendered
+PASS T02 IMPORT·Lẻ mapping (Nâng=Kho CFS, Hạ=Nhà máy) — Nâng="CFS Test" Hạ="ASKEY-XƯỞNG 1"
+PASS T02 EXPORT·Lẻ lot visible — row rendered
+PASS T02 EXPORT·Lẻ mapping (Nâng=Nhà máy, Hạ=Kho CFS) — Nâng="SJ" Hạ="GLC"
+IMPORT ports: {"lift":"CFS Test","drop":"ASKEY-XƯỞNG 1"}
+EXPORT ports: {"lift":"SJ","drop":"GLC"}
+DONE failures=0
