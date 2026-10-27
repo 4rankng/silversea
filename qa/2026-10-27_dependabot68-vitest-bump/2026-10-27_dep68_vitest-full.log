@@ -1,0 +1,915 @@
+
+ RUN  v4.1.12 /Volumes/LexarSSD/projects/silversea/frontend
+
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx (20 tests | 1 failed) 50241ms
+     × a customer pick fires the sites fetch once with the numeric id and blur cannot corrupt it 5204ms
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx (17 tests | 1 failed) 44954ms
+     × PHOI03 clears hidden selection during a filter query and does not resurrect it on return 5516ms
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx (83 tests | 1 failed) 45883ms
+     × UI-CD-12 selects the actual container factory and submits its site id 6266ms
+ ❯ src/pages/ShipmentsPage.test.tsx (123 tests | 2 failed) 87151ms
+     × persists classification and cargo cells through one-field-authority shipment patches 5336ms
+     × opens the lot container dialog from the FCL cargo cell without navigating (card 20260923_1) 3852ms
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx (66 tests | 1 failed) 30758ms
+     × mounts the editor on press 1 (branch decompose) and on every later press 5705ms
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx (13 tests | 2 failed) 42738ms
+   × lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng 6484ms
+   × OPS context chỉ chọn người thực chi là Ops; lưu được khi đã chọn người chi 5695ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx (5 tests | 1 failed) 5380ms
+     × opens the editor on the clicked badge and saves the edited plate 1785ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > persists classification and cargo cells through one-field-authority shipment patches
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1483:3
+    1481|   });
+    1482|
+    1483|   it('persists classification and cargo cells through one-field-author…
+       |   ^
+    1484|     // Card 20260922_41: the FCL cargo cell opens the lot's "Quản lý c…
+    1485|     // dialog (composition at lot level) — the lot-cargo quick-edit li…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > opens the lot container dialog from the FCL cargo cell without navigating (card 20260923_1)
+TestingLibraryElementError: Found multiple elements with the role "dialog"
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<div[39m
+  [33maria-labelledby[39m=[32m"_r_23j_"[39m
+  [33maria-modal[39m=[32m"true"[39m
+  [33mclass[39m=[32m"modal modal--operational-density"[39m
+  [33mrole[39m=[32m"dialog"[39m
+  [33mstyle[39m=[32m"opacity: 0;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33mclass[39m=[32m"modal__content"[39m
+    [33mstyle[39m=[32m"--modal-max-w: 480px; opacity: 0;"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"modal__head"[39m
+    [36m>[39m
+      [36m<div>[39m
+        [36m<h3[39m
+          [33mclass[39m=[32m"modal__title"[39m
+          [33mid[39m=[32m"_r_23j_"[39m
+        [36m>[39m
+          [0mChỉnh sửa lô hàng[0m
+        [36m</h3>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+        [33mdata-tip[39m=[32m"Đóng"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Đóng"[39m
+          [33mclass[39m=[32m"btn btn--ghost btn--icon btn--sm modal__close"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-x"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"16"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"16"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M18 6 6 18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 6 12 12"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"modal__body"[39m
+    [36m/>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"modal__foot"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"group relative inline-flex h-max cursor-pointer select-none items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear before:absolute focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-control-size)] [@media(pointer:coarse)]:text-[length:var(--text-control-size)] in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] bg-primary text-secondary shadow-xs-skeuomorphic ring-1 ring-primary ring-inset hover:bg-primary_hover hover:text-secondary_hover data-loading:bg-primary_hover *:data-icon:text-fg-quaternary hover:*:data-icon:text-fg-quaternary_hover cus-quick-edit-modal__action"[39m
+        [33mdata-control-color[39m=[32m"secondary"[39m
+        [33mdata-control-size[39m=[32m"sm"[39m
+        [33mdata-rac[39m=[32m""[39m
+        [33mdata-react-aria-pressable[39m=[32m"true"[39m
+        [33mdata-uui-control[39m=[32m"button"[39m
+        [33mid[39m=[32m"react-aria-_r_244_"[39m
+        [33mtabindex[39m=[32m"0"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"transition-inherit-all px-0.5"[39m
+          [33mdata-text[39m=[32m"true"[39m
+        [36m>[39m
+          [0mHủy[0m
+        [36m</span>[39m
+      [36m</button>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"group relative inline-flex h-max cursor-pointer select-none items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-control-size)] [@media(pointer:coarse)]:text-[length:var(--text-control-size)] in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] bg-brand-solid text-white shadow-xs-skeuomorphic ring-1 ring-transparent ring-inset hover:bg-brand-solid_hover data-loading:bg-brand-solid_hover before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0% *:data-icon:text-white/60 hover:*:data-icon:text-white/70 cus-quick-edit-modal__action"[39m
+        [33mdata-control-color[39m=[32m"primary"[39m
+        [33mdata-control-size[39m=[32m"sm"[39m
+        [33mdata-rac[39m=[32m""[39m
+        [33mdata-react-aria-pressable[39m=[32m"true"[39m
+        [33mdata-uui-control[39m=[32m"button"[39m
+        [33mid[39m=[32m"react-aria-_r_246_"[39m
+        [33mtabindex[39m=[32m"0"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<svg[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"lucide lucide-save pointer-events-none size-5 shrink-0 transition-inherit-all"[39m
+          [33mdata-icon[39m=[32m"leading"[39m
+          [33mfill[39m=[32m"none"[39m
+          [33mheight[39m=[32m"16"[39m
+          [33mstroke[39m=[32m"currentColor"[39m
+          [33mstroke-linecap[39m=[32m"round"[39m
+          [33mstroke-linejoin[39m=[32m"round"[39m
+          [33mstroke-width[39m=[32m"2"[39m
+          [33mviewBox[39m=[32m"0 0 24 24"[39m
+          [33mwidth[39m=[32m"16"[39m
+          [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+        [36m>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"[39m
+          [36m/>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"[39m
+          [36m/>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M7 3v4a1 1 0 0 0 1 1h7"[39m
+          [36m/>[39m
+        [36m</svg>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"transition-inherit-all px-0.5"[39m
+          [33mdata-text[39m=[32m"true"[39m
+        [36m>[39m
+          [0mLưu thay đổi[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</div>[39m
+
+Ignored nodes: comments, script, style
+[36m<aside[39m
+  [33maria-hidden[39m=[32m"false"[39m
+  [33maria-labelledby[39m=[32m"_r_23k_"[39m
+  [33maria-modal[39m=[32m"true"[39m
+  [33mclass[39m=[32m"drawer drawer--operational-density cus-shipment-drawer"[39m
+  [33mrole[39m=[32m"dialog"[39m
+  [33mstyle[39m=[32m"transform: translateX(0%); will-change: transform;"[39m
+  [33mtabindex[39m=[32m"-1"[39m
+[36m>[39m
+  [36m<header[39m
+    [33mclass[39m=[32m"drawer__head"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"drawer__heading"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mstyle[39m=[32m"min-width: 0px;"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"drawer__titlerow"[39m
+        [36m>[39m
+          [36m<h2[39m
+            [33mclass[39m=[32m"drawer__title"[39m
+            [33mid[39m=[32m"_r_23k_"[39m
+          [36m>[39m
+            [0mCông ty Silver Sea[0m
+          [36m</h2>[39m
+          [36m<span[39m
+            [33maria-label[39m=[32m"Trạng thái lô hàng"[39m
+            [33mclass[39m=[32m"cus-lot-chips"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-chip cus-lot-chip--solid"[39m
+            [36m>[39m
+              [0mHàng [0m
+              [0mFCL[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-chip cus-lot-chip--danger"[39m
+            [36m>[39m
+              [0mLỗ[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-chip cus-lot-chip--amber"[39m
+            [36m>[39m
+              [0mChờ thu hồi[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"drawer__head-actions"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+        [33mdata-tip[39m=[32m"Khóa lô"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-disabled[39m=[32m"false"[39m
+          [33maria-label[39m=[32m"Khóa lô"[39m
+          [33mclass[39m=[32m"drawer__close cus-drawer-lot-action"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-file-lock2 lucide-file-lock-2"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"16"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"16"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v1"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M14 2v4a2 2 0 0 0 2 2h4"[39m
+            [36m/>[39m
+            [36m<rect[39m
+              [33mheight[39m=[32m"5"[39m
+              [33mrx[39m=[32m"1"[39m
+              [33mwidth[39m=[32m"8"[39m
+              [33mx[39m=[32m"2"[39m
+              [33my[39m=[32m"13"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M8 13v-2a2 2 0 1 0-4 0v2"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+        [33mdata-tip[39m=[32m"Xóa lô"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Xóa lô"[39m
+          [33mclass[39m=[32m"drawer__close cus-drawer-lot-delete"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-trash2 lucide-trash-2"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"16"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"16"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M3 6h18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"[39m
+            [36m/>[39m
+            [36m<line[39m
+              [33mx1[39m=[32m"10"[39m
+              [33mx2[39m=[32m"10"[39m
+              [33my1[39m=[32m"11"[39m
+              [33my2[39m=[32m"17"[39m
+            [36m/>[39m
+            [36m<line[39m
+              [33mx1[39m=[32m"14"[39m
+              [33mx2[39m=[32m"14"[39m
+              [33my1[39m=[32m"11"[39m
+              [33my2[39m=[32m"17"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+        [33mdata-tip[39m=[32m"Phóng to toàn màn hình"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Phóng to toàn màn hình"[39m
+          [33maria-pressed[39m=[32m"false"[39m
+          [33mclass[39m=[32m"drawer__close drawer__expand"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-maximize2 lucide-maximize-2"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"16"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"16"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M15 3h6v6"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m21 3-7 7"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m3 21 7-7"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M9 21H3v-...
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"shipments-page shipments-page--worksheet"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"shipments-control"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"shipments-control__row shipments-control__row--primary"[39m
+        [36m>[39m
+          [36m<h1[39m
+            [33mclass[39m=[32m"shipments-control__title"[39m
+          [36m>[39m
+            [0mTổng quan lô hàng[0m
+          [36m</h1>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"shipments-control__actions"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"group relative inline-flex h-max cursor-pointer select-none items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear before:absolute focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-control-size)] [@media(pointer:coarse)]:text-[length:var(--text-control-size)] in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] text-tertiary hover:bg-primary_hover hover:text-tertiary_hover data-loading:bg-primary_hover *:data-icon:text-fg-quaternary hover:*:data-icon:text-fg-quaternary_hover shipment-uui-button shipment-uui-button--tertiary shipments-control__export"[39m
+              [33mdata-control-color[39m=[32m"tertiary"[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-rac[39m=[32m""[39m
+              [33mdata-react-aria-pressable[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"button"[39m
+              [33mid[39m=[32m"react-aria-_r_236_"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-file-spreadsheet pointer-events-none size-5 shrink-0 transition-inherit-all"[39m
+                [33mdata-icon[39m=[32m"leading"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"16"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"16"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 2v4a2 2 0 0 0 2 2h4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M8 13h2"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 13h2"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M8 17h2"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 17h2"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"transition-inherit-all px-0.5"[39m
+                [33mdata-text[39m=[32m"true"[39m
+              [36m>[39m
+                [0mTải XLSX[0m
+              [36m</span>[39m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"group relative inline-flex h-max cursor-pointer select-none items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-control-size)] [@media(pointer:coarse)]:text-[length:var(--text-control-size)] in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] bg-brand-solid text-white shadow-xs-skeuomorphic ring-1 ring-transparent ring-inset hover:bg-brand-solid_hover data-loading:bg-brand-solid_hover before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0% *:data-icon:text-white/60 hover:*:data-icon:text-white/70 shipment-uui-button shipment-uui-button--primary cus-create-shipment"[39m
+              [33mdata-control-color[39m=[32m"primary"[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-rac[39m=[32m""[39m
+              [33mdata-react-aria-pressable[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"button"[39m
+              [33mid[39m=[32m"react-aria-_r_238_"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus pointer-events-none size-5 shrink-0 transition-inherit-all"[39m
+                ...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"shipments-page shipments-page--worksheet"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"shipments-control"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"shipments-control__row shipments-control__row--primary"[39m
+        [36m>[39m
+          [36m<h1[39m
+            [33mclass[39m=[32m"shipments-control__title"[39m
+          [36m>[39m
+            [0mTổng quan lô hàng[0m
+          [36m</h1>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"shipments-control__actions"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"group relative inline-flex h-max cursor-pointer select-none items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear before:absolute focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-control-size)] [@media(pointer:coarse)]:text-[length:var(--text-control-size)] in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] text-tertiary hover:bg-primary_hover hover:text-tertiary_hover data-loading:bg-primary_hover *:data-icon:text-fg-quaternary hover:*:data-icon:text-fg-quaternary_hover shipment-uui-button shipment-uui-button--tertiary shipments-control__export"[39m
+              [33mdata-control-color[39m=[32m"tertiary"[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-rac[39m=[32m""[39m
+              [33mdata-react-aria-pressable[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"button"[39m
+              [33mid[39m=[32m"react-aria-_r_236_"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-file-spreadsheet pointer-events-none size-5 shrink-0 transition-inherit-all"[39m
+                [33mdata-icon[39m=[32m"leading"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"16"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"16"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 2v4a2 2 0 0 0 2 2h4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M8 13h2"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 13h2"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M8 17h2"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M14 17h2"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"transition-inherit-all px-0.5"[39m
+                [33mdata-text[39m=[32m"true"[39m
+              [36m>[39m
+                [0mTải XLSX[0m
+              [36m</span>[39m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"group relative inline-flex h-max cursor-pointer select-none items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-control-size)] [@media(pointer:coarse)]:text-[length:var(--text-control-size)] in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] bg-brand-solid text-white shadow-xs-skeuomorphic ring-1 ring-transparent ring-inset hover:bg-brand-solid_hover data-loading:bg-brand-solid_hover before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0% *:data-icon:text-white/60 hover:*:data-icon:text-white/70 shipment-uui-button shipment-uui-button--primary cus-create-shipment"[39m
+              [33mdata-control-color[39m=[32m"primary"[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-rac[39m=[32m""[39m
+              [33mdata-react-aria-pressable[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"button"[39m
+              [33mid[39m=[32m"react-aria-_r_238_"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-plus pointer-events-none size-5 shrink-0 transition-inherit-all"[39m
+                ...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/ShipmentsPage.test.tsx:1526:31
+    1524|     // drawer entirely (footer "Sửa" navigates), so no container add/r…
+    1525|     // affordance exists here anymore.
+    1526|     await within(await screen.findByRole('dialog')).findByText('MSKU12…
+       |                               ^
+    1527|     expect(screen.queryByRole('button', { name: 'Thêm container' })).t…
+    1528|     expect(screen.queryByRole('button', { name: 'Xóa container MSKU123…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:58:1
+     56|   expect(screen.getByRole('status')).toHaveTextContent('Đã lưu khoản c…
+     57| });
+     58| it('lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì…
+       | ^
+     59|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+     60|   fireEvent.click(screen.getByRole('button', { name: '+ Thêm dòng' }));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > OPS context chỉ chọn người thực chi là Ops; lưu được khi đã chọn người chi
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:156:1
+    154|   expect(createBatch.mock.calls[1][1]).toBe(createBatch.mock.calls[0][…
+    155| });
+    156| it('OPS context chỉ chọn người thực chi là Ops; lưu được khi đã chọn n…
+       | ^
+    157|   const onClose = vi.fn(); const onSaved = vi.fn();
+    158|   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} entr…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx > FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit > opens the editor on the clicked badge and saves the edited plate
+TestingLibraryElementError: Unable to find role="button" and name "Sửa BKS báo khách: 30C-999.99"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page-shell"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header page-header--actions-only"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"page-header__title-visible"[39m
+        [36m>[39m
+          [0mKế toán chốt debit[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm lô hàng"[39m
+              [33mplaceholder[39m=[32m"Mã lô, bill/booking, khách hàng, container"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Khoảng ngày lô hàng"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"debit-board-date-range"[39m
+            [36m>[39m
+              [0mTừ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"debit-board-date-range-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"debit-board-date-range"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmax[39m=[32m"2026-10-27"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m"01"[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"[39m
+                [36m...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page-shell"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header page-header--actions-only"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"page-header__title-visible"[39m
+        [36m>[39m
+          [0mKế toán chốt debit[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm lô hàng"[39m
+              [33mplaceholder[39m=[32m"Mã lô, bill/booking, khách hàng, container"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Khoảng ngày lô hàng"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"debit-board-date-range"[39m
+            [36m>[39m
+              [0mTừ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"debit-board-date-range-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"debit-board-date-range"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmax[39m=[32m"2026-10-27"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m"01"[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"[39m
+                [36m...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx:112:32
+    110|     const { container } = renderPage();
+    111|
+    112|     const badge = await screen.findByRole('button', { name: 'Sửa BKS b…
+       |                                ^
+    113|     fireEvent.click(badge);
+    114|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > card 20260929_207 — row selection replaces the checkbox column > PHOI03 clears hidden selection during a filter query and does not resurrect it on return
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:198:3
+    196|   });
+    197|
+    198|   it('PHOI03 clears hidden selection during a filter query and does no…
+       |   ^
+    199|     const { container } = renderBoard([row({ tripId: 1 })]);
+    200|     await screen.findAllByText('Chưa có số Bill/Booking', undefined, {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > allocation editor mounts on every press (20260916_9) > mounts the editor on press 1 (branch decompose) and on every later press
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:1029:3
+    1027|   }
+    1028|
+    1029|   it('mounts the editor on press 1 (branch decompose) and on every lat…
+       |   ^
+    1030|     const branch = {
+    1031|       ...row({ fulfillmentId: undefined }),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  src/features/shipments/detail/ShipmentContainerLedger.test.tsx > ShipmentContainerLedger inline editor dismissal > UI-CD-12 selects the actual container factory and submits its site id
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx:210:3
+    208|
+    209| describe('ShipmentContainerLedger inline editor dismissal', () => {
+    210|   it('UI-CD-12 selects the actual container factory and submits its si…
+       |   ^
+    211|     const { onSaveIdentity, onCancelEdit } = renderLedger('identity');
+    212|     const factory = screen.getByRole('combobox', { name: /^Nhà máy/ });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx > Factory dropdown NaN race (20260918_16) > a customer pick fires the sites fetch once with the numeric id and blur cannot corrupt it
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx:372:3
+    370|   });
+    371|
+    372|   it('a customer pick fires the sites fetch once with the numeric id a…
+       |   ^
+    373|     renderWorkspace();
+    374|     fireEvent.click(await screen.findByRole('combobox', { name: 'Khách…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+
+ Test Files  7 failed | 726 passed (733)
+      Tests  9 failed | 5607 passed (5616)
+   Start at  22:16:14
+   Duration  462.19s (transform 76.94s, setup 224.69s, import 1027.62s, tests 1715.59s, environment 1026.44s)
+

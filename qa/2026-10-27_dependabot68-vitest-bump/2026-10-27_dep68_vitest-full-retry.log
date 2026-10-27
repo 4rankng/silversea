@@ -1,0 +1,19 @@
+
+ RUN  v4.1.12 /Volumes/LexarSSD/projects/silversea/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  733 passed (733)
+      Tests  5616 passed (5616)
+   Start at  22:25:20
+   Duration  362.86s (transform 57.89s, setup 184.56s, import 1018.08s, tests 1086.79s, environment 843.93s)
+
