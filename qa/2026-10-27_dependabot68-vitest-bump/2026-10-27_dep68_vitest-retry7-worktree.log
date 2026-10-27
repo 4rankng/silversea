@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-598-driver-machuyen/frontend
+
+
+ Test Files  7 passed (7)
+      Tests  327 passed (327)
+   Start at  22:33:38
+   Duration  11.48s (transform 5.59s, setup 1.27s, import 14.55s, tests 26.73s, environment 4.55s)
+
