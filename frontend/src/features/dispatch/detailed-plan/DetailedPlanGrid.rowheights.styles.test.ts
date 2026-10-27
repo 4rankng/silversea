@@ -47,13 +47,15 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(width('route')).toBeGreaterThanOrEqual(180);
     expect(width('assignment')).toBeGreaterThanOrEqual(200);
     expect(width('notes')).toBeGreaterThanOrEqual(160);
-    // Nâng/Trả each fit one short port name; the actions rail fits the
-    // "Hoàn thành" pill + ⋯ trigger on ONE line inside its own cell
-    // (SIL-519: pill ~87px + gap 6 + trigger 30 + cell padding 16 ≈ 139px
-    // — the 5.5% rail overflowed the sticky cell and painted over the
-    // Ghi chú text).
+    // Nâng/Trả each fit one short port name.
     expect(width('ports')).toBeGreaterThanOrEqual(110);
-    expect(width('actions')).toBeGreaterThanOrEqual(132);
+    // SIL-588 (owner 27/10, supersedes the SIL-519 ≥132px pill budget): the
+    // rail hosts at most TWO STACKED buttons — the 30px ⋯ trigger (or the
+    // 28px Phát lệnh icon) + 2×8px cell padding + 1px sticky border ≈ 47px —
+    // because "Hoàn thành" moved INTO the ⋯ menu. The rail stays a NARROW
+    // strip: never grows back into a pill-width budget.
+    expect(width('actions')).toBeGreaterThanOrEqual(47);
+    expect(width('actions')).toBeLessThanOrEqual(4.2 * TABLE_MIN_WIDTH / 100);
     // The formerly-fat columns came back to content budgets (owner spec
     // addendum: "cột phình thu lại vừa nội dung").
     expect(columnShare('schedule')).toBeLessThanOrEqual(10.5);
@@ -87,11 +89,14 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
   it('pins the Thao tác column sticky-right — one action rail, no inline sprawl', () => {
     expect(css).toMatch(/th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{[^}]*position:\s*sticky;[^}]*right:\s*0;/);
     expect(css).toMatch(/td\.detailed-plan-grid__cell--actions\s*\{[^}]*background:\s*var\(--surface\);/);
-    // SIL-519: the rail wraps as the pressure valve — a too-wide stack wraps
-    // INSIDE the cell instead of painting over the neighbour (no overlap).
+    // SIL-588 (owner 27/10): the rail STACKS its buttons vertically — the
+    // compact primary on top, the ⋯ trigger below — so a narrow 4% column
+    // can host both without wrapping sideways into the neighbour (no
+    // overlap). The old one-line flex wrap is gone with the pill.
     const rail = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(rail, 'the row-actions rule must exist').not.toBe('');
-    expect(rail).toContain('flex-wrap: wrap');
+    expect(rail).toContain('flex-direction: column');
+    expect(rail).not.toContain('flex-wrap');
     // The inline destructive button treatment is deleted: Xóa lô lives in
     // the ⋯ menu (danger voice), never as a red inline pill again.
     expect(css).not.toContain('.detailed-plan-grid__note-action--delete');

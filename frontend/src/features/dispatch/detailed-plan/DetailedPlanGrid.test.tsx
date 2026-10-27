@@ -712,7 +712,7 @@ describe('DetailedPlanGrid', () => {
     ['Bill/Booking projection', null, 'BL-2026-010', 'SS-000200', 'BL-2026-010'],
     ['missing business reference', null, null, 'SS-000200', 'Chưa có số Bill/Booking'],
     ['missing business reference and internal code', null, null, '', 'Chưa có số Bill/Booking'],
-  ] as const)('renders the Hoàn thành action with %s identity and preserves its existing row callback', (_case, containerNumber, billNumber, shipmentCode, reference) => {
+  ] as const)('SIL-588: Hoàn thành is a ⋯ menu item (no inline pill) with %s identity, preserving the row callback', async (_case, containerNumber, billNumber, shipmentCode, reference) => {
     const onCompleteExternalTrip = vi.fn();
     const item = row({
       taskStatus: 'DISPATCHED',
@@ -723,9 +723,14 @@ describe('DetailedPlanGrid', () => {
     });
     const { container } = renderGrid([item], { onCompleteExternalTrip });
     const actionsCell = container.querySelector('.detailed-plan-grid__cell--actions') as HTMLElement;
-    const action = within(actionsCell).getByRole('button', { name: `Hoàn thành · ${reference}` });
-    expect(action).not.toHaveAccessibleName(/SS-000200|dòng 101/);
-    fireEvent.click(action);
+    // No inline pill anymore: the rail must not carry a visible Hoàn thành
+    // button — the action lives INSIDE the ⋯ menu (SIL-588).
+    expect(within(actionsCell).queryByRole('button', { name: `Hoàn thành · ${reference}` })).toBeNull();
+    const kebab = within(actionsCell).getByRole('button', { name: `Thao tác dòng · ${reference}` });
+    fireEvent.click(kebab);
+    const menu = await screen.findByRole('menu', { name: `Thao tác dòng · ${reference}` });
+    const menuItem = within(menu).getByRole('menuitem', { name: /Hoàn thành/ });
+    fireEvent.click(menuItem);
     expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1);
     expect(onCompleteExternalTrip).toHaveBeenCalledWith(item);
   });

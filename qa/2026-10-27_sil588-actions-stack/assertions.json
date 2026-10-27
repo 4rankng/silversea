@@ -1,0 +1,125 @@
+{
+  "url": "http://localhost:7185/dispatch-detail",
+  "viewport": "1440x900",
+  "checks": [
+    {
+      "name": "actions rows rendered",
+      "pass": true,
+      "detail": 50
+    },
+    {
+      "name": "NO full-text \"Hoàn thành\" pill in the Thao tác cell",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "rail stacks vertically (flex-direction column)",
+      "pass": true,
+      "detail": [
+        "column"
+      ]
+    },
+    {
+      "name": "rail holds ≤ 2 buttons",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "stacked buttons sit on distinct lines (no side-by-side pair)",
+      "pass": true,
+      "detail": [
+        {
+          "colWidth": 54,
+          "buttonCount": 2,
+          "btns": [
+            {
+              "label": "Phát lệnh · TRHU3819085",
+              "top": 649,
+              "right": 1393,
+              "width": 28
+            },
+            {
+              "label": "Thao tác dòng · TRHU3819085",
+              "top": 683,
+              "right": 1393,
+              "width": 30
+            }
+          ],
+          "fullTextHoanThanh": false,
+          "distinctTops": 2,
+          "sameRight": true,
+          "railDirection": "column"
+        },
+        {
+          "colWidth": 54,
+          "buttonCount": 2,
+          "btns": [
+            {
+              "label": "Phát lệnh · AXEU2004033",
+              "top": 733,
+              "right": 1393,
+              "width": 28
+            },
+            {
+              "label": "Thao tác dòng · AXEU2004033",
+              "top": 767,
+              "right": 1393,
+              "width": 30
+            }
+          ],
+          "fullTextHoanThanh": false,
+          "distinctTops": 2,
+          "sameRight": true,
+          "railDirection": "column"
+        },
+        {
+          "colWidth": 54,
+          "buttonCount": 2,
+          "btns": [
+            {
+              "label": "Phát lệnh · R40B2-CONT01",
+              "top": 844,
+              "right": 1393,
+              "width": 28
+            },
+            {
+              "label": "Thao tác dòng · R40B2-CONT01",
+              "top": 878,
+              "right": 1393,
+              "width": 30
+            }
+          ],
+          "fullTextHoanThanh": false,
+          "distinctTops": 2,
+          "sameRight": true,
+          "railDirection": "column"
+        }
+      ]
+    },
+    {
+      "name": "stacked buttons share the right edge (aligned column)",
+      "pass": true,
+      "detail": []
+    },
+    {
+      "name": "Thao tác column is narrow at 1440 (≤ 72px)",
+      "pass": true,
+      "detail": {
+        "maxWidth": 54
+      }
+    },
+    {
+      "name": "⋯ row menu opens from the narrowed rail",
+      "pass": true,
+      "detail": {
+        "triggers": 50
+      }
+    },
+    {
+      "name": "Hoàn thành menu item not asserted (no external live row in this page) — covered by unit test",
+      "pass": true,
+      "detail": "unit: DetailedPlanGrid.test.tsx SIL-588 it.each"
+    }
+  ],
+  "pass": true
+}

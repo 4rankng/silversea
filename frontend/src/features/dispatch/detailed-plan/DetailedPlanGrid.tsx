@@ -461,12 +461,13 @@ export function DetailedPlanGrid({
             </thead>
             <tbody>
               {items.map((row) => {
-                // Owner redesign 23/10 — the primary row action ("Phát lệnh"
-                // for plated-not-issued rows, "Hoàn thành" for external trips
-                // in flight) rides the PINNED Thao tác column with the ⋯ menu,
-                // so the notes cell is notes-only again. The two conditions
-                // are mutually exclusive; same derivation as the assignment
-                // cell's chip.
+                // SIL-588 (owner 27/10) — the primary row action ("Phát lệnh"
+                // for plated-not-issued rows) rides the PINNED Thao tác column
+                // stacked ABOVE the ⋯ menu; "Hoàn thành" for external live
+                // trips is a ⋯ MENU ITEM (the menu already owned it since the
+                // card 3-dòng redesign), no longer a second pill beside the
+                // kebab. The two conditions are mutually exclusive; same
+                // derivation as the assignment cell's chip.
                 const issueStatus = deriveDispatchIssueStatus({
                   vehicleAssigned: row.dispatch.assignedPlate != null,
                   carrierAssigned: row.dispatch.externalCarrierId != null,
@@ -476,9 +477,6 @@ export function DetailedPlanGrid({
                 // Card 20261004_359 — deferred-plate external rows quick-issue
                 // exactly like plated ones (the issue body ships no plate).
                 const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE';
-                const canCompleteExternal = row.dispatch.carrierType === 'EXTERNAL'
-                  && row.dispatch.tripId != null
-                  && row.taskStatus === 'DISPATCHED';
                 // Schedule law (cards 20261003_304 / 20261002_269 /
                 // 20261003_318) — one shared derivation for table + card
                 // (DispatchPlanCellValues.detailedScheduleLine).
@@ -761,24 +759,16 @@ export function DetailedPlanGrid({
                       </div>
                     </div>
                   </td>
-                  {/* Owner redesign 23/10 (spec B) — the ONE pinned action
-                      column: ⋯ menu always (non-completed rows) + the compact
-                      primary (Phát lệnh icon / Hoàn thành) when ready. Sticky
-                      right so it never scrolls away or covers a value. */}
+                  {/* SIL-588 (owner 27/10, supersedes the SIL-519 one-line
+                      rail): the ONE pinned action column holds at most TWO
+                      stacked buttons — the compact primary (Phát lệnh icon)
+                      on top, the ⋯ menu below. "Hoàn thành" lives INSIDE the
+                      ⋯ menu (DispatchRowActionsMenu item), so the rail
+                      narrows to its buttons instead of hosting a full-text
+                      pill. Sticky right so it never scrolls away. */}
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--actions" data-label="Thao tác">
                     <div className="detailed-plan-grid__row-actions">
                       {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}
-                      {canCompleteExternal && (
-                        <button
-                          type="button"
-                          className="detailed-plan-grid__note-action"
-                          onClick={() => onCompleteExternalTrip(row)}
-                          aria-label={`Hoàn thành · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
-                          title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
-                        >
-                          Hoàn thành
-                        </button>
-                      )}
                       <DispatchRowActionsMenu
                         row={row}
                         onEditPlan={requestEditPlan}
@@ -787,6 +777,7 @@ export function DetailedPlanGrid({
                         onOpenPair={onOpenPair}
                         onUnmergeLclGroup={onUnmergeLclGroup}
                         onDeleteLot={onDeleteLot}
+                        onCompleteExternalTrip={onCompleteExternalTrip}
                       />
                     </div>
                   </td>
