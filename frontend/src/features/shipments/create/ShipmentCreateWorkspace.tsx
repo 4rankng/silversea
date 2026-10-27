@@ -999,9 +999,13 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     <Copy size={15} aria-hidden="true" />Copy giờ hẹn xuống cont trống
                   </button>
                 )}
+                {/* SIL-534 (owner 27/10): the notes pair is a dense worksheet
+                    row — rows=2 keeps each box ~2 lines tall (resize:vertical
+                    and the internal scroll still carry long notes; the
+                    ≥1280 onescreen band forces 48px read-only height). */}
                 <div className="csc-notes-grid">
-                  <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={3} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={controlsDisabled} />
-                  <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={4} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={controlsDisabled} />
+                  <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={2} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={controlsDisabled} />
+                  <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={2} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={controlsDisabled} />
                 </div>
             </ShipmentCreateSection>
           )}
