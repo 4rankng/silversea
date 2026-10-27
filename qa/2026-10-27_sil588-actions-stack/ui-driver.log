@@ -7,3 +7,6 @@
 2026-10-27T13:23:50.721Z login ok user=dungnv
 2026-10-27T13:23:56.006Z dispatch-detail rows rendered
 2026-10-27T13:24:05.241Z EXIT 0 — checks: PASS:actions rows rendered | PASS:NO full-text "Hoàn thành" pill in the Thao tác cell | PASS:rail stacks vertically (flex-direction column) | PASS:rail holds ≤ 2 buttons | PASS:stacked buttons sit on distinct lines (no side-by-side pair) | PASS:stacked buttons share the right edge (aligned column) | PASS:Thao tác column is narrow at 1440 (≤ 72px) | PASS:⋯ row menu opens from the narrowed rail | PASS:Hoàn thành menu item not asserted (no external live row in this page) — covered by unit test
+2026-10-27T14:38:57.098Z login ok user=dungnv
+2026-10-27T14:39:03.073Z dispatch-detail rows rendered
+2026-10-27T14:39:14.962Z EXIT 0 — checks: PASS:actions rows rendered | PASS:NO full-text "Hoàn thành" pill in the Thao tác cell | PASS:rail stacks vertically (flex-direction column) | PASS:rail holds ≤ 2 buttons | PASS:stacked buttons sit on distinct lines (no side-by-side pair) | PASS:stacked buttons share the right edge (aligned column) | PASS:Thao tác column is narrow at 1440 (≤ 72px) | PASS:⋯ row menu opens from the narrowed rail | PASS:Hoàn thành menu item not asserted (no external live row in this page) — covered by unit test

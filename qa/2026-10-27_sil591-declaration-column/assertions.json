@@ -22,7 +22,7 @@
     {
       "name": "dispatcher cell renders the read-only value",
       "pass": true,
-      "detail": "Chưa có tờ khai"
+      "detail": "TK-R42RV-001"
     },
     {
       "name": "dispatcher clicking does NOT open an inline editor (403 law surfaced as no affordance)",

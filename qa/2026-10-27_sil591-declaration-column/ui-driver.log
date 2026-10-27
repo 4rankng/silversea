@@ -7,3 +7,8 @@
 2026-10-27T14:09:08.258Z login ok user=admin (ADMIN)
 2026-10-27T14:09:13.811Z inline editor opened
 2026-10-27T14:09:15.715Z EXIT 0 — checks: PASS:SỐ TỜ KHAI column present on the board | PASS:dispatcher cell renders the read-only value | PASS:dispatcher clicking does NOT open an inline editor (403 law surfaced as no affordance) | PASS:manager sees the edit affordance | PASS:post-click DOM assertion: the cell shows the saved declaration | PASS:editor closed after save
+2026-10-27T14:38:37.130Z login ok user=dungnv (DISPATCHER)
+2026-10-27T14:38:43.083Z dispatcher pass complete (read-only)
+2026-10-27T14:38:45.525Z login ok user=admin (ADMIN)
+2026-10-27T14:38:49.227Z inline editor opened
+2026-10-27T14:38:50.668Z EXIT 0 — checks: PASS:SỐ TỜ KHAI column present on the board | PASS:dispatcher cell renders the read-only value | PASS:dispatcher clicking does NOT open an inline editor (403 law surfaced as no affordance) | PASS:manager sees the edit affordance | PASS:post-click DOM assertion: the cell shows the saved declaration | PASS:editor closed after save
