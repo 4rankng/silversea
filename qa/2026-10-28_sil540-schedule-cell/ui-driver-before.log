@@ -1,0 +1,87 @@
+2026-10-27T17:34:40.063Z login ok user=admin (ADMIN)
+2026-10-27T17:34:44.951Z screenshot qa/2026-10-28_sil540-schedule-cell/before-page.png
+2026-10-27T17:34:44.953Z PASS schedule cell found on /shipments for Q1-177 {"trigger":{"top":261.8,"bottom":337.4,"height":75.6,"width":224.8}}
+2026-10-27T17:34:44.953Z geometry {
+ "found": true,
+ "tdRect": {
+  "top": 261.8,
+  "height": 76.6,
+  "width": 225.8
+ },
+ "tdPadding": "0px",
+ "tdOverflow": "visible",
+ "triggerRect": {
+  "top": 261.8,
+  "bottom": 337.4,
+  "height": 75.6,
+  "width": 224.8
+ },
+ "triggerStyle": {
+  "display": "grid",
+  "height": "75.5781px",
+  "minHeight": "100%",
+  "lineHeight": "14.85px",
+  "fontSize": "11px",
+  "gridAutoRows": "auto",
+  "gridTemplateRows": "14.8438px 14.8438px",
+  "alignContent": "start",
+  "alignItems": "normal",
+  "gap": "3px",
+  "overflow": "visible",
+  "padding": "10px"
+ },
+ "rowHeight": 76.578125,
+ "children": [
+  {
+   "tag": "span",
+   "cls": "",
+   "text": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC",
+   "rect": {
+    "top": 272.8,
+    "bottom": 287.7,
+    "height": 14.8,
+    "width": 202.8
+   },
+   "fontSize": "11px",
+   "lineHeight": "14.85px",
+   "whiteSpace": "nowrap",
+   "overflow": "hidden",
+   "overflowX": "hidden",
+   "overflowY": "hidden",
+   "textOverflow": "ellipsis",
+   "clipPath": "none",
+   "scrollW": 253,
+   "clientW": 203,
+   "scrollH": 15,
+   "clientH": 15
+  },
+  {
+   "tag": "span",
+   "cls": "cus-schedule-status-row",
+   "text": "Toàn bộ chờ phân xe",
+   "rect": {
+    "top": 290.7,
+    "bottom": 305.5,
+    "height": 14.8,
+    "width": 202.8
+   },
+   "fontSize": "11px",
+   "lineHeight": "14.85px",
+   "whiteSpace": "nowrap",
+   "overflow": "hidden",
+   "overflowX": "hidden",
+   "overflowY": "hidden",
+   "textOverflow": "ellipsis",
+   "clipPath": "none",
+   "scrollW": 203,
+   "clientW": 203,
+   "scrollH": 15,
+   "clientH": 15
+  }
+ ]
+}
+2026-10-27T17:34:44.953Z PASS first line text is the appointment line "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC"
+2026-10-27T17:34:44.953Z PASS first line does not overlap the next line {"firstBottom":287.7,"overlapping":[]}
+2026-10-27T17:34:44.953Z PASS first line box tall enough for its glyphs (no vertical clip) {"rectH":14.8,"scrollH":15,"clientH":15}
+2026-10-27T17:34:45.430Z screenshots qa/2026-10-28_sil540-schedule-cell/before-cell.png + qa/2026-10-28_sil540-schedule-cell/before-row.png
+2026-10-27T17:34:45.430Z EXIT=0

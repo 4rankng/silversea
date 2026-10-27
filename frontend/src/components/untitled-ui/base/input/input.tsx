@@ -134,7 +134,12 @@ export const InputBase = ({
                 type={type === "password" && isPasswordVisible ? "text" : type}
                 placeholder={placeholder}
                 className={cx(
-                    "m-0 w-full bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed",
+                    // SIL-541: `text-ellipsis` is the shared no-mid-word-cut law
+                    // for every UUI input — a placeholder or value longer than
+                    // the field ends in a clean ellipsis instead of clipping
+                    // mid-word ("Gõ chọn hoặc nhập hãng tì"). Native inputs
+                    // ellipsize both; editing/caret behavior is unchanged.
+                    "m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed",
                     sizes[inputSize].root,
                     context?.inputClassName,
                     inputClassName,

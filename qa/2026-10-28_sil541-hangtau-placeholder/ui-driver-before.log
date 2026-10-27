@@ -1,0 +1,12 @@
+2026-10-27T17:52:59.519Z login ok admin (ADMIN)
+2026-10-27T17:55:08.002Z login ok admin (ADMIN)
+2026-10-27T17:55:12.869Z FAIL placeholder text fits input @1440 {"inputW":154,"textW":168.4,"ph":"Gõ chọn hoặc nhập hãng tàu"}
+2026-10-27T17:55:12.869Z FAIL input declares a clean overflow treatment (ellipsis) @1440 {"textOverflow":"clip","fits":false}
+2026-10-27T17:55:18.425Z @1440 field={"found":true,"placeholder":"Gõ chọn hoặc nhập hãng tàu","inputW":154,"textW":168.4,"fits":false,"paddingLeft":"0px","paddingRight":"0px","textOverflow":"clip","overflow":"clip","fontSize":"12px"}
+2026-10-27T17:55:23.447Z FAIL placeholder text fits input @1280 {"inputW":162,"textW":168.4,"ph":"Gõ chọn hoặc nhập hãng tàu"}
+2026-10-27T17:55:23.447Z FAIL input declares a clean overflow treatment (ellipsis) @1280 {"textOverflow":"clip","fits":false}
+2026-10-27T17:55:29.539Z @1280 field={"found":true,"placeholder":"Gõ chọn hoặc nhập hãng tàu","inputW":162,"textW":168.4,"fits":false,"paddingLeft":"0px","paddingRight":"0px","textOverflow":"clip","overflow":"clip","fontSize":"12px"}
+2026-10-27T17:55:34.398Z PASS placeholder text fits input @1024 {"inputW":367.5,"textW":168.4,"ph":"Gõ chọn hoặc nhập hãng tàu"}
+2026-10-27T17:55:34.398Z PASS input declares a clean overflow treatment (ellipsis) @1024 {"textOverflow":"clip","fits":true}
+2026-10-27T17:55:40.281Z @1024 field={"found":true,"placeholder":"Gõ chọn hoặc nhập hãng tàu","inputW":367.5,"textW":168.4,"fits":true,"paddingLeft":"0px","paddingRight":"0px","textOverflow":"clip","overflow":"clip","fontSize":"12px"}
+2026-10-27T17:55:40.281Z EXIT=1

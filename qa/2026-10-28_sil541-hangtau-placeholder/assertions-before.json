@@ -1,0 +1,58 @@
+{
+  "phase": "before",
+  "role": "ADMIN (admin)",
+  "checks": [
+    {
+      "name": "placeholder text fits input @1440",
+      "pass": false,
+      "detail": {
+        "inputW": 154,
+        "textW": 168.4,
+        "ph": "Gõ chọn hoặc nhập hãng tàu"
+      }
+    },
+    {
+      "name": "input declares a clean overflow treatment (ellipsis) @1440",
+      "pass": false,
+      "detail": {
+        "textOverflow": "clip",
+        "fits": false
+      }
+    },
+    {
+      "name": "placeholder text fits input @1280",
+      "pass": false,
+      "detail": {
+        "inputW": 162,
+        "textW": 168.4,
+        "ph": "Gõ chọn hoặc nhập hãng tàu"
+      }
+    },
+    {
+      "name": "input declares a clean overflow treatment (ellipsis) @1280",
+      "pass": false,
+      "detail": {
+        "textOverflow": "clip",
+        "fits": false
+      }
+    },
+    {
+      "name": "placeholder text fits input @1024",
+      "pass": true,
+      "detail": {
+        "inputW": 367.5,
+        "textW": 168.4,
+        "ph": "Gõ chọn hoặc nhập hãng tàu"
+      }
+    },
+    {
+      "name": "input declares a clean overflow treatment (ellipsis) @1024",
+      "pass": true,
+      "detail": {
+        "textOverflow": "clip",
+        "fits": true
+      }
+    }
+  ],
+  "failed": true
+}

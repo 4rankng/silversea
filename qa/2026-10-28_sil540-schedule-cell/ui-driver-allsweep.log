@@ -1,0 +1,6 @@
+2026-10-27T17:45:18.104Z login ok dungnv (DISPATCHER)
+2026-10-27T17:45:22.619Z http://localhost:7175/shipments rows=20 clean=20
+2026-10-27T17:45:27.158Z http://localhost:7175/shipments?bucket=unassigned rows=20 clean=20
+2026-10-27T17:45:31.561Z http://localhost:7175/shipments?bucket=plated rows=20 clean=20
+2026-10-27T17:45:35.861Z http://localhost:7175/shipments?bucket=accounting rows=20 clean=20
+2026-10-27T17:45:35.861Z no defective rows on real data @1440 dungnv

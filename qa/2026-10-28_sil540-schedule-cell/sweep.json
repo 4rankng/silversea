@@ -1,0 +1,290 @@
+[
+  {
+    "width": 1440,
+    "defect": null,
+    "kids": [
+      {
+        "cls": "",
+        "text": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC",
+        "top": 272.8,
+        "bottom": 287.7,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 253,
+        "clientW": 203,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      },
+      {
+        "cls": "cus-schedule-status-row",
+        "text": "Toàn bộ chờ phân xe",
+        "top": 290.7,
+        "bottom": 305.5,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 203,
+        "clientW": 203,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      }
+    ]
+  },
+  {
+    "width": 1366,
+    "defect": null,
+    "kids": [
+      {
+        "cls": "",
+        "text": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC",
+        "top": 272.8,
+        "bottom": 287.7,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 253,
+        "clientW": 228,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      },
+      {
+        "cls": "cus-schedule-status-row",
+        "text": "Toàn bộ chờ phân xe",
+        "top": 290.7,
+        "bottom": 305.5,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 228,
+        "clientW": 228,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      }
+    ]
+  },
+  {
+    "width": 1280,
+    "defect": null,
+    "kids": [
+      {
+        "cls": "",
+        "text": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC",
+        "top": 272.8,
+        "bottom": 287.7,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 253,
+        "clientW": 212,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      },
+      {
+        "cls": "cus-schedule-status-row",
+        "text": "Toàn bộ chờ phân xe",
+        "top": 290.7,
+        "bottom": 305.5,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 212,
+        "clientW": 212,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      }
+    ]
+  },
+  {
+    "width": 1180,
+    "defect": null,
+    "kids": [
+      {
+        "cls": "",
+        "text": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC",
+        "top": 274.8,
+        "bottom": 289.7,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 253,
+        "clientW": 192,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      },
+      {
+        "cls": "cus-schedule-status-row",
+        "text": "Toàn bộ chờ phân xe",
+        "top": 292.7,
+        "bottom": 307.5,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 192,
+        "clientW": 192,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      }
+    ]
+  },
+  {
+    "width": 1024,
+    "defect": null,
+    "kids": [
+      {
+        "cls": "",
+        "text": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC",
+        "top": 274.8,
+        "bottom": 289.7,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 253,
+        "clientW": 161,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      },
+      {
+        "cls": "cus-schedule-status-row",
+        "text": "Toàn bộ chờ phân xe",
+        "top": 292.7,
+        "bottom": 307.5,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 161,
+        "clientW": 161,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "nowrap",
+        "ov": "hidden/hidden"
+      }
+    ]
+  },
+  {
+    "width": 999,
+    "defect": null,
+    "kids": [
+      {
+        "cls": "",
+        "text": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC",
+        "top": 347.5,
+        "bottom": 361.5,
+        "h": 14,
+        "scrollH": 0,
+        "clientH": 0,
+        "scrollW": 0,
+        "clientW": 0,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "normal",
+        "ov": "visible/visible"
+      },
+      {
+        "cls": "cus-schedule-status-row",
+        "text": "Toàn bộ chờ phân xe",
+        "top": 362.4,
+        "bottom": 377.2,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 458,
+        "clientW": 458,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "normal",
+        "ov": "visible/visible"
+      }
+    ]
+  },
+  {
+    "width": 768,
+    "defect": null,
+    "kids": [
+      {
+        "cls": "",
+        "text": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC",
+        "top": 347.5,
+        "bottom": 361.5,
+        "h": 14,
+        "scrollH": 0,
+        "clientH": 0,
+        "scrollW": 0,
+        "clientW": 0,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "normal",
+        "ov": "visible/visible"
+      },
+      {
+        "cls": "cus-schedule-status-row",
+        "text": "Toàn bộ chờ phân xe",
+        "top": 362.4,
+        "bottom": 377.2,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 343,
+        "clientW": 343,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "normal",
+        "ov": "visible/visible"
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "defect": null,
+    "kids": [
+      {
+        "cls": "",
+        "text": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC",
+        "top": 349.5,
+        "bottom": 378.4,
+        "h": 28.8,
+        "scrollH": 0,
+        "clientH": 0,
+        "scrollW": 0,
+        "clientW": 0,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "normal",
+        "ov": "visible/visible"
+      },
+      {
+        "cls": "cus-schedule-status-row",
+        "text": "Toàn bộ chờ phân xe",
+        "top": 379.2,
+        "bottom": 394.1,
+        "h": 14.8,
+        "scrollH": 15,
+        "clientH": 15,
+        "scrollW": 165,
+        "clientW": 165,
+        "fs": "11px",
+        "lh": "14.85px",
+        "ws": "normal",
+        "ov": "visible/visible"
+      }
+    ]
+  }
+]
