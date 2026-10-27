@@ -38,7 +38,10 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
   });
 
   it('keeps the owner floors at the table minimum: Khách hàng ≥180px, Điều phối ≥200px, Ghi chú ≥160px', () => {
-    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'assignment', 'classification', 'notes', 'actions'];
+    // SIL-524 (owner 27/10): the Thao tác rail left the percentage shares —
+    // it is a fixed 46px rail (one button wide), so the shares cover the
+    // DATA columns only and must still sum to exactly 100.
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'assignment', 'classification', 'notes'];
     const shares = names.map((name) => columnShare(name));
     // The ports class covers both port columns (two <col> elements share it).
     const total = shares.reduce((sum, share) => sum + share, 0) + columnShare('ports');
@@ -47,13 +50,15 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(width('route')).toBeGreaterThanOrEqual(180);
     expect(width('assignment')).toBeGreaterThanOrEqual(200);
     expect(width('notes')).toBeGreaterThanOrEqual(160);
-    // Nâng/Trả each fit one short port name; the actions rail fits the
-    // "Hoàn thành" pill + ⋯ trigger on ONE line inside its own cell
-    // (SIL-519: pill ~87px + gap 6 + trigger 30 + cell padding 16 ≈ 139px
-    // — the 5.5% rail overflowed the sticky cell and painted over the
-    // Ghi chú text).
     expect(width('ports')).toBeGreaterThanOrEqual(110);
-    expect(width('actions')).toBeGreaterThanOrEqual(132);
+    // The actions rail is ONE button wide: trigger 30px + the td's 8px
+    // side paddings = 46px (SIL-524; the freed 10.75% share went back to
+    // the data columns above — the old SIL-519 pill+trigger 10.75%
+    // budget is gone with the inline pill).
+    const actionsPx = css.match(/\.detailed-plan-grid__col--actions\s*\{[^}]*width:\s*(\d+(?:\.\d+)?)px/)?.[1];
+    expect(actionsPx, 'the actions col must own a fixed px width').toBeTruthy();
+    expect(Number(actionsPx)).toBeGreaterThanOrEqual(44);
+    expect(Number(actionsPx)).toBeLessThanOrEqual(48);
     // The formerly-fat columns came back to content budgets (owner spec
     // addendum: "cột phình thu lại vừa nội dung").
     expect(columnShare('schedule')).toBeLessThanOrEqual(10.5);
@@ -84,14 +89,18 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(css).not.toContain('.detailed-plan-grid__note-actions');
   });
 
-  it('pins the Thao tác column sticky-right — one action rail, no inline sprawl', () => {
+  it('pins the Thao tác column sticky-right — one vertical action stack, no inline sprawl', () => {
     expect(css).toMatch(/th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{[^}]*position:\s*sticky;[^}]*right:\s*0;/);
     expect(css).toMatch(/td\.detailed-plan-grid__cell--actions\s*\{[^}]*background:\s*var\(--surface\);/);
-    // SIL-519: the rail wraps as the pressure valve — a too-wide stack wraps
-    // INSIDE the cell instead of painting over the neighbour (no overlap).
+    // SIL-524 (owner 27/10): the actions stack VERTICALLY — the send
+    // icon on top, ⋯ under it — centered in the one-button rail, so a
+    // not-yet-sent row keeps the same centered ⋯ slot (no layout jump
+    // when send appears) and nothing paints over the neighbouring cell.
     const rail = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(rail, 'the row-actions rule must exist').not.toBe('');
-    expect(rail).toContain('flex-wrap: wrap');
+    expect(rail).toContain('flex-direction: column');
+    expect(rail).toContain('align-items: center');
+    expect(rail).toMatch(/gap:\s*[456]px/);
     // The inline destructive button treatment is deleted: Xóa lô lives in
     // the ⋯ menu (danger voice), never as a red inline pill again.
     expect(css).not.toContain('.detailed-plan-grid__note-action--delete');

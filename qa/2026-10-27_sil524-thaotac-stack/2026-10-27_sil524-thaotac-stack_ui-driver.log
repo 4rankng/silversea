@@ -1,0 +1,113 @@
+
+=== run label=before interactive=false 2026-10-27T12:53:36.337Z ===
+2026-10-27T12:53:36.451Z login admin: OK (http 200)
+2026-10-27T12:53:36.458Z GET /api/shipments/dispatch-detail-plan-rows: 400 rows=0
+
+=== run label=before interactive=false 2026-10-27T12:54:23.167Z ===
+2026-10-27T12:54:23.242Z login admin: OK (http 200)
+2026-10-27T12:54:23.283Z GET /api/shipments/dispatch-detail-plan-rows: 200 rows=50
+2026-10-27T12:54:23.283Z candidates: send-rows=4 hoàn-thành-rows=0
+2026-10-27T12:54:26.363Z measure[before]: th=144.1 td=[144.1,144.1,144.1,144.1,144.1,144.1] flex=row align=center gap=6px rows=50 withSend=18 withoutSend=32
+2026-10-27T12:54:26.849Z FAIL THAO TÁC column width 44-48px — th=144.1px
+2026-10-27T12:54:26.849Z FAIL row-actions rail stacks vertically — flex-direction=row
+2026-10-27T12:54:26.849Z PASS row-actions rail centered — align-items=center
+2026-10-27T12:54:26.849Z PASS stack gap 4-6px — gap=6px
+2026-10-27T12:54:26.850Z PASS not-yet-sent row keeps the same centered ⋯ slot (no layout jump) — kebabX send-row=1378 no-send-row=1378 drift=0px
+2026-10-27T12:54:26.850Z FAIL send icon centered above ⋯ — sendX=1343 kebabX=1378
+2026-10-27T12:54:26.949Z RESULT[before]: 3 FAILURES
+
+=== run label=after interactive=true 2026-10-27T12:57:37.091Z ===
+2026-10-27T12:57:37.179Z login admin: OK (http 200)
+2026-10-27T12:57:37.216Z GET /api/shipments/dispatch-detail-plan-rows: 200 rows=50
+2026-10-27T12:57:37.236Z candidates: send-rows=4 hoàn-thành-rows=1 (trip 50 on api page 2)
+2026-10-27T12:57:40.030Z measure[after]: th=46 td=[46,46,46,46,46,46] flex=column align=center gap=5px rows=50 withSend=18 withoutSend=32
+2026-10-27T12:57:40.243Z PASS THAO TÁC column width 44-48px — th=46px
+2026-10-27T12:57:40.243Z PASS row-actions rail stacks vertically — flex-direction=column
+2026-10-27T12:57:40.243Z PASS row-actions rail centered — align-items=center
+2026-10-27T12:57:40.243Z PASS stack gap 4-6px — gap=5px
+2026-10-27T12:57:40.243Z PASS not-yet-sent row keeps the same centered ⋯ slot (no layout jump) — kebabX send-row=1378.5 no-send-row=1378.5 drift=0px
+2026-10-27T12:57:40.243Z PASS send icon centered above ⋯ — sendX=1378.5 kebabX=1378.5
+2026-10-27T12:57:40.243Z menu drive target: FFAU6012758 tripId=50 (jumping UI to page 2)
+2026-10-27T12:57:40.274Z DRIVER ERROR: Node is either not clickable or not an Element
+2026-10-27T12:57:40.390Z RESULT[after]: 1 FAILURES
+
+=== run label=after interactive=true 2026-10-27T12:58:03.248Z ===
+2026-10-27T12:58:03.325Z login admin: OK (http 200)
+2026-10-27T12:58:03.357Z GET /api/shipments/dispatch-detail-plan-rows: 200 rows=50
+2026-10-27T12:58:03.377Z candidates: send-rows=4 hoàn-thành-rows=1 (trip 50 on api page 2)
+2026-10-27T12:58:06.119Z measure[after]: th=46 td=[46,46,46,46,46,46] flex=column align=center gap=5px rows=50 withSend=18 withoutSend=32
+2026-10-27T12:58:06.374Z PASS THAO TÁC column width 44-48px — th=46px
+2026-10-27T12:58:06.374Z PASS row-actions rail stacks vertically — flex-direction=column
+2026-10-27T12:58:06.380Z PASS row-actions rail centered — align-items=center
+2026-10-27T12:58:06.380Z PASS stack gap 4-6px — gap=5px
+2026-10-27T12:58:06.380Z PASS not-yet-sent row keeps the same centered ⋯ slot (no layout jump) — kebabX send-row=1378.5 no-send-row=1378.5 drift=0px
+2026-10-27T12:58:06.380Z PASS send icon centered above ⋯ — sendX=1378.5 kebabX=1378.5
+2026-10-27T12:58:06.380Z menu drive target: FFAU6012758 tripId=50 (jumping UI to page 2)
+2026-10-27T12:58:06.537Z pager jump: clicked
+2026-10-27T12:58:08.349Z FAIL ⋯ trigger clicked on the target row — row="FFAU6012758"
+2026-10-27T12:58:08.412Z FAIL persisted state unchanged — target row still DISPATCHED — tripId=50 taskStatus=undefined
+2026-10-27T12:58:08.541Z RESULT[after]: 2 FAILURES
+
+=== run label=after interactive=true 2026-10-27T12:59:31.311Z ===
+2026-10-27T12:59:31.403Z login admin: OK (http 200)
+2026-10-27T12:59:31.439Z GET /api/shipments/dispatch-detail-plan-rows: 200 rows=50
+2026-10-27T12:59:31.461Z candidates: send-rows=4 hoàn-thành-rows=1 (trip 50 on api page 2)
+2026-10-27T12:59:34.295Z measure[after]: th=46 td=[46,46,46,46,46,46] flex=column align=center gap=5px rows=50 withSend=18 withoutSend=32
+2026-10-27T12:59:34.754Z PASS THAO TÁC column width 44-48px — th=46px
+2026-10-27T12:59:34.754Z PASS row-actions rail stacks vertically — flex-direction=column
+2026-10-27T12:59:34.760Z PASS row-actions rail centered — align-items=center
+2026-10-27T12:59:34.760Z PASS stack gap 4-6px — gap=5px
+2026-10-27T12:59:34.760Z PASS not-yet-sent row keeps the same centered ⋯ slot (no layout jump) — kebabX send-row=1378.5 no-send-row=1378.5 drift=0px
+2026-10-27T12:59:34.760Z PASS send icon centered above ⋯ — sendX=1378.5 kebabX=1378.5
+2026-10-27T12:59:34.761Z menu drive target: FFAU6012758 tripId=50 (jumping UI to page 2)
+2026-10-27T12:59:34.790Z pager jump: clicked
+2026-10-27T12:59:42.836Z after jump: rowInDom=false summary="Hiển thị 51–100 trên 181" input=2
+2026-10-27T12:59:50.348Z fallback walk: rowInDom=false summary="Hiển thị 151–181 trên 181"
+2026-10-27T12:59:50.349Z FAIL target row visible after paging (page 2) — row="FFAU6012758"
+2026-10-27T12:59:51.568Z FAIL ⋯ trigger clicked on the target row — row="FFAU6012758"
+2026-10-27T12:59:51.644Z FAIL persisted state unchanged — target row still DISPATCHED — tripId=50 taskStatus=undefined
+2026-10-27T12:59:51.773Z RESULT[after]: 3 FAILURES
+
+=== run label=after interactive=true 2026-10-27T13:01:02.618Z ===
+2026-10-27T13:01:02.696Z login admin: OK (http 200)
+2026-10-27T13:01:02.730Z GET /api/shipments/dispatch-detail-plan-rows: 200 rows=50
+2026-10-27T13:01:02.753Z candidates: send-rows=4 hoàn-thành-rows=1 (trip 50 on api page 2)
+2026-10-27T13:01:05.553Z measure[after]: th=46 td=[46,46,46,46,46,46] flex=column align=center gap=5px rows=50 withSend=18 withoutSend=32
+2026-10-27T13:01:05.714Z PASS THAO TÁC column width 44-48px — th=46px
+2026-10-27T13:01:05.714Z PASS row-actions rail stacks vertically — flex-direction=column
+2026-10-27T13:01:05.720Z PASS row-actions rail centered — align-items=center
+2026-10-27T13:01:05.720Z PASS stack gap 4-6px — gap=5px
+2026-10-27T13:01:05.720Z PASS not-yet-sent row keeps the same centered ⋯ slot (no layout jump) — kebabX send-row=1378.5 no-send-row=1378.5 drift=0px
+2026-10-27T13:01:05.720Z PASS send icon centered above ⋯ — sendX=1378.5 kebabX=1378.5
+2026-10-27T13:01:05.720Z menu drive target: FFAU6012758 tripId=50 (filtering via the board's search box)
+2026-10-27T13:01:06.672Z after search: rowInDom=true summary="null"
+2026-10-27T13:01:06.672Z PASS target row surfaces via the board search — row="FFAU6012758"
+2026-10-27T13:01:07.902Z PASS ⋯ trigger clicked on the target row — row="FFAU6012758"
+2026-10-27T13:01:07.907Z menu open: label="Thao tác dòng · FFAU6012758" items=["Phân xe lại","Hoàn thành","Xóa lô"]
+2026-10-27T13:01:07.914Z PASS "Hoàn thành" lives INSIDE the ⋯ menu — items=["Phân xe lại","Hoàn thành","Xóa lô"]
+2026-10-27T13:01:08.871Z PASS menu "Hoàn thành" opens the page confirm dialog — dialogOpen=true
+2026-10-27T13:01:09.476Z PASS dialog cancelled cleanly (no mutation) — closed=true
+2026-10-27T13:01:09.533Z FAIL persisted state unchanged — target row still DISPATCHED — tripId=50 taskStatus=undefined
+2026-10-27T13:01:09.659Z RESULT[after]: 1 FAILURES
+
+=== run label=after interactive=true 2026-10-27T13:01:34.299Z ===
+2026-10-27T13:01:34.379Z login admin: OK (http 200)
+2026-10-27T13:01:34.414Z GET /api/shipments/dispatch-detail-plan-rows: 200 rows=50
+2026-10-27T13:01:34.441Z candidates: send-rows=4 hoàn-thành-rows=1 (trip 50 on api page 2)
+2026-10-27T13:01:37.239Z measure[after]: th=46 td=[46,46,46,46,46,46] flex=column align=center gap=5px rows=50 withSend=18 withoutSend=32
+2026-10-27T13:01:37.423Z PASS THAO TÁC column width 44-48px — th=46px
+2026-10-27T13:01:37.423Z PASS row-actions rail stacks vertically — flex-direction=column
+2026-10-27T13:01:37.429Z PASS row-actions rail centered — align-items=center
+2026-10-27T13:01:37.429Z PASS stack gap 4-6px — gap=5px
+2026-10-27T13:01:37.429Z PASS not-yet-sent row keeps the same centered ⋯ slot (no layout jump) — kebabX send-row=1378.5 no-send-row=1378.5 drift=0px
+2026-10-27T13:01:37.430Z PASS send icon centered above ⋯ — sendX=1378.5 kebabX=1378.5
+2026-10-27T13:01:37.430Z menu drive target: FFAU6012758 tripId=50 (filtering via the board's search box)
+2026-10-27T13:01:38.387Z after search: rowInDom=true summary="null"
+2026-10-27T13:01:38.388Z PASS target row surfaces via the board search — row="FFAU6012758"
+2026-10-27T13:01:39.607Z PASS ⋯ trigger clicked on the target row — row="FFAU6012758"
+2026-10-27T13:01:39.610Z menu open: label="Thao tác dòng · FFAU6012758" items=["Phân xe lại","Hoàn thành","Xóa lô"]
+2026-10-27T13:01:39.617Z PASS "Hoàn thành" lives INSIDE the ⋯ menu — items=["Phân xe lại","Hoàn thành","Xóa lô"]
+2026-10-27T13:01:40.424Z PASS menu "Hoàn thành" opens the page confirm dialog — dialogOpen=true
+2026-10-27T13:01:41.037Z PASS dialog cancelled cleanly (no mutation) — closed=true
+2026-10-27T13:01:41.124Z PASS persisted state unchanged — target row still DISPATCHED — tripId=50 taskStatus=DISPATCHED
+2026-10-27T13:01:41.247Z RESULT[after]: ALL PASS

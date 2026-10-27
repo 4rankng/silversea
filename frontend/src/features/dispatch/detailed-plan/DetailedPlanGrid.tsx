@@ -454,19 +454,23 @@ export function DetailedPlanGrid({
                 <th scope="col">Phân loại</th>
                 <th scope="col">Ghi chú</th>
                 {/* Owner redesign 23/10 — the ONE pinned action column: the ⋯
-                    row menu (+ the compact primary when ready) lives here,
-                    never inside a data cell. */}
+                    row menu lives here (+ the send quick-issue icon stacked
+                    above it), never inside a data cell. SIL-524 (owner
+                    27/10): the rail is ONE button wide — send stacks ABOVE
+                    ⋯ — and "Hoàn thành" rides the ⋯ menu, so the old wide
+                    inline pill is gone. */}
                 <th scope="col" className="detailed-plan-grid__th--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {items.map((row) => {
-                // Owner redesign 23/10 — the primary row action ("Phát lệnh"
-                // for plated-not-issued rows, "Hoàn thành" for external trips
-                // in flight) rides the PINNED Thao tác column with the ⋯ menu,
-                // so the notes cell is notes-only again. The two conditions
-                // are mutually exclusive; same derivation as the assignment
-                // cell's chip.
+                // Owner redesign 23/10 — the quick-issue send icon ("Phát
+                // lệnh" for plated-not-issued rows) rides the PINNED Thao
+                // tác column above the ⋯ menu, so the notes cell is
+                // notes-only again. SIL-524 (owner 27/10): the external
+                // trip's "Hoàn thành" verb moved INTO the ⋯ menu (the
+                // menu derives the same EXTERNAL + DISPATCHED condition),
+                // leaving the rail one button wide.
                 const issueStatus = deriveDispatchIssueStatus({
                   vehicleAssigned: row.dispatch.assignedPlate != null,
                   carrierAssigned: row.dispatch.externalCarrierId != null,
@@ -476,9 +480,6 @@ export function DetailedPlanGrid({
                 // Card 20261004_359 — deferred-plate external rows quick-issue
                 // exactly like plated ones (the issue body ships no plate).
                 const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE';
-                const canCompleteExternal = row.dispatch.carrierType === 'EXTERNAL'
-                  && row.dispatch.tripId != null
-                  && row.taskStatus === 'DISPATCHED';
                 // Schedule law (cards 20261003_304 / 20261002_269 /
                 // 20261003_318) — one shared derivation for table + card
                 // (DispatchPlanCellValues.detailedScheduleLine).
@@ -762,23 +763,15 @@ export function DetailedPlanGrid({
                     </div>
                   </td>
                   {/* Owner redesign 23/10 (spec B) — the ONE pinned action
-                      column: ⋯ menu always (non-completed rows) + the compact
-                      primary (Phát lệnh icon / Hoàn thành) when ready. Sticky
+                      column. SIL-524 (owner 27/10): the actions stack
+                      VERTICALLY — send icon on top, ⋯ under it — so the rail
+                      is exactly one button wide; a not-yet-sent row keeps the
+                      same centered ⋯ slot (no layout jump). "Hoàn thành" for
+                      external live trips rides the ⋯ menu below. Sticky
                       right so it never scrolls away or covers a value. */}
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--actions" data-label="Thao tác">
                     <div className="detailed-plan-grid__row-actions">
                       {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}
-                      {canCompleteExternal && (
-                        <button
-                          type="button"
-                          className="detailed-plan-grid__note-action"
-                          onClick={() => onCompleteExternalTrip(row)}
-                          aria-label={`Hoàn thành · ${row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber)}`}
-                          title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
-                        >
-                          Hoàn thành
-                        </button>
-                      )}
                       <DispatchRowActionsMenu
                         row={row}
                         onEditPlan={requestEditPlan}
@@ -787,6 +780,7 @@ export function DetailedPlanGrid({
                         onOpenPair={onOpenPair}
                         onUnmergeLclGroup={onUnmergeLclGroup}
                         onDeleteLot={onDeleteLot}
+                        onCompleteExternalTrip={onCompleteExternalTrip}
                       />
                     </div>
                   </td>

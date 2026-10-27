@@ -231,10 +231,10 @@
      17% / route 17.5%) were the "~230px row, 70% trống" defect: two fat
      columns starved the rest. SIL-515: with every cell wrapping, the
      floor is the roominess budget — the rail, not a cut, absorbs
-     anything wider. SIL-519 (owner 26/10): the Thao tác rail grows to
-     10.75% (~144px at the floor) so the "Hoàn thành" pill + ⋯ trigger sit
-     on ONE line INSIDE their own cell — at 5.5% the unshrinkable pill
-     overflowed the sticky cell and painted over the Ghi chú text. */
+     anything wider. SIL-524 (owner 27/10, supersedes SIL-519's 10.75%
+     rail): the Thao tác rail is ONE button wide — fixed 46px with the
+     actions stacked vertically (send on top, ⋯ under) — and the freed
+     share went back to the data columns. */
   min-width: 1340px;
   border-collapse: separate;
   border-spacing: 0;
@@ -242,12 +242,15 @@
   font-size: var(--ops-table-supporting-size);
 }
 
-/* Shares sum to exactly 100 (ports covers two <col> elements). Measured
-   floors at the 1340px minimum: schedule 121 · route 180 · ports 111×2 ·
-   documents 94 · container 137 · assignment 201 · classification 82 ·
-   notes 160 · actions 144 (SIL-519 — the pill+trigger one-line budget).
-   The owner floors (Khách hàng ≥180, Điều phối ≥200, Ghi chú ≥160,
-   Nâng/Trả ≥110) hold; everything else wraps (SIL-515). */
+/* Percentage shares sum to exactly 100 (ports covers two <col> elements);
+   Thao tác rides OUTSIDE the shares as a fixed 46px rail (the select-col
+   precedent). Measured floors at the 1340px minimum: schedule 121 ·
+   route 180 · ports 128×2 · documents 109 · container 160 · assignment
+   233 · classification 95 · notes 186 · actions 46px fixed (SIL-524 —
+   one button wide; the old SIL-519 10.75% pill+trigger budget is gone
+   with the inline pill). The owner floors (Khách hàng ≥180, Điều phối
+   ≥200, Ghi chú ≥160, Nâng/Trả ≥110) hold; everything else wraps
+   (SIL-515). */
 .detailed-plan-grid__col--schedule { width: 9%; }
 /* Spec 23/10 (261023110000 §2) — the on-demand CHỌN column: fixed 48px
    (master-plan precedent) so the reading columns keep their percentage
@@ -268,13 +271,17 @@
   justify-content: center;
 }
 .detailed-plan-grid__col--route { width: 13.45%; }
-.detailed-plan-grid__col--ports { width: 8.25%; }
-.detailed-plan-grid__col--documents { width: 7%; }
-.detailed-plan-grid__col--container { width: 10.25%; }
-.detailed-plan-grid__col--assignment { width: 15%; }
-.detailed-plan-grid__col--classification { width: 6.1%; }
-.detailed-plan-grid__col--notes { width: 11.95%; }
-.detailed-plan-grid__col--actions { width: 10.75%; }
+.detailed-plan-grid__col--ports { width: 9.58%; }
+.detailed-plan-grid__col--documents { width: 8.13%; }
+.detailed-plan-grid__col--container { width: 11.9%; }
+.detailed-plan-grid__col--assignment { width: 17.41%; }
+.detailed-plan-grid__col--classification { width: 7.08%; }
+.detailed-plan-grid__col--notes { width: 13.87%; }
+/* SIL-524 (owner 27/10) — the rail is ONE button wide: fixed 46px
+   (trigger 30px + the td's 8px side paddings), same fixed-px precedent
+   as the select col. The freed 10.75% share went back to the data
+   columns above. */
+.detailed-plan-grid__col--actions { width: 46px; }
 
 /* Master-plan lane fix (owner redesign 23/10, same defect class): the
    wrapper is now a bounded pane owning the board's vertical scroll, so the
@@ -421,10 +428,10 @@
 
 /* ── The pinned Thao tác column (spec B) ────────────────────────────────────
    Sticky right inside the wrapper's horizontal rail: the ⋯ menu (and the
-   compact primary) stay reachable at every scroll offset; the opaque surface
-   + hairline read as a deliberate rail, and scrolling columns never bleed
-   under it. z-index sits above the scrolling cells but below the sticky
-   thead band; the corner cell outranks both. */
+   send quick-issue icon stacked above it) stay reachable at every scroll
+   offset; the opaque surface + hairline read as a deliberate rail, and
+   scrolling columns never bleed under it. z-index sits above the scrolling
+   cells but below the sticky thead band; the corner cell outranks both. */
 .detailed-plan-grid th.detailed-plan-grid__th--actions,
 .detailed-plan-grid td.detailed-plan-grid__cell--actions {
   position: sticky;
@@ -442,11 +449,16 @@
 }
 
 .detailed-plan-grid__row-actions {
+  /* SIL-524 (owner 27/10): the actions stack VERTICALLY — the send
+     quick-issue icon on top, ⋯ under it — centered in the one-button
+     rail, so a not-yet-sent row keeps the exact same centered ⋯ slot
+     (no layout jump when send appears) and the freed horizontal width
+     belongs to the data columns. */
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  justify-content: center;
+  gap: 5px;
   min-width: 0;
 }
 
