@@ -187,6 +187,116 @@ function CustomsCell({ row }: { row: ShipmentDebitLotRow }) {
   );
 }
 
+/**
+ * SIL-538 — the merged row's merge tag + its direct Tách-nhóm popover.
+ *
+ * PRD 261023110000 §4.2: "Nút [Tách nhóm] trên dòng đã gộp" — CUS unmerges
+ * straight from the row (click the Ghép (n/N) tag → popover holds the
+ * action(s)), instead of digging through the ⋯ kebab. Same mounted-portal law
+ * as DebitRowMenu: the list renders once and only hides on close, because the
+ * UnmergeRevGroupAction owns live state (its ConfirmDialog + undo toast) that
+ * unmounting would kill mid-interaction. One popover at a time shares the
+ * kebab's process-wide closer (declared below, before DebitRowMenu).
+ */
+function MergedGroupTag({ row, onUnmerged }: {
+  row: ShipmentDebitLotRow;
+  onUnmerged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const rootRef = useRef<HTMLSpanElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const myCloserRef = useRef<(() => void) | null>(null);
+  const label = lotLabelOf(row);
+
+  useEffect(() => () => {
+    if (closeOpenDebitMenu === myCloserRef.current) closeOpenDebitMenu = null;
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node) && !listRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const toggle = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!open) {
+      closeOpenDebitMenu?.();
+      const closeSelf = () => setOpen(false);
+      myCloserRef.current = closeSelf;
+      closeOpenDebitMenu = closeSelf;
+      if (rect) {
+        setPos({ top: Math.min(rect.bottom + 4, window.innerHeight - 160), left: Math.max(8, Math.min(rect.left - 150, window.innerWidth - 208)) });
+      }
+    }
+    setOpen((v) => !v);
+  };
+
+  const dimensions: Array<'REV' | 'COST'> = [];
+  if (row.revGroupId != null) dimensions.push('REV');
+  if (row.costGroupId != null) dimensions.push('COST');
+  const groupLabel = `Ghép (${row.revGroupOrder ?? row.costGroupOrder ?? '?'}/${row.revGroupMemberCount ?? row.costGroupMemberCount ?? '?'})`;
+
+  return (
+    <span className="shipment-debit-mergetag" ref={rootRef}>
+      <button
+        type="button"
+        ref={triggerRef}
+        className="shipment-debit-mergetag__trigger"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Nhóm ghép của lô ${label} — mở tách nhóm`}
+        title="Lô đã ghép — bấm để tách nhóm (Hủy ghép)"
+        onClick={(event) => { event.stopPropagation(); toggle(); }}
+      >
+        {groupLabel}
+      </button>
+      {pos && createPortal(
+        <div
+          className={`shipment-debit-menu__list${open ? ' is-open' : ''}`}
+          role="menu"
+          aria-label={`Tách nhóm lô ${label}`}
+          ref={listRef}
+          style={pos}
+          hidden={!open}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {dimensions.map((dimension) => (
+            <div key={dimension} className="shipment-debit-menu__action">
+              <UnmergeRevGroupAction
+                id={`shipment-debit-mergetag-${dimension.toLowerCase()}-${row.shipmentId}`}
+                groupId={dimension === 'REV' ? row.revGroupId! : row.costGroupId!}
+                dimension={dimension}
+                lotRef={label}
+                disabledReason={row.lockStatus === 'LOCKED'
+                  ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
+                  : null}
+                onUnmerged={onUnmerged}
+              />
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </span>
+  );
+}
+
+
 /** ── The ⋯ kebab: the row's ONE action affordance (owner redesign 23/10). */
 
 /** One menu at a time, process-wide. A trigger's React stopPropagation (which
@@ -314,9 +424,11 @@ function DebitRowMenu({ row, canManage, expanded, onToggle, onUnmerged }: {
 }
 
 /** ── One lot row: single baseline, 52px, eleven fixed columns. */
-function DebitLotRow({ row, canManage, expanded, onToggle, onSaved, onUnmerged, ratesRefreshing, selected, onSelect, plateOptions }: {
+function DebitLotRow({ row, canManage, mergeMode, expanded, onToggle, onSaved, onUnmerged, ratesRefreshing, selected, onSelect, plateOptions }: {
   row: ShipmentDebitLotRow;
   canManage: boolean;
+  /** SIL-537/538 — CHỌN column rides the page's [📦 Gộp hàng] mode. */
+  mergeMode: boolean;
   expanded: boolean;
   onToggle: () => void;
   onSaved: () => void;
@@ -337,21 +449,26 @@ function DebitLotRow({ row, canManage, expanded, onToggle, onSaved, onUnmerged, 
         className="shipment-debit-row"
         data-locked={row.lockStatus === 'LOCKED' ? '' : undefined}
         data-selected={selected || undefined}
-        onClick={() => { if (canManage) onSelect(row.shipmentId, !selected); }}
-        title={canManage ? 'Chọn lô (gộp xe thu khách / xuất Debit Note)' : undefined}
+        // SIL-537/538: the row itself is a select-alias ONLY in [📦 Gộp hàng]
+        // mode — outside the mode a row click must never mutate an invisible
+        // selection (the ticks are hidden there by design).
+        onClick={() => { if (canManage && mergeMode) onSelect(row.shipmentId, !selected); }}
+        title={canManage && mergeMode ? 'Chọn lô (gộp xe thu khách / xuất Debit Note)' : undefined}
       >
-        <td className="shipment-debit-cell--select">
-          {canManage ? (
-            <input
-              type="checkbox"
-              className="shipment-debit-row__select"
-              checked={selected}
-              aria-label={`Chọn lô ${label}`}
-              onClick={(event) => event.stopPropagation()}
-              onChange={(event) => onSelect(row.shipmentId, event.target.checked)}
-            />
-          ) : <span className="shipment-debit-cell__empty" aria-label="Chỉ xem tổng hợp">—</span>}
-        </td>
+        {mergeMode && (
+          <td className="shipment-debit-cell--select">
+            {canManage ? (
+              <input
+                type="checkbox"
+                className="shipment-debit-row__select"
+                checked={selected}
+                aria-label={`Chọn lô ${label}`}
+                onClick={(event) => event.stopPropagation()}
+                onChange={(event) => onSelect(row.shipmentId, event.target.checked)}
+              />
+            ) : <span className="shipment-debit-cell__empty" aria-label="Chỉ xem tổng hợp">—</span>}
+          </td>
+        )}
         <td className="shipment-debit-cell--booking">
           <span className="shipment-debit-booking" title={label}>{label}</span>
         </td>
@@ -371,12 +488,19 @@ function DebitLotRow({ row, canManage, expanded, onToggle, onSaved, onUnmerged, 
           <span className={`shipment-debit-status${row.lockStatus === 'LOCKED' ? ' shipment-debit-status--locked' : ''}`}>
             {row.lockStatus === 'LOCKED' ? 'Đã khóa' : 'Đang mở'}
           </span>
+          {/* SIL-538 — the merged row's merge tag IS the direct surface: click
+              opens a small popover hosting [Tách nhóm] (rev/cost) so CUS never
+              has to dig the action out of the ⋯ kebab (PRD 261023110000 §4.2).
+              The expanded drawer keeps its per-dimension Hủy ghép buttons. */}
+          {canManage && (row.revGroupId != null || row.costGroupId != null) && (
+            <MergedGroupTag row={row} onUnmerged={onUnmerged} />
+          )}
           <DebitRowMenu row={row} canManage={canManage} expanded={expanded} onToggle={onToggle} onUnmerged={onUnmerged} />
         </td>
       </tr>
       {canManage && expanded && (
         <tr className="shipment-debit-expand">
-          <td colSpan={11}>
+          <td colSpan={mergeMode ? 11 : 10}>
             {row.cargoMode === 'LCL' && (
               <DebitLotLclFacts row={row} plateOptions={plateOptions} onChanged={onSaved} />
             )}
@@ -412,7 +536,7 @@ function groupByCustomer(items: ShipmentDebitLotRow[]): LotGroup[] {
   return groups;
 }
 
-function GroupHeader({ group, collapsed, onCollapse }: { group: LotGroup; collapsed: boolean; onCollapse: () => void }) {
+function GroupHeader({ group, collapsed, onCollapse, leadingColSpan }: { group: LotGroup; collapsed: boolean; onCollapse: () => void; leadingColSpan: number }) {
   const displayName = titleCaseName(group.name) || group.name;  const sums = group.rows.map((row) => ({
     receivable: moneyState(row.receivableTotal),
     carrier: moneyState(row.carrierCostTotal ?? null),
@@ -422,7 +546,7 @@ function GroupHeader({ group, collapsed, onCollapse }: { group: LotGroup; collap
   }));
   return (
     <tr className="shipment-debit-group">
-      <td colSpan={5} className="shipment-debit-group__label">
+      <td colSpan={leadingColSpan} className="shipment-debit-group__label">
         <button
           type="button"
           className="shipment-debit-group__chevron"
@@ -452,9 +576,13 @@ function sumsToState(states: Array<ReturnType<typeof moneyState>>): ReturnType<t
   return sum == null ? { kind: 'pending' } : sum === 0 ? { kind: 'zero' } : { kind: 'known', value: sum };
 }
 
-export function DebitLotTable({ items, canManage, selectedIds, expandedId, onToggle, onSaved, onUnmerged, ratesRefreshing, plateOptions, onSelect }: {
+export function DebitLotTable({ items, canManage, mergeMode, selectedIds, expandedId, onToggle, onSaved, onUnmerged, ratesRefreshing, plateOptions, onSelect }: {
   items: ShipmentDebitLotRow[];
   canManage: boolean;
+  /** SIL-537/538 (PRD 261023110000 §2) — the CHỌN column is on-demand: it
+   *  only renders while the page's [📦 Gộp hàng] mode stands; merged rows
+   *  carry their direct Tách-nhóm tag popover in every mode. */
+  mergeMode: boolean;
   selectedIds: Set<number>;
   expandedId: number | null;
   onToggle: (id: number) => void;
@@ -481,7 +609,7 @@ export function DebitLotTable({ items, canManage, selectedIds, expandedId, onTog
       <table className="shipment-debit-table">
         <thead>
           <tr>
-            <th scope="col" className="shipment-debit-col--select"><span className="sr-only">{canManage ? 'Chọn lô' : 'Chỉ xem'}</span></th>
+            {mergeMode && <th scope="col" className="shipment-debit-col--select"><span className="sr-only">{canManage ? 'Chọn lô' : 'Chỉ xem'}</span></th>}
             <th scope="col" className="shipment-debit-col--booking">Mã lô / Booking</th>
             <th scope="col" className="shipment-debit-col--customs">Tờ khai</th>
             <th scope="col" className="shipment-debit-col--lane">Nhà máy / Tuyến</th>
@@ -497,12 +625,13 @@ export function DebitLotTable({ items, canManage, selectedIds, expandedId, onTog
         <tbody>
           {groups.map((group) => (
             <Fragment key={group.key}>
-              <GroupHeader group={group} collapsed={collapsed.has(group.key)} onCollapse={() => toggleCollapse(group.key)} />
+              <GroupHeader group={group} collapsed={collapsed.has(group.key)} onCollapse={() => toggleCollapse(group.key)} leadingColSpan={mergeMode ? 5 : 4} />
               {!collapsed.has(group.key) && group.rows.map((row) => (
                 <DebitLotRow
                   key={row.shipmentId}
                   row={row}
                   canManage={canManage}
+                  mergeMode={mergeMode}
                   expanded={canManage && expandedId === row.shipmentId}
                   onToggle={() => onToggle(row.shipmentId)}
                   onSaved={onSaved}
@@ -518,7 +647,7 @@ export function DebitLotTable({ items, canManage, selectedIds, expandedId, onTog
         </tbody>
         <tfoot className="shipment-debit-totals" data-testid="shipment-debit-totals">
           <tr>
-            <td colSpan={5} className="shipment-debit-totals__label">{`Tổng cộng (${items.length} lô)`}</td>
+            <td colSpan={mergeMode ? 5 : 4} className="shipment-debit-totals__label">{`Tổng cộng (${items.length} lô)`}</td>
             <TotalCell col="receivable" value={totalOf((row) => row.receivableTotal)} />
             <TotalCell col="carrier" value={totalOf((row) => row.carrierCostTotal ?? null)} />
             <TotalCell col="domestic" value={totalOf((row) => row.opsCostTotal ?? null)} />

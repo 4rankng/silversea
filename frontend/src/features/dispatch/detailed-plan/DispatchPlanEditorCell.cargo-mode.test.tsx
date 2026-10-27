@@ -225,7 +225,7 @@ describe('DispatchPlanEditorCell — cửa sổ điều phối theo cargoMode (o
     await openDialog();
 
     // The group's truck facts — the lclspec channel this window owns.
-    expect(screen.getByText('BKS nhóm: 15H-052.82 · Ảo: 29C-333.33')).toBeTruthy();
+    expect(screen.getByText('BKS nhóm: 15H-052.82')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Đổi BKS nhóm' }));
     expect(onChangeGroupTruck).toHaveBeenCalledWith(expect.objectContaining({ shipmentId: 11 }));
 

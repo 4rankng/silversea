@@ -1695,7 +1695,7 @@ describe('DispatchPlanEditorCell — grouped LCL lot BKS law (card 191026100010)
     const onChangeGroupTruck = vi.fn();
     renderCell(groupedRow(), { onChangeGroupTruck });
     await openDialog();
-    expect(screen.getByText('BKS nhóm: 15H-052.82 · Ảo: 29C-333.33')).toBeTruthy();
+    expect(screen.getByText('BKS nhóm: 15H-052.82')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Đổi BKS nhóm' }));
     expect(onChangeGroupTruck).toHaveBeenCalledTimes(1);
     expect(onChangeGroupTruck.mock.calls[0]![0]).toMatchObject({ shipmentId: 11 });

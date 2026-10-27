@@ -185,6 +185,25 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     expect(screen.queryByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-3' })).toBeNull();
   });
 
+  // SIL-538 (PRD 261023110000 §4.2) — the merged row's own merge tag opens a
+  // popover hosting [Tách nhóm] DIRECTLY on the row (no kebab detour).
+  it('SIL-538: tag "Ghép (n/N)" trên dòng đã gộp mở popover Tách nhóm trực tiếp', async () => {
+    renderPage();
+    await screen.findAllByText('BL-1');
+
+    // Each merged row carries the tag button (Lô 1 and Lô 2 alike).
+    const row1 = screen.getAllByText('BL-1')[0].closest('tr')!;
+    const tag = within(row1).getByRole('button', { name: 'Nhóm ghép của lô BL-1 — mở tách nhóm' });
+    expect(tag.textContent).toBe('Ghép (1/2)');
+
+    fireEvent.click(tag);
+    const tach = await screen.findByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' });
+    fireEvent.click(tach);
+    // The action's own confirm dialog opens — money law unchanged.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
+    await waitFor(() => expect(unmergeGroup).toHaveBeenCalledWith({ groupId: 'g-rev-1', dimension: 'REV' }));
+  });
+
   it('nhóm đã chốt kế toán: aria-disabled + lý do qua aria-describedby, click bị guard (không mở dialog)', async () => {
     listSummary.mockResolvedValue(summaryOf([lclRow({
       billOrBookNumber: 'BL-1',

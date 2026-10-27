@@ -97,29 +97,41 @@ const twoSameCustomerLots = () => ({
 });
 
 describe('FB-093b — Gộp xe thu khách ARIA + click contract', () => {
-  /** Owner redesign 23/10 — the ticks are permanent (Checkbox column); the
-   *  merge CTA is the action-bar [Gộp hàng] button. */
-  it('mỗi lô có role=checkbox đầu dòng mang tên lô, luôn hiển thị (redesign 23/10)', async () => {
+  /** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [📦 Gộp
+   *  hàng] mode; flip it on (the strip toggle) before any checkbox contract. */
+  const enableMergeMode = () => {
+    const toggle = screen.queryByRole('button', { name: '📦 Gộp hàng' });
+    if (toggle) fireEvent.click(toggle);
+  };
+
+  /** SIL-538: mặc định (mode OFF) KHÔNG có tick — bật mode thì tick đầu dòng
+   *  mang tên lô hiện ra với đúng role/label. */
+  it('mỗi lô có role=checkbox đầu dòng mang tên lô — ẩn mặc định, hiện trong mode Gộp hàng', async () => {
     listSummary.mockResolvedValue(twoSameCustomerLots());
     renderPage();
     await screen.findAllByText('BL-1');
 
-    // The ticks are permanent now — no on-demand mode, no floating bar.
+    // Mode OFF: the CHỌN column is hidden entirely (PRD §2 default).
+    expect(screen.queryByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeNull();
+    enableMergeMode();
+
     const tick1 = screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }) as HTMLInputElement;
     const tick2 = screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }) as HTMLInputElement;
     expect(tick1.checked).toBe(false);
     fireEvent.click(tick1);
     expect(tick1.checked).toBe(true);
     expect(tick2.checked).toBe(false);
-    expect(screen.queryByText((_, element) => element?.classList.contains('lcl-selection-bar') ?? false)).toBeNull();
+    // One pick: the floating bar IS up (it hosts the merge CTA).
+    expect(screen.getByText((_, element) => element?.classList.contains('lcl-selection-bar') ?? false)).toBeTruthy();
   });
 
-  it('nút Gộp hàng: role=button, aria-disabled=true khi chưa đủ 2 lô, reason qua aria-describedby', async () => {
+  it('nút Gộp hàng (floating bar): role=button, aria-disabled=true khi chưa đủ 2 lô, reason qua aria-describedby', async () => {
     listSummary.mockResolvedValue(twoSameCustomerLots());
     renderPage();
     await screen.findAllByText('BL-1');
+    enableMergeMode();
 
-    // One pick: the action-bar CTA explains itself.
+    // One pick: the bar CTA explains itself.
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
     const button = screen.getByRole('button', { name: 'Gộp hàng' });
     expect(button.getAttribute('aria-disabled')).toBe('true');
@@ -140,6 +152,7 @@ describe('FB-093b — Gộp xe thu khách ARIA + click contract', () => {
     getBootstrap.mockResolvedValue({ customers: [{ id: 1, name: 'KH A' }], trucks: [] });
     renderPage();
     await screen.findAllByText('BL-1');
+    enableMergeMode();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }));
 

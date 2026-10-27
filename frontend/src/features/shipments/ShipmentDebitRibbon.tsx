@@ -1,6 +1,7 @@
 import { RotateCcw } from 'lucide-react';
 import { Button as UUIButton } from '../../components/untitled-ui/base/buttons/button';
 import { DisabledActionTip } from '../../components/shared/DisabledActionTip';
+import { LclMergeModeToggle } from '../../components/shared/LclMergeModeToggle';
 import {
   InlineLabelSelect, SearchableSelect, UnifiedDateRangePicker, FilterBar,
   type SearchableSelectOption,
@@ -54,6 +55,10 @@ export interface ShipmentDebitRibbonProps {
   appliedCount: number;
   /** Clears every filter of the strip. */
   onClear: () => void;
+  /** SIL-538 (PRD 261023110000 §2) — the on-demand [📦 Gộp hàng] mode: OFF
+   *  keeps the CHỌN column hidden, ON reveals it with the floating bar. */
+  mergeMode: boolean;
+  onToggleMergeMode: () => void;
 }
 
 export function ShipmentDebitRibbon({
@@ -67,11 +72,20 @@ export function ShipmentDebitRibbon({
   onLockChange,
   appliedCount,
   onClear,
+  mergeMode,
+  onToggleMergeMode,
 }: ShipmentDebitRibbonProps) {
   const range = { from: deliveryFrom, to: deliveryTo };
   return (
     <FilterBar
-      actions={appliedCount > 0 ? (
+      actions={(
+        /* SIL-538 (PRD 261023110000 §2) — the [📦 Gộp hàng] on-demand toggle
+            leads the strip's action slot: it owns the CHỌN column's visibility
+            and the floating bar, on THIS surface exactly like on the two ĐV
+            plans. */
+        <>
+          <LclMergeModeToggle active={mergeMode} onToggle={onToggleMergeMode} />
+          {appliedCount > 0 ? (
         <UUIButton
           className="shipment-debit-ribbon__clear"
           size="sm"
@@ -99,6 +113,8 @@ export function ShipmentDebitRibbon({
             Xóa bộ lọc
           </UUIButton>
         </DisabledActionTip>
+          )}
+        </>
       )}
     >
       {/* Owner 2026-10-17: the Khách hàng picker leads the lane — a bar child

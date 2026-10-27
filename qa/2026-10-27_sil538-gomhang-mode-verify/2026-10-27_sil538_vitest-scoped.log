@@ -1,0 +1,14 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-601-604/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  54 passed (54)
+      Tests  586 passed (586)
+   Start at  23:31:02
+   Duration  17.83s (transform 6.93s, setup 8.78s, import 49.60s, tests 57.43s, environment 33.44s)
+

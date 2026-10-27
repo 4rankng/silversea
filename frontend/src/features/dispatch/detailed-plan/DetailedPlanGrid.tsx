@@ -79,8 +79,11 @@ function useCardLayoutMode(): [React.Dispatch<React.SetStateAction<HTMLDivElemen
 }
 
 /** FB-092/FB-095 — the group tag's tooltip: dimension + truck identity. */
-function lclGroupTagTitle(group: { actualTruckNo: string | null; billingTruckNo: string | null }): string {
-  return `Ghép trả ĐV · BKS ${group.actualTruckNo ?? '—'}${group.billingTruckNo && group.billingTruckNo !== group.actualTruckNo ? ` · Báo khách ${group.billingTruckNo}` : ''}`;
+// SIL-537: the group tag names ONLY the BKS thực. "BKS báo khách" (ảo) is a
+// CUS-side output and must not surface anywhere on the Điều vận side (spec
+// 23/10 §1, GP-03 sweep; display half removed 27/10).
+function lclGroupTagTitle(group: { actualTruckNo: string | null }): string {
+  return `Ghép trả ĐV · BKS ${group.actualTruckNo ?? '—'}`;
 }
 
 interface DetailedPlanGridProps {
@@ -978,6 +981,22 @@ export function DetailedPlanGrid({
                   <p className="detailed-plan-grid__line detailed-plan-grid__line--muted">
                     {`Còn ${groupMenuMissing} thành viên ở trang khác`}
                   </p>
+                )}
+                {/* SIL-538 — Tách nhóm joins the tag popover so the whole-group
+                    unmerge is direct on the Lô 1 row (same law as the ⋯ menu
+                    entry it mirrors: SPEC 18/10/2026 §4, Lô 1 only). */}
+                {onUnmergeLclGroup && groupMenuRow.lcl.group.order === 1 && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    title="Tách nhóm ghép — mỗi lô trở về cước trả ĐV độc lập"
+                    onClick={() => {
+                      onUnmergeLclGroup(groupMenuRow.lcl!.group!.groupId);
+                      setGroupMenuRow(null);
+                    }}
+                  >
+                    Tách nhóm
+                  </button>
                 )}
               </>
             )}

@@ -108,8 +108,16 @@ beforeEach(() => {
   listSummary.mockResolvedValue({ items: [], total: 0 });
 });
 
-/** Redesign 23/10 — no mode to flip: the row click IS the pick. */
+/** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [📦 Gộp hàng]
+ *  mode again: flip the filter-strip toggle on (only when OFF — the ON face
+ *  reads '✕ Thoát gộp hàng'), then the row click is the pick. */
+const enableMergeMode = () => {
+  const toggle = screen.queryByRole('button', { name: '📦 Gộp hàng' });
+  if (toggle) fireEvent.click(toggle);
+};
+
 const pickLot = (label: string) => {
+  enableMergeMode();
   fireEvent.click(screen.getAllByText(label)[0].closest('tr')!);
 };
 
@@ -121,7 +129,7 @@ const openLot = async (label: string) => {
 };
 
 describe('FB-093 — Ghép cước thu khách', () => {
-  it('always shows the ticks and arms the action-bar [Gộp hàng] at ≥2 ungrouped lots (redesign 23/10)', async () => {
+  it('SIL-538: ticks hidden by default, [📦 Gộp hàng] reveals them; the bar CTA arms at ≥2 ungrouped lots', async () => {
     listSummary.mockResolvedValue({
       items: [
         lclRow(),
@@ -132,24 +140,38 @@ describe('FB-093 — Ghép cước thu khách', () => {
     renderPage();
     await screen.findAllByText('BL-1');
 
-    // Default: the ticks are permanently on (no on-demand mode anymore) and
-    // the merge CTA explains itself until the picks are valid.
+    // Default (mode OFF): the CHỌN column is hidden, the toggle rides the
+    // filter strip, and no merge CTA is on screen yet.
+    expect(screen.queryByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeNull();
+    const toggle = screen.getByRole('button', { name: '📦 Gộp hàng' });
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Gộp hàng' })).toBeNull();
+
+    // Flipping the mode reveals the ticks; the bar (and its merge CTA) only
+    // mounts once something is picked.
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: '✕ Thoát gộp hàng' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeTruthy();
-    const cta = screen.getByRole('button', { name: 'Gộp hàng' });
-    expect(cta.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.queryByRole('button', { name: 'Gộp hàng' })).toBeNull();
 
     // OPEN lots select — merging is a pre-lock action.
     pickLot('BL-1');
     // One pick: the selection clause is up; the CTA still explains itself.
     expect(screen.getByText(/Đang chọn 1 lô/)).toBeTruthy();
     expect(screen.getByText(/Lô 1 giữ 100% tiền thu khách: BL-1/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Gộp hàng' }).getAttribute('aria-disabled')).toBe('true');
+    const cta = screen.getByRole('button', { name: 'Gộp hàng' });
+    expect(cta.getAttribute('aria-disabled')).toBe('true');
 
     pickLot('BL-2');
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Gộp hàng' }).getAttribute('aria-disabled')).toBeNull();
     });
     expect(screen.getByText(/Đang chọn 2 lô/)).toBeTruthy();
+
+    // [✕ Thoát gộp hàng] hides the column and the bar again (PRD §2 exit).
+    fireEvent.click(screen.getByRole('button', { name: '✕ Thoát gộp hàng' }));
+    expect(screen.queryByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeNull();
+    expect(screen.queryByText(/Đang chọn/)).toBeNull();
   });
 
   it('blocks mixed-customer selections in the dialog and merges same-customer lots', async () => {
@@ -208,6 +230,7 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
+    enableMergeMode();
 
     const rowA = screen.getAllByText('BL-1')[0]!.closest('tr')!;
     const rowB = screen.getAllByText('BL-2')[0]!.closest('tr')!;
@@ -242,6 +265,7 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
+    enableMergeMode();
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
     expect(screen.getByRole('button', { name: 'Gộp hàng' })).toHaveAttribute('aria-disabled', 'true');
@@ -277,6 +301,7 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     renderPage();
     await screen.findAllByText('BL-1');
+    enableMergeMode();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-2' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-3' }));
@@ -343,11 +368,13 @@ describe('FB-093 — Ghép cước thu khách', () => {
     })));
 
     // Criterion 6 — the value is re-displayed on the merged lots afterwards
-    // (the merge completes and DROPS the selection; expansion rides the kebab).
+    // (the merge completes and EXITS the mode — PRD §2 auto-hide; expansion
+    // rides the kebab).
     await openLot('BL-1');
     expect(await screen.findByText(/Báo khách \(Ảo\): 29C-111\.22/)).toBeTruthy();
-    // Finishing the merge cleared the picks (the ticks stay, unchecked).
-    expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).not.toBeChecked();
+    // Finishing the merge hid the CHỌN column again: no ticks on screen.
+    expect(screen.queryByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeNull();
+    expect(screen.getByRole('button', { name: '📦 Gộp hàng' })).toBeTruthy();
   });
 
   it('still submits a free-typed BKS báo khách with the merge (card 161026232409)', async () => {
@@ -425,7 +452,8 @@ describe('FB-093 — Ghép cước thu khách', () => {
     pickLot('BL-2');
 
     const totals = await screen.findByText(/Đang chọn 2 lô/);
-    expect(totals.classList.contains('shipment-debit-header__selection')).toBe(true);
+    // SIL-538: the read-out lives on the mode's floating bar now.
+    expect(totals.classList.contains('lcl-selection-bar__totals')).toBe(true);
     // 1922 + 778 kg = 2,7 tấn; 4 + 3,5 CBM.
     expect(totals.textContent).toContain('2,7 tấn');
     expect(totals.textContent).toContain('7,5 CBM');
@@ -445,7 +473,7 @@ describe('FB-093 — Ghép cước thu khách', () => {
     pickLot('BL-2');
 
     const totals = await screen.findByText(/Đang chọn 2 lô/);
-    expect(totals.textContent).toBe('Đang chọn 2 lô · Tổng 1 tấn — Lô 1 giữ 100% tiền thu khách: BL-1');
+    expect(totals.textContent).toBe('Đang chọn 2 lô: Tổng 1 tấn');
   });
 
   // ── GP-02 — the "Ghép thu cước cùng Lô 1" wire reason rides the money cell

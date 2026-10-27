@@ -1,0 +1,9 @@
+LOGIN ok thanhdc (via :3003)
+LOGIN ok thanhdc (via :3002, for the UI leg)
+PRE unmerge (noop if already split): {"error":"Lô R42RV-D2 không thuộc nhóm ghép nào ở chiều này — không có gì để tách"}
+PASS API merge 242+244 into a REV group — {"groupId":"4bc064fd-fa44-48e6-9307-27e211230c90","memberCount":2,"members":[{"shipmentId":242,"order":1,"reference":"R42RV-02","revMergeTag
+PASS API unmerge splits R42RV-D2 out — {"dimension":"REV","groupId":"4bc064fd-fa44-48e6-9307-27e211230c90","leaver":{"shipmentId":244,"order":2,"reference":"R42RV-D2"},"promoted":
+PASS UI split lot shows Loại xe 10T (kept, not wiped) — receivable="3.100.000"
+PASS UI split lot shows the re-looked-up price 3.100.000 — inputs=["15C-99999","Xe 10 tấn"]
+PASS UI no "Chưa xác định"/"chờ định giá lại" on the split lot — receivable cell="3.100.000"
+DONE failures=0

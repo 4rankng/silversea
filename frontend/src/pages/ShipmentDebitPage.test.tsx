@@ -39,10 +39,16 @@ function renderPage(initialEntry = '/shipments-debit') {
   );
 }
 
-/** Owner redesign 23/10 — the ticks are always on the board; a selection
- *  flow starts straight from the row click (the old [📦 Gộp hàng] mode
- *  toggle is gone, so no helper flip is needed anymore). */
+/** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [📦 Gộp hàng]
+ *  mode again: a selection flow flips the mode on first (only when OFF — the
+ *  ON face reads '✕ Thoát gộp hàng'), then clicks the row select-alias. */
+function enableMergeMode() {
+  const toggle = screen.queryByRole('button', { name: '📦 Gộp hàng' });
+  if (toggle) fireEvent.click(toggle);
+}
+
 function clickRow(labelText: string) {
+  enableMergeMode();
   fireEvent.click(screen.getAllByText(labelText)[0].closest('tr')!);
 }
 
@@ -623,7 +629,8 @@ it('QA-AUDIT-UI-39 phone selection is explicit, row-tap expansion preserves it, 
   expect(screen.queryByRole('table')).toBeNull();
   // Redesign 23/10 — the phone totals strip rides above the rows.
   expect(screen.getByTestId('shipment-debit-totals-mobile')).toBeTruthy();
-  // The ticks are always on (redesign 23/10) — no mode flip anymore.
+  // SIL-538 — the tick rides the on-demand [📦 Gộp hàng] mode: flip it on.
+  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
   const checkbox = within(record).getByRole('checkbox', { name: 'Chọn BL-1' });
   fireEvent.click(checkbox); expect(checkbox).toBeChecked();
   // SIL-478 (b) — the row tap is the expand control; no per-row button left.

@@ -1,0 +1,15 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7176
+LOGIN ok dungnv
+PASS T01 grouped lot R39B1-LCL01 visible — row rendered
+PASS T01 row text has no Báo khách/Ảo — Ngày giao 24/10/2026trả hàngLong MinhASKEY-XƯỞNG 1Bill: R39B1-LCL01CFS TestASKEY-XƯỞNG 1KCN QUẾ VÕ, BẮC NINHNhậpLẻ · Xe CONT20.LIGHT10 Pallet1 tấn · 5 CBMĐĂNG QUÂN15C-77777Đã điều xeLẻGhép (2/2)
+PASS T01 group tag title = BKS thực only — title="Ghép trả ĐV · BKS 15C-77777"
+INFO row menu did not open the group submenu — title assertion above still covers the rendered tag
+PASS T02 ungrouped EXPORT·Lẻ pair visible — rows rendered
+TICKED [1,1,1]
+PASS T02 popup has no BKS báo khách (ảo) — dialog text scanned
+PASS T02 popup field 1 Loại xe tính cước trả ĐV *
+PASS T02 popup field 2 Nhà xe *
+PASS T02 popup field 3 BKS thực (xe chạy chuyến) *
+PASS T02 popup field 4 Cước trả ĐV Lô 1 (đ)
+LABELS ["Loại xe tính cước trả ĐV*","Nhà xe*","BKS thực (xe chạy chuyến) *","Cước trả ĐV Lô 1 (đ)"]
+DONE failures=0

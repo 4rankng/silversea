@@ -478,11 +478,11 @@ export function AssignTruckGroupDialog({
             required
           />
         </div>
-        {/* Spec 23/10 §3 field 4 — Cước trả ĐVVC. Blank ⇒ the server traces
-            the carrier price board; a typed value is the manual override that
-            always wins (161026232319). */}
+        {/* Spec 23/10 §3 field 4 (SIL-537 wording: "Cước trả ĐV Lô 1") —
+            blank ⇒ the server traces the carrier price board; a typed value is
+            the manual override that always wins (161026232319). */}
         <NumberField
-          label="Cước trả ĐVVC (đ)"
+          label="Cước trả ĐV Lô 1 (đ)"
           value={manualFreightCost}
           onChange={setManualFreightCost}
           grouped

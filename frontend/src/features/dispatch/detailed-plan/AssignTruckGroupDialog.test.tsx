@@ -139,8 +139,9 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
   });
 
   // Spec 23/10 §3 — the popup is EXACTLY 4 cost fields: Loại xe tính cước
-  // trả ĐV · Nhà xe · BKS thực · Cước trả ĐVVC. BKS báo khách (ảo) is a CUS
-  // output and must not render — not as a group field, not per lot.
+  // trả ĐV · Nhà xe · BKS thực · Cước trả ĐV Lô 1 (SIL-537 wording). BKS báo
+  // khách (ảo) is a CUS output and must not render — not as a group field,
+  // not per lot.
   it('spec 23/10 §3: không còn trường BKS báo khách (ảo) nào — đúng 4 trường (FB136-139)', async () => {
     assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
     renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
@@ -154,7 +155,7 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
     expect(screen.getByRole('combobox', { name: /Loại xe tính cước trả ĐV/ })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: /^Nhà xe/ })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: /BKS thực/ })).toBeTruthy();
-    expect(screen.getByLabelText(/Cước trả ĐVVC/)).toBeTruthy();
+    expect(screen.getByLabelText(/Cước trả ĐV Lô 1/)).toBeTruthy();
 
     submit();
     await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
@@ -260,7 +261,7 @@ describe('FB-092 — AssignTruckGroupDialog', () => {
     await pickCarrier('Nhà xe Hải Vân');
     setField(/BKS thực/, '29H-111.11');
 
-    const freight = screen.getByLabelText(/Cước trả ĐVVC/) as HTMLInputElement;
+    const freight = screen.getByLabelText(/Cước trả ĐV Lô 1/) as HTMLInputElement;
     fireEvent.change(freight, { target: { value: '1250000' } });
     submit();
     await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));

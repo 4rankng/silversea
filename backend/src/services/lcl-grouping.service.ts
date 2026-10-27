@@ -333,7 +333,12 @@ async function lockGroupMembers(tx: Tx, dimension: LclGroupDimension, groupId: s
 function clearLeaverDimensionPatch(dimension: LclGroupDimension): Partial<typeof s.shipments.$inferInsert> {
   return dimension === 'COST'
     ? { costGroupId: null, costGroupOrder: null, costVehicleClassId: null, costGroupFreightManual: null }
-    : { revGroupId: null, revGroupOrder: null, revVehicleClassId: null };
+    // SIL-539 — the REV leaver KEEPS its per-lot `revVehicleClassId`: the type
+    // is the lot's own operating information (QA C-1 law, leaver side), and it
+    // is the key the price-table re-lookup below needs ("lô tách ra còn Loại
+    // xe + Tuyến đường ⇒ tự tra lại cước dự kiến", never a forced re-select).
+    // Whole-group Tách nhóm keeps the FB-145 clear at ITS call site.
+    : { revGroupId: null, revGroupOrder: null };
 }
 
 /**
@@ -705,7 +710,14 @@ export async function unmergeLclLot(
       updatedAt: new Date(),
     }).where(eq(s.shipments.id, leaver.id));
     if (leaverOrder !== 1 && input.dimension === 'REV') {
-      await restateRevLeaverMoney(tx, leaver, tripFacts.get(leaver.id) ?? null, actor);
+      // SIL-539 — the split lot that still holds Loại xe + Tuyến đường gets
+      // its expected rate RE-LOOKED-UP from the price table (the merge path's
+      // own key) instead of falling back to "Chưa xác định" and forcing CUS
+      // to re-select. Lane miss ⇒ the awaiting-reprice citation stands.
+      const repriced = await repriceRevLeaverFromPriceTable(tx, leaver, tripFacts.get(leaver.id) ?? null, actor);
+      if (!repriced) {
+        await restateRevLeaverMoney(tx, leaver, tripFacts.get(leaver.id) ?? null, actor);
+      }
     }
 
     // A lone survivor is not a "remaining group": it was promoted and now
@@ -1002,6 +1014,76 @@ async function restoreRevPreMergeMoney(
  * per-lot marker. A group note citing the dead group is never left stale;
  * an operator's own note is untouched.
  */
+/**
+ * SIL-539 — the split lot's price-table re-lookup.
+ *
+ * After "Hủy ghép 1 lô về riêng", a lot whose standing REV money is a GROUP
+ * artifact (the merge's cited 0₫ / awaiting-reprice citation) must NOT fall
+ * back to "Chưa xác định" when it can price itself: with Loại xe (kept by the
+ * leaver patch) + Tuyến đường + khách + ngày — the merge path's own lane key —
+ * the expected rate is re-resolved from the bảng giá thu khách
+ * (`resolveCustomerVehicleClassPrice`, the SAME engine the merge popup and
+ * `setLclLotRevClass` use) and written through the standing channel (live trip
+ * ⇒ trip financial state; trip-less ⇒ the shipment-level snapshot grain).
+ *
+ * A lot carrying its OWN non-zero money (SIL-490 sweep: the 21/10-era own-cước
+ * marker) is never touched, and a lane miss returns false so the honest
+ * "chờ định giá lại" citation stands (D02: never a fabricated 0₫).
+ */
+async function repriceRevLeaverFromPriceTable(
+  tx: Tx,
+  leaver: ShipmentRow,
+  trip: LiveTripFacts | null,
+  actor: LclGroupActor,
+): Promise<boolean> {
+  if (leaver.revVehicleClassId == null || leaver.routeId == null
+    || leaver.customerId == null || leaver.expectedDeliveryDate == null) {
+    return false;
+  }
+  // Only a group-cited ZEROISH amount is re-priced: the group's 0₫ member law.
+  // A non-zero standing amount is the lot's own money — keep it.
+  const standingZeroish = trip != null
+    ? (trip.revenue == null || Number(trip.revenue) === 0)
+    : await (async () => {
+      const rows = await tx.select({ totalAmount: s.freightRateSnapshots.totalAmount })
+        .from(s.freightRateSnapshots)
+        .where(and(
+          eq(s.freightRateSnapshots.shipmentId, leaver.id),
+          isNull(s.freightRateSnapshots.tripId),
+        ))
+        .orderBy(asc(s.freightRateSnapshots.id));
+      const tail = rows.at(-1);
+      return tail == null || Number(tail.totalAmount) === 0;
+    })();
+  if (!standingZeroish) return false;
+
+  const vehicleClass = await loadVehicleClass(tx, leaver.revVehicleClassId);
+  const price = await resolveCustomerVehicleClassPrice({
+    customerId: leaver.customerId,
+    routeId: leaver.routeId,
+    vehicleSizeClassId: leaver.revVehicleClassId,
+    date: leaver.expectedDeliveryDate,
+  });
+  if (price == null) return false;
+
+  // NOT a group-note prefix on purpose: an auto-looked-up price is the lot's
+  // own money from here on — a later tách nhóm must never eat it.
+  const reason = `Tách nhóm — tự tra bảng giá thu khách: Xe ${vehicleClass.code} × tuyến, ngày ${leaver.expectedDeliveryDate}`;
+  if (trip != null) {
+    await upsertTripFinancialState(tx, trip.tripId, {
+      revenue: String(price.price),
+      revenuePreGroup: null,
+      revenuePreGroupCaptured: false,
+      revenueOverriddenBy: actor.userId,
+      revenueOverriddenAt: new Date(),
+      revenueOverrideReason: reason,
+    });
+  } else {
+    await insertRevMergeSnapshot(tx, leaver.id, price.price, reason);
+  }
+  return true;
+}
+
 async function restateRevLeaverMoney(
   tx: Tx,
   member: ShipmentRow,
