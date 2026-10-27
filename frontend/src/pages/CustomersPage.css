@@ -59,39 +59,14 @@
    columns — 1024+ fits it inside the content box. */
 .record-table.cus-table { min-width: 978px; }
 
-/* Verdict (c): the page reads white — since SIL-496 round 2 the GLOBAL
-   canvas (tokens.css --bg/--bg-1) is white too, and this surface carries its
-   own neutral contract with a hairline edge. */
+/* Verdict (c): the content card reads white — it rides --surface with its
+   own neutral contract and a hairline edge, while the GLOBAL page canvas
+   around it is sage (tokens.css --bg/--bg-1, SIL-523 owner 27/10). */
 .customers-page {
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: 12px;
   padding: 12px 16px 20px;
-}
-
-/* QA wave 8cea1a6b ③ (SIL-496 retests 26/10, round 2 FAIL): the sage canvas
-   AROUND this card is what re-review kept failing — rounds 1-2 painted the
-   ladder page-locally while the GLOBAL --bg/--bg-1 in styles/tokens.css
-   stayed #E3E8E5, so html/body/.app-main kept reading rgb(227,232,229).
-   The tokens are white at the source now; this :has() block stays as a
-   belt-and-suspenders pin for the two routes. The card keeps its
-   hairline/radius; it sits on white. */
-html:has(.customers-page),
-html:has(.cfg-page--customers),
-body:has(.customers-page),
-body:has(.cfg-page--customers),
-.app-main:has(.customers-page),
-.app-main:has(.cfg-page--customers),
-.app-body:has(.customers-page),
-.app-body:has(.cfg-page--customers) {
-  background: #FFFFFF;
-}
-
-/* Same parity at the page root: .customers-page paints its own white
-   surface; the config variant's root is transparent by default (config-page
-   base carries no background) and would show whatever canvas sits beneath. */
-.cfg-page--customers {
-  background: #FFFFFF;
 }
 
 /* ── Header metric row (verdict a): three inline metrics beside the H1. ── */

@@ -1,0 +1,10 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-523-sage-rule/frontend
+
+
+ Test Files  43 passed (43)
+      Tests  308 passed (308)
+   Start at  09:22:59
+   Duration  4.12s (transform 855ms, setup 6.46s, import 1.40s, tests 2.42s, environment 20.84s)
+
+VITEST_EXIT=0

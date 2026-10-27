@@ -1,0 +1,9 @@
+
+=== run 2026-10-27T01:25:53.380Z ===
+2026-10-27T01:25:53.453Z login admin: OK
+2026-10-27T01:25:53.460Z GET /api/customers: 200 rows=5 total=5
+2026-10-27T01:25:55.904Z /customers @1440: canvas ALL SAGE {"html":"rgb(227, 232, 229)","body":"rgb(227, 232, 229)",".app-main":"rgb(227, 232, 229)",".app-body":"rgb(227, 232, 229)"} | .customers-page (card)=rgb(255, 255, 255) WHITE OK shot=qa/2026-10-27_sil523-sage/2026-10-27_sil523-sage_ui-customers-1440.png
+2026-10-27T01:25:57.833Z /config/customers @1440: canvas ALL SAGE {"html":"rgb(227, 232, 229)","body":"rgb(227, 232, 229)",".app-main":"rgb(227, 232, 229)",".app-body":"rgb(227, 232, 229)"} | .record-table-wrap (card)=rgb(255, 255, 255) WHITE OK shot=qa/2026-10-27_sil523-sage/2026-10-27_sil523-sage_ui-cfg-customers-1440.png
+2026-10-27T01:25:59.804Z /customers @390: canvas ALL SAGE {"html":"rgb(227, 232, 229)","body":"rgb(227, 232, 229)",".app-main":"rgb(227, 232, 229)",".app-body":"rgb(227, 232, 229)"} | .customers-page (card)=rgb(255, 255, 255) WHITE OK shot=qa/2026-10-27_sil523-sage/2026-10-27_sil523-sage_ui-customers-390.png
+2026-10-27T01:26:01.678Z /config/customers @390: canvas ALL SAGE {"html":"rgb(227, 232, 229)","body":"rgb(227, 232, 229)",".app-main":"rgb(227, 232, 229)",".app-body":"rgb(227, 232, 229)"} | .record-table-wrap (card)=rgb(255, 255, 255) WHITE OK shot=qa/2026-10-27_sil523-sage/2026-10-27_sil523-sage_ui-cfg-customers-390.png
+2026-10-27T01:26:01.796Z RESULT: PASS — canvas rgb(227,232,229) on every ladder layer + white card, both routes, 1440+390
