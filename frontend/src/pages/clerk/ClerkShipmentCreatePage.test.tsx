@@ -610,125 +610,28 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
 
-  it('VID-CUS-04: creates the initial declaration atomically without a second declaration write', async () => {
-    mocks.quickCreate.mockResolvedValue({ id: 90, version: 1, initialDeclarationId: 77 });
+  it('SIL-521: form tạo lô KHÔNG còn chỗ nhập Số tờ khai cấp lô — payload create cũng không mang số', async () => {
+    // Supersede VID-CUS-04 + card 328 pins: the chip strip and its draft/
+    // dedupe/retry machinery are retired — tờ khai is per-cont only, entered
+    // after the lot exists (Tổng quan ledger cells / drawer).
+    mocks.quickCreate.mockResolvedValue({ id: 90, version: 1 });
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
-    const declInput = screen.getByRole('textbox', { name: 'Số tờ khai' });
-    fireEvent.change(declInput, { target: { value: 'TK-ATOMIC' } });
-    fireEvent.keyDown(declInput, { key: 'Enter' });
-    expect(screen.getByText('TK-ATOMIC')).toBeTruthy();
+
+    expect(screen.queryByRole('textbox', { name: 'Số tờ khai' })).toBeNull();
+    expect(document.querySelector('[data-field-id="shipment-declarations"]')).toBeNull();
+    expect(document.querySelector('.csc-declaration-strip')).toBeNull();
+
     fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
-    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({ declarationNumber: 'TK-ATOMIC' }), expect.any(String)));
-    // Card 20260930_237: the post-create shipment-list render rides the
-    // 1s default findBy budget and lost that race once under four-file
-    // parallel load; explicit 15s polling budget, same element contract.
-    expect(await screen.findByTestId('shipment-detail', {}, { timeout: 15000 })).toBeTruthy();
+    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledTimes(1));
+    const body = mocks.quickCreate.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('declarationNumber');
+    expect(body).not.toHaveProperty('declarationNumbers');
     expect(mocks.createDeclaration).not.toHaveBeenCalled();
     expect(mocks.updateDeclaration).not.toHaveBeenCalled();
-  });
-
-  it('supports adding multiple declaration numbers and persists additional declarations (card 328)', async () => {
-    mocks.quickCreate.mockResolvedValue({ id: 91, version: 1, initialDeclarationId: 78 });
-    mocks.createDeclaration.mockResolvedValue({ id: 79, declarationNumber: 'TK-SECOND', scope: 'SINGLE' });
-    renderPage();
-    await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    await choose('Khách hàng', '7');
-    const declInput = screen.getByRole('textbox', { name: 'Số tờ khai' });
-    fireEvent.change(declInput, { target: { value: 'TK-FIRST' } });
-    fireEvent.keyDown(declInput, { key: 'Enter' });
-    expect(screen.getByText('TK-FIRST')).toBeTruthy();
-    expect(document.querySelector('.csc-declaration-strip__count')?.textContent).toBe('1');
-
-    // A second code can be committed with the add action…
-    fireEvent.change(declInput, { target: { value: 'TK-SECOND' } });
-    fireEvent.keyDown(declInput, { key: 'Enter' });
-    expect(screen.getByText('TK-SECOND')).toBeTruthy();
-    expect(document.querySelector('.csc-declaration-strip__count')?.textContent).toBe('2');
-
-    // …and a third one added then removed again.
-    fireEvent.change(declInput, { target: { value: 'TK-THIRD' } });
-    fireEvent.keyDown(declInput, { key: 'Enter' });
-    expect(screen.getByText('TK-THIRD')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 3' }));
-    expect(screen.queryByText('TK-THIRD')).toBeNull();
-    expect(document.querySelector('.csc-declaration-strip__count')?.textContent).toBe('2');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
-
-    await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ declarationNumber: 'TK-FIRST' }),
-      expect.any(String),
-    ));
-    await waitFor(() => expect(mocks.createDeclaration).toHaveBeenCalledWith(
-      91,
-      { declarationNumber: 'TK-SECOND', scope: 'SINGLE' },
-    ));
-  });
-
-  it('_328: the duplicate warning lands under the matching declaration row', async () => {
-    mocks.checkDuplicate.mockImplementation(async (params: { declarationNumber?: string }) => (
-      params.declarationNumber === 'TK-SECOND'
-        ? [{ shipmentId: 55, shipmentCode: 'SHP-55', field: 'declaration', reference: 'TK-SECOND', createdBy: { id: 2, username: 'lanh', fullName: null }, createdAt: '2026-10-01T00:00:00Z' }]
-        : []
-    ));
-    renderPage();
-    await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    await choose('Khách hàng', '7');
-    const declInput = screen.getByRole('textbox', { name: 'Số tờ khai' });
-    fireEvent.change(declInput, { target: { value: 'TK-FIRST' } });
-    fireEvent.keyDown(declInput, { key: 'Enter' });
-    fireEvent.change(declInput, { target: { value: 'TK-SECOND' } });
-    fireEvent.keyDown(declInput, { key: 'Enter' });
-
-    // Row 2's value is checked on its own (the check API is single-value)
-    // and the warning renders under that row's field.
-    await waitFor(
-      () => expect(mocks.checkDuplicate).toHaveBeenCalledWith(expect.objectContaining({ declarationNumber: 'TK-SECOND' })),
-      { timeout: 3000 },
-    );
-    await waitFor(() => expect(screen.getAllByText(/đã được nhập bởi/)).toHaveLength(1), { timeout: 3000 });
-  });
-
-  it('_328: retries never duplicate declarations and removed rows are deleted (N rows = N declarations)', async () => {
-    mocks.quickCreate.mockResolvedValue({ id: 91, version: 1, initialDeclarationId: 78 });
-    mocks.createDeclaration
-      .mockResolvedValueOnce({ id: 79, declarationNumber: 'TK-SECOND', scope: 'SINGLE' })
-      .mockRejectedValueOnce(new Error('network'))
-      .mockRejectedValueOnce(new Error('network'));
-    renderPage();
-    await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    await choose('Khách hàng', '7');
-    const declInput = screen.getByRole('textbox', { name: 'Số tờ khai' });
-    fireEvent.change(declInput, { target: { value: 'TK-FIRST' } });
-    fireEvent.keyDown(declInput, { key: 'Enter' });
-    fireEvent.change(declInput, { target: { value: 'TK-SECOND' } });
-    fireEvent.keyDown(declInput, { key: 'Enter' });
-    fireEvent.change(declInput, { target: { value: 'TK-THIRD' } });
-    fireEvent.keyDown(declInput, { key: 'Enter' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
-    // TK-SECOND lands (id 79); TK-THIRD fails mid-extras — the attempt is
-    // preserved for retry, TK-SECOND exists server-side.
-    await waitFor(() => expect(mocks.createDeclaration).toHaveBeenCalledTimes(2));
-    await screen.findAllByRole('alert');
-
-    // Retry with unchanged rows: TK-THIRD (never landed) is retried — the
-    // third call is TK-THIRD again, TK-SECOND is never replayed.
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
-    await waitFor(() => expect(mocks.createDeclaration).toHaveBeenCalledTimes(3));
-    expect(mocks.createDeclaration).toHaveBeenNthCalledWith(3, 91, { declarationNumber: 'TK-THIRD', scope: 'SINGLE' });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu nháp' })).toBeEnabled());
-
-    // Clerk removes TK-THIRD and TK-SECOND and retries: one declaration row
-    // remains → the written TK-SECOND is deleted, nothing is re-created.
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 3' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa tờ khai 2' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
-    await waitFor(() => expect(mocks.deleteDeclaration).toHaveBeenCalledWith(91, 79));
+    expect(mocks.deleteDeclaration).not.toHaveBeenCalled();
     expect(await screen.findByTestId('shipment-detail', {}, { timeout: 15000 })).toBeTruthy();
-    expect(mocks.createDeclaration).toHaveBeenCalledTimes(3);
   });
 
   it('hides the FCL volume field and copies the previous container when adding a row', async () => {

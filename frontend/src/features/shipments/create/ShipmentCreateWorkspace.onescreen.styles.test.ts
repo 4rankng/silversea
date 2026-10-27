@@ -82,6 +82,7 @@ describe('SIL-499 onescreen wide band', () => {
     expect(CSS).toMatch(/\.csc-identity-grid--contact \{ grid-column: 1; grid-row: 3; \}/);
     expect(CSS).toMatch(/\.csc-identity-grid--refs \{ grid-column: 1; grid-row: 4; \}/);
     expect(CSS).toMatch(/\.csc-identity-grid--choices \{ grid-column: 1 \/ -1; grid-row: 2; \}/);
-    expect(CSS).toMatch(/#shipment-section-identity \.csc-declaration-strip \{ grid-column: 2; grid-row: 3 \/ 5; align-self: start; \}/);
+    // SIL-521: the strip band is retired — no identity grid placement left.
+    expect(CSS).not.toMatch(/csc-declaration-strip/);
   });
 });

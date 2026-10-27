@@ -1133,7 +1133,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect((document.activeElement as HTMLInputElement).getAttribute('data-seg')).toBe('dd');
   });
 
-  it('edits the import Bill and declaration from the Chứng từ cell in one save', async () => {
+  it('documents quick-edit: Bill only, KHÔNG còn ô Số tờ khai cấp lô (SIL-521)', async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve(detail)
@@ -1146,54 +1146,22 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
     expect(within(dialog).getByLabelText('Số Bill')).toBeTruthy();
     expect(within(dialog).queryByLabelText('Số Booking')).toBeNull();
-    expect((within(dialog).getByLabelText('Số tờ khai') as HTMLInputElement).value).toBe('TK-54321');
+    // SIL-521: tờ khai per-cont only — the modal has no declaration UI.
+    expect(within(dialog).queryByLabelText('Số tờ khai')).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: '+ Thêm tờ khai' })).toBeNull();
 
-    fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-99999' } });
+    fireEvent.change(within(dialog).getByLabelText('Số Bill'), { target: { value: 'BILL-999' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
 
     await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
       expectedVersion: 3,
-      blNumber: 'BILL-12345',
+      blNumber: 'BILL-999',
       bookingRef: null,
     })));
-    // Existing declaration (fixture declarationId 9) is updated in place with
-    // its scope resent verbatim so the whole-row PUT keeps the metadata.
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1/declarations/9', {
-      declarationNumber: 'TK-99999',
-      issuedAt: null,
-      scope: 'SINGLE',
-      note: null,
-    }));
-    expect(await screen.findByText('Đã cập nhật chứng từ lô hàng.')).toBeTruthy();
-  });
-
-  it('creates a declaration when the shipment has none yet', async () => {
-    const noDeclaration: ShipmentCusWorkspaceListItem = {
-      ...row,
-      declarationNumber: null,
-      raw: { ...row.raw, declarationNumber: null, declarationId: null, declarationScope: null, declarations: [] },
-    };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([noDeclaration]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
-    fireEvent.click(within(dialog).getByRole('button', { name: '+ Thêm tờ khai' }));
-    fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-NEW-1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-
-    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/shipments/1/declarations', {
-      declarationNumber: 'TK-NEW-1',
-      issuedAt: null,
-      note: null,
-    }));
-    expect(apiPut).not.toHaveBeenCalledWith(expect.stringContaining('/declarations'));
-    expect(await screen.findByText('Đã cập nhật chứng từ lô hàng.')).toBeTruthy();
+    // No declaration entity call may ride the documents save anymore.
+    expect(apiPut).not.toHaveBeenCalledWith(expect.stringContaining('/declarations'), expect.anything());
+    expect(apiPost).not.toHaveBeenCalledWith(expect.stringContaining('/declarations'), expect.anything());
+    expect(await screen.findByText('Đã lưu ô dữ liệu lô hàng.')).toBeTruthy();
   });
 
   // FB-002 (round-17 sweep): the quick-edit modal's save button lives in the
@@ -1267,7 +1235,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(cell.textContent).toContain('TK-54321, TK-77777');
   });
 
-  it('saves only the declaration when bill and booking are read-only', async () => {
+  it('documents quick-edit với Bill/Booking READ_ONLY: nhóm bị chặn mở — hết đường ghi tờ khai cấp lô (SIL-521)', async () => {
     const declarationOnlyRow: ShipmentCusWorkspaceListItem = {
       ...row,
       fieldAccess: {
@@ -1284,17 +1252,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
 
+    // documents mode giờ chỉ ghi Bill/Booking (SIL-521 bỏ tờ khai cấp lô) —
+    // khi cả hai READ_ONLY, nhóm không còn gì ghi được: click bị từ chối,
+    // không dialog, không API call.
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
-    expect((within(dialog).getByLabelText('Số Bill') as HTMLInputElement).disabled).toBe(true);
-    fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-ONLY-1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1/declarations/9', expect.objectContaining({
-      declarationNumber: 'TK-ONLY-1',
-    })));
-    expect(apiPut).not.toHaveBeenCalledWith('/shipments/1', expect.anything());
-    expect(await screen.findByText('Đã cập nhật chứng từ lô hàng.')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull();
+    expect(apiPut).not.toHaveBeenCalled();
+    expect(apiPost).not.toHaveBeenCalled();
   });
 
   describe('quick bubble dismissal', () => {
@@ -1335,7 +1299,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     it('stays open while a save is in flight', async () => {
       apiPut.mockImplementation(() => new Promise(() => {}));
       const dialog = await openDocumentsBubble();
-      fireEvent.change(within(dialog).getByLabelText('Số tờ khai'), { target: { value: 'TK-HANGING' } });
+      fireEvent.change(within(dialog).getByLabelText('Số Bill'), { target: { value: 'BILL-HANGING' } });
       fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }));
       fireEvent.pointerDown(document.body);
       expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).not.toBeNull();

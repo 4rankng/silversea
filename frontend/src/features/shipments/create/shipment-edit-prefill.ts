@@ -1,7 +1,7 @@
 // SIL-171 (FB-147): "Sửa lô" reuses the Tạo lô hàng form in edit mode.
 // This module owns the single mapping GET /shipments/:id → the create form's
 // state (form + container drafts + customer note) plus the workflow's edit
-// seed (id/version/declaration ids). It lives outside ShipmentCreateWorkspace
+// seed (id/version). It lives outside ShipmentCreateWorkspace
 // so the workspace keeps its structure-guard shape and the mapping is
 // unit-testable without React.
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
@@ -37,14 +37,11 @@ export type ShipmentEditDetail = ShipmentDetail & {
   }>;
 };
 
-/** Optimistic-lock + declaration identity the create workflow's reconcile
+/** Optimistic-lock identity the create workflow's reconcile
  *  steps need to UPDATE the existing lot instead of creating a new one. */
 export interface ShipmentEditSeed {
   shipmentId: number;
   version: number;
-  /** Lot-level declarations as (id, number). First row owns the form's
-   *  `declarationNumber` slot; the rest ride the extra-rows reconcile. */
-  declarations: Array<{ id: number; number: string }>;
   /** FCL lots seed the container reconcile so the first save re-asserts the
    *  row set (and a delete-all edit still reaches the server). LCL is
    *  containerless by design and never reconciles. */
@@ -96,9 +93,7 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
   const warehouseFreeText = shipment.tradeDirection === 'EXPORT'
     ? shipment.deliveryLocation ?? ''
     : shipment.pickupLocation ?? '';
-  const declarations = detail.declarations
-    .map((row) => ({ id: row.id, number: row.declarationNumber?.trim() ?? '' }))
-    .filter((row) => row.number.length > 0);
+  // SIL-521: tờ khai không còn prefill cấp lô — số tờ khai chỉ sống ở cấp cont.
 
   const form: ShipmentCreateFormState = {
     customerId: shipment.customerId != null ? String(shipment.customerId) : '',
@@ -113,8 +108,6 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     bookingRef: shipment.bookingRef ?? '',
     blNumber: shipment.blNumber ?? '',
     shippingLineName: shipment.shippingLineName ?? '',
-    declarationNumber: declarations[0]?.number ?? '',
-    declarationNumbers: declarations.map((row) => row.number),
     tradeDirection: shipment.tradeDirection ?? '',
     cargoMode: shipment.cargoMode ?? 'FCL',
     isCombined: shipment.isCombined ?? false,
@@ -152,7 +145,6 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     seed: {
       shipmentId: shipment.id,
       version: shipment.version,
-      declarations,
       fclContainers: !isLcl,
     },
   };

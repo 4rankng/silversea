@@ -3,11 +3,9 @@ import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import {
   buildQuickEditDraft,
   buildQuickEditPayload,
-  diffQuickEditDeclarations,
   factoryDetailPath,
   isQuickEditUnchanged,
   quickEditAccessKeys,
-  quickEditDeclarationChanged,
   quickEditGroupGate,
   quickEditSaveIdentity,
 } from './cusQuickEditModel';
@@ -81,7 +79,8 @@ function draftFrom(item: ShipmentCusWorkspaceListItem, field: ShipmentQuickEditD
 describe('quickEditAccessKeys', () => {
   it('maps each cell group to the fields it may write', () => {
     expect(quickEditAccessKeys('identity')).toEqual(['factoryName']);
-    expect(quickEditAccessKeys('documents')).toEqual(['blNumber', 'bookingRef', 'declarationNumber']);
+    // SIL-521: documents mode không còn ghi tờ khai cấp lô — per-cont only.
+    expect(quickEditAccessKeys('documents')).toEqual(['blNumber', 'bookingRef']);
     expect(quickEditAccessKeys('classification')).toEqual(['tradeDirection', 'shippingLineName']);
     expect(quickEditAccessKeys('cargo')).toEqual(['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm']);
     expect(quickEditAccessKeys('notes')).toEqual(['customerNotes', 'operationalNotes']);
@@ -124,7 +123,6 @@ describe('quickEditGroupGate', () => {
       ...baseAccess,
       blNumber: access('READ_ONLY'),
       bookingRef: access('READ_ONLY'),
-      declarationNumber: access('READ_ONLY'),
     };
     const gate = quickEditGroupGate({ cargoMode: 'FCL', fieldAccess: lockedAccess } as ShipmentCusWorkspaceListItem, 'documents');
     expect(gate.disabled).toBe(true);
@@ -135,7 +133,6 @@ describe('quickEditGroupGate', () => {
     const partialAccess = {
       ...baseAccess,
       blNumber: access('READ_ONLY'),
-      bookingRef: access('READ_ONLY'),
     };
     const gate = quickEditGroupGate({ cargoMode: 'FCL', fieldAccess: partialAccess } as ShipmentCusWorkspaceListItem, 'documents');
     expect(gate.disabled).toBe(false);
@@ -152,7 +149,9 @@ describe('buildQuickEditDraft', () => {
     expect(draft.packageCount).toBe('12');
     expect(draft.cargoWeightKg).toBe('1200');
     expect(draft.time).toBe(scheduleTime(item));
-    expect(draft.declarations.map((row) => row.id)).toEqual([11]);
+    // SIL-521: draft không còn declaration list — tờ khai per-cont only.
+    expect(draft).not.toHaveProperty('declarations');
+    expect(draft).not.toHaveProperty('declarationSeedIds');
   });
 
   // Card 20261005_360 (REQ-01): the stored numeric string carries PG's two
@@ -179,14 +178,11 @@ describe('isQuickEditUnchanged', () => {
     expect(isQuickEditUnchanged(draftFrom(item, 'identity', { factoryName: 'Factory B' }), item)).toBe(false);
   });
 
-  it('documents: declaration list diff ignored when READ_ONLY', () => {
+  it('documents: unchanged until Bill/Booking diverges (declaration list retired — SIL-521)', () => {
     const item = makeItem();
-    const withNewRow = draftFrom(item, 'documents');
-    withNewRow.declarations = [...withNewRow.declarations, { id: null, declarationNumber: 'TK-NEW', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
-    expect(isQuickEditUnchanged(withNewRow, item)).toBe(false);
-    const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'locked' } } });
-    expect(isQuickEditUnchanged(draftFrom(locked, 'documents', {}), locked)).toBe(true);
-    expect(isQuickEditUnchanged(withNewRow, locked)).toBe(true);
+    expect(isQuickEditUnchanged(draftFrom(item, 'documents'), item)).toBe(true);
+    expect(isQuickEditUnchanged(draftFrom(item, 'documents', { blNumber: 'BL999' }), item)).toBe(false);
+    expect(isQuickEditUnchanged(draftFrom(item, 'documents', { bookingRef: 'BK999' }), item)).toBe(false);
   });
 
   it('cargo: numeric-string equality includes blanked nulls', () => {
@@ -309,85 +305,5 @@ describe('buildQuickEditPayload', () => {
       driverNotes: 'note-noi-bo',
       customerNotes: 'note-khach',
     });
-  });
-});
-
-describe('declaration upsert rules', () => {
-  it('flags a change only for documents mode with write access and a diverging list', () => {
-    const item = makeItem();
-    const changed = draftFrom(item, 'documents');
-    changed.declarations[0].declarationNumber = 'TK000';
-    expect(quickEditDeclarationChanged(changed, item)).toBe(true);
-    expect(quickEditDeclarationChanged(draftFrom(item, 'documents'), item)).toBe(false);
-    expect(quickEditDeclarationChanged(draftFrom(item, 'cargo'), item)).toBe(false);
-    const locked = makeItem({ fieldAccess: { declarationNumber: { mode: 'READ_ONLY', reason: 'x' } } });
-    expect(quickEditDeclarationChanged(draftFrom(locked, 'documents'), locked)).toBe(false);
-  });
-
-  it('resends issuedAt/scope/note verbatim and nulls an emptied number', () => {
-    const draft = draftFrom(makeItem(), 'documents');
-    draft.declarations[0].declarationNumber = '   ';
-    const diff = diffQuickEditDeclarations(draft, makeItem());
-    expect(diff.updates).toEqual([{
-      id: 11,
-      body: {
-        declarationNumber: null,
-        issuedAt: '2026-08-31T02:00:00.000Z',
-        scope: 'SINGLE',
-        note: 'ghi-chu-to-khai',
-      },
-    }]);
-    expect(diff.deletes).toEqual([]);
-    expect(diff.creates).toEqual([]);
-  });
-});
-
-describe('multi-row diff (card 20260921_3)', () => {
-  it('creates a POST only for a new row carrying a number', () => {
-    const item = makeItem();
-    const draft = draftFrom(item, 'documents');
-    draft.declarations.push({ id: null, declarationNumber: 'TK-2', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
-    draft.declarations.push({ id: null, declarationNumber: '', declarationIssuedAt: null, declarationScope: null, declarationNote: null });
-    const diff = diffQuickEditDeclarations(draft, item);
-    expect(diff.creates).toEqual([{
-      declarationNumber: 'TK-2',
-      issuedAt: null,
-      scope: undefined,
-      note: null,
-    }]);
-    expect(diff.updates).toEqual([]);
-    expect(diff.deletes).toEqual([]);
-  });
-
-  it('deletes stored rows removed in the draft, after updates and before creates semantically', () => {
-    const item = makeItem();
-    const draft = draftFrom(item, 'documents');
-    draft.declarations = [];
-    const diff = diffQuickEditDeclarations(draft, item);
-    expect(diff.deletes).toEqual([11]);
-    expect(diff.updates).toEqual([]);
-    expect(diff.creates).toEqual([]);
-  });
-
-  it('ignores stale ids for writes but still deletes seed rows absent from the draft', () => {
-    const item = makeItem();
-    const draft = draftFrom(item, 'documents');
-    draft.declarations = [{ id: 999, declarationNumber: 'GHOST', declarationIssuedAt: null, declarationScope: null, declarationNote: null }];
-    const diff = diffQuickEditDeclarations(draft, item);
-    // Ghost 999 produces no write; seed row 11 was removed in the modal, so
-    // it deletes. A row ADDED concurrently (never seeded) can never delete.
-    expect(diff.updates).toEqual([]);
-    expect(diff.creates).toEqual([]);
-    expect(diff.deletes).toEqual([11]);
-  });
-
-  it('never deletes a declaration added concurrently after the modal opened', () => {
-    const item = makeItem();
-    const draft = draftFrom(item, 'documents');
-    item.raw = { ...item.raw, declarations: [...(item.raw.declarations ?? []), { id: 12, declarationNumber: 'TK-CONCURRENT', issuedAt: null, scope: 'SINGLE', note: null }] };
-    const diff = diffQuickEditDeclarations(draft, item);
-    expect(diff.deletes).toEqual([]);
-    expect(diff.updates).toEqual([]);
-    expect(diff.creates).toEqual([]);
   });
 });

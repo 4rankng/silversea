@@ -8,18 +8,12 @@ const {
   getShipmentDetail,
   saveShipmentContainers,
   submitShipmentForDispatch,
-  createShipmentDeclaration,
-  updateShipmentDeclaration,
-  deleteShipmentDeclaration,
 } = vi.hoisted(() => ({
   quickCreateShipment: vi.fn(),
   updateShipment: vi.fn(),
   getShipmentDetail: vi.fn(),
   saveShipmentContainers: vi.fn(),
   submitShipmentForDispatch: vi.fn(),
-  createShipmentDeclaration: vi.fn(),
-  updateShipmentDeclaration: vi.fn(),
-  deleteShipmentDeclaration: vi.fn(),
 }));
 
 vi.mock('../../../api/shipmentClient', () => ({
@@ -28,9 +22,6 @@ vi.mock('../../../api/shipmentClient', () => ({
   getShipmentDetail,
   saveShipmentContainers,
   submitShipmentForDispatch,
-  createShipmentDeclaration,
-  updateShipmentDeclaration,
-  deleteShipmentDeclaration,
 }));
 
 import {
@@ -226,64 +217,25 @@ describe('post-create navigation (FB-106 card 171026115810)', () => {
  *  server-created entity (initialDeclarationId) is trusted instead of
  *  duplicated, legacy snapshots without the id are healed with one POST,
  *  and extra per-cont slots ride separate entity POSTs. */
-describe('declaration wire — quick-create payload (SIL-502 regression)', () => {
+describe('declaration wire — per-cont only (SIL-521)', () => {
   beforeEach(() => {
     quickCreateShipment.mockReset();
-    createShipmentDeclaration.mockReset();
-    updateShipmentDeclaration.mockReset();
-    deleteShipmentDeclaration.mockReset();
     updateShipment.mockReset();
     getShipmentDetail.mockReset();
     saveShipmentContainers.mockReset();
     submitShipmentForDispatch.mockReset();
-    quickCreateShipment.mockResolvedValue({ id: 501, version: 3, initialDeclarationId: null });
+    quickCreateShipment.mockResolvedValue({ id: 501, version: 3 });
     updateShipment.mockResolvedValue({ version: 4 });
-    createShipmentDeclaration.mockResolvedValue({ id: 9, declarationNumber: 'X', scope: 'SINGLE' });
-    updateShipmentDeclaration.mockResolvedValue({ id: 5, declarationNumber: 'X', scope: 'SINGLE' });
   });
 
-  const withDeclaration = (over: Partial<ShipmentCreateFormState>): ShipmentCreateFormState => ({
-    ...adHocLclForm,
-    ...over,
-  });
-
-  it('sends declarationNumber on the root create and trusts initialDeclarationId', async () => {
-    quickCreateShipment.mockResolvedValue({ id: 501, version: 3, initialDeclarationId: 5 });
-    const { result } = renderWorkflow(withDeclaration({ declarationNumber: '502-TK-2026' }));
+  it('create payload không mang declarationNumber — hết nhập cấp lô', async () => {
+    const { result } = renderWorkflow({ ...adHocLclForm });
 
     await act(async () => { await result.current.save('DRAFT'); });
 
     expect(quickCreateShipment).toHaveBeenCalledTimes(1);
-    expect(quickCreateShipment.mock.calls[0][0]).toMatchObject({ declarationNumber: '502-TK-2026' });
-    // The create transaction already persisted the declaration entity — a
-    // follow-up POST/PUT would duplicate it.
-    expect(createShipmentDeclaration).not.toHaveBeenCalled();
-    expect(updateShipmentDeclaration).not.toHaveBeenCalled();
-  });
-
-  it('heals a legacy snapshot without initialDeclarationId with one POST', async () => {
-    quickCreateShipment.mockResolvedValue({ id: 501, version: 3, initialDeclarationId: null });
-    const { result } = renderWorkflow(withDeclaration({ declarationNumber: '502-TK-2026' }));
-
-    await act(async () => { await result.current.save('DRAFT'); });
-
-    expect(createShipmentDeclaration).toHaveBeenCalledTimes(1);
-    expect(createShipmentDeclaration.mock.calls[0]).toEqual([501, { declarationNumber: '502-TK-2026', scope: 'SINGLE' }]);
-    expect(updateShipmentDeclaration).not.toHaveBeenCalled();
-  });
-
-  it('rides extra per-cont slots as separate declaration entities', async () => {
-    quickCreateShipment.mockResolvedValue({ id: 501, version: 3, initialDeclarationId: 5 });
-    const { result } = renderWorkflow(withDeclaration({
-      declarationNumber: 'TK-1',
-      declarationNumbers: ['TK-1', 'TK-2'],
-    }));
-
-    await act(async () => { await result.current.save('DRAFT'); });
-
-    // Slot 1 rode the root (initialDeclarationId: 5); only the extra POSTs.
-    expect(createShipmentDeclaration).toHaveBeenCalledTimes(1);
-    expect(createShipmentDeclaration.mock.calls[0]).toEqual([501, { declarationNumber: 'TK-2', scope: 'SINGLE' }]);
-    expect(updateShipmentDeclaration).not.toHaveBeenCalled();
+    const body = quickCreateShipment.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('declarationNumber');
+    expect(body).not.toHaveProperty('declarationNumbers');
   });
 });

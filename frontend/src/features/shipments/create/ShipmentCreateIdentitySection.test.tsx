@@ -60,7 +60,7 @@ describe('QA1-001 — Bill/Booking placeholder before a trade direction is picke
 });
 
 describe('SIL-168 (owner ruling B 24/10, khách yêu cầu lần 3) — Nhận diện lô field order', () => {
-  it('reads Khách hàng → Hình thức XNK → Số Bill/Booking → Hãng tàu → Tuỳ chọn → Số tờ khai (cuối) in DOM order', () => {
+  it('reads Khách hàng → Hình thức XNK → Số Bill/Booking → Hãng tàu → Tuỳ chọn in DOM order (SIL-521: hết band Số tờ khai)', () => {
     renderSection({ tradeDirection: 'EXPORT' } as Partial<ShipmentCreateFormState>);
     // SIL-168 ruling B (owner 24/10 "why not handled yet"): Hình thức XNK
     // đứng TRƯỚC Số Bill/Booking — supersedes the FB-127 reading (9f174360:
@@ -68,14 +68,13 @@ describe('SIL-168 (owner ruling B 24/10, khách yêu cầu lần 3) — Nhận d
     // the customer quoted verbatim on 23+24/10. Older history: 2425726d
     // superseded the A.3 order of card 181026200200. The Bill/Booking gate
     // (blNumber XOR bookingRef theo hướng, FB-113) is unchanged — only the
-    // layout moved.
+    // layout moved. SIL-521: the strip band is retired entirely.
     const chain = [
       '[data-field-id="shipment-customer"]',
       '[data-field-id="shipment-trade-direction"]',
       '[data-field-id="shipment-booking-ref"]',
       '[data-field-id="shipment-shipping-line"]',
       '[data-field-id="shipment-deposit"]',
-      '[data-field-id="shipment-declarations"]',
     ].map((selector) => document.querySelector(selector));
     for (const node of chain) expect(node, `missing ${node}`).toBeTruthy();
     for (let i = 0; i < chain.length - 1; i += 1) {
@@ -86,18 +85,14 @@ describe('SIL-168 (owner ruling B 24/10, khách yêu cầu lần 3) — Nhận d
     }
   });
 
-  it('Số tờ khai là band CUỐI của section; cụm divider "Chứng tự/Phân loại" của FB-127 đã bỏ', () => {
-    // SIL-168: strip giữ vị trí cuối section (từ 2425726d). Conflict
-    // warnings chỉ render khi có conflict — form sạch thì strip là element
-    // cuối cùng của <section>. Cluster headings của 9f174360 phải biến mất.
+  it('SIL-521: form tạo/sửa lô KHÔNG còn chỗ nhập Số tờ khai cấp lô', () => {
+    // Owner 26/10: tờ khai chỉ nhập/sửa ở cấp cont (Tổng quan / drawer).
+    // Cụm divider "Chứng từ/Phân loại" của FB-127 vẫn phải biến mất.
     const { container } = renderSection({} as Partial<ShipmentCreateFormState>);
     expect(screen.queryByText('Chứng từ & định danh')).toBeNull();
     expect(screen.queryByText('Phân loại nghiệp vụ')).toBeNull();
-    const section = container.querySelector('section.csc-section');
-    expect(section).toBeTruthy();
-    const strip = section!.querySelector('[data-field-id="shipment-declarations"]');
-    expect(strip).toBeTruthy();
-    expect(strip!.parentElement).toBe(section);
-    expect(section!.lastElementChild).toBe(strip);
+    expect(screen.queryByText('Số tờ khai')).toBeNull();
+    expect(container.querySelector('[data-field-id="shipment-declarations"]')).toBeNull();
+    expect(container.querySelector('.csc-declaration-strip')).toBeNull();
   });
 });

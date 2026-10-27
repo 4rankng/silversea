@@ -19,8 +19,6 @@ export interface ShipmentCreateFormState {
   bookingRef: string;
   blNumber: string;
   shippingLineName: string;
-  declarationNumber: string;
-  declarationNumbers?: string[];
   tradeDirection: '' | 'IMPORT' | 'EXPORT';
   cargoMode: CargoMode;
   isCombined: boolean;
@@ -123,8 +121,6 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   bookingRef: '',
   blNumber: '',
   shippingLineName: '',
-  declarationNumber: '',
-  declarationNumbers: [],
   tradeDirection: '',
   cargoMode: 'FCL',
   isCombined: false,

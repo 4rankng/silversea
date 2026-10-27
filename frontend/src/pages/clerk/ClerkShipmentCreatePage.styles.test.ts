@@ -175,8 +175,8 @@ describe('shipment create responsive layout', () => {
   it('gives customer identity the widest column and reflows cleanly by viewport', () => {
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
     // Card 261023093200 column map: the document fields read Hình thức XNK →
-    // Số Bill/Booking → Hãng tàu → Số tờ khai (cuối), so band 1 is
-    // 6 / 6 (customer + direction) and band 2 is 6 / 6 (booking + carrier).
+    // Số Bill/Booking → Hãng tàu (SIL-521: band Số tờ khai retired), so band
+    // 1 is 6 / 6 (customer + direction) and band 2 is 6 / 6 (booking + carrier).
     expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 6;/);
@@ -280,24 +280,10 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__flags\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).not.toContain('.csc-identity-grid__declaration');
-    // One bordered field holds the chips AND the entry (click anywhere in it
-    // focuses the entry), the head carries the bulk actions, the foot the hint.
-    expect(css).toMatch(/\.csc-declaration-strip\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*display:\s*grid;/);
-    expect(css).toMatch(/\.csc-declaration-strip__field\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*max-height:\s*120px;[^}]*overflow-y:\s*auto;[^}]*cursor:\s*text;/);
-    expect(css).toMatch(/\.csc-declaration-strip__field:focus-within\s*\{[^}]*border-color:\s*var\(--accent\);/);
-    expect(css).toMatch(/\.csc-declaration-strip__input\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-width:\s*180px;[^}]*border:\s*0;/);
-    expect(css).toMatch(/\.csc-declaration-strip__actions\s*\{[^}]*margin-left:\s*auto;/);
-    expect(css).toMatch(/\.csc-declaration-chip\s*\{[^}]*border-radius:\s*6px;/);
-    expect(css).toMatch(/\.csc-declaration-chip--flash\s*\{/);
-    expect(css).toMatch(/\.csc-declaration-strip__bulk-input\s*\{/);
-    // SIL-509: the strip rides the section's shared grid laws — the head is
-    // the same 18px label line as the UUI fields beside it, and the bordered
-    // field sits on the 30px compact control boundary (not a hand-rolled 38px).
-    expect(css).toMatch(/\.csc-declaration-strip__title\s*\{[^}]*font-size:\s*var\(--text-label-size\);[^}]*line-height:\s*18px;[^}]*font-weight:\s*600;/);
-    expect(css).toMatch(/\.csc-declaration-strip__action\s*\{[^}]*line-height:\s*14px;/);
-    expect(css).toMatch(/\.csc-declaration-strip__field\s*\{[^}]*min-height:\s*var\(--control-compact-h\);/);
-    expect(css).toMatch(/\.csc-declaration-strip__input\s*\{[^}]*line-height:\s*20px;/);
-    expect(css).toMatch(/\.csc-declaration-chip\s*\{[^}]*line-height:\s*14px;/);
+    // One bordered field held the chips AND the entry — retired with the
+    // strip itself (SIL-521): no declaration-strip CSS may survive.
+    expect(css).not.toContain('.csc-declaration-strip');
+    expect(css).not.toContain('.csc-declaration-chip');
     // The per-declaration row list is retired — no leftover class names.
     expect(css).not.toContain('.csc-declaration-ledger');
     expect(css).not.toContain('.csc-declaration-row');

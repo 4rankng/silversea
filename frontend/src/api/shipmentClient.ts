@@ -127,7 +127,7 @@ export interface QuickCreateShipmentRequest {
   responsibleUnitId?: number | null;
   bookingRef?: string | null;
   blNumber?: string | null;
-  declarationNumber?: string | null;
+  // SIL-521: no lot-level declarationNumber on the create wire — per-cont only.
   expectedDeliveryDate?: string | null;
   pickupLocation?: string | null;
   deliveryLocation?: string | null;
@@ -180,8 +180,10 @@ export interface ShipmentPricingPreviewRequest {
 export async function quickCreateShipment(
   body: QuickCreateShipmentRequest,
   idempotencyKey: string,
-): Promise<Shipment & { initialDeclarationId?: number | null }> {
-  return api.post<Shipment & { initialDeclarationId?: number | null }>('/shipments/quick', body, {
+  // SIL-521: the create response no longer carries initialDeclarationId —
+  // tờ khai is per-cont, entered after the lot exists.
+): Promise<Shipment> {
+  return api.post<Shipment>('/shipments/quick', body, {
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 }
@@ -973,13 +975,6 @@ export async function updateShipmentDeclaration(
   body: ShipmentDeclarationRequest,
 ): Promise<ShipmentDeclaration> {
   return api.put<ShipmentDeclaration>(`/shipments/${shipmentId}/declarations/${declarationId}`, body);
-}
-
-export async function deleteShipmentDeclaration(
-  shipmentId: number,
-  declarationId: number,
-): Promise<void> {
-  await api.delete(`/shipments/${shipmentId}/declarations/${declarationId}`);
 }
 
 export async function deleteCusShipment(

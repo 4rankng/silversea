@@ -551,7 +551,7 @@ function InlineEditor({
           )}
           <small>Số tờ khai lưu theo {row.isLotLevel
             ? 'LÔ hàng lẻ — nhập hoặc sửa số một lần cho cả lô'
-            : 'từng container của lô; nhập hay sửa số trên một container sẽ tự đồng bộ sang các cont còn trống và các cont đang cùng số cũ của lô — cont đã có số khác không bị ghi đè; xóa số chỉ áp cho container đang sửa'}.</small>
+            : 'từng container của lô; nhập hay sửa số trên một container sẽ tự điền sang các cont còn TRỐNG (FB-109) — cont đã có số khác không bị ghi đè; xóa số chỉ áp cho container đang sửa (SIL-521: mỗi cont giữ số riêng, trùng số trong cùng lô là hợp lệ)'}.</small>
           {/* Card 171026122140 (FB-113): positions 3 and 4 of the requested
               order. The direction select keeps its handler verbatim — it still
               owns the Bill-vs-Booking switch and clears the other side. */}
