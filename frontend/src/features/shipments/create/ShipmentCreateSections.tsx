@@ -28,7 +28,7 @@ export function ShipmentCreateSection({ id, title, description, children }: Ship
 }
 
 export const shipmentCreateGridStyle: CSSProperties = {
-  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 12, minWidth: 0,
+  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 8, minWidth: 0,
 };
 
 const sectionStyle: CSSProperties = {

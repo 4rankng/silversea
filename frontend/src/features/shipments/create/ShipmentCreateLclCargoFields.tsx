@@ -29,7 +29,7 @@ export function ShipmentCreateLclCargoFields({
   issueByField,
 }: ShipmentCreateLclCargoFieldsProps) {
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
+    <div style={{ display: 'grid', gap: 8 }}>
       <div style={shipmentCreateGridStyle}>
         <div data-field-id="shipment-package-type">
           {/* FB-079 (card 091026180800): suggestion combobox mirroring the
