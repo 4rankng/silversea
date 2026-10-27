@@ -28,6 +28,7 @@ import { StatusPill, useConfirm } from '../components/UI';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { tripStatusVariant } from '../lib/tripStatus';
 import { podRequiredFilesReady } from '../lib/podReadiness';
+import { stripInternalCodeFromFileName } from '../lib/internalCode';
 import { usePageAnimations } from '../hooks/animations';
 import { usePageLeaveGuard } from '../hooks/usePageLeaveGuard';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
@@ -177,7 +178,10 @@ export function DriverTripPodPage() {
         ),
       });
       await refreshAll();
-      toast({ kind: 'success', message: `Đã gỡ tệp ${target?.originalFileName ?? ''}.`.trim() });
+      // PRD ruling (card 261022201006c): the driver never sees a raw internal
+      // code — a stored name may carry one (seeded e-POD names do).
+      const removedLabel = stripInternalCodeFromFileName(target?.originalFileName);
+      toast({ kind: 'success', message: `Đã gỡ tệp ${removedLabel ?? 'chứng từ'}.` });
     } catch (error) {
       // A submitted submission is frozen by design; say so in the driver's own
       // words rather than surfacing a bare 409 they cannot act on.
@@ -208,7 +212,11 @@ export function DriverTripPodPage() {
         file,
       });
       await refreshAll();
-      const label = uploaded.files.find((item) => item.fileType === fileType)?.originalFileName ?? file.name;
+      // PRD ruling (card 261022201006c): strip a leading internal code from the
+      // name the driver sees in the toast.
+      const label = stripInternalCodeFromFileName(
+        uploaded.files.find((item) => item.fileType === fileType)?.originalFileName ?? file.name,
+      ) ?? 'chứng từ';
       toast({ kind: 'success', message: `Đã lưu tệp ${label}.` });
     } finally {
       setUploadingPod(false);

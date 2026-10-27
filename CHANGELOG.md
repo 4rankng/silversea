@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-10-28 — fix(driver): SIL-535 chặn mã chuyến lọt lên app lái xe (copy thông báo + tên tệp e-POD)
+
+SIL-535 (ruling PRD ManHinhLaiXe §3.1, card 261022201006c): "Mã chuyến KHÔNG
+hiển thị trên app lái xe — danh sách lẫn chi tiết lệnh… chuỗi mã thô
+(`TRP-…`, `SHP-…`) không hiển thị. Field mã giữ nguyên ở DB và API payload."
+
+`6a633ed6` (22/10) đã gỡ dòng "Mã chuyến" khỏi thẻ lệnh + lưới chi tiết và
+`56f0a775` (27/10) xác minh thẻ lệnh sạch. Sweep toàn driver surface của lane
+này tìm ra 2 KHE còn lại, cùng thuộc ruling (chuỗi mã thô lọt lên màn lái xe):
+
+- **Khe A — copy thông báo (bell + /notifications)**: stripper cũ
+  (\`/\\s*TRP-\\d{6}-\\d+\\s*/g\`) chỉ khớp shape chuẩn \`TRP-YYYYMM-NNNN\`.
+  Backend ghép message thô từ \`trip.tripCode\` (\`trip-command.service.ts:62\`,
+  \`dispatch-planning-utils.service.ts:471\`,
+  \`adjustment-governance.service.ts:532,593\`), còn DB mang nhiều shape khác
+  (audit 21/10 \`testplan/2026-10-21-req07-tripcode.md\`: \`TRP-YYYY-MM-NNNN\` từ
+  \`seed-dashboard.ts\`, legacy \`TRP-C12-53-…\`, \`CN-…\`, \`BULK-TR-…\`) — shape
+  nào không khớp regex lọt NGUYÊN VĂN vào copy driver đọc được.
+- **Khe B — tên tệp e-POD**: \`backend/src/seed/seed-trips.ts:550\` đặt tên tệp seed
+  = \`\${trip.tripCode}-\${fileType}\`; \`TripPodSubmission.tsx\` render
+  \`file.originalFileName\` thẳng vào text + \`aria-label\` + \`alt\` + tên file tải
+  xuống (\`link.download\`) → mã nội bộ lọt lên màn lái xe.
+
+Fix: module mới \`frontend/src/lib/internalCode.ts\` — owner DUY NHẤT của "chuỗi này là
+mã nội bộ" (nhận diện + strip mọi shape; \`CN-\` phân biệt mã với "Lô CN-09" trong
+địa chỉ bằng nhóm dash-digit). Consumer: \`notificationText.ts\` (copy thông báo),
+\`TripPodSubmission.tsx\` + \`DriverTripPodPage.tsx\` (tên tệp e-POD + toast).
+UI-only — DB + API payload GIỮ NGUYÊN field mã; màn desktop/điều phối/kế toán
+GIỮ NGUYÊN hiển thị mã (không đụng).
+
+Gates: lint 0 lỗi · tsgo -b 0 lỗi · FE scoped 367/367 · FE full 5647 (25 fail
+PRE-EXISTING ở \`ShipmentDebitPage*\` — lane SIL-538, đã verify KHÔNG LIÊN QUAN:
+cùng 25 fail khi stash sạch trên \`origin/main\`) · \`make build\` EXIT=0.
+UI DRIVEN @390px (rung 3, driver \`dvthuc\`, \`qa/2026-10-27_sil535-trpcode/\`):
+\`/notifications\` + \`/my-trips/:id/pod\` before → FAIL (mã lộ) → after → PASS
+(16/16 assertion, exit 0).
+
 ## 2026-10-24 — fix(lcl,dispatch): QA R39 residuals — FB-138 xe tải rule, FB-127 field order, FB-141 BKS clear, FB-145 unmerge rate revert
 
 4 card QA R39 retest (231026162327 / 231026163927×3, testplan/cases/

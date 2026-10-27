@@ -14,6 +14,7 @@ import {
 import { TRIP_POD_REQUIRED_FILE_TYPES, TripPodFileType, TripPodStatus } from '@tingting/shared';
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTime } from '../../features/driver/driver-trip-model';
+import { stripInternalCodeFromFileName } from '../../lib/internalCode';
 import { usePodUpload } from './usePodUpload';
 import { PodPendingFile } from './PodPendingFile';
 import { PhotoViewer } from '../PhotoViewer';
@@ -217,7 +218,10 @@ export function TripPodSubmission({
       createdUrlsRef.current.push(url);
       const link = document.createElement('a');
       link.href = url;
-      link.download = file.originalFileName;
+      // The saved file name is driver-visible too — it must not carry the
+      // internal code (card 261022201006c). The stored file is untouched.
+      link.download = stripInternalCodeFromFileName(file.originalFileName)
+        ?? `${file.fileType.toLowerCase()}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -347,6 +351,14 @@ export function TripPodSubmission({
                   {files.map((file) => {
                     const isImage = (file.mimeType ?? '').startsWith('image/');
                     const thumb = thumbUrls[file.id];
+                    // PRD ruling (card 261022201006c): the app lái xe never shows
+                    // a raw internal code. A stored file name may carry one
+                    // (the seeded e-POD shape is "<tripCode>-<FILE_TYPE>.pdf"),
+                    // so the driver-facing NAME drops that leading code and
+                    // keeps the document part. The stored file is untouched.
+                    const displayName = stripInternalCodeFromFileName(file.originalFileName)
+                      ?? FILE_TYPE_LABELS[file.fileType]
+                      ?? 'Chứng từ';
                     // Card 071026212500: a draft is the driver's own editable
                     // work, so the file can be taken back. `isLocked` is exactly
                     // the submitted case the server refuses — same rule the
@@ -357,7 +369,7 @@ export function TripPodSubmission({
                         className="trip-pod__file-remove"
                         onClick={() => void handleRemoveFile(file.id)}
                         disabled={removingFileId != null}
-                        aria-label={`Xóa chứng từ ${file.originalFileName}`}
+                        aria-label={`Xóa chứng từ ${displayName}`}
                       >
                         {removingFileId === file.id
                           ? <Loader2 size={15} className="spin" />
@@ -373,7 +385,7 @@ export function TripPodSubmission({
                             className="trip-pod__file-thumb"
                             onClick={() => setViewerIndex(fileIndex)}
                           >
-                            <img src={thumb} alt={file.originalFileName} />
+                            <img src={thumb} alt={displayName} />
                           </button>
                           <span className="trip-pod__file-time">Tải lên {formatDateTime(file.createdAt)}</span>
                           {removeButton}
@@ -382,9 +394,9 @@ export function TripPodSubmission({
                     }
                     return (
                       <li key={file.id} className="trip-pod__file">
-                        <button type="button" className="trip-pod__file-meta trip-pod__file-download" onClick={() => void downloadFile(file)} disabled={downloadingId != null} aria-label={`Tải chứng từ ${file.originalFileName}`}>
+                        <button type="button" className="trip-pod__file-meta trip-pod__file-download" onClick={() => void downloadFile(file)} disabled={downloadingId != null} aria-label={`Tải chứng từ ${displayName}`}>
                           {(file.mimeType ?? '').startsWith('image/') ? <FileImage size={15} /> : <FileText size={15} />}
-                          <span className="trip-pod__file-name">{file.originalFileName}</span>
+                          <span className="trip-pod__file-name">{displayName}</span>
                           {downloadingId === file.id ? <Loader2 size={15} className="spin" /> : <Download size={15} />}
                         </button>
                         <span className="trip-pod__file-time">Tải lên {formatDateTime(file.createdAt)}</span>

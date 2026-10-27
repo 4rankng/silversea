@@ -278,9 +278,10 @@
   color: var(--ink);
   /* File names are WRAPPING text: display the full name at every width —
      no ellipsis and no title crutch (law book §4 no-truncation doctrine,
-     card 20261004_338). Long unbroken name runs (e.g.
-     "TRP-2026-07-0001-YARD_OR_DROP_RECEIPT.pdf") break via the house
-     emergency break instead of clipping. */
+     card 20261004_338). Long unbroken name runs (e.g. a driver upload named
+     "BIEN_BAN_GIAO_NHAN_CO_KY_NHAN_2026-10-27.pdf") break via the house
+     emergency break instead of clipping. The name shown is the driver-facing
+     one — the internal code is stripped (card 261022201006c). */
   white-space: normal;
   overflow-wrap: anywhere;
   min-width: 0;

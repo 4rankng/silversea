@@ -49,7 +49,10 @@ describe('trip-pod file name wraps in full (card 20261004_338)', () => {
     const span = tsx.match(/<span className="trip-pod__file-name"[\s\S]*?<\/span>/)?.[0];
     expect(span, 'the file-name span still renders').toBeTruthy();
     expect(span!).not.toMatch(/<span[^>]*\btitle=/);
-    expect(span!).toContain('>{file.originalFileName}</span>');
+    // The span renders the WHOLE name — the driver-facing one, with the
+    // internal code already stripped (card 261022201006c) — never the stored
+    // name, and never a truncated slice of it.
+    expect(span!).not.toContain('file.originalFileName');
     expect(span!).not.toMatch(/slice|substring|truncate|ellipsis/i);
   });
 });
