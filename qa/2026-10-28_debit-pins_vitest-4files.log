@@ -1,0 +1,15 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-debit-pins/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  4 passed (4)
+      Tests  52 passed (52)
+   Start at  01:12:27
+   Duration  3.19s (transform 2.44s, setup 638ms, import 6.34s, tests 2.38s, environment 2.11s)
+
+EXIT=0

@@ -97,10 +97,13 @@ const twoSameCustomerLots = () => ({
 });
 
 describe('FB-093b — Gộp xe thu khách ARIA + click contract', () => {
-  /** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [📦 Gộp
-   *  hàng] mode; flip it on (the strip toggle) before any checkbox contract. */
+  /** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [Gộp hàng]
+   *  mode; flip it on (the strip toggle) before any checkbox contract.
+   *  SIL-592: the faces are vector icons with the clean accessible names
+   *  'Gộp hàng'/'Thoát gộp hàng', and `pressed: false` pins the OFF face so
+   *  the floating bar's own [Gộp hàng] CTA can never match once a pick exists. */
   const enableMergeMode = () => {
-    const toggle = screen.queryByRole('button', { name: '📦 Gộp hàng' });
+    const toggle = screen.queryByRole('button', { name: 'Gộp hàng', pressed: false });
     if (toggle) fireEvent.click(toggle);
   };
 

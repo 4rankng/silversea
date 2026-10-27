@@ -1,0 +1,42 @@
+{
+  "phase": "before",
+  "viewport": "1440x900",
+  "role": "ADMIN (admin)",
+  "lot": "Q1-177 (shipment id 196)",
+  "checks": [
+    {
+      "name": "schedule cell found on /shipments for Q1-177",
+      "pass": true,
+      "detail": {
+        "trigger": {
+          "top": 261.8,
+          "bottom": 337.4,
+          "height": 75.6,
+          "width": 224.8
+        }
+      }
+    },
+    {
+      "name": "first line text is the appointment line",
+      "pass": true,
+      "detail": "08:00 25/10/2026 · ASKEY-XƯỞNG 1 · 2x20DC"
+    },
+    {
+      "name": "first line does not overlap the next line",
+      "pass": true,
+      "detail": {
+        "firstBottom": 287.7,
+        "overlapping": []
+      }
+    },
+    {
+      "name": "first line box tall enough for its glyphs (no vertical clip)",
+      "pass": true,
+      "detail": {
+        "rectH": 14.8,
+        "scrollH": 15,
+        "clientH": 15
+      }
+    }
+  ]
+}

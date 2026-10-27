@@ -184,4 +184,40 @@ describe('TripPodSubmission', () => {
     expect(screen.getAllByRole('button', { name: 'Chụp' }).length).toBe(2);
     expect(screen.getAllByRole('button', { name: 'Tải tệp' }).length).toBe(2);
   });
+
+  // Card 261022201006c / PRD ManHinhLaiXe §3.1: the app lái xe shows NO raw
+  // internal code. A stored e-POD file name may carry one (the seeded shape is
+  // "<tripCode>-<FILE_TYPE>.pdf"), so the driver-facing name drops it and
+  // keeps the document label. The stored file is untouched.
+  it('never renders the internal trip code carried by a stored file name', () => {
+    render(
+      <TripPodSubmission
+        tripVersion={3}
+        currentSubmission={draftSubmission({
+          files: [
+            {
+              id: 1,
+              fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+              originalFileName: 'TRP-202609-0001-YARD_OR_DROP_RECEIPT.pdf',
+              mimeType: 'application/pdf',
+              sizeBytes: 100,
+              createdAt: '2026-08-01T02:00:00.000Z',
+            },
+          ],
+        })}
+        history={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+      />,
+    );
+
+    // The document label survives; the code never reaches the DOM.
+    expect(screen.getByText('YARD_OR_DROP_RECEIPT.pdf')).toBeTruthy();
+    expect(screen.queryByText(/TRP-202609-0001/)).toBeNull();
+    expect(document.body.innerHTML).not.toContain('TRP-202609-0001');
+    // The download affordance names the document, not the code.
+    expect(screen.getByRole('button', { name: /Tải chứng từ YARD_OR_DROP_RECEIPT\.pdf/ })).toBeTruthy();
+  });
 });

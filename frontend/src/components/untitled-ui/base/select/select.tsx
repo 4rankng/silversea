@@ -100,7 +100,7 @@ const SelectValue = ({ isOpen, isFocused, isDisabled, isInvalid, size, placehold
                                     {selectedItem?.supportingText && <p className={cx("text-tertiary", sizes[size].text)}>{selectedItem?.supportingText}</p>}
                                 </section>
                             ) : (
-                                <p className={cx("text-placeholder", sizes[size].text)}>{placeholder}</p>
+                                <p className={cx("truncate text-placeholder", sizes[size].text)}>{placeholder}</p>
                             )}
 
                             <ChevronDown

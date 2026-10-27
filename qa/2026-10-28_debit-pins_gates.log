@@ -1,0 +1,5 @@
+GATE: full frontend vitest (pnpm test) — 2026-10-28, worktree fix-debit-pins @ 4a01615c + debit-pins edits
+Command: cd frontend && pnpm test
+Result: Test Files 734 passed (734) / Tests 5629 passed (5629) — EXIT=0
+Note: first full run had 2 fails in src/styles/numeric-identity.styles.test.ts = fresh-worktree env artifact (no dist/assets); built frontend (pnpm build OK) and re-ran full suite green. Change is test-only; production build unaffected.
+GATE: tsgo (npx tsgo --noEmit, frontend) — EXIT=0, 0 errors

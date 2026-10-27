@@ -220,8 +220,14 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                 <div className="uui-combobox__input relative flex min-w-0 w-full items-center">
                     {inputValue && (
                         <span className={cx("absolute top-1/2 z-0 inline-flex w-full -translate-y-1/2 truncate", sizes[size].textContainer, onClear && hasClearableValue && !isDisabled && "pr-8")} aria-hidden="true">
-                            <p className={cx("font-medium text-primary", sizes[size].text)}>{first}</p>
-                            {last && <p className={cx("-ml-0.75 text-tertiary", sizes[size].text)}>{last}</p>}
+                            {/* SIL-541 review: `text-overflow` is inert on the
+                                flex container itself — the ellipsis must live
+                                on the block `<p>` children (same structure as
+                                Select's trigger), else an overflowing
+                                committed value is hard-clipped mid-word with
+                                no glyph. */}
+                            <p className={cx("min-w-0 truncate font-medium text-primary", sizes[size].text)}>{first}</p>
+                            {last && <p className={cx("-ml-0.75 min-w-0 truncate text-tertiary", sizes[size].text)}>{last}</p>}
                         </span>
                     )}
 
@@ -235,7 +241,13 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                             }
                         }}
                         className={cx(
-                            "z-10 w-full appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
+                            // SIL-541: same no-mid-word-cut law as the Input
+                            // base — the placeholder renders from this native
+                            // input (the value rides the transparent text and
+                            // the ghost span's `truncate`), so a placeholder
+                            // longer than the field must end in a clean
+                            // ellipsis, never clip mid-word.
+                            "z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret-alpha-black/90 placeholder:text-placeholder focus:outline-hidden disabled:cursor-not-allowed",
                             sizes[size].text,
                             onClear && hasClearableValue && !isDisabled && "pr-8",
                         )}

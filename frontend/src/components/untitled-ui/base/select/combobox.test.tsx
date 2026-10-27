@@ -144,8 +144,35 @@ describe('ComboBox', () => {
     expect(clearButton.className).toContain('right-2');
     const ghost = document.querySelector('[data-uui-control="combobox"] span[aria-hidden="true"]');
     expect(ghost?.className).toContain('pr-8');
+    // The committed-value ghost carries the no-mid-word-cut law on its BLOCK
+    // `<p>` children — `text-overflow` is inert on the inline-flex container
+    // itself, so the pin targets the layer that actually renders the glyph
+    // (SIL-541 review: mirrors Select's trigger structure).
+    const paragraphs = ghost?.querySelectorAll('p') ?? [];
+    expect(paragraphs.length).toBeGreaterThan(0);
+    paragraphs.forEach((p) => expect(p.className).toContain('truncate'));
     const input = document.querySelector('[data-uui-control="combobox"] input');
     expect(input?.className).toContain('pr-8');
+  });
+
+  it('ellipsizes an overflowing placeholder instead of clipping it mid-word (SIL-541)', () => {
+    // The placeholder renders from the native transparent input (the committed
+    // value rides the ghost span's block `<p>` children, pinned separately), so
+    // the input carries the no-mid-word-cut law: a placeholder longer than the
+    // field ('Gõ chọn hoặc nhập hãng tàu' in the create-form Hãng tàu field)
+    // ends in an ellipsis.
+    render(
+      <ComboBox
+        label="Hãng tàu"
+        placeholder="Gõ chọn hoặc nhập hãng tàu"
+        items={[{ id: 'askey', label: 'ASKEY' }]}
+      >
+        {(item) => <SelectItem id={item.id} label={item.label} />}
+      </ComboBox>,
+    );
+
+    const input = document.querySelector('[data-uui-control="combobox"] input');
+    expect(input?.className).toContain('text-ellipsis');
   });
 });
 

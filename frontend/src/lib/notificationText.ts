@@ -9,11 +9,20 @@
  * token stripped rather than inventing a reference the payload never carried.
  * Free space left behind is collapsed.
  *
+ * The strip covers EVERY internal code shape (canonical TRP-YYYYMM-NNNN, the
+ * seeded TRP-YYYY-MM-NNNN, legacy TRP-/TRIP-/CN-/BULK-TR- rows, SHP- shipment
+ * codes) — see lib/internalCode.ts, the shared owner. A driver-targeted
+ * notification is a driver-facing surface under the PRD ruling (card
+ * 261022201006c): the raw code must not reach the bell dropdown or
+ * /notifications either.
+ *
  * Shared by the bell dropdown and the /notifications page so the two surfaces
  * that render the same payload can never disagree.
  */
-const INTERNAL_TRIP_CODE = /\s*TRP-\d{6}-\d+\s*/g;
+import { stripInternalCodes } from './internalCode';
 
 export function notificationDisplayMessage(message: string): string {
-  return message.replace(INTERNAL_TRIP_CODE, ' ').replace(/\s{2,}/g, ' ').trim();
+  // A message that IS its code ("TRP-202609-0001") leaves nothing to say —
+  // the caller renders an empty string rather than a code-shaped remnant.
+  return stripInternalCodes(message) ?? '';
 }
