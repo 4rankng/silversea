@@ -1,0 +1,13 @@
+[
+  "Ngày giờ kế hoạch",
+  "Tên nhà máy",
+  "Địa chỉ nhà máy",
+  "SĐT kho",
+  "Container / lô hàng",
+  "Cảng nâng",
+  "Cảng hạ",
+  "Địa chỉ giao hàng",
+  "Tên công ty",
+  "Địa chỉ",
+  "MST"
+]
