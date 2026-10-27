@@ -149,7 +149,7 @@ const REASON = 'Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng l�
 /** Spec 23/10 (261023110000 §2) — the CHỌN column is on-demand: this is the
  *  step every grouping flow now starts with. */
 function openMergeMode() {
-  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng' }));
 }
 
 beforeEach(() => {
@@ -168,12 +168,12 @@ describe('Spec 23/10 §2 — on-demand CHỌN column', () => {
     openMergeMode();
 
     // ON: every LCL row carries its tick and the toggle announces the exit.
-    expect(screen.getByRole('button', { name: '✕ Thoát gộp hàng' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Thoát gộp hàng' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getAllByRole('checkbox', { name: /Chọn lô/ })).toHaveLength(2);
 
     // Exiting drops the column again — and clears any pick with it.
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-301' }));
-    fireEvent.click(screen.getByRole('button', { name: '✕ Thoát gộp hàng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thoát gộp hàng' }));
     expect(screen.queryByRole('checkbox', { name: /Chọn lô/ })).toBeNull();
     expect(screen.queryByText((_, element) => element?.classList.contains('lcl-selection-bar') ?? false)).toBeNull();
 

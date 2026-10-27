@@ -1,0 +1,16 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-588-593-dispatchcols/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  307 passed (307)
+      Tests  2521 passed (2521)
+   Start at  22:26:10
+   Duration  250.84s (transform 31.50s, setup 122.14s, import 701.35s, tests 826.69s, environment 520.89s)
+

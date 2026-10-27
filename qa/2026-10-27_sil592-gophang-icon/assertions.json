@@ -1,0 +1,76 @@
+{
+  "viewport": "1440x900",
+  "checks": [
+    {
+      "name": "/dispatch: toggle text is exactly \"Gộp hàng\" (no emoji)",
+      "pass": true,
+      "detail": {
+        "present": true,
+        "text": "Gộp hàng",
+        "hasSvg": true,
+        "svgIsLucide": true,
+        "svgPath": "<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1",
+        "ariaPressed": "false",
+        "hasEmoji": false
+      }
+    },
+    {
+      "name": "/dispatch: vector icon present (lucide svg inside the button)",
+      "pass": true,
+      "detail": {
+        "present": true,
+        "text": "Gộp hàng",
+        "hasSvg": true,
+        "svgIsLucide": true,
+        "svgPath": "<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1",
+        "ariaPressed": "false",
+        "hasEmoji": false
+      }
+    },
+    {
+      "name": "/dispatch: active face = X icon + \"Thoát gộp hàng\" (aria-pressed)",
+      "pass": true,
+      "detail": {
+        "text": "Thoát gộp hàng",
+        "hasSvg": true,
+        "ariaPressed": "true"
+      }
+    },
+    {
+      "name": "/dispatch-detail: toggle text is exactly \"Gộp hàng\" (no emoji)",
+      "pass": true,
+      "detail": {
+        "present": true,
+        "text": "Gộp hàng",
+        "hasSvg": true,
+        "svgIsLucide": true,
+        "svgPath": "<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1",
+        "ariaPressed": "false",
+        "hasEmoji": false
+      }
+    },
+    {
+      "name": "/dispatch-detail: vector icon present (lucide svg inside the button)",
+      "pass": true,
+      "detail": {
+        "present": true,
+        "text": "Gộp hàng",
+        "hasSvg": true,
+        "svgIsLucide": true,
+        "svgPath": "<path d=\"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1",
+        "ariaPressed": "false",
+        "hasEmoji": false
+      }
+    },
+    {
+      "name": "/dispatch-detail: active face = X icon + \"Thoát gộp hàng\" (aria-pressed)",
+      "pass": true,
+      "detail": {
+        "text": "Thoát gộp hàng",
+        "hasSvg": true,
+        "ariaPressed": "true"
+      }
+    }
+  ],
+  "pass": true
+}

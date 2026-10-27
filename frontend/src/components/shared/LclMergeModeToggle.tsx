@@ -1,3 +1,4 @@
+import { Layers, X } from 'lucide-react';
 import './LclMergeModeToggle.css';
 // The selection's floating bottom bar shares this one stylesheet (spec 23/10
 // §2): every surface that renders the toggle also floats the same bar, so the
@@ -5,13 +6,19 @@ import './LclMergeModeToggle.css';
 import '../../styles/lcl-merge.css';
 
 /**
- * Spec 23/10 (261023110000 §2) — the [📦 Gộp hàng] on-demand toggle that rides
+ * Spec 23/10 (261023110000 §2) — the [Gộp hàng] on-demand toggle that rides
  * the filter strip of every grouping surface (ĐV Kế hoạch Tổng quát / Chi
  * tiết Xe, CUS Chi phí - Quyết toán). Default OFF: the CHỌN column stays
  * hidden and the table keeps its full reading width. ON: the button flips to
- * the active "✕ Thoát gộp hàng" face and the page reveals the leading
+ * the active "Thoát gộp hàng" face and the page reveals the leading
  * checkbox column (LCL rows only on the dispatch side) plus the selection's
  * floating bottom bar.
+ *
+ * SIL-592 (owner 27/10): the button carries a REAL vector icon — `Layers`,
+ * the exact icon the /shipments-debit action bar landed with the 23/10
+ * ruling ("Gộp hàng — layers icon, never an emoji") — and the active face
+ * swaps it for `X`. The old package emoji 📦 (and the ✕ text glyph) read as
+ * decoration next to the neighboring vector-icon buttons.
  *
  * aria-pressed carries the mode so assistive tech hears a toggle, not two
  * unrelated buttons; the label swap is the spec's own affordance.
@@ -19,17 +26,17 @@ import '../../styles/lcl-merge.css';
 export interface LclMergeModeToggleProps {
   active: boolean;
   onToggle: () => void;
-  /** OFF-state label (default "📦 Gộp hàng"). */
+  /** OFF-state label (default "Gộp hàng"). */
   label?: string;
-  /** ON-state label (default "✕ Thoát gộp hàng"). */
+  /** ON-state label (default "Thoát gộp hàng"). */
   activeLabel?: string;
 }
 
 export function LclMergeModeToggle({
   active,
   onToggle,
-  label = '📦 Gộp hàng',
-  activeLabel = '✕ Thoát gộp hàng',
+  label = 'Gộp hàng',
+  activeLabel = 'Thoát gộp hàng',
 }: LclMergeModeToggleProps) {
   return (
     <button
@@ -41,7 +48,9 @@ export function LclMergeModeToggle({
         : 'Bật chế độ gộp hàng — hiện cột CHỌN để tích các lô hàng lẻ.'}
       onClick={onToggle}
     >
-      {active ? activeLabel : label}
+      {active
+        ? <><X size={14} aria-hidden="true" />{activeLabel}</>
+        : <><Layers size={14} aria-hidden="true" />{label}</>}
     </button>
   );
 }

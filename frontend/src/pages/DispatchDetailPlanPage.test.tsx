@@ -206,8 +206,11 @@ describe('DispatchDetailPlanPage — external completion identity (UI52-B)', () 
     })];
     renderPage();
 
-    const opener = screen.getByRole('button', { name: `Hoàn thành · ${expected}` });
+    // SIL-588: "Hoàn thành" is a ⋯ MENU ITEM (no inline pill) — the trigger's
+    // accessible name carries the row's business identity.
+    const opener = screen.getByRole('button', { name: `Thao tác dòng · ${expected}` });
     fireEvent.click(opener);
+    fireEvent.click(within(screen.getByRole('menu', { name: `Thao tác dòng · ${expected}` })).getByRole('menuitem', { name: /Hoàn thành/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
     expect(dialog).toHaveTextContent(`Hoàn thành chuyến với xe ngoài ${expected}?`);
     expect(dialog).not.toHaveTextContent('SS-000200');
@@ -215,7 +218,9 @@ describe('DispatchDetailPlanPage — external completion identity (UI52-B)', () 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(screen.getByRole('button', { name: `Hoàn thành · ${expected}` })).toBe(opener);
+    fireEvent.click(screen.getByRole('button', { name: `Thao tác dòng · ${expected}` }));
+    expect(within(screen.getByRole('menu', { name: `Thao tác dòng · ${expected}` })).getByRole('menuitem', { name: /Hoàn thành/ })).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(plan.items).toHaveLength(1);
     expect(plan.refresh).not.toHaveBeenCalled();
   });
