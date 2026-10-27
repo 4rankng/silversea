@@ -92,6 +92,10 @@ export function DispatchDeclarationCell({ row, onSaved }: {
       crypto.randomUUID(),
     )
       .then((result) => {
+        // saving clears on BOTH exits — the cell instance survives the board
+        // refetch (stable row keys), so a stale saving=true would silently
+        // dead-lock the next click-to-edit on the same cell.
+        setSaving(false);
         setEditing(false);
         const synced = result.declarationSync?.updatedContainerIds.length ?? 0;
         toastCtx?.toast({
