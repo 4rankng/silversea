@@ -16,8 +16,8 @@ import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
 import { DisabledActionTip } from '../components/shared/DisabledActionTip';
+import { LclMergeModeToggle } from '../components/shared/LclMergeModeToggle';
 import { EmptyState } from '../design-system';
-import { Layers } from 'lucide-react';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { DebitLotTable } from '../features/shipments/debit/DebitLotTable';
 import { ShipmentDebitRecords } from '../features/shipments/debit/ShipmentDebitRecords';
@@ -74,6 +74,16 @@ export function ShipmentDebitPage() {
   const lockStatus = (params.get('lock') ?? 'ALL') as 'ALL' | 'OPEN' | 'LOCKED';
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // SIL-538 (PRD 261023110000 §2) — the CHỌN column is on-demand: default OFF
+  // hides the ticks (and the row's select-alias); [📦 Gộp hàng] on the filter
+  // strip reveals them with the floating bar, and completing a merge — or
+  // [✕ Thoát gộp hàng] — hides them again. Leaving the mode always drops the
+  // picks so a reopened mode never shows a stale floating bar.
+  const [mergeMode, setMergeMode] = useState(false);
+  const exitMergeMode = () => {
+    setMergeMode(false);
+    setSelectedIds(new Set());
+  };
   const [issuing, setIssuing] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   // Case 2026-10-17 — the shadow line's trip list (open state is the user's;
@@ -204,9 +214,8 @@ export function ShipmentDebitPage() {
       hasVolume ? formatVolumeCbm(String(volume)) : null,
     ].filter(Boolean).join(' | ');
   })();
-  // Owner redesign 23/10 (spec v2 (d)): [Gộp hàng] rides the table action
-  // bar beside [Xuất Debit Note] and arms only at ≥2 valid picks — the ticks
-  // themselves are now always on the board (no on-demand mode to flip).
+  // SIL-538 (PRD 261023110000 §2) — [Gộp hàng] opens from the mode's floating
+  // bar (the header keeps only Xuất Debit Note); it arms at ≥2 valid picks.
   const mergeDisabledReason = mergeableRows.length < 2
     ? 'Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.'
     : null;
@@ -234,17 +243,6 @@ export function ShipmentDebitPage() {
     searchText: `${customer.name} ${customer.fullName ?? ''}`,
   }));
 
-  // Sweep (card 20261008_1): every disable cause rides the aria-disabled
-  // pattern so the reason stays hover/focus-reachable.
-  const exportDisabledReason = issuing
-    ? 'Đang xuất Debit Note…'
-    : !customerId
-      ? 'Chọn khách hàng để xuất Debit Note.'
-      : !anyLockedSelected
-        ? 'Chọn ít nhất một lô đã khóa để xuất Debit Note.'
-        : null;
-  const exportDisabled = exportDisabledReason != null;
-
   // 'Xóa bộ lọc (N)': N counts every applied criterion of the strip.
   const appliedFilterCount = (customerId ? 1 : 0) + (deliveryFrom || deliveryTo ? 1 : 0) + (lockStatus !== 'ALL' ? 1 : 0);
   const totals = listTotals(items);
@@ -255,6 +253,20 @@ export function ShipmentDebitPage() {
     else set.delete(id);
     return set;
   });
+  // SIL-538 — outside [📦 Gộp hàng] the ticks are hidden, so the export's
+  // disable reason names the mode first: the user cannot have picked anything.
+  // Sweep (card 20261008_1): every disable cause rides the aria-disabled
+  // pattern so the reason stays hover/focus-reachable.
+  const exportDisabledReason = issuing
+    ? 'Đang xuất Debit Note…'
+    : !customerId
+      ? 'Chọn khách hàng để xuất Debit Note.'
+      : canManage && !mergeMode
+        ? 'Bật [📦 Gộp hàng] để chọn lô xuất Debit Note.'
+        : !anyLockedSelected
+          ? 'Chọn ít nhất một lô đã khóa để xuất Debit Note.'
+          : null;
+  const exportDisabled = exportDisabledReason != null;
 
   return (
     <div className="shipment-debit-page data-workspace">
@@ -292,38 +304,26 @@ export function ShipmentDebitPage() {
             updateParam('to', null);
             updateParam('lock', null);
           }}
+          mergeMode={mergeMode}
+          onToggleMergeMode={() => {
+            // Spec 261023110000 §2 — the toggle both exits and enters: either
+            // way the picks drop so a reopened mode never shows a stale bar.
+            if (mergeMode) exitMergeMode();
+            else { setSelectedIds(new Set()); setMergeMode(true); }
+          }}
         />
         {/* The action row, directly above the rows it acts on (the phone
             band's reading order; desktop re-pins it on top via page CSS).
-            [Gộp hàng] (secondary, layers icon — never an emoji) sits beside
-            [Xuất Debit Note] and arms at ≥2 valid picks; the GP-01 selection
-            clause rides between them while anything is picked. */}
+            SIL-538: only [Xuất Debit Note] lives here — the mode toggle is on
+            the filter strip and [Gộp hàng] rides the floating bar. */}
         <header className="shipment-debit-header" data-component="shipment-debit-header">
           <h1 className="shipment-debit-header__title">Chi phí - Quyết toán</h1>
-          {canManage && selectedRows.length > 0 && (
-            <p className="shipment-debit-header__selection">
-              {`Đang chọn ${selectedRows.length} lô${selectionMeasureClause ? ` · Tổng ${selectionMeasureClause}` : ''}`}
-              {mergeableRows.length > 0 && (
-                <span className="shipment-debit-header__selection-law">
-                  {` — Lô 1 giữ 100% tiền thu khách: ${mergeableRows[0]?.billOrBookNumber || mergeableRows[0]?.customsNumber || mergeableRows[0]?.code}`}
-                </span>
-              )}
-            </p>
-          )}
+          {/* SIL-538 (PRD 261023110000 §2): the header keeps only [Xuất Debit
+              Note]. The selection read-out and the [Gộp hàng] action both move
+              onto the mode's floating bottom bar — outside the mode there are
+              no ticks to read or act on. */}
           {canManage && (
             <span className="shipment-debit-header__export">
-              <DisabledActionTip id="shipment-debit-merge-rev" reason={mergeDisabledReason}>
-                <UUIButton
-                  className="shipment-debit-merge-rev"
-                  size="sm"
-                  color="secondary"
-                  iconLeading={Layers}
-                  aria-disabled={mergeDisabled || undefined}
-                  onPress={() => { if (mergeDisabled) return; setMergeOpen(true); }}
-                >
-                  Gộp hàng
-                </UUIButton>
-              </DisabledActionTip>
               <DisabledActionTip id="shipment-debit-export" reason={exportDisabledReason}>
                 <UUIButton
                   className="shipment-debit-export"
@@ -394,7 +394,7 @@ export function ShipmentDebitPage() {
                   <span>LN {totals.profit == null ? '—' : formatMoney(totals.profit)}</span>
                 </p>
                 <ShipmentDebitRecords key={JSON.stringify([customerId, deliveryFrom, deliveryTo, lockStatus])}
-                  rows={items} canManage={canManage} selectedIds={selectedIds} expandedId={expandedId}
+                  rows={items} canManage={canManage} mergeMode={mergeMode} selectedIds={selectedIds} expandedId={expandedId}
                   onToggle={toggleExpandedLot} onSaved={() => { void summary.refetch(); }}
                   onSelect={selectLot}
                 />
@@ -403,6 +403,7 @@ export function ShipmentDebitPage() {
               <DebitLotTable
                 items={items}
                 canManage={canManage}
+                mergeMode={mergeMode}
                 selectedIds={selectedIds}
                 expandedId={expandedId}
                 onToggle={toggleExpandedLot}
@@ -419,6 +420,40 @@ export function ShipmentDebitPage() {
             <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
           </>
         )}
+        {/* Spec 261023110000 §2 — the Bottom Floating Bar: rides the mode with
+            the shared lcl-merge.css look («Đang chọn N lô: Tổng X tấn | Y CBM —
+            Lô 1 giữ 100% tiền thu khách…») + [Gộp hàng] (opens the merge popup)
+            + [Bỏ chọn]. Hidden entirely outside the mode or with no picks. */}
+        {canManage && mergeMode && selectedRows.length > 0 && (
+          <div className="lcl-selection-bar" role="status">
+            <span className="lcl-selection-bar__totals">
+              {`Đang chọn ${selectedRows.length} lô${selectionMeasureClause ? `: Tổng ${selectionMeasureClause}` : ''}`}
+            </span>
+            {mergeableRows.length > 0 && (
+              <span className="lcl-selection-bar__first" title="Lô 1 giữ 100% tiền thu khách">
+                {`— Lô 1 giữ 100% tiền thu khách: ${mergeableRows[0]?.billOrBookNumber || mergeableRows[0]?.customsNumber || mergeableRows[0]?.code}`}
+              </span>
+            )}
+            <button
+              type="button"
+              className="lcl-selection-bar__clear"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Bỏ chọn
+            </button>
+            <DisabledActionTip id="shipment-debit-bar-merge" reason={mergeDisabledReason}>
+              <button
+                type="button"
+                className="lcl-selection-bar__assign"
+                aria-disabled={mergeDisabled || undefined}
+                title="Gộp xe thu khách"
+                onClick={() => { if (mergeDisabled) return; setMergeOpen(true); }}
+              >
+                Gộp hàng
+              </button>
+            </DisabledActionTip>
+          </div>
+        )}
       </section>
 
       {mergeOpen && (
@@ -427,9 +462,10 @@ export function ShipmentDebitPage() {
           plateOptions={plateOptions}
           onClose={() => setMergeOpen(false)}
           onMerged={() => {
-            // Completing the merge drops the selection: the group changed,
-            // the ticks must not survive as a stale pick set.
-            setSelectedIds(new Set());
+            // Spec 261023110000 §2 — completing the merge EXITS the mode: the
+            // CHỌN column hides itself and the floating bar closes with it
+            // (the group changed; the ticks must not survive as a stale set).
+            exitMergeMode();
             void summary.refetch();
           }}
         />

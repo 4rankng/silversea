@@ -70,6 +70,7 @@ const factRow = (over: Partial<ShipmentDebitLotRow> = {}): ShipmentDebitLotRow =
 
 interface RenderOver {
   canManage?: boolean;
+  mergeMode?: boolean;
   selectedIds?: Set<number>;
   expandedId?: number | null;
   onSelect?: (id: number, next: boolean) => void;
@@ -81,6 +82,7 @@ function renderOnPhone(rows: ShipmentDebitLotRow[], over: RenderOver = {}) {
   return render(
     <ShipmentDebitRecords
       rows={rows} canManage={over.canManage ?? false}
+      mergeMode={over.mergeMode ?? false}
       selectedIds={over.selectedIds ?? new Set()} expandedId={over.expandedId ?? null}
       onSelect={over.onSelect ?? vi.fn()} onToggle={over.onToggle ?? vi.fn()} onSaved={vi.fn()}
     />,
@@ -244,15 +246,21 @@ describe('BD-01 (161026204709) — the merged 100%/0₫ lane stays on the expand
 
   // Owner redesign 23/10 — the ticks are ALWAYS on the phone rows for a
   // managing user (no on-demand mode left); a read-only user gets none.
-  it('redesign 23/10: the row tick is always present for canManage, absent read-only', async () => {
+  it('SIL-538: the phone tick is mode-gated — hidden by default, present for canManage inside [📦 Gộp hàng]', async () => {
     const rows = [factRow({ shipmentId: 203, billOrBookNumber: 'BL-S', code: 'SHP-26-0203' })];
     const onSelect = vi.fn();
     const first = renderOnPhone(rows, { onSelect });
     const record = await screen.findByRole('article', { name: 'BL-S' });
+    // Mode OFF: no tick at all.
     expect(within(record).queryByRole('checkbox')).toBeNull();
     first.unmount();
 
-    renderOnPhone(rows, { canManage: true, onSelect });
+    // Mode ON but read-only: still no tick.
+    const reader = renderOnPhone(rows, { canManage: false, mergeMode: true, onSelect });
+    expect(within(await screen.findByRole('article', { name: 'BL-S' })).queryByRole('checkbox')).toBeNull();
+    reader.unmount();
+
+    renderOnPhone(rows, { canManage: true, mergeMode: true, onSelect });
     const tick = await screen.findByRole('checkbox', { name: /Chọn BL-S/ });
     // Any lot is selectable: the ticks feed BOTH the merge and the Debit-Note
     // export (the old locked-only gate died with the always-on tick).
@@ -264,7 +272,7 @@ describe('BD-01 (161026204709) — the merged 100%/0₫ lane stays on the expand
   it('SIL-478: ticking a row does not expand it', async () => {
     const onSelect = vi.fn();
     const onToggle = vi.fn();
-    renderOnPhone([factRow({ shipmentId: 401, billOrBookNumber: 'BL-TICK' })], { canManage: true, onSelect, onToggle });
+    renderOnPhone([factRow({ shipmentId: 401, billOrBookNumber: 'BL-TICK' })], { canManage: true, mergeMode: true, onSelect, onToggle });
     const record = await screen.findByRole('article', { name: 'BL-TICK' });
     fireEvent.click(within(record).getByRole('checkbox', { name: 'Chọn BL-TICK' }));
     expect(onToggle).not.toHaveBeenCalled();

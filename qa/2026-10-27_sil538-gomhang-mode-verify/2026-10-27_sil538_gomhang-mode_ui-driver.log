@@ -1,0 +1,17 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7176
+LOGIN ok thanhdc
+PASS T01 default: zero visible checkboxes — count=0
+PASS T01 [📦 Gộp hàng] toggle on the strip — toggle="📦 Gộp hàng" pressed=false
+PASS T01 no floating bar by default
+PASS T02 mode ON: checkbox column revealed — count=235
+PASS T02 toggle flipped to [✕ Thoát gộp hàng] — label="✕ Thoát gộp hàng"
+PASS T02 floating bar up with picks — totals="Đang chọn 2 lô"
+PASS T02 bar hosts [Gộp hàng] + [Bỏ chọn] — assign="Gộp hàng" clear="Bỏ chọn"
+PASS T03 exit: ticks hidden again — count=0
+PASS T03 exit: floating bar closed
+PASS T03 toggle back to [📦 Gộp hàng] — label="📦 Gộp hàng"
+PASS T04 merged row tag opens the direct popover — tach="Tách nhóm"
+PASS T04 [Tách nhóm] raises its confirm (cancelled — no data change) — Tách nhóm ghép trả ĐV? Mỗi lô trở về cước trả ĐV độc lập — tiền cước 100% của Lô 1 vẫn giữ nguyên trên Lô 1, các lô còn lại chờ định giá lại khi ghép nhóm mới.H
+LOGIN ok dungnv
+PASS T05 ĐV tag popover: [Hủy ghép] + [Tách nhóm] direct (no kebab) — buttons=["","Tách nhóm","Đóng","Đổi nhà xe/BKS","Đổi BKS nhóm","Hủy ghép"]
+DONE failures=0

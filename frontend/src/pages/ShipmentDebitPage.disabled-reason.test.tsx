@@ -34,9 +34,15 @@ import { ShipmentDebitPage } from './ShipmentDebitPage';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import type { ShipmentDebitLotRow } from '../api/shipmentClient';
 
-/** Owner redesign 23/10 — the ticks are always on the board; selection flows
- *  start directly from the leading checkbox / row click. */
+/** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [📦 Gộp hàng]
+ *  mode: flip the strip toggle on first (only when OFF), then row-click pick. */
+function enableMergeMode() {
+  const toggle = screen.queryByRole('button', { name: '📦 Gộp hàng' });
+  if (toggle) fireEvent.click(toggle);
+}
+
 function tickLot(labelText: string) {
+  enableMergeMode();
   fireEvent.click(screen.getAllByText(labelText)[0].closest('tr')!);
 }
 
@@ -118,9 +124,16 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     const button = screen.getByRole('button', { name: 'Xuất Debit Note' });
     expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).not.toBeDisabled();
-    expect(reasonOf(button)).toBe('Chọn ít nhất một lô đã khóa để xuất Debit Note.');
+    // SIL-538: outside the mode there are no ticks at all, so the FIRST
+    // disable cause names the mode that reveals them.
+    expect(reasonOf(button)).toBe('Bật [📦 Gộp hàng] để chọn lô xuất Debit Note.');
     fireEvent.click(button);
     expect(createBatch).not.toHaveBeenCalled();
+
+    // Inside the mode (ticks visible) the prerequisite is the pick itself.
+    enableMergeMode();
+    expect(reasonOf(screen.getByRole('button', { name: 'Xuất Debit Note' })))
+      .toBe('Chọn ít nhất một lô đã khóa để xuất Debit Note.');
   });
 
   it('while an export is in flight the button explains the busy state', async () => {
@@ -174,6 +187,8 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
       onLockChange: vi.fn(),
       onDeliveryRangeChange: vi.fn(),
       onClear,
+      mergeMode: false,
+      onToggleMergeMode: vi.fn(),
     };
     const wrap = (appliedCount: number) => (
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -199,7 +214,7 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
-  it('Gộp hàng (redesign 23/10) explains the ≥2-pick prerequisite on the action bar', async () => {
+  it('Gộp hàng (SIL-538) explains the ≥2-pick prerequisite on the floating bar', async () => {
     listSummary.mockResolvedValue({
       items: [row({ cargoMode: 'LCL' }), row({ shipmentId: 102, code: 'SHP-26-0002', billOrBookNumber: 'BL-2', cargoMode: 'LCL' })],
       total: 2,
@@ -207,14 +222,15 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     renderPage('/shipments-debit?customer=1');
     await screen.findAllByText('BL-1');
 
+    // Mode OFF: no merge CTA exists at all (it lives on the mode's bar).
+    expect(screen.queryByRole('button', { name: 'Gộp hàng' })).toBeNull();
+    tickLot('BL-1');
     const merge = screen.getByRole('button', { name: 'Gộp hàng' });
     expect(merge).toHaveAttribute('aria-disabled', 'true');
     expect(reasonOf(merge)).toBe('Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.');
-    tickLot('BL-1');
-    expect(screen.getByRole('button', { name: 'Gộp hàng' })).toHaveAttribute('aria-disabled', 'true');
     tickLot('BL-2');
     expect(screen.getByRole('button', { name: 'Gộp hàng' })).not.toHaveAttribute('aria-disabled');
-    // The GP-01 selection clause rides the action row while anything is picked.
+    // The GP-01 selection clause rides the floating bar while anything is picked.
     expect(screen.getByText(/Đang chọn 2 lô/)).toBeTruthy();
   });
 });

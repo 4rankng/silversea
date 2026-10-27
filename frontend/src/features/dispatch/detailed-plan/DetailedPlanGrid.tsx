@@ -970,6 +970,22 @@ export function DetailedPlanGrid({
                     {`Còn ${groupMenuMissing} thành viên ở trang khác`}
                   </p>
                 )}
+                {/* SIL-538 — Tách nhóm joins the tag popover so the whole-group
+                    unmerge is direct on the Lô 1 row (same law as the ⋯ menu
+                    entry it mirrors: SPEC 18/10/2026 §4, Lô 1 only). */}
+                {onUnmergeLclGroup && groupMenuRow.lcl.group.order === 1 && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    title="Tách nhóm ghép — mỗi lô trở về cước trả ĐV độc lập"
+                    onClick={() => {
+                      onUnmergeLclGroup(groupMenuRow.lcl!.group!.groupId);
+                      setGroupMenuRow(null);
+                    }}
+                  >
+                    Tách nhóm
+                  </button>
+                )}
               </>
             )}
           </div>

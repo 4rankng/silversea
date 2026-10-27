@@ -54,11 +54,12 @@ function FactList({ facts }: { facts: Array<{ key: string; label: string; value:
  *  n cont, right side the Doanh thu money + the lock status chip on one
  *  baseline. No per-row action button: the row tap expands the detail
  *  (manager: the quyết toán workspace; reader: the remaining facts). */
-export function ShipmentDebitRecords({ rows, canManage, selectedIds, expandedId, onSelect, onToggle, onSaved }: {
+export function ShipmentDebitRecords({ rows, canManage, mergeMode, selectedIds, expandedId, onSelect, onToggle, onSaved }: {
   rows: ShipmentDebitLotRow[]; canManage: boolean;
-  /** Owner redesign 23/10: the ticks are always on the board — no on-demand
-   *  merge mode to flip; they serve both jobs (gộp xe thu khách + xuất Debit
-   *  Note) on any lot. */
+  /** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [📦 Gộp
+   *  hàng] mode here exactly like on the desktop table: hidden by default,
+   *  revealed by the filter-strip toggle. */
+  mergeMode: boolean;
   selectedIds: Set<number>; expandedId: number | null;
   onSelect: (id: number, selected: boolean) => void; onToggle: (id: number) => void; onSaved: () => void;
 }) {
@@ -118,7 +119,7 @@ export function ShipmentDebitRecords({ rows, canManage, selectedIds, expandedId,
         ? { label: 'Đã khóa', tone: 'neutral' as const }
         : { label: 'Đang mở', tone: 'open' as const },
       selected: selectedIds.has(row.shipmentId),
-      selectable: canManage,
+      selectable: canManage && mergeMode,
       onSelect: (next: boolean) => onSelect(row.shipmentId, next),
       expanded,
       onToggle: () => (canManage ? onToggle(row.shipmentId) : toggleReader(row.shipmentId)),
