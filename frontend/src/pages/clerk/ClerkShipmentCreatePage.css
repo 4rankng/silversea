@@ -5,7 +5,7 @@
 /* Shipment entry is an operational worksheet: let its cards use the full
    shell canvas, while the app shell remains the single safe outer gutter. */
 .app-main:not(.driver-mode) .app-body > .csc-page { width: 100%; max-width: none; margin-inline: 0; }
-.csc-page { width: 100%; margin: 0; padding: 12px 0; min-width: 0; }
+.csc-page { width: 100%; margin: 0; padding: 8px 0; min-width: 0; }
 /* Owner mock 11/10 ("Tạo lô hàng – dense layout.html"): title + required
    progress ride ONE topline. SIL-510 (owner 26/10): the actions left the
    topline — the worksheet's ONE action bar is the viewport-fixed footer
@@ -40,20 +40,20 @@
 .csc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* Card D.4 (18/10) + 181026200700: the hàng lẻ form has NO "Lịch & ghi chú"
    section and NO add button — one always-visible "Ngày giao hàng" field. */
-.csc-lcl-delivery { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.csc-lcl-delivery { display: grid; gap: 6px; justify-items: start; min-width: 0; }
 /* Ghi chú pair: two recipient notes share ONE row at the same height instead
    of stacking two full-width boxes — the schedule section stays a dense
    worksheet rather than a wall of text areas. Phones keep the stack. */
-.csc-notes-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; min-width: 0; }
+.csc-notes-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 8px; min-width: 0; }
 .csc-notes-grid > * { min-width: 0; }
 @media (max-width: 760px) { .csc-notes-grid { grid-template-columns: minmax(0, 1fr); } }
 .csc-back { display: inline-flex; align-items: center; gap: 6px; min-height: var(--control-max-h); padding: 8px 4px; border: 0; background: none; color: var(--fg-2); font: inherit; font-weight: 650; cursor: pointer; }
-.csc-workspace { display: grid; gap: 10px; min-width: 0; }
-.csc-form { display: grid; gap: 10px; min-width: 0; }
-.csc-section { padding: 14px !important; gap: 14px !important; border: 0 !important; border-radius: 14px !important; background: var(--surface) !important; scroll-margin-top: 16px; }
+.csc-workspace { display: grid; gap: 8px; min-width: 0; }
+.csc-form { display: grid; gap: 8px; min-width: 0; }
+.csc-section { padding: 12px 14px !important; gap: 10px !important; border: 0 !important; border-radius: 14px !important; background: var(--surface) !important; scroll-margin-top: 16px; }
 .csc-section:focus { outline: none; }
 .csc-section:focus-visible { outline: 3px solid var(--brand-subtle); outline-offset: 2px; }
-.csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -14px -14px 0; padding: 10px 14px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
+.csc-section__heading { display: flex; gap: 10px; align-items: center; margin: -12px -14px 0; padding: 7px 14px; border-bottom: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface-2); }
 .csc-section__heading h2 { margin: 0; color: var(--fg-1); font-size: var(--text-section-size); font-weight: 700; line-height: 1.3; }
 .csc-section__heading p { margin: 2px 0 0; color: var(--fg-3); font-size: var(--text-data-size); line-height: 1.4; }
 /* Section header is a slim title bar: the ad-hoc flag it used to carry now
@@ -65,7 +65,7 @@
    adapter — the ComboBox's transparent overlay input, the InputField inner
    input — stay transparent and borderless so no control ever renders two
    nested boxes. */
-.csc-searchable-field { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-searchable-field { display: grid; gap: 6px; align-content: start; min-width: 0; }
 /* Field-label parity: combobox and text/date labels join the select family's
    dense 12px/18px semibold label (the UUI defaults differ per component). */
 .csc-searchable-field label,
@@ -73,7 +73,7 @@
 /* Selects migrated to the shared adapter: `ds-uui-*` classes
  * (design-system/forms/UuiSelectField.css, global) own the visuals. The
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
-.csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px 10px; min-width: 0; }
+.csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
 /* SIL-168 (owner ruling B 24/10 — khách yêu cầu lần 3): Hình thức XNK stands
    FIRST beside Khách hàng. Column map: Khách hàng 6 · Hình thức XNK 6, then
@@ -122,7 +122,7 @@
 .csc-shipping-line-dialog__name-action { display: flex; align-items: end; justify-content: flex-end; gap: 12px; min-width: 0; }
 .csc-shipping-line-dialog__name-field { flex: 1 1 240px; min-width: 0; }
 .csc-shipping-line-dialog__submit { flex: 0 0 auto; min-height: 38px; }
-.csc-route-picker { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.csc-route-picker { display: grid; gap: 6px; align-content: start; min-width: 0; }
 .csc-route-picker__add { width: fit-content; }
 .csc-route-dialog { display: grid; gap: 12px; }
 .csc-route-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.45; }
@@ -169,11 +169,11 @@
    hàng control and the LCL "Ngày giao hàng" (one always-visible field, no
    reveal) share a row so both sit trước mắt the moment the form opens; they
    wrap to a stack on narrow screens. */
-.csc-mode-band__row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 28px; min-width: 0; }
+.csc-mode-band__row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 24px; min-width: 0; }
 .csc-mode-band__row .csc-cargo-choice-grid { flex: 0 0 auto; }
 .csc-mode-band__row .csc-lcl-delivery { flex: 1 1 220px; }
 .csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
-.csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 12px; }
+.csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 8px; }
 /* The box scrolls HORIZONTALLY only. Two traps, both hit on this page:
    1. `overflow-x: auto` alone forces `overflow-y: auto`, so the table gained a
       second (vertical) scrollbar — `overflow-y: hidden` is its pair.
@@ -186,10 +186,14 @@
 .csc-container-col__index { width: 40px; }
 /* SIL-508 (owner 26/10): the merged SỐ CONTAINER group (SỐ / LOẠI /
    TRỌNG LƯỢNG stacked lines) replaces the number + type + weight columns.
-   The line floor is the SỐ line's 11-char container number at the house
-   data font — the same 128px the old number column hugged; the LOẠI picker
-   ("20DC" + chevron) and the TRỌNG LƯỢNG numeric line are narrower. */
-.csc-container-col__contgroup { width: 128px; }
+   SIL-533 (owner 27/10) re-measures the floor for the DENSE sheet: each
+   group line now sets its micro-label BESIDE the value, so the widest
+   label (TRỌNG LƯỢNG, ~11ch uppercase) shares the row with a usable
+   numeric value — 190px clears label + "Nhập kg" on one line + cell
+   padding; the freed width still flows to the auto columns at real widths
+   (min-width 844 keeps three ~72px auto tracks at the floor, where values
+   wrap per the no-truncation doctrine instead of clipping). */
+.csc-container-col__contgroup { width: 190px; }
 .csc-container-col__route { width: 180px; }
 .csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
 .csc-container-col__actions { width: 44px; }
@@ -220,7 +224,7 @@
    20260922_31 plain-box look is superseded by the owner mock 11/10
    ("Tạo lô hàng.html"): a bordered chip that fills brand-soft when checked;
    still one treatment for every flag, native input kept for a11y. */
-.csc-flag-checkbox { display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 34px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--fg-1); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); cursor: pointer; justify-self: start; }
+.csc-flag-checkbox { display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 30px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--fg-1); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); cursor: pointer; justify-self: start; }
 .csc-flag-checkbox:has(input:checked) { border-color: var(--accent-2); background: var(--accent-soft); }
 .csc-flag-checkbox input { width: 16px; height: 16px; flex: 0 0 auto; margin: 0; accent-color: var(--accent-2); }
 .csc-flag-checkbox span { display: inline; color: inherit; }
@@ -238,7 +242,7 @@
 .csc-add-container:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent-2) 58%, var(--line-2)); background: color-mix(in srgb, var(--accent-soft) 78%, var(--surface)); }
 .csc-add-container:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent-2) 18%, transparent); outline-offset: 2px; }
 .csc-add-container:disabled { cursor: not-allowed; opacity: .65; }
-.csc-site-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.csc-site-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
 .csc-site-picker__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
 .csc-utility-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--control-compact-h, 34px); padding: 5px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--surface); color: var(--fg-2); font: inherit; font-size: var(--text-control-size); font-weight: 650; cursor: pointer; }
 /* The `--dashed` name survives as the JSX/test marker, but the accent action
@@ -248,7 +252,7 @@
 .csc-utility-button:disabled { cursor: not-allowed; opacity: .65; }
 .csc-icon-button { display: inline-grid; place-items: center; min-width: 38px; min-height: 38px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; }
 .csc-icon-button--danger { color: var(--danger); }
-.csc-section textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--border-2); border-radius: 10px; padding: 8px 10px; color: var(--fg-1); background: var(--surface-2); }
+.csc-section textarea { width: 100%; min-height: 60px; resize: vertical; border: 1px solid var(--border-2); border-radius: 10px; padding: 8px 10px; color: var(--fg-1); background: var(--surface-2); }
 /* The retired `ds-uui-boundary` control-boundary block was removed from
  * design-system/forms/UuiSelectField.css (no component applied the class;
  * the app-wide box-shadow reset made it unrendered). The
@@ -554,6 +558,32 @@
  * narrower widths the date half spills out of the cell and the container
  * table's scroll box cuts it off. */
 .csc-container-col__appointment { width: 156px; }
+
+/* SIL-533 (owner 27/10) — DATA-DENSE cargo sheet, desktop only (≥641px;
+   the ≤620px stacked phone record keeps its touch-height form chrome).
+   The sparse sheet measured: row 187.5px, each SỐ/LOẠI/TRỌNG LƯỢNG line a
+   55.8px label-over-field tower, most of it empty paint. Three cures, all
+   scoped to this table so the CUS ledger and the drawer never move:
+   1. Cell floors drop from touch (40px) to the compact control height —
+      a mouse-driven spreadsheet, not a tap grid.
+   2. Every field inside the sheet rides the compact control height token.
+      The appointment cluster's own higher-specificity touch rule
+      (card 051026230627) still wins — that tap surface stays 40px.
+   3. The contgroup lines lay label BESIDE value (one grid line each) so a
+      line is one control tall, not label + control stacked. */
+@media (min-width: 641px) {
+  .csc-container-table .csc-container-cell__value,
+  .csc-container-table .csc-container-cell__editor { min-height: var(--control-compact-h); }
+  .csc-container-table .csc-container-cell [data-uui-control] { --uui-control-h: var(--control-compact-h); }
+  .csc-contgroup { gap: 4px; }
+  .csc-contgroup > .csc-container-cell { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; column-gap: 6px; }
+  .csc-contgroup > .csc-container-cell > .csc-container-cell__microlabel { padding: 0 0 0 10px; line-height: 1.2; }
+  /* The value band's overlay text hugs its column — the inline label already
+     spends the left side, so the 10px gutters would starve "Nhập kg". */
+  .csc-contgroup .csc-container-cell__display { padding: 0 6px; }
+  /* A line's validation paint owns the full row under its label + value. */
+  .csc-contgroup > .csc-container-cell > .csc-container-cell__error { grid-column: 1 / -1; }
+}
 
 /* Card 051026230627 — the appointment cluster is a tap surface first (its
  * whole group opens the picker): the segments keep TOUCH HEIGHT (the cure

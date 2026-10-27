@@ -1,0 +1,4 @@
+trips rows (field preserved in DB, UI-only change):
+49 | TRP-202610-0025 | CREATED
+48 | TRP-202610-0024 | IN_TRANSIT
+47 | TRP-202610-0023 | COMPLETED

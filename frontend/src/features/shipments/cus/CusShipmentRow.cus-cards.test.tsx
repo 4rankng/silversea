@@ -192,13 +192,20 @@ describe('CusShipmentRow — Chứng từ cell (SIL-502 regression)', () => {
   const documentsCell = (container: HTMLElement): HTMLElement =>
     container.querySelector('td[data-label="Chứng từ"]')!;
 
-  it('joins every declaration number after a create-with-tờ-khai', () => {
+  it('renders every declaration number as its own line (SIL-532)', () => {
     const { container } = renderRow(makeItem({
       declarationNumber: '502UI-1',
-      declarationNumbers: ['502UI-1', '502UI-2'],
+      declarationNumbers: ['502UI-1', '502UI-2', '502UI-3'],
     }));
-    expect(documentsCell(container).textContent).toContain('502UI-1, 502UI-2');
-    expect(documentsCell(container).textContent).not.toContain('Chưa có tờ khai');
+    // Each number is a separate element (its own grid row) — never one
+    // joined run that a narrow column could break mid-number.
+    expect(screen.getByText('502UI-1')).toBeTruthy();
+    expect(screen.getByText('502UI-2')).toBeTruthy();
+    expect(screen.getByText('502UI-3')).toBeTruthy();
+    const cell = documentsCell(container);
+    const numberLines = [...cell.querySelectorAll('span')].filter((el) => /^502UI-\d$/.test(el.textContent ?? ''));
+    expect(numberLines).toHaveLength(3);
+    expect(cell.textContent).not.toContain('Chưa có tờ khai');
   });
 
   it('still names the missing field when the lot carries no number', () => {

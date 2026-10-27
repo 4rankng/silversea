@@ -162,7 +162,7 @@ describe('shipment create responsive layout', () => {
     // ONE data-flag treatment: all three flags share ONE chip class — the
     // owner mock 11/10 supersedes the 20260922_31 plain box (bordered chip,
     // brand-soft fill when checked). Still no per-flag variants.
-    expect(css).toMatch(/\.csc-flag-checkbox\s*\{[^}]*min-height:\s*34px;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*10px;[^}]*background:\s*var\(--surface\);/);
+    expect(css).toMatch(/\.csc-flag-checkbox\s*\{[^}]*min-height:\s*30px;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*10px;[^}]*background:\s*var\(--surface\);/); // SIL-534: 34→30 desktop; the ≤640 band floors the chip at touch.
     expect(css).toMatch(/\.csc-flag-checkbox:has\(input:checked\)\s*\{[^}]*border-color:\s*var\(--accent-2\);[^}]*background:\s*var\(--accent-soft\);/);
     expect(css).not.toContain('.csc-combined-toggle');
     expect(css).not.toContain('.csc-adhoc-toggle');
@@ -197,9 +197,9 @@ describe('shipment create responsive layout', () => {
 
   it('separates form sections from the application canvas without decorative elevation', () => {
     expect(css).toMatch(/\.app-main:has\(\.csc-page\)\s*\{[^}]*background:\s*var\(--surface-3\);/);
-    expect(css).toMatch(/\.csc-form\s*\{[^}]*gap:\s*10px;/);
+    expect(css).toMatch(/\.csc-form\s*\{[^}]*gap:\s*8px;/); // SIL-534: 10→8.
     expect(css).toMatch(/\.csc-section\s*\{[^}]*border:\s*0\s*!important;[^}]*background:\s*var\(--surface\)\s*!important;/);
-    expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*margin:\s*-14px -14px 0;[^}]*background:\s*var\(--surface-2\);/);
+    expect(css).toMatch(/\.csc-section__heading\s*\{[^}]*margin:\s*-12px -14px 0;[^}]*background:\s*var\(--surface-2\);/); // SIL-534: -14→-12 (band hugs the 12px card padding).
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*margin:\s*-8px -8px 0;/);
     expect(css).not.toMatch(/\.csc-section\s*\{[^}]*box-shadow:/);
   });
@@ -226,10 +226,10 @@ describe('shipment create responsive layout', () => {
     // clears the fixed bar's measured height (+12px gap) — ≥1280 keeps the
     // SIL-499 no-scrollbar fit, the bar overlaying the tail the retired
     // in-flow footer row freed.
-    expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*12px 0;/);
+    expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*8px 0;/); // SIL-534: 12→8.
     expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.csc-page\s*\{[^}]*padding:\s*12px 0;/);
     expect(css).toMatch(/@media \(max-width:\s*1279px\)[\s\S]*?\.csc-page\s*\{[^}]*padding-bottom:\s*calc\(var\(--csc-action-bar-height, 60px\) \+ 12px\);/);
-    expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*10px;/);
+    expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*8px;/); // SIL-534: 10→8.
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section\s*\{[^}]*padding:\s*8px\s*!important;[^}]*gap:\s*10px\s*!important;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*padding:\s*10px 8px;/);
     expect(css).not.toMatch(/\.csc-control-boundary \[data-label='true'\]\s*\{[^}]*font-size:/);
@@ -297,7 +297,7 @@ describe('shipment create responsive layout', () => {
   });
 
   it('keeps the route add action compact on desktop and full-width on mobile', () => {
-    expect(css).toMatch(/\.csc-route-picker\s*\{[^}]*display:\s*grid;[^}]*gap:\s*8px;/);
+    expect(css).toMatch(/\.csc-route-picker\s*\{[^}]*display:\s*grid;[^}]*gap:\s*6px;/); // SIL-534: 8→6.
     expect(css).toMatch(/\.csc-route-picker__add\s*\{[^}]*width:\s*fit-content;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-route-picker__add\s*\{[^}]*width:\s*100%;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-route-dialog__grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
@@ -317,7 +317,7 @@ describe('shipment create responsive layout', () => {
   });
 
   it('uses the full workspace width and keeps actions in the form flow', () => {
-    expect(css).toMatch(/\.csc-workspace\s*\{[^}]*display:\s*grid;[^}]*gap:\s*10px;[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.csc-workspace\s*\{[^}]*display:\s*grid;[^}]*gap:\s*8px;[^}]*min-width:\s*0;/); // SIL-534: 10→8.
     expect(css).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(280px, 320px)');
     expect(css).not.toContain('.csc-readiness');
     expect(css).toMatch(/\.csc-summary\s*\{[^}]*display:\s*grid;[^}]*gap:\s*12px;[^}]*min-width:\s*0;/);
@@ -467,5 +467,79 @@ describe('copy affordance AX/actionability contract (card 101026163010)', () => 
   it('reveals on keyboard focus and on coarse/narrow screens', () => {
     expect(css).toMatch(/\.csc-container-row__copy:focus-visible \{[^}]*opacity:\s*1;/);
     expect(css).toMatch(/\.csc-container-row__copy \{\s*opacity:\s*1;/);
+  });
+});
+
+/* SIL-533 (owner 27/10): the cargo sheet is DATA-DENSE on desktop. The sparse
+ * sheet measured 187.5px per container row with 55.8px label-over-field
+ * towers in the SỐ CONTAINER group; these pins hold the three cures —
+ * compact cell floors, compact in-sheet controls, and label-beside-value
+ * group lines — without touching the phone record or the CUS ledger. */
+describe('cargo sheet density (SIL-533)', () => {
+  const dense = css.slice(css.indexOf('SIL-533 (owner 27/10) — DATA-DENSE'));
+
+  it('desktop cell floors ride the compact control height, scoped to this table', () => {
+    expect(dense).toMatch(/@media \(min-width: 641px\)/);
+    expect(dense).toMatch(
+      /\.csc-container-table \.csc-container-cell__value,\s*\.csc-container-table \.csc-container-cell__editor \{ min-height: var\(--control-compact-h\); \}/,
+    );
+  });
+
+  it('in-sheet fields ride the compact control token — appointment keeps its own touch law', () => {
+    expect(dense).toMatch(
+      /\.csc-container-table \.csc-container-cell \[data-uui-control\] \{ --uui-control-h: var\(--control-compact-h\); \}/,
+    );
+    // Card 051026230627 stands: the appointment cluster is a tap surface and
+    // its higher-specificity touch override must survive the compact scope.
+    expect(css).toMatch(
+      /\.csc-container-cell--appointment [\s\S]{0,160}?--uui-control-h:\s*var\(--control-touch-h/,
+    );
+  });
+
+  it('contgroup lines lay the micro-label BESIDE the value, one control tall', () => {
+    expect(dense).toMatch(
+      /\.csc-contgroup > \.csc-container-cell \{ display: grid; grid-template-columns: max-content minmax\(0, 1fr\); align-items: center; column-gap: 6px; \}/,
+    );
+    expect(dense).toMatch(
+      /\.csc-contgroup > \.csc-container-cell > \.csc-container-cell__microlabel \{ padding: 0 0 0 10px; line-height: 1\.2; \}/,
+    );
+    expect(dense).toMatch(
+      /\.csc-contgroup > \.csc-container-cell > \.csc-container-cell__error \{ grid-column: 1 \/ -1; \}/,
+    );
+  });
+
+  it('the group column clears the widest label (TRỌNG LƯỢNG) beside a usable value', () => {
+    expect(Number(/\.csc-container-col__contgroup\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(190);
+  });
+});
+
+/* SIL-534 (owner 27/10): the WHOLE create page is data-dense in both cargo
+ * modes at every width — tighter canvas, section bands, field stacks and
+ * notes; the ≥1280 onescreen band keeps its own (already tighter) budget.
+ * These pins hold the base-band rhythm the 768–1279 single-column layout
+ * inherits. */
+describe('create-page whole-sheet density (SIL-534)', () => {
+  it('canvas and worksheet ride an 8px rhythm', () => {
+    expect(css).toMatch(/\.csc-page \{ width: 100%; margin: 0; padding: 8px 0; min-width: 0; \}/);
+    expect(css).toMatch(/\.csc-workspace \{ display: grid; gap: 8px; min-width: 0; \}/);
+    expect(css).toMatch(/\.csc-form \{ display: grid; gap: 8px; min-width: 0; \}/);
+  });
+
+  it('sections and heading bands are tight (12px card, 7px band)', () => {
+    expect(css).toMatch(/\.csc-section \{ padding: 12px 14px !important; gap: 10px !important;/);
+    expect(css).toMatch(/margin: -12px -14px 0; padding: 7px 14px;/);
+  });
+
+  it('field stacks, flags and notes keep the compact rhythm', () => {
+    expect(css).toMatch(/\.csc-searchable-field \{ display: grid; gap: 6px;/);
+    expect(css).toMatch(/repeat\(12, minmax\(0, 1fr\)\); gap: 6px 10px;/);
+    expect(css).toMatch(/\.csc-mode-band__row \{ display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 24px;/);
+    expect(css).toMatch(/\.csc-notes-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); align-items: start; gap: 8px;/);
+    expect(css).toMatch(/\.csc-section textarea \{ width: 100%; min-height: 60px;/);
+    expect(css).toMatch(/\.csc-flag-checkbox \{ display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 30px;/);
+  });
+
+  it('the phone band still floors controls at touch height (≤640 unchanged)', () => {
+    expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.csc-mode__option, \.csc-flag-checkbox, \.csc-add-container, \.csc-container-add-control input, \.csc-utility-button \{ min-height: var\(--control-max-h\); \}/);
   });
 });

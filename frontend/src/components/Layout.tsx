@@ -44,6 +44,7 @@ import { MobileAccountSheet } from './layout/MobileAccountSheet';
 import type { NavItem, NavSection, SectionName } from './layout/types';
 import { useBottomNavAnimations } from '../hooks/useBottomNavAnimations';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useTableArrowScroll } from '../hooks/useTableArrowScroll';
 import { routes, titleForPath } from '../lib/routes';
 import { getModernRole } from '../lib/role-helpers';
 import { hasOperationalDensity } from '../lib/operational-density';
@@ -617,6 +618,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // /dispatch-detail (customer doc2 BUG2): sidebar yields to the plan table
   // below the wide-desktop threshold — policy+hook in lib/dispatch-sidebar-policy.
   useDispatchFullwidthSidebar(location.pathname, closeSidebar);
+
+  // SIL-531: ←/→ scroll every table in the app horizontally (mounted once in
+  // the shell, so the behaviour is global — never a per-page keydown copy).
+  useTableArrowScroll();
 
   // Auto-subscribe drivers to push notifications (spec AC-DISPATCH-001).
   // Drivers must receive dispatch orders even when the app is backgrounded.

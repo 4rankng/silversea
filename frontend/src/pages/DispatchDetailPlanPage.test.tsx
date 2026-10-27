@@ -206,11 +206,13 @@ describe('DispatchDetailPlanPage — external completion identity (UI52-B)', () 
     })];
     renderPage();
 
-    // SIL-588: "Hoàn thành" is a ⋯ MENU ITEM (no inline pill) — the trigger's
-    // accessible name carries the row's business identity.
+    // SIL-524 (owner 27/10): the wide inline pill is gone — the verb rides
+    // the row ⋯ menu, whose identity label carries the display reference
+    // (never the internal shipment code).
     const opener = screen.getByRole('button', { name: `Thao tác dòng · ${expected}` });
     fireEvent.click(opener);
-    fireEvent.click(within(screen.getByRole('menu', { name: `Thao tác dòng · ${expected}` })).getByRole('menuitem', { name: /Hoàn thành/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hoàn thành' }));
+
     const dialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
     expect(dialog).toHaveTextContent(`Hoàn thành chuyến với xe ngoài ${expected}?`);
     expect(dialog).not.toHaveTextContent('SS-000200');
@@ -218,9 +220,11 @@ describe('DispatchDetailPlanPage — external completion identity (UI52-B)', () 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    fireEvent.click(screen.getByRole('button', { name: `Thao tác dòng · ${expected}` }));
-    expect(within(screen.getByRole('menu', { name: `Thao tác dòng · ${expected}` })).getByRole('menuitem', { name: /Hoàn thành/ })).toBeTruthy();
-    fireEvent.keyDown(document, { key: 'Escape' });
+    // Same row again on Cancel: the row's ⋯ trigger is the same node, and
+    // its menu still offers the completion verb for this identity.
+    expect(screen.getByRole('button', { name: `Thao tác dòng · ${expected}` })).toBe(opener);
+    fireEvent.click(opener);
+    expect(screen.getByRole('menuitem', { name: 'Hoàn thành' })).toBeTruthy();
     expect(plan.items).toHaveLength(1);
     expect(plan.refresh).not.toHaveBeenCalled();
   });

@@ -1,0 +1,20 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175
+LOGIN ok driver=bqhuong
+PASS CONTRACT journey-board still carries tripCode — tripId=49 bucket=NEW tripCode=TRP-202610-0025 ; tripId=48 bucket=RUNNING tripCode=TRP-202610-0024 ; tripId=47 bucket=HISTORY tripCode=TRP-202610-0023
+PASS CONTRACT trips.trip_code preserved in DB — 49 | TRP-202610-0025 | CREATED ; 48 | TRP-202610-0024 | IN_TRANSIT ; 47 | TRP-202610-0023 | COMPLETED
+TRIP under drive: id=49 driver=bqhuong
+PASS T01 list[Lệnh mới] no trip-code testid — count=0
+PASS T01 list[Lệnh mới] no "Mã chuyến" label
+PASS T01 list[Lệnh mới] no raw/formatted code text — clean
+PASS T01 bill/booking still the lead identity — ["TVREQ-LX-C4"]
+PASS T01b list[Đã nhận] no trip-code testid — count=0
+PASS T01b list[Đã nhận] no "Mã chuyến" label
+PASS T01b list[Đã nhận] no raw/formatted code text — clean
+TABS rendered: ["Lệnh mới1","Đã nhận1","Lịch sử1"]
+PASS T02 no "Mã chuyến" fact on detail — ["Ngày giờ kế hoạch","Tên nhà máy","Địa chỉ nhà máy","SĐT kho"]
+PASS T02 schedule fact leads the grid — Ngày giờ kế hoạch
+PASS T02 no raw/formatted code text on detail — clean
+PASS T03 penalty page renders
+PASS T03 no trip-code text on penalties
+PASS console errors none — clean
+DONE failures=0
