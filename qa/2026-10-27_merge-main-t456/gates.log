@@ -7,3 +7,7 @@ Gates trên merged tree (2026-10-27):
 - backend: npx tsc --noEmit -> EXIT 0
 - backend: npx tsx --test 'src/tests/unit/*.test.ts' -> 540/540 PASS
 - make build (merged tree, sau merge commit) -> EXIT 0 (frontend vite build ✓ 40.47s)
+
+Re-merge origin/main (aea1f67a dependabot #68 vitest 4.1.12) sau lần merge đầu — merge sạch (chạm frontend/package.json + lockfile + qa dependabot).
+Gates re-run trên merged tree: fe tsgo 0; vitest pages/dispatch/shared 307 file 2529/2529; be tsx --test unit 540/540.
+
