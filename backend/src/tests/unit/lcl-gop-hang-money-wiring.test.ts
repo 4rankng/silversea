@@ -126,8 +126,12 @@ test('tách 1 lô về riêng + tách cả nhóm: tiền về đúng trạng th�
   assert.match(svc, /await restoreRevPreMergeMoney\(tx, member, tripFacts\.get\(member\.id\) \?\? null\)/);
   // A single member leaving keeps its current cước + a fresh reason
   // (cited 0₫ ⇒ chờ định giá lại; own cước ⇒ per-lot marker) and sheds its
-  // capture (it left the group).
-  assert.match(svc, /await restateRevLeaverMoney\(tx, leaver, tripFacts\.get\(leaver\.id\) \?\? null, actor\)/);
+  // capture (it left the group). SIL-539 retry: the facts resolve per leaver
+  // position — the member reads the pre-loaded map, the PRIMARY reloads its
+  // trip facts AFTER the promotion wrote the 0₫ transfer stamp (the stale map
+  // still holds the moved 100% and would defeat the own-money guard).
+  assert.match(svc, /await restateRevLeaverMoney\(tx, leaver, leaverTrip, actor\)/);
+  assert.match(svc, /const leaverTrip = leaverOrder === 1\n {8}\? \(await loadLiveTripFactsByShipment\(tx, \[leaver\.id\]\)\)\.get\(leaver\.id\) \?\? null/);
   const restate = svc.slice(
     svc.indexOf('async function restateRevLeaverMoney'),
     svc.indexOf('function auditGroupChange'),

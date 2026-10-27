@@ -1,0 +1,19 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-604-retry/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  735 passed (735)
+      Tests  5648 passed (5648)
+   Start at  02:17:17
+   Duration  168.94s (transform 31.84s, setup 102.23s, import 453.64s, tests 461.59s, environment 401.04s)
+

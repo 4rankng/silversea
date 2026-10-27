@@ -709,14 +709,26 @@ export async function unmergeLclLot(
       updatedBy: actor.userId,
       updatedAt: new Date(),
     }).where(eq(s.shipments.id, leaver.id));
-    if (leaverOrder !== 1 && input.dimension === 'REV') {
+    if (input.dimension === 'REV') {
       // SIL-539 — the split lot that still holds Loại xe + Tuyến đường gets
       // its expected rate RE-LOOKED-UP from the price table (the merge path's
       // own key) instead of falling back to "Chưa xác định" and forcing CUS
       // to re-select. Lane miss ⇒ the awaiting-reprice citation stands.
-      const repriced = await repriceRevLeaverFromPriceTable(tx, leaver, tripFacts.get(leaver.id) ?? null, actor);
+      //
+      // SIL-539 retry (QA reopen 28/10) — the re-lookup covers BOTH leaver
+      // positions. The PRIMARY's exit is the leftover: promotePrincipalOnRemoval
+      // just moved the 100% cước to the crown and stamped the leaver 0₫
+      // ("Tách nhóm — chuyển 100%…"), but `tripFacts` still holds the
+      // PRE-transfer 100% — the re-lookup's own-money guard would misread the
+      // leaver as already priced and leave it at 0₫ (the QA-failed face).
+      // Reload the leaver's live-trip facts so the guard sees the
+      // post-promotion standing money.
+      const leaverTrip = leaverOrder === 1
+        ? (await loadLiveTripFactsByShipment(tx, [leaver.id])).get(leaver.id) ?? null
+        : tripFacts.get(leaver.id) ?? null;
+      const repriced = await repriceRevLeaverFromPriceTable(tx, leaver, leaverTrip, actor);
       if (!repriced) {
-        await restateRevLeaverMoney(tx, leaver, tripFacts.get(leaver.id) ?? null, actor);
+        await restateRevLeaverMoney(tx, leaver, leaverTrip, actor);
       }
     }
 
