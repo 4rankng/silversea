@@ -1,0 +1,6 @@
+# command: pnpm lint
+
+✖ 1 problem (0 errors, 1 warning)
+
+# exit: 0 (0 errors, 1 pre-existing warning in untouched CustomersConfigPage)
+# date: 2026-10-28, branch fix-sec-depends

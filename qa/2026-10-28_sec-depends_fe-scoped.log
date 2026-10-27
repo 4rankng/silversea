@@ -1,0 +1,3 @@
+# command: cd frontend && npx vitest run src/pages/config src/lib
+# result: Test Files 77 passed (77), Tests 664 passed (664)
+# date: 2026-10-28 (zod 4.6.7 runtime via shared/src alias)
