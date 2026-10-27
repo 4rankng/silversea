@@ -1,6 +1,6 @@
 /**
  * FB-092 — LCL rows on Kế hoạch Chi tiết Xe: the 3-line CONTAINER cell, the
- * "Lẻ · Ghép (i/N)" tag, and the selection checkbox that feeds the page's
+ * "Ghép (i/N)" tag (SIL-589 dedupe), and the selection checkbox that feeds the page's
  * gán-xe-nhóm flow. FCL rows must stay on their container demand lines.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
@@ -108,7 +108,14 @@ describe('FB-092 — LCL CONTAINER cell', () => {
     expect(within(containerCell).getByText('5 PALLET')).toBeTruthy();
     expect(within(containerCell).getByText('1,922 tấn · 4 CBM')).toBeTruthy();
     // The group tag names the lot's place in its group.
-    expect(within(cell('Phân loại')).getByText('Lẻ · Ghép (1/3)')).toBeTruthy();
+    expect(within(cell('Phân loại')).getByText('Ghép (1/3)')).toBeTruthy();
+    // SIL-589: the tag carries NO "Lẻ ·" prefix — one label voice per cell
+    // (the classification span owns the kind word; the tag only names the
+    // group). The old duplicated prefix read as two labels stacked above a
+    // vertically-wrapped pill.
+    const classificationText = (cell('Phân loại').textContent ?? '').replace(/\s+/g, ' ');
+    expect(classificationText).not.toContain('Lẻ ·');
+    expect(classificationText).toContain('Ghép (1/3)');
   });
 
   it('shows plain "Lẻ" without a class and drops the missing halves (FB092-01)', () => {

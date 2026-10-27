@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /Users/dev/.paseo/worktrees/1njkloyy/fix-588-593-dispatchcols/frontend
+
+
+ Test Files  41 passed (41)
+      Tests  441 passed (441)
+   Start at  21:43:25
+   Duration  14.16s (transform 5.45s, setup 6.35s, import 35.57s, tests 44.50s, environment 23.04s)
+

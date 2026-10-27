@@ -86,6 +86,27 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(css).not.toContain('.detailed-plan-grid__note-actions');
   });
 
+  it('SIL-589: the LCL group tag is TEXT-ONLY (no pill) and the Phân loại column holds its header on one line', () => {
+    // The old emerald pill (border-radius: 999px + fill + border) wrapped its
+    // label vertically ("Lẻ ·"/"Ghép"/"(1/2)") and overflowed the column —
+    // §1 text-only law: a VALUE renders as plain text.
+    const tag = css.match(/\.detailed-plan-grid__lcl-group-tag\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(tag, 'the group tag rule must exist').not.toBe('');
+    expect(tag).not.toContain('border-radius: 999px');
+    expect(tag).not.toMatch(/background:\s*var\(--app-accent-emerald-soft/);
+    expect(tag).not.toMatch(/border:\s*1px/);
+    // The duplicated "Lẻ" prefix is gone from the copy (TSX pin lives with
+    // the grid tests); the cell keeps ONE "Lẻ" (the classification span).
+    expect(css).not.toContain("'Lẻ · Ghép (");
+    expect(css).not.toContain('"Lẻ · Ghép (');
+    // 7% ≈ 94px at the 1340px floor — "PHÂN LOẠI" fits one line.
+    expect(columnShare('classification')).toBe(7);
+    // The 0.9% came back off Container, keeping the sum at exactly 100.
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'assignment', 'classification', 'notes', 'actions'];
+    const total = names.map((name) => columnShare(name)).reduce((sum, share) => sum + share, 0) + columnShare('ports');
+    expect(total).toBe(100);
+  });
+
   it('pins the Thao tác column sticky-right — one action rail, no inline sprawl', () => {
     expect(css).toMatch(/th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{[^}]*position:\s*sticky;[^}]*right:\s*0;/);
     expect(css).toMatch(/td\.detailed-plan-grid__cell--actions\s*\{[^}]*background:\s*var\(--surface\);/);

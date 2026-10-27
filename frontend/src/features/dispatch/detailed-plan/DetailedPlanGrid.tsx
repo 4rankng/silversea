@@ -702,6 +702,13 @@ export function DetailedPlanGrid({
                       {/* FB-095 — with the page wired, the badge is the group's
                           action surface (Xem nhóm / Hủy ghép); unwired it stays
                           a static tag exactly like the pre-FB-095 badge. */}
+                      {/* SIL-589 (owner 27/10): ONE label per row — the
+                          classification span above already says "Lẻ", so the
+                          group tag carries ONLY the group position, exactly
+                          the copy the phone card (issue #13) already uses.
+                          No pill chrome: §1 text-only (the old oval
+                          border-radius:999px tag wrapped vertically and
+                          overflowed the column). */}
                       {row.cargoMode === 'LCL' && row.lcl?.group && (onUnmergeLclLot ? (
                         <button
                           type="button"
@@ -709,14 +716,14 @@ export function DetailedPlanGrid({
                           title={lclGroupTagTitle(row.lcl.group)}
                           onClick={() => setGroupMenuRow(row)}
                         >
-                          {`Lẻ · Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
+                          {`Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
                         </button>
                       ) : (
                         <span
                           className="detailed-plan-grid__lcl-group-tag"
                           title={lclGroupTagTitle(row.lcl.group)}
                         >
-                          {`Lẻ · Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
+                          {`Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
                         </span>
                       ))}
                       {/* Owner redesign 23/10 — "Tách nhóm" (SPEC 18/10/2026 §4,

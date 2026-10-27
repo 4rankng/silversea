@@ -270,9 +270,14 @@
 .detailed-plan-grid__col--route { width: 13.45%; }
 .detailed-plan-grid__col--ports { width: 8.75%; }
 .detailed-plan-grid__col--documents { width: 8.05%; }
-.detailed-plan-grid__col--container { width: 11.5%; }
+.detailed-plan-grid__col--container { width: 10.6%; }
 .detailed-plan-grid__col--assignment { width: 17%; }
-.detailed-plan-grid__col--classification { width: 6.1%; }
+/* SIL-589 (owner 27/10): 6.1%→7% — at the 6.1% floor (~82px) the "PHÂN
+   LOẠI" header broke onto two lines (the ticket's own evidence); 7% (~94px)
+   holds the label on ONE line while the cell stays the board's smallest.
+   The 0.9% comes back off the Container column (11.5→10.6%, ~142px — its
+   number/type/weight lines still fit one wrap each). */
+.detailed-plan-grid__col--classification { width: 7%; }
 .detailed-plan-grid__col--notes { width: 12.65%; }
 /* SIL-588 (owner 27/10): the rail hosts at most TWO STACKED buttons —
    the 30px ⋯ trigger (or the 28px Phát lệnh icon) + cell padding — so the
@@ -792,33 +797,46 @@
   word-break: break-word;
 }
 
-/* FB-092 — LCL cost-group tag in the Phân loại cell: names the lot's place in
-   its group ("Lẻ · Ghép (1/5)"); static text, never looks actionable.
-   SIL-515: the pill wraps its own label instead of pinning one nowrap run —
-   the classification column is the narrowest on the board and the nowrap
-   pill was the next "paints over the neighbour" candidate. */
+/* FB-092 — LCL cost-group tag in the Phân loại cell: names the lot's place
+   in its group ("Ghép (1/5)"). SIL-589 (owner 27/10, supersedes the emerald
+   pill): a VALUE renders as plain text (law §1 — the old border-radius:999px
+   + fill tag wrapped its label vertically into an oval three lines tall and
+   overflowed the column) and says "Ghép" only — the classification span
+   beside it already says "Lẻ", the duplicated prefix is gone. The WIRED
+   variant is the group's action surface (FB-095 Xem nhóm/Hủy ghép): accent
+   ink + hover underline is its affordance; the unwired static tag stays
+   quiet muted text so it never looks actionable. */
 .detailed-plan-grid__lcl-group-tag {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  line-height: 1.4;
+  display: inline;
+  margin: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--ops-table-supporting-size);
+  font-weight: 400;
+  line-height: var(--ops-table-supporting-line-height);
+  color: var(--fg-2);
   white-space: normal;
   overflow-wrap: anywhere;
-  background: var(--app-accent-emerald-soft, #e6f4ee);
-  color: var(--app-accent-emerald-ink, #05603a);
-  border: 1px solid var(--app-accent-emerald-border, #abebc6);
+  background: none;
+  border: 0;
+  border-radius: 0;
 }
 
-/* FB-095 (card 181026145610) — when the page wires the group action the badge
-   becomes the trigger for the Xem nhóm / Hủy ghép menu, so it carries button
-   affordance; the unwired tag stays static text. */
+/* FB-095 (card 181026145610) — when the page wires the group action the
+   badge is a text button: house text-button reset + quiet hover affordance
+   (the dispatch-assignment-cell__carrier--action family). */
 .detailed-plan-grid__lcl-group-tag--action {
-  font-family: inherit;
+  color: var(--accent-ink);
   cursor: pointer;
 }
 .detailed-plan-grid__lcl-group-tag--action:hover {
-  border-color: var(--app-accent-emerald-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.detailed-plan-grid__lcl-group-tag--action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, #4a9e7d) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* FB-095 — the badge menu body: group facts + the member list (Xem nhóm). */
