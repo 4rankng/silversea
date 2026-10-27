@@ -29,7 +29,7 @@
       "pass": true,
       "detail": [
         {
-          "colWidth": 54,
+          "colWidth": 50,
           "buttonCount": 2,
           "btns": [
             {
@@ -51,7 +51,7 @@
           "railDirection": "column"
         },
         {
-          "colWidth": 54,
+          "colWidth": 50,
           "buttonCount": 2,
           "btns": [
             {
@@ -73,7 +73,7 @@
           "railDirection": "column"
         },
         {
-          "colWidth": 54,
+          "colWidth": 50,
           "buttonCount": 2,
           "btns": [
             {
@@ -105,7 +105,7 @@
       "name": "Thao tác column is narrow at 1440 (≤ 72px)",
       "pass": true,
       "detail": {
-        "maxWidth": 54
+        "maxWidth": 50
       }
     },
     {
