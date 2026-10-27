@@ -368,3 +368,40 @@ test('SIL-539: reason tự tra giá KHÔNG nằm trong nhóm note — lần tác
   assert.equal(isRevGroupNote(reason), false, `reason must not parse as a group note: ${reason}`);
 });
 
+// ─── SIL-539 retry (QA reopen 28/10) — the PRIMARY leaver's own re-lookup ───
+
+test('SIL-539 retry: Hủy ghép — LÔ CHÍNH rời nhóm cũng tự tra bảng giá (guard chỉ khóa theo chiều REV)', () => {
+  const svc = read('../../services/lcl-grouping.service.ts');
+  const unmergeLot = svc.slice(
+    svc.indexOf('export async function unmergeLclLot'),
+    svc.indexOf('export async function promoteLclGroupsOnShipmentDelete'),
+  );
+  // The re-lookup guard keys on the DIMENSION only: a primary (order 1)
+  // leaver must reach it too. QA reopen — promotePrincipalOnRemoval stamped
+  // the leaving Lô 1 with the 0₫ transfer citation and nothing re-priced it,
+  // so the lot read empty instead of its own lane (route × loại xe).
+  assert.match(unmergeLot, /if \(input\.dimension === 'REV'\) \{/);
+  assert.doesNotMatch(unmergeLot, /if \(leaverOrder !== 1 && input\.dimension === 'REV'\)/);
+  // The primary's live-trip facts are RELOADED after the promotion: the
+  // pre-transfer map still holds the moved 100% cước, so the re-lookup's
+  // own-money guard would misread the leaver as already priced and skip it.
+  assert.match(
+    unmergeLot,
+    /leaverOrder === 1\n {8}\? \(await loadLiveTripFactsByShipment\(tx, \[leaver\.id\]\)\)\.get\(leaver\.id\) \?\? null/,
+  );
+});
+
+test('SIL-539 retry: Tách nhóm CẢ NHÓM giữ luật restore — re-lookup KHÔNG tiêm vào đường giải tán', () => {
+  const svc = read('../../services/lcl-grouping.service.ts');
+  const unmergeGroup = svc.slice(
+    svc.indexOf('export async function unmergeLclGroup'),
+    svc.indexOf('export async function unmergeLclLot'),
+  );
+  // Whole-group Tách nhóm restores each lot's EXACT pre-merge money
+  // (spec 23/10 "đúng trạng thái trước ghép" — QA end-state 242 = 3.000.000,
+  // 244 = 3.100.000) and keeps FB-145's class clear; the price-table
+  // re-lookup is the per-lot Hủy ghép law only.
+  assert.match(unmergeGroup, /restoreRevPreMergeMoney\(tx, member, tripFacts\.get\(member\.id\) \?\? null\)/);
+  assert.doesNotMatch(unmergeGroup, /repriceRevLeaverFromPriceTable/);
+});
+

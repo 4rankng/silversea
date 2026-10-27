@@ -1,0 +1,14 @@
+ id  | shipment_id | total_amount |                                   note                                   
+-----+-------------+--------------+--------------------------------------------------------------------------
+ 219 |         242 |      3000000 | Chọn loại xe tính cước thu khách — 100% bảng giá khách × tuyến × 10T, ng
+ 218 |         244 |      3100000 | Tách nhóm — tự tra bảng giá thu khách: Xe 10T × tuyến, ngày 2026-10-26
+ 217 |         244 |            0 | Tách nhóm — chuyển 100% cước cho Bill R42RV-02
+ 216 |         242 |      3100000 | Đón cước chính khi tách nhóm (từ Bill R42RV-D2) — 100% cước thu
+(4 rows)
+
+ id  | rev_group_id | rev_vehicle_class_id 
+-----+--------------+----------------------
+ 244 |              |                   13
+ 242 |              |                   13
+(2 rows)
+

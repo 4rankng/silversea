@@ -1,0 +1,10 @@
+
+> tingting@ lint /Users/dev/.paseo/worktrees/1njkloyy/fix-604-retry
+> eslint .
+
+
+/Users/dev/.paseo/worktrees/1njkloyy/fix-604-retry/frontend/src/pages/config/CustomersConfigPage.tsx
+  204:6  warning  React Hook useMemo has a missing dependency: 'riskOf'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 1 problem (0 errors, 1 warning)
+

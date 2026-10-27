@@ -1,0 +1,44 @@
+# SIL-539 retry — API drive (rung 2: DB/API VERIFIED), 2026-10-28
+
+Server: BE nhánh fix-604-retry @ f7288a41, boot `npx tsx src/index.ts` port
+3003 (backend/.env PORT=3003, cùng DB dev :5441 silversea). FE không drive —
+đường đọc đã QA xác nhận ở lần trước (bảng CUS/đềbit refetch qua onChanged);
+lần này chỉ verify WRITE side mới.
+Actor: thanhdc (CUS, Abc123 — testplan/testaccounts.txt). Fixture: R42RV-D2
+(id 244, route 10) + R42RV-02 (id 242, route 6), khách 1, class 13 = 10T.
+
+| # | Lệnh | Kết quả | Exit |
+|---|---|---|---|
+| 0 | `curl :3003/api/health` | `{"status":"ok",...}` | 0 |
+| 1 | `POST /api/auth/login {identifier:"thanhdc"}` | token 309 ký tự | 0 |
+| 2 | `POST /api/shipments/lcl/rev-group {shipmentIds:[244,242],vehicleSizeClassId:13}` | group 6cf76ab8 — 244 R42RV-D2 = Lô 1, 242 R42RV-02 = member (drive-1-merge.json) | 0 |
+| 3 | `POST /api/shipments/lcl/unmerge {shipmentId:244,dimension:"REV"}` (LÔ CHÍNH rời — đường QA fail) | `transferredAmount:"3100000"`, promoted 242, dissolved (drive-2-unmerge-primary.json) | 0 |
+| 4 | psql assert snapshots tail (drive-4-final-db-state.txt) | xem dưới | 0 |
+| 5 | `POST /api/shipments/lcl/rev-class {shipmentId:242,vehicleSizeClassId:13}` restore fixture | `freight:"3000000"` auto (drive-3-restore-242.json) | 0 |
+
+## Assertion sau bước 3 (snapshots 215→218, lần lượt)
+
+- s215: 242 = 0₫ "Ghép thu cước cùng Lô 1…" (luật merge member)
+- s216: 242 = **3.100.000** "Đón cước chính khi tách nhóm (từ Bill R42RV-D2) — 100% cước thu" — crown nhận 100% ✓
+- s217: 244 = 0₫ "Tách nhóm — chuyển 100% cước cho Bill R42RV-02" — mặt fail QA thấy trước fix (điểm dừng cũ)
+- s218: 244 = **3.100.000** "Tách nhóm — tự tra bảng giá thu khách: Xe 10T × tuyến, ngày 2026-10-26" — **WRITE MỚI CỦA FIX: lô chính tự tra lại đúng lane route 10 × 10T**
+
+Trước fix, s218 không bao giờ xuất hiện (guard `leaverOrder !== 1` bỏ qua lô
+chính) — 244 đọc mãi 0₫ citation s217 = "Chưa xác định"/0 trên bảng tiền.
+
+## End state sau restore (= trạng thái QA để lại trước drive)
+
+- 242 R42RV-02: 3.000.000 "Chọn loại xe tính cước thu khách — 100% bảng giá
+  khách × tuyến × 10T" (auto lane route 6), ungrouped, class 13
+- 244 R42RV-D2: 3.100.000 "Tách nhóm — tự tra bảng giá thu khách: Xe 10T ×
+  tuyến, ngày 2026-10-26", ungrouped, class 13
+- rev_group_id NULL cả hai lô; không còn nhóm nào tồn dư.
+
+## Rung label
+
+- Đường lô-chính-rời-nhóm (SIL-539 retry): **DB/API VERIFIED** — API thật +
+  DB thật, KHÔNG drive UI lần này (bảng tiền đọc lại cùng snapshot/override
+  channel — read side đã UI DRIVEN ở lane 27/10 cho đường member; write side
+  là phần mới).
+- Đường member-rời-nhóm + Tách nhóm cả nhóm: không đụng code (guard guard chỉ
+  mở thêm nhánh order 1; unmergeLclGroup không đổi) — pin unit chống hồi quy.

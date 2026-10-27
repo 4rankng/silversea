@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-604-retry/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  02:17:02
+   Duration  391ms (transform 22ms, setup 87ms, import 11ms, tests 7ms, environment 227ms)
+
