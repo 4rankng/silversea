@@ -11,8 +11,9 @@
 //   - the thead pins nowrap/normal-wrap/normal-break explicitly, not via the
 //     global table rule;
 //   - lan 2 (the port selects painted over the value at every viewport): the
-//     two port columns own 150px each and the table minimum is 960px
-//     (44px ordinal + 3 × 150px fixed + 5 × ≥92px auto).
+//     two port columns own 150px each and the table minimum keeps every
+//     auto column ≥92px — since SIL-530 that minimum is 1050px (44px ordinal
+//     + 3 × 150px fixed + 6 × ≥92px auto: the SỐ TỜ KHAI column joined).
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -45,10 +46,12 @@ describe('DispatchContainerDetailDrawer appointment-column contract (FB-045, car
   it('keeps the table minimum wide enough that no other label loses its line', () => {
     const table = rule('.dispatch-container-detail__table');
     expect(table).toMatch(/table-layout:\s*fixed/);
-    expect(table).toMatch(/min-width:\s*960px/);
-    // 960 − 44 (ordinal) − 150 (appointment) − 2 × 150 (port columns) leaves
-    // ≥92px per remaining column; every other header label ("Container" ≈ 75px
+    // SIL-530: the SỐ TỜ KHAI column joined, so the floor rose from 960px —
+    // 1050 − 44 (ordinal) − 150 (appointment) − 2 × 150 (port columns) leaves
+    // ≥92px per remaining column (container / loại cont / số tờ khai /
+    // điều vận / nhà xe / biển số); every header label ("Container" ≈ 75px
     // worst case) clears that floor, so nowrap can never shear them either.
+    expect(table).toMatch(/min-width:\s*1050px/);
   });
 
   it('lets no neighbor control paint over the appointment column (FB-045 lan 2)', () => {

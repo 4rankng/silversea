@@ -70,11 +70,13 @@
 
 .dispatch-container-detail__table {
   width: 100%;
-  /* FB-045 lan 2 (card 201026140000): 44 (ordinal) + 150 + 150 (port columns)
-     + 150 (appointment) + 5 auto columns ≥ 92px each — the floor that keeps
-     every header label one line INSIDE its cell. Below it the __table-scroll
-     band scrolls horizontally instead of squeezing columns. */
-  min-width: 960px;
+  /* FB-045 lan 2 (card 201026140000), SIL-530 rebalance: 44 (ordinal)
+     + 150 ×3 fixed (two ports + appointment) + 6 auto columns ≥ 92px each
+     (container / loại cont / số tờ khai / điều vận / nhà xe / biển số) =
+     1046px — the floor that keeps every header label one line INSIDE its
+     cell. Below it the __table-scroll band scrolls horizontally instead of
+     squeezing columns. */
+  min-width: 1050px;
   border-collapse: collapse;
   table-layout: fixed;
   background: var(--surface);
@@ -200,6 +202,76 @@
 .dispatch-container-detail__port-select {
   display: block;
   min-width: 132px;
+}
+
+/* ── SIL-530 — SỐ TỜ KHAI cell (per-container, SIL-521 model) ──────────────
+   Same pattern as the detailed-plan grid's decl cell (SIL-591): data text at
+   rest, house text-button affordance (click-to-edit IS the affordance — no
+   extra Sửa button, card 20261006_537), one compact input with an Enter/Esc
+   hint while editing. */
+.dispatch-container-detail__decl-value {
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.dispatch-container-detail__decl-value.is-empty {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.dispatch-container-detail__decl-value--action {
+  display: inline;
+  padding: 0;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--font-data);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  line-height: 1.35;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.dispatch-container-detail__decl-value--action:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.dispatch-container-detail__decl-value--action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-2, #4a9e7d) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.dispatch-container-detail__decl-value--action.is-empty {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.dispatch-container-detail__decl-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dispatch-container-detail__decl-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 8px;
+  font-family: var(--font-data);
+  font-size: var(--fs-xs);
+}
+
+.dispatch-container-detail__decl-hint {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  line-height: 1.3;
 }
 
 .dispatch-container-detail__save-error {

@@ -141,4 +141,26 @@ describe('DispatchDeclarationCell — click-to-edit mechanics', () => {
     // The editor stays open (draft intact) for a correction.
     expect(screen.getByLabelText('Số tờ khai')).toBeTruthy();
   });
+
+  it('the same cell re-edits after a successful save — saving clears on success (regression: stale saving dead-locked the next click)', async () => {
+    authRole = 'CUS';
+    const onSaved = vi.fn();
+    render(<DispatchDeclarationCell row={row({ container: { containerNumber: 'MSCU1234567', containerTypeLabel: '40HC', cargoWeightKg: null, declarationNumber: 'TK-FIRST' } })} onSaved={onSaved} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-SECOND' } });
+    fireEvent.keyDown(screen.getByLabelText('Số tờ khai'), { key: 'Enter' });
+    await waitFor(() => expect(updateLineMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+
+    // The board refetch reuses the row key — the cell instance survives, and
+    // the click AFTER a success must still open the editor.
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    const reopened = screen.getByLabelText('Số tờ khai') as HTMLInputElement;
+    expect(reopened.value).toBe('TK-FIRST');
+    fireEvent.change(reopened, { target: { value: 'TK-THIRD' } });
+    fireEvent.keyDown(reopened, { key: 'Enter' });
+    await waitFor(() => expect(updateLineMock).toHaveBeenCalledTimes(2));
+    expect(updateLineMock).toHaveBeenLastCalledWith(11, 77, { expectedShipmentVersion: 5, declarationNumber: 'TK-THIRD' }, expect.any(String));
+  });
 });
