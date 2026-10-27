@@ -39,11 +39,13 @@ function renderPage(initialEntry = '/shipments-debit') {
   );
 }
 
-/** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [📦 Gộp hàng]
+/** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [Gộp hàng]
  *  mode again: a selection flow flips the mode on first (only when OFF — the
- *  ON face reads '✕ Thoát gộp hàng'), then clicks the row select-alias. */
+ *  ON face reads 'Thoát gộp hàng' per SIL-592), then clicks the row
+ *  select-alias. `pressed: false` pins the OFF face so the floating bar's own
+ *  [Gộp hàng] CTA can never match once a pick exists. */
 function enableMergeMode() {
-  const toggle = screen.queryByRole('button', { name: '📦 Gộp hàng' });
+  const toggle = screen.queryByRole('button', { name: 'Gộp hàng', pressed: false });
   if (toggle) fireEvent.click(toggle);
 }
 
@@ -629,8 +631,9 @@ it('QA-AUDIT-UI-39 phone selection is explicit, row-tap expansion preserves it, 
   expect(screen.queryByRole('table')).toBeNull();
   // Redesign 23/10 — the phone totals strip rides above the rows.
   expect(screen.getByTestId('shipment-debit-totals-mobile')).toBeTruthy();
-  // SIL-538 — the tick rides the on-demand [📦 Gộp hàng] mode: flip it on.
-  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
+  // SIL-538 — the tick rides the on-demand [Gộp hàng] mode: flip it on
+  // (SIL-592's clean accessible name; pressed=false pins the OFF face).
+  fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng', pressed: false }));
   const checkbox = within(record).getByRole('checkbox', { name: 'Chọn BL-1' });
   fireEvent.click(checkbox); expect(checkbox).toBeChecked();
   // SIL-478 (b) — the row tap is the expand control; no per-row button left.

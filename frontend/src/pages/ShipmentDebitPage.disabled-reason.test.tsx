@@ -34,10 +34,13 @@ import { ShipmentDebitPage } from './ShipmentDebitPage';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import type { ShipmentDebitLotRow } from '../api/shipmentClient';
 
-/** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [📦 Gộp hàng]
- *  mode: flip the strip toggle on first (only when OFF), then row-click pick. */
+/** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [Gộp hàng]
+ *  mode: flip the strip toggle on first (only when OFF), then row-click pick.
+ *  SIL-592: the faces carry the clean accessible names 'Gộp hàng'/'Thoát gộp
+ *  hàng', and `pressed: false` pins the OFF face so the floating bar's own
+ *  [Gộp hàng] CTA can never match once a pick exists. */
 function enableMergeMode() {
-  const toggle = screen.queryByRole('button', { name: '📦 Gộp hàng' });
+  const toggle = screen.queryByRole('button', { name: 'Gộp hàng', pressed: false });
   if (toggle) fireEvent.click(toggle);
 }
 
@@ -222,8 +225,10 @@ describe('ShipmentDebitPage disabled reasons (card 20261008_1 sweep)', () => {
     renderPage('/shipments-debit?customer=1');
     await screen.findAllByText('BL-1');
 
-    // Mode OFF: no merge CTA exists at all (it lives on the mode's bar).
-    expect(screen.queryByRole('button', { name: 'Gộp hàng' })).toBeNull();
+    // Mode OFF: the ribbon carries only the [Gộp hàng] toggle (pressed=false);
+    // the merge CTA itself lives on the mode's floating bar — absent here.
+    expect(screen.getByRole('button', { name: 'Gộp hàng', pressed: false })).toBeTruthy();
+    expect(document.querySelector('.lcl-selection-bar')).toBeNull();
     tickLot('BL-1');
     const merge = screen.getByRole('button', { name: 'Gộp hàng' });
     expect(merge).toHaveAttribute('aria-disabled', 'true');

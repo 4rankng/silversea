@@ -4,9 +4,10 @@
  * ≥2 ungrouped LCL picks, the same-customer gate blocks mixed selections, and
  * the expanded lot shows the LCL facts strip.
  *
- * Owner redesign 23/10: the on-demand [📦 Gộp hàng] mode is GONE — the ticks
- * ride a permanent Checkbox column and the merge CTA lives on the table
- * action bar (secondary, layers icon) beside [Xuất Debit Note].
+ * SIL-538 (PRD 261023110000 §2): the ticks ride the on-demand [Gộp hàng]
+ * mode again (SIL-592's clean accessible names — vector icons, no emoji);
+ * the merge CTA lives on the mode's floating bar and [Xuất Debit Note]
+ * stays in the header.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
@@ -108,11 +109,13 @@ beforeEach(() => {
   listSummary.mockResolvedValue({ items: [], total: 0 });
 });
 
-/** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [📦 Gộp hàng]
+/** SIL-538 (PRD 261023110000 §2) — the ticks ride the on-demand [Gộp hàng]
  *  mode again: flip the filter-strip toggle on (only when OFF — the ON face
- *  reads '✕ Thoát gộp hàng'), then the row click is the pick. */
+ *  reads 'Thoát gộp hàng' per SIL-592), then the row click is the pick.
+ *  `pressed: false` pins the OFF face so the floating bar's own [Gộp hàng]
+ *  CTA can never match once a pick exists. */
 const enableMergeMode = () => {
-  const toggle = screen.queryByRole('button', { name: '📦 Gộp hàng' });
+  const toggle = screen.queryByRole('button', { name: 'Gộp hàng', pressed: false });
   if (toggle) fireEvent.click(toggle);
 };
 
@@ -129,7 +132,7 @@ const openLot = async (label: string) => {
 };
 
 describe('FB-093 — Ghép cước thu khách', () => {
-  it('SIL-538: ticks hidden by default, [📦 Gộp hàng] reveals them; the bar CTA arms at ≥2 ungrouped lots', async () => {
+  it('SIL-538: ticks hidden by default, [Gộp hàng] reveals them; the bar CTA arms at ≥2 ungrouped lots', async () => {
     listSummary.mockResolvedValue({
       items: [
         lclRow(),
@@ -141,16 +144,16 @@ describe('FB-093 — Ghép cước thu khách', () => {
     await screen.findAllByText('BL-1');
 
     // Default (mode OFF): the CHỌN column is hidden, the toggle rides the
-    // filter strip, and no merge CTA is on screen yet.
+    // filter strip, and the mode's floating bar is not on screen yet.
     expect(screen.queryByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeNull();
-    const toggle = screen.getByRole('button', { name: '📦 Gộp hàng' });
+    const toggle = screen.getByRole('button', { name: 'Gộp hàng', pressed: false });
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    expect(screen.queryByRole('button', { name: 'Gộp hàng' })).toBeNull();
+    expect(document.querySelector('.lcl-selection-bar')).toBeNull();
 
     // Flipping the mode reveals the ticks; the bar (and its merge CTA) only
     // mounts once something is picked.
     fireEvent.click(toggle);
-    expect(screen.getByRole('button', { name: '✕ Thoát gộp hàng' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Thoát gộp hàng' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Gộp hàng' })).toBeNull();
 
@@ -168,8 +171,8 @@ describe('FB-093 — Ghép cước thu khách', () => {
     });
     expect(screen.getByText(/Đang chọn 2 lô/)).toBeTruthy();
 
-    // [✕ Thoát gộp hàng] hides the column and the bar again (PRD §2 exit).
-    fireEvent.click(screen.getByRole('button', { name: '✕ Thoát gộp hàng' }));
+    // [Thoát gộp hàng] hides the column and the bar again (PRD §2 exit).
+    fireEvent.click(screen.getByRole('button', { name: 'Thoát gộp hàng' }));
     expect(screen.queryByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeNull();
     expect(screen.queryByText(/Đang chọn/)).toBeNull();
   });
@@ -374,7 +377,7 @@ describe('FB-093 — Ghép cước thu khách', () => {
     expect(await screen.findByText(/Báo khách \(Ảo\): 29C-111\.22/)).toBeTruthy();
     // Finishing the merge hid the CHỌN column again: no ticks on screen.
     expect(screen.queryByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeNull();
-    expect(screen.getByRole('button', { name: '📦 Gộp hàng' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Gộp hàng', pressed: false })).toBeTruthy();
   });
 
   it('still submits a free-typed BKS báo khách with the merge (card 161026232409)', async () => {
