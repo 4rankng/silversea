@@ -248,7 +248,7 @@
    notes 160 · actions 144 (SIL-519 — the pill+trigger one-line budget).
    The owner floors (Khách hàng ≥180, Điều phối ≥200, Ghi chú ≥160,
    Nâng/Trả ≥110) hold; everything else wraps (SIL-515). */
-.detailed-plan-grid__col--schedule { width: 9.75%; }
+.detailed-plan-grid__col--schedule { width: 8.8%; }
 /* Spec 23/10 (261023110000 §2) — the on-demand CHỌN column: fixed 48px
    (master-plan precedent) so the reading columns keep their percentage
    shares whether or not the merge mode is active. */
@@ -268,22 +268,86 @@
   justify-content: center;
 }
 .detailed-plan-grid__col--route { width: 13.45%; }
-.detailed-plan-grid__col--ports { width: 8.75%; }
-.detailed-plan-grid__col--documents { width: 8.05%; }
-.detailed-plan-grid__col--container { width: 10.6%; }
-.detailed-plan-grid__col--assignment { width: 17%; }
+.detailed-plan-grid__col--ports { width: 8.25%; }
+.detailed-plan-grid__col--documents { width: 7%; }
+/* SIL-591: the per-container tờ khai column — 7% (~94px at the floor) holds
+   the "SỐ TỜ KHAI" header on one line and an 11-digit number on one run;
+   longer values wrap (no cut). The 0.9 points came off Container
+   (10.6→9.35%) and 0.45 each off schedule (9.75→8.8%) and actions
+   (4→3.7%) to keep the exact-100 sum; notes 12.65→12.2 keeps its ≥160px
+   floor, assignment 17→15 stays ≥200px. */
+.detailed-plan-grid__col--container { width: 9.35%; }
+.detailed-plan-grid__col--declaration { width: 7%; }
+.detailed-plan-grid__col--assignment { width: 15%; }
 /* SIL-589 (owner 27/10): 6.1%→7% — at the 6.1% floor (~82px) the "PHÂN
    LOẠI" header broke onto two lines (the ticket's own evidence); 7% (~94px)
-   holds the label on ONE line while the cell stays the board's smallest.
-   The 0.9% comes back off the Container column (11.5→10.6%, ~142px — its
-   number/type/weight lines still fit one wrap each). */
+   holds the label on ONE line while the cell stays the board's smallest. */
 .detailed-plan-grid__col--classification { width: 7%; }
-.detailed-plan-grid__col--notes { width: 12.65%; }
+.detailed-plan-grid__col--notes { width: 12.2%; }
 /* SIL-588 (owner 27/10): the rail hosts at most TWO STACKED buttons —
    the 30px ⋯ trigger (or the 28px Phát lệnh icon) + cell padding — so the
-   former 10.75% pill budget collapses to 4% (~54px at the floor). The
-   freed width goes back to the value columns (Điều phối/Ghi chú/Container). */
-.detailed-plan-grid__col--actions { width: 4%; }
+   former 10.75% pill budget collapses (SIL-591 rebalance: 3.7%, ~50px at
+   the floor). The freed width goes back to the value columns. */
+.detailed-plan-grid__col--actions { width: 3.7%; }
+
+/* ── SIL-591 — SỐ TỜ KHAI cell (per-container, SIL-521 model) ──────────────
+   The value reads as data text; the edit affordance is a house text button
+   (click-to-edit IS the affordance — no extra Sửa button, card 20261006_537),
+   and the inline editor is a single compact input with an Enter/Esc hint. */
+.detailed-plan-grid__decl-value {
+  font-family: var(--font-data, inherit);
+  overflow-wrap: anywhere;
+}
+
+.detailed-plan-grid__decl-value--action {
+  display: inline;
+  padding: 0;
+  color: var(--fg-1);
+  font: inherit;
+  font-family: var(--font-data, inherit);
+  font-size: var(--ops-table-supporting-size);
+  line-height: var(--ops-table-supporting-line-height);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.detailed-plan-grid__decl-value--action:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.detailed-plan-grid__decl-value--action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, #4a9e7d) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.detailed-plan-grid__decl-value--action.is-empty {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.detailed-plan-grid__decl-editor {
+  gap: 2px;
+}
+
+.detailed-plan-grid__decl-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 8px;
+  font-family: var(--font-data, inherit);
+  font-size: var(--ops-table-supporting-size);
+}
+
+.detailed-plan-grid__decl-hint {
+  color: var(--fg-3);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+}
 
 /* Master-plan lane fix (owner redesign 23/10, same defect class): the
    wrapper is now a bounded pane owning the board's vertical scroll, so the

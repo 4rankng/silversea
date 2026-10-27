@@ -112,7 +112,7 @@ function mount() {
 /** Spec 23/10 (261023110000 §2) — the CHỌN column is on-demand: every
  *  grouping flow now starts by flipping the strip's toggle. */
 function openMergeMode() {
-  fireEvent.click(screen.getByRole('button', { name: '📦 Gộp hàng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng' }));
 }
 
 describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
@@ -131,7 +131,7 @@ describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
     expect(document.querySelector('.master-plan-grid__select-head')).toBeNull();
 
     openMergeMode();
-    expect(screen.getByRole('button', { name: '✕ Thoát gộp hàng' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Thoát gộp hàng' })).toHaveAttribute('aria-pressed', 'true');
     expect(document.querySelector('.master-plan-grid__select-head')).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' })).toBeTruthy();
   });

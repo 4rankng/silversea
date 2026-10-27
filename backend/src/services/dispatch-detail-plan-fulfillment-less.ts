@@ -193,6 +193,9 @@ export async function listFulfillmentLessReadyRows(
       pickupLocation: s.shipments.pickupLocation,
       deliveryLocation: s.shipments.deliveryLocation,
       containerNumber: s.shipmentContainers.containerNumber,
+      // SIL-591 — same per-container tờ khai field as the fulfillment-owned
+      // branch: one row shape, one mapping.
+      containerDeclarationNumber: s.shipmentContainers.declarationNumber,
       containerCargoWeightKg: s.shipmentContainers.cargoWeightKg,
       containerTypeId: s.shipmentContainers.containerTypeId,
       containerTypeName: s.containerTypes.name,

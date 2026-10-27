@@ -330,7 +330,7 @@ export interface DispatchDetailPlanRow {
   time: { deliveryDate: string | null; runAt?: string | null; runHour: number | null };
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName?: string | null };
   docs: { billNumber: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
-  container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null };
+  container: { containerNumber: string | null; containerTypeLabel: string | null; cargoWeightKg: string | null; declarationNumber?: string | null };
   /** FB-092 LCL facts — the lot's own cargo for the CONTAINER cell's 2nd/3rd
    *  lines and its cost-group tag/truck identity. Absent on older fixtures
    *  and on FCL rows. */

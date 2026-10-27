@@ -30,6 +30,7 @@ import { DispatchDriverNote } from './DispatchDriverNote';
 import { detailRowKey, detailedScheduleLine, lclCargoLine, lclMeasureLine } from './DispatchPlanCellValues';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
+import { DispatchDeclarationCell } from './DispatchDeclarationCell';
 import { LclSelectCheckbox } from '../LclSelectCheckbox';
 import '../LclSelectCheckbox.css';
 
@@ -173,6 +174,10 @@ interface DetailedPlanGridProps {
    *  20260923_1 — the affordance answers, never vanishes). Unwired pages see
    *  no button (parity with Tách nhóm). */
   onDeleteLot?: (row: DispatchDetailPlanRow) => void;
+  /** SIL-591 — called after the SỐ TỜ KHAI cell saves: a declaration write
+   *  can auto-copy onto the lot's still-empty siblings (FB-109), so the page
+   *  refetches the rows instead of patching one cell in place. */
+  onRowsChanged?: () => void;
 }
 
 /** FB-095 — the leaving lot's identity for the confirm guard copy. */
@@ -184,7 +189,7 @@ export interface LclUnmergeLotRequest {
 
 /**
  * "Kế hoạch Chi tiết" grid (docx §5): one row per container (or LCL shipment),
- * 9 multi-line columns, in-row plate assignment. Rows are pre-derived from the
+ * 10 multi-line columns, in-row plate assignment. Rows are pre-derived from the
  * carrier allocation made on the master-plan screen.
  */
 export function DetailedPlanGrid({
@@ -220,6 +225,7 @@ export function DetailedPlanGrid({
   onLclTruckUpdated,
   onChangeGroupTruck,
   onDeleteLot,
+  onRowsChanged,
   onEnsureFulfillment,
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
@@ -347,7 +353,7 @@ export function DetailedPlanGrid({
 
       {loading ? (
         <div role="status">
-          <SkeletonTable rows={6} cols={9} />
+          <SkeletonTable rows={6} cols={10} />
           <span className="sr-only">Đang tải dữ liệu…</span>
         </div>
       ) : items.length === 0 ? (
@@ -398,6 +404,8 @@ export function DetailedPlanGrid({
               <col className="detailed-plan-grid__col detailed-plan-grid__col--ports" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--documents" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--container" />
+              {/* SIL-591 — the per-container tờ khai column (SIL-521 model). */}
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--declaration" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--assignment" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--classification" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
@@ -450,6 +458,7 @@ export function DetailedPlanGrid({
                 </th>
                 <th scope="col">Tuyến đường</th>
                 <th scope="col">Container</th>
+                <th scope="col">Số tờ khai</th>
                 <th scope="col">Điều phối</th>
                 <th scope="col">Phân loại</th>
                 <th scope="col">Ghi chú</th>
@@ -678,6 +687,9 @@ export function DetailedPlanGrid({
                         </>
                       )}
                     </div>
+                  </td>
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--declaration" data-label="Số tờ khai" data-label-short="Tờ khai">
+                    <DispatchDeclarationCell row={row} onSaved={onRowsChanged} />
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--editable" data-label="Điều phối" data-label-short="Điều phối">
                     <DispatchPlanEditorCell

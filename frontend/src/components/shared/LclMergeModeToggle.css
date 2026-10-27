@@ -1,8 +1,10 @@
-/* Spec 23/10 (261023110000 §2) — the [📦 Gộp hàng] filter-strip toggle.
+/* Spec 23/10 (261023110000 §2) — the [Gộp hàng] filter-strip toggle.
    OFF: the house secondary outline (a quiet mode invite). ON: the emerald
    accent fill so the "đang trong chế độ gộp" state is unmistakable and the
-   ✕ label reads as the way out. House tokens only — one implementation
-   shared by every grouping surface (ĐV Tổng quát / Chi tiết, CUS Quyết toán). */
+   X-icon label reads as the way out. House tokens only — one implementation
+   shared by every grouping surface (ĐV Tổng quát / Chi tiết, CUS Quyết toán).
+   SIL-592: the icon is the shared .btn icon flow (lucide Layers/X, gap from
+   the house button), never a text emoji. */
 .lcl-merge-toggle {
   border-color: var(--line-2);
   background: var(--surface);
