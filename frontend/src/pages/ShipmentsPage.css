@@ -1788,49 +1788,50 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   color: var(--ink-3);
 }
 
-/* The LOẠI line's house select (UuiSelectField, width content) sits beside
-   its micro-label inside the group cell, on its own 10ch lane.
-   SIL-552 (owner 28/10, design lock): the trigger's own chrome is trimmed to
-   the locked px-2 / pr-7 so the 10ch lane shows the whole type code — the
-   vendor's truncate utility cut "20DC" down to "20…", which the no-truncation
-   doctrine forbids. The value rides leading-5 like every other control in the
-   group, so all three lines share one baseline band. */
-.cus-lot-line__select {
-  flex: 0 0 auto;
-  width: 10ch;
-  min-width: 10ch;
+/* ── SIL-552 (owner 28/10, second decision) — the FLOATING editor ────
+   The SỐ CONTAINER cell holds the label + the value only; the editor floats
+   over the sheet so the 240px column never squeezes it (an inline editor is
+   what shredded the placeholder into vertical characters). The panel is
+   portalled to the body — the table's scroll wrapper clips BOTH axes
+   (`overflow-x: auto` computes `overflow-y: auto`), so a panel inside the
+   table would be cut off.
+
+   Ownership reads through the ARROW (it points at the row it edits) plus the
+   accent border; the shadow only lifts the panel off the sheet. */
+.cus-lot-editor {
+  position: fixed;
+  z-index: var(--z-popover, 90);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--brand);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+  /* `clip` (not `hidden`) keeps the react-aria listbox portal and the arrow
+     tip from being cut — the clip margin is the arrow's room. */
+  overflow: clip;
+  overflow-clip-margin: 12px;
 }
 
-.cus-lot-line__select .ds-uui-select,
-.cus-lot-line__select .ds-uui-select--content {
-  width: 100%;
+.cus-lot-editor__arrow {
+  position: absolute;
+  top: -5px;
+  left: 16px;
+  width: 8px;
+  height: 8px;
+  background: var(--surface);
+  border-left: 1px solid var(--brand);
+  border-top: 1px solid var(--brand);
+  transform: rotate(45deg);
 }
 
-.cus-lot-table .cus-lot-line__select [data-uui-control] {
-  --uui-control-h: 36px;
-}
-
-.cus-lot-line__select [data-uui-select-value] {
-  padding-left: 8px;
-  padding-right: 28px;
-}
-
-.cus-lot-line__select [data-uui-select-value] > section > p {
-  line-height: 20px;
-  overflow: visible;
-  text-overflow: clip;
-}
-
-.cus-lot-line--editor {
-  flex-wrap: wrap;
-  height: auto;
-  min-height: 36px;
-}
-
-.cus-lot-line__input {
-  flex: 0 1 auto;
-  width: var(--cus-lot-input, 14ch);
-  min-width: var(--cus-lot-input-min, 14ch);
+.cus-lot-editor__input {
+  flex: 1 1 auto;
+  min-width: 0;
   height: 36px;
   padding: 0 8px;
   border: 1px solid var(--control-border);
@@ -1841,36 +1842,50 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   line-height: 20px;
 }
 
-/* SIL-552 (owner 28/10, design lock): the weight editor is a NUMBER input —
-   the house stepper stays hidden so the 8ch lane reads as a plain numeric
-   box (the stepper would eat the lane the value needs). */
-.cus-lot-line__input[type='number'] {
+/* The weight editor is a NUMBER input — the house stepper stays hidden so
+   the box reads as a plain numeric field. */
+.cus-lot-editor__input[type='number'] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
 
-.cus-lot-line__input[type='number']::-webkit-outer-spin-button,
-.cus-lot-line__input[type='number']::-webkit-inner-spin-button {
+.cus-lot-editor__input[type='number']::-webkit-outer-spin-button,
+.cus-lot-editor__input[type='number']::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-.cus-lot-line__input:focus-visible {
-  border-color: var(--brand);
-  outline: 2px solid var(--brand);
-  outline-offset: 1px;
+/* The LOẠI line's house select (UuiSelectField) inside the floating panel. */
+.cus-lot-editor .ds-uui-select,
+.cus-lot-editor .ds-uui-select--content {
+  width: 100%;
 }
 
-/* The unit that rides the weight editor's input (SIL-552) — it never
-   shrinks, so "kg" stays glued to the number. */
-.cus-lot-line__unit {
+.cus-lot-editor .ds-uui-select {
+  flex: 1 1 auto;
+}
+
+.cus-lot-editor [data-uui-control] {
+  --uui-control-h: 36px;
+}
+
+/* The unit that rides the weight editor's input — it never shrinks, so "kg"
+   stays glued to the number. */
+.cus-lot-editor__unit {
   flex: 0 0 auto;
   font-size: var(--text-caption-size);
   line-height: 20px;
   color: var(--ink-3);
 }
 
-.cus-lot-line__save {
+.cus-lot-editor__input:focus-visible {
+  border-color: var(--brand);
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+/* The commit button of the floating editor. */
+.cus-lot-editor__save {
   flex: 0 0 auto;
   height: 30px;
   padding: 0 8px;
@@ -1884,16 +1899,15 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   cursor: pointer;
 }
 
-.cus-lot-line__save:hover { background: var(--surface-2); color: var(--ink); }
-.cus-lot-line__save:disabled { color: var(--ink-3); cursor: default; }
+.cus-lot-editor__save:hover { background: var(--surface-2); color: var(--ink); }
+.cus-lot-editor__save:disabled { color: var(--ink-3); cursor: default; }
 
-/* The three control lanes (SIL-552, owner 28/10 design lock). SỐ keeps a 14ch
-   editor + the trigger's chevron; LOẠI a 10ch select; TRỌNG LƯỢNG an 8ch
-   numeric editor whose floor is 8ch — the raw kilogram value still fits its
-   lane, and the "kg" unit rides beside it. */
-.cus-lot-line--number { --cus-lot-lane: 16ch; --cus-lot-input: 14ch; --cus-lot-input-min: 14ch; }
+/* The three VALUE lanes (SIL-552, owner 28/10). The editor floats, so the
+   lane no longer constrains an input — it only floors the closed line's
+   value, which keeps the placeholder whole and the three rows even. */
+.cus-lot-line--number { --cus-lot-lane: 16ch; }
 .cus-lot-line--type { --cus-lot-lane: 10ch; }
-.cus-lot-line--weight { --cus-lot-lane: 10ch; --cus-lot-input: 8ch; --cus-lot-input-min: 8ch; }
+.cus-lot-line--weight { --cus-lot-lane: 10ch; }
 
 /* SIL-498 — the per-cont tờ khai cell: one inline input per row (opaque
    control surface, house radius/height) plus the first row's copy affordance.

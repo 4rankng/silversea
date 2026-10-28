@@ -18,6 +18,12 @@ export interface PopoverPosition {
  * when there is no room below, clamps to the viewport padding, right-aligns
  * to the trigger, and re-computes on resize/scroll.
  *
+ * `align` picks the horizontal anchor: `right` (the default) lines the
+ * panel's right edge up with the trigger's — the classic dropdown. `left`
+ * lines the panel's LEFT edge up with the trigger, the anchor a wide panel
+ * needs when the trigger sits in a table cell (SIL-552: the cell's editor
+ * floats, so it must open UNDER the cell, not somewhere else on the row).
+ *
  * Two promises added by card 20260927_152 (operator 2026-09-27: "why the
  * dropdown jump around not right below where I clicked"):
  *
@@ -38,6 +44,7 @@ export function usePopoverPosition(
   isOpen: boolean,
   fallbackWidth = 275,
   fallbackHeight = 280,
+  align: 'left' | 'right' = 'right',
 ): PopoverPosition | null {
   const [coords, setCoords] = useState<PopoverPosition | null>(null);
 
@@ -100,7 +107,7 @@ export function usePopoverPosition(
       }
       top = Math.max(viewportTop + padding, Math.min(top, viewportTop + vh - padding - popoverHeight));
 
-      let left = triggerRect.right - popoverWidth;
+      let left = align === 'left' ? triggerRect.left : triggerRect.right - popoverWidth;
       left = Math.max(viewportLeft + padding, Math.min(left, viewportLeft + vw - padding - popoverWidth));
 
       const top_ = Math.round(top);
@@ -156,7 +163,7 @@ export function usePopoverPosition(
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [isOpen, triggerRef, popoverRef, fallbackWidth, fallbackHeight]);
+  }, [isOpen, triggerRef, popoverRef, fallbackWidth, fallbackHeight, align]);
 
   return coords;
 }

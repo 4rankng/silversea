@@ -1,6 +1,9 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, CopyPlus, Loader2 } from 'lucide-react';
 import { UuiSelectField } from '../../../design-system';
+import { useClickOutside } from '../../../hooks/useClickOutside';
+import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -244,216 +247,205 @@ export interface CusLotContainerLineActions {
   ) => Promise<boolean>;
 }
 
-/** One ghost line of the SỐ CONTAINER group: micro-label + value. Read-only
- *  when the line's fieldAccess (or the page's intake gate) denies the edit —
- *  a line the save path would refuse never advertises "press to edit"
- *  (SIL-483 law). Editable lines are click-to-edit: the ghost trigger reveals
- *  an inline editor, Enter/Lưu commits an immediate per-line save,
- *  Escape/outside dismisses and reverts.
+/** The three fields of the SỐ CONTAINER group. */
+type ContainerGroupField = 'containerNumber' | 'containerTypeId' | 'cargoWeightKg';
+
+/** One line of the SỐ CONTAINER group: micro-label + value, NOTHING else.
  *
- *  SIL-552 (owner 28/10): the micro-label and the control are TWO flex items
- *  on ONE row. The label never wraps (shrink-0 + nowrap) and the control owns
- *  a ch-based lane, so a long value grows its lane instead of shredding the
- *  placeholder into vertical characters (the reported "Nh\nập\nkg"). */
-function InlineTextLine({
+ *  SIL-552 (owner 28/10, second decision): the cell holds only the label and
+ *  the value — the editor FLOATS over the sheet instead of occupying the
+ *  cell. An inline editor was squeezed by the 240px column, which shredded
+ *  the placeholder into vertical characters ("Nh\nập\nkg") and pushed the
+ *  label off the control's baseline. A floating editor has no width limit.
+ *
+ *  Read-only when the line's fieldAccess (or the page's intake gate) denies
+ *  the edit — a line the save path would refuse never advertises "press to
+ *  edit" (SIL-483 law). The micro-label is presentational: the accessible
+ *  name comes from the trigger. */
+function ContainerGroupLine({
   label,
-  display,
-  draftValue,
+  value,
   placeholder,
-  emptyText = dash,
+  emptyText,
   ariaLabel,
   mono,
-  numeric,
   editable,
-  unit,
   laneClassName,
-  onCommit,
+  triggerRef,
+  onOpen,
 }: {
   label: string;
-  /** Read-only / trigger text (formatted for display, e.g. "24.000 kg"). */
-  display: string;
-  /** Editor seed — the raw persisted value the draft starts from. */
-  draftValue?: string;
+  /** The persisted value, already formatted for display. */
+  value: string;
+  /** The hint an empty editable line shows instead of a value. */
   placeholder: string;
   /** Read-only empty fallback — names the missing fact in words
    *  (QA-AUDIT-UI-08), never a bare dash where the phrase matters. */
-  emptyText?: string;
+  emptyText: string;
+  /** The trigger's accessible name — the ACTION it performs. */
   ariaLabel: string;
   mono?: boolean;
-  numeric?: boolean;
   editable: boolean;
-  /** Unit suffix printed beside the editor input (the weight lane's "kg"). */
-  unit?: string;
-  /** Lane modifier — the ch floor of this row's control lane. */
+  /** Lane modifier — the ch floor of this row's value lane. */
   laneClassName?: string;
-  onCommit: (value: string) => Promise<boolean>;
+  /** The floating editor anchors itself to this trigger. */
+  triggerRef?: RefObject<HTMLButtonElement | null>;
+  onOpen?: () => void;
 }) {
-  const persistedDraft = draftValue ?? display;
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(persistedDraft);
-  const [busy, setBusy] = useState(false);
-  const inputId = useId();
-  // The drawer reloads the detail after every save; reseed the draft so the
-  // next open never reads as an unsaved edit (same law as DeclarationCell).
-  useEffect(() => { if (!open) setDraft(persistedDraft); }, [persistedDraft, open]);
-
-  const close = () => {
-    if (busy) return;
-    setOpen(false);
-    setDraft(persistedDraft);
-  };
-
-  const commit = async () => {
-    const next = draft.trim();
-    if (busy) return;
-    if (next === persistedDraft) { close(); return; }
-    setBusy(true);
-    let ok = false;
-    try {
-      ok = await onCommit(next);
-    } finally {
-      setBusy(false);
-    }
-    if (ok) setOpen(false);
-  };
-
   if (!editable) {
     return (
       <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
         <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
-        <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{display || emptyText}</span>
-      </div>
-    );
-  }
-  if (!open) {
-    return (
-      <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
-        <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
-        <button
-          type="button"
-          className={`cus-lot-line--trigger${display ? '' : ' cus-lot-line--empty'}`}
-          onClick={() => { setDraft(persistedDraft); setOpen(true); }}
-          disabled={busy}
-          aria-label={ariaLabel}
-          title={ariaLabel}
-        >
-          <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{display || placeholder}</span>
-          <ChevronDown size={12} aria-hidden="true" className="cus-lot-line__chevron" />
-        </button>
+        <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{value || emptyText}</span>
       </div>
     );
   }
   return (
-    <div
-      className={`cus-lot-line cus-lot-line--editor${laneClassName ? ` ${laneClassName}` : ''}`}
-      onBlur={(event) => {
-        // Outside blur dismisses (revert) unless the click landed on this
-        // editor's own commit control; never while a commit is in flight.
-        if (!event.currentTarget.contains(event.relatedTarget as Node)) close();
-      }}
-    >
+    <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
       <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
-      <input
-        id={inputId}
-        className={`cus-lot-line__input${mono ? ' cus-lot-line__value--mono' : ''}`}
-        type={numeric ? 'number' : 'text'}
-        inputMode={numeric ? 'decimal' : 'text'}
-        min={numeric ? '0' : undefined}
-        step={numeric ? '0.01' : undefined}
-        autoComplete="off"
-        aria-label={ariaLabel}
-        value={draft}
-        readOnly={busy}
-        autoFocus
-        onChange={(event) => setDraft(numeric ? event.target.value.replace(/[^0-9.]/g, '') : event.target.value)}
-        onKeyDown={(event) => {
-          if (event.nativeEvent.isComposing) return;
-          if (event.key === 'Escape') { event.preventDefault(); close(); }
-          if (event.key === 'Enter') { event.preventDefault(); void commit(); }
-        }}
-      />
-      {unit ? <span className="cus-lot-line__unit" aria-hidden="true">{unit}</span> : null}
       <button
         type="button"
-        className="cus-lot-line__save"
-        disabled={busy || draft.trim() === persistedDraft}
-        onClick={() => void commit()}
+        ref={triggerRef}
+        className={`cus-lot-line--trigger${value ? '' : ' cus-lot-line--empty'}`}
+        onClick={onOpen}
+        aria-label={ariaLabel}
+        title={ariaLabel}
       >
-        {busy ? 'Đang lưu…' : 'Lưu'}
+        <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{value || placeholder}</span>
+        <ChevronDown size={12} aria-hidden="true" className="cus-lot-line__chevron" />
       </button>
     </div>
   );
 }
 
-/** The LOẠI line of the group: the same ghost-line shape, but the editor is
- *  the house UuiSelectField (the only sanctioned select — the ESLint
- *  no-native-select guard) fed from the detail's container-type catalog. The
- *  pick commits immediately (one deliberate action, like every picker cell);
- *  react-aria owns dismissal.
+/** The FLOATING editor of the SỐ CONTAINER group.
  *
- *  SIL-552 (owner 28/10): the micro-label sits BESIDE the select on one row
- *  (the label is a sibling of the control, not its child) and the select keeps
- *  a fixed 10ch lane, so the row never collapses into the label. */
-function InlineTypeLine({
-  label,
-  display,
-  typeId,
-  options,
+ *  SIL-552 (owner 28/10, second decision): the editor leaves the cell and
+ *  floats over the sheet — portalled to the body (the table's scroll wrapper
+ *  clips BOTH axes: `overflow-x: auto` computes `overflow-y: auto`), fixed
+ *  positioned under the line it edits, and free of the column's width. The
+ *  panel is `role="dialog"` with the line's own accessible name, an arrow
+ *  pointing at the row it belongs to, and Escape / outside-press to revert.
+ *  The LOẠI line's listbox (react-aria) keeps its own body-level popover, so
+ *  it is never clipped by the panel. */
+function ContainerGroupEditor({
+  open,
+  anchorRef,
+  field,
+  /** The panel's own name — what it edits. */
+  panelLabel,
+  /** The open field's accessible name — what the input is called. */
   ariaLabel,
-  editable,
-  laneClassName,
-  onCommit,
+  draft,
+  typeId,
+  typeOptions,
+  busy,
+  onDraftChange,
+  onCommitType,
+  onCommitText,
+  onClose,
+  onCancel,
 }: {
-  label: string;
-  display: string;
-  typeId: number | null;
-  options: ReadonlyArray<{ id: number; code: string; name: string }>;
+  open: boolean;
+  anchorRef?: RefObject<HTMLElement | null>;
+  field: ContainerGroupField;
+  panelLabel: string;
   ariaLabel: string;
-  editable: boolean;
-  laneClassName?: string;
-  onCommit: (value: string) => Promise<boolean>;
+  /** The open line's draft (the editor seeds it from the persisted value). */
+  draft: string;
+  typeId: number | null;
+  typeOptions: ReadonlyArray<{ id: number; code: string; name: string }>;
+  busy: boolean;
+  onDraftChange: (value: string) => void;
+  /** LOẠI commits the moment an option is picked (the SIL-508 contract). */
+  onCommitType: (value: string) => void;
+  /** SỐ / TRỌNG LƯỢNG commit on Enter or the Lưu button. */
+  onCommitText: () => void;
+  /** Outside press — the draft is discarded, the focus is NOT stolen. */
+  onClose: () => void;
+  /** Escape — the draft is discarded and the focus returns to the trigger. */
+  onCancel: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const commit = async (value: string) => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await onCommit(value);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const panelRef = useRef<HTMLDivElement>(null);
+  const position = usePopoverPosition(panelRef, anchorRef, open, 300, 96, 'left');
+  useClickOutside(panelRef, onClose, {
+    enabled: open,
+    escapeKey: true,
+    onEscape: onCancel,
+    additionalRefs: anchorRef ? [anchorRef] : undefined,
+  });
 
-  if (!editable) {
-    return (
-      <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
-        <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
-        <span className="cus-lot-line__value">{display || dash}</span>
-      </div>
-    );
-  }
-  return (
-    <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`} data-busy={busy || undefined}>
-      <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
-      <span className="cus-lot-line__select">
+  // The panel mounts only once its position is known, so the focus lands in
+  // the same commit as the paint.
+  useEffect(() => {
+    if (!position) return;
+    const first = panelRef.current?.querySelector<HTMLElement>('input, button:not([disabled])');
+    first?.focus();
+  }, [position]);
+
+  if (!open || !position) return null;
+  return createPortal(
+    <div
+      ref={panelRef}
+      className="cus-lot-editor"
+      role="dialog"
+      aria-label={panelLabel}
+      style={{
+        top: position.top,
+        left: position.left,
+        ...(position.maxHeight != null ? { maxHeight: position.maxHeight } : {}),
+      }}
+    >
+      <span className="cus-lot-editor__arrow" aria-hidden="true" />
+      {field === 'containerTypeId' ? (
         <UuiSelectField
           label={ariaLabel}
           hideLabel
           ariaLabel={ariaLabel}
           size="sm"
-          width="content"
+          width="stretch"
           // A finite type catalog stays a plain click-to-open listbox — the
           // type-to-search combobox collapses to a bare caret inside this
-          // narrow ghost line.
+          // narrow panel.
           searchable={false}
           value={typeId != null ? String(typeId) : ''}
           placeholder="Chọn loại"
           disabled={busy}
-          onChange={(event) => void commit(event.target.value)}
-          options={options.map((option) => ({ value: String(option.id), label: option.code }))}
+          onChange={(event) => onCommitType(event.target.value)}
+          options={typeOptions.map((option) => ({ value: String(option.id), label: option.code }))}
         />
-      </span>
-    </div>
+      ) : (
+        <>
+          <input
+            className={`cus-lot-editor__input${field === 'containerNumber' ? ' cus-lot-line__value--mono' : ''}`}
+            type={field === 'cargoWeightKg' ? 'number' : 'text'}
+            inputMode={field === 'cargoWeightKg' ? 'decimal' : 'text'}
+            min={field === 'cargoWeightKg' ? '0' : undefined}
+            step={field === 'cargoWeightKg' ? '0.01' : undefined}
+            autoComplete="off"
+            aria-label={ariaLabel}
+            value={draft}
+            readOnly={busy}
+            onChange={(event) => onDraftChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing) return;
+              if (event.key === 'Escape') { event.preventDefault(); onCancel(); }
+              if (event.key === 'Enter') { event.preventDefault(); onCommitText(); }
+            }}
+          />
+          {field === 'cargoWeightKg' ? <span className="cus-lot-editor__unit" aria-hidden="true">kg</span> : null}
+          <button
+            type="button"
+            className="cus-lot-editor__save"
+            disabled={busy || draft.trim() === ''}
+            onClick={onCommitText}
+          >
+            {busy ? 'Đang lưu…' : 'Lưu'}
+          </button>
+        </>
+      )}
+    </div>,
+    document.body,
   );
 }
 
@@ -462,9 +454,10 @@ function InlineTypeLine({
  *  (number, type pick, weight) through the host's container-line command;
  *  a non-editable lot renders the same three lines as plain text.
  *
- *  SIL-552 (owner 28/10): each line carries its own control LANE (the ch
- *  floor of that field) so the three rows keep a stable geometry — the label
- *  never wraps and the control never overflows its column. */
+ *  SIL-552 (owner 28/10): the cell holds the label + the value only; the
+ *  editor FLOATS (see ContainerGroupEditor) so the 240px column never
+ *  squeezes it. Each line keeps its own ch lane, so the three rows keep a
+ *  stable geometry — the label never wraps and the value never shreds. */
 function ContainerGroupCell({
   line,
   detail,
@@ -476,47 +469,137 @@ function ContainerGroupCell({
   editable: boolean;
   actions?: CusLotContainerLineActions;
 }) {
-  const save = (field: 'containerNumber' | 'containerTypeId' | 'cargoWeightKg', value: string) => (
+  const save = (field: ContainerGroupField, value: string) => (
     actions?.onSaveField(line, field, value) ?? Promise.resolve(false)
   );
-  const lineEditable = (field: 'containerNumber' | 'containerTypeId' | 'cargoWeightKg') => (
+  const lineEditable = (field: ContainerGroupField) => (
     editable && Boolean(actions) && line.fieldAccess[field]?.mode === 'DIRECT'
   );
   const weightRaw = (line.raw.cargoWeightKg ?? '').trim();
+  const numberValue = (line.containerNumber ?? '').trim();
+  const typeValue = (line.containerTypeLabel ?? '').trim();
+
+  // The open line + its draft. Only one line edits at a time.
+  const [openField, setOpenField] = useState<ContainerGroupField | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const numberTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const typeTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const weightTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  const triggerRefFor = (field: ContainerGroupField) => (
+    field === 'containerNumber' ? numberTriggerRef : field === 'containerTypeId' ? typeTriggerRef : weightTriggerRef
+  );
+  const seedFor = (field: ContainerGroupField) => (
+    field === 'containerNumber' ? numberValue : field === 'containerTypeId' ? String(line.containerTypeId ?? '') : weightRaw
+  );
+
+  const openLine = (field: ContainerGroupField) => {
+    if (openField === field) {
+      setOpenField(null);
+      setDraft('');
+      return;
+    }
+    setDraft(seedFor(field));
+    setOpenField(field);
+  };
+
+  const closeLine = (restoreFocus: boolean) => {
+    const field = openField;
+    setOpenField(null);
+    setDraft('');
+    if (restoreFocus && field) triggerRefFor(field).current?.focus();
+  };
+
+  const commitText = async (field: ContainerGroupField, value: string) => {
+    const next = value.trim();
+    if (busy) return;
+    if (next === seedFor(field)) { closeLine(true); return; }
+    setBusy(true);
+    let ok = false;
+    try {
+      ok = await save(field, next);
+    } finally {
+      setBusy(false);
+    }
+    // false keeps the panel open with the draft (the error rode the host toast).
+    if (ok) closeLine(true);
+  };
+
+  const commitType = async (value: string) => {
+    if (busy) return;
+    setBusy(true);
+    let ok = false;
+    try {
+      ok = await save('containerTypeId', value);
+    } finally {
+      setBusy(false);
+    }
+    if (ok) closeLine(true);
+  };
+
+  // The open field's name (what its input is called) — distinct from the
+  // trigger's action name and from the panel's own name.
+  const openLabel = openField === 'containerNumber'
+    ? `Số container — dòng ${line.ordinal}`
+    : openField === 'containerTypeId'
+      ? `Loại container — dòng ${line.ordinal}`
+      : `Trọng lượng — dòng ${line.ordinal}`;
+
   return (
     <div className="cus-lot-contgroup">
-      <InlineTextLine
+      <ContainerGroupLine
         label="Số"
-        display={(line.containerNumber ?? '').trim()}
+        value={numberValue}
         placeholder="Nhập số cont"
         emptyText="Chưa có số cont"
-        ariaLabel={`Số container — dòng ${line.ordinal}`}
+        ariaLabel={`Chỉnh sửa số container — dòng ${line.ordinal}`}
         mono
         editable={lineEditable('containerNumber')}
         laneClassName="cus-lot-line--number"
-        onCommit={(value) => save('containerNumber', value)}
+        triggerRef={numberTriggerRef}
+        onOpen={() => openLine('containerNumber')}
       />
-      <InlineTypeLine
+      <ContainerGroupLine
         label="Loại"
-        display={line.containerTypeLabel ?? ''}
-        typeId={line.containerTypeId}
-        options={detail?.selectors.containerTypes ?? []}
-        ariaLabel={`Loại container — dòng ${line.ordinal}`}
+        value={typeValue}
+        placeholder="Chọn loại"
+        emptyText="Chưa chọn loại"
+        ariaLabel={`Chỉnh sửa loại container — dòng ${line.ordinal}`}
         editable={lineEditable('containerTypeId')}
         laneClassName="cus-lot-line--type"
-        onCommit={(value) => save('containerTypeId', value)}
+        triggerRef={typeTriggerRef}
+        onOpen={() => openLine('containerTypeId')}
       />
-      <InlineTextLine
+      <ContainerGroupLine
         label="Trọng lượng"
-        display={weightRaw ? formatWeight(weightRaw) : ''}
-        draftValue={weightRaw}
+        value={weightRaw ? formatWeight(weightRaw) : ''}
         placeholder="Nhập kg"
-        ariaLabel={`Trọng lượng — dòng ${line.ordinal}`}
-        numeric
-        unit="kg"
+        emptyText="Chưa có trọng lượng"
+        ariaLabel={`Chỉnh sửa trọng lượng — dòng ${line.ordinal}`}
         editable={lineEditable('cargoWeightKg')}
         laneClassName="cus-lot-line--weight"
-        onCommit={(value) => save('cargoWeightKg', value)}
+        triggerRef={weightTriggerRef}
+        onOpen={() => openLine('cargoWeightKg')}
+      />
+      <ContainerGroupEditor
+        open={openField != null}
+        anchorRef={openField ? triggerRefFor(openField) : undefined}
+        field={openField ?? 'containerNumber'}
+        panelLabel={`Chỉnh sửa thông tin container — dòng ${line.ordinal}`}
+        ariaLabel={openLabel}
+        draft={draft}
+        typeId={line.containerTypeId}
+        typeOptions={detail?.selectors.containerTypes ?? []}
+        busy={busy}
+        onDraftChange={setDraft}
+        onCommitType={(value) => void commitType(value)}
+        onCommitText={() => {
+          if (!openField) return;
+          void commitText(openField, draft);
+        }}
+        onClose={() => closeLine(false)}
+        onCancel={() => closeLine(true)}
       />
     </div>
   );

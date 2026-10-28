@@ -1,13 +1,16 @@
-// SIL-552 (owner 28/10, design lock): the Thông tin hàng sheet's SỐ CONTAINER
-// cell renders three label+control rows that stay on ONE baseline band, and
-// the sheet itself keeps a fixed column geometry (table-fixed + colgroup +
-// 1456px floor + horizontal scroll inside the card).
+// SIL-552 (owner 28/10): the Thông tin hàng sheet's SỐ CONTAINER cell.
 //
 // The owner report: the cell shredded — labels scattered, the weight
 // placeholder broke into vertical characters ("Nh\nập\nkg"), and the block
-// drifted off the SỐ TỜ KHAI baseline. The lock fixes the geometry: each line
-// is a 36px row, the micro-label never wraps, and every control owns a
-// ch-based lane.
+// drifted off the SỐ TỜ KHAI baseline.
+//
+// The owner's two rulings:
+//   1. (design lock) the cell keeps a fixed column geometry (table-fixed +
+//      colgroup + 1456px floor + horizontal scroll inside the card) and every
+//      group line is ONE 36px row whose label never wraps.
+//   2. (second decision) the cell holds the LABEL + the VALUE only — the
+//      editor FLOATS over the sheet, so the 240px column never squeezes it
+//      (an inline editor is what shredded the placeholder).
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type {
@@ -15,6 +18,14 @@ import type {
   ShipmentCusWorkspaceDetail,
   ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
+
+// The floating panel bails out until its anchor has been measured, and jsdom
+// has no layout — pin the position (the house FactoryDetailPopover test does
+// the same).
+vi.mock('../../../hooks/usePopoverPosition', () => ({
+  usePopoverPosition: () => ({ top: 10, left: 10, maxHeight: null }),
+}));
+
 import { CusLotView } from './CusLotView';
 
 const direct = { mode: 'DIRECT' as const, reason: 'writable' };
@@ -111,8 +122,8 @@ function renderView(lines: ShipmentCusWorkspaceContainerLine[]) {
   );
 }
 
-describe('CusLotView — SIL-552 hình học ô SỐ CONTAINER (design lock 28/10)', () => {
-  it('mỗi dòng của nhóm đặt NHÃN và CONTROL cùng một dòng (không nhét chữ dọc)', () => {
+describe('CusLotView — SIL-552 ô SỐ CONTAINER: nhãn + giá trị, editor nổi', () => {
+  it('mỗi dòng của nhóm đặt NHÃN và GIÁ TRỊ cùng một dòng, không nhét chữ dọc', () => {
     const { container } = renderView([makeLine({ id: 41, ordinal: 1 })]);
 
     const group = container.querySelector('.cus-lot-contgroup') as HTMLElement;
@@ -121,17 +132,16 @@ describe('CusLotView — SIL-552 hình học ô SỐ CONTAINER (design lock 28/1
     const lines = [...group.querySelectorAll('.cus-lot-line')];
     expect(lines).toHaveLength(3);
 
-    // Each line carries its micro-label AND its control as siblings — the
-    // label never stands alone above the control (the label-over-field tower
-    // that made the group drift off the SỐ TỜ KHAI baseline).
+    // Each line carries its micro-label AND its value as siblings — the label
+    // never stands alone above the control (the label-over-field tower that
+    // made the group drift off the SỐ TỜ KHAI baseline).
     for (const line of lines) {
       const label = line.querySelector('.cus-lot-line__label');
-      const control = line.querySelector('button, input, [role="combobox"]');
+      const value = line.querySelector('.cus-lot-line__value');
       expect(label).toBeTruthy();
-      expect(control).toBeTruthy();
-      // Same row: the control is a sibling of the label, not a descendant of it.
-      expect(label!.contains(control!)).toBe(false);
-      expect(line.contains(control!)).toBe(true);
+      expect(value).toBeTruthy();
+      expect(label!.contains(value!)).toBe(false);
+      expect(line.contains(value!)).toBe(true);
     }
 
     expect([...group.querySelectorAll('.cus-lot-line__label')].map((el) => el.textContent?.trim())).toEqual([
@@ -141,11 +151,23 @@ describe('CusLotView — SIL-552 hình học ô SỐ CONTAINER (design lock 28/1
     ]);
   });
 
-  it('ô SỐ CONTAINER giữ lớp 240px của design lock', () => {
+  it('ô SỐ CONTAINER KHÔNG chứa input nào — chỉ nhãn + giá trị (editor nổi)', () => {
     const { container } = renderView([makeLine({ id: 42, ordinal: 1 })]);
+
     const cell = container.querySelector('.cus-lot-cell--container') as HTMLElement;
     expect(cell).toBeTruthy();
-    expect(cell.querySelector('.cus-lot-contgroup')).toBeTruthy();
+
+    // No editable control lives inside the cell: the whole point of the
+    // owner's second decision (the cell's width no longer constrains the
+    // editor).
+    expect(cell.querySelector('input')).toBeNull();
+    expect(cell.querySelector('select')).toBeNull();
+    expect(cell.querySelector('[role="combobox"]')).toBeNull();
+
+    // The three lines still open their editor from a trigger.
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa số container — dòng 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa loại container — dòng 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa trọng lượng — dòng 1' })).toBeTruthy();
   });
 
   it('bảng giữ colgroup 10 cột của design lock', () => {
@@ -165,21 +187,48 @@ describe('CusLotView — SIL-552 hình học ô SỐ CONTAINER (design lock 28/1
     ]);
   });
 
-  it('dòng TRỌNG LƯỢNG: editor là ô số + đơn vị kg (số nhập + kg)', () => {
+  it('click dòng TRỌNG LƯỢNG → panel NỔI (role=dialog, ngoài bảng) với ô số + kg', () => {
     renderView([makeLine({ id: 44, ordinal: 1 })]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Trọng lượng — dòng 1' }));
-    const editor = document.querySelector('.cus-lot-line--editor') as HTMLElement;
-    expect(editor).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa trọng lượng — dòng 1' }));
 
-    const input = within(editor).getByLabelText('Trọng lượng — dòng 1') as HTMLInputElement;
+    const panel = screen.getByRole('dialog', { name: 'Chỉnh sửa thông tin container — dòng 1' });
+    expect(panel).toBeTruthy();
+    // The panel is portalled to the body — the table's scroll wrapper clips
+    // BOTH axes, so an editor inside the table would be cut off.
+    expect(panel.closest('.cus-lot-table')).toBeNull();
+    expect(panel.parentElement).toBe(document.body);
+
+    const input = within(panel).getByLabelText('Trọng lượng — dòng 1') as HTMLInputElement;
     expect(input.type).toBe('number');
     expect(input.getAttribute('min')).toBe('0');
+    expect(input.value).toBe('24000.00');
 
-    // The unit rides BESIDE the number — it is the locked "8ch + suffix kg".
-    const unit = editor.querySelector('.cus-lot-line__unit') as HTMLElement;
+    // The unit rides BESIDE the number.
+    const unit = panel.querySelector('.cus-lot-editor__unit') as HTMLElement;
     expect(unit).toBeTruthy();
     expect(unit.textContent).toBe('kg');
+
+    // The panel points at the row it edits.
+    expect(panel.querySelector('.cus-lot-editor__arrow')).toBeTruthy();
+  });
+
+  it('click dòng SỐ → panel nổi với ô text mono (không giới hạn bởi cột)', () => {
+    renderView([makeLine({ id: 46, ordinal: 1 })]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa số container — dòng 1' }));
+    const panel = screen.getByRole('dialog', { name: 'Chỉnh sửa thông tin container — dòng 1' });
+    const input = within(panel).getByLabelText('Số container — dòng 1') as HTMLInputElement;
+    expect(input.type).toBe('text');
+    expect(input.value).toBe('TSTU3872772');
+  });
+
+  it('click dòng LOẠI → panel nổi chứa select danh mục loại', () => {
+    renderView([makeLine({ id: 47, ordinal: 1 })]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa loại container — dông 1'.replace('dông', 'dòng') }));
+    const panel = screen.getByRole('dialog', { name: 'Chỉnh sửa thông tin container — dòng 1' });
+    expect(within(panel).getByDisplayValue('20DC')).toBeTruthy();
   });
 
   it('ô SỐ TỜ KHAI hiện hint trọn vẹn trong hộp mono 11ch', () => {
