@@ -692,7 +692,7 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-export const createUserSchema = z.object({
+export const baseCreateUserSchema = z.object({
   username: z.string().min(2).optional(),
   email: z.string().email().optional(),
   fullName: fullNameField,
@@ -710,9 +710,12 @@ export const createUserSchema = z.object({
   customerAccountType: z.nativeEnum(CustomerAccountType).optional().default(CustomerAccountType.SINGLE_ENTITY),
   businessUnitIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 đơn vị phụ trách').optional(),
   shipmentIds: z.array(z.number().int().positive()).max(100, 'Tối đa 100 lô hàng liên kết').optional(),
-}).refine(data => data.username || data.email || data.phone, {
-  message: 'Phải cung cấp ít nhất một trong: username, email, hoặc số điện thoại',
 });
+
+export const createUserSchema = baseCreateUserSchema.refine(
+  data => data.username || data.email || data.phone,
+  { message: 'Phải cung cấp ít nhất một trong: username, email, hoặc số điện thoại' },
+);
 
 export const updateUserSchema = z.object({
   role: z.nativeEnum(Role).optional(),
@@ -2228,9 +2231,9 @@ export type TripExpenseInput = z.infer<typeof tripExpenseSchema>;
  * Partial update schema for trip expenses.
  * Nullable database fields accept an explicit null so PATCH/PUT callers can
  * clear an existing value; undefined continues to mean "leave unchanged".
- * Built through partialUpdateSchema — zod v4 would otherwise apply the base
- * schema's create-time defaults (`sellAmount: 0`, `settlementMethod`) inside
- * bare `.partial()`, silently zeroing sellAmount on a buyAmount-only PATCH.
+ * Built through partialUpdateSchema — the update invariant (an omitted key
+ * never rides a create-time default such as `sellAmount: 0` or
+ * `settlementMethod` into a DB write) is pinned there for every PATCH schema.
  */
 export const tripExpensePatchSchema = partialUpdateSchema(
   baseTripExpenseSchema.omit({ tripId: true }),

@@ -1,0 +1,24 @@
+# zod lock 3.25.76 — gate evidence (2026-10-28T16:29:03Z, worktree fix-sil-layout)
+
+## cd shared && npx tsc --noEmit
+exit=0 (SHARED_TSC_OK)
+
+## shared && pnpm test (tsx --test src/**/*.test.ts)
+tests 288 / pass 278 / fail 10
+10 fails = fifoAging.test.ts — KNOWN pre-existing tại main (QA26 commit f80cc48e/3677e465 note; imports chỉ ./fifoAging.ts, không nằm trong diff zod-lock)
+
+## shared && pnpm build
+exit=0 (tsc + fix-esm-imports: 'Fixed 44 bare imports')
+
+## cd backend && npx tsc --noEmit
+exit=0 (BE_TSC_OK)
+
+## cd backend && pnpm test
+unit: tests 550 / pass 550 / fail 0
+integration: tests 338 / pass 338 / fail 0
+
+## cd frontend && npx tsc -b
+exit=0 (FE_TSC_OK)
+
+## root pnpm lint
+0 errors, 5 warnings (pre-existing)
