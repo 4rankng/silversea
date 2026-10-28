@@ -7,6 +7,14 @@
 // own fieldAccess denies render plain text and never advertise editing.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+
+// SIL-552 (owner 28/10, second decision): the group's editor FLOATS over the
+// sheet — the panel bails out until its anchor has been measured, and jsdom
+// has no layout. Pin the position instead of asserting on real geometry (the
+// same approach the house FactoryDetailPopover test takes).
+vi.mock('../../../hooks/usePopoverPosition', () => ({
+  usePopoverPosition: () => ({ top: 10, left: 10, maxHeight: null }),
+}));
 import type {
   ShipmentCusWorkspaceContainerLine,
   ShipmentCusWorkspaceDetail,
@@ -146,7 +154,7 @@ describe('CusLotView — SIL-508 nhóm SỐ CONTAINER 3 dòng', () => {
       canEditCargoLines: true,
       actions: { onSaveField },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Số container — dòng 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa số container — dòng 1' }));
     const input = screen.getByLabelText('Số container — dòng 1') as HTMLInputElement;
     expect(input).toBeTruthy();
     fireEvent.change(input, { target: { value: 'msku9998887' } });
@@ -159,7 +167,7 @@ describe('CusLotView — SIL-508 nhóm SỐ CONTAINER 3 dòng', () => {
     await waitFor(() => expect(onSaveField).toHaveBeenNthCalledWith(2, expect.anything(), 'containerNumber', 'MSKU9998888'));
     // true → the editor closes; the ghost trigger (same accessible name) returns.
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Số container — dòng 1' })).toBeNull());
-    expect(screen.getByRole('button', { name: 'Số container — dòng 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa số container — dòng 1' })).toBeTruthy();
   });
 
   it('SỐ: Escape hoàn draft về giá trị persisted', () => {
@@ -168,7 +176,7 @@ describe('CusLotView — SIL-508 nhóm SỐ CONTAINER 3 dòng', () => {
       canEditCargoLines: true,
       actions: { onSaveField: vi.fn().mockResolvedValue(true) },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Số container — dòng 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa số container — dòng 1' }));
     const input = screen.getByLabelText('Số container — dòng 1') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'CHƯA-LƯU' } });
     fireEvent.keyDown(input, { key: 'Escape' });
@@ -183,6 +191,8 @@ describe('CusLotView — SIL-508 nhóm SỐ CONTAINER 3 dòng', () => {
       canEditCargoLines: true,
       actions: { onSaveField },
     });
+    // SIL-552: the select lives in the FLOATING editor — open it first.
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa loại container — dòng 1' }));
     // UuiSelectField exposes a hidden native select — drive it by the
     // selected option's display value (the file's own proven idiom).
     fireEvent.change(screen.getByDisplayValue('20DC'), { target: { value: '4' } });
@@ -196,7 +206,7 @@ describe('CusLotView — SIL-508 nhóm SỐ CONTAINER 3 dòng', () => {
       canEditCargoLines: true,
       actions: { onSaveField },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Trọng lượng — dòng 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa trọng lượng — dòng 1' }));
     const input = screen.getByLabelText('Trọng lượng — dòng 1') as HTMLInputElement;
     // SIL-552 (owner 28/10, design lock): the weight editor is a NUMBER input
     // (the house stepper stays hidden) — the control itself refuses every
@@ -224,9 +234,9 @@ describe('CusLotView — SIL-508 nhóm SỐ CONTAINER 3 dòng', () => {
       canEditCargoLines: true,
       actions: { onSaveField: vi.fn().mockResolvedValue(true) },
     });
-    expect(screen.queryByRole('button', { name: 'Số container — dòng 1' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Loại container — dòng 1' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Trọng lượng — dòng 1' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Chỉnh sửa số container — dòng 1' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa loại container — dòng 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa trọng lượng — dòng 1' })).toBeTruthy();
   });
 
   it('gate trang đóng (canEditCargoLines=false): cả 3 dòng chỉ là text, không trigger', () => {
@@ -235,8 +245,8 @@ describe('CusLotView — SIL-508 nhóm SỐ CONTAINER 3 dòng', () => {
       canEditCargoLines: false,
       actions: { onSaveField: vi.fn().mockResolvedValue(true) },
     });
-    expect(screen.queryByRole('button', { name: 'Số container — dòng 1' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Loại container — dòng 1' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Trọng lượng — dòng 1' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Chỉnh sửa số container — dòng 1' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Chỉnh sửa loại container — dòng 1' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Chỉnh sửa trọng lượng — dòng 1' })).toBeNull();
   });
 });

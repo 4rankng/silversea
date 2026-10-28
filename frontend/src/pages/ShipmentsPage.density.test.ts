@@ -111,27 +111,37 @@ describe('shipment container editor density', () => {
 
     // ── The three group lines ───────────────────────────────────────────
     // One 36px row each (h-9): the label keeps its own lane (shrink-0 +
-    // nowrap) and the control sits right beside it.
+    // nowrap) and the value sits right beside it.
     expect(css).toMatch(/\.cus-lot-line\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;[^}]*align-items:\s*center;[^}]*gap:\s*8px;[^}]*height:\s*36px;/);
     expect(css).toMatch(/\.cus-lot-line__label\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap;[^}]*line-height:\s*20px;/);
     // The label and the value share the leading-5 baseline band.
     expect(css).toMatch(/\.cus-lot-line__value\s*\{[^}]*line-height:\s*20px;/);
     expect(css).toMatch(/button\.cus-lot-line--trigger\s*\{[^}]*height:\s*36px;[^}]*line-height:\s*20px;/);
-    // The editor's own box: h-9 + the fixed ch lanes (SỐ 14ch · LOẠI 10ch ·
-    // TRỌNG LƯỢNG 8ch) — the lane floor is what stops the placeholder from
-    // breaking into vertical characters.
-    expect(css).toMatch(/\.cus-lot-line__input\s*\{[^}]*width:\s*var\(--cus-lot-input, 14ch\);[^}]*min-width:\s*var\(--cus-lot-input-min, 14ch\);[^}]*height:\s*36px;[^}]*line-height:\s*20px;/);
-    expect(css).toMatch(/\.cus-lot-line--number\s*\{[^}]*--cus-lot-input:\s*14ch;[^}]*--cus-lot-input-min:\s*14ch;/);
+    // The closed value keeps a ch floor so the placeholder never shreds.
+    expect(css).toMatch(/\.cus-lot-line--number\s*\{[^}]*--cus-lot-lane:\s*16ch;/);
     expect(css).toMatch(/\.cus-lot-line--type\s*\{[^}]*--cus-lot-lane:\s*10ch;/);
-    expect(css).toMatch(/\.cus-lot-line--weight\s*\{[^}]*--cus-lot-input:\s*8ch;[^}]*--cus-lot-input-min:\s*8ch;/);
-    expect(css).toMatch(/\.cus-lot-line__select\s*\{[^}]*width:\s*10ch;[^}]*min-width:\s*10ch;/);
+    expect(css).toMatch(/\.cus-lot-line--weight\s*\{[^}]*--cus-lot-lane:\s*10ch;/);
+
+    // ── The FLOATING editor (owner 28/10, second decision) ───────────────
+    // The cell holds the label + the value only; the editor floats over the
+    // sheet. It MUST be portalled to the body (the table's scroll wrapper
+    // clips BOTH axes) and MUST NOT be a transform-based layer (a transform
+    // would become the containing block of the react-aria listbox).
+    expect(css).toMatch(/\.cus-lot-editor\s*\{[^}]*position:\s*fixed;[^}]*z-index:\s*var\(--z-popover[^}]*width:\s*300px;/);
+    expect(css).toMatch(/\.cus-lot-editor\s*\{[^}]*overflow:\s*clip;[^}]*overflow-clip-margin:\s*12px;/);
+    expect(css).not.toMatch(/\.cus-lot-editor\s*\{[^}]*transform:/);
+    // Ownership: the arrow points at the row it edits; the border is the
+    // house accent; the shadow only lifts.
+    expect(css).toMatch(/\.cus-lot-editor__arrow\s*\{[^}]*position:\s*absolute;[^}]*top:\s*-5px;[^}]*transform:\s*rotate\(45deg\);/);
+    expect(css).toMatch(/\.cus-lot-editor\s*\{[^}]*border:\s*1px solid var\(--brand\);/);
     // The weight editor is a NUMBER input and the house stepper stays hidden.
-    expect(css).toMatch(/\.cus-lot-line__input\[type='number'\]\s*\{[^}]*appearance:\s*textfield;/);
-    expect(css).toMatch(/\.cus-lot-line__input\[type='number'\]::-webkit-outer-spin-button,\s*\n\.cus-lot-line__input\[type='number'\]::-webkit-inner-spin-button\s*\{[^}]*-webkit-appearance:\s*none;/);
-    // The unit beside the number never shrinks, and the select's own value
-    // band no longer ellipsizes the type code ("20DC", never "20…").
-    expect(css).toMatch(/\.cus-lot-line__unit\s*\{[^}]*flex:\s*0 0 auto;[^}]*line-height:\s*20px;/);
-    expect(css).toMatch(/\.cus-lot-line__select \[data-uui-select-value\] > section > p\s*\{[^}]*line-height:\s*20px;[^}]*text-overflow:\s*clip;/);
+    expect(css).toMatch(/\.cus-lot-editor__input\s*\{[^}]*height:\s*36px;[^}]*line-height:\s*20px;/);
+    expect(css).toMatch(/\.cus-lot-editor__input\[type='number'\]\s*\{[^}]*appearance:\s*textfield;/);
+    expect(css).toMatch(/\.cus-lot-editor__input\[type='number'\]::-webkit-outer-spin-button,\s*\n\.cus-lot-editor__input\[type='number'\]::-webkit-inner-spin-button\s*\{[^}]*-webkit-appearance:\s*none;/);
+    // The unit beside the number never shrinks.
+    expect(css).toMatch(/\.cus-lot-editor__unit\s*\{[^}]*flex:\s*0 0 auto;[^}]*line-height:\s*20px;/);
+    // The LOẠI select lives in the panel and fills it.
+    expect(css).toMatch(/\.cus-lot-editor \.ds-uui-select,\s*\n\.cus-lot-editor \.ds-uui-select--content\s*\{[^}]*width:\s*100%;/);
   });
 
   it('switches the drawer cards onto the drawer canvas while keeping page pagination wrapping', () => {
