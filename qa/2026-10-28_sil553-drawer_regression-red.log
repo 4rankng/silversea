@@ -1,0 +1,1548 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-627-drawer/frontend
+
+ ❯ src/features/dispatch/master-plan/DispatchContainerDetailDrawer.test.tsx (34 tests | 2 failed | 32 skipped) 2810ms
+     × SIL-553 repro — Điều vận clicks the empty "Chưa có tờ khai" cell: the editor opens and Esc keeps the placeholder 1784ms
+     × SIL-553 — Điều vận Enter saves the per-cont declaration number through the container-line command 1023ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/dispatch/master-plan/DispatchContainerDetailDrawer.test.tsx > DispatchContainerDetailDrawer — SỐ TỜ KHAI column (SIL-530, per-cont SIL-521) > SIL-553 repro — Điều vận clicks the empty "Chưa có tờ khai" cell: the editor opens and Esc keeps the placeholder
+TestingLibraryElementError: Unable to find role="button" and name "Sửa số tờ khai · MSKU1234567"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"false"[39m
+    [33mclass[39m=[32m"drawer-overlay"[39m
+    [33mstyle[39m=[32m"opacity: 1;"[39m
+  [36m/>[39m
+  [36m<aside[39m
+    [33maria-hidden[39m=[32m"false"[39m
+    [33maria-labelledby[39m=[32m"_r_0_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"drawer drawer--operational-density dispatch-container-detail-drawer"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"transform: translateX(0%); will-change: transform;"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m>[39m
+    [36m<header[39m
+      [33mclass[39m=[32m"drawer__head"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__heading"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mstyle[39m=[32m"min-width: 0px;"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"drawer__titlerow"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"drawer__title"[39m
+              [33mid[39m=[32m"_r_0_"[39m
+            [36m>[39m
+              [0mChi tiết container[0m
+            [36m</h2>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"drawer__subtitle"[39m
+          [36m>[39m
+            [0mBL-01 · Công ty ABC[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__head-actions"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+          [33mdata-tip[39m=[32m"Đóng"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Đóng"[39m
+            [33mclass[39m=[32m"drawer__close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"18"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"18"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</header>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"drawer__body"[39m
+    [36m>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Chi tiết container"[39m
+        [33mclass[39m=[32m"dispatch-container-detail"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"dispatch-container-detail__head"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<strong>[39m
+              [0mChi tiết container[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0m1[0m
+              [0m cont[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mCảng nâng/hạ bổ sung trực tiếp trong bảng; lịch giao và điều xe thuộc từng container.[0m
+          [36m</p>[39m
+        [36m</header>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dispatch-container-detail__table-scroll"[39m
+        [36m>[39m
+          [36m<table[39m
+            [33mclass[39m=[32m"dispatch-container-detail__table"[39m
+          [36m>[39m
+            [36m<caption[39m
+              [33mclass[39m=[32m"sr-only"[39m
+            [36m>[39m
+              [0mDanh sách container và điều vận[0m
+            [36m</caption>[39m
+            [36m<thead>[39m
+              [36m<tr>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__ordinal-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mSTT[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mContainer[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mLoại cont[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mSố tờ khai[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mĐiều vận[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mNhà xe[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mBiển số[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mNâng[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mHạ[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__appointment-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mGiờ hẹn đóng/trả[0m
+                [36m</th>[39m
+              [36m</tr>[39m
+            [36m</thead>[39m
+            [36m<tbody>[39m
+              [36m<tr[39m
+                [33mclass[39m=[32m"dispatch-container-detail__row"[39m
+              [36m>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__ordinal-column"[39m
+                  [33mdata-label[39m=[32m"STT"[39m
+                [36m>[39m
+                  [0m1[0m
+                [36m</td>[39m
+                [36m<th[39m
+                  [33mdata-label[39m=[32m"Container"[39m
+                  [33mscope[39m=[32m"row"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__inline-ordinal"[39m
+                  [36m>[39m
+                    [0m#[0m
+                    [0m1[0m
+                  [36m</span>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value"[39m
+                    [33mtitle[39m=[32m"MSKU1234567"[39m
+                  [36m>[39m
+                    [36m<strong>[39m
+                      [0mMSKU1234567[0m
+                    [36m</strong>[39m
+                  [36m</div>[39m
+                [36m</th>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Loại cont"[39m
+                [36m>[39m
+                  [0m20DC[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Số tờ khai"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value is-empty"[39m
+                  [36m>[39m
+                    [0mChưa có tờ khai[0m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Điều vận"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__status dispatch-container-detail__status--completed"[39m
+                  [36m>[39m
+                    [0mHoàn thành[0m
+                  [36m</span>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Nhà xe"[39m
+                [36m>[39m
+                  [0mSilverSea[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Biển số"[39m
+                [36m>[39m
+                  [0m15C-123.45[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mdata-label[39m=[32m"Nâng"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"dispatch-detail-lift-10"[39m
+                  [36m>[39m
+                    [0mCảng nâng của container [0m
+                    [0mMSKU1234567[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"searchable-select dispatch-container-detail__port-select"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33maria-required[39m=[32m"false"[39m
+                      [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                      [33mid[39m=[32m"dispatch-detail-lift-10"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                      [36m>[39m
+                        [0mChọn cảng nâng[0m
+                      [36m</span>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"16"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"16"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mdata-label[39m=[32m"Hạ"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"dispatch-detail-drop-10"[39m
+                  [36m>[39m
+                    [0mCảng hạ của container [0m
+                    [0mMSKU1234567[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"searchable-select dispatch-container-detail__port-select"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33maria-required[39m=[32m"false"[39m
+                      [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                      [33mid[39m=[32m"dispatch-detail-drop-10"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                      [36m>[39m
+                        [0mChọn cảng hạ[0m
+                      [36m</span>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"16"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"16"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__appointment-column"[39m
+                  [33mdata-label[39m=[32m"Giờ hẹn đóng/trả"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value"[39m
+                  [36m>[39m
+                    [0m—[0m
+                  [36m</div>[39m
+                [36m</td>[39m
+              [36m</tr>[39m
+            [36m</tbody>[39m
+          [36m</table>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dispatch-container-detail__add"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"btn btn--secondary btn--sm"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-plus"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M5 12h14"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 5v14"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0m Thêm container[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</aside>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"false"[39m
+    [33mclass[39m=[32m"drawer-overlay"[39m
+    [33mstyle[39m=[32m"opacity: 1;"[39m
+  [36m/>[39m
+  [36m<aside[39m
+    [33maria-hidden[39m=[32m"false"[39m
+    [33maria-labelledby[39m=[32m"_r_0_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"drawer drawer--operational-density dispatch-container-detail-drawer"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"transform: translateX(0%); will-change: transform;"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m>[39m
+    [36m<header[39m
+      [33mclass[39m=[32m"drawer__head"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__heading"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mstyle[39m=[32m"min-width: 0px;"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"drawer__titlerow"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"drawer__title"[39m
+              [33mid[39m=[32m"_r_0_"[39m
+            [36m>[39m
+              [0mChi tiết container[0m
+            [36m</h2>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"drawer__subtitle"[39m
+          [36m>[39m
+            [0mBL-01 · Công ty ABC[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__head-actions"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+          [33mdata-tip[39m=[32m"Đóng"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Đóng"[39m
+            [33mclass[39m=[32m"drawer__close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"18"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"18"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</header>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"drawer__body"[39m
+    [36m>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Chi tiết container"[39m
+        [33mclass[39m=[32m"dispatch-container-detail"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"dispatch-container-detail__head"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<strong>[39m
+              [0mChi tiết container[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0m1[0m
+              [0m cont[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mCảng nâng/hạ bổ sung trực tiếp trong bảng; lịch giao và điều xe thuộc từng container.[0m
+          [36m</p>[39m
+        [36m</header>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dispatch-container-detail__table-scroll"[39m
+        [36m>[39m
+          [36m<table[39m
+            [33mclass[39m=[32m"dispatch-container-detail__table"[39m
+          [36m>[39m
+            [36m<caption[39m
+              [33mclass[39m=[32m"sr-only"[39m
+            [36m>[39m
+              [0mDanh sách container và điều vận[0m
+            [36m</caption>[39m
+            [36m<thead>[39m
+              [36m<tr>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__ordinal-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mSTT[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mContainer[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mLoại cont[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mSố tờ khai[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mĐiều vận[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mNhà xe[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mBiển số[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mNâng[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mHạ[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__appointment-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mGiờ hẹn đóng/trả[0m
+                [36m</th>[39m
+              [36m</tr>[39m
+            [36m</thead>[39m
+            [36m<tbody>[39m
+              [36m<tr[39m
+                [33mclass[39m=[32m"dispatch-container-detail__row"[39m
+              [36m>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__ordinal-column"[39m
+                  [33mdata-label[39m=[32m"STT"[39m
+                [36m>[39m
+                  [0m1[0m
+                [36m</td>[39m
+                [36m<th[39m
+                  [33mdata-label[39m=[32m"Container"[39m
+                  [33mscope[39m=[32m"row"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__inline-ordinal"[39m
+                  [36m>[39m
+                    [0m#[0m
+                    [0m1[0m
+                  [36m</span>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value"[39m
+                    [33mtitle[39m=[32m"MSKU1234567"[39m
+                  [36m>[39m
+                    [36m<strong>[39m
+                      [0mMSKU1234567[0m
+                    [36m</strong>[39m
+                  [36m</div>[39m
+                [36m</th>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Loại cont"[39m
+                [36m>[39m
+                  [0m20DC[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Số tờ khai"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value is-empty"[39m
+                  [36m>[39m
+                    [0mChưa có tờ khai[0m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Điều vận"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__status dispatch-container-detail__status--completed"[39m
+                  [36m>[39m
+                    [0mHoàn thành[0m
+                  [36m</span>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Nhà xe"[39m
+                [36m>[39m
+                  [0mSilverSea[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Biển số"[39m
+                [36m>[39m
+                  [0m15C-123.45[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mdata-label[39m=[32m"Nâng"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"dispatch-detail-lift-10"[39m
+                  [36m>[39m
+                    [0mCảng nâng của container [0m
+                    [0mMSKU1234567[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"searchable-select dispatch-container-detail__port-select"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33maria-required[39m=[32m"false"[39m
+                      [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                      [33mid[39m=[32m"dispatch-detail-lift-10"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                      [36m>[39m
+                        [0mChọn cảng nâng[0m
+                      [36m</span>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"16"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"16"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mdata-label[39m=[32m"Hạ"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"dispatch-detail-drop-10"[39m
+                  [36m>[39m
+                    [0mCảng hạ của container [0m
+                    [0mMSKU1234567[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"searchable-select dispatch-container-detail__port-select"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33maria-required[39m=[32m"false"[39m
+                      [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                      [33mid[39m=[32m"dispatch-detail-drop-10"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                      [36m>[39m
+                        [0mChọn cảng hạ[0m
+                      [36m</span>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"16"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"16"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__appointment-column"[39m
+                  [33mdata-label[39m=[32m"Giờ hẹn đóng/trả"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value"[39m
+                  [36m>[39m
+                    [0m—[0m
+                  [36m</div>[39m
+                [36m</td>[39m
+              [36m</tr>[39m
+            [36m</tbody>[39m
+          [36m</table>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dispatch-container-detail__add"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"btn btn--secondary btn--sm"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-plus"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M5 12h14"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 5v14"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0m Thêm container[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</aside>[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/dispatch/master-plan/DispatchContainerDetailDrawer.test.tsx:251:42
+    249|     render(<DispatchContainerDetailDrawer shipment={shipment} onClose=…
+    250|
+    251|     const placeholderCell = await screen.findByRole('button', { name: …
+       |                                          ^
+    252|     expect(placeholderCell.textContent).toContain('Chưa có tờ khai');
+    253|     fireEvent.click(placeholderCell);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/features/dispatch/master-plan/DispatchContainerDetailDrawer.test.tsx > DispatchContainerDetailDrawer — SỐ TỜ KHAI column (SIL-530, per-cont SIL-521) > SIL-553 — Điều vận Enter saves the per-cont declaration number through the container-line command
+TestingLibraryElementError: Unable to find role="button" and name "Sửa số tờ khai · MSKU1234567"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"false"[39m
+    [33mclass[39m=[32m"drawer-overlay"[39m
+    [33mstyle[39m=[32m"opacity: 1;"[39m
+  [36m/>[39m
+  [36m<aside[39m
+    [33maria-hidden[39m=[32m"false"[39m
+    [33maria-labelledby[39m=[32m"_r_3_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"drawer drawer--operational-density dispatch-container-detail-drawer"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"transform: translateX(0%); will-change: transform;"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m>[39m
+    [36m<header[39m
+      [33mclass[39m=[32m"drawer__head"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__heading"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mstyle[39m=[32m"min-width: 0px;"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"drawer__titlerow"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"drawer__title"[39m
+              [33mid[39m=[32m"_r_3_"[39m
+            [36m>[39m
+              [0mChi tiết container[0m
+            [36m</h2>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"drawer__subtitle"[39m
+          [36m>[39m
+            [0mBL-01 · Công ty ABC[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__head-actions"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+          [33mdata-tip[39m=[32m"Đóng"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Đóng"[39m
+            [33mclass[39m=[32m"drawer__close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"18"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"18"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</header>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"drawer__body"[39m
+    [36m>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Chi tiết container"[39m
+        [33mclass[39m=[32m"dispatch-container-detail"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"dispatch-container-detail__head"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<strong>[39m
+              [0mChi tiết container[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0m1[0m
+              [0m cont[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mCảng nâng/hạ bổ sung trực tiếp trong bảng; lịch giao và điều xe thuộc từng container.[0m
+          [36m</p>[39m
+        [36m</header>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dispatch-container-detail__table-scroll"[39m
+        [36m>[39m
+          [36m<table[39m
+            [33mclass[39m=[32m"dispatch-container-detail__table"[39m
+          [36m>[39m
+            [36m<caption[39m
+              [33mclass[39m=[32m"sr-only"[39m
+            [36m>[39m
+              [0mDanh sách container và điều vận[0m
+            [36m</caption>[39m
+            [36m<thead>[39m
+              [36m<tr>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__ordinal-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mSTT[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mContainer[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mLoại cont[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mSố tờ khai[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mĐiều vận[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mNhà xe[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mBiển số[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mNâng[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mHạ[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__appointment-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mGiờ hẹn đóng/trả[0m
+                [36m</th>[39m
+              [36m</tr>[39m
+            [36m</thead>[39m
+            [36m<tbody>[39m
+              [36m<tr[39m
+                [33mclass[39m=[32m"dispatch-container-detail__row"[39m
+              [36m>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__ordinal-column"[39m
+                  [33mdata-label[39m=[32m"STT"[39m
+                [36m>[39m
+                  [0m1[0m
+                [36m</td>[39m
+                [36m<th[39m
+                  [33mdata-label[39m=[32m"Container"[39m
+                  [33mscope[39m=[32m"row"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__inline-ordinal"[39m
+                  [36m>[39m
+                    [0m#[0m
+                    [0m1[0m
+                  [36m</span>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value"[39m
+                    [33mtitle[39m=[32m"MSKU1234567"[39m
+                  [36m>[39m
+                    [36m<strong>[39m
+                      [0mMSKU1234567[0m
+                    [36m</strong>[39m
+                  [36m</div>[39m
+                [36m</th>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Loại cont"[39m
+                [36m>[39m
+                  [0m20DC[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Số tờ khai"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value is-empty"[39m
+                  [36m>[39m
+                    [0mChưa có tờ khai[0m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Điều vận"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__status dispatch-container-detail__status--completed"[39m
+                  [36m>[39m
+                    [0mHoàn thành[0m
+                  [36m</span>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Nhà xe"[39m
+                [36m>[39m
+                  [0mSilverSea[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Biển số"[39m
+                [36m>[39m
+                  [0m15C-123.45[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mdata-label[39m=[32m"Nâng"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"dispatch-detail-lift-10"[39m
+                  [36m>[39m
+                    [0mCảng nâng của container [0m
+                    [0mMSKU1234567[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"searchable-select dispatch-container-detail__port-select"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33maria-required[39m=[32m"false"[39m
+                      [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                      [33mid[39m=[32m"dispatch-detail-lift-10"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                      [36m>[39m
+                        [0mChọn cảng nâng[0m
+                      [36m</span>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"16"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"16"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mdata-label[39m=[32m"Hạ"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"dispatch-detail-drop-10"[39m
+                  [36m>[39m
+                    [0mCảng hạ của container [0m
+                    [0mMSKU1234567[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"searchable-select dispatch-container-detail__port-select"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33maria-required[39m=[32m"false"[39m
+                      [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                      [33mid[39m=[32m"dispatch-detail-drop-10"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                      [36m>[39m
+                        [0mChọn cảng hạ[0m
+                      [36m</span>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"16"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"16"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__appointment-column"[39m
+                  [33mdata-label[39m=[32m"Giờ hẹn đóng/trả"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value"[39m
+                  [36m>[39m
+                    [0m—[0m
+                  [36m</div>[39m
+                [36m</td>[39m
+              [36m</tr>[39m
+            [36m</tbody>[39m
+          [36m</table>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dispatch-container-detail__add"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"btn btn--secondary btn--sm"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-plus"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M5 12h14"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 5v14"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0m Thêm container[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</aside>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div />[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"false"[39m
+    [33mclass[39m=[32m"drawer-overlay"[39m
+    [33mstyle[39m=[32m"opacity: 1;"[39m
+  [36m/>[39m
+  [36m<aside[39m
+    [33maria-hidden[39m=[32m"false"[39m
+    [33maria-labelledby[39m=[32m"_r_3_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"drawer drawer--operational-density dispatch-container-detail-drawer"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"transform: translateX(0%); will-change: transform;"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m>[39m
+    [36m<header[39m
+      [33mclass[39m=[32m"drawer__head"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__heading"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mstyle[39m=[32m"min-width: 0px;"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"drawer__titlerow"[39m
+          [36m>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"drawer__title"[39m
+              [33mid[39m=[32m"_r_3_"[39m
+            [36m>[39m
+              [0mChi tiết container[0m
+            [36m</h2>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"drawer__subtitle"[39m
+          [36m>[39m
+            [0mBL-01 · Công ty ABC[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"drawer__head-actions"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+          [33mdata-tip[39m=[32m"Đóng"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Đóng"[39m
+            [33mclass[39m=[32m"drawer__close"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"18"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"18"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</header>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"drawer__body"[39m
+    [36m>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Chi tiết container"[39m
+        [33mclass[39m=[32m"dispatch-container-detail"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"dispatch-container-detail__head"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<strong>[39m
+              [0mChi tiết container[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0m1[0m
+              [0m cont[0m
+            [36m</span>[39m
+          [36m</div>[39m
+          [36m<p>[39m
+            [0mCảng nâng/hạ bổ sung trực tiếp trong bảng; lịch giao và điều xe thuộc từng container.[0m
+          [36m</p>[39m
+        [36m</header>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dispatch-container-detail__table-scroll"[39m
+        [36m>[39m
+          [36m<table[39m
+            [33mclass[39m=[32m"dispatch-container-detail__table"[39m
+          [36m>[39m
+            [36m<caption[39m
+              [33mclass[39m=[32m"sr-only"[39m
+            [36m>[39m
+              [0mDanh sách container và điều vận[0m
+            [36m</caption>[39m
+            [36m<thead>[39m
+              [36m<tr>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__ordinal-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mSTT[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mContainer[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mLoại cont[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mSố tờ khai[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mĐiều vận[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mNhà xe[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mBiển số[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mNâng[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mHạ[0m
+                [36m</th>[39m
+                [36m<th[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__appointment-column"[39m
+                  [33mscope[39m=[32m"col"[39m
+                [36m>[39m
+                  [0mGiờ hẹn đóng/trả[0m
+                [36m</th>[39m
+              [36m</tr>[39m
+            [36m</thead>[39m
+            [36m<tbody>[39m
+              [36m<tr[39m
+                [33mclass[39m=[32m"dispatch-container-detail__row"[39m
+              [36m>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__ordinal-column"[39m
+                  [33mdata-label[39m=[32m"STT"[39m
+                [36m>[39m
+                  [0m1[0m
+                [36m</td>[39m
+                [36m<th[39m
+                  [33mdata-label[39m=[32m"Container"[39m
+                  [33mscope[39m=[32m"row"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__inline-ordinal"[39m
+                  [36m>[39m
+                    [0m#[0m
+                    [0m1[0m
+                  [36m</span>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value"[39m
+                    [33mtitle[39m=[32m"MSKU1234567"[39m
+                  [36m>[39m
+                    [36m<strong>[39m
+                      [0mMSKU1234567[0m
+                    [36m</strong>[39m
+                  [36m</div>[39m
+                [36m</th>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Loại cont"[39m
+                [36m>[39m
+                  [0m20DC[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Số tờ khai"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value is-empty"[39m
+                  [36m>[39m
+                    [0mChưa có tờ khai[0m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Điều vận"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__status dispatch-container-detail__status--completed"[39m
+                  [36m>[39m
+                    [0mHoàn thành[0m
+                  [36m</span>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Nhà xe"[39m
+                [36m>[39m
+                  [0mSilverSea[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mdata-label[39m=[32m"Biển số"[39m
+                [36m>[39m
+                  [0m15C-123.45[0m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mdata-label[39m=[32m"Nâng"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"dispatch-detail-lift-10"[39m
+                  [36m>[39m
+                    [0mCảng nâng của container [0m
+                    [0mMSKU1234567[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"searchable-select dispatch-container-detail__port-select"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33maria-required[39m=[32m"false"[39m
+                      [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                      [33mid[39m=[32m"dispatch-detail-lift-10"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                      [36m>[39m
+                        [0mChọn cảng nâng[0m
+                      [36m</span>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"16"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"16"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__port-column"[39m
+                  [33mdata-label[39m=[32m"Hạ"[39m
+                [36m>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"sr-only"[39m
+                    [33mfor[39m=[32m"dispatch-detail-drop-10"[39m
+                  [36m>[39m
+                    [0mCảng hạ của container [0m
+                    [0mMSKU1234567[0m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"searchable-select dispatch-container-detail__port-select"[39m
+                  [36m>[39m
+                    [36m<button[39m
+                      [33maria-expanded[39m=[32m"false"[39m
+                      [33maria-haspopup[39m=[32m"listbox"[39m
+                      [33maria-required[39m=[32m"false"[39m
+                      [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                      [33mid[39m=[32m"dispatch-detail-drop-10"[39m
+                      [33mtype[39m=[32m"button"[39m
+                    [36m>[39m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                      [36m>[39m
+                        [0mChọn cảng hạ[0m
+                      [36m</span>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"16"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"16"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</button>[39m
+                  [36m</div>[39m
+                [36m</td>[39m
+                [36m<td[39m
+                  [33mclass[39m=[32m"dispatch-container-detail__appointment-column"[39m
+                  [33mdata-label[39m=[32m"Giờ hẹn đóng/trả"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"dispatch-container-detail__decl-value"[39m
+                  [36m>[39m
+                    [0m—[0m
+                  [36m</div>[39m
+                [36m</td>[39m
+              [36m</tr>[39m
+            [36m</tbody>[39m
+          [36m</table>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"dispatch-container-detail__add"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"btn btn--secondary btn--sm"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-plus"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M5 12h14"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 5v14"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0m Thêm container[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</aside>[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/dispatch/master-plan/DispatchContainerDetailDrawer.test.tsx:267:34
+    265|     render(<DispatchContainerDetailDrawer shipment={shipment} onClose=…
+    266|
+    267|     fireEvent.click(await screen.findByRole('button', { name: 'Sửa số …
+       |                                  ^
+    268|     const input = screen.getByLabelText('Số tờ khai');
+    269|     fireEvent.change(input, { target: { value: 'TK-SIL553-DV' } });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 32 skipped (34)
+   Start at  20:16:58
+   Duration  11.16s (transform 2.62s, setup 317ms, import 5.64s, tests 2.81s, environment 2.09s)
+
+EXIT=1

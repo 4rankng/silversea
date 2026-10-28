@@ -239,6 +239,46 @@ describe('DispatchContainerDetailDrawer — SỐ TỜ KHAI column (SIL-530, per-
     expect(screen.queryByRole('button', { name: /Sửa số tờ khai/ })).toBeNull();
   });
 
+  // SIL-553 (id 627) — the ticket's exact repro path (staging build 9094e31c:
+  // Điều vận saw plain text "Chưa có tờ khai", click opened nothing because
+  // the drawer gate predated the SIL-551 writer law). Pin the dispatcher +
+  // empty-placeholder click-through so a gate flip back fails here.
+  it('SIL-553 repro — Điều vận clicks the empty "Chưa có tờ khai" cell: the editor opens and Esc keeps the placeholder', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(backfillDetail());
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    const placeholderCell = await screen.findByRole('button', { name: 'Sửa số tờ khai · MSKU1234567' });
+    expect(placeholderCell.textContent).toContain('Chưa có tờ khai');
+    fireEvent.click(placeholderCell);
+    const input = screen.getByLabelText('Số tờ khai') as HTMLInputElement;
+    expect(document.activeElement).toBe(input);
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: 'Sửa số tờ khai · MSKU1234567' })).toBeTruthy();
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
+
+  it('SIL-553 — Điều vận Enter saves the per-cont declaration number through the container-line command', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(backfillDetail());
+    const onSaved = vi.fn();
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} onSaved={onSaved} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa số tờ khai · MSKU1234567' }));
+    const input = screen.getByLabelText('Số tờ khai');
+    fireEvent.change(input, { target: { value: 'TK-SIL553-DV' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(
+      1,
+      10,
+      { expectedShipmentVersion: 7, declarationNumber: 'TK-SIL553-DV' },
+      expect.any(String),
+    ));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByLabelText('Số tờ khai')).toBeNull());
+  });
+
   it('click → inline input → Enter saves through the container-line command, toasts the FB-109 siblings and resyncs', async () => {
     authRole = 'CUS';
     getCusShipmentWorkspaceDetail.mockResolvedValue(backfillDetail());
