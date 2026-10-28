@@ -1626,24 +1626,49 @@
 /* Thông tin hàng — the 10-column sheet (SIL-508: LOẠI + TRỌNG LƯỢNG live
    inside the SỐ CONTAINER group, so the old 1200px floor is gone — the table
    fills the drawer width at standard viewports; narrow canvases may still
-   scroll horizontally inside the card rather than crush the columns). */
+   scroll horizontally inside the card rather than crush the columns).
+   SIL-552 (owner 28/10): the sheet owns a FIXED column geometry. Every
+   column keeps the width its content needs (the SỐ CONTAINER group needs
+   240px for its three label+control rows), the table grows past the drawer
+   and scrolls horizontally INSIDE the card. The old auto layout squeezed the
+   group to ~120px and the weight placeholder broke into vertical characters
+   ("Nh\nập\nkg") while the group drifted off the SỐ TỜ KHAI baseline. */
 .cus-lot-table-scroll {
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .cus-lot-table {
   width: 100%;
+  min-width: 1456px;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
+.cus-lot-col__stt { width: 56px; }
+.cus-lot-col__container { width: 240px; }
+.cus-lot-col__declaration { width: 160px; }
+.cus-lot-col__site { width: 180px; }
+.cus-lot-col__route { width: 180px; }
+.cus-lot-col__carrier { width: 160px; }
+.cus-lot-col__lift { width: 120px; }
+.cus-lot-col__dropoff { width: 120px; }
+.cus-lot-col__appointment { width: 120px; }
+.cus-lot-col__status { width: 120px; }
+
 .cus-lot-table th,
 .cus-lot-table td {
-  padding: 8px 10px;
+  padding: 8px 12px;
   text-align: left;
   border-bottom: 1px solid var(--line);
   font-size: var(--text-label-size, 13px);
   color: var(--ink);
   vertical-align: top;
+  /* SIL-515 / law §4: a value wraps inside its own cell, never clipped —
+     and never shredded mid-token (the old `anywhere` broke "Nhập kg" into
+     vertical characters). */
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .cus-lot-table tbody tr:last-child th,
@@ -1668,45 +1693,64 @@
 /* SIL-508 — the SỐ CONTAINER group: three stacked ghost lines (SỐ / LOẠI /
    TRỌNG LƯỢNG), each micro-labelled. Read-only lines are plain; a line the
    page gate + fieldAccess allow is a click-to-edit trigger (hover fill +
-   chevron, SIL-483 ghost-line law: no frame until the pointer asks). */
+   chevron, SIL-483 ghost-line law: no frame until the pointer asks).
+   SIL-552 (owner 28/10): each line is ONE 36px row — the micro-label keeps
+   its own lane (shrink-0 + nowrap, so it never wraps or shreds) and the
+   control sits right beside it on a ch-based lane. The value grows its lane
+   instead of breaking into vertical characters. */
 .cus-lot-contgroup {
-  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
 }
 
 .cus-lot-line {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
   min-width: 0;
-}
-
-.cus-lot-line + .cus-lot-line {
-  margin-top: 3px;
 }
 
 .cus-lot-line__label {
   flex: 0 0 auto;
+  white-space: nowrap;
   font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink-3);
+  line-height: 20px;
+}
+
+/* The colon rides the label as decoration — the DOM text stays the bare
+   word, the accessible name still comes from the control. */
+.cus-lot-line__label::after {
+  content: ':';
 }
 
 .cus-lot-line__value {
   min-width: 0;
   color: var(--ink);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .cus-lot-line__value--mono {
   font-family: var(--font-data);
 }
 
+/* The closed-state ghost trigger (SIL-483): the value + its chevron. The lane
+   keeps a ch floor so the placeholder never shreds; the value itself wraps at
+   a word boundary, never mid-word. */
 button.cus-lot-line--trigger {
-  width: 100%;
-  margin: -1px -4px;
-  padding: 1px 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: var(--cus-lot-lane, 14ch);
+  padding: 0 4px;
   border: 0;
   border-radius: 6px;
   background: transparent;
@@ -1727,28 +1771,38 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
 }
 
 /* The LOẠI line's house select (UuiSelectField, width content) sits beside
-   its micro-label inside the group cell. */
+   its micro-label inside the group cell, on its own 10ch lane. */
 .cus-lot-line__select {
-  min-width: 0;
+  flex: 0 0 auto;
+  width: 10ch;
+  min-width: 10ch;
+}
+
+.cus-lot-line__select .ds-uui-select,
+.cus-lot-line__select .ds-uui-select--content {
+  width: 100%;
+}
+
+.cus-lot-table .cus-lot-line__select [data-uui-control] {
+  --uui-control-h: 36px;
 }
 
 .cus-lot-line--editor {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-wrap: wrap;
 }
 
 .cus-lot-line__input {
-  flex: 1 1 auto;
-  width: 100%;
-  min-width: 0;
-  height: 28px;
+  flex: 0 1 auto;
+  width: var(--cus-lot-input, 14ch);
+  min-width: var(--cus-lot-input-min, 14ch);
+  height: 36px;
   padding: 0 8px;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
   font-size: var(--text-label-size, 13px);
+  line-height: 20px;
 }
 
 .cus-lot-line__input:focus-visible {
@@ -1757,10 +1811,19 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   outline-offset: 1px;
 }
 
+/* The unit that rides the weight editor's input (SIL-552) — it never
+   shrinks, so "kg" stays glued to the number. */
+.cus-lot-line__unit {
+  flex: 0 0 auto;
+  font-size: var(--text-caption-size);
+  line-height: 20px;
+  color: var(--ink-3);
+}
+
 .cus-lot-line__save {
   flex: 0 0 auto;
-  height: 28px;
-  padding: 0 10px;
+  height: 30px;
+  padding: 0 8px;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -1774,11 +1837,21 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
 .cus-lot-line__save:hover { background: var(--surface-2); color: var(--ink); }
 .cus-lot-line__save:disabled { color: var(--ink-3); cursor: default; }
 
+/* The three control lanes (SIL-552). SỐ keeps a 14ch editor + the trigger's
+   chevron; LOẠI a 10ch select; TRỌNG LƯỢNG a 10ch numeric editor whose floor
+   is 8ch — the raw kilogram value still fits its lane. */
+.cus-lot-line--number { --cus-lot-lane: 16ch; --cus-lot-input: 14ch; --cus-lot-input-min: 14ch; }
+.cus-lot-line--type { --cus-lot-lane: 10ch; }
+.cus-lot-line--weight { --cus-lot-lane: 10ch; --cus-lot-input: 10ch; --cus-lot-input-min: 8ch; }
+
 /* SIL-498 — the per-cont tờ khai cell: one inline input per row (opaque
    control surface, house radius/height) plus the first row's copy affordance.
    Editing affordances live only here; a non-writable lot renders plain text
    from the same cell component. SIL-508: the input is an 11-character mono
-   box — tờ khai numbers read mono and the column stops reserving 180px. */
+   box — tờ khai numbers read mono and the column stops reserving 180px.
+   SIL-552 (owner 28/10): the box takes the sheet's 36px row height so the
+   SỐ TỜ KHAI control and the SỐ CONTAINER group's first row share one
+   baseline band. */
 .cus-lot-decl {
   display: flex;
   flex-wrap: wrap;
@@ -1788,12 +1861,12 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
 }
 
 .cus-lot-decl__value {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .cus-lot-decl__input {
   width: 11ch;
-  height: 32px;
+  height: 36px;
   min-width: 0;
   flex: 0 1 auto;
   padding: 0 8px;
@@ -1820,7 +1893,7 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 32px;
+  height: 36px;
   padding: 0 8px;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);

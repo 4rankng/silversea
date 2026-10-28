@@ -58,20 +58,27 @@ describe('shipment container editor density', () => {
     }
     expect(pageSource).not.toContain('CusContainerLedger');
     expect(pageSource).not.toContain('CusDrawerFooter');
-    // The sheet compresses by scrolling inside its card, never clipping; the
-    // SIL-508 column merge removes the 1200px floor (no forced h-scroll).
+    // The sheet compresses by scrolling inside its card, never clipping;
+    // SIL-552 (owner 28/10) re-introduces a fixed column geometry — the
+    // table keeps a 1456px floor (the sum of the ten column widths) and the
+    // SỐ CONTAINER group its 240px, so the weight placeholder can never
+    // break into vertical characters again.
     expect(css).toMatch(/\.cus-lot-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
     expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*width:\s*100%;[^}]*border-collapse:\s*collapse;/);
     expect(css).not.toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*1200px/);
+    expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*1456px;[^}]*table-layout:\s*fixed;/);
     // SIL-508: the SỐ CONTAINER group stacks its three click-to-edit ghost
     // lines, each gated by the line's own fieldAccess mode.
     expect(viewSource).toContain('ContainerGroupCell');
     expect(viewSource).toContain("line.fieldAccess[field]?.mode === 'DIRECT'");
     expect(css).toMatch(/\.cus-lot-line\s*\{[^}]*display:\s*flex;/);
-    // SIL-498: the declaration cell keeps its opaque 32px house control;
-    // SIL-508 narrows it to the 11-character mono box the column needs.
+    // SIL-498: the declaration cell keeps its opaque house control;
+    // SIL-508 narrows it to the 11-character mono box the column needs;
+    // SIL-552 (owner 28/10) gives it the sheet's 36px row height so the
+    // SỐ TỜ KHAI control and the SỐ CONTAINER group's first row share one
+    // baseline band.
     expect(css).toMatch(/\.cus-lot-decl\s*\{[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.cus-lot-decl__input\s*\{[^}]*width:\s*11ch;[^}]*height:\s*32px;[^}]*border:\s*1px solid var\(--control-border\);[^}]*border-radius:\s*var\(--radius-sm\);/);
+    expect(css).toMatch(/\.cus-lot-decl__input\s*\{[^}]*width:\s*11ch;[^}]*height:\s*36px;[^}]*border:\s*1px solid var\(--control-border\);[^}]*border-radius:\s*var\(--radius-sm\);/);
     expect(css).toMatch(/\.cus-lot-decl__input\s*\{[^}]*font-family:\s*var\(--font-data\);/);
     // Anti-nesting: hairline horizontals only — no vertical borders.
     expect(css).toMatch(/\.cus-lot-table th,\s*\n\.cus-lot-table td\s*\{[^}]*border-bottom:\s*1px solid var\(--line\);/);

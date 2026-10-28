@@ -246,7 +246,12 @@ export interface CusLotContainerLineActions {
  *  a line the save path would refuse never advertises "press to edit"
  *  (SIL-483 law). Editable lines are click-to-edit: the ghost trigger reveals
  *  an inline editor, Enter/Lưu commits an immediate per-line save,
- *  Escape/outside dismisses and reverts. */
+ *  Escape/outside dismisses and reverts.
+ *
+ *  SIL-552 (owner 28/10): the micro-label and the control are TWO flex items
+ *  on ONE row. The label never wraps (shrink-0 + nowrap) and the control owns
+ *  a ch-based lane, so a long value grows its lane instead of shredding the
+ *  placeholder into vertical characters (the reported "Nh\nập\nkg"). */
 function InlineTextLine({
   label,
   display,
@@ -257,6 +262,8 @@ function InlineTextLine({
   mono,
   numeric,
   editable,
+  unit,
+  laneClassName,
   onCommit,
 }: {
   label: string;
@@ -272,6 +279,10 @@ function InlineTextLine({
   mono?: boolean;
   numeric?: boolean;
   editable: boolean;
+  /** Unit suffix printed beside the editor input (the weight lane's "kg"). */
+  unit?: string;
+  /** Lane modifier — the ch floor of this row's control lane. */
+  laneClassName?: string;
   onCommit: (value: string) => Promise<boolean>;
 }) {
   const persistedDraft = draftValue ?? display;
@@ -305,31 +316,33 @@ function InlineTextLine({
 
   if (!editable) {
     return (
-      <span className="cus-lot-line">
+      <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
         <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
         <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{display || emptyText}</span>
-      </span>
+      </div>
     );
   }
   if (!open) {
     return (
-      <button
-        type="button"
-        className={`cus-lot-line cus-lot-line--trigger${display ? '' : ' cus-lot-line--empty'}`}
-        onClick={() => { setDraft(persistedDraft); setOpen(true); }}
-        disabled={busy}
-        aria-label={ariaLabel}
-        title={ariaLabel}
-      >
+      <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
         <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
-        <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{display || placeholder}</span>
-        <ChevronDown size={12} aria-hidden="true" className="cus-lot-line__chevron" />
-      </button>
+        <button
+          type="button"
+          className={`cus-lot-line--trigger${display ? '' : ' cus-lot-line--empty'}`}
+          onClick={() => { setDraft(persistedDraft); setOpen(true); }}
+          disabled={busy}
+          aria-label={ariaLabel}
+          title={ariaLabel}
+        >
+          <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{display || placeholder}</span>
+          <ChevronDown size={12} aria-hidden="true" className="cus-lot-line__chevron" />
+        </button>
+      </div>
     );
   }
   return (
-    <span
-      className="cus-lot-line cus-lot-line--editor"
+    <div
+      className={`cus-lot-line cus-lot-line--editor${laneClassName ? ` ${laneClassName}` : ''}`}
       onBlur={(event) => {
         // Outside blur dismisses (revert) unless the click landed on this
         // editor's own commit control; never while a commit is in flight.
@@ -354,6 +367,7 @@ function InlineTextLine({
           if (event.key === 'Enter') { event.preventDefault(); void commit(); }
         }}
       />
+      {unit ? <span className="cus-lot-line__unit" aria-hidden="true">{unit}</span> : null}
       <button
         type="button"
         className="cus-lot-line__save"
@@ -362,7 +376,7 @@ function InlineTextLine({
       >
         {busy ? 'Đang lưu…' : 'Lưu'}
       </button>
-    </span>
+    </div>
   );
 }
 
@@ -370,7 +384,11 @@ function InlineTextLine({
  *  the house UuiSelectField (the only sanctioned select — the ESLint
  *  no-native-select guard) fed from the detail's container-type catalog. The
  *  pick commits immediately (one deliberate action, like every picker cell);
- *  react-aria owns dismissal. */
+ *  react-aria owns dismissal.
+ *
+ *  SIL-552 (owner 28/10): the micro-label sits BESIDE the select on one row
+ *  (the label is a sibling of the control, not its child) and the select keeps
+ *  a fixed 10ch lane, so the row never collapses into the label. */
 function InlineTypeLine({
   label,
   display,
@@ -378,6 +396,7 @@ function InlineTypeLine({
   options,
   ariaLabel,
   editable,
+  laneClassName,
   onCommit,
 }: {
   label: string;
@@ -386,6 +405,7 @@ function InlineTypeLine({
   options: ReadonlyArray<{ id: number; code: string; name: string }>;
   ariaLabel: string;
   editable: boolean;
+  laneClassName?: string;
   onCommit: (value: string) => Promise<boolean>;
 }) {
   const [busy, setBusy] = useState(false);
@@ -401,14 +421,14 @@ function InlineTypeLine({
 
   if (!editable) {
     return (
-      <span className="cus-lot-line">
+      <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
         <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
         <span className="cus-lot-line__value">{display || dash}</span>
-      </span>
+      </div>
     );
   }
   return (
-    <span className="cus-lot-line" data-busy={busy || undefined}>
+    <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`} data-busy={busy || undefined}>
       <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
       <span className="cus-lot-line__select">
         <UuiSelectField
@@ -428,14 +448,18 @@ function InlineTypeLine({
           options={options.map((option) => ({ value: String(option.id), label: option.code }))}
         />
       </span>
-    </span>
+    </div>
   );
 }
 
 /** SIL-508 — the SỐ CONTAINER cell as a three-line group (SỐ / LOẠI /
  *  TRỌNG LƯỢNG). Each line click-to-edits its own container-line field
  *  (number, type pick, weight) through the host's container-line command;
- *  a non-editable lot renders the same three lines as plain text. */
+ *  a non-editable lot renders the same three lines as plain text.
+ *
+ *  SIL-552 (owner 28/10): each line carries its own control LANE (the ch
+ *  floor of that field) so the three rows keep a stable geometry — the label
+ *  never wraps and the control never overflows its column. */
 function ContainerGroupCell({
   line,
   detail,
@@ -464,6 +488,7 @@ function ContainerGroupCell({
         ariaLabel={`Số container — dòng ${line.ordinal}`}
         mono
         editable={lineEditable('containerNumber')}
+        laneClassName="cus-lot-line--number"
         onCommit={(value) => save('containerNumber', value)}
       />
       <InlineTypeLine
@@ -473,6 +498,7 @@ function ContainerGroupCell({
         options={detail?.selectors.containerTypes ?? []}
         ariaLabel={`Loại container — dòng ${line.ordinal}`}
         editable={lineEditable('containerTypeId')}
+        laneClassName="cus-lot-line--type"
         onCommit={(value) => save('containerTypeId', value)}
       />
       <InlineTextLine
@@ -482,7 +508,9 @@ function ContainerGroupCell({
         placeholder="Nhập kg"
         ariaLabel={`Trọng lượng — dòng ${line.ordinal}`}
         numeric
+        unit="kg"
         editable={lineEditable('cargoWeightKg')}
+        laneClassName="cus-lot-line--weight"
         onCommit={(value) => save('cargoWeightKg', value)}
       />
     </div>
@@ -596,6 +624,23 @@ export function CusLotView({
                 <div className="cus-lot-table-scroll">
                   <table className="cus-lot-table">
                     <caption className="sr-only">Danh sách container của lô hàng</caption>
+                    {/* SIL-552 (owner 28/10): the sheet's column geometry —
+                        every column owns its width so the SỐ CONTAINER group
+                        keeps the 240px its three label+control rows need. The
+                        table grows past the drawer and scrolls inside the card
+                        (overflow-x) instead of crushing the group. */}
+                    <colgroup>
+                      <col className="cus-lot-col__stt" />
+                      <col className="cus-lot-col__container" />
+                      <col className="cus-lot-col__declaration" />
+                      <col className="cus-lot-col__site" />
+                      <col className="cus-lot-col__route" />
+                      <col className="cus-lot-col__carrier" />
+                      <col className="cus-lot-col__lift" />
+                      <col className="cus-lot-col__dropoff" />
+                      <col className="cus-lot-col__appointment" />
+                      <col className="cus-lot-col__status" />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th scope="col">STT</th>
