@@ -730,6 +730,15 @@ interface ShipmentContainerLedgerProps {
    * identity column is dropped before it reaches here.
    */
   hiddenColumns?: readonly string[];
+  /** SIL-547 (spec 23/10 §2) — the on-demand [Gộp hàng] mode: OFF (default)
+   *  keeps the table exactly as before; ON renders the leading CHỌN column.
+   *  Only the lot-level LCL rows carry an enabled checkbox — a container
+   *  (FCL) line can never join a CUS rev group, so its cell stays empty. */
+  mergeMode?: boolean;
+  /** The shipment ids picked so far (checkbox state mirror). */
+  selectedLotIds?: ReadonlySet<number>;
+  /** Pick/unpick one lot by shipment id (the page owns the gates). */
+  onSelectLot?: (shipmentId: number, next: boolean) => void;
 }
 
 export function ShipmentContainerLedger({
@@ -754,6 +763,9 @@ export function ShipmentContainerLedger({
   onCopyAppointment,
   onCopyDeclaration,
   hiddenColumns = [],
+  mergeMode = false,
+  selectedLotIds,
+  onSelectLot,
 }: ShipmentContainerLedgerProps) {
   const isHidden = (key: string) => hiddenColumns.includes(key);
   const missingDateCount = rows.filter((row) => row.transportDate == null).length;
@@ -1048,6 +1060,9 @@ export function ShipmentContainerLedger({
         <table>
           <caption>Chi tiết container theo tám nhóm thông tin nghiệp vụ</caption>
           <colgroup>
+            {/* SIL-547 (spec 23/10 §2) — the CHỌN column leads the table ONLY
+                while the page's [Gộp hàng] mode stands. */}
+            {mergeMode && <col className="shipment-container-ledger__col--select" />}
             <col className="shipment-container-ledger__col--customer" />
             {/* FB-113 v2: the documents group renders as four headed columns —
                 Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu, the QA
@@ -1065,6 +1080,7 @@ export function ShipmentContainerLedger({
             {hasRowActions && <col className="shipment-container-ledger__col--actions" />}
           </colgroup>
           <thead><tr>
+            {mergeMode && <th scope="col" className="shipment-container-ledger__col--select"><span className="sr-only">Chọn lô hàng lẻ để gộp</span></th>}
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Bill/Booking" sortKey="billOrBookNumber" sort={sort} onSortChange={onSortChange} />
             <th scope="col">Số tờ khai</th>
@@ -1135,6 +1151,26 @@ export function ShipmentContainerLedger({
                   data-expanded={detailsExpanded ? 'true' : 'false'}
                   className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}
                 >
+                  {/* SIL-547 (spec 23/10 §2) — the CHỌN cell: an enabled checkbox
+                      on LOT-level (LCL) rows only. A container line can never
+                      join a CUS rev group, so its cell carries the muted dash —
+                      the "lọc mờ dòng Cont" clause, and columns stay aligned
+                      under table-layout: fixed. */}
+                  {mergeMode && (
+                    <td data-label="Chọn" className="shipment-container-ledger__cell--select">
+                      {row.isLotLevel === true && onSelectLot ? (
+                        <input
+                          type="checkbox"
+                          className="shipment-container-ledger__lot-select"
+                          checked={selectedLotIds?.has(row.shipmentId) ?? false}
+                          aria-label={`Chọn lô ${row.billOrBookNumber || 'hàng lẻ'}`}
+                          onChange={(event) => onSelectLot(row.shipmentId, event.target.checked)}
+                        />
+                      ) : (
+                        <span className="shipment-container-ledger__select-empty" aria-hidden="true">—</span>
+                      )}
+                    </td>
+                  )}
                   <th scope="row" data-label="Khách hàng & lộ trình" className={cellClassName(identityEditable, 'identity')}>
                     <StatusStrip color={DISPATCH_STRIP_COLORS[row.dispatchStatus]} />
                     {editableCell(row, 'identity', identityEditable, <div className="shipment-container-ledger__multiline">

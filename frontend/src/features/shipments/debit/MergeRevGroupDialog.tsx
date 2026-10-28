@@ -34,7 +34,10 @@ export interface MergeRevGroupLot {
   /** Nullable like the wire (SIL-478 P0): the dialog renders the name only
    *  when it exists. */
   customerName: string | null;
-  code: string;
+  /** The settlement wire's lot code. Optional since SIL-547: the Chi tiết lô
+   *  hàng wire has no `code` — its labels fall through Bill → tờ khai, so the
+   *  callers that have one keep passing it. */
+  code?: string;
   billOrBookNumber: string;
   customsNumber?: string | null;
 }

@@ -1084,6 +1084,11 @@ function buildLotFlatRow(
     // plate stays `plateNumber`; these two are the LOT's own billing identity.
     actualTruckNo: trimOrNull(row.shipment.actualTruckNo),
     billingTruckNo: trimOrNull(row.shipment.billingTruckNo),
+    // SIL-547 (spec 23/10 §2/§4.2) — the lot's CUS rev group rides the row so
+    // Chi tiết lô hàng runs the same [Gộp hàng] flow as Chi phí - Quyết toán:
+    // ungrouped lots (null) are the mergeable picks; grouped lots render their
+    // tags and are refused by the merge.
+    revGroupId: row.shipment.revGroupId ?? null,
     revVehicleClassCode: row.shipment.revVehicleClassId != null
       ? support.vehicleClassCodeById.get(row.shipment.revVehicleClassId) ?? null
       : null,
@@ -1100,11 +1105,14 @@ function buildLotFlatRow(
     customerAppointmentAt: null,
     customerNotes: row.shipment.customerNotes,
     operationalNotes: row.shipment.operationalNotes,
+    // SIL-547 — the LOT's own cargo measures feed the selection bar's
+    // «Tổng X tấn | Y CBM» clause exactly like the debit wire's cargo fields;
+    // the container rows' raw stays per-container.
     raw: {
       containerNumber: null,
       containerTypeId: null,
-      cargoWeightKg: null,
-      cargoVolumeCbm: null,
+      cargoWeightKg: row.shipment.cargoWeightKg ?? null,
+      cargoVolumeCbm: row.shipment.cargoVolumeCbm ?? null,
     },
     fieldAccess: {
       operationalSiteId: readOnly,
@@ -1262,11 +1270,14 @@ export async function listCusShipmentContainers(
       carrierName: line.carrierName,
       carrierType: line.carrierType,
       plateNumber: line.plateNumber,
-      // Card 161026232339: same four fields the lot rows carry, so the flat
+      // Card 161026232339: same fields the lot rows carry, so the flat
       // schema stays one shape. FCL containers never bill into an LCL group —
       // these read null and the ledger keeps rendering FCL rows unchanged.
       actualTruckNo: trimOrNull(row.shipment.actualTruckNo),
       billingTruckNo: trimOrNull(row.shipment.billingTruckNo),
+      // SIL-547: a container line never belongs to a CUS rev group — null keeps
+      // the shape uniform while the lot-level rows carry the real id.
+      revGroupId: null,
       revVehicleClassCode: row.shipment.revVehicleClassId != null
         ? support.vehicleClassCodeById.get(row.shipment.revVehicleClassId) ?? null
         : null,

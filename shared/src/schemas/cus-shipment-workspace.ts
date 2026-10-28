@@ -836,6 +836,11 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   // a container line — and blank renders as `—`, never `undefined`.
   actualTruckNo: z.string().nullable(),
   billingTruckNo: z.string().nullable(),
+  // SIL-547 (spec 23/10 §2) — the lot's CUS rev group id (shipments.rev_group_id):
+  // null/absent = ungrouped (a [Gộp hàng] pick), set = already merged. Optional
+  // for producers that predate the field, like isLotLevel above; container
+  // rows always read null (a container line never joins a rev group).
+  revGroupId: z.string().nullable().optional(),
   revVehicleClassCode: z.string().nullable(),
   costVehicleClassCode: z.string().nullable(),
   liftSite: z.string().nullable(),
