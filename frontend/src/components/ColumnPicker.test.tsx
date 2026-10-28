@@ -96,4 +96,12 @@ describe('ColumnPicker — the one column-visibility control (card 20260928_193)
     expect(options).toMatch(/min-width:\s*0/);
     expect(options).toMatch(/flex:\s*1\s+1\s+0\s*;/);
   });
+
+  it('SIL-560: count badge uses accent triad (accent-soft fill + accent-ink text) for WCAG AA contrast', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/components/ColumnPicker.css'), 'utf8');
+    const badge = css.match(/\.column-picker__count\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(badge).toMatch(/background:\s*var\(--accent-soft\);/);
+    expect(badge).toMatch(/color:\s*var\(--accent-ink\);/);
+    expect(badge).not.toMatch(/color:\s*var\(--fg-on-brand\);/);
+  });
 });
