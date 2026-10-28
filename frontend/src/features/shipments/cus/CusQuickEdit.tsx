@@ -37,7 +37,6 @@ export function ShipmentQuickEditFields({
         {documentDirection === 'IMPORT' && <label><span>Số Bill</span><input autoFocus value={draft.blNumber} onChange={(event) => update({ blNumber: event.target.value })} maxLength={100} disabled={saving || item.fieldAccess.blNumber.mode === 'READ_ONLY'} title={item.fieldAccess.blNumber.reason} /></label>}
         {documentDirection === 'EXPORT' && <label><span>Số Booking</span><input autoFocus value={draft.bookingRef} onChange={(event) => update({ bookingRef: event.target.value })} maxLength={100} disabled={saving || item.fieldAccess.bookingRef.mode === 'READ_ONLY'} title={item.fieldAccess.bookingRef.reason} /></label>}
         {!documentDirection && <p className="cus-quick-edit-modal__help">Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking.</p>}
-        <p className="cus-quick-edit-modal__help">{documentDirection === 'IMPORT' ? 'Hàng Nhập chỉ dùng Số Bill.' : documentDirection === 'EXPORT' ? 'Hàng Xuất chỉ dùng Số Booking.' : 'Số Bill và Số Booking không thể cùng thuộc một lô hàng.'} Số tờ khai nhập/sửa theo từng container trên Tổng quan (SIL-521).</p>
       </>}
       {draft.field === 'classification' && <>
         <UuiSelectField

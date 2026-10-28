@@ -1,0 +1,105 @@
+2026-10-28T12:02:17.478Z DB before captured
+2026-10-28T12:02:22.250Z logged in as admin
+2026-10-28T12:02:29.345Z documents quick-edit triggers found: 200
+2026-10-28T12:02:31.534Z PASS A/modal "Sửa ô chứng từ BLSIL52266387277" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52266387277 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:02:34.837Z PASS A/modal "Sửa ô chứng từ BL-SIL521-64473836" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BL-SIL521-64473836 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:02:38.056Z PASS A/modal "Sửa ô chứng từ BLSIL52264403775" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52264403775 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:02:41.320Z PASS A/modal "Sửa ô chứng từ BLSIL52264302712" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52264302712 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:02:44.519Z PASS A/modal "Sửa ô chứng từ Long Minh" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ Long Minh Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking. Hủy Lưu thay đổi)
+2026-10-28T12:02:44.519Z PASS A/no-direction lot keeps the user guidance line :: guidance "Chọn Nhập hoặc Xuất…" present in the documents modal
+2026-10-28T12:02:46.908Z PASS A/no-direction guidance line was observed in a real modal :: found a lot without trade direction and saw the guidance line
+2026-10-28T12:02:53.837Z PASS B/FCL container row MSKU5210010 is present and clickable :: {"rowFound":true,"buttonFound":true}
+2026-10-28T12:02:55.042Z PASS B/FCL declaration hint has no internal copy :: editor text: Chỉnh sửa chứng từ và hãng tàu MSKU5210010 Số Bill Số tờ khai Số tờ khai lưu theo từng container của lô — mỗi container giữ số tờ khai riêng; nhập số ở một container sẽ tự điền sang các container còn 
+2026-10-28T12:02:55.042Z PASS B/FCL declaration hint keeps the plain per-container rule :: contains plain sentence: true
+2026-10-28T12:02:56.317Z FAIL B/LCL lot hint still says "Số tờ khai lưu theo LÔ hàng lẻ" :: lcl row found=false; editor text: Chỉnh sửa chứng từ và hãng tàu MSKU5210010 Số Bill Số tờ khai Số tờ khai lưu theo từng container của lô — mỗi container giữ số tờ khai riêng; nhập số ở một cont
+2026-10-28T12:02:59.755Z first customer cell: Công Ty TNHH Một Thành Viên Long Minh
+Long Minh
+LONGMINH
+2026-10-28T12:03:00.059Z flipped customer "Công Ty TNHH Một Thành Viên Long Minh
+Long Minh
+LONGMINH" to PER_BATCH for the drive
+2026-10-28T12:03:33.907Z PASS C/customer form carries no internal review copy :: form text clean (Bỏ qua đến nội dung chính Đã chuyển đến Khách hàng Đang xem Khách hàng Tháng 10/2026 · 01/10 – 31/10 Khách hàng & Đối tác CÔNG NỢ QUÁ HẠN 5.5 tr 2 KH NGỪNG PHÁT)
+2026-10-28T12:03:34.613Z FAIL C/PER_BATCH option shows the business label :: options: []
+2026-10-28T12:03:34.613Z PASS C/no option text mentions legacy / rà soát :: options: []
+2026-10-28T12:03:34.621Z FAIL C/PER_BATCH description is business language :: description: 
+2026-10-28T12:03:35.108Z restored customer "Công Ty TNHH Một Thành Viên Long Minh
+Long Minh
+LONGMINH" to MONTHLY
+2026-10-28T12:03:35.506Z PASS DB/shipments rows unchanged by the drive :: md5 of the shipment identity columns re-read after the drive
+2026-10-28T12:03:35.724Z PASS DB/no customer left in PER_BATCH after the restore :: count PER_BATCH = 0
+2026-10-28T12:03:35.909Z RESULT FAIL — 14/17 checks passed
+2026-10-28T12:06:15.757Z DB before captured
+2026-10-28T12:06:25.843Z logged in as admin
+2026-10-28T12:06:36.654Z documents quick-edit triggers found: 200
+2026-10-28T12:06:38.746Z PASS A/modal "Sửa ô chứng từ BLSIL52266387277" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52266387277 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:06:43.491Z PASS A/modal "Sửa ô chứng từ BL-SIL521-64473836" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BL-SIL521-64473836 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:06:48.219Z PASS A/modal "Sửa ô chứng từ BLSIL52264403775" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52264403775 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:06:51.787Z PASS A/modal "Sửa ô chứng từ BLSIL52264302712" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52264302712 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:06:55.360Z PASS A/modal "Sửa ô chứng từ Long Minh" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ Long Minh Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking. Hủy Lưu thay đổi)
+2026-10-28T12:06:55.361Z PASS A/no-direction lot keeps the user guidance line :: guidance "Chọn Nhập hoặc Xuất…" present in the documents modal
+2026-10-28T12:06:57.687Z PASS A/no-direction guidance line was observed in a real modal :: found a lot without trade direction and saw the guidance line
+2026-10-28T12:07:05.550Z PASS B/FCL container row MSKU5210010 is present and clickable :: {"rowFound":true,"buttonFound":true}
+2026-10-28T12:07:06.753Z PASS B/FCL declaration hint has no internal copy :: editor text: Chỉnh sửa chứng từ và hãng tàu MSKU5210010 Số Bill Số tờ khai Số tờ khai lưu theo từng container của lô — mỗi container giữ số tờ khai riêng; nhập số ở một container sẽ tự điền sang các container còn 
+2026-10-28T12:07:06.754Z PASS B/FCL declaration hint keeps the plain per-container rule :: contains plain sentence: true
+2026-10-28T12:07:14.160Z PASS B/LCL lot hint still says "Số tờ khai lưu theo LÔ hàng lẻ" :: lcl row found=true; editor text: Chỉnh sửa chứng từ và hãng tàu Lô R34-LCL1 Chọn Nhập hoặc Xuất trước khi cập nhật số chứng từ. Số tờ khai Số tờ khai lưu theo LÔ hàng lẻ — nhập hoặc sửa số một 
+2026-10-28T12:07:19.451Z first customer: Long Minh
+2026-10-28T12:07:19.772Z flipped customer id=1 ("Long Minh") to PER_BATCH for the drive
+2026-10-28T12:07:25.360Z PASS C/customer edit form opens :: dialog [aria-label*="Sửa khách hàng"] opened
+2026-10-28T12:07:26.266Z PASS C/customer form carries no internal review copy :: form text clean (Sửa khách hàng Long Minh Đang hoạt động THÔNG TIN KHÁCH HÀNG Tên đầy đủ * Tên ngắn * Mã số thuế Địa chỉ Người liên hệ SĐT Liên hệ KẾ TOÁN & ĐIỀU KHOẢN Giám đốc SĐT Kế toán * Trường bắt buộc Hủy Cập nh)
+2026-10-28T12:07:27.073Z FAIL C/PER_BATCH option shows the business label :: options: []
+2026-10-28T12:07:27.073Z PASS C/no option text mentions legacy / rà soát :: options: []
+2026-10-28T12:07:27.128Z FAIL C/PER_BATCH description is business language :: description: 
+2026-10-28T12:07:27.611Z restored customer id=1 to MONTHLY
+2026-10-28T12:07:27.994Z PASS DB/shipments rows unchanged by the drive :: md5 of the shipment identity columns re-read after the drive
+2026-10-28T12:07:28.234Z PASS DB/no customer left in PER_BATCH after the restore :: count PER_BATCH = 0
+2026-10-28T12:07:28.404Z RESULT FAIL — 16/18 checks passed
+2026-10-28T12:07:53.960Z DB before captured
+2026-10-28T12:07:59.919Z logged in as admin
+2026-10-28T12:08:07.268Z documents quick-edit triggers found: 200
+2026-10-28T12:08:09.778Z PASS A/modal "Sửa ô chứng từ BLSIL52266387277" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52266387277 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:08:14.522Z PASS A/modal "Sửa ô chứng từ BL-SIL521-64473836" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BL-SIL521-64473836 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:08:18.528Z PASS A/modal "Sửa ô chứng từ BLSIL52264403775" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52264403775 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:08:22.241Z PASS A/modal "Sửa ô chứng từ BLSIL52264302712" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52264302712 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:08:26.636Z PASS A/modal "Sửa ô chứng từ Long Minh" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ Long Minh Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking. Hủy Lưu thay đổi)
+2026-10-28T12:08:26.636Z PASS A/no-direction lot keeps the user guidance line :: guidance "Chọn Nhập hoặc Xuất…" present in the documents modal
+2026-10-28T12:08:29.503Z PASS A/no-direction guidance line was observed in a real modal :: found a lot without trade direction and saw the guidance line
+2026-10-28T12:08:36.871Z PASS B/FCL container row MSKU5210010 is present and clickable :: {"rowFound":true,"buttonFound":true}
+2026-10-28T12:08:38.073Z PASS B/FCL declaration hint has no internal copy :: editor text: Chỉnh sửa chứng từ và hãng tàu MSKU5210010 Số Bill Số tờ khai Số tờ khai lưu theo từng container của lô — mỗi container giữ số tờ khai riêng; nhập số ở một container sẽ tự điền sang các container còn 
+2026-10-28T12:08:38.074Z PASS B/FCL declaration hint keeps the plain per-container rule :: contains plain sentence: true
+2026-10-28T12:08:46.622Z FAIL B/LCL lot hint still says "Số tờ khai lưu theo LÔ hàng lẻ" :: lcl row found=false; editor text: 
+2026-10-28T12:08:50.326Z first customer: Long Minh
+2026-10-28T12:08:50.642Z flipped customer id=1 ("Long Minh") to PER_BATCH for the drive
+2026-10-28T12:08:55.397Z PASS C/customer edit form opens :: dialog [aria-label*="Sửa khách hàng"] opened
+2026-10-28T12:08:56.302Z PASS C/customer form carries no internal review copy :: form text clean (Sửa khách hàng Long Minh Đang hoạt động THÔNG TIN KHÁCH HÀNG Tên đầy đủ * Tên ngắn * Mã số thuế Địa chỉ Người liên hệ SĐT Liên hệ KẾ TOÁN & ĐIỀU KHOẢN Giám đốc SĐT Kế toán * Trường bắt buộc Hủy Cập nh)
+2026-10-28T12:08:56.302Z FAIL C/PER_BATCH option shows the business label :: dialog text contains the label: false
+2026-10-28T12:08:56.308Z FAIL C/PER_BATCH description is business language :: description present: false; no legacy/rà soát: true
+2026-10-28T12:08:57.113Z PASS C/no option text mentions legacy / rà soát :: options: []
+2026-10-28T12:08:57.552Z restored customer id=1 to MONTHLY
+2026-10-28T12:08:57.942Z PASS DB/shipments rows unchanged by the drive :: md5 of the shipment identity columns re-read after the drive
+2026-10-28T12:08:58.154Z PASS DB/no customer left in PER_BATCH after the restore :: count PER_BATCH = 0
+2026-10-28T12:08:58.322Z RESULT FAIL — 15/18 checks passed
+2026-10-28T12:09:55.133Z DB before captured
+2026-10-28T12:09:59.420Z logged in as admin
+2026-10-28T12:10:05.732Z documents quick-edit triggers found: 200
+2026-10-28T12:10:07.471Z PASS A/modal "Sửa ô chứng từ BLSIL52266387277" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52266387277 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:10:11.329Z PASS A/modal "Sửa ô chứng từ BL-SIL521-64473836" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BL-SIL521-64473836 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:10:14.739Z PASS A/modal "Sửa ô chứng từ BLSIL52264403775" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52264403775 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:10:17.983Z PASS A/modal "Sửa ô chứng từ BLSIL52264302712" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ BLSIL52264302712 Số Bill Hủy Lưu thay đổi)
+2026-10-28T12:10:21.162Z PASS A/modal "Sửa ô chứng từ Long Minh" has no internal copy :: dialog text clean (Chỉnh sửa Chứng từ Long Minh Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking. Hủy Lưu thay đổi)
+2026-10-28T12:10:21.163Z PASS A/no-direction lot keeps the user guidance line :: guidance "Chọn Nhập hoặc Xuất…" present in the documents modal
+2026-10-28T12:10:23.269Z PASS A/no-direction guidance line was observed in a real modal :: found a lot without trade direction and saw the guidance line
+2026-10-28T12:10:29.185Z PASS B/FCL container row MSKU5210010 is present and clickable :: {"rowFound":true,"buttonFound":true}
+2026-10-28T12:10:30.390Z PASS B/FCL declaration hint has no internal copy :: editor text: Chỉnh sửa chứng từ và hãng tàu MSKU5210010 Số Bill Số tờ khai Số tờ khai lưu theo từng container của lô — mỗi container giữ số tờ khai riêng; nhập số ở một container sẽ tự điền sang các container còn 
+2026-10-28T12:10:30.391Z PASS B/FCL declaration hint keeps the plain per-container rule :: contains plain sentence: true
+2026-10-28T12:10:37.220Z PASS B/LCL lot hint still says "Số tờ khai lưu theo LÔ hàng lẻ" :: lcl row found=true; editor text: Chỉnh sửa chứng từ và hãng tàu Lô R34-LCL1 Chọn Nhập hoặc Xuất trước khi cập nhật số chứng từ. Số tờ khai Số tờ khai lưu theo LÔ hàng lẻ — nhập hoặc sửa số một 
+2026-10-28T12:10:40.148Z first customer: Long Minh
+2026-10-28T12:10:40.403Z flipped customer id=1 ("Long Minh") to PER_BATCH for the drive
+2026-10-28T12:10:44.244Z PASS C/customer edit form opens :: customer edit dialog opened
+2026-10-28T12:10:45.148Z PASS C/customer form carries no internal review copy :: form text clean (Chỉnh sửa thông tin khách hàng Tên khách hàng * Mã số thuế Tên ngắn Hạn thanh toán (ngày) Người liên hệ Số điện thoại Kế toán liên hệ SĐT kế toán Hạn mức tín dụng Cảnh báo công nợ (%) Trạng thái Hoạt )
+2026-10-28T12:10:45.148Z PASS C/PER_BATCH option shows the business label :: dialog text contains the label: true
+2026-10-28T12:10:45.161Z PASS C/PER_BATCH description is business language :: description present: true; no legacy/rà soát: true
+2026-10-28T12:10:46.073Z PASS C/no option text mentions legacy / rà soát :: options: ["Theo tháng","Theo tuần theo hợp đồng","Theo lô (chế độ cũ — không tự động chuyển)"]
+2026-10-28T12:10:46.321Z restored customer id=1 to MONTHLY
+2026-10-28T12:10:46.833Z PASS DB/shipments rows unchanged by the drive :: md5 of the shipment identity columns re-read after the drive
+2026-10-28T12:10:47.061Z PASS DB/no customer left in PER_BATCH after the restore :: count PER_BATCH = 0
+2026-10-28T12:10:47.242Z RESULT PASS — 18/18 checks passed

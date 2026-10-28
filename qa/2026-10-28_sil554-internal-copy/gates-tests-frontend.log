@@ -1,0 +1,24 @@
+
+> @tingting/frontend@0.1.0 test /Volumes/LexarSSD/projects/silversea/frontend
+> vitest run
+
+
+ RUN  v4.1.12 /Volumes/LexarSSD/projects/silversea/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+
+ Test Files  741 passed (741)
+      Tests  5716 passed (5716)
+   Start at  20:16:15
+   Duration  647.88s (transform 58.22s, setup 191.80s, import 925.22s, tests 1145.28s, environment 825.12s)
+
+EXIT=0

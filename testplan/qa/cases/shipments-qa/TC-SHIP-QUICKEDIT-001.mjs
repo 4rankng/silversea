@@ -19,7 +19,7 @@
 //     gives it the FCL-only title "Xem và chỉnh nhà máy theo từng container"
 //     and drops aria-haspopup, because it navigates instead of opening a dialog.
 //   2. `fields === 0` was treated as a defect in the documents modal. It is not:
-//     CusQuickEdit.tsx:51-53 renders the Bill/Booking inputs only when the lot
+//     CusQuickEdit.tsx:37-39 renders the Bill/Booking inputs only when the lot
 //     has a trade direction, and otherwise renders the guidance "Chọn Nhập hoặc
 //     Xuất trong mục Phân loại trước khi cập nhật Bill/Booking." — zero inputs is
 //     the CORRECT shape there. The assertion is direction-aware below.
@@ -42,7 +42,7 @@ const TABLE = '.cus-dashboard-table';
 const BOARD = '/shipments?limit=200';
 /** CusShipmentRow.tsx:112 — this title renders for an FCL lot and no other. */
 const FCL_IDENTITY_TITLE = 'Xem và chỉnh nhà máy theo từng container';
-/** CusQuickEdit.tsx:53 — the guidance rendered when the lot has no direction. */
+/** CusQuickEdit.tsx:39 — the guidance rendered when the lot has no direction. */
 const NO_DIRECTION_GUIDANCE = 'Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking.';
 
 const FIELD_GROUPS = [

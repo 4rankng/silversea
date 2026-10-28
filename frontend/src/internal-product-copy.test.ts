@@ -15,6 +15,22 @@ function productionSourceFiles(directory: string): string[] {
   });
 }
 
+/**
+ * Copy that belongs to the team, never to the person using the app:
+ * PRD decision codes, internal ticket references, and leftover review notes.
+ *
+ * The ticket shapes require their digits, so business text that merely starts
+ * with the same letters (SilverSea, a plate, a container number) is untouched.
+ */
+const FORBIDDEN_COPY_PATTERNS: readonly RegExp[] = [
+  // PRD decision codes (Q01–Q23).
+  /\bQ\d{2}(?:\s*-\s*Q\d{2})?\b/,
+  // Internal ticket references (SIL-### / FB-### / QA1-###).
+  /\b(?:SIL|FB|QA1)-\d+\b/,
+  // A review note left in product copy.
+  /cần rà soát/i,
+];
+
 function runtimeStringsWithInternalCodes(filePath: string): string[] {
   const source = ts.createSourceFile(
     filePath,
@@ -33,7 +49,7 @@ function runtimeStringsWithInternalCodes(filePath: string): string[] {
       || ts.isTemplateMiddle(node)
       || ts.isTemplateTail(node);
 
-    if (isRuntimeString && /\bQ\d{2}(?:\s*-\s*Q\d{2})?\b/.test(node.getText(source))) {
+    if (isRuntimeString && FORBIDDEN_COPY_PATTERNS.some((pattern) => pattern.test(node.getText(source)))) {
       const position = source.getLineAndCharacterOfPosition(node.getStart(source));
       matches.push(`${filePath}:${position.line + 1}: ${node.getText(source).trim()}`);
     }
@@ -46,7 +62,7 @@ function runtimeStringsWithInternalCodes(filePath: string): string[] {
 }
 
 describe('product copy contract', () => {
-  it('does not ship internal Q decision codes in frontend runtime strings', { timeout: 20000 }, () => {
+  it('does not ship internal codes, ticket references or review notes in frontend runtime strings', { timeout: 20000 }, () => {
     const matches = productionSourceFiles(sourceRoot).flatMap(runtimeStringsWithInternalCodes);
     expect(matches, matches.join('\n')).toEqual([]);
   });

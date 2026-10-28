@@ -12,17 +12,20 @@ describe('customerDebitNoteMode', () => {
     ]);
   });
 
-  it('keeps legacy PER_BATCH visible without silently converting it', () => {
+  it('keeps the per-batch mode visible without silently converting it', () => {
     expect(buildCustomerDebitNoteModeOptions('PER_BATCH')).toEqual([
       { value: 'MONTHLY', label: 'Theo tháng' },
       { value: 'WEEKLY', label: 'Theo tuần theo hợp đồng' },
       {
         value: 'PER_BATCH',
-        label: 'Theo lô (legacy, cần rà soát riêng)',
+        label: 'Theo lô (chế độ cũ — không tự động chuyển)',
         disabled: true,
       },
     ]);
-    expect(describeCustomerDebitNoteMode('PER_BATCH')).toMatch(/legacy/i);
+    expect(describeCustomerDebitNoteMode('PER_BATCH')).toMatch(/không tự động chuyển sang Theo tuần/i);
+    // Product copy must never read as an internal review note.
+    expect(describeCustomerDebitNoteMode('PER_BATCH')).not.toMatch(/legacy|rà soát/i);
+    expect(buildCustomerDebitNoteModeOptions('PER_BATCH')[2]?.label).not.toMatch(/legacy|rà soát/i);
   });
 
   it('describes weekly contract mode explicitly', () => {

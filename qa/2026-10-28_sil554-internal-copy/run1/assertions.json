@@ -1,0 +1,98 @@
+{
+  "run": "run1",
+  "baseUrl": "http://localhost:7175",
+  "role": "admin (ADMIN)",
+  "viewport": "1280x900",
+  "checks": [
+    {
+      "name": "A/modal \"Sửa ô chứng từ BLSIL52266387277\" has no internal copy",
+      "pass": true,
+      "detail": "dialog text clean (Chỉnh sửa Chứng từ BLSIL52266387277 Số Bill Hủy Lưu thay đổi)"
+    },
+    {
+      "name": "A/modal \"Sửa ô chứng từ BL-SIL521-64473836\" has no internal copy",
+      "pass": true,
+      "detail": "dialog text clean (Chỉnh sửa Chứng từ BL-SIL521-64473836 Số Bill Hủy Lưu thay đổi)"
+    },
+    {
+      "name": "A/modal \"Sửa ô chứng từ BLSIL52264403775\" has no internal copy",
+      "pass": true,
+      "detail": "dialog text clean (Chỉnh sửa Chứng từ BLSIL52264403775 Số Bill Hủy Lưu thay đổi)"
+    },
+    {
+      "name": "A/modal \"Sửa ô chứng từ BLSIL52264302712\" has no internal copy",
+      "pass": true,
+      "detail": "dialog text clean (Chỉnh sửa Chứng từ BLSIL52264302712 Số Bill Hủy Lưu thay đổi)"
+    },
+    {
+      "name": "A/modal \"Sửa ô chứng từ Long Minh\" has no internal copy",
+      "pass": true,
+      "detail": "dialog text clean (Chỉnh sửa Chứng từ Long Minh Chọn Nhập hoặc Xuất trong mục Phân loại trước khi cập nhật Bill/Booking. Hủy Lưu thay đổi)"
+    },
+    {
+      "name": "A/no-direction lot keeps the user guidance line",
+      "pass": true,
+      "detail": "guidance \"Chọn Nhập hoặc Xuất…\" present in the documents modal"
+    },
+    {
+      "name": "A/no-direction guidance line was observed in a real modal",
+      "pass": true,
+      "detail": "found a lot without trade direction and saw the guidance line"
+    },
+    {
+      "name": "B/FCL container row MSKU5210010 is present and clickable",
+      "pass": true,
+      "detail": "{\"rowFound\":true,\"buttonFound\":true}"
+    },
+    {
+      "name": "B/FCL declaration hint has no internal copy",
+      "pass": true,
+      "detail": "editor text: Chỉnh sửa chứng từ và hãng tàu MSKU5210010 Số Bill Số tờ khai Số tờ khai lưu theo từng container của lô — mỗi container giữ số tờ khai riêng; nhập số ở một container sẽ tự điền sang các container còn "
+    },
+    {
+      "name": "B/FCL declaration hint keeps the plain per-container rule",
+      "pass": true,
+      "detail": "contains plain sentence: true"
+    },
+    {
+      "name": "B/LCL lot hint still says \"Số tờ khai lưu theo LÔ hàng lẻ\"",
+      "pass": true,
+      "detail": "lcl row found=true; editor text: Chỉnh sửa chứng từ và hãng tàu Lô R34-LCL1 Chọn Nhập hoặc Xuất trước khi cập nhật số chứng từ. Số tờ khai Số tờ khai lưu theo LÔ hàng lẻ — nhập hoặc sửa số một "
+    },
+    {
+      "name": "C/customer edit form opens",
+      "pass": true,
+      "detail": "customer edit dialog opened"
+    },
+    {
+      "name": "C/customer form carries no internal review copy",
+      "pass": true,
+      "detail": "form text clean (Chỉnh sửa thông tin khách hàng Tên khách hàng * Mã số thuế Tên ngắn Hạn thanh toán (ngày) Người liên hệ Số điện thoại Kế toán liên hệ SĐT kế toán Hạn mức tín dụng Cảnh báo công nợ (%) Trạng thái Hoạt )"
+    },
+    {
+      "name": "C/PER_BATCH option shows the business label",
+      "pass": true,
+      "detail": "dialog text contains the label: true"
+    },
+    {
+      "name": "C/PER_BATCH description is business language",
+      "pass": true,
+      "detail": "description present: true; no legacy/rà soát: true"
+    },
+    {
+      "name": "C/no option text mentions legacy / rà soát",
+      "pass": true,
+      "detail": "options: [\"Theo tháng\",\"Theo tuần theo hợp đồng\",\"Theo lô (chế độ cũ — không tự động chuyển)\"]"
+    },
+    {
+      "name": "DB/shipments rows unchanged by the drive",
+      "pass": true,
+      "detail": "md5 of the shipment identity columns re-read after the drive"
+    },
+    {
+      "name": "DB/no customer left in PER_BATCH after the restore",
+      "pass": true,
+      "detail": "count PER_BATCH = 0"
+    }
+  ]
+}

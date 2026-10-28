@@ -19,7 +19,7 @@ export function buildCustomerDebitNoteModeOptions(
   if (currentMode === 'PER_BATCH') {
     options.push({
       value: 'PER_BATCH',
-      label: 'Theo lô (legacy, cần rà soát riêng)',
+      label: 'Theo lô (chế độ cũ — không tự động chuyển)',
       disabled: true,
     });
   }
@@ -31,7 +31,7 @@ export function describeCustomerDebitNoteMode(mode?: CustomerDebitNoteMode | nul
     return 'Khóa theo tuần thanh toán đã thỏa thuận trong hợp đồng khách hàng.';
   }
   if (mode === 'PER_BATCH') {
-    return 'Chế độ Theo lô là dữ liệu legacy. Cần rà soát và chuyển sang quy tắc hợp đồng phù hợp, không tự động đổi sang Theo tuần.';
+    return 'Khách hàng đang dùng chu kỳ ghi chú nợ theo lô. Chu kỳ này không tự động chuyển sang Theo tuần theo hợp đồng.';
   }
   return null;
 }
