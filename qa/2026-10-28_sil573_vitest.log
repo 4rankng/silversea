@@ -1,0 +1,29 @@
+$ pnpm exec vitest run src/components/layout
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-a11y/frontend
+
+ ❯ src/components/Layout.mobile-user-sheet.test.tsx (8 tests | 1 failed) 16646ms
+     × keeps four primary tabs and opens notifications from the account sheet 5330ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/Layout.mobile-user-sheet.test.tsx > Layout — driver mobile account sheet vs the global dropdown-dismiss layer > keeps four primary tabs and opens notifications from the account sheet
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/Layout.mobile-user-sheet.test.tsx:100:3
+     98|   });
+     99|
+    100|   it('keeps four primary tabs and opens notifications from the account…
+       |   ^
+    101|     renderDriverShell();
+    102|     const navigation = screen.getByRole('navigation', { name: 'Điều hư…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 12 passed (13)
+      Tests  1 failed | 101 passed (102)
+   Start at  23:42:42
+   Duration  57.82s (transform 23.61s, setup 19.49s, import 78.04s, tests 33.38s, environment 96.40s)
+
+exit: 1
