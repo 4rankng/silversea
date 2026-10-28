@@ -118,11 +118,14 @@ describe('F-2 — Cước vận tải (Auto) đọc kênh ghi đè (ruling b)', 
     renderPage();
     await screen.findAllByText('BL-P');
 
-    // Redesign 23/10: the note is a one-glyph marker on the Doanh thu cell
-    // (one baseline per cell) with the full reason in its tooltip.
-    const marker = screen.getByTitle('Ghép cước cùng Bill BL-P');
-    expect(marker.getAttribute('aria-label')).toBe('Ghi chú cước: Ghép cước cùng Bill BL-P');
-    const cell = marker.closest('td')!;
+    // SIL-546 (spec 23/10 §4.2): the member's note graduated from the
+    // one-glyph icon to the VISIBLE merge tag «Ghép thu cước cùng Lô 1» on
+    // the Doanh thu cell; the tag's tooltip still carries the full F-2
+    // reason ("Ghép cước cùng Bill BL-P" — the trip-less member's live
+    // group-citation note).
+    const tag = screen.getByText('Ghép thu cước cùng Lô 1');
+    expect(tag.getAttribute('title')).toBe('Ghép cước cùng Bill BL-P');
+    const cell = tag.closest('td')!;
     expect(cell.getAttribute('data-col')).toBe('receivable');
     // The member's money reads the real computed 0 (đã tính, = 0).
     expect(cell.textContent).toContain('0');
