@@ -173,7 +173,7 @@ router.delete('/phoi-phieu/:tripId/rows/:sourceId', declareMaterialWrite('expens
   // the message is Vietnamese because it surfaces in the confirm dialog verbatim
   // (zod's default "String must contain at least 1 character(s)" must not).
   const reason = parse(z.object({
-    reason: z.string({ required_error: 'Lý do từ chối là bắt buộc.', invalid_type_error: 'Lý do từ chối là bắt buộc.' })
+    reason: z.string({ error: 'Lý do từ chối là bắt buộc.' })
       .trim().min(1, 'Lý do từ chối không được để trống.').max(500, 'Lý do từ chối không được vượt quá 500 ký tự.'),
   }).strict(), req.body ?? {}).reason;
   const user = getUser(req);

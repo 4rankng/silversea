@@ -1,0 +1,11 @@
+# command: cd backend && pnpm test (= pretest shared build; test:unit && test:integration)
+# run 1 (pre-review fixes): unit 544/544 + integration 338/338
+# run 2 (post-review fixes: errorHandler .issues + partialUpdateSchema hardening + qs override):
+ℹ tests 545
+ℹ pass 545
+ℹ fail 0
+ℹ tests 338
+ℹ pass 338
+ℹ fail 0
+# exit: 0
+# date: 2026-10-28, branch fix-sec-depends (zod 4.6.7, local PG 5441)

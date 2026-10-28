@@ -1,0 +1,6 @@
+# command: cd frontend && npx tsgo --noEmit
+# exit: 0 (0 errors)
+
+# command: cd frontend && npx tsc -b
+# exit: 0 (0 errors)
+# date: 2026-10-28, branch fix-sec-depends (zod 4.6.7 migration)

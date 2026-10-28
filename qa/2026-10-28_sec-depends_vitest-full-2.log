@@ -1,0 +1,19 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sec-depends/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  736 passed (736)
+      Tests  5667 passed (5667)
+   Start at  02:30:52
+   Duration  195.80s (transform 22.49s, setup 65.07s, import 305.78s, tests 260.84s, environment 271.15s)
+

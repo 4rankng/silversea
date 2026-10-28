@@ -534,7 +534,7 @@ export const shipmentCusLockSchema = z.object({
   confirmationChecksum: z.string().trim().min(1, 'Mã kiểm tra xác nhận là bắt buộc').max(128),
   reason: z.string().trim().min(1, 'Lý do khóa lô là bắt buộc').max(2_000),
   acknowledged: z.literal(true, {
-    errorMap: () => ({ message: 'Bạn phải xác nhận trước khi khóa lô.' }),
+    error: 'Bạn phải xác nhận trước khi khóa lô.',
   }),
 }).strict();
 
