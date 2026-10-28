@@ -1,0 +1,10 @@
+login ok: dungnv role=DISPATCHER
+drawer open: Chi tiết container
+cell clicked: Sửa số container · BBHU2001012
+portal proof: {"panelParentIsBody":true,"panelInsideScroller":false,"inputValue":"MSKU5500004XLONGTESTVALUE","valueIsWhole":true,"inputClientWidth":420,"inputScrollWidth":420,"hint":true,"dimmedCellValue":"BBHU2001012","panelRect":{"x":231,"y":198,"width":445.8125,"height":66.296875,"top":198,"right":676.8125,"bottom":264.296875,"left":231},"inputRect":{"x":244,"y":209,"width":419.8125,"height":30,"top":209,"right":663.8125,"bottom":239,"left":244}}
+screenshot: 2026-10-28_sil631_ui-01-editor-floating.png
+after Enter: {"toast":"Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả","editorClosed":true}
+screenshot: 2026-10-28_sil631_ui-02-after-save.png
+page errors: ["console.error: Failed to load resource: the server responded with a status of 400 (Bad Request)"]
+DRIVER OK
+exit status: 0

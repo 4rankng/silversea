@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<title>SIL-631 mockup — floating cell editor (bottom-start, 1280)</title>
+<style>
+  :root { --ink:#1e2530; --ink-3:#8a93a2; --line:#e3e7ee; --line-strong:#c9d0dc; --surface:#fff; --surface-2:#f6f8fb; --accent:#0e7a5f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; font: 13px/1.45 -apple-system, "SF Pro Text", sans-serif; color: var(--ink); background: var(--surface-2); }
+  h1 { font-size: 15px; margin: 0 0 4px; }
+  p.note { color: var(--ink-3); margin: 0 0 16px; font-size: 12px; }
+  .table-scroll { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; min-width: 900px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; font-size: 12.5px; }
+  th { background: var(--surface-2); color: var(--ink-3); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+  td.col-cont { width: 128px; }
+  td.col-decl { width: 120px; }
+  .val strong { font-family: ui-monospace, Menlo, monospace; }
+  .val.is-editing { opacity: .45; }
+  /* FloatingCellEditor — bottom-start: top edge = cell bottom + 6px,
+     left edge = cell left edge (align-top doctrine: edge-aligned, never centered).
+     min-width: max(cell width, 52ch) → no-truncate for ≤50-char values. */
+  .floating-cell-editor {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: -4px;
+    min-width: max(100%, 52ch);
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    padding: 10px 12px 8px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: 0 12px 28px -4px rgba(15,23,42,.16), 0 4px 10px -2px rgba(15,23,42,.08);
+    z-index: 400;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .floating-cell-editor input {
+    width: 100%; min-height: 30px; padding: 0 8px;
+    border: 1px solid var(--line-strong); border-radius: 6px;
+    font: 12.5px ui-monospace, Menlo, monospace;
+  }
+  .floating-cell-editor .hint { color: var(--ink-3); font-size: 11px; }
+  .anchor { position: relative; }
+  .legend { margin-top: 18px; font-size: 12px; color: var(--ink-3); max-width: 720px; }
+  .legend b { color: var(--ink); }
+  .tag { display: inline-block; padding: 1px 6px; border-radius: 4px; background: #e6f4ef; color: var(--accent); font-size: 11px; margin-right: 6px; }
+</style>
+</head>
+<body>
+  <h1>Chi tiết container — editor nổi ngoài cell (mockup, 1280)</h1>
+  <p class="note">SIL-631 · geometry: bottom-start · gap 6px · min-width max(cell, 52ch) · viewport clamp 12px · anchor value dimmed</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>STT</th><th>Số container</th><th>Loại</th><th>Số tờ khai</th><th>Giờ hẹn đóng/trả</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="col-cont"><div class="val"><strong>MSKU4412870</strong></div></td><td>40HC</td><td class="col-decl"><div class="val">1023847561</div></td><td>28/10 14:00</td><td>—</td></tr>
+        <tr>
+          <td>2</td>
+          <td class="col-cont anchor">
+            <div class="val is-editing"><strong>MSKU5500004</strong></div>
+            <div class="floating-cell-editor">
+              <input value="MSKU5500004XLONGTESTVALUE" aria-label="Số container" />
+              <span class="hint">Enter lưu · Esc thoát</span>
+            </div>
+          </td>
+          <td>20GP</td>
+          <td class="col-decl"><div class="val">1023847599</div></td>
+          <td>28/10 15:30</td>
+          <td>—</td>
+        </tr>
+        <tr><td>3</td><td class="col-cont"><div class="val"><strong>TCLU7281934</strong></div></td><td>40RF</td><td class="col-decl"><div class="val">1023847612</div></td><td>29/10 08:00</td><td>Hàng lạnh</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="legend">
+    <p><span class="tag">no-truncate</span> popover <b>min-width: max(cell, 52ch)</b> — giá trị ≤50 ký tự hiển thị đủ, không cắt.</p>
+    <p><span class="tag">no-overlap</span> popover cách anchor <b>6px</b>, không che cell đang sửa (value giữ lại, dimmed 45%); clamp 12px khỏi mép viewport.</p>
+    <p><span class="tag">align-top</span> popover <b>cạnh trên = cạnh dưới cell + 6px</b>, cạnh trái thẳng cạnh trái cell — edge-aligned theo anchor, không căn giữa dọc.</p>
+    <p><span class="tag">portal</span> render qua <b>createPortal(document.body)</b> — không bị <code>.table-scroll { overflow-x: auto }</code> cắt.</p>
+  </div>
+</body>
+</html>

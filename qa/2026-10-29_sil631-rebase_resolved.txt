@@ -1,0 +1,41 @@
+# SIL-631 merge resolution into main — conflict resolution record
+# Branch: fix-631-rebase (off origin/main 642dec2b), merge origin/fix-631-floating-input (5ce77391)
+
+## Files resolved (5)
+1. frontend/src/hooks/usePopoverPosition.ts        — SEMANTIC: unified ONE align API
+2. frontend/src/hooks/usePopoverPosition.test.tsx  — kept BOTH pins (SIL-552 + SIL-631) under final API
+3. frontend/src/features/dispatch/master-plan/DispatchContainerDetailDrawer.tsx — import only
+4. frontend/src/features/shipments/cus/CusLotView.tsx — main architecture + 631 dimmed-value port
+5. frontend/src/pages/ShipmentsPage.css — main .cus-lot-editor__input + 631 .is-editing rule
+
+## API decision (file 1)
+Final API: usePopoverPosition(..., fallbackHeight = 280, align: 'start' | 'end' = 'end')
+  - 'start' → panel left edge flush to trigger left edge (SIL-552 cell editors, SIL-631 floating editors)
+  - 'end'   → panel right edge flush to trigger right edge (classic dropdowns; DEFAULT)
+Chose 631 vocabulary ('start'|'end') over main's options:{align?:'left'|'right'}:
+  - matches house vocabulary (useChartTooltipPosition 'start'|'end', LedgerRecordList align?:'end', data-align='end')
+  - fewer caller edits: 1 production caller changed (CusLotView ContainerGroupEditor {align:'left'}→'start');
+    FloatingCellEditor 'start' untouched; 9 default-end callers untouched.
+Self-healing trigger re-read (631) kept in body; align computation unified to align==='start'.
+
+## File 2 (drawer): both intents kept
+  - main SIL-555/629 delete-CONT preserved: ConfirmDialog + removeCusShipmentContainerRow +
+    cột THAO TÁC + per-row guards (auto-merged body untouched).
+  - 631 FloatingCellEditor integration preserved: decl/appointment editors wrap in host, .is-editing dim.
+
+## File 3 (CusLotView + CSS): both intents kept
+  - main SIL-552 second-decision architecture kept: label+value-only cell, ContainerGroupLine
+    trigger (aria-haspopup/expanded/controls) + ContainerGroupEditor role=dialog body-portal panel
+    (auto-merged geometry test CusLotView.sil552-geometry.test.tsx pins this on HEAD side).
+  - 631 intent ported: dimmed value while editing (.cus-lot-line__value.is-editing opacity 0.45
+    rule kept + trigger value gets is-editing while expanded); editor stays outside the 240px cell
+    via body portal (ContainerGroupEditor), so 631's no-clip goal holds.
+  - WCAG token sweep (SIL-560-568/569) NOT reverted: .cus-lot-editor__input keeps
+    var(--control-border)/var(--radius-sm)/var(--surface)/var(--ink)/var(--text-label-size) tail.
+
+## Gates
+- Scoped vitest (8 files: usePopoverPosition, FloatingCellEditor, DispatchContainerDetailDrawer,
+  CusLotView.sil552-geometry, ShipmentsPage.density, control-density.styles,
+  MasterPlanGrid.rowheights.styles, ShipmentContainerLedger.sil548-rev-facts):
+  97 passed / 97, 0 failed.
+- cd frontend && npx tsc -b : 0 errors (exit 0).

@@ -18,11 +18,13 @@ export interface PopoverPosition {
  * when there is no room below, clamps to the viewport padding, right-aligns
  * to the trigger, and re-computes on resize/scroll.
  *
- * `align` picks the horizontal anchor: `right` (the default) lines the
- * panel's right edge up with the trigger's — the classic dropdown. `left`
+ * `align` picks the horizontal anchor: `end` (the default) lines the
+ * panel's right edge up with the trigger's — the classic dropdown. `start`
  * lines the panel's LEFT edge up with the trigger, the anchor a wide panel
- * needs when the trigger sits in a table cell (SIL-552: the cell's editor
- * floats, so it must open UNDER the cell, not somewhere else on the row).
+ * needs when the trigger sits in a table cell (SIL-552 / SIL-631: the cell's
+ * editor floats, so it must open UNDER the cell, not somewhere else on the
+ * row). `start`/`end` are the one align vocabulary for this hook; `start`
+ * maps to the trigger's left edge, `end` to its right edge.
  *
  * Two promises added by card 20260927_152 (operator 2026-09-27: "why the
  * dropdown jump around not right below where I clicked"):
@@ -44,9 +46,13 @@ export function usePopoverPosition(
   isOpen: boolean,
   fallbackWidth = 275,
   fallbackHeight = 280,
-  options: { align?: 'left' | 'right' } = {},
+  /** Horizontal edge alignment to the trigger: `end` (default) right-aligns
+   *  the panel to the trigger's right edge (dropdowns); `start` flushes the
+   *  panel's left edge to the trigger's left edge (SIL-552 cell editors,
+   *  SIL-631 floating cell editors — align-top doctrine: edges align to the
+   *  anchor). */
+  align: 'start' | 'end' = 'end',
 ): PopoverPosition | null {
-  const align = options.align ?? 'right';
   const [coords, setCoords] = useState<PopoverPosition | null>(null);
 
   // A closed popover holds no coordinates: keeping them would paint the panel
@@ -59,13 +65,17 @@ export function usePopoverPosition(
 
   useLayoutEffect(() => {
     if (!isOpen) return;
-    const trigger = triggerRef?.current;
-    if (!trigger) {
-      setCoords(null);
-      return;
-    }
 
     const updatePosition = () => {
+      const trigger = triggerRef?.current;
+      // No trigger yet: the anchor may mount in the SAME commit as the panel,
+      // and React attaches host refs AFTER the subtree's layout effects — so
+      // the first pass can see a null ref. Stay hidden; the rAF passes below
+      // re-read the ref once it lands (the "self-healing after mount" law).
+      if (!trigger) {
+        setCoords((prev) => (prev === null ? prev : null));
+        return;
+      }
       const triggerRect = trigger.getBoundingClientRect();
       // Not measured yet (display:none host, not laid out, closed drawer):
       // stay hidden instead of parking the panel in the padding corner.
@@ -108,7 +118,7 @@ export function usePopoverPosition(
       }
       top = Math.max(viewportTop + padding, Math.min(top, viewportTop + vh - padding - popoverHeight));
 
-      let left = align === 'left' ? triggerRect.left : triggerRect.right - popoverWidth;
+      let left = align === 'start' ? triggerRect.left : triggerRect.right - popoverWidth;
       left = Math.max(viewportLeft + padding, Math.min(left, viewportLeft + vw - padding - popoverWidth));
 
       const top_ = Math.round(top);
@@ -133,12 +143,21 @@ export function usePopoverPosition(
       popoverObserver.observe(popoverEl);
     };
 
+    // A bar re-wrap moves the trigger without a window resize. The trigger may
+    // also attach its ref late (same-commit mount) — observe it from whichever
+    // pass first sees it.
+    let triggerObserver: ResizeObserver | null = null;
+    const observeTrigger = () => {
+      if (triggerObserver || typeof ResizeObserver === 'undefined') return;
+      const trigger = triggerRef?.current;
+      if (!trigger) return; // Attached later than this effect — the rAF pass retries.
+      triggerObserver = new ResizeObserver(updatePosition);
+      triggerObserver.observe(trigger);
+    };
+
     updatePosition();
     observePopover();
-
-    // A bar re-wrap moves the trigger without a window resize.
-    const triggerObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePosition);
-    triggerObserver?.observe(trigger);
+    observeTrigger();
 
     // Two passes: the panel/parent may settle in the same frame (wrapping,
     // fonts, a portal host) — the second pass re-measures once it has.
@@ -146,9 +165,11 @@ export function usePopoverPosition(
     const frame1 = requestAnimationFrame(() => {
       updatePosition();
       observePopover();
+      observeTrigger();
       frame2 = requestAnimationFrame(() => {
         updatePosition();
         observePopover();
+        observeTrigger();
       });
     });
 

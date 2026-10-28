@@ -423,6 +423,11 @@
 .shipment-container-ledger__classification > span { min-width: 0; overflow-wrap: anywhere; }
 .shipment-container-ledger__editing-cell { position: relative; z-index: var(--z-overlay, 200); overflow: visible !important; background: var(--surface-2) !important; }
 .shipment-container-ledger__cell-editor { position: relative; min-width: 0; }
+/* SIL-631: in-cell quick editors (BKS Ảo/Thực, cước thu khách) float out of
+ * the row through the shared FloatingCellEditor (body portal). The trigger
+ * stays mounted, dimmed and inert, so the row keeps its value while editing. */
+.shipment-container-ledger__inline-edit-host { min-width: 0; }
+.shipment-container-ledger__inline-edit-host.is-editing > * { opacity: 0.45; pointer-events: none; }
 /* Card 20261009_3: the card chrome lives on the editor's own class so the
    ≤640px phone sheet (`--sheet`, portaled to body) reuses the exact same
    surface — one shared implementation, no duplicated card styling. */

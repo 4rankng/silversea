@@ -306,6 +306,12 @@ function ContainerGroupLine({
       </div>
     );
   }
+  // SIL-552 (owner 28/10, second decision) + SIL-631: the editor floats
+  // OUTSIDE the row through a body portal — the 240px SỐ CONTAINER cell
+  // (SIL-552 design lock) can no longer clip a long value. The line keeps
+  // its (dimmed) value while editing (SIL-631 doctrine: the row context
+  // survives the edit); the editor keeps its SIL-552 internal geometry
+  // (label and control on one row, unit beside the number) in the panel.
   return (
     <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
       <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
@@ -323,7 +329,7 @@ function ContainerGroupLine({
         aria-expanded={Boolean(expanded)}
         aria-controls={panelId}
       >
-        <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{value || placeholder}</span>
+        <span className={`cus-lot-line__value${expanded ? ' is-editing' : ''}${mono ? ' cus-lot-line__value--mono' : ''}`}>{value || placeholder}</span>
         <ChevronDown size={12} aria-hidden="true" className="cus-lot-line__chevron" />
       </button>
     </div>
@@ -389,7 +395,7 @@ function ContainerGroupEditor({
   onCancel: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const position = usePopoverPosition(panelRef, anchorRef, open, 300, 54, { align: 'left' });
+  const position = usePopoverPosition(panelRef, anchorRef, open, 300, 54, 'start');
   // The dismiss layer must ignore the react-aria listbox: it is portalled to
   // the body, so a press on it is neither inside the panel nor on the
   // trigger — the editor would close under the operator's finger.
