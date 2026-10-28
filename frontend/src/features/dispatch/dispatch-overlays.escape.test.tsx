@@ -36,7 +36,9 @@ vi.mock('../../api/dispatchPlanningClient', () => ({
 
 vi.mock('../../components/shared/Toast', () => ({
   useToast: () => ({ toast: vi.fn() }),
-  useToastOptional: () => null,
+  // SIL-555/629: drawer mount calls useToastOptional() — same mock recipe the
+  // MasterPlanPage* / DispatchContainerDetailDrawer test fixes adopted.
+  useToastOptional: () => ({ toast: vi.fn() }),
 }));
 
 const { apiGet } = vi.hoisted(() => ({ apiGet: vi.fn() }));

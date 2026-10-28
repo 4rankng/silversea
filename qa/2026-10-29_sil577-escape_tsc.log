@@ -1,0 +1,2 @@
+cmd: cd frontend && npx tsc -b
+EXIT=0

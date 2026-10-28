@@ -1,0 +1,43 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-577-escape/frontend
+
+ ❯ src/features/dispatch/dispatch-overlays.escape.test.tsx (6 tests | 1 failed) 1955ms
+     × container drawer: Escape closes the drawer shell 23ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/dispatch/dispatch-overlays.escape.test.tsx > dispatch overlays — shell Escape (SIL-577) > container drawer: Escape closes the drawer shell
+Error: [vitest] No "useToastOptional" export is defined on the "../../components/shared/Toast" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+vi.mock(import("../../components/shared/Toast"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+ ❯ DispatchContainerDetailDrawer src/features/dispatch/master-plan/DispatchContainerDetailDrawer.tsx:641:20
+    639|   const requestIdRef = useRef(0);
+    640|   const user = useAuth()?.user;
+    641|   const toastCtx = useToastOptional();
+       |                    ^
+    642|   // SIL-551 (id 624): per-cont tờ khai writes open to Điều vận (the t…
+    643|   // Expected supersedes the role sentence of card 261013200312 for the
+ ❯ Object.react_stack_bottom_frame ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ ❯ renderWithHooks ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ ❯ updateFunctionComponent ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:10166:19
+ ❯ beginWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:11778:18
+ ❯ runWithFiberInDEV ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ ❯ performUnitOfWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ ❯ workLoopSync ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  00:58:59
+   Duration  10.21s (transform 3.18s, setup 365ms, import 6.22s, tests 1.96s, environment 1.44s)
+
