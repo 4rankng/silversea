@@ -35,7 +35,7 @@ describe('login recovery', () => {
     expect(container.querySelectorAll('.input-icon,.password-toggle')).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Hiện mật khẩu' })).toHaveAttribute('data-uui-control', 'button');
     expect(screen.getByRole('button', { name: 'Đăng nhập' })).toHaveAttribute('data-uui-control', 'button');
-    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeEnabled();
   });
 
   it('clears stale credential feedback as the user corrects either field', async () => {
@@ -108,6 +108,67 @@ describe('login submit never no-ops (QA1-003)', () => {
     fireEvent.submit(screen.getByRole('button', { name: 'Đăng nhập' }).closest('form')!);
 
     expect(login).toHaveBeenCalledWith('admin', 'Abc123');
+  });
+});
+
+// SIL-563: the submit button stays enabled and validation happens on submit —
+// the inline message names the offending field, the first invalid field takes
+// focus, and its aria-invalid carries the state. Placeholders read as format
+// examples, not instructions.
+describe('login validates on submit (SIL-563)', () => {
+  beforeEach(() => { login.mockReset(); });
+
+  it('bypasses the native bubble so the app message names the field (noValidate)', () => {
+    render(<LoginPage />);
+    // The fields keep `required` for semantics, but the form must not let the
+    // browser's untranslated "Please fill out this field." bubble preempt the
+    // app's own named-field message (measured live in the 29/10 driver).
+    const form = screen.getByRole('button', { name: 'Đăng nhập' }).closest('form')!;
+    expect(form).toHaveAttribute('novalidate');
+  });
+
+  it('names the empty username and focuses it instead of disabling the button', () => {
+    render(<LoginPage />);
+    const submit = screen.getByRole('button', { name: 'Đăng nhập' });
+    expect(submit).toBeEnabled();
+    fireEvent.submit(submit.closest('form')!);
+    expect(login).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toBe('Vui lòng nhập tên đăng nhập hoặc số điện thoại.');
+    const username = screen.getByLabelText('Tên đăng nhập hoặc số điện thoại');
+    expect(username).toHaveFocus();
+    expect(username).toHaveAttribute('aria-invalid', 'true');
+    expect(username).toHaveAttribute('aria-describedby', 'login-error');
+    expect(screen.getByLabelText('Mật khẩu')).toHaveAttribute('aria-invalid', 'false');
+  });
+
+  it('names the empty password and focuses it when only the username is filled', () => {
+    render(<LoginPage />);
+    fireEvent.change(screen.getByLabelText('Tên đăng nhập hoặc số điện thoại'), { target: { value: 'admin' } });
+    fireEvent.submit(screen.getByRole('button', { name: 'Đăng nhập' }).closest('form')!);
+    expect(login).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toBe('Vui lòng nhập mật khẩu.');
+    const password = screen.getByLabelText('Mật khẩu');
+    expect(password).toHaveFocus();
+    expect(password).toHaveAttribute('aria-invalid', 'true');
+    expect(password).toHaveAttribute('aria-describedby', 'login-error');
+    expect(screen.getByLabelText('Tên đăng nhập hoặc số điện thoại')).toHaveAttribute('aria-invalid', 'false');
+  });
+
+  it('shows realistic format examples as placeholders, not instructions', () => {
+    render(<LoginPage />);
+    expect(screen.getByPlaceholderText(/nv001|0901/)).toBeTruthy();
+    expect(screen.getByPlaceholderText('••••••••')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('Nhập tên đăng nhập hoặc số điện thoại')).toBeNull();
+    expect(screen.queryByPlaceholderText('Nhập mật khẩu')).toBeNull();
+  });
+
+  it('clears the field-level error as the user corrects the field', () => {
+    render(<LoginPage />);
+    fireEvent.submit(screen.getByRole('button', { name: 'Đăng nhập' }).closest('form')!);
+    expect(screen.getByLabelText('Tên đăng nhập hoặc số điện thoại')).toHaveAttribute('aria-invalid', 'true');
+    fireEvent.change(screen.getByLabelText('Tên đăng nhập hoặc số điện thoại'), { target: { value: 'admin' } });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Tên đăng nhập hoặc số điện thoại')).toHaveAttribute('aria-invalid', 'false');
   });
 });
 
