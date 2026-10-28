@@ -1261,7 +1261,7 @@
   .fleet-form .input {
     min-height: var(--control-touch-h);
     height: var(--control-touch-h);
-    font-size: var(--text-input-touch-size);
+    font-size: var(--control-zoom-safe-font-size);/* SIL-558: 16px iOS focus floor */
     line-height: var(--control-compact-touch-line-height);
   }
 
@@ -1270,7 +1270,7 @@
   .modal__body .fleet-form .field .input {
     min-height: var(--control-touch-h);
     height: var(--control-touch-h);
-    font-size: var(--text-input-touch-size);
+    font-size: var(--control-zoom-safe-font-size);/* SIL-558: 16px iOS focus floor */
     line-height: var(--control-compact-touch-line-height);
   }
 

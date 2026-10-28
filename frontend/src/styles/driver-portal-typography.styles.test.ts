@@ -24,7 +24,11 @@ describe('driver, portal and fleet semantic typography', () => {
     const declarations = [...read(file).matchAll(/font-size:\s*([^;{}]+);/g)];
     expect(declarations.length).toBeGreaterThan(0);
     for (const [, value] of declarations) {
-      expect(value.trim()).toMatch(/^(?:var\(--text-[a-z-]+-size\)|inherit)(?:\s*!important)?$/);
+      // --control-zoom-safe-font-size (SIL-558) is a shared control token, not
+      // a private scale: the touch field floor Safari requires (16px).
+      expect(value.trim()).toMatch(
+        /^(?:var\(--text-[a-z-]+-size\)|var\(--control-zoom-safe-font-size\)|inherit)(?:\s*!important)?$/,
+      );
     }
   });
 

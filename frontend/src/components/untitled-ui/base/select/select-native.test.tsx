@@ -18,7 +18,7 @@ describe('NativeSelect', () => {
       'min-h-[34px]',
       'text-[length:var(--text-control-compact-size)]',
       'max-md:min-h-[var(--control-max-h)]',
-      'max-md:text-[length:var(--text-input-touch-size)]', '[@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]',
+      'max-md:text-[length:var(--control-zoom-safe-font-size)]', '[@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)]',
     );
   });
 });

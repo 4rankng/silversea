@@ -7,7 +7,7 @@ import { BufferedUuiDateTimeInput } from './BufferedUuiDateTimeInput';
 import { UuiSelectField } from './UuiSelectField';
 
 const expectCompactField = (element: Element) => {
-  expect(element).toHaveClass('text-[length:var(--text-control-compact-size)]', 'leading-[1.35]', 'max-md:text-[length:var(--text-input-touch-size)]', '[@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]');
+  expect(element).toHaveClass('text-[length:var(--text-control-compact-size)]', 'leading-[1.35]', 'max-md:text-[length:var(--control-zoom-safe-font-size)]', '[@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)]');
 };
 
 describe('shared field typography roles', () => {
@@ -23,7 +23,7 @@ describe('shared field typography roles', () => {
     expect(screen.getByText('Giờ')).toHaveClass('split-datetime__label');
     const action = screen.getByRole('button', { name: 'Lưu' });
     expect(action).toHaveClass('max-md:text-[length:var(--text-control-size)]');
-    expect(action).not.toHaveClass('max-md:text-[length:var(--text-input-touch-size)]');
+    expect(action).not.toHaveClass('max-md:text-[length:var(--control-zoom-safe-font-size)]');
   });
 
   it('matches the selected value and portalled option text without shrinking a long option to one clipped line', async () => {
