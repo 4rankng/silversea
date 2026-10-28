@@ -112,11 +112,11 @@ describe('shipment container editor density', () => {
     // ── The three group lines ───────────────────────────────────────────
     // One 36px row each (h-9): the label keeps its own lane (shrink-0 +
     // nowrap) and the value sits right beside it.
-    expect(css).toMatch(/\.cus-lot-line\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;[^}]*align-items:\s*center;[^}]*gap:\s*8px;[^}]*height:\s*36px;/);
+    expect(css).toMatch(/\.cus-lot-line\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;[^}]*align-items:\s*center;[^}]*gap:\s*8px;[^}]*min-height:\s*36px;/);
     expect(css).toMatch(/\.cus-lot-line__label\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap;[^}]*line-height:\s*20px;/);
     // The label and the value share the leading-5 baseline band.
     expect(css).toMatch(/\.cus-lot-line__value\s*\{[^}]*line-height:\s*20px;/);
-    expect(css).toMatch(/button\.cus-lot-line--trigger\s*\{[^}]*height:\s*36px;[^}]*line-height:\s*20px;/);
+    expect(css).toMatch(/button\.cus-lot-line--trigger\s*\{[^}]*min-height:\s*36px;[^}]*line-height:\s*20px;/);
     // The closed value keeps a ch floor so the placeholder never shreds.
     expect(css).toMatch(/\.cus-lot-line--number\s*\{[^}]*--cus-lot-lane:\s*16ch;/);
     expect(css).toMatch(/\.cus-lot-line--type\s*\{[^}]*--cus-lot-lane:\s*10ch;/);
@@ -141,7 +141,7 @@ describe('shipment container editor density', () => {
     // The unit beside the number never shrinks.
     expect(css).toMatch(/\.cus-lot-editor__unit\s*\{[^}]*flex:\s*0 0 auto;[^}]*line-height:\s*20px;/);
     // The LOẠI select lives in the panel and fills it.
-    expect(css).toMatch(/\.cus-lot-editor \.ds-uui-select,\s*\n\.cus-lot-editor \.ds-uui-select--content\s*\{[^}]*width:\s*100%;/);
+    expect(css).toMatch(/\.cus-lot-editor \.ds-uui-select\s*\{[^}]*flex:\s*1 1 auto;[^}]*width:\s*100%;/);
   });
 
   it('switches the drawer cards onto the drawer canvas while keeping page pagination wrapping', () => {

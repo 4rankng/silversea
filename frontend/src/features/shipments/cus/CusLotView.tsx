@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, CopyPlus, Loader2 } from 'lucide-react';
 import { UuiSelectField } from '../../../design-system';
@@ -270,6 +270,8 @@ function ContainerGroupLine({
   ariaLabel,
   mono,
   editable,
+  expanded,
+  panelId,
   laneClassName,
   triggerRef,
   onOpen,
@@ -286,6 +288,10 @@ function ContainerGroupLine({
   ariaLabel: string;
   mono?: boolean;
   editable: boolean;
+  /** Whether THIS line's floating editor is the open one. */
+  expanded?: boolean;
+  /** The id of the floating panel this trigger opens. */
+  panelId?: string;
   /** Lane modifier — the ch floor of this row's value lane. */
   laneClassName?: string;
   /** The floating editor anchors itself to this trigger. */
@@ -310,6 +316,12 @@ function ContainerGroupLine({
         onClick={onOpen}
         aria-label={ariaLabel}
         title={ariaLabel}
+        // The trigger OWNS the panel: AT is told it opens a dialog, whether
+        // that dialog is open, and which one it is (the house rule — the
+        // drawer reads `aria-expanded` to know who owns Escape).
+        aria-haspopup="dialog"
+        aria-expanded={Boolean(expanded)}
+        aria-controls={panelId}
       >
         <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{value || placeholder}</span>
         <ChevronDown size={12} aria-hidden="true" className="cus-lot-line__chevron" />
@@ -322,21 +334,25 @@ function ContainerGroupLine({
  *
  *  SIL-552 (owner 28/10, second decision): the editor leaves the cell and
  *  floats over the sheet — portalled to the body (the table's scroll wrapper
- *  clips BOTH axes: `overflow-x: auto` computes `overflow-y: auto`), fixed
- *  positioned under the line it edits, and free of the column's width. The
- *  panel is `role="dialog"` with the line's own accessible name, an arrow
- *  pointing at the row it belongs to, and Escape / outside-press to revert.
- *  The LOẠI line's listbox (react-aria) keeps its own body-level popover, so
- *  it is never clipped by the panel. */
+ *  is a scroll container, so a panel inside the table would be cut off by its
+ *  clipping box), fixed positioned under the line it edits, and free of the
+ *  column's width. The panel is `role="dialog"` with the line's own
+ *  accessible name, an arrow pointing at the row it belongs to, and Escape /
+ *  outside-press to revert.
+ *
+ *  The panel CONTAINS the keyboard focus: it is portalled OUTSIDE the
+ *  drawer's own focus trap, so Tab would otherwise walk out of the editor
+ *  while it is still open. The LOẠI line's listbox (react-aria) keeps its own
+ *  body-level popover, so it is never clipped by the panel. */
 function ContainerGroupEditor({
   open,
   anchorRef,
   field,
-  /** The panel's own name — what it edits. */
+  panelId,
   panelLabel,
-  /** The open field's accessible name — what the input is called. */
   ariaLabel,
   draft,
+  persistedValue,
   typeId,
   typeOptions,
   busy,
@@ -349,10 +365,16 @@ function ContainerGroupEditor({
   open: boolean;
   anchorRef?: RefObject<HTMLElement | null>;
   field: ContainerGroupField;
+  /** The panel's DOM id — the trigger points at it with aria-controls. */
+  panelId: string;
+  /** The panel's own name — what it edits. */
   panelLabel: string;
+  /** The open field's accessible name — what the input is called. */
   ariaLabel: string;
   /** The open line's draft (the editor seeds it from the persisted value). */
   draft: string;
+  /** The persisted value the draft was seeded from. */
+  persistedValue: string;
   typeId: number | null;
   typeOptions: ReadonlyArray<{ id: number; code: string; name: string }>;
   busy: boolean;
@@ -367,29 +389,64 @@ function ContainerGroupEditor({
   onCancel: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const position = usePopoverPosition(panelRef, anchorRef, open, 300, 96, 'left');
+  const position = usePopoverPosition(panelRef, anchorRef, open, 300, 54, { align: 'left' });
+  // The dismiss layer must ignore the react-aria listbox: it is portalled to
+  // the body, so a press on it is neither inside the panel nor on the
+  // trigger — the editor would close under the operator's finger.
+  const additionalRefs = useMemo(() => (anchorRef ? [anchorRef] : []), [anchorRef]);
   useClickOutside(panelRef, onClose, {
     enabled: open,
     escapeKey: true,
     onEscape: onCancel,
-    additionalRefs: anchorRef ? [anchorRef] : undefined,
+    additionalRefs,
+    ignoreSelector: '.react-aria-Popover, [role="listbox"]',
   });
 
-  // The panel mounts only once its position is known, so the focus lands in
-  // the same commit as the paint.
+  // The focus lands ONCE per opening: the position object is rebuilt on every
+  // scroll, and re-focusing on each rebuild would yank the keyboard back to
+  // the input while the operator is on the Lưu button.
+  const focusedRef = useRef(false);
   useEffect(() => {
-    if (!position) return;
+    if (!open) {
+      focusedRef.current = false;
+      return;
+    }
+    if (!position || focusedRef.current) return;
+    focusedRef.current = true;
     const first = panelRef.current?.querySelector<HTMLElement>('input, button:not([disabled])');
     first?.focus();
-  }, [position]);
+  }, [open, position]);
+
+  // The panel keeps the keyboard inside itself — it sits outside the drawer's
+  // focus trap, so an untrapped Tab would leave the editor open while the
+  // focus walked away.
+  const containTab = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const focusables = panelRef.current?.querySelectorAll<HTMLElement>(
+      'input:not([disabled]), button:not([disabled]), [role="combobox"], select, [tabindex]:not([tabindex="-1"])',
+    );
+    if (!focusables || focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || !panelRef.current?.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   if (!open || !position) return null;
   return createPortal(
     <div
       ref={panelRef}
+      id={panelId}
       className="cus-lot-editor"
       role="dialog"
       aria-label={panelLabel}
+      onKeyDown={containTab}
       style={{
         top: position.top,
         left: position.left,
@@ -423,6 +480,8 @@ function ContainerGroupEditor({
             min={field === 'cargoWeightKg' ? '0' : undefined}
             step={field === 'cargoWeightKg' ? '0.01' : undefined}
             autoComplete="off"
+            // The schema caps the container number at 50 characters.
+            maxLength={field === 'containerNumber' ? 50 : undefined}
             aria-label={ariaLabel}
             value={draft}
             readOnly={busy}
@@ -437,7 +496,10 @@ function ContainerGroupEditor({
           <button
             type="button"
             className="cus-lot-editor__save"
-            disabled={busy || draft.trim() === ''}
+            // The button and Enter share ONE guard: the draft that equals the
+            // persisted value is nothing to save. An emptied draft IS a real
+            // change (the operator cleared the field) — both paths agree.
+            disabled={busy || draft.trim() === persistedValue}
             onClick={onCommitText}
           >
             {busy ? 'Đang lưu…' : 'Lưu'}
@@ -486,12 +548,14 @@ function ContainerGroupCell({
   const numberTriggerRef = useRef<HTMLButtonElement | null>(null);
   const typeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const weightTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const idBase = useId();
 
   const triggerRefFor = (field: ContainerGroupField) => (
     field === 'containerNumber' ? numberTriggerRef : field === 'containerTypeId' ? typeTriggerRef : weightTriggerRef
   );
+  const panelIdFor = (field: ContainerGroupField) => `${idBase}-${field}-editor`;
   const seedFor = (field: ContainerGroupField) => (
-    field === 'containerNumber' ? numberValue : field === 'containerTypeId' ? String(line.containerTypeId ?? '') : weightRaw
+    field === 'containerNumber' ? numberValue : field === 'containerTypeId' ? '' : weightRaw
   );
 
   const openLine = (field: ContainerGroupField) => {
@@ -528,6 +592,8 @@ function ContainerGroupCell({
 
   const commitType = async (value: string) => {
     if (busy) return;
+    // Re-picking the same type changes nothing — no write, no toast.
+    if (value === (line.containerTypeId != null ? String(line.containerTypeId) : '')) { closeLine(true); return; }
     setBusy(true);
     let ok = false;
     try {
@@ -538,8 +604,6 @@ function ContainerGroupCell({
     if (ok) closeLine(true);
   };
 
-  // The open field's name (what its input is called) — distinct from the
-  // trigger's action name and from the panel's own name.
   const openLabel = openField === 'containerNumber'
     ? `Số container — dòng ${line.ordinal}`
     : openField === 'containerTypeId'
@@ -556,6 +620,8 @@ function ContainerGroupCell({
         ariaLabel={`Chỉnh sửa số container — dòng ${line.ordinal}`}
         mono
         editable={lineEditable('containerNumber')}
+        expanded={openField === 'containerNumber'}
+        panelId={panelIdFor('containerNumber')}
         laneClassName="cus-lot-line--number"
         triggerRef={numberTriggerRef}
         onOpen={() => openLine('containerNumber')}
@@ -567,6 +633,8 @@ function ContainerGroupCell({
         emptyText="Chưa chọn loại"
         ariaLabel={`Chỉnh sửa loại container — dòng ${line.ordinal}`}
         editable={lineEditable('containerTypeId')}
+        expanded={openField === 'containerTypeId'}
+        panelId={panelIdFor('containerTypeId')}
         laneClassName="cus-lot-line--type"
         triggerRef={typeTriggerRef}
         onOpen={() => openLine('containerTypeId')}
@@ -578,6 +646,8 @@ function ContainerGroupCell({
         emptyText="Chưa có trọng lượng"
         ariaLabel={`Chỉnh sửa trọng lượng — dòng ${line.ordinal}`}
         editable={lineEditable('cargoWeightKg')}
+        expanded={openField === 'cargoWeightKg'}
+        panelId={panelIdFor('cargoWeightKg')}
         laneClassName="cus-lot-line--weight"
         triggerRef={weightTriggerRef}
         onOpen={() => openLine('cargoWeightKg')}
@@ -586,9 +656,11 @@ function ContainerGroupCell({
         open={openField != null}
         anchorRef={openField ? triggerRefFor(openField) : undefined}
         field={openField ?? 'containerNumber'}
+        panelId={openField ? panelIdFor(openField) : panelIdFor('containerNumber')}
         panelLabel={`Chỉnh sửa thông tin container — dòng ${line.ordinal}`}
         ariaLabel={openLabel}
         draft={draft}
+        persistedValue={openField ? seedFor(openField) : ''}
         typeId={line.containerTypeId}
         typeOptions={detail?.selectors.containerTypes ?? []}
         busy={busy}

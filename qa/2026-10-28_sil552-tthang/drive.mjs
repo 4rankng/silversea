@@ -56,6 +56,25 @@ const browser = await puppeteer.launch({
 const report = { base: BASE, tag: TAG, account, width: WIDTH, geometry: null, edit: null };
 const containerResponses = [];
 
+/** Opens the first lot drawer that actually HAS containers — the list order
+ *  changes with the date filter, and a lot without containers renders the
+ *  empty state instead of the sheet. */
+async function openLotWithContainers(page) {
+  const buttons = await page.$$('button[aria-label*="Mở chi tiết lô hàng"]');
+  for (let i = 0; i < Math.min(buttons.length, 12); i += 1) {
+    await buttons[i].click();
+    try {
+      await page.waitForSelector('.cus-lot-table', { timeout: 4000 });
+      await new Promise((r) => setTimeout(r, 1200));
+      return true;
+    } catch {
+      await page.keyboard.press('Escape');
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+  return false;
+}
+
 try {
   const page = await browser.newPage();
   page.on('response', (res) => {
@@ -68,10 +87,7 @@ try {
   await page.setViewport({ width: WIDTH, height: 900, deviceScaleFactor: 2 });
   await page.goto(`${BASE}/shipments`, { waitUntil: 'networkidle0', timeout: 60000 });
   await page.waitForSelector('button[aria-label*="Mở chi tiết lô hàng"]', { timeout: 30000 });
-  const buttons = await page.$$('button[aria-label*="Mở chi tiết lô hàng"]');
-  await buttons[0].click();
-  await page.waitForSelector('.cus-lot-table', { timeout: 20000 });
-  await new Promise((r) => setTimeout(r, 1500));
+  if (!(await openLotWithContainers(page))) throw new Error('no lot with containers opened');
 
   report.geometry = await page.evaluate(() => {
     const round = (n) => Math.round(n * 100) / 100;

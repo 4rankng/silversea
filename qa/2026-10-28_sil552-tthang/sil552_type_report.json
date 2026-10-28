@@ -2,6 +2,18 @@
   "base": "http://localhost:7188",
   "width": 1280,
   "account": "ok",
+  "pick": {
+    "clicked": "40HC",
+    "originalTypeId": 1,
+    "typeId": 4,
+    "typeLabel": "40HC",
+    "panelStillOpen": false,
+    "toastSeen": true
+  },
+  "restore": {
+    "status": 200,
+    "typeId": 1
+  },
   "panel": {
     "hasSelect": true,
     "controlName": "Loại container — dòng 1",
@@ -9,10 +21,11 @@
     "panelInsideTable": false
   },
   "listbox": {
-    "optionCount": 7,
+    "optionCount": 8,
     "optionTexts": [
       "20DC",
       "20HC",
+      "20OT",
       "20RF",
       "40DC",
       "40HC",
@@ -20,7 +33,7 @@
       "45HC"
     ],
     "listboxWidth": 276,
-    "listboxHeight": 211,
+    "listboxHeight": 242,
     "listboxInViewport": true,
     "listboxInsidePanel": false,
     "listboxInsideTable": false
