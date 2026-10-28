@@ -1,23 +1,28 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusWorkspaceDetail } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 
 import { DispatchContainerDetailDrawer } from './DispatchContainerDetailDrawer';
 
-const { getCusShipmentWorkspaceDetail, updateCusShipmentContainerLine, addCusShipmentContainerRow } = vi.hoisted(() => ({
+const { getCusShipmentWorkspaceDetail, updateCusShipmentContainerLine, addCusShipmentContainerRow, removeCusShipmentContainerRow } = vi.hoisted(() => ({
   getCusShipmentWorkspaceDetail: vi.fn(),
   updateCusShipmentContainerLine: vi.fn(),
   addCusShipmentContainerRow: vi.fn(),
+  removeCusShipmentContainerRow: vi.fn(),
 }));
-vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../../api/shipmentClient')>()),
-  getCusShipmentWorkspaceDetail,
-  updateCusShipmentContainerLine,
-  addCusShipmentContainerRow,
-}));
+vi.mock('../../../api/shipmentClient', async (importOriginal) => {
+  const original = await importOriginal<Record<string, unknown>>();
+  return {
+    ...original,
+    getCusShipmentWorkspaceDetail,
+    updateCusShipmentContainerLine,
+    addCusShipmentContainerRow,
+    removeCusShipmentContainerRow,
+  };
+});
 
 const toastMock = vi.fn();
 vi.mock('../../../components/shared/Toast', () => ({
@@ -119,11 +124,12 @@ describe('DispatchContainerDetailDrawer', () => {
 
   it('keeps the drawer layout responsive without carrying the CUS editor controls', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/DispatchContainerDetailDrawer.css'), 'utf8');
-    // FB-045 lan 2 + SIL-530: 44px ordinal + 3×150 fixed columns (two ports +
-    // appointment) + 6 auto columns ≥92px (container / loại cont / số tờ khai /
-    // điều vận / nhà xe / biển số) — 1046px computed, 1050px floor keeps every
-    // one-line header beside the giờ hẹn column.
-    expect(css).toContain('min-width: 1050px');
+    // FB-045 lan 2 + SIL-530 + SIL-555: 44px ordinal + 3×150 fixed columns
+    // (two ports + appointment) + 130px Thao tác + 6 auto columns ≥92px
+    // (container / loại cont / số tờ khai / điều vận / nhà xe / biển số) —
+    // 1176px computed, 1180px floor keeps every one-line header beside the
+    // giờ hẹn column.
+    expect(css).toContain('min-width: 1180px');
     expect(css).toMatch(/\.dispatch-container-detail__table tbody th,[\s\S]*?\.dispatch-container-detail__table tbody td\s*\{[\s\S]*?white-space:\s*normal;/);
     expect(css).toMatch(/@container \(max-width: 760px\)[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     expect(css).not.toContain('searchable-select');
@@ -635,5 +641,155 @@ describe('DispatchContainerDetailDrawer — Số cont + Giờ hẹn + Thêm cont
 
     await screen.findByText('MSKU1234567');
     expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+  });
+});
+
+describe('DispatchContainerDetailDrawer — XÓA CONT per-row delete (SIL-555, id 629)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authRole = 'DISPATCHER';
+    removeCusShipmentContainerRow.mockReset().mockResolvedValue({ removedId: 10, shipmentVersion: 8 });
+  });
+
+  function removeDetail(lineOver: Record<string, unknown> = {}, summaryOver: Record<string, unknown> = {}) {
+    return {
+      summary: { id: 1, version: 4, cargoMode: 'FCL', activeLock: null, ...summaryOver },
+      containers: [{
+        id: 10,
+        ordinal: 1,
+        containerNumber: 'MSKU5500004',
+        containerTypeLabel: '40DC',
+        declarationNumber: null,
+        tripId: null,
+        tripStatus: null,
+        dispatchStatus: 'AWAITING_VEHICLE',
+        carrierName: null,
+        plateNumber: null,
+        liftSite: null,
+        dropoffSite: null,
+        liftSiteId: null,
+        dropoffSiteId: null,
+        customerAppointmentAt: null,
+        shipmentVersion: 7,
+        fieldAccess: {
+          containerNumber: { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' },
+          customerAppointmentAt: { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' },
+          liftSiteId: { mode: 'READ_ONLY', reason: 'x' },
+          dropoffSiteId: { mode: 'READ_ONLY', reason: 'x' },
+        },
+        ...lineOver,
+      }],
+      selectors: { ports: portCatalog },
+    } as unknown as ShipmentCusWorkspaceDetail;
+  }
+
+  it('renders the Thao tác column and deletes the row through the danger confirm (SIL-472 contract)', async () => {
+    getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail());
+    const onSaved = vi.fn();
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} onSaved={onSaved} />);
+
+    expect(await screen.findByRole('button', { name: 'Xóa container MSKU5500004' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Thao tác' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa container MSKU5500004' }));
+
+    // The confirm names the row it deletes (CUS-10 copy) and really deletes it.
+    const dialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(within(dialog).getByText('Xóa container MSKU5500004?')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa container' }));
+
+    await waitFor(() => expect(removeCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      10,
+      { expectedShipmentVersion: 7 },
+      expect.any(String),
+    ));
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success', message: 'Đã xóa container MSKU5500004.' })));
+    // Refresh danh sách sau khi xóa (SIL-177): drawer refetch + board ping.
+    await waitFor(() => expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByText('Xóa container MSKU5500004?')).toBeNull());
+  });
+
+  it('Hủy closes the confirm without deleting or calling the API', async () => {
+    getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail());
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container MSKU5500004' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+
+    await waitFor(() => expect(screen.queryByText('Xóa container MSKU5500004?')).toBeNull());
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+  });
+
+  it('SIL-177 guard: a row carrying a tờ khai disables the button with the guard reason', async () => {
+    getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail({ declarationNumber: 'Q1-DECL-177' }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    const button = await screen.findByRole('button', { name: 'Xóa container MSKU5500004' });
+    expect(button).toHaveAttribute('disabled');
+    expect(button).toHaveAttribute('title', 'Cont có tờ khai Q1-DECL-177 — gỡ tờ khai trước khi xóa');
+    // The FE never warn-and-allows past the BE 409 guard: no dialog, no call.
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
+  });
+
+  it('trip guard: a row already on a trip disables the button with the trip reason', async () => {
+    getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail({ tripId: 5, tripStatus: 'CREATED' }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    const button = await screen.findByRole('button', { name: 'Xóa container MSKU5500004' });
+    expect(button).toHaveAttribute('disabled');
+    expect(button).toHaveAttribute('title', 'Không thể xóa container đã gắn chuyến xe');
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+  });
+
+  it('a CANCELED trip does not block the row (tripStatus CANCELED is free)', async () => {
+    getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail({ tripId: 5, tripStatus: 'CANCELED' }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    const button = await screen.findByRole('button', { name: 'Xóa container MSKU5500004' });
+    expect(button).not.toHaveAttribute('disabled');
+  });
+
+  it('role law: a role outside the writer set never sees the button or the column', async () => {
+    authRole = 'ACCOUNTANT';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail());
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    await screen.findByText('MSKU5500004');
+    expect(screen.queryByRole('columnheader', { name: 'Thao tác' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Xóa container/ })).toBeNull();
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+  });
+
+  it('accounting lock: an activeLock lot never shows the button or the column', async () => {
+    authRole = 'CUS';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail({}, { activeLock: { id: 9, lockedBy: 'x' } }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    await screen.findByText('MSKU5500004');
+    expect(screen.queryByRole('columnheader', { name: 'Thao tác' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Xóa container/ })).toBeNull();
+  });
+
+  it('a refused remove surfaces the API reason, keeps the dialog open, and resyncs for a retry', async () => {
+    getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail());
+    removeCusShipmentContainerRow.mockRejectedValue(new Error('Lô hàng phải có ít nhất một container.'));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa container MSKU5500004' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xóa container' }));
+
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'error',
+      message: 'Lô hàng phải có ít nhất một container.',
+    })));
+    // Guard rejection keeps the dialog open (retry / Hủy) and refetches so a
+    // retry carries the fresh expectedShipmentVersion (add-flow parity).
+    expect(screen.getByText('Xóa container MSKU5500004?')).toBeTruthy();
+    await waitFor(() => expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledTimes(2));
+    expect(removeCusShipmentContainerRow).toHaveBeenCalledTimes(1);
   });
 });

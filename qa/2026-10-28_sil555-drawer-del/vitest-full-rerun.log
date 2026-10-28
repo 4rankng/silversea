@@ -1,0 +1,154 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-629-drawer-del/frontend
+
+ ❯ src/styles/numeric-identity.styles.test.ts (6 tests | 2 failed) 75ms
+     × the production bundle holds the numeric law on the amount cells 3ms
+     × the production bundle holds the numeric law on the expense register cells 1ms
+ ❯ src/pages/MasterPlanPage.lcl-grouping.test.tsx (5 tests | 5 failed) 1341ms
+     × default hides the CHỌN column; the toggle reveals it (spec 23/10 §2) 494ms
+     × gives a checkbox to a lot the Sản lượng count includes even when its payload lacks cargoMode (DOM-vs-visual regression lock) 144ms
+     × renders the select cell on cont rows dimmed and untouchable once the mode is on (spec 23/10 §2) 210ms
+     × offers checkboxes on LCL rows only and refuses grouped lots 287ms
+     × shows the running totals and the Lô-1 money law, then opens Gán xe nhóm 203ms
+ ❯ src/pages/MasterPlanPage.test.tsx (5 tests | 5 failed) 1140ms
+     × does not offer the note edit a DISPATCHER can never save 467ms
+     × toasts the server reason when a note save is refused 203ms
+     × keeps the generic message when the failure carries no server reason 154ms
+     × row click navigates to /dispatch-detail scoped by q + day 68ms
+     × no Bill/Booking falls back to the shipment code, never the placeholder label 235ms
+ ❯ src/pages/MasterPlanPage.export.test.tsx (8 tests | 7 failed) 1576ms
+     × with >= 1 row in the filtered view it is enabled and exports those rows 474ms
+     × with 0 rows it is disabled AND explains there is nothing to export 169ms
+     × while the view is loading it explains the wait instead of claiming no data 211ms
+     × shows the busy label while exporting and blocks re-entry 94ms
+     × surfaces an export failure as the FB-053 error toast 335ms
+     × the error-banner retry explains its busy disable 171ms
+     × the retry stays actionable once loading settles 116ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+ ❯ src/components/config/CrudTable.discovery.test.tsx (4 tests | 1 failed) 6710ms
+     × filters translated visible text without changing aggregate inputs or record identity 5781ms
+ ❯ src/components/trip/TripEditConflictDialog.test.tsx (2 tests | 1 failed) 6601ms
+     × requires each choice and submits the reviewed version without silently selecting values 5133ms
+ ❯ src/components/shipment/CarrierAllocationDialog.test.tsx (2 tests | 1 failed) 5888ms
+     × keeps save disabled until the 20 and 40 totals match demand exactly 5035ms
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 22 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the amount cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:31:13
+     29|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     30|     if (!existsSync(distAssets)) {
+     31|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     32|     }
+     33|     const sharedChunk = readdirSync(distAssets).find((f) => f.startsWi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/22]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the expense register cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:66:13
+     64|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     65|     if (!existsSync(distAssets)) {
+     66|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     67|     }
+     68|     // The Money component itself is the law's rendering: the built `.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/22]⎯
+
+ FAIL  src/pages/MasterPlanPage.export.test.tsx > dispatch export button — data-driven enable (card 081026093510) > with >= 1 row in the filtered view it is enabled and exports those rows
+ FAIL  src/pages/MasterPlanPage.export.test.tsx > dispatch export button — data-driven enable (card 081026093510) > with 0 rows it is disabled AND explains there is nothing to export
+ FAIL  src/pages/MasterPlanPage.export.test.tsx > dispatch export button — data-driven enable (card 081026093510) > while the view is loading it explains the wait instead of claiming no data
+ FAIL  src/pages/MasterPlanPage.export.test.tsx > dispatch export button — data-driven enable (card 081026093510) > shows the busy label while exporting and blocks re-entry
+ FAIL  src/pages/MasterPlanPage.export.test.tsx > dispatch export button — data-driven enable (card 081026093510) > surfaces an export failure as the FB-053 error toast
+ FAIL  src/pages/MasterPlanPage.export.test.tsx > same-screen sweep — silent disables now explain themselves > the error-banner retry explains its busy disable
+ FAIL  src/pages/MasterPlanPage.export.test.tsx > same-screen sweep — silent disables now explain themselves > the retry stays actionable once loading settles
+ FAIL  src/pages/MasterPlanPage.lcl-grouping.test.tsx > SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping > default hides the CHỌN column; the toggle reveals it (spec 23/10 §2)
+ FAIL  src/pages/MasterPlanPage.lcl-grouping.test.tsx > SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping > gives a checkbox to a lot the Sản lượng count includes even when its payload lacks cargoMode (DOM-vs-visual regression lock)
+ FAIL  src/pages/MasterPlanPage.lcl-grouping.test.tsx > SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping > renders the select cell on cont rows dimmed and untouchable once the mode is on (spec 23/10 §2)
+ FAIL  src/pages/MasterPlanPage.lcl-grouping.test.tsx > SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping > offers checkboxes on LCL rows only and refuses grouped lots
+ FAIL  src/pages/MasterPlanPage.lcl-grouping.test.tsx > SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping > shows the running totals and the Lô-1 money law, then opens Gán xe nhóm
+ FAIL  src/pages/MasterPlanPage.test.tsx > MasterPlanPage note editing (dispatcher gate) > does not offer the note edit a DISPATCHER can never save
+ FAIL  src/pages/MasterPlanPage.test.tsx > MasterPlanPage note editing (dispatcher gate) > toasts the server reason when a note save is refused
+ FAIL  src/pages/MasterPlanPage.test.tsx > MasterPlanPage note editing (dispatcher gate) > keeps the generic message when the failure carries no server reason
+ FAIL  src/pages/MasterPlanPage.test.tsx > MasterPlanPage lot click opens dispatch detail (FB-014) > row click navigates to /dispatch-detail scoped by q + day
+ FAIL  src/pages/MasterPlanPage.test.tsx > MasterPlanPage lot click opens dispatch detail (FB-014) > no Bill/Booking falls back to the shipment code, never the placeholder label
+Error: [vitest] No "useToastOptional" export is defined on the "../components/shared/Toast" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+vi.mock(import("../components/shared/Toast"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+ ❯ DispatchContainerDetailDrawer src/features/dispatch/master-plan/DispatchContainerDetailDrawer.tsx:637:20
+    635|   const requestIdRef = useRef(0);
+    636|   const user = useAuth()?.user;
+    637|   const toastCtx = useToastOptional();
+       |                    ^
+    638|   // SIL-551 (id 624): per-cont tờ khai writes open to Điều vận (the t…
+    639|   // Expected supersedes the role sentence of card 261013200312 for the
+ ❯ Object.react_stack_bottom_frame ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:25904:20
+ ❯ renderWithHooks ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:7662:22
+ ❯ updateFunctionComponent ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:10166:19
+ ❯ beginWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:11778:18
+ ❯ runWithFiberInDEV ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:874:13
+ ❯ performUnitOfWork ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17641:22
+ ❯ workLoopSync ../node_modules/.pnpm/react-dom@19.2.6_react@19.2.6/node_modules/react-dom/cjs/react-dom-client.development.js:17469:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/22]⎯
+
+ FAIL  src/components/config/CrudTable.discovery.test.tsx > catalogue discovery and recovery > filters translated visible text without changing aggregate inputs or record identity
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/config/CrudTable.discovery.test.tsx:24:3
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/22]⎯
+
+ FAIL  src/components/shipment/CarrierAllocationDialog.test.tsx > CarrierAllocationDialog > keeps save disabled until the 20 and 40 totals match demand exactly
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/shipment/CarrierAllocationDialog.test.tsx:14:3
+     12|   });
+     13|
+     14|   it('keeps save disabled until the 20 and 40 totals match demand exac…
+       |   ^
+     15|     render(
+     16|       <CarrierAllocationDialog
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/22]⎯
+
+ FAIL  src/components/trip/TripEditConflictDialog.test.tsx > TripEditConflictDialog > requires each choice and submits the reviewed version without silently selecting values
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/trip/TripEditConflictDialog.test.tsx:12:3
+     10|
+     11| describe('TripEditConflictDialog', () => {
+     12|   it('requires each choice and submits the reviewed version without si…
+       |   ^
+     13|     const onSave = vi.fn().mockResolvedValue(undefined);
+     14|     const onClose = vi.fn();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/22]⎯
+
+
+ Test Files  7 failed | 734 passed (741)
+      Tests  22 failed | 5703 passed (5725)
+   Start at  21:48:12
+   Duration  1645.85s (transform 74.74s, setup 631.11s, import 2265.32s, tests 2144.08s, environment 2677.52s)
+

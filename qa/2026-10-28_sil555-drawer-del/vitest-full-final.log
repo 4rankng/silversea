@@ -1,0 +1,919 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-629-drawer-del/frontend
+
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx (66 tests | 1 failed) 33417ms
+     × mounts the editor on press 1 (branch decompose) and on every later press 5566ms
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx (13 tests | 4 failed) 40694ms
+   × khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp 5097ms
+   × lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng 5965ms
+   × không có nhà xe ngoài thì để chọn tay, không chặn lưu (FB-097) 5166ms
+   × lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực chi/ngày giữ nguyên (FB-097) 6167ms
+ ❯ src/features/accounting/PhoiPhieuDialogs.test.tsx (21 tests | 1 failed) 36906ms
+     × PHOI10 zero state retains concise direction actions and truthful selection guidance (case QA-2026-09-24-01) 5534ms
+ ❯ src/features/accounting/PhoiPhieuChiHoDialog.test.tsx (28 tests | 1 failed) 29636ms
+     × PHOI08 refreshes successful row versions after a later row failure and retries only the remaining change 5692ms
+ ❯ src/features/accounting/InvoiceTrackingFormModal.test.tsx (7 tests | 2 failed) 24208ms
+     × ignores an old lot's detail resolve after another lot is selected 5052ms
+     × create: one in-flight command; failed unchanged retry reuses key; changed retry gets a new key 5454ms
+ ❯ src/pages/OpsWalletPage.test.tsx (13 tests | 1 failed) 27552ms
+     × lets the author edit a recorded unsettled expense (PRD §5.5 sửa) 6181ms
+stderr | src/pages/TripListPage.test.tsx > TripListPage server-side column sort > loads page 1 without sort params so the default order stays untouched
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["trips-summary","2026-08-01","2026-08-31"]
+
+stderr | src/pages/TripListPage.test.tsx > TripListPage server-side column sort > sends sortBy/sortDir when a header is clicked and flips asc → desc on repeat
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["trips-summary","2026-08-01","2026-08-31"]
+
+stderr | src/pages/TripListPage.test.tsx > TripListPage server-side column sort > resets to page 1 when a sort is applied from a later page
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["trips-summary","2026-08-01","2026-08-31"]
+
+stderr | src/pages/TripListPage.test.tsx > TripListPage server-side column sort > resets to page 1 when a sort is applied from a later page
+An update to TripListPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/TripListPage.test.tsx > TripListPage server-side column sort > resets to page 1 when a sort is applied from a later page
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/pages/TripListPage.test.tsx (6 tests | 3 failed) 28282ms
+     × loads page 1 without sort params so the default order stays untouched 6158ms
+     × sends sortBy/sortDir when a header is clicked and flips asc → desc on repeat 6269ms
+     × resets to page 1 when a sort is applied from a later page 5480ms
+ ❯ src/pages/clerk/ClerkShipmentEditPage.test.tsx (7 tests | 1 failed) 14904ms
+     × submit = PATCH lô hiện có — updateShipment với expectedVersion, KHÔNG tạo lô mới 5103ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx (3 tests | 1 failed) 11530ms
+     × a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save: issues paint and the typed input is KEPT (no wipe, no silent dead key) 6436ms
+ ❯ src/features/shipments/create/ShipmentCreateContainerRow.create-option.test.tsx (8 tests | 1 failed) 26104ms
+     × opens PortCreateDialog with empty name when clicking + Thêm without typing in pickup port 5707ms
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx (4 tests | 2 failed) 19736ms
+     × saves vehicleSizeClassId (not a free-text key) when a class is chosen 6325ms
+     × keeps the container axis exclusive with the vehicle class 7215ms
+ ❯ src/features/accounting/AccountingWorkspaceRoot.test.tsx (4 tests | 2 failed) 16545ms
+     × loads without sort params and renders every data column as a sort header 5708ms
+     × header click writes sortBy/sortDir into the query and restarts from page 1 5159ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.cursor-advance.test.tsx (2 tests | 2 failed) 15209ms
+     × typing '08' into Giờ jumps the cursor to Phút; the minute digit is not dropped 6341ms
+     × a completed phút hands the cursor to the date day segment — entry never gets stuck 8866ms
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx (3 tests | 1 failed) 12080ms
+     × LCL lot: the lclspec field-set and NO container 20'/40' demand UI 5102ms
+ ❯ src/pages/FinancePage.sort.test.tsx (8 tests | 1 failed) 11095ms
+     × keeps the report profit-desc default and sorts by profit and plate client-side 6229ms
+ ❯ src/components/trip/TripInfoCard.quick-add.test.tsx (5 tests | 1 failed) 13718ms
+     × quick-adds an internal tractor: POST /trucks, form selects the new plate 5440ms
+ ❯ src/features/expense-accounting/ExpenseReconciliationHistory.test.tsx (7 tests | 1 failed) 3243ms
+   × lets an OPS reader inspect source details but exposes no release or cash action 1525ms
+ ❯ src/design-system/Modal.test.tsx (18 tests | 1 failed) 4556ms
+     × the topmost dialog owns Escape; the unlock order is innermost-first 1402ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/SupplierListPage.filters.test.tsx (6 tests | 1 failed) 8397ms
+     × keeps directory KPIs and status pills on the same population when search returns one row 5207ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 28 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/design-system/Modal.test.tsx > Modal overlay suite — stacking + picker deference > the topmost dialog owns Escape; the unlock order is innermost-first
+AssertionError: expected <div …(5)><div …(3)>…(2)</div></div> to be null
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m"overflow: hidden;"[39m
+  [36m>[39m
+    [36m<div />[39m
+    [36m<div[39m
+      [33maria-labelledby[39m=[32m"_r_a_"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"modal modal--operational-density"[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"opacity: 1;"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__content"[39m
+        [33mstyle[39m=[32m"--modal-max-w: 480px; opacity: 1; will-change: opacity;"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"modal__head"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<h3[39m
+              [33mclass[39m=[32m"modal__title"[39m
+              [33mid[39m=[32m"_r_a_"[39m
+            [36m>[39m
+              [0mNgoài[0m
+            [36m</h3>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+            [33mdata-tip[39m=[32m"Đóng"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Đóng"[39m
+              [33mclass[39m=[32m"btn btn--ghost btn--icon btn--sm modal__close"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-x"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"16"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"16"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M18 6 6 18"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m6 6 12 12"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"modal__body"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mMở trong[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+
+- Expected:
+null
+
++ Received:
+<div
+  aria-labelledby="_r_a_"
+  aria-modal="true"
+  class="modal modal--operational-density"
+  role="dialog"
+  style="opacity: 1;"
+>
+  <div
+    class="modal__content"
+    style="--modal-max-w: 480px; opacity: 1; will-change: opacity;"
+    tabindex="-1"
+  >
+    <div
+      class="modal__head"
+    >
+      <div>
+        <h3
+          class="modal__title"
+          id="_r_a_"
+        >
+          Ngoài
+        </h3>
+      </div>
+      <div
+        class="d-tooltip d-tooltip-bottom"
+        data-tip="Đóng"
+      >
+        <button
+          aria-label="Đóng"
+          class="btn btn--ghost btn--icon btn--sm modal__close"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-x"
+            fill="none"
+            height="16"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="16"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M18 6 6 18"
+            />
+            <path
+              d="m6 6 12 12"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="modal__body"
+    >
+      <button
+        type="button"
+      >
+        Mở trong
+      </button>
+    </div>
+  </div>
+</div>
+
+ ❯ src/design-system/Modal.test.tsx:180:62
+    178|     expect(document.body.style.overflow).toBe('hidden');
+    179|     fireEvent.keyDown(document, { key: 'Escape' });
+    180|     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(…
+       |                                                              ^
+    181|     await waitFor(() => expect(document.body.style.overflow).toBe(''));
+    182|   });
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/28]⎯
+
+ FAIL  src/features/accounting/AccountingWorkspaceRoot.test.tsx > AccountingWorkspaceRoot transport register sort (URL-driven) > loads without sort params and renders every data column as a sort header
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/AccountingWorkspaceRoot.test.tsx:98:3
+     96|
+     97| describe('AccountingWorkspaceRoot transport register sort (URL-driven)…
+     98|   it('loads without sort params and renders every data column as a sor…
+       |   ^
+     99|     renderRoot('/accounting?view=transport');
+    100|     await waitFor(() => expect(screen.getByRole('columnheader', { name…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/28]⎯
+
+ FAIL  src/features/accounting/AccountingWorkspaceRoot.test.tsx > AccountingWorkspaceRoot transport register sort (URL-driven) > header click writes sortBy/sortDir into the query and restarts from page 1
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/AccountingWorkspaceRoot.test.tsx:109:3
+    107|   });
+    108|
+    109|   it('header click writes sortBy/sortDir into the query and restarts f…
+       |   ^
+    110|     renderRoot('/accounting?view=transport&page=2');
+    111|     await waitFor(() => expect(lastParams()).toMatchObject({ page: 2 }…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/28]⎯
+
+ FAIL  src/features/accounting/InvoiceTrackingFormModal.test.tsx > invoice save lifecycle > ignores an old lot's detail resolve after another lot is selected
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/InvoiceTrackingFormModal.test.tsx:30:5
+     28|
+     29|   for (const staleOutcome of ['resolve', 'reject'] as const) {
+     30|     it(`ignores an old lot's detail ${staleOutcome} after another lot …
+       |     ^
+     31|       let resolve!: (value: unknown) => void; let reject!: (reason: Er…
+     32|       api.lots.mockResolvedValue({ items: [{ id: 9, shipmentCode: 'QA-…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/28]⎯
+
+ FAIL  src/features/accounting/InvoiceTrackingFormModal.test.tsx > invoice save lifecycle > create: one in-flight command; failed unchanged retry reuses key; changed retry gets a new key
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/InvoiceTrackingFormModal.test.tsx:56:5
+     54|
+     55|   for (const mode of ['create', 'edit'] as const) {
+     56|     it(`${mode}: one in-flight command; failed unchanged retry reuses …
+       |     ^
+     57|       const write = mode === 'create' ? api.create : api.update;
+     58|       let reject!: (error: Error) => void;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/28]⎯
+
+ FAIL  src/features/accounting/PhoiPhieuChiHoDialog.test.tsx > phơi chi-hộ row identity > PHOI08 refreshes successful row versions after a later row failure and retries only the remaining change
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/PhoiPhieuChiHoDialog.test.tsx:21:3
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/28]⎯
+
+ FAIL  src/features/accounting/PhoiPhieuDialogs.test.tsx > phôi phiếu board row composition (card 20260923_8 group B) > PHOI10 zero state retains concise direction actions and truthful selection guidance (case QA-2026-09-24-01)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/PhoiPhieuDialogs.test.tsx:253:3
+    251|   // "nothing approved". PHOI10 keeps the short action while its title…
+    252|   // adjacent scope guidance explain selection; counts appear after se…
+    253|   it('PHOI10 zero state retains concise direction actions and truthful…
+       |   ^
+    254|     renderBoard();
+    255|     expect(await findRow('BILL-001')).toBeTruthy();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/28]⎯
+
+ FAIL  src/pages/FinancePage.sort.test.tsx > FinancePage per-truck table column sorting > keeps the report profit-desc default and sorts by profit and plate client-side
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/FinancePage.sort.test.tsx:226:3
+    224|
+    225| describe('FinancePage per-truck table column sorting', () => {
+    226|   it('keeps the report profit-desc default and sorts by profit and pla…
+       |   ^
+    227|     const { container } = renderPage();
+    228|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/28]⎯
+
+ FAIL  src/pages/OpsWalletPage.test.tsx > OpsWalletPage (OpsVanHanh §5) > lets the author edit a recorded unsettled expense (PRD §5.5 sửa)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/OpsWalletPage.test.tsx:163:3
+    161|   });
+    162|
+    163|   it('lets the author edit a recorded unsettled expense (PRD §5.5 sửa)…
+       |   ^
+    164|     apiPatch.mockResolvedValue(expense({ amount: '120000' }));
+    165|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/28]⎯
+
+ FAIL  src/pages/SupplierListPage.filters.test.tsx > SupplierListPage filter strip > keeps directory KPIs and status pills on the same population when search returns one row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/SupplierListPage.filters.test.tsx:86:3
+     84|
+     85| describe('SupplierListPage filter strip', () => {
+     86|   it('keeps directory KPIs and status pills on the same population whe…
+       |   ^
+     87|     const directory = [supplierFixture(1, 'Garage Auto 123'), supplier…
+     88|     apiMock.get.mockImplementation(async (url: string) => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/28]⎯
+
+ FAIL  src/pages/TripListPage.test.tsx > TripListPage server-side column sort > loads page 1 without sort params so the default order stays untouched
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/TripListPage.test.tsx:83:3
+     81|
+     82| describe('TripListPage server-side column sort', () => {
+     83|   it('loads page 1 without sort params so the default order stays unto…
+       |   ^
+     84|     renderPage();
+     85|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/28]⎯
+
+ FAIL  src/pages/TripListPage.test.tsx > TripListPage server-side column sort > sends sortBy/sortDir when a header is clicked and flips asc → desc on repeat
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/TripListPage.test.tsx:97:3
+     95|   });
+     96|
+     97|   it('sends sortBy/sortDir when a header is clicked and flips asc → de…
+       |   ^
+     98|     renderPage();
+     99|     const header = screen.getByRole('columnheader', { name: 'Doanh thu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/28]⎯
+
+ FAIL  src/pages/TripListPage.test.tsx > TripListPage server-side column sort > resets to page 1 when a sort is applied from a later page
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/TripListPage.test.tsx:115:3
+    113|   });
+    114|
+    115|   it('resets to page 1 when a sort is applied from a later page', asyn…
+       |   ^
+    116|     renderPage();
+    117|     await waitFor(() => expect(screen.getAllByText('QA-WF04-114144').l…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/28]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:40:1
+     38|   chiHo.mockReset().mockResolvedValue({ tripId: 10, tripCode: null, sh…
+     39| });
+     40| it('khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload ma…
+       | ^
+     41|   const onClose = vi.fn(); const onSaved = vi.fn();
+     42|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/28]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:58:1
+     56|   expect(screen.getByRole('status')).toHaveTextContent('Đã lưu khoản c…
+     57| });
+     58| it('lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì…
+       | ^
+     59|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+     60|   fireEvent.click(screen.getByRole('button', { name: '+ Thêm dòng' }));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/28]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > không có nhà xe ngoài thì để chọn tay, không chặn lưu (FB-097)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:202:1
+    200|   expect(sentItems(0)[0]).toMatchObject({ supplierId: 3 });
+    201| });
+    202| it('không có nhà xe ngoài thì để chọn tay, không chặn lưu (FB-097)', a…
+       | ^
+    203|   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onCl…
+    204|   fireEvent.click(screen.getByRole('button', { name: /Bên thực chi/ })…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/28]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực chi/ngày giữ nguyên (FB-097)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:216:1
+    214|   expect(sentItems(0)[0]).toMatchObject({ supplierId: 3 });
+    215| });
+    216| it('lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực chi/ngày…
+       | ^
+    217|   const onClose = vi.fn();
+    218|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/28]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseReconciliationHistory.test.tsx > lets an OPS reader inspect source details but exposes no release or cash action
+TestingLibraryElementError: Unable to find role="button" and name "HU-1"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Lịch sử đối chiếu hoàn ứng"[39m
+      [33mclass[39m=[32m"expense-accounting"[39m
+    [36m>[39m
+      [36m<h2[39m
+        [33mclass[39m=[32m"expense-accounting-subtitle"[39m
+      [36m>[39m
+        [0mĐối chiếu hoàn ứng[0m
+      [36m</h2>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Mã / nhân viên / ghi chú"[39m
+              [33mplaceholder[39m=[32m"Mã, nhân viên, ghi chú"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Kỳ đối chiếu"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"_r_1_"[39m
+            [36m>[39m
+              [0mKỳ từ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"_r_1_-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"_r_1_"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"[39m
+                [36m>[39m
+                  [0m/[0m
+                [36m</span>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full f...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Lịch sử đối chiếu hoàn ứng"[39m
+      [33mclass[39m=[32m"expense-accounting"[39m
+    [36m>[39m
+      [36m<h2[39m
+        [33mclass[39m=[32m"expense-accounting-subtitle"[39m
+      [36m>[39m
+        [0mĐối chiếu hoàn ứng[0m
+      [36m</h2>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Mã / nhân viên / ghi chú"[39m
+              [33mplaceholder[39m=[32m"Mã, nhân viên, ghi chú"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Kỳ đối chiếu"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"_r_1_"[39m
+            [36m>[39m
+              [0mKỳ từ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"_r_1_-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"_r_1_"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"[39m
+                [36m>[39m
+                  [0m/[0m
+                [36m</span>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full f...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/expense-accounting/ExpenseReconciliationHistory.test.tsx:22:32
+     20| it('lets an OPS reader inspect source details but exposes no release o…
+     21|   show(<ExpenseReconciliationHistory />);
+     22|   fireEvent.click(await screen.findByRole('button', { name: 'HU-1' }));
+       |                                ^
+     23|   await screen.findByText('Thực chi hiện tại: 500.000 ₫');
+     24|   expect(screen.getByRole('dialog')).toHaveTextContent('Nguồn OPS · ph…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/28]⎯
+
+ FAIL  src/components/trip/TripInfoCard.quick-add.test.tsx > TripInfoCard quick-add on vehicle/driver selectors (FB-066) > quick-adds an internal tractor: POST /trucks, form selects the new plate
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/trip/TripInfoCard.quick-add.test.tsx:109:3
+    107|   });
+    108|
+    109|   it('quick-adds an internal tractor: POST /trucks, form selects the n…
+       |   ^
+    110|     createInternalTruckMock.mockResolvedValue({ id: 41, licensePlate: …
+    111|     renderCard();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/28]⎯
+
+ FAIL  src/pages/clerk/ClerkShipmentEditPage.test.tsx > ClerkShipmentEditPage — SIL-171 "Sửa lô" dùng lại form Tạo lô hàng > submit = PATCH lô hiện có — updateShipment với expectedVersion, KHÔNG tạo lô mới
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/clerk/ClerkShipmentEditPage.test.tsx:186:3
+    184|   });
+    185|
+    186|   it('submit = PATCH lô hiện có — updateShipment với expectedVersion, …
+       |   ^
+    187|     renderEditPage();
+    188|     await screen.findByRole('heading', { name: 'Sửa lô hàng' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/28]⎯
+
+ FAIL  src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx > FB090-05 PricingTablesConfigPage — structured Loại xe selector > saves vehicleSizeClassId (not a free-text key) when a class is chosen
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx:67:3
+     65|
+     66| describe('FB090-05 PricingTablesConfigPage — structured Loại xe select…
+     67|   it('saves vehicleSizeClassId (not a free-text key) when a class is c…
+       |   ^
+     68|     const onSave = vi.fn();
+     69|     renderPageAndForm({ onSave });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/28]⎯
+
+ FAIL  src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx > FB090-05 PricingTablesConfigPage — structured Loại xe selector > keeps the container axis exclusive with the vehicle class
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx:86:3
+     84|   });
+     85|
+     86|   it('keeps the container axis exclusive with the vehicle class', asyn…
+       |   ^
+     87|     const onSave = vi.fn();
+     88|     renderPageAndForm({ onSave });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/28]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > allocation editor mounts on every press (20260916_9) > mounts the editor on press 1 (branch decompose) and on every later press
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:1039:3
+    1037|   }
+    1038|
+    1039|   it('mounts the editor on press 1 (branch decompose) and on every lat…
+       |   ^
+    1040|     const branch = {
+    1041|       ...row({ fulfillmentId: undefined }),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/28]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx > DispatchPlanEditorCell — cửa sổ điều phối theo cargoMode (operator report 191026) > LCL lot: the lclspec field-set and NO container 20'/40' demand UI
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx:200:3
+    198|
+    199| describe('DispatchPlanEditorCell — cửa sổ điều phối theo cargoMode (op…
+    200|   it('LCL lot: the lclspec field-set and NO container 20\'/40\' demand…
+       |   ^
+    201|     renderCell(row());
+    202|     await openDialog();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/28]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateContainerRow.create-option.test.tsx > ShipmentCreateContainerRow create options (Card 20261009_11) > opens PortCreateDialog with empty name when clicking + Thêm without typing in pickup port
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateContainerRow.create-option.test.tsx:79:3
+     77|
+     78| describe("ShipmentCreateContainerRow create options (Card 20261009_11)…
+     79|   it("opens PortCreateDialog with empty name when clicking + Thêm with…
+       |   ^
+     80|     const { setPortDialog } = setup();
+     81|     const pickupInput = screen.getByRole("combobox", { name: "Cảng nân…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/28]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.cursor-advance.test.tsx > SIL-65 (CUS-01): create-flow appointment segments auto-advance > typing '08' into Giờ jumps the cursor to Phút; the minute digit is not dropped
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.cursor-advance.test.tsx:54:3
+     52|   });
+     53|
+     54|   it("typing '08' into Giờ jumps the cursor to Phút; the minute digit …
+       |   ^
+     55|     renderWorkspace();
+     56|     await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/28]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.cursor-advance.test.tsx > SIL-65 (CUS-01): create-flow appointment segments auto-advance > a completed phút hands the cursor to the date day segment — entry never gets stuck
+AssertionError: expected <input …(15)></input> to be <input …(10)></input> // Object.is equality
+
+- Expected
++ Received
+
+  <input
+-   aria-label="Phút — Ngày giờ đóng trả"
++   aria-expanded="false"
++   aria-haspopup="dialog"
++   aria-label="Giờ — Ngày giờ đóng trả"
+    autocomplete="off"
+    class="m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)] date-seg"
++   data-focus-visible="true"
++   data-focused="true"
+    data-rac=""
+-   data-seg="mm"
++   data-seg="hh"
++   id="container-15f3f270-48dc-420b-9fae-1a8541e2c3a9-customer-appointment-time"
+    inputmode="numeric"
+    maxlength="2"
+-   placeholder="mm"
++   placeholder="HH"
+    type="text"
+-   value="30"
++   value="08"
+  />
+
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.cursor-advance.test.tsx:85:36
+     83|     fireEvent.change(hh, { target: { value: '08' } });
+     84|     const mm = row1Segment('Phút — Ngày giờ đóng trả');
+     85|     expect(document.activeElement).toBe(mm);
+       |                                    ^
+     86|
+     87|     fireEvent.change(mm, { target: { value: '30' } });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/28]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx > shipment create Enter law (FB-002 lần 3, card 211026034109) > a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save: issues paint and the typed input is KEPT (no wipe, no silent dead key)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx:55:3
+     53|   });
+     54|
+     55|   it('a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save…
+       |   ^
+     56|     renderWorkspace();
+     57|     await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/28]⎯
+
+
+ Test Files  19 failed | 722 passed (741)
+      Tests  28 failed | 5697 passed (5725)
+   Start at  22:38:54
+   Duration  1898.67s (transform 109.05s, setup 591.15s, import 2653.18s, tests 3296.11s, environment 2517.02s)
+

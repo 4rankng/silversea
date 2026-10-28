@@ -1,0 +1,100 @@
+{
+  "run": "run1",
+  "role": "dungnv (DISPATCHER)",
+  "lot": "R42RV-FCL",
+  "throwaway": "MSKU8234567",
+  "viewport": "1280x900 + 390x844",
+  "checks": [
+    {
+      "name": "Thao tác column rendered on the drawer table",
+      "pass": true,
+      "detail": [
+        "STT",
+        "Container",
+        "Loại cont",
+        "Số tờ khai",
+        "Điều vận",
+        "Nhà xe",
+        "Biển số",
+        "Nâng",
+        "Hạ",
+        "Giờ hẹn đóng/trả",
+        "Thao tác"
+      ]
+    },
+    {
+      "name": "every container row carries a Xóa container control",
+      "pass": true,
+      "detail": [
+        "Xóa container MSKU1234565",
+        "Xóa container MSKU1234570"
+      ]
+    },
+    {
+      "name": "declared rows disable Xóa with the SIL-177 guard tooltip",
+      "pass": true,
+      "detail": [
+        "Cont có tờ khai TK-R42RV-001 — gỡ tờ khai trước khi xóa",
+        "Cont có tờ khai TK-R42RV-001 — gỡ tờ khai trước khi xóa"
+      ]
+    },
+    {
+      "name": "throwaway row added (3 cont)",
+      "pass": true,
+      "detail": "3 cont"
+    },
+    {
+      "name": "throwaway inherited tờ khai → Xóa disabled with guard tooltip",
+      "pass": true,
+      "detail": {
+        "text": "3#3MSKU823456740DCTK-R42RV-001Chờ phân xe——Cảng nâng của container MSKU8234567Cảng MipecCảng hạ của container MSKU8234567Cảng Đình Vũ08:00 27/10/2026Xóa container",
+        "ariaLabel": "Xóa container MSKU8234567",
+        "disabled": true,
+        "title": "Cont có tờ khai TK-R42RV-001 — gỡ tờ khai trước khi xóa"
+      }
+    },
+    {
+      "name": "after gỡ tờ khai the Xóa button is enabled",
+      "pass": true,
+      "detail": {
+        "text": "3#3MSKU823456740DCChưa có tờ khaiChờ phân xe——Cảng nâng của container MSKU8234567Cảng MipecCảng hạ của container MSKU8234567Cảng Đình Vũ08:00 27/10/2026Xóa container",
+        "ariaLabel": "Xóa container MSKU8234567",
+        "disabled": false,
+        "title": "Xóa container khỏi lô"
+      }
+    },
+    {
+      "name": "confirm dialog opens naming the row",
+      "pass": true,
+      "detail": "Xóa container MSKU8234567?HủyXóa container"
+    },
+    {
+      "name": "confirm carries the danger \"Xóa container\" action + Hủy",
+      "pass": true,
+      "detail": "confirm buttons"
+    },
+    {
+      "name": "row deleted — drawer refetched to 2 cont",
+      "pass": true,
+      "detail": "2 cont"
+    },
+    {
+      "name": "success toast surfaced",
+      "pass": true,
+      "detail": "Đã thêm container vào lô.Đã lưu số tờ khai.Đã xóa container MSKU8234567."
+    },
+    {
+      "name": "confirm dialog dismissed after the delete",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "name": "390 stacked view keeps the Thao tác field + control",
+      "pass": true,
+      "detail": {
+        "hasRemove": true,
+        "label": "Thao tác"
+      }
+    }
+  ]
+}

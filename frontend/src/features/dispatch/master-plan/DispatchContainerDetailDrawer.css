@@ -70,13 +70,13 @@
 
 .dispatch-container-detail__table {
   width: 100%;
-  /* FB-045 lan 2 (card 201026140000), SIL-530 rebalance: 44 (ordinal)
-     + 150 ×3 fixed (two ports + appointment) + 6 auto columns ≥ 92px each
-     (container / loại cont / số tờ khai / điều vận / nhà xe / biển số) =
-     1046px — the floor that keeps every header label one line INSIDE its
-     cell. Below it the __table-scroll band scrolls horizontally instead of
-     squeezing columns. */
-  min-width: 1050px;
+  /* FB-045 lan 2 (card 201026140000), SIL-530 rebalance, SIL-555 Thao tác
+     column: 44 (ordinal) + 150 ×3 fixed (two ports + appointment) + 130
+     (thao tác) + 6 auto columns ≥ 92px each (container / loại cont / số tờ
+     khai / điều vận / nhà xe / biển số) = 1176px — the floor that keeps every
+     header label one line INSIDE its cell. Below it the __table-scroll band
+     scrolls horizontally instead of squeezing columns. */
+  min-width: 1180px;
   border-collapse: collapse;
   table-layout: fixed;
   background: var(--surface);
@@ -163,6 +163,19 @@
    GIỜ HẸN value (the surviving clip channel of the lan-1 fix). */
 .dispatch-container-detail__port-column {
   width: 150px;
+}
+
+/* SIL-555 (id 629) — the per-row XÓA CONT rail (CUS-10 labeled danger
+   button, `btn btn--danger-outline btn--sm`): 130px keeps "Xóa container"
+   one line beside the button chrome. */
+.dispatch-container-detail__actions-column {
+  width: 130px;
+}
+
+.dispatch-container-detail__table tbody .dispatch-container-detail__actions-column {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .dispatch-container-detail__inline-ordinal { display: none; }
