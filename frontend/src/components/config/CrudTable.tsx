@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pencil, Plus, AlertCircle, Trash2 } from 'lucide-react';
 import { EmptyState } from '../../design-system';
@@ -99,6 +99,11 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
 
   const refresh = useCallback(async () => { await refetch(); }, [refetch]);
   const crud = useCRUD(endpoint, refresh);
+  // SIL-579: the create/edit dialogs restore focus to the exact trigger that
+  // opened them — captured at click time (the activeElement fallback misses
+  // mouse clicks on some browsers and any synthetic open).
+  const addOpenerRef = useRef<HTMLElement | null>(null);
+  const editOpenerRef = useRef<HTMLElement | null>(null);
 
   const rawItems = data ?? [];
   const activeIds = computeActiveIds ? computeActiveIds(rawItems) : new Set<number>();
@@ -174,7 +179,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
           </div>
         )}
         actions={(
-          <button className="btn btn--primary btn--sm" onClick={() => crud.setShowAddForm(true)}>
+          <button className="btn btn--primary btn--sm" onClick={(event) => { addOpenerRef.current = event.currentTarget; crud.setShowAddForm(true); }}>
             <Plus size={14} /> Thêm mới
           </button>
         )}
@@ -216,7 +221,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                       title={emptyTitle}
                       description={emptyHint}
                       action={
-                        <button className="btn btn--primary btn--sm" onClick={() => crud.setShowAddForm(true)}>
+                        <button className="btn btn--primary btn--sm" onClick={(event) => { addOpenerRef.current = event.currentTarget; crud.setShowAddForm(true); }}>
                           <Plus size={14} /> Thêm mới
                         </button>
                       }
@@ -232,12 +237,16 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                     key={item.id}
                     style={{ cursor: 'pointer', ...rowStyle?.(item, isActive) }}
                     onClick={(event) => {
-                      if (!isInteractiveChild(event.target, event.currentTarget)) crud.setEditingId(item.id);
+                      if (!isInteractiveChild(event.target, event.currentTarget)) {
+                        editOpenerRef.current = event.currentTarget;
+                        crud.setEditingId(item.id);
+                      }
                     }}
                     onKeyDown={(event) => {
                       if (isInteractiveChild(event.target, event.currentTarget)) return;
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
+                        editOpenerRef.current = event.currentTarget;
                         crud.setEditingId(item.id);
                       }
                     }}
@@ -259,7 +268,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                             className="row-action"
                             title={`Sửa ${title.toLowerCase()}`}
                             aria-label={`Sửa ${title.toLowerCase()}`}
-                            onClick={() => crud.setEditingId(item.id)}
+                            onClick={(event) => { editOpenerRef.current = event.currentTarget; crud.setEditingId(item.id); }}
                           >
                             <Pencil size={14} />
                           </button>
@@ -296,6 +305,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
       {/* Modal for adding a new item */}
       <Modal
         isOpen={crud.showAddForm && !crud.editingId}
+        openerRef={addOpenerRef}
         title={`Thêm ${title.toLowerCase()}`}
         onClose={crud.cancelForm}
         maxWidth={600}
@@ -325,6 +335,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
         return (
           <Modal
             isOpen={true}
+            openerRef={editOpenerRef}
             title={`Chỉnh sửa ${title.toLowerCase()}`}
             onClose={crud.cancelForm}
             maxWidth={600}
