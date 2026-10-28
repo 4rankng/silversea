@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { partialUpdateSchema } from './partial-update';
 import { round2dp } from '../calculations/round';
 
 // Card 20260921_18 — THEO DÕI HÓA ĐƠN KẾT HỢP. One tracking row per combined
@@ -40,12 +39,9 @@ export const invoiceTrackingCreateSchema = z.object({
   expenseDate: z.string().date().optional(),
 }).strict();
 
-// PATCH shape — zod v4 applies create-time defaults inside bare `.partial()`
-// (v3 left omitted keys out), which would reset `progress` to 'CHUA_GUI' on
-// every PATCH that omits it; strip the defaults explicitly instead.
-export const invoiceTrackingPatchSchema = partialUpdateSchema(
-  invoiceTrackingCreateSchema.omit({ shipmentId: true, tripId: true }),
-);
+export const invoiceTrackingPatchSchema = invoiceTrackingCreateSchema
+  .omit({ shipmentId: true, tripId: true })
+  .partial();
 
 export const invoiceTrackingRowSchema = z.object({
   id: z.number().int().positive(),

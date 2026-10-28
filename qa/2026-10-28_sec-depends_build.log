@@ -1,4 +1,0 @@
-# command: make build
-# exit: 0 — shared tsc + backend tsc -p tsconfig.build.json + frontend vite build all OK
-# tail: '✓ built in 8.14s'
-# date: 2026-10-28, branch fix-sec-depends

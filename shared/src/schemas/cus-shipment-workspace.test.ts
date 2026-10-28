@@ -318,7 +318,7 @@ test('CUS container-line update rejects a malformed appointment with a Vietnames
 
   assert.equal(parsed.success, false);
   if (!parsed.success) {
-    assert.equal(parsed.error.issues[0]?.message, 'Ngày giờ đóng/trả hàng không hợp lệ.');
+    assert.equal(parsed.error.errors[0]?.message, 'Ngày giờ đóng/trả hàng không hợp lệ.');
   }
 });
 

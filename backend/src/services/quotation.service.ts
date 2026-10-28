@@ -15,8 +15,8 @@ import {
   quotationBaseClassCode,
 } from '@tingting/shared';
 import type {
-  QuotationCellData, QuotationCellView, QuotationCreateData, QuotationUpdateData, QuotationView,
-  QuotationFeeData, QuotationFeeView,
+  QuotationCellInput, QuotationCellView, QuotationCreateInput, QuotationUpdateInput, QuotationView,
+  QuotationFeeInput, QuotationFeeView,
 } from '@tingting/shared';
 import type { ResolvedFreightRate } from './freight-pricing-engine.service';
 import { resolveFreightRate } from './freight-pricing-engine.service';
@@ -43,7 +43,7 @@ async function resolveClassIds(codes: string[], ex: DbOrTx): Promise<Map<string,
   return byCode;
 }
 
-async function writeCells(quotationId: number, cells: QuotationCellData[], ex: DbOrTx): Promise<void> {
+async function writeCells(quotationId: number, cells: QuotationCellInput[], ex: DbOrTx): Promise<void> {
   if (cells.length === 0) return;
   const codes = [...new Set(cells.map((c) => c.vehicleSizeClassCode))];
   const classIdByCode = await resolveClassIds(codes, ex);
@@ -56,7 +56,7 @@ async function writeCells(quotationId: number, cells: QuotationCellData[], ex: D
 }
 
 /** Card _64: persist the Chi-phí-khác catalog (replace-all with the cells). */
-async function writeFees(quotationId: number, fees: QuotationFeeData[], ex: DbOrTx): Promise<void> {
+async function writeFees(quotationId: number, fees: QuotationFeeInput[], ex: DbOrTx): Promise<void> {
   if (fees.length === 0) return;
   await ex.insert(s.quotationFees).values(fees.map((fee, index) => ({
     quotationId,
@@ -72,7 +72,7 @@ async function writeFees(quotationId: number, fees: QuotationFeeData[], ex: DbOr
 /** Card _64: the _57 importer's catalog seam — replace-all on commit. */
 export async function upsertQuotationFees(
   quotationId: number,
-  fees: QuotationFeeData[],
+  fees: QuotationFeeInput[],
   ex: DbOrTx = db,
 ): Promise<void> {
   const [frame] = await ex.select({ id: s.quotations.id }).from(s.quotations)
@@ -108,7 +108,7 @@ async function loadFees(quotationId: number, ex: DbOrTx = db): Promise<Quotation
 }
 
 export async function createQuotation(
-  input: QuotationCreateData,
+  input: QuotationCreateInput,
   ex: DbOrTx = db,
 ): Promise<{ id: number }> {
   await assertCustomerExists(input.customerId, ex);
@@ -127,7 +127,7 @@ export async function createQuotation(
 
 export async function updateQuotation(
   quotationId: number,
-  input: QuotationUpdateData,
+  input: QuotationUpdateInput,
   ex: DbOrTx = db,
 ): Promise<void> {
   const [frame] = await ex.select({ id: s.quotations.id }).from(s.quotations)

@@ -5,7 +5,7 @@
 // PATCHes) and the external carrier-fleet vehicle catalog they select from.
 
 import { Router } from 'express';
-import { Role, partialUpdateSchema } from '@tingting/shared';
+import { Role } from '@tingting/shared';
 import { z } from 'zod';
 import {
   atomicDispatchPlanEditSchema,
@@ -53,9 +53,9 @@ import { decomposeFulfillmentLessContainer } from '../../services/dispatch-detai
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
 
-const updateCarrierFleetVehicleSchema = partialUpdateSchema(
-  carrierFleetVehicleSchema.pick({ licensePlate: true, isActive: true }),
-)
+const updateCarrierFleetVehicleSchema = carrierFleetVehicleSchema
+  .pick({ licensePlate: true, isActive: true })
+  .partial()
   .refine((value) => value.licensePlate !== undefined || value.isActive !== undefined, {
     message: 'Cần có ít nhất một nội dung thay đổi.',
   });

@@ -11,10 +11,7 @@ import { asc, eq, getTableName, isNull, sql, and, or } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { AnyPgTable, PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import type { output, ZodObject } from 'zod';
-import { partialUpdateSchema } from '@tingting/shared';
-/** zod v4 dropped the `AnyZodObject` alias; `ZodObject<any>` is its equivalent. */
-type AnyZodObject = ZodObject<any>;
+import type { AnyZodObject, output } from 'zod';
 import type { Request, Response } from 'express';
 import { cacheInvalidate } from '../../lib/redis';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -430,7 +427,7 @@ export function createCrudRouter<
       create: async (tx) => {
         const currentRow = await lockCurrentVersion(tx, id, expectedUpdatedAt);
         const currentUpdatedAt = (currentRow as Record<string, unknown>).updatedAt as Date;
-        let data = partialUpdateSchema(updateSchema ?? createSchema).parse(req.body) as Partial<output<TCreate>>;
+        let data = (updateSchema ?? createSchema).partial().parse(req.body) as Partial<output<TCreate>>;
         if (beforeUpdate) {
           data = (await beforeUpdate(id, data, req, tx)) as typeof data;
         }

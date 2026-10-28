@@ -5,18 +5,7 @@ import { config } from '../config';
 export function globalErrorHandler(err: Error, req: Request, res: Response, _next: NextFunction) {
   // Zod validation errors → 400
   if (err.name === 'ZodError') {
-    // zod v4 removed the v3 `.errors` alias — issues live on `.issues`, and an
-    // issue path is PropertyKey[] (symbol-capable). Narrow to the JSON-safe
-    // {code, message, path} contract the API emits, same mapping as
-    // lib/validation.ts throwValidation; reading `.errors` here would yield
-    // undefined and every parse-thrown route would degrade to the generic
-    // fallback message with no details.
-    const rawIssues = (err as unknown as { issues?: Array<{ code?: string; message: string; path?: PropertyKey[] }> }).issues;
-    const issues = rawIssues?.map((issue) => ({
-      code: issue.code,
-      message: issue.message,
-      path: issue.path?.filter((segment): segment is string | number => typeof segment !== 'symbol') ?? [],
-    }));
+    const issues = (err as unknown as { errors?: Array<{ message: string; path?: Array<string | number> }> }).errors;
     const first = issues?.[0];
     // Surface a user-readable top-level message including field path so the UI doesn't
     // have to inspect `details`. Fall back to the generic message if no issues.

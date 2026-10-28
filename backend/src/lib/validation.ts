@@ -11,13 +11,6 @@ import { ApiError } from '../errors';
  * `[{code, message, path}]` issue array the global ZodError handler returns.
  */
 export function throwValidation(error: ZodError): never {
-  const first = error.issues[0];
-  // zod v4 types an issue path as PropertyKey[] (symbol-capable) while the
-  // ApiError details contract is the JSON-safe (string | number)[] the global
-  // handler has always emitted — narrow explicitly instead of casting.
-  throw new ApiError(400, first.message, error.issues.map((issue) => ({
-    code: issue.code,
-    message: issue.message,
-    path: issue.path.filter((segment): segment is string | number => typeof segment !== 'symbol'),
-  })));
+  const first = error.errors[0];
+  throw new ApiError(400, first.message, error.errors);
 }
