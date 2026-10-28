@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-577-escape/frontend
+
+
+ Test Files  87 passed (87)
+      Tests  857 passed (857)
+   Start at  01:09:59
+   Duration  138.31s (transform 13.92s, setup 36.87s, import 210.03s, tests 255.08s, environment 160.60s)
+
