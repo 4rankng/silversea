@@ -1,0 +1,12 @@
+== db-after 2026-10-28T18:44:23+08:00 — lot 240 containers, post-drive (values restored, added row removed) ==
+ id  | shipment_code  | version | cargo_mode 
+-----+----------------+---------+------------
+ 240 | SHP-2610-00157 |      20 | FCL
+(1 row)
+
+ id  | container_number | customer_appointment_at | declaration_number |       updated_at        
+-----+------------------+-------------------------+--------------------+-------------------------
+ 275 | MSKU1234565      | 2026-10-27 01:00:00+00  | TK-R42RV-001       | 2026-10-28 10:44:10.231
+ 276 | MSKU1234570      | 2026-10-27 01:00:00+00  | TK-R42RV-001       | 2026-10-27 14:09:14.033
+(2 rows)
+

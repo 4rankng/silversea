@@ -204,11 +204,14 @@
   min-width: 132px;
 }
 
-/* ── SIL-530 — SỐ TỜ KHAI cell (per-container, SIL-521 model) ──────────────
+/* ── Shared click-to-edit band (SIL-530 SỐ TỜ KHAI, per-container SIL-521;
+   SIL-550 gap 2/3 Số cont + Giờ hẹn) ───────────────────────────────────────
    Same pattern as the detailed-plan grid's decl cell (SIL-591): data text at
    rest, house text-button affordance (click-to-edit IS the affordance — no
    extra Sửa button, card 20261006_537), one compact input with an Enter/Esc
-   hint while editing. */
+   hint while editing. The `decl-` prefix is historical — this band is the
+   drawer's shared inline-edit chrome for every editable cell. Every value
+   wraps full (SIL-515: no ellipsis, no clip, no line-clamp). */
 .dispatch-container-detail__decl-value {
   color: var(--ink);
   font-family: var(--font-data);
@@ -272,6 +275,55 @@
   color: var(--ink-3);
   font-size: var(--text-caption-size);
   line-height: 1.3;
+}
+
+/* SIL-550 gap 3 — the GIỜ HẸN editor's date + time pair stacks inside the
+   150px appointment column (FB-045 floor); both-or-neither, Enter lưu ·
+   Esc thoát. The inputs shrink to the cell instead of overflowing it. */
+.dispatch-container-detail__appointment-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dispatch-container-detail__appointment-inputs .dispatch-container-detail__decl-input {
+  width: 100%;
+  min-height: 30px;
+}
+
+/* SIL-550 gap 1 — "Thêm container" footer under the table: the compact
+   Số container form wraps its controls (SIL-515 — wrap, never clip) and the
+   controls stay within the ≤40px ordinary-control floor. */
+.dispatch-container-detail__add {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 10px;
+}
+
+.dispatch-container-detail__add-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.dispatch-container-detail__add-form label {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+}
+
+.dispatch-container-detail__add-form .dispatch-container-detail__decl-input {
+  flex: 1 1 220px;
+  min-height: 32px;
+}
+
+.dispatch-container-detail__add-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .dispatch-container-detail__save-error {

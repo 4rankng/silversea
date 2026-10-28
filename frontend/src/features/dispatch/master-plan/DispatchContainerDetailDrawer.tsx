@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { Role } from '@tingting/shared';
-import type { ShipmentCusContainerLineUpdateResult, ShipmentCusWorkspaceContainerLine, ShipmentCusWorkspaceDetail } from '@tingting/shared';
+import type {
+  ShipmentCusContainerLineUpdateInput,
+  ShipmentCusContainerLineUpdateResult,
+  ShipmentCusWorkspaceContainerLine,
+  ShipmentCusWorkspaceDetail,
+} from '@tingting/shared';
 import {
+  addCusShipmentContainerRow,
   getCusShipmentWorkspaceDetail,
   updateCusShipmentContainerLine,
   type ShipmentListItem,
@@ -11,7 +17,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { useToastOptional } from '../../../components/shared/Toast';
 import { dispatchStatusLabel } from '../../shipments/cus/cusUtils';
 import { formatDateTime24 } from '../../../lib/format';
-import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
+import { formatVietnamDateTimeInput, localDateTimeToIso } from '../../../lib/shipment-operations';
 import { Drawer } from '../../../components/UI';
 import { billBookingReference } from '../../../lib/business-reference';
 import { SearchableSelect } from '../../../design-system';
@@ -24,26 +30,68 @@ function portCellEditable(line: ShipmentCusWorkspaceContainerLine, field: 'liftS
   return line.fieldAccess?.[field]?.mode === 'DIRECT';
 }
 
-/** SIL-530 — the SỐ TỜ KHAI cell of the master-plan container drawer, on the
- *  SIL-521 per-container model with the same interaction contract as the
- *  detailed-plan grid's `DispatchDeclarationCell` (SIL-591): the value is the
- *  container's OWN number (`shipment_containers.declaration_number` — what
- *  the per-cont command writes), click-to-edit inline is the only affordance
- *  (owner ruling 20261006_537 — no extra Sửa button), Enter commits, Escape
- *  and blur revert. Writes ride the same container-line command the ports
- *  use, so the writer's role law (card 261013200312 — CUS/Quản trị/Quản lý
- *  only) gates the affordance up front: other roles get static text, the
- *  server would 403. The FB-109 auto-copy runs server-side; the toast names
- *  the synced siblings and a 409 names the clashing lot verbatim. */
-function ContainerLineDeclarationCell({ line, canEdit, onSave }: {
+/** SIL-550 — the drawer's own cell writers (Số cont, Giờ hẹn đóng/trả) open
+ *  exactly when the backend fieldAccess publishes DIRECT: the container-line
+ *  command's role + accounting-lock + trip law, per field. A line the save
+ *  path would refuse never advertises "press to edit" (SIL-483 law). */
+function lineCellEditable(line: ShipmentCusWorkspaceContainerLine, field: 'containerNumber' | 'customerAppointmentAt') {
+  return line.fieldAccess?.[field]?.mode === 'DIRECT';
+}
+
+function lineIdentity(line: ShipmentCusWorkspaceContainerLine): string {
+  return line.containerNumber?.trim() || `cont ${line.ordinal}`;
+}
+
+type LineTextField = 'containerNumber' | 'declarationNumber';
+
+/** Per-field copy for the shared click-to-edit text cell. */
+const lineTextFieldSpec = {
+  containerNumber: {
+    emptyLabel: 'Chưa có số container',
+    inputLabel: 'Số container',
+    inputPlaceholder: 'Nhập số container',
+    editVerb: 'Sửa số container',
+    typeVerb: 'số container',
+    savedToast: () => 'Đã lưu số container.',
+    failedToast: 'Không lưu được số container.',
+    strongValue: true,
+  },
+  declarationNumber: {
+    emptyLabel: 'Chưa có tờ khai',
+    inputLabel: 'Số tờ khai',
+    inputPlaceholder: 'Nhập số tờ khai',
+    editVerb: 'Sửa số tờ khai',
+    typeVerb: 'số tờ khai',
+    savedToast: (synced: number) => (synced > 0
+      ? `Đã lưu số tờ khai — tự điền thêm cho ${synced} container còn trống của lô.`
+      : 'Đã lưu số tờ khai.'),
+    failedToast: 'Không lưu được số tờ khai.',
+    strongValue: false,
+  },
+} as const;
+
+/** SIL-530 + SIL-550 gap 2 — the drawer's shared click-to-edit text cell
+ *  (Số tờ khai on the SIL-521 per-container model, Số container as identity
+ *  entry), on the same interaction contract as the detailed-plan grid's
+ *  `DispatchDeclarationCell` (SIL-591): the value is the container's OWN
+ *  field on `shipment_containers` (what the per-cont command writes),
+ *  click-to-edit inline is the only affordance (owner ruling 20261006_537 —
+ *  no extra Sửa button), Enter commits, Escape and blur revert. The caller
+ *  gates the affordance (role law for tờ khai — card 261013200312; fieldAccess
+ *  for số cont) so a save the writer would refuse is never advertised. The
+ *  FB-109 auto-copy runs server-side; the toast names the synced siblings and
+ *  a 409 names the clashing lot verbatim. */
+function ContainerLineTextField({ line, field, canEdit, onSave }: {
   line: ShipmentCusWorkspaceContainerLine;
+  field: LineTextField;
   canEdit: boolean;
   /** Persists the value through the container-line command; the drawer
    *  refetches its detail and pings the board after a successful save. */
-  onSave: (line: ShipmentCusWorkspaceContainerLine, next: string) => Promise<ShipmentCusContainerLineUpdateResult>;
+  onSave: (line: ShipmentCusWorkspaceContainerLine, field: LineTextField, next: string) => Promise<ShipmentCusContainerLineUpdateResult>;
 }) {
+  const spec = lineTextFieldSpec[field];
   const toastCtx = useToastOptional();
-  const baseline = (line.declarationNumber ?? '').trim();
+  const baseline = (line[field] ?? '').trim();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(baseline);
   const [saving, setSaving] = useState(false);
@@ -87,7 +135,7 @@ function ContainerLineDeclarationCell({ line, canEdit, onSave }: {
       return;
     }
     setSaving(true);
-    void onSave(line, next)
+    void onSave(line, field, next)
       .then((result) => {
         // saving clears on BOTH exits — the cell instance survives the
         // post-save refetch (stable row keys), so a stale saving=true would
@@ -95,23 +143,20 @@ function ContainerLineDeclarationCell({ line, canEdit, onSave }: {
         setSaving(false);
         setEditing(false);
         const synced = result.declarationSync?.updatedContainerIds.length ?? 0;
-        toastCtx?.toast({
-          kind: 'success',
-          message: synced > 0
-            ? `Đã lưu số tờ khai — tự điền thêm cho ${synced} container còn trống của lô.`
-            : 'Đã lưu số tờ khai.',
-        });
+        toastCtx?.toast({ kind: 'success', message: spec.savedToast(synced) });
       })
       .catch((error: unknown) => {
         // Card 20261005_354: surface the backend's precise reason verbatim
         // (409 trùng lô khác, 403 vai trò, 409 version conflict).
         const message = error instanceof Error && error.message
           ? error.message
-          : 'Không lưu được số tờ khai.';
+          : spec.failedToast;
         toastCtx?.toast({ kind: 'error', message });
         setSaving(false);
       });
   };
+
+  const displayValue = baseline || spec.emptyLabel;
 
   if (editing) {
     return (
@@ -122,8 +167,8 @@ function ContainerLineDeclarationCell({ line, canEdit, onSave }: {
           value={draft}
           maxLength={50}
           disabled={saving}
-          aria-label="Số tờ khai"
-          placeholder="Nhập số tờ khai"
+          aria-label={spec.inputLabel}
+          placeholder={spec.inputPlaceholder}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
@@ -147,7 +192,7 @@ function ContainerLineDeclarationCell({ line, canEdit, onSave }: {
         className={baseline ? 'dispatch-container-detail__decl-value' : 'dispatch-container-detail__decl-value is-empty'}
         title={baseline || undefined}
       >
-        {baseline || 'Chưa có tờ khai'}
+        {spec.strongValue ? <strong>{displayValue}</strong> : displayValue}
       </div>
     );
   }
@@ -157,20 +202,263 @@ function ContainerLineDeclarationCell({ line, canEdit, onSave }: {
       type="button"
       className={`dispatch-container-detail__decl-value--action${baseline ? '' : ' is-empty'}`}
       onClick={openEditor}
-      aria-label={`Sửa số tờ khai · ${line.containerNumber?.trim() || `cont ${line.ordinal}`}`}
-      title={baseline ? `Sửa số tờ khai: ${baseline}` : 'Bấm để nhập số tờ khai'}
+      aria-label={`${spec.editVerb} · ${lineIdentity(line)}`}
+      title={baseline ? `${spec.editVerb}: ${baseline}` : `Bấm để nhập ${spec.typeVerb}`}
     >
-      {baseline || 'Chưa có tờ khai'}
+      {spec.strongValue ? <strong>{displayValue}</strong> : displayValue}
     </button>
   );
 }
 
-function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, onPortChange, onDeclarationSave }: {
+/** SIL-550 gap 3 — the GIỜ HẸN ĐÓNG/TRẢ cell's click-to-edit schedule editor:
+ *  date + time inputs (both-or-neither), Escape and blur-out revert. The
+ *  commit rides the container-line command's `customerAppointmentAt` in the
+ *  Vietnam wire contract (`localDateTimeToIso` → `…+07:00`; both blank =
+ *  clear). The caller gates on fieldAccess.customerAppointmentAt DIRECT —
+ *  pre-lock, pre-trip: a tripped container's schedule rides the trip-adjust
+ *  flow instead. */
+function ContainerLineAppointmentCell({ line, canEdit, onSave }: {
+  line: ShipmentCusWorkspaceContainerLine;
+  canEdit: boolean;
+  onSave: (line: ShipmentCusWorkspaceContainerLine, next: string | null) => Promise<unknown>;
+}) {
+  const toastCtx = useToastOptional();
+  const baseline = formatVietnamDateTimeInput(line.customerAppointmentAt);
+  const [editing, setEditing] = useState(false);
+  const [dateDraft, setDateDraft] = useState('');
+  const [timeDraft, setTimeDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const baselineRef = useRef(baseline);
+  baselineRef.current = baseline;
+
+  // Same refetch-identity guard as the shared text cell.
+  const lineKey = `${line.id}`;
+  const lineKeyRef = useRef(lineKey);
+  if (lineKeyRef.current !== lineKey) {
+    lineKeyRef.current = lineKey;
+    setEditing(false);
+    setDateDraft('');
+    setTimeDraft('');
+  }
+
+  const openEditor = () => {
+    if (!canEdit || saving) return;
+    setDateDraft(baselineRef.current.slice(0, 10));
+    setTimeDraft(baselineRef.current.slice(11, 16));
+    setEditing(true);
+  };
+
+  const revert = () => {
+    setDateDraft(baselineRef.current.slice(0, 10));
+    setTimeDraft(baselineRef.current.slice(11, 16));
+    setEditing(false);
+  };
+
+  const commit = () => {
+    if (!canEdit || saving) return;
+    const hasDate = dateDraft.trim() !== '';
+    const hasTime = timeDraft.trim() !== '';
+    if (hasDate !== hasTime) {
+      toastCtx?.toast({ kind: 'error', message: 'Vui lòng nhập đầy đủ cả ngày và giờ hẹn.' });
+      return;
+    }
+    const nextLocal = hasDate ? `${dateDraft.trim()}T${timeDraft.trim()}` : '';
+    if (nextLocal === baselineRef.current) {
+      revert();
+      return;
+    }
+    let nextIso: string | null = null;
+    try {
+      nextIso = nextLocal ? localDateTimeToIso(nextLocal) : null;
+    } catch {
+      toastCtx?.toast({ kind: 'error', message: 'Ngày giờ đóng/trả không hợp lệ.' });
+      return;
+    }
+    setSaving(true);
+    void onSave(line, nextIso)
+      .then(() => {
+        setSaving(false);
+        setEditing(false);
+        toastCtx?.toast({ kind: 'success', message: 'Đã lưu giờ hẹn đóng/trả.' });
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error && error.message
+          ? error.message
+          : 'Không lưu được giờ hẹn đóng/trả.';
+        toastCtx?.toast({ kind: 'error', message });
+        setSaving(false);
+      });
+  };
+
+  const display = formatDateTime24(baseline) || '—';
+
+  if (editing) {
+    return (
+      <div
+        className="dispatch-container-detail__decl-editor"
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) revert();
+        }}
+      >
+        <div className="dispatch-container-detail__appointment-inputs">
+          <label className="sr-only" htmlFor={`dispatch-detail-appt-date-${line.id}`}>Ngày hẹn đóng/trả của container {lineIdentity(line)}</label>
+          <input
+            id={`dispatch-detail-appt-date-${line.id}`}
+            className="dispatch-container-detail__decl-input"
+            type="date"
+            value={dateDraft}
+            disabled={saving}
+            onChange={(event) => setDateDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                commit();
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                revert();
+              }
+            }}
+          />
+          <label className="sr-only" htmlFor={`dispatch-detail-appt-time-${line.id}`}>Giờ hẹn đóng/trả của container {lineIdentity(line)}</label>
+          <input
+            id={`dispatch-detail-appt-time-${line.id}`}
+            className="dispatch-container-detail__decl-input"
+            type="time"
+            value={timeDraft}
+            disabled={saving}
+            onChange={(event) => setTimeDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                commit();
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                revert();
+              }
+            }}
+          />
+        </div>
+        <span className="dispatch-container-detail__decl-hint">Enter lưu · Esc thoát</span>
+      </div>
+    );
+  }
+
+  if (!canEdit) {
+    return <div className="dispatch-container-detail__decl-value">{display}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      className="dispatch-container-detail__decl-value--action"
+      onClick={openEditor}
+      aria-label={`Sửa giờ hẹn đóng/trả · ${lineIdentity(line)}`}
+      title={baseline ? `Sửa giờ hẹn đóng/trả: ${display}` : 'Bấm để nhập giờ hẹn đóng/trả'}
+    >
+      {display}
+    </button>
+  );
+}
+
+/** SIL-550 gap 1 — "Thêm container" (drawer footer): appends a container row
+ *  to the lot through the shared container-add command
+ *  (`POST /shipments/cus-workspace/:id/containers` — the single add owner of
+ *  every entry point). Số container is the operator's own entry (the wire's
+ *  required field); loại cont / tuyến / cảng / site / giờ hẹn / tờ khai
+ *  inherit the lot's existing rows server-side (FB-086 r19 +
+ *  card 181026185900). */
+function AddContainerLineForm({ shipmentId, expectedVersion, onAdded, onResync }: {
+  shipmentId: number;
+  expectedVersion: number;
+  /** Persisted-add resync: refetch the drawer detail AND ping the board. */
+  onAdded: () => Promise<void>;
+  /** Failure resync: refetch the drawer detail only (the version may have
+   *  moved; the error toast already carried the reason). */
+  onResync: () => Promise<void>;
+}) {
+  const toastCtx = useToastOptional();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const number = draft.trim();
+
+  const submit = () => {
+    if (saving || !number) return;
+    setSaving(true);
+    void addCusShipmentContainerRow(shipmentId, {
+      expectedShipmentVersion: expectedVersion,
+      containerNumber: number,
+    }, crypto.randomUUID())
+      .then(async () => {
+        await onAdded();
+        setSaving(false);
+        setOpen(false);
+        setDraft('');
+        toastCtx?.toast({ kind: 'success', message: 'Đã thêm container vào lô.' });
+      })
+      .catch(async (error: unknown) => {
+        const message = error instanceof Error && error.message
+          ? error.message
+          : 'Không thể thêm container.';
+        toastCtx?.toast({ kind: 'error', message });
+        await onResync();
+        setSaving(false);
+      });
+  };
+
+  if (!open) {
+    return (
+      <button type="button" className="btn btn--secondary btn--sm" onClick={() => setOpen(true)}>
+        <Plus size={16} aria-hidden="true" /> Thêm container
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="dispatch-container-detail__add-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <label htmlFor="dispatch-detail-add-number">Số container</label>
+      <input
+        id="dispatch-detail-add-number"
+        className="dispatch-container-detail__decl-input"
+        value={draft}
+        maxLength={50}
+        placeholder="Nhập số container"
+        disabled={saving}
+        autoFocus
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setOpen(false);
+            setDraft('');
+          }
+        }}
+      />
+      <div className="dispatch-container-detail__add-actions">
+        <button type="submit" className="btn btn--primary btn--sm" disabled={saving || !number}>
+          {saving ? 'Đang lưu…' : 'Thêm'}
+        </button>
+        <button type="button" className="btn btn--ghost btn--sm" disabled={saving} onClick={() => { setOpen(false); setDraft(''); }}>
+          Hủy
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, onPortChange, onTextFieldSave, onAppointmentSave }: {
   detail: ShipmentCusWorkspaceDetail;
   savingLineId: number | null;
   canEditDeclarations: boolean;
   onPortChange: (line: ShipmentCusWorkspaceContainerLine, field: 'liftSiteId' | 'dropoffSiteId', value: string) => void;
-  onDeclarationSave: (line: ShipmentCusWorkspaceContainerLine, next: string) => Promise<ShipmentCusContainerLineUpdateResult>;
+  onTextFieldSave: (line: ShipmentCusWorkspaceContainerLine, field: LineTextField, next: string) => Promise<ShipmentCusContainerLineUpdateResult>;
+  onAppointmentSave: (line: ShipmentCusWorkspaceContainerLine, next: string | null) => Promise<unknown>;
 }) {
   if (detail.containers.length === 0) {
     return <p className="dispatch-container-detail__empty">Lô hàng chưa có dữ liệu container.</p>;
@@ -206,14 +494,20 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, onPor
               <td data-label="STT" className="dispatch-container-detail__ordinal-column">{line.ordinal}</td>
               <th scope="row" data-label="Container">
                 <span className="dispatch-container-detail__inline-ordinal">#{line.ordinal}</span>
-                <strong>{line.containerNumber || 'Chưa có số container'}</strong>
+                <ContainerLineTextField
+                  line={line}
+                  field="containerNumber"
+                  canEdit={lineCellEditable(line, 'containerNumber')}
+                  onSave={onTextFieldSave}
+                />
               </th>
               <td data-label="Loại cont">{line.containerTypeLabel || '—'}</td>
               <td data-label="Số tờ khai">
-                <ContainerLineDeclarationCell
+                <ContainerLineTextField
                   line={line}
+                  field="declarationNumber"
                   canEdit={canEditDeclarations}
-                  onSave={onDeclarationSave}
+                  onSave={onTextFieldSave}
                 />
               </td>
               <td data-label="Điều vận">
@@ -259,7 +553,13 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, onPor
                   </>
                 ) : line.dropoffSite || '—'}
               </td>
-              <td data-label="Giờ hẹn đóng/trả" className="dispatch-container-detail__appointment-column">{formatDateTime24(formatVietnamDateTimeInput(line.customerAppointmentAt)) || '—'}</td>
+              <td data-label="Giờ hẹn đóng/trả" className="dispatch-container-detail__appointment-column">
+                <ContainerLineAppointmentCell
+                  line={line}
+                  canEdit={lineCellEditable(line, 'customerAppointmentAt')}
+                  onSave={onAppointmentSave}
+                />
+              </td>
             </tr>
           ))}
         </tbody>
@@ -275,8 +575,9 @@ export function DispatchContainerDetailDrawer({
 }: {
   shipment: ShipmentListItem | null;
   onClose: () => void;
-  /** Fired after a port backfill save so the owning page refetches its board —
-   *  the CẢNG NÂNG/HẠ columns read the same container port columns. */
+  /** Fired after any container-line save (ports / số cont / giờ hẹn / tờ
+   *  khai) or an added container so the owning page refetches its board —
+   *  the CẢNG NÂNG/HẠ and CONTAINER columns read the same container rows. */
   onSaved?: () => void;
 }) {
   const [detail, setDetail] = useState<ShipmentCusWorkspaceDetail | null>(null);
@@ -360,23 +661,50 @@ export function DispatchContainerDetailDrawer({
     }
   }, [shipment, savingPortLineId, refreshDetail, onSaved]);
 
-  /** SIL-530 declaration commit: the same container-line writer the ports use
-   *  with the per-cont field (FB-109 auto-copy runs server-side). The cell
-   *  owns its editing state and error toast; this callback persists, resyncs
-   *  the drawer detail and pings the owning board. */
-  const saveDeclaration = useCallback(async (
+  /** SIL-550/530 text-field commit (Số cont / Số tờ khai): the shared
+   *  container-line writer, one nullable field per save. The cell owns its
+   *  editing state and error toast; this callback persists, resyncs the
+   *  drawer detail and pings the owning board. */
+  const saveTextField = useCallback(async (
     line: ShipmentCusWorkspaceContainerLine,
+    field: LineTextField,
     next: string,
   ) => {
     if (!shipment) throw new Error('Lô hàng không còn khả dụng.');
-    const result = await updateCusShipmentContainerLine(shipment.id, line.id, {
+    const payload: ShipmentCusContainerLineUpdateInput = {
       expectedShipmentVersion: line.shipmentVersion,
-      declarationNumber: next || null,
-    }, crypto.randomUUID());
+      ...(field === 'containerNumber' ? { containerNumber: next || null } : { declarationNumber: next || null }),
+    };
+    const result = await updateCusShipmentContainerLine(shipment.id, line.id, payload, crypto.randomUUID());
     await refreshDetail(shipment.id);
     onSaved?.();
     return result;
   }, [shipment, refreshDetail, onSaved]);
+
+  /** SIL-550 gap 3 — giờ hẹn commit, same envelope as the text fields. */
+  const saveAppointment = useCallback(async (
+    line: ShipmentCusWorkspaceContainerLine,
+    next: string | null,
+  ) => {
+    if (!shipment) throw new Error('Lô hàng không còn khả dụng.');
+    await updateCusShipmentContainerLine(shipment.id, line.id, {
+      expectedShipmentVersion: line.shipmentVersion,
+      customerAppointmentAt: next,
+    }, crypto.randomUUID());
+    await refreshDetail(shipment.id);
+    onSaved?.();
+  }, [shipment, refreshDetail, onSaved]);
+
+  const handleContainerAdded = useCallback(async () => {
+    if (!shipment) return;
+    await refreshDetail(shipment.id);
+    onSaved?.();
+  }, [shipment, refreshDetail, onSaved]);
+
+  const handleResync = useCallback(async () => {
+    if (!shipment) return;
+    await refreshDetail(shipment.id);
+  }, [shipment, refreshDetail]);
 
   const retry = () => {
     if (!shipment) return;
@@ -395,10 +723,34 @@ export function DispatchContainerDetailDrawer({
       });
   };
 
+  /** SIL-550 gap 1 — the add control's gate mirrors the container-add
+   *  endpoint: ADMIN/Quản trị, Quản lý, CUS, Điều vận; FCL (or legacy
+   *  unset) lots only; no accounting lock. */
+  const canAddContainer = user != null
+    && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS || user.role === Role.DISPATCHER)
+    && detail != null
+    && shipment != null
+    && detail.summary.activeLock == null
+    && detail.summary.cargoMode !== 'LCL';
+  const addForm = canAddContainer && detail != null && shipment != null ? (
+    <div className="dispatch-container-detail__add">
+      <AddContainerLineForm
+        shipmentId={shipment.id}
+        expectedVersion={detail.summary.version}
+        onAdded={handleContainerAdded}
+        onResync={handleResync}
+      />
+    </div>
+  ) : null;
+
   const label = billBookingReference(shipment?.blNumber, shipment?.bookingRef);
   const portEditorsAvailable = (detail?.containers ?? []).some(
     (line) => portCellEditable(line, 'liftSiteId') || portCellEditable(line, 'dropoffSiteId'),
   );
+  const fieldEditorsAvailable = (detail?.containers ?? []).some(
+    (line) => lineCellEditable(line, 'containerNumber') || lineCellEditable(line, 'customerAppointmentAt'),
+  );
+  const anyEditorAvailable = portEditorsAvailable || fieldEditorsAvailable || addForm != null;
   return (
     <Drawer
       isOpen={shipment != null}
@@ -416,7 +768,9 @@ export function DispatchContainerDetailDrawer({
           <p>
             {portEditorsAvailable
               ? 'Cảng nâng/hạ bổ sung trực tiếp trong bảng; lịch giao và điều xe thuộc từng container.'
-              : 'Chỉ xem tại đây; lịch giao và điều xe thuộc từng container.'}
+              : anyEditorAvailable
+                ? 'Cập nhật container trực tiếp trong bảng; lịch giao và điều xe thuộc từng container.'
+                : 'Chỉ xem tại đây; lịch giao và điều xe thuộc từng container.'}
           </p>
         </header>
         {portSaveError && <p className="dispatch-container-detail__save-error" role="alert">{portSaveError}</p>}
@@ -428,13 +782,17 @@ export function DispatchContainerDetailDrawer({
             <button type="button" className="btn btn--secondary btn--sm" onClick={retry}>Thử lại</button>
           </div>
         ) : detail ? (
-          <ContainerDetailTable
-            detail={detail}
-            savingLineId={savingPortLineId}
-            canEditDeclarations={canEditDeclarations}
-            onPortChange={savePort}
-            onDeclarationSave={saveDeclaration}
-          />
+          <>
+            <ContainerDetailTable
+              detail={detail}
+              savingLineId={savingPortLineId}
+              canEditDeclarations={canEditDeclarations}
+              onPortChange={savePort}
+              onTextFieldSave={saveTextField}
+              onAppointmentSave={saveAppointment}
+            />
+            {addForm}
+          </>
         ) : null}
       </section>
     </Drawer>

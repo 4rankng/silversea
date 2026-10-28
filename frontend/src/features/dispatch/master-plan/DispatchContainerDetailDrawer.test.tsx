@@ -7,14 +7,16 @@ import type { ShipmentListItem } from '../../../api/shipmentClient';
 
 import { DispatchContainerDetailDrawer } from './DispatchContainerDetailDrawer';
 
-const { getCusShipmentWorkspaceDetail, updateCusShipmentContainerLine } = vi.hoisted(() => ({
+const { getCusShipmentWorkspaceDetail, updateCusShipmentContainerLine, addCusShipmentContainerRow } = vi.hoisted(() => ({
   getCusShipmentWorkspaceDetail: vi.fn(),
   updateCusShipmentContainerLine: vi.fn(),
+  addCusShipmentContainerRow: vi.fn(),
 }));
 vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../api/shipmentClient')>()),
   getCusShipmentWorkspaceDetail,
   updateCusShipmentContainerLine,
+  addCusShipmentContainerRow,
 }));
 
 const toastMock = vi.fn();
@@ -359,5 +361,239 @@ describe('DispatchContainerDetailDrawer — SỐ TỜ KHAI column (SIL-530, per-
     expect(screen.getByRole('cell', { name: 'TK-KEEP' })).toBeTruthy();
     expect(screen.queryByLabelText('Số tờ khai')).toBeNull();
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
+});
+
+describe('DispatchContainerDetailDrawer — Số cont + Giờ hẹn + Thêm container (SIL-550)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authRole = null;
+    updateCusShipmentContainerLine.mockReset().mockResolvedValue({ line: {} });
+    addCusShipmentContainerRow.mockReset().mockResolvedValue({ line: {} });
+  });
+
+  const editableFields = {
+    containerNumber: { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp.' },
+    customerAppointmentAt: { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trước khi điều xe.' },
+    liftSiteId: { mode: 'READ_ONLY', reason: 'x' },
+    dropoffSiteId: { mode: 'READ_ONLY', reason: 'x' },
+  };
+
+  function detailWith(summaryOver: Record<string, unknown>, lineOver: Record<string, unknown> = {}) {
+    return {
+      summary: { id: 1, version: 4, cargoMode: 'FCL', ...summaryOver },
+      containers: [{
+        id: 10,
+        ordinal: 1,
+        containerNumber: 'MSKU1234567',
+        containerTypeLabel: '20DC',
+        declarationNumber: null,
+        dispatchStatus: 'AWAITING_VEHICLE',
+        carrierName: 'SilverSea',
+        plateNumber: '15C-123.45',
+        liftSite: null,
+        dropoffSite: null,
+        liftSiteId: null,
+        dropoffSiteId: null,
+        customerAppointmentAt: null,
+        shipmentVersion: 7,
+        fieldAccess: editableFields,
+        ...lineOver,
+      }],
+      selectors: { ports: portCatalog },
+    } as unknown as ShipmentCusWorkspaceDetail;
+  }
+
+  it('Gap 2 — Số cont click-to-edit: Enter saves containerNumber through the container-line command and resyncs', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}));
+    const onSaved = vi.fn();
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} onSaved={onSaved} />);
+
+    // The number editor alone keeps the header honest once loaded (ports
+    // stay read-only; the view-only claim must be gone).
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa số container · MSKU1234567' }));
+    expect(screen.queryByText(/Chỉ xem tại đây/)).toBeNull();
+    const input = screen.getByLabelText('Số container') as HTMLInputElement;
+    expect(document.activeElement).toBe(input);
+    fireEvent.change(input, { target: { value: 'MSKU9999999' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(
+      1,
+      10,
+      { expectedShipmentVersion: 7, containerNumber: 'MSKU9999999' },
+      expect.any(String),
+    );
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success', message: 'Đã lưu số container.' })));
+    await waitFor(() => expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByLabelText('Số container')).toBeNull());
+  });
+
+  it('Gap 2 — READ_ONLY số cont renders static text with no affordance', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}, {
+      fieldAccess: {
+        ...editableFields,
+        containerNumber: { mode: 'READ_ONLY', reason: 'Lô hàng đã khóa kế toán; không thể thay đổi container.' },
+      },
+    }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    await screen.findByRole('rowheader', { name: /MSKU1234567/ });
+    expect(screen.queryByRole('button', { name: /Sửa số container/ })).toBeNull();
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
+
+  it('Gap 2 — a number-less row names the missing value (Chưa có số container), never a bare dash', async () => {
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}, { containerNumber: null }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    expect(await screen.findByText('Chưa có số container')).toBeTruthy();
+  });
+
+  it('Gap 3 — Giờ hẹn click-to-edit: date + time commit saves customerAppointmentAt in the +07:00 wire contract', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}));
+    const onSaved = vi.fn();
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} onSaved={onSaved} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa giờ hẹn đóng/trả · MSKU1234567' }));
+    fireEvent.change(screen.getByLabelText(/Ngày hẹn đóng\/trả/), { target: { value: '2026-10-29' } });
+    fireEvent.change(screen.getByLabelText(/Giờ hẹn đóng\/trả/), { target: { value: '21:20' } });
+    fireEvent.keyDown(screen.getByLabelText(/Giờ hẹn đóng\/trả/), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledTimes(1));
+    expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(
+      1,
+      10,
+      { expectedShipmentVersion: 7, customerAppointmentAt: '2026-10-29T21:20:00+07:00' },
+      expect.any(String),
+    );
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success', message: 'Đã lưu giờ hẹn đóng/trả.' })));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByLabelText(/Giờ hẹn đóng\/trả/)).toBeNull());
+  });
+
+  it('Gap 3 — a half-filled schedule refuses to save and keeps the editor open', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa giờ hẹn đóng/trả · MSKU1234567' }));
+    fireEvent.change(screen.getByLabelText(/Ngày hẹn đóng\/trả/), { target: { value: '2026-10-29' } });
+    fireEvent.keyDown(screen.getByLabelText(/Ngày hẹn đóng\/trả/), { key: 'Enter' });
+
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'error',
+      message: 'Vui lòng nhập đầy đủ cả ngày và giờ hẹn.',
+    })));
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/Giờ hẹn đóng\/trả/)).toBeTruthy();
+  });
+
+  it('Gap 3 — both fields blank clears the appointment', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}, { customerAppointmentAt: '2026-08-20T02:00:00.000Z' }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa giờ hẹn đóng/trả · MSKU1234567' }));
+    fireEvent.change(screen.getByLabelText(/Ngày hẹn đóng\/trả/), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText(/Giờ hẹn đóng\/trả/), { target: { value: '' } });
+    fireEvent.keyDown(screen.getByLabelText(/Giờ hẹn đóng\/trả/), { key: 'Enter' });
+
+    await waitFor(() => expect(updateCusShipmentContainerLine).toHaveBeenCalledWith(
+      1,
+      10,
+      { expectedShipmentVersion: 7, customerAppointmentAt: null },
+      expect.any(String),
+    ));
+  });
+
+  it('Gap 3 — a tripped line (customerAppointmentAt READ_ONLY) keeps static text', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}, {
+      customerAppointmentAt: '2026-08-20T02:00:00.000Z',
+      fieldAccess: {
+        ...editableFields,
+        customerAppointmentAt: { mode: 'READ_ONLY', reason: 'Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.' },
+      },
+    }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    await screen.findByText(/09:00.*20\/08\/2026/);
+    expect(screen.queryByRole('button', { name: /Sửa giờ hẹn đóng\/trả/ })).toBeNull();
+    expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
+  });
+
+  it('Gap 1 — Thêm container: the footer form adds a row through the container-add command and resyncs', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}));
+    const onSaved = vi.fn();
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} onSaved={onSaved} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Thêm container/ }));
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSKU5555555' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+
+    await waitFor(() => expect(addCusShipmentContainerRow).toHaveBeenCalledTimes(1));
+    expect(addCusShipmentContainerRow).toHaveBeenCalledWith(
+      1,
+      { expectedShipmentVersion: 4, containerNumber: 'MSKU5555555' },
+      expect.any(String),
+    );
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success', message: 'Đã thêm container vào lô.' })));
+    await waitFor(() => expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    // The form folded back to its button after the persisted add.
+    expect(screen.queryByLabelText('Số container')).toBeNull();
+  });
+
+  it('Gap 1 — a refused add surfaces the backend reason verbatim and resyncs the detail', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}));
+    addCusShipmentContainerRow.mockRejectedValue(new Error('Số container "MSKU5555555" đã tồn tại trong lô hàng.'));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Thêm container/ }));
+    fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSKU5555555' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'error',
+      message: 'Số container "MSKU5555555" đã tồn tại trong lô hàng.',
+    })));
+    await waitFor(() => expect(getCusShipmentWorkspaceDetail).toHaveBeenCalledTimes(2));
+    // The form stays open for a correction.
+    expect(screen.getByLabelText('Số container')).toBeTruthy();
+  });
+
+  it('Gap 1 — the add control never appears on an accounting-locked lot', async () => {
+    authRole = 'CUS';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({ activeLock: { id: 9, lockedBy: 'x' } }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    await screen.findByText('MSKU1234567');
+    expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+  });
+
+  it('Gap 1 — the add control never appears on an LCL lot', async () => {
+    authRole = 'CUS';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({ cargoMode: 'LCL' }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    await screen.findByText('MSKU1234567');
+    expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+  });
+
+  it('Gap 1 — the add control never appears for a role outside the writer law', async () => {
+    authRole = 'ACCOUNTANT';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(detailWith({}));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    await screen.findByText('MSKU1234567');
+    expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
   });
 });
