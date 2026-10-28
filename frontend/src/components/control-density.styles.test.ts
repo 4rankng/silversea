@@ -116,6 +116,11 @@ describe('shared control density', () => {
       '.ppc-filters input',
       '.ppc-filters [data-uui-control]',
       '.ppc-filter-actions [data-uui-control]',
+      // SIL-552 design lock 28/10 (Thông tin hàng, ô SỐ CONTAINER): the
+      // label and its control share one row and one baseline, so the select's
+      // value is aligned to the label's 20px dense cadence. The scope is the
+      // form surface `.cus-lot-line__select`, not a bare `.ds-uui-*`.
+      '.cus-lot-line__select [data-uui-select-value]',
     ];
     const isSanctioned = (selector: string) => sanctionedConformanceScopes.some((scope) => selector.includes(scope));
 
