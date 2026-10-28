@@ -293,7 +293,13 @@ test('cả 2 bảng tiền đọc qua MỘT pure rule (debit summary + accountin
   const summary = read('../../services/shipment-debit-summary.service.ts');
   assert.match(summary, /import \{ effectiveLclFreight \} from '\.\/lcl-effective-freight';/);
   assert.match(summary, /effectiveLclFreight\(\{/);
-  assert.match(summary, /formulaText: s\.freightRateSnapshots\.formulaText/);
+  // SIL-548 (id 615): the summary's snapshot-channel assembly moved into the
+  // shared reader (revenue-override-read) so the per-lot editor prefill and
+  // the money boards read ONE channel — the formula note still feeds the
+  // pure rule, one seam further down.
+  assert.match(summary, /loadFreightSnapshotChannelByLot\(db, lotIds\)/);
+  const shared = read('../../services/revenue-override-read.service.ts');
+  assert.match(shared, /formulaText: s\.freightRateSnapshots\.formulaText/);
   const close = read('../../services/accounting-debit-close.service.ts');
   assert.match(close, /import \{ effectiveLclFreight \} from '\.\/lcl-effective-freight';/);
   assert.match(close, /effectiveLclFreight\(\{/);

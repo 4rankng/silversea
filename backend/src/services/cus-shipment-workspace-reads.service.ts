@@ -31,6 +31,7 @@ export * from './cus-workspace-mapping.service';
 
 import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite, indexAssignmentRows } from './cus-workspace-builders.service';
 import { loadCusShipmentStatusCounts } from './cus-shipment-status-census.service';
+import { loadRevManualPriceByLot } from './revenue-override-read.service';
 
 // Executor comes from ../db (the one Executor seam).
 export type ShipmentRow = typeof s.shipments.$inferSelect;
@@ -1019,6 +1020,9 @@ function buildLotFlatRow(
   row: ShipmentListRow,
   actor: AuthUser,
   support: WorkspaceSupport,
+  /** SIL-548 (id 615) — the lot's SAVED manual rev price (§4.1 field 2),
+   *  loaded per page by the caller over the settlement money channel. */
+  revFreightManual: number | null,
 ): ShipmentCusContainerFlatRow {
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
   const shipmentEditable = actor.role === Role.CUS && activeLock == null;
@@ -1089,12 +1093,19 @@ function buildLotFlatRow(
     // ungrouped lots (null) are the mergeable picks; grouped lots render their
     // tags and are refused by the merge.
     revGroupId: row.shipment.revGroupId ?? null,
+    // SIL-548 (id 615, QA fail round 3) — the ĐV COST group rides the row
+    // too: «lô đã ghép» (bất kỳ chiều nào) must open the per-lot cước thu
+    // editor LOCKED (owner law, spec §4.1 point 3).
+    costGroupId: row.shipment.costGroupId ?? null,
     revVehicleClassCode: row.shipment.revVehicleClassId != null
       ? support.vehicleClassCodeById.get(row.shipment.revVehicleClassId) ?? null
       : null,
     costVehicleClassCode: row.shipment.costVehicleClassId != null
       ? support.vehicleClassCodeById.get(row.shipment.costVehicleClassId) ?? null
       : null,
+    // The editor's reopen-prefill law: the price field seeds from what CUS
+    // SAVED (null = auto-trace → the blank "Bỏ trống = tự tra" state).
+    revFreightManual,
     liftSite: lotPoints.lift ?? legacyLiftSite?.name ?? null,
     dropoffSite: lotPoints.drop ?? legacyDropoffSite?.name ?? null,
     // Mirrors the container rows' LCL branch: the lot's schedule IS its
@@ -1213,12 +1224,27 @@ export async function listCusShipmentContainers(
   const total = Number(totalRows[0]?.value ?? 0);
   const shipmentIds = [...new Set(selectedContainers.map((row) => row.shipment.id))];
   const support = await loadSupportRows(shipmentIds);
+  // SIL-548 (id 615) — the lot rows' SAVED manual rev price over the SAME
+  // money channel the settlement boards print (the editor's reopen-prefill
+  // law). Loaded here, NOT in loadSupportRows: the overview board never
+  // renders the per-lot editor and must not pay for the channel queries.
+  const revManualByShipment = await loadRevManualPriceByLot(
+    db,
+    selectedContainers
+      .filter((selected) => selected.containerId == null)
+      .map((selected) => ({
+        id: selected.shipment.id,
+        revGroupId: selected.shipment.revGroupId ?? null,
+        revGroupOrder: selected.shipment.revGroupOrder ?? null,
+        cargoMode: selected.shipment.cargoMode ?? null,
+      })),
+  );
   const flatRows: ShipmentCusContainerFlatRow[] = [];
   for (const selected of selectedContainers) {
     const row: ShipmentListRow = selected;
     if (selected.containerId == null) {
       // Lot-level row: the LCL lot itself (never has container rows).
-      flatRows.push(buildLotFlatRow(row, actor, support));
+      flatRows.push(buildLotFlatRow(row, actor, support, revManualByShipment.get(row.shipment.id) ?? null));
       continue;
     }
     const containers = support.containersByShipment.get(row.shipment.id) ?? [];
@@ -1278,12 +1304,16 @@ export async function listCusShipmentContainers(
       // SIL-547: a container line never belongs to a CUS rev group — null keeps
       // the shape uniform while the lot-level rows carry the real id.
       revGroupId: null,
+      // SIL-548 (id 615): same uniform-shape law for the ĐV cost group and
+      // the saved manual rev price — a container line owns neither.
+      costGroupId: null,
       revVehicleClassCode: row.shipment.revVehicleClassId != null
         ? support.vehicleClassCodeById.get(row.shipment.revVehicleClassId) ?? null
         : null,
       costVehicleClassCode: row.shipment.costVehicleClassId != null
         ? support.vehicleClassCodeById.get(row.shipment.costVehicleClassId) ?? null
         : null,
+      revFreightManual: null,
       liftSite: line.liftSite,
       dropoffSite: line.dropoffSite,
       transportDate: row.shipment.cargoMode === CARGO_MODE.FCL

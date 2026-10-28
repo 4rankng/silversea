@@ -29,7 +29,7 @@ import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { directionLabel, fallback, formatScheduleTime } from './shipment-container-ledger-utils';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
 import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
-import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
+import { formatVietnamDateTimeInput, revOutputGroupLock } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { NameCell } from '../../../components/shared/NameCell';
@@ -174,10 +174,20 @@ function rowSubjectFor(row: ShipmentCusContainerFlatRow): string {
  * refuses the same way). A saved class reports (base, savedCode) upward so
  * the cell's spec line reflects it immediately (the override law).
  */
-function LotRevFactsEditor({ row, onClose, onClassSaved }: {
+function LotRevFactsEditor({ row, initialClassCode, initialPrice, onClose, onRevSaved }: {
   row: ShipmentCusContainerFlatRow;
+  /** Override-aware saved facts (the parent's self-healing map) — the editor
+   *  ALWAYS seeds from the LATEST saved values (QA id 615 round 3: a reopen
+   *  showed the pre-save class and a blank price), never a stale cache. */
+  initialClassCode: string | null;
+  initialPrice: number | '';
   onClose: () => void;
-  onClassSaved: (base: string, saved: string) => void;
+  onRevSaved: (saved: {
+    classBase: string;
+    classSaved: string;
+    priceBase: number | '';
+    priceSaved: number | '';
+  }) => void;
 }) {
   const vehicleClasses = useVehicleSizeClasses();
   const sortedClasses = useMemo(
@@ -187,13 +197,14 @@ function LotRevFactsEditor({ row, onClose, onClassSaved }: {
   // Reopens on the lot's stored class by matching the catalog's code (the
   // wire carries the CODE, never the id — DebitLotLclFacts's law).
   const currentClassId = useMemo(() => {
-    const current = sortedClasses.find((vc) => vc.code === (row.revVehicleClassCode?.trim() ?? ''));
+    const current = sortedClasses.find((vc) => vc.code === (initialClassCode?.trim() ?? ''));
     return current ? String(current.id) : '';
-  }, [sortedClasses, row.revVehicleClassCode]);
+  }, [sortedClasses, initialClassCode]);
   const [revClassId, setRevClassId] = useState(currentClassId);
-  // Spec 23/10 §4.1 field 2 — a typed price is the negotiated override
-  // (blank = auto-trace bảng giá); it never survives a lot switch.
-  const [revPrice, setRevPrice] = useState<number | ''>('');
+  // Spec 23/10 §4.1 field 2 — the SAVED negotiated override prefills the
+  // field on reopen (QA id 615 round 3); a typed price is that override
+  // (blank = auto-trace bảng giá).
+  const [revPrice, setRevPrice] = useState<number | ''>(initialPrice);
   const [revSaving, setRevSaving] = useState(false);
   const [revError, setRevError] = useState<string | null>(null);
 
@@ -201,12 +212,17 @@ function LotRevFactsEditor({ row, onClose, onClassSaved }: {
     setRevClassId(currentClassId);
   }, [row.shipmentId, currentClassId]);
   useEffect(() => {
-    setRevPrice('');
-  }, [row.shipmentId]);
+    setRevPrice(initialPrice);
+  }, [row.shipmentId, initialPrice]);
 
-  const grouped = row.revGroupId != null;
+  const groupLock = revOutputGroupLock(row);
   const classDirty = revClassId !== '' && revClassId !== currentClassId;
-  const revOutputDirty = classDirty || revPrice !== '';
+  const priceDirty = revPrice !== initialPrice;
+  // "Bỏ trống = tự tra": clearing a SAVED override arms the save only when a
+  // class exists to re-trace from — without one the wire (which needs one of
+  // the two outputs) has nothing to say, so that clear cannot arm.
+  const clearToAuto = priceDirty && revPrice === '' && currentClassId !== '';
+  const revOutputDirty = classDirty || (priceDirty && revPrice !== '') || clearToAuto;
 
   async function save() {
     const selected = sortedClasses.find((vc) => String(vc.id) === revClassId);
@@ -217,14 +233,21 @@ function LotRevFactsEditor({ row, onClose, onClassSaved }: {
     setRevSaving(true);
     setRevError(null);
     try {
-      await setLclLotRevClass({
+      const result = await setLclLotRevClass({
         shipmentId: row.shipmentId,
         ...(classDirty && selected ? { vehicleSizeClassId: selected.id } : {}),
         ...(revPrice !== '' ? { freightRevenue: revPrice } : {}),
+        // "Bỏ trống = tự tra": a cleared override re-traces the CURRENT
+        // class' lane price — re-picking the stored class is the auto-trace
+        // command the wire can express (it needs one of the two outputs).
+        ...(clearToAuto && !classDirty ? { vehicleSizeClassId: Number(currentClassId) } : {}),
       });
-      if (classDirty && selected) {
-        onClassSaved(row.revVehicleClassCode?.trim() ?? '', selected.code);
-      }
+      onRevSaved({
+        classBase: row.revVehicleClassCode?.trim() ?? '',
+        classSaved: result.vehicleClassCode ?? '',
+        priceBase: row.revFreightManual ?? '',
+        priceSaved: result.freightManual == null ? '' : Number(result.freightManual),
+      });
       onClose();
     } catch (err) {
       setRevError(err instanceof Error ? err.message : 'Lưu cước thu khách thất bại');
@@ -243,10 +266,8 @@ function LotRevFactsEditor({ row, onClose, onClassSaved }: {
           options={vehicleClassSectionedOptions(sortedClasses)}
           placeholder="Chọn loại xe (trọng tải / cont)"
           searchable
-          disabled={revSaving || grouped}
-          hint={grouped
-            ? 'Lô đã thuộc nhóm ghép cước thu khách — tách nhóm (Hủy ghép) trước khi chọn loại xe riêng cho lô này.'
-            : 'CƯỚC VẬN TẢI (AUTO) của lô = 100% đơn giá của loại xe đã chọn.'}
+          disabled={revSaving || groupLock.locked}
+          hint={groupLock.hint}
         />
         <NumberField
           label="Giá cước thu khách (đ)"
@@ -256,14 +277,14 @@ function LotRevFactsEditor({ row, onClose, onClassSaved }: {
           min={0}
           placeholder="Bỏ trống = tự tra bảng giá"
           helpText="Nhập tay giá thỏa thuận — thắng giá tra bảng theo loại xe. Bỏ trống: tự tra bảng giá thu khách (KH × tuyến × loại xe)."
-          disabled={revSaving || grouped}
+          disabled={revSaving || groupLock.locked}
         />
       </div>
       <div className="shipment-container-ledger__editor-footer">
         {revError && <span className="shipment-container-ledger__edit-error" role="alert">{revError}</span>}
         <EditActions
           saving={revSaving}
-          saveDisabled={revSaving || grouped || !revOutputDirty}
+          saveDisabled={revSaving || groupLock.locked || !revOutputDirty}
           label="cước thu khách"
           onCancel={onClose}
           onSave={() => void save()}
@@ -1065,12 +1086,29 @@ export function ShipmentContainerLedger({
   // cell's "Lô hàng lẻ | Thu: Xe …" line reflects a save without waiting for
   // the page refetch.
   const [revFactsRowId, setRevFactsRowId] = useState<number | null>(null);
-  const [revClassOverrides, setRevClassOverrides] = useState<Record<number, { base: string; saved: string }>>({});
+  // SIL-548 QA round 3 — the plate editors' self-healing law now covers BOTH
+  // saved cước thu outputs (class + manual price): the row wire is the
+  // post-refetch truth; until the refetch lands, the save's own response IS
+  // the saved state and must seed the reopen. The old map tracked only the
+  // class, so a same-session reopen showed the pre-save class and a blank
+  // price (the price never had a seed source at all).
+  const [revOverrides, setRevOverrides] = useState<Map<number, {
+    classBase: string;
+    classSaved: string;
+    priceBase: number | '';
+    priceSaved: number | '';
+  }>>(new Map());
   /** Override-aware Thu class code (the three call sites must agree). */
   function revVehicleClassCodeFor(row: ShipmentCusContainerFlatRow): string | null {
     const server = row.revVehicleClassCode?.trim() ?? '';
-    const override = revClassOverrides[row.shipmentId];
-    return (override && server === override.base ? override.saved : server) || null;
+    const override = revOverrides.get(row.shipmentId);
+    return (override && server === override.classBase ? override.classSaved : server) || null;
+  }
+  /** Override-aware saved manual price (the same self-healing law). */
+  function revManualPriceFor(row: ShipmentCusContainerFlatRow): number | '' {
+    const server = row.revFreightManual ?? '';
+    const override = revOverrides.get(row.shipmentId);
+    return override && server === override.priceBase ? override.priceSaved : server;
   }
   function openRevFactsEditor(row: ShipmentCusContainerFlatRow) {
     setRevFactsRowId(row.id);
@@ -1396,9 +1434,11 @@ export function ShipmentContainerLedger({
                           ? (
                             <LotRevFactsEditor
                               row={row}
+                              initialClassCode={lotRevCode}
+                              initialPrice={revManualPriceFor(row)}
                               onClose={() => setRevFactsRowId(null)}
-                              onClassSaved={(base, saved) => {
-                                setRevClassOverrides((prev) => ({ ...prev, [row.shipmentId]: { base, saved } }));
+                              onRevSaved={(saved) => {
+                                setRevOverrides((prev) => new Map(prev).set(row.shipmentId, saved));
                               }}
                             />
                           )

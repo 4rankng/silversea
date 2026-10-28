@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026-10-28 — fix(cus): SIL-548 (id 615 QA-FAIL round 3) — editor «Sửa cước thu khách» prefill từ giá trị ĐÃ LƯU + khóa editor trên lô ĐÃ ghép
+
+QA Glint (comment 2360, build 3b2c3bd8): BKS save PASS (không đụng). Hai lỗi:
+
+1. **Prefill sai (regression)** — lưu Xe 5T + 1.600.000 thành công (row +
+   /shipments-debit DOANH THU đúng) nhưng mở lại editor: ô giá TRỐNG (cả sau
+   reload), cùng session còn hiện class CŨ (Xe 10T). Root cause: editor seed
+   từ `row.revVehicleClassCode` (row cache cũ — cùng session chưa refetch) và
+   giá nhập tay KHÔNG CÓ nguồn seed nào (`useState('')` cứng) — cả wire lẫn
+   save-response đều không được đọc lại.
+2. **Lô đã ghép vẫn sửa được** — K1K42452354 «Ghép (2/2)» mở editor sửa được
+   toàn bộ, không hint tách nhóm. Root cause: lock đọc `revGroupId` trên row;
+   wire Chi tiết lô hàng KHÔNG mang `costGroupId` nên lô ghép chiều TRẢ đọc
+   như chưa ghép; unit pin cũ tiêm thẳng field vào fixture nên không bắt được.
+
+Fix (một nguồn sự thật — "editor luôn seed từ dữ liệu đã lưu mới nhất"):
+
+- **Wire** (`shipmentCusContainerFlatRowSchema` + `buildLotFlatRow`): row mang
+  thêm `costGroupId` (nhóm ghép chiều trả) + `revFreightManual` (giá nhập tay
+  ĐÃ LƯU — đọc qua kênh tiền settlement (`loadRevManualPriceByLot`,
+  `revManualPrice` trong `lcl-effective-freight`): note vocabulary
+  `isRevManualPriceNote` phân biệt giá nhập tay vs auto-trace; null = auto →
+  ô giá trống «Bỏ trống = tự tra»). Assembly kênh snapshot TRÍCH từ debit
+  summary vào `revenue-override-read.service` (`loadFreightSnapshotChannelByLot`)
+  — 1 luật đọc dùng chung, không kênh song song.
+- **Editor** (`LotRevFactsEditor`): seed class từ override-aware code + giá từ
+  `revFreightManual`; save response (`freightManual`/`vehicleClassCode`) ghi
+  vào self-healing map (luật plate editors) nên reopen CÙNG SESSION thấy giá
+  trị vừa lưu; dirty = thay đổi so với seed (prefill không tự trang bị Lưu);
+  xoá giá + Lưu = «Bỏ trống = tự tra» (gửi lại class hiện tại để BE tra lại).
+- **Lock** (`revOutputGroupLock` — dùng chung Chi tiết + /shipments-debit
+  strip): lô đã ghép BẤT KỲ chiều nào (rev «Ghép thu» hay cost «Ghép») →
+  editor khóa + hint tách nhóm (Hủy ghép) trước.
+
+Tests: `ShipmentContainerLedger.sil548-rev-facts` (fixture parse qua wire
+schema thật + 4 pin mới: reopen cùng session, prefill sau reload, auto-trace
+trống, clear-to-auto; case lock mở rộng cả 2 chiều nhóm) · `DebitLotLclFacts`
++1 pin cost-group · BE unit `sil548-rev-prefill-lock` (note vocabulary +
+channel precedence + wire source pin) · pin `lcl-unmerge-revert-r39` theo
+assembly đã trích. Regression: `testplan/2026-10-28-sil547-548-549-cus-gop-hang.md`
+(REG-SIL548-REV-PREFILL, REG-SIL548-GROUP-LOCK).
+
+Not covered: strip /shipments-debit giữ luật prefill riêng («giá bị tiêu khi
+lưu») — chưa nối `revFreightManual` vào wire debit; UI DRIVEN rung 3 do QA
+retest trên staging.
+
 ## 2026-10-28 — fix(driver): SIL-535 chặn mã chuyến lọt lên app lái xe (copy thông báo + tên tệp e-POD)
 
 SIL-535 (ruling PRD ManHinhLaiXe §3.1, card 261022201006c): "Mã chuyến KHÔNG

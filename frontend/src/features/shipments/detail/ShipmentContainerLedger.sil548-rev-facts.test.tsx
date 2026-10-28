@@ -16,7 +16,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
+import { shipmentCusContainerFlatRowSchema, type ShipmentCusContainerFlatRow } from '@tingting/shared';
 
 const { setClass, updateTruck } = vi.hoisted(() => ({ setClass: vi.fn(), updateTruck: vi.fn() }));
 vi.mock('../../../api/dispatchPlanningClient', () => ({
@@ -41,12 +41,18 @@ import { ShipmentContainerLedger } from './ShipmentContainerLedger';
 
 const access = (mode: 'DIRECT' | 'READ_ONLY' = 'DIRECT') => ({ mode, reason: 'trường kiểm thử' });
 
-const lotRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}) => ({
+// The fixture parses through the SHARED wire schema — the "UI thật" pin for
+// QA id 615 round 3 («sửa test pin theo UI thật»): a strict-schema drop of
+// `costGroupId` / `revFreightManual`, or a stale fixture key, breaks these
+// tests at parse time exactly like a stale producer breaks the real page.
+const lotRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}): ShipmentCusContainerFlatRow =>
+  shipmentCusContainerFlatRowSchema.parse({
   id: -71,
   shipmentId: 71,
   shipmentVersion: 3,
   ordinal: 1,
   customerId: 1,
+  isAdHoc: false,
   customerName: 'LOG COM',
   factoryName: null,
   routeName: null,
@@ -67,6 +73,8 @@ const lotRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}) => ({
   revVehicleClassCode: null,
   costVehicleClassCode: null,
   revGroupId: null,
+  costGroupId: null,
+  revFreightManual: null,
   liftSite: null,
   dropoffSite: null,
   transportDate: '2026-10-26',
@@ -87,13 +95,24 @@ const lotRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}) => ({
     dropoffSiteId: access(),
   },
   shipmentFieldAccess: {
+    customerId: access(),
     factoryName: access(),
     routeId: access(),
     deliveryLocation: access(),
     blNumber: access(),
     bookingRef: access(),
+    declarationNumber: access(),
     tradeDirection: access(),
     shippingLineName: access(),
+    packageCount: access(),
+    packageType: access(),
+    cargoWeightKg: access(),
+    cargoVolumeCbm: access(),
+    customsCutoffAt: access(),
+    closingAt: access(),
+    plannedReturnAt: access(),
+    customerNotes: access(),
+    operationalNotes: access(),
   },
   informationStatus: 'COMPLETE',
   missingFields: [],
@@ -102,13 +121,13 @@ const lotRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}) => ({
   carrierEditable: false,
   plateEditable: false,
   liftSiteEditable: false,
-  dropoffEditable: false,
+  dropoffSiteEditable: false,
   routeEditable: false,
   customerAppointmentEditable: false,
   scheduleEditable: false,
   isLotLevel: true,
   ...overrides,
-}) as ShipmentCusContainerFlatRow;
+  });
 
 function ledgerView(rows: ShipmentCusContainerFlatRow[]) {
   return render(
@@ -150,10 +169,18 @@ async function pickClass(typed: string, optionName: RegExp) {
 beforeEach(() => {
   setClass.mockReset();
   updateTruck.mockReset();
-  setClass.mockResolvedValue({
-    shipmentId: 71, reference: 'R42CUS-LCL1', vehicleSizeClassId: 7, vehicleClassCode: '3.5T',
-    freightAuto: '3150000', channel: 'TRIP', reason: null,
-  });
+  // The wire contract: the response ECHOES the saved facts (freightManual =
+  // the manual override just written, null = auto-trace; vehicleClassCode =
+  // the class after the save) — the same-session reopen-prefill law stores
+  // exactly this (QA id 615 round 3).
+  setClass.mockImplementation(async (input: { vehicleSizeClassId?: number; freightRevenue?: number }) => ({
+    shipmentId: 71, reference: 'R42CUS-LCL1',
+    vehicleSizeClassId: input.vehicleSizeClassId ?? 7,
+    vehicleClassCode: input.vehicleSizeClassId === 9 ? '5T' : '3.5T',
+    freightAuto: '3150000',
+    freightManual: input.freightRevenue != null ? String(input.freightRevenue) : null,
+    channel: 'TRIP', reason: null,
+  }));
 });
 
 describe('SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô hàng (§4.1)', () => {
@@ -201,11 +228,76 @@ describe('SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô 
     expect(setClass.mock.calls[0][0]).not.toHaveProperty('vehicleSizeClassId');
   });
 
-  it('lô đã trong nhóm ghép (revGroupId) → editor mở nhưng khóa hoàn toàn kèm hướng dẫn tách nhóm', () => {
+  it('QA 615 round 3 — reopen CÙNG SESSION sau save hiện đúng class + giá đã lưu (không cần reload)', async () => {
+    // The stale row still carries the PRE-save truth — exactly QA's repro
+    // (saved Xe 5T + 1.600.000 over an old class).
+    ledgerView([lotRow({ revVehicleClassCode: '3.5T' })]);
+    fireEvent.click(revTrigger('R42CUS-LCL1'));
+    await pickClass('5', /Xe 5 tấn/);
+    fireEvent.change(screen.getByLabelText(/Giá cước thu khách/), { target: { value: '1600000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu cước thu khách' }));
+    await screen.findByRole('button', { name: 'Sửa cước thu khách cho lô R42CUS-LCL1' });
+
+    // REOPEN in the same session — before the fix this showed the PRE-save
+    // class and a blank price (three times in QA's run).
+    fireEvent.click(revTrigger('R42CUS-LCL1'));
+    expect((screen.getByRole('combobox', { name: 'Loại xe tính cước thu khách' }) as HTMLInputElement).value).toBe('Xe 5 tấn');
+    // The NumberField renders the saved VND formatted — QA must SEE the
+    // saved 1.600.000, never the blank placeholder again.
+    expect((screen.getByLabelText(/Giá cước thu khách/) as HTMLInputElement).value).toBe('1.600.000');
+  });
+
+  it('QA 615 round 3 — sau reload: wire revFreightManual prefill đúng giá nhập tay + class; save vẫn khóa khi chưa sửa', () => {
+    ledgerView([lotRow({ revVehicleClassCode: '5T', revFreightManual: 1600000 })]);
+    fireEvent.click(revTrigger('R42CUS-LCL1'));
+
+    expect((screen.getByRole('combobox', { name: 'Loại xe tính cước thu khách' }) as HTMLInputElement).value).toBe('Xe 5 tấn');
+    expect((screen.getByLabelText(/Giá cước thu khách/) as HTMLInputElement).value).toBe('1.600.000');
+    // Prefill is NOT an edit — the save stays disarmed (no double-send).
+    expect((screen.getByRole('button', { name: 'Lưu cước thu khách' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('lô auto-trace (revFreightManual null) → ô giá mở lại TRỐNG đúng placeholder «Bỏ trống = tự tra»', () => {
+    ledgerView([lotRow({ revVehicleClassCode: '5T', revFreightManual: null })]);
+    fireEvent.click(revTrigger('R42CUS-LCL1'));
+
+    const price = screen.getByLabelText(/Giá cước thu khách/) as HTMLInputElement;
+    expect(price.value).toBe('');
+    expect(price.placeholder).toBe('Bỏ trống = tự tra bảng giá');
+  });
+
+  it('xoá giá đã lưu + Lưu = «Bỏ trống = tự tra»: gửi lại class hiện tại để BE tra lại bảng giá', async () => {
+    ledgerView([lotRow({ revVehicleClassCode: '5T', revFreightManual: 1600000 })]);
+    fireEvent.click(revTrigger('R42CUS-LCL1'));
+    fireEvent.change(screen.getByLabelText(/Giá cước thu khách/), { target: { value: '' } });
+
+    const save = screen.getByRole('button', { name: 'Lưu cước thu khách' });
+    expect((save as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(save);
+
+    await screen.findByRole('button', { name: 'Sửa cước thu khách cho lô R42CUS-LCL1' });
+    expect(setClass).toHaveBeenCalledWith({ shipmentId: 71, vehicleSizeClassId: 9 });
+    expect(setClass.mock.calls[0][0]).not.toHaveProperty('freightRevenue');
+  });
+
+  it('lô đã trong nhóm ghép THU (revGroupId) → editor mở nhưng khóa hoàn toàn kèm hướng dẫn tách nhóm', () => {
     ledgerView([lotRow({ revGroupId: 'rev-group-9', revVehicleClassCode: '5T' })]);
     fireEvent.click(revTrigger('R42CUS-LCL1'));
 
     expect(screen.getByText(/tách nhóm \(Hủy ghép\) trước khi chọn loại xe riêng/)).toBeTruthy();
+    expect((screen.getByRole('combobox', { name: 'Loại xe tính cước thu khách' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByLabelText(/Giá cước thu khách/) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Lưu cước thu khách' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(setClass).not.toHaveBeenCalled();
+  });
+
+  it('QA 615 round 3 (K1K42452354 «Ghép (2/2)») — lô đã ghép chiều COST (costGroupId) cũng KHÓA editor + hướng dẫn tách nhóm', () => {
+    // The QA lot's «Ghép (2/2)» was invisible to the old lock (revGroupId
+    // only) — the wire now carries costGroupId and the lock reads it too.
+    ledgerView([lotRow({ costGroupId: 'cost-group-2', revVehicleClassCode: '5T' })]);
+    fireEvent.click(revTrigger('R42CUS-LCL1'));
+
+    expect(screen.getByText(/tách nhóm \(Hủy ghép\) trước khi sửa cước thu khách riêng/)).toBeTruthy();
     expect((screen.getByRole('combobox', { name: 'Loại xe tính cước thu khách' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByLabelText(/Giá cước thu khách/) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Lưu cước thu khách' }) as HTMLButtonElement).disabled).toBe(true);

@@ -841,8 +841,25 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   // for producers that predate the field, like isLotLevel above; container
   // rows always read null (a container line never joins a rev group).
   revGroupId: z.string().nullable().optional(),
+  // SIL-548 (id 615, QA fail round 3) — the OTHER merge dimension rides the
+  // row: a «Ghép (2/2)» lot whose group is the ĐV COST group
+  // (shipments.cost_group_id) must still open the per-lot cước thu editor
+  // LOCKED (owner law "lô đã ghép phải KHÓA editor + hướng dẫn tách nhóm
+  // trước"). Before this field the Chi tiết wire could not express a cost
+  // group at all, so such a lot read as ungrouped and the editor opened fully
+  // editable. Null = no cost group; container rows always read null.
+  costGroupId: z.string().nullable().optional(),
   revVehicleClassCode: z.string().nullable(),
   costVehicleClassCode: z.string().nullable(),
+  // SIL-548 (id 615, QA fail round 3) — the SAVED manual "Giá cước thu
+  // khách" (spec §4.1 field 2, "nhập tay = giá thỏa thuận"): the negotiated
+  // override CUS typed, read back from the SAME money channel the settlement
+  // boards print (override/snapshot note vocabulary classifies it). null =
+  // the lot's price is auto-traced or unset — exactly the editor's blank
+  // "Bỏ trống = tự tra" state. The reopen-prefill law reads this, so the
+  // editor seeds from what was SAVED, never a stale cache. Optional like
+  // revGroupId for producers that predate the field; container rows null.
+  revFreightManual: z.number().nullable().optional(),
   liftSite: z.string().nullable(),
   dropoffSite: z.string().nullable(),
   transportDate: z.string().date().nullable(),

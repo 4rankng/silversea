@@ -57,7 +57,9 @@ import {
 import {
   isRevGroupNote,
   REV_LOT_AWAITING_REPRICE_REASON,
+  REV_LOT_MANUAL_PRICE_REASON,
   REV_LOT_OWN_CUOC_REASON,
+  revGroupManualPriceNote,
 } from './lcl-rev-notes';
 
 export interface LclGroupActor {
@@ -1701,7 +1703,7 @@ export async function mergeLclRevGroup(
         continue;
       }
       const note = input.freightRevenue != null
-        ? `Ghép cước thu khách — Lô 1 giữ 100% cước thu nhóm (giá nhập tay, ${vehicleClass.code})`
+        ? revGroupManualPriceNote(vehicleClass.code)
         : `Ghép cước thu khách — Lô 1 giữ 100% cước thu nhóm (bảng giá khách × tuyến × ${vehicleClass.code}, ngày ${principal.expectedDeliveryDate})`;
       if (trip) {
         await upsertTripFinancialState(tx, trip.tripId, {
@@ -1827,7 +1829,7 @@ export async function setLclLotRevClass(
       : null;
     const amount = input.freightRevenue ?? (price != null ? price.price : null);
     const reason = input.freightRevenue != null
-      ? 'Chọn giá cước thu khách — giá nhập tay (thỏa thuận với khách)'
+      ? REV_LOT_MANUAL_PRICE_REASON
       : vehicleClass != null
         ? `Chọn loại xe tính cước thu khách — Xe ${vehicleClass.code}`
         : null;
@@ -1858,7 +1860,7 @@ export async function setLclLotRevClass(
     }
 
     const snapshotNote = input.freightRevenue != null
-      ? 'Chọn giá cước thu khách — giá nhập tay (thỏa thuận với khách)'
+      ? REV_LOT_MANUAL_PRICE_REASON
       : `Chọn loại xe tính cước thu khách — 100% bảng giá khách × tuyến × ${vehicleClass?.code}, ngày ${laneDate}`;
     if (trip) {
       const previous = trip.revenueOriginal ?? trip.revenue ?? '0';
