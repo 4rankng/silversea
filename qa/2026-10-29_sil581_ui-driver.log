@@ -1,0 +1,40 @@
+login → /dispatch
+@768: 6 warning line(s)
+  PASS @768 warn#0 no truncation (sw<=cw) — sw=109 cw=109 ws=normal te=clip
+  PASS @768 warn#0 full text present — Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @768 warn#1 no truncation (sw<=cw) — sw=103 cw=103 ws=normal te=clip
+  PASS @768 warn#1 full text present — Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @768 warn#2 no truncation (sw<=cw) — sw=107 cw=107 ws=normal te=clip
+  PASS @768 warn#2 full text present — Cảnh báo: Còn 2/2 cont chưa chốt ngày đóng trả
+  PASS @768 warn#3 no truncation (sw<=cw) — sw=109 cw=109 ws=normal te=clip
+  PASS @768 warn#3 full text present — Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @768 warn#4 no truncation (sw<=cw) — sw=101 cw=101 ws=normal te=clip
+  PASS @768 warn#4 full text present — Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @768 warn#5 no truncation (sw<=cw) — sw=101 cw=101 ws=normal te=clip
+  PASS @768 warn#5 full text present — Cảnh báo: Còn 2/2 cont chưa chốt ngày đóng trả
+@390: 6 warning line(s)
+  PASS @390 warn#0 no truncation (sw<=cw) — sw=374 cw=374 ws=normal te=clip
+  PASS @390 warn#0 full text present — Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @390 warn#1 no truncation (sw<=cw) — sw=374 cw=374 ws=normal te=clip
+  PASS @390 warn#1 full text present — Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @390 warn#2 no truncation (sw<=cw) — sw=374 cw=374 ws=normal te=clip
+  PASS @390 warn#2 full text present — Còn 2/2 cont chưa chốt ngày đóng trả
+  PASS @390 warn#3 no truncation (sw<=cw) — sw=374 cw=374 ws=normal te=clip
+  PASS @390 warn#3 full text present — Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @390 warn#4 no truncation (sw<=cw) — sw=374 cw=374 ws=normal te=clip
+  PASS @390 warn#4 full text present — Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @390 warn#5 no truncation (sw<=cw) — sw=374 cw=374 ws=normal te=clip
+  PASS @390 warn#5 full text present — Còn 2/2 cont chưa chốt ngày đóng trả
+@1280: 6 warning line(s)
+  PASS @1280 warn#0 no truncation (sw<=cw) — sw=109 cw=109 ws=normal te=clip
+  PASS @1280 warn#0 full text present — Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @1280 warn#1 no truncation (sw<=cw) — sw=103 cw=103 ws=normal te=clip
+  PASS @1280 warn#1 full text present — Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @1280 warn#2 no truncation (sw<=cw) — sw=107 cw=107 ws=normal te=clip
+  PASS @1280 warn#2 full text present — Cảnh báo: Còn 2/2 cont chưa chốt ngày đóng trả
+  PASS @1280 warn#3 no truncation (sw<=cw) — sw=109 cw=109 ws=normal te=clip
+  PASS @1280 warn#3 full text present — Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @1280 warn#4 no truncation (sw<=cw) — sw=101 cw=101 ws=normal te=clip
+  PASS @1280 warn#4 full text present — Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả
+  PASS @1280 warn#5 no truncation (sw<=cw) — sw=101 cw=101 ws=normal te=clip
+  PASS @1280 warn#5 full text present — Cảnh báo: Còn 2/2 cont chưa chốt ngày đóng trả
