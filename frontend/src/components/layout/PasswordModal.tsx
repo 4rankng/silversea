@@ -52,6 +52,7 @@ function PasswordModal({
               value={form.currentPassword}
               onChange={e => onFormChange({ ...form, currentPassword: e.target.value })}
               placeholder="Nhập mật khẩu hiện tại"
+              autoComplete="current-password"
               ref={currentPasswordFieldRef}
               aria-invalid={isCurrentPasswordError || undefined}
               aria-describedby={isCurrentPasswordError ? 'current-password-error' : undefined}
@@ -73,6 +74,7 @@ function PasswordModal({
               value={form.newPassword}
               onChange={e => onFormChange({ ...form, newPassword: e.target.value })}
               placeholder="Ít nhất 6 ký tự"
+              autoComplete="new-password"
             />
           </div>
         </FormGroup>
@@ -86,6 +88,7 @@ function PasswordModal({
                 value={form.confirmPassword}
                 onChange={e => onFormChange({ ...form, confirmPassword: e.target.value })}
                 placeholder="Nhập lại mật khẩu mới"
+                autoComplete="new-password"
               />
             </div>
           </FormGroup>

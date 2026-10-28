@@ -1,0 +1,11 @@
+$ pnpm exec vitest run src/components/layout/PasswordModal.test.tsx
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-a11y/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  23:49:06
+   Duration  11.25s (transform 721ms, setup 772ms, import 4.63s, tests 2.44s, environment 2.58s)
+
+exit: 0

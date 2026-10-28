@@ -38,3 +38,14 @@ describe('PasswordModal current-password field error', () => {
     expect(screen.queryByText(/nhập lại/i)).toBeNull();
   });
 });
+
+// SIL-574: password managers need the right autocomplete tokens — current vs
+// new-password — so they offer save/generate on the correct fields.
+describe('PasswordModal autocomplete tokens (SIL-574)', () => {
+  it('marks the current password and both new-password fields', () => {
+    renderModal();
+    expect(screen.getByPlaceholderText('Nhập mật khẩu hiện tại').getAttribute('autoComplete')).toBe('current-password');
+    expect(screen.getByPlaceholderText('Ít nhất 6 ký tự').getAttribute('autoComplete')).toBe('new-password');
+    expect(screen.getByPlaceholderText('Nhập lại mật khẩu mới').getAttribute('autoComplete')).toBe('new-password');
+  });
+});
