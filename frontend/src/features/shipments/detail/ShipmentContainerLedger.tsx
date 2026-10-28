@@ -18,9 +18,12 @@ import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/te
 import { SearchableSelect, SummaryRail } from '../../../design-system';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
 import { USearchableField } from '../create/uui-fields';
+import { NumberField } from '../../../design-system';
 import { externalVendorPlateOptions } from '../external-plate-options';
 import { normalizePlate } from '../../dispatch/detailed-plan/DispatchPlanCellValues';
-import { listDispatchFleetResources, updateLclTruck } from '../../../api/dispatchPlanningClient';
+import { listDispatchFleetResources, setLclLotRevClass, updateLclTruck } from '../../../api/dispatchPlanningClient';
+import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
+import { vehicleClassSectionedOptions } from '../../../lib/vehicle-class-options';
 import { EditActions } from './ShipmentContainerEditActions';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { directionLabel, fallback, formatScheduleTime } from './shipment-container-ledger-utils';
@@ -139,10 +142,12 @@ const DISPATCH_STRIP_COLORS: Record<DispatchStatus, string> = {
 /** Bit 1: "Lô hàng lẻ | Thu: Xe 3.5T | Trả: Xe 10T" — the settlement strip's
  *  exact line (DebitLotLclFacts), in the spec's Thu → Trả order. Only the
  *  classes the lot actually bills into appear; a lot with none keeps its own
- *  label rather than echoing a container-less string. */
-function lotSpecLine(row: ShipmentCusContainerFlatRow): string {
+ *  label rather than echoing a container-less string. `revCode` is the
+ *  override-aware value (SIL-548: the in-cell cước-thu editor updates the
+ *  display the moment its save lands, before the refetch). */
+function lotSpecLine(row: ShipmentCusContainerFlatRow, revCode: string | null): string {
   const parts = ['Lô hàng lẻ'];
-  if (row.revVehicleClassCode) parts.push(`Thu: Xe ${row.revVehicleClassCode}`);
+  if (revCode) parts.push(`Thu: Xe ${revCode}`);
   if (row.costVehicleClassCode) parts.push(`Trả: Xe ${row.costVehicleClassCode}`);
   return parts.join(' | ');
 }
@@ -155,6 +160,117 @@ function rowSubjectFor(row: ShipmentCusContainerFlatRow): string {
   if (row.containerNumber) return row.containerNumber;
   if (row.isLotLevel) return row.billOrBookNumber ? `lô ${row.billOrBookNumber}` : 'lô hàng lẻ';
   return `container số ${row.ordinal}`;
+}
+
+/**
+ * SIL-548 (spec 23/10 §4.1) — the lot's per-lot CƯỚC THU KHÁCH editor body,
+ * mounted in the THÔNG SỐ CONTAINER cell ONLY while open (the plate editors'
+ * in-cell pattern). Fetches the vehicle_size_classes catalog itself (the same
+ * `useVehicleSizeClasses` source the settlement strip's DebitLotLclFacts and
+ * the merge popup read) so the board at large never pays for the fetch — a
+ * react-query dedupe makes repeat opens cheap. Saves through the SAME
+ * `/shipments/lcl/rev-class` endpoint; a lot inside a CUS rev group keeps the
+ * group's outputs — every field disables with the tách-nhóm hint (the server
+ * refuses the same way). A saved class reports (base, savedCode) upward so
+ * the cell's spec line reflects it immediately (the override law).
+ */
+function LotRevFactsEditor({ row, onClose, onClassSaved }: {
+  row: ShipmentCusContainerFlatRow;
+  onClose: () => void;
+  onClassSaved: (base: string, saved: string) => void;
+}) {
+  const vehicleClasses = useVehicleSizeClasses();
+  const sortedClasses = useMemo(
+    () => [...(vehicleClasses.data ?? [])].filter((vc) => !vc.deletedAt).sort((a, b) => a.sortOrder - b.sortOrder),
+    [vehicleClasses.data],
+  );
+  // Reopens on the lot's stored class by matching the catalog's code (the
+  // wire carries the CODE, never the id — DebitLotLclFacts's law).
+  const currentClassId = useMemo(() => {
+    const current = sortedClasses.find((vc) => vc.code === (row.revVehicleClassCode?.trim() ?? ''));
+    return current ? String(current.id) : '';
+  }, [sortedClasses, row.revVehicleClassCode]);
+  const [revClassId, setRevClassId] = useState(currentClassId);
+  // Spec 23/10 §4.1 field 2 — a typed price is the negotiated override
+  // (blank = auto-trace bảng giá); it never survives a lot switch.
+  const [revPrice, setRevPrice] = useState<number | ''>('');
+  const [revSaving, setRevSaving] = useState(false);
+  const [revError, setRevError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRevClassId(currentClassId);
+  }, [row.shipmentId, currentClassId]);
+  useEffect(() => {
+    setRevPrice('');
+  }, [row.shipmentId]);
+
+  const grouped = row.revGroupId != null;
+  const classDirty = revClassId !== '' && revClassId !== currentClassId;
+  const revOutputDirty = classDirty || revPrice !== '';
+
+  async function save() {
+    const selected = sortedClasses.find((vc) => String(vc.id) === revClassId);
+    if (classDirty && !selected) {
+      setRevError('Chọn loại xe tính cước thu khách');
+      return;
+    }
+    setRevSaving(true);
+    setRevError(null);
+    try {
+      await setLclLotRevClass({
+        shipmentId: row.shipmentId,
+        ...(classDirty && selected ? { vehicleSizeClassId: selected.id } : {}),
+        ...(revPrice !== '' ? { freightRevenue: revPrice } : {}),
+      });
+      if (classDirty && selected) {
+        onClassSaved(row.revVehicleClassCode?.trim() ?? '', selected.code);
+      }
+      onClose();
+    } catch (err) {
+      setRevError(err instanceof Error ? err.message : 'Lưu cước thu khách thất bại');
+    } finally {
+      setRevSaving(false);
+    }
+  }
+
+  return (
+    <div className="shipment-container-ledger__inline-editor">
+      <div className="shipment-container-ledger__editor-grid">
+        <USearchableField
+          label="Loại xe tính cước thu khách"
+          value={revClassId}
+          onChange={setRevClassId}
+          options={vehicleClassSectionedOptions(sortedClasses)}
+          placeholder="Chọn loại xe (trọng tải / cont)"
+          searchable
+          disabled={revSaving || grouped}
+          hint={grouped
+            ? 'Lô đã thuộc nhóm ghép cước thu khách — tách nhóm (Hủy ghép) trước khi chọn loại xe riêng cho lô này.'
+            : 'CƯỚC VẬN TẢI (AUTO) của lô = 100% đơn giá của loại xe đã chọn.'}
+        />
+        <NumberField
+          label="Giá cước thu khách (đ)"
+          value={revPrice}
+          onChange={setRevPrice}
+          grouped
+          min={0}
+          placeholder="Bỏ trống = tự tra bảng giá"
+          helpText="Nhập tay giá thỏa thuận — thắng giá tra bảng theo loại xe. Bỏ trống: tự tra bảng giá thu khách (KH × tuyến × loại xe)."
+          disabled={revSaving || grouped}
+        />
+      </div>
+      <div className="shipment-container-ledger__editor-footer">
+        {revError && <span className="shipment-container-ledger__edit-error" role="alert">{revError}</span>}
+        <EditActions
+          saving={revSaving}
+          saveDisabled={revSaving || grouped || !revOutputDirty}
+          label="cước thu khách"
+          onCancel={onClose}
+          onSave={() => void save()}
+        />
+      </div>
+    </div>
+  );
 }
 
 function InlineEditor({
@@ -899,7 +1015,9 @@ export function ShipmentContainerLedger({
             onChange={setBillingDraft}
             onCustomValue={setBillingDraft}
             options={plateSuggestions}
-            placeholder="Chọn hoặc nhập BKS"
+            // FB-141 ghost (SIL-548): the Ảo field ghosts the BKS thực — the
+            // value the Debit Note falls back to when nothing is set.
+            placeholder={kind === 'billing' && actualTruckNoFor(row) ? actualTruckNoFor(row) : 'Chọn hoặc nhập BKS'}
             allowsCustomValue
             searchable
             disabled={billingSaving}
@@ -908,7 +1026,7 @@ export function ShipmentContainerLedger({
               pattern), above the footer — in the footer's flex row the narrow
               cell squeezed it to min-content, one character per line. As a
               full-width grid item it wraps as normal horizontal lines. */}
-          <small>{kind === 'actual' ? 'BKS thực là biển số xe chạy thực tế của lô.' : 'BKS báo khách là biển số in cho khách (xe ảo).'}</small>
+          <small>{kind === 'actual' ? 'BKS thực là biển số xe chạy thực tế của lô.' : 'BKS báo khách là biển số in cho khách (xe ảo) — không đặt = Debit Note in BKS thực.'}</small>
         </div>
         <div className="shipment-container-ledger__editor-footer">
           {billingError && <span className="shipment-container-ledger__edit-error" role="alert">{billingError}</span>}
@@ -933,6 +1051,29 @@ export function ShipmentContainerLedger({
         onClick={() => openBillingEditor(row, 'billing')}
       >{`BKS Báo khách (Ảo): ${plate}`}</button>
     );
+  }
+
+  // ── SIL-548 (spec 23/10 §4.1) — the lot's own CƯỚC THU KHÁCH outputs on the
+  // row: Loại xe thu khách (auto-traces bảng giá thu) + Giá cước nhập tay,
+  // saved straight through the SAME per-lot endpoint the settlement strip's
+  // DebitLotLclFacts uses (`/shipments/lcl/rev-class`). A lot already inside a
+  // CUS rev group keeps the GROUP's outputs — the editor says so and the
+  // server refuses the same way. The editor body is the LotRevFactsEditor
+  // child below (it mounts ONLY while open, so the catalog fetch fires for
+  // editing sessions, never for the board at large); the parent keeps the
+  // trigger + an override map (the plate editors' self-healing law) so the
+  // cell's "Lô hàng lẻ | Thu: Xe …" line reflects a save without waiting for
+  // the page refetch.
+  const [revFactsRowId, setRevFactsRowId] = useState<number | null>(null);
+  const [revClassOverrides, setRevClassOverrides] = useState<Record<number, { base: string; saved: string }>>({});
+  /** Override-aware Thu class code (the three call sites must agree). */
+  function revVehicleClassCodeFor(row: ShipmentCusContainerFlatRow): string | null {
+    const server = row.revVehicleClassCode?.trim() ?? '';
+    const override = revClassOverrides[row.shipmentId];
+    return (override && server === override.base ? override.saved : server) || null;
+  }
+  function openRevFactsEditor(row: ShipmentCusContainerFlatRow) {
+    setRevFactsRowId(row.id);
   }
 
   // The parent owns feedback (it owns the toast surface for this page); the
@@ -1127,6 +1268,9 @@ export function ShipmentContainerLedger({
               const lotActualTruckNo = actualTruckNoFor(row);
               const lotActualPlate = lotActualTruckNo || row.plateNumber?.trim() || '—';
               const lotBillingPlate = billingPlateFor(row);
+              // SIL-548 — override-aware Thu class for the spec line, the
+              // missing label and the in-cell cước-thu editor's current value.
+              const lotRevCode = revVehicleClassCodeFor(row);
               const lotBillingDiffers = lotBillingPlate !== '' && normalizePlate(lotBillingPlate) !== normalizePlate(lotActualPlate);
               const lotBillingEditing = plateEditor?.rowId === row.id && plateEditor.kind === 'billing';
               const lotActualEditing = plateEditor?.rowId === row.id && plateEditor.kind === 'actual';
@@ -1238,11 +1382,35 @@ export function ShipmentContainerLedger({
                           phrase modifier wraps that sentence-like line; real
                           container numbers keep the whole-token nowrap law
                           (SIL-516 doctrine sweep). */}
-                      <strong className={row.isLotLevel ? 'shipment-container-ledger__code shipment-container-ledger__code--phrase' : 'shipment-container-ledger__code'}>{row.isLotLevel ? lotSpecLine(row) : fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
+                      <strong className={row.isLotLevel ? 'shipment-container-ledger__code shipment-container-ledger__code--phrase' : 'shipment-container-ledger__code'}>{row.isLotLevel ? lotSpecLine(row, lotRevCode) : fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       {row.isLotLevel
-                        ? (row.revVehicleClassCode == null && row.costVehicleClassCode == null
+                        ? (lotRevCode == null && row.costVehicleClassCode == null
                           && <span className="shipment-container-ledger__missing">Chưa chọn loại xe tính cước</span>)
                         : <span>{fallback(row.containerTypeLabel, 'Chưa rõ loại container')}</span>}
+                      {/* SIL-548 (spec 23/10 §4.1) — the lot's own CƯỚC THU
+                          KHÁCH output lives ON the row: the muted label's
+                          action (the card 191026181942 one-label law), the
+                          same in-cell pattern as the BKS plate editors. */}
+                      {row.isLotLevel && (
+                        revFactsRowId === row.id
+                          ? (
+                            <LotRevFactsEditor
+                              row={row}
+                              onClose={() => setRevFactsRowId(null)}
+                              onClassSaved={(base, saved) => {
+                                setRevClassOverrides((prev) => ({ ...prev, [row.shipmentId]: { base, saved } }));
+                              }}
+                            />
+                          )
+                          : (
+                            <button
+                              type="button"
+                              className="shipment-container-ledger__missing-fields-toggle"
+                              aria-label={`Sửa cước thu khách cho lô ${row.billOrBookNumber || 'hàng lẻ'}`}
+                              onClick={() => openRevFactsEditor(row)}
+                            >Sửa cước thu khách</button>
+                          )
+                      )}
                       <span className="shipment-container-ledger__container-classification">{DISPATCH_CLASSIFICATION_LABELS[row.classification]}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
                     </div>)}
@@ -1314,6 +1482,20 @@ export function ShipmentContainerLedger({
                                   aria-label={`Nhập BKS thực cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
                                   onClick={() => openBillingEditor(row, 'actual')}
                                 >Nhập BKS thực</button>
+                              )}
+                            {/* SIL-548 (spec 23/10 §4.1 field 3): BKS báo khách
+                                is a LOT-level CUS output — reachable even while
+                                Điều vận chưa gán xe (the editor ghosts the BKS
+                                thực fallback). */}
+                            {lotBillingEditing
+                              ? billingPlateEditor(row, 'billing')
+                              : (
+                                <button
+                                  type="button"
+                                  className="shipment-container-ledger__missing-fields-toggle"
+                                  aria-label={`Nhập BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                                  onClick={() => openBillingEditor(row, 'billing')}
+                                >Nhập BKS báo khách</button>
                               )}
                           </>
                         ) : (
