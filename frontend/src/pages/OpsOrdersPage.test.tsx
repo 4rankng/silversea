@@ -268,12 +268,81 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(screen.getByRole('button', { name: 'Bỏ ghim BL-001' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('keeps keyboard focus on the same order pin button through the re-sort (SIL-575)', async () => {
+    let pinned22 = false;
+    const { promise, resolve } = Promise.withResolvers<unknown>();
+    apiPut.mockReturnValue(promise);
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/orders')) {
+        const data = makeItems();
+        data.items[1].pinned = pinned22;
+        if (pinned22) data.items[1].pinnedAt = new Date().toISOString();
+        return Promise.resolve(data);
+      }
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+    await screen.findByText('BL-001');
+    const pin = screen.getByRole('button', { name: 'Ghim BK-002' });
+    pin.focus();
+    fireEvent.click(pin);
+
+    // Mid-flight the button stays focusable: aria-disabled/aria-busy only,
+    // never `disabled` (which blurs the focused button to <body>).
+    const busy = screen.getByRole('button', { name: 'Bỏ ghim BK-002' });
+    expect(busy).not.toHaveAttribute('disabled');
+    expect(busy).toHaveAttribute('aria-disabled', 'true');
+    expect(busy).toHaveAttribute('aria-busy', 'true');
+    await waitFor(() => {
+      const firstCode = document.querySelector('.ops-orders__table tbody tr .col-code');
+      expect(firstCode?.textContent).toBe('BK-002');
+    });
+
+    pinned22 = true;
+    resolve({ pinned: true });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Bỏ ghim BK-002' })).toHaveAttribute('aria-busy', 'false'));
+    const settled = screen.getByRole('button', { name: 'Bỏ ghim BK-002' });
+    expect(settled).toHaveAttribute('aria-pressed', 'true');
+    await waitFor(() => expect(document.activeElement).toBe(settled));
+  });
+
+  it('keeps focus on the pin button when unpinning (SIL-575)', async () => {
+    let pinned11 = true;
+    const { promise, resolve } = Promise.withResolvers<unknown>();
+    apiPut.mockReturnValue(promise);
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/orders')) {
+        const data = makeItems();
+        data.items[0].pinned = pinned11;
+        if (pinned11) data.items[0].pinnedAt = new Date().toISOString();
+        return Promise.resolve(data);
+      }
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+    const pin = await screen.findByRole('button', { name: 'Bỏ ghim BL-001' });
+    pin.focus();
+    fireEvent.click(pin);
+    const busy = screen.getByRole('button', { name: 'Ghim BL-001' });
+    expect(busy).not.toHaveAttribute('disabled');
+    expect(busy).toHaveAttribute('aria-busy', 'true');
+    pinned11 = false;
+    resolve({ pinned: false });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Ghim BL-001' })).toHaveAttribute('aria-busy', 'false'));
+    const settled = screen.getByRole('button', { name: 'Ghim BL-001' });
+    expect(settled).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => expect(document.activeElement).toBe(settled));
+  });
+
   it('sends one pin update while the previous action is pending', async () => {
     apiPut.mockReturnValue(new Promise(() => {}));
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: 'Ghim BL-001' }));
     const pending = await screen.findByRole('button', { name: 'Bỏ ghim BL-001' });
-    expect(pending).toBeDisabled();
+    // SIL-575: the in-flight pass is aria-disabled/aria-busy only — a real
+    // `disabled` would blur the focused button to <body>.
+    expect(pending).not.toBeDisabled();
+    expect(pending).toHaveAttribute('aria-disabled', 'true');
     expect(pending).toHaveAttribute('aria-busy', 'true');
     fireEvent.click(pending);
     fireEvent.click(screen.getByRole('button', { name: 'Ghim BK-002' }));
