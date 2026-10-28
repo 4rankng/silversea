@@ -1,0 +1,28 @@
+{
+  "base": "http://localhost:7188",
+  "width": 1280,
+  "account": "ok",
+  "panel": {
+    "hasSelect": true,
+    "controlName": "Loại container — dòng 1",
+    "panelWidth": 300,
+    "panelInsideTable": false
+  },
+  "listbox": {
+    "optionCount": 7,
+    "optionTexts": [
+      "20DC",
+      "20HC",
+      "20RF",
+      "40DC",
+      "40HC",
+      "40RF",
+      "45HC"
+    ],
+    "listboxWidth": 276,
+    "listboxHeight": 211,
+    "listboxInViewport": true,
+    "listboxInsidePanel": false,
+    "listboxInsideTable": false
+  }
+}
