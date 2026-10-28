@@ -36,6 +36,7 @@ vi.mock('../../api/dispatchPlanningClient', () => ({
 
 vi.mock('../../components/shared/Toast', () => ({
   useToast: () => ({ toast: vi.fn() }),
+  useToastOptional: () => null,
 }));
 
 const { apiGet } = vi.hoisted(() => ({ apiGet: vi.fn() }));
