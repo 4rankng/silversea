@@ -9,7 +9,9 @@
  *
  * Boundary pins: a lot inside a CUS rev group keeps the GROUP's outputs (the
  * editor fields disable with the tách-nhóm hint); a failed save surfaces the
- * inline role=alert error and keeps the editor open.
+ * inline role=alert error and keeps the editor open. QA id 615 re-confirm:
+ * a PENDING lot's stored Ảo plate prints on the cell face (pill) — the save
+ * persisted all along but the cell never showed it, so it read as lost.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -221,7 +223,7 @@ describe('SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô 
     expect(screen.getByLabelText(/Giá cước thu khách/)).toBeTruthy();
   });
 
-  it('lô CHƯA phân xe vẫn có "Nhập BKS báo khách" — editor mở với hint fallback BKS thực', () => {
+  it('lô CHƯA phân xe vẫn có "Nhập BKS báo khách" — editor mở với hint fallback BKS thực', async () => {
     // Nothing allocated (no carrier, no plate, no BKS thực) → the pending
     // branch renders BOTH entry actions.
     ledgerView([lotRow({ actualTruckNo: null })]);
@@ -236,6 +238,27 @@ describe('SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô 
     fireEvent.change(combo, { target: { value: '15C-999.99' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS báo khách' }));
     expect(updateTruck).toHaveBeenCalledWith({ shipmentId: 71, billingTruckNo: '15C-999.99' });
+
+    // QA id 615 re-confirm: the save DID persist but the pending cell never
+    // printed the stored Ảo — before or after reload it looked untouched, so
+    // the save read as "không lưu được". The pill must appear immediately
+    // (override law, no refetch wait) and the bare entry action step aside.
+    expect(await within(vehicleCell as HTMLElement).findByRole('button', { name: 'BKS Báo khách (Ảo): 15C-999.99' })).toBeTruthy();
+    expect(within(vehicleCell as HTMLElement).queryByRole('button', { name: 'Nhập BKS báo khách cho lô R42CUS-LCL1' })).toBeNull();
+  });
+
+  it('lô chưa phân xe ĐÃ lưu BKS báo khách → reload vẫn in pill Ảo trên cell, click mở lại đúng giá trị (QA id 615)', () => {
+    // The wire row comes back with the persisted plate (POST /lcl/truck 200
+    // verified live) — the cell face must show it without any editor detour.
+    ledgerView([lotRow({ billingTruckNo: '30A-123.45' })]);
+    const vehicleCell = screen.getByText('R42CUS-LCL1').closest('tr')!.querySelector('td[data-label="Phân xe"]')!;
+    const pill = within(vehicleCell as HTMLElement).getByRole('button', { name: 'BKS Báo khách (Ảo): 30A-123.45' }) as HTMLButtonElement;
+    expect(pill.title).toBe('Sửa BKS báo khách');
+    expect(within(vehicleCell as HTMLElement).queryByRole('button', { name: 'Nhập BKS báo khách cho lô R42CUS-LCL1' })).toBeNull();
+
+    // Click-to-edit reopens the same Ảo editor, seeded with the stored plate.
+    fireEvent.click(pill);
+    expect((screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' }) as HTMLInputElement).value).toBe('30A-123.45');
   });
 
   it('lô có BKS thực → Ảo editor ghost đúng BKS thực (fallback sẽ in)', () => {

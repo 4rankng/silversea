@@ -1486,17 +1486,28 @@ export function ShipmentContainerLedger({
                             {/* SIL-548 (spec 23/10 §4.1 field 3): BKS báo khách
                                 is a LOT-level CUS output — reachable even while
                                 Điều vận chưa gán xe (the editor ghosts the BKS
-                                thực fallback). */}
+                                thực fallback). QA id 615 re-confirm: the save
+                                itself persisted (POST /lcl/truck 200, wire +
+                                DB carried the plate) but the pending branch
+                                never PRINTED the stored Ảo — before or after
+                                reload the cell looked untouched, so the save
+                                read as a no-op. A stored plate renders the
+                                same pill the allocated branch uses
+                                (billingPlateTrigger, override-aware so the
+                                save shows without waiting for the refetch);
+                                the bare entry action is for the empty state. */}
                             {lotBillingEditing
                               ? billingPlateEditor(row, 'billing')
-                              : (
-                                <button
-                                  type="button"
-                                  className="shipment-container-ledger__missing-fields-toggle"
-                                  aria-label={`Nhập BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
-                                  onClick={() => openBillingEditor(row, 'billing')}
-                                >Nhập BKS báo khách</button>
-                              )}
+                              : lotBillingPlate
+                                ? billingPlateTrigger(row, lotBillingPlate)
+                                : (
+                                  <button
+                                    type="button"
+                                    className="shipment-container-ledger__missing-fields-toggle"
+                                    aria-label={`Nhập BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                                    onClick={() => openBillingEditor(row, 'billing')}
+                                  >Nhập BKS báo khách</button>
+                                )}
                           </>
                         ) : (
                         <>
