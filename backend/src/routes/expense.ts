@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { createHash } from 'node:crypto';
-import { expenseSchema } from '@tingting/shared';
+import { expenseSchema, partialUpdateSchema } from '@tingting/shared';
 import { z } from 'zod';
 import { db } from '../db';
 import { registerAuditEvent } from '../services/audit-registry';
@@ -242,7 +242,7 @@ router.post('/', declareMaterialWrite('expenses.submit', { method: 'POST', path:
 // KP-150: check/approve/reject endpoints removed — expenses post directly.
 
 router.put('/:id', declareMaterialWrite('expenses.governed-update', { method: 'PUT', path: '/api/expenses/:id', canonicalAliases: ['expenses.update'] }),  asyncHandler(async (req: Request, res: Response) => {
-  const validatedData = expenseSchema.partial().parse(req.body);
+  const validatedData = partialUpdateSchema(expenseSchema).parse(req.body);
   const userId = getUser(req).userId;
   const userRole = getUser(req).role;
   const id = Number(req.params.id);

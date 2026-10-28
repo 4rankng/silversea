@@ -138,6 +138,17 @@ export const quotationUpdateSchema = quotationCreateSchema.omit({ customerId: tr
 
 export type QuotationCellInput = z.input<typeof quotationCellSchema>;
 export type QuotationCreateInput = z.input<typeof quotationCreateSchema>;
+
+/** Parsed (post-validation) shapes — what the backend service layer receives:
+ *  routes call `schema.safeParse(req.body)` and hand `parsed.data` over, so
+ *  the service must type itself on the OUTPUT, not the wire input. zod v4
+ *  types `z.input` of a coercing field as `unknown` (`z.coerce.number()`
+ *  accepts anything Number() accepts), which is honest for the wire body the
+ *  frontend sends but unusable for numeric service internals. */
+export type QuotationCellData = z.output<typeof quotationCellSchema>;
+export type QuotationFeeData = z.output<typeof quotationFeeSchema>;
+export type QuotationCreateData = z.output<typeof quotationCreateSchema>;
+export type QuotationUpdateData = z.output<typeof quotationUpdateSchema>;
 export type QuotationUpdateInput = z.infer<typeof quotationUpdateSchema>;
 
 // ─── Live-view grid cell (computed, never persisted except heSo) ───────────

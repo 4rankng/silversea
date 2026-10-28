@@ -10,7 +10,7 @@ import { NumberField } from '../../design-system';
 import {
   FEE_ROUTING_MODES,
   type FeeRoutingMode,
-  type QuotationFeeInput,
+  type QuotationFeeData,
 } from '@tingting/shared';
 import type { QuotationFeeView } from '@tingting/shared';
 import { EmptyState, UuiSelectField } from '../../design-system';
@@ -37,7 +37,7 @@ interface FeeRowDraft {
 interface QuotationFeesSectionProps {
   fees: QuotationFeeView[];
   saving: boolean;
-  onSaveFees(fees: QuotationFeeInput[]): void;
+  onSaveFees(fees: QuotationFeeData[]): void;
 }
 
 export function QuotationFeesSection({ fees, saving, onSaveFees }: QuotationFeesSectionProps) {
@@ -94,7 +94,10 @@ export function QuotationFeesSection({ fees, saving, onSaveFees }: QuotationFees
   }
 
   function commit() {
-    const payload: QuotationFeeInput[] = rows
+    // Draft amounts are parsed numbers (FeeRowDraft.amount: number | '') —
+    // annotate with the parsed shape; zod v4's z.input reads coerced fields
+    // as `unknown` and would poison every save path with it.
+    const payload: QuotationFeeData[] = rows
       .filter((row) => row.feeName.trim().length > 0)
       .map((row) => ({
         feeName: row.feeName.trim(),

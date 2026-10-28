@@ -1,0 +1,16 @@
+# date: 2026-10-28, branch fix-sec-depends (off origin/main 4a01615c)
+# task A: close 9 Dependabot alerts (zod x4, undici x3, multer x1, body-parser x1)
+
+# changes: shared/backend zod ^3.25.76 -> ^4.6.7 | backend multer ^2.4.0 -> ^2.5.0
+#   root overrides: undici ~7.29.1 -> ~7.30.1 | body-parser ^2.3.0 -> ^2.4.0 | qs >=6.16.0 -> >=6.16.1 (new GHSA-6pq8-jhm2-2vcw published mid-task)
+#   root puppeteer/puppeteer-core -> ^25.16.0 (chromium-bidi 157.x depends on zod ^4.6.5 -> single zod@4.6.7 in lockfile)
+
+# resolved (pnpm-lock.yaml): zod@4.6.7 (single), multer@2.5.0, body-parser@2.4.0, undici@7.30.1, qs@6.17.0
+
+# command: pnpm audit --prod
+No known vulnerabilities found
+# exit: 0
+
+# command: pnpm audit
+No known vulnerabilities found
+# exit: 0
