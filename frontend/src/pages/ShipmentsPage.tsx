@@ -384,8 +384,10 @@ export default function ShipmentsPage() {
   // workspace fieldAccess publishes a non-READ_ONLY declarationNumber (role
   // CUS/Quản trị/Quản lý + no accounting lock, computed server-side), the
   // viewer holds the intake-mutation authority and the drawer detail is
-  // loaded. DISPATCHER keeps the rest of the container-line command but not
-  // this field — the same split the BE gate enforces.
+  // loaded. The LOT-level declarationNumber law (FB-005) is what this gate
+  // reads — it stays CUS/Quản trị/Quản lý even though the per-cont
+  // container-line writer opened to Điều vận (SIL-551); this workboard's
+  // per-cont editor deliberately keeps riding the lot-level gate.
   const drawerDetail = drawerId != null ? ws.details[drawerId] : undefined;
   const drawerDeclarationEditable = Boolean(
     canEditLot

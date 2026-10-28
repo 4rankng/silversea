@@ -13,9 +13,11 @@ import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
  *   number` — the value the per-cont command writes, so the cell shows what
  *   the edit persists, never a stale lot-level projection). Click-to-edit
  *   inline (owner ruling: the cell click IS the edit affordance — no extra
- *   Sửa button, card 20261006_537) for CUS/Quản trị/Quản lý — the card
- *   261013200312 writer law; DISPATCHER/ACCOUNTANT get static text with no
- *   edit affordance (the server would 403).
+ *   Sửa button, card 20261006_537) for CUS/Quản trị/Quản lý/Điều vận — the
+ *   SIL-551 (id 624) writer law for the container-line command (supersedes
+ *   the role sentence of card 261013200312 per-cont; the LOT-level
+ *   declarationNumber law is untouched); ACCOUNTANT and the rest get static
+ *   text with no edit affordance (the server would 403).
  * - LCL row: no container — the lot's declaration list reads out as text.
  *   Lot-level editing keeps its existing homes (CusLotView / ledger /
  *   quick-edit modal); this surface stays read-only there.
@@ -34,9 +36,10 @@ export function DispatchDeclarationCell({ row, onSaved }: {
 }) {
   const toastCtx = useToastOptional();
   const user = useAuth()?.user;
-  // Card 261013200312 — tờ khai writes are CUS/Quản trị/Quản lý only.
+  // SIL-551 (id 624) — per-cont tờ khai writes: CUS/Quản trị/Quản lý/Điều
+  // vận (the container-line writer law; lot-level stays FB-005).
   const canEdit = user != null
-    && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS)
+    && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS || user.role === Role.DISPATCHER)
     && row.shipmentContainerId != null;
 
   const baseline = row.cargoMode === 'FCL'

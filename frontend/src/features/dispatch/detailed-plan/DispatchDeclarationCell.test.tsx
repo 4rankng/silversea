@@ -74,15 +74,15 @@ describe('DispatchDeclarationCell — value display', () => {
   });
 });
 
-describe('DispatchDeclarationCell — role gating (card 261013200312)', () => {
-  it.each(['CUS', 'ADMIN', 'MANAGER'])('role %s gets the click-to-edit affordance', (role) => {
+describe('DispatchDeclarationCell — role gating (SIL-551 writer law)', () => {
+  it.each(['CUS', 'ADMIN', 'MANAGER', 'DISPATCHER'])('role %s gets the click-to-edit affordance', (role) => {
     authRole = role;
     render(<DispatchDeclarationCell row={row()} />);
     expect(screen.getByRole('button', { name: /Sửa số tờ khai/ })).toBeTruthy();
   });
 
-  it.each(['DISPATCHER', 'ACCOUNTANT'])('role %s gets static text — no edit affordance the server would 403', () => {
-    authRole = 'DISPATCHER';
+  it.each(['ACCOUNTANT', 'DRIVER', 'OPS'])('role %s gets static text — no edit affordance the server would 403', (role) => {
+    authRole = role;
     render(<DispatchDeclarationCell row={row()} />);
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByText('Chưa có tờ khai')).toBeTruthy();

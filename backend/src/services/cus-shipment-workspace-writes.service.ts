@@ -55,13 +55,22 @@ function requireWorkspaceWriter(actor: AuthUser) {
   }
 }
 
-/** Card 261013200312: tờ khai writes follow the FB-005/fieldAccess rule —
- * CUS/Quản trị/Quản lý only, the same authority and reason string the
- * workspace fieldAccess model publishes for declarationNumber. DISPATCHER
- * keeps the rest of the container-line command. */
+/** Per-container tờ khai writes (the container-line command) — SIL-551
+ *  (id 624, accepted scope 28/10) opens the per-cont field to Điều vận:
+ *  the ticket's Expected (dispatch-detail cell click-to-edit saves for the
+ *  dispatcher) supersedes the role sentence of card 261013200312 for THIS
+ *  command. The LOT-level declarationNumber field keeps its FB-005 law
+ *  (CUS/Quản trị/Quản lý — `shipmentFieldAccess.declarationNumber`), so
+ *  lot-level quick-edit stays where it was; DISPATCHER keeps the rest of the
+ *  container-line command exactly as before. */
 function requireContainerDeclarationWriter(actor: AuthUser) {
-  if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER && actor.role !== Role.CUS) {
-    throw new ApiError(403, 'Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.');
+  if (
+    actor.role !== Role.ADMIN
+    && actor.role !== Role.MANAGER
+    && actor.role !== Role.CUS
+    && actor.role !== Role.DISPATCHER
+  ) {
+    throw new ApiError(403, 'Chỉ CUS, Quản trị, Quản lý hoặc Điều vận được cập nhật tờ khai.');
   }
 }
 
