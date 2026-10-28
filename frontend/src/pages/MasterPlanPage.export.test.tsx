@@ -42,6 +42,7 @@ vi.mock('../lib/csv', () => ({ downloadCSV }));
 
 vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast, dismiss: vi.fn() }),
+  useToastOptional: () => ({ toast }),
 }));
 
 vi.mock('../hooks/useAuth', () => ({

@@ -17,6 +17,7 @@ vi.mock('../api/shipmentClient', async (importOriginal) => ({
 
 vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast, dismiss: vi.fn() }),
+  useToastOptional: () => ({ toast }),
 }));
 
 vi.mock('../hooks/useAuth', () => ({

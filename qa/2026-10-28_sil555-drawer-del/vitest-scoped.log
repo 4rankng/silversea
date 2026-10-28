@@ -1,0 +1,8 @@
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-629-drawer-del/frontend
+
+
+ Test Files  45 passed (45)
+      Tests  679 passed (679)
+   Start at  21:19:25
+   Duration  91.54s (transform 9.73s, setup 19.48s, import 111.59s, tests 216.60s, environment 83.15s)
+

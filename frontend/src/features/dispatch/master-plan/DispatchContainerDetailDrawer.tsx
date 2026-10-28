@@ -10,6 +10,7 @@ import type {
 import {
   addCusShipmentContainerRow,
   getCusShipmentWorkspaceDetail,
+  removeCusShipmentContainerRow,
   updateCusShipmentContainerLine,
   type ShipmentListItem,
 } from '../../../api/shipmentClient';
@@ -18,7 +19,7 @@ import { useToastOptional } from '../../../components/shared/Toast';
 import { dispatchStatusLabel } from '../../shipments/cus/cusUtils';
 import { formatDateTime24 } from '../../../lib/format';
 import { formatVietnamDateTimeInput, localDateTimeToIso } from '../../../lib/shipment-operations';
-import { Drawer } from '../../../components/UI';
+import { ConfirmDialog, Drawer } from '../../../components/UI';
 import { billBookingReference } from '../../../lib/business-reference';
 import { SearchableSelect } from '../../../design-system';
 import './DispatchContainerDetailDrawer.css';
@@ -453,13 +454,29 @@ function AddContainerLineForm({ shipmentId, expectedVersion, onAdded, onResync }
   );
 }
 
-function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, onPortChange, onTextFieldSave, onAppointmentSave }: {
+/** SIL-555 (id 629) — the deleted row's name, in lockstep across three
+ *  call sites that must name the SAME row: the Xóa button's aria-label, the
+ *  confirm message, and the success toast. A row carrying a tờ khai never
+ *  reaches the dialog — its Xóa button is disabled at the row (SIL-177 QA
+ *  verdict 24/10: the FE must not warn-and-allow past the BE 409 guard;
+ *  gỡ tờ khai is the operator's own separate step). */
+function removeTargetName(line: ShipmentCusWorkspaceContainerLine): string {
+  return line.containerNumber?.trim() || String(line.ordinal);
+}
+
+function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, canRemoveContainer, removingLineId, onPortChange, onTextFieldSave, onAppointmentSave, onRemove }: {
   detail: ShipmentCusWorkspaceDetail;
   savingLineId: number | null;
   canEditDeclarations: boolean;
+  /** SIL-555 — the per-row Xóa container gate (role + lock law, see the
+   *  drawer's `canRemoveContainer`): when false the Thao tác column is gone,
+   *  exactly like the Chi tiết lô table stays button-free (SIL-334). */
+  canRemoveContainer: boolean;
+  removingLineId: number | null;
   onPortChange: (line: ShipmentCusWorkspaceContainerLine, field: 'liftSiteId' | 'dropoffSiteId', value: string) => void;
   onTextFieldSave: (line: ShipmentCusWorkspaceContainerLine, field: LineTextField, next: string) => Promise<ShipmentCusContainerLineUpdateResult>;
   onAppointmentSave: (line: ShipmentCusWorkspaceContainerLine, next: string | null) => Promise<unknown>;
+  onRemove: (line: ShipmentCusWorkspaceContainerLine) => void;
 }) {
   if (detail.containers.length === 0) {
     return <p className="dispatch-container-detail__empty">Lô hàng chưa có dữ liệu container.</p>;
@@ -487,10 +504,17 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, onPor
             <th scope="col" className="dispatch-container-detail__port-column">Nâng</th>
             <th scope="col" className="dispatch-container-detail__port-column">Hạ</th>
             <th scope="col" className="dispatch-container-detail__appointment-column">Giờ hẹn đóng/trả</th>
+            {canRemoveContainer && <th scope="col" className="dispatch-container-detail__actions-column">Thao tác</th>}
           </tr>
         </thead>
         <tbody>
-          {detail.containers.map((line) => (
+          {detail.containers.map((line) => {
+            // SIL-555 per-row guards (mirror the remove API's own 409s at the
+            // affordance level — a doomed click is never advertised): a row
+            // carrying a tờ khai (SIL-177) or an active trip refuses deletion.
+            const declaredNumber = line.declarationNumber?.trim() ?? '';
+            const activeTrip = line.tripId != null && line.tripStatus !== 'CANCELED';
+            return (
             <tr key={line.id} className="dispatch-container-detail__row">
               <td data-label="STT" className="dispatch-container-detail__ordinal-column">{line.ordinal}</td>
               <th scope="row" data-label="Container">
@@ -561,8 +585,25 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, onPor
                   onSave={onAppointmentSave}
                 />
               </td>
+              {canRemoveContainer && (
+                <td data-label="Thao tác" className="dispatch-container-detail__actions-column">
+                  <button
+                    type="button"
+                    className="btn btn--danger-outline btn--sm dispatch-container-detail__remove"
+                    onClick={() => onRemove(line)}
+                    disabled={removingLineId != null || activeTrip || declaredNumber !== ''}
+                    title={declaredNumber !== ''
+                      ? `Cont có tờ khai ${declaredNumber} — gỡ tờ khai trước khi xóa`
+                      : activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
+                    aria-label={`Xóa container ${removeTargetName(line)}`}
+                  >
+                    Xóa container
+                  </button>
+                </td>
+              )}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -586,8 +627,14 @@ export function DispatchContainerDetailDrawer({
   const [error, setError] = useState<string | null>(null);
   const [savingPortLineId, setSavingPortLineId] = useState<number | null>(null);
   const [portSaveError, setPortSaveError] = useState<string | null>(null);
+  // SIL-555 (id 629): single-flight per-row remove + the confirm's target.
+  // The target is a line ID (not a line object) so a resync refetch can never
+  // leave the dialog confirming a stale expectedShipmentVersion.
+  const [removingLineId, setRemovingLineId] = useState<number | null>(null);
+  const [pendingRemoveId, setPendingRemoveId] = useState<number | null>(null);
   const requestIdRef = useRef(0);
   const user = useAuth()?.user;
+  const toastCtx = useToastOptional();
   // SIL-551 (id 624): per-cont tờ khai writes open to Điều vận (the ticket's
   // Expected supersedes the role sentence of card 261013200312 for the
   // container-line command); every other role reads static text (the writer
@@ -704,6 +751,35 @@ export function DispatchContainerDetailDrawer({
     onSaved?.();
   }, [shipment, refreshDetail, onSaved]);
 
+  /** SIL-555 (id 629) — the confirmed remove: the shared container-remove
+   *  command (`POST /shipments/cus-workspace/:id/containers/:containerId/remove`
+   *  — the CUS-10/SIL-177 owner of this verb, guards and all), then the same
+   *  resync the add path owns: drawer detail refetch + board ping. A refused
+   *  remove (tờ khai / chuyến xe / hết cont cuối / version) keeps the dialog
+   *  open with the API reason as a toast (Hủy stays reachable) and refetches
+   *  so a retry carries the fresh expectedShipmentVersion. */
+  const removeContainer = useCallback(async (line: ShipmentCusWorkspaceContainerLine) => {
+    if (!shipment || removingLineId != null) return;
+    setRemovingLineId(line.id);
+    try {
+      await removeCusShipmentContainerRow(shipment.id, line.id, {
+        expectedShipmentVersion: line.shipmentVersion,
+      }, crypto.randomUUID());
+      toastCtx?.toast({ kind: 'success', message: `Đã xóa container ${removeTargetName(line)}.` });
+      setPendingRemoveId(null);
+      await refreshDetail(shipment.id);
+      onSaved?.();
+    } catch (error) {
+      const message = error instanceof Error && error.message
+        ? error.message
+        : 'Không xóa được container.';
+      toastCtx?.toast({ kind: 'error', message });
+      await refreshDetail(shipment.id);
+    } finally {
+      setRemovingLineId(null);
+    }
+  }, [shipment, removingLineId, refreshDetail, onSaved, toastCtx]);
+
   const handleResync = useCallback(async () => {
     if (!shipment) return;
     await refreshDetail(shipment.id);
@@ -735,6 +811,16 @@ export function DispatchContainerDetailDrawer({
     && shipment != null
     && detail.summary.activeLock == null
     && detail.summary.cargoMode !== 'LCL';
+  /** SIL-555 (id 629) — the Xóa container gate mirrors the remove endpoint's
+   *  own writer law (requireWorkspaceWriter: ADMIN/MANAGER/CUS/DISPATCHER —
+   *  ACCOUNTANT/DRIVER never see the button) plus the accounting lock the
+   *  container-set writer refuses. Row-level guards (tờ khai / chuyến xe)
+   *  live on the button itself. */
+  const canRemoveContainer = user != null
+    && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS || user.role === Role.DISPATCHER)
+    && detail != null
+    && detail.summary.activeLock == null;
+  const pendingRemoveLine = detail?.containers.find((line) => line.id === pendingRemoveId) ?? null;
   const addForm = canAddContainer && detail != null && shipment != null ? (
     <div className="dispatch-container-detail__add">
       <AddContainerLineForm
@@ -790,11 +876,26 @@ export function DispatchContainerDetailDrawer({
               detail={detail}
               savingLineId={savingPortLineId}
               canEditDeclarations={canEditDeclarations}
+              canRemoveContainer={canRemoveContainer}
+              removingLineId={removingLineId}
               onPortChange={savePort}
               onTextFieldSave={saveTextField}
               onAppointmentSave={saveAppointment}
+              onRemove={(line) => setPendingRemoveId(line.id)}
             />
             {addForm}
+            {/* SIL-555 (id 629): the delete sits behind this danger confirm
+                naming the number (SIL-472 contract — the confirm must really
+                delete the row). A guard rejection keeps it open so the API
+                reason (toast) and Hủy both stay reachable. */}
+            <ConfirmDialog
+              isOpen={pendingRemoveLine != null}
+              message={pendingRemoveLine ? `Xóa container ${removeTargetName(pendingRemoveLine)}?` : ''}
+              confirmLabel={removingLineId != null ? 'Đang xóa…' : 'Xóa container'}
+              variant="danger"
+              onConfirm={() => { if (pendingRemoveLine) void removeContainer(pendingRemoveLine); }}
+              onCancel={() => { if (removingLineId == null) setPendingRemoveId(null); }}
+            />
           </>
         ) : null}
       </section>

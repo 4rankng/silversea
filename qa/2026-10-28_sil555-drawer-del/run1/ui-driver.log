@@ -1,0 +1,20 @@
+2026-10-28T13:31:10.643Z throwaway container number: MSKU8234567 (ISO 6346 check digit per shared/src/calculations/iso6346.ts)
+2026-10-28T13:31:33.365Z login ok user=dungnv (DISPATCHER — the ticket repro role)
+2026-10-28T13:31:42.773Z gate1 headers=["STT","Container","Loại cont","Số tờ khai","Điều vận","Nhà xe","Biển số","Nâng","Hạ","Giờ hẹn đóng/trả","Thao tác"] rows=2
+2026-10-28T13:31:42.877Z gate2 disabled-declared=2 disabled-tripped=0
+2026-10-28T13:31:44.289Z gate3 added MSKU8234567: count="3 cont" guard="Cont có tờ khai TK-R42RV-001 — gỡ tờ khai trước khi xóa"
+2026-10-28T13:31:45.375Z gate4 after clearing tờ khai: disabled=false
+2026-10-28T13:31:46.021Z gate5 dialog="Xóa container MSKU8234567?HủyXóa container"
+2026-10-28T13:31:47.859Z gate6 after delete: count="2 cont" toast="Đã thêm container vào lô.Đã lưu số tờ khai.Đã xóa container MSKU8234567."
+2026-10-28T13:31:48.953Z api health: {"status":0,"error":"TypeError: Failed to fetch"}
+2026-10-28T13:31:48.954Z checks: 12/12 pass
+2026-10-28T13:33:48.900Z throwaway container number: MSKU8234567 (ISO 6346 check digit per shared/src/calculations/iso6346.ts)
+2026-10-28T13:33:55.682Z login ok user=dungnv (DISPATCHER — the ticket repro role)
+2026-10-28T13:34:03.438Z gate1 headers=["STT","Container","Loại cont","Số tờ khai","Điều vận","Nhà xe","Biển số","Nâng","Hạ","Giờ hẹn đóng/trả","Thao tác"] rows=2
+2026-10-28T13:34:03.578Z gate2 disabled-declared=2 disabled-tripped=0
+2026-10-28T13:34:04.922Z gate3 added MSKU8234567: count="3 cont" guard="Cont có tờ khai TK-R42RV-001 — gỡ tờ khai trước khi xóa"
+2026-10-28T13:34:06.025Z gate4 after clearing tờ khai: disabled=false
+2026-10-28T13:34:06.729Z gate5 dialog="Xóa container MSKU8234567?HủyXóa container"
+2026-10-28T13:34:08.199Z gate6 after delete: count="2 cont" toast="Đã thêm container vào lô.Đã lưu số tờ khai.Đã xóa container MSKU8234567."
+2026-10-28T13:34:09.421Z api health: {"status":0,"error":"TypeError: Failed to fetch"}
+2026-10-28T13:34:09.422Z checks: 12/12 pass

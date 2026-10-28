@@ -46,12 +46,25 @@ describe('DispatchContainerDetailDrawer appointment-column contract (FB-045, car
   it('keeps the table minimum wide enough that no other label loses its line', () => {
     const table = rule('.dispatch-container-detail__table');
     expect(table).toMatch(/table-layout:\s*fixed/);
-    // SIL-530: the SỐ TỜ KHAI column joined, so the floor rose from 960px —
-    // 1050 − 44 (ordinal) − 150 (appointment) − 2 × 150 (port columns) leaves
-    // ≥92px per remaining column (container / loại cont / số tờ khai /
-    // điều vận / nhà xe / biển số); every header label ("Container" ≈ 75px
-    // worst case) clears that floor, so nowrap can never shear them either.
-    expect(table).toMatch(/min-width:\s*1050px/);
+    // SIL-530: the SỐ TỜ KHAI column joined; SIL-555 (id 629): the THAO TÁC
+    // rail joined — the floor rose from 1050px:
+    // 1180 − 44 (ordinal) − 150 (appointment) − 2 × 150 (port columns) − 130
+    // (thao tác) leaves ≥92px per remaining column (container / loại cont /
+    // số tờ khai / điều vận / nhà xe / biển số); every header label
+    // ("Container" ≈ 75px worst case) clears that floor, so nowrap can never
+    // shear them either.
+    expect(table).toMatch(/min-width:\s*1180px/);
+  });
+
+  it('owns the per-row XÓA CONT rail on the right edge (SIL-555, id 629)', () => {
+    const actions = rule('.dispatch-container-detail__actions-column');
+    expect(actions).toMatch(/width:\s*130px/);
+    // Both the header and the button cell carry the class — one width owner
+    // for the whole column.
+    expect(tsx).toMatch(/<th scope="col" className="dispatch-container-detail__actions-column">Thao tác<\/th>/);
+    expect(tsx).toMatch(/<td data-label="Thao tác" className="dispatch-container-detail__actions-column">/);
+    // The labeled danger button keeps its one line inside the rail.
+    expect(rule('.dispatch-container-detail__table tbody .dispatch-container-detail__actions-column')).toMatch(/white-space:\s*nowrap/);
   });
 
   it('lets no neighbor control paint over the appointment column (FB-045 lan 2)', () => {
