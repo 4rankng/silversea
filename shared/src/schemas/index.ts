@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { partialUpdateSchema } from './partial-update';
 import { expenseInputFields, expenseDateSchema, expenseVndSchema, signedExpenseVndSchema } from '../expense-accounting';
 import { normalizeContainerNumber, validateCheckDigit, validateContainerFormat } from '../calculations/iso6346';
 import { TIMESHEET_SALARY_MODES } from '../calculations/timesheetSalary';
@@ -16,6 +17,11 @@ import {
 } from '../constants';
 
 export * from './financial-reporting-policy';
+
+// PATCH/PUT shape builder — zod v4 applies create-time defaults inside
+// `.partial()`, which would let a bare update clobber stored columns; see
+// the module doc for the v3-vs-v4 semantics this preserves.
+export * from './partial-update';
 
 // Admin OCR settings (independent enable switch + OpenRouter/Gemini API keys).
 // Used by the ADMIN-only settings route and the frontend config page.
@@ -453,7 +459,7 @@ export const billingDocumentLineSchema = z.object({
   description: z.string().min(1),
   routeName: z.string().nullable().optional(),
   containerNumbers: z.array(z.string()).nullable().optional(),
-  renderData: z.record(z.unknown()).nullable().optional(),
+  renderData: z.record(z.string(), z.unknown()).nullable().optional(),
   financialPostingId: z.coerce.number().int().positive().nullable().optional(),
   financialPostingVersion: z.coerce.number().int().positive().nullable().optional(),
   postingChecksum: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
@@ -1019,7 +1025,8 @@ export const freightRateTermSchema = z.object({
   // An unknown contractual lag is not a same-day agreement. Require an
   // explicit value, accepting the numeric strings sent by existing forms.
   fuelLagDays: z.union([z.number(), z.string().trim().min(1, 'Nhập độ trễ giá dầu đã thỏa thuận')])
-    .pipe(z.coerce.number().int().min(0)),
+    .transform((val) => Number(val))
+    .pipe(z.number().int().min(0)),
   // Three-state threshold confirmation (20260917_11): 'UNSET' = customer has
   // not confirmed yet (never invent "always adjust"), 'NONE' = customer
   // confirmed no threshold, 'PCT'/'ABS' = confirmed threshold form.
@@ -1453,16 +1460,25 @@ export const tripContainerPatchSchema = z.object({
  *  Generic stays ZodTypeAny with NO explicit return type: a narrower
  *  constraint or a declared ZodEffects<...> return clamps the chained
  *  refinement inference and breaks downstream consumers that read sibling
- *  fields (containerTypeId/seals/…) off the parsed output. */
+ *  fields (containerTypeId/seals/…) off the parsed output.
+ *
+ *  zod v4 types the refine callback argument as the unresolved `output<S>`
+ *  for a generic S, so each gate reads the container number through an
+ *  explicit local shape instead of property inference off the generic. */
 function withOptionalContainerNumberGate<S extends z.ZodTypeAny>(schema: S) {
+  const containerOf = (value: unknown): { containerNumber?: string | null } =>
+    value as { containerNumber?: string | null };
   return schema
     .refine(
-      (container) => container.containerNumber == null || Boolean(container.containerNumber.trim()),
+      (container) => {
+        const c = containerOf(container);
+        return c.containerNumber == null || Boolean(c.containerNumber.trim());
+      },
       { path: ['containerNumber'], message: 'Số container không được để trống' },
     )
     .refine(
       (container) => {
-        const value = container.containerNumber;
+        const value = containerOf(container).containerNumber;
         if (value == null || !value.trim()) return true;
         return validateContainerFormat(value);
       },
@@ -1470,7 +1486,7 @@ function withOptionalContainerNumberGate<S extends z.ZodTypeAny>(schema: S) {
     )
     .refine(
       (container) => {
-        const value = container.containerNumber;
+        const value = containerOf(container).containerNumber;
         if (value == null || !value.trim()) return true;
         return validateCheckDigit(normalizeContainerNumber(value));
       },
@@ -2212,11 +2228,13 @@ export type TripExpenseInput = z.infer<typeof tripExpenseSchema>;
  * Partial update schema for trip expenses.
  * Nullable database fields accept an explicit null so PATCH/PUT callers can
  * clear an existing value; undefined continues to mean "leave unchanged".
+ * Built through partialUpdateSchema — zod v4 would otherwise apply the base
+ * schema's create-time defaults (`sellAmount: 0`, `settlementMethod`) inside
+ * bare `.partial()`, silently zeroing sellAmount on a buyAmount-only PATCH.
  */
-export const tripExpensePatchSchema = baseTripExpenseSchema
-  .omit({ tripId: true })
-  .partial()
-  .extend({
+export const tripExpensePatchSchema = partialUpdateSchema(
+  baseTripExpenseSchema.omit({ tripId: true }),
+).extend({
     supplierId: z.number().int().positive().nullable().optional(),
     expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày chi không hợp lệ').nullable().optional(),
     payeeName: z.string().trim().max(200).nullable().optional(),
