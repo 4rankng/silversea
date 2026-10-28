@@ -76,6 +76,9 @@ const row = (over: Partial<ShipmentDebitLotRow> = {}): ShipmentDebitLotRow => ({
   profit: 2_500_000,
   lockStatus: 'OPEN',
   lockedAt: null,
+  // SIL-549: the real wire always carries the cargo mode (the summary service
+  // computes it) — the tickable default here is an LCL lot, same as production.
+  cargoMode: 'LCL',
   ...over,
   // After the spread, so an explicit `customerId: null` (a lot with no
   // customer) survives instead of collapsing back to the default.

@@ -267,6 +267,14 @@ export function ShipmentDebitPage() {
     if (next) {
       const incoming = items.find((row) => row.shipmentId === id);
       if (incoming) {
+        // SIL-549 (spec 23/10 §2 "UX hỗ trợ") — FCL rows are not pickable at
+        // all: their checkbox never renders, so this refusal is the belt to
+        // the UI's braces (and names the law should a programmatic tick land).
+        if (incoming.cargoMode !== 'LCL') {
+          const label = incoming.billOrBookNumber || incoming.customsNumber || incoming.code;
+          toast({ kind: 'error', message: `Lô ${label} là hàng nguyên container (FCL) — chỉ gộp được các lô hàng lẻ (LCL).` });
+          return;
+        }
         const refusal = refuseCrossCustomerPick(incoming);
         if (refusal != null) {
           toast({ kind: 'error', message: refusal });
