@@ -736,7 +736,7 @@ textarea.dispatch-assignment-dialog__notes-text {
 
 .dispatch-assignment-dialog__notes-manage-btn:hover:not(:disabled) {
   border-color: var(--line-2);
-  color: var(--accent);
+  color: var(--accent-2, #2D6B54);
   background: var(--surface-hover);
 }
 
@@ -863,7 +863,7 @@ textarea.dispatch-assignment-dialog__notes-text {
 
 .dispatch-tag-manager__icon-btn:hover {
   background: var(--surface-2);
-  color: var(--accent);
+  color: var(--accent-2, #2D6B54);
 }
 
 .dispatch-tag-manager__icon-btn--danger:hover {

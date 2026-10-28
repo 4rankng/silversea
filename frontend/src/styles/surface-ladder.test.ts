@@ -125,4 +125,30 @@ describe('accent-as-text ban (card 20260922_45)', () => {
     const violations = debtCss.match(/(?<![\w-])color:\s*var\(--accent[),]/g) ?? [];
     expect(violations).toEqual([]);
   });
+
+  it('SIL-569: sweeps text roles off plain --accent onto --accent-2 or --accent-ink', () => {
+    const debitCloseCss = readFileSync(resolve(process.cwd(), 'src/pages/accounting/AccountingDebitClosePage.css'), 'utf8');
+    expect(debitCloseCss).toMatch(/\.debit-row-tick\s*\{[^}]*color:\s*var\(--accent-ink/);
+
+    const vioTypesCss = readFileSync(resolve(process.cwd(), 'src/pages/penalty/violation-types.css'), 'utf8');
+    expect(vioTypesCss).toMatch(/\.penalty-reasons-empty-link\s*\{[^}]*color:\s*var\(--accent-2/);
+
+    const dispatchEditorCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
+    expect(dispatchEditorCss).toMatch(/\.dispatch-assignment-dialog__notes-manage-btn:hover:not\(:disabled\)\s*\{[^}]*color:\s*var\(--accent-2/);
+
+    const lclMergeCss = readFileSync(resolve(process.cwd(), 'src/components/shared/LclMergeModeToggle.css'), 'utf8');
+    expect(lclMergeCss).toMatch(/\.lcl-merge-toggle:hover\s*\{[^}]*color:\s*var\(--accent-2/);
+
+    const quickAddCss = readFileSync(resolve(process.cwd(), 'src/components/shared/QuickAddButton.css'), 'utf8');
+    expect(quickAddCss).toMatch(/\.quick-add-button:hover:not\(:disabled\)\s*\{[^}]*color:\s*var\(--accent-2/);
+
+    const miniFilterCss = readFileSync(resolve(process.cwd(), 'src/design-system/ColumnMiniFilter.css'), 'utf8');
+    expect(miniFilterCss).toMatch(/\.column-mini-filter__trigger:hover\s*\{[^}]*color:\s*var\(--accent-2/);
+
+    const driverDetailCss = readFileSync(resolve(process.cwd(), 'src/pages/DriverTripDetailPage.css'), 'utf8');
+    expect(driverDetailCss).toMatch(/\.driver-task-bypass\s*\{[^}]*color:\s*var\(--accent-2/);
+
+    const fsetCss = readFileSync(resolve(process.cwd(), 'src/pages/ForwarderSettlementsPage.css'), 'utf8');
+    expect(fsetCss).toMatch(/\.fset-summary__header\s*\{[^}]*color:\s*var\(--accent-2/);
+  });
 });

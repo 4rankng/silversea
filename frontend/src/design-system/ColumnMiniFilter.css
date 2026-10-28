@@ -32,7 +32,7 @@
 }
 
 .column-mini-filter__trigger:hover {
-  color: var(--accent);
+  color: var(--accent-2, #2D6B54);
 }
 
 .column-mini-filter__trigger:focus-visible {
