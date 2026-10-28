@@ -99,15 +99,23 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
 
   it('EXPAND tokens keep whole identifiers and a share that fits them (QA-090)', () => {
     // Measured floors at the 1440 workboard (data/caption scale): the date
-    // token "30/10/2026" is 74px, container codes ≤72px, "Bill/Booking" 75px,
-    // "Nhập/Xuất" 62px — each plus the 24px cell padding.
+    // token "30/10/2026" is 74px, container codes ≤72px, "Bill/Booking" 75px —
+    // each plus the 24px cell padding. SIL-543 (2026-10-28, owner capture
+    // "PHÂN XE quá rộng … NHẬP/XUẤT không cần rộng, HÃNG TÀU quá hẹp")
+    // re-measured the remaining two pins: "Nhập/Xuất" is a 61px unbreakable
+    // header token (+24px = an 85px floor → 7%), sized to its 50-66px pills
+    // rather than the old 9%; the PHÂN XE plate pill (nowrap, ~70px + 24px =
+    // a 94px floor → 12%, uniform across all three bands) funds KHÁCH HÀNG &
+    // LỘ TRÌNH 11% and HÃNG TÀU 9% (whole-token floor 113px for
+    // "R42CUS-LINE"-class names). The in-cell BKS editor keeps the SIL-516
+    // invariant — its tray is width:100% of the cell, nothing spills.
     const width = (cls: string) => Number(css.match(new RegExp(`\\.shipment-container-ledger__col--${cls}\\s*\\{[^}]*?width:\\s*([\\d.]+)%`))?.[1] ?? 0);
     expect(width('schedule')).toBeGreaterThanOrEqual(9);
     expect(width('container')).toBeGreaterThanOrEqual(9);
     expect(width('billbook')).toBeGreaterThanOrEqual(9);
-    expect(width('direction')).toBeGreaterThanOrEqual(9);
-    // The in-cell BKS editor needs its share too (SIL-516's headline).
-    expect(width('vehicle')).toBeGreaterThanOrEqual(18);
+    expect(width('direction')).toBeGreaterThanOrEqual(7);
+    // The in-cell BKS editor stays inside its cell at the SIL-543 share.
+    expect(width('vehicle')).toBeGreaterThanOrEqual(12);
     // Container numbers wrap nowhere — whole-token nowrap, zero clip.
     const codeRules = rulesFor(css, /td\[data-label="Thông số container"\] \.shipment-container-ledger__code$/);
     expect(codeRules.length).toBeGreaterThan(0);
