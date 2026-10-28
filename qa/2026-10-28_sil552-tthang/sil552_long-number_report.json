@@ -1,0 +1,33 @@
+{
+  "long": "TSTU9999999999999999999999999999999999999999999999",
+  "rows": {
+    "rects": [
+      {
+        "h": 36,
+        "top": 390,
+        "bottom": 426
+      },
+      {
+        "h": 36,
+        "top": 434,
+        "bottom": 470
+      },
+      {
+        "h": 36,
+        "top": 478,
+        "bottom": 514
+      }
+    ],
+    "noOverlap": true,
+    "valueInsideRow": true,
+    "valueHeight": 20,
+    "firstRowHeight": 36,
+    "text": "TSTU3872772"
+  },
+  "restore": {
+    "status": 200,
+    "readBack": "TSTU3872772",
+    "original": "TSTU3872772"
+  },
+  "writeStatus": 400
+}
