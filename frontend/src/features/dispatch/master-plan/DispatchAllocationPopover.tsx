@@ -30,6 +30,8 @@ import './DispatchAllocationPopover.css';
 interface DispatchAllocationPopoverProps {
   shipment: ShipmentListItem;
   onClose: () => void;
+  /** SIL-577: opener captured at interaction time — forwarded to the dialog. */
+  openerRef?: { current: HTMLElement | null };
   /** Called with the refreshed row after a successful save. */
   onSaved: (updated: ShipmentListItem) => void;
 }

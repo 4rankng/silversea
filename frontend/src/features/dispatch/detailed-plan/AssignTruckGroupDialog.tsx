@@ -119,6 +119,9 @@ export interface AssignTruckGroupDialogProps {
   /** Selected LCL rows in the operator's click order (index 0 = Lô 1). */
   rows: LclGroupDialogRow[];
   onClose: () => void;
+  /** SIL-577: opener captured at interaction time — focus returns here on
+   *  close. */
+  openerRef?: { current: HTMLElement | null };
   /** Called after a successful assignment (the page refreshes the grid). */
   onAssigned: () => void;
   /**
@@ -135,6 +138,7 @@ export interface AssignTruckGroupDialogProps {
 export function AssignTruckGroupDialog({
   rows,
   onClose,
+  openerRef,
   onAssigned,
   initialVehicleClassId,
   initialCarrierKey,
@@ -377,6 +381,7 @@ export function AssignTruckGroupDialog({
     <Modal
       isOpen={rows.length > 0}
       onClose={onClose}
+      openerRef={openerRef}
       title="Gán xe nhóm"
       subtitle={`${rows.length} lô lẻ · Lô 1 giữ 100% cước trả ĐV, các lô còn lại 0₫`}
       footer={

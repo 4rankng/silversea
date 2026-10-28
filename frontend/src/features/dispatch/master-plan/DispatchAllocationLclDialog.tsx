@@ -43,6 +43,9 @@ import './DispatchAllocationPopover.css';
 export interface DispatchAllocationLclDialogProps {
   shipment: ShipmentListItem;
   onClose: () => void;
+  /** SIL-577: opener captured at interaction time — focus returns here on
+   *  close. */
+  openerRef?: { current: HTMLElement | null };
   /** Called with the BKS-refreshed row after a successful save. */
   onSaved: (updated: ShipmentListItem) => void;
 }
@@ -61,7 +64,7 @@ function carrierLabel(shipment: ShipmentListItem): string {
   return shipment.carrierAllocationSummary.map((entry) => entry.carrierLabel).join(', ') || '—';
 }
 
-export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: DispatchAllocationLclDialogProps) {
+export function DispatchAllocationLclDialog({ shipment, onClose, openerRef, onSaved }: DispatchAllocationLclDialogProps) {
   const { toast } = useToast();
   const [actualTruckNo, setActualTruckNo] = useState(shipment.actualTruckNo ?? '');
   const [plateOptions, setPlateOptions] = useState<Array<{ value: string; label: string }>>([]);
@@ -184,6 +187,7 @@ export function DispatchAllocationLclDialog({ shipment, onClose, onSaved }: Disp
       chrome="bare"
       isOpen
       onClose={() => { if (!saving) onClose(); }}
+      openerRef={openerRef}
       title="Phân bổ nhà xe"
       ariaLabel="Phân bổ nhà xe"
       ariaDescribedBy="dispatch-allocation-description"

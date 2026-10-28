@@ -572,10 +572,14 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, onPor
 export function DispatchContainerDetailDrawer({
   shipment,
   onClose,
+  openerRef,
   onSaved,
 }: {
   shipment: ShipmentListItem | null;
   onClose: () => void;
+  /** SIL-577: opener captured at interaction time — focus returns here on
+   *  close. */
+  openerRef?: { current: HTMLElement | null };
   /** Fired after any container-line save (ports / số cont / giờ hẹn / tờ
    *  khai) or an added container so the owning page refetches its board —
    *  the CẢNG NÂNG/HẠ and CONTAINER columns read the same container rows. */
@@ -758,6 +762,7 @@ export function DispatchContainerDetailDrawer({
     <Drawer
       isOpen={shipment != null}
       onClose={close}
+      openerRef={openerRef}
       title="Chi tiết container"
       subtitle={shipment ? `${label}${shipment.customerName ? ` · ${shipment.customerName}` : ''}` : undefined}
       className="dispatch-container-detail-drawer"

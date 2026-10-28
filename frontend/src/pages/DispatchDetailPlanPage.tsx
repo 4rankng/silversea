@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ConfirmDialog } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
@@ -87,6 +87,7 @@ export default function DispatchDetailPlanPage() {
   const [selectedLclRows, setSelectedLclRows] = useState<DispatchDetailPlanRow[]>([]);
   const [lclMergeMode, setLclMergeMode] = useState(false);
   const [truckGroupOpen, setTruckGroupOpen] = useState(false);
+  const truckGroupTriggerRef = useRef<HTMLButtonElement | null>(null);
   const exitLclMergeMode = () => {
     setLclMergeMode(false);
     setSelectedLclRows([]);
@@ -338,8 +339,9 @@ export default function DispatchDetailPlanPage() {
               aria-disabled={selectedLclRows.length < 2 || undefined}
               aria-describedby={selectedLclRows.length < 2 ? 'lcl-group-assign-reason' : undefined}
               title="Gán xe nhóm trả ĐV"
-              onClick={() => {
+              onClick={(event) => {
                 if (selectedLclRows.length < 2) return;
+                truckGroupTriggerRef.current = event.currentTarget;
                 setTruckGroupOpen(true);
               }}
             >
@@ -379,6 +381,7 @@ export default function DispatchDetailPlanPage() {
       {truckGroupOpen && selectedLclRows.length > 0 && (
         <AssignTruckGroupDialog
           rows={selectedLclRows.map(lclGroupRowFromDetail)}
+          openerRef={truckGroupTriggerRef}
           initialVehicleClassId={groupDraft.vehicleClassId}
           initialCarrierKey={groupDraft.carrierKey}
           onDraftChange={handleGroupDraftChange}

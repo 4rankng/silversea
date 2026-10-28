@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { animate, utils } from 'animejs';
 import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
+import { useShellEscape } from '../hooks/useShellEscape';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Tooltip } from '../components/shared/Tooltip';
 import { currentPathname, hasOperationalDensity } from '../lib/operational-density';
@@ -267,6 +268,7 @@ export function Modal({
   }, []);
 
   useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose, overlayToken });
+  const onShellKeyDown = useShellEscape(handleClose);
   useScrollLock(visible);
   useFocusTrap(bare ? overlayRef : contentRef, bare ? visible : visible && isOpen);
 
@@ -282,6 +284,7 @@ export function Modal({
       <div
         ref={overlayRef}
         className={`modal${bareClass}${densityClass}${polishedClass}`}
+        onKeyDown={onShellKeyDown}
         onClick={scrimDismisses
           ? (event) => {
             // Self-hit only: clicks that bubble up from the dialog (or from a

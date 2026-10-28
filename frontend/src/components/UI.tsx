@@ -26,6 +26,7 @@ export {
   useConfirmShortcuts,
 } from '../design-system/Modal';
 import { useConfirmShortcuts } from '../design-system/Modal';
+import { useShellEscape } from '../hooks/useShellEscape';
 import { usePortalTarget } from '../design-system/hooks/usePortalTarget';
 
 /* ─── Shared overlay animation defaults ────────────────────────────────────
@@ -437,6 +438,7 @@ export function Drawer({ isOpen, onClose, openerRef, title, subtitle, children, 
     },
   });
   useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose, overlayToken });
+  const onShellKeyDown = useShellEscape(handleClose);
   useFocusTrap(asideRef, visible && isOpen);
 
   if (!portalTarget) return null;
@@ -459,6 +461,7 @@ export function Drawer({ isOpen, onClose, openerRef, title, subtitle, children, 
           aria-modal="true"
           aria-labelledby={titleId}
           aria-hidden={!isOpen}
+          onKeyDown={onShellKeyDown}
         >
           <header className="drawer__head">
             <div className="drawer__heading">
