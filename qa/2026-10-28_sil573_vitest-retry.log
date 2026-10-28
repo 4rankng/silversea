@@ -1,0 +1,11 @@
+$ pnpm exec vitest run src/components/Layout.mobile-user-sheet.test.tsx src/components/layout/mobile-overlays.focus-return.test.tsx
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-a11y/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  13 passed (13)
+   Start at  23:46:05
+   Duration  30.05s (transform 7.01s, setup 2.21s, import 17.85s, tests 14.41s, environment 10.92s)
+
+exit: 0

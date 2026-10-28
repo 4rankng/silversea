@@ -956,6 +956,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           user={user}
           roleLabel={getRoleLabel(user.role)}
           onClose={closeUserMenu}
+          openerRef={accountButtonRef}
           onOpenProfile={openProfileModal}
           onOpenNotifications={() => handleNavigate(routes.myNotifications)}
           onOpenPassword={openPasswordModal}

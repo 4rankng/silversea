@@ -5,6 +5,7 @@ import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useMonth } from '../../hooks/useMonth';
+import { restoreFocusTo } from '../../lib/focusRestore';
 import { useLocation } from 'react-router-dom';
 import { useDriverVehicle } from '../../hooks/useDriverQueries';
 import { useSearch } from '../../context/SearchContext';
@@ -29,8 +30,15 @@ function MonthNavigator() {
   const [pickerYear, setPickerYear] = useState(year);
   const containerRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  useClickOutside(containerRef, () => setOpen(false), { escapeKey: true, enabled: open });
+  // Focus return (SIL-573): Escape and explicit close actions hand focus back
+  // to the month trigger; an outside press leaves focus where the user clicked.
+  useClickOutside(containerRef, () => setOpen(false), {
+    escapeKey: true,
+    enabled: open,
+    onEscape: () => { setOpen(false); restoreFocusTo(triggerRef.current); },
+  });
   useFocusTrap(pickerRef, open);
 
   const { data: period } = useSalaryPeriod(month, year);
@@ -51,6 +59,7 @@ function MonthNavigator() {
     <div className={`topbar-date ${open ? 'is-open' : ''}`} ref={containerRef}>
       <button
         type="button"
+        ref={triggerRef}
         className="topbar-date__trigger"
         onClick={() => setOpen(v => !v)}
         aria-haspopup="dialog"
@@ -109,6 +118,7 @@ function MonthNavigator() {
                   onClick={() => {
                     setMonthYear(m, pickerYear);
                     setOpen(false);
+                    restoreFocusTo(triggerRef.current);
                   }}
                 >
                   <span className="month-picker__cell-code">{short}</span>
@@ -125,6 +135,7 @@ function MonthNavigator() {
                 const n = new Date();
                 setMonthYear(n.getMonth() + 1, n.getFullYear());
                 setOpen(false);
+                restoreFocusTo(triggerRef.current);
               }}
             >
               Hôm nay
