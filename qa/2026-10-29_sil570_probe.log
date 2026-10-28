@@ -1,0 +1,111 @@
+@1280 before scroll: {
+ "appClosed": true,
+ "nav": {
+  "x": 0,
+  "y": 67,
+  "w": 47,
+  "h": 666,
+  "overflowY": "auto",
+  "paddingTop": "8px",
+  "paddingBottom": "8px",
+  "scrollHeight": 1503,
+  "clientHeight": 666
+ },
+ "footer": {
+  "x": 0,
+  "y": 733,
+  "w": 47,
+  "h": 67
+ },
+ "user": {
+  "x": 4,
+  "y": 742,
+  "w": 39,
+  "h": 50
+ },
+ "lastItem": {
+  "x": 4,
+  "y": 1518,
+  "w": 39,
+  "h": 40
+ },
+ "lastItemText": "Cấu hình hệ thống",
+ "lastItemVisible": "visible",
+ "overlapWithUser": false,
+ "hitAtFooterCenter": {},
+ "elementAtFooterCenter": "circle.[object SVGAnimatedString]"
+}
+@1280 after scroll-to-bottom: {
+ "appClosed": true,
+ "nav": {
+  "x": 0,
+  "y": 67,
+  "w": 47,
+  "h": 666,
+  "overflowY": "auto",
+  "paddingTop": "8px",
+  "paddingBottom": "8px",
+  "scrollHeight": 1503,
+  "clientHeight": 666
+ },
+ "footer": {
+  "x": 0,
+  "y": 733,
+  "w": 47,
+  "h": 67
+ },
+ "user": {
+  "x": 4,
+  "y": 742,
+  "w": 39,
+  "h": 50
+ },
+ "lastItem": {
+  "x": 4,
+  "y": 681,
+  "w": 39,
+  "h": 40
+ },
+ "lastItemText": "Cấu hình hệ thống",
+ "lastItemVisible": "visible",
+ "overlapWithUser": false,
+ "hitAtFooterCenter": {},
+ "elementAtFooterCenter": "circle.[object SVGAnimatedString]"
+}
+@1024 after scroll-to-bottom: {
+ "appClosed": true,
+ "nav": {
+  "x": 0,
+  "y": 67,
+  "w": 47,
+  "h": 634,
+  "overflowY": "auto",
+  "paddingTop": "8px",
+  "paddingBottom": "8px",
+  "scrollHeight": 1503,
+  "clientHeight": 634
+ },
+ "footer": {
+  "x": 0,
+  "y": 701,
+  "w": 47,
+  "h": 67
+ },
+ "user": {
+  "x": 4,
+  "y": 710,
+  "w": 39,
+  "h": 50
+ },
+ "lastItem": {
+  "x": 4,
+  "y": 649,
+  "w": 39,
+  "h": 40
+ },
+ "lastItemText": "Cấu hình hệ thống",
+ "lastItemVisible": "visible",
+ "overlapWithUser": false,
+ "hitAtFooterCenter": {},
+ "elementAtFooterCenter": "circle.[object SVGAnimatedString]"
+}

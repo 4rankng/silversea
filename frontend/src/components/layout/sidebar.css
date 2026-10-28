@@ -103,7 +103,16 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 10px 10px 14px;
+  /* SIL-570: the scroll reserve keeps the last nav item clear of the pinned
+     user footer. The footer is the flex sibling below this box, but during
+     viewport-height transitions (100dvh browser-UI collapse on touch, sidebar
+     collapse animation) the footer pins to the live viewport edge and a fully
+     scrolled item can transiently park beneath it — invisible under the
+     footer's paint yet still live for clicks and focus. One footer-height of
+     padding inside the scroller means the last item always stops its own
+     height above the footer, the same clearance mechanism as the
+     sticky-header scroll-padding law. Keep in sync with .sidebar-footer. */
+  padding: 10px 10px calc(var(--sidebar-footer-reserve) + 14px);
   overscroll-behavior: contain;
 }
 
@@ -292,6 +301,17 @@
   /* The profile menu opens upward from this footer. Its stacking context must
    * outrank sticky workspace controls (such as table pagination). */
   z-index: var(--z-overlay);
+  /* SIL-570: opaque surface — any transient underlap during a dvh/collapse
+     transition paints the footer, never a ghost item behind it. Solid end of
+     the sidebar gradient so the seam is invisible in the resting layout. */
+  background: var(--sb-gradient-end);
+}
+
+/* SIL-570: scroll reserve = the footer's own box (8px top pad + 50px user
+   button + 14px bottom pad ≈ 72px). The collapsed rail (8px/4px pads) is
+   covered by the same figure. */
+.sidebar {
+  --sidebar-footer-reserve: 72px;
 }
 .sidebar-user {
   display: flex;
