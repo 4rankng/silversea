@@ -13,8 +13,8 @@ step zero-scroll 390
 step probe 390
 @390: triggers=32 pagBtns=3
   PASS @390 no trigger×pagination intersection — null
-  FAIL @390 last row trigger clickable — {"hitSelf":false,"tag":"BUTTON.detailed-plan-grid__note-actio"}
-  FAIL @390 pagination button clickable — {"hitSelf":false,"tag":"BUTTON.detailed-plan-grid__note-actio"}
+  PASS @390 last row trigger clickable — {"hitSelf":true,"tag":"circle.[object SVGAnimatedString]"}
+  PASS @390 pagination button clickable — {"hitSelf":true,"tag":"svg.[object SVGAnimatedString]"}
 step viewport 1280
 step goto 1280
 step zero-scroll 1280

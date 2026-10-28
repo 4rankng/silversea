@@ -141,6 +141,13 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     }
     // The full value stays reachable: every truncating cell's markup rides a
     // title tooltip (pinned by the page tests: booking/lane/customs cells).
+    // SIL-582: the booking number IS the display key — the column carries the
+    // token's measured budget (16 mono chars ≈ 121px + ~20px cell padding →
+    // 148px border-box), so the ellipsis above only guards a pathological
+    // longer code, never the discriminating tail of a real
+    // 'EGLV149607019409'-class number. (min-width is inert on a fixed-layout
+    // th — the width itself carries the floor.)
+    expect(css).toMatch(/th\.shipment-debit-col--booking\s*\{[^}]*width:\s*148px/);
   });
 
   it('fuel-period note truncates on ONE baseline with a tooltip (SIL-466 owner review 24/10 supersedes the wrap doctrine here)', () => {

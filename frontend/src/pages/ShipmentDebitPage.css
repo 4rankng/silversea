@@ -208,7 +208,7 @@
 }
 
 .shipment-debit-table th.shipment-debit-col--select { width: 44px; padding-inline: 6px; }
-.shipment-debit-table th.shipment-debit-col--booking { width: 130px; }
+.shipment-debit-table th.shipment-debit-col--booking { width: 148px; }
 .shipment-debit-table th.shipment-debit-col--customs { width: 160px; }
 .shipment-debit-table th.shipment-debit-col--lane { width: 144px; }
 .shipment-debit-table th.shipment-debit-col--docs { width: 130px; }
@@ -274,6 +274,11 @@
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* SIL-582: the booking number IS the display key — its discriminating tail
+     must never be the cut part. The column floors at the token's measured
+     budget (16 mono chars = 121px + cell padding) so the ellipsis above only
+     exists for a pathological longer code, with the title carrying it. */
+  white-space: nowrap;
 }
 
 /* Tờ khai — the data family, one truncated line, tooltip + one-click copy. */

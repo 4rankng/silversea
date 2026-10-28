@@ -154,6 +154,14 @@ describe('SIL-478 grouped ledger rows', () => {
     expect(active?.[1]).toMatch(/background:\s*var\(--surface-2\)/);
   });
 
+  it('CSS pin — SIL-582 the identity name wraps instead of ellipsising (no title/href needed)', () => {
+    const css = readFileSync('src/components/shared/LedgerGroupedList.css', 'utf8');
+    const phoneBand = css.slice(css.indexOf('(max-width: 640px)'), css.indexOf('@media print'));
+    const name = phoneBand.match(/\.ledger-glist__name\s*\{([^}]*)\}/);
+    expect(name?.[1]).toMatch(/white-space:\s*normal/);
+    expect(name?.[1]).not.toMatch(/text-overflow:\s*ellipsis/);
+  });
+
   it('CSS pin — the chip palette tokens exist in tokens.css (drift ratchet: hex lives there)', () => {
     const tokens = readFileSync('src/styles/tokens.css', 'utf8');
     for (const tone of ['open', 'done', 'overdue', 'neutral']) {
