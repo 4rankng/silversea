@@ -62,7 +62,7 @@ describe('config-table presentation contract (card 061026221226)', () => {
   });
   const mount = () => render(<MemoryRouter><CrudTable<{ id: number; name: string }> title="Cảng" description="Danh mục" endpoint="/ports" colSpan={1} columns={[{ header: 'Tên', render: (item) => <span>{item.name}</span> }]} renderForm={() => null} /></MemoryRouter>);
 
-  it('keeps the tabular frame at every width: the config table opts out of the ≤1100px label-per-cell card handoff and rides the shared scroll boundary', () => {
+  it('keeps the tabular frame from 768px up: the config table opts out of the 768–1100px label-per-cell card handoff and rides the shared scroll boundary (SIL-585 hands <768 to the generic dense card)', () => {
     const view = mount();
     const wrap = view.container.querySelector('.record-table-wrap');
     const table = view.container.querySelector('table.record-table');

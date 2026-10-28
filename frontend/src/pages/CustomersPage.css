@@ -56,8 +56,14 @@
 /* The verdict's 978px budget (260+110+180+180+96+120+32) is a FLOOR, not a
    squeeze target: 640–1023 canvases scroll the fixed budget horizontally
    (record-table-wrap--scroll on both pages' wraps) instead of crushing the
-   columns — 1024+ fits it inside the content box. */
-.record-table.cus-table { min-width: 978px; }
+   columns — 1024+ fits it inside the content box. SIL-585 (owner 29/10):
+   the floor lives INSIDE the tabular face only — below 640 the catalogue
+   renders the shared data-dense card (labels ride the cells, §4 wrap) and
+   an unconditional min-width blew the card out to a 978px horizontal
+   scroll on /config/customers at 390. */
+@media (min-width: 640px) {
+  .record-table.cus-table { min-width: 978px; }
+}
 
 /* Verdict (c): the content card reads white — it rides --surface with its
    own neutral contract and a hairline edge, while the GLOBAL page canvas
@@ -258,14 +264,19 @@
    full value rides the title tooltip and the row drawer. The selector carries
    the .record-table element on purpose (0,2,1): the shared card band's
    `white-space: normal` on td (0,1,2, container ≤1100px) otherwise outranks a
-   bare class rule and re-wraps the address into 3-4 line rows. */
-.record-table td.cus-addr-cell {
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--ink-2);
-  font-size: 13px;
+   bare class rule and re-wraps the address into 3-4 line rows.
+   SIL-585: the single-line mandate belongs to the TABULAR face (≥640, where
+   the tooltip/hover path exists). On the phone card face the datum wraps —
+   the card has no hover and the address must read in full (§4). */
+@media (min-width: 640px) {
+  .record-table td.cus-addr-cell {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--ink-2);
+    font-size: 13px;
+  }
 }
 
 /* Contact column: main line + muted accountant line. */
