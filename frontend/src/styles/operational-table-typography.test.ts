@@ -27,6 +27,17 @@ describe('operational table typography contract', () => {
     expect(typography).toMatch(/:where\(table tbody small\)\s*\{[^}]*font-size:\s*var\(--ops-table-meta-size\)/);
   });
 
+  it('declares the shared tabular numeral grid on data cells (SIL-562)', () => {
+    // Numeric and date cells stop reflowing between refreshes once every
+    // digit takes one advance width. Owner-specced like the money
+    // primitives (see the font-family contract allowlist): inert until the
+    // bundled Be Vietnam Pro carries tnum, declared so the grid holds the
+    // moment it does. Prose is unaffected — only numerals map the grid.
+    expect(typography).toMatch(
+      /:where\(table tbody td\)\s*\{[^}]*font-variant-numeric:\s*tabular-nums;/,
+    );
+  });
+
   it('carries the container identity weight law for every dispatch table (DIS-08)', () => {
     // One shared class — rendered by the master grid (cargo cell + port
     // columns) and the detailed grid (container cell) — owns the weight of a
