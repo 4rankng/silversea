@@ -1,0 +1,207 @@
+{
+  "base": "http://localhost:7188",
+  "tag": "after",
+  "account": "admin",
+  "width": 1280,
+  "geometry": {
+    "headers": [
+      "STT",
+      "Số container",
+      "Số tờ khai",
+      "Nhà máy",
+      "Tuyến đường",
+      "Nhà xe / BKS",
+      "Cảng nâng",
+      "Cảng hạ",
+      "Đóng / trả",
+      "Trạng thái"
+    ],
+    "cols": [
+      56,
+      240,
+      160,
+      180,
+      180,
+      160,
+      120,
+      120,
+      120,
+      120
+    ],
+    "tableMinWidth": "1456px",
+    "tableLayout": "fixed",
+    "groupCell": {
+      "w": 240,
+      "h": 140,
+      "x": 184.41,
+      "y": 382.34,
+      "bottom": 522.34
+    },
+    "groupCellVerticalAlign": "top",
+    "groupCellPadding": "8px 12px 8px 12px",
+    "lines": [
+      {
+        "line": {
+          "w": 216,
+          "h": 36,
+          "x": 196.41,
+          "y": 390.34,
+          "bottom": 426.34
+        },
+        "label": {
+          "w": 21.33,
+          "h": 20,
+          "x": 196.41,
+          "y": 398.34,
+          "bottom": 418.34
+        },
+        "labelText": {
+          "top": 401.34,
+          "bottom": 415.34,
+          "h": 14
+        },
+        "labelWhiteSpace": "nowrap",
+        "labelFlexShrink": "0",
+        "control": {
+          "w": 118.97,
+          "h": 36,
+          "x": 225.73,
+          "y": 390.34,
+          "bottom": 426.34
+        },
+        "controlText": {
+          "top": 401.34,
+          "bottom": 415.34,
+          "h": 14
+        },
+        "shredded": false,
+        "baselineDelta": 0
+      },
+      {
+        "line": {
+          "w": 216,
+          "h": 36,
+          "x": 196.41,
+          "y": 434.34,
+          "bottom": 470.34
+        },
+        "label": {
+          "w": 32.16,
+          "h": 20,
+          "x": 196.41,
+          "y": 442.34,
+          "bottom": 462.34
+        },
+        "labelText": {
+          "top": 445.34,
+          "bottom": 459.34,
+          "h": 14
+        },
+        "labelWhiteSpace": "nowrap",
+        "labelFlexShrink": "0",
+        "control": {
+          "w": 74.36,
+          "h": 36,
+          "x": 236.56,
+          "y": 434.34,
+          "bottom": 470.34
+        },
+        "controlText": {
+          "top": 445.34,
+          "bottom": 459.34,
+          "h": 14
+        },
+        "shredded": false,
+        "baselineDelta": 0
+      },
+      {
+        "line": {
+          "w": 216,
+          "h": 36,
+          "x": 196.41,
+          "y": 478.34,
+          "bottom": 514.34
+        },
+        "label": {
+          "w": 93.81,
+          "h": 20,
+          "x": 196.41,
+          "y": 486.34,
+          "bottom": 506.34
+        },
+        "labelText": {
+          "top": 489.34,
+          "bottom": 503.34,
+          "h": 14
+        },
+        "labelWhiteSpace": "nowrap",
+        "labelFlexShrink": "0",
+        "control": {
+          "w": 74.36,
+          "h": 36,
+          "x": 298.22,
+          "y": 478.34,
+          "bottom": 514.34
+        },
+        "controlText": {
+          "top": 489.34,
+          "bottom": 503.34,
+          "h": 14
+        },
+        "shredded": false,
+        "baselineDelta": 0
+      }
+    ],
+    "typeValueText": null,
+    "typeValueClipped": null,
+    "declInput": {
+      "w": 81.78,
+      "h": 36,
+      "x": 436.41,
+      "y": 390.34,
+      "bottom": 426.34
+    },
+    "declPlaceholder": "Số tờ khai",
+    "scroll": {
+      "scrollWidth": 1456,
+      "clientWidth": 1127,
+      "overflowsX": true
+    },
+    "pageScroll": {
+      "scrollWidth": 1280,
+      "clientWidth": 1280
+    }
+  },
+  "edit": {
+    "original": null,
+    "sent": "13579",
+    "editor": {
+      "panelRole": "dialog",
+      "panelLabel": "Chỉnh sửa thông tin container — dòng 1",
+      "panelInsideTable": false,
+      "panelParentIsBody": true,
+      "panelWidth": 300,
+      "hasArrow": true,
+      "inputType": "number",
+      "inputMin": "0",
+      "inputWidth": 211.14,
+      "unit": "kg",
+      "saveLabel": "Lưu"
+    },
+    "apiResponses": [
+      {
+        "status": 200,
+        "url": "/api/shipments/cus-workspace/303/containers/347",
+        "method": "POST"
+      }
+    ],
+    "persistedAfterSave": "13579.00",
+    "toastSeen": true,
+    "persistedMatch": true
+  },
+  "restore": {
+    "status": 200,
+    "value": null,
+    "readBack": null
+  }
+}
