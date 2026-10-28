@@ -930,7 +930,7 @@
   height: 32px;
   padding: 0 10px;
   color: var(--surface);
-  background: var(--accent);
+  background: var(--brand);
   border: 1px solid transparent;
   border-radius: 8px;
   font-size: var(--text-caption-size);
@@ -947,15 +947,15 @@
 }
 
 .mpcard__allocate:hover {
-  background: color-mix(in srgb, var(--accent) 85%, var(--fg-1));
+  background: var(--brand-hover);
 }
 
 .mpcard__allocate:active {
-  background: var(--accent-2);
+  background: var(--brand-hover);
 }
 
 .mpcard__allocate:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
 
