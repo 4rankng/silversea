@@ -44,8 +44,9 @@ export function usePopoverPosition(
   isOpen: boolean,
   fallbackWidth = 275,
   fallbackHeight = 280,
-  align: 'left' | 'right' = 'right',
+  options: { align?: 'left' | 'right' } = {},
 ): PopoverPosition | null {
+  const align = options.align ?? 'right';
   const [coords, setCoords] = useState<PopoverPosition | null>(null);
 
   // A closed popover holds no coordinates: keeping them would paint the panel

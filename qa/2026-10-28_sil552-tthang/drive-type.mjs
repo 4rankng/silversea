@@ -38,16 +38,32 @@ const browser = await puppeteer.launch({
 });
 const report = { base: BASE, width: WIDTH, account };
 
+/** Opens the first lot drawer that actually HAS containers — the list order
+ *  changes with the date filter, and a lot without containers renders the
+ *  empty state instead of the sheet. */
+async function openLotWithContainers(page) {
+  const buttons = await page.$$('button[aria-label*="Mở chi tiết lô hàng"]');
+  for (let i = 0; i < Math.min(buttons.length, 12); i += 1) {
+    await buttons[i].click();
+    try {
+      await page.waitForSelector('.cus-lot-table', { timeout: 4000 });
+      await new Promise((r) => setTimeout(r, 1200));
+      return true;
+    } catch {
+      await page.keyboard.press('Escape');
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+  return false;
+}
+
 try {
   const page = await browser.newPage();
   await page.evaluateOnNewDocument((t) => localStorage.setItem('token', t), token);
   await page.setViewport({ width: WIDTH, height: 900, deviceScaleFactor: 2 });
   await page.goto(`${BASE}/shipments`, { waitUntil: 'networkidle0', timeout: 60000 });
   await page.waitForSelector('button[aria-label*="Mở chi tiết lô hàng"]', { timeout: 30000 });
-  const buttons = await page.$$('button[aria-label*="Mở chi tiết lô hàng"]');
-  await buttons[0].click();
-  await page.waitForSelector('.cus-lot-table', { timeout: 20000 });
-  await new Promise((r) => setTimeout(r, 1500));
+  if (!(await openLotWithContainers(page))) throw new Error('no lot with containers opened');
 
   // Open the LOẠI line's floating editor.
   await page.evaluate(() => {
@@ -94,6 +110,55 @@ try {
       listboxInsideTable: Boolean(lb?.closest('.cus-lot-table')),
     };
   });
+
+  // ── Click a REAL option in the listbox (the react-aria press path) ──
+  // The unit test drives the hidden native <select>; this drives the same
+  // path an operator uses. The pick must commit containerTypeId and the
+  // panel must close — the dismiss layer must not swallow the press.
+  const drawerId = await page.evaluate(() => {
+    const el = document.querySelector('[id^="cus-detail-drawer-"]');
+    return el ? Number(el.id.replace('cus-detail-drawer-', '')) : null;
+  });
+  const original = await page.evaluate(async (shipmentId) => {
+    const res = await fetch(`/api/shipments/cus-workspace/${shipmentId}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const detail = await res.json();
+    const line = (detail.containers ?? [])[0];
+    return line ? { shipmentId: detail.summary.id, containerId: line.id, typeId: line.containerTypeId, version: detail.summary.version } : null;
+  }, drawerId);
+
+  const option = await page.evaluate(() => {
+    const opt = [...document.querySelectorAll('[role="option"]')].find((o) => o.textContent.trim() === '40HC');
+    if (!opt) return null;
+    opt.click();
+    return '40HC';
+  });
+  await new Promise((r) => setTimeout(r, 2000));
+
+  const afterPick = await page.evaluate(async (shipmentId) => {
+    const res = await fetch(`/api/shipments/cus-workspace/${shipmentId}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const detail = await res.json();
+    return {
+      typeId: detail.containers?.[0]?.containerTypeId ?? null,
+      typeLabel: detail.containers?.[0]?.containerTypeLabel ?? null,
+      panelStillOpen: Boolean(document.querySelector('.cus-lot-editor')),
+      toastSeen: document.body.textContent.includes('Đã lưu loại container'),
+    };
+  }, drawerId);
+  await page.screenshot({ path: `${OUT}/sil552_type-picked_${WIDTH}.png`, fullPage: false });
+
+  report.pick = { clicked: option, originalTypeId: original?.typeId ?? null, ...afterPick };
+
+  // Restore the original type so the local data stays as found.
+  if (original) {
+    const currentVersion = (await (await fetch(`${API}/shipments/cus-workspace/${original.shipmentId}`, { headers: { Authorization: `Bearer ${token}` } })).json()).summary.version;
+    const restore = await fetch(`${API}/shipments/cus-workspace/${original.shipmentId}/containers/${original.containerId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'Idempotency-Key': `restore-type-${Date.now()}` },
+      body: JSON.stringify({ expectedShipmentVersion: currentVersion, containerTypeId: original.typeId }),
+    });
+    const restored = (await (await fetch(`${API}/shipments/cus-workspace/${original.shipmentId}`, { headers: { Authorization: `Bearer ${token}` } })).json()).containers?.[0]?.containerTypeId ?? null;
+    report.restore = { status: restore.status, typeId: restored };
+  }
 
   report.panel = panel;
   report.listbox = listbox;

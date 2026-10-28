@@ -164,10 +164,19 @@ describe('CusLotView — SIL-552 ô SỐ CONTAINER: nhãn + giá trị, editor n
     expect(cell.querySelector('select')).toBeNull();
     expect(cell.querySelector('[role="combobox"]')).toBeNull();
 
-    // The three lines still open their editor from a trigger.
-    expect(screen.getByRole('button', { name: 'Chỉnh sửa số container — dòng 1' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Chỉnh sửa loại container — dòng 1' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Chỉnh sửa trọng lượng — dòng 1' })).toBeTruthy();
+    // The three lines still open their editor from a trigger, and each
+    // trigger announces the panel it owns (aria-haspopup/expanded/controls) —
+    // the house rule the drawer reads to know who owns Escape.
+    for (const [name, field] of [
+      ['Chỉnh sửa số container — dòng 1', 'containerNumber'],
+      ['Chỉnh sửa loại container — dòng 1', 'containerTypeId'],
+      ['Chỉnh sửa trọng lượng — dòng 1', 'cargoWeightKg'],
+    ] as const) {
+      const trigger = screen.getByRole('button', { name });
+      expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+      expect(trigger.getAttribute('aria-expanded')).toBe('false');
+      expect(trigger.getAttribute('aria-controls')).toContain(field);
+    }
   });
 
   it('bảng giữ colgroup 10 cột của design lock', () => {
@@ -194,10 +203,13 @@ describe('CusLotView — SIL-552 ô SỐ CONTAINER: nhãn + giá trị, editor n
 
     const panel = screen.getByRole('dialog', { name: 'Chỉnh sửa thông tin container — dòng 1' });
     expect(panel).toBeTruthy();
-    // The panel is portalled to the body — the table's scroll wrapper clips
-    // BOTH axes, so an editor inside the table would be cut off.
+    // The panel is portalled to the body — the table's scroll wrapper is a
+    // scroll container, so an editor inside the table would be cut off.
     expect(panel.closest('.cus-lot-table')).toBeNull();
     expect(panel.parentElement).toBe(document.body);
+    // The trigger points at the panel it opened.
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa trọng lượng — dòng 1' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa trọng lượng — dòng 1' }).getAttribute('aria-controls')).toBe(panel.id);
 
     const input = within(panel).getByLabelText('Trọng lượng — dòng 1') as HTMLInputElement;
     expect(input.type).toBe('number');
@@ -226,7 +238,7 @@ describe('CusLotView — SIL-552 ô SỐ CONTAINER: nhãn + giá trị, editor n
   it('click dòng LOẠI → panel nổi chứa select danh mục loại', () => {
     renderView([makeLine({ id: 47, ordinal: 1 })]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa loại container — dông 1'.replace('dông', 'dòng') }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa loại container — dòng 1' }));
     const panel = screen.getByRole('dialog', { name: 'Chỉnh sửa thông tin container — dòng 1' });
     expect(within(panel).getByDisplayValue('20DC')).toBeTruthy();
   });

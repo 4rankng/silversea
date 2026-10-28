@@ -1656,10 +1656,10 @@
 .cus-lot-col__appointment { width: 120px; }
 .cus-lot-col__status { width: 120px; }
 
-/* SIL-552 (owner 28/10, design lock): the SỐ CONTAINER cell states its own
-   240px floor next to the colgroup — the group is the one column whose three
-   label+control rows need a guaranteed width, so the cell never inherits a
-   narrower track from a future column set. */
+/* SIL-552 (owner 28/10, design lock): the SỐ CONTAINER column is the one
+   column whose three label+value rows need a guaranteed width. Under
+   `table-layout: fixed` the <colgroup> owns the track; the cell restates the
+   floor so the sheet keeps 240px if the layout mode ever changes. */
 .cus-lot-cell--container {
   min-width: 240px;
   width: 240px;
@@ -1720,7 +1720,10 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
-  height: 36px;
+  /* min-height, not height: a long container number wraps INSIDE the row and
+     the row grows with it — a fixed 36px box would spill the second line over
+     the row below it. */
+  min-height: 36px;
   min-width: 0;
 }
 
@@ -1766,7 +1769,7 @@ button.cus-lot-line--trigger {
   gap: 4px;
   flex: 0 1 auto;
   min-width: var(--cus-lot-lane, 14ch);
-  height: 36px;
+  min-height: 36px;
   padding: 0 4px;
   border: 0;
   border-radius: 6px;
@@ -1792,9 +1795,8 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
    The SỐ CONTAINER cell holds the label + the value only; the editor floats
    over the sheet so the 240px column never squeezes it (an inline editor is
    what shredded the placeholder into vertical characters). The panel is
-   portalled to the body — the table's scroll wrapper clips BOTH axes
-   (`overflow-x: auto` computes `overflow-y: auto`), so a panel inside the
-   table would be cut off.
+   portalled to the body: the table's scroll wrapper is a scroll container, so
+   a panel inside the table would be cut off by its clipping box.
 
    Ownership reads through the ARROW (it points at the row it edits) plus the
    accent border; the shadow only lifts the panel off the sheet. */
@@ -1811,8 +1813,9 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   border: 1px solid var(--brand);
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
-  /* `clip` (not `hidden`) keeps the react-aria listbox portal and the arrow
-     tip from being cut — the clip margin is the arrow's room. */
+  /* `clip` (not `hidden`) keeps the ARROW's 5px overhang from being cut —
+     the clip margin is the arrow's room. The react-aria listbox is portalled
+     to the body, so it is not a descendant of the panel either way. */
   overflow: clip;
   overflow-clip-margin: 12px;
 }
@@ -1856,13 +1859,9 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
 }
 
 /* The LOẠI line's house select (UuiSelectField) inside the floating panel. */
-.cus-lot-editor .ds-uui-select,
-.cus-lot-editor .ds-uui-select--content {
-  width: 100%;
-}
-
 .cus-lot-editor .ds-uui-select {
   flex: 1 1 auto;
+  width: 100%;
 }
 
 .cus-lot-editor [data-uui-control] {

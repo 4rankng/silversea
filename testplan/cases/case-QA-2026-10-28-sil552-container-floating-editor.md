@@ -70,6 +70,14 @@
   (8 case SIL-508, cập nhật theo panel nổi) + `ShipmentsPage.density.test.ts`
   (hình học colgroup/table/lane/panel) + `control-density.styles.test.ts`
   (scope sanctioned cho select value).
+- Review pass (independent review 28/10): nút Lưu và Enter dùng CHUNG một
+  chốt (draft rỗng là một thay đổi thật, cả hai đường đi cùng kết luận); lớp
+  dismiss BỎ QUA listbox react-aria portalled (bấm option trong listbox không
+  bị đóng panel); panel GIỮ focus bên trong (nó nằm ngoài focus trap của
+  drawer); trigger khai báo panel nó mở (aria-haspopup/expanded/controls); ô
+  số giới hạn 50 ký tự theo schema; dòng dùng min-height nên số cont dài không
+  tràn sang dòng kế; hook `usePopoverPosition` nhận tuỳ chọn `align` (mặc định
+  giữ nguyên, không đổi call site nào).
 - Rung-3: `qa/2026-10-28_sil552-tthang/` — driver `drive.mjs` (admin, token-inject
   trước SPA load): ảnh 1280 (ô + cả bảng + editor nổi), đo hình học từng dòng
   (baselineDelta = 0px cho cả 3 dòng, không control nào < 60px ⇒ không cắt chữ

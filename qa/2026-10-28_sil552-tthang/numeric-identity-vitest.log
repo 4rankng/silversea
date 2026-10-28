@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-626-tthang/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  23:27:16
+   Duration  4.80s (transform 62ms, setup 453ms, import 246ms, tests 57ms, environment 3.09s)
+
