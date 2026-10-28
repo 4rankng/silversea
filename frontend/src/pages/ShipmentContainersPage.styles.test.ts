@@ -325,7 +325,10 @@ describe('shipment detail workboard styling', () => {
     // FB-113 v2 (2026-10-18, QA "header thiếu trường Số tờ khai"): the
     // documents group is four headed columns — billbook/declaration/
     // direction/shippingline — sharing the pinned `documents` key.
-    const base = ['customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
+    // SIL-547 (2026-10-28, spec 23/10 §2): the on-demand CHỌN column joins the
+    // ladder with its own 3% share (dormant off [Gộp hàng] mode) — funded by
+    // customer/billbook/declaration, so the THIRTEEN shares still sum to 100%.
+    const base = ['select', 'customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
     expect(base.reduce((a, b) => a + b, 0)).toBe(100);
     // SIL-516 funded the in-cell BKS quick editor with an 18% PHÂN XE share;
     // SIL-543 (2026-10-28, owner capture "PHÂN XE quá rộng") re-balanced the
@@ -337,7 +340,7 @@ describe('shipment detail workboard styling', () => {
     // restated to sum to 100%.
     expect(width('vehicle')).toBe(12);
     const band = (block: string) => {
-      const shares = ['customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map((cls) => {
+      const shares = ['select', 'customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map((cls) => {
         const m = block.match(new RegExp(`col--${cls}\\s*\\{\\s*width:\\s*([\\d.]+)%`));
         expect(m, `band missing col--${cls}`).toBeTruthy();
         return Number(m![1]);
