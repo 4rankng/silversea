@@ -298,7 +298,7 @@
   display: inline-flex;
   align-items: center;
   margin-left: 6px;
-  color: var(--warning);
+  color: var(--warning-text);
   font-size: var(--text-label-size);
   font-weight: var(--fw-semibold);
   white-space: nowrap;

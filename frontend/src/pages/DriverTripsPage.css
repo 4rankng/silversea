@@ -451,7 +451,7 @@
   margin: 0;
   font-size: var(--text-data-size);
   font-weight: 600;
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 /* Bill/booking chip (CHIEF 26/09): the driver-facing identity — prominent,

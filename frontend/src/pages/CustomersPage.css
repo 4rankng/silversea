@@ -424,7 +424,7 @@
   background: color-mix(in srgb, var(--warning) 8%, transparent);
   font-size: var(--text-caption-size, 12px);
   font-weight: 600;
-  color: var(--warning);
+  color: var(--warning-text);
   cursor: default;
   flex: 0 0 auto;
 }

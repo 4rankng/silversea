@@ -107,7 +107,7 @@
 }
 
 .fleet-page .fleet-kpi-meta__warn {
-  color: var(--warning);
+  color: var(--warning-text);
   font-weight: 600;
 }
 
@@ -1151,7 +1151,7 @@
 }
 .truck-alert-badge--due {
   background: var(--warning-soft);
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 .truck-alert-field {

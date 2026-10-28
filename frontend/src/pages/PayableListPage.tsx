@@ -588,7 +588,7 @@ export default function PayableListPage() {
                             {d.maxOverdueDays > 0 && (
                               <div className="m-card__row">
                                 <span className="m-card__row-label">Quá hạn lớn nhất</span>
-                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
+                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning-text)' }}>
                                   {d.maxOverdueDays} ngày
                                 </span>
                               </div>

@@ -329,7 +329,7 @@
 
 .dispatch-catalogs__license-flag--overdue { color: var(--danger); }
 
-.dispatch-catalogs__license-flag--soon { color: var(--warning); }
+.dispatch-catalogs__license-flag--soon { color: var(--warning-text); }
 
 /* ── Card 20260926_57 (chief spec) — 80px two-row command strip ── */
 .dispatch-catalogs__strip-head {
