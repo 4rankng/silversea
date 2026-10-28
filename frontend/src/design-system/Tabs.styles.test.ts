@@ -39,7 +39,7 @@ describe('shared tabs selection styling', () => {
     // a tabular-numerals declaration here is a banned no-op.
     expect(count).not.toMatch(/font-variant-numeric/);
     expect(css).toMatch(/\.ds-tabs__count--accent \{\s*color:\s*var\(--success-text/);
-    expect(css).toMatch(/\.ds-tabs__count--warning \{\s*color:\s*var\(--warning/);
+    expect(css).toMatch(/\.ds-tabs__count--warning \{\s*color:\s*var\(--warning-text/);
   });
 
   it('uses neutral ink for bordered tab selection', () => {
