@@ -222,7 +222,7 @@ describe('DispatchContainerDetailDrawer — SỐ TỜ KHAI column (SIL-530, per-
     expect(await screen.findByRole('cell', { name: 'Chưa có tờ khai' })).toBeTruthy();
   });
 
-  it.each(['CUS', 'ADMIN', 'MANAGER'])('role %s gets the click-to-edit affordance', async (role) => {
+  it.each(['CUS', 'ADMIN', 'MANAGER', 'DISPATCHER'])('role %s gets the click-to-edit affordance', async (role) => {
     authRole = role;
     getCusShipmentWorkspaceDetail.mockResolvedValue(backfillDetail());
     render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
@@ -230,7 +230,7 @@ describe('DispatchContainerDetailDrawer — SỐ TỜ KHAI column (SIL-530, per-
     expect(await screen.findByRole('button', { name: 'Sửa số tờ khai · MSKU1234567' })).toBeTruthy();
   });
 
-  it.each(['DISPATCHER', 'ACCOUNTANT', 'DRIVER'])('role %s gets static text — no affordance the server would 403', async (role) => {
+  it.each(['ACCOUNTANT', 'DRIVER', 'OPS'])('role %s gets static text — no affordance the server would 403', async (role) => {
     authRole = role;
     getCusShipmentWorkspaceDetail.mockResolvedValue(backfillDetail());
     render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);

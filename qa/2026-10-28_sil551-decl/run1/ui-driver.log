@@ -1,0 +1,6 @@
+2026-10-28T10:55:21.287Z login ok user=dungnv (DISPATCHER — the ticket repro role)
+2026-10-28T10:55:25.033Z before: cell="TK-R42RV-001" button="Sửa số tờ khai · MSKU1234565"
+2026-10-28T10:55:25.163Z editor opened (THE click under test)
+2026-10-28T10:55:27.400Z saved: cell="TK-SIL551-DV" toast="Đã lưu số tờ khai."
+2026-10-28T10:55:28.992Z restored: TK-R42RV-001
+2026-10-28T10:55:29.012Z EXIT 0 — checks: PASS:A: DISPATCHER sees the SỐ TỜ KHAI click-to-edit affordance | PASS:B: the click opens the inline editor (the bug: nothing opened) | PASS:B: post-click DOM — the cell shows the saved declaration | PASS:B: success toast surfaced | PASS:C: restore — cell back to the pre-drive number

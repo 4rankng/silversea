@@ -1,0 +1,44 @@
+{
+  "run": "run1",
+  "role": "dungnv (DISPATCHER)",
+  "query": "R42RV-FCL",
+  "container": "MSKU1234565",
+  "newDecl": "TK-SIL551-DV",
+  "viewport": "1280x900 + 390x844",
+  "checks": [
+    {
+      "name": "A: DISPATCHER sees the SỐ TỜ KHAI click-to-edit affordance",
+      "pass": true,
+      "detail": {
+        "cellText": "TK-R42RV-001",
+        "editButton": "Sửa số tờ khai · MSKU1234565"
+      }
+    },
+    {
+      "name": "B: the click opens the inline editor (the bug: nothing opened)",
+      "pass": true,
+      "detail": "input[aria-label=\"Số tờ khai\"] present"
+    },
+    {
+      "name": "B: post-click DOM — the cell shows the saved declaration",
+      "pass": true,
+      "detail": {
+        "cellText": "TK-SIL551-DV",
+        "saved": true,
+        "inputStill": false,
+        "toast": "Đã lưu số tờ khai."
+      }
+    },
+    {
+      "name": "B: success toast surfaced",
+      "pass": true,
+      "detail": "Đã lưu số tờ khai."
+    },
+    {
+      "name": "C: restore — cell back to the pre-drive number",
+      "pass": true,
+      "detail": "TK-R42RV-001"
+    }
+  ],
+  "pass": true
+}

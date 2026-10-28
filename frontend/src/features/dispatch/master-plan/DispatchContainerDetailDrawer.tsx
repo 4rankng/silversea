@@ -77,8 +77,9 @@ const lineTextFieldSpec = {
  *  field on `shipment_containers` (what the per-cont command writes),
  *  click-to-edit inline is the only affordance (owner ruling 20261006_537 —
  *  no extra Sửa button), Enter commits, Escape and blur revert. The caller
- *  gates the affordance (role law for tờ khai — card 261013200312; fieldAccess
- *  for số cont) so a save the writer would refuse is never advertised. The
+ *  gates the affordance (role law for tờ khai — SIL-551 per-cont writer law;
+ *  fieldAccess for số cont) so a save the writer would refuse is never
+ *  advertised. The
  *  FB-109 auto-copy runs server-side; the toast names the synced siblings and
  *  a 409 names the clashing lot verbatim. */
 function ContainerLineTextField({ line, field, canEdit, onSave }: {
@@ -586,11 +587,13 @@ export function DispatchContainerDetailDrawer({
   const [savingPortLineId, setSavingPortLineId] = useState<number | null>(null);
   const [portSaveError, setPortSaveError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
-  // Card 261013200312 — tờ khai writes are CUS/Quản trị/Quản lý only; every
-  // other role reads static text (the writer would 403).
   const user = useAuth()?.user;
+  // SIL-551 (id 624): per-cont tờ khai writes open to Điều vận (the ticket's
+  // Expected supersedes the role sentence of card 261013200312 for the
+  // container-line command); every other role reads static text (the writer
+  // would 403). The LOT-level declarationNumber law is untouched.
   const canEditDeclarations = user != null
-    && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS);
+    && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS || user.role === Role.DISPATCHER);
 
   useEffect(() => {
     if (!shipment) return;

@@ -1,0 +1,16 @@
+== scoped tests 2026-10-28T18:55:48+08:00 — FE detailed-plan+master-plan+ShipmentsPage / BE declaration unit ==
+ Test Files  70 passed (70)
+      Tests  856 passed (856)
+   Start at  18:55:50
+   Duration  110.14s (transform 7.56s, setup 27.31s, import 146.74s, tests 224.25s, environment 122.78s)
+
+FE EXIT: 0
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 981.25375
+BE EXIT: 0

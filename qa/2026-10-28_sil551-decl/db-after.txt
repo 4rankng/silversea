@@ -1,0 +1,7 @@
+== db-after 2026-10-28T18:55:41+08:00 — lot 240 declarations, post-drive (restored) ==
+ id  | container_number | declaration_number |       updated_at        
+-----+------------------+--------------------+-------------------------
+ 275 | MSKU1234565      | TK-R42RV-001       | 2026-10-28 10:55:27.961
+ 276 | MSKU1234570      | TK-R42RV-001       | 2026-10-27 14:09:14.033
+(2 rows)
+
