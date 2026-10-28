@@ -2,6 +2,7 @@ import { useRef, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
+import { usePopoverDialog } from '../../../hooks/usePopoverDialog';
 import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
 import { TelLink } from '../../../components/TelLink';
 import './FactoryDetailPopover.css';
@@ -38,6 +39,10 @@ export function FactoryDetailPopover({
   const popoverRef = useRef<HTMLDivElement>(null);
   const position = usePopoverPosition(popoverRef, anchorRef, open, 320, 240);
   useClickOutside(popoverRef, onClose, { enabled: open, escapeKey: true, additionalRefs: [anchorRef] });
+  // Modal dialog semantics (SIL-561) — the peek claims role=dialog, so it
+  // carries the shared primitive: aria-modal, focus into the panel, inert
+  // background, focus return to the factory trigger on close.
+  usePopoverDialog(popoverRef, anchorRef, open);
 
   if (!open || !position) return null;
   return createPortal(

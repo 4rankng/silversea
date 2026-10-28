@@ -1,0 +1,42 @@
+login → /dashboard
+@1280 /shipments
+  PASS @1280 column-picker aria-modal — aria-modal=true
+  PASS @1280 column-picker focus inside
+  FAIL @1280 column-picker background inert
+  PASS @1280 column-picker Escape restores trigger — focusOnTrigger=true
+  PASS @1280 column-picker inert released
+  PASS @1280 column-picker reopens
+  PASS @1280 column-picker click-outside closes
+  SKIP filter-dropdown (trigger not mounted @1280)
+  PASS @1280 month-picker aria-modal — aria-modal=true
+  PASS @1280 month-picker focus inside
+  FAIL @1280 month-picker background inert
+  PASS @1280 month-picker Escape restores trigger — focusOnTrigger=true
+@768 /shipments
+  SKIP column-picker (trigger not mounted @768)
+  PASS @768 filter-dropdown aria-modal — aria-modal=true
+  PASS @768 filter-dropdown focus inside
+  FAIL @768 filter-dropdown background inert
+  PASS @768 filter-dropdown Escape restores trigger — focusOnTrigger=true
+  PASS @768 month-picker aria-modal — aria-modal=true
+  PASS @768 month-picker focus inside
+  FAIL @768 month-picker background inert
+  PASS @768 month-picker Escape restores trigger — focusOnTrigger=true
+@390 /shipments
+  SKIP column-picker (trigger not mounted @390)
+  PASS @390 filter-dropdown aria-modal — aria-modal=true
+  PASS @390 filter-dropdown focus inside
+  FAIL @390 filter-dropdown background inert
+  PASS @390 filter-dropdown Escape restores trigger — focusOnTrigger=true
+  PASS @390 month-picker aria-modal — aria-modal=true
+  PASS @390 month-picker focus inside
+  FAIL @390 month-picker background inert
+  PASS @390 month-picker Escape restores trigger — focusOnTrigger=true
+  PASS @1280 udrp aria-modal — aria-modal=true
+  PASS @1280 udrp focus inside
+  FAIL @1280 udrp background inert
+  PASS @1280 udrp Escape restores trigger — focusOnTrigger=true
+  PASS @390 udrp aria-modal — aria-modal=true
+  PASS @390 udrp focus inside
+  FAIL @390 udrp background inert
+  PASS @390 udrp Escape restores trigger — focusOnTrigger=true

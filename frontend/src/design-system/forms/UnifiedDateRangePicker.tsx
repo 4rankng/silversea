@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { usePopoverDialog } from '../../hooks/usePopoverDialog';
 import type { DateRangeValue } from './DateRangeFields';
 import './UnifiedDateRangePicker.css';
 
@@ -145,6 +146,11 @@ export function UnifiedDateRangePicker({ id, value, onChange, ariaLabel, classNa
 
   useClickOutside(rootRef, () => setOpen(false), { escapeKey: true, enabled: open });
   useFocusTrap(popoverRef, open);
+  // Modal dialog semantics (SIL-561): focus/Escape already worked — the
+  // primitive adds aria-modal, the inert background and guaranteed focus
+  // return to the trigger on every close path.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  usePopoverDialog(popoverRef, triggerRef, open);
 
   const shiftAnchor = (months: number) => {
     setAnchor((v) => {
@@ -227,6 +233,7 @@ export function UnifiedDateRangePicker({ id, value, onChange, ariaLabel, classNa
       <button
         type="button"
         id={id}
+        ref={triggerRef}
         className="udrp__trigger"
         aria-haspopup="dialog"
         aria-expanded={open}

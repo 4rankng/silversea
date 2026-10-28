@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Calendar, Truck, Menu, Search } from 'lucide
 import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { usePopoverDialog } from '../../hooks/usePopoverDialog';
 import { useMonth } from '../../hooks/useMonth';
 import { restoreFocusTo } from '../../lib/focusRestore';
 import { useLocation } from 'react-router-dom';
@@ -40,6 +41,12 @@ function MonthNavigator() {
     onEscape: () => { setOpen(false); restoreFocusTo(triggerRef.current); },
   });
   useFocusTrap(pickerRef, open);
+  // Modal dialog semantics (SIL-561): the picker already trapped focus and
+  // restored it on Escape (SIL-573); the primitive adds the missing legs —
+  // aria-modal on the panel and an inert background while it is open. The
+  // body-strand restore stays OFF: SIL-573 pins that an outside press leaves
+  // focus where the user clicked (this picker's own Escape handler restores).
+  usePopoverDialog(pickerRef, triggerRef, open, { restoreOnBody: false });
 
   const { data: period } = useSalaryPeriod(month, year);
   const periodLabel = period

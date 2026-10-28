@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, ListFilter } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { usePopoverPosition } from '../hooks/usePopoverPosition';
+import { usePopoverDialog } from '../hooks/usePopoverDialog';
 import { useFilterBarMode, useFilterBarViewControls } from '../design-system/filter-bar-mode';
 import './FilterDropdown.css';
 
@@ -119,18 +120,13 @@ export function FilterDropdown({
     ignoreSelector: '.searchable-select__popover, .searchable-select__backdrop, .react-aria-Popover, [role="listbox"], .date-picker__popup, [data-date-picker], .time-picker__popup, [data-time-picker-overlay], .modal__content',
   });
 
-  // Escape (focus is inside the panel) and a press on dead space (focus falls
-  // to <body>) both hand the keyboard back to the trigger; a press on another
-  // control keeps that control's focus. The trigger is captured at effect time:
-  // by the time this cleanup runs React has already detached the ref.
-  useEffect(() => {
-    if (!isOpen) return;
-    const trigger = triggerRef.current;
-    return () => {
-      const active = document.activeElement;
-      if (active == null || active === document.body) trigger?.focus();
-    };
-  }, [isOpen]);
+  // Modal dialog semantics (SIL-561) — one primitive with ColumnPicker: the
+  // panel claims aria-modal, focus LANDS inside on open (it used to stay on
+  // <body>), the background goes inert, and every close hands the keyboard
+  // back to the trigger. Nested criterion popovers (searchable select, date
+  // picker) portal to body AFTER the primitive's inert sweep, so they stay
+  // interactive and the dialog-in-dialog flows of card _202 are untouched.
+  usePopoverDialog(panelRef, triggerRef, isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
