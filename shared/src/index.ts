@@ -147,7 +147,7 @@ export type {
 export {
   tripLegSchema, createTripSchema, createTripPairSchema, updateTripFiguresSchema, bulkUpdateTripFiguresSchema,
   createPaymentSchema, createPenaltySchema, createAdjustmentSchema, tripReopenRequestSchema,
-  loginSchema, createUserSchema, updateUserSchema, updateProfileSchema, changePasswordSchema,
+  loginSchema, createUserSchema, baseCreateUserSchema, updateUserSchema, updateProfileSchema, changePasswordSchema,
   customerSchema, customerUpdateSchema, paymentDatePolicySchema, businessCalendarDaySchema,
   truckSchema, trailerSchema, routeSchema,
   cargoTypeSchema, pricingTableSchema, roadAllowanceSchema,

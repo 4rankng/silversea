@@ -41,7 +41,7 @@ function respond(): MockResponse {
   return res;
 }
 
-test('globalErrorHandler surfaces zod v4 issues with path-labelled message and JSON-safe details', () => {
+test('globalErrorHandler surfaces zod issues with path-labelled message and JSON-safe details', () => {
   const schema = z.object({ expectedVersion: z.number().int(), note: z.string().min(1) });
   let caught: unknown;
   try {
@@ -57,8 +57,10 @@ test('globalErrorHandler surfaces zod v4 issues with path-labelled message and J
   assert.equal(res.statusCode, 400);
   assert.ok(res.body, 'the handler must answer with a JSON body');
   // The first issue's message must surface (with its path label) — not the
-  // generic fallback that the broken `.errors` read produced.
-  assert.match(res.body.error, /Invalid input/);
+  // generic fallback that the broken `.errors` read produced. The wording pin
+  // follows the installed library (v3 says "Expected number, received
+  // string"; v4 prefixed it with "Invalid input").
+  assert.match(res.body.error, /Expected number, received string/);
   assert.match(res.body.error, /expectedVersion/);
 
   assert.ok(Array.isArray(res.body.details));
