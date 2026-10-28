@@ -106,6 +106,11 @@
 
 :where(table tbody td) {
   font-size: var(--ops-table-supporting-size);
+  /* SIL-562: numeric and date cells stop reflowing between refreshes — every
+     digit keeps one advance width. Prose text is unaffected (only numerals
+     take the tabular grid), and the zero-specificity :where keeps every
+     deliberate page rule winning unchanged. */
+  font-variant-numeric: tabular-nums;
 }
 
 /* Bold values are the primary line of a dense cell (record-table primary).

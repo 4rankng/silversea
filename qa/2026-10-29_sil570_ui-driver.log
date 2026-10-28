@@ -1,0 +1,12 @@
+@1280: {"label":"collapsed-1280x800","lastItemY":609,"lastItemBottom":649,"userY":742,"clearOfUser":true,"footerBackground":"rgb(0, 54, 27)","navPaddingBottom":"80px","footerHitBy":"circle.[object SVGAnimatedString]","scrollBottomGap":84}
+screenshot qa/2026-10-29_sil570_ui-sidebar-1280.png
+@1024: {"label":"collapsed-1024x768","lastItemY":577,"lastItemBottom":617,"userY":710,"clearOfUser":true,"footerBackground":"rgb(0, 54, 27)","navPaddingBottom":"80px","footerHitBy":"circle.[object SVGAnimatedString]","scrollBottomGap":84}
+screenshot qa/2026-10-29_sil570_ui-sidebar-1024.png
+PASS — @1280 scrolled-to-bottom item clear of .sidebar-user
+PASS — @1280 footer paints opaque (sb gradient end)
+PASS — @1280 nav carries the reserve padding (collapsed rail: reserve+8)
+PASS — @1280 footer center hit-test is footer content, not a nav item
+PASS — @1024 scrolled-to-bottom item clear of .sidebar-user
+PASS — @1024 nav carries the reserve padding
+PASS — @1024 footer center hit-test is footer content, not a nav item
+ALL CHECKS PASSED

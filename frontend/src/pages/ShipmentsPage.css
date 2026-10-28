@@ -243,6 +243,17 @@
   outline: none;
 }
 
+/* SIL-571: only where the floored table outgrows the canvas (the min-width
+   floors sum to 1079px; the viewport area drops under that below ~1160px of
+   window) does the board scroll horizontally, per the 2026-09-29 law. Above
+   the breakpoint the viewport stays a non-scroll container, so the pinned
+   thead keeps binding to the app-body scrollport (card 20260926_49). */
+@media (max-width: 1158px) and (min-width: 768px) {
+  .cus-dashboard-viewport {
+    overflow-x: auto;
+  }
+}
+
 .cus-dashboard-viewport:focus-visible {
   box-shadow: inset 0 0 0 3px var(--brand-subtle);
 }
@@ -323,6 +334,24 @@
 .cus-dashboard-table col.cus-dashboard-col--schedule { width: 18%; }
 .cus-dashboard-table col.cus-dashboard-col--notes { width: 10%; }
 .cus-dashboard-table col.cus-dashboard-col--status { width: 13%; }
+
+/* SIL-571 (2026-10-29) — sortable headers own their one-line width. At the
+   1024–1440 bands the % shares squeeze the grouped-header columns below the
+   nowrap sort button (FB-063), so the button painted into its neighbour
+   (measured live: "Tổng quan hàng hóa" 165px in a 159px th at 1280; 44/52px
+   intersections at 1024). Per-column min-width = one-line header + the th's
+   24px padding (2026-09-29 board law: the table grows and scrolls instead of
+   columns collapsing). The floors sum to 1079px — inside the canvas at
+   1280/1366/1440 (no scroll, sticky header law untouched); below ~1160px of
+   window the table grows and the viewport scrolls horizontally. */
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .cus-dashboard-table col.cus-dashboard-col--customer { min-width: 200px; }
+  .cus-dashboard-table col.cus-dashboard-col--documents { min-width: 110px; }
+  .cus-dashboard-table col.cus-dashboard-col--classification { min-width: 192px; }
+  .cus-dashboard-table col.cus-dashboard-col--cargo { min-width: 190px; }
+  .cus-dashboard-table col.cus-dashboard-col--schedule { min-width: 182px; }
+  .cus-dashboard-table col.cus-dashboard-col--status { min-width: 120px; }
+}
 
 .cus-dashboard-table thead th {
   position: sticky;

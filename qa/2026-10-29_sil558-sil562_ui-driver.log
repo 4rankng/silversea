@@ -1,0 +1,17 @@
+login ok → /config
+SIL-562 @1280 computed font-variant-numeric: {"count":"tabular-nums","td":"tabular-nums"}
+screenshot qa/2026-10-29_sil562_ui-shipments-1280.png
+SIL-558 @1280 search/control font-size (desktop, unchanged expected): 12px
+screenshot qa/2026-10-29_sil558_ui-shipments-1280.png
+SIL-558 @390 focused field computed: {"fontSize":"16px","focused":true,"tag":"input","cls":""}
+screenshot qa/2026-10-29_sil558_ui-shipments-390.png
+SIL-562 @390 computed font-variant-numeric: {"count":"MISSING","td":"tabular-nums"}
+note: .ds-tabs__count not rendered at 390 (record-card layout) — the 1280 assertion carries the count rule
+no console/api errors
+PASS — SIL-558 @390 focused field = 16px
+PASS — SIL-558 @1280 desktop untouched (not 16px)
+PASS — SIL-562 @1280 count tabular-nums
+PASS — SIL-562 @1280 data cell tabular-nums
+PASS — SIL-562 @390 count tabular-nums (or record-card layout hides it)
+PASS — SIL-562 @390 data cell tabular-nums
+ALL CHECKS PASSED

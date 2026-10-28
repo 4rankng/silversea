@@ -402,6 +402,11 @@
   --text-control-size: 12px;
   --text-control-compact-size: 12px;
   --text-input-touch-size: 12px;
+  /* SIL-558 — iOS focus-zoom floor. Mobile Safari zoom-jumps the viewport when
+     a focused field computes under 16px, and the viewport zoom lock is gone
+     (SIL-557). Touch bands therefore compute field text to 16px while the
+     control geometry keeps its compact tokens (30/34/40px). */
+  --control-zoom-safe-font-size: 16px;
   --text-section-size: 14px;
   --text-dialog-title-size: 16px;
   --text-title-size: 18px;
@@ -519,9 +524,12 @@
 }
 
 /* Native and custom fields share one text scale on touch devices too.
-   Browser zoom remains available; do not disable it to enforce density. */
+   Browser zoom remains available; do not disable it to enforce density.
+   SIL-558: the touch scale computes to the 16px iOS focus floor (Safari
+   zoom-jumps the viewport when a focused field is set smaller); the compact
+   control geometry is unchanged. */
 @media (max-width: 640px), (pointer: coarse) {
   :root {
-    --control-field-font-size: var(--text-input-touch-size);
+    --control-field-font-size: var(--control-zoom-safe-font-size);
   }
 }

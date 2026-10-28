@@ -490,7 +490,8 @@
   select.input,
   input.input,
   textarea.input {
-    font-size: var(--text-input-touch-size);
+    /* SIL-558: 16px computed floor — Safari zooms a focused field below 16px. */
+    font-size: var(--control-zoom-safe-font-size);
     min-height: var(--control-mobile-h);
   }
   textarea.input { min-height: 80px; }
@@ -647,7 +648,8 @@
   #root select,
   #root textarea,
   #root .input {
-    font-size: var(--text-input-touch-size);
+    /* SIL-558: 16px computed floor — Safari zooms a focused field below 16px. */
+    font-size: var(--control-zoom-safe-font-size);
   }
   #root .input {
     min-height: var(--control-mobile-h);

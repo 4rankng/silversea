@@ -32,12 +32,13 @@ describe('shared tabs selection styling', () => {
     expect(active).not.toMatch(/box-shadow:\s*var\(--sh/);
 
     // The count is a bare tone-coloured numeral — a pill would restart the
-    // look the operator replaced.
+    // look the operator replaced. SIL-562 (2026-10-29) pins the shared
+    // tabular grid here: the count is live data, and the declaration joins
+    // the owner-specced money primitives (inert until the typeface carries
+    // tnum, per the font-family contract's allowlist).
     const count = css.match(/^\.ds-tabs__count\s*\{([\s\S]*?)\n\}/m)?.[1] ?? '';
     expect(count).not.toMatch(/border-radius|background:/);
-    // The bundled font is proportional (see styles/font-family-contract.test.ts):
-    // a tabular-numerals declaration here is a banned no-op.
-    expect(count).not.toMatch(/font-variant-numeric/);
+    expect(count).toMatch(/font-variant-numeric:\s*tabular-nums;/);
     expect(css).toMatch(/\.ds-tabs__count--accent \{\s*color:\s*var\(--success-text/);
     expect(css).toMatch(/\.ds-tabs__count--warning \{\s*color:\s*var\(--warning-text/);
   });

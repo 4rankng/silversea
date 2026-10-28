@@ -121,7 +121,7 @@ html.pwa-standalone .app-main {
 
   /* Collapsed nav: show icons only */
   .app.sidebar-closed .sidebar-nav {
-    padding: 8px 4px;
+    padding: 8px 4px calc(var(--sidebar-footer-reserve, 72px) + 8px);
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none;

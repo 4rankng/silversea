@@ -36,6 +36,11 @@ const sharedMoneyTabularSources = [
   // counterpart of the ledger matrices: their row money carries the same
   // tabular digit edge the verdict specs ("Số tiền … tabular-nums").
   join(sourceRoot, 'components/shared/LedgerGroupedList.css'),
+  // SIL-562 (2026-10-29) — live tab counts and the shared data-table base:
+  // the count numeral and numeric/date cells declare the same tabular grid
+  // the money primitives own (inert until the typeface carries tnum).
+  join(sourceRoot, 'design-system/Tabs.css'),
+  join(sourceRoot, 'styles/operational-table-typography.css'),
 ];
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 

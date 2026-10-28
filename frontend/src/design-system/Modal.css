@@ -305,7 +305,8 @@
     min-height: var(--control-mobile-h);
     height: var(--control-mobile-h);
     border-radius: var(--r-sm);
-    font-size: var(--text-input-touch-size);
+    /* SIL-558: 16px computed floor — Safari zooms a focused field below 16px. */
+    font-size: var(--control-zoom-safe-font-size);
   }
 
   .modal__body .input-icon > svg {

@@ -15,6 +15,10 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [credentialError, setCredentialError] = useState(false);
+  // SIL-563: validate on submit names the offending field — the submit button
+  // stays enabled, the first invalid field takes focus, and the field's
+  // aria-invalid points at the inline message.
+  const [fieldError, setFieldError] = useState<'username' | 'password' | null>(null);
   // QA2-006: Caps Lock silently uppercases the password, so the typed value
   // stops matching what the operator thinks they entered and the login is
   // refused for no visible reason. Track the modifier while the field has
@@ -24,7 +28,7 @@ export default function LoginPage() {
     setCapsLockOn(e.getModifierState('CapsLock'));
   };
   const busy = useRef(false);
-  const clearError = () => { setError(''); setCredentialError(false); };
+  const clearError = () => { setError(''); setCredentialError(false); setFieldError(null); };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +43,20 @@ export default function LoginPage() {
     const livePassword = (document.getElementById('password-input') as HTMLInputElement | null)?.value ?? '';
     const finalUsername = (username || liveUsername).trim();
     const finalPassword = password || livePassword;
-    if (!finalUsername || !finalPassword) {
-      setCredentialError(true);
-      setError('Vui lòng nhập tên đăng nhập và mật khẩu.');
+    // Calm per-field messages (house §8): name the field, focus it, let its
+    // aria-invalid carry the state. No lecturing, no combined scold.
+    if (!finalUsername) {
+      setCredentialError(false);
+      setFieldError('username');
+      setError('Vui lòng nhập tên đăng nhập hoặc số điện thoại.');
+      document.getElementById('username-input')?.focus();
+      return;
+    }
+    if (!finalPassword) {
+      setCredentialError(false);
+      setFieldError('password');
+      setError('Vui lòng nhập mật khẩu.');
+      document.getElementById('password-input')?.focus();
       return;
     }
     busy.current = true;
@@ -81,7 +96,7 @@ export default function LoginPage() {
           </header>
 
           <div className="login-form-wrap">
-            <form className="login-form" onSubmit={submit} aria-busy={submitting}>
+            <form className="login-form" onSubmit={submit} noValidate aria-busy={submitting}>
               <div className="login-intro">
                 <p className="login-eyebrow">Cổng vận hành</p>
                 <h1 id="login-title">Chào mừng trở lại</h1>
@@ -104,11 +119,11 @@ export default function LoginPage() {
                     prefix={<User size={18} aria-hidden="true" />}
                     value={username}
                     onChange={e => { setUsername(e.target.value); clearError(); }}
-                    placeholder="Nhập tên đăng nhập hoặc số điện thoại"
+                    placeholder="VD: nv001 hoặc 0901 234 567"
                     autoComplete="username"
                     autoCapitalize="none"
-                    aria-invalid={credentialError}
-                    aria-describedby={error ? 'login-error' : undefined}
+                    aria-invalid={fieldError === 'username' || credentialError}
+                    aria-describedby={error && (fieldError === 'username' || credentialError) ? 'login-error' : undefined}
                     required
                     autoFocus
                   />
@@ -133,10 +148,10 @@ export default function LoginPage() {
                     type={showPw ? 'text' : 'password'}
                     value={password}
                     onChange={e => { setPassword(e.target.value); clearError(); }}
-                    placeholder="Nhập mật khẩu"
+                    placeholder="••••••••"
                     autoComplete="current-password"
-                    aria-invalid={credentialError}
-                    aria-describedby={[capsLockOn ? 'login-caps-hint' : null, error ? 'login-error' : null].filter(Boolean).join(' ') || undefined}
+                    aria-invalid={fieldError === 'password' || credentialError}
+                    aria-describedby={[capsLockOn ? 'login-caps-hint' : null, error && (fieldError === 'password' || credentialError) ? 'login-error' : null].filter(Boolean).join(' ') || undefined}
                     onKeyDown={trackCapsLock}
                     onKeyUp={trackCapsLock}
                     onBlur={() => setCapsLockOn(false)}
@@ -158,7 +173,7 @@ export default function LoginPage() {
                 className="login-submit"
                 icon={!submitting ? <ArrowRight size={18} aria-hidden="true" /> : undefined}
                 type="submit"
-                disabled={!username.trim() || !password || submitting}
+                disabled={submitting}
               >
                 {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
               </Btn>

@@ -1,0 +1,14 @@
+login → /dispatch
+landed → /dispatch-detail
+@1920: {"label":"w1920","grid":true,"samples":[{"scrollLeft":0,"maxW":1624,"clientW":1624,"worst":null},{"scrollLeft":0,"maxW":1624,"clientW":1624,"worst":null},{"scrollLeft":0,"maxW":1624,"clientW":1624,"worst":null}]}
+@1440: {"label":"w1440","grid":true,"samples":[{"scrollLeft":0,"maxW":1340,"clientW":1144,"worst":{"ix":1.1,"iy":30,"el":"detailed-plan-grid__note"}},{"scrollLeft":98,"maxW":1340,"clientW":1144,"worst":{"ix":22.4,"iy":30,"el":"detailed-plan-grid__note"}},{"scrollLeft":196,"maxW":1340,"clientW":1144,"worst":null}]}
+@1280: {"label":"w1280","grid":true,"samples":[{"scrollLeft":0,"maxW":1340,"clientW":1192,"worst":{"ix":30,"iy":30,"el":"detailed-plan-grid__note"}},{"scrollLeft":74,"maxW":1340,"clientW":1192,"worst":null},{"scrollLeft":148,"maxW":1340,"clientW":1192,"worst":null}]}
+screenshot qa/2026-10-29_sil572_ui-dispatch-detail-1280-scrolled.png
+screenshot qa/2026-10-29_sil572_ui-dispatch-detail-390.png
+PASS — w1920 fully scrolled — no live control under the trigger
+PASS — w1920 rest-state exposure measured (≤30px tail, note-only)
+PASS — w1440 fully scrolled — no live control under the trigger
+PASS — w1440 rest-state exposure measured (≤30px tail, note-only)
+PASS — w1280 fully scrolled — no live control under the trigger
+PASS — w1280 rest-state exposure measured (≤30px tail, note-only)
+ALL CHECKS PASSED

@@ -436,6 +436,21 @@
   vertical-align: top;
 }
 
+/* SIL-572 — reserve the pinned Thao tác rail's width inside the last
+   scrolling column (Ghi chú): its live note button (width: 100%) and the
+   note-action pills stop one rail-width before the cell edge, so a scrolled
+   board can never park them under the sticky ⋯ trigger. The rail is 4% of
+   the 1340px floor ≈ 54px (SIL-588); the reserve covers it wherever the
+   board actually scrolls. Above the floor the board fits its pane and
+   nothing is ever covered — the reserve is resting whitespace inside the
+   roomy Ghi chú cell. */
+.detailed-plan-grid {
+  --dpg-actions-reserve: 56px;
+}
+.detailed-plan-grid td.detailed-plan-grid__cell--notes {
+  padding-inline-end: calc(var(--space-sm) + var(--dpg-actions-reserve));
+}
+
 /* ── The value-line law (SIL-515, owner 26/10) ───────────────────────────
    The FB-043 fixed-height body (84px + overflow:hidden) is gone and the
    23/10 "one nowrap ellipsized line per value" law is REVOKED with it:

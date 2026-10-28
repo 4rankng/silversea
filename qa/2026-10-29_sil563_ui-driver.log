@@ -1,0 +1,19 @@
+initial @1280: {"submitDisabled":false,"alert":null,"focusId":"username-input","userInvalid":"false","passInvalid":"false","userPlaceholder":"VD: nv001 hoặc 0901 234 567","passPlaceholder":"••••••••"}
+screenshot qa/2026-10-29_sil563_ui-login-1280-empty.png
+after empty submit @1280: {"submitDisabled":false,"alert":"Vui lòng nhập tên đăng nhập hoặc số điện thoại.","focusId":"username-input","userInvalid":"true","passInvalid":"false","userPlaceholder":"VD: nv001 hoặc 0901 234 567","passPlaceholder":"••••••••"}
+screenshot qa/2026-10-29_sil563_ui-login-1280-username-error.png
+after username-only submit @1280: {"submitDisabled":false,"alert":"Vui lòng nhập mật khẩu.","focusId":"password-input","userInvalid":"false","passInvalid":"true","userPlaceholder":"VD: nv001 hoặc 0901 234 567","passPlaceholder":"••••••••"}
+screenshot qa/2026-10-29_sil563_ui-login-1280-password-error.png
+after empty submit @390: {"submitDisabled":false,"alert":"Vui lòng nhập tên đăng nhập hoặc số điện thoại.","focusId":"username-input","userInvalid":"true","passInvalid":"false","userPlaceholder":"VD: nv001 hoặc 0901 234 567","passPlaceholder":"••••••••"}
+screenshot qa/2026-10-29_sil563_ui-login-390-username-error.png
+no console/api errors
+PASS — button enabled on a fresh form @1280
+PASS — placeholders are examples (nv001/0901 + dots)
+PASS — empty submit: alert names username
+PASS — empty submit: username focused + aria-invalid
+PASS — empty submit: password untouched
+PASS — username-only submit: alert names password
+PASS — username-only submit: password focused + aria-invalid
+PASS — 390 empty submit: same named-field behavior
+PASS — no console/api errors
+ALL CHECKS PASSED

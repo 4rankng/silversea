@@ -70,7 +70,8 @@
 
 @media (max-width: 640px), (pointer: coarse) {
   .ds-pagination__jump input {
-    font-size: var(--text-input-touch-size);
+    /* SIL-558: 16px computed floor — Safari zooms a focused field below 16px. */
+    font-size: var(--control-zoom-safe-font-size);
   }
 }
 
