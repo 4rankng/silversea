@@ -568,7 +568,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  color: var(--accent);
+  color: var(--accent-2, #2D6B54);
 }
 
 .driver-task-bypass svg {
@@ -1198,7 +1198,7 @@
   border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--surface);
-  color: var(--accent);
+  color: var(--accent-2, #2D6B54);
   font-size: var(--text-caption-size);
   font-weight: 600;
 }

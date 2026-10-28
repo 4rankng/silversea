@@ -138,7 +138,7 @@
 
 .salary-edit-link:hover {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink, #00361B);
 }
 
 .salary-summary-dark__row-val--neg {

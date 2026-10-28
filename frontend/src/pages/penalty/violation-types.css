@@ -129,7 +129,7 @@
 .penalty-reasons-empty-link {
   margin-left: auto;
   flex-shrink: 0;
-  color: var(--accent);
+  color: var(--accent-2, #2D6B54);
   font-weight: 600;
   font-size: var(--fs-xs);
   text-decoration: none;

@@ -14,7 +14,7 @@
 
 .lcl-merge-toggle:hover {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-2, #2D6B54);
 }
 
 .lcl-merge-toggle--active,

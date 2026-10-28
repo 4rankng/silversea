@@ -20,7 +20,7 @@
 }
 
 .quick-add-button:hover:not(:disabled) {
-  color: var(--accent);
+  color: var(--accent-2, #2D6B54);
 }
 
 .quick-add-button:disabled {
