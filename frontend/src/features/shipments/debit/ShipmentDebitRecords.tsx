@@ -119,7 +119,9 @@ export function ShipmentDebitRecords({ rows, canManage, mergeMode, selectedIds, 
         ? { label: 'Đã khóa', tone: 'neutral' as const }
         : { label: 'Đang mở', tone: 'open' as const },
       selected: selectedIds.has(row.shipmentId),
-      selectable: canManage && mergeMode,
+      // SIL-549 (spec 23/10 §2 "UX hỗ trợ") — the tick lives on LCL rows only;
+      // a FCL record card renders without its checkbox on phones too.
+      selectable: canManage && mergeMode && row.cargoMode === 'LCL',
       onSelect: (next: boolean) => onSelect(row.shipmentId, next),
       expanded,
       onToggle: () => (canManage ? onToggle(row.shipmentId) : toggleReader(row.shipmentId)),

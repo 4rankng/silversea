@@ -452,20 +452,28 @@ function DebitLotRow({ row, canManage, mergeMode, expanded, onToggle, onSaved, o
         // SIL-537/538: the row itself is a select-alias ONLY in [📦 Gộp hàng]
         // mode — outside the mode a row click must never mutate an invisible
         // selection (the ticks are hidden there by design).
-        onClick={() => { if (canManage && mergeMode) onSelect(row.shipmentId, !selected); }}
-        title={canManage && mergeMode ? 'Chọn lô (gộp xe thu khách / xuất Debit Note)' : undefined}
+        // SIL-549 (spec 23/10 §2 "UX hỗ trợ"): AND only for LCL rows — a FCL
+        // row is never pickable, so its click (like its checkbox) is inert.
+        onClick={() => { if (canManage && mergeMode && row.cargoMode === 'LCL') onSelect(row.shipmentId, !selected); }}
+        title={canManage && mergeMode && row.cargoMode === 'LCL' ? 'Chọn lô (gộp xe thu khách / xuất Debit Note)' : undefined}
       >
         {mergeMode && (
           <td className="shipment-debit-cell--select">
             {canManage ? (
-              <input
-                type="checkbox"
-                className="shipment-debit-row__select"
-                checked={selected}
-                aria-label={`Chọn lô ${label}`}
-                onClick={(event) => event.stopPropagation()}
-                onChange={(event) => onSelect(row.shipmentId, event.target.checked)}
-              />
+              row.cargoMode === 'LCL' ? (
+                <input
+                  type="checkbox"
+                  className="shipment-debit-row__select"
+                  checked={selected}
+                  aria-label={`Chọn lô ${label}`}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={(event) => onSelect(row.shipmentId, event.target.checked)}
+                />
+              ) : (
+                // SIL-549 — the spec's "làm mờ dòng Cont" clause: the cell
+                // stays for column alignment, the tick does not exist.
+                <span className="shipment-debit-cell__empty" aria-hidden="true">—</span>
+              )
             ) : <span className="shipment-debit-cell__empty" aria-label="Chỉ xem tổng hợp">—</span>}
           </td>
         )}
