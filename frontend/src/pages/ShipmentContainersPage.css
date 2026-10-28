@@ -575,9 +575,13 @@
 @container shipments-detail (max-width: 1000px) {
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }
-  .shipment-container-ledger thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-  .shipment-container-ledger thead tr,
-  .shipment-container-ledger thead th { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); border: 0; }
+  /* SIL-578: the card mode reads its column names from the cells' own
+     data-label, and /shipments' card band already `display: none`s its thead
+     (.cus-dashboard-table thead). The sr-only clip that stood here kept the
+     thead's SORT BUTTONS alive — invisible but tabbable and clickable, seven
+     .table-sort-button rects stacked at one origin — so the duplicated
+     header's interactive layer is retired with the layout it duplicated. */
+  .shipment-container-ledger thead { display: none; }
   .shipment-container-ledger tbody > tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; min-width: 0; border-bottom: 1px solid var(--line-2); }
   .shipment-container-ledger tbody > tr:last-child { border-bottom: 0; }
   .shipment-container-ledger tbody > tr > th,
