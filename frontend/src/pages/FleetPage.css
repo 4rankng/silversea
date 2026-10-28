@@ -271,8 +271,8 @@
 }
 
 .fleet-page .fleet-type-chip.unknown {
-  background: var(--bg-3);
-  color: var(--fg-3);
+  background: var(--surface-3);
+  color: var(--ink-2);
 }
 .fleet-page .fleet-type-chip.ft20 {
   background: linear-gradient(180deg, var(--accent-soft), var(--fleet-green-end));

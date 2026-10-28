@@ -339,7 +339,7 @@
   background: var(--accent);
 }
 .trip-list-page .plate.idle {
-  color: var(--ink-3);
+  color: var(--ink-2);
   background: var(--surface-3);
   border-color: var(--line);
 }

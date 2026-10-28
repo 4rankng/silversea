@@ -35,7 +35,7 @@
 .audit-method--PUT    { background: var(--info-soft); color: var(--info-text); }
 .audit-method--PATCH  { background: var(--info-soft); color: var(--info-text); }
 .audit-method--DELETE { background: var(--danger-soft); color: var(--danger-text); }
-.audit-method--GET    { background: var(--surface-3); color: var(--ink-3); }
+.audit-method--GET    { background: var(--surface-3); color: var(--ink-2); }
 
 /* ── Event tag ── */
 .audit-event-tag {

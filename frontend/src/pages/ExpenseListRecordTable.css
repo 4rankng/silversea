@@ -39,7 +39,7 @@
   font-size: var(--text-caption-size);
   font-weight: 600;
   line-height: 1;
-  color: var(--ink-3);
+  color: var(--ink-2);
   vertical-align: 2px;
   white-space: nowrap;
 }
