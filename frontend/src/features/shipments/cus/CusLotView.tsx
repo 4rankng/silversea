@@ -193,7 +193,10 @@ function DeclarationCell({
         autoComplete="off"
         maxLength={50}
         aria-label={`Số tờ khai — container ${line.ordinal}${line.containerNumber ? ` (${line.containerNumber})` : ''}`}
-        placeholder="Nhập số tờ khai…"
+        // SIL-552 (owner 28/10): the 11ch mono box shows its hint WHOLE — the
+        // old "Nhập số tờ khai…" was clipped mid-word inside the box (the
+        // no-truncation doctrine reaches the field's own placeholder).
+        placeholder="Số tờ khai"
         value={draft}
         disabled={busy}
         onChange={(event) => setDraft(event.target.value)}
@@ -353,8 +356,10 @@ function InlineTextLine({
       <input
         id={inputId}
         className={`cus-lot-line__input${mono ? ' cus-lot-line__value--mono' : ''}`}
-        type="text"
+        type={numeric ? 'number' : 'text'}
         inputMode={numeric ? 'decimal' : 'text'}
+        min={numeric ? '0' : undefined}
+        step={numeric ? '0.01' : undefined}
         autoComplete="off"
         aria-label={ariaLabel}
         value={draft}
@@ -659,7 +664,7 @@ export function CusLotView({
                       {containers.map((line, index) => (
                         <tr key={line.id}>
                           <th scope="row">{line.ordinal}</th>
-                          <td>
+                          <td className="cus-lot-cell--container">
                             <ContainerGroupCell
                               line={line}
                               detail={detail}

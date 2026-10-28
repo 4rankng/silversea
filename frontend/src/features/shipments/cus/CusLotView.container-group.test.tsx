@@ -189,7 +189,7 @@ describe('CusLotView — SIL-508 nhóm SỐ CONTAINER 3 dòng', () => {
     await waitFor(() => expect(onSaveField).toHaveBeenCalledWith(expect.anything(), 'containerTypeId', '4'));
   });
 
-  it('TRỌNG LƯỢNG: editor seed giá trị raw, lọc ký tự không phải số, commit onSaveField(cargoWeightKg)', async () => {
+  it('TRỌNG LƯỢNG: editor seed giá trị raw, là ô SỐ (chữ không lọt vào được), commit onSaveField(cargoWeightKg)', async () => {
     const onSaveField = vi.fn().mockResolvedValue(true);
     renderView({
       lines: [makeLine({ id: 26, ordinal: 1 })],
@@ -198,8 +198,17 @@ describe('CusLotView — SIL-508 nhóm SỐ CONTAINER 3 dòng', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Trọng lượng — dòng 1' }));
     const input = screen.getByLabelText('Trọng lượng — dòng 1') as HTMLInputElement;
+    // SIL-552 (owner 28/10, design lock): the weight editor is a NUMBER input
+    // (the house stepper stays hidden) — the control itself refuses every
+    // non-numeric character, which is what SIL-508's "lọc ký tự" filter did
+    // in JS.
+    expect(input.type).toBe('number');
+    expect(input.getAttribute('min')).toBe('0');
     expect(input.value).toBe('24000.00');
+    // Letters never land in the field: a number control sanitizes them away.
     fireEvent.change(input, { target: { value: '24.5abc00' } });
+    expect((screen.getByLabelText('Trọng lượng — dòng 1') as HTMLInputElement).value).not.toContain('abc');
+    fireEvent.change(input, { target: { value: '24.500' } });
     expect((screen.getByLabelText('Trọng lượng — dòng 1') as HTMLInputElement).value).toBe('24.500');
     fireEvent.keyDown(screen.getByLabelText('Trọng lượng — dòng 1'), { key: 'Enter' });
     await waitFor(() => expect(onSaveField).toHaveBeenCalledWith(expect.anything(), 'cargoWeightKg', '24.500'));

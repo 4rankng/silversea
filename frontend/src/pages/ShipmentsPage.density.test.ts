@@ -85,6 +85,55 @@ describe('shipment container editor density', () => {
     expect(css).not.toMatch(/\.cus-lot-table[^{]*\{[^}]*border-right:\s*1px/);
   });
 
+  it('SIL-552 (owner 28/10, design lock) — ô SỐ CONTAINER giữ hình học 3 dòng + cột cố định', () => {
+    const viewSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusLotView.tsx'), 'utf8');
+
+    // ── The sheet's column geometry ─────────────────────────────────────
+    // Fixed layout + the ten declared column widths (56/240/160/180/180/
+    // 160/120/120/120/120 = 1456px). The table grows past the drawer and
+    // scrolls inside the card instead of crushing the group.
+    expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*1456px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-lot-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
+    for (const [name, width] of [
+      ['stt', '56px'], ['container', '240px'], ['declaration', '160px'],
+      ['site', '180px'], ['route', '180px'], ['carrier', '160px'],
+      ['lift', '120px'], ['dropoff', '120px'], ['appointment', '120px'], ['status', '120px'],
+    ] as const) {
+      expect(css).toMatch(new RegExp(`\\.cus-lot-col__${name}\\s*\\{\\s*width:\\s*${width};`));
+    }
+    // The container cell states its own floor next to the colgroup.
+    expect(css).toMatch(/\.cus-lot-cell--container\s*\{[^}]*min-width:\s*240px;[^}]*width:\s*240px;/);
+    expect(viewSource).toContain('<td className="cus-lot-cell--container">');
+    // Text columns wrap, never truncate — and every td sits top-aligned so
+    // the group and the SỐ TỜ KHAI control share one baseline band.
+    expect(css).toMatch(/\.cus-lot-table th,\s*\n\.cus-lot-table td\s*\{[^}]*vertical-align:\s*top;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*break-word;/);
+    expect(css).not.toMatch(/\.cus-lot-table th,\s*\n\.cus-lot-table td\s*\{[^}]*vertical-align:\s*middle/);
+
+    // ── The three group lines ───────────────────────────────────────────
+    // One 36px row each (h-9): the label keeps its own lane (shrink-0 +
+    // nowrap) and the control sits right beside it.
+    expect(css).toMatch(/\.cus-lot-line\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;[^}]*align-items:\s*center;[^}]*gap:\s*8px;[^}]*height:\s*36px;/);
+    expect(css).toMatch(/\.cus-lot-line__label\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap;[^}]*line-height:\s*20px;/);
+    // The label and the value share the leading-5 baseline band.
+    expect(css).toMatch(/\.cus-lot-line__value\s*\{[^}]*line-height:\s*20px;/);
+    expect(css).toMatch(/button\.cus-lot-line--trigger\s*\{[^}]*height:\s*36px;[^}]*line-height:\s*20px;/);
+    // The editor's own box: h-9 + the fixed ch lanes (SỐ 14ch · LOẠI 10ch ·
+    // TRỌNG LƯỢNG 8ch) — the lane floor is what stops the placeholder from
+    // breaking into vertical characters.
+    expect(css).toMatch(/\.cus-lot-line__input\s*\{[^}]*width:\s*var\(--cus-lot-input, 14ch\);[^}]*min-width:\s*var\(--cus-lot-input-min, 14ch\);[^}]*height:\s*36px;[^}]*line-height:\s*20px;/);
+    expect(css).toMatch(/\.cus-lot-line--number\s*\{[^}]*--cus-lot-input:\s*14ch;[^}]*--cus-lot-input-min:\s*14ch;/);
+    expect(css).toMatch(/\.cus-lot-line--type\s*\{[^}]*--cus-lot-lane:\s*10ch;/);
+    expect(css).toMatch(/\.cus-lot-line--weight\s*\{[^}]*--cus-lot-input:\s*8ch;[^}]*--cus-lot-input-min:\s*8ch;/);
+    expect(css).toMatch(/\.cus-lot-line__select\s*\{[^}]*width:\s*10ch;[^}]*min-width:\s*10ch;/);
+    // The weight editor is a NUMBER input and the house stepper stays hidden.
+    expect(css).toMatch(/\.cus-lot-line__input\[type='number'\]\s*\{[^}]*appearance:\s*textfield;/);
+    expect(css).toMatch(/\.cus-lot-line__input\[type='number'\]::-webkit-outer-spin-button,\s*\n\.cus-lot-line__input\[type='number'\]::-webkit-inner-spin-button\s*\{[^}]*-webkit-appearance:\s*none;/);
+    // The unit beside the number never shrinks, and the select's own value
+    // band no longer ellipsizes the type code ("20DC", never "20…").
+    expect(css).toMatch(/\.cus-lot-line__unit\s*\{[^}]*flex:\s*0 0 auto;[^}]*line-height:\s*20px;/);
+    expect(css).toMatch(/\.cus-lot-line__select \[data-uui-select-value\] > section > p\s*\{[^}]*line-height:\s*20px;[^}]*text-overflow:\s*clip;/);
+  });
+
   it('switches the drawer cards onto the drawer canvas while keeping page pagination wrapping', () => {
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-lot-fact-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@container shipment-drawer \(max-width: 760px\)[\s\S]*?\.cus-lot-cards-row\s*\{[^}]*grid-template-columns:\s*1fr;/);
