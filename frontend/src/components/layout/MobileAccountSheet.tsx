@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Bell, ChevronRight, KeyRound, LogOut, UserCog, X } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { restoreFocusTo } from '../../lib/focusRestore';
 import { useDropdownDismiss } from '../../hooks/useDropdownDismiss';
 import type { SidebarProps } from './types';
 import { BuildVersion } from '../shared/BuildVersion';
@@ -9,6 +10,8 @@ type MobileAccountSheetProps = {
   user: SidebarProps['user'] & { phone?: string | null };
   roleLabel: string;
   onClose: () => void;
+  /** Opener trigger — focus returns here on close (SIL-573). */
+  openerRef?: { current: HTMLElement | null };
   onOpenProfile: () => void;
   onOpenNotifications: () => void;
   onOpenPassword: () => void;
@@ -17,11 +20,18 @@ type MobileAccountSheetProps = {
 
 /** One compact account surface. The desktop menu is rendered by Sidebar. */
 export function MobileAccountSheet({
-  user, roleLabel, onClose, onOpenProfile, onOpenNotifications, onOpenPassword, onLogout,
+  user, roleLabel, onClose, openerRef, onOpenProfile, onOpenNotifications, onOpenPassword, onLogout,
 }: MobileAccountSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   useFocusTrap(sheetRef, true);
   useDropdownDismiss(true, onClose);
+
+  // House overlay contract (SIL-573): every close path — Escape, Đóng, overlay
+  // press, action-unmount — hands focus back to the opener instead of dropping
+  // it on body/skip-link.
+  useEffect(() => {
+    return () => restoreFocusTo(openerRef?.current ?? null);
+  }, [openerRef]);
 
   return (
     <div className="mobile-user-sheet-overlay" data-dropdown-root="" onClick={onClose}>
