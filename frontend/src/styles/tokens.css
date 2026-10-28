@@ -70,6 +70,10 @@
 .d-badge.d-badge {
   border-radius: 6px;
 }
+.d-badge.d-badge-soft.d-badge-success { background: var(--success-soft); color: var(--success-text); }
+.d-badge.d-badge-soft.d-badge-error   { background: var(--danger-soft);  color: var(--danger-text); }
+.d-badge.d-badge-soft.d-badge-warning { background: var(--warning-soft); color: var(--warning-text); }
+.d-badge.d-badge-soft.d-badge-info    { background: var(--info-soft);    color: var(--info-text); }
 
 /* ============================================================================
  * TransTing -- Wireframe Design System

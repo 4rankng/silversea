@@ -26,10 +26,10 @@ import { CostBreakdown, DeltaPill, decisionIcon, greeting, severityLabel, type C
 type DashboardStatTone = 'revenue' | 'cost' | 'gross' | 'net' | 'debt';
 
 const DECISION_STRIP_COLORS: Record<DashboardDecisionItem['severity'], string> = {
-  critical: 'var(--wf-red)',
-  warning: 'var(--wf-amber)',
-  info: 'var(--wf-blue)',
-  success: 'var(--wf-green-500)',
+  critical: 'var(--danger)',
+  warning: 'var(--warning)',
+  info: 'var(--info)',
+  success: 'var(--success)',
 };
 
 interface DashboardStatProps {

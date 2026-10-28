@@ -24,4 +24,23 @@ describe('d-badge primitive wears the house radius, not the pill (§1)', () => {
     expect(delta).toContain('border-radius: 6px');
     expect(delta).not.toContain('border-radius: 20px');
   });
+
+  it('SIL-568: aligns severity and trend badges with house semantic triads and removes private --wf color pins', () => {
+    const page = readFileSync(resolve(process.cwd(), 'src/pages/DashboardPage.css'), 'utf8');
+    expect(page).not.toContain('--wf-red:');
+    expect(page).not.toContain('--wf-amber:');
+    expect(page).not.toContain('--wf-red-soft:');
+    expect(page).not.toContain('--wf-amber-soft:');
+
+    expect(page).toMatch(/\.dash-wf\s+\.wf-severity--critical\s*\{[^}]*color:\s*var\(--danger-text\);[^}]*background:\s*var\(--danger-soft\);/);
+    expect(page).toMatch(/\.dash-wf\s+\.wf-severity--warning\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*background:\s*var\(--warning-soft\);/);
+    expect(page).toMatch(/\.dash-wf\s+\.wf-severity--info\s*\{[^}]*color:\s*var\(--info-text\);[^}]*background:\s*var\(--info-soft\);/);
+    expect(page).toMatch(/\.dash-wf\s+\.wf-severity--success\s*\{[^}]*color:\s*var\(--success-text\);[^}]*background:\s*var\(--success-soft\);/);
+
+    expect(page).toMatch(/\.dash-wf\s+\.wf-kpi\s+\.delta\.up\s*\{[^}]*color:\s*var\(--success-text\);[^}]*background:\s*var\(--success-soft\);/);
+    expect(page).toMatch(/\.dash-wf\s+\.wf-kpi\s+\.delta\.down\s*\{[^}]*color:\s*var\(--danger-text\);[^}]*background:\s*var\(--danger-soft\);/);
+
+    expect(css).toMatch(/\.d-badge\.d-badge-soft\.d-badge-success\s*\{[^}]*background:\s*var\(--success-soft\);[^}]*color:\s*var\(--success-text\);/);
+    expect(css).toMatch(/\.d-badge\.d-badge-soft\.d-badge-error\s*\{[^}]*background:\s*var\(--danger-soft\);[^}]*color:\s*var\(--danger-text\);/);
+  });
 });
