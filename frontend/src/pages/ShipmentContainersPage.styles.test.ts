@@ -327,10 +327,15 @@ describe('shipment detail workboard styling', () => {
     // direction/shippingline — sharing the pinned `documents` key.
     const base = ['customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
     expect(base.reduce((a, b) => a + b, 0)).toBe(100);
-    // SIL-516: the PHÂN XE share funds the in-cell BKS quick editor (full
-    // placeholder + helper + Lưu/Hủy inside the cell) — 18% base, 22%/20% in
-    // the two narrow desktop bands, every band restated to sum to 100%.
-    expect(width('vehicle')).toBe(18);
+    // SIL-516 funded the in-cell BKS quick editor with an 18% PHÂN XE share;
+    // SIL-543 (2026-10-28, owner capture "PHÂN XE quá rộng") re-balanced the
+    // ladder on measured content: 12% still holds the nowrap plate pill
+    // (~94px floor) and keeps the editor tray inside the cell — the freed
+    // share funds KHÁCH HÀNG & LỘ TRÌNH (11%) and HÃNG TÀU (9%, the 113px
+    // whole-token floor for "R42CUS-LINE"-class names), while NHẬP/XUẤT (7%)
+    // is sized to its pills above the 85px header-token floor. Every band is
+    // restated to sum to 100%.
+    expect(width('vehicle')).toBe(12);
     const band = (block: string) => {
       const shares = ['customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map((cls) => {
         const m = block.match(new RegExp(`col--${cls}\\s*\\{\\s*width:\\s*([\\d.]+)%`));
@@ -343,8 +348,8 @@ describe('shipment detail workboard styling', () => {
     const lowBand = css.match(/@media \(min-width: 761px\) and \(max-width: 1100px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
     expect(band(midBand), '1101-1365 band sums to 100').toBe(100);
     expect(band(lowBand), '761-1100 band sums to 100').toBe(100);
-    expect(midBand).toMatch(/col--vehicle\s*\{\s*width:\s*22%;/);
-    expect(lowBand).toMatch(/col--vehicle\s*\{\s*width:\s*20%;/);
+    expect(midBand).toMatch(/col--vehicle\s*\{\s*width:\s*12%;/);
+    expect(lowBand).toMatch(/col--vehicle\s*\{\s*width:\s*12%;/);
     expect(css).toMatch(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);
     expect(css).toMatch(/@media \(min-width: 761px\) and \(max-width: 1100px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);
   });

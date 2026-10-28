@@ -116,11 +116,11 @@
    share wide enough for the label ("Bill/Booking" 9%, "Nhập/Xuất" 9%,
    container codes 9%); the sort button also flex-wraps its icon to a second
    line rather than letting it be painted over by the next th. */
-.shipment-container-ledger__col--customer { width: 6%; }
+.shipment-container-ledger__col--customer { width: 11%; }
 .shipment-container-ledger__col--billbook { width: 9%; }
 .shipment-container-ledger__col--declaration { width: 7%; }
-.shipment-container-ledger__col--direction { width: 9%; }
-.shipment-container-ledger__col--shippingline { width: 5%; }
+.shipment-container-ledger__col--direction { width: 7%; }
+.shipment-container-ledger__col--shippingline { width: 9%; }
 .shipment-container-ledger__col--container { width: 9%; }
 /* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
    (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
@@ -129,13 +129,13 @@
    FB-113 v2 re-ladder: the header reads "Nâng / hạ" (the full phrase could
    not share the width the four document headers need; the cells' own
    NÂNG/HẠ labels carry the semantics). */
-.shipment-container-ledger__col--route { width: 7%; }
+.shipment-container-ledger__col--route { width: 6%; } /* SIL-543: funds direction; place names are prose that wraps at spaces. */
 /* SIL-516 doctrine sweep (SIL-515 wrap-full): 9% holds the unbreakable date
    token "30/10/2026" (74px at the data scale) whole at every hidden-column
    set — at 8% the 94% set left the token a 72px box and it spilled 2px into
    the neighbouring cell. Funded by declaration (its copy wraps). */
 .shipment-container-ledger__col--schedule { width: 9%; }
-.shipment-container-ledger__col--vehicle { width: 18%; }
+.shipment-container-ledger__col--vehicle { width: 12%; }
 .shipment-container-ledger__col--notes { width: 6%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
    from the customer cell so "needs attention" reads next to the status it
@@ -153,19 +153,21 @@
    notes 8% — funded by customer/container/route, so the shares still sum to
    100%. The base ladder above is untouched for ≥1366px. */
 /* SIL-516: this band restates EVERY share (the base ladder changed) so the
-   twelve still sum to 100% — vehicle takes 22% here because the workspace is
-   narrower and the in-cell editor needs its room even more; actions keeps
-   FB-086's 9% band share and notes 8%. */
+   twelve still sum to 100%. SIL-543 (2026-10-28) applies the same pair
+   balance here — customer 4% → 11%, Hãng tàu 4% → 9% (whole-token floor),
+   Nhập/Xuất 9% → 7% (header-token floor), vehicle 22% → 12% (plate-pill
+   floor: at the 1280 gate the 12/83 share ≈ a 170px cell, pill + in-cell
+   editor still inside); actions keeps FB-086's 9% band share and notes 8%. */
 @media (min-width: 1101px) and (max-width: 1365px) {
-  .shipment-container-ledger__col--customer { width: 4%; }
+  .shipment-container-ledger__col--customer { width: 11%; }
   .shipment-container-ledger__col--billbook { width: 10%; }
   .shipment-container-ledger__col--declaration { width: 4%; }
-  .shipment-container-ledger__col--direction { width: 9%; }
-  .shipment-container-ledger__col--shippingline { width: 4%; }
+  .shipment-container-ledger__col--direction { width: 7%; }
+  .shipment-container-ledger__col--shippingline { width: 9%; }
   .shipment-container-ledger__col--container { width: 10%; }
   .shipment-container-ledger__col--route { width: 4%; }
   .shipment-container-ledger__col--schedule { width: 8%; }
-  .shipment-container-ledger__col--vehicle { width: 22%; }
+  .shipment-container-ledger__col--vehicle { width: 12%; }
   .shipment-container-ledger__col--notes { width: 8%; }
   .shipment-container-ledger__col--status { width: 8%; }
   .shipment-container-ledger__col--actions { width: 9%; }
@@ -175,15 +177,15 @@
    keeps the rhythm and an explicit min-width — honoured under auto layout —
    guarantees the buttons their room. */
 @media (min-width: 761px) and (max-width: 1100px) {
-  .shipment-container-ledger__col--customer { width: 7%; }
-  .shipment-container-ledger__col--billbook { width: 7%; }
+  .shipment-container-ledger__col--customer { width: 10%; }
+  .shipment-container-ledger__col--billbook { width: 8%; }
   .shipment-container-ledger__col--declaration { width: 7%; }
   .shipment-container-ledger__col--direction { width: 6%; }
-  .shipment-container-ledger__col--shippingline { width: 4%; }
+  .shipment-container-ledger__col--shippingline { width: 8%; }
   .shipment-container-ledger__col--container { width: 10%; }
   .shipment-container-ledger__col--route { width: 7%; }
   .shipment-container-ledger__col--schedule { width: 7%; }
-  .shipment-container-ledger__col--vehicle { width: 20%; }
+  .shipment-container-ledger__col--vehicle { width: 12%; }
   .shipment-container-ledger__col--notes { width: 8%; }
   .shipment-container-ledger__col--status { width: 8%; }
   .shipment-container-ledger__col--actions { width: 9%; }

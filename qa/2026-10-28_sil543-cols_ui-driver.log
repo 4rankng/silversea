@@ -1,0 +1,10 @@
+auth ok role=ADMIN
+shot qa/2026-10-28_sil543-cols_ui-1440.png
+metrics 1440: {"viewport":1440,"tableW":1129,"customer":143,"direction":91,"shippingline":117,"vehicle":156,"headerOverflow":false,"r42cusLineRects":[1,1]}
+auth ok role=ADMIN
+shot qa/2026-10-28_sil543-cols_ui-1280.png
+metrics 1280: {"viewport":1280,"tableW":1177,"customer":156,"direction":99,"shippingline":128,"vehicle":170,"headerOverflow":false,"r42cusLineRects":[1,1]}
+auth ok role=ADMIN
+shot qa/2026-10-28_sil543-cols_ui-390.png
+metrics 390: {"viewport":390,"tableW":374,"customer":352,"direction":0,"shippingline":0,"vehicle":176,"headerOverflow":true,"r42cusLineRects":[0,0]}
+ALL ASSERTIONS PASS
