@@ -1,0 +1,2 @@
+$ pnpm exec tsc -b
+exit: 0

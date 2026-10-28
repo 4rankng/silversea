@@ -42,6 +42,6 @@ export interface PenaltyTableProps {
   monthLabel: string;
   // ── Permissions / callbacks ───────────────────────────────────────────
   canCancel: boolean;
-  onOpenDrawer: (driverId?: number) => void;
+  onOpenDrawer: (driverId?: number, opener?: HTMLElement | null) => void;
   onCancelPenalty: (penalty: PenaltyRow) => void;
 }

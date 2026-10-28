@@ -44,6 +44,7 @@ export default function MasterPlanPage() {
   const [exporting, setExporting] = useState(false);
   const allocationTriggerRef = useRef<HTMLButtonElement | null>(null);
   const containerDetailTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const truckGroupTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   // SPEC 18/10/2026 §2.1–2.2 — the Kế hoạch Tổng quát LCL multi-select: click
   // order decides Lô 1 (100% cước trả ĐV). Grouped lots are refused client-side
@@ -330,8 +331,9 @@ export default function MasterPlanPage() {
                   aria-disabled={selectedLcl.length < 2 || undefined}
                   aria-describedby={selectedLcl.length < 2 ? 'master-lcl-group-assign-reason' : undefined}
                   title="Gán xe nhóm trả ĐV"
-                  onClick={() => {
+                  onClick={(event) => {
                     if (selectedLcl.length < 2) return;
+                    truckGroupTriggerRef.current = event.currentTarget;
                     setTruckGroupOpen(true);
                   }}
                 >
@@ -361,6 +363,7 @@ export default function MasterPlanPage() {
         <DispatchAllocationPopover
           shipment={allocating}
           onClose={() => setAllocating(null)}
+          openerRef={allocationTriggerRef}
           onSaved={(updated) => {
             // Card 191026181942 — the LCL body saves the BKS pair through
             // updateLclTruck, which bumps versions server-side without
@@ -379,11 +382,13 @@ export default function MasterPlanPage() {
       <DispatchContainerDetailDrawer
         shipment={containerDetailShipment}
         onClose={() => setContainerDetailShipment(null)}
+        openerRef={containerDetailTriggerRef}
         onSaved={() => masterPlan.refetch()}
       />
       {truckGroupOpen && selectedLcl.length > 0 && (
         <AssignTruckGroupDialog
           rows={selectedLcl.map(lclGroupRowFromMasterPlan)}
+          openerRef={truckGroupTriggerRef}
           onClose={() => setTruckGroupOpen(false)}
           onAssigned={() => {
             // Spec 23/10 §2 — completing the group exits the mode (the CHỌN

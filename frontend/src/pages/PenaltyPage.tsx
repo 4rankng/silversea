@@ -89,7 +89,11 @@ export default function PenaltyPage() {
     deps: [table.rows, table.isLoading],
   });
 
-  const openDrawer = useCallback((driverId?: number) => {
+  // SIL-576: the drawer restores focus to the opener captured at interaction
+  // time — a mouse click on a non-focusable row/cell never owns activeElement.
+  const drawerOpenerRef = useRef<HTMLElement | null>(null);
+  const openDrawer = useCallback((driverId?: number, opener?: HTMLElement | null) => {
+    drawerOpenerRef.current = opener ?? null;
     setPreselectedDriver(driverId);
     setDrawerOpen(true);
   }, []);
@@ -178,6 +182,7 @@ export default function PenaltyPage() {
 
       <PenaltyFormDrawer
         isOpen={drawerOpen}
+        openerRef={drawerOpenerRef}
         onClose={() => { setDrawerOpen(false); setPreselectedDriver(undefined); }}
         drivers={drivers}
         reasons={reasons}

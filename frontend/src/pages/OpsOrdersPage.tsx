@@ -11,6 +11,7 @@ import { BufferedUuiDateInput, FilterBar } from '../design-system';
 import { formatDate } from '../lib/format';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
+import { restoreFocusTo } from '../lib/focusRestore';
 
 /**
  * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty theo ngày giao
@@ -33,14 +34,38 @@ export default function OpsOrdersPage() {
   const pinSavingRef = useRef(false);
   const [pendingPinId, setPendingPinId] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  // SIL-575: ref-map keyed by order id so focus can follow the toggled button
+  // across the optimistic re-sort.
+  const pinButtonRefs = useRef(new Map<number, HTMLButtonElement>());
+  const pinFocusOrderIdRef = useRef<number | null>(null);
 
   const items = useMemo(() => data?.items ?? [], [data]);
+
+  // SIL-575: the optimistic re-sort moves the toggled button's DOM node and
+  // drops keyboard focus to <body> (the old `disabled` pass blurred it
+  // mid-flight too). Restore focus to the same order's button once the toggle
+  // settles — but never steal focus the user moved elsewhere.
+  useEffect(() => {
+    const orderId = pinFocusOrderIdRef.current;
+    if (orderId == null || pendingPinId != null) return;
+    const button = pinButtonRefs.current.get(orderId);
+    const active = document.activeElement;
+    const focusLost = !active || active === document.body;
+    if (button?.isConnected && focusLost) {
+      restoreFocusTo(button);
+      pinFocusOrderIdRef.current = null;
+    } else if (button?.isConnected || !focusLost) {
+      // focus survived the re-sort, or the user moved on — leave it alone
+      pinFocusOrderIdRef.current = null;
+    }
+  }, [items, pendingPinId]);
 
   /** Optimistic pin: flip + float the row to the top immediately; the server
    * refetch on settle reconciles (PRD §3.2). */
   async function handleTogglePin(order: OpsOrderItem) {
     if (pinSavingRef.current) return;
     pinSavingRef.current = true;
+    pinFocusOrderIdRef.current = order.id;
     setPendingPinId(order.id);
     const cacheKey = opsKeys.orders(date, search || undefined);
     const current = queryClient.getQueryData<{ date: string; items: OpsOrderItem[] }>(cacheKey);
@@ -121,9 +146,13 @@ export default function OpsOrdersPage() {
                   <td className="col-pin">
                     <button
                       type="button"
+                      ref={(element) => {
+                        if (element) pinButtonRefs.current.set(order.id, element);
+                        else pinButtonRefs.current.delete(order.id);
+                      }}
                       className={`ops-pin${order.pinned ? ' is-on' : ''}`}
                       onClick={() => void handleTogglePin(order)}
-                      disabled={pendingPinId !== null}
+                      aria-disabled={pendingPinId !== null}
                       aria-busy={pendingPinId === order.id}
                       aria-pressed={order.pinned}
                       aria-label={order.pinned ? `Bỏ ghim ${pinKey}` : `Ghim ${pinKey}`}

@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { animate, utils } from 'animejs';
 import { isTopOverlayToken, useAnimatedOverlay, type EntranceFn, type ExitFn } from '../hooks/useAnimatedOverlay';
+import { useShellEscape } from '../hooks/useShellEscape';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Tooltip } from '../components/shared/Tooltip';
 import { currentPathname, hasOperationalDensity } from '../lib/operational-density';
+import { restoreFocusTo } from '../lib/focusRestore';
 import { usePortalTarget } from './hooks/usePortalTarget';
 import { useScrollLock } from './hooks/useScrollLock';
 
@@ -202,6 +204,9 @@ export interface ModalProps {
   /** Whether a scrim click dismisses the dialog. House dialogs default to
    * true; bare overlays default to false (editable-form hosts). */
   backdropDismiss?: boolean;
+  /** SIL-576: opener captured at interaction time; falls back to
+   *  document.activeElement when omitted. */
+  openerRef?: { current: HTMLElement | null };
 }
 
 export function Modal({
@@ -219,6 +224,7 @@ export function Modal({
   ariaDescribedBy,
   chrome = 'house',
   backdropDismiss,
+  openerRef: externalOpenerRef,
 }: ModalProps) {
   const bare = chrome === 'bare';
   const scrimDismisses = backdropDismiss ?? !bare;
@@ -234,6 +240,7 @@ export function Modal({
     contentRef: bare ? overlayRef : contentRef,
     isOpen,
     onClose,
+    openerRef: externalOpenerRef,
     entrance: bare ? bareEntrance : overlayEntrance,
     exit: bare ? bareExit : overlayExit,
   });
@@ -245,7 +252,8 @@ export function Modal({
   useEffect(() => {
     if (!visible) return;
     if (openerRef.current == null) {
-      openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      openerRef.current = externalOpenerRef?.current
+        ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     }
   }, [visible]);
   // The close path consumed the opener (useAnimatedOverlay restored it) —
@@ -255,11 +263,12 @@ export function Modal({
   }, [visible]);
   useEffect(() => {
     return () => {
-      if (openerRef.current?.isConnected) openerRef.current.focus({ preventScroll: true });
+      restoreFocusTo(openerRef.current);
     };
   }, []);
 
   useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose, overlayToken });
+  const onShellKeyDown = useShellEscape(handleClose);
   useScrollLock(visible);
   useFocusTrap(bare ? overlayRef : contentRef, bare ? visible : visible && isOpen);
 
@@ -275,6 +284,7 @@ export function Modal({
       <div
         ref={overlayRef}
         className={`modal${bareClass}${densityClass}${polishedClass}`}
+        onKeyDown={onShellKeyDown}
         onClick={scrimDismisses
           ? (event) => {
             // Self-hit only: clicks that bubble up from the dialog (or from a

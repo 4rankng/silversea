@@ -1,0 +1,11 @@
+$ pnpm exec vitest run src/pages/OpsOrdersPage.test.tsx
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-a11y/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+   Start at  23:59:44
+   Duration  10.28s (transform 2.01s, setup 346ms, import 4.12s, tests 4.36s, environment 1.26s)
+
+exit: 0

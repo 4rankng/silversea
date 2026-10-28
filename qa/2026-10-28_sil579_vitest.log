@@ -1,0 +1,11 @@
+$ pnpm exec vitest run src/components/config
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-a11y/frontend
+
+
+ Test Files  7 passed (7)
+      Tests  22 passed (22)
+   Start at  00:32:30
+   Duration  6.14s (transform 2.43s, setup 1.87s, import 10.80s, tests 3.03s, environment 7.94s)
+
+exit: 0

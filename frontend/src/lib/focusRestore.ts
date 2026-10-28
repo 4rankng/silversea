@@ -9,7 +9,7 @@ const FOCUSABLE =
  * DOM. Shared owner of the focus-return class (SIL-573/SIL-576/SIL-579).
  */
 export function restoreFocusTo(target: HTMLElement | null | undefined): void {
-  if (!target || !target.isConnected) return;
+  if (!target || target === document.body || !target.isConnected) return;
   if (!target.hasAttribute('tabindex') && !target.matches(FOCUSABLE)) {
     target.tabIndex = -1;
   }
