@@ -1,0 +1,19 @@
+login → /dispatch
+@390 shipments-debit
+@390 dispatch
+@390 dispatch-detail
+@768 shipments-debit
+  PASS @768 shipments-debit master-plan-grid__notes-trigger ≥24 (n=21) — min 119.8×24
+@768 dispatch
+  PASS @768 dispatch master-plan-grid__notes-trigger ≥24 (n=21) — min 119.8×24
+@768 dispatch-detail
+  PASS @768 dispatch-detail detailed-plan-grid__decl-value--action ≥24 (n=50) — min 77.8×24
+  PASS @768 dispatch-detail detailed-plan-grid__note ≥24 (n=28) — min 91.5×24
+  PASS @768 dispatch-detail dispatch-assignment-cell__carrier--action ≥24 (n=50) — min 181×24
+  SKIP coarse shipments-debit .shipment-debit-menu__trigger (not mounted)
+  SKIP coarse shipments-debit .shipment-debit-group__chevron (not mounted)
+  PASS coarse dispatch-detail .dispatch-row-menu__trigger hit ≥40 (44 aim w/ pseudo) — min 48×48 n=32
+  SKIP coarse dispatch .master-plan-grid__notes-trigger (not mounted)
+  PASS XLSX button ≥24 — {"w":100.6,"h":32}
+  PASS combobox field wrapper ≥24 (real hit target) — {"input":{"w":638,"h":16.2},"field":{"w":678,"h":28}}
+TOTAL 8/8 PASS

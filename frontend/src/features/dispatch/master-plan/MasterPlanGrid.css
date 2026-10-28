@@ -400,6 +400,10 @@
 .master-plan-grid__notes-trigger {
   display: block;
   width: 100%;
+  /* SIL-583: the note preview line is a BUTTON — its 17px line box sat under
+     the 24px WCAG 2.5.8 floor. */
+  min-height: 24px;
+  box-sizing: border-box;
   padding: 0;
   border: 0;
   background: transparent;

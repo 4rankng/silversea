@@ -123,4 +123,44 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     const chart = read('src/components/charts/RevenueTrendChart.tsx');
     expect(chart, 'no 9px chart text').not.toContain('fontSize="9"');
   });
+
+  it('SIL-583 floors the audited inline triggers at 24px (WCAG 2.5.8, all pointers)', () => {
+    // copy button: 20×20 → 24×24
+    const debit = read('src/pages/ShipmentDebitPage.css');
+    const copy = debit.match(/\.shipment-debit-copy\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(copy).toMatch(/width:\s*24px;/);
+    expect(copy).toMatch(/height:\s*24px;/);
+    // docs badge: 20px tall → min-height 24
+    const badge = debit.match(/\.shipment-debit-docs__badge\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(badge).toMatch(/min-height:\s*24px;/);
+    // master-plan notes trigger + detailed-plan note: 17px line → 24px floor
+    const mpg = read('src/features/dispatch/master-plan/MasterPlanGrid.css');
+    expect(mpg.match(/\.master-plan-grid__notes-trigger\s*\{[^}]*\}/)?.[0] ?? '').toMatch(/min-height:\s*24px;/);
+    const dpg = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+    expect(dpg.match(/\.detailed-plan-grid__note\s*\{[^}]*\}/)?.[0] ?? '').toMatch(/min-height:\s*24px;/);
+    // inline text buttons: plain `inline` ignores min-height — inline-block carries it
+    const decl = dpg.match(/\.detailed-plan-grid__decl-value--action\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(decl).toMatch(/display:\s*inline-block;/);
+    expect(decl).toMatch(/min-height:\s*24px;/);
+    const editor = read('src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css');
+    const carrier = editor.match(/\.dispatch-assignment-cell__carrier--action\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(carrier).toMatch(/display:\s*inline-block;/);
+    expect(carrier).toMatch(/min-height:\s*24px;/);
+  });
+
+  it('SIL-583 lifts the named touch clusters to a 44px hit region via pseudo extensions', () => {
+    const responsive = read('src/styles/responsive.css');
+    const coarse = responsive.match(/@media \(pointer: coarse\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(coarse, 'coarse block exists').not.toBe('');
+    // isolated controls: ±2px all around (40 visual + 4 = 44)
+    expect(coarse).toMatch(
+      /:is\(\.shipment-debit-menu__trigger,\s*\.dispatch-row-menu__trigger,\s*\.shipment-debit-group__chevron,\s*\.topbar__toggle\)::after\s*\{[^}]*inset:\s*-2px;/,
+    );
+    // horizontal runs: vertical-only extension — a side extension would
+    // overlap the neighbour's own hit region (copy + docs badge sit beside
+    // each other in the docs cell)
+    expect(coarse).toMatch(
+      /:is\(\.ds-tabs--boxed \.ds-tabs__btn,\s*\.ds-pagination__btn,\s*\.dpcard__note,\s*\.dpcard__info,\s*\.shipment-debit-copy,\s*\.shipment-debit-docs__badge\)::after\s*\{[^}]*inset-block:\s*-2px;[^}]*inset-inline:\s*0;/,
+    );
+  });
 });

@@ -300,7 +300,12 @@
 }
 
 .detailed-plan-grid__decl-value--action {
-  display: inline;
+  /* SIL-583: an inline text button's min-height is IGNORED — inline-block
+     makes the 24px WCAG 2.5.8 floor real without leaving the text line. */
+  display: inline-block;
+  min-height: 24px;
+  box-sizing: border-box;
+  vertical-align: top;
   padding: 0;
   color: var(--fg-1);
   font: inherit;
@@ -640,6 +645,9 @@
 .detailed-plan-grid__note {
   display: block;
   width: 100%;
+  /* SIL-583: the note line is a BUTTON — floor 24px (WCAG 2.5.8). */
+  min-height: 24px;
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
   color: inherit;

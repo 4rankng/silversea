@@ -716,6 +716,47 @@
     max-width: 100%;
     min-height: var(--control-touch-h);
   }
+
+  /* SIL-583 — the 44px touch AIM rides transparent pseudo extensions: the
+     visible control keeps the 40px house ceiling, the ::after lifts the hit
+     region to 44. All-around ±2px where the control sits alone in its cell
+     (row menus, chevron, hamburger); VERTICAL-ONLY where a neighbour sits
+     beside it (tabs and pagination buttons are horizontal runs — a side
+     extension would overlap the neighbour's own hit region). The pseudo
+     captures pointers as part of its owning button. */
+  .shipment-debit-menu__trigger,
+  .dispatch-row-menu__trigger,
+  .shipment-debit-group__chevron,
+  .topbar__toggle {
+    position: relative;
+  }
+  :is(.shipment-debit-menu__trigger,
+    .dispatch-row-menu__trigger,
+    .shipment-debit-group__chevron,
+    .topbar__toggle)::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+  }
+  .ds-tabs--boxed .ds-tabs__btn,
+  .ds-pagination__btn,
+  .dpcard__note,
+  .dpcard__info,
+  .shipment-debit-copy,
+  .shipment-debit-docs__badge {
+    position: relative;
+  }
+  :is(.ds-tabs--boxed .ds-tabs__btn,
+    .ds-pagination__btn,
+    .dpcard__note,
+    .dpcard__info,
+    .shipment-debit-copy,
+    .shipment-debit-docs__badge)::after {
+    content: '';
+    position: absolute;
+    inset-block: -2px;
+    inset-inline: 0;
+  }
 }
 
 /* Tablet controls retain the same touch target as phones. */
