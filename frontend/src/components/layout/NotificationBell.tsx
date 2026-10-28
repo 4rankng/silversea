@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { usePopoverDialog } from '../../hooks/usePopoverDialog';
 import { useUnreadCount, useNotifications, useMarkAllAsRead, useMarkAsRead } from '../../hooks/useNotificationQueries';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { useAuth } from '../../hooks/useAuth';
@@ -36,6 +37,12 @@ export function NotificationBell() {
   const items = data?.items ?? [];
 
   useClickOutside(containerRef, () => setOpen(false), { escapeKey: true, enabled: open });
+  // Modal dialog semantics (SIL-561) — same primitive family as the filter
+  // and column popovers: aria-modal, focus into the panel, inert background,
+  // focus return on every close path.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelTriggerRef = useRef<HTMLButtonElement>(null);
+  usePopoverDialog(panelRef, panelTriggerRef, open);
 
   const openNotification = (notification: Notification) => {
     if (!notification.isRead) {
@@ -53,6 +60,7 @@ export function NotificationBell() {
     <div className="notif-bell" ref={containerRef}>
       <button
         type="button"
+        ref={panelTriggerRef}
         className="icon-btn notif-bell__btn"
         aria-label="Thông báo"
         aria-expanded={open}
@@ -63,7 +71,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="notif-panel" role="dialog" aria-label="Thông báo">
+        <div className="notif-panel" role="dialog" aria-label="Thông báo" ref={panelRef}>
           <div className="notif-panel__head">
             <span>Thông báo{unread > 0 ? ` (${unread})` : ''}</span>
             {unread > 0 && (

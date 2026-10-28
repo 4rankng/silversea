@@ -4,6 +4,7 @@ import { ChevronDown, Columns3 } from 'lucide-react';
 import { ColumnPickerPanel } from './ColumnPickerPanel';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { usePopoverPosition } from '../hooks/usePopoverPosition';
+import { usePopoverDialog } from '../hooks/usePopoverDialog';
 import { useFilterBarMode } from '../design-system/filter-bar-mode';
 import type { LedgerColumn } from '../lib/column-visibility';
 import './ColumnPicker.css';
@@ -68,17 +69,11 @@ export function ColumnPicker({ columns, hidden, customized, onToggle, onReset }:
   const position = usePopoverPosition(panelRef, triggerRef, isOpen, 260, 240);
   const close = () => setIsOpen(false);
   useClickOutside(panelRef, close, { escapeKey: true, enabled: isOpen, additionalRefs: [triggerRef] });
-
-  // Escape (focus inside the panel) and a press on dead space both hand the
-  // keyboard back to the trigger — the FilterDropdown contract, verbatim.
-  useEffect(() => {
-    if (!isOpen) return;
-    const trigger = triggerRef.current;
-    return () => {
-      const active = document.activeElement;
-      if (active == null || active === document.body) trigger?.focus();
-    };
-  }, [isOpen]);
+  // Modal dialog semantics (SIL-561): aria-modal + focus into the panel +
+  // inert background + focus return to the trigger on every close path —
+  // one primitive shared with FilterDropdown, the month picker and the
+  // unified date-range popover.
+  usePopoverDialog(panelRef, triggerRef, isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
