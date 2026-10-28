@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-627-drawer/frontend
+
+
+ Test Files  3 passed (3)
+      Tests  53 passed (53)
+   Start at  20:17:38
+   Duration  18.52s (transform 5.18s, setup 2.09s, import 9.86s, tests 8.83s, environment 8.15s)
+
+EXIT=0
