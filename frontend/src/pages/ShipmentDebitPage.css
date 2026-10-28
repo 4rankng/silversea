@@ -441,6 +441,22 @@
   cursor: help;
 }
 
+/* SIL-546 — the REV-group member's visible merge tag («Ghép thu cước cùng
+ * Lô 1») under the receivable figure. One line, truncating with its tooltip
+ * (the same ellipsis + tooltip doctrine every cell on this board rides —
+ * owner ruling 2026-10-25); the member row is the only one that grows. */
+.shipment-debit-money__mergetag {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--brand-2);
+  cursor: help;
+}
+
 /* ── Trạng thái + ⋯ kebab ──────────────────────────────────────────────── */
 .shipment-debit-table td.shipment-debit-cell--status {
   padding-inline: 4px;

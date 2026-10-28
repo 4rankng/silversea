@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { LCL_REV_MERGE_TAG } from '@tingting/shared';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 import {
   LedgerGroupedList,
@@ -30,6 +31,21 @@ function freightFact(row: ShipmentDebitLotRow): ReactNode {
     <span className="record-cell-stack">
       <span>{value}</span>
       <small className="shipment-debit-row__freight-note" title={row.freightOverrideReason ?? undefined}>{row.freightOverrideReason}</small>
+    </span>
+  );
+}
+
+/** SIL-546 — a REV-group member's collapsed phone amount: the 0₫ plus the
+ *  spec's visible tag «Ghép thu cước cùng Lô 1» beneath (same stack the F-2
+ *  freight fact uses). Lô 1 / ungrouped rows render the bare amount. */
+function receivableAmount(row: ShipmentDebitLotRow): ReactNode {
+  const value = money(row.receivableTotal);
+  const isMember = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1;
+  if (!isMember) return value;
+  return (
+    <span className="record-cell-stack">
+      {value}
+      <small className="shipment-debit-row__freight-note" title={row.freightOverrideReason ?? LCL_REV_MERGE_TAG}>{LCL_REV_MERGE_TAG}</small>
     </span>
   );
 }
@@ -114,7 +130,7 @@ export function ShipmentDebitRecords({ rows, canManage, mergeMode, selectedIds, 
       meta: metaSegments.length > 0
         ? metaSegments.join(LEDGER_GROUP_META_SEPARATOR)
         : null,
-      amount: money(row.receivableTotal),
+      amount: receivableAmount(row),
       chip: row.lockStatus === 'LOCKED'
         ? { label: 'Đã khóa', tone: 'neutral' as const }
         : { label: 'Đang mở', tone: 'open' as const },

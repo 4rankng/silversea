@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Check, ChevronDown, ChevronRight, Copy, Layers, MoreHorizontal, X } from 'lucide-react';
+import { LCL_REV_MERGE_TAG } from '@tingting/shared';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 import { useToast } from '../../../components/shared/Toast';
 import { DebitLotLclFacts } from './DebitLotLclFacts';
@@ -28,7 +29,15 @@ import {
 
 type MoneyVariant = 'receivable' | 'carrier' | 'domestic' | 'payable' | 'profit';
 
-function MoneyCell({ state, variant, note }: { state: ReturnType<typeof moneyState>; variant: MoneyVariant; note?: string | null }) {
+function MoneyCell({ state, variant, note, tag, tagTitle }: { state: ReturnType<typeof moneyState>; variant: MoneyVariant; note?: string | null; tag?: string | null; tagTitle?: string | null }) {
+  // SIL-546 — the REV-group member's visible merge tag («Ghép thu cước cùng
+  // Lô 1») rides the receivable figure on its own truncating line (same
+  // ellipsis + tooltip doctrine as every cell here). It replaces the icon
+  // note on member rows: the tag's own title carries the full reason, and
+  // one concept renders once per cell (design law §1).
+  const tagNode = tag
+    ? <span className="shipment-debit-money__mergetag" title={tagTitle ?? tag}>{tag}</span>
+    : null;
   const cls = `shipment-debit-money shipment-debit-money--${variant}`;
   if (state.kind === 'pending') {
     // Owner 24/10: an undetermined figure reads as an EMPTY cell — the amber
@@ -37,6 +46,7 @@ function MoneyCell({ state, variant, note }: { state: ReturnType<typeof moneySta
     return (
       <td className={cls} data-col={variant}>
         {note && <span className="shipment-debit-money__note" title={note} role="img" aria-label={`Ghi chú cước: ${note}`}><Layers size={12} aria-hidden="true" /></span>}
+        {tagNode}
       </td>
     );
   }
@@ -45,6 +55,7 @@ function MoneyCell({ state, variant, note }: { state: ReturnType<typeof moneySta
       <td className={cls} data-col={variant}>
         <span className="shipment-debit-money__zero" title={ZERO_TOOLTIP}>0</span>
         {note && <span className="shipment-debit-money__note" title={note} role="img" aria-label={`Ghi chú cước: ${note}`}><Layers size={12} aria-hidden="true" /></span>}
+        {tagNode}
       </td>
     );
   }
@@ -56,6 +67,7 @@ function MoneyCell({ state, variant, note }: { state: ReturnType<typeof moneySta
     >
       {formatKnownMoney(state.value)}
       {note && <span className="shipment-debit-money__note" title={note} role="img" aria-label={`Ghi chú cước: ${note}`}><Layers size={12} aria-hidden="true" /></span>}
+      {tagNode}
     </td>
   );
 }
@@ -443,6 +455,17 @@ function DebitLotRow({ row, canManage, mergeMode, expanded, onToggle, onSaved, o
   const laneText = row.factoryName || row.factoryAddress || '';
   const profitState = moneyState(row.profit);
   const receivableState = ratesRefreshing ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
+  // SIL-546 — a REV-group member (Lô 2..N: cước thu 0₫ vì nằm cùng Lô 1)
+  // carries the spec's visible tag on its receivable cell; Lô 1 and ungrouped
+  // rows never do. Same law the BE stamps on the dispatch summary
+  // (revGroupOrder > 1 ⇒ LCL_REV_MERGE_TAG); tách nhóm clears the group ids
+  // so the tag disappears with the group. The tag's tooltip keeps the full
+  // F-2 reason; the icon note stays for non-member rows only. During the
+  // post-tách refresh the whole cell goes silent (FB-145: the stale member
+  // state must not repaint — money pending AND tag withheld until the fresh
+  // board lands).
+  const isRevMergeMember = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1;
+  const showRevMergeTag = isRevMergeMember && !ratesRefreshing;
   return (
     <>
       <tr
@@ -479,7 +502,13 @@ function DebitLotRow({ row, canManage, mergeMode, expanded, onToggle, onSaved, o
             : <span className="shipment-debit-cell__empty">—</span>}
         </td>
         <td className="shipment-debit-cell--docs"><DocsBadge row={row} /></td>
-        <MoneyCell state={receivableState} variant="receivable" note={row.freightOverrideReason} />
+        <MoneyCell
+          state={receivableState}
+          variant="receivable"
+          note={isRevMergeMember ? null : row.freightOverrideReason}
+          tag={showRevMergeTag ? LCL_REV_MERGE_TAG : null}
+          tagTitle={row.freightOverrideReason ?? LCL_REV_MERGE_TAG}
+        />
         <MoneyCell state={moneyState(row.carrierCostTotal ?? null)} variant="carrier" />
         <MoneyCell state={moneyState(row.opsCostTotal ?? null)} variant="domestic" />
         <MoneyCell state={moneyState(row.payableTotal)} variant="payable" />
