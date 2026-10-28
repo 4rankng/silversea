@@ -161,6 +161,18 @@ describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng 
     expect(saveClassButton()).toBeDisabled();
   });
 
+  it('SIL-548 QA round 3 — a COST-grouped lot (costGroupId «Ghép») locks the same way, hint names the tách-nhóm step', () => {
+    // The shared lock law (revOutputGroupLock) — before, only revGroupId
+    // locked here and a «Ghép (2/2)» cost-group lot stayed fully editable.
+    renderStrip({ costGroupId: 'g-cost-2', costGroupOrder: 2, revVehicleClassCode: '3.5T' });
+
+    expect(classField()).toBeDisabled();
+    expect(priceField()).toBeDisabled();
+    expect(screen.getByText(/Lô đã thuộc nhóm gộp xe \(ghép cước trả ĐVVC\) — tách nhóm \(Hủy ghép\) trước khi sửa cước thu khách riêng/))
+      .toBeInTheDocument();
+    expect(saveClassButton()).toBeDisabled();
+  });
+
   it('leaves the BKS báo khách quick-edit path untouched', async () => {
     updateTruck.mockResolvedValue({ updatedShipmentIds: [9001] });
     // The class picker renders alongside the plates — the BKS path is intact.

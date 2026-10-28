@@ -23,6 +23,7 @@ import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { setLclLotRevClass, unmergeLclLot, updateLclTruck } from '../../../api/dispatchPlanningClient';
 import { ConfirmDialog } from '../../../components/UI';
 import { formatMoney } from '../../../lib/format';
+import { revOutputGroupLock } from '../../../lib/shipment-operations';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 import { vehicleClassSectionedOptions } from '../../../lib/vehicle-class-options';
 
@@ -86,7 +87,12 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   const revOutputDirty = revClassDirty || manualFreightRevenue !== '';
   // A grouped lot's class is set by the merge (spec 23/10 §4.2: the group's
   // Lô-1 law owns its members' cước thu) — change it after un-grouping.
-  const revClassLocked = row.revGroupId != null;
+  // SIL-548 (id 615, QA fail round 3): ANY merge group locks (owner law «lô
+  // đã ghép phải KHÓA editor + hướng dẫn tách nhóm trước») — ONE shared law
+  // with the Chi tiết lô hàng in-cell editor so the lock can never diverge
+  // between the two surfaces again.
+  const groupLock = revOutputGroupLock(row);
+  const revClassLocked = groupLock.locked;
 
   async function saveTruck() {
     setSavingTruck(true);
@@ -252,9 +258,7 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             placeholder="Chọn loại xe (trọng tải / cont)"
             searchable
             disabled={revClassLocked}
-            hint={revClassLocked
-              ? 'Lô đã thuộc nhóm ghép cước thu khách — tách nhóm (Hủy ghép) trước khi chọn loại xe riêng cho lô này.'
-              : 'CƯỚC VẬN TẢI (AUTO) của lô = 100% đơn giá của loại xe đã chọn.'}
+            hint={groupLock.hint}
           />
           <NumberField
             label="Giá cước thu khách (đ)"

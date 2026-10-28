@@ -18,9 +18,11 @@
 // in lcl-grouping.service.ts): live trips linked directly (trips.shipment_id)
 // OR via shipment_fulfillments, deleted/canceled excluded — a merge write is
 // therefore always found by the read.
-import { and, asc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import * as s from '../db/schema';
 import type { Executor } from '../db';
+import { activeTripConditions } from './active-trip-scope';
+import { revManualPrice } from './lcl-effective-freight';
 
 /** One lot's override-channel facts. */
 export interface RevenueOverrideFacts {
@@ -87,4 +89,112 @@ export async function loadRevenueOverrideByLot(
     facts.set(owner, entry);
   }
   return facts;
+}
+
+/** The snapshot channel as the effective-freight rule reads it: trip legs win
+ *  (additive per-trip freezes — real prices, never group artifacts);
+ *  otherwise the intake row WITH its formula note (FB-145 classification). */
+export interface FreightSnapshotChannel {
+  total: number;
+  formulaNote: string | null;
+}
+
+/**
+ * The money boards' SNAPSHOT channel, extracted from the debit summary so
+ * every reader of a lot's freight money shares ONE assembly (snapshots are
+ * INSERT-only (supersede), so a superseded freeze counts in NO total. The
+ * freight anchor semantics: per-trip freezes are the lot's additive legs
+ * (matching Bảng 2.1's per-trip rows), and the dispatch freeze supersedes
+ * the pre-dispatch intake freeze (trip-NULL whole-lot approximation) — a lot
+ * with any active trip freeze reads only its trips' latest rows, while an
+ * intake-only lot still counts once. Canceled legs never haul and drop out
+ * (active-trip scope, matching Lớp 2)).
+ */
+export async function loadFreightSnapshotChannelByLot(
+  executor: Executor,
+  lotIds: number[],
+): Promise<Map<number, FreightSnapshotChannel>> {
+  const snapshotChannelByLot = new Map<number, FreightSnapshotChannel>();
+  if (lotIds.length === 0) return snapshotChannelByLot;
+  const grainRows = await executor.select({
+    shipmentId: s.freightRateSnapshots.shipmentId,
+    tripId: s.freightRateSnapshots.tripId,
+    totalAmount: s.freightRateSnapshots.totalAmount,
+    // FB-145 (card 231026163927) — the intake row's formula note decides
+    // whether its amount is a live price or a group artifact (merge member
+    // zero / "chờ định giá lại" citation) on an UNGROUPED lot.
+    formulaText: s.freightRateSnapshots.formulaText,
+  }).from(s.freightRateSnapshots)
+    .leftJoin(s.trips, eq(s.trips.id, s.freightRateSnapshots.tripId))
+    .where(and(
+      inArray(s.freightRateSnapshots.shipmentId, lotIds),
+      or(
+        isNull(s.freightRateSnapshots.tripId),
+        and(...activeTripConditions(), isNotNull(s.trips.fulfillmentId)),
+      ),
+      sql`(${s.freightRateSnapshots.id}) = (
+        select max(latest.id) from ${s.freightRateSnapshots} latest
+        where latest.shipment_id = ${s.freightRateSnapshots.shipmentId}
+          and latest.trip_id is not distinct from ${s.freightRateSnapshots.tripId}
+      )`,
+    ));
+  const tripLegFreight = new Map<number, number>();
+  const intakeFreight = new Map<number, FreightSnapshotChannel>();
+  for (const row of grainRows) {
+    const lot = row.shipmentId;
+    if (lot == null) continue;
+    // The debit summary's own coercion, byte-for-byte: a NULL totalAmount on
+    // a freeze row counts 0 (Number(null) is finite 0), never a skipped leg.
+    const rawAmount = Number(row.totalAmount);
+    const amount = Number.isFinite(rawAmount) ? rawAmount : 0;
+    if (row.tripId != null) {
+      tripLegFreight.set(lot, (tripLegFreight.get(lot) ?? 0) + amount);
+    } else {
+      // The latest-per-grain filter leaves at most one trip-NULL row per lot.
+      intakeFreight.set(lot, { total: amount, formulaNote: row.formulaText ?? null });
+    }
+  }
+  for (const lot of lotIds) {
+    const legs = tripLegFreight.get(lot);
+    if (legs !== undefined) {
+      snapshotChannelByLot.set(lot, { total: legs, formulaNote: null });
+    } else {
+      const intake = intakeFreight.get(lot);
+      if (intake != null) snapshotChannelByLot.set(lot, intake);
+    }
+  }
+  return snapshotChannelByLot;
+}
+
+/**
+ * SIL-548 (id 615, QA fail round 3) — per-lot SAVED manual "Giá cước thu
+ * khách" (the §4.1 field-2 negotiated override), read back over BOTH money
+ * channels through `revManualPrice` (the same channel precedence the money
+ * boards print). The per-lot editor's reopen-prefill law rides this, so the
+ * editor seeds from what was SAVED — never a stale row cache, never a blank.
+ */
+export async function loadRevManualPriceByLot(
+  executor: Executor,
+  lots: Array<{ id: number; revGroupId: string | null; revGroupOrder: number | null; cargoMode: string | null }>,
+): Promise<Map<number, number | null>> {
+  const manualByLot = new Map<number, number | null>();
+  if (lots.length === 0) return manualByLot;
+  const lotIds = lots.map((lot) => lot.id);
+  const [snapshotChannelByLot, overrideByLot] = await Promise.all([
+    loadFreightSnapshotChannelByLot(executor, lotIds),
+    loadRevenueOverrideByLot(executor, lotIds),
+  ]);
+  for (const lot of lots) {
+    const override = overrideByLot.get(lot.id) ?? null;
+    manualByLot.set(lot.id, revManualPrice({
+      snapshotChannel: snapshotChannelByLot.get(lot.id) ?? null,
+      override: override == null
+        ? null
+        : { total: override.total, reason: override.reason, stamped: override.stamped },
+      revGroupId: lot.revGroupId,
+      revGroupOrder: lot.revGroupOrder,
+      cargoMode: lot.cargoMode,
+    }));
+  }
+  return manualByLot;
 }

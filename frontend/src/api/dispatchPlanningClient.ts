@@ -278,6 +278,11 @@ export async function setLclLotRevClass(input: { shipmentId: number; vehicleSize
     vehicleSizeClassId: number;
     vehicleClassCode: string;
     freightAuto: string | null;
+    /** SIL-548 (id 615) — the SAVED manual "Giá cước thu khách" (VND string),
+     *  null = auto-trace. The reopen-prefill law stores this in the ledger's
+     *  self-healing override map so a same-session reopen seeds the SAVED
+     *  price (the wire carries the reload truth in revFreightManual). */
+    freightManual: string | null;
     channel: 'TRIP' | 'SNAPSHOT' | 'NONE';
     reason: string | null;
   }>('/shipments/lcl/rev-class', input);

@@ -1,0 +1,35 @@
+SIL-548 (id 615) QA-FAIL round 3 — fix-615-prefill gates (28/10/2026)
+Env: local worktree /Users/dev/.paseo/worktrees/1njkloyy/fix-615-prefill @ <commit>, pnpm 10.33.0
+Deps: pnpm install --frozen-lockfile → OK (lockfile up to date; zod resolves 4.6.7 per lock — no dependency changes in this lane)
+
+1) cd backend && npx tsc --noEmit
+   exit 0 — 0 errors
+
+2) cd frontend && npx tsc -b
+   exit 0 — 0 errors
+
+3) cd frontend && npx vitest run src/features/shipments/detail/ShipmentContainerLedger.sil548-rev-facts.test.tsx src/features/shipments/debit/DebitLotLclFacts.test.tsx
+   exit 0 — Test Files 2 passed (2), Tests 32 passed (32)
+   (incl. 5 new pins: same-session reopen prefill, wire prefill after reload,
+    auto-trace blank + placeholder, clear-to-auto save payload, cost-group lock;
+    the sil548 fixture now parses through shipmentCusContainerFlatRowSchema — the
+    "UI thật" wire pin)
+
+4) cd frontend && npx vitest run src/features/shipments src/pages
+   exit 0 — Test Files 279 passed (279), Tests 2325 passed (2325)
+
+5) cd backend && pnpm test   (unit + registry scans; unit-only tree ruling 2026-10-19)
+   exit 0 — tests 338, pass 338, fail 0
+   (incl. new backend/src/tests/unit/sil548-rev-prefill-lock.test.ts:
+    note vocabulary, revManualPrice channel precedence, wire source pins;
+    lcl-unmerge-revert-r39 pin follows the extracted snapshot-channel assembly)
+
+Fix coverage:
+- REG-SIL548-REV-PREFILL (testplan): editor seeds from saved truth (class via
+  override-aware code + price via wire revFreightManual / save-response map).
+- REG-SIL548-GROUP-LOCK (testplan): revOutputGroupLock shared law — rev OR cost
+  group locks the editor (disabled + tách-nhóm hint) on BOTH surfaces
+  (/shipments-detail in-cell editor + /shipments-debit DebitLotLclFacts strip).
+
+Not covered: UI DRIVEN rung 3 (staging retest by QA); the debit strip's own
+price-prefill UX ("giá bị tiêu khi lưu") not rewired to revFreightManual.

@@ -10,15 +10,14 @@
 //
 // Debit-lock sync: 🔓/🔒 follows the shipment_cost_locks active lock (a lô
 // lock, NOT the kỳ kế toán lock) — LOCKED + lockedAt while one is active.
-import { and, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
 import type { ShipmentDebitSummaryItem, ShipmentDebitSummaryResponse } from '@tingting/shared';
-import { activeTripConditions } from './active-trip-scope';
+import { loadFreightSnapshotChannelByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
-import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
 
 function toNumber(value: string | number | null | undefined): number {
@@ -140,60 +139,11 @@ export async function getShipmentDebitSummary(query: {
     declarationNumbersByLot.set(declaration.shipmentId, numbers);
   }
 
-  // Auto freight: snapshots are INSERT-only (supersede), so a superseded
-  // freeze counts in NO total. The freight anchor semantics: per-trip freezes
-  // are the lot's additive legs (matching Bảng 2.1's per-trip rows), and the
-  // dispatch freeze supersedes the pre-dispatch intake freeze (trip-NULL
-  // whole-lot approximation) — a lot with any active trip freeze reads only
-  // its trips' latest rows, while an intake-only lot still counts once.
-  // Canceled legs never haul and drop out (active-trip scope, matching Lớp 2).
-  const grainRows = await db.select({
-    shipmentId: s.freightRateSnapshots.shipmentId,
-    tripId: s.freightRateSnapshots.tripId,
-    totalAmount: s.freightRateSnapshots.totalAmount,
-    // FB-145 (card 231026163927) — the intake row's formula note decides
-    // whether its amount is a live price or a group artifact (merge member
-    // zero / "chờ định giá lại" citation) on an UNGROUPED lot.
-    formulaText: s.freightRateSnapshots.formulaText,
-  }).from(s.freightRateSnapshots)
-    .leftJoin(s.trips, eq(s.trips.id, s.freightRateSnapshots.tripId))
-    .where(and(
-      inArray(s.freightRateSnapshots.shipmentId, lotIds),
-      or(
-        isNull(s.freightRateSnapshots.tripId),
-        and(...activeTripConditions(), isNotNull(s.trips.fulfillmentId)),
-      ),
-      sql`(${s.freightRateSnapshots.id}) = (
-        select max(latest.id) from ${s.freightRateSnapshots} latest
-        where latest.shipment_id = ${s.freightRateSnapshots.shipmentId}
-          and latest.trip_id is not distinct from ${s.freightRateSnapshots.tripId}
-      )`,
-    ));
-  const tripLegFreight = new Map<number, number>();
-  const intakeFreight = new Map<number, { total: number; formulaNote: string | null }>();
-  for (const row of grainRows) {
-    const lot = row.shipmentId;
-    if (lot == null) continue;
-    if (row.tripId != null) {
-      tripLegFreight.set(lot, (tripLegFreight.get(lot) ?? 0) + toNumber(row.totalAmount));
-    } else {
-      // The latest-per-grain filter leaves at most one trip-NULL row per lot.
-      intakeFreight.set(lot, { total: toNumber(row.totalAmount), formulaNote: row.formulaText ?? null });
-    }
-  }
-  /** The snapshot channel as the effective-freight rule reads it: trip legs
-   *  win (additive per-trip freezes — real prices, never group artifacts);
-   *  otherwise the intake row WITH its formula note (FB-145 classification). */
-  const snapshotChannelByLot = new Map<number, { total: number; formulaNote: string | null }>();
-  for (const lot of lotIds) {
-    const legs = tripLegFreight.get(lot);
-    if (legs !== undefined) {
-      snapshotChannelByLot.set(lot, { total: legs, formulaNote: null });
-    } else {
-      const intake = intakeFreight.get(lot);
-      if (intake != null) snapshotChannelByLot.set(lot, intake);
-    }
-  }
+  // Auto freight: the SNAPSHOT channel assembly (INSERT-only supersede
+  // semantics, per-trip additive legs vs the trip-NULL intake freeze) lives
+  // in revenue-override-read.service — ONE reader rule shared with SIL-548's
+  // manual-price prefill (`loadRevManualPriceByLot`), byte-for-byte.
+  const snapshotChannelByLot = await loadFreightSnapshotChannelByLot(db, lotIds);
 
   // F-2 (card 161026113900, owner ruling b) + FB-145 (card 231026163927):
   // CƯỚC VẬN TẢI (AUTO) follows ONE pure rule — `effectiveLclFreight`

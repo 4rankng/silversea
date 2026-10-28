@@ -34,7 +34,7 @@
 //
 // D02 stays honored: the writers keep citing 0₫ WITH its reason (a computed
 // zero is a value); this rule only governs what a BOARD prints from it.
-import { isRevGroupNote, REV_LOT_AWAITING_REPRICE_REASON } from './lcl-rev-notes';
+import { isRevGroupNote, isRevManualPriceNote, REV_LOT_AWAITING_REPRICE_REASON } from './lcl-rev-notes';
 
 export interface LclFreightChannelFacts {
   /** The snapshot channel as the boards read it: Σ active trip-leg freezes
@@ -100,4 +100,26 @@ export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLcl
     value: facts.override?.total ?? facts.snapshotChannel?.total ?? null,
     reason: facts.override?.reason ?? memberNote,
   };
+}
+
+/**
+ * SIL-548 (id 615, QA fail round 3) — the lot's SAVED manual "Giá cước thu
+ * khách" (spec §4.1 field 2: "nhập tay = giá thỏa thuận thắng giá tra bảng"),
+ * classified from the SAME channels `effectiveLclFreight` reads (never a
+ * parallel one): the winning channel's writer note decides — a typed
+ * negotiated price (`isRevManualPriceNote`) reads back as the number CUS
+ * saved so the per-lot editor can prefill it on reopen; anything else (auto
+ * trace, group artifact, nothing saved) reads null = the editor's blank
+ * "Bỏ trống = tự tra" state. Channel precedence mirrors the money board
+ * byte-for-byte: the override channel wins for a qualified lot (rev-grouped
+ * or stamped), the snapshot channel otherwise.
+ */
+export function revManualPrice(facts: LclFreightChannelFacts): number | null {
+  const qualified = facts.revGroupId != null || (facts.override?.stamped ?? false);
+  const winner = qualified && facts.override?.total != null
+    ? { value: facts.override.total, note: facts.override.reason }
+    : facts.snapshotChannel == null
+      ? null
+      : { value: facts.snapshotChannel.total, note: facts.snapshotChannel.formulaNote };
+  return winner != null && isRevManualPriceNote(winner.note) ? winner.value : null;
 }

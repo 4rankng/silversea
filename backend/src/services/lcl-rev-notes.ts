@@ -37,3 +37,32 @@ export const REV_LOT_OWN_CUOC_REASON = 'Tách nhóm — cước thu theo đơn g
  *  citation means UNSET: the lot shows "Chưa xác định" until CUS re-picks its
  *  per-lot outputs (FB-145 acceptance). */
 export const REV_LOT_AWAITING_REPRICE_REASON = 'Tách khỏi nhóm ghép — chờ định giá lại';
+
+// ─── SIL-548 (id 615, QA fail round 3) — the MANUAL price vocabulary ────────
+// Spec §4.1 field 2: "Giá cước thu khách — nhập tay = giá thỏa thuận thắng
+// giá tra bảng". The negotiated override is never a column: the writer stamps
+// it onto the same money channel the boards print (live trip ⇒
+// trip_financial_state.revenue override stamp; trip-less ⇒ the shipment-level
+// freight snapshot), so REOPENING the per-lot editor can only prefill the
+// saved price by classifying that note. One vocabulary, both writers
+// (per-lot editor save + the merge's Lô-1 manual), one reader rule.
+
+/** The per-lot editor's manual stamp (`setLclLotRevClass` with
+ *  `freightRevenue` — "giá nhập tay (thỏa thuận với khách)"). */
+export const REV_LOT_MANUAL_PRICE_REASON = 'Chọn giá cước thu khách — giá nhập tay (thỏa thuận với khách)';
+
+/** The merge writer's Lô-1 manual note (§4.2 field 3), kept beside its
+ *  matcher so write and read can never drift. */
+const REV_GROUP_MANUAL_PRICE_NOTE_PREFIX = 'Ghép cước thu khách — Lô 1 giữ 100% cước thu nhóm (giá nhập tay';
+
+export function revGroupManualPriceNote(vehicleClassCode: string): string {
+  return `${REV_GROUP_MANUAL_PRICE_NOTE_PREFIX}, ${vehicleClassCode})`;
+}
+
+/** True when the money behind this note is CUS's typed negotiated price —
+ *  never an auto trace (whose note reads "Chọn loại xe tính cước thu khách…")
+ *  and never a group artifact (the prefixes above). */
+export function isRevManualPriceNote(note: string | null): boolean {
+  return note != null && (note === REV_LOT_MANUAL_PRICE_REASON
+    || note.startsWith(REV_GROUP_MANUAL_PRICE_NOTE_PREFIX));
+}
