@@ -1,0 +1,16 @@
+login → /dashboard
+  PASS @1024 detail visible-sort-pairs 0 — []
+  PASS @1024 detail no ghost clipped buttons — ghosts=0
+  PASS @1024 detail thead display:none in card band
+  PASS @768 detail visible-sort-pairs 0 — []
+  PASS @768 detail no ghost clipped buttons — ghosts=0
+  PASS @390 detail visible-sort-pairs 0 — []
+  PASS @390 detail no ghost clipped buttons — ghosts=0
+  PASS @1024 shipments visible-sort-pairs 0 — []
+  PASS @1024 shipments no ghost clipped buttons — ghosts=0
+  PASS @1024 shipments click sorts its own column — {"label":"Khách hàng & nhà máy","ariaSort":"ascending"}
+  PASS @768 shipments visible-sort-pairs 0 — []
+  PASS @768 shipments no ghost clipped buttons — ghosts=0
+  PASS @390 shipments visible-sort-pairs 0 — []
+  PASS @390 shipments no ghost clipped buttons — ghosts=0
+  PASS @1280 detail desktop header live — visible=7 pairs=0

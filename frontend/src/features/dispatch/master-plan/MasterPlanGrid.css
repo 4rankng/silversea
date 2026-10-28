@@ -370,6 +370,23 @@
      needs-attention warning — amber, not danger red (red = error/blocked). */
   color: var(--warning-text);
   font-weight: var(--fw-semibold);
+  /* SIL-581: a warning's MEANING must be readable — the 101px schedule slot
+     at 768 ellipsised it to "Cảnh báo: Còn…". The line wraps inside its cell
+     instead (§4 no-truncation doctrine; 390's card view already showed the
+     full text). */
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: normal;
+}
+
+/* SIL-581: the one-line-per-value row budget (77px clamp) must not re-clip
+   what the wrap just made readable — a warning row lifts the clamp the same
+   way the transient notes editor does. Only lots carrying the warning pay
+   the taller row. */
+.master-plan-grid__cell-body:has(> .master-plan-grid__line--warning) {
+  max-height: none;
+  overflow: visible;
 }
 
 .master-plan-grid__line--notes {

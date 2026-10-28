@@ -1,0 +1,25 @@
+login → /dispatch
+step viewport 768
+step goto 768
+step zero-scroll 768
+step probe 768
+@768: triggers=50 pagBtns=6
+  PASS @768 no trigger×pagination intersection — null
+  PASS @768 last row trigger clickable — {"hitSelf":true,"tag":"circle.[object SVGAnimatedString]"}
+  PASS @768 pagination button clickable — {"hitSelf":true,"tag":"svg.[object SVGAnimatedString]"}
+step viewport 390
+step goto 390
+step zero-scroll 390
+step probe 390
+@390: triggers=32 pagBtns=3
+  PASS @390 no trigger×pagination intersection — null
+  PASS @390 last row trigger clickable — {"hitSelf":true,"tag":"circle.[object SVGAnimatedString]"}
+  PASS @390 pagination button clickable — {"hitSelf":true,"tag":"svg.[object SVGAnimatedString]"}
+step viewport 1280
+step goto 1280
+step zero-scroll 1280
+step probe 1280
+@1280: triggers=50 pagBtns=6
+  PASS @1280 no trigger×pagination intersection — null
+  PASS @1280 last row trigger clickable — {"hitSelf":true,"tag":"circle.[object SVGAnimatedString]"}
+  PASS @1280 pagination button clickable — {"hitSelf":true,"tag":"svg.[object SVGAnimatedString]"}

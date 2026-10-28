@@ -1,0 +1,17 @@
+login → /dashboard
+@390: {"wrapScrollW":372,"wrapClientW":372,"tableDisplay":"block","theadDisplay":"none","rowCount":43,"factsPerRow":6,"beforeLabels":["\"Khách hàng\"","\"Mã số thuế\"","\"Địa chỉ\""],"rowH":282,"bodyScrollX":false}
+  PASS @390 no whole-table horizontal scroll — scrollW=372 clientW=372
+  PASS @390 card mode (table block, thead hidden) — table=block thead=none
+  PASS @390 rows keep all labelled facts — rows=43 facts=6
+  PASS @390 labels ride the cells (::before) — ["\"Khách hàng\"","\"Mã số thuế\"","\"Địa chỉ\""]
+  PASS @390 no page-level horizontal overflow
+@768: {"wrapScrollW":986,"wrapClientW":742,"tableDisplay":"table","theadDisplay":"table-header-group","rowCount":43,"factsPerRow":6,"beforeLabels":["none","none","none"],"rowH":69,"bodyScrollX":false}
+  PASS @768 tabular frame kept — table=table thead=table-header-group
+@1280: {"wrapScrollW":1193,"wrapClientW":1190,"tableDisplay":"table","theadDisplay":"table-header-group","rowCount":43,"factsPerRow":6,"beforeLabels":["none","none","none"],"rowH":69,"bodyScrollX":false}
+  PASS @1280 tabular frame kept — table=table thead=table-header-group
+ports @390: {"isConfig":true,"display":"block","thead":"none","wrapScrollW":372,"wrapClientW":372,"rows":1}
+  PASS @390 ports card mode (block, no thead) — {"isConfig":true,"display":"block","thead":"none","wrapScrollW":372,"wrapClientW":372,"rows":1}
+  PASS @390 ports no horizontal scroll — sw=372 cw=372
+ports @768: {"isConfig":true,"display":"table","thead":"table-header-group","wrapScrollW":742,"wrapClientW":742,"rows":1}
+  PASS @768 ports tabular frame kept — {"isConfig":true,"display":"table","thead":"table-header-group","wrapScrollW":742,"wrapClientW":742,"rows":1}
+TOTAL 10/10 PASS

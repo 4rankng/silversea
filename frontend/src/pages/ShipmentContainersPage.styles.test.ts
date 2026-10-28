@@ -464,4 +464,16 @@ describe('shipment detail mobile viewport fill + bottom sheet (card 20261009_3)'
     // Stacks under the sheet but above every app surface.
     expect(backdrop).toMatch(/z-index:\s*calc\(var\(--z-popover,\s*400\) - 1\);/);
   });
+
+  it('SIL-578 retires the duplicated card-mode header instead of clipping it', () => {
+    // The ≤1000px card band must remove the thead outright — the sr-only
+    // clip kept its sort buttons alive as invisible, tabbable, clickable
+    // controls stacked at one origin. /shipments' card band already answers
+    // this with display:none (.cus-dashboard-table thead).
+    const band = css.match(/@container shipments-detail \(max-width: 1000px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(band, 'card band exists').not.toBe('');
+    expect(band).toMatch(/\.shipment-container-ledger thead\s*\{\s*display:\s*none;\s*\}/);
+    expect(band).not.toMatch(/thead[^{}]*clip:\s*rect\(0/);
+    expect(band).not.toMatch(/thead[^{}]*clip-path:\s*inset\(50%\)/);
+  });
 });

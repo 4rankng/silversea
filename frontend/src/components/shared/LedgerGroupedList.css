@@ -53,9 +53,14 @@
     font-size: var(--text-section-size);
     line-height: 20px;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* SIL-582: the customer name is the row's identity — a 240px track
+       ellipsised it mid-name ("…Vận Tải Hồng") with no title/href path to
+       the full value. The name wraps to its second line instead (§4
+       no-truncation doctrine; the row tap opens the detail). */
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: normal;
   }
   .ledger-glist__meta {
     min-width: 0;

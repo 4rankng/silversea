@@ -83,4 +83,17 @@ describe('MasterPlanGrid content-sized row contract (owner redesign 23/10; super
     // lines wrap full (SIL-515; pins live with the mpcard suite).
     expect(css).toMatch(/\.mpcard-list\s*\{/);
   });
+
+  it('SIL-581 the warning line wraps and its cell lifts the clamp — a warning never ellipsises', () => {
+    // The 101px schedule slot at 768 ellipsised "Cảnh báo: Còn 1/1 cont chưa
+    // chốt ngày đóng trả" to "Cảnh báo: Còn…". A warning's meaning must be
+    // readable (§4 no-truncation doctrine on a status line), so the line
+    // wraps and the 77px body clamp lifts for warning cells — the same
+    // escape the transient notes editor already takes.
+    const warn = css.match(/\.master-plan-grid__line--warning\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(warn, 'warning rule exists').not.toBe('');
+    expect(warn).toMatch(/white-space:\s*normal;/);
+    expect(warn).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(css).toMatch(/\.master-plan-grid__cell-body:has\(> \.master-plan-grid__line--warning\)\s*\{[^}]*max-height:\s*none;[^}]*overflow:\s*visible;/);
+  });
 });
