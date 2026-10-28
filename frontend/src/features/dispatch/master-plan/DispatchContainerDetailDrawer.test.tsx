@@ -258,6 +258,28 @@ describe('DispatchContainerDetailDrawer — SỐ TỜ KHAI column (SIL-530, per-
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
   });
 
+  // SIL-631 (owner 28/10, GLOBAL) — the editor floats OUTSIDE the cell through
+  // a body portal: the drawer's `.dispatch-container-detail__table-scroll`
+  // (overflow-x: auto) can never clip the typed value again (the ticket's
+  // "row 2 container-number editor shows only part of MSKU5500004").
+  it('SIL-631 pin — the editor renders OUTSIDE the overflow table-scroll (body portal), never clipped by the column', async () => {
+    authRole = 'DISPATCHER';
+    getCusShipmentWorkspaceDetail.mockResolvedValue(backfillDetail());
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    const cell = await screen.findByRole('button', { name: 'Sửa số tờ khai · MSKU1234567' });
+    fireEvent.click(cell);
+    const input = screen.getByLabelText('Số tờ khai');
+    const scroller = document.querySelector('.dispatch-container-detail__table-scroll');
+    expect(scroller).toBeTruthy();
+    expect(scroller!.contains(input)).toBe(false);
+    expect(scroller!.contains(input.closest('[data-cell-editor-portal]') as Node)).toBe(false);
+    expect(input.closest('[data-cell-editor-portal]')?.parentElement).toBe(document.body);
+    // The cell keeps its (dimmed) value while editing — the row context
+    // survives the edit (no-overlap doctrine: the popover never covers it).
+    expect(document.querySelector('.dispatch-container-detail__decl-value.is-editing')).toBeTruthy();
+  });
+
   it('SIL-553 — Điều vận Enter saves the per-cont declaration number through the container-line command', async () => {
     authRole = 'DISPATCHER';
     getCusShipmentWorkspaceDetail.mockResolvedValue(backfillDetail());

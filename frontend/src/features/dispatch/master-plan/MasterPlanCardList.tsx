@@ -7,6 +7,7 @@ import { billBookingReference } from '../../../lib/business-reference';
 import { formatDateTimeShort } from '../../../lib/format';
 import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
+import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
 import { LclSelectCheckbox } from '../LclSelectCheckbox';
 import {
   aggregateContainerPortGroupLines,
@@ -214,6 +215,10 @@ export function MasterPlanCardList({
   selectedLclShipmentIds,
   onToggleLclSelection,
 }: MasterPlanCardListProps) {
+  // SIL-631: the editing card's stable anchor for the floating editor host —
+  // one card edits at a time (notes.editingNotesId), so one shared ref serves
+  // every card's host (same law as the table surface).
+  const notesAnchorRef = useRef<HTMLDivElement | null>(null);
   return (
     <ul className="mpcard-list" role="list">
       {items.map((item) => {
@@ -390,7 +395,13 @@ export function MasterPlanCardList({
                 </div>
               )}
               {notes.editingNotesId === item.id ? (
-                <div className="master-plan-grid__notes-editor">
+                // SIL-631 (owner 28/10, GLOBAL): same floating editor as the
+                // table surface — the notes editor floats OUTSIDE the card
+                // through a body portal; the card keeps its (dimmed) preview.
+                <div className="master-plan-grid__notes-editing" ref={notesAnchorRef}>
+                  <span className="mpcard__note is-editing">{notePreview?.text ?? 'Ghi chú'}</span>
+                  <FloatingCellEditor anchorRef={notesAnchorRef} label="Phiên sửa ghi chú điều phối" minWidth={360}>
+                    <div className="master-plan-grid__notes-editor">
                   <textarea
                     ref={notes.notesInputRef}
                     className="master-plan-grid__notes-input"
@@ -437,6 +448,8 @@ export function MasterPlanCardList({
                       </button>
                     </DisabledActionTip>
                   </div>
+                    </div>
+                  </FloatingCellEditor>
                 </div>
               ) : (
                 notePreview && (

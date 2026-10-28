@@ -61,15 +61,13 @@ describe('MasterPlanGrid content-sized row contract (owner redesign 23/10; super
     expect(css).toMatch(/\.master-plan-grid__container-detail-trigger,\s*\n\.master-plan-grid__note-detail-trigger \{[\s\S]*?flex:\s*0 0 auto/);
   });
 
-  it('lifts the row clamp while the inline notes editor is mounted (review H1)', () => {
-    // A FAILED save renders the error line under the textarea; the 77px
-    // clamp would hide the Lưu/Hủy row exactly when the user must retry or
-    // cancel. The editor is a transient overlay — its cell leaves the
-    // reading-row budget.
-    const override = css.match(/\.master-plan-grid__cell-body:has\(> \.master-plan-grid__notes-editor\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(override, 'the :has(notes-editor) clamp override must exist').toBeTruthy();
-    expect(override).toMatch(/max-height:\s*none/);
-    expect(override).toMatch(/overflow:\s*visible/);
+  it('keeps the reading-row clamp while editing — the editor is a body-portal overlay (SIL-631)', () => {
+    // Review H1's clamp lift existed because the inline editor's error row
+    // and Lưu/Hủy buttons lived INSIDE the 77px-clamped cell. SIL-631 (28/10)
+    // moved the editor to a body portal, so the cell holds only a single
+    // dimmed line while editing — the clamp lift is gone with its rationale.
+    expect(css).not.toContain('master-plan-grid__notes-editing) {');
+    expect(css).not.toMatch(/:has\(>\s*\.master-plan-grid__notes-(?:editor|editing)\)/);
   });
 
   it('gives the phone surface to the card list below the 640px container width', () => {

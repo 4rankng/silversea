@@ -1827,6 +1827,12 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   min-height: 36px;
 }
 
+/* SIL-631: the line keeps its value (dimmed) while the ghost editor floats
+ * outside the row through a body portal — the row context survives the edit. */
+.cus-lot-line__value.is-editing {
+  opacity: 0.45;
+}
+
 .cus-lot-line__input {
   flex: 0 1 auto;
   width: var(--cus-lot-input, 14ch);

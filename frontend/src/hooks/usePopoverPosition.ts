@@ -38,6 +38,11 @@ export function usePopoverPosition(
   isOpen: boolean,
   fallbackWidth = 275,
   fallbackHeight = 280,
+  /** Horizontal edge alignment to the trigger: `end` (default) right-aligns
+   *  the panel to the trigger's right edge (dropdowns); `start` flushes the
+   *  panel's left edge to the trigger's left edge (SIL-631 floating cell
+   *  editors — align-top doctrine: edges align to the anchor). */
+  align: 'start' | 'end' = 'end',
 ): PopoverPosition | null {
   const [coords, setCoords] = useState<PopoverPosition | null>(null);
 
@@ -51,13 +56,17 @@ export function usePopoverPosition(
 
   useLayoutEffect(() => {
     if (!isOpen) return;
-    const trigger = triggerRef?.current;
-    if (!trigger) {
-      setCoords(null);
-      return;
-    }
 
     const updatePosition = () => {
+      const trigger = triggerRef?.current;
+      // No trigger yet: the anchor may mount in the SAME commit as the panel,
+      // and React attaches host refs AFTER the subtree's layout effects — so
+      // the first pass can see a null ref. Stay hidden; the rAF passes below
+      // re-read the ref once it lands (the "self-healing after mount" law).
+      if (!trigger) {
+        setCoords((prev) => (prev === null ? prev : null));
+        return;
+      }
       const triggerRect = trigger.getBoundingClientRect();
       // Not measured yet (display:none host, not laid out, closed drawer):
       // stay hidden instead of parking the panel in the padding corner.
@@ -100,7 +109,7 @@ export function usePopoverPosition(
       }
       top = Math.max(viewportTop + padding, Math.min(top, viewportTop + vh - padding - popoverHeight));
 
-      let left = triggerRect.right - popoverWidth;
+      let left = align === 'start' ? triggerRect.left : triggerRect.right - popoverWidth;
       left = Math.max(viewportLeft + padding, Math.min(left, viewportLeft + vw - padding - popoverWidth));
 
       const top_ = Math.round(top);
@@ -125,12 +134,21 @@ export function usePopoverPosition(
       popoverObserver.observe(popoverEl);
     };
 
+    // A bar re-wrap moves the trigger without a window resize. The trigger may
+    // also attach its ref late (same-commit mount) — observe it from whichever
+    // pass first sees it.
+    let triggerObserver: ResizeObserver | null = null;
+    const observeTrigger = () => {
+      if (triggerObserver || typeof ResizeObserver === 'undefined') return;
+      const trigger = triggerRef?.current;
+      if (!trigger) return; // Attached later than this effect — the rAF pass retries.
+      triggerObserver = new ResizeObserver(updatePosition);
+      triggerObserver.observe(trigger);
+    };
+
     updatePosition();
     observePopover();
-
-    // A bar re-wrap moves the trigger without a window resize.
-    const triggerObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePosition);
-    triggerObserver?.observe(trigger);
+    observeTrigger();
 
     // Two passes: the panel/parent may settle in the same frame (wrapping,
     // fonts, a portal host) — the second pass re-measures once it has.
@@ -138,9 +156,11 @@ export function usePopoverPosition(
     const frame1 = requestAnimationFrame(() => {
       updatePosition();
       observePopover();
+      observeTrigger();
       frame2 = requestAnimationFrame(() => {
         updatePosition();
         observePopover();
+        observeTrigger();
       });
     });
 
@@ -156,7 +176,7 @@ export function usePopoverPosition(
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [isOpen, triggerRef, popoverRef, fallbackWidth, fallbackHeight]);
+  }, [isOpen, triggerRef, popoverRef, fallbackWidth, fallbackHeight, align]);
 
   return coords;
 }

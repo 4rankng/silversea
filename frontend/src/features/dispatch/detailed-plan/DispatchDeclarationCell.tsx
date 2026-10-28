@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
 import { Role } from '@tingting/shared';
 import { useToastOptional } from '../../../components/shared/Toast';
+import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
 
@@ -49,6 +50,8 @@ export function DispatchDeclarationCell({ row, onSaved }: {
   const [draft, setDraft] = useState(baseline);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // SIL-631: the editing cell's stable anchor for the floating editor host.
+  const anchorRef = useRef<HTMLDivElement>(null);
   const baselineRef = useRef(baseline);
   baselineRef.current = baseline;
 
@@ -136,36 +139,49 @@ export function DispatchDeclarationCell({ row, onSaved }: {
   }
 
   if (editing) {
+    // SIL-631 (owner 28/10, GLOBAL): the editor floats OUTSIDE the grid cell
+    // through a body portal — the grid's horizontal rail can no longer clip
+    // the typed value. The cell keeps its (dimmed) value while editing.
     return (
-      <div className="detailed-plan-grid__cell-body detailed-plan-grid__decl-editor">
-        <input
-          ref={inputRef}
-          className="detailed-plan-grid__decl-input"
-          value={draft}
-          maxLength={50}
-          disabled={saving}
-          aria-label="Số tờ khai"
-          placeholder="Nhập số tờ khai"
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              commit();
-            } else if (event.key === 'Escape') {
-              event.preventDefault();
-              revert();
-            }
-          }}
-          onBlur={revert}
-        />
-        <span className="detailed-plan-grid__decl-hint">Enter lưu · Esc thoát</span>
+      <div className="detailed-plan-grid__cell-body" ref={anchorRef}>
+        <div
+          className={baseline ? 'detailed-plan-grid__line detailed-plan-grid__decl-value is-editing' : 'detailed-plan-grid__line detailed-plan-grid__line--missing is-editing'}
+          title={baseline || undefined}
+        >
+          {baseline || 'Chưa có tờ khai'}
+        </div>
+        <FloatingCellEditor anchorRef={anchorRef} label="Sửa số tờ khai">
+          <div className="detailed-plan-grid__cell-body detailed-plan-grid__decl-editor">
+            <input
+              ref={inputRef}
+              className="detailed-plan-grid__decl-input"
+              value={draft}
+              maxLength={50}
+              disabled={saving}
+              aria-label="Số tờ khai"
+              placeholder="Nhập số tờ khai"
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  commit();
+                } else if (event.key === 'Escape') {
+                  event.preventDefault();
+                  revert();
+                }
+              }}
+              onBlur={revert}
+            />
+            <span className="detailed-plan-grid__decl-hint">Enter lưu · Esc thoát</span>
+          </div>
+        </FloatingCellEditor>
       </div>
     );
   }
 
   if (!canEdit) {
     return (
-      <div className="detailed-plan-grid__cell-body">
+      <div className="detailed-plan-grid__cell-body" ref={anchorRef}>
         <div
           className={baseline ? 'detailed-plan-grid__line detailed-plan-grid__decl-value' : 'detailed-plan-grid__line detailed-plan-grid__line--missing'}
           title={baseline || undefined}
@@ -177,7 +193,7 @@ export function DispatchDeclarationCell({ row, onSaved }: {
   }
 
   return (
-    <div className="detailed-plan-grid__cell-body">
+    <div className="detailed-plan-grid__cell-body" ref={anchorRef}>
       <button
         type="button"
         className={`detailed-plan-grid__decl-value--action${baseline ? '' : ' is-empty'}`}

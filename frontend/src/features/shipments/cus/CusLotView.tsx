@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown, CopyPlus, Loader2 } from 'lucide-react';
 import { UuiSelectField } from '../../../design-system';
+import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
 import {
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -293,6 +294,8 @@ function InlineTextLine({
   const [draft, setDraft] = useState(persistedDraft);
   const [busy, setBusy] = useState(false);
   const inputId = useId();
+  // SIL-631: the editing line's stable anchor for the floating editor host.
+  const anchorRef = useRef<HTMLDivElement>(null);
   // The drawer reloads the detail after every save; reseed the draft so the
   // next open never reads as an unsaved edit (same law as DeclarationCell).
   useEffect(() => { if (!open) setDraft(persistedDraft); }, [persistedDraft, open]);
@@ -319,7 +322,7 @@ function InlineTextLine({
 
   if (!editable) {
     return (
-      <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
+      <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`} ref={anchorRef}>
         <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
         <span className={`cus-lot-line__value${mono ? ' cus-lot-line__value--mono' : ''}`}>{display || emptyText}</span>
       </div>
@@ -327,7 +330,7 @@ function InlineTextLine({
   }
   if (!open) {
     return (
-      <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`}>
+      <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`} ref={anchorRef}>
         <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
         <button
           type="button"
@@ -343,44 +346,55 @@ function InlineTextLine({
       </div>
     );
   }
+  // SIL-631 (owner 28/10, GLOBAL): the ghost editor floats OUTSIDE the row
+  // through a body portal — the 240px SỐ CONTAINER cell (SIL-552 design
+  // lock) can no longer clip a long value. The line keeps its (dimmed) value
+  // while editing; the editor keeps its SIL-552 internal geometry (label and
+  // control on one row, unit beside the number) inside the panel.
   return (
-    <div
-      className={`cus-lot-line cus-lot-line--editor${laneClassName ? ` ${laneClassName}` : ''}`}
-      onBlur={(event) => {
-        // Outside blur dismisses (revert) unless the click landed on this
-        // editor's own commit control; never while a commit is in flight.
-        if (!event.currentTarget.contains(event.relatedTarget as Node)) close();
-      }}
-    >
+    <div className={`cus-lot-line${laneClassName ? ` ${laneClassName}` : ''}`} ref={anchorRef}>
       <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
-      <input
-        id={inputId}
-        className={`cus-lot-line__input${mono ? ' cus-lot-line__value--mono' : ''}`}
-        type={numeric ? 'number' : 'text'}
-        inputMode={numeric ? 'decimal' : 'text'}
-        min={numeric ? '0' : undefined}
-        step={numeric ? '0.01' : undefined}
-        autoComplete="off"
-        aria-label={ariaLabel}
-        value={draft}
-        readOnly={busy}
-        autoFocus
-        onChange={(event) => setDraft(numeric ? event.target.value.replace(/[^0-9.]/g, '') : event.target.value)}
-        onKeyDown={(event) => {
-          if (event.nativeEvent.isComposing) return;
-          if (event.key === 'Escape') { event.preventDefault(); close(); }
-          if (event.key === 'Enter') { event.preventDefault(); void commit(); }
-        }}
-      />
-      {unit ? <span className="cus-lot-line__unit" aria-hidden="true">{unit}</span> : null}
-      <button
-        type="button"
-        className="cus-lot-line__save"
-        disabled={busy || draft.trim() === persistedDraft}
-        onClick={() => void commit()}
-      >
-        {busy ? 'Đang lưu…' : 'Lưu'}
-      </button>
+      <span className={`cus-lot-line__value is-editing${mono ? ' cus-lot-line__value--mono' : ''}`}>{display || placeholder}</span>
+      <FloatingCellEditor anchorRef={anchorRef} label={`Chỉnh sửa ${ariaLabel}`}>
+        <div
+          className={`cus-lot-line cus-lot-line--editor${laneClassName ? ` ${laneClassName}` : ''}`}
+          onBlur={(event) => {
+            // Outside blur dismisses (revert) unless the click landed on this
+            // editor's own commit control; never while a commit is in flight.
+            if (!event.currentTarget.contains(event.relatedTarget as Node)) close();
+          }}
+        >
+          <span className="cus-lot-line__label" aria-hidden="true">{label}</span>
+          <input
+            id={inputId}
+            className={`cus-lot-line__input${mono ? ' cus-lot-line__value--mono' : ''}`}
+            type={numeric ? 'number' : 'text'}
+            inputMode={numeric ? 'decimal' : 'text'}
+            min={numeric ? '0' : undefined}
+            step={numeric ? '0.01' : undefined}
+            autoComplete="off"
+            aria-label={ariaLabel}
+            value={draft}
+            readOnly={busy}
+            autoFocus
+            onChange={(event) => setDraft(numeric ? event.target.value.replace(/[^0-9.]/g, '') : event.target.value)}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing) return;
+              if (event.key === 'Escape') { event.preventDefault(); close(); }
+              if (event.key === 'Enter') { event.preventDefault(); void commit(); }
+            }}
+          />
+          {unit ? <span className="cus-lot-line__unit" aria-hidden="true">{unit}</span> : null}
+          <button
+            type="button"
+            className="cus-lot-line__save"
+            disabled={busy || draft.trim() === persistedDraft}
+            onClick={() => void commit()}
+          >
+            {busy ? 'Đang lưu…' : 'Lưu'}
+          </button>
+        </div>
+      </FloatingCellEditor>
     </div>
   );
 }

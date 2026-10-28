@@ -1,0 +1,48 @@
+/* SIL-631 — the floating cell editor host. Rendered through a body portal at
+ * fixed coordinates (set inline by usePopoverPosition); this file owns only
+ * the panel chrome and the no-truncate width floor. Consumer editors keep
+ * their own classes for inputs/hints inside the panel. */
+
+.floating-cell-editor {
+  position: fixed;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  /* Tall editors (short viewports) scroll INSIDE the card chrome instead of
+   * spilling past its border — the hook's maxHeight ceiling is the scroll
+   * window. */
+  overflow: auto;
+  /* no-truncate: a ≤50-char value (the editors cap at maxLength 50/100) shows
+   * whole — the panel is at least 52ch of the value font plus its padding,
+   * unless the consumer raises the floor (--fce-min-w, e.g. the 420px ledger
+   * card). min() keeps the floor inside the viewport on narrow screens. */
+  width: fit-content;
+  min-width: min(max(var(--fce-min-w, 0px), calc(var(--fce-value-ch, 52ch) + 24px)), calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  padding: 10px 12px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow:
+    0 12px 28px -4px rgba(15, 23, 42, 0.16),
+    0 4px 10px -2px rgba(15, 23, 42, 0.08);
+}
+
+.floating-cell-editor input {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Positioning-only variant for editor cards that carry their own chrome
+ * (the ledger's `.shipment-container-ledger__inline-editor` card): the host
+ * keeps the no-truncate width floor and the fixed coordinates, the card owns
+ * the border/padding/shadow. */
+.floating-cell-editor--bare {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  gap: 0;
+}

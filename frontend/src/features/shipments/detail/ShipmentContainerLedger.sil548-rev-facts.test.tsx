@@ -325,7 +325,11 @@ describe('SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô 
 
     const combo = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' }) as HTMLInputElement;
     expect(combo.placeholder).toBe('Chọn hoặc nhập BKS');
-    expect(within(vehicleCell as HTMLElement).getByText(/không đặt = Debit Note in BKS thực/)).toBeTruthy();
+    // SIL-631: the editor card floats out of the cell (body portal) — the
+    // fallback hint is scoped to that card (not the cell), beside the combobox.
+    const editorCard = combo.closest('.shipment-container-ledger__inline-editor') as HTMLElement;
+    expect(editorCard).toBeTruthy();
+    expect(within(editorCard).getByText(/không đặt = Debit Note in BKS thực/)).toBeTruthy();
 
     fireEvent.change(combo, { target: { value: '15C-999.99' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS báo khách' }));
