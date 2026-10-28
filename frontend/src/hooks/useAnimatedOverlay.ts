@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createScope } from 'animejs';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { registerOverlay, unregisterOverlay } from '../lib/overlayState';
+import { restoreFocusTo } from '../lib/focusRestore';
 
 type AnimScope = ReturnType<typeof createScope>;
 type OverlayToken = number;
@@ -59,6 +60,11 @@ export interface UseAnimatedOverlayOptions {
   onClose: () => void;
   entrance: EntranceFn;
   exit: ExitFn;
+  /** Explicit opener captured at interaction time — wins over the
+   *  document.activeElement fallback for non-focusable openers (rows/cells)
+   *  and browsers that don't focus buttons on click (SIL-576 capture-order
+   *  class). */
+  openerRef?: { current: HTMLElement | null };
 }
 
 /**
@@ -78,6 +84,7 @@ export function useAnimatedOverlay({
   onClose,
   entrance,
   exit,
+  openerRef,
 }: UseAnimatedOverlayOptions): {
   visible: boolean;
   handleClose: () => void;
@@ -107,9 +114,8 @@ export function useAnimatedOverlay({
         cancelAnimationFrame(restoreRafRef.current);
         restoreRafRef.current = null;
       }
-      restoreFocusRef.current = document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
+      restoreFocusRef.current = openerRef?.current
+        ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
       setVisible(true);
       setWasOpen(true);
       isClosingRef.current = false;
@@ -127,7 +133,7 @@ export function useAnimatedOverlay({
       if (restoreTarget?.isConnected) {
         restoreRafRef.current = requestAnimationFrame(() => {
           restoreRafRef.current = null;
-          restoreTarget.focus();
+          restoreFocusTo(restoreTarget);
         });
       }
 

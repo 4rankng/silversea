@@ -15,7 +15,7 @@ interface PenaltyScoreboardCardsProps {
   rows: PenaltyScoreboardCardRow[];
   avgStreak: number;
   driversOver90: number;
-  onOpenDrawer: (driverId: number) => void;
+  onOpenDrawer: (driverId: number, opener?: HTMLElement | null) => void;
 }
 
 /**
@@ -31,7 +31,7 @@ export function PenaltyScoreboardCards({ rows, avgStreak, driversOver90, onOpenD
           const gc = getGradeClass(d.grade);
           const vClass = d.violations === 0 ? 'zero' : d.violations <= 2 ? 'warn' : 'danger';
           return (
-            <div key={d.driverId} className="penalty-m-card" onClick={() => onOpenDrawer(d.driverId)}>
+            <div key={d.driverId} className="penalty-m-card" onClick={(event) => onOpenDrawer(d.driverId, event.currentTarget)}>
               <div className="penalty-m-card__top">
                 <div className="left">
                   <div className="penalty-driver-avatar">

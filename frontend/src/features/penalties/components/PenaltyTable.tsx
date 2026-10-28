@@ -157,7 +157,7 @@ export function PenaltyTable({
           <Btn variant="secondary" icon={<Download size={14} />} onClick={handleExport}>
             Xuất báo cáo (trang hiện tại)
           </Btn>
-          <Btn variant="primary" icon={<Plus size={14} />} onClick={() => onOpenDrawer()}>
+          <Btn variant="primary" icon={<Plus size={14} />} onClick={(event) => onOpenDrawer(undefined, event.currentTarget)}>
             Lập biên bản
           </Btn>
           </>
@@ -286,7 +286,7 @@ export function PenaltyTable({
               </div>
               <div className="penalty-empty-actions">
                 <Btn variant="secondary" icon={<ShieldCheck size={13} />} onClick={() => navigate('/config/penalty-reasons')}>Xem nội quy</Btn>
-                <Btn variant="primary" icon={<Plus size={13} />} onClick={() => onOpenDrawer()}>Lập biên bản</Btn>
+                <Btn variant="primary" icon={<Plus size={13} />} onClick={(event) => onOpenDrawer(undefined, event.currentTarget)}>Lập biên bản</Btn>
               </div>
             </div>
           ) : (
@@ -443,7 +443,7 @@ export function PenaltyTable({
                   const gc = getGradeClass(d.grade);
                   const showGrade = d.grade !== 'A+';
                   return (
-                    <tr key={d.driverId} onClick={() => onOpenDrawer(d.driverId)} className="penalty-scoreboard-row">
+                    <tr key={d.driverId} onClick={(event) => onOpenDrawer(d.driverId, event.currentTarget)} className="penalty-scoreboard-row">
                       <td data-label="" className="penalty-scoreboard-col-center">
                         <span className={`penalty-rank ${rankClass}`}>{idx + 1}</span>
                       </td>

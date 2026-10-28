@@ -17,6 +17,9 @@ import { billBookingReference } from '../../../lib/business-reference';
 interface PenaltyFormDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  /** SIL-576: opener captured at interaction time — the Drawer restores focus
+   *  to it on close. */
+  openerRef?: { current: HTMLElement | null };
   drivers: Driver[];
   reasons: PenaltyReason[];
   onSubmit: (body: CreatePenaltyRequest) => Promise<unknown>;
@@ -26,6 +29,7 @@ interface PenaltyFormDrawerProps {
 export function PenaltyFormDrawer({
   isOpen,
   onClose,
+  openerRef,
   drivers,
   reasons,
   onSubmit,
@@ -119,6 +123,7 @@ export function PenaltyFormDrawer({
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
+      openerRef={openerRef}
       title="Lập biên bản kỷ luật"
       subtitle="Tạo mới biên bản vi phạm nghiệp vụ"
       onConfirm={handleSubmit}

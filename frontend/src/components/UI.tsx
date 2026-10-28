@@ -347,6 +347,9 @@ export function FormGroup({ label, htmlFor, helpText, error, children, style }: 
 interface DrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  /** SIL-576: opener captured at interaction time; the overlay hook falls back
+   *  to document.activeElement when omitted. */
+  openerRef?: { current: HTMLElement | null };
   title: string;
   subtitle?: string;
   children: React.ReactNode;
@@ -369,7 +372,7 @@ interface DrawerProps {
   titleChips?: React.ReactNode;
 }
 
-export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onConfirm, className = '', headerGraphic, expandable = false, headerAction, titleChips }: DrawerProps) {
+export function Drawer({ isOpen, onClose, openerRef, title, subtitle, children, footer, onConfirm, className = '', headerGraphic, expandable = false, headerAction, titleChips }: DrawerProps) {
   const titleId = useId();
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -398,6 +401,7 @@ export function Drawer({ isOpen, onClose, title, subtitle, children, footer, onC
     contentRef: asideRef,
     isOpen,
     onClose,
+    openerRef,
     entrance: (overlay, aside, prefersReduced) => {
       stopDrawerAnimations();
       // Per-open-cycle expand state: every open starts as the slide-in panel.

@@ -1,0 +1,11 @@
+$ pnpm exec vitest run src/hooks/useAnimatedOverlay.focus-return.test.tsx src/design-system/Modal.test.tsx src/features/penalties
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-a11y/frontend
+
+
+ Test Files  5 passed (5)
+      Tests  39 passed (39)
+   Start at  00:10:50
+   Duration  4.77s (transform 2.19s, setup 1.53s, import 8.74s, tests 3.70s, environment 4.52s)
+
+exit: 0
