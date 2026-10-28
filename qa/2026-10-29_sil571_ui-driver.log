@@ -1,0 +1,17 @@
+@1920: {"intersections":0,"headerLines":[1,1,1,1,1,1],"btnHeightsMax":24,"viewportOverflowX":"clip","hScrollNeeded":false}
+@1440: {"intersections":0,"headerLines":[1,1,1,1,1,1],"btnHeightsMax":24,"viewportOverflowX":"clip","hScrollNeeded":false}
+@1366: {"intersections":0,"headerLines":[1,1,1,1,1,1],"btnHeightsMax":24,"viewportOverflowX":"clip","hScrollNeeded":false}
+@1280: {"intersections":0,"headerLines":[1,1,1,1,1,1],"btnHeightsMax":24,"viewportOverflowX":"clip","hScrollNeeded":false,"pin":{"thTopBefore":226,"thTopAfterScroll":226,"pinned":true}}
+@1024: {"intersections":0,"headerLines":[1,1,1,1,1,1],"btnHeightsMax":24,"viewportOverflowX":"auto","hScrollNeeded":true,"pin":{"thTopBefore":228,"thTopAfterScroll":228,"pinned":true}}
+screenshot qa/2026-10-29_sil571_ui-shipments-1280.png
+screenshot qa/2026-10-29_sil571_ui-shipments-390.png
+PASS — @1920 no intersections
+PASS — @1440 no intersections
+PASS — @1366 no intersections
+PASS — @1280 no intersections
+PASS — @1024 no intersections
+PASS — @1280 viewport is NOT a scroll container (pin law intact)
+PASS — @1280 sticky thead pins across page scroll
+PASS — @1024 floored table scrolls horizontally (2026-09-29 law)
+PASS — sort buttons stay one line (≤34px tall incl. 24px hit floor)
+ALL CHECKS PASSED
