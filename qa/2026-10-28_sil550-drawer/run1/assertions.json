@@ -1,0 +1,213 @@
+{
+  "run": "run1",
+  "role": "dungnv (DISPATCHER)",
+  "lot": "SHP-2610-00157",
+  "container": "MSKU1234565",
+  "newNum": "MSKU6234568",
+  "addNum": "MSKU7234562",
+  "viewport": "1280x900 + 390x844",
+  "checks": [
+    {
+      "name": "Gap 2: DISPATCHER sees the Số cont click-to-edit affordance",
+      "pass": true,
+      "detail": "Sửa số container · MSKU1234565"
+    },
+    {
+      "name": "Gap 2: the click opens a text editor (the bug: nothing opened)",
+      "pass": true,
+      "detail": "input[aria-label=\"Số container\"] present"
+    },
+    {
+      "name": "Gap 2: post-click DOM — the row shows the saved number",
+      "pass": true,
+      "detail": {
+        "rowText": "1#1MSKU623456840DCTK-R42RV-001Chờ phân xe——Cảng nâng của container MSKU6234568Cảng MipecCảng hạ của container MSKU6234568Cảng Đình Vũ08:00 27/10/2026",
+        "hasNumber": true,
+        "inputStill": false,
+        "toast": "Đã lưu số container."
+      }
+    },
+    {
+      "name": "Gap 2: success toast surfaced",
+      "pass": true,
+      "detail": "Đã lưu số container."
+    },
+    {
+      "name": "Gap 2: restore — row back to the pre-drive number",
+      "pass": true,
+      "detail": "MSKU1234565"
+    },
+    {
+      "name": "Gap 3: DISPATCHER sees the Giờ hẹn click-to-edit affordance",
+      "pass": true,
+      "detail": "Sửa giờ hẹn đóng/trả · MSKU1234565"
+    },
+    {
+      "name": "Gap 3: the click opens a date+time editor (the bug: nothing opened)",
+      "pass": true,
+      "detail": "input[type=date] + input[type=time] present"
+    },
+    {
+      "name": "Gap 3: post-click DOM — the cell shows the saved schedule",
+      "pass": true,
+      "detail": {
+        "cellText": "09:30 30/10/2026",
+        "hasDisplay": true,
+        "inputStill": false,
+        "toast": "Đã lưu số container.Đã lưu giờ hẹn đóng/trả."
+      }
+    },
+    {
+      "name": "Gap 3: success toast surfaced",
+      "pass": true,
+      "detail": "Đã lưu số container.Đã lưu giờ hẹn đóng/trả."
+    },
+    {
+      "name": "Gap 3: restore — cell back to the pre-drive schedule",
+      "pass": true,
+      "detail": "08:00 27/10/2026"
+    },
+    {
+      "name": "Gap 1: DISPATCHER sees the \"Thêm container\" control",
+      "pass": true,
+      "detail": "Thêm container"
+    },
+    {
+      "name": "Gap 1: the control opens the add form (the bug: control missing)",
+      "pass": true,
+      "detail": "add form input present"
+    },
+    {
+      "name": "Gap 1: post-click DOM — the added row paints in the table",
+      "pass": true,
+      "detail": {
+        "rowCount": 3,
+        "newRow": true,
+        "formClosed": true,
+        "toast": "Đã lưu giờ hẹn đóng/trả.Đã thêm container vào lô."
+      }
+    },
+    {
+      "name": "Gap 1: success toast surfaced",
+      "pass": true,
+      "detail": "Đã lưu giờ hẹn đóng/trả.Đã thêm container vào lô."
+    },
+    {
+      "name": "cleanup: inherited tờ khai cleared off the added row",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "line": {
+            "id": 403,
+            "ordinal": 3,
+            "operationalSiteId": 5,
+            "containerNumber": "MSKU7234562",
+            "declarationNumber": null,
+            "containerTypeId": 3,
+            "containerTypeLabel": "40DC",
+            "routeId": 6,
+            "routeName": "KCN QUẾ VÕ, BẮC NINH",
+            "dispatchStatus": "AWAITING_VEHICLE",
+            "tripId": null,
+            "tripStatus": null,
+            "carrierType": null,
+            "externalCarrierId": null,
+            "externalCarrierVehicleId": null,
+            "carrierName": null,
+            "plateNumber": null,
+            "liftSiteId": 19,
+            "liftSite": "Cảng Mipec",
+            "dropoffSiteId": 2,
+            "dropoffSite": "Cảng Đình Vũ",
+            "customerAppointmentAt": "2026-10-27T01:00:00.000Z",
+            "raw": {
+              "containerNumber": "MSKU7234562",
+              "containerTypeId": 3,
+              "cargoWeightKg": null,
+              "cargoVolumeCbm": null,
+              "routeId": 6
+            },
+            "fieldAccess": {
+              "operationalSiteId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "containerNumber": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "containerTypeId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "cargoWeightKg": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "cargoVolumeCbm": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "routeId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "carrierType": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "externalCarrierId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "externalCarrierVehicleId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "plateNumber": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              },
+              "liftSiteId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể bổ sung cảng nâng/hạ sau khi điều xe."
+              },
+              "dropoffSiteId": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể bổ sung cảng nâng/hạ sau khi điều xe."
+              },
+              "customerAppointmentAt": {
+                "mode": "DIRECT",
+                "reason": "Bạn có thể cập nhật trực tiếp trước khi điều xe."
+              }
+            },
+            "permissions": {
+              "carrierEditable": true,
+              "plateEditable": true,
+              "containerTypeEditable": true,
+              "liftSiteEditable": true,
+              "dropoffSiteEditable": true,
+              "customerAppointmentEditable": true,
+              "routeEditable": true
+            },
+            "shipmentVersion": 19,
+            "relatedTripVersion": null
+          }
+        }
+      }
+    },
+    {
+      "name": "cleanup: added row removed (DB ends pre-drive clean)",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "body": {
+          "removedId": 403,
+          "shipmentVersion": 20
+        }
+      }
+    }
+  ],
+  "pass": true
+}

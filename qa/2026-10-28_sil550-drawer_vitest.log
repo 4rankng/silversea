@@ -1,0 +1,11 @@
+== scoped vitest 2026-10-28T18:44:53+08:00 — SIL-550 drawer + styles + master-plan + DispatchDeclarationCell ==
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-623-624/frontend
+
+
+ Test Files  28 passed (28)
+      Tests  289 passed (289)
+   Start at  18:44:54
+   Duration  28.05s (transform 4.60s, setup 9.51s, import 49.49s, tests 31.82s, environment 40.44s)
+
+EXIT: 0

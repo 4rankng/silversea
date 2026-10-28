@@ -1,0 +1,32 @@
+2026-10-28T10:24:02.221Z login ok user=dungnv (DISPATCHER — the ticket repro role)
+2026-10-28T10:24:09.933Z gap2 affordance: null
+2026-10-28T10:26:30.648Z login ok user=dungnv (DISPATCHER — the ticket repro role)
+2026-10-28T10:26:37.864Z gap2 affordance: Sửa số container · MSKU1234565
+2026-10-28T10:26:38.211Z gap2 editor opened (THE click under test)
+2026-10-28T10:27:00.663Z gap2 saved: "1#1Enter lưu · Esc thoát40DCTK-R42RV-001Chờ phân xe——Cảng nâng của container MSKU1234565Cảng MipecCảng hạ của container MSKU1234565Cảng Đình Vũ08:00 27/10/2026" toast="null"
+2026-10-28T10:41:44.327Z generated numbers: NEW_NUM=MSKU6234568 ADD_NUM=MSKU7234562 (ISO 6346 check digits computed per shared/src/calculations/iso6346.ts)
+2026-10-28T10:41:51.208Z login ok user=dungnv (DISPATCHER — the ticket repro role)
+2026-10-28T10:41:58.324Z gap2 affordance: Sửa số container · MSKU1234565
+2026-10-28T10:41:58.775Z gap2 editor opened (THE click under test)
+2026-10-28T10:42:01.331Z gap2 saved: "1#1MSKU623456840DCTK-R42RV-001Chờ phân xe——Cảng nâng của container MSKU6234568Cảng MipecCảng hạ của container MSKU6234568Cảng Đình Vũ08:00 27/10/2026" toast="Đã lưu số container."
+2026-10-28T10:42:02.408Z gap2 restored: MSKU1234565
+2026-10-28T10:42:02.687Z gap3 editor opened (THE click under test)
+2026-10-28T10:42:05.395Z gap3 saved: "09:30 30/10/2026" toast="Đã lưu số container.Đã lưu giờ hẹn đóng/trả."
+2026-10-28T10:42:06.527Z gap3 restored: 08:00 27/10/2026
+2026-10-28T10:42:06.746Z gap1 add form opened (THE control under test)
+2026-10-28T10:42:09.007Z gap1 saved: rows=3 toast="Đã lưu giờ hẹn đóng/trả.Đã thêm container vào lô."
+2026-10-28T10:42:09.461Z cleanup removed container id=402 (MSKU7234562): status=400
+2026-10-28T10:42:09.461Z EXIT 2 — checks: PASS:Gap 2: DISPATCHER sees the Số cont click-to-edit affordance | PASS:Gap 2: the click opens a text editor (the bug: nothing opened) | PASS:Gap 2: post-click DOM — the row shows the saved number | PASS:Gap 2: success toast surfaced | PASS:Gap 2: restore — row back to the pre-drive number | PASS:Gap 3: DISPATCHER sees the Giờ hẹn click-to-edit affordance | PASS:Gap 3: the click opens a date+time editor (the bug: nothing opened) | PASS:Gap 3: post-click DOM — the cell shows the saved schedule | PASS:Gap 3: success toast surfaced | PASS:Gap 3: restore — cell back to the pre-drive schedule | PASS:Gap 1: DISPATCHER sees the "Thêm container" control | PASS:Gap 1: the control opens the add form (the bug: control missing) | PASS:Gap 1: post-click DOM — the added row paints in the table | PASS:Gap 1: success toast surfaced | FAIL:cleanup: added row removed (DB ends pre-drive clean)
+2026-10-28T10:43:52.105Z generated numbers: NEW_NUM=MSKU6234568 ADD_NUM=MSKU7234562 (ISO 6346 check digits computed per shared/src/calculations/iso6346.ts)
+2026-10-28T10:43:58.382Z login ok user=dungnv (DISPATCHER — the ticket repro role)
+2026-10-28T10:44:03.569Z gap2 affordance: Sửa số container · MSKU1234565
+2026-10-28T10:44:03.851Z gap2 editor opened (THE click under test)
+2026-10-28T10:44:06.371Z gap2 saved: "1#1MSKU623456840DCTK-R42RV-001Chờ phân xe——Cảng nâng của container MSKU6234568Cảng MipecCảng hạ của container MSKU6234568Cảng Đình Vũ08:00 27/10/2026" toast="Đã lưu số container."
+2026-10-28T10:44:07.331Z gap2 restored: MSKU1234565
+2026-10-28T10:44:07.533Z gap3 editor opened (THE click under test)
+2026-10-28T10:44:10.173Z gap3 saved: "09:30 30/10/2026" toast="Đã lưu số container.Đã lưu giờ hẹn đóng/trả."
+2026-10-28T10:44:11.160Z gap3 restored: 08:00 27/10/2026
+2026-10-28T10:44:11.417Z gap1 add form opened (THE control under test)
+2026-10-28T10:44:13.560Z gap1 saved: rows=3 toast="Đã lưu giờ hẹn đóng/trả.Đã thêm container vào lô."
+2026-10-28T10:44:13.909Z cleanup removed container id=403 (MSKU7234562): status=200
+2026-10-28T10:44:13.910Z EXIT 0 — checks: PASS:Gap 2: DISPATCHER sees the Số cont click-to-edit affordance | PASS:Gap 2: the click opens a text editor (the bug: nothing opened) | PASS:Gap 2: post-click DOM — the row shows the saved number | PASS:Gap 2: success toast surfaced | PASS:Gap 2: restore — row back to the pre-drive number | PASS:Gap 3: DISPATCHER sees the Giờ hẹn click-to-edit affordance | PASS:Gap 3: the click opens a date+time editor (the bug: nothing opened) | PASS:Gap 3: post-click DOM — the cell shows the saved schedule | PASS:Gap 3: success toast surfaced | PASS:Gap 3: restore — cell back to the pre-drive schedule | PASS:Gap 1: DISPATCHER sees the "Thêm container" control | PASS:Gap 1: the control opens the add form (the bug: control missing) | PASS:Gap 1: post-click DOM — the added row paints in the table | PASS:Gap 1: success toast surfaced | PASS:cleanup: inherited tờ khai cleared off the added row | PASS:cleanup: added row removed (DB ends pre-drive clean)
