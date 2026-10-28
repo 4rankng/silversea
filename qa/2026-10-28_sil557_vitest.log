@@ -1,0 +1,11 @@
+$ pnpm exec vitest run src/viewport-zoom.test.ts
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-a11y/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  23:28:04
+   Duration  3.07s (transform 49ms, setup 495ms, import 19ms, tests 138ms, environment 2.07s)
+
+exit: 0
