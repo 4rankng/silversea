@@ -267,7 +267,7 @@
 }
 
 .csc-debit-warn-cell--armed svg {
-  color: var(--warning);
+  color: var(--warning-text);
   margin-right: 4px;
   vertical-align: -2px;
 }

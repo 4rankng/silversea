@@ -463,7 +463,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--warning);
+  color: var(--warning-text);
   margin-bottom: 10px;
 }
 .driver-earnings-page .vehicle-alerts-strip__title {
@@ -550,7 +550,7 @@
 }
 .driver-earnings-page .vehicle-alerts-strip__item--due .vehicle-alerts-strip__days {
   background: var(--warning-soft);
-  color: var(--warning);
+  color: var(--warning-text);
 }
 @media (max-width: 480px) {
   .driver-earnings-page .vehicle-alerts-strip__item {

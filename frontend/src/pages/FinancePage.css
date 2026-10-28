@@ -346,7 +346,7 @@
   white-space: nowrap;
 }
 .cost-check--ok { color: var(--success); background: var(--success-soft); }
-.cost-check--warning { color: var(--warning); background: var(--warning-soft); }
+.cost-check--warning { color: var(--warning-text); background: var(--warning-soft); }
 .truck-maintenance-note {
   position: relative;
   margin-top: 10px;
@@ -523,14 +523,7 @@
   --wf-ink-2: #56655C;
   --wf-ink-3: var(--ink-3);
   --wf-green: var(--brand);
-  --wf-green-700: #0A6E3A;
   --wf-green-500: #16A34A;
-  --wf-green-soft: #E7F2EC;
-  --wf-blue: var(--info-text);
-  --wf-blue-soft: var(--info-soft);
-  --wf-amber: #C2780B;
-  --wf-amber-soft: #FBF1DE;
-  --wf-red: #C7372F;
   --wf-shadow: none;
   --wf-shadow-hover: none;
   --wf-radius: 14px;

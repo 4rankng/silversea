@@ -18,14 +18,14 @@
 .admin-health-workspace__card-head strong { min-width: 0; overflow-wrap: anywhere; color: var(--ink); font-size: var(--text-data-size); }
 .admin-health-workspace__card-head span { flex: 0 0 auto; border-radius: 0; background: transparent; padding: 0; color: var(--success); font-size: var(--text-caption-size); font-weight: var(--fw-bold); }
 .admin-health-workspace .is-failed .admin-health-workspace__card-head span { background: transparent; color: var(--danger); }
-.admin-health-workspace .is-unavailable .admin-health-workspace__card-head span { background: transparent; color: var(--warning); }
+.admin-health-workspace .is-unavailable .admin-health-workspace__card-head span { background: transparent; color: var(--warning-text); }
 .admin-health-workspace article p { min-height: 36px; margin: 6px 0 9px; color: var(--ink-2); font-size: var(--text-body-size); }
 .admin-health-workspace article footer { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px; padding-top: 4px; }
 .admin-health-workspace article small { min-width: 0; color: var(--ink-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }
 .admin-health-workspace article a,
 .admin-health-workspace__state button { display: inline-flex; min-height: 34px; flex: 0 0 auto; align-items: center; justify-content: center; border: 1px solid var(--accent); border-radius: 8px; padding: 0 9px; color: var(--accent-2); font-size: var(--text-caption-size); font-weight: var(--fw-bold); text-decoration: none; }
 .admin-health-workspace__state { display: flex; flex-wrap: wrap; min-height: 92px; align-items: center; justify-content: center; gap: 8px; padding: 18px; color: var(--ink-2); }
-.admin-health-workspace__state.is-unavailable { color: var(--warning); }
+.admin-health-workspace__state.is-unavailable { color: var(--warning-text); }
 .admin-health-workspace > header > div { min-width: 0; overflow-wrap: anywhere; }
 .admin-health-workspace :is(button, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 

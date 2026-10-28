@@ -469,7 +469,7 @@ export default function DebtListPage() {
                                   <Clock size={12} aria-hidden="true" style={{ marginRight: 5, verticalAlign: '-1px' }} />
                                   Quá hạn
                                 </span>
-                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning)' }}>
+                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: d.maxOverdueDays > 60 ? 'var(--danger)' : 'var(--warning-text)' }}>
                                   {d.maxOverdueDays} ngày
                                 </span>
                               </div>

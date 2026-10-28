@@ -71,4 +71,12 @@ describe('short-name chips are title-cased on every face (SIL-169 re-dispatch â‘
     expect(shortNameChipLabel('LM2')).toBe('LM2');
     expect(shortNameChipLabel(null)).toBe('');
   });
+
+  it('SIL-566: does not use --text-subtle for 11-12px text in CustomersPage.css', () => {
+    expect(css).not.toContain('color: var(--text-subtle)');
+    expect(css).toMatch(/\.cus-metric__sub\s*\{[^}]*color:\s*var\(--ink-3\)/);
+    expect(css).toMatch(/\.cus-code-sub\s*\{[^}]*color:\s*var\(--ink-3\)/);
+    expect(css).toMatch(/\.cus-contact-sub\s*\{[^}]*color:\s*var\(--ink-3\)/);
+    expect(css).toMatch(/\.cus-m-card__contact-sub\s*\{[^}]*color:\s*var\(--ink-3\)/);
+  });
 });

@@ -36,4 +36,36 @@ describe('semantic status token contrast contract', () => {
     expect(base).toBeTruthy();
     expect(contrastOnWhite(base!)).toBeGreaterThanOrEqual(4.5);
   });
+
+  it('SIL-567: ensures --ink-2 clears 4.5:1 floor on --surface-3 chips and components use --ink-2', () => {
+    const ink2 = css.match(/--ink-2:\s*(#[0-9A-Fa-f]{6})/)?.[1] ?? '';
+    const surface3 = css.match(/--surface-3:\s*(#[0-9A-Fa-f]{6})/)?.[1] ?? '';
+    expect(ink2).toBeTruthy();
+    expect(surface3).toBeTruthy();
+
+    const lumInk2 = relativeLuminance(hexToRgb(ink2));
+    const lumSurface3 = relativeLuminance(hexToRgb(surface3));
+    const ratio = (lumSurface3 + 0.05) / (lumInk2 + 0.05);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+
+    const tripTableCss = readFileSync(resolve(process.cwd(), 'src/pages/trip-list/table.css'), 'utf8');
+    expect(tripTableCss).toMatch(/\.trip-list-page\s+\.plate\.idle\s*\{[^}]*color:\s*var\(--ink-2\)/);
+
+    const expenseTableCss = readFileSync(resolve(process.cwd(), 'src/pages/ExpenseListRecordTable.css'), 'utf8');
+    expect(expenseTableCss).toMatch(/\.expense-record-table__entry-badge\s*\{[^}]*color:\s*var\(--ink-2\)/);
+
+    const debtCss = readFileSync(resolve(process.cwd(), 'src/pages/DebtListPage.css'), 'utf8');
+    expect(debtCss).toMatch(/\.debt-band__chip\s*\{[^}]*color:\s*var\(--ink-2\)/);
+
+    const fleetCss = readFileSync(resolve(process.cwd(), 'src/pages/FleetPage.css'), 'utf8');
+    expect(fleetCss).toMatch(/\.fleet-page\s+\.fleet-type-chip\.unknown\s*\{[^}]*color:\s*var\(--ink-2\)/);
+
+    const penaltyCss = readFileSync(resolve(process.cwd(), 'src/pages/penalty/violation-log.css'), 'utf8');
+    expect(penaltyCss).toMatch(/\.penalty-quiet-chip\s*\{[^}]*color:\s*var\(--ink-2\)/);
+    expect(penaltyCss).toMatch(/\.penalty-rank\s*\{[^}]*color:\s*var\(--ink-2\)/);
+    expect(penaltyCss).toMatch(/\.penalty-chip\s+\.count\s*\{[^}]*color:\s*var\(--ink-2\)/);
+
+    const auditCss = readFileSync(resolve(process.cwd(), 'src/pages/AuditLogPage.css'), 'utf8');
+    expect(auditCss).toMatch(/\.audit-method--GET\s*\{[^}]*color:\s*var\(--ink-2\)/);
+  });
 });

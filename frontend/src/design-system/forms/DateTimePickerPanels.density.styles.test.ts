@@ -76,4 +76,13 @@ describe('combined date-time popup density (owner report 11/10)', () => {
     expect(rule('.dtp-time__exact > input')).toMatch(/background:\s*var\(--surface-2\);/);
     expect(css).not.toMatch(/background:\s*(?:#fff|white|rgb\(\s*255)/i);
   });
+
+  it('SIL-565: selected states use --brand fill for WCAG AA contrast (8.4:1 with white)', () => {
+    expect(rule('.dtp-time__option[data-selected]')).toMatch(/background:\s*var\(--brand\);/);
+    expect(rule('.dtp-time__option[data-selected]')).toMatch(/color:\s*var\(--white,\s*#fff\);/);
+    expect(rule('.dtp-pill.is-active')).toMatch(/background:\s*var\(--brand\);/);
+    expect(rule('.dtp-pill.is-active')).toMatch(/color:\s*var\(--white,\s*#fff\);/);
+    expect(rule('.dtp-time__exact > button')).toMatch(/background:\s*var\(--brand\);/);
+    expect(rule('.dtp-time__exact > button')).toMatch(/color:\s*var\(--white,\s*#fff\);/);
+  });
 });

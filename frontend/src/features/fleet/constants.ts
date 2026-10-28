@@ -29,7 +29,7 @@ export const fleetStyles = {
   dotSuccess: { width: 6, height: 6, borderRadius: '50%', background: 'var(--success)' },
   dotWarning: { width: 6, height: 6, borderRadius: '50%', background: 'var(--warning)' },
   textSuccess: { color: 'var(--success)', fontWeight: 600 },
-  textWarning: { color: 'var(--warning)', fontWeight: 600 },
+  textWarning: { color: 'var(--warning-text)', fontWeight: 600 },
   textMuted: { opacity: 0.4 },
   fontMono: { fontFamily: 'var(--font-data)' },
 } as const;

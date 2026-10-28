@@ -107,7 +107,7 @@
 }
 
 .fleet-page .fleet-kpi-meta__warn {
-  color: var(--warning);
+  color: var(--warning-text);
   font-weight: 600;
 }
 
@@ -271,8 +271,8 @@
 }
 
 .fleet-page .fleet-type-chip.unknown {
-  background: var(--bg-3);
-  color: var(--fg-3);
+  background: var(--surface-3);
+  color: var(--ink-2);
 }
 .fleet-page .fleet-type-chip.ft20 {
   background: linear-gradient(180deg, var(--accent-soft), var(--fleet-green-end));
@@ -1151,7 +1151,7 @@
 }
 .truck-alert-badge--due {
   background: var(--warning-soft);
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 .truck-alert-field {

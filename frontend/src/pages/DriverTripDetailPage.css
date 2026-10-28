@@ -191,7 +191,7 @@
      thing on the screen. */
   font-size: var(--text-caption-size);
   font-weight: var(--fw-medium);
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 .driver-task-complete-sticky__btn {
@@ -264,7 +264,7 @@
 }
 
 .driver-task-progress__item--open {
-  color: var(--warning);
+  color: var(--warning-text);
   font-weight: 600;
 }
 

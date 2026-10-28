@@ -137,7 +137,7 @@ export function AllowanceSection() {
               <div style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: "var(--fg-3)", marginTop: 4 }}>
                 Tự tính: {computedRoadAllowanceHint.toLocaleString("vi-VN")} đ
                 {roadAllowanceOverride && Number(roadAllowanceOverride) !== computedRoadAllowanceHint && (
-                  <span style={{ color: "var(--warning)", marginLeft: 8 }}>
+                  <span style={{ color: "var(--warning-text)", marginLeft: 8 }}>
                     Đã điều chỉnh
                   </span>
                 )}
@@ -209,7 +209,7 @@ export function AllowanceSection() {
               <div className="as-helper">
                 Giá gợi ý từ bảng giá: {Number(suggestedPrice).toLocaleString("vi-VN")} đ{Number(containerCount) > 1 ? ` × ${containerCount} cont = ${(suggestedPrice * Number(containerCount)).toLocaleString("vi-VN")} đ` : ''}
                 {revenueEmptyReturn && Number(revenueEmptyReturn) !== suggestedPrice * Number(containerCount) && (
-                  <span style={{ color: "var(--warning)", marginLeft: 8 }}>
+                  <span style={{ color: "var(--warning-text)", marginLeft: 8 }}>
                     Giá đã điều chỉnh
                   </span>
                 )}

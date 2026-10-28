@@ -92,7 +92,7 @@
   line-height: 1.2;
 }
 .cus-metric__value[data-tone='overdue'] { color: var(--overdue-text); }
-.cus-metric__sub { font-size: 11px; color: var(--text-subtle); line-height: 1.2; }
+.cus-metric__sub { font-size: 11px; color: var(--ink-3); line-height: 1.2; }
 
 /* Mobile (verdict d): the metric line drops under the H1 as one horizontal
    scroll row — each metric keeps a floor so labels never wrap mid-word. */
@@ -244,7 +244,7 @@
   margin-top: 1px;
   font-family: var(--font-data);
   font-size: 11px;
-  color: var(--text-subtle);
+  color: var(--ink-3);
 }
 
 /* Card 20261004_336 (law book §4 no-truncation doctrine, card 20260922_37):
@@ -270,7 +270,7 @@
 
 /* Contact column: main line + muted accountant line. */
 .cus-contact-main { font-size: 13px; font-weight: 500; color: var(--ink); }
-.cus-contact-sub { font-size: 12px; color: var(--text-subtle); }
+.cus-contact-sub { font-size: 12px; color: var(--ink-3); }
 
 /* Payment-term column: number + muted unit, no "days" English leak. */
 .cus-term-cell { font-size: 13px; font-weight: 500; }
@@ -368,7 +368,7 @@
   text-overflow: ellipsis;
 }
 .cus-m-card__contact { display: grid; gap: 1px; min-width: 0; }
-.cus-m-card__contact-sub { font-size: 12px; color: var(--text-subtle); }
+.cus-m-card__contact-sub { font-size: 12px; color: var(--ink-3); }
 .cus-m-card__foot {
   display: flex;
   align-items: baseline;
@@ -424,7 +424,7 @@
   background: color-mix(in srgb, var(--warning) 8%, transparent);
   font-size: var(--text-caption-size, 12px);
   font-weight: 600;
-  color: var(--warning);
+  color: var(--warning-text);
   cursor: default;
   flex: 0 0 auto;
 }

@@ -59,8 +59,8 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 6px;
-  background: var(--accent);
-  color: var(--fg-on-brand);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   font-family: var(--font-data);
   font-size: var(--text-caption-size);
   font-weight: 700;
