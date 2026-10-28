@@ -7,7 +7,7 @@ import { Alert } from '../../components/shared/Alert';
 import { StatusText } from '../../components/shared/StatusText';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import {
-  type QuotationFeeInput,
+  type QuotationFeeData,
   type QuotationView,
 } from '@tingting/shared';
 import { useQuotation, useQuotations, useUpdateQuotation } from '../../hooks/useQuotationQueries';
@@ -184,7 +184,10 @@ export default function QuotationConfigPage() {
   // Every save path sends the FULL schema-clean payload: the update is
   // replace-all on both cells and fees, and the .strict() schema rejects the
   // view-only `id` field — with fees present, an id-carrying payload 400s.
-  function schemaCleanFees(fees: QuotationView['fees']): QuotationFeeInput[] {
+  // Rows come from the server view, so they are already parsed (output)
+  // values; the wire-input annotation is unusable under zod v4 (coerced
+  // fields read `unknown` there) and the view never carries raw strings.
+  function schemaCleanFees(fees: QuotationView['fees']): QuotationFeeData[] {
     return fees.map(({ id: _droppedViewId, ...rest }) => rest);
   }
 
@@ -203,7 +206,7 @@ export default function QuotationConfigPage() {
     });
   }
 
-  function saveFees(fees: QuotationFeeInput[]) {
+  function saveFees(fees: QuotationFeeData[]) {
     update.mutate({
       id: selectedId!,
       body: {

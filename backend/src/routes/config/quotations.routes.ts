@@ -71,7 +71,7 @@ router.get('/:id/versions/:version', asyncHandler(async (req: Request, res: Resp
 const activeFeesQuerySchema = z.object({ customerId: z.coerce.number().int().positive() });
 router.get('/fees/active', asyncHandler(async (req: Request, res: Response) => {
   const parsed = activeFeesQuerySchema.safeParse(req.query);
-  if (!parsed.success) throw new ApiError(400, parsed.error.errors[0]?.message ?? 'customerId không hợp lệ');
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues[0]?.message ?? 'customerId không hợp lệ');
   res.json({ items: await listActiveQuotationFeesForCustomer(parsed.data.customerId) });
 }));
 
@@ -103,7 +103,7 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 
 router.post('/', declareMaterialWrite('quotations.create', { method: 'POST', path: '/api/quotations/' }),  requireRoles(...WRITE_ROLES), asyncHandler(async (req: Request, res: Response) => {
   const parsed = quotationCreateSchema.safeParse(req.body ?? {});
-  if (!parsed.success) throw new ApiError(400, parsed.error.errors[0]?.message ?? 'Dữ liệu báo giá không hợp lệ');
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues[0]?.message ?? 'Dữ liệu báo giá không hợp lệ');
   const actor = getUser(req);
   const { result, replayed } = await runIdempotent({
     endpoint: 'quotations.create',
@@ -126,7 +126,7 @@ router.put('/:id', declareMaterialWrite('quotations.update', { method: 'PUT', pa
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) throw new ApiError(400, 'ID không hợp lệ');
   const parsed = quotationUpdateSchema.safeParse(req.body ?? {});
-  if (!parsed.success) throw new ApiError(400, parsed.error.errors[0]?.message ?? 'Dữ liệu báo giá không hợp lệ');
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues[0]?.message ?? 'Dữ liệu báo giá không hợp lệ');
   const actor = getUser(req);
   const { result, replayed } = await runIdempotent({
     endpoint: 'quotations.update',

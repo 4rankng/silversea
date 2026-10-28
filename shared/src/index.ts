@@ -201,10 +201,13 @@ export {
   quotationFeeSchema,
 } from './schemas';
 
+export { partialUpdateSchema } from './schemas';
+
 export type {
   QuotationColumnKey, QuotationCellInput, QuotationCreateInput,
   QuotationUpdateInput, QuotationCellView, QuotationView, SurchargeRoundingMode,
   QuotationFeeInput, QuotationFeeView, FeeRoutingMode,
+  QuotationCellData, QuotationFeeData, QuotationCreateData, QuotationUpdateData,
 } from './schemas';
 
 export {

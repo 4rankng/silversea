@@ -1007,7 +1007,7 @@ coreRoutes.post(
     const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi điều chỉnh chi phí.');
     const parsed = z.object({
       reason: z.string().trim().min(1, 'Vui lòng nhập lý do điều chỉnh.').max(2000),
-      changes: z.record(z.unknown()).optional().nullable(),
+      changes: z.record(z.string(), z.unknown()).optional().nullable(),
     }).safeParse(req.body ?? {});
     if (!parsed.success) throwValidation(parsed.error);
     const adjustment = await adjustShipmentCost({

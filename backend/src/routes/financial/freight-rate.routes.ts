@@ -52,7 +52,7 @@ freightRatePreviewRoutes.get('/freight-preview', asyncHandler(async (req: Reques
     transportDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày vận chuyển phải có dạng YYYY-MM-DD'),
   }).safeParse(req.query);
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.errors[0]?.message ?? 'Tham số không hợp lệ');
+    throw new ApiError(400, parsed.error.issues[0]?.message ?? 'Tham số không hợp lệ');
   }
   res.json(await resolveFreightRateWithManualFallback(parsed.data));
 }));
@@ -92,7 +92,7 @@ router.put('/pricing/snapshots/:id/override', declareMaterialWrite('freight-rate
   const snapshotId = parseSnapshotId(req);
   const parsed = freightRateOverrideSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
-    throw new ApiError(400, parsed.error.errors[0]?.message ?? 'Dữ liệu không hợp lệ');
+    throw new ApiError(400, parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ');
   }
   const actor = getUser(req);
   const idempotencyKey = getRequestIdempotencyKey(req);
