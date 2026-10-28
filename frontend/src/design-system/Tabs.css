@@ -179,7 +179,7 @@
 }
 
 .ds-tabs__count--warning {
-  color: var(--warning, #A45D1C);
+  color: var(--warning-text, #6F3C10);
 }
 
 .ds-tabs__count--info {
