@@ -1,0 +1,23 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-zod4-migration/frontend
+> vitest run
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-zod4-migration/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  736 passed (736)
+      Tests  5667 passed (5667)
+   Start at  09:53:16
+   Duration  262.52s (transform 31.71s, setup 82.09s, import 398.72s, tests 403.20s, environment 338.04s)
+
