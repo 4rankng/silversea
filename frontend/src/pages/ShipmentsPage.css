@@ -1656,6 +1656,15 @@
 .cus-lot-col__appointment { width: 120px; }
 .cus-lot-col__status { width: 120px; }
 
+/* SIL-552 (owner 28/10, design lock): the SỐ CONTAINER cell states its own
+   240px floor next to the colgroup — the group is the one column whose three
+   label+control rows need a guaranteed width, so the cell never inherits a
+   narrower track from a future column set. */
+.cus-lot-cell--container {
+  min-width: 240px;
+  width: 240px;
+}
+
 .cus-lot-table th,
 .cus-lot-table td {
   padding: 8px 12px;
@@ -1694,10 +1703,11 @@
    TRỌNG LƯỢNG), each micro-labelled. Read-only lines are plain; a line the
    page gate + fieldAccess allow is a click-to-edit trigger (hover fill +
    chevron, SIL-483 ghost-line law: no frame until the pointer asks).
-   SIL-552 (owner 28/10): each line is ONE 36px row — the micro-label keeps
-   its own lane (shrink-0 + nowrap, so it never wraps or shreds) and the
-   control sits right beside it on a ch-based lane. The value grows its lane
-   instead of breaking into vertical characters. */
+   SIL-552 (owner 28/10, design lock): each line is ONE 36px row — the
+   micro-label keeps its own lane (shrink-0 + nowrap, so it never wraps or
+   shreds) and the control sits right beside it on a ch-based lane. Label and
+   control share one baseline band (both on leading-5), so the group no
+   longer drifts off the SỐ TỜ KHAI control beside it. */
 .cus-lot-contgroup {
   display: flex;
   flex-direction: column;
@@ -1707,10 +1717,10 @@
 
 .cus-lot-line {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
-  min-height: 36px;
+  height: 36px;
   min-width: 0;
 }
 
@@ -1718,7 +1728,7 @@
   flex: 0 0 auto;
   white-space: nowrap;
   font-size: var(--text-caption-size);
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-medium);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1735,6 +1745,9 @@
   min-width: 0;
   color: var(--ink);
   overflow-wrap: break-word;
+  /* The lock's leading-5: the value rides the SAME baseline band as the
+     micro-label beside it (the reported "lệch baseline" symptom). */
+  line-height: 20px;
 }
 
 .cus-lot-line__value--mono {
@@ -1743,18 +1756,23 @@
 
 /* The closed-state ghost trigger (SIL-483): the value + its chevron. The lane
    keeps a ch floor so the placeholder never shreds; the value itself wraps at
-   a word boundary, never mid-word. */
+   a word boundary, never mid-word.
+   SIL-552 (owner 28/10, design lock): the trigger takes the row's h-9 box and
+   the value's leading-5, so the closed line shares ONE baseline band with its
+   micro-label (and with the SỐ TỜ KHAI control beside the group). */
 button.cus-lot-line--trigger {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   flex: 0 1 auto;
   min-width: var(--cus-lot-lane, 14ch);
+  height: 36px;
   padding: 0 4px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   text-align: left;
+  line-height: 20px;
   cursor: pointer;
 }
 
@@ -1771,7 +1789,12 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
 }
 
 /* The LOẠI line's house select (UuiSelectField, width content) sits beside
-   its micro-label inside the group cell, on its own 10ch lane. */
+   its micro-label inside the group cell, on its own 10ch lane.
+   SIL-552 (owner 28/10, design lock): the trigger's own chrome is trimmed to
+   the locked px-2 / pr-7 so the 10ch lane shows the whole type code — the
+   vendor's truncate utility cut "20DC" down to "20…", which the no-truncation
+   doctrine forbids. The value rides leading-5 like every other control in the
+   group, so all three lines share one baseline band. */
 .cus-lot-line__select {
   flex: 0 0 auto;
   width: 10ch;
@@ -1787,8 +1810,21 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   --uui-control-h: 36px;
 }
 
+.cus-lot-line__select [data-uui-select-value] {
+  padding-left: 8px;
+  padding-right: 28px;
+}
+
+.cus-lot-line__select [data-uui-select-value] > section > p {
+  line-height: 20px;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .cus-lot-line--editor {
   flex-wrap: wrap;
+  height: auto;
+  min-height: 36px;
 }
 
 .cus-lot-line__input {
@@ -1803,6 +1839,20 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   color: var(--ink);
   font-size: var(--text-label-size, 13px);
   line-height: 20px;
+}
+
+/* SIL-552 (owner 28/10, design lock): the weight editor is a NUMBER input —
+   the house stepper stays hidden so the 8ch lane reads as a plain numeric
+   box (the stepper would eat the lane the value needs). */
+.cus-lot-line__input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.cus-lot-line__input[type='number']::-webkit-outer-spin-button,
+.cus-lot-line__input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .cus-lot-line__input:focus-visible {
@@ -1837,12 +1887,13 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
 .cus-lot-line__save:hover { background: var(--surface-2); color: var(--ink); }
 .cus-lot-line__save:disabled { color: var(--ink-3); cursor: default; }
 
-/* The three control lanes (SIL-552). SỐ keeps a 14ch editor + the trigger's
-   chevron; LOẠI a 10ch select; TRỌNG LƯỢNG a 10ch numeric editor whose floor
-   is 8ch — the raw kilogram value still fits its lane. */
+/* The three control lanes (SIL-552, owner 28/10 design lock). SỐ keeps a 14ch
+   editor + the trigger's chevron; LOẠI a 10ch select; TRỌNG LƯỢNG an 8ch
+   numeric editor whose floor is 8ch — the raw kilogram value still fits its
+   lane, and the "kg" unit rides beside it. */
 .cus-lot-line--number { --cus-lot-lane: 16ch; --cus-lot-input: 14ch; --cus-lot-input-min: 14ch; }
 .cus-lot-line--type { --cus-lot-lane: 10ch; }
-.cus-lot-line--weight { --cus-lot-lane: 10ch; --cus-lot-input: 10ch; --cus-lot-input-min: 8ch; }
+.cus-lot-line--weight { --cus-lot-lane: 10ch; --cus-lot-input: 8ch; --cus-lot-input-min: 8ch; }
 
 /* SIL-498 — the per-cont tờ khai cell: one inline input per row (opaque
    control surface, house radius/height) plus the first row's copy affordance.
