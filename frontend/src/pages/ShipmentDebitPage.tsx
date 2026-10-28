@@ -246,12 +246,41 @@ export function ShipmentDebitPage() {
   const appliedFilterCount = (customerId ? 1 : 0) + (deliveryFrom || deliveryTo ? 1 : 0) + (lockStatus !== 'ALL' ? 1 : 0);
   const totals = listTotals(items);
 
-  const selectLot = (id: number, next: boolean) => setSelectedIds((current) => {
-    const set = new Set(current);
-    if (next) set.add(id);
-    else set.delete(id);
-    return set;
-  });
+  // SIL-544 (id 611, spec 23/10 §4.2) — the check-time same-customer gate:
+  // in [📦 Gộp hàng] mode a tick must never WAIT for the merge popup to
+  // refuse a mixed-customer selection. Ticking a lot of another customer —
+  // or one with no customer at all (the BE law reads that as a conflict
+  // too) — is refused AT the tick: the row never joins the floating bar and
+  // the error names the refused lot and both customers. The dialog keeps its
+  // own pre-send gate and the server stays the authority; this only moves
+  // the refusal to the earliest possible moment.
+  const refuseCrossCustomerPick = (incoming: ShipmentDebitLotRow): string | null => {
+    const label = incoming.billOrBookNumber || incoming.customsNumber || incoming.code;
+    if (incoming.customerId == null) {
+      return `Lô ${label} chưa xác định khách hàng — chỉ gộp được các lô của cùng một khách hàng.`;
+    }
+    const anchor = items.find((row) => selectedIds.has(row.shipmentId));
+    if (anchor == null || anchor.customerId == null || anchor.customerId === incoming.customerId) return null;
+    return `Lô ${label} thuộc khách hàng ${incoming.customerName ?? 'chưa xác định'} — khác khách hàng với các lô đã chọn (${anchor.customerName ?? 'chưa xác định'}). Chỉ gộp được các lô của cùng một khách hàng.`;
+  };
+  const selectLot = (id: number, next: boolean) => {
+    if (next) {
+      const incoming = items.find((row) => row.shipmentId === id);
+      if (incoming) {
+        const refusal = refuseCrossCustomerPick(incoming);
+        if (refusal != null) {
+          toast({ kind: 'error', message: refusal });
+          return;
+        }
+      }
+    }
+    setSelectedIds((current) => {
+      const set = new Set(current);
+      if (next) set.add(id);
+      else set.delete(id);
+      return set;
+    });
+  };
   // SIL-538 — outside [📦 Gộp hàng] the ticks are hidden, so the export's
   // disable reason names the mode first: the user cannot have picked anything.
   // Sweep (card 20261008_1): every disable cause rides the aria-disabled
