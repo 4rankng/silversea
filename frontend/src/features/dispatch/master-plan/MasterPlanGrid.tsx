@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
+import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
 import { isLclLotRow } from './lclLot';
 import { canonicalShipmentStatus, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
@@ -154,6 +155,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
     editingNotesId, editingNotesValue, setEditingNotesValue, savingNotes,
     notesError, notesInputRef, startNotesEdit, cancelNotesEdit, saveNotesEdit,
   } = useMasterPlanNoteEditor(onUpdateNotes);
+  // SIL-631: the editing notes cell's stable anchor for the floating editor
+  // host — one row edits at a time (editingNotesId), so one shared ref serves
+  // every row's host.
+  const notesAnchorRef = useRef<HTMLDivElement | null>(null);
   // The modal's "Sửa ghi chú" obeys the same dispatcher stage gate as the trigger.
   const noteModalShipment = activeNoteModal?.shipment;
   const noteModalEditable = Boolean(noteModalShipment && onUpdateNotes
@@ -524,7 +529,16 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 <td className="master-plan-grid__cell" data-label="Ghi chú" data-label-short="Ghi chú">
                   <div className="master-plan-grid__cell-body">
                   {editingNotesId === item.id && !notesLocked ? (
-                    <div className="master-plan-grid__notes-editor">
+                    // SIL-631 (owner 28/10, GLOBAL): the notes editor floats
+                    // OUTSIDE the Ghi chú cell through a body portal — the
+                    // narrow notes column can no longer clip the textarea. The
+                    // cell keeps its (dimmed) note while editing.
+                    <div className="master-plan-grid__notes-editing" ref={notesAnchorRef}>
+                      <div className="master-plan-grid__line master-plan-grid__line--notes is-editing">
+                        {item.operationalNotes || '—'}
+                      </div>
+                      <FloatingCellEditor anchorRef={notesAnchorRef} label="Phiên sửa ghi chú điều phối" minWidth={360}>
+                        <div className="master-plan-grid__notes-editor">
                       <textarea
                         ref={notesInputRef}
                         className="master-plan-grid__notes-input"
@@ -546,32 +560,34 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         aria-label="Ghi chú điều phối"
                       />
                       {notesError && <p className="dispatch-plan-page__error" role="alert">{notesError}</p>}
-                      <div className="master-plan-grid__notes-actions">
-                        <button
-                          type="button"
-                          className="master-plan-grid__notes-save"
-                          onClick={() => void saveNotesEdit(item)}
-                          disabled={savingNotes}
-                        >
-                          {savingNotes ? 'Đang lưu…' : 'Lưu'}
-                        </button>
-                        {/* Sweep (card 081026093510): the cancel used to disable
-                            silently while a save was in flight — same
-                            aria-described + aria-disabled explanation. */}
-                        <DisabledActionTip
-                          id={`master-plan-notes-cancel-${item.id}`}
-                          reason={savingNotes ? 'Đang lưu ghi chú — chưa hủy được.' : null}
-                        >
+                        <div className="master-plan-grid__notes-actions">
                           <button
                             type="button"
-                            className="master-plan-grid__notes-cancel"
-                            aria-disabled={savingNotes || undefined}
-                            onClick={() => { if (savingNotes) return; cancelNotesEdit(); }}
+                            className="master-plan-grid__notes-save"
+                            onClick={() => void saveNotesEdit(item)}
+                            disabled={savingNotes}
                           >
-                            Hủy
+                            {savingNotes ? 'Đang lưu…' : 'Lưu'}
                           </button>
-                        </DisabledActionTip>
-                      </div>
+                          {/* Sweep (card 081026093510): the cancel used to disable
+                              silently while a save was in flight — same
+                              aria-described + aria-disabled explanation. */}
+                          <DisabledActionTip
+                            id={`master-plan-notes-cancel-${item.id}`}
+                            reason={savingNotes ? 'Đang lưu ghi chú — chưa hủy được.' : null}
+                          >
+                            <button
+                              type="button"
+                              className="master-plan-grid__notes-cancel"
+                              aria-disabled={savingNotes || undefined}
+                              onClick={() => { if (savingNotes) return; cancelNotesEdit(); }}
+                            >
+                              Hủy
+                            </button>
+                          </DisabledActionTip>
+                        </div>
+                        </div>
+                      </FloatingCellEditor>
                     </div>
                   ) : (
                     <>

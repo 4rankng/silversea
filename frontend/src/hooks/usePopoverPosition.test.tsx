@@ -3,10 +3,10 @@ import { useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { usePopoverPosition } from './usePopoverPosition';
 
-function Harness() {
+function Harness({ align }: { align?: 'start' | 'end' } = {}) {
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
-  const position = usePopoverPosition(panel, trigger, true, 396, 200);
+  const position = usePopoverPosition(panel, trigger, true, 396, 200, align);
   return <><button ref={trigger}>Open</button><div ref={panel} data-testid="panel" style={{ ...position }} /></>;
 }
 
@@ -23,7 +23,7 @@ const TRIGGER_RECT = DOMRect.fromRect({ x: 196, y: 480, width: 74, height: 36 })
 function LeftAlignHarness() {
   const trigger = useRef<HTMLButtonElement | null>(null);
   const panel = useRef<HTMLDivElement>(null);
-  const position = usePopoverPosition(panel, trigger, true, 300, 54, { align: 'left' });
+  const position = usePopoverPosition(panel, trigger, true, 300, 54, 'start');
   const attach = (element: HTMLButtonElement | null) => {
     trigger.current = element;
     if (element) vi.spyOn(element, 'getBoundingClientRect').mockReturnValue(TRIGGER_RECT);
@@ -82,5 +82,29 @@ describe('usePopoverPosition viewport anchoring', () => {
     expect(Number.parseFloat(panel.style.left)).toBe(TRIGGER_RECT.left);
     // It still opens below the trigger (there is room).
     expect(Number.parseFloat(panel.style.top)).toBeGreaterThan(480);
+  });
+
+  it('align: start flushes the panel LEFT edge to the trigger (SIL-631 floating cell editors)', () => {
+    vi.stubGlobal('innerWidth', 1280);
+    vi.stubGlobal('innerHeight', 900);
+    vi.stubGlobal('visualViewport', undefined);
+    let resize: ResizeObserverCallback = () => {};
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) { resize = callback; }
+      observe = vi.fn();
+      disconnect = vi.fn();
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockImplementation(function (this: HTMLElement) { return this.dataset.testid === 'panel' ? 360 : 0; });
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) { return this.dataset.testid === 'panel' ? 120 : 0; });
+    // Anchor flush against x=520: end alignment would park the panel at
+    // 520+200-360=360; start alignment must sit at the anchor's left edge.
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(DOMRect.fromRect({ x: 520, y: 300, width: 200, height: 34 }));
+    const { unmount } = render(<Harness align="start" />);
+    const panel = screen.getByTestId('panel');
+    expect(Number.parseFloat(panel.style.left)).toBe(520);
+    expect(Number.parseFloat(panel.style.top)).toBe(300 + 34 + 4);
+    act(() => resize([], {} as ResizeObserver));
+    expect(Number.parseFloat(panel.style.left)).toBe(520);
+    unmount();
   });
 });

@@ -281,14 +281,12 @@
    wrapping was the inflation mechanism of every row-height regression
    (FB-043 / R22 / the 23/10 screenshots). The line's title (set in the
    component) carries the complete value. */
-/* Review H1 (this lane): the inline notes editor owns its height while it
-   is mounted — a failed save renders the error line under the textarea and
-   the 77px clamp would hide the Lưu/Hủy row exactly when the user needs to
-   retry or cancel. The editor is a transient overlay, not a dense reading
-   row: it lifts the clamp for its cell. */
-.master-plan-grid__cell-body:has(> .master-plan-grid__notes-editor) {
-  max-height: none;
-  overflow: visible;
+/* SIL-631: the notes editor itself floats out of the cell (body portal) — its
+   height/error row can no longer collide with the reading-row clamp, so the
+   old `:has(> __notes-editor)` clamp lift (review H1) is gone with it. The
+   cell keeps a single dimmed line while editing. */
+.master-plan-grid__line--notes.is-editing {
+  opacity: 0.45;
 }
 
 .master-plan-grid__line {
@@ -916,6 +914,12 @@
 .mpcard__note:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* SIL-631: the card keeps its (dimmed) note preview while the editor floats
+ * outside the card through a body portal. */
+.mpcard__note.is-editing {
+  opacity: 0.45;
 }
 
 /* SIL-507 — the ONE primary action compacts into the meta row: 32px high,

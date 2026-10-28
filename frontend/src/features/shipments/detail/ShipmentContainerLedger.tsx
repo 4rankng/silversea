@@ -13,6 +13,7 @@ import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { displayNote } from '../cus/cusUtils';
 import { checkContainerNumber } from '../../../components/trip/container-instance-helpers';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
+import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
 import { Badge, BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges';
 import { TextArea as UUITextArea } from '../../../components/untitled-ui/base/textarea/textarea';
 import { SearchableSelect, SummaryRail } from '../../../design-system';
@@ -160,6 +161,36 @@ function rowSubjectFor(row: ShipmentCusContainerFlatRow): string {
   if (row.containerNumber) return row.containerNumber;
   if (row.isLotLevel) return row.billOrBookNumber ? `lô ${row.billOrBookNumber}` : 'lô hàng lẻ';
   return `container số ${row.ordinal}`;
+}
+
+/**
+ * SIL-631 (owner 28/10, GLOBAL) — the floating host for the ledger's in-cell
+ * quick editors (BKS Ảo/Thực, cước thu khách). The trigger stays mounted
+ * (dimmed, inert) while the editor card floats OUTSIDE the row through a body
+ * portal, so the cell/`__multiline` rail can never clip the editor — the same
+ * law as the shared FloatingCellEditor, on the bare-chrome variant (the
+ * `.shipment-container-ledger__inline-editor` card owns its own surface).
+ */
+function InlineEditHost({ editing, label, trigger, editor }: {
+  editing: boolean;
+  label: string;
+  trigger: ReactNode;
+  editor: ReactNode;
+}) {
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  return (
+    <span
+      className={`shipment-container-ledger__inline-edit-host${editing ? ' is-editing' : ''}`}
+      ref={anchorRef}
+    >
+      {trigger}
+      {editing && (
+        <FloatingCellEditor anchorRef={anchorRef} label={label} minWidth={420} className="floating-cell-editor--bare">
+          {editor}
+        </FloatingCellEditor>
+      )}
+    </span>
+  );
 }
 
 /**
@@ -986,6 +1017,9 @@ export function ShipmentContainerLedger({
   }, [rows, billingOverrides, actualOverrides]);
 
   function openBillingEditor(row: ShipmentCusContainerFlatRow, kind: PlateEditorKind) {
+    // SIL-631: one floating session per row — the rev-facts panel and the
+    // plate panels are body-level overlays now and must never stack.
+    setRevFactsRowId(null);
     setPlateEditor({ rowId: row.id, kind });
     setBillingDraft(kind === 'actual' ? actualTruckNoFor(row) : billingPlateFor(row));
     setBillingError(null);
@@ -1111,6 +1145,9 @@ export function ShipmentContainerLedger({
     return override && server === override.priceBase ? override.priceSaved : server;
   }
   function openRevFactsEditor(row: ShipmentCusContainerFlatRow) {
+    // SIL-631: one floating session per row — never stack with the plate
+    // panels (body-level overlays).
+    setPlateEditor(null);
     setRevFactsRowId(row.id);
   }
 
@@ -1430,8 +1467,18 @@ export function ShipmentContainerLedger({
                           action (the card 191026181942 one-label law), the
                           same in-cell pattern as the BKS plate editors. */}
                       {row.isLotLevel && (
-                        revFactsRowId === row.id
-                          ? (
+                        <InlineEditHost
+                          editing={revFactsRowId === row.id}
+                          label={`Sửa cước thu khách cho lô ${row.billOrBookNumber || 'hàng lẻ'}`}
+                          trigger={(
+                            <button
+                              type="button"
+                              className="shipment-container-ledger__missing-fields-toggle"
+                              aria-label={`Sửa cước thu khách cho lô ${row.billOrBookNumber || 'hàng lẻ'}`}
+                              onClick={() => openRevFactsEditor(row)}
+                            >Sửa cước thu khách</button>
+                          )}
+                          editor={(
                             <LotRevFactsEditor
                               row={row}
                               initialClassCode={lotRevCode}
@@ -1441,15 +1488,8 @@ export function ShipmentContainerLedger({
                                 setRevOverrides((prev) => new Map(prev).set(row.shipmentId, saved));
                               }}
                             />
-                          )
-                          : (
-                            <button
-                              type="button"
-                              className="shipment-container-ledger__missing-fields-toggle"
-                              aria-label={`Sửa cước thu khách cho lô ${row.billOrBookNumber || 'hàng lẻ'}`}
-                              onClick={() => openRevFactsEditor(row)}
-                            >Sửa cước thu khách</button>
-                          )
+                          )}
+                        />
                       )}
                       <span className="shipment-container-ledger__container-classification">{DISPATCH_CLASSIFICATION_LABELS[row.classification]}</span>
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
@@ -1513,9 +1553,10 @@ export function ShipmentContainerLedger({
                                 board is entering BKS thực — an ACTION under the
                                 muted label, never a second data line (card
                                 191026181942's one-label law stays intact). */}
-                            {lotActualEditing
-                              ? billingPlateEditor(row, 'actual')
-                              : (
+                            <InlineEditHost
+                              editing={lotActualEditing}
+                              label={`Nhập BKS thực cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                              trigger={(
                                 <button
                                   type="button"
                                   className="shipment-container-ledger__missing-fields-toggle"
@@ -1523,6 +1564,8 @@ export function ShipmentContainerLedger({
                                   onClick={() => openBillingEditor(row, 'actual')}
                                 >Nhập BKS thực</button>
                               )}
+                              editor={billingPlateEditor(row, 'actual')}
+                            />
                             {/* SIL-548 (spec 23/10 §4.1 field 3): BKS báo khách
                                 is a LOT-level CUS output — reachable even while
                                 Điều vận chưa gán xe (the editor ghosts the BKS
@@ -1536,9 +1579,10 @@ export function ShipmentContainerLedger({
                                 (billingPlateTrigger, override-aware so the
                                 save shows without waiting for the refetch);
                                 the bare entry action is for the empty state. */}
-                            {lotBillingEditing
-                              ? billingPlateEditor(row, 'billing')
-                              : lotBillingPlate
+                            <InlineEditHost
+                              editing={lotBillingEditing}
+                              label={`Nhập BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                              trigger={lotBillingPlate
                                 ? billingPlateTrigger(row, lotBillingPlate)
                                 : (
                                   <button
@@ -1548,6 +1592,8 @@ export function ShipmentContainerLedger({
                                     onClick={() => openBillingEditor(row, 'billing')}
                                   >Nhập BKS báo khách</button>
                                 )}
+                              editor={billingPlateEditor(row, 'billing')}
+                            />
                           </>
                         ) : (
                         <>
@@ -1557,24 +1603,28 @@ export function ShipmentContainerLedger({
                               of the composite is "—" (en dash) when N/A — the
                               unallocated case never reaches this branch. */}
                           <strong>{`${row.carrierName?.trim() || '—'} - BKS Thực: ${lotActualPlate}`}</strong>
-                          {lotBillingEditing
-                            ? billingPlateEditor(row, 'billing')
-                            : lotBillingDiffers
+                          <InlineEditHost
+                            editing={lotBillingEditing}
+                            label={`Sửa BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                            trigger={lotBillingDiffers
                               ? billingPlateTrigger(row, lotBillingPlate)
                               : (
-                            <button
-                              type="button"
-                              className="shipment-container-ledger__missing-fields-toggle"
-                              aria-label={`Sửa BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
-                              onClick={() => openBillingEditor(row, 'billing')}
-                            >{lotBillingPlate ? `BKS Báo khách (Ảo): ${lotBillingPlate} — sửa` : 'BKS Báo khách (Ảo): — sửa'}</button>
-                          )}
+                                <button
+                                  type="button"
+                                  className="shipment-container-ledger__missing-fields-toggle"
+                                  aria-label={`Sửa BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                                  onClick={() => openBillingEditor(row, 'billing')}
+                                >{lotBillingPlate ? `BKS Báo khách (Ảo): ${lotBillingPlate} — sửa` : 'BKS Báo khách (Ảo): — sửa'}</button>
+                              )}
+                            editor={billingPlateEditor(row, 'billing')}
+                          />
                           {/* SIL-503 — BKS thực quick edit: the composite stays
                               static text (FB-093a's law), the action lives on
                               its own trigger under the Ảo line. */}
-                          {lotActualEditing
-                            ? billingPlateEditor(row, 'actual')
-                            : (
+                          <InlineEditHost
+                            editing={lotActualEditing}
+                            label={`Sửa BKS thực cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                            trigger={(
                               <button
                                 type="button"
                                 className="shipment-container-ledger__missing-fields-toggle"
@@ -1582,6 +1632,8 @@ export function ShipmentContainerLedger({
                                 onClick={() => openBillingEditor(row, 'actual')}
                               >Sửa BKS thực</button>
                             )}
+                            editor={billingPlateEditor(row, 'actual')}
+                          />
                         </>
                         )
                       ) : lotBillingDiffers ? (
@@ -1593,9 +1645,12 @@ export function ShipmentContainerLedger({
                               click-to-edit. Equal or absent keeps the
                               single-plate cell below byte-for-byte. */}
                           <strong>{`${row.carrierName?.trim() || '—'} - BKS Thực: ${lotActualPlate}`}</strong>
-                          {lotBillingEditing
-                            ? billingPlateEditor(row)
-                            : billingPlateTrigger(row, lotBillingPlate)}
+                          <InlineEditHost
+                            editing={lotBillingEditing}
+                            label={`Sửa BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                            trigger={billingPlateTrigger(row, lotBillingPlate)}
+                            editor={billingPlateEditor(row)}
+                          />
                         </>
                       ) : (
                         <>

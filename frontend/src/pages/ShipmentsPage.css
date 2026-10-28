@@ -1832,6 +1832,12 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   transform: rotate(45deg);
 }
 
+/* SIL-631: the line keeps its value (dimmed) while the editor floats over
+ * the sheet through a body portal — the row context survives the edit. */
+.cus-lot-line__value.is-editing {
+  opacity: 0.45;
+}
+
 .cus-lot-editor__input {
   flex: 1 1 auto;
   min-width: 0;

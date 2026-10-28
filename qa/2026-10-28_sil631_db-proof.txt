@@ -1,0 +1,28 @@
+SIL-631 — DB side-effect proof (rung 3), local dev stack (make dev: Postgres :5441 container ss-prod-db, backend :3002, worktree vite :7186)
+Account: dungnv (DISPATCHER, dev seed) · lot DNKM13340 (CP Vận tải Biển Bắc) · row: shipment_containers id=426 (shipment_id=380, container BBHU2001012)
+
+BEFORE (2026-10-28, before the driver run):
+$ docker exec ss-prod-db psql -U postgres -d silversea -c "select id, shipment_id, container_number, declaration_number, updated_at from shipment_containers where container_number = 'BBHU2001012';"
+ id  | shipment_id | container_number | declaration_number |       updated_at
+-----+-------------+------------------+--------------------+-------------------------
+ 426 |         380 | BBHU2001012      |                    | 2026-10-28 14:27:52.895
+(1 row)
+
+DRIVER (qa/2026-10-28_sil631_ui-driver.mjs, FIELD=declaration): click "Sửa số tờ khai · BBHU2001012" in the
+"Chi tiết container" drawer → floating editor (body portal) → type "TK-631-LONGTEST-VALUE" → Enter.
+Portal proof from the run: panelParentIsBody=true, panelInsideScroller=false, valueIsWhole=true,
+inputClientWidth=420 == inputScrollWidth=420 (full value visible, no clip), hint "Enter lưu · Esc thoát" shown.
+Screenshots: qa/2026-10-28_sil631_ui-01-declaration-editor-floating.png, qa/2026-10-28_sil631_ui-02-declaration-after-save.png
+Driver log: qa/2026-10-28_sil631_ui-driver-declaration.log (exit status 0)
+
+AFTER (same query):
+$ docker exec ss-prod-db psql -U postgres -d silversea -c "select id, shipment_id, container_number, declaration_number, updated_at from shipment_containers where container_number = 'BBHU2001012';"
+ id  | shipment_id | container_number |  declaration_number   |       updated_at
+-----+-------------+------------------+-----------------------+-------------------------
+ 426 |         380 | BBHU2001012      | TK-631-LONGTEST-VALUE | 2026-10-28 15:07:59.317
+(1 row)
+
+Note (first driver run, FIELD=container): typing the ticket's literal test string "MSKU5500004XLONGTESTVALUE"
+into the Số container editor displayed whole in the floating editor, but the SAVE was refused by the backend
+with HTTP 400 (invalid container-number format) — the row stayed unchanged. The declarationNumber write above
+is the persisted side effect of the same floating-editor flow.

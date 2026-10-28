@@ -20,6 +20,7 @@ import { dispatchStatusLabel } from '../../shipments/cus/cusUtils';
 import { formatDateTime24 } from '../../../lib/format';
 import { formatVietnamDateTimeInput, localDateTimeToIso } from '../../../lib/shipment-operations';
 import { ConfirmDialog, Drawer } from '../../../components/UI';
+import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
 import { billBookingReference } from '../../../lib/business-reference';
 import { SearchableSelect } from '../../../design-system';
 import './DispatchContainerDetailDrawer.css';
@@ -98,6 +99,8 @@ function ContainerLineTextField({ line, field, canEdit, onSave }: {
   const [draft, setDraft] = useState(baseline);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // SIL-631: the editing cell's stable anchor for the floating editor host.
+  const anchorRef = useRef<HTMLDivElement>(null);
   const baselineRef = useRef(baseline);
   baselineRef.current = baseline;
 
@@ -159,56 +162,67 @@ function ContainerLineTextField({ line, field, canEdit, onSave }: {
   };
 
   const displayValue = baseline || spec.emptyLabel;
+  const valueNode = spec.strongValue ? <strong>{displayValue}</strong> : displayValue;
 
-  if (editing) {
-    return (
-      <div className="dispatch-container-detail__decl-editor">
-        <input
-          ref={inputRef}
-          className="dispatch-container-detail__decl-input"
-          value={draft}
-          maxLength={50}
-          disabled={saving}
-          aria-label={spec.inputLabel}
-          placeholder={spec.inputPlaceholder}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              commit();
-            } else if (event.key === 'Escape') {
-              event.preventDefault();
-              revert();
-            }
-          }}
-          onBlur={revert}
-        />
-        <span className="dispatch-container-detail__decl-hint">Enter lưu · Esc thoát</span>
-      </div>
-    );
-  }
-
-  if (!canEdit) {
-    return (
-      <div
-        className={baseline ? 'dispatch-container-detail__decl-value' : 'dispatch-container-detail__decl-value is-empty'}
-        title={baseline || undefined}
-      >
-        {spec.strongValue ? <strong>{displayValue}</strong> : displayValue}
-      </div>
-    );
-  }
-
+  // SIL-631 (owner 28/10, GLOBAL): the editor floats OUTSIDE the cell through
+  // a body portal — the table's `.dispatch-container-detail__table-scroll`
+  // (overflow-x: auto) can no longer clip the typed value. The cell keeps its
+  // (dimmed) value while editing so the row context survives the edit.
   return (
-    <button
-      type="button"
-      className={`dispatch-container-detail__decl-value--action${baseline ? '' : ' is-empty'}`}
-      onClick={openEditor}
-      aria-label={`${spec.editVerb} · ${lineIdentity(line)}`}
-      title={baseline ? `${spec.editVerb}: ${baseline}` : `Bấm để nhập ${spec.typeVerb}`}
-    >
-      {spec.strongValue ? <strong>{displayValue}</strong> : displayValue}
-    </button>
+    <div className="dispatch-container-detail__decl-cell" ref={anchorRef}>
+      {editing ? (
+        <>
+          <div
+            className={`dispatch-container-detail__decl-value is-editing${baseline ? '' : ' is-empty'}`}
+            title={baseline || undefined}
+          >
+            {valueNode}
+          </div>
+          <FloatingCellEditor anchorRef={anchorRef} label={`${spec.inputLabel} · ${lineIdentity(line)}`}>
+            <div className="dispatch-container-detail__decl-editor">
+              <input
+                ref={inputRef}
+                className="dispatch-container-detail__decl-input"
+                value={draft}
+                maxLength={50}
+                disabled={saving}
+                aria-label={spec.inputLabel}
+                placeholder={spec.inputPlaceholder}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    commit();
+                  } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    revert();
+                  }
+                }}
+                onBlur={revert}
+              />
+              <span className="dispatch-container-detail__decl-hint">Enter lưu · Esc thoát</span>
+            </div>
+          </FloatingCellEditor>
+        </>
+      ) : !canEdit ? (
+        <div
+          className={baseline ? 'dispatch-container-detail__decl-value' : 'dispatch-container-detail__decl-value is-empty'}
+          title={baseline || undefined}
+        >
+          {valueNode}
+        </div>
+      ) : (
+        <button
+          type="button"
+          className={`dispatch-container-detail__decl-value--action${baseline ? '' : ' is-empty'}`}
+          onClick={openEditor}
+          aria-label={`${spec.editVerb} · ${lineIdentity(line)}`}
+          title={baseline ? `${spec.editVerb}: ${baseline}` : `Bấm để nhập ${spec.typeVerb}`}
+        >
+          {valueNode}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -230,6 +244,8 @@ function ContainerLineAppointmentCell({ line, canEdit, onSave }: {
   const [dateDraft, setDateDraft] = useState('');
   const [timeDraft, setTimeDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  // SIL-631: the editing cell's stable anchor for the floating editor host.
+  const anchorRef = useRef<HTMLDivElement>(null);
   const baselineRef = useRef(baseline);
   baselineRef.current = baseline;
 
@@ -294,71 +310,78 @@ function ContainerLineAppointmentCell({ line, canEdit, onSave }: {
 
   const display = formatDateTime24(baseline) || '—';
 
-  if (editing) {
-    return (
-      <div
-        className="dispatch-container-detail__decl-editor"
-        onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) revert();
-        }}
-      >
-        <div className="dispatch-container-detail__appointment-inputs">
-          <label className="sr-only" htmlFor={`dispatch-detail-appt-date-${line.id}`}>Ngày hẹn đóng/trả của container {lineIdentity(line)}</label>
-          <input
-            id={`dispatch-detail-appt-date-${line.id}`}
-            className="dispatch-container-detail__decl-input"
-            type="date"
-            value={dateDraft}
-            disabled={saving}
-            onChange={(event) => setDateDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                commit();
-              } else if (event.key === 'Escape') {
-                event.preventDefault();
-                revert();
-              }
-            }}
-          />
-          <label className="sr-only" htmlFor={`dispatch-detail-appt-time-${line.id}`}>Giờ hẹn đóng/trả của container {lineIdentity(line)}</label>
-          <input
-            id={`dispatch-detail-appt-time-${line.id}`}
-            className="dispatch-container-detail__decl-input"
-            type="time"
-            value={timeDraft}
-            disabled={saving}
-            onChange={(event) => setTimeDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                commit();
-              } else if (event.key === 'Escape') {
-                event.preventDefault();
-                revert();
-              }
-            }}
-          />
-        </div>
-        <span className="dispatch-container-detail__decl-hint">Enter lưu · Esc thoát</span>
-      </div>
-    );
-  }
-
-  if (!canEdit) {
-    return <div className="dispatch-container-detail__decl-value">{display}</div>;
-  }
-
+  // SIL-631 (owner 28/10, GLOBAL): the date + time editor floats OUTSIDE the
+  // cell through a body portal — same host and law as the shared text cell
+  // above. The blur-out revert still guards on the editor container (the
+  // portal root) so focus moving between the two inputs never reverts.
   return (
-    <button
-      type="button"
-      className="dispatch-container-detail__decl-value--action"
-      onClick={openEditor}
-      aria-label={`Sửa giờ hẹn đóng/trả · ${lineIdentity(line)}`}
-      title={baseline ? `Sửa giờ hẹn đóng/trả: ${display}` : 'Bấm để nhập giờ hẹn đóng/trả'}
-    >
-      {display}
-    </button>
+    <div className="dispatch-container-detail__decl-cell" ref={anchorRef}>
+      {editing ? (
+        <>
+          <div className="dispatch-container-detail__decl-value is-editing">{display}</div>
+          <FloatingCellEditor anchorRef={anchorRef} label={`Chỉnh sửa lịch hẹn đóng/trả · ${lineIdentity(line)}`}>
+            <div
+              className="dispatch-container-detail__decl-editor"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) revert();
+              }}
+            >
+              <div className="dispatch-container-detail__appointment-inputs">
+                <label className="sr-only" htmlFor={`dispatch-detail-appt-date-${line.id}`}>Ngày hẹn đóng/trả của container {lineIdentity(line)}</label>
+                <input
+                  id={`dispatch-detail-appt-date-${line.id}`}
+                  className="dispatch-container-detail__decl-input"
+                  type="date"
+                  value={dateDraft}
+                  disabled={saving}
+                  onChange={(event) => setDateDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      commit();
+                    } else if (event.key === 'Escape') {
+                      event.preventDefault();
+                      revert();
+                    }
+                  }}
+                />
+                <label className="sr-only" htmlFor={`dispatch-detail-appt-time-${line.id}`}>Giờ hẹn đóng/trả của container {lineIdentity(line)}</label>
+                <input
+                  id={`dispatch-detail-appt-time-${line.id}`}
+                  className="dispatch-container-detail__decl-input"
+                  type="time"
+                  value={timeDraft}
+                  disabled={saving}
+                  onChange={(event) => setTimeDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      commit();
+                    } else if (event.key === 'Escape') {
+                      event.preventDefault();
+                      revert();
+                    }
+                  }}
+                />
+              </div>
+              <span className="dispatch-container-detail__decl-hint">Enter lưu · Esc thoát</span>
+            </div>
+          </FloatingCellEditor>
+        </>
+      ) : !canEdit ? (
+        <div className="dispatch-container-detail__decl-value">{display}</div>
+      ) : (
+        <button
+          type="button"
+          className="dispatch-container-detail__decl-value--action"
+          onClick={openEditor}
+          aria-label={`Sửa giờ hẹn đóng/trả · ${lineIdentity(line)}`}
+          title={baseline ? `Sửa giờ hẹn đóng/trả: ${display}` : 'Bấm để nhập giờ hẹn đóng/trả'}
+        >
+          {display}
+        </button>
+      )}
+    </div>
   );
 }
 

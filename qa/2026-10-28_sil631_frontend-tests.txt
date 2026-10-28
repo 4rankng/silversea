@@ -1,0 +1,984 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-631-floating-input/frontend
+> vitest run
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-631-floating-input/frontend
+
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx (84 tests | 1 failed) 102608ms
+     × keeps 'MSCU1234567' in the editor title and Cancel preserves the exact row 5199ms
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx (66 tests | 1 failed) 29736ms
+     × mounts the editor on press 1 (branch decompose) and on every later press 5349ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+stderr | src/features/accounting/PhoiPhieuDialogs.test.tsx > phôi phiếu board row composition (card 20260923_8 group B) > toolbar counter previews the eligible set per direction (case QA-2026-09-24-01)
+An update to PhoiPhieuReportTable inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/accounting/PhoiPhieuDialogs.test.tsx > phôi phiếu board row composition (card 20260923_8 group B) > toolbar counter previews the eligible set per direction (case QA-2026-09-24-01)
+An update to PhoiPhieuTruckAssignments inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/accounting/PhoiPhieuDialogs.test.tsx > phôi phiếu board row composition (card 20260923_8 group B) > toolbar counter previews the eligible set per direction (case QA-2026-09-24-01)
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/accounting/PhoiPhieuDialogs.test.tsx > phôi phiếu board row composition (card 20260923_8 group B) > toolbar counter previews the eligible set per direction (case QA-2026-09-24-01)
+An update to PhoiPhieuControlPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/accounting/PhoiPhieuDialogs.test.tsx > phôi phiếu board row composition (card 20260923_8 group B) > toolbar counter previews the eligible set per direction (case QA-2026-09-24-01)
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/accounting/PhoiPhieuDialogs.test.tsx (21 tests | 3 failed) 50323ms
+     × PHOI10 zero state retains concise direction actions and truthful selection guidance (case QA-2026-09-24-01) 6054ms
+     × toolbar counter previews the eligible set per direction (case QA-2026-09-24-01) 7152ms
+     × AC1: cột Tiền đường của bảng và con số "đã duyệt" trong màn hình chi tiết là MỘT con số 5951ms
+ ❯ src/pages/accounting/AccountingDebitClosePage.test.tsx (25 tests | 1 failed) 46225ms
+     × offers phone facts and independent selection without writing a cancelled debit 5230ms
+stderr | src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx > FB-092 — AssignTruckGroupDialog > gửi cước trả ĐVVC nhập tay khi có, bỏ trống thì để server tự tra (161026232319)
+An update to AssignTruckGroupDialog inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/ShipmentDebitPage.lcl-merge.test.tsx > FB-093 — Ghép cước thu khách > blocks mixed-customer selections in the dialog and merges same-customer lots
+An update to ShipmentDebitPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/ShipmentDebitPage.lcl-merge.test.tsx > FB-093 — Ghép cước thu khách > blocks mixed-customer selections in the dialog and merges same-customer lots
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `section`. It was passed a child from $42ceafc619f9c3ba$export$fb8073518f34e6ec. See https://react.dev/link/warning-keys for more information.
+
+stderr | src/pages/ShipmentDebitPage.lcl-merge.test.tsx > FB-093 — Ghép cước thu khách > arms Gộp hàng from the checkbox picks and keeps the tick across expand/collapse (card 161026232359)
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["shipment-debit-detail",101]
+
+ ❯ src/pages/ShipmentDebitPage.lcl-merge.test.tsx (11 tests | 3 failed) 35267ms
+     × SIL-538: ticks hidden by default, [Gộp hàng] reveals them; the bar CTA arms at ≥2 ungrouped lots 6096ms
+     × blocks mixed-customer selections in the dialog and merges same-customer lots 6132ms
+     × arms Gộp hàng from the checkbox picks and keeps the tick across expand/collapse (card 161026232359) 5242ms
+ ❯ src/pages/OpsOrdersPage.test.tsx (16 tests | 1 failed) 23629ms
+     × waits for the receipt upload before creating the expense with its storage key 5149ms
+ ❯ src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx (18 tests | 3 failed) 62827ms
+     × gửi cước trả ĐVVC nhập tay khi có, bỏ trống thì để server tự tra (161026232319) 6291ms
+     × giữ lựa chọn Loại xe + Nhà xe qua một lần "Hủy" rồi mở lại (card _171026133000) 5362ms
+     × đang giữ Đội xe nội bộ (lớp Cont) rồi đổi sang Xe tải → reset nhà xe + warning, không giữ ID mồ côi 5468ms
+stderr | src/features/shipments/debit/DebitLotLclFacts.test.tsx > 161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng từng lô") > reopens on the lot’s stored class and saves a newly picked one with the strip’s own states
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `section`. It was passed a child from $42ceafc619f9c3ba$export$fb8073518f34e6ec. See https://react.dev/link/warning-keys for more information.
+
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx (17 tests | 5 failed) 75442ms
+     × PHOI05 confirmation-scope change clears payment selection and sends the exact read filter 6091ms
+     × PHOI03 clears hidden selection during a filter query and does not resurrect it on return 5254ms
+     × mini-filter on Khách hàng narrows by a diacritic-folded match; Bỏ lọc restores every row 7906ms
+     × mini-filter on Thông tin xe matches plate (case-folded) and carrier, and never re-sorts the grouped rows 6331ms
+     × a column filter narrowed to nothing offers Bỏ lọc cột and never pays a hidden pick 5930ms
+ ❯ src/features/shipments/debit/DebitLotLclFacts.test.tsx (19 tests | 1 failed) 23445ms
+     × reopens on the lot’s stored class and saves a newly picked one with the strip’s own states 6030ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx (20 tests | 1 failed) 104897ms
+     × mode switch keeps identity fields and wipes only mode-scoped cargo data 11371ms
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx (13 tests | 2 failed) 35579ms
+   × khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp 5987ms
+   × lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng 5541ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx (3 tests | 1 failed) 14717ms
+     × a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save: issues paint and the typed input is KEPT (no wipe, no silent dead key) 8610ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/components/control-density.styles.test.ts (8 tests | 2 failed) 7045ms
+     × rejects UUI field dimensions from every page and feature stylesheet 86ms
+     × keeps controlClassName selectors honest — the class sits on the trigger button itself 6946ms
+stderr | src/pages/DispatchDetailPlanPage.lcl-assign-reason.test.tsx > Spec 23/10 §2 — on-demand CHỌN column > default: no checkbox anywhere; the toggle reveals the leading column and flips its own label
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/pages/DispatchDetailPlanPage.lcl-assign-reason.test.tsx (3 tests | 1 failed) 12881ms
+     × default: no checkbox anywhere; the toggle reveals the leading column and flips its own label 6347ms
+ ❯ src/pages/SupplierListPage.filters.test.tsx (6 tests | 1 failed) 11133ms
+     × keeps directory KPIs and status pills on the same population when search returns one row 5384ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.cursor-advance.test.tsx (2 tests | 1 failed) 11609ms
+     × typing '08' into Giờ jumps the cursor to Phút; the minute digit is not dropped 7087ms
+Not implemented: navigation to another Document
+ ❯ src/features/shipment-finance/ShipmentFinanceForm.test.tsx (6 tests | 1 failed) 5724ms
+     × KT-16 keeps invoice face value separate from supplier cost on save 2204ms
+ ❯ src/styles/numeric-identity.styles.test.ts (6 tests | 2 failed) 12ms
+     × the production bundle holds the numeric law on the amount cells 2ms
+     × the production bundle holds the numeric law on the expense register cells 1ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/features/ops/ops-delete-affordance-labels.test.tsx (4 tests | 1 failed) 5309ms
+     × O4: the ops edit-modal photo delete button names the lot and the photo position, not photo.id 5307ms
+ ❯ src/features/expense-accounting/ShipmentExpensePanel.test.tsx (2 tests | 1 failed) 5865ms
+   × shows + Thêm khoản chi for OPS and opens the drawer scoped to Ops payers 5844ms
+ ❯ src/components/UI.combobox-shortcuts.test.tsx (4 tests | 1 failed) 11239ms
+     × Escape closes only the list inside a modal 6035ms
+ ❯ src/features/expense-accounting/ExpenseWorkLink.test.tsx (1 test | 1 failed) 5088ms
+   × links a confirmed pre-dispatch source to selected real work without changing money 5080ms
+calls=0
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 35 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/UI.combobox-shortcuts.test.tsx > nested combobox owns its keyboard events > Escape closes only the list inside a modal
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/UI.combobox-shortcuts.test.tsx:25:39
+     23|   afterEach(() => vi.restoreAllMocks());
+     24|
+     25|   it.each(['modal', 'drawer'] as const)('Escape closes only the list i…
+       |                                       ^
+     26|     render(<Form kind={kind} onConfirm={vi.fn()} />);
+     27|     const input = await screen.findByRole('combobox', { name: 'Tuyến đ…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/35]⎯
+
+ FAIL  src/components/control-density.styles.test.ts > shared control density > rejects UUI field dimensions from every page and feature stylesheet
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "src/pages/ShipmentsPage.css: .cus-lot-line__select [data-uui-select-value] > section > p",
++ ]
+
+ ❯ src/components/control-density.styles.test.ts:130:24
+    128|     });
+    129|
+    130|     expect(violations).toEqual([]);
+       |                        ^
+    131|   });
+    132|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/35]⎯
+
+ FAIL  src/components/control-density.styles.test.ts > shared control density > keeps controlClassName selectors honest — the class sits on the trigger button itself
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/control-density.styles.test.ts:133:3
+    131|   });
+    132|
+    133|   it('keeps controlClassName selectors honest — the class sits on the …
+       |   ^
+    134|     // UuiSelectField forwards controlClassName to the vendored Select…
+    135|     // trigger <button> (triggerClassName), and no native <select> ren…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/35]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the amount cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:31:13
+     29|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     30|     if (!existsSync(distAssets)) {
+     31|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     32|     }
+     33|     const sharedChunk = readdirSync(distAssets).find((f) => f.startsWi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/35]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the expense register cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:66:13
+     64|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     65|     if (!existsSync(distAssets)) {
+     66|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     67|     }
+     68|     // The Money component itself is the law's rendering: the built `.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/35]⎯
+
+ FAIL  src/pages/DispatchDetailPlanPage.lcl-assign-reason.test.tsx > Spec 23/10 §2 — on-demand CHỌN column > default: no checkbox anywhere; the toggle reveals the leading column and flips its own label
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/DispatchDetailPlanPage.lcl-assign-reason.test.tsx:161:3
+    159|
+    160| describe('Spec 23/10 §2 — on-demand CHỌN column', () => {
+    161|   it('default: no checkbox anywhere; the toggle reveals the leading co…
+       |   ^
+    162|     renderPage();
+    163|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/35]⎯
+
+ FAIL  src/pages/OpsOrdersPage.test.tsx > OpsOrdersPage (OpsVanHanh §3) > waits for the receipt upload before creating the expense with its storage key
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/OpsOrdersPage.test.tsx:360:3
+    358|   });
+    359|
+    360|   it('waits for the receipt upload before creating the expense with it…
+       |   ^
+    361|     let finishUpload!: (value: { storageKey: string; url: string }) =>…
+    362|     apiUpload.mockReturnValue(new Promise((resolve) => { finishUpload …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/35]⎯
+
+ FAIL  src/pages/ShipmentDebitPage.lcl-merge.test.tsx > FB-093 — Ghép cước thu khách > SIL-538: ticks hidden by default, [Gộp hàng] reveals them; the bar CTA arms at ≥2 ungrouped lots
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentDebitPage.lcl-merge.test.tsx:135:3
+    133|
+    134| describe('FB-093 — Ghép cước thu khách', () => {
+    135|   it('SIL-538: ticks hidden by default, [Gộp hàng] reveals them; the b…
+       |   ^
+    136|     listSummary.mockResolvedValue({
+    137|       items: [
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/35]⎯
+
+ FAIL  src/pages/ShipmentDebitPage.lcl-merge.test.tsx > FB-093 — Ghép cước thu khách > blocks mixed-customer selections in the dialog and merges same-customer lots
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentDebitPage.lcl-merge.test.tsx:180:3
+    178|   });
+    179|
+    180|   it('blocks mixed-customer selections in the dialog and merges same-c…
+       |   ^
+    181|     listSummary.mockResolvedValue({
+    182|       items: [
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/35]⎯
+
+ FAIL  src/pages/ShipmentDebitPage.lcl-merge.test.tsx > FB-093 — Ghép cước thu khách > arms Gộp hàng from the checkbox picks and keeps the tick across expand/collapse (card 161026232359)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentDebitPage.lcl-merge.test.tsx:264:3
+    262|   });
+    263|
+    264|   it('arms Gộp hàng from the checkbox picks and keeps the tick across …
+       |   ^
+    265|     listSummary.mockResolvedValue({
+    266|       items: [lclRow(), lclRow({ shipmentId: 102, billOrBookNumber: 'B…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/35]⎯
+
+ FAIL  src/pages/SupplierListPage.filters.test.tsx > SupplierListPage filter strip > keeps directory KPIs and status pills on the same population when search returns one row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/SupplierListPage.filters.test.tsx:86:3
+     84|
+     85| describe('SupplierListPage filter strip', () => {
+     86|   it('keeps directory KPIs and status pills on the same population whe…
+       |   ^
+     87|     const directory = [supplierFixture(1, 'Garage Auto 123'), supplier…
+     88|     apiMock.get.mockImplementation(async (url: string) => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/35]⎯
+
+ FAIL  src/features/accounting/PhoiPhieuDialogs.test.tsx > phôi phiếu board row composition (card 20260923_8 group B) > PHOI10 zero state retains concise direction actions and truthful selection guidance (case QA-2026-09-24-01)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/PhoiPhieuDialogs.test.tsx:253:3
+    251|   // "nothing approved". PHOI10 keeps the short action while its title…
+    252|   // adjacent scope guidance explain selection; counts appear after se…
+    253|   it('PHOI10 zero state retains concise direction actions and truthful…
+       |   ^
+    254|     renderBoard();
+    255|     expect(await findRow('BILL-001')).toBeTruthy();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/35]⎯
+
+ FAIL  src/features/accounting/PhoiPhieuDialogs.test.tsx > phôi phiếu board row composition (card 20260923_8 group B) > toolbar counter previews the eligible set per direction (case QA-2026-09-24-01)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/PhoiPhieuDialogs.test.tsx:276:3
+    274|   // eligible set (approved ∧ remaining>0), in khoản units, per direct…
+    275|   // the button says exactly what pressing it will issue.
+    276|   it('toolbar counter previews the eligible set per direction (case QA…
+       |   ^
+    277|     renderBoard();
+    278|     const row = await findRow('BILL-001');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/35]⎯
+
+ FAIL  src/features/accounting/PhoiPhieuDialogs.test.tsx > card 20260928_171 — chi tiết tiền đường: sửa số tiền, thêm dòng, tổng khớp cột ngoài > AC1: cột Tiền đường của bảng và con số "đã duyệt" trong màn hình chi tiết là MỘT con số
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/PhoiPhieuDialogs.test.tsx:318:3
+    316|   }
+    317|
+    318|   it('AC1: cột Tiền đường của bảng và con số "đã duyệt" trong màn hình…
+       |   ^
+    319|     render(<PhoiPhieuControlPage />, { wrapper: makeWrapper() });
+    320|     const row = await findBoardRow('BILL-002');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/35]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:40:1
+     38|   chiHo.mockReset().mockResolvedValue({ tripId: 10, tripCode: null, sh…
+     39| });
+     40| it('khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload ma…
+       | ^
+     41|   const onClose = vi.fn(); const onSaved = vi.fn();
+     42|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/35]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:58:1
+     56|   expect(screen.getByRole('status')).toHaveTextContent('Đã lưu khoản c…
+     57| });
+     58| it('lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì…
+       | ^
+     59|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+     60|   fireEvent.click(screen.getByRole('button', { name: '+ Thêm dòng' }));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/35]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseWorkLink.test.tsx > links a confirmed pre-dispatch source to selected real work without changing money
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseWorkLink.test.tsx:9:1
+      7| import { ExpenseWorkLink } from './ExpenseWorkLink';
+      8|
+      9| it('links a confirmed pre-dispatch source to selected real work withou…
+       | ^
+     10|   api.work.mockResolvedValue({ items: [{ id: 'trip:10', tripId: 10, sh…
+     11|   api.update.mockResolvedValue({});
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/35]⎯
+
+ FAIL  src/features/expense-accounting/ShipmentExpensePanel.test.tsx > shows + Thêm khoản chi for OPS and opens the drawer scoped to Ops payers
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ShipmentExpensePanel.test.tsx:46:1
+     44| // chiphispec §1 — the entry affordance is NOT hidden for OPS: an Ops …
+     45| // same drawer the accountant uses, with the payer list scoped to fell…
+     46| it('shows + Thêm khoản chi for OPS and opens the drawer scoped to Ops …
+       | ^
+     47|   renderPanel();
+     48|   fireEvent.click(await screen.findByRole('button', { name: '+ Thêm kh…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/35]⎯
+
+ FAIL  src/features/ops/ops-delete-affordance-labels.test.tsx > delete affordances announce business keys, never DB ids (QA-2026-09-24-09 O4/F2) > O4: the ops edit-modal photo delete button names the lot and the photo position, not photo.id
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/ops/ops-delete-affordance-labels.test.tsx:47:3
+     45|
+     46| describe('delete affordances announce business keys, never DB ids (QA-…
+     47|   it('O4: the ops edit-modal photo delete button names the lot and the…
+       |   ^
+     48|     showEdit();
+     49|     const button = await screen.findByRole('button', { name: 'Xóa ảnh …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/35]⎯
+
+ FAIL  src/features/shipment-finance/ShipmentFinanceForm.test.tsx > shipment finance entry > KT-16 keeps invoice face value separate from supplier cost on save
+Error: expect(element).not.toBeDisabled()
+
+Received element is disabled:
+  <button
+  class="btn btn--primary"
+  disabled=""
+  form="_r_0_"
+  type="submit"
+/>
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<section>[39m
+        [36m<form[39m
+          [33mclass[39m=[32m"shipment-finance__form"[39m
+          [33mid[39m=[32m"_r_0_"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"ds-uui-select ds-uui-select--operational"[39m
+          [36m>[39m
+            [36m<template />[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex flex-col gap-1.5 ds-uui-select__control"[39m
+              [33mdata-rac[39m=[32m""[39m
+              [33mdata-required[39m=[32m"true"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold"[39m
+                [33mdata-label[39m=[32m"true"[39m
+                [33mid[39m=[32m"react-aria-_r_5_"[39m
+              [36m>[39m
+                [0mNhà cung cấp[0m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"text-brand-tertiary"[39m
+                [36m>[39m
+                  [0m*[0m
+                [36m</span>[39m
+              [36m</span>[39m
+              [36m<button[39m
+                [33maria-expanded[39m=[32m"false"[39m
+                [33maria-haspopup[39m=[32m"listbox"[39m
+                [33maria-labelledby[39m=[32m"react-aria-_r_9_ react-aria-_r_5_"[39m
+                [33mclass[39m=[32m"relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear outline-focus-ring"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-rac[39m=[32m""[39m
+                [33mdata-react-aria-pressable[39m=[32m"true"[39m
+                [33mdata-uui-control[39m=[32m"select"[39m
+                [33mid[39m=[32m"react-aria-_r_4_"[39m
+                [33mtabindex[39m=[32m"0"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"flex h-max w-full items-center justify-start truncate text-left align-middle py-1 pl-2.5 pr-2 gap-1.5 max-md:pl-3 max-md:pr-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] *:data-icon:shrink-0 *:data-icon:text-fg-quaternary"[39m
+                  [33mdata-placeholder[39m=[32m"true"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-select-value[39m=[32m"true"[39m
+                  [33mid[39m=[32m"react-aria-_r_9_"[39m
+                [36m>[39m
+                  [36m<p[39m
+                    [33mclass[39m=[32m"truncate text-placeholder text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-input-touch-size)] [@media(pointer:coarse)]:text-[length:var(--text-input-touch-size)]"[39m
+                  [36m>[39m
+                    [0mChọn nhà cung cấp[0m
+                  [36m</p>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"ml-auto shrink-0 text-fg-quaternary size-4 stroke-[2.25px]"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<div[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mdata-a11y-ignore[39m=[32m"aria-hidden-focus"[39m
+                [33mdata-react-aria-prevent-focus[39m=[32m"true"[39m
+                [33mdata-testid[39m=[32m"hidden-select-container"[39m
+                [33mstyle[39m=[32m"border: 0px; clip: rect(0px); clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: fixed; width: 1px; white-space: nowrap; top: 0px; left: 0px;"[39m
+              [36m>[39m
+                [36m<label>[39m
+                  [36m<select[39m
+                    [33mrequired[39m=[32m""[39m
+                    [33mtabindex[39m=[32m"-1"[39m
+                    [33mtitle[39m=[32m""[39m
+                  [36m>[39m
+                    [36m<option[39m
+                      [33mlabel[39m=[32m" "[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m>[39m
+                      [0m [0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"__EMPTY_SELECT_VALUE__"[39m
+                    [36m>[39m
+                      [0mChọn nhà cung cấp[0m
+                    [36m</option>[39m
+                  [36m</select>[39m
+                [36m</label>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"shipment-finance__pair"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"ds-field ds-field--sm"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"ds-field__label"[39m
+                [33mfor[39m=[32m"_r_c_"[39m
+              [36m>[39m
+                [0mSố hóa đơn[0m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"ds-field__required"[39m
+                [36m>[39m
+                  [0m *[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<input[39m
+                [33maria-invalid[39m=[32m"false"[39m
+                [33mclass[39m=[32m"ds-field__input"[39m
+                [33mid[39m=[32m"_r_c_"[39m
+                [33mmaxlength[39m=[32m"100"[39m
+                [33mrequired[39m=[32m""[39m
+                [33mvalue[39m=[32m"VAT-16"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"ds-field ds-field--sm"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"ds-field__label"[39m
+                [33mfor[39m=[32m"_r_d_"[39m
+              [36m>[39m
+                [0mNgày hóa đơn[0m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"ds-field__required"[39m
+                [36m>[39m
+                  [0m *[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<input[39m
+                [33maria-expanded[39m=[32m"false"[39m
+                [33maria-haspopup[39m=[32m"dialog"[39m
+                [33maria-invalid[39m=[32m"false"[39m
+                [33mautocomplete[39m=[32m"off"[39m
+                [33mclass[39m=[32m"ds-field__input"[39m
+                [33mdata-date-input[39m=[32m"true"[39m
+                [33mid[39m=[32m"_r_d_"[39m
+                [33mmaxlength[39m=[32m"10"[39m
+                [33mplaceholder[39m=[32m"DD/MM/YYYY"[39m
+                [33mrequired[39m=[32m""[39m
+                [33mtype[39m=[32m"text"[39m
+                [33mvalue[39m=[32m"16/09/2026"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"ds-field ds-field--sm ds-field--money"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"ds-field__label"[39m
+                [33mfor[39m=[32m"_r_f_"[39m
+              [36m>[39m
+                [0mGiá trị hóa đơn (đ)[0m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"ds-field__required"[39m
+                [36m>[39m
+                  [0m *[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<input[39m
+                [33maria-invalid[39m=[32m"false"[39m
+                [33mclass[39m=[32m"ds-field__input"[39m
+                [33mid[39m=[32m"_r_f_"[39m
+                [33minputmode[39m=[32m"numeric"[39m
+                [33mplaceholder[39m=[32m"0"[39m
+                [33mrequired[39m=[32m""[39m
+                [33mtype[39m=[32m"text"[39m
+                [33mvalue[39m=[32m"1.000.000"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"ds-field ds-field--sm ds-field--money"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"ds-field__label"[39m
+                [33mfor[39m=[32m"_r_g_"[39m
+              [36m>[39m
+                [0mPhí nhà cung cấp (đ)[0m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"ds-field__required"[39m
+                [36m>[39m
+                  [0m *[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<input[39m
+                [33maria-invalid[39m=[32m"false"[39m
+                [33mclass[39m=[32m"ds-field__input"[39m
+                [33mid[39m=[32m"_r_g_"[39m
+                [33minputmode[39m=[32m"numeric"[39m
+                [33mplaceholder[39m=[32m"0"[39m
+                [33mrequired[39m=[32m""[39m
+                [33mtype[39m=[32m"text"[39m
+                [33mvalue[39m=[32m"50.000"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"shipment-finance__hint"[39m
+          [36m>[39m
+            [0mChỉ phí nhà cung cấp được ghi vào chi phí hóa đơn. Lưu hồ sơ không tạo phiếu chi.[0m
+          [36m</p>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"ds-field__label"[39m
+          [36m>[39m
+            [0mGhi chú[0m
+            [36m<textarea[39m
+              [33mclass[39m=[32m"ds-field__input"[39m
+              [33mmaxlength[39m=[32m"2000"[39m
+              [33mrows[39m=[32m"3"[39m
+            [36m/>[39m
+          [36m</label>[39m
+        [36m</form>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn btn--ghost"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mHủy[0m
+        [36m</button>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn btn--primary"[39m
+          [33mdisabled[39m=[32m""[39m
+          [33mform[39m=[32m"_r_0_"[39m
+          [33mtype[39m=[32m"submit"[39m
+        [36m>[39m
+          [0mLưu hồ sơ[0m
+        [36m</button>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ src/features/shipment-finance/ShipmentFinanceForm.test.tsx:28:87
+     26|     api.saveInvoice.mockResolvedValue({ id: 5 });
+     27|     const saved = show({ kind: 'invoice', record: invoice });
+     28|     await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu…
+       |                                                                                       ^
+     29|     fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }));
+     30|     await waitFor(() => expect(saved).toHaveBeenCalledTimes(1));
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/35]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.test.tsx > AccountingDebitClosePage — heading and board identity > offers phone facts and independent selection without writing a cancelled debit
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/AccountingDebitClosePage.test.tsx:99:3
+     97|     expect(sendRequests).not.toHaveBeenCalled(); expect(createRound).n…
+     98|   });
+     99|   it('offers phone facts and independent selection without writing a c…
+       |   ^
+    100|     window.matchMedia = (media): MediaQueryList => ({
+    101|       media, matches: media === '(max-width: 640px)', onchange: null,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/35]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > card 20260929_207 — row selection replaces the checkbox column > PHOI05 confirmation-scope change clears payment selection and sends the exact read filter
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:115:3
+    113|   });
+    114|
+    115|   it('PHOI05 confirmation-scope change clears payment selection and se…
+       |   ^
+    116|     const { container } = renderBoard([row({ tripId: 1 })]);
+    117|     await screen.findAllByText('Chưa có số Bill/Booking', undefined, {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/35]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > card 20260929_207 — row selection replaces the checkbox column > PHOI03 clears hidden selection during a filter query and does not resurrect it on return
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:198:3
+    196|   });
+    197|
+    198|   it('PHOI03 clears hidden selection during a filter query and does no…
+       |   ^
+    199|     const { container } = renderBoard([row({ tripId: 1 })]);
+    200|     await screen.findAllByText('Chưa có số Bill/Booking', undefined, {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/35]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > register board — column mini-filters, phoi state, grouping > mini-filter on Khách hàng narrows by a diacritic-folded match; Bỏ lọc restores every row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:249:3
+    247|
+    248| describe('register board — column mini-filters, phoi state, grouping',…
+    249|   it('mini-filter on Khách hàng narrows by a diacritic-folded match; B…
+       |   ^
+    250|     const { container } = renderBoard([
+    251|       row({ tripId: 1, customerName: 'KH Bình', plateNumber: '51A-1', …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/35]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > register board — column mini-filters, phoi state, grouping > mini-filter on Thông tin xe matches plate (case-folded) and carrier, and never re-sorts the grouped rows
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:270:3
+    268|   });
+    269|
+    270|   it('mini-filter on Thông tin xe matches plate (case-folded) and carr…
+       |   ^
+    271|     const { container } = renderBoard([
+    272|       row({ tripId: 1, customerName: 'KH A', plateNumber: '51A-1', con…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/35]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > register board — column mini-filters, phoi state, grouping > a column filter narrowed to nothing offers Bỏ lọc cột and never pays a hidden pick
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:308:3
+    306|   });
+    307|
+    308|   it('a column filter narrowed to nothing offers Bỏ lọc cột and never …
+       |   ^
+    309|     const { container } = renderBoard([
+    310|       row({ tripId: 1, customerName: 'KH A' }),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/35]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.cursor-advance.test.tsx > SIL-65 (CUS-01): create-flow appointment segments auto-advance > typing '08' into Giờ jumps the cursor to Phút; the minute digit is not dropped
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.cursor-advance.test.tsx:54:3
+     52|   });
+     53|
+     54|   it("typing '08' into Giờ jumps the cursor to Phút; the minute digit …
+       |   ^
+     55|     renderWorkspace();
+     56|     await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/35]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx > shipment create Enter law (FB-002 lần 3, card 211026034109) > a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save: issues paint and the typed input is KEPT (no wipe, no silent dead key)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx:55:3
+     53|   });
+     54|
+     55|   it('a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save…
+       |   ^
+     56|     renderWorkspace();
+     57|     await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/35]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx > shipment create cargo-mode toggle data scope > mode switch keeps identity fields and wipes only mode-scoped cargo data
+Error: Test timed out in 10000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx:45:3
+     43|   });
+     44|
+     45|   it('mode switch keeps identity fields and wipes only mode-scoped car…
+       |   ^
+     46|     renderWorkspace();
+     47|     await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/35]⎯
+
+ FAIL  src/features/shipments/debit/DebitLotLclFacts.test.tsx > 161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng từng lô") > reopens on the lot’s stored class and saves a newly picked one with the strip’s own states
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/debit/DebitLotLclFacts.test.tsx:91:3
+     89|
+     90| describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu …
+     91|   it('reopens on the lot\u2019s stored class and saves a newly picked …
+       |   ^
+     92|     setClass.mockResolvedValue({
+     93|       shipmentId: 9001,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/35]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx > FB-092 — AssignTruckGroupDialog > gửi cước trả ĐVVC nhập tay khi có, bỏ trống thì để server tự tra (161026232319)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx:257:3
+    255|   });
+    256|
+    257|   it('gửi cước trả ĐVVC nhập tay khi có, bỏ trống thì để server tự tra…
+       |   ^
+    258|     assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, membe…
+    259|     renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/35]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx > FB-092 — AssignTruckGroupDialog > giữ lựa chọn Loại xe + Nhà xe qua một lần "Hủy" rồi mở lại (card _171026133000)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx:323:3
+    321|   });
+    322|
+    323|   it('giữ lựa chọn Loại xe + Nhà xe qua một lần "Hủy" rồi mở lại (card…
+       |   ^
+    324|     // The popup unmounts on close, so every internal pick dies with i…
+    325|     // draft has to live one level up. This harness mirrors what
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/35]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx > FB-138 — grouped Loại xe menu + nhà xe reset khi đổi sang xe tải > đang giữ Đội xe nội bộ (lớp Cont) rồi đổi sang Xe tải → reset nhà xe + warning, không giữ ID mồ côi
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx:484:3
+    482|   });
+    483|
+    484|   it('đang giữ Đội xe nội bộ (lớp Cont) rồi đổi sang Xe tải → reset nh…
+       |   ^
+    485|     renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    486|     await pickVehicleClass('Container 20 feet');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/35]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > allocation editor mounts on every press (20260916_9) > mounts the editor on press 1 (branch decompose) and on every later press
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:1039:3
+    1037|   }
+    1038|
+    1039|   it('mounts the editor on press 1 (branch decompose) and on every lat…
+       |   ^
+    1040|     const branch = {
+    1041|       ...row({ fulfillmentId: undefined }),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/35]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > UI52-B editor business identity > keeps 'MSCU1234567' in the editor title and Cancel preserves the exact row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx:215:4
+    213|     { container: null, bill: null, expected: 'Chưa có số Bill/Booking'…
+    214|     { container: ' ', bill: ' ', expected: 'Chưa có số Bill/Booking' },
+    215|   ])('keeps $expected in the editor title and Cancel preserves the exa…
+       |    ^
+    216|     mockFleetResources();
+    217|     const original = row();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/35]⎯
+
+
+ Test Files  22 failed | 721 passed (743)
+      Tests  35 failed | 5695 passed (5730)
+   Start at  23:08:39
+   Duration  2197.76s (transform 68.92s, setup 718.42s, import 2889.05s, tests 3759.19s, environment 3020.11s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+EXIT=1

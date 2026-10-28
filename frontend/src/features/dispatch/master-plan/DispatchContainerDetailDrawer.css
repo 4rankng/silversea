@@ -237,6 +237,16 @@
   font-style: italic;
 }
 
+/* SIL-631: the cell keeps its value (dimmed) while the editor floats outside
+ * the table through a body portal — the row context survives the edit. */
+.dispatch-container-detail__decl-cell {
+  min-width: 0;
+}
+
+.dispatch-container-detail__decl-value.is-editing {
+  opacity: 0.45;
+}
+
 .dispatch-container-detail__decl-value--action {
   display: inline;
   padding: 0;

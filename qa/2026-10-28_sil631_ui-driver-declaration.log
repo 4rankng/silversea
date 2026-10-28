@@ -1,0 +1,9 @@
+login ok: dungnv role=DISPATCHER
+drawer open: Chi tiết container
+cell clicked: Sửa số tờ khai · BBHU2001012 (field=declaration)
+portal proof: {"panelParentIsBody":true,"panelInsideScroller":false,"inputValue":"TK-631-LONGTEST-VALUE","valueIsWhole":true,"inputClientWidth":420,"inputScrollWidth":420,"hint":true,"dimmedCellValue":"Chưa có tờ khai","panelRect":{"x":428,"y":196,"width":445.8125,"height":66.296875,"top":196,"right":873.8125,"bottom":262.296875,"left":428},"inputRect":{"x":441,"y":207,"width":419.8125,"height":30,"top":207,"right":860.8125,"bottom":237,"left":441}}
+screenshot: 2026-10-28_sil631_ui-01-declaration-editor-floating.png
+after Enter: {"toast":"Cảnh báo: Còn 1/1 cont chưa chốt ngày đóng trả","editorClosed":true}
+screenshot: 2026-10-28_sil631_ui-02-declaration-after-save.png
+DRIVER OK
+exit status: 0

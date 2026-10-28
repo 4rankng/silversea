@@ -299,6 +299,13 @@
   overflow-wrap: anywhere;
 }
 
+/* SIL-631: the cell keeps its value (dimmed) while the editor floats outside
+ * the grid through a body portal — the row context survives the edit. */
+.detailed-plan-grid__line.is-editing,
+.detailed-plan-grid__decl-value.is-editing {
+  opacity: 0.45;
+}
+
 .detailed-plan-grid__decl-value--action {
   display: inline;
   padding: 0;
