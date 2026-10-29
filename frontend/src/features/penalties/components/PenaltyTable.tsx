@@ -443,7 +443,26 @@ export function PenaltyTable({
                   const gc = getGradeClass(d.grade);
                   const showGrade = d.grade !== 'A+';
                   return (
-                    <tr key={d.driverId} onClick={(event) => onOpenDrawer(d.driverId, event.currentTarget)} className="penalty-scoreboard-row">
+                    <tr
+                      key={d.driverId}
+                      className="penalty-scoreboard-row"
+                      /* SIL-576 (29/10): the row IS the drawer opener (a mouse
+                         click anywhere on it) — it must be keyboard-operable
+                         AND the focus-restoration target after close, so the
+                         QA proof chain works: click row → Escape → Enter
+                         reopens the same driver's drawer. Enter/Space
+                         activate like a button; inner controls keep their
+                         own keys. */
+                      tabIndex={0}
+                      aria-label={`Lập biên bản cho ${d.name}`}
+                      onClick={(event) => onOpenDrawer(d.driverId, event.currentTarget)}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        if (event.target !== event.currentTarget) return;
+                        event.preventDefault();
+                        onOpenDrawer(d.driverId, event.currentTarget);
+                      }}
+                    >
                       <td data-label="" className="penalty-scoreboard-col-center">
                         <span className={`penalty-rank ${rankClass}`}>{idx + 1}</span>
                       </td>

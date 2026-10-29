@@ -1,0 +1,8 @@
+login → /dashboard
+  PASS scoreboard rows carry the keyboard-opener contract (tabindex=0 + aria-label) — n=57
+  PASS mouse click on the row opens the drawer
+  PASS Escape closes the drawer
+  PASS focus RETURNS TO THE ROW (not body/not only a button) — active="Lập biên bản cho Lương Văn Long"
+  PASS Enter on the restored row REOPENS the drawer
+  PASS second Escape lands focus back on the row again
+TOTAL 6/6 PASS

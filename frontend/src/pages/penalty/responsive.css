@@ -109,6 +109,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* SIL-576 (29/10): keyboard-reachable opener (Enter/Space) — visible ring. */
+.penalty-m-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .penalty-m-card::before {
   content: '';
   position: absolute;
