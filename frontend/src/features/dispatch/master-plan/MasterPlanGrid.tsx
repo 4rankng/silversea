@@ -421,6 +421,26 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                   <div className="master-plan-grid__cell-body">
                   <div className="master-plan-grid__cargo-content">
                     <div className="master-plan-grid__cargo-summary">
+                      {/* SIL-589 (id 689) — the row's cargo mode is a fact the
+                          dispatcher reads at a glance: an LCL lot carries the
+                          "Lẻ" flag here (the demand line alone — "2 Roll /
+                          0,01 tấn" — reads identical to a FCL weight line).
+                          A lot already merged into a ghép-trả-ĐV group says
+                          so ("Lẻ · Ghép"), keyed off the same costGroupId the
+                          CHỌN checkbox disables on, so a merged lot can never
+                          look mergeable again. Text-only (§1): no pill, no
+                          chrome — the same voice the detail plan's Phân loại
+                          cell uses for the same fact. */}
+                      {isLclLotRow(item) && (
+                        <div
+                          className="master-plan-grid__line master-plan-grid__lcl-flag"
+                          title={item.costGroupId != null
+                            ? `Lô hàng lẻ đã ghép trả ĐV cùng nhóm${item.actualTruckNo ? ` — BKS thực ${item.actualTruckNo}` : ''}`
+                            : 'Lô hàng lẻ (LCL) — chưa ghép nhóm'}
+                        >
+                          {item.costGroupId != null ? 'Lẻ · Ghép' : 'Lẻ'}
+                        </div>
+                      )}
                       {/* Owner redesign 23/10 — "Container đủ 1 dòng": the
                           per-type demand joins onto ONE ellipsized line
                           (title carries the whole roster). */}

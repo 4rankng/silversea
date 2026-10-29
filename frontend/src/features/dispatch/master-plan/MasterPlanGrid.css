@@ -330,6 +330,17 @@
   line-height: var(--ops-table-meta-line-height);
 }
 
+/* SIL-589 (id 689) — the cargo cell's hàng-lẻ flag ("Lẻ" / "Lẻ · Ghép").
+   Sits a step above the muted measures line (--fg-2 vs --fg-3) so the cargo
+   KIND reads before the numbers, but never competes with the strong demand
+   line. Text-only: no pill, no border — a static fact, not a control. */
+.master-plan-grid__lcl-flag {
+  color: var(--fg-2);
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  font-weight: 500;
+}
+
 /* Appointment days read as a bullet-less list: the date is the list row and
    that day's close/return lines indent beneath it. */
 .master-plan-grid__line--sub {
