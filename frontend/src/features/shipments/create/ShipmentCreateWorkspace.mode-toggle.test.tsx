@@ -159,14 +159,22 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
   // full-workspace render deterministic above the 5s default.
   }, 10000);
 
-  it('guards incomplete additional-delivery text even though the stored date is empty', async () => {
+  it('guards an entered Ngày giờ đóng trả (SIL-587) even though no other LCL data exists', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    // 181026200700 (D.4): the single "Ngày giao hàng" field is always
-    // visible — no add control stands in front of it.
-    const date = document.getElementById('shipment-expected-delivery') as HTMLInputElement;
-    fireEvent.change(date, { target: { value: '20/09' } });
+    // 181026200700 (D.4) + SIL-587: the single LCL schedule field is always
+    // visible. A COMPLETE datetime is mode data — switching to FCL must ask
+    // before wiping it (the old test drove a partial date-only draft; the
+    // datetime host keeps partial drafts inside its segments, so the guard
+    // pin moves to the committed value the form state actually holds).
+    const field = document.querySelector('[data-field-id="shipment-lcl-closing-at"]')!;
+    const seg = (key: string) => field.querySelector<HTMLInputElement>(`input[data-seg="${key}"]`)!;
+    fireEvent.change(seg('hh'), { target: { value: '14' } });
+    fireEvent.change(seg('mm'), { target: { value: '30' } });
+    fireEvent.change(seg('dd'), { target: { value: '20' } });
+    fireEvent.change(seg('mm2'), { target: { value: '09' } });
+    fireEvent.change(seg('yyyy'), { target: { value: '2026' } });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng FCL/ }));
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
   });

@@ -1022,7 +1022,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   // FCL-vessel fields (hạn hạ container / trả container) in never rendering
   // for hàng lẻ, and both note fields render for FCL only — their state
   // survives mode switches (pinned in the workspace toggle suite).
-  it('replaces the LCL Lịch & ghi chú section with one always-visible Ngày giao hàng field', async () => {
+  it('replaces the LCL Lịch & ghi chú section with one always-visible Ngày giờ đóng trả field (SIL-587)', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
@@ -1031,11 +1031,15 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await screen.findByRole('heading', { name: 'Điểm vận hành & tuyến' });
 
-    // The section chrome AND the add button are gone for hàng lẻ — one field.
+    // The section chrome AND the add button are gone for hàng lẻ — one
+    // datetime field (SIL-587: "Ngày giờ đóng trả", ngày + giờ).
     expect(screen.queryByRole('heading', { name: 'Lịch & ghi chú' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Thêm ngày giao hàng' })).toBeNull();
-    expect(screen.getAllByLabelText(/Ngày giao hàng/).length).toBeGreaterThan(0);
-    expect(document.getElementById('shipment-expected-delivery')).toBeTruthy();
+    const lclSchedule = document.querySelector('[data-field-id="shipment-lcl-closing-at"]');
+    expect(lclSchedule).toBeTruthy();
+    expect(lclSchedule!.textContent).toContain('Ngày giờ đóng trả');
+    expect(lclSchedule!.querySelectorAll('input[data-seg="hh"], input[data-seg="dd"]').length).toBe(2);
+    expect(document.getElementById('shipment-expected-delivery')).toBeNull();
     // No extra-delivery repeater: exactly one field, no "Ngày giao bổ sung".
     expect(screen.queryByLabelText('Ngày giao bổ sung')).toBeNull();
     expect(screen.queryByLabelText(/Hạn hoàn tất hải quan/)).not.toBeInTheDocument();
@@ -1102,28 +1106,36 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   // Helpdesk 2026-10-13 (ops Tiếp Vu): "PHẦN HÀNG LẺ: CHỖ NGÀY GIAO DỰ KIẾN
   // THAY LUÔN LÀ NGÀY GIAO HÀNG". The shipment-level delivery date only
   // renders on the LCL path, so the rename is unconditional — the field id
-  // and the expectedDeliveryDate wire name stay put. OpsOrdersPage's own
+  // and the lclClosingAt wire name stay put. OpsOrdersPage's own
   // day-plan filter keeps its separate "Ngày giao dự kiến" label.
-  it('labels the LCL-only delivery date "Ngày giao hàng"', async () => {
+  it('labels the LCL-only schedule field "Ngày giờ đóng trả" (SIL-587)', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    // FCL never shows the shipment-level delivery date.
-    expect(screen.queryByLabelText('Ngày giao hàng')).toBeNull();
+    // FCL never shows the shipment-level schedule field (its table header
+    // "Ngày giờ đóng trả" is the per-container column, a different surface —
+    // assert by the LCL field wrapper, not by generic text).
+    expect(document.querySelector('[data-field-id="shipment-lcl-closing-at"]')).toBeNull();
 
     fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
-    // Card D.4 + 181026200700: no "Lịch & ghi chú" heading on the hàng lẻ
-    // form — the date is ONE always-visible field, no add control.
+    // Card D.4 + 181026200700 + SIL-587: no "Lịch & ghi chú" heading on the
+    // hàng lẻ form — the datetime is ONE always-visible field, no add
+    // control.
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Thêm ngày giao hàng' })).toBeNull());
-    await waitFor(() => expect(document.getElementById('shipment-expected-delivery')).toBeTruthy());
+    const field = await waitFor(() => {
+      const node = document.querySelector('[data-field-id="shipment-lcl-closing-at"]');
+      expect(node).toBeTruthy();
+      return node!;
+    });
 
-    // QA1-007: the label now carries the visual required mark, so the match
-    // is a prefix regex resolved to the segmented dd input; the accessible
-    // name itself is unchanged.
-    const deliveryDate = screen.getAllByLabelText(/Ngày giao hàng/)
-      .find((el) => (el as HTMLInputElement).id === 'shipment-expected-delivery');
-    expect(deliveryDate).toBeTruthy();
-    expect((deliveryDate as HTMLInputElement).id).toBe('shipment-expected-delivery');
-    expect(screen.queryByLabelText('Ngày giao dự kiến')).toBeNull();
+    // QA1-007: the label carries the visual required mark; the datetime host
+    // renders the giờ segment under the same group label. (The FCL container
+    // table's own "Ngày giờ đóng trả" column is unrelated vocabulary — the
+    // LCL field is identified by its wrapper id.)
+    expect(field.textContent).toContain('Ngày giờ đóng trả');
+    expect(field.textContent).toContain('*');
+    expect(field.querySelectorAll('input[data-seg="hh"]').length).toBe(1);
+    expect(screen.queryByText('Ngày giao dự kiến')).toBeNull();
+    expect(screen.queryByText('Ngày giao hàng')).toBeNull();
   });
 
   // Helpdesk 2026-10-13 (ops Tiếp Vu): "hàng lẻ: phần thể tích (cbm) k bắt
@@ -1151,11 +1163,16 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.change(screen.getByLabelText(/Số lượng/), { target: { value: '8' } });
     fireEvent.change(screen.getByLabelText(/Trọng lượng \(kg\)/), { target: { value: '1200' } });
     // Thể tích (CBM) stays blank on purpose. "Tạo lô hàng" runs the full
-    // CREATE intake validation (prod round-16), so the delivery date must be
-    // set — 181026200700: the field is always visible, and the segmented
-    // field accepts DD/MM/YYYY in one change. (QA1-007: the dd segment owns
-    // the label association; resolve it by field id.)
-    fireEvent.change(document.getElementById('shipment-expected-delivery')!, { target: { value: '20/09/2026' } });
+    // CREATE intake validation (prod round-16), so the schedule datetime must
+    // be set — SIL-587: the field is always visible and segmented; a complete
+    // giờ + ngày commit fills the wire value in one pass.
+    const lclSchedule = document.querySelector('[data-field-id="shipment-lcl-closing-at"]')!;
+    const seg = (key: string) => lclSchedule.querySelector<HTMLInputElement>(`input[data-seg="${key}"]`)!;
+    fireEvent.change(seg('hh'), { target: { value: '14' } });
+    fireEvent.change(seg('mm'), { target: { value: '30' } });
+    fireEvent.change(seg('dd'), { target: { value: '20' } });
+    fireEvent.change(seg('mm2'), { target: { value: '09' } });
+    fireEvent.change(seg('yyyy'), { target: { value: '2026' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(

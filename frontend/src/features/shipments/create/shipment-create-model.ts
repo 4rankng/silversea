@@ -40,6 +40,17 @@ export interface ShipmentCreateFormState {
   plannedReturnAt: string;
   expectedDeliveryDate: string;
   /**
+   * SIL-587 (id 687, khách 29/10): LCL's single schedule field is
+   * "Ngày giờ đóng trả" — a complete Vietnam wall-clock datetime
+   * ("YYYY-MM-DDTHH:mm", the SplitDateTimeField wire shape). The payload maps
+   * it direction-correct (IMPORT → plannedReturnAt, else closingAt — the same
+   * law the overview quick-edit writes) and derives expectedDeliveryDate from
+   * its VN date part, so the day keeps driving the transport-date filter and
+   * the auto-status rule. `expectedDeliveryDate` itself stays edit-prefill
+   * only (a legacy LCL lot's stored day).
+   */
+  lclClosingAt: string;
+  /**
    * LCL split-lot extra delivery dates (doc Create Shipment Block 2B: "[+]"
    * adds more delivery days). The backend has no array column for these yet,
    * so they persist formatted inside the driver note; the first date is
@@ -133,6 +144,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   closingAt: '',
   plannedReturnAt: '',
   expectedDeliveryDate: '',
+  lclClosingAt: '',
   extraDeliveryDates: [],
   cargoWeightKg: '',
   cargoVolumeCbm: '',
@@ -279,7 +291,12 @@ export function getShipmentCreateReadiness(
     // Helpdesk 2026-10-13 (ops Tiếp Vu): CBM is optional for LCL — blank (or
     // whitespace-only) is not an issue; an entered value must still be > 0.
     if (form.cargoVolumeCbm.trim() && Number(form.cargoVolumeCbm) <= 0) issues.push(issue('shipment-cargo-volume', 'Nhập thể tích lớn hơn 0.', 'cargo'));
-    if (!form.expectedDeliveryDate) issues.push(issue('shipment-expected-delivery', 'Chọn ngày giao hàng.', 'schedule'));
+    // SIL-587: one required "Ngày giờ đóng trả" datetime. A stored EDD
+    // (edit-prefilled legacy lot) also satisfies the schedule requirement, so
+    // editing an old lot is never blocked on re-entering the new field.
+    if (!form.lclClosingAt && !form.expectedDeliveryDate) {
+      issues.push(issue('shipment-lcl-closing-at', 'Chọn ngày giờ đóng trả.', 'schedule'));
+    }
   }
 
   const sectionDefinitions: Array<[ShipmentCreateSectionId, string]> = [
@@ -298,7 +315,7 @@ export function getShipmentCreateReadiness(
     // catalog id (Lệnh chạy ngoài §4.1).
     draftReady: Boolean(form.customerId) || (form.isAdHoc && Boolean(form.rawCustomerName.trim())),
     dispatchReady: issues.length === 0,
-    initialStatus: form.cargoMode === 'LCL' && (form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt)
+    initialStatus: form.cargoMode === 'LCL' && (form.lclClosingAt || form.expectedDeliveryDate || form.closingAt || form.plannedReturnAt)
       ? ShipmentStatus.READY_FOR_DISPATCH
       : ShipmentStatus.PENDING_DATE,
     issues,
@@ -357,6 +374,12 @@ export function buildShipmentRootPayload(
   };
   const isLcl = form.cargoMode === 'LCL';
   const exportLot = form.tradeDirection === 'EXPORT';
+  // SIL-587: LCL's "Ngày giờ đóng trả" persists direction-correct — IMPORT →
+  // plannedReturnAt, else closingAt — the same single-instant law the overview
+  // quick-edit's schedule mode writes, so the two surfaces can never fork the
+  // lot's schedule. The other direction's stored instant is left untouched
+  // (edit round-trips keep whatever the lot already had).
+  const lclClosingIso = localDateTimeToIso(form.lclClosingAt);
   const warehouseName = siteLabel(form.pickupWarehouseSiteId, form.pickupWarehouseName);
   const factoryName = siteLabel(form.operationalSiteId, form.factoryName);
   return {
@@ -394,11 +417,16 @@ export function buildShipmentRootPayload(
     } : {}),
     shippingLineName: form.cargoMode === 'FCL' ? form.shippingLineName || null : null,
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
-    closingAt: localDateTimeToIso(form.closingAt),
-    plannedReturnAt: localDateTimeToIso(form.plannedReturnAt),
+    closingAt: isLcl && form.tradeDirection !== 'IMPORT' ? lclClosingIso : localDateTimeToIso(form.closingAt),
+    plannedReturnAt: isLcl && form.tradeDirection === 'IMPORT' ? lclClosingIso : localDateTimeToIso(form.plannedReturnAt),
     // FCL's lot date is derived by the container reconcile in the backend;
-    // only LCL retains a shipment-level delivery date.
-    expectedDeliveryDate: form.cargoMode === 'LCL' ? form.expectedDeliveryDate || null : undefined,
+    // only LCL retains a shipment-level delivery date — SIL-587: the day is
+    // the VN calendar date of "Ngày giờ đóng trả" (string surgery on the naive
+    // VN wall-clock draft, never the host timezone), falling back to a stored
+    // EDD when the datetime is empty (legacy lot edited without re-entry).
+    expectedDeliveryDate: form.cargoMode === 'LCL'
+      ? (form.lclClosingAt ? form.lclClosingAt.slice(0, 10) : form.expectedDeliveryDate || null)
+      : undefined,
     cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
     cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm.trim() || null : null,
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,

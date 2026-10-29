@@ -10,6 +10,7 @@ import {
   resetCustomerSite,
   validateShipmentCreate,
   type ShipmentContainerDraft,
+  type ShipmentCreateFormState,
 } from './shipment-create-model';
 
 vi.stubGlobal('crypto', { randomUUID: () => 'row-1' });
@@ -369,6 +370,84 @@ describe('shipment create model', () => {
     }, [], []);
     expect('pickupLocation' in payload).toBe(false);
     expect('deliveryLocation' in payload).toBe(false);
+  });
+
+  // SIL-587 (id 687, khách 29/10): "Ngày giờ đóng trả" is LCL's single
+  // schedule field. The payload persists it direction-correct (IMPORT →
+  // plannedReturnAt, else closingAt — the overview quick-edit's law) as an
+  // ICT instant, and derives expectedDeliveryDate from the VN calendar date
+  // of the naive wall-clock draft via string surgery — never the host zone
+  // (a GMT+8 host must not shift 23:50 into the next day).
+  describe('SIL-587 — LCL "Ngày giờ đóng trả" payload mapping', () => {
+    const lclForm = (overrides: Partial<ShipmentCreateFormState> = {}) => ({
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      cargoMode: 'LCL' as const,
+      tradeDirection: 'IMPORT' as const,
+      blNumber: 'BL-LCL-CLOSING',
+      operationalSiteId: '41',
+      pickupWarehouseSiteId: '42',
+      packageType: 'Pallet',
+      packageCount: '5',
+      cargoWeightKg: '300',
+      lclClosingAt: '2026-10-29T14:30',
+      ...overrides,
+    });
+
+    it('maps an IMPORT lot onto plannedReturnAt (+07:00) and derives the VN-day EDD', () => {
+      const payload = buildShipmentRootPayload(lclForm(), [], []);
+      expect(payload.plannedReturnAt).toBe('2026-10-29T14:30:00+07:00');
+      expect(payload.closingAt).toBeNull();
+      expect(payload.expectedDeliveryDate).toBe('2026-10-29');
+    });
+
+    it('maps an EXPORT lot onto closingAt and leaves plannedReturnAt null', () => {
+      const payload = buildShipmentRootPayload(
+        lclForm({ tradeDirection: 'EXPORT', bookingRef: 'BK-LCL-CLOSING', blNumber: '' }),
+        [], [],
+      );
+      expect(payload.closingAt).toBe('2026-10-29T14:30:00+07:00');
+      expect(payload.plannedReturnAt).toBeNull();
+      expect(payload.expectedDeliveryDate).toBe('2026-10-29');
+    });
+
+    it('derives the EDD by string surgery — 23:50 stays on its VN calendar day', () => {
+      const payload = buildShipmentRootPayload(lclForm({ lclClosingAt: '2026-10-29T23:50' }), [], []);
+      expect(payload.expectedDeliveryDate).toBe('2026-10-29');
+      expect(payload.plannedReturnAt).toBe('2026-10-29T23:50:00+07:00');
+    });
+
+    it('keeps a legacy stored EDD when the datetime is empty (edit without re-entry)', () => {
+      const payload = buildShipmentRootPayload(
+        lclForm({ lclClosingAt: '', expectedDeliveryDate: '2026-10-22' }),
+        [], [],
+      );
+      expect(payload.plannedReturnAt).toBeNull();
+      expect(payload.closingAt).toBeNull();
+      expect(payload.expectedDeliveryDate).toBe('2026-10-22');
+    });
+
+    it('requires the datetime for create but accepts a stored EDD (legacy edit)', () => {
+      const missing = getShipmentCreateReadiness(
+        lclForm({ lclClosingAt: '', expectedDeliveryDate: '' }),
+        [],
+      );
+      expect(missing.issues).toContainEqual(expect.objectContaining({
+        fieldId: 'shipment-lcl-closing-at',
+        message: 'Chọn ngày giờ đóng trả.',
+      }));
+
+      const legacy = getShipmentCreateReadiness(
+        lclForm({ lclClosingAt: '', expectedDeliveryDate: '2026-10-22' }),
+        [],
+      );
+      expect(legacy.issues.map((item) => item.fieldId)).not.toContain('shipment-lcl-closing-at');
+
+      const dated = getShipmentCreateReadiness(lclForm(), []);
+      expect(dated.dispatchReady).toBe(true);
+      expect(dated.initialStatus).toBe('READY_FOR_DISPATCH');
+    });
   });
 
   // Helpdesk 2026-10-13 (ops Tiếp Vu): "hàng lẻ: phần thể tích (cbm) k bắt

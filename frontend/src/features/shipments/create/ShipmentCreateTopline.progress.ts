@@ -44,6 +44,7 @@ type RequiredForm = Pick<
   | 'packageCount'
   | 'cargoWeightKg'
   | 'expectedDeliveryDate'
+  | 'lclClosingAt'
 >;
 
 type RequiredRow = Pick<
@@ -136,8 +137,11 @@ export function requiredSlots(
   // CBM is deliberately absent: helpdesk 2026-10-13 made it optional, and an
   // optional field must never raise the denominator.
   slots.push({
-    fieldId: 'shipment-expected-delivery',
-    done: Boolean(form.expectedDeliveryDate),
+    // SIL-587: the LCL schedule slot is the "Ngày giờ đóng trả" datetime; a
+    // stored EDD (edit-prefilled legacy lot) satisfies the requirement the
+    // same way the validator accepts it.
+    fieldId: 'shipment-lcl-closing-at',
+    done: Boolean(form.lclClosingAt) || Boolean(form.expectedDeliveryDate),
   });
   return slots;
 }

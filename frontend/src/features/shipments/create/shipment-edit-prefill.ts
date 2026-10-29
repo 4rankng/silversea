@@ -122,6 +122,14 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     closingAt: formatVietnamDateTimeInput(shipment.closingAt),
     plannedReturnAt: formatVietnamDateTimeInput(shipment.plannedReturnAt),
     expectedDeliveryDate: isLcl ? isoDate(shipment.expectedDeliveryDate) : '',
+    // SIL-587: prefill the LCL "Ngày giờ đóng trả" from the lot's
+    // direction-correct instant (IMPORT → plannedReturnAt, else closingAt —
+    // the same law the payload and the overview quick-edit apply). A legacy
+    // lot with only an EDD prefills EMPTY here; its stored day still
+    // satisfies the schedule requirement and survives the save untouched.
+    lclClosingAt: isLcl
+      ? formatVietnamDateTimeInput(shipment.tradeDirection === 'IMPORT' ? shipment.plannedReturnAt : shipment.closingAt)
+      : '',
     // Extra delivery days persist inside the driver note (create model §);
     // they are not parsed back out — the note itself round-trips below.
     extraDeliveryDates: [],
