@@ -20,6 +20,7 @@ function makeItem(overrides: {
   totalContainers?: number;
   customerName?: string | null;
   routeName?: string | null;
+  billOrBookNumber?: string | null;
   declarationNumber?: string | null;
   declarationNumbers?: string[];
   transportDate?: string | null;
@@ -38,6 +39,7 @@ function makeItem(overrides: {
     totalContainers = 0,
     customerName = 'LONG MINH',
     routeName = 'Vân Trung, Bắc Ninh',
+    billOrBookNumber = null,
     declarationNumber = null,
     declarationNumbers = [],
     transportDate = null,
@@ -58,7 +60,7 @@ function makeItem(overrides: {
     effectiveFactoryNames: [],
     factoryName: 'Factory A',
     isAdHoc: false,
-    billOrBookNumber: 'BL123',
+    billOrBookNumber,
     declarationNumber,
     declarationNumbers,
     shippingLineName: null,

@@ -65,6 +65,14 @@ export function worksheetQuantity(item: ShipmentCusWorkspaceListItem): string {
 }
 
 export function scheduleTimestamp(item: ShipmentCusWorkspaceListItem): string | null {
+  // SIL-586 (salvage agy2): the lot-level cross-fallback (closingAt ↔
+  // plannedReturnAt) and the transportDate day fallback are LCL-only laws
+  // (r2). FCL keeps the original strict read — the direction's own instant
+  // only — because an FCL lot schedules per-container appointments and its
+  // date-level EDD is never a lot schedule.
+  if (item.cargoMode !== 'LCL') {
+    return item.direction === 'IMPORT' ? item.plannedReturnAt : item.closingAt;
+  }
   const preferred = item.direction === 'IMPORT'
     ? (item.plannedReturnAt ?? item.closingAt)
     : (item.closingAt ?? item.plannedReturnAt);
