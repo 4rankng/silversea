@@ -821,6 +821,13 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   // plate arrives later" (CUS sẽ bổ sung) must be distinguishable from a
   // genuinely unassigned vehicle (Chưa gán biển số).
   carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
+  // SIL-592 (id 692) — live dispatch trip linkage, the flat-row twin of the
+  // container line's gating fields: together with carrierType it gates the CUS
+  // staff close ("Hoàn thành") for external-carrier rows, so the workboard can
+  // render the action from the list wire without a per-row fetch. Required
+  // nullable like the line's twin (both flat-row producers emit them).
+  tripId: z.number().int().positive().nullable(),
+  tripStatus: z.nativeEnum(TripStatus).nullable(),
   plateNumber: z.string().nullable(),
   // Card 161026232339 (DEV SPEC Hàng lẻ §II.3.1) — the FB-092/093 group truck
   // and the two BILLING classes ride the row, so the Chi Tiết workboard can

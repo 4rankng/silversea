@@ -1,0 +1,21 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175
+LOGIN ok cus
+T01 button facts: {"label":"Hoàn thành chuyến xe ngoài của FFAU6012758","text":"Hoàn thành","w":87,"h":30,"cellW":118,"clippedByCell":false,"wraps":"normal","overflowsSelf":false}
+PASS T01 close button on live plated EXTERNAL row (1280) — Hoàn thành chuyến xe ngoài của FFAU6012758
+PASS T01 button not clipped by its cell (1280) — cellW=118 w=87
+PASS T01 wrap law (white-space normal) — normal
+T02 drawer button facts: {"label":"Hoàn thành chuyến xe ngoài của FFAU6012758","text":"Hoàn thành","w":87,"h":30,"cellW":120,"clippedByCell":false,"wraps":"normal","overflowsSelf":false}
+PASS T02 drawer close button on live EXTERNAL line — Hoàn thành chuyến xe ngoài của FFAU6012758
+T03 button facts: {"label":"Hoàn thành chuyến xe ngoài của R42DIS-02","text":"Hoàn thành","w":87,"h":40,"cellW":352,"clippedByCell":false,"wraps":"normal","overflowsSelf":false}
+PASS T03 close button present at 390 (lot row) — Hoàn thành chuyến xe ngoài của R42DIS-02
+PASS T03 no clipping at 390 (wrap-full) — {"label":"Hoàn thành chuyến xe ngoài của R42DIS-02","text":"Hoàn thành","w":87,"h":40,"cellW":352,"clippedByCell":false,"wraps":"normal","overflowsSelf":false}
+T04 plate-less row facts: {"buttons":0,"badge":"Chờ phân xe"}
+PASS T04 plate-less deferred trip renders NO close button — {"buttons":0,"badge":"Chờ phân xe"}
+T05 dialog text: Hoàn thành chuyến với xe ngoài FFAU6012758? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.HủyHoàn thành chuyến
+PASS T05 dialog names the trip and the staff-close rationale — Hoàn thành chuyến với xe ngoài FFAU6012758? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.HủyHoàn thà
+PASS T05 success toast text present — Đã hoàn thành chuyến xe ngoài.
+PASS T05 row dispatch chip flips to Hoàn thành — Hoàn thành
+T05 api row after close: tripId=50 tripStatus=COMPLETED dispatchStatus=COMPLETED
+PASS T05 API row persists tripStatus=COMPLETED — COMPLETED
+DONE failures=0
+driver-exit=0

@@ -1,0 +1,17 @@
+== SIL-592 DB proof (dev DB 5441) ==
+-- BEFORE drive:
+ id |    trip_code    | status  | version | carrier_type 
+----+-----------------+---------+---------+--------------
+ 37 | TRP-202610-0013 | CREATED |       2 | EXTERNAL
+ 39 | TRP-202610-0015 | CREATED |       2 | EXTERNAL
+(2 rows)
+
+-- AFTER drive (T05 clicked Hoàn thành on trip 50):
+ id |    trip_code    |  status   | version | carrier_type | external_plate_number 
+----+-----------------+-----------+---------+--------------+-----------------------
+ 37 | TRP-202610-0013 | CREATED   |       2 | EXTERNAL     | 
+ 39 | TRP-202610-0015 | CREATED   |       2 | EXTERNAL     | 
+ 50 | TRP-202610-0026 | COMPLETED |       3 | EXTERNAL     | 15H-12541
+ 54 | TRP-202610-0030 | CREATED   |       2 | EXTERNAL     | 15C-99999
+(4 rows)
+
