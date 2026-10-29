@@ -49,11 +49,16 @@ export function DispatchDeclarationCell({ row, onSaved }: {
   // SIL-594 (id 694) — the save's own confirmation drives the display the
   // moment it lands: the board refetch may arrive late, arrive stale (a cache
   // replaying pre-save bytes), or not arrive at all, and reload/re-search must
-  // never be how a user sees their save. The echo is keyed to the row value it
-  // replaced and self-clears as soon as the row prop carries anything else — a
-  // refreshed or external server value always wins.
-  const [echo, setEcho] = useState<{ propAtSave: string; fresh: string } | null>(null);
-  const baseline = echo != null && propBaseline === echo.propAtSave ? echo.fresh : propBaseline;
+  // never be how a user sees their save. The echo is keyed to BOTH values it
+  // supersedes — the row prop at save time and the value the cell displayed
+  // (a rapid re-save supersedes an earlier save's echo before any refetch
+  // lands; the echo must still mask that value) — and self-clears the moment
+  // the row prop carries anything else: a refreshed or external server value
+  // always wins.
+  const [echo, setEcho] = useState<{ propAtSave: string; alsoReplaces: string; fresh: string } | null>(null);
+  const baseline = echo != null && (propBaseline === echo.propAtSave || propBaseline === echo.alsoReplaces)
+    ? echo.fresh
+    : propBaseline;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(baseline);
   const [saving, setSaving] = useState(false);
@@ -101,9 +106,13 @@ export function DispatchDeclarationCell({ row, onSaved }: {
       revert();
       return;
     }
-    // SIL-594 — the row value this save replaces; keys the echo so it
-    // self-clears the moment the refreshed row carries anything else.
+    // SIL-594 — the echo's identity: the row it belongs to plus BOTH values it
+    // supersedes — the row prop at save time AND the value the cell displayed
+    // (a rapid re-save can supersede an earlier save's echo before any refetch
+    // lands; the echo must mask that value too — review finding 1).
+    const savedForRow = rowKey;
     const propAtSave = propBaseline;
+    const alsoReplaces = baselineRef.current;
     setSaving(true);
     void updateCusShipmentContainerLine(
       row.shipmentId,
@@ -119,7 +128,11 @@ export function DispatchDeclarationCell({ row, onSaved }: {
         setEditing(false);
         // SIL-594 — show the just-saved value NOW (authoritative: the server
         // accepted this exact value), before any refetch reconciles the rows.
-        setEcho({ propAtSave, fresh: next });
+        // A save resolving after a row swap must never arm the echo onto the
+        // NEW row (its prop can coincide with the old row's — review finding 2).
+        if (rowKeyRef.current === savedForRow) {
+          setEcho({ propAtSave, alsoReplaces, fresh: next });
+        }
         const synced = result.declarationSync?.updatedContainerIds.length ?? 0;
         toastCtx?.toast({
           kind: 'success',

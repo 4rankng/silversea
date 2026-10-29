@@ -334,7 +334,7 @@ class ApiClient {
     const headers: Record<string, string> = {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
-    const res = await fetch(`${API_BASE}${url}`, { headers });
+    const res = await fetch(`${API_BASE}${url}`, { cache: 'no-store', headers });
     this.handleSessionExpiry(res, token);
     if (!res.ok) {
       // Card 368: delegate to the shared normalizer (card 348) so non-JSON
@@ -351,7 +351,7 @@ class ApiClient {
     const headers: Record<string, string> = {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
-    const res = await fetch(`${API_BASE}${url}`, { headers });
+    const res = await fetch(`${API_BASE}${url}`, { cache: 'no-store', headers });
     this.handleSessionExpiry(res, token);
     if (!res.ok) {
       // Card 368: delegate to the shared normalizer (card 348) so non-JSON

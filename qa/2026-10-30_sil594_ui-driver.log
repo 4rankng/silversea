@@ -1,0 +1,14 @@
+SIL-594 UI driver — 2026-10-29T21:55:30.838Z
+BASE=http://localhost:7185 API=http://localhost:3003/api user=dieuvan
+PASS API login (200)
+PASS GET /api carries Cache-Control: no-store (got: no-store)
+net rows GET 200 @1793310935043
+net rows GET 200 @1793310935182
+cell Sửa số tờ khai · WHSU0216887 before="108693793830"
+PASS row visible via q search (WHSU0216887)
+API identity BEFORE: declarationNumber="108693793830"
+PASS cell shows saved value immediately (got "SIL594-33vyuf", want "SIL594-33vyuf")
+net rows GET 200 @1793310940912
+PASS API row carries saved value ("SIL594-33vyuf")
+PASS restore through UI (got "108693793830", want "108693793830")
+RESULT: ALL PASS

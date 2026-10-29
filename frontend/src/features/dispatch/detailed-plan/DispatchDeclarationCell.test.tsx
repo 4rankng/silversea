@@ -231,3 +231,86 @@ describe('DispatchDeclarationCell — SIL-594 saved value shows immediately', ()
     expect(screen.getByRole('button', { name: /Sửa số tờ khai/ }).textContent).not.toContain('TK-SAVED');
   });
 });
+
+// Review findings 1-2 — the echo lifecycle's hard cases (SIL-594 class). Each
+// pin fails without its guard: the rapid re-save would show the INTERMEDIATE
+// refetch value, and a late-resolving save would poison a swapped-in row.
+describe('DispatchDeclarationCell — SIL-594 echo lifecycle', () => {
+  it('C5: rapid re-save mid-refetch — the second save wins even when the first refetch lands in between', async () => {
+    authRole = 'CUS';
+    let resolveSave2!: (value: unknown) => void;
+    updateLineMock
+      .mockResolvedValueOnce({ line: {}, declarationSync: { updatedContainerIds: [] } })
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSave2 = resolve; }));
+    const { rerender } = render(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'MSCU1234567', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TK-A' },
+    })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-B' } });
+    fireEvent.keyDown(screen.getByLabelText('Số tờ khai'), { key: 'Enter' });
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
+
+    // Second save starts while the row prop still says TK-A…
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-C' } });
+    fireEvent.keyDown(screen.getByLabelText('Số tờ khai'), { key: 'Enter' });
+    // …the FIRST save's refetch lands mid-flight (prop → TK-B)…
+    rerender(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'MSCU1234567', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TK-B' },
+    })} />);
+    resolveSave2({ line: {}, declarationSync: { updatedContainerIds: [] } });
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(2));
+
+    const cell = screen.getByRole('button', { name: /Sửa số tờ khai/ });
+    expect(cell.textContent).toContain('TK-C');
+    expect(cell.textContent).not.toContain('TK-B');
+  });
+
+  it('C6: a save resolving after a row swap never arms the echo onto the new row', async () => {
+    authRole = 'CUS';
+    let resolveSave!: (value: unknown) => void;
+    updateLineMock.mockImplementationOnce(() => new Promise((resolve) => { resolveSave = resolve; }));
+    const { rerender } = render(<DispatchDeclarationCell row={row({
+      shipmentContainerId: 77,
+      container: { containerNumber: 'MSCU1111111', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TK-A' },
+    })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-B' } });
+    fireEvent.keyDown(screen.getByLabelText('Số tờ khai'), { key: 'Enter' });
+    // Row swaps to ANOTHER container carrying the same old value while the
+    // save is still in flight — its display must stay its own.
+    rerender(<DispatchDeclarationCell row={row({
+      shipmentContainerId: 88,
+      container: { containerNumber: 'MSCU2222222', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TK-A' },
+    })} />);
+    resolveSave({ line: {}, declarationSync: { updatedContainerIds: [] } });
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
+
+    const cell = screen.getByRole('button', { name: /Sửa số tờ khai/ });
+    expect(cell.textContent).toContain('TK-A');
+    expect(cell.textContent).not.toContain('TK-B');
+  });
+
+  it('C7: clear-to-empty echo self-clears when an external refetch value lands', async () => {
+    authRole = 'CUS';
+    updateLineMock.mockResolvedValue({ line: {}, declarationSync: { updatedContainerIds: [] } });
+    const { rerender } = render(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'MSCU1234567', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TK-A' },
+    })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: '' } });
+    fireEvent.keyDown(screen.getByLabelText('Số tờ khai'), { key: 'Enter' });
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: /Sửa số tờ khai/ }).textContent).toContain('Chưa có tờ khai');
+
+    // An external writer's fresh value lands via refetch — the echo must not
+    // mask it.
+    rerender(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'MSCU1234567', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TK-EXT' },
+    })} />);
+    expect(screen.getByRole('button', { name: /Sửa số tờ khai/ }).textContent).toContain('TK-EXT');
+  });
+});

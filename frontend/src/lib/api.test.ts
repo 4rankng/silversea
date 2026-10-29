@@ -388,3 +388,16 @@ describe('SIL-594 — API transport is never cacheable', () => {
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ cache: 'no-store' });
   });
 });
+
+describe('SIL-594 — download transport is never cacheable', () => {
+  afterEach(() => { api.clearToken(); vi.restoreAllMocks(); });
+
+  it('C3b: download GETs (getForText) also ride cache: no-store', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('<html></html>', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.getForText('/reports/export.html');
+
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ cache: 'no-store' });
+  });
+});

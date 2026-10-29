@@ -45,10 +45,19 @@ Fix (một nguồn sự thật — "giá trị vừa lưu là sự thật hiển
   đã xác nhận — ô hiện giá trị vừa lưu NGAY, tự xóa khi row prop mang giá trị
   khác (refetch/external value luôn thắng); đổi row thì echo không rò sang.
 
-Tests: `api.test.ts` pin `cache:'no-store'` · `DispatchDeclarationCell` 3 pin
-SIL-594 (hiện ngay sau save, clear → «Chưa có tờ khai» ngay, server value
-thắng khi refetch land) + contract update assertion seed editor theo giá trị
-vừa lưu · BE unit `api-no-store` (header + next). Red-at-base 5 → green.
+Tests: `api.test.ts` pin `cache:'no-store'` + download GET ·
+`DispatchDeclarationCell` 3 pin SIL-594 (hiện ngay sau save, clear → «Chưa có
+tờ khai» ngay, server value thắng khi refetch land) + 3 lifecycle pins (C5
+double-save race, C6 row-swap leak, C7 external wins) + contract update
+assertion seed editor theo giá trị vừa lưu · BE unit `api-no-store` (header +
+next + wiring scan mount trước mọi route). Red-at-base → green.
+Review độc lập (code-reviewer 30/10, 6 findings): echo key cả 2 giá trị bị
+thay (rapid re-save), guard echo theo rowKey chống leak sang row đổi, 3
+lifecycle pins, wiring scan, download GETs no-store — tất cả fix forward trong
+commit này.
+Provenance: phần lớn code land qua fleet salvage auto-commit `ca9dedd1` +
+fixture `c6853cce` (agent idle giữa các gate run — append-only, không rewrite);
+commit này mang attribution ticket + review fixes + UI evidence.
 Evidence: `qa/2026-10-30_sil594_*` (driver log + screenshots + API identity).
 
 ## 2026-10-28 — fix(cus): SIL-548 (id 615 QA-FAIL round 3) — editor «Sửa cước thu khách» prefill từ giá trị ĐÃ LƯU + khóa editor trên lô ĐÃ ghép
